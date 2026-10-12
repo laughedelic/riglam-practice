@@ -1,0 +1,58 @@
+const {open}=require('./harness.js');
+const D=require('./harness.js').SHOTS;
+const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
+const ORDER={mi:0,'3ab':1,'3ba':2,'4':3,con:4};
+const EMPTY={mi:['anb','bna'],con:['both'],'3ab':['anb'],'3ba':['bna'],'4':[]};
+(async()=>{
+ let {br,pg,errs}=await open({width:390,height:844},{isMobile:true,hasTouch:true});
+ const vis=async s=>await pg.locator(s).first().isVisible();
+ const rel=await pg.evaluate(()=>window.__t.cur.p.relation);
+ await pg.locator('.rels .rel').nth(ORDER[rel]).click(); await pg.waitForTimeout(100);
+ const n=await pg.evaluate(()=>['both','anb','bna','nei'].filter(c=>!({mi:['anb','bna'],con:['both'],'3ab':['anb'],'3ba':['bna'],'4':[]}[window.__t.ui.rel]).includes(c)).length);
+ for(let i=0;i<n;i++){ await pg.fill('#cin','zzz thing '+i); await pg.keyboard.press('Enter'); await pg.waitForTimeout(60); }
+ /* Done on the last cell already shows the result */ await pg.waitForTimeout(150);
+ await pg.evaluate(()=>document.activeElement&&document.activeElement.blur());
+ // result block
+ const chips=await pg.locator('.vchips .vchip').allInnerTexts();
+ ok('chips: Relation, Cells, Examples, Terms (no Why yet)',JSON.stringify(chips.map(s=>s.replace(/[✓✗?\s]+/g,' ').trim().toLowerCase()))==JSON.stringify(['relation','cells','examples','terms']),chips);
+ ok('exactly one panel is open at most',await pg.locator('.vpanel').count()<=1);
+ const sel=await pg.locator('.vchip[aria-selected=true]').count();
+ const first=await pg.evaluate(()=>{const c=[...document.querySelectorAll('.vchip')]; const i=c.findIndex(x=>/bad|open/.test(x.className)); return i;});
+ ok('default: first not-fine chip is open (or none when all fine)',first<0?sel===0:(sel===1&&await pg.locator('.vchip').nth(first).getAttribute('aria-selected')==='true'),{first,sel});
+ const openChip=async i=>{ if(await pg.locator('.vchip').nth(i).getAttribute('aria-selected')!=='true'){ await pg.locator('.vchip').nth(i).click(); await pg.waitForTimeout(60);} };
+ await openChip(2);
+ ok('click Examples: only that panel',await pg.locator('.vpanel').count()===1&&/examples/i.test(await pg.locator('.vpanel').innerText()),await pg.locator('.vpanel').innerText());
+ const exTxt=await pg.locator('.vpanel').innerText();
+ ok('examples line: no semicolon, clause on its own line',!/;/.test(exTxt)&&await pg.evaluate(()=>{const e=document.querySelector('.vpanel .exl'); return !e||getComputedStyle(e).display==='block';}),exTxt);
+ await pg.screenshot({path:D+'v45-ex.png'});
+ await openChip(3);
+ ok('click Terms: Examples panel gone, Terms shown',await pg.locator('.vpanel').count()===1&&!(/examples/i.test(await pg.locator('.vpanel').innerText().then(t=>t.slice(0,12)))),await pg.locator('.vpanel').innerText());
+ await pg.locator('.vchip').nth(3).click(); await pg.waitForTimeout(60);
+ ok('click the open chip: closes',await pg.locator('.vpanel').count()===0);
+ const h1=await pg.evaluate(()=>document.querySelector('.verdict').getBoundingClientRect().height);
+ ok('closed result block is compact (<130px)',h1<130,h1);
+ // explain
+ await pg.locator('#stage .actions button:has-text("xplain")').click(); await pg.waitForTimeout(300);
+ ok('explain opens the Why chip right under the chips',await pg.locator('.vchip[aria-selected=true]').innerText().then(t=>/^why$/i.test(t.trim()))&&await pg.locator('.vpanel .tutor').count()===1,await pg.locator('.vchip[aria-selected=true]').count());
+ const whys=await pg.locator('.grid .qm').count();
+ ok('[?] markers on the cells Claude explained (2: both, neither)',whys===2,whys);
+ await pg.screenshot({path:D+'v45-tutor.png'});
+ await pg.locator('.grid .qm').first().click(); await pg.waitForTimeout(100);
+ const pop=await pg.evaluate(()=>{const p=document.querySelector('.grid .pop'); if(!p) return null; const r=p.getBoundingClientRect(), c=document.querySelector('.card').getBoundingClientRect(), a=document.querySelector('#stage > .actions, .card > .actions'); const ar=a?a.getBoundingClientRect():null; return {top:Math.round(r.top),bottom:Math.round(r.bottom),cardTop:Math.round(c.top),cardBottom:Math.round(c.bottom),actTop:ar&&Math.round(ar.top),left:Math.round(r.left),right:Math.round(r.right),text:p.innerText};});
+ ok('popover opens with Claude\'s line, inside the card, not under the action bar',pop&&pop.top>=pop.cardTop&&(pop.actTop==null||pop.bottom<=pop.actTop+1)&&pop.left>=0&&pop.right<=390&&/clay pot|stone/.test(pop.text),pop);
+ await pg.screenshot({path:D+'v45-pop.png'});
+ await pg.keyboard.press('Escape'); await pg.waitForTimeout(60);
+ ok('Escape closes the popover',await pg.locator('.pop').count()===0);
+ await pg.locator('.grid .qm').nth(1).click(); await pg.waitForTimeout(60);
+ ok('second [?] opens',await pg.locator('.pop').count()===1);
+ await pg.locator('.vchips').click({position:{x:5,y:3}}); await pg.waitForTimeout(60);
+ ok('click outside closes it',await pg.locator('.pop').count()===0);
+ await pg.locator('.grid .qm').first().click(); await pg.waitForTimeout(60); await pg.locator('.popx').click(); await pg.waitForTimeout(60);
+ ok('Close button closes it',await pg.locator('.pop').count()===0);
+ ok('no horizontal overflow on the result',await pg.evaluate(()=>{const c=document.querySelector('.card'); return c.scrollWidth<=c.clientWidth+1;}));
+ const sh=await pg.evaluate(()=>{const c=document.querySelector('.card'); return [c.scrollHeight,c.clientHeight];});
+ out.push('INFO result page scroll '+sh.join(' / '));
+ ok('phone: no page errors',errs.filter(e=>!/ERR_CERT|net::/.test(e)).length===0,errs);
+ await br.close();
+ console.log(out.join('\n'));
+})().catch(e=>{console.log(out.join('\n'));console.log('CRASH',e.message.split('\n').slice(0,8).join(' | '));process.exit(1)});

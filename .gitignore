@@ -1,0 +1,12 @@
+node_modules/
+dist/
+test-results/
+playwright-report/
+blob-report/
+.wrangler/
+*.log
+.DS_Store
+__pycache__/
+tests/legacy/out/
+.data-key
+.cache/

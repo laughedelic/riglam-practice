@@ -1,0 +1,14 @@
+{
+  // Hosting for the installable PWA: Cloudflare Workers with static assets (Cloudflare's current path for new
+  // static sites, and the same project can later gain a Worker script and a D1 database for the shared base).
+  // CI deploys with `wrangler deploy` (production) and `wrangler versions upload` (previews); see docs/DEPLOY.md.
+  "name": "riglam-practice",
+  "compatibility_date": "2026-10-01",
+  // Pinned so that a deploy never re-enables an address that was switched off in the dashboard (for example when
+  // Cloudflare Access is set up), and so wrangler does not warn that it is enabling them by default.
+  "workers_dev": true,
+  "preview_urls": true,
+  "assets": {
+    "directory": "./dist/pwa"
+  }
+}

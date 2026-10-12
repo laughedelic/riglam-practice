@@ -1,0 +1,31 @@
+# Testing
+
+| Layer | Where | Run | What it covers |
+|---|---|---|---|
+| Lint | `eslint.config.js` | `npm run lint` | `src`, `scripts`, new tests. The page code has relaxed rules for empty `catch` blocks and unused variables. The migrated `tests/legacy` files are not linted. |
+| Unit | `tests/unit/*.test.mjs` (`node:test`) | `npm run test:unit` | the artifact page splitter (round trip, refusals), the artifact build's contract (fragment, title in the first 8 KB, nothing but Google Fonts loaded, size budget), the encrypted data format and the split (round trips, wrong key, tampering), the committed data files (no definition in the clear in any tracked file), and the PWA build's contract (open data, encrypted definitions, no notes, noindex) |
+| PWA specs | `tests/e2e/pwa/*.spec.js` (Playwright, phone and desktop) | `npm run test:e2e` | manifest and icons, offline start from the service worker cache, the local `db` in a real browser (CRUD, queries, snapshots, reload, second tab), the practice flow saved to the device, no Claude-only features, same page in both builds (markup and positions), the locked and unlocked states of the definitions (link key, dialog, offline) |
+| Legacy page suite | `tests/legacy`, run by `tests/e2e/legacy.spec.js` | `npm run test:e2e -- --project=legacy` | the regression suite of the page (about 900 checks): every UI state at phone and desktop sizes, tutor, check lab, flags, Blitz, skipping, Review, and layout scans (overflow, clipped text, focus rings) |
+
+Tests that read the definitions need the data key (`RIGLAM_DATA_KEY` or `.data-key`, see [DATA.md](DATA.md)); without it they skip, and the artifact build, the parity spec and the legacy suite cannot run. CI has the key as a secret.
+
+`npm test` builds both outputs first, because the PWA specs run against `vite preview` of `dist/pwa` and the legacy suite loads `dist/artifact/index.html`.
+
+## Browsers
+
+Playwright is pinned to 1.56.1. In the Claude cloud container, Chromium 1194 is preinstalled and matches it (`PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers`), so do not run `playwright install` there. On a laptop and in CI, `npx playwright install --with-deps chromium`.
+
+## The legacy suite
+
+Each file in `tests/legacy` is a node script from the page's earlier test pipeline: it opens the page with `harness.js`, prints `PASS`/`FAIL` lines and exits non-zero on a crash. `legacy.spec.js` runs them as one Playwright test per file and attaches the output.
+
+- `harness.js` wraps `dist/artifact/index.html` in the same document skeleton the artifact frame uses and mocks `window.claude`: `db` (collections `answers`, `debates`, `batches`, `favorites`, `skips`, `labruns`, `flags`) and `sample` (the AI, with hooks such as `window.__reply`, `__labAns`, `__labFail`). Tests reach the page's internals through `window.__t`, which the page exports through its test hook (end of `src/app/app.js`) when the harness defines `window.__riglamTest`. A test that needs another internal adds it to that block.
+- `LAB=1` turns the check lab on in every test (some tests turn it on themselves).
+- Random pairs make a check or two flaky now and then, so a failing file is retried once.
+- The layout scans (`scanx3`, `sweep63`, `scan47`, `scan48`, `ring`) print measurements. `legacy.spec.js` turns them into pass/fail: a finding not in its accepted list fails. The accepted one: an ellipsis on purpose at `debate-rel`. `sweep63` widens every text field by default and checks that nothing passes its container or the page edge; it prints `SWEEP CLEAN` or `FAIL` lines.
+- Not migrated: `test40f_noskips.js` (an old variant kept for reference upstream), `scanx.js` and `scanx2.js` (early scans that no longer match the UI; `scanx3` replaced them).
+- Screenshots the tests take go to `tests/legacy/out/t/` (ignored by git).
+
+## Adding tests
+
+Write new tests as native Playwright specs in `tests/e2e/` (PWA behaviour) or `node:test` files in `tests/unit/`. Keep adding to the legacy suite only when the change is to the page's UI states and the harness already has what you need.

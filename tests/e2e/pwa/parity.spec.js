@@ -1,0 +1,36 @@
+// The PWA and the artifact build share one source. With the same random draw, the same fonts and an empty
+// store, they must show the same page: same markup, same positions.
+import { test, expect } from "../../support/test.js";
+import { routeArtifact, seedRandom } from "../../support/artifact-host.js";
+import { ready } from "../../support/page.js";
+
+async function snapshot(page) {
+  await ready(page);
+  await page.evaluate(async () => { await document.fonts.ready; });
+  return page.evaluate(() => {
+    const boxes = [...document.querySelectorAll("#app [id], #app .rel, #app .brand, #app .btn")].map((n) => {
+      const r = n.getBoundingClientRect();
+      return [n.id || n.className || n.tagName, Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)];
+    });
+    return { html: document.getElementById("app").outerHTML, boxes, scrollW: document.documentElement.scrollWidth, innerW: innerWidth };
+  });
+}
+
+test("same first screen in both builds", async ({ page, browser }, testInfo) => {
+  const viewport = page.viewportSize();
+  await page.addInitScript(seedRandom);
+  await page.goto("/");
+  const pwa = await snapshot(page);
+
+  const ctx = await browser.newContext({ viewport, isMobile: testInfo.project.name === "pwa-phone", hasTouch: testInfo.project.name === "pwa-phone", deviceScaleFactor: 1 });
+  const art = await ctx.newPage();
+  await art.addInitScript(seedRandom);
+  await routeArtifact(art);
+  await art.goto("http://artifact.test/");
+  const artifact = await snapshot(art);
+  await ctx.close();
+
+  expect(artifact.html).toBe(pwa.html);
+  expect(artifact.boxes).toEqual(pwa.boxes);
+  expect(pwa.scrollW).toBeLessThanOrEqual(pwa.innerW);
+});

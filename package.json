@@ -1,0 +1,43 @@
+{
+  "name": "riglam-practice",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Practice app for Buddhist logic and debate (Dudra, Tarig): one source, an installable PWA and a Claude artifact build.",
+  "license": "SEE LICENSE IN LICENSE",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "vite --mode pwa",
+    "build": "npm run build:pwa && npm run build:artifact",
+    "build:pwa": "vite build --mode pwa",
+    "build:artifact": "node scripts/build-artifact.mjs",
+    "preview": "vite preview --mode pwa",
+    "lint": "eslint .",
+    "test": "npm run build && npm run test:unit && npm run test:e2e",
+    "check": "npm run lint && npm test",
+    "artifact:import": "node scripts/artifact-split.mjs import",
+    "artifact:drift": "node scripts/artifact-split.mjs drift",
+    "data:key": "node scripts/data.mjs key",
+    "data:import": "node scripts/data.mjs import",
+    "data:export": "node scripts/data.mjs export",
+    "data:check": "node scripts/data.mjs check",
+    "data:rekey": "node scripts/data.mjs rekey",
+    "icons": "node scripts/make-icons.mjs",
+    "fonts": "node scripts/fetch-fonts.mjs",
+    "test:unit": "node --test \"tests/unit/**/*.test.mjs\"",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "1.56.1",
+    "eslint": "^10.12.0",
+    "globals": "^17.13.0",
+    "sharp": "^0.35.5",
+    "vite": "^8.3.4",
+    "vite-plugin-pwa": "^2.0.0",
+    "workbox-build": "^7.4.1",
+    "workbox-window": "^7.4.1"
+  }
+}
