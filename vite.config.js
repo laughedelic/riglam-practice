@@ -2,16 +2,14 @@
 // scripts/build-artifact.mjs). Both build the same sources in src/app.
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
-import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { includeMarkup } from "./scripts/vite-include-markup.mjs";
-
-const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"));
+import { appVersion } from "./scripts/lib/app-version.mjs";
 
 export default defineConfig({
   // Relative asset paths: the app works from a domain root, a sub-path, or a Pages preview URL.
   base: process.env.BASE_PATH ?? "./",
-  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
+  define: { __APP_VERSION__: JSON.stringify(appVersion) },
   plugins: [
     includeMarkup(fileURLToPath(new URL("./src/app/markup.html", import.meta.url))),
     VitePWA({
