@@ -17,7 +17,8 @@ npm ci
 npm run dev        # the PWA with hot reload at http://localhost:5173 (open it once as .../#k=<key> to unlock the definitions)
 npm run build      # both builds (the artifact build needs the data key, see docs/DATA.md)
 npm test           # builds, then unit tests and browser tests (needs Chromium: npx playwright install chromium)
-npm run check      # lint + everything above
+npm run check:fast # lint, typecheck and unit tests: seconds, no browser
+npm run check      # lint, typecheck + everything above
 ```
 
 In the Claude desktop app, "Preview" starts the same dev server and shows it in the Browser pane (`.claude/launch.json`).
@@ -28,13 +29,13 @@ In the Claude desktop app, "Preview" starts the same dev server and shows it in 
 index.html                 PWA entry (the page markup is included from src/app/markup.html)
 src/app/                   the page, shared by both builds: app.js, app.css, markup.html, felt tiles
 src/data/                  the term data: open JSON, plus the definitions and notes encrypted (docs/DATA.md)
-src/pwa/                   PWA only: local `db` (IndexedDB), runtime shim, service worker registration, fonts
-src/artifact/              artifact only: head (title, font links), data embedding
-scripts/                   build-artifact, artifact-split (import/drift), data (key, import, export), fonts, icons, Vite plugins
-tests/unit/                node:test unit tests (artifact page parts, artifact and PWA build contracts, encrypted data)
+src/platform/              the Platform interface (data, `db`, `sample`) that each build implements
+src/pwa/                   PWA only: platform adapter, local `db` (IndexedDB), key dialog, service worker registration, fonts
+src/artifact/              artifact only: platform adapter (embedded data, `window.claude`), head (title, font links)
+scripts/                   build-artifact, artifact-verify, data (key, import, export), fonts, icons, Vite plugins
+tests/unit/                Vitest unit tests (artifact comparison, artifact and PWA build contracts, encrypted data)
 tests/e2e/                 Playwright: PWA specs, parity with the artifact build, and the legacy page suite
 tests/legacy/              the page's regression suite (harness, 28 test files, layout scans)
-legacy/                    snapshot of the published artifact page that `src/` was last imported from (version 63)
 public/                    icons
 docs/                      architecture, term data and key, artifact loop, deploy, releasing, testing
 .github/workflows/         CI, preview deploys, release
@@ -51,6 +52,6 @@ docs/                      architecture, term data and key, artifact loop, deplo
 
 ## Status
 
-Early: the page is the one developed as a Claude artifact (version 63). There is no server yet, so answers stay on the device and the features that ask Claude (tutor, answer checking) are available only in the artifact build.
+Early: the page is the one developed as a Claude artifact. There is no server yet, so answers stay on the device and the features that ask Claude (tutor, answer checking) are available only in the artifact build.
 
 Licence: AGPL-3.0, see `LICENSE`. The self-hosted fonts in `src/pwa/fonts` (Inter, EB Garamond, Merriweather, Noto Sans Math) are distributed under the SIL Open Font License 1.1 by their authors, via Google Fonts.

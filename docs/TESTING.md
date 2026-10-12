@@ -2,14 +2,15 @@
 
 | Layer | Where | Run | What it covers |
 |---|---|---|---|
-| Lint | `eslint.config.js` | `npm run lint` | `src`, `scripts`, new tests. The page code has relaxed rules for empty `catch` blocks and unused variables. The migrated `tests/legacy` files are not linted. |
-| Unit | `tests/unit/*.test.mjs` (`node:test`) | `npm run test:unit` | the artifact page splitter (round trip, refusals), the artifact build's contract (fragment, title in the first 8 KB, nothing but Google Fonts loaded, size budget), the encrypted data format and the split (round trips, wrong key, tampering), the committed data files (no definition in the clear in any tracked file), and the PWA build's contract (open data, encrypted definitions, no notes, noindex) |
+| Lint | `eslint.config.js` | `npm run lint` | `src`, `scripts`, new tests (typescript-eslint for `.ts`). The page code has relaxed rules for empty `catch` blocks and unused variables. The migrated `tests/legacy` files are not linted. |
+| Types | `tsconfig.json` | `npm run typecheck` | the TypeScript files (`src/platform`, the adapters in `src/pwa` and `src/artifact`, the entries, the unit tests). `app.js` is JavaScript and not checked yet. |
+| Unit | `tests/unit/*.test.ts` (Vitest) | `npm run test:unit` (`test:unit:watch` while editing) | the comparison behind `artifact:verify`, the artifact build's contract (fragment, title in the first 8 KB, nothing but Google Fonts loaded, size budget), the encrypted data format and the split (round trips, wrong key, tampering), the committed data files (no definition in the clear in any tracked file), and the PWA build's contract (open data, encrypted definitions, no notes, noindex) |
 | PWA specs | `tests/e2e/pwa/*.spec.js` (Playwright, phone and desktop) | `npm run test:e2e` | manifest and icons, offline start from the service worker cache, the local `db` in a real browser (CRUD, queries, snapshots, reload, second tab), the practice flow saved to the device, no Claude-only features, same page in both builds (markup and positions), the locked and unlocked states of the definitions (link key, dialog, offline) |
 | Legacy page suite | `tests/legacy`, run by `tests/e2e/legacy.spec.js` | `npm run test:e2e -- --project=legacy` | the regression suite of the page (about 900 checks): every UI state at phone and desktop sizes, tutor, check lab, flags, Blitz, skipping, Review, and layout scans (overflow, clipped text, focus rings) |
 
 Tests that read the definitions need the data key (`RIGLAM_DATA_KEY` or `.data-key`, see [DATA.md](DATA.md)); without it they skip, and the artifact build, the parity spec and the legacy suite cannot run. CI has the key as a secret.
 
-`npm test` builds both outputs first, because the PWA specs run against `vite preview` of `dist/pwa` and the legacy suite loads `dist/artifact/index.html`.
+`npm run check:fast` (lint, typecheck, unit tests) takes seconds and needs no browser; `npm run check` is the full gate. `npm test` builds both outputs first, because the PWA specs run against `vite preview` of `dist/pwa` and the legacy suite loads `dist/artifact/index.html`.
 
 ## Browsers
 
@@ -28,4 +29,4 @@ Each file in `tests/legacy` is a node script from the page's earlier test pipeli
 
 ## Adding tests
 
-Write new tests as native Playwright specs in `tests/e2e/` (PWA behaviour) or `node:test` files in `tests/unit/`. Keep adding to the legacy suite only when the change is to the page's UI states and the harness already has what you need.
+Write new tests as native Playwright specs in `tests/e2e/` (PWA behaviour) or Vitest files in `tests/unit/`. Keep adding to the legacy suite only when the change is to the page's UI states and the harness already has what you need.

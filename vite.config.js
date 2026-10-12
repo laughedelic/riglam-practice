@@ -15,7 +15,7 @@ export default defineConfig({
   plugins: [
     includeMarkup(fileURLToPath(new URL("./src/app/markup.html", import.meta.url))),
     VitePWA({
-      registerType: "prompt", // an update waits until the app is reopened (see src/pwa/register-sw.js)
+      registerType: "prompt", // an update waits until the app is reopened (see src/pwa/register-sw.ts)
       injectRegister: false,
       includeAssets: ["icons/icon.svg", "icons/apple-touch-icon.png"],
       workbox: {

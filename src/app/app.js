@@ -2277,12 +2277,18 @@ function renderDebateStats(s){
 }
 
 /* ---------- boot ---------- */
-render();
-(async function(){
-  try{ const r=await window.__riglam.fetchData(); if(!r.ok) throw 0; DATA=await r.json(); indexData(); buildPool(); }
+// The page knows its host only through the platform it is started with (src/platform/types.ts): the term data and the
+// two capabilities `db` and `sample`, either of which may be missing.
+export function startApp(platform){
+  render();
+  boot(platform);
+  exposeTestHook();
+}
+async function boot(platform){
+  try{ DATA=await platform.loadData(); indexData(); buildPool(); }
   catch(e){ mode="nodata"; render(); return; }
-  try{ db=window.claude?await window.claude.use("db"):null; }catch(e){ db=null; }
-  try{ sample=window.claude?await window.claude.use("sample"):null; }catch(e){ sample=null; }
+  try{ db=await platform.db(); }catch(e){ db=null; }
+  try{ sample=await platform.sample(); }catch(e){ sample=null; }
   if(!db){ gotA=gotB=gotS=true; advance(); mode="quiz"; render(); return; }
   db.collection("batches").orderBy("order","asc").onSnapshot(snap=>{
     batches=snap.docs.map(d=>Object.assign({id:d.id},d.data())); gotB=true; settle();
@@ -2305,7 +2311,7 @@ render();
   db.collection("debates").onSnapshot(snap=>{
     const m={}; snap.docs.forEach(d=>{m[d.id]=d.data();}); debates=m; settle();
   },()=>{});
-})();
+}
 function settle(){
   if(!gotB||!gotA||!gotS) return;
   if(mode==="loading"){ advance(); render(); return; }
@@ -2313,5 +2319,7 @@ function settle(){
 }
 
 /* ---------- test hook (begin): lets the browser tests in tests/ read internals; inert unless a test defines window.__riglamTest ---------- */
+function exposeTestHook(){
 if(typeof window.__riglamTest==="function") window.__riglamTest({get cur(){return cur},get ui(){return ui},get tab(){return tab},get favs(){return favs},get mode(){return mode},get view(){return view},get optsOpen(){return optsOpen},favKey,refOf,render,choose,fbNode,defParts,termsNode,setDefLang,get defLang(){return defLang},get DATA(){return DATA},next,advance,get skips(){return skips},set skips(v){skips=v},skipPair,undoSkip,isSkipped,hiddenKeys,get POOL(){return POOL},nextGenerated,SKIP_DAYS,get lab(){return lab},setLab,labThings,get flags(){return flags},get labruns(){return labruns},labRuns,LAB_MODELS,labRef,labParse,flagId,labAgain,openFlag,saveFlag,removeFlag,setFlagState,get labPause(){return labPause},set labPause(v){labPause=v},get labSpotN(){return labSpotN},set labSpotN(v){labSpotN=v},labJudgeNow,aiCase,aiFlag,decorateAns});
+}
 /* ---------- test hook (end) ---------- */

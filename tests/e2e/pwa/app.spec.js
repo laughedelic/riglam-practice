@@ -12,7 +12,7 @@ async function answerOnPhone(page) {
     await page.waitForTimeout(100);
   }
 }
-const savedAnswers = (page) => page.evaluate(async () => (await (await window.claude.use("db")).collection("answers").get()).size);
+const savedAnswers = (page) => page.evaluate(async () => (await (await window.__riglam.platform.db()).collection("answers").get()).size);
 
 test("the first screen fits the width", async ({ page }) => {
   await page.goto("/");
