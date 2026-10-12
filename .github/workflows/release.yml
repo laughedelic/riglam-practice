@@ -1,8 +1,9 @@
 name: Release
 
 # release-please keeps one open "release" pull request that collects the conventional commits merged to main
-# (feat: and fix: choose the version, CHANGELOG.md is written for you). Merging that pull request tags the
-# release; the jobs below then attach the builds to it and put the PWA on the production address.
+# (feat: and fix: choose the version; the notes go into the pull request and the GitHub release, there is no changelog
+# file). Merging that pull request tags the release; the jobs below then attach the builds to it and put the PWA on
+# the production address.
 
 on:
   push:
