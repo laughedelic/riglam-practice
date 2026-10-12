@@ -18,15 +18,15 @@ The repository is squash-merged, so what counts is the **pull request title**: i
 ## How a release happens
 
 1. Pull requests are squash-merged into `main`.
-2. On every push to `main`, the `release-please` job (`.github/workflows/release.yml`) opens or updates one pull request titled `chore(main): release X.Y.Z`. It changes one file, `.release-please-manifest.json` (the last released version), and its description lists the changes since the last release.
+2. On every push to `main`, the `release-please` job (`.github/workflows/release.yml`) opens or updates one pull request titled `chore(main): release X.Y.Z`. It changes the version in `package.json`, `package-lock.json` and `.release-please-manifest.json` (the last released version), and its description lists the changes since the last release.
 3. Merging that pull request creates the tag `vX.Y.Z` and a GitHub release with the notes.
 4. The `publish` job then builds the PWA from the tag, attaches `riglam-practice-pwa-vX.Y.Z.zip` to the release, and deploys the PWA to production (see [DEPLOY.md](DEPLOY.md)). The artifact page is not attached: it holds the definitions in the clear.
 
 The first release is `0.1.0` (`initial-version` in `release-please-config.json`; the manifest value `0.0.0` means that nothing is released yet). Versions stay below 1.0.0: a breaking change bumps the minor version, a `feat:` too, a `fix:` the patch. To release 1.0.0 deliberately, put `Release-As: 1.0.0` in a commit footer.
 
-The version lives in the manifest only. `package.json` keeps the placeholder `0.0.0`, there is no `CHANGELOG.md` or `version.txt` (release-please writes those if they exist, so do not add them), and the app reads its version from the manifest (`scripts/lib/app-version.mjs`). Tags are plain `vX.Y.Z`.
+The release type is `node`, so the version lives in `package.json` (the app shows it) and the manifest; do not edit it by hand. There is no `CHANGELOG.md` (`skip-changelog`; release-please would write one if it existed, so do not add it). Tags are plain `vX.Y.Z`.
 
-Because the release pull request is created by a workflow, GitHub does not start CI on it when the default token is used. Either merge it without checks (it only changes the version in the manifest) or add the optional `RELEASE_PLEASE_TOKEN` secret (below).
+Because the release pull request is created by a workflow, GitHub does not start CI on it when the default token is used. Either merge it without checks (it only changes version numbers) or add the optional `RELEASE_PLEASE_TOKEN` secret (below).
 
 ## One-time repository settings (only the owner can set these)
 
