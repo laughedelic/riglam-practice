@@ -39,11 +39,11 @@ export function renderSession(){
   s.append(el("span",{text:"Today"}),el("b",{text:String(list.length)}),
     el("span",{text:list.length?(state.tab==="debate"?"debated":"answered")+", "+list.filter(a=>gradeOf(a)==="ok").length+" fully right":"nothing answered yet"}));
 }
-// the star in the narrow top bar (the wide layout has the Favourite button next to Check)
+// the star in the narrow top bar (the wide layout has the Favorite button next to Check)
 function syncFavBtn(){
   const b=$("mfav"), ok=!!(state.db&&state.mode==="quiz"&&state.cur&&state.cur.p&&state.tab!=="review");
   b.hidden=!ok; if(!ok) return;
-  const on=isFav(state.cur.p), t=on?"Remove from favourites":"Add to favourites";
+  const on=isFav(state.cur.p), t=on?"Remove from favorites":"Add to favorites";
   b.replaceChildren(tbIcon("star")); b.setAttribute("aria-pressed",on?"true":"false"); b.setAttribute("aria-label",t); b.title=t+" (F)";
 }
 // the three steps of a narrow screen; go[i] makes step i a button
@@ -90,7 +90,7 @@ function renderNow(){
 // its half: a term too long for one line there first tries text up to 15% smaller, then wraps in its half.
 // A single word too long for its half first tries text up to 20% smaller; failing that it moves the diamond over, just enough
 // for that word; if the other term's words then do not fit, the text shrinks to 13px, and below that long words break.
-// The relation name under the diamond follows it when it moves off centre.
+// The relation name under the diamond follows it when it moves off center.
 export function fitPair(){
   const pr=document.querySelector(".pair"); if(!pr) return;
   const [a,b]=pr.querySelectorAll(".tx"), ch=pr.querySelectorAll(".L");

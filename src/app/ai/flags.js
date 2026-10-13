@@ -7,7 +7,7 @@ import { favSafe } from "../practice/favorites.js";
 import { render } from "../shell/render.js";
 
 /* ---------- flags: any part of any AI answer ---------- */
-// a flag is one document per part: {caseKey, thing, part, model, shown, note, suggest, state}; it can be changed or removed, and it is the labelled data for the model comparison
+// a flag is one document per part: {caseKey, thing, part, model, shown, note, suggest, state}; it can be changed or removed, and it is the labeled data for the model comparison
 export const flagId=c=>"fl_"+favSafe(c.caseKey).slice(0,60)+"_"+hash36([c.caseKey,c.thing||"",c.part,c.model||"",c.n||""].join("|"));
 const flagOf=c=>state.flags[flagId(c)];
 // a render that keeps the chat view where it is scrolled (the overlay is rebuilt and would start at the top again)

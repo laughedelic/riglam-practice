@@ -168,11 +168,11 @@ export function renderDebate(s,c){
   // the coach panel
   if(stage!=="done"){
     recentNode(c,debateList().slice(-5).reverse());
-    c.append(stage==="ask"?kbHints([Wd().ak,Wd().acc.toLowerCase()],[Wd().wk,Wd().why.toLowerCase()],["S","skip"],["F","favourite"]):kbHints(["1–5","relation, checks"],["S","skip"],["F","favourite"]));
+    c.append(stage==="ask"?kbHints([Wd().ak,Wd().acc.toLowerCase()],[Wd().wk,Wd().why.toLowerCase()],["S","skip"],["F","favorite"]):kbHints(["1–5","relation, checks"],["S","skip"],["F","favorite"]));
     return;
   }
   c.append(el("p",{class:"label"},"Result"),debateResult(u,p));
   if(u.saveErr) c.append(el("p",{class:"status",text:u.saveErr}));
   const eb=explainBtn(); if(eb) c.append(el("div",{class:"actions left"},eb));
-  c.append(kbHints(["Enter","next pair"],["F","favourite"]));
+  c.append(kbHints(["Enter","next pair"],["F","favorite"]));
 }

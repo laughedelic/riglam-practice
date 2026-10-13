@@ -199,13 +199,13 @@ function quizWide(s,c){
   s.append(acts);
   if(!state.ui.checked){
     recentNode(c,answerList().slice(-5).reverse());
-    c.append(kbHints(["1–5","relation"],["Enter","next cell"],["S","skip"],["F","favourite"]));
+    c.append(kbHints(["1–5","relation"],["Enter","next cell"],["S","skip"],["F","favorite"]));
     return;
   }
   c.append(el("p",{class:"label"},"Result"), quizResult());
   if(state.ui.saveErr) c.append(el("p",{class:"status",text:state.ui.saveErr}));
   const eb=explainBtn(); if(eb) c.append(el("div",{class:"actions left"},eb));
-  c.append(kbHints(["Enter","next pair"],["F","favourite"]));
+  c.append(kbHints(["Enter","next pair"],["F","favorite"]));
 }
 const SKIPPED=()=>CELLS.filter(k=>REL[state.ui.rel].empty.includes(k));
 export const fillable=()=>CELLS.filter(k=>!REL[state.ui.rel].empty.includes(k));
