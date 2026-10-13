@@ -2,7 +2,7 @@
 // All three are made from the full term data, which the Worker puts together from the open file and the two encrypted
 // course files, opened with its secret (docs/DATA.md). The instructions, the tools and the lookups are the shared code in
 // src/ai-shared, the same that the page runs; the notes are added here and never reach a browser.
-import { GUIDE, makeIndex, tutorTools } from "../src/ai-shared";
+import { GUIDE, finePoints, makeIndex, tutorTools } from "../src/ai-shared";
 import type { DrillData } from "../src/ai-shared";
 import { merge, open, parseKey } from "../src/data/course.js";
 import type { Env } from "./env";
@@ -42,7 +42,6 @@ export async function kitFrom(key: string, sources: Sources): Promise<Kit> {
   const ix = makeIndex(merge(sources.open, definitions, notes) as DrillData);
   const tools = tutorTools(ix);
   const byName = new Map(tools.map((t) => [t.name, t]));
-  const groupNotes = ix.DATA.notes ?? {};
   return {
     guide: GUIDE,
     tools: tools.map((t) => ({ name: t.name, description: t.description, input_schema: t.inputSchema as ToolDef["input_schema"] })),
@@ -51,8 +50,8 @@ export async function kitFrom(key: string, sources: Sources): Promise<Kit> {
       if (!tool) throw new Error(`unknown tool: ${name.slice(0, 60)}`);
       return tool.execute(input);
     },
-    // Category ids come from the request: only a note the data itself has under that id counts ("__proto__" is not one).
-    finePoints: (cats) => [...new Set(cats.flatMap((c) => (Object.hasOwn(groupNotes, c) && Array.isArray(groupNotes[c]) ? groupNotes[c] : [])))],
+    // Category ids come from the request; the shared function counts only the ids the data itself has notes for.
+    finePoints: (cats) => finePoints(ix, cats),
   };
 }
 
