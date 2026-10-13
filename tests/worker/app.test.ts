@@ -296,7 +296,9 @@ describe("POST /api/tutor: budgets", () => {
     await events(first.res);
     const { res, model } = await tutor(s, [{ text: ["ok"] }], { env });
     expect(res.status).toBe(429);
-    expect((await json(res)).error).toEqual({ code: "rate_limited", message: "this device has used its budget for today" });
+    const error = (await json(res)).error;
+    expect(error).toMatchObject({ code: "rate_limited", message: "this device has used its budget for today", scope: "device" });
+    expect(error.resetsAt).toBe(new Date(NOW.getTime() + 14 * 3600 * 1000).toISOString()); // the next UTC midnight
     expect(res.headers.get("retry-after")).toBe(String(14 * 3600));
     expect(model.calls).toHaveLength(0);
     // the refused question left nothing held
@@ -312,7 +314,7 @@ describe("POST /api/tutor: budgets", () => {
     const headers = s.headers({ [HEADER.device]: device, [HEADER.proof]: await makeProof(s.key, device) });
     const { res, model } = await tutor(s, [{ text: ["ok"] }], { env, headers });
     expect(res.status).toBe(429);
-    expect((await json(res)).error.message).toBe("the budget for today is used");
+    expect((await json(res)).error).toMatchObject({ message: "the budget for today is used", scope: "global" });
     expect(model.calls).toHaveLength(0);
   });
 

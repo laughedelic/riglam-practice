@@ -41,13 +41,13 @@ The device id is not a secret and proves nothing alone; anyone with the key can 
 
 Money is counted in micro-dollars (millionths of a dollar) per UTC day, in D1:
 
-1. Before the model is called, the Worker holds back an assumed cost (`RESERVE_USD`) against the global counter and the device's counter, each in one conditional `UPDATE ... WHERE micro + hold <= cap`. Two questions that arrive together cannot both pass a budget that has room for one. If either has no room the answer is `429` with `retry-after` (the seconds to the next UTC midnight) and nothing is held.
+1. Before the model is called, the Worker holds back an assumed cost (`RESERVE_USD`) against the global counter and the device's counter, each in one conditional `UPDATE ... WHERE micro + hold <= cap`. Two questions that arrive together cannot both pass a budget that has room for one. If either has no room the answer is `429` with `retry-after` (the seconds to the next UTC midnight), and the error says whose budget it was (`scope`: `device` or `global`) and when it starts again (`resetsAt`, the next UTC midnight); nothing is held.
 2. When the question ends (answered, cut off, refused, failed, or the page went away), the held amount is replaced by the real cost, from the token counts the API reports. A question that ends in an error is charged for what the model had used.
 3. One line per question goes to `usage_log`: time, device id, kind, model, rounds, token counts, cost, outcome. No text of any question or answer is stored.
 
 If the Worker is stopped between steps 1 and 2 the hold stays, so a lost settlement can only over-charge the budget, never under-charge it.
 
-The hold is an average, not the worst case: a question with several tool rounds can cost more than `RESERVE_USD`, so questions that run at the same moment can together overshoot a budget by up to a few times the hold per question (for the defaults, a device sending many questions at once could pass its 0.40 USD). The daily budgets are therefore soft counters. The hard limit is the spend limit on the Anthropic workspace (step 1 of "Setting up your own"); keep it set, and raise `RESERVE_USD` if you want the counters tighter.
+The hold is an average, not the worst case: a question with several tool rounds can cost more than `RESERVE_USD`, so questions that run at the same moment can together overshoot a budget by up to a few times the hold per question (for the defaults, a device sending many questions at once could pass its daily budget). The daily budgets are therefore soft counters. The hard limit is the spend limit on the Anthropic workspace (step 1 of "Setting up your own"); keep it set, and raise `RESERVE_USD` if you want the counters tighter.
 
 Variables (`wrangler.jsonc`, `vars`; defaults in `worker/config.ts`; a value that is not a sensible number falls back to the default):
 
@@ -57,8 +57,8 @@ Variables (`wrangler.jsonc`, `vars`; defaults in `worker/config.ts`; a value tha
 | `TUTOR_EFFORT` | `medium` | `low`, `medium`, `high`, `xhigh` or `max` |
 | `TUTOR_MAX_TOKENS` | `6000` | output limit per model call |
 | `TUTOR_MAX_ROUNDS` | `4` | model calls per question (tool rounds); on the last one tools are switched off so the model must answer |
-| `DEVICE_DAILY_BUDGET_USD` | `0.40` | per device and UTC day |
-| `GLOBAL_DAILY_BUDGET_USD` | `4` | all devices together |
+| `DEVICE_DAILY_BUDGET_USD` | `1.00` | per device and UTC day |
+| `GLOBAL_DAILY_BUDGET_USD` | `8` | all devices together |
 | `RESERVE_USD` | `0.05` | the hold per question |
 
 Prices are in `worker/prices.ts`, copied from Anthropic's pricing page; update them when the page changes or when a model is added.

@@ -23,8 +23,8 @@
     "TUTOR_EFFORT": "medium",
     "TUTOR_MAX_TOKENS": "6000",
     "TUTOR_MAX_ROUNDS": "4",
-    "DEVICE_DAILY_BUDGET_USD": "0.40",
-    "GLOBAL_DAILY_BUDGET_USD": "4",
+    "DEVICE_DAILY_BUDGET_USD": "1.00",
+    "GLOBAL_DAILY_BUDGET_USD": "8",
     "RESERVE_USD": "0.05"
   },
   // The D1 database for the budget counters (docs/SERVER.md). Migrations are applied by hand:

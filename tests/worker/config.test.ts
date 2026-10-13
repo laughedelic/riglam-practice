@@ -13,8 +13,8 @@ describe("config", () => {
       effort: "medium",
       maxTokens: 6000,
       maxRounds: 4,
-      deviceDailyMicro: 400_000,
-      globalDailyMicro: 4_000_000,
+      deviceDailyMicro: 1_000_000,
+      globalDailyMicro: 8_000_000,
       reserveMicro: 50_000,
     });
   });

@@ -49,6 +49,14 @@ export type ErrorCode =
   | "refused" // the model declined to answer
   | "unavailable"; // the tutor is off, not set up, or failed on the server
 
+/** Whose daily budget a `rate_limited` refusal came from: this device's own, or the one shared by everybody. */
+export type BudgetScope = "device" | "global";
+
+/** The body of an error answer. A refusal for a used-up budget also says whose budget it was and when it starts again (UTC midnight, ISO). */
+export interface ErrorBody {
+  error: { code: ErrorCode; message: string; scope?: BudgetScope; resetsAt?: string };
+}
+
 /** Server-sent events of the tutor response, in the order they come. */
 export type TutorEvent =
   | { type: "delta"; text: string }

@@ -6,7 +6,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import { API, HEADER, LIMITS, type ErrorCode, type Health, type TutorEvent } from "../src/ai/protocol";
+import { API, HEADER, LIMITS, type BudgetScope, type ErrorCode, type Health, type TutorEvent } from "../src/ai/protocol";
 import { checkProof } from "../src/ai/proof";
 import { dayOf, prune, reserve, settle, tutorSwitchedOn } from "./budget";
 import { readConfig } from "./config";
@@ -30,8 +30,8 @@ export function createApp(deps: Deps) {
   const now = deps.now ?? (() => new Date());
   const app = new Hono<{ Bindings: Env }>();
 
-  const fail = (code: ErrorCode, message: string, headers?: Record<string, string>) =>
-    new Response(JSON.stringify({ error: { code, message } }), { status: STATUS[code], headers: { "content-type": "application/json", "cache-control": "no-store", ...headers } });
+  const fail = (code: ErrorCode, message: string, headers?: Record<string, string>, extra: { scope?: BudgetScope; resetsAt?: string } = {}) =>
+    new Response(JSON.stringify({ error: { code, message, ...extra } }), { status: STATUS[code], headers: { "content-type": "application/json", "cache-control": "no-store", ...headers } });
 
   // The app and its server share an origin, so a request that names another one is not from the app.
   app.use("/api/*", async (c, next) => {
@@ -81,7 +81,12 @@ export function createApp(deps: Deps) {
     const held = await reserve(env.DB!, { day, device, micro: config.reserveMicro, deviceCap: config.deviceDailyMicro, globalCap: config.globalDailyMicro });
     if (!held.ok) {
       const tomorrow = Date.parse(day) + 86_400_000;
-      return fail("rate_limited", held.scope === "device" ? "this device has used its budget for today" : "the budget for today is used", { "retry-after": String(Math.max(60, Math.ceil((tomorrow - when.getTime()) / 1000))) });
+      return fail(
+        "rate_limited",
+        held.scope === "device" ? "this device has used its budget for today" : "the budget for today is used",
+        { "retry-after": String(Math.max(60, Math.ceil((tomorrow - when.getTime()) / 1000))) },
+        { scope: held.scope, resetsAt: new Date(tomorrow).toISOString() },
+      );
     }
     if (Math.random() < 0.02) later(c, prune(env.DB!, day).catch(() => {}));
 

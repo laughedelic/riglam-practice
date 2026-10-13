@@ -27,8 +27,8 @@ export function readConfig(env: Env): Config {
     effort,
     maxTokens: Math.round(number(env.TUTOR_MAX_TOKENS, 6000, 500, 32000)),
     maxRounds: Math.round(number(env.TUTOR_MAX_ROUNDS, 4, 1, 8)),
-    deviceDailyMicro: micro(number(env.DEVICE_DAILY_BUDGET_USD, 0.4, 0, 1000)),
-    globalDailyMicro: micro(number(env.GLOBAL_DAILY_BUDGET_USD, 4, 0, 10000)),
+    deviceDailyMicro: micro(number(env.DEVICE_DAILY_BUDGET_USD, 1, 0, 1000)),
+    globalDailyMicro: micro(number(env.GLOBAL_DAILY_BUDGET_USD, 8, 0, 10000)),
     reserveMicro: micro(number(env.RESERVE_USD, 0.05, 0.001, 5)),
   };
 }
