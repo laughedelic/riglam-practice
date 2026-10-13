@@ -7,7 +7,7 @@ body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;ba
 img{max-width:100%}
 [hidden]:not([hidden=until-found i]){display:none!important}
 
-/* The dialog that asks for the study group's key when the definitions are locked (src/pwa/unlock.js). It uses the page's own
+/* The dialog that asks for the study group's key when the definitions are locked (src/pwa/unlock.ts). It uses the page's own
    tokens and square corners, and sits near the top so the on-screen keyboard does not cover it. */
 #unlock{box-sizing:border-box;width:min(28rem,calc(100vw - 32px));margin:max(16px,6vh) auto auto;padding:20px;border:1.5px solid var(--ink-muted,#4d5260);border-radius:0;background:var(--paper,#fff);color:var(--ink,#000);font:15px/1.5 var(--body,sans-serif)}
 #unlock::backdrop{background:rgba(16,22,43,.5)}

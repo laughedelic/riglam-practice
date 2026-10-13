@@ -1,5 +1,5 @@
-// The PWA's stand-in for the artifact `db` capability (src/pwa/local-db.js), exercised in the real browser
-// through window.claude.use("db"), the way the page uses it.
+// The PWA's stand-in for the artifact `db` capability (src/pwa/local-db.ts), exercised in the real browser
+// through the platform the app was started with (window.__riglam.platform.db()), the way the page uses it.
 import { test, expect } from "../../support/test.js";
 import { ready } from "../../support/page.js";
 
@@ -10,16 +10,16 @@ const open = async (page) => {
 // each test uses its own collection so tests running in parallel (and left-over data) never collide
 const col = (testInfo) => `t${testInfo.workerIndex}x${testInfo.parallelIndex}x${Date.now()}`;
 
-test("the runtime offers db and no sample", async ({ page }) => {
+test("the platform offers db and no sample", async ({ page }) => {
   await open(page);
-  expect(await page.evaluate(async () => [!!(await window.claude.use("db")), await window.claude.use("sample"), await window.claude.use("nothing")])).toEqual([true, null, null]);
+  expect(await page.evaluate(async () => [!!(await window.__riglam.platform.db()), await window.__riglam.platform.sample()])).toEqual([true, null]);
 });
 
 test("set, get, update, delete", async ({ page }, testInfo) => {
   await open(page);
   const c = col(testInfo);
   const r = await page.evaluate(async (c) => {
-    const db = await window.claude.use("db");
+    const db = await window.__riglam.platform.db();
     const ref = db.collection(c).doc("a");
     const out = {};
     out.missing = (await ref.get()).exists;
@@ -53,7 +53,7 @@ test("queries order, filter and limit", async ({ page }, testInfo) => {
   await open(page);
   const c = col(testInfo);
   const r = await page.evaluate(async (c) => {
-    const db = await window.claude.use("db");
+    const db = await window.__riglam.platform.db();
     const k = db.collection(c);
     await Promise.all([["a", 3, "x"], ["b", 1, "y"], ["c", 2, "x"], ["d", undefined, "y"]].map(([id, n, g]) => k.doc(id).set(n === undefined ? { g } : { n, g })));
     const ids = async (q) => (await q.get()).docs.map((d) => d.id);
@@ -74,7 +74,7 @@ test("onSnapshot delivers the current state, then every change", async ({ page }
   await open(page);
   const c = col(testInfo);
   const seen = await page.evaluate(async (c) => {
-    const db = await window.claude.use("db");
+    const db = await window.__riglam.platform.db();
     const k = db.collection(c);
     const log = [];
     let un;
@@ -99,10 +99,10 @@ test("onSnapshot delivers the current state, then every change", async ({ page }
 test("documents survive a reload", async ({ page }, testInfo) => {
   await open(page);
   const c = col(testInfo);
-  await page.evaluate(async (c) => { await (await window.claude.use("db")).collection(c).doc("kept").set({ v: 42 }); }, c);
+  await page.evaluate(async (c) => { await (await window.__riglam.platform.db()).collection(c).doc("kept").set({ v: 42 }); }, c);
   await page.reload();
   await ready(page);
-  expect(await page.evaluate(async (c) => (await (await window.claude.use("db")).collection(c).doc("kept").get()).data(), c)).toEqual({ v: 42 });
+  expect(await page.evaluate(async (c) => (await (await window.__riglam.platform.db()).collection(c).doc("kept").get()).data(), c)).toEqual({ v: 42 });
 });
 
 test("a second tab sees changes made in the first", async ({ page, context }, testInfo) => {
@@ -111,10 +111,10 @@ test("a second tab sees changes made in the first", async ({ page, context }, te
   await open(other);
   const c = col(testInfo);
   await other.evaluate(async (c) => {
-    const db = await window.claude.use("db");
+    const db = await window.__riglam.platform.db();
     window.__got = [];
     db.collection(c).onSnapshot((s) => window.__got.push(s.size));
   }, c);
-  await page.evaluate(async (c) => { await (await window.claude.use("db")).collection(c).doc("x").set({ v: 1 }); }, c);
+  await page.evaluate(async (c) => { await (await window.__riglam.platform.db()).collection(c).doc("x").set({ v: 1 }); }, c);
   await expect.poll(() => other.evaluate(() => window.__got.at(-1))).toBe(1);
 });

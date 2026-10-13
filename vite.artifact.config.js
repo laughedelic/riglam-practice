@@ -20,7 +20,7 @@ export default {
     cssCodeSplit: false,
     assetsInlineLimit: Number.MAX_SAFE_INTEGER,
     lib: {
-      entry: resolve(root, "src/entry-artifact.js"),
+      entry: resolve(root, "src/entry-artifact.ts"),
       formats: ["iife"],
       name: "Riglam",
       fileName: () => "app.js",
