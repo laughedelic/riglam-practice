@@ -1,5 +1,5 @@
 // The page running in the installed app: the practice flow against the real local storage, no AI features
-// (there is no server yet), and no sideways scrolling.
+// while no server answers (tutor.spec.js has the server), and no sideways scrolling.
 import { test, expect } from "../../support/test.js";
 import { ready, relOptions, isPhone, overflow } from "../../support/page.js";
 

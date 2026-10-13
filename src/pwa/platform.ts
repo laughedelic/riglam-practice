@@ -1,16 +1,19 @@
 // PWA build: stands in for the Claude artifact frame.
 //   db      local IndexedDB store (./local-db.ts)
-//   sample  not available yet (no server): the page hides the tutor, the check lab and "Explain". Only `npm run dev` has one, a stand-in
-//           for the model (./dev-sample.ts); `?ai=off` in the address takes it away there too.
+//   sample  not available yet (no server): the page hides the check lab. Only `npm run dev` has one, a stand-in for the model
+//           (./dev-sample.ts); `?ai=off` in the address takes it away there too.
+//   tutor   the app's own server (./tutor.ts), when it has the tutor on and this device has the study group's key
 import dataUrl from "../data/drill-data.json?url";
 import definitionsUrl from "../data/course-definitions.enc?url";
 import { open, merge, lock } from "../data/course.js";
 import type { DrillData, Platform, Sample } from "../platform/types";
 import { createLocalDb } from "./local-db";
+import { createTutor, tutorIsOn } from "./tutor";
 import { takeLinkKey, storedKey, storeKey, forgetKey, showUnlock } from "./unlock";
 
 const db = createLocalDb();
 const link = takeLinkKey(); // first of all: a key in the address leaves the address bar at once
+let groupKey: string | null = null; // the key, once it has opened the definitions: the proof for the tutor is made with it
 
 async function readDefinitions(key: string) {
   const res = await fetch(definitionsUrl);
@@ -32,6 +35,7 @@ async function loadData(): Promise<DrillData> {
   if (key) {
     try {
       const definitions = await readDefinitions(key);
+      groupKey = key;
       storeKey(key);
       return merge(data, definitions);
     } catch (e) {
@@ -59,4 +63,6 @@ export const pwaPlatform: Platform = {
   loadData,
   db: async () => db,
   sample,
+  // Only with the key (the server would refuse the request anyway) and only when the server says its tutor is on: otherwise the page hides the tutor.
+  tutor: async () => (groupKey && (await tutorIsOn()) ? createTutor(groupKey) : null),
 };

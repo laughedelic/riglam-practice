@@ -10,6 +10,7 @@ export const state = {
   db: null,
   sample: null,
   xfer: {},      // what the "Your data" row of Options keeps between renders (src/ui/data-transfer.ts)
+  tutor: null,   // a question to the app's own server (platform.tutor), when the place has one; `sample` is used first
   batches: [],
   answers: {},
   gotB: false,

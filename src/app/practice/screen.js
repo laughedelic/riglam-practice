@@ -3,6 +3,7 @@ import { aiCase, aiFlag, decorateAns, flagEditorNode } from "../ai/flags.js";
 import { labItem } from "../ai/lab-panel.js";
 import { NAME_CELL, VERDICT_RE, ask, fillAns } from "../ai/tutor.js";
 import { CELL_NAME } from "../../ai-shared/prompts.ts";
+import { canAsk } from "../core/ask.js";
 import { $, L, el } from "../core/dom.js";
 import { CELLS, ORDER, REL, cellLabel, lcRel, notaOf, notaParts } from "../core/rel.js";
 import { gradeOf } from "../core/util.js";
@@ -149,7 +150,8 @@ export function resultBlock(r,head,items){
     chips,
     cur?el("div",{class:"vpanel",id:"vpanel",role:"tabpanel","aria-labelledby":"vt-"+cur.key},cur.body()):null);
 }
-export const tutorItem=()=>state.ui.chat?{key:"tutor",label:"Why",st:"none",body:()=>isWide()?renderTutor():inlineExplain()}:null;
+// Also shown when the first question failed (no conversation was kept), so that the message says why nothing came back.
+export const tutorItem=()=>state.ui.chat||state.ui.chatErr?{key:"tutor",label:"Why",st:"none",body:()=>isWide()?renderTutor():inlineExplain()}:null;
 export const termsItem=p=>({key:"terms",label:"Terms",st:"none",body:()=>termsNode(p)});
 function quizResult(){
   const p=state.cur.p, r=state.ui.res, k=REL[p.relation], ex=explainParts();
@@ -162,7 +164,7 @@ function quizResult(){
     {key:"ex",label:"Examples",st:r.exBad?"bad":r.exOpen?"open":"ok",body:()=>el("p",null,el("b",{text:"Examples: "}),exLine(r,CELLS),state.ui.exLate?" Time ran out; cells you had not reached count as empty.":null)},
     termsItem(p),tutorItem(),labItem()].filter(Boolean));
 }
-export const explainBtn=()=>state.sample&&state.ui.checked&&!state.ui.explained&&!state.ui.ctl?el("button",{class:"btn ghost",type:"button",onclick:()=>ask(null,"explain"),text:state.ui.res.exOpen?"Check and explain":"Explain"}):null;
+export const explainBtn=()=>canAsk()&&state.ui.checked&&!state.ui.explained&&!state.ui.ctl?el("button",{class:"btn ghost",type:"button",onclick:()=>ask(null,"explain"),text:state.ui.res.exOpen?"Check and explain":"Explain"}):null;
 export const nextBtn=()=>el("button",{class:"btn",type:"button",onclick:next,text:state.cur.retry&&!state.retryQ.length?"Back to new pairs":"Next pair"});
 export const kbHints=(...rows)=>el("div",{class:"kbh"},rows.map(([k,t])=>el("span",null,el("b",{text:k}),t)));
 export function recentNode(c,list){
@@ -257,8 +259,8 @@ export function fillTurn(node,t,lean){
   node.replaceChildren(el("p",{class:"status",text:"Claude's notes on the cells and the relation are on the ? marks."}));
 }
 function inlineExplain(){
-  if(!state.ui.chat) return null;
-  const box=el("div",{class:"tutor"}), first=state.ui.chat.find(t=>t.role==="assistant");
+  if(!state.ui.chat&&!state.ui.chatErr) return null;
+  const box=el("div",{class:"tutor"}), first=(state.ui.chat||[]).find(t=>t.role==="assistant");
   if(first){ const a=el("div",{class:"ans",id:first.pending&&state.view!=="chat"?"ans-live":null}); fillTurn(a,first,true); decorateAns(a,first,state.ui.chat.indexOf(first),false); box.append(a); }
   if(state.ui.chatErr&&state.view!=="chat") box.append(el("p",{class:"status",text:state.ui.chatErr}));
   return box;
@@ -266,7 +268,7 @@ function inlineExplain(){
 // the left button of the action row, beside Next pair: Explain, while Claude answers Stop, afterwards the follow-up chat
 export function tutorAct(){
   const eb=explainBtn(); if(eb) return eb;
-  if(!state.ui.chat||!state.sample) return null;
+  if(!state.ui.chat||!canAsk()) return null;
   if(state.ui.ctl) return el("button",{class:"btn ghost",type:"button",onclick:()=>state.ui.ctl&&state.ui.ctl.abort(),text:"Stop"});
   const n=state.ui.chat.filter(t=>t.role==="user"&&!t.hidden).length;
   return el("button",{class:"btn ghost stage-chat",type:"button",onclick:openChat,text:n?"Discuss with AI · "+n:"Discuss with AI"});
@@ -292,7 +294,7 @@ export function revealTutor(){ if(isWide()||state.view==="chat") return; const t
 function renderTutor(){
   const box=el("div",{class:"tutor"}); tutorTurns(box,false,true);
   if(state.ui.ctl) box.append(el("div",{class:"actions"},el("button",{class:"btn ghost",type:"button",onclick:()=>state.ui.ctl&&state.ui.ctl.abort(),text:"Stop"})));
-  else if(state.sample) box.append(askRow("ask-in"));
+  else if(canAsk()) box.append(askRow("ask-in"));
   return box;
 }
 export function askRow(id){
