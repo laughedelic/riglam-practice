@@ -64,4 +64,17 @@ async function open(vp,opts={}){
   if(lab||process_env_lab) await pg.evaluate(()=>{ window.__t.labSpotN=1; });
   return {br,pg,errs};
 }
-module.exports={open,SHOTS};
+// Waits until `read` (a function run in the page) returns the same value on `times` reads in a row, `every` ms apart, and
+// returns that value. A test uses it before it measures a position, so that a render that arrives late (the saved answer
+// coming back from the db) or a transition in progress cannot change the layout between two measurements. It stops waiting
+// after `timeout` ms and returns the last value, so a layout that never settles shows up as a failing check, not a hang.
+async function settled(pg,read,{every=40,times=3,timeout=3000}={}){
+  const t0=Date.now(); let last, same=0;
+  for(;;){
+    const v=JSON.stringify(await pg.evaluate(read));
+    same=v===last?same+1:1; last=v;
+    if(same>=times||Date.now()-t0>timeout) return v===undefined?undefined:JSON.parse(v);
+    await pg.waitForTimeout(every);
+  }
+}
+module.exports={open,SHOTS,settled};

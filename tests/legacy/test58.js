@@ -1,4 +1,4 @@
-const {open}=require('./harness.js');
+const {open,settled}=require('./harness.js');
 const {ringScan}=require('./ring.js');
 const D=require('./harness.js').SHOTS;
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
@@ -253,18 +253,26 @@ const other=r=>r==='mi'?'con':'mi';
   const qchip=pg.locator('.vchip:has-text("Questions")');
   if(await qchip.getAttribute('aria-selected')!=='true') await qchip.click();
   await pg.waitForTimeout(100);
+  // The first wrong question is open to begin with, and which one it is depends on the pair. Tapping an open row closes it, which makes the page
+  // shorter, and the browser then moves the scroll up to the new end of the page. So start with every row closed: opening a row only makes the
+  // page longer, and the scroll must not move at all.
+  const openRow=()=>pg.evaluate(()=>[...document.querySelectorAll('.qs')].findIndex(b=>b.getAttribute('aria-expanded')==='true'));
+  const rows=pg.locator('.qs');
+  const o0=await openRow(); if(o0>=0){ await rows.nth(o0).click(); await pg.waitForTimeout(100); }
+  ok('the rows are all closed to begin with',await openRow()===-1);
   // scroll so that the rows are in view and the page is scrolled down a good way
   const sc=await pg.evaluate(()=>{const s=document.getElementById('stage'), r=document.querySelector('.qs').getBoundingClientRect(), sr=s.getBoundingClientRect(); s.scrollTop=Math.max(0,s.scrollTop+(r.top-sr.top)-120); return {top:Math.round(s.scrollTop),max:s.scrollHeight-s.clientHeight};});
   ok('the result is longer than the screen and scrolled down (rows in view)',sc.max>40&&sc.top>40,sc);
-  const before=await pg.evaluate(()=>Math.round(document.getElementById('stage').scrollTop));
-  const rows=pg.locator('.qs');
-  const n=await rows.count();
-  await rows.nth(1).click(); await pg.waitForTimeout(150);
-  const after=await pg.evaluate(()=>Math.round(document.getElementById('stage').scrollTop));
-  ok('opening a question row keeps the scroll where it was',Math.abs(after-before)<=2,[before,after]);
-  await rows.nth(2).click(); await pg.waitForTimeout(150);
-  const after2=await pg.evaluate(()=>Math.round(document.getElementById('stage').scrollTop));
-  ok('opening another row does not jump either',Math.abs(after2-before)<=2,[before,after2]);
+  const scroll=()=>settled(pg,()=>{const s=document.getElementById('stage'); return {top:Math.round(s.scrollTop),max:Math.round(s.scrollHeight-s.clientHeight)};});
+  const before=await scroll();
+  // dispatchEvent, not click(): click() first scrolls the row into view, which would move the very scroll position this check reads
+  await rows.nth(1).dispatchEvent('click');
+  const after=await scroll();
+  ok('opening a question row keeps the scroll where it was',after.top===before.top,[before,after]);
+  // opening another row closes the first, and the page may get shorter; the scroll stays unless it is past the new end of the page
+  await rows.nth(2).dispatchEvent('click');
+  const after2=await scroll();
+  ok('opening another row does not jump either',Math.abs(after2.top-Math.min(before.top,after2.max))<=2,[before,after2]);
   // a new pair starts at the top
   await pg.evaluate(()=>{document.getElementById('stage').scrollTop=0;});
   await pg.locator('#stage .actions .btn',{hasText:/next pair/i}).click(); await pg.waitForTimeout(200);
