@@ -6,6 +6,7 @@ import type { Cat, DrillData, Item } from "../ai-shared/data";
 import type { AnswerView, DebateAnswer } from "../ai-shared/card";
 import type { CellId, PairLike, RelKey } from "../ai-shared/relations";
 import type { Db, Sample } from "../platform/types";
+import type { TransferSlot } from "../ui/data-transfer";
 
 /** A pair of phenomena to compare. Generated pairs have an id starting with "g-"; older batches carry labels only. */
 export interface Pair extends PairLike {
@@ -196,6 +197,8 @@ export interface State {
   skips: Record<string, SkipDoc>;
   labruns: Record<string, LabRunDoc>;
   flags: Record<string, FlagDoc>;
+  /** what the "Your data" row of Options keeps between renders (src/ui/data-transfer.ts) */
+  xfer: TransferSlot;
   gotB: boolean;
   gotA: boolean;
   gotS: boolean;
