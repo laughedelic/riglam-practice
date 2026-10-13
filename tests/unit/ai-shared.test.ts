@@ -143,6 +143,9 @@ test("the fine points of categories are the notes of each, in order, without rep
   expect(finePoints(ix, ["mind", null, undefined, "nope"])).toEqual([]);
   expect(finePoints(makeIndex({ ...data(), notes: { a: ["Same."], b: ["Same.", "Other."] } }), ["a", "b"])).toEqual(["Same.", "Other."]);
   expect(finePoints(makeIndex({ ...data(), notes: undefined }), ["form"])).toEqual([]); // the open data has no notes
+  // ids that come from a request: only the data's own keys, and only lists
+  expect(finePoints(ix, ["__proto__", "constructor", "toString", "hasOwnProperty"])).toEqual([]);
+  expect(finePoints(makeIndex({ ...data(), notes: { a: "not a list" as unknown as string[], b: ["Fine."] } }), ["a", "b"])).toEqual(["Fine."]);
 });
 
 test("the practice card says when time ran out", () => {

@@ -36,9 +36,14 @@ export interface AnswerView {
   };
 }
 
-/** The fine points the sources add for these categories, without repeats, in order. They are in the full data only. */
+/**
+ * The fine points the sources add for these categories, without repeats, in order. They are in the full data only.
+ * Only ids that are the data's own keys count, so an id that arrives in a request ("__proto__", "constructor") finds nothing.
+ */
 export function finePoints(ix: DataIndex, catIds: readonly (string | null | undefined)[]): string[] {
-  return [...new Set(catIds.flatMap(c=>c&&ix.DATA.notes&&ix.DATA.notes[c]||[]))];
+  const notes=ix.DATA.notes;
+  const of=(c: string): string[] => notes&&Object.hasOwn(notes,c)&&Array.isArray(notes[c])?notes[c]:[];
+  return [...new Set(catIds.flatMap(c=>c?of(c):[]))];
 }
 
 /** The fine points of the pair's two categories as the tail of the card; empty when there are none. */
