@@ -7,7 +7,7 @@ import { favSafe } from "../practice/favorites.js";
 import { render } from "../shell/render.js";
 
 /* ---------- flags: any part of any AI answer ---------- */
-// a flag is one document per part: {caseKey, thing, part, model, shown, note, suggest, state}; it can be changed or removed, and it is the labelled data for the model comparison
+// a flag is one document per part: {caseKey, thing, part, model, shown, note, suggest, state}; it can be changed or removed, and it is the labeled data for the model comparison
 export const flagId=c=>"fl_"+favSafe(c.caseKey).slice(0,60)+"_"+hash36([c.caseKey,c.thing||"",c.part,c.model||"",c.n||""].join("|"));
 const flagOf=c=>state.flags[flagId(c)];
 // a render that keeps the chat view where it is scrolled (the overlay is rebuilt and would start at the top again)
@@ -23,8 +23,10 @@ export function openFlag(c,where){
 export function saveFlag(){
   const F=state.ui.flagEdit; if(!F) return;
   const id=flagId(F.c), had=state.flags[id], now=new Date().toISOString();
-  const doc=JSON.parse(JSON.stringify({id,caseKey:F.c.caseKey,thing:F.c.thing||"",part:F.c.part,model:F.c.model||"",runId:F.c.runId||null,n:F.c.n||null,shown:String(F.c.shown||"").slice(0,600),
-    note:F.note.trim().slice(0,800),suggest:F.suggest.trim().slice(0,300),pair:F.c.pair||null,at:had?had.at:now,updatedAt:now,state:had?had.state:"new"}));
+  /** @type {import("../types.ts").FlagDoc} */
+  const draft={id,caseKey:F.c.caseKey,thing:F.c.thing||"",part:F.c.part,model:F.c.model||"",runId:F.c.runId||null,n:F.c.n||null,shown:String(F.c.shown||"").slice(0,600),
+    note:F.note.trim().slice(0,800),suggest:F.suggest.trim().slice(0,300),pair:F.c.pair||null,at:had?had.at:now,updatedAt:now,state:had?had.state:"new"};
+  const doc=JSON.parse(JSON.stringify(draft)); // without the undefined fields
   state.flags[id]=doc; state.ui.flagEdit=null; renderKeep(); refocusFlag(id);
   if(state.db) flagWrite(id,()=>put("flags",id,doc),()=>{ if(had) state.flags[id]=had; else delete state.flags[id]; });
 }

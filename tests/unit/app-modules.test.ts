@@ -54,15 +54,17 @@ test("shared state lives in `state`: no module-level let or var outside state.js
   }
 });
 
-test("core/ and state.js depend only on each other and on src/ai-shared", () => {
+const SHARED = ["../ai-shared/", "../domain/"];
+
+test("core/ and state.js depend only on each other, on src/ai-shared and on src/domain", () => {
   for (const f of files.filter((f) => rel(f).startsWith("core/") || rel(f) === "state.js")) {
-    for (const i of importsOf(f)) expect(i === "state.js" || i.startsWith("core/") || i.startsWith("../ai-shared/"), `${rel(f)} imports ${i}`).toBe(true);
+    for (const i of importsOf(f)) expect(i === "state.js" || i.startsWith("core/") || SHARED.some((d) => i.startsWith(d)), `${rel(f)} imports ${i}`).toBe(true);
   }
 });
 
-test("the page imports nothing from outside src/app except src/ai-shared and src/ui", () => {
+test("the page imports nothing from outside src/app except src/ai-shared, src/domain and src/ui", () => {
   for (const f of files) {
-    for (const i of importsOf(f)) if (i.startsWith("../")) expect(i.startsWith("../ai-shared/") || i.startsWith("../ui/"), `${rel(f)} imports ${i}`).toBe(true);
+    for (const i of importsOf(f)) if (i.startsWith("../")) expect(SHARED.some((d) => i.startsWith(d)) || i.startsWith("../ui/"), `${rel(f)} imports ${i}`).toBe(true);
   }
 });
 

@@ -10,11 +10,11 @@ import { closeChat } from "./chat.js";
 import { toggleOpts } from "./options.js";
 import { render } from "./render.js";
 
-document.addEventListener("click",e=>{ if(state.ui&&state.ui.pop&&!(e.target.closest&&e.target.closest(".pop,.why"))){ state.ui.pop=null; render(); } });
+document.addEventListener("click",e=>{ if(state.ui&&state.ui.pop&&!(/** @type {Element} */(e.target).closest&&/** @type {Element} */(e.target).closest(".pop,.why"))){ state.ui.pop=null; render(); } });
 document.addEventListener("keydown",e=>{
   if(e.key==="Escape"){ if(state.optsOpen){ toggleOpts(false); return; } if(state.view==="chat"){ closeChat(); return; } if(state.ui&&state.ui.pop){ state.ui.pop=null; render(); return; } }
   if(state.mode!=="quiz"||!state.ui||state.optsOpen||state.view||e.metaKey||e.ctrlKey||e.altKey) return;
-  const t=e.target&&e.target.tagName;
+  const t=e.target&&/** @type {Element} */(e.target).tagName;
   if((e.key==="f"||e.key==="F")&&!e.shiftKey&&t!=="INPUT"&&t!=="TEXTAREA"&&state.db&&state.cur&&state.cur.p&&state.tab!=="review"){ e.preventDefault(); toggleFav(state.cur.p); return; }
   if(state.tab==="practice"&&!state.ui.debate){
     if(!state.ui.checked&&t!=="INPUT"&&/^[1-5]$/.test(e.key)&&(isWide()||!state.ui.rel||state.ui.open)){ e.preventDefault(); choose(ORDER[+e.key-1]); }

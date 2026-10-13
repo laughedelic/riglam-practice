@@ -31,10 +31,10 @@ const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.
  ok('Enter on the last cell shows the result at once: no review list, no Check step',await pg.evaluate(()=>window.__t.ui.checked===true)&&await pg.locator('#stage .crows').count()===0&&!(await pg.locator('#stage .btn').allInnerTexts()).some(t=>/^check$/i.test(t.trim())),await pg.locator('#stage .btn').allInnerTexts());
  ok('result step current; verdict, table (4 cells) and note',(await pg.locator('#steps button.on').innerText()).toLowerCase().includes('result')&&await vis('.verdict')&&await pg.locator('#stage .grid .cell').count()===4);
  ok('tab bar back after typing',await vis('.tabbar'));
- ok('star in the top bar, no favourite button in the card',await vis('#mfav')&&await pg.locator('#stage .fav').count()===0);
+ ok('star in the top bar, no favorite button in the card',await vis('#mfav')&&await pg.locator('#stage .fav').count()===0);
  await pg.screenshot({path:D+'n-3result.png'});
  await pg.click('#mfav'); await pg.waitForTimeout(80);
- ok('star toggles the favourite',(await pg.locator('#mfav').getAttribute('aria-pressed'))==='true'&&await pg.evaluate(()=>getComputedStyle(document.querySelector('#mfav .tbi')).fill!=='none')&&(await pg.evaluate(()=>Object.keys(window.__S.favorites).length))===1);
+ ok('star toggles the favorite',(await pg.locator('#mfav').getAttribute('aria-pressed'))==='true'&&await pg.evaluate(()=>getComputedStyle(document.querySelector('#mfav .tbi')).fill!=='none')&&(await pg.evaluate(()=>Object.keys(window.__S.favorites).length))===1);
  // explain inline
  await pg.locator('#stage .actions button:has-text("xplain")').click(); await pg.waitForTimeout(250);
  ok('explanation inline on the result page',await pg.locator('#stage .tutor .ans').count()===1&&!(await vis('#over')));
@@ -66,7 +66,7 @@ const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.
  await pg.locator('.rseg button').nth(1).click(); await pg.waitForTimeout(100);
  ok('Mistakes part',/Mistakes/i.test(await pg.locator('.rpane .label').first().innerText()));
  await pg.locator('.rseg button').nth(2).click(); await pg.waitForTimeout(100);
- ok('Favourites part lists the favourite',await pg.locator('.rpane .favs > li').count()===1);
+ ok('Favorites part lists the favorite',await pg.locator('.rpane .favs > li').count()===1);
  await pg.screenshot({path:D+'n-7fav.png'});
  // options
  await pg.click('#mopt'); await pg.waitForTimeout(100);
