@@ -229,7 +229,7 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
         return () => { dead = true; unlisten(col, emit); };
       },
       collection: (sub: string) => collectionRef(`${path}/${sub}`),
-    } as DocRef;
+    };
   }
 
   function listen(col: string, fn: () => void) {

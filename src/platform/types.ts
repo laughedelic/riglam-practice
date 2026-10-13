@@ -47,6 +47,11 @@ export interface Query {
   onSnapshot(next: (snap: QuerySnapshot) => void, error?: (e: unknown) => void): Unsubscribe;
 }
 
+/** The result of `DocRef.acquire`: a lease on the document, or the time the current holder's lease ends. */
+export type Lease =
+  | { acquired: true; version: number; expiresAt: string; holder: string }
+  | { acquired: false; expiresAt: string };
+
 export interface DocRef {
   id: string;
   path: string;
@@ -55,6 +60,10 @@ export interface DocRef {
   update(data: Doc): Promise<void>;
   delete(): Promise<void>;
   onSnapshot(next: (snap: DocSnapshot) => void, error?: (e: unknown) => void): Unsubscribe;
+  /** Takes a lease on the document for `ttlMs` (1 s to 10 min, 30 s by default) so that one holder at a time works on it. The page does not use it. */
+  acquire(options: { holder: string; ttlMs?: number }): Promise<Lease>;
+  /** A collection under this document (`collection/id/sub`). The page does not use it. */
+  collection(sub: string): CollectionRef;
 }
 
 export interface CollectionRef extends Query {

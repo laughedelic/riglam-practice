@@ -32,7 +32,7 @@ npm run build:artifact
 npm run artifact:verify -- /path/to/page.html
 ```
 
-The comment with the commit and the document skeleton the tool adds around a page are ignored, so a build of another commit with the same sources is "the same". When the pages differ, the command prints where each part first differs. A change made to the published page outside the repo is carried into `src/` by hand (the diff shows where), and tests and a rebuild come before the next publish.
+The comment with the commit and the document skeleton the tool adds around a page (doctype, `html`, `head`, `meta` and `body` tags, the frame's own style) are ignored, so a build of another commit with the same sources is "the same". Anything else outside the page, such as an element before the title or text after the script, is reported as a difference in `wrapper`. When the pages differ, the command prints where each part first differs. A change made to the published page outside the repo is carried into `src/` by hand (the diff shows where), and tests and a rebuild come before the next publish.
 
 ## The iteration loop
 
