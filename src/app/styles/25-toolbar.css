@@ -1,0 +1,16 @@
+/* ---------- version 62 ---------- */
+/* the toolbar icons share one line style: 24 px, stroke 1.75, outline when off, filled when on */
+.tbi{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linejoin:round;stroke-linecap:round;flex:none;display:block}
+.bz[aria-checked="true"] .tbi,.ib[aria-pressed="true"] .tbi,.ib.hot .tbi polygon{fill:currentColor}
+.ib.hot{color:var(--ink)}
+.ib:disabled{opacity:.38;cursor:default}
+.mbar .brand{min-width:0}
+.mbar .bz{margin-left:-6px}
+.mbar .sp{margin-inline:-10px}
+/* the hint after a skip: under the skip icon, no scrim, outside every card; the notch points at the icon */
+.skiphint{position:fixed;z-index:6;display:flex;align-items:center;gap:4px;max-width:min(380px,calc(100vw - 24px));min-height:44px;padding:0 4px 0 12px;background:var(--paper);border:1.5px solid var(--ink);box-shadow:3px 3px 0 var(--ink);font:400 13px/1.4 var(--text-serif);color:var(--ink-muted)}
+.skiphint[hidden]{display:none}
+.skiphint::before{content:"";position:absolute;top:-7.5px;right:calc(var(--nx,40px) - 6px);width:10px;height:10px;background:var(--paper);border-top:1.5px solid var(--ink);border-left:1.5px solid var(--ink);transform:rotate(45deg)}
+.skiphint .skipmsg{flex:1;min-width:0}
+.skiphint .skipundo{position:relative;flex:none;min-height:44px;padding:0 12px;border:0;background:transparent;font:700 13px/1 var(--body);color:var(--ink);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.skiphint .skipundo:focus-visible{box-shadow:var(--focus-ring)}

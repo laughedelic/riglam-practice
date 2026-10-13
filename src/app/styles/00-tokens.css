@@ -1,0 +1,39 @@
+/* Styled with the "Logic and Debate" design system (design/README.md): booklet register for the working
+   surface (paper between crimson bands, square corners, rhombus marks) and the textured crimson edge bands.
+   An app layout without page scroll: narrow = top bar, steps, one working area, tab bar; wide = rail, workspace, coach panel.
+   The relation chip between A and B is the chapter diamond. */
+:root{
+  --paper:#ffffff; --paper-tint:#fdf3e2; --ink:#000000; --ink-muted:#4d5260; --faint:#80869a; --line:#d9dce5;
+  --heading:#2f5496; --marigold:#faaf3f; --on-marigold:#000000; --lapis:#3155a4; --on-lapis:#ffffff;
+  --vermilion:#e74536; --on-vermilion:#000000; --vermilion-ink:#c2301f;
+  --cover-indigo:#6768c1; --cover-saffron:#f9ba13; --cover-crimson:#b83545; --cover-red:#e6341f;
+  --band-colour:var(--cover-crimson);
+  /* felt grain per cover colour: grey tiles (128 = neutral) laid over the colour with soft-light */
+  --grain-indigo:url("../felt-indigo.png") 0 0/120px 120px; --grain-saffron:url("../felt-saffron.png") 0 0/154px 154px;
+  --grain-crimson:url("../felt-crimson.png") 0 0/147px 147px; --grain-strength:1;
+  --good:var(--heading); --good-soft:#e8eef8; --bad:var(--vermilion-ink); --bad-soft:#fde8e5; --warn:#8a5300; --warn-soft:#fdf3e2;
+  --focus-ring:0 0 0 2px #ffffff, 0 0 0 4px #3155a4;
+  /* cell states: green for right (page or Claude), grey for not checked, yellow for unsure */
+  --cell-ok:#2f7a4a; --cell-ok-soft:#e3f2e7; --cell-open:#5f6577; --cell-open-soft:#eff0f3;
+  --cell-uns:#8a5300; --cell-uns-soft:#fff1d6; --cell-uns-edge:#faaf3f;
+  --display:"Inter","Helvetica Neue",Arial,sans-serif;
+  --serif:"EB Garamond",Garamond,"Times New Roman",serif;
+  --text-serif:"Merriweather",Georgia,serif;
+  --body:"Inter","Helvetica Neue",Arial,sans-serif;
+  --math:"Noto Sans Math","STIX Two Math","Cambria Math","Inter",sans-serif;
+  --band:24px;
+  --rhombus:polygon(50% 0,100% 50%,50% 100%,0 50%);
+  --twin:polygon(50% 0,100% 38.462%,85% 50%,100% 61.538%,50% 100%,0 61.538%,15% 50%,0 38.462%);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#10162b; --paper-tint:#1a2343; --ink:#f3efe6; --ink-muted:#a9b1c6; --faint:#6b7590; --line:#2e3a5f;
+  --heading:#9db4e8; --vermilion-ink:#ff8a75; --good-soft:#1b2a50; --bad-soft:#3a1d26; --warn:#faaf3f; --warn-soft:#2c2618;
+  --cell-ok:#8fd0a4; --cell-ok-soft:#173326; --cell-open:#a9b1c6; --cell-open-soft:#1f2740;
+  --cell-uns:#faaf3f; --cell-uns-soft:#2c2618; --cell-uns-edge:#c88a2a;
+  --focus-ring:0 0 0 2px #10162b, 0 0 0 4px #faaf3f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#10162b; --paper-tint:#1a2343; --ink:#f3efe6; --ink-muted:#a9b1c6; --faint:#6b7590; --line:#2e3a5f;
+  --heading:#9db4e8; --vermilion-ink:#ff8a75; --good-soft:#1b2a50; --bad-soft:#3a1d26; --warn:#faaf3f; --warn-soft:#2c2618;
+  --cell-ok:#8fd0a4; --cell-ok-soft:#173326; --cell-open:#a9b1c6; --cell-open-soft:#1f2740;
+  --cell-uns:#faaf3f; --cell-uns-soft:#2c2618; --cell-uns-edge:#c88a2a;
+  --focus-ring:0 0 0 2px #10162b, 0 0 0 4px #faaf3f; color-scheme:dark}
