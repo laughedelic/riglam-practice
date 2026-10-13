@@ -73,6 +73,6 @@ The term data (the Dudra terms, their classification chains, the everyday-items 
 `src/app/app.css` carries the "Logic and Debate" design system tokens it uses (booklet palette, felt per cover colour, rhombus marks) inline, as the artifact always did.
 ## Known gaps
 
-- No server: no answer checking by Claude, no tutor chat, no check lab, no shared base (the page hides these when `sample` is `null`).
+- The server's tutor ([SERVER.md](SERVER.md)) is not connected to the page yet: answer checking by Claude, the tutor chat and the check lab are available only in the artifact build, and there is no shared base (the page hides these when `sample` is `null`).
 - No import of the answers collected in the artifact into the installed app, and no sync between devices.
 - `app.js` is one JavaScript module that is not type-checked yet; its three lint warnings (unused variables) are left as found. The adapters, the platform types and the tests are TypeScript (`npm run typecheck`).

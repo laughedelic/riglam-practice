@@ -32,8 +32,11 @@ src/data/                  the term data: open JSON, plus the definitions and no
 src/platform/              the Platform interface (data, `db`, `sample`) that each build implements
 src/pwa/                   PWA only: platform adapter, local `db` (IndexedDB), key dialog, service worker registration, fonts
 src/artifact/              artifact only: platform adapter (embedded data, `window.claude`), head (title, font links)
+worker/                    the server: a Cloudflare Worker for /api/* (tutor access check, spend budgets), D1 schema
+src/ai/                    the contract between page and server (protocol, access proof), shared by both
 scripts/                   build-artifact, artifact-verify, data (key, import, export), fonts, icons, Vite plugins
 tests/unit/                Vitest unit tests (artifact comparison, artifact and PWA build contracts, encrypted data, the shape of src/app)
+tests/worker/              Vitest tests of the server with stand-ins for D1 and the model API
 tests/e2e/                 Playwright: PWA specs, parity with the artifact build, and the legacy page suite
 tests/legacy/              the page's regression suite (harness, 28 test files, layout scans)
 public/                    icons
@@ -48,10 +51,11 @@ docs/                      architecture, term data and key, artifact loop, deplo
 - [Testing](docs/TESTING.md): the layers, how to run them, the legacy suite.
 - [The term data](docs/DATA.md): open and encrypted parts, the key, how to refresh them.
 - [Deploy](docs/DEPLOY.md): hosting, previews, one-time setup.
+- [The server](docs/SERVER.md): the tutor Worker, access proof, budgets, setup, tests.
 - [Releasing](docs/RELEASING.md): conventional commits and release-please.
 
 ## Status
 
-Early: the page is the one developed as a Claude artifact. There is no server yet, so answers stay on the device and the features that ask Claude (tutor, answer checking) are available only in the artifact build.
+Early: the page is the one developed as a Claude artifact. Answers stay on the device. A small server for the tutor exists but the page does not use it yet, so the features that ask Claude (tutor, answer checking) are available only in the artifact build.
 
 Licence: AGPL-3.0, see `LICENSE`. The self-hosted fonts in `src/pwa/fonts` (Inter, EB Garamond, Merriweather, Noto Sans Math) are distributed under the SIL Open Font License 1.1 by their authors, via Google Fonts.
