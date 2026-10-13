@@ -1,21 +1,25 @@
 // The "Your data" row of the Options screen: export everything the page keeps to a file, and import such a file.
 // The logic is in ../store/transfer.ts; this file is the buttons, the preview of what an import would do, and the messages.
-// The Options screen is rebuilt on every render, so the state of an import in progress lives here, outside the nodes.
+// The Options screen is rebuilt on every render, so the state of an import in progress lives in a slot the caller keeps, outside the nodes.
 
 import type { Db } from "../platform/types";
 import { applyImport, exportData, fileName, MAX_FILE_BYTES, parseDataFile, planImport, serialize, TransferError, type Counts, type ImportPlan } from "../store/transfer";
 
 type El = (tag: string, props?: Record<string, any> | null, ...kids: any[]) => HTMLElement;
 
-type State =
+export type State =
   | { kind: "idle"; note?: string; bad?: boolean; reload?: boolean }
   | { kind: "busy"; note: string }
   | { kind: "preview"; plan: ImportPlan };
 
-let state: State = { kind: "idle" };
 // Rebuilding the Options screen drops the focused control, so a change of state says where the focus should land next time the row is built.
 type Focus = "export" | "import" | "summary" | "status";
-let wantFocus: Focus | null = null;
+
+/** What the row remembers between renders. The page keeps one on its shared state (`state.xfer`), so that no module holds state of its own. */
+export interface TransferSlot {
+  state?: State;
+  focus?: Focus | null;
+}
 
 const WORDS: Record<string, [string, string]> = {
   answers: ["answer", "answers"],
@@ -82,8 +86,9 @@ function pickFile(): Promise<File | null> {
   });
 }
 
-export function dataTransferControls(db: Db, el: El, rerender: () => void): HTMLElement {
-  const set = (s: State, focus: Focus | null = null) => { state = s; wantFocus = focus; rerender(); };
+export function dataTransferControls(db: Db, el: El, rerender: () => void, slot: TransferSlot = {}): HTMLElement {
+  const state: State = slot.state ?? { kind: "idle" };
+  const set = (s: State, focus: Focus | null = null) => { slot.state = s; slot.focus = focus; rerender(); };
   const fail = (e: unknown) => set({ kind: "idle", bad: true, note: e instanceof TransferError ? e.message : "That did not work. Nothing was changed." }, "status");
 
   async function doExport() {
@@ -149,8 +154,8 @@ export function dataTransferControls(db: Db, el: El, rerender: () => void): HTML
     if (state.kind === "idle" && state.reload) box.append(el("div", { class: "xfer" }, el("button", { type: "button", class: "btn ghost", onclick: () => location.reload() }, "Reload")));
   }
   // The screen is being built right now; once it is in the page, the focus goes where the last change of state asked.
-  const want = wantFocus && targets[wantFocus];
-  wantFocus = null;
+  const want = slot.focus && targets[slot.focus];
+  slot.focus = null;
   if (want) queueMicrotask(() => { if (want.isConnected) want.focus({ preventScroll: false }); });
   return box;
 }

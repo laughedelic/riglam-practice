@@ -1,0 +1,73 @@
+// The local store when IndexedDB refuses a write: the page must not go on showing a document that a reload would lose.
+import { describe, expect, it } from "vitest";
+import { createLocalDb } from "../../src/pwa/local-db";
+
+/** An IndexedDB stand-in that keeps rows in an array and can be told to abort writes. */
+function stub() {
+  const control = { fail: false, failNext: 0 };
+  const rows: { path: string; col: string; id: string; data: unknown }[] = [];
+  const store = {
+    index: () => ({ getAll: (col: string) => ({ result: rows.filter((r) => r.col === col) }) }),
+    get: (path: string) => ({ result: rows.find((r) => r.path === path) }),
+    put: (r: (typeof rows)[number]) => { if (!control.fail && !control.failNext) rows.push(r); return {}; },
+    delete: () => ({}),
+  };
+  const db = {
+    transaction: (_store: string, mode: string) => {
+      const t: { objectStore: () => typeof store; oncomplete?: () => void; onabort?: () => void; error?: unknown } = { objectStore: () => store };
+      const fails = mode === "readwrite" && (control.fail || control.failNext > 0); // decided when the transaction starts
+      if (mode === "readwrite" && control.failNext > 0) control.failNext -= 1;
+      setTimeout(() => {
+        if (mode === "readwrite" && fails) { t.error = new Error("quota"); t.onabort?.(); } else t.oncomplete?.();
+      });
+      return t;
+    },
+  };
+  const factory = {
+    open: () => {
+      const req: { result?: unknown; onsuccess?: () => void } = {};
+      setTimeout(() => { req.result = db; req.onsuccess?.(); });
+      return req;
+    },
+  } as unknown as IDBFactory;
+  return { factory, control };
+}
+
+describe("a write that could not be saved", () => {
+  it("is rejected and does not stay in memory", async () => {
+    const { factory, control } = stub();
+    const db = createLocalDb({ indexedDB: factory, channel: false });
+    control.fail = true;
+    const ref = db.doc("answers/a1");
+    await expect(ref.set({ v: 1 })).rejects.toMatchObject({ code: "unavailable" });
+    expect((await ref.get()).exists).toBe(false);
+  });
+
+  it("puts the earlier copy back, and tells the listeners", async () => {
+    const { factory, control } = stub();
+    const db = createLocalDb({ indexedDB: factory, channel: false });
+    const ref = db.doc("answers/a1");
+    await ref.set({ v: 1 });
+    const seen: unknown[] = [];
+    db.collection("answers").onSnapshot((s) => seen.push(s.docs.map((d) => d.data())));
+    control.fail = true;
+    await expect(ref.set({ v: 2 })).rejects.toBeTruthy();
+    await new Promise((r) => setTimeout(r, 5));
+    expect((await ref.get()).data()).toEqual({ v: 1 });
+    expect(seen.at(-1)).toEqual([{ v: 1 }]);
+    await expect(ref.delete()).rejects.toBeTruthy();
+    expect((await ref.get()).data()).toEqual({ v: 1 });
+  });
+
+  it("leaves a newer write of the same document alone", async () => {
+    const { factory, control } = stub();
+    const db = createLocalDb({ indexedDB: factory, channel: false });
+    const ref = db.doc("answers/a1");
+    await ref.set({ v: 1 });
+    control.failNext = 1; // the first of the two writes that follow is refused
+    const first = ref.set({ v: 2 }).catch(() => "failed");
+    await ref.set({ v: 3 });
+    expect(await first).toBe("failed");
+    expect((await ref.get()).data()).toEqual({ v: 3 });
+  });
+});
