@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 env:
-  WRANGLER_VERSION: 4.149.0
+  WRANGLER_VERSION: 4.150.0
 
 jobs:
   # The checks that need no browser: lint, types, both builds, the unit tests and the hosting config.
