@@ -17,7 +17,7 @@ What differs between the builds is kept out of `src/app`:
 
 | | PWA | Artifact |
 |---|---|---|
-| The platform (`loadData`, `db`, `sample`) | `src/pwa/platform.ts`: `db` is the local store, `sample` is `null` | `src/artifact/platform.ts`: `db` and `sample` come from `window.claude`, which the artifact frame provides |
+| The platform (`loadData`, `db`, `sample`) | `src/pwa/platform.ts`: `db` is the local store, `sample` is `null` (in `npm run dev` a stand-in, see below) | `src/artifact/platform.ts`: `db` and `sample` come from `window.claude`, which the artifact frame provides |
 | Term data | the open data (`drill-data.json`, plain) and the encrypted definitions (`course-definitions.enc`), both precached; the key comes from the shared link (`src/pwa/platform.ts`, `src/pwa/unlock.ts`); the notes are not included | everything, merged at build time with the data key (`scripts/vite-full-data.mjs`), embedded in the page's script |
 | Fonts | self-hosted woff2 files (`src/pwa/fonts`, made by `npm run fonts` from the same Google Fonts link) | the Google Fonts link in `src/artifact/head.html` |
 | Felt tiles | files in `dist/pwa/assets` | data URIs in the page's CSS |
@@ -51,6 +51,7 @@ The page does not know which build runs it. Each entry file calls `startApp(plat
 - `loadData()`: the term data. When it rejects, the page shows its "no data" screen.
 - `db()`: the document store, or `null`. Without it the page runs, but saves nothing.
 - `sample()`: model calls, or `null`. Without it the page hides the tutor, Explain and the check lab.
+  In `npm run dev` the PWA has a stand-in (`src/pwa/dev-sample.ts`): it calls no model and answers with fixed text in the shape the page reads (the lines of an explanation, a verdict for each example the page could not check, the check lab's JSON), streamed word by word, so these parts can be built and their layout tried without a key or a server. `?ai=off` in the address takes it away, `?ai=slow` streams slowly, `?ai=rate_limited` and `?ai=error` make it fail as the page's error messages expect. The stand-in is imported behind `import.meta.env.DEV`, so no build contains it; `tests/unit/pwa-build.test.ts` checks `dist/pwa`.
 
 The shapes of `db` and `sample` are the artifact runtime's (`collection/doc/where/orderBy/limit/onSnapshot`; one call from a prompt or turns), so the artifact adapter passes `window.claude` through and the PWA implements the same interface locally. The page does not branch on the build. The PWA entry also leaves the platform at `window.__riglam.platform` for the browser tests and the console.
 
