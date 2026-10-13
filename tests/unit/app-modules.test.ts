@@ -13,14 +13,13 @@ function sources(dir = root): string[] {
 const files = sources();
 const rel = (f: string) => relative(root, f).split("\\").join("/");
 
-/** The modules a file imports, as paths relative to src/app (an import of code outside src/app, such as src/ui, is not a page module). */
+/** The modules a file imports, as paths relative to src/app (code outside src/app comes back as "../..."). */
 function importsOf(file: string): string[] {
   const text = readFileSync(file, "utf8");
   const out: string[] = [];
   for (const m of text.matchAll(/^import\s+(?:[^"']*?from\s+)?["']([^"']+)["'];?/gm)) {
     if (!m[1].startsWith(".")) continue;
-    const r = rel(resolve(dirname(file), m[1]));
-    if (!r.startsWith("..")) out.push(r);
+    out.push(rel(resolve(dirname(file), m[1])));
   }
   return out;
 }
@@ -61,9 +60,9 @@ test("core/ and state.js depend only on each other and on src/ai-shared", () => 
   }
 });
 
-test("the page imports nothing from outside src/app except src/ai-shared", () => {
+test("the page imports nothing from outside src/app except src/ai-shared and src/ui", () => {
   for (const f of files) {
-    for (const i of importsOf(f)) if (i.startsWith("../")) expect(i.startsWith("../ai-shared/"), `${rel(f)} imports ${i}`).toBe(true);
+    for (const i of importsOf(f)) if (i.startsWith("../")) expect(i.startsWith("../ai-shared/") || i.startsWith("../ui/"), `${rel(f)} imports ${i}`).toBe(true);
   }
 });
 
