@@ -29,10 +29,12 @@ export function labSubscribe(){
   try{ labSubscribeNow(); }catch(e){}          // the lab is optional: a failing subscription must never stop the page from starting
 }
 function labSubscribeNow(){
-  state.db.collection("labruns").orderBy("at","desc").limit(240).onSnapshot(snap=>{ const m={}; snap.docs.forEach(d=>{m[d.id]=d.data();}); const same=Object.keys(m).sort().join()===Object.keys(state.labruns).sort().join(); state.labruns=m; if(!same) labDataIn(); },()=>{});
+  state.db.collection("labruns").orderBy("at","desc").limit(240).onSnapshot(snap=>{
+    /** @type {Record<string, any>} */
+    const m={}; snap.docs.forEach(d=>{m[d.id]=d.data();}); const same=Object.keys(m).sort().join()===Object.keys(state.labruns).sort().join(); state.labruns=m; if(!same) labDataIn(); },()=>{});
   state.db.collection("flags").orderBy("updatedAt","desc").limit(300).onSnapshot(snap=>{
     if(state.flagPending) return;
-    const m={}; snap.docs.forEach(d=>{m[d.id]=d.data();}); const same=JSON.stringify(Object.keys(m).sort().map(k=>[k,m[k].state,m[k].updatedAt]))===JSON.stringify(Object.keys(state.flags).sort().map(k=>[k,state.flags[k].state,state.flags[k].updatedAt]));
+    /** @type {Record<string, any>} */ const m={}; snap.docs.forEach(d=>{m[d.id]=d.data();}); const same=JSON.stringify(Object.keys(m).sort().map(k=>[k,m[k].state,m[k].updatedAt]))===JSON.stringify(Object.keys(state.flags).sort().map(k=>[k,state.flags[k].state,state.flags[k].updatedAt]));
     state.flags=m; if(!same) labDataIn();
   },()=>{});
 }
@@ -43,7 +45,7 @@ export function labRef(){
   const lines=state.DATA.cats.map(c=>{
     const names=c.labels.slice(1,6).join(", ");
     if(c.kind==="dudra"){
-      const t=state.DATA.terms[c.term]||{}, d=String(t.d||"(no definition in the booklet)").replace(/\s*\((?:tables|Dampilon)\)\s*$/,"").slice(0,320);
+      const t=state.DATA.terms[c.term]||/** @type {any} */({}), d=String(t.d||"(no definition in the booklet)").replace(/\s*\((?:tables|Dampilon)\)\s*$/,"").slice(0,320);
       return "- "+c.id+": \""+c.labels[0]+"\" (Dudra term "+c.term+"; "+c.type+") Definition: "+d+(names?" Also called: "+names+".":"");
     }
     return "- "+c.id+": \""+c.labels[0]+"\" (everyday feature; "+c.type+")";

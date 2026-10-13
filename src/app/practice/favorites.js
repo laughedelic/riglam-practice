@@ -50,7 +50,7 @@ export function favSection(s){
   const sec=el("div",{class:"section"},el("p",{class:"label"},"Favourites",el("span",{class:"hint",text:list.length?list.length+" saved":"star a pair to keep it here"})));
   if(!list.length) sec.append(el("p",{class:"empty-note",text:"Press the star (or F) on a pair while you practise. It stays here with its relation and examples, whether or not you answered it right."}));
   else sec.append(el("ul",{class:"favs"},list.map(f=>{
-    const p=f.pair||{a:f.a,b:f.b,relation:f.relation,ex:{},why:{}}, k=REL[p.relation]||REL[f.relation];
+    const p=f.pair||/** @type {import("../types.ts").Pair} */({a:f.a,b:f.b,relation:f.relation,ex:{},why:{}}), k=REL[p.relation]||REL[f.relation];
     const cell=c=>{
       const ref=refOf(p,c);
       if(ref) return el("div",{class:"cell","aria-label":cellLabel(c,p)},el("span",{class:"cx",text:ref}));
