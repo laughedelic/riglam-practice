@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { expect, test } from "vitest";
 import {
-  CELL_NAME, DEBATE_ASK, FIRST_ASK, GUIDE, cardBody, cardNotes, catByLabel, catFacts, explainAsk, finePoints, makeIndex, matchItem, norm, pairCats, qPlain, termFacts, tutorCard, tutorTools,
+  CELL_NAME, DEBATE_ASK, FIRST_ASK, GUIDE, american, cardBody, cardNotes, catByLabel, catFacts, explainAsk, finePoints, makeIndex, matchItem, norm, pairCats, qPlain, termFacts, tutorCard, tutorTools,
 } from "../../src/ai-shared";
 import type { AnswerView, DrillData, PairLike } from "../../src/ai-shared";
 import { state } from "../../src/app/state.js";
@@ -15,20 +15,26 @@ const data = (): DrillData => ({
     Form: { name: "Form", ch: "III", wylie: "gzugs", ru: "рупа", d: "(Made up) the first term", d_ru: "(выдумано) первый термин", mi: ["Matter"], contra: ["Mind"], note: "See [[Matter|matter]] and [[Mind]]." },
     Matter: { name: "Matter", ch: "III", aliases: ["Stuff"], overlaps: ["Mind"], included_in: ["Form"] },
     Mind: { name: "Mind", ch: "V", ru: "ум" },
+    Color: { name: "Color", ch: "III", aliases: ["Hue term"] },
+    "Odor source": { name: "Odor source", ch: "III" },
   },
   chains: { Form: ["Form", "Thing"], Mind: ["Mind", "Thing"] },
   cats: [
     { id: "form", kind: "dudra", term: "Form", labels: ["forms", "bodies of matter"], type: "form" },
     { id: "mind", kind: "dudra", term: "Mind", labels: ["minds"], type: "mind" },
     { id: "wood", kind: "everyday", labels: ["wooden things"], type: "form: things made of wood" },
+    { id: "col", kind: "dudra", term: "Color", labels: ["colors", "hues"], type: "color (visible form)" },
+    { id: "odr", kind: "dudra", term: "Odor source", labels: ["smells", "odors"], type: "odor (form)" },
   ],
   items: [
     { n: "a wooden chair", t: "Form", c: ["form", "wood"] },
-    { n: "your neighbour", t: "Person", c: [] },
+    { n: "your neighbor", t: "Person", c: [] },
+    { n: "the aging of a body", t: "Non-associated compositional factor", c: [] },
+    { n: "a gray stone", t: "Form", c: ["form"] },
     { n: "the horn of a rabbit", t: "Non-existent", c: [], ne: true },
   ],
   bodySkip: [],
-  aliases: { chair: "a wooden chair", "wooden chair": "your neighbour" },
+  aliases: { chair: "a wooden chair", "wooden chair": "your neighbor" },
   notes: { form: ["A fine point about forms."], wood: ["Another fine point."] },
 });
 const ix = makeIndex(data());
@@ -50,11 +56,27 @@ const debate = (extra: Partial<AnswerView> = {}): AnswerView => ({
 test("the index finds items with or without an article, in the plural, and never lets an alias shadow an item", () => {
   expect(matchItem(ix, "A Wooden Chair!")?.n).toBe("a wooden chair");
   expect(matchItem(ix, "wooden chair")?.n).toBe("a wooden chair"); // the item's own name, not the alias of that name
-  expect(matchItem(ix, "your neighbour")?.n).toBe("your neighbour");
-  expect(matchItem(ix, "neighbour")?.n).toBe("your neighbour");
+  expect(matchItem(ix, "your neighbor")?.n).toBe("your neighbor");
+  expect(matchItem(ix, "neighbor")?.n).toBe("your neighbor");
   expect(matchItem(ix, "")).toBeNull();
   expect(matchItem(ix, null)).toBeNull();
   expect(matchItem(ix, "a table")).toBeNull();
+});
+
+test("the British spellings of the words the data has find the American item, label and term", () => {
+  expect(american("colours, odour, neighbour, ageing, grey, greys, greyish")).toBe("colors, odor, neighbor, aging, gray, grays, grayish");
+  expect(american("greyhound")).toBe("greyhound");
+  expect(matchItem(ix, "Your Neighbour!")?.n).toBe("your neighbor");
+  expect(matchItem(ix, "neighbour")?.n).toBe("your neighbor");
+  expect(matchItem(ix, "the ageing of a body")?.n).toBe("the aging of a body");
+  expect(matchItem(ix, "a grey stone", true)?.n).toBe("a gray stone");
+  expect(catByLabel(ix, "colours")).toBe("col");
+  expect(catByLabel(ix, "Colour")).toBe("col");
+  expect(catByLabel(ix, "odours")).toBe("odr");
+  expect(pairCats(ix, { a: "colours", b: "odours", relation: "con" })).toEqual(["col", "odr"]);
+  const term = (name: string) => tutorTools(ix)[0].execute({ name }) as Record<string, unknown>;
+  expect(term("Colour")).toMatchObject({ found: true, term: "Color" });
+  expect(term("odour source")).toMatchObject({ found: true, term: "Odor source" });
 });
 
 test("an alias names an item only when aliases are allowed", () => {
@@ -224,6 +246,17 @@ test("in the real data every category label and item name finds its own category
   for (const it of real.items) expect(matchItem(rix, it.n, true)?.n, it.n).toBe(it.n);
   for (const it of real.items) for (const c of it.c) expect(rix.CAT[c], `${it.n}: ${c}`).toBeDefined();
   for (const c of real.cats) if (c.kind === "dudra") expect(real.terms[c.term ?? ""], c.id).toBeDefined();
+});
+
+test("the real data is spelled the American way, in labels, item names and term names", () => {
+  const words = [
+    ...real.cats.flatMap((c) => c.labels),
+    ...real.items.map((i) => i.n),
+    ...Object.keys(real.aliases ?? {}),
+    ...Object.values(real.aliases ?? {}),
+    ...Object.values(real.terms).flatMap((t) => [t.name, ...(t.aliases ?? [])]),
+  ];
+  expect(words.filter((w) => american(w.toLowerCase()) !== w.toLowerCase())).toEqual([]);
 });
 
 test("a card for every pair of categories of the real data is complete text", () => {
