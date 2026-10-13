@@ -20,6 +20,8 @@ export default defineConfig({
   },
   projects: [
     { name: "legacy", testMatch: /legacy\.spec\.js/ },
+    // the layout matrix: the artifact build with a mocked `window.claude`, one test per size, flow and pair; sizes are set in the spec
+    { name: "layout", testMatch: /layout\/.*\.spec\.js/ },
     { name: "pwa-desktop", testMatch: /pwa\/.*\.spec\.js/, use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 800 } } },
     { name: "pwa-phone", testMatch: /pwa\/.*\.spec\.js/, use: { ...devices["Pixel 7"] } },
   ],

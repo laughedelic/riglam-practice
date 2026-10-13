@@ -14,7 +14,8 @@ One source builds two things:
 ```sh
 nvm use            # Node 22
 npm ci
-npm run dev        # the PWA with hot reload at http://localhost:5173 (open it once as .../#k=<key> to unlock the definitions)
+npm run dev        # the PWA with hot reload at http://localhost:5173 (open it once as .../#k=<key> to unlock the definitions);
+                   # Explain, the chat and the check lab work with a stand-in for the model, ?ai=off shows the app without it
 npm run build      # both builds (the artifact build needs the data key, see docs/DATA.md)
 npm test           # builds, then unit tests and browser tests (needs Chromium: npx playwright install chromium)
 npm run check:fast # lint, typecheck and unit tests: seconds, no browser
@@ -34,8 +35,8 @@ src/pwa/                   PWA only: platform adapter, local `db` (IndexedDB), k
 src/artifact/              artifact only: platform adapter (embedded data, `window.claude`), head (title, font links)
 scripts/                   build-artifact, artifact-verify, data (key, import, export), fonts, icons, Vite plugins
 tests/unit/                Vitest unit tests (artifact comparison, artifact and PWA build contracts, encrypted data, the shape of src/app)
-tests/e2e/                 Playwright: PWA specs, parity with the artifact build, and the legacy page suite
-tests/legacy/              the page's regression suite (harness, 28 test files, layout scans)
+tests/e2e/                 Playwright: PWA specs, parity with the artifact build, the layout matrix, and the legacy page suite
+tests/legacy/              the page's regression suite (harness, 28 test files)
 public/                    icons
 docs/                      architecture, term data and key, artifact loop, deploy, releasing, testing
 .github/workflows/         CI, preview deploys, release

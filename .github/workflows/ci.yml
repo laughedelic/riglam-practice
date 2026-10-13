@@ -17,10 +17,11 @@ env:
   WRANGLER_VERSION: 4.149.0
 
 jobs:
-  check:
-    name: Lint, build, test
+  # The checks that need no browser: lint, types, both builds, the unit tests and the hosting config.
+  static:
+    name: Lint, build, unit tests
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     env:
       # Decrypts the course part of the term data for the artifact build and the tests (docs/DATA.md). The PWA build does not need it.
       RIGLAM_DATA_KEY: ${{ secrets.RIGLAM_DATA_KEY }}
@@ -41,28 +42,76 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
       - run: npm run test:unit
-      - name: Cache Playwright browsers
-        uses: actions/cache@v6
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-      - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e
       - name: Check the hosting config
         run: npx --yes wrangler@${{ env.WRANGLER_VERSION }} deploy --dry-run
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 7
-          if-no-files-found: ignore
       # Only the PWA build is kept: it holds the encrypted definitions. The artifact build holds them in the clear, so it is not uploaded.
       - uses: actions/upload-artifact@v4
         with:
           name: pwa-build
           path: dist/pwa/
           retention-days: 14
+
+  # The browser tests, in parallel. Each job builds both outputs itself (about 10 seconds), because the artifact build must not be uploaded.
+  # The legacy suite is the long part (test40q alone takes about two minutes), so it is split with Playwright's --shard; layout and PWA specs share one job.
+  # When a project or a shard is added here, `npx playwright test --list` must still list every test exactly once across the jobs (docs/TESTING.md).
+  browser:
+    name: Browser tests (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: legacy 1/3, slug: legacy-1, args: "--project=legacy --shard=1/3" }
+          - { name: legacy 2/3, slug: legacy-2, args: "--project=legacy --shard=2/3" }
+          - { name: legacy 3/3, slug: legacy-3, args: "--project=legacy --shard=3/3" }
+          - { name: layout and PWA, slug: layout-pwa, args: "--project=layout --project=pwa-desktop --project=pwa-phone" }
+    env:
+      RIGLAM_DATA_KEY: ${{ secrets.RIGLAM_DATA_KEY }}
+    steps:
+      - name: Data key present?
+        run: |
+          if [ -z "$RIGLAM_DATA_KEY" ]; then
+            echo "::error::The repository secret RIGLAM_DATA_KEY is not set (or not available to this run, as for Dependabot: add it under Dependabot secrets too). See docs/DATA.md."
+            exit 1
+          fi
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Cache Playwright browsers
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test ${{ matrix.args }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-${{ matrix.slug }}
+          path: playwright-report/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # One check for the whole suite, under the name that branch protection requires (docs/RELEASING.md), whatever the jobs above are called or however many there are.
+  check:
+    name: Lint, build, test
+    needs: [static, browser]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Did every part pass?
+        env:
+          STATIC: ${{ needs.static.result }}
+          BROWSER: ${{ needs.browser.result }}
+        run: |
+          echo "static: $STATIC, browser: $BROWSER"
+          [ "$STATIC" = success ] && [ "$BROWSER" = success ]
 
   pr-title:
     name: Conventional PR title

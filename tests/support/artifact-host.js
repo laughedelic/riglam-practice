@@ -4,6 +4,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
+import { CLAUDE_MOCK } from "./claude-mock.js";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const fontsDir = resolve(root, "src/pwa/fonts");
@@ -16,14 +17,15 @@ const q=()=>{const s={orderBy:()=>s,limit:()=>s,where:()=>s,onSnapshot:f=>{setTi
 window.claude={use:async n=>n==='db'?{collection:q,doc:()=>q().doc()}:null};
 </script>`;
 
-export function artifactDocument() {
+/** `ai: true` swaps the empty stand-in for the mock of claude-mock.js: a `db` that keeps documents and a `sample` that answers. */
+export function artifactDocument({ ai = false } = {}) {
   const page = readFileSync(resolve(root, "dist/artifact/index.html"), "utf8");
-  return SKELETON_HEAD + EMPTY_DB + page + "</body></html>";
+  return SKELETON_HEAD + (ai ? CLAUDE_MOCK : EMPTY_DB) + page + "</body></html>";
 }
 
 /** Routes the artifact document at http://artifact.test/ and the page's Google Fonts to local files. */
-export async function routeArtifact(page) {
-  const html = artifactDocument();
+export async function routeArtifact(page, options) {
+  const html = artifactDocument(options);
   const css = readFileSync(resolve(root, "src/pwa/fonts.css"), "utf8").replaceAll("url(./fonts/", "url(https://fonts.gstatic.com/local/");
   const files = new Set(readdirSync(fontsDir));
   await page.route("http://artifact.test/**", (r) => r.fulfill({ body: html, contentType: "text/html" }));
@@ -35,7 +37,7 @@ export async function routeArtifact(page) {
 }
 
 /** A fixed Math.random so both builds draw the same first pair. */
-export const seedRandom = () => {
-  let s = 12345;
+export const seedRandom = (seed = 12345) => {
+  let s = seed;
   Math.random = () => ((s = (s * 1664525 + 1013904223) % 4294967296) / 4294967296);
 };
