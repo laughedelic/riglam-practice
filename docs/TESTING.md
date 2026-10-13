@@ -4,7 +4,7 @@
 |---|---|---|---|
 | Lint | `eslint.config.js` | `npm run lint` | `src`, `scripts`, new tests (typescript-eslint for `.ts`). The page code has relaxed rules for empty `catch` blocks and unused variables. The migrated `tests/legacy` files are not linted. |
 | Types | `tsconfig.json` | `npm run typecheck` | the TypeScript files (`src/platform`, the adapters in `src/pwa` and `src/artifact`, the entries, the unit tests). The page modules in `src/app` are JavaScript and not checked yet. |
-| Unit | `tests/unit/*.test.ts` (Vitest) | `npm run test:unit` (`test:unit:watch` while editing) | the comparison behind `artifact:verify`, the shape of `src/app` (state only in `state`, `core/` stays a leaf, every module reachable from the entry), the artifact build's contract (fragment, title in the first 8 KB, nothing but Google Fonts loaded, size budget), the encrypted data format and the split (round trips, wrong key, tampering), the committed data files (no definition in the clear in any tracked file), and the PWA build's contract (open data, encrypted definitions, no notes, noindex) |
+| Unit | `tests/unit/*.test.ts` (Vitest) | `npm run test:unit` (`test:unit:watch` while editing) | the comparison behind `artifact:verify`, the shape of `src/app` (state only in `state`, `core/` stays a leaf, every module reachable from the entry), the artifact build's contract (fragment, title in the first 8 KB, nothing but Google Fonts loaded, size budget), the encrypted data format and the split (round trips, wrong key, tampering), the committed data files (no definition in the clear in any tracked file), the PWA build's contract (open data, encrypted definitions, no notes, noindex), and that the CI matrix runs every Playwright project once |
 | PWA specs | `tests/e2e/pwa/*.spec.js` (Playwright, phone and desktop) | `npm run test:e2e` | manifest and icons, offline start from the service worker cache, the local `db` in a real browser (CRUD, queries, snapshots, reload, second tab), the practice flow saved to the device, no Claude-only features, same page in both builds (markup and positions), the locked and unlocked states of the definitions (link key, dialog, offline) |
 | Layout matrix | `tests/e2e/layout/layout.spec.js` (Playwright), scans in `tests/support/layout-scans.js` | `npm run test:e2e -- --project=layout` | the page at nine window sizes (320 to 1280 px, both sides of the 520 and 1100 px breakpoints) in the states where text is longest: question, answers, result and each chip, the explanation and its notes, the debate, Blitz, Options, Review. After every step nothing may pass the window edge or a container that clips sideways, and every control keeps room for its focus ring; some runs also make every text field wide. |
 | Legacy page suite | `tests/legacy`, run by `tests/e2e/legacy.spec.js` | `npm run test:e2e -- --project=legacy` | the regression suite of the page (about 900 checks): every UI state at phone and desktop sizes, tutor, check lab, flags, Blitz, skipping, Review |
@@ -32,6 +32,20 @@ Each file in `tests/legacy` is a node script from the page's earlier test pipeli
 `layout.spec.js` loads the artifact build with the mock `window.claude` of `tests/support/claude-mock.js` (the explanation needs `sample`, which the PWA does not have) and seeds `Math.random`, so a size always shows the same pairs and a finding can be repeated. Motion is reduced so no step is scanned halfway through a slide. A step calls `check("name")`, which runs `scanPage` in the page and keeps the findings; the test fails at its end with every finding, each naming the step and the element (`CLIPX ASIDE.coach#coach 341/329 (reaches 1088: DIV.tutor)`). The kinds are in the head of `layout-scans.js`.
 
 To cover a new state, add steps to a flow in the spec (or a flow), and a size to `SIZES` when a breakpoint changes. A finding is a layout bug to fix in the CSS, not a reason to loosen the scan; the only things the scan skips on purpose are inputs (they scroll their text), text with an ellipsis, and text for screen readers.
+
+## CI
+
+`.github/workflows/ci.yml` runs on pull requests and on `main`. The browser tests run in parallel jobs, so a run takes about as long as the slowest of them.
+
+| Job | What it runs |
+|---|---|
+| `static` ("Lint, build, unit tests") | lint, typecheck, both builds, the unit tests, `wrangler deploy --dry-run`; it keeps `dist/pwa` as the `pwa-build` artifact for the preview |
+| `browser` ("Browser tests (...)", a matrix) | `npx playwright test <args>` after building both outputs: the legacy suite in three `--shard` slices, and the layout matrix with the PWA specs in one job. Each job keeps its HTML report as `playwright-report-<slug>`. |
+| `check` ("Lint, build, test") | passes when `static` and `browser` have passed. This is the name that branch protection requires ([RELEASING.md](RELEASING.md)), so it stays the same whatever the jobs above are called or however many there are. |
+
+To repeat one job locally: `npm run build`, then the same `npx playwright test` arguments as in the matrix (for example `--project=legacy --shard=2/3`).
+
+The legacy suite is the long part, and `test40q` is its longest test (about two minutes, in one browser after another), so more legacy shards would not make a run shorter. A new Playwright project needs an entry in the `browser` matrix; `tests/unit/ci-workflow.test.ts` fails when a project is in no job, in two, or when the shards of a project are not all there.
 
 ## Adding tests
 
