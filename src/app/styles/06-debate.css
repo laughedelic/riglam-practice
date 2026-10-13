@@ -1,0 +1,32 @@
+/* debate tab: four questions, timer bar */
+.tset{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.tl{font:700 11px/16px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-muted)}
+.tcustom{width:54px;font:14px var(--body);color:var(--ink);background:var(--paper);border:1px solid var(--ink-muted);border-radius:0;padding:5px 6px;text-align:center}
+.tcustom:focus-visible{box-shadow:var(--focus-ring)}
+.qlog{list-style:none;margin:0;padding:0;border-top:1.5px solid var(--ink)}
+.qlog li{display:grid;grid-template-columns:20px 1fr;gap:10px;padding:9px 4px;border-bottom:1px solid var(--line);font-size:14px}
+.qlog .n{font:400 18px/1.2 var(--serif);color:var(--ink-muted);text-align:center;font-variant-numeric:lining-nums}
+.qcard{display:grid;gap:12px;background:var(--paper-tint);padding:16px 16px 16px 20px;box-shadow:inset 4px 0 0 var(--vermilion)}
+.qn{margin:0;font:700 11px/1.4 var(--text-serif);letter-spacing:.06em;text-transform:uppercase;color:var(--heading)}
+.qt{margin:0;font:400 18px/1.7 var(--text-serif)}
+.ansrow{display:flex;gap:8px;align-items:stretch}
+.ansrow.two .btn{flex:1;justify-content:center}
+.ansrow input{flex:1;min-width:0;font:15px var(--body);color:var(--ink);background:var(--paper);border:1px solid var(--ink-muted);border-radius:0;padding:9px 11px}
+.btn .kbd{margin-left:10px;color:inherit;opacity:.6}
+/* the timer: a slim bar that drains over the limit, warms from grey-blue to saffron to red, and pulses gently over the last quarter.
+   --t is the limit and --e the time already used, so a redraw keeps the bar where it was. */
+.tbar{height:5px;background:var(--line);overflow:hidden}
+.tbar i{display:block;height:100%;transform-origin:0 50%;background:var(--faint);
+  animation-name:tb-drain,tb-tint,tb-pulse;animation-duration:var(--t),var(--t),1.1s;animation-timing-function:linear,linear,ease-in-out;
+  animation-iteration-count:1,1,infinite;animation-fill-mode:both,both,none;
+  animation-delay:calc(-1 * var(--e)),calc(-1 * var(--e)),calc(var(--t) * .72 - var(--e))}
+@keyframes tb-drain{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+@keyframes tb-tint{0%,55%{background:var(--faint)}80%{background:var(--marigold)}100%{background:var(--vermilion)}}
+@keyframes tb-pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.tbar i{animation-name:tb-drain,tb-tint}}
+.ansrow input{width:0}
+/* the small button inside the Examples line of a verdict: asks Claude to check the unchecked examples */
+button.pill{border:0;font-family:inherit;cursor:pointer;margin:0 1px}
+button.pill.act{background:var(--marigold);color:var(--on-marigold);padding:3px 10px;min-height:24px;vertical-align:baseline}
+button.pill.act:hover{box-shadow:inset 0 -3px 0 var(--vermilion)}
+button.pill.act:focus-visible{box-shadow:var(--focus-ring)}
