@@ -1,6 +1,9 @@
 // The Worker's routes (worker/app.ts), end to end with stand-ins for D1 and the Anthropic API.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import Anthropic from "@anthropic-ai/sdk";
 import { createApp } from "../../worker/app";
+import { readConfig } from "../../worker/config";
+import { runTutor } from "../../worker/tutor";
 import { HEADER, LIMITS } from "../../src/ai/protocol";
 import { makeProof, newDeviceId } from "../../src/ai/proof";
 import { NOW, ask, events, fakeAnthropic, fakeKit, json, setup, type Round } from "./support";
@@ -152,6 +155,16 @@ describe("POST /api/tutor: what is asked", () => {
   it("refuses one turn that is too long", () => refused(ask({ turns: [{ role: "user", content: "x".repeat(20_001) }] }), 413, "prompt_too_large"));
   it("refuses a conversation that is too long in all", () =>
     refused(ask({ turns: Array.from({ length: 5 }, (_, i) => ({ role: i % 2 ? "assistant" : "user", content: "x".repeat(15_000) })) }), 413, "prompt_too_large"));
+
+  it("counts the bytes of a body sent without a length, not its characters", async () => {
+    const s = await setup();
+    // 150,000 two-byte letters are 300,000 bytes in a field the request does not use
+    const big = JSON.stringify({ kind: "explain", cats: [], turns: [{ role: "user", content: "x" }], pad: "é".repeat(150_000) });
+    const { res, model } = await tutor(s, [{ text: ["x"] }], { body: big });
+    expect(res.status).toBe(413);
+    expect(model.calls).toHaveLength(0);
+    expect(counters(s)).toEqual({});
+  });
 
   it("refuses a body over the limit by its declared length, without reading it", async () => {
     const s = await setup();
@@ -392,6 +405,19 @@ describe("POST /api/tutor: when the page goes away", () => {
     expect(log(s)[0].outcome).toBe("aborted");
     expect(log(s)[0].micro).toBeGreaterThanOrEqual(100 * 2 + 5 * 10);
     expect(counters(s).device![0]).toBe(log(s)[0].micro);
+  });
+});
+
+describe("the closing event", () => {
+  it("still ends with an outcome (and the cost of the answer) when the page leaves before it can be written", async () => {
+    const model = fakeAnthropic([{ text: ["a full answer"], usage: { input: 100, output: 20 } }]);
+    const client = new Anthropic({ apiKey: "test", fetch: model.fetch, maxRetries: 0 });
+    const emit = async (e: { type: string }) => {
+      if (e.type === "done") throw new Error("the stream is closed");
+    };
+    const out = await runTutor({ client, kit: fakeKit().kit, config: readConfig({} as Env), request: { kind: "explain", cats: [], turns: [{ role: "user", content: "x" }] }, emit, signal: new AbortController().signal });
+    expect(out.outcome).toBe("aborted");
+    expect(out.micro).toBeGreaterThanOrEqual(100 * 2 + 20 * 10);
   });
 });
 
