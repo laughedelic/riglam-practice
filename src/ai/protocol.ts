@@ -75,4 +75,6 @@ export type TutorEvent =
 export interface Health {
   ok: true;
   tutor: "on" | "off";
+  /** optional accounts and sync (src/account/protocol.ts); a server from before accounts leaves it out */
+  accounts?: "on" | "off";
 }
