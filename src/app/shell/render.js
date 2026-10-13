@@ -19,7 +19,7 @@ const TABS=[["practice","Relations"],["debate","Pervasions"],["review","Review"]
 export const CELL_FULL={both:"Both A and B", anb:"A, not B", bna:"B, not A", nei:"Neither A nor B"};
 export function top0(){ for(const id of ["stage","coach","over"]){ const n=$(id); if(n) n.scrollTop=0; } }
 export function ago(iso){
-  const m=Math.round((Date.now()-new Date(iso))/6e4); if(!(m>=0)) return "";
+  const m=Math.round((Date.now()-new Date(iso).getTime())/6e4); if(!(m>=0)) return "";
   if(m<1) return "now"; if(m<60) return m+" min";
   const h=Math.round(m/60); if(h<24) return h+" h";
   const d=Math.round(h/24); return d===1?"1 day":d+" days";
@@ -52,11 +52,11 @@ export function setSteps(labels,on,go){
   labels.forEach((l,i)=>st.append(el("button",{type:"button",class:i<on?"done":i===on?"on":"","aria-current":i===on?"step":null,disabled:!(go&&go[i]),onclick:go&&go[i]?go[i]:null,text:(i+1)+" "+l})));
 }
 function focusKey(){
-  const a=document.activeElement;
+  const a=/** @type {HTMLInputElement} */(document.activeElement);
   return a&&(a.tagName==="INPUT"||a.tagName==="TEXTAREA")&&a.id?{id:a.id,s:a.selectionStart,e:a.selectionEnd}:null;
 }
 function restoreFocus(f){
-  const n=f&&$(f.id); if(!n||n.disabled||document.activeElement===n) return;
+  const n=f&&/** @type {HTMLInputElement} */($(f.id)); if(!n||n.disabled||document.activeElement===n) return;
   n.focus({preventScroll:true}); try{ n.setSelectionRange(f.s,f.e); }catch(e){}
 }
 export const focusCin=()=>{ const i=$("cin"); if(i) i.focus({preventScroll:true}); };
@@ -65,7 +65,7 @@ function screenSig(){
   return [state.tab,state.mode,state.view,state.optsOpen?1:0,isWide()?1:0,p?(p.id||p.a+"|"+p.b):"",state.ui?[state.ui.checked?1:0,state.ui.step||0,state.ui.ci||0,state.ui.rel?1:0,state.ui.open?1:0,state.ui.debate?1:0].join(""):""].join("/");
 }
 export function render(){
-  const sig=screenSig(), keep=sig===state.lastSig?["stage","coach","over"].map(id=>{ const n=$(id); return [id,n?n.scrollTop:0]; }):null;
+  const sig=screenSig(), keep=sig===state.lastSig?["stage","coach","over"].map(id=>{ const n=$(id); return /** @type {[string, number]} */([id,n?n.scrollTop:0]); }):null;
   state.lastSig=sig;
   renderNow();
   if(keep) for(const [id,y] of keep){ const n=$(id); if(n&&y&&!n.hidden) n.scrollTop=y; }
@@ -98,7 +98,9 @@ export function fitPair(){
   const gap=parseFloat(getComputedStyle(pr).columnGap)||0;
   const W=Math.floor(pr.clientWidth-(ch[1].getBoundingClientRect().right-ch[0].getBoundingClientRect().left)-2*gap), h=Math.floor(W/2);
   const size=(t,k)=>{ t.style.width=k; t.style.hyphens="manual"; const w=Math.ceil(t.getBoundingClientRect().width); t.style.width=t.style.hyphens=""; return w; };
-  const f0=parseFloat(getComputedStyle(a).fontSize); let f=f0, z, wa, wb;
+  const f0=parseFloat(getComputedStyle(a).fontSize); let f=f0, wa, wb;
+  /** @type {{xa: number, xb: number, na: number, nb: number}} */
+  let z;
   const font=g=>{ f=g; pr.style.setProperty("--tsz",g+"px"); };
   const meas=()=>{ z={xa:size(a,"max-content"),xb:size(b,"max-content"),na:size(a,"min-content"),nb:size(b,"min-content")}; };
   const line=()=>z.xa<=h&&z.xb<=h, words=()=>z.na<=h&&z.nb<=h;

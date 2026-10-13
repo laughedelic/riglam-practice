@@ -38,7 +38,7 @@ export function skipPair(){
   state.skips[k]=doc;
   if(state.db) skipWrite(k,()=>put("skips",k,doc),()=>{ if(had) state.skips[k]=had; else delete state.skips[k]; });
   if(wasDebate) advanceDebate(); else advance();
-  const n=state.skipNote={p,key:k,had,debate:wasDebate,ui: state.ui,prev};
+  const n=state.skipNote={p,key:k,had,debate:wasDebate,ui: state.ui,prev,tid:0};
   n.tid=setTimeout(()=>{ if(state.skipNote===n){ state.skipNote=null; hideSkipHint(); if(isWide()) render(); } },UNDO_MS);
   render(); top0(); showSkipHint();
 }
@@ -70,7 +70,7 @@ const skipMsg=(n,cls)=>el("span",{class:"skipmsg"+(cls?" "+cls:"")},"Skipped ",e
 const undoBtn=()=>el("button",{type:"button",class:"skipundo",title:"Take the skip back",onclick:undoSkip,text:"Undo"});
 // The skip icon of the narrow top bar (next to the star): there while a pair is open, dimmed once it is checked.
 export function syncSkipBtn(){
-  const b=$("mskip"), ok=state.mode==="quiz"&&(state.tab==="practice"||state.tab==="debate")&&!!state.cur&&!!state.cur.p;
+  const b=/** @type {HTMLButtonElement} */($("mskip")), ok=state.mode==="quiz"&&(state.tab==="practice"||state.tab==="debate")&&!!state.cur&&!!state.cur.p;
   b.hidden=!ok; if(!ok) return;
   b.disabled=!state.ui||!!state.ui.checked; b.classList.toggle("hot",!!state.hintOff);
 }
