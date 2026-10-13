@@ -1,4 +1,5 @@
-// Retires the GitHub deployments of one environment: every deployment is marked inactive, then deleted. ci.yml creates them
+// Retires the GitHub deployments of one environment: every deployment is marked inactive. They are not deleted, so the
+// pull request keeps its record of what was deployed and what failed. ci.yml creates them
 // (the `environment:` of the preview job), and preview-cleanup.yml calls this when the pull request closes (docs/DEPLOY.md).
 //
 //   GITHUB_TOKEN=... GITHUB_REPOSITORY=owner/repo DEPLOY_ENVIRONMENT=preview/pr-14 node scripts/retire-deployments.mjs
@@ -26,7 +27,6 @@ export function github({ token, repository, apiUrl = "https://api.github.com", f
   };
 }
 
-// A deployment can be deleted only when it is inactive (unless it is the repository's only one), hence the status first.
 // Every deployment is tried even when one fails; the failures are returned.
 export async function retire(call, environment) {
   const ids = [];
@@ -39,7 +39,6 @@ export async function retire(call, environment) {
   for (const id of ids) {
     try {
       await call("POST", `/deployments/${id}/statuses`, { state: "inactive", description: "The pull request was closed" });
-      await call("DELETE", `/deployments/${id}`);
     } catch (error) {
       failures.push(error.message);
     }

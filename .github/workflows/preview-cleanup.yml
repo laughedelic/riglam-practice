@@ -1,9 +1,9 @@
 name: Retire preview
 
-# ci.yml records every preview as a deployment in its own GitHub environment, preview/pr-<number>. When the pull request is merged
-# or closed, its deployments are marked inactive and deleted, so none shows as live after the preview is no longer wanted.
-# The environment itself stays in the repository's settings, empty: removing it is an administration action that the workflow
-# token cannot have (docs/DEPLOY.md). The Cloudflare preview address is not touched.
+# ci.yml shows every preview as a deployment in its own GitHub environment, preview/pr-<number>. When the pull request is merged
+# or closed, its deployments are marked inactive, so none shows as live after the preview is no longer wanted. They are kept,
+# so the pull request still shows what was deployed. The environment stays in the repository's settings: removing it is an
+# administration action that the workflow token cannot have (docs/DEPLOY.md). The Cloudflare preview address is not touched.
 
 on:
   pull_request:

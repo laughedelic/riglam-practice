@@ -16,7 +16,7 @@ Alternatives considered and not chosen: GitHub Pages (no private-repo hosting on
 | Event | Job | Result |
 |---|---|---|
 | Pull request | `ci.yml` → `deploy-preview` | uploads `dist/pwa` as a version with the alias `pr-<number>`; GitHub lists the job as a deployment of the environment `preview/pr-<number>`, with the address as its URL |
-| Pull request closed or merged | `preview-cleanup.yml` | marks the deployments of `preview/pr-<number>` inactive and deletes them |
+| Pull request closed or merged | `preview-cleanup.yml` | marks the deployments of `preview/pr-<number>` inactive |
 | Push to `main` | `ci.yml` → `deploy-preview` | same upload, alias `staging` (follows main), recorded in the environment `staging` |
 | Release created (merge of the release pull request) | `release.yml` → `publish` | attaches `riglam-practice-pwa-<tag>.zip` to the GitHub release, then `wrangler deploy` puts the PWA on the production address (a deployment of the environment `production`) |
 
@@ -26,9 +26,9 @@ Both deploy steps check for the two secrets below and skip with a notice when th
 
 The preview job and the release job declare an `environment:` (name and URL), so GitHub records each run as a deployment: a pull request gets a "deployed to `preview/pr-<number>`" entry with a link to the preview, and the repository's deployments list has `production`, `staging` and the previews. Each pull request has an environment of its own because GitHub marks the earlier deployment of an environment inactive when a new one succeeds; with one shared `preview` environment, each new preview would make the others look dead while they still serve. The URL is the address that `wrangler` printed. If the upload fails, the deployment is marked failed. Without the Cloudflare secrets the job skips the upload but still counts as a deployment, with no URL.
 
-When a pull request is closed or merged, `preview-cleanup.yml` runs `scripts/retire-deployments.mjs`: it marks the deployments of that pull request's environment inactive and deletes them, using the workflow's own `GITHUB_TOKEN` with `deployments: write`. It cannot delete the environment itself: that is a repository administration action, and a workflow token has no administration permission (the `permissions:` key has no such scope). The empty environment `preview/pr-<number>` therefore stays under *Settings → Environments*. To remove those too, delete them by hand, or give a cleanup step a token with administration rights on the repository (for a fine-grained token, the *Administration* permission; kept as a repository secret) and have it call `DELETE /repos/{owner}/{repo}/environments/{name}` with the name URL-encoded (`preview%2Fpr-14`).
+When a pull request is closed or merged, `preview-cleanup.yml` runs `scripts/retire-deployments.mjs`: it marks the deployments of that pull request's environment inactive, using the workflow's own `GITHUB_TOKEN` with `deployments: write`. The deployments are kept, so the pull request still shows what was deployed, including failed attempts; they just no longer count as live. The environment `preview/pr-<number>` itself stays under *Settings → Environments*: deleting an environment is a repository administration action, and a workflow token has no administration permission (the `permissions:` key has no such scope). To remove those entries, delete them by hand, or give a cleanup step a token with administration rights on the repository (for a fine-grained token, the *Administration* permission; kept as a repository secret) and have it call `DELETE /repos/{owner}/{repo}/environments/{name}` with the name URL-encoded (`preview%2Fpr-14`).
 
-The Cloudflare alias `pr-<number>` is not removed when the pull request closes.
+The Cloudflare alias `pr-<number>` is not removed when the pull request closes: it keeps serving the last uploaded version. Nothing in this repository deletes it.
 
 A preview opens with the definitions locked. Add the study group's key to the address (`#k=<key>`, see [DATA.md](DATA.md)) to unlock them; the key is never part of a deployment.
 

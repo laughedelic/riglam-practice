@@ -47,7 +47,7 @@ To repeat one job locally: `npm run build`, then the same `npx playwright test` 
 
 The legacy suite is the long part, and `test40q` is its longest test (about two minutes, in one browser after another), so more legacy shards would not make a run shorter. A new Playwright project needs an entry in the `browser` matrix; `tests/unit/ci-workflow.test.ts` fails when a project is in no job, in two, or when the shards of a project are not all there.
 
-`preview-cleanup.yml` retires a closed pull request's deployments through `scripts/retire-deployments.mjs` (docs/DEPLOY.md). `tests/unit/retire-deployments.test.ts` checks its requests against a recorded fake of the API: what is sent, in which order, and what happens when one call fails. The preview job's deployment is only visible in a real run: a pull request's own `Deploy preview` job.
+`preview-cleanup.yml` marks a closed pull request's deployments inactive through `scripts/retire-deployments.mjs` (docs/DEPLOY.md). `tests/unit/retire-deployments.test.ts` checks its requests against a recorded fake of the API: what is sent, in which order, and what happens when one call fails. The preview job's deployment is only visible in a real run: a pull request's own `Deploy preview` job.
 
 ## Adding tests
 

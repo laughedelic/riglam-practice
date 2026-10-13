@@ -24,15 +24,13 @@ const env = { GITHUB_TOKEN: "t", GITHUB_REPOSITORY: "owner/repo", DEPLOY_ENVIRON
 const quiet = () => {};
 const short = (s: Sent) => `${s.method} ${s.url.replace("https://api.github.com/repos/owner/repo", "")}`;
 
-test("it asks for the environment by its encoded name, marks each deployment inactive and only then deletes it", async () => {
+test("it asks for the environment by its encoded name and marks each deployment inactive, deleting none", async () => {
   const github = fakeGitHub({ listed: [[11, 12]] });
   expect(await run(env, { fetchImpl: github.fetchImpl, log: quiet })).toEqual({ found: 2 });
   expect(github.sent.map(short)).toEqual([
     "GET /deployments?environment=preview%2Fpr-14&per_page=100&page=1",
     "POST /deployments/11/statuses",
-    "DELETE /deployments/11",
     "POST /deployments/12/statuses",
-    "DELETE /deployments/12",
   ]);
   expect(github.sent[1].body.state).toBe("inactive");
   expect(github.sent[0]).toMatchObject({ url: expect.stringContaining("https://api.github.com/repos/owner/repo/") });
@@ -44,19 +42,18 @@ test("it does nothing for an environment without deployments", async () => {
   expect(github.sent).toHaveLength(1);
 });
 
-test("it reads every page of the list before it deletes anything", async () => {
+test("it reads every page of the list and marks every deployment", async () => {
   const first = Array.from({ length: 100 }, (_, i) => i + 1);
   const github = fakeGitHub({ listed: [first, [101]] });
   expect(await run(env, { fetchImpl: github.fetchImpl, log: quiet })).toEqual({ found: 101 });
   expect(github.sent.filter((s) => s.method === "GET").map((s) => s.url.match(/&page=(\d+)/)![1])).toEqual(["1", "2"]);
-  expect(github.sent.findIndex((s) => s.method !== "GET")).toBe(2);
-  expect(github.sent.filter((s) => s.method === "DELETE")).toHaveLength(101);
+  expect(github.sent.filter((s) => s.method === "POST")).toHaveLength(101);
 });
 
-test("it carries on after a deployment that cannot be removed, then fails and names it", async () => {
-  const github = fakeGitHub({ listed: [[11, 12]], failOn: (s) => s.method === "DELETE" && s.url.endsWith("/deployments/11") });
+test("it carries on after a deployment that cannot be marked, then fails and names it", async () => {
+  const github = fakeGitHub({ listed: [[11, 12]], failOn: (s) => s.method === "POST" && s.url.endsWith("/deployments/11/statuses") });
   await expect(run(env, { fetchImpl: github.fetchImpl, log: quiet })).rejects.toThrow(/1 deployment\(s\) could not be retired[\s\S]*deployments\/11/);
-  expect(github.sent.some((s) => s.method === "DELETE" && s.url.endsWith("/deployments/12"))).toBe(true);
+  expect(github.sent.some((s) => s.method === "POST" && s.url.endsWith("/deployments/12/statuses"))).toBe(true);
 });
 
 test("a missing setting is named", async () => {
