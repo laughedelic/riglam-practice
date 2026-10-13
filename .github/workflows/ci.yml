@@ -125,7 +125,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Preview of the PWA for every pull request, and a "staging" alias that follows main. The address is recorded as a GitHub deployment:
+  # Preview of the PWA for every pull request, and a "staging" alias that follows main. The address is shown as a GitHub deployment:
   # the environment preview/pr-<number> for a pull request (retired when it closes, preview-cleanup.yml), staging for main.
   # Needs the repository secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID (docs/DEPLOY.md); without them the job only says so.
   deploy-preview:
@@ -136,7 +136,10 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
-      deployments: write
+    # GitHub lists the run as a deployment of this environment, with the preview address as its URL.
+    environment:
+      name: ${{ github.event_name == 'pull_request' && format('preview/pr-{0}', github.event.number) || 'staging' }}
+      url: ${{ steps.upload.outputs.url }}
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -156,17 +159,6 @@ jobs:
         with:
           name: pwa-build
           path: dist/pwa
-      - name: Start the deployment on GitHub
-        id: deployment
-        if: steps.creds.outputs.ok
-        # Recording the deployment must never keep the preview from being uploaded.
-        continue-on-error: true
-        run: node scripts/deployment.mjs start
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DEPLOY_ENVIRONMENT: ${{ github.event_name == 'pull_request' && format('preview/pr-{0}', github.event.number) || 'staging' }}
-          DEPLOY_REF: ${{ env.BUILD_SHA }}
-          DEPLOY_DESCRIPTION: ${{ github.event_name == 'pull_request' && format('Preview of pull request {0}', github.event.number) || 'Staging, the latest main' }}
       - name: Upload a version with a preview alias
         id: upload
         if: steps.creds.outputs.ok
@@ -178,12 +170,3 @@ jobs:
           npx --yes wrangler@${WRANGLER_VERSION} versions upload --preview-alias "$ALIAS" --message "${BUILD_SHA::7}" | tee upload.log
           url=$(grep -Eo 'https://[^ ]+' upload.log | grep -i "$ALIAS" | head -n1 || true)
           echo "url=$url" >> "$GITHUB_OUTPUT"
-      - name: Finish the deployment on GitHub
-        if: always() && steps.deployment.outputs.id
-        continue-on-error: true
-        run: node scripts/deployment.mjs finish
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DEPLOYMENT_ID: ${{ steps.deployment.outputs.id }}
-          DEPLOY_STATE: ${{ steps.upload.outcome == 'success' && 'success' || 'failure' }}
-          DEPLOY_URL: ${{ steps.upload.outputs.url }}

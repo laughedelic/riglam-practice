@@ -38,9 +38,10 @@ jobs:
     if: needs.release-please.outputs.release_created == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    permissions:
-      contents: write
-      deployments: write
+    # GitHub lists the run as a deployment of the environment `production`, with the address of the Worker.
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
     env:
       TAG: ${{ needs.release-please.outputs.tag_name }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -62,37 +63,15 @@ jobs:
         run: |
           (cd dist/pwa && zip -qr "../../riglam-practice-pwa-${TAG}.zip" .)
           gh release upload "$TAG" "riglam-practice-pwa-${TAG}.zip" --clobber
-      - name: Credentials present?
-        id: creds
-        run: |
-          if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then echo "ok=true" >> "$GITHUB_OUTPUT"
-          else echo "::notice::Production deploy skipped: CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID are not set (see docs/DEPLOY.md)"; fi
-      # The production address is also recorded as a GitHub deployment (environment `production`). Recording it must never keep the deploy from running.
-      - name: Start the deployment on GitHub
-        id: deployment
-        if: steps.creds.outputs.ok
-        continue-on-error: true
-        run: node scripts/deployment.mjs start
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DEPLOY_ENVIRONMENT: production
-          DEPLOY_REF: ${{ env.TAG }}
-          DEPLOY_DESCRIPTION: ${{ format('Release {0}', env.TAG) }}
       - name: Deploy the PWA to production
         id: deploy
-        if: steps.creds.outputs.ok
         run: |
           # Without pipefail a failed deploy would pass here, because tee succeeds.
           set -o pipefail
-          npx --yes wrangler@${WRANGLER_VERSION} deploy --message "$TAG" | tee deploy.log
-          url=$(grep -Eo 'https://[^ ]+\.workers\.dev' deploy.log | head -n1 || true)
-          echo "url=$url" >> "$GITHUB_OUTPUT"
-      - name: Finish the deployment on GitHub
-        if: always() && steps.deployment.outputs.id
-        continue-on-error: true
-        run: node scripts/deployment.mjs finish
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DEPLOYMENT_ID: ${{ steps.deployment.outputs.id }}
-          DEPLOY_STATE: ${{ steps.deploy.outcome == 'success' && 'success' || 'failure' }}
-          DEPLOY_URL: ${{ steps.deploy.outputs.url }}
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::notice::Production deploy skipped: CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID are not set (see docs/DEPLOY.md)"
+          else
+            npx --yes wrangler@${WRANGLER_VERSION} deploy --message "$TAG" | tee deploy.log
+            url=$(grep -Eo 'https://[^ ]+\.workers\.dev' deploy.log | head -n1 || true)
+            echo "url=$url" >> "$GITHUB_OUTPUT"
+          fi

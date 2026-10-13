@@ -53,9 +53,7 @@ test("one job called `Lint, build, test` needs the others, because branch protec
 test("each preview is a deployment of its own environment, and the cleanup retires that same environment when the pull request closes", () => {
   const deploy = workflow.slice(workflow.indexOf("\n  deploy-preview:"));
   const cleanup = read(".github/workflows/preview-cleanup.yml");
-  expect(deploy, "the job records deployments").toMatch(/permissions:[\s\S]*?deployments: write/);
-  expect(deploy, "the address is no longer commented on the pull request").not.toMatch(/pull-requests: write/);
-  expect(deploy).toMatch(/DEPLOY_ENVIRONMENT: \$\{\{[^}]*format\('preview\/pr-\{0\}', github\.event\.number\)/);
+  expect(deploy).toMatch(/environment:\s+name: \$\{\{[^}]*format\('preview\/pr-\{0\}', github\.event\.number\)[^}]*\}\}\s+url: \$\{\{ steps\.upload\.outputs\.url \}\}/);
   expect(cleanup).toMatch(/pull_request:\s+types: \[closed\]/);
   expect(cleanup).toMatch(/DEPLOY_ENVIRONMENT: preview\/pr-\$\{\{ github\.event\.number \}\}/);
   expect(cleanup).toMatch(/permissions:[\s\S]*?deployments: write/);

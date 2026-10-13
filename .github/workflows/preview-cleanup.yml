@@ -23,7 +23,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
-      - run: node scripts/deployment.mjs retire
+      - run: node scripts/retire-deployments.mjs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DEPLOY_ENVIRONMENT: preview/pr-${{ github.event.number }}
