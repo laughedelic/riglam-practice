@@ -64,7 +64,7 @@ export function createApp(deps: Deps) {
     let body: unknown;
     try {
       const text = await c.req.text();
-      if (text.length > LIMITS.body) return fail("prompt_too_large", "the request is too large");
+      if (new TextEncoder().encode(text).length > LIMITS.body) return fail("prompt_too_large", "the request is too large");
       body = JSON.parse(text);
     } catch {
       return fail("bad_request", "the body is not JSON");

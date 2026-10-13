@@ -21,5 +21,5 @@ export interface Kit {
 
 /** The kit for this Worker, or null when it cannot be made (no data key, data that does not open): the tutor is then off. */
 export async function loadKit(_env: Env): Promise<Kit | null> {
-  return null; // filled in together with the shared tutor code in src/ai/
+  return null; // filled in together with the shared tutor code in src/ai-shared/
 }

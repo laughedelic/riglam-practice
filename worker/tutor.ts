@@ -131,7 +131,12 @@ export async function runTutor(p: { client: Anthropic; kit: Kit; config: Config;
     if (message.stop_reason === "refusal") return finish({ outcome: "refused", error: { code: "refused", message: "The model declined to answer." } });
     if (message.stop_reason === "pause_turn") return finish({ outcome: "error", error: { code: "unavailable", message: "The tutor could not answer." } });
     const truncated = message.stop_reason === "max_tokens";
-    await emit({ type: "done", truncated });
+    // The answer is complete and paid for even if the page leaves before the closing event; the cost is settled either way.
+    try {
+      await emit({ type: "done", truncated });
+    } catch {
+      return finish({ outcome: "aborted" });
+    }
     return finish({ outcome: truncated ? "truncated" : "answered" });
   }
   return finish({ outcome: "error", error: { code: "unavailable", message: "The tutor could not answer." } });
