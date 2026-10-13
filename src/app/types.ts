@@ -95,6 +95,14 @@ export interface SkipDoc extends FavDoc {
   n: number;
 }
 
+/** What a flag keeps of the pair it was made on, and the tab it was made in. */
+export interface FlagPair {
+  a: string;
+  b: string;
+  relation: RelKey;
+  tab: "debate" | "practice";
+}
+
 /** collection `flags`: the learner's note on something Claude said. */
 export interface FlagDoc {
   id: string;
@@ -103,11 +111,13 @@ export interface FlagDoc {
   part?: string;
   model?: string;
   runId?: string | null;
-  n?: number | null;
+  /** which turn or part of the case: always stored as a string (a turn index, a relation, a cell) */
+  n?: string | null;
   shown?: string;
   note?: string;
   suggest?: string;
-  pair?: Pair | null;
+  /** the pair the flag was made on, by its labels; not a whole pair */
+  pair?: FlagPair | null;
   at: string;
   updatedAt: string;
   state: string;
@@ -131,6 +141,8 @@ export interface Ui extends AnswerView {
   /** debate: the four answers, with their timings (ms, msEx, limit) */
   ans?: (DebateAnswer & { [field: string]: any })[];
   checked?: boolean;
+  /** the document of the checked answer, written to `answers` or `debates` and completed later by the tutor's verdicts */
+  doc?: AnswerDoc | DebateDoc;
   [field: string]: any;
 }
 

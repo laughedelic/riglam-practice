@@ -59,7 +59,7 @@ export async function check(){
   stopTimer(); clearSkip(p); state.ui.res=grade(p,state.ui); state.ui.checked=true; state.ui.open=false; render();
   top0(); const bs=document.querySelectorAll("#stage .actions .btn"); if(bs.length) bs[bs.length-1].focus({preventScroll:true});
   if(!state.db) return;
-  const cells={};
+  const cells=/** @type {import("../types.ts").AnswerDoc["cells"]} */({});
   for(const c of CELLS) cells[c]={text:(state.ui.cells[c].t||"").trim(), none:REL[state.ui.rel].empty.includes(c)||state.ui.cells[c].none, verdict:state.ui.res.cells[c].v};
   const id=state.ui.saveId=state.cur.legacy?p.id:(state.cur.retry?"r-":"")+(p.generated&&!state.cur.retry?p.id:"r"+Date.now().toString(36));
   const doc={pairId:id,batchId:state.cur.legacy?(state.batches.find(b=>pairsOf(b).includes(p))||{}).id||null:null,a:p.a,b:p.b,catA:pairCats(p)[0],catB:pairCats(p)[1],

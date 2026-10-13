@@ -23,8 +23,10 @@ export function openFlag(c,where){
 export function saveFlag(){
   const F=state.ui.flagEdit; if(!F) return;
   const id=flagId(F.c), had=state.flags[id], now=new Date().toISOString();
-  const doc=JSON.parse(JSON.stringify({id,caseKey:F.c.caseKey,thing:F.c.thing||"",part:F.c.part,model:F.c.model||"",runId:F.c.runId||null,n:F.c.n||null,shown:String(F.c.shown||"").slice(0,600),
-    note:F.note.trim().slice(0,800),suggest:F.suggest.trim().slice(0,300),pair:F.c.pair||null,at:had?had.at:now,updatedAt:now,state:had?had.state:"new"}));
+  /** @type {import("../types.ts").FlagDoc} */
+  const draft={id,caseKey:F.c.caseKey,thing:F.c.thing||"",part:F.c.part,model:F.c.model||"",runId:F.c.runId||null,n:F.c.n||null,shown:String(F.c.shown||"").slice(0,600),
+    note:F.note.trim().slice(0,800),suggest:F.suggest.trim().slice(0,300),pair:F.c.pair||null,at:had?had.at:now,updatedAt:now,state:had?had.state:"new"};
+  const doc=JSON.parse(JSON.stringify(draft)); // without the undefined fields
   state.flags[id]=doc; state.ui.flagEdit=null; renderKeep(); refocusFlag(id);
   if(state.db) flagWrite(id,()=>put("flags",id,doc),()=>{ if(had) state.flags[id]=had; else delete state.flags[id]; });
 }

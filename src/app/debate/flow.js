@@ -118,7 +118,7 @@ export async function checkDebate(){
   clearSkip(p); state.ui.res=gradeDebate(p,state.ui); state.ui.checked=true; state.ui.open=false; render();
   top0(); const bs=document.querySelectorAll("#stage .actions .btn"); if(bs.length) bs[bs.length-1].focus({preventScroll:true});
   if(!state.db) return;
-  const cells={}; for(const c of CELLS) cells[c]={text:state.ui.cells[c].t, none:state.ui.cells[c].none, verdict:state.ui.res.cells[c].v};
+  const cells=/** @type {import("../types.ts").AnswerDoc["cells"]} */({}); for(const c of CELLS) cells[c]={text:state.ui.cells[c].t, none:state.ui.cells[c].none, verdict:state.ui.res.cells[c].v};
   const qs=QCELL.map((c,i)=>({c, say:state.ui.ans[i].say, text:state.ui.cells[c].t, dok:state.ui.res.dec[c], verdict:state.ui.res.cells[c].v,
     ms:state.ui.ans[i].ms, msEx:state.ui.ans[i].msEx, limit:state.ui.ans[i].limit||0, timeout:!!state.ui.ans[i].timeout}));
   const id=state.ui.saveId="q-"+p.id.replace(/^g-/,"");
