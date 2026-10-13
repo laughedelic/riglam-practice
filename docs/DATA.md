@@ -8,7 +8,7 @@ The term data has two tiers. Only the definitions, and the commentary that quote
 | Course: definitions | `d` (English) and `d_ru` (Russian) of each term | `src/data/course-definitions.enc` | encrypted | encrypted, precached; read with the key |
 | Course: notes | `note` of each term and the group `notes`: commentary read only by the Claude tutor and the check lab | `src/data/course-notes.enc` | encrypted | not included |
 
-The artifact build carries all of it, because the artifact is private to its owner and its tutor and check lab read the notes. The PWA carries the open data and the encrypted definitions.
+The artifact build carries all of it, because the artifact is private to its owner and its tutor and check lab read the notes. The PWA carries the open data and the encrypted definitions. The tutor Worker ([SERVER.md](SERVER.md)) carries all three files inside its script, still encrypted, and opens them with its own copy of the key, so the tutor reads the notes and a browser never receives them.
 
 ## The key
 
@@ -18,6 +18,7 @@ One key, `RIGLAM_DATA_KEY`: 32 random bytes as 43 characters of base64url. It op
 |---|---|
 | The study group's link, after the `#`: `https://<host>/#k=<key>` | Browsers never send the part after `#` to a server, so the host only ever holds ciphertext. The app takes the key out of the address at once and keeps it on the device, so definitions work offline and on later visits without the link. |
 | GitHub Actions secret `RIGLAM_DATA_KEY` (also as a Dependabot secret, which Dependabot runs read instead of the Actions secrets) | The CI jobs that build the artifact (`static` and each `browser` job) need it for the artifact build and the tests that read the definitions. CI stops with a message when it is missing. The PWA build and its deploy need no key. |
+| The Worker's secret `RIGLAM_DATA_KEY` (`wrangler secret put`) | The tutor Worker opens the definitions and the notes with it, and checks with it that a request comes from someone who has the study group's link ([SERVER.md](SERVER.md)). Without it the tutor is off. |
 | The Claude cloud environment's secrets | Sessions that build the artifact, run the full tests or change the data. |
 | `.data-key` (git-ignored) or the environment variable, on a machine that builds the artifact or edits the data | The scripts read `RIGLAM_DATA_KEY`, then `.data-key`. |
 

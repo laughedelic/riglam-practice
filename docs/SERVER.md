@@ -13,10 +13,12 @@ worker/tutor.ts         one question: the model calls through the Anthropic SDK,
 worker/budget.ts        the spend counters in D1: reserve, settle, the kill switch, pruning
 worker/prices.ts        price per million tokens for each model; unknown models are charged at the highest rate
 worker/config.ts        settings from variables, with defaults
-worker/kit.ts           what the tutor knows: standing instructions, lookup tools, the notes
+worker/kit.ts           what the tutor knows, made from the term data: standing instructions, lookup tools, the notes
+worker/bundled.ts       the three data files as the script carries them (only worker/index.ts imports it)
 worker/migrations/      D1 schema (applied with wrangler, see below)
 src/ai/protocol.ts      the contract between page and server (shared by both): paths, headers, request, events, error codes
 src/ai/proof.ts         the access proof (shared by both)
+src/ai-shared/          the standing instructions, the lookup tools and the card, as pure functions of the term data (shared with the page)
 tests/worker/           Vitest tests with stand-ins for D1 and the model API
 ```
 
@@ -28,6 +30,8 @@ tests/worker/           Vitest tests with stand-ins for D1 and the model API
 | `POST /api/tutor` | One tutor question. Body `{kind: "chat" \| "explain", cats: [category ids], turns: [{role, content}]}` (`src/ai/protocol.ts`). The answer is `text/event-stream` of `delta` (a piece of text), `done` (`truncated` says the model ran out of room) and `error` (`code`, `message`). Requests that cannot be served are plain JSON errors with a status: 400, 401, 403 (another site's `Origin`), 413, 429, 503. |
 
 The request carries only what the learner typed and the page's own state (the card of the pair and the conversation). The standing instructions, the lookup tools and the notes ("fine points") are on the server; the notes never reach a browser.
+
+**The kit.** `worker/kit.ts` makes the tutor's knowledge once per Worker instance: it opens `course-definitions.enc` and `course-notes.enc` with the `RIGLAM_DATA_KEY` secret, puts them together with `drill-data.json` as the knowledge base exports them ([DATA.md](DATA.md)), and builds the instructions and the two lookup tools from `src/ai-shared`, the code the page uses too. The three files are bundled into the script (`rules` in `wrangler.jsonc` makes `.enc` files binary modules), so refreshing the data (`npm run data:import`) and deploying is all it takes to give the tutor the new data. A key that does not open the files leaves the tutor off, with one line in the log that names no text.
 
 Error codes the page can see: `rate_limited` (the device's or everybody's budget for the day is used, or the model is busy), `not_granted` (the proof does not match), `prompt_too_large`, `bad_request`, `refused` (the model declined), `unavailable` (the tutor is off or failed). The details of a failure go to the log, never into the response.
 
@@ -99,8 +103,8 @@ Nothing here is needed to build or test the app; without the database the tutor 
 
 - D1 is a SQLite in memory (`node:sqlite`) with the real migrations applied, so the SQL that counts money is the SQL that runs in production.
 - The model API is a `fetch` that answers with scripted server-sent events, so the real SDK client parses them (text, tool calls, `max_tokens`, refusals, HTTP errors, a call that hangs until the page goes away).
-- The kit is two small tools.
+- The kit is made from a few invented terms sealed with a throwaway key; the last test block runs on the real files when the data key is available (as in CI, [DATA.md](DATA.md)) and is skipped otherwise.
 
-They cover the proof, the settings, the prices, the counters (including simultaneous questions), every refusal path, a plain answer with the exact model request, tool rounds and their failure, the last-round rule, every failure of the model call, and the page going away.
+They cover the kit (the tools, the notes, a category id that is not the data's own, the wrong key, no text in the log), the proof, the settings, the prices, the counters (including simultaneous questions), every refusal path, a plain answer with the exact model request, tool rounds and their failure, the last-round rule, every failure of the model call, and the page going away.
 
 What they cannot show is the Workers runtime itself. To try the Worker in `wrangler dev`, give it a local D1 binding (`wrangler d1 migrations apply <name> --local`), set `ANTHROPIC_BASE_URL` to a stand-in for the model API and use a throwaway data key. Note that `wrangler dev`'s local proxy does not pass on a client that hangs up, so a page going away mid-answer can only be seen in the unit tests or on a deployed Worker (the `outcome` column of `usage_log` shows `aborted`).

@@ -5,6 +5,6 @@
     "types": ["@cloudflare/workers-types", "node"],
     "noEmit": true
   },
-  "include": ["../worker", "../src/ai", "../tests/worker"],
+  "include": ["../worker", "../src/ai", "../src/ai-shared", "../tests/worker"],
   "exclude": []
 }
