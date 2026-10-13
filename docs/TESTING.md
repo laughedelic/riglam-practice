@@ -47,6 +47,8 @@ To repeat one job locally: `npm run build`, then the same `npx playwright test` 
 
 The legacy suite is the long part, and `test40q` is its longest test (about two minutes, in one browser after another), so more legacy shards would not make a run shorter. A new Playwright project needs an entry in the `browser` matrix; `tests/unit/ci-workflow.test.ts` fails when a project is in no job, in two, or when the shards of a project are not all there.
 
+The preview, production and cleanup jobs record GitHub deployments through `scripts/deployment.mjs` (docs/DEPLOY.md). `tests/unit/deployment.test.ts` checks its requests against a recorded fake of the API: what is sent, in which order, and what happens when one call fails. The first real run of a changed script or workflow is a pull request's own `Deploy preview` job.
+
 ## Adding tests
 
 Write new tests as native Playwright specs in `tests/e2e/` (PWA behaviour; layout in `tests/e2e/layout/`) or Vitest files in `tests/unit/`. Keep adding to the legacy suite only when the change is to the page's UI states and the harness already has what you need.

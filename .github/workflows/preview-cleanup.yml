@@ -1,0 +1,29 @@
+name: Retire preview
+
+# ci.yml records every preview as a deployment in its own GitHub environment, preview/pr-<number>. When the pull request is merged
+# or closed, its deployments are marked inactive and deleted, so none shows as live after the preview is no longer wanted.
+# The environment itself stays in the repository's settings, empty: removing it is an administration action that the workflow
+# token cannot have (docs/DEPLOY.md). The Cloudflare preview address is not touched.
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+  deployments: write
+
+jobs:
+  retire:
+    name: Retire the preview of the pull request
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - run: node scripts/deployment.mjs retire
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEPLOY_ENVIRONMENT: preview/pr-${{ github.event.number }}

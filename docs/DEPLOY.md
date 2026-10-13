@@ -15,11 +15,24 @@ Alternatives considered and not chosen: GitHub Pages (no private-repo hosting on
 
 | Event | Job | Result |
 |---|---|---|
-| Pull request | `ci.yml` → `deploy-preview` | uploads `dist/pwa` as a version with the alias `pr-<number>`; comments the address on the pull request |
-| Push to `main` | `ci.yml` → `deploy-preview` | same, alias `staging` (follows main) |
-| Release created (merge of the release pull request) | `release.yml` → `publish` | attaches `riglam-practice-pwa-<tag>.zip` to the GitHub release, then `wrangler deploy` puts the PWA on the production address |
+| Pull request | `ci.yml` → `deploy-preview` | uploads `dist/pwa` as a version with the alias `pr-<number>` and records it as a GitHub deployment in the environment `preview/pr-<number>`, with the address as its URL |
+| Pull request closed or merged | `preview-cleanup.yml` | marks the deployments of `preview/pr-<number>` inactive and deletes them |
+| Push to `main` | `ci.yml` → `deploy-preview` | same upload, alias `staging` (follows main), recorded in the environment `staging` |
+| Release created (merge of the release pull request) | `release.yml` → `publish` | attaches `riglam-practice-pwa-<tag>.zip` to the GitHub release, then `wrangler deploy` puts the PWA on the production address and records it in the environment `production` |
 
 Both deploy steps check for the two secrets below and skip with a notice when they are missing, so the pipeline works (build, tests, release) before any Cloudflare account exists.
+
+## Deployments on GitHub
+
+Every upload is also recorded as a GitHub deployment, so GitHub shows the address where people look: a pull request gets a "deployed to `preview/pr-<number>`" entry with a link to the preview, and the repository's deployments list has `production`, `staging` and the previews. Each pull request has an environment of its own because GitHub marks the earlier deployment of an environment inactive when a new one succeeds; with one shared `preview` environment, each new preview would make the others look dead while they still serve.
+
+`scripts/deployment.mjs` makes the calls (`start`, `finish` and `retire`; its header says what each needs). The jobs use only the workflow's own `GITHUB_TOKEN` with `deployments: write`. Recording a deployment never stops the upload: if a call fails, that step is marked failed and the job goes on.
+
+When a pull request is closed or merged, `preview-cleanup.yml` marks the deployments of its environment inactive and deletes them. It cannot delete the environment itself: that is a repository administration action, and a workflow token has no administration permission (the `permissions:` key has no such scope). The empty environment `preview/pr-<number>` therefore stays under *Settings → Environments*. To remove those too, delete them by hand, or give a cleanup step a token with administration rights on the repository (for a fine-grained token, the *Administration* permission; kept as a repository secret) and have it call `DELETE /repos/{owner}/{repo}/environments/{name}` with the name URL-encoded (`preview%2Fpr-14`).
+
+The Cloudflare alias `pr-<number>` is not removed when the pull request closes.
+
+A preview opens with the definitions locked. Add the study group's key to the address (`#k=<key>`, see [DATA.md](DATA.md)) to unlock them; the key is never part of a deployment.
 
 ## One-time setup (the repository owner)
 
