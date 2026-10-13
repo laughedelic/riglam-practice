@@ -162,8 +162,6 @@ jobs:
       - name: Upload a version with a preview alias
         id: upload
         if: steps.creds.outputs.ok
-        env:
-          WRANGLER_LOG: debug
         run: |
           # Without pipefail a failed upload would pass here, because tee succeeds.
           set -o pipefail
