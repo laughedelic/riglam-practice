@@ -1,10 +1,12 @@
 import { state } from "../state.js";
 import { $, el } from "../core/dom.js";
+import { canAsk } from "../core/ask.js";
 import { CELLS } from "../core/rel.js";
 import { persist } from "../practice/answers.js";
 import { fillTurn, revealTutor } from "../practice/screen.js";
 import { render } from "../shell/render.js";
-import { explainAsk, tutorCard } from "../../ai-shared/card.ts";
+import { cardBody, explainAsk, tutorCard } from "../../ai-shared/card.ts";
+import { pairCats } from "../../ai-shared/lookup.ts";
 import { tutorTools } from "../../ai-shared/tools.ts";
 import { VERDICT_RE, applyVerdicts, parseVerdicts } from "../../domain/verdict.ts";
 
@@ -28,22 +30,26 @@ function applyVerify(text,U,C){
 function saveExplain(U){ persist(U,U.debate?"Your debate":"Your answer"); }
 export async function ask(text,kind){
   const U=state.ui, C=state.cur;                       // the pair this question belongs to, even if you switch tabs meanwhile
-  if(!state.sample||!U||U.ctl) return;
-  const p=C.p;
+  if(!canAsk()||!U||U.ctl) return;
+  const p=C.p, direct=!!state.sample;                  // the host's own model call, or else the app's server
   const body=kind==="explain"?explainAsk(U):text;
-  if(!U.chat) U.chat=[{role:"user",content:tutorCard(state,p,U)+"\n\n"+body, hidden:true}];
+  // The server holds the standing instructions and the notes itself, so what it gets as the first turn is the card alone.
+  if(!U.chat) U.chat=[{role:"user",content:(direct?tutorCard(state,p,U):cardBody(state,p,U))+"\n\n"+body, hidden:true}];
   else U.chat.push({role:"user",content:body,hidden:!!kind});
   if(kind==="explain"){ U.explained=true; U.rtab="tutor"; }
   U.chat.push({role:"assistant",content:"",pending:true,kind});
   U.chatErr=""; const ctl=U.ctl=new AbortController(); render(); if(U===state.ui) revealTutor();
   const turns=U.chat.filter(t=>!t.pending).map(t=>({role:t.role,content:t.content}));
   const slot=U.chat[U.chat.length-1];
-  const opts={signal:ctl.signal,modelTier:TIER,cache:false,onText:({text})=>{slot.content=text; if(U===state.ui){ const o=$("ans-live"); if(o){ fillTurn(o,{kind,pending:true,content:text},!o.closest("#chatscroll")); const sc=$("chatscroll"); if(sc) sc.scrollTop=0; } }}};
+  const onText=({text})=>{slot.content=text; if(U===state.ui){ const o=$("ans-live"); if(o){ fillTurn(o,{kind,pending:true,content:text},!o.closest("#chatscroll")); const sc=$("chatscroll"); if(sc) sc.scrollTop=0; } }};
+  const opts={signal:ctl.signal,modelTier:TIER,cache:false,onText};
   if(state.DATA) opts.tools=tutorTools(state);
   try{
     let r;
-    try{ r=await state.sample(turns,opts); }
-    catch(e){ if(e&&e.code==="tools_unavailable"){ delete opts.tools; r=await state.sample(turns,opts); } else throw e; }
+    if(direct){
+      try{ r=await state.sample(turns,opts); }
+      catch(e){ if(e&&e.code==="tools_unavailable"){ delete opts.tools; r=await state.sample(turns,opts); } else throw e; }
+    }else r=await state.tutor({kind:kind==="explain"?"explain":"chat",cats:pairCats(state,p).filter(Boolean),turns},{signal:ctl.signal,onText});
     slot.content=r.text+(r.truncated?"\n(Cut short.)":""); delete slot.pending;
     if(kind==="explain"){ if(U.doc) U.doc.explain=String(r.text||"").slice(0,3000); if(!(U.res.exOpen&&applyVerify(r.text,U,C))) saveExplain(U); }
   }catch(e){
@@ -51,7 +57,7 @@ export async function ask(text,kind){
     if(kind==="explain") U.explained=false;
     if(U.chat.length===1) U.chat=null;
     U.chatErr=errCopy(e);
-    if(e&&ERR_OFF.includes(e.code)) state.sample=null;
+    if(e&&ERR_OFF.includes(e.code)){ state.sample=null; state.tutor=null; }
   }
   U.ctl=null;
   if(U===state.ui){ render(); if(kind==="explain") revealTutor(); const i=$("ask-in"); if(i&&!("ontouchstart" in window)) i.focus(); }
@@ -66,10 +72,22 @@ export function fillAns(node,text){
     node.append(m?el("p",null,el("b",{text:m[1]+": "}),m[2]):el("p",{text:ln.replace(/^[-•]\s*/,"")}));
   }
 }
+/** A used-up daily budget: whose it is, when the tutor opens again (in the person's own time), and that the rest keeps working. */
+function budgetCopy(e){
+  const lead=e.scope==="device"?"You have used your share of the tutor for today.":e.scope==="global"?"The tutor has reached its limit for today for everybody.":"The tutor's limit for today is used up.";
+  const at=e.resetsAt?new Date(e.resetsAt):null;
+  let when=" Try again tomorrow.";
+  if(at&&!isNaN(at.getTime())){
+    const time=at.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
+    when=at.toDateString()===new Date().toDateString()?` It is available again at ${time}.`:` It is available again tomorrow at ${time}.`;
+  }
+  return lead+when+" Everything else in the app keeps working.";
+}
 function errCopy(e){
   const c=e&&e.code;
   if(c==="cancelled") return "";
-  if(c==="rate_limited") return "Claude is busy or your usage limit is reached. Try again later.";
+  if(c==="offline") return "No connection. The tutor needs the internet; try again when you are back online.";
+  if(c==="rate_limited") return e.budget?budgetCopy(e):"Claude is busy or your usage limit is reached. Try again later.";
   if(c==="session_expired") return "Sign in to Claude again, then retry.";
   if(c==="prompt_too_large") return "This conversation is too long. Move to the next pair.";
   if(ERR_OFF.includes(c)) return "Claude is not enabled for this page.";

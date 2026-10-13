@@ -6,7 +6,7 @@ import type { Cat, DrillData, Item } from "../ai-shared/data";
 import type { AnswerView, DebateAnswer } from "../ai-shared/card";
 import type { CellId, RelKey } from "../ai-shared/relations";
 import type { Pair, PoolEntry, Verdict } from "../domain/types";
-import type { Db, Sample } from "../platform/types";
+import type { Db, Sample, Tutor } from "../platform/types";
 import type { TransferSlot } from "../ui/data-transfer";
 
 export type { Pair, PoolEntry, Verdict };
@@ -174,6 +174,8 @@ export interface State {
   // what the platform offers
   db: Db | null;
   sample: Sample | null;
+  /** a question to the app's own server (platform.tutor), when the place has one; `sample` is used first */
+  tutor: Tutor | null;
 
   // the stored collections as the page holds them
   batches: BatchDoc[];
