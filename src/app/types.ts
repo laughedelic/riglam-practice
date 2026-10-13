@@ -4,19 +4,12 @@
 // Fields written by older versions of the page may be missing, so most fields besides the keys are optional.
 import type { Cat, DrillData, Item } from "../ai-shared/data";
 import type { AnswerView, DebateAnswer } from "../ai-shared/card";
-import type { CellId, PairLike, RelKey } from "../ai-shared/relations";
+import type { CellId, RelKey } from "../ai-shared/relations";
+import type { Pair, PoolEntry, Verdict } from "../domain/types";
 import type { Db, Sample } from "../platform/types";
 import type { TransferSlot } from "../ui/data-transfer";
 
-/** A pair of phenomena to compare. Generated pairs have an id starting with "g-"; older batches carry labels only. */
-export interface Pair extends PairLike {
-  id: string;
-  generated?: boolean;
-  [extra: string]: unknown;
-}
-
-/** The verdict of the page for one cell: ok, bad, or cmp (an example it could not classify). */
-export type Verdict = "ok" | "bad" | "cmp" | "part" | string;
+export type { Pair, PoolEntry, Verdict };
 
 export interface CellDoc {
   text: string;
@@ -166,13 +159,6 @@ export interface SkipNote {
   ui: Ui | null;
   prev: { cur: Current | null; rq: Pair[]; rt: string };
   tid: number;
-}
-
-/** The pair pool entry: two categories and the relation they have ("mi", "con", "3" for both three-possibility directions, "4"). */
-export interface PoolEntry {
-  a: string;
-  b: string;
-  r: string;
 }
 
 /** The page's shared state: every variable that used to be module-level (see state.js). */

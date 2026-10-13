@@ -31,11 +31,12 @@ index.html                 PWA entry (the page markup is included from src/app/m
 src/app/                   the page, shared by both builds: app.js (entry), state.js, feature modules in folders, app.css (an index of styles/*.css), markup.html, felt tiles
 src/data/                  the term data: open JSON, plus the definitions and notes encrypted (docs/DATA.md)
 src/ai-shared/             the tutor's card, prompts and lookup tools as pure TypeScript functions of the term data (used by the page; a server can use them too)
+src/domain/                the rules of the practice (pairs and their draw, grading, Claude's verdicts) as pure TypeScript functions of the term data
 src/platform/              the Platform interface (data, `db`, `sample`) that each build implements
 src/pwa/                   PWA only: platform adapter, local `db` (IndexedDB), key dialog, service worker registration, fonts
 src/artifact/              artifact only: platform adapter (embedded data, `window.claude`), head (title, font links)
 scripts/                   build-artifact, artifact-verify, data (key, import, export), fonts, icons, Vite plugins
-tests/unit/                Vitest unit tests (artifact comparison, artifact and PWA build contracts, encrypted data, the shape of src/app, the tutor code in src/ai-shared)
+tests/unit/                Vitest unit tests (artifact comparison, artifact and PWA build contracts, encrypted data, the shape of src/app, the tutor code in src/ai-shared, the rules in src/domain)
 tests/e2e/                 Playwright: PWA specs, parity with the artifact build, the layout matrix, and the legacy page suite
 tests/legacy/              the page's regression suite (harness, 28 test files)
 public/                    icons

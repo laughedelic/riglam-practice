@@ -1,15 +1,15 @@
 import { state } from "../state.js";
 import { labStart } from "../ai/lab.js";
 import { $ } from "../core/dom.js";
-import { CELLS, refOf } from "../core/rel.js";
+import { CELLS } from "../core/rel.js";
 import { QCELL } from "./text.js";
 import { persist } from "../practice/answers.js";
-import { judgeText, summarize } from "../practice/grading.js";
 import { freshUi } from "../practice/queue.js";
 import { clearSkip } from "../practice/skips.js";
 import { nextGenerated } from "../practice/universe.js";
 import { render, top0 } from "../shell/render.js";
 import { relReset, tkind } from "../shell/timers.js";
+import { gradeDebate } from "../../domain/grading.ts";
 
 export function freshDebateUi(){
   const u=freshUi();
@@ -75,47 +75,12 @@ export function chooseD(k){
   state.ui.rel=k; state.ui.open=false; checkDebate();
 }
 
-/* what three answers give: Q1 accepted = no common locus; Q2 and Q3 accepted = pervasion each way */
-function deriveRel(ans){
-  const s=ans.slice(0,3).map(a=>a.say);
-  if(s.some(x=>x!=="accept"&&x!=="why")) return null;      // time ran out on one of them
-  const [x,y,z]=s.map(v=>v==="accept");
-  if(x&&!y&&!z) return "con";
-  if(!x&&y&&z) return "mi";
-  if(!x&&y&&!z) return "3ab";
-  if(!x&&!y&&z) return "3ba";
-  if(!x&&!y&&!z) return "4";
-  return "bad";                                            // accepting no-common-locus together with a pervasion
-}
-function gradeDebate(p,u){
-  const res={relOk:u.rel===p.relation&&!u.late, cells:{}, dec:{}, implied:deriveRel(u.ans)};
-  QCELL.forEach((c,i)=>{
-    const a=u.ans[i], ref=refOf(p,c), has=!!ref, why=(p.why&&p.why[c])||"", t=(a.text||"").trim();
-    let v,msg,kind="occ",dec=false;
-    if(a.say==="accept"){
-      if(!has){ v="ok"; msg=["Right. ",why]; dec=true; } else { v="bad"; msg=["Counter-example: ",ref]; }
-    } else if(a.say==="why"){
-      if(!has){ v="bad"; msg=["Nothing can be posited. ",why]; }
-      else {
-        dec=true; kind="ex";
-        if(!t){ v="bad"; msg=[a.timeout?"Time ran out. ":"No example. ","For example: "+ref+"."]; }
-        else {
-          const j=judgeText(p,c,t,[p.catA,p.catB]);
-          if(j){ v=j.v; msg=j.msg.slice(); if(v==="bad") msg[1]+=" Example: "+ref+"."; }
-          else { v="cmp"; msg=["Not checked. ","Reference: "+ref+"."]; }
-        }
-      }
-    } else { v="bad"; msg=["Time ran out. ",has?"For example: "+ref+".":why]; }
-    res.cells[c]={v,msg,kind}; res.dec[c]=dec;
-  });
-  return summarize(res);
-}
 export async function checkDebate(){
   if(!state.ui||!state.ui.debate||state.ui.checked||state.ui.step<4||!state.ui.rel) return;
   stopTimer();
   const p=state.cur.p;
   QCELL.forEach((c,i)=>{ state.ui.cells[c].t=(state.ui.ans[i].text||"").trim(); state.ui.cells[c].none=state.ui.ans[i].say==="accept"; });
-  clearSkip(p); state.ui.res=gradeDebate(p,state.ui); state.ui.checked=true; state.ui.open=false; render();
+  clearSkip(p); state.ui.res=gradeDebate(state,p,/** @type {import("../../domain/types.ts").DebateInput} */(state.ui)); state.ui.checked=true; state.ui.open=false; render();
   top0(); const bs=document.querySelectorAll("#stage .actions .btn"); if(bs.length) bs[bs.length-1].focus({preventScroll:true});
   if(!state.db) return;
   const cells=/** @type {import("../types.ts").AnswerDoc["cells"]} */({}); for(const c of CELLS) cells[c]={text:state.ui.cells[c].t, none:state.ui.cells[c].none, verdict:state.ui.res.cells[c].v};
