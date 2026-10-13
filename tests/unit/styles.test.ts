@@ -7,12 +7,13 @@ import { expect, test } from "vitest";
 const app = resolve(__dirname, "../../src/app");
 const index = readFileSync(resolve(app, "app.css"), "utf8");
 const dir = resolve(app, "styles");
-const files = readdirSync(dir).filter((f) => f.endsWith(".css"));
+// readdirSync does not promise an order, so sort once: the numbering and the import order are checked against this list
+const files = readdirSync(dir).filter((f) => f.endsWith(".css")).sort();
 const imports = [...index.matchAll(/^@import\s+"\.\/styles\/([^"]+)";/gm)].map((m) => m[1]);
 
 test("app.css imports every file of styles/ once, in the order of their numbers", () => {
   expect(files.length).toBeGreaterThan(5);
-  expect(imports).toEqual([...files].sort());
+  expect(imports).toEqual(files);
 });
 
 test("the files are numbered NN-name.css without gaps or repeats", () => {
