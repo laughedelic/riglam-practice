@@ -10,6 +10,8 @@ export const state = {
   LABELIDX: {},
   db: null,
   sample: null,
+  account: null, // optional sign-in with a server copy of the documents (platform.account), when the place has one
+  acct: {},      // the same for the Account row (src/ui/account.ts)
   xfer: {},      // what the "Your data" row of Options keeps between renders (src/ui/data-transfer.ts)
   tutor: null,   // a question to the app's own server (platform.tutor), when the place has one; `sample` is used first
   batches: [],

@@ -21,6 +21,7 @@ worker/sync.ts          the server copy of a signed-in person's documents
 worker/migrations/      D1 schema (applied with wrangler, see below)
 src/ai/protocol.ts      the contract between page and server (shared by both): paths, headers, request, events, error codes
 src/ai/proof.ts         the access proof (shared by both)
+src/account/            the device side: client, sync engine, outbox, passkey code (docs/ARCHITECTURE.md)
 src/ai-shared/          the standing instructions, the lookup tools and the card, as pure functions of the term data (shared with the page)
 src/account/protocol.ts the contract for accounts and sync (shared by both): paths, shapes, limits
 tests/worker/           Vitest tests with stand-ins for D1 and the model API
@@ -106,9 +107,11 @@ A passkey belongs to the host name of the app (`riglam-practice.<account>.worker
 
 A document is at most 256 KiB, a request at most 200 changes and 4 MiB, and an answer at most 500 changes (`more` says there are further ones). An account holds at most ten passkeys. These caps keep a stranger from filling the database or using up D1's daily write allowance, which the tutor's budget counters share.
 
+**On the device.** Options shows an Account row when `/api/health` says accounts are on (or this device used one before, so that an offline start still queues changes). Signed out it offers "Create account" (a name for the passkey manager, then the browser's passkey dialog) and "Sign in" (the browser offers the passkeys it has for this app). Signed in it shows the name, the number of passkeys and where sync stands, with "Sync now", "Add a passkey", "Sign out" and "Delete account". Sign-out first sends what is waiting, and needs a connection because it ends the session on the server. Syncing runs on its own: a moment after a change, when the connection returns, when the page comes back into view and about once a minute while it is open. Settings (the `rd-*` keys in localStorage) are not synced; Export saves them.
+
 **Switches.** `INSERT OR REPLACE INTO settings (key, value) VALUES ('accounts', 'off');` stops sign-up, sign-in and sync at once (like the tutor's switch, in the D1 console); the app then behaves as if there were no accounts. `/api/health` shows `accounts: "off"` until the migration `0002_accounts.sql` has been applied.
 
-**Deleting.** `DELETE /api/account` removes the account, its passkeys, sessions and documents in one batch, and the app offers it as "Delete my data". The copy on each device is not touched.
+**Deleting.** `DELETE /api/account` removes the account, its passkeys, sessions and documents in one batch, and the app offers it as "Delete account" in Options. The copy on each device is not touched.
 
 ## Setting up your own
 
