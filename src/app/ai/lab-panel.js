@@ -1,7 +1,7 @@
 import { state } from "../state.js";
 import { flagEditorNode, flagPart } from "./flags.js";
 import { LAB_JUDGE, LAB_MODELS, labAgain, labJudgeNow } from "./lab.js";
-import { CELL_NAME } from "./tutor.js";
+import { CELL_NAME } from "../../ai-shared/prompts.ts";
 import { el } from "../core/dom.js";
 
 /* ---------- the Lab panel of a result ---------- */

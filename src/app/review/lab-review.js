@@ -2,7 +2,7 @@ import { state } from "../state.js";
 import { removeFlag, setFlagState } from "../ai/flags.js";
 import { mname } from "../ai/lab-panel.js";
 import { LAB_MODELS, labRuns } from "../ai/lab.js";
-import { CELL_NAME } from "../ai/tutor.js";
+import { CELL_NAME } from "../../ai-shared/prompts.ts";
 import { el } from "../core/dom.js";
 import { dayOf } from "../core/util.js";
 
