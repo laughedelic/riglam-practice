@@ -14,7 +14,7 @@ permissions:
   pull-requests: write
 
 env:
-  WRANGLER_VERSION: 4.150.0
+  WRANGLER_VERSION: 4.149.0
 
 jobs:
   release-please:
