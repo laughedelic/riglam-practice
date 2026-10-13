@@ -172,13 +172,14 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
     if (data === null) m.delete(id);
     else m.set(id, deepFreeze(JSON.parse(JSON.stringify(data))));
     const mine = m.get(id);
-    versions.set(path, (versions.get(path) ?? 0) + 1);
+    const stamp = (versions.get(path) ?? 0) + 1; // this write's place in the order of writes of the document; a deletion has no value to compare
+    versions.set(path, stamp);
     notify(col);
     try {
       await tx("readwrite", (s) => (data === null ? s.delete(path) : s.put({ path, col, id, data: mine })) as IDBRequest);
     } catch (e) {
       // Not saved: the page must not go on showing a document that a reload would lose. Put back what was there, unless another write has replaced it since.
-      if (m.get(id) === mine) {
+      if (versions.get(path) === stamp && m.get(id) === mine) {
         if (had) m.set(id, before as Doc);
         else m.delete(id);
         notify(col);

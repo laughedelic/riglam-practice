@@ -70,4 +70,16 @@ describe("a write that could not be saved", () => {
     expect(await first).toBe("failed");
     expect((await ref.get()).data()).toEqual({ v: 3 });
   });
+
+  it("does not bring a deleted document back when a later deletion of it succeeds", async () => {
+    const { factory, control } = stub();
+    const db = createLocalDb({ indexedDB: factory, channel: false });
+    const ref = db.doc("answers/a1");
+    await ref.set({ v: 1 });
+    control.failNext = 1; // the first deletion is refused, the second goes through
+    const first = ref.delete().catch(() => "failed");
+    await ref.delete();
+    expect(await first).toBe("failed");
+    expect((await ref.get()).exists).toBe(false);
+  });
 });
