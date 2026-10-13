@@ -1,0 +1,55 @@
+import { state } from "../state.js";
+import { L, el } from "../core/dom.js";
+
+/* ---------- debate: the four questions ---------- */
+// The learner is the defender. The challenger asks four questions about A and B; each is answered Accept or Why?
+// (then posit an example). Each question has one counter-example cell of the practice grid:
+//   Q1 if it is A, it follows it is not B  -> a thing that is both
+//   Q2 if it is A, it follows it is B      -> an A that is not B
+//   Q3 if it is B, it follows it is A      -> a B that is not A
+//   Q4 if it is not A, it follows it is B  -> a thing that is neither (plain form: a non-existent counts)
+// "Accept" is right when that cell has nothing; "Why?" is right when it has something, and then the example is checked.
+export const QCELL=["both","anb","bna","nei"];
+// How the challenger's statement is worded and answered; which form the class uses is Alexey's pick (see notes/debate-question-form.md).
+// The saved data and the tutor card keep the same four questions whatever the wording. "A" and "B" become the pair's own terms,
+// and N marks a "not" that the page emphasises.
+const N={not:1};
+export const WORDINGS={
+  mine:{name:"Statement",lead:"Do you accept that…",acc:"Accept",acd:"Accepted",why:"Why?",wyd:"Asked why",ak:"A",wk:"W",q:[["If it is ","A",", it follows it is ",N," ","B","."],["If it is ","A",", it follows it is ","B","."],["If it is ","B",", it follows it is ","A","."],["If it is ",N," ","A",", it follows it is ","B","."]]},
+  cons:{name:"Consequence",lead:"Do you accept that…",acc:"I accept",acd:"Accepted",why:"Why?",wyd:"Asked why",ak:"A",wk:"W",q:[["It follows that whatever is ","A"," is necessarily ",N," ","B","."],["It follows that whatever is ","A"," is necessarily ","B","."],["It follows that whatever is ","B"," is necessarily ","A","."],["It follows that whatever is ",N," ","A"," is necessarily ","B","."]]},
+  plain:{name:"Plain",lead:"",acc:"Yes",acd:"Yes",why:"No",wyd:"No",ak:"Y",wk:"N",q:[["Is whatever is ","A"," necessarily ",N," ","B","?"],["Is whatever is ","A"," necessarily ","B","?"],["Is whatever is ","B"," necessarily ","A","?"],["Is whatever is ",N," ","A"," necessarily ","B","?"]]}
+};
+// Each label of the 42 categories in the singular, with its article, so the questions read as a real debate would.
+const SING={"functional things":"a functional thing","impermanent things":"an impermanent thing","composed things":"a composed thing","products":"a product","causes":"a cause","effects":"an effect","things that change":"a thing that changes","things that arise from causes":"a thing that arises from causes","momentary things":"a momentary thing","things that disintegrate":"a thing that disintegrates","things able to perform a function":"a thing able to perform a function","manifest phenomena":"a manifest phenomenon",
+"permanent phenomena":"a permanent phenomenon","non-produced phenomena":"a non-produced phenomenon","uncomposed phenomena":"an uncomposed phenomenon","things that do not change moment by moment":"a thing that does not change moment by moment",
+"forms":"a form","physical things":"a physical thing","matter":"matter","things made of atoms":"a thing made of atoms","external forms":"an external form","physical things outside a person's continuum":"a physical thing outside a person's continuum","internal forms":"an internal form","sense powers":"a sense power",
+"colours":"a colour","hues":"a hue","shapes":"a shape","visible forms":"a visible form","objects of eye consciousness":"an object of eye consciousness","sounds":"a sound","things heard by the ear consciousness":"a thing heard by the ear consciousness","smells":"a smell","odours":"an odour","objects of nose consciousness":"an object of nose consciousness","tastes":"a taste","objects of tongue consciousness":"an object of tongue consciousness","tangible objects":"a tangible object","objects of body consciousness":"an object of body consciousness",
+"consciousnesses":"a consciousness","minds":"a mind","awarenesses":"an awareness","knowers":"a knower","sense consciousnesses":"a sense consciousness","sense perceptions":"a sense perception","eye consciousnesses":"an eye consciousness","acts of seeing":"an act of seeing","mental consciousnesses":"a mental consciousness",
+"non-associated compositional factors":"a non-associated compositional factor","impermanent things that are neither matter nor mind":"an impermanent thing that is neither matter nor mind","persons":"a person","sentient beings":"a sentient being","hidden phenomena":"a hidden phenomenon","expressive sounds":"an expressive sound","sounds that express a meaning":"a sound that expresses a meaning",
+"wooden things":"a wooden thing","metal things":"a metal thing","white things":"a white thing","red things":"a red thing","green things":"a green thing","round things":"a round thing","square things":"a square thing","liquids":"a liquid","food":"food","things you can eat":"a thing you can eat","drinks":"a drink","hot things":"a hot thing","furniture":"furniture","musical instruments":"a musical instrument","plants":"a plant","bodies and body parts":"a body or a body part","animals":"an animal","humans":"a human","emotions":"an emotion","feelings":"a feeling","memories":"a memory","thoughts":"a thought","dreams":"a dream",
+/* labels of older prepared pairs */
+"permanent things":"a permanent thing","things that are produced":"a thing that is produced","things that exist":"a thing that exists","things that can be known":"a thing that can be known","things that can be heard":"a thing that can be heard","things that have causes":"a thing that has causes","things with colour":"a thing with colour","hard things":"a hard thing","cold things":"a cold thing","muscles":"a muscle","people":"a person","monks":"a monk","tables":"a table","bodies":"a body","mental factors":"a mental factor","dogs":"a dog","instruments":"an instrument"};
+try{ const v=localStorage.getItem("rd-wording"); if(WORDINGS[v]) state.wording=v; }catch(e){}
+export const Wd=()=>WORDINGS[state.wording];
+// the canonical form, with the letters A and B, is what the tutor card and the Review tab use
+export const qPlain=i=>WORDINGS.mine.q[i].map(x=>x===N?"not":x).join("").replace(/\.$/,"?");
+// the chip and the first word of its term stay on one line
+export const termNode=x=>{ const lab=x==="A"?state.cur.p.a:state.cur.p.b, [w,...r]=(SING[lab]||lab.replace(/^(\w+) things$/,"a $1 thing")).split(" ");
+  return el("span",{class:"qterm"},el("span",{class:"keep"},state.showAB?[L(x)," "]:null,el("span",{class:"t",text:w})),r.length?el("span",{class:"t",text:" "+r.join(" ")}):null); };
+export const qNode=i=>Wd().q[i].map(x=>x==="A"||x==="B"?termNode(x):x===N?el("span",{class:"not",text:"not"}):x);
+// an answer at a glance: Accept is a filled tag, Why? an outlined one followed by the example
+// a Why? answer is spelled out as the sentence it asserts, so the example is tied to its cell:
+// both: "X is both [A] a … and [B] a …"; A not B: "X is [A] a …, but not [B] a …"; B not A: the reverse; neither: "X is neither [A] a … nor [B] a …"
+// The words that name the cell (both … and, but not, neither … nor) are bold, a mark the chips, the italic terms and the red "not" do not use.
+function exSentence(i,t){
+  if(!state.fullPh) return el("span",{class:"exn",text:t});
+  const A=termNode("A"), B=termNode("B"), K=w=>el("b",{class:"conn",text:w});
+  const tail={both:[" is ",K("both")," ",A," ",K("and")," ",B], anb:[" is ",A,", ",K("but not")," ",B], bna:[" is ",B,", ",K("but not")," ",A], nei:[" is ",K("neither")," ",A," ",K("nor")," ",B]}[QCELL[i]];
+  return el("span",{class:"exs"},t,tail);
+}
+export function ansNode(a,ms,i){
+  const w=Wd(), tm=ms!=null?el("span",{class:"mut",text:(ms/1000).toFixed(1)+" s"}):null;
+  if(a.say==="accept") return el("span",{class:"ans-l"},el("span",{class:"pill acc",text:w.acd}),a.timeout?el("span",{class:"mut",text:"time ran out"}):tm);
+  if(a.say==="why") return el("span",{class:"ans-l"},el("span",{class:"pill why",text:w.wyd}),a.text?(i!=null?exSentence(i,a.text):el("span",{class:"exn",text:a.text})):el("span",{class:"mut",text:"no example"}),a.timeout?null:tm);
+  return el("span",{class:"ans-l"},el("span",{class:"pill why",text:"Time out"}));
+}

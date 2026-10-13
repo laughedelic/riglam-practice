@@ -2,10 +2,10 @@
 
 ## One source, two builds
 
-The page is a plain-DOM app (no framework): `src/app/app.js` builds the whole UI with a small `el()` helper and keeps state in module-level variables. It was written as a single artifact script and moved here with few changes, so the code is still one large module. Splitting it into typed modules is a later step, guided by the section markers in the file and covered by the tests.
+The page is a plain-DOM app (no framework): the UI is built with a small `el()` helper and re-rendered as a whole, and the state is one shared object. It was written as a single artifact script and was split into the modules below without changing what it does; the browser tests are what keeps it that way.
 
 ```
-src/app/app.js  app.css  markup.html  felt-*.png        shared by both builds
+src/app/  (app.js, modules, app.css, markup.html, felt-*.png)   shared by both builds
         │
         ├── src/entry-pwa.ts       + src/pwa/*    → vite build            → dist/pwa/        (PWA)
         └── src/entry-artifact.ts  + src/artifact/* → scripts/build-artifact.mjs → dist/artifact/index.html
@@ -25,6 +25,25 @@ What differs between the builds is kept out of `src/app`:
 | Ground rules of the frame | copied in `src/pwa/shell.css` (safe-area padding, `[hidden]`) | supplied by the frame |
 | Service worker, install | yes | no (the frame forbids service workers) |
 
+## The page code
+
+```
+src/app/
+  app.js        the entry: startApp(platform), boot, the test hook
+  state.js      the shared state: one exported object, `state`, plus the preferences saved on the device
+  core/         vocabulary and helpers that depend on nothing else: relations (rel), DOM helpers (dom), viewport, small utilities
+  practice/     Relations: the term universe and pair draws, grading, saving answers, favourites, skipped pairs, the screens, the terms panel
+  debate/       Pervasions (the four questions): wording, flow and grading, the screens
+  review/       the Review tab: answers, mistakes, favourites, debate statistics, check-lab review
+  ai/           the tutor (prompts, per-pair card, lookup tools), the check lab, flags
+  shell/        rendering, tabs, options, the chat overlay, keyboard shortcuts, timers and the toolbar
+```
+
+- Every variable that used to be module-level is a property of `state` (`state.ui`, `state.cur`, `state.db`, ...), because an ES module cannot assign to a binding it imports. A module-level `let` outside `state.js` fails a unit test.
+- Modules import each other freely, including in cycles (the screens call the actions and the actions render). That works because only functions are called across modules, and only after loading; do not call an imported function while a module loads. Modules whose top-level code wires listeners (`core/viewport.js`, `shell/render.js`, `shell/keys.js`, `shell/timers.js`) are imported by the entry for that effect.
+- `core/` and `state.js` import only each other (a unit test checks it); everything else may import everything.
+- `tests/unit/app-modules.test.ts` also checks that every module is reachable from `app.js`, so none is left out of a build.
+
 ## The platform
 
 The page does not know which build runs it. Each entry file calls `startApp(platform)` (the export of `app.js`), and the platform (`src/platform/types.ts`) offers three things:
@@ -35,7 +54,7 @@ The page does not know which build runs it. Each entry file calls `startApp(plat
 
 The shapes of `db` and `sample` are the artifact runtime's (`collection/doc/where/orderBy/limit/onSnapshot`; one call from a prompt or turns), so the artifact adapter passes `window.claude` through and the PWA implements the same interface locally. The page does not branch on the build. The PWA entry also leaves the platform at `window.__riglam.platform` for the browser tests and the console.
 
-A block at the end of `app.js` is the test hook (`window.__riglamTest`, inert unless a test defines it).
+A block at the end of `src/app/app.js` is the test hook (`window.__riglamTest`, inert unless a test defines it).
 
 ## The local `db`
 
