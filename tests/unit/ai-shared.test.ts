@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { expect, test } from "vitest";
 import {
-  CELL_NAME, DEBATE_ASK, FIRST_ASK, GUIDE, catByLabel, catFacts, explainAsk, makeIndex, matchItem, norm, pairCats, qPlain, termFacts, tutorCard, tutorTools,
+  CELL_NAME, DEBATE_ASK, FIRST_ASK, GUIDE, cardBody, cardNotes, catByLabel, catFacts, explainAsk, finePoints, makeIndex, matchItem, norm, pairCats, qPlain, termFacts, tutorCard, tutorTools,
 } from "../../src/ai-shared";
 import type { AnswerView, DrillData, PairLike } from "../../src/ai-shared";
 import { state } from "../../src/app/state.js";
@@ -119,6 +119,30 @@ test("the practice card names the cells, what the learner wrote, the reference a
   expect(card).toContain("- neither: learner wrote (blank); reference \"the horn of a rabbit\"; page verdict bad"); // the neither cell always has a reference
   expect(card).toContain("Fine points (from the sources; apply them):\n- A fine point about forms.");
   expect(card).not.toContain("Another fine point."); // only the notes of the two categories of the pair
+});
+
+test("the card is the instructions, the body and the fine points, which a server can take apart", () => {
+  for (const u of [practice(), debate()]) {
+    for (const p of [pair(), pair({ catA: "form", catB: "wood", b: "wooden things" }), pair({ a: "unknown a", b: "unknown b", catA: null, catB: null })]) {
+      expect(tutorCard(ix, p, u)).toBe(GUIDE + "\n\n" + cardBody(ix, p, u) + cardNotes(ix, p));
+    }
+  }
+  const body = cardBody(ix, pair(), practice());
+  expect(body.startsWith("CARD (from the course booklet's term data;")).toBe(true);
+  expect(body).toContain("page verdict cmp");
+  expect(body).not.toContain("Fine points");
+  expect(body).not.toContain(GUIDE.slice(0, 60));
+  expect(cardNotes(ix, pair())).toBe("\nFine points (from the sources; apply them):\n- A fine point about forms.");
+  expect(cardNotes(ix, pair({ catA: "form", catB: "wood", b: "wooden things" }))).toBe("\nFine points (from the sources; apply them):\n- A fine point about forms.\n- Another fine point.");
+  expect(cardNotes(ix, pair({ a: "unknown a", b: "unknown b", catA: null, catB: null }))).toBe("");
+});
+
+test("the fine points of categories are the notes of each, in order, without repeats; unknown ids add nothing", () => {
+  expect(finePoints(ix, ["form", "wood"])).toEqual(["A fine point about forms.", "Another fine point."]);
+  expect(finePoints(ix, ["wood", "form", "wood"])).toEqual(["Another fine point.", "A fine point about forms."]);
+  expect(finePoints(ix, ["mind", null, undefined, "nope"])).toEqual([]);
+  expect(finePoints(makeIndex({ ...data(), notes: { a: ["Same."], b: ["Same.", "Other."] } }), ["a", "b"])).toEqual(["Same.", "Other."]);
+  expect(finePoints(makeIndex({ ...data(), notes: undefined }), ["form"])).toEqual([]); // the open data has no notes
 });
 
 test("the practice card says when time ran out", () => {

@@ -36,10 +36,25 @@ export interface AnswerView {
   };
 }
 
-export function tutorCard(ix: DataIndex, p: PairLike, u: AnswerView): string {
+/** The fine points the sources add for these categories, without repeats, in order. They are in the full data only. */
+export function finePoints(ix: DataIndex, catIds: readonly (string | null | undefined)[]): string[] {
+  return [...new Set(catIds.flatMap(c=>c&&ix.DATA.notes&&ix.DATA.notes[c]||[]))];
+}
+
+/** The fine points of the pair's two categories as the tail of the card; empty when there are none. */
+export function cardNotes(ix: DataIndex, p: PairLike): string {
+  const notes=finePoints(ix,pairCats(ix,p));
+  return notes.length?"\nFine points (from the sources; apply them):\n"+notes.map(n=>"- "+n).join("\n"):"";
+}
+
+/**
+ * The card without the standing instructions and without the fine points: what the data says about the two
+ * categories, the correct relation, and the learner's answer with the page's verdicts. A server that holds the
+ * instructions and the fine points itself asks the page for this part only; `tutorCard` is the three put together.
+ */
+export function cardBody(ix: DataIndex, p: PairLike, u: AnswerView): string {
   const [ca,cb]=pairCats(ix,p);
   const card={A:ca?catFacts(ix,ca,p.a):{label:p.a,type:p.typeA}, B:cb?catFacts(ix,cb,p.b):{label:p.b,type:p.typeB}};
-  const notes=[...new Set([ca,cb].flatMap(c=>c&&ix.DATA.notes&&ix.DATA.notes[c]||[]))];
   const refTxt=(c: CellId)=>refOf(p,c)?JSON.stringify(refOf(p,c)):"EMPTY ("+((p.why&&p.why[c])||"no example")+")";
   let mid: string;
   if(u.debate){
@@ -70,11 +85,14 @@ Reference note: ${p.note||"none"}
 Cells (verdict cmp = learner wrote something the page could not classify):
 ${lines}`;
   }
-  return GUIDE+`
-
-CARD (from the course booklet's term data; the relation and reference examples were computed from a list of classified examples):
+  return `CARD (from the course booklet's term data; the relation and reference examples were computed from a list of classified examples):
 ${JSON.stringify(card)}
-${mid}`+(notes.length?"\nFine points (from the sources; apply them):\n"+notes.map(n=>"- "+n).join("\n"):"");
+${mid}`;
+}
+
+/** The first message of a tutor chat: the standing instructions, the card, and the fine points. */
+export function tutorCard(ix: DataIndex, p: PairLike, u: AnswerView): string {
+  return GUIDE+"\n\n"+cardBody(ix,p,u)+cardNotes(ix,p);
 }
 
 // Explain also verifies the examples the page could not check: those cell lines end in a machine-readable verdict.

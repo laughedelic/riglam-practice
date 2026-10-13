@@ -11,7 +11,7 @@ export type { DataIndex } from "./lookup";
 export { CELL_NAME, DEBATE_ASK, DEBATE_NOTE, FIRST_ASK, GUIDE } from "./prompts";
 export { CELLS, REL, cellLabel, refOf } from "./relations";
 export type { CellId, PairLike, RelKey, Relation } from "./relations";
-export { explainAsk, tutorCard } from "./card";
+export { cardBody, cardNotes, explainAsk, finePoints, tutorCard } from "./card";
 export type { AnswerView, DebateAnswer } from "./card";
 export { tutorTools } from "./tools";
 export type { TutorTool } from "./tools";

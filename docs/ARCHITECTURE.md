@@ -56,7 +56,7 @@ src/app/
 | `relations.ts`, `debate.ts` | the five relations, the four cells and the four questions in their canonical wording |
 | `facts.ts` | `termFacts`, `catFacts`: what the data says about a term or category |
 | `prompts.ts` | the tutor's standing instructions and the two "explain" requests |
-| `card.ts` | `tutorCard(index, pair, answer)`: the first message of a tutor chat; `explainAsk(answer)` |
+| `card.ts` | `tutorCard(index, pair, answer)`: the first message of a tutor chat, made of the instructions, `cardBody(index, pair, answer)` (the data, the relation, the learner's answer and the page's verdicts) and `cardNotes(index, pair)` (the fine points from the sources, from `finePoints(index, categoryIds)`); a server that holds the instructions and the fine points itself asks for the body only; `explainAsk(answer)` |
 | `tools.ts` | `tutorTools(index)`: the `lookup_term` and `classify_example` tools |
 
 Every function takes a **data index** (`DataIndex`: the data plus its lookup tables) as its first argument. The page passes its `state`, which has the same five fields (`DATA`, `CAT`, `ITEMIDX`, `ALIASIDX`, `LABELIDX`); `indexData()` in `practice/universe.js` fills them with `makeIndex`. Code that talks to the model elsewhere builds an index with `makeIndex(data)` and gets the same prompt text and the same tool results. `tests/unit/ai-shared.test.ts` checks the functions on made-up data and the real open data, and that the folder imports nothing outside itself and touches no `window`, `document`, storage or network.
