@@ -694,8 +694,8 @@ function removeFlag(id){
   const had=flags[id]; if(!had) return; delete flags[id]; if(ui) ui.flagEdit=null; renderKeep(); refocusFlag(id);
   if(db) flagWrite(id,()=>db.collection("flags").doc(id).delete(),()=>{ flags[id]=had; });
 }
-function setFlagState(id,state){
-  const had=flags[id]; if(!had) return; const doc=Object.assign({},had,{state,updatedAt:new Date().toISOString()}); flags[id]=doc; renderKeep();
+function setFlagState(id,to){
+  const had=flags[id]; if(!had) return; const doc=Object.assign({},had,{state:to,updatedAt:new Date().toISOString()}); flags[id]=doc; renderKeep();
   if(db) flagWrite(id,()=>put("flags",id,doc),()=>{ flags[id]=had; });
 }
 function flagEditorNode(where){
