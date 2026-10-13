@@ -1,7 +1,6 @@
 // What the tutor knows: the standing instructions, the two lookup tools and the fine points (the knowledge base's notes).
 // All three are made from the full term data, which the Worker decrypts with its secret. The page's own copy of the
-// instructions and tools lives in src/app/app.js until the page is split into modules; the Worker's kit will use the
-// shared code from src/ai/ then.
+// instructions and tools lives in src/app/ai/tutor.js until it moves into src/ai-shared, which the Worker's kit will use then.
 import type { Env } from "./env";
 
 export interface ToolDef {

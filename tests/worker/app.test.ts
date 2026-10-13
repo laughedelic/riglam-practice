@@ -28,7 +28,7 @@ afterEach(() => vi.restoreAllMocks());
 describe("GET /api/health", () => {
   const health = async (env: Partial<Env>) => {
     const s = await setup(env);
-    const res = await createApp({ kit: async () => null, now: () => NOW }).request("/api/health", {}, s.env);
+    const res = await createApp({ kit: async () => fakeKit().kit, now: () => NOW }).request("/api/health", {}, s.env);
     return { res, body: await res.json(), s };
   };
 
@@ -49,16 +49,24 @@ describe("GET /api/health", () => {
 
   it("says it is off when the switch in the database is off, and on again when it is not", async () => {
     const s = await setup();
-    const app = createApp({ kit: async () => null, now: () => NOW });
+    const app = createApp({ kit: async () => fakeKit().kit, now: () => NOW });
     await s.env.DB!.prepare("INSERT INTO settings (key, value) VALUES ('tutor', 'off')").run();
     expect(await (await app.request("/api/health", {}, s.env)).json()).toEqual({ ok: true, tutor: "off" });
     await s.env.DB!.prepare("DELETE FROM settings").run();
     expect(await (await app.request("/api/health", {}, s.env)).json()).toEqual({ ok: true, tutor: "on" });
   });
 
+  it("is off when there is no kit, whatever else is in place (every question would be refused)", async () => {
+    const s = await setup();
+    const app = createApp({ kit: async () => null, now: () => NOW });
+    expect(await (await app.request("/api/health", {}, s.env)).json()).toEqual({ ok: true, tutor: "off" });
+    const failing = createApp({ kit: async () => { throw new Error("bad key"); }, now: () => NOW });
+    expect(await (await failing.request("/api/health", {}, s.env)).json()).toMatchObject({ tutor: "off" });
+  });
+
   it("is off, not an error, when the database cannot be read (the migration has not been applied)", async () => {
     const s = await setup({ DB: { prepare: () => { throw new Error("no such table"); } } as unknown as D1Database });
-    const res = await createApp({ kit: async () => null }).request("/api/health", {}, s.env);
+    const res = await createApp({ kit: async () => fakeKit().kit }).request("/api/health", {}, s.env);
     expect(await res.json()).toEqual({ ok: true, tutor: "off" });
   });
 });
@@ -382,6 +390,24 @@ describe("POST /api/tutor: when the page goes away", () => {
     expect(log(s)[0].outcome).toBe("aborted");
     expect(log(s)[0].micro).toBeGreaterThanOrEqual(100 * 2 + 5 * 10);
     expect(counters(s).device![0]).toBe(log(s)[0].micro);
+  });
+});
+
+describe("POST /api/tutor: a failure after a tool round", () => {
+  it("adds this round's partial output to the earlier rounds' instead of replacing them", async () => {
+    const s = await setup();
+    const { res, model } = await tutor(s, [
+      { text: ["Let me look. "], tool: { id: "tu_1", name: "lookup_term", input: { name: "form" } }, usage: { input: 100, output: 500 } },
+      { text: ["partial answer"], hang: true, usage: { input: 100 } },
+    ]);
+    const reader = res.body!.getReader();
+    for (let i = 0; i < 2; i++) await reader.read();
+    await reader.cancel();
+    await vi.waitFor(() => expect(log(s)).toHaveLength(1));
+    expect(model.calls).toHaveLength(2);
+    expect(log(s)[0].outcome).toBe("aborted");
+    // 200 input tokens, the first round's 500 output tokens, and this round's 14 characters (5 tokens) at least
+    expect(log(s)[0].micro).toBeGreaterThanOrEqual(200 * 2 + 505 * 10);
   });
 });
 

@@ -113,9 +113,11 @@ export async function runTutor(p: { client: Anthropic; kit: Kit; config: Config;
       await sent;
     } catch (e) {
       // what the model had used up to the failure still counts: the input is known at the start, the output is estimated from the text sent
+      // (the estimate is for this round alone: the output of earlier rounds is already in the total)
       const seen = stream.currentMessage?.usage;
+      const earlier = tokens.output;
       addTokens(tokens, seen);
-      tokens.output = Math.max(tokens.output, Math.ceil(chars / 3));
+      tokens.output = earlier + Math.max(seen?.output_tokens ?? 0, Math.ceil(chars / 3));
       if (signal.aborted) return finish({ outcome: "aborted" });
       return finish({ outcome: "error", error: describeFailure(e) });
     }

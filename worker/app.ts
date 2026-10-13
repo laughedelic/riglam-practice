@@ -42,7 +42,9 @@ export function createApp(deps: Deps) {
     c.res.headers.set("x-robots-tag", "noindex, nofollow, noarchive");
   });
 
-  const ready = async (env: Env): Promise<boolean> => !!(env.DB && env.ANTHROPIC_API_KEY && env.RIGLAM_DATA_KEY && (await tutorSwitchedOn(env.DB).catch(() => false)));
+  // The tutor is on when it could answer: the database, both secrets, the switch, and a kit (the data, opened with the key).
+  const ready = async (env: Env): Promise<boolean> =>
+    !!(env.DB && env.ANTHROPIC_API_KEY && env.RIGLAM_DATA_KEY && (await tutorSwitchedOn(env.DB).catch(() => false)) && (await deps.kit(env).catch(() => null)));
 
   app.get(API.health, async (c) => {
     const body: Health = { ok: true, tutor: (await ready(c.env)) ? "on" : "off" };
