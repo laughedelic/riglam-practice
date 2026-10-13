@@ -160,6 +160,7 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
       const m = colMap(col);
       if (row) m.set(id, deepFreeze(row.data));
       else m.delete(id);
+      versions.set(`${col}/${id}`, (versions.get(`${col}/${id}`) ?? 0) + 1); // a change from another tab is a later write too: a refused write here must not undo it
       notify(col);
     };
   }

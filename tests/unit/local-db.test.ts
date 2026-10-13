@@ -4,7 +4,7 @@ import { createLocalDb } from "../../src/pwa/local-db";
 
 /** An IndexedDB stand-in that keeps rows in an array and can be told to abort writes. */
 function stub() {
-  const control = { fail: false, failNext: 0 };
+  const control = { fail: false, failNext: 0, delay: 0 }; // delay: how long a write takes to finish
   const rows: { path: string; col: string; id: string; data: unknown }[] = [];
   const store = {
     index: () => ({ getAll: (col: string) => ({ result: rows.filter((r) => r.col === col) }) }),
@@ -19,7 +19,7 @@ function stub() {
       if (mode === "readwrite" && control.failNext > 0) control.failNext -= 1;
       setTimeout(() => {
         if (mode === "readwrite" && fails) { t.error = new Error("quota"); t.onabort?.(); } else t.oncomplete?.();
-      });
+      }, mode === "readwrite" ? control.delay : 0);
       return t;
     },
   };
@@ -30,7 +30,7 @@ function stub() {
       return req;
     },
   } as unknown as IDBFactory;
-  return { factory, control };
+  return { factory, control, rows };
 }
 
 describe("a write that could not be saved", () => {
@@ -80,6 +80,23 @@ describe("a write that could not be saved", () => {
     const first = ref.delete().catch(() => "failed");
     await ref.delete();
     expect(await first).toBe("failed");
+    expect((await ref.get()).exists).toBe(false);
+  });
+
+  it("does not undo a deletion made by another tab while the write was in flight", async () => {
+    const { factory, control, rows } = stub();
+    const db = createLocalDb({ indexedDB: factory }); // with the channel the tabs use
+    const ref = db.doc("answers/a1");
+    await ref.set({ v: 1 });
+    control.failNext = 1;
+    control.delay = 40;
+    const mine = ref.delete().catch(() => "failed"); // refused after 40 ms
+    rows.length = 0; // meanwhile another tab has deleted the document and says so
+    const other = new BroadcastChannel("riglam-db");
+    other.postMessage({ col: "answers", id: "a1" });
+    await new Promise((r) => setTimeout(r, 15));
+    expect(await mine).toBe("failed");
+    other.close();
     expect((await ref.get()).exists).toBe(false);
   });
 });
