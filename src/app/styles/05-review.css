@@ -1,0 +1,28 @@
+/* retry tag, review */
+.retry-tag{display:inline-block;font:700 11px/16px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--on-marigold);background:var(--marigold);padding:3px 8px;justify-self:center}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{font:700 11px/1.4 var(--text-serif);letter-spacing:.06em;text-transform:uppercase;color:var(--heading);text-align:left;padding:6px 8px;border-bottom:1.5px solid var(--ink)}
+.tbl td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.tbl td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.bar{display:inline-block;height:8px;background:var(--lapis);vertical-align:middle;margin-left:6px}
+.bar.b-low{background:var(--vermilion)} .bar.b-mid{background:var(--marigold)}
+.days{display:grid;grid-template-columns:repeat(14,1fr);gap:4px}
+.day{display:grid;gap:3px;min-width:0}
+.day .col{height:44px;display:flex;align-items:flex-end;border-bottom:1.5px solid var(--ink)}
+.day .dbar{flex:1;background:var(--line);min-height:2px}
+.day .dbar.has{background:var(--lapis)}
+.day .dn{font:500 11px/1.2 var(--body);color:var(--ink-muted);text-align:center;font-variant-numeric:tabular-nums;min-height:1.2em}
+.day.today .dn{color:var(--ink);font-weight:700}
+.split{display:grid;grid-template-columns:auto 1fr;gap:6px 18px;align-items:center;background:var(--paper-tint);padding:12px 14px}
+.split .big{display:grid;grid-row:span 2}
+.split .big .n{font:900 30px/1 var(--display);font-variant-numeric:tabular-nums}
+.split .big .l{font-size:12px;color:var(--ink-muted)}
+.sbar{display:flex;height:14px;gap:2px}
+.sbar span{min-width:3px}
+.g-ok{background:var(--lapis)} .g-pend{background:color-mix(in srgb,var(--lapis) 45%,var(--paper))} .g-part{background:var(--marigold)} .g-bad{background:var(--vermilion)}
+.legend{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:2px 14px;font-size:13px;color:var(--ink-muted)}
+.legend li{display:flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;clip-path:var(--rhombus)}
+.legend b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+.empty-note{margin:0;color:var(--ink-muted);font-size:14px}
+@media (max-width:520px){.split{grid-template-columns:1fr} .split .big{grid-row:auto;display:flex;align-items:baseline;gap:8px} .split .big .n{font-size:24px}}

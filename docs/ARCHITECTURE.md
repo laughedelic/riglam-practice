@@ -5,7 +5,7 @@
 The page is a plain-DOM app (no framework): the UI is built with a small `el()` helper and re-rendered as a whole, and the state is one shared object. It was written as a single artifact script and was split into the modules below without changing what it does; the browser tests are what keeps it that way.
 
 ```
-src/app/  (app.js, modules, app.css, markup.html, felt-*.png)   shared by both builds
+src/app/  (app.js, modules, app.css + styles/, markup.html, felt-*.png)   shared by both builds
         │
         ├── src/entry-pwa.ts       + src/pwa/*    → vite build            → dist/pwa/        (PWA)
         └── src/entry-artifact.ts  + src/artifact/* → scripts/build-artifact.mjs → dist/artifact/index.html
@@ -75,7 +75,12 @@ The term data (the Dudra terms, their classification chains, the everyday-items 
 
 ## Styling
 
-`src/app/app.css` carries the "Logic and Debate" design system tokens it uses (booklet palette, felt per cover colour, rhombus marks) inline, as the artifact always did.
+`src/app/app.css` is an index: it imports the files in `src/app/styles/` (`00-tokens.css`, `01-base.css`, ...) and nothing else. Both builds import `app.css`, so a change to a stylesheet needs no change elsewhere. The tokens file carries the "Logic and Debate" design system values the page uses (booklet palette, felt per cover colour, rhombus marks).
+
+The files are layers in cascade order, numbered to say so. The page grew by versions, and a later block overrides an earlier rule on purpose (`.grid` is set in `02-card.css` and adjusted in `15-result-chips.css` and `17-table-fit.css`, for instance). So the order of the imports is part of the style: add a new file at the end, or put a new rule next to the rules it belongs to, and move a rule to another file only together with what depends on its position. `tests/unit/styles.test.ts` checks that the index imports every file once, in order. The felt tiles sit next to `app.css`, so the url in the tokens file is `../felt-*.png`; Vite rewrites it for each build (a file in `dist/pwa/assets` for the PWA, a data URI in the artifact).
+
+To check that a CSS change moved nothing, build before and after: `dist/pwa/assets/index-*.css` is minified, so an equivalent reordering of files gives the same bytes.
+
 ## Known gaps
 
 - No server: no answer checking by Claude, no tutor chat, no check lab, no shared base (the page hides these when `sample` is `null`).
