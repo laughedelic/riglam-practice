@@ -26,8 +26,11 @@
     "DEVICE_DAILY_BUDGET_USD": "0.40",
     "GLOBAL_DAILY_BUDGET_USD": "4",
     "RESERVE_USD": "0.05"
-  }
-  // The D1 database for the budget counters is added here once it exists (docs/SERVER.md):
-  //   "d1_databases": [{ "binding": "DB", "database_name": "riglam-practice", "database_id": "<id>", "migrations_dir": "worker/migrations" }]
-  // Until then the tutor is off and everything else works.
+  },
+  // The D1 database for the budget counters (docs/SERVER.md). Migrations are applied by hand:
+  //   npx wrangler d1 migrations apply riglam-practice --remote
+  // Until that has been done the tutor reports itself off and everything else works.
+  "d1_databases": [
+    { "binding": "DB", "database_name": "riglam-practice", "database_id": "7dc5e040-56c9-49e3-af60-ee0a8e49a500", "migrations_dir": "worker/migrations" }
+  ]
 }

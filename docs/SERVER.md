@@ -74,10 +74,11 @@ Nothing here is needed to build or test the app; without the database the tutor 
    ```sh
    npx wrangler d1 create riglam-practice
    ```
-   Add the `d1_databases` entry it prints to `wrangler.jsonc` (binding `DB`, `migrations_dir` `worker/migrations`), then:
+   Put the `database_id` it prints into the `d1_databases` entry of `wrangler.jsonc` (binding `DB`, `migrations_dir` `worker/migrations`), then:
    ```sh
    npx wrangler d1 migrations apply riglam-practice --remote
    ```
+   Apply it again after any pull request that adds a file to `worker/migrations/`.
 3. Store the two secrets on the Worker (the commands ask for the value at a prompt):
    ```sh
    npx wrangler secret put ANTHROPIC_API_KEY
