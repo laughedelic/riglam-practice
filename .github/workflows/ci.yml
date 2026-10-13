@@ -125,7 +125,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Preview of the PWA for every pull request, and a "staging" alias that follows main. The address is shown as a GitHub deployment:
+  # Preview of the app for every pull request (a Cloudflare Worker Preview named pr-<number>), and a "staging" preview that follows main. The address is shown as a GitHub deployment:
   # the environment preview/pr-<number> for a pull request (retired when it closes, preview-cleanup.yml), staging for main.
   # Needs the repository secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID (docs/DEPLOY.md); without them the job only says so.
   deploy-preview:
@@ -141,7 +141,7 @@ jobs:
       name: ${{ github.event_name == 'pull_request' && format('preview/pr-{0}', github.event.number) || 'staging' }}
       url: ${{ steps.upload.outputs.url }}
     env:
-      ALIAS: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.number) || 'staging' }}
+      PREVIEW: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.number) || 'staging' }}
       # On pull requests GITHUB_SHA is a merge commit that is not on the branch; label previews with the head commit.
       BUILD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
@@ -169,15 +169,14 @@ jobs:
         with:
           name: pwa-build
           path: dist/pwa
-      - name: Upload a version with a preview alias
+      - name: Create or update the preview
         id: upload
         if: steps.creds.outputs.ok
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          # Without pipefail a failed upload would pass here, because tee succeeds.
-          set -o pipefail
-          npx --yes wrangler@${WRANGLER_VERSION} versions upload --preview-alias "$ALIAS" --message "${BUILD_SHA::7}" | tee upload.log
-          url=$(grep -Eo 'https://[^ ]+' upload.log | grep -i "$ALIAS" | head -n1 || true)
-          echo "url=$url" >> "$GITHUB_OUTPUT"
+          # The JSON output goes to a file, so a failed command fails the step and its address is read with jq.
+          npx --yes wrangler@${WRANGLER_VERSION} preview --name "$PREVIEW" --message "${BUILD_SHA::7}" --json > preview.json
+          cat preview.json
+          echo "url=$(jq -er '.preview.urls[0]' preview.json)" >> "$GITHUB_OUTPUT"

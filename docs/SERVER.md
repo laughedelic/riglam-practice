@@ -96,7 +96,7 @@ Nothing here is needed to build or test the app; without the database the tutor 
    npx wrangler secret put ANTHROPIC_API_KEY
    npx wrangler secret put RIGLAM_DATA_KEY     # the same key as in the shared link
    ```
-   Secrets belong to the Worker, so previews use them too.
+   Previews do not use these secrets or this database (docs/DEPLOY.md).
 4. Deploy as usual. Check `GET /api/health`.
 
 **Kill switch.** In the Cloudflare dashboard (D1, the database, Console): `INSERT OR REPLACE INTO settings (key, value) VALUES ('tutor', 'off');` stops every tutor request at once; deleting the row (or any value but `off`) turns it on again. Archiving the API key in the Console or setting the workspace limit to zero also stops all spending.
