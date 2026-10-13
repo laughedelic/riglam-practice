@@ -30,6 +30,7 @@ function cellsFor(a,b){
   }
   return out;
 }
+/** @returns {import("../../ai-shared/relations.ts").RelKey} */
 function relOfCells(c){
   if(!c.both.length) return "con";
   if(!c.anb.length&&!c.bna.length) return "mi";
@@ -68,6 +69,7 @@ export function buildPool(){
   state.POOL=out;
 }
 export function answerList(){ return Object.values(state.answers).sort((x,y)=>(x.at||"").localeCompare(y.at||"")); }
+/** @returns {import("../types.ts").Pair} */
 function makePair(cand){
   let a=cand.a, b=cand.b, la, lb;
   if(a===b){ const ls=state.CAT[a].labels.slice().sort(()=>Math.random()-.5); la=ls[0]; lb=ls[1]; }

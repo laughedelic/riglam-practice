@@ -42,6 +42,7 @@ src/app/
 
 - Every variable that used to be module-level is a property of `state` (`state.ui`, `state.cur`, `state.db`, ...), because an ES module cannot assign to a binding it imports. A module-level `let` outside `state.js` fails a unit test.
 - Modules import each other freely, including in cycles (the screens call the actions and the actions render). That works because only functions are called across modules, and only after loading; do not call an imported function while a module loads. Modules whose top-level code wires listeners (`core/viewport.js`, `shell/render.js`, `shell/keys.js`, `shell/timers.js`) are imported by the entry for that effect.
+- `types.ts` holds the TypeScript types of the stored documents (one per collection: answers, debates, batches, favourites, skips, flags, lab runs), the pair on screen and `State`. `state.js` is annotated with `State`, so a misspelled `state.x`, or a misspelled field of a stored document, fails `npm run typecheck`. A stored shape changes there only together with a migration (see `CLAUDE.md`).
 - `core/` and `state.js` import only each other and `src/ai-shared` (a unit test checks it); everything else may import everything. The page imports no other code from outside `src/app`.
 - `tests/unit/app-modules.test.ts` also checks that every module is reachable from `app.js`, so none is left out of a build.
 
