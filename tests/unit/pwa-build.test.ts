@@ -6,6 +6,7 @@ import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve, dirname, join } from "node:path";
 import { readKey, readFull } from "../../scripts/lib/course-files.mjs";
+import { DEV_MARK } from "../../src/pwa/dev-sample";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const dist = resolve(root, "dist/pwa");
@@ -47,4 +48,8 @@ built("search engines are asked to stay away: header, robots.txt and a meta tag"
   expect(readFileSync(join(dist, "_headers"), "utf8")).toMatch(/^\/\*\n {2}X-Robots-Tag: noindex/m);
   expect(readFileSync(join(dist, "robots.txt"), "utf8")).toMatch(/^Disallow: \/$/m);
   expect(readFileSync(join(dist, "index.html"), "utf8")).toMatch(/<meta name="robots" content="noindex/);
+});
+
+built("the development stand-in for the model is not in the build", () => {
+  for (const f of files(dist).filter((f) => /\.(js|map)$/.test(f))) expect(readFileSync(f, "utf8").includes(DEV_MARK), f).toBe(false);
 });
