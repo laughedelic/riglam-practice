@@ -1,0 +1,331 @@
+import { state } from "../state.js";
+import { aiCase, aiFlag, decorateAns, flagEditorNode } from "../ai/flags.js";
+import { labItem } from "../ai/lab-panel.js";
+import { CELL_NAME, NAME_CELL, VERDICT_RE, ask, fillAns } from "../ai/tutor.js";
+import { $, L, el } from "../core/dom.js";
+import { CELLS, ORDER, REL, cellLabel, lcRel, notaOf, notaParts } from "../core/rel.js";
+import { gradeOf } from "../core/util.js";
+import { isWide } from "../core/viewport.js";
+import { stopTimer } from "../debate/flow.js";
+import { QCELL, termNode } from "../debate/text.js";
+import { favBtn } from "./favorites.js";
+import { check } from "./grading.js";
+import { next } from "./queue.js";
+import { skipActs, subRowNode } from "./skips.js";
+import { termsNode } from "./terms.js";
+import { answerList } from "./universe.js";
+import { exGrid } from "../review/review.js";
+import { openChat, tutorTurns } from "../shell/chat.js";
+import { CELL_FULL, ago, fitPair, focusCin, render, setSteps } from "../shell/render.js";
+import { blitzBtn, relTimed, relTimedD, timerSlot } from "../shell/timers.js";
+
+/* ---------- practice: one pair ---------- */
+// the heading: A [relation diamond] B, relation name below. On a wide screen the strip under it picks the relation, so the diamond only shows it.
+function quizHead(s,w){
+  const p=state.cur.p;
+  if(state.cur.retry) s.append(el("span",{class:"retry-tag",text:(state.cur.tag||"Retry")+(state.retryQ.length?" · "+state.retryQ.length+" more":"")}));
+  const np=state.ui.rel?notaParts(state.ui.rel):null;
+  let midCls="mid"+(state.ui.rel?" set":" empty");
+  if(state.ui.checked) midCls+=state.ui.res.relOk?" key":" wrong";
+  const toggle=()=>{ if(!state.ui.checked&&state.ui.rel&&!w&&!state.ui.late){ state.ui.open=!state.ui.open; render(); } };
+  const label=state.ui.rel?"Relation: "+REL[state.ui.rel].name+(state.ui.checked||w?"":". Change"):"Pick a relation";
+  const mid=el("button",{type:"button",class:midCls,disabled:state.ui.checked||!state.ui.rel||w||state.ui.late,"aria-expanded":w?null:(state.ui.open?"true":"false"),"aria-label":label,onclick:toggle},
+    np?el("span",{class:"sym math",text:np[0]+(np[1]?" "+np[1]:"")}):el("span",{class:"pip"}));
+  const tail=np&&np[2]?el("span",{class:"tail math"+(state.ui.checked?(state.ui.res.relOk?" key":" wrong"):""),text:np[2]}):null;
+  const subTxt=!state.ui.rel?"pick a relation":state.ui.late&&!state.ui.checked?REL[state.ui.rel].name+" · time ran out":REL[state.ui.rel].name;
+  s.append(el("div",{class:"head"},
+    el("div",{class:"pair",lang:"en"}, el("span",{class:"tx ta",text:p.a}), L("A"), mid, L("B"), el("span",{class:"tx tb"},p.b,tail)),
+    subRowNode({text:subTxt,cls:state.ui.checked?(state.ui.res.relOk?" key":" wrong"):"",disabled:state.ui.checked||!state.ui.rel||w||state.ui.late,onclick:toggle,why:relWhy()})));
+  const rp=relPopNode(); if(rp) s.append(rp);
+  fitPair();
+}
+// the five relations as a list (narrow screens, and the last step of a debate) ...
+export function relList(onPick,heading){
+  const p=state.cur.p, list=el("div",{class:"rels",role:"group","aria-label":"Relation"});
+  ORDER.forEach((k,i)=>{
+    const r=REL[k];
+    list.append(el("button",{type:"button",class:"rel","aria-pressed":state.ui.rel===k?"true":"false",onclick:()=>onPick(k)},
+      el("span",null, el("span",{class:"name",text:r.name}), el("span",{class:"gloss",text:r.gloss(p.a,p.b)})),
+      el("span",{class:"nota math",text:notaOf(k)})));
+  });
+  // the countdown row is always there (empty with Blitz off), so the switch never moves the list
+  const timed=state.ui.debate?relTimedD():relTimed(), lab=heading?el("p",{class:"label rel-label"},heading):null;
+  return el("div",{class:"section"}, el("div",{class:"lrow"},lab,timerSlot(state.ui.debate||!state.ui.rel?"rel":"ex",timed)), list);
+}
+// ... and as a strip of five chips (wide screens), with the chosen relation explained under it
+export function relStrip(onPick,done){
+  const p=state.cur.p, box=el("div",{class:"strip"+(done?" done":""),role:"group","aria-label":"Relation"});
+  ORDER.forEach((k,i)=>{
+    const r=REL[k], mine=state.ui.rel===k;
+    // once checked: the chosen chip is lapis when right and vermilion when wrong, and the right one is ringed
+    const st=done?(state.ui.late?(p.relation===k?" right":""):mine?(state.ui.res&&state.ui.res.relOk?" key":" wrong"):p.relation===k?" right":""):"";
+    box.append(el("button",{type:"button",class:"chip"+st,"aria-pressed":mine?"true":"false",disabled:done,title:r.gloss(p.a,p.b),onclick:()=>onPick(k)},
+      el("span",{class:"n math",text:notaOf(k)}), el("small",{text:r.name.replace(/, ([AB]) in ([AB])$/,", $1\u00a0in\u00a0$2")})));
+  });
+  return box;
+}
+export function relCap(hint){
+  if(!state.ui.rel) return el("p",{class:"cap",text:hint||"Pick the relation (keys 1–5), then give examples."});
+  const r=REL[state.ui.rel];
+  if(state.ui.late) return el("p",{class:"cap"},el("b",{text:"Time ran out. "}),"The relation is "+lcRel(r.name)+": "+r.gloss(state.cur.p.a,state.cur.p.b)+".");
+  return el("p",{class:"cap"},el("b",{text:r.name+". "}),r.gloss(state.cur.p.a,state.cur.p.b)+".");
+}
+// one cell of the 2x2 table: an example field, or the verdict on it once checked
+function quizCell(c){
+  const p=state.cur.p, implied=state.ui.rel?REL[state.ui.rel].empty:[], r=state.ui.checked&&state.ui.res.cells[c];
+  const vcls=r?" v-"+(r.uns?"uns":r.v):"";
+  if(implied.includes(c)){
+    return el("div",{class:"cell locked"+vcls,"aria-label":cellLabel(c,p)+": nothing, by your relation"},
+      r&&r.v==="bad"?fbNode(r):el("span",{class:"empty",text:"∅"}),whyBtn(c,p));
+  }
+  const off=state.ui.checked||!state.ui.rel||state.ui.cells[c].none;
+  const inp=el("input",{type:"text",id:"in-"+c,placeholder:state.ui.cells[c].none?"∅":"example",value:state.ui.cells[c].t,disabled:off,"aria-label":cellLabel(c,p),autocomplete:"off"});
+  inp.addEventListener("input",e=>{state.ui.cells[c].t=e.target.value;});
+  inp.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); const nx=nextInput(c); if(nx) nx.focus(); else check(); } });
+  return el("div",{class:"cell"+vcls}, el("div",{class:"field"},inp), r?fbNode(r):null, whyBtn(c,p));
+}
+// Claude's explanation split by where it belongs: a line per cell (or Q1 to Q4) goes to that cell, the lines on the common locus,
+// the pervasion and the relation to the "?" beside the relation. Anything else (the explanation, the misconception) belongs to the Why panel.
+const REL_LABEL=/^(common locus|pervasion|relation)$/i;
+export function explainParts(){
+  const out={cells:{},rest:[]};
+  const a=state.ui&&state.ui.chat&&state.ui.chat.find(t=>t.role==="assistant"&&t.kind==="explain"&&!t.pending&&t.content);
+  if(!a) return out;
+  for(const ln0 of a.content.split("\n")){
+    const ln=ln0.replace(/^[-•*\s]+/,"").replace(/\*\*/g,"").replace(VERDICT_RE,"").trim(); if(!ln) continue;
+    const m=ln.match(/^(both|a not b|b not a|neither|q[1-4])\s*:\s*(.+)$/i);
+    if(m){ out.cells[NAME_CELL[m[1].toLowerCase()]]=m[2]; continue; }
+    const g=ln.match(/^([A-Za-z][A-Za-z0-9 ,'’-]{0,28}):\s+(.*)$/);
+    if(g&&REL_LABEL.test(g[1])) out.rest.push([g[1],g[2]]);
+  }
+  return out;
+}
+// the "?" on a cell that Claude explained; it opens a small note as a row of the table, right under the cell's row
+export function whyBtn(c,p){
+  if(!state.ui||!state.ui.checked||!explainParts().cells[c]) return null;
+  return el("button",{type:"button",class:"qm","aria-label":"Claude's explanation: "+cellLabel(c,p),"aria-expanded":state.ui.pop===c?"true":"false",
+    onclick:e=>{ e.stopPropagation(); state.ui.pop=state.ui.pop===c?null:c; render(); }},"?");
+}
+// the "?" beside the relation's name: Claude's lines on the common locus, the pervasion and the relation itself
+export function relWhy(){
+  if(!state.ui||!state.ui.checked||!explainParts().rest.length) return null;
+  return el("button",{type:"button",class:"qm rq","aria-label":"Claude's explanation of the relation","aria-expanded":state.ui.pop==="rel"?"true":"false",
+    onclick:e=>{ e.stopPropagation(); state.ui.pop=state.ui.pop==="rel"?null:"rel"; render(); }},"?");
+}
+export function relPopNode(){
+  if(!state.ui||!state.ui.checked||state.ui.pop!=="rel") return null;
+  const rest=explainParts().rest; if(!rest.length) return null;
+  const fl=aiFlag(aiCase("explain","Claude’s note on the relation",rest.map(([k,t])=>k+": "+t).join("\n"),"rel"),"pop:rel");
+  return el("div",{class:"pop rpop",role:"dialog","aria-label":"Claude's explanation of the relation",tabindex:"-1"},el("p",{class:"clh",text:"Claude"}),fl,
+    rest.map(([k,t])=>el("p",null,k?el("b",{text:k+": "}):null,t)),flagEditorNode("pop:rel"),
+    el("button",{type:"button",class:"popx",onclick:e=>{ e.stopPropagation(); state.ui.pop=null; render(); },text:"Close"}));
+}
+export function popNode(){
+  if(!state.ui||!state.ui.checked||!state.ui.pop||state.ui.pop==="rel") return null;
+  const t=explainParts().cells[state.ui.pop]; if(!t) return null;
+  const fl=aiFlag(aiCase("explain","Claude’s note on "+(state.ui.debate?"Q"+(QCELL.indexOf(state.ui.pop)+1):CELL_NAME[state.ui.pop]),t,state.ui.pop),"pop:"+state.ui.pop);
+  return el("div",{class:"pop",role:"dialog","aria-label":"Claude's explanation",tabindex:"-1"},el("p",{class:"clh",text:"Claude"}),fl,el("p",{text:t}),flagEditorNode("pop:"+state.ui.pop),
+    el("button",{type:"button",class:"popx",onclick:e=>{ e.stopPropagation(); state.ui.pop=null; render(); },text:"Close"}));
+}
+export function placePops(){
+  const pop=document.querySelector(".pop"), m=document.querySelector(".qm[aria-expanded=true]");
+  if(!pop||!m) return;
+  const g=pop.getBoundingClientRect(), r=m.getBoundingClientRect();
+  pop.style.setProperty("--ax",Math.round(r.left+r.width/2-g.left)+"px");
+  pop.scrollIntoView({block:"nearest"});
+}
+// The result section: a headline, one chip per aspect, and the details of one chip below them (like tabs; tapping the open chip closes it).
+// With nothing chosen yet, the first chip that is not fine opens.
+export function resultBlock(r,head,items){
+  let open=state.ui.rtab==="auto"?((items.find(i=>i.st==="bad"||i.st==="open")||{}).key||null):state.ui.rtab;
+  if(open&&!items.some(i=>i.key===open)) open=null;
+  const cur=items.find(i=>i.key===open);
+  const chips=el("div",{class:"vchips",role:"tablist","aria-label":"Result details"},items.map(i=>el("button",{type:"button",role:"tab",id:"vt-"+i.key,class:"vchip "+i.st,"aria-selected":open===i.key?"true":"false","aria-controls":"vpanel",
+    onclick:()=>{ state.ui.rtab=open===i.key?null:i.key; render(); if(state.ui.rtab&&i.onopen) i.onopen(); }},
+    i.st==="ok"||i.st==="bad"||i.st==="open"?el("span",{class:"ic","aria-hidden":"true",text:{ok:"✓",bad:"✗",open:"?"}[i.st]}):i.ic?el("span",{class:"ic","aria-hidden":"true",text:i.ic}):null,i.label)));
+  return el("div",{class:"verdict "+r.overall},
+    el("p",{class:"vl"},el("span",{class:"v",text:head})),
+    chips,
+    cur?el("div",{class:"vpanel",id:"vpanel",role:"tabpanel","aria-labelledby":"vt-"+cur.key},cur.body()):null);
+}
+export const tutorItem=()=>state.ui.chat?{key:"tutor",label:"Why",st:"none",body:()=>isWide()?renderTutor():inlineExplain()}:null;
+export const termsItem=p=>({key:"terms",label:"Terms",st:"none",body:()=>termsNode(p)});
+function quizResult(){
+  const p=state.cur.p, r=state.ui.res, k=REL[p.relation], ex=explainParts();
+  const head={ok:"Right.",part:"Relation right, but not everything else.",pend:"Relation and cells right.",bad:"Not quite."}[r.overall];
+  return resultBlock(r,head,[
+    {key:"rel",label:"Relation",st:r.relOk?"ok":"bad",body:()=>[
+      el("p",null,el("b",{text:"Relation: "}),state.ui.late?"time ran out.":r.relOk?"right.":"wrong."),
+      el("p",null,(r.relOk?k.name:"The relation is "+lcRel(k.name))+": "+k.gloss(p.a,p.b).toLowerCase()+".",notaOf(p.relation)&&state.nota!=="codes"?[" ",el("span",{class:"nota math",text:notaOf(p.relation)})]:null)]},
+    {key:"cells",label:"Cells",st:r.occBad?"bad":"ok",body:()=>el("p",null,el("b",{text:"Cells: "}),r.occBad?(r.occBad+" filled or left empty wrongly."):"the right ones are filled and empty.")},
+    {key:"ex",label:"Examples",st:r.exBad?"bad":r.exOpen?"open":"ok",body:()=>el("p",null,el("b",{text:"Examples: "}),exLine(r,CELLS),state.ui.exLate?" Time ran out; cells you had not reached count as empty.":null)},
+    termsItem(p),tutorItem(),labItem()].filter(Boolean));
+}
+export const explainBtn=()=>state.sample&&state.ui.checked&&!state.ui.explained&&!state.ui.ctl?el("button",{class:"btn ghost",type:"button",onclick:()=>ask(null,"explain"),text:state.ui.res.exOpen?"Check and explain":"Explain"}):null;
+export const nextBtn=()=>el("button",{class:"btn",type:"button",onclick:next,text:state.cur.retry&&!state.retryQ.length?"Back to new pairs":"Next pair"});
+export const kbHints=(...rows)=>el("div",{class:"kbh"},rows.map(([k,t])=>el("span",null,el("b",{text:k}),t)));
+export function recentNode(c,list){
+  if(!list.length) return;
+  c.append(el("details",{class:"recent",open:state.recentOpen,ontoggle:e=>{ state.recentOpen=e.target.open; try{ localStorage.setItem("rd-recent",state.recentOpen?"1":"0"); }catch(_){} }},
+    el("summary",{class:"label"},el("span",{class:"rmk","aria-hidden":"true"}),"Recent",el("span",{class:"hint",text:String(list.length)})),
+    el("ul",{class:"hist"},list.map(a=>{
+      const g=gradeOf(a);
+      return el("li",null,el("span",{class:"s "+g,text:{ok:"✓",part:"~",bad:"✗",pend:"?"}[g]||"✗"}),
+        el("span",null,a.a+" / "+a.b,el("small",{text:REL[a.key]?REL[a.key].name:""})),el("small",{text:ago(a.at)}));
+    }))));
+}
+
+export function renderQuiz(s,c){
+  if(isWide()) quizWide(s,c); else quizNarrow(s);
+  if(state.favErr) s.append(el("p",{class:"status",text:state.favErr}));
+  if(state.skipErr) s.append(el("p",{class:"status",text:state.skipErr}));
+}
+function quizWide(s,c){
+  const p=state.cur.p;
+  quizHead(s,true);
+  s.append(relStrip(choose,state.ui.checked||state.ui.late));
+  if(!state.ui.checked) s.append(timerSlot(state.ui.rel?"ex":"rel",relTimed()));
+  s.append(relCap());
+  s.append(el("div",{class:"section"}, el("p",{class:"label"},"Examples",el("span",{class:"hint",text:"∅ = nothing exists. Neither also takes a non-existent."})), exGrid(p,quizCell,true)));
+  const acts=el("div",{class:"actions"});
+  const fb=favBtn(p); if(fb) acts.append(fb);
+  acts.append(blitzBtn());
+  if(!state.ui.checked){
+    skipActs(state.ui.rel?"Enter moves to the next cell, then shows the result":"").forEach(n=>{ if(n) acts.append(n); });
+    if(state.ui.rel) acts.append(el("button",{class:"btn",type:"button",onclick:check,text:"Show result"}));      // before a relation is picked the cells are closed and there is nothing to show
+  } else acts.append(nextBtn());
+  s.append(acts);
+  if(!state.ui.checked){
+    recentNode(c,answerList().slice(-5).reverse());
+    c.append(kbHints(["1–5","relation"],["Enter","next cell"],["S","skip"],["F","favourite"]));
+    return;
+  }
+  c.append(el("p",{class:"label"},"Result"), quizResult());
+  if(state.ui.saveErr) c.append(el("p",{class:"status",text:state.ui.saveErr}));
+  const eb=explainBtn(); if(eb) c.append(el("div",{class:"actions left"},eb));
+  c.append(kbHints(["Enter","next pair"],["F","favourite"]));
+}
+const SKIPPED=()=>CELLS.filter(k=>REL[state.ui.rel].empty.includes(k));
+export const fillable=()=>CELLS.filter(k=>!REL[state.ui.rel].empty.includes(k));
+// what to name for each cell, in the page's own style: terms in italic after their A/B chips, bold connectors
+function cellPrompt(c){
+  const A=termNode("A"), B=termNode("B"), K=w=>el("b",{class:"conn",text:w});
+  const t={both:["Name something that is ",K("both")," ",A," ",K("and")," ",B,"."],
+    anb:["Name something that is ",A,", ",K("but not")," ",B,"."],
+    bna:["Name something that is ",B,", ",K("but not")," ",A,"."],
+    nei:["Name something that is ",K("neither")," ",A," ",K("nor")," ",B,"."]}[c];
+  return el("p",{class:"cq"},t);
+}
+// narrow screens: one cell at a time, the field near the top so the on-screen keyboard never covers it.
+// The last cell's Done shows the result at once; there is no review list.
+function cellView(s){
+  const order=fillable();
+  state.ui.ci=Math.max(0,Math.min(state.ui.ci||0,order.length-1)); state.ui.seen=Math.max(state.ui.seen||0,state.ui.ci);
+  const c=order[state.ui.ci], last=state.ui.ci===order.length-1;
+  // the 2x2 map has the table's layout; a square carries the number of its cell, as in "Cell 2 of 3", and a skipped one stays blank
+  const map=el("div",{class:"cmap","aria-hidden":"true"},CELLS.map(k=>el("i",{class:REL[state.ui.rel].empty.includes(k)?"lock":k===c?"now":state.ui.cells[k].t.trim()?"fill":"",text:REL[state.ui.rel].empty.includes(k)?"":String(order.indexOf(k)+1)})));
+  const skipped=SKIPPED(), skipTxt=skipped.length?"Skipped by your relation: "+skipped.map(k=>CELL_FULL[k]).join("; ")+".":"";
+  const inp=el("input",{type:"text",id:"cin",placeholder:"example",value:state.ui.cells[c].t,"aria-label":cellLabel(c,state.cur.p),autocomplete:"off",autocapitalize:"off",enterkeyhint:last?"done":"next"});
+  inp.addEventListener("input",e=>{state.ui.cells[c].t=e.target.value;});
+  const go=()=>{
+    if(last){ if(document.activeElement) document.activeElement.blur(); check(); }
+    else { state.ui.ci++; render(); focusCin(); }
+  };
+  inp.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); go(); } });
+  s.append(el("div",{class:"cview"},
+    el("div",{class:"cmeta"},map,el("div",{class:"cwho"},el("span",{class:"n",text:"Cell "+(state.ui.ci+1)+" of "+order.length}),el("small",{text:CELL_FULL[c]}))),
+    cellPrompt(c),
+    el("div",{class:"cin"},inp,el("button",{class:"btn",type:"button",onclick:go,text:last?"Done":"Next"})),
+    timerSlot("ex",relTimed()),
+    el("p",{class:"chint"},
+      state.ui.ci>0?el("button",{type:"button",class:"back",onclick:()=>{state.ui.ci--; render(); focusCin();},text:"‹ Back"}):null,
+      "Leave it empty if nothing exists here."+(skipTxt?" "+skipTxt:""))));
+}
+// the explanation on the narrow result screen; follow-up questions go to the chat view
+// The Why panel repeats nothing the "?" marks show: not the cells, not the common locus, the pervasion or the relation. When the answer was right it shows
+// only a pointer to the marks; when it was wrong, the explanation and the misconception. The chat view ("Discuss with AI") shows the whole answer.
+const CELL_LN=/^[-•*\s]*(?:\*\*)?(?:both|a not b|b not a|neither|q[1-4])(?:\*\*)?\s*:/i;
+const REL_LN=/^[-•*\s]*(?:\*\*)?(?:common locus|pervasion|relation)(?:\*\*)?\s*:/i;
+export function fillTurn(node,t,lean){
+  if(!lean||t.kind!=="explain"||!t.content){ fillAns(node,t.content); return; }
+  const raw=String(t.content), lines=raw.split("\n");
+  if(t.pending&&!/\n\s*$/.test(raw)) lines.pop();           // the last line may still be growing
+  const wrong=!!(state.ui&&state.ui.res&&(state.ui.res.overall==="bad"||state.ui.res.overall==="part"));
+  const rest=wrong?lines.filter(l=>l.trim()&&!CELL_LN.test(l.trim())&&!REL_LN.test(l.trim())).join("\n"):"";
+  if(rest||t.pending){ fillAns(node,rest); return; }
+  node.replaceChildren(el("p",{class:"status",text:"Claude's notes on the cells and the relation are on the ? marks."}));
+}
+function inlineExplain(){
+  if(!state.ui.chat) return null;
+  const box=el("div",{class:"tutor"}), first=state.ui.chat.find(t=>t.role==="assistant");
+  if(first){ const a=el("div",{class:"ans",id:first.pending&&state.view!=="chat"?"ans-live":null}); fillTurn(a,first,true); decorateAns(a,first,state.ui.chat.indexOf(first),false); box.append(a); }
+  if(state.ui.chatErr&&state.view!=="chat") box.append(el("p",{class:"status",text:state.ui.chatErr}));
+  return box;
+}
+// the left button of the action row, beside Next pair: Explain, while Claude answers Stop, afterwards the follow-up chat
+export function tutorAct(){
+  const eb=explainBtn(); if(eb) return eb;
+  if(!state.ui.chat||!state.sample) return null;
+  if(state.ui.ctl) return el("button",{class:"btn ghost",type:"button",onclick:()=>state.ui.ctl&&state.ui.ctl.abort(),text:"Stop"});
+  const n=state.ui.chat.filter(t=>t.role==="user"&&!t.hidden).length;
+  return el("button",{class:"btn ghost stage-chat",type:"button",onclick:openChat,text:n?"Discuss with AI · "+n:"Discuss with AI"});
+}
+function quizNarrow(s){
+  const p=state.cur.p, stp=state.ui.checked?2:(!state.ui.rel||state.ui.open)?0:1;
+  setSteps(["Relation","Examples","Result"],stp,[(state.ui.checked||state.ui.late)?null:()=>{ state.ui.open=true; render(); },(state.ui.checked||!state.ui.rel)?null:()=>{ state.ui.open=false; render(); focusCin(); },null]);
+  quizHead(s,false);
+  if(stp===0) s.append(relList(choose,"Relation"));
+  else if(stp===1) cellView(s);
+  else {
+    // the table is fixed once filled in, the verdict below it changes length with the chip: the table goes first so it never moves
+    s.append(el("div",{class:"section"},exGrid(p,quizCell,true)),quizResult());
+    if(state.ui.saveErr) s.append(el("p",{class:"status",text:state.ui.saveErr}));
+    const acts=el("div",{class:"actions"}), ta=tutorAct(); if(ta) acts.append(ta);
+    acts.append(nextBtn()); s.append(acts);
+  }
+}
+
+// after Explain on a narrow screen the answer is below the table: bring it into view (the sticky action bar is allowed for by scroll-margin)
+export function revealTutor(){ if(isWide()||state.view==="chat") return; const t=document.querySelector("#stage .tutor"); if(t) t.scrollIntoView({block:"nearest"}); }
+// the tutor conversation with its own follow-up field (wide screens: in the coach panel)
+function renderTutor(){
+  const box=el("div",{class:"tutor"}); tutorTurns(box,false,true);
+  if(state.ui.ctl) box.append(el("div",{class:"actions"},el("button",{class:"btn ghost",type:"button",onclick:()=>state.ui.ctl&&state.ui.ctl.abort(),text:"Stop"})));
+  else if(state.sample) box.append(askRow("ask-in"));
+  return box;
+}
+export function askRow(id){
+  const inp=el("input",{type:"text",id,placeholder:"Ask a follow-up question",value:state.ui.q,autocomplete:"off","aria-label":"Follow-up question",enterkeyhint:"send"});
+  inp.addEventListener("input",e=>{state.ui.q=e.target.value;});
+  const send=()=>{const q=state.ui.q.trim(); if(!q) return; state.ui.q=""; ask(q);};
+  inp.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); e.stopPropagation(); send(); } });
+  return el("div",{class:"ask"}, inp, el("button",{class:"btn ghost",type:"button",onclick:send,text:"Ask"}));
+}
+
+export function choose(k){
+  if(state.ui.checked||state.ui.late) return;
+  if(!state.ui.rel) stopTimer();
+  state.ui.rel=k; state.ui.open=false; state.ui.ci=0; state.ui.seen=0; state.ui.review=false; for(const c of REL[k].empty){ state.ui.cells[c].t=""; state.ui.cells[c].none=false; }
+  render();
+  if(!isWide()){ focusCin(); return; }
+  const first=CELLS.find(c=>!REL[k].empty.includes(c));
+  const i=first&&$("in-"+first); if(i&&!("ontouchstart" in window)) i.focus();
+}
+function nextInput(c){
+  const order=CELLS.filter(x=>!REL[state.ui.rel].empty.includes(x)&&!state.ui.cells[x].none);
+  const i=order.indexOf(c); const n=order[i+1]; return n?$("in-"+n):null;
+}
+// The Examples line of a verdict. When some examples could not be checked, a chip in the line asks Claude to check and explain.
+const askChip=()=>el("button",{type:"button",class:"pill act","aria-label":"Ask Claude to check and explain",onclick:()=>ask(null,"explain"),text:"Ask Claude"});
+export function exLine(r,keys){
+  if(!r.exN) return "none to check.";
+  // while Claude works on the open ones, a line says so (asking is done by the Check and explain button in the action row)
+  const cl=r.exOpen&&state.ui.ctl?el("span",{class:"exl",text:"Claude is checking."}):null;
+  if(r.exBad) return [r.exBad+" of "+r.exN+" wrong"+(r.exOpen?", "+r.exOpen+" not checked yet":"")+".",cl];
+  if(r.exOpen) return [r.exOpen+" of "+r.exN+" not checked yet.",cl];
+  return "all "+r.exN+" fit"+(keys.some(c=>r.cells[c].by)?" (checked with Claude).":".");
+}
+// in a lineage the terms are joined by "is a" (short for "is a kind of"), small and italic; the sign > would read as "greater than"
+export const isA=n=>/^[aeiou]/i.test(n)?"is\u00a0an":"is\u00a0a";
+export const isaTxt=s=>String(s).split("\uE000").flatMap((x,i)=>i?[" ",el("i",{class:"isa",text:isA(x)})," ",x]:[x]);
+export function fbNode(r){ return el("div",{class:"fb"}, el("b",{text:r.msg[0]}), r.msg[2]?[" ",el("i",{text:r.msg[2]})]:null, isaTxt(r.msg[1]||"")); }
