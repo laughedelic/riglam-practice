@@ -20,9 +20,9 @@ const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.
  ok('strip is locked and marks the result',await pg.locator('.strip.done .chip.key, .strip.done .chip.wrong').count()===1);
  ok('Next pair focused',await pg.evaluate(()=>document.activeElement.textContent.trim()==='Next pair'),await pg.evaluate(()=>document.activeElement.outerHTML.slice(0,80)));
  await pg.screenshot({path:D+'w-result.png'});
- // favourite via the button and the key
+ // favorite via the button and the key
  const fav=pg.locator('#stage .actions .fav'); await fav.click(); await pg.waitForTimeout(80);
- ok('favourite button works',await pg.locator('#stage .actions .fav').getAttribute('aria-pressed')==='true'&&(await pg.evaluate(()=>Object.keys(window.__S.favorites).length))===1);
+ ok('favorite button works',await pg.locator('#stage .actions .fav').getAttribute('aria-pressed')==='true'&&(await pg.evaluate(()=>Object.keys(window.__S.favorites).length))===1);
  await pg.keyboard.press('f'); await pg.waitForTimeout(80);
  ok('F toggles it off',await pg.locator('#stage .actions .fav').getAttribute('aria-pressed')==='false');
  // explain in the coach, follow-up in the coach

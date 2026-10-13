@@ -1,0 +1,9 @@
+{
+  // The page code is JavaScript. It is checked here with the compiler's relaxed settings (no implicit-any or null
+  // checks) so that a misspelled property, a wrong call or a missing argument fails `npm run typecheck`. Typed
+  // modules are checked with the strict settings of the root tsconfig.json.
+  "extends": "../../tsconfig.json",
+  "compilerOptions": { "checkJs": true, "strict": false, "types": ["vite/client"] },
+  "include": ["./**/*.js", "./*.d.ts", "../vite-env.d.ts"],
+  "exclude": []
+}

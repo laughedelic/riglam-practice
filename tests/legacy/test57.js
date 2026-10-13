@@ -157,7 +157,7 @@ const settle=pg=>pg.waitForFunction(()=>{const u=window.__t.ui; return u&&u.lab&
   ok('tapping a part opens the flag editor with the note field focused',await pg.locator('.flagedit').count()===1&&await pg.evaluate(()=>document.activeElement&&document.activeElement.id)==='flag-note');
   ok('the editor names what is flagged (model and part) and does not repeat the value',/Haiku: in A/.test(await pg.locator('.flagedit .fh').innerText())&&!/=/.test(await pg.locator('.flagedit .fh').innerText()),await pg.locator('.flagedit .fh').innerText());
   await pg.keyboard.type('Plants are not round. f s 1 2 3'); await pg.keyboard.press('Enter'); await pg.waitForTimeout(60);
-  ok('typing in the note (including f, s, digits and Enter) does not favourite, skip, pick a relation or go to the next pair',await pg.evaluate(()=>window.__t.cur.p.a+'|'+window.__t.cur.p.b)===keyBefore&&Object.keys(await S(pg,'skips')).length===0&&Object.keys(await S(pg,'favorites')).length===0&&await pg.evaluate(()=>window.__t.ui.checked));
+  ok('typing in the note (including f, s, digits and Enter) does not favorite, skip, pick a relation or go to the next pair',await pg.evaluate(()=>window.__t.cur.p.a+'|'+window.__t.cur.p.b)===keyBefore&&Object.keys(await S(pg,'skips')).length===0&&Object.keys(await S(pg,'favorites')).length===0&&await pg.evaluate(()=>window.__t.ui.checked));
   ok('Enter in the note field adds a line',(await pg.inputValue('#flag-note')).includes('\n')||(await pg.inputValue('#flag-note')).includes('3'));
   await pg.fill('#flag-note','Plants are not round.'); await pg.fill('#flag-sug','A ✗');
   await pg.locator('.flagedit .btn',{hasText:/^submit$/i}).click(); await pg.waitForTimeout(150);

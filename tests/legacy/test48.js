@@ -92,7 +92,7 @@ async function rings(pg,label){ const r=await pg.evaluate(ringScan); ok(label+':
  await rings(pg,'wide result');
  await pg.keyboard.press('Escape');
  await pg.locator('[role=tab]:visible:has-text("Pervasions")').click(); await pg.waitForTimeout(150);
- ok('wide: Blitz icon in the action row beside Favourite',await pg.locator('.actions .fav + .bz').count()===1&&await pg.locator('.blitzrow').count()===0);
+ ok('wide: Blitz icon in the action row beside Favorite',await pg.locator('.actions .fav + .bz').count()===1&&await pg.locator('.blitzrow').count()===0);
  await rings(pg,'wide questions');
  await pg.click('.actions .bz'); await pg.waitForTimeout(80); await rings(pg,'wide Blitz on');
  ok('wide: no page errors',errs.filter(e=>!/ERR_CERT|net::/.test(e)).length===0,errs);

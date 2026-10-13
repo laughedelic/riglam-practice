@@ -10,9 +10,9 @@ import { render, top0 } from "../shell/render.js";
 import { switchTo } from "../shell/tabs.js";
 
  const openFavs=new Set(), favQ={};
-/* ---------- favourite pairs ---------- */
-// One favourite per pair of categories, whichever way round and whichever of their labels the pair showed;
-// the pair itself (relation, reference examples, note) is stored with it so it can be looked up and practised again.
+/* ---------- favorite pairs ---------- */
+// One favorite per pair of categories, whichever way round and whichever of their labels the pair showed;
+// the pair itself (relation, reference examples, note) is stored with it so it can be looked up and practiced again.
 export const favSafe=x=>String(x).replace(/[^A-Za-z0-9]+/g,"_");
 export function favKey(p){ const [a,b]=pairCats(p); return a&&b?"c_"+favSafe([a,b].sort().join("__")):"l_"+favSafe([norm(p.a),norm(p.b)].sort().join("__")); }
 export const isFav=p=>!!p&&!!state.favs[favKey(p)];
@@ -20,7 +20,7 @@ function favWrite(k,fn,undo){
   state.favErr="";
   favQ[k]=(favQ[k]||Promise.resolve()).catch(()=>{}).then(fn).catch(e=>{
     undo(); const c=(e&&e.code)||"error";
-    state.favErr="The favourite could not be saved ("+c+"), so it was undone."; render();
+    state.favErr="The favorite could not be saved ("+c+"), so it was undone."; render();
   });
 }
 function setFav(p,on){
@@ -40,17 +40,17 @@ export const toggleFav=p=>setFav(p,!isFav(p));
 export function favBtn(p){
   if(!state.db||!p) return null;
   const on=isFav(p);
-  return el("button",{type:"button",class:"btn ghost fav","aria-pressed":on?"true":"false","aria-label":on?"Remove from favourites":"Add to favourites",title:(on?"Remove from favourites":"Add to favourites")+" (F)",onclick:()=>toggleFav(p)},
-    el("span",{class:"star","aria-hidden":"true",text:on?"★":"☆"}), el("span",{class:"fl",text:"Favourite"}));
+  return el("button",{type:"button",class:"btn ghost fav","aria-pressed":on?"true":"false","aria-label":on?"Remove from favorites":"Add to favorites",title:(on?"Remove from favorites":"Add to favorites")+" (F)",onclick:()=>toggleFav(p)},
+    el("span",{class:"star","aria-hidden":"true",text:on?"★":"☆"}), el("span",{class:"fl",text:"Favorite"}));
 }
-function startFav(p){ state.retryQ=[p]; state.retryTag="Favourite"; switchTo("practice"); advance(); render(); top0(); }
+function startFav(p){ state.retryQ=[p]; state.retryTag="Favorite"; switchTo("practice"); advance(); render(); top0(); }
 export function favSection(s){
   if(!state.db) return;
   const list=Object.values(state.favs).sort((x,y)=>(y.at||"").localeCompare(x.at||""));
-  const sec=el("div",{class:"section"},el("p",{class:"label"},"Favourites",el("span",{class:"hint",text:list.length?list.length+" saved":"star a pair to keep it here"})));
-  if(!list.length) sec.append(el("p",{class:"empty-note",text:"Press the star (or F) on a pair while you practise. It stays here with its relation and examples, whether or not you answered it right."}));
+  const sec=el("div",{class:"section"},el("p",{class:"label"},"Favorites",el("span",{class:"hint",text:list.length?list.length+" saved":"star a pair to keep it here"})));
+  if(!list.length) sec.append(el("p",{class:"empty-note",text:"Press the star (or F) on a pair while you practice. It stays here with its relation and examples, whether or not you answered it right."}));
   else sec.append(el("ul",{class:"favs"},list.map(f=>{
-    const p=f.pair||{a:f.a,b:f.b,relation:f.relation,ex:{},why:{}}, k=REL[p.relation]||REL[f.relation];
+    const p=f.pair||/** @type {import("../types.ts").Pair} */({a:f.a,b:f.b,relation:f.relation,ex:{},why:{}}), k=REL[p.relation]||REL[f.relation];
     const cell=c=>{
       const ref=refOf(p,c);
       if(ref) return el("div",{class:"cell","aria-label":cellLabel(c,p)},el("span",{class:"cx",text:ref}));
@@ -64,7 +64,7 @@ export function favSection(s){
         el("p",{class:"note"},(p.typeA||p.typeB)?el("span",{class:"types",text:p.a+": "+(p.typeA||"?")+" · "+p.b+": "+(p.typeB||"?")}):null,p.note||""),
         el("div",{class:"actions"},
           el("button",{type:"button",class:"btn ghost",onclick:()=>{ openFavs.delete(f.key); const q=Object.assign({},f); delete state.favs[f.key]; render(); favWrite(f.key,()=>state.db.collection("favorites").doc(f.key).delete(),()=>{ state.favs[f.key]=q; }); },text:"Remove"}),
-          el("button",{type:"button",class:"btn",onclick:()=>startFav(p),text:"Practise this pair"})))));
+          el("button",{type:"button",class:"btn",onclick:()=>startFav(p),text:"Practice this pair"})))));
   })));
   if(state.favErr) sec.append(el("p",{class:"status",text:state.favErr}));
   s.append(sec);

@@ -46,33 +46,33 @@ const errs=[];
  await pg.click('#stage .actions .btn:not(.ghost):last-child'); await pg.waitForTimeout(150);
  const rel2=await pg.evaluate(()=>window.__t.cur.p.relation); await pg.locator('.strip .chip').nth(ORDER[rel2]-1).click();
  const inp=pg.locator('.cell input:not([disabled])').first(); if(await inp.count()){ await inp.fill('f'); ok('typing f in a field does not toggle',(await pg.evaluate(()=>Object.keys(window.__S.favorites).length))===1&&await inp.inputValue()==='f'); }
- ok('next pair is not a favourite',await pg.locator('#stage .actions .fav').getAttribute('aria-pressed')==='false');
+ ok('next pair is not a favorite',await pg.locator('#stage .actions .fav').getAttribute('aria-pressed')==='false');
  // review
  await pg.click('[role=tab]:visible:has-text("Review")'); await pg.waitForTimeout(150);
- let sec=pg.locator('.section:has(> .label:has-text("Favourites"))');
- ok('review lists the favourite',await sec.locator('.favs > li').count()===1&&/saved/.test(await sec.locator('.label').innerText()),await sec.innerText());
+ let sec=pg.locator('.section:has(> .label:has-text("Favorites"))');
+ ok('review lists the favorite',await sec.locator('.favs > li').count()===1&&/saved/.test(await sec.locator('.label').innerText()),await sec.innerText());
  await sec.locator('summary').click(); await pg.waitForTimeout(50);
- ok('details show relation, four cells, practice and remove',await sec.locator('.grid .cell').count()===4&&await sec.locator('button:has-text("Practise this pair")').isVisible()&&await sec.locator('button:has-text("Remove")').isVisible()&&/:/.test(await sec.locator('.fbody .note').first().innerText()),await sec.innerText());
+ ok('details show relation, four cells, practice and remove',await sec.locator('.grid .cell').count()===4&&await sec.locator('button:has-text("Practice this pair")').isVisible()&&await sec.locator('button:has-text("Remove")').isVisible()&&/:/.test(await sec.locator('.fbody .note').first().innerText()),await sec.innerText());
  await pg.screenshot({path:'f-review.png',fullPage:false});
  const fa=await pg.evaluate(()=>{const f=Object.values(window.__S.favorites)[0];return [f.a,f.b]});
  // remote snapshot keeps the open state
  await pg.evaluate(()=>{window.__subs.favorites.forEach(f=>f({docs:Object.entries(window.__S.favorites).map(([id,d])=>({id,exists:true,data:()=>d})).concat([{id:'c_zz__yy',exists:true,data:()=>({key:'c_zz__yy',a:'x',b:'y',relation:'mi',pair:{a:'x',b:'y',relation:'mi',ex:{both:'z'},why:{}},at:'2026-10-10T00:00:00Z'})}]),size:2,empty:false}))});
  await pg.waitForTimeout(100);
- ok('a favourite from another device appears; the open one stays open',await sec.locator('.favs > li').count()===2&&await sec.locator('details[open]').count()===1);
+ ok('a favorite from another device appears; the open one stays open',await sec.locator('.favs > li').count()===2&&await sec.locator('details[open]').count()===1);
  await pg.evaluate(()=>{window.__subs.favorites.forEach(f=>f({docs:Object.entries(window.__S.favorites).map(([id,d])=>({id,exists:true,data:()=>d})),size:1,empty:false}))}); await pg.waitForTimeout(100);
- // practise it
- await sec.locator('button:has-text("Practise this pair")').click(); await pg.waitForTimeout(150);
- ok('practice shows the same pair with a Favourite tag',await pg.evaluate(([a,b])=>window.__t.tab==='practice'&&window.__t.cur.p.a===a&&window.__t.cur.p.b===b,fa)&&/favourite/i.test(await pg.locator('.retry-tag').innerText()),[fa,await pg.evaluate(()=>[window.__t.tab,window.__t.cur.p.a,window.__t.cur.p.b]),await pg.locator('.retry-tag').allInnerTexts()]);
- ok('the practised pair is marked',await pg.locator('#stage .actions .fav').getAttribute('aria-pressed')==='true');
+ // practice it
+ await sec.locator('button:has-text("Practice this pair")').click(); await pg.waitForTimeout(150);
+ ok('practice shows the same pair with a Favorite tag',await pg.evaluate(([a,b])=>window.__t.tab==='practice'&&window.__t.cur.p.a===a&&window.__t.cur.p.b===b,fa)&&/favorite/i.test(await pg.locator('.retry-tag').innerText()),[fa,await pg.evaluate(()=>[window.__t.tab,window.__t.cur.p.a,window.__t.cur.p.b]),await pg.locator('.retry-tag').allInnerTexts()]);
+ ok('the practiced pair is marked',await pg.locator('#stage .actions .fav').getAttribute('aria-pressed')==='true');
  // debate tab (a switch keeps the pair, so draw a new one first)
  await pg.evaluate(()=>window.__t.next()); await pg.waitForTimeout(100);
  await pg.click('[role=tab]:visible:has-text("Pervasions")'); await pg.waitForTimeout(150);
  ok('star also on the questions tab',await pg.locator('#stage .actions .fav').count()===1&&await pg.locator('#stage .actions .fav').getAttribute('aria-pressed')==='false');
  await pg.locator('#stage .actions .fav').click(); await pg.waitForTimeout(100);
- ok('debate pair can be favourited',(await pg.evaluate(()=>Object.keys(window.__S.favorites).length))===2);
+ ok('debate pair can be favorited',(await pg.evaluate(()=>Object.keys(window.__S.favorites).length))===2);
  // remove from review
  await pg.click('[role=tab]:visible:has-text("Review")'); await pg.waitForTimeout(150);
- sec=pg.locator('.section:has(> .label:has-text("Favourites"))');
+ sec=pg.locator('.section:has(> .label:has-text("Favorites"))');
  await openFirst(sec); await sec.locator('button:has-text("Remove")').first().click(); await pg.waitForTimeout(150);
  ok('remove deletes the document',(await pg.evaluate(()=>Object.keys(window.__S.favorites).length))===1&&await sec.locator('.favs > li').count()===1);
  // failed write is undone with a message

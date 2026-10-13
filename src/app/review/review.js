@@ -17,7 +17,7 @@ import { switchTo } from "../shell/tabs.js";
 /* ---------- review ---------- */
 export function pct(n,d){ return d?Math.round(100*n/d):0; }
 export function barNode(p){ return el("span",{class:"bar"+(p<50?" b-low":p<80?" b-mid":""),style:"width:"+Math.max(4,Math.round(p*.6))+"px"}); }
-// Review in three groups: Overview, Mistakes, Favourites. Wide screens show the three side by side; narrow screens switch between them.
+// Review in three groups: Overview, Mistakes, Favorites. Wide screens show the three side by side; narrow screens switch between them.
 function revOverview(box,all){
   const relOk=all.filter(a=>a.correct).length, G={ok:0,pend:0,part:0,bad:0};
   for(const a of all){ const g=gradeOf(a); G[g in G?g:"bad"]++; }
@@ -74,10 +74,11 @@ export function renderReview(s){
     pane.append(el("p",{class:"empty-note",text:"No practice answers yet. Your history and weak spots will show up here."})); favSection(pane); if(nsk) skipSection(pane); renderDebateStats(pane); return;
   }
   const miss=all.filter(isMiss).reverse(), nf=Object.keys(state.favs).length;
-  const parts=[["overview","Overview",revOverview,""],["mistakes","Mistakes",revMistakes,miss.length?String(miss.length):""],["favs","Favourites",(b)=>favSection(b),state.db&&nf?String(nf):""]];
+  /** @type {[string, string, (box: HTMLElement, all: object[], miss: object[]) => void, string][]} */
+  const parts=[["overview","Overview",revOverview,""],["mistakes","Mistakes",revMistakes,miss.length?String(miss.length):""],["favs","Favorites",(b)=>favSection(b),state.db&&nf?String(nf):""]];
   if(nsk) parts.push(["skips","Skipped",(b)=>skipSection(b),String(nsk)]);
   if(isWide()){
-    // three columns; the skipped pairs sit under the favourites, both lists of pairs picked by hand
+    // three columns; the skipped pairs sit under the favorites, both lists of pairs picked by hand
     s.append(el("div",{class:"rev3"},parts.filter(p=>p[0]!=="skips").map(([k,,fn])=>{ const col=el("div",{class:"rcol","data-part":k}); fn(col,all,miss); if(k==="favs"&&nsk) skipSection(col); return col; })));
     return;
   }
