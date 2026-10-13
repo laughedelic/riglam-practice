@@ -23,6 +23,8 @@ export const PREFERENCE_KEYS = ["rd-notation", "rd-deflang", "rd-ab", "rd-full",
 export const MAX_FILE_BYTES = 40 * 1024 * 1024;
 const MAX_DOC_BYTES = 256 * 1024; // the limit of the stores (local-db.ts, the artifact runtime)
 const ID = /^[A-Za-z0-9_\-.~:@+]{1,200}$/;
+/** `__proto__` passes the pattern, but the page builds objects keyed by document id, and assigning that key changes the object's prototype. */
+const validId = (id: string): boolean => ID.test(id) && id !== "." && id !== ".." && id !== "__proto__";
 
 export interface DataFile {
   format: typeof FORMAT;
@@ -68,7 +70,7 @@ export async function exportData(db: Db, opts: { storage?: Storage | null; now?:
     const docs: Record<string, Doc> = {};
     try {
       const snap = await db.collection(name).get();
-      for (const d of snap.docs) docs[d.id] = d.data() ?? {};
+      for (const d of snap.docs) if (validId(d.id)) docs[d.id] = d.data() ?? {};
     } catch (e) {
       throw new TransferError(`The ${name} could not be read (${(e as { code?: string })?.code ?? "error"}).`);
     }
@@ -124,6 +126,14 @@ const zero = (): Counts => ({ add: 0, update: 0, same: 0, keep: 0 });
 
 export interface Write { collection: string; id: string; doc: Doc }
 
+/** What import does with the file's copy of a document, given the copy on this device (undefined when there is none). */
+function decide(mine: Doc | undefined, theirs: Doc): keyof Counts {
+  if (!mine) return "add";
+  if (canon(mine) === canon(theirs)) return "same";
+  const t = stampOf(theirs), o = stampOf(mine);
+  return t !== undefined && (o === undefined || t > o) ? "update" : "keep";
+}
+
 export interface ImportPlan {
   /** per known collection, what import would do */
   counts: Record<string, Counts>;
@@ -157,13 +167,10 @@ export async function planImport(db: Db, file: DataFile, opts: { storage?: Stora
       throw new TransferError(`The ${name} on this device could not be read (${(e as { code?: string })?.code ?? "error"}).`);
     }
     for (const [id, doc] of Object.entries(incoming)) {
-      if (!ID.test(id) || id === "." || id === ".." || !isPlain(doc) || JSON.stringify(doc).length > MAX_DOC_BYTES) { invalid += 1; continue; }
-      const mine = have.get(id);
-      if (!mine) { c.add += 1; writes.push({ collection: name, id, doc }); continue; }
-      if (canon(mine) === canon(doc)) { c.same += 1; continue; }
-      const theirs = stampOf(doc), ours = stampOf(mine);
-      if (theirs !== undefined && (ours === undefined || theirs > ours)) { c.update += 1; writes.push({ collection: name, id, doc }); }
-      else c.keep += 1;
+      if (!validId(id) || !isPlain(doc) || JSON.stringify(doc).length > MAX_DOC_BYTES) { invalid += 1; continue; }
+      const verdict = decide(have.get(id), doc);
+      c[verdict] += 1;
+      if (verdict === "add" || verdict === "update") writes.push({ collection: name, id, doc });
     }
     for (const k of Object.keys(totals) as (keyof Counts)[]) totals[k] += c[k];
   }
@@ -180,21 +187,32 @@ export async function planImport(db: Db, file: DataFile, opts: { storage?: Stora
 
 export interface ImportReport {
   written: number;
+  /** documents that changed on this device after the preview, so that the file's copy was no longer the one to write */
+  skipped: number;
   /** documents that could not be written, as "collection/id (code)" */
   failed: string[];
   preferencesRestored: number;
 }
 
-/** Writes the planned documents and restores the planned settings. A document that fails is reported and the rest go on. */
+/**
+ * Writes the planned documents and restores the planned settings. A document that fails is reported and the rest go on.
+ * The preview can be minutes old (a check-lab verdict or another tab may have saved a newer copy since), so each document is
+ * compared again just before it is written, with the same rule as the plan.
+ */
 export async function applyImport(db: Db, plan: ImportPlan, opts: { storage?: Storage | null } = {}): Promise<ImportReport> {
   const failed: string[] = [];
   let written = 0;
+  let skipped = 0;
   const CHUNK = 10;
   for (let i = 0; i < plan.writes.length; i += CHUNK) {
     await Promise.all(
       plan.writes.slice(i, i + CHUNK).map(async (w) => {
         try {
-          await db.collection(w.collection).doc(w.id).set(w.doc);
+          const ref = db.collection(w.collection).doc(w.id);
+          const now = await ref.get();
+          const verdict = decide(now.exists ? now.data() ?? {} : undefined, w.doc);
+          if (verdict !== "add" && verdict !== "update") { skipped += 1; return; }
+          await ref.set(w.doc);
           written += 1;
         } catch (e) {
           failed.push(`${w.collection}/${w.id} (${(e as { code?: string })?.code ?? "error"})`);
@@ -209,5 +227,5 @@ export async function applyImport(db: Db, plan: ImportPlan, opts: { storage?: St
       if (storage && storage.getItem(key) === null) { storage.setItem(key, value); preferencesRestored += 1; }
     } catch { /* blocked */ }
   }
-  return { written, failed, preferencesRestored };
+  return { written, skipped, failed, preferencesRestored };
 }

@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { createLocalDb } from "../../src/pwa/local-db";
 import type { Db, Doc } from "../../src/platform/types";
 import {
-  COLLECTIONS, FORMAT, PREFERENCE_KEYS, TransferError, VERSION, applyImport, exportData, fileName, parseDataFile, planImport, serialize, stampOf,
+  COLLECTIONS, FORMAT, type DataFile, PREFERENCE_KEYS, TransferError, VERSION, applyImport, exportData, fileName, parseDataFile, planImport, serialize, stampOf,
 } from "../../src/store/transfer";
 
 const newDb = () => createLocalDb({ channel: false });
@@ -58,7 +58,7 @@ describe("round trip", () => {
     expect(plan.totals).toEqual({ add: 3, update: 0, same: 0, keep: 0 });
     expect(plan.preferences).toEqual({ "rd-wording": "plain" });
     const report = await applyImport(b, plan, { storage });
-    expect(report).toEqual({ written: 3, failed: [], preferencesRestored: 1 });
+    expect(report).toEqual({ written: 3, skipped: 0, failed: [], preferencesRestored: 1 });
     expect(await read(b, "answers")).toEqual({ a1: { pairId: "a1", at: OLD, cells: { both: { text: "x" } } } });
     expect(storage.getItem("rd-wording")).toBe("plain");
 
@@ -184,5 +184,49 @@ describe("the list of settings", () => {
     for (const f of files) for (const m of readFileSync(new URL(f, dir), "utf8").matchAll(/["'](rd-[a-z-]+)["']/g)) used.add(m[1]);
     expect(files.length).toBeGreaterThan(20);
     expect([...used].sort()).toEqual([...PREFERENCE_KEYS].sort());
+  });
+});
+
+describe("reserved ids", () => {
+  it("leaves out a document called __proto__, which would change the prototype of an object keyed by id", async () => {
+    const db = newDb();
+    const text = '{"format":"riglam-practice-data","version":1,"collections":{"answers":{"__proto__":{"at":"2026-10-01T10:00:00.000Z"},"a1":{"at":"2026-10-01T10:00:00.000Z"}}}}';
+    const plan = await planImport(db, parseDataFile(text));
+    expect(plan.invalid).toBe(1);
+    expect(plan.writes.map((w) => w.id)).toEqual(["a1"]);
+  });
+});
+
+const fileWith = (answers: Record<string, Doc>): DataFile => ({ format: FORMAT, version: VERSION, exportedAt: "", collections: { answers }, preferences: {} });
+
+describe("a preview that is out of date", () => {
+  it("does not replace a document that was saved after the plan with an older copy from the file", async () => {
+    const db = newDb();
+    await put(db, "answers", "a1", { pairId: "a1", at: OLD });
+    const file = fileWith({ a1: { pairId: "a1", at: NEW, from: "file" } });
+    const plan = await planImport(db, file);
+    expect(plan.totals.update).toBe(1);
+    // the check lab saves a verdict while the preview is open
+    await put(db, "answers", "a1", { pairId: "a1", at: OLD, verifiedAt: "2026-10-03T10:00:00.000Z", from: "local" });
+    const report = await applyImport(db, plan, { storage: null });
+    expect(report).toMatchObject({ written: 0, skipped: 1, failed: [] });
+    expect((await read(db, "answers")).a1).toMatchObject({ from: "local" });
+  });
+
+  it("does not replace a document that appeared after the plan and is newer", async () => {
+    const db = newDb();
+    const file = fileWith({ a1: { pairId: "a1", at: OLD, from: "file" } });
+    const plan = await planImport(db, file);
+    expect(plan.totals.add).toBe(1);
+    await put(db, "answers", "a1", { pairId: "a1", at: NEW, from: "local" });
+    expect(await applyImport(db, plan, { storage: null })).toMatchObject({ written: 0, skipped: 1 });
+    expect((await read(db, "answers")).a1).toMatchObject({ from: "local" });
+  });
+
+  it("still writes everything that did not change since the plan", async () => {
+    const db = newDb();
+    const file = fileWith({ a1: { pairId: "a1", at: OLD }, a2: { pairId: "a2", at: OLD } });
+    const plan = await planImport(db, file);
+    expect(await applyImport(db, plan, { storage: null })).toMatchObject({ written: 2, skipped: 0, failed: [] });
   });
 });

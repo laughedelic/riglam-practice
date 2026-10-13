@@ -13,6 +13,9 @@ type State =
   | { kind: "preview"; plan: ImportPlan };
 
 let state: State = { kind: "idle" };
+// Rebuilding the Options screen drops the focused control, so a change of state says where the focus should land next time the row is built.
+type Focus = "export" | "import" | "summary" | "status";
+let wantFocus: Focus | null = null;
 
 const WORDS: Record<string, [string, string]> = {
   answers: ["answer", "answers"],
@@ -46,12 +49,13 @@ export function describe(plan: ImportPlan): string[] {
 
 const nothingToDo = (plan: ImportPlan) => plan.writes.length === 0 && Object.keys(plan.preferences).length === 0;
 
-async function save(text: string, name: string): Promise<void> {
+/** Puts the file where the person can find it. Resolves to "cancelled" when they closed the share sheet without choosing anything. */
+async function save(text: string, name: string): Promise<"saved" | "cancelled"> {
   const file = new File([text], name, { type: "application/json" });
   // On a phone the share sheet is the way to put a file somewhere (a download can end up where nobody looks, and an installed app has no download bar).
   if (matchMedia("(pointer: coarse)").matches && navigator.canShare?.({ files: [file] })) {
-    try { await navigator.share({ files: [file], title: name }); return; }
-    catch (e) { if ((e as Error)?.name === "AbortError") return; /* anything else: download it */ }
+    try { await navigator.share({ files: [file], title: name }); return "saved"; }
+    catch (e) { if ((e as Error)?.name === "AbortError") return "cancelled"; /* anything else: download it */ }
   }
   const url = URL.createObjectURL(file);
   const a = document.createElement("a");
@@ -61,6 +65,7 @@ async function save(text: string, name: string): Promise<void> {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  return "saved";
 }
 
 function pickFile(): Promise<File | null> {
@@ -78,30 +83,31 @@ function pickFile(): Promise<File | null> {
 }
 
 export function dataTransferControls(db: Db, el: El, rerender: () => void): HTMLElement {
-  const set = (s: State) => { state = s; rerender(); };
-  const fail = (e: unknown) => set({ kind: "idle", bad: true, note: e instanceof TransferError ? e.message : "That did not work. Nothing was changed." });
+  const set = (s: State, focus: Focus | null = null) => { state = s; wantFocus = focus; rerender(); };
+  const fail = (e: unknown) => set({ kind: "idle", bad: true, note: e instanceof TransferError ? e.message : "That did not work. Nothing was changed." }, "status");
 
   async function doExport() {
     set({ kind: "busy", note: "Preparing the file ..." });
     try {
       const file = await exportData(db);
       const n = Object.values(file.collections).reduce((sum, docs) => sum + Object.keys(docs).length, 0);
-      await save(serialize(file), fileName());
+      const result = await save(serialize(file), fileName());
+      if (result === "cancelled") return set({ kind: "idle" }, "export");
       const s = Object.keys(file.preferences).length;
-      set({ kind: "idle", note: `${n} document${n === 1 ? "" : "s"} and ${s} setting${s === 1 ? "" : "s"} saved to the file.` });
+      set({ kind: "idle", note: `${n} document${n === 1 ? "" : "s"} and ${s} setting${s === 1 ? "" : "s"} saved to the file.` }, "status");
     } catch (e) { fail(e); }
   }
 
   async function doChoose() {
     const file = await pickFile();
-    if (!file) return;
+    if (!file) return set({ kind: "idle" }, "import");
     if (file.size > MAX_FILE_BYTES) return fail(new TransferError("That file is too large to be a data file from this app."));
     set({ kind: "busy", note: "Reading the file ..." });
     try {
       const plan = await planImport(db, parseDataFile(await file.text()));
       set(nothingToDo(plan)
         ? { kind: "idle", note: "Nothing new in that file: everything in it is already here." + (plan.invalid ? ` ${plan.invalid} entries were not valid.` : "") }
-        : { kind: "preview", plan });
+        : { kind: "preview", plan }, nothingToDo(plan) ? "status" : "summary");
     } catch (e) { fail(e); }
   }
 
@@ -111,9 +117,10 @@ export function dataTransferControls(db: Db, el: El, rerender: () => void): HTML
       const r = await applyImport(db, plan);
       const prefs = r.preferencesRestored ? ` and ${r.preferencesRestored} setting${r.preferencesRestored === 1 ? "" : "s"}` : "";
       const docs = `${r.written} document${r.written === 1 ? "" : "s"}`;
+      const newer = r.skipped ? ` ${r.skipped} changed on this device since the preview and ${r.skipped === 1 ? "was" : "were"} kept as they are.` : "";
       set(r.failed.length
-        ? { kind: "idle", bad: true, note: `Imported ${docs}${prefs}, but ${r.failed.length} could not be saved: ${r.failed.slice(0, 3).join(", ")}${r.failed.length > 3 ? " ..." : ""}. Import the file again to retry those.`, reload: r.preferencesRestored > 0 }
-        : { kind: "idle", note: `Imported ${docs}${prefs}.` + (r.preferencesRestored ? " Reload to apply the settings." : ""), reload: r.preferencesRestored > 0 });
+        ? { kind: "idle", bad: true, note: `Imported ${docs}${prefs}, but ${r.failed.length} could not be saved: ${r.failed.slice(0, 3).join(", ")}${r.failed.length > 3 ? " ..." : ""}. Import the file again to retry those.${newer}`, reload: r.preferencesRestored > 0 }
+        : { kind: "idle", note: `Imported ${docs}${prefs}.${newer}` + (r.preferencesRestored ? " Reload to apply the settings." : ""), reload: r.preferencesRestored > 0 }, "status");
     } catch (e) { fail(e); }
   }
 
@@ -122,17 +129,28 @@ export function dataTransferControls(db: Db, el: El, rerender: () => void): HTML
     el("button", { type: "button", class: "btn ghost", disabled: busy || state.kind === "preview", "aria-label": "Export your data to a file", onclick: doExport }, "Export"),
     el("button", { type: "button", class: "btn ghost", disabled: busy || state.kind === "preview", "aria-label": "Import data from a file", onclick: doChoose }, "Import"));
   const box = el("div", { class: "xferbox" }, buttons);
+  const targets: Partial<Record<Focus, HTMLElement>> = { export: buttons.children[0] as HTMLElement, import: buttons.children[1] as HTMLElement };
   if (state.kind === "preview") {
     const plan = state.plan;
+    const summary = el("div", { class: "xsum", role: "group", tabindex: "-1", "aria-label": "What the import would do" }, describe(plan).map((t) => el("p", { class: "onote", text: t })));
+    targets.summary = summary;
     box.append(
-      el("div", { class: "xsum", role: "group", "aria-label": "What the import would do" }, describe(plan).map((t) => el("p", { class: "onote", text: t }))),
+      summary,
       el("div", { class: "xfer" },
         el("button", { type: "button", class: "btn", onclick: () => doApply(plan) }, "Import"),
-        el("button", { type: "button", class: "btn ghost", onclick: () => set({ kind: "idle" }) }, "Cancel")));
+        el("button", { type: "button", class: "btn ghost", onclick: () => set({ kind: "idle" }, "import") }, "Cancel")));
   } else {
     const note = state.note;
-    if (note) box.append(el("p", { class: "onote" + (state.kind === "idle" && state.bad ? " bad" : ""), role: "status", text: note }));
+    if (note) {
+      const p = el("p", { class: "onote" + (state.kind === "idle" && state.bad ? " bad" : ""), role: "status", tabindex: "-1", text: note });
+      targets.status = p;
+      box.append(p);
+    }
     if (state.kind === "idle" && state.reload) box.append(el("div", { class: "xfer" }, el("button", { type: "button", class: "btn ghost", onclick: () => location.reload() }, "Reload")));
   }
+  // The screen is being built right now; once it is in the page, the focus goes where the last change of state asked.
+  const want = wantFocus && targets[wantFocus];
+  wantFocus = null;
+  if (want) queueMicrotask(() => { if (want.isConnected) want.focus({ preventScroll: false }); });
   return box;
 }

@@ -100,3 +100,35 @@ test("a file that is not a data file is refused and changes nothing", async ({ p
   await expect(status(page)).toContainText("newer version of the app");
   expect((await stored(page)).docs.labruns).toEqual({});
 });
+
+test("closing the phone's share sheet is not reported as a saved file", async ({ page }) => {
+  // the share sheet is used where the main pointer is a finger (the phone project); elsewhere the file is downloaded
+  await page.addInitScript(() => {
+    navigator.canShare = () => true;
+    navigator.share = () => Promise.reject(new DOMException("closed", "AbortError"));
+  });
+  await open(page);
+  test.skip(!(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)), "needs a touch device");
+  await openOptions(page);
+  await exportBtn(page).click();
+  await expect(exportBtn(page)).toBeFocused();
+  await expect(page.locator(".xferbox .onote")).toHaveCount(0);
+});
+
+test("focus follows the steps: the summary, then the result, and back to Import after Cancel", async ({ page }) => {
+  await open(page);
+  await seed(page);
+  await openOptions(page);
+  const { path } = await exportFile(page);
+  await expect(page.locator(".xferbox .onote[role=status]")).toBeFocused();
+  await wipe(page);
+
+  await chooseFile(page, path);
+  await expect(page.getByRole("group", { name: "What the import would do" })).toBeFocused();
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(importBtn(page)).toBeFocused();
+
+  await chooseFile(page, path);
+  await page.getByRole("button", { name: "Import", exact: true }).click();
+  await expect(page.locator(".xferbox .onote[role=status]")).toBeFocused();
+});
