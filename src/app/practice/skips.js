@@ -11,7 +11,7 @@ import { render, top0 } from "../shell/render.js";
 import { switchTo } from "../shell/tabs.js";
 
 /* ---------- skipped pairs ---------- */
-// A pair that is too hard or too easy can be skipped. The skip is recorded (collection "skips", one document per pair of categories, like a favourite),
+// A pair that is too hard or too easy can be skipped. The skip is recorded (collection "skips", one document per pair of categories, like a favorite),
 // the pair stays out of the drill for SKIP_DAYS days, Review lists it under Skipped, and answering the pair clears the record.
 export const SKIP_DAYS=7;
 const UNDO_MS=6000;                    // how long the hint (narrow) or the note (wide) with Undo stays
@@ -109,7 +109,7 @@ export function skipActs(spacerText){
   return [spacerText!=null?el("span",{class:"kbd spacer",text:spacerText}):null,skipBtn()];
 }
 const skipBtn=()=>el("button",{type:"button",class:"btn ghost skipw",title:"Skip this pair (S)",onclick:skipPair,text:"Skip"});
-// a pair skipped in Questions is practised in Questions, one skipped in Relations in Relations
+// a pair skipped in Questions is practiced in Questions, one skipped in Relations in Relations
 function startSkipped(f){
   const p=f.pair||{a:f.a,b:f.b,relation:f.relation,ex:{},why:{}};
   if(f.from==="debate"){ switchTo("debate"); state.cur={p,debate:true}; state.ui=freshDebateUi(); state.mode="quiz"; startQ(); }
@@ -125,14 +125,14 @@ export function skipSection(s){
   const list=Object.values(state.skips).sort((x,y)=>(y.at||"").localeCompare(x.at||""));
   const sec=el("div",{class:"section"},el("p",{class:"label"},"Skipped",el("span",{class:"hint",text:list.length?list.length+" set aside":"nothing skipped"})));
   if(!list.length){ sec.append(el("p",{class:"empty-note",text:"Skip a pair that is too hard or too easy. It stays out of the drill for "+SKIP_DAYS+" days and is kept here, apart from your mistakes."})); s.append(sec); return; }
-  sec.append(el("p",{class:"note faint",text:"Skipped pairs stay out of the drill for "+SKIP_DAYS+" days. Practise one from here when you want it. A pair you answer leaves this list."}));
+  sec.append(el("p",{class:"note faint",text:"Skipped pairs stay out of the drill for "+SKIP_DAYS+" days. Practice one from here when you want it. A pair you answer leaves this list."}));
   sec.append(el("ul",{class:"sum skips"},list.map(f=>{
     const p=f.pair||{a:f.a,b:f.b,relation:f.relation,ex:{},why:{}}, until=new Date(Date.parse(f.at)+SKIP_DAYS*864e5).toISOString();
     const sub="skipped "+dayOf(f.at)+(f.n>1?", "+f.n+" times":"")+" · "+(skipActive(f)?"back in the drill after "+dayOf(until):"back in the drill");
     return el("li",null,el("span",{class:"m skip","aria-hidden":"true",text:"»"}),
       el("span",null,p.a+" / "+p.b,el("span",{class:"sub",text:sub}),
         el("span",{class:"skact"},
-          el("button",{type:"button",class:"btn",onclick:()=>startSkipped(f),text:"Practise"}),
+          el("button",{type:"button",class:"btn",onclick:()=>startSkipped(f),text:"Practice"}),
           el("button",{type:"button",class:"btn ghost",onclick:()=>unskipKey(f.key),text:"Remove"}))));
   })));
   if(state.skipErr) sec.append(el("p",{class:"status",text:state.skipErr}));

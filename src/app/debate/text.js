@@ -16,7 +16,7 @@ import { american } from "../../ai-shared/lookup.ts";
 export { QCELL, qPlain };
 // How the challenger's statement is worded and answered; which form the class uses is Alexey's pick (see notes/debate-question-form.md).
 // The saved data and the tutor card keep the same four questions whatever the wording. "A" and "B" become the pair's own terms,
-// and N marks a "not" that the page emphasises.
+// and N marks a "not" that the page emphasizes.
 const N=NOT;
 export const WORDINGS={
   mine:{name:"Statement",lead:"Do you accept that…",acc:"Accept",acd:"Accepted",why:"Why?",wyd:"Asked why",ak:"A",wk:"W",q:QMINE},

@@ -66,7 +66,7 @@ const ORDER={mi:0,'3ab':1,'3ba':2,'4':3,con:4};
  ok('wide: coach hints the keys',/1–5/.test(await pg.locator('.coach').innerText()));
  await pg.locator('[role=tab]:visible:has-text("Pervasions")').click(); await pg.waitForTimeout(150);
  await pg.click('.actions .bz'); await pg.waitForTimeout(80);
- ok('wide: the Blitz icon sits in the action row next to Favourite',await pg.locator('.actions .fav + .bz').count()===1);
+ ok('wide: the Blitz icon sits in the action row next to Favorite',await pg.locator('.actions .fav + .bz').count()===1);
  await pg.click('.trow .tval'); await pg.waitForTimeout(80); await pg.keyboard.press('Control+a'); await pg.keyboard.type('20'); await pg.keyboard.press('Enter'); await pg.waitForTimeout(120);
  ok('wide: blitz seconds editable too, shown in the name of the bolt',(await pg.locator('.trow .tval').innerText()).trim()==='20 s'&&/20 s (question|example)/.test(await pg.locator('.actions .bz').getAttribute('aria-label'))&&await pg.locator('.actions .bz .bzn').count()===0);
  ok('wide: no page errors',errs.filter(e=>!/ERR_CERT|net::/.test(e)).length===0,errs);
