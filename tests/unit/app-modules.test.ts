@@ -55,16 +55,22 @@ test("shared state lives in `state`: no module-level let or var outside state.js
   }
 });
 
-test("core/ and state.js depend only on each other", () => {
+test("core/ and state.js depend only on each other and on src/ai-shared", () => {
   for (const f of files.filter((f) => rel(f).startsWith("core/") || rel(f) === "state.js")) {
-    for (const i of importsOf(f)) expect(i === "state.js" || i.startsWith("core/"), `${rel(f)} imports ${i}`).toBe(true);
+    for (const i of importsOf(f)) expect(i === "state.js" || i.startsWith("core/") || i.startsWith("../ai-shared/"), `${rel(f)} imports ${i}`).toBe(true);
+  }
+});
+
+test("the page imports nothing from outside src/app except src/ai-shared", () => {
+  for (const f of files) {
+    for (const i of importsOf(f)) if (i.startsWith("../")) expect(i.startsWith("../ai-shared/"), `${rel(f)} imports ${i}`).toBe(true);
   }
 });
 
 test("every module is reachable from the entry, so nothing is left out of the build", () => {
   const seen = new Set<string>();
   const visit = (r: string) => {
-    if (seen.has(r)) return;
+    if (r.startsWith("../") || seen.has(r)) return; // modules outside src/app are not part of this check
     seen.add(r);
     for (const i of importsOf(join(root, r))) visit(i);
   };
