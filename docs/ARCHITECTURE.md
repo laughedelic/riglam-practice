@@ -104,4 +104,4 @@ To check that a CSS change moved nothing, build before and after: `dist/pwa/asse
 
 - No server: no answer checking by Claude, no tutor chat, no check lab, no shared base (the page hides these when `sample` is `null`).
 - No import of the answers collected in the artifact into the installed app, and no sync between devices.
-- `app.js` is one JavaScript module that is not type-checked yet; its three lint warnings (unused variables) are left as found. The adapters, the platform types and the tests are TypeScript (`npm run typecheck`).
+- The page modules are JavaScript, type-checked with relaxed settings (`src/app/tsconfig.json`: implicit `any` and null checks are off); their three lint warnings (unused variables) are left as found. The adapters, the platform types, `src/ai-shared` and the tests are TypeScript with the strict settings (`npm run typecheck` checks both).

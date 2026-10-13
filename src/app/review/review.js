@@ -74,6 +74,7 @@ export function renderReview(s){
     pane.append(el("p",{class:"empty-note",text:"No practice answers yet. Your history and weak spots will show up here."})); favSection(pane); if(nsk) skipSection(pane); renderDebateStats(pane); return;
   }
   const miss=all.filter(isMiss).reverse(), nf=Object.keys(state.favs).length;
+  /** @type {[string, string, (box: HTMLElement, all: object[], miss: object[]) => void, string][]} */
   const parts=[["overview","Overview",revOverview,""],["mistakes","Mistakes",revMistakes,miss.length?String(miss.length):""],["favs","Favourites",(b)=>favSection(b),state.db&&nf?String(nf):""]];
   if(nsk) parts.push(["skips","Skipped",(b)=>skipSection(b),String(nsk)]);
   if(isWide()){
