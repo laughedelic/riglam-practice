@@ -27,13 +27,13 @@ In the Claude desktop app, "Preview" starts the same dev server and shows it in 
 
 ```
 index.html                 PWA entry (the page markup is included from src/app/markup.html)
-src/app/                   the page, shared by both builds: app.js, app.css, markup.html, felt tiles
+src/app/                   the page, shared by both builds: app.js (entry), state.js, feature modules in folders, app.css, markup.html, felt tiles
 src/data/                  the term data: open JSON, plus the definitions and notes encrypted (docs/DATA.md)
 src/platform/              the Platform interface (data, `db`, `sample`) that each build implements
 src/pwa/                   PWA only: platform adapter, local `db` (IndexedDB), key dialog, service worker registration, fonts
 src/artifact/              artifact only: platform adapter (embedded data, `window.claude`), head (title, font links)
 scripts/                   build-artifact, artifact-verify, data (key, import, export), fonts, icons, Vite plugins
-tests/unit/                Vitest unit tests (artifact comparison, artifact and PWA build contracts, encrypted data)
+tests/unit/                Vitest unit tests (artifact comparison, artifact and PWA build contracts, encrypted data, the shape of src/app)
 tests/e2e/                 Playwright: PWA specs, parity with the artifact build, and the legacy page suite
 tests/legacy/              the page's regression suite (harness, 28 test files, layout scans)
 public/                    icons
