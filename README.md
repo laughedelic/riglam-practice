@@ -43,12 +43,13 @@ tests/worker/              Vitest tests of the server with stand-ins for D1 and 
 tests/e2e/                 Playwright: PWA specs, parity with the artifact build, the layout matrix, and the legacy page suite
 tests/legacy/              the page's regression suite (harness, 28 test files)
 public/                    icons
-docs/                      architecture, term data and key, artifact loop, deploy, releasing, testing
+docs/                      developing, architecture, term data and key, artifact loop, deploy, releasing, testing
 .github/workflows/         CI, preview deploys, release
 ```
 
 ## Docs
 
+- [Developing](docs/DEVELOPING.md): where a change goes, the rules the tests enforce, what to run before a pull request.
 - [Architecture](docs/ARCHITECTURE.md): how one source becomes two builds, the runtime seam, data, storage.
 - [The artifact loop](docs/ARTIFACT-LOOP.md): how iterating in the Claude artifact keeps working, and how changes flow into this repo.
 - [Testing](docs/TESTING.md): the layers, how to run them, the legacy suite.
