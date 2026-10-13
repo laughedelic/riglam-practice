@@ -1,8 +1,9 @@
 import { state } from "../state.js";
 import { aiCase, aiFlag, decorateAns, flagEditorNode } from "../ai/flags.js";
 import { labItem } from "../ai/lab-panel.js";
-import { NAME_CELL, VERDICT_RE, ask, fillAns } from "../ai/tutor.js";
+import { ask, fillAns } from "../ai/tutor.js";
 import { CELL_NAME } from "../../ai-shared/prompts.ts";
+import { NAME_CELL, VERDICT_RE } from "../../domain/verdict.ts";
 import { $, L, el } from "../core/dom.js";
 import { CELLS, ORDER, REL, cellLabel, lcRel, notaOf, notaParts } from "../core/rel.js";
 import { gradeOf } from "../core/util.js";
