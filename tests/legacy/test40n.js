@@ -1,8 +1,11 @@
-const {open}=require('./harness.js');
+const {open,settled}=require('./harness.js');
 const D=require('./harness.js').SHOTS;
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
 (async()=>{
  const {br,pg,errs}=await open({width:390,height:844},{isMobile:true,hasTouch:true});
+ // The field sits below the pair's heading, and a pair whose two terms wrap onto several lines pushes it down (its bottom is 387 to 505 px on this
+ // screen, by pair). The checks below are about the layout, not the draw, so they run on a pair with short terms, where it is always 387.
+ for(let i=0;i<200&&!await pg.evaluate(()=>{ const p=window.__t.cur.p; return p.a.length+p.b.length<=24; });i++) await pg.evaluate(()=>{ window.__t.advance(); window.__t.render(); });
  const vis=async s=>await pg.locator(s).first().isVisible();
  const inView=async s=>await pg.evaluate(s=>{const n=document.querySelector(s); if(!n) return null; const r=n.getBoundingClientRect(); return r.top>=0&&r.bottom<=innerHeight+0.5&&r.width>0;},s);
  ok('narrow: top bar, steps and tab bar shown; rail and coach hidden',await vis('.mbar')&&await vis('#steps')&&await vis('.tabbar')&&!(await vis('.rail'))&&!(await vis('.coach')));
@@ -16,7 +19,8 @@ const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.
  await pg.locator('.rels .rel').nth(ORDER[rel]).click(); await pg.waitForTimeout(100);
  ok('Examples step with the field focused near the top',(await pg.locator('#steps button.on').innerText()).toLowerCase().includes('examples')&&await pg.evaluate(()=>document.activeElement.id==='cin'));
  ok('typing hides the tab bar',await pg.evaluate(()=>document.documentElement.classList.contains('typing'))&&!(await vis('.tabbar')));
- ok('field is high on the screen',await pg.evaluate(()=>document.getElementById('cin').getBoundingClientRect().bottom<460),await pg.evaluate(()=>document.getElementById('cin').getBoundingClientRect().bottom));
+ const fieldBottom=await settled(pg,()=>document.getElementById('cin').getBoundingClientRect().bottom);
+ ok('field is high on the screen',fieldBottom<460,fieldBottom);
  await pg.screenshot({path:D+'n-2cell.png'});
  const n=await pg.evaluate(()=>window.__t.ui.rel?['both','anb','bna','nei'].filter(c=>!({mi:['anb','bna'],con:['both'],'3ab':['anb'],'3ba':['bna'],'4':[]}[window.__t.ui.rel]).includes(c)).length:0);
  for(let i=0;i<n-1;i++){ await pg.fill('#cin','thing '+i); await pg.keyboard.press('Enter'); await pg.waitForTimeout(60); }
