@@ -118,6 +118,6 @@ To check that a CSS change moved nothing, build before and after: `dist/pwa/asse
 
 ## Known gaps
 
-- No server: no answer checking by Claude, no tutor chat, no check lab, no shared base (the page hides these when `sample` is `null`).
+- The server's tutor ([SERVER.md](SERVER.md)) is not connected to the page yet: answer checking by Claude, the tutor chat and the check lab are available only in the artifact build, and there is no shared base (the page hides these when `sample` is `null`).
 - No import of the answers collected in the artifact into the installed app, and no sync between devices.
 - The page modules are JavaScript, type-checked with relaxed settings (`src/app/tsconfig.json`: implicit `any` and null checks are off); their three lint warnings (unused variables) are left as found. The adapters, the platform types, `src/ai-shared`, `src/domain` and the tests are TypeScript with the strict settings (`npm run typecheck` checks both).
