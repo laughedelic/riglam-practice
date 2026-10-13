@@ -1,6 +1,7 @@
 // The page's shared state. These were module-level variables of the old single script; an ES module cannot assign to a binding it
 // imports, so they are properties of one object. The preference reads below fill in what this device saved.
 
+/** @type {import("./types.ts").State} */
 export const state = {
   DATA: null,
   CAT: {},

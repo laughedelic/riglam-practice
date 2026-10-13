@@ -15,7 +15,7 @@
     "build:artifact": "node scripts/build-artifact.mjs",
     "preview": "vite preview --mode pwa",
     "lint": "eslint .",
-    "typecheck": "tsc -p . && tsc -p worker",
+    "typecheck": "tsc -p . && tsc -p src/app && tsc -p worker",
     "test": "npm run build && npm run test:unit && npm run test:e2e",
     "check:fast": "npm run lint && npm run typecheck && npm run test:unit",
     "check": "npm run lint && npm run typecheck && npm test",

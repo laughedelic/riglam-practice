@@ -1,14 +1,14 @@
 import { state } from "../state.js";
 import { $, el } from "../core/dom.js";
 import { canAsk } from "../core/ask.js";
-import { CELLS, refOf } from "../core/rel.js";
+import { CELLS } from "../core/rel.js";
 import { persist } from "../practice/answers.js";
-import { summarize } from "../practice/grading.js";
 import { fillTurn, revealTutor } from "../practice/screen.js";
 import { render } from "../shell/render.js";
 import { cardBody, explainAsk, tutorCard } from "../../ai-shared/card.ts";
 import { pairCats } from "../../ai-shared/lookup.ts";
 import { tutorTools } from "../../ai-shared/tools.ts";
+import { VERDICT_RE, applyVerdicts, parseVerdicts } from "../../domain/verdict.ts";
 
 export const ERR_OFF=["not_granted","sampling_disabled","not_declared","capability_disabled","capability_removed"];
 const TIER="default";
@@ -16,19 +16,8 @@ const TIER="default";
 /* ---------- tutor: per-pair card plus two lookup tools ---------- */
 // The card, the standing instructions, the explain request and the tools are built in src/ai-shared from the term data,
 // so that the Worker tutor produces the same text; the page passes `state` as the data index.
-export const VERDICT_RE=/\s*=>\s*(yes|no|unsure)\W*$/i;
-export const NAME_CELL={"both":"both","a not b":"anb","b not a":"bna","neither":"nei","q1":"both","q2":"anb","q3":"bna","q4":"nei"};
 function applyVerify(text,U,C){
-  let n=0;
-  for(const ln of (text||"").split("\n")){
-    const m=ln.replace(/^[-•*\s]+/,"").replace(/\*\*/g,"").match(/^(both|a not b|b not a|neither|q[1-4])\s*:\s*(.*?)\s*=>\s*(yes|no|unsure)\W*$/i);
-    if(!m) continue;
-    const c=NAME_CELL[m[1].toLowerCase()], r=U.res.cells[c]; if(!r||r.v!=="cmp") continue;
-    const ok=m[3].toLowerCase(), ref=refOf(C.p,c);
-    r.v=ok==="yes"?"ok":ok==="no"?"bad":"cmp"; r.uns=ok==="unsure"; r.by="claude"; n++;
-    r.msg=ok==="yes"?["Verified","","by Claude"]:ok==="no"?["Does not fit",ref?". Example: "+ref+".":"","by Claude"]:["Unsure. ","Claude could not settle it; see below."+(ref?" Reference: "+ref+".":"")];
-  }
-  summarize(U.res);
+  const n=applyVerdicts(C.p,U.res,parseVerdicts(text));
   if(n&&state.db&&U.doc&&U.saveId){
     for(const c of CELLS){ U.doc.cells[c].verdict=U.res.cells[c].v; if(U.res.cells[c].by) U.doc.cells[c].by="claude"; }
     if(U.doc.qs) for(const q of U.doc.qs){ const r=U.res.cells[q.c]; q.verdict=r.v; if(r.by) q.by="claude"; }
@@ -88,7 +77,7 @@ function budgetCopy(e){
   const lead=e.scope==="device"?"You have used your share of the tutor for today.":e.scope==="global"?"The tutor has reached its limit for today for everybody.":"The tutor's limit for today is used up.";
   const at=e.resetsAt?new Date(e.resetsAt):null;
   let when=" Try again tomorrow.";
-  if(at&&!isNaN(at)){
+  if(at&&!isNaN(at.getTime())){
     const time=at.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
     when=at.toDateString()===new Date().toDateString()?` It is available again at ${time}.`:` It is available again tomorrow at ${time}.`;
   }

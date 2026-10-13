@@ -92,13 +92,13 @@ async function answerPhone(pg){ // pick the right relation, fill the cells, fini
   ok('Review has a fourth segment "Skipped" with the count',seg.length===4&&/^skipped 4$/i.test(seg[3]),seg);
   await pg.locator('.rseg button').nth(3).click(); await pg.waitForTimeout(120);
   const rows=await pg.evaluate(()=>[...document.querySelectorAll('.skips li')].map(li=>({t:li.innerText.replace(/\s+/g,' '),b:[...li.querySelectorAll('button')].map(x=>x.innerText)})));
-  ok('the Skipped list shows each pair with its date and Practise / Remove',rows.length===4&&rows.every(r=>/skipped \d{4}-\d\d-\d\d/.test(r.t)&&/back in the drill after/.test(r.t)&&r.b.join().toLowerCase()==='practise,remove'),rows);
+  ok('the Skipped list shows each pair with its date and Practice / Remove',rows.length===4&&rows.every(r=>/skipped \d{4}-\d\d-\d\d/.test(r.t)&&/back in the drill after/.test(r.t)&&r.b.join().toLowerCase()==='practice,remove'),rows);
   await pg.screenshot({path:D+'v55-review-phone.png'});
   const r1=await pg.evaluate(ringScan); ok('Review > Skipped: no focus ring is clipped',r1.length===0,r1);
-  // Practise the first
+  // Practice the first
   const first=rows[0].t.split(' skipped ')[0].replace(/^» /,'');
-  await pg.locator('.skips li').first().locator('button:has-text("Practise")').click(); await pg.waitForTimeout(200);
-  ok('Practise opens the pair in Relations with a "Skipped" tag',await pg.evaluate(()=>window.__t.tab)==='practice'&&await curKey(pg)===first&&/skipped/i.test(await pg.locator('.retry-tag').innerText()),[await curKey(pg),first]);
+  await pg.locator('.skips li').first().locator('button:has-text("Practice")').click(); await pg.waitForTimeout(200);
+  ok('Practice opens the pair in Relations with a "Skipped" tag',await pg.evaluate(()=>window.__t.tab)==='practice'&&await curKey(pg)===first&&/skipped/i.test(await pg.locator('.retry-tag').innerText()),[await curKey(pg),first]);
   await answerPhone(pg);
   const left=Object.values(await skipsOf(pg)).map(d=>d.a+' / '+d.b);
   ok('answering a skipped pair clears its record',left.length===3&&!left.includes(first),left);
@@ -156,8 +156,8 @@ async function answerPhone(pg){ // pick the right relation, fill the cells, fini
   await pg.locator('#tabbar [role=tab]:has-text("Review")').click(); await pg.waitForTimeout(150);
   ok('Review with skips but no answers still lists the pairs',await pg.locator('.skips li').count()===3);
   await pg.screenshot({path:D+'v55-review-noanswers.png'});
-  await pg.locator('.skips li').filter({hasText:sd.a+' / '+sd.b}).locator('button:has-text("Practise")').click(); await pg.waitForTimeout(200);
-  ok('Practise on a pair skipped in Questions opens it in Questions',await pg.evaluate(()=>window.__t.tab)==='debate'&&await curKey(pg)===sd.a+' / '+sd.b&&await pg.evaluate(()=>window.__t.ui.step)===0);
+  await pg.locator('.skips li').filter({hasText:sd.a+' / '+sd.b}).locator('button:has-text("Practice")').click(); await pg.waitForTimeout(200);
+  ok('Practice on a pair skipped in Questions opens it in Questions',await pg.evaluate(()=>window.__t.tab)==='debate'&&await curKey(pg)===sd.a+' / '+sd.b&&await pg.evaluate(()=>window.__t.ui.step)===0);
   // answer it: four accepts then a relation
   for(let i=0;i<4;i++){ await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(90); }
   const rel=await pg.evaluate(()=>window.__t.cur.p.relation);
@@ -221,7 +221,7 @@ async function answerPhone(pg){ // pick the right relation, fill the cells, fini
   await pg.locator('#stage .actions button:has-text("Show result")').click(); await pg.waitForTimeout(200);
   await pg.locator('.rail button:has-text("Review"), [role=tab]:has-text("Review")').first().click(); await pg.waitForTimeout(200);
   const cols=await pg.evaluate(()=>[...document.querySelectorAll('.rev3 .rcol')].map(c=>({part:c.dataset.part,skips:c.querySelectorAll('.skips li').length})));
-  ok('wide Review: three columns, the skipped pairs under the favourites',cols.length===3&&cols[2].part==='favs'&&cols[2].skips===3,cols);
+  ok('wide Review: three columns, the skipped pairs under the favorites',cols.length===3&&cols[2].part==='favs'&&cols[2].skips===3,cols);
   await pg.screenshot({path:D+'v55-review-wide.png'});
   const r1=await pg.evaluate(ringScan); ok('wide Review: no focus ring is clipped',r1.length===0,r1);
   ok('no page errors (wide)',errs.filter(e=>!/fonts|ERR_|proxy/i.test(e)).length===0,errs);

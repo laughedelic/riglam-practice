@@ -12,6 +12,7 @@ src/app/  (app.js, modules, app.css + styles/, markup.html, felt-*.png)   shared
 
 src/platform/types.ts   the Platform interface both builds implement (and the tests mock)
 src/ai-shared/          what the tutor sees and can look up: pure TypeScript over the term data, used by the page and by the Worker (worker/kit.ts)
+src/domain/            the rules of the practice: pairs and their draw, grading, Claude's verdicts; pure TypeScript over the term data
 ```
 
 What differs between the builds is kept out of `src/app`:
@@ -33,16 +34,18 @@ src/app/
   app.js        the entry: startApp(platform), boot, the test hook
   state.js      the shared state: one exported object, `state`, plus the preferences saved on the device
   core/         vocabulary and helpers that depend on nothing else: relations (rel), DOM helpers (dom), viewport, small utilities
-  practice/     Relations: the term universe and pair draws, grading, saving answers, favourites, skipped pairs, the screens, the terms panel
-  debate/       Pervasions (the four questions): wording, flow and grading, the screens
-  review/       the Review tab: answers, mistakes, favourites, debate statistics, check-lab review
+  practice/     Relations: the term universe and pair draws, grading, saving answers, favorites, skipped pairs, the screens, the terms panel
+  debate/       Pervasions (the four questions): wording, flow, the screens
+  review/       the Review tab: answers, mistakes, favorites, debate statistics, check-lab review
   ai/           the tutor (asking, verdicts, chat), the check lab, flags; the tutor's text and tools are built by src/ai-shared
   shell/        rendering, tabs, options, the chat overlay, keyboard shortcuts, timers and the toolbar
 ```
 
 - Every variable that used to be module-level is a property of `state` (`state.ui`, `state.cur`, `state.db`, ...), because an ES module cannot assign to a binding it imports. A module-level `let` outside `state.js` fails a unit test.
 - Modules import each other freely, including in cycles (the screens call the actions and the actions render). That works because only functions are called across modules, and only after loading; do not call an imported function while a module loads. Modules whose top-level code wires listeners (`core/viewport.js`, `shell/render.js`, `shell/keys.js`, `shell/timers.js`) are imported by the entry for that effect.
-- `core/` and `state.js` import only each other and `src/ai-shared` (a unit test checks it); everything else may import everything. The page imports no other code from outside `src/app`.
+- `types.ts` holds the TypeScript types of the stored documents (one per collection: answers, debates, batches, favorites, skips, flags, lab runs), the pair on screen and `State`. `state.js` is annotated with `State`, so a misspelled `state.x`, or a misspelled field of a stored document, fails `npm run typecheck`. A stored shape changes there only together with a migration (see `CLAUDE.md`).
+- `core/` and `state.js` import only each other, `src/ai-shared` and `src/domain` (a unit test checks it); everything else may import everything. The page imports no other code from outside `src/app`.
+- What the page does around the rules (stop the clock, render, save, ask the tutor) stays in the page modules: `practice/grading.js` and `debate/flow.js` call `grade` and `gradeDebate` from `src/domain`, `practice/universe.js` calls `buildPool` and `nextPair`, and `ai/tutor.js` calls `parseVerdicts` and `applyVerdicts`.
 - `tests/unit/app-modules.test.ts` also checks that every module is reachable from `app.js`, so none is left out of a build.
 
 ## The tutor code
@@ -62,6 +65,19 @@ src/app/
 Every function takes a **data index** (`DataIndex`: the data plus its lookup tables) as its first argument. The page passes its `state`, which has the same five fields (`DATA`, `CAT`, `ITEMIDX`, `ALIASIDX`, `LABELIDX`); `indexData()` in `practice/universe.js` fills them with `makeIndex`. Code that talks to the model elsewhere builds an index with `makeIndex(data)` and gets the same prompt text and the same tool results. `tests/unit/ai-shared.test.ts` checks the functions on made-up data and the real open data, and that the folder imports nothing outside itself and touches no `window`, `document`, storage or network.
 
 The page's JavaScript imports these files with their `.ts` extension; Vite compiles them for both builds.
+
+## The rules of the practice
+
+`src/domain/` is TypeScript on top of `src/ai-shared` (it uses the data index and the relations; `src/ai-shared` does not import it). It holds what decides which pairs there are and whether an answer is right, so that it can be tested without a browser and reused by a server:
+
+| File | What |
+|---|---|
+| `universe.ts` | `cellsFor(index, a, b)` (the items in each of the four cells for two categories), `relOfCells`, `inUniverse`, `buildPool(index)` (every pair of categories worth drilling), `makePair(index, entry)` (labels, examples and the reason for each empty cell), `nextPair(index, pool, state)` (the draw: the relation least seen lately first, then a pair weighted by recent mistakes, lowered for pairs seen or skipped lately) |
+| `grading.ts` | `grade(index, pair, answer)` for Relations, `gradeDebate(index, pair, answer)` for Pervasions, `judgeText` (where an example belongs), `deriveRel` (the relation three debate answers imply), `summarize` (the counts and the overall grade) |
+| `verdict.ts` | `parseVerdicts(text)` reads the lines `Both: ... => yes` of the tutor's answer; `applyVerdicts(pair, result, verdicts)` settles the cells that were still open |
+| `types.ts`, `util.ts` | the pair, the result of a check and the pool entry; `cap`, `pick`, `gradeOf`, `isMiss` |
+
+Randomness is a parameter (`rng`, `Math.random` by default), so the same data and the same random numbers give the same pairs. `tests/unit/domain.test.ts` checks the rules on made-up data and, on the real open data, that the right answer is graded ok for every pair the page can draw; it also checks that the folder imports nothing but itself and `src/ai-shared` and touches no `window`, `document`, storage or network.
 
 ## The platform
 
@@ -105,4 +121,4 @@ To check that a CSS change moved nothing, build before and after: `dist/pwa/asse
 
 - The check lab (it picks the models and judges answers itself) needs `sample`, so it exists only in the artifact build. The tutor chat and Explain work in both, in the installed app through the server's tutor ([SERVER.md](SERVER.md)).
 - No import of the answers collected in the artifact into the installed app, and no sync between devices.
-- `app.js` is one JavaScript module that is not type-checked yet; its three lint warnings (unused variables) are left as found. The adapters, the platform types and the tests are TypeScript (`npm run typecheck`).
+- The page modules are JavaScript, type-checked with relaxed settings (`src/app/tsconfig.json`: implicit `any` and null checks are off); their three lint warnings (unused variables) are left as found. The adapters, the platform types, `src/ai-shared`, `src/domain` and the tests are TypeScript with the strict settings (`npm run typecheck` checks both).

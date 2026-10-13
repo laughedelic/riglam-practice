@@ -1,3 +1,4 @@
+/** @type {(id: string) => HTMLElement} */
 export const $=id=>document.getElementById(id);
 export function el(tag, props, ...kids){
   const n=document.createElement(tag);

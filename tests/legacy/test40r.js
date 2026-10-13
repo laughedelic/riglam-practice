@@ -4,7 +4,7 @@ const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.
 const ORDER={mi:0,'3ab':1,'3ba':2,'4':3,con:4};
 (async()=>{
  const {br,pg,errs}=await open({width:390,height:844},{isMobile:true,hasTouch:true});
- // wrong answer on purpose, star it, go to review, practise favourite, retry mistakes
+ // wrong answer on purpose, star it, go to review, practice favorite, retry mistakes
  const rel=await pg.evaluate(()=>window.__t.cur.p.relation);
  const wrong=(ORDER[rel]+1)%5;
  await pg.locator('.rels .rel').nth(wrong).click(); await pg.waitForTimeout(100);
@@ -26,8 +26,8 @@ const ORDER={mi:0,'3ab':1,'3ba':2,'4':3,con:4};
  await pg.locator('.rseg button').nth(2).click(); await pg.waitForTimeout(100);
  await pg.locator('.rpane .favs summary').first().click(); await pg.waitForTimeout(80);
  await pg.screenshot({path:D+'n-fav-open.png'});
- await pg.locator('.rpane button:has-text("Practise this pair")').click(); await pg.waitForTimeout(150);
- ok('favourite practice: same pair, tag, star on',await pg.evaluate(p=>window.__t.cur.p.a+' / '+window.__t.cur.p.b===p,pairName)&&/favourite/i.test(await pg.locator('.retry-tag').innerText())&&await pg.locator('#mfav').getAttribute('aria-pressed')==='true');
+ await pg.locator('.rpane button:has-text("Practice this pair")').click(); await pg.waitForTimeout(150);
+ ok('favorite practice: same pair, tag, star on',await pg.evaluate(p=>window.__t.cur.p.a+' / '+window.__t.cur.p.b===p,pairName)&&/favorite/i.test(await pg.locator('.retry-tag').innerText())&&await pg.locator('#mfav').getAttribute('aria-pressed')==='true');
  // escape closes chat/options; shortcuts do not fire under the overlay
  await pg.click('#mopt'); await pg.waitForTimeout(80);
  await pg.keyboard.press('2'); await pg.waitForTimeout(60);
