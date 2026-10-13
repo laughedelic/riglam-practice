@@ -11,7 +11,7 @@ src/app/  (app.js, modules, app.css + styles/, markup.html, felt-*.png)   shared
         └── src/entry-artifact.ts  + src/artifact/* → scripts/build-artifact.mjs → dist/artifact/index.html
 
 src/platform/types.ts   the Platform interface both builds implement (and the tests mock)
-src/ai-shared/          what the tutor sees and can look up: pure TypeScript over the term data, used by the page and by a server
+src/ai-shared/          what the tutor sees and can look up: pure TypeScript over the term data, used by the page and by the Worker (worker/kit.ts)
 ```
 
 What differs between the builds is kept out of `src/app`:
@@ -69,7 +69,7 @@ The page does not know which build runs it. Each entry file calls `startApp(plat
 
 - `loadData()`: the term data. When it rejects, the page shows its "no data" screen.
 - `db()`: the document store, or `null`. Without it the page runs, but saves nothing.
-- `sample()`: model calls, or `null`. Without it the page hides the tutor, Explain and the check lab.
+- `sample()`: model calls, or `null`. The Claude artifact's own capability: the page picks the models itself and gives the model its tools.
   In `npm run dev` the PWA has a stand-in (`src/pwa/dev-sample.ts`): it calls no model and answers with fixed text in the shape the page reads (the lines of an explanation, a verdict for each example the page could not check, the check lab's JSON), streamed word by word, so these parts can be built and their layout tried without a key or a server. `?ai=off` in the address takes it away, `?ai=slow` streams slowly, `?ai=rate_limited` and `?ai=error` make it fail as the page's error messages expect. The stand-in is imported behind `import.meta.env.DEV`, so no build contains it; `tests/unit/pwa-build.test.ts` checks `dist/pwa`.
 - `tutor()` (optional): a question to the app's own server ([SERVER.md](SERVER.md)), or `null`. The request is the conversation and the pair's categories; the server holds the instructions, the lookup tools and the notes. The PWA offers it when this device has the study group's key and the server's `/api/health` says its tutor is on. The page uses `sample` when it has one, else `tutor`; with neither it hides the tutor and Explain. The check lab needs `sample`.
 
