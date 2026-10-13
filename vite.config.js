@@ -21,6 +21,7 @@ export default defineConfig({
       workbox: {
         globPatterns: ["**/*.{js,css,html,json,enc,woff2,png,svg,ico}"],
         navigateFallback: "index.html",
+        navigateFallbackDenylist: [/^\/api\//], // the server's paths are the server's, also when opened in a tab
         cleanupOutdatedCaches: true,
       },
       manifest: {

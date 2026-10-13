@@ -1,5 +1,6 @@
 import { state } from "../state.js";
 import { decorateAns } from "../ai/flags.js";
+import { canAsk } from "../core/ask.js";
 import { $, el } from "../core/dom.js";
 import { REL } from "../core/rel.js";
 import { isWide } from "../core/viewport.js";
@@ -22,7 +23,7 @@ export function overHead(title,onBack,label){
 // In the chat view the answer is above its question (the "Thinking" placeholder takes the answer's place at once), as the newest exchange is first.
 export function tutorTurns(box,newestFirst,lean){
   const groups=[];
-  state.ui.chat.forEach((t,idx)=>{
+  (state.ui.chat||[]).forEach((t,idx)=>{
     if(t.hidden) return;
     if(t.role==="user") groups.push({q:el("p",{class:"q",text:t.content})});
     else {
@@ -42,7 +43,7 @@ function chatInto(o){
   o.append(el("p",{class:"ctx"},el("b",{text:p.a+" / "+p.b}),el("small",{text:REL[p.relation].name+(v?" · "+v:"")})));
   const dock=el("div",{class:"dock"});
   if(state.ui.ctl) dock.append(el("button",{class:"btn ghost",type:"button",onclick:()=>state.ui.ctl&&state.ui.ctl.abort(),text:"Stop"}));
-  else if(state.sample) dock.append(askRow("ask-in"));
+  else if(canAsk()) dock.append(askRow("ask-in"));
   o.append(dock);
   const sc=el("div",{class:"chat",id:"chatscroll"}), box=el("div",{class:"tutor"});
   tutorTurns(box,true); sc.append(box); o.append(sc);

@@ -1,14 +1,39 @@
 {
-  // Hosting for the installable PWA: Cloudflare Workers with static assets (Cloudflare's current path for new
-  // static sites, and the same project can later gain a Worker script and a D1 database for the shared base).
+  // Hosting for the installable PWA and its small server: Cloudflare Workers with static assets. The Worker script
+  // (worker/, docs/SERVER.md) answers /api/* only; every other request is served from dist/pwa without running it.
   // CI deploys with `wrangler deploy` (production) and `wrangler versions upload` (previews); see docs/DEPLOY.md.
   "name": "riglam-practice",
+  "main": "worker/index.ts",
   "compatibility_date": "2026-10-01",
   // Pinned so that a deploy never re-enables an address that was switched off in the dashboard (for example when
   // Cloudflare Access is set up), and so wrangler does not warn that it is enabling them by default.
   "workers_dev": true,
   "preview_urls": true,
   "assets": {
-    "directory": "./dist/pwa"
-  }
+    "directory": "./dist/pwa",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  // The encrypted course files are bundled into the Worker script as bytes; it opens them with its RIGLAM_DATA_KEY secret
+  // (worker/kit.ts). They are not in the static files, so a browser cannot fetch the notes.
+  "rules": [{ "type": "Data", "globs": ["**/*.enc"], "fallthrough": true }],
+  // Only the lines the Worker writes itself (errors, with no text of any question). No line per request.
+  "observability": { "enabled": true, "logs": { "invocation_logs": false } },
+  // The tutor's settings (worker/config.ts has the same values as defaults). A change is a pull request.
+  // Dollars are US dollars per UTC day. The secrets ANTHROPIC_API_KEY and RIGLAM_DATA_KEY are not here: `wrangler secret put`.
+  "vars": {
+    "TUTOR_MODEL": "claude-sonnet-5-5",
+    "TUTOR_EFFORT": "medium",
+    "TUTOR_MAX_TOKENS": "6000",
+    "TUTOR_MAX_ROUNDS": "4",
+    "DEVICE_DAILY_BUDGET_USD": "1.00",
+    "GLOBAL_DAILY_BUDGET_USD": "8",
+    "RESERVE_USD": "0.05"
+  },
+  // The D1 database for the budget counters (docs/SERVER.md). Migrations are applied by hand:
+  //   npx wrangler d1 migrations apply riglam-practice --remote
+  // Until that has been done the tutor reports itself off and everything else works.
+  "d1_databases": [
+    { "binding": "DB", "database_name": "riglam-practice", "database_id": "7dc5e040-56c9-49e3-af60-ee0a8e49a500", "migrations_dir": "worker/migrations" }
+  ]
 }

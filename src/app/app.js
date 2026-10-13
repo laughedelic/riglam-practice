@@ -17,7 +17,7 @@ import "./shell/timers.js";
 
 /* ---------- boot ---------- */
 // The page knows its host only through the platform it is started with (src/platform/types.ts): the term data and the
-// two capabilities `db` and `sample`, either of which may be missing.
+// capabilities `db`, `sample` and `tutor`, any of which may be missing.
 export function startApp(platform){
   render();
   boot(platform);
@@ -28,6 +28,7 @@ async function boot(platform){
   catch(e){ state.mode="nodata"; render(); return; }
   try{ state.db=await platform.db(); }catch(e){ state.db=null; }
   try{ state.sample=await platform.sample(); }catch(e){ state.sample=null; }
+  try{ state.tutor=platform.tutor?await platform.tutor():null; }catch(e){ state.tutor=null; }
   if(!state.db){ state.gotA=state.gotB=state.gotS=true; advance(); state.mode="quiz"; render(); return; }
   state.db.collection("batches").orderBy("order","asc").onSnapshot(snap=>{
     state.batches=snap.docs.map(d=>Object.assign({id:d.id},d.data())); state.gotB=true; settle();

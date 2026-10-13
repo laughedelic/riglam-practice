@@ -1,0 +1,27 @@
+// The Worker's bindings. Secrets are set with `wrangler secret put` (docs/SERVER.md); variables are in wrangler.jsonc.
+export interface Env {
+  /** the static site (dist/pwa); only requests that /api/* does not match are served from it, without running the Worker */
+  ASSETS: Fetcher;
+  /** the budget counters; absent until the database exists, and the tutor is then off */
+  DB?: D1Database;
+
+  // secrets
+  ANTHROPIC_API_KEY?: string;
+  /** the study group's data key (docs/DATA.md): checks the proofs and decrypts the course data for the tutor */
+  RIGLAM_DATA_KEY?: string;
+
+  // variables (all optional: config.ts has a default for each)
+  /** where the model API is; unset means Anthropic's. For a local trial against a stand-in, or a gateway in front of the API. */
+  ANTHROPIC_BASE_URL?: string;
+  TUTOR_MODEL?: string;
+  TUTOR_EFFORT?: string;
+  TUTOR_MAX_TOKENS?: string;
+  /** most model calls (tool rounds) for one question */
+  TUTOR_MAX_ROUNDS?: string;
+  /** what one device may spend per UTC day, in US dollars */
+  DEVICE_DAILY_BUDGET_USD?: string;
+  /** what all devices together may spend per UTC day, in US dollars */
+  GLOBAL_DAILY_BUDGET_USD?: string;
+  /** what a question is assumed to cost until it has finished, in US dollars; held back from the budgets meanwhile */
+  RESERVE_USD?: string;
+}

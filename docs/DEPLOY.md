@@ -5,7 +5,7 @@ The installable app (`dist/pwa`) is static files. The default host is **Cloudfla
 ## Why this host
 
 - Cloudflare now recommends Workers with static assets for new projects (Pages is not getting the new features). The static files, the service worker and the manifest do not care which one serves them, so the choice only affects the config file and the deploy command.
-- A server (a Worker and a D1 database) can be added to the same project later without moving the app.
+- The server (a Worker and a D1 database, [SERVER.md](SERVER.md)) lives in the same project as the static files, so the app did not have to move when it arrived.
 - The free tier covers static requests (they are not billed on Workers assets).
 - Per-branch preview addresses exist (`wrangler versions upload --preview-alias`), so a change can be tried on a phone by opening a link.
 
@@ -45,15 +45,19 @@ A preview opens with the definitions locked. Add the study group's key to the ad
 
 ### What the token is used for
 
-Only two workflow steps read it: `ci.yml` → `deploy-preview` (`wrangler versions upload`, on pull requests and on `main`) and `release.yml` → `publish` (`wrangler deploy`, when a release is created). Both upload the built files from `dist/pwa` to the existing Worker. The token exists only as a GitHub repository secret.
+Only two workflow steps read it: `ci.yml` → `deploy-preview` (`wrangler versions upload`, on pull requests and on `main`) and `release.yml` → `publish` (`wrangler deploy`, when a release is created). Both upload the built files from `dist/pwa` and the Worker script bundled from `worker/` to the existing Worker. The token exists only as a GitHub repository secret.
 
-Cloudflare's Workers authorization page lists "Editor on that Worker" as what `wrangler deploy` needs for an existing Worker, and "Admin at the Workers product scope" for creating one (hence step 2). With Editor on one Worker, a leaked token can change only that Worker; it cannot touch other Workers, KV, R2 or the account. Anyone who can push a branch to the repository can still run code with the token in the preview job. With several writers, give previews their own Worker name and their own token, so a preview credential cannot replace production.
+Cloudflare's Workers authorization page lists "Editor on that Worker" as what `wrangler deploy` needs for an existing Worker, and "Admin at the Workers product scope" for creating one (hence step 2). With Editor on one Worker, a leaked token can change only that Worker; it cannot touch other Workers, KV, R2 or the account. Anyone who can push a branch to the repository can still run code with the token in the preview job (the token is given only to the two steps that need it, not to the dependency install). A preview is a version of the production Worker, so it also sees the production secrets and the D1 database, and a preview of a pull request that changes the Worker runs that code against them. With several writers, give previews their own Worker name and their own token, so a preview credential cannot replace production.
+
+## The server's setup
+
+The tutor needs a D1 database and two secrets on the Worker; without them it is off and the rest of the app works. The steps are in [SERVER.md](SERVER.md#setting-up-your-own).
 
 ## Public by link
 
-The app is meant to be shared by link, with no sign-in. The workers.dev address and the preview addresses are reachable by anyone who has the link. Practice answers stay in the browser; the server stores nothing about a visitor.
+The app is meant to be shared by link, with no sign-in. The workers.dev address and the preview addresses are reachable by anyone who has the link. Practice answers stay in the browser. The server keeps spend counters and a usage log keyed by a random device id for the tutor ([SERVER.md](SERVER.md)), and nothing else about a visitor.
 
-The term data is a separate matter: the definitions are encrypted and open only with a key carried in the shared link, and the notes are not in the app at all. [DATA.md](DATA.md) has the details. All deterministic checks and static information work offline, so the data is in the client; only features that need an AI would fetch from a server.
+The term data is a separate matter: the definitions are encrypted and open only with a key carried in the shared link, and the notes are not in the app at all. [DATA.md](DATA.md) has the details. All deterministic checks and static information work offline, so the data is in the client; only features that need an AI fetch from the server.
 
 Search engines are asked to stay away: `X-Robots-Tag: noindex, nofollow, noarchive` for every file (`public/_headers`, which Cloudflare documents as applying to Workers static assets), `robots.txt` with `Disallow: /`, and a robots meta tag for crawlers that fetch anyway.
 
@@ -61,7 +65,7 @@ Neither the CI nor the release workflow uploads the artifact build, because it h
 
 ## What the checks cover
 
-`wrangler deploy --dry-run` runs in CI against `dist/pwa` and accepts the config. The PWA build is served by `vite preview` in the browser tests, including offline start from the service worker cache. The unit tests check the build for plaintext definitions, the key and the noindex files.
+`wrangler deploy --dry-run` runs in CI against `dist/pwa` and `worker/`, bundles the script and accepts the config. The PWA build is served by `vite preview` in the browser tests, including offline start from the service worker cache. The unit tests check the build for plaintext definitions, the key and the noindex files.
 
 `wrangler.jsonc` pins `workers_dev` and `preview_urls` to `true`. Without them wrangler enables both on every deploy and says so, which would undo a switch-off made in the dashboard. To turn either address off, change it in the file, not only in the dashboard.
 
