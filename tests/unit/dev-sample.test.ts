@@ -83,3 +83,15 @@ test("?ai=rate_limited and ?ai=error fail with the codes the page has messages f
   expect((await done(devSample("rate_limited")(turns)).catch((e) => e)).code).toBe("rate_limited");
   expect((await done(devSample("error")(turns)).catch((e) => e)).code).toBe("error");
 });
+
+test("Stop while the call waits is a cancel, also in the failure modes", async () => {
+  const turns = [{ role: "user", content: "hi" }];
+  for (const mode of [null, "rate_limited", "error"]) {
+    const ctl = new AbortController();
+    const p = devSample(mode)(turns, { signal: ctl.signal });
+    ctl.abort();
+    const err = await done(p).catch((e) => e);
+    expect(err.code, String(mode)).toBe("cancelled");
+    expect(err.text, String(mode)).toBe("");
+  }
+});

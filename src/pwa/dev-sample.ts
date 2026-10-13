@@ -59,11 +59,14 @@ function reply(turns: Turns, options: SampleOptions): string {
   return `${DEV_MARK}: no model is called here. You asked: “${ask.slice(0, 160)}”`;
 }
 
+const cancelled = (text: string) => Object.assign(new Error("cancelled"), { code: "cancelled", text });
+
 /** The stand-in `sample`. `mode` is the value of `?ai=` in the address. */
 export function devSample(mode: string | null = null): Sample {
   return async (turns, options = {}): Promise<SampleResult> => {
     const failure = mode === "rate_limited" ? "rate_limited" : mode === "error" ? "error" : null;
     await wait(failure ? 300 : 250, options.signal);
+    if (options.signal?.aborted) throw cancelled(""); // Stop pressed while waiting: cancelled, not the failure the mode asks for
     if (failure) throw Object.assign(new Error(failure), { code: failure });
 
     const text = reply(turns, options);
@@ -74,12 +77,12 @@ export function devSample(mode: string | null = null): Sample {
     const step = mode === "slow" ? 400 : 25;
     let sofar = "";
     for (const word of words) {
-      if (options.signal?.aborted) throw Object.assign(new Error("cancelled"), { code: "cancelled", text: sofar });
+      if (options.signal?.aborted) throw cancelled(sofar);
       sofar += word;
       options.onText?.({ text: sofar });
       await wait(step, options.signal);
     }
-    if (options.signal?.aborted) throw Object.assign(new Error("cancelled"), { code: "cancelled", text: sofar });
+    if (options.signal?.aborted) throw cancelled(sofar);
     return { text, truncated: false };
   };
 }
