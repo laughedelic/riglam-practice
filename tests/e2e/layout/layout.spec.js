@@ -150,7 +150,12 @@ const FLOWS = {
   },
 
   async "Blitz, Options and Review"(s) {
-    const { page, check } = s;
+    const { page, wide, check } = s;
+    // Review shows an empty note until there is history, so first leave an answer, a favorite and a skipped pair (F, Enter, S on the keyboard)
+    await answerAll(s, await pickRelation(page), LONG);
+    await page.keyboard.press("f");
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("s");
     await tab(page, "Pervasions").click();
     const blitz = page.locator("#mbz, .actions .bz").filter({ visible: true }).first();
     if (await blitz.count()) {
@@ -164,7 +169,15 @@ const FLOWS = {
     await check("Options");
     await page.keyboard.press("Escape");
     await tab(page, "Review").click();
-    await check("Review");
+    if (wide) {
+      await expect(page.locator(".rev3 .rcol")).toHaveCount(3);
+      await check("Review");
+    } else {
+      // Overview, Mistakes, Favorites and Skipped
+      const sections = page.locator(".rseg button");
+      await expect(sections).toHaveCount(4);
+      for (let i = 0; i < 4; i++) { await sections.nth(i).click(); await check(`Review, ${await sections.nth(i).innerText()}`); }
+    }
   },
 };
 

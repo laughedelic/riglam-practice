@@ -1,5 +1,5 @@
 // In-page layout checks for the layout specs. `scanPage` runs in the browser (Playwright serializes it, so it must not use anything
-// outside its own body) and returns a list of findings, one string each; an empty list is a clean screen. Four kinds:
+// outside its own body) and returns a list of findings, one string each; an empty list is a clean screen. Five kinds:
 //   PAGE     the document is wider than the window, so the page would scroll sideways
 //   SCROLLX / CLIPX   an element that scrolls or clips sideways has content wider than itself (skipped: an input, which scrolls its text; an element that
 //            ends its text with an ellipsis on purpose; text for screen readers only, a pixel big)
