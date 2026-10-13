@@ -24,7 +24,7 @@ jobs:
       tag_name: ${{ steps.rp.outputs.tag_name }}
     steps:
       - id: rp
-        uses: googleapis/release-please-action@v4
+        uses: googleapis/release-please-action@v5
         with:
           # A pull request opened with the default token does not start CI. Set RELEASE_PLEASE_TOKEN
           # (a fine-grained token with contents and pull-requests write) to get checks on the release pull request.
