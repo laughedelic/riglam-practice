@@ -1,10 +1,11 @@
 // PWA build: stands in for the Claude artifact frame.
 //   db      local IndexedDB store (./local-db.ts)
-//   sample  not available yet (no server): the page hides the tutor, the check lab and "Explain"
+//   sample  not available yet (no server): the page hides the tutor, the check lab and "Explain". Only `npm run dev` has one, a stand-in
+//           for the model (./dev-sample.ts); `?ai=off` in the address takes it away there too.
 import dataUrl from "../data/drill-data.json?url";
 import definitionsUrl from "../data/course-definitions.enc?url";
 import { open, merge, lock } from "../data/course.js";
-import type { DrillData, Platform } from "../platform/types";
+import type { DrillData, Platform, Sample } from "../platform/types";
 import { createLocalDb } from "./local-db";
 import { takeLinkKey, storedKey, storeKey, forgetKey, showUnlock } from "./unlock";
 
@@ -44,9 +45,18 @@ async function loadData(): Promise<DrillData> {
   return lock(data);
 }
 
+/** `npm run dev` only: a stand-in for the model. `import.meta.env.DEV` is false in a build, so the module is not part of it (a unit test checks). */
+async function sample(): Promise<Sample | null> {
+  if (import.meta.env.DEV) {
+    const mode = new URLSearchParams(location.search).get("ai");
+    if (mode !== "off") return (await import("./dev-sample")).devSample(mode);
+  }
+  return null;
+}
+
 export const pwaPlatform: Platform = {
   target: "pwa",
   loadData,
   db: async () => db,
-  sample: async () => null,
+  sample,
 };

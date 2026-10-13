@@ -1,0 +1,26 @@
+/* no sideways scrolling: the scrollers clip that axis, and the spots that overflowed are fixed at the source */
+.card,.coach,.rcol,.opts,.chat{overflow-x:hidden}
+.card .pair{margin-inline:0}
+.cview{grid-template-columns:minmax(0,1fr)}
+.days{grid-template-columns:repeat(14,minmax(0,1fr))}
+.day{grid-template-columns:minmax(0,1fr)}
+
+/* short phones: while the relation list is open the table of answers gives way, so all five relations stay in view */
+@media (max-height:760px){ .section.opt{display:none} }
+
+/* relation rows without numbers (the shortcut keys are hinted in the coach panel) */
+.rel{grid-template-columns:minmax(0,1fr) auto}
+@media (max-width:520px){ .rel{grid-template-columns:minmax(0,1fr) 74px} }
+
+/* blitz: the seconds beside the switch are editable in place */
+.blitzrow{align-items:center;gap:6px}
+.tval{min-height:30px;padding:4px 2px;border:0;background:transparent;font:13px var(--body);color:var(--ink-muted);text-decoration:underline dotted;text-underline-offset:3px;cursor:pointer}
+.tval:hover{color:var(--ink)}
+.tval:focus-visible{box-shadow:var(--focus-ring)}
+.tedit{display:inline-flex;align-items:center;gap:4px}
+.tin{width:4.4em;height:30px;padding:0 4px;border:1px solid var(--ink-muted);border-radius:0;background:var(--paper);color:var(--ink);font:16px var(--body);text-align:center;-moz-appearance:textfield}
+.tin::-webkit-inner-spin-button,.tin::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+
+/* tutor chat view: the field sits under the heading, the newest exchange right below it */
+.dock{border-top:0;border-bottom:1.5px solid var(--ink)}
+.chat{padding-top:10px}

@@ -5,7 +5,7 @@
 The page is a plain-DOM app (no framework): the UI is built with a small `el()` helper and re-rendered as a whole, and the state is one shared object. It was written as a single artifact script and was split into the modules below without changing what it does; the browser tests are what keeps it that way.
 
 ```
-src/app/  (app.js, modules, app.css, markup.html, felt-*.png)   shared by both builds
+src/app/  (app.js, modules, app.css + styles/, markup.html, felt-*.png)   shared by both builds
         │
         ├── src/entry-pwa.ts       + src/pwa/*    → vite build            → dist/pwa/        (PWA)
         └── src/entry-artifact.ts  + src/artifact/* → scripts/build-artifact.mjs → dist/artifact/index.html
@@ -17,7 +17,7 @@ What differs between the builds is kept out of `src/app`:
 
 | | PWA | Artifact |
 |---|---|---|
-| The platform (`loadData`, `db`, `sample`) | `src/pwa/platform.ts`: `db` is the local store, `sample` is `null` | `src/artifact/platform.ts`: `db` and `sample` come from `window.claude`, which the artifact frame provides |
+| The platform (`loadData`, `db`, `sample`) | `src/pwa/platform.ts`: `db` is the local store, `sample` is `null` (in `npm run dev` a stand-in, see below) | `src/artifact/platform.ts`: `db` and `sample` come from `window.claude`, which the artifact frame provides |
 | Term data | the open data (`drill-data.json`, plain) and the encrypted definitions (`course-definitions.enc`), both precached; the key comes from the shared link (`src/pwa/platform.ts`, `src/pwa/unlock.ts`); the notes are not included | everything, merged at build time with the data key (`scripts/vite-full-data.mjs`), embedded in the page's script |
 | Fonts | self-hosted woff2 files (`src/pwa/fonts`, made by `npm run fonts` from the same Google Fonts link) | the Google Fonts link in `src/artifact/head.html` |
 | Felt tiles | files in `dist/pwa/assets` | data URIs in the page's CSS |
@@ -51,6 +51,7 @@ The page does not know which build runs it. Each entry file calls `startApp(plat
 - `loadData()`: the term data. When it rejects, the page shows its "no data" screen.
 - `db()`: the document store, or `null`. Without it the page runs, but saves nothing.
 - `sample()`: model calls, or `null`. Without it the page hides the tutor, Explain and the check lab.
+  In `npm run dev` the PWA has a stand-in (`src/pwa/dev-sample.ts`): it calls no model and answers with fixed text in the shape the page reads (the lines of an explanation, a verdict for each example the page could not check, the check lab's JSON), streamed word by word, so these parts can be built and their layout tried without a key or a server. `?ai=off` in the address takes it away, `?ai=slow` streams slowly, `?ai=rate_limited` and `?ai=error` make it fail as the page's error messages expect. The stand-in is imported behind `import.meta.env.DEV`, so no build contains it; `tests/unit/pwa-build.test.ts` checks `dist/pwa`.
 
 The shapes of `db` and `sample` are the artifact runtime's (`collection/doc/where/orderBy/limit/onSnapshot`; one call from a prompt or turns), so the artifact adapter passes `window.claude` through and the PWA implements the same interface locally. The page does not branch on the build. The PWA entry also leaves the platform at `window.__riglam.platform` for the browser tests and the console.
 
@@ -62,6 +63,10 @@ A block at the end of `src/app/app.js` is the test hook (`window.__riglamTest`, 
 
 When a server arrives, a second adapter with this interface replaces it; the page does not change.
 
+## Export and import
+
+Options has a "Your data" row. Export writes everything the page keeps (the documents of the collections below and the `rd-*` settings in localStorage) to one JSON file, `riglam-practice-data` version 1; on a phone it opens the share sheet, elsewhere it downloads. Import reads such a file, shows what it would add and replace, and writes only after the person confirms. It never deletes: a document that is already there is replaced only by a copy with a later timestamp (`at`, `verifiedAt` or `updatedAt`), settings already set on the device are kept, and importing a file twice changes nothing. The comparison is made again for each document just before it is written, because the preview can be old (a check-lab verdict or another tab may have saved a newer copy meanwhile); such documents are left alone and counted. Documents called `__proto__` are left out, since the page builds objects keyed by document id. The logic is `src/store/transfer.ts` (it works on any `Db`, so it serves the artifact too and a later server adapter), the row is `src/ui/data-transfer.ts`. A change to a stored shape needs a migration of old files in `parseDataFile`, which is why the file carries a version.
+
 Collections the page uses: `batches`, `answers`, `favorites`, `skips`, `debates`, `labruns`, `flags`. Their document shapes are defined by `app.js`. Do not rename a collection or change a shape without a migration: answers already stored (in a published artifact's database or in a browser) depend on them.
 
 ## Data
@@ -70,7 +75,12 @@ The term data (the Dudra terms, their classification chains, the everyday-items 
 
 ## Styling
 
-`src/app/app.css` carries the "Logic and Debate" design system tokens it uses (booklet palette, felt per cover colour, rhombus marks) inline, as the artifact always did.
+`src/app/app.css` is an index: it imports the files in `src/app/styles/` (`00-tokens.css`, `01-base.css`, ...) and nothing else. Both builds import `app.css`, so a change to a stylesheet needs no change elsewhere. The tokens file carries the "Logic and Debate" design system values the page uses (booklet palette, felt per cover colour, rhombus marks).
+
+The files are layers in cascade order, numbered to say so. The page grew by versions, and a later block overrides an earlier rule on purpose (`.grid` is set in `02-card.css` and adjusted in `15-result-chips.css` and `17-table-fit.css`, for instance). So the order of the imports is part of the style: add a new file at the end, or put a new rule next to the rules it belongs to, and move a rule to another file only together with what depends on its position. `tests/unit/styles.test.ts` checks that the index imports every file once, in order. The felt tiles sit next to `app.css`, so the url in the tokens file is `../felt-*.png`; Vite rewrites it for each build (a file in `dist/pwa/assets` for the PWA, a data URI in the artifact).
+
+To check that a CSS change moved nothing, build before and after: `dist/pwa/assets/index-*.css` is minified, so an equivalent reordering of files gives the same bytes.
+
 ## Known gaps
 
 - The server's tutor ([SERVER.md](SERVER.md)) is not connected to the page yet: answer checking by Claude, the tutor chat and the check lab are available only in the artifact build, and there is no shared base (the page hides these when `sample` is `null`).

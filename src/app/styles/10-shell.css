@@ -1,0 +1,51 @@
+/* ---------- app shell (version 40) ----------
+   One screen, no page scroll. Narrow: top bar, steps, one working area that scrolls inside itself, tab bar.
+   Wide (1100px and up): rail | workspace | coach panel. The same parts are used by both. */
+html,body{height:100%}
+body{margin:0;overflow:hidden}
+.app{position:relative;z-index:1;display:flex;flex-direction:column;height:var(--vvh,100%);translate:0 var(--vvt,0px);
+  max-width:calc(640px + 2 * var(--band));margin-inline:auto;padding-inline:var(--band);overflow:hidden}
+.rail,.coach{display:none}
+.mk{width:14px;height:14px;background:var(--marigold);clip-path:var(--rhombus);flex:none}
+.brand{font:900 12px/1 var(--display);letter-spacing:.04em;text-transform:uppercase}
+.sp{flex:1}
+.mbar{display:flex;align-items:center;gap:10px;flex:none;height:48px;padding-inline:16px;border-bottom:1.5px solid var(--ink)}
+.ib{width:44px;height:44px;margin-right:-10px;display:grid;place-items:center;border:0;background:transparent;font:700 20px/1 var(--body);color:var(--ink-muted);cursor:pointer}
+.ib[aria-pressed="true"]{color:var(--ink)}
+.ib.open{color:var(--ink)}
+.ib[hidden]{display:none}
+button:focus-visible{box-shadow:var(--focus-ring)}
+.steps{display:flex;gap:6px;flex:none;padding:10px 16px 4px}
+.steps[hidden]{display:none}
+.steps button{flex:1;min-width:0;border:0;border-top:4px solid var(--line);background:transparent;padding:5px 0 0;text-align:left;font:700 10.5px/14px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--faint);cursor:default;white-space:nowrap}
+.steps button:not(:disabled){cursor:pointer}
+.steps button.on{color:var(--ink);border-color:var(--vermilion)}
+.steps button.done{color:var(--ink-muted);border-color:var(--lapis)}
+.tabbar{display:grid;grid-template-columns:repeat(3,1fr);flex:none;height:56px;border-top:1.5px solid var(--ink);background:var(--paper)}
+.tabbar button{display:grid;place-items:center;align-content:center;gap:4px;border:0;background:transparent;font:700 11px/14px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-muted);cursor:pointer}
+.tabbar i,.nv i{width:10px;height:10px;clip-path:var(--rhombus);background:var(--line);flex:none}
+.tabbar button[aria-selected="true"]{color:var(--ink);box-shadow:inset 0 4px 0 var(--vermilion)}
+.tabbar button[aria-selected="true"] i,.nv[aria-selected="true"] i{background:var(--marigold)}
+html.typing .tabbar{display:none}
+
+.work{flex:1;min-height:0;display:flex;flex-direction:column;padding-inline:16px}
+.card{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:18px;padding:14px 0 0;border-top:0;background:var(--paper)}
+.card>*{flex:none}
+.card>.actions{position:sticky;bottom:0;z-index:2;margin-top:auto;padding:10px 0;background:var(--paper);border-top:1px solid var(--line)}
+.card>.retry-tag{align-self:center}
+.card>.tutor{scroll-margin-bottom:72px}
+.card>:last-child:not(.actions){margin-bottom:14px}
+/* the scrollers clip sideways, so the focus ring (4px) needs room: they reach 6px into the page margin and pad their content back in */
+:root{--bleed:6px}
+.card,.opts,.chat{margin-inline:calc(-1*var(--bleed));padding-inline:var(--bleed)}
+.card>.actions{margin-inline:calc(-1*var(--bleed));padding-inline:var(--bleed)}
+.card.rv{display:block;padding-top:0}
+.card.rv>*{margin-top:0}
+.rseg{display:flex;position:sticky;top:0;z-index:2;margin-block:12px 14px}
+.rseg button{flex:1;height:36px;padding:0 4px}
+.rseg .cnt{font-variant-numeric:tabular-nums}
+.rseg button:nth-child(2) .cnt{color:var(--vermilion-ink)}
+.rseg button[aria-pressed="true"] .cnt{color:inherit}
+.rpane{display:grid;gap:22px}
+.actions.left{justify-content:flex-start}
+.faint{color:var(--ink-muted)}

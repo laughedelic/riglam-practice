@@ -17,7 +17,7 @@ One key, `RIGLAM_DATA_KEY`: 32 random bytes as 43 characters of base64url. It op
 | Where the key is | Why |
 |---|---|
 | The study group's link, after the `#`: `https://<host>/#k=<key>` | Browsers never send the part after `#` to a server, so the host only ever holds ciphertext. The app takes the key out of the address at once and keeps it on the device, so definitions work offline and on later visits without the link. |
-| GitHub Actions secret `RIGLAM_DATA_KEY` (also as a Dependabot secret, which Dependabot runs read instead of the Actions secrets) | `Lint, build, test` builds the artifact and runs the tests that need the definitions. CI stops with a message when it is missing. The PWA build and its deploy need no key. |
+| GitHub Actions secret `RIGLAM_DATA_KEY` (also as a Dependabot secret, which Dependabot runs read instead of the Actions secrets) | The CI jobs that build the artifact (`static` and each `browser` job) need it for the artifact build and the tests that read the definitions. CI stops with a message when it is missing. The PWA build and its deploy need no key. |
 | The Claude cloud environment's secrets | Sessions that build the artifact, run the full tests or change the data. |
 | `.data-key` (git-ignored) or the environment variable, on a machine that builds the artifact or edits the data | The scripts read `RIGLAM_DATA_KEY`, then `.data-key`. |
 

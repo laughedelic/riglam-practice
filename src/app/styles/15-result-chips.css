@@ -1,0 +1,33 @@
+/* ---------- version 45: the result is a headline and chips that act as tabs; Claude's notes sit where they apply ---------- */
+.verdict .vl{margin:0}
+.vchips{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px}
+.vchip{display:inline-flex;align-items:center;justify-content:center;gap:5px;flex:0 1 auto;min-height:32px;padding:0 7px;border:0;background:var(--paper);box-shadow:inset 0 0 0 1.5px var(--ink-muted);font:700 10px/1 var(--body);letter-spacing:.04em;text-transform:uppercase;color:var(--ink);white-space:nowrap;cursor:pointer}
+.vchip .ic{font-size:11px;letter-spacing:0}
+.vchip.ok .ic{color:var(--cell-ok)} .vchip.bad .ic{color:var(--bad)} .vchip.open .ic{color:var(--cell-open)}
+.vchip.bad{box-shadow:inset 0 0 0 1.5px var(--bad)}
+.vchip:hover{background:var(--paper-tint)}
+.vchip[aria-selected="true"]{background:var(--marigold);color:var(--on-marigold);box-shadow:none}
+.vchip[aria-selected="true"] .ic{color:inherit}
+.vchip:focus-visible{box-shadow:var(--focus-ring)}
+.vpanel{margin-top:10px;padding-top:10px;border-top:1px solid var(--line);display:grid;gap:8px;font-size:13.5px;line-height:1.5}
+.vpanel p{margin:0}
+.vpanel .note{font-size:13.5px}
+.vpanel .tutor{border-top:0;padding-top:0}
+.cl{display:grid;gap:2px;padding-left:10px;border-left:3px solid var(--marigold)}
+.cl p{margin:0}
+.clh{margin:0;font:700 10.5px/1.4 var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-muted)}
+.exl{display:block}
+.exl .pill{margin-left:0}
+
+/* the "?" on a cell Claude explained, and the bubble it opens inside the table */
+.grid{position:relative}
+.cell{position:relative}
+.qm{position:absolute;right:6px;bottom:6px;width:26px;height:26px;padding:0;display:grid;place-items:center;border:1.5px solid var(--ink);border-radius:50%;background:var(--paper);color:var(--ink);font:700 13px/1 var(--body);cursor:pointer;z-index:1}
+.qm::after{content:"";position:absolute;inset:-6px}
+.qm:hover{background:var(--marigold)}
+.qm[aria-expanded="true"]{background:var(--marigold)}
+.cell:has(.qm) .fb{padding-right:34px}
+.pop{grid-column:1/-1;position:relative;display:grid;gap:6px;margin-block:6px 0;padding:10px 12px 8px;background:var(--paper);border:1.5px solid var(--ink);box-shadow:3px 3px 0 var(--ink);font-size:13.5px;line-height:1.5;scroll-margin-bottom:84px}
+.pop p{margin:0}
+.pop::before{content:"";position:absolute;top:-7.5px;left:var(--ax,24px);width:12px;height:12px;margin-left:-6px;background:var(--paper);border-left:1.5px solid var(--ink);border-top:1.5px solid var(--ink);transform:rotate(45deg)}
+.popx{justify-self:end;min-height:32px;padding:0 4px;border:0;background:transparent;font:700 11px/16px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-muted);cursor:pointer}

@@ -9,6 +9,7 @@ export const state = {
   LABELIDX: {},
   db: null,
   sample: null,
+  xfer: {},      // what the "Your data" row of Options keeps between renders (src/ui/data-transfer.ts)
   batches: [],
   answers: {},
   gotB: false,

@@ -1,4 +1,5 @@
 import { state } from "../state.js";
+import { dataTransferControls } from "../../ui/data-transfer";
 import { setLab } from "../ai/lab.js";
 import { $, el } from "../core/dom.js";
 import { setTimer } from "../debate/flow.js";
@@ -61,6 +62,7 @@ export function optionsInto(o){
     state.sample&&state.db?row("Check lab",el("button",{type:"button",class:"sw",role:"switch","aria-checked":state.lab?"true":"false",onclick:()=>setLab(!state.lab)},el("i",{class:"knob","aria-hidden":"true"}),el("span",{class:"swl",text:"Three models check every answer"}),el("span",{class:"swt",text:state.lab?"on":"off"})),
       "For development. After each check, Haiku, Sonnet and Opus classify your examples independently: three Claude calls from your own usage. Opus rules as judge only when they differ, and on about one answer in ten as a spot check; when all three agree, that is the verdict. Every run is stored so the models can be compared, and any box with Claude\u2019s text has a flag. Your page verdicts do not change."):null,
     timeRow("rel","Relation time","The Blitz countdown for choosing the relation, in Relations and in Pervasions."),
-    timeRow("ex","Example time","The Blitz countdown for each example in Relations (a table of three cells gets three times this) and for each question in Pervasions.")].filter(Boolean));
+    timeRow("ex","Example time","The Blitz countdown for each example in Relations (a table of three cells gets three times this) and for each question in Pervasions."),
+    state.db?row("Your data",dataTransferControls(state.db,el,render,state.xfer),"Saves everything this device keeps (answers, debates, favorites, skipped pairs and these settings) in one file, as a backup or to move to another device. Importing adds what is missing and never deletes anything."):null].filter(Boolean));
   o.append(box);
 }

@@ -160,6 +160,7 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
       const m = colMap(col);
       if (row) m.set(id, deepFreeze(row.data));
       else m.delete(id);
+      versions.set(`${col}/${id}`, (versions.get(`${col}/${id}`) ?? 0) + 1); // a change from another tab is a later write too: a refused write here must not undo it
       notify(col);
     };
   }
@@ -167,11 +168,25 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
   async function write(col: string, id: string, data: Doc | null) {
     const path = `${col}/${id}`;
     const m = colMap(col);
+    const had = m.has(id);
+    const before = m.get(id);
     if (data === null) m.delete(id);
     else m.set(id, deepFreeze(JSON.parse(JSON.stringify(data))));
-    versions.set(path, (versions.get(path) ?? 0) + 1);
+    const mine = m.get(id);
+    const stamp = (versions.get(path) ?? 0) + 1; // this write's place in the order of writes of the document; a deletion has no value to compare
+    versions.set(path, stamp);
     notify(col);
-    await tx("readwrite", (s) => (data === null ? s.delete(path) : s.put({ path, col, id, data: m.get(id) })) as IDBRequest);
+    try {
+      await tx("readwrite", (s) => (data === null ? s.delete(path) : s.put({ path, col, id, data: mine })) as IDBRequest);
+    } catch (e) {
+      // Not saved: the page must not go on showing a document that a reload would lose. Put back what was there, unless another write has replaced it since.
+      if (versions.get(path) === stamp && m.get(id) === mine) {
+        if (had) m.set(id, before as Doc);
+        else m.delete(id);
+        notify(col);
+      }
+      throw e;
+    }
     channel?.postMessage({ col, id });
   }
 

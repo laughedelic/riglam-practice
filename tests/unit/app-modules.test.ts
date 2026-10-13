@@ -13,12 +13,14 @@ function sources(dir = root): string[] {
 const files = sources();
 const rel = (f: string) => relative(root, f).split("\\").join("/");
 
-/** The modules a file imports, as paths relative to src/app. */
+/** The modules a file imports, as paths relative to src/app (an import of code outside src/app, such as src/ui, is not a page module). */
 function importsOf(file: string): string[] {
   const text = readFileSync(file, "utf8");
   const out: string[] = [];
   for (const m of text.matchAll(/^import\s+(?:[^"']*?from\s+)?["']([^"']+)["'];?/gm)) {
-    if (m[1].startsWith(".")) out.push(rel(resolve(dirname(file), m[1])));
+    if (!m[1].startsWith(".")) continue;
+    const r = rel(resolve(dirname(file), m[1]));
+    if (!r.startsWith("..")) out.push(r);
   }
   return out;
 }
