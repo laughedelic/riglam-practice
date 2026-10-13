@@ -4,8 +4,9 @@
 // src/artifact/platform.ts); the tests supply a mock. A capability the place cannot provide is `null` and the page
 // hides the features that need it.
 
-/** The term data as the page reads it (docs/DATA.md); typed in detail when the page is split into modules. */
-export type DrillData = Record<string, any>;
+/** The term data as the page reads it (docs/DATA.md); the types live with the code that reads it. */
+import type { DrillData } from "../ai-shared/data";
+export type { DrillData };
 
 /** A stored document: a plain JSON object. */
 export type Doc = Record<string, any>;

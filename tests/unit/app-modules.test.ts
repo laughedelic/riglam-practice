@@ -13,14 +13,13 @@ function sources(dir = root): string[] {
 const files = sources();
 const rel = (f: string) => relative(root, f).split("\\").join("/");
 
-/** The modules a file imports, as paths relative to src/app (an import of code outside src/app, such as src/ui, is not a page module). */
+/** The modules a file imports, as paths relative to src/app (code outside src/app comes back as "../..."). */
 function importsOf(file: string): string[] {
   const text = readFileSync(file, "utf8");
   const out: string[] = [];
   for (const m of text.matchAll(/^import\s+(?:[^"']*?from\s+)?["']([^"']+)["'];?/gm)) {
     if (!m[1].startsWith(".")) continue;
-    const r = rel(resolve(dirname(file), m[1]));
-    if (!r.startsWith("..")) out.push(r);
+    out.push(rel(resolve(dirname(file), m[1])));
   }
   return out;
 }
@@ -55,16 +54,22 @@ test("shared state lives in `state`: no module-level let or var outside state.js
   }
 });
 
-test("core/ and state.js depend only on each other", () => {
+test("core/ and state.js depend only on each other and on src/ai-shared", () => {
   for (const f of files.filter((f) => rel(f).startsWith("core/") || rel(f) === "state.js")) {
-    for (const i of importsOf(f)) expect(i === "state.js" || i.startsWith("core/"), `${rel(f)} imports ${i}`).toBe(true);
+    for (const i of importsOf(f)) expect(i === "state.js" || i.startsWith("core/") || i.startsWith("../ai-shared/"), `${rel(f)} imports ${i}`).toBe(true);
+  }
+});
+
+test("the page imports nothing from outside src/app except src/ai-shared and src/ui", () => {
+  for (const f of files) {
+    for (const i of importsOf(f)) if (i.startsWith("../")) expect(i.startsWith("../ai-shared/") || i.startsWith("../ui/"), `${rel(f)} imports ${i}`).toBe(true);
   }
 });
 
 test("every module is reachable from the entry, so nothing is left out of the build", () => {
   const seen = new Set<string>();
   const visit = (r: string) => {
-    if (seen.has(r)) return;
+    if (r.startsWith("../") || seen.has(r)) return; // modules outside src/app are not part of this check
     seen.add(r);
     for (const i of importsOf(join(root, r))) visit(i);
   };

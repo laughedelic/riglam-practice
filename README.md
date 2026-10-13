@@ -30,13 +30,14 @@ In the Claude desktop app, "Preview" starts the same dev server and shows it in 
 index.html                 PWA entry (the page markup is included from src/app/markup.html)
 src/app/                   the page, shared by both builds: app.js (entry), state.js, feature modules in folders, app.css (an index of styles/*.css), markup.html, felt tiles
 src/data/                  the term data: open JSON, plus the definitions and notes encrypted (docs/DATA.md)
+src/ai-shared/             the tutor's card, prompts and lookup tools as pure TypeScript functions of the term data (used by the page; a server can use them too)
 src/platform/              the Platform interface (data, `db`, `sample`) that each build implements
 src/pwa/                   PWA only: platform adapter, local `db` (IndexedDB), key dialog, service worker registration, fonts
 src/artifact/              artifact only: platform adapter (embedded data, `window.claude`), head (title, font links)
 worker/                    the server: a Cloudflare Worker for /api/* (tutor access check, spend budgets), D1 schema
 src/ai/                    the contract between page and server (protocol, access proof), shared by both
 scripts/                   build-artifact, artifact-verify, data (key, import, export), fonts, icons, Vite plugins
-tests/unit/                Vitest unit tests (artifact comparison, artifact and PWA build contracts, encrypted data, the shape of src/app)
+tests/unit/                Vitest unit tests (artifact comparison, artifact and PWA build contracts, encrypted data, the shape of src/app, the tutor code in src/ai-shared)
 tests/worker/              Vitest tests of the server with stand-ins for D1 and the model API
 tests/e2e/                 Playwright: PWA specs, parity with the artifact build, the layout matrix, and the legacy page suite
 tests/legacy/              the page's regression suite (harness, 28 test files)
