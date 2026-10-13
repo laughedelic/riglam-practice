@@ -11,6 +11,7 @@ src/app/  (app.js, modules, app.css + styles/, markup.html, felt-*.png)   shared
         └── src/entry-artifact.ts  + src/artifact/* → scripts/build-artifact.mjs → dist/artifact/index.html
 
 src/platform/types.ts   the Platform interface both builds implement (and the tests mock)
+src/ai-shared/          what the tutor sees and can look up: pure TypeScript over the term data, used by the page and by a server
 ```
 
 What differs between the builds is kept out of `src/app`:
@@ -35,14 +36,32 @@ src/app/
   practice/     Relations: the term universe and pair draws, grading, saving answers, favourites, skipped pairs, the screens, the terms panel
   debate/       Pervasions (the four questions): wording, flow and grading, the screens
   review/       the Review tab: answers, mistakes, favourites, debate statistics, check-lab review
-  ai/           the tutor (prompts, per-pair card, lookup tools), the check lab, flags
+  ai/           the tutor (asking, verdicts, chat), the check lab, flags; the tutor's text and tools are built by src/ai-shared
   shell/        rendering, tabs, options, the chat overlay, keyboard shortcuts, timers and the toolbar
 ```
 
 - Every variable that used to be module-level is a property of `state` (`state.ui`, `state.cur`, `state.db`, ...), because an ES module cannot assign to a binding it imports. A module-level `let` outside `state.js` fails a unit test.
 - Modules import each other freely, including in cycles (the screens call the actions and the actions render). That works because only functions are called across modules, and only after loading; do not call an imported function while a module loads. Modules whose top-level code wires listeners (`core/viewport.js`, `shell/render.js`, `shell/keys.js`, `shell/timers.js`) are imported by the entry for that effect.
-- `core/` and `state.js` import only each other (a unit test checks it); everything else may import everything.
+- `core/` and `state.js` import only each other and `src/ai-shared` (a unit test checks it); everything else may import everything. The page imports no other code from outside `src/app`.
 - `tests/unit/app-modules.test.ts` also checks that every module is reachable from `app.js`, so none is left out of a build.
+
+## The tutor code
+
+`src/ai-shared/` is TypeScript with no dependency on the page. It holds everything that decides what the tutor sees and can look up:
+
+| File | What |
+|---|---|
+| `data.ts` | the types of the term data (`DrillData`, `Term`, `Cat`, `Item`) |
+| `lookup.ts` | `norm`, `makeIndex(data)` (the lookup tables), `matchItem`, `catByLabel`, `pairCats`: how a learner's words resolve to a practice item or category |
+| `relations.ts`, `debate.ts` | the five relations, the four cells and the four questions in their canonical wording |
+| `facts.ts` | `termFacts`, `catFacts`: what the data says about a term or category |
+| `prompts.ts` | the tutor's standing instructions and the two "explain" requests |
+| `card.ts` | `tutorCard(index, pair, answer)`: the first message of a tutor chat, made of the instructions, `cardBody(index, pair, answer)` (the data, the relation, the learner's answer and the page's verdicts) and `cardNotes(index, pair)` (the fine points from the sources, from `finePoints(index, categoryIds)`); a server that holds the instructions and the fine points itself asks for the body only; `explainAsk(answer)` |
+| `tools.ts` | `tutorTools(index)`: the `lookup_term` and `classify_example` tools |
+
+Every function takes a **data index** (`DataIndex`: the data plus its lookup tables) as its first argument. The page passes its `state`, which has the same five fields (`DATA`, `CAT`, `ITEMIDX`, `ALIASIDX`, `LABELIDX`); `indexData()` in `practice/universe.js` fills them with `makeIndex`. Code that talks to the model elsewhere builds an index with `makeIndex(data)` and gets the same prompt text and the same tool results. `tests/unit/ai-shared.test.ts` checks the functions on made-up data and the real open data, and that the folder imports nothing outside itself and touches no `window`, `document`, storage or network.
+
+The page's JavaScript imports these files with their `.ts` extension; Vite compiles them for both builds.
 
 ## The platform
 

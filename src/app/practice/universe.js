@@ -2,31 +2,16 @@ import { state } from "../state.js";
 import { CELLS } from "../core/rel.js";
 import { cap, isMiss, pick } from "../core/util.js";
 import { catKey, hiddenKeys } from "./skips.js";
+import { catByLabel as byLabel, makeIndex, matchItem as itemFor, norm, pairCats as catsOf } from "../../ai-shared/lookup.ts";
 
 /* ---------- the practice universe ---------- */
-export function indexData(){
-  state.CAT={}; for(const c of state.DATA.cats) state.CAT[c.id]=c;
-  state.ITEMIDX={};
-  const put=(k,it)=>{ if(k&&!state.ITEMIDX[k]) state.ITEMIDX[k]=it; };
-  for(const it of state.DATA.items){ const k=norm(it.n); put(k,it); put(stripDet(k),it); }
-  state.ALIASIDX={};
-  for(const [k,v] of Object.entries(state.DATA.aliases||{})){ const it=state.DATA.items.find(i=>i.n===v); if(it&&!state.ITEMIDX[norm(k)]) state.ALIASIDX[norm(k)]=it; }
-  state.LABELIDX={};
-  for(const c of state.DATA.cats) for(const l of c.labels){ const k=norm(l); if(!state.LABELIDX[k]) state.LABELIDX[k]=c.id; }
-}
-// Older batch pairs carry only labels; recover their categories when the labels are known.
-export function catByLabel(l){ const k=norm(l); return state.LABELIDX[k]||state.LABELIDX[k.replace(/s$/,"")]||state.LABELIDX[k+"s"]||null; }
-export function pairCats(p){ const a=p.catA||catByLabel(p.a), b=p.catB||catByLabel(p.b); return a&&b&&a!==b?[a,b]:[null,null]; }
-export function norm(s){ return String(s||"").toLowerCase().replace(/[“”"'’.,!?;:()]/g,"").replace(/\s+/g," ").trim(); }
-function stripDet(s){ return s.replace(/^(a|an|the|my|your|some)\s+/,""); }
-export function matchItem(text,exactOnly){
-  const k=norm(text); if(!k) return null;
-  const tries=[k, stripDet(k), stripDet(k).replace(/s$/,""), stripDet(k).replace(/es$/,"")];
-  for(const t of tries) if(state.ITEMIDX[t]) return state.ITEMIDX[t];
-  if(exactOnly) return null;
-  for(const t of tries) if(state.ALIASIDX[t]) return state.ALIASIDX[t];
-  return null;
-}
+// The lookup tables and the matching of words to items and categories are in src/ai-shared, where the tutor code
+// shares them; the page passes `state` as the index (it holds DATA, CAT, ITEMIDX, ALIASIDX and LABELIDX).
+export { norm };
+export function indexData(){ Object.assign(state,makeIndex(state.DATA)); }
+export function catByLabel(l){ return byLabel(state,l); }
+export function pairCats(p){ return catsOf(state,p); }
+export function matchItem(text,exactOnly){ return itemFor(state,text,exactOnly); }
 // An alias ("table") names the thing without the feature the practice item has ("a wooden table"),
 // so it cannot settle colour, material, shape or temperature.
 export const FEATURE=new Set(["wooden","metal","white","red","green","round","square","hot"]);
