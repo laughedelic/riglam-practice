@@ -1,9 +1,11 @@
 name: Retire preview
 
 # ci.yml shows every preview as a deployment in its own GitHub environment, preview/pr-<number>. When the pull request is merged
-# or closed, its deployments are marked inactive, so none shows as live after the preview is no longer wanted. They are kept,
-# so the pull request still shows what was deployed. The environment stays in the repository's settings: removing it is an
-# administration action that the workflow token cannot have (docs/DEPLOY.md). The Cloudflare preview address is not touched.
+# or closed, its deployments are marked inactive, so none shows as live after the preview is no longer wanted, and then the
+# environment is deleted so that they do not pile up in the repository's settings. The pull request's timeline keeps its
+# entries. Deleting an environment is an administration action that the workflow token cannot do, so that step uses the
+# repository secret GH_ENVIRONMENTS_API (docs/DEPLOY.md) and is skipped when it is not set. The Cloudflare preview address
+# is not touched.
 
 # pull_request_target runs this file from the base branch and does not depend on the pull request's merge commit, which
 # GitHub may not have ready when the pull request is closed right after a push (then a plain pull_request trigger starts
@@ -38,3 +40,14 @@ jobs:
               gh api -X POST "repos/$GITHUB_REPOSITORY/deployments/$id/statuses" -f state=inactive -f description="The pull request was closed" --silent
               echo "Deployment $id of $ENVIRONMENT is inactive"
             done
+      - name: Delete the environment
+        env:
+          GH_TOKEN: ${{ secrets.GH_ENVIRONMENTS_API }}
+          ENVIRONMENT: preview/pr-${{ github.event.number || inputs.pr }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::notice::Environment kept: the secret GH_ENVIRONMENTS_API is not set (see docs/DEPLOY.md)"
+          else
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/environments/${ENVIRONMENT//\//%2F}"
+            echo "Environment $ENVIRONMENT deleted"
+          fi
