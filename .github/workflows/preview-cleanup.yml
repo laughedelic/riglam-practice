@@ -10,7 +10,6 @@ on:
     types: [closed]
 
 permissions:
-  contents: read
   deployments: write
 
 jobs:
@@ -19,11 +18,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: .nvmrc
-      - run: node scripts/retire-deployments.mjs
+      - name: Mark the deployments inactive
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DEPLOY_ENVIRONMENT: preview/pr-${{ github.event.number }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ENVIRONMENT: preview/pr-${{ github.event.number }}
+        run: |
+          set -o pipefail
+          gh api --paginate -X GET "repos/$GITHUB_REPOSITORY/deployments" -f environment="$ENVIRONMENT" --jq '.[].id' |
+            while read -r id; do
+              gh api -X POST "repos/$GITHUB_REPOSITORY/deployments/$id/statuses" -f state=inactive -f description="The pull request was closed" --silent
+              echo "Deployment $id of $ENVIRONMENT is inactive"
+            done

@@ -55,6 +55,6 @@ test("each preview is a deployment of its own environment, and the cleanup retir
   const cleanup = read(".github/workflows/preview-cleanup.yml");
   expect(deploy).toMatch(/environment:\s+name: \$\{\{[^}]*format\('preview\/pr-\{0\}', github\.event\.number\)[^}]*\}\}\s+url: \$\{\{ steps\.upload\.outputs\.url \}\}/);
   expect(cleanup).toMatch(/pull_request:\s+types: \[closed\]/);
-  expect(cleanup).toMatch(/DEPLOY_ENVIRONMENT: preview\/pr-\$\{\{ github\.event\.number \}\}/);
+  expect(cleanup).toMatch(/ENVIRONMENT: preview\/pr-\$\{\{ github\.event\.number \}\}/);
   expect(cleanup).toMatch(/permissions:[\s\S]*?deployments: write/);
 });
