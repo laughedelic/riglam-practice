@@ -11,6 +11,9 @@ import { cap, isMiss, pick } from "./util";
 /** Returns a number in [0, 1), like `Math.random`. */
 export type Rng = () => number;
 
+/** Returns the current time in milliseconds, like `Date.now`; a pair's id is made from it. */
+export type Clock = () => number;
+
 // An alias ("table") names the thing without the feature the practice item has ("a wooden table"),
 // so it cannot settle colour, material, shape or temperature.
 export const FEATURE: ReadonlySet<string> = new Set(["wooden", "metal", "white", "red", "green", "round", "square", "hot"]);
@@ -84,9 +87,10 @@ export function buildPool(ix: DataIndex): PoolEntry[] {
 
 /**
  * A pair from a pool entry: a random order and random labels, the relation the data gives, an example per cell where
- * there is one, and the reason where a cell is empty. The random numbers are drawn in a fixed order.
+ * there is one, and the reason where a cell is empty. The random numbers are drawn in a fixed order; the id is made from
+ * the clock and one more random number, so with both given the whole pair is reproducible.
  */
-export function makePair(ix: DataIndex, cand: PoolEntry, rng: Rng = Math.random): Pair {
+export function makePair(ix: DataIndex, cand: PoolEntry, rng: Rng = Math.random, now: Clock = Date.now): Pair {
   let a = cand.a, b = cand.b, la: string, lb: string;
   if (a === b) {
     const ls = ix.CAT[a].labels.slice().sort(() => rng() - 0.5);
@@ -98,7 +102,7 @@ export function makePair(ix: DataIndex, cand: PoolEntry, rng: Rng = Math.random)
   const cells = cellsFor(ix, a, b), relation = relOfCells(cells);
   const ex: Partial<Record<CellId, string | null>> = {}, why: Partial<Record<CellId, string>> = {};
   const p: Pair = {
-    id: "g-" + Date.now().toString(36) + rng().toString(36).slice(2, 6), a: la, b: lb, catA: a, catB: b,
+    id: "g-" + now().toString(36) + rng().toString(36).slice(2, 6), a: la, b: lb, catA: a, catB: b,
     typeA: typeText(ix, a), typeB: typeText(ix, b), relation, ex, why, generated: true,
   };
   for (const c of CELLS) {
@@ -125,6 +129,8 @@ export interface DrawState {
   /** whether the pair is hidden for now (skipped); when every pair of a relation is hidden, the hiding gives way */
   isHidden?: (c: PoolEntry) => boolean;
   rng?: Rng;
+  /** the clock for the id of the pair that `nextPair` makes */
+  now?: Clock;
 }
 
 /** The pool entry for the next pair: the relation that has been seen least lately, then a pair of categories weighted by what the learner got wrong. */
@@ -166,5 +172,5 @@ export function nextPair(ix: DataIndex, pool: readonly PoolEntry[], st: DrawStat
   const c = chooseEntry(ix, pool, st);
   st.recent.push(pairKey(c));
   if (st.recent.length > RECENT_MAX) st.recent.shift();
-  return makePair(ix, c, st.rng || Math.random);
+  return makePair(ix, c, st.rng || Math.random, st.now || Date.now);
 }

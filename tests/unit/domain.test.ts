@@ -117,9 +117,11 @@ test("a pair of the two labels of one category uses both labels; otherwise eithe
   expect(orders).toEqual(new Set(["form>mind", "mind>form"]));
 });
 
-test("the same random numbers give the same pair", () => {
-  const a = makePair(ix, { a: "wooden", b: "gray", r: "4" }, seeded(9)), b = makePair(ix, { a: "wooden", b: "gray", r: "4" }, seeded(9));
-  expect({ ...a, id: "" }).toEqual({ ...b, id: "" });
+test("the same random numbers and the same clock give the same pair, id included", () => {
+  const at = () => 1_700_000_000_000;
+  const a = makePair(ix, { a: "wooden", b: "gray", r: "4" }, seeded(9), at), b = makePair(ix, { a: "wooden", b: "gray", r: "4" }, seeded(9), at);
+  expect(a).toEqual(b);
+  expect(a.id).toMatch(/^g-[0-9a-z]+$/);
 });
 
 // ---- the draw of the next pair ----
@@ -192,6 +194,12 @@ test("the next pair is remembered, and only the last RECENT_MAX are kept", () =>
     expect(recent[recent.length - 1]).toBe(pairKey({ a: p.catA as string, b: p.catB as string }));
   }
   expect(recent).toHaveLength(RECENT_MAX);
+});
+
+test("nextPair is reproducible from the random numbers and the clock alone", () => {
+  const at = () => 1_700_000_000_000;
+  const draw = () => nextPair(ix, pool, { hist: [], recent: [], rng: seeded(21), now: at });
+  expect(draw()).toEqual(draw());
 });
 
 // ---- grading ----

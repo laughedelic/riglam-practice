@@ -5,10 +5,10 @@
 export { deriveRel, grade, gradeDebate, judgeText, summarize, termLine } from "./grading";
 export type { Judgement } from "./grading";
 export type {
-  CellResult, DebateInput, GradeDraft, GradeResult, HistoryEntry, Pair, PoolEntry, PracticeAnswer, Verdict,
+  CellResult, DebateInput, GradeDraft, GradeResult, HistoryEntry, Pair, PoolEntry, PoolRel, PracticeAnswer, Verdict,
 } from "./types";
 export { FEATURE, RECENT_MAX, buildPool, cellsFor, chooseEntry, inUniverse, makePair, nextPair, pairKey, relOfCells } from "./universe";
-export type { DrawState, Rng } from "./universe";
+export type { Clock, DrawState, Rng } from "./universe";
 export { cap, gradeOf, isMiss, pick } from "./util";
 export { NAME_CELL, VERDICT_RE, applyVerdicts, parseVerdicts } from "./verdict";
 export type { Answer, CellVerdict } from "./verdict";

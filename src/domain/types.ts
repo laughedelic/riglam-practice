@@ -59,11 +59,14 @@ export interface DebateInput {
   ans: DebateAnswer[];
 }
 
+/** The relations the draw knows: mutually identical, contradictory, three possibilities (either direction) and four possibilities. */
+export type PoolRel = "mi" | "con" | "3" | "4";
+
 /** One entry of the pair pool: two categories and the relation they have ("3" stands for both three-possibility directions). */
 export interface PoolEntry {
   a: string;
   b: string;
-  r: string;
+  r: PoolRel;
 }
 
 /** What the draw reads from an earlier answer. */
