@@ -35,7 +35,7 @@ const tutorWith = (key: string, respond: (init: RequestInit) => Response | Promi
   }) as unknown as typeof fetch;
   return { ask: createTutor(key, doFetch, () => "d".repeat(22)), seen };
 };
-const rejection = async (p: Promise<unknown>) => p.then(() => null, (e: Error & { code?: string; text?: string; budget?: boolean }) => e);
+const rejection = async (p: Promise<unknown>) => p.then(() => null, (e: Error & { code?: string; text?: string; budget?: boolean; scope?: string; resetsAt?: string }) => e);
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -121,6 +121,24 @@ describe("failures reach the page as an error with a code", () => {
     const e = await rejection(ask(request));
     expect(e?.code).toBe(code);
     expect(!!e?.budget).toBe(budget);
+  });
+
+  it("carries whose budget is used up and when it starts again", async () => {
+    const body = { error: { code: "rate_limited", message: "x", scope: "device", resetsAt: "2026-10-14T00:00:00Z" } };
+    const { ask } = tutorWith(generateKey(), () => json(429, body, { "retry-after": "3600" }));
+    const e = await rejection(ask(request));
+    expect(e).toMatchObject({ code: "rate_limited", budget: true, scope: "device", resetsAt: "2026-10-14T00:00:00.000Z" });
+  });
+
+  it("takes the time from retry-after when the body has none, and ignores a scope or time it does not know", async () => {
+    const before = Date.now();
+    const { ask } = tutorWith(generateKey(), () => json(429, { error: { code: "rate_limited", message: "x", scope: "everyone", resetsAt: "soon" } }, { "retry-after": "3600" }));
+    const e = await rejection(ask(request));
+    expect(e?.scope).toBeUndefined();
+    expect(Date.parse(String(e?.resetsAt)) - before).toBeGreaterThanOrEqual(3_599_000);
+    expect(Date.parse(String(e?.resetsAt)) - Date.now()).toBeLessThanOrEqual(3_600_000);
+    const none = tutorWith(generateKey(), () => json(429, { error: { code: "rate_limited", message: "x" } }));
+    expect((await rejection(none.ask(request)))?.resetsAt).toBeUndefined();
   });
 
   it.each([

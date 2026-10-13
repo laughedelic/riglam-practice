@@ -87,6 +87,20 @@ withKey("when the day's budget is used the page says so", async ({ page }, testI
   await expect(page.getByText(/limit for today is used up/i)).toBeVisible();
 });
 
+withKey("a used-up budget says whose it is and when the tutor opens again", async ({ page }, testInfo) => {
+  const resetsAt = new Date(Date.now() + 3 * 3600 * 1000).toISOString();
+  await open(page, testInfo, { tutor: [{ status: 429, body: JSON.stringify({ error: { code: "rate_limited", message: "x", scope: "device", resetsAt } }) }] });
+  await explain(page).click();
+  await expect(page.getByText(/You have used your share of the tutor for today\. It is available again (tomorrow )?at /)).toBeVisible();
+  await expect(page.getByText(/Everything else in the app keeps working/)).toBeVisible();
+});
+
+withKey("when everybody's budget is used the page says that instead", async ({ page }, testInfo) => {
+  await open(page, testInfo, { tutor: [{ status: 429, body: JSON.stringify({ error: { code: "rate_limited", message: "x", scope: "global" } }) }] });
+  await explain(page).click();
+  await expect(page.getByText(/The tutor has reached its limit for today for everybody\. Try again tomorrow\./)).toBeVisible();
+});
+
 withKey("with no connection the page says so, and Explain can be tried again", async ({ page }, testInfo) => {
   await open(page, testInfo, { tutor: [{ abort: true }, { status: 200, body: ANSWER }] });
   await explain(page).click();

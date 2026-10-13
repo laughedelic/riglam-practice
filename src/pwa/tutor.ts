@@ -1,6 +1,6 @@
 // The PWA's `tutor` capability: questions to the app's own server (docs/SERVER.md). The request proves that the sender has the
 // study group's key without sending it (src/ai/proof.ts); the answer comes back as server-sent events (src/ai/protocol.ts).
-import { API, HEADER, type Health, type TutorEvent } from "../ai/protocol";
+import { API, HEADER, type BudgetScope, type Health, type TutorEvent } from "../ai/protocol";
 import { makeProof, newDeviceId, DEVICE_ID } from "../ai/proof";
 import type { Tutor } from "../platform/types";
 
@@ -21,7 +21,7 @@ export function deviceId(): string {
 }
 
 /** An error the page understands: `code` is the server's (src/ai/protocol.ts), or `offline`, or `cancelled`. */
-export function tutorError(code: string, message: string, extra: { text?: string; budget?: boolean } = {}): Error & { code: string; text?: string; budget?: boolean } {
+export function tutorError(code: string, message: string, extra: { text?: string; budget?: boolean; scope?: BudgetScope; resetsAt?: string } = {}): Error & { code: string; text?: string; budget?: boolean; scope?: BudgetScope; resetsAt?: string } {
   return Object.assign(new Error(message), { code }, extra);
 }
 
@@ -44,14 +44,24 @@ export async function tutorIsOn(doFetch: typeof fetch = (...a) => fetch(...a), w
   }
 }
 
-async function httpError(res: Response) {
+async function httpError(res: Response, now: () => number = Date.now) {
   let code = "";
+  let scope: BudgetScope | undefined;
+  let resetsAt: string | undefined;
   try {
-    code = String(((await res.json()) as { error?: { code?: unknown } })?.error?.code ?? "");
+    const error = ((await res.json()) as { error?: { code?: unknown; scope?: unknown; resetsAt?: unknown } })?.error;
+    code = String(error?.code ?? "");
+    if (error?.scope === "device" || error?.scope === "global") scope = error.scope;
+    if (typeof error?.resetsAt === "string" && !Number.isNaN(Date.parse(error.resetsAt))) resetsAt = new Date(error.resetsAt).toISOString();
   } catch { /* no JSON body: the status says enough */ }
+  if (res.status === 429 && !resetsAt) {
+    // an older server, or a proxy: the header says how long to wait
+    const wait = Number(res.headers.get("retry-after"));
+    if (Number.isFinite(wait) && wait > 0 && wait <= 86_400 * 2) resetsAt = new Date(now() + wait * 1000).toISOString();
+  }
   if (!KNOWN.has(code)) code = res.status === 401 ? "not_granted" : res.status === 413 ? "prompt_too_large" : res.status === 429 ? "rate_limited" : "unavailable";
   // A 429 from the server itself (not a "model busy" event inside the answer) means a daily budget is used.
-  return tutorError(code, `the server answered ${res.status}`, { budget: res.status === 429 });
+  return tutorError(code, `the server answered ${res.status}`, { budget: res.status === 429, scope, resetsAt });
 }
 
 /** The server-sent events in `body`, as they arrive. */

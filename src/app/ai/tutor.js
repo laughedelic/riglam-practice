@@ -83,11 +83,22 @@ export function fillAns(node,text){
     node.append(m?el("p",null,el("b",{text:m[1]+": "}),m[2]):el("p",{text:ln.replace(/^[-•]\s*/,"")}));
   }
 }
+/** A used-up daily budget: whose it is, when the tutor opens again (in the person's own time), and that the rest keeps working. */
+function budgetCopy(e){
+  const lead=e.scope==="device"?"You have used your share of the tutor for today.":e.scope==="global"?"The tutor has reached its limit for today for everybody.":"The tutor's limit for today is used up.";
+  const at=e.resetsAt?new Date(e.resetsAt):null;
+  let when=" Try again tomorrow.";
+  if(at&&!isNaN(at)){
+    const time=at.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
+    when=at.toDateString()===new Date().toDateString()?` It is available again at ${time}.`:` It is available again tomorrow at ${time}.`;
+  }
+  return lead+when+" Everything else in the app keeps working.";
+}
 function errCopy(e){
   const c=e&&e.code;
   if(c==="cancelled") return "";
   if(c==="offline") return "No connection. The tutor needs the internet; try again when you are back online.";
-  if(c==="rate_limited") return e.budget?"The tutor's limit for today is used up. Try again tomorrow.":"Claude is busy or your usage limit is reached. Try again later.";
+  if(c==="rate_limited") return e.budget?budgetCopy(e):"Claude is busy or your usage limit is reached. Try again later.";
   if(c==="session_expired") return "Sign in to Claude again, then retry.";
   if(c==="prompt_too_large") return "This conversation is too long. Move to the next pair.";
   if(ERR_OFF.includes(c)) return "Claude is not enabled for this page.";
