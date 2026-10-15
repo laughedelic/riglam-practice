@@ -13,8 +13,22 @@
     "binding": "ASSETS",
     "run_worker_first": ["/api/*"]
   },
-  "observability": { "enabled": true, "logs": { "invocation_logs": false } },
+  // Same as wrangler.jsonc. A Preview takes its own copy in the `previews` block below.
+  "observability": {
+    "enabled": true,
+    "redact_query_string": true,
+    "logs": { "enabled": true, "invocation_logs": true },
+    "traces": { "enabled": true },
+    "issues": { "enabled": true }
+  },
   "previews": {
+    "observability": {
+      "enabled": true,
+      "redact_query_string": true,
+      "logs": { "enabled": true, "invocation_logs": true, "persist": true },
+      "traces": { "enabled": true, "persist": true },
+      "issues": { "enabled": true }
+    },
     // Same tutor settings as wrangler.jsonc, except the budgets. Dollars are US dollars per UTC day.
     // The secrets ANTHROPIC_API_KEY and RIGLAM_DATA_KEY come from the Preview base configuration, or `wrangler preview secret put --name staging`.
     "vars": {
