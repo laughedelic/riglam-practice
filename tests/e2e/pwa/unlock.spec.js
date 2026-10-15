@@ -247,7 +247,7 @@ test("too many wrong tries from one network are told as such, with the wait, and
   expect(await storedKey(page)).toBe(dataKey);
 });
 
-withKey("a kept copy opens the page at once; the server is asked in the background, and a key it stops accepting is forgotten with the copy", async ({ page }) => {
+withKey("a kept copy opens the page at once; the server is asked in the background, and a key it stops accepting is forgotten with the copy, and the reader is told once", async ({ page }) => {
   const full = readFull();
   await page.addInitScript(hook);
   const first = await serveCourse(page);
@@ -267,8 +267,12 @@ withKey("a kept copy opens the page at once; the server is asked in the backgrou
   await ready(page);
   expect((await firstTerm(page)).d, "this visit still shows the kept copy").toBe(full.terms[Object.keys(full.terms)[0]].d);
   await expect.poll(() => storedKey(page)).toBeNull();
-  await page.goto("/?again=3");
+  await page.goto("/?again=3"); // the next visit says once that the key was changed, and asks for the new one
   await ready(page);
   expect((await firstTerm(page)).d).toBe(LOCKED_TEXT);
+  await expect(page.locator("#unlock")).toBeVisible();
+  await expect(page.locator("#unlock-err")).toContainText("The Magic Key was changed");
+  await page.goto("/?again=4"); // and then leaves the reader alone
+  await ready(page);
   await expect(page.locator("#unlock")).toHaveCount(0);
 });

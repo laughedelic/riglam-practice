@@ -10,7 +10,7 @@ import type { DrillData, Platform, Sample } from "../platform/types";
 import { fetchCourse, forgetCourse, keepCourse, keptCourse, whyNot, type Definitions } from "./course";
 import { createLocalDb } from "./local-db";
 import { createTutor, tutorIsOn as serverSaysOn } from "./tutor";
-import { takeLinkKey, storedKey, storeKey, forgetKey, showUnlock } from "./unlock";
+import { takeLinkKey, storedKey, storeKey, forgetKey, showUnlock, markKeyChanged, takeKeyChanged, KEY_CHANGED_TEXT } from "./unlock";
 
 const db = createLocalDb();
 const link = takeLinkKey(); // first of all: a key in the address leaves the address bar at once
@@ -26,6 +26,7 @@ async function loadData(): Promise<DrillData> {
   const data = await (await fetch(dataUrl)).json();
   const key = link.key ?? storedKey();
   let problem = link.present && !link.key ? "That link has no Magic Key in it." : null;
+  if (!key && !link.present && takeKeyChanged()) problem = KEY_CHANGED_TEXT; // the key was found out of date during an earlier visit: say so, once
   if (key) {
     const kept = link.key ? null : keptCourse();
     if (kept) {
@@ -43,7 +44,7 @@ async function loadData(): Promise<DrillData> {
     if (!got.ok && got.reason === "not_granted") {
       forgetKey();
       forgetCourse();
-      problem = link.key ? "The Magic Key in that link does not fit. Ask for a new link." : "The Magic Key kept on this device no longer fits. Enter the new one.";
+      problem = link.key ? "The Magic Key in that link does not fit. Ask for a new link." : KEY_CHANGED_TEXT;
     } else if (!got.ok) {
       // the server could not be asked (offline, too many tries, down): a key from a link is kept for the next visit, and the definitions stay locked for this one
       if (link.key) storeKey(link.key);
@@ -62,6 +63,7 @@ async function refresh(key: string, have: string) {
   } else if (got.reason === "not_granted") {
     forgetKey();
     forgetCourse();
+    markKeyChanged(); // this visit still shows the kept copy; the next one explains and asks for the new key
   }
 }
 
