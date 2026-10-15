@@ -44,7 +44,7 @@ The request carries only what the learner typed and the page's own state (the ca
 
 **The kit.** `worker/kit.ts` makes the tutor's knowledge per Worker instance: it reads the two rows of the `course_data` table (`worker/course.ts`), puts them together with `drill-data.json` (bundled into the script) as the knowledge base exports them ([DATA.md](DATA.md)), and builds the instructions and the two lookup tools from `src/ai-shared`, the code the page uses too. An instance looks at the table again after a minute, so `npm run data:publish` gives the tutor new data with no deploy. Without the rows the tutor is off.
 
-**The definitions.** `GET /api/course` (`worker/app.ts`) returns the definitions to a request whose proof fits the Magic Key (`worker/magic.ts`), with the version they were loaded at; `?have=<version>` is answered with `{unchanged: true}` when the copy is current. Wrong proofs are counted per caller and hour (`guesses` table, 30 an hour); past that the answer is 429 with `resetsAt`, and the proof is not even looked at. The notes are never sent.
+**The definitions.** `GET /api/course` (`worker/app.ts`) returns the definitions to a request whose proof fits the Magic Key (`worker/magic.ts`), with the version they were loaded at; `?have=<version>` is answered with `{unchanged: true}` when the copy is current. Wrong proofs are counted per caller and hour (`guesses` table, 30 an hour); past that the answer is 429 with `resetsAt`, and the proof is not even looked at. The notes are never sent. The rows are loaded with `npm run data:publish` ([DATA.md](DATA.md)); until they are, `/api/course` answers `unavailable` and the tutor is off.
 
 Error codes the page can see: `rate_limited` (the device's or everybody's budget for the day is used, or the model is busy), `not_granted` (the proof does not match), `prompt_too_large`, `bad_request`, `refused` (the model declined), `unavailable` (the tutor is off or failed). The details of a failure go to the log, never into the response.
 
@@ -138,7 +138,7 @@ Nothing here is needed to build or test the app; without the database the tutor 
    npx wrangler secret put ANTHROPIC_API_KEY
    npx wrangler secret put RIGLAM_DATA_KEY     # the Magic Key: the words in the shared link
    ```
-   Secrets belong to the Worker, so previews use them too. Then load the course data into the database: `npm run data:publish` (needs `data-private/`, [DATA.md](DATA.md)).
+   Secrets belong to the Worker, so previews use them too.
 4. Deploy as usual. Check `GET /api/health`.
 
 **Kill switch.** In the Cloudflare dashboard (D1, the database, Console): `INSERT OR REPLACE INTO settings (key, value) VALUES ('tutor', 'off');` stops every tutor request at once; deleting the row (or any value but `off`) turns it on again. Archiving the API key in the Console or setting the workspace limit to zero also stops all spending.
