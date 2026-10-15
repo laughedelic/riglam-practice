@@ -23,14 +23,14 @@ async function phoneQs(pg,sayWhyAt){
   ok(w+' px: the strip shows a check for Accept and ?! for Why?',st.marks.map(x=>x.m).join('|')==='✓|?!|✓',st.marks);
   ok(w+' px: no words in the strip (no Accept, no Why)',!/accept|why/i.test(st.text),st.text);
   ok(w+' px: both marks have one neutral colour, not the green or red of a grade',st.marks.every(x=>x.col===st.marks[0].col)&&st.marks[0].col===await rgb(pg,'var(--ink-muted)')&&st.marks.every(x=>x.bg==='rgba(0, 0, 0, 0)'),st.marks);
-  ok(w+' px: each tag still says in words what it is (title and label)',st.marks[0].t==='Accepted'&&st.marks[1].t==='Asked why'&&/Accepted/.test(st.marks[0].a)&&/Asked why/.test(st.marks[1].a),st.marks);
+  ok(w+' px: each tag still says in words what it is (title and label)',st.marks[0].t==='Accepted'&&st.marks[1].t==='Why?!'&&/Accepted/.test(st.marks[0].a)&&/Why\?!/.test(st.marks[1].a),st.marks);
   ok(w+' px: three answers fit on one row without overflow',st.h<=40&&st.sw<=st.cw+1,st);
   await pg.locator('.rcpt .ri').nth(0).click(); await pg.waitForTimeout(120);
   const pa=await pg.evaluate(()=>{const p=document.querySelector('.rcpt .rdet .pill.acc'); const s=getComputedStyle(p); return {t:p.innerText,bg:s.backgroundColor,col:s.color,tt:s.textTransform};});
-  ok(w+' px: the open tag says "Accepted" in a quiet tag, not marigold',pa.t==='Accepted'&&pa.bg!==await rgb(pg,'var(--marigold)')&&pa.col===await rgb(pg,'var(--ink-muted)'),pa);
+  ok(w+' px: the open tag says "✓ Accepted" in a quiet tag, not marigold',pa.t==='✓ Accepted'&&pa.bg!==await rgb(pg,'var(--marigold)')&&pa.col===await rgb(pg,'var(--ink-muted)'),pa);
   await pg.locator('.rcpt .ri').nth(1).click(); await pg.waitForTimeout(120);
   const pw=await pg.evaluate(()=>{const p=document.querySelector('.rcpt .rdet .pill.why'); return p&&{t:p.innerText};});
-  ok(w+' px: the second tag says "Asked why" and shows the example',!!pw&&pw.t==='Asked why'&&/clay pot/.test(await pg.locator('.rcpt .rdet').innerText()),pw);
+  ok(w+' px: the second tag says "Why?!" and shows the example',!!pw&&pw.t==='Why?!'&&/clay pot/.test(await pg.locator('.rcpt .rdet').innerText()),pw);
   ok(w+' px: no page errors',noErr(errs).length===0,errs);
   if(w===390){
     // the relation step uses the same marks
@@ -38,12 +38,12 @@ async function phoneQs(pg,sayWhyAt){
     await pg.locator(".qcard .btn").first().click(); await pg.waitForTimeout(250);
     const rs=await pg.evaluate(()=>[...document.querySelectorAll('.rcpt .ri .rw')].map(x=>x.innerText.trim()).join('|'));
     ok('the relation step strip uses the same marks',rs==='✓|?!|✓|✓',rs);
-    // the result: pills in the question rows say Accepted / Asked why
+    // the result: pills in the question rows say ✓ Accepted / Why?!
     const rel=await pg.evaluate(()=>window.__t.cur.p.relation);
     await pg.locator('.rels .rel').nth(ORDER[rel]).click(); await pg.waitForTimeout(300);
     await pg.locator('.vchip',{hasText:/questions/i}).click().catch(()=>{}); await pg.waitForTimeout(120);
     const pills=await pg.evaluate(()=>[...document.querySelectorAll('.qd .qs .pill')].map(p=>p.innerText.trim()));
-    ok('in the result the rows carry the state words',pills.length>=4&&pills.every(t=>/^(Accepted|Asked why)$/.test(t)),pills);
+    ok('in the result the rows carry the state words',pills.length>=4&&pills.every(t=>/^(✓ Accepted|Why\?!)$/.test(t)),pills);
     const mar=await rgb(pg,'var(--marigold)');
     ok('no state tag in the result has the marigold fill',await pg.evaluate(m=>[...document.querySelectorAll('.pill.acc,.pill.why')].every(p=>getComputedStyle(p).backgroundColor!==m),mar));
   }
@@ -56,7 +56,7 @@ async function phoneQs(pg,sayWhyAt){
   await pg.keyboard.press('a'); await pg.waitForTimeout(100); await pg.keyboard.press('a'); await pg.waitForTimeout(100); await pg.keyboard.press('a'); await pg.waitForTimeout(100); await pg.keyboard.press('a'); await pg.waitForTimeout(150);
   const pills=await pg.evaluate(()=>[...document.querySelectorAll('#stage .pill')].map(p=>({t:p.innerText.trim(),bg:getComputedStyle(p).backgroundColor,cur:getComputedStyle(p).cursor})));
   const mar=await rgb(pg,'var(--marigold)');
-  ok('wide: the answers beside the statements read "Accepted"',pills.length===4&&pills.every(p=>p.t==='Accepted'),pills);
+  ok('wide: the answers beside the statements read "✓ Accepted"',pills.length===4&&pills.every(p=>p.t==='✓ Accepted'),pills);
   ok('wide: they are quiet tags: no marigold fill, no pointer cursor',pills.every(p=>p.bg!==mar&&p.cur!=='pointer'),pills);
   ok('wide: no page errors',noErr(errs).length===0,errs);
   await pg.screenshot({path:D+'s60-wide.png'});
