@@ -141,7 +141,7 @@ export function renderDebate(s,c){
   }
 
   if(stage==="rel"||stage==="done"){
-    if(w) s.append(relStrip(chooseD,stage==="done"),stage==="rel"?timerSlot("rel",relTimedD()):null,relCap("Pick the relation your answers give (keys 1–5). Picking it checks your answers."));
+    if(w) s.append(...[relStrip(chooseD,stage==="done"),stage==="rel"?timerSlot("rel",relTimedD()):null,relCap("Pick the relation your answers give (keys 1–5). Picking it checks your answers.")].filter(Boolean));
     else if(stage==="rel"&&u.open) s.append(relList(chooseD,null));
   }
   if(stage==="done"){
