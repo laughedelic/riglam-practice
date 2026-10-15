@@ -33,7 +33,7 @@ Without `data-private/`: `npm run build:pwa`, the unit tests that do not need it
 
 - With the key (from the link, or kept from an earlier visit): the definitions are in the Terms panels. The first unlock needs the network; the definitions are then kept on the device, and each later visit asks the server in the background whether they changed.
 - Without it: the terms, translations and relations work and nothing greets the reader with a prompt. A locked term in the Terms panel says in which booklet chapter to look it up, with one note and a button that opens the prompt. Explain shows grayed when the server has a tutor, and a tap opens the prompt too, as does the Magic Key row in Options. The prompt (`src/pwa/unlock.ts`) takes the words or the whole link and opens by itself only when a link carries a key that does not fit. A key that does not fit is refused and not kept.
-- A key the server stops accepting (after a change of the secret) is forgotten, together with the kept definitions, on the next visit with a connection.
+- A key the server stops accepting (after a change of the secret) is forgotten, together with the kept definitions, on the next visit with a connection; the visit after that opens the prompt once, with a message that the key was changed.
 - An app added to the iPhone home screen has storage of its own, separate from Safari, and a link cannot be opened inside it. Its dialog is the way in: type or paste the key there once.
 - If the browser's storage is cleared, the app asks again.
 
