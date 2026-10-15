@@ -3,7 +3,7 @@
 // Also the switch that keeps voice off until it is turned on for a device (src/ui/features.ts).
 import { expect, test } from "vitest";
 import { makeIndex, nearestItem, similarity } from "../../src/ai-shared";
-import { lettersDirection, spokenConfirm, spokenDirection, spokenExample, spokenRelation, spokenReply } from "../../src/domain";
+import { lettersDirection, spokenConfirm, spokenDontKnow, spokenDirection, spokenExample, spokenRelation, spokenReply } from "../../src/domain";
 import type { DrillData, RelKey } from "../../src/ai-shared";
 import openData from "../../src/data/drill-data.json";
 import { applyParam } from "../../src/ui/features";
@@ -145,4 +145,14 @@ test("features on trial: the address turns one on or off, or all off, and unknow
   expect(applyParam(["voice"], "none")).toEqual([]);
   expect(applyParam(["voice", "gone"], "")).toEqual(["voice"]);
   expect(applyParam([], " Voice , other")).toEqual(["voice"]);
+});
+
+test("\"I don't know\" in its usual wordings, and not inside an answer", () => {
+  for (const t of ["I don't know", "I don't know.", "I do not know", "I dunno", "don't know", "Hmm, I don't know", "I really don't know", "no idea", "I have no idea", "I'm not sure", "not sure", "I don't know, sorry", "no clue", "I give up"]) {
+    expect(spokenDontKnow([t]), t).toBe(true);
+  }
+  expect(spokenDontKnow(["I'm not sure", "I am sure"])).toBe(true);   // any of the guesses
+  for (const t of ["Why? A wooden table", "no", "I accept", "nothing", "a gold ring", "I know", "I don't know why a wooden table", "four possibilities", "yes"]) {
+    expect(spokenDontKnow([t]), t).toBe(false);
+  }
 });

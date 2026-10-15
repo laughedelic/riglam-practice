@@ -281,6 +281,12 @@ export interface VoiceState {
   pend: PendingAnswer | null;
   /** "three possibilities" was heard and the page asked which of the two is inside the other */
   ask3: boolean;
+  /** the person has tapped or pressed a key since the page opened */
+  began: boolean;
+  /** a question was already shown (the first one is held, not read) */
+  seen: boolean;
+  /** the question on the screen is the first one: nothing is read or listened to until the person taps the speaker or the microphone */
+  held: boolean;
   /** how often this screen was listened to without an answer coming of it */
   tries: number;
   /** speaking failed for want of a tap on the page: the Read again button says so */

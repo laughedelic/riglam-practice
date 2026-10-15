@@ -250,6 +250,15 @@ export function spokenConfirm(alts: readonly string[]): "yes" | "no" | null {
   return null;
 }
 
+// ---- "I don't know" ----
+
+// The whole utterance says the person has no answer ("I don't know", "no idea", "not sure"), not an answer that contains those words.
+const DONT_KNOW = /^(?:(?:well|hmm|um|uh|er|erm|so|honestly|sorry)\s+)*(?:i\s+)?(?:(?:really|honestly|just|still|simply)\s+)?(?:(?:do\s?not|dont|don\s?t)\s+know|dunno|(?:have\s+)?no\s+(?:idea|clue)|(?:am|im|m)\s+not\s+(?:sure|certain)|not\s+(?:sure|certain)|cannot\s+(?:say|tell)|cant\s+(?:say|tell)|give\s+up)(?:\s+(?:sorry|really|at\s+all|what\s+to\s+say|the\s+answer|that|this|about\s+that|about\s+this|yet|right\s+now|anymore))*$/;
+/** True when the person says they do not know the answer; it is checked before the words are read as an answer ("no idea" starts with "no"). */
+export function spokenDontKnow(alts: readonly string[]): boolean {
+  return alts.some((heard) => DONT_KNOW.test(plainWords(heard)));
+}
+
 // ---- an example ----
 
 export interface SpokenExample {

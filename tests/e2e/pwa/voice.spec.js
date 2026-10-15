@@ -238,6 +238,11 @@ test("Relations, hands-free: the relation and each example are heard in turn, ea
   await voice(page, { settings: { answer: "auto" }, heard: ["mutually exclusive", "yes", "a gold ring", "yes", "nothing", "yes", "the horn of a rabbit", "yes"] });
   await page.goto("/");
   await expect(page.locator("#stage .head .pair")).toBeVisible();   // not ready(): the relation may be heard before the list is looked at
+  // the question the app opens on waits for the person: nothing listens until the microphone is tapped
+  await expect(page.locator("#vbar .vst")).toHaveText("Tap the microphone to start answering.");
+  await page.waitForTimeout(400);
+  expect(await page.evaluate(() => window.__listens)).toBe(0);
+  await mic(page).click();
   await expect.poll(() => docs(page, "answers").then((a) => a.length), { timeout: 10_000 }).toBe(1);
   const [a] = await docs(page, "answers");
   expect(a.chosen).toBe("con");
@@ -360,4 +365,40 @@ test("a recognizer that never ends does not leave the mic stuck: the next tap en
   await page.evaluate(() => { window.__dead = false; });
   await hear(page, "four possibilities");
   await expect(page.locator("#vbar .vwhat b")).toHaveText("Four possibilities");
+});
+
+test("the question the app opens on is not read until the speaker is tapped; later ones are read by themselves", async ({ page }) => {
+  await voice(page, { settings: { read: "1", answer: "tap" } });
+  await page.goto("/");
+  await ready(page);
+  await expect(page.locator("#vbar .vst")).toHaveText("Tap the speaker to hear the question, or the microphone to answer.");
+  await page.waitForTimeout(500);
+  expect(await said(page)).toEqual([]);   // nothing was said, and nothing is waiting to be said
+  await page.getByRole("button", { name: "Read the question again" }).click();
+  await expect.poll(async () => (await said(page)).at(-1) || "").toMatch(/What is the relation\?$/);
+  await expect(page.locator("#vbar .vst")).not.toContainText("Tap the speaker");
+  const before = (await said(page)).length;
+  await tab(page, "Pervasions");   // moving on by hand: this screen is read by itself
+  await expect.poll(async () => (await said(page)).length).toBeGreaterThan(before);
+  await expect.poll(async () => (await said(page)).at(-1) || "").toMatch(/Do you accept that/);
+});
+
+test("\"I don't know\" gets a friendly nudge, said too with Read aloud, and nothing is taken as an answer", async ({ page }) => {
+  await voice(page, { settings: { read: "1", answer: "tap" } });
+  await page.goto("/");
+  await ready(page);
+  await tab(page, "Pervasions");
+  await expect.poll(async () => (await said(page)).at(-1) || "").toMatch(/Do you accept that/);
+  const nudge = "It's okay not to know. Make a guess, then learn from the review. Mistakes are how we learn.";
+  for (const phrase of ["I don't know", "no idea"]) {   // "no idea" starts with "no", which would otherwise be Why?
+    await hearNext(page, phrase);
+    await mic(page).click();
+    await expect.poll(async () => (await said(page)).at(-1)).toBe(nudge);
+    await expect(page.locator("#vbar .vst")).toHaveText(nudge);
+    await expect(waiting(page)).toHaveCount(0);
+    await expect(page.locator(".qcard .qn")).toContainText("Question 1");
+  }
+  await hear(page, "I accept");   // and the next try is taken as usual
+  await confirm(page);
+  await expect(page.locator(".qcard .qn")).toContainText("Question 2");
 });

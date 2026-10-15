@@ -68,7 +68,7 @@ export const state = {
   timeDraft: "",
   relMs: undefined,  // the relation has its own time; it starts from the one time of earlier versions
   // reading the questions aloud and answering by voice, with the browser's own speech (shell/voice.js); both off until turned on in Options
-  voice: {read:false, answer:"off", confirm:"tap", voiceId:"", rate:1, key:"", phase:"idle", live:"", note:"", bad:false, pend:null, ask3:false, tries:0, blocked:false, stop:null, tok:null, hooked:false},
+  voice: {read:false, answer:"off", confirm:"tap", voiceId:"", rate:1, key:"", phase:"idle", live:"", note:"", bad:false, pend:null,began:false,seen:false,held:false, ask3:false, tries:0, blocked:false, stop:null, tok:null, hooked:false},
   features: [],   // features on trial that are on for this device (src/ui/features.ts); app.js fills it in at the start
 };
 

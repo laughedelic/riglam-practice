@@ -7,7 +7,7 @@ import { Wd, termSing } from "../debate/text.js";
 import { check } from "../practice/grading.js";
 import { choose, fillable } from "../practice/screen.js";
 import { NOT } from "../../ai-shared/debate.ts";
-import { plainWords, spokenConfirm, spokenDirection, spokenExample, spokenRelation, spokenReply } from "../../domain/spoken.ts";
+import { plainWords, spokenConfirm, spokenDirection, spokenDontKnow, spokenExample, spokenRelation, spokenReply } from "../../domain/spoken.ts";
 import { saveFeatures, withFeature } from "../../ui/features";
 import { canHear, canSpeak, listen, onVoices, speak, stopSpeaking, voiceList } from "../../ui/speech";
 import { CELL_FULL, render } from "./render.js";
@@ -59,9 +59,15 @@ export function voiceAfterRender(){
   const v=state.voice, a=asked(), key=a?a.key:"";
   if(key===v.key) return;
   v.key=key; quiet();
+  // The first question the app shows is neither read nor listened to: people look around first, and start by tapping the
+  // speaker or the microphone, or by answering or moving on by hand (any tap or key before this question counts).
+  const opening=!!a&&!v.began&&!v.seen;
+  if(a) v.seen=true;
+  v.held=opening;
   if(v.pend){ dropPend(); releaseClock(false); }    // the screen moved on some other way: a tap, the time running out
   v.note=""; v.bad=false; v.tries=0; v.blocked=false; v.ask3=false;
-  if(a&&reading()) say(a,a.say,true);
+  if(opening) paint();
+  else if(a&&reading()) say(a,a.say,true);
   else if(a&&handsFree()) hear(a);
   else paint();
 }
@@ -76,7 +82,7 @@ function quiet(){
 // `first`: the reading that comes with a new screen; when it ends, the clock of the question starts again
 function say(a,text,first){
   const v=state.voice, tok={};
-  quiet(); v.tok=tok; v.phase="speaking"; v.blocked=false; paint();
+  quiet(); v.tok=tok; v.phase="speaking"; v.blocked=false; v.held=false; paint();
   speak(text,{voice:v.voiceId,rate:v.rate,done:(ok,err)=>{
     if(v.tok!==tok) return;
     v.tok=null; v.phase="idle";
@@ -98,7 +104,7 @@ function clockFrom(a){
 }
 function hear(a){
   const v=state.voice, tok={};
-  quiet(); v.tok=tok; v.phase="listening"; v.note=""; v.bad=false; paint();
+  quiet(); v.tok=tok; v.phase="listening"; v.note=""; v.bad=false; v.held=false; paint();
   const h=listen({
     interim:t=>{ if(v.tok!==tok) return; v.live=t; paintLive(); },
     done:res=>{
@@ -133,6 +139,7 @@ const terms=()=>({a:state.cur.p.a,b:state.cur.p.b});
 // what was heard, as the tap or the typed answer it stands for, once it is confirmed
 function take(a,alts){
   const v=state.voice, w=Wd();
+  if(spokenDontKnow(alts)) return nudge(a);
   if(v.pend){
     const yn=spokenConfirm(alts);
     if(yn==="yes") return confirm();
@@ -168,6 +175,14 @@ function take(a,alts){
     if(i>=order.length-1){ if(document.activeElement instanceof HTMLElement) document.activeElement.blur(); check(); }
     else { u.ci=i+1; render(); }
   });
+}
+
+// "I don't know": no answer is taken; a friendly word instead (said too, with Read aloud), and the person tries again
+const NUDGE="It's okay not to know. Make a guess, then learn from the review. Mistakes are how we learn.";
+function nudge(a){
+  const v=state.voice;
+  v.note=NUDGE; v.bad=false; v.tries=0;
+  if(reading()) say(a,NUDGE); else paint();
 }
 
 /* ---------- an answer that waits for its confirmation ---------- */
@@ -215,6 +230,10 @@ function statusText(a){
   const v=state.voice;
   if(v.phase==="listening") return v.live?"“"+v.live+"”":"Listening…";
   if(v.blocked) return "The browser lets the page speak after a tap: tap the speaker.";
+  if(v.held&&!v.pend){
+    if(reading()) return "Tap the speaker to hear the question"+(handsFree()?", then answer when it stops.":hearing()?", or the microphone to answer.":".");
+    if(handsFree()) return "Tap the microphone to start answering.";
+  }
   if(v.pend) return v.note||(hearing()&&!v.pend.auto?"Say “yes” to go on, “no” to change it, or say another answer.":"");
   return v.note||(hearing()?HINT[a.kind](a):"");
 }
@@ -232,7 +251,7 @@ export function voiceBar(){
   const v=state.voice, a=asked();
   if(!a||(!reading()&&!hearing())) return null;
   const on=v.phase==="listening", kids=[];
-  if(reading()) kids.push(el("button",{type:"button",class:"ib vrd"+(v.blocked?" hot":""),title:"Read the question again (R)","aria-label":"Read the question again",onclick:()=>say(a,a.say)},tbIcon("speak")));
+  if(reading()) kids.push(el("button",{type:"button",class:"ib vrd"+(v.blocked?" hot":""),title:"Read the question again (R)","aria-label":"Read the question again",onclick:()=>say(a,a.say,v.held)},tbIcon("speak")));
   if(hearing()) kids.push(el("button",{type:"button",class:"btn ghost vmic"+(on?" on":""),"aria-pressed":on?"true":"false",title:on?"Stop listening (V)":"Answer by voice (V)",onclick:toggleListen},
     tbIcon("mic"),el("span",{text:on?"Listening":"Speak"})));
   kids.push(el("span",{class:"vst"+(v.bad?" bad":""),id:"vlive",role:"status","aria-live":"polite",text:statusText(a)}));
@@ -263,9 +282,10 @@ export function voiceKey(k){
     if(k==="Escape"){ change(); return true; }
   }
   if(k==="v") return toggleListen();
-  if(k==="r"&&reading()){ say(a,a.say); return true; }
+  if(k==="r"&&reading()){ say(a,a.say,state.voice.held); return true; }
   return false;
 }
+for(const t of ["pointerdown","keydown"]) document.addEventListener(t,()=>{ state.voice.began=true; },{capture:true,once:true});
 document.addEventListener("visibilitychange",()=>{ if(document.hidden&&enabled()){ quiet(); paint(); } });
 
 /* ---------- the Options row ---------- */
