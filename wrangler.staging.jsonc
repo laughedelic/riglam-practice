@@ -17,7 +17,7 @@
   "observability": { "enabled": true, "logs": { "invocation_logs": false } },
   "previews": {
     // Same tutor settings as wrangler.jsonc, except the budgets. Dollars are US dollars per UTC day.
-    // The secrets ANTHROPIC_API_KEY and RIGLAM_DATA_KEY are set on this Preview with `wrangler preview secret put --name staging`.
+    // The secrets ANTHROPIC_API_KEY and RIGLAM_DATA_KEY come from the Preview base configuration, or `wrangler preview secret put --name staging`.
     "vars": {
       "TUTOR_MODEL": "claude-sonnet-5-5",
       "TUTOR_EFFORT": "medium",

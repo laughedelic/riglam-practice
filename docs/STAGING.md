@@ -28,7 +28,7 @@ The local `staging` branch is moved to the result, with the working tree if it i
 
 The branch is deployed as the Cloudflare [Worker Preview](https://developers.cloudflare.com/workers/previews/) named `staging` (`wrangler preview`, open beta, Wrangler 4.135 or later; the pipeline pins a newer one). A Preview is not the production Worker and not a version of it, and it does not inherit the production Worker's settings:
 
-- Its variables and bindings are the `previews` block of `wrangler.staging.jsonc`: its own D1 database (`riglam-practice-staging`), lower budgets (`DEVICE_DAILY_BUDGET_USD` and `GLOBAL_DAILY_BUDGET_USD`) and, once they are set on it, its own secrets. A pull request that adds a table or changes the server runs against that database and never touches production data.
+- Its variables and bindings are the `previews` block of `wrangler.staging.jsonc`: its own D1 database (`riglam-practice-staging`), lower budgets (`DEVICE_DAILY_BUDGET_USD` and `GLOBAL_DAILY_BUDGET_USD`) and, once they are set, its own secrets. A pull request that adds a table or changes the server runs against that database and never touches production data.
 - Its address is `staging-riglam-practice.<account>.workers.dev`, different from production, so the app installed from it is a separate app with its own stored data, named "Riglam practice (staging)". Passkeys belong to the host name, so accounts made there stay there.
 - The file names the production Worker only because a Preview belongs to a Worker. It is for `wrangler preview`; `wrangler deploy` with it would put a build without a database on production, so the script never runs it.
 
@@ -44,7 +44,7 @@ npm run staging -- deploy     # npm ci, the PWA build, the D1 migrations of the 
 1. `npx wrangler login`.
 2. The database: `npx wrangler d1 create riglam-practice-staging`, and put its id into `wrangler.staging.jsonc` (`previews.d1_databases`) and `wrangler.staging-migrations.jsonc`. Wrangler's migration command does not read the `previews` block, which is why the second file declares the same database at the top level.
 3. `npm run staging -- deploy` once, which creates the Preview.
-4. The two secrets, on this Preview only, each at a prompt: `npx wrangler preview secret put ANTHROPIC_API_KEY --name staging -c wrangler.staging.jsonc`, and the same for `RIGLAM_DATA_KEY`.
+4. The two secrets, `ANTHROPIC_API_KEY` and `RIGLAM_DATA_KEY`: a new Preview is given the secrets of the Preview base configuration (set in the dashboard under the Worker's settings, or with `npx wrangler preview base-config secret put <NAME>`), so with those set there is nothing to do. Without them, or to give this Preview a different value, use `npx wrangler preview secret put <NAME> --name staging -c wrangler.staging.jsonc` after the first deploy. Every Preview made later gets the base secrets too.
 
 A database keeps the tables of a migration even after the pull request that added it is taken off the list. To start it again, delete the database, create it again, put the new id into both files and deploy.
 
