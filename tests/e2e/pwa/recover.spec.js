@@ -45,3 +45,13 @@ test("a storage that never answers is named in the panel", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator("#recover")).toContainText("Waiting for the saved batches, answers", { timeout: 10_000 });
 });
+
+test("a storage that never answers does not keep the page on Loading: it starts, and says nothing is saved", async ({ page }) => {
+  await page.addInitScript(() => {
+    const open = IDBFactory.prototype.open;
+    IDBFactory.prototype.open = function (name, ...rest) { return name === "riglam" ? ({}) : open.call(this, name, ...rest); };
+  });
+  await page.goto("/");
+  await expect(page.locator("#store")).toContainText("storage is not answering", { timeout: 20_000 });
+  await expect(page.locator("#stage .status")).toHaveCount(0);
+});
