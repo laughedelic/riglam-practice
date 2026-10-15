@@ -4,7 +4,7 @@
 //                 origin/staging and changed with --add <branch> and --remove <branch> (both can be repeated). Stops at a conflict.
 //   push          push staging to origin (force, but only over the state this clone last fetched)
 //   list          show what origin/staging was built from
-//   deploy        build the app from the checked-out staging branch and put it on the staging Worker (wrangler.staging.jsonc)
+//   deploy        build the app from the checked-out staging branch and put it on the Worker Preview named staging (wrangler.staging.jsonc)
 // Exit 0 on success, 1 when the work could not be done (a conflict, a missing branch), 2 on a usage problem.
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -14,7 +14,9 @@ import { ConflictError, StagingError, git, push, readManifest, rebuild } from ".
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const TARGET = "staging";
+const PREVIEW = "staging";
 const CONFIG = "wrangler.staging.jsonc";
+const MIGRATIONS_CONFIG = "wrangler.staging-migrations.jsonc";
 const D1_NAME = "riglam-practice-staging";
 
 const [first, ...rest] = process.argv.slice(2);
@@ -65,8 +67,14 @@ function deploy() {
   // What is deployed, readable at /staging-build.json (not precached: it is written after the build).
   writeFileSync(resolve(root, "dist/pwa/staging-build.json"), `${JSON.stringify({ commit: sha, base: manifest.base, branches: manifest.branches, builtAt: new Date().toISOString() }, null, 2)}\n`);
   const wrangler = ["--yes", `wrangler@${wranglerVersion()}`];
-  run("npx", [...wrangler, "d1", "migrations", "apply", D1_NAME, "--remote", "-c", CONFIG]);
-  run("npx", [...wrangler, "deploy", "-c", CONFIG, "--message", sha]);
+  run("npx", [...wrangler, "d1", "migrations", "apply", D1_NAME, "--remote", "-c", MIGRATIONS_CONFIG]);
+  // A Preview, not a deploy: it has the database and variables of the `previews` block and none of production's secrets or data.
+  const out = execFileSync("npx", [...wrangler, "preview", "--name", PREVIEW, "-c", CONFIG, "--message", sha, "--json"], { cwd: root, encoding: "utf8", stdio: ["inherit", "pipe", "inherit"] });
+  try {
+    console.log(`staging ${sha} is at ${JSON.parse(out.slice(out.indexOf("{"))).preview.urls[0]}`);
+  } catch {
+    console.log(out);
+  }
 }
 
 try {

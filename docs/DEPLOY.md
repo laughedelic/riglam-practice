@@ -38,7 +38,7 @@ Cloudflare's Workers authorization page lists "Editor on that Worker" as what `w
 
 ## Staging
 
-The open pull requests are merged into the `staging` branch and deployed to a second Worker, `riglam-practice-staging`, with its own database, secrets and budgets: [STAGING.md](STAGING.md).
+The open pull requests are merged into the `staging` branch and deployed as the Worker Preview `staging`, with its own database, secrets and budgets: [STAGING.md](STAGING.md).
 
 ## The server's setup
 
