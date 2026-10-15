@@ -1,12 +1,9 @@
 import { state } from "../state.js";
-import { removeFlag, setFlagState } from "../ai/flags.js";
-import { mname } from "../ai/lab-panel.js";
 import { LAB_MODELS, labRuns } from "../ai/lab.js";
 import { CELL_NAME } from "../../ai-shared/prompts.ts";
 import { el } from "../core/dom.js";
-import { dayOf } from "../core/util.js";
 
-/* ---------- Review: flags, disagreements, model summary ---------- */
+/* ---------- Review: the check lab: model summary and disagreements (the flags are listed in their own section, review/flag-list.js) ---------- */
 function labStats(){
   const by={}, cases={};
   for(const r of Object.values(labRuns())){
@@ -23,7 +20,7 @@ function labStats(){
   return {by,cases};
 }
 export function labReview(box){
-  const fl=Object.values(state.flags).sort((x,y)=>(y.updatedAt||y.at||"").localeCompare(x.updatedAt||x.at||"")), nNew=fl.filter(f=>f.state==="new").length;
+  const fl=Object.values(state.flags), nNew=fl.filter(f=>f.state==="new").length;
   const sec=el("div",{class:"section"},el("p",{class:"label"},"Lab",el("span",{class:"hint",text:fl.length?fl.length+" flagged"+(nNew?", "+nNew+" new":""):"no flags yet"})));
   const {by,cases}=labStats(), models=LAB_MODELS.filter(m=>by[m.id]);
   if(models.length) sec.append(el("table",{class:"tbl labt"},el("thead",null,el("tr",null,["Model","Runs","Time","Judge agrees"].map(h=>el("th",{text:h})))),
@@ -40,18 +37,5 @@ export function labReview(box){
     sec.append(el("p",{class:"sublabel",text:"Models disagree ("+dis.length+")"}));
     sec.append(el("ul",{class:"sum"},dis.slice(0,12).map(d=>el("li",null,el("span",{class:"m part","aria-hidden":"true",text:"?"}),el("span",null,"“"+d.t.text+"”",el("span",{class:"sub",text:d.pair+" · "+d.set.map(c=>CELL_NAME[c]).join(" / ")+" · you: "+d.t.cells.map(c=>CELL_NAME[c]).join(", ")}))))));
   }
-  if(fl.length){
-    sec.append(el("p",{class:"sublabel",text:"Flags"}));
-    sec.append(el("ul",{class:"sum flagl"},fl.slice(0,40).map(f=>el("li",{class:f.state},el("span",{class:"m","aria-hidden":"true"},el("span",{class:"flg"})),
-      el("span",null,(f.thing?"“"+f.thing+"” · ":"")+(f.model?mname(f.model)+" · ":"")+f.part,
-        el("span",{class:"sub",text:(f.shown?"shown: "+f.shown:"")+(f.suggest?" · should be: "+f.suggest:"")}),
-        f.note?el("span",{class:"sub",text:f.note}):null,
-        el("span",{class:"skact"},
-          el("span",{class:"fstate",text:f.state+" · "+dayOf(f.at)}),
-          f.state==="new"?el("button",{type:"button",class:"btn",onclick:()=>setFlagState(f.id,"reviewed"),text:"Reviewed"}):null,
-          f.state!=="resolved"?el("button",{type:"button",class:"btn ghost",onclick:()=>setFlagState(f.id,"resolved"),text:"Resolved"}):null,
-          el("button",{type:"button",class:"btn ghost",onclick:()=>removeFlag(f.id),text:"Delete"})))))));
-  }
-  if(state.flagErr) sec.append(el("p",{class:"status",text:state.flagErr}));
   box.append(sec);
 }
