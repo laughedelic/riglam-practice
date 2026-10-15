@@ -1,3 +1,5 @@
+import { startNewStore } from "./store-slot";
+
 // Shown when the browser's storage for this app did not answer in time (src/pwa/local-db.ts): the app has started without the saved answers,
 // and what is done now is not kept on this device. A reload often brings the storage back. The bar also says whether a new, empty database
 // opens, which tells a stuck store of this app from a browser whose storage as a whole does not answer.
@@ -40,7 +42,15 @@ export function showStorageNotice(): void {
   reload.className = "btn";
   reload.textContent = "Reload";
   reload.addEventListener("click", () => location.reload());
-  bar.append(text, detail, reload);
+  const fresh = document.createElement("button");
+  fresh.type = "button";
+  fresh.className = "btn ghost";
+  fresh.textContent = "Use a new store";
+  fresh.addEventListener("click", () => { startNewStore(); location.reload(); });
+  const hint = document.createElement("span");
+  hint.className = "detail hint";
+  hint.textContent = "A new store starts empty on this device. If you are signed in, your account's documents come back; the old store is left as it is.";
+  bar.append(text, detail, reload, fresh, hint);
   document.body.append(bar);
   void probe().then((t) => { detail.textContent = t; });
 }

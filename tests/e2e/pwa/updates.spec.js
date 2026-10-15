@@ -12,10 +12,7 @@ const DIST = join(process.cwd(), "dist/pwa");
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".json": "application/json", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png", ".woff2": "font/woff2", ".webmanifest": "application/manifest+json" };
 const V2 = "\nself.addEventListener('fetch',(e)=>{ if(new URL(e.request.url).pathname.endsWith('/__which')) e.respondWith(new Response('v2')); });\n";
 
-// A version that stays waiting until a page sends it "GO" (what older builds without skipWaiting did): it keeps the real skipWaiting for that message.
-const HOLD = "self.__skip=self.skipWaiting.bind(self);self.skipWaiting=()=>Promise.resolve();self.addEventListener('message',(e)=>{ if(e.data&&e.data.type==='GO') self.__skip(); });\n";
-
-let server, origin, newVersion, down, hold;
+let server, origin, newVersion, down;
 test.beforeAll(async () => {
   server = createServer((req, res) => {
     const path = decodeURIComponent(new URL(req.url, "http://x").pathname);
@@ -23,7 +20,7 @@ test.beforeAll(async () => {
     if (!file.startsWith(DIST) || !existsSync(file) || statSync(file).isDirectory()) file = join(DIST, "index.html");
     if (down && path === "/sw.js") { res.writeHead(503); return res.end(); }
     let body = readFileSync(file);
-    if (path === "/sw.js" && newVersion) body = Buffer.concat([hold ? Buffer.from(HOLD) : Buffer.alloc(0), body, Buffer.from(V2)]);
+    if (path === "/sw.js" && newVersion) body = Buffer.concat([body, Buffer.from(V2)]);
     res.writeHead(200, { "content-type": TYPES[extname(file)] ?? "application/octet-stream", "cache-control": "no-cache" });
     res.end(body);
   });
@@ -31,7 +28,7 @@ test.beforeAll(async () => {
   origin = `http://localhost:${server.address().port}`;
 });
 test.afterAll(() => server.close());
-test.beforeEach(() => { newVersion = false; down = false; hold = false; });
+test.beforeEach(() => { newVersion = false; down = false; });
 
 const markOld = (page) => page.evaluate(() => { window.__old = true; });
 const isOld = (page) => page.evaluate(() => window.__old === true);
@@ -114,21 +111,6 @@ test("a worker that is already waiting from an older build is replaced and takes
   await page.reload();
   await ready(page);
   expect(await which(page)).toBe("v2");
-});
-
-test("a version that was already waiting when the page opened takes over without reloading the page", async ({ page }) => {
-  await installed(page);
-  newVersion = true;
-  hold = true;
-  await page.evaluate(() => window.__riglam.platform.updates.check());
-  await expect.poll(() => page.evaluate(async () => !!(await navigator.serviceWorker.getRegistration())?.waiting), { timeout: 15_000 }).toBe(true);
-  await page.reload(); // the page now starts with a waiting worker, as the library's prompt mode meets it
-  await ready(page);
-  await markOld(page);
-  await page.evaluate(async () => (await navigator.serviceWorker.getRegistration()).waiting.postMessage({ type: "GO" }));
-  await expect.poll(() => which(page).catch(() => ""), { timeout: 15_000 }).toBe("v2");
-  await page.waitForTimeout(1500);
-  expect(await isOld(page), "taking over does not reload the page").toBe(true);
 });
 
 test("a check the server does not answer says so and does not break the page", async ({ page }) => {

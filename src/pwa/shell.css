@@ -27,4 +27,5 @@ img{max-width:100%}
 #store span{flex:1 1 auto}
 #store .detail{flex-basis:100%;order:1;font-size:12px;color:var(--ink-muted,#4d5260)}
 #store .btn{order:2}
+#store .hint{order:3}
 #store .btn{height:36px;padding:0 12px}

@@ -15,11 +15,12 @@ import { createAccountClient } from "../account/client";
 import { aboutThisBuild } from "./about";
 import { updates } from "./updates";
 import { showStorageNotice } from "./storage-notice";
+import { storeName } from "./store-slot";
 import { createLocalDb } from "./local-db";
 import { createTutor, tutorIsOn as serverSaysOn } from "./tutor";
 import { takeLinkKey, storedKey, storeKey, forgetKey, showUnlock, markKeyChanged, takeKeyChanged, KEY_CHANGED_TEXT } from "./unlock";
 
-const db = createLocalDb({ onUnavailable: showStorageNotice });
+const db = createLocalDb({ name: storeName(), onUnavailable: showStorageNotice });
 const link = takeLinkKey(); // first of all: a key in the address leaves the address bar at once
 let openUnlock: (() => void) | null = null; // asks for the key again; set while this device has none
 let groupKey: string | null = null; // the Magic Key, once it is known to fit (or kept with the definitions): the proof for the tutor is made with it
