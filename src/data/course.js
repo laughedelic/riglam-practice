@@ -12,7 +12,7 @@ const IV_BYTES = 12;
 const AAD = { definitions: "riglam/definitions/1", notes: "riglam/notes/1" };
 
 export const KEY_BYTES = 32;
-export const LOCKED_TEXT = "Locked: open your study group's link to read the definitions.";
+export const LOCKED_TEXT = "Locked: enter the Magic Key to read the definitions.";
 
 const toBase64Url = (bytes) => btoa(String.fromCharCode(...bytes)).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
 function fromBase64Url(s) {

@@ -29,7 +29,7 @@ Without the key: `npm run build:pwa`, the unit tests that do not need it, and th
 ## What a reader sees
 
 - With the key (from the link, or kept from an earlier visit): the definitions are in the Terms panels as before.
-- Without it: the terms, translations and relations work, every definition reads "Locked: open your study group's link to read the definitions.", and a dialog (`src/pwa/unlock.ts`) explains how to open them. The dialog takes the whole link or just the key, and "Not now" hides it until the tab is closed. A key that does not fit is refused and not kept.
+- Without it: the terms, translations and relations work and nothing greets the reader with a prompt. A locked term in the Terms panel says in which booklet chapter to look it up, with one note and a button that opens the prompt. Explain shows grayed when the server has a tutor, and a tap opens the prompt too, as does the Magic Key row in Options. The key is called the Magic Key in the app. The prompt (`src/pwa/unlock.ts`) takes the whole link or just the key and opens by itself only when a link carries a key that does not fit. A key that does not fit is refused and not kept.
 - An app added to the iPhone home screen has storage of its own, separate from Safari, and a link cannot be opened inside it. Its dialog is the way in: paste the link or the key there once.
 - If the browser's storage is cleared, the app asks again.
 

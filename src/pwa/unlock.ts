@@ -4,7 +4,6 @@
 import { parseKey } from "../data/course.js";
 
 const KEY = "riglam.dataKey";
-const DISMISSED = "riglam.unlockDismissed";
 
 type StoreName = "localStorage" | "sessionStorage";
 
@@ -28,8 +27,9 @@ export function forgetKey() {
 /**
  * Tells a reader without a key how to get one, and takes the key if it is pasted. `verify(key)` resolves when the
  * key opens the definitions and rejects when it does not; the page is then reloaded so it starts unlocked.
- * Shown on its own once per visit: "Not now" is remembered until the tab is closed, unless there is a problem to report.
- * Returns a function that opens the dialog again whenever the reader asks for it (the Options row), "Not now" or not.
+ * Never shown to a reader who has simply not got a key: the page opens it when the reader reaches something that needs the
+ * key (Explain, the definitions, Options). Only a problem to report (a link whose key does not fit) opens it by itself.
+ * Returns the function that opens it.
  */
 export function showUnlock({ problem = null, verify }: { problem?: string | null; verify: (key: string) => Promise<unknown> }): () => void {
   const build = () => {
@@ -39,23 +39,23 @@ export function showUnlock({ problem = null, verify }: { problem?: string | null
     dlg.id = "unlock";
     dlg.setAttribute("aria-labelledby", "unlock-h");
     dlg.innerHTML = `<form method="dialog">
-      <h2 id="unlock-h">The definitions are locked</h2>
-      <p>The terms, translations and relations work without a key. The definitions follow the course booklet, and the tutor (Explain) answers from it, so both open only with the link your study group shared. Open that link once on this device, or paste the link (or just its key) here.</p>
+      <h2 id="unlock-h">Enter the Magic Key</h2>
+      <p>The terms, translations and relations work without it. The definitions follow the course booklet, and the tutor (Explain) answers from it, so both open only with the Magic Key, which comes in the link your study group shared. Open that link once on this device, or paste the link (or just the key from it) here.</p>
       <p id="unlock-err" class="err" role="alert" hidden></p>
-      <label for="unlock-key">Link or key</label>
+      <label for="unlock-key">Link or Magic Key</label>
       <input id="unlock-key" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="url">
-      <div class="row"><button type="submit" class="btn">Unlock</button><button type="button" class="btn ghost" id="unlock-skip">Not now</button></div>
+      <div class="row"><button type="submit" class="btn">Unlock</button><button type="button" class="btn ghost" id="unlock-skip">Close</button></div>
     </form>`;
     document.body.append(dlg);
     const input = dlg.querySelector<HTMLInputElement>("#unlock-key")!;
     const err = dlg.querySelector<HTMLElement>("#unlock-err")!;
     const say = (msg: string) => { err.textContent = msg; err.hidden = !msg; };
     if (problem) say(problem);
-    dlg.querySelector("#unlock-skip")!.addEventListener("click", () => { set("sessionStorage", DISMISSED, "1"); dlg.close(); });
+    dlg.querySelector("#unlock-skip")!.addEventListener("click", () => dlg.close());
     dlg.querySelector("form")!.addEventListener("submit", async (e) => {
       e.preventDefault();
       const key = parseKey(input.value);
-      if (!key) return say("That is not a key. Paste the whole link or the key from it.");
+      if (!key) return say("That is not a Magic Key. Paste the whole link or the key from it.");
       try {
         await verify(key);
       } catch {
@@ -67,7 +67,7 @@ export function showUnlock({ problem = null, verify }: { problem?: string | null
     dlg.showModal();
   };
   const when = (go: () => void) => (document.body ? go() : addEventListener("DOMContentLoaded", go, { once: true }));
-  if (problem || !get("sessionStorage", DISMISSED)) when(build);
+  if (problem) when(build);
   return () => when(build);
 }
 

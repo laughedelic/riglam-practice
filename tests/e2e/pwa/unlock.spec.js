@@ -1,9 +1,9 @@
 // The course part of the term data in the installed app: locked without a key, opened by the key in the study group's link
-// (kept on the device, also offline), and the dialog for a reader who has no link. Uses the plain Playwright test, so
+// (kept on the device, also offline), and the prompt for a reader who has no link. Uses the plain Playwright test, so
 // each page starts with nothing stored. The specs that need the real key skip when none is at hand (docs/DATA.md).
 import { test, expect } from "@playwright/test";
 import { dataKey } from "../../support/data-key.js";
-import { ready, overflow } from "../../support/page.js";
+import { ready, overflow, relOptions, isPhone } from "../../support/page.js";
 import { readFull } from "../../../scripts/lib/course-files.mjs";
 import { generateKey, LOCKED_TEXT } from "../../../src/data/course.js";
 
@@ -15,7 +15,14 @@ const firstTerm = (page) => page.evaluate(() => { const T = window.__t.DATA.term
 const hasNotes = (page) => page.evaluate(() => { const D = window.__t.DATA; return "notes" in D || Object.values(D.terms).some((t) => "note" in t); });
 const storedKey = (page) => page.evaluate(() => localStorage.getItem("riglam.dataKey"));
 
-test("without a key the terms work, the definitions are locked, and a dialog says how to open them", async ({ page }) => {
+// the prompt is never shown on its own for a reader who has no key; Options, the definitions note and Explain open it
+const openPrompt = async (page) => {
+  await page.getByRole("button", { name: /options/i }).filter({ visible: true }).first().click();
+  await page.getByRole("button", { name: "Enter the Magic Key" }).click();
+  await expect(page.locator("#unlock")).toBeVisible();
+};
+
+test("without a key the terms work, the definitions are locked, and nothing greets the reader with a prompt", async ({ page }) => {
   await page.addInitScript(hook);
   await page.goto("/");
   await ready(page);
@@ -23,15 +30,30 @@ test("without a key the terms work, the definitions are locked, and a dialog say
   expect(term.d).toBe(LOCKED_TEXT);
   expect(term.d_ru).toBeUndefined();
   expect(term.wylie).toBeTruthy();
-  const dlg = page.locator("#unlock");
-  await expect(dlg).toBeVisible();
-  await expect(dlg).toContainText("definitions are locked");
+  await expect(page.locator("#unlock")).toHaveCount(0);
   expect(await hasNotes(page)).toBe(false);
 });
 
-test("the dialog fits the screen and the page behind it does not scroll sideways", async ({ page }) => {
+test("Options has a Magic Key row that opens the prompt, and the prompt says what the key is for", async ({ page }) => {
   await page.goto("/");
   await ready(page);
+  await page.getByRole("button", { name: /options/i }).filter({ visible: true }).first().click();
+  await expect(page.getByText("so both need the Magic Key")).toBeVisible();
+  await page.getByRole("button", { name: "Enter the Magic Key" }).click();
+  const dlg = page.locator("#unlock");
+  await expect(dlg).toBeVisible();
+  await expect(dlg).toContainText("Magic Key");
+  await expect(dlg).toContainText("tutor");
+  await expect(dlg).toContainText("definitions");
+  await page.getByRole("button", { name: "Close" }).click();
+  await expect(dlg).toBeHidden();
+  await openPrompt(page); // and again
+});
+
+test("the prompt fits the screen and the page behind it does not scroll sideways", async ({ page }) => {
+  await page.goto("/");
+  await ready(page);
+  await openPrompt(page);
   const box = await page.locator("#unlock").boundingBox();
   const { w, h } = await page.evaluate(() => ({ w: innerWidth, h: innerHeight }));
   expect(box.x).toBeGreaterThanOrEqual(0);
@@ -40,47 +62,21 @@ test("the dialog fits the screen and the page behind it does not scroll sideways
   expect(await overflow(page)).toBeLessThanOrEqual(0);
 });
 
-test("Not now closes the dialog for this visit", async ({ page }) => {
+test("text that is not a key is refused in the prompt", async ({ page }) => {
   await page.goto("/");
   await ready(page);
-  await page.getByRole("button", { name: "Not now" }).click();
-  await expect(page.locator("#unlock")).toBeHidden();
-  await page.reload();
-  await ready(page);
-  await expect(page.locator("#unlock")).toHaveCount(0);
-});
-
-test("after Not now, Options has a row that asks for the key again, and it is gone once the key is there", async ({ page }) => {
-  await page.goto("/");
-  await ready(page);
-  await page.getByRole("button", { name: "Not now" }).click();
-  await page.getByRole("button", { name: /options/i }).filter({ visible: true }).first().click();
-  await expect(page.getByText("the tutor (Explain) is off")).toBeVisible();
-  await page.getByRole("button", { name: "Enter the key" }).click();
-  await expect(page.locator("#unlock")).toBeVisible();
-  await expect(page.locator("#unlock")).toContainText("tutor");
-});
-
-withKey("with the key there is no key row in Options", async ({ page }) => {
-  await page.goto(`/#k=${dataKey}`);
-  await ready(page);
-  await page.getByRole("button", { name: /options/i }).filter({ visible: true }).first().click();
-  await expect(page.getByRole("button", { name: "Enter the key" })).toHaveCount(0);
-});
-
-test("text that is not a key is refused in the dialog", async ({ page }) => {
-  await page.goto("/");
-  await ready(page);
+  await openPrompt(page);
   await page.fill("#unlock-key", "hello");
   await page.getByRole("button", { name: "Unlock" }).click();
-  await expect(page.locator("#unlock-err")).toContainText("not a key");
+  await expect(page.locator("#unlock-err")).toContainText("not a Magic Key");
   expect(await storedKey(page)).toBeNull();
 });
 
-test("a key that does not fit is refused, in the dialog and in a link", async ({ page }) => {
+test("a key that does not fit is refused, in the prompt and in a link (a link opens the prompt by itself)", async ({ page }) => {
   await page.addInitScript(hook);
   await page.goto("/");
   await ready(page);
+  await openPrompt(page);
   await page.fill("#unlock-key", `https://riglam.example/#k=${generateKey()}`);
   await page.getByRole("button", { name: "Unlock" }).click();
   await expect(page.locator("#unlock-err")).toContainText("does not open");
@@ -99,6 +95,27 @@ test("a link without a usable key says so and leaves the address clean", async (
   await ready(page);
   await expect(page.locator("#unlock-err")).toContainText("no valid key");
   expect(await page.evaluate(() => location.hash)).toBe("");
+});
+
+test("in the Terms panel a locked definition says where to look it up, and one note offers the Magic Key", async ({ page }, testInfo) => {
+  test.skip(!isPhone(testInfo), "the answer flow is exercised in the phone layout");
+  await page.goto("/");
+  await ready(page);
+  await relOptions(page).first().click(); // answer the pair: the result has the Terms panel
+  for (let i = 0; i < 4 && (await page.locator("#cin").isVisible()); i++) {
+    await page.fill("#cin", "thing " + (i + 1));
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(100);
+  }
+  await page.getByRole("tab", { name: "Terms" }).click();
+  const terms = page.locator(".tm-tog");
+  await expect(terms.first()).toBeVisible();
+  await terms.first().click();
+  await expect(page.getByText(/Look it up in the booklet, chapter [IVX]+: /).first()).toBeVisible();
+  await expect(page.getByText(/Locked: /)).toHaveCount(0); // no "locked" line under each term any more
+  await expect(page.getByText("To read the full definitions here, enter the Magic Key")).toHaveCount(1);
+  await page.locator(".tm-locked").getByRole("button", { name: "Enter the Magic Key" }).click();
+  await expect(page.locator("#unlock")).toBeVisible();
 });
 
 withKey("the key in a link opens the definitions, leaves the address bar, and stays on the device", async ({ page }) => {
@@ -121,10 +138,11 @@ withKey("the key in a link opens the definitions, leaves the address bar, and st
   expect((await firstTerm(page)).d).toBe(full.terms[name].d);
 });
 
-withKey("pasting the link into the dialog opens the definitions", async ({ page }) => {
+withKey("pasting the link into the prompt opens the definitions", async ({ page }) => {
   await page.addInitScript(hook);
   await page.goto("/");
   await ready(page);
+  await openPrompt(page);
   await page.fill("#unlock-key", `https://riglam.example/#k=${dataKey}`);
   await Promise.all([page.waitForEvent("load"), page.getByRole("button", { name: "Unlock" }).click()]);
   await ready(page);

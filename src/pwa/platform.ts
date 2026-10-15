@@ -16,6 +16,8 @@ const db = createLocalDb();
 const link = takeLinkKey(); // first of all: a key in the address leaves the address bar at once
 let openUnlock: (() => void) | null = null; // asks for the key again; set while this device has none
 let groupKey: string | null = null; // the key, once it has opened the definitions: the proof for the tutor is made with it
+let serverAnswer: Promise<boolean> | null = null; // whether the server says its tutor is on: asked once, for the tutor and for the grayed Explain button
+const serverTutor = () => (serverAnswer ??= tutorIsOn());
 
 async function readDefinitions(key: string) {
   const res = await fetch(definitionsUrl);
@@ -67,6 +69,6 @@ export const pwaPlatform: Platform = {
   sample,
   // Only with the key (the server would refuse the request anyway) and only when the server says its tutor is on: otherwise the page hides the tutor.
   // Offered while there is no key, so that the reader can enter it after the dialog was closed (the tutor needs it too).
-  unlock: () => (groupKey ? null : openUnlock),
-  tutor: async () => (groupKey && (await tutorIsOn()) ? createTutor(groupKey) : null),
+  unlock: async () => (groupKey || !openUnlock ? null : { open: openUnlock, tutor: await serverTutor() }),
+  tutor: async () => (groupKey && (await serverTutor()) ? createTutor(groupKey) : null),
 };
