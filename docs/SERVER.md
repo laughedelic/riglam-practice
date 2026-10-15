@@ -1,6 +1,6 @@
 # The server
 
-The app is static files plus one small Worker that answers `/api/*`. The Worker is what lets the installed app use the AI tutor without anyone's Claude account: it holds the model API key, checks who is asking, keeps each device and the whole app within a daily budget, and streams the answer back. Everything else the app does stays on the device.
+The app is static files plus one small Worker that answers `/api/*`. The Worker is what lets the installed app use the AI tutor without anyone's Claude account: it holds the model API key, checks who is asking, keeps each device and the whole app within a daily budget, and streams the answer back. Everything else the app does stays on the device, unless the person makes an optional account to keep their answers across devices (see "Accounts and sync" below).
 
 Hosting is the same Cloudflare Worker that serves the static files (`wrangler.jsonc`, [DEPLOY.md](DEPLOY.md)). With `assets.run_worker_first: ["/api/*"]` only requests under `/api/` run the Worker; every other request is answered from `dist/pwa` without it.
 
@@ -15,10 +15,14 @@ worker/prices.ts        price per million tokens for each model; unknown models 
 worker/config.ts        settings from variables, with defaults
 worker/kit.ts           what the tutor knows, made from the term data: standing instructions, lookup tools, the notes
 worker/bundled.ts       the three data files as the script carries them (only worker/index.ts imports it)
+worker/accounts.ts      optional accounts: the passkey ceremonies, sign-in state, deleting an account
+worker/session.ts       session tokens and the cookie
+worker/sync.ts          the server copy of a signed-in person's documents
 worker/migrations/      D1 schema (applied with wrangler, see below)
 src/ai/protocol.ts      the contract between page and server (shared by both): paths, headers, request, events, error codes
 src/ai/proof.ts         the access proof (shared by both)
 src/ai-shared/          the standing instructions, the lookup tools and the card, as pure functions of the term data (shared with the page)
+src/account/protocol.ts the contract for accounts and sync (shared by both): paths, shapes, limits
 tests/worker/           Vitest tests with stand-ins for D1 and the model API
 ```
 
@@ -26,8 +30,10 @@ tests/worker/           Vitest tests with stand-ins for D1 and the model API
 
 | Route | What it does |
 |---|---|
-| `GET /api/health` | `{"ok":true,"tutor":"on"\|"off"}`. `off` when the database, a secret or the kill switch says so. No sign-in. |
+| `GET /api/health` | `{"ok":true,"tutor":"on"\|"off","accounts":"on"\|"off"}`. `off` when the database, a secret or the kill switch says so. No sign-in. |
 | `POST /api/tutor` | One tutor question. Body `{kind: "chat" \| "explain", cats: [category ids], turns: [{role, content}]}` (`src/ai/protocol.ts`). The answer is `text/event-stream` of `delta` (a piece of text), `done` (`truncated` says the model ran out of room) and `error` (`code`, `message`). Requests that cannot be served are plain JSON errors with a status: 400, 401, 403 (another site's `Origin`), 413, 429, 503. |
+
+| `/api/account/...`, `POST /api/sync` | Optional accounts and the server copy of the documents; see "Accounts and sync". |
 
 The request carries only what the learner typed and the page's own state (the card of the pair and the conversation). The standing instructions, the lookup tools and the notes ("fine points") are on the server; the notes never reach a browser.
 
@@ -77,6 +83,33 @@ Prices are in `worker/prices.ts`, copied from Anthropic's pricing page; update t
 
 `worker/tutor.ts` calls the Messages API through the official SDK (`@anthropic-ai/sdk`) with streaming. The model does its own thinking depth (adaptive; the `thinking` parameter is left out) at the configured effort. Automatic prompt caching (a top-level `cache_control`) makes a follow-up question re-read the earlier turns at the cache price. The Worker runs the lookup tools itself and sends the results back to the model; a failing tool is reported to the model as an error result, not to the page. Server-side fallbacks to another model are not enabled: when the model refuses or is unavailable the page gets an error and nothing is retried on a different model.
 
+## Accounts and sync
+
+Using the app needs no account, and everything it keeps stays on the device. A person who wants their answers, debates, favorites and skipped pairs on more than one device can make an account, which keeps a copy of those documents on the server. Export and import (Options, "Your data") remain the backup in every case.
+
+**What an account is.** A random id, a name the person chose (the passkey manager shows it) and one or more passkeys: a public key each. There is no email address, no password and nothing else about the person. A passkey is made and used by the browser or the operating system (Face ID, a fingerprint, Windows Hello, a security key); the server only checks signatures. Passkeys that sync (iCloud Keychain, Google Password Manager, a password manager) work on the person's other devices; one that does not (a laptop's own) can be signed in with from a phone, and a second passkey can be added to an account.
+
+A passkey belongs to the host name of the app (`riglam-practice.<account>.workers.dev`, or a custom domain). Moving the app to another host name leaves the passkeys behind: export on the old address and import on the new one.
+
+**Signing in.** The ceremonies are WebAuthn, verified with `@simplewebauthn/server` (attestation `none`, discoverable credentials, user verification preferred but not required). Each ceremony starts with a challenge the server stores for five minutes and accepts once. Signing in gives the browser a random token in a cookie (`__Secure-riglam-session`, `HttpOnly; Secure; SameSite=Strict; Path=/api`); D1 keeps only its SHA-256, so a copy of the database cannot be used to sign in. A session lasts 60 days and is extended when it is used in its second half. Requests that change anything must carry the app's own `Origin`.
+
+**Sync.** `POST /api/sync` takes `{cursor, writes}` and answers `{cursor, changes, rejected, more}` (`src/account/protocol.ts`). The device sends the changes it made since last time, each as the document (or `null` for a deletion) and `t`, the time it made the change; the server answers with every document that changed on the server since `cursor`, in the order the changes were accepted. For one document the later `t` wins and a tie keeps the server's copy; the writes that lost come back in `rejected` with the server's copy, which the device takes. Deletions are rows without data, kept so that other devices learn of them. The server never merges inside a document and never reads what is in one beyond its size. Times more than five minutes ahead of the server's clock are cut back to that, so one wrong clock cannot make a copy nobody can beat.
+
+**Limits.** Settings in `wrangler.jsonc` (`vars`; defaults in `worker/config.ts`):
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `SIGNUP` | `open` | who may make an account: `open`, `group` (only a caller with the access proof of the tutor, so only people who have the study group's link) or `closed` (existing accounts still sign in) |
+| `MAX_ACCOUNTS` | `300` | most accounts |
+| `MAX_DOCS_PER_ACCOUNT` | `20000` | most documents one account holds |
+| `DAILY_WRITES_PER_ACCOUNT` | `3000` | document changes one account may send per UTC day |
+
+A document is at most 256 KiB, a request at most 200 changes and 4 MiB, and an answer at most 500 changes (`more` says there are further ones). An account holds at most ten passkeys. These caps keep a stranger from filling the database or using up D1's daily write allowance, which the tutor's budget counters share.
+
+**Switches.** `INSERT OR REPLACE INTO settings (key, value) VALUES ('accounts', 'off');` stops sign-up, sign-in and sync at once (like the tutor's switch, in the D1 console); the app then behaves as if there were no accounts. `/api/health` shows `accounts: "off"` until the migration `0002_accounts.sql` has been applied.
+
+**Deleting.** `DELETE /api/account` removes the account, its passkeys, sessions and documents in one batch, and the app offers it as "Delete my data". The copy on each device is not touched.
+
 ## Setting up your own
 
 Nothing here is needed to build or test the app; without the database the tutor is simply off (`/api/health` says so).
@@ -90,7 +123,7 @@ Nothing here is needed to build or test the app; without the database the tutor 
    ```sh
    npx wrangler d1 migrations apply riglam-practice --remote
    ```
-   Apply it again after any pull request that adds a file to `worker/migrations/`.
+   Apply it again after any pull request that adds a file to `worker/migrations/` (`0002_accounts.sql` adds the accounts; the app works without it and `/api/health` says `accounts: "off"`). Accounts need no secret and no extra service.
 3. Store the two secrets on the Worker (the commands ask for the value at a prompt):
    ```sh
    npx wrangler secret put ANTHROPIC_API_KEY
@@ -101,7 +134,7 @@ Nothing here is needed to build or test the app; without the database the tutor 
 
 **Kill switch.** In the Cloudflare dashboard (D1, the database, Console): `INSERT OR REPLACE INTO settings (key, value) VALUES ('tutor', 'off');` stops every tutor request at once; deleting the row (or any value but `off`) turns it on again. Archiving the API key in the Console or setting the workspace limit to zero also stops all spending.
 
-**Privacy.** The Worker keeps spend counters and the usage log above, keyed by the random device id, and no accounts. Workers Logs are on for the lines the Worker writes itself (error names and statuses, never question text); per-request invocation logs are off.
+**Privacy.** Without an account the Worker keeps spend counters and the usage log above, keyed by the random device id. With one it also keeps the account's random id, the name the person chose, a public key and the time of use per passkey, and the person's documents (answers they gave, debates, favorites, skipped pairs and the like), until they delete the account. Workers Logs are on for the lines the Worker writes itself (error names and statuses, never question text); per-request invocation logs are off.
 
 ## Tests
 
@@ -110,7 +143,8 @@ Nothing here is needed to build or test the app; without the database the tutor 
 - D1 is a SQLite in memory (`node:sqlite`) with the real migrations applied, so the SQL that counts money is the SQL that runs in production.
 - The model API is a `fetch` that answers with scripted server-sent events, so the real SDK client parses them (text, tool calls, `max_tokens`, refusals, HTTP errors, a call that hangs until the page goes away).
 - The kit is made from a few invented terms sealed with a throwaway key; the last test block runs on the real files when the data key is available (as in CI, [DATA.md](DATA.md)) and is skipped otherwise.
+- Passkeys are made by a software authenticator (`tests/worker/authenticator.ts`) that produces the bytes a phone would (a `none` attestation with an ES256 key, signed assertions), so the library's real verification runs.
 
-They cover the kit (the tools, the notes, a category id that is not the data's own, the wrong key, no text in the log), the proof, the settings, the prices, the counters (including simultaneous questions), every refusal path, a plain answer with the exact model request, tool rounds and their failure, the last-round rule, every failure of the model call, and the page going away.
+`accounts.test.ts` covers making an account, signing in, every refusal (another site's origin, a replayed or expired challenge, a passkey for another host name, a key that is not the account's), sessions, the limits, deleting and the switches; `sync.test.ts` covers who may sync, what a write may be, how two devices settle a document and the limits. They also cover the kit (the tools, the notes, a category id that is not the data's own, the wrong key, no text in the log), the proof, the settings, the prices, the counters (including simultaneous questions), every refusal path, a plain answer with the exact model request, tool rounds and their failure, the last-round rule, every failure of the model call, and the page going away.
 
 What they cannot show is the Workers runtime itself. To try the Worker in `wrangler dev`, give it a local D1 binding (`wrangler d1 migrations apply <name> --local`), set `ANTHROPIC_BASE_URL` to a stand-in for the model API and use a throwaway data key. Note that `wrangler dev`'s local proxy does not pass on a client that hangs up, so a page going away mid-answer can only be seen in the unit tests or on a deployed Worker (the `outcome` column of `usage_log` shows `aborted`).
