@@ -32,6 +32,8 @@ async function boot(platform){
   try{ state.unlock=platform.unlock?await platform.unlock():null; }catch(e){ state.unlock=null; }
   try{ state.tutor=platform.tutor?await platform.tutor():null; }catch(e){ state.tutor=null; }
   try{ state.account=platform.account?await platform.account():null; }catch(e){ state.account=null; }
+  // which build this is: asked in the background (it looks at the server), shown in Options when it arrives
+  if(platform.about) platform.about().then(a=>{ state.about=a; if(state.optsOpen) render(); },()=>{});
   if(state.account){ let seen=signature(state.account.view()); state.account.subscribe(v=>{ const now=signature(v); if(now!==seen){ seen=now; if(state.optsOpen) render(); } }); }
   if(!state.db){ state.gotA=state.gotB=state.gotS=true; advance(); state.mode="quiz"; render(); return; }
   state.db.collection("batches").orderBy("order","asc").onSnapshot(snap=>{

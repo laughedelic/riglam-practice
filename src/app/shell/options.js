@@ -37,6 +37,16 @@ export function toggleOpts(on){
   if(state.optsOpen){ const b=document.querySelector("#over .oc"); if(b) b.focus({preventScroll:true}); }
   else { const b=[$("obtn"),$("mopt")].find(x=>x.offsetParent); if(b) b.focus({preventScroll:true}); }
 }
+// which build this is, and whether the server has a newer one: the commit tells a staging build from the one before it
+function aboutNode(a){
+  const when=(()=>{ const d=new Date(a.builtAt); return isNaN(d.getTime())?"":d.toLocaleString(undefined,{dateStyle:"medium",timeStyle:"short"}); })();
+  const status=a.latest==="newer"?"A newer version is out. Close the app completely and open it again to use it."
+    :a.latest==="current"?"This is the newest version.":"Could not check for a newer version (no connection?).";
+  return el("div",{class:"about"},
+    el("p",{class:"onote",text:"Version "+a.version+" · build "+a.commit+(when?" · "+when:"")}),
+    a.branches?el("p",{class:"onote",text:"Built from: "+a.branches.join(", ")}):null,
+    el("p",{class:"onote"+(a.latest==="newer"?" bad":""),role:"status",text:status}));
+}
 export function optionsInto(o){
   o.append(overHead("Options",()=>toggleOpts(false),"Close options"));
   const box=el("div",{class:"opts"});
@@ -67,6 +77,7 @@ export function optionsInto(o){
     timeRow("rel","Relation time","The Blitz countdown for choosing the relation, in Relations and in Pervasions."),
     timeRow("ex","Example time","The Blitz countdown for each example in Relations (a table of three cells gets three times this) and for each question in Pervasions."),
     state.account&&state.db&&state.account.view().available?row("Account",accountControls(state.account,el,render,state.acct)):null,
-    state.db?row("Your data",dataTransferControls(state.db,el,render,state.xfer),"Saves everything this device keeps (answers, debates, favorites, skipped pairs and these settings) in one file, as a backup or to move to another device. Importing adds what is missing and never deletes anything."):null].filter(Boolean));
+    state.db?row("Your data",dataTransferControls(state.db,el,render,state.xfer),"Saves everything this device keeps (answers, debates, favorites, skipped pairs and these settings) in one file, as a backup or to move to another device. Importing adds what is missing and never deletes anything."):null,
+    state.about?row("Version",aboutNode(state.about)):null].filter(Boolean));
   o.append(box);
 }

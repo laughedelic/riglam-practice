@@ -11,6 +11,7 @@ import type { Account, DrillData, Platform, Sample } from "../platform/types";
 import { createPwaAccount } from "./account";
 import { fetchCourse, forgetCourse, keepCourse, keptCourse, whyNot, type Definitions } from "./course";
 import { createAccountClient } from "../account/client";
+import { aboutThisBuild } from "./about";
 import { createLocalDb } from "./local-db";
 import { createTutor, tutorIsOn as serverSaysOn } from "./tutor";
 import { takeLinkKey, storedKey, storeKey, forgetKey, showUnlock, markKeyChanged, takeKeyChanged, KEY_CHANGED_TEXT } from "./unlock";
@@ -124,6 +125,7 @@ export const pwaPlatform: Platform = {
   // Offered while there is no key: the page opens the prompt when the reader reaches something that needs it (Explain, the definitions, Options).
   unlock: async () => (groupKey || !openUnlock ? null : { open: openUnlock, tutor: await tutorIsOn() }),
   // Only with the key (the server would refuse the request anyway) and only when the server says its tutor is on: otherwise the page hides the tutor.
+  about: () => aboutThisBuild(),
   tutor: async () => (groupKey && (await tutorIsOn()) ? createTutor(groupKey) : null),
   // Made on first ask and then kept; it finds out for itself whether the server has accounts, so the page can show its row at once.
   account: async () => (account ??= createPwaAccount(db, { read: () => groupKey ?? storedKey(), adopt: takeAccountKey })),
