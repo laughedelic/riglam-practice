@@ -41,7 +41,7 @@ npm run staging -- deploy     # npm ci, the PWA build, the D1 migrations of the 
 
 ### Deploying from a build service
 
-`npm run staging -- deploy --here` does the same for whatever commit is checked out, without the checks that the working tree is the pushed `staging` branch. Cloudflare Workers Builds can run it on every push of `staging`: in the Worker's *Settings → Builds*, let the `staging` branch build (branch control) and set the deploy command for non-production branches to `npm run staging -- deploy --here`. The default, `npx wrangler preview`, reads `wrangler.jsonc` and would give the Preview the production name and no database.
+`npm run staging -- deploy --here` does the same for whatever commit is checked out, without the checks that the working tree is the pushed `staging` branch. Cloudflare Workers Builds can run it on every push of `staging`: in the Worker's *Settings → Builds*, let the `staging` branch build (branch control) and set the deploy command for non-production branches to `npm run staging -- deploy --here` (Cloudflare has one such command for all of them; the script skips a build whose branch, named in `WORKERS_CI_BRANCH`, is not `staging`). The default, `npx wrangler preview`, reads `wrangler.jsonc` and would give the Preview the production name and no database.
 
 ### One-time setup
 
