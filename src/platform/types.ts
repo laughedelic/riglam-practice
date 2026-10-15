@@ -115,12 +115,6 @@ export interface TutorOptions {
  */
 export type Tutor = (request: TutorRequest, options?: TutorOptions) => Promise<SampleResult>;
 
-/** What a device that has the Magic Key can do with it: take another one (the study group changed it), or forget it (the definitions and the tutor lock again). */
-export interface KeyHeld {
-  change(): void;
-  forget(): void;
-}
-
 /** `open` shows the prompt for the Magic Key; `tutor` says that the place has a tutor that is waiting for it (so the page shows Explain grayed). */
 export interface Unlock {
   open(): void;
@@ -144,4 +138,10 @@ export interface Platform {
   tutor?(): Promise<Tutor | null>;
   /** The optional account (a passkey and a server copy of the documents, src/account), or null (or absent) when the place has none. The page works the same without. */
   account?(): Promise<Account | null>;
+}
+
+/** What a device that has the Magic Key can do with it: take another one (the study group changed it), or forget it (the definitions and the tutor lock again). */
+export interface KeyHeld {
+  change(): void;
+  forget(): void;
 }

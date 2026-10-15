@@ -7,10 +7,10 @@ import type { Unlock } from "../platform/types";
 import type { AnswerView, DebateAnswer } from "../ai-shared/card";
 import type { CellId, RelKey } from "../ai-shared/relations";
 import type { Pair, PoolEntry, Verdict } from "../domain/types";
-import type { KeyHeld } from "../platform/types";
 import type { Account, Db, Sample, Tutor } from "../platform/types";
 import type { AccountSlot } from "../ui/account";
 import type { TransferSlot } from "../ui/data-transfer";
+import type { KeyHeld } from "../platform/types";
 
 export type { Pair, PoolEntry, Verdict };
 
