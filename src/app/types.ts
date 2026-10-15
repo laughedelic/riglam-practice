@@ -3,7 +3,7 @@
 // the data users already have: never rename a collection or change a document without a migration (CLAUDE.md).
 // Fields written by older versions of the page may be missing, so most fields besides the keys are optional.
 import type { Cat, DrillData, Item } from "../ai-shared/data";
-import type { Unlock } from "../platform/types";
+import type { About, Unlock } from "../platform/types";
 import type { AnswerView, DebateAnswer } from "../ai-shared/card";
 import type { CellId, RelKey } from "../ai-shared/relations";
 import type { Pair, PoolEntry, Verdict } from "../domain/types";
@@ -176,6 +176,8 @@ export interface State {
   // what the platform offers
   db: Db | null;
   sample: Sample | null;
+  /** which build this is (platform.about), shown in Options; null until the server has been asked, and on a build with nothing to tell apart */
+  about: About | null;
   /** opens the prompt for the Magic Key (platform.unlock) while this device has none; `tutor` is whether the server has a tutor waiting for it */
   unlock: Unlock | null;
   /** a question to the app's own server (platform.tutor), when the place has one; `sample` is used first */
