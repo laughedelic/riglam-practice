@@ -67,10 +67,16 @@ const tab = (page, name) => page.getByRole("tab", { name }).filter({ visible: tr
 const mic = (page) => page.locator("#vbar .vmic");
 const waiting = (page) => page.locator("#vbar .vtake");
 const confirm = (page) => page.locator("#vbar .vok").click();
+/** Waits until the recognizer has taken what was queued and the mic is idle again, so the next phrase never meets a listening mic. */
+async function settle(page) {
+  await page.waitForFunction(() => !window.__heard.length);
+  await expect(mic(page)).not.toContainText("Listening");
+}
 /** Says a phrase with the mic button, and waits for the answer it was taken as to appear. */
 async function hear(page, ...phrases) {
   await hearNext(page, ...phrases);
   await mic(page).click();
+  await settle(page);
   await expect(waiting(page)).toBeVisible();
 }
 
@@ -201,6 +207,7 @@ test("a heard answer can be taken back with Change, with \"no\" or by saying ano
   await expect(page.locator("#vbar .vwhat b")).toHaveText("Why? a gold ring");
   await hearNext(page, "wooden table");   // another answer replaces the waiting one ("why" is implied for an item named alone)
   await page.keyboard.press("v");
+  await settle(page);
   await expect(page.locator("#vbar .vwhat b")).toHaveText("Why? wooden table");
   await hearNext(page, "no");
   await page.keyboard.press("v");
@@ -210,6 +217,7 @@ test("a heard answer can be taken back with Change, with \"no\" or by saying ano
   await expect(page.locator("#vbar .vwhat b")).toHaveText("Accept");
   await hearNext(page, "yes");   // and with an answer waiting it confirms
   await page.keyboard.press("v");
+  await settle(page);
   await expect(page.locator(".qcard .qn")).toContainText("Question 2");
   await expect(waiting(page)).toHaveCount(0);
 
@@ -251,6 +259,7 @@ test("\"Go on by itself\": the answer shows a running bar, goes on after the pau
 
   await hearNext(page, "mutually exclusive");
   await mic(page).click();
+  await settle(page);
   await expect(page.locator("#vbar .vwhat b")).toHaveText("Mutually exclusive");
   await expect(page.locator(".strip .chip[aria-pressed=true], #cin")).toHaveCount(0);   // still waiting
   await page.waitForTimeout(4600);   // 4 seconds without Blitz
@@ -274,6 +283,7 @@ test("with Blitz on the countdown stops while an answer waits, and goes on when 
   await expect(bar).toHaveCSS("animation-play-state", "running");   // and runs again
   await hearNext(page, "accept");
   await page.keyboard.press("v");
+  await settle(page);
   await expect(waiting(page)).toBeVisible();
   await confirm(page);
   await expect(page.locator(".qcard .qn")).toContainText("Question 2");
@@ -290,18 +300,23 @@ test("the relation said as what is written under the option, or three possibilit
   // the same through "three possibilities", whose direction the page asks for; the recognizer writes "A in B" as it likes
   await hearNext(page, "three possibilities");
   await page.keyboard.press("v");
+  await settle(page);
   await expect(page.locator("#vbar .vst")).toHaveText(`Three possibilities: which is inside the other, ${a} or ${b}?`);
   await hearNext(page, "ANB");
   await page.keyboard.press("v");
+  await settle(page);
   await expect(page.locator("#vbar .vwhat b")).toHaveText("Three possibilities, A in B");
   await hearNext(page, "A & B");
   await page.keyboard.press("v");
+  await settle(page);
   await expect(page.locator("#vbar .vwhat b")).toHaveText("Three possibilities, A in B");
   await hearNext(page, "three possibilities");   // asked again, and this time the term that is inside is the answer
   await page.keyboard.press("v");
+  await settle(page);
   await expect(page.locator("#vbar .vwhat")).toHaveCount(0);
   await hearNext(page, b);
   await page.keyboard.press("v");
+  await settle(page);
   await expect(page.locator("#vbar .vwhat b")).toHaveText("Three possibilities, B in A");
 });
 
@@ -313,12 +328,15 @@ test("words that are not an answer are said back, and the mic stays for another 
   await expect(page.locator("#vbar .vst")).toHaveText(hint);
   await hearNext(page, "good morning");
   await mic(page).click();
+  await settle(page);
   await expect(page.locator("#vbar .vst")).toHaveText("Heard “good morning”. " + hint);
   await hearNext(page, "three possibilities");
   await mic(page).click();
+  await settle(page);
   await expect(page.locator("#vbar .vst")).toContainText("which is inside the other");
   await hearNext(page, "B in A");
   await page.keyboard.press("v");
+  await settle(page);
   await expect(page.locator("#vbar .vwhat b")).toHaveText("Three possibilities, B in A");
   await expect(page.locator("#vbar .vwhat small")).toHaveText("Heard “B in A”, taken as");
   await confirm(page);
