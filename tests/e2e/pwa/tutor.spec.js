@@ -69,19 +69,54 @@ withKey("Explain asks the server, shows the answer, and sends the card without t
 });
 
 // A note on a cell opens under the heading "Why?", so a Why? the tutor starts its debate line with is not said twice; the line under
-// the note points to the definitions only when the Terms panel has some.
+// a note that underlines no term points to the definitions only when the Terms panel has some.
 withKey("a note under a cell is headed Why? and points to the definitions", async ({ page }, testInfo) => {
-  const line = 'Both: Why? "thing 1" is a form, so it fits. => yes\n';
+  const line = 'Both: Why? "thing 1" is a wooden thing, so it fits. => yes\n';
   await open(page, testInfo, { tutor: [{ status: 200, body: sse({ type: "delta", text: line }, { type: "done", truncated: false }) }] });
   await explain(page).click();
   await page.locator(".grid .qm").first().click();
   const pop = page.locator(".grid .pop");
   await expect(pop.locator(".clh")).toHaveText("Why?");
-  await expect(pop.locator("p").nth(1)).toHaveText('"thing 1" is a form, so it fits.');
+  await expect(pop.locator("p").nth(1)).toHaveText('"thing 1" is a wooden thing, so it fits.');
   const hint = await pop.locator(".popnote").count();
   if (hint) await expect(pop.locator(".popnote")).toHaveText("Definitions of these terms are under Terms.");
   await page.getByRole("tab", { name: "Terms" }).click();
   expect(await page.locator(".tm-tog").count() > 0).toBe(hint > 0);
+});
+
+// The terms a note names are dot-underlined when this device has their definitions, each once; a tap opens the definition under the
+// text, inside the note. Another term replaces it; a tap elsewhere or Escape closes it and leaves the note open.
+withKey("a note underlines the terms it names and opens their definitions in place", async ({ page }, testInfo) => {
+  const line = 'Both: "thing 1" is an external form, so it fits: every form is matter, and matter is a form. => yes\n';
+  await open(page, testInfo, { tutor: [{ status: 200, body: sse({ type: "delta", text: line }, { type: "done", truncated: false }) }] });
+  await explain(page).click();
+  await page.locator(".grid .qm").first().click();
+  const pop = page.locator(".grid .pop"), marks = pop.locator(".dterm"), def = pop.locator(".ddef");
+  await expect(marks).toHaveText(["external form", "form", "matter"]);
+  await expect(pop.locator(".popnote")).toHaveText("Tap an underlined term for its definition.");
+  await expect(def).toHaveCount(0);
+
+  await marks.first().click();
+  await expect(marks.first()).toHaveAttribute("aria-expanded", "true");
+  await expect(def.locator("dt")).toContainText("External form");
+  expect((await def.locator("dd").innerText()).length).toBeGreaterThan(10);
+  expect(await overflow(page)).toBeLessThanOrEqual(0);
+
+  await marks.nth(2).click();
+  await expect(def).toHaveCount(1);
+  await expect(def.locator("dt")).toContainText("Matter");
+  await expect(marks.first()).toHaveAttribute("aria-expanded", "false");
+
+  await pop.locator(".clh").click();
+  await expect(def).toHaveCount(0);
+  await expect(pop).toBeVisible();
+
+  await marks.nth(1).focus();
+  await page.keyboard.press("Enter");
+  await expect(def.locator("dt")).toContainText("Form");
+  await page.keyboard.press("Escape");
+  await expect(def).toHaveCount(0);
+  await expect(pop).toBeVisible();
 });
 
 withKey("a follow-up question sends the whole conversation as a chat", async ({ page }, testInfo) => {

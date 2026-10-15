@@ -56,6 +56,7 @@ src/app/
 |---|---|
 | `data.ts` | the types of the term data (`DrillData`, `Term`, `Cat`, `Item`) |
 | `lookup.ts` | `norm`, `makeIndex(data)` (the lookup tables), `matchItem`, `catByLabel`, `pairCats`: how a learner's words resolve to a practice item or category |
+| `mentions.ts` | `termMentions(index, text)`: the Dudra terms a text names, by name, alias or plural, the longest first; names that are everyday words (one, reason, definition, cause) and words in quotation marks do not count. The tutor's notes underline these terms and open their definitions in place (`withTerms` in `src/app/practice/terms.js`) |
 | `relations.ts`, `debate.ts` | the five relations, the four cells and the four questions in their canonical wording |
 | `facts.ts` | `termFacts`, `catFacts`: what the data says about a term or category |
 | `prompts.ts` | the tutor's standing instructions and the two "explain" requests |

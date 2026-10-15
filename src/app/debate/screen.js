@@ -9,6 +9,7 @@ import { QCELL, Wd, ansNode, qNode } from "./text.js";
 import { favBtn } from "../practice/favorites.js";
 import { exLine, explainBtn, explainParts, fbNode, isaTxt, kbHints, nextBtn, recentNode, relCap, relList, relPopNode, relStrip, relWhy, resultBlock, termsItem, tutorAct, tutorItem, whyBtn } from "../practice/screen.js";
 import { skipActs, subRowNode } from "../practice/skips.js";
+import { defCard, withTerms } from "../practice/terms.js";
 import { exGrid } from "../review/review.js";
 import { fitPair, render, setSteps } from "../shell/render.js";
 import { blitzBtn, relTimedD, timerSlot } from "../shell/timers.js";
@@ -48,7 +49,7 @@ function questionBody(u,i){
   return [el("span",{class:"qq"},qNode(i)),
     ansNode(a,a.limit&&a.ms!=null?a.ms:null,i),
     el("span",{class:"fbq"},el("b",{text:rr.msg[0]}),rr.msg[2]?[" ",el("i",{text:rr.msg[2]})]:null,isaTxt(rr.msg[1]||"")),
-    ex.cells[c]?el("span",{class:"cl"},el("span",{class:"clh",text:"Why?"}),aiFlag(aiCase("explain","Claude’s note on Q"+(i+1),ex.cells[c],c),"q:"+c),ex.cells[c]):null,
+    ex.cells[c]?el("span",{class:"cl"},el("span",{class:"clh",text:"Why?"}),aiFlag(aiCase("explain","Claude’s note on Q"+(i+1),ex.cells[c],c),"q:"+c),el("span",null,withTerms(ex.cells[c],"q:"+c,new Set())),defCard("q:"+c)):null,
     ex.cells[c]?flagEditorNode("q:"+c):null];
 }
 // each question's counter-example cell, filled in as the learner answered; an accepted question leaves its cell empty

@@ -1,5 +1,6 @@
 import { state } from "../state.js";
-import { L, el } from "../core/dom.js";
+import { termMentions } from "../../ai-shared/mentions.ts";
+import { $, L, el } from "../core/dom.js";
 import { REL } from "../core/rel.js";
 import { cap } from "../core/util.js";
 import { isA } from "./screen.js";
@@ -57,3 +58,61 @@ export function defParts(s){
   return {src:lab||cap(tag),body};
 }
 const endp=s=>s.replace(/[.;,\s]+$/,"")+".";
+
+/* ---------- terms in the tutor's notes ---------- */
+// A note's text with the Dudra terms it names dot-underlined, each the first time the note names it, and only when this device
+// has its definition. Tapping one opens the definition under the text (defCard), inside the note; with a mouse, pointing at a term
+// shows it in a card that floats under the term until the pointer leaves. `where` names the text, so the open definition
+// (state.ui.dterm) shows under that text only; `seen` collects the terms marked in the note.
+export function withTerms(text,where,seen){
+  const out=[]; let at=0;
+  termMentions(state,text).forEach((m,i)=>{
+    const t=state.DATA.terms[m.term]; if(!t||!t.d||seen.has(m.term)) return;
+    seen.add(m.term);
+    out.push(text.slice(at,m.start),termMark(text.slice(m.start,m.end),m.term,where+"/"+i));
+    at=m.end;
+  });
+  out.push(text.slice(at));
+  return out;
+}
+function termMark(txt,term,id){
+  const on=!!state.ui.dterm&&state.ui.dterm.id===id;
+  const toggle=e=>{
+    e.stopPropagation(); state.ui.dterm=on?null:{id,term}; render();
+    const m=/** @type {HTMLElement} */(document.querySelector('.dterm[data-dt="'+CSS.escape(id)+'"]')); if(m) m.focus({preventScroll:true});
+    const c=$("ddef"); if(c) c.scrollIntoView({block:"nearest"});
+  };
+  return el("span",{class:"dterm"+(on?" on":""),role:"button",tabindex:"0","data-dt":id,"aria-expanded":on?"true":"false","aria-controls":on?"ddef":null,
+    onclick:toggle,onkeydown:e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); toggle(e); } },
+    onmouseenter:e=>peek(e.currentTarget,term),onmouseleave:()=>peek(null,null)},txt);
+}
+/** The definition opened from the text marked as `where`, to go right after that text; null when none is open there. */
+export function defCard(where){
+  const d=state.ui&&state.ui.dterm;
+  return d&&d.id.startsWith(where+"/")&&state.DATA.terms[d.term]?cardNode(d.term,"ddef"):null;
+}
+// The same entry as in the Terms panel: the name and chapter, then the definition with its source, in English and, if chosen, Russian.
+function cardNode(n,id){
+  const t=state.DATA.terms[n], en=defParts(t.d), ru=defParts(t.d_ru), ruOn=state.defLang==="enru", src=en.src||(ruOn?ru.src:"");
+  return el("div",{class:"ddef",id},el("dl",{class:"tm-defs"},el("div",{class:"tm-d"},
+    el("dt",null,t.name,ruOn&&t.ru?el("span",{class:"tm-ru",lang:"ru",text:" · "+t.ru}):null,t.ch?el("small",{text:" · "+t.ch}):null),
+    el("dd",{class:src?"out":""},
+      src?el("p",{class:"src",text:src+(en.body?":":".")}):null,
+      en.body?el("p",{lang:"en",text:endp(cap(en.body))}):null,
+      ruOn&&ru.body?el("p",{class:"ru",lang:"ru",text:endp(cap(ru.body))}):null))));
+}
+// Pointing at a term with a mouse shows its card while the pointer stays, over the note; it is not kept in the state, so a render drops it.
+function peek(mark,term){
+  for(const n of document.querySelectorAll(".ddef.peek")) n.remove();
+  if(!mark||mark.classList.contains("on")||!matchMedia("(hover:hover)").matches) return;
+  const box=mark.closest(".pop,.cl"); if(!box) return;
+  const c=cardNode(term,null); c.classList.add("peek"); box.append(c); placeCard(c,mark);
+}
+// The floating card hangs under the line where the term ends, as far left as the term begins but inside the note, its arrow on the term.
+function placeCard(c,mark){
+  const box=c.parentElement, rs=mark.getClientRects(), r=rs[rs.length-1]; if(!box||!r) return;
+  const b=box.getBoundingClientRect(), x0=b.left+box.clientLeft, y0=b.top+box.clientTop, w=c.offsetWidth;
+  const left=Math.max(0,Math.min(Math.round(r.left-x0)-12,box.clientWidth-w));
+  c.style.left=left+"px"; c.style.top=Math.round(r.bottom-y0+7)+"px";
+  c.style.setProperty("--ax",Math.round(Math.max(12,Math.min(w-12,r.left+r.width/2-x0-left)))+"px");
+}
