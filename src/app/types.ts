@@ -7,7 +7,7 @@ import type { About, Unlock } from "../platform/types";
 import type { AnswerView, DebateAnswer } from "../ai-shared/card";
 import type { CellId, RelKey } from "../ai-shared/relations";
 import type { Pair, PoolEntry, Verdict } from "../domain/types";
-import type { Account, Db, Sample, Tutor } from "../platform/types";
+import type { Account, Db, Reports, Sample, Tutor } from "../platform/types";
 import type { AccountSlot } from "../ui/account";
 import type { TransferSlot } from "../ui/data-transfer";
 
@@ -120,6 +120,8 @@ export interface FlagDoc {
   at: string;
   updatedAt: string;
   state: string;
+  /** when the flag was last sent to the app's server (ai/flag-reports.js); it counts as sent while this is not earlier than `updatedAt` */
+  sentAt?: string;
 }
 
 /** collection `labruns`: one model's answer to one case of the check lab, or the judge's. Loosely typed. */
@@ -185,6 +187,8 @@ export interface State {
   unlock: Unlock | null;
   /** a question to the app's own server (platform.tutor), when the place has one; `sample` is used first */
   tutor: Tutor | null;
+  /** sends flags to the app's server (platform.reports), when the place has a server for them and this device has the Magic Key */
+  reports: Reports | null;
   /** optional sign-in with a server copy of the documents (platform.account), when the place has one */
   account: Account | null;
   /** the same for the Account row (src/ui/account.ts) */
@@ -224,6 +228,8 @@ export interface State {
   skipErr: string;
   flagErr: string;
   flagPending: number;
+  /** true while unsent flags are being sent, so that two runs do not overlap */
+  reportBusy: boolean;
 
   // skips
   skipNote: SkipNote | null;

@@ -1,4 +1,5 @@
 import { state } from "../state.js";
+import { flushFlags } from "./flag-reports.js";
 import { ERR_OFF } from "./tutor.js";
 import { $ } from "../core/dom.js";
 import { CELLS, REL } from "../core/rel.js";
@@ -36,6 +37,7 @@ function labSubscribeNow(){
     if(state.flagPending) return;
     /** @type {Record<string, any>} */ const m={}; snap.docs.forEach(d=>{m[d.id]=d.data();}); const same=JSON.stringify(Object.keys(m).sort().map(k=>[k,m[k].state,m[k].updatedAt]))===JSON.stringify(Object.keys(state.flags).sort().map(k=>[k,state.flags[k].state,state.flags[k].updatedAt]));
     state.flags=m; if(!same) labDataIn();
+    flushFlags();                    // flags that were not sent yet (this device had no way, or none that worked) go now
   },()=>{});
 }
 export const hash36=s=>{ let h=5381; s=String(s); for(let i=0;i<s.length;i++) h=((h<<5)+h+s.charCodeAt(i))|0; return (h>>>0).toString(36); };

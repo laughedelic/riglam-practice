@@ -39,7 +39,7 @@ describe("GET /api/health", () => {
     const { res, body } = await health({});
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
-    expect(body).toEqual({ ok: true, tutor: "on", accounts: "on" });
+    expect(body).toEqual({ ok: true, tutor: "on", accounts: "on", reports: "on" });
   });
 
   it.each([
@@ -54,15 +54,15 @@ describe("GET /api/health", () => {
     const s = await setup();
     const app = createApp({ kit: async () => fakeKit().kit, now: () => NOW });
     await s.env.DB!.prepare("INSERT INTO settings (key, value) VALUES ('tutor', 'off')").run();
-    expect(await (await app.request("/api/health", {}, s.env)).json()).toEqual({ ok: true, tutor: "off", accounts: "on" });
+    expect(await (await app.request("/api/health", {}, s.env)).json()).toEqual({ ok: true, tutor: "off", accounts: "on", reports: "on" });
     await s.env.DB!.prepare("DELETE FROM settings").run();
-    expect(await (await app.request("/api/health", {}, s.env)).json()).toEqual({ ok: true, tutor: "on", accounts: "on" });
+    expect(await (await app.request("/api/health", {}, s.env)).json()).toEqual({ ok: true, tutor: "on", accounts: "on", reports: "on" });
   });
 
   it("is off when there is no kit, whatever else is in place (every question would be refused)", async () => {
     const s = await setup();
     const app = createApp({ kit: async () => null, now: () => NOW });
-    expect(await (await app.request("/api/health", {}, s.env)).json()).toEqual({ ok: true, tutor: "off", accounts: "on" });
+    expect(await (await app.request("/api/health", {}, s.env)).json()).toEqual({ ok: true, tutor: "off", accounts: "on", reports: "on" });
     const failing = createApp({ kit: async () => { throw new Error("bad key"); }, now: () => NOW });
     expect(await (await failing.request("/api/health", {}, s.env)).json()).toMatchObject({ tutor: "off" });
   });
@@ -70,7 +70,7 @@ describe("GET /api/health", () => {
   it("is off, not an error, when the database cannot be read (the migration has not been applied)", async () => {
     const s = await setup({ DB: { prepare: () => { throw new Error("no such table"); } } as unknown as D1Database });
     const res = await createApp({ kit: async () => fakeKit().kit }).request("/api/health", {}, s.env);
-    expect(await res.json()).toEqual({ ok: true, tutor: "off", accounts: "off" });
+    expect(await res.json()).toEqual({ ok: true, tutor: "off", accounts: "off", reports: "off" });
   });
 });
 

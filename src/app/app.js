@@ -33,6 +33,7 @@ async function boot(platform){
   try{ state.sample=await platform.sample(); }catch(e){ state.sample=null; }
   try{ state.unlock=platform.unlock?await platform.unlock():null; }catch(e){ state.unlock=null; }
   try{ state.tutor=platform.tutor?await platform.tutor():null; }catch(e){ state.tutor=null; }
+  try{ state.reports=platform.reports?await platform.reports():null; }catch(e){ state.reports=null; }
   try{ state.account=platform.account?await platform.account():null; }catch(e){ state.account=null; }
   // which build this is: asked in the background (it looks at the server), shown in Options when it arrives
   if(platform.about) platform.about().then(a=>{ state.about=a; if(state.optsOpen) render(); },()=>{});

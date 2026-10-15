@@ -1,6 +1,6 @@
 // The seam between the page and the place it runs in. The page (src/app) is started with a `Platform` and asks it
 // for everything it cannot do itself: its term data, the two capabilities of the Claude artifact runtime, `db`
-// (a document store) and `sample` (one model call), and `tutor`, a question to the app's own server. Each build supplies its own adapter (src/pwa/platform.ts,
+// (a document store) and `sample` (one model call), `tutor`, a question to the app's own server, and `reports`, flags sent to it. Each build supplies its own adapter (src/pwa/platform.ts,
 // src/artifact/platform.ts); the tests supply a mock. A capability the place cannot provide is `null` and the page
 // hides the features that need it.
 
@@ -8,7 +8,8 @@
 import type { DrillData } from "../ai-shared/data";
 import type { TutorRequest } from "../ai/protocol";
 import type { Account, AccountView } from "../account/account";
-export type { DrillData, Account, AccountView };
+import type { FlagReport } from "../report/protocol";
+export type { DrillData, Account, AccountView, FlagReport };
 
 /** A stored document: a plain JSON object. */
 export type Doc = Record<string, any>;
@@ -115,6 +116,18 @@ export interface TutorOptions {
  */
 export type Tutor = (request: TutorRequest, options?: TutorOptions) => Promise<SampleResult>;
 
+/**
+ * The `reports` capability: a learner's flag goes to the app's server with the stored answer it was made on
+ * (src/report/protocol.ts). The place has it only when its server takes reports and this device has the Magic Key.
+ * No method rejects. `send` resolves with the ids the server now holds (fewer than asked when it could not be reached or
+ * refused). `withdraw` keeps the id on the device until the server has taken the report back; `flush` tries again.
+ */
+export interface Reports {
+  send(reports: FlagReport[]): Promise<string[]>;
+  withdraw(id: string): Promise<void>;
+  flush(): Promise<void>;
+}
+
 /** `open` shows the prompt for the Magic Key; `tutor` says that the place has a tutor that is waiting for it (so the page shows Explain grayed). */
 export interface Unlock {
   open(): void;
@@ -146,6 +159,8 @@ export interface Platform {
   unlock?(): Promise<Unlock | null>;
   /** The app's own tutor, or null (or absent) when the place has none or the server has it switched off. The page uses `sample` first when it has one. */
   tutor?(): Promise<Tutor | null>;
+  /** Sending flags to the app's server, or null (or absent) when the place has no server for them or this device lacks the Magic Key (flags then stay on the device). */
+  reports?(): Promise<Reports | null>;
   /** The optional account (a passkey and a server copy of the documents, src/account), or null (or absent) when the place has none. The page works the same without. */
   account?(): Promise<Account | null>;
   /** Which build this is and whether a newer one is out, or null (or absent) when the place has no builds to tell apart (the artifact). */

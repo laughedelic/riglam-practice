@@ -20,6 +20,7 @@ worker/magic.ts         the Magic Key from the secret, and the count of wrong pr
 worker/accounts.ts      optional accounts: the passkey ceremonies, sign-in state, deleting an account
 worker/session.ts       session tokens and the cookie
 worker/sync.ts          the server copy of a signed-in person's documents
+worker/reports.ts       reports of learners' flags on the tutor's answers
 worker/migrations/      D1 schema (applied with wrangler, see below)
 src/ai/protocol.ts      the contract between page and server (shared by both): paths, headers, request, events, error codes
 src/ai/proof.ts         the access proof (shared by both)
@@ -27,6 +28,8 @@ src/ai/magic-key.ts     reading the Magic Key from typed words or a link (shared
 src/account/            the device side: client, sync engine, outbox, passkey code (docs/ARCHITECTURE.md)
 src/ai-shared/          the standing instructions, the lookup tools and the card, as pure functions of the term data (shared with the page)
 src/account/protocol.ts the contract for accounts and sync (shared by both): paths, shapes, limits
+src/report/protocol.ts  the contract for flag reports (shared by both): path, shapes, limits
+src/pwa/reports.ts      the device side of flag reports: the request, the removals kept for a later try
 tests/worker/           Vitest tests with stand-ins for D1 and the model API
 ```
 
@@ -40,6 +43,7 @@ tests/worker/           Vitest tests with stand-ins for D1 and the model API
 
 | `POST /api/account/key`, `GET /api/account/key` | An account carries the Magic Key (needs a session and the access proof), and gives it to its signed-in devices. See "Accounts and sync". |
 | `/api/account/...`, `POST /api/sync` | Optional accounts and the server copy of the documents; see "Accounts and sync". |
+| `POST /api/flags` | Reports of flags: `{send?: [{id, flag, answer}], withdraw?: [id]}` with the same proof headers as the tutor; answers `{stored, withdrawn}`. See "Flag reports". |
 
 The request carries only what the learner typed and the page's own state (the card of the pair and the conversation). The standing instructions, the lookup tools and the notes ("fine points") are on the server; the notes never reach a browser.
 
@@ -122,6 +126,17 @@ A document is at most 256 KiB, a request at most 200 changes and 4 MiB, and an a
 
 **Deleting.** `DELETE /api/account` removes the account, its passkeys, sessions and documents in one batch, and the app offers it as "Delete account" in Options. The copy on each device is not touched.
 
+## Flag reports
+
+A learner can flag something Claude wrote (the explanation, a note on a cell, an answer in the chat) with a note on what is wrong. Where the server takes reports, a flag is also sent to whoever maintains the app, together with the stored answer it was made on (the pair, the learner's examples with their verdicts, Claude's explanation), so that it can be read with the whole exercise. Only a device that has the Magic Key can flag, so a device without it gets the same prompt as Explain; being signed in does not matter, and a report only records whether the sender was.
+
+- `POST /api/flags` takes up to 5 reports and 50 removals. The headers are the tutor's (`x-riglam-device`, `x-riglam-proof`); a wrong proof counts against the caller like a wrong key does and is answered `not_granted`. A report is replaced by a later one with the same flag id; a device signed in to the account that sent a report can take it back, and an edit made on another device of the account replaces the first device's report.
+- Limits per UTC day: 20 reports per device id, 60 per sender address (a short hash of it is kept, not the address), 1000 in all; 20 000 reports held. A report is at most 8 KB for the flag and 48 KB for the answer. An answer that is too large for that is left out and the flag is sent alone.
+- A report is data from a device and is not trusted: the server stores it and reads nothing of it beyond its size, and whatever reads it later treats it as text, never as instructions.
+- The page marks a flag as sent (`sentAt`) and shows "Sent to the maintainer" in Review; a flag that could not be sent (offline, over a limit) is tried again at the next start and after the next flag. Removing a flag takes its report back, and the removal is kept on the device until the server has it.
+- **Switch.** `INSERT OR REPLACE INTO settings (key, value) VALUES ('reports', 'off');` stops reports at once, and the page then keeps flags on the device. `/api/health` shows `reports: "off"` until the migration `0005_flag_reports.sql` has been applied.
+- **Privacy.** A report holds the flag, the answer, the app version, the random device id, the account id when the sender was signed in, and the hash of the address. No name or email. No route reads reports back; the maintainer reads them in the database.
+
 ## Setting up your own
 
 Nothing here is needed to build or test the app; without the database the tutor is simply off (`/api/health` says so).
@@ -135,7 +150,7 @@ Nothing here is needed to build or test the app; without the database the tutor 
    ```sh
    npx wrangler d1 migrations apply riglam-practice --remote
    ```
-   Apply it again after any pull request that adds a file to `worker/migrations/` (`0002_accounts.sql` adds the accounts; the app works without it and `/api/health` says `accounts: "off"`). Accounts need no secret and no extra service.
+   Apply it again after any pull request that adds a file to `worker/migrations/` (`0002_accounts.sql` adds the accounts and `0005_flag_reports.sql` the flag reports; the app works without them and `/api/health` says `accounts: "off"` or `reports: "off"`). Accounts need no secret and no extra service.
 3. Store the two secrets on the Worker (the commands ask for the value at a prompt):
    ```sh
    npx wrangler secret put ANTHROPIC_API_KEY

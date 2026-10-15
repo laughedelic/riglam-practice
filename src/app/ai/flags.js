@@ -1,5 +1,6 @@
 import { state } from "../state.js";
 import { mname } from "./lab-panel.js";
+import { sendFlags, withdrawFlag } from "./flag-reports.js";
 import { flagQ, hash36 } from "./lab.js";
 import { $, el } from "../core/dom.js";
 import { put } from "../practice/answers.js";
@@ -17,9 +18,11 @@ const flagOf=c=>state.flags[flagId(c)];
 function renderKeep(){ const sc=$("chatscroll"), y=sc?sc.scrollTop:0; render(); const n=$("chatscroll"); if(n&&y) n.scrollTop=y; }
 function flagWrite(k,fn,undo){
   state.flagErr=""; state.flagPending++;
-  flagQ[k]=(flagQ[k]||Promise.resolve()).catch(()=>{}).then(fn).catch(e=>{ undo(); state.flagErr="The flag could not be saved ("+((e&&e.code)||"error")+"), so it was undone."; renderKeep(); }).finally(()=>{ state.flagPending--; });
+  return flagQ[k]=(flagQ[k]||Promise.resolve()).catch(()=>{}).then(fn).catch(e=>{ undo(); state.flagErr="The flag could not be saved ("+((e&&e.code)||"error")+"), so it was undone."; renderKeep(); }).finally(()=>{ state.flagPending--; });
 }
+// A device without the Magic Key cannot flag (flags go to the app's maintainer, and only the study group's devices may write to it): it gets the same prompt as Explain
 export function openFlag(c,where){
+  if(state.unlock){ state.unlock.open(); return; }
   const had=flagOf(c); state.ui.flagEdit={c,where,note:had?had.note||"":"",suggest:had?had.suggest||"":""}; renderKeep();
   requestAnimationFrame(()=>{ const t=$("flag-note"); if(t){ t.focus({preventScroll:true}); const e=t.closest(".flagedit"); (e||t).scrollIntoView({block:"nearest"}); } });
 }
@@ -31,13 +34,17 @@ export function saveFlag(){
     asked:F.c.asked?String(F.c.asked).slice(0,600):undefined,note:F.note.trim().slice(0,800),suggest:F.suggest.trim().slice(0,300),pair:F.c.pair||null,at:had?had.at:now,updatedAt:now,state:had?had.state:"new"};
   const doc=JSON.parse(JSON.stringify(draft)); // without the undefined fields
   state.flags[id]=doc; state.ui.flagEdit=null; renderKeep(); refocusFlag(id);
-  if(state.db) flagWrite(id,()=>put("flags",id,doc),()=>{ if(had) state.flags[id]=had; else delete state.flags[id]; });
+  if(state.db){
+    const written=flagWrite(id,()=>put("flags",id,doc),()=>{ if(had) state.flags[id]=had; else delete state.flags[id]; });
+    if(state.reports) written.then(()=>sendFlags([id]));
+  }
 }
 function refocusFlag(id){ requestAnimationFrame(()=>{ const b=document.querySelector('[data-fid="'+id+'"]'); if(b) b.focus({preventScroll:true}); }); }
 function cancelFlag(){ const F=state.ui.flagEdit; state.ui.flagEdit=null; renderKeep(); if(F) refocusFlag(flagId(F.c)); }
 export function removeFlag(id){
   const had=state.flags[id]; if(!had) return; delete state.flags[id]; if(state.ui) state.ui.flagEdit=null; renderKeep(); refocusFlag(id);
   if(state.db) flagWrite(id,()=>state.db.collection("flags").doc(id).delete(),()=>{ state.flags[id]=had; });
+  withdrawFlag(id);
 }
 export function setFlagState(id,to){
   const had=state.flags[id]; if(!had) return; const doc=Object.assign({},had,{state:to,updatedAt:new Date().toISOString()}); state.flags[id]=doc; renderKeep();
@@ -55,6 +62,7 @@ export function flagEditorNode(where){
   return el("div",{class:"flagedit",role:"group","aria-label":"Flag"},
     el("p",{class:"fh"},el("span",{class:"flg","aria-hidden":"true"}),el("b",{text:had?"Flagged: ":"Flag: "}),el("span",{class:"fv",text:nm})),
     note,sug,
+    state.reports?el("p",{class:"fnote",text:"Submit sends this flag and the exercise it is on to the app’s maintainer."}):null,
     el("div",{class:"fa"},el("button",{type:"button",class:"btn",onclick:saveFlag,text:"Submit"}),
       el("button",{type:"button",class:"btn ghost",onclick:cancelFlag,text:"Cancel"}),
       had?el("button",{type:"button",class:"back",onclick:()=>removeFlag(flagId(F.c)),text:"Remove flag"}):null));
@@ -76,7 +84,7 @@ export function aiFlag(c,where,word){
   if(!state.db||!state.ui||!state.cur||!state.cur.p) return null;
   const on=!!flagOf(c), F=state.ui.flagEdit, active=!!(F&&flagId(F.c)===flagId(c));
   return el("button",{type:"button","data-fid":flagId(c),class:"aiflag"+(word?" wd":"")+(on?" flagged":"")+(active?" active":""),"aria-pressed":on?"true":"false",
-    "aria-label":(on?"Flagged: ":"Flag ")+c.partLabel,title:on?"Flagged. Tap to change":"Flag "+c.partLabel,onclick:e=>{ e.stopPropagation(); openFlag(c,where); }},
+    "aria-label":(on?"Flagged: ":"Flag ")+c.partLabel,title:state.unlock?"Flagging needs the Magic Key":on?"Flagged. Tap to change":"Flag "+c.partLabel,onclick:e=>{ e.stopPropagation(); openFlag(c,where); }},
     el("span",{class:"flg","aria-hidden":"true"}),word?el("span",{class:"fw",text:on?"Flagged":"Flag"}):null);
 }
 // one answer of Claude in the Why panel (explain turn) or the chat: the flag first, so it floats to the top-right, and the editor last
