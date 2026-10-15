@@ -6,7 +6,7 @@ import type { Cat, DrillData, Item } from "../ai-shared/data";
 import type { AnswerView, DebateAnswer } from "../ai-shared/card";
 import type { CellId, RelKey } from "../ai-shared/relations";
 import type { Pair, PoolEntry, Verdict } from "../domain/types";
-import type { Db, Sample, Tutor } from "../platform/types";
+import type { Db, Sample, Tutor, Unlock } from "../platform/types";
 import type { TransferSlot } from "../ui/data-transfer";
 
 export type { Pair, PoolEntry, Verdict };
@@ -174,8 +174,8 @@ export interface State {
   // what the platform offers
   db: Db | null;
   sample: Sample | null;
-  /** opens the prompt for the study group's key (platform.unlock), while this device has none; the Options row shows it */
-  unlock: (() => void) | null;
+  /** opens the prompt for the Magic Key (platform.unlock) while this device has none; `tutor` is whether the server has a tutor waiting for it */
+  unlock: Unlock | null;
   /** a question to the app's own server (platform.tutor), when the place has one; `sample` is used first */
   tutor: Tutor | null;
 
