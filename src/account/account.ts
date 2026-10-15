@@ -46,6 +46,8 @@ export interface Account {
   signedOut(): void;
   /** the connection is back, or the page is in view again: send and receive soon */
   wake(): void;
+  /** Another tab changed who is signed in (it wrote the kept person): follow it. Never rejects. */
+  reconcile(): Promise<void>;
   dismiss(): void;
 }
 
@@ -111,6 +113,21 @@ export function createAccount(deps: AccountDeps): Account {
     keep.write(p);
     set({ person: p, available: true });
     await sync.activate(p.id);
+  }
+
+  /** Makes this tab show and track `who`, the person another tab (or the server) says is signed in, or null. */
+  async function reconcileWith(who: Person | null) {
+    if (!who) {
+      if (v.person) { sync.deactivate(); set({ person: null, message: { text: "You were signed out. Sign in again to keep syncing.", bad: false } }); }
+      return;
+    }
+    if (v.person?.id === who.id) {
+      if (v.person.name !== who.name || v.person.passkeys !== who.passkeys) set({ person: who });
+      return;
+    }
+    keep.write(who);
+    set({ person: who, available: true });
+    await sync.activate(who.id);
   }
 
   /** Runs one action: one at a time, with its failure shown as a message. */
@@ -191,6 +208,12 @@ export function createAccount(deps: AccountDeps): Account {
 
     deleteAccount: () =>
       act("delete", async () => {
+        // The session cookie is shared by all tabs, so confirm that it is still the account shown here before deleting anything.
+        const me = await client.me();
+        if (!me.signedIn || me.user.id !== v.person?.id) {
+          await reconcileWith(me.signedIn ? personOf(me.user) : null);
+          throw new AccountFailure("signed_out");
+        }
         await client.deleteAccount();
         await sync.forget();
         keep.write(null);
@@ -206,6 +229,10 @@ export function createAccount(deps: AccountDeps): Account {
       }),
 
     signedOut,
+
+    async reconcile() {
+      try { await reconcileWith(keep.read()); } catch { /* the next start asks the server */ }
+    },
 
     wake() {
       if (v.person) sync.kick();

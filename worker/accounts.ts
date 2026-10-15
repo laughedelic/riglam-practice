@@ -79,7 +79,7 @@ export async function readObject(c: Ctx, max: number): Promise<Record<string, un
   if (Number(c.req.header("content-length") ?? 0) > max) return "too_large";
   try {
     const text = await c.req.text();
-    if (text.length > max) return "too_large";
+    if (new TextEncoder().encode(text).length > max) return "too_large"; // bytes, like the header above: a body without a length is not measured in characters
     const v = JSON.parse(text);
     return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
   } catch {

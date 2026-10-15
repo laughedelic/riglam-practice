@@ -41,7 +41,8 @@ const exclusive = async <T>(fn: () => Promise<T>): Promise<T | undefined> => {
 
 const storeOf = (db: LocalDb): SyncStore => ({
   onWrite: (fn) => db.onWrite(fn),
-  applyRemote: (col, id, data) => db.applyRemote(col, id, data),
+  applyRemote: (col, id, data, revision) => db.applyRemote(col, id, data, revision),
+  revision: (col, id) => db.revision(col, id),
   async documents(col) {
     const snap = await db.collection(col).get();
     return snap.docs.map((d) => ({ id: d.id, data: d.data() ?? {} }));
@@ -75,6 +76,8 @@ export function createPwaAccount(db: LocalDb, groupKey: () => string | null): Ac
     },
   });
 
+  // Another tab signed in, out or switched account: this tab's identity and write tracking follow it (localStorage tells the other tabs).
+  addEventListener("storage", (e) => { if (e.key === KEPT || e.key === null) void account.reconcile(); });
   addEventListener("online", () => account.wake());
   addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") account.wake(); });
   setInterval(() => { if (document.visibilityState === "visible" && navigator.onLine) account.wake(); }, POLL_MS);
