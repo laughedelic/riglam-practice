@@ -108,6 +108,8 @@ export interface FlagDoc {
   /** which turn or part of the case: always stored as a string (a turn index, a relation, a cell) */
   n?: string | null;
   shown?: string;
+  /** for an answer in the chat: the learner's question it answered (written since flags are listed in Review) */
+  asked?: string;
   note?: string;
   suggest?: string;
   /** the pair the flag was made on, by its labels; not a whole pair */

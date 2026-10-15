@@ -2,6 +2,8 @@
 // how an answer is checked, and how Claude's verdicts on open examples are read. Used by the page (src/app) and by
 // whatever else grades or draws pairs, such as a server. Nothing here reads the page, the DOM, storage or the network;
 // tests/unit/domain.test.ts keeps it so. It builds on src/ai-shared (the index of the data, the relations).
+export { flagAnswerRef, flagStateText, flaggedPart } from "./flags";
+export type { AnswerCol, FlagRef } from "./flags";
 export { deriveRel, grade, gradeDebate, judgeText, summarize, termLine } from "./grading";
 export type { Judgement } from "./grading";
 export type {

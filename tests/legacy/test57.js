@@ -252,17 +252,20 @@ const settle=pg=>pg.waitForFunction(()=>{const u=window.__t.ui; return u&&u.lab&
   ok('a model table lists Haiku, Sonnet and Opus with counted runs, time and agreement with the judge',trs.length===3&&/Haiku\s+2/.test(trs[0].replace(/\t/g,' '))&&/\d+ \/ \d+/.test(trs[0]),trs);
   const dis=await sec.locator('.sublabel',{hasText:/disagree/i}).count();
   ok('"Models disagree" lists the things where the models gave different cells',dis===1&&await sec.locator('.sublabel',{hasText:/disagree/i}).evaluate(e=>e.nextElementSibling.querySelectorAll('li').length)>=2);
-  await sec.locator('.flagl li .btn',{hasText:/reviewed/i}).click(); await pg.waitForTimeout(150);
+  // the flags are listed in their own section (under the mistakes on a wide screen); an entry opens to show the flag and its buttons
+  const fsec=pg.locator('.rcol .section',{has:pg.locator('.label',{hasText:/^Flags/})});
+  await fsec.locator('.flags > li > details > summary').first().click(); await pg.waitForTimeout(80);
+  await fsec.locator('.flags li .btn',{hasText:/reviewed/i}).click(); await pg.waitForTimeout(150);
   ok('Reviewed changes the stored state',Object.values(await S(pg,'flags'))[0].state==='reviewed');
-  await sec.locator('.flagl li .btn',{hasText:/resolved/i}).click(); await pg.waitForTimeout(150);
-  ok('Resolved changes it again, and the entry is dimmed',Object.values(await S(pg,'flags'))[0].state==='resolved'&&await sec.locator('.flagl li.resolved').count()===1);
-  ok('the flag entry shows what was flagged and the note',/B is wrong/.test(await sec.locator('.flagl').innerText())&&/Haiku/.test(await sec.locator('.flagl').innerText()));
-  await sec.locator('.flagl li .btn',{hasText:/delete/i}).click(); await pg.waitForTimeout(150);
-  ok('Delete removes it',Object.keys(await S(pg,'flags')).length===0&&await sec.locator('.flagl').count()===0);
+  await fsec.locator('.flags li .btn',{hasText:/resolved/i}).click(); await pg.waitForTimeout(150);
+  ok('Resolved changes it again, and the entry is dimmed',Object.values(await S(pg,'flags'))[0].state==='resolved'&&await fsec.locator('.flags li.resolved').count()===1);
+  ok('the flag entry shows what was flagged and the note',/B is wrong/.test(await fsec.locator('.flags').innerText())&&/Haiku/.test(await fsec.locator('.flags').innerText()));
+  await fsec.locator('.flags li .btn',{hasText:/delete/i}).click(); await pg.waitForTimeout(150);
+  ok('Delete removes it',Object.keys(await S(pg,'flags')).length===0&&await pg.locator('.flags').count()===0);
   // a flag arriving from elsewhere appears
   await pg.evaluate(()=>{ window.__S.flags.fl_ext={id:'fl_ext',caseKey:'x',thing:'a tree',part:'cell',model:'sonnet',shown:'Both',note:'from another device',suggest:'',state:'new',at:new Date().toISOString(),updatedAt:new Date().toISOString()}; window.__subs.flags.forEach(f=>f({docs:Object.entries(window.__S.flags).map(([id,d])=>({id,data:()=>d}))})); });
   await pg.waitForTimeout(200);
-  ok('a flag written elsewhere shows up in Review',/from another device/.test(await pg.locator('.rcol').first().innerText()));
+  ok('a flag written elsewhere shows up in Review',/from another device/.test(await pg.locator('.flags').textContent()));
   ok('no page errors (review lab)',noErr(errs).length===0,errs);
   await br.close();
  }

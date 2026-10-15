@@ -7,7 +7,7 @@ import { expect, test } from "vitest";
 import { CELLS, REL, makeIndex, refOf } from "../../src/ai-shared";
 import type { CellId, DrillData, RelKey } from "../../src/ai-shared";
 import {
-  FEATURE, RECENT_MAX, applyVerdicts, buildPool, cellsFor, chooseEntry, deriveRel, grade, gradeDebate, gradeOf, inUniverse, isMiss, judgeText, makePair,
+  FEATURE, RECENT_MAX, applyVerdicts, flagAnswerRef, flagStateText, flaggedPart, buildPool, cellsFor, chooseEntry, deriveRel, grade, gradeDebate, gradeOf, inUniverse, isMiss, judgeText, makePair,
   nextPair, pairKey, parseVerdicts, pick, relOfCells, summarize, termLine,
 } from "../../src/domain";
 import type { DebateInput, GradeDraft, HistoryEntry, Pair, PoolEntry } from "../../src/domain";
@@ -462,6 +462,26 @@ test("the real data draws pairs of every relation, for a long run", () => {
     hist.push({ key: p.relation, catA: p.catA, catB: p.catB, grade: i % 3 ? "ok" : "bad" });
   }
   expect([...rels].sort()).toEqual(["3ab", "3ba", "4", "con", "mi"]);
+});
+
+// ---- flags on what Claude said ----
+
+test("a flag names the stored answer it was made on, by its case key", () => {
+  expect(flagAnswerRef({ caseKey: "answers_r-mv9q" })).toEqual({ col: "answers", id: "r-mv9q" });
+  expect(flagAnswerRef({ caseKey: "debates_q-mv9q_2" })).toEqual({ col: "debates", id: "q-mv9q_2" });
+  expect(flagAnswerRef({ caseKey: "labruns_x" })).toBeNull();
+  expect(flagAnswerRef({})).toBeNull();
+});
+
+test("a flag says in words what it is on", () => {
+  expect(flaggedPart({ part: "explain", n: null })).toBe("Claude’s explanation");
+  expect(flaggedPart({ part: "explain", n: "both", caseKey: "answers_r-1" })).toBe("Claude’s note on Both");
+  expect(flaggedPart({ part: "explain", n: "bna", caseKey: "debates_q-1" })).toBe("Claude’s note on Q3");
+  expect(flaggedPart({ part: "explain", n: "nei", pair: { tab: "debate" } })).toBe("Claude’s note on Q4");
+  expect(flaggedPart({ part: "explain", n: "rel" })).toBe("Claude’s note on the relation");
+  expect(flaggedPart({ part: "chat", n: "3" })).toBe("Claude’s answer in the chat");
+  expect(flaggedPart({ part: "verdict", thing: "a pot", model: "m1" }, (id) => id.toUpperCase())).toBe("“a pot” · M1 · verdict");
+  expect([flagStateText("new"), flagStateText(undefined), flagStateText("reviewed"), flagStateText("resolved")]).toEqual(["Not reviewed yet", "Not reviewed yet", "Reviewed", "Resolved"]);
 });
 
 // ---- the code stays free of the page and the browser ----
