@@ -1,0 +1,24 @@
+{
+  "base": "main",
+  "branches": [
+    "claude/project-thread-su0sbn",
+    "claude/app-track-b-accounts",
+    "claude/app-track-b-sync",
+    "claude/project-thread-yqm13y",
+    "claude/pwa-unlock-row",
+    "claude/account-carries-key",
+    "claude/build-version",
+    "claude/type-remaining-doc-writers",
+    "claude/american-spelling-styles",
+    "claude/project-thread-7grm9i",
+    "claude/project-thread-dw1bzp",
+    "claude/project-thread-e2864d",
+    "claude/flag-reports",
+    "claude/app-update-flow",
+    "claude/release-no-deploy",
+    "claude/sync-request-timeout",
+    "claude/magic-key-change",
+    "claude/worker-observability",
+    "claude/worker-observability-prod"
+  ]
+}
