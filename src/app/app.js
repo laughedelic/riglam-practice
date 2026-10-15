@@ -41,6 +41,7 @@ async function bootSteps(platform){
   waiting("the other parts of the app");
   try{ state.sample=await platform.sample(); }catch(e){ state.sample=null; }
   try{ state.unlock=platform.unlock?await platform.unlock():null; }catch(e){ state.unlock=null; }
+  try{ state.keyHeld=platform.keyHeld?await platform.keyHeld():null; }catch(e){ state.keyHeld=null; }
   try{ state.tutor=platform.tutor?await platform.tutor():null; }catch(e){ state.tutor=null; }
   try{ state.reports=platform.reports?await platform.reports():null; }catch(e){ state.reports=null; }
   try{ state.account=platform.account?await platform.account():null; }catch(e){ state.account=null; }

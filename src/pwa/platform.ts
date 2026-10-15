@@ -3,6 +3,7 @@
 //   sample  not available yet (no server): the page hides the check lab. Only `npm run dev` has one, a stand-in for the model
 //           (./dev-sample.ts); `?ai=off` in the address takes it away there too.
 //   unlock  a way to enter the Magic Key, while this device has none (./unlock.ts); the definitions come from the server (./course.ts)
+//   keyHeld while it has one: enter another, or forget it (./unlock.ts)
 //   tutor   the app's own server (./tutor.ts), when it has the tutor on and this device has the Magic Key
 //   reports flags sent to the app's own server (./reports.ts), when it takes them and this device has the Magic Key
 //   account optional sign-in with a passkey and a server copy of the documents (./account.ts), when the server has accounts on
@@ -122,6 +123,14 @@ async function sample(): Promise<Sample | null> {
 }
 
 let account: Account | null = null;
+let changeKey: (() => void) | null = null; // the prompt for another key, made when first asked for
+
+/** The reader forgets the Magic Key on this device: the key and the kept definitions go, and the page starts again, locked. Answers and settings stay. */
+function forgetEverything() {
+  forgetKey();
+  forgetCourse();
+  location.reload();
+}
 
 export const pwaPlatform: Platform = {
   target: "pwa",
@@ -130,6 +139,8 @@ export const pwaPlatform: Platform = {
   sample,
   // Offered while there is no key: the page opens the prompt when the reader reaches something that needs it (Explain, the definitions, Options).
   unlock: async () => (groupKey || !openUnlock ? null : { open: openUnlock, tutor: await tutorIsOn() }),
+  // While this device has the key: another one can be entered (the prompt keeps the old one until the new one is checked), or the key is forgotten, with the kept definitions.
+  keyHeld: async () => (groupKey ? { change: () => (changeKey ??= showUnlock({ verify }))(), forget: forgetEverything } : null),
   // Only with the key (the server would refuse the request anyway) and only when the server says its tutor is on: otherwise the page hides the tutor.
   about: () => aboutThisBuild(),
   updates,

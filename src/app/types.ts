@@ -10,6 +10,7 @@ import type { Pair, PoolEntry, Verdict } from "../domain/types";
 import type { Account, Db, Reports, Sample, Tutor } from "../platform/types";
 import type { AccountSlot } from "../ui/account";
 import type { TransferSlot } from "../ui/data-transfer";
+import type { KeyHeld } from "../platform/types";
 
 export type { Pair, PoolEntry, Verdict };
 type Feature = import("../ui/features").Feature;
@@ -187,6 +188,10 @@ export interface State {
   updates: Updates | null;
   /** opens the prompt for the Magic Key (platform.unlock) while this device has none; `tutor` is whether the server has a tutor waiting for it */
   unlock: Unlock | null;
+  /** while this device has the Magic Key: take another one, or forget it (platform.keyHeld) */
+  keyHeld: KeyHeld | null;
+  /** the Magic Key row of Options is asking whether to forget the key */
+  keyAsk: boolean;
   /** a question to the app's own server (platform.tutor), when the place has one; `sample` is used first */
   tutor: Tutor | null;
   /** sends flags to the app's server (platform.reports), when the place has a server for them and this device has the Magic Key */
