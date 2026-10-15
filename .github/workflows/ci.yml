@@ -63,10 +63,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: legacy 1/3, slug: legacy-1, args: "--project=legacy --shard=1/3" }
-          - { name: legacy 2/3, slug: legacy-2, args: "--project=legacy --shard=2/3" }
-          - { name: legacy 3/3, slug: legacy-3, args: "--project=legacy --shard=3/3" }
-          - { name: layout and PWA, slug: layout-pwa, args: "--project=layout --project=pwa-desktop --project=pwa-phone" }
+          - { name: legacy 1/3, args: "--project=legacy --shard=1/3" }
+          - { name: legacy 2/3, args: "--project=legacy --shard=2/3" }
+          - { name: legacy 3/3, args: "--project=legacy --shard=3/3" }
+          - { name: layout and PWA, args: "--project=layout --project=pwa-desktop --project=pwa-phone" }
     env:
       RIGLAM_COURSE_DATA: ${{ secrets.RIGLAM_COURSE_DATA }}
     steps:
@@ -90,14 +90,10 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - run: npx playwright install --with-deps chromium
+      # Nothing from this step is uploaded: the HTML report and the traces record page content and step arguments (URLs, typed text),
+      # which can include the course definitions and the data key, and artifacts (unlike logs) are not masked.
+      # Read a failure in this job's log, or run the spec locally with `--trace on`.
       - run: npx playwright test ${{ matrix.args }}
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: playwright-report-${{ matrix.slug }}
-          path: playwright-report/
-          retention-days: 7
-          if-no-files-found: ignore
 
   # One check for the whole suite, under the name that branch protection requires (docs/RELEASING.md), whatever the jobs above are called or however many there are.
   check:
