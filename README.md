@@ -62,4 +62,4 @@ docs/                      developing, architecture, term data and key, artifact
 
 Early: the page is the one developed as a Claude artifact. Answers stay on the device. A small server for the tutor exists but the page does not use it yet, so the features that ask Claude (tutor, answer checking) are available only in the artifact build.
 
-Licence: AGPL-3.0, see `LICENSE`. The self-hosted fonts in `src/pwa/fonts` (Inter, EB Garamond, Merriweather, Noto Sans Math) are distributed under the SIL Open Font License 1.1 by their authors, via Google Fonts.
+Licence: AGPL-3.0, see `LICENSE`. The self-hosted fonts in `src/pwa/fonts` (Inter, EB Garamond, Merriweather, Noto Sans Math) are distributed under the SIL Open Font License 1.1 by their authors, via Google Fonts; their notices and the licence text are in `public/licenses/fonts-OFL.txt`, which the app serves at `licenses/fonts-OFL.txt`.
