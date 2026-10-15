@@ -50,7 +50,3 @@ To rotate the key (a leak, or someone who should no longer open new versions): `
 ## What this does and does not do
 
 It keeps the definitions out of search engines, link previews, the host's files, a scrape of the site and the repository. It does not stop someone who holds the key from copying what they can read, and it does not hide the open tier, which is meant to be shareable.
-
-## Licence
-
-The AGPL-3.0 in `LICENSE` covers the source code. It does not cover the term data in `src/data`, which is compiled from course materials and published translations and is not licensed by this repository. The definitions follow wording whose authors and publishers hold the rights, which is why they are in the course tier and not in the open one. If you add data, keep third-party wording out of the open tier.
