@@ -1,0 +1,17 @@
+/* voice: the bar under the answer controls (read again, the microphone, what was heard) and the Voice row of Options.
+   Shown only when Read aloud or Answer by voice is on, so the page is unchanged while both are off. */
+.vbar{display:flex;align-items:center;gap:10px;min-height:44px;min-width:0}
+.vbar .ib{margin-right:0;flex:none}
+.vmic{flex:none;gap:7px;height:40px;padding:0 14px 0 11px}
+.vmic .tbi{width:20px;height:20px}
+.vmic.on{background:var(--vermilion);color:var(--on-vermilion);box-shadow:none}
+.vmic.on:hover{box-shadow:none}
+.vmic.on .tbi rect{fill:currentColor}
+@media (prefers-reduced-motion:no-preference){.vmic.on{animation:vpulse 1.4s ease-in-out infinite}}
+@keyframes vpulse{50%{background:var(--vermilion-ink)}}
+.vst{flex:1;min-width:0;font-size:13px;line-height:1.4;color:var(--ink-muted);overflow-wrap:anywhere}
+.vst.bad{color:var(--bad)}
+.vopts{display:grid;gap:8px;justify-items:start;max-width:100%}
+.vline{display:flex;flex-wrap:wrap;align-items:center;gap:8px;max-width:100%}
+.vsel{max-width:min(100%,300px);font:14px var(--body);color:var(--ink);background:var(--paper);border:1px solid var(--ink-muted);border-radius:0;padding:7px 9px}
+.vtry{height:36px;padding:0 14px;font-size:13px}

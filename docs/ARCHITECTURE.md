@@ -109,6 +109,21 @@ Collections the page uses: `batches`, `answers`, `favorites`, `skips`, `debates`
 
 The term data (the Dudra terms, their classification chains, the everyday-items list and aliases, as exported from the knowledge base) is kept in three files: the open data `src/data/drill-data.json` (68 KB, plain) and the encrypted definitions and notes `src/data/course-definitions.enc` and `src/data/course-notes.enc`. [DATA.md](DATA.md) describes the tiers, the key, and how to refresh the data (`npm run data:import`). The repo stores the snapshot, not the pipeline. The PWA ships the open data and the encrypted definitions and unlocks the definitions with the key from the shared link; the artifact build merges everything at build time and needs the key.
 
+## Voice
+
+Options has a Voice row with two settings, each independent of the other and off until turned on: **Read aloud** says each question when it appears (the pair and the relation question, each cell's prompt in Relations, each statement in Pervasions), and **Answer by voice** adds a microphone under the answer controls, either to tap (or press V) or, in Hands-free, listening by itself after each question. Both use the browser's own speech: `speechSynthesis` for the voice and `SpeechRecognition` for hearing, so there is no service or key of the app's. Chrome's recognizer sends the audio to Google to turn it into text; the app records nothing and stores only the answer, in the same documents as a typed one.
+
+| Part | What |
+|---|---|
+| `src/ui/speech.ts` | the two browser APIs: the English voices of the device (best first, without the macOS voices that Chrome cannot load), `speak`, `listen` (up to five guesses of what was said, one restart when the first start opens no microphone) |
+| `src/domain/spoken.ts` | reading the guesses as an answer: `spokenReply` (Accept or Why?, in any wording, with an example said in the same breath), `spokenRelation` (by name or number; three possibilities needs a direction, "A in B"), `spokenExample` (a practice item, also when misheard, or "nothing") |
+| `nearestItem` in `src/ai-shared/lookup.ts` | the practice item or alias nearest to misheard words ("a medal table" is a metal table) |
+| `src/app/shell/voice.js` | what the screen asks and what to say for it, when to speak and listen, and applying what was heard through the same calls as a tap or a typed answer (`sayQ`, `choose`, a cell's text); the voice bar and the Options row |
+
+After each render the page compares the screen with the one it last spoke for (`asked()`); a new screen stops what the old one started. With Read aloud on, a question's Blitz countdown and its response time start when the reading ends. The settings are kept on the device (`rd-voice-*`).
+
+Voice is on trial: it is off unless the device has turned it on by opening the app with `?features=voice` in the address (`?features=-voice` turns it off again, as does its switch under "On trial" in Options). `src/ui/features.ts` reads the parameter, keeps the list on the device (`riglam.features`, not part of the export file) and puts it in `state.features`; with voice off the page has no Voice row or voice bar and `voice.js` does nothing. `tests/unit/spoken.test.ts` checks the reading of answers; `tests/e2e/pwa/voice.spec.js` runs the flows with stand-ins for the two browser APIs, since the test browser has no speech service.
+
 ## Styling
 
 `src/app/app.css` is an index: it imports the files in `src/app/styles/` (`00-tokens.css`, `01-base.css`, ...) and nothing else. Both builds import `app.css`, so a change to a stylesheet needs no change elsewhere. The tokens file carries the "Logic and Debate" design system values the page uses (booklet palette, felt per cover colour, rhombus marks).

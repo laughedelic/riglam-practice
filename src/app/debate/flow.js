@@ -52,11 +52,16 @@ function nextQ(){
   if(state.ui.step>3){ stopTimer(); state.ui.open=true; } else startQ();
   render();
 }
-export function sayQ(say){
+// `voiced` when the answer was spoken (shell/voice.js): the example field is not focused, so a phone keeps its keyboard down,
+// and an example said together with Why? is taken at once.
+export function sayQ(say,voiced){
   if(!state.ui||!state.ui.debate||state.ui.checked||state.ui.step>3||state.ui.pickWhy) return;
   const a=state.ui.ans[state.ui.step]; a.say=say; a.ms=Math.round(performance.now()-state.ui.qStart);
   if(say==="accept"){ nextQ(); return; }
-  state.ui.pickWhy=true; state.ui.exText=""; render();
+  state.ui.pickWhy=true; state.ui.exText="";
+  if(voiced&&voiced.example){ state.ui.exText=voiced.example; submitWhy(); return; }
+  render();
+  if(voiced) return;
   const i=$("dex"); if(i) i.focus();
 }
 // An empty example is not an answer: Next stays off until something is written (Back returns to Accept / Why?).

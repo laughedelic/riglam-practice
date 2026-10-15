@@ -77,3 +77,45 @@ export function matchItem(ix: DataIndex, text: unknown, exactOnly?: boolean): It
   for (const t of tries) if (ix.ALIASIDX[t]) return ix.ALIASIDX[t];
   return null;
 }
+
+/** How alike two strings are, from 0 to 1: one minus their edit distance (Levenshtein) over the length of the longer one. */
+export function similarity(a: string, b: string): number {
+  const m = a.length, n = b.length;
+  if (!m || !n) return m === n ? 1 : 0;
+  let prev = Array.from({ length: n + 1 }, (_, j) => j);
+  for (let i = 1; i <= m; i++) {
+    const cur = [i];
+    for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prev = cur;
+  }
+  return 1 - prev[n] / Math.max(m, n);
+}
+
+/** A speech recognizer's reading of a learner's words, resolved to the practice item it most likely names. */
+export interface NearItem {
+  /** the item's name or the alias, as the data spells it */
+  said: string;
+  item: Item;
+  /** the similarity of what was heard to `said`, 0 to 1 */
+  score: number;
+}
+/**
+ * The practice item whose name or alias is nearest to `text`, when it is at least `min` alike (articles left out on
+ * both sides). A recognizer mishears rare words ("a medal table", "a wooden tablet"); typed text goes through
+ * `matchItem`, which needs the words exactly.
+ */
+export function nearestItem(ix: DataIndex, text: unknown, min = 0.8): NearItem | null {
+  const k = stripDet(spelled(text));
+  if (k.length < 3) return null;
+  let best: NearItem | null = null;
+  const consider = (said: string, item: Item) => {
+    const score = similarity(k, stripDet(spelled(said)));
+    if (score >= min && (!best || score > best.score)) best = { said, item, score };
+  };
+  for (const it of ix.DATA.items) consider(it.n, it);
+  for (const [alias, name] of Object.entries(ix.DATA.aliases || {})) {
+    const it = ix.ALIASIDX[spelled(alias)];
+    if (it && it.n === name) consider(alias, it);
+  }
+  return best;
+}

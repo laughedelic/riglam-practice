@@ -10,6 +10,7 @@ import type { Db, Sample, Tutor } from "../platform/types";
 import type { TransferSlot } from "../ui/data-transfer";
 
 export type { Pair, PoolEntry, Verdict };
+type Feature = import("../ui/features").Feature;
 
 export interface CellDoc {
   text: string;
@@ -236,4 +237,40 @@ export interface State {
   blitz: boolean;
   timeEdit: boolean;
   timeDraft: string;
+
+  // reading the questions aloud and answering by voice (shell/voice.js)
+  voice: VoiceState;
+  /** features on trial that are on for this device (src/ui/features.ts) */
+  features: Feature[];
+}
+
+/** Voice settings (kept on the device) and what the voice is doing on the screen now. */
+export interface VoiceState {
+  /** read each question aloud */
+  read: boolean;
+  /** answer by voice: not at all, when the microphone button is tapped, or listening after each question */
+  answer: "off" | "tap" | "auto";
+  /** the chosen voice, "" for the best one this device has */
+  voiceId: string;
+  rate: number;
+  /** the screen spoken and listened for; a new screen stops what the last one started */
+  key: string;
+  phase: "idle" | "speaking" | "listening";
+  /** what the recognizer hears so far */
+  live: string;
+  /** the last thing to tell: what was heard and taken, or why nothing was */
+  note: string;
+  bad: boolean;
+  /** a note to show on the next screen (what was heard on this one) */
+  carry: string;
+  /** how often this screen was listened to without an answer coming of it */
+  tries: number;
+  /** speaking failed for want of a tap on the page: the Read again button says so */
+  blocked: boolean;
+  /** ends the current listening */
+  stop: { stop(): void; abort(): void } | null;
+  /** the speaking or listening under way; a callback of one that was stopped finds another here and does nothing */
+  tok: object | null;
+  /** the Options row listens for the browser's list of voices (once it has been shown) */
+  hooked: boolean;
 }
