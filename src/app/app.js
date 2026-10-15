@@ -24,10 +24,19 @@ export function startApp(platform){
   boot(platform);
   exposeTestHook();
 }
+// What the start is waiting for, in words: the recovery panel of the PWA page (index.html) shows it when the start takes too long.
+function waiting(what){ try{ window.__riglamWaiting=typeof what==="function"?what:()=>what; }catch(e){} }
 async function boot(platform){
+  try{ await bootSteps(platform); }
+  catch(e){ try{ window.__riglamFailed=String(e&&e.message||e); }catch(_){} throw e; }
+}
+async function bootSteps(platform){
+  waiting("the practice data");
   try{ state.DATA=await platform.loadData(); indexData(); buildPool(); }
   catch(e){ state.mode="nodata"; render(); return; }
+  waiting("the storage on this device");
   try{ state.db=await platform.db(); }catch(e){ state.db=null; }
+  waiting("the other parts of the app");
   try{ state.sample=await platform.sample(); }catch(e){ state.sample=null; }
   try{ state.unlock=platform.unlock?await platform.unlock():null; }catch(e){ state.unlock=null; }
   try{ state.tutor=platform.tutor?await platform.tutor():null; }catch(e){ state.tutor=null; }
@@ -39,6 +48,7 @@ async function boot(platform){
   if(state.updates) state.updates.subscribe(()=>{ if(state.optsOpen) render(); });
   if(state.account){ let seen=signature(state.account.view()); state.account.subscribe(v=>{ const now=signature(v); if(now!==seen){ seen=now; if(state.optsOpen) render(); } }); }
   if(!state.db){ state.gotA=state.gotB=state.gotS=true; advance(); state.mode="quiz"; render(); return; }
+  waiting(()=>"the saved "+[!state.gotB&&"batches",!state.gotA&&"answers",!state.gotS&&"skipped pairs"].filter(Boolean).join(", ")+" on this device");
   state.db.collection("batches").orderBy("order","asc").onSnapshot(snap=>{
     state.batches=snap.docs.map(d=>Object.assign({id:d.id},d.data())); state.gotB=true; settle();
   },()=>{ state.gotB=true; settle(); });

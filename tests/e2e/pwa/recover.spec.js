@@ -27,3 +27,21 @@ test("a page that starts normally never shows it", async ({ page }) => {
   await page.waitForTimeout(2500);
   await expect(page.locator("#recover")).toHaveCount(0);
 });
+
+test("the panel says what the start is waiting for", async ({ page }) => {
+  await page.addInitScript(() => { window.__riglamRecoverMs = 400; });
+  await page.route("**/drill-data*.json", (route) => route.abort());
+  await page.goto("/");
+  await expect(page.locator("#recover")).toContainText("Waiting for the practice data.", { timeout: 10_000 });
+});
+
+test("a storage that never answers is named in the panel", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__riglamRecoverMs = 400;
+    // a connection that never opens: neither success nor error
+    const open = IDBFactory.prototype.open;
+    IDBFactory.prototype.open = function (name, ...rest) { return name === "riglam" ? ({}) : open.call(this, name, ...rest); };
+  });
+  await page.goto("/");
+  await expect(page.locator("#recover")).toContainText("Waiting for the saved batches, answers", { timeout: 10_000 });
+});
