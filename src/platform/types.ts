@@ -126,6 +126,18 @@ export interface Unlock {
   answer?: Promise<boolean>;
 }
 
+/** Which build runs, for Options (platform.about). */
+export interface About {
+  version: string;
+  /** the commit the build was made from, short; ends in "+local" for a build with uncommitted changes */
+  commit: string;
+  builtAt: string;
+  /** whether the server has a newer build than this one; "unknown" while offline or when the server does not say */
+  latest: "current" | "newer" | "unknown";
+  /** the pull request branches a staging build was made from, when the server says */
+  branches?: string[];
+}
+
 export interface Platform {
   /** Which build runs the page. Informational; the page must not branch on it. */
   readonly target: "pwa" | "artifact" | "test";
@@ -141,4 +153,6 @@ export interface Platform {
   tutor?(): Promise<Tutor | null>;
   /** The optional account (a passkey and a server copy of the documents, src/account), or null (or absent) when the place has none. The page works the same without. */
   account?(): Promise<Account | null>;
+  /** Which build this is and whether a newer one is out, or null (or absent) when the place has no builds to tell apart (the artifact). */
+  about?(): Promise<About | null>;
 }
