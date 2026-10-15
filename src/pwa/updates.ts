@@ -1,19 +1,13 @@
 // Keeping the installed app current. A new version of the service worker (vite.config.js) takes over as soon as it is installed. It must:
 // a worker that waits for every page of the app to close never gets its turn on a phone, where "closing" the app often leaves a page
 // alive, and a cold start opens the old version again (the old worker is the one that answers). The page that is open keeps running the
-// version it loaded until it is reloaded, so the app tells the reader and offers the reload:
-//   - it looks for a newer version when it starts, when it comes back to the screen, when the connection returns and in Options;
-//   - a version that takes over within seconds of the app opening is started at once, there is nothing to lose yet;
-//   - one that takes over later waits for the reader's word (the banner in ./update-banner.ts, the button in Options).
+// version it loaded until it is reloaded, and that is never done behind the reader's back (they may be in the middle of an answer): the
+// app looks for a newer version when it starts, when it comes back to the screen, when the connection returns and in Options, and offers
+// the reload in the banner (./update-banner.ts) and in Options.
 import { registerSW } from "virtual:pwa-register";
 import type { UpdateStatus, Updates } from "../platform/types";
 
 const LOOK_EVERY_MS = 15 * 60_000; // how long the app may stay in view before it looks again
-const AT_ONCE_MS = (globalThis as { __riglamAtOnceMs?: number }).__riglamAtOnceMs ?? 10_000; // a version that takes over this soon after the page opened is started without asking (the browser specs set it)
-const APPLIED_KEY = "rd-update-applied";
-const LOOP_GUARD_MS = 30_000; // a version started less than this long ago is not started again on its own
-
-const openedAt = Date.now();
 let status: UpdateStatus = "current";
 let registration: ServiceWorkerRegistration | undefined;
 let lastLook = Date.now(); // the browser itself looked as the page loaded
@@ -26,22 +20,8 @@ function set(next: UpdateStatus): void {
   for (const fn of [...listeners]) fn();
 }
 
-function startedRecently(): boolean {
-  try {
-    return Date.now() - Number(localStorage.getItem(APPLIED_KEY)) < LOOP_GUARD_MS;
-  } catch {
-    return false;
-  }
-}
-
 function apply(): void {
-  if (status !== "ready") return;
-  try {
-    localStorage.setItem(APPLIED_KEY, String(Date.now()));
-  } catch {
-    /* private mode: the loop guard is best effort */
-  }
-  location.reload();
+  if (status === "ready") location.reload();
 }
 
 // A page that was controlled by a worker when it opened sees "controllerchange" when a newer worker takes over. The first install of the
@@ -50,7 +30,6 @@ const hadController = !!navigator.serviceWorker?.controller;
 navigator.serviceWorker?.addEventListener("controllerchange", () => {
   if (!hadController) return;
   set("ready");
-  if (Date.now() - openedAt < AT_ONCE_MS && !startedRecently()) apply();
 });
 
 registerSW({

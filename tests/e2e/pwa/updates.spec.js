@@ -1,5 +1,5 @@
-// A newer version of the installed app: found while the app is open, offered, and started without closing the app; one that takes over as
-// the app opens starts by itself. The server is a small static server over dist/pwa whose service worker script can be made different
+// A newer version of the installed app: found while the app is open, offered, and started without closing the app, never reloaded behind
+// the reader's back. The server is a small static server over dist/pwa whose service worker script can be made different
 // (the browser then installs it as a new version, which takes over at once); the new worker answers /__which with "v2". A page marks
 // itself with window.__old, so that a reload shows.
 import { createServer } from "node:http";
@@ -34,9 +34,7 @@ const markOld = (page) => page.evaluate(() => { window.__old = true; });
 const isOld = (page) => page.evaluate(() => window.__old === true);
 const controlled = (page) => page.evaluate(() => !!navigator.serviceWorker.controller);
 const which = (page) => page.evaluate(async () => (await fetch("__which")).text().catch(() => ""));
-// `later`: the page counts as in use from the start, so a version that takes over is offered, not started
-async function installed(page, { later = true } = {}) {
-  if (later) await page.addInitScript(() => { window.__riglamAtOnceMs = 0; });
+async function installed(page) {
   await page.goto(origin + "/");
   await ready(page);
   await page.evaluate(() => navigator.serviceWorker.ready);
@@ -92,15 +90,16 @@ test("Options looks for a newer version when it opens, and says when there is no
   await expect(row).toContainText("A newer version is ready.");
 });
 
-test("a version that takes over as the app opens starts by itself", async ({ page }) => {
-  await installed(page, { later: false });
+test("a version that takes over as the app opens is offered, not started", async ({ page }) => {
+  await installed(page);
   await markOld(page);
   newVersion = true;
-  // the browser looks for a new worker script when the page loads; the new one takes over within seconds and the page reloads onto it
+  // the browser looks for a new worker script when the page loads; the new one takes over within seconds
   await page.reload();
-  await expect.poll(() => which(page).catch(() => ""), { timeout: 15_000 }).toBe("v2");
-  await ready(page);
-  await expect(page.locator("#upd")).toBeHidden();
+  await markOld(page);
+  await expect(page.locator("#upd")).toBeVisible({ timeout: 15_000 });
+  expect(await which(page)).toBe("v2");
+  expect(await isOld(page), "the page is not reloaded without the reader's word").toBe(true);
 });
 
 test("a worker that is already waiting from an older build is replaced and takes over (a phone stuck on an old version)", async ({ page }) => {
