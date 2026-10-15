@@ -250,19 +250,17 @@ const other=r=>r==='mi'?'con':'mi';
   for(let i=0;i<3;i++){ await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(70); }
   await pg.locator('.rels .rel').nth(ORDER[await pg.evaluate(()=>window.__t.cur.p.relation)]).click(); await pg.waitForTimeout(250);
   await blur(pg);
-  const qchip=pg.locator('.vchip:has-text("Questions")');
-  if(await qchip.getAttribute('aria-selected')!=='true') await qchip.click();
   await pg.waitForTimeout(100);
-  // The first wrong question is open to begin with, and which one it is depends on the pair. Tapping an open row closes it, which makes the page
-  // shorter, and the browser then moves the scroll up to the new end of the page. So start with every row closed: opening a row only makes the
-  // page longer, and the scroll must not move at all.
-  const openRow=()=>pg.evaluate(()=>[...document.querySelectorAll('.qs')].findIndex(b=>b.getAttribute('aria-expanded')==='true'));
-  const rows=pg.locator('.qs');
+  // The answers on the result are a row of tags above the table. Tapping an open tag closes it, which makes the page shorter, and the browser
+  // then moves the scroll up to the new end of the page. So start with every tag closed: opening one only makes the page longer, and the
+  // scroll must not move at all.
+  const openRow=()=>pg.evaluate(()=>[...document.querySelectorAll('.rcpt.graded .ri')].findIndex(b=>b.getAttribute('aria-expanded')==='true'));
+  const rows=pg.locator('.rcpt.graded .ri');
   const o0=await openRow(); if(o0>=0){ await rows.nth(o0).click(); await pg.waitForTimeout(100); }
   ok('the rows are all closed to begin with',await openRow()===-1);
-  // scroll so that the rows are in view and the page is scrolled down a good way
-  const sc=await pg.evaluate(()=>{const s=document.getElementById('stage'), r=document.querySelector('.qs').getBoundingClientRect(), sr=s.getBoundingClientRect(); s.scrollTop=Math.max(0,s.scrollTop+(r.top-sr.top)-120); return {top:Math.round(s.scrollTop),max:s.scrollHeight-s.clientHeight};});
-  ok('the result is longer than the screen and scrolled down (rows in view)',sc.max>40&&sc.top>40,sc);
+  // scroll so that the row of answers (under the pair, above the table) is at the top of the view and the page is scrolled down a good way
+  const sc=await pg.evaluate(()=>{const s=document.getElementById('stage'), r=document.querySelector('.rcpt.graded .ri').getBoundingClientRect(), sr=s.getBoundingClientRect(); s.scrollTop=Math.max(0,s.scrollTop+(r.top-sr.top)-12); return {top:Math.round(s.scrollTop),max:s.scrollHeight-s.clientHeight};});
+  ok('the result is longer than the screen and scrolled down (answers in view)',sc.max>40&&sc.top>40,sc);
   const scroll=()=>settled(pg,()=>{const s=document.getElementById('stage'); return {top:Math.round(s.scrollTop),max:Math.round(s.scrollHeight-s.clientHeight)};});
   const before=await scroll();
   // dispatchEvent, not click(): click() first scrolls the row into view, which would move the very scroll position this check reads

@@ -17,7 +17,7 @@
 @import "./styles/13-layout.css"; /* finger-sized inputs, phone padding, the wide layout */
 @import "./styles/14-shell-fit.css"; /* no sideways scrolling, short phones, relation rows, Blitz seconds, tutor chat view */
 @import "./styles/15-result-chips.css"; /* version 45: result headline and chips as tabs; the "?" on a cell and its bubble */
-@import "./styles/16-debate-rows.css"; /* the four questions of a debate as short rows */
+@import "./styles/16-debate-rows.css"; /* the grades on the row of a debate's answers, on the result */
 @import "./styles/17-table-fit.css"; /* the table's columns may shrink */
 @import "./styles/18-thinking.css"; /* version 46: the thinking dots and the "isa" chain */
 @import "./styles/19-terms.css"; /* version 47: the Terms panel */

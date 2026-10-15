@@ -7,7 +7,7 @@ const EMPTY={mi:['anb','bna'],con:['both'],'3ab':['anb'],'3ba':['bna'],'4':[]};
 const CELLS=['both','anb','bna','nei'];
 const REPLY_Q='Both: a clay pot fits.\nNeither: a stone is B, not A.\nCommon locus: yes, a clay pot.\nPervasion: whatever is A is B.\nMisconception: none.';
 const REPLY_D='Q1: a clay pot fits.\nQ4: a stone is B, not A.\nRelation: Q1 to Q3 give the right one.\nPervasion: whatever is A is B.';
-const geo=(pg)=>pg.evaluate(()=>{const g=document.querySelector('#stage .grid'), v=document.querySelector('#stage .verdict'), h=document.querySelector('#stage .head'), a=document.querySelector('#stage .actions'); const r=x=>x&&x.getBoundingClientRect(); return {gTop:Math.round(r(g).top), gBottom:Math.round(r(g).bottom), vTop:v&&Math.round(r(v).top), headBottom:Math.round(r(h).bottom), st:document.getElementById('stage').scrollTop, aTop:a&&Math.round(r(a).top)};});
+const geo=(pg)=>pg.evaluate(()=>{const g=document.querySelector('#stage .grid'), v=document.querySelector('#stage .verdict'), h=document.querySelector('#stage .head'), a=document.querySelector('#stage .actions'), q=document.querySelector('#stage .rcpt'); const r=x=>x&&x.getBoundingClientRect(); return {gTop:Math.round(r(g).top), gBottom:Math.round(r(g).bottom), vTop:v&&Math.round(r(v).top), headBottom:Math.round(r(h).bottom), st:document.getElementById('stage').scrollTop, aTop:a&&Math.round(r(a).top), qTop:q&&Math.round(r(q).top), qBottom:q&&Math.round(r(q).bottom)};});
 (async()=>{
  let {br,pg,errs}=await open({width:390,height:844},{isMobile:true,hasTouch:true});
  await pg.evaluate(r=>{window.__reply=r;},REPLY_Q);
@@ -38,7 +38,7 @@ const geo=(pg)=>pg.evaluate(()=>{const g=document.querySelector('#stage .grid'),
  for(let i=0;i<4;i++){ await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(50); }
  await pg.locator('.rels .rel').nth(3).click(); await pg.waitForTimeout(300);
  g=await geo(pg);
- ok('Questions result: the examples table is first, the verdict and chips under it',g.gTop>=g.headBottom&&g.gTop-g.headBottom<90&&g.vTop>=g.gBottom-1,g);
+ ok('Questions result: the graded answers under the pair heading, then the examples table, the verdict and chips under it',g.qTop>=g.headBottom&&g.qTop-g.headBottom<40&&g.gTop>=g.qBottom&&g.gTop-g.qBottom<90&&g.vTop>=g.gBottom-1,g);
  const t2=[]; for(const name of ['Relation','Implied','Questions']){ const c=pg.locator('.vchip:has-text("'+name+'")'); if(!await c.count()) continue; await c.scrollIntoViewIfNeeded(); await c.click(); await pg.waitForTimeout(120); const gg=await geo(pg); t2.push(gg.gTop); }
  ok('Questions result: the table keeps its place while chips change',new Set(t2).size<=2&&t2.length>=2,t2);
  await pg.screenshot({path:D+'v52-q-result.png'});
