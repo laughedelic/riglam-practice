@@ -19,8 +19,8 @@ export { QCELL, qPlain };
 // and N marks a "not" that the page emphasizes.
 const N=NOT;
 export const WORDINGS={
-  mine:{name:"Statement",lead:"Do you accept that…",acc:"Accept",acd:"Accepted",why:"Why?",wyd:"Asked why",ak:"A",wk:"W",q:QMINE},
-  cons:{name:"Consequence",lead:"Do you accept that…",acc:"I accept",acd:"Accepted",why:"Why?",wyd:"Asked why",ak:"A",wk:"W",q:[["It follows that whatever is ","A"," is necessarily ",N," ","B","."],["It follows that whatever is ","A"," is necessarily ","B","."],["It follows that whatever is ","B"," is necessarily ","A","."],["It follows that whatever is ",N," ","A"," is necessarily ","B","."]]},
+  mine:{name:"Statement",lead:"Do you accept that…",acc:"Accept",acm:"\u2713 ",acd:"Accepted",why:"Why?",wyd:"Why?!",ak:"A",wk:"W",q:QMINE},
+  cons:{name:"Consequence",lead:"Do you accept that…",acc:"I accept",acm:"\u2713 ",acd:"Accepted",why:"Why?",wyd:"Why?!",ak:"A",wk:"W",q:[["It follows that whatever is ","A"," is necessarily ",N," ","B","."],["It follows that whatever is ","A"," is necessarily ","B","."],["It follows that whatever is ","B"," is necessarily ","A","."],["It follows that whatever is ",N," ","A"," is necessarily ","B","."]]},
   plain:{name:"Plain",lead:"",acc:"Yes",acd:"Yes",why:"No",wyd:"No",ak:"Y",wk:"N",q:[["Is whatever is ","A"," necessarily ",N," ","B","?"],["Is whatever is ","A"," necessarily ","B","?"],["Is whatever is ","B"," necessarily ","A","?"],["Is whatever is ",N," ","A"," necessarily ","B","?"]]}
 };
 // Each label of the 42 categories in the singular, with its article, so the questions read as a real debate would.
@@ -40,7 +40,8 @@ export const Wd=()=>WORDINGS[state.wording];
 export const termNode=x=>{ const lab=x==="A"?state.cur.p.a:state.cur.p.b, [w,...r]=(SING[american(lab)]||lab.replace(/^(\w+) things$/,"a $1 thing")).split(" ");
   return el("span",{class:"qterm"},el("span",{class:"keep"},state.showAB?[L(x)," "]:null,el("span",{class:"t",text:w})),r.length?el("span",{class:"t",text:" "+r.join(" ")}):null); };
 export const qNode=i=>Wd().q[i].map(x=>x==="A"||x==="B"?termNode(x):x===N?el("span",{class:"not",text:"not"}):x);
-// an answer at a glance: Accept is a filled tag, Why? an outlined one followed by the example
+// an answer at a glance: Accept is a filled tag, Why? an outlined one followed by the example.
+// The tags carry the marks of the short form (✓ and ?!); title and label words (acd, wyd) are the same words without the mark.
 // a Why? answer is spelled out as the sentence it asserts, so the example is tied to its cell:
 // both: "X is both [A] a … and [B] a …"; A not B: "X is [A] a …, but not [B] a …"; B not A: the reverse; neither: "X is neither [A] a … nor [B] a …"
 // The words that name the cell (both … and, but not, neither … nor) are bold, a mark the chips, the italic terms and the red "not" do not use.
@@ -52,7 +53,7 @@ function exSentence(i,t){
 }
 export function ansNode(a,ms,i){
   const w=Wd(), tm=ms!=null?el("span",{class:"mut",text:(ms/1000).toFixed(1)+" s"}):null;
-  if(a.say==="accept") return el("span",{class:"ans-l"},el("span",{class:"pill acc",text:w.acd}),a.timeout?el("span",{class:"mut",text:"time ran out"}):tm);
+  if(a.say==="accept") return el("span",{class:"ans-l"},el("span",{class:"pill acc",text:(w.acm||"")+w.acd}),a.timeout?el("span",{class:"mut",text:"time ran out"}):tm);
   if(a.say==="why") return el("span",{class:"ans-l"},el("span",{class:"pill why",text:w.wyd}),a.text?(i!=null?exSentence(i,a.text):el("span",{class:"exn",text:a.text})):el("span",{class:"mut",text:"no example"}),a.timeout?null:tm);
   return el("span",{class:"ans-l"},el("span",{class:"pill why",text:"Time out"}));
 }
