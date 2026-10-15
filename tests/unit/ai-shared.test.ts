@@ -225,6 +225,18 @@ test("the debate request judges a Why? example as fitting or not, and an Accept 
   expect(FIRST_ASK).toContain('("so it fits" or "so it does not fit"');
 });
 
+// The type is written as the page writes it elsewhere ("x is a form"), not as "(Form)" after the example; an empty cell is
+// explained by the relation, and a Why? line does not give the answer to the question.
+test("the explain requests write the type as a statement and give the reason for an empty cell", () => {
+  for (const ask of [FIRST_ASK, DEBATE_ASK]) {
+    expect(ask).toContain('"a wooden chair" is a form');
+    expect(ask).toContain('"is an" before a vowel');
+  }
+  expect(DEBATE_ASK).toContain("do not say what the right answer to the question was");
+  expect(DEBATE_ASK).toContain("give the reason from the correct relation in the card");
+  expect(DEBATE_ASK).toContain("A and B are mutually inclusive, so whatever is B is A");
+});
+
 test("the lookup tools: terms by name, alias, Russian name or part of the name, and examples from the practice list", () => {
   const tools = tutorTools(ix);
   expect(tools.map((t) => t.name)).toEqual(["lookup_term", "classify_example"]);
