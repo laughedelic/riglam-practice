@@ -121,6 +121,12 @@ export interface Unlock {
   tutor: boolean;
 }
 
+/** What a device that has the Magic Key can do with it: take another one (the study group changed it), or forget it (the definitions and the tutor lock again). */
+export interface KeyHeld {
+  change(): void;
+  forget(): void;
+}
+
 export interface Platform {
   /** Which build runs the page. Informational; the page must not branch on it. */
   readonly target: "pwa" | "artifact" | "test";
@@ -132,6 +138,8 @@ export interface Platform {
   sample(): Promise<Sample | null>;
   /** The way to enter the Magic Key (the study group's key: it opens the definitions and the tutor), or null (or absent) when the place has no key to ask for or this device has it. */
   unlock?(): Promise<Unlock | null>;
+  /** The other half of `unlock`: set while this device has the Magic Key, null (or absent) otherwise. */
+  keyHeld?(): Promise<KeyHeld | null>;
   /** The app's own tutor, or null (or absent) when the place has none or the server has it switched off. The page uses `sample` first when it has one. */
   tutor?(): Promise<Tutor | null>;
   /** The optional account (a passkey and a server copy of the documents, src/account), or null (or absent) when the place has none. The page works the same without. */

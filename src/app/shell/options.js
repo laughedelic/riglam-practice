@@ -37,6 +37,16 @@ export function toggleOpts(on){
   if(state.optsOpen){ const b=document.querySelector("#over .oc"); if(b) b.focus({preventScroll:true}); }
   else { const b=[$("obtn"),$("mopt")].find(x=>x.offsetParent); if(b) b.focus({preventScroll:true}); }
 }
+// The Magic Key row while this device has the key: take another one, or forget it (after a question, since the definitions close with it).
+function keyControls(){
+  const k=state.keyHeld;
+  if(state.keyAsk) return el("div",{class:"octl"},
+    el("button",{type:"button",class:"btn",onclick:()=>k.forget()},"Forget the key"),
+    el("button",{type:"button",class:"btn ghost",onclick:()=>{ state.keyAsk=false; render(); }},"Keep it"));
+  return el("div",{class:"octl"},
+    el("button",{type:"button",class:"btn ghost",onclick:()=>{ toggleOpts(false); k.change(); }},"Enter another key"),
+    el("button",{type:"button",class:"btn ghost",onclick:()=>{ state.keyAsk=true; render(); }},"Forget the key"));
+}
 export function optionsInto(o){
   o.append(overHead("Options",()=>toggleOpts(false),"Close options"));
   const box=el("div",{class:"opts"});
@@ -58,6 +68,9 @@ export function optionsInto(o){
       "In the Terms panel. With Russian on, each entry also shows the Russian name of the term and, where the booklet translation has one, its Russian definition."),
     state.unlock?row("Magic Key",el("button",{type:"button",class:"btn ghost",onclick:()=>{ toggleOpts(false); state.unlock.open(); }},"Enter the Magic Key"),
       "The definitions follow the course booklet, and the tutor (Explain) answers from it, so both need the Magic Key from your study group's link. This device has none yet: open the link once on this device, or paste it here."):null,
+    state.keyHeld?row("Magic Key",keyControls(),
+      state.keyAsk?"Forget the Magic Key on this device? The definitions and the tutor close again until a key is entered. Your answers and settings stay. An account that carries the key gives it back when you sign in."
+        :"This device has the Magic Key, so the definitions and the tutor are open. If the study group changed the key, enter the new one; or forget the key on this device."):null,
     row("Show",el("div",{class:"octl"},
       el("button",{type:"button",class:"sw",role:"switch","aria-checked":state.showAB?"true":"false",onclick:()=>setShow("ab",!state.showAB)},el("i",{class:"knob","aria-hidden":"true"}),el("span",{class:"swl",text:"A/B markers"}),el("span",{class:"swt",text:"before the terms"})),
       el("button",{type:"button",class:"sw",role:"switch","aria-checked":state.fullPh?"true":"false",onclick:()=>setShow("full",!state.fullPh)},el("i",{class:"knob","aria-hidden":"true"}),el("span",{class:"swl",text:"Full phrases"}),el("span",{class:"swt",text:"spell out Why? answers"}))),
