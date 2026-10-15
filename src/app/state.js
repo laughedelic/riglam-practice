@@ -12,6 +12,7 @@ export const state = {
   sample: null,
   xfer: {},      // what the "Your data" row of Options keeps between renders (src/ui/data-transfer.ts)
   tutor: null,   // a question to the app's own server (platform.tutor), when the place has one; `sample` is used first
+  unlock: null,  // opens the prompt for the study group's key (platform.unlock), while this device has none; the Options row shows it
   batches: [],
   answers: {},
   gotB: false,
