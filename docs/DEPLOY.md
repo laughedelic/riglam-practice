@@ -7,7 +7,7 @@ The installable app (`dist/pwa`) is static files. The default host is **Cloudfla
 - Cloudflare now recommends Workers with static assets for new projects (Pages is not getting the new features). The static files, the service worker and the manifest do not care which one serves them, so the choice only affects the config file and the deploy command.
 - The server (a Worker and a D1 database, [SERVER.md](SERVER.md)) lives in the same project as the static files, so the app did not have to move when it arrived.
 - The free tier covers static requests (they are not billed on Workers assets).
-- Per-branch preview addresses exist (`wrangler versions upload --preview-alias`), so a change can be tried on a phone by opening a link.
+- Per-branch preview addresses exist (Cloudflare Worker Previews), so a change can be tried on a phone by opening a link.
 
 Alternatives considered and not chosen: GitHub Pages (no private-repo hosting on the free plan, no preview per pull request, no server later), Netlify and Vercel (fine for static files, but a second platform when a server arrives).
 
@@ -15,8 +15,7 @@ Alternatives considered and not chosen: GitHub Pages (no private-repo hosting on
 
 | Event | Job | Result |
 |---|---|---|
-| Pull request | `ci.yml` → `deploy-preview` | uploads `dist/pwa` as a version with the alias `pr-<number>`; comments the address on the pull request |
-| Push to `main` | `ci.yml` → `deploy-preview` | same, alias `staging` (follows main) |
+| Push to a branch, pull request | Cloudflare Workers Builds (not GitHub Actions) | builds the branch and publishes it as a Worker Preview with its own address, shown by Cloudflare as a comment and a check on the pull request |
 | Release created (merge of the release pull request) | `release.yml` → `publish` | attaches `riglam-practice-pwa-<tag>.zip` to the GitHub release, then `wrangler deploy` puts the PWA on the production address |
 
 Both deploy steps check for the two secrets below and skip with a notice when they are missing, so the pipeline works (build, tests, release) before any Cloudflare account exists.
@@ -32,9 +31,9 @@ Both deploy steps check for the two secrets below and skip with a notice when th
 
 ### What the token is used for
 
-Only two workflow steps read it: `ci.yml` → `deploy-preview` (`wrangler versions upload`, on pull requests and on `main`) and `release.yml` → `publish` (`wrangler deploy`, when a release is created). Both upload the built files from `dist/pwa` and the Worker script bundled from `worker/` to the existing Worker. The token exists only as a GitHub repository secret.
+Only one workflow step reads it: `release.yml` → `publish` (`wrangler deploy`, when a release is created). It uploads the built files from `dist/pwa` and the Worker script bundled from `worker/` to the existing Worker. Previews do not use it: Cloudflare Workers Builds makes them with its own credentials. The token exists only as a GitHub repository secret.
 
-Cloudflare's Workers authorization page lists "Editor on that Worker" as what `wrangler deploy` needs for an existing Worker, and "Admin at the Workers product scope" for creating one (hence step 2). With Editor on one Worker, a leaked token can change only that Worker; it cannot touch other Workers, KV, R2 or the account. Anyone who can push a branch to the repository can still run code with the token in the preview job (the token is given only to the two steps that need it, not to the dependency install). A preview is a version of the production Worker, so it also sees the production secrets and the D1 database, and a preview of a pull request that changes the Worker runs that code against them. With several writers, give previews their own Worker name and their own token, so a preview credential cannot replace production.
+Cloudflare's Workers authorization page lists "Editor on that Worker" as what `wrangler deploy` needs for an existing Worker, and "Admin at the Workers product scope" for creating one (hence step 2). With Editor on one Worker, a leaked token can change only that Worker; it cannot touch other Workers, KV, R2 or the account. A Worker Preview is separate from the production Worker: it does not see the production secrets or the D1 database unless they are put into the Preview base configuration.
 
 ## The server's setup
 
