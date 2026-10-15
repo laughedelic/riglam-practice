@@ -90,6 +90,7 @@ export function accountControls(account: Account, el: El, rerender: () => void, 
     if (slot.wantStatus) queueMicrotask(() => { if (p.isConnected) p.focus({ preventScroll: false }); });
   }
   slot.wantStatus = false;
+  if (v.person?.hasKey) box.append(el("p", { class: "onote", text: "This account carries the Magic Key: a device that signs in to it unlocks the definitions and the tutor, also after the key is changed." }));
   box.append(el("p", { class: "onote", text: "Copied: answers, debates, favorites, skipped pairs, flags and check-lab runs. Not copied: these settings (Export saves them) and the Magic Key." }));
   return box;
 }

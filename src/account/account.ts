@@ -14,6 +14,8 @@ export interface Person {
   id: string;
   name: string;
   passkeys: number;
+  /** the account carries the Magic Key: a device that signs in to it gets the key */
+  hasKey: boolean;
 }
 
 export type Busy = "create" | "signin" | "passkey" | "signout" | "delete" | "sync";
@@ -55,8 +57,13 @@ export interface AccountDeps {
   passkeys: Passkeys;
   /** the last known person, kept on the device */
   keep: { read(): Person | null; write(person: Person | null): void };
-  /** the headers that show the sender has the study group's link; used when an account is made */
+  /** the headers that show the sender has the Magic Key; used when an account is made and when it is asked to carry the key */
   proof?: () => Promise<Record<string, string>>;
+  /**
+   * The Magic Key on this device. A signed-in account that does not carry the key is asked to, when this device has it; a device without
+   * the key takes it from an account that carries it (`adopt` stores it and starts the page again, unlocked).
+   */
+  magicKey?: { read(): string | null; adopt(key: string): void };
 }
 
 const MESSAGES = {
@@ -82,7 +89,7 @@ export function explain(e: unknown): { text: string; bad: boolean } {
   return { text: MESSAGES.failed, bad: true };
 }
 
-const personOf = (u: AccountInfo): Person => ({ id: u.id, name: u.name, passkeys: u.passkeys });
+const personOf = (u: AccountInfo): Person => ({ id: u.id, name: u.name, passkeys: u.passkeys, hasKey: u.hasKey === true });
 
 export function createAccount(deps: AccountDeps): Account {
   const { client, sync, passkeys, keep } = deps;
@@ -111,6 +118,24 @@ export function createAccount(deps: AccountDeps): Account {
     keep.write(p);
     set({ person: p, available: true });
     await sync.activate(p.id);
+    await shareKey(p);
+  }
+
+  /** Makes the account and the device agree about the Magic Key. Never throws: the key is a convenience, and the next sign-in tries again. */
+  async function shareKey(p: Person) {
+    const magic = deps.magicKey;
+    if (!magic) return;
+    try {
+      const have = magic.read();
+      if (have && !p.hasKey) {
+        await client.shareKey((await deps.proof?.()) ?? {});
+        const carried = { ...p, hasKey: true };
+        keep.write(carried);
+        if (v.person?.id === p.id) set({ person: carried });
+      } else if (!have && p.hasKey) {
+        magic.adopt(await client.fetchKey());
+      }
+    } catch { /* offline, or the key no longer fits */ }
   }
 
   /** Runs one action: one at a time, with its failure shown as a message. */

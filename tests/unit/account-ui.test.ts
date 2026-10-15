@@ -9,7 +9,7 @@ import { signature, syncLine } from "../../src/ui/account";
 const view = (sync: Partial<AccountView["sync"]> = {}, rest: Partial<AccountView> = {}): AccountView => ({
   available: true,
   supported: true,
-  person: { id: "u", name: "n", passkeys: 1 },
+  person: { id: "u", name: "n", passkeys: 1, hasKey: false },
   busy: null,
   message: null,
   sync: { active: true, busy: false, pending: 0, last: null, error: null, ...sync },

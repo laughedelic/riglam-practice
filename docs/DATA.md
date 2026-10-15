@@ -23,6 +23,10 @@ Because the key is words, guessing is slowed by the server: a caller (a hash of 
 
 The key never goes into the repository, a commit or pull request text, a comment, a log or the project's memory. `tests/unit/data-files.test.ts` fails if a tracked file holds a definition or a note in the clear, or, when the key is in the environment, the key itself.
 
+## Accounts carry the key
+
+A person with an account (docs/SERVER.md, "Accounts and sync") does not need to keep the words: a device that has the key makes its account carry it, and a device that signs in to that account gets it. After the key is changed, the devices of such accounts take the new one by themselves. Anyone who had the old key and made an account carries the new key too, so before changing the key because of a leak, look at the accounts made since the leak (`users` in the database) and delete the ones that are not the group's.
+
 ## Where the data lives
 
 `data-private/` (git-ignored) holds `definitions.json` and `notes.json` on every machine that builds the artifact, runs the full tests or changes the data. The server holds the same two texts in the table `course_data` (`worker/migrations/0003_course_data.sql`), loaded by `npm run data:publish`. The Worker reads them at most once a minute, so new data needs no deploy.
@@ -54,7 +58,7 @@ To refresh the data from the knowledge base (which lives outside this repository
 
 CI gets the course data from the secret `RIGLAM_COURSE_DATA`, the output of `npm run data:pack` (about 15 KB), unpacked into `data-private/` before the build. It needs no Magic Key.
 
-To change the key (a leak, or someone who should no longer open new versions): `npm run data:key`, `wrangler secret put RIGLAM_DATA_KEY`, hand out the new words or link. Devices that have the old key lose access on their next visit with a connection and ask for the new one. This does not take back copies already fetched.
+To change the key (a leak, or someone who should no longer open new versions): `npm run data:key`, `wrangler secret put RIGLAM_DATA_KEY`, hand out the new words or link. Devices that have the old key lose access on their next visit with a connection and ask for the new one, unless they belong to an account that carries the key. This does not take back copies already fetched.
 
 ## What this does and does not do
 
