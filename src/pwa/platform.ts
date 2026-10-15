@@ -4,8 +4,8 @@
 //           (./dev-sample.ts); `?ai=off` in the address takes it away there too.
 //   unlock  a way to enter the Magic Key, while this device has none (./unlock.ts); the definitions come from the server (./course.ts)
 //   tutor   the app's own server (./tutor.ts), when it has the tutor on and this device has the Magic Key
-//   updates the service worker's new versions: checked in the background, started from the banner or Options (./updates.ts)
 //   account optional sign-in with a passkey and a server copy of the documents (./account.ts), when the server has accounts on
+//   updates the service worker's new versions: checked in the background, started from the banner or Options (./updates.ts)
 import dataUrl from "../data/drill-data.json?url";
 import { merge, lock } from "../data/course.js";
 import type { Account, DrillData, Platform, Sample } from "../platform/types";
