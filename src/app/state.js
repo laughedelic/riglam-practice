@@ -10,6 +10,7 @@ export const state = {
   LABELIDX: {},
   db: null,
   sample: null,
+  reports: null, // sends flags to the app's server (platform.reports), when the place has a server for them and this device has the Magic Key
   account: null, // optional sign-in with a server copy of the documents (platform.account), when the place has one
   acct: {},      // the same for the Account row (src/ui/account.ts)
   xfer: {},      // what the "Your data" row of Options keeps between renders (src/ui/data-transfer.ts)
@@ -50,6 +51,7 @@ export const state = {
   flagErr: "",
   labPause: 0,
   flagPending: 0,
+  reportBusy: false,
   // the reference the models get, built from the page's own data: every category with its definition, then the classification notes
   labRefC: null,
   // A draw replaces the whole screen, which would send the scroll back to the top. While the screen is the same one (the same pair, step and

@@ -31,6 +31,7 @@ async function boot(platform){
   try{ state.sample=await platform.sample(); }catch(e){ state.sample=null; }
   try{ state.unlock=platform.unlock?await platform.unlock():null; }catch(e){ state.unlock=null; }
   try{ state.tutor=platform.tutor?await platform.tutor():null; }catch(e){ state.tutor=null; }
+  try{ state.reports=platform.reports?await platform.reports():null; }catch(e){ state.reports=null; }
   try{ state.account=platform.account?await platform.account():null; }catch(e){ state.account=null; }
   if(state.account){ let seen=signature(state.account.view()); state.account.subscribe(v=>{ const now=signature(v); if(now!==seen){ seen=now; if(state.optsOpen) render(); } }); }
   if(!state.db){ state.gotA=state.gotB=state.gotS=true; advance(); state.mode="quiz"; render(); return; }

@@ -3,6 +3,7 @@
 // database before the page starts, so the test does not depend on which pair the page draws.
 import { test, expect } from "../../support/test.js";
 import { ready } from "../../support/page.js";
+import { giveKey } from "../../support/data-key.js";
 
 const at = "2026-10-14T09:00:00.000Z";
 const answer = {
@@ -31,6 +32,7 @@ const flags = {
 };
 
 async function openReview(page) {
+  await giveKey(page); // flagging needs the Magic Key, also in a run without the course data
   await page.goto("/");
   await ready(page);
   await page.evaluate(async ({ answer, flags }) => {

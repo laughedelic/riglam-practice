@@ -48,9 +48,14 @@ export function flaggedPart(f: FlagRef, modelName: (id: string) => string = (id)
   return [f.thing ? "“" + f.thing + "”" : "", f.model ? modelName(f.model) : "", f.part || ""].filter(Boolean).join(" · ");
 }
 
-/** A flag's state in words. "new" is every flag nobody has looked at yet. */
-export function flagStateText(state: string | undefined): string {
-  return state === "reviewed" ? "Reviewed" : state === "resolved" ? "Resolved" : "Not reviewed yet";
+/**
+ * A flag's state in words. "new" is every flag nobody has looked at yet; where flags are sent to the maintainer, `sent` says whether
+ * this one has been (undefined where they are not).
+ */
+export function flagStateText(state: string | undefined, sent?: boolean): string {
+  if (state === "reviewed") return "Reviewed";
+  if (state === "resolved") return "Resolved";
+  return sent === undefined ? "Not reviewed yet" : sent ? "Sent to the maintainer" : "Waiting to be sent";
 }
 
 /**

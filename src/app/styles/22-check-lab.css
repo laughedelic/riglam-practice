@@ -39,6 +39,7 @@
 .flagedit{scroll-margin:12px 0 84px;display:grid;gap:6px;padding:8px 10px;background:var(--paper-tint);border-left:3px solid var(--marigold);min-width:0}
 .flagedit .fh{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 4px;margin:0;font-size:12.5px;color:var(--ink-muted)}
 .flagedit .fh .fv{overflow-wrap:anywhere;color:var(--ink)}
+.flagedit .fnote{margin:0;font-size:12.5px;line-height:1.4;color:var(--ink-muted)}
 .flagedit textarea,.flagedit input{width:100%;box-sizing:border-box;font:14px/1.4 var(--body);color:var(--ink);background:var(--paper);border:1px solid var(--ink-muted);border-radius:0;padding:7px 9px}
 .flagedit textarea{min-height:58px;resize:vertical}
 .flagedit textarea:focus-visible,.flagedit input:focus-visible{outline:0;box-shadow:var(--focus-ring)}
