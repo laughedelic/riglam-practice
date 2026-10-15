@@ -1,6 +1,6 @@
 // The access proof (src/ai/proof.ts): made in the browser, checked in the Worker, with the same code.
 import { describe, expect, it } from "vitest";
-import { generateKey } from "../../src/data/course.js";
+import { testMagicKey as generateKey } from "../support/magic-key";
 import { DEVICE_ID, checkProof, makeProof, newDeviceId } from "../../src/ai/proof";
 
 describe("device ids", () => {

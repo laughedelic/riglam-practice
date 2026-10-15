@@ -1,19 +1,24 @@
-// The course part of the term data in the installed app: locked without a key, opened by the key in the study group's link
-// (kept on the device, also offline), and the prompt for a reader who has no link. Uses the plain Playwright test, so
-// each page starts with nothing stored. The specs that need the real key skip when none is at hand (docs/DATA.md).
+// The course part of the term data in the installed app: locked without the Magic Key, fetched from the server with the key in
+// the study group's link (kept on the device with the key, also offline), and the prompt for a reader who has no link. Uses the
+// plain Playwright test, so each page starts with nothing stored; the server is a stand-in (tests/support/data-key.js). The specs
+// that need the real definitions skip when data-private/ is not here (docs/DATA.md).
 import { test, expect } from "@playwright/test";
-import { dataKey } from "../../support/data-key.js";
+import { dataKey, serveCourse, withCourse } from "../../support/data-key.js";
+import { testMagicKey } from "../../support/magic-key.ts";
 import { ready, overflow, relOptions, isPhone } from "../../support/page.js";
 import { readFull } from "../../../scripts/lib/course-files.mjs";
-import { generateKey, LOCKED_TEXT } from "../../../src/data/course.js";
+import { LOCKED_TEXT } from "../../../src/data/course.js";
 
-const withKey = dataKey ? test : test.skip; // no data key (RIGLAM_DATA_KEY or .data-key): the specs that need the real definitions are skipped
+const withKey = withCourse ? test : test.skip; // no data-private/: the specs that need the real definitions are skipped
+const generateKey = testMagicKey; // a Magic Key the stand-in server does not know
+
+test.beforeEach(async ({ page }) => { await serveCourse(page); });
 
 // lets the spec read the page's data without asking the build for it again
 const hook = () => { window.__riglamTest = (t) => { window.__t = t; }; };
 const firstTerm = (page) => page.evaluate(() => { const T = window.__t.DATA.terms; return T[Object.keys(T)[0]]; });
 const hasNotes = (page) => page.evaluate(() => { const D = window.__t.DATA; return "notes" in D || Object.values(D.terms).some((t) => "note" in t); });
-const storedKey = (page) => page.evaluate(() => localStorage.getItem("riglam.dataKey"));
+const storedKey = (page) => page.evaluate(() => localStorage.getItem("riglam.magicKey"));
 
 // the prompt is never shown on its own for a reader who has no key; Options, the definitions note and Explain open it
 const openPrompt = async (page) => {
@@ -68,7 +73,7 @@ test("text that is not a key is refused in the prompt", async ({ page }) => {
   await openPrompt(page);
   await page.fill("#unlock-key", "hello");
   await page.getByRole("button", { name: "Unlock" }).click();
-  await expect(page.locator("#unlock-err")).toContainText("not a Magic Key");
+  await expect(page.locator("#unlock-err")).toContainText("does not look like a Magic Key");
   expect(await storedKey(page)).toBeNull();
 });
 
@@ -79,21 +84,21 @@ test("a key that does not fit is refused, in the prompt and in a link (a link op
   await openPrompt(page);
   await page.fill("#unlock-key", `https://riglam.example/#k=${generateKey()}`);
   await page.getByRole("button", { name: "Unlock" }).click();
-  await expect(page.locator("#unlock-err")).toContainText("does not open");
+  await expect(page.locator("#unlock-err")).toContainText("not the Magic Key");
   expect(await storedKey(page)).toBeNull();
 
   await page.goto(`/?again=1#k=${generateKey()}`);
   await ready(page);
-  await expect(page.locator("#unlock-err")).toContainText("does not open");
+  await expect(page.locator("#unlock-err")).toContainText("does not fit");
   expect((await firstTerm(page)).d).toBe(LOCKED_TEXT);
   expect(await page.evaluate(() => location.hash)).toBe("");
   expect(await storedKey(page)).toBeNull();
 });
 
 test("a link without a usable key says so and leaves the address clean", async ({ page }) => {
-  await page.goto("/#k=short");
+  await page.goto("/#k=short"); // one word is not a Magic Key
   await ready(page);
-  await expect(page.locator("#unlock-err")).toContainText("no valid key");
+  await expect(page.locator("#unlock-err")).toContainText("no Magic Key in it");
   expect(await page.evaluate(() => location.hash)).toBe("");
 });
 
@@ -176,7 +181,7 @@ test("the page opens without waiting for the server to say whether it has a tuto
 });
 
 withKey("the key in a link opens the definitions, leaves the address bar, and stays on the device", async ({ page }) => {
-  const full = await readFull(dataKey);
+  const full = readFull();
   const name = Object.keys(full.terms)[0];
   await page.addInitScript(hook);
   await page.goto(`/#k=${dataKey}`);
@@ -195,6 +200,18 @@ withKey("the key in a link opens the definitions, leaves the address bar, and st
   expect((await firstTerm(page)).d).toBe(full.terms[name].d);
 });
 
+withKey("the words typed with spaces, in any case, open the definitions", async ({ page }) => {
+  await page.addInitScript(hook);
+  await page.goto("/");
+  await ready(page);
+  await openPrompt(page);
+  await page.fill("#unlock-key", dataKey.split("-").map((w) => w[0].toUpperCase() + w.slice(1)).join(", "));
+  await Promise.all([page.waitForLoadState("load"), page.getByRole("button", { name: "Unlock" }).click()]);
+  await ready(page);
+  expect((await firstTerm(page)).d).not.toBe(LOCKED_TEXT);
+  expect(await storedKey(page)).toBe(dataKey);
+});
+
 withKey("pasting the link into the prompt opens the definitions", async ({ page }) => {
   await page.addInitScript(hook);
   await page.goto("/");
@@ -208,7 +225,7 @@ withKey("pasting the link into the prompt opens the definitions", async ({ page 
 });
 
 withKey("once opened, the definitions are there with no network", async ({ page, context }) => {
-  const full = await readFull(dataKey);
+  const full = readFull();
   await page.addInitScript(hook);
   await page.goto(`/#k=${dataKey}`);
   await ready(page);
@@ -220,4 +237,38 @@ withKey("once opened, the definitions are there with no network", async ({ page,
   await ready(page);
   expect((await firstTerm(page)).d).toBe(full.terms[Object.keys(full.terms)[0]].d);
   await context.setOffline(false);
+});
+
+test("too many wrong tries from one network are told as such, with the wait, and the key in a link is kept for later", async ({ page }) => {
+  await page.route("**/api/course**", (route) => route.fulfill({ status: 429, contentType: "application/json", body: JSON.stringify({ error: { code: "rate_limited", message: "later", resetsAt: new Date(Date.now() + 25 * 60_000).toISOString() } }) }));
+  await page.goto(`/#k=${dataKey}`);
+  await ready(page);
+  await expect(page.locator("#unlock-err")).toContainText(/Too many tries from this network\. Try again in \d+ minutes?\./);
+  expect(await storedKey(page)).toBe(dataKey);
+});
+
+withKey("a kept copy opens the page at once; the server is asked in the background, and a key it stops accepting is forgotten with the copy", async ({ page }) => {
+  const full = readFull();
+  await page.addInitScript(hook);
+  const first = await serveCourse(page);
+  await page.goto(`/#k=${dataKey}`);
+  await ready(page);
+  expect(first.map((c) => c.have)).toEqual([null]);
+
+  await page.goto("/?again=1"); // later visit: the copy is there, the server is only asked whether it is current
+  await ready(page);
+  expect((await firstTerm(page)).d).toBe(full.terms[Object.keys(full.terms)[0]].d);
+  await expect.poll(() => first.length).toBe(2);
+  expect(first[1]).toEqual({ have: "v1", fits: true });
+  expect(await storedKey(page)).toBe(dataKey);
+
+  await serveCourse(page, testMagicKey()); // the study group has a new key now
+  await page.goto("/?again=2");
+  await ready(page);
+  expect((await firstTerm(page)).d, "this visit still shows the kept copy").toBe(full.terms[Object.keys(full.terms)[0]].d);
+  await expect.poll(() => storedKey(page)).toBeNull();
+  await page.goto("/?again=3");
+  await ready(page);
+  expect((await firstTerm(page)).d).toBe(LOCKED_TEXT);
+  await expect(page.locator("#unlock")).toHaveCount(0);
 });

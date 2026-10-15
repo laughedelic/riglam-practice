@@ -14,10 +14,13 @@ worker/budget.ts        the spend counters in D1: reserve, settle, the kill swit
 worker/prices.ts        price per million tokens for each model; unknown models are charged at the highest rate
 worker/config.ts        settings from variables, with defaults
 worker/kit.ts           what the tutor knows, made from the term data: standing instructions, lookup tools, the notes
-worker/bundled.ts       the three data files as the script carries them (only worker/index.ts imports it)
+worker/bundled.ts       the open data file as the script carries it (only worker/index.ts imports it)
+worker/course.ts        the course data as two rows of the course_data table
+worker/magic.ts         the Magic Key from the secret, and the count of wrong proofs per caller and hour
 worker/migrations/      D1 schema (applied with wrangler, see below)
 src/ai/protocol.ts      the contract between page and server (shared by both): paths, headers, request, events, error codes
 src/ai/proof.ts         the access proof (shared by both)
+src/ai/magic-key.ts     reading the Magic Key from typed words or a link (shared by both)
 src/ai-shared/          the standing instructions, the lookup tools and the card, as pure functions of the term data (shared with the page)
 tests/worker/           Vitest tests with stand-ins for D1 and the model API
 ```
@@ -27,23 +30,26 @@ tests/worker/           Vitest tests with stand-ins for D1 and the model API
 | Route | What it does |
 |---|---|
 | `GET /api/health` | `{"ok":true,"tutor":"on"\|"off"}`. `off` when the database, a secret or the kill switch says so. No sign-in. |
+| `GET /api/course` | The definitions `{version, definitions}` to a request with a valid proof (headers `x-riglam-device`, `x-riglam-proof`); `?have=<version>` answers `{version, unchanged: true}` when current. 401 `not_granted` for a wrong proof, 429 `rate_limited` with `resetsAt` after 30 wrong proofs from one caller in an hour, 503 `unavailable` when the table is empty. |
 | `POST /api/tutor` | One tutor question. Body `{kind: "chat" \| "explain", cats: [category ids], turns: [{role, content}]}` (`src/ai/protocol.ts`). The answer is `text/event-stream` of `delta` (a piece of text), `done` (`truncated` says the model ran out of room) and `error` (`code`, `message`). Requests that cannot be served are plain JSON errors with a status: 400, 401, 403 (another site's `Origin`), 413, 429, 503. |
 
 The request carries only what the learner typed and the page's own state (the card of the pair and the conversation). The standing instructions, the lookup tools and the notes ("fine points") are on the server; the notes never reach a browser.
 
-**The kit.** `worker/kit.ts` makes the tutor's knowledge once per Worker instance: it opens `course-definitions.enc` and `course-notes.enc` with the `RIGLAM_DATA_KEY` secret, puts them together with `drill-data.json` as the knowledge base exports them ([DATA.md](DATA.md)), and builds the instructions and the two lookup tools from `src/ai-shared`, the code the page uses too. The three files are bundled into the script (`rules` in `wrangler.jsonc` makes `.enc` files binary modules), so refreshing the data (`npm run data:import`) and deploying is all it takes to give the tutor the new data. A key that does not open the files leaves the tutor off, with one line in the log that names no text.
+**The kit.** `worker/kit.ts` makes the tutor's knowledge per Worker instance: it reads the two rows of the `course_data` table (`worker/course.ts`), puts them together with `drill-data.json` (bundled into the script) as the knowledge base exports them ([DATA.md](DATA.md)), and builds the instructions and the two lookup tools from `src/ai-shared`, the code the page uses too. An instance looks at the table again after a minute, so `npm run data:publish` gives the tutor new data with no deploy. Without the rows the tutor is off.
+
+**The definitions.** `GET /api/course` (`worker/app.ts`) returns the definitions to a request whose proof fits the Magic Key (`worker/magic.ts`), with the version they were loaded at; `?have=<version>` is answered with `{unchanged: true}` when the copy is current. Wrong proofs are counted per caller and hour (`guesses` table, 30 an hour); past that the answer is 429 with `resetsAt`, and the proof is not even looked at. The notes are never sent.
 
 Error codes the page can see: `rate_limited` (the device's or everybody's budget for the day is used, or the model is busy), `not_granted` (the proof does not match), `prompt_too_large`, `bad_request`, `refused` (the model declined), `unavailable` (the tutor is off or failed). The details of a failure go to the log, never into the response.
 
 ## How the app uses it
 
-The installed app (`src/pwa/tutor.ts`, the `tutor` capability of the platform, [ARCHITECTURE.md](ARCHITECTURE.md)) offers the tutor, Explain and the follow-up chat only when two things hold: this device has the study group's key (the one that opened the definitions), and `GET /api/health` answers `tutor: "on"` within a few seconds. Otherwise the page hides them, as it does without a network. A question sends the card of the pair (without the instructions and the notes, which are the server's) and the conversation; the answer is shown as it arrives. A refusal reaches the person in plain words: the day's budget is used (it says whether it was this device's own or everybody's, and when the tutor is available again in the person's own time; the rest of the app keeps working), no connection, the conversation is too long, or (when the proof is refused) the tutor goes away until the next visit.
+The installed app (`src/pwa/tutor.ts`, the `tutor` capability of the platform, [ARCHITECTURE.md](ARCHITECTURE.md)) offers the tutor, Explain and the follow-up chat only when two things hold: this device has the Magic Key, and `GET /api/health` answers `tutor: "on"` within a few seconds. Otherwise the page hides them, as it does without a network. A question sends the card of the pair (without the instructions and the notes, which are the server's) and the conversation; the answer is shown as it arrives. A refusal reaches the person in plain words: the day's budget is used (it says whether it was this device's own or everybody's, and when the tutor is available again in the person's own time; the rest of the app keeps working), no connection, the conversation is too long, or (when the proof is refused) the tutor goes away until the next visit.
 
-To try it locally, run the Worker and the app together with `npx wrangler dev` after `npm run build:pwa`: apply the migration to the local database (`npx wrangler d1 migrations apply riglam-practice --local`) and put `ANTHROPIC_API_KEY` and `RIGLAM_DATA_KEY` in a file named `.dev.vars` (git-ignored). `npm run dev` alone has no server, so the tutor is off there.
+To try it locally, run the Worker and the app together with `npx wrangler dev` after `npm run build:pwa`: apply the migration to the local database (`npx wrangler d1 migrations apply riglam-practice --local`) and put `ANTHROPIC_API_KEY` and `RIGLAM_DATA_KEY` (any Magic Key) in a file named `.dev.vars` (git-ignored), and load the course data with `npm run data:publish -- --local`. `npm run dev` alone has no server, so the tutor is off there.
 
 ## Who may ask
 
-The app is open to anyone with the link, but the tutor costs money, so a request must prove that its sender has the study group's key (the one in the shared link, [DATA.md](DATA.md)). The page makes a random device id once and sends it with a proof: `HMAC-SHA256(key, "riglam/tutor-proof/1:" + device id)`, base64url (`src/ai/proof.ts`). The Worker holds the same key as a secret, recomputes the proof and compares in constant time. The key itself is never sent. A request with another `Origin` than the app's own is refused.
+The app is open to anyone with the link, but the tutor costs money, so a request must prove that its sender has the Magic Key (the words in the shared link, [DATA.md](DATA.md)). The page makes a random device id once and sends it with a proof: `HMAC-SHA256(key, "riglam/tutor-proof/1:" + device id)`, base64url (`src/ai/proof.ts`). The Worker holds the same key as a secret, recomputes the proof and compares in constant time. The key itself is never sent. A request with another `Origin` than the app's own is refused.
 
 The device id is not a secret and proves nothing alone; anyone with the key can invent ids. The per-device limit therefore stops accidents and one heavy user. The global limit and the cap on the API account are the real limits.
 
@@ -94,9 +100,9 @@ Nothing here is needed to build or test the app; without the database the tutor 
 3. Store the two secrets on the Worker (the commands ask for the value at a prompt):
    ```sh
    npx wrangler secret put ANTHROPIC_API_KEY
-   npx wrangler secret put RIGLAM_DATA_KEY     # the same key as in the shared link
+   npx wrangler secret put RIGLAM_DATA_KEY     # the Magic Key: the words in the shared link
    ```
-   Secrets belong to the Worker, so previews use them too.
+   Secrets belong to the Worker, so previews use them too. Then load the course data into the database: `npm run data:publish` (needs `data-private/`, [DATA.md](DATA.md)).
 4. Deploy as usual. Check `GET /api/health`.
 
 **Kill switch.** In the Cloudflare dashboard (D1, the database, Console): `INSERT OR REPLACE INTO settings (key, value) VALUES ('tutor', 'off');` stops every tutor request at once; deleting the row (or any value but `off`) turns it on again. Archiving the API key in the Console or setting the workspace limit to zero also stops all spending.
@@ -109,8 +115,8 @@ Nothing here is needed to build or test the app; without the database the tutor 
 
 - D1 is a SQLite in memory (`node:sqlite`) with the real migrations applied, so the SQL that counts money is the SQL that runs in production.
 - The model API is a `fetch` that answers with scripted server-sent events, so the real SDK client parses them (text, tool calls, `max_tokens`, refusals, HTTP errors, a call that hangs until the page goes away).
-- The kit is made from a few invented terms sealed with a throwaway key; the last test block runs on the real files when the data key is available (as in CI, [DATA.md](DATA.md)) and is skipped otherwise.
+- The kit is made from a few invented terms in a fake database; the last test block runs on the real course data when `data-private/` is there (as in CI, [DATA.md](DATA.md)) and is skipped otherwise.
 
 They cover the kit (the tools, the notes, a category id that is not the data's own, the wrong key, no text in the log), the proof, the settings, the prices, the counters (including simultaneous questions), every refusal path, a plain answer with the exact model request, tool rounds and their failure, the last-round rule, every failure of the model call, and the page going away.
 
-What they cannot show is the Workers runtime itself. To try the Worker in `wrangler dev`, give it a local D1 binding (`wrangler d1 migrations apply <name> --local`), set `ANTHROPIC_BASE_URL` to a stand-in for the model API and use a throwaway data key. Note that `wrangler dev`'s local proxy does not pass on a client that hangs up, so a page going away mid-answer can only be seen in the unit tests or on a deployed Worker (the `outcome` column of `usage_log` shows `aborted`).
+What they cannot show is the Workers runtime itself. To try the Worker in `wrangler dev`, give it a local D1 binding (`wrangler d1 migrations apply <name> --local`), set `ANTHROPIC_BASE_URL` to a stand-in for the model API and use a throwaway Magic Key. Note that `wrangler dev`'s local proxy does not pass on a client that hangs up, so a page going away mid-answer can only be seen in the unit tests or on a deployed Worker (the `outcome` column of `usage_log` shows `aborted`).

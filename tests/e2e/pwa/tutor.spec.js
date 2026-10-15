@@ -4,11 +4,11 @@
 import { test as plain } from "@playwright/test";
 import { test, expect } from "../../support/test.js";
 import { ready, relOptions, isPhone, overflow } from "../../support/page.js";
-import { dataKey } from "../../support/data-key.js";
+import { dataKey, withCourse } from "../../support/data-key.js";
 import { checkProof } from "../../../src/ai/proof.ts";
 
-// The tutor needs the study group's key to be a real one that opens the definitions (docs/DATA.md).
-const withKey = dataKey ? test : test.skip;
+// The page stores the Magic Key only when the stand-in server can give the definitions that open with it (tests/support/test.js).
+const withKey = withCourse ? test : test.skip;
 
 const sse = (...events) => events.map((e) => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`).join("");
 const ANSWER = sse({ type: "delta", text: "Stand-in tutor: " }, { type: "delta", text: "this is the stand-in answer." }, { type: "done", truncated: false });
