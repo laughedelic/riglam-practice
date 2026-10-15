@@ -1,0 +1,68 @@
+name: Retire preview
+
+# ci.yml shows every preview as a deployment in its own GitHub environment, preview/pr-<number>, and publishes it as a Cloudflare
+# Worker Preview with the name pr-<number>. When the pull request is merged or closed, its deployments are marked inactive, the
+# Cloudflare Preview is deleted, and then the environment is deleted so that they do not pile up in the repository's settings.
+# The pull request's timeline keeps its entries. Deleting an environment is an administration action that the workflow token
+# cannot do, so that step uses the repository secret GH_ENVIRONMENTS_API (docs/DEPLOY.md) and is skipped when it is not set.
+# Deleting the Preview uses the Cloudflare secrets of ci.yml and is skipped without them.
+
+# pull_request_target runs this file from the base branch and does not depend on the pull request's merge commit, which
+# GitHub may not have ready when the pull request is closed right after a push (then a plain pull_request trigger starts
+# nothing). The job runs no code from the pull request: it only uses the pull request's number.
+on:
+  pull_request_target:
+    types: [closed]
+  # To retire the previews of a pull request by hand, for example one whose close started nothing.
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Pull request number
+        required: true
+
+permissions:
+  deployments: write
+
+env:
+  WRANGLER_VERSION: 4.150.0
+
+jobs:
+  retire:
+    name: Retire the preview of the pull request
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Mark the deployments inactive
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ENVIRONMENT: preview/pr-${{ github.event.number || inputs.pr }}
+        run: |
+          set -o pipefail
+          gh api --paginate -X GET "repos/$GITHUB_REPOSITORY/deployments" -f environment="$ENVIRONMENT" --jq '.[].id' |
+            while read -r id; do
+              gh api -X POST "repos/$GITHUB_REPOSITORY/deployments/$id/statuses" -f state=inactive -f description="The pull request was closed" --silent
+              echo "Deployment $id of $ENVIRONMENT is inactive"
+            done
+      - name: Delete the Cloudflare preview
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PREVIEW: pr-${{ github.event.number || inputs.pr }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::notice::Cloudflare preview kept: CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID are not set (see docs/DEPLOY.md)"
+          else
+            npx --yes wrangler@${WRANGLER_VERSION} preview delete --name "$PREVIEW" --worker-name riglam-practice --skip-confirmation
+          fi
+      - name: Delete the environment
+        if: ${{ !cancelled() }}
+        env:
+          GH_TOKEN: ${{ secrets.GH_ENVIRONMENTS_API }}
+          ENVIRONMENT: preview/pr-${{ github.event.number || inputs.pr }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::notice::Environment kept: the secret GH_ENVIRONMENTS_API is not set (see docs/DEPLOY.md)"
+          else
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/environments/${ENVIRONMENT//\//%2F}"
+            echo "Environment $ENVIRONMENT deleted"
+          fi

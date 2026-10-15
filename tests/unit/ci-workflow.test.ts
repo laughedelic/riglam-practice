@@ -49,3 +49,25 @@ test("one job called `Lint, build, test` needs the others, because branch protec
   expect(job, "without this the check would be skipped, and a skipped required check counts as passed, when a part fails").toMatch(/if: \$\{\{ !cancelled\(\) \}\}/);
   expect(workflow).toMatch(/deploy-preview:[\s\S]*?needs: check\b/);
 });
+
+test("each preview is a deployment of its own environment, and the cleanup retires that same environment when the pull request closes", () => {
+  const deploy = workflow.slice(workflow.indexOf("\n  deploy-preview:"));
+  const cleanup = read(".github/workflows/preview-cleanup.yml");
+  expect(deploy).toMatch(/environment:\s+name: \$\{\{[^}]*format\('preview\/pr-\{0\}', github\.event\.number\)[^}]*\}\}\s+url: \$\{\{ steps\.upload\.outputs\.url \}\}/);
+  expect(cleanup).toMatch(/pull_request_target:\s+types: \[closed\]/);
+  expect(cleanup).toMatch(/ENVIRONMENT: preview\/pr-\$\{\{ github\.event\.number \|\| inputs\.pr \}\}/);
+  expect(cleanup, "a workflow run on pull_request_target must not run the pull request's code").not.toMatch(/actions\/checkout/);
+  expect(cleanup).toMatch(/permissions:[\s\S]*?deployments: write/);
+});
+
+test("the Cloudflare preview that a pull request gets is the one that the cleanup deletes, and every workflow uses one wrangler version", () => {
+  const deploy = workflow.slice(workflow.indexOf("\n  deploy-preview:"));
+  const cleanup = read(".github/workflows/preview-cleanup.yml");
+  expect(deploy).toMatch(/PREVIEW: \$\{\{[^}]*format\('pr-\{0\}', github\.event\.number\)[^}]*\}\}/);
+  expect(deploy).toMatch(/wrangler@\$\{WRANGLER_VERSION\} preview --name "\$PREVIEW"/);
+  expect(cleanup).toMatch(/PREVIEW: pr-\$\{\{ github\.event\.number \|\| inputs\.pr \}\}/);
+  expect(cleanup).toMatch(/wrangler@\$\{WRANGLER_VERSION\} preview delete --name "\$PREVIEW"/);
+  const versions = [workflow, cleanup, read(".github/workflows/release.yml")].map((f) => /WRANGLER_VERSION: (\S+)/.exec(f)?.[1]);
+  expect(new Set(versions).size, `the workflows pin different wrangler versions: ${versions.join(", ")}`).toBe(1);
+  expect(versions[0]).toBeDefined();
+});

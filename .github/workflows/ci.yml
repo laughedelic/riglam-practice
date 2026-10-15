@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 env:
-  WRANGLER_VERSION: 4.149.0
+  WRANGLER_VERSION: 4.150.0
 
 jobs:
   # The checks that need no browser: lint, types, both builds, the unit tests and the hosting config.
@@ -121,7 +121,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Preview of the PWA for every pull request, and a "staging" alias that follows main.
+  # Preview of the app for every pull request (a Cloudflare Worker Preview named pr-<number>), and a "staging" preview that follows main. The address is shown as a GitHub deployment:
+  # the environment preview/pr-<number> for a pull request (retired when it closes, preview-cleanup.yml), staging for main.
   # Needs the repository secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID (docs/DEPLOY.md); without them the job only says so.
   deploy-preview:
     name: Deploy preview
@@ -131,9 +132,12 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
-      pull-requests: write
+    # GitHub lists the run as a deployment of this environment, with the preview address as its URL.
+    environment:
+      name: ${{ github.event_name == 'pull_request' && format('preview/pr-{0}', github.event.number) || 'staging' }}
+      url: ${{ steps.upload.outputs.url }}
     env:
-      ALIAS: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.number) || 'staging' }}
+      PREVIEW: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.number) || 'staging' }}
       # On pull requests GITHUB_SHA is a merge commit that is not on the branch; label previews with the head commit.
       BUILD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
@@ -161,26 +165,14 @@ jobs:
         with:
           name: pwa-build
           path: dist/pwa
-      - name: Upload a version with a preview alias
+      - name: Create or update the preview
         id: upload
         if: steps.creds.outputs.ok
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          npx --yes wrangler@${WRANGLER_VERSION} versions upload --preview-alias "$ALIAS" --message "${BUILD_SHA::7}" | tee upload.log
-          url=$(grep -Eo 'https://[^ ]+' upload.log | grep -i "$ALIAS" | head -n1 || true)
-          echo "url=$url" >> "$GITHUB_OUTPUT"
-      - name: Comment the preview address on the pull request
-        if: steps.creds.outputs.ok && github.event_name == 'pull_request' && steps.upload.outputs.url
-        uses: actions/github-script@v7
-        env:
-          PREVIEW_URL: ${{ steps.upload.outputs.url }}
-        with:
-          script: |
-            const marker = '<!-- riglam-preview -->';
-            const body = `${marker}\nPreview of this pull request: ${process.env.PREVIEW_URL}\n\nBuilt from ${process.env.BUILD_SHA.slice(0, 7)}. Add the data key to the address (\`#k=...\`) to unlock the definitions; the key is not kept here.`;
-            const { data: comments } = await github.rest.issues.listComments({ ...context.repo, issue_number: context.issue.number });
-            const mine = comments.find((c) => c.body.startsWith(marker));
-            if (mine) await github.rest.issues.updateComment({ ...context.repo, comment_id: mine.id, body });
-            else await github.rest.issues.createComment({ ...context.repo, issue_number: context.issue.number, body });
+          # The JSON output goes to a file, so a failed command fails the step and its address is read with jq.
+          npx --yes wrangler@${WRANGLER_VERSION} preview --name "$PREVIEW" --message "${BUILD_SHA::7}" --json > preview.json
+          cat preview.json
+          echo "url=$(jq -er '.preview.urls[0]' preview.json)" >> "$GITHUB_OUTPUT"
