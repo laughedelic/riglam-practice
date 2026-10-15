@@ -5,6 +5,7 @@
 //   push          push staging to origin (force, but only over the state this clone last fetched)
 //   list          show what origin/staging was built from
 //   deploy        build the app from the checked-out staging branch and put it on the Worker Preview named staging (wrangler.staging.jsonc)
+//                 deploy --here  the same for whatever commit is checked out, without the branch checks (for a build service such as Workers Builds)
 // Exit 0 on success, 1 when the work could not be done (a conflict, a missing branch), 2 on a usage problem.
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -36,7 +37,7 @@ function options() {
 }
 
 function usage(problem) {
-  console.error(`${problem}\nusage: staging.mjs [rebuild [--add <branch>] [--remove <branch>] | push | list | deploy]`);
+  console.error(`${problem}\nusage: staging.mjs [rebuild [--add <branch>] [--remove <branch>] | push | list | deploy [--here]]`);
   process.exit(2);
 }
 
@@ -55,13 +56,15 @@ function describe(result) {
   console.log(`staging is ${result.sha.slice(0, 7)}: main ${result.baseSha.slice(0, 7)}${result.merged.map((m) => `\n  + ${m.branch} ${m.sha.slice(0, 7)}${m.addsNothing ? "  (adds nothing to main: already merged? then --remove it)" : ""}`).join("")}`);
 }
 
-function deploy() {
-  if (git(root, ["symbolic-ref", "--quiet", "--short", "HEAD"], { allowFail: true }) !== TARGET) throw new StagingError(`deploy builds the working tree: check out the staging branch first (git switch ${TARGET})`);
-  if (git(root, ["status", "--porcelain", "--untracked-files=no"])) throw new StagingError("the working tree has uncommitted changes");
-  // The branch is rebuilt and force-pushed, so a checkout that was not reset to it is an older build.
-  git(root, ["fetch", "--quiet", "origin"]);
-  if (git(root, ["rev-parse", "HEAD"]) !== git(root, ["rev-parse", "--verify", "--quiet", `origin/${TARGET}`], { allowFail: true })) {
-    throw new StagingError(`this ${TARGET} is not origin/${TARGET}: push it (npm run staging -- push) or take the pushed one (git fetch && git reset --hard origin/${TARGET})`);
+function deploy({ here = false } = {}) {
+  if (!here) {
+    if (git(root, ["symbolic-ref", "--quiet", "--short", "HEAD"], { allowFail: true }) !== TARGET) throw new StagingError(`deploy builds the working tree: check out the staging branch first (git switch ${TARGET})`);
+    if (git(root, ["status", "--porcelain", "--untracked-files=no"])) throw new StagingError("the working tree has uncommitted changes");
+    // The branch is rebuilt and force-pushed, so a checkout that was not reset to it is an older build.
+    git(root, ["fetch", "--quiet", "origin"]);
+    if (git(root, ["rev-parse", "HEAD"]) !== git(root, ["rev-parse", "--verify", "--quiet", `origin/${TARGET}`], { allowFail: true })) {
+      throw new StagingError(`this ${TARGET} is not origin/${TARGET}: push it (npm run staging -- push) or take the pushed one (git fetch && git reset --hard origin/${TARGET})`);
+    }
   }
   const sha = git(root, ["rev-parse", "--short", "HEAD"]);
   const manifest = readManifest(root, "HEAD");
@@ -97,7 +100,8 @@ try {
     console.log(`origin/${TARGET} ${git(root, ["rev-parse", "--short", `origin/${TARGET}`])} = ${manifest.base} + ${manifest.branches.length} branches`);
     for (const b of manifest.branches) console.log(`  ${b} ${git(root, ["rev-parse", "--short", `origin/${b}`], { allowFail: true }) ?? "(gone from origin)"}`);
   } else if (command === "deploy") {
-    deploy();
+    if (args.some((a) => a !== "--here")) usage(`unknown option ${args.find((a) => a !== "--here")}`);
+    deploy({ here: args.includes("--here") });
   } else {
     usage(`unknown command ${command}`);
   }

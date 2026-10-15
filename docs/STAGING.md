@@ -39,6 +39,10 @@ npm run staging -- deploy     # npm ci, the PWA build, the D1 migrations of the 
 
 `/staging-build.json` on the address says which commit and branches it was built from. The definitions and the tutor's notes are in the staging database, not in the build: they are locked until the course data is loaded into it (`npm run data:publish -- --config wrangler.staging-migrations.jsonc`, once a pull request that keeps them on the server is on the branch) and the address carries the Magic Key (`#k=<words>`, [DATA.md](DATA.md)).
 
+### Deploying from a build service
+
+`npm run staging -- deploy --here` does the same for whatever commit is checked out, without the checks that the working tree is the pushed `staging` branch. Cloudflare Workers Builds can run it on every push of `staging`: in the Worker's *Settings → Builds*, let the `staging` branch build (branch control) and set the deploy command for non-production branches to `npm run staging -- deploy --here`. The default, `npx wrangler preview`, reads `wrangler.jsonc` and would give the Preview the production name and no database.
+
 ### One-time setup
 
 1. `npx wrangler login`.
