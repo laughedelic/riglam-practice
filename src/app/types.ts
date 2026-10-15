@@ -174,10 +174,10 @@ export interface State {
   // what the platform offers
   db: Db | null;
   sample: Sample | null;
-  /** a question to the app's own server (platform.tutor), when the place has one; `sample` is used first */
-  tutor: Tutor | null;
   /** opens the prompt for the study group's key (platform.unlock), while this device has none; the Options row shows it */
   unlock: (() => void) | null;
+  /** a question to the app's own server (platform.tutor), when the place has one; `sample` is used first */
+  tutor: Tutor | null;
 
   // the stored collections as the page holds them
   batches: BatchDoc[];
