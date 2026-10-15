@@ -111,7 +111,7 @@ function hear(a){
 }
 const MISS={"not-allowed":"The microphone is not allowed for this page. Allow it in the browser (the icon by the address), then tap the microphone.",
   "service-not-allowed":"The browser does not let this page use its speech service.","no-speech":"Nothing was heard.","audio-capture":"No microphone was found.",
-  "network":"The speech service could not be reached (the browser sends the audio there to turn it into text).","aborted":"","unsupported":"This browser has no speech recognition."};
+  "network":"The speech service could not be reached (the browser sends the audio there to turn it into text).","no-audio":"The microphone did not start. Tap the microphone to try again.","aborted":"","unsupported":"This browser has no speech recognition."};
 function missed(a,err){
   const v=state.voice;
   if(err==="no-speech"&&handsFree()&&v.tries<1){ v.tries++; hear(a); return; }

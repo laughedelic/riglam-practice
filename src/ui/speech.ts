@@ -27,6 +27,7 @@ type Recognizer = {
   onerror: ((e: any) => void) | null;
   onend: (() => void) | null;
   onaudiostart: (() => void) | null;
+  onspeechend: (() => void) | null;
 };
 
 const synth = (): SpeechSynthesis | null => (typeof speechSynthesis !== "undefined" ? speechSynthesis : null);
@@ -126,56 +127,96 @@ export function stopSpeaking(): void {
 export type Heard = { alts: string[] } | { error: string };
 
 export interface Listening {
-  /** stop listening and take what was heard so far */
+  /** stop listening and take what was heard so far; a second call, or a recognizer that does not answer, ends it at once */
   stop(): void;
   /** stop and report nothing */
   abort(): void;
 }
+// A recognizer is not trusted to say it has finished. Chrome on Android sometimes never sends `end` after an interruption (the
+// screen went off, another app took the microphone, the service died); the page would then show "Listening" for good, and a
+// tap on the microphone would stop a recognizer that is already gone. So every way of ending has a time after which it is
+// taken as ended: the answer if there is one, otherwise nothing heard.
+const AFTER_ERROR = 1500, AFTER_ANSWER = 2000, AFTER_STOP = 2000, AFTER_SPEECH = 5000, LONGEST = 20000, NO_AUDIO = 4000;
+let active: Recognizer | null = null;
 /**
  * Listens for one short answer (the recognizer stops by itself after a pause). `interim` gets the words as they are
  * heard; `done` comes once, unless `abort` was called. Errors as the API names them: `not-allowed` (microphone
- * refused), `no-speech`, `audio-capture` (no microphone), `network` (the speech service could not be reached).
+ * refused), `no-speech`, `audio-capture` (no microphone), `network` (the speech service could not be reached), `no-audio`
+ * (the microphone did not start, also on a second try).
  */
 export function listen(opts: { lang?: string; interim?: (text: string) => void; done: (h: Heard) => void }): Listening {
   const R = Recognition();
   if (!R) { opts.done({ error: "unsupported" }); return { stop() {}, abort() {} }; }
-  let gone = false, cur: Recognizer | null = null, watch: ReturnType<typeof setTimeout> | undefined, granted = false;
+  let gone = false, stopped = false, cur: Recognizer | null = null, granted = false;
+  let alts: string[] | null = null, error = "";
+  let watch: ReturnType<typeof setTimeout> | undefined, ending: ReturnType<typeof setTimeout> | undefined;
+  const longest = setTimeout(() => { halt(AFTER_STOP); }, LONGEST);
+  const release = (r: Recognizer | null) => { if (r) { try { r.abort(); } catch { /* already ended */ } if (active === r) active = null; } };
+  const finish = (h: Heard) => {
+    if (gone) return;
+    gone = true;
+    clearTimeout(watch); clearTimeout(ending); clearTimeout(longest);
+    release(cur);
+    opts.done(h);
+  };
+  const result = (): Heard => (alts && alts.length ? { alts } : { error: error || "no-speech" });
+  // `end` should follow; if it does not within `ms`, it is taken as having come
+  const endIn = (ms: number) => { clearTimeout(ending); ending = setTimeout(() => finish(result()), ms); };
+  const halt = (ms: number) => { if (gone) return; stopped = true; try { cur?.stop(); } catch { /* already ended */ } endIn(ms); };
   // While the browser asks for the microphone, no audio starts either: restart only once it has been allowed.
   try {
     navigator.permissions?.query({ name: "microphone" as PermissionName }).then((s) => { granted = s.state === "granted"; }, () => {});
   } catch { /* the browser has no such permission to ask about */ }
   const run = (again: boolean) => {
+    // one recognizer at a time: a previous one that is still shutting down can keep a new one from getting the microphone
+    if (active && active !== cur) release(active);
     const r = new R();
     cur = r;
+    active = r;
     r.lang = opts.lang || "en-US";
     r.interimResults = true;
     r.maxAlternatives = 5;
     r.continuous = false;
-    let alts: string[] | null = null, error = "", opened = false;
+    let opened = false;
     r.onaudiostart = () => { opened = true; clearTimeout(watch); };
     r.onresult = (e) => {
+      if (gone || cur !== r) return;
       let interim = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const res = e.results[i];
         if (res.isFinal) alts = Array.from(res as ArrayLike<{ transcript: string }>).map((a) => a.transcript.trim()).filter(Boolean);
         else interim += res[0].transcript;
       }
-      if (!gone && opts.interim) opts.interim(interim || (alts ? alts[0] : ""));
+      if (alts) endIn(AFTER_ANSWER);
+      if (opts.interim) opts.interim(interim || (alts ? alts[0] : ""));
     };
-    r.onerror = (e) => { error = e.error || "error"; };
+    r.onspeechend = () => { if (!gone && cur === r && !alts) endIn(AFTER_SPEECH); };
+    r.onerror = (e) => { if (gone || cur !== r) return; error = e.error || "error"; endIn(AFTER_ERROR); };
     r.onend = () => {
-      clearTimeout(watch);
       if (gone || cur !== r) return;
-      gone = true;
-      opts.done(alts && alts.length ? { alts } : { error: error || "no-speech" });
+      finish(result());
     };
-    // Some starts open no microphone at all; one restart usually cures it (the lab saw this in Chrome).
-    if (!again) watch = setTimeout(() => { if (!opened && !gone && granted) { try { r.abort(); } catch { /* already ended */ } run(true); } }, 2500);
-    try { r.start(); } catch (e) { clearTimeout(watch); gone = true; opts.done({ error: "start: " + String((e as Error).message || e) }); }
+    // Some starts open no microphone at all; one restart usually cures it (the lab saw this in Chrome). If the second start
+    // opens none either, that is said instead of waiting for the longest time.
+    if (!again) watch = setTimeout(() => { if (!opened && !gone && !stopped && granted) { release(r); run(true); } }, 2500);
+    else watch = setTimeout(() => { if (!opened && !gone && granted) finish({ error: "no-audio" }); }, NO_AUDIO);
+    try { r.start(); } catch (e) {
+      // "already started": the previous recognizer is still going down; once more after a moment
+      if (!again && /InvalidState|already/i.test(String((e as Error).name) + String((e as Error).message))) {
+        clearTimeout(watch); release(r);
+        watch = setTimeout(() => { if (!gone && !stopped) run(true); }, 300);
+        return;
+      }
+      finish({ error: "start: " + String((e as Error).message || e) });
+    }
   };
   run(false);
   return {
-    stop() { try { cur?.stop(); } catch { /* already ended */ } },
-    abort() { gone = true; clearTimeout(watch); try { cur?.abort(); } catch { /* already ended */ } },
+    stop() {
+      if (gone) return;
+      if (stopped) { finish(result()); return; }
+      halt(AFTER_STOP);
+    },
+    abort() { if (gone) return; gone = true; clearTimeout(watch); clearTimeout(ending); clearTimeout(longest); release(cur); },
   };
 }

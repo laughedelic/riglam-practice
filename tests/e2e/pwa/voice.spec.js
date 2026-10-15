@@ -37,6 +37,7 @@ async function voice(page, { settings = {}, heard = [], none = false, trial = tr
     class Recognition {
       start() {
         window.__listens++;
+        if (window.__dead) return;   // a recognizer that never says anything, not even that it ended
         const t0 = Date.now();
         const tick = () => {
           if (this.gone) return;
@@ -344,4 +345,19 @@ test("words that are not an answer are said back, and the mic stays for another 
   else await expect(page.locator(".strip .chip[aria-pressed=true]")).toHaveCount(1);
   // the next screen asks for the first example and shows nothing of the last answer
   await expect(page.locator("#vbar .vst")).not.toContainText("Heard");
+});
+
+test("a recognizer that never ends does not leave the mic stuck: the next tap ends it and the one after listens", async ({ page }) => {
+  await voice(page, { settings: { answer: "tap" } });
+  await page.goto("/");
+  await ready(page);
+  await page.evaluate(() => { window.__dead = true; });
+  await mic(page).click();
+  await expect(mic(page)).toContainText("Listening");
+  await mic(page).click();   // stop it; the recognizer does not answer, so the page ends the listening itself
+  await expect(mic(page)).toContainText("Speak");
+  await expect(page.locator("#vbar .vst")).toContainText("Nothing was heard");
+  await page.evaluate(() => { window.__dead = false; });
+  await hear(page, "four possibilities");
+  await expect(page.locator("#vbar .vwhat b")).toHaveText("Four possibilities");
 });
