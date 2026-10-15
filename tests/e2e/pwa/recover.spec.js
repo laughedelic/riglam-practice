@@ -53,5 +53,6 @@ test("a storage that never answers does not keep the page on Loading: it starts,
   });
   await page.goto("/");
   await expect(page.locator("#store")).toContainText("storage is not answering", { timeout: 20_000 });
+  await expect(page.locator("#store")).toContainText("A new test database opened", { timeout: 10_000 });
   await expect(page.locator("#stage .status")).toHaveCount(0);
 });

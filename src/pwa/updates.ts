@@ -34,6 +34,8 @@ navigator.serviceWorker?.addEventListener("controllerchange", () => {
 
 registerSW({
   immediate: true,
+  // The library reloads the page on its own when a version that was waiting takes over (its prompt mode); the reader decides when (see the header).
+  onNeedReload: () => {},
   onRegisteredSW: (_url, r) => {
     registration = r;
     if (!r) return set("unknown");
