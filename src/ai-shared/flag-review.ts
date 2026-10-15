@@ -1,0 +1,110 @@
+// The review of a learner's flag on something Claude said: what a reviewing model is told (the exercise as the tutor saw
+// it, what Claude said, the learner's objection) and how its verdict is read. A reviewer gets the same per-pair card as
+// the tutor, so it judges with the same facts; it also gets the lookup tools (tools.ts) and the fine points (cardNotes).
+// Pure functions of the term data, shared by the page and by whatever runs the reviews on a server.
+import { cardBody, cardNotes } from "./card";
+import type { AnswerView } from "./card";
+import { QCELL } from "./debate";
+import type { DataIndex } from "./lookup";
+import { CELLS } from "./relations";
+import type { CellId, PairLike, RelKey } from "./relations";
+
+/** A stored answer as the reviewer reads it: the `answers` and `debates` documents of the page, loosely. */
+export interface ReviewAnswer {
+  mode?: string;
+  chosen: RelKey | null;
+  cells: Record<CellId, { text?: string; none?: boolean; verdict?: string }>;
+  qs?: { c: CellId; say?: string | null; text?: string; timeout?: boolean; verdict?: string }[];
+  implied?: RelKey | "bad" | null;
+  timeout?: string;
+  pair: PairLike;
+  explain?: string;
+}
+
+/** The flag as the reviewer reads it. `what` names the part in words (flaggedPart in src/domain). */
+export interface ReviewFlag {
+  what: string;
+  shown?: string;
+  asked?: string;
+  note?: string;
+  suggest?: string;
+}
+
+/** The answer state the tutor card is built from, rebuilt from a stored answer. */
+export function storedView(a: ReviewAnswer): AnswerView {
+  const debate = a.mode === "debate";
+  const cells = {} as AnswerView["cells"], res = { cells: {} as AnswerView["res"]["cells"], implied: a.implied ?? null };
+  for (const c of CELLS) {
+    const x = a.cells?.[c] || {};
+    cells[c] = { t: String(x.text || ""), none: !!x.none };
+    res.cells[c] = { v: x.verdict || "cmp" };
+  }
+  const ans = debate ? QCELL.map((c) => {
+    const q = a.qs?.find((y) => y.c === c);
+    return { say: (q?.say === "accept" || q?.say === "why" ? q.say : null) as "accept" | "why" | null, text: q?.text || "", timeout: !!q?.timeout };
+  }) : undefined;
+  const late = a.chosen == null;
+  return { debate, rel: late ? a.pair.relation : a.chosen, late, exLate: a.timeout === "examples" || a.timeout === "both", cells, ans, res };
+}
+
+export const VERDICTS = ["learner_right", "learner_wrong", "partly", "unclear"] as const;
+export const CAUSES = ["tutor", "data", "generator", "grading", "wording", "none"] as const;
+export type FlagVerdict = (typeof VERDICTS)[number];
+export type FlagCause = (typeof CAUSES)[number];
+
+/** One reviewer's reading of a flag. */
+export interface FlagReview {
+  verdict: FlagVerdict;
+  /** where the fault is when the learner is right: the tutor's text, the term data, the rules that build a pair and its reasons, the page's grading, or wording only */
+  cause: FlagCause;
+  /** what the learner reads: the correction, or why Claude was right; plain text, at most about 80 words */
+  reply: string;
+  /** for the maintainer: what to change and where, when something should change; empty otherwise */
+  fix: string;
+  confident: boolean;
+}
+
+/** The standing instructions of a reviewer. */
+export const REVIEW_GUIDE = `You review a learner's flag on something an AI tutor said in a practice app for Gelug Collected Topics (Dudra, Purbuchok's textbook as taught in the course booklet). You see the card the tutor saw, the learner's answer with the page's verdicts, what the tutor said, and the learner's objection.
+Decide whether the learner is right, independently of the tutor and of the page. The card's relation and reference examples were computed by the app from a list of classified examples, which can be incomplete: treat them as evidence, not proof. Check claims with the tools; when the booklet does not settle a point, say so.
+Causes, when the learner is right or partly right: "tutor" (the tutor's reasoning or wording is wrong or unclear), "data" (a term, relation, example or label in the term data is wrong or missing), "generator" (the app's rules built a wrong pair, relation or reason text from correct data), "grading" (the page's verdict on an example is wrong), "wording" (only a typo, spelling or formatting). Use "none" when the learner is wrong.
+Reply to the learner in plain text, at most 80 words, no greetings or praise: say what is right and why, citing the booklet's terms. The fix is for the maintainer: name what to change and where, or leave it empty.
+Answer with one JSON object and nothing else:
+{"verdict":"learner_right|learner_wrong|partly|unclear","cause":"tutor|data|generator|grading|wording|none","reply":"...","fix":"...","confident":true|false}`;
+
+/** The first message of a review: the tutor's card for the pair and the answer, what the tutor said, and the flag. */
+export function reviewRequest(ix: DataIndex, flag: ReviewFlag, a: ReviewAnswer): string {
+  const q = (s: string | undefined) => JSON.stringify(String(s || "").trim());
+  return [
+    cardBody(ix, a.pair, storedView(a)) + cardNotes(ix, a.pair),
+    "",
+    "TUTOR'S EXPLANATION OF THIS ANSWER:",
+    a.explain ? a.explain.trim() : "(not kept)",
+    "",
+    "FLAG",
+    "On: " + flag.what,
+    flag.asked ? "The learner asked: " + q(flag.asked) : null,
+    "The tutor said: " + q(flag.shown),
+    "The learner's note: " + (flag.note ? q(flag.note) : "(none)"),
+    flag.suggest ? "The learner suggests: " + q(flag.suggest) : null,
+  ].filter((x) => x != null).join("\n");
+}
+
+/** A reviewer's answer read into a FlagReview, or null when it is not one: the first JSON object in the text, with every field checked. */
+export function parseReview(text: string): FlagReview | null {
+  const s = String(text || ""), i = s.indexOf("{"), j = s.lastIndexOf("}");
+  if (i < 0 || j <= i) return null;
+  let o: unknown;
+  try { o = JSON.parse(s.slice(i, j + 1)); } catch { return null; }
+  if (!o || typeof o !== "object") return null;
+  const r = o as Record<string, unknown>;
+  if (!VERDICTS.includes(r.verdict as FlagVerdict) || !CAUSES.includes(r.cause as FlagCause)) return null;
+  if (typeof r.reply !== "string" || !r.reply.trim()) return null;
+  return {
+    verdict: r.verdict as FlagVerdict,
+    cause: r.verdict === "learner_wrong" ? "none" : (r.cause as FlagCause),
+    reply: r.reply.trim().slice(0, 1200),
+    fix: typeof r.fix === "string" ? r.fix.trim().slice(0, 1200) : "",
+    confident: r.confident === true,
+  };
+}

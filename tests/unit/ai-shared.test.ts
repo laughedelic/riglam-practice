@@ -4,9 +4,9 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { expect, test } from "vitest";
 import {
-  CELL_NAME, DEBATE_ASK, FIRST_ASK, GUIDE, american, cardBody, cardNotes, catByLabel, catFacts, explainAsk, finePoints, makeIndex, matchItem, norm, pairCats, qPlain, termFacts, tutorCard, tutorTools,
+  CELL_NAME, DEBATE_ASK, FIRST_ASK, GUIDE, REVIEW_GUIDE, american, cardBody, parseReview, reviewRequest, storedView, cardNotes, catByLabel, catFacts, explainAsk, finePoints, makeIndex, matchItem, norm, pairCats, qPlain, termFacts, tutorCard, tutorTools,
 } from "../../src/ai-shared";
-import type { AnswerView, DrillData, PairLike } from "../../src/ai-shared";
+import type { AnswerView, DrillData, PairLike, ReviewAnswer } from "../../src/ai-shared";
 import { state } from "../../src/app/state.js";
 import openData from "../../src/data/drill-data.json";
 
@@ -157,6 +157,51 @@ test("the card is the instructions, the body and the fine points, which a server
   expect(cardNotes(ix, pair())).toBe("\nFine points (from the sources; apply them):\n- A fine point about forms.");
   expect(cardNotes(ix, pair({ catA: "form", catB: "wood", b: "wooden things" }))).toBe("\nFine points (from the sources; apply them):\n- A fine point about forms.\n- Another fine point.");
   expect(cardNotes(ix, pair({ a: "unknown a", b: "unknown b", catA: null, catB: null }))).toBe("");
+});
+
+// ---- the review of a flag ----
+
+const stored = (extra: Partial<ReviewAnswer> = {}): ReviewAnswer => ({
+  chosen: "con", pair: pair(), explain: "Both: nothing is both.\nB not A: a dragon does not exist.",
+  cells: { both: { text: "", none: true, verdict: "ok" }, anb: { text: "Wooden Chair!", verdict: "ok" }, bna: { text: "a dragon", verdict: "cmp" }, nei: { text: " ", verdict: "bad" } },
+  ...extra,
+});
+
+test("a stored answer gives the reviewer the same card the tutor saw", () => {
+  expect(cardBody(ix, pair(), storedView(stored()))).toBe(cardBody(ix, pair(), practice()));
+  const d = storedView(stored({
+    mode: "debate", implied: "3ab",
+    cells: { both: { text: "", none: true, verdict: "ok" }, anb: { text: "a wooden chair", verdict: "bad" }, bna: { text: "", verdict: "cmp" }, nei: { text: "", none: true, verdict: "ok" } },
+    qs: [{ c: "both", say: "accept" }, { c: "anb", say: "why", text: "a wooden chair" }, { c: "bna", say: "why", text: "" }, { c: "nei", say: "accept", timeout: true }],
+  }));
+  expect(cardBody(ix, pair(), d)).toBe(cardBody(ix, pair(), debate()));
+  // time ran out before the relation: the card says so, and the cells are read against the right relation
+  expect(cardBody(ix, pair(), storedView(stored({ chosen: null, timeout: "both" })))).toContain("Learner chose: nothing (time ran out; the page then showed the right relation). Time ran out on the examples");
+});
+
+test("the review request has the card, the tutor's explanation and the flag", () => {
+  const r = reviewRequest(ix, { what: "Claude’s note on B not A", shown: "a dragon does not exist.", note: "Dragons exist in stories.", suggest: "" }, stored());
+  expect(r.startsWith(cardBody(ix, pair(), storedView(stored())) + cardNotes(ix, pair()))).toBe(true);
+  expect(r).toContain("TUTOR'S EXPLANATION OF THIS ANSWER:\nBoth: nothing is both.");
+  expect(r).toContain('On: Claude’s note on B not A\nThe tutor said: "a dragon does not exist."\nThe learner\'s note: "Dragons exist in stories."');
+  expect(r).not.toContain("The learner suggests");
+  expect(r).not.toContain("The learner asked");
+  const chat = reviewRequest(ix, { what: "Claude’s answer in the chat", shown: "Yes.", asked: "Is a chair a form?", suggest: "No." }, stored({ explain: undefined }));
+  expect(chat).toContain("TUTOR'S EXPLANATION OF THIS ANSWER:\n(not kept)");
+  expect(chat).toContain('The learner asked: "Is a chair a form?"\nThe tutor said: "Yes."\nThe learner\'s note: (none)\nThe learner suggests: "No."');
+  expect(REVIEW_GUIDE).toContain('{"verdict":"learner_right|learner_wrong|partly|unclear"');
+});
+
+test("a reviewer's answer is read only when every field is valid", () => {
+  const ok = { verdict: "learner_right", cause: "generator", reply: " Right: a white-hot iron is both. ", fix: "Do not draw this pair.", confident: true };
+  expect(parseReview("Here it is:\n" + JSON.stringify(ok) + "\nDone.")).toEqual({ ...ok, reply: "Right: a white-hot iron is both." });
+  expect(parseReview(JSON.stringify({ ...ok, verdict: "learner_wrong" }))?.cause).toBe("none"); // a wrong learner has no fault to fix
+  expect(parseReview(JSON.stringify({ ...ok, confident: "yes", fix: 3 }))).toMatchObject({ confident: false, fix: "" });
+  expect(parseReview(JSON.stringify({ ...ok, verdict: "maybe" }))).toBeNull();
+  expect(parseReview(JSON.stringify({ ...ok, cause: "weather" }))).toBeNull();
+  expect(parseReview(JSON.stringify({ ...ok, reply: "  " }))).toBeNull();
+  expect(parseReview("no json")).toBeNull();
+  expect(parseReview("{not json}")).toBeNull();
 });
 
 test("the fine points of categories are the notes of each, in order, without repeats; unknown ids add nothing", () => {
