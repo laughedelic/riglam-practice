@@ -7,7 +7,8 @@
 /** The term data as the page reads it (docs/DATA.md); the types live with the code that reads it. */
 import type { DrillData } from "../ai-shared/data";
 import type { TutorRequest } from "../ai/protocol";
-export type { DrillData };
+import type { Account, AccountView } from "../account/account";
+export type { DrillData, Account, AccountView };
 
 /** A stored document: a plain JSON object. */
 export type Doc = Record<string, any>;
@@ -133,4 +134,6 @@ export interface Platform {
   unlock?(): Promise<Unlock | null>;
   /** The app's own tutor, or null (or absent) when the place has none or the server has it switched off. The page uses `sample` first when it has one. */
   tutor?(): Promise<Tutor | null>;
+  /** The optional account (a passkey and a server copy of the documents, src/account), or null (or absent) when the place has none. The page works the same without. */
+  account?(): Promise<Account | null>;
 }

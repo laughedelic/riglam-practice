@@ -1,6 +1,8 @@
 // The Worker's routes (docs/SERVER.md):
-//   GET  /api/health   is the tutor on? (no sign-in)
+//   GET  /api/health   are the tutor and the accounts on? (no sign-in)
 //   POST /api/tutor    one tutor question; the answer comes back as server-sent events (src/ai/protocol.ts)
+//   /api/account/*     optional accounts, signed in with a passkey (worker/accounts.ts)
+//   POST /api/sync     the server copy of a signed-in person's documents (worker/sync.ts)
 // Everything else the Worker is asked for is the static site, which the platform serves itself; only /api/* reaches this code.
 
 import Anthropic from "@anthropic-ai/sdk";
@@ -8,10 +10,12 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { API, HEADER, LIMITS, type BudgetScope, type ErrorCode, type Health, type TutorEvent } from "../src/ai/protocol";
 import { checkProof } from "../src/ai/proof";
+import { accountRoutes, accountsOn } from "./accounts";
 import { dayOf, prune, reserve, settle, tutorSwitchedOn } from "./budget";
 import { readConfig } from "./config";
 import type { Env } from "./env";
 import type { Kit } from "./kit";
+import { syncRoutes } from "./sync";
 import { parseRequest, runTutor } from "./tutor";
 
 export interface Deps {
@@ -47,7 +51,7 @@ export function createApp(deps: Deps) {
     !!(env.DB && env.ANTHROPIC_API_KEY && env.RIGLAM_DATA_KEY && (await tutorSwitchedOn(env.DB).catch(() => false)) && (await deps.kit(env).catch(() => null)));
 
   app.get(API.health, async (c) => {
-    const body: Health = { ok: true, tutor: (await ready(c.env)) ? "on" : "off" };
+    const body: Health = { ok: true, tutor: (await ready(c.env)) ? "on" : "off", accounts: (await accountsOn(c.env.DB)) ? "on" : "off" };
     return c.json(body, 200, { "cache-control": "no-store" });
   });
 
@@ -113,6 +117,9 @@ export function createApp(deps: Deps) {
       }
     });
   });
+
+  app.route("/", accountRoutes({ now }));
+  app.route("/", syncRoutes({ now }));
 
   app.all("/api/*", (c) => c.json({ error: { code: "not_found", message: "no such endpoint" } }, 404));
   // The site itself is served by the platform; this only catches a request that reached the Worker by mistake.
