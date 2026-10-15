@@ -36,7 +36,7 @@ src/platform/              the Platform interface (data, `db`, `sample`, `accoun
 src/account/               optional accounts on the device: the contract with the server, the sync engine, the passkey code (docs/SERVER.md)
 src/pwa/                   PWA only: platform adapter, local `db` (IndexedDB), account client, key dialog, service worker registration, fonts
 src/artifact/              artifact only: platform adapter (embedded data, `window.claude`), head (title, font links)
-worker/                    the server: a Cloudflare Worker for /api/* (tutor access check, spend budgets, optional passkey accounts and document sync), D1 schema
+worker/                    the server: a Cloudflare Worker for /api/* (tutor access check, spend budgets, optional passkey accounts and document sync, flag reports and their scheduled review), D1 schema
 src/ai/                    the contract between page and server (protocol, access proof), shared by both
 scripts/                   build-artifact, artifact-verify, data (key, import, export), fonts, icons, Vite plugins
 tests/unit/                Vitest unit tests (artifact comparison, artifact and PWA build contracts, the data tiers, the shape of src/app, the tutor code in src/ai-shared, the rules in src/domain)

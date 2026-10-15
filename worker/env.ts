@@ -24,6 +24,16 @@ export interface Env {
   GLOBAL_DAILY_BUDGET_USD?: string;
   /** what a question is assumed to cost until it has finished, in US dollars; held back from the budgets meanwhile */
   RESERVE_USD?: string;
+  /** the models that review flags, comma-separated, one review each (default `claude-sonnet-5-5,claude-opus-5-5`) */
+  REVIEW_MODELS?: string;
+  /** what the reviews of flags may spend per UTC day, in US dollars; separate from the tutor's budgets (default 1) */
+  REVIEW_DAILY_BUDGET_USD?: string;
+  /** what the reviews of one flag are assumed to cost until they have finished, in US dollars (default 0.10) */
+  REVIEW_RESERVE_USD?: string;
+  /** most output tokens of one review call (default 2500) */
+  REVIEW_MAX_TOKENS?: string;
+  /** most flags one scheduled pass reviews (default 5) */
+  REVIEW_BATCH?: string;
   /** who may create an account: `open` (default), `group` (only with the study group's proof) or `closed` */
   SIGNUP?: string;
   /** most accounts (default 300) */

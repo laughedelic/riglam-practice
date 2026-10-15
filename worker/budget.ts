@@ -7,7 +7,7 @@ import type { Tokens } from "./prices";
 
 export const dayOf = (now: Date): string => now.toISOString().slice(0, 10);
 
-export type Scope = "global" | `dev:${string}`;
+export type Scope = "global" | "review" | `dev:${string}`;
 
 export type Reservation = { ok: true } | { ok: false; scope: "device" | "global" };
 
@@ -47,6 +47,33 @@ export async function settle(
         "INSERT INTO usage_log (at, day, device, kind, model, rounds, input_tokens, output_tokens, cache_write_tokens, cache_read_tokens, micro, outcome) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
       )
       .bind(p.now.toISOString(), p.day, p.device, p.kind, p.model, p.rounds, p.tokens.input, p.tokens.output, p.tokens.cacheWrite, p.tokens.cacheRead, p.actual, p.outcome),
+  ]);
+}
+
+/** Holds `micro` back against the day's budget for the reviews of flags (its own scope: the tutor's budgets are not touched), or says there is no room. */
+export async function reserveReview(db: D1Database, p: { day: string; micro: number; cap: number }): Promise<boolean> {
+  await ensure(db, p.day, "review").run();
+  return !!(await add(db, p.day, "review", p.micro, p.cap).run()).meta.changes;
+}
+
+/** One reviewer's call, as the usage log keeps it. */
+export interface ReviewRun {
+  model: string;
+  rounds: number;
+  tokens: Tokens;
+  micro: number;
+  outcome: string;
+}
+
+/** Replaces the amount held for the reviews of a report by what they cost, and writes a line of the usage log for each reviewer. `device` is the sender's. */
+export async function settleReview(db: D1Database, p: { day: string; held: number; now: Date; device: string; runs: ReviewRun[] }): Promise<void> {
+  const actual = p.runs.reduce((sum, r) => sum + r.micro, 0);
+  const line = db.prepare(
+    "INSERT INTO usage_log (at, day, device, kind, model, rounds, input_tokens, output_tokens, cache_write_tokens, cache_read_tokens, micro, outcome) VALUES (?1, ?2, ?3, 'review', ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+  );
+  await db.batch([
+    adjust(db, p.day, "review", actual - p.held),
+    ...p.runs.map((r) => line.bind(p.now.toISOString(), p.day, p.device, r.model, r.rounds, r.tokens.input, r.tokens.output, r.tokens.cacheWrite, r.tokens.cacheRead, r.micro, r.outcome)),
   ]);
 }
 

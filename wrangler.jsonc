@@ -16,7 +16,7 @@
   },
   // Only the lines the Worker writes itself (errors, with no text of any question). No line per request.
   "observability": { "enabled": true, "logs": { "invocation_logs": false } },
-  // The tutor's and the accounts' settings (worker/config.ts has the same values as defaults). A change is a pull request.
+  // The tutor's, the accounts' and the flag review's settings (worker/config.ts has the same values as defaults). A change is a pull request.
   // Dollars are US dollars per UTC day. The secrets ANTHROPIC_API_KEY and RIGLAM_DATA_KEY (the Magic Key) are not here: `wrangler secret put`.
   "vars": {
     "TUTOR_MODEL": "claude-sonnet-5-5",
@@ -29,8 +29,14 @@
     "SIGNUP": "open",
     "MAX_ACCOUNTS": "300",
     "MAX_DOCS_PER_ACCOUNT": "20000",
-    "DAILY_WRITES_PER_ACCOUNT": "3000"
+    "DAILY_WRITES_PER_ACCOUNT": "3000",
+    "REVIEW_MODELS": "claude-sonnet-5-5,claude-opus-5-5",
+    "REVIEW_DAILY_BUDGET_USD": "1.00",
+    "REVIEW_BATCH": "5"
   },
+  // The review of flag reports (worker/review.ts, docs/SERVER.md): a pass every ten minutes. It looks at one table first and does
+  // nothing, at no cost, when no report waits. Cron triggers run on the deployed Worker only, not on preview URLs.
+  "triggers": { "crons": ["*/10 * * * *"] },
   // The D1 database for the budget counters (docs/SERVER.md). Migrations are applied by hand:
   //   npx wrangler d1 migrations apply riglam-practice --remote
   // Until that has been done the tutor reports itself off and everything else works.

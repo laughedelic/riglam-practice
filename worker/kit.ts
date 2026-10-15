@@ -2,8 +2,8 @@
 // All three are made from the full term data, which the Worker puts together from the open file (bundled with the script) and
 // the course rows in its database (docs/DATA.md). The instructions, the tools and the lookups are the shared code in
 // src/ai-shared, the same that the page runs; the notes are added here and never reach a browser.
-import { GUIDE, finePoints, makeIndex, tutorTools } from "../src/ai-shared";
-import type { DrillData } from "../src/ai-shared";
+import { GUIDE, REVIEW_GUIDE, finePoints, makeIndex, reviewRequest, tutorTools } from "../src/ai-shared";
+import type { DrillData, ReviewAnswer, ReviewFlag } from "../src/ai-shared";
 import { merge } from "../src/data/course.js";
 import { readCourseRows, type CourseRows } from "./course";
 import type { Env } from "./env";
@@ -22,6 +22,10 @@ export interface Kit {
   run(name: string, input: unknown): unknown;
   /** the notes that belong to these category ids, one line each, without duplicates */
   finePoints(cats: string[]): string[];
+  /** the system prompt of a reviewer of flags (the tools are the tutor's) */
+  reviewGuide: string;
+  /** the first message of a review: the card for the pair, what the tutor said and the flag; the pair of the answer must be one the data knows */
+  reviewRequest(flag: ReviewFlag, answer: ReviewAnswer): string;
 }
 
 /** The kit made from the open data and the course rows. Throws when a row is not JSON. */
@@ -41,6 +45,8 @@ export async function kitFrom(openData: object, course: Pick<CourseRows, "defini
     },
     // Category ids come from the request; the shared function counts only the ids the data itself has notes for.
     finePoints: (cats) => finePoints(ix, cats),
+    reviewGuide: REVIEW_GUIDE,
+    reviewRequest: (flag, answer) => reviewRequest(ix, flag, answer),
   };
 }
 
