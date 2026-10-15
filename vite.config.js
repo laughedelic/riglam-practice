@@ -29,7 +29,7 @@ export default defineConfig({
     buildInfo(),
     includeMarkup(fileURLToPath(new URL("./src/app/markup.html", import.meta.url))),
     VitePWA({
-      registerType: "prompt", // an update waits until the app is reopened (see src/pwa/register-sw.ts)
+      registerType: "prompt", // a new version waits until the reader says so: the banner or Options (src/pwa/updates.ts), or the next launch
       injectRegister: false,
       includeAssets: ["icons/icon.svg", "icons/apple-touch-icon.png"],
       workbox: {

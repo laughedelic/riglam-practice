@@ -4,6 +4,7 @@
 //           (./dev-sample.ts); `?ai=off` in the address takes it away there too.
 //   unlock  a way to enter the Magic Key, while this device has none (./unlock.ts); the definitions come from the server (./course.ts)
 //   tutor   the app's own server (./tutor.ts), when it has the tutor on and this device has the Magic Key
+//   updates the service worker's new versions: checked in the background, started from the banner or Options (./updates.ts)
 //   account optional sign-in with a passkey and a server copy of the documents (./account.ts), when the server has accounts on
 import dataUrl from "../data/drill-data.json?url";
 import { merge, lock } from "../data/course.js";
@@ -12,6 +13,7 @@ import { createPwaAccount } from "./account";
 import { fetchCourse, forgetCourse, keepCourse, keptCourse, whyNot, type Definitions } from "./course";
 import { createAccountClient } from "../account/client";
 import { aboutThisBuild } from "./about";
+import { updates } from "./updates";
 import { createLocalDb } from "./local-db";
 import { createTutor, tutorIsOn as serverSaysOn } from "./tutor";
 import { takeLinkKey, storedKey, storeKey, forgetKey, showUnlock, markKeyChanged, takeKeyChanged, KEY_CHANGED_TEXT } from "./unlock";
@@ -126,6 +128,7 @@ export const pwaPlatform: Platform = {
   unlock: async () => (groupKey || !openUnlock ? null : { open: openUnlock, tutor: await tutorIsOn() }),
   // Only with the key (the server would refuse the request anyway) and only when the server says its tutor is on: otherwise the page hides the tutor.
   about: () => aboutThisBuild(),
+  updates,
   tutor: async () => (groupKey && (await tutorIsOn()) ? createTutor(groupKey) : null),
   // Made on first ask and then kept; it finds out for itself whether the server has accounts, so the page can show its row at once.
   account: async () => (account ??= createPwaAccount(db, { read: () => groupKey ?? storedKey(), adopt: takeAccountKey })),
