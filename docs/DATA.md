@@ -58,4 +58,4 @@ To change the key (a leak, or someone who should no longer open new versions): `
 
 ## What this does and does not do
 
-It keeps the definitions out of search engines, link previews, the host's static files, a scrape of the site and the repository: they are given only to a request that proves the key. It does not stop someone who holds the key from copying what they can read, and it does not hide the open tier, which is meant to be shareable.
+It keeps the definitions out of search engines, link previews, the host's files, a scrape of the site and the repository. It does not stop someone who holds the key from copying what they can read, and it does not hide the open tier, which is meant to be shareable.
