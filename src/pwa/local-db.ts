@@ -83,6 +83,10 @@ export interface LocalDbOptions {
   indexedDB?: IDBFactory;
   name?: string;
   channel?: boolean;
+  /** How long a read or write of IndexedDB may take before the storage counts as not answering (default 8 s). */
+  timeoutMs?: number;
+  /** Called once, when the storage did not answer in time: from then on the store works in memory only, like in a private window. */
+  onUnavailable?: () => void;
 }
 
 /** A write made on this device through the `db` capability. `data` is null for a deletion. */
@@ -127,7 +131,21 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
       req.onblocked = () => resolve(null);
     }));
 
-  const tx = async <T = unknown>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest<T> | undefined): Promise<T | undefined> => {
+  // A storage that never answers (seen on a phone whose IndexedDB hung after the app was killed) must not keep the page on "Loading." for ever:
+  // after `timeoutMs` the store goes on in memory, and `onUnavailable` lets the page say so.
+  let dead = false;
+  const tx = <T = unknown>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest<T> | undefined): Promise<T | undefined> => {
+    if (dead) return Promise.resolve(undefined);
+    return new Promise<T | undefined>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        dead = true;
+        try { opts.onUnavailable?.(); } catch { /* the notice is not the store's business */ }
+        resolve(undefined);
+      }, opts.timeoutMs ?? 8000);
+      txNow<T>(mode, fn).then((v) => { clearTimeout(timer); resolve(v); }, (e) => { clearTimeout(timer); reject(e); });
+    });
+  };
+  const txNow = async <T = unknown>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest<T> | undefined): Promise<T | undefined> => {
     const d = await open();
     if (!d) return undefined;
     return new Promise<T | undefined>((resolve, reject) => {

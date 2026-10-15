@@ -10,6 +10,7 @@ import { HEADER } from "../ai/protocol";
 import { makeProof } from "../ai/proof";
 import type { LocalDb } from "./local-db";
 import { deviceId } from "./device";
+import { takeResync } from "./store-slot";
 
 const KEPT = "riglam.account";
 const POLL_MS = 60_000;
@@ -55,9 +56,10 @@ const storeOf = (db: LocalDb): SyncStore => ({
 /** The account of this device. `magicKey` is the Magic Key on this device: `read` gives it (a new account needs its proof), `adopt` takes the one the account carries. */
 export function createPwaAccount(db: LocalDb, magicKey: { read(): string | null; adopt(key: string): void }): Account {
   const client = createAccountClient();
+  const outbox = idbOutbox();
   const sync = createSync({
     store: storeOf(db),
-    outbox: idbOutbox(),
+    outbox,
     post: (request) => client.sync(request),
     exclusive,
     onSignedOut: () => account.signedOut(),
@@ -79,6 +81,10 @@ export function createPwaAccount(db: LocalDb, magicKey: { read(): string | null;
   addEventListener("online", () => account.wake());
   addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") account.wake(); });
   setInterval(() => { if (document.visibilityState === "visible" && navigator.onLine) account.wake(); }, POLL_MS);
-  void account.start();
+  // After a move to a new store (./store-slot.ts) the cursor belongs to the old one: everything is fetched again.
+  void (async () => {
+    if (takeResync()) await outbox.setMeta("cursor", 0).catch(() => {});
+    await account.start();
+  })();
   return account;
 }

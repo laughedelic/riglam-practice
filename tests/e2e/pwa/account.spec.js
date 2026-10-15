@@ -201,3 +201,27 @@ test.describe("the Magic Key follows the account", () => {
     await context.close();
   });
 });
+
+test("a store that stopped answering is replaced by a new one, and the account brings the documents back", async ({ page }) => {
+  const world = await serverWorld();
+  await start(page, world);
+  await put(page, "labruns", "lr_kept", { kind: "run", at: "2026-10-01T10:00:00.000Z" });
+  await openOptions(page);
+  await acct(page).getByLabel("A name for the account").fill("Test person");
+  await page.getByRole("button", { name: "Create account" }).click();
+  await expect(status(page).first()).toContainText("Up to date", { timeout: 15_000 });
+
+  // from now on the database "riglam" never opens (as on the phone); a new name opens as usual
+  await page.addInitScript(() => {
+    const open = IDBFactory.prototype.open;
+    IDBFactory.prototype.open = function (name, ...rest) { return name === "riglam" ? ({}) : open.call(this, name, ...rest); };
+  });
+  await page.reload();
+  await expect(page.locator("#store")).toContainText("storage is not answering", { timeout: 20_000 });
+  expect(await get(page, "labruns", "lr_kept")).toBeNull(); // the old store cannot be read
+
+  await page.locator("#store").getByRole("button", { name: "Use a new store" }).click();
+  await ready(page);
+  await expect(page.locator("#store")).toHaveCount(0);
+  await expect.poll(() => get(page, "labruns", "lr_kept"), { timeout: 20_000 }).toMatchObject({ kind: "run" });
+});

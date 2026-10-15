@@ -35,18 +35,26 @@ export function renderOptionsBtn(){
 }
 export function toggleOpts(on){
   state.optsOpen=on===undefined?!state.optsOpen:on; render();
+  if(state.optsOpen&&state.updates) state.updates.check(60000); // the Version row is about to be read: look for a newer one unless a look is younger than a minute
   if(state.optsOpen){ const b=document.querySelector("#over .oc"); if(b) b.focus({preventScroll:true}); }
   else { const b=[$("obtn"),$("mopt")].find(x=>x.offsetParent); if(b) b.focus({preventScroll:true}); }
 }
-// which build this is, and whether the server has a newer one: the commit tells a staging build from the one before it
+// which build this is, and where the update stands: the commit tells a staging build from the one before it. With `state.updates` the app
+// updates in place (the button reloads it); without, the page only says whether the server has a newer build.
 function aboutNode(a){
   const when=(()=>{ const d=new Date(a.builtAt); return isNaN(d.getTime())?"":d.toLocaleString(undefined,{dateStyle:"medium",timeStyle:"short"}); })();
-  const status=a.latest==="newer"?"A newer version is out. Close the app completely and open it again to use it."
+  const u=state.updates, st=u?u.status():null;
+  const status=u?{ready:"A newer version is ready.",downloading:"Downloading a newer version.",checking:"Checking for a newer version.",
+      unknown:"Could not check for a newer version (no connection?).",current:"This is the newest version."}[st]
+    :a.latest==="newer"?"A newer version is out. Close the app completely and open it again to use it."
     :a.latest==="current"?"This is the newest version.":"Could not check for a newer version (no connection?).";
+  const btn=!u?null:st==="ready"?el("button",{type:"button",class:"btn",onclick:()=>u.apply()},"Update now")
+    :st==="current"||st==="unknown"?el("button",{type:"button",class:"btn ghost",onclick:()=>u.check()},"Check for updates"):null;
   return el("div",{class:"about"},
     el("p",{class:"onote",text:"Version "+a.version+" · build "+a.commit+(when?" · "+when:"")}),
     a.branches?el("p",{class:"onote",text:"Built from: "+a.branches.join(", ")}):null,
-    el("p",{class:"onote"+(a.latest==="newer"?" bad":""),role:"status",text:status}));
+    el("p",{class:"onote"+(!u&&a.latest==="newer"?" bad":""),role:"status",text:status}),
+    btn);
 }
 export function optionsInto(o){
   o.append(overHead("Options",()=>toggleOpts(false),"Close options"));
