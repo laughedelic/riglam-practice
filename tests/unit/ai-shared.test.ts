@@ -217,6 +217,14 @@ test("the explain request is the plain one when the page checked every example, 
   expect(dbt).toContain("Q1 is the Both cell, Q2 A not B, Q3 B not A, Q4 Neither.");
 });
 
+// A debate line is shown beside the learner's example, so a counter-example that is right must read as fitting, not as "fails".
+test("the debate request judges a Why? example as fitting or not, and an Accept by its statement", () => {
+  expect(DEBATE_ASK).toContain('after Why?, the example ("so it fits" or "so it does not fit")');
+  expect(DEBATE_ASK).toContain('after Accept, the statement ("so the statement holds" or "but the statement does not hold")');
+  expect(DEBATE_ASK).not.toContain('"so it fails"');
+  expect(FIRST_ASK).toContain('("so it fits" or "so it does not fit"');
+});
+
 test("the lookup tools: terms by name, alias, Russian name or part of the name, and examples from the practice list", () => {
   const tools = tutorTools(ix);
   expect(tools.map((t) => t.name)).toEqual(["lookup_term", "classify_example"]);
