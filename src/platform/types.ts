@@ -123,8 +123,8 @@ export interface Platform {
   db(): Promise<Db | null>;
   /** Model calls, or null when there are none (the page then hides the tutor, Explain and the check lab). */
   sample(): Promise<Sample | null>;
-  /** The app's own tutor, or null (or absent) when the place has none or the server has it switched off. The page uses `sample` first when it has one. */
-  tutor?(): Promise<Tutor | null>;
   /** A way to enter the study group's key (it opens the definitions and the tutor), or null (or absent) when the place has no key to ask for or already has it. Returns the function that opens the prompt. */
   unlock?(): (() => void) | null;
+  /** The app's own tutor, or null (or absent) when the place has none or the server has it switched off. The page uses `sample` first when it has one. */
+  tutor?(): Promise<Tutor | null>;
 }
