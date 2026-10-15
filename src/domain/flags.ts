@@ -45,14 +45,19 @@ export function flaggedPart(f: FlagRef, modelName: (id: string) => string = (id)
     return "Claude’s explanation";
   }
   if (f.part === "chat") return "Claude’s answer in the chat";
+  if (f.part === "reply") return "The reply to a flag";
   return [f.thing ? "“" + f.thing + "”" : "", f.model ? modelName(f.model) : "", f.part || ""].filter(Boolean).join(" · ");
 }
 
+const SERVER_STATE: Record<string, string> = { answered: "Answered", maintainer: "With the maintainer", fixed: "Fixed", decided: "Decided" };
+
 /**
  * A flag's state in words. "new" is every flag nobody has looked at yet; where flags are sent to the maintainer, `sent` says whether
- * this one has been (undefined where they are not).
+ * this one has been (undefined where they are not), and `server` is where the server's review of it stands once it has got further
+ * than "sent" (src/report/protocol.ts, ReportState).
  */
-export function flagStateText(state: string | undefined, sent?: boolean): string {
+export function flagStateText(state: string | undefined, sent?: boolean, server?: string): string {
+  if (server && SERVER_STATE[server]) return SERVER_STATE[server];
   if (state === "reviewed") return "Reviewed";
   if (state === "resolved") return "Resolved";
   return sent === undefined ? "Not reviewed yet" : sent ? "Sent to the maintainer" : "Waiting to be sent";

@@ -121,6 +121,8 @@ export interface FlagDoc {
   state: string;
   /** when the flag was last sent to the app's server (ai/flag-reports.js); it counts as sent while this is not earlier than `updatedAt` */
   sentAt?: string;
+  /** where the server's review of the sent flag stands and the reply to read under it (ai/flag-reports.js); written by the page, not by the learner, and dropped when the flag is edited */
+  review?: { state: string; reply?: string; at?: string };
 }
 
 /** collection `labruns`: one model's answer to one case of the check lab, or the judge's. Loosely typed. */
@@ -227,6 +229,9 @@ export interface State {
   flagPending: number;
   /** true while unsent flags are being sent, so that two runs do not overlap */
   reportBusy: boolean;
+  /** when the server was last asked for the replies to the sent flags (ms since the epoch), and whether that is under way */
+  repliesAt: number;
+  repliesBusy: boolean;
 
   // skips
   skipNote: SkipNote | null;

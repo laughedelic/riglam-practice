@@ -37,6 +37,10 @@
 .favs.flags .sub,.favs.mist .sub{overflow-wrap:anywhere}
 .fsaid{display:grid;gap:6px;padding:8px 10px;background:var(--paper-tint);border-left:3px solid var(--line);min-width:0}
 .fsaid .q{justify-self:start;max-width:100%}
+/* the reply to a sent flag (review/flag-list.js): plain text, set apart from what Claude said */
+.freply{display:grid;gap:6px;padding:8px 10px;background:var(--good-soft);border-left:3px solid var(--good);min-width:0}
+.freply .rtext{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.freply .actions{margin:0}
 .xbody{display:grid;gap:10px;min-width:0}
 .xbody .cell .qn{display:block;font:700 10.5px/1.3 var(--body);letter-spacing:.06em;color:var(--ink-muted)}
 .xbody .cell.locked .empty{font-size:16px}
