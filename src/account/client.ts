@@ -46,8 +46,18 @@ export interface AccountClient {
   sync(request: SyncRequest): Promise<SyncResponse>;
 }
 
-export function createAccountClient(doFetch: Fetch = (input, init) => fetch(input, init), waitMs = 4000): AccountClient {
+/** `requestMs`: how long a request may take, answer included; a connection that never answers must end, or a round of sync shows "Syncing ..." for good. */
+export function createAccountClient(doFetch: Fetch = (input, init) => fetch(input, init), waitMs = 4000, requestMs = 30_000): AccountClient {
   async function call<T>(path: string, init: { method?: string; body?: unknown; headers?: Record<string, string> } = {}): Promise<T> {
+    const stop = new AbortController();
+    const timer = setTimeout(() => stop.abort(), requestMs);
+    try {
+      return await send<T>(path, init, stop.signal);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  async function send<T>(path: string, init: { method?: string; body?: unknown; headers?: Record<string, string> }, signal: AbortSignal): Promise<T> {
     let res: Response;
     try {
       res = await doFetch(path, {
@@ -55,6 +65,7 @@ export function createAccountClient(doFetch: Fetch = (input, init) => fetch(inpu
         headers: { ...(init.body === undefined ? {} : { "content-type": "application/json" }), ...init.headers },
         body: init.body === undefined ? undefined : JSON.stringify(init.body),
         cache: "no-store",
+        signal,
       });
     } catch {
       throw new AccountFailure("offline", "no connection");
@@ -70,7 +81,11 @@ export function createAccountClient(doFetch: Fetch = (input, init) => fetch(inpu
       if (!CODES.includes(code)) code = res.status === 401 ? "signed_out" : res.status === 403 ? "not_granted" : res.status === 413 ? "too_large" : res.status === 429 ? "quota" : "unavailable";
       throw new AccountFailure(code as AccountErrorCode, message || code);
     }
-    return (await res.json()) as T;
+    try {
+      return (await res.json()) as T;
+    } catch {
+      throw new AccountFailure(signal.aborted ? "offline" : "unavailable", signal.aborted ? "no connection" : "the answer is not JSON");
+    }
   }
 
   const verified = async (path: string, challengeId: string, response: Record<string, unknown>) => {
