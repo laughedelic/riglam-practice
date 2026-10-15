@@ -29,7 +29,7 @@ export default defineConfig({
     buildInfo(),
     includeMarkup(fileURLToPath(new URL("./src/app/markup.html", import.meta.url))),
     VitePWA({
-      registerType: "prompt", // a new version waits until the reader says so: the banner or Options (src/pwa/updates.ts), or the next launch
+      registerType: "prompt", // the page asks the reader before it reloads onto a new version (src/pwa/updates.ts); the worker itself does not wait
       injectRegister: false,
       includeAssets: ["icons/icon.svg", "icons/apple-touch-icon.png"],
       workbox: {
@@ -38,6 +38,7 @@ export default defineConfig({
         navigateFallback: "index.html",
         navigateFallbackDenylist: [/^\/api\//], // the server's paths are the server's, also when opened in a tab
         cleanupOutdatedCaches: true,
+        skipWaiting: true, // a new worker takes over at once: one that waits for every page to close never gets its turn on a phone
       },
       manifest: {
         id: "./",

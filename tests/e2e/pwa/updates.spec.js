@@ -1,6 +1,7 @@
-// A newer version of the installed app: found while the app is open, offered, and started without closing the app. The server is a
-// small static server over dist/pwa whose service worker script can be made different (the browser then installs it as a new version);
-// the new worker answers /__which with "v2", which tells the two versions apart.
+// A newer version of the installed app: found while the app is open, offered, and started without closing the app; one that takes over as
+// the app opens starts by itself. The server is a small static server over dist/pwa whose service worker script can be made different
+// (the browser then installs it as a new version, which takes over at once); the new worker answers /__which with "v2". A page marks
+// itself with window.__old, so that a reload shows.
 import { createServer } from "node:http";
 import { readFileSync, existsSync, statSync } from "node:fs";
 import { extname, join, normalize } from "node:path";
@@ -29,9 +30,13 @@ test.beforeAll(async () => {
 test.afterAll(() => server.close());
 test.beforeEach(() => { newVersion = false; down = false; });
 
+const markOld = (page) => page.evaluate(() => { window.__old = true; });
+const isOld = (page) => page.evaluate(() => window.__old === true);
 const controlled = (page) => page.evaluate(() => !!navigator.serviceWorker.controller);
 const which = (page) => page.evaluate(async () => (await fetch("__which")).text().catch(() => ""));
-async function installed(page) {
+// `later`: the page counts as in use from the start, so a version that takes over is offered, not started
+async function installed(page, { later = true } = {}) {
+  if (later) await page.addInitScript(() => { window.__riglamAtOnceMs = 0; });
   await page.goto(origin + "/");
   await ready(page);
   await page.evaluate(() => navigator.serviceWorker.ready);
@@ -44,15 +49,18 @@ test("a newer version is found, offered, and started from the banner without clo
   await installed(page);
   expect(await which(page)).not.toBe("v2");
   await expect(page.locator("#upd")).toBeHidden();
+  await markOld(page);
 
   newVersion = true;
   await page.evaluate(() => window.__riglam.platform.updates.check());
   await expect(page.locator("#upd")).toBeVisible();
   await expect(page.locator("#upd")).toContainText("New version ready");
+  expect(await isOld(page), "the page the reader is using is not reloaded behind their back").toBe(true);
 
   await page.locator("#upd").getByRole("button", { name: "Update now" }).click();
-  await expect.poll(() => which(page).catch(() => ""), { timeout: 15_000 }).toBe("v2");
+  await expect.poll(() => isOld(page).catch(() => true), { timeout: 15_000 }).toBe(false);
   await ready(page);
+  expect(await which(page)).toBe("v2");
   await expect(page.locator("#upd")).toBeHidden();
 });
 
@@ -67,8 +75,9 @@ test("Later hides the banner, and Options still offers the update", async ({ pag
   await page.getByRole("button", { name: /options/i }).filter({ visible: true }).first().click();
   const row = page.locator(".orow", { hasText: "Version" });
   await expect(row).toContainText("A newer version is ready.");
+  await markOld(page);
   await row.getByRole("button", { name: "Update now" }).click();
-  await expect.poll(() => which(page).catch(() => ""), { timeout: 15_000 }).toBe("v2");
+  await expect.poll(() => isOld(page).catch(() => true), { timeout: 15_000 }).toBe(false);
 });
 
 test("Options looks for a newer version when it opens, and says when there is none", async ({ page }) => {
@@ -83,16 +92,26 @@ test("Options looks for a newer version when it opens, and says when there is no
   await expect(row).toContainText("A newer version is ready.");
 });
 
-test("a version that was fetched earlier and is still waiting starts as the app opens", async ({ page }) => {
-  await installed(page);
+test("a version that takes over as the app opens starts by itself", async ({ page }) => {
+  await installed(page, { later: false });
+  await markOld(page);
   newVersion = true;
-  await page.evaluate(() => window.__riglam.platform.updates.check());
-  await expect(page.locator("#upd")).toBeVisible();
-
-  // a reload does not start a waiting version by itself; the app now does it as it opens
+  // the browser looks for a new worker script when the page loads; the new one takes over within seconds and the page reloads onto it
   await page.reload();
   await expect.poll(() => which(page).catch(() => ""), { timeout: 15_000 }).toBe("v2");
   await ready(page);
+  await expect(page.locator("#upd")).toBeHidden();
+});
+
+test("a worker that is already waiting from an older build is replaced and takes over (a phone stuck on an old version)", async ({ page }) => {
+  await installed(page);
+  newVersion = true;
+  await page.evaluate(() => window.__riglam.platform.updates.check());
+  await expect.poll(() => which(page).catch(() => ""), { timeout: 15_000 }).toBe("v2");
+  // another visit, as after force-stopping the browser: the page is served by the new version at once
+  await page.reload();
+  await ready(page);
+  expect(await which(page)).toBe("v2");
 });
 
 test("a check the server does not answer says so and does not break the page", async ({ page }) => {

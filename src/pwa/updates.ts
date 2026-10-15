@@ -1,17 +1,19 @@
-// Keeping the installed app current. The service worker (vite.config.js) installs a new version in the background but never takes over
-// by itself, and a browser that keeps the app alive in the background never lets the old version go ("closing" it often does not close
-// it). So the app asks for the switch itself:
+// Keeping the installed app current. A new version of the service worker (vite.config.js) takes over as soon as it is installed. It must:
+// a worker that waits for every page of the app to close never gets its turn on a phone, where "closing" the app often leaves a page
+// alive, and a cold start opens the old version again (the old worker is the one that answers). The page that is open keeps running the
+// version it loaded until it is reloaded, so the app tells the reader and offers the reload:
 //   - it looks for a newer version when it starts, when it comes back to the screen, when the connection returns and in Options;
-//   - a version that was downloaded during an earlier visit and is still waiting is started at once, as the app opens;
-//   - a version found while the app is in use waits for the reader's word (the banner in ./update-banner.ts, the button in Options),
-//     because starting it reloads the page.
+//   - a version that takes over within seconds of the app opening is started at once, there is nothing to lose yet;
+//   - one that takes over later waits for the reader's word (the banner in ./update-banner.ts, the button in Options).
 import { registerSW } from "virtual:pwa-register";
 import type { UpdateStatus, Updates } from "../platform/types";
 
 const LOOK_EVERY_MS = 15 * 60_000; // how long the app may stay in view before it looks again
+const AT_ONCE_MS = (globalThis as { __riglamAtOnceMs?: number }).__riglamAtOnceMs ?? 10_000; // a version that takes over this soon after the page opened is started without asking (the browser specs set it)
 const APPLIED_KEY = "rd-update-applied";
 const LOOP_GUARD_MS = 30_000; // a version started less than this long ago is not started again on its own
 
+const openedAt = Date.now();
 let status: UpdateStatus = "current";
 let registration: ServiceWorkerRegistration | undefined;
 let lastLook = Date.now(); // the browser itself looked as the page loaded
@@ -32,11 +34,27 @@ function startedRecently(): boolean {
   }
 }
 
-const updateSW = registerSW({
+function apply(): void {
+  if (status !== "ready") return;
+  try {
+    localStorage.setItem(APPLIED_KEY, String(Date.now()));
+  } catch {
+    /* private mode: the loop guard is best effort */
+  }
+  location.reload();
+}
+
+// A page that was controlled by a worker when it opened sees "controllerchange" when a newer worker takes over. The first install of the
+// app has no earlier controller (the new worker does not claim open pages), so it is not an update.
+const hadController = !!navigator.serviceWorker?.controller;
+navigator.serviceWorker?.addEventListener("controllerchange", () => {
+  if (!hadController) return;
+  set("ready");
+  if (Date.now() - openedAt < AT_ONCE_MS && !startedRecently()) apply();
+});
+
+registerSW({
   immediate: true,
-  // The page is reloaded by us (below) once the new worker has taken control.
-  onNeedReload: () => location.reload(),
-  onNeedRefresh: () => set("ready"),
   onRegisteredSW: (_url, r) => {
     registration = r;
     if (!r) return set("unknown");
@@ -48,26 +66,9 @@ const updateSW = registerSW({
         if (worker.state === "redundant" && status === "downloading") set("unknown"); // the download failed
       });
     });
-    // A version fetched during an earlier visit and never started: the app has only just opened, so there is nothing to lose.
-    if (r.waiting) {
-      set("ready");
-      if (!startedRecently()) apply();
-    }
   },
   onRegisterError: () => set("unknown"),
 });
-
-function apply(): void {
-  if (status !== "ready") return;
-  try {
-    localStorage.setItem(APPLIED_KEY, String(Date.now()));
-  } catch {
-    /* private mode: the loop guard is best effort */
-  }
-  void updateSW(true);
-  // The worker takes control and the page reloads. If that did not happen (a browser that ignores the message), reload anyway.
-  setTimeout(() => location.reload(), 5000);
-}
 
 function check(maxAgeMs = 0): Promise<void> {
   if (pending) return pending;
@@ -82,8 +83,8 @@ function check(maxAgeMs = 0): Promise<void> {
     } catch {
       return set("unknown"); // offline, or the server did not answer
     }
-    // `updatefound` and the waiting event may already have said more than this.
-    if (status === "checking") set(registration.waiting ? "ready" : registration.installing ? "downloading" : "current");
+    // `updatefound` and "controllerchange" may already have said more than this.
+    if (status === "checking") set(registration.installing ? "downloading" : "current");
   })().finally(() => {
     pending = null;
   });
