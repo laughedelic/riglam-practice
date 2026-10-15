@@ -185,7 +185,7 @@ jobs:
         with:
           script: |
             const marker = '<!-- riglam-preview -->';
-            const body = `${marker}\nPreview of this pull request: ${process.env.PREVIEW_URL}\n\nBuilt from ${process.env.BUILD_SHA.slice(0, 7)}. Add the Magic Key to the address (\`#k=...\`) to unlock the definitions; the key is not kept here.`;
+            const body = `${marker}\nPreview of this pull request: ${process.env.PREVIEW_URL}\n\nBuilt from ${process.env.BUILD_SHA.slice(0, 7)}. Add the data key to the address (\`#k=...\`) to unlock the definitions; the key is not kept here.`;
             const { data: comments } = await github.rest.issues.listComments({ ...context.repo, issue_number: context.issue.number });
             const mine = comments.find((c) => c.body.startsWith(marker));
             if (mine) await github.rest.issues.updateComment({ ...context.repo, comment_id: mine.id, body });
