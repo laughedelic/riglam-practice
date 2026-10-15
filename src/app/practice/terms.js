@@ -15,17 +15,24 @@ function lineageOf(cid){
   return {names:T?(ch[T]||[T]):[],everyday:true};
 }
 const isaChain=names=>names.map(n=>n.toLowerCase()).flatMap((n,i)=>i?[" ",el("i",{class:"isa",text:isA(n)})," ",n]:[n]);
+const lineagesOf=p=>{ const ca=p.catA||catByLabel(p.a), cb=p.catB||catByLabel(p.b); return [ca&&lineageOf(ca),cb&&lineageOf(cb)]; };
+// the Dudra terms behind the two categories first, then the categories above them; only those the data has a definition for
+function defNames(lis){
+  const names=[], add=n=>{ if(n&&state.DATA&&state.DATA.terms[n]&&!names.includes(n)) names.push(n); };
+  for(const li of lis) if(li&&!li.everyday&&li.names.length) add(li.names[0]);
+  for(const li of lis) if(li) li.names.slice(li.everyday?0:1).forEach(add);
+  return names;
+}
+/** Whether the Terms panel has definitions to offer for this pair. */
+export const hasDefs=p=>defNames(lineagesOf(p)).length>0;
 // The Terms panel: how the two terms relate, where each one belongs, and on request the booklet's definitions of the terms involved.
 export function termsNode(p){
-  const box=el("div",{class:"terms"}), ca=p.catA||catByLabel(p.a), cb=p.catB||catByLabel(p.b), lis=[ca&&lineageOf(ca),cb&&lineageOf(cb)];
+  const box=el("div",{class:"terms"}), lis=lineagesOf(p);
   box.append(el("p",{class:"tm-sum"},el("b",{text:REL[p.relation].name+". "}),p.note||""));
   box.append(el("div",{class:"tm-rows"},[["A",p.a,p.typeA,lis[0]],["B",p.b,p.typeB,lis[1]]].map(([x,label,type,li])=>
     el("div",{class:"tm-row"},L(x),el("div",null,el("p",{class:"tm-t",text:cap(label)}),
       li&&li.names.length?[li.everyday?el("p",{class:"tm-n",text:"An everyday category, not a Dudra term. It falls under:"}):null,el("p",{class:"tm-c"},isaChain(li.names))]:el("p",{class:"tm-c",text:type||""}))))));
-  // the Dudra terms behind the two categories first, then the categories above them
-  const names=[], add=n=>{ if(n&&state.DATA&&state.DATA.terms[n]&&!names.includes(n)) names.push(n); };
-  for(const li of lis) if(li&&!li.everyday&&li.names.length) add(li.names[0]);
-  for(const li of lis) if(li) li.names.slice(li.everyday?0:1).forEach(add);
+  const names=defNames(lis);
   if(!names.length) return box;
   box.append(el("button",{type:"button",class:"tm-tog","aria-expanded":state.ui.defs?"true":"false",onclick:()=>{ state.ui.defs=!state.ui.defs; render(); if(state.ui.defs) requestAnimationFrame(()=>{ const b=document.querySelector(".tm-tog"); if(b) b.scrollIntoView({block:"start"}); }); }},state.ui.defs?"Hide definitions":"Definitions ("+names.length+")"));
   if(state.ui.defs&&state.unlock) box.append(lockedDefs(names));

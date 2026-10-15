@@ -69,6 +69,22 @@ withKey("Explain asks the server, shows the answer, and sends the card without t
   expect(body.turns[0].content).not.toContain("Fine points"); // and the notes
 });
 
+// A note on a cell opens under the heading "Why?", so a Why? the tutor starts its debate line with is not said twice; the line under
+// the note points to the definitions only when the Terms panel has some.
+withKey("a note under a cell is headed Why? and points to the definitions", async ({ page }, testInfo) => {
+  const line = 'Both: Why? "thing 1" is a form, so it fits. => yes\n';
+  await open(page, testInfo, { tutor: [{ status: 200, body: sse({ type: "delta", text: line }, { type: "done", truncated: false }) }] });
+  await explain(page).click();
+  await page.locator(".grid .qm").first().click();
+  const pop = page.locator(".grid .pop");
+  await expect(pop.locator(".clh")).toHaveText("Why?");
+  await expect(pop.locator("p").nth(1)).toHaveText('"thing 1" is a form, so it fits.');
+  const hint = await pop.locator(".popnote").count();
+  if (hint) await expect(pop.locator(".popnote")).toHaveText("Definitions of these terms are under Terms.");
+  await page.getByRole("tab", { name: "Terms" }).click();
+  expect(await page.locator(".tm-tog").count() > 0).toBe(hint > 0);
+});
+
 withKey("a follow-up question sends the whole conversation as a chat", async ({ page }, testInfo) => {
   const asked = await open(page, testInfo);
   await explain(page).click();

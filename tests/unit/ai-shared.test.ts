@@ -217,6 +217,26 @@ test("the explain request is the plain one when the page checked every example, 
   expect(dbt).toContain("Q1 is the Both cell, Q2 A not B, Q3 B not A, Q4 Neither.");
 });
 
+// A debate line is shown beside the learner's example, so a counter-example that is right must read as fitting, not as "fails".
+test("the debate request judges a Why? example as fitting or not, and an Accept by its statement", () => {
+  expect(DEBATE_ASK).toContain('after Why?, the example ("so it fits" or "so it does not fit")');
+  expect(DEBATE_ASK).toContain('after Accept, the statement ("so the statement holds" or "but the statement does not hold")');
+  expect(DEBATE_ASK).not.toContain('"so it fails"');
+  expect(FIRST_ASK).toContain('("so it fits" or "so it does not fit"');
+});
+
+// The type is written as the page writes it elsewhere ("x is a form"), not as "(Form)" after the example; an empty cell is
+// explained by the relation, and a Why? line does not give the answer to the question.
+test("the explain requests write the type as a statement and give the reason for an empty cell", () => {
+  for (const ask of [FIRST_ASK, DEBATE_ASK]) {
+    expect(ask).toContain('"a wooden chair" is a form');
+    expect(ask).toContain('"is an" before a vowel');
+  }
+  expect(DEBATE_ASK).toContain("do not say what the right answer to the question was");
+  expect(DEBATE_ASK).toContain("give the reason from the correct relation in the card");
+  expect(DEBATE_ASK).toContain("A and B are mutually inclusive, so whatever is B is A");
+});
+
 test("the lookup tools: terms by name, alias, Russian name or part of the name, and examples from the practice list", () => {
   const tools = tutorTools(ix);
   expect(tools.map((t) => t.name)).toEqual(["lookup_term", "classify_example"]);
