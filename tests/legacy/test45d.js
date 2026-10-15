@@ -19,21 +19,21 @@ async function run(label,vp,opts,wide){
  await pg.evaluate(()=>document.activeElement&&document.activeElement.blur());
  const root=wide?'.coach':'#stage';
  const chips=(await pg.locator(root+' .vchips .vchip').allInnerTexts()).map(s=>s.replace(/[✓✗?]\s*/g,'').trim().toLowerCase());
- ok(label+': chips include relation, questions n/4, examples, terms',chips.includes('relation')&&chips.some(c=>/^questions \d\/4$/.test(c))&&chips.includes('examples')&&chips.includes('terms'),chips);
+ ok(label+': chips include relation, examples, terms; no Questions chip (the answers have a row of their own)',chips.includes('relation')&&!chips.some(c=>/^questions/.test(c))&&chips.includes('examples')&&chips.includes('terms'),chips);
  ok(label+': at most one panel',await pg.locator(root+' .vpanel').count()<=1);
- const qi=chips.findIndex(c=>/^questions/.test(c));
- const sel=async i=>await pg.locator(root+' .vchip').nth(i).getAttribute('aria-selected')==='true';
- if(!(await sel(qi))){ await pg.locator(root+' .vchip').nth(qi).click(); await pg.waitForTimeout(60); }
- ok(label+': Questions chip shows four rows',await pg.locator(root+' .qd li').count()===4,await pg.locator(root+' .qd li').count());
- const was=await pg.locator(root+' .qs').nth(1).getAttribute('aria-expanded');
- await pg.locator(root+' .qs').nth(1).click(); await pg.waitForTimeout(60);
- const now=await pg.locator(root+' .qs').nth(1).getAttribute('aria-expanded');
- ok(label+': tapping a row toggles it and keeps the Questions chip; only one row open',now!==was&&await pg.locator(root+' .qs[aria-expanded=true]').count()<=1&&await sel(qi),[was,now]);
- if(now==='false'){ await pg.locator(root+' .qs').nth(1).click(); await pg.waitForTimeout(60); }
- ok(label+': opened row shows statement, answer and feedback',await pg.locator(root+' .qb .qq').count()===1&&await pg.locator(root+' .qb .fbq').count()===1);
+ const tags=pg.locator(root+' .rcpt.graded .ri');
+ ok(label+': the result shows the four answers, each with a grade',await tags.count()===4&&await pg.locator(root+' .rcpt.graded .ri .gm').count()===4,await tags.count());
+ const chipOpen=()=>pg.locator(root+' .vchip[aria-selected=true]').allInnerTexts();
+ const chip0=await chipOpen();
+ const was=await tags.nth(1).getAttribute('aria-expanded');
+ await tags.nth(1).click(); await pg.waitForTimeout(60);
+ const now=await tags.nth(1).getAttribute('aria-expanded');
+ ok(label+': tapping an answer toggles it and leaves the chips as they were; only one answer open',now!==was&&await pg.locator(root+' .rcpt.graded .ri[aria-expanded=true]').count()<=1&&JSON.stringify(await chipOpen())===JSON.stringify(chip0),[was,now]);
+ if(now==='false'){ await tags.nth(1).click(); await pg.waitForTimeout(60); }
+ ok(label+': opened answer shows statement, answer and feedback',await pg.locator(root+' .rdet .qq').count()===1&&await pg.locator(root+' .rdet .fbq').count()===1);
  await pg.screenshot({path:D+'d45-'+label+'-q.png'});
- await pg.locator(root+' .qs').nth(1).click(); await pg.waitForTimeout(60);
- ok(label+': tapping again closes it',await pg.locator(root+' .qs').nth(1).getAttribute('aria-expanded')==='false');
+ await tags.nth(1).click(); await pg.waitForTimeout(60);
+ ok(label+': tapping again closes it',await tags.nth(1).getAttribute('aria-expanded')==='false'&&await pg.locator(root+' .rdet').count()===0);
  await pg.screenshot({path:D+'d45-'+label+'-q0.png'});
  // explain
  const eb=pg.locator((wide?'.coach':'#stage')+' button:has-text("xplain")');

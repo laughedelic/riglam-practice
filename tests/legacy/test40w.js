@@ -56,7 +56,7 @@ const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.
  ok('after four answers: relation chips (picking one checks)',await vis('.strip')&&await pg.locator('.qlog li').count()===4,await pg.locator('.qlog li').count());
  await pg.screenshot({path:D+'w-q1.png'});
  await pg.keyboard.press('1'); await pg.waitForTimeout(150);
- ok('debate checked: verdict chips in the coach, Questions chip holds four rows',await vis('.coach .verdict')&&await pg.locator('.coach .vchip:has-text("Questions")').count()===1&&await (async()=>{ const q=pg.locator('.coach .vchip:has-text("Questions")'); if(await q.getAttribute('aria-selected')!=='true') await q.click(); return await pg.locator('.coach .qd li').count()===4; })());
+ ok('debate checked: verdict chips in the coach, the four graded answers above them',await vis('.coach .verdict')&&await pg.locator('.coach .verdict .rcpt.graded .ri').count()===4&&await pg.locator('.coach .vchip:has-text("Questions")').count()===0);
  await pg.screenshot({path:D+'w-q2.png'});
  // review
  await pg.locator('#tabs [role=tab]:has-text("Review")').click(); await pg.waitForTimeout(150);

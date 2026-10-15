@@ -38,12 +38,14 @@ async function phoneQs(pg,sayWhyAt){
     await pg.locator(".qcard .btn").first().click(); await pg.waitForTimeout(250);
     const rs=await pg.evaluate(()=>[...document.querySelectorAll('.rcpt .ri .rw')].map(x=>x.innerText.trim()).join('|'));
     ok('the relation step strip uses the same marks',rs==='✓|?!|✓|✓',rs);
-    // the result: pills in the question rows say ✓ Accepted / Why?!
+    // the result: the same marks, each with a grade in front; an opened answer says ✓ Accepted / Why?!
     const rel=await pg.evaluate(()=>window.__t.cur.p.relation);
     await pg.locator('.rels .rel').nth(ORDER[rel]).click(); await pg.waitForTimeout(300);
-    await pg.locator('.vchip',{hasText:/questions/i}).click().catch(()=>{}); await pg.waitForTimeout(120);
-    const pills=await pg.evaluate(()=>[...document.querySelectorAll('.qd .qs .pill')].map(p=>p.innerText.trim()));
-    ok('in the result the rows carry the state words',pills.length>=4&&pills.every(t=>/^(✓ Accepted|Why\?!)$/.test(t)),pills);
+    const rm=await pg.evaluate(()=>[...document.querySelectorAll('.rcpt.graded .ri .rw')].map(x=>x.innerText.trim()).join('|'));
+    ok('in the result the row keeps the same marks, each with a grade',rm==='✓|?!|✓|✓'&&await pg.locator('.rcpt.graded .ri .gm').count()===4,rm);
+    await pg.locator('.rcpt.graded .ri').nth(1).click(); await pg.waitForTimeout(120);
+    const pills=await pg.evaluate(()=>[...document.querySelectorAll('.rcpt .rdet .pill')].map(p=>p.innerText.trim()));
+    ok('an opened answer in the result carries the state word',pills.length===1&&pills[0]==='Why?!',pills);
     const mar=await rgb(pg,'var(--marigold)');
     ok('no state tag in the result has the marigold fill',await pg.evaluate(m=>[...document.querySelectorAll('.pill.acc,.pill.why')].every(p=>getComputedStyle(p).backgroundColor!==m),mar));
   }

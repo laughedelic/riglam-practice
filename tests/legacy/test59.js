@@ -183,13 +183,12 @@ const REPLY='Both: a clay pot fits.\nNeither: a stone is B, not A.\nCommon locus
   const rel=await pg.evaluate(()=>window.__t.cur.p.relation);
   await pg.locator('.rels .rel').nth(ORDER[other(rel)]).click(); await pg.waitForTimeout(250);
   await pg.locator('#stage .actions button:has-text("xplain")').first().click(); await pg.waitForTimeout(400);
-  await pg.locator('.vchip',{hasText:/questions/i}).click().catch(()=>{}); await pg.waitForTimeout(100);
-  const rows=await pg.locator('.qd li').count();
-  const q1=pg.locator('.qd .qs').first(); if((await q1.getAttribute('aria-expanded'))!=='true'){ await q1.click(); await pg.waitForTimeout(100); }
-  const cf=pg.locator('.qd .cl .aiflag');
-  ok('a question row with Claude\'s note has a flag in the corner of the note',rows===4&&await cf.count()>=1,[rows,await cf.count()]);
+  const rows=await pg.locator('.rcpt.graded .ri').count();
+  const q1=pg.locator('.rcpt.graded .ri').first(); if((await q1.getAttribute('aria-expanded'))!=='true'){ await q1.click(); await pg.waitForTimeout(100); }
+  const cf=pg.locator('.rcpt .rdet .cl .aiflag');
+  ok('an opened answer with Claude\'s note has a flag in the corner of the note',rows===4&&await cf.count()>=1,[rows,await cf.count()]);
   await cf.first().click(); await pg.waitForTimeout(100);
-  ok('its editor opens right under the note',await pg.locator('.qd .cl + .flagedit').count()===1);
+  ok('its editor opens right under the note',await pg.locator('.rdet .cl + .flagedit').count()===1);
   await pg.locator('#flag-note').fill('Q1 note is off'); await pg.locator('.flagedit .btn',{hasText:/^submit$/i}).click(); await pg.waitForTimeout(120);
   const fd=await flagDocs(pg), f1=fd.find(f=>f.part==='explain'&&f.n==='both');
   ok('stored as the note on the cell of that question',!!f1&&f1.pair&&f1.pair.tab==='debate',fd.map(f=>[f.part,f.n]));
