@@ -58,6 +58,11 @@ function describe(result) {
 function deploy() {
   if (git(root, ["symbolic-ref", "--quiet", "--short", "HEAD"], { allowFail: true }) !== TARGET) throw new StagingError(`deploy builds the working tree: check out the staging branch first (git switch ${TARGET})`);
   if (git(root, ["status", "--porcelain", "--untracked-files=no"])) throw new StagingError("the working tree has uncommitted changes");
+  // The branch is rebuilt and force-pushed, so a checkout that was not reset to it is an older build.
+  git(root, ["fetch", "--quiet", "origin"]);
+  if (git(root, ["rev-parse", "HEAD"]) !== git(root, ["rev-parse", "--verify", "--quiet", `origin/${TARGET}`], { allowFail: true })) {
+    throw new StagingError(`this ${TARGET} is not origin/${TARGET}: push it (npm run staging -- push) or take the pushed one (git fetch && git reset --hard origin/${TARGET})`);
+  }
   const sha = git(root, ["rev-parse", "--short", "HEAD"]);
   const manifest = readManifest(root, "HEAD");
   if (!manifest) throw new StagingError(`this checkout of ${TARGET} has no staging.json: rebuild it with npm run staging`);
