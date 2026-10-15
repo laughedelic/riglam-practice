@@ -3,7 +3,7 @@
 // authenticator, so the ceremonies, the cookie rules and the sync run for real; only the network and the biometrics are stood in for.
 import { test, expect } from "../../support/test.js";
 import { ready, overflow } from "../../support/page.js";
-import { dataKey } from "../../support/data-key.js";
+import { dataKey, KEY_STORE, withCourse } from "../../support/data-key.js";
 import { bridge, serverWorld, virtualAuthenticator } from "../../support/server-bridge.js";
 
 const openOptions = (page) => page.getByRole("button", { name: /options/i }).filter({ visible: true }).first().click();
@@ -21,12 +21,11 @@ async function start(page, world) {
 /** A second device of the same person: its own browser context (own storage), the same server. */
 async function otherDevice(browser, testInfo, world, credentials) {
   const context = await browser.newContext(testInfo.project.use);
-  await context.addInitScript((key) => {
+  await context.addInitScript(([store, key]) => {
     try {
-      if (key) localStorage.setItem("riglam.dataKey", key);
-      else sessionStorage.setItem("riglam.unlockDismissed", "1");
+      if (key) localStorage.setItem(store, key);
     } catch { /* storage unavailable */ }
-  }, dataKey);
+  }, [KEY_STORE, withCourse ? dataKey : null]);
   const page = await context.newPage();
   const device = await bridge(page, world);
   const keys = await virtualAuthenticator(page);

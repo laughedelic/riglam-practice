@@ -1,28 +1,25 @@
-// Checks on dist/pwa (made by `npm run build:pwa`): the build carries the open data and the encrypted definitions,
-// and nothing readable from the course tier; the site asks search engines to stay away.
+// Checks on dist/pwa (made by `npm run build:pwa`): the build carries the open data and nothing from the course tier
+// (the definitions come from the server); the site asks search engines to stay away.
 // This is protection against accidental exposure, not access control (docs/DATA.md, docs/DEPLOY.md).
 import { expect, test } from "vitest";
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve, dirname, join } from "node:path";
-import { readKey, readFull } from "../../scripts/lib/course-files.mjs";
+import { hasCourse, readFull } from "../../scripts/lib/course-files.mjs";
 import { DEV_MARK } from "../../src/pwa/dev-sample";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const dist = resolve(root, "dist/pwa");
 const built = test.skipIf(!existsSync(join(dist, "index.html"))); // run `npm run build:pwa` first
-const builtWithKey = test.skipIf(!existsSync(join(dist, "index.html")) || !readKey()); // also needs the data key
+const builtWithCourse = test.skipIf(!existsSync(join(dist, "index.html")) || !hasCourse()); // also needs data-private/
 
 const files = (dir: string): string[] =>
   readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? files(join(dir, e.name)) : [join(dir, e.name)]));
 
-built("the build holds the open data and the encrypted definitions, and not the notes", () => {
+built("the build holds the open data, and no course files: no definitions file, no notes", () => {
   const names = files(dist).map((f) => f.slice(dist.length + 1));
   expect(names.filter((n) => /^assets\/drill-data-.*\.json$/.test(n)).length, "the open data").toBe(1);
-  expect(names.filter((n) => /^assets\/course-definitions-.*\.enc$/.test(n)).length, "the encrypted definitions").toBe(1);
-  expect(names.some((n) => /course-notes/.test(n)), "the notes stay out of the PWA").toBe(false);
-  const sw = readFileSync(join(dist, "sw.js"), "utf8");
-  expect(sw, "the encrypted definitions are precached, so they work offline").toMatch(/course-definitions-[\w-]+\.enc/);
+  expect(names.some((n) => /course|\.enc$/.test(n)), "the definitions and the notes stay on the server").toBe(false);
 });
 
 built("the open data in the build has no definitions or notes", () => {
@@ -32,8 +29,8 @@ built("the open data in the build has no definitions or notes", () => {
   expect("notes" in open).toBe(false);
 });
 
-builtWithKey("no text file of the build holds a definition or a note in the clear", async () => {
-  const full = await readFull(readKey());
+builtWithCourse("no text file of the build holds a definition or a note in the clear", async () => {
+  const full = readFull();
   const secrets: string[] = Object.values<{ d?: string; d_ru?: string; note?: string }>(full.terms)
     .flatMap((t) => [t.d, t.d_ru, t.note])
     .filter((s): s is string => typeof s === "string" && s.length > 30 && !s.startsWith("(no "));

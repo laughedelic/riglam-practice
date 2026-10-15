@@ -19,8 +19,8 @@ import type { AuthenticationResponseJSON, AuthenticatorTransport, RegistrationRe
 import { Hono, type Context } from "hono";
 import { ACCOUNT_API, SYNC_LIMITS, type AccountError, type AccountErrorCode, type MeResponse } from "../src/account/protocol";
 import { HEADER } from "../src/ai/protocol";
-import { checkProof } from "../src/ai/proof";
 import { readAccountConfig } from "./config";
+import { callerOf, gate } from "./magic";
 import type { Env } from "./env";
 import { clearedCookie, fromB64u, newSession, randomToken, readSession, sessionCookie, toB64u, type Session } from "./session";
 
@@ -181,7 +181,7 @@ export function accountRoutes(deps: AccountDeps) {
     if (cfg.signup === "group") {
       const device = c.req.header(HEADER.device) ?? "";
       const proof = c.req.header(HEADER.proof) ?? "";
-      if (!env.RIGLAM_DATA_KEY || !(await checkProof(env.RIGLAM_DATA_KEY, device, proof))) return fail("not_granted", "new accounts need the study group's link");
+      if (!(await gate(env, deps.now(), await callerOf(c.req.header("cf-connecting-ip")), device, proof)).ok) return fail("not_granted", "new accounts need the Magic Key");
     }
     if ((await count(db, "SELECT COUNT(*) AS n FROM users")) >= cfg.maxAccounts) return fail("quota", "this app has reached its number of accounts");
     const body = await readObject(c, 2_000);

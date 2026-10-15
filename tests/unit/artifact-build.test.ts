@@ -4,13 +4,13 @@ import { expect, test } from "vitest";
 import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve, dirname } from "node:path";
-import { readKey, readFull } from "../../scripts/lib/course-files.mjs";
+import { hasCourse, readFull } from "../../scripts/lib/course-files.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const file = resolve(root, "dist/artifact/index.html");
 const exists = existsSync(file);
 const built = test.skipIf(!exists); // run `npm run build:artifact` first
-const builtWithKey = test.skipIf(!exists || !readKey()); // also needs the data key
+const builtWithCourse = test.skipIf(!exists || !hasCourse()); // also needs data-private/
 const page = exists ? readFileSync(file, "utf8") : "";
 
 built("a fragment with a title in the first 8 KB", () => {
@@ -31,8 +31,8 @@ built("one style, one script, nothing loaded from the network but fonts", () => 
   expect([...hosts].sort()).toEqual(["https://fonts.googleapis.com", "https://fonts.gstatic.com"]);
 });
 
-builtWithKey("the data is the full data: every definition is in the page (a locked page must never be published)", async () => {
-  const full = await readFull(readKey());
+builtWithCourse("the data is the full data: every definition is in the page (a locked page must never be published)", async () => {
+  const full = readFull();
   // the page holds the data as one JavaScript string literal of the JSON text, so a definition appears escaped twice
   const inPage = (text: string) => page.includes(JSON.stringify(JSON.stringify(text).slice(1, -1)).slice(1, -1));
   const missing = Object.values<{ name: string; d: string }>(full.terms).filter((t) => !inPage(t.d));
