@@ -15,6 +15,8 @@ export const ACCOUNT_API = {
   passkeyOptions: "/api/account/passkeys/options",
   passkeyVerify: "/api/account/passkeys/verify",
   logout: "/api/account/logout",
+  /** POST with the access proof: this account carries the Magic Key from now on. GET: the Magic Key, to a signed-in account that carries it. */
+  key: "/api/account/key",
   sync: "/api/sync",
 } as const;
 
@@ -40,7 +42,7 @@ export const SYNC_LIMITS = {
 
 export type AccountErrorCode =
   | "signed_out" // no session, or it has ended
-  | "not_granted" // sign-up needs the study group's proof (or is closed), or the request is from another origin
+  | "not_granted" // sign-up needs the Magic Key's proof (or is closed), the account does not carry the key, or the request is from another origin
   | "unknown_passkey" // the passkey is not one this server has
   | "bad_request"
   | "too_large"
@@ -58,6 +60,8 @@ export interface AccountInfo {
   name: string;
   passkeys: number;
   createdAt: string;
+  /** the account carries the Magic Key: a device that signs in to it can get the key */
+  hasKey: boolean;
 }
 
 export type MeResponse = { signedIn: false } | { signedIn: true; user: AccountInfo };

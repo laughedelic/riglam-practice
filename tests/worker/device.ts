@@ -21,6 +21,8 @@ export interface Options {
   quotaWaitMs?: number;
   /** headers that show the study group's link, for a sign-up */
   proof?: () => Promise<Record<string, string>>;
+  /** the Magic Key on this device (see AccountDeps.magicKey) */
+  magicKey?: { read(): string | null; adopt(key: string): void };
 }
 
 export async function device(w: World, opts: Options = {}) {
@@ -79,7 +81,7 @@ export async function device(w: World, opts: Options = {}) {
     get: (o) => me.key.sign(o, WHERE) as Promise<Record<string, unknown>>,
   };
   let kept: Person | null = null;
-  const account = createAccount({ client, sync, passkeys, keep: { read: () => kept, write: (p) => void (kept = p) }, proof: opts.proof });
+  const account = createAccount({ client, sync, passkeys, keep: { read: () => kept, write: (p) => void (kept = p) }, proof: opts.proof, magicKey: opts.magicKey });
 
   return {
     ...me,

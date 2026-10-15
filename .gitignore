@@ -12,3 +12,4 @@ tests/legacy/out/
 .cache/
 .dev.vars
 .dev.vars.*
+data-private/

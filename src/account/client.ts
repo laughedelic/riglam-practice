@@ -37,6 +37,10 @@ export interface AccountClient {
   passkeyOptions(): Promise<Ceremony>;
   passkeyVerify(challengeId: string, response: Record<string, unknown>): Promise<{ passkeys: number }>;
   logout(): Promise<void>;
+  /** the signed-in account carries the Magic Key from now on; `headers` hold the access proof */
+  shareKey(headers: Record<string, string>): Promise<void>;
+  /** the Magic Key, from a signed-in account that carries it */
+  fetchKey(): Promise<string>;
   deleteAccount(): Promise<void>;
   /** one round of sync; rejects with a SyncError */
   sync(request: SyncRequest): Promise<SyncResponse>;
@@ -99,6 +103,14 @@ export function createAccountClient(doFetch: Fetch = (input, init) => fetch(inpu
     passkeyVerify: (challengeId, response) => call<{ passkeys: number }>(ACCOUNT_API.passkeyVerify, { body: { challengeId, response } }),
     async logout() {
       await call(ACCOUNT_API.logout, { body: {} });
+    },
+    async shareKey(headers) {
+      await call(ACCOUNT_API.key, { body: {}, headers });
+    },
+    async fetchKey() {
+      const body = await call<{ key?: unknown }>(ACCOUNT_API.key);
+      if (typeof body.key !== "string" || !body.key) throw new AccountFailure("unavailable");
+      return body.key;
     },
     async deleteAccount() {
       await call(ACCOUNT_API.me, { method: "DELETE" });

@@ -3,7 +3,7 @@
 // authenticator, so the ceremonies, the cookie rules and the sync run for real; only the network and the biometrics are stood in for.
 import { test, expect } from "../../support/test.js";
 import { ready, overflow } from "../../support/page.js";
-import { dataKey } from "../../support/data-key.js";
+import { dataKey, KEY_STORE, withCourse } from "../../support/data-key.js";
 import { bridge, serverWorld, virtualAuthenticator } from "../../support/server-bridge.js";
 
 const openOptions = (page) => page.getByRole("button", { name: /options/i }).filter({ visible: true }).first().click();
@@ -19,14 +19,13 @@ async function start(page, world) {
 }
 
 /** A second device of the same person: its own browser context (own storage), the same server. */
-async function otherDevice(browser, testInfo, world, credentials) {
+async function otherDevice(browser, testInfo, world, credentials, { withKey = true } = {}) {
   const context = await browser.newContext(testInfo.project.use);
-  await context.addInitScript((key) => {
+  await context.addInitScript(([store, key]) => {
     try {
-      if (key) localStorage.setItem("riglam.dataKey", key);
-      else sessionStorage.setItem("riglam.unlockDismissed", "1");
+      if (key) localStorage.setItem(store, key);
     } catch { /* storage unavailable */ }
-  }, dataKey);
+  }, [KEY_STORE, withCourse && withKey ? dataKey : null]);
   const page = await context.newPage();
   const device = await bridge(page, world);
   const keys = await virtualAuthenticator(page);
@@ -176,4 +175,29 @@ test("a person who closes the passkey dialog is told nothing was changed", async
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(acct(page)).toContainText("Cancelled. Nothing was changed.");
   expect(world.sql("SELECT * FROM users")).toEqual([]);
+});
+
+test.describe("the Magic Key follows the account", () => {
+  test.skip(!withCourse, "needs the course data to unlock the definitions");
+
+  test("a device that signs in without the key gets it from the account and opens unlocked", async ({ page, browser }, testInfo) => {
+    const world = await serverWorld();
+    const { keys } = await start(page, world);
+    await openOptions(page);
+    await acct(page).getByLabel("A name for the account").fill("Key person");
+    await page.getByRole("button", { name: "Create account" }).click();
+    await expect(acct(page)).toContainText("Signed in as Key person");
+    await expect(acct(page)).toContainText("carries the Magic Key");
+    expect(world.sql("SELECT has_key FROM users")).toEqual([{ has_key: 1 }]);
+
+    const { page: other, context } = await otherDevice(browser, testInfo, world, await keys.credentials(), { withKey: false });
+    expect(await other.evaluate(() => localStorage.getItem("riglam.magicKey"))).toBeNull();
+    await openOptions(other);
+    await other.getByRole("button", { name: "Sign in" }).click();
+    // the page starts again with the key (polling, because the page navigates while it is asked)
+    await expect.poll(() => other.evaluate(() => localStorage.getItem("riglam.magicKey")).catch(() => null), { timeout: 15_000 }).toBe(dataKey);
+    await ready(other);
+    await expect(other.locator("#unlock")).toHaveCount(0);
+    await context.close();
+  });
 });

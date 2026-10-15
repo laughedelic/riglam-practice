@@ -2,11 +2,17 @@
 // reached through page routes. Several pages can share one world (two devices of one person); each page has its own cookie jar,
 // kept here by hand because a response made by a route does not set cookies in the browser.
 import { createApp } from "../../worker/app.ts";
-import { setup } from "../worker/support.ts";
+import { setup, seedCourse } from "../worker/support.ts";
+import { hasCourse, readParts } from "../../scripts/lib/course-files.mjs";
+import { dataKey } from "./data-key.js";
 
-/** A server with its own empty database. `env` overrides the Worker's variables (SIGNUP, DAILY_WRITES_PER_ACCOUNT ...). */
+/** A server with its own empty database, holding the specs' Magic Key (and the course data when this run has it). `env` overrides the Worker's variables (SIGNUP, DAILY_WRITES_PER_ACCOUNT ...). */
 export async function serverWorld(env = {}) {
-  const s = await setup(env);
+  const s = await setup({ RIGLAM_DATA_KEY: dataKey, ...env });
+  if (hasCourse()) {
+    const { definitions, notes } = readParts();
+    await seedCourse(s.db.d1, { definitions: JSON.stringify(definitions), notes: JSON.stringify(notes) });
+  }
   return { app: createApp({ kit: async () => null }), env: s.env, sql: s.db.sql, offline: false, key: s.key };
 }
 

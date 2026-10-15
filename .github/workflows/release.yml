@@ -56,8 +56,8 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      # The PWA build needs no data key: its definitions are the encrypted file from the repository. The artifact build holds them
-      # in the clear, so it is neither built nor attached here (publish it from a machine that has the key, docs/ARTIFACT-LOOP.md).
+      # The PWA build needs no course data: the definitions come from the server. The artifact build holds them
+      # in the clear, so it is neither built nor attached here (publish it from a machine that has the data, docs/ARTIFACT-LOOP.md).
       - run: npm run build:pwa
       - name: Attach the PWA build to the release
         run: |

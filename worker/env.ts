@@ -7,7 +7,7 @@ export interface Env {
 
   // secrets
   ANTHROPIC_API_KEY?: string;
-  /** the study group's data key (docs/DATA.md): checks the proofs and decrypts the course data for the tutor */
+  /** the Magic Key (docs/DATA.md): four lower-case words joined by dashes. It checks the proofs; with it a device may read the definitions */
   RIGLAM_DATA_KEY?: string;
 
   // variables (all optional: config.ts has a default for each)

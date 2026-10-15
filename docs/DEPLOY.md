@@ -61,7 +61,7 @@ The tutor needs a D1 database and two secrets on the Worker; without them it is 
 
 The app is meant to be shared by link, with no sign-in. The workers.dev address and the preview addresses are reachable by anyone who has the link. Practice answers stay in the browser. The server keeps spend counters and a usage log keyed by a random device id for the tutor ([SERVER.md](SERVER.md)), and nothing else about a visitor.
 
-The term data is a separate matter: the definitions are encrypted and open only with a key carried in the shared link, and the notes are not in the app at all. [DATA.md](DATA.md) has the details. All deterministic checks and static information work offline, so the data is in the client; only features that need an AI fetch from the server.
+The term data is a separate matter: the definitions are kept on the server and given only to a request that proves the Magic Key (carried in the shared link), and the notes are not in the app at all. [DATA.md](DATA.md) has the details. All deterministic checks and static information work offline, so the data is in the client; only features that need an AI fetch from the server.
 
 Search engines are asked to stay away: `X-Robots-Tag: noindex, nofollow, noarchive` for every file (`public/_headers`, which Cloudflare documents as applying to Workers static assets), `robots.txt` with `Disallow: /`, and a robots meta tag for crawlers that fetch anyway.
 
