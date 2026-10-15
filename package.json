@@ -25,6 +25,7 @@
     "data:export": "node scripts/data.mjs export",
     "data:check": "node scripts/data.mjs check",
     "data:rekey": "node scripts/data.mjs rekey",
+    "staging": "node scripts/staging.mjs",
     "icons": "node scripts/make-icons.mjs",
     "fonts": "node scripts/fetch-fonts.mjs",
     "test:unit": "vitest run",

@@ -36,6 +36,10 @@ Only two workflow steps read it: `ci.yml` → `deploy-preview` (`wrangler versio
 
 Cloudflare's Workers authorization page lists "Editor on that Worker" as what `wrangler deploy` needs for an existing Worker, and "Admin at the Workers product scope" for creating one (hence step 2). With Editor on one Worker, a leaked token can change only that Worker; it cannot touch other Workers, KV, R2 or the account. Anyone who can push a branch to the repository can still run code with the token in the preview job (the token is given only to the two steps that need it, not to the dependency install). A preview is a version of the production Worker, so it also sees the production secrets and the D1 database, and a preview of a pull request that changes the Worker runs that code against them. With several writers, give previews their own Worker name and their own token, so a preview credential cannot replace production.
 
+## Staging
+
+The open pull requests are merged into the `staging` branch and deployed to a second Worker, `riglam-practice-staging`, with its own database, secrets and budgets: [STAGING.md](STAGING.md).
+
 ## The server's setup
 
 The tutor needs a D1 database and two secrets on the Worker; without them it is off and the rest of the app works. The steps are in [SERVER.md](SERVER.md#setting-up-your-own).

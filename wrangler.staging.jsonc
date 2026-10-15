@@ -1,0 +1,33 @@
+{
+  // The staging Worker: the app as the `staging` branch has it, with the open pull requests merged in (docs/STAGING.md).
+  // It is a Worker of its own, not a preview of the production one, so that a pull request that changes the server or the
+  // database schema runs against a database of its own, with its own secrets and its own (low) budgets, and never touches
+  // the data or the settings of production. Deploy with `npm run staging -- deploy`.
+  "name": "riglam-practice-staging",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "preview_urls": false,
+  "assets": {
+    "directory": "./dist/pwa",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  "rules": [{ "type": "Data", "globs": ["**/*.enc"], "fallthrough": true }],
+  "observability": { "enabled": true, "logs": { "invocation_logs": false } },
+  // Same tutor settings as wrangler.jsonc, except the budgets. Dollars are US dollars per UTC day.
+  // The secrets ANTHROPIC_API_KEY and RIGLAM_DATA_KEY are set once on this Worker with `wrangler secret put -c wrangler.staging.jsonc`.
+  "vars": {
+    "TUTOR_MODEL": "claude-sonnet-5-5",
+    "TUTOR_EFFORT": "medium",
+    "TUTOR_MAX_TOKENS": "6000",
+    "TUTOR_MAX_ROUNDS": "4",
+    "DEVICE_DAILY_BUDGET_USD": "0.50",
+    "GLOBAL_DAILY_BUDGET_USD": "2",
+    "RESERVE_USD": "0.05"
+  },
+  // Migrations are applied by `npm run staging -- deploy`, from the migrations of whatever the staging branch holds.
+  "d1_databases": [
+    { "binding": "DB", "database_name": "riglam-practice-staging", "database_id": "5c0fcda4-2f7e-4c18-b1ee-ef287d217d49", "migrations_dir": "worker/migrations" }
+  ]
+}
