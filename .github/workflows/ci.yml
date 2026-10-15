@@ -23,13 +23,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      # Decrypts the course part of the term data for the artifact build and the tests (docs/DATA.md). The PWA build does not need it.
-      RIGLAM_DATA_KEY: ${{ secrets.RIGLAM_DATA_KEY }}
+      # The course part of the term data for the artifact build and the tests (docs/DATA.md): the output of `npm run data:pack`. The PWA build does not need it.
+      RIGLAM_COURSE_DATA: ${{ secrets.RIGLAM_COURSE_DATA }}
     steps:
-      - name: Data key present?
+      - name: Course data present?
         run: |
-          if [ -z "$RIGLAM_DATA_KEY" ]; then
-            echo "::error::The repository secret RIGLAM_DATA_KEY is not set (or not available to this run, as for Dependabot: add it under Dependabot secrets too). See docs/DATA.md."
+          if [ -z "$RIGLAM_COURSE_DATA" ]; then
+            echo "::error::The repository secret RIGLAM_COURSE_DATA is not set (or not available to this run, as for Dependabot: add it under Dependabot secrets too). See docs/DATA.md."
             exit 1
           fi
       - uses: actions/checkout@v7
@@ -38,13 +38,14 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - run: npm run data:unpack
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run build
       - run: npm run test:unit
       - name: Check the hosting config
         run: npx --yes wrangler@${{ env.WRANGLER_VERSION }} deploy --dry-run
-      # Only the PWA build is kept: it holds the encrypted definitions. The artifact build holds them in the clear, so it is not uploaded.
+      # Only the PWA build is kept: it holds no course data. The artifact build holds it in the clear, so it is not uploaded.
       - uses: actions/upload-artifact@v4
         with:
           name: pwa-build
@@ -67,12 +68,12 @@ jobs:
           - { name: legacy 3/3, args: "--project=legacy --shard=3/3" }
           - { name: layout and PWA, args: "--project=layout --project=pwa-desktop --project=pwa-phone" }
     env:
-      RIGLAM_DATA_KEY: ${{ secrets.RIGLAM_DATA_KEY }}
+      RIGLAM_COURSE_DATA: ${{ secrets.RIGLAM_COURSE_DATA }}
     steps:
-      - name: Data key present?
+      - name: Course data present?
         run: |
-          if [ -z "$RIGLAM_DATA_KEY" ]; then
-            echo "::error::The repository secret RIGLAM_DATA_KEY is not set (or not available to this run, as for Dependabot: add it under Dependabot secrets too). See docs/DATA.md."
+          if [ -z "$RIGLAM_COURSE_DATA" ]; then
+            echo "::error::The repository secret RIGLAM_COURSE_DATA is not set (or not available to this run, as for Dependabot: add it under Dependabot secrets too). See docs/DATA.md."
             exit 1
           fi
       - uses: actions/checkout@v7
@@ -81,6 +82,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - run: npm run data:unpack
       - run: npm run build
       - name: Cache Playwright browsers
         uses: actions/cache@v6
@@ -179,7 +181,7 @@ jobs:
         with:
           script: |
             const marker = '<!-- riglam-preview -->';
-            const body = `${marker}\nPreview of this pull request: ${process.env.PREVIEW_URL}\n\nBuilt from ${process.env.BUILD_SHA.slice(0, 7)}. Add the data key to the address (\`#k=...\`) to unlock the definitions; the key is not kept here.`;
+            const body = `${marker}\nPreview of this pull request: ${process.env.PREVIEW_URL}\n\nBuilt from ${process.env.BUILD_SHA.slice(0, 7)}. Add the Magic Key to the address (\`#k=...\`) to unlock the definitions; the key is not kept here.`;
             const { data: comments } = await github.rest.issues.listComments({ ...context.repo, issue_number: context.issue.number });
             const mine = comments.find((c) => c.body.startsWith(marker));
             if (mine) await github.rest.issues.updateComment({ ...context.repo, comment_id: mine.id, body });
