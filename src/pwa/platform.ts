@@ -9,7 +9,7 @@ import definitionsUrl from "../data/course-definitions.enc?url";
 import { open, merge, lock } from "../data/course.js";
 import type { DrillData, Platform, Sample } from "../platform/types";
 import { createLocalDb } from "./local-db";
-import { createTutor, tutorIsOn } from "./tutor";
+import { createTutor, tutorIsOn as serverSaysOn } from "./tutor";
 import { takeLinkKey, storedKey, storeKey, forgetKey, showUnlock } from "./unlock";
 
 const db = createLocalDb();
@@ -17,7 +17,7 @@ const link = takeLinkKey(); // first of all: a key in the address leaves the add
 let openUnlock: (() => void) | null = null; // asks for the key again; set while this device has none
 let groupKey: string | null = null; // the key, once it has opened the definitions: the proof for the tutor is made with it
 let serverAnswer: Promise<boolean> | null = null; // whether the server says its tutor is on: asked once, for the tutor and for the grayed Explain button
-const serverTutor = () => (serverAnswer ??= tutorIsOn());
+const tutorIsOn = () => (serverAnswer ??= serverSaysOn());
 
 async function readDefinitions(key: string) {
   const res = await fetch(definitionsUrl);
@@ -67,8 +67,8 @@ export const pwaPlatform: Platform = {
   loadData,
   db: async () => db,
   sample,
+  // Offered while there is no key: the page opens the prompt when the reader reaches something that needs it (Explain, the definitions, Options).
+  unlock: async () => (groupKey || !openUnlock ? null : { open: openUnlock, tutor: await tutorIsOn() }),
   // Only with the key (the server would refuse the request anyway) and only when the server says its tutor is on: otherwise the page hides the tutor.
-  // Offered while there is no key, so that the reader can enter it after the dialog was closed (the tutor needs it too).
-  unlock: async () => (groupKey || !openUnlock ? null : { open: openUnlock, tutor: await serverTutor() }),
-  tutor: async () => (groupKey && (await serverTutor()) ? createTutor(groupKey) : null),
+  tutor: async () => (groupKey && (await tutorIsOn()) ? createTutor(groupKey) : null),
 };
