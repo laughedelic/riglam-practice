@@ -8,7 +8,7 @@ import { freshUi } from "../practice/queue.js";
 import { clearSkip } from "../practice/skips.js";
 import { nextGenerated } from "../practice/universe.js";
 import { render, top0 } from "../shell/render.js";
-import { relReset, tkind } from "../shell/timers.js";
+import { ensureRelTimer, freezeBar, relReset, tkind } from "../shell/timers.js";
 import { gradeDebate } from "../../domain/grading.ts";
 
 export function freshDebateUi(){
@@ -20,12 +20,32 @@ export const debateList=()=>Object.values(state.debates).sort((x,y)=>(x.at||"").
 export function advanceDebate(){ state.cur={p:nextGenerated(debateList()), debate:true}; state.ui=freshDebateUi(); state.mode="quiz"; startQ(); }
 export const limitMs=()=>state.blitz?state.timerMs:0;
 export function stopTimer(){ if(state.ui&&state.ui.tid){ clearTimeout(state.ui.tid); state.ui.tid=null; } if(state.ui) state.ui.tq=null; }
-export function startQ(){
+// `spent`: the time of the question already gone (a countdown that goes on after a stop)
+export function startQ(spent=0){
   stopTimer();
   if(!state.ui||!state.ui.debate||state.ui.checked||state.ui.step>3) return;
   const a=state.ui.ans[state.ui.step], lim=limitMs(); a.limit=lim;
-  state.ui.qStart=performance.now();
-  if(lim){ const u=state.ui; u.tq={t0:state.ui.qStart,limit:lim}; u.tid=setTimeout(()=>expireQ(u),lim); }
+  state.ui.qStart=performance.now()-spent;
+  if(lim){ const u=state.ui; u.tq={t0:state.ui.qStart,limit:lim}; u.tid=setTimeout(()=>expireQ(u),Math.max(1,lim-spent)); }
+}
+// A spoken answer waits for its confirmation (shell/voice.js): the Blitz countdown stops meanwhile, and the wait is not
+// counted in the time of the answer. `u.hold` also keeps the render from starting a countdown of its own.
+export function holdClock(){
+  const u=state.ui; if(!u||u.hold||u.checked) return;
+  const now=performance.now(), spent=u.debate&&u.step<4?now-u.qStart:u.tq?now-u.tq.t0:0;
+  u.hold={at:now,spent,run:!!u.tq,step:u.step};
+  if(u.tid){ clearTimeout(u.tid); u.tid=null; }
+  u.tq=null; freezeBar(true);
+}
+// `resume`: the answer was confirmed or taken back, so the countdown goes on from where it stopped. Otherwise the screen moved on
+// some other way, and only a question that is still the same takes up its time again.
+export function releaseClock(resume){
+  const u=state.ui, h=u&&u.hold; if(!u||!h) return;
+  u.hold=null; freezeBar(false);
+  if(u.checked) return;
+  if(u.debate&&u.step<4){ if(resume||(u.step===h.step&&!u.tq)) startQ(h.spent); }
+  else if(resume&&h.run) ensureRelTimer(h.spent);
+  else if(!resume) ensureRelTimer();
 }
 export const asking=()=>state.tab==="debate"&&state.ui&&state.ui.debate&&!state.ui.checked&&state.ui.step<4;
 export function setBlitz(on){

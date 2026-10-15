@@ -1,8 +1,8 @@
 // Features still on trial: each is off unless turned on for this device, so a build that carries one (staging, or
-// production before it is finished) behaves as before. Opening the app with `?features=voice` in the address turns
-// voice on and `?features=-voice` turns it off; `?features=none` turns all off. The choice is kept on the device
-// (not in the export file) and the parameter is taken out of the address. Options lists the ones that are on, with
-// a switch to turn each off.
+// production before it is finished) behaves as before. The switch is in Options, in the row of the feature, and stays
+// there whether the feature is on or off. The choice is kept on the device (not in the export file). The address can set
+// it too, for a page opened from a link or a test: `?features=voice` turns voice on, `?features=-voice` turns it off and
+// `?features=none` turns all off; the parameter is taken out of the address afterwards.
 
 export const FEATURES = ["voice"] as const;
 export type Feature = (typeof FEATURES)[number];
@@ -45,11 +45,9 @@ export function loadFeatures(): Feature[] {
   return list;
 }
 
-type El = (tag: string, props?: Record<string, any> | null, ...kids: any[]) => HTMLElement;
-const NAMES: Record<Feature, string> = { voice: "Voice: read aloud, answer by voice" };
-/** The "On trial" row of Options: a switch for each feature that is on, which turns it off. */
-export function trialControls(on: readonly Feature[], el: El, change: (list: Feature[]) => void): HTMLElement {
-  return el("div", { class: "octl" }, on.map((f) =>
-    el("button", { type: "button", class: "sw", role: "switch", "aria-checked": "true", onclick: () => change(on.filter((x) => x !== f)) },
-      el("i", { class: "knob", "aria-hidden": "true" }), el("span", { class: "swl", text: f }), el("span", { class: "swt", text: NAMES[f].replace(/^[^:]*: /, "") }))));
+/** The features on after `f` is switched on or off. */
+export function withFeature(list: readonly Feature[], f: Feature, on: boolean): Feature[] {
+  const next = new Set(list);
+  if (on) next.add(f); else next.delete(f);
+  return FEATURES.filter((x) => next.has(x));
 }

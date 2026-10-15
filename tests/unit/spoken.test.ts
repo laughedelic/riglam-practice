@@ -3,7 +3,7 @@
 // Also the switch that keeps voice off until it is turned on for a device (src/ui/features.ts).
 import { expect, test } from "vitest";
 import { makeIndex, nearestItem, similarity } from "../../src/ai-shared";
-import { spokenExample, spokenRelation, spokenReply } from "../../src/domain";
+import { lettersDirection, spokenConfirm, spokenDirection, spokenExample, spokenRelation, spokenReply } from "../../src/domain";
 import type { DrillData, RelKey } from "../../src/ai-shared";
 import openData from "../../src/data/drill-data.json";
 import { applyParam } from "../../src/ui/features";
@@ -64,6 +64,67 @@ test("the relation by name, by number like the keys, and three possibilities onl
   expect(spokenRelation(["good morning"], ORDER)).toBeNull();
   // a later guess can settle it
   expect(spokenRelation(["three possibilities", "three possibilities a in b"], ORDER)).toBe("3ab");
+});
+
+const T = { a: "functional things", b: "products" };
+const T2 = { a: "things able to perform a function", b: "impermanent things" };
+
+test("the relation said as what is written under the option, with the pair's own terms", () => {
+  // Three possibilities: the term named first is the one inside
+  expect(spokenRelation(["All functional things are products, not the reverse"], ORDER, T)).toBe("3ab");
+  expect(spokenRelation(["all functional things are products but not the reverse"], ORDER, T)).toBe("3ab");
+  expect(spokenRelation(["All products are functional things, not the reverse."], ORDER, T)).toBe("3ba");
+  expect(spokenRelation(["every product is a functional thing but not vice versa"], ORDER, T)).toBe("3ba");
+  expect(spokenRelation(["functional things are included in products, not the reverse"], ORDER, T)).toBe("3ab");
+  expect(spokenRelation(["products contain functional things"], ORDER, T)).toBe("3ab");
+  expect(spokenRelation(["a product is a kind of functional thing"], ORDER, T)).toBe("3ba");
+  expect(spokenRelation(["all things able to perform a function are impermanent things, not the reverse"], ORDER, T2)).toBe("3ab");
+  // recognized a little off: plural for singular, a letter slipped
+  expect(spokenRelation(["all functional thing are product not the reverse"], ORDER, T)).toBe("3ab");
+  expect(spokenRelation(["all funtional things are products, not the reverse"], ORDER, T)).toBe("3ab");
+  // only one term was recognized
+  expect(spokenRelation(["all functional things are probes, not the reverse"], ORDER, T)).toBe("3ab");
+  expect(spokenRelation(["all probes are functional things, not the reverse"], ORDER, T)).toBe("3ba");
+  // the other options
+  expect(spokenRelation(["All functional things are products, and all products are functional things"], ORDER, T)).toBe("mi");
+  expect(spokenRelation(["all products are functional things and vice versa"], ORDER, T)).toBe("mi");
+  expect(spokenRelation(["Nothing is both"], ORDER, T)).toBe("con");
+  expect(spokenRelation(["nothing is both a product and a functional thing"], ORDER, T)).toBe("con");
+  expect(spokenRelation(["no product is a functional thing"], ORDER, T)).toBe("con");
+  expect(spokenRelation(["They overlap; neither contains the other"], ORDER, T)).toBe("4");
+  expect(spokenRelation(["they overlap"], ORDER)).toBe("4");
+  // other talk about the terms is no relation
+  expect(spokenRelation(["functional things and products"], ORDER, T)).toBeNull();
+  expect(spokenRelation(["good morning"], ORDER, T)).toBeNull();
+});
+
+test("three possibilities and its direction, however the recognizer writes \"A in B\"", () => {
+  for (const s of ["three possibilities ANB", "3 possibilities A & B", "three possibilities a n b", "three possibilities a b", "three possibilities A and B"])
+    expect(spokenRelation([s], ORDER), s).toBe("3ab");
+  for (const s of ["three possibilities BNA", "3 possibilities B & A", "three possibilities b a"]) expect(spokenRelation([s], ORDER), s).toBe("3ba");
+  expect(spokenRelation(["three possibilities"], ORDER)).toBe("3");
+  for (const s of ["ANB", "A & B", "a n b", "A in B", "a and b", "A B"]) expect(spokenDirection([s], T), s).toBe("3ab");
+  for (const s of ["BNA", "B & A", "b in a", "b a"]) expect(spokenDirection([s], T), s).toBe("3ba");
+  // the term that is inside, first or second, the whole phrase
+  expect(spokenDirection(["functional things"], T)).toBe("3ab");
+  expect(spokenDirection(["the products"], T)).toBe("3ba");
+  expect(spokenDirection(["a product"], T)).toBe("3ba");
+  expect(spokenDirection(["products inside"], T)).toBe("3ba");
+  expect(spokenDirection(["the first"], T)).toBe("3ab");
+  expect(spokenDirection(["second in first"], T)).toBe("3ba");
+  expect(spokenDirection(["first contains second"], T)).toBe("3ba");
+  expect(spokenDirection(["all products are functional things, not the reverse"], T)).toBe("3ba");
+  expect(spokenDirection(["good morning"], T)).toBeNull();
+  expect(spokenDirection(["four possibilities"], T)).toBeNull();
+  expect(lettersDirection("a a")).toBeNull();
+});
+
+test("yes and no to an answer that waits to be confirmed", () => {
+  for (const s of ["yes", "Yeah.", "okay", "confirm", "That's right", "go on", "next"]) expect(spokenConfirm([s]), s).toBe("yes");
+  for (const s of ["no", "Wrong", "change", "cancel", "that's wrong", "try again"]) expect(spokenConfirm([s]), s).toBe("no");
+  expect(spokenConfirm(["four possibilities"])).toBeNull();
+  expect(spokenConfirm(["why a gold ring"])).toBeNull();
+  expect(spokenConfirm(["good morning", "yes"])).toBe("yes");
 });
 
 test("an example: an item by its name or alias, near words snapped to it, other words kept as heard, and nothing", () => {

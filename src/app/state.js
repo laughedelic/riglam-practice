@@ -68,7 +68,7 @@ export const state = {
   timeDraft: "",
   relMs: undefined,  // the relation has its own time; it starts from the one time of earlier versions
   // reading the questions aloud and answering by voice, with the browser's own speech (shell/voice.js); both off until turned on in Options
-  voice: {read:false, answer:"off", voiceId:"", rate:1, key:"", phase:"idle", live:"", note:"", bad:false, carry:"", tries:0, blocked:false, stop:null, tok:null, hooked:false},
+  voice: {read:false, answer:"off", confirm:"tap", voiceId:"", rate:1, key:"", phase:"idle", live:"", note:"", bad:false, pend:null, ask3:false, tries:0, blocked:false, stop:null, tok:null, hooked:false},
   features: [],   // features on trial that are on for this device (src/ui/features.ts); app.js fills it in at the start
 };
 
@@ -86,5 +86,6 @@ try{ const v=+localStorage.getItem("rd-timer-rel"); if(v>=2000&&v<=120000) state
 try{
   const v=state.voice, a=localStorage.getItem("rd-voice-answer"), r=+localStorage.getItem("rd-voice-rate");
   v.read=localStorage.getItem("rd-voice-read")==="1"; if(a==="tap"||a==="auto") v.answer=a;
+  if(localStorage.getItem("rd-voice-confirm")==="auto") v.confirm="auto";
   v.voiceId=localStorage.getItem("rd-voice-name")||""; if(r>=0.5&&r<=2) v.rate=r;
 }catch(e){}

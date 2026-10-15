@@ -16,7 +16,7 @@ document.addEventListener("keydown",e=>{
   if(e.key==="Escape"){ if(state.optsOpen){ toggleOpts(false); return; } if(state.view==="chat"){ closeChat(); return; } if(state.ui&&state.ui.pop){ state.ui.pop=null; render(); return; } }
   if(state.mode!=="quiz"||!state.ui||state.optsOpen||state.view||e.metaKey||e.ctrlKey||e.altKey) return;
   const t=e.target&&/** @type {Element} */(e.target).tagName;
-  if((e.key==="v"||e.key==="r")&&!e.shiftKey&&t!=="INPUT"&&t!=="TEXTAREA"&&t!=="SELECT"&&voiceKey(e.key)){ e.preventDefault(); return; }
+  if((e.key==="v"||e.key==="r"||e.key==="Enter"||e.key==="Escape")&&!e.shiftKey&&t!=="INPUT"&&t!=="TEXTAREA"&&t!=="SELECT"&&(t!=="BUTTON"||e.key!=="Enter")&&voiceKey(e.key)){ e.preventDefault(); return; }
   if((e.key==="f"||e.key==="F")&&!e.shiftKey&&t!=="INPUT"&&t!=="TEXTAREA"&&state.db&&state.cur&&state.cur.p&&state.tab!=="review"){ e.preventDefault(); toggleFav(state.cur.p); return; }
   if(state.tab==="practice"&&!state.ui.debate){
     if(!state.ui.checked&&t!=="INPUT"&&/^[1-5]$/.test(e.key)&&(isWide()||!state.ui.rel||state.ui.open)){ e.preventDefault(); choose(ORDER[+e.key-1]); }

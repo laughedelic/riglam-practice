@@ -1,6 +1,7 @@
 /* voice: the bar under the answer controls (read again, the microphone, what was heard) and the Voice row of Options.
    Shown only when Read aloud or Answer by voice is on, so the page is unchanged while both are off. */
-.vbar{display:flex;align-items:center;gap:10px;min-height:44px;min-width:0}
+.vbar{min-width:0}
+.vrow{display:flex;align-items:center;gap:10px;min-height:44px;min-width:0}
 .vbar .ib{margin-right:0;flex:none}
 .vmic{flex:none;gap:7px;height:40px;padding:0 14px 0 11px}
 .vmic .tbi{width:20px;height:20px}
@@ -15,3 +16,12 @@
 .vline{display:flex;flex-wrap:wrap;align-items:center;gap:8px;max-width:100%}
 .vsel{max-width:min(100%,300px);font:14px var(--body);color:var(--ink);background:var(--paper);border:1px solid var(--ink-muted);border-radius:0;padding:7px 9px}
 .vtry{height:36px;padding:0 14px;font-size:13px}
+/* an answer that waits for its confirmation: what was heard and taken, then Confirm or the pause running out, and Change */
+.vtake{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding:8px 0 4px;border-top:1px solid var(--line)}
+.vwhat{flex:1 1 200px;min-width:0;display:grid;gap:1px}
+.vwhat small{font-size:12px;line-height:1.35;color:var(--ink-muted);overflow-wrap:anywhere}
+.vwhat b{font-weight:600;line-height:1.35;overflow-wrap:anywhere}
+.vok,.vno{flex:none}
+.vrun{flex:0 1 96px;height:4px;background:var(--line);overflow:hidden}
+.vrun i{display:block;height:100%;background:var(--ink-muted);transform-origin:0 50%;animation:vgo var(--d) linear forwards;animation-delay:calc(-1 * var(--e,0ms))}
+@keyframes vgo{from{transform:scaleX(0)}to{transform:scaleX(1)}}

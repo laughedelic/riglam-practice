@@ -244,12 +244,28 @@ export interface State {
   features: Feature[];
 }
 
+/** A spoken answer that waits for its confirmation (shell/voice.js). */
+export interface PendingAnswer {
+  /** the screen it was said for */
+  key: string;
+  /** "Heard “x”, taken as", or just "Heard" when it is the same */
+  said: string;
+  /** what it was taken as */
+  label: string;
+  /** applies it, as the tap or the typed answer it stands for */
+  apply: () => void;
+  /** the pause after which it goes on by itself, when Options says so */
+  auto: { ms: number; t0: number; tid: ReturnType<typeof setTimeout> } | null;
+}
+
 /** Voice settings (kept on the device) and what the voice is doing on the screen now. */
 export interface VoiceState {
   /** read each question aloud */
   read: boolean;
   /** answer by voice: not at all, when the microphone button is tapped, or listening after each question */
   answer: "off" | "tap" | "auto";
+  /** a heard answer waits for Confirm, or goes on by itself after a pause */
+  confirm: "tap" | "auto";
   /** the chosen voice, "" for the best one this device has */
   voiceId: string;
   rate: number;
@@ -261,8 +277,10 @@ export interface VoiceState {
   /** the last thing to tell: what was heard and taken, or why nothing was */
   note: string;
   bad: boolean;
-  /** a note to show on the next screen (what was heard on this one) */
-  carry: string;
+  /** the answer that was heard and waits to be confirmed; null when none does */
+  pend: PendingAnswer | null;
+  /** "three possibilities" was heard and the page asked which of the two is inside the other */
+  ask3: boolean;
   /** how often this screen was listened to without an answer coming of it */
   tries: number;
   /** speaking failed for want of a tap on the page: the Read again button says so */

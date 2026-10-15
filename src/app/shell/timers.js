@@ -94,19 +94,20 @@ export const timerSlot=(kind,on)=>on?timerRow(kind):el("div",{class:"trow ph","a
 export const relTimed=()=>!!(state.blitz&&state.ui&&!state.ui.debate&&!state.ui.checked&&state.mode==="quiz"&&state.tab==="practice");
 export const relTimedD=()=>!!(state.blitz&&state.ui&&state.ui.debate&&state.ui.step>3&&!state.ui.rel&&!state.ui.checked&&state.mode==="quiz"&&state.tab==="debate");
 const exMul=()=>(relTimed()&&state.ui.rel)?Math.max(1,fillable().length):1;
-export function ensureRelTimer(){
+// `spent`: the time of the countdown already gone (it goes on after a stop for a spoken answer, debate/flow.js)
+export function ensureRelTimer(spent=0){
   const u=state.ui;
-  if(!u||state.mode!=="quiz"||u.checked||!state.blitz||state.timeEdit||u.tq) return;
-  const now=performance.now();
+  if(!u||state.mode!=="quiz"||u.checked||!state.blitz||state.timeEdit||u.tq||u.hold) return;
+  const t0=performance.now()-spent;
   if(u.debate){
     if(state.tab!=="debate"||u.step<4||u.rel||!state.relMs) return;
-    u.tph="rel"; u.tq={t0:now,limit:state.relMs}; u.tid=setTimeout(()=>expireRelD(u),state.relMs);
+    u.tph="rel"; u.tq={t0,limit:state.relMs}; u.tid=setTimeout(()=>expireRelD(u),Math.max(1,state.relMs-spent));
     return;
   }
   if(state.tab!=="practice") return;
   const lim=limitMs(); if(!lim) return;
-  if(!u.rel){ u.tph="pick"; u.tq={t0:now,limit:state.relMs}; u.tid=setTimeout(()=>expireRel(u),state.relMs); }
-  else { const total=lim*exMul(); u.tph="ex"; u.tq={t0:now,limit:total}; u.tid=setTimeout(()=>expireEx(u),total); }
+  if(!u.rel){ u.tph="pick"; u.tq={t0,limit:state.relMs}; u.tid=setTimeout(()=>expireRel(u),Math.max(1,state.relMs-spent)); }
+  else { const total=lim*exMul(); u.tph="ex"; u.tq={t0,limit:total}; u.tid=setTimeout(()=>expireEx(u),Math.max(1,total-spent)); }
 }
 function expireRel(u){
   if(u!==state.ui||u.checked||u.rel||state.tab!=="practice") return;
@@ -130,6 +131,8 @@ function expireRelD(u){
 }
 // a new start: after a change of the switch or the time, the running countdown begins again with its full time
 export function relReset(){ if(state.ui&&!state.ui.checked&&(!state.ui.debate||state.ui.step>3)) stopTimer(); }
+// the bar of a countdown that is stopped for a spoken answer (debate/flow.js) stands still where it is, and goes on with the clock
+export function freezeBar(on){ for(const i of document.querySelectorAll(".tbar i")) i.style.animationPlayState=on?"paused":""; }
 function timerBar(){
   if(!state.ui.tq) return null;
   const e=Math.max(0,Math.round(performance.now()-state.ui.tq.t0));

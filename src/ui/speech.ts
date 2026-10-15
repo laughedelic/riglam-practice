@@ -11,6 +11,8 @@ export interface VoiceInfo {
   name: string;
   lang: string;
   local: boolean;
+  /** the accent of the voice's language tag: "American", "British", "Australian"... */
+  accent: string;
 }
 
 type Recognizer = {
@@ -40,26 +42,47 @@ export const canHear = (): boolean => !!Recognition();
 // them were rated bad in the Voice lab, so they are not offered.
 const DEAD = /^(Albert|Bad News|Bahh|Bells|Boing|Bubbles|Cellos|Good News|Jester|Junior|Organ|Superstar|Trinoids|Whisper|Wobble|Zarvox|Fred|Ralph|Kathy|Samantha)$|^(Eddy|Flo|Grandma|Grandpa|Reed|Rocko|Sandy|Shelley) \(/;
 // Which kinds of voice sound best, as far as the lab and the vendors' names tell: Edge's neural voices, Apple's
-// downloadable ones, then Google's, then the few macOS voices rated "meh" rather than "bad".
+// downloadable ones, then Google's (Chrome's "Google US English", "Google UK English Female" and "Male", which Alexey
+// found to have good intonation), then Apple's enhanced ones, then the few macOS voices rated "meh" rather than "bad".
 function rank(v: SpeechSynthesisVoice): number {
-  if (/\bNatural\b|Neural/.test(v.name)) return 5;
-  if (/\(Premium\)/.test(v.name)) return 4;
+  if (/\bNatural\b|Neural/.test(v.name)) return 6;
+  if (/\(Premium\)/.test(v.name)) return 5;
+  if (/\bGoogle\b/.test(v.name)) return 4;
   if (/\(Enhanced\)/.test(v.name)) return 3;
-  if (/^Google/.test(v.name)) return 2;
   if (/^(Daniel|Karen|Moira|Rishi|Tessa)\b/.test(v.name)) return 1;
   return 0;
 }
 const langOf = (v: SpeechSynthesisVoice) => String(v.lang || "").replace("_", "-");
 const idOf = (v: SpeechSynthesisVoice) => v.voiceURI || v.name + "|" + langOf(v);
+// "en-US", "en_US" and, on some Android devices, "eng-USA"
+const isEnglish = (v: SpeechSynthesisVoice) => /^eng?(?:-|$)/i.test(langOf(v));
+const ACCENT: Record<string, string> = {
+  US: "American", GB: "British", AU: "Australian", IN: "Indian", IE: "Irish", ZA: "South African", CA: "Canadian", NZ: "New Zealand",
+  NG: "Nigerian", KE: "Kenyan", PH: "Philippine", SG: "Singapore", HK: "Hong Kong", TZ: "Tanzanian",
+};
+const REGION3: Record<string, string> = { USA: "US", GBR: "GB", AUS: "AU", IND: "IN", IRL: "IE", ZAF: "ZA", CAN: "CA", NZL: "NZ", NGA: "NG", KEN: "KE", PHL: "PH", SGP: "SG", HKG: "HK", TZA: "TZ" };
+/** The accent a language tag names ("en-GB" is British); the tag itself when it is not one of the usual, "English" when it has no region. */
+export function accentOf(lang: string): string {
+  const m = /^eng?-([A-Za-z]{2,3})\b/i.exec(lang);
+  if (!m) return "English";
+  const r = m[1].toUpperCase(), code = r.length === 3 ? REGION3[r] || r : r;
+  return ACCENT[code] || "English (" + code + ")";
+}
 
 function englishVoices(): SpeechSynthesisVoice[] {
   const s = synth();
   if (!s) return [];
-  const all = s.getVoices().filter((v) => /^en\b/i.test(langOf(v)) && !DEAD.test(v.name));
-  return all.map((v, i) => [v, i] as const).sort((x, y) => rank(y[0]) - rank(x[0]) || x[1] - y[1]).map(([v]) => v);
+  const all = s.getVoices().filter((v) => isEnglish(v) && !DEAD.test(v.name));
+  // of equally good voices, the one in the browser's own English comes first (American when the browser's language is not English)
+  const own = typeof navigator !== "undefined" && /^en-/i.test(navigator.language || "") ? navigator.language.replace("_", "-").toLowerCase() : "en-us";
+  const fit = (v: SpeechSynthesisVoice) => (langOf(v).toLowerCase() === own ? 1 : 0);
+  return all
+    .map((v, i) => [v, i] as const)
+    .sort((x, y) => rank(y[0]) - rank(x[0]) || fit(y[0]) - fit(x[0]) || x[1] - y[1])
+    .map(([v]) => v);
 }
 /** The English voices of this device, best first. The list can be empty until the browser has loaded it (see `onVoices`). */
-export const voiceList = (): VoiceInfo[] => englishVoices().map((v) => ({ id: idOf(v), name: v.name, lang: langOf(v), local: v.localService }));
+export const voiceList = (): VoiceInfo[] => englishVoices().map((v) => ({ id: idOf(v), name: v.name, lang: langOf(v), local: v.localService, accent: accentOf(langOf(v)) }));
 /** Calls `f` when the browser's list of voices changes (Chrome fills it in after the page loads). */
 export function onVoices(f: () => void): void {
   const s = synth();

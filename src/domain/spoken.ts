@@ -10,7 +10,7 @@ import type { RelKey } from "../ai-shared/relations";
 /** Lower case, words only, numbers spelled out: the form in which spoken phrases are compared. */
 export function plainWords(s: unknown): string {
   const NUM: Record<string, string> = { 1: "one", 2: "two", 3: "three", 4: "four", 5: "five" };
-  return spelled(s).replace(/-/g, " ").replace(/\b([1-5])p\b/g, (_, d) => NUM[d] + " possibilities").replace(/\b[1-5]\b/g, (d) => NUM[d]).replace(/\s+/g, " ").trim();
+  return spelled(s).replace(/&/g, " and ").replace(/-/g, " ").replace(/\b([1-5])p\b/g, (_, d) => NUM[d] + " possibilities").replace(/\b[1-5]\b/g, (d) => NUM[d]).replace(/\s+/g, " ").trim();
 }
 
 // Said before the example and not part of it.
@@ -71,13 +71,104 @@ const NAMES: [string, RelKey | "3"][] = [
   ["mutually inclusive", "mi"], ["mutually exclusive", "con"], ["three possibilities a in b", "3ab"], ["three possibilities b in a", "3ba"],
   ["four possibilities", "4"], ["for possibilities", "4"], ["three possibilities", "3"],
 ];
+
+/** The pair's two terms as the page names them ("functional things", "products"). */
+export interface Terms {
+  a: string;
+  b: string;
+}
+const singular = (w: string) => (w.length > 3 && w.endsWith("s") && !/(?:ss|us|is)$/.test(w) ? w.slice(0, -1) : w);
+const termWords = (s: string) => plainWords(s).split(" ").filter(Boolean).map(singular);
+interface Span { from: number; to: number; score: number; term: "ta" | "tb" }
+/** Every place where the heard words say a term: its words in order, each near enough, singular or plural. */
+function findTerm(heard: string[], term: string[], name: "ta" | "tb"): Span[] {
+  const out: Span[] = [];
+  for (let from = 0; from + term.length <= heard.length; from++) {
+    let sum = 0, ok = true;
+    for (let j = 0; j < term.length && ok; j++) {
+      const s = similarity(heard[from + j], term[j]);
+      if (s < 0.75) ok = false; else sum += s;
+    }
+    const score = sum / term.length;
+    if (ok && score >= 0.8) out.push({ from, to: from + term.length, score, term: name });
+  }
+  return out;
+}
+/** The heard words with the first term said in them as "ta" and the second as "tb"; `found` is how many of the two were said. */
+function mask(w: string, terms: Terms): { words: string[]; found: number } {
+  const orig = w.split(" ").filter(Boolean), sing = orig.map(singular), ta = termWords(terms.a), tb = termWords(terms.b);
+  const all = [...(ta.length ? findTerm(sing, ta, "ta") : []), ...(tb.length ? findTerm(sing, tb, "tb") : [])].sort((x, y) => y.score - x.score || x.from - y.from);
+  const used = new Array<boolean>(orig.length).fill(false), spans: Span[] = [];
+  for (const s of all) {
+    if (used.slice(s.from, s.to).some(Boolean)) continue;
+    used.fill(true, s.from, s.to);
+    spans.push(s);
+  }
+  spans.sort((x, y) => x.from - y.from);
+  const words: string[] = [];
+  for (let i = 0; i < orig.length; i++) {
+    const s = spans.find((x) => x.from === i);
+    if (s) { words.push(s.term); i = s.to - 1; } else words.push(orig[i]);
+  }
+  return { words, found: new Set(spans.map((x) => x.term)).size };
+}
+// Words that carry nothing for the readings below ("all X are a kind of Y").
+const FILL = new Set(["a", "an", "the", "all", "every", "each", "any", "always", "also", "just", "only", "simply", "one", "kind", "type", "sort", "of", "that", "which"]);
+const plain = (words: string[]) => words.filter((x) => !FILL.has(x)).join(" ");
+
+// "A in B" as a recognizer writes it: "a in b", "a n b", "anb", "a and b" (from "A & B"), "a b". The letter said first is the one inside.
+const LETTER: Record<string, "a" | "b"> = { a: "a", ay: "a", eh: "a", b: "b", be: "b", bee: "b" };
+/** Which way three possibilities go, from the two letters said in any of the ways a recognizer writes "A in B". */
+export function lettersDirection(w: string): "3ab" | "3ba" | null {
+  const t = w.split(" ").filter((x) => x && !["the", "is", "being", "it"].includes(x));
+  const fused = t.join("").match(/^(a|b)(?:n|in|an|and|inn|end)?(a|b)$/);
+  if (fused && fused[1] !== fused[2]) return fused[1] === "a" ? "3ab" : "3ba";
+  const LINK = /^(?:n|in|an|and|inn|end|inside|within|under)$/;
+  const ls = t.length === 3 && LINK.test(t[1]) ? [t[0], t[2]] : t.length === 2 ? t : null;
+  if (ls && LETTER[ls[0]] && LETTER[ls[1]] && LETTER[ls[0]] !== LETTER[ls[1]]) return LETTER[ls[0]] === "a" ? "3ab" : "3ba";
+  return null;
+}
+
+// Relations said in words that need no term: what is written under "Mutually exclusive" and "Four possibilities".
+function relationByPhrase(w: string): RelKey | null {
+  const n = plain(w.split(" "));
+  if (/\b(?:neither contains?|overlap\w*|partly|partially|intersect\w*)\b/.test(n)) return "4";
+  if (/\bnothing (?:is|are|can be) both\b|\bno (?:one |thing )?(?:is|are|can be) both\b|\bnothing in common\b|\bnever together\b|\bdisjoint\b/.test(n)) return "con";
+  return null;
+}
+// What is written under the options, with the pair's own terms: "All products are functional things, not the reverse" (three
+// possibilities, the first-named term inside), "... and all functional things are products" (mutually inclusive).
+const LINKS = "is|are|in|inside|within|under|to|belong|belongs|fall|falls|included|contained|covered|by|part|subset|contain|contains|include|includes|encompass|encompasses|cover|covers|pervade|pervades";
+function relationByTerms(w: string, terms: Terms): RelKey | null {
+  const { words, found } = mask(w, terms);
+  if (!found) return null;
+  const n = plain(words);
+  if (/\bno (t[ab]) (?:is|are|can be) (t[ab])\b/.test(n)) return "con";
+  const tail3 = (rest: string) => /\b(?:not|no|never)\b.*\b(?:reverse|vice versa|converse|conversely|other way|opposite|round|backwards?)\b|\bnot t[ab]\b/.test(rest);
+  const m = n.match(new RegExp("\\b(t[ab])((?: (?:" + LINKS + "))*) (t[ab])\\b(.*)$"));
+  if (m && m[1] !== m[3]) {
+    const [, x, link, y, rest] = m;
+    const inner = /\b(?:contains?|includes?|encompass(?:es)?|covers?|pervades?)\b/.test(link) ? y : x;
+    const back = /\b(t[ab])(?: (?:is|are|in|inside|within|under))+ (t[ab])\b/.exec(rest);
+    const mutual = !tail3(rest) && (/\b(?:vice versa|both ways|each other|conversely|reverse|equal|same)\b/.test(rest) || (!!back && back[1] !== back[2]));
+    return mutual ? "mi" : inner === "ta" ? "3ab" : "3ba";
+  }
+  // only one term was recognized: with "not the reverse", the term said first is the one inside
+  if (found === 1 && tail3(n)) {
+    const which = /\bta\b/.test(n) ? "ta" : "tb", first = n.split(" ").findIndex((x) => x === which) <= 1;
+    return first === (which === "ta") ? "3ab" : "3ba";
+  }
+  return null;
+}
+
 /**
  * The relation named. `order` is the page's order of the five (keys 1 to 5), so "one", "two" and "five" pick by
  * number like the keys do; "three" alone names three possibilities and "four" four possibilities, as their names
  * start so. "3" means three possibilities with no direction: the page asks which way. "A in B", "B contains A" and
- * the like give the direction, with or without "three possibilities" before them.
+ * the like give the direction, with or without "three possibilities" before them. With the pair's `terms` it also
+ * takes what is written under each option ("All products are functional things, not the reverse").
  */
-export function spokenRelation(alts: readonly string[], order: readonly RelKey[]): RelKey | "3" | null {
+export function spokenRelation(alts: readonly string[], order: readonly RelKey[], terms?: Terms): RelKey | "3" | null {
   let vague = false;
   for (const heard of alts) {
     const w = plainWords(heard).replace(/\bbeing a\b/g, "b in a");
@@ -89,6 +180,8 @@ export function spokenRelation(alts: readonly string[], order: readonly RelKey[]
       vague = true;
       continue;
     }
+    const byWords = relationByPhrase(w) || (terms ? relationByTerms(w, terms) : null);
+    if (byWords) return byWords;
     const inner = w.match(/\b(a|b) (?:is )?(?:in|inside|within|under|included in|contained in|part of) (a|b)\b/);
     if (inner && inner[1] !== inner[2]) return inner[1] === "a" ? "3ab" : "3ba";
     const outer = w.match(/\b(a|b) (?:contains|includes|encompasses|covers|pervades) (a|b)\b/);
@@ -96,7 +189,13 @@ export function spokenRelation(alts: readonly string[], order: readonly RelKey[]
     if (/\binclusive\b/.test(w)) return "mi";
     if (/\bexclusive\b/.test(w)) return "con";
     if (/\b(four|for) possibilit/.test(w)) return "4";
-    if (/\bthree possibilit/.test(w)) { vague = true; continue; }
+    const three = w.match(/\bthree possibilit\w*(.*)$/);
+    if (three) {
+      const way = lettersDirection(three[1].trim());
+      if (way) return way;
+      vague = true;
+      continue;
+    }
     let best: [number, RelKey | "3"] = [0, "3"];
     for (const [name, k] of NAMES) {
       const s = similarity(w, name);
@@ -108,6 +207,47 @@ export function spokenRelation(alts: readonly string[], order: readonly RelKey[]
     }
   }
   return vague ? "3" : null;
+}
+
+/**
+ * After "three possibilities": which of the two is inside the other. Said as the term that is inside ("products"), as
+ * "first" or "second" (the order the pair was read in), as the two letters in any of the ways a recognizer writes
+ * "A in B", or as the whole phrase ("all products are functional things, not the reverse").
+ */
+export function spokenDirection(alts: readonly string[], terms?: Terms): "3ab" | "3ba" | null {
+  for (const heard of alts) {
+    const w = plainWords(heard).replace(/\bbeing a\b/g, "b in a");
+    const whole = terms ? relationByTerms(w, terms) : null;
+    if (whole === "3ab" || whole === "3ba") return whole;
+    const way = lettersDirection(w.replace(/^(?:three possibilit\w*\s*)/, ""));
+    if (way) return way;
+    const ord = w.match(/\b(first|second)\b(?:.*\b(first|second)\b)?/);
+    if (ord) {
+      const inside = ord[2] && /\b(?:contains?|includes?|covers?)\b/.test(w) ? ord[2] : ord[1];
+      return inside === "first" ? "3ab" : "3ba";
+    }
+    if (terms) {
+      const { words, found } = mask(w, terms);
+      const n = plain(words);
+      const one = found === 1 && n.match(/^(?:it is |its )?(t[ab])(?: (?:is|are))?(?: (?:in|inside|within|under))?$/);
+      if (one) return one[1] === "ta" ? "3ab" : "3ba";
+    }
+  }
+  return null;
+}
+
+// ---- yes or no to an answer that waits to be confirmed ----
+
+const YES = /^(?:yes|yeah|yep|yup|ok|okay|sure|confirm|confirmed|correct|right|that is right|thats right|that is correct|thats correct|go on|go ahead|next|continue|do it|good|fine|exactly)$/;
+const NO = /^(?:no|nope|wrong|incorrect|cancel|change|change it|back|undo|again|try again|redo|not that|that is wrong|thats wrong|stop|wait)$/;
+/** "yes" to go on with the answer that is waiting, "no" to take it back; null when the words are neither (they may be a new answer). */
+export function spokenConfirm(alts: readonly string[]): "yes" | "no" | null {
+  for (const heard of alts) {
+    const w = plainWords(heard);
+    if (YES.test(w)) return "yes";
+    if (NO.test(w)) return "no";
+  }
+  return null;
 }
 
 // ---- an example ----
