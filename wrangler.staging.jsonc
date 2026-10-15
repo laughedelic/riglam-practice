@@ -13,7 +13,6 @@
     "binding": "ASSETS",
     "run_worker_first": ["/api/*"]
   },
-  "rules": [{ "type": "Data", "globs": ["**/*.enc"], "fallthrough": true }],
   "observability": { "enabled": true, "logs": { "invocation_logs": false } },
   "previews": {
     // Same tutor settings as wrangler.jsonc, except the budgets. Dollars are US dollars per UTC day.
