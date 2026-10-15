@@ -1,0 +1,334 @@
+// The device side of sync (src/account/sync.ts) against the real Worker: what is sent, what is taken, and how two devices that
+// changed the same document settle. Each device has its own store and outbox; the Worker and its SQL are the ones that ship.
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { SYNC_LIMITS } from "../../src/account/protocol";
+import { world } from "./accounts-support";
+import { device, settle, T0, type Device } from "./device";
+
+beforeEach(() => void vi.spyOn(console, "error").mockImplementation(() => {}));
+afterEach(() => vi.restoreAllMocks());
+
+/** Two devices of one person: the first makes the account, the second signs in with the same passkey. */
+async function pair() {
+  const w = await world();
+  const a = await device(w);
+  const b = await device(w, { key: a.key });
+  return { w, a, b };
+}
+
+describe("a first sign-in", () => {
+  it("sends the documents the device already has, at their own timestamps", async () => {
+    const { w, a, b } = await pair();
+    a.seed("answers", "a1", { at: "2026-10-12T08:00:00Z", right: true });
+    a.seed("favorites", "f1", { key: "k" });
+    await a.account.signUp("Alexey");
+    await a.sync.syncNow();
+    expect(a.sync.status()).toMatchObject({ pending: 0, error: null });
+    const rows = w.db.sql<{ col: string; id: string; t: number }>("SELECT col, id, t FROM docs ORDER BY col, id");
+    expect(rows).toEqual([
+      { col: "answers", id: "a1", t: Date.parse("2026-10-12T08:00:00Z") },
+      { col: "favorites", id: "f1", t: 0 },
+    ]);
+    await b.account.signIn();
+    await b.sync.syncNow();
+    expect(b.get("answers", "a1")).toEqual({ at: "2026-10-12T08:00:00Z", right: true });
+    expect(b.get("favorites", "f1")).toEqual({ key: "k" });
+  });
+
+  it("brings two devices with different documents to the union", async () => {
+    const { a, b } = await pair();
+    a.seed("answers", "x", { at: "2026-10-01T00:00:00Z", v: "a" });
+    b.seed("answers", "y", { at: "2026-10-02T00:00:00Z", v: "b" });
+    await a.account.signUp("p");
+    await a.sync.syncNow();
+    await b.account.signIn();
+    await b.sync.syncNow();
+    await a.sync.syncNow();
+    for (const d of [a, b]) {
+      expect(d.get("answers", "x")).toMatchObject({ v: "a" });
+      expect(d.get("answers", "y")).toMatchObject({ v: "b" });
+    }
+  });
+
+  it("takes the newer copy of a document both devices had", async () => {
+    const { a, b } = await pair();
+    a.seed("answers", "x", { at: "2026-10-01T00:00:00Z", v: "older" });
+    b.seed("answers", "x", { at: "2026-10-05T00:00:00Z", v: "newer" });
+    await a.account.signUp("p");
+    await a.sync.syncNow();
+    await b.account.signIn();
+    await b.sync.syncNow();
+    await a.sync.syncNow();
+    expect(a.get("answers", "x")).toMatchObject({ v: "newer" });
+    expect(b.get("answers", "x")).toMatchObject({ v: "newer" });
+  });
+});
+
+describe("changes after that", () => {
+  let a: Device, b: Device;
+  beforeEach(async () => {
+    ({ a, b } = await pair());
+    await a.account.signUp("p");
+    await b.account.signIn();
+  });
+
+  it("travel to the other device", async () => {
+    await a.put("answers", "a1", { v: 1 }, T0);
+    await a.sync.syncNow();
+    expect(a.sync.status().pending).toBe(0);
+    await b.sync.syncNow();
+    expect(b.get("answers", "a1")).toEqual({ v: 1 });
+    expect(b.sync.status().pending).toBe(0); // taking a document is not a change to send back
+  });
+
+  it("send a burst of changes to one document as its last state only", async () => {
+    for (let i = 1; i <= 5; i++) await a.put("answers", "a1", { v: i }, T0 + i);
+    expect(await a.outbox.count()).toBe(1);
+    await a.sync.syncNow();
+    await b.sync.syncNow();
+    expect(b.get("answers", "a1")).toEqual({ v: 5 });
+  });
+
+  it("carry a deletion", async () => {
+    await a.put("favorites", "f1", { key: "k" }, T0);
+    await a.sync.syncNow();
+    await b.sync.syncNow();
+    expect(b.get("favorites", "f1")).toEqual({ key: "k" });
+    await a.remove("favorites", "f1", T0 + 1000);
+    await a.sync.syncNow();
+    await b.sync.syncNow();
+    expect(b.get("favorites", "f1")).toBeNull();
+  });
+
+  it("settle by the time of the change, not by who sent first", async () => {
+    await a.put("flags", "g", { v: "base" }, T0);
+    await a.sync.syncNow();
+    await b.sync.syncNow();
+    await a.put("flags", "g", { v: "from a" }, T0 + 1000); // earlier
+    await b.put("flags", "g", { v: "from b" }, T0 + 2000); // later
+    await b.sync.syncNow(); // b reaches the server first
+    await a.sync.syncNow(); // a's older change loses and a is given b's
+    expect(a.get("flags", "g")).toEqual({ v: "from b" });
+    await b.sync.syncNow();
+    expect(b.get("flags", "g")).toEqual({ v: "from b" });
+    expect(await a.outbox.count()).toBe(0);
+  });
+
+  it("let the later change win even when it arrives later", async () => {
+    await a.put("flags", "g", { v: "base" }, T0);
+    await a.sync.syncNow();
+    await b.sync.syncNow();
+    await b.put("flags", "g", { v: "from b" }, T0 + 1000);
+    await a.put("flags", "g", { v: "from a" }, T0 + 2000);
+    await b.sync.syncNow();
+    await a.sync.syncNow();
+    await b.sync.syncNow();
+    expect(a.get("flags", "g")).toEqual({ v: "from a" });
+    expect(b.get("flags", "g")).toEqual({ v: "from a" });
+  });
+
+  it("keep a change made here after the server's copy was made", async () => {
+    await a.put("flags", "g", { v: "from a" }, T0);
+    await a.sync.syncNow();
+    await b.put("flags", "g", { v: "b is later" }, T0 + 5000); // noted, not sent
+    await b.sync.syncNow(); // the round sends it, so it wins; and a still gets it
+    await a.sync.syncNow();
+    expect(a.get("flags", "g")).toEqual({ v: "b is later" });
+    // while b is offline a newer change on the server does not overwrite a still newer one made here
+    b.offline = true;
+    await b.put("flags", "g", { v: "b again" }, T0 + 9000);
+    b.offline = false;
+    await a.put("flags", "g", { v: "a later" }, T0 + 7000);
+    await a.sync.syncNow();
+    await b.sync.syncNow();
+    await a.sync.syncNow();
+    expect(a.get("flags", "g")).toEqual({ v: "b again" });
+    expect(b.get("flags", "g")).toEqual({ v: "b again" });
+  });
+
+  it("do not rewrite a document that is already the same", async () => {
+    await a.put("answers", "a1", { v: 1, nested: { x: [1, 2], y: "z" } }, T0);
+    await a.sync.syncNow();
+    expect(a.applied).toEqual([]); // the echo of its own change
+    await b.sync.syncNow();
+    await b.sync.syncNow();
+    expect(b.applied).toEqual(["answers/a1"]);
+  });
+
+  it("send more than one request's worth", async () => {
+    for (let i = 0; i < SYNC_LIMITS.writes + 30; i++) await a.put("answers", "a" + i, { i }, T0 + i);
+    expect(await a.outbox.count()).toBe(SYNC_LIMITS.writes + 30);
+    await a.sync.syncNow();
+    expect(a.sync.status().pending).toBe(0);
+    await b.sync.syncNow();
+    expect(b.docs.size).toBe(SYNC_LIMITS.writes + 30);
+  });
+
+  it("receive more than one page of changes", async () => {
+    for (let i = 0; i < 3; i++) {
+      for (let j = 0; j < 200; j++) await a.put("answers", `a${i}-${j}`, { i, j }, T0 + i * 1000 + j);
+      await a.sync.syncNow();
+    }
+    await b.sync.syncNow();
+    expect(b.docs.size).toBe(600);
+    expect(b.calls.filter((c) => c === "POST /api/sync").length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("leave out documents that are too large or not the app's", async () => {
+    await a.put("answers", "big", { text: "x".repeat(SYNC_LIMITS.docBytes + 1) }, T0);
+    await a.put("elsewhere", "a", { v: 1 }, T0);
+    await a.put("answers", "__proto__", { v: 1 }, T0);
+    await a.put("answers", "ok", { v: 1 }, T0);
+    expect(await a.outbox.count()).toBe(1);
+    await a.sync.syncNow();
+    expect(a.sync.status().error).toBeNull();
+  });
+});
+
+describe("when the server cannot be reached", () => {
+  it("keeps the changes and sends them later", async () => {
+    const { a, b } = await pair();
+    await a.account.signUp("p");
+    await b.account.signIn();
+    a.offline = true;
+    await a.put("answers", "a1", { v: 1 }, T0);
+    const s = await a.sync.syncNow();
+    expect(s).toMatchObject({ pending: 1, error: "offline" });
+    a.offline = false;
+    expect(await a.sync.syncNow()).toMatchObject({ pending: 0, error: null });
+    await b.sync.syncNow();
+    expect(b.get("answers", "a1")).toEqual({ v: 1 });
+  });
+
+  it("waits longer after each failure, and a person's own request does not wait", async () => {
+    const { a } = await pair();
+    await a.account.signUp("p");
+    a.offline = true;
+    await a.put("answers", "a1", { v: 1 }, T0);
+    const timers: number[] = [];
+    // the engine of the device in this test uses a timer that does nothing; read the waits from a second engine with a recording one
+    const { createSync } = await import("../../src/account/sync");
+    const s = createSync({
+      store: a.store,
+      outbox: a.outbox,
+      post: (r) => a.client.sync(r),
+      now: () => T0,
+      setTimer: (_f, ms) => (timers.push(ms), 1),
+      clearTimer: () => {},
+      debounceMs: 1500,
+      backoffMs: 15_000,
+    });
+    await s.activate((await a.outbox.getMeta<string>("user"))!);
+    timers.length = 0;
+    for (let i = 0; i < 3; i++) await s.syncNow();
+    expect(timers).toEqual([15_000, 30_000, 60_000]);
+    a.offline = false;
+    expect(await s.syncNow()).toMatchObject({ pending: 0, error: null });
+    s.close();
+  });
+});
+
+describe("signing out and in", () => {
+  it("keeps noting changes while signed out and sends them on the next sign-in", async () => {
+    const { a, b } = await pair();
+    await a.account.signUp("p");
+    await b.account.signIn();
+    await a.put("answers", "before", { v: 1 }, T0);
+    await a.account.signOut();
+    expect(a.account.view().person).toBeNull();
+    await a.put("answers", "while-out", { v: 2 }, T0 + 10);
+    expect(await a.outbox.count()).toBe(1);
+    expect(await a.sync.syncNow()).toMatchObject({ active: false });
+    await b.sync.syncNow();
+    expect(b.get("answers", "before")).toEqual({ v: 1 }); // sign-out sent what was waiting
+    expect(b.get("answers", "while-out")).toBeNull();
+    await a.account.signIn();
+    await a.sync.syncNow();
+    await b.sync.syncNow();
+    expect(b.get("answers", "while-out")).toEqual({ v: 2 });
+  });
+
+  it("starts over for another person: the old account's cursor and queue are dropped and the documents are offered to the new one", async () => {
+    const w = await world();
+    const a = await device(w);
+    const other = await device(w);
+    await a.account.signUp("first");
+    await a.put("answers", "mine", { at: "2026-10-12T08:00:00Z", v: 1 }, T0);
+    await a.sync.syncNow();
+    await a.account.signOut();
+    await other.account.signUp("second");
+    await other.put("answers", "theirs", { v: 2 }, T0);
+    await other.sync.syncNow();
+    a.key = other.key; // signs in as the second person
+    await a.account.signIn();
+    await a.sync.syncNow();
+    expect(a.get("answers", "theirs")).toEqual({ v: 2 });
+    const rows = w.db.sql<{ user_id: string; id: string }>("SELECT user_id, id FROM docs ORDER BY id");
+    expect(rows.map((r) => r.id)).toEqual(["mine", "mine", "theirs"]);
+    expect(new Set(rows.map((r) => r.user_id)).size).toBe(2);
+  });
+
+  it("forgets everything when the account is deleted", async () => {
+    const { w, a } = await pair();
+    await a.account.signUp("p");
+    await a.put("answers", "a1", { v: 1 }, T0);
+    await a.sync.syncNow();
+    await a.account.deleteAccount();
+    expect(w.db.sql("SELECT * FROM docs")).toEqual([]);
+    expect(a.get("answers", "a1")).toEqual({ v: 1 }); // the device keeps its own copy
+    await a.put("answers", "a2", { v: 2 }, T0 + 1);
+    expect(await a.outbox.count()).toBe(0);
+    expect(a.kept).toBeNull();
+  });
+
+  it("ends the account on the device when the server says it is not signed in", async () => {
+    const { a } = await pair();
+    await a.account.signUp("p");
+    await a.put("answers", "a1", { v: 1 }, T0);
+    a.clearCookie();
+    await a.sync.syncNow();
+    expect(a.signedOutCalls).toBe(1);
+    expect(a.account.view()).toMatchObject({ person: null });
+    expect(a.account.view().message?.text).toMatch(/signed out/i);
+    expect(await a.outbox.count()).toBe(1); // still waiting for the next sign-in
+  });
+});
+
+describe("limits", () => {
+  it("waits for tomorrow when the day's allowance is used", async () => {
+    const w = await world({ DAILY_WRITES_PER_ACCOUNT: "10" } as never);
+    const a = await device(w);
+    await a.account.signUp("p");
+    for (let i = 0; i < 12; i++) await a.put("answers", "a" + i, { i }, T0 + i);
+    const s = await a.sync.syncNow();
+    expect(s).toMatchObject({ error: "quota", pending: 12 });
+    expect(w.db.sql("SELECT * FROM docs")).toEqual([]);
+  });
+});
+
+describe("tabs", () => {
+  it("does not run a round while another tab is in one", async () => {
+    const { w, a } = await pair();
+    await a.account.signUp("p");
+    const { createSync } = await import("../../src/account/sync");
+    let taken = false;
+    const s = createSync({
+      store: a.store,
+      outbox: a.outbox,
+      post: async () => { throw new Error("must not be called"); },
+      exclusive: async (fn) => (taken ? undefined : fn()),
+      setTimer: () => 0,
+      clearTimer: () => {},
+      debounceMs: 0,
+    });
+    await s.activate((await a.outbox.getMeta<string>("user"))!);
+    await a.put("answers", "a1", { v: 1 }, T0);
+    taken = true;
+    const status = await s.syncNow();
+    expect(status.last).toBeNull();
+    expect(status.pending).toBe(1);
+    expect(w).toBeTruthy();
+    s.close();
+    await settle();
+  });
+});

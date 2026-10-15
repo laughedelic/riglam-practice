@@ -19,7 +19,7 @@ What differs between the builds is kept out of `src/app`:
 
 | | PWA | Artifact |
 |---|---|---|
-| The platform (`loadData`, `db`, `sample`, `tutor`) | `src/pwa/platform.ts`: `db` is the local store, `sample` is `null` (in `npm run dev` a stand-in, see below), `tutor` asks the app's own server (`src/pwa/tutor.ts`) | `src/artifact/platform.ts`: `db` and `sample` come from `window.claude`, which the artifact frame provides |
+| The platform (`loadData`, `db`, `sample`, `tutor`, `account`) | `src/pwa/platform.ts`: `db` is the local store, `sample` is `null` (in `npm run dev` a stand-in, see below), `tutor` asks the app's own server (`src/pwa/tutor.ts`), `account` is the optional sign-in with sync (`src/pwa/account.ts`) | `src/artifact/platform.ts`: `db` and `sample` come from `window.claude`, which the artifact frame provides |
 | Term data | the open data (`drill-data.json`, plain) and the encrypted definitions (`course-definitions.enc`), both precached; the key comes from the shared link (`src/pwa/platform.ts`, `src/pwa/unlock.ts`); the notes are not included | everything, merged at build time with the data key (`scripts/vite-full-data.mjs`), embedded in the page's script |
 | Fonts | self-hosted woff2 files (`src/pwa/fonts`, made by `npm run fonts` from the same Google Fonts link) | the Google Fonts link in `src/artifact/head.html` |
 | Felt tiles | files in `dist/pwa/assets` | data URIs in the page's CSS |
@@ -88,6 +88,7 @@ The page does not know which build runs it. Each entry file calls `startApp(plat
 - `sample()`: model calls, or `null`. The Claude artifact's own capability: the page picks the models itself and gives the model its tools.
   In `npm run dev` the PWA has a stand-in (`src/pwa/dev-sample.ts`): it calls no model and answers with fixed text in the shape the page reads (the lines of an explanation, a verdict for each example the page could not check, the check lab's JSON), streamed word by word, so these parts can be built and their layout tried without a key or a server. `?ai=off` in the address takes it away, `?ai=slow` streams slowly, `?ai=rate_limited` and `?ai=error` make it fail as the page's error messages expect. The stand-in is imported behind `import.meta.env.DEV`, so no build contains it; `tests/unit/pwa-build.test.ts` checks `dist/pwa`.
 - `tutor()` (optional): a question to the app's own server ([SERVER.md](SERVER.md)), or `null`. The request is the conversation and the pair's categories; the server holds the instructions, the lookup tools and the notes. The PWA offers it when this device has the study group's key and the server's `/api/health` says its tutor is on. The page uses `sample` when it has one, else `tutor`; with neither it hides the tutor and Explain. The check lab needs `sample`.
+- `account()` (optional): the optional account, or `null`: a passkey to sign in with and a server copy of the documents ([SERVER.md](SERVER.md), "Accounts and sync"). It has a view (who is signed in, what is waiting to be sent, the last message), `subscribe`, and the actions `signUp`, `signIn`, `addPasskey`, `signOut`, `deleteAccount` and `syncNow`. The PWA offers it when `/api/health` says accounts are on, or when this device used one before; the Options screen then shows an Account row. The artifact build has none.
 
 The shapes of `db` and `sample` are the artifact runtime's (`collection/doc/where/orderBy/limit/onSnapshot`; one call from a prompt or turns), so the artifact adapter passes `window.claude` through and the PWA implements the same interface locally. The page does not branch on the build. The PWA entry also leaves the platform at `window.__riglam.platform` for the browser tests and the console.
 
@@ -98,6 +99,12 @@ A block at the end of `src/app/app.js` is the test hook (`window.__riglamTest`, 
 `src/pwa/local-db.ts` implements the part of the artifact runtime's `db` that the page uses and a bit more (documents at `collection/id`, `get/set/update/delete`, `where/orderBy/limit/get/onSnapshot`, `add`, `acquire`; frozen snapshots; `invalid_argument` and `TypeError` rules from the runtime's `db.d.ts`). Reads come from memory, writes go to IndexedDB (database `riglam`, store `docs`), other tabs are told through a `BroadcastChannel`. If IndexedDB is not available (some private modes) the app keeps working in memory for that session.
 
 When a server arrives, a second adapter with this interface replaces it; the page does not change.
+
+## Account and sync (the device side)
+
+`src/account/` is the part that does not depend on the page or the browser, so the Worker's tests can run it against the real server code: `protocol.ts` (the contract shared with the Worker), `client.ts` (one function per route, failures as codes), `sync.ts` (the engine), `outbox.ts` and `idb-outbox.ts` (what is waiting to be sent), `account.ts` (the view and the actions the Options row uses), `passkeys.ts` and `webauthn.ts` (the browser's passkeys, with the options and results converted to and from JSON by hand). `src/pwa/account.ts` joins them to the local store, Web Locks (one tab syncs at a time) and the events that mean "try now": the connection returning, the page becoming visible, a minute passing. `src/ui/account.ts` is the Options row.
+
+The local store tells sync about each write the page makes (`LocalDb.onWrite`) and takes the server's copies without telling it back (`LocalDb.applyRemote`). Each change is noted in the outbox, one entry per document, in its own IndexedDB database (`riglam-sync`), with the time it was made. A round sends the entries and receives what changed on the server. A copy from the server replaces the local one unless the local document was changed after that copy was made; then the local change is sent next. Changes are noted from the first sign-in on, also while signed out, so nothing made offline or between sessions is lost. The first sign-in on a device offers every document it already has, at the timestamp the document carries. A different person signing in on the same device starts over the same way. A failed round is tried again after 15 seconds, doubling up to 15 minutes; a refusal for the day's limit waits an hour.
 
 ## Export and import
 
@@ -120,5 +127,5 @@ To check that a CSS change moved nothing, build before and after: `dist/pwa/asse
 ## Known gaps
 
 - The check lab (it picks the models and judges answers itself) needs `sample`, so it exists only in the artifact build. The tutor chat and Explain work in both, in the installed app through the server's tutor ([SERVER.md](SERVER.md)).
-- No import of the answers collected in the artifact into the installed app, and no sync between devices.
+- Answers collected in the artifact reach the installed app by export and import only. Sync copies the documents, not the settings (the `rd-*` keys in localStorage); those travel with export and import.
 - The page modules are JavaScript, type-checked with relaxed settings (`src/app/tsconfig.json`: implicit `any` and null checks are off); their three lint warnings (unused variables) are left as found. The adapters, the platform types, `src/ai-shared`, `src/domain` and the tests are TypeScript with the strict settings (`npm run typecheck` checks both).

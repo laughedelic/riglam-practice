@@ -85,8 +85,19 @@ export interface LocalDbOptions {
   channel?: boolean;
 }
 
-/** The `db` capability plus two members for tests. */
+/** A write made on this device through the `db` capability. `data` is null for a deletion. */
+export interface WriteEvent {
+  col: string;
+  id: string;
+  data: Doc | null;
+}
+
+/** The `db` capability plus what sync needs (src/account/sync.ts) and two members for tests. */
 export interface LocalDb extends Db {
+  /** Tells `fn` about every write the page makes on this device (not those of `applyRemote`, and not another tab's). */
+  onWrite(fn: (w: WriteEvent) => void): Unsubscribe;
+  /** Stores a document, or deletes it with null, as the server's copy; listeners and other tabs see it, `onWrite` does not. */
+  applyRemote(col: string, id: string, data: Doc | null): Promise<void>;
   /** Resolves once the IndexedDB connection is open (or known to be unavailable). For tests. */
   ready(): Promise<IDBDatabase | null>;
   close(): Promise<void>;
@@ -165,7 +176,9 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
     };
   }
 
-  async function write(col: string, id: string, data: Doc | null) {
+  const writeHooks = new Set<(w: WriteEvent) => void>();
+
+  async function write(col: string, id: string, data: Doc | null, remote = false) {
     const path = `${col}/${id}`;
     const m = colMap(col);
     const had = m.has(id);
@@ -176,6 +189,7 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
     const stamp = (versions.get(path) ?? 0) + 1; // this write's place in the order of writes of the document; a deletion has no value to compare
     versions.set(path, stamp);
     notify(col);
+    const stored = m.get(id) ?? null; // as written now, whatever else changes the document while it is being saved
     try {
       await tx("readwrite", (s) => (data === null ? s.delete(path) : s.put({ path, col, id, data: mine })) as IDBRequest);
     } catch (e) {
@@ -188,6 +202,9 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
       throw e;
     }
     channel?.postMessage({ col, id });
+    if (!remote) for (const fn of [...writeHooks]) {
+      try { fn({ col, id, data: stored }); } catch { /* a listener's failure is not the write's */ }
+    }
   }
 
   const meta = { fromCache: false, hasPendingWrites: false };
@@ -333,6 +350,14 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
   return {
     doc: docRef,
     collection: collectionRef,
+    onWrite(fn: (w: WriteEvent) => void): Unsubscribe {
+      writeHooks.add(fn);
+      return () => void writeHooks.delete(fn);
+    },
+    async applyRemote(col: string, id: string, data: Doc | null) {
+      await load(col);
+      await write(col, id, data, true);
+    },
     /** Resolves once the IndexedDB connection is open (or known to be unavailable). For tests. */
     ready: open,
     close() { channel?.close(); return open().then((d) => d?.close()); },

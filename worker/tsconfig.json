@@ -5,6 +5,6 @@
     "types": ["@cloudflare/workers-types", "node"],
     "noEmit": true
   },
-  "include": ["../worker", "../src/ai", "../src/ai-shared", "../src/account", "../tests/worker"],
-  "exclude": []
+  "include": ["../worker", "../src/ai", "../src/ai-shared", "../src/account/*.ts", "../tests/worker"],
+  "exclude": ["../src/account/idb-outbox.ts", "../src/account/webauthn.ts"]
 }
