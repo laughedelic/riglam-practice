@@ -3,10 +3,11 @@
 // the data users already have: never rename a collection or change a document without a migration (CLAUDE.md).
 // Fields written by older versions of the page may be missing, so most fields besides the keys are optional.
 import type { Cat, DrillData, Item } from "../ai-shared/data";
-import type { KeyHeld, Unlock } from "../platform/types";
+import type { Unlock } from "../platform/types";
 import type { AnswerView, DebateAnswer } from "../ai-shared/card";
 import type { CellId, RelKey } from "../ai-shared/relations";
 import type { Pair, PoolEntry, Verdict } from "../domain/types";
+import type { KeyHeld } from "../platform/types";
 import type { Account, Db, Sample, Tutor } from "../platform/types";
 import type { AccountSlot } from "../ui/account";
 import type { TransferSlot } from "../ui/data-transfer";

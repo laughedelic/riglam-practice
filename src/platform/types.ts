@@ -115,16 +115,16 @@ export interface TutorOptions {
  */
 export type Tutor = (request: TutorRequest, options?: TutorOptions) => Promise<SampleResult>;
 
-/** `open` shows the prompt for the Magic Key; `tutor` says that the place has a tutor that is waiting for it (so the page shows Explain grayed). */
-export interface Unlock {
-  open(): void;
-  tutor: boolean;
-}
-
 /** What a device that has the Magic Key can do with it: take another one (the study group changed it), or forget it (the definitions and the tutor lock again). */
 export interface KeyHeld {
   change(): void;
   forget(): void;
+}
+
+/** `open` shows the prompt for the Magic Key; `tutor` says that the place has a tutor that is waiting for it (so the page shows Explain grayed). */
+export interface Unlock {
+  open(): void;
+  tutor: boolean;
 }
 
 export interface Platform {

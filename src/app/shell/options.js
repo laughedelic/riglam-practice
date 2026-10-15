@@ -37,16 +37,6 @@ export function toggleOpts(on){
   if(state.optsOpen){ const b=document.querySelector("#over .oc"); if(b) b.focus({preventScroll:true}); }
   else { const b=[$("obtn"),$("mopt")].find(x=>x.offsetParent); if(b) b.focus({preventScroll:true}); }
 }
-// The Magic Key row while this device has the key: take another one, or forget it (after a question, since the definitions close with it).
-function keyControls(){
-  const k=state.keyHeld;
-  if(state.keyAsk) return el("div",{class:"octl"},
-    el("button",{type:"button",class:"btn",onclick:()=>k.forget()},"Forget the key"),
-    el("button",{type:"button",class:"btn ghost",onclick:()=>{ state.keyAsk=false; render(); }},"Keep it"));
-  return el("div",{class:"octl"},
-    el("button",{type:"button",class:"btn ghost",onclick:()=>{ toggleOpts(false); k.change(); }},"Enter another key"),
-    el("button",{type:"button",class:"btn ghost",onclick:()=>{ state.keyAsk=true; render(); }},"Forget the key"));
-}
 export function optionsInto(o){
   o.append(overHead("Options",()=>toggleOpts(false),"Close options"));
   const box=el("div",{class:"opts"});
@@ -82,4 +72,15 @@ export function optionsInto(o){
     state.account&&state.db&&state.account.view().available?row("Account",accountControls(state.account,el,render,state.acct)):null,
     state.db?row("Your data",dataTransferControls(state.db,el,render,state.xfer),"Saves everything this device keeps (answers, debates, favorites, skipped pairs and these settings) in one file, as a backup or to move to another device. Importing adds what is missing and never deletes anything."):null].filter(Boolean));
   o.append(box);
+}
+
+// The Magic Key row while this device has the key: take another one, or forget it (after a question, since the definitions close with it).
+function keyControls(){
+  const k=state.keyHeld;
+  if(state.keyAsk) return el("div",{class:"octl"},
+    el("button",{type:"button",class:"btn",onclick:()=>k.forget()},"Forget the key"),
+    el("button",{type:"button",class:"btn ghost",onclick:()=>{ state.keyAsk=false; render(); }},"Keep it"));
+  return el("div",{class:"octl"},
+    el("button",{type:"button",class:"btn ghost",onclick:()=>{ toggleOpts(false); k.change(); }},"Enter another key"),
+    el("button",{type:"button",class:"btn ghost",onclick:()=>{ state.keyAsk=true; render(); }},"Forget the key"));
 }

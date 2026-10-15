@@ -14,9 +14,9 @@ export const state = {
   acct: {},      // the same for the Account row (src/ui/account.ts)
   xfer: {},      // what the "Your data" row of Options keeps between renders (src/ui/data-transfer.ts)
   tutor: null,   // a question to the app's own server (platform.tutor), when the place has one; `sample` is used first
+  unlock: null,  // {open, tutor}: opens the prompt for the Magic Key (platform.unlock) while this device has none; `tutor` is whether the server has a tutor waiting for it
   keyHeld: null,   // {change, forget} while this device has the Magic Key (platform.keyHeld); keyAsk: the Options row is asking whether to forget it
   keyAsk: false,
-  unlock: null,  // {open, tutor}: opens the prompt for the Magic Key (platform.unlock) while this device has none; `tutor` is whether the server has a tutor waiting for it
   batches: [],
   answers: {},
   gotB: false,
