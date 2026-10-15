@@ -28,3 +28,4 @@
 @import "./styles/24-ai-flags.css"; /* version 59: a flag on every box with Claude's text, the judge's ruling */
 @import "./styles/25-toolbar.css"; /* version 62: toolbar icons, the hint after a skip */
 @import "./styles/26-follow-up-width.css"; /* version 63: the follow-up row may not widen its block */
+@import "./styles/27-voice.css"; /* voice: the bar with the microphone and what was heard, the Voice row of Options */

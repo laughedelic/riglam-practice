@@ -12,6 +12,7 @@ import type { AccountSlot } from "../ui/account";
 import type { TransferSlot } from "../ui/data-transfer";
 
 export type { Pair, PoolEntry, Verdict };
+type Feature = import("../ui/features").Feature;
 
 export interface CellDoc {
   text: string;
@@ -246,4 +247,64 @@ export interface State {
   blitz: boolean;
   timeEdit: boolean;
   timeDraft: string;
+
+  // reading the questions aloud and answering by voice (shell/voice.js)
+  voice: VoiceState;
+  /** features on trial that are on for this device (src/ui/features.ts) */
+  features: Feature[];
+}
+
+/** A spoken answer that waits for its confirmation (shell/voice.js). */
+export interface PendingAnswer {
+  /** the screen it was said for */
+  key: string;
+  /** "Heard “x”, taken as", or just "Heard" when it is the same */
+  said: string;
+  /** what it was taken as */
+  label: string;
+  /** applies it, as the tap or the typed answer it stands for */
+  apply: () => void;
+  /** the pause after which it goes on by itself, when Options says so */
+  auto: { ms: number; t0: number; tid: ReturnType<typeof setTimeout> } | null;
+}
+
+/** Voice settings (kept on the device) and what the voice is doing on the screen now. */
+export interface VoiceState {
+  /** read each question aloud */
+  read: boolean;
+  /** answer by voice: not at all, when the microphone button is tapped, or listening after each question */
+  answer: "off" | "tap" | "auto";
+  /** a heard answer waits for Confirm, or goes on by itself after a pause */
+  confirm: "tap" | "auto";
+  /** the chosen voice, "" for the best one this device has */
+  voiceId: string;
+  rate: number;
+  /** the screen spoken and listened for; a new screen stops what the last one started */
+  key: string;
+  phase: "idle" | "speaking" | "listening";
+  /** what the recognizer hears so far */
+  live: string;
+  /** the last thing to tell: what was heard and taken, or why nothing was */
+  note: string;
+  bad: boolean;
+  /** the answer that was heard and waits to be confirmed; null when none does */
+  pend: PendingAnswer | null;
+  /** "three possibilities" was heard and the page asked which of the two is inside the other */
+  ask3: boolean;
+  /** the person has tapped or pressed a key since the page opened */
+  began: boolean;
+  /** a question was already shown (the first one is held, not read) */
+  seen: boolean;
+  /** the question on the screen is the first one: nothing is read or listened to until the person taps the speaker or the microphone */
+  held: boolean;
+  /** how often this screen was listened to without an answer coming of it */
+  tries: number;
+  /** speaking failed for want of a tap on the page: the Read again button says so */
+  blocked: boolean;
+  /** ends the current listening */
+  stop: { stop(): void; abort(): void } | null;
+  /** the speaking or listening under way; a callback of one that was stopped finds another here and does nothing */
+  tok: object | null;
+  /** the Options row listens for the browser's list of voices (once it has been shown) */
+  hooked: boolean;
 }

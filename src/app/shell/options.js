@@ -8,6 +8,7 @@ import { WORDINGS } from "../debate/text.js";
 import { overHead } from "./chat.js";
 import { render } from "./render.js";
 import { kindMs } from "./timers.js";
+import { voiceRow } from "./voice.js";
 
 /* ---------- debate: rendering ---------- */
 /* ---------- options: notation, wording of the questions, blitz time ---------- */
@@ -74,6 +75,7 @@ export function optionsInto(o){
       "Applies to the statements and to your answers."),
     state.sample&&state.db?row("Check lab",el("button",{type:"button",class:"sw",role:"switch","aria-checked":state.lab?"true":"false",onclick:()=>setLab(!state.lab)},el("i",{class:"knob","aria-hidden":"true"}),el("span",{class:"swl",text:"Three models check every answer"}),el("span",{class:"swt",text:state.lab?"on":"off"})),
       "For development. After each check, Haiku, Sonnet and Opus classify your examples independently: three Claude calls from your own usage. Opus rules as judge only when they differ, and on about one answer in ten as a spot check; when all three agree, that is the verdict. Every run is stored so the models can be compared, and any box with Claude\u2019s text has a flag. Your page verdicts do not change."):null,
+    voiceRow(row,segOf),
     timeRow("rel","Relation time","The Blitz countdown for choosing the relation, in Relations and in Pervasions."),
     timeRow("ex","Example time","The Blitz countdown for each example in Relations (a table of three cells gets three times this) and for each question in Pervasions."),
     state.account&&state.db&&state.account.view().available?row("Account",accountControls(state.account,el,render,state.acct)):null,

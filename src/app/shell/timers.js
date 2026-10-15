@@ -20,12 +20,14 @@ wideMq.addEventListener("change",()=>{ syncVv(); if(state.mode!=="loading") rend
 // Blitz: a bolt in the top bar, left, next to the heading (the mode of practice): outline when off, filled when on. No box, no number: the seconds are in its name
 // and editable in Options and beside the countdown. Two independent times: the relation (Relations and Pervasions) and the examples (each example in
 // Relations, each question in Pervasions). The countdown that is running is the one the in-place field shows; changing one never changes the other.
-// The toolbar icons (bolt, star, skip) share one line style: 24 px, stroke 1.75, outline when off, filled when on.
+// The toolbar icons (bolt, star, skip, and mic and speaker for voice) share one line style: 24 px, stroke 1.75, outline when off, filled when on.
 export function tbIcon(name){
   const P={
   bolt:'<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
   star:'<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
-  skip:'<polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/>'
+  skip:'<polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/>',
+  mic:'<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/>',
+  speak:'<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/>'
   };
   const svg=document.createElementNS("http://www.w3.org/2000/svg","svg");
   svg.setAttribute("viewBox","0 0 24 24"); svg.setAttribute("class","tbi"); svg.setAttribute("aria-hidden","true"); svg.innerHTML=P[name];
@@ -92,19 +94,20 @@ export const timerSlot=(kind,on)=>on?timerRow(kind):el("div",{class:"trow ph","a
 export const relTimed=()=>!!(state.blitz&&state.ui&&!state.ui.debate&&!state.ui.checked&&state.mode==="quiz"&&state.tab==="practice");
 export const relTimedD=()=>!!(state.blitz&&state.ui&&state.ui.debate&&state.ui.step>3&&!state.ui.rel&&!state.ui.checked&&state.mode==="quiz"&&state.tab==="debate");
 const exMul=()=>(relTimed()&&state.ui.rel)?Math.max(1,fillable().length):1;
-export function ensureRelTimer(){
+// `spent`: the time of the countdown already gone (it goes on after a stop for a spoken answer, debate/flow.js)
+export function ensureRelTimer(spent=0){
   const u=state.ui;
-  if(!u||state.mode!=="quiz"||u.checked||!state.blitz||state.timeEdit||u.tq) return;
-  const now=performance.now();
+  if(!u||state.mode!=="quiz"||u.checked||!state.blitz||state.timeEdit||u.tq||u.hold) return;
+  const t0=performance.now()-spent;
   if(u.debate){
     if(state.tab!=="debate"||u.step<4||u.rel||!state.relMs) return;
-    u.tph="rel"; u.tq={t0:now,limit:state.relMs}; u.tid=setTimeout(()=>expireRelD(u),state.relMs);
+    u.tph="rel"; u.tq={t0,limit:state.relMs}; u.tid=setTimeout(()=>expireRelD(u),Math.max(1,state.relMs-spent));
     return;
   }
   if(state.tab!=="practice") return;
   const lim=limitMs(); if(!lim) return;
-  if(!u.rel){ u.tph="pick"; u.tq={t0:now,limit:state.relMs}; u.tid=setTimeout(()=>expireRel(u),state.relMs); }
-  else { const total=lim*exMul(); u.tph="ex"; u.tq={t0:now,limit:total}; u.tid=setTimeout(()=>expireEx(u),total); }
+  if(!u.rel){ u.tph="pick"; u.tq={t0,limit:state.relMs}; u.tid=setTimeout(()=>expireRel(u),Math.max(1,state.relMs-spent)); }
+  else { const total=lim*exMul(); u.tph="ex"; u.tq={t0,limit:total}; u.tid=setTimeout(()=>expireEx(u),Math.max(1,total-spent)); }
 }
 function expireRel(u){
   if(u!==state.ui||u.checked||u.rel||state.tab!=="practice") return;
@@ -128,6 +131,8 @@ function expireRelD(u){
 }
 // a new start: after a change of the switch or the time, the running countdown begins again with its full time
 export function relReset(){ if(state.ui&&!state.ui.checked&&(!state.ui.debate||state.ui.step>3)) stopTimer(); }
+// the bar of a countdown that is stopped for a spoken answer (debate/flow.js) stands still where it is, and goes on with the clock
+export function freezeBar(on){ for(const i of document.querySelectorAll(".tbar i")) i.style.animationPlayState=on?"paused":""; }
 function timerBar(){
   if(!state.ui.tq) return null;
   const e=Math.max(0,Math.round(performance.now()-state.ui.tq.t0));
