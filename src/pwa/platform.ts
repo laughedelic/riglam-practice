@@ -14,8 +14,8 @@ import { fetchCourse, forgetCourse, keepCourse, keptCourse, whyNot, type Definit
 import { createAccountClient } from "../account/client";
 import { aboutThisBuild } from "./about";
 import { updates } from "./updates";
-import { createLocalDb } from "./local-db";
 import { showStorageNotice } from "./storage-notice";
+import { createLocalDb } from "./local-db";
 import { createTutor, tutorIsOn as serverSaysOn } from "./tutor";
 import { takeLinkKey, storedKey, storeKey, forgetKey, showUnlock, markKeyChanged, takeKeyChanged, KEY_CHANGED_TEXT } from "./unlock";
 
