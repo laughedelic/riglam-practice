@@ -50,6 +50,24 @@ test("Not now closes the dialog for this visit", async ({ page }) => {
   await expect(page.locator("#unlock")).toHaveCount(0);
 });
 
+test("after Not now, Options has a row that asks for the key again, and it is gone once the key is there", async ({ page }) => {
+  await page.goto("/");
+  await ready(page);
+  await page.getByRole("button", { name: "Not now" }).click();
+  await page.getByRole("button", { name: /options/i }).filter({ visible: true }).first().click();
+  await expect(page.getByText("the tutor (Explain) is off")).toBeVisible();
+  await page.getByRole("button", { name: "Enter the key" }).click();
+  await expect(page.locator("#unlock")).toBeVisible();
+  await expect(page.locator("#unlock")).toContainText("tutor");
+});
+
+withKey("with the key there is no key row in Options", async ({ page }) => {
+  await page.goto(`/#k=${dataKey}`);
+  await ready(page);
+  await page.getByRole("button", { name: /options/i }).filter({ visible: true }).first().click();
+  await expect(page.getByRole("button", { name: "Enter the key" })).toHaveCount(0);
+});
+
 test("text that is not a key is refused in the dialog", async ({ page }) => {
   await page.goto("/");
   await ready(page);

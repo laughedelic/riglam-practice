@@ -28,17 +28,19 @@ export function forgetKey() {
 /**
  * Tells a reader without a key how to get one, and takes the key if it is pasted. `verify(key)` resolves when the
  * key opens the definitions and rejects when it does not; the page is then reloaded so it starts unlocked.
- * Shown once per visit: "Not now" is remembered until the tab is closed, unless there is a problem to report.
+ * Shown on its own once per visit: "Not now" is remembered until the tab is closed, unless there is a problem to report.
+ * Returns a function that opens the dialog again whenever the reader asks for it (the Options row), "Not now" or not.
  */
-export function showUnlock({ problem = null, verify }: { problem?: string | null; verify: (key: string) => Promise<unknown> }) {
-  if (document.getElementById("unlock") || (!problem && get("sessionStorage", DISMISSED))) return;
+export function showUnlock({ problem = null, verify }: { problem?: string | null; verify: (key: string) => Promise<unknown> }): () => void {
   const build = () => {
+    const open = document.getElementById("unlock") as HTMLDialogElement | null;
+    if (open) { if (!open.open) open.showModal(); return; }
     const dlg = document.createElement("dialog");
     dlg.id = "unlock";
     dlg.setAttribute("aria-labelledby", "unlock-h");
     dlg.innerHTML = `<form method="dialog">
       <h2 id="unlock-h">The definitions are locked</h2>
-      <p>The terms, translations and relations work without a key. The definitions follow the course booklet, so they open only with the link your study group shared. Open that link once on this device, or paste the link (or just its key) here.</p>
+      <p>The terms, translations and relations work without a key. The definitions follow the course booklet, and the tutor (Explain) answers from it, so both open only with the link your study group shared. Open that link once on this device, or paste the link (or just its key) here.</p>
       <p id="unlock-err" class="err" role="alert" hidden></p>
       <label for="unlock-key">Link or key</label>
       <input id="unlock-key" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="url">
@@ -64,7 +66,8 @@ export function showUnlock({ problem = null, verify }: { problem?: string | null
     });
     dlg.showModal();
   };
-  if (document.body) build();
-  else addEventListener("DOMContentLoaded", build, { once: true });
+  const when = (go: () => void) => (document.body ? go() : addEventListener("DOMContentLoaded", go, { once: true }));
+  if (problem || !get("sessionStorage", DISMISSED)) when(build);
+  return () => when(build);
 }
 
