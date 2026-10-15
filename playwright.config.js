@@ -9,7 +9,7 @@ export default defineConfig({
   // The legacy page tests use random pairs; a check or two can be flaky, so a failing file is run once more.
   retries: 1,
   workers: process.env.CI ? 2 : 3,
-  // CI writes no HTML report and no traces: both record the data key that the unlock specs type into URLs, and CI does not upload them (ci.yml).
+  // CI writes no HTML report and no traces: both record page content and step arguments (URLs, typed text), which can include the course definitions and the data key (ci.yml).
   reporter: process.env.CI ? [["github"], ["list"]] : [["list"]],
   use: { baseURL: `http://localhost:${PORT}`, trace: process.env.CI ? "off" : "retain-on-failure" },
   // The PWA specs run against the production build served by `vite preview`; `npm run build` comes first.

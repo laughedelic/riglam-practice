@@ -53,4 +53,4 @@ It keeps the definitions out of search engines, link previews, the host's files,
 
 ## Licence
 
-The AGPL-3.0 in `LICENSE` covers the source code. It does not cover the term data in `src/data`, which is compiled from course materials and published translations and is not licensed by this repository. The definitions follow wording whose authors and publishers hold the rights, which is why they are kept in the encrypted course tier. If you add data, keep third-party wording out of the open tier.
+The AGPL-3.0 in `LICENSE` covers the source code. It does not cover the term data in `src/data`, which is compiled from course materials and published translations and is not licensed by this repository. The definitions follow wording whose authors and publishers hold the rights, which is why they are in the course tier and not in the open one. If you add data, keep third-party wording out of the open tier.

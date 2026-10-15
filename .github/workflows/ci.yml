@@ -88,8 +88,9 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - run: npx playwright install --with-deps chromium
-      # Nothing from this step is uploaded: the unlock specs put the data key into page URLs, which the HTML report and the traces
-      # record, and artifacts (unlike logs) are not masked. Read a failure in this job's log, or run the spec locally with `--trace on`.
+      # Nothing from this step is uploaded: the HTML report and the traces record page content and step arguments (URLs, typed text),
+      # which can include the course definitions and the data key, and artifacts (unlike logs) are not masked.
+      # Read a failure in this job's log, or run the spec locally with `--trace on`.
       - run: npx playwright test ${{ matrix.args }}
 
   # One check for the whole suite, under the name that branch protection requires (docs/RELEASING.md), whatever the jobs above are called or however many there are.
