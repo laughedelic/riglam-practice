@@ -1,5 +1,6 @@
 import { state } from "../state.js";
 import { mname } from "./lab-panel.js";
+import { sendFlags, withdrawFlag } from "./flag-reports.js";
 import { flagQ, hash36 } from "./lab.js";
 import { $, el } from "../core/dom.js";
 import { put } from "../practice/answers.js";
@@ -7,16 +8,21 @@ import { favSafe } from "../practice/favorites.js";
 import { render } from "../shell/render.js";
 
 /* ---------- flags: any part of any AI answer ---------- */
-// a flag is one document per part: {caseKey, thing, part, model, shown, note, suggest, state}; it can be changed or removed, and it is the labeled data for the model comparison
-export const flagId=c=>"fl_"+favSafe(c.caseKey).slice(0,60)+"_"+hash36([c.caseKey,c.thing||"",c.part,c.model||"",c.n||""].join("|"));
+// a flag is one document per part: {caseKey, thing, part, model, shown, asked, note, suggest, state}; it can be changed or removed, and it is the labeled data for the model comparison.
+// It keeps what Claude said in full (up to SHOWN_MAX), and for an answer in the chat the question it answered, so Review can show the flag with its whole exchange.
+const SHOWN_MAX=2000;
+// a case opened from Review carries the id of the flag it edits; a new one gets its id from what it is on
+export const flagId=c=>c.id||"fl_"+favSafe(c.caseKey).slice(0,60)+"_"+hash36([c.caseKey,c.thing||"",c.part,c.model||"",c.n||""].join("|"));
 const flagOf=c=>state.flags[flagId(c)];
 // a render that keeps the chat view where it is scrolled (the overlay is rebuilt and would start at the top again)
 function renderKeep(){ const sc=$("chatscroll"), y=sc?sc.scrollTop:0; render(); const n=$("chatscroll"); if(n&&y) n.scrollTop=y; }
 function flagWrite(k,fn,undo){
   state.flagErr=""; state.flagPending++;
-  flagQ[k]=(flagQ[k]||Promise.resolve()).catch(()=>{}).then(fn).catch(e=>{ undo(); state.flagErr="The flag could not be saved ("+((e&&e.code)||"error")+"), so it was undone."; renderKeep(); }).finally(()=>{ state.flagPending--; });
+  return flagQ[k]=(flagQ[k]||Promise.resolve()).catch(()=>{}).then(fn).catch(e=>{ undo(); state.flagErr="The flag could not be saved ("+((e&&e.code)||"error")+"), so it was undone."; renderKeep(); }).finally(()=>{ state.flagPending--; });
 }
+// A device without the Magic Key cannot flag (flags go to the app's maintainer, and only the study group's devices may write to it): it gets the same prompt as Explain
 export function openFlag(c,where){
+  if(state.unlock){ state.unlock.open(); return; }
   const had=flagOf(c); state.ui.flagEdit={c,where,note:had?had.note||"":"",suggest:had?had.suggest||"":""}; renderKeep();
   requestAnimationFrame(()=>{ const t=$("flag-note"); if(t){ t.focus({preventScroll:true}); const e=t.closest(".flagedit"); (e||t).scrollIntoView({block:"nearest"}); } });
 }
@@ -24,17 +30,21 @@ export function saveFlag(){
   const F=state.ui.flagEdit; if(!F) return;
   const id=flagId(F.c), had=state.flags[id], now=new Date().toISOString();
   /** @type {import("../types.ts").FlagDoc} */
-  const draft={id,caseKey:F.c.caseKey,thing:F.c.thing||"",part:F.c.part,model:F.c.model||"",runId:F.c.runId||null,n:F.c.n||null,shown:String(F.c.shown||"").slice(0,600),
-    note:F.note.trim().slice(0,800),suggest:F.suggest.trim().slice(0,300),pair:F.c.pair||null,at:had?had.at:now,updatedAt:now,state:had?had.state:"new"};
+  const draft={id,caseKey:F.c.caseKey,thing:F.c.thing||"",part:F.c.part,model:F.c.model||"",runId:F.c.runId||null,n:F.c.n||null,shown:String(F.c.shown||"").slice(0,SHOWN_MAX),
+    asked:F.c.asked?String(F.c.asked).slice(0,600):undefined,note:F.note.trim().slice(0,800),suggest:F.suggest.trim().slice(0,300),pair:F.c.pair||null,at:had?had.at:now,updatedAt:now,state:had?had.state:"new"};
   const doc=JSON.parse(JSON.stringify(draft)); // without the undefined fields
   state.flags[id]=doc; state.ui.flagEdit=null; renderKeep(); refocusFlag(id);
-  if(state.db) flagWrite(id,()=>put("flags",id,doc),()=>{ if(had) state.flags[id]=had; else delete state.flags[id]; });
+  if(state.db){
+    const written=flagWrite(id,()=>put("flags",id,doc),()=>{ if(had) state.flags[id]=had; else delete state.flags[id]; });
+    if(state.reports) written.then(()=>sendFlags([id]));
+  }
 }
 function refocusFlag(id){ requestAnimationFrame(()=>{ const b=document.querySelector('[data-fid="'+id+'"]'); if(b) b.focus({preventScroll:true}); }); }
 function cancelFlag(){ const F=state.ui.flagEdit; state.ui.flagEdit=null; renderKeep(); if(F) refocusFlag(flagId(F.c)); }
 export function removeFlag(id){
   const had=state.flags[id]; if(!had) return; delete state.flags[id]; if(state.ui) state.ui.flagEdit=null; renderKeep(); refocusFlag(id);
   if(state.db) flagWrite(id,()=>state.db.collection("flags").doc(id).delete(),()=>{ state.flags[id]=had; });
+  withdrawFlag(id);
 }
 export function setFlagState(id,to){
   const had=state.flags[id]; if(!had) return; const doc=Object.assign({},had,{state:to,updatedAt:new Date().toISOString()}); state.flags[id]=doc; renderKeep();
@@ -52,6 +62,7 @@ export function flagEditorNode(where){
   return el("div",{class:"flagedit",role:"group","aria-label":"Flag"},
     el("p",{class:"fh"},el("span",{class:"flg","aria-hidden":"true"}),el("b",{text:had?"Flagged: ":"Flag: "}),el("span",{class:"fv",text:nm})),
     note,sug,
+    state.reports?el("p",{class:"fnote",text:"Submit sends this flag and the exercise it is on to the app’s maintainer."}):null,
     el("div",{class:"fa"},el("button",{type:"button",class:"btn",onclick:saveFlag,text:"Submit"}),
       el("button",{type:"button",class:"btn ghost",onclick:cancelFlag,text:"Cancel"}),
       had?el("button",{type:"button",class:"back",onclick:()=>removeFlag(flagId(F.c)),text:"Remove flag"}):null));
@@ -66,21 +77,21 @@ export function flagPart(c,where,text,cls){
 // A small flag in the top-right corner of the box, never beside Close: the Why panel and the chat show the word with it, the small ? notes only the icon.
 // The editor opens inside the same box. A flag is the same document whichever box it was made in (the note on a cell is one flag in the ? note and in the question row).
 const flagKey=()=>state.ui.lab&&state.ui.lab.kase?state.ui.lab.kase.key:(state.ui.col||"answers")+"_"+(state.ui.saveId||state.ui.fkey||(state.ui.fkey="t"+Date.now().toString(36)));
-export function aiCase(part,partLabel,shown,n){
-  return {caseKey:flagKey(),part,partLabel,shown:String(shown||"").slice(0,400),n:n==null?null:String(n),pair:{a:state.cur.p.a,b:state.cur.p.b,relation:state.cur.p.relation,tab:state.ui.debate?"debate":"practice"}};
+export function aiCase(part,partLabel,shown,n,asked){
+  return {caseKey:flagKey(),part,partLabel,shown:String(shown||"").slice(0,SHOWN_MAX),n:n==null?null:String(n),asked:asked||undefined,pair:{a:state.cur.p.a,b:state.cur.p.b,relation:state.cur.p.relation,tab:state.ui.debate?"debate":"practice"}};
 }
 export function aiFlag(c,where,word){
   if(!state.db||!state.ui||!state.cur||!state.cur.p) return null;
   const on=!!flagOf(c), F=state.ui.flagEdit, active=!!(F&&flagId(F.c)===flagId(c));
   return el("button",{type:"button","data-fid":flagId(c),class:"aiflag"+(word?" wd":"")+(on?" flagged":"")+(active?" active":""),"aria-pressed":on?"true":"false",
-    "aria-label":(on?"Flagged: ":"Flag ")+c.partLabel,title:on?"Flagged. Tap to change":"Flag "+c.partLabel,onclick:e=>{ e.stopPropagation(); openFlag(c,where); }},
+    "aria-label":(on?"Flagged: ":"Flag ")+c.partLabel,title:state.unlock?"Flagging needs the Magic Key":on?"Flagged. Tap to change":"Flag "+c.partLabel,onclick:e=>{ e.stopPropagation(); openFlag(c,where); }},
     el("span",{class:"flg","aria-hidden":"true"}),word?el("span",{class:"fw",text:on?"Flagged":"Flag"}):null);
 }
 // one answer of Claude in the Why panel (explain turn) or the chat: the flag first, so it floats to the top-right, and the editor last
 export function decorateAns(a,t,idx,over){
   if(!state.ui||t.pending||!t.content||a.childNodes.length===1&&a.firstChild.classList&&a.firstChild.classList.contains("status")) return;
-  const where=(over?"o":"i")+idx, expl=t.kind==="explain";
-  const fl=aiFlag(aiCase(expl?"explain":"chat",expl?"Claude’s explanation":"Claude’s answer",t.content,expl?null:idx),where,true);
+  const where=(over?"o":"i")+idx, expl=t.kind==="explain", q=!expl&&state.ui.chat?state.ui.chat[idx-1]:null;
+  const fl=aiFlag(aiCase(expl?"explain":"chat",expl?"Claude’s explanation":"Claude’s answer",t.content,expl?null:idx,q&&q.role==="user"&&!q.hidden?q.content:null),where,true);
   if(fl){ a.prepend(fl); a.classList.add("hasflag"); }
   const ed=flagEditorNode(where); if(ed) a.append(ed);
 }

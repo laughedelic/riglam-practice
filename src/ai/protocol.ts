@@ -77,4 +77,6 @@ export interface Health {
   tutor: "on" | "off";
   /** optional accounts and sync (src/account/protocol.ts); a server from before accounts leaves it out */
   accounts?: "on" | "off";
+  /** reports of flags (src/report/protocol.ts); a server from before them leaves it out */
+  reports?: "on" | "off";
 }
