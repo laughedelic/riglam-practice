@@ -32,4 +32,6 @@ export interface Env {
   MAX_DOCS_PER_ACCOUNT?: string;
   /** most document writes one account may make per UTC day (default 3000) */
   DAILY_WRITES_PER_ACCOUNT?: string;
+  /** most sign-in, sign-up and add-a-passkey ceremonies that may be started per UTC day, everybody together (default 2000) */
+  CEREMONIES_PER_DAY?: string;
 }
