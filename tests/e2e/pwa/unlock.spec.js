@@ -102,16 +102,21 @@ test("a link without a usable key says so and leaves the address clean", async (
   expect(await page.evaluate(() => location.hash)).toBe("");
 });
 
-// answers the first pair far enough to get the result with its Terms panel, and opens the list of definitions
-const openTermDefinitions = async (page) => {
-  await page.goto("/");
-  await ready(page);
-  await relOptions(page).first().click(); // answer the pair: the result has the Terms panel
+// answers the pair on the screen far enough to get the result
+const answerFirstPair = async (page) => {
+  await relOptions(page).first().click();
   for (let i = 0; i < 4 && (await page.locator("#cin").isVisible()); i++) {
     await page.fill("#cin", "thing " + (i + 1));
     await page.keyboard.press("Enter");
     await page.waitForTimeout(100);
   }
+};
+
+// answers the first pair far enough to get the result with its Terms panel, and opens the list of definitions
+const openTermDefinitions = async (page) => {
+  await page.goto("/");
+  await ready(page);
+  await answerFirstPair(page); // the result has the Terms panel
   await page.getByRole("tab", { name: "Terms" }).click();
   const terms = page.locator(".tm-tog");
   await expect(terms.first()).toBeVisible();
@@ -142,6 +147,39 @@ test("locked definitions still show the Russian name of each term when English +
   await expect(russian.first()).toHaveAttribute("lang", "ru");
 });
 
+test("a locked term from every booklet section says where to look it up", async ({ page }) => {
+  await page.addInitScript(hook);
+  await page.goto("/");
+  await ready(page);
+  const lines = await page.evaluate(() => {
+    const T = window.__t.DATA.terms, first = {};
+    for (const n of Object.keys(T)) if (T[n].ch && !first[T[n].ch]) first[T[n].ch] = n;
+    return Object.entries(first).map(([ch, n]) => [ch, window.__t.lockedDefs([n]).querySelector(".src")?.textContent ?? ""]);
+  });
+  expect(lines.length).toBeGreaterThan(10); // the chapters I to XI, the Dampilon tables and the sections without a numeral
+  for (const [ch, line] of lines) expect(line, ch).toMatch(/^Look it up in /);
+  expect(lines.map(([, line]) => line)).toContain("Look it up in the booklet, section Debate.");
+});
+
+test("the page opens without waiting for the server to say whether it has a tutor, and grays Explain when it does", async ({ page }, testInfo) => {
+  let release;
+  const held = new Promise((resolve) => (release = resolve));
+  await page.route("**/api/health", async (route) => {
+    await held;
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, tutor: "on" }) }).catch(() => {});
+  });
+  const start = Date.now();
+  await page.goto("/");
+  await ready(page);
+  expect(Date.now() - start).toBeLessThan(3000); // the probe gives up after 4 s: the page must not wait for it
+  await expect(page.locator("button.needs-key")).toHaveCount(0);
+  release();
+  if (!isPhone(testInfo)) return; // the answer flow is exercised in the phone layout
+  await answerFirstPair(page);
+  await expect(page.locator("button.needs-key")).toHaveText("Explain");
+  await expect(page.locator("button.needs-key")).toHaveAttribute("aria-disabled", "true");
+});
+
 withKey("the key in a link opens the definitions, leaves the address bar, and stays on the device", async ({ page }) => {
   const full = readFull();
   const name = Object.keys(full.terms)[0];
@@ -168,7 +206,7 @@ withKey("the words typed with spaces, in any case, open the definitions", async 
   await ready(page);
   await openPrompt(page);
   await page.fill("#unlock-key", dataKey.split("-").map((w) => w[0].toUpperCase() + w.slice(1)).join(", "));
-  await Promise.all([page.waitForLoadState("load"), page.getByRole("button", { name: "Unlock" }).click()]);
+  await Promise.all([page.waitForEvent("load"), page.getByRole("button", { name: "Unlock" }).click()]); // the event of the new page: waitForLoadState returns at once for the page that is already loaded
   await ready(page);
   expect((await firstTerm(page)).d).not.toBe(LOCKED_TEXT);
   expect(await storedKey(page)).toBe(dataKey);
