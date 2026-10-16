@@ -3,6 +3,7 @@
 //   sample  not available yet (no server): the page hides the check lab. Only `npm run dev` has one, a stand-in for the model
 //           (./dev-sample.ts); `?ai=off` in the address takes it away there too.
 //   unlock  a way to enter the Magic Key, while this device has none (./unlock.ts); the definitions come from the server (./course.ts)
+//   keyHeld while it has one: enter another, or forget it (./unlock.ts)
 //   tutor   the app's own server (./tutor.ts), when it has the tutor on and this device has the Magic Key
 //   account optional sign-in with a passkey and a server copy of the documents (./account.ts), when the server has accounts on
 //   updates the service worker's new versions: checked in the background, started from the banner or Options (./updates.ts)
@@ -18,7 +19,7 @@ import { showStorageNotice } from "./storage-notice";
 import { storeName } from "./store-slot";
 import { createLocalDb } from "./local-db";
 import { createTutor, tutorIsOn as serverSaysOn } from "./tutor";
-import { takeLinkKey, storedKey, storeKey, forgetKey, showUnlock, markKeyChanged, takeKeyChanged, KEY_CHANGED_TEXT } from "./unlock";
+import { takeLinkKey, storedKey, storeKey, forgetKey, keyDeclined, declineKey, allowKey, showUnlock, markKeyChanged, takeKeyChanged, KEY_CHANGED_TEXT } from "./unlock";
 
 const db = createLocalDb({ name: storeName(), onUnavailable: showStorageNotice });
 const link = takeLinkKey(); // first of all: a key in the address leaves the address bar at once
@@ -94,9 +95,11 @@ async function refresh(key: string, have: string) {
 /** The key the server stopped accepting may have been changed: an account that carries the key (and is signed in here) has the new one. */
 async function recoverFromAccount(): Promise<boolean> {
   try {
+    if (keyDeclined()) return false;
     const key = await createAccountClient().fetchKey();
     const got = await fetchCourse(key);
     if (!got.ok || !("definitions" in got)) return false;
+    if (keyDeclined()) return false; // the reader forgot the key while this was under way: that wins (the check and the store below run with no wait between them)
     if (!storeKey(key)) return false; // nowhere to keep it: a reload would find the device without it and fetch it again, for ever
     keepCourse({ version: got.version, definitions: got.definitions });
     return true;
@@ -128,6 +131,15 @@ async function sample(): Promise<Sample | null> {
 }
 
 let account: Account | null = null;
+let changeKey: (() => void) | null = null; // the prompt for another key, made when first asked for
+
+/** The reader forgets the Magic Key on this device: the key and the kept definitions go, and the page starts again, locked. Answers and settings stay. */
+function forgetEverything() {
+  declineKey(); // an account that carries the key would hand it back at the next start
+  forgetKey();
+  forgetCourse();
+  location.reload();
+}
 
 export const pwaPlatform: Platform = {
   target: "pwa",
@@ -136,10 +148,12 @@ export const pwaPlatform: Platform = {
   sample,
   // Offered while there is no key: the page opens the prompt when the reader reaches something that needs it (Explain, the definitions, Options).
   unlock: async () => (groupKey || !openUnlock ? null : { open: openUnlock, tutor: false, answer: tutorIsOn() }),
+  // While this device has the key: another one can be entered (the prompt keeps the old one until the new one is checked), or the key is forgotten, with the kept definitions.
+  keyHeld: async () => (groupKey ? { change: () => (changeKey ??= showUnlock({ verify }))(), forget: forgetEverything } : null),
   // Only with the key (the server would refuse the request anyway) and only when the server says its tutor is on: otherwise the page hides the tutor.
   about: () => aboutThisBuild(),
   updates,
   tutor: async () => (groupKey && (await tutorIsOn()) ? createTutor(groupKey) : null),
   // Made on first ask and then kept; it finds out for itself whether the server has accounts, so the page can show its row at once.
-  account: async () => (account ??= createPwaAccount(db, { read: () => groupKey ?? storedKey(), adopt: takeAccountKey })),
+  account: async () => (account ??= createPwaAccount(db, { read: () => groupKey ?? storedKey(), adopt: takeAccountKey, declined: keyDeclined, allow: allowKey })),
 };

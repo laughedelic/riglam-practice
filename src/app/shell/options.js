@@ -74,8 +74,6 @@ export function optionsInto(o){
       "How the statement of pervasion is worded in Pervasions: the four statements you accept or answer with Why?."),
     row("Definitions",segOf("Languages of the definitions",[["en","English"],["enru","English + Russian"]],state.defLang,setDefLang),
       "In the Terms panel. With Russian on, each entry also shows the Russian name of the term and, where the booklet translation has one, its Russian definition."),
-    state.unlock?row("Magic Key",el("button",{type:"button",class:"btn ghost",onclick:()=>{ toggleOpts(false); state.unlock.open(); }},"Enter the Magic Key"),
-      "The definitions follow the course booklet, and the tutor (Explain) answers from it, so both need the Magic Key from your study group's link. This device has none yet: open the link once on this device, or paste it here."):null,
     row("Show",el("div",{class:"octl"},
       el("button",{type:"button",class:"sw",role:"switch","aria-checked":state.showAB?"true":"false",onclick:()=>setShow("ab",!state.showAB)},el("i",{class:"knob","aria-hidden":"true"}),el("span",{class:"swl",text:"A/B markers"}),el("span",{class:"swt",text:"before the terms"})),
       el("button",{type:"button",class:"sw",role:"switch","aria-checked":state.fullPh?"true":"false",onclick:()=>setShow("full",!state.fullPh)},el("i",{class:"knob","aria-hidden":"true"}),el("span",{class:"swl",text:"Full phrases"}),el("span",{class:"swt",text:"spell out Why? answers"}))),
@@ -84,8 +82,24 @@ export function optionsInto(o){
       "For development. After each check, Haiku, Sonnet and Opus classify your examples independently: three Claude calls from your own usage. Opus rules as judge only when they differ, and on about one answer in ten as a spot check; when all three agree, that is the verdict. Every run is stored so the models can be compared, and any box with Claude\u2019s text has a flag. Your page verdicts do not change."):null,
     timeRow("rel","Relation time","The Blitz countdown for choosing the relation, in Relations and in Pervasions."),
     timeRow("ex","Example time","The Blitz countdown for each example in Relations (a table of three cells gets three times this) and for each question in Pervasions."),
+    state.unlock?row("Magic Key",el("button",{type:"button",class:"btn ghost",onclick:()=>{ toggleOpts(false); state.unlock.open(); }},"Enter the Magic Key"),
+      "The definitions follow the course booklet, and the tutor (Explain) answers from it, so both need the Magic Key from your study group's link. This device has none yet: open the link once on this device, or paste it here."):null,
+    state.keyHeld?row("Magic Key",keyControls(),
+      state.keyAsk?"Forget the Magic Key on this device? The definitions and the tutor close again until a key is entered. Your answers and settings stay. An account that carries the key gives it back when you sign in."
+        :"This device has the Magic Key, so the definitions and the tutor are open. If the study group changed the key, enter the new one; or forget the key on this device."):null,
     state.account&&state.db&&state.account.view().available?row("Account",accountControls(state.account,el,render,state.acct)):null,
     state.db?row("Your data",dataTransferControls(state.db,el,render,state.xfer),"Saves everything this device keeps (answers, debates, favorites, skipped pairs and these settings) in one file, as a backup or to move to another device. Importing adds what is missing and never deletes anything."):null,
     state.about?row("Version",aboutNode(state.about)):null].filter(Boolean));
   o.append(box);
+}
+
+// The Magic Key row while this device has the key: take another one, or forget it (after a question, since the definitions close with it).
+function keyControls(){
+  const k=state.keyHeld;
+  if(state.keyAsk) return el("div",{class:"octl"},
+    el("button",{type:"button",class:"btn",onclick:()=>k.forget()},"Forget the key"),
+    el("button",{type:"button",class:"btn ghost",onclick:()=>{ state.keyAsk=false; render(); }},"Keep it"));
+  return el("div",{class:"octl"},
+    el("button",{type:"button",class:"btn ghost",onclick:()=>{ toggleOpts(false); k.change(); }},"Enter another key"),
+    el("button",{type:"button",class:"btn ghost",onclick:()=>{ state.keyAsk=true; render(); }},"Forget the key"));
 }

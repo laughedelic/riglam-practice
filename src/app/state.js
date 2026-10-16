@@ -17,6 +17,8 @@ export const state = {
   about: null,   // {version, commit, builtAt, latest, branches?}: which build this is (platform.about), shown in Options
   updates: null, // {status, check, apply, subscribe}: updating the installed app in place (platform.updates), shown in Options
   unlock: null,  // {open, tutor}: opens the prompt for the Magic Key (platform.unlock) while this device has none; `tutor` is whether the server has a tutor waiting for it
+  keyHeld: null,   // {change, forget} while this device has the Magic Key (platform.keyHeld); keyAsk: the Options row is asking whether to forget it
+  keyAsk: false,
   batches: [],
   answers: {},
   gotB: false,

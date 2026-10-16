@@ -295,6 +295,54 @@ withKey("a kept copy opens the page at once; the server is asked in the backgrou
   await expect(page.locator("#unlock")).toHaveCount(0);
 });
 
+withKey("with the key, Options can take another one (the old one stays until the new one fits) or forget it, after a question", async ({ page }) => {
+  await page.addInitScript(hook);
+  await page.goto(`/#k=${dataKey}`);
+  await ready(page);
+  await page.getByRole("button", { name: /options/i }).filter({ visible: true }).first().click();
+  await expect(page.getByText("This device has the Magic Key")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Enter the Magic Key" })).toHaveCount(0);
+
+  // another key: the prompt opens; one that does not fit changes nothing
+  await page.getByRole("button", { name: "Enter another key" }).click();
+  await expect(page.locator("#unlock")).toBeVisible();
+  await page.fill("#unlock-key", generateKey());
+  await page.getByRole("button", { name: "Unlock" }).click();
+  await expect(page.locator("#unlock-err")).toContainText("not the Magic Key");
+  expect(await storedKey(page)).toBe(dataKey);
+  await page.getByRole("button", { name: "Close" }).click();
+
+  // forgetting asks first, and "Keep it" leaves everything as it was
+  await page.getByRole("button", { name: /options/i }).filter({ visible: true }).first().click();
+  await page.getByRole("button", { name: "Forget the key" }).click();
+  await expect(page.getByText("Forget the Magic Key on this device?")).toBeVisible();
+  await page.getByRole("button", { name: "Keep it" }).click();
+  expect(await storedKey(page)).toBe(dataKey);
+
+  await page.getByRole("button", { name: "Forget the key" }).click();
+  await page.getByRole("button", { name: "Forget the key" }).click(); // the confirmation
+  await ready(page);
+  expect(await storedKey(page)).toBeNull();
+  expect(await page.evaluate(() => localStorage.getItem("riglam.course"))).toBeNull();
+  expect(await page.evaluate(() => localStorage.getItem("riglam.keyDeclined")), "an account that carries the key must not hand it back").toBe("1");
+  expect((await firstTerm(page)).d).toBe(LOCKED_TEXT);
+  await page.getByRole("button", { name: /options/i }).filter({ visible: true }).first().click();
+  await expect(page.getByRole("button", { name: "Enter the Magic Key" })).toBeVisible();
+});
+
+withKey("forgetting the key stays forgotten when only session storage works", async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(window, "localStorage", { get() { throw new DOMException("denied", "SecurityError"); } }));
+  await page.addInitScript(hook);
+  await page.goto(`/#k=${dataKey}`);
+  await ready(page);
+  await page.getByRole("button", { name: /options/i }).filter({ visible: true }).first().click();
+  await page.getByRole("button", { name: "Forget the key" }).click();
+  await page.getByRole("button", { name: "Forget the key" }).click(); // the confirmation
+  await ready(page);
+  expect(await page.evaluate(() => sessionStorage.getItem("riglam.magicKey"))).toBeNull();
+  expect(await page.evaluate(() => sessionStorage.getItem("riglam.keyDeclined"))).toBe("1");
+});
+
 withKey("a link with another key, opened when the server cannot be asked, does not let the copy kept for the old key pass as that key's", async ({ page }) => {
   const full = readFull();
   await page.addInitScript(hook);

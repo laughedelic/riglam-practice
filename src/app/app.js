@@ -39,6 +39,7 @@ async function bootSteps(platform){
   waiting("the other parts of the app");
   try{ state.sample=await platform.sample(); }catch(e){ state.sample=null; }
   try{ state.unlock=platform.unlock?await platform.unlock():null; }catch(e){ state.unlock=null; }
+  try{ state.keyHeld=platform.keyHeld?await platform.keyHeld():null; }catch(e){ state.keyHeld=null; }
   // the server may need seconds to say whether it has a tutor: the page opens first and draws again when the answer comes
   if(state.unlock&&state.unlock.answer){ const u=state.unlock; u.answer.then(on=>{ u.tutor=!!on; if(state.mode!=="loading") render(); },()=>{}); }
   try{ state.tutor=platform.tutor?await platform.tutor():null; }catch(e){ state.tutor=null; }
