@@ -19,6 +19,8 @@ export interface Options {
   /** sync's wait settings */
   backoffMs?: number;
   quotaWaitMs?: number;
+  /** the lock between tabs (Web Locks in the browser) */
+  exclusive?: <T>(fn: () => Promise<T>, wait?: boolean) => Promise<T | undefined>;
   /** headers that show the study group's link, for a sign-up */
   proof?: () => Promise<Record<string, string>>;
   /** the Magic Key on this device (see AccountDeps.magicKey) */
@@ -31,17 +33,22 @@ export async function device(w: World, opts: Options = {}) {
   const applied: string[] = [];
   const revs = new Map<string, number>();
   const bump = (k: string) => void revs.set(k, (revs.get(k) ?? 0) + 1);
+  const writing = new Set<string>(); // writes begun whose hooks have not run
+  const saving = new Set<Promise<void>>(); // the same, as promises, for `idle`
   /** things a test can make happen at a chosen moment inside the engine's calls */
   const hooks: { afterRead?: () => Promise<void> | void } = {};
   const store: SyncStore = {
     onWrite(fn) { writers.add(fn); return () => void writers.delete(fn); },
     revision: (col, id) => revs.get(`${col}/${id}`) ?? 0,
+    writing: (col, id) => writing.has(`${col}/${id}`),
+    async idle() { while (writing.size) await Promise.allSettled([...saving]); },
     async applyRemote(col, id, data, revision) {
-      if (revision !== undefined && (revs.get(`${col}/${id}`) ?? 0) !== revision) return;
+      if (revision !== undefined && (revs.get(`${col}/${id}`) ?? 0) !== revision) return false;
       bump(`${col}/${id}`);
       applied.push(`${col}/${id}`);
       if (data === null) docs.delete(`${col}/${id}`);
       else docs.set(`${col}/${id}`, structuredClone(data));
+      return true;
     },
     async documents(col) { return [...docs].filter(([k]) => k.startsWith(col + "/")).map(([k, data]) => ({ id: k.slice(col.length + 1), data: structuredClone(data) })); },
     async read(col, id) { const d = docs.get(`${col}/${id}`); const out = d ? structuredClone(d) : null; await hooks.afterRead?.(); return out; },
@@ -80,6 +87,7 @@ export async function device(w: World, opts: Options = {}) {
     debounceMs: 0,
     backoffMs: opts.backoffMs,
     quotaWaitMs: opts.quotaWaitMs,
+    exclusive: opts.exclusive,
     onSignedOut: () => { signedOutCalls += 1; account.signedOut(); },
   });
   const passkeys: Passkeys = {
@@ -119,6 +127,30 @@ export async function device(w: World, opts: Options = {}) {
       bump(`${col}/${id}`);
       for (const fn of [...writers]) fn({ col, id, data: structuredClone(data) });
       await settle();
+    },
+    /** a write by the page that has begun (stored in memory, revision bumped) but is still being saved: the hooks run when `finish` is called */
+    begin(col: string, id: string, data: Doc | null, at?: number) {
+      if (at !== undefined) me.now = at;
+      const before = docs.get(`${col}/${id}`);
+      if (data === null) docs.delete(`${col}/${id}`);
+      else docs.set(`${col}/${id}`, structuredClone(data));
+      bump(`${col}/${id}`);
+      writing.add(`${col}/${id}`);
+      let over!: () => void;
+      saving.add(new Promise<void>((r) => (over = r)).then(() => void 0));
+      const end = () => { writing.delete(`${col}/${id}`); over(); };
+      const finish = async () => {
+        for (const fn of [...writers]) fn({ col, id, data: data === null ? null : structuredClone(data) });
+        end();
+        await settle();
+      };
+      /** the save failed: the document goes back to what it was, and no hook is told */
+      const rollback = () => {
+        if (before === undefined) docs.delete(`${col}/${id}`);
+        else docs.set(`${col}/${id}`, before);
+        end();
+      };
+      return Object.assign(finish, { rollback });
     },
     async remove(col: string, id: string, at?: number) {
       if (at !== undefined) me.now = at;

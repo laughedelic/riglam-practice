@@ -25,7 +25,7 @@ import { dayOf } from "./budget";
 import { readAccountConfig } from "./config";
 import { callerOf, gate, magicKeyOf, type Gate } from "./magic";
 import type { Env } from "./env";
-import { clearedCookie, fromB64u, newSession, pruneSessions, randomToken, readSession, sessionCookie, toB64u, tokenFrom, type Session } from "./session";
+import { clearedCookie, fromB64u, hashToken, newSession, pruneSessions, randomToken, readSession, sessionCookie, toB64u, tokenFrom, type Session } from "./session";
 
 export interface AccountDeps {
   now: () => Date;
@@ -40,6 +40,7 @@ const STATUS: Record<AccountErrorCode, 400 | 401 | 403 | 409 | 413 | 429 | 503> 
   bad_request: 400,
   too_large: 413,
   quota: 429,
+  full: 429,
   conflict: 409,
   unavailable: 503,
 };
@@ -155,17 +156,21 @@ async function count(db: D1Database, sql: string, ...values: (string | number)[]
  */
 async function startChallenge(db: D1Database, now: Date, perDay: number, kind: "register" | "login" | "passkey", challenge: string, userId?: string, name?: string): Promise<string | Response> {
   await db.prepare("DELETE FROM challenges WHERE expires_at < ?1").bind(now.toISOString()).run();
-  const counted = await db
-    .prepare("INSERT INTO budget (day, scope, micro, calls) VALUES (?1, 'ceremonies', 1, 1) ON CONFLICT (day, scope) DO UPDATE SET micro = micro + 1, calls = calls + 1 WHERE micro < ?2")
-    .bind(dayOf(now), perDay)
-    .run();
-  if (!counted.meta.changes) return fail("quota", "too many sign-ins were started today; try again tomorrow");
+  // The open-challenge cap is checked first, so a request it refuses does not use up the day's ceremonies; the challenge is taken back if the day is over.
   const id = randomToken(16);
   const inserted = await db
     .prepare("INSERT INTO challenges (id, kind, challenge, user_id, name, expires_at) SELECT ?1, ?2, ?3, ?4, ?5, ?6 WHERE (SELECT COUNT(*) FROM challenges) < ?7")
     .bind(id, kind, challenge, userId ?? null, name ?? null, new Date(now.getTime() + CHALLENGE_MS).toISOString(), MAX_PENDING)
     .run();
   if (!inserted.meta.changes) return fail("quota", "too many sign-ins are under way; try again in a few minutes");
+  const counted = await db
+    .prepare("INSERT INTO budget (day, scope, micro, calls) VALUES (?1, 'ceremonies', 1, 1) ON CONFLICT (day, scope) DO UPDATE SET micro = micro + 1, calls = calls + 1 WHERE micro < ?2")
+    .bind(dayOf(now), perDay)
+    .run();
+  if (!counted.meta.changes) {
+    await db.prepare("DELETE FROM challenges WHERE id = ?1").bind(id).run().catch(() => {});
+    return fail("quota", "too many sign-ins were started today; try again tomorrow");
+  }
   return id;
 }
 
@@ -247,27 +252,42 @@ export function accountRoutes(deps: AccountDeps) {
   });
 
   app.post(ACCOUNT_API.logout, async (c) => {
+    // The session goes whether or not it is still valid (an ended one is removed too). When the database cannot say that it is gone the answer is a failure and the cookie stays,
+    // so that the person is not told they are signed out while the token still works, and can try again.
     if (c.env.DB) {
-      const session = await sessionOf(c, deps.now()).catch(() => null);
-      if (session) await c.env.DB.prepare("DELETE FROM sessions WHERE token_hash = ?1").bind(session.tokenHash).run().catch(() => {});
+      const token = tokenFrom(c.req.header("cookie"));
+      if (token && token.length <= 200) {
+        try {
+          await c.env.DB.prepare("DELETE FROM sessions WHERE token_hash = ?1").bind(await hashToken(token)).run();
+        } catch {
+          return fail("unavailable", "the session could not be ended just now; try again");
+        }
+      }
     }
     return json({ ok: true }, { "set-cookie": clearedCookie() });
   });
 
   // ---- a new account ----
 
+  /** The answer when sign-up is not open to this request now, or null. Asked again when the sign-up is verified: a ceremony lasts minutes, in which the setting or the key may change. */
+  async function signupRefusal(c: Ctx, signup: string): Promise<Response | null> {
+    if (signup === "closed") return fail("not_granted", "new accounts are closed");
+    if (signup === "group") {
+      const device = c.req.header(HEADER.device) ?? "";
+      const proof = c.req.header(HEADER.proof) ?? "";
+      const checked = await gate(c.env, deps.now(), await callerOf(c.req.header("cf-connecting-ip")), device, proof);
+      if (!checked.ok) return keyRefusal(checked, deps.now(), "new accounts need the Magic Key");
+    }
+    return null;
+  }
+
   app.post(ACCOUNT_API.registerOptions, async (c) => {
     const env = c.env;
     if (!(await accountsOn(env.DB))) return fail("unavailable", "accounts are off");
     const db = env.DB!;
     const cfg = readAccountConfig(env);
-    if (cfg.signup === "closed") return fail("not_granted", "new accounts are closed");
-    if (cfg.signup === "group") {
-      const device = c.req.header(HEADER.device) ?? "";
-      const proof = c.req.header(HEADER.proof) ?? "";
-      const checked = await gate(env, deps.now(), await callerOf(c.req.header("cf-connecting-ip")), device, proof);
-      if (!checked.ok) return keyRefusal(checked, deps.now(), "new accounts need the Magic Key");
-    }
+    const refused = await signupRefusal(c, cfg.signup);
+    if (refused) return refused;
     if ((await count(db, "SELECT COUNT(*) AS n FROM users")) >= cfg.maxAccounts) return fail("quota", "this app has reached its number of accounts");
     const body = await readObject(c, 2_000);
     if (body === "too_large") return fail("too_large", "the request is too large");
@@ -298,6 +318,8 @@ export function accountRoutes(deps: AccountDeps) {
     const body = await readObject(c, 100_000);
     if (body === "too_large") return fail("too_large", "the request is too large");
     if (!body || !body.response || typeof body.response !== "object") return fail("bad_request", "the body is not a sign-up");
+    const refused = await signupRefusal(c, readAccountConfig(env).signup);
+    if (refused) return refused;
     const challenge = await takeChallenge(db, body.challengeId, "register", now);
     if (!challenge?.userId || !challenge.name) return fail("bad_request", "this sign-up has expired; start again");
     const { origin, rpID } = where(c);
