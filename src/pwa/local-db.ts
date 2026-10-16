@@ -107,6 +107,10 @@ export interface LocalDb extends Db {
   applyRemote(col: string, id: string, data: Doc | null, revision?: number): Promise<void>;
   /** A number that changes with every write of the document on this device, by the page, another tab or `applyRemote`, from the moment the write begins. */
   revision(col: string, id: string): number;
+  /** The name of the IndexedDB database this store is. */
+  readonly name: string;
+  /** False once the storage stopped answering (src: `timeoutMs`): from then on the store works in memory only, and what it holds is not what a reload would show. */
+  usable(): boolean;
   /** Resolves once the IndexedDB connection is open (or known to be unavailable). For tests. */
   ready(): Promise<IDBDatabase | null>;
   close(): Promise<void>;
@@ -386,6 +390,8 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
       if (revision !== undefined && (versions.get(`${col}/${id}`) ?? 0) !== revision) return;
       await write(col, id, data, true);
     },
+    name: dbName,
+    usable: () => !dead,
     /** Resolves once the IndexedDB connection is open (or known to be unavailable). For tests. */
     ready: open,
     close() { channel?.close(); return open().then((d) => d?.close()); },

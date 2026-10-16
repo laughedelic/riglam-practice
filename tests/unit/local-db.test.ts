@@ -114,6 +114,14 @@ describe("a storage that never answers", () => {
     expect(told).toBe(1);
   });
 
+  it("says it is not usable once the storage stopped answering, and knows its own name", async () => {
+    const db = createLocalDb({ indexedDB: silent, channel: false, timeoutMs: 30, name: "riglam-2" });
+    expect(db.name).toBe("riglam-2");
+    expect(db.usable()).toBe(true);
+    await db.doc("answers/a1").get();
+    expect(db.usable()).toBe(false);
+  });
+
   it("does not take the server's copy as received while the storage is not answering, so sync fetches it again", async () => {
     const db = createLocalDb({ indexedDB: silent, channel: false, timeoutMs: 30 });
     await expect(db.applyRemote("answers", "a1", { v: 1 })).rejects.toMatchObject({ code: "unavailable" });

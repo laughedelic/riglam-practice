@@ -6,6 +6,7 @@
 // the reload in the banner (./update-banner.ts) and in Options.
 import { registerSW } from "virtual:pwa-register";
 import type { UpdateStatus, Updates } from "../platform/types";
+import { latestCommit } from "./about";
 
 const LOOK_EVERY_MS = 15 * 60_000; // how long the app may stay in view before it looks again
 let status: UpdateStatus = "unknown"; // until a look has succeeded: offline, a registration that exists says nothing
@@ -68,7 +69,12 @@ function check(maxAgeMs = 0): Promise<void> {
       return set("unknown"); // offline, or the server did not answer
     }
     // `updatefound` and "controllerchange" may already have said more than this.
-    if (status === "checking") set(registration.installing ? "downloading" : "current");
+    if (status !== "checking") return;
+    if (registration.installing) return set("downloading");
+    // Nothing is being installed. If the server's build is not the one this page runs, a worker that took over before this page started
+    // (so that no "controllerchange" was seen) already has the newer files: reloading brings them.
+    const there = await latestCommit();
+    if (status === "checking") set(there !== null && there !== __BUILD__.commit ? "ready" : "current");
   })().finally(() => {
     pending = null;
   });

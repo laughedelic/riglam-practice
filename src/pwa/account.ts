@@ -10,7 +10,7 @@ import { HEADER } from "../ai/protocol";
 import { makeProof } from "../ai/proof";
 import type { LocalDb } from "./local-db";
 import { deviceId } from "./device";
-import { storeName, syncName } from "./store-slot";
+import { syncName } from "./store-slot";
 
 const KEPT = "riglam.account";
 const POLL_MS = 60_000;
@@ -40,15 +40,23 @@ const exclusive = (lockName: string) => async <T>(fn: () => Promise<T>): Promise
   return locks.request(lockName, { ifAvailable: true }, async (lock) => (lock ? fn() : undefined));
 };
 
+// While the storage does not answer, what the store holds is only what is in memory: sync must not judge a server copy against it (a copy
+// that "matches" or "is gone" there says nothing about what is stored) nor move its cursor past anything. A failed round tries again later.
+const stored = (db: LocalDb) => {
+  if (!db.usable()) throw Object.assign(new Error("the storage on this device is not answering"), { code: "unavailable" });
+};
+
 const storeOf = (db: LocalDb): SyncStore => ({
   onWrite: (fn) => db.onWrite(fn),
   applyRemote: (col, id, data, revision) => db.applyRemote(col, id, data, revision),
   revision: (col, id) => db.revision(col, id),
   async documents(col) {
+    stored(db);
     const snap = await db.collection(col).get();
     return snap.docs.map((d) => ({ id: d.id, data: d.data() ?? {} }));
   },
   async read(col, id) {
+    stored(db);
     const snap = await db.doc(`${col}/${id}`).get();
     return snap.exists ? (snap.data() ?? null) : null;
   },
@@ -57,7 +65,7 @@ const storeOf = (db: LocalDb): SyncStore => ({
 /** The account of this device. `magicKey` is the Magic Key on this device: `read` gives it (a new account needs its proof), `adopt` takes the one the account carries. */
 export function createPwaAccount(db: LocalDb, magicKey: { read(): string | null; adopt(key: string): void }): Account {
   const client = createAccountClient();
-  const syncDb = syncName(storeName()); // the cursor and the unsent changes belong to the store in use
+  const syncDb = syncName(db.name); // the cursor and the unsent changes belong to the store this database is
   const outbox = idbOutbox(undefined, syncDb);
   const sync = createSync({
     store: storeOf(db),
