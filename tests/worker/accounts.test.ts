@@ -432,6 +432,23 @@ describe("sessions", () => {
     // signing out when nobody is signed in is not an error
     expect((await w.call(ACCOUNT_API.logout, { method: "POST", body: {} })).status).toBe(200);
   });
+
+  it("end at sign-out also when they are over, and a failure to end one is told, with the cookie kept", async () => {
+    const w = await world();
+    const me = await signUp(w);
+    w.clock.now = new Date(w.clock.now.getTime() + SESSION_MS + DAY);
+    expect((await w.call(ACCOUNT_API.logout, { method: "POST", body: {}, cookie: me.cookie })).status).toBe(200);
+    expect(w.db.sql("SELECT token_hash FROM sessions")).toHaveLength(0); // the ended row goes too
+    const again = await signIn(w, me.key);
+    const db = w.env.DB as unknown as { prepare: (sql: string) => unknown };
+    const real = db.prepare.bind(db);
+    db.prepare = (sql: string) => { if (sql.includes("DELETE FROM sessions")) throw new Error("D1 is down"); return real(sql); };
+    const out = await w.call(ACCOUNT_API.logout, { method: "POST", body: {}, cookie: again.cookie });
+    expect(out.status).toBe(503);
+    expect((await json(out)).error.code).toBe("unavailable");
+    expect(out.headers.get("set-cookie")).toBeNull();
+    expect(w.db.sql("SELECT token_hash FROM sessions")).toHaveLength(1); // still valid, as the answer says
+  });
 });
 
 describe("requests from other sites", () => {

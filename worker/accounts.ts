@@ -23,7 +23,7 @@ import { dayOf } from "./budget";
 import { readAccountConfig } from "./config";
 import { callerOf, gate, type Gate } from "./magic";
 import type { Env } from "./env";
-import { clearedCookie, fromB64u, newSession, pruneSessions, randomToken, readSession, sessionCookie, toB64u, tokenFrom, type Session } from "./session";
+import { clearedCookie, fromB64u, hashToken, newSession, pruneSessions, randomToken, readSession, sessionCookie, toB64u, tokenFrom, type Session } from "./session";
 
 export interface AccountDeps {
   now: () => Date;
@@ -225,9 +225,17 @@ export function accountRoutes(deps: AccountDeps) {
   });
 
   app.post(ACCOUNT_API.logout, async (c) => {
+    // The session goes whether or not it is still valid (an ended one is removed too). When the database cannot say that it is gone the answer is a failure and the cookie stays,
+    // so that the person is not told they are signed out while the token still works, and can try again.
     if (c.env.DB) {
-      const session = await sessionOf(c, deps.now()).catch(() => null);
-      if (session) await c.env.DB.prepare("DELETE FROM sessions WHERE token_hash = ?1").bind(session.tokenHash).run().catch(() => {});
+      const token = tokenFrom(c.req.header("cookie"));
+      if (token && token.length <= 200) {
+        try {
+          await c.env.DB.prepare("DELETE FROM sessions WHERE token_hash = ?1").bind(await hashToken(token)).run();
+        } catch {
+          return fail("unavailable", "the session could not be ended just now; try again");
+        }
+      }
     }
     return json({ ok: true }, { "set-cookie": clearedCookie() });
   });

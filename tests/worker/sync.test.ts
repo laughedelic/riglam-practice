@@ -386,6 +386,21 @@ describe("limits", () => {
     expect(got.size).toBe(30);
   });
 
+  it("never hands out a number again when old deletion marks are dropped: a device that has seen the highest number still gets what comes next", async () => {
+    const w = await world({ MAX_DOCS_PER_ACCOUNT: "100" });
+    const me = await signUp(w);
+    await sync(w, me, 0, Array.from({ length: 200 }, (_, i) => write("answers", "m" + i, null, T0 + i)));
+    const seen = (await sync(w, me, 0)).cursor; // a device has everything up to here
+    w.clock.now = new Date(w.clock.now.getTime() + 91 * 86_400_000);
+    const later = await signIn(w, me.key);
+    const t = w.clock.now.getTime();
+    await sync(w, later, 0, [write("answers", "fresh", { v: 1 }, t)]); // the account is at its limit of rows, so the old marks are dropped first
+    expect(rows(w).length).toBeLessThan(200);
+    const answer = await sync(w, later, seen);
+    expect(answer.changes.map((c) => c.id)).toEqual(["fresh"]);
+    expect(answer.changes[0].doc).toEqual({ v: 1 });
+  });
+
   it("takes the day's allowance of writes in one step, so that a request arriving together with another cannot pass it", async () => {
     const w = await world({ DAILY_WRITES_PER_ACCOUNT: "30" });
     const me = await signUp(w);

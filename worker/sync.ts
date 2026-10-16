@@ -122,9 +122,9 @@ export function syncRoutes(deps: AccountDeps) {
       const adds = writes.filter((w) => w.doc !== null).length;
       if (adds && live + adds > cfg.maxDocs && live + (await exact()).live > cfg.maxDocs) return fail("quota", "this account holds as many documents as it may");
       if (total + writes.length > cfg.maxDocs * 2) {
-        // Old deletion marks go first, a thousand at a time.
+        // Old deletion marks go first, a thousand at a time; the row with the highest number stays, so that numbers are never handed out again to a device that has seen them.
         await db
-          .prepare("DELETE FROM docs WHERE user_id = ?1 AND (col, id) IN (SELECT col, id FROM docs WHERE user_id = ?1 AND data IS NULL AND t < ?2 LIMIT 1000)")
+          .prepare("DELETE FROM docs WHERE user_id = ?1 AND (col, id) IN (SELECT col, id FROM docs WHERE user_id = ?1 AND data IS NULL AND t < ?2 AND seq < (SELECT MAX(seq) FROM docs WHERE user_id = ?1) LIMIT 1000)")
           .bind(user, now.getTime() - MARK_MS)
           .run();
         total = (await counts())?.total ?? 0;
