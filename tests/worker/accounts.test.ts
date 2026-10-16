@@ -244,6 +244,19 @@ describe("who may make an account", () => {
     }
   });
 
+  it("a guess that cannot be counted gets no verdict on the key: the same 503 for a proof that fits and one that does not", async () => {
+    const w = await world({ SIGNUP: "group" });
+    const db = w.env.DB as unknown as { prepare: (sql: string) => unknown };
+    const real = db.prepare.bind(db);
+    db.prepare = (sql: string) => (/INSERT INTO guesses/.test(sql) ? { bind: () => ({ run: () => Promise.reject(new Error("d1 is down")) }) } : real(sql));
+    const wrong = await makeProof(generateKey(), w.device);
+    for (const proof of [w.proof, wrong]) {
+      const res = await w.call(ACCOUNT_API.registerOptions, { body: {}, headers: { [HEADER.device]: w.device, [HEADER.proof]: proof } });
+      expect(res.status).toBe(503);
+      expect((await json(res)).error.code).toBe("unavailable");
+    }
+  });
+
   it("not for the group when the server has no key to check the proof with", async () => {
     const w = await world({ SIGNUP: "group", RIGLAM_DATA_KEY: undefined });
     expect((await w.call(ACCOUNT_API.registerOptions, { body: {}, headers: { [HEADER.device]: w.device, [HEADER.proof]: w.proof } })).status).toBe(403);
