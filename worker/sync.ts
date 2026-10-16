@@ -20,6 +20,9 @@ const FUTURE_MS = 5 * 60_000;
 /** The most text of documents one answer carries (its documents are at most 256 KiB each; the first one is always sent). Counted in characters. */
 const ANSWER_CHARS = 4 * 1024 * 1024;
 
+/** A deletion mark is kept this long (by the time of the change); a device that was away for longer may not learn of the deletion. */
+const MARK_MS = 90 * 86_400_000;
+
 interface Row {
   col: string;
   id: string;
@@ -54,8 +57,8 @@ function readWrites(raw: unknown, now: Date): SyncChange[] | string {
   return [...latest.values()];
 }
 
-/** How many live documents these writes would add (below zero when they remove more than they add), counting only the writes that would win against the stored copy. */
-async function netLive(db: D1Database, user: string, writes: SyncChange[]): Promise<number> {
+/** What these writes would add, counting only those that would win against the stored copy: live documents (below zero when they remove more than they add) and rows (documents and deletion marks). */
+async function effectOf(db: D1Database, user: string, writes: SyncChange[]): Promise<{ live: number; rows: number }> {
   const stored = new Map<string, { t: number; live: number }>();
   for (let i = 0; i < writes.length; i += 40) {
     const part = writes.slice(i, i + 40);
@@ -66,13 +69,15 @@ async function netLive(db: D1Database, user: string, writes: SyncChange[]): Prom
       .all<{ col: string; id: string; t: number; live: number }>();
     for (const r of found.results) stored.set(`${r.col}/${r.id}`, { t: r.t, live: r.live });
   }
-  let net = 0;
+  let live = 0;
+  let rows = 0;
   for (const w of writes) {
     const have = stored.get(`${w.c}/${w.id}`);
+    if (!have) rows += 1;
     if (have && !(w.t > have.t)) continue; // loses: the stored copy stays
-    net += (w.doc !== null ? 1 : 0) - (have?.live ? 1 : 0);
+    live += (w.doc !== null ? 1 : 0) - (have?.live ? 1 : 0);
   }
-  return net;
+  return { live, rows };
 }
 
 export function syncRoutes(deps: AccountDeps) {
@@ -104,13 +109,26 @@ export function syncRoutes(deps: AccountDeps) {
       const day = dayOf(now);
       if (writes.length > cfg.dailyWrites) return fail("quota", "this account has reached its limit of document changes for today", { "retry-after": "3600" });
 
-      // The room for documents. The count of live documents plus the writes that could add one is the upper bound; only when that is over is the exact change worked out
-      // (an update of a document that is held, or a deletion beside a new document, adds nothing). This check is made before the writes, so requests arriving together
-      // can pass it together: the limit may be passed by about one request's worth per request in flight, which the daily limit below bounds.
+      // The room for documents, and for rows (documents and deletion marks, which an account could otherwise add without end). The counts plus the writes that could add
+      // a document or a row are the upper bound; only when that is over is the exact change worked out (an update of a document that is held, or a deletion beside a new
+      // document, adds no document; a write to a row that is there adds no row). The check is made before the writes, so requests arriving together can pass it together:
+      // the limits may be passed by about one request's worth per request in flight, which the daily limit below bounds.
+      const counts = () => db.prepare("SELECT COUNT(*) AS total, COUNT(data) AS live FROM docs WHERE user_id = ?1").bind(user).first<{ total: number; live: number }>();
+      const held = (await counts()) ?? { total: 0, live: 0 };
+      const live = held.live;
+      let total = held.total;
+      let effect: { live: number; rows: number } | undefined;
+      const exact = async () => (effect ??= await effectOf(db, user, writes));
       const adds = writes.filter((w) => w.doc !== null).length;
-      if (adds) {
-        const held = (await db.prepare("SELECT COUNT(*) AS n FROM docs WHERE user_id = ?1 AND data IS NOT NULL").bind(user).first<{ n: number }>())?.n ?? 0;
-        if (held + adds > cfg.maxDocs && held + (await netLive(db, user, writes)) > cfg.maxDocs) return fail("quota", "this account holds as many documents as it may");
+      if (adds && live + adds > cfg.maxDocs && live + (await exact()).live > cfg.maxDocs) return fail("quota", "this account holds as many documents as it may");
+      if (total + writes.length > cfg.maxDocs * 2) {
+        // Old deletion marks go first, a thousand at a time.
+        await db
+          .prepare("DELETE FROM docs WHERE user_id = ?1 AND (col, id) IN (SELECT col, id FROM docs WHERE user_id = ?1 AND data IS NULL AND t < ?2 LIMIT 1000)")
+          .bind(user, now.getTime() - MARK_MS)
+          .run();
+        total = (await counts())?.total ?? 0;
+        if (total + writes.length > cfg.maxDocs * 2 && total + (await exact()).rows > cfg.maxDocs * 2) return fail("quota", "this account holds as many documents and deletion marks as it may");
       }
 
       // The day's allowance is taken first, in one statement that refuses when it would be passed, so that requests arriving together cannot all use the last of it.
@@ -135,17 +153,40 @@ export function syncRoutes(deps: AccountDeps) {
          ON CONFLICT (user_id, col, id) DO UPDATE SET data = excluded.data, t = excluded.t, seq = excluded.seq WHERE excluded.t > docs.t`,
       );
       const results = await db.batch(writes.map((w) => upsert.bind(user, w.c, w.id, w.doc === null ? null : JSON.stringify(w.doc), w.t)));
-      // The server's copies of the writes that lost, a few dozen to a query (D1 allows 100 values in one).
+      // The server's copies of the writes that lost, as much of them as one answer may carry. Their sizes are asked first (no text comes with them), so that
+      // small writes against large stored copies cannot make the Worker load more than that. A copy that does not fit and that the device has not been given
+      // yet (it is after the cursor) comes with the changes anyway; one the device has is given a new place in the sequence, so that it comes with them too.
       const lost = writes.filter((_, i) => !results[i].meta.changes);
+      const sizes: { col: string; id: string; seq: number; n: number }[] = [];
       for (let i = 0; i < lost.length; i += 40) {
         const part = lost.slice(i, i + 40);
         const pairs = part.map((_, k) => `(?${2 * k + 2}, ?${2 * k + 3})`).join(", ");
         const found = await db
-          .prepare(`SELECT col, id, data, t FROM docs WHERE user_id = ?1 AND (col, id) IN (VALUES ${pairs})`)
+          .prepare(`SELECT col, id, seq, COALESCE(LENGTH(data), 0) AS n FROM docs WHERE user_id = ?1 AND (col, id) IN (VALUES ${pairs})`)
           .bind(user, ...part.flatMap((w) => [w.c, w.id]))
+          .all<{ col: string; id: string; seq: number; n: number }>();
+        sizes.push(...found.results);
+      }
+      const fits: typeof sizes = [];
+      const late: typeof sizes = [];
+      for (const r of sizes) {
+        if (rejectedChars + r.n <= ANSWER_CHARS) {
+          rejectedChars += r.n;
+          fits.push(r);
+        } else if (r.seq <= cursor) late.push(r);
+      }
+      for (let i = 0; i < fits.length; i += 40) {
+        const part = fits.slice(i, i + 40);
+        const pairs = part.map((_, k) => `(?${2 * k + 2}, ?${2 * k + 3})`).join(", ");
+        const found = await db
+          .prepare(`SELECT col, id, data, t FROM docs WHERE user_id = ?1 AND (col, id) IN (VALUES ${pairs})`)
+          .bind(user, ...part.flatMap((w) => [w.col, w.id]))
           .all<Row>();
         rejected.push(...found.results.map(change));
-        rejectedChars += found.results.reduce((n, r) => n + (r.data?.length ?? 0), 0);
+      }
+      if (late.length) {
+        const next = db.prepare("UPDATE docs SET seq = (SELECT MAX(seq) + 1 FROM docs WHERE user_id = ?1) WHERE user_id = ?1 AND col = ?2 AND id = ?3");
+        await db.batch(late.map((r) => next.bind(user, r.col, r.id)));
       }
       if (Math.random() < 0.02) await db.prepare("DELETE FROM sync_quota WHERE day < ?1").bind(dayOf(new Date(now.getTime() - 3 * 86_400_000))).run().catch(() => {});
     }
