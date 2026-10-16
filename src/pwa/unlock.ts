@@ -20,7 +20,18 @@ export function takeLinkKey(): { present: boolean; key: string | null } {
 }
 
 export const storedKey = (): string | null => parseMagicKey(get("localStorage", KEY) ?? get("sessionStorage", KEY));
-export const storeKey = (key: string) => set("localStorage", KEY, key) || set("sessionStorage", KEY, key);
+const DECLINED = "riglam.keyDeclined";
+/** True after the reader forgot the key on this device: an account that carries it does not hand it back until the reader asks (a key typed or linked, a sign-in). */
+export const keyDeclined = () => get("localStorage", DECLINED) === "1";
+export const declineKey = () => void set("localStorage", DECLINED, "1");
+export function allowKey() {
+  try { localStorage.removeItem(DECLINED); } catch { /* storage unavailable */ }
+}
+export function storeKey(key: string) {
+  const kept = set("localStorage", KEY, key) || set("sessionStorage", KEY, key);
+  if (kept) allowKey();
+  return kept;
+}
 const CHANGED = "riglam.keyChanged";
 /** What the prompt says to a reader whose kept key stopped fitting: the study group changed the Magic Key. */
 export const KEY_CHANGED_TEXT = "The Magic Key was changed. Enter the new words (or open the new link) to keep reading the definitions and using the tutor.";

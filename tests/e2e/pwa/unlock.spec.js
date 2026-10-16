@@ -324,6 +324,7 @@ withKey("with the key, Options can take another one (the old one stays until the
   await ready(page);
   expect(await storedKey(page)).toBeNull();
   expect(await page.evaluate(() => localStorage.getItem("riglam.course"))).toBeNull();
+  expect(await page.evaluate(() => localStorage.getItem("riglam.keyDeclined")), "an account that carries the key must not hand it back").toBe("1");
   expect((await firstTerm(page)).d).toBe(LOCKED_TEXT);
   await page.getByRole("button", { name: /options/i }).filter({ visible: true }).first().click();
   await expect(page.getByRole("button", { name: "Enter the Magic Key" })).toBeVisible();

@@ -68,7 +68,7 @@ const storeOf = (db: LocalDb): SyncStore => ({
 });
 
 /** The account of this device. `magicKey` is the Magic Key on this device: `read` gives it (a new account needs its proof), `adopt` takes the one the account carries. */
-export function createPwaAccount(db: LocalDb, magicKey: { read(): string | null; adopt(key: string): void }): Account {
+export function createPwaAccount(db: LocalDb, magicKey: { read(): string | null; adopt(key: string): void; declined?(): boolean; allow?(): void }): Account {
   const client = createAccountClient();
   const syncDb = syncName(db.name); // the cursor and the unsent changes belong to the store this database is
   const outbox = idbOutbox(undefined, syncDb);
