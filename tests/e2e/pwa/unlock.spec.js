@@ -167,6 +167,24 @@ withKey("pasting the link into the prompt opens the definitions", async ({ page 
   await expect(page.locator("#unlock")).toHaveCount(0);
 });
 
+withKey("opening the shared link again offline shows the definitions kept for that key", async ({ page, context }) => {
+  const full = readFull();
+  await page.addInitScript(hook);
+  await page.goto(`/#k=${dataKey}`);
+  await ready(page);
+  await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+  await context.setOffline(true);
+  // the stand-in server would still answer a page that is offline, so the way to the definitions is cut here too
+  await page.route("**/api/course**", (route) => route.abort("internetdisconnected"));
+  await page.goto(`/?again=1#k=${dataKey}`);
+  await ready(page);
+  expect((await firstTerm(page)).d).toBe(full.terms[Object.keys(full.terms)[0]].d);
+  await expect(page.locator("#unlock")).toHaveCount(0);
+  await context.setOffline(false);
+});
+
 withKey("once opened, the definitions are there with no network", async ({ page, context }) => {
   const full = readFull();
   await page.addInitScript(hook);

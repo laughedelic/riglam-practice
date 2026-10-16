@@ -4,6 +4,7 @@ import { ACCOUNT_API } from "../../src/account/protocol";
 import { testMagicKey as generateKey } from "../support/magic-key";
 import { HEADER } from "../../src/ai/protocol";
 import { makeProof, newDeviceId } from "../../src/ai/proof";
+import { GUESSES_PER_HOUR } from "../../worker/magic";
 import { COOKIE, SESSION_MS, hashToken } from "../../worker/session";
 import { passkey } from "./authenticator";
 import { ORIGIN, WHERE, beforeStatement, cookieOf, signIn, signUp, world, type World } from "./accounts-support";
@@ -228,6 +229,19 @@ describe("who may make an account", () => {
     const verified = await people.call(ACCOUNT_API.registerVerify, { body: { challengeId: started.challengeId, response: await pk.register(started.options, WHERE) } });
     expect(verified.status).toBe(200);
     expect((await signIn(people, pk)).id).toBeTruthy();
+  });
+
+  it("a connection past the hourly limit on wrong keys is told to wait, not that its key is wrong", async () => {
+    const w = await world({ SIGNUP: "group" });
+    const wrong = await makeProof(generateKey(), w.device);
+    const asks = (proof: string) => w.call(ACCOUNT_API.registerOptions, { body: {}, headers: { [HEADER.device]: w.device, [HEADER.proof]: proof } });
+    for (let i = 0; i < GUESSES_PER_HOUR; i++) expect((await asks(wrong)).status).toBe(403);
+    for (const proof of [wrong, w.proof]) {
+      const blocked = await asks(proof);
+      expect(blocked.status).toBe(429);
+      expect((await json(blocked)).error.code).toBe("quota");
+      expect(Number(blocked.headers.get("retry-after"))).toBeGreaterThan(0);
+    }
   });
 
   it("not for the group when the server has no key to check the proof with", async () => {

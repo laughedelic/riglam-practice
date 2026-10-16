@@ -74,7 +74,7 @@ export function fillAns(node,text){
 }
 /** A used-up daily budget: whose it is, when the tutor opens again (in the person's own time), and that the rest keeps working. */
 function budgetCopy(e){
-  const lead=e.scope==="device"?"You have used your share of the tutor for today.":e.scope==="global"?"The tutor has reached its limit for today for everybody.":"The tutor's limit for today is used up.";
+  const lead=e.scope==="device"?"You have used your share of the tutor for today.":e.scope==="global"?"The tutor has reached its limit for today for everybody.":e.scope==="caller"?"The tutor is paused for this connection: too many wrong Magic Keys were tried from it.":"The tutor's limit for today is used up.";
   const at=e.resetsAt?new Date(e.resetsAt):null;
   let when=" Try again tomorrow.";
   if(at&&!isNaN(at.getTime())){
