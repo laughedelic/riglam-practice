@@ -33,10 +33,11 @@ const keep = {
 };
 
 /** One tab at a time runs a round of sync; the others leave it to that one. Without Web Locks every tab may run one (the server settles it). */
-const exclusive = async <T>(fn: () => Promise<T>): Promise<T | undefined> => {
+const exclusive = async <T>(fn: () => Promise<T>, wait = false): Promise<T | undefined> => {
   const locks = (navigator as Navigator & { locks?: LockManager }).locks;
   if (!locks) return fn();
-  return locks.request("riglam-sync", { ifAvailable: true }, async (lock) => (lock ? fn() : undefined));
+  // A round that was asked for (sign-out, Sync now) waits for the other tab's round to end; a background one leaves it to that tab.
+  return locks.request("riglam-sync", wait ? {} : { ifAvailable: true }, async (lock) => (lock ? fn() : undefined));
 };
 
 const storeOf = (db: LocalDb): SyncStore => ({

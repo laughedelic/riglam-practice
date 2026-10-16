@@ -106,7 +106,7 @@ describe("the server's copy of a document (applyRemote with a revision)", () => 
     const { factory } = stub();
     const db = createLocalDb({ indexedDB: factory, channel: false });
     await db.doc("answers/a1").set({ v: 1 });
-    await db.applyRemote("answers", "a1", { v: 2 }, db.revision("answers", "a1"));
+    expect(await db.applyRemote("answers", "a1", { v: 2 }, db.revision("answers", "a1"))).toBe(true);
     expect((await db.doc("answers/a1").get()).data()).toEqual({ v: 2 });
   });
 
@@ -118,7 +118,7 @@ describe("the server's copy of a document (applyRemote with a revision)", () => 
     const revision = db.revision("answers", "a1");
     control.delay = 20;
     const saving = ref.set({ v: 3 }); // begun, not finished
-    await db.applyRemote("answers", "a1", { v: 2 }, revision);
+    expect(await db.applyRemote("answers", "a1", { v: 2 }, revision)).toBe(false); // refused, and it says so
     await saving;
     expect((await ref.get()).data()).toEqual({ v: 3 });
   });

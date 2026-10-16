@@ -19,6 +19,8 @@ export interface Options {
   /** sync's wait settings */
   backoffMs?: number;
   quotaWaitMs?: number;
+  /** the lock between tabs (Web Locks in the browser) */
+  exclusive?: <T>(fn: () => Promise<T>, wait?: boolean) => Promise<T | undefined>;
   /** headers that show the study group's link, for a sign-up */
   proof?: () => Promise<Record<string, string>>;
 }
@@ -37,11 +39,12 @@ export async function device(w: World, opts: Options = {}) {
     revision: (col, id) => revs.get(`${col}/${id}`) ?? 0,
     writing: (col, id) => writing.has(`${col}/${id}`),
     async applyRemote(col, id, data, revision) {
-      if (revision !== undefined && (revs.get(`${col}/${id}`) ?? 0) !== revision) return;
+      if (revision !== undefined && (revs.get(`${col}/${id}`) ?? 0) !== revision) return false;
       bump(`${col}/${id}`);
       applied.push(`${col}/${id}`);
       if (data === null) docs.delete(`${col}/${id}`);
       else docs.set(`${col}/${id}`, structuredClone(data));
+      return true;
     },
     async documents(col) { return [...docs].filter(([k]) => k.startsWith(col + "/")).map(([k, data]) => ({ id: k.slice(col.length + 1), data: structuredClone(data) })); },
     async read(col, id) { const d = docs.get(`${col}/${id}`); const out = d ? structuredClone(d) : null; await hooks.afterRead?.(); return out; },
@@ -80,6 +83,7 @@ export async function device(w: World, opts: Options = {}) {
     debounceMs: 0,
     backoffMs: opts.backoffMs,
     quotaWaitMs: opts.quotaWaitMs,
+    exclusive: opts.exclusive,
     onSignedOut: () => { signedOutCalls += 1; account.signedOut(); },
   });
   const passkeys: Passkeys = {

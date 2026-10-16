@@ -458,6 +458,61 @@ describe("races and failures on the device", () => {
     expect(b.get("answers", "x")).toEqual({ v: 2 }); // the copy was not left behind the cursor
   });
 
+  it("puts a server copy off, and keeps the cursor, when a write came in after the revision was read and its save then fails", async () => {
+    const { a, b } = await pair();
+    await a.account.signUp("p");
+    await b.account.signIn();
+    await a.put("answers", "x", { v: 1 }, T0);
+    await a.sync.syncNow();
+    await b.sync.syncNow();
+    await a.put("answers", "x", { v: 2 }, T0 + 1000);
+    await a.sync.syncNow();
+    let save!: ReturnType<typeof b.begin>;
+    b.hooks.afterRead = async () => { b.hooks.afterRead = undefined; save = b.begin("answers", "x", { v: 3 }, T0 + 9000); }; // after the revision was read, before the copy is stored
+    await b.sync.syncNow();
+    expect(b.get("answers", "x")).toEqual({ v: 3 });
+    save.rollback();
+    await b.sync.syncNow();
+    expect(b.get("answers", "x")).toEqual({ v: 2 });
+  });
+
+  it("keeps the retry of the newest change when notes of one document finish out of order", async () => {
+    const { w, a } = await pair();
+    await a.account.signUp("p");
+    const real = a.outbox.note.bind(a.outbox);
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    let calls = 0;
+    a.outbox.note = async (e) => {
+      calls += 1;
+      if (calls === 1) { await gate; return real(e); } // the older note is slow and succeeds
+      throw new Error("storage full"); // the newer one fails quickly
+    };
+    await a.put("answers", "x", { v: 1 }, T0);
+    await a.put("answers", "x", { v: 2 }, T0 + 1000);
+    a.outbox.note = real;
+    release();
+    await settle();
+    await a.sync.syncNow();
+    expect(a.sync.status()).toMatchObject({ pending: 0, error: null });
+    expect(w.db.sql<{ data: string }>("SELECT data FROM docs WHERE id = 'x'")[0].data).toBe(JSON.stringify({ v: 2 }));
+  });
+
+  it("an explicit sync waits for the lock that another tab holds, where a background round leaves the work to that tab", async () => {
+    let held = true;
+    const w = await world();
+    const a = await device(w, { exclusive: async (fn, wait) => (held && !wait ? undefined : fn()) });
+    await a.account.signUp("p");
+    await a.put("answers", "x", { v: 1 }, T0);
+    a.sync.kick();
+    await settle();
+    expect(w.db.sql("SELECT id FROM docs")).toEqual([]); // the other tab has the lock
+    await a.sync.syncNow();
+    expect(a.sync.status().pending).toBe(0);
+    expect(w.db.sql("SELECT id FROM docs")).toEqual([{ id: "x" }]);
+    held = false;
+  });
+
   it("waits for the notes that are under way before it clears the queue for another account", async () => {
     const { a } = await pair();
     await a.account.signUp("p");

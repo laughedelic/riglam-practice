@@ -20,8 +20,8 @@ export class SyncError extends Error {
 /** The part of the local store (src/pwa/local-db.ts) that sync uses. */
 export interface SyncStore {
   onWrite(fn: (w: { col: string; id: string; data: Doc | null }) => void): () => void;
-  /** Stores the server's copy. When `revision` is given and the document has been written since `revision(col, id)` returned it, nothing is stored: the newer local write wins and is noted for the next round. */
-  applyRemote(col: string, id: string, data: Doc | null, revision?: number): Promise<void>;
+  /** Stores the server's copy. When `revision` is given and the document has been written since `revision(col, id)` returned it, nothing is stored: the newer local write wins and is noted for the next round. Resolves to whether the copy was stored. */
+  applyRemote(col: string, id: string, data: Doc | null, revision?: number): Promise<boolean>;
   /** a number that changes whenever the document is written here (by the page, another tab or `applyRemote`), including a write that is still being saved */
   revision(col: string, id: string): number;
   /** whether a write by the page has begun but `onWrite` has not been told of it yet (it is still being saved) */
@@ -51,8 +51,8 @@ export interface SyncDeps {
   /** one request to the server; rejects with a SyncError */
   post(request: SyncRequest): Promise<SyncResponse>;
   now?: () => number;
-  /** runs `fn` unless another tab of the app is already in a round (Web Locks); the default runs it */
-  exclusive?: <T>(fn: () => Promise<T>) => Promise<T | undefined>;
+  /** runs `fn` unless another tab of the app is already in a round (Web Locks); with `wait` it waits for that round to end instead; the default runs it */
+  exclusive?: <T>(fn: () => Promise<T>, wait?: boolean) => Promise<T | undefined>;
   setTimer?: (fn: () => void, ms: number) => unknown;
   clearTimer?: (id: unknown) => void;
   /** wait after a change before sending, so that a burst of answers is one request */
@@ -139,6 +139,8 @@ export function createSync(deps: SyncDeps): Sync {
   // Writes whose note could not be stored (the outbox failed). They are kept here and noted again at the start of the next round.
   const unnoted = new Map<string, { col: string; id: string; data: Doc | null; t: number }>();
   const noting = new Map<string, number>(); // key -> notes of writes by the page that are being stored in the outbox
+  const latest = new Map<string, number>(); // key -> the number of the newest note started: only that one decides what is left to retry
+  let noteSeq = 0;
   const inflight = new Set<Promise<unknown>>(); // those notes with what follows each, so that a change of account can wait for them
   const drain = async () => { while (inflight.size) await Promise.allSettled([...inflight]); };
   const listeners = new Set<(s: SyncStatus) => void>();
@@ -164,10 +166,15 @@ export function createSync(deps: SyncDeps): Sync {
         if (n > 0) noting.set(key, n);
         else noting.delete(key);
       };
+      const mine = ++noteSeq;
+      latest.set(key, mine);
+      // Notes of one document may finish in any order: an older one that finishes late must not undo what a newer one decided.
+      const current = () => latest.get(key) === mine;
       const chain = note(w.col, w.id, w.data, t)
-        .then(() => { unnoted.delete(key); settled(); })
+        .then(() => { if (current()) { unnoted.delete(key); latest.delete(key); } settled(); })
         .catch(() => {
           settled();
+          if (!current()) return;
           // The document is saved here but its note is not: keep it for the next round, and make sure that round happens.
           unnoted.set(key, { col: w.col, id: w.id, data: w.data, t });
           void outbox.setMeta("seeded", null).catch(() => {}); // if the page is closed before then, the next sign-in offers every document again
@@ -221,7 +228,8 @@ export function createSync(deps: SyncDeps): Sync {
     if (mine && mine.t > ch.t) return false; // changed here after that: this copy goes to the server next
     const have = await store.read(ch.c, ch.id);
     // The entry goes only once the copy is stored (or was already): if storing fails, the round fails and the entry is sent again, which brings this copy back.
-    if (!(ch.doc === null ? have === null : have !== null && canon(have) === canon(ch.doc))) await store.applyRemote(ch.c, ch.id, ch.doc, revision);
+    // A write that came in after the revision was read refuses the copy: it is put off, and stays behind neither the cursor nor the entry.
+    if (!(ch.doc === null ? have === null : have !== null && canon(have) === canon(ch.doc)) && !(await store.applyRemote(ch.c, ch.id, ch.doc, revision))) return true;
     if (mine) await outbox.remove(key, mine.t);
     return false;
   }
@@ -306,20 +314,20 @@ export function createSync(deps: SyncDeps): Sync {
   }
 
   /** Starts a round, or joins the one in progress (and asks for another after it, for what changed meanwhile). */
-  function round(): Promise<void> {
+  function round(wait = false): Promise<void> {
     if (closed || !active) return Promise.resolve();
     if (running) { again = true; return running; }
-    return (running = run());
+    return (running = run(wait));
   }
 
-  async function run() {
+  async function run(wait: boolean) {
     busy = true;
     publish();
     try {
       const ran = await exclusive(async () => {
         for (let guard = 0; guard < 1000 && active && (await oneRequest()); guard++);
         return true;
-      });
+      }, wait);
       error = null;
       failures = 0;
       blockedUntil = 0;
@@ -407,7 +415,7 @@ export function createSync(deps: SyncDeps): Sync {
       if (timer !== null) { clearTimer(timer); timer = null; }
       blockedUntil = 0;
       if (running) await running.catch(() => {}); // a round that began before this call may not have seen the latest changes
-      await round();
+      await round(true); // asked for, so it waits for another tab's round to end rather than doing nothing (sign-out relies on what is waiting having been sent)
       return status();
     },
     status,

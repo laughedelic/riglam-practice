@@ -99,8 +99,9 @@ export interface LocalDb extends Db {
   /**
    * Stores a document, or deletes it with null, as the server's copy; listeners and other tabs see it, `onWrite` does not.
    * With `revision` (from `revision()`), nothing is stored when the document has been written since: a newer local write is not overwritten.
+   * Resolves to whether the copy was stored.
    */
-  applyRemote(col: string, id: string, data: Doc | null, revision?: number): Promise<void>;
+  applyRemote(col: string, id: string, data: Doc | null, revision?: number): Promise<boolean>;
   /** A number that changes with every write of the document on this device, by the page, another tab or `applyRemote`, from the moment the write begins. */
   revision(col: string, id: string): number;
   /** Whether a write by the page has begun but `onWrite` has not yet been told of it (it is being saved). */
@@ -376,8 +377,9 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
     async applyRemote(col: string, id: string, data: Doc | null, revision?: number) {
       await load(col);
       // No await between this check and the start of the write (which bumps the revision), so no write can come in between.
-      if (revision !== undefined && (versions.get(`${col}/${id}`) ?? 0) !== revision) return;
+      if (revision !== undefined && (versions.get(`${col}/${id}`) ?? 0) !== revision) return false;
       await write(col, id, data, true);
+      return true;
     },
     /** Resolves once the IndexedDB connection is open (or known to be unavailable). For tests. */
     ready: open,
