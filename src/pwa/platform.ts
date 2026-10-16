@@ -26,12 +26,13 @@ const tutorIsOn = () => (serverAnswer ??= serverSaysOn());
 // kept copy asks the server in the background whether the copy is current and the key still fits.
 async function loadData(): Promise<DrillData> {
   const data = await (await fetch(dataUrl)).json();
-  const key = link.key ?? storedKey();
+  const stored = storedKey();
+  const key = link.key ?? stored;
   let problem = link.present && !link.key ? "That link has no Magic Key in it." : null;
   if (!key && !link.present && takeKeyChanged()) problem = KEY_CHANGED_TEXT; // the key was found out of date during an earlier visit: say so, once
   if (key) {
     // A link with a different key must not be answered from the copy kept for the old one; the same key again (a bookmark, a shortcut) is.
-    const kept = !link.key || link.key === storedKey() ? keptCourse() : null;
+    const kept = !link.key || link.key === stored ? keptCourse() : null;
     if (kept) {
       groupKey = key;
       void refresh(key, kept.version);
@@ -49,8 +50,12 @@ async function loadData(): Promise<DrillData> {
       forgetCourse();
       problem = link.key ? "The Magic Key in that link does not fit. Ask for a new link." : KEY_CHANGED_TEXT;
     } else if (!got.ok) {
-      // the server could not be asked (offline, too many tries, down): a key from a link is kept for the next visit, and the definitions stay locked for this one
-      if (link.key) storeKey(link.key);
+      // the server could not be asked (offline, too many tries, down): a key from a link is kept for the next visit, and the definitions stay locked for this one.
+      // A copy kept for another key goes first: the next visit would otherwise open it as the definitions of this key before the server accepted it.
+      if (link.key) {
+        if (link.key !== stored) forgetCourse();
+        storeKey(link.key);
+      }
       if (link.key || got.reason === "rate_limited") problem = whyNot(got);
     }
   }
@@ -61,6 +66,8 @@ async function loadData(): Promise<DrillData> {
 /** Background check of a kept copy. A key the server no longer accepts is forgotten, with the copy; a newer copy is kept for the next visit. */
 async function refresh(key: string, have: string) {
   const got = await fetchCourse(key, have);
+  // Another tab may have changed the key while this was under way: an answer for the old key says nothing about the new one, and must not erase or overwrite it.
+  if (storedKey() !== key) return;
   if (got.ok) {
     if ("definitions" in got) keepCourse({ version: got.version, definitions: got.definitions as Definitions });
   } else if (got.reason === "not_granted") {
