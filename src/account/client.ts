@@ -46,22 +46,18 @@ export interface AccountClient {
   sync(request: SyncRequest): Promise<SyncResponse>;
 }
 
-export function createAccountClient(doFetch: Fetch = (input, init) => fetch(input, init), waitMs = 4000): AccountClient {
-  /** `limitMs`: a request (the answer's body included) that has not finished by then counts as no connection. */
+/** `requestMs`: how long a request may take, answer included (`limitMs` of a call: less); a connection that never answers must end, or a round of sync shows "Syncing ..." for good. */
+export function createAccountClient(doFetch: Fetch = (input, init) => fetch(input, init), waitMs = 4000, requestMs = 30_000): AccountClient {
   async function call<T>(path: string, init: { method?: string; body?: unknown; headers?: Record<string, string>; limitMs?: number } = {}): Promise<T> {
-    const stop = init.limitMs ? new AbortController() : null;
-    const timer = stop ? setTimeout(() => stop.abort(), init.limitMs) : null;
+    const stop = new AbortController();
+    const timer = setTimeout(() => stop.abort(), init.limitMs ?? requestMs);
     try {
-      return await attempt<T>(path, init, stop?.signal);
-    } catch (e) {
-      if (stop?.signal.aborted && !(e instanceof AccountFailure)) throw new AccountFailure("offline", "no connection");
-      throw e;
+      return await send<T>(path, init, stop.signal);
     } finally {
-      if (timer) clearTimeout(timer);
+      clearTimeout(timer);
     }
   }
-
-  async function attempt<T>(path: string, init: { method?: string; body?: unknown; headers?: Record<string, string> }, signal?: AbortSignal): Promise<T> {
+  async function send<T>(path: string, init: { method?: string; body?: unknown; headers?: Record<string, string> }, signal: AbortSignal): Promise<T> {
     let res: Response;
     try {
       res = await doFetch(path, {
@@ -81,11 +77,19 @@ export function createAccountClient(doFetch: Fetch = (input, init) => fetch(inpu
         const e = ((await res.json()) as { error?: { code?: unknown; message?: unknown } })?.error;
         code = String(e?.code ?? "");
         message = typeof e?.message === "string" ? e.message : "";
-      } catch { /* no JSON body: the status says enough */ }
+      } catch {
+        // The wait ran out while the error body was coming: the connection failed, which is not what the status (a 401 would sign the device out) says.
+        if (signal.aborted) throw new AccountFailure("offline", "no connection");
+        /* no JSON body: the status says enough */
+      }
       if (!CODES.includes(code)) code = res.status === 401 ? "signed_out" : res.status === 403 ? "not_granted" : res.status === 413 ? "too_large" : res.status === 429 ? "quota" : "unavailable";
       throw new AccountFailure(code as AccountErrorCode, message || code);
     }
-    return (await res.json()) as T;
+    try {
+      return (await res.json()) as T;
+    } catch {
+      throw new AccountFailure(signal.aborted ? "offline" : "unavailable", signal.aborted ? "no connection" : "the answer is not JSON");
+    }
   }
 
   const verified = async (path: string, challengeId: string, response: Record<string, unknown>, headers?: Record<string, string>) => {
