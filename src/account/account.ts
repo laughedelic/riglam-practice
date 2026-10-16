@@ -103,6 +103,22 @@ export function createAccount(deps: AccountDeps): Account {
   };
   sync.subscribe((s) => set({ sync: s }));
 
+  // The server could not be asked at start (offline, or no answer in time): ask again whenever the page wakes, until it answers, so that the row appears without a reload.
+  let unknown = false;
+  let asking = false;
+  async function discover() {
+    if (!unknown || asking || v.person) return;
+    asking = true;
+    try {
+      const on = await client.available();
+      if (on === null) return;
+      unknown = false;
+      if (on) set({ available: true });
+    } finally {
+      asking = false;
+    }
+  }
+
   function signedOut() {
     sync.deactivate();
     keep.write(null);
@@ -159,6 +175,7 @@ export function createAccount(deps: AccountDeps): Account {
         }
         const on = await client.available();
         set({ available: on === true || !!remembered || (hadAccount && on !== false) });
+        unknown = on === null && !v.available;
         if (remembered && on !== false) {
           // confirm in the background: the sync above already runs on what was remembered
           void client.me().then(
@@ -236,6 +253,7 @@ export function createAccount(deps: AccountDeps): Account {
 
     wake() {
       if (v.person) sync.kick();
+      else void discover().catch(() => {});
     },
 
     dismiss() {

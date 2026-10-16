@@ -42,6 +42,14 @@ describe("the collections of a data file and of sync", () => {
 describe("the outbox", () => {
   const entry = (id: string, t: number, doc: Record<string, unknown> | null = { v: t }) => ({ key: `answers/${id}`, c: "answers", id, doc, t });
 
+  it("gives each of several notes of one document its own time, and keeps the last one", async () => {
+    const o = memoryOutbox();
+    await Promise.all([o.note(entry("a", 10, { v: 1 })), o.note(entry("a", 10, { v: 2 })), o.note(entry("a", 5, { v: 3 }))]);
+    expect((await o.list(10)).map((e) => [e.t, e.doc])).toEqual([[12, { v: 3 }]]);
+    await o.remove("answers/a", 11); // the acknowledgment of a request that carried the second note leaves the third
+    expect(await o.count()).toBe(1);
+  });
+
   it("keeps one entry per document, oldest change first", async () => {
     const o = memoryOutbox();
     await o.put(entry("b", 20));
