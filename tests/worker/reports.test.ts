@@ -142,6 +142,19 @@ describe("the Magic Key", () => {
     expect(rows(w)).toEqual([]);
     expect((await post(w, { send: [report("fl_a")] }, { ip: "198.51.100.10" })).status).toBe(200);
   });
+
+  it("a guess that cannot be counted gets no verdict on the key: the same 503 for a proof that fits and one that does not", async () => {
+    const w = await world();
+    const db = w.env.DB as unknown as { prepare: (sql: string) => unknown };
+    const real = db.prepare.bind(db);
+    db.prepare = (sql: string) => (/INSERT INTO guesses/.test(sql) ? { bind: () => ({ run: () => Promise.reject(new Error("d1 is down")) }) } : real(sql));
+    for (const who of [{}, { proof: "x".repeat(43) }]) {
+      const res = await post(w, { send: [report("fl_a")] }, who);
+      expect([res.status, (await json(res)).error.code]).toEqual([503, "unavailable"]);
+      expect(Number(res.headers.get("retry-after"))).toBeGreaterThan(0);
+    }
+    expect(rows(w)).toEqual([]);
+  });
 });
 
 describe("taking a report back", () => {

@@ -21,13 +21,14 @@ export async function callerOf(address: string | undefined): Promise<string> {
   return Array.from(bytes.slice(0, 8), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-export type Gate = { ok: true } | { ok: false; reason: "wrong" | "blocked"; resetsAt?: string };
+export type Gate = { ok: true } | { ok: false; reason: "wrong" | "blocked" | "unavailable"; resetsAt?: string };
 
 /**
  * Checks a proof, counting the failures of this caller. One guess is taken from the caller's hour in a single statement before
  * the proof is looked at, so requests that arrive together cannot all pass the limit: a caller past it is `blocked` without the
- * proof being looked at, and the limit cannot be used to test guesses either. A proof that fits gives the guess back. Without a
- * database nothing is counted (the tests; the tutor is off then anyway).
+ * proof being looked at, and the limit cannot be used to test guesses either. A proof that fits gives the guess back. When the guess
+ * cannot be taken (the database fails) the proof is not looked at either and the answer is `unavailable`, so a failing counter does
+ * not let anyone try keys without limit. Without a database nothing is counted (the tests; the tutor is off then anyway).
  */
 export async function gate(env: Env, now: Date, caller: string, device: string, proof: string): Promise<Gate> {
   const key = magicKeyOf(env);
@@ -35,10 +36,15 @@ export async function gate(env: Env, now: Date, caller: string, device: string, 
   const hour = hourOf(now);
   let taken = false;
   if (env.DB) {
-    const reserved = await env.DB.prepare("INSERT INTO guesses (hour, who, n) VALUES (?1, ?2, 1) ON CONFLICT (hour, who) DO UPDATE SET n = n + 1 WHERE n < ?3")
-      .bind(hour, caller, GUESSES_PER_HOUR).run().catch(() => null);
-    if (reserved && !reserved.meta.changes) return { ok: false, reason: "blocked", resetsAt: nextHour(now) };
-    taken = !!reserved;
+    let reserved: D1Result;
+    try {
+      reserved = await env.DB.prepare("INSERT INTO guesses (hour, who, n) VALUES (?1, ?2, 1) ON CONFLICT (hour, who) DO UPDATE SET n = n + 1 WHERE n < ?3")
+        .bind(hour, caller, GUESSES_PER_HOUR).run();
+    } catch {
+      return { ok: false, reason: "unavailable" };
+    }
+    if (!reserved.meta.changes) return { ok: false, reason: "blocked", resetsAt: nextHour(now) };
+    taken = true;
   }
   if (await checkProof(key, device, proof)) {
     if (taken) await env.DB!.prepare("UPDATE guesses SET n = n - 1 WHERE hour = ?1 AND who = ?2 AND n > 0").bind(hour, caller).run().catch(() => {});
