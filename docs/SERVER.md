@@ -105,7 +105,7 @@ A passkey belongs to the host name of the app (`riglam-practice.<account>.worker
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `SIGNUP` | `open` | who may make an account: `open`, `group` (only a caller with the access proof of the tutor, so only people who have the study group's link) or `closed` (existing accounts still sign in) |
+| `SIGNUP` | `open` | who may make an account: `open`, `group` (only a caller with the access proof of the tutor, so only people who have the Magic Key) or `closed` (existing accounts still sign in) |
 | `MAX_ACCOUNTS` | `300` | most accounts |
 | `MAX_DOCS_PER_ACCOUNT` | `20000` | most documents one account holds |
 | `DAILY_WRITES_PER_ACCOUNT` | `3000` | document changes one account may send per UTC day |
