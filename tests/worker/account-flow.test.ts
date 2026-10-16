@@ -190,7 +190,8 @@ describe("starting the app", () => {
     const earlier = await a.client.me(); // what the server said while the person was signed in
     let release!: () => void;
     const gate = new Promise<void>((r) => (release = r));
-    const slow = { ...a.client, me: async () => { await gate; return earlier; } };
+    let asked = 0;
+    const slow = { ...a.client, me: async () => { if (asked++ === 0) { await gate; return earlier; } return a.client.me(); } }; // only the confirmation at start is slow
     const { createAccount } = await import("../../src/account/account");
     const again = createAccount({ client: slow, sync: a.sync, passkeys: { supported: () => true, create: async () => ({}), get: async () => ({}) }, keep: { read: () => a.kept, write: (p) => void (a.kept = p) } });
     await again.start(); // the confirmation is out

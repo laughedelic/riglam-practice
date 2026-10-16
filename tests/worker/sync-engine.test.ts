@@ -772,6 +772,33 @@ describe("tabs of one browser", () => {
     expect(a.signedOutCalls).toBe(0);
   });
 
+  it("does not end the session of someone else when signing out: another tab signed in meanwhile", async () => {
+    const { a } = await pair();
+    await a.account.signUp("p");
+    const real = await a.client.me();
+    if (!real.signedIn) throw new Error("not signed in");
+    a.client.me = async () => ({ ...real, user: { ...real.user, id: "someone-else", name: "Q" } });
+    const logout = vi.spyOn(a.client, "logout");
+    await a.account.signOut();
+    expect(logout).not.toHaveBeenCalled();
+    expect(a.account.view().person?.id).toBe("someone-else");
+    expect(a.account.view().message?.bad).toBe(true);
+  });
+
+  it("waits for a write under way before switching accounts, so its note goes to the account it was made under", async () => {
+    const { a } = await pair();
+    await a.account.signUp("p");
+    await a.put("answers", "x", { v: 1 }, T0);
+    await a.sync.syncNow();
+    const save = a.begin("answers", "x", null, T0 + 5000); // a deletion, still being saved
+    const switching = a.sync.activate("someone-else");
+    await settle();
+    await save();
+    await switching;
+    const queued = await a.outbox.list(100);
+    expect(queued.filter((e) => e.id === "x" && e.t === T0 + 5000)).toEqual([]);
+  });
+
   it("finishes a change of account before the next one begins, and ends with the last person", async () => {
     const { a } = await pair();
     await a.account.signUp("p");

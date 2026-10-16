@@ -230,7 +230,14 @@ export function createAccount(deps: AccountDeps): Account {
 
     signOut: () =>
       act("signout", async () => {
+        const who = v.person?.id;
         await sync.syncNow().catch(() => {}); // what is waiting goes first, if the server can be reached
+        // The session cookie is shared by all tabs: if another tab signed in as someone else meanwhile, that is not the session to end here.
+        const me = await client.me();
+        if (me.signedIn && me.user.id !== who) {
+          await reconcileWith(personOf(me.user));
+          throw new AccountFailure("signed_out");
+        }
         await client.logout();
         sync.deactivate();
         keep.write(null);

@@ -26,6 +26,8 @@ export interface SyncStore {
   revision(col: string, id: string): number;
   /** whether a write by the page has begun but `onWrite` has not been told of it yet (it is still being saved) */
   writing(col: string, id: string): boolean;
+  /** resolves once no write by the page is under way, the `onWrite` calls of those that finished included */
+  idle(): Promise<void>;
   /** every document of a collection as it is now */
   documents(col: string): Promise<{ id: string; data: Doc }[]>;
   /** one document as it is now, or null */
@@ -375,7 +377,8 @@ export function createSync(deps: SyncDeps): Sync {
       const before = (await outbox.getMeta<string>("user")) ?? null;
       if (before !== userId) {
         // A first sign-in, or another person's: the cursor and the old noted changes belong to the earlier account.
-        await drain(); // notes of the earlier account's writes still under way must not land in the new queue
+        await store.idle(); // writes the page began under the earlier account are noted, to its queue, before it is cleared
+        await drain(); // and so are their notes
         await outbox.clear();
         unnoted.clear(); // notes that failed belong to the earlier account too
         await outbox.setMeta("user", userId);
@@ -410,6 +413,7 @@ export function createSync(deps: SyncDeps): Sync {
       unhook?.();
       unhook = null;
       if (timer !== null) { clearTimer(timer); timer = null; }
+      await store.idle();
       await drain();
       await outbox.clear();
       unnoted.clear();

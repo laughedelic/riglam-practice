@@ -32,12 +32,14 @@ export async function device(w: World, opts: Options = {}) {
   const revs = new Map<string, number>();
   const bump = (k: string) => void revs.set(k, (revs.get(k) ?? 0) + 1);
   const writing = new Set<string>(); // writes begun whose hooks have not run
+  const saving = new Set<Promise<void>>(); // the same, as promises, for `idle`
   /** things a test can make happen at a chosen moment inside the engine's calls */
   const hooks: { afterRead?: () => Promise<void> | void } = {};
   const store: SyncStore = {
     onWrite(fn) { writers.add(fn); return () => void writers.delete(fn); },
     revision: (col, id) => revs.get(`${col}/${id}`) ?? 0,
     writing: (col, id) => writing.has(`${col}/${id}`),
+    async idle() { while (writing.size) await Promise.allSettled([...saving]); },
     async applyRemote(col, id, data, revision) {
       if (revision !== undefined && (revs.get(`${col}/${id}`) ?? 0) !== revision) return false;
       bump(`${col}/${id}`);
@@ -125,22 +127,26 @@ export async function device(w: World, opts: Options = {}) {
       await settle();
     },
     /** a write by the page that has begun (stored in memory, revision bumped) but is still being saved: the hooks run when `finish` is called */
-    begin(col: string, id: string, data: Doc, at?: number) {
+    begin(col: string, id: string, data: Doc | null, at?: number) {
       if (at !== undefined) me.now = at;
       const before = docs.get(`${col}/${id}`);
-      docs.set(`${col}/${id}`, structuredClone(data));
+      if (data === null) docs.delete(`${col}/${id}`);
+      else docs.set(`${col}/${id}`, structuredClone(data));
       bump(`${col}/${id}`);
       writing.add(`${col}/${id}`);
+      let over!: () => void;
+      saving.add(new Promise<void>((r) => (over = r)).then(() => void 0));
+      const end = () => { writing.delete(`${col}/${id}`); over(); };
       const finish = async () => {
-        for (const fn of [...writers]) fn({ col, id, data: structuredClone(data) });
-        writing.delete(`${col}/${id}`);
+        for (const fn of [...writers]) fn({ col, id, data: data === null ? null : structuredClone(data) });
+        end();
         await settle();
       };
       /** the save failed: the document goes back to what it was, and no hook is told */
       const rollback = () => {
         if (before === undefined) docs.delete(`${col}/${id}`);
         else docs.set(`${col}/${id}`, before);
-        writing.delete(`${col}/${id}`);
+        end();
       };
       return Object.assign(finish, { rollback });
     },

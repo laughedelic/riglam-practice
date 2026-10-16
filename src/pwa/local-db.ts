@@ -106,6 +106,8 @@ export interface LocalDb extends Db {
   revision(col: string, id: string): number;
   /** Whether a write by the page has begun but `onWrite` has not yet been told of it (it is being saved). */
   writing(col: string, id: string): boolean;
+  /** Resolves once no write by the page is under way (the hooks of those that finished have been told). */
+  idle(): Promise<void>;
   /** Resolves once the IndexedDB connection is open (or known to be unavailable). For tests. */
   ready(): Promise<IDBDatabase | null>;
   close(): Promise<void>;
@@ -210,7 +212,18 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
   const writing = new Map<string, number>(); // doc path -> writes by the page that have begun and whose hooks have not run yet
 
   /** `guarded`: for the server's copy, stored only if the row is still what this tab holds in memory (another tab's newer write makes it give way). Resolves to whether it was stored. */
-  async function write(col: string, id: string, data: Doc | null, remote = false, guarded = false): Promise<boolean> {
+  const saving = new Set<Promise<unknown>>(); // writes by the page that are not over yet, hooks included
+  function write(col: string, id: string, data: Doc | null, remote = false, guarded = false): Promise<boolean> {
+    const p = writeNow(col, id, data, remote, guarded);
+    if (!remote) {
+      saving.add(p);
+      const over = () => void saving.delete(p);
+      p.then(over, over);
+    }
+    return p;
+  }
+
+  async function writeNow(col: string, id: string, data: Doc | null, remote: boolean, guarded: boolean): Promise<boolean> {
     const path = `${col}/${id}`;
     const m = colMap(col);
     const had = m.has(id);
@@ -408,6 +421,7 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
     },
     revision: (col: string, id: string) => versions.get(`${col}/${id}`) ?? 0,
     writing: (col: string, id: string) => writing.has(`${col}/${id}`),
+    async idle() { while (saving.size) await Promise.allSettled([...saving]); },
     async applyRemote(col: string, id: string, data: Doc | null, revision?: number) {
       await load(col);
       // No await between this check and the start of the write (which bumps the revision), so no write can come in between.
