@@ -128,10 +128,15 @@ export interface Reports {
   flush(): Promise<void>;
 }
 
-/** `open` shows the prompt for the Magic Key; `tutor` says that the place has a tutor that is waiting for it (so the page shows Explain grayed). */
+/**
+ * `open` shows the prompt for the Magic Key; `tutor` says that the place has a tutor that is waiting for it (so the page shows Explain grayed).
+ * When the server needs time to say so, `tutor` starts false and `answer` settles with the real value: the page does not wait for it,
+ * sets `tutor` when it arrives and draws again.
+ */
 export interface Unlock {
   open(): void;
   tutor: boolean;
+  answer?: Promise<boolean>;
 }
 
 export interface Platform {

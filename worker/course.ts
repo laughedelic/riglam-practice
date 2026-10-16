@@ -12,6 +12,25 @@ export interface CourseRows {
   revision: string;
 }
 
+let looked: { key: string; usable: boolean } | null = null;
+
+/**
+ * Whether the definitions row is a JSON object, so that it can be sent as it is. `npm run data:publish` only writes such text; this is for
+ * a row written some other way. It is looked at once per version (the parse is not repeated for every request).
+ */
+export function usableDefinitions(rows: CourseRows): boolean {
+  const key = `${rows.version}|${rows.definitions.length}`;
+  if (looked?.key !== key) {
+    let usable = false;
+    try {
+      const parsed: unknown = JSON.parse(rows.definitions);
+      usable = typeof parsed === "object" && parsed !== null && !Array.isArray(parsed);
+    } catch { /* not JSON */ }
+    looked = { key, usable };
+  }
+  return looked.usable;
+}
+
 /** Both rows, or null when either is missing or the database cannot be read (the tutor and /api/course are then off). */
 export async function readCourseRows(db: D1Database | undefined): Promise<CourseRows | null> {
   if (!db) return null;
