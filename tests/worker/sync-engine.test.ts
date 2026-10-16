@@ -1,7 +1,7 @@
 // The device side of sync (src/account/sync.ts) against the real Worker: what is sent, what is taken, and how two devices that
 // changed the same document settle. Each device has its own store and outbox; the Worker and its SQL are the ones that ship.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SYNC_LIMITS } from "../../src/account/protocol";
+import { SYNC_COLLECTIONS, SYNC_LIMITS } from "../../src/account/protocol";
 import { world } from "./accounts-support";
 import { device, settle, T0, type Device } from "./device";
 
@@ -330,5 +330,137 @@ describe("tabs", () => {
     expect(w).toBeTruthy();
     s.close();
     await settle();
+  });
+});
+
+describe("races and failures on the device", () => {
+  it("counts a request's size in bytes, so documents in other scripts do not make it too large", async () => {
+    const { w, a } = await pair();
+    await a.account.signUp("p");
+    // 20 documents of 120,000 characters: about 2.4 million characters but 4.8 million bytes in UTF-8
+    for (let i = 0; i < 20; i++) await a.put("answers", "a" + i, { text: "я".repeat(120_000) }, T0 + i);
+    await a.sync.syncNow();
+    expect(a.sync.status()).toMatchObject({ pending: 0, error: null });
+    expect(w.db.sql<{ n: number }>("SELECT COUNT(*) AS n FROM docs")[0].n).toBe(20);
+  });
+
+  it("starts the first scan again when the page was closed during it, and keeps what was written meanwhile", async () => {
+    const { w, a } = await pair();
+    a.seed("answers", "old1", { at: "2026-10-12T08:00:00Z", v: "scanned" });
+    a.seed(SYNC_COLLECTIONS[SYNC_COLLECTIONS.length - 1], "late", { at: "2026-10-12T09:00:00Z" });
+    const documents = a.store.documents;
+    let breakAt: string | null = SYNC_COLLECTIONS[SYNC_COLLECTIONS.length - 1];
+    a.store.documents = async (col) => { if (col === breakAt) throw new Error("page closed"); return documents(col); };
+    await a.account.signUp("p"); // the account is made, the scan fails
+    expect(await a.outbox.getMeta("seeded")).toBeUndefined();
+    await a.put("answers", "during", { at: "2026-10-12T10:00:00Z", v: "written after the scan began" }, T0); // the hook was already in place
+    breakAt = null;
+    await a.sync.activate((await a.outbox.getMeta<string>("user"))!); // the next start
+    expect(await a.outbox.getMeta("seeded")).toBe(await a.outbox.getMeta("user"));
+    await a.sync.syncNow();
+    const ids = w.db.sql<{ id: string }>("SELECT id FROM docs ORDER BY id").map((r) => r.id);
+    expect(ids).toEqual(["during", "late", "old1"]);
+  });
+
+  it("keeps a change whose note could not be stored and sends it in the next round", async () => {
+    const { w, a } = await pair();
+    await a.account.signUp("p");
+    const real = a.outbox.put.bind(a.outbox);
+    let full = true;
+    a.outbox.put = async (e) => { if (full) throw new Error("storage full"); return real(e); };
+    await a.put("answers", "a1", { v: 1 }, T0);
+    expect(a.sync.status()).toMatchObject({ pending: 1, error: "unavailable" });
+    await a.sync.syncNow(); // still full: the round fails and nothing is lost
+    expect(a.sync.status()).toMatchObject({ pending: 1, error: "unavailable" });
+    full = false;
+    await a.sync.syncNow();
+    expect(a.sync.status()).toMatchObject({ pending: 0, error: null });
+    expect(w.db.sql<{ id: string }>("SELECT id FROM docs").map((r) => r.id)).toEqual(["a1"]);
+  });
+
+  it("does not overwrite a document written here while the server's copy was being judged", async () => {
+    const { w, a, b } = await pair();
+    await a.account.signUp("p");
+    await b.account.signIn();
+    await a.put("answers", "x", { v: 1 }, T0);
+    await a.sync.syncNow();
+    await b.sync.syncNow();
+    await a.put("answers", "x", { v: 2 }, T0 + 1000);
+    await a.sync.syncNow();
+    // b is about to take v2; the page writes v3 while b is still reading its own copy
+    b.hooks.afterRead = async () => { b.hooks.afterRead = undefined; await b.put("answers", "x", { v: 3 }, T0 + 9000); };
+    const appliedBefore = b.applied.length;
+    await b.sync.syncNow();
+    expect(b.applied.slice(appliedBefore)).not.toContain("answers/x"); // v2 was not written over v3, not even for a moment
+    expect(b.get("answers", "x")).toEqual({ v: 3 });
+    await b.sync.syncNow();
+    await a.sync.syncNow();
+    expect(a.get("answers", "x")).toEqual({ v: 3 });
+    expect(w.db.sql<{ data: string }>("SELECT data FROM docs WHERE id = 'x'")[0].data).toBe(JSON.stringify({ v: 3 }));
+  });
+
+  it("makes an explicit sync wait for the round in progress and then send what came after it", async () => {
+    const { a } = await pair();
+    await a.account.signUp("p");
+    const { createSync } = await import("../../src/account/sync");
+    const posts: number[] = [];
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const s = createSync({
+      store: a.store,
+      outbox: a.outbox,
+      post: async (req) => { posts.push(req.writes.length); if (posts.length === 1) await gate; return { cursor: 1, changes: [], rejected: [], more: false }; },
+      setTimer: () => 0,
+      clearTimer: () => {},
+      debounceMs: 0,
+    });
+    await s.activate((await a.outbox.getMeta<string>("user"))!);
+    await a.put("answers", "a1", { v: 1 }, T0);
+    const first = s.syncNow(); // in flight, waiting for the gate
+    await settle();
+    await a.put("answers", "a2", { v: 2 }, T0 + 1);
+    let secondDone = false;
+    const second = s.syncNow().then((st) => { secondDone = true; return st; });
+    await settle();
+    expect(secondDone).toBe(false);
+    release();
+    await first;
+    const status = await second;
+    expect(status).toMatchObject({ busy: false, pending: 0, error: null });
+    expect(posts.reduce((n, c) => n + c, 0)).toBeGreaterThanOrEqual(2);
+    s.close();
+  });
+});
+
+describe("tabs of one browser", () => {
+  it("follows another tab that signed out", async () => {
+    const { a } = await pair();
+    await a.account.signUp("p");
+    expect(a.sync.status().active).toBe(true);
+    a.kept = null; // the other tab wrote this
+    await a.account.reconcile();
+    expect(a.account.view().person).toBeNull();
+    expect(a.sync.status().active).toBe(false);
+  });
+
+  it("follows another tab that signed in as someone else, and starts noting for that account", async () => {
+    const { a } = await pair();
+    await a.account.signUp("p");
+    await a.put("answers", "a1", { v: 1 }, T0);
+    a.kept = { id: "someone-else", name: "Q", passkeys: 1, hasKey: false };
+    await a.account.reconcile();
+    expect(a.account.view().person?.id).toBe("someone-else");
+    expect(await a.outbox.getMeta("user")).toBe("someone-else");
+    expect(a.sync.status().active).toBe(true);
+  });
+
+  it("does not delete an account while the session belongs to no one, or to someone else than the one shown", async () => {
+    const { w, a } = await pair();
+    await a.account.signUp("p");
+    a.clearCookie(); // the session ended in another tab
+    await a.account.deleteAccount();
+    expect(a.account.view().message?.bad).toBe(true);
+    expect(a.account.view().person).toBeNull();
+    expect(w.db.sql<{ n: number }>("SELECT COUNT(*) AS n FROM users")[0].n).toBe(1);
   });
 });

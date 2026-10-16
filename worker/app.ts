@@ -17,7 +17,7 @@ import { readConfig } from "./config";
 import { readCourseRows } from "./course";
 import type { Env } from "./env";
 import type { Kit } from "./kit";
-import { callerOf, gate, magicKeyOf } from "./magic";
+import { callerOf, gate, magicKeyOf, type Gate } from "./magic";
 import { reportRoutes, reportsOn } from "./reports";
 import { syncRoutes } from "./sync";
 import { parseRequest, runTutor } from "./tutor";
@@ -41,6 +41,14 @@ export function createApp(deps: Deps) {
   const fail = (code: ErrorCode, message: string, headers?: Record<string, string>, extra: { scope?: BudgetScope; resetsAt?: string } = {}) =>
     new Response(JSON.stringify({ error: { code, message, ...extra } }), { status: STATUS[code], headers: { "content-type": "application/json", "cache-control": "no-store", ...headers } });
 
+  // A proof that was refused: wrong, or not even looked at because this connection used up its wrong guesses for the hour (that is
+  // a wait, not a verdict on the key, so the page keeps the tutor and says when to try again).
+  const refusal = (checked: Extract<Gate, { ok: false }>, wrong: string) => {
+    if (checked.reason !== "blocked") return fail("not_granted", wrong);
+    const wait = Math.max(1, Math.ceil((Date.parse(checked.resetsAt ?? "") - now().getTime()) / 1000) || 60);
+    return fail("rate_limited", "too many wrong keys from this connection; try again later", { "retry-after": String(wait) }, { scope: "caller", resetsAt: checked.resetsAt });
+  };
+
   // The app and its server share an origin, so a request that names another one is not from the app.
   app.use("/api/*", async (c, next) => {
     const origin = c.req.header("origin");
@@ -63,10 +71,7 @@ export function createApp(deps: Deps) {
   app.get(API.course, async (c) => {
     const env = c.env;
     const checked = await gate(env, now(), await callerOf(c.req.header("cf-connecting-ip")), c.req.header(HEADER.device) ?? "", c.req.header(HEADER.proof) ?? "");
-    if (!checked.ok) {
-      if (checked.reason === "blocked") return fail("rate_limited", "too many wrong keys from this connection; try again later", {}, { resetsAt: checked.resetsAt });
-      return fail("not_granted", "the Magic Key does not match");
-    }
+    if (!checked.ok) return refusal(checked, "the Magic Key does not match");
     const rows = await readCourseRows(env.DB);
     if (!rows) return fail("unavailable", "the course data is not on the server");
     const headers = { "content-type": "application/json", "cache-control": "no-store" };
@@ -82,7 +87,8 @@ export function createApp(deps: Deps) {
     const device = c.req.header(HEADER.device) ?? "";
     const proof = c.req.header(HEADER.proof) ?? "";
     // Sign-in comes first, so that nothing below (the model) is reached by a caller without the key. Wrong keys are counted per caller.
-    if (!(await gate(env, now(), await callerOf(c.req.header("cf-connecting-ip")), device, proof)).ok) return fail("not_granted", "the proof does not match");
+    const checked = await gate(env, now(), await callerOf(c.req.header("cf-connecting-ip")), device, proof);
+    if (!checked.ok) return refusal(checked, "the proof does not match");
     if (!(await ready(env))) return fail("unavailable", "the tutor is off");
 
     let body: unknown;

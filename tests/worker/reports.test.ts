@@ -132,10 +132,14 @@ describe("the Magic Key", () => {
     expect(rows(w)).toEqual([]);
   });
 
-  it("a caller who sends wrong proofs is counted, as for the tutor, and then stopped even with a right one", async () => {
+  it("a caller who sends wrong proofs is counted, as for the tutor, and then told to wait even with a right one", async () => {
     const w = await world();
     for (let i = 0; i < GUESSES_PER_HOUR; i++) expect((await post(w, { send: [report("fl_a")] }, { proof: "x".repeat(43), ip: "198.51.100.9" })).status).toBe(403);
-    expect((await post(w, { send: [report("fl_a")] }, { ip: "198.51.100.9" })).status).toBe(403);
+    // past the hour's wrong guesses the proof is not looked at: that is a wait (429 with the seconds), not a verdict on the key
+    const blocked = await post(w, { send: [report("fl_a")] }, { ip: "198.51.100.9" });
+    expect([blocked.status, (await json(blocked)).error.code]).toEqual([429, "quota"]);
+    expect(Number(blocked.headers.get("retry-after"))).toBeGreaterThan(0);
+    expect(rows(w)).toEqual([]);
     expect((await post(w, { send: [report("fl_a")] }, { ip: "198.51.100.10" })).status).toBe(200);
   });
 });
