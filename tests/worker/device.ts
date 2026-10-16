@@ -29,15 +29,22 @@ export async function device(w: World, opts: Options = {}) {
   const docs = new Map<string, Doc>();
   const writers = new Set<(x: { col: string; id: string; data: Doc | null }) => void>();
   const applied: string[] = [];
+  const revs = new Map<string, number>();
+  const bump = (k: string) => void revs.set(k, (revs.get(k) ?? 0) + 1);
+  /** things a test can make happen at a chosen moment inside the engine's calls */
+  const hooks: { afterRead?: () => Promise<void> | void } = {};
   const store: SyncStore = {
     onWrite(fn) { writers.add(fn); return () => void writers.delete(fn); },
-    async applyRemote(col, id, data) {
+    revision: (col, id) => revs.get(`${col}/${id}`) ?? 0,
+    async applyRemote(col, id, data, revision) {
+      if (revision !== undefined && (revs.get(`${col}/${id}`) ?? 0) !== revision) return;
+      bump(`${col}/${id}`);
       applied.push(`${col}/${id}`);
       if (data === null) docs.delete(`${col}/${id}`);
       else docs.set(`${col}/${id}`, structuredClone(data));
     },
     async documents(col) { return [...docs].filter(([k]) => k.startsWith(col + "/")).map(([k, data]) => ({ id: k.slice(col.length + 1), data: structuredClone(data) })); },
-    async read(col, id) { const d = docs.get(`${col}/${id}`); return d ? structuredClone(d) : null; },
+    async read(col, id) { const d = docs.get(`${col}/${id}`); const out = d ? structuredClone(d) : null; await hooks.afterRead?.(); return out; },
   };
 
   const me = {
@@ -87,6 +94,7 @@ export async function device(w: World, opts: Options = {}) {
     ...me,
     get docs() { return docs; },
     store,
+    hooks,
     outbox,
     sync,
     client,
@@ -108,12 +116,14 @@ export async function device(w: World, opts: Options = {}) {
     async put(col: string, id: string, data: Doc, at?: number) {
       if (at !== undefined) me.now = at;
       docs.set(`${col}/${id}`, structuredClone(data));
+      bump(`${col}/${id}`);
       for (const fn of [...writers]) fn({ col, id, data: structuredClone(data) });
       await settle();
     },
     async remove(col: string, id: string, at?: number) {
       if (at !== undefined) me.now = at;
       docs.delete(`${col}/${id}`);
+      bump(`${col}/${id}`);
       for (const fn of [...writers]) fn({ col, id, data: null });
       await settle();
     },

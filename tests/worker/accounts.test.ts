@@ -4,9 +4,10 @@ import { ACCOUNT_API } from "../../src/account/protocol";
 import { testMagicKey as generateKey } from "../support/magic-key";
 import { HEADER } from "../../src/ai/protocol";
 import { makeProof, newDeviceId } from "../../src/ai/proof";
+import { GUESSES_PER_HOUR } from "../../worker/magic";
 import { COOKIE, SESSION_MS, hashToken } from "../../worker/session";
 import { passkey } from "./authenticator";
-import { ORIGIN, WHERE, cookieOf, signIn, signUp, world } from "./accounts-support";
+import { ORIGIN, WHERE, beforeStatement, cookieOf, signIn, signUp, world, type World } from "./accounts-support";
 import { json } from "./support";
 
 beforeEach(() => void vi.spyOn(console, "error").mockImplementation(() => {}));
@@ -149,6 +150,51 @@ describe("making an account", () => {
     w.clock.now = new Date("2028-01-01T00:00:00Z");
     expect((await w.call(ACCOUNT_API.registerOptions, { body: {} })).status).toBe(200);
   });
+
+  it("takes at most so many sign-in and sign-up ceremonies a day from everybody together, and starts again the next day", async () => {
+    const w = await world({ CEREMONIES_PER_DAY: "10" });
+    for (let i = 0; i < 5; i++) expect((await w.call(ACCOUNT_API.loginOptions, { body: {} })).status).toBe(200);
+    for (let i = 0; i < 5; i++) expect((await w.call(ACCOUNT_API.registerOptions, { body: {} })).status).toBe(200);
+    const over = await w.call(ACCOUNT_API.loginOptions, { body: {} });
+    expect(over.status).toBe(429);
+    expect((await json(over)).error.code).toBe("quota");
+    expect((await w.call(ACCOUNT_API.registerOptions, { body: {} })).status).toBe(429);
+    expect(w.db.sql("SELECT id FROM challenges")).toHaveLength(10); // the refused ones wrote nothing
+    w.clock.now = new Date(w.clock.now.getTime() + DAY);
+    expect((await w.call(ACCOUNT_API.loginOptions, { body: {} })).status).toBe(200);
+  });
+
+  it("counts the ceremonies a day in the statement, so that requests arriving together cannot pass the limit", async () => {
+    const w = await world({ CEREMONIES_PER_DAY: "10" });
+    const answers = await Promise.all(Array.from({ length: 25 }, () => w.call(ACCOUNT_API.loginOptions, { body: {} })));
+    expect(answers.filter((r) => r.status === 200)).toHaveLength(10);
+    expect(answers.filter((r) => r.status === 429)).toHaveLength(15);
+    expect(w.db.sql("SELECT id FROM challenges")).toHaveLength(10);
+  });
+
+  it("keeps the ceremonies under way within the limit when the requests arrive together", async () => {
+    const w = await world();
+    for (let i = 0; i < 497; i++) w.db.sql(`INSERT INTO challenges (id, kind, challenge, expires_at) VALUES ('c${i}', 'login', 'x', '2027-01-01T00:00:00Z') RETURNING id`);
+    const answers = await Promise.all(Array.from({ length: 8 }, () => w.call(ACCOUNT_API.loginOptions, { body: {} })));
+    expect(answers.filter((r) => r.status === 200)).toHaveLength(3);
+    expect(answers.filter((r) => r.status === 429)).toHaveLength(5);
+    expect(w.db.sql<{ n: number }>("SELECT COUNT(*) AS n FROM challenges")[0].n).toBe(500);
+  });
+
+  it("gives the last place to one of the people who ask for it together, and leaves nothing of the others", async () => {
+    const w = await world({ MAX_ACCOUNTS: "1" });
+    const people = [await passkey(), await passkey(), await passkey()];
+    const ready = [];
+    for (const pk of people) {
+      const started = await json(await w.call(ACCOUNT_API.registerOptions, { body: {} }));
+      ready.push({ challengeId: started.challengeId, response: await pk.register(started.options, WHERE) });
+    }
+    const answers = await Promise.all(ready.map((body) => w.call(ACCOUNT_API.registerVerify, { body })));
+    expect(answers.map((r) => r.status).sort()).toEqual([200, 429, 429]);
+    expect(w.db.sql("SELECT id FROM users")).toHaveLength(1);
+    expect(w.db.sql("SELECT id FROM credentials")).toHaveLength(1);
+    expect(w.db.sql("SELECT token_hash FROM sessions")).toHaveLength(1);
+  });
 });
 
 describe("who may make an account", () => {
@@ -183,6 +229,19 @@ describe("who may make an account", () => {
     const verified = await people.call(ACCOUNT_API.registerVerify, { body: { challengeId: started.challengeId, response: await pk.register(started.options, WHERE) } });
     expect(verified.status).toBe(200);
     expect((await signIn(people, pk)).id).toBeTruthy();
+  });
+
+  it("a connection past the hourly limit on wrong keys is told to wait, not that its key is wrong", async () => {
+    const w = await world({ SIGNUP: "group" });
+    const wrong = await makeProof(generateKey(), w.device);
+    const asks = (proof: string) => w.call(ACCOUNT_API.registerOptions, { body: {}, headers: { [HEADER.device]: w.device, [HEADER.proof]: proof } });
+    for (let i = 0; i < GUESSES_PER_HOUR; i++) expect((await asks(wrong)).status).toBe(403);
+    for (const proof of [wrong, w.proof]) {
+      const blocked = await asks(proof);
+      expect(blocked.status).toBe(429);
+      expect((await json(blocked)).error.code).toBe("quota");
+      expect(Number(blocked.headers.get("retry-after"))).toBeGreaterThan(0);
+    }
   });
 
   it("not for the group when the server has no key to check the proof with", async () => {
@@ -302,6 +361,26 @@ describe("sessions", () => {
     expect(Date.parse(after) - w.clock.now.getTime()).toBe(SESSION_MS);
   });
 
+  it("extend the browser's cookie when the server extends them, on any request that uses the session, and not before", async () => {
+    const w = await world();
+    const me = await signUp(w);
+    const token = me.cookie.split("=")[1];
+    const get = (path: string) => w.call(path, { cookie: me.cookie, ...(path === ACCOUNT_API.sync ? { body: { cursor: 0, writes: [] } } : {}) });
+    w.clock.now = new Date(w.clock.now.getTime() + 10 * DAY);
+    for (const path of [ACCOUNT_API.me, ACCOUNT_API.sync]) expect((await get(path)).headers.get("set-cookie"), path).toBeNull();
+    w.clock.now = new Date(w.clock.now.getTime() + 25 * DAY); // in the second half now
+    const res = await get(ACCOUNT_API.sync);
+    expect(res.status).toBe(200);
+    const header = res.headers.get("set-cookie") ?? "";
+    expect(header).toContain(`${COOKIE}=${token}`);
+    expect(header).toMatch(new RegExp(`Max-Age=${SESSION_MS / 1000}`));
+    // extended on the server, so the next use finds more than half left
+    expect((await get(ACCOUNT_API.me)).headers.get("set-cookie")).toBeNull();
+    // and the other routes of the account do it too
+    w.clock.now = new Date(w.clock.now.getTime() + 35 * DAY);
+    expect((await get(ACCOUNT_API.me)).headers.get("set-cookie")).toContain(`${COOKIE}=${token}`);
+  });
+
   it("end at sign-out, on the server too, and the cookie is cleared", async () => {
     const w = await world();
     const me = await signUp(w);
@@ -375,6 +454,50 @@ describe("another passkey", () => {
     const started = await json(await w.call(ACCOUNT_API.passkeyOptions, { body: {}, cookie: me.cookie }));
     const res = await w.call(ACCOUNT_API.passkeyVerify, { body: { challengeId: started.challengeId, response: await (await passkey()).register(started.options, WHERE) }, cookie: me.cookie });
     expect(res.status).toBe(429);
+  });
+});
+
+describe("accounts that are deleted or full while a request is under way", () => {
+  const prepared = async (w: World, me: { cookie: string }, n: number) => {
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      const started = await json(await w.call(ACCOUNT_API.passkeyOptions, { body: {}, cookie: me.cookie }));
+      out.push({ challengeId: started.challengeId, response: await (await passkey()).register(started.options, WHERE) });
+    }
+    return out;
+  };
+
+  it("stop at ten passkeys when the last places are asked for together", async () => {
+    const w = await world();
+    const me = await signUp(w);
+    for (const body of await prepared(w, me, 8)) expect((await w.call(ACCOUNT_API.passkeyVerify, { body, cookie: me.cookie })).status).toBe(200);
+    const together = await prepared(w, me, 4);
+    const answers = await Promise.all(together.map((body) => w.call(ACCOUNT_API.passkeyVerify, { body, cookie: me.cookie })));
+    expect(answers.map((r) => r.status).sort()).toEqual([200, 429, 429, 429]);
+    expect(w.db.sql<{ n: number }>("SELECT COUNT(*) AS n FROM credentials")[0].n).toBe(10);
+  });
+
+  it("leave no passkey behind for an account deleted while it was added", async () => {
+    const w = await world();
+    const me = await signUp(w);
+    const [body] = await prepared(w, me, 1);
+    beforeStatement(w, "INSERT INTO credentials", () => w.db.sql("DELETE FROM users"));
+    const res = await w.call(ACCOUNT_API.passkeyVerify, { body, cookie: me.cookie });
+    expect(res.status).toBe(401);
+    expect(w.db.sql<{ n: number }>("SELECT COUNT(*) AS n FROM credentials")[0].n).toBe(1); // only the first one, which the deletion in this test did not touch
+  });
+
+  it("do not start a session for an account deleted while the sign-in was checked", async () => {
+    const w = await world();
+    const me = await signUp(w);
+    w.db.sql("DELETE FROM sessions");
+    const started = await json(await w.call(ACCOUNT_API.loginOptions, { body: {} }));
+    const response = await me.key.sign(started.options, WHERE);
+    beforeStatement(w, "INSERT INTO sessions", () => w.db.sql("DELETE FROM users"));
+    const res = await w.call(ACCOUNT_API.loginVerify, { body: { challengeId: started.challengeId, response } });
+    expect(res.status).toBe(401);
+    expect(res.headers.get("set-cookie")).toBeNull();
+    expect(w.db.sql("SELECT token_hash FROM sessions")).toHaveLength(0);
   });
 });
 

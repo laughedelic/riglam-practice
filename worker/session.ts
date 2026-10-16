@@ -44,8 +44,9 @@ export function tokenFrom(header: string | undefined): string | null {
 /** A new session: the token for the cookie and the statement that stores it (so that it can join a batch). */
 export async function newSession(db: D1Database, userId: string, now: Date): Promise<{ token: string; insert: D1PreparedStatement }> {
   const token = randomToken(32);
+  // Only for an account that exists when the statement runs (a deletion may have come in since the caller looked), so that none is left without an owner.
   const insert = db
-    .prepare("INSERT INTO sessions (token_hash, user_id, created_at, expires_at) VALUES (?1, ?2, ?3, ?4)")
+    .prepare("INSERT INTO sessions (token_hash, user_id, created_at, expires_at) SELECT ?1, ?2, ?3, ?4 WHERE EXISTS (SELECT 1 FROM users WHERE id = ?2)")
     .bind(await hashToken(token), userId, now.toISOString(), new Date(now.getTime() + SESSION_MS).toISOString());
   return { token, insert };
 }
@@ -54,6 +55,8 @@ export interface Session {
   userId: string;
   name: string;
   tokenHash: string;
+  /** the session was extended by this use, so the browser's cookie must be extended too */
+  renewed: boolean;
 }
 
 /** Who the cookie belongs to, or null when it is missing, unknown or over. A session that is half over is extended. */
@@ -68,12 +71,13 @@ export async function readSession(db: D1Database, cookieHeader: string | undefin
   if (!row) return null;
   const left = Date.parse(row.expires) - now.getTime();
   if (!(left > 0)) return null;
+  let renewed = false;
   if (left < RENEW_BELOW_MS) {
-    await db
+    renewed = await db
       .prepare("UPDATE sessions SET expires_at = ?2 WHERE token_hash = ?1")
       .bind(tokenHash, new Date(now.getTime() + SESSION_MS).toISOString())
       .run()
-      .catch(() => {});
+      .then((r) => r.meta.changes > 0, () => false);
   }
-  return { userId: row.userId, name: row.name, tokenHash };
+  return { userId: row.userId, name: row.name, tokenHash, renewed };
 }
