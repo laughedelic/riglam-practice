@@ -11,6 +11,8 @@
 //   POST   /api/account/passkeys/options   start adding a passkey to the signed-in account
 //   POST   /api/account/passkeys/verify    finish it
 //   POST   /api/account/logout
+//   POST   /api/account/key                the account carries the Magic Key (needs the access proof)
+//   GET    /api/account/key                the Magic Key, to a signed-in account that carries it
 //
 // The ceremonies are the library's (@simplewebauthn/server); what is ours is the challenge handling, the sessions and the limits.
 
@@ -21,7 +23,7 @@ import { ACCOUNT_API, SYNC_LIMITS, type AccountError, type AccountErrorCode, typ
 import { HEADER } from "../src/ai/protocol";
 import { dayOf } from "./budget";
 import { readAccountConfig } from "./config";
-import { callerOf, gate, type Gate } from "./magic";
+import { callerOf, gate, magicKeyOf, type Gate } from "./magic";
 import type { Env } from "./env";
 import { clearedCookie, fromB64u, hashToken, newSession, pruneSessions, randomToken, readSession, sessionCookie, toB64u, tokenFrom, type Session } from "./session";
 
@@ -209,8 +211,8 @@ export function accountRoutes(deps: AccountDeps) {
     if (!(await accountsOn(c.env.DB))) return fail("unavailable", "accounts are off");
     const session = await sessionOf(c, deps.now());
     if (!session) return json({ signedIn: false } satisfies MeResponse);
-    const created = await c.env.DB!.prepare("SELECT created_at AS createdAt FROM users WHERE id = ?1").bind(session.userId).first<{ createdAt: string }>();
-    return json({ signedIn: true, user: { id: session.userId, name: session.name, passkeys: await passkeys(c.env.DB!, session.userId), createdAt: created?.createdAt ?? "" } } satisfies MeResponse);
+    const row = await c.env.DB!.prepare("SELECT created_at AS createdAt, has_key AS hasKey FROM users WHERE id = ?1").bind(session.userId).first<{ createdAt: string; hasKey: number }>();
+    return json({ signedIn: true, user: { id: session.userId, name: session.name, passkeys: await passkeys(c.env.DB!, session.userId), createdAt: row?.createdAt ?? "", hasKey: row?.hasKey === 1 } } satisfies MeResponse);
   });
 
   app.delete(ACCOUNT_API.me, async (c) => {
@@ -227,6 +229,26 @@ export function accountRoutes(deps: AccountDeps) {
       db.prepare("DELETE FROM users WHERE id = ?1").bind(u),
     ]);
     return json({ ok: true }, { "set-cookie": clearedCookie() });
+  });
+
+  // An account that shows the Magic Key carries it: its devices get the key when they sign in, and again after the key is changed.
+  // Only a request with a valid proof sets the flag (wrong proofs are counted like everywhere else), and only the signed-in account's own row changes.
+  app.post(ACCOUNT_API.key, async (c) => {
+    const session = await needSession(c);
+    if (session instanceof Response) return session;
+    const checked = await gate(c.env, deps.now(), await callerOf(c.req.header("cf-connecting-ip")), c.req.header(HEADER.device) ?? "", c.req.header(HEADER.proof) ?? "");
+    if (!checked.ok) return keyRefusal(checked, deps.now(), "the Magic Key does not match");
+    await c.env.DB!.prepare("UPDATE users SET has_key = 1 WHERE id = ?1").bind(session.userId).run();
+    return json({ hasKey: true });
+  });
+
+  app.get(ACCOUNT_API.key, async (c) => {
+    const session = await needSession(c);
+    if (session instanceof Response) return session;
+    const row = await c.env.DB!.prepare("SELECT has_key AS hasKey FROM users WHERE id = ?1").bind(session.userId).first<{ hasKey: number }>();
+    const key = magicKeyOf(c.env);
+    if (row?.hasKey !== 1 || !key) return fail("not_granted", "this account does not carry the Magic Key");
+    return json({ key });
   });
 
   app.post(ACCOUNT_API.logout, async (c) => {
@@ -324,7 +346,7 @@ export function accountRoutes(deps: AccountDeps) {
       return isConstraint(e) ? fail("conflict", "that passkey is already registered") : fail("unavailable", "the account could not be made");
     }
     if (!made[0].meta.changes) return fail("quota", "this app has reached its number of accounts");
-    return json({ signedIn: true, user: { id: challenge.userId, name: challenge.name, passkeys: 1, createdAt: now.toISOString() } } satisfies MeResponse, { "set-cookie": sessionCookie(session.token) });
+    return json({ signedIn: true, user: { id: challenge.userId, name: challenge.name, passkeys: 1, createdAt: now.toISOString(), hasKey: false } } satisfies MeResponse, { "set-cookie": sessionCookie(session.token) });
   });
 
   // ---- an existing account ----
@@ -377,8 +399,8 @@ export function accountRoutes(deps: AccountDeps) {
       session.insert,
     ]);
     if (!stored[2].meta.changes) return fail("unknown_passkey", "this app does not know that passkey"); // the account was deleted while this sign-in was under way
-    const created = await db.prepare("SELECT created_at AS createdAt FROM users WHERE id = ?1").bind(row.userId).first<{ createdAt: string }>();
-    return json({ signedIn: true, user: { id: row.userId, name: row.name, passkeys: await passkeys(db, row.userId), createdAt: created?.createdAt ?? "" } } satisfies MeResponse, { "set-cookie": sessionCookie(session.token) });
+    const created = await db.prepare("SELECT created_at AS createdAt, has_key AS hasKey FROM users WHERE id = ?1").bind(row.userId).first<{ createdAt: string; hasKey: number }>();
+    return json({ signedIn: true, user: { id: row.userId, name: row.name, passkeys: await passkeys(db, row.userId), createdAt: created?.createdAt ?? "", hasKey: created?.hasKey === 1 } } satisfies MeResponse, { "set-cookie": sessionCookie(session.token) });
   });
 
   // ---- another passkey for the signed-in account ----

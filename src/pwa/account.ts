@@ -19,7 +19,7 @@ const keep = {
   read(): Person | null {
     try {
       const v = JSON.parse(localStorage.getItem(KEPT) ?? "null");
-      return v && typeof v.id === "string" && typeof v.name === "string" ? { id: v.id, name: v.name, passkeys: Number(v.passkeys) || 1 } : null;
+      return v && typeof v.id === "string" && typeof v.name === "string" ? { id: v.id, name: v.name, passkeys: Number(v.passkeys) || 1, hasKey: v.hasKey === true } : null;
     } catch {
       return null;
     }
@@ -56,8 +56,8 @@ const storeOf = (db: LocalDb): SyncStore => ({
   },
 });
 
-/** The account of this device. `groupKey` gives the study group's key when this device has it (a new account may need that proof). */
-export function createPwaAccount(db: LocalDb, groupKey: () => string | null): Account {
+/** The account of this device. `magicKey` is the Magic Key on this device: `read` gives it (a new account needs its proof), `adopt` takes the one the account carries. */
+export function createPwaAccount(db: LocalDb, magicKey: { read(): string | null; adopt(key: string): void }): Account {
   const client = createAccountClient();
   const sync = createSync({
     store: storeOf(db),
@@ -71,8 +71,9 @@ export function createPwaAccount(db: LocalDb, groupKey: () => string | null): Ac
     sync,
     passkeys: browserPasskeys,
     keep,
+    magicKey,
     proof: async (): Promise<Record<string, string>> => {
-      const key = groupKey();
+      const key = magicKey.read();
       if (!key) return {};
       const id = deviceId();
       return { [HEADER.device]: id, [HEADER.proof]: await makeProof(key, id) };

@@ -9,7 +9,7 @@ import { signature, syncLine } from "../../src/ui/account";
 const view = (sync: Partial<AccountView["sync"]> = {}, rest: Partial<AccountView> = {}): AccountView => ({
   available: true,
   supported: true,
-  person: { id: "u", name: "n", passkeys: 1 },
+  person: { id: "u", name: "n", passkeys: 1, hasKey: false },
   busy: null,
   message: null,
   sync: { active: true, busy: false, pending: 0, last: null, error: null, ...sync },
@@ -33,6 +33,7 @@ describe("what the row says about sync", () => {
     expect(signature(view())).toBe(signature(view()));
     expect(signature(view({ pending: 1 }))).not.toBe(signature(view()));
     expect(signature(view({}, { message: { text: "x", bad: false } }))).not.toBe(signature(view()));
+    expect(signature(view({}, { person: { id: "u", name: "n", passkeys: 1, hasKey: true } }))).not.toBe(signature(view()));
   });
 });
 

@@ -745,7 +745,7 @@ describe("tabs of one browser", () => {
     const { a } = await pair();
     await a.account.signUp("p");
     await a.put("answers", "a1", { v: 1 }, T0);
-    a.kept = { id: "someone-else", name: "Q", passkeys: 1 };
+    a.kept = { id: "someone-else", name: "Q", passkeys: 1, hasKey: false };
     await a.account.reconcile();
     expect(a.account.view().person?.id).toBe("someone-else");
     expect(await a.outbox.getMeta("user")).toBe("someone-else");
@@ -762,7 +762,7 @@ describe("tabs of one browser", () => {
     await a.put("answers", "a1", { v: 1 }, T0);
     const round = a.sync.syncNow(); // out, for the first person
     await settle();
-    a.kept = { id: "someone-else", name: "Q", passkeys: 1 }; // another tab signed in as someone else
+    a.kept = { id: "someone-else", name: "Q", passkeys: 1, hasKey: false }; // another tab signed in as someone else
     await a.account.reconcile();
     release();
     await round;
@@ -821,10 +821,10 @@ describe("tabs of one browser", () => {
     const gate = new Promise<void>((r) => (release = r));
     let calls = 0;
     a.sync.activate = async (id) => { if (++calls === 1) await gate; return real(id); }; // the first change is slow
-    a.kept = { id: "first", name: "A", passkeys: 1 };
+    a.kept = { id: "first", name: "A", passkeys: 1, hasKey: false };
     const one = a.account.reconcile();
     await settle();
-    a.kept = { id: "second", name: "B", passkeys: 1 };
+    a.kept = { id: "second", name: "B", passkeys: 1, hasKey: false };
     const two = a.account.reconcile();
     await settle();
     release();
@@ -845,11 +845,11 @@ describe("tabs of one browser", () => {
     const gate = new Promise<void>((r) => (release = r));
     a.sync.resume = async () => { await gate; return real(); };
     const { createAccount } = await import("../../src/account/account");
-    const secondIsIn = { signedIn: true as const, user: { id: "second", name: "B", passkeys: 1, createdAt: "2026-10-16T00:00:00Z" } }; // what the server says once the other tab has signed in
+    const secondIsIn = { signedIn: true as const, user: { id: "second", name: "B", passkeys: 1, hasKey: false, createdAt: "2026-10-16T00:00:00Z" } }; // what the server says once the other tab has signed in
     const again = createAccount({ client: { ...a.client, me: async () => secondIsIn }, sync: a.sync, passkeys: { supported: () => true, create: async () => ({}), get: async () => ({}) }, keep: { read: () => a.kept, write: (p) => void (a.kept = p) } });
     const starting = again.start(); // waits for the outbox
     await settle();
-    a.kept = { id: "second", name: "B", passkeys: 1 }; // another tab signed in as someone else
+    a.kept = { id: "second", name: "B", passkeys: 1, hasKey: false }; // another tab signed in as someone else
     await again.reconcile();
     release();
     await starting;

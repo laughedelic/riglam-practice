@@ -10,6 +10,7 @@ import { merge, lock } from "../data/course.js";
 import type { Account, DrillData, Platform, Sample } from "../platform/types";
 import { createPwaAccount } from "./account";
 import { fetchCourse, forgetCourse, keepCourse, keptCourse, whyNot, type Definitions } from "./course";
+import { createAccountClient } from "../account/client";
 import { createLocalDb } from "./local-db";
 import { createTutor, tutorIsOn as serverSaysOn } from "./tutor";
 import { takeLinkKey, storedKey, storeKey, forgetKey, showUnlock, markKeyChanged, takeKeyChanged, KEY_CHANGED_TEXT } from "./unlock";
@@ -48,6 +49,12 @@ async function loadData(): Promise<DrillData> {
     if (!got.ok && got.reason === "not_granted") {
       forgetKey();
       forgetCourse();
+      if (await recoverFromAccount()) {
+        // the account carries the new key: start over with it (a key from the link, which did not fit, is out of the way now)
+        link.key = null;
+        link.present = false;
+        return loadData();
+      }
       problem = link.key ? "The Magic Key in that link does not fit. Ask for a new link." : KEY_CHANGED_TEXT;
     } else if (!got.ok) {
       // the server could not be asked (offline, too many tries, down): a key from a link is kept for the next visit, and the definitions stay locked for this one.
@@ -73,8 +80,29 @@ async function refresh(key: string, have: string) {
   } else if (got.reason === "not_granted") {
     forgetKey();
     forgetCourse();
-    markKeyChanged(); // this visit still shows the kept copy; the next one explains and asks for the new key
+    if (groupKey === key) groupKey = null; // the account's sign-in must not find the rejected key still held in memory
+    if (await recoverFromAccount()) location.reload(); // the account carries the new key: start again with it
+    else markKeyChanged(); // this visit still shows the kept copy; the next one explains and asks for the new key
   }
+}
+
+/** The key the server stopped accepting may have been changed: an account that carries the key (and is signed in here) has the new one. */
+async function recoverFromAccount(): Promise<boolean> {
+  try {
+    const key = await createAccountClient().fetchKey();
+    const got = await fetchCourse(key);
+    if (!got.ok || !("definitions" in got)) return false;
+    if (!storeKey(key)) return false; // nowhere to keep it: a reload would find the device without it and fetch it again, for ever
+    keepCourse({ version: got.version, definitions: got.definitions });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** A device that signed in to an account which carries the Magic Key takes it and starts again, unlocked. */
+function takeAccountKey(key: string) {
+  if (storeKey(key)) location.reload(); // with nowhere to keep the key a reload would start locked again and fetch it again, for ever
 }
 
 /** For the Magic Key prompt: null when the key opens the definitions (they are kept, so the reload that follows starts unlocked), otherwise what to tell the reader. */
@@ -106,5 +134,5 @@ export const pwaPlatform: Platform = {
   // Only with the key (the server would refuse the request anyway) and only when the server says its tutor is on: otherwise the page hides the tutor.
   tutor: async () => (groupKey && (await tutorIsOn()) ? createTutor(groupKey) : null),
   // Made on first ask and then kept; it finds out for itself whether the server has accounts, so the page can show its row at once.
-  account: async () => (account ??= createPwaAccount(db, () => groupKey)),
+  account: async () => (account ??= createPwaAccount(db, { read: () => groupKey ?? storedKey(), adopt: takeAccountKey })),
 };

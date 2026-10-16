@@ -3,6 +3,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { makeProof, newDeviceId } from "../../src/ai/proof";
 import { HEADER } from "../../src/ai/protocol";
+import { GUESSES_PER_HOUR } from "../../worker/magic";
+import { createAccountClient } from "../../src/account/client";
 import { world } from "./accounts-support";
 import { device, settle, T0 } from "./device";
 import { passkey } from "./authenticator";
@@ -202,5 +204,121 @@ describe("starting the app", () => {
     expect(again.view().person).toBeNull(); // the old answer did not bring the person back
     expect(a.kept).toBeNull();
     expect(a.sync.status().active).toBe(false);
+  });
+});
+
+describe("the account carries the Magic Key", () => {
+  const withKey = (w: Awaited<ReturnType<typeof world>>) => {
+    const id = newDeviceId();
+    return {
+      proof: async () => ({ [HEADER.device]: id, [HEADER.proof]: await makeProof(w.key, id) }),
+    };
+  };
+
+  it("a device that has the key makes its account carry it; a device that signs in without the key gets it", async () => {
+    const w = await world();
+    const adopted: string[] = [];
+    const a = await device(w, { ...withKey(w), magicKey: { read: () => w.key, adopt: (k) => void adopted.push(k) } });
+    await a.account.signUp("p");
+    expect(a.account.view().person).toMatchObject({ hasKey: true });
+    expect(a.kept).toMatchObject({ hasKey: true });
+    expect(w.db.sql("SELECT has_key FROM users")).toEqual([{ has_key: 1 }]);
+    expect(adopted).toEqual([]);
+
+    const taken: string[] = [];
+    const b = await device(w, { key: a.key, magicKey: { read: () => null, adopt: (k) => void taken.push(k) } });
+    await b.account.signIn();
+    expect(taken).toEqual([w.key]);
+    expect(b.account.view().person).toMatchObject({ hasKey: true });
+  });
+
+  it("a share that finishes after a sign-out does not bring the person back", async () => {
+    const w = await world();
+    const first = await device(w, { magicKey: { read: () => null, adopt: () => {} } });
+    await first.account.signUp("p");
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const id = newDeviceId();
+    const b = await device(w, {
+      key: first.key,
+      proof: async () => { await gate; return { [HEADER.device]: id, [HEADER.proof]: await makeProof(w.key, id) }; },
+      magicKey: { read: () => w.key, adopt: () => {} },
+    });
+    const signing = b.account.signIn();
+    await vi.waitFor(() => expect(b.account.view().person).not.toBeNull());
+    b.account.signedOut();
+    release();
+    await signing;
+    expect(b.account.view().person).toBeNull();
+    expect(b.kept).toBeNull();
+  });
+
+  it("a key that arrives after a sign-out is not taken", async () => {
+    const w = await world();
+    const a = await device(w, { ...withKey(w), magicKey: { read: () => w.key, adopt: () => {} } });
+    await a.account.signUp("p");
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const taken: string[] = [];
+    const b = await device(w, {
+      key: a.key,
+      magicKey: { read: () => null, adopt: (k) => void taken.push(k) },
+    });
+    const real = b.client.fetchKey.bind(b.client);
+    b.client.fetchKey = async () => { const k = await real(); await gate; return k; };
+    const signing = b.account.signIn();
+    await vi.waitFor(() => expect(b.account.view().person).not.toBeNull());
+    b.account.signedOut();
+    release();
+    await signing;
+    expect(taken).toEqual([]);
+  });
+
+  it("the key-sharing request gives up on a server that does not answer", async () => {
+    const stalled = createAccountClient((_url, init) => new Promise<Response>((_, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")))), 20);
+    await expect(stalled.shareKey({})).rejects.toMatchObject({ code: "offline" });
+  });
+
+  it("asking the account for the key gives up on a server that does not answer", async () => {
+    const stalled = createAccountClient((_url, init) => new Promise<Response>((_, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")))), 20);
+    await expect(stalled.fetchKey()).rejects.toMatchObject({ code: "offline" });
+  });
+
+  it("a key that is changed on the server is still handed to the account's devices", async () => {
+    const w = await world();
+    const a = await device(w, { ...withKey(w), magicKey: { read: () => w.key, adopt: () => {} } });
+    await a.account.signUp("p");
+    const changed = "river-candle-stone-lotus";
+    (w.env as { RIGLAM_DATA_KEY: string }).RIGLAM_DATA_KEY = changed;
+    expect(await a.client.fetchKey()).toBe(changed);
+  });
+
+  it("an account that never showed the key is not given it, and a wrong proof does not make it carry the key", async () => {
+    const w = await world();
+    const a = await device(w, { magicKey: { read: () => null, adopt: () => {} } });
+    await a.account.signUp("p");
+    expect(a.account.view().person).toMatchObject({ hasKey: false });
+    await expect(a.client.fetchKey()).rejects.toMatchObject({ code: "not_granted" });
+    const id = newDeviceId();
+    await expect(a.client.shareKey({ [HEADER.device]: id, [HEADER.proof]: await makeProof("wrong-words-in-here", id) })).rejects.toMatchObject({ code: "not_granted" });
+    expect(w.db.sql("SELECT has_key FROM users")).toEqual([{ has_key: 0 }]);
+  });
+
+  it("a connection past the hourly limit on wrong keys is told to wait, even with the right key", async () => {
+    const w = await world();
+    const a = await device(w, { magicKey: { read: () => null, adopt: () => {} } });
+    await a.account.signUp("p");
+    const id = newDeviceId();
+    const wrong = { [HEADER.device]: id, [HEADER.proof]: await makeProof("wrong-words-in-here", id) };
+    for (let i = 0; i < GUESSES_PER_HOUR; i++) await expect(a.client.shareKey(wrong)).rejects.toMatchObject({ code: "not_granted" });
+    await expect(a.client.shareKey({ [HEADER.device]: id, [HEADER.proof]: await makeProof(w.key, id) })).rejects.toMatchObject({ code: "quota" });
+    expect(w.db.sql("SELECT has_key FROM users")).toEqual([{ has_key: 0 }]);
+  });
+
+  it("is refused without a session", async () => {
+    const w = await world();
+    const a = await device(w);
+    await expect(a.client.fetchKey()).rejects.toMatchObject({ code: "signed_out" });
+    await expect(a.client.shareKey({})).rejects.toMatchObject({ code: "signed_out" });
   });
 });

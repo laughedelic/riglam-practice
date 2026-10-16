@@ -19,13 +19,13 @@ async function start(page, world) {
 }
 
 /** A second device of the same person: its own browser context (own storage), the same server. */
-async function otherDevice(browser, testInfo, world, credentials) {
+async function otherDevice(browser, testInfo, world, credentials, { withKey = true } = {}) {
   const context = await browser.newContext(testInfo.project.use);
   await context.addInitScript(([store, key]) => {
     try {
       if (key) localStorage.setItem(store, key);
     } catch { /* storage unavailable */ }
-  }, [KEY_STORE, withCourse ? dataKey : null]);
+  }, [KEY_STORE, withCourse && withKey ? dataKey : null]);
   const page = await context.newPage();
   const device = await bridge(page, world);
   const keys = await virtualAuthenticator(page);
@@ -202,6 +202,31 @@ test("a switch in Options keeps the focus while the sync status redraws the scre
   await put(page, "flags", "f_focus", { id: "f_focus", state: "new", updatedAt: "2026-10-13T10:00:00.000Z" });
   await expect(status(page).first()).toContainText("waiting", { timeout: 15_000 }); // the screen was redrawn
   await expect(sw).toBeFocused();
+});
+
+test.describe("the Magic Key follows the account", () => {
+  test.skip(!withCourse, "needs the course data to unlock the definitions");
+
+  test("a device that signs in without the key gets it from the account and opens unlocked", async ({ page, browser }, testInfo) => {
+    const world = await serverWorld();
+    const { keys } = await start(page, world);
+    await openOptions(page);
+    await acct(page).getByLabel("A name for the account").fill("Key person");
+    await page.getByRole("button", { name: "Create account" }).click();
+    await expect(acct(page)).toContainText("Signed in as Key person");
+    await expect(acct(page)).toContainText("carries the Magic Key");
+    expect(world.sql("SELECT has_key FROM users")).toEqual([{ has_key: 1 }]);
+
+    const { page: other, context } = await otherDevice(browser, testInfo, world, await keys.credentials(), { withKey: false });
+    expect(await other.evaluate(() => localStorage.getItem("riglam.magicKey"))).toBeNull();
+    await openOptions(other);
+    await other.getByRole("button", { name: "Sign in" }).click();
+    // the page starts again with the key (polling, because the page navigates while it is asked)
+    await expect.poll(() => other.evaluate(() => localStorage.getItem("riglam.magicKey")).catch(() => null), { timeout: 15_000 }).toBe(dataKey);
+    await ready(other);
+    await expect(other.locator("#unlock")).toHaveCount(0);
+    await context.close();
+  });
 });
 
 test("the queue is read in order of change time from an outbox database that was made before the index existed", async ({ page }) => {

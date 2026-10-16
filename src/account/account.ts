@@ -14,6 +14,8 @@ export interface Person {
   id: string;
   name: string;
   passkeys: number;
+  /** the account carries the Magic Key: a device that signs in to it gets the key */
+  hasKey: boolean;
 }
 
 export type Busy = "create" | "signin" | "passkey" | "signout" | "delete" | "sync";
@@ -57,8 +59,13 @@ export interface AccountDeps {
   passkeys: Passkeys;
   /** the last known person, kept on the device */
   keep: { read(): Person | null; write(person: Person | null): void };
-  /** the headers that show the sender has the study group's link; used when an account is made */
+  /** the headers that show the sender has the Magic Key; used when an account is made and when it is asked to carry the key */
   proof?: () => Promise<Record<string, string>>;
+  /**
+   * The Magic Key on this device. A signed-in account that does not carry the key is asked to, when this device has it; a device without
+   * the key takes it from an account that carries it (`adopt` stores it and starts the page again, unlocked).
+   */
+  magicKey?: { read(): string | null; adopt(key: string): void };
 }
 
 const MESSAGES = {
@@ -84,7 +91,7 @@ export function explain(e: unknown): { text: string; bad: boolean } {
   return { text: MESSAGES.failed, bad: true };
 }
 
-const personOf = (u: AccountInfo): Person => ({ id: u.id, name: u.name, passkeys: u.passkeys });
+const personOf = (u: AccountInfo): Person => ({ id: u.id, name: u.name, passkeys: u.passkeys, hasKey: u.hasKey === true });
 
 export function createAccount(deps: AccountDeps): Account {
   const { client, sync, passkeys, keep } = deps;
@@ -138,6 +145,29 @@ export function createAccount(deps: AccountDeps): Account {
     keep.write(p);
     set({ person: p, available: true });
     await activate(p.id);
+    await shareKey(p);
+  }
+
+  /** Makes the account and the device agree about the Magic Key. Never throws: the key is a convenience, and the next sign-in tries again. */
+  async function shareKey(p: Person) {
+    const magic = deps.magicKey;
+    if (!magic) return;
+    try {
+      const have = magic.read();
+      if (have && !p.hasKey) {
+        await client.shareKey((await deps.proof?.()) ?? {});
+        // A sign-out or another account may have come while the request was under way: only the person who is signed in now is marked, with their current fields.
+        if (v.person?.id === p.id) {
+          const carried = { ...v.person, hasKey: true };
+          keep.write(carried);
+          set({ person: carried });
+        }
+      } else if (!have && p.hasKey) {
+        const key = await client.fetchKey();
+        // The request may outlast a sign-out or an account switch: the key of an account that is not signed in here any more is not taken, nor one the device got meanwhile.
+        if (v.person?.id === p.id && !magic.read()) magic.adopt(key);
+      }
+    } catch { /* offline, or the key no longer fits */ }
   }
 
   /** Makes this tab show and track `who`, the person another tab (or the server) says is signed in, or null. */
@@ -147,7 +177,7 @@ export function createAccount(deps: AccountDeps): Account {
       return;
     }
     if (v.person?.id === who.id) {
-      if (v.person.name !== who.name || v.person.passkeys !== who.passkeys) set({ person: who });
+      if (v.person.name !== who.name || v.person.passkeys !== who.passkeys || v.person.hasKey !== who.hasKey) set({ person: who });
       return;
     }
     keep.write(who);
