@@ -53,11 +53,13 @@ const storeOf = (db: LocalDb): SyncStore => ({
   async documents(col) {
     stored(db);
     const snap = await db.collection(col).get();
+    stored(db); // the storage may have timed out during the read, which then comes back empty
     return snap.docs.map((d) => ({ id: d.id, data: d.data() ?? {} }));
   },
   async read(col, id) {
     stored(db);
     const snap = await db.doc(`${col}/${id}`).get();
+    stored(db);
     return snap.exists ? (snap.data() ?? null) : null;
   },
 });

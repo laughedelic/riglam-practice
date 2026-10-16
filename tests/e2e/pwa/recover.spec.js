@@ -55,4 +55,8 @@ test("a storage that never answers does not keep the page on Loading: it starts,
   await expect(page.locator("#store")).toContainText("storage is not answering", { timeout: 20_000 });
   await expect(page.locator("#store")).toContainText("A new test database opened", { timeout: 10_000 });
   await expect(page.locator("#stage .status")).toHaveCount(0);
+  // the bar covers the buttons at the top of a phone: it can be put away
+  await page.locator("#store").getByRole("button", { name: "Hide" }).click();
+  await expect(page.locator("#store")).toBeHidden();
+  await expect(page.getByRole("button", { name: /options/i }).filter({ visible: true }).first()).toBeVisible();
 });

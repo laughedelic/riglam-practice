@@ -47,10 +47,16 @@ export function showStorageNotice(): void {
   fresh.className = "btn ghost";
   fresh.textContent = "Use a new store";
   fresh.addEventListener("click", () => { startNewStore(); location.reload(); });
+  const hide = document.createElement("button");
+  hide.type = "button";
+  hide.className = "btn ghost";
+  hide.textContent = "Hide";
+  hide.title = "On a phone the bar covers the buttons at the top; nothing is saved while the storage does not answer";
+  hide.addEventListener("click", () => { bar.hidden = true; });
   const hint = document.createElement("span");
   hint.className = "detail hint";
   hint.textContent = "A new store starts empty on this device. If you are signed in, your account's documents come back; the old store is left as it is.";
-  bar.append(text, detail, reload, fresh, hint);
+  bar.append(text, detail, reload, fresh, hide, hint);
   document.body.append(bar);
   void probe().then((t) => { detail.textContent = t; });
 }
