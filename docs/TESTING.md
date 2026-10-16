@@ -40,7 +40,7 @@ To cover a new state, add steps to a flow in the spec (or a flow), and a size to
 
 | Job | What it runs |
 |---|---|
-| `static` ("Lint, build, unit tests") | lint, typecheck, both builds, the unit tests, `wrangler deploy --dry-run`; it keeps `dist/pwa` as the `pwa-build` artifact for the preview |
+| `static` ("Lint, build, unit tests") | lint, typecheck, both builds, the unit tests, `wrangler deploy --dry-run` |
 | `browser` ("Browser tests (...)", a matrix) | `npx playwright test <args>` after building both outputs: the legacy suite in three `--shard` slices, and the layout matrix with the PWA specs in one job. CI uploads no HTML report or trace, because both record page content and step arguments, which can include the course definitions and the data key; a failure is read in the job log, or reproduced locally with `--trace on`. |
 | `check` ("Lint, build, test") | passes when `static` and `browser` have passed. This is the name that branch protection requires ([RELEASING.md](RELEASING.md)), so it stays the same whatever the jobs above are called or however many there are. |
 
