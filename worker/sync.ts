@@ -111,7 +111,7 @@ export function syncRoutes(deps: AccountDeps) {
     if (writes.length) {
       const cfg = readAccountConfig(env);
       const day = dayOf(now);
-      if (writes.length > cfg.dailyWrites) return fail("quota", "this account has reached its limit of document changes for today", { "retry-after": "3600" });
+      if (writes.length > cfg.dailyWrites) return fail("too_large", `at most ${cfg.dailyWrites} document changes in one request for this account; send fewer at a time`);
 
       // The room for documents, and for rows (documents and deletion marks, which an account could otherwise add without end). The counts plus the writes that could add
       // a document or a row are the upper bound; only when that is over is the exact change worked out (an update of a document that is held, or a deletion beside a new
@@ -124,7 +124,7 @@ export function syncRoutes(deps: AccountDeps) {
       let effect: { live: number; rows: number } | undefined;
       const exact = async () => (effect ??= await effectOf(db, user, writes));
       const adds = writes.filter((w) => w.doc !== null).length;
-      if (adds && live + adds > cfg.maxDocs && live + (await exact()).live > cfg.maxDocs) return fail("quota", "this account holds as many documents as it may");
+      if (adds && live + adds > cfg.maxDocs && live + (await exact()).live > cfg.maxDocs) return fail("full", "this account holds as many documents as it may");
       if (total + writes.length > cfg.maxDocs * 2) {
         // Old deletion marks go first, a thousand at a time; the row with the highest number stays, so that numbers are never handed out again to a device that has seen them.
         await db
@@ -133,7 +133,7 @@ export function syncRoutes(deps: AccountDeps) {
           .run();
         total = (await counts())?.total ?? 0;
         effect = undefined; // its row count was made with the marks that are gone: a write to one of them now adds a row
-        if (total + writes.length > cfg.maxDocs * 2 && total + (await exact()).rows > cfg.maxDocs * 2) return fail("quota", "this account holds as many documents and deletion marks as it may");
+        if (total + writes.length > cfg.maxDocs * 2 && total + (await exact()).rows > cfg.maxDocs * 2) return fail("full", "this account holds as many documents and deletion marks as it may");
       }
 
       // The day's allowance is taken first, in one statement that refuses when it would be passed, so that requests arriving together cannot all use the last of it.

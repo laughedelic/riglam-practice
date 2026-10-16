@@ -44,7 +44,8 @@ export type AccountErrorCode =
   | "unknown_passkey" // the passkey is not one this server has
   | "bad_request"
   | "too_large"
-  | "quota" // the account's limit for the day, or its size limit, or the server's number of accounts
+  | "quota" // the account's limit for the day, or the server's number of accounts
+  | "full" // the account holds as many documents (or deletion marks) as it may; this does not end at midnight
   | "conflict" // that passkey is already registered
   | "unavailable"; // accounts are off or not set up
 

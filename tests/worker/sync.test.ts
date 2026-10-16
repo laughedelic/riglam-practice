@@ -335,6 +335,17 @@ describe("limits", () => {
     await sync(w, me, 0, batch(10, 100));
   });
 
+  it("says a request is too large, not that the day is used, when it has more changes than the account may send in a day", async () => {
+    const w = await world({ DAILY_WRITES_PER_ACCOUNT: "10" });
+    const me = await signUp(w);
+    const batch = (n: number) => Array.from({ length: n }, (_, i) => write("answers", "d" + i, { i }, T0 + i));
+    const res = await post(w, me.cookie, { cursor: 0, writes: batch(11) });
+    expect(res.status).toBe(413);
+    expect((await json(res)).error.code).toBe("too_large");
+    expect(rows(w)).toHaveLength(0);
+    expect((await post(w, me.cookie, { cursor: 0, writes: batch(10) })).status).toBe(200);
+  });
+
   it("holds each account to so many documents; deletions and changes to existing ones do not count against it", async () => {
     const w = await world({ MAX_DOCS_PER_ACCOUNT: "100" });
     const me = await signUp(w);

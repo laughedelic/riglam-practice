@@ -32,8 +32,9 @@ src/app/                   the page, shared by both builds: app.js (entry), stat
 src/data/                  the open term data (the definitions and notes are on the server, docs/DATA.md)
 src/ai-shared/             the tutor's card, prompts and lookup tools as pure TypeScript functions of the term data (used by the page; a server can use them too)
 src/domain/                the rules of the practice (pairs and their draw, grading, Claude's verdicts) as pure TypeScript functions of the term data
-src/platform/              the Platform interface (data, `db`, `sample`) that each build implements
-src/pwa/                   PWA only: platform adapter, local `db` (IndexedDB), key dialog, service worker registration, fonts
+src/platform/              the Platform interface (data, `db`, `sample`, `account`) that each build implements
+src/account/               optional accounts on the device: the contract with the server, the sync engine, the passkey code (docs/SERVER.md)
+src/pwa/                   PWA only: platform adapter, local `db` (IndexedDB), account client, key dialog, service worker registration, fonts
 src/artifact/              artifact only: platform adapter (embedded data, `window.claude`), head (title, font links)
 worker/                    the server: a Cloudflare Worker for /api/* (tutor access check, spend budgets, optional passkey accounts and document sync), D1 schema
 src/ai/                    the contract between page and server (protocol, access proof), shared by both
