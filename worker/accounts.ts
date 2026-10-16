@@ -16,13 +16,14 @@
 
 import { generateAuthenticationOptions, generateRegistrationOptions, verifyAuthenticationResponse, verifyRegistrationResponse } from "@simplewebauthn/server";
 import type { AuthenticationResponseJSON, AuthenticatorTransport, RegistrationResponseJSON } from "@simplewebauthn/server";
-import { Hono, type Context } from "hono";
+import { Hono, type Context, type MiddlewareHandler } from "hono";
 import { ACCOUNT_API, SYNC_LIMITS, type AccountError, type AccountErrorCode, type MeResponse } from "../src/account/protocol";
 import { HEADER } from "../src/ai/protocol";
 import { checkProof } from "../src/ai/proof";
+import { dayOf } from "./budget";
 import { readAccountConfig } from "./config";
 import type { Env } from "./env";
-import { clearedCookie, fromB64u, newSession, randomToken, readSession, sessionCookie, toB64u, type Session } from "./session";
+import { clearedCookie, fromB64u, newSession, randomToken, readSession, sessionCookie, toB64u, tokenFrom, type Session } from "./session";
 
 export interface AccountDeps {
   now: () => Date;
@@ -52,6 +53,7 @@ const RP_NAME = "riglam practice";
 const CHALLENGE_MS = 5 * 60_000;
 /** most unfinished ceremonies at a time; asking for options writes a row, so this keeps a flood from filling the table */
 const MAX_PENDING = 500;
+const MAX_PASSKEYS = 10;
 
 /** True when the database exists, has the account tables, and the operator has not switched accounts off (settings: accounts = off). */
 export async function accountsOn(db: D1Database | undefined): Promise<boolean> {
@@ -71,16 +73,53 @@ function where(c: Ctx) {
   return { origin: url.origin, rpID: url.hostname };
 }
 
-/** The signed-in account, or null. */
-export const sessionOf = (c: Ctx, now: Date): Promise<Session | null> => (c.env.DB ? readSession(c.env.DB, c.req.header("cookie"), now) : Promise.resolve(null));
+/** Requests whose session was extended, with the token to put in the extended cookie. */
+const renewals = new WeakMap<Request, string>();
 
-/** Reads a JSON object from the body, within `max` bytes; null when it is not one. */
+/** The signed-in account, or null. A session that is extended by this request is noted, so that `renewCookie` can extend the browser's cookie too. */
+export async function sessionOf(c: Ctx, now: Date): Promise<Session | null> {
+  if (!c.env.DB) return null;
+  const header = c.req.header("cookie");
+  const session = await readSession(c.env.DB, header, now);
+  const token = tokenFrom(header);
+  if (session?.renewed && token) renewals.set(c.req.raw, token);
+  return session;
+}
+
+/** Middleware: when the request extended the session on the server, the response extends the cookie, which otherwise ends 60 days after sign-in. */
+export const renewCookie: MiddlewareHandler = async (c, next) => {
+  await next();
+  const token = renewals.get(c.req.raw);
+  if (token && !c.res.headers.has("set-cookie")) c.res.headers.append("set-cookie", sessionCookie(token));
+};
+
+/** Reads a JSON object from the body, within `max` bytes; null when it is not one. The stream is counted as it arrives and dropped once it is over the limit, whatever the header says. */
 export async function readObject(c: Ctx, max: number): Promise<Record<string, unknown> | null | "too_large"> {
   if (Number(c.req.header("content-length") ?? 0) > max) return "too_large";
+  const stream = c.req.raw.body;
+  if (!stream) return null;
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
   try {
-    const text = await c.req.text();
-    if (text.length > max) return "too_large";
-    const v = JSON.parse(text);
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > max) {
+        await reader.cancel().catch(() => {});
+        return "too_large";
+      }
+      chunks.push(value);
+    }
+  } catch {
+    return null;
+  }
+  const bytes = new Uint8Array(total);
+  let at = 0;
+  for (const part of chunks) { bytes.set(part, at); at += part.byteLength; }
+  try {
+    const v = JSON.parse(new TextDecoder().decode(bytes));
     return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
   } catch {
     return null;
@@ -96,14 +135,23 @@ async function count(db: D1Database, sql: string, ...values: (string | number)[]
   return (await db.prepare(sql).bind(...values).first<{ n: number }>())?.n ?? 0;
 }
 
-async function startChallenge(db: D1Database, now: Date, kind: "register" | "login" | "passkey", challenge: string, userId?: string, name?: string): Promise<string | Response> {
+/**
+ * Writes the challenge of a ceremony. Anyone can ask for one, and each writes to the database, so two limits apply that are decided in the
+ * statements themselves (not by a count read earlier): everybody together may start `perDay` a day, and at most MAX_PENDING may be open at once.
+ */
+async function startChallenge(db: D1Database, now: Date, perDay: number, kind: "register" | "login" | "passkey", challenge: string, userId?: string, name?: string): Promise<string | Response> {
   await db.prepare("DELETE FROM challenges WHERE expires_at < ?1").bind(now.toISOString()).run();
-  if ((await count(db, "SELECT COUNT(*) AS n FROM challenges")) >= MAX_PENDING) return fail("quota", "too many sign-ins are under way; try again in a few minutes");
-  const id = randomToken(16);
-  await db
-    .prepare("INSERT INTO challenges (id, kind, challenge, user_id, name, expires_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)")
-    .bind(id, kind, challenge, userId ?? null, name ?? null, new Date(now.getTime() + CHALLENGE_MS).toISOString())
+  const counted = await db
+    .prepare("INSERT INTO budget (day, scope, micro, calls) VALUES (?1, 'ceremonies', 1, 1) ON CONFLICT (day, scope) DO UPDATE SET micro = micro + 1, calls = calls + 1 WHERE micro < ?2")
+    .bind(dayOf(now), perDay)
     .run();
+  if (!counted.meta.changes) return fail("quota", "too many sign-ins were started today; try again tomorrow");
+  const id = randomToken(16);
+  const inserted = await db
+    .prepare("INSERT INTO challenges (id, kind, challenge, user_id, name, expires_at) SELECT ?1, ?2, ?3, ?4, ?5, ?6 WHERE (SELECT COUNT(*) FROM challenges) < ?7")
+    .bind(id, kind, challenge, userId ?? null, name ?? null, new Date(now.getTime() + CHALLENGE_MS).toISOString(), MAX_PENDING)
+    .run();
+  if (!inserted.meta.changes) return fail("quota", "too many sign-ins are under way; try again in a few minutes");
   return id;
 }
 
@@ -124,6 +172,8 @@ export function accountRoutes(deps: AccountDeps) {
   // Cookies go with every request to this address, so a page of another origin could try to use them: state-changing requests must name the app's own origin.
   app.use("/api/account/*", sameOrigin);
   app.use("/api/account", sameOrigin);
+  app.use("/api/account/*", renewCookie);
+  app.use("/api/account", renewCookie);
 
   async function sameOrigin(c: Ctx, next: () => Promise<void>) {
     if (c.req.method !== "GET" && c.req.method !== "HEAD" && c.req.header("origin") !== where(c).origin) return fail("not_granted", "the request is not from the app");
@@ -200,7 +250,7 @@ export function accountRoutes(deps: AccountDeps) {
       authenticatorSelection: { residentKey: "required", userVerification: "preferred" },
       timeout: 120_000,
     });
-    const challengeId = await startChallenge(db, deps.now(), "register", options.challenge, userId, name);
+    const challengeId = await startChallenge(db, deps.now(), cfg.dailyCeremonies, "register", options.challenge, userId, name);
     if (challengeId instanceof Response) return challengeId;
     return json({ challengeId, options });
   });
@@ -224,18 +274,21 @@ export function accountRoutes(deps: AccountDeps) {
     }
     if (!verified.verified) return fail("bad_request", "the passkey could not be verified");
     const cfg = readAccountConfig(env);
-    if ((await count(db, "SELECT COUNT(*) AS n FROM users")) >= cfg.maxAccounts) return fail("quota", "this app has reached its number of accounts");
     const { credential } = verified.registrationInfo;
     const session = await newSession(db, challenge.userId, now);
+    let made;
     try {
-      await db.batch([
-        db.prepare("INSERT INTO users (id, name, created_at) VALUES (?1, ?2, ?3)").bind(challenge.userId, challenge.name, now.toISOString()),
+      // The room for one more account is checked by the statement that makes it, so that requests arriving together cannot all take the last place.
+      // The passkey and the session are stored only for an account that exists, so a refusal leaves nothing behind.
+      made = await db.batch([
+        db.prepare("INSERT INTO users (id, name, created_at) SELECT ?1, ?2, ?3 WHERE (SELECT COUNT(*) FROM users) < ?4").bind(challenge.userId, challenge.name, now.toISOString(), cfg.maxAccounts),
         credentialRow(db, challenge.userId, credential, now),
         session.insert,
       ]);
     } catch (e) {
       return isConstraint(e) ? fail("conflict", "that passkey is already registered") : fail("unavailable", "the account could not be made");
     }
+    if (!made[0].meta.changes) return fail("quota", "this app has reached its number of accounts");
     return json({ signedIn: true, user: { id: challenge.userId, name: challenge.name, passkeys: 1, createdAt: now.toISOString() } } satisfies MeResponse, { "set-cookie": sessionCookie(session.token) });
   });
 
@@ -244,7 +297,7 @@ export function accountRoutes(deps: AccountDeps) {
   app.post(ACCOUNT_API.loginOptions, async (c) => {
     if (!(await accountsOn(c.env.DB))) return fail("unavailable", "accounts are off");
     const options = await generateAuthenticationOptions({ rpID: where(c).rpID, userVerification: "preferred", timeout: 120_000 });
-    const challengeId = await startChallenge(c.env.DB!, deps.now(), "login", options.challenge);
+    const challengeId = await startChallenge(c.env.DB!, deps.now(), readAccountConfig(c.env).dailyCeremonies, "login", options.challenge);
     if (challengeId instanceof Response) return challengeId;
     return json({ challengeId, options });
   });
@@ -282,7 +335,8 @@ export function accountRoutes(deps: AccountDeps) {
     }
     if (!verified.verified) return fail("bad_request", "the passkey could not be verified");
     const session = await newSession(db, row.userId, now);
-    await db.batch([db.prepare("UPDATE credentials SET counter = ?2, last_used_at = ?3 WHERE id = ?1").bind(row.id, verified.authenticationInfo.newCounter, now.toISOString()), session.insert]);
+    const stored = await db.batch([db.prepare("UPDATE credentials SET counter = ?2, last_used_at = ?3 WHERE id = ?1").bind(row.id, verified.authenticationInfo.newCounter, now.toISOString()), session.insert]);
+    if (!stored[1].meta.changes) return fail("unknown_passkey", "this app does not know that passkey"); // the account was deleted while this sign-in was under way
     const created = await db.prepare("SELECT created_at AS createdAt FROM users WHERE id = ?1").bind(row.userId).first<{ createdAt: string }>();
     return json({ signedIn: true, user: { id: row.userId, name: row.name, passkeys: await passkeys(db, row.userId), createdAt: created?.createdAt ?? "" } } satisfies MeResponse, { "set-cookie": sessionCookie(session.token) });
   });
@@ -305,7 +359,7 @@ export function accountRoutes(deps: AccountDeps) {
       authenticatorSelection: { residentKey: "required", userVerification: "preferred" },
       timeout: 120_000,
     });
-    const challengeId = await startChallenge(db, deps.now(), "passkey", options.challenge, session.userId);
+    const challengeId = await startChallenge(db, deps.now(), readAccountConfig(c.env).dailyCeremonies, "passkey", options.challenge, session.userId);
     if (challengeId instanceof Response) return challengeId;
     return json({ challengeId, options });
   });
@@ -320,7 +374,7 @@ export function accountRoutes(deps: AccountDeps) {
     if (!body || !body.response || typeof body.response !== "object") return fail("bad_request", "the body is not a passkey");
     const challenge = await takeChallenge(db, body.challengeId, "passkey", now);
     if (!challenge || challenge.userId !== session.userId) return fail("bad_request", "this request has expired; start again");
-    if ((await passkeys(db, session.userId)) >= 10) return fail("quota", "an account can hold ten passkeys");
+    if ((await passkeys(db, session.userId)) >= MAX_PASSKEYS) return fail("quota", "an account can hold ten passkeys");
     const { origin, rpID } = where(c);
     let verified;
     try {
@@ -329,10 +383,15 @@ export function accountRoutes(deps: AccountDeps) {
       return fail("bad_request", "the passkey could not be verified");
     }
     if (!verified.verified) return fail("bad_request", "the passkey could not be verified");
+    let saved;
     try {
-      await credentialRow(db, session.userId, verified.registrationInfo.credential, now).run();
+      saved = await credentialRow(db, session.userId, verified.registrationInfo.credential, now).run();
     } catch (e) {
       return isConstraint(e) ? fail("conflict", "that passkey is already registered") : fail("unavailable", "the passkey could not be saved");
+    }
+    if (!saved.meta.changes) {
+      // nothing stored: the limit was reached by a request that arrived together with this one, or the account has just been deleted
+      return (await passkeys(db, session.userId)) >= MAX_PASSKEYS ? fail("quota", "an account can hold ten passkeys") : fail("signed_out", "you are not signed in");
     }
     return json({ ok: true, passkeys: await passkeys(db, session.userId) });
   });
@@ -340,10 +399,15 @@ export function accountRoutes(deps: AccountDeps) {
   return app;
 }
 
+/** Stores a passkey for an account that exists, if it has room for another; the statement itself decides both, so none is left without an owner or past the limit. */
 function credentialRow(db: D1Database, userId: string, credential: { id: string; publicKey: Uint8Array; counter: number; transports?: string[] }, now: Date) {
   return db
-    .prepare("INSERT INTO credentials (id, user_id, public_key, counter, transports, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)")
-    .bind(credential.id, userId, toB64u(credential.publicKey), credential.counter, credential.transports ? JSON.stringify(credential.transports) : null, now.toISOString());
+    .prepare(
+      `INSERT INTO credentials (id, user_id, public_key, counter, transports, created_at)
+       SELECT ?1, ?2, ?3, ?4, ?5, ?6
+       WHERE EXISTS (SELECT 1 FROM users WHERE id = ?2) AND (SELECT COUNT(*) FROM credentials WHERE user_id = ?2) < ?7`,
+    )
+    .bind(credential.id, userId, toB64u(credential.publicKey), credential.counter, credential.transports ? JSON.stringify(credential.transports) : null, now.toISOString(), MAX_PASSKEYS);
 }
 
 function transportsOf(text: string | null): AuthenticatorTransport[] | undefined {
