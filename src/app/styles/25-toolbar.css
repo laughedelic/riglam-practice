@@ -20,3 +20,7 @@
 .lockic .open,.btn:hover .lockic .closed,.btn:focus-visible .lockic .closed{display:none}
 .btn:hover .lockic .open,.btn:focus-visible .lockic .open{display:block}
 .tl .ico{display:inline-block;vertical-align:-3px;margin-right:6px}
+.btn>.ico{margin-right:8px}
+/* "Magic Key" with a dotted underline: it opens a note on the name (src/ui/magic-key-note.ts) */
+.keyname{padding:0;border:0;background:none;font:inherit;letter-spacing:inherit;text-transform:inherit;color:inherit;cursor:help;text-decoration:underline dotted;text-underline-offset:3px}
+.keyname:focus-visible{box-shadow:var(--focus-ring)}

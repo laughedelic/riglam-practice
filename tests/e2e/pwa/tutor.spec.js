@@ -191,7 +191,7 @@ plain("Explain without the Magic Key: entering the key in the prompt keeps the r
   await page.evaluate(() => { window.__sameDocument = true; });
   await explain(page).click({ force: true });
   await page.fill("#unlock-key", dataKey);
-  await page.getByRole("button", { name: "Unlock" }).click();
+  await page.locator("#unlock").getByRole("button", { name: "Unlock", exact: true }).click();
   await expect(page.locator("#unlock")).toHaveCount(0);
   await openAnswer(page);
   expect(asked).toHaveLength(1);
