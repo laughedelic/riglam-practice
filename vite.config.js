@@ -26,8 +26,9 @@ export default defineConfig({
       },
       manifest: {
         id: "./",
-        name: "Riglam practice",
-        short_name: "Riglam",
+        // The staging deploy sets these so that its app can be installed next to the real one and told apart (docs/STAGING.md).
+        name: process.env.RIGLAM_APP_NAME ?? "Riglam practice",
+        short_name: process.env.RIGLAM_APP_SHORT_NAME ?? "Riglam",
         description: "Practice in logic and debate on the path of reasoning (Dudra and Tarig).",
         lang: "en",
         start_url: "./",
