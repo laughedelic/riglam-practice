@@ -35,5 +35,9 @@
   // Until that has been done the tutor reports itself off and everything else works.
   "d1_databases": [
     { "binding": "DB", "database_name": "riglam-practice", "database_id": "7dc5e040-56c9-49e3-af60-ee0a8e49a500", "migrations_dir": "worker/migrations" }
-  ]
+  ],
+  // Pull request previews (`wrangler preview`, docs/DEPLOY.md) do not inherit the settings above except the static files and
+  // the compatibility date, and they have no D1 database and no secrets, so the tutor is off there and nothing can be spent.
+  // To try the tutor on previews, give them their own database here and put the secrets in the Preview base config.
+  "previews": {}
 }
