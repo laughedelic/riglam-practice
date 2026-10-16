@@ -16,11 +16,13 @@ export interface OutboxEntry {
 
 export interface Outbox {
   put(entry: OutboxEntry): Promise<void>;
+  /** stores the entry as the document's change, with its time raised to just above that of the entry it replaces, in one step (two tabs noting the same document cannot be given the same time) */
+  note(entry: OutboxEntry): Promise<void>;
   /** adds the entry unless there already is one for the document */
   putIfAbsent(entry: OutboxEntry): Promise<void>;
   get(key: string): Promise<OutboxEntry | undefined>;
-  /** up to `limit` entries, oldest change first */
-  list(limit: number): Promise<OutboxEntry[]>;
+  /** up to `limit` entries, oldest change first; with `"deletions"`, only the entries that delete a document */
+  list(limit: number, only?: "deletions"): Promise<OutboxEntry[]>;
   /** removes the entry for `key`, but only if it is still the one with change time `t` (it may have been replaced meanwhile) */
   remove(key: string, t: number): Promise<void>;
   count(): Promise<number>;
@@ -35,9 +37,10 @@ export function memoryOutbox(): Outbox {
   const meta = new Map<string, unknown>();
   return {
     async put(e) { entries.set(e.key, { ...e }); },
+    async note(e) { const before = entries.get(e.key); entries.set(e.key, { ...e, t: before && before.t >= e.t ? before.t + 1 : e.t }); },
     async putIfAbsent(e) { if (!entries.has(e.key)) entries.set(e.key, { ...e }); },
     async get(key) { const e = entries.get(key); return e && { ...e }; },
-    async list(limit) { return [...entries.values()].sort((a, b) => a.t - b.t).slice(0, limit).map((e) => ({ ...e })); },
+    async list(limit, only) { return [...entries.values()].filter((e) => only !== "deletions" || e.doc === null).sort((a, b) => a.t - b.t).slice(0, limit).map((e) => ({ ...e })); },
     async remove(key, t) { if (entries.get(key)?.t === t) entries.delete(key); },
     async count() { return entries.size; },
     async clear() { entries.clear(); meta.clear(); },

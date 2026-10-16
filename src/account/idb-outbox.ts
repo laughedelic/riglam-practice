@@ -14,10 +14,15 @@ export function idbOutbox(factory: IDBFactory | undefined = globalThis.indexedDB
   const open = () =>
     (handle ??= new Promise<IDBDatabase | null>((resolve) => {
       let req: IDBOpenDBRequest;
-      try { req = factory.open(name, 1); } catch { return resolve(null); }
-      req.onupgradeneeded = () => {
-        req.result.createObjectStore("outbox", { keyPath: "key" });
-        req.result.createObjectStore("meta", { keyPath: "k" });
+      try { req = factory.open(name, 2); } catch { return resolve(null); }
+      req.onupgradeneeded = (ev) => {
+        // Version 1 had the two stores; version 2 adds the index on the change time, so that a batch is read in order without loading the whole queue.
+        if (ev.oldVersion < 1) {
+          req.result.createObjectStore("outbox", { keyPath: "key" });
+          req.result.createObjectStore("meta", { keyPath: "k" });
+        }
+        const outbox = req.transaction!.objectStore("outbox");
+        if (!outbox.indexNames.contains("t")) outbox.createIndex("t", "t");
       };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => resolve(null);
@@ -44,11 +49,29 @@ export function idbOutbox(factory: IDBFactory | undefined = globalThis.indexedDB
 
   return {
     put: (e) => viaFallback((m) => m.put(e), () => run("readwrite", (o) => void o.put(e))),
+    note: (e) =>
+      viaFallback((m) => m.note(e), () => run("readwrite", async (o) => { const before = (await req(o.get(e.key))) as OutboxEntry | undefined; o.put({ ...e, t: before && before.t >= e.t ? before.t + 1 : e.t }); })),
     putIfAbsent: (e) =>
       viaFallback((m) => m.putIfAbsent(e), () => run("readwrite", async (o) => { if ((await req(o.get(e.key))) === undefined) o.put(e); })),
     get: (key) => viaFallback((m) => m.get(key), () => run("readonly", (o) => req(o.get(key)) as Promise<OutboxEntry | undefined>)),
-    list: (limit) =>
-      viaFallback((m) => m.list(limit), async () => (await run("readonly", (o) => req(o.getAll()) as Promise<OutboxEntry[]>)).sort((a, b) => a.t - b.t).slice(0, limit)),
+    list: (limit, only) =>
+      viaFallback((m) => m.list(limit, only), () =>
+        run("readonly", (o) =>
+          new Promise<OutboxEntry[]>((resolve, reject) => {
+            // in order of change time, and only as far as needed
+            const out: OutboxEntry[] = [];
+            const cursor = o.index("t").openCursor();
+            cursor.onerror = () => reject(cursor.error);
+            cursor.onsuccess = () => {
+              const at = cursor.result;
+              if (!at || out.length >= limit) return resolve(out);
+              const entry = at.value as OutboxEntry;
+              if (only !== "deletions" || entry.doc === null) out.push(entry);
+              at.continue();
+            };
+          }),
+        ),
+      ),
     remove: (key, t) =>
       viaFallback((m) => m.remove(key, t), () => run("readwrite", async (o) => { const cur = (await req(o.get(key))) as OutboxEntry | undefined; if (cur?.t === t) o.delete(key); })),
     count: () => viaFallback((m) => m.count(), () => run("readonly", (o) => req(o.count()))),
