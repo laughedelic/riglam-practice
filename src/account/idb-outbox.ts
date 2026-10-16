@@ -44,6 +44,8 @@ export function idbOutbox(factory: IDBFactory | undefined = globalThis.indexedDB
 
   return {
     put: (e) => viaFallback((m) => m.put(e), () => run("readwrite", (o) => void o.put(e))),
+    note: (e) =>
+      viaFallback((m) => m.note(e), () => run("readwrite", async (o) => { const before = (await req(o.get(e.key))) as OutboxEntry | undefined; o.put({ ...e, t: before && before.t >= e.t ? before.t + 1 : e.t }); })),
     putIfAbsent: (e) =>
       viaFallback((m) => m.putIfAbsent(e), () => run("readwrite", async (o) => { if ((await req(o.get(e.key))) === undefined) o.put(e); })),
     get: (key) => viaFallback((m) => m.get(key), () => run("readonly", (o) => req(o.get(key)) as Promise<OutboxEntry | undefined>)),
