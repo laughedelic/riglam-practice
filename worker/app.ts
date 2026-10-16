@@ -38,6 +38,8 @@ export function createApp(deps: Deps) {
   // A proof that was refused: wrong, or not even looked at because this connection used up its wrong guesses for the hour (that is
   // a wait, not a verdict on the key, so the page keeps the tutor and says when to try again).
   const refusal = (checked: Extract<Gate, { ok: false }>, wrong: string) => {
+    // the guess could not be counted, so the proof was not looked at: neither a verdict on the key nor a wait for the caller
+    if (checked.reason === "unavailable") return fail("unavailable", "the key cannot be checked just now; try again later", { "retry-after": "60" });
     if (checked.reason !== "blocked") return fail("not_granted", wrong);
     const wait = Math.max(1, Math.ceil((Date.parse(checked.resetsAt ?? "") - now().getTime()) / 1000) || 60);
     return fail("rate_limited", "too many wrong keys from this connection; try again later", { "retry-after": String(wait) }, { scope: "caller", resetsAt: checked.resetsAt });
