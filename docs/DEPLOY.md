@@ -25,6 +25,12 @@ No GitHub workflow deploys anything or holds a Cloudflare credential.
 
 Production is deployed by a Cloudflare Workers Builds trigger connected to the repository (*Workers & Pages → the Worker → Settings → Build*): branch `main`, build command `npm run build:pwa`, deploy command `npx wrangler deploy`, and the path filter `.release-please-manifest.json` under *Build watch paths*. Ordinary merges to `main` do not change that file, so they do not deploy; the release pull request does, so a release is the only thing that reaches production. The secrets the Worker needs are set on the Worker itself (see [SERVER.md](SERVER.md)); a secret changed in the dashboard makes a new version that is not live until it is deployed, and it is built on the latest uploaded version, which may be a branch build, so set secrets with `npx wrangler secret put`.
 
+### Previews of branches
+
+A Worker Preview does not inherit the production Worker's variables, bindings or secrets. What a Preview has is the `previews` block of `wrangler.jsonc` on the branch that is built: the tutor settings with lower budgets, persisted logs and the D1 database `riglam-practice-staging`, which every Preview and the `staging` Preview share (so they share budget counters and accounts, and a pull request never touches production data). Secrets are not in the file: `ANTHROPIC_API_KEY` and `RIGLAM_DATA_KEY` are set once in the Preview base configuration (*Settings → Build* in the dashboard, or `npx wrangler preview base-config secret put <NAME>`) and copied into each Preview when it is created, so a change to the base reaches new Previews only. The course data for the tutor is loaded into the shared database with `npm run data:publish -- --config wrangler.staging-migrations.jsonc`.
+
+In the Workers Builds settings: *Branch control → Enable Preview Builds*, and the deploy command for non-production branches `npm run staging -- deploy --here`. It builds the branch, applies its migrations to the shared database and runs `wrangler preview`; `staging` gets the Preview named `staging`, any other branch the one wrangler names after it. Plain `npx wrangler preview` (Cloudflare's default) also works, but then a migration a pull request adds must be applied by hand.
+
 ## One-time setup (the repository owner)
 
 1. A Cloudflare account (the free plan is enough).

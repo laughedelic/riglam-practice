@@ -46,8 +46,31 @@
   "d1_databases": [
     { "binding": "DB", "database_name": "riglam-practice", "database_id": "7dc5e040-56c9-49e3-af60-ee0a8e49a500", "migrations_dir": "worker/migrations" }
   ],
-  // Pull request previews (`wrangler preview`, docs/DEPLOY.md) do not inherit the settings above except the static files and
-  // the compatibility date, and they have no D1 database and no secrets, so the tutor is off there and nothing can be spent.
-  // To try the tutor on previews, give them their own database here and put the secrets in the Preview base config.
-  "previews": {}
+  // Worker Previews (`wrangler preview`: every pull request branch, and the `staging` branch, docs/DEPLOY.md and docs/STAGING.md) do not
+  // inherit the settings above except the static files and the compatibility date. What they have is this block: the same tutor
+  // settings with lower budgets, persisted logs, and one shared database of their own (never production's), so a pull request that
+  // changes the server or the schema cannot touch production data. Previews share its budget counters and accounts.
+  // The secrets ANTHROPIC_API_KEY and RIGLAM_DATA_KEY are not here: they come from the Preview base config (`wrangler preview base-config
+  // secret put`), which a Preview copies when it is created. The migrations of the database are applied by `npm run staging -- deploy`
+  // (wrangler's migration command reads the top level only, which is why wrangler.staging-migrations.jsonc declares the database again).
+  "previews": {
+    "observability": {
+      "enabled": true,
+      "redact_query_string": true,
+      "logs": { "enabled": true, "invocation_logs": true, "persist": true },
+      "traces": { "enabled": true, "persist": true },
+      "issues": { "enabled": true }
+    },
+    // Dollars are US dollars per UTC day. The other settings are the defaults of worker/config.ts, the same as above.
+    "vars": {
+      "TUTOR_MODEL": "claude-sonnet-5-5",
+      "TUTOR_EFFORT": "medium",
+      "TUTOR_MAX_TOKENS": "6000",
+      "TUTOR_MAX_ROUNDS": "4",
+      "DEVICE_DAILY_BUDGET_USD": "0.50",
+      "GLOBAL_DAILY_BUDGET_USD": "2",
+      "RESERVE_USD": "0.05"
+    },
+    "d1_databases": [{ "binding": "DB", "database_name": "riglam-practice-staging", "database_id": "5c0fcda4-2f7e-4c18-b1ee-ef287d217d49" }]
+  }
 }
