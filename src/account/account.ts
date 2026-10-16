@@ -176,15 +176,15 @@ export function createAccount(deps: AccountDeps): Account {
 
     async start() {
       try {
-        const remembered = keep.read();
         const hadAccount = (await sync.resume()) !== null;
+        const remembered = keep.read(); // after the wait: another tab may have changed the person meanwhile
         if (remembered) {
           set({ person: remembered, available: true });
           await activate(remembered.id);
         }
         const on = await client.available();
         // The server says accounts are off: that is the answer, however this device was signed in (no answer at all is not).
-        if (on === false && remembered) { sync.deactivate(); keep.write(null); set({ person: null }); }
+        if (on === false && v.person) { sync.deactivate(); keep.write(null); set({ person: null }); }
         set({ available: on === true || (on === null && (!!remembered || hadAccount)) });
         unknown = on === null && !v.available;
         if (remembered && on !== false) {

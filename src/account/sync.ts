@@ -330,10 +330,14 @@ export function createSync(deps: SyncDeps): Sync {
         return true;
       }, wait);
       if (mine === generation) {
-        error = null;
-        failures = 0;
-        blockedUntil = 0;
-        if (ran) last = now();
+        if (ran) {
+          error = null;
+          failures = 0;
+          blockedUntil = 0;
+          last = now();
+        } else {
+          blockedUntil = now() + backoffMs; // another tab holds the lock and does the work: look again later, not at once
+        }
       }
     } catch (e) {
       const code = e instanceof SyncError ? e.code : "unavailable";

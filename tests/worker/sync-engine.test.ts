@@ -792,6 +792,58 @@ describe("tabs of one browser", () => {
     expect(await a.outbox.getMeta("user")).toBe("second");
   });
 
+  it("adopts the person another tab put in place while this tab was starting, not the one it read first", async () => {
+    const { a } = await pair();
+    await a.account.signUp("p");
+    const first = a.account.view().person!.id;
+    const real = a.sync.resume.bind(a.sync);
+    const activated: string[] = [];
+    const realActivate = a.sync.activate.bind(a.sync);
+    a.sync.activate = async (id) => { activated.push(id); return realActivate(id); };
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    a.sync.resume = async () => { await gate; return real(); };
+    const { createAccount } = await import("../../src/account/account");
+    const secondIsIn = { signedIn: true as const, user: { id: "second", name: "B", passkeys: 1, createdAt: "2026-10-16T00:00:00Z" } }; // what the server says once the other tab has signed in
+    const again = createAccount({ client: { ...a.client, me: async () => secondIsIn }, sync: a.sync, passkeys: { supported: () => true, create: async () => ({}), get: async () => ({}) }, keep: { read: () => a.kept, write: (p) => void (a.kept = p) } });
+    const starting = again.start(); // waits for the outbox
+    await settle();
+    a.kept = { id: "second", name: "B", passkeys: 1 }; // another tab signed in as someone else
+    await again.reconcile();
+    release();
+    await starting;
+    await settle();
+    expect(again.view().person?.id).toBe("second");
+    expect(await a.outbox.getMeta("user")).toBe("second");
+    expect(activated).not.toContain(first); // the person read before the wait was never put in place, not even for a moment
+  });
+
+  it("leaves the work to the tab that holds the lock and looks again later, not at once", async () => {
+    const { a } = await pair();
+    await a.account.signUp("p");
+    const { createSync } = await import("../../src/account/sync");
+    const timers: { fn: () => void; ms: number }[] = [];
+    let rounds = 0;
+    const s = createSync({
+      store: a.store,
+      outbox: a.outbox,
+      post: async () => ({ cursor: 1, changes: [], rejected: [], more: false }),
+      exclusive: async () => { rounds += 1; return undefined; }, // another tab has the lock
+      setTimer: (fn, ms) => (timers.push({ fn, ms }), timers.length),
+      clearTimer: () => {},
+      debounceMs: 0,
+      backoffMs: 15_000,
+    });
+    await s.activate((await a.outbox.getMeta<string>("user"))!);
+    await a.put("answers", "a1", { v: 1 }, T0);
+    const first = timers.at(-1)!;
+    first.fn(); // the round: the lock is not available
+    await settle();
+    expect(rounds).toBe(1);
+    expect(s.status().error).toBeNull();
+    expect(timers.at(-1)!.ms).toBeGreaterThanOrEqual(15_000); // not again after the debounce
+  });
+
   it("does not delete an account while the session belongs to no one, or to someone else than the one shown", async () => {
     const { w, a } = await pair();
     await a.account.signUp("p");
