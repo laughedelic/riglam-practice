@@ -14,8 +14,16 @@
     "binding": "ASSETS",
     "run_worker_first": ["/api/*"]
   },
-  // Only the lines the Worker writes itself (errors, with no text of any question). No line per request.
-  "observability": { "enabled": true, "logs": { "invocation_logs": false } },
+  // Logs (one line per request, plus the lines the Worker writes itself), traces and Issues (errors grouped by Cloudflare), all kept in
+  // the Cloudflare dashboard. Query strings are removed from the recorded URLs. The Worker never logs the text of a question or an answer,
+  // and request bodies are not recorded. Issues needs Wrangler 4.134 or later, and must stay in this file: a deploy without it turns Issues off.
+  "observability": {
+    "enabled": true,
+    "redact_query_string": true,
+    "logs": { "enabled": true, "invocation_logs": true },
+    "traces": { "enabled": true },
+    "issues": { "enabled": true }
+  },
   // The tutor's and the accounts' settings (worker/config.ts has the same values as defaults). A change is a pull request.
   // Dollars are US dollars per UTC day. The secrets ANTHROPIC_API_KEY and RIGLAM_DATA_KEY (the Magic Key) are not here: `wrangler secret put`.
   "vars": {
