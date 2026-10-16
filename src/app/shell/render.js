@@ -11,6 +11,7 @@ import { renderOver } from "./chat.js";
 import { renderOptionsBtn } from "./options.js";
 import { setTab } from "./tabs.js";
 import { ensureRelTimer, syncBlitzBtn, tbIcon } from "./timers.js";
+import { voiceAfterRender } from "./voice.js";
 
 /* ---------- rendering ---------- */
 // One layout state for every tab: wide screens show a rail, the workspace and a coach panel side by side;
@@ -92,7 +93,7 @@ function renderNow(){
   if(state.mode==="nodata"){ s.append(el("p",{class:"status",text:"The practice data could not be loaded. Reload the page to try again."})); renderOver(); return; }
   if(state.tab==="review") renderReview(s);
   else if(state.mode==="quiz"){ if(state.tab==="debate"&&state.ui&&state.ui.debate) renderDebate(s,c); else renderQuiz(s,c); }
-  renderOver(); restoreFocus(f); placePops();
+  renderOver(); restoreFocus(f); placePops(); voiceAfterRender();
 }
 
 // Fit the terms around the fixed chips and diamond. The diamond stays in the middle and each term has

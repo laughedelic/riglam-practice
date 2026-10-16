@@ -12,6 +12,7 @@ import { skipActs, subRowNode } from "../practice/skips.js";
 import { exGrid } from "../review/review.js";
 import { fitPair, render, setSteps } from "../shell/render.js";
 import { blitzBtn, relTimedD, timerSlot } from "../shell/timers.js";
+import { voiceBar } from "../shell/voice.js";
 
 function pairHead(s,p,o){
   const np=o.rel?notaParts(o.rel):null;
@@ -139,6 +140,8 @@ export function renderDebate(s,c){
       card.append(el("div",{class:"ansrow"},inp,nx),el("button",{type:"button",class:"back",onclick:backWhy,text:"Back"}));
     }
     // the countdown sits under the response; with Blitz off its space stays, so the switch never moves the card
+    // the voice bar (when voice is on) goes with the response, above the countdown
+    const vb=voiceBar(); if(vb) card.append(vb);
     card.append(timerSlot("ex",state.blitz));
     s.append(card);
   }
@@ -146,6 +149,7 @@ export function renderDebate(s,c){
   if(stage==="rel"||stage==="done"){
     if(w) s.append(relStrip(chooseD,stage==="done"),stage==="rel"?timerSlot("rel",relTimedD()):null,relCap("Pick the relation your answers give (keys 1–5). Picking it checks your answers."));
     else if(stage==="rel"&&u.open) s.append(relList(chooseD,null));
+    const vb=stage==="rel"?voiceBar():null; if(vb) s.append(vb);
   }
   if(stage==="done"){
     // the table first (it is fixed), the verdict under it (its length changes with the chip)

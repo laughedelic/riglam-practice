@@ -15,11 +15,13 @@ import "./core/viewport.js";
 import "./shell/keys.js";
 import "./debate/text.js";
 import "./shell/timers.js";
+import { loadFeatures } from "../ui/features";
 
 /* ---------- boot ---------- */
 // The page knows its host only through the platform it is started with (src/platform/types.ts): the term data and the
 // capabilities `db`, `sample` and `tutor`, any of which may be missing.
 export function startApp(platform){
+  state.features=loadFeatures();
   render();
   boot(platform);
   exposeTestHook();

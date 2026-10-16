@@ -12,3 +12,5 @@ export type { Clock, DrawState, Rng } from "./universe";
 export { cap, gradeOf, isMiss, pick } from "./util";
 export { NAME_CELL, VERDICT_RE, applyVerdicts, parseVerdicts } from "./verdict";
 export type { Answer, CellVerdict } from "./verdict";
+export { lettersDirection, plainWords, spokenConfirm, spokenDirection, spokenDontKnow, spokenExample, spokenRelation, spokenReply } from "./spoken";
+export type { Reply, SpokenExample, SpokenReply, Terms } from "./spoken";
