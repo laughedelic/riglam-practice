@@ -23,6 +23,19 @@ const used = (s: Setup) => s.db.sql<{ who: string; n: number }>("SELECT who, n F
 beforeEach(() => void vi.spyOn(console, "error").mockImplementation(() => {}));
 afterEach(() => vi.restoreAllMocks());
 
+describe("a secret that is not words", () => {
+  it("is treated as unset: no proof is accepted, not even one made with the same text", async () => {
+    const s = await setup();
+    await seedCourse(s.env.DB!, ROWS);
+    const odd = "Ab3dEfGhIjKlMnOpQrStUvWxYz0123456789_-AbCdE";
+    const env = { ...s.env, RIGLAM_DATA_KEY: odd } as typeof s.env;
+    const device = newDeviceId();
+    const res = await app().request("/api/course", { headers: { [HEADER.device]: device, [HEADER.proof]: await makeProof(odd, device), ...from("10.0.0.1") } }, env);
+    expect(res.status).toBe(401);
+    expect((await json(res)).error.code).toBe("not_granted");
+  });
+});
+
 describe("GET /api/course", () => {
   it.each([["text that is not JSON", "{\"Form\": "], ["JSON that is not an object", "[1, 2]"], ["null", "null"]])("answers 503 when the stored definitions are %s, not a broken 200", async (_name, body) => {
     const s = await setup();
@@ -154,6 +167,14 @@ describe("the allowance of wrong guesses", () => {
     const sent = await Promise.all([1, 2, 3].map(async () => (await app().request("/api/course", { headers: right(s) }, slowEnv)).status));
     expect(sent).toEqual([200, 200, 200]);
     expect(used(s), "each proof gave its own guess back, none was lost to another's refund").toEqual([]);
+  });
+
+  it("also clears the rows of hours that are over when a proof fits, not only when one is wrong", async () => {
+    const s = await setup();
+    await seedCourse(s.env.DB!, ROWS);
+    s.db.sql("INSERT INTO guesses (hour, who, n) VALUES ('2026-10-13T05', 'old-caller', 3), ('2026-10-13T10', 'other-caller', 2)");
+    expect((await course(s, right(s))).status).toBe(200);
+    expect(s.db.sql<{ hour: string; who: string }>("SELECT hour, who FROM guesses ORDER BY who")).toEqual([{ hour: "2026-10-13T10", who: "other-caller" }]);
   });
 
   it("removes the row of a caller whose only guess was given back, but keeps the wrong guesses of one who made some", async () => {

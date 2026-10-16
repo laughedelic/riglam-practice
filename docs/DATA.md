@@ -19,7 +19,7 @@ Because the key is words, guessing is slowed by the server: a caller (a hash of 
 | Where the key is | Why |
 |---|---|
 | The study group's link, after the `#` | Browsers never send the part after `#` to a server. The app takes the key out of the address at once and keeps it on the device (`localStorage`, `riglam.magicKey`), together with the definitions it fetched, so the definitions work offline and on later visits without the link. |
-| The Worker's secret `RIGLAM_DATA_KEY` (`wrangler secret put`) | The server checks proofs against it. Without it the tutor and `/api/course` answer "not granted". |
+| The Worker's secret `RIGLAM_DATA_KEY` (`wrangler secret put`) | The server checks proofs against it. Without it, or with a value that is not the words of a Magic Key (the 43-character key of earlier versions), the tutor reports itself off and `/api/course` answers "not granted". |
 
 The key never goes into the repository, a commit or pull request text, a comment, a log or the project's memory. `tests/unit/data-files.test.ts` fails if a tracked file holds a definition or a note in the clear, or, when the key is in the environment, the key itself.
 

@@ -3,16 +3,19 @@ import { parseMagicKey } from "../src/ai/magic-key";
 import { checkProof } from "../src/ai/proof";
 import type { Env } from "./env";
 
-/** The Magic Key in the secret, as dashed lower-case words; null when no secret is set. A secret that is not words is used as it stands. */
-export const magicKeyOf = (env: Env): string | null => {
-  const raw = env.RIGLAM_DATA_KEY?.trim();
-  return raw ? (parseMagicKey(raw) ?? raw) : null;
-};
+/**
+ * The Magic Key in the secret, as dashed lower-case words; null when no secret is set, or when the secret is not words. A device can only
+ * enter words, so a secret in another shape (the 43-character key of earlier versions, left in place by mistake) is treated as unset:
+ * the tutor reports itself off and every proof is refused, instead of the Worker saying it is on for a key nobody can enter.
+ */
+export const magicKeyOf = (env: Env): string | null => parseMagicKey(env.RIGLAM_DATA_KEY ?? "");
 
 /** Wrong guesses one caller may make per hour before the answer is "try later". The key has few words, so the limit is what protects it. */
 export const GUESSES_PER_HOUR = 30;
 
 const hourOf = (now: Date) => now.toISOString().slice(0, 13);
+/** Rows of hours before this one are old enough to go: the limit looks at the current hour only. */
+const oldestHour = (now: Date) => new Date(now.getTime() - 2 * 3_600_000).toISOString().slice(0, 13);
 const nextHour = (now: Date) => new Date(Math.floor(now.getTime() / 3_600_000) * 3_600_000 + 3_600_000).toISOString();
 
 /** A short hash of the caller's address: enough to count by, and no address is stored. */
@@ -50,9 +53,10 @@ export async function gate(env: Env, now: Date, caller: string, device: string, 
     await db.batch([
       db.prepare("UPDATE guesses SET n = n - 1 WHERE hour = ?1 AND who = ?2 AND n > 0").bind(hour, caller),
       db.prepare("DELETE FROM guesses WHERE hour = ?1 AND who = ?2 AND n <= 0").bind(hour, caller),
+      db.prepare("DELETE FROM guesses WHERE hour < ?1").bind(oldestHour(now)),
     ]).catch(() => {});
     return { ok: true };
   }
-  await db.prepare("DELETE FROM guesses WHERE hour < ?1").bind(new Date(now.getTime() - 2 * 3_600_000).toISOString().slice(0, 13)).run().catch(() => {});
+  await db.prepare("DELETE FROM guesses WHERE hour < ?1").bind(oldestHour(now)).run().catch(() => {});
   return { ok: false, reason: "wrong" };
 }
