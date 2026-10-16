@@ -85,7 +85,7 @@ const MESSAGES = {
 export function explain(e: unknown): { text: string; bad: boolean } {
   if (e instanceof PasskeyError) return { text: MESSAGES[e.code], bad: e.code !== "cancelled" };
   if (e instanceof AccountFailure) {
-    if (e.code === "not_granted" || e.code === "quota" || e.code === "too_large") return { text: (e.message[0]?.toUpperCase() ?? "") + e.message.slice(1) + ".", bad: true };
+    if (e.code === "not_granted" || e.code === "quota" || e.code === "full" || e.code === "too_large") return { text: (e.message[0]?.toUpperCase() ?? "") + e.message.slice(1) + ".", bad: true };
     return { text: (MESSAGES as Record<string, string>)[e.code] ?? MESSAGES.failed, bad: true };
   }
   return { text: MESSAGES.failed, bad: true };
@@ -110,16 +110,41 @@ export function createAccount(deps: AccountDeps): Account {
   };
   sync.subscribe((s) => set({ sync: s }));
 
+  // The server could not be asked at start (offline, or no answer in time): ask again whenever the page wakes, until it answers, so that the row appears without a reload.
+  let unknown = false;
+  let asking = false;
+  async function discover() {
+    if (!unknown || asking || v.person) return;
+    asking = true;
+    try {
+      const on = await client.available();
+      if (on === null) return;
+      unknown = false;
+      if (on) set({ available: true });
+    } finally {
+      asking = false;
+    }
+  }
+
   function signedOut() {
     sync.deactivate();
     keep.write(null);
     if (v.person) set({ person: null, message: { text: "You were signed out. Sign in again to keep syncing.", bad: false } });
   }
 
+  // Changes of account run one after the other: two that overlapped could finish in either order and leave the queue of one person under the name of another.
+  // Each checks, when its turn comes, that the person it was for is still the one shown, and a later change has replaced it if not.
+  let transitions: Promise<unknown> = Promise.resolve();
+  const activate = (id: string): Promise<void> => {
+    const run = transitions.then(async () => { if (v.person?.id === id) await sync.activate(id); });
+    transitions = run.catch(() => {});
+    return run;
+  };
+
   async function adopt(p: Person) {
     keep.write(p);
     set({ person: p, available: true });
-    await sync.activate(p.id);
+    await activate(p.id);
     await shareKey(p);
   }
 
@@ -138,7 +163,9 @@ export function createAccount(deps: AccountDeps): Account {
           set({ person: carried });
         }
       } else if (!have && p.hasKey) {
-        magic.adopt(await client.fetchKey());
+        const key = await client.fetchKey();
+        // The request may outlast a sign-out or an account switch: the key of an account that is not signed in here any more is not taken, nor one the device got meanwhile.
+        if (v.person?.id === p.id && !magic.read()) magic.adopt(key);
       }
     } catch { /* offline, or the key no longer fits */ }
   }
@@ -155,7 +182,7 @@ export function createAccount(deps: AccountDeps): Account {
     }
     keep.write(who);
     set({ person: who, available: true });
-    await sync.activate(who.id);
+    await activate(who.id);
   }
 
   /** Runs one action: one at a time, with its failure shown as a message. */
@@ -179,18 +206,24 @@ export function createAccount(deps: AccountDeps): Account {
 
     async start() {
       try {
-        const remembered = keep.read();
         const hadAccount = (await sync.resume()) !== null;
+        const remembered = keep.read(); // after the wait: another tab may have changed the person meanwhile
         if (remembered) {
           set({ person: remembered, available: true });
-          await sync.activate(remembered.id);
+          await activate(remembered.id);
         }
         const on = await client.available();
-        set({ available: on === true || !!remembered || (hadAccount && on !== false) });
+        // The server says accounts are off: that is the answer, however this device was signed in (no answer at all is not).
+        if (on === false && v.person) { sync.deactivate(); keep.write(null); set({ person: null }); }
+        set({ available: on === true || (on === null && (!!remembered || hadAccount)) });
+        unknown = on === null && !v.available;
         if (remembered && on !== false) {
           // confirm in the background: the sync above already runs on what was remembered
+          // The answer is dropped when the person shown here has changed since (a sign-out or sign-in that finished first).
+          const asked = remembered.id;
+          const same = () => v.person?.id === asked;
           void client.me().then(
-            (me) => (me.signedIn ? adopt(personOf(me.user)) : signedOut()),
+            (me) => { if (same()) return me.signedIn ? adopt(personOf(me.user)) : signedOut(); },
             () => {},
           );
         }
@@ -199,9 +232,10 @@ export function createAccount(deps: AccountDeps): Account {
 
     signUp: (name) =>
       act("create", async () => {
-        const started = await client.registerOptions(name.trim(), (await deps.proof?.()) ?? {});
+        const proof = (await deps.proof?.()) ?? {}; // the server asks for it again when the sign-up is verified
+        const started = await client.registerOptions(name.trim(), proof);
         const response = await passkeys.create(started.options);
-        const me = await client.registerVerify(started.challengeId, response);
+        const me = await client.registerVerify(started.challengeId, response, proof);
         await adopt(personOf(me.user));
         return "Account created. What this device keeps is being copied to it.";
       }),
@@ -226,7 +260,14 @@ export function createAccount(deps: AccountDeps): Account {
 
     signOut: () =>
       act("signout", async () => {
+        const who = v.person?.id;
         await sync.syncNow().catch(() => {}); // what is waiting goes first, if the server can be reached
+        // The session cookie is shared by all tabs: if another tab signed in as someone else meanwhile, that is not the session to end here.
+        const me = await client.me();
+        if (me.signedIn && me.user.id !== who) {
+          await reconcileWith(personOf(me.user));
+          throw new AccountFailure("signed_out");
+        }
         await client.logout();
         sync.deactivate();
         keep.write(null);
@@ -253,7 +294,7 @@ export function createAccount(deps: AccountDeps): Account {
       act("sync", async () => {
         const s = await sync.syncNow();
         if (s.error === "offline") throw new AccountFailure("offline");
-        if (s.error) throw new AccountFailure(s.error === "signed_out" ? "signed_out" : s.error === "quota" ? "quota" : "unavailable", s.error === "quota" ? "this account has reached its limit for today" : s.error);
+        if (s.error) throw new AccountFailure(s.error === "signed_out" ? "signed_out" : s.error === "quota" ? "quota" : s.error === "full" ? "full" : "unavailable", s.error === "quota" ? "this account has reached its limit for today" : s.error === "full" ? "this account holds as many documents as it may" : s.error);
       }),
 
     signedOut,
@@ -264,6 +305,7 @@ export function createAccount(deps: AccountDeps): Account {
 
     wake() {
       if (v.person) sync.kick();
+      else void discover().catch(() => {});
     },
 
     dismiss() {
