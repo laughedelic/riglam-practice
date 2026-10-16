@@ -1,7 +1,7 @@
 // The PWA's tutor client (src/pwa/tutor.ts): the request it makes, the way it reads the server-sent answer, and how every
 // failure reaches the page as an error with a `code`. The server is a fake `fetch`; worker/ has its own tests.
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { generateKey } from "../../src/data/course.js";
+import { testMagicKey as generateKey } from "../support/magic-key";
 import { HEADER, type TutorEvent, type TutorRequest } from "../../src/ai/protocol";
 import { DEVICE_ID, checkProof } from "../../src/ai/proof";
 import { createTutor, deviceId, tutorIsOn } from "../../src/pwa/tutor";

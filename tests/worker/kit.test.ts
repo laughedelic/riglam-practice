@@ -1,13 +1,13 @@
-// The tutor's kit (worker/kit.ts): what it makes from the data files, and that it gives away nothing it should not.
-// Most tests use a few invented terms; the last block runs on the real files when the data key is there (CI has it).
-import { readFileSync } from "node:fs";
+// The tutor's kit (worker/kit.ts): what it makes from the open data and the course rows of the database, and that it gives away
+// nothing it should not. Most tests use a few invented terms; the last block runs on the real course data when it is at hand
+// (data-private/, docs/DATA.md).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { generateKey, seal, split } from "../../src/data/course.js";
+import { split } from "../../src/data/course.js";
 import { GUIDE } from "../../src/ai-shared";
 import { createApp } from "../../worker/app";
-import { kitFrom, loadKit, type Sources } from "../../worker/kit";
-import { files, readKey, readOpen } from "../../scripts/lib/course-files.mjs";
-import { NOW, ask, events, fakeAnthropic, setup } from "./support";
+import { kitFrom, loadKit, resetKit } from "../../worker/kit";
+import { hasCourse, readOpen, readParts } from "../../scripts/lib/course-files.mjs";
+import { NOW, ask, events, fakeAnthropic, fakeD1, seedCourse, setup } from "./support";
 
 const FULL = {
   terms: {
@@ -24,18 +24,22 @@ const FULL = {
   notes: { form: ["A person is not form; the body is.", "Sound is form."], round: ["Sound is form.", "A ball is round."] },
 };
 
-async function sources(key: string, full: typeof FULL = FULL): Promise<Sources> {
-  const parts = split(full);
-  return { open: parts.open, definitions: await seal(key, "definitions", JSON.stringify(parts.definitions)), notes: await seal(key, "notes", JSON.stringify(parts.notes)) };
+/** The open data and the course rows (JSON text) that `full` splits into. */
+function parts(full: typeof FULL = FULL) {
+  const p = split(full);
+  return { open: p.open, rows: { definitions: JSON.stringify(p.definitions), notes: JSON.stringify(p.notes) } };
 }
 
-beforeEach(() => void vi.spyOn(console, "error").mockImplementation(() => {}));
+beforeEach(() => {
+  resetKit();
+  vi.spyOn(console, "error").mockImplementation(() => {});
+});
 afterEach(() => vi.restoreAllMocks());
 
 describe("kitFrom", () => {
   it("has the shared instructions and the two lookup tools in the form the model API takes", async () => {
-    const key = generateKey();
-    const ok = await kitFrom(key, await sources(key));
+    const { open, rows } = parts();
+    const ok = await kitFrom(open, rows);
     expect(ok.guide).toBe(GUIDE);
     expect(ok.tools.map((t) => t.name)).toEqual(["lookup_term", "classify_example"]);
     for (const t of ok.tools) {
@@ -47,8 +51,8 @@ describe("kitFrom", () => {
   });
 
   it("looks a term up with the definition and the note that only the full data has", async () => {
-    const key = generateKey();
-    const kit = await kitFrom(key, await sources(key));
+    const { open, rows } = parts();
+    const kit = await kitFrom(open, rows);
     const hit = kit.run("lookup_term", { name: "form" }) as Record<string, unknown>;
     expect(hit).toMatchObject({ found: true, term: "Form", definition: expect.stringContaining("SECRET-DEF"), definition_ru: "SECRET-RU", mutually_inclusive: ["Matter"], contradictory: ["Consciousness"] });
     expect(hit.kb_note).toBe("SECRET-NOTE see the Form note.");
@@ -57,15 +61,15 @@ describe("kitFrom", () => {
   });
 
   it("classifies an example from the practice list", async () => {
-    const key = generateKey();
-    const kit = await kitFrom(key, await sources(key));
+    const { open, rows } = parts();
+    const kit = await kitFrom(open, rows);
     expect(kit.run("classify_example", { thing: "a ball" })).toMatchObject({ found: true, dudra_type: "Form", categories: ["forms", "round things"] });
     expect(kit.run("classify_example", { thing: "a unicorn" })).toEqual({ found: false });
   });
 
   it("throws for an unknown tool or an input the tool cannot use, so that the model sees an error result", async () => {
-    const key = generateKey();
-    const kit = await kitFrom(key, await sources(key));
+    const { open, rows } = parts();
+    const kit = await kitFrom(open, rows);
     expect(() => kit.run("rm_rf", {})).toThrow("unknown tool: rm_rf");
     expect(() => kit.run("constructor", {})).toThrow("unknown tool");
     expect(() => kit.run("__proto__", {})).toThrow("unknown tool");
@@ -74,8 +78,8 @@ describe("kitFrom", () => {
   });
 
   it("gives the notes of the pair's categories once each, in order", async () => {
-    const key = generateKey();
-    const kit = await kitFrom(key, await sources(key));
+    const { open, rows } = parts();
+    const kit = await kitFrom(open, rows);
     expect(kit.finePoints(["form", "round"])).toEqual(["A person is not form; the body is.", "Sound is form.", "A ball is round."]);
     expect(kit.finePoints(["round"])).toEqual(["Sound is form.", "A ball is round."]);
     expect(kit.finePoints(["nothing", "form"])).toEqual(["A person is not form; the body is.", "Sound is form."]);
@@ -83,76 +87,85 @@ describe("kitFrom", () => {
   });
 
   it("finds no note for a category id that is not the data's own", async () => {
-    const key = generateKey();
-    const kit = await kitFrom(key, await sources(key));
+    const { open, rows } = parts();
+    const kit = await kitFrom(open, rows);
     for (const id of ["__proto__", "constructor", "toString", "hasOwnProperty", "length", ""]) expect(kit.finePoints([id])).toEqual([]);
   });
 
   it("works when the data has no notes at all", async () => {
-    const key = generateKey();
     const bare: Partial<typeof FULL> = structuredClone(FULL);
     delete bare.notes;
-    const kit = await kitFrom(key, await sources(key, bare as typeof FULL));
+    const { open, rows } = parts(bare as typeof FULL);
+    const kit = await kitFrom(open, rows);
     expect(kit.finePoints(["form"])).toEqual([]);
     expect(kit.run("lookup_term", { name: "Form" })).toMatchObject({ found: true });
   });
 
-  it("refuses data that another key sealed, and data in the wrong slot", async () => {
-    const key = generateKey();
-    const s = await sources(key);
-    await expect(kitFrom(generateKey(), s)).rejects.toThrow("the key does not open this data");
-    await expect(kitFrom(key, { ...s, definitions: s.notes, notes: s.definitions })).rejects.toThrow("the key does not open this data");
-    await expect(kitFrom(key, { ...s, notes: new Uint8Array(40) })).rejects.toThrow("not a course data file");
-  });
-
-  it("takes the files as ArrayBuffers too, which is how the bundle hands them over", async () => {
-    const key = generateKey();
-    const s = await sources(key);
-    const buf = (b: ArrayBuffer | Uint8Array) => (b instanceof Uint8Array ? b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) : b);
-    const kit = await kitFrom(key, { ...s, definitions: buf(s.definitions) as ArrayBuffer, notes: buf(s.notes) as ArrayBuffer });
-    expect(kit.run("lookup_term", { name: "Form" })).toMatchObject({ found: true });
+  it("refuses a row that is not JSON", async () => {
+    const { open, rows } = parts();
+    await expect(kitFrom(open, { ...rows, definitions: "{not json" })).rejects.toThrow(SyntaxError);
   });
 });
 
 describe("loadKit", () => {
-  const env = (key?: string) => ({ RIGLAM_DATA_KEY: key }) as never;
+  const withRows = async (rows?: { definitions: string; notes: string }, at?: string) => {
+    const db = fakeD1();
+    if (rows) await seedCourse(db.d1, rows, at);
+    return { db, env: { DB: db.d1 } as never };
+  };
 
-  it("is null without a data key, or with something that is not one", async () => {
-    const key = generateKey();
-    const s = await sources(key);
-    expect(await loadKit(env(undefined), s)).toBeNull();
-    expect(await loadKit(env(""), s)).toBeNull();
-    expect(await loadKit(env("not a key"), s)).toBeNull();
+  it("is null without a database, or while the database has no course data", async () => {
+    const { open } = parts();
+    expect(await loadKit({} as never, open)).toBeNull();
+    expect(await loadKit((await withRows()).env, open)).toBeNull();
   });
 
-  it("makes the kit once per key and data, and again for another key", async () => {
-    const key = generateKey();
-    const s = await sources(key);
-    const a = await loadKit(env(key), s);
+  it("makes the kit from the rows, once, and keeps it for a minute", async () => {
+    const { open, rows } = parts();
+    const { env } = await withRows(rows);
+    let t = 1_000;
+    const a = await loadKit(env, open, () => t);
     expect(a).not.toBeNull();
-    expect(await loadKit(env(key), s)).toBe(a);
-    const other = generateKey();
-    const b = await loadKit(env(other), await sources(other));
-    expect(b).not.toBeNull();
+    t += 59_000;
+    expect(await loadKit(env, open, () => t)).toBe(a);
+  });
+
+  it("looks again after a minute and takes new course data without a deployment", async () => {
+    const { open, rows } = parts();
+    const { db, env } = await withRows(rows, "2026-10-13T09:00:00.000Z");
+    let t = 1_000;
+    const a = await loadKit(env, open, () => t);
+    t += 61_000;
+    expect(await loadKit(env, open, () => t), "same version, same kit").toBe(a);
+    const changed = parts({ ...FULL, terms: { ...FULL.terms, Form: { ...FULL.terms.Form, d: "NEW-DEF" } } });
+    await seedCourse(db.d1, changed.rows, "2026-10-14T09:00:00.000Z");
+    t += 61_000;
+    const b = await loadKit(env, open, () => t);
     expect(b).not.toBe(a);
+    expect(b!.run("lookup_term", { name: "Form" })).toMatchObject({ definition: "NEW-DEF" });
   });
 
-  it("is null, and says so without quoting any text, when the key does not open the data", async () => {
-    const s = await sources(generateKey());
-    const wrong = generateKey();
-    expect(await loadKit(env(wrong), s)).toBeNull();
-    const logged = vi.mocked(console.error).mock.calls.flat().join(" ");
-    expect(logged).toContain("the key does not open this data");
-    expect(logged).not.toContain(wrong);
-    expect(logged).not.toContain("SECRET");
+  it("takes a change of the notes alone, which leaves the definitions' version as it was", async () => {
+    const { open, rows } = parts();
+    const { db, env } = await withRows(rows, "2026-10-13T09:00:00.000Z");
+    let t = 1_000;
+    const a = await loadKit(env, open, () => t);
+    expect(a!.finePoints(["form"]).join(" ")).toContain("A person is not form");
+    const changed = parts({ ...FULL, notes: { ...FULL.notes, form: ["NEW-NOTE."] } });
+    // as `npm run data:publish` does when only the notes changed: the definitions row keeps its time
+    await db.d1.prepare("UPDATE course_data SET body = ?1, updated_at = ?2 WHERE kind = 'notes'").bind(changed.rows.notes, "2026-10-14T09:00:00.000Z").run();
+    t += 61_000;
+    const b = await loadKit(env, open, () => t);
+    expect(b).not.toBe(a);
+    expect(b!.finePoints(["form"]).join(" ")).toContain("NEW-NOTE");
   });
 
-  it("does not quote decrypted text when it is not JSON", async () => {
-    const key = generateKey();
-    const s: Sources = { open: split(FULL).open, definitions: await seal(key, "definitions", "SECRET-DEF {not json"), notes: await seal(key, "notes", "{}") };
-    expect(await loadKit(env(key), s)).toBeNull();
+  it("is null, and says so without quoting any text, when a row is not JSON", async () => {
+    const { open, rows } = parts();
+    const { env } = await withRows({ ...rows, definitions: "SECRET-DEF {not json" });
+    expect(await loadKit(env, open)).toBeNull();
     const logged = vi.mocked(console.error).mock.calls.flat().join(" ");
-    expect(logged).toContain("the data is not JSON");
+    expect(logged).toContain("the course data is not JSON");
     expect(logged).not.toContain("SECRET");
   });
 });
@@ -160,12 +173,13 @@ describe("loadKit", () => {
 describe("the kit in the tutor route", () => {
   it("answers a lookup from the full data, adds the notes to the first turn, and sends neither to the page", async () => {
     const s = await setup();
-    const data = await sources(s.key);
+    const { open, rows } = parts();
+    await seedCourse(s.env.DB!, rows);
     const model = fakeAnthropic([
       { tool: { id: "t1", name: "lookup_term", input: { name: "Form" } }, text: ["Let me check. "] },
       { text: ["Form is ", "suitable as form."], usage: { input: 900, output: 30 } },
     ]);
-    const app = createApp({ kit: (env) => loadKit(env, data), fetch: model.fetch, now: () => NOW, retries: 0 });
+    const app = createApp({ kit: (env) => loadKit(env, open), fetch: model.fetch, now: () => NOW, retries: 0 });
     const res = await app.request("/api/tutor", { method: "POST", headers: s.headers(), body: ask({ cats: ["form", "round"] }) }, s.env);
     expect(res.status).toBe(200);
     const shown = JSON.stringify(await events(res));
@@ -182,14 +196,16 @@ describe("the kit in the tutor route", () => {
   });
 });
 
-// The real files. They need the key, which CI and a checkout with .data-key have.
-const key = readKey();
-describe.skipIf(!key)("the real course data", () => {
-  const real = (): Sources => ({ open: readOpen(), definitions: readFileSync(files.definitions), notes: readFileSync(files.notes) });
+// The real course data (data-private/), when it is at hand.
+describe.skipIf(!hasCourse())("the real course data", () => {
+  const real = () => {
+    const { definitions, notes } = readParts();
+    return { open: readOpen(), rows: { definitions: JSON.stringify(definitions), notes: JSON.stringify(notes) } };
+  };
 
   it("makes a kit whose tools know the course", async () => {
-    const kit = await kitFrom(key!, real());
-    const open = readOpen();
+    const { open, rows } = real();
+    const kit = await kitFrom(open, rows);
     const name = Object.keys(open.terms)[0];
     const hit = kit.run("lookup_term", { name }) as { found: boolean; definition?: string; chain: string };
     expect(hit.found).toBe(true);
@@ -199,8 +215,8 @@ describe.skipIf(!key)("the real course data", () => {
   });
 
   it("has notes for the categories that have them in the data, and only those", async () => {
-    const kit = await kitFrom(key!, real());
-    const open = readOpen();
+    const { open, rows } = real();
+    const kit = await kitFrom(open, rows);
     const cats: string[] = open.cats.map((c: { id: string }) => c.id);
     const withNotes = cats.filter((c) => kit.finePoints([c]).length);
     expect(withNotes.length).toBeGreaterThan(0);

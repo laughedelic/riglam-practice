@@ -1,6 +1,6 @@
-// The format of the encrypted course data (src/data/course.js), with throwaway keys and made-up data.
+// The format of the term data tiers (src/data/course.js), with made-up data.
 import { expect, test } from "vitest";
-import { generateKey, parseKey, seal, open, split, merge, lock, LOCKED_TEXT } from "../../src/data/course.js";
+import { split, merge, lock, LOCKED_TEXT } from "../../src/data/course.js";
 
 const sample = () => ({
   built: "2026-01-01",
@@ -11,49 +11,6 @@ const sample = () => ({
   },
   chains: { Form: ["Form", "Thing"] },
   notes: { extf: ["a group note"] },
-});
-
-test("a key is 43 characters of base64url, and a new one differs each time", () => {
-  const a = generateKey();
-  expect(a).toMatch(/^[A-Za-z0-9_-]{43}$/);
-  expect(a).not.toBe(generateKey());
-});
-
-test("parseKey takes a bare key, a fragment or a whole link, and nothing else", () => {
-  const k = generateKey();
-  expect(parseKey(k)).toBe(k);
-  expect(parseKey(`  ${k}\n`)).toBe(k);
-  expect(parseKey(`#k=${k}`)).toBe(k);
-  expect(parseKey(`https://riglam.example/#k=${k}`)).toBe(k);
-  expect(parseKey(`https://riglam.example/?a=1#x=2&k=${k}`)).toBe(k);
-  for (const bad of [null, undefined, "", "k=short", `${k}x`, `#k=${k}x`, "x".repeat(43) + "!", "not a key"]) expect(parseKey(bad), String(bad)).toBeNull();
-});
-
-test("text survives the round trip, including non-Latin characters, and the file is not readable", async () => {
-  const key = generateKey();
-  const text = JSON.stringify({ a: "придуманное определение", b: "色", c: "x".repeat(5000) });
-  const bytes = await seal(key, "definitions", text);
-  expect(await open(key, "definitions", bytes)).toBe(text);
-  expect(new TextDecoder().decode(bytes.slice(0, 4))).toBe("RGL1");
-  expect(new TextDecoder("latin1").decode(bytes), "the text does not appear in the clear").not.toContain("xxxxxxxxxx");
-});
-
-test("sealing the same text twice gives different files (random IV)", async () => {
-  const key = generateKey();
-  const [a, b] = [await seal(key, "notes", "same"), await seal(key, "notes", "same")];
-  expect(a).not.toEqual(b);
-});
-
-test("a wrong key, the other kind, a changed byte or a truncated file are refused", async () => {
-  const key = generateKey();
-  const bytes = await seal(key, "definitions", "secret");
-  await expect(open(generateKey(), "definitions", bytes)).rejects.toThrow(/does not open/);
-  await expect(open(key, "notes", bytes)).rejects.toThrow(/does not open/);
-  const changed = bytes.slice();
-  changed[changed.length - 1] ^= 1;
-  await expect(open(key, "definitions", changed)).rejects.toThrow(/does not open/);
-  await expect(open(key, "definitions", bytes.slice(0, 20))).rejects.toThrow(/not a course data file/);
-  await expect(open(key, "definitions", new TextEncoder().encode("plain text, long enough to pass the length check"))).rejects.toThrow(/not a course data file/);
 });
 
 test("split takes definitions and notes out of the open data, and merge puts them back", () => {
