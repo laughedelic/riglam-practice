@@ -68,14 +68,13 @@ function previewUrl(out) {
 /**
  * A branch other than staging (a pull request): the app as the branch has it, on the Preview that wrangler names after the branch
  * (the name `npx wrangler preview`, Workers Builds' default, would give it). Like staging, it reads the `previews` block of wrangler.jsonc:
- * the shared staging database, the preview budgets and the secrets of the Preview base config. The branch's migrations are applied to
- * that database first, because a Preview does not apply them itself.
+ * the shared staging database, the preview budgets and the secrets of the Preview base config. It applies no migrations: a Preview does not
+ * apply them itself, and a branch's migration would stay in the database shared with staging and the other Previews (docs/STAGING.md).
  */
 function deployBranch(branch) {
   const sha = git(root, ["rev-parse", "--short", "HEAD"]);
   run("npm", ["ci"]);
   run("npm", ["run", "build:pwa"]);
-  run("npx", ["--yes", `wrangler@${wranglerVersion()}`, "d1", "migrations", "apply", D1_NAME, "--remote", "-c", MIGRATIONS_CONFIG]);
   const out = execFileSync("npx", ["--yes", `wrangler@${wranglerVersion()}`, "preview", "--message", sha, "--json"], { cwd: root, encoding: "utf8", stdio: ["inherit", "pipe", "inherit"] });
   console.log(`${branch} ${sha} is at ${previewUrl(out)}`);
 }

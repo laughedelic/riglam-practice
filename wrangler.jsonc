@@ -51,8 +51,9 @@
   // settings with lower budgets, persisted logs, and one shared database of their own (never production's), so a pull request that
   // changes the server or the schema cannot touch production data. Previews share its budget counters and accounts.
   // The secrets ANTHROPIC_API_KEY and RIGLAM_DATA_KEY are not here: they come from the Preview base config (`wrangler preview base-config
-  // secret put`), which a Preview copies when it is created. The migrations of the database are applied by `npm run staging -- deploy`
-  // (wrangler's migration command reads the top level only, which is why wrangler.staging-migrations.jsonc declares the database again).
+  // secret put`), which a Preview copies when it is created. `npm run staging -- deploy` applies the database's migrations before it deploys
+  // `staging`; those of a pull request are applied by hand (wrangler's migration command reads the top level only, which is why
+  // wrangler.staging-migrations.jsonc declares the database again).
   "previews": {
     "observability": {
       "enabled": true,
