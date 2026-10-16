@@ -122,3 +122,34 @@ describe("a storage that never answers", () => {
     expect(told).toBe(0);
   });
 });
+
+describe("the server's copy of a document (applyRemote with a revision)", () => {
+  it("is stored when nothing was written since the revision was read", async () => {
+    const { factory } = stub();
+    const db = createLocalDb({ indexedDB: factory, channel: false });
+    await db.doc("answers/a1").set({ v: 1 });
+    await db.applyRemote("answers", "a1", { v: 2 }, db.revision("answers", "a1"));
+    expect((await db.doc("answers/a1").get()).data()).toEqual({ v: 2 });
+  });
+
+  it("is dropped when the page wrote the document after that, even if that write is still being saved", async () => {
+    const { factory, control } = stub();
+    const db = createLocalDb({ indexedDB: factory, channel: false });
+    const ref = db.doc("answers/a1");
+    await ref.set({ v: 1 });
+    const revision = db.revision("answers", "a1");
+    control.delay = 20;
+    const saving = ref.set({ v: 3 }); // begun, not finished
+    await db.applyRemote("answers", "a1", { v: 2 }, revision);
+    await saving;
+    expect((await ref.get()).data()).toEqual({ v: 3 });
+  });
+
+  it("is stored as before when no revision is given", async () => {
+    const { factory } = stub();
+    const db = createLocalDb({ indexedDB: factory, channel: false });
+    await db.doc("answers/a1").set({ v: 1 });
+    await db.applyRemote("answers", "a1", null);
+    expect((await db.doc("answers/a1").get()).exists).toBe(false);
+  });
+});

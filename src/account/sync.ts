@@ -20,7 +20,10 @@ export class SyncError extends Error {
 /** The part of the local store (src/pwa/local-db.ts) that sync uses. */
 export interface SyncStore {
   onWrite(fn: (w: { col: string; id: string; data: Doc | null }) => void): () => void;
-  applyRemote(col: string, id: string, data: Doc | null): Promise<void>;
+  /** Stores the server's copy. When `revision` is given and the document has been written since `revision(col, id)` returned it, nothing is stored: the newer local write wins and is noted for the next round. */
+  applyRemote(col: string, id: string, data: Doc | null, revision?: number): Promise<void>;
+  /** a number that changes whenever the document is written here (by the page, another tab or `applyRemote`), including a write that is still being saved */
+  revision(col: string, id: string): number;
   /** every document of a collection as it is now */
   documents(col: string): Promise<{ id: string; data: Doc }[]>;
   /** one document as it is now, or null */
@@ -100,6 +103,9 @@ export function stampOf(doc: Doc): number | undefined {
 }
 
 const size = (doc: Doc | null) => (doc === null ? 0 : JSON.stringify(doc).length);
+const encoder = new TextEncoder();
+/** What a document adds to a request body: bytes in UTF-8, which is what the server's limit on the body counts. */
+const bodyBytes = (doc: Doc | null) => (doc === null ? 0 : encoder.encode(JSON.stringify(doc)).length);
 const known = (c: string, id: string) => (SYNC_COLLECTIONS as readonly string[]).includes(c) && validDocId(id);
 
 export function createSync(deps: SyncDeps): Sync {
@@ -124,11 +130,15 @@ export function createSync(deps: SyncDeps): Sync {
   let unhook: (() => void) | null = null;
   let closed = false;
   let again = false; // a round was asked for while one was running
+  let running: Promise<void> | null = null; // the round in progress
+  let counted = 0;
+  // Writes whose note could not be stored (the outbox failed). They are kept here and noted again at the start of the next round.
+  const unnoted = new Map<string, { col: string; id: string; data: Doc | null; t: number }>();
   const listeners = new Set<(s: SyncStatus) => void>();
 
   const status = (): SyncStatus => ({ active, busy, pending, last, error });
   const publish = () => { const s = status(); for (const fn of [...listeners]) { try { fn(s); } catch { /* a listener's failure is its own */ } } };
-  const recount = async () => { pending = await outbox.count().catch(() => pending); };
+  const recount = async () => { counted = await outbox.count().catch(() => counted); pending = counted + unnoted.size; };
 
   /** Notes a change. The time is kept above that of the earlier entry for the document, so that "sent, then changed again" is told apart from "sent". */
   async function note(c: string, id: string, doc: Doc | null, t: number) {
@@ -141,8 +151,32 @@ export function createSync(deps: SyncDeps): Sync {
   function hook() {
     if (unhook) return;
     unhook = store.onWrite((w) => {
-      void note(w.col, w.id, w.data, now()).then(recount).then(() => { publish(); if (active) kick(); }).catch(() => {});
+      const t = now();
+      const key = keyOf(w.col, w.id);
+      void note(w.col, w.id, w.data, t)
+        .then(() => void unnoted.delete(key))
+        .catch(() => {
+          // The document is saved here but its note is not: keep it for the next round, and make sure that round happens.
+          unnoted.set(key, { col: w.col, id: w.id, data: w.data, t });
+          void outbox.setMeta("seeded", null).catch(() => {}); // if the page is closed before then, the next sign-in offers every document again
+          error = "unavailable";
+        })
+        .then(recount)
+        .then(() => { publish(); if (active) kick(); })
+        .catch(() => {});
     });
+  }
+
+  /** Notes again what could not be noted. Throws when the outbox still fails, which makes the round fail and wait. */
+  async function renote() {
+    for (const [key, w] of [...unnoted]) {
+      try {
+        await note(w.col, w.id, w.data, w.t);
+      } catch {
+        throw new SyncError("unavailable");
+      }
+      if (unnoted.get(key) === w) unnoted.delete(key);
+    }
   }
 
   /** Notes every document on this device as a change at its own timestamp, unless the document already has an entry. */
@@ -165,12 +199,13 @@ export function createSync(deps: SyncDeps): Sync {
   async function take(ch: SyncChange) {
     const key = keyOf(ch.c, ch.id);
     if (!known(ch.c, ch.id)) return;
+    const revision = store.revision(ch.c, ch.id); // taken before anything is awaited: a write after this point is newer than what is judged below
     const mine = await outbox.get(key);
     if (mine && mine.t > ch.t) return; // changed here after that: this copy goes to the server next
     if (mine) await outbox.remove(key, mine.t);
     const have = await store.read(ch.c, ch.id);
     if (ch.doc === null ? have === null : have !== null && canon(have) === canon(ch.doc)) return;
-    await store.applyRemote(ch.c, ch.id, ch.doc);
+    await store.applyRemote(ch.c, ch.id, ch.doc, revision);
   }
 
   /** The entries for one request: oldest first, within the limits of the server. */
@@ -178,7 +213,7 @@ export function createSync(deps: SyncDeps): Sync {
     const out: OutboxEntry[] = [];
     let bytes = 0;
     for (const e of await outbox.list(SYNC_LIMITS.writes)) {
-      bytes += size(e.doc) + 200;
+      bytes += bodyBytes(e.doc) + 200;
       if (out.length && bytes > SYNC_LIMITS.body - 64 * 1024) break;
       out.push(e);
     }
@@ -186,6 +221,7 @@ export function createSync(deps: SyncDeps): Sync {
   }
 
   async function oneRequest(): Promise<boolean> {
+    await renote();
     const sent = await batch();
     const cursor = (await outbox.getMeta<number>("cursor")) ?? 0;
     const res = await deps.post({ cursor, writes: sent.map((e) => ({ c: e.c, id: e.id, doc: e.doc, t: e.t })) });
@@ -199,9 +235,14 @@ export function createSync(deps: SyncDeps): Sync {
     return res.more || pending > 0;
   }
 
-  async function round() {
-    if (closed || !active) return;
-    if (busy) { again = true; return; }
+  /** Starts a round, or joins the one in progress (and asks for another after it, for what changed meanwhile). */
+  function round(): Promise<void> {
+    if (closed || !active) return Promise.resolve();
+    if (running) { again = true; return running; }
+    return (running = run());
+  }
+
+  async function run() {
     busy = true;
     publish();
     try {
@@ -229,6 +270,7 @@ export function createSync(deps: SyncDeps): Sync {
       publish();
       const rerun = again;
       again = false;
+      running = null; // read and cleared together with `again`, so that a request for a round is never lost between the two
       if (error === null && (rerun || pending > 0)) kick();
       else if (error !== null && error !== "signed_out" && active) kick();
     }
@@ -246,9 +288,13 @@ export function createSync(deps: SyncDeps): Sync {
         // A first sign-in, or another person's: the cursor and the old noted changes belong to the earlier account.
         await outbox.clear();
         await outbox.setMeta("user", userId);
-        await noteAll();
       }
+      // Writes made while the documents are being noted are noted by the hook, so it goes first; the scan only adds what has no entry.
       hook();
+      if ((await outbox.getMeta<string>("seeded")) !== userId) {
+        await noteAll();
+        await outbox.setMeta("seeded", userId); // only now: a page closed during the scan starts it again
+      }
       active = true;
       error = null;
       failures = 0;
@@ -268,6 +314,8 @@ export function createSync(deps: SyncDeps): Sync {
       unhook = null;
       if (timer !== null) { clearTimer(timer); timer = null; }
       await outbox.clear();
+      unnoted.clear();
+      counted = 0;
       pending = 0;
       last = null;
       error = null;
@@ -278,6 +326,7 @@ export function createSync(deps: SyncDeps): Sync {
       if (!active) return status();
       if (timer !== null) { clearTimer(timer); timer = null; }
       blockedUntil = 0;
+      if (running) await running.catch(() => {}); // a round that began before this call may not have seen the latest changes
       await round();
       return status();
     },
