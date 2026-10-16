@@ -1,10 +1,17 @@
 // The Worker's settings (worker/config.ts) and the prices (worker/prices.ts).
 import { describe, expect, it } from "vitest";
-import { readConfig } from "../../worker/config";
+import { readAccountConfig, readConfig } from "../../worker/config";
 import type { Env } from "../../worker/env";
 import { addTokens, costMicro, costOfTokens, noTokens } from "../../worker/prices";
 
 const env = (vars: Partial<Env> = {}) => vars as Env;
+
+describe("account settings", () => {
+  it("hold an account to 5,000 documents and 3,000 changes a day unless set otherwise", () => {
+    expect(readAccountConfig(env())).toMatchObject({ maxDocs: 5000, dailyWrites: 3000 });
+    expect(readAccountConfig(env({ MAX_DOCS_PER_ACCOUNT: "800" })).maxDocs).toBe(800);
+  });
+});
 
 describe("config", () => {
   it("has the documented defaults", () => {

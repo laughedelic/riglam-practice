@@ -6,7 +6,7 @@ import { HEADER } from "../../src/ai/protocol";
 import { GUESSES_PER_HOUR } from "../../worker/magic";
 import { createAccountClient } from "../../src/account/client";
 import { world } from "./accounts-support";
-import { device, T0 } from "./device";
+import { device, settle, T0 } from "./device";
 import { passkey } from "./authenticator";
 
 beforeEach(() => void vi.spyOn(console, "error").mockImplementation(() => {}));
@@ -160,6 +160,18 @@ describe("starting the app", () => {
     expect(w.db.sql("SELECT id FROM docs")).toEqual([{ id: "a1" }]);
   });
 
+  it("treats the server's answer that accounts are off as final for a device that was signed in", async () => {
+    const w = await world();
+    const a = await device(w);
+    await a.account.signUp("p");
+    const { createAccount } = await import("../../src/account/account");
+    const again = createAccount({ client: { ...a.client, available: async () => false }, sync: a.sync, passkeys: { supported: () => true, create: async () => ({}), get: async () => ({}) }, keep: { read: () => a.kept, write: (p) => void (a.kept = p) } });
+    await again.start();
+    expect(again.view()).toMatchObject({ available: false, person: null });
+    expect(a.kept).toBeNull();
+    expect(a.sync.status().active).toBe(false);
+  });
+
   it("notices that the session ended while the app was closed", async () => {
     const w = await world();
     const a = await device(w);
@@ -171,6 +183,27 @@ describe("starting the app", () => {
     await vi.waitFor(() => expect(again.view().person).toBeNull());
     expect(again.view().message?.text).toMatch(/signed out/i);
     expect(a.kept).toBeNull();
+  });
+
+  it("drops the background confirmation of the remembered person when the person has changed meanwhile", async () => {
+    const w = await world();
+    const a = await device(w);
+    await a.account.signUp("p");
+    const earlier = await a.client.me(); // what the server said while the person was signed in
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    let asked = 0;
+    const slow = { ...a.client, me: async () => { if (asked++ === 0) { await gate; return earlier; } return a.client.me(); } }; // only the confirmation at start is slow
+    const { createAccount } = await import("../../src/account/account");
+    const again = createAccount({ client: slow, sync: a.sync, passkeys: { supported: () => true, create: async () => ({}), get: async () => ({}) }, keep: { read: () => a.kept, write: (p) => void (a.kept = p) } });
+    await again.start(); // the confirmation is out
+    await again.signOut();
+    expect(again.view().person).toBeNull();
+    release();
+    await settle();
+    expect(again.view().person).toBeNull(); // the old answer did not bring the person back
+    expect(a.kept).toBeNull();
+    expect(a.sync.status().active).toBe(false);
   });
 });
 
