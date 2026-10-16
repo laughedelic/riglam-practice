@@ -4,7 +4,7 @@
 //   key                       print a new Magic Key: four random words (does not touch any file)
 //   import <full.json>        split the knowledge base export into src/data/drill-data.json (open) and data-private/
 //   export [out.json]         write the full data (definitions and notes put back) to a file, or to the standard output
-//   check                     verify that the open file holds no definitions or notes and that data-private/ matches it
+//   check                     verify that the open file holds no definitions or notes and that data-private/ matches it (a definition for every term, none for a term that is not there)
 //   publish [--config <file>] [--local]  load data-private/ into the course_data table with wrangler (production unless a config names another database; --local for `wrangler dev`)
 //   sql [out.sql]             write the statements publish runs to a file (or the standard output), for loading by other means
 //   fixture [--replace]       write made-up definitions and notes into data-private/ (CI and anyone without the real data use this); refuses to replace files that are there unless --replace
@@ -47,10 +47,11 @@ function statements(now = new Date().toISOString()) {
     `ON CONFLICT (kind) DO UPDATE SET updated_at = CASE WHEN body = excluded.body THEN updated_at ELSE excluded.updated_at END, body = excluded.body;`);
 }
 
-/** A notice for the terms of the open data that have no entry in definitions.json. A term can have none (split leaves it out), so this does not fail. */
-function noDefinitionNotice(open, definitions) {
+/** The terms of the open data that have no entry in definitions.json: every term has a definition, so a gap means an incomplete import. */
+function missingDefinitions(open, definitions) {
   const missing = Object.keys(open.terms).filter((k) => !definitions[k]);
-  return missing.length ? `notice: ${missing.length} of ${Object.keys(open.terms).length} terms of the open data have no definition in data-private/definitions.json (${missing.slice(0, 3).join(", ")}${missing.length > 3 ? ", ..." : ""}); if that is not expected, the import was incomplete` : "";
+  if (!missing.length) return;
+  throw new Error(`${missing.length} of ${Object.keys(open.terms).length} terms of the open data have no definition in data-private/definitions.json (${missing.slice(0, 3).join(", ")}${missing.length > 3 ? ", ..." : ""}): the import was incomplete`);
 }
 
 function main() {
@@ -76,9 +77,8 @@ function main() {
     const { definitions, notes } = readParts();
     const stray = [...Object.keys(definitions), ...Object.keys(notes.terms ?? {})].filter((k) => !open.terms[k]);
     if (stray.length) throw new Error(`data-private/ has entries for terms that are not in the open data: ${stray.slice(0, 5).join(", ")}`);
+    missingDefinitions(open, definitions);
     console.log(`ok: ${Object.keys(open.terms).length} terms, ${Object.keys(definitions).length} definitions, open file clean`);
-    const notice = noDefinitionNotice(open, definitions);
-    if (notice) console.log(notice);
   } else if (cmd === "sql") {
     const text = statements().join("\n") + "\n";
     if (arg) (writeFileSync(arg, text), console.error(`written: ${arg} (${text.length} bytes)`));
@@ -86,8 +86,7 @@ function main() {
   } else if (cmd === "publish") {
     const config = flag("--config") ?? "wrangler.jsonc";
     mkdirSync(join(tmpdir(), "riglam"), { recursive: true });
-    const notice = noDefinitionNotice(readOpen(), readParts().definitions);
-    if (notice) console.error(notice);
+    missingDefinitions(readOpen(), readParts().definitions);
     const sql = join(tmpdir(), "riglam", `course-${process.pid}.sql`);
     writeFileSync(sql, statements().join("\n") + "\n", { mode: 0o600 });
     const run = spawnSync("npx", ["wrangler", "d1", "execute", "DB", args.includes("--local") ? "--local" : "--remote", "--config", config, "--file", sql], { cwd: root, stdio: "inherit" });
