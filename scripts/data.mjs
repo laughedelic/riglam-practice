@@ -7,15 +7,14 @@
 //   check                     verify that the open file holds no definitions or notes and that data-private/ matches it
 //   publish [--config <file>] [--local]  load data-private/ into the course_data table with wrangler (production unless a config names another database; --local for `wrangler dev`)
 //   sql [out.sql]             write the statements publish runs to a file (or the standard output), for loading by other means
-//   pack                      print data-private/ as one line of text (gzip, base64), for a CI secret
-//   unpack                    write data-private/ from that text in RIGLAM_COURSE_DATA
+//   fixture [--replace]       write made-up definitions and notes into data-private/ (CI and anyone without the real data use this); refuses to replace files that are there unless --replace
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { gunzipSync, gzipSync } from "node:zlib";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { files, readFull, readOpen, readParts, writeFull, hasCourse, root } from "./lib/course-files.mjs";
+import { files, readFull, readOpen, readParts, writeFull, hasCourse, hasAnyCourse, root } from "./lib/course-files.mjs";
 import { WORDS } from "./lib/wordlist.mjs";
+import { madeUpCourse } from "./lib/made-up-course.mjs";
 
 const args = process.argv.slice(2);
 const [cmd, arg] = args;
@@ -82,18 +81,15 @@ function main() {
     writeFileSync(sql, statements().join("\n") + "\n", { mode: 0o600 });
     const run = spawnSync("npx", ["wrangler", "d1", "execute", "DB", args.includes("--local") ? "--local" : "--remote", "--config", config, "--file", sql], { cwd: root, stdio: "inherit" });
     if (run.status !== 0) throw new Error("wrangler did not load the course data (are the migrations applied, and are you signed in to Cloudflare?)");
-  } else if (cmd === "pack") {
-    console.log(gzipSync(JSON.stringify(readParts()), { level: 9 }).toString("base64"));
-  } else if (cmd === "unpack") {
-    const text = process.env.RIGLAM_COURSE_DATA?.trim();
-    if (!text) throw new Error("RIGLAM_COURSE_DATA is not set");
-    const { definitions, notes } = JSON.parse(gunzipSync(Buffer.from(text, "base64")).toString("utf8"));
+  } else if (cmd === "fixture") {
+    if (hasAnyCourse() && !args.includes("--replace")) throw new Error("data-private/ already holds course data; npm run data:fixture -- --replace overwrites it with made-up text");
+    const { definitions, notes } = madeUpCourse(readOpen());
     mkdirSync(files.privateDir, { recursive: true });
     writeFileSync(files.definitions, JSON.stringify(definitions));
     writeFileSync(files.notes, JSON.stringify(notes));
-    console.log("written: data-private/definitions.json, data-private/notes.json");
+    console.log(`written: made-up definitions for ${Object.keys(definitions).length} terms and notes for ${Object.keys(notes.terms).length} terms and ${Object.keys(notes.groups).length} categories, in data-private/`);
   } else {
-    throw new Error("usage: node scripts/data.mjs key | import <full.json> | export [out.json] | check | publish [--config <file>] [--local] | sql [out.sql] | pack | unpack");
+    throw new Error("usage: node scripts/data.mjs key | import <full.json> | export [out.json] | check | publish [--config <file>] [--local] | sql [out.sql] | fixture [--replace]");
   }
 }
 

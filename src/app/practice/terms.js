@@ -46,8 +46,9 @@ const lookUp=ch=>/^[IVX]+ /.test(ch)?"Look it up in the booklet, chapter "+ch.re
 function lockedDefs(names){
   const box=el("div",{class:"tm-locked"});
   box.append(el("dl",{class:"tm-defs"},names.map(n=>{
-    const t=state.DATA.terms[n], line=lookUp(t.ch||"");
-    return el("div",{class:"tm-d"},el("dt",null,t.name),line?el("dd",{class:"out"},el("p",{class:"src",text:line})):null);
+    const t=state.DATA.terms[n], line=lookUp(t.ch||""), ruOn=state.defLang==="enru";
+    // the Russian name of a term is open data: with English + Russian selected it is shown here as it is beside a definition
+    return el("div",{class:"tm-d"},el("dt",null,t.name,ruOn&&t.ru?el("span",{class:"tm-ru",lang:"ru",text:" · "+t.ru}):null),line?el("dd",{class:"out"},el("p",{class:"src",text:line})):null);
   })));
   box.append(el("p",{class:"tm-key",text:"To read the full definitions here, enter the Magic Key from your study group's link."}),
     el("button",{type:"button",class:"btn ghost",onclick:()=>state.unlock.open()},"Enter the Magic Key"));
