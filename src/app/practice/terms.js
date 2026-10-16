@@ -1,6 +1,6 @@
 import { state } from "../state.js";
 import { L, el } from "../core/dom.js";
-import { ico, lockIcon } from "../core/icons.js";
+import { lockIcon } from "../core/icons.js";
 import { REL } from "../core/rel.js";
 import { cap } from "../core/util.js";
 import { isA } from "./screen.js";
@@ -28,7 +28,7 @@ export function termsNode(p){
   for(const li of lis) if(li&&!li.everyday&&li.names.length) add(li.names[0]);
   for(const li of lis) if(li) li.names.slice(li.everyday?0:1).forEach(add);
   if(!names.length) return box;
-  box.append(el("button",{type:"button",class:"tm-tog","aria-expanded":state.ui.defs?"true":"false",onclick:()=>{ state.ui.defs=!state.ui.defs; render(); if(state.ui.defs) requestAnimationFrame(()=>{ const b=document.querySelector(".tm-tog"); if(b) b.scrollIntoView({block:"start"}); }); }},state.unlock?ico("lock"):null,state.ui.defs?"Hide definitions":"Definitions ("+names.length+")"));
+  box.append(el("button",{type:"button",class:"tm-tog","aria-expanded":state.ui.defs?"true":"false",onclick:()=>{ state.ui.defs=!state.ui.defs; render(); if(state.ui.defs) requestAnimationFrame(()=>{ const b=document.querySelector(".tm-tog"); if(b) b.scrollIntoView({block:"start"}); }); }},state.ui.defs?"Hide definitions":"Definitions ("+names.length+")"));
   if(state.ui.defs&&state.unlock) box.append(lockedDefs(names));
   else if(state.ui.defs) box.append(el("dl",{class:"tm-defs"},names.map(n=>{
     const t=state.DATA.terms[n], en=defParts(t.d), ru=defParts(t.d_ru), ruOn=state.defLang==="enru", src=en.src||(ruOn?ru.src:"");

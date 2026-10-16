@@ -49,8 +49,8 @@ test("Options has a Magic Key row that opens the prompt, and the prompt says wha
   const dlg = page.locator("#unlock");
   await expect(dlg).toBeVisible();
   await expect(dlg).toContainText("Magic Key");
-  await expect(dlg).toContainText("tutor");
-  await expect(dlg).toContainText("definitions");
+  await expect(dlg).toContainText("unlocks access to the definitions and explanations");
+  await expect(dlg.locator("#unlock-key")).toHaveAttribute("placeholder", "four words or the special link");
   await expect(dlg.locator("h2 svg.ico")).toBeVisible(); // a key beside the heading
   await page.getByRole("button", { name: "Close" }).click();
   await expect(dlg).toBeHidden();

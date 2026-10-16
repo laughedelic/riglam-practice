@@ -19,4 +19,4 @@
 .lockic{display:inline-flex;margin-right:8px}
 .lockic .open,.btn:hover .lockic .closed,.btn:focus-visible .lockic .closed{display:none}
 .btn:hover .lockic .open,.btn:focus-visible .lockic .open{display:block}
-.tm-tog .ico,.tl .ico{display:inline-block;vertical-align:-3px;margin-right:6px}
+.tl .ico{display:inline-block;vertical-align:-3px;margin-right:6px}
