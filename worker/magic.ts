@@ -46,10 +46,11 @@ export async function gate(env: Env, now: Date, caller: string, device: string, 
   }
   if (!reserved.meta.changes) return { ok: false, reason: "blocked", resetsAt: nextHour(now) };
   if (await checkProof(key, device, proof)) {
-    // give the guess back: the row goes when it held only this guess, otherwise it counts one less
-    await db.prepare("DELETE FROM guesses WHERE hour = ?1 AND who = ?2 AND n = 1").bind(hour, caller).run()
-      .then((gone) => (gone.meta.changes ? null : db.prepare("UPDATE guesses SET n = n - 1 WHERE hour = ?1 AND who = ?2 AND n > 1").bind(hour, caller).run()))
-      .catch(() => {});
+    // give the guess back, and remove the row when it holds none: one transaction, so that proofs that arrive together cannot miss each other's refund
+    await db.batch([
+      db.prepare("UPDATE guesses SET n = n - 1 WHERE hour = ?1 AND who = ?2 AND n > 0").bind(hour, caller),
+      db.prepare("DELETE FROM guesses WHERE hour = ?1 AND who = ?2 AND n <= 0").bind(hour, caller),
+    ]).catch(() => {});
     return { ok: true };
   }
   await db.prepare("DELETE FROM guesses WHERE hour < ?1").bind(new Date(now.getTime() - 2 * 3_600_000).toISOString().slice(0, 13)).run().catch(() => {});

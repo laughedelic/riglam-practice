@@ -24,6 +24,14 @@ beforeEach(() => void vi.spyOn(console, "error").mockImplementation(() => {}));
 afterEach(() => vi.restoreAllMocks());
 
 describe("GET /api/course", () => {
+  it.each([["text that is not JSON", "{\"Form\": "], ["JSON that is not an object", "[1, 2]"], ["null", "null"]])("answers 503 when the stored definitions are %s, not a broken 200", async (_name, body) => {
+    const s = await setup();
+    await seedCourse(s.env.DB!, { definitions: body, notes: ROWS.notes });
+    const res = await course(s, right(s));
+    expect(res.status).toBe(503);
+    expect((await json(res)).error.code).toBe("unavailable");
+  });
+
   it("gives the definitions to a proof that fits, and says when the copy a device kept is current", async () => {
     const s = await setup();
     await seedCourse(s.env.DB!, ROWS);
@@ -120,6 +128,32 @@ describe("the allowance of wrong guesses", () => {
     }
     const tutor = await app().request("/api/tutor", { method: "POST", headers: { "content-type": "application/json", ...(await wrong()) }, body: ask() }, bare);
     expect(tutor.status).toBe(503);
+  });
+
+  it("gives every guess back when valid proofs arrive together and their statements interleave", async () => {
+    const s = await setup();
+    await seedCourse(s.env.DB!, ROWS);
+    const tick = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+    type Step = { bind: (...v: unknown[]) => Step; run: () => Promise<unknown>; all: () => Promise<unknown>; first: () => Promise<unknown>; runNow: () => unknown };
+    const slow = (step: Step): Step => ({
+      bind: (...v) => slow(step.bind(...v)),
+      run: async () => (await tick(), step.run()),
+      all: async () => (await tick(), step.all()),
+      first: async () => (await tick(), step.first()),
+      runNow: () => step.runNow(),
+    });
+    const real = s.env.DB!;
+    const db = new Proxy(real, {
+      get: (target, prop) => {
+        if (prop === "prepare") return (sql: string) => slow(target.prepare(sql) as unknown as Step);
+        if (prop === "batch") return async (list: unknown[]) => (await tick(), target.batch(list as never));
+        return Reflect.get(target, prop);
+      },
+    });
+    const slowEnv = { ...s.env, DB: db } as typeof s.env;
+    const sent = await Promise.all([1, 2, 3].map(async () => (await app().request("/api/course", { headers: right(s) }, slowEnv)).status));
+    expect(sent).toEqual([200, 200, 200]);
+    expect(used(s), "each proof gave its own guess back, none was lost to another's refund").toEqual([]);
   });
 
   it("removes the row of a caller whose only guess was given back, but keeps the wrong guesses of one who made some", async () => {

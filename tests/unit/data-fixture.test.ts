@@ -58,3 +58,17 @@ test("check passes with no data-private/ and with both files, and refuses a data
   expect(half.status).not.toBe(0);
   expect(half.stderr).toMatch(/only one of definitions\.json and notes\.json/);
 });
+
+test("check says when terms of the open data have no definition, and still passes (a term can have none)", () => {
+  expect(fixture().status).toBe(0);
+  const file = priv("definitions.json");
+  const definitions = JSON.parse(readFileSync(file, "utf8"));
+  const gone = Object.keys(definitions).slice(0, 2);
+  for (const k of gone) delete definitions[k];
+  writeFileSync(file, JSON.stringify(definitions));
+  const run = check();
+  expect(run.status, run.stderr).toBe(0);
+  expect(run.stdout).toMatch(/notice: 2 of \d+ terms of the open data have no definition/);
+  expect(run.stdout).toContain(gone[0]);
+});
+
