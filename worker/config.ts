@@ -52,7 +52,7 @@ export function readAccountConfig(env: Env): AccountConfig {
   return {
     signup: SIGNUPS.find((s) => s === env.SIGNUP?.trim()) ?? "open",
     maxAccounts: Math.round(number(env.MAX_ACCOUNTS, 300, 0, 100_000)),
-    maxDocs: Math.round(number(env.MAX_DOCS_PER_ACCOUNT, 20_000, 100, 1_000_000)),
+    maxDocs: Math.round(number(env.MAX_DOCS_PER_ACCOUNT, 5_000, 100, 1_000_000)),
     dailyWrites: Math.round(number(env.DAILY_WRITES_PER_ACCOUNT, 3_000, 10, 1_000_000)),
     dailyCeremonies: Math.round(number(env.CEREMONIES_PER_DAY, 2_000, 10, 1_000_000)),
   };
