@@ -15,6 +15,8 @@ export interface AccountSlot {
   /** rebuilding the screen drops the focused control, so after an action the focus goes to its message */
   wantStatus?: boolean;
   lastBusy?: AccountView["busy"];
+  /** the id of the control to focus once the row has been rebuilt (the delete confirmation, or the button that opened it) */
+  focus?: string;
 }
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -73,14 +75,14 @@ export function accountControls(account: Account, el: El, rerender: () => void, 
         el("button", { type: "button", class: "btn ghost", disabled: off, onclick: run(() => account.syncNow()) }, "Sync now"),
         el("button", { type: "button", class: "btn ghost", disabled: off || !v.supported, onclick: run(() => account.addPasskey()) }, v.busy === "passkey" ? "Adding ..." : "Add a passkey"),
         el("button", { type: "button", class: "btn ghost", disabled: off, onclick: run(() => account.signOut()) }, v.busy === "signout" ? "Signing out ..." : "Sign out"),
-        el("button", { type: "button", class: "btn ghost", disabled: off, onclick: () => { slot.confirming = true; rerender(); } }, "Delete account ...")),
+        el("button", { type: "button", id: "acct-delete", class: "btn ghost", disabled: off, onclick: () => { slot.confirming = true; slot.focus = "acct-delete-no"; rerender(); } }, "Delete account ...")),
     );
     if (slot.confirming) {
       box.append(
         el("p", { class: "onote", role: "alert", text: "This deletes the account and its copy of your documents on the server, and its passkeys. The documents on your devices stay." }),
         el("div", { class: "xfer" },
           el("button", { type: "button", class: "btn", disabled: off, onclick: run(() => account.deleteAccount()) }, v.busy === "delete" ? "Deleting ..." : "Delete account"),
-          el("button", { type: "button", class: "btn ghost", onclick: () => { slot.confirming = false; rerender(); } }, "Cancel")));
+          el("button", { type: "button", id: "acct-delete-no", class: "btn ghost", onclick: () => { slot.confirming = false; slot.focus = "acct-delete"; rerender(); } }, "Cancel")));
     }
   }
 
@@ -91,6 +93,11 @@ export function accountControls(account: Account, el: El, rerender: () => void, 
   }
   slot.wantStatus = false;
   if (v.person?.hasKey) box.append(el("p", { class: "onote", text: "This account carries the Magic Key: a device that signs in to it unlocks the definitions and the tutor, also after the key is changed." }));
+  if (slot.focus) {
+    const id = slot.focus;
+    slot.focus = undefined;
+    queueMicrotask(() => document.getElementById(id)?.focus({ preventScroll: true }));
+  }
   box.append(el("p", { class: "onote", text: "Copied: answers, debates, favorites, skipped pairs, flags and check-lab runs. Not copied: these settings (Export saves them) and the Magic Key." }));
   return box;
 }

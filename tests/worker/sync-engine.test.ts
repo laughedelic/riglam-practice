@@ -300,9 +300,29 @@ describe("limits", () => {
     const a = await device(w);
     await a.account.signUp("p");
     for (let i = 0; i < 12; i++) await a.put("answers", "a" + i, { i }, T0 + i);
+    // 12 changes are more than a request may carry for this account: they go in smaller requests until the day's 10 are used up
     const s = await a.sync.syncNow();
-    expect(s).toMatchObject({ error: "quota", pending: 12 });
-    expect(w.db.sql("SELECT * FROM docs")).toEqual([]);
+    expect(s).toMatchObject({ error: "quota", pending: 6 });
+    expect(w.db.sql("SELECT * FROM docs")).toHaveLength(6);
+    w.clock.now = new Date(w.clock.now.getTime() + 86_400_000);
+    expect(await a.sync.syncNow()).toMatchObject({ error: null, pending: 0 });
+    expect(w.db.sql("SELECT * FROM docs")).toHaveLength(12);
+  });
+
+  it("makes progress when the queue is longer than the allowance for a day (the least the server allows is 10)", async () => {
+    const w = await world({ DAILY_WRITES_PER_ACCOUNT: "10" } as never);
+    const a = await device(w);
+    await a.account.signUp("p");
+    for (let i = 0; i < 25; i++) await a.put("answers", "a" + i, { i }, T0 + i);
+    let docs = 0;
+    for (let day = 0; day < 4 && a.sync.status().pending > 0; day++) {
+      await a.sync.syncNow();
+      docs = w.db.sql("SELECT * FROM docs").length;
+      w.clock.now = new Date(w.clock.now.getTime() + 86_400_000);
+    }
+    expect(docs).toBeGreaterThan(0);
+    expect(a.sync.status()).toMatchObject({ pending: 0, error: null });
+    expect(w.db.sql("SELECT * FROM docs")).toHaveLength(25);
   });
 });
 
@@ -365,9 +385,9 @@ describe("races and failures on the device", () => {
   it("keeps a change whose note could not be stored and sends it in the next round", async () => {
     const { w, a } = await pair();
     await a.account.signUp("p");
-    const real = a.outbox.put.bind(a.outbox);
+    const real = a.outbox.note.bind(a.outbox);
     let full = true;
-    a.outbox.put = async (e) => { if (full) throw new Error("storage full"); return real(e); };
+    a.outbox.note = async (e) => { if (full) throw new Error("storage full"); return real(e); };
     await a.put("answers", "a1", { v: 1 }, T0);
     expect(a.sync.status()).toMatchObject({ pending: 1, error: "unavailable" });
     await a.sync.syncNow(); // still full: the round fails and nothing is lost
@@ -429,6 +449,83 @@ describe("races and failures on the device", () => {
     expect(status).toMatchObject({ busy: false, pending: 0, error: null });
     expect(posts.reduce((n, c) => n + c, 0)).toBeGreaterThanOrEqual(2);
     s.close();
+  });
+});
+
+describe("changes of account and failures of the outbox", () => {
+  it("does not apply, or keep the cursor of, an answer for the account that was left while the request was out", async () => {
+    const { a, b } = await pair();
+    await a.account.signUp("p");
+    await b.account.signIn();
+    await b.put("answers", "x", { v: "from b" }, T0);
+    await b.sync.syncNow();
+    // while a's request is out, another tab makes this browser follow someone else
+    const real = a.client.sync.bind(a.client);
+    a.client.sync = async (r) => {
+      const res = await real(r);
+      a.client.sync = real;
+      await a.sync.activate("someone-else");
+      return res;
+    };
+    await a.sync.syncNow();
+    expect(a.get("answers", "x")).toBeNull();
+    expect(await a.outbox.getMeta("cursor")).toBeUndefined();
+    expect(await a.outbox.getMeta("user")).toBe("someone-else");
+  });
+
+  it("does not retry a note that was replaced while an earlier one was being stored", async () => {
+    const { w, a } = await pair();
+    await a.account.signUp("p");
+    const real = a.outbox.note.bind(a.outbox);
+    let full = true;
+    let gate: (() => void) | null = null;
+    a.outbox.note = async (e) => {
+      if (full) throw new Error("storage full");
+      if (e.key === "answers/a1" && gate === null) await new Promise<void>((resolve) => { gate = resolve; });
+      return real(e);
+    };
+    await a.put("answers", "a1", { v: 1 }, T0);
+    await a.put("answers", "b1", { v: "old" }, T0);
+    expect(a.sync.status()).toMatchObject({ pending: 2, error: "unavailable" });
+    full = false;
+    const round = a.sync.syncNow(); // the notes of a1 and b1 are tried again; the first waits
+    await settle();
+    await a.put("answers", "b1", { v: "new" }, T0 + 5000); // stored at once, which settles b1
+    gate!();
+    await round;
+    expect(w.db.sql<{ data: string }>("SELECT data FROM docs WHERE id = 'b1'").map((r) => JSON.parse(r.data))).toEqual([{ v: "new" }]);
+  });
+
+  it("starts a scan that failed again with the next round, without a new sign-in", async () => {
+    const { w, a } = await pair();
+    a.seed("answers", "old1", { at: "2026-10-12T08:00:00Z", v: "scanned" });
+    const documents = a.store.documents;
+    let broken = true;
+    a.store.documents = async (col) => { if (broken) throw new Error("page closed"); return documents(col); };
+    await a.account.signUp("p");
+    expect(a.sync.status()).toMatchObject({ active: true, error: "unavailable" });
+    broken = false;
+    await a.sync.syncNow();
+    expect(a.sync.status()).toMatchObject({ error: null, pending: 0 });
+    expect(await a.outbox.getMeta("seeded")).toBe(await a.outbox.getMeta("user"));
+    expect(w.db.sql<{ id: string }>("SELECT id FROM docs").map((r) => r.id)).toEqual(["old1"]);
+  });
+});
+
+describe("a device that could not ask the server at start", () => {
+  it("shows the Account row when the server answers later", async () => {
+    const { a } = await pair();
+    const real = a.client.available.bind(a.client);
+    a.client.available = async () => null; // offline, or no answer in time
+    await a.account.start();
+    expect(a.account.view().available).toBe(false);
+    a.account.wake();
+    await settle();
+    expect(a.account.view().available).toBe(false); // still no answer
+    a.client.available = real;
+    a.account.wake();
+    await settle();
+    expect(a.account.view().available).toBe(true);
   });
 });
 
