@@ -2,18 +2,22 @@
 //   db      local IndexedDB store (./local-db.ts)
 //   sample  not available yet (no server): the page hides the check lab. Only `npm run dev` has one, a stand-in for the model
 //           (./dev-sample.ts); `?ai=off` in the address takes it away there too.
+//   unlock  a way to enter the study group's key again, while this device has none (./unlock.ts)
 //   tutor   the app's own server (./tutor.ts), when it has the tutor on and this device has the study group's key
 import dataUrl from "../data/drill-data.json?url";
 import definitionsUrl from "../data/course-definitions.enc?url";
 import { open, merge, lock } from "../data/course.js";
 import type { DrillData, Platform, Sample } from "../platform/types";
 import { createLocalDb } from "./local-db";
-import { createTutor, tutorIsOn } from "./tutor";
+import { createTutor, tutorIsOn as serverSaysOn } from "./tutor";
 import { takeLinkKey, storedKey, storeKey, forgetKey, showUnlock } from "./unlock";
 
 const db = createLocalDb();
 const link = takeLinkKey(); // first of all: a key in the address leaves the address bar at once
+let openUnlock: (() => void) | null = null; // asks for the key again; set while this device has none
 let groupKey: string | null = null; // the key, once it has opened the definitions: the proof for the tutor is made with it
+let serverAnswer: Promise<boolean> | null = null; // whether the server says its tutor is on: asked once, for the tutor and for the grayed Explain button
+const tutorIsOn = () => (serverAnswer ??= serverSaysOn());
 
 async function readDefinitions(key: string) {
   const res = await fetch(definitionsUrl);
@@ -45,7 +49,7 @@ async function loadData(): Promise<DrillData> {
       } // any other failure (a file that could not be read) leaves the key alone and the definitions locked for this visit
     }
   }
-  showUnlock({ problem, verify: readDefinitions });
+  openUnlock = showUnlock({ problem, verify: readDefinitions });
   return lock(data);
 }
 
@@ -63,6 +67,8 @@ export const pwaPlatform: Platform = {
   loadData,
   db: async () => db,
   sample,
+  // Offered while there is no key: the page opens the prompt when the reader reaches something that needs it (Explain, the definitions, Options).
+  unlock: async () => (groupKey || !openUnlock ? null : { open: openUnlock, tutor: false, answer: tutorIsOn() }),
   // Only with the key (the server would refuse the request anyway) and only when the server says its tutor is on: otherwise the page hides the tutor.
   tutor: async () => (groupKey && (await tutorIsOn()) ? createTutor(groupKey) : null),
 };
