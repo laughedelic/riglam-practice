@@ -22,7 +22,7 @@ export class AccountFailure extends Error {
   }
 }
 
-const CODES: readonly string[] = ["signed_out", "not_granted", "unknown_passkey", "bad_request", "too_large", "quota", "conflict", "unavailable"];
+const CODES: readonly string[] = ["signed_out", "not_granted", "unknown_passkey", "bad_request", "too_large", "quota", "full", "conflict", "unavailable"];
 
 export type Fetch = (input: string, init?: RequestInit) => Promise<Response>;
 
@@ -31,7 +31,7 @@ export interface AccountClient {
   available(): Promise<boolean | null>;
   me(): Promise<MeResponse>;
   registerOptions(name: string, headers?: Record<string, string>): Promise<Ceremony>;
-  registerVerify(challengeId: string, response: Record<string, unknown>): Promise<Extract<MeResponse, { signedIn: true }>>;
+  registerVerify(challengeId: string, response: Record<string, unknown>, headers?: Record<string, string>): Promise<Extract<MeResponse, { signedIn: true }>>;
   loginOptions(): Promise<Ceremony>;
   loginVerify(challengeId: string, response: Record<string, unknown>): Promise<Extract<MeResponse, { signedIn: true }>>;
   passkeyOptions(): Promise<Ceremony>;
@@ -88,8 +88,8 @@ export function createAccountClient(doFetch: Fetch = (input, init) => fetch(inpu
     }
   }
 
-  const verified = async (path: string, challengeId: string, response: Record<string, unknown>) => {
-    const me = await call<MeResponse>(path, { body: { challengeId, response } });
+  const verified = async (path: string, challengeId: string, response: Record<string, unknown>, headers?: Record<string, string>) => {
+    const me = await call<MeResponse>(path, { body: { challengeId, response }, headers });
     if (!me.signedIn) throw new AccountFailure("unavailable");
     return me;
   };
@@ -111,7 +111,7 @@ export function createAccountClient(doFetch: Fetch = (input, init) => fetch(inpu
     },
     me: () => call<MeResponse>(ACCOUNT_API.me),
     registerOptions: (name, headers) => call<Ceremony>(ACCOUNT_API.registerOptions, { body: { name }, headers }),
-    registerVerify: (id, response) => verified(ACCOUNT_API.registerVerify, id, response),
+    registerVerify: (id, response, headers) => verified(ACCOUNT_API.registerVerify, id, response, headers),
     loginOptions: () => call<Ceremony>(ACCOUNT_API.loginOptions, { body: {} }),
     loginVerify: (id, response) => verified(ACCOUNT_API.loginVerify, id, response),
     passkeyOptions: () => call<Ceremony>(ACCOUNT_API.passkeyOptions, { body: {} }),
@@ -120,7 +120,7 @@ export function createAccountClient(doFetch: Fetch = (input, init) => fetch(inpu
       await call(ACCOUNT_API.logout, { body: {} });
     },
     async shareKey(headers) {
-      await call(ACCOUNT_API.key, { body: {}, headers });
+      await call(ACCOUNT_API.key, { body: {}, headers, limitMs: waitMs });
     },
     async fetchKey() {
       const body = await call<{ key?: unknown }>(ACCOUNT_API.key, { limitMs: waitMs });
@@ -140,6 +140,7 @@ export function createAccountClient(doFetch: Fetch = (input, init) => fetch(inpu
         if (e.code === "signed_out") throw new SyncError("signed_out", e.message);
         if (e.code === "quota") throw new SyncError("quota", e.message);
         if (e.code === "too_large") throw new SyncError("too_large", e.message);
+        if (e.code === "full") throw new SyncError("full", e.message);
         throw new SyncError("unavailable", e.message);
       }
     },

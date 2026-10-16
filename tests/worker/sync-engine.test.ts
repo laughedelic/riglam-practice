@@ -419,6 +419,115 @@ describe("races and failures on the device", () => {
     expect(w.db.sql<{ data: string }>("SELECT data FROM docs WHERE id = 'x'")[0].data).toBe(JSON.stringify({ v: 3 }));
   });
 
+  it("does not overwrite a document whose local write began before the server's copy was judged but was not noted yet", async () => {
+    const { w, a, b } = await pair();
+    await a.account.signUp("p");
+    await b.account.signIn();
+    await a.put("answers", "x", { v: 1 }, T0);
+    await a.sync.syncNow();
+    await b.sync.syncNow();
+    await a.put("answers", "x", { v: 2 }, T0 + 1000);
+    await a.sync.syncNow();
+    // b's page has begun writing v3 (in memory, the revision is already newer) but the write is not saved, so it is not in the outbox either
+    const finish = b.begin("answers", "x", { v: 3 }, T0 + 9000);
+    const appliedBefore = b.applied.length;
+    await b.sync.syncNow();
+    expect(b.applied.slice(appliedBefore)).not.toContain("answers/x");
+    expect(b.get("answers", "x")).toEqual({ v: 3 });
+    await finish();
+    await b.sync.syncNow();
+    await a.sync.syncNow();
+    expect(a.get("answers", "x")).toEqual({ v: 3 });
+    expect(w.db.sql<{ data: string }>("SELECT data FROM docs WHERE id = 'x'")[0].data).toBe(JSON.stringify({ v: 3 }));
+  });
+
+  it("keeps the cursor where it was when a server copy is put off, so that a local save that fails does not lose it", async () => {
+    const { a, b } = await pair();
+    await a.account.signUp("p");
+    await b.account.signIn();
+    await a.put("answers", "x", { v: 1 }, T0);
+    await a.sync.syncNow();
+    await b.sync.syncNow();
+    await a.put("answers", "x", { v: 2 }, T0 + 1000);
+    await a.sync.syncNow();
+    const save = b.begin("answers", "x", { v: 3 }, T0 + 9000);
+    await b.sync.syncNow(); // the copy v2 waits for the write that is being saved
+    expect(b.get("answers", "x")).toEqual({ v: 3 });
+    save.rollback(); // the save failed: no note, no entry
+    await b.sync.syncNow();
+    expect(b.get("answers", "x")).toEqual({ v: 2 }); // the copy was not left behind the cursor
+  });
+
+  it("puts a server copy off, and keeps the cursor, when a write came in after the revision was read and its save then fails", async () => {
+    const { a, b } = await pair();
+    await a.account.signUp("p");
+    await b.account.signIn();
+    await a.put("answers", "x", { v: 1 }, T0);
+    await a.sync.syncNow();
+    await b.sync.syncNow();
+    await a.put("answers", "x", { v: 2 }, T0 + 1000);
+    await a.sync.syncNow();
+    let save!: ReturnType<typeof b.begin>;
+    b.hooks.afterRead = async () => { b.hooks.afterRead = undefined; save = b.begin("answers", "x", { v: 3 }, T0 + 9000); }; // after the revision was read, before the copy is stored
+    await b.sync.syncNow();
+    expect(b.get("answers", "x")).toEqual({ v: 3 });
+    save.rollback();
+    await b.sync.syncNow();
+    expect(b.get("answers", "x")).toEqual({ v: 2 });
+  });
+
+  it("keeps the retry of the newest change when notes of one document finish out of order", async () => {
+    const { w, a } = await pair();
+    await a.account.signUp("p");
+    const real = a.outbox.note.bind(a.outbox);
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    let calls = 0;
+    a.outbox.note = async (e) => {
+      calls += 1;
+      if (calls === 1) { await gate; return real(e); } // the older note is slow and succeeds
+      throw new Error("storage full"); // the newer one fails quickly
+    };
+    await a.put("answers", "x", { v: 1 }, T0);
+    await a.put("answers", "x", { v: 2 }, T0 + 1000);
+    a.outbox.note = real;
+    release();
+    await settle();
+    await a.sync.syncNow();
+    expect(a.sync.status()).toMatchObject({ pending: 0, error: null });
+    expect(w.db.sql<{ data: string }>("SELECT data FROM docs WHERE id = 'x'")[0].data).toBe(JSON.stringify({ v: 2 }));
+  });
+
+  it("an explicit sync waits for the lock that another tab holds, where a background round leaves the work to that tab", async () => {
+    let held = true;
+    const w = await world();
+    const a = await device(w, { exclusive: async (fn, wait) => (held && !wait ? undefined : fn()) });
+    await a.account.signUp("p");
+    await a.put("answers", "x", { v: 1 }, T0);
+    a.sync.kick();
+    await settle();
+    expect(w.db.sql("SELECT id FROM docs")).toEqual([]); // the other tab has the lock
+    await a.sync.syncNow();
+    expect(a.sync.status().pending).toBe(0);
+    expect(w.db.sql("SELECT id FROM docs")).toEqual([{ id: "x" }]);
+    held = false;
+  });
+
+  it("waits for the notes that are under way before it clears the queue for another account", async () => {
+    const { a } = await pair();
+    await a.account.signUp("p");
+    const real = a.outbox.note.bind(a.outbox);
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    a.outbox.note = async (e) => { await gate; return real(e); };
+    const writing = a.put("answers", "x", { v: 1 }, T0); // its note is held
+    const leaving = a.sync.forget();
+    await settle();
+    release();
+    await Promise.all([leaving, writing]);
+    expect(await a.outbox.count()).toBe(0); // the late note did not land in the cleared queue
+  });
+
   it("makes an explicit sync wait for the round in progress and then send what came after it", async () => {
     const { a } = await pair();
     await a.account.signUp("p");
@@ -512,6 +621,98 @@ describe("changes of account and failures of the outbox", () => {
   });
 });
 
+describe("what a failed step must not lose or send to the wrong account", () => {
+  it("does not send a deletion whose note failed to the account that is signed in next", async () => {
+    const w = await world();
+    const a = await device(w);
+    const c = await device(w);
+    await a.account.signUp("first");
+    await c.account.signUp("second");
+    await c.put("answers", "x", { v: "second's" }, T0);
+    await c.sync.syncNow();
+    await a.put("answers", "x", { v: "first's" }, T0 + 1);
+    await a.sync.syncNow();
+    // the deletion cannot be noted, and neither can the flush before signing out
+    const real = a.outbox.note.bind(a.outbox);
+    let full = true;
+    a.outbox.note = async (e) => { if (full) throw new Error("storage full"); return real(e); };
+    await a.remove("answers", "x", T0 + 5000);
+    expect(a.sync.status().pending).toBe(1);
+    // the same browser signs in as the second person, and the storage works again
+    a.key = c.key;
+    full = false;
+    await a.account.signIn();
+    await a.sync.syncNow();
+    const live = w.db.sql<{ data: string }>("SELECT data FROM docs WHERE id = 'x' AND data IS NOT NULL").map((r) => JSON.parse(r.data).v).sort();
+    expect(live).toEqual(["first's", "second's"]); // the first person's document is theirs to keep, and the second's was not deleted
+    expect(a.get("answers", "x")).toEqual({ v: "second's" });
+  });
+
+  it("keeps a write that lost until the server's copy is stored, so that a failed store is sent and answered again", async () => {
+    const { a, b } = await pair();
+    await a.account.signUp("p");
+    await b.account.signIn();
+    await b.put("answers", "x", { v: "b" }, T0 + 1000);
+    await b.sync.syncNow();
+    await a.sync.syncNow(); // a has b's copy, and a cursor beyond it
+    await a.put("answers", "x", { v: "a" }, T0 + 10); // a's clock was behind: this change is older than the server's copy
+    const real = a.store.applyRemote.bind(a.store);
+    let fail = true;
+    a.store.applyRemote = async (...args) => { if (fail) throw new Error("storage"); return real(...args); };
+    await a.sync.syncNow();
+    expect(a.sync.status()).toMatchObject({ error: "unavailable", pending: 1 });
+    expect(a.get("answers", "x")).toEqual({ v: "a" });
+    fail = false;
+    await a.sync.syncNow();
+    expect(a.sync.status()).toMatchObject({ error: null, pending: 0 });
+    expect(a.get("answers", "x")).toEqual({ v: "b" });
+  });
+});
+
+describe("an account that holds as many documents as it may", () => {
+  it("sends the deletions first, still receives what other devices changed, and says the account is full", async () => {
+    const w = await world({ MAX_DOCS_PER_ACCOUNT: "100" });
+    const a = await device(w);
+    const b = await device(w, { key: a.key });
+    await a.account.signUp("p");
+    for (let i = 0; i < 100; i++) await a.put("answers", "d" + i, { i }, T0 + i);
+    await a.sync.syncNow();
+    expect(a.sync.status()).toMatchObject({ error: null, pending: 0 });
+    await b.account.signIn();
+    await b.sync.syncNow();
+    // 30 additions are queued ahead of a deletion
+    for (let i = 0; i < 30; i++) await a.put("answers", "n" + i, { i }, T0 + 1000 + i);
+    await a.remove("answers", "d0", T0 + 5000);
+    expect(await a.sync.syncNow()).toMatchObject({ error: "full", pending: 30 });
+    expect(w.db.sql<{ n: number }>("SELECT COUNT(*) AS n FROM docs WHERE data IS NOT NULL")[0].n).toBe(99); // the deletion went, and made room
+    // b writes into the room that is left, and a, though full, receives it
+    await b.put("answers", "fromB", { v: 1 }, T0 + 6000);
+    await b.sync.syncNow();
+    expect(await a.sync.syncNow()).toMatchObject({ error: "full" });
+    expect(a.get("answers", "fromB")).toEqual({ v: 1 });
+    // deleting more here lets the queue go
+    for (let i = 1; i <= 40; i++) await a.remove("answers", "d" + i, T0 + 7000 + i);
+    expect(await a.sync.syncNow()).toMatchObject({ error: null, pending: 0 });
+  });
+});
+
+describe("an account that is full and a queue with as many additions as deletions in a request", () => {
+  it("still sends the deletions that make room", async () => {
+    const w = await world({ MAX_DOCS_PER_ACCOUNT: "250", DAILY_WRITES_PER_ACCOUNT: "100000" });
+    const a = await device(w);
+    for (let i = 0; i < 250; i++) a.seed("answers", "d" + i, { i });
+    await a.account.signUp("p");
+    await a.sync.syncNow();
+    expect(a.sync.status()).toMatchObject({ error: null, pending: 0 });
+    // 200 additions, all older than 200 deletions: the first request holds only additions, and the deletions are as many as it
+    for (let i = 0; i < SYNC_LIMITS.writes; i++) await a.put("answers", "n" + i, { i }, T0 + 1000 + i);
+    for (let i = 0; i < SYNC_LIMITS.writes; i++) await a.remove("answers", "d" + i, T0 + 9000 + i);
+    await a.sync.syncNow();
+    expect(a.sync.status()).toMatchObject({ error: null, pending: 0 });
+    expect(w.db.sql<{ n: number }>("SELECT COUNT(*) AS n FROM docs WHERE data IS NOT NULL")[0].n).toBe(250);
+  });
+});
+
 describe("a device that could not ask the server at start", () => {
   it("shows the Account row when the server answers later", async () => {
     const { a } = await pair();
@@ -549,6 +750,139 @@ describe("tabs of one browser", () => {
     expect(a.account.view().person?.id).toBe("someone-else");
     expect(await a.outbox.getMeta("user")).toBe("someone-else");
     expect(a.sync.status().active).toBe(true);
+  });
+
+  it("does not let the failure of a round for the earlier account sign the new one out", async () => {
+    const { a } = await pair();
+    await a.account.signUp("p");
+    const { SyncError } = await import("../../src/account/sync");
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    a.client.sync = async () => { await gate; throw new SyncError("signed_out"); };
+    await a.put("answers", "a1", { v: 1 }, T0);
+    const round = a.sync.syncNow(); // out, for the first person
+    await settle();
+    a.kept = { id: "someone-else", name: "Q", passkeys: 1, hasKey: false }; // another tab signed in as someone else
+    await a.account.reconcile();
+    release();
+    await round;
+    await settle();
+    expect(a.account.view().person?.id).toBe("someone-else");
+    expect(a.sync.status().active).toBe(true);
+    expect(a.signedOutCalls).toBe(0);
+  });
+
+  it("does not end the session of someone else when signing out: another tab signed in meanwhile", async () => {
+    const { a } = await pair();
+    await a.account.signUp("p");
+    const real = await a.client.me();
+    if (!real.signedIn) throw new Error("not signed in");
+    a.client.me = async () => ({ ...real, user: { ...real.user, id: "someone-else", name: "Q" } });
+    const logout = vi.spyOn(a.client, "logout");
+    await a.account.signOut();
+    expect(logout).not.toHaveBeenCalled();
+    expect(a.account.view().person?.id).toBe("someone-else");
+    expect(a.account.view().message?.bad).toBe(true);
+  });
+
+  it("waits for a write under way before switching accounts, so its note goes to the account it was made under", async () => {
+    const { a } = await pair();
+    await a.account.signUp("p");
+    await a.put("answers", "x", { v: 1 }, T0);
+    await a.sync.syncNow();
+    const save = a.begin("answers", "x", null, T0 + 5000); // a deletion, still being saved
+    const switching = a.sync.activate("someone-else");
+    await settle();
+    await save();
+    await switching;
+    const queued = await a.outbox.list(100);
+    expect(queued.filter((e) => e.id === "x" && e.t === T0 + 5000)).toEqual([]);
+  });
+
+  it("stays inactive when the sign-out comes while a change of account is still waiting for a write", async () => {
+    const { a } = await pair();
+    await a.account.signUp("p");
+    await a.put("answers", "x", { v: 1 }, T0);
+    await a.sync.syncNow();
+    const save = a.begin("answers", "x", { v: 2 }, T0 + 5000);
+    const switching = a.sync.activate("someone-else"); // waits for the write under way
+    await settle();
+    a.sync.deactivate(); // the person was signed out meanwhile
+    await save();
+    await switching;
+    expect(a.sync.status().active).toBe(false);
+  });
+
+  it("finishes a change of account before the next one begins, and ends with the last person", async () => {
+    const { a } = await pair();
+    await a.account.signUp("p");
+    const real = a.sync.activate.bind(a.sync);
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    let calls = 0;
+    a.sync.activate = async (id) => { if (++calls === 1) await gate; return real(id); }; // the first change is slow
+    a.kept = { id: "first", name: "A", passkeys: 1, hasKey: false };
+    const one = a.account.reconcile();
+    await settle();
+    a.kept = { id: "second", name: "B", passkeys: 1, hasKey: false };
+    const two = a.account.reconcile();
+    await settle();
+    release();
+    await Promise.all([one, two]);
+    expect(a.account.view().person?.id).toBe("second");
+    expect(await a.outbox.getMeta("user")).toBe("second");
+  });
+
+  it("adopts the person another tab put in place while this tab was starting, not the one it read first", async () => {
+    const { a } = await pair();
+    await a.account.signUp("p");
+    const first = a.account.view().person!.id;
+    const real = a.sync.resume.bind(a.sync);
+    const activated: string[] = [];
+    const realActivate = a.sync.activate.bind(a.sync);
+    a.sync.activate = async (id) => { activated.push(id); return realActivate(id); };
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    a.sync.resume = async () => { await gate; return real(); };
+    const { createAccount } = await import("../../src/account/account");
+    const secondIsIn = { signedIn: true as const, user: { id: "second", name: "B", passkeys: 1, hasKey: false, createdAt: "2026-10-16T00:00:00Z" } }; // what the server says once the other tab has signed in
+    const again = createAccount({ client: { ...a.client, me: async () => secondIsIn }, sync: a.sync, passkeys: { supported: () => true, create: async () => ({}), get: async () => ({}) }, keep: { read: () => a.kept, write: (p) => void (a.kept = p) } });
+    const starting = again.start(); // waits for the outbox
+    await settle();
+    a.kept = { id: "second", name: "B", passkeys: 1, hasKey: false }; // another tab signed in as someone else
+    await again.reconcile();
+    release();
+    await starting;
+    await settle();
+    expect(again.view().person?.id).toBe("second");
+    expect(await a.outbox.getMeta("user")).toBe("second");
+    expect(activated).not.toContain(first); // the person read before the wait was never put in place, not even for a moment
+  });
+
+  it("leaves the work to the tab that holds the lock and looks again later, not at once", async () => {
+    const { a } = await pair();
+    await a.account.signUp("p");
+    const { createSync } = await import("../../src/account/sync");
+    const timers: { fn: () => void; ms: number }[] = [];
+    let rounds = 0;
+    const s = createSync({
+      store: a.store,
+      outbox: a.outbox,
+      post: async () => ({ cursor: 1, changes: [], rejected: [], more: false }),
+      exclusive: async () => { rounds += 1; return undefined; }, // another tab has the lock
+      setTimer: (fn, ms) => (timers.push({ fn, ms }), timers.length),
+      clearTimer: () => {},
+      debounceMs: 0,
+      backoffMs: 15_000,
+    });
+    await s.activate((await a.outbox.getMeta<string>("user"))!);
+    await a.put("answers", "a1", { v: 1 }, T0);
+    const first = timers.at(-1)!;
+    first.fn(); // the round: the lock is not available
+    await settle();
+    expect(rounds).toBe(1);
+    expect(s.status().error).toBeNull();
+    expect(timers.at(-1)!.ms).toBeGreaterThanOrEqual(15_000); // not again after the debounce
   });
 
   it("does not delete an account while the session belongs to no one, or to someone else than the one shown", async () => {

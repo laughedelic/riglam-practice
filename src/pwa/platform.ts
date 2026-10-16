@@ -92,7 +92,7 @@ async function recoverFromAccount(): Promise<boolean> {
     const key = await createAccountClient().fetchKey();
     const got = await fetchCourse(key);
     if (!got.ok || !("definitions" in got)) return false;
-    storeKey(key);
+    if (!storeKey(key)) return false; // nowhere to keep it: a reload would find the device without it and fetch it again, for ever
     keepCourse({ version: got.version, definitions: got.definitions });
     return true;
   } catch {
@@ -102,8 +102,7 @@ async function recoverFromAccount(): Promise<boolean> {
 
 /** A device that signed in to an account which carries the Magic Key takes it and starts again, unlocked. */
 function takeAccountKey(key: string) {
-  storeKey(key);
-  location.reload();
+  if (storeKey(key)) location.reload(); // with nowhere to keep the key a reload would start locked again and fetch it again, for ever
 }
 
 /** For the Magic Key prompt: null when the key opens the definitions (they are kept, so the reload that follows starts unlocked), otherwise what to tell the reader. */
