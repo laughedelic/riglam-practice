@@ -1,0 +1,46 @@
+{
+  // The Cloudflare Worker Preview named `staging`: the app as the `staging` branch has it, with the open pull requests merged in
+  // (docs/STAGING.md). Deployed with `npm run staging -- deploy`, which runs `wrangler preview --name staging -c wrangler.staging.jsonc`.
+  // A Preview does not inherit the production Worker's settings: its variables and bindings are the `previews` block below, so it has a
+  // database, secrets and budgets of its own, and a pull request that changes the server or the schema never touches production data.
+  // The file names the production Worker only because a Preview belongs to a Worker. It is for `wrangler preview`; never use it with
+  // `wrangler deploy`.
+  "name": "riglam-practice",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./dist/pwa",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  // Same as wrangler.jsonc. A Preview takes its own copy in the `previews` block below.
+  "observability": {
+    "enabled": true,
+    "redact_query_string": true,
+    "logs": { "enabled": true, "invocation_logs": true },
+    "traces": { "enabled": true },
+    "issues": { "enabled": true }
+  },
+  "previews": {
+    "observability": {
+      "enabled": true,
+      "redact_query_string": true,
+      "logs": { "enabled": true, "invocation_logs": true, "persist": true },
+      "traces": { "enabled": true, "persist": true },
+      "issues": { "enabled": true }
+    },
+    // Same tutor settings as wrangler.jsonc, except the budgets. Dollars are US dollars per UTC day.
+    // The secrets ANTHROPIC_API_KEY and RIGLAM_DATA_KEY come from the Preview base configuration, or `wrangler preview secret put --name staging`.
+    "vars": {
+      "TUTOR_MODEL": "claude-sonnet-5-5",
+      "TUTOR_EFFORT": "medium",
+      "TUTOR_MAX_TOKENS": "6000",
+      "TUTOR_MAX_ROUNDS": "4",
+      "DEVICE_DAILY_BUDGET_USD": "0.50",
+      "GLOBAL_DAILY_BUDGET_USD": "2",
+      "RESERVE_USD": "0.05"
+    },
+    // The same database as in wrangler.staging-migrations.jsonc, which applies its migrations.
+    "d1_databases": [{ "binding": "DB", "database_name": "riglam-practice-staging", "database_id": "5c0fcda4-2f7e-4c18-b1ee-ef287d217d49" }]
+  }
+}

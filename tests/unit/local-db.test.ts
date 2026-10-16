@@ -8,9 +8,16 @@ function stub() {
   const rows: { path: string; col: string; id: string; data: unknown }[] = [];
   const store = {
     index: () => ({ getAll: (col: string) => ({ result: rows.filter((r) => r.col === col) }) }),
-    get: (path: string) => ({ result: rows.find((r) => r.path === path) }),
-    put: (r: (typeof rows)[number]) => { if (!control.fail && !control.failNext) rows.push(r); return {}; },
-    delete: () => ({}),
+    get: (path: string) => {
+      const req: { result?: unknown; onsuccess?: () => void } = { result: rows.find((r) => r.path === path) };
+      queueMicrotask(() => req.onsuccess?.());
+      return req;
+    },
+    put: (r: (typeof rows)[number]) => {
+      if (!control.fail && !control.failNext) { const at = rows.findIndex((x) => x.path === r.path); if (at >= 0) rows.splice(at, 1); rows.push(r); }
+      return {};
+    },
+    delete: (path: string) => { const at = rows.findIndex((x) => x.path === path); if (at >= 0) rows.splice(at, 1); return {}; },
   };
   const db = {
     transaction: (_store: string, mode: string) => {
@@ -98,5 +105,67 @@ describe("a write that could not be saved", () => {
     expect(await mine).toBe("failed");
     other.close();
     expect((await ref.get()).exists).toBe(false);
+  });
+});
+
+describe("the server's copy of a document (applyRemote with a revision)", () => {
+  it("is stored when nothing was written since the revision was read", async () => {
+    const { factory } = stub();
+    const db = createLocalDb({ indexedDB: factory, channel: false });
+    await db.doc("answers/a1").set({ v: 1 });
+    expect(await db.applyRemote("answers", "a1", { v: 2 }, db.revision("answers", "a1"))).toBe(true);
+    expect((await db.doc("answers/a1").get()).data()).toEqual({ v: 2 });
+  });
+
+  it("is dropped when the page wrote the document after that, even if that write is still being saved", async () => {
+    const { factory, control } = stub();
+    const db = createLocalDb({ indexedDB: factory, channel: false });
+    const ref = db.doc("answers/a1");
+    await ref.set({ v: 1 });
+    const revision = db.revision("answers", "a1");
+    control.delay = 20;
+    const saving = ref.set({ v: 3 }); // begun, not finished
+    expect(await db.applyRemote("answers", "a1", { v: 2 }, revision)).toBe(false); // refused, and it says so
+    await saving;
+    expect((await ref.get()).data()).toEqual({ v: 3 });
+  });
+
+  it("says a write by the page is under way from its start until onWrite has been told, and not for the server's copy", async () => {
+    const { factory, control } = stub();
+    const db = createLocalDb({ indexedDB: factory, channel: false });
+    const ref = db.doc("answers/a1");
+    await ref.set({ v: 1 });
+    const seen: boolean[] = [];
+    db.onWrite(() => void seen.push(db.writing("answers", "a1"))); // the hook runs before the write is over: it can note it first
+    expect(db.writing("answers", "a1")).toBe(false);
+    control.delay = 20;
+    const saving = ref.set({ v: 2 });
+    expect(db.writing("answers", "a1")).toBe(true);
+    await saving;
+    expect(seen).toEqual([true]);
+    expect(db.writing("answers", "a1")).toBe(false);
+    const remote = db.applyRemote("answers", "a1", { v: 3 });
+    expect(db.writing("answers", "a1")).toBe(false);
+    await remote;
+  });
+
+  it("is not stored over a value another tab wrote, which this tab has not heard of yet", async () => {
+    const { factory, rows } = stub();
+    const tabA = createLocalDb({ indexedDB: factory, channel: false });
+    const tabB = createLocalDb({ indexedDB: factory, channel: false });
+    await tabA.doc("answers/a1").set({ v: 1 });
+    await tabB.collection("answers").get(); // tab B has it too
+    await tabB.doc("answers/a1").set({ v: 3 }); // newer, in the storage; tab A's memory still says 1
+    expect(await tabA.applyRemote("answers", "a1", { v: 2 }, tabA.revision("answers", "a1"))).toBe(false);
+    expect(rows.find((r) => r.path === "answers/a1")?.data).toEqual({ v: 3 });
+    expect((await tabA.doc("answers/a1").get()).data()).toEqual({ v: 1 }); // the broadcast of tab B brings 3 in
+  });
+
+  it("is stored as before when no revision is given", async () => {
+    const { factory } = stub();
+    const db = createLocalDb({ indexedDB: factory, channel: false });
+    await db.doc("answers/a1").set({ v: 1 });
+    await db.applyRemote("answers", "a1", null);
+    expect((await db.doc("answers/a1").get()).exists).toBe(false);
   });
 });

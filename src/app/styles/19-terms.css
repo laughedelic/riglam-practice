@@ -21,3 +21,6 @@
 .tm-defs .ru{color:var(--ink-muted)}
 .tm-defs .src{font:400 12px/1.4 var(--body);color:var(--ink-muted);font-style:italic}
 .tm-defs dd.out p:not(.src){color:var(--ink-muted)}
+.tm-locked{display:grid;gap:10px}
+.tm-key{margin:0;font:400 14px/1.5 var(--text-serif)}
+.tm-locked .btn{justify-self:start}

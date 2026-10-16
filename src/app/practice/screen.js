@@ -165,7 +165,13 @@ function quizResult(){
     {key:"ex",label:"Examples",st:r.exBad?"bad":r.exOpen?"open":"ok",body:()=>el("p",null,el("b",{text:"Examples: "}),exLine(r,CELLS),state.ui.exLate?" Time ran out; cells you had not reached count as empty.":null)},
     termsItem(p),tutorItem(),labItem()].filter(Boolean));
 }
-export const explainBtn=()=>canAsk()&&state.ui.checked&&!state.ui.explained&&!state.ui.ctl?el("button",{class:"btn ghost",type:"button",onclick:()=>ask(null,"explain"),text:state.ui.res.exOpen?"Check and explain":"Explain"}):null;
+export const explainBtn=()=>{
+  if(!state.ui.checked||state.ui.explained||state.ui.ctl) return null;
+  if(canAsk()) return el("button",{class:"btn ghost",type:"button",onclick:()=>ask(null,"explain"),text:state.ui.res.exOpen?"Check and explain":"Explain"});
+  // The server has a tutor but this device has no Magic Key: the button is there, grayed, and says what it needs when tapped.
+  if(state.unlock&&state.unlock.tutor) return el("button",{class:"btn ghost needs-key",type:"button","aria-disabled":"true",title:"Explain needs the Magic Key",onclick:()=>state.unlock.open(),text:"Explain"});
+  return null;
+};
 export const nextBtn=()=>el("button",{class:"btn",type:"button",onclick:next,text:state.cur.retry&&!state.retryQ.length?"Back to new pairs":"Next pair"});
 export const kbHints=(...rows)=>el("div",{class:"kbh"},rows.map(([k,t])=>el("span",null,el("b",{text:k}),t)));
 export function recentNode(c,list){
