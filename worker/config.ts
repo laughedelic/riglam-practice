@@ -32,3 +32,28 @@ export function readConfig(env: Env): Config {
     reserveMicro: micro(number(env.RESERVE_USD, 0.05, 0.001, 5)),
   };
 }
+
+export interface AccountConfig {
+  /** who may create an account: anyone, only a caller with the study group's proof, or nobody (existing accounts still sign in) */
+  signup: "open" | "group" | "closed";
+  maxAccounts: number;
+  /** documents one account may hold */
+  maxDocs: number;
+  /** document writes one account may make per UTC day */
+  dailyWrites: number;
+  /** sign-in, sign-up and add-a-passkey ceremonies that may be started per UTC day, all callers together (each writes a row, and anyone can ask) */
+  dailyCeremonies: number;
+}
+
+const SIGNUPS = ["open", "group", "closed"] as const;
+
+/** The account settings, each from its variable when that is a sensible value and from the default otherwise. */
+export function readAccountConfig(env: Env): AccountConfig {
+  return {
+    signup: SIGNUPS.find((s) => s === env.SIGNUP?.trim()) ?? "open",
+    maxAccounts: Math.round(number(env.MAX_ACCOUNTS, 300, 0, 100_000)),
+    maxDocs: Math.round(number(env.MAX_DOCS_PER_ACCOUNT, 5_000, 100, 1_000_000)),
+    dailyWrites: Math.round(number(env.DAILY_WRITES_PER_ACCOUNT, 3_000, 10, 1_000_000)),
+    dailyCeremonies: Math.round(number(env.CEREMONIES_PER_DAY, 2_000, 10, 1_000_000)),
+  };
+}

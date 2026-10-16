@@ -3,6 +3,7 @@
 // as local files, so the installed app renders with the same faces as the artifact and works offline.
 // Output: src/pwa/fonts/*.woff2 and src/pwa/fonts.css. Run `npm run fonts` when the link in head.html changes.
 // Only the subsets the content needs are kept; the others fall back to the system font.
+// The fonts are under the SIL Open Font License; public/licenses/fonts-OFL.txt carries their notices. Update it when a family is added or dropped.
 import { readFileSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { dirname, resolve } from "node:path";

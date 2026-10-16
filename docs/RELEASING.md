@@ -20,7 +20,7 @@ The repository is squash-merged, so what counts is the **pull request title**: i
 1. Pull requests are squash-merged into `main`.
 2. On every push to `main`, the `release-please` job (`.github/workflows/release.yml`) opens or updates one pull request titled `chore(main): release X.Y.Z`. It changes the version in `package.json`, `package-lock.json` and `.release-please-manifest.json` (the last released version), and its description lists the changes since the last release.
 3. Merging that pull request creates the tag `vX.Y.Z` and a GitHub release with the notes.
-4. The `publish` job then builds the PWA from the tag, attaches `riglam-practice-pwa-vX.Y.Z.zip` to the release, and deploys the PWA to production (see [DEPLOY.md](DEPLOY.md)). The artifact page is not attached: it holds the definitions in the clear.
+4. The `publish` job then builds the PWA from the tag and attaches `riglam-practice-pwa-vX.Y.Z.zip` to the release. The same merge to `main` changes `.release-please-manifest.json`, which is what starts the production deploy on Cloudflare (see [DEPLOY.md](DEPLOY.md#production-deploy)). The artifact page is not attached: it holds the definitions in the clear.
 
 The first release is `0.1.0` (`initial-version` in `release-please-config.json`; the manifest value `0.0.0` means that nothing is released yet). Versions stay below 1.0.0: a breaking change bumps the minor version, a `feat:` too, a `fix:` the patch. To release 1.0.0 deliberately, put `Release-As: 1.0.0` in a commit footer.
 
@@ -42,4 +42,4 @@ Dependabot opens weekly pull requests for npm (dev dependencies grouped, title p
 
 ## Artifact versions are separate
 
-Publishing the artifact build to the live artifact is not a release of this repository; the artifact keeps its own version ids (see [ARTIFACT-LOOP.md](ARTIFACT-LOOP.md)). To republish an older app version to the artifact, check out its tag and build it with the data key (`npm run build:artifact`).
+Publishing the artifact build to the live artifact is not a release of this repository; the artifact keeps its own version ids (see [ARTIFACT-LOOP.md](ARTIFACT-LOOP.md)). To republish an older app version to the artifact, check out its tag and build it with the course data (`npm run build:artifact`).

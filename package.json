@@ -1,6 +1,6 @@
 {
   "name": "riglam-practice",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Practice app for Buddhist logic and debate (Dudra, Tarig): one source, an installable PWA and a Claude artifact build.",
   "license": "SEE LICENSE IN LICENSE",
@@ -20,11 +20,14 @@
     "check:fast": "npm run lint && npm run typecheck && npm run test:unit",
     "check": "npm run lint && npm run typecheck && npm test",
     "artifact:verify": "node scripts/artifact-verify.mjs",
+    "staging": "node scripts/staging.mjs",
     "data:key": "node scripts/data.mjs key",
     "data:import": "node scripts/data.mjs import",
     "data:export": "node scripts/data.mjs export",
     "data:check": "node scripts/data.mjs check",
-    "data:rekey": "node scripts/data.mjs rekey",
+    "data:publish": "node scripts/data.mjs publish",
+    "data:sql": "node scripts/data.mjs sql",
+    "data:fixture": "node scripts/data.mjs fixture",
     "icons": "node scripts/make-icons.mjs",
     "fonts": "node scripts/fetch-fonts.mjs",
     "test:unit": "vitest run",
@@ -49,6 +52,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0",
+    "@simplewebauthn/server": "^14.0.3",
     "hono": "^4.13.13"
   }
 }

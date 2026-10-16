@@ -85,8 +85,29 @@ export interface LocalDbOptions {
   channel?: boolean;
 }
 
-/** The `db` capability plus two members for tests. */
+/** A write made on this device through the `db` capability. `data` is null for a deletion. */
+export interface WriteEvent {
+  col: string;
+  id: string;
+  data: Doc | null;
+}
+
+/** The `db` capability plus what sync needs (src/account/sync.ts) and two members for tests. */
 export interface LocalDb extends Db {
+  /** Tells `fn` about every write the page makes on this device (not those of `applyRemote`, and not another tab's). */
+  onWrite(fn: (w: WriteEvent) => void): Unsubscribe;
+  /**
+   * Stores a document, or deletes it with null, as the server's copy; listeners and other tabs see it, `onWrite` does not.
+   * With `revision` (from `revision()`), nothing is stored when the document has been written since: a newer local write is not overwritten.
+   * Resolves to whether the copy was stored.
+   */
+  applyRemote(col: string, id: string, data: Doc | null, revision?: number): Promise<boolean>;
+  /** A number that changes with every write of the document on this device, by the page, another tab or `applyRemote`, from the moment the write begins. */
+  revision(col: string, id: string): number;
+  /** Whether a write by the page has begun but `onWrite` has not yet been told of it (it is being saved). */
+  writing(col: string, id: string): boolean;
+  /** Resolves once no write by the page is under way (the hooks of those that finished have been told). */
+  idle(): Promise<void>;
   /** Resolves once the IndexedDB connection is open (or known to be unavailable). For tests. */
   ready(): Promise<IDBDatabase | null>;
   close(): Promise<void>;
@@ -123,6 +144,28 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
       const t = d.transaction(STORE, mode);
       const out = fn(t.objectStore(STORE));
       t.oncomplete = () => resolve(out?.result);
+      t.onerror = () => reject(err("unavailable", String(t.error ?? "IndexedDB write failed")));
+      t.onabort = () => reject(err("unavailable", String(t.error ?? "IndexedDB transaction aborted")));
+    });
+  };
+
+  /** Stores or deletes a row only if it still holds `expected` (undefined: no row), in one transaction. Resolves to whether it did. */
+  const storeIfUnchanged = async (path: string, col: string, id: string, data: Doc | null, stored: Doc | undefined, expected: Doc | undefined): Promise<boolean> => {
+    const d = await open();
+    if (!d) return true;
+    return new Promise<boolean>((resolve, reject) => {
+      const t = d.transaction(STORE, "readwrite");
+      const s = t.objectStore(STORE);
+      const get = s.get(path);
+      let done = false;
+      get.onsuccess = () => {
+        const row = get.result as Stored | undefined;
+        if (JSON.stringify(row?.data) !== JSON.stringify(expected)) return; // another tab wrote it since: that is newer than this copy
+        done = true;
+        if (data === null) s.delete(path);
+        else s.put({ path, col, id, data: stored });
+      };
+      t.oncomplete = () => resolve(done);
       t.onerror = () => reject(err("unavailable", String(t.error ?? "IndexedDB write failed")));
       t.onabort = () => reject(err("unavailable", String(t.error ?? "IndexedDB transaction aborted")));
     });
@@ -165,7 +208,22 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
     };
   }
 
-  async function write(col: string, id: string, data: Doc | null) {
+  const writeHooks = new Set<(w: WriteEvent) => void>();
+  const writing = new Map<string, number>(); // doc path -> writes by the page that have begun and whose hooks have not run yet
+
+  /** `guarded`: for the server's copy, stored only if the row is still what this tab holds in memory (another tab's newer write makes it give way). Resolves to whether it was stored. */
+  const saving = new Set<Promise<unknown>>(); // writes by the page that are not over yet, hooks included
+  function write(col: string, id: string, data: Doc | null, remote = false, guarded = false): Promise<boolean> {
+    const p = writeNow(col, id, data, remote, guarded);
+    if (!remote) {
+      saving.add(p);
+      const over = () => void saving.delete(p);
+      p.then(over, over);
+    }
+    return p;
+  }
+
+  async function writeNow(col: string, id: string, data: Doc | null, remote: boolean, guarded: boolean): Promise<boolean> {
     const path = `${col}/${id}`;
     const m = colMap(col);
     const had = m.has(id);
@@ -175,9 +233,27 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
     const mine = m.get(id);
     const stamp = (versions.get(path) ?? 0) + 1; // this write's place in the order of writes of the document; a deletion has no value to compare
     versions.set(path, stamp);
+    if (!remote) writing.set(path, (writing.get(path) ?? 0) + 1);
+    const done = () => {
+      if (remote) return;
+      const n = (writing.get(path) ?? 1) - 1;
+      if (n > 0) writing.set(path, n);
+      else writing.delete(path);
+    };
     notify(col);
+    const stored = m.get(id) ?? null; // as written now, whatever else changes the document while it is being saved
     try {
-      await tx("readwrite", (s) => (data === null ? s.delete(path) : s.put({ path, col, id, data: mine })) as IDBRequest);
+      if (guarded) {
+        if (!(await storeIfUnchanged(path, col, id, data, mine, before))) {
+          // Another tab holds a newer value: put back what was here, unless a write of this tab has replaced it since (that tab's broadcast brings the newer value in).
+          if (versions.get(path) === stamp && m.get(id) === mine) {
+            if (had) m.set(id, before as Doc);
+            else m.delete(id);
+            notify(col);
+          }
+          return false;
+        }
+      } else await tx("readwrite", (s) => (data === null ? s.delete(path) : s.put({ path, col, id, data: mine })) as IDBRequest);
     } catch (e) {
       // Not saved: the page must not go on showing a document that a reload would lose. Put back what was there, unless another write has replaced it since.
       if (versions.get(path) === stamp && m.get(id) === mine) {
@@ -185,9 +261,15 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
         else m.delete(id);
         notify(col);
       }
+      done();
       throw e;
     }
     channel?.postMessage({ col, id });
+    if (!remote) for (const fn of [...writeHooks]) {
+      try { fn({ col, id, data: stored }); } catch { /* a listener's failure is not the write's */ }
+    }
+    done(); // after the hooks, which note the write synchronously before they return
+    return true;
   }
 
   const meta = { fromCache: false, hasPendingWrites: false };
@@ -333,6 +415,19 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
   return {
     doc: docRef,
     collection: collectionRef,
+    onWrite(fn: (w: WriteEvent) => void): Unsubscribe {
+      writeHooks.add(fn);
+      return () => void writeHooks.delete(fn);
+    },
+    revision: (col: string, id: string) => versions.get(`${col}/${id}`) ?? 0,
+    writing: (col: string, id: string) => writing.has(`${col}/${id}`),
+    async idle() { while (saving.size) await Promise.allSettled([...saving]); },
+    async applyRemote(col: string, id: string, data: Doc | null, revision?: number) {
+      await load(col);
+      // No await between this check and the start of the write (which bumps the revision), so no write can come in between.
+      if (revision !== undefined && (versions.get(`${col}/${id}`) ?? 0) !== revision) return false;
+      return write(col, id, data, true, revision !== undefined);
+    },
     /** Resolves once the IndexedDB connection is open (or known to be unavailable). For tests. */
     ready: open,
     close() { channel?.close(); return open().then((d) => d?.close()); },

@@ -2,7 +2,8 @@
 // with scripted server-sent events, so the real SDK client parses them), and a kit with two tools.
 import { readFileSync, readdirSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
-import { generateKey } from "../../src/data/course.js";
+import { testMagicKey } from "../support/magic-key";
+import { resetKit } from "../../worker/kit";
 import { makeProof, newDeviceId } from "../../src/ai/proof";
 import { HEADER } from "../../src/ai/protocol";
 import type { Env } from "../../worker/env";
@@ -44,6 +45,13 @@ export function fakeD1() {
     },
   };
   return { d1: d1 as unknown as D1Database, sql: <T = Record<string, unknown>>(query: string, ...p: Value[]) => sqlite.prepare(query).all(...p) as T[] };
+}
+
+/** Puts the course rows into the database, as `npm run data:publish` does. */
+export async function seedCourse(d1: D1Database, rows: { definitions: string; notes: string }, at = "2026-10-13T09:00:00.000Z") {
+  for (const [kind, body] of [["definitions", rows.definitions], ["notes", rows.notes]]) {
+    await d1.prepare("INSERT OR REPLACE INTO course_data (kind, body, updated_at) VALUES (?1, ?2, ?3)").bind(kind, body, at).run();
+  }
 }
 
 /* ---------- Anthropic ---------- */
@@ -133,7 +141,8 @@ export function fakeKit(over: Partial<Kit> = {}) {
 export const NOW = new Date("2026-10-13T10:00:00Z");
 
 export async function setup(over: Partial<Env> = {}) {
-  const key = generateKey();
+  resetKit(); // each case has a database of its own, so the kit made for the last one is not the kit for this one
+  const key = over.RIGLAM_DATA_KEY ?? testMagicKey();
   const device = newDeviceId();
   const proof = await makeProof(key, device);
   const db = fakeD1();

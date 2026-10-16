@@ -3,10 +3,12 @@
 // the data users already have: never rename a collection or change a document without a migration (CLAUDE.md).
 // Fields written by older versions of the page may be missing, so most fields besides the keys are optional.
 import type { Cat, DrillData, Item } from "../ai-shared/data";
+import type { Unlock } from "../platform/types";
 import type { AnswerView, DebateAnswer } from "../ai-shared/card";
 import type { CellId, RelKey } from "../ai-shared/relations";
 import type { Pair, PoolEntry, Verdict } from "../domain/types";
-import type { Db, Sample, Tutor } from "../platform/types";
+import type { Account, Db, Sample, Tutor } from "../platform/types";
+import type { AccountSlot } from "../ui/account";
 import type { TransferSlot } from "../ui/data-transfer";
 
 export type { Pair, PoolEntry, Verdict };
@@ -174,8 +176,14 @@ export interface State {
   // what the platform offers
   db: Db | null;
   sample: Sample | null;
+  /** opens the prompt for the Magic Key (platform.unlock) while this device has none; `tutor` is whether the server has a tutor waiting for it */
+  unlock: Unlock | null;
   /** a question to the app's own server (platform.tutor), when the place has one; `sample` is used first */
   tutor: Tutor | null;
+  /** optional sign-in with a server copy of the documents (platform.account), when the place has one */
+  account: Account | null;
+  /** the same for the Account row (src/ui/account.ts) */
+  acct: AccountSlot;
 
   // the stored collections as the page holds them
   batches: BatchDoc[];
