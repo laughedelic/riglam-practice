@@ -181,6 +181,16 @@ describe("making an account", () => {
     expect(w.db.sql<{ n: number }>("SELECT COUNT(*) AS n FROM challenges")[0].n).toBe(500);
   });
 
+  it("does not use up the day's ceremonies on requests refused because too many are open", async () => {
+    const w = await world({ CEREMONIES_PER_DAY: "10" });
+    for (let i = 0; i < 500; i++) w.db.sql(`INSERT INTO challenges (id, kind, challenge, expires_at) VALUES ('c${i}', 'login', 'x', '2027-01-01T00:00:00Z') RETURNING id`);
+    for (let i = 0; i < 15; i++) expect((await w.call(ACCOUNT_API.loginOptions, { body: {} })).status).toBe(429);
+    expect(w.db.sql<{ n: number }>("SELECT COALESCE(SUM(micro), 0) AS n FROM budget WHERE scope = 'ceremonies'")[0].n).toBe(0);
+    w.db.sql("DELETE FROM challenges RETURNING id");
+    for (let i = 0; i < 10; i++) expect((await w.call(ACCOUNT_API.loginOptions, { body: {} })).status).toBe(200);
+    expect((await w.call(ACCOUNT_API.loginOptions, { body: {} })).status).toBe(429);
+  });
+
   it("gives the last place to one of the people who ask for it together, and leaves nothing of the others", async () => {
     const w = await world({ MAX_ACCOUNTS: "1" });
     const people = [await passkey(), await passkey(), await passkey()];
