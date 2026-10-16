@@ -8,7 +8,7 @@ import { hasCourse, readFull, readOpen, root } from "../../scripts/lib/course-fi
 import { split } from "../../src/data/course.js";
 import { parseMagicKey } from "../../src/ai/magic-key";
 
-const withCourse = test.skipIf(!hasCourse()); // no data-private/ (npm run data:import or data:unpack)
+const withCourse = test.skipIf(!hasCourse()); // no data-private/ (npm run data:import, or data:fixture for made-up text)
 
 const trackedFiles = () => execFileSync("git", ["ls-files", "-z"], { cwd: root }).toString().split("\0").filter(Boolean);
 
