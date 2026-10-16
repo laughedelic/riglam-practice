@@ -29,6 +29,7 @@ export function syncLine(v: AccountView): string {
   if (busy || v.busy === "sync") return "Syncing ...";
   if (error === "offline") return `No connection.${waiting || " Changes made now will be sent when it returns."}`;
   if (error === "quota") return `This account has reached its limit of changes for today.${waiting} They are sent tomorrow.`;
+  if (error === "full") return `This account holds as many documents as it may.${waiting} Deleting some makes room; what changed on your other devices still arrives.`;
   if (error) return `The server could not be reached right now.${waiting} Trying again soon.`;
   if (pending) return waiting.trim();
   return last ? `Up to date. Last synced ${clock(last)}.` : "Not synced yet.";
@@ -98,6 +99,6 @@ export function accountControls(account: Account, el: El, rerender: () => void, 
     slot.focus = undefined;
     queueMicrotask(() => document.getElementById(id)?.focus({ preventScroll: true }));
   }
-  box.append(el("p", { class: "onote", text: "Copied: answers, debates, favorites, skipped pairs, flags and check-lab runs. Not copied: these settings (Export saves them) and the Magic Key." }));
+  box.append(el("p", { class: "onote", text: "Copied: answers, debates, favorites, skipped pairs, flags and check-lab runs. Not copied: these settings (Export saves them). The Magic Key is not among the documents; only an account that carries it shares it." }));
   return box;
 }

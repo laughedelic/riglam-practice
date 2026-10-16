@@ -34,10 +34,11 @@ const keep = {
 };
 
 /** One tab at a time runs a round of sync; the others leave it to that one. Without Web Locks every tab may run one (the server settles it). */
-const exclusive = (lockName: string) => async <T>(fn: () => Promise<T>): Promise<T | undefined> => {
+const exclusive = (lockName: string) => async <T>(fn: () => Promise<T>, wait = false): Promise<T | undefined> => {
   const locks = (navigator as Navigator & { locks?: LockManager }).locks;
   if (!locks) return fn();
-  return locks.request(lockName, { ifAvailable: true }, async (lock) => (lock ? fn() : undefined));
+  // A round that was asked for (sign-out, Sync now) waits for the other tab's round to end; a background one leaves it to that tab.
+  return locks.request(lockName, wait ? {} : { ifAvailable: true }, async (lock) => (lock ? fn() : undefined));
 };
 
 // While the storage does not answer, what the store holds is only what is in memory: sync must not judge a server copy against it (a copy
@@ -50,6 +51,8 @@ const storeOf = (db: LocalDb): SyncStore => ({
   onWrite: (fn) => db.onWrite(fn),
   applyRemote: (col, id, data, revision) => db.applyRemote(col, id, data, revision),
   revision: (col, id) => db.revision(col, id),
+  writing: (col, id) => db.writing(col, id),
+  idle: () => db.idle(),
   async documents(col) {
     stored(db);
     const snap = await db.collection(col).get();
@@ -93,7 +96,7 @@ export function createPwaAccount(db: LocalDb, magicKey: { read(): string | null;
   // Another tab signed in, out or switched account: this tab's identity and write tracking follow it (localStorage tells the other tabs).
   addEventListener("storage", (e) => { if (e.key === KEPT || e.key === null) void account.reconcile(); });
   addEventListener("online", () => account.wake());
-  addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") account.wake(); });
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") account.wake(); });
   setInterval(() => { if (document.visibilityState === "visible" && navigator.onLine) account.wake(); }, POLL_MS);
   void account.start();
   return account;

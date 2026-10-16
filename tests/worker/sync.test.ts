@@ -119,7 +119,34 @@ describe("sending and receiving", () => {
     const w = await world();
     const me = await signUp(w);
     expect(await sync(w, me, 0)).toEqual({ cursor: 0, changes: [], rejected: [], more: false });
-    expect(await json(await post(w, me.cookie, { cursor: 7 }))).toEqual({ cursor: 7, changes: [], rejected: [], more: false });
+    await sync(w, me, 0, [write("answers", "a", { v: 1 }, T0), write("answers", "b", { v: 2 }, T0), write("answers", "c", { v: 3 }, T0)]);
+    expect(await json(await post(w, me.cookie, { cursor: 3 }))).toEqual({ cursor: 3, changes: [], rejected: [], more: false });
+  });
+
+  it("refuses a cursor that is not a safe whole number, and starts over for one beyond the newest number", async () => {
+    const w = await world();
+    const me = await signUp(w);
+    await sync(w, me, 0, [write("answers", "a", { v: 1 }, T0), write("answers", "b", { v: 2 }, T0)]);
+    for (const cursor of [1e20, Number.MAX_SAFE_INTEGER + 2, -1, 1.5, "1"]) {
+      const res = await post(w, me.cookie, { cursor });
+      expect(res.status, String(cursor)).toBe(400);
+    }
+    // a cursor from a copy the server no longer has (restored from a backup, say): everything comes again, so nothing stays hidden
+    const again = await json(await post(w, me.cookie, { cursor: 500 }));
+    expect(again.changes.map((c: { id: string }) => c.id)).toEqual(["a", "b"]);
+    expect(again.cursor).toBe(2);
+  });
+
+  it("says the person is signed out when the account is deleted while a sync is under way, and not that there is nothing new", async () => {
+    const w = await world();
+    const me = await signUp(w);
+    beforeStatement(w, "WITH page AS", () => w.db.sql("DELETE FROM users"));
+    const res = await post(w, me.cookie, { cursor: 0, writes: [write("answers", "a", {}, T0)] });
+    expect(res.status).toBe(401);
+    expect((await json(res)).error.code).toBe("signed_out");
+    const other = await signUp(w, "other");
+    beforeStatement(w, "WITH page AS", () => w.db.sql("DELETE FROM users"));
+    expect((await post(w, other.cookie, { cursor: 0 })).status).toBe(401); // a request that only reads
   });
 });
 
@@ -372,6 +399,25 @@ describe("limits", () => {
     expect(left.length).toBeLessThan(200);
   });
 
+  it("counts the rows again after old marks are dropped: a write to a dropped mark adds a row", async () => {
+    const w = await world({ MAX_DOCS_PER_ACCOUNT: "100" });
+    const me = await signUp(w);
+    const old = T0 - 100 * 86_400_000; // older than the 90 days after which marks may go
+    // 99 documents, two old marks (X1 X2) and 99 recent ones: 200 rows
+    await sync(w, me, 0, Array.from({ length: 99 }, (_, i) => write("answers", "doc" + i, { i }, T0 + i)));
+    await sync(w, me, 0, [write("answers", "x1", null, old), write("answers", "x2", null, old + 1)]);
+    await sync(w, me, 0, Array.from({ length: 99 }, (_, i) => write("answers", "mark" + i, null, T0 + i)));
+    expect(rows(w)).toHaveLength(200);
+    // a new document and two documents brought back from the old marks, beside two deletions: 3 more documents and 2 fewer, so the documents fit;
+    // the two old marks go first, and the three documents then take their places as new rows, which makes 201
+    const res = await post(w, me.cookie, {
+      cursor: 0,
+      writes: [write("answers", "new", {}, T0 + 5000), write("answers", "x1", {}, T0 + 5000), write("answers", "x2", {}, T0 + 5000), write("answers", "doc0", null, T0 + 5000), write("answers", "doc1", null, T0 + 5000)],
+    });
+    expect(res.status).toBe(429);
+    expect(rows(w)).toHaveLength(198); // the old marks are gone and nothing was added
+  });
+
   it("does not load more of the server's copies than an answer carries, however many small writes lose against large copies", async () => {
     const w = await world();
     const me = await signUp(w);
@@ -395,6 +441,21 @@ describe("limits", () => {
       res = await sync(w, me, res.cursor);
     }
     expect(got.size).toBe(30);
+  });
+
+  it("never hands out a number again when old deletion marks are dropped: a device that has seen the highest number still gets what comes next", async () => {
+    const w = await world({ MAX_DOCS_PER_ACCOUNT: "100" });
+    const me = await signUp(w);
+    await sync(w, me, 0, Array.from({ length: 200 }, (_, i) => write("answers", "m" + i, null, T0 + i)));
+    const seen = (await sync(w, me, 0)).cursor; // a device has everything up to here
+    w.clock.now = new Date(w.clock.now.getTime() + 91 * 86_400_000);
+    const later = await signIn(w, me.key);
+    const t = w.clock.now.getTime();
+    await sync(w, later, 0, [write("answers", "fresh", { v: 1 }, t)]); // the account is at its limit of rows, so the old marks are dropped first
+    expect(rows(w).length).toBeLessThan(200);
+    const answer = await sync(w, later, seen);
+    expect(answer.changes.map((c) => c.id)).toEqual(["fresh"]);
+    expect(answer.changes[0].doc).toEqual({ v: 1 });
   });
 
   it("takes the day's allowance of writes in one step, so that a request arriving together with another cannot pass it", async () => {
