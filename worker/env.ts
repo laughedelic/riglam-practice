@@ -38,7 +38,7 @@ export interface Env {
   SIGNUP?: string;
   /** most accounts (default 300) */
   MAX_ACCOUNTS?: string;
-  /** most documents one account may hold (default 20000) */
+  /** most documents one account may hold (default 5000) */
   MAX_DOCS_PER_ACCOUNT?: string;
   /** most document writes one account may make per UTC day (default 3000) */
   DAILY_WRITES_PER_ACCOUNT?: string;

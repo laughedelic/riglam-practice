@@ -181,6 +181,16 @@ describe("making an account", () => {
     expect(w.db.sql<{ n: number }>("SELECT COUNT(*) AS n FROM challenges")[0].n).toBe(500);
   });
 
+  it("does not use up the day's ceremonies on requests refused because too many are open", async () => {
+    const w = await world({ CEREMONIES_PER_DAY: "10" });
+    for (let i = 0; i < 500; i++) w.db.sql(`INSERT INTO challenges (id, kind, challenge, expires_at) VALUES ('c${i}', 'login', 'x', '2027-01-01T00:00:00Z') RETURNING id`);
+    for (let i = 0; i < 15; i++) expect((await w.call(ACCOUNT_API.loginOptions, { body: {} })).status).toBe(429);
+    expect(w.db.sql<{ n: number }>("SELECT COALESCE(SUM(micro), 0) AS n FROM budget WHERE scope = 'ceremonies'")[0].n).toBe(0);
+    w.db.sql("DELETE FROM challenges RETURNING id");
+    for (let i = 0; i < 10; i++) expect((await w.call(ACCOUNT_API.loginOptions, { body: {} })).status).toBe(200);
+    expect((await w.call(ACCOUNT_API.loginOptions, { body: {} })).status).toBe(429);
+  });
+
   it("gives the last place to one of the people who ask for it together, and leaves nothing of the others", async () => {
     const w = await world({ MAX_ACCOUNTS: "1" });
     const people = [await passkey(), await passkey(), await passkey()];
@@ -226,9 +236,30 @@ describe("who may make an account", () => {
     const proof = await makeProof(people.key, device);
     const pk = await passkey();
     const started = await json(await people.call(ACCOUNT_API.registerOptions, { body: {}, headers: { [HEADER.device]: device, [HEADER.proof]: proof } }));
-    const verified = await people.call(ACCOUNT_API.registerVerify, { body: { challengeId: started.challengeId, response: await pk.register(started.options, WHERE) } });
+    const forGroup = { [HEADER.device]: device, [HEADER.proof]: proof };
+    const verified = await people.call(ACCOUNT_API.registerVerify, { body: { challengeId: started.challengeId, response: await pk.register(started.options, WHERE) }, headers: forGroup });
     expect(verified.status).toBe(200);
     expect((await signIn(people, pk)).id).toBeTruthy();
+  });
+
+  it("asks again at the verification: sign-up closed, or the key changed, since the ceremony began makes no account", async () => {
+    const closing = await world();
+    const pk = await passkey();
+    const started = await json(await closing.call(ACCOUNT_API.registerOptions, { body: {} }));
+    const response = await pk.register(started.options, WHERE);
+    closing.env.SIGNUP = "closed";
+    expect((await closing.call(ACCOUNT_API.registerVerify, { body: { challengeId: started.challengeId, response } })).status).toBe(403);
+    expect(closing.db.sql("SELECT id FROM users")).toEqual([]);
+
+    const w = await world({ SIGNUP: "group" });
+    const pk2 = await passkey();
+    const headers = { [HEADER.device]: w.device, [HEADER.proof]: w.proof };
+    const begun = await json(await w.call(ACCOUNT_API.registerOptions, { body: {}, headers }));
+    const made = await pk2.register(begun.options, WHERE);
+    w.env.RIGLAM_DATA_KEY = generateKey(); // the key was changed to cut off access
+    const late = await w.call(ACCOUNT_API.registerVerify, { body: { challengeId: begun.challengeId, response: made }, headers });
+    expect(late.status).toBe(403);
+    expect(w.db.sql("SELECT id FROM users")).toEqual([]);
   });
 
   it("a connection past the hourly limit on wrong keys is told to wait, not that its key is wrong", async () => {
@@ -431,6 +462,23 @@ describe("sessions", () => {
     expect(w.db.sql("SELECT token_hash FROM sessions")).toHaveLength(0);
     // signing out when nobody is signed in is not an error
     expect((await w.call(ACCOUNT_API.logout, { method: "POST", body: {} })).status).toBe(200);
+  });
+
+  it("end at sign-out also when they are over, and a failure to end one is told, with the cookie kept", async () => {
+    const w = await world();
+    const me = await signUp(w);
+    w.clock.now = new Date(w.clock.now.getTime() + SESSION_MS + DAY);
+    expect((await w.call(ACCOUNT_API.logout, { method: "POST", body: {}, cookie: me.cookie })).status).toBe(200);
+    expect(w.db.sql("SELECT token_hash FROM sessions")).toHaveLength(0); // the ended row goes too
+    const again = await signIn(w, me.key);
+    const db = w.env.DB as unknown as { prepare: (sql: string) => unknown };
+    const real = db.prepare.bind(db);
+    db.prepare = (sql: string) => { if (sql.includes("DELETE FROM sessions")) throw new Error("D1 is down"); return real(sql); };
+    const out = await w.call(ACCOUNT_API.logout, { method: "POST", body: {}, cookie: again.cookie });
+    expect(out.status).toBe(503);
+    expect((await json(out)).error.code).toBe("unavailable");
+    expect(out.headers.get("set-cookie")).toBeNull();
+    expect(w.db.sql("SELECT token_hash FROM sessions")).toHaveLength(1); // still valid, as the answer says
   });
 });
 
