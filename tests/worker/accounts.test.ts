@@ -1,7 +1,7 @@
 // Accounts signed in with a passkey (worker/accounts.ts): the ceremonies with a software authenticator, the sessions, and every refusal.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ACCOUNT_API } from "../../src/account/protocol";
-import { generateKey } from "../../src/data/course.js";
+import { testMagicKey as generateKey } from "../support/magic-key";
 import { HEADER } from "../../src/ai/protocol";
 import { makeProof, newDeviceId } from "../../src/ai/proof";
 import { COOKIE, SESSION_MS, hashToken } from "../../worker/session";

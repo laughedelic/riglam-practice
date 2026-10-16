@@ -19,7 +19,7 @@ export default defineConfig({
       injectRegister: false,
       includeAssets: ["icons/icon.svg", "icons/apple-touch-icon.png"],
       workbox: {
-        globPatterns: ["**/*.{js,css,html,json,enc,woff2,png,svg,ico}"],
+        globPatterns: ["**/*.{js,css,html,json,woff2,png,svg,ico}"],
         navigateFallback: "index.html",
         navigateFallbackDenylist: [/^\/api\//], // the server's paths are the server's, also when opened in a tab
         cleanupOutdatedCaches: true,
