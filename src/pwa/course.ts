@@ -15,31 +15,49 @@ export type CourseOutcome =
   | { ok: true; version: string; unchanged: true }
   | { ok: false; reason: "not_granted" | "rate_limited" | "offline" | "unavailable"; resetsAt?: string };
 
-/** Asks the server for the definitions. `have` is the version already kept: the server then answers only whether it is current. */
-export async function fetchCourse(key: string, have?: string, doFetch: typeof fetch = (...a) => fetch(...a), device: () => string = deviceId): Promise<CourseOutcome> {
+/** How long the request and the reading of the answer may take: the page waits for them before it starts, so a stalled connection must not hold it. */
+export const COURSE_TIMEOUT_MS = 10_000;
+
+/**
+ * Asks the server for the definitions. `have` is the version already kept: the server then answers only whether it is current.
+ * A request that has not finished after `timeoutMs` (the answer's body included) counts as no connection.
+ */
+export async function fetchCourse(key: string, have?: string, doFetch: typeof fetch = (...a) => fetch(...a), device: () => string = deviceId, timeoutMs = COURSE_TIMEOUT_MS): Promise<CourseOutcome> {
   const id = device();
-  let res: Response;
+  const stop = new AbortController();
+  const timer = setTimeout(() => stop.abort(), timeoutMs);
   try {
-    const url = have ? `${API.course}?have=${encodeURIComponent(have)}` : API.course;
-    res = await doFetch(url, { headers: { [HEADER.device]: id, [HEADER.proof]: await makeProof(key, id) }, cache: "no-store" });
-  } catch {
-    return { ok: false, reason: "offline" };
-  }
-  if (res.status === 429 || res.status === 401 || res.status === 403) {
-    let resetsAt: string | undefined;
+    let res: Response;
     try {
-      const at = ((await res.json()) as { error?: { resetsAt?: unknown } })?.error?.resetsAt;
-      if (typeof at === "string" && !Number.isNaN(Date.parse(at))) resetsAt = new Date(at).toISOString();
-    } catch { /* no JSON body */ }
-    return res.status === 429 ? { ok: false, reason: "rate_limited", resetsAt } : { ok: false, reason: "not_granted" };
+      const url = have ? `${API.course}?have=${encodeURIComponent(have)}` : API.course;
+      res = await doFetch(url, { headers: { [HEADER.device]: id, [HEADER.proof]: await makeProof(key, id) }, cache: "no-store", signal: stop.signal });
+    } catch {
+      return { ok: false, reason: "offline" };
+    }
+    try {
+      if (res.status === 429 || res.status === 401 || res.status === 403) {
+        let resetsAt: string | undefined;
+        try {
+          const at = ((await res.json()) as { error?: { resetsAt?: unknown } })?.error?.resetsAt;
+          if (typeof at === "string" && !Number.isNaN(Date.parse(at))) resetsAt = new Date(at).toISOString();
+        } catch (e) {
+          if (stop.signal.aborted) throw e;
+          /* no JSON body */
+        }
+        return res.status === 429 ? { ok: false, reason: "rate_limited", resetsAt } : { ok: false, reason: "not_granted" };
+      }
+      if (!res.ok) return { ok: false, reason: "unavailable" };
+      const body = (await res.json()) as CourseResponse;
+      if ("unchanged" in body) return { ok: true, version: body.version, unchanged: true };
+      if (typeof body.version === "string" && body.definitions && typeof body.definitions === "object") return { ok: true, version: body.version, definitions: body.definitions };
+    } catch {
+      if (stop.signal.aborted) return { ok: false, reason: "offline" };
+      /* not JSON: the page was served by something that is not the Worker */
+    }
+    return { ok: false, reason: "unavailable" };
+  } finally {
+    clearTimeout(timer);
   }
-  if (!res.ok) return { ok: false, reason: "unavailable" };
-  try {
-    const body = (await res.json()) as CourseResponse;
-    if ("unchanged" in body) return { ok: true, version: body.version, unchanged: true };
-    if (typeof body.version === "string" && body.definitions && typeof body.definitions === "object") return { ok: true, version: body.version, definitions: body.definitions };
-  } catch { /* not JSON: the page was served by something that is not the Worker */ }
-  return { ok: false, reason: "unavailable" };
 }
 
 export function keptCourse(): KeptCourse | null {

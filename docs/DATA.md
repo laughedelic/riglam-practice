@@ -50,13 +50,12 @@ npm run data:export -- full.json      # the full data, definitions and notes put
 npm run data:check                    # check that the open file holds no definition or note and data-private/ matches it
 npm run data:publish                  # load data-private/ into the production database (wrangler; --config <file> for another database)
 npm run data:sql -- out.sql           # the statements publish runs, to load by other means
-npm run data:pack                     # data-private/ as one line of text (gzip, base64), for a CI secret
-npm run data:unpack                   # the reverse, from RIGLAM_COURSE_DATA
+npm run data:fixture                  # write made-up definitions and notes into data-private/ (refuses to overwrite real ones; --replace does)
 ```
 
 To refresh the data from the knowledge base (which lives outside this repository), export the full file there and run `npm run data:import -- <that file>`, then `npm run data:publish`. Files that did not change are not rewritten, and a part that did not change keeps its version on the server. Never commit a file with definitions in it; `npm run test:unit` catches it.
 
-CI gets the course data from the secret `RIGLAM_COURSE_DATA`, the output of `npm run data:pack` (about 15 KB), unpacked into `data-private/` before the build. It needs no Magic Key.
+CI never has the real course data. Before the build it runs `npm run data:fixture`, which writes invented definitions and notes for every term of the open data (`scripts/lib/made-up-course.mjs`): the same shape and about the same lengths as the real ones, Russian text included, a few terms without a Russian definition or with the booklet's "no definition" placeholder, notes on a quarter of the terms and on a third of the categories. So the artifact build, the layout and legacy specs and the server tests run in full, and a log or a test report can show nothing that is not made up. The tests that read the real text (`the real course data` in `tests/worker/kit.test.ts`, the leak scan in `tests/unit/data-files.test.ts`) pass on the made-up text too, and are worth running with the real data before publishing it (`npm run check` on a machine that has `data-private/`).
 
 To change the key (a leak, or someone who should no longer open new versions): `npm run data:key`, `wrangler secret put RIGLAM_DATA_KEY`, hand out the new words or link. Devices that have the old key lose access on their next visit with a connection and ask for the new one, unless they belong to an account that carries the key. This does not take back copies already fetched.
 

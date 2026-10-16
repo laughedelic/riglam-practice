@@ -1,7 +1,7 @@
 // The server copy of a person's documents (worker/sync.ts): who may use it, what it keeps, and how two devices that wrote the same document are settled.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ACCOUNT_API, SYNC_LIMITS } from "../../src/account/protocol";
-import { signUp, sync, world, write, type World } from "./accounts-support";
+import { beforeStatement, signUp, sync, world, write, type World } from "./accounts-support";
 import { json } from "./support";
 
 beforeEach(() => void vi.spyOn(console, "error").mockImplementation(() => {}));
@@ -83,6 +83,36 @@ describe("sending and receiving", () => {
     expect(rest.changes).toHaveLength(20);
     expect(rest.more).toBe(false);
     expect(new Set([...first.changes, ...rest.changes].map((c) => c.id)).size).toBe(SYNC_LIMITS.changes + 20);
+  });
+
+  it("keeps an answer to so much text, and says there is more until every document has come", async () => {
+    const w = await world();
+    const me = await signUp(w);
+    const big = (i: number) => write("answers", "big" + i, { text: "x".repeat(200_000) }, T0 + i);
+    for (let i = 0; i < 30; i += 10) await sync(w, me, 0, Array.from({ length: 10 }, (_, k) => big(i + k)));
+    const seen: string[] = [];
+    let cursor = 0;
+    let rounds = 0;
+    for (let more = true; more; rounds++) {
+      const res = await sync(w, me, cursor);
+      expect(res.changes.length).toBeGreaterThan(0);
+      expect(res.changes.length).toBeLessThan(30); // 30 documents of 200 KB are over the limit of one answer
+      expect(res.more).toBe(res.cursor < w.db.sql<{ m: number }>("SELECT MAX(seq) AS m FROM docs")[0].m);
+      seen.push(...res.changes.map((c) => c.id));
+      cursor = res.cursor;
+      more = res.more;
+    }
+    expect(rounds).toBeGreaterThan(1);
+    expect(new Set(seen).size).toBe(30);
+  });
+
+  it("always sends the first document, however large it is", async () => {
+    const w = await world();
+    const me = await signUp(w);
+    await sync(w, me, 0, [write("answers", "a", { text: "x".repeat(SYNC_LIMITS.docBytes - 100) }, T0)]);
+    const res = await sync(w, me, 0);
+    expect(res.changes).toHaveLength(1);
+    expect(res.more).toBe(false);
   });
 
   it("answers an empty request with the cursor it was given", async () => {
@@ -209,6 +239,18 @@ describe("what a write may be", () => {
     expect(rows(w)).toHaveLength(1);
   });
 
+  it("counts the body in bytes as it arrives, not in characters, and not by what the header says", async () => {
+    const w = await world();
+    const me = await signUp(w);
+    // 18 documents of 120 000 two-byte characters: 2.2 million characters, 4.3 million bytes
+    const writes = Array.from({ length: 18 }, (_, i) => write("answers", "d" + i, { text: "é".repeat(120_000) }, T0 + i));
+    const res = await post(w, me.cookie, { cursor: 0, writes });
+    expect(res.status).toBe(413);
+    expect(rows(w)).toHaveLength(0);
+    const lying = await w.call(ACCOUNT_API.sync, { cookie: me.cookie, body: { cursor: 0, writes }, headers: { "content-length": "100" } });
+    expect(lying.status).toBe(413);
+  });
+
   it("comes in a list that is not too long, with a body that is not too large", async () => {
     const w = await world();
     const me = await signUp(w);
@@ -276,6 +318,53 @@ describe("limits", () => {
     await sync(w, me, 0, [write("answers", "d0", null, T0 + 1000)]); // deleting makes room
     await sync(w, me, 0, batch(1, 100));
     expect(rows(w).filter((r) => r.data !== null)).toHaveLength(100);
+  });
+
+  it("counts a rewrite of a document the account holds as no new document, though it is at its limit", async () => {
+    const w = await world({ MAX_DOCS_PER_ACCOUNT: "100" });
+    const me = await signUp(w);
+    const batch = (n: number, from = 0, t = 0) => Array.from({ length: n }, (_, i) => write("answers", "d" + (from + i), { i, t }, T0 + t + from + i));
+    await sync(w, me, 0, batch(100));
+    const again = await post(w, me.cookie, { cursor: 0, writes: batch(100, 0, 1000) }); // every one is held; each is newer
+    expect(again.status).toBe(200);
+    // a deletion beside a new document leaves the count where it is
+    const swap = await post(w, me.cookie, { cursor: 0, writes: [write("answers", "d0", null, T0 + 5000), write("answers", "new", {}, T0 + 5000)] });
+    expect(swap.status).toBe(200);
+    // two new ones beside one deletion do not
+    const over = await post(w, me.cookie, { cursor: 0, writes: [write("answers", "d1", null, T0 + 6000), write("answers", "n1", {}, T0 + 6000), write("answers", "n2", {}, T0 + 6000)] });
+    expect(over.status).toBe(429);
+    // a new document that loses to a stored deletion adds nothing
+    const stale = await post(w, me.cookie, { cursor: 0, writes: [write("answers", "d0", {}, T0 + 10), write("answers", "n3", null, T0)] });
+    expect(stale.status).toBe(200);
+    expect(rows(w).filter((r) => r.data !== null)).toHaveLength(100);
+  });
+
+  it("takes the day's allowance of writes in one step, so that a request arriving together with another cannot pass it", async () => {
+    const w = await world({ DAILY_WRITES_PER_ACCOUNT: "30" });
+    const me = await signUp(w);
+    const batch = (from: number) => Array.from({ length: 20 }, (_, i) => write("answers", "d" + (from + i), { i }, T0 + from + i));
+    // another request of the account takes 20 of the 30 after this one has looked at the room and before it stores anything
+    beforeStatement(w, "SELECT COUNT(*) AS n FROM docs", () => w.db.sql("INSERT INTO sync_quota (day, user_id, writes) VALUES ('2026-10-13', ?, 20) RETURNING day", me.id));
+    const res = await post(w, me.cookie, { cursor: 0, writes: batch(0) });
+    expect(res.status).toBe(429);
+    expect(rows(w)).toHaveLength(0);
+    expect(w.db.sql<{ writes: number }>("SELECT writes FROM sync_quota")[0].writes).toBe(20);
+  });
+
+  it("stores nothing, and no counter, for an account deleted while the request was under way", async () => {
+    const w = await world();
+    const me = await signUp(w);
+    beforeStatement(w, "INSERT INTO sync_quota", () => w.db.sql("DELETE FROM users"));
+    const res = await post(w, me.cookie, { cursor: 0, writes: [write("answers", "a", {}, T0)] });
+    expect(res.status).toBe(401);
+    expect((await json(res)).error.code).toBe("signed_out");
+    expect(rows(w)).toHaveLength(0);
+    expect(w.db.sql("SELECT user_id FROM sync_quota")).toHaveLength(0);
+
+    const other = await signUp(w, "other");
+    beforeStatement(w, "INSERT INTO docs", () => w.db.sql("DELETE FROM users"));
+    await post(w, other.cookie, { cursor: 0, writes: [write("answers", "a", {}, T0)] });
+    expect(rows(w)).toHaveLength(0);
   });
 
   it("takes a setting that is not a sensible number as the default", async () => {
