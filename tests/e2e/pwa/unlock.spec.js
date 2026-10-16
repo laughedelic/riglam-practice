@@ -206,7 +206,7 @@ withKey("the words typed with spaces, in any case, open the definitions", async 
   await ready(page);
   await openPrompt(page);
   await page.fill("#unlock-key", dataKey.split("-").map((w) => w[0].toUpperCase() + w.slice(1)).join(", "));
-  await Promise.all([page.waitForLoadState("load"), page.getByRole("button", { name: "Unlock" }).click()]);
+  await Promise.all([page.waitForEvent("load"), page.getByRole("button", { name: "Unlock" }).click()]); // the event of the new page: waitForLoadState returns at once for the page that is already loaded
   await ready(page);
   expect((await firstTerm(page)).d).not.toBe(LOCKED_TEXT);
   expect(await storedKey(page)).toBe(dataKey);

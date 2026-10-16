@@ -44,3 +44,17 @@ test("--replace overwrites what is there", () => {
   expect(readFileSync(priv("notes.json"), "utf8")).not.toBe("REAL");
   expect(existsSync(priv("definitions.json"))).toBe(true);
 });
+
+const check = () => spawnSync(process.execPath, [join(dir, "scripts/data.mjs"), "check"], { cwd: dir, encoding: "utf8" });
+
+test("check passes with no data-private/ and with both files, and refuses a data-private/ with only one", () => {
+  const none = check();
+  expect(none.status, none.stderr).toBe(0);
+  expect(fixture().status).toBe(0);
+  const both = check();
+  expect(both.status, both.stderr).toBe(0);
+  rmSync(priv("notes.json"));
+  const half = check();
+  expect(half.status).not.toBe(0);
+  expect(half.stderr).toMatch(/only one of definitions\.json and notes\.json/);
+});

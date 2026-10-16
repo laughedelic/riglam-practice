@@ -62,6 +62,7 @@ function main() {
     const open = readOpen();
     const leaked = Object.values(open.terms).filter((t) => "d" in t || "d_ru" in t || "note" in t).length + ("notes" in open ? 1 : 0);
     if (leaked) throw new Error(`${files.open} holds definitions or notes in the clear`);
+    if (hasAnyCourse() && !hasCourse()) throw new Error("data-private/ holds only one of definitions.json and notes.json (an interrupted import, or a file that was deleted)");
     if (!hasCourse()) {
       console.log("ok: open file clean (no data-private/ here, so the course part was not checked)");
       return;

@@ -76,7 +76,7 @@ describe("the allowance of wrong guesses", () => {
     await seedCourse(s.env.DB!, ROWS);
     const sent = await Promise.all(Array.from({ length: 20 }, () => course(s, right(s)).then((r) => r.status)));
     expect(sent.every((x) => x === 200)).toBe(true);
-    expect(used(s)).toEqual([0]);
+    expect(used(s), "a caller who never guesses wrong leaves no row behind").toEqual([]);
     await spend(s, "10.0.0.1", GUESSES_PER_HOUR);
   });
 
@@ -108,5 +108,27 @@ describe("the allowance of wrong guesses", () => {
     const tutor = await app().request("/api/tutor", { method: "POST", headers: { "content-type": "application/json", ...right(s) }, body: ask() }, broken);
     expect(tutor.status).toBe(503);
     expect(used(s)).toEqual([]);
+  });
+
+  it("does not look at a proof when there is no database to count in either (a missing binding is no way to test keys)", async () => {
+    const s = await setup();
+    const bare = { ...s.env, DB: undefined } as typeof s.env;
+    for (const headers of [right(s), await wrong()]) {
+      const res = await app().request("/api/course", { headers }, bare);
+      expect(res.status, "the same answer to a proof that fits and one that does not").toBe(503);
+      expect((await json(res)).error.code).toBe("unavailable");
+    }
+    const tutor = await app().request("/api/tutor", { method: "POST", headers: { "content-type": "application/json", ...(await wrong()) }, body: ask() }, bare);
+    expect(tutor.status).toBe(503);
+  });
+
+  it("removes the row of a caller whose only guess was given back, but keeps the wrong guesses of one who made some", async () => {
+    const s = await setup();
+    await seedCourse(s.env.DB!, ROWS);
+    expect((await course(s, right(s))).status).toBe(200);
+    expect(used(s)).toEqual([]);
+    expect((await course(s, await wrong())).status).toBe(401);
+    expect((await course(s, right(s))).status).toBe(200);
+    expect(used(s)).toEqual([1]);
   });
 });

@@ -26,6 +26,11 @@ describe("fetchCourse: a connection that stalls", () => {
     expect(await withDeadline((async (_url: string, init: RequestInit) => body(init)) as unknown as typeof fetch)).toEqual({ ok: false, reason: "offline" });
   });
 
+  it.each([401, 403, 429])("gives up on a %i whose body never arrives, as no connection too, and does not throw", async (status) => {
+    const refused = (init: RequestInit) => ({ ok: false, status, json: () => stalls(init) }) as unknown as Response;
+    expect(await withDeadline((async (_url: string, init: RequestInit) => refused(init)) as unknown as typeof fetch)).toEqual({ ok: false, reason: "offline" });
+  });
+
   it("does not hold back an answer that comes in time", async () => {
     expect(await withDeadline((async () => json(200, { version: "v1", unchanged: true })) as unknown as typeof fetch, 5_000)).toEqual({ ok: true, version: "v1", unchanged: true });
   });
