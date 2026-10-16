@@ -107,7 +107,7 @@ export function syncRoutes(deps: AccountDeps) {
     if (writes.length) {
       const cfg = readAccountConfig(env);
       const day = dayOf(now);
-      if (writes.length > cfg.dailyWrites) return fail("quota", "this account has reached its limit of document changes for today", { "retry-after": "3600" });
+      if (writes.length > cfg.dailyWrites) return fail("too_large", `at most ${cfg.dailyWrites} document changes in one request for this account; send fewer at a time`);
 
       // The room for documents, and for rows (documents and deletion marks, which an account could otherwise add without end). The counts plus the writes that could add
       // a document or a row are the upper bound; only when that is over is the exact change worked out (an update of a document that is held, or a deletion beside a new

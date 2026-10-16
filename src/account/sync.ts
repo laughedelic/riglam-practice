@@ -9,7 +9,7 @@ import { SYNC_COLLECTIONS, SYNC_LIMITS, validDocId, type Doc, type SyncChange, t
 import type { Outbox, OutboxEntry } from "./outbox";
 
 /** Why a round did not complete. */
-export type SyncCode = "offline" | "signed_out" | "quota" | "unavailable";
+export type SyncCode = "offline" | "signed_out" | "quota" | "too_large" | "unavailable";
 
 export class SyncError extends Error {
   constructor(public code: SyncCode, message: string = code) {
@@ -132,6 +132,8 @@ export function createSync(deps: SyncDeps): Sync {
   let again = false; // a round was asked for while one was running
   let running: Promise<void> | null = null; // the round in progress
   let counted = 0;
+  let generation = 0; // changes whenever the account this device syncs for changes or ends, so that an answer that was awaited across such a change is not applied
+  let batchMax: number = SYNC_LIMITS.writes; // the most writes sent in one request; the server's answer that a request is too large for the account lowers it
   // Writes whose note could not be stored (the outbox failed). They are kept here and noted again at the start of the next round.
   const unnoted = new Map<string, { col: string; id: string; data: Doc | null; t: number }>();
   const listeners = new Set<(s: SyncStatus) => void>();
@@ -140,12 +142,10 @@ export function createSync(deps: SyncDeps): Sync {
   const publish = () => { const s = status(); for (const fn of [...listeners]) { try { fn(s); } catch { /* a listener's failure is its own */ } } };
   const recount = async () => { counted = await outbox.count().catch(() => counted); pending = counted + unnoted.size; };
 
-  /** Notes a change. The time is kept above that of the earlier entry for the document, so that "sent, then changed again" is told apart from "sent". */
+  /** Notes a change. The time is kept above that of the earlier entry for the document (the outbox does it in one step), so that "sent, then changed again" is told apart from "sent". */
   async function note(c: string, id: string, doc: Doc | null, t: number) {
     if (!known(c, id) || size(doc) > SYNC_LIMITS.docBytes) return;
-    const key = keyOf(c, id);
-    const before = await outbox.get(key);
-    await outbox.put({ key, c, id, doc, t: before && before.t >= t ? before.t + 1 : t });
+    await outbox.note({ key: keyOf(c, id), c, id, doc, t });
   }
 
   function hook() {
@@ -170,6 +170,7 @@ export function createSync(deps: SyncDeps): Sync {
   /** Notes again what could not be noted. Throws when the outbox still fails, which makes the round fail and wait. */
   async function renote() {
     for (const [key, w] of [...unnoted]) {
+      if (unnoted.get(key) !== w) continue; // noted, or written again, while an earlier one was being stored: this copy is out of date
       try {
         await note(w.col, w.id, w.data, w.t);
       } catch {
@@ -183,7 +184,7 @@ export function createSync(deps: SyncDeps): Sync {
   async function noteAll() {
     for (const c of SYNC_COLLECTIONS) {
       for (const d of await store.documents(c)) {
-        if (!known(c, d.id) || size(d.data) > SYNC_LIMITS.docBytes) continue;
+        if (!known(c, d.id) || size(d.data) > SYNC_LIMITS.docBytes || unnoted.has(keyOf(c, d.id))) continue; // one whose note failed is noted again by the round
         await outbox.putIfAbsent({ key: keyOf(c, d.id), c, id: d.id, doc: d.data, t: stampOf(d.data) ?? 0 });
       }
     }
@@ -212,7 +213,7 @@ export function createSync(deps: SyncDeps): Sync {
   async function batch(): Promise<OutboxEntry[]> {
     const out: OutboxEntry[] = [];
     let bytes = 0;
-    for (const e of await outbox.list(SYNC_LIMITS.writes)) {
+    for (const e of await outbox.list(batchMax)) {
       bytes += bodyBytes(e.doc) + 200;
       if (out.length && bytes > SYNC_LIMITS.body - 64 * 1024) break;
       out.push(e);
@@ -220,11 +221,39 @@ export function createSync(deps: SyncDeps): Sync {
     return out;
   }
 
+  /** Makes sure the documents this device had before the account are noted (a scan that failed or was cut short starts again). Throws a SyncError when the outbox fails. */
+  async function ensureSeeded() {
+    try {
+      const user = (await outbox.getMeta<string>("user")) ?? null;
+      if (user && (await outbox.getMeta<string>("seeded")) !== user) {
+        await noteAll();
+        await outbox.setMeta("seeded", user); // only now: a page closed during the scan starts it again
+      }
+    } catch {
+      throw new SyncError("unavailable");
+    }
+  }
+
   async function oneRequest(): Promise<boolean> {
+    const mine = generation;
+    await ensureSeeded();
     await renote();
     const sent = await batch();
+    const user = (await outbox.getMeta<string>("user")) ?? null;
     const cursor = (await outbox.getMeta<number>("cursor")) ?? 0;
-    const res = await deps.post({ cursor, writes: sent.map((e) => ({ c: e.c, id: e.id, doc: e.doc, t: e.t })) });
+    let res: SyncResponse;
+    try {
+      res = await deps.post({ cursor, writes: sent.map((e) => ({ c: e.c, id: e.id, doc: e.doc, t: e.t })) });
+    } catch (e) {
+      // The request is larger than the account's allowance for a day allows: ask again with half as many writes.
+      if (e instanceof SyncError && e.code === "too_large" && sent.length > 1) {
+        batchMax = Math.max(1, Math.floor(sent.length / 2));
+        return true;
+      }
+      throw e;
+    }
+    // The account may have changed while the request was out (here, or in another tab, which changes the outbox's user): this answer is for the earlier one.
+    if (mine !== generation || (await outbox.getMeta<string>("user")) !== user) return false;
     // What was sent is delivered: gone from the outbox unless the document was changed again meanwhile.
     for (const e of sent) await outbox.remove(e.key, e.t);
     // The server's copies of writes that lost come first, then everything that changed; the later one of the same document is the newer.
@@ -283,6 +312,7 @@ export function createSync(deps: SyncDeps): Sync {
       return user;
     },
     async activate(userId) {
+      generation += 1;
       const before = (await outbox.getMeta<string>("user")) ?? null;
       if (before !== userId) {
         // A first sign-in, or another person's: the cursor and the old noted changes belong to the earlier account.
@@ -291,24 +321,30 @@ export function createSync(deps: SyncDeps): Sync {
       }
       // Writes made while the documents are being noted are noted by the hook, so it goes first; the scan only adds what has no entry.
       hook();
-      if ((await outbox.getMeta<string>("seeded")) !== userId) {
-        await noteAll();
-        await outbox.setMeta("seeded", userId); // only now: a page closed during the scan starts it again
-      }
       active = true;
       error = null;
       failures = 0;
       blockedUntil = 0;
+      // A scan that fails (the outbox is not writable just now) does not leave the account unsynced: every round starts it again, after the usual wait.
+      try {
+        await ensureSeeded();
+      } catch {
+        error = "unavailable";
+        failures = 1;
+        blockedUntil = now() + backoffMs;
+      }
       await recount();
       publish();
       kick();
     },
     deactivate() {
+      generation += 1;
       active = false;
       if (timer !== null) { clearTimer(timer); timer = null; }
       publish();
     },
     async forget() {
+      generation += 1;
       active = false;
       unhook?.();
       unhook = null;
