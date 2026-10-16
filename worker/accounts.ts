@@ -230,7 +230,7 @@ export function accountRoutes(deps: AccountDeps) {
     const session = await needSession(c);
     if (session instanceof Response) return session;
     const checked = await gate(c.env, deps.now(), await callerOf(c.req.header("cf-connecting-ip")), c.req.header(HEADER.device) ?? "", c.req.header(HEADER.proof) ?? "");
-    if (!checked.ok) return fail("not_granted", "the Magic Key does not match");
+    if (!checked.ok) return keyRefusal(checked, deps.now(), "the Magic Key does not match");
     await c.env.DB!.prepare("UPDATE users SET has_key = 1 WHERE id = ?1").bind(session.userId).run();
     return json({ hasKey: true });
   });
