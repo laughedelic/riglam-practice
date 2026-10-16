@@ -81,7 +81,7 @@ Randomness is a parameter (`rng`, `Math.random` by default), so the same data an
 
 ## The platform
 
-The page does not know which build runs it. Each entry file calls `startApp(platform)` (the export of `app.js`), and the platform (`src/platform/types.ts`) offers three things:
+The page does not depend on which build runs it (Options only shows which build it is, through `about()` below). Each entry file calls `startApp(platform)` (the export of `app.js`), and the platform (`src/platform/types.ts`) offers three things:
 
 - `loadData()`: the term data. When it rejects, the page shows its "no data" screen.
 - `db()`: the document store, or `null`. Without it the page runs, but saves nothing.
