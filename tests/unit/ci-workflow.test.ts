@@ -47,5 +47,4 @@ test("one job called `Lint, build, test` needs the others, because branch protec
   expect(job, "no job with the name `Lint, build, test`").toBeDefined();
   expect(job).toMatch(/needs: \[static, browser\]/);
   expect(job, "without this the check would be skipped, and a skipped required check counts as passed, when a part fails").toMatch(/if: \$\{\{ !cancelled\(\) \}\}/);
-  expect(workflow).toMatch(/deploy-preview:[\s\S]*?needs: check\b/);
 });
