@@ -35,6 +35,10 @@ Only one workflow step reads it: `release.yml` → `publish` (`wrangler deploy`,
 
 Cloudflare's Workers authorization page lists "Editor on that Worker" as what `wrangler deploy` needs for an existing Worker, and "Admin at the Workers product scope" for creating one (hence step 2). With Editor on one Worker, a leaked token can change only that Worker; it cannot touch other Workers, KV, R2 or the account. A Worker Preview is separate from the production Worker: it does not see the production secrets or the D1 database unless they are put into the Preview base configuration.
 
+## Staging
+
+The open pull requests are merged into the `staging` branch and deployed as the Worker Preview `staging`, with its own database, secrets and budgets: [STAGING.md](STAGING.md).
+
 ## The server's setup
 
 The tutor needs a D1 database and two secrets on the Worker; without them it is off and the rest of the app works. The steps are in [SERVER.md](SERVER.md#setting-up-your-own).

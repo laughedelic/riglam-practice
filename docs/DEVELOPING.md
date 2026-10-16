@@ -56,5 +56,6 @@ The layout and the legacy tests draw random pairs. A legacy test that fails once
 - The title is a conventional commit (`feat:`, `fix:`, `chore:`, `refactor:`, `test:`, `ci:`, `docs:`). The repository is squash-merged and the release notes are made from titles ([RELEASING.md](RELEASING.md)).
 - The description follows `.github/pull_request_template.md`: Before, After, How.
 - CI must pass: the aggregate check "Lint, build, test" and the title check. Each pull request also gets a preview of the installed app from Cloudflare ([DEPLOY.md](DEPLOY.md)).
+- Open pull requests are shown together on the `staging` branch and its own Worker ([STAGING.md](STAGING.md)); do not commit to that branch.
 - Keep a change to what it is for. The look of the page was refined over many iterations, so a style or layout change needs a reason and a before and after at phone and desktop widths.
 - Do not commit definitions or notes in the clear, or the Magic Key, anywhere: not in a file, a commit message or a pull request.
