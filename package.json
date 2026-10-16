@@ -1,6 +1,6 @@
 {
   "name": "riglam-practice",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Practice app for Buddhist logic and debate (Dudra, Tarig): one source, an installable PWA and a Claude artifact build.",
   "license": "SEE LICENSE IN LICENSE",
@@ -20,6 +20,7 @@
     "check:fast": "npm run lint && npm run typecheck && npm run test:unit",
     "check": "npm run lint && npm run typecheck && npm test",
     "artifact:verify": "node scripts/artifact-verify.mjs",
+    "staging": "node scripts/staging.mjs",
     "data:key": "node scripts/data.mjs key",
     "data:import": "node scripts/data.mjs import",
     "data:export": "node scripts/data.mjs export",
