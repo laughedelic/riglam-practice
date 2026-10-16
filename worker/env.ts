@@ -2,7 +2,7 @@
 export interface Env {
   /** the static site (dist/pwa); only requests that /api/* does not match are served from it, without running the Worker */
   ASSETS: Fetcher;
-  /** the budget counters; absent until the database exists, and the tutor is then off */
+  /** the budget counters and the accounts; absent until the database exists, and the tutor and the accounts are then off */
   DB?: D1Database;
 
   // secrets
@@ -24,4 +24,14 @@ export interface Env {
   GLOBAL_DAILY_BUDGET_USD?: string;
   /** what a question is assumed to cost until it has finished, in US dollars; held back from the budgets meanwhile */
   RESERVE_USD?: string;
+  /** who may create an account: `open` (default), `group` (only with the study group's proof) or `closed` */
+  SIGNUP?: string;
+  /** most accounts (default 300) */
+  MAX_ACCOUNTS?: string;
+  /** most documents one account may hold (default 5000) */
+  MAX_DOCS_PER_ACCOUNT?: string;
+  /** most document writes one account may make per UTC day (default 3000) */
+  DAILY_WRITES_PER_ACCOUNT?: string;
+  /** most sign-in, sign-up and add-a-passkey ceremonies that may be started per UTC day, everybody together (default 2000) */
+  CEREMONIES_PER_DAY?: string;
 }

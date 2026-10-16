@@ -8,6 +8,7 @@ import { choose, fbNode } from "./practice/screen.js";
 import { SKIP_DAYS, hiddenKeys, isSkipped, skipPair, undoSkip } from "./practice/skips.js";
 import { defParts, termsNode, lockedDefs } from "./practice/terms.js";
 import { buildPool, indexData, nextGenerated } from "./practice/universe.js";
+import { signature } from "../ui/account";
 import { setDefLang } from "./shell/options.js";
 import { render, renderSession } from "./shell/render.js";
 import "./core/viewport.js";
@@ -32,6 +33,8 @@ async function boot(platform){
   // the server may need seconds to say whether it has a tutor: the page opens first and draws again when the answer comes
   if(state.unlock&&state.unlock.answer){ const u=state.unlock; u.answer.then(on=>{ u.tutor=!!on; if(state.mode!=="loading") render(); },()=>{}); }
   try{ state.tutor=platform.tutor?await platform.tutor():null; }catch(e){ state.tutor=null; }
+  try{ state.account=platform.account?await platform.account():null; }catch(e){ state.account=null; }
+  if(state.account){ let seen=signature(state.account.view()); state.account.subscribe(v=>{ const now=signature(v); if(now!==seen){ seen=now; if(state.optsOpen) render(); } }); }
   if(!state.db){ state.gotA=state.gotB=state.gotS=true; advance(); state.mode="quiz"; render(); return; }
   state.db.collection("batches").orderBy("order","asc").onSnapshot(snap=>{
     state.batches=snap.docs.map(d=>Object.assign({id:d.id},d.data())); state.gotB=true; settle();

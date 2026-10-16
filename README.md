@@ -32,10 +32,11 @@ src/app/                   the page, shared by both builds: app.js (entry), stat
 src/data/                  the open term data (the definitions and notes are on the server, docs/DATA.md)
 src/ai-shared/             the tutor's card, prompts and lookup tools as pure TypeScript functions of the term data (used by the page; a server can use them too)
 src/domain/                the rules of the practice (pairs and their draw, grading, Claude's verdicts) as pure TypeScript functions of the term data
-src/platform/              the Platform interface (data, `db`, `sample`) that each build implements
-src/pwa/                   PWA only: platform adapter, local `db` (IndexedDB), key dialog, service worker registration, fonts
+src/platform/              the Platform interface (data, `db`, `sample`, `account`) that each build implements
+src/account/               optional accounts on the device: the contract with the server, the sync engine, the passkey code (docs/SERVER.md)
+src/pwa/                   PWA only: platform adapter, local `db` (IndexedDB), account client, key dialog, service worker registration, fonts
 src/artifact/              artifact only: platform adapter (embedded data, `window.claude`), head (title, font links)
-worker/                    the server: a Cloudflare Worker for /api/* (tutor access check, spend budgets), D1 schema
+worker/                    the server: a Cloudflare Worker for /api/* (tutor access check, spend budgets, optional passkey accounts and document sync), D1 schema
 src/ai/                    the contract between page and server (protocol, access proof), shared by both
 scripts/                   build-artifact, artifact-verify, data (key, import, export), fonts, icons, Vite plugins
 tests/unit/                Vitest unit tests (artifact comparison, artifact and PWA build contracts, the data tiers, the shape of src/app, the tutor code in src/ai-shared, the rules in src/domain)
@@ -55,7 +56,7 @@ docs/                      developing, architecture, term data and key, artifact
 - [Testing](docs/TESTING.md): the layers, how to run them, the legacy suite.
 - [The term data](docs/DATA.md): open and course parts, the Magic Key, how to refresh them.
 - [Deploy](docs/DEPLOY.md): hosting, previews, one-time setup.
-- [The server](docs/SERVER.md): the tutor Worker, access proof, budgets, setup, tests.
+- [The server](docs/SERVER.md): the tutor Worker, access proof, budgets, accounts and sync, setup, tests.
 - [Releasing](docs/RELEASING.md): conventional commits and release-please.
 
 ## Status

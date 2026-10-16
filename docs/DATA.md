@@ -23,6 +23,10 @@ Because the key is words, guessing is slowed by the server: a caller (a hash of 
 
 The key never goes into the repository, a commit or pull request text, a comment, a log or the project's memory. `tests/unit/data-files.test.ts` fails if a tracked file holds a definition or a note in the clear, or, when the key is in the environment, the key itself.
 
+## Accounts carry the key
+
+A person with an account (docs/SERVER.md, "Accounts and sync") does not need to keep the words: a device that has the key makes its account carry it, and a device that signs in to that account gets it. After the key is changed, the devices of such accounts take the new one by themselves. Anyone who had the old key and made an account carries the new key too, so before changing the key because of a leak, look at every account that carries it (`has_key = 1` in `users`), not only those made since the leak (an older account that showed the leaked key afterwards carries it too), and delete the ones that are not the group's.
+
 ## Where the data lives
 
 `data-private/` (git-ignored) holds `definitions.json` and `notes.json` on every machine that builds the artifact, runs the full tests or changes the data. The server holds the same two texts in the table `course_data` (`worker/migrations/0003_course_data.sql`), loaded by `npm run data:publish`. The Worker reads them at most once a minute, so new data needs no deploy.
@@ -53,7 +57,7 @@ To refresh the data from the knowledge base (which lives outside this repository
 
 CI never has the real course data. Before the build it runs `npm run data:fixture`, which writes invented definitions and notes for every term of the open data (`scripts/lib/made-up-course.mjs`): the same shape and about the same lengths as the real ones, Russian text included, a few terms without a Russian definition or with the booklet's "no definition" placeholder, notes on a quarter of the terms and on a third of the categories. So the artifact build, the layout and legacy specs and the server tests run in full, and a log or a test report can show nothing that is not made up. The tests that read the real text (`the real course data` in `tests/worker/kit.test.ts`, the leak scan in `tests/unit/data-files.test.ts`) pass on the made-up text too, and are worth running with the real data before publishing it (`npm run check` on a machine that has `data-private/`).
 
-To change the key (a leak, or someone who should no longer open new versions): `npm run data:key`, `wrangler secret put RIGLAM_DATA_KEY`, hand out the new words or link. Devices that have the old key lose access on their next visit with a connection and ask for the new one. This does not take back copies already fetched.
+To change the key (a leak, or someone who should no longer open new versions): `npm run data:key`, `wrangler secret put RIGLAM_DATA_KEY`, hand out the new words or link. Devices that have the old key lose access on their next visit with a connection and ask for the new one, unless they belong to an account that carries the key. This does not take back copies already fetched.
 
 ## What this does and does not do
 

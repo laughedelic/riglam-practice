@@ -1,6 +1,6 @@
-// The Magic Key for the browser specs: a random one per run, which the stand-in server accepts (serveCourse below). The real
-// definitions come from data-private/ (docs/DATA.md); without that folder the specs that need them are skipped (`withCourse`),
-// and the others run on the open data.
+// The Magic Key for the browser specs: a random one per run, which the stand-in servers accept (serveCourse below, and the Worker
+// on a fake database in server-bridge.js). The real definitions come from data-private/ (docs/DATA.md); without that folder the
+// specs that need them are skipped (`withCourse`), and the others run on the open data.
 import { hasCourse, readParts } from "../../scripts/lib/course-files.mjs";
 import { checkProof } from "../../src/ai/proof.ts";
 import { testMagicKey } from "./magic-key.ts";
