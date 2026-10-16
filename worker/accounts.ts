@@ -23,7 +23,7 @@ import { ACCOUNT_API, SYNC_LIMITS, type AccountError, type AccountErrorCode, typ
 import { HEADER } from "../src/ai/protocol";
 import { dayOf } from "./budget";
 import { readAccountConfig } from "./config";
-import { callerOf, gate, magicKeyOf } from "./magic";
+import { callerOf, gate, magicKeyOf, type Gate } from "./magic";
 import type { Env } from "./env";
 import { clearedCookie, fromB64u, newSession, randomToken, readSession, sessionCookie, toB64u, tokenFrom, type Session } from "./session";
 
@@ -47,6 +47,16 @@ const STATUS: Record<AccountErrorCode, 400 | 401 | 403 | 409 | 413 | 429 | 503> 
 export function fail(code: AccountErrorCode, message: string, headers?: Record<string, string>): Response {
   const body: AccountError = { error: { code, message } };
   return new Response(JSON.stringify(body), { status: STATUS[code], headers: { "content-type": "application/json", "cache-control": "no-store", ...headers } });
+}
+
+/**
+ * The answer to a proof the gate refused. Past the hourly limit on wrong keys the proof was not looked at, which is a wait and not a
+ * verdict on the key, so that case is a 429 with the seconds to wait; a wrong proof is `not_granted` with the given message.
+ */
+function keyRefusal(checked: Extract<Gate, { ok: false }>, now: Date, wrong: string): Response {
+  if (checked.reason !== "blocked") return fail("not_granted", wrong);
+  const wait = Math.max(1, Math.ceil((Date.parse(checked.resetsAt ?? "") - now.getTime()) / 1000) || 60);
+  return fail("quota", "too many wrong keys were tried from this connection; try again later", { "retry-after": String(wait) });
 }
 
 const json = (body: unknown, headers?: Record<string, string>) => new Response(JSON.stringify(body), { headers: { "content-type": "application/json", "cache-control": "no-store", ...headers } });
@@ -253,7 +263,8 @@ export function accountRoutes(deps: AccountDeps) {
     if (cfg.signup === "group") {
       const device = c.req.header(HEADER.device) ?? "";
       const proof = c.req.header(HEADER.proof) ?? "";
-      if (!(await gate(env, deps.now(), await callerOf(c.req.header("cf-connecting-ip")), device, proof)).ok) return fail("not_granted", "new accounts need the Magic Key");
+      const checked = await gate(env, deps.now(), await callerOf(c.req.header("cf-connecting-ip")), device, proof);
+      if (!checked.ok) return keyRefusal(checked, deps.now(), "new accounts need the Magic Key");
     }
     if ((await count(db, "SELECT COUNT(*) AS n FROM users")) >= cfg.maxAccounts) return fail("quota", "this app has reached its number of accounts");
     const body = await readObject(c, 2_000);

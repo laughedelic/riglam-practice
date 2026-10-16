@@ -47,7 +47,7 @@ export async function kitFrom(openData: object, course: Pick<CourseRows, "defini
 // Putting the data together takes a moment and the result is the same for every question, so one Worker instance does it once and
 // looks again after a minute, which is how new course data reaches the tutor without a deployment.
 const REFRESH_MS = 60_000;
-let made: { openData: object; version: string; at: number; kit: Promise<Kit | null> } | null = null;
+let made: { openData: object; revision: string; at: number; kit: Promise<Kit | null> } | null = null;
 
 /** Forgets the kit made so far (the tests, which give each case a database of its own). */
 export const resetKit = () => { made = null; };
@@ -60,13 +60,13 @@ export async function loadKit(env: Env, openData: object, now: () => number = Da
     made = null;
     return null;
   }
-  if (made && made.openData === openData && made.version === rows.version) {
+  if (made && made.openData === openData && made.revision === rows.revision) {
     made.at = now();
     return made.kit;
   }
   made = {
     openData,
-    version: rows.version,
+    revision: rows.revision,
     at: now(),
     // Only our own messages are logged: a parse error would quote the course text.
     kit: kitFrom(openData, rows).catch((e) => {
