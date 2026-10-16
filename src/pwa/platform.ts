@@ -28,7 +28,8 @@ async function loadData(): Promise<DrillData> {
   let problem = link.present && !link.key ? "That link has no Magic Key in it." : null;
   if (!key && !link.present && takeKeyChanged()) problem = KEY_CHANGED_TEXT; // the key was found out of date during an earlier visit: say so, once
   if (key) {
-    const kept = link.key ? null : keptCourse();
+    // A link with a different key must not be answered from the copy kept for the old one; the same key again (a bookmark, a shortcut) is.
+    const kept = !link.key || link.key === storedKey() ? keptCourse() : null;
     if (kept) {
       groupKey = key;
       void refresh(key, kept.version);
