@@ -34,7 +34,7 @@ export function syncLine(v: AccountView): string {
 
 /** The part of the view that decides whether the row looks different; the Options screen is rebuilt only when it changes. */
 export function signature(v: AccountView): string {
-  return [v.available, v.supported, v.person?.id, v.person?.name, v.person?.passkeys, v.busy, v.message?.text, v.sync.pending, v.sync.busy, v.sync.error, v.sync.last].join("|");
+  return [v.available, v.supported, v.person?.id, v.person?.name, v.person?.passkeys, v.person?.hasKey, v.busy, v.message?.text, v.sync.pending, v.sync.busy, v.sync.error, v.sync.last].join("|");
 }
 
 export function accountControls(account: Account, el: El, rerender: () => void, slot: AccountSlot = {}): HTMLElement {
