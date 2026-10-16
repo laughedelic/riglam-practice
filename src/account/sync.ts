@@ -373,7 +373,7 @@ export function createSync(deps: SyncDeps): Sync {
       return user;
     },
     async activate(userId) {
-      generation += 1;
+      const mine = ++generation;
       const before = (await outbox.getMeta<string>("user")) ?? null;
       if (before !== userId) {
         // A first sign-in, or another person's: the cursor and the old noted changes belong to the earlier account.
@@ -383,6 +383,7 @@ export function createSync(deps: SyncDeps): Sync {
         unnoted.clear(); // notes that failed belong to the earlier account too
         await outbox.setMeta("user", userId);
       }
+      if (mine !== generation) return; // signed out, or a later change of account, while this one waited: it decides, not this one
       // Writes made while the documents are being noted are noted by the hook, so it goes first; the scan only adds what has no entry.
       hook();
       active = true;
@@ -399,7 +400,7 @@ export function createSync(deps: SyncDeps): Sync {
       }
       await recount();
       publish();
-      kick();
+      if (mine === generation) kick();
     },
     deactivate() {
       generation += 1;

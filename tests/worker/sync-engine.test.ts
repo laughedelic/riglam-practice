@@ -799,6 +799,20 @@ describe("tabs of one browser", () => {
     expect(queued.filter((e) => e.id === "x" && e.t === T0 + 5000)).toEqual([]);
   });
 
+  it("stays inactive when the sign-out comes while a change of account is still waiting for a write", async () => {
+    const { a } = await pair();
+    await a.account.signUp("p");
+    await a.put("answers", "x", { v: 1 }, T0);
+    await a.sync.syncNow();
+    const save = a.begin("answers", "x", { v: 2 }, T0 + 5000);
+    const switching = a.sync.activate("someone-else"); // waits for the write under way
+    await settle();
+    a.sync.deactivate(); // the person was signed out meanwhile
+    await save();
+    await switching;
+    expect(a.sync.status().active).toBe(false);
+  });
+
   it("finishes a change of account before the next one begins, and ends with the last person", async () => {
     const { a } = await pair();
     await a.account.signUp("p");
