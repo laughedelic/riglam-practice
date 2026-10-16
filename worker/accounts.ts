@@ -23,7 +23,7 @@ import { dayOf } from "./budget";
 import { readAccountConfig } from "./config";
 import { callerOf, gate, type Gate } from "./magic";
 import type { Env } from "./env";
-import { clearedCookie, fromB64u, newSession, randomToken, readSession, sessionCookie, toB64u, tokenFrom, type Session } from "./session";
+import { clearedCookie, fromB64u, newSession, pruneSessions, randomToken, readSession, sessionCookie, toB64u, tokenFrom, type Session } from "./session";
 
 export interface AccountDeps {
   now: () => Date;
@@ -348,8 +348,13 @@ export function accountRoutes(deps: AccountDeps) {
     }
     if (!verified.verified) return fail("bad_request", "the passkey could not be verified");
     const session = await newSession(db, row.userId, now);
-    const stored = await db.batch([db.prepare("UPDATE credentials SET counter = ?2, last_used_at = ?3 WHERE id = ?1").bind(row.id, verified.authenticationInfo.newCounter, now.toISOString()), session.insert]);
-    if (!stored[1].meta.changes) return fail("unknown_passkey", "this app does not know that passkey"); // the account was deleted while this sign-in was under way
+    // The counter only goes up: sign-ins that overlap can finish in the other order, and the later one must not lower what the earlier one stored.
+    const stored = await db.batch([
+      db.prepare("UPDATE credentials SET counter = MAX(counter, ?2), last_used_at = ?3 WHERE id = ?1").bind(row.id, verified.authenticationInfo.newCounter, now.toISOString()),
+      pruneSessions(db, row.userId, now), // sessions that are over, and those beyond the newest few, so that repeated sign-ins do not pile up
+      session.insert,
+    ]);
+    if (!stored[2].meta.changes) return fail("unknown_passkey", "this app does not know that passkey"); // the account was deleted while this sign-in was under way
     const created = await db.prepare("SELECT created_at AS createdAt FROM users WHERE id = ?1").bind(row.userId).first<{ createdAt: string }>();
     return json({ signedIn: true, user: { id: row.userId, name: row.name, passkeys: await passkeys(db, row.userId), createdAt: created?.createdAt ?? "" } } satisfies MeResponse, { "set-cookie": sessionCookie(session.token) });
   });

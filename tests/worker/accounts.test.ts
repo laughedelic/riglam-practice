@@ -5,7 +5,7 @@ import { testMagicKey as generateKey } from "../support/magic-key";
 import { HEADER } from "../../src/ai/protocol";
 import { makeProof, newDeviceId } from "../../src/ai/proof";
 import { GUESSES_PER_HOUR } from "../../worker/magic";
-import { COOKIE, SESSION_MS, hashToken } from "../../worker/session";
+import { COOKIE, MAX_SESSIONS, SESSION_MS, hashToken } from "../../worker/session";
 import { passkey } from "./authenticator";
 import { ORIGIN, WHERE, beforeStatement, cookieOf, signIn, signUp, world, type World } from "./accounts-support";
 import { json } from "./support";
@@ -288,6 +288,33 @@ describe("signing in", () => {
     const row = w.db.sql<{ counter: number; last_used_at: string }>("SELECT counter, last_used_at FROM credentials")[0];
     expect(row.counter).toBe(2);
     expect(row.last_used_at).toBe(w.clock.now.toISOString());
+  });
+
+  it("never lowers the counter: a sign-in that finishes after a later one leaves the higher number", async () => {
+    const w = await world();
+    const me = await signUp(w);
+    const started = await json(await w.call(ACCOUNT_API.loginOptions, { body: {} }));
+    const response = await me.key.sign(started.options, WHERE); // counter 1
+    // another sign-in, with a higher counter, is stored while this one is being checked
+    beforeStatement(w, "UPDATE credentials SET counter", () => w.db.sql("UPDATE credentials SET counter = 5"));
+    const res = await w.call(ACCOUNT_API.loginVerify, { body: { challengeId: started.challengeId, response } });
+    expect(res.status).toBe(200);
+    expect(w.db.sql<{ counter: number }>("SELECT counter FROM credentials")[0].counter).toBe(5);
+  });
+
+  it("ends the sessions that are over, and those beyond the newest few, so that sign-ins do not pile up", async () => {
+    const w = await world();
+    const me = await signUp(w);
+    const sessions = () => w.db.sql<{ token_hash: string }>("SELECT token_hash FROM sessions WHERE user_id = ?", me.id).length;
+    for (let i = 0; i < 25; i++) await signIn(w, me.key);
+    expect(sessions()).toBe(MAX_SESSIONS);
+    const last = await signIn(w, me.key);
+    expect(sessions()).toBe(MAX_SESSIONS);
+    expect(await json(await w.call(ACCOUNT_API.me, { cookie: last.cookie }))).toMatchObject({ signedIn: true }); // the newest is the one that stays
+    // sessions that are over go at the next sign-in, whatever their number
+    w.clock.now = new Date(w.clock.now.getTime() + SESSION_MS + 1000);
+    await signIn(w, me.key);
+    expect(sessions()).toBe(1);
   });
 
   it("refuses a passkey the server does not have", async () => {
