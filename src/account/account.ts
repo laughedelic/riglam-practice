@@ -191,9 +191,10 @@ export function createAccount(deps: AccountDeps): Account {
 
     signUp: (name) =>
       act("create", async () => {
-        const started = await client.registerOptions(name.trim(), (await deps.proof?.()) ?? {});
+        const proof = (await deps.proof?.()) ?? {}; // the server asks for it again when the sign-up is verified
+        const started = await client.registerOptions(name.trim(), proof);
         const response = await passkeys.create(started.options);
-        const me = await client.registerVerify(started.challengeId, response);
+        const me = await client.registerVerify(started.challengeId, response, proof);
         await adopt(personOf(me.user));
         return "Account created. What this device keeps is being copied to it.";
       }),

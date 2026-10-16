@@ -132,6 +132,7 @@ export function syncRoutes(deps: AccountDeps) {
           .bind(user, now.getTime() - MARK_MS)
           .run();
         total = (await counts())?.total ?? 0;
+        effect = undefined; // its row count was made with the marks that are gone: a write to one of them now adds a row
         if (total + writes.length > cfg.maxDocs * 2 && total + (await exact()).rows > cfg.maxDocs * 2) return fail("full", "this account holds as many documents and deletion marks as it may");
       }
 

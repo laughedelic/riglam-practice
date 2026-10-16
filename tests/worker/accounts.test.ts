@@ -236,9 +236,30 @@ describe("who may make an account", () => {
     const proof = await makeProof(people.key, device);
     const pk = await passkey();
     const started = await json(await people.call(ACCOUNT_API.registerOptions, { body: {}, headers: { [HEADER.device]: device, [HEADER.proof]: proof } }));
-    const verified = await people.call(ACCOUNT_API.registerVerify, { body: { challengeId: started.challengeId, response: await pk.register(started.options, WHERE) } });
+    const forGroup = { [HEADER.device]: device, [HEADER.proof]: proof };
+    const verified = await people.call(ACCOUNT_API.registerVerify, { body: { challengeId: started.challengeId, response: await pk.register(started.options, WHERE) }, headers: forGroup });
     expect(verified.status).toBe(200);
     expect((await signIn(people, pk)).id).toBeTruthy();
+  });
+
+  it("asks again at the verification: sign-up closed, or the key changed, since the ceremony began makes no account", async () => {
+    const closing = await world();
+    const pk = await passkey();
+    const started = await json(await closing.call(ACCOUNT_API.registerOptions, { body: {} }));
+    const response = await pk.register(started.options, WHERE);
+    closing.env.SIGNUP = "closed";
+    expect((await closing.call(ACCOUNT_API.registerVerify, { body: { challengeId: started.challengeId, response } })).status).toBe(403);
+    expect(closing.db.sql("SELECT id FROM users")).toEqual([]);
+
+    const w = await world({ SIGNUP: "group" });
+    const pk2 = await passkey();
+    const headers = { [HEADER.device]: w.device, [HEADER.proof]: w.proof };
+    const begun = await json(await w.call(ACCOUNT_API.registerOptions, { body: {}, headers }));
+    const made = await pk2.register(begun.options, WHERE);
+    w.env.RIGLAM_DATA_KEY = generateKey(); // the key was changed to cut off access
+    const late = await w.call(ACCOUNT_API.registerVerify, { body: { challengeId: begun.challengeId, response: made }, headers });
+    expect(late.status).toBe(403);
+    expect(w.db.sql("SELECT id FROM users")).toEqual([]);
   });
 
   it("a connection past the hourly limit on wrong keys is told to wait, not that its key is wrong", async () => {
