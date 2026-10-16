@@ -15,6 +15,7 @@ export const state = {
   xfer: {},      // what the "Your data" row of Options keeps between renders (src/ui/data-transfer.ts)
   tutor: null,   // a question to the app's own server (platform.tutor), when the place has one; `sample` is used first
   about: null,   // {version, commit, builtAt, latest, branches?}: which build this is (platform.about), shown in Options
+  updates: null, // {status, check, apply, subscribe}: updating the installed app in place (platform.updates), shown in Options
   unlock: null,  // {open, tutor}: opens the prompt for the Magic Key (platform.unlock) while this device has none; `tutor` is whether the server has a tutor waiting for it
   batches: [],
   answers: {},

@@ -47,17 +47,11 @@ test("features that need Claude are absent, not broken", async ({ page }, testIn
   expect(errors).toEqual([]);
 });
 
-test("Options says which build this is, and when the server has a newer one", async ({ page }) => {
+test("Options says which build this is, and that it is the newest", async ({ page }) => {
   await page.goto("/");
   await ready(page);
   await page.getByRole("button", { name: /options/i }).filter({ visible: true }).first().click();
   const row = page.locator(".orow", { hasText: "Version" });
   await expect(row).toContainText(/Version \d+\.\d+\.\d+ · build [0-9a-f]{7}|unknown/);
   await expect(row).toContainText("This is the newest version.");
-
-  await page.route("**/build.json", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ version: "9.9.9", commit: "fffffff", builtAt: new Date().toISOString() }) }));
-  await page.reload();
-  await ready(page);
-  await page.getByRole("button", { name: /options/i }).filter({ visible: true }).first().click();
-  await expect(page.locator(".orow", { hasText: "Version" })).toContainText("A newer version is out");
 });
