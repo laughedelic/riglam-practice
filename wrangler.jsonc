@@ -32,7 +32,8 @@
     "SIGNUP": "open",
     "MAX_ACCOUNTS": "300",
     "MAX_DOCS_PER_ACCOUNT": "20000",
-    "DAILY_WRITES_PER_ACCOUNT": "3000"
+    "DAILY_WRITES_PER_ACCOUNT": "3000",
+    "CEREMONIES_PER_DAY": "2000"
   },
   // The D1 database for the budget counters (docs/SERVER.md). Migrations are applied by hand:
   //   npx wrangler d1 migrations apply riglam-practice --remote
