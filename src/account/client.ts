@@ -47,7 +47,21 @@ export interface AccountClient {
 }
 
 export function createAccountClient(doFetch: Fetch = (input, init) => fetch(input, init), waitMs = 4000): AccountClient {
-  async function call<T>(path: string, init: { method?: string; body?: unknown; headers?: Record<string, string> } = {}): Promise<T> {
+  /** `limitMs`: a request (the answer's body included) that has not finished by then counts as no connection. */
+  async function call<T>(path: string, init: { method?: string; body?: unknown; headers?: Record<string, string>; limitMs?: number } = {}): Promise<T> {
+    const stop = init.limitMs ? new AbortController() : null;
+    const timer = stop ? setTimeout(() => stop.abort(), init.limitMs) : null;
+    try {
+      return await attempt<T>(path, init, stop?.signal);
+    } catch (e) {
+      if (stop?.signal.aborted && !(e instanceof AccountFailure)) throw new AccountFailure("offline", "no connection");
+      throw e;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
+  async function attempt<T>(path: string, init: { method?: string; body?: unknown; headers?: Record<string, string> }, signal?: AbortSignal): Promise<T> {
     let res: Response;
     try {
       res = await doFetch(path, {
@@ -55,6 +69,7 @@ export function createAccountClient(doFetch: Fetch = (input, init) => fetch(inpu
         headers: { ...(init.body === undefined ? {} : { "content-type": "application/json" }), ...init.headers },
         body: init.body === undefined ? undefined : JSON.stringify(init.body),
         cache: "no-store",
+        signal,
       });
     } catch {
       throw new AccountFailure("offline", "no connection");
@@ -108,7 +123,7 @@ export function createAccountClient(doFetch: Fetch = (input, init) => fetch(inpu
       await call(ACCOUNT_API.key, { body: {}, headers });
     },
     async fetchKey() {
-      const body = await call<{ key?: unknown }>(ACCOUNT_API.key);
+      const body = await call<{ key?: unknown }>(ACCOUNT_API.key, { limitMs: waitMs });
       if (typeof body.key !== "string" || !body.key) throw new AccountFailure("unavailable");
       return body.key;
     },
