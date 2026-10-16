@@ -102,6 +102,7 @@ function labWrite(col,id,doc){
 // one model, one case; resolves when its record is stored. The model that answered must be the one asked for, else the run does not count.
 async function labCall(L,m,prompt,effort,kind,extra){
   const key=L.kase.key, st=L.runs[m.k]=/** @type {{status: string, doc?: object, id?: string}} */({status:"run"}), t0=performance.now(), ref=labRef();
+  /** @type {import("../types.ts").LabRunDoc} */
   const doc=Object.assign({kind,caseKey:key,model:m.id,effort,tierAsked:m.tier,promptVersion:LAB_VER,referenceVersion:ref.ver,at:new Date().toISOString(),promptChars:prompt.length,case:L.kase},extra||{});
   try{
     const r=await state.sample(prompt,{model:m.id,modelTier:m.tier,effort,cache:false});
