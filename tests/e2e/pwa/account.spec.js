@@ -177,6 +177,33 @@ test("a person who closes the passkey dialog is told nothing was changed", async
   expect(world.sql("SELECT * FROM users")).toEqual([]);
 });
 
+test("the delete confirmation takes the focus when it opens, and the delete button gets it back on Cancel", async ({ page }) => {
+  const world = await serverWorld();
+  await start(page, world);
+  await openOptions(page);
+  await page.getByRole("button", { name: "Create account" }).click();
+  await expect(acct(page)).toContainText("Signed in as Practice");
+  await page.getByRole("button", { name: "Delete account ..." }).click();
+  await expect(page.getByRole("button", { name: "Cancel" })).toBeFocused();
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByRole("button", { name: "Delete account ..." })).toBeFocused();
+});
+
+test("a switch in Options keeps the focus while the sync status redraws the screen", async ({ page }) => {
+  const world = await serverWorld();
+  const { device } = await start(page, world);
+  await openOptions(page);
+  await page.getByRole("button", { name: "Create account" }).click();
+  await expect(status(page).first()).toContainText("Up to date", { timeout: 15_000 });
+  const sw = page.getByRole("switch", { name: /A\/B markers/ });
+  await sw.focus();
+  await expect(sw).toBeFocused();
+  device.offline = true;
+  await put(page, "flags", "f_focus", { id: "f_focus", state: "new", updatedAt: "2026-10-13T10:00:00.000Z" });
+  await expect(status(page).first()).toContainText("waiting", { timeout: 15_000 }); // the screen was redrawn
+  await expect(sw).toBeFocused();
+});
+
 test.describe("the Magic Key follows the account", () => {
   test.skip(!withCourse, "needs the course data to unlock the definitions");
 
@@ -200,4 +227,43 @@ test.describe("the Magic Key follows the account", () => {
     await expect(other.locator("#unlock")).toHaveCount(0);
     await context.close();
   });
+});
+
+test("the queue is read in order of change time from an outbox database that was made before the index existed", async ({ page }) => {
+  // a version 1 database (no index on the change time) is made before the app opens it; the app's upgrade must add the index and keep working
+  await page.addInitScript(() => {
+    const old = indexedDB.open("riglam-sync", 1);
+    old.onupgradeneeded = () => {
+      old.result.createObjectStore("outbox", { keyPath: "key" });
+      old.result.createObjectStore("meta", { keyPath: "k" });
+    };
+    old.onsuccess = () => old.result.close();
+  });
+  const world = await serverWorld();
+  const { device } = await start(page, world);
+  await openOptions(page);
+  await page.getByRole("button", { name: "Create account" }).click();
+  await expect(status(page).first()).toContainText("Up to date", { timeout: 15_000 });
+  const shape = await page.evaluate(
+    () =>
+      new Promise((resolve, reject) => {
+        const open = indexedDB.open("riglam-sync");
+        open.onerror = () => reject(open.error);
+        open.onsuccess = () => {
+          const out = { version: open.result.version, indexes: [...open.result.transaction("outbox").objectStore("outbox").indexNames] };
+          open.result.close();
+          resolve(out);
+        };
+      }),
+  );
+  expect(shape).toEqual({ version: 2, indexes: ["t"] });
+  // three changes made without a connection are sent in the order they were made
+  device.offline = true;
+  for (const id of ["f_one", "f_two", "f_three"]) await put(page, "flags", id, { id, state: "new", updatedAt: "2026-10-13T10:00:00.000Z" });
+  await page.getByRole("button", { name: "Sync now" }).click();
+  await expect(status(page).first()).toContainText("3 changes are waiting");
+  device.offline = false;
+  await page.getByRole("button", { name: "Sync now" }).click();
+  await expect(status(page).first()).toContainText("Up to date", { timeout: 15_000 });
+  expect(world.sql("SELECT id FROM docs ORDER BY seq").map((r) => r.id)).toEqual(["f_one", "f_two", "f_three"]);
 });
