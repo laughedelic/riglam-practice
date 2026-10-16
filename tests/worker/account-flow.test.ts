@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { makeProof, newDeviceId } from "../../src/ai/proof";
 import { HEADER } from "../../src/ai/protocol";
 import { GUESSES_PER_HOUR } from "../../worker/magic";
+import { createAccountClient } from "../../src/account/client";
 import { world } from "./accounts-support";
 import { device, T0 } from "./device";
 import { passkey } from "./authenticator";
@@ -196,6 +197,32 @@ describe("the account carries the Magic Key", () => {
     await b.account.signIn();
     expect(taken).toEqual([w.key]);
     expect(b.account.view().person).toMatchObject({ hasKey: true });
+  });
+
+  it("a share that finishes after a sign-out does not bring the person back", async () => {
+    const w = await world();
+    const first = await device(w, { magicKey: { read: () => null, adopt: () => {} } });
+    await first.account.signUp("p");
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const id = newDeviceId();
+    const b = await device(w, {
+      key: first.key,
+      proof: async () => { await gate; return { [HEADER.device]: id, [HEADER.proof]: await makeProof(w.key, id) }; },
+      magicKey: { read: () => w.key, adopt: () => {} },
+    });
+    const signing = b.account.signIn();
+    await vi.waitFor(() => expect(b.account.view().person).not.toBeNull());
+    b.account.signedOut();
+    release();
+    await signing;
+    expect(b.account.view().person).toBeNull();
+    expect(b.kept).toBeNull();
+  });
+
+  it("asking the account for the key gives up on a server that does not answer", async () => {
+    const stalled = createAccountClient((_url, init) => new Promise<Response>((_, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")))), 20);
+    await expect(stalled.fetchKey()).rejects.toMatchObject({ code: "offline" });
   });
 
   it("a key that is changed on the server is still handed to the account's devices", async () => {

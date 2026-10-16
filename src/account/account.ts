@@ -131,9 +131,12 @@ export function createAccount(deps: AccountDeps): Account {
       const have = magic.read();
       if (have && !p.hasKey) {
         await client.shareKey((await deps.proof?.()) ?? {});
-        const carried = { ...p, hasKey: true };
-        keep.write(carried);
-        if (v.person?.id === p.id) set({ person: carried });
+        // A sign-out or another account may have come while the request was under way: only the person who is signed in now is marked, with their current fields.
+        if (v.person?.id === p.id) {
+          const carried = { ...v.person, hasKey: true };
+          keep.write(carried);
+          set({ person: carried });
+        }
       } else if (!have && p.hasKey) {
         magic.adopt(await client.fetchKey());
       }
@@ -147,7 +150,7 @@ export function createAccount(deps: AccountDeps): Account {
       return;
     }
     if (v.person?.id === who.id) {
-      if (v.person.name !== who.name || v.person.passkeys !== who.passkeys) set({ person: who });
+      if (v.person.name !== who.name || v.person.passkeys !== who.passkeys || v.person.hasKey !== who.hasKey) set({ person: who });
       return;
     }
     keep.write(who);
