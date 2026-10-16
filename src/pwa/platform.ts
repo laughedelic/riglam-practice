@@ -81,6 +81,7 @@ async function refresh(key: string, have: string) {
   } else if (got.reason === "not_granted") {
     forgetKey();
     forgetCourse();
+    if (groupKey === key) groupKey = null; // the account's sign-in must not find the rejected key still held in memory
     if (await recoverFromAccount()) location.reload(); // the account carries the new key: start again with it
     else markKeyChanged(); // this visit still shows the kept copy; the next one explains and asks for the new key
   }
