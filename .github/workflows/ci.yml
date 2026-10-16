@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 env:
-  WRANGLER_VERSION: 4.150.0
+  WRANGLER_VERSION: 4.149.0
 
 jobs:
   # The checks that need no browser: lint, types, both builds, the unit tests and the hosting config.
@@ -22,34 +22,21 @@ jobs:
     name: Lint, build, unit tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    env:
-      # Decrypts the course part of the term data for the artifact build and the tests (docs/DATA.md). The PWA build does not need it.
-      RIGLAM_DATA_KEY: ${{ secrets.RIGLAM_DATA_KEY }}
     steps:
-      - name: Data key present?
-        run: |
-          if [ -z "$RIGLAM_DATA_KEY" ]; then
-            echo "::error::The repository secret RIGLAM_DATA_KEY is not set (or not available to this run, as for Dependabot: add it under Dependabot secrets too). See docs/DATA.md."
-            exit 1
-          fi
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # Made-up definitions and notes for every term (docs/DATA.md): CI never holds the real course data, so nothing real can reach a log or a report.
+      - run: npm run data:fixture
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run build
       - run: npm run test:unit
       - name: Check the hosting config
         run: npx --yes wrangler@${{ env.WRANGLER_VERSION }} deploy --dry-run
-      # Only the PWA build is kept: it holds the encrypted definitions. The artifact build holds them in the clear, so it is not uploaded.
-      - uses: actions/upload-artifact@v4
-        with:
-          name: pwa-build
-          path: dist/pwa/
-          retention-days: 14
 
   # The browser tests, in parallel. Each job builds both outputs itself (about 10 seconds), because the artifact build must not be uploaded.
   # The legacy suite is the long part (test40q alone takes about two minutes), so it is split with Playwright's --shard; layout and PWA specs share one job.
@@ -66,21 +53,15 @@ jobs:
           - { name: legacy 2/3, args: "--project=legacy --shard=2/3" }
           - { name: legacy 3/3, args: "--project=legacy --shard=3/3" }
           - { name: layout and PWA, args: "--project=layout --project=pwa-desktop --project=pwa-phone" }
-    env:
-      RIGLAM_DATA_KEY: ${{ secrets.RIGLAM_DATA_KEY }}
     steps:
-      - name: Data key present?
-        run: |
-          if [ -z "$RIGLAM_DATA_KEY" ]; then
-            echo "::error::The repository secret RIGLAM_DATA_KEY is not set (or not available to this run, as for Dependabot: add it under Dependabot secrets too). See docs/DATA.md."
-            exit 1
-          fi
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # Made-up definitions and notes for every term (docs/DATA.md): CI never holds the real course data, so nothing real can reach a log or a report.
+      - run: npm run data:fixture
       - run: npm run build
       - name: Cache Playwright browsers
         uses: actions/cache@v6
@@ -120,59 +101,3 @@ jobs:
       - uses: amannn/action-semantic-pull-request@v6
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # Preview of the app for every pull request (a Cloudflare Worker Preview named pr-<number>), and a "staging" preview that follows main. The address is shown as a GitHub deployment:
-  # the environment preview/pr-<number> for a pull request (retired when it closes, preview-cleanup.yml), staging for main.
-  # Needs the repository secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID (docs/DEPLOY.md); without them the job only says so.
-  deploy-preview:
-    name: Deploy preview
-    needs: check
-    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-    # GitHub lists the run as a deployment of this environment, with the preview address as its URL.
-    environment:
-      name: ${{ github.event_name == 'pull_request' && format('preview/pr-{0}', github.event.number) || 'staging' }}
-      url: ${{ steps.upload.outputs.url }}
-    env:
-      PREVIEW: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.number) || 'staging' }}
-      # On pull requests GITHUB_SHA is a merge commit that is not on the branch; label previews with the head commit.
-      BUILD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-    steps:
-      # The Cloudflare credentials are given only to the two steps that use them, not to `npm ci`, which runs the dependencies' install scripts.
-      - name: Credentials present?
-        id: creds
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then echo "ok=true" >> "$GITHUB_OUTPUT"
-          else echo "::notice::Preview skipped: CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID are not set (see docs/DEPLOY.md)"; fi
-      - uses: actions/checkout@v7
-        if: steps.creds.outputs.ok
-      # The Worker script (worker/) is bundled by wrangler from the sources and their dependencies; the static files come from the build above.
-      - uses: actions/setup-node@v7
-        if: steps.creds.outputs.ok
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
-        if: steps.creds.outputs.ok
-      - uses: actions/download-artifact@v4
-        if: steps.creds.outputs.ok
-        with:
-          name: pwa-build
-          path: dist/pwa
-      - name: Create or update the preview
-        id: upload
-        if: steps.creds.outputs.ok
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          # The JSON output goes to a file, so a failed command fails the step and its address is read with jq.
-          npx --yes wrangler@${WRANGLER_VERSION} preview --name "$PREVIEW" --message "${BUILD_SHA::7}" --json > preview.json
-          cat preview.json
-          echo "url=$(jq -er '.preview.urls[0]' preview.json)" >> "$GITHUB_OUTPUT"

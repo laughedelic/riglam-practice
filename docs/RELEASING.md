@@ -42,4 +42,4 @@ Dependabot opens weekly pull requests for npm (dev dependencies grouped, title p
 
 ## Artifact versions are separate
 
-Publishing the artifact build to the live artifact is not a release of this repository; the artifact keeps its own version ids (see [ARTIFACT-LOOP.md](ARTIFACT-LOOP.md)). To republish an older app version to the artifact, check out its tag and build it with the data key (`npm run build:artifact`).
+Publishing the artifact build to the live artifact is not a release of this repository; the artifact keeps its own version ids (see [ARTIFACT-LOOP.md](ARTIFACT-LOOP.md)). To republish an older app version to the artifact, check out its tag and build it with the course data (`npm run build:artifact`).
