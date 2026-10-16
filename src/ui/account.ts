@@ -90,6 +90,6 @@ export function accountControls(account: Account, el: El, rerender: () => void, 
     if (slot.wantStatus) queueMicrotask(() => { if (p.isConnected) p.focus({ preventScroll: false }); });
   }
   slot.wantStatus = false;
-  box.append(el("p", { class: "onote", text: "Copied: answers, debates, favorites, skipped pairs, flags and check-lab runs. Not copied: these settings (Export saves them) and the study group's key." }));
+  box.append(el("p", { class: "onote", text: "Copied: answers, debates, favorites, skipped pairs, flags and check-lab runs. Not copied: these settings (Export saves them) and the Magic Key." }));
   return box;
 }

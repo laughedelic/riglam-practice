@@ -32,11 +32,11 @@ describe("creating an account", () => {
     expect(w.db.sql("SELECT * FROM users")).toEqual([]);
   });
 
-  it("is refused without the study group's link when the app asks for it, and allowed with it", async () => {
+  it("is refused without the Magic Key when the app asks for it, and allowed with it", async () => {
     const w = await world({ SIGNUP: "group" } as never);
     const a = await device(w);
     await a.account.signUp("x");
-    expect(a.account.view().message).toMatchObject({ bad: true, text: expect.stringMatching(/study group/i) });
+    expect(a.account.view().message).toMatchObject({ bad: true, text: expect.stringMatching(/Magic Key/i) });
     expect(a.account.view().person).toBeNull();
     const id = newDeviceId();
     const b = await device(w, { proof: async () => ({ [HEADER.device]: id, [HEADER.proof]: await makeProof(w.key, id) }) });
