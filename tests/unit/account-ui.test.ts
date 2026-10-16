@@ -32,6 +32,7 @@ describe("what the row says about sync", () => {
     expect(signature(view())).toBe(signature(view()));
     expect(signature(view({ pending: 1 }))).not.toBe(signature(view()));
     expect(signature(view({}, { message: { text: "x", bad: false } }))).not.toBe(signature(view()));
+    expect(signature(view({}, { person: { id: "u", name: "n", passkeys: 1, hasKey: true } }))).not.toBe(signature(view()));
   });
 });
 
