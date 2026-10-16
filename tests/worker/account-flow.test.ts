@@ -303,6 +303,25 @@ describe("the account carries the Magic Key", () => {
     expect(taken).toEqual([]);
   });
 
+  it("a key that arrives after the reader forgot the key here is not taken", async () => {
+    const w = await world();
+    const a = await device(w, { ...withKey(w), magicKey: { read: () => w.key, adopt: () => {} } });
+    await a.account.signUp("p");
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    let declined = false;
+    const taken: string[] = [];
+    const b = await device(w, { key: a.key, magicKey: { read: () => null, adopt: (k) => void taken.push(k), declined: () => declined, allow: () => {} } });
+    const real = b.client.fetchKey.bind(b.client);
+    b.client.fetchKey = async () => { const k = await real(); await gate; return k; };
+    const signing = b.account.signIn();
+    await vi.waitFor(() => expect(b.account.view().person).not.toBeNull());
+    declined = true; // another tab forgets the key while the request is under way
+    release();
+    await signing;
+    expect(taken).toEqual([]);
+  });
+
   it("the key-sharing request gives up on a server that does not answer", async () => {
     const stalled = createAccountClient((_url, init) => new Promise<Response>((_, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")))), 20);
     await expect(stalled.shareKey({})).rejects.toMatchObject({ code: "offline" });
