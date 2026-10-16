@@ -177,6 +177,33 @@ test("a person who closes the passkey dialog is told nothing was changed", async
   expect(world.sql("SELECT * FROM users")).toEqual([]);
 });
 
+test("the delete confirmation takes the focus when it opens, and the delete button gets it back on Cancel", async ({ page }) => {
+  const world = await serverWorld();
+  await start(page, world);
+  await openOptions(page);
+  await page.getByRole("button", { name: "Create account" }).click();
+  await expect(acct(page)).toContainText("Signed in as Practice");
+  await page.getByRole("button", { name: "Delete account ..." }).click();
+  await expect(page.getByRole("button", { name: "Cancel" })).toBeFocused();
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByRole("button", { name: "Delete account ..." })).toBeFocused();
+});
+
+test("a switch in Options keeps the focus while the sync status redraws the screen", async ({ page }) => {
+  const world = await serverWorld();
+  const { device } = await start(page, world);
+  await openOptions(page);
+  await page.getByRole("button", { name: "Create account" }).click();
+  await expect(status(page).first()).toContainText("Up to date", { timeout: 15_000 });
+  const sw = page.getByRole("switch", { name: /A\/B markers/ });
+  await sw.focus();
+  await expect(sw).toBeFocused();
+  device.offline = true;
+  await put(page, "flags", "f_focus", { id: "f_focus", state: "new", updatedAt: "2026-10-13T10:00:00.000Z" });
+  await expect(status(page).first()).toContainText("waiting", { timeout: 15_000 }); // the screen was redrawn
+  await expect(sw).toBeFocused();
+});
+
 test.describe("the Magic Key follows the account", () => {
   test.skip(!withCourse, "needs the course data to unlock the definitions");
 

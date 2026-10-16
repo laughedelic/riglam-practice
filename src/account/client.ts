@@ -139,6 +139,7 @@ export function createAccountClient(doFetch: Fetch = (input, init) => fetch(inpu
         if (e.code === "offline") throw new SyncError("offline", e.message);
         if (e.code === "signed_out") throw new SyncError("signed_out", e.message);
         if (e.code === "quota") throw new SyncError("quota", e.message);
+        if (e.code === "too_large") throw new SyncError("too_large", e.message);
         throw new SyncError("unavailable", e.message);
       }
     },
