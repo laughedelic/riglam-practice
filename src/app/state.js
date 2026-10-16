@@ -52,6 +52,8 @@ export const state = {
   labPause: 0,
   flagPending: 0,
   reportBusy: false,
+  repliesAt: 0,       // when the server was last asked how the review of the sent flags stands (ai/flag-reports.js)
+  repliesBusy: false,
   // the reference the models get, built from the page's own data: every category with its definition, then the classification notes
   labRefC: null,
   // A draw replaces the whole screen, which would send the scroll back to the top. While the screen is the same one (the same pair, step and

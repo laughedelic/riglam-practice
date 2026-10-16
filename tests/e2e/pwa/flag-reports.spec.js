@@ -91,6 +91,62 @@ test("a flag that could not be sent waits, says so, and goes when the server is 
   await expect.poll(() => reports(world).length).toBe(1);
 });
 
+/** A sent flag whose review has run on the server: `state` and `reply` as the Worker's review writes them (worker/review.ts). The page asks again when it starts. */
+const reviewed = (world, state, reply) => world.sql("UPDATE flag_reports SET state = ?, reply = ?, reply_at = ? WHERE id = 'fl_cell'", state, reply, at);
+const REPLY = "You are right: <b>a wooden bowl</b> is both.\nSecond line & <img src=x onerror=window.pwned=1>";
+
+test("the reply to a sent flag shows under it as plain text with the state; flagging the reply sends a follow-up to the maintainer", async ({ page }) => {
+  await giveKey(page);
+  const world = await serverWorld({}, { stubCourse: true });
+  await start(page, world);
+  await expect.poll(async () => (await stored(page)).fl_cell.sentAt).toBeTruthy();
+  reviewed(world, "maintainer", REPLY);
+  await page.reload();
+  await ready(page);
+  const li = await openFlags(page);
+  await expect(li.locator("summary").first()).toContainText("With the maintainer");
+  const box = li.locator(".freply");
+  await expect(box.locator(".clh")).toHaveText("Reply so far, until the maintainer decides");
+  await expect(box.locator(".rtext")).toHaveText(REPLY);
+  await expect(box.locator("b, img")).toHaveCount(0); // the reply is text, whatever it contains
+  expect(await page.evaluate(() => window.pwned)).toBeUndefined();
+  await expect.poll(async () => (await stored(page)).fl_cell.review).toEqual({ state: "maintainer", reply: REPLY, at });
+  expect((await stored(page)).fl_cell.updatedAt).toBe(at); // keeping the reply does not count as an edit, so the flag is not sent again
+
+  await box.getByRole("button", { name: "Flag this reply" }).click();
+  await expect(li.locator(".flagedit .fv")).toHaveText("The reply to a flag");
+  await page.locator("#flag-note").fill("A bowl is not a stove.");
+  await page.locator(".flagedit").getByRole("button", { name: "Submit" }).click();
+  await expect.poll(() => reports(world).length).toBe(2);
+  const follow = reports(world).map((r) => ({ flag: JSON.parse(r.flag), answer: r.answer })).find((r) => r.flag.part === "reply");
+  expect(follow.flag).toMatchObject({ n: "fl_cell", shown: REPLY, asked: "A bowl can be square.", note: "A bowl is not a stove.", caseKey: "answers_r-test1" });
+  expect(JSON.parse(follow.answer).explain).toContain("a wooden bowl is both"); // with the same exercise
+  // the follow-up is a flag of its own, newest first; the reply it is on now offers to edit it
+  const flags = page.locator(".flags > li");
+  await expect(flags).toHaveCount(2);
+  await expect(flags.first().locator("summary").first()).toContainText("The reply to a flag");
+  await expect(flags.last().locator(".freply").getByRole("button", { name: "Edit your follow-up" })).toBeVisible();
+});
+
+test("editing a flag drops the reply that was for its old words", async ({ page }) => {
+  await giveKey(page);
+  const world = await serverWorld({}, { stubCourse: true });
+  await start(page, world);
+  await expect.poll(async () => (await stored(page)).fl_cell.sentAt).toBeTruthy();
+  reviewed(world, "answered", "Hot and white can overlap.");
+  await page.reload();
+  await ready(page);
+  const li = await openFlags(page);
+  await expect(li.locator("summary").first()).toContainText("Answered");
+  await expect(li.locator(".freply .rtext")).toHaveText("Hot and white can overlap.");
+  await li.getByRole("button", { name: "Edit" }).click();
+  await page.locator("#flag-note").fill("A bowl need not be round.");
+  await page.locator(".flagedit").getByRole("button", { name: "Submit" }).click();
+  await expect(li.locator(".freply")).toHaveCount(0);
+  await expect.poll(() => world.sql("SELECT state, reply FROM flag_reports WHERE id = 'fl_cell'")).toEqual([{ state: "sent", reply: null }]); // the server starts the review again
+  await expect(li.locator("summary").first()).toContainText("Sent to the maintainer");
+});
+
 plain("a device without the Magic Key cannot flag: Edit is greyed and opens the prompt, and nothing is sent", async ({ page }) => {
   const world = await serverWorld();
   const device = await start(page, world);

@@ -4,13 +4,15 @@
 // the id is kept on the device and tried again.
 import { API, HEADER, type Health } from "../ai/protocol";
 import { makeProof } from "../ai/proof";
-import { REPORT_API, REPORT_LIMITS, type FlagReport, type ReportRequest, type ReportResponse } from "../report/protocol";
+import { REPORT_API, REPORT_LIMITS, type FlagReport, type ReportRequest, type ReportResponse, type ReportState, type ReportStatus } from "../report/protocol";
 import type { Reports } from "../platform/types";
 import { deviceId } from "./device";
 
 const PENDING = "riglam.flagsToWithdraw";
 /** most ids kept for a later try; the oldest go first */
 const KEPT_MAX = 200;
+/** the longest reply kept; the server's replies are cut to 1200 characters */
+const REPLY_MAX = 1200;
 
 declare const __APP_VERSION__: string | undefined;
 const appVersion = (): string | undefined => (typeof __APP_VERSION__ === "string" ? __APP_VERSION__ : undefined);
@@ -29,6 +31,22 @@ export async function reportsAreOn(doFetch: typeof fetch = (...a) => fetch(...a)
   } finally {
     clearTimeout(timer);
   }
+}
+
+const STATES: readonly ReportState[] = ["sent", "answered", "maintainer", "fixed", "decided"];
+
+/** The server's answer about one flag, or null when it is not one: the reply is kept only as plain text of a sensible size. */
+function readStatus(v: unknown): ReportStatus | null {
+  if (!v || typeof v !== "object") return null;
+  const r = v as Record<string, unknown>;
+  const state = STATES.find((s) => s === r.state);
+  if (typeof r.id !== "string" || !state) return null;
+  return {
+    id: r.id,
+    state,
+    ...(typeof r.reply === "string" && r.reply.trim() ? { reply: r.reply.slice(0, REPLY_MAX) } : {}),
+    ...(typeof r.replyAt === "string" ? { replyAt: r.replyAt.slice(0, 40) } : {}),
+  };
 }
 
 /** The ids of flags removed on this device that the server has not yet been told about. Without usable storage they last for the visit. */
@@ -58,7 +76,7 @@ export function createReports(key: string, doFetch: typeof fetch = (...a) => fet
   const pending = pendingStore();
 
   /** The server's answer, or its status when there is none: 0 when the request did not get through, else an error's (a wrong key 403; 429 for the day's limit or for a wait after too many wrong keys; an invalid report 400). */
-  async function post(request: ReportRequest): Promise<ReportResponse | number> {
+  async function post(request: ReportRequest): Promise<(ReportResponse & { status: ReportStatus[] }) | number> {
     try {
       const id = device();
       const res = await doFetch(REPORT_API.reports, {
@@ -68,7 +86,11 @@ export function createReports(key: string, doFetch: typeof fetch = (...a) => fet
       });
       if (!res.ok) return res.status;
       const body = (await res.json()) as Partial<ReportResponse>;
-      return { stored: Array.isArray(body.stored) ? body.stored : [], withdrawn: Array.isArray(body.withdrawn) ? body.withdrawn : [] };
+      return {
+        stored: Array.isArray(body.stored) ? body.stored : [],
+        withdrawn: Array.isArray(body.withdrawn) ? body.withdrawn : [],
+        status: Array.isArray(body.status) ? body.status.flatMap((v) => readStatus(v) ?? []) : [],
+      };
     } catch {
       return 0;
     }
@@ -106,6 +128,15 @@ export function createReports(key: string, doFetch: typeof fetch = (...a) => fet
         } else break;
       }
       return stored;
+    },
+    async status(ids) {
+      const told: ReportStatus[] = [];
+      for (let at = 0; at < ids.length; at += REPORT_LIMITS.status) {
+        const done = await post({ status: ids.slice(at, at + REPORT_LIMITS.status) });
+        if (typeof done === "number") break;
+        told.push(...done.status);
+      }
+      return told;
     },
     async withdraw(id) {
       const left = pending.read();

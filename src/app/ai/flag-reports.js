@@ -32,6 +32,32 @@ export async function sendFlags(ids){
   }
   if(state.tab==="review"&&state.mode!=="loading"&&!typingEl(document.activeElement)) render();
 }
+/* ---------- replies: how the review of a sent flag stands ---------- */
+// The server reviews each report (docs/SERVER.md, "Reviewing flags") and may reply. The page asks about its sent flags at the start and when Review
+// is opened (at most once a minute), and keeps the answer on the flag as `review` ({state, reply, at}); the reply is shown as plain text under
+// the flag. A flag whose review is over ("fixed", "decided") is not asked about again. An edit drops `review` (saveFlag writes a fresh document).
+const REPLY_EVERY_MS=60*1000, ASK_MAX=50, OVER=new Set(["fixed","decided"]);
+export async function checkReplies(force){
+  const R=state.reports; if(!R||state.repliesBusy||!state.db) return;
+  const now=Date.now(); if(!force&&now-state.repliesAt<REPLY_EVERY_MS) return;
+  const ids=Object.keys(state.flags).filter(id=>{ const f=state.flags[id]; return isSent(f)&&!(f.review&&OVER.has(f.review.state)); }).slice(0,ASK_MAX);
+  if(!ids.length) return;
+  state.repliesBusy=true; state.repliesAt=now;
+  try{
+    const told=await R.status(ids); let changed=false;
+    for(const t of told){
+      const cur=state.flags[t.id], had=cur&&cur.review;
+      // not a flag that was edited meanwhile (its words are no longer the ones the server replied to), and not one that has not moved
+      if(!cur||!isSent(cur)||(had&&had.state===t.state&&(had.reply||"")===(t.reply||""))) continue;
+      const review={state:t.state}; if(t.reply) review.reply=t.reply; if(t.replyAt) review.at=t.replyAt;
+      if(t.state==="sent"&&!had) continue;     // nothing to keep yet
+      const doc=Object.assign({},cur,{review}); state.flags[t.id]=doc; changed=true;
+      try{ await put("flags",t.id,doc); }catch(e){ /* kept for this visit; asked again at the next */ }
+    }
+    if(changed&&state.tab==="review"&&state.mode!=="loading"&&!typingEl(document.activeElement)) render();
+  }catch(e){ /* asked again later */ }
+  finally{ state.repliesBusy=false; }
+}
 // the flags that were never sent or were edited since, oldest first, and the removals that did not reach the server
 export async function flushFlags(){
   const R=state.reports; if(!R||state.reportBusy||state.flagPending) return;
@@ -42,5 +68,6 @@ export async function flushFlags(){
     if(todo.length) await sendFlags(todo);
   }catch(e){ /* tried again at the next start */ }
   finally{ state.reportBusy=false; }
+  checkReplies();
 }
 export function withdrawFlag(id){ if(state.reports) state.reports.withdraw(id); }
