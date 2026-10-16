@@ -1,24 +1,11 @@
 // The PWA's `tutor` capability: questions to the app's own server (docs/SERVER.md). The request proves that the sender has the
 // study group's key without sending it (src/ai/proof.ts); the answer comes back as server-sent events (src/ai/protocol.ts).
 import { API, HEADER, type BudgetScope, type Health, type TutorEvent } from "../ai/protocol";
-import { makeProof, newDeviceId, DEVICE_ID } from "../ai/proof";
+import { makeProof } from "../ai/proof";
+import { deviceId } from "./device";
 import type { Tutor } from "../platform/types";
 
-const DEVICE = "riglam.deviceId";
-let session: string | null = null;
-
-/** The random id of this device, made once and kept. Without usable storage it lasts for the visit. */
-export function deviceId(): string {
-  try {
-    const kept = localStorage.getItem(DEVICE);
-    if (kept && DEVICE_ID.test(kept)) return kept;
-    const made = newDeviceId();
-    localStorage.setItem(DEVICE, made);
-    return made;
-  } catch {
-    return (session ??= newDeviceId());
-  }
-}
+export { deviceId };
 
 /** An error the page understands: `code` is the server's (src/ai/protocol.ts), or `offline`, or `cancelled`. */
 export function tutorError(code: string, message: string, extra: { text?: string; budget?: boolean; scope?: BudgetScope; resetsAt?: string } = {}): Error & { code: string; text?: string; budget?: boolean; scope?: BudgetScope; resetsAt?: string } {

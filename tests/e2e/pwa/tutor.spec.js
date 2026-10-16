@@ -1,13 +1,14 @@
 // The tutor in the installed app: questions go to the app's own server (/api/tutor), which these specs stand in for with
 // routes. They check what the page offers (only when the server says its tutor is on), what it sends (the card without the
 // instructions, a proof made with the key) and what it shows when the answer streams in or the server refuses.
+import { test as plain } from "@playwright/test";
 import { test, expect } from "../../support/test.js";
 import { ready, relOptions, isPhone, overflow } from "../../support/page.js";
-import { dataKey } from "../../support/data-key.js";
+import { dataKey, withCourse } from "../../support/data-key.js";
 import { checkProof } from "../../../src/ai/proof.ts";
 
-// The tutor needs the study group's key to be a real one that opens the definitions (docs/DATA.md).
-const withKey = dataKey ? test : test.skip;
+// The page stores the Magic Key only when the stand-in server can give the definitions that open with it (tests/support/test.js).
+const withKey = withCourse ? test : test.skip;
 
 const sse = (...events) => events.map((e) => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`).join("");
 const ANSWER = sse({ type: "delta", text: "Stand-in tutor: " }, { type: "delta", text: "this is the stand-in answer." }, { type: "done", truncated: false });
@@ -145,4 +146,26 @@ withKey("on a wide screen the error and a follow-up answer appear in the coach p
   await expect(page.getByText("this is the stand-in answer.")).toBeVisible();
   expect(asked.map((a) => a.body.kind)).toEqual(["explain", "chat"]);
   expect(await overflow(page)).toBeLessThanOrEqual(0);
+});
+
+// A device without the Magic Key still sees Explain when the server has a tutor: grayed, and a tap says what it needs.
+plain("without the Magic Key Explain is there, grayed, and opens the Magic Key prompt; with the server's tutor off it is not there", async ({ page }, testInfo) => {
+  test.skip(!isPhone(testInfo), "the answer flow is exercised in the phone layout");
+  const asked = await server(page);
+  await page.goto("/");
+  await ready(page);
+  await expect(page.locator("#unlock")).toHaveCount(0); // nothing greets the reader with a prompt
+  await answerOnPhone(page);
+  await expect(explain(page)).toHaveAttribute("aria-disabled", "true");
+  await explain(page).click({ force: true }); // aria-disabled, but it can be tapped
+  await expect(page.locator("#unlock")).toBeVisible();
+  await expect(page.locator("#unlock")).toContainText("Magic Key");
+  expect(asked).toEqual([]); // no question was sent
+
+  const off = await page.context().newPage();
+  await server(off, { health: { ok: true, tutor: "off" } });
+  await off.goto("/");
+  await ready(off);
+  await answerOnPhone(off);
+  await expect(explain(off)).toHaveCount(0);
 });

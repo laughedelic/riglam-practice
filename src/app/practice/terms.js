@@ -28,7 +28,8 @@ export function termsNode(p){
   for(const li of lis) if(li) li.names.slice(li.everyday?0:1).forEach(add);
   if(!names.length) return box;
   box.append(el("button",{type:"button",class:"tm-tog","aria-expanded":state.ui.defs?"true":"false",onclick:()=>{ state.ui.defs=!state.ui.defs; render(); if(state.ui.defs) requestAnimationFrame(()=>{ const b=document.querySelector(".tm-tog"); if(b) b.scrollIntoView({block:"start"}); }); }},state.ui.defs?"Hide definitions":"Definitions ("+names.length+")"));
-  if(state.ui.defs) box.append(el("dl",{class:"tm-defs"},names.map(n=>{
+  if(state.ui.defs&&state.unlock) box.append(lockedDefs(names));
+  else if(state.ui.defs) box.append(el("dl",{class:"tm-defs"},names.map(n=>{
     const t=state.DATA.terms[n], en=defParts(t.d), ru=defParts(t.d_ru), ruOn=state.defLang==="enru", src=en.src||(ruOn?ru.src:"");
     // with the Russian definition shown, the Russian name of the term is named beside the English one
     return el("div",{class:"tm-d"},el("dt",null,t.name,ruOn&&t.ru?el("span",{class:"tm-ru",lang:"ru",text:" · "+t.ru}):null,t.ch?el("small",{text:" · "+t.ch}):null),
@@ -37,6 +38,19 @@ export function termsNode(p){
         en.body?el("p",{lang:"en",text:endp(cap(en.body))}):null,
         ruOn&&ru.body?el("p",{class:"ru",lang:"ru",text:endp(cap(ru.body))}):null));
   })));
+  return box;
+}
+// Without the Magic Key there are no definitions to show. Each term says where to look it up (the chapter is in the open data),
+// and one note says how to read them here.
+const lookUp=ch=>/^[IVX]+ /.test(ch)?"Look it up in the booklet, chapter "+ch.replace(/^([IVX]+) /,"$1: ")+".":ch==="Dampilon tables"?"Look it up in the Dampilon tables.":"";
+function lockedDefs(names){
+  const box=el("div",{class:"tm-locked"});
+  box.append(el("dl",{class:"tm-defs"},names.map(n=>{
+    const t=state.DATA.terms[n], line=lookUp(t.ch||"");
+    return el("div",{class:"tm-d"},el("dt",null,t.name),line?el("dd",{class:"out"},el("p",{class:"src",text:line})):null);
+  })));
+  box.append(el("p",{class:"tm-key",text:"To read the full definitions here, enter the Magic Key from your study group's link."}),
+    el("button",{type:"button",class:"btn ghost",onclick:()=>state.unlock.open()},"Enter the Magic Key"));
   return box;
 }
 // The term data marks where a definition comes from with a leading "(source)"; the booklet's own wording has none or "(Purbuchok)".

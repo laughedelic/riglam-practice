@@ -1,5 +1,6 @@
 // The Worker's routes (docs/SERVER.md):
 //   GET  /api/health   are the tutor and the accounts on? (no sign-in)
+//   GET  /api/course   the definitions, for a device that has the Magic Key (src/ai/magic-key.ts)
 //   POST /api/tutor    one tutor question; the answer comes back as server-sent events (src/ai/protocol.ts)
 //   /api/account/*     optional accounts, signed in with a passkey (worker/accounts.ts)
 //   POST /api/sync     the server copy of a signed-in person's documents (worker/sync.ts)
@@ -8,13 +9,14 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import { API, HEADER, LIMITS, type BudgetScope, type ErrorCode, type Health, type TutorEvent } from "../src/ai/protocol";
-import { checkProof } from "../src/ai/proof";
+import { API, HEADER, LIMITS, type BudgetScope, type CourseResponse, type ErrorCode, type Health, type TutorEvent } from "../src/ai/protocol";
 import { accountRoutes, accountsOn } from "./accounts";
 import { dayOf, prune, reserve, settle, tutorSwitchedOn } from "./budget";
 import { readConfig } from "./config";
+import { readCourseRows } from "./course";
 import type { Env } from "./env";
 import type { Kit } from "./kit";
+import { callerOf, gate, magicKeyOf } from "./magic";
 import { syncRoutes } from "./sync";
 import { parseRequest, runTutor } from "./tutor";
 
@@ -46,13 +48,29 @@ export function createApp(deps: Deps) {
     c.res.headers.set("x-robots-tag", "noindex, nofollow, noarchive");
   });
 
-  // The tutor is on when it could answer: the database, both secrets, the switch, and a kit (the data, opened with the key).
+  // The tutor is on when it could answer: the database, both secrets, the switch, and a kit (the open data with the course rows of the database).
   const ready = async (env: Env): Promise<boolean> =>
-    !!(env.DB && env.ANTHROPIC_API_KEY && env.RIGLAM_DATA_KEY && (await tutorSwitchedOn(env.DB).catch(() => false)) && (await deps.kit(env).catch(() => null)));
+    !!(env.DB && env.ANTHROPIC_API_KEY && magicKeyOf(env) && (await tutorSwitchedOn(env.DB).catch(() => false)) && (await deps.kit(env).catch(() => null)));
 
   app.get(API.health, async (c) => {
     const body: Health = { ok: true, tutor: (await ready(c.env)) ? "on" : "off", accounts: (await accountsOn(c.env.DB)) ? "on" : "off" };
     return c.json(body, 200, { "cache-control": "no-store" });
+  });
+
+  // The definitions, to a device that has the Magic Key. A device passes the version it kept (`have`) and is told when that is still current.
+  app.get(API.course, async (c) => {
+    const env = c.env;
+    const checked = await gate(env, now(), await callerOf(c.req.header("cf-connecting-ip")), c.req.header(HEADER.device) ?? "", c.req.header(HEADER.proof) ?? "");
+    if (!checked.ok) {
+      if (checked.reason === "blocked") return fail("rate_limited", "too many wrong keys from this connection; try again later", {}, { resetsAt: checked.resetsAt });
+      return fail("not_granted", "the Magic Key does not match");
+    }
+    const rows = await readCourseRows(env.DB);
+    if (!rows) return fail("unavailable", "the course data is not on the server");
+    const headers = { "content-type": "application/json", "cache-control": "no-store" };
+    if (c.req.query("have") === rows.version) return new Response(JSON.stringify({ version: rows.version, unchanged: true } satisfies CourseResponse), { headers });
+    // the stored text goes out as it is: it was checked to be JSON when it was loaded
+    return new Response(`{"version":${JSON.stringify(rows.version)},"definitions":${rows.definitions}}`, { headers });
   });
 
   app.post(API.tutor, async (c) => {
@@ -61,8 +79,8 @@ export function createApp(deps: Deps) {
     if (length > LIMITS.body) return fail("prompt_too_large", "the request is too large");
     const device = c.req.header(HEADER.device) ?? "";
     const proof = c.req.header(HEADER.proof) ?? "";
-    // Sign-in comes first, so that nothing below (the database, the model) is reached by a caller without the key.
-    if (!env.RIGLAM_DATA_KEY || !(await checkProof(env.RIGLAM_DATA_KEY, device, proof))) return fail("not_granted", "the proof does not match");
+    // Sign-in comes first, so that nothing below (the model) is reached by a caller without the key. Wrong keys are counted per caller.
+    if (!(await gate(env, now(), await callerOf(c.req.header("cf-connecting-ip")), device, proof)).ok) return fail("not_granted", "the proof does not match");
     if (!(await ready(env))) return fail("unavailable", "the tutor is off");
 
     let body: unknown;

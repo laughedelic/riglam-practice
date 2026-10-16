@@ -28,6 +28,7 @@ async function boot(platform){
   catch(e){ state.mode="nodata"; render(); return; }
   try{ state.db=await platform.db(); }catch(e){ state.db=null; }
   try{ state.sample=await platform.sample(); }catch(e){ state.sample=null; }
+  try{ state.unlock=platform.unlock?await platform.unlock():null; }catch(e){ state.unlock=null; }
   try{ state.tutor=platform.tutor?await platform.tutor():null; }catch(e){ state.tutor=null; }
   if(!state.db){ state.gotA=state.gotB=state.gotS=true; advance(); state.mode="quiz"; render(); return; }
   state.db.collection("batches").orderBy("order","asc").onSnapshot(snap=>{
