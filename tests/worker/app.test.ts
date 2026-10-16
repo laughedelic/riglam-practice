@@ -46,6 +46,7 @@ describe("GET /api/health", () => {
     ["no database", { DB: undefined }],
     ["no model key", { ANTHROPIC_API_KEY: undefined }],
     ["no data key", { RIGLAM_DATA_KEY: undefined }],
+    ["a data key that is not words (the 43-character key of earlier versions)", { RIGLAM_DATA_KEY: "Ab3dEfGhIjKlMnOpQrStUvWxYz0123456789_-AbCdE" }],
   ])("says it is off with %s", async (_n, env) => {
     expect((await health(env)).body).toEqual({ ok: true, tutor: "off" });
   });

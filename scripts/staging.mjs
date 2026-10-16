@@ -6,7 +6,7 @@
 //   list          show what origin/staging was built from
 //   deploy        build the app from the checked-out staging branch and put it on the Worker Preview named staging (wrangler.staging.jsonc)
 //                 deploy --here  the same for whatever commit is checked out, without the branch checks (for a build service such as Workers Builds,
-//                                which builds other branches too: those are skipped, by WORKERS_CI_BRANCH)
+//                                which builds other branches too: a branch other than staging gets its own Preview, by WORKERS_CI_BRANCH)
 // Exit 0 on success, 1 when the work could not be done (a conflict, a missing branch), 2 on a usage problem.
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -57,10 +57,32 @@ function describe(result) {
   console.log(`staging is ${result.sha.slice(0, 7)}: main ${result.baseSha.slice(0, 7)}${result.merged.map((m) => `\n  + ${m.branch} ${m.sha.slice(0, 7)}${m.addsNothing ? "  (adds nothing to main: already merged? then --remove it)" : ""}`).join("")}`);
 }
 
+/** The Preview's first address from the JSON `wrangler preview` prints, or the whole output when it has another shape. */
+function previewUrl(out) {
+  try {
+    return JSON.parse(out.slice(out.indexOf("{"))).preview.urls[0];
+  } catch {
+    return out;
+  }
+}
+
+/**
+ * A branch other than staging (a pull request): the app as the branch has it, on the Preview that wrangler names after the branch.
+ * It reads wrangler.jsonc, whose `previews` block is empty, so the Preview has no database and no secrets: the tutor is off and
+ * nothing can be spent. Its name is wrangler's own, the one `npx wrangler preview` (Workers Builds' default) would give it.
+ */
+function deployBranch(branch) {
+  const sha = git(root, ["rev-parse", "--short", "HEAD"]);
+  run("npm", ["ci"]);
+  run("npm", ["run", "build:pwa"]);
+  const out = execFileSync("npx", ["--yes", `wrangler@${wranglerVersion()}`, "preview", "--message", sha, "--json"], { cwd: root, encoding: "utf8", stdio: ["inherit", "pipe", "inherit"] });
+  console.log(`${branch} ${sha} is at ${previewUrl(out)}`);
+}
+
 function deploy({ here = false } = {}) {
   // Workers Builds has one deploy command for all non-production branches and names the branch in WORKERS_CI_BRANCH.
   const branch = process.env.WORKERS_CI_BRANCH;
-  if (here && branch && branch !== TARGET) return console.log(`not deploying: this build is for ${branch}, and only ${TARGET} goes to the ${PREVIEW} Preview`);
+  if (here && branch && branch !== TARGET) return deployBranch(branch);
   if (!here) {
     if (git(root, ["symbolic-ref", "--quiet", "--short", "HEAD"], { allowFail: true }) !== TARGET) throw new StagingError(`deploy builds the working tree: check out the staging branch first (git switch ${TARGET})`);
     if (git(root, ["status", "--porcelain", "--untracked-files=no"])) throw new StagingError("the working tree has uncommitted changes");
@@ -82,11 +104,7 @@ function deploy({ here = false } = {}) {
   run("npx", [...wrangler, "d1", "migrations", "apply", D1_NAME, "--remote", "-c", MIGRATIONS_CONFIG]);
   // A Preview, not a deploy: it has the database and variables of the `previews` block and none of production's secrets or data.
   const out = execFileSync("npx", [...wrangler, "preview", "--name", PREVIEW, "-c", CONFIG, "--message", sha, "--json"], { cwd: root, encoding: "utf8", stdio: ["inherit", "pipe", "inherit"] });
-  try {
-    console.log(`staging ${sha} is at ${JSON.parse(out.slice(out.indexOf("{"))).preview.urls[0]}`);
-  } catch {
-    console.log(out);
-  }
+  console.log(`staging ${sha} is at ${previewUrl(out)}`);
 }
 
 try {

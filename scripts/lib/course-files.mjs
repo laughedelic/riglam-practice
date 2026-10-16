@@ -1,38 +1,36 @@
 // Reads and writes the term data files for the Node side: the data script, the artifact build and the tests.
-// The format itself is in src/data/course.js.
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+// The open data is committed (src/data/drill-data.json). The course part (definitions and notes) is kept in the
+// git-ignored folder data-private/ and on the server (docs/DATA.md). The format itself is in src/data/course.js.
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { open, seal, split, merge, parseKey } from "../../src/data/course.js";
+import { split, merge } from "../../src/data/course.js";
 
 export const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 export const files = {
   open: resolve(root, "src/data/drill-data.json"),
-  definitions: resolve(root, "src/data/course-definitions.enc"),
-  notes: resolve(root, "src/data/course-notes.enc"),
-  keyFile: resolve(root, ".data-key"),
-};
-
-/** The data key from RIGLAM_DATA_KEY or the git-ignored file .data-key; null when there is none. */
-export function readKey() {
-  const fromEnv = parseKey(process.env.RIGLAM_DATA_KEY);
-  if (fromEnv) return fromEnv;
-  if (process.env.RIGLAM_DATA_KEY) throw new Error("RIGLAM_DATA_KEY is set but is not a key (43 characters, base64url)");
-  return existsSync(files.keyFile) ? parseKey(readFileSync(files.keyFile, "utf8")) : null;
-}
-
-export const requireKey = (what) => {
-  const key = readKey();
-  if (!key) throw new Error(`${what} needs the data key: set RIGLAM_DATA_KEY or put the key in .data-key (docs/DATA.md)`);
-  return key;
+  privateDir: resolve(root, "data-private"),
+  definitions: resolve(root, "data-private/definitions.json"),
+  notes: resolve(root, "data-private/notes.json"),
 };
 
 export const readOpen = () => JSON.parse(readFileSync(files.open, "utf8"));
 
-/** The full data (open data with definitions and notes put back) from the files in the repo. */
-export async function readFull(key) {
-  const definitions = JSON.parse(await open(key, "definitions", readFileSync(files.definitions)));
-  const notes = JSON.parse(await open(key, "notes", readFileSync(files.notes)));
+/** Whether this checkout has the course part (data-private/ is not in git; `npm run data:import` or `data:pull` makes it). */
+export const hasCourse = () => existsSync(files.definitions) && existsSync(files.notes);
+
+/** Whether data-private/ holds either course file. A checkout with only one of them is not empty: writing over it would lose that file. */
+export const hasAnyCourse = () => existsSync(files.definitions) || existsSync(files.notes);
+
+/** The two course parts as objects. */
+export function readParts() {
+  if (!hasCourse()) throw new Error("the course data is missing: data-private/ has no definitions.json and notes.json (docs/DATA.md)");
+  return { definitions: JSON.parse(readFileSync(files.definitions, "utf8")), notes: JSON.parse(readFileSync(files.notes, "utf8")) };
+}
+
+/** The full data (open data with definitions and notes put back). */
+export function readFull() {
+  const { definitions, notes } = readParts();
   return merge(readOpen(), definitions, notes);
 }
 
@@ -49,25 +47,19 @@ export function formatOpen(open) {
   return `{\n${lines.join(",\n")}\n}\n`;
 }
 
-/** Writes an encrypted part unless the file already holds the same text (a new random IV would otherwise change the file for nothing). */
-async function writePart(key, kind, path, value) {
-  const plain = JSON.stringify(value);
-  if (existsSync(path)) {
-    try {
-      if ((await open(key, kind, readFileSync(path))) === plain) return false;
-    } catch { /* a different key or a damaged file: write it again */ }
-  }
-  writeFileSync(path, await seal(key, kind, plain));
+function writeIfChanged(path, text) {
+  if (existsSync(path) && readFileSync(path, "utf8") === text) return false;
+  writeFileSync(path, text);
   return true;
 }
 
-/** Splits the full data and writes the three files. Returns what changed. */
-export async function writeFull(key, full) {
+/** Splits the full data and writes the open file and the two course files. Returns what changed. */
+export function writeFull(full) {
   const parts = split(full);
-  const openText = formatOpen(parts.open);
+  mkdirSync(files.privateDir, { recursive: true });
   const changed = [];
-  if (!existsSync(files.open) || readFileSync(files.open, "utf8") !== openText) (writeFileSync(files.open, openText), changed.push("drill-data.json"));
-  if (await writePart(key, "definitions", files.definitions, parts.definitions)) changed.push("course-definitions.enc");
-  if (await writePart(key, "notes", files.notes, parts.notes)) changed.push("course-notes.enc");
+  if (writeIfChanged(files.open, formatOpen(parts.open))) changed.push("src/data/drill-data.json");
+  if (writeIfChanged(files.definitions, JSON.stringify(parts.definitions))) changed.push("data-private/definitions.json");
+  if (writeIfChanged(files.notes, JSON.stringify(parts.notes))) changed.push("data-private/notes.json");
   return { changed, parts };
 }

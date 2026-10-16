@@ -14,13 +14,10 @@
     "binding": "ASSETS",
     "run_worker_first": ["/api/*"]
   },
-  // The encrypted course files are bundled into the Worker script as bytes; it opens them with its RIGLAM_DATA_KEY secret
-  // (worker/kit.ts). They are not in the static files, so a browser cannot fetch the notes.
-  "rules": [{ "type": "Data", "globs": ["**/*.enc"], "fallthrough": true }],
   // Only the lines the Worker writes itself (errors, with no text of any question). No line per request.
   "observability": { "enabled": true, "logs": { "invocation_logs": false } },
   // The tutor's settings (worker/config.ts has the same values as defaults). A change is a pull request.
-  // Dollars are US dollars per UTC day. The secrets ANTHROPIC_API_KEY and RIGLAM_DATA_KEY are not here: `wrangler secret put`.
+  // Dollars are US dollars per UTC day. The secrets ANTHROPIC_API_KEY and RIGLAM_DATA_KEY (the Magic Key) are not here: `wrangler secret put`.
   "vars": {
     "TUTOR_MODEL": "claude-sonnet-5-5",
     "TUTOR_EFFORT": "medium",
@@ -35,5 +32,9 @@
   // Until that has been done the tutor reports itself off and everything else works.
   "d1_databases": [
     { "binding": "DB", "database_name": "riglam-practice", "database_id": "7dc5e040-56c9-49e3-af60-ee0a8e49a500", "migrations_dir": "worker/migrations" }
-  ]
+  ],
+  // Pull request previews (`wrangler preview`, docs/DEPLOY.md) do not inherit the settings above except the static files and
+  // the compatibility date, and they have no D1 database and no secrets, so the tutor is off there and nothing can be spent.
+  // To try the tutor on previews, give them their own database here and put the secrets in the Preview base config.
+  "previews": {}
 }
