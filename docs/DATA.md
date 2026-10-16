@@ -19,7 +19,7 @@ Because the key is words, guessing is slowed by the server: a caller (a hash of 
 | Where the key is | Why |
 |---|---|
 | The study group's link, after the `#` | Browsers never send the part after `#` to a server. The app takes the key out of the address at once and keeps it on the device (`localStorage`, `riglam.magicKey`), together with the definitions it fetched, so the definitions work offline and on later visits without the link. |
-| The Worker's secret `RIGLAM_DATA_KEY` (`wrangler secret put`) | The server checks proofs against it. Without it the tutor and `/api/course` answer "not granted". |
+| The Worker's secret `RIGLAM_DATA_KEY` (`wrangler secret put`) | The server checks proofs against it. Without it, or with a value that is not the words of a Magic Key (the 43-character key of earlier versions), the tutor reports itself off and `/api/course` answers "not granted". |
 
 The key never goes into the repository, a commit or pull request text, a comment, a log or the project's memory. `tests/unit/data-files.test.ts` fails if a tracked file holds a definition or a note in the clear, or, when the key is in the environment, the key itself.
 
@@ -36,7 +36,7 @@ Without `data-private/`: `npm run build:pwa`, the unit tests that do not need it
 ## What a reader sees
 
 - With the key (from the link, or kept from an earlier visit): the definitions are in the Terms panels. The first unlock needs the network; the definitions are then kept on the device, and each later visit asks the server in the background whether they changed.
-- Without it: the terms, translations and relations work and nothing greets the reader with a prompt. A locked term in the Terms panel says in which booklet chapter to look it up, with one note and a button that opens the prompt. Explain shows grayed when the server has a tutor, and a tap opens the prompt too, as does the Magic Key row in Options. The prompt (`src/pwa/unlock.ts`) takes the words or the whole link and opens by itself only when a link carries a key that does not fit. A key that does not fit is refused and not kept.
+- Without it: the terms, translations and relations work and nothing greets the reader with a prompt. A locked term in the Terms panel says in which booklet chapter or section to look it up, with one note and a button that opens the prompt. Explain shows grayed when the server has a tutor, and a tap opens the prompt too, as does the Magic Key row in Options. The prompt (`src/pwa/unlock.ts`) takes the words or the whole link and opens by itself only when a link carries a key that does not fit. A key that does not fit is refused and not kept.
 - A key the server stops accepting (after a change of the secret) is forgotten, together with the kept definitions, on the next visit with a connection; the visit after that opens the prompt once, with a message that the key was changed.
 - An app added to the iPhone home screen has storage of its own, separate from Safari, and a link cannot be opened inside it. Its dialog is the way in: type or paste the key there once.
 - If the browser's storage is cleared, the app asks again.
@@ -47,7 +47,7 @@ Without `data-private/`: `npm run build:pwa`, the unit tests that do not need it
 npm run data:key                      # print a new Magic Key (four random words)
 npm run data:import -- full.json      # split a knowledge-base export into src/data/drill-data.json and data-private/
 npm run data:export -- full.json      # the full data, definitions and notes put back
-npm run data:check                    # check that the open file holds no definition or note and data-private/ matches it
+npm run data:check                    # check that the open file holds no definition or note and data-private/ matches it (it also says how many terms have no definition; a term can have none)
 npm run data:publish                  # load data-private/ into the production database (wrangler; --config <file> for another database)
 npm run data:sql -- out.sql           # the statements publish runs, to load by other means
 npm run data:fixture                  # write made-up definitions and notes into data-private/ (refuses to overwrite real ones; --replace does)

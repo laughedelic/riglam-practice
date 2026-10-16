@@ -44,3 +44,31 @@ test("--replace overwrites what is there", () => {
   expect(readFileSync(priv("notes.json"), "utf8")).not.toBe("REAL");
   expect(existsSync(priv("definitions.json"))).toBe(true);
 });
+
+const check = () => spawnSync(process.execPath, [join(dir, "scripts/data.mjs"), "check"], { cwd: dir, encoding: "utf8" });
+
+test("check passes with no data-private/ and with both files, and refuses a data-private/ with only one", () => {
+  const none = check();
+  expect(none.status, none.stderr).toBe(0);
+  expect(fixture().status).toBe(0);
+  const both = check();
+  expect(both.status, both.stderr).toBe(0);
+  rmSync(priv("notes.json"));
+  const half = check();
+  expect(half.status).not.toBe(0);
+  expect(half.stderr).toMatch(/only one of definitions\.json and notes\.json/);
+});
+
+test("check says when terms of the open data have no definition, and still passes (a term can have none)", () => {
+  expect(fixture().status).toBe(0);
+  const file = priv("definitions.json");
+  const definitions = JSON.parse(readFileSync(file, "utf8"));
+  const gone = Object.keys(definitions).slice(0, 2);
+  for (const k of gone) delete definitions[k];
+  writeFileSync(file, JSON.stringify(definitions));
+  const run = check();
+  expect(run.status, run.stderr).toBe(0);
+  expect(run.stdout).toMatch(/notice: 2 of \d+ terms of the open data have no definition/);
+  expect(run.stdout).toContain(gone[0]);
+});
+

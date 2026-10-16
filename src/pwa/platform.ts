@@ -139,7 +139,7 @@ export const pwaPlatform: Platform = {
   db: async () => db,
   sample,
   // Offered while there is no key: the page opens the prompt when the reader reaches something that needs it (Explain, the definitions, Options).
-  unlock: async () => (groupKey || !openUnlock ? null : { open: openUnlock, tutor: await tutorIsOn() }),
+  unlock: async () => (groupKey || !openUnlock ? null : { open: openUnlock, tutor: false, answer: tutorIsOn() }),
   // While this device has the key: another one can be entered (the prompt keeps the old one until the new one is checked), or the key is forgotten, with the kept definitions.
   keyHeld: async () => (groupKey ? { change: () => (changeKey ??= showUnlock({ verify }))(), forget: forgetEverything } : null),
   // Only with the key (the server would refuse the request anyway) and only when the server says its tutor is on: otherwise the page hides the tutor.
