@@ -16,24 +16,22 @@ Alternatives considered and not chosen: GitHub Pages (no private-repo hosting on
 | Event | Job | Result |
 |---|---|---|
 | Push to a branch, pull request | Cloudflare Workers Builds (not GitHub Actions) | builds the branch and publishes it as a Worker Preview with its own address, shown by Cloudflare as a comment and a check on the pull request |
-| Release created (merge of the release pull request) | `release.yml` → `publish` | attaches `riglam-practice-pwa-<tag>.zip` to the GitHub release, then `wrangler deploy` puts the PWA on the production address |
+| Release created (merge of the release pull request) | `release.yml` → `publish` | attaches `riglam-practice-pwa-<tag>.zip` to the GitHub release |
+| Push to `main` that changes `.release-please-manifest.json` (the merge of the release pull request) | Cloudflare Workers Builds, not GitHub | builds the PWA and runs `wrangler deploy`: this is the production deploy |
 
-Both deploy steps check for the two secrets below and skip with a notice when they are missing, so the pipeline works (build, tests, release) before any Cloudflare account exists.
+No GitHub workflow deploys anything or holds a Cloudflare credential.
+
+### Production deploy
+
+Production is deployed by a Cloudflare Workers Builds trigger connected to the repository (*Workers & Pages → the Worker → Settings → Build*): branch `main`, build command `npm run build:pwa`, deploy command `npx wrangler deploy`, and the path filter `.release-please-manifest.json` under *Build watch paths*. Ordinary merges to `main` do not change that file, so they do not deploy; the release pull request does, so a release is the only thing that reaches production. The secrets the Worker needs are set on the Worker itself (see [SERVER.md](SERVER.md)); a secret changed in the dashboard makes a new version that is not live until it is deployed, and it is built on the latest uploaded version, which may be a branch build, so set secrets with `npx wrangler secret put`.
 
 ## One-time setup (the repository owner)
 
 1. A Cloudflare account (the free plan is enough).
-2. Create the Worker once, from your own machine, signed in with `npx wrangler login` (browser sign-in, no token stored): `npm ci && npm run build:pwa && npx wrangler deploy`. This registers the name `riglam-practice` (the `name` in `wrangler.jsonc`), creates the `*.workers.dev` address and checks the account. Creating a Worker needs Admin rights on the account's Workers, which the token below deliberately does not have. If Cloudflare's API answers with a 504, run the command again; it is safe to repeat.
-3. Create an **account-owned** API token for GitHub Actions: *Manage Account → Account API Tokens → Create Token → Create Custom Token* (not *My Profile → API Tokens*: per-Worker permissions need an account-owned token). Permission: product **Workers**, role **Editor**, resource: the single Worker `riglam-practice`. Nothing else, and not the "Edit Cloudflare Workers" template (it grants KV, R2, log tailing and zone routes, and the older "Workers Scripts" group it is built from is account-wide). Set an expiry (TTL) and a reminder to renew it. The exact labels in the token form may differ slightly from these; the rule is "Editor on this one Worker".
-4. In GitHub: *Settings → Secrets and variables → Actions → New repository secret*: `CLOUDFLARE_API_TOKEN` (the token) and `CLOUDFLARE_ACCOUNT_ID` (shown in the dashboard's right-hand sidebar; not sensitive). The data key `RIGLAM_DATA_KEY` is a secret too, see [DATA.md](DATA.md).
-5. In the Cloudflare dashboard, under the Worker's *Settings → Domains & Routes*, make sure the workers.dev route and Preview URLs are enabled. Preview aliases (`pr-12-riglam-practice.<account>.workers.dev`) need them.
-6. Optional: a custom domain on the Worker.
-
-### What the token is used for
-
-Only one workflow step reads it: `release.yml` → `publish` (`wrangler deploy`, when a release is created). It uploads the built files from `dist/pwa` and the Worker script bundled from `worker/` to the existing Worker. Previews do not use it: Cloudflare Workers Builds makes them with its own credentials. The token exists only as a GitHub repository secret.
-
-Cloudflare's Workers authorization page lists "Editor on that Worker" as what `wrangler deploy` needs for an existing Worker, and "Admin at the Workers product scope" for creating one (hence step 2). With Editor on one Worker, a leaked token can change only that Worker; it cannot touch other Workers, KV, R2 or the account. A Worker Preview is separate from the production Worker: it does not see the production secrets or the D1 database unless they are put into the Preview base configuration.
+2. Create the Worker once, from your own machine, signed in with `npx wrangler login` (browser sign-in, no token stored): `npm ci && npm run build:pwa && npx wrangler deploy`. This registers the name `riglam-practice` (the `name` in `wrangler.jsonc`), creates the `*.workers.dev` address and checks the account. Creating a Worker needs Admin rights on the account's Workers. If Cloudflare's API answers with a 504, run the command again; it is safe to repeat.
+3. Connect the repository to the Worker for builds (*Settings → Build*, as under Production deploy above). The data key `RIGLAM_DATA_KEY` is a Worker secret: see [DATA.md](DATA.md).
+4. In the Cloudflare dashboard, under the Worker's *Settings → Domains & Routes*, make sure the workers.dev route and Preview URLs are enabled. Preview aliases (`pr-12-riglam-practice.<account>.workers.dev`) need them.
+5. Optional: a custom domain on the Worker.
 
 ## Staging
 

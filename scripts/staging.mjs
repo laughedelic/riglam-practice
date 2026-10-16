@@ -44,10 +44,10 @@ function usage(problem) {
 
 const run = (cmd, cmdArgs, env = {}) => execFileSync(cmd, cmdArgs, { cwd: root, stdio: "inherit", env: { ...process.env, ...env } });
 
-/** The wrangler version the workflows pin, so that a deploy from this machine behaves like the pipeline. */
+/** The wrangler version CI pins, so that a deploy from this machine behaves like the pipeline. */
 function wranglerVersion() {
   try {
-    return /WRANGLER_VERSION:\s*(\S+)/.exec(readFileSync(resolve(root, ".github/workflows/release.yml"), "utf8"))?.[1] ?? "4.149.0";
+    return /WRANGLER_VERSION:\s*(\S+)/.exec(readFileSync(resolve(root, ".github/workflows/ci.yml"), "utf8"))?.[1] ?? "4.149.0";
   } catch {
     return "4.149.0";
   }
