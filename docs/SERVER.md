@@ -43,6 +43,7 @@ tests/worker/           Vitest tests with stand-ins for D1 and the model API
 
 | `POST /api/account/key`, `GET /api/account/key` | An account carries the Magic Key (needs a session and the access proof), and gives it to its signed-in devices. See "Accounts and sync". |
 | `/api/account/...`, `POST /api/sync` | Optional accounts and the server copy of the documents; see "Accounts and sync". |
+| `GET /api/admin/flags`, `GET /api/admin/flags/:device/:id`, `POST /api/admin/flags/:device/:id/decide` | The maintainer reads the reports the review sent on and records a decision, with `Authorization: Bearer <RIGLAM_ADMIN_KEY>`. Off without that secret. See "Maintainer access". |
 | `POST /api/flags` | Reports of flags: `{send?: [{id, flag, answer}], withdraw?: [id], status?: [id]}` with the same proof headers as the tutor; answers `{stored, withdrawn, status?}`. See "Flag reports" and "Reviewing flags". |
 
 The request carries only what the learner typed and the page's own state (the card of the pair and the conversation). The standing instructions, the lookup tools and the notes ("fine points") are on the server; the notes never reach a browser.
@@ -160,6 +161,18 @@ A scheduled pass of the Worker (`worker/review.ts`, cron trigger `*/10 * * * *` 
 - **Switch.** `INSERT OR REPLACE INTO settings (key, value) VALUES ('review', 'off');` stops the pass (reports are still taken); deleting the row turns it on. A `REVIEW_DAILY_BUDGET_USD` of `0` also closes it. The columns the pass writes (`reply`, `outcome`, `cause`, `reason`, `fix`, `reviews` and others) come with the migration `0006_flag_review.sql`; until it has been applied `/api/health` says `reports: "off"`.
 - **Privacy.** The reviewing models get the flag, the stored answer and the course text that the card and the tools hold, through the same API as the tutor. The reply is shown only to a request that proves the Magic Key. `fix`, `cause`, `reason` and the reviewers' answers stay on the server for the maintainer.
 
+## Maintainer access
+
+`worker/admin.ts` is the door for whoever runs the app (a person with `curl`, or a scheduled task) to read the reports that the review sent on and to answer them. It does that and nothing else: no accounts, no documents, no budgets, no model calls.
+
+- **Off by default.** It exists only when the secret `RIGLAM_ADMIN_KEY` is set to a random string of at least 32 characters (`npx wrangler secret put RIGLAM_ADMIN_KEY`); without it the routes answer 404 like any unknown address. The key is its own: the Magic Key does not open it.
+- **The key.** `Authorization: Bearer <key>`. Wrong keys are counted per caller and hour in the same `guesses` table as the Magic Key's (10 an hour; then 429 until the hour is over, even for the right key).
+- `GET /api/admin/flags?state=maintainer&cause=&since=&limit=` lists reports (`state` is `sent`, `answered`, `maintainer`, `fixed`, `decided` or `all`; default `maintainer`; at most 50, oldest first) with `counts` by state and by cause. Each report has the flag (what it is on, what Claude said, the learner's note and suggestion), the pair, the outcome, cause, reason and `fix` of the review, both reviewers' answers, the reply the sender reads, whether the sender was signed in, and the `digest` of its words. A follow-up on a reply comes with the report it follows (`parent`). The device id appears only inside `ref`, the name a report is addressed by.
+- `GET /api/admin/flags/:device/:id` is one report with the whole stored answer.
+- `POST /api/admin/flags/:device/:id/decide` takes `{digest, state, reply?, decision?}`. `state` is `answered` (the automatic reply stands), `fixed` or `decided`. `reply` is what the sender reads next (plain text, cut to 1200 characters; without it the reply stays, with an empty one it is taken away); `decision` is the maintainer's own record (what was decided and where it was done), at most 1000 characters, never sent to a device. The `digest` is the one the report had when it was read: a report whose words were changed since is refused (409), so a decision cannot land on words it was not made on.
+- **Everything is data.** The text in a report comes from a learner's device or from a model that read it, and every answer carries a notice saying so. Whatever reads it, a person or a model, treats it as text to judge, never as instructions, and decides nothing on its say-so.
+- Migration `0007_flag_decisions.sql` adds the `decision` and `decided_at` columns; until it is applied `/api/health` says `reports: "off"`.
+
 ## Setting up your own
 
 Nothing here is needed to build or test the app; without the database the tutor is simply off (`/api/health` says so).
@@ -173,11 +186,12 @@ Nothing here is needed to build or test the app; without the database the tutor 
    ```sh
    npx wrangler d1 migrations apply riglam-practice --remote
    ```
-   Apply it again after any pull request that adds a file to `worker/migrations/` (`0002_accounts.sql` adds the accounts, `0005_flag_reports.sql` the flag reports and `0006_flag_review.sql` their review; the app works without them and `/api/health` says `accounts: "off"` or `reports: "off"`). Accounts need no secret and no extra service.
-3. Store the two secrets on the Worker (the commands ask for the value at a prompt):
+   Apply it again after any pull request that adds a file to `worker/migrations/` (`0002_accounts.sql` adds the accounts, `0005_flag_reports.sql` the flag reports and `0006_flag_review.sql` their review and `0007_flag_decisions.sql` the maintainer's decisions on them; the app works without them and `/api/health` says `accounts: "off"` or `reports: "off"`). Accounts need no secret and no extra service.
+3. Store the secrets on the Worker; the first two are needed and the third is optional (the commands ask for the value at a prompt):
    ```sh
    npx wrangler secret put ANTHROPIC_API_KEY
    npx wrangler secret put RIGLAM_DATA_KEY     # the Magic Key: the words in the shared link
+   npx wrangler secret put RIGLAM_ADMIN_KEY    # optional: opens "Maintainer access"; at least 32 random characters
    ```
    Worker Previews do not inherit these secrets: give a Preview its own through the Preview base configuration (docs/DEPLOY.md).
 4. Deploy as usual. Check `GET /api/health`.
@@ -195,7 +209,7 @@ Nothing here is needed to build or test the app; without the database the tutor 
 - The kit is made from a few invented terms in a fake database; the last test block runs on the real course data when `data-private/` is there (as in CI, [DATA.md](DATA.md)) and is skipped otherwise.
 - Passkeys are made by a software authenticator (`tests/worker/authenticator.ts`) that produces the bytes a phone would (a `none` attestation with an ES256 key, signed assertions), so the library's real verification runs.
 
-`reports.test.ts` and `review.test.ts` cover the reports (the Magic Key, the limits, taking one back) and the scheduled review (which reports a pass takes, what each model is asked, every outcome, the budget, failures and retries, an edit made during a review, and what the sender can read back).
+`admin.test.ts` covers the maintainer's door (off without the key, the counted key, what a list and a report show, a decision and the reply it gives, the refusal of a decision on changed words). `reports.test.ts` and `review.test.ts` cover the reports (the Magic Key, the limits, taking one back) and the scheduled review (which reports a pass takes, what each model is asked, every outcome, the budget, failures and retries, an edit made during a review, and what the sender can read back).
 
 `accounts.test.ts` covers making an account, signing in, every refusal (another site's origin, a replayed or expired challenge, a passkey for another host name, a key that is not the account's), sessions, the limits, deleting and the switches; `sync.test.ts` covers who may sync, what a write may be, how two devices settle a document and the limits. They also cover the kit (the tools, the notes, a category id that is not the data's own, the wrong key, no text in the log), the proof, the settings, the prices, the counters (including simultaneous questions), every refusal path, a plain answer with the exact model request, tool rounds and their failure, the last-round rule, every failure of the model call, and the page going away.
 

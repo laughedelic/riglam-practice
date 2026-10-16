@@ -25,7 +25,7 @@ export async function reportsOn(db: D1Database | undefined): Promise<boolean> {
   if (!db) return false;
   try {
     // one query: the switch, and a look at the table and the columns the review added that fails when a migration has not been applied
-    const row = await db.prepare("SELECT (SELECT value FROM settings WHERE key = 'reports') AS v, (SELECT COUNT(*) FROM flag_reports WHERE reply IS NULL AND claimed_at IS NULL AND digest IS NULL AND 0) AS probe").first<{ v: string | null }>();
+    const row = await db.prepare("SELECT (SELECT value FROM settings WHERE key = 'reports') AS v, (SELECT COUNT(*) FROM flag_reports WHERE reply IS NULL AND claimed_at IS NULL AND digest IS NULL AND decision IS NULL AND decided_at IS NULL AND 0) AS probe").first<{ v: string | null }>();
     return row?.v !== "off";
   } catch {
     return false;

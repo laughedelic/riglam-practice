@@ -10,6 +10,9 @@ export interface Env {
   /** the Magic Key (docs/DATA.md): four lower-case words joined by dashes. It checks the proofs; with it a device may read the definitions */
   RIGLAM_DATA_KEY?: string;
 
+  /** the maintainer's key (docs/SERVER.md, "Maintainer access"): at least 32 characters; without it the maintainer routes are off */
+  RIGLAM_ADMIN_KEY?: string;
+
   // variables (all optional: config.ts has a default for each)
   /** where the model API is; unset means Anthropic's. For a local trial against a stand-in, or a gateway in front of the API. */
   ANTHROPIC_BASE_URL?: string;
