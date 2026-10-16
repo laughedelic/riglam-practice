@@ -28,7 +28,9 @@ function setFav(p,on){
   const k=favKey(p), had=state.favs[k];
   if(on&&!had){
     const [ca,cb]=pairCats(p);
-    const doc=JSON.parse(JSON.stringify({key:k,a:p.a,b:p.b,catA:ca,catB:cb,relation:p.relation,pair:p,at:new Date().toISOString()}));
+    /** @type {import("../types.ts").FavDoc} */
+    const draft={key:k,a:p.a,b:p.b,catA:ca,catB:cb,relation:p.relation,pair:p,at:new Date().toISOString()};
+    const doc=JSON.parse(JSON.stringify(draft));        // without the undefined fields
     state.favs[k]=doc; render();
     favWrite(k,()=>put("favorites",k,doc),()=>{ delete state.favs[k]; });
   } else if(!on&&had){

@@ -1,6 +1,6 @@
 // The interface and its code use American spelling (the knowledge base and the term data do too, see docs/DATA.md). This reads the
-// page and PWA sources and fails on the British forms that have come up, so new text does not bring them back. It does not
-// read stylesheets, the term data or the tutor's prompts (`src/ai-shared`, which also holds the table that turns British
+// page and PWA sources, stylesheets included, and fails on the British forms that have come up, so new text does not bring
+// them back. It does not read the term data or the tutor's prompts (`src/ai-shared`, which also holds the table that turns British
 // spellings in a learner's words into American ones).
 import { expect, test } from "vitest";
 import { readdirSync, readFileSync } from "node:fs";
@@ -11,7 +11,7 @@ const BRITISH =
 
 function sources(dir: string): string[] {
   return readdirSync(`${root}/${dir}`, { recursive: true, withFileTypes: true })
-    .filter((e) => e.isFile() && /\.(js|ts|html)$/.test(e.name))
+    .filter((e) => e.isFile() && /\.(js|ts|html|css)$/.test(e.name))
     .map((e) => `${e.parentPath.slice(root.length + 1)}/${e.name}`);
 }
 
