@@ -290,3 +290,43 @@ withKey("with the key, Options can take another one (the old one stays until the
   await page.getByRole("button", { name: /options/i }).filter({ visible: true }).first().click();
   await expect(page.getByRole("button", { name: "Enter the Magic Key" })).toBeVisible();
 });
+
+withKey("a link with another key, opened when the server cannot be asked, does not let the copy kept for the old key pass as that key's", async ({ page }) => {
+  const full = readFull();
+  await page.addInitScript(hook);
+  await serveCourse(page);
+  await page.goto(`/#k=${dataKey}`);
+  await ready(page);
+  expect((await firstTerm(page)).d).toBe(full.terms[Object.keys(full.terms)[0]].d);
+
+  const other = testMagicKey();
+  await page.route("**/api/course**", (route) => route.abort("internetdisconnected"));
+  await page.goto(`/?again=1#k=${other}`);
+  await ready(page);
+  expect((await firstTerm(page)).d, "the other key is not accepted yet, so nothing is open").toBe(LOCKED_TEXT);
+  expect(await storedKey(page)).toBe(other); // kept for the next visit, to be asked again
+
+  await page.goto("/?again=2");
+  await ready(page);
+  expect((await firstTerm(page)).d, "the copy of the old key is gone, not shown as this key's").toBe(LOCKED_TEXT);
+});
+
+withKey("an answer about an old key does not undo the key another tab has set in the meantime", async ({ page }) => {
+  await page.addInitScript(hook);
+  await serveCourse(page);
+  await page.goto(`/#k=${dataKey}`);
+  await ready(page);
+
+  let hold = (_route) => {};
+  const asked = new Promise((resolve) => { hold = resolve; });
+  await page.route("**/api/course**", (route) => hold(route)); // the background check of the kept copy waits here
+  await page.goto("/?again=1");
+  await ready(page);
+  const request = await asked;
+
+  const newer = testMagicKey();
+  await page.evaluate((key) => localStorage.setItem("riglam.magicKey", key), newer); // another tab unlocked with the new key
+  await request.fulfill({ status: 401, contentType: "application/json", body: JSON.stringify({ error: { code: "not_granted", message: "the Magic Key does not match" } }) });
+  await page.waitForTimeout(300);
+  expect(await storedKey(page)).toBe(newer);
+});

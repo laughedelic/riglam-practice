@@ -51,9 +51,11 @@ export function fail(code: AccountErrorCode, message: string, headers?: Record<s
 
 /**
  * The answer to a proof the gate refused. Past the hourly limit on wrong keys the proof was not looked at, which is a wait and not a
- * verdict on the key, so that case is a 429 with the seconds to wait; a wrong proof is `not_granted` with the given message.
+ * verdict on the key, so that case is a 429 with the seconds to wait; when the guess could not be counted the proof was not looked at
+ * either and the answer is 503 `unavailable`; a wrong proof is `not_granted` with the given message.
  */
-function keyRefusal(checked: Extract<Gate, { ok: false }>, now: Date, wrong: string): Response {
+export function keyRefusal(checked: Extract<Gate, { ok: false }>, now: Date, wrong: string): Response {
+  if (checked.reason === "unavailable") return fail("unavailable", "the key cannot be checked just now; try again later", { "retry-after": "60" });
   if (checked.reason !== "blocked") return fail("not_granted", wrong);
   const wait = Math.max(1, Math.ceil((Date.parse(checked.resetsAt ?? "") - now.getTime()) / 1000) || 60);
   return fail("quota", "too many wrong keys were tried from this connection; try again later", { "retry-after": String(wait) });
