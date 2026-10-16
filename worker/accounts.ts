@@ -246,18 +246,25 @@ export function accountRoutes(deps: AccountDeps) {
 
   // ---- a new account ----
 
+  /** The answer when sign-up is not open to this request now, or null. Asked again when the sign-up is verified: a ceremony lasts minutes, in which the setting or the key may change. */
+  async function signupRefusal(c: Ctx, signup: string): Promise<Response | null> {
+    if (signup === "closed") return fail("not_granted", "new accounts are closed");
+    if (signup === "group") {
+      const device = c.req.header(HEADER.device) ?? "";
+      const proof = c.req.header(HEADER.proof) ?? "";
+      const checked = await gate(c.env, deps.now(), await callerOf(c.req.header("cf-connecting-ip")), device, proof);
+      if (!checked.ok) return keyRefusal(checked, deps.now(), "new accounts need the Magic Key");
+    }
+    return null;
+  }
+
   app.post(ACCOUNT_API.registerOptions, async (c) => {
     const env = c.env;
     if (!(await accountsOn(env.DB))) return fail("unavailable", "accounts are off");
     const db = env.DB!;
     const cfg = readAccountConfig(env);
-    if (cfg.signup === "closed") return fail("not_granted", "new accounts are closed");
-    if (cfg.signup === "group") {
-      const device = c.req.header(HEADER.device) ?? "";
-      const proof = c.req.header(HEADER.proof) ?? "";
-      const checked = await gate(env, deps.now(), await callerOf(c.req.header("cf-connecting-ip")), device, proof);
-      if (!checked.ok) return keyRefusal(checked, deps.now(), "new accounts need the Magic Key");
-    }
+    const refused = await signupRefusal(c, cfg.signup);
+    if (refused) return refused;
     if ((await count(db, "SELECT COUNT(*) AS n FROM users")) >= cfg.maxAccounts) return fail("quota", "this app has reached its number of accounts");
     const body = await readObject(c, 2_000);
     if (body === "too_large") return fail("too_large", "the request is too large");
@@ -288,6 +295,8 @@ export function accountRoutes(deps: AccountDeps) {
     const body = await readObject(c, 100_000);
     if (body === "too_large") return fail("too_large", "the request is too large");
     if (!body || !body.response || typeof body.response !== "object") return fail("bad_request", "the body is not a sign-up");
+    const refused = await signupRefusal(c, readAccountConfig(env).signup);
+    if (refused) return refused;
     const challenge = await takeChallenge(db, body.challengeId, "register", now);
     if (!challenge?.userId || !challenge.name) return fail("bad_request", "this sign-up has expired; start again");
     const { origin, rpID } = where(c);

@@ -388,6 +388,25 @@ describe("limits", () => {
     expect(left.length).toBeLessThan(200);
   });
 
+  it("counts the rows again after old marks are dropped: a write to a dropped mark adds a row", async () => {
+    const w = await world({ MAX_DOCS_PER_ACCOUNT: "100" });
+    const me = await signUp(w);
+    const old = T0 - 100 * 86_400_000; // older than the 90 days after which marks may go
+    // 99 documents, two old marks (X1 X2) and 99 recent ones: 200 rows
+    await sync(w, me, 0, Array.from({ length: 99 }, (_, i) => write("answers", "doc" + i, { i }, T0 + i)));
+    await sync(w, me, 0, [write("answers", "x1", null, old), write("answers", "x2", null, old + 1)]);
+    await sync(w, me, 0, Array.from({ length: 99 }, (_, i) => write("answers", "mark" + i, null, T0 + i)));
+    expect(rows(w)).toHaveLength(200);
+    // a new document and two documents brought back from the old marks, beside two deletions: 3 more documents and 2 fewer, so the documents fit;
+    // the two old marks go first, and the three documents then take their places as new rows, which makes 201
+    const res = await post(w, me.cookie, {
+      cursor: 0,
+      writes: [write("answers", "new", {}, T0 + 5000), write("answers", "x1", {}, T0 + 5000), write("answers", "x2", {}, T0 + 5000), write("answers", "doc0", null, T0 + 5000), write("answers", "doc1", null, T0 + 5000)],
+    });
+    expect(res.status).toBe(429);
+    expect(rows(w)).toHaveLength(198); // the old marks are gone and nothing was added
+  });
+
   it("does not load more of the server's copies than an answer carries, however many small writes lose against large copies", async () => {
     const w = await world();
     const me = await signUp(w);
