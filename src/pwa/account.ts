@@ -10,7 +10,7 @@ import { HEADER } from "../ai/protocol";
 import { makeProof } from "../ai/proof";
 import type { LocalDb } from "./local-db";
 import { deviceId } from "./device";
-import { takeResync } from "./store-slot";
+import { storeName, syncName } from "./store-slot";
 
 const KEPT = "riglam.account";
 const POLL_MS = 60_000;
@@ -34,10 +34,10 @@ const keep = {
 };
 
 /** One tab at a time runs a round of sync; the others leave it to that one. Without Web Locks every tab may run one (the server settles it). */
-const exclusive = async <T>(fn: () => Promise<T>): Promise<T | undefined> => {
+const exclusive = (lockName: string) => async <T>(fn: () => Promise<T>): Promise<T | undefined> => {
   const locks = (navigator as Navigator & { locks?: LockManager }).locks;
   if (!locks) return fn();
-  return locks.request("riglam-sync", { ifAvailable: true }, async (lock) => (lock ? fn() : undefined));
+  return locks.request(lockName, { ifAvailable: true }, async (lock) => (lock ? fn() : undefined));
 };
 
 const storeOf = (db: LocalDb): SyncStore => ({
@@ -57,12 +57,13 @@ const storeOf = (db: LocalDb): SyncStore => ({
 /** The account of this device. `magicKey` is the Magic Key on this device: `read` gives it (a new account needs its proof), `adopt` takes the one the account carries. */
 export function createPwaAccount(db: LocalDb, magicKey: { read(): string | null; adopt(key: string): void }): Account {
   const client = createAccountClient();
-  const outbox = idbOutbox();
+  const syncDb = syncName(storeName()); // the cursor and the unsent changes belong to the store in use
+  const outbox = idbOutbox(undefined, syncDb);
   const sync = createSync({
     store: storeOf(db),
     outbox,
     post: (request) => client.sync(request),
-    exclusive,
+    exclusive: exclusive(syncDb),
     onSignedOut: () => account.signedOut(),
   });
   const account: Account = createAccount({
@@ -84,10 +85,6 @@ export function createPwaAccount(db: LocalDb, magicKey: { read(): string | null;
   addEventListener("online", () => account.wake());
   addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") account.wake(); });
   setInterval(() => { if (document.visibilityState === "visible" && navigator.onLine) account.wake(); }, POLL_MS);
-  // After a move to a new store (./store-slot.ts) the cursor belongs to the old one: everything is fetched again.
-  void (async () => {
-    if (takeResync()) await outbox.setMeta("cursor", 0).catch(() => {});
-    await account.start();
-  })();
+  void account.start();
   return account;
 }

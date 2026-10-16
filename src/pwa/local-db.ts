@@ -187,7 +187,7 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
     for (const fn of [...(listeners.get(col) ?? [])]) queueMicrotask(fn);
   };
 
-  const channel = opts.channel !== false && globalThis.BroadcastChannel ? new BroadcastChannel("riglam-db") : null;
+  const channel = opts.channel !== false && globalThis.BroadcastChannel ? new BroadcastChannel(dbName === DB_NAME ? "riglam-db" : `${dbName}-db`) : null;
   if (channel) {
     channel.onmessage = async ({ data: { col, id } }: MessageEvent<{ col: string; id: string }>) => {
       const row = await tx<Stored | undefined>("readonly", (s) => s.get(`${col}/${id}`)).catch(() => null);
@@ -215,6 +215,8 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
     const stored = m.get(id) ?? null; // as written now, whatever else changes the document while it is being saved
     try {
       await tx("readwrite", (s) => (data === null ? s.delete(path) : s.put({ path, col, id, data: mine })) as IDBRequest);
+      // The server's copy must not count as received when it only reached memory: sync would move its cursor past it and never bring it again.
+      if (remote && dead) throw err("unavailable", "the storage on this device is not answering");
     } catch (e) {
       // Not saved: the page must not go on showing a document that a reload would lose. Put back what was there, unless another write has replaced it since.
       if (versions.get(path) === stamp && m.get(id) === mine) {

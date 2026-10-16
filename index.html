@@ -33,9 +33,12 @@
     return t.indexOf("Loading.") === 0 || t.indexOf("The practice data could not be loaded") === 0;
   }
   function fresh() {
-    var jobs = [];
-    if (navigator.serviceWorker) jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); }));
-    if (window.caches) jobs.push(caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); }));
+    // Only this app's: the origin may hold other apps (this one can sit under a path), whose workers and offline copies stay.
+    var scope = new URL("./", document.baseURI).href, jobs = [];
+    if (navigator.serviceWorker) jobs.push(navigator.serviceWorker.getRegistration(scope).then(function (r) { return r && r.unregister(); }));
+    if (window.caches) jobs.push(caches.keys().then(function (ks) {
+      return Promise.all(ks.filter(function (k) { return k.indexOf("workbox-") === 0 && k.slice(-scope.length) === scope; }).map(function (k) { return caches.delete(k); }));
+    }));
     Promise.all(jobs).catch(function () {}).then(function () { location.reload(); });
   }
   function button(label, run) {

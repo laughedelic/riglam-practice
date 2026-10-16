@@ -8,9 +8,9 @@ import { registerSW } from "virtual:pwa-register";
 import type { UpdateStatus, Updates } from "../platform/types";
 
 const LOOK_EVERY_MS = 15 * 60_000; // how long the app may stay in view before it looks again
-let status: UpdateStatus = "current";
+let status: UpdateStatus = "unknown"; // until a look has succeeded: offline, a registration that exists says nothing
 let registration: ServiceWorkerRegistration | undefined;
-let lastLook = Date.now(); // the browser itself looked as the page loaded
+let lastLook = 0;
 let pending: Promise<void> | null = null;
 const listeners = new Set<() => void>();
 
@@ -39,12 +39,15 @@ registerSW({
   onRegisteredSW: (_url, r) => {
     registration = r;
     if (!r) return set("unknown");
+    void check(); // the browser's own look as the page loads may have failed (offline): the status is "current" only after one that worked
     r.addEventListener("updatefound", () => {
       if (!r.active) return; // the first install of the app, not a newer version
       const worker = r.installing;
       if (status !== "ready") set("downloading");
       worker?.addEventListener("statechange", () => {
         if (worker.state === "redundant" && status === "downloading") set("unknown"); // the download failed
+        // A page that no worker controlled has no "controllerchange" to wait for (the first install does not claim it, and it never saw an earlier one): the new worker being active is the signal.
+        if (worker.state === "activated" && status === "downloading") set("ready");
       });
     });
   },

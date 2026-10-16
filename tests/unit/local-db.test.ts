@@ -114,6 +114,12 @@ describe("a storage that never answers", () => {
     expect(told).toBe(1);
   });
 
+  it("does not take the server's copy as received while the storage is not answering, so sync fetches it again", async () => {
+    const db = createLocalDb({ indexedDB: silent, channel: false, timeoutMs: 30 });
+    await expect(db.applyRemote("answers", "a1", { v: 1 })).rejects.toMatchObject({ code: "unavailable" });
+    expect((await db.doc("answers/a1").get()).exists).toBe(false);
+  });
+
   it("does not report a storage that answers in time", async () => {
     const { factory } = stub();
     let told = 0;
