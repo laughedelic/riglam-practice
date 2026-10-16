@@ -1,7 +1,7 @@
 // The server copy of a person's documents (worker/sync.ts): who may use it, what it keeps, and how two devices that wrote the same document are settled.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ACCOUNT_API, SYNC_LIMITS } from "../../src/account/protocol";
-import { beforeStatement, signUp, sync, world, write, type World } from "./accounts-support";
+import { beforeStatement, signIn, signUp, sync, world, write, type World } from "./accounts-support";
 import { json } from "./support";
 
 beforeEach(() => void vi.spyOn(console, "error").mockImplementation(() => {}));
@@ -339,12 +339,59 @@ describe("limits", () => {
     expect(rows(w).filter((r) => r.data !== null)).toHaveLength(100);
   });
 
+  it("holds each account to so many rows, deletion marks included, and lets old marks go", async () => {
+    const w = await world({ MAX_DOCS_PER_ACCOUNT: "100" });
+    const me = await signUp(w);
+    const marks = (n: number, from = 0, t = T0) => Array.from({ length: n }, (_, i) => write("answers", "m" + (from + i), null, t + i));
+    await sync(w, me, 0, marks(200)); // deletions of documents the server never held: 200 rows, the most (twice the document limit)
+    const over = await post(w, me.cookie, { cursor: 0, writes: marks(1, 200) });
+    expect(over.status).toBe(429);
+    expect(rows(w)).toHaveLength(200);
+    // a mark that is there is changed, not added; a document that is there is rewritten; neither is a new row
+    expect((await post(w, me.cookie, { cursor: 0, writes: [write("answers", "m0", null, T0 + 5000)] })).status).toBe(200);
+    expect((await post(w, me.cookie, { cursor: 0, writes: [write("answers", "m1", {}, T0 + 5000)] })).status).toBe(200);
+    // marks older than three months go to make room
+    w.clock.now = new Date(w.clock.now.getTime() + 91 * 86_400_000);
+    const t = w.clock.now.getTime();
+    const later = await signIn(w, me.key); // the first session is over by now
+    expect((await post(w, later.cookie, { cursor: 0, writes: marks(1, 200, t) })).status).toBe(200);
+    const left = rows(w);
+    expect(left.find((r) => r.id === "m200")).toBeTruthy();
+    expect(left.find((r) => r.id === "m1")?.data).not.toBeNull(); // a document is never taken for a mark
+    expect(left.length).toBeLessThan(200);
+  });
+
+  it("does not load more of the server's copies than an answer carries, however many small writes lose against large copies", async () => {
+    const w = await world();
+    const me = await signUp(w);
+    const big = (i: number, t: number) => write("answers", "big" + i, { text: "x".repeat(200_000) }, t);
+    for (let k = 0; k < 3; k++) await sync(w, me, 0, Array.from({ length: 10 }, (_, i) => big(k * 10 + i, T0 + 1000)));
+    const upTo = rows(w).at(-1)!.seq;
+    // 30 small writes, each older than the stored copy of its document: all lose, and their copies are 6 million characters together
+    const stale = Array.from({ length: 30 }, (_, i) => write("answers", "big" + i, {}, T0));
+    const first = await sync(w, me, upTo, stale);
+    const chars = (cs: { doc: unknown }[]) => cs.reduce((n, c) => n + JSON.stringify(c.doc).length, 0);
+    expect(chars(first.rejected)).toBeLessThanOrEqual(4 * 1024 * 1024);
+    expect(first.rejected.length).toBeLessThan(30);
+    // the copies that did not fit come with the changes, in this answer and the next ones, so that the device is given all 30
+    const got = new Set(first.rejected.map((c) => c.id));
+    let res = first;
+    for (let rounds = 0; ; rounds++) {
+      expect(rounds).toBeLessThan(10);
+      res.changes.forEach((c) => got.add(c.id));
+      expect(chars(res.changes) + chars(res.rejected)).toBeLessThanOrEqual(4 * 1024 * 1024 + 300_000);
+      if (!res.more) break;
+      res = await sync(w, me, res.cursor);
+    }
+    expect(got.size).toBe(30);
+  });
+
   it("takes the day's allowance of writes in one step, so that a request arriving together with another cannot pass it", async () => {
     const w = await world({ DAILY_WRITES_PER_ACCOUNT: "30" });
     const me = await signUp(w);
     const batch = (from: number) => Array.from({ length: 20 }, (_, i) => write("answers", "d" + (from + i), { i }, T0 + from + i));
     // another request of the account takes 20 of the 30 after this one has looked at the room and before it stores anything
-    beforeStatement(w, "SELECT COUNT(*) AS n FROM docs", () => w.db.sql("INSERT INTO sync_quota (day, user_id, writes) VALUES ('2026-10-13', ?, 20) RETURNING day", me.id));
+    beforeStatement(w, "COUNT(data) AS live FROM docs", () => w.db.sql("INSERT INTO sync_quota (day, user_id, writes) VALUES ('2026-10-13', ?, 20) RETURNING day", me.id));
     const res = await post(w, me.cookie, { cursor: 0, writes: batch(0) });
     expect(res.status).toBe(429);
     expect(rows(w)).toHaveLength(0);

@@ -25,7 +25,7 @@ The key never goes into the repository, a commit or pull request text, a comment
 
 ## Accounts carry the key
 
-A person with an account (docs/SERVER.md, "Accounts and sync") does not need to keep the words: a device that has the key makes its account carry it, and a device that signs in to that account gets it. After the key is changed, the devices of such accounts take the new one by themselves. Anyone who had the old key and made an account carries the new key too, so before changing the key because of a leak, look at the accounts made since the leak (`users` in the database) and delete the ones that are not the group's.
+A person with an account (docs/SERVER.md, "Accounts and sync") does not need to keep the words: a device that has the key makes its account carry it, and a device that signs in to that account gets it. After the key is changed, the devices of such accounts take the new one by themselves. Anyone who had the old key and made an account carries the new key too, so before changing the key because of a leak, look at every account that carries it (`has_key = 1` in `users`), not only those made since the leak (an older account that showed the leaked key afterwards carries it too), and delete the ones that are not the group's.
 
 ## Where the data lives
 

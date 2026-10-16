@@ -46,11 +46,11 @@ export interface AccountClient {
   sync(request: SyncRequest): Promise<SyncResponse>;
 }
 
-/** `requestMs`: how long a request may take, answer included; a connection that never answers must end, or a round of sync shows "Syncing ..." for good. */
+/** `requestMs`: how long a request may take, answer included (`limitMs` of a call: less); a connection that never answers must end, or a round of sync shows "Syncing ..." for good. */
 export function createAccountClient(doFetch: Fetch = (input, init) => fetch(input, init), waitMs = 4000, requestMs = 30_000): AccountClient {
-  async function call<T>(path: string, init: { method?: string; body?: unknown; headers?: Record<string, string> } = {}): Promise<T> {
+  async function call<T>(path: string, init: { method?: string; body?: unknown; headers?: Record<string, string>; limitMs?: number } = {}): Promise<T> {
     const stop = new AbortController();
-    const timer = setTimeout(() => stop.abort(), requestMs);
+    const timer = setTimeout(() => stop.abort(), init.limitMs ?? requestMs);
     try {
       return await send<T>(path, init, stop.signal);
     } finally {
@@ -123,7 +123,7 @@ export function createAccountClient(doFetch: Fetch = (input, init) => fetch(inpu
       await call(ACCOUNT_API.key, { body: {}, headers });
     },
     async fetchKey() {
-      const body = await call<{ key?: unknown }>(ACCOUNT_API.key);
+      const body = await call<{ key?: unknown }>(ACCOUNT_API.key, { limitMs: waitMs });
       if (typeof body.key !== "string" || !body.key) throw new AccountFailure("unavailable");
       return body.key;
     },

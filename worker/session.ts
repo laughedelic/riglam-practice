@@ -51,6 +51,18 @@ export async function newSession(db: D1Database, userId: string, now: Date): Pro
   return { token, insert };
 }
 
+/** The most sessions one account keeps; a sign-in beyond that ends the oldest ones, so the table cannot grow with sign-ins. */
+export const MAX_SESSIONS = 20;
+
+/** The statement that ends the sessions of an account that are over or beyond the newest `keep`; it runs before a new session is stored. */
+export function pruneSessions(db: D1Database, userId: string, now: Date, keep = MAX_SESSIONS - 1): D1PreparedStatement {
+  return db
+    .prepare(
+      `DELETE FROM sessions WHERE user_id = ?1 AND (expires_at <= ?2 OR token_hash NOT IN (SELECT token_hash FROM sessions WHERE user_id = ?1 ORDER BY created_at DESC, token_hash DESC LIMIT ?3))`,
+    )
+    .bind(userId, now.toISOString(), keep);
+}
+
 export interface Session {
   userId: string;
   name: string;
