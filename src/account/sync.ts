@@ -321,6 +321,7 @@ export function createSync(deps: SyncDeps): Sync {
   }
 
   async function run(wait: boolean) {
+    const mine = generation; // a round belongs to the account it began for: what it ends with is not for the account that came after
     busy = true;
     publish();
     try {
@@ -328,17 +329,22 @@ export function createSync(deps: SyncDeps): Sync {
         for (let guard = 0; guard < 1000 && active && (await oneRequest()); guard++);
         return true;
       }, wait);
-      error = null;
-      failures = 0;
-      blockedUntil = 0;
-      if (ran) last = now();
+      if (mine === generation) {
+        error = null;
+        failures = 0;
+        blockedUntil = 0;
+        if (ran) last = now();
+      }
     } catch (e) {
       const code = e instanceof SyncError ? e.code : "unavailable";
-      error = code;
-      if (code === "signed_out") {
+      if (mine !== generation) {
+        // The account changed while the round was out: its failure is not for the new one (a signed-out answer must not sign the new person out).
+      } else if (code === "signed_out") {
+        error = code;
         active = false;
         deps.onSignedOut?.();
       } else {
+        error = code;
         failures += 1;
         blockedUntil = now() + (code === "quota" ? quotaWaitMs : Math.min(maxBackoffMs, backoffMs * 2 ** (failures - 1)));
       }

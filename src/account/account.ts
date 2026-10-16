@@ -125,10 +125,19 @@ export function createAccount(deps: AccountDeps): Account {
     if (v.person) set({ person: null, message: { text: "You were signed out. Sign in again to keep syncing.", bad: false } });
   }
 
+  // Changes of account run one after the other: two that overlapped could finish in either order and leave the queue of one person under the name of another.
+  // Each checks, when its turn comes, that the person it was for is still the one shown, and a later change has replaced it if not.
+  let transitions: Promise<unknown> = Promise.resolve();
+  const activate = (id: string): Promise<void> => {
+    const run = transitions.then(async () => { if (v.person?.id === id) await sync.activate(id); });
+    transitions = run.catch(() => {});
+    return run;
+  };
+
   async function adopt(p: Person) {
     keep.write(p);
     set({ person: p, available: true });
-    await sync.activate(p.id);
+    await activate(p.id);
   }
 
   /** Makes this tab show and track `who`, the person another tab (or the server) says is signed in, or null. */
@@ -143,7 +152,7 @@ export function createAccount(deps: AccountDeps): Account {
     }
     keep.write(who);
     set({ person: who, available: true });
-    await sync.activate(who.id);
+    await activate(who.id);
   }
 
   /** Runs one action: one at a time, with its failure shown as a message. */
@@ -171,7 +180,7 @@ export function createAccount(deps: AccountDeps): Account {
         const hadAccount = (await sync.resume()) !== null;
         if (remembered) {
           set({ person: remembered, available: true });
-          await sync.activate(remembered.id);
+          await activate(remembered.id);
         }
         const on = await client.available();
         // The server says accounts are off: that is the answer, however this device was signed in (no answer at all is not).

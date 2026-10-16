@@ -752,6 +752,46 @@ describe("tabs of one browser", () => {
     expect(a.sync.status().active).toBe(true);
   });
 
+  it("does not let the failure of a round for the earlier account sign the new one out", async () => {
+    const { a } = await pair();
+    await a.account.signUp("p");
+    const { SyncError } = await import("../../src/account/sync");
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    a.client.sync = async () => { await gate; throw new SyncError("signed_out"); };
+    await a.put("answers", "a1", { v: 1 }, T0);
+    const round = a.sync.syncNow(); // out, for the first person
+    await settle();
+    a.kept = { id: "someone-else", name: "Q", passkeys: 1 }; // another tab signed in as someone else
+    await a.account.reconcile();
+    release();
+    await round;
+    await settle();
+    expect(a.account.view().person?.id).toBe("someone-else");
+    expect(a.sync.status().active).toBe(true);
+    expect(a.signedOutCalls).toBe(0);
+  });
+
+  it("finishes a change of account before the next one begins, and ends with the last person", async () => {
+    const { a } = await pair();
+    await a.account.signUp("p");
+    const real = a.sync.activate.bind(a.sync);
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    let calls = 0;
+    a.sync.activate = async (id) => { if (++calls === 1) await gate; return real(id); }; // the first change is slow
+    a.kept = { id: "first", name: "A", passkeys: 1 };
+    const one = a.account.reconcile();
+    await settle();
+    a.kept = { id: "second", name: "B", passkeys: 1 };
+    const two = a.account.reconcile();
+    await settle();
+    release();
+    await Promise.all([one, two]);
+    expect(a.account.view().person?.id).toBe("second");
+    expect(await a.outbox.getMeta("user")).toBe("second");
+  });
+
   it("does not delete an account while the session belongs to no one, or to someone else than the one shown", async () => {
     const { w, a } = await pair();
     await a.account.signUp("p");

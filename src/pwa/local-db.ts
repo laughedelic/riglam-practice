@@ -147,6 +147,28 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
     });
   };
 
+  /** Stores or deletes a row only if it still holds `expected` (undefined: no row), in one transaction. Resolves to whether it did. */
+  const storeIfUnchanged = async (path: string, col: string, id: string, data: Doc | null, stored: Doc | undefined, expected: Doc | undefined): Promise<boolean> => {
+    const d = await open();
+    if (!d) return true;
+    return new Promise<boolean>((resolve, reject) => {
+      const t = d.transaction(STORE, "readwrite");
+      const s = t.objectStore(STORE);
+      const get = s.get(path);
+      let done = false;
+      get.onsuccess = () => {
+        const row = get.result as Stored | undefined;
+        if (JSON.stringify(row?.data) !== JSON.stringify(expected)) return; // another tab wrote it since: that is newer than this copy
+        done = true;
+        if (data === null) s.delete(path);
+        else s.put({ path, col, id, data: stored });
+      };
+      t.oncomplete = () => resolve(done);
+      t.onerror = () => reject(err("unavailable", String(t.error ?? "IndexedDB write failed")));
+      t.onabort = () => reject(err("unavailable", String(t.error ?? "IndexedDB transaction aborted")));
+    });
+  };
+
   const colMap = (col: string): Map<string, Doc> => {
     let m = cols.get(col);
     if (!m) cols.set(col, (m = new Map()));
@@ -187,7 +209,8 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
   const writeHooks = new Set<(w: WriteEvent) => void>();
   const writing = new Map<string, number>(); // doc path -> writes by the page that have begun and whose hooks have not run yet
 
-  async function write(col: string, id: string, data: Doc | null, remote = false) {
+  /** `guarded`: for the server's copy, stored only if the row is still what this tab holds in memory (another tab's newer write makes it give way). Resolves to whether it was stored. */
+  async function write(col: string, id: string, data: Doc | null, remote = false, guarded = false): Promise<boolean> {
     const path = `${col}/${id}`;
     const m = colMap(col);
     const had = m.has(id);
@@ -207,7 +230,17 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
     notify(col);
     const stored = m.get(id) ?? null; // as written now, whatever else changes the document while it is being saved
     try {
-      await tx("readwrite", (s) => (data === null ? s.delete(path) : s.put({ path, col, id, data: mine })) as IDBRequest);
+      if (guarded) {
+        if (!(await storeIfUnchanged(path, col, id, data, mine, before))) {
+          // Another tab holds a newer value: put back what was here, unless a write of this tab has replaced it since (that tab's broadcast brings the newer value in).
+          if (versions.get(path) === stamp && m.get(id) === mine) {
+            if (had) m.set(id, before as Doc);
+            else m.delete(id);
+            notify(col);
+          }
+          return false;
+        }
+      } else await tx("readwrite", (s) => (data === null ? s.delete(path) : s.put({ path, col, id, data: mine })) as IDBRequest);
     } catch (e) {
       // Not saved: the page must not go on showing a document that a reload would lose. Put back what was there, unless another write has replaced it since.
       if (versions.get(path) === stamp && m.get(id) === mine) {
@@ -223,6 +256,7 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
       try { fn({ col, id, data: stored }); } catch { /* a listener's failure is not the write's */ }
     }
     done(); // after the hooks, which note the write synchronously before they return
+    return true;
   }
 
   const meta = { fromCache: false, hasPendingWrites: false };
@@ -378,8 +412,7 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
       await load(col);
       // No await between this check and the start of the write (which bumps the revision), so no write can come in between.
       if (revision !== undefined && (versions.get(`${col}/${id}`) ?? 0) !== revision) return false;
-      await write(col, id, data, true);
-      return true;
+      return write(col, id, data, true, revision !== undefined);
     },
     /** Resolves once the IndexedDB connection is open (or known to be unavailable). For tests. */
     ready: open,
