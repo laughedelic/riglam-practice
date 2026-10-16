@@ -3,16 +3,19 @@ import { parseMagicKey } from "../src/ai/magic-key";
 import { checkProof } from "../src/ai/proof";
 import type { Env } from "./env";
 
-/** The Magic Key in the secret, as dashed lower-case words; null when no secret is set. A secret that is not words is used as it stands. */
-export const magicKeyOf = (env: Env): string | null => {
-  const raw = env.RIGLAM_DATA_KEY?.trim();
-  return raw ? (parseMagicKey(raw) ?? raw) : null;
-};
+/**
+ * The Magic Key in the secret, as dashed lower-case words; null when no secret is set, or when the secret is not words. A device can only
+ * enter words, so a secret in another shape (the 43-character key of earlier versions, left in place by mistake) is treated as unset:
+ * the tutor reports itself off and every proof is refused, instead of the Worker saying it is on for a key nobody can enter.
+ */
+export const magicKeyOf = (env: Env): string | null => parseMagicKey(env.RIGLAM_DATA_KEY ?? "");
 
 /** Wrong guesses one caller may make per hour before the answer is "try later". The key has few words, so the limit is what protects it. */
 export const GUESSES_PER_HOUR = 30;
 
 const hourOf = (now: Date) => now.toISOString().slice(0, 13);
+/** Rows of hours before this one are old enough to go: the limit looks at the current hour only. */
+const oldestHour = (now: Date) => new Date(now.getTime() - 2 * 3_600_000).toISOString().slice(0, 13);
 const nextHour = (now: Date) => new Date(Math.floor(now.getTime() / 3_600_000) * 3_600_000 + 3_600_000).toISOString();
 
 /** A short hash of the caller's address: enough to count by, and no address is stored. */
@@ -26,30 +29,34 @@ export type Gate = { ok: true } | { ok: false; reason: "wrong" | "blocked" | "un
 /**
  * Checks a proof, counting the failures of this caller. One guess is taken from the caller's hour in a single statement before
  * the proof is looked at, so requests that arrive together cannot all pass the limit: a caller past it is `blocked` without the
- * proof being looked at, and the limit cannot be used to test guesses either. A proof that fits gives the guess back. When the guess
- * cannot be taken (the database fails) the proof is not looked at either and the answer is `unavailable`, so a failing counter does
- * not let anyone try keys without limit. Without a database nothing is counted (the tests; the tutor is off then anyway).
+ * proof being looked at, and the limit cannot be used to test guesses either. A proof that fits gives the guess back, and a row left
+ * with no guess in it is removed, so a caller who never guesses wrong leaves nothing behind. When the guess cannot be taken (the
+ * database fails, or there is none) the proof is not looked at either and the answer is `unavailable`, so a failing or missing
+ * counter does not let anyone try keys without limit.
  */
 export async function gate(env: Env, now: Date, caller: string, device: string, proof: string): Promise<Gate> {
   const key = magicKeyOf(env);
   if (!key) return { ok: false, reason: "wrong" };
+  if (!env.DB) return { ok: false, reason: "unavailable" };
+  const db = env.DB;
   const hour = hourOf(now);
-  let taken = false;
-  if (env.DB) {
-    let reserved: D1Result;
-    try {
-      reserved = await env.DB.prepare("INSERT INTO guesses (hour, who, n) VALUES (?1, ?2, 1) ON CONFLICT (hour, who) DO UPDATE SET n = n + 1 WHERE n < ?3")
-        .bind(hour, caller, GUESSES_PER_HOUR).run();
-    } catch {
-      return { ok: false, reason: "unavailable" };
-    }
-    if (!reserved.meta.changes) return { ok: false, reason: "blocked", resetsAt: nextHour(now) };
-    taken = true;
+  let reserved: D1Result;
+  try {
+    reserved = await db.prepare("INSERT INTO guesses (hour, who, n) VALUES (?1, ?2, 1) ON CONFLICT (hour, who) DO UPDATE SET n = n + 1 WHERE n < ?3")
+      .bind(hour, caller, GUESSES_PER_HOUR).run();
+  } catch {
+    return { ok: false, reason: "unavailable" };
   }
+  if (!reserved.meta.changes) return { ok: false, reason: "blocked", resetsAt: nextHour(now) };
   if (await checkProof(key, device, proof)) {
-    if (taken) await env.DB!.prepare("UPDATE guesses SET n = n - 1 WHERE hour = ?1 AND who = ?2 AND n > 0").bind(hour, caller).run().catch(() => {});
+    // give the guess back, and remove the row when it holds none: one transaction, so that proofs that arrive together cannot miss each other's refund
+    await db.batch([
+      db.prepare("UPDATE guesses SET n = n - 1 WHERE hour = ?1 AND who = ?2 AND n > 0").bind(hour, caller),
+      db.prepare("DELETE FROM guesses WHERE hour = ?1 AND who = ?2 AND n <= 0").bind(hour, caller),
+      db.prepare("DELETE FROM guesses WHERE hour < ?1").bind(oldestHour(now)),
+    ]).catch(() => {});
     return { ok: true };
   }
-  if (env.DB) await env.DB.prepare("DELETE FROM guesses WHERE hour < ?1").bind(new Date(now.getTime() - 2 * 3_600_000).toISOString().slice(0, 13)).run().catch(() => {});
+  await db.prepare("DELETE FROM guesses WHERE hour < ?1").bind(oldestHour(now)).run().catch(() => {});
   return { ok: false, reason: "wrong" };
 }
