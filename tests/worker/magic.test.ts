@@ -90,4 +90,23 @@ describe("the allowance of wrong guesses", () => {
     const other = await app().request("/api/tutor", { method: "POST", headers: { "content-type": "application/json", ...(await wrong("10.0.0.3")) }, body: ask() }, s.env);
     expect(other.status, "a wrong key from a caller with allowance left is still a refusal").toBe(401);
   });
+  it("does not look at a proof when its guess cannot be counted, so a failing counter is no way to test keys", async () => {
+    const s = await setup();
+    await seedCourse(s.env.DB!, ROWS);
+    const real = s.env.DB!;
+    const failing = (sql: string) => /INSERT INTO guesses/.test(sql);
+    const db = new Proxy(real, {
+      get: (target, prop) => (prop === "prepare" ? (sql: string) => (failing(sql) ? { bind: () => ({ run: () => Promise.reject(new Error("d1 is down")) }) } : target.prepare(sql)) : Reflect.get(target, prop)),
+    });
+    const broken = { ...s.env, DB: db } as typeof s.env;
+    for (const headers of [right(s), await wrong()]) {
+      const res = await app().request("/api/course", { headers }, broken);
+      expect(res.status, "the same answer to a proof that fits and one that does not").toBe(503);
+      expect((await json(res)).error.code).toBe("unavailable");
+      expect(Number(res.headers.get("retry-after"))).toBeGreaterThan(0);
+    }
+    const tutor = await app().request("/api/tutor", { method: "POST", headers: { "content-type": "application/json", ...right(s) }, body: ask() }, broken);
+    expect(tutor.status).toBe(503);
+    expect(used(s)).toEqual([]);
+  });
 });
