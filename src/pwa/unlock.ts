@@ -50,15 +50,17 @@ export function forgetKey() {
 /**
  * Tells a reader without a key how to get one, and takes the key if it is typed or pasted (words with spaces or dashes, in any
  * case, or the whole link). `verify(key)` asks the server and resolves with `null` when the key opens the definitions, or with the
- * sentence to show when it does not; the page is then reloaded so it starts unlocked.
+ * sentence to show when it does not. The key is then kept and `apply(key)` takes it into the running page (resolving true), so what
+ * the reader was doing stays; with no `apply`, or when it fails or resolves false, the page is reloaded so it starts unlocked.
  * Never shown to a reader who has simply not got a key: the page opens it when the reader reaches something that needs the
  * key (Explain, the definitions, Options). Only a problem to report (a link whose key does not fit) opens it by itself.
- * Returns the function that opens it.
+ * Returns the function that opens it; what it returns settles when the prompt is closed: true if a key was taken, otherwise false.
  */
-export function showUnlock({ problem = null, verify }: { problem?: string | null; verify: (key: string) => Promise<string | null> }): () => void {
-  const build = () => {
+export function showUnlock({ problem = null, verify, apply }: { problem?: string | null; verify: (key: string) => Promise<string | null>; apply?: (key: string) => Promise<boolean> }): () => Promise<boolean> {
+  const closed = (dlg: HTMLDialogElement) => new Promise<boolean>((done) => dlg.addEventListener("close", () => done(dlg.dataset.taken === "1"), { once: true }));
+  const build = (): Promise<boolean> => {
     const open = document.getElementById("unlock") as HTMLDialogElement | null;
-    if (open) { if (!open.open) open.showModal(); return; }
+    if (open) { if (!open.open) open.showModal(); return closed(open); }
     const dlg = document.createElement("dialog");
     dlg.id = "unlock";
     dlg.setAttribute("aria-labelledby", "unlock-h");
@@ -75,6 +77,7 @@ export function showUnlock({ problem = null, verify }: { problem?: string | null
     const err = dlg.querySelector<HTMLElement>("#unlock-err")!;
     const say = (msg: string) => { err.textContent = msg; err.hidden = !msg; };
     if (problem) say(problem);
+    dlg.addEventListener("close", () => { if (dlg.dataset.taken === "1") dlg.remove(); });
     dlg.querySelector("#unlock-skip")!.addEventListener("click", () => dlg.close());
     dlg.querySelector("form")!.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -89,15 +92,19 @@ export function showUnlock({ problem = null, verify }: { problem?: string | null
       } catch {
         why = "The server could not check the key just now. Try again later.";
       }
-      submit.disabled = false;
-      if (why) return say(why);
+      if (why) { submit.disabled = false; return say(why); }
       storeKey(key);
-      location.reload();
+      let taken = false;
+      try { taken = (await apply?.(key)) ?? false; } catch { /* the reload below starts the page with the key */ }
+      if (!taken) return location.reload();
+      dlg.dataset.taken = "1";
+      dlg.close();
     });
     dlg.showModal();
+    return closed(dlg);
   };
   const when = (go: () => void) => (document.body ? go() : addEventListener("DOMContentLoaded", go, { once: true }));
-  if (problem) when(build);
-  return () => when(build);
+  if (problem) when(() => void build());
+  return () => new Promise<boolean>((done) => when(() => void build().then(done)));
 }
 

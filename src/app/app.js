@@ -49,6 +49,8 @@ async function bootSteps(platform){
   // updating in place: the platform tells when a newer version is ready; Options shows where it stands
   state.updates=platform.updates||null;
   if(state.updates) state.updates.subscribe(()=>{ if(state.optsOpen) render(); });
+  // A Magic Key entered in the prompt is taken in place (no reload), so the pair on the screen and the answer being given stay.
+  if(platform.onKey) platform.onKey(()=>rekey(platform));
   if(state.account){ let seen=signature(state.account.view()); state.account.subscribe(v=>{ const now=signature(v); if(now!==seen){ seen=now; if(state.optsOpen) render(); } }); }
   if(!state.db){ state.gotA=state.gotB=state.gotS=true; advance(); state.mode="quiz"; render(); return; }
   waiting(()=>"the saved "+[!state.gotB&&"batches",!state.gotA&&"answers",!state.gotS&&"skipped pairs"].filter(Boolean).join(", ")+" on this device");
@@ -73,6 +75,16 @@ async function bootSteps(platform){
   state.db.collection("debates").onSnapshot(snap=>{
     const m={}; snap.docs.forEach(d=>{m[d.id]=d.data();}); state.debates=m; settle();
   },()=>{});
+}
+// What depends on the key, read again after the prompt took one: the definitions in the data, the tutor, and the Options row (enter a key / change it).
+async function rekey(platform){
+  state.DATA=await platform.loadData(); indexData(); buildPool();
+  state.labRefC=null;                     // the reference for the check lab quotes the definitions
+  try{ state.unlock=platform.unlock?await platform.unlock():null; }catch(e){ state.unlock=null; }
+  try{ state.keyHeld=platform.keyHeld?await platform.keyHeld():null; }catch(e){ state.keyHeld=null; }
+  try{ state.tutor=platform.tutor?await platform.tutor():null; }catch(e){ state.tutor=null; }
+  state.keyAsk=false;
+  if(state.mode!=="loading") render();
 }
 function settle(){
   if(!state.gotB||!state.gotA||!state.gotS) return;

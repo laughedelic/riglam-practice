@@ -4,7 +4,7 @@
 import { test as plain } from "@playwright/test";
 import { test, expect } from "../../support/test.js";
 import { ready, relOptions, isPhone, overflow } from "../../support/page.js";
-import { dataKey, withCourse } from "../../support/data-key.js";
+import { dataKey, serveCourse, withCourse } from "../../support/data-key.js";
 import { checkProof } from "../../../src/ai/proof.ts";
 
 // The page stores the Magic Key only when the stand-in server can give the definitions that open with it (tests/support/test.js).
@@ -168,4 +168,27 @@ plain("without the Magic Key Explain is there, grayed, and opens the Magic Key p
   await ready(off);
   await answerOnPhone(off);
   await expect(explain(off)).toHaveCount(0);
+});
+
+// The grayed Explain was tapped for a reason: once the key is entered, the page stays as it was and the question goes out.
+plain("Explain without the Magic Key: entering the key in the prompt keeps the result and asks the question", async ({ page }, testInfo) => {
+  test.skip(!isPhone(testInfo), "the answer flow is exercised in the phone layout");
+  test.skip(!withCourse, "needs the course data to unlock the definitions");
+  await serveCourse(page);
+  const asked = await server(page);
+  await page.goto("/");
+  await ready(page);
+  await answerOnPhone(page);
+  const pair = () => page.locator("#stage .head .pair").first().innerText();
+  const before = await pair();
+  await page.evaluate(() => { window.__sameDocument = true; });
+  await explain(page).click({ force: true });
+  await page.fill("#unlock-key", dataKey);
+  await page.getByRole("button", { name: "Unlock" }).click();
+  await expect(page.locator("#unlock")).toHaveCount(0);
+  await openAnswer(page);
+  expect(asked).toHaveLength(1);
+  expect(asked[0].body.kind).toBe("explain");
+  expect(await pair()).toBe(before);
+  expect(await page.evaluate(() => window.__sameDocument), "the page was not reloaded").toBe(true);
 });
