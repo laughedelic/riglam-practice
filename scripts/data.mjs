@@ -47,6 +47,12 @@ function statements(now = new Date().toISOString()) {
     `ON CONFLICT (kind) DO UPDATE SET updated_at = CASE WHEN body = excluded.body THEN updated_at ELSE excluded.updated_at END, body = excluded.body;`);
 }
 
+/** A notice for the terms of the open data that have no entry in definitions.json. A term can have none (split leaves it out), so this does not fail. */
+function noDefinitionNotice(open, definitions) {
+  const missing = Object.keys(open.terms).filter((k) => !definitions[k]);
+  return missing.length ? `notice: ${missing.length} of ${Object.keys(open.terms).length} terms of the open data have no definition in data-private/definitions.json (${missing.slice(0, 3).join(", ")}${missing.length > 3 ? ", ..." : ""}); if that is not expected, the import was incomplete` : "";
+}
+
 function main() {
   if (cmd === "key") {
     console.log(randomWords(KEY_WORDS));
@@ -62,6 +68,7 @@ function main() {
     const open = readOpen();
     const leaked = Object.values(open.terms).filter((t) => "d" in t || "d_ru" in t || "note" in t).length + ("notes" in open ? 1 : 0);
     if (leaked) throw new Error(`${files.open} holds definitions or notes in the clear`);
+    if (hasAnyCourse() && !hasCourse()) throw new Error("data-private/ holds only one of definitions.json and notes.json (an interrupted import, or a file that was deleted)");
     if (!hasCourse()) {
       console.log("ok: open file clean (no data-private/ here, so the course part was not checked)");
       return;
@@ -70,6 +77,8 @@ function main() {
     const stray = [...Object.keys(definitions), ...Object.keys(notes.terms ?? {})].filter((k) => !open.terms[k]);
     if (stray.length) throw new Error(`data-private/ has entries for terms that are not in the open data: ${stray.slice(0, 5).join(", ")}`);
     console.log(`ok: ${Object.keys(open.terms).length} terms, ${Object.keys(definitions).length} definitions, open file clean`);
+    const notice = noDefinitionNotice(open, definitions);
+    if (notice) console.log(notice);
   } else if (cmd === "sql") {
     const text = statements().join("\n") + "\n";
     if (arg) (writeFileSync(arg, text), console.error(`written: ${arg} (${text.length} bytes)`));
@@ -77,6 +86,8 @@ function main() {
   } else if (cmd === "publish") {
     const config = flag("--config") ?? "wrangler.jsonc";
     mkdirSync(join(tmpdir(), "riglam"), { recursive: true });
+    const notice = noDefinitionNotice(readOpen(), readParts().definitions);
+    if (notice) console.error(notice);
     const sql = join(tmpdir(), "riglam", `course-${process.pid}.sql`);
     writeFileSync(sql, statements().join("\n") + "\n", { mode: 0o600 });
     const run = spawnSync("npx", ["wrangler", "d1", "execute", "DB", args.includes("--local") ? "--local" : "--remote", "--config", config, "--file", sql], { cwd: root, stdio: "inherit" });

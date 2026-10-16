@@ -45,7 +45,7 @@ tests/e2e/                 Playwright: PWA specs, parity with the artifact build
 tests/legacy/              the page's regression suite (harness, 28 test files)
 public/                    icons
 docs/                      developing, architecture, term data and key, artifact loop, deploy, releasing, testing
-.github/workflows/         CI, preview deploys, release
+.github/workflows/         CI, release
 ```
 
 ## Docs

@@ -16,7 +16,7 @@ import { accountRoutes, accountsOn } from "./accounts";
 import { adminRoutes } from "./admin";
 import { dayOf, prune, reserve, settle, tutorSwitchedOn } from "./budget";
 import { readConfig } from "./config";
-import { readCourseRows } from "./course";
+import { readCourseRows, usableDefinitions } from "./course";
 import type { Env } from "./env";
 import type { Kit } from "./kit";
 import { callerOf, gate, magicKeyOf, type Gate } from "./magic";
@@ -77,7 +77,7 @@ export function createApp(deps: Deps) {
     const checked = await gate(env, now(), await callerOf(c.req.header("cf-connecting-ip")), c.req.header(HEADER.device) ?? "", c.req.header(HEADER.proof) ?? "");
     if (!checked.ok) return refusal(checked, "the Magic Key does not match");
     const rows = await readCourseRows(env.DB);
-    if (!rows) return fail("unavailable", "the course data is not on the server");
+    if (!rows || !usableDefinitions(rows)) return fail("unavailable", "the course data is not on the server");
     const headers = { "content-type": "application/json", "cache-control": "no-store" };
     if (c.req.query("have") === rows.version) return new Response(JSON.stringify({ version: rows.version, unchanged: true } satisfies CourseResponse), { headers });
     // the stored text goes out as it is: it was checked to be JSON when it was loaded
