@@ -77,7 +77,11 @@ export function createAccountClient(doFetch: Fetch = (input, init) => fetch(inpu
         const e = ((await res.json()) as { error?: { code?: unknown; message?: unknown } })?.error;
         code = String(e?.code ?? "");
         message = typeof e?.message === "string" ? e.message : "";
-      } catch { /* no JSON body: the status says enough */ }
+      } catch {
+        // The wait ran out while the error body was coming: the connection failed, which is not what the status (a 401 would sign the device out) says.
+        if (signal.aborted) throw new AccountFailure("offline", "no connection");
+        /* no JSON body: the status says enough */
+      }
       if (!CODES.includes(code)) code = res.status === 401 ? "signed_out" : res.status === 403 ? "not_granted" : res.status === 413 ? "too_large" : res.status === 429 ? "quota" : "unavailable";
       throw new AccountFailure(code as AccountErrorCode, message || code);
     }
