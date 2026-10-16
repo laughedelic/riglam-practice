@@ -12,7 +12,7 @@ import { Hono } from "hono";
 import { validDocId } from "../src/account/protocol";
 import { DEVICE_ID } from "../src/ai/proof";
 import { HEADER } from "../src/ai/protocol";
-import { REPORT_API, REPORT_LIMITS, type FlagReport, type ReportDoc, type ReportResponse } from "../src/report/protocol";
+import { REPORT_API, REPORT_LIMITS, type FlagReport, type ReportDoc, type ReportResponse, type ReportState, type ReportStatus } from "../src/report/protocol";
 import { fail, keyRefusal, readObject, sessionOf, type AccountDeps } from "./accounts";
 import { dayOf } from "./budget";
 import type { Env } from "./env";
@@ -24,8 +24,8 @@ const isPlain = (v: unknown): v is ReportDoc => !!v && typeof v === "object" && 
 export async function reportsOn(db: D1Database | undefined): Promise<boolean> {
   if (!db) return false;
   try {
-    // one query: the switch, and a look at the table that fails when the migration has not been applied
-    const row = await db.prepare("SELECT (SELECT value FROM settings WHERE key = 'reports') AS v, (SELECT COUNT(*) FROM flag_reports WHERE 0) AS probe").first<{ v: string | null }>();
+    // one query: the switch, and a look at the table and the columns the review added that fails when a migration has not been applied
+    const row = await db.prepare("SELECT (SELECT value FROM settings WHERE key = 'reports') AS v, (SELECT COUNT(*) FROM flag_reports WHERE reply IS NULL AND claimed_at IS NULL AND digest IS NULL AND 0) AS probe").first<{ v: string | null }>();
     return row?.v !== "off";
   } catch {
     return false;
@@ -51,12 +51,40 @@ function readSends(raw: unknown): FlagReport[] | string {
   return [...byId.values()];
 }
 
-function readWithdrawn(raw: unknown): string[] | string {
+function readIds(raw: unknown, name: string, most: number): string[] | string {
   if (raw === undefined) return [];
-  if (!Array.isArray(raw)) return "withdraw must be a list";
-  if (raw.length > REPORT_LIMITS.withdraw) return `at most ${REPORT_LIMITS.withdraw} ids in one request`;
-  if (!raw.every(validDocId)) return "withdraw takes flag ids";
+  if (!Array.isArray(raw)) return `${name} must be a list`;
+  if (raw.length > most) return `at most ${most} ids in one request`;
+  if (!raw.every(validDocId)) return `${name} takes flag ids`;
   return [...new Set(raw as string[])];
+}
+
+/**
+ * What of a report makes it a new one for the review: the words of the flag and the answer it was made on. A flag sent again with
+ * only its own state or time changed (the learner marks it resolved) keeps its review; a changed note or suggestion starts it again.
+ */
+async function digestOf(r: FlagReport): Promise<string> {
+  const f = r.flag;
+  const part = (k: string) => (typeof f[k] === "string" ? f[k] : "");
+  const bytes = new TextEncoder().encode(JSON.stringify([part("caseKey"), part("thing"), part("part"), part("model"), part("n"), part("shown"), part("asked"), part("note"), part("suggest"), r.answer]));
+  return [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))].slice(0, 12).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+const STATES: readonly ReportState[] = ["sent", "answered", "maintainer", "fixed", "decided"];
+
+/** The state and reply the sender may read, for the flags it asks about that it or its account sent. */
+async function statusOf(db: D1Database, ids: string[], device: string, user: string | null): Promise<ReportStatus[]> {
+  if (!ids.length) return [];
+  const marks = ids.map((_, i) => `?${i + 3}`).join(", ");
+  const found = await db
+    .prepare(`SELECT id, state, reply, reply_at FROM flag_reports WHERE id IN (${marks}) AND (device = ?1 OR (user_id IS NOT NULL AND user_id = ?2)) ORDER BY updated_at`)
+    .bind(device, user, ...ids)
+    .all<{ id: string; state: string; reply: string | null; reply_at: string | null }>();
+  const byId = new Map<string, ReportStatus>();
+  for (const r of found.results) {
+    byId.set(r.id, { id: r.id, state: STATES.find((s) => s === r.state) ?? "sent", ...(r.reply ? { reply: r.reply, replyAt: r.reply_at ?? undefined } : {}) });
+  }
+  return [...byId.values()];
 }
 
 export function reportRoutes(deps: AccountDeps) {
@@ -80,9 +108,11 @@ export function reportRoutes(deps: AccountDeps) {
     if (!body) return fail("bad_request", "the body is not a report request");
     const sends = readSends(body.send);
     if (typeof sends === "string") return fail("bad_request", sends);
-    const asked = readWithdrawn(body.withdraw);
+    const asked = readIds(body.withdraw, "withdraw", REPORT_LIMITS.withdraw);
     if (typeof asked === "string") return fail("bad_request", asked);
-    if (!sends.length && !asked.length) return fail("bad_request", "nothing to send or take back");
+    const heard = readIds(body.status, "status", REPORT_LIMITS.status);
+    if (typeof heard === "string") return fail("bad_request", heard);
+    if (!sends.length && !asked.length && !heard.length) return fail("bad_request", "nothing to send, take back or ask about");
     // a report sent in the same request is sent again, not taken back
     const withdrawn = asked.filter((id) => !sends.some((r) => r.id === id));
 
@@ -107,13 +137,20 @@ export function reportRoutes(deps: AccountDeps) {
         return fail("quota", "too many flags were sent today; try again tomorrow", { "retry-after": String(Math.max(60, Math.ceil((tomorrow - now.getTime()) / 1000))) });
       }
       const stamp = now.toISOString();
+      // The same words sent again keep their review; changed words (or a changed answer) start it again, and a review that is running is dropped (claimed_at is the guard, worker/review.ts).
+      const same = "flag_reports.digest = excluded.digest";
+      const keep = (column: string) => `${column} = CASE WHEN ${same} THEN flag_reports.${column} ELSE NULL END`;
       const upsert = db.prepare(
-        `INSERT INTO flag_reports (device, id, user_id, caller, flag, answer, app, state, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'sent', ?8, ?8)
-         ON CONFLICT (device, id) DO UPDATE SET user_id = excluded.user_id, caller = excluded.caller, flag = excluded.flag, answer = excluded.answer, app = excluded.app, state = 'sent', updated_at = excluded.updated_at`,
+        `INSERT INTO flag_reports (device, id, user_id, caller, flag, answer, app, digest, state, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'sent', ?9, ?9)
+         ON CONFLICT (device, id) DO UPDATE SET user_id = excluded.user_id, caller = excluded.caller, flag = excluded.flag, answer = excluded.answer, app = excluded.app, digest = excluded.digest,
+           state = CASE WHEN ${same} THEN flag_reports.state ELSE 'sent' END,
+           updated_at = CASE WHEN ${same} THEN flag_reports.updated_at ELSE excluded.updated_at END,
+           attempts = CASE WHEN ${same} THEN flag_reports.attempts ELSE 0 END,
+           ${["reply", "reply_at", "outcome", "cause", "reason", "fix", "reviews", "reviewed_at", "claimed_at"].map(keep).join(", ")}`,
       );
       const version = typeof body.app === "string" ? body.app.slice(0, 40) : null;
       for (const r of sends) {
-        statements.push(upsert.bind(device, r.id, user, caller, JSON.stringify(r.flag), r.answer === null ? null : JSON.stringify(r.answer), version, stamp));
+        statements.push(upsert.bind(device, r.id, user, caller, JSON.stringify(r.flag), r.answer === null ? null : JSON.stringify(r.answer), version, await digestOf(r), stamp));
         // the same flag edited on another device of the account replaces the report that device sent
         if (user) statements.push(db.prepare("DELETE FROM flag_reports WHERE user_id = ?1 AND id = ?2 AND device <> ?3").bind(user, r.id, device));
       }
@@ -130,6 +167,8 @@ export function reportRoutes(deps: AccountDeps) {
     if (sends.length && Math.random() < 0.02) await db.prepare("DELETE FROM flag_quota WHERE day < ?1").bind(dayOf(new Date(now.getTime() - 3 * 86_400_000))).run().catch(() => {});
 
     const answer: ReportResponse = { stored: sends.map((r) => r.id), withdrawn };
+    // asked after the changes above, so that a report sent in the same request is found; one taken back is not
+    if (heard.length) answer.status = await statusOf(db, heard, device, user);
     return new Response(JSON.stringify(answer), { headers: { "content-type": "application/json", "cache-control": "no-store" } });
   });
 

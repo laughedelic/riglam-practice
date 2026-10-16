@@ -500,7 +500,7 @@ test("after two reviews a flag gets a reply, a prepared fix, or goes to the main
   expect(decideFlag([r("learner_right", "tutor"), r("learner_wrong", "none")])).toMatchObject({ action: "escalate", reply: "" });
   expect(act(r("unclear", "none"), r("unclear", "none"))).toBe("escalate");
   expect(act(r("learner_right", "tutor"), r("learner_right", "data"))).toBe("escalate");
-  expect(act(r("learner_wrong", "none"), r("learner_wrong", "none", false))).toBe("escalate");
+  expect(decideFlag([r("learner_wrong", "none"), r("learner_wrong", "none", false)])).toMatchObject({ action: "escalate", reason: "a reviewer is not sure", reply: "" }); // nothing the reviewers do not stand behind is shown
   expect(act(r("learner_right", "none"), r("learner_right", "none"))).toBe("escalate");
 });
 

@@ -1,6 +1,6 @@
 // The Worker's settings (worker/config.ts) and the prices (worker/prices.ts).
 import { describe, expect, it } from "vitest";
-import { readAccountConfig, readConfig } from "../../worker/config";
+import { readAccountConfig, readConfig, readReviewConfig } from "../../worker/config";
 import type { Env } from "../../worker/env";
 import { addTokens, costMicro, costOfTokens, noTokens } from "../../worker/prices";
 
@@ -38,6 +38,31 @@ describe("config", () => {
 
   it("accepts a budget of zero, which closes the tutor for that scope", () => {
     expect(readConfig(env({ DEVICE_DAILY_BUDGET_USD: "0" })).deviceDailyMicro).toBe(0);
+  });
+});
+
+describe("review config", () => {
+  it("has the documented defaults: two reviewers, a dollar a day of its own, five reports a pass", () => {
+    expect(readReviewConfig(env())).toEqual({
+      models: ["claude-sonnet-5-5", "claude-opus-5-5"],
+      effort: "medium",
+      maxTokens: 2500,
+      maxRounds: 4,
+      dailyMicro: 1_000_000,
+      reserveMicro: 100_000,
+      batch: 5,
+    });
+  });
+
+  it("takes the variables that make sense, and the effort and rounds of the tutor", () => {
+    const c = readReviewConfig(env({ REVIEW_MODELS: " claude-haiku-5-5 , claude-opus-5-5,, ", REVIEW_DAILY_BUDGET_USD: "0.5", REVIEW_RESERVE_USD: "0.2", REVIEW_MAX_TOKENS: "4000", REVIEW_BATCH: "10", TUTOR_EFFORT: "high", TUTOR_MAX_ROUNDS: "2" }));
+    expect(c).toEqual({ models: ["claude-haiku-5-5", "claude-opus-5-5"], effort: "high", maxTokens: 4000, maxRounds: 2, dailyMicro: 500_000, reserveMicro: 200_000, batch: 10 });
+  });
+
+  it("falls back to the default for a value that is empty or out of range, and asks no more than three models", () => {
+    expect(readReviewConfig(env({ REVIEW_MODELS: " , ", REVIEW_DAILY_BUDGET_USD: "-1", REVIEW_RESERVE_USD: "0", REVIEW_MAX_TOKENS: "lots", REVIEW_BATCH: "500" }))).toEqual(readReviewConfig(env()));
+    expect(readReviewConfig(env({ REVIEW_MODELS: "a,b,c,d,e" })).models).toEqual(["a", "b", "c"]);
+    expect(readReviewConfig(env({ REVIEW_DAILY_BUDGET_USD: "0" })).dailyMicro).toBe(0); // closes the review
   });
 });
 

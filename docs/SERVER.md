@@ -43,7 +43,7 @@ tests/worker/           Vitest tests with stand-ins for D1 and the model API
 
 | `POST /api/account/key`, `GET /api/account/key` | An account carries the Magic Key (needs a session and the access proof), and gives it to its signed-in devices. See "Accounts and sync". |
 | `/api/account/...`, `POST /api/sync` | Optional accounts and the server copy of the documents; see "Accounts and sync". |
-| `POST /api/flags` | Reports of flags: `{send?: [{id, flag, answer}], withdraw?: [id]}` with the same proof headers as the tutor; answers `{stored, withdrawn}`. See "Flag reports". |
+| `POST /api/flags` | Reports of flags: `{send?: [{id, flag, answer}], withdraw?: [id], status?: [id]}` with the same proof headers as the tutor; answers `{stored, withdrawn, status?}`. See "Flag reports" and "Reviewing flags". |
 
 The request carries only what the learner typed and the page's own state (the card of the pair and the conversation). The standing instructions, the lookup tools and the notes ("fine points") are on the server; the notes never reach a browser.
 
@@ -88,6 +88,11 @@ Variables (`wrangler.jsonc`, `vars`; defaults in `worker/config.ts`; a value tha
 | `DEVICE_DAILY_BUDGET_USD` | `1.00` | per device and UTC day |
 | `GLOBAL_DAILY_BUDGET_USD` | `8` | all devices together |
 | `RESERVE_USD` | `0.05` | the hold per question |
+| `REVIEW_MODELS` | `claude-sonnet-5-5,claude-opus-5-5` | the models that review flags, one review each (at most three; the rule needs two that agree) |
+| `REVIEW_DAILY_BUDGET_USD` | `1.00` | all reviews of flags together per UTC day; the tutor's budgets are separate |
+| `REVIEW_RESERVE_USD` | `0.10` | the hold per flag until its reviews have finished |
+| `REVIEW_MAX_TOKENS` | `2500` | output limit per review call |
+| `REVIEW_BATCH` | `5` | flags one scheduled pass reviews |
 
 Prices are in `worker/prices.ts`, copied from Anthropic's pricing page; update them when the page changes or when a model is added.
 
@@ -136,7 +141,24 @@ A learner can flag something Claude wrote (the explanation, a note on a cell, an
 - A report is data from a device and is not trusted: the server stores it and reads nothing of it beyond its size, and whatever reads it later treats it as text, never as instructions.
 - The page marks a flag as sent (`sentAt`) and shows "Sent to the maintainer" in Review; a flag that could not be sent (offline, over a limit) is tried again at the next start and after the next flag. Removing a flag takes its report back, and the removal is kept on the device until the server has it.
 - **Switch.** `INSERT OR REPLACE INTO settings (key, value) VALUES ('reports', 'off');` stops reports at once, and the page then keeps flags on the device. `/api/health` shows `reports: "off"` until the migration `0005_flag_reports.sql` has been applied.
-- **Privacy.** A report holds the flag, the answer, the app version, the random device id, the account id when the sender was signed in, and the hash of the address. No name or email. No route reads reports back; the maintainer reads them in the database.
+- **Reading back.** `status: [ids]` (at most 50) is answered with `status: [{id, state, reply?, replyAt?}]` for those of the ids that this device sent or that an account it is signed in to sent: the state is `sent`, `answered`, `maintainer`, `fixed` or `decided`, and the reply is the text the sender reads under the flag. Nothing else of the review is sent back.
+- **Privacy.** A report holds the flag, the answer, the app version, the random device id, the account id when the sender was signed in, and the hash of the address. No name or email. No route sends other people's reports back; the maintainer reads them in the database.
+
+## Reviewing flags
+
+A scheduled pass of the Worker (`worker/review.ts`, cron trigger `*/10 * * * *` in `wrangler.jsonc`) reviews the reports that wait. Cron triggers run on the deployed Worker only, not on preview URLs. With nothing waiting a pass reads one table and stops.
+
+- **What a pass does.** It takes up to `REVIEW_BATCH` reports in state `sent`, oldest first, and for each asks every model in `REVIEW_MODELS` for a verdict. A reviewer gets the reviewer's instructions (`REVIEW_GUIDE`, `src/ai-shared/flag-review.ts`), the tutor's lookup tools, and one message: the tutor's card for the pair, the learner's answer, the tutor's explanation and the flag. It answers with one JSON object (`verdict`, `cause`, `reply`, `fix`, `confident`) that has to parse exactly (`parseReview`). The rule in `src/domain/flags.ts` (`decideFlag`) turns the verdicts into the outcome:
+  - `reply`: both are sure that the learner is wrong, or that the tutor's text was wrong. The reply is shown to the sender (state `answered`); a tutor fault is kept as the cause `tutor` for the list of tutor improvements.
+  - `fix`: both are sure that it is wording only. The reply is shown (`answered`) and the change waits to be made.
+  - `escalate`: the fault is in the data, the rules that build pairs or the grading; or the reviewers disagree, are unsure, or fewer than two answered. State `maintainer`. When both are sure of the verdict and the cause, their agreed reply is shown meanwhile; otherwise there is none.
+- **Without a model.** A follow-up on a reply (`part: "reply"`), a flag whose exercise was not kept, and one whose exercise cannot be read go to the maintainer at once.
+- **Budget.** Reviews have their own counter (`budget`, scope `review`) and their own daily cap (`REVIEW_DAILY_BUDGET_USD`); the tutor's budgets are not touched. A flag holds `REVIEW_RESERVE_USD` until its reviews finish and is then settled at the real cost; each reviewer's call is a line in `usage_log` with the kind `review` and the sender's device id. When the day's cap is used, the reports that need a model wait for the next day.
+- **Failures.** When the model API fails, the report is given back and tried by the next pass, up to three times; after that it goes to the maintainer with what there is (usually "fewer than two reviews"). A claim older than 15 minutes (a pass that was cut off) is taken over.
+- **Edits.** The same words sent again keep their review, also when only the flag's own state or time changed. Changed words, or a changed answer, start the review again, and a review that is running on the old words is dropped.
+- **What the reviewer sees from the device.** The stored answer is read into a fixed shape and every text is cut (`readReviewAnswer`); the learner's note, suggestion, question and what the tutor said are cut and written as quoted strings; the instructions tell the reviewer that all of it is material and never instructions. The reviewers can only read. The pair itself is still the one the device sent (its labels, notes and reference examples, cut but not checked against the data); the card's facts about the terms come from the server's own data.
+- **Switch.** `INSERT OR REPLACE INTO settings (key, value) VALUES ('review', 'off');` stops the pass (reports are still taken); deleting the row turns it on. A `REVIEW_DAILY_BUDGET_USD` of `0` also closes it. The columns the pass writes (`reply`, `outcome`, `cause`, `reason`, `fix`, `reviews` and others) come with the migration `0006_flag_review.sql`; until it has been applied `/api/health` says `reports: "off"`.
+- **Privacy.** The reviewing models get the flag, the stored answer and the course text that the card and the tools hold, through the same API as the tutor. The reply is shown only to a request that proves the Magic Key. `fix`, `cause`, `reason` and the reviewers' answers stay on the server for the maintainer.
 
 ## Setting up your own
 
@@ -151,7 +173,7 @@ Nothing here is needed to build or test the app; without the database the tutor 
    ```sh
    npx wrangler d1 migrations apply riglam-practice --remote
    ```
-   Apply it again after any pull request that adds a file to `worker/migrations/` (`0002_accounts.sql` adds the accounts and `0005_flag_reports.sql` the flag reports; the app works without them and `/api/health` says `accounts: "off"` or `reports: "off"`). Accounts need no secret and no extra service.
+   Apply it again after any pull request that adds a file to `worker/migrations/` (`0002_accounts.sql` adds the accounts, `0005_flag_reports.sql` the flag reports and `0006_flag_review.sql` their review; the app works without them and `/api/health` says `accounts: "off"` or `reports: "off"`). Accounts need no secret and no extra service.
 3. Store the two secrets on the Worker (the commands ask for the value at a prompt):
    ```sh
    npx wrangler secret put ANTHROPIC_API_KEY
@@ -172,6 +194,8 @@ Nothing here is needed to build or test the app; without the database the tutor 
 - The model API is a `fetch` that answers with scripted server-sent events, so the real SDK client parses them (text, tool calls, `max_tokens`, refusals, HTTP errors, a call that hangs until the page goes away).
 - The kit is made from a few invented terms in a fake database; the last test block runs on the real course data when `data-private/` is there (as in CI, [DATA.md](DATA.md)) and is skipped otherwise.
 - Passkeys are made by a software authenticator (`tests/worker/authenticator.ts`) that produces the bytes a phone would (a `none` attestation with an ES256 key, signed assertions), so the library's real verification runs.
+
+`reports.test.ts` and `review.test.ts` cover the reports (the Magic Key, the limits, taking one back) and the scheduled review (which reports a pass takes, what each model is asked, every outcome, the budget, failures and retries, an edit made during a review, and what the sender can read back).
 
 `accounts.test.ts` covers making an account, signing in, every refusal (another site's origin, a replayed or expired challenge, a passkey for another host name, a key that is not the account's), sessions, the limits, deleting and the switches; `sync.test.ts` covers who may sync, what a write may be, how two devices settle a document and the limits. They also cover the kit (the tools, the notes, a category id that is not the data's own, the wrong key, no text in the log), the proof, the settings, the prices, the counters (including simultaneous questions), every refusal path, a plain answer with the exact model request, tool rounds and their failure, the last-round rule, every failure of the model call, and the page going away.
 
