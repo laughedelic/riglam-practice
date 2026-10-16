@@ -46,3 +46,12 @@ test("features that need Claude are absent, not broken", async ({ page }, testIn
   await expect(page.getByText(/check lab/i)).toHaveCount(0);
   expect(errors).toEqual([]);
 });
+
+test("Options says which build this is, and that it is the newest", async ({ page }) => {
+  await page.goto("/");
+  await ready(page);
+  await page.getByRole("button", { name: /options/i }).filter({ visible: true }).first().click();
+  const row = page.locator(".orow", { hasText: "Version" });
+  await expect(row).toContainText(/Version \d+\.\d+\.\d+ · build [0-9a-f]{7}|unknown/);
+  await expect(row).toContainText("This is the newest version.");
+});
