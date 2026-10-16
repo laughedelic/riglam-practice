@@ -35,7 +35,7 @@
 /* the Russian name of a term, beside the English one in a definition entry: regular weight, muted like the Russian definition */
 .tm-defs dt .tm-ru{font-weight:400;color:var(--ink-muted)}
 /* Skip: a text link under the list or the card on a phone, a quiet button in the action row on a wide screen.
-   A skipped pair is neither right nor wrong, so it gets the neutral grey of "not checked": dashed, no red, no green. */
+   A skipped pair is neither right nor wrong, so it gets the neutral gray of "not checked": dashed, no red, no green. */
 .actions .skipw{color:var(--ink-muted);box-shadow:inset 0 0 0 1px var(--line)}
 .actions .skipw:hover{box-shadow:inset 0 0 0 1px var(--line),inset 0 -4px 0 var(--vermilion)}
 .sum .m.skip{align-self:start;width:18px;height:18px;margin-top:1px;border:1.5px dashed var(--faint);color:var(--ink-muted);font-size:12px;line-height:14px;text-align:center}
