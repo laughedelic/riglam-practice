@@ -3,6 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { makeProof, newDeviceId } from "../../src/ai/proof";
 import { HEADER } from "../../src/ai/protocol";
+import { GUESSES_PER_HOUR } from "../../worker/magic";
 import { world } from "./accounts-support";
 import { device, T0 } from "./device";
 import { passkey } from "./authenticator";
@@ -214,6 +215,17 @@ describe("the account carries the Magic Key", () => {
     await expect(a.client.fetchKey()).rejects.toMatchObject({ code: "not_granted" });
     const id = newDeviceId();
     await expect(a.client.shareKey({ [HEADER.device]: id, [HEADER.proof]: await makeProof("wrong-words-in-here", id) })).rejects.toMatchObject({ code: "not_granted" });
+    expect(w.db.sql("SELECT has_key FROM users")).toEqual([{ has_key: 0 }]);
+  });
+
+  it("a connection past the hourly limit on wrong keys is told to wait, even with the right key", async () => {
+    const w = await world();
+    const a = await device(w, { magicKey: { read: () => null, adopt: () => {} } });
+    await a.account.signUp("p");
+    const id = newDeviceId();
+    const wrong = { [HEADER.device]: id, [HEADER.proof]: await makeProof("wrong-words-in-here", id) };
+    for (let i = 0; i < GUESSES_PER_HOUR; i++) await expect(a.client.shareKey(wrong)).rejects.toMatchObject({ code: "not_granted" });
+    await expect(a.client.shareKey({ [HEADER.device]: id, [HEADER.proof]: await makeProof(w.key, id) })).rejects.toMatchObject({ code: "quota" });
     expect(w.db.sql("SELECT has_key FROM users")).toEqual([{ has_key: 0 }]);
   });
 

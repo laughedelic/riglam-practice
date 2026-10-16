@@ -58,3 +58,17 @@ export async function sync(w: World, who: Pick<Person, "cookie">, cursor: number
   if (res.status !== 200) throw new Error("sync failed: " + res.status + " " + (await res.text()));
   return json(res);
 }
+
+/** Runs `act` (once) just before the Worker prepares a statement that contains `part`: a stand-in for something else happening between two steps of a request. */
+export function beforeStatement(w: World, part: string, act: () => void): void {
+  const db = w.env.DB as unknown as { prepare: (sql: string) => unknown };
+  const real = db.prepare.bind(db);
+  let done = false;
+  db.prepare = (sql: string) => {
+    if (!done && sql.includes(part)) {
+      done = true;
+      act();
+    }
+    return real(sql);
+  };
+}

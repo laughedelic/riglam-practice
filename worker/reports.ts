@@ -13,7 +13,7 @@ import { validDocId } from "../src/account/protocol";
 import { DEVICE_ID } from "../src/ai/proof";
 import { HEADER } from "../src/ai/protocol";
 import { REPORT_API, REPORT_LIMITS, type FlagReport, type ReportDoc, type ReportResponse } from "../src/report/protocol";
-import { fail, readObject, sessionOf, type AccountDeps } from "./accounts";
+import { fail, keyRefusal, readObject, sessionOf, type AccountDeps } from "./accounts";
 import { dayOf } from "./budget";
 import type { Env } from "./env";
 import { callerOf, gate } from "./magic";
@@ -71,8 +71,10 @@ export function reportRoutes(deps: AccountDeps) {
     const device = c.req.header(HEADER.device) ?? "";
     if (!DEVICE_ID.test(device)) return fail("bad_request", "the device id is missing");
     // Only a device that has the Magic Key may send: the same proof as the tutor and the definitions, and wrong proofs are counted per caller.
+    // A caller past its wrong guesses for the hour is told to wait (429), not that its key is wrong.
     const caller = await callerOf(c.req.header("cf-connecting-ip"));
-    if (!(await gate(env, now, caller, device, c.req.header(HEADER.proof) ?? "")).ok) return fail("not_granted", "the Magic Key does not match");
+    const checked = await gate(env, now, caller, device, c.req.header(HEADER.proof) ?? "");
+    if (!checked.ok) return keyRefusal(checked, now, "the Magic Key does not match");
     const body = await readObject(c, REPORT_LIMITS.body);
     if (body === "too_large") return fail("too_large", "the request is too large");
     if (!body) return fail("bad_request", "the body is not a report request");
