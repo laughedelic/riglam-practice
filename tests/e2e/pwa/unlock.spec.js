@@ -97,8 +97,8 @@ test("a link without a usable key says so and leaves the address clean", async (
   expect(await page.evaluate(() => location.hash)).toBe("");
 });
 
-test("in the Terms panel a locked definition says where to look it up, and one note offers the Magic Key", async ({ page }, testInfo) => {
-  test.skip(!isPhone(testInfo), "the answer flow is exercised in the phone layout");
+// answers the first pair far enough to get the result with its Terms panel, and opens the list of definitions
+const openTermDefinitions = async (page) => {
   await page.goto("/");
   await ready(page);
   await relOptions(page).first().click(); // answer the pair: the result has the Terms panel
@@ -111,11 +111,30 @@ test("in the Terms panel a locked definition says where to look it up, and one n
   const terms = page.locator(".tm-tog");
   await expect(terms.first()).toBeVisible();
   await terms.first().click();
+};
+
+test("in the Terms panel a locked definition says where to look it up, and one note offers the Magic Key", async ({ page }, testInfo) => {
+  test.skip(!isPhone(testInfo), "the answer flow is exercised in the phone layout");
+  await openTermDefinitions(page);
   await expect(page.getByText(/Look it up in the booklet, chapter [IVX]+: /).first()).toBeVisible();
   await expect(page.getByText(/Locked: /)).toHaveCount(0); // no "locked" line under each term any more
   await expect(page.getByText("To read the full definitions here, enter the Magic Key")).toHaveCount(1);
   await page.locator(".tm-locked").getByRole("button", { name: "Enter the Magic Key" }).click();
   await expect(page.locator("#unlock")).toBeVisible();
+});
+
+test("locked definitions still show the Russian name of each term when English + Russian is chosen, and only then", async ({ page }, testInfo) => {
+  test.skip(!isPhone(testInfo), "the answer flow is exercised in the phone layout");
+  await page.addInitScript(hook);
+  await openTermDefinitions(page);
+  await expect(page.locator(".tm-locked .tm-d").first()).toBeVisible();
+  await expect(page.locator(".tm-locked .tm-ru")).toHaveCount(0); // English only: the name alone
+  await page.evaluate(() => window.__t.setDefLang("enru"));
+  const names = page.locator(".tm-locked .tm-d dt");
+  const russian = page.locator(".tm-locked .tm-d dt .tm-ru");
+  await expect(russian.first()).toBeVisible();
+  expect(await russian.count()).toBe(await names.count()); // the open data names every term in Russian
+  await expect(russian.first()).toHaveAttribute("lang", "ru");
 });
 
 withKey("the key in a link opens the definitions, leaves the address bar, and stays on the device", async ({ page }) => {
