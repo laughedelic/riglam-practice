@@ -10,7 +10,7 @@ npm ci
 npm run dev     # the PWA with hot reload at http://localhost:5173
 ```
 
-The definitions of the terms are encrypted in the repository ([DATA.md](DATA.md)). Without the key the page still runs, with the open data only: open it once as `http://localhost:5173/#k=<key>` to unlock them if you have the key. The artifact build and the tests that read definitions need the key (`RIGLAM_DATA_KEY` or a `.data-key` file); without it, use `npm run build:pwa`, and those tests skip.
+The definitions of the terms are not in the repository ([DATA.md](DATA.md)). Without them the page still runs, with the open data only. The artifact build and the tests that read definitions need the folder `data-private/`; without it, use `npm run build:pwa`, and those tests skip. `npm run dev` has no server, so the definitions stay locked there.
 
 In `npm run dev` the parts that ask Claude (the tutor, Explain, the check lab) are served by a stand-in that calls no model. Add `?ai=slow`, `?ai=rate_limited` or `?ai=error` to the address to see how the page behaves when the model is slow or fails, and `?ai=off` to see the page without them.
 
@@ -57,4 +57,4 @@ The layout and the legacy tests draw random pairs. A legacy test that fails once
 - The description follows `.github/pull_request_template.md`: Before, After, How.
 - CI must pass: the aggregate check "Lint, build, test" and the title check. Each pull request also gets a preview of the installed app from Cloudflare ([DEPLOY.md](DEPLOY.md)).
 - Keep a change to what it is for. The look of the page was refined over many iterations, so a style or layout change needs a reason and a before and after at phone and desktop widths.
-- Do not commit definitions or notes in the clear, or the data key, anywhere: not in a file, a commit message or a pull request.
+- Do not commit definitions or notes in the clear, or the Magic Key, anywhere: not in a file, a commit message or a pull request.
