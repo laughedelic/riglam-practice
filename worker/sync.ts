@@ -97,8 +97,12 @@ export function syncRoutes(deps: AccountDeps) {
     const body = await readObject(c, SYNC_LIMITS.body);
     if (body === "too_large") return fail("too_large", "the request is too large");
     if (!body) return fail("bad_request", "the body is not a sync request");
-    const cursor = body.cursor;
-    if (typeof cursor !== "number" || !Number.isInteger(cursor) || cursor < 0) return fail("bad_request", "the cursor is not a number");
+    const asked = body.cursor;
+    if (typeof asked !== "number" || !Number.isSafeInteger(asked) || asked < 0) return fail("bad_request", "the cursor is not a number");
+    // A cursor beyond the newest number of this account is from a copy the server no longer has (restored from a backup, say): the device starts over, which costs a resend and loses nothing,
+    // where answering "nothing new" would hide every document until the numbers caught up.
+    const top = (await db.prepare("SELECT COALESCE(MAX(seq), 0) AS top FROM docs WHERE user_id = ?1").bind(user).first<{ top: number }>())?.top ?? 0;
+    const cursor = asked > top ? 0 : asked;
     const writes = readWrites(body.writes ?? [], now);
     if (typeof writes === "string") return fail("bad_request", writes);
 
@@ -203,6 +207,8 @@ export function syncRoutes(deps: AccountDeps) {
         .bind(user, cursor, SYNC_LIMITS.changes + 1, SYNC_LIMITS.changes, Math.max(0, ANSWER_CHARS - rejectedChars))
         .all<Row & { total: number }>()
     ).results;
+    // The account may have been deleted while this request was under way: say so, and not that there is nothing new.
+    if (!(await db.prepare("SELECT 1 AS ok FROM users WHERE id = ?1").bind(user).first())) return fail("signed_out", "you are not signed in");
     const page = rows;
     const more = (page[0]?.total ?? 0) > page.length;
     const answer: SyncResponse = { cursor: page.length ? page[page.length - 1].seq : cursor, changes: page.map(change), rejected, more };

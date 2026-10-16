@@ -119,7 +119,34 @@ describe("sending and receiving", () => {
     const w = await world();
     const me = await signUp(w);
     expect(await sync(w, me, 0)).toEqual({ cursor: 0, changes: [], rejected: [], more: false });
-    expect(await json(await post(w, me.cookie, { cursor: 7 }))).toEqual({ cursor: 7, changes: [], rejected: [], more: false });
+    await sync(w, me, 0, [write("answers", "a", { v: 1 }, T0), write("answers", "b", { v: 2 }, T0), write("answers", "c", { v: 3 }, T0)]);
+    expect(await json(await post(w, me.cookie, { cursor: 3 }))).toEqual({ cursor: 3, changes: [], rejected: [], more: false });
+  });
+
+  it("refuses a cursor that is not a safe whole number, and starts over for one beyond the newest number", async () => {
+    const w = await world();
+    const me = await signUp(w);
+    await sync(w, me, 0, [write("answers", "a", { v: 1 }, T0), write("answers", "b", { v: 2 }, T0)]);
+    for (const cursor of [1e20, Number.MAX_SAFE_INTEGER + 2, -1, 1.5, "1"]) {
+      const res = await post(w, me.cookie, { cursor });
+      expect(res.status, String(cursor)).toBe(400);
+    }
+    // a cursor from a copy the server no longer has (restored from a backup, say): everything comes again, so nothing stays hidden
+    const again = await json(await post(w, me.cookie, { cursor: 500 }));
+    expect(again.changes.map((c: { id: string }) => c.id)).toEqual(["a", "b"]);
+    expect(again.cursor).toBe(2);
+  });
+
+  it("says the person is signed out when the account is deleted while a sync is under way, and not that there is nothing new", async () => {
+    const w = await world();
+    const me = await signUp(w);
+    beforeStatement(w, "WITH page AS", () => w.db.sql("DELETE FROM users"));
+    const res = await post(w, me.cookie, { cursor: 0, writes: [write("answers", "a", {}, T0)] });
+    expect(res.status).toBe(401);
+    expect((await json(res)).error.code).toBe("signed_out");
+    const other = await signUp(w, "other");
+    beforeStatement(w, "WITH page AS", () => w.db.sql("DELETE FROM users"));
+    expect((await post(w, other.cookie, { cursor: 0 })).status).toBe(401); // a request that only reads
   });
 });
 
