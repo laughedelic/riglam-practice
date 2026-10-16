@@ -121,7 +121,8 @@ export type Tutor = (request: TutorRequest, options?: TutorOptions) => Promise<S
  * sets `tutor` when it arrives and draws again.
  */
 export interface Unlock {
-  open(): void;
+  /** Resolves when the prompt is closed: true if a key was entered and taken (the page has been told through `onKey`), otherwise false. */
+  open(): Promise<boolean>;
   tutor: boolean;
   answer?: Promise<boolean>;
 }
@@ -170,6 +171,12 @@ export interface Platform {
   unlock?(): Promise<Unlock | null>;
   /** The other half of `unlock`: set while this device has the Magic Key, null (or absent) otherwise. */
   keyHeld?(): Promise<KeyHeld | null>;
+  /**
+   * Calls `tell` after a Magic Key typed in the prompt was taken into the running page, instead of reloading it: the page then asks
+   * `loadData`, `unlock`, `keyHeld` and `tutor` again and draws what it has, so the pair on the screen stays. `tell` may be async;
+   * the prompt waits for it. Returns the way to stop. A place that does not offer it makes the prompt reload the page.
+   */
+  onKey?(tell: () => void | Promise<void>): () => void;
   /** The app's own tutor, or null (or absent) when the place has none or the server has it switched off. The page uses `sample` first when it has one. */
   tutor?(): Promise<Tutor | null>;
   /** The optional account (a passkey and a server copy of the documents, src/account), or null (or absent) when the place has none. The page works the same without. */
@@ -182,6 +189,7 @@ export interface Platform {
 
 /** What a device that has the Magic Key can do with it: take another one (the study group changed it), or forget it (the definitions and the tutor lock again). */
 export interface KeyHeld {
-  change(): void;
+  /** As `Unlock.open`. */
+  change(): Promise<boolean>;
   forget(): void;
 }

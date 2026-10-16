@@ -19,6 +19,7 @@ export const state = {
   unlock: null,  // {open, tutor}: opens the prompt for the Magic Key (platform.unlock) while this device has none; `tutor` is whether the server has a tutor waiting for it
   keyHeld: null,   // {change, forget} while this device has the Magic Key (platform.keyHeld); keyAsk: the Options row is asking whether to forget it
   keyAsk: false,
+  mkNote: false,   // the note on the name "Magic Key" is open in the Options row
   batches: [],
   answers: {},
   gotB: false,

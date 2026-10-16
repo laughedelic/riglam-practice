@@ -187,6 +187,8 @@ export interface State {
   keyHeld: KeyHeld | null;
   /** the Magic Key row of Options is asking whether to forget the key */
   keyAsk: boolean;
+  /** the note on the name "Magic Key" is open in the Options row */
+  mkNote: boolean;
   /** a question to the app's own server (platform.tutor), when the place has one; `sample` is used first */
   tutor: Tutor | null;
   /** optional sign-in with a server copy of the documents (platform.account), when the place has one */

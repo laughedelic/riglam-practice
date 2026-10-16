@@ -1,5 +1,6 @@
 import { state } from "../state.js";
 import { L, el } from "../core/dom.js";
+import { lockIcon } from "../core/icons.js";
 import { REL } from "../core/rel.js";
 import { cap } from "../core/util.js";
 import { isA } from "./screen.js";
@@ -51,7 +52,7 @@ export function lockedDefs(names){
     return el("div",{class:"tm-d"},el("dt",null,t.name,ruOn&&t.ru?el("span",{class:"tm-ru",lang:"ru",text:" · "+t.ru}):null),line?el("dd",{class:"out"},el("p",{class:"src",text:line})):null);
   })));
   box.append(el("p",{class:"tm-key",text:"To read the full definitions here, enter the Magic Key from your study group's link."}),
-    el("button",{type:"button",class:"btn ghost",onclick:()=>state.unlock.open()},"Enter the Magic Key"));
+    el("button",{type:"button",class:"btn ghost",onclick:()=>state.unlock.open()},lockIcon(),"Unlock definitions"));
   return box;
 }
 // The term data marks where a definition comes from with a leading "(source)"; the booklet's own wording has none or "(Purbuchok)".
