@@ -47,7 +47,7 @@ Without `data-private/`: `npm run build:pwa`, the unit tests that do not need it
 npm run data:key                      # print a new Magic Key (four random words)
 npm run data:import -- full.json      # split a knowledge-base export into src/data/drill-data.json and data-private/
 npm run data:export -- full.json      # the full data, definitions and notes put back
-npm run data:check                    # check that the open file holds no definition or note and data-private/ matches it (it also says how many terms have no definition; a term can have none)
+npm run data:check                    # check that the open file holds no definition or note and data-private/ matches it (every term needs a definition; publish makes the same check)
 npm run data:publish                  # load data-private/ into the production database (wrangler; --config <file> for another database)
 npm run data:sql -- out.sql           # the statements publish runs, to load by other means
 npm run data:fixture                  # write made-up definitions and notes into data-private/ (refuses to overwrite real ones; --replace does)
