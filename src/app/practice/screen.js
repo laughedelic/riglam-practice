@@ -6,6 +6,7 @@ import { CELL_NAME } from "../../ai-shared/prompts.ts";
 import { canAsk } from "../core/ask.js";
 import { NAME_CELL, VERDICT_RE } from "../../domain/verdict.ts";
 import { $, L, el } from "../core/dom.js";
+import { lockIcon } from "../core/icons.js";
 import { CELLS, ORDER, REL, cellLabel, lcRel, notaOf, notaParts } from "../core/rel.js";
 import { gradeOf } from "../core/util.js";
 import { isWide } from "../core/viewport.js";
@@ -174,7 +175,7 @@ export const explainBtn=()=>{
   if(!state.ui.checked||state.ui.explained||state.ui.ctl) return null;
   if(canAsk()) return el("button",{class:"btn ghost",type:"button",onclick:()=>ask(null,"explain"),text:state.ui.res.exOpen?"Check and explain":"Explain"});
   // The server has a tutor but this device has no Magic Key: the button is there, grayed, and says what it needs when tapped.
-  if(state.unlock&&state.unlock.tutor) return el("button",{class:"btn ghost needs-key",type:"button","aria-disabled":"true",title:"Explain needs the Magic Key",onclick:askAfterKey,text:"Explain"});
+  if(state.unlock&&state.unlock.tutor) return el("button",{class:"btn ghost needs-key",type:"button","aria-disabled":"true",title:"Explain needs the Magic Key",onclick:askAfterKey},lockIcon(),"Explain");
   return null;
 };
 export const nextBtn=()=>el("button",{class:"btn",type:"button",onclick:next,text:state.cur.retry&&!state.retryQ.length?"Back to new pairs":"Next pair"});

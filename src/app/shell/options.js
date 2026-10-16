@@ -2,6 +2,7 @@ import { state } from "../state.js";
 import { accountControls } from "../../ui/account";
 import { dataTransferControls } from "../../ui/data-transfer";
 import { setLab } from "../ai/lab.js";
+import { ico } from "../core/icons.js";
 import { $, el } from "../core/dom.js";
 import { setTimer } from "../debate/flow.js";
 import { WORDINGS } from "../debate/text.js";
@@ -58,7 +59,7 @@ function aboutNode(a){
 export function optionsInto(o){
   o.append(overHead("Options",()=>toggleOpts(false),"Close options"));
   const box=el("div",{class:"opts"});
-  const row=(label,ctl,note)=>el("div",{class:"orow"},el("span",{class:"tl",text:label}),el("div",{class:"octl"},ctl,note?(typeof note==="string"?el("p",{class:"onote",text:note}):note):null));
+  const row=(label,ctl,note,icon)=>el("div",{class:"orow"},el("span",{class:"tl"},icon?ico(icon):null,label),el("div",{class:"octl"},ctl,note?(typeof note==="string"?el("p",{class:"onote",text:note}):note):null));
   // one row per Blitz time: the relation's, and the one of an example (Relations) or a question (Pervasions); each sets only its own
   const timeRow=(kind,label,note)=>{
     const now=Math.round(kindMs(kind)/1000), preset=[5,10,15,30].includes(now);
@@ -83,10 +84,10 @@ export function optionsInto(o){
     timeRow("rel","Relation time","The Blitz countdown for choosing the relation, in Relations and in Pervasions."),
     timeRow("ex","Example time","The Blitz countdown for each example in Relations (a table of three cells gets three times this) and for each question in Pervasions."),
     state.unlock?row("Magic Key",el("button",{type:"button",class:"btn ghost",onclick:()=>{ toggleOpts(false); state.unlock.open(); }},"Enter the Magic Key"),
-      "The definitions follow the course booklet, and the tutor (Explain) answers from it, so both need the Magic Key from your study group's link. This device has none yet: open the link once on this device, or paste it here."):null,
+      "The definitions follow the course booklet, and the tutor (Explain) answers from it, so both need the Magic Key from your study group's link. This device has none yet: open the link once on this device, or paste it here.","key"):null,
     state.keyHeld?row("Magic Key",keyControls(),
       state.keyAsk?"Forget the Magic Key on this device? The definitions and the tutor close again until a key is entered. Your answers and settings stay. An account that carries the key gives it back when you sign in."
-        :"This device has the Magic Key, so the definitions and the tutor are open. If the study group changed the key, enter the new one; or forget the key on this device."):null,
+        :"This device has the Magic Key, so the definitions and the tutor are open. If the study group changed the key, enter the new one; or forget the key on this device.","key"):null,
     state.account&&state.db&&state.account.view().available?row("Account",accountControls(state.account,el,render,state.acct)):null,
     state.db?row("Your data",dataTransferControls(state.db,el,render,state.xfer),"Saves everything this device keeps (answers, debates, favorites, skipped pairs and these settings) in one file, as a backup or to move to another device. Importing adds what is missing and never deletes anything."):null,
     state.about?row("Version",aboutNode(state.about)):null].filter(Boolean));

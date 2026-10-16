@@ -157,6 +157,13 @@ plain("without the Magic Key Explain is there, grayed, and opens the Magic Key p
   await expect(page.locator("#unlock")).toHaveCount(0); // nothing greets the reader with a prompt
   await answerOnPhone(page);
   await expect(explain(page)).toHaveAttribute("aria-disabled", "true");
+  // a closed lock marks what needs the key; it opens while the button is hovered
+  const lock = explain(page).locator(".lockic");
+  await expect(lock.locator(".closed")).toBeVisible();
+  await expect(lock.locator(".open")).toBeHidden();
+  await explain(page).hover();
+  await expect(lock.locator(".open")).toBeVisible();
+  await expect(lock.locator(".closed")).toBeHidden();
   await explain(page).click({ force: true }); // aria-disabled, but it can be tapped
   await expect(page.locator("#unlock")).toBeVisible();
   await expect(page.locator("#unlock")).toContainText("Magic Key");

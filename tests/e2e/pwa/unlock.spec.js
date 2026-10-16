@@ -44,12 +44,14 @@ test("Options has a Magic Key row that opens the prompt, and the prompt says wha
   await ready(page);
   await page.getByRole("button", { name: /options/i }).filter({ visible: true }).first().click();
   await expect(page.getByText("so both need the Magic Key")).toBeVisible();
+  await expect(page.locator(".orow .tl svg.ico")).toHaveCount(1); // a key beside the row's name
   await page.getByRole("button", { name: "Enter the Magic Key" }).click();
   const dlg = page.locator("#unlock");
   await expect(dlg).toBeVisible();
   await expect(dlg).toContainText("Magic Key");
   await expect(dlg).toContainText("tutor");
   await expect(dlg).toContainText("definitions");
+  await expect(dlg.locator("h2 svg.ico")).toBeVisible(); // a key beside the heading
   await page.getByRole("button", { name: "Close" }).click();
   await expect(dlg).toBeHidden();
   await openPrompt(page); // and again

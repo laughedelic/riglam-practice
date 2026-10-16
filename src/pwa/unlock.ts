@@ -65,7 +65,7 @@ export function showUnlock({ problem = null, verify, apply }: { problem?: string
     dlg.id = "unlock";
     dlg.setAttribute("aria-labelledby", "unlock-h");
     dlg.innerHTML = `<form method="dialog">
-      <h2 id="unlock-h">Enter the Magic Key</h2>
+      <h2 id="unlock-h"><svg class="ico" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="8" cy="15" r="4.5"/><path d="M11.2 11.8 20 3m-4 4 3 3m-5.5-.5 2 2"/></svg>Enter the Magic Key</h2>
       <p>The terms, translations and relations work without it. The definitions follow the course booklet, and the tutor (Explain) answers from it, so both open only with the Magic Key: four words, shared by your study group. Type or dictate them here, or paste the link, or open the link once on this device.</p>
       <p id="unlock-err" class="err" role="alert" hidden></p>
       <label for="unlock-key">Magic Key or link</label>
