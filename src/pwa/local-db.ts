@@ -96,8 +96,13 @@ export interface WriteEvent {
 export interface LocalDb extends Db {
   /** Tells `fn` about every write the page makes on this device (not those of `applyRemote`, and not another tab's). */
   onWrite(fn: (w: WriteEvent) => void): Unsubscribe;
-  /** Stores a document, or deletes it with null, as the server's copy; listeners and other tabs see it, `onWrite` does not. */
-  applyRemote(col: string, id: string, data: Doc | null): Promise<void>;
+  /**
+   * Stores a document, or deletes it with null, as the server's copy; listeners and other tabs see it, `onWrite` does not.
+   * With `revision` (from `revision()`), nothing is stored when the document has been written since: a newer local write is not overwritten.
+   */
+  applyRemote(col: string, id: string, data: Doc | null, revision?: number): Promise<void>;
+  /** A number that changes with every write of the document on this device, by the page, another tab or `applyRemote`, from the moment the write begins. */
+  revision(col: string, id: string): number;
   /** Resolves once the IndexedDB connection is open (or known to be unavailable). For tests. */
   ready(): Promise<IDBDatabase | null>;
   close(): Promise<void>;
@@ -354,8 +359,11 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
       writeHooks.add(fn);
       return () => void writeHooks.delete(fn);
     },
-    async applyRemote(col: string, id: string, data: Doc | null) {
+    revision: (col: string, id: string) => versions.get(`${col}/${id}`) ?? 0,
+    async applyRemote(col: string, id: string, data: Doc | null, revision?: number) {
       await load(col);
+      // No await between this check and the start of the write (which bumps the revision), so no write can come in between.
+      if (revision !== undefined && (versions.get(`${col}/${id}`) ?? 0) !== revision) return;
       await write(col, id, data, true);
     },
     /** Resolves once the IndexedDB connection is open (or known to be unavailable). For tests. */
