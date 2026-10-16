@@ -32,6 +32,20 @@ test("an answer whose body never arrives ends the same way", async () => {
   expect((failure as SyncError).code).toBe("offline");
 });
 
+test("an error answer whose body never arrives is a lost connection, not a sign-out", async () => {
+  const stuckError: Fetch = (_input, init) =>
+    Promise.resolve({
+      ok: false,
+      status: 401,
+      json: () =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+        }),
+    } as unknown as Response);
+  const failure = await createAccountClient(stuckError, 4000, 50).sync({ cursor: 0, writes: [] }).then(() => null, (e: unknown) => e);
+  expect((failure as SyncError).code).toBe("offline");
+});
+
 test("a quick answer is untouched by the wait", async () => {
   const fine: Fetch = async () => new Response(JSON.stringify({ cursor: 3, changes: [], rejected: [], more: false }), { status: 200 });
   expect(await createAccountClient(fine, 4000, 50).sync({ cursor: 0, writes: [] })).toEqual({ cursor: 3, changes: [], rejected: [], more: false });
