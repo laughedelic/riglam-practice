@@ -19,6 +19,9 @@ export const readOpen = () => JSON.parse(readFileSync(files.open, "utf8"));
 /** Whether this checkout has the course part (data-private/ is not in git; `npm run data:import` or `data:pull` makes it). */
 export const hasCourse = () => existsSync(files.definitions) && existsSync(files.notes);
 
+/** Whether data-private/ holds either course file. A checkout with only one of them is not empty: writing over it would lose that file. */
+export const hasAnyCourse = () => existsSync(files.definitions) || existsSync(files.notes);
+
 /** The two course parts as objects. */
 export function readParts() {
   if (!hasCourse()) throw new Error("the course data is missing: data-private/ has no definitions.json and notes.json (docs/DATA.md)");

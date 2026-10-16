@@ -12,7 +12,7 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { files, readFull, readOpen, readParts, writeFull, hasCourse, root } from "./lib/course-files.mjs";
+import { files, readFull, readOpen, readParts, writeFull, hasCourse, hasAnyCourse, root } from "./lib/course-files.mjs";
 import { WORDS } from "./lib/wordlist.mjs";
 import { madeUpCourse } from "./lib/made-up-course.mjs";
 
@@ -82,7 +82,7 @@ function main() {
     const run = spawnSync("npx", ["wrangler", "d1", "execute", "DB", args.includes("--local") ? "--local" : "--remote", "--config", config, "--file", sql], { cwd: root, stdio: "inherit" });
     if (run.status !== 0) throw new Error("wrangler did not load the course data (are the migrations applied, and are you signed in to Cloudflare?)");
   } else if (cmd === "fixture") {
-    if (hasCourse() && !args.includes("--replace")) throw new Error("data-private/ already holds course data; npm run data:fixture -- --replace overwrites it with made-up text");
+    if (hasAnyCourse() && !args.includes("--replace")) throw new Error("data-private/ already holds course data; npm run data:fixture -- --replace overwrites it with made-up text");
     const { definitions, notes } = madeUpCourse(readOpen());
     mkdirSync(files.privateDir, { recursive: true });
     writeFileSync(files.definitions, JSON.stringify(definitions));
