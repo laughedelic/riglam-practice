@@ -22,7 +22,7 @@ export class AccountFailure extends Error {
   }
 }
 
-const CODES: readonly string[] = ["signed_out", "not_granted", "unknown_passkey", "bad_request", "too_large", "quota", "conflict", "unavailable"];
+const CODES: readonly string[] = ["signed_out", "not_granted", "unknown_passkey", "bad_request", "too_large", "quota", "full", "conflict", "unavailable"];
 
 export type Fetch = (input: string, init?: RequestInit) => Promise<Response>;
 
@@ -113,6 +113,7 @@ export function createAccountClient(doFetch: Fetch = (input, init) => fetch(inpu
         if (e.code === "signed_out") throw new SyncError("signed_out", e.message);
         if (e.code === "quota") throw new SyncError("quota", e.message);
         if (e.code === "too_large") throw new SyncError("too_large", e.message);
+        if (e.code === "full") throw new SyncError("full", e.message);
         throw new SyncError("unavailable", e.message);
       }
     },

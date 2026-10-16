@@ -9,7 +9,7 @@ import { SYNC_COLLECTIONS, SYNC_LIMITS, validDocId, type Doc, type SyncChange, t
 import type { Outbox, OutboxEntry } from "./outbox";
 
 /** Why a round did not complete. */
-export type SyncCode = "offline" | "signed_out" | "quota" | "too_large" | "unavailable";
+export type SyncCode = "offline" | "signed_out" | "quota" | "full" | "too_large" | "unavailable";
 
 export class SyncError extends Error {
   constructor(public code: SyncCode, message: string = code) {
@@ -203,17 +203,17 @@ export function createSync(deps: SyncDeps): Sync {
     const revision = store.revision(ch.c, ch.id); // taken before anything is awaited: a write after this point is newer than what is judged below
     const mine = await outbox.get(key);
     if (mine && mine.t > ch.t) return; // changed here after that: this copy goes to the server next
-    if (mine) await outbox.remove(key, mine.t);
     const have = await store.read(ch.c, ch.id);
-    if (ch.doc === null ? have === null : have !== null && canon(have) === canon(ch.doc)) return;
-    await store.applyRemote(ch.c, ch.id, ch.doc, revision);
+    // The entry goes only once the copy is stored (or was already): if storing fails, the round fails and the entry is sent again, which brings this copy back.
+    if (!(ch.doc === null ? have === null : have !== null && canon(have) === canon(ch.doc))) await store.applyRemote(ch.c, ch.id, ch.doc, revision);
+    if (mine) await outbox.remove(key, mine.t);
   }
 
   /** The entries for one request: oldest first, within the limits of the server. */
-  async function batch(): Promise<OutboxEntry[]> {
+  async function batch(deletionsOnly = false): Promise<OutboxEntry[]> {
     const out: OutboxEntry[] = [];
     let bytes = 0;
-    for (const e of await outbox.list(batchMax)) {
+    for (const e of await outbox.list(batchMax, deletionsOnly ? "deletions" : undefined)) {
       bytes += bodyBytes(e.doc) + 200;
       if (out.length && bytes > SYNC_LIMITS.body - 64 * 1024) break;
       out.push(e);
@@ -234,34 +234,54 @@ export function createSync(deps: SyncDeps): Sync {
     }
   }
 
-  async function oneRequest(): Promise<boolean> {
+  /** One request with `sent` as its writes, and what to do with the answer. Returns whether there may be more to do. */
+  async function exchange(sent: OutboxEntry[]): Promise<boolean> {
     const mine = generation;
-    await ensureSeeded();
-    await renote();
-    const sent = await batch();
     const user = (await outbox.getMeta<string>("user")) ?? null;
     const cursor = (await outbox.getMeta<number>("cursor")) ?? 0;
-    let res: SyncResponse;
-    try {
-      res = await deps.post({ cursor, writes: sent.map((e) => ({ c: e.c, id: e.id, doc: e.doc, t: e.t })) });
-    } catch (e) {
-      // The request is larger than the account's allowance for a day allows: ask again with half as many writes.
-      if (e instanceof SyncError && e.code === "too_large" && sent.length > 1) {
-        batchMax = Math.max(1, Math.floor(sent.length / 2));
-        return true;
-      }
-      throw e;
-    }
+    const res = await deps.post({ cursor, writes: sent.map((e) => ({ c: e.c, id: e.id, doc: e.doc, t: e.t })) });
     // The account may have changed while the request was out (here, or in another tab, which changes the outbox's user): this answer is for the earlier one.
     if (mine !== generation || (await outbox.getMeta<string>("user")) !== user) return false;
-    // What was sent is delivered: gone from the outbox unless the document was changed again meanwhile.
-    for (const e of sent) await outbox.remove(e.key, e.t);
+    // What was sent is delivered: gone from the outbox unless the document was changed again meanwhile. The writes that lost stay until the server's copy is stored.
+    const lost = new Set(res.rejected.map((ch) => keyOf(ch.c, ch.id)));
+    for (const e of sent) if (!lost.has(e.key)) await outbox.remove(e.key, e.t);
     // The server's copies of writes that lost come first, then everything that changed; the later one of the same document is the newer.
     for (const ch of res.rejected) await take(ch);
     for (const ch of res.changes) await take(ch);
     await outbox.setMeta("cursor", res.cursor);
     await recount();
     return res.more || pending > 0;
+  }
+
+  async function oneRequest(): Promise<boolean> {
+    await ensureSeeded();
+    await renote();
+    const sent = await batch();
+    try {
+      return await exchange(sent);
+    } catch (e) {
+      if (!(e instanceof SyncError)) throw e;
+      // The request is larger than the account's allowance for a day allows: ask again with half as many writes.
+      if (e.code === "too_large" && sent.length > 1) {
+        batchMax = Math.max(1, Math.floor(sent.length / 2));
+        return true;
+      }
+      // The account holds as many documents as it may. Deletions make room, so they go first; what other devices changed is received in any case (a request without writes is never refused for this).
+      if (e.code === "full") {
+        const deletions = await batch(true);
+        let freed = false;
+        if (deletions.length && deletions.length < sent.length) {
+          try {
+            freed = await exchange(deletions).then(() => true);
+          } catch (e2) {
+            if (!(e2 instanceof SyncError) || e2.code !== "full") throw e2;
+          }
+        }
+        await exchange([]);
+        if (freed) return true;
+      }
+      throw e;
+    }
   }
 
   /** Starts a round, or joins the one in progress (and asks for another after it, for what changed meanwhile). */
@@ -317,6 +337,7 @@ export function createSync(deps: SyncDeps): Sync {
       if (before !== userId) {
         // A first sign-in, or another person's: the cursor and the old noted changes belong to the earlier account.
         await outbox.clear();
+        unnoted.clear(); // notes that failed belong to the earlier account too
         await outbox.setMeta("user", userId);
       }
       // Writes made while the documents are being noted are noted by the hook, so it goes first; the scan only adds what has no entry.

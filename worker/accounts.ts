@@ -38,6 +38,7 @@ const STATUS: Record<AccountErrorCode, 400 | 401 | 403 | 409 | 413 | 429 | 503> 
   bad_request: 400,
   too_large: 413,
   quota: 429,
+  full: 429,
   conflict: 409,
   unavailable: 503,
 };

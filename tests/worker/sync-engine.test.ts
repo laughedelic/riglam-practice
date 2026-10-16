@@ -512,6 +512,81 @@ describe("changes of account and failures of the outbox", () => {
   });
 });
 
+describe("what a failed step must not lose or send to the wrong account", () => {
+  it("does not send a deletion whose note failed to the account that is signed in next", async () => {
+    const w = await world();
+    const a = await device(w);
+    const c = await device(w);
+    await a.account.signUp("first");
+    await c.account.signUp("second");
+    await c.put("answers", "x", { v: "second's" }, T0);
+    await c.sync.syncNow();
+    await a.put("answers", "x", { v: "first's" }, T0 + 1);
+    await a.sync.syncNow();
+    // the deletion cannot be noted, and neither can the flush before signing out
+    const real = a.outbox.note.bind(a.outbox);
+    let full = true;
+    a.outbox.note = async (e) => { if (full) throw new Error("storage full"); return real(e); };
+    await a.remove("answers", "x", T0 + 5000);
+    expect(a.sync.status().pending).toBe(1);
+    // the same browser signs in as the second person, and the storage works again
+    a.key = c.key;
+    full = false;
+    await a.account.signIn();
+    await a.sync.syncNow();
+    const live = w.db.sql<{ data: string }>("SELECT data FROM docs WHERE id = 'x' AND data IS NOT NULL").map((r) => JSON.parse(r.data).v).sort();
+    expect(live).toEqual(["first's", "second's"]); // the first person's document is theirs to keep, and the second's was not deleted
+    expect(a.get("answers", "x")).toEqual({ v: "second's" });
+  });
+
+  it("keeps a write that lost until the server's copy is stored, so that a failed store is sent and answered again", async () => {
+    const { a, b } = await pair();
+    await a.account.signUp("p");
+    await b.account.signIn();
+    await b.put("answers", "x", { v: "b" }, T0 + 1000);
+    await b.sync.syncNow();
+    await a.sync.syncNow(); // a has b's copy, and a cursor beyond it
+    await a.put("answers", "x", { v: "a" }, T0 + 10); // a's clock was behind: this change is older than the server's copy
+    const real = a.store.applyRemote.bind(a.store);
+    let fail = true;
+    a.store.applyRemote = async (...args) => { if (fail) throw new Error("storage"); return real(...args); };
+    await a.sync.syncNow();
+    expect(a.sync.status()).toMatchObject({ error: "unavailable", pending: 1 });
+    expect(a.get("answers", "x")).toEqual({ v: "a" });
+    fail = false;
+    await a.sync.syncNow();
+    expect(a.sync.status()).toMatchObject({ error: null, pending: 0 });
+    expect(a.get("answers", "x")).toEqual({ v: "b" });
+  });
+});
+
+describe("an account that holds as many documents as it may", () => {
+  it("sends the deletions first, still receives what other devices changed, and says the account is full", async () => {
+    const w = await world({ MAX_DOCS_PER_ACCOUNT: "100" });
+    const a = await device(w);
+    const b = await device(w, { key: a.key });
+    await a.account.signUp("p");
+    for (let i = 0; i < 100; i++) await a.put("answers", "d" + i, { i }, T0 + i);
+    await a.sync.syncNow();
+    expect(a.sync.status()).toMatchObject({ error: null, pending: 0 });
+    await b.account.signIn();
+    await b.sync.syncNow();
+    // 30 additions are queued ahead of a deletion
+    for (let i = 0; i < 30; i++) await a.put("answers", "n" + i, { i }, T0 + 1000 + i);
+    await a.remove("answers", "d0", T0 + 5000);
+    expect(await a.sync.syncNow()).toMatchObject({ error: "full", pending: 30 });
+    expect(w.db.sql<{ n: number }>("SELECT COUNT(*) AS n FROM docs WHERE data IS NOT NULL")[0].n).toBe(99); // the deletion went, and made room
+    // b writes into the room that is left, and a, though full, receives it
+    await b.put("answers", "fromB", { v: 1 }, T0 + 6000);
+    await b.sync.syncNow();
+    expect(await a.sync.syncNow()).toMatchObject({ error: "full" });
+    expect(a.get("answers", "fromB")).toEqual({ v: 1 });
+    // deleting more here lets the queue go
+    for (let i = 1; i <= 40; i++) await a.remove("answers", "d" + i, T0 + 7000 + i);
+    expect(await a.sync.syncNow()).toMatchObject({ error: null, pending: 0 });
+  });
+});
+
 describe("a device that could not ask the server at start", () => {
   it("shows the Account row when the server answers later", async () => {
     const { a } = await pair();

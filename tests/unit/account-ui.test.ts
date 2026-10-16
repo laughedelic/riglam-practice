@@ -25,6 +25,7 @@ describe("what the row says about sync", () => {
     expect(syncLine(view({ error: "offline" }))).toMatch(/^No connection\. Changes made now will be sent/);
     expect(syncLine(view({ pending: 2, error: "quota" }))).toMatch(/limit of changes for today.*2 changes are waiting.*tomorrow/);
     expect(syncLine(view({ error: "unavailable" }))).toMatch(/could not be reached/);
+    expect(syncLine(view({ pending: 5, error: "full" }))).toMatch(/holds as many documents as it may.*5 changes are waiting.*Deleting some makes room/);
     expect(syncLine(view({ busy: true, pending: 4 }))).toBe("Syncing ...");
   });
 

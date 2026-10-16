@@ -78,7 +78,7 @@ const MESSAGES = {
 export function explain(e: unknown): { text: string; bad: boolean } {
   if (e instanceof PasskeyError) return { text: MESSAGES[e.code], bad: e.code !== "cancelled" };
   if (e instanceof AccountFailure) {
-    if (e.code === "not_granted" || e.code === "quota" || e.code === "too_large") return { text: (e.message[0]?.toUpperCase() ?? "") + e.message.slice(1) + ".", bad: true };
+    if (e.code === "not_granted" || e.code === "quota" || e.code === "full" || e.code === "too_large") return { text: (e.message[0]?.toUpperCase() ?? "") + e.message.slice(1) + ".", bad: true };
     return { text: (MESSAGES as Record<string, string>)[e.code] ?? MESSAGES.failed, bad: true };
   }
   return { text: MESSAGES.failed, bad: true };
@@ -242,7 +242,7 @@ export function createAccount(deps: AccountDeps): Account {
       act("sync", async () => {
         const s = await sync.syncNow();
         if (s.error === "offline") throw new AccountFailure("offline");
-        if (s.error) throw new AccountFailure(s.error === "signed_out" ? "signed_out" : s.error === "quota" ? "quota" : "unavailable", s.error === "quota" ? "this account has reached its limit for today" : s.error);
+        if (s.error) throw new AccountFailure(s.error === "signed_out" ? "signed_out" : s.error === "quota" ? "quota" : s.error === "full" ? "full" : "unavailable", s.error === "quota" ? "this account has reached its limit for today" : s.error === "full" ? "this account holds as many documents as it may" : s.error);
       }),
 
     signedOut,

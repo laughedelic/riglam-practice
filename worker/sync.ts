@@ -124,7 +124,7 @@ export function syncRoutes(deps: AccountDeps) {
       let effect: { live: number; rows: number } | undefined;
       const exact = async () => (effect ??= await effectOf(db, user, writes));
       const adds = writes.filter((w) => w.doc !== null).length;
-      if (adds && live + adds > cfg.maxDocs && live + (await exact()).live > cfg.maxDocs) return fail("quota", "this account holds as many documents as it may");
+      if (adds && live + adds > cfg.maxDocs && live + (await exact()).live > cfg.maxDocs) return fail("full", "this account holds as many documents as it may");
       if (total + writes.length > cfg.maxDocs * 2) {
         // Old deletion marks go first, a thousand at a time; the row with the highest number stays, so that numbers are never handed out again to a device that has seen them.
         await db
@@ -132,7 +132,7 @@ export function syncRoutes(deps: AccountDeps) {
           .bind(user, now.getTime() - MARK_MS)
           .run();
         total = (await counts())?.total ?? 0;
-        if (total + writes.length > cfg.maxDocs * 2 && total + (await exact()).rows > cfg.maxDocs * 2) return fail("quota", "this account holds as many documents and deletion marks as it may");
+        if (total + writes.length > cfg.maxDocs * 2 && total + (await exact()).rows > cfg.maxDocs * 2) return fail("full", "this account holds as many documents and deletion marks as it may");
       }
 
       // The day's allowance is taken first, in one statement that refuses when it would be passed, so that requests arriving together cannot all use the last of it.
