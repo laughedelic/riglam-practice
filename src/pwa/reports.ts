@@ -75,7 +75,7 @@ function pendingStore() {
 export function createReports(key: string, doFetch: typeof fetch = (...a) => fetch(...a), device: () => string = deviceId): Reports {
   const pending = pendingStore();
 
-  /** The server's answer, or its status when there is none: 0 when the request did not get through, else an error's (a wrong key 403, the day's limit 429, an invalid report 400). */
+  /** The server's answer, or its status when there is none: 0 when the request did not get through, else an error's (a wrong key 403; 429 for the day's limit or for a wait after too many wrong keys; an invalid report 400). */
   async function post(request: ReportRequest): Promise<(ReportResponse & { status: ReportStatus[] }) | number> {
     try {
       const id = device();
