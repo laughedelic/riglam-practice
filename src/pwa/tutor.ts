@@ -38,7 +38,7 @@ async function httpError(res: Response, now: () => number = Date.now) {
   try {
     const error = ((await res.json()) as { error?: { code?: unknown; scope?: unknown; resetsAt?: unknown } })?.error;
     code = String(error?.code ?? "");
-    if (error?.scope === "device" || error?.scope === "global") scope = error.scope;
+    if (error?.scope === "device" || error?.scope === "global" || error?.scope === "caller") scope = error.scope;
     if (typeof error?.resetsAt === "string" && !Number.isNaN(Date.parse(error.resetsAt))) resetsAt = new Date(error.resetsAt).toISOString();
   } catch { /* no JSON body: the status says enough */ }
   if (res.status === 429 && !resetsAt) {

@@ -24,23 +24,26 @@ export async function callerOf(address: string | undefined): Promise<string> {
 export type Gate = { ok: true } | { ok: false; reason: "wrong" | "blocked"; resetsAt?: string };
 
 /**
- * Checks a proof, counting the failures of this caller. A caller past the limit is `blocked` without the proof being looked at,
- * so the limit cannot be used to test guesses either. Without a database nothing is counted (the tests; the tutor is off then anyway).
+ * Checks a proof, counting the failures of this caller. One guess is taken from the caller's hour in a single statement before
+ * the proof is looked at, so requests that arrive together cannot all pass the limit: a caller past it is `blocked` without the
+ * proof being looked at, and the limit cannot be used to test guesses either. A proof that fits gives the guess back. Without a
+ * database nothing is counted (the tests; the tutor is off then anyway).
  */
 export async function gate(env: Env, now: Date, caller: string, device: string, proof: string): Promise<Gate> {
   const key = magicKeyOf(env);
   if (!key) return { ok: false, reason: "wrong" };
   const hour = hourOf(now);
+  let taken = false;
   if (env.DB) {
-    const row = await env.DB.prepare("SELECT n FROM guesses WHERE hour = ?1 AND who = ?2").bind(hour, caller).first<{ n: number }>().catch(() => null);
-    if ((row?.n ?? 0) >= GUESSES_PER_HOUR) return { ok: false, reason: "blocked", resetsAt: nextHour(now) };
+    const reserved = await env.DB.prepare("INSERT INTO guesses (hour, who, n) VALUES (?1, ?2, 1) ON CONFLICT (hour, who) DO UPDATE SET n = n + 1 WHERE n < ?3")
+      .bind(hour, caller, GUESSES_PER_HOUR).run().catch(() => null);
+    if (reserved && !reserved.meta.changes) return { ok: false, reason: "blocked", resetsAt: nextHour(now) };
+    taken = !!reserved;
   }
-  if (await checkProof(key, device, proof)) return { ok: true };
-  if (env.DB) {
-    await env.DB.batch([
-      env.DB.prepare("DELETE FROM guesses WHERE hour < ?1").bind(new Date(now.getTime() - 2 * 3_600_000).toISOString().slice(0, 13)),
-      env.DB.prepare("INSERT INTO guesses (hour, who, n) VALUES (?1, ?2, 1) ON CONFLICT (hour, who) DO UPDATE SET n = n + 1").bind(hour, caller),
-    ]).catch(() => {});
+  if (await checkProof(key, device, proof)) {
+    if (taken) await env.DB!.prepare("UPDATE guesses SET n = n - 1 WHERE hour = ?1 AND who = ?2 AND n > 0").bind(hour, caller).run().catch(() => {});
+    return { ok: true };
   }
+  if (env.DB) await env.DB.prepare("DELETE FROM guesses WHERE hour < ?1").bind(new Date(now.getTime() - 2 * 3_600_000).toISOString().slice(0, 13)).run().catch(() => {});
   return { ok: false, reason: "wrong" };
 }
