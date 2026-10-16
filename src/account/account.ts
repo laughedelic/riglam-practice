@@ -174,7 +174,9 @@ export function createAccount(deps: AccountDeps): Account {
           await sync.activate(remembered.id);
         }
         const on = await client.available();
-        set({ available: on === true || !!remembered || (hadAccount && on !== false) });
+        // The server says accounts are off: that is the answer, however this device was signed in (no answer at all is not).
+        if (on === false && remembered) { sync.deactivate(); keep.write(null); set({ person: null }); }
+        set({ available: on === true || (on === null && (!!remembered || hadAccount)) });
         unknown = on === null && !v.available;
         if (remembered && on !== false) {
           // confirm in the background: the sync above already runs on what was remembered

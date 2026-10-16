@@ -139,6 +139,8 @@ export function createSync(deps: SyncDeps): Sync {
   // Writes whose note could not be stored (the outbox failed). They are kept here and noted again at the start of the next round.
   const unnoted = new Map<string, { col: string; id: string; data: Doc | null; t: number }>();
   const noting = new Map<string, number>(); // key -> notes of writes by the page that are being stored in the outbox
+  const inflight = new Set<Promise<unknown>>(); // those notes with what follows each, so that a change of account can wait for them
+  const drain = async () => { while (inflight.size) await Promise.allSettled([...inflight]); };
   const listeners = new Set<(s: SyncStatus) => void>();
 
   const status = (): SyncStatus => ({ active, busy, pending, last, error });
@@ -162,7 +164,7 @@ export function createSync(deps: SyncDeps): Sync {
         if (n > 0) noting.set(key, n);
         else noting.delete(key);
       };
-      void note(w.col, w.id, w.data, t)
+      const chain = note(w.col, w.id, w.data, t)
         .then(() => { unnoted.delete(key); settled(); })
         .catch(() => {
           settled();
@@ -174,6 +176,8 @@ export function createSync(deps: SyncDeps): Sync {
         .then(recount)
         .then(() => { publish(); if (active) kick(); })
         .catch(() => {});
+      inflight.add(chain);
+      void chain.finally(() => inflight.delete(chain));
     });
   }
 
@@ -206,19 +210,20 @@ export function createSync(deps: SyncDeps): Sync {
     timer = setTimer(() => { timer = null; void round().catch(() => {}); }, wait);
   }
 
-  /** What to do with the server's copy of a document. */
-  async function take(ch: SyncChange) {
+  /** What to do with the server's copy of a document. Returns true when the copy was put off because a newer write is still being saved or noted. */
+  async function take(ch: SyncChange): Promise<boolean> {
     const key = keyOf(ch.c, ch.id);
-    if (!known(ch.c, ch.id)) return;
+    if (!known(ch.c, ch.id)) return false;
     // A write by the page that began earlier but is not in the outbox yet is not seen by the revision (which already counts it) or by the outbox: it is newer than this copy, so this copy waits.
-    if (store.writing(ch.c, ch.id) || noting.has(key) || unnoted.has(key)) return;
+    if (store.writing(ch.c, ch.id) || noting.has(key) || unnoted.has(key)) return true;
     const revision = store.revision(ch.c, ch.id); // taken before anything is awaited: a write after this point is newer than what is judged below
     const mine = await outbox.get(key);
-    if (mine && mine.t > ch.t) return; // changed here after that: this copy goes to the server next
+    if (mine && mine.t > ch.t) return false; // changed here after that: this copy goes to the server next
     const have = await store.read(ch.c, ch.id);
     // The entry goes only once the copy is stored (or was already): if storing fails, the round fails and the entry is sent again, which brings this copy back.
     if (!(ch.doc === null ? have === null : have !== null && canon(have) === canon(ch.doc))) await store.applyRemote(ch.c, ch.id, ch.doc, revision);
     if (mine) await outbox.remove(key, mine.t);
+    return false;
   }
 
   /** The entries for one request: oldest first, within the limits of the server. */
@@ -258,10 +263,14 @@ export function createSync(deps: SyncDeps): Sync {
     const lost = new Set(res.rejected.map((ch) => keyOf(ch.c, ch.id)));
     for (const e of sent) if (!lost.has(e.key)) await outbox.remove(e.key, e.t);
     // The server's copies of writes that lost come first, then everything that changed; the later one of the same document is the newer.
-    for (const ch of res.rejected) await take(ch);
-    for (const ch of res.changes) await take(ch);
-    await outbox.setMeta("cursor", res.cursor);
+    let deferred = false;
+    for (const ch of res.rejected) if (await take(ch)) deferred = true;
+    for (const ch of res.changes) if (await take(ch)) deferred = true;
     await recount();
+    // A copy put off is behind the cursor if the cursor moves: it would never come again if the write that held it back fails to be saved. So the cursor stays, the
+    // copies already applied are recognized next time, and a round follows once that write is noted (or, when it fails, the next one that is asked for).
+    if (deferred) { again = true; return false; }
+    await outbox.setMeta("cursor", res.cursor);
     return res.more || pending > 0;
   }
 
@@ -348,6 +357,7 @@ export function createSync(deps: SyncDeps): Sync {
       const before = (await outbox.getMeta<string>("user")) ?? null;
       if (before !== userId) {
         // A first sign-in, or another person's: the cursor and the old noted changes belong to the earlier account.
+        await drain(); // notes of the earlier account's writes still under way must not land in the new queue
         await outbox.clear();
         unnoted.clear(); // notes that failed belong to the earlier account too
         await outbox.setMeta("user", userId);
@@ -382,6 +392,7 @@ export function createSync(deps: SyncDeps): Sync {
       unhook?.();
       unhook = null;
       if (timer !== null) { clearTimer(timer); timer = null; }
+      await drain();
       await outbox.clear();
       unnoted.clear();
       counted = 0;

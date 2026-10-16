@@ -441,6 +441,38 @@ describe("races and failures on the device", () => {
     expect(w.db.sql<{ data: string }>("SELECT data FROM docs WHERE id = 'x'")[0].data).toBe(JSON.stringify({ v: 3 }));
   });
 
+  it("keeps the cursor where it was when a server copy is put off, so that a local save that fails does not lose it", async () => {
+    const { a, b } = await pair();
+    await a.account.signUp("p");
+    await b.account.signIn();
+    await a.put("answers", "x", { v: 1 }, T0);
+    await a.sync.syncNow();
+    await b.sync.syncNow();
+    await a.put("answers", "x", { v: 2 }, T0 + 1000);
+    await a.sync.syncNow();
+    const save = b.begin("answers", "x", { v: 3 }, T0 + 9000);
+    await b.sync.syncNow(); // the copy v2 waits for the write that is being saved
+    expect(b.get("answers", "x")).toEqual({ v: 3 });
+    save.rollback(); // the save failed: no note, no entry
+    await b.sync.syncNow();
+    expect(b.get("answers", "x")).toEqual({ v: 2 }); // the copy was not left behind the cursor
+  });
+
+  it("waits for the notes that are under way before it clears the queue for another account", async () => {
+    const { a } = await pair();
+    await a.account.signUp("p");
+    const real = a.outbox.note.bind(a.outbox);
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    a.outbox.note = async (e) => { await gate; return real(e); };
+    const writing = a.put("answers", "x", { v: 1 }, T0); // its note is held
+    const leaving = a.sync.forget();
+    await settle();
+    release();
+    await Promise.all([leaving, writing]);
+    expect(await a.outbox.count()).toBe(0); // the late note did not land in the cleared queue
+  });
+
   it("makes an explicit sync wait for the round in progress and then send what came after it", async () => {
     const { a } = await pair();
     await a.account.signUp("p");

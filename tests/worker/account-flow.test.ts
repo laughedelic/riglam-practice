@@ -158,6 +158,18 @@ describe("starting the app", () => {
     expect(w.db.sql("SELECT id FROM docs")).toEqual([{ id: "a1" }]);
   });
 
+  it("treats the server's answer that accounts are off as final for a device that was signed in", async () => {
+    const w = await world();
+    const a = await device(w);
+    await a.account.signUp("p");
+    const { createAccount } = await import("../../src/account/account");
+    const again = createAccount({ client: { ...a.client, available: async () => false }, sync: a.sync, passkeys: { supported: () => true, create: async () => ({}), get: async () => ({}) }, keep: { read: () => a.kept, write: (p) => void (a.kept = p) } });
+    await again.start();
+    expect(again.view()).toMatchObject({ available: false, person: null });
+    expect(a.kept).toBeNull();
+    expect(a.sync.status().active).toBe(false);
+  });
+
   it("notices that the session ended while the app was closed", async () => {
     const w = await world();
     const a = await device(w);

@@ -123,14 +123,22 @@ export async function device(w: World, opts: Options = {}) {
     /** a write by the page that has begun (stored in memory, revision bumped) but is still being saved: the hooks run when `finish` is called */
     begin(col: string, id: string, data: Doc, at?: number) {
       if (at !== undefined) me.now = at;
+      const before = docs.get(`${col}/${id}`);
       docs.set(`${col}/${id}`, structuredClone(data));
       bump(`${col}/${id}`);
       writing.add(`${col}/${id}`);
-      return async () => {
+      const finish = async () => {
         for (const fn of [...writers]) fn({ col, id, data: structuredClone(data) });
         writing.delete(`${col}/${id}`);
         await settle();
       };
+      /** the save failed: the document goes back to what it was, and no hook is told */
+      const rollback = () => {
+        if (before === undefined) docs.delete(`${col}/${id}`);
+        else docs.set(`${col}/${id}`, before);
+        writing.delete(`${col}/${id}`);
+      };
+      return Object.assign(finish, { rollback });
     },
     async remove(col: string, id: string, at?: number) {
       if (at !== undefined) me.now = at;
