@@ -153,17 +153,21 @@ async function count(db: D1Database, sql: string, ...values: (string | number)[]
  */
 async function startChallenge(db: D1Database, now: Date, perDay: number, kind: "register" | "login" | "passkey", challenge: string, userId?: string, name?: string): Promise<string | Response> {
   await db.prepare("DELETE FROM challenges WHERE expires_at < ?1").bind(now.toISOString()).run();
-  const counted = await db
-    .prepare("INSERT INTO budget (day, scope, micro, calls) VALUES (?1, 'ceremonies', 1, 1) ON CONFLICT (day, scope) DO UPDATE SET micro = micro + 1, calls = calls + 1 WHERE micro < ?2")
-    .bind(dayOf(now), perDay)
-    .run();
-  if (!counted.meta.changes) return fail("quota", "too many sign-ins were started today; try again tomorrow");
+  // The open-challenge cap is checked first, so a request it refuses does not use up the day's ceremonies; the challenge is taken back if the day is over.
   const id = randomToken(16);
   const inserted = await db
     .prepare("INSERT INTO challenges (id, kind, challenge, user_id, name, expires_at) SELECT ?1, ?2, ?3, ?4, ?5, ?6 WHERE (SELECT COUNT(*) FROM challenges) < ?7")
     .bind(id, kind, challenge, userId ?? null, name ?? null, new Date(now.getTime() + CHALLENGE_MS).toISOString(), MAX_PENDING)
     .run();
   if (!inserted.meta.changes) return fail("quota", "too many sign-ins are under way; try again in a few minutes");
+  const counted = await db
+    .prepare("INSERT INTO budget (day, scope, micro, calls) VALUES (?1, 'ceremonies', 1, 1) ON CONFLICT (day, scope) DO UPDATE SET micro = micro + 1, calls = calls + 1 WHERE micro < ?2")
+    .bind(dayOf(now), perDay)
+    .run();
+  if (!counted.meta.changes) {
+    await db.prepare("DELETE FROM challenges WHERE id = ?1").bind(id).run().catch(() => {});
+    return fail("quota", "too many sign-ins were started today; try again tomorrow");
+  }
   return id;
 }
 
