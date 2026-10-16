@@ -218,9 +218,10 @@ test("the explain request is the plain one when the page checked every example, 
 });
 
 // A debate line is shown beside the learner's example, so a counter-example that is right must read as fitting, not as "fails".
-test("the debate request judges a Why? example as fitting or not, and an Accept by its statement", () => {
-  expect(DEBATE_ASK).toContain('after Why?, the example ("so it fits" or "so it does not fit")');
-  expect(DEBATE_ASK).toContain('after Accept, the statement ("so the statement holds" or "but the statement does not hold")');
+test("the debate request judges a Why? example as fitting or not, and an Accept as a statement about the question", () => {
+  expect(DEBATE_ASK).toContain('after Why?, judge the example ("so it fits" or "so it does not fit")');
+  expect(DEBATE_ASK).toContain('after Accept, say whether the statement holds ("You accepted Q1, and the statement holds: ..." or "You accepted Q2, but there is a counter-example: ...")');
+  expect(DEBATE_ASK).not.toContain("but the statement does not hold");
   expect(DEBATE_ASK).not.toContain('"so it fails"');
   expect(FIRST_ASK).toContain('("so it fits" or "so it does not fit"');
 });
