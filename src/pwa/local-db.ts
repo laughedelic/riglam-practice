@@ -103,6 +103,8 @@ export interface LocalDb extends Db {
   applyRemote(col: string, id: string, data: Doc | null, revision?: number): Promise<void>;
   /** A number that changes with every write of the document on this device, by the page, another tab or `applyRemote`, from the moment the write begins. */
   revision(col: string, id: string): number;
+  /** Whether a write by the page has begun but `onWrite` has not yet been told of it (it is being saved). */
+  writing(col: string, id: string): boolean;
   /** Resolves once the IndexedDB connection is open (or known to be unavailable). For tests. */
   ready(): Promise<IDBDatabase | null>;
   close(): Promise<void>;
@@ -182,6 +184,7 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
   }
 
   const writeHooks = new Set<(w: WriteEvent) => void>();
+  const writing = new Map<string, number>(); // doc path -> writes by the page that have begun and whose hooks have not run yet
 
   async function write(col: string, id: string, data: Doc | null, remote = false) {
     const path = `${col}/${id}`;
@@ -193,6 +196,13 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
     const mine = m.get(id);
     const stamp = (versions.get(path) ?? 0) + 1; // this write's place in the order of writes of the document; a deletion has no value to compare
     versions.set(path, stamp);
+    if (!remote) writing.set(path, (writing.get(path) ?? 0) + 1);
+    const done = () => {
+      if (remote) return;
+      const n = (writing.get(path) ?? 1) - 1;
+      if (n > 0) writing.set(path, n);
+      else writing.delete(path);
+    };
     notify(col);
     const stored = m.get(id) ?? null; // as written now, whatever else changes the document while it is being saved
     try {
@@ -204,12 +214,14 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
         else m.delete(id);
         notify(col);
       }
+      done();
       throw e;
     }
     channel?.postMessage({ col, id });
     if (!remote) for (const fn of [...writeHooks]) {
       try { fn({ col, id, data: stored }); } catch { /* a listener's failure is not the write's */ }
     }
+    done(); // after the hooks, which note the write synchronously before they return
   }
 
   const meta = { fromCache: false, hasPendingWrites: false };
@@ -360,6 +372,7 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
       return () => void writeHooks.delete(fn);
     },
     revision: (col: string, id: string) => versions.get(`${col}/${id}`) ?? 0,
+    writing: (col: string, id: string) => writing.has(`${col}/${id}`),
     async applyRemote(col: string, id: string, data: Doc | null, revision?: number) {
       await load(col);
       // No await between this check and the start of the write (which bumps the revision), so no write can come in between.

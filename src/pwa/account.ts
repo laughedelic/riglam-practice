@@ -43,6 +43,7 @@ const storeOf = (db: LocalDb): SyncStore => ({
   onWrite: (fn) => db.onWrite(fn),
   applyRemote: (col, id, data, revision) => db.applyRemote(col, id, data, revision),
   revision: (col, id) => db.revision(col, id),
+  writing: (col, id) => db.writing(col, id),
   async documents(col) {
     const snap = await db.collection(col).get();
     return snap.docs.map((d) => ({ id: d.id, data: d.data() ?? {} }));

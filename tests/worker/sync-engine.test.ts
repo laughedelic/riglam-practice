@@ -419,6 +419,28 @@ describe("races and failures on the device", () => {
     expect(w.db.sql<{ data: string }>("SELECT data FROM docs WHERE id = 'x'")[0].data).toBe(JSON.stringify({ v: 3 }));
   });
 
+  it("does not overwrite a document whose local write began before the server's copy was judged but was not noted yet", async () => {
+    const { w, a, b } = await pair();
+    await a.account.signUp("p");
+    await b.account.signIn();
+    await a.put("answers", "x", { v: 1 }, T0);
+    await a.sync.syncNow();
+    await b.sync.syncNow();
+    await a.put("answers", "x", { v: 2 }, T0 + 1000);
+    await a.sync.syncNow();
+    // b's page has begun writing v3 (in memory, the revision is already newer) but the write is not saved, so it is not in the outbox either
+    const finish = b.begin("answers", "x", { v: 3 }, T0 + 9000);
+    const appliedBefore = b.applied.length;
+    await b.sync.syncNow();
+    expect(b.applied.slice(appliedBefore)).not.toContain("answers/x");
+    expect(b.get("answers", "x")).toEqual({ v: 3 });
+    await finish();
+    await b.sync.syncNow();
+    await a.sync.syncNow();
+    expect(a.get("answers", "x")).toEqual({ v: 3 });
+    expect(w.db.sql<{ data: string }>("SELECT data FROM docs WHERE id = 'x'")[0].data).toBe(JSON.stringify({ v: 3 }));
+  });
+
   it("makes an explicit sync wait for the round in progress and then send what came after it", async () => {
     const { a } = await pair();
     await a.account.signUp("p");
@@ -584,6 +606,23 @@ describe("an account that holds as many documents as it may", () => {
     // deleting more here lets the queue go
     for (let i = 1; i <= 40; i++) await a.remove("answers", "d" + i, T0 + 7000 + i);
     expect(await a.sync.syncNow()).toMatchObject({ error: null, pending: 0 });
+  });
+});
+
+describe("an account that is full and a queue with as many additions as deletions in a request", () => {
+  it("still sends the deletions that make room", async () => {
+    const w = await world({ MAX_DOCS_PER_ACCOUNT: "250", DAILY_WRITES_PER_ACCOUNT: "100000" });
+    const a = await device(w);
+    for (let i = 0; i < 250; i++) a.seed("answers", "d" + i, { i });
+    await a.account.signUp("p");
+    await a.sync.syncNow();
+    expect(a.sync.status()).toMatchObject({ error: null, pending: 0 });
+    // 200 additions, all older than 200 deletions: the first request holds only additions, and the deletions are as many as it
+    for (let i = 0; i < SYNC_LIMITS.writes; i++) await a.put("answers", "n" + i, { i }, T0 + 1000 + i);
+    for (let i = 0; i < SYNC_LIMITS.writes; i++) await a.remove("answers", "d" + i, T0 + 9000 + i);
+    await a.sync.syncNow();
+    expect(a.sync.status()).toMatchObject({ error: null, pending: 0 });
+    expect(w.db.sql<{ n: number }>("SELECT COUNT(*) AS n FROM docs WHERE data IS NOT NULL")[0].n).toBe(250);
   });
 });
 

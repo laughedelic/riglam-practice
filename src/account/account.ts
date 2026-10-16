@@ -178,8 +178,11 @@ export function createAccount(deps: AccountDeps): Account {
         unknown = on === null && !v.available;
         if (remembered && on !== false) {
           // confirm in the background: the sync above already runs on what was remembered
+          // The answer is dropped when the person shown here has changed since (a sign-out or sign-in that finished first).
+          const asked = remembered.id;
+          const same = () => v.person?.id === asked;
           void client.me().then(
-            (me) => (me.signedIn ? adopt(personOf(me.user)) : signedOut()),
+            (me) => { if (same()) return me.signedIn ? adopt(personOf(me.user)) : signedOut(); },
             () => {},
           );
         }

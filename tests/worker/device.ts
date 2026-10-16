@@ -29,11 +29,13 @@ export async function device(w: World, opts: Options = {}) {
   const applied: string[] = [];
   const revs = new Map<string, number>();
   const bump = (k: string) => void revs.set(k, (revs.get(k) ?? 0) + 1);
+  const writing = new Set<string>(); // writes begun whose hooks have not run
   /** things a test can make happen at a chosen moment inside the engine's calls */
   const hooks: { afterRead?: () => Promise<void> | void } = {};
   const store: SyncStore = {
     onWrite(fn) { writers.add(fn); return () => void writers.delete(fn); },
     revision: (col, id) => revs.get(`${col}/${id}`) ?? 0,
+    writing: (col, id) => writing.has(`${col}/${id}`),
     async applyRemote(col, id, data, revision) {
       if (revision !== undefined && (revs.get(`${col}/${id}`) ?? 0) !== revision) return;
       bump(`${col}/${id}`);
@@ -117,6 +119,18 @@ export async function device(w: World, opts: Options = {}) {
       bump(`${col}/${id}`);
       for (const fn of [...writers]) fn({ col, id, data: structuredClone(data) });
       await settle();
+    },
+    /** a write by the page that has begun (stored in memory, revision bumped) but is still being saved: the hooks run when `finish` is called */
+    begin(col: string, id: string, data: Doc, at?: number) {
+      if (at !== undefined) me.now = at;
+      docs.set(`${col}/${id}`, structuredClone(data));
+      bump(`${col}/${id}`);
+      writing.add(`${col}/${id}`);
+      return async () => {
+        for (const fn of [...writers]) fn({ col, id, data: structuredClone(data) });
+        writing.delete(`${col}/${id}`);
+        await settle();
+      };
     },
     async remove(col: string, id: string, at?: number) {
       if (at !== undefined) me.now = at;

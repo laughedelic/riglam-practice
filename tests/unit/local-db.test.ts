@@ -123,6 +123,25 @@ describe("the server's copy of a document (applyRemote with a revision)", () => 
     expect((await ref.get()).data()).toEqual({ v: 3 });
   });
 
+  it("says a write by the page is under way from its start until onWrite has been told, and not for the server's copy", async () => {
+    const { factory, control } = stub();
+    const db = createLocalDb({ indexedDB: factory, channel: false });
+    const ref = db.doc("answers/a1");
+    await ref.set({ v: 1 });
+    const seen: boolean[] = [];
+    db.onWrite(() => void seen.push(db.writing("answers", "a1"))); // the hook runs before the write is over: it can note it first
+    expect(db.writing("answers", "a1")).toBe(false);
+    control.delay = 20;
+    const saving = ref.set({ v: 2 });
+    expect(db.writing("answers", "a1")).toBe(true);
+    await saving;
+    expect(seen).toEqual([true]);
+    expect(db.writing("answers", "a1")).toBe(false);
+    const remote = db.applyRemote("answers", "a1", { v: 3 });
+    expect(db.writing("answers", "a1")).toBe(false);
+    await remote;
+  });
+
   it("is stored as before when no revision is given", async () => {
     const { factory } = stub();
     const db = createLocalDb({ indexedDB: factory, channel: false });

@@ -24,6 +24,8 @@ export interface SyncStore {
   applyRemote(col: string, id: string, data: Doc | null, revision?: number): Promise<void>;
   /** a number that changes whenever the document is written here (by the page, another tab or `applyRemote`), including a write that is still being saved */
   revision(col: string, id: string): number;
+  /** whether a write by the page has begun but `onWrite` has not been told of it yet (it is still being saved) */
+  writing(col: string, id: string): boolean;
   /** every document of a collection as it is now */
   documents(col: string): Promise<{ id: string; data: Doc }[]>;
   /** one document as it is now, or null */
@@ -136,6 +138,7 @@ export function createSync(deps: SyncDeps): Sync {
   let batchMax: number = SYNC_LIMITS.writes; // the most writes sent in one request; the server's answer that a request is too large for the account lowers it
   // Writes whose note could not be stored (the outbox failed). They are kept here and noted again at the start of the next round.
   const unnoted = new Map<string, { col: string; id: string; data: Doc | null; t: number }>();
+  const noting = new Map<string, number>(); // key -> notes of writes by the page that are being stored in the outbox
   const listeners = new Set<(s: SyncStatus) => void>();
 
   const status = (): SyncStatus => ({ active, busy, pending, last, error });
@@ -153,9 +156,16 @@ export function createSync(deps: SyncDeps): Sync {
     unhook = store.onWrite((w) => {
       const t = now();
       const key = keyOf(w.col, w.id);
+      noting.set(key, (noting.get(key) ?? 0) + 1);
+      const settled = () => {
+        const n = (noting.get(key) ?? 1) - 1;
+        if (n > 0) noting.set(key, n);
+        else noting.delete(key);
+      };
       void note(w.col, w.id, w.data, t)
-        .then(() => void unnoted.delete(key))
+        .then(() => { unnoted.delete(key); settled(); })
         .catch(() => {
+          settled();
           // The document is saved here but its note is not: keep it for the next round, and make sure that round happens.
           unnoted.set(key, { col: w.col, id: w.id, data: w.data, t });
           void outbox.setMeta("seeded", null).catch(() => {}); // if the page is closed before then, the next sign-in offers every document again
@@ -200,6 +210,8 @@ export function createSync(deps: SyncDeps): Sync {
   async function take(ch: SyncChange) {
     const key = keyOf(ch.c, ch.id);
     if (!known(ch.c, ch.id)) return;
+    // A write by the page that began earlier but is not in the outbox yet is not seen by the revision (which already counts it) or by the outbox: it is newer than this copy, so this copy waits.
+    if (store.writing(ch.c, ch.id) || noting.has(key) || unnoted.has(key)) return;
     const revision = store.revision(ch.c, ch.id); // taken before anything is awaited: a write after this point is newer than what is judged below
     const mine = await outbox.get(key);
     if (mine && mine.t > ch.t) return; // changed here after that: this copy goes to the server next
@@ -270,7 +282,7 @@ export function createSync(deps: SyncDeps): Sync {
       if (e.code === "full") {
         const deletions = await batch(true);
         let freed = false;
-        if (deletions.length && deletions.length < sent.length) {
+        if (deletions.length && sent.some((x) => x.doc !== null)) {
           try {
             freed = await exchange(deletions).then(() => true);
           } catch (e2) {
