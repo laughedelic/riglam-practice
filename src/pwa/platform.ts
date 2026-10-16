@@ -95,9 +95,11 @@ async function refresh(key: string, have: string) {
 /** The key the server stopped accepting may have been changed: an account that carries the key (and is signed in here) has the new one. */
 async function recoverFromAccount(): Promise<boolean> {
   try {
+    if (keyDeclined()) return false;
     const key = await createAccountClient().fetchKey();
     const got = await fetchCourse(key);
     if (!got.ok || !("definitions" in got)) return false;
+    if (keyDeclined()) return false; // the reader forgot the key while this was under way: that wins (the check and the store below run with no wait between them)
     if (!storeKey(key)) return false; // nowhere to keep it: a reload would find the device without it and fetch it again, for ever
     keepCourse({ version: got.version, definitions: got.definitions });
     return true;

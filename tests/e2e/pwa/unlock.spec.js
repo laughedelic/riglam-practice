@@ -330,6 +330,19 @@ withKey("with the key, Options can take another one (the old one stays until the
   await expect(page.getByRole("button", { name: "Enter the Magic Key" })).toBeVisible();
 });
 
+withKey("forgetting the key stays forgotten when only session storage works", async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(window, "localStorage", { get() { throw new DOMException("denied", "SecurityError"); } }));
+  await page.addInitScript(hook);
+  await page.goto(`/#k=${dataKey}`);
+  await ready(page);
+  await page.getByRole("button", { name: /options/i }).filter({ visible: true }).first().click();
+  await page.getByRole("button", { name: "Forget the key" }).click();
+  await page.getByRole("button", { name: "Forget the key" }).click(); // the confirmation
+  await ready(page);
+  expect(await page.evaluate(() => sessionStorage.getItem("riglam.magicKey"))).toBeNull();
+  expect(await page.evaluate(() => sessionStorage.getItem("riglam.keyDeclined"))).toBe("1");
+});
+
 withKey("a link with another key, opened when the server cannot be asked, does not let the copy kept for the old key pass as that key's", async ({ page }) => {
   const full = readFull();
   await page.addInitScript(hook);
