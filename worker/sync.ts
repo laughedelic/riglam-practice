@@ -9,13 +9,16 @@
 
 import { Hono } from "hono";
 import { ACCOUNT_API, SYNC_COLLECTIONS, SYNC_LIMITS, validDocId, type Doc, type SyncChange, type SyncResponse } from "../src/account/protocol";
-import { accountsOn, fail, readObject, sessionOf, type AccountDeps } from "./accounts";
+import { accountsOn, fail, readObject, renewCookie, sessionOf, type AccountDeps } from "./accounts";
 import { readAccountConfig } from "./config";
 import { dayOf } from "./budget";
 import type { Env } from "./env";
 
 /** A device whose clock is ahead gets its writes dated at most this far in the future, so that one wrong clock cannot make its copy unbeatable. */
 const FUTURE_MS = 5 * 60_000;
+
+/** The most text of documents one answer carries (its documents are at most 256 KiB each; the first one is always sent). Counted in characters. */
+const ANSWER_CHARS = 4 * 1024 * 1024;
 
 interface Row {
   col: string;
@@ -51,8 +54,30 @@ function readWrites(raw: unknown, now: Date): SyncChange[] | string {
   return [...latest.values()];
 }
 
+/** How many live documents these writes would add (below zero when they remove more than they add), counting only the writes that would win against the stored copy. */
+async function netLive(db: D1Database, user: string, writes: SyncChange[]): Promise<number> {
+  const stored = new Map<string, { t: number; live: number }>();
+  for (let i = 0; i < writes.length; i += 40) {
+    const part = writes.slice(i, i + 40);
+    const pairs = part.map((_, k) => `(?${2 * k + 2}, ?${2 * k + 3})`).join(", ");
+    const found = await db
+      .prepare(`SELECT col, id, t, data IS NOT NULL AS live FROM docs WHERE user_id = ?1 AND (col, id) IN (VALUES ${pairs})`)
+      .bind(user, ...part.flatMap((w) => [w.c, w.id]))
+      .all<{ col: string; id: string; t: number; live: number }>();
+    for (const r of found.results) stored.set(`${r.col}/${r.id}`, { t: r.t, live: r.live });
+  }
+  let net = 0;
+  for (const w of writes) {
+    const have = stored.get(`${w.c}/${w.id}`);
+    if (have && !(w.t > have.t)) continue; // loses: the stored copy stays
+    net += (w.doc !== null ? 1 : 0) - (have?.live ? 1 : 0);
+  }
+  return net;
+}
+
 export function syncRoutes(deps: AccountDeps) {
   const app = new Hono<{ Bindings: Env }>();
+  app.use(ACCOUNT_API.sync, renewCookie);
 
   app.post(ACCOUNT_API.sync, async (c) => {
     const env = c.env;
@@ -73,25 +98,43 @@ export function syncRoutes(deps: AccountDeps) {
     if (typeof writes === "string") return fail("bad_request", writes);
 
     const rejected: SyncChange[] = [];
+    let rejectedChars = 0;
     if (writes.length) {
       const cfg = readAccountConfig(env);
       const day = dayOf(now);
-      const used = (await db.prepare("SELECT writes FROM sync_quota WHERE day = ?1 AND user_id = ?2").bind(day, user).first<{ writes: number }>())?.writes ?? 0;
-      if (used + writes.length > cfg.dailyWrites) return fail("quota", "this account has reached its limit of document changes for today", { "retry-after": "3600" });
+      if (writes.length > cfg.dailyWrites) return fail("quota", "this account has reached its limit of document changes for today", { "retry-after": "3600" });
+
+      // The room for documents. The count of live documents plus the writes that could add one is the upper bound; only when that is over is the exact change worked out
+      // (an update of a document that is held, or a deletion beside a new document, adds nothing). This check is made before the writes, so requests arriving together
+      // can pass it together: the limit may be passed by about one request's worth per request in flight, which the daily limit below bounds.
       const adds = writes.filter((w) => w.doc !== null).length;
       if (adds) {
         const held = (await db.prepare("SELECT COUNT(*) AS n FROM docs WHERE user_id = ?1 AND data IS NOT NULL").bind(user).first<{ n: number }>())?.n ?? 0;
-        if (held + adds > cfg.maxDocs) return fail("quota", "this account holds as many documents as it may");
+        if (held + adds > cfg.maxDocs && held + (await netLive(db, user, writes)) > cfg.maxDocs) return fail("quota", "this account holds as many documents as it may");
       }
+
+      // The day's allowance is taken first, in one statement that refuses when it would be passed, so that requests arriving together cannot all use the last of it.
+      // It is for an account that exists, so the counter of a deleted account is not made again.
+      const taken = await db
+        .prepare(
+          `INSERT INTO sync_quota (day, user_id, writes) SELECT ?1, ?2, ?3 WHERE EXISTS (SELECT 1 FROM users WHERE id = ?2)
+           ON CONFLICT (day, user_id) DO UPDATE SET writes = writes + excluded.writes WHERE writes + excluded.writes <= ?4`,
+        )
+        .bind(day, user, writes.length, cfg.dailyWrites)
+        .run();
+      if (!taken.meta.changes) {
+        const alive = await db.prepare("SELECT 1 AS ok FROM users WHERE id = ?1").bind(user).first();
+        return alive ? fail("quota", "this account has reached its limit of document changes for today", { "retry-after": "3600" }) : fail("signed_out", "you are not signed in");
+      }
+
       // The next number in the user's sequence is taken in the same statement that stores the document, and a batch runs as one transaction, so two requests cannot hand out the same one.
+      // A document is stored only for an account that exists when the statement runs: one deleted since the session was read gets nothing.
       const upsert = db.prepare(
-        `INSERT INTO docs (user_id, col, id, data, t, seq) VALUES (?1, ?2, ?3, ?4, ?5, (SELECT COALESCE(MAX(seq), 0) + 1 FROM docs WHERE user_id = ?1))
+        `INSERT INTO docs (user_id, col, id, data, t, seq)
+         SELECT ?1, ?2, ?3, ?4, ?5, (SELECT COALESCE(MAX(seq), 0) + 1 FROM docs WHERE user_id = ?1) WHERE EXISTS (SELECT 1 FROM users WHERE id = ?1)
          ON CONFLICT (user_id, col, id) DO UPDATE SET data = excluded.data, t = excluded.t, seq = excluded.seq WHERE excluded.t > docs.t`,
       );
-      const results = await db.batch([
-        ...writes.map((w) => upsert.bind(user, w.c, w.id, w.doc === null ? null : JSON.stringify(w.doc), w.t)),
-        db.prepare("INSERT INTO sync_quota (day, user_id, writes) VALUES (?1, ?2, ?3) ON CONFLICT (day, user_id) DO UPDATE SET writes = writes + excluded.writes").bind(day, user, writes.length),
-      ]);
+      const results = await db.batch(writes.map((w) => upsert.bind(user, w.c, w.id, w.doc === null ? null : JSON.stringify(w.doc), w.t)));
       // The server's copies of the writes that lost, a few dozen to a query (D1 allows 100 values in one).
       const lost = writes.filter((_, i) => !results[i].meta.changes);
       for (let i = 0; i < lost.length; i += 40) {
@@ -102,18 +145,25 @@ export function syncRoutes(deps: AccountDeps) {
           .bind(user, ...part.flatMap((w) => [w.c, w.id]))
           .all<Row>();
         rejected.push(...found.results.map(change));
+        rejectedChars += found.results.reduce((n, r) => n + (r.data?.length ?? 0), 0);
       }
       if (Math.random() < 0.02) await db.prepare("DELETE FROM sync_quota WHERE day < ?1").bind(dayOf(new Date(now.getTime() - 3 * 86_400_000))).run().catch(() => {});
     }
 
+    // One answer is bounded in documents and in text: the rejected copies come first, the changes take what is left of the text (at least the first one, whatever its size).
+    // `total` is how many the page had before the text limit cut it, so that `more` is true when the cut left some behind.
     const rows = (
       await db
-        .prepare("SELECT col, id, data, t, seq FROM docs WHERE user_id = ?1 AND seq > ?2 ORDER BY seq LIMIT ?3")
-        .bind(user, cursor, SYNC_LIMITS.changes + 1)
-        .all<Row>()
+        .prepare(
+          `WITH page AS (SELECT col, id, data, t, seq FROM docs WHERE user_id = ?1 AND seq > ?2 ORDER BY seq LIMIT ?3),
+                sized AS (SELECT col, id, data, t, seq, SUM(COALESCE(LENGTH(data), 0)) OVER (ORDER BY seq) AS cum, ROW_NUMBER() OVER (ORDER BY seq) AS n, (SELECT COUNT(*) FROM page) AS total FROM page)
+           SELECT col, id, data, t, seq, total FROM sized WHERE n <= ?4 AND (n = 1 OR cum <= ?5) ORDER BY seq`,
+        )
+        .bind(user, cursor, SYNC_LIMITS.changes + 1, SYNC_LIMITS.changes, Math.max(0, ANSWER_CHARS - rejectedChars))
+        .all<Row & { total: number }>()
     ).results;
-    const more = rows.length > SYNC_LIMITS.changes;
-    const page = more ? rows.slice(0, SYNC_LIMITS.changes) : rows;
+    const page = rows;
+    const more = (page[0]?.total ?? 0) > page.length;
     const answer: SyncResponse = { cursor: page.length ? page[page.length - 1].seq : cursor, changes: page.map(change), rejected, more };
     return new Response(JSON.stringify(answer), { headers: { "content-type": "application/json", "cache-control": "no-store" } });
   });
