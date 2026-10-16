@@ -145,6 +145,21 @@ describe("loadKit", () => {
     expect(b!.run("lookup_term", { name: "Form" })).toMatchObject({ definition: "NEW-DEF" });
   });
 
+  it("takes a change of the notes alone, which leaves the definitions' version as it was", async () => {
+    const { open, rows } = parts();
+    const { db, env } = await withRows(rows, "2026-10-13T09:00:00.000Z");
+    let t = 1_000;
+    const a = await loadKit(env, open, () => t);
+    expect(a!.finePoints(["form"]).join(" ")).toContain("A person is not form");
+    const changed = parts({ ...FULL, notes: { ...FULL.notes, form: ["NEW-NOTE."] } });
+    // as `npm run data:publish` does when only the notes changed: the definitions row keeps its time
+    await db.d1.prepare("UPDATE course_data SET body = ?1, updated_at = ?2 WHERE kind = 'notes'").bind(changed.rows.notes, "2026-10-14T09:00:00.000Z").run();
+    t += 61_000;
+    const b = await loadKit(env, open, () => t);
+    expect(b).not.toBe(a);
+    expect(b!.finePoints(["form"]).join(" ")).toContain("NEW-NOTE");
+  });
+
   it("is null, and says so without quoting any text, when a row is not JSON", async () => {
     const { open, rows } = parts();
     const { env } = await withRows({ ...rows, definitions: "SECRET-DEF {not json" });

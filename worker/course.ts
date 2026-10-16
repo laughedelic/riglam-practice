@@ -8,6 +8,8 @@ export interface CourseRows {
   notes: string;
   /** when the definitions were loaded: the version a device compares with what it kept */
   version: string;
+  /** when either row last changed: what the tutor's kit is remade for (a change of the notes alone does not move `version`) */
+  revision: string;
 }
 
 /** Both rows, or null when either is missing or the database cannot be read (the tutor and /api/course are then off). */
@@ -17,7 +19,7 @@ export async function readCourseRows(db: D1Database | undefined): Promise<Course
     const rows = (await db.prepare("SELECT kind, body, updated_at AS at FROM course_data WHERE kind IN ('definitions', 'notes')").all<{ kind: string; body: string; at: string }>()).results;
     const definitions = rows.find((r) => r.kind === "definitions");
     const notes = rows.find((r) => r.kind === "notes");
-    return definitions && notes ? { definitions: definitions.body, notes: notes.body, version: definitions.at } : null;
+    return definitions && notes ? { definitions: definitions.body, notes: notes.body, version: definitions.at, revision: `${definitions.at}|${notes.at}` } : null;
   } catch {
     return null;
   }
