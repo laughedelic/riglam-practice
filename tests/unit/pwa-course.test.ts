@@ -13,6 +13,24 @@ const ask = (respond: (url: string, init: RequestInit) => Response | Promise<Res
   return { key, seen, got: () => fetchCourse(key, have, doFetch, () => "d".repeat(22)) };
 };
 
+describe("fetchCourse: a connection that stalls", () => {
+  const stalls = (init: RequestInit) => new Promise<never>((_, reject) => init.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError"))));
+  const withDeadline = (doFetch: typeof fetch, ms = 20) => fetchCourse(testMagicKey(), undefined, doFetch, () => "d".repeat(22), ms);
+
+  it("gives up on a request that never answers, as no connection, so that the page can go on with locked definitions", async () => {
+    expect(await withDeadline(((_url: string, init: RequestInit) => stalls(init)) as unknown as typeof fetch)).toEqual({ ok: false, reason: "offline" });
+  });
+
+  it("gives up on an answer whose body never arrives", async () => {
+    const body = (init: RequestInit) => ({ ok: true, status: 200, json: () => stalls(init) }) as unknown as Response;
+    expect(await withDeadline((async (_url: string, init: RequestInit) => body(init)) as unknown as typeof fetch)).toEqual({ ok: false, reason: "offline" });
+  });
+
+  it("does not hold back an answer that comes in time", async () => {
+    expect(await withDeadline((async () => json(200, { version: "v1", unchanged: true })) as unknown as typeof fetch, 5_000)).toEqual({ ok: true, version: "v1", unchanged: true });
+  });
+});
+
 describe("fetchCourse", () => {
   it("sends the device id and a proof the server can check, never the key", async () => {
     const { key, seen, got } = ask(() => json(200, { version: "v1", definitions: { Form: { d: "x" } } }));

@@ -54,8 +54,11 @@ export type ErrorCode =
   | "refused" // the model declined to answer
   | "unavailable"; // the tutor is off, not set up, or failed on the server
 
-/** Whose daily budget a `rate_limited` refusal came from: this device's own, or the one shared by everybody. */
-export type BudgetScope = "device" | "global";
+/**
+ * Whose limit a `rate_limited` refusal came from: this device's own daily budget, the one shared by everybody, or the connection's
+ * allowance of wrong Magic Keys for the hour (`caller`, with `resetsAt` the start of the next hour).
+ */
+export type BudgetScope = "device" | "global" | "caller";
 
 /** The body of an error answer. A refusal for a used-up budget also says whose budget it was and when it starts again (UTC midnight, ISO). */
 export interface ErrorBody {
