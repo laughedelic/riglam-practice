@@ -42,8 +42,8 @@ export function termsNode(p){
 }
 // Without the Magic Key there are no definitions to show. Each term says where to look it up (the chapter is in the open data),
 // and one note says how to read them here.
-const lookUp=ch=>/^[IVX]+ /.test(ch)?"Look it up in the booklet, chapter "+ch.replace(/^([IVX]+) /,"$1: ")+".":ch==="Dampilon tables"?"Look it up in the Dampilon tables.":"";
-function lockedDefs(names){
+const lookUp=ch=>/^[IVX]+ /.test(ch)?"Look it up in the booklet, chapter "+ch.replace(/^([IVX]+) /,"$1: ")+".":ch==="Dampilon tables"?"Look it up in the Dampilon tables.":ch?"Look it up in the booklet, section "+ch+".":"";
+export function lockedDefs(names){
   const box=el("div",{class:"tm-locked"});
   box.append(el("dl",{class:"tm-defs"},names.map(n=>{
     const t=state.DATA.terms[n], line=lookUp(t.ch||""), ruOn=state.defLang==="enru";

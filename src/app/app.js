@@ -6,7 +6,7 @@ import { favKey } from "./practice/favorites.js";
 import { advance, next } from "./practice/queue.js";
 import { choose, fbNode } from "./practice/screen.js";
 import { SKIP_DAYS, hiddenKeys, isSkipped, skipPair, undoSkip } from "./practice/skips.js";
-import { defParts, termsNode } from "./practice/terms.js";
+import { defParts, termsNode, lockedDefs } from "./practice/terms.js";
 import { buildPool, indexData, nextGenerated } from "./practice/universe.js";
 import { signature } from "../ui/account";
 import { setDefLang } from "./shell/options.js";
@@ -39,6 +39,8 @@ async function bootSteps(platform){
   waiting("the other parts of the app");
   try{ state.sample=await platform.sample(); }catch(e){ state.sample=null; }
   try{ state.unlock=platform.unlock?await platform.unlock():null; }catch(e){ state.unlock=null; }
+  // the server may need seconds to say whether it has a tutor: the page opens first and draws again when the answer comes
+  if(state.unlock&&state.unlock.answer){ const u=state.unlock; u.answer.then(on=>{ u.tutor=!!on; if(state.mode!=="loading") render(); },()=>{}); }
   try{ state.tutor=platform.tutor?await platform.tutor():null; }catch(e){ state.tutor=null; }
   try{ state.account=platform.account?await platform.account():null; }catch(e){ state.account=null; }
   // which build this is: asked in the background (it looks at the server), shown in Options when it arrives
@@ -79,6 +81,6 @@ function settle(){
 
 /* ---------- test hook (begin): lets the browser tests in tests/ read internals; inert unless a test defines window.__riglamTest ---------- */
 function exposeTestHook(){
-if(typeof window.__riglamTest==="function") window.__riglamTest({get cur(){return state.cur},get ui(){return state.ui},get tab(){return state.tab},get favs(){return state.favs},get mode(){return state.mode},get view(){return state.view},get optsOpen(){return state.optsOpen},favKey,refOf,render,choose,fbNode,defParts,termsNode,setDefLang,get defLang(){return state.defLang},get DATA(){return state.DATA},next,advance,get skips(){return state.skips},set skips(v){state.skips=v},skipPair,undoSkip,isSkipped,hiddenKeys,get POOL(){return state.POOL},nextGenerated,SKIP_DAYS,get lab(){return state.lab},setLab,labThings,get flags(){return state.flags},get labruns(){return state.labruns},labRuns,LAB_MODELS,labRef,labParse,flagId,labAgain,openFlag,saveFlag,removeFlag,setFlagState,get labPause(){return state.labPause},set labPause(v){state.labPause=v},get labSpotN(){return state.labSpotN},set labSpotN(v){state.labSpotN=v},labJudgeNow,aiCase,aiFlag,decorateAns});
+if(typeof window.__riglamTest==="function") window.__riglamTest({get cur(){return state.cur},get ui(){return state.ui},get tab(){return state.tab},get favs(){return state.favs},get mode(){return state.mode},get view(){return state.view},get optsOpen(){return state.optsOpen},favKey,refOf,render,choose,fbNode,defParts,termsNode,lockedDefs,setDefLang,get defLang(){return state.defLang},get DATA(){return state.DATA},next,advance,get skips(){return state.skips},set skips(v){state.skips=v},skipPair,undoSkip,isSkipped,hiddenKeys,get POOL(){return state.POOL},nextGenerated,SKIP_DAYS,get lab(){return state.lab},setLab,labThings,get flags(){return state.flags},get labruns(){return state.labruns},labRuns,LAB_MODELS,labRef,labParse,flagId,labAgain,openFlag,saveFlag,removeFlag,setFlagState,get labPause(){return state.labPause},set labPause(v){state.labPause=v},get labSpotN(){return state.labSpotN},set labSpotN(v){state.labSpotN=v},labJudgeNow,aiCase,aiFlag,decorateAns});
 }
 /* ---------- test hook (end) ---------- */
