@@ -120,7 +120,7 @@ export function createAccountClient(doFetch: Fetch = (input, init) => fetch(inpu
       await call(ACCOUNT_API.logout, { body: {} });
     },
     async shareKey(headers) {
-      await call(ACCOUNT_API.key, { body: {}, headers });
+      await call(ACCOUNT_API.key, { body: {}, headers, limitMs: waitMs });
     },
     async fetchKey() {
       const body = await call<{ key?: unknown }>(ACCOUNT_API.key, { limitMs: waitMs });

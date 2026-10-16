@@ -154,7 +154,9 @@ export function createAccount(deps: AccountDeps): Account {
           set({ person: carried });
         }
       } else if (!have && p.hasKey) {
-        magic.adopt(await client.fetchKey());
+        const key = await client.fetchKey();
+        // The request may outlast a sign-out or an account switch: the key of an account that is not signed in here any more is not taken, nor one the device got meanwhile.
+        if (v.person?.id === p.id && !magic.read()) magic.adopt(key);
       }
     } catch { /* offline, or the key no longer fits */ }
   }
