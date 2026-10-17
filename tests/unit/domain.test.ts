@@ -565,6 +565,14 @@ test("a note states the term data's steps: up the chain to the term, or to the c
   ]);
   expect(note("forms", "form", "thoughts", "thought", 'Q2: "a glint" | class: Form source | A yes: it is a form source | B no: it is a glint')[1])
     .toBe("It follows it is a form, because it is a form source, which is an external form, which is a form.");
+  // an alias the data gives a step names that step: "a visible form" is Form source (not Form), so External form still follows
+  expect(note("forms", "form", "thoughts", "thought", 'Q2: "a glint" | class: Form source | A yes: it is a visible form | B no: it is a glint')[1])
+    .toBe("It follows it is a form, because it is a visible form, which is an external form, which is a form.");
+  expect(note("forms", "form", "thoughts", "thought", 'Q2: "a glint" | class: Form source | A yes: it is a visible form and an external form | B no: it is a glint')[1])
+    .toBe("It follows it is a form, because it is a visible form and an external form, which is a form.");
+  // an alias names the step only as a class ("a taste"), not inside the example's own phrase ("the taste of salt")
+  expect(note("external forms", "extf", "smells", "odr", 'Q2: "the taste of salt" | class: Taste source | A yes: it is a taste | B no: it is a taste')[1])
+    .toBe("It follows it is an external form, because it is a taste, which is an external form.");
   // the tutor's class does not overrule its own answer when they disagree
   expect(note("thoughts", "thought", "sense powers", "sp", 'Q2: "a hunch" | class: External form | A yes: it is a mind | B no: it is a hunch').slice(1, 3)).toEqual([
     "It follows it is a thought, because it is a mind.",

@@ -215,6 +215,8 @@ test("the explain request is the plain one when the page checked every example, 
   expect(dbt.startsWith(DEBATE_ASK)).toBe(true);
   expect(dbt).toContain("The page could not check the examples in: Q2, Q3.");
   expect(dbt).toContain("Q1 is the Both cell, Q2 A not B, Q3 B not A, Q4 Neither.");
+  // the unsure rule on open examples includes a feature the example's name does not fix, as the reason text says
+  expect(open).toContain('where the example\'s name does not fix the feature that side is about (the color of "an apple", the shape of "a box")');
 });
 
 // The tutor states two facts about an example (is it A, is it B) and the reason for each; the page writes the consequences and draws

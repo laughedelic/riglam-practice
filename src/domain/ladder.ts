@@ -34,22 +34,31 @@ const excludes = (ix: DataIndex, x: string, y: string) => {
 /** What the data says about a side: the answer, the reason after "because", and the sentence under it ("" when none). */
 export interface Rung { answer: "yes" | "no"; reason: string; why: string }
 
-// The steps of `links` (lowest first) that the tutor's reason names. A name is matched whole and longest first, and what it matches
-// is not matched again, so "a form source" names Form source and not Form too, and "an external form" names External form only.
-function namedUpTo(said: string, links: readonly string[]): number {
+// The steps of `links` (lowest first) that the tutor's reason names. A step is named by its own name, or by an alias the data gives
+// it ("a visible form" for Form source) when the reason uses the alias as a class: "a ..." ending the phrase, so that "the taste of
+// salt" does not name Taste source. Names are matched whole and longest first, and what one matches is not matched again, so
+// "a form source" names Form source and not Form too, and "an external form" names External form only. An alias that is another
+// step's own name in this chain is left to that step.
+function namedUpTo(ix: DataIndex, said: string, links: readonly string[]): number {
   let left = said.toLowerCase(), from = 0;
   const esc = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  for (const [i, l] of links.map((l, i) => [i, l] as const).sort((x, y) => bareOf(y[1]).length - bareOf(x[1]).length)) {
-    const re = new RegExp(`\\b${esc(bareOf(l))}s?\\b`);
-    if (re.test(left)) { from = Math.max(from, i + 1); left = left.replace(re, (m) => " ".repeat(m.length)); }
+  const own = new Set(links.map(bareOf));
+  const names = links.flatMap((l, i) => [
+    { i, n: bareOf(l), re: `\\b${esc(bareOf(l))}s?\\b` },
+    ...(ix.DATA.terms[l]?.aliases || []).filter((a) => !own.has(bareOf(a)))
+      .map((a) => ({ i, n: bareOf(a), re: `\\b(?:a|an) ${esc(bareOf(a))}s?(?=\\s*$|\\s*[,;.]|\\s+(?:and|or|which)\\b)` })),
+  ]);
+  for (const { i, re } of names.sort((x, y) => y.n.length - x.n.length)) {
+    const m = new RegExp(re).exec(left);
+    if (m) { from = Math.max(from, i + 1); left = left.slice(0, m.index) + " ".repeat(m[0].length) + left.slice(m.index + m[0].length); }
   }
   return from;
 }
 
 // The tutor's reason followed by the steps it does not already name: "it is a tree" + [External form, Form] gives
 // "it is a tree, which is an external form, which is a form". A reason that is not a plain "it is a ..." gets "so it is".
-function climb(said: string, links: readonly string[]): string {
-  const from = namedUpTo(said, links), rest = links.slice(from);
+function climb(ix: DataIndex, said: string, links: readonly string[]): string {
+  const from = namedUpTo(ix, said, links), rest = links.slice(from);
   if (!said) return rest.length ? "it is " + rest.map(termPhrase).join(", which is ") : "";
   if (!rest.length) return said;
   const plain = from > 0 || /^it is (a|an) [\w' -]+$/.test(said);
@@ -67,7 +76,7 @@ export function rung(ix: DataIndex, cls: string, cat: Cat, subject: string, said
   if (!up.length || !tc.length) return null;
   if (cat.kind === "dudra" && cat.term) {
     const i = up.indexOf(cat.term);
-    if (i > 0) return { answer: "yes", reason: climb(said, up.slice(0, i + 1)), why: "" };
+    if (i > 0) return { answer: "yes", reason: climb(ix, said, up.slice(0, i + 1)), why: "" };
     if (i === 0) return null;
   }
   for (const [i, x] of up.entries()) {
@@ -76,7 +85,7 @@ export function rung(ix: DataIndex, cls: string, cat: Cat, subject: string, said
     // the steps from the category's term up to the excluded class, without the term when the note already names it so
     const y = tc[j], own = tc.slice(0, j + 1).filter((t, k) => k > 0 || termPhrase(t) !== subject.toLowerCase());
     const lead = own.length ? subject[0].toUpperCase() + subject.slice(1) + " is " + own.map(termPhrase).join(", which is ") + ", and nothing" : "Nothing";
-    return { answer: "no", reason: climb(said, up.slice(0, i + 1)), why: `${lead} is both ${termPhrase(x)} and ${termPhrase(y)}.` };
+    return { answer: "no", reason: climb(ix, said, up.slice(0, i + 1)), why: `${lead} is both ${termPhrase(x)} and ${termPhrase(y)}.` };
   }
   return null;
 }
