@@ -15,5 +15,5 @@ export { cardBody, cardNotes, explainAsk, finePoints, tutorCard } from "./card";
 export type { AnswerView, DebateAnswer } from "./card";
 export { tutorTools } from "./tools";
 export type { TutorTool } from "./tools";
-export { termMentions } from "./mentions";
+export { namesTerm, termMentions } from "./mentions";
 export type { Mention } from "./mentions";

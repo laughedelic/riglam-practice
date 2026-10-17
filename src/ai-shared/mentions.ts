@@ -85,3 +85,17 @@ export function termMentions(ix: DataIndex, text: string, opts: { quoted?: boole
   }
   return out;
 }
+
+/**
+ * Whether the whole text is a name, alias or plural of the term. Unlike `termMentions` it does not skip everyday words: the
+ * caller knows the text stands for a term (the label of a category), and asks only whether it is worded as the term is.
+ */
+export function namesTerm(ix: DataIndex, term: string, text: string): boolean {
+  const t = ix.DATA && ix.DATA.terms && ix.DATA.terms[term];
+  if (!t || !text) return false;
+  const f = formOf(text);
+  return [t.name || term, ...(t.aliases || [])].some((n) => {
+    const g = formOf(n);
+    return !!g && (g === f || (!NO_PLURAL.has(g) && pluralOf(g) === f));
+  });
+}

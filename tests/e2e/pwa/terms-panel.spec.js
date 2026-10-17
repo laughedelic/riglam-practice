@@ -55,6 +55,18 @@ withKey("in the Terms panel a term is underlined every time it occurs", async ({
   expect(count).toBe(4); // the second mention of each is underlined as well
 });
 
+withKey("a title is underlined when it is worded as the term is, not when it is a plainer paraphrase of it", async ({ page }, testInfo) => {
+  await openTerms(page, testInfo);
+  const titles = await page.evaluate(() => {
+    const T = window.__t.DATA.terms;
+    if (!window.__t.defParts(T["External form"].d).body) return null; // this term has no definition in the data of this run
+    const p = { ...window.__t.cur.p, a: "External forms", b: "physical things outside a person's continuum", catA: "extf", catB: "extf" };
+    return [...window.__t.termsNode(p).querySelectorAll(".tm-t")].map((t) => t.querySelectorAll(".dterm").length);
+  });
+  test.skip(titles === null, "External form has no definition in this run's data");
+  expect(titles).toEqual([1, 0]); // the plural of the name is the term; the paraphrase is left to the chain below it
+});
+
 withKey("a definition shows where its term sits, and a higher category opens in the same card, with the way back", async ({ page }, testInfo) => {
   await openTerms(page, testInfo);
   const marks = page.locator(".terms .dterm"), def = page.locator(".terms .ddef"), up = def.locator(".tm-up .dterm");

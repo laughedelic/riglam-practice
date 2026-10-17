@@ -1,5 +1,5 @@
 import { state } from "../state.js";
-import { termMentions } from "../../ai-shared/mentions.ts";
+import { namesTerm, termMentions } from "../../ai-shared/mentions.ts";
 import { $, L, el } from "../core/dom.js";
 import { lockIcon } from "../core/icons.js";
 import { REL } from "../core/rel.js";
@@ -27,13 +27,14 @@ const isaChain=(names,where)=>names.flatMap((n,i)=>{
 // note says how to read them.
 export function termsNode(p){
   const box=el("div",{class:"terms"}), ca=p.catA||catByLabel(p.a), cb=p.catB||catByLabel(p.b), lis=[ca&&lineageOf(ca),cb&&lineageOf(cb)];
-  // the pair's own words that name a Dudra term: its label, which the note quotes
-  const own={}, termOf=li=>li&&!li.everyday&&li.names[0]||"";
-  [[p.a,lis[0]],[p.b,lis[1]]].forEach(([label,li])=>{ if(termOf(li)) own[String(label).toLowerCase()]=termOf(li); });
+  // the pair's own words that name a Dudra term: its label, when it is worded as the term is (not a plainer paraphrase of it),
+  // which the note quotes and the title shows
+  const termOf=(li,label)=>{ const n=li&&!li.everyday&&li.names[0]||""; return n&&namesTerm(state,n,String(label))?n:""; };
+  const own={}; [[p.a,lis[0]],[p.b,lis[1]]].forEach(([label,li])=>{ const n=termOf(li,label); if(n) own[String(label).toLowerCase()]=n; });
   box.append(el("p",{class:"tm-sum"},el("b",{text:REL[p.relation].name+". "}),withTerms(p.note||"","tm:s",null,{quoted:true,own})));
   const sumCard=defCard("tm:s"); if(sumCard) box.append(sumCard);
   box.append(el("div",{class:"tm-rows"},[["A",p.a,p.typeA,lis[0]],["B",p.b,p.typeB,lis[1]]].map(([x,label,type,li])=>{
-    const w="tm:"+x, term=termOf(li);
+    const w="tm:"+x, term=termOf(li,label);
     return el("div",{class:"tm-row"},L(x),el("div",null,
       el("p",{class:"tm-t"},hasDef(state.DATA&&state.DATA.terms[term])?termMark(cap(label),term,w+"t/0"):cap(label)),defCard(w+"t"),
       li&&li.names.length?[li.everyday?el("p",{class:"tm-n",text:"An everyday category, not a Dudra term. It falls under:"}):null,el("p",{class:"tm-c"},isaChain(li.names,w+"c")),defCard(w+"c")]

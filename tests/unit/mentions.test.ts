@@ -1,6 +1,6 @@
 // termMentions: finding the Dudra terms a text names, for the underlined terms of the tutor's notes. Made-up data, plus the real open data.
 import { expect, test } from "vitest";
-import { makeIndex, termMentions } from "../../src/ai-shared";
+import { makeIndex, namesTerm, termMentions } from "../../src/ai-shared";
 import type { DrillData } from "../../src/ai-shared";
 import openData from "../../src/data/drill-data.json";
 
@@ -53,6 +53,14 @@ test("words in quotation marks are the learner's example, not the tutor's terms"
 test("a text that quotes its terms on purpose can ask for them", () => {
   const quoted = (text: string) => termMentions(makeIndex(data()), text, { quoted: true }).map((m) => text.slice(m.start, m.end));
   expect(quoted('"form" and "matter" pick out the same class: form.')).toEqual(["form", "matter", "form"]);
+});
+
+test("a label is the name of a term when it is worded as the term is, even an everyday word", () => {
+  const ix = makeIndex(data());
+  expect(namesTerm(ix, "External form", "External forms")).toBe(true);
+  expect(namesTerm(ix, "External form", "physical things outside a person's continuum")).toBe(false);
+  expect(namesTerm(ix, "Form", "form")).toBe(true);
+  expect(namesTerm(ix, "Nothing", "form")).toBe(false);
 });
 
 test("nothing to find in an empty text or with no terms", () => {
