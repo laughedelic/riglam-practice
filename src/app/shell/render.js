@@ -6,6 +6,7 @@ import { renderDebate } from "../debate/screen.js";
 import { isFav } from "../practice/favorites.js";
 import { placePops, renderQuiz } from "../practice/screen.js";
 import { syncSkipBtn } from "../practice/skips.js";
+import { dropStaleDef } from "../practice/terms.js";
 import { renderReview } from "../review/review.js";
 import { renderOver } from "./chat.js";
 import { renderOptionsBtn } from "./options.js";
@@ -92,7 +93,7 @@ function renderNow(){
   if(state.mode==="nodata"){ s.append(el("p",{class:"status",text:"The practice data could not be loaded. Reload the page to try again."})); renderOver(); return; }
   if(state.tab==="review") renderReview(s);
   else if(state.mode==="quiz"){ if(state.tab==="debate"&&state.ui&&state.ui.debate) renderDebate(s,c); else renderQuiz(s,c); }
-  renderOver(); restoreFocus(f); placePops();
+  renderOver(); restoreFocus(f); placePops(); dropStaleDef();
 }
 
 // Fit the terms around the fixed chips and diamond. The diamond stays in the middle and each term has

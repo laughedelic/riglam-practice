@@ -84,11 +84,24 @@ export function withTerms(text,where,seen){
   out.push(text.slice(at));
   return out;
 }
+// the mark of the term with this id, when the page shows it
+const markOf=id=>/** @type {HTMLElement|null} */(document.querySelector('.dterm[data-dt="'+CSS.escape(id)+'"]'));
+/** Forgets an open definition whose term is not on the page any more (another note was opened, or the note was closed). */
+export function dropStaleDef(){
+  const d=state.ui&&state.ui.dterm;
+  if(d&&!markOf(d.id)) state.ui.dterm=null;
+}
+/** Closes the open definition and puts the focus back on its term, so that the keyboard goes on from there. */
+export function closeDef(){
+  const d=state.ui&&state.ui.dterm; if(!d) return;
+  state.ui.dterm=null; render();
+  const m=markOf(d.id); if(m) m.focus({preventScroll:true});
+}
 function termMark(txt,term,id){
   const on=!!state.ui.dterm&&state.ui.dterm.id===id;
   const toggle=e=>{
     e.stopPropagation(); state.ui.dterm=on?null:{id,term}; render();
-    const m=/** @type {HTMLElement} */(document.querySelector('.dterm[data-dt="'+CSS.escape(id)+'"]')); if(m) m.focus({preventScroll:true});
+    const m=markOf(id); if(m) m.focus({preventScroll:true});
     const c=$("ddef"); if(c) c.scrollIntoView({block:"nearest"});
   };
   return el("span",{class:"dterm"+(on?" on":""),role:"button",tabindex:"0","data-dt":id,"aria-expanded":on?"true":"false","aria-controls":on?"ddef":null,

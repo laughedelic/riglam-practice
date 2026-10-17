@@ -6,6 +6,7 @@ import { toggleFav } from "../practice/favorites.js";
 import { next } from "../practice/queue.js";
 import { choose } from "../practice/screen.js";
 import { skipPair } from "../practice/skips.js";
+import { closeDef } from "../practice/terms.js";
 import { closeChat } from "./chat.js";
 import { toggleOpts } from "./options.js";
 import { render } from "./render.js";
@@ -16,7 +17,7 @@ document.addEventListener("click",e=>{
   const d=!!u.dterm&&!at(".ddef"), p=!!u.pop&&!at(".pop,.why"); if(d) u.dterm=null; if(p) u.pop=null; if(d||p) render();
 });
 document.addEventListener("keydown",e=>{
-  if(e.key==="Escape"){ if(state.optsOpen){ toggleOpts(false); return; } if(state.view==="chat"){ closeChat(); return; } if(state.ui&&state.ui.dterm){ state.ui.dterm=null; render(); return; } if(state.ui&&state.ui.pop){ state.ui.pop=null; render(); return; } }
+  if(e.key==="Escape"){ if(state.optsOpen){ toggleOpts(false); return; } if(state.view==="chat"){ closeChat(); return; } if(state.ui&&state.ui.dterm){ closeDef(); return; } if(state.ui&&state.ui.pop){ state.ui.pop=null; render(); return; } }
   if(state.mode!=="quiz"||!state.ui||state.optsOpen||state.view||e.metaKey||e.ctrlKey||e.altKey) return;
   const t=e.target&&/** @type {Element} */(e.target).tagName;
   if((e.key==="f"||e.key==="F")&&!e.shiftKey&&t!=="INPUT"&&t!=="TEXTAREA"&&state.db&&state.cur&&state.cur.p&&state.tab!=="review"){ e.preventDefault(); toggleFav(state.cur.p); return; }

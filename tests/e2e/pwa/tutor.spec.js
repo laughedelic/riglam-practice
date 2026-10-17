@@ -113,6 +113,39 @@ withKey("a note underlines the terms it names and opens their definitions in pla
   await page.keyboard.press("Escape");
   await expect(def).toHaveCount(0);
   await expect(pop).toBeVisible();
+  // the focus stays on the term, so Enter opens its definition again
+  await expect(marks.nth(1)).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(def.locator("dt")).toContainText("Form");
+});
+
+// A definition belongs to the note it was opened in: opening another note or closing this one drops it, so the next Escape closes
+// the note on view, and coming back to the first note shows it without the definition.
+withKey("an open definition is dropped when its note is switched or closed", async ({ page }, testInfo) => {
+  const lines = 'Both: "thing 1" is an external form, so it fits. => yes\nNeither: "thing 2" is matter, so it fits. => yes\n';
+  await open(page, testInfo, { tutor: [{ status: 200, body: sse({ type: "delta", text: lines }, { type: "done", truncated: false }) }] });
+  await explain(page).click();
+  const qms = page.locator(".grid .qm"), pop = page.locator(".grid .pop"), def = pop.locator(".ddef");
+  await qms.first().click();
+  await pop.locator(".dterm").first().click();
+  await expect(def).toHaveCount(1);
+
+  await qms.nth(1).click();
+  await expect(pop.locator(".dterm")).toHaveText(["matter"]);
+  await expect(def).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(pop).toHaveCount(0);
+
+  await qms.first().click();
+  await expect(pop.locator(".dterm")).toHaveText(["external form"]);
+  await expect(def).toHaveCount(0);
+
+  await pop.locator(".dterm").first().click();
+  await expect(def).toHaveCount(1);
+  await pop.locator(".popx").click();
+  await expect(pop).toHaveCount(0);
+  await qms.first().click();
+  await expect(def).toHaveCount(0);
 });
 
 // The same in a note the page writes from the two facts: the terms of a reason are underlined once, and the definition opens under
