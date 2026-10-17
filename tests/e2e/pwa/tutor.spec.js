@@ -89,8 +89,9 @@ withKey("a line with the two facts is shown as consequences and the conclusion t
   await explain(page).click();
   await page.locator(".grid .qm").first().click();
   const note = page.locator(".grid .pop p").nth(1);
-  await expect(note).toHaveText(/^Take thing 1, it follows it is .+, because it is a form\.\s*Take thing 1, it follows it is .+, because it is a thing\.\s*So it fits\.$/);
+  await expect(note).toHaveText(/^Take thing 1:\s*It follows it is .+, because it is a form\.\s*It follows it is .+, because it is a thing\.$/);
   expect(await note.locator("br").count()).toBe(2);
+  await expect(note.locator(".qterm")).toHaveCount(2); // the terms as the questions show them, with their A/B markers per the setting
   await expect(page.locator(".grid .pop")).not.toContainText("|");
 });
 
@@ -108,8 +109,9 @@ withKey("in Pervasions an accepted question's note names the tutor's counter-exa
   await relOptions(page).first().click();
   await explain(page).click();
   await page.locator(".grid .qm").first().click();
-  await expect(page.locator(".grid .pop p").nth(1)).toHaveText(
-    /^You accepted Q2, but there is a counter-example: a banana\.\s*Take a banana, it follows it is .+, because it is a fruit\.\s*Take a banana, it follows it is not .+, because it is not in a person's continuum\.$/);
+  const note = page.locator(".grid .pop p").nth(1);
+  await expect(note).toHaveText(/^Take a banana:\s*It follows it is .+, because it is a fruit\.\s*It follows it is not .+, because it is not in a person's continuum\.$/);
+  await expect(note.locator(".not")).toHaveText("not"); // the denied term's "not" is marked as in the questions
 });
 
 withKey("a follow-up question sends the whole conversation as a chat", async ({ page }, testInfo) => {

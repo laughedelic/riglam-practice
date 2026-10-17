@@ -7,8 +7,8 @@ import { expect, test } from "vitest";
 import { CELLS, REL, makeIndex, refOf } from "../../src/ai-shared";
 import type { CellId, DrillData, RelKey } from "../../src/ai-shared";
 import {
-  FEATURE, RECENT_MAX, applyVerdicts, factNote, fitOf, buildPool, cellsFor, chooseEntry, deriveRel, grade, gradeDebate, gradeOf, inUniverse, isMiss, judgeText, makePair,
-  nextPair, pairKey, parseFactLine, parseVerdicts, pick, relOfCells, summarize, termLine,
+  FEATURE, RECENT_MAX, applyVerdicts, factNote, fitOf, noteParts, buildPool, cellsFor, chooseEntry, deriveRel, grade, gradeDebate, gradeOf, inUniverse, isMiss, judgeText, makePair,
+  nextPair, pairKey, parseFactLine, parseVerdicts, partsText, pick, relOfCells, summarize, termLine,
 } from "../../src/domain";
 import type { DebateInput, GradeDraft, HistoryEntry, Pair, PoolEntry } from "../../src/domain";
 import openData from "../../src/data/drill-data.json";
@@ -427,33 +427,41 @@ test("a fact line is read as two facts, and the verdict is what the facts give f
   ]);
 });
 
-// The note writes each fact as a consequence in the debate's form, "Take S, it follows it is P, because R", with the example as S and
-// the term as P, and draws the conclusion from the facts.
-test("the note for a fact line is a consequence per term and a conclusion, for a Why? example and for an accepted question", () => {
+// The note writes the example once as the subject ("Take S:") and each fact as a consequence in the debate's form, "It follows it is
+// (not) P, because R", with the term as P; a note on an example that fits has no conclusion line, one that does not fit says so.
+test("the note for a fact line is the subject, a consequence per term, and a conclusion only when the example does not fit", () => {
   const terms = { a: "a memory", b: "a mind" };
   const f = parseFactLine('Q1: "the memory of a holiday" | A yes: it is a mental consciousness that remembers. | B yes: a mental consciousness')!;
+  expect(noteParts(f, true)).toEqual([
+    { kind: "take", subject: "the memory of a holiday" },
+    { kind: "term", side: "A", not: false, reason: "it is a mental consciousness that remembers" },
+    { kind: "term", side: "B", not: false, reason: "it is a mental consciousness" },
+  ]);
   expect(factNote(f, false, terms).split("\n")).toEqual([
-    "Take the memory of a holiday, it follows it is a memory, because it is a mental consciousness that remembers.",
-    "Take the memory of a holiday, it follows it is a mind, because it is a mental consciousness.",
-    "So it fits.",
+    "Take the memory of a holiday:",
+    "It follows it is a memory, because it is a mental consciousness that remembers.",
+    "It follows it is a mind, because it is a mental consciousness.",
   ]);
-  expect(factNote(f, true, terms).split("\n")[0]).toBe("You accepted Q1, but there is a counter-example: the memory of a holiday.");
-  // a reason for the reason becomes one more consequence
-  const chain = parseFactLine('Q3: "hearing music" | A no: It is not a consciousness that remembers | B yes: it is an ear consciousness <= it is a consciousness that knows a sound')!;
+  // steps up the "is a" chain become consequences of their own, and a denied term can say why it follows from the reason
+  const chain = parseFactLine('Q3: "hearing music" | A no: it is a form <= it is a sound; pervasion: form and consciousness are two of the three kinds of functional thing | B yes: it is an ear consciousness <= it is a consciousness that knows a sound')!;
   expect(factNote(chain, false, terms).split("\n")).toEqual([
-    "Take hearing music, it follows it is not a memory, because it is not a consciousness that remembers.",
-    "Take hearing music, it follows it is a mind, because it is an ear consciousness.",
-    "Take hearing music, it follows it is an ear consciousness, because it is a consciousness that knows a sound.",
-    "So it fits.",
+    "Take hearing music:",
+    "It follows it is not a memory, because it is a form.",
+    "Whatever is a form is necessarily not a memory, because form and consciousness are two of the three kinds of functional thing.",
+    "It follows it is a form, because it is a sound.",
+    "It follows it is a mind, because it is an ear consciousness.",
+    "It follows it is an ear consciousness, because it is a consciousness that knows a sound.",
   ]);
+  const noClass = parseFactLine('Q2: "a rock" | A no: it does not arise from memory; pervasion: x | B no: it is a form')!;
+  expect(noteParts(noClass, false)[2]).toEqual({ kind: "pervasion", side: "A", what: "", reason: "x" });
+  expect(partsText(noteParts(noClass, false), terms).split("\n")[2]).toBe("Whatever has that reason is necessarily not a memory, because x.");
+  // a pervasion on a term the example is (yes) is not one the page shows
+  expect(noteParts(parseFactLine('Both: "x" | A yes: it is y; pervasion: z | B yes: w')!, false).map((p) => p.kind)).toEqual(["take", "term", "term"]);
   const off = parseFactLine('Q2: "a rock" | A no: it is a form | B no: it is a form')!;
   expect(factNote(off, false, terms).split("\n").at(-1)).toBe("So it does not fit.");
   expect(factNote(off, true, terms).split("\n").at(-1)).toBe("So it does not fit the cell of Q2 and is not a counter-example.");
   const unsure = parseFactLine('Both: "a dream" | A yes: it is a mental consciousness | B unsure: the sources differ')!;
-  expect(factNote(unsure, false, terms).split("\n").slice(1)).toEqual([
-    "Take a dream: whether it is a mind is not settled: the sources differ.",
-    "Claude is unsure whether it fits.",
-  ]);
+  expect(factNote(unsure, false, terms).split("\n").slice(2)).toEqual(["Whether it is a mind is not settled: the sources differ.", "Claude is unsure whether it fits."]);
 });
 
 // ---- small helpers ----

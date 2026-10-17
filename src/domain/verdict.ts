@@ -58,31 +58,65 @@ const reasonOf = (s: string) => {
   const r = t[0].toLowerCase() + t.slice(1);
   return /^(it|its|it's|they)\b/.test(r) ? r : "it is " + r;
 };
+const plain = (s: string) => s.trim().replace(/[.;,\s]+$/, "");
+
 /**
- * One side as consequences in the debate's form, "Take S, it follows it is P, because R": the tutor gives R (and, after "<=", a reason
- * for R when R is not obvious, which becomes a second consequence); the page gives S, the example, and P, the term.
+ * The parts of a note, one per line, which the page writes in the debate's form (it renders the terms with their A/B markers and
+ * the "not" as it does in the questions):
+ * - take: "Take S:", the example as the subject, once;
+ * - term: "It follows it is (not) P, because R.", P the pair's term on that side, R the tutor's reason;
+ * - step: "It follows R1, because R2.", the reason for a reason that is not obvious (the tutor's "<=");
+ * - pervasion: "Whatever is X is necessarily not P, because W.", why a denied term follows from the reason (the tutor's "pervasion:");
+ *   X is the reason's class, or, for a reason that does not name one, "Whatever has that reason";
+ * - unsure: "Whether it is P is not settled: W.";
+ * - end: the conclusion, written only when the example does not plainly fit.
  */
-function consequences(subject: string, term: string, side: Side): string[] {
-  const [r1 = "", r2 = ""] = side.say.split(/\s*<=\s*/), R1 = reasonOf(r1), R2 = reasonOf(r2);
-  // an unsure side says what the readings are, which is no reason for the term: it follows a colon as written
-  if (side.answer === "unsure") { const why = side.say.trim().replace(/[.;,\s]+$/, ""); return [`Take ${subject}: whether it is ${term} is not settled${why ? ": " + why : ""}.`]; }
-  const out = [`Take ${subject}, it follows it is ${side.answer === "no" ? "not " : ""}${term}${R1 ? `, because ${R1}` : ""}.`];
-  if (R1 && R2) out.push(`Take ${subject}, it follows ${R1}, because ${R2}.`);
+export type NotePart =
+  | { kind: "take"; subject: string }
+  | { kind: "term"; side: "A" | "B"; not: boolean; reason: string }
+  | { kind: "step"; what: string; reason: string }
+  | { kind: "pervasion"; side: "A" | "B"; what: string; reason: string }
+  | { kind: "unsure"; side: "A" | "B"; say: string }
+  | { kind: "end"; text: string };
+
+function sideParts(side: "A" | "B", s: Side): NotePart[] {
+  if (s.answer === "unsure") return [{ kind: "unsure", side, say: plain(s.say) }];
+  const [chain, perv = ""] = s.say.split(/\s*;?\s*pervasion\s*:\s*/i);
+  const rs = chain.split(/\s*<=\s*/).map(reasonOf).filter(Boolean);
+  const out: NotePart[] = [{ kind: "term", side, not: s.answer === "no", reason: rs[0] || "" }];
+  // the pervasion of a denied term is about the first reason ("whatever is a form ..."), so it comes right after it
+  if (s.answer === "no" && plain(perv) && rs[0]) out.push({ kind: "pervasion", side, what: /^it is /.test(rs[0]) ? rs[0].slice(6) : "", reason: plain(perv) });
+  for (let i = 1; i < rs.length; i++) out.push({ kind: "step", what: rs[i - 1], reason: rs[i] });
   return out;
 }
 /**
- * The note the page shows for a line, one sentence per line: a consequence for each term and a conclusion drawn from the facts.
- * `accepted` is a debate question the learner accepted (or ran out of time on): the example is then the tutor's counter-example to it.
+ * The note for a fact line. `accepted` is a debate question the learner accepted (or ran out of time on): the example is then the
+ * tutor's counter-example to it. A note on an example that fits ends with its consequences; one that does not fit says so.
  */
-export function factNote(f: FactLine, accepted: boolean, terms: Terms): string {
-  const fit = fitOf(f), body = [...consequences(f.example, terms.a, f.a), ...consequences(f.example, terms.b, f.b)];
-  if (accepted) {
-    const q = "Q" + (QCELL.indexOf(f.cell) + 1);
-    if (fit === "yes") return [`You accepted ${q}, but there is a counter-example: ${f.example}.`, ...body].join("\n");
-    return [...body, fit === "no" ? `So it does not fit the cell of ${q} and is not a counter-example.` : "Claude is unsure whether it is a counter-example."].join("\n");
-  }
-  return [...body, fit === "yes" ? "So it fits." : fit === "no" ? "So it does not fit." : "Claude is unsure whether it fits."].join("\n");
+export function noteParts(f: FactLine, accepted: boolean): NotePart[] {
+  const fit = fitOf(f), out: NotePart[] = [{ kind: "take", subject: f.example }, ...sideParts("A", f.a), ...sideParts("B", f.b)];
+  const q = "Q" + (QCELL.indexOf(f.cell) + 1);
+  if (fit === "no") out.push({ kind: "end", text: accepted ? `So it does not fit the cell of ${q} and is not a counter-example.` : "So it does not fit." });
+  if (fit === "unsure") out.push({ kind: "end", text: accepted ? "Claude is unsure whether it is a counter-example." : "Claude is unsure whether it fits." });
+  return out;
 }
+/** The subject of a pervasion line: the class the reason names, if it names one. */
+export const pervLead = (what: string): string => (what ? `Whatever is ${what}` : "Whatever has that reason");
+/** The note as plain text, a line per part, for where the page has no markers to show (a flag on the note keeps this text). */
+export function partsText(parts: readonly NotePart[], terms: Terms): string {
+  const t = (side: "A" | "B") => (side === "A" ? terms.a : terms.b);
+  return parts.map((p) => {
+    switch (p.kind) {
+      case "take": return `Take ${p.subject}:`;
+      case "term": return `It follows it is ${p.not ? "not " : ""}${t(p.side)}${p.reason ? `, because ${p.reason}` : ""}.`;
+      case "step": return `It follows ${p.what}, because ${p.reason}.`;
+      case "pervasion": return `${pervLead(p.what)} is necessarily not ${t(p.side)}, because ${p.reason}.`;
+      case "unsure": return `Whether it is ${t(p.side)} is not settled${p.say ? ": " + p.say : ""}.`;
+      case "end": return p.text;
+    }
+  }).join("\n");
+}
+export const factNote = (f: FactLine, accepted: boolean, terms: Terms): string => partsText(noteParts(f, accepted), terms);
 
 /** The verdicts in the tutor's text, in order. A line with the two facts gives the verdict its facts give; otherwise a line of the form `<cell>: <example> => yes|no|unsure` does. Other lines are ignored, also when bulleted or in bold. */
 export function parseVerdicts(text: string | null | undefined): CellVerdict[] {

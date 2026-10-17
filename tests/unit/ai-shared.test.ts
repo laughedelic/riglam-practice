@@ -223,14 +223,15 @@ test("the explain requests ask for the two facts about an example and the reason
   expect(FIRST_ASK).toContain('Both: "the example" | A yes: it is ... | B no: it is ...');
   expect(DEBATE_ASK).toContain('Q2: "the example" | A yes: it is ... | B no: it is ...');
   for (const ask of [FIRST_ASK, DEBATE_ASK]) {
-    expect(ask).toContain('the words after "because" in "Take the example, it follows it is (not) A, because ..."');
+    expect(ask).toContain('the words after "because" in "Take the example: it follows it is (not) A, because ..."');
     expect(ask).toContain("write no conclusion, do not name the term again and do not add its definition");
     expect(ask).toContain("whatever has the reason must be (or not be) the term");
-    expect(ask).toContain('add " <= " and the reason for it');
+    expect(ask).toContain('give the steps after " <= ", the higher class first, at most two');
+    expect(ask).toContain('add "; pervasion: " and why');
     expect(ask).not.toContain("so it fits");
     expect(ask).not.toContain("=> yes");
   }
-  expect(DEBATE_ASK).toContain('The page also says "You accepted Q2, but there is a counter-example" itself');
+  expect(DEBATE_ASK).not.toContain("You accepted");
   expect(DEBATE_ASK).toContain("Do not say what the right answer to the question was");
   expect(DEBATE_ASK).toContain("A and B are mutually inclusive, so whatever is B is A");
 });
