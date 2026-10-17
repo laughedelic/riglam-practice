@@ -69,6 +69,20 @@ function restoreFocus(f){
   if(!n||n.disabled||document.activeElement===n) return;
   n.focus({preventScroll:true}); try{ n.setSelectionRange(f.s,f.e); }catch(e){}
 }
+// A redraw that the learner did not ask for (a run finished, an explanation began by itself) keeps the keyboard focus where it was: on the same button,
+// found again by its label. The renderer itself gives back only text fields and the Options panel's controls.
+function btnSig(){
+  const a=/** @type {HTMLButtonElement} */(document.activeElement); if(!a||a.tagName!=="BUTTON") return null;
+  const box=a.closest("#stage,#coach"); if(!box) return null;
+  const k=b=>b.textContent+"|"+(b.getAttribute("aria-label")||"")+"|"+(b.getAttribute("data-fid")||""), same=[...box.querySelectorAll("button")].filter(b=>k(b)===k(a));
+  return {box:box.id,k:k(a),i:same.indexOf(a)};
+}
+function btnBack(f){
+  if(!f) return; const box=$(f.box); if(!box) return;
+  const k=b=>b.textContent+"|"+(b.getAttribute("aria-label")||"")+"|"+(b.getAttribute("data-fid")||""), same=[...box.querySelectorAll("button")].filter(b=>k(b)===f.k), n=same[f.i]||same[0];
+  if(n&&document.activeElement!==n) n.focus({preventScroll:true});
+}
+export function renderKeepFocus(){ const f=btnSig(); render(); btnBack(f); }
 export const focusCin=()=>{ const i=$("cin"); if(i) i.focus({preventScroll:true}); };
 function screenSig(){
   const p=state.cur&&state.cur.p;

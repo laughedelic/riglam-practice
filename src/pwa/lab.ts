@@ -1,27 +1,16 @@
 // The PWA's `lab` capability: the check lab's model calls (src/app/ai/lab.js) go to the app's own server (docs/SERVER.md, "The check lab"), which
 // answers them on a Preview only. The request proves that the sender has the study group's key without sending it (src/ai/proof.ts).
-import { API, HEADER, type Health, type LabResponse } from "../ai/protocol";
+import { API, HEADER, type LabResponse } from "../ai/protocol";
 import { makeProof } from "../ai/proof";
 import { deviceId } from "./device";
-import { httpError, tutorError } from "./tutor";
+import { httpError, serverSays, tutorError } from "./tutor";
 import type { LabSample } from "../platform/types";
 
 const isAbort = (e: unknown) => e instanceof DOMException && e.name === "AbortError";
 
 /** Whether the server says it answers the lab's calls. Anything else (not said, off, unreachable, slow, not a Worker at all) is "no". */
 export async function labIsOn(doFetch: typeof fetch = (...a) => fetch(...a), waitMs = 4000): Promise<boolean> {
-  const stop = new AbortController();
-  const timer = setTimeout(() => stop.abort(), waitMs);
-  try {
-    const res = await doFetch(API.health, { cache: "no-store", signal: stop.signal });
-    if (!res.ok) return false;
-    const body = (await res.json()) as Partial<Health>;
-    return body.ok === true && body.lab === "on";
-  } catch {
-    return false;
-  } finally {
-    clearTimeout(timer);
-  }
+  return (await serverSays(doFetch, waitMs)).lab;
 }
 
 /** The lab's model call for a device that has `key` (already known to be the study group's). Rejects as the tutor does: with an error that has a `code`. */

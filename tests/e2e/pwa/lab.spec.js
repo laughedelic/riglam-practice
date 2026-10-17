@@ -11,15 +11,23 @@ const withKey = withCourse ? test : test.skip;
 
 const THINGS = Array.from({ length: 6 }, (_, i) => ({ thing: "thing " + (i + 1), reading: "an ordinary " + (i + 1), inA: false, inB: false, exists: true, unsure: false }));
 
+const sse = (...events) => events.map((e) => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`).join("");
+const FACTS = { both: ["yes", "yes"], anb: ["yes", "no"], bna: ["no", "yes"], nei: ["no", "no"] };
+const CELL = { both: "Both", anb: "A not B", bna: "B not A", nei: "Neither" };
+const learner = (t) => t.cells[0]; // the cell the learner put the example in
+const elsewhere = (t) => (learner(t) === "anb" ? "nei" : "anb"); // a cell that is not the learner's
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const thingsOf = (page) => page.evaluate(() => window.__t.labThings(window.__t.ui).map((t) => ({ text: t.text, cells: t.cells })));
+
 /** Stands in for the server. `lab` answers each call (default: the same classification from the model asked for); the calls are kept. */
 async function server(page, { health = { ok: true, tutor: "on", lab: "on" }, lab = null } = {}) {
   const calls = [];
   await page.route("**/api/health", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(health) }));
-  await page.route("**/api/lab", (route) => {
+  await page.route("**/api/lab", async (route) => {
     const request = route.request();
     const body = request.postDataJSON();
     calls.push({ headers: request.headers(), body });
-    if (lab) return route.fulfill(lab(body, calls.length));
+    if (lab) return route.fulfill(await lab(body, calls.length));
     return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ text: JSON.stringify({ things: THINGS }), truncated: false, modelApplied: body.model }) });
   });
   return calls;
@@ -193,4 +201,65 @@ withKey("where the models differ, the page flags each such example by itself, an
   const after = await flags();
   expect(after).toHaveLength(things.length);
   expect(after.find((f) => f.id === id)).toEqual(before);
+});
+
+// The lab and the tutor's explanation work at the same time. The explanation can change the page's verdicts after the lab has finished, and the same final verdicts
+// must give the same flags whichever came first.
+withKey("a verdict the explanation gives after the lab has finished is compared with the lab, as it would have been the other way round", async ({ page }, testInfo) => {
+  test.skip(!isPhone(testInfo), "the answer flow is exercised in the phone layout");
+  await page.addInitScript(() => localStorage.setItem("rd-autoexplain", "1"));
+  let labAnswered = 0;
+  // every model puts every example in a cell that is not the learner's, and they agree
+  const lab = async (body) => {
+    const things = await thingsOf(page);
+    labAnswered += 1;
+    const recs = things.map((t) => { const [a, b] = FACTS[elsewhere(t)]; return { thing: t.text, reading: "a stand-in reading", inA: a === "yes", inB: b === "yes", exists: true, unsure: false }; });
+    return { status: 200, contentType: "application/json", body: JSON.stringify({ text: JSON.stringify({ things: recs }), truncated: false, modelApplied: body.model }) };
+  };
+  // the explanation comes after the lab, and says that every example fits where the learner put it
+  await page.route("**/api/tutor", async (route) => {
+    while (labAnswered < 3) await sleep(50);
+    await sleep(700);
+    const lines = (await thingsOf(page)).map((t) => {
+      const [a, b] = FACTS[learner(t)];
+      return `${CELL[learner(t)]}: "${t.text}" | class: Table | A ${a}: because of its use | B ${b}: because of its make`;
+    });
+    await route.fulfill({ status: 200, contentType: "text/event-stream", body: sse({ type: "delta", text: lines.join("\n") + "\nExplanation: stand-in." }, { type: "done", truncated: false }) });
+  });
+  const calls = await open(page, testInfo, { lab });
+  await expect.poll(() => calls.length).toBe(3);
+  const things = await thingsOf(page);
+  expect(things.length).toBeGreaterThan(0);
+  const flags = () => page.evaluate(() => Object.values(window.__t.flags));
+  await sleep(250);
+  expect(await flags()).toEqual([]); // the page has said nothing yet about these examples, so the lab's agreement is not in dispute
+  await expect.poll(async () => (await flags()).length, { timeout: 10000 }).toBe(things.length);
+  for (const f of await flags()) expect(f).toMatchObject({ auto: "quorum", part: "quorum", state: "new" });
+  expect((await flags())[0].shown).toMatch(/^The models agree, but the page does not\./);
+});
+
+withKey("calls that fail together differently leave the longer pause: a busy model does not shorten a used-up budget", async ({ page }, testInfo) => {
+  const budget = { status: 429, contentType: "application/json", body: JSON.stringify({ error: { code: "rate_limited", message: "x", scope: "device", resetsAt: "2099-01-01T00:00:00Z" } }) };
+  const busy = { status: 503, contentType: "application/json", body: JSON.stringify({ error: { code: "rate_limited", message: "busy" } }) };
+  // Haiku hits the budget at once; the others find the models busy a moment later
+  const calls = await open(page, testInfo, { lab: async (body) => { if (body.model === "claude-haiku-5-5") return budget; await sleep(500); return busy; } });
+  await expect.poll(() => calls.length).toBe(3);
+  await sleep(900);
+  expect(await page.evaluate(() => window.__t.labPause - Date.now())).toBeGreaterThan(3600 * 1000);
+  await page.getByRole("button", { name: /next pair/i }).click();
+  await ready(page);
+  await answerOnPhone(page);
+  await page.waitForTimeout(500);
+  expect(calls).toHaveLength(3);
+  await quorum(page).click();
+  await expect(page.locator(".lab")).toContainText(/paused: the budget for Quorum is used up/i);
+});
+
+// one request for the tutor and the lab together (the account row asks for itself: that is the other one)
+withKey("a start asks /api/health once for the tutor and the lab together, not once for each", async ({ page }, testInfo) => {
+  let health = 0;
+  page.on("request", (r) => { if (new URL(r.url()).pathname === "/api/health") health += 1; });
+  const calls = await open(page, testInfo);
+  await expect.poll(() => calls.length).toBe(3);
+  expect(health).toBe(2);
 });

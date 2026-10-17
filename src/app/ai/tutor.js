@@ -1,16 +1,16 @@
 import { state } from "../state.js";
 import { $, el } from "../core/dom.js";
-import { canAsk } from "../core/ask.js";
+import { ERR_OFF, canAsk } from "../core/ask.js";
+import { labRecheck } from "./lab.js";
 import { CELLS } from "../core/rel.js";
 import { persist } from "../practice/answers.js";
 import { factNode, fillTurn, noteData, revealTutor } from "../practice/screen.js";
-import { render } from "../shell/render.js";
+import { render, renderKeepFocus } from "../shell/render.js";
 import { cardBody, explainAsk, tutorCard } from "../../ai-shared/card.ts";
 import { pairCats } from "../../ai-shared/lookup.ts";
 import { tutorTools } from "../../ai-shared/tools.ts";
 import { VERDICT_RE, applyVerdicts, parseFactLine, parseVerdicts } from "../../domain/verdict.ts";
 
-export const ERR_OFF=["not_granted","sampling_disabled","not_declared","capability_disabled","capability_removed"];
 const TIER="default";
 
 /* ---------- tutor: per-pair card plus two lookup tools ---------- */
@@ -44,7 +44,9 @@ export async function ask(text,kind,byItself){
   else U.chat.push({role:"user",content:body,hidden:!!kind});
   if(kind==="explain"){ U.explained=true; U.rtab="tutor"; }
   U.chat.push({role:"assistant",content:"",pending:true,kind});
-  U.chatErr=""; const ctl=U.ctl=new AbortController(); render(); if(U===state.ui&&!byItself) revealTutor();
+  // an explanation that began by itself redraws the screen twice (it starts, it is in) with the learner's hands on the result: the focus stays on its button
+  const draw=byItself?renderKeepFocus:render;
+  U.chatErr=""; const ctl=U.ctl=new AbortController(); draw(); if(U===state.ui&&!byItself) revealTutor();
   const turns=U.chat.filter(t=>!t.pending).map(t=>({role:t.role,content:t.content}));
   const slot=U.chat[U.chat.length-1];
   const onText=({text})=>{slot.content=text; if(U===state.ui){ const o=$("ans-live"); if(o){ fillTurn(o,{kind,pending:true,content:text},!o.closest("#chatscroll")); const sc=$("chatscroll"); if(sc) sc.scrollTop=0; } }};
@@ -57,7 +59,7 @@ export async function ask(text,kind,byItself){
       catch(e){ if(e&&e.code==="tools_unavailable"){ delete opts.tools; r=await state.sample(turns,opts); } else throw e; }
     }else r=await state.tutor({kind:kind==="explain"?"explain":"chat",cats:pairCats(state,p).filter(Boolean),turns},{signal:ctl.signal,onText});
     slot.content=r.text+(r.truncated?"\n(Cut short.)":""); delete slot.pending;
-    if(kind==="explain"){ if(U.doc) U.doc.explain=String(r.text||"").slice(0,3000); if(!(U.res.exOpen&&applyVerify(r.text,U,C))) saveExplain(U); }
+    if(kind==="explain"){ if(U.doc) U.doc.explain=String(r.text||"").slice(0,3000); if(!(U.res.exOpen&&applyVerify(r.text,U,C))) saveExplain(U); labRecheck(U); }
   }catch(e){
     if(e&&e.text){ slot.content=e.text; delete slot.pending; } else U.chat.pop();
     if(kind==="explain") U.explained=false;
@@ -66,7 +68,7 @@ export async function ask(text,kind,byItself){
     if(e&&ERR_OFF.includes(e.code)){ state.sample=null; state.tutor=null; }
   }
   U.ctl=null;
-  if(U===state.ui){ render(); if(byItself) return; if(kind==="explain") revealTutor(); const i=$("ask-in"); if(i&&!("ontouchstart" in window)) i.focus(); }
+  if(U===state.ui){ draw(); if(byItself) return; if(kind==="explain") revealTutor(); const i=$("ask-in"); if(i&&!("ontouchstart" in window)) i.focus(); }
 }
 export function fillAns(node,text){
   node.replaceChildren();

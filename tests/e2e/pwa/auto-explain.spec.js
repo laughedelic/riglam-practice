@@ -13,9 +13,10 @@ const ANSWER = sse({ type: "delta", text: "Stand-in tutor: " }, { type: "delta",
 async function server(page, tutor = [{ status: 200, body: ANSWER }]) {
   const asked = [];
   await page.route("**/api/health", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, tutor: "on" }) }));
-  await page.route("**/api/tutor", (route) => {
+  await page.route("**/api/tutor", async (route) => {
     asked.push(route.request().postDataJSON());
     const reply = tutor[Math.min(asked.length - 1, tutor.length - 1)];
+    if (reply.delay) await new Promise((resolve) => setTimeout(resolve, reply.delay));
     return route.fulfill({ status: reply.status, contentType: reply.status === 200 ? "text/event-stream" : "application/json", body: reply.body });
   });
   return asked;
@@ -102,4 +103,18 @@ plain("a reader without the Magic Key is not asked for it: the grayed Explain st
   await page.waitForTimeout(500);
   expect(asked).toHaveLength(0);
   await expect(page.locator("#unlock")).toHaveCount(0);
+});
+
+// The result's button has the focus when the answer is checked (a keyboard goes on from there). The explanation that starts by itself redraws the screen, twice: it
+// must not take the focus away, as it would not if the learner had tapped Explain and stayed on the button.
+withKey("the focus stays on the result's button while the explanation starts by itself and when it arrives", async ({ page }, testInfo) => {
+  const asked = await answered(page, testInfo, { tutor: [{ status: 200, body: ANSWER, delay: 800 }] });
+  const next = page.getByRole("button", { name: /next pair/i });
+  await expect(next).toBeFocused();
+  await expect.poll(() => asked.length).toBe(1);
+  await page.waitForTimeout(100);
+  await expect(next).toBeFocused(); // the explanation has started: the screen was drawn again
+  await page.waitForTimeout(1000); // the explanation is in: drawn again
+  await expect(discuss(page)).toBeVisible();
+  await expect(next).toBeFocused();
 });

@@ -15,20 +15,28 @@ export function tutorError(code: string, message: string, extra: { text?: string
 const isAbort = (e: unknown) => e instanceof DOMException && e.name === "AbortError";
 const KNOWN = new Set(["rate_limited", "not_granted", "prompt_too_large", "bad_request", "refused", "unavailable"]);
 
-/** Whether the server says its tutor is on. Anything else (off, unreachable, slow, not a Worker at all) is "no". */
-export async function tutorIsOn(doFetch: typeof fetch = (...a) => fetch(...a), waitMs = 4000): Promise<boolean> {
+/** What the server says in /api/health about its tutor and about the lab's calls. Anything else (off, unreachable, slow, not a Worker at all) is "no" for both. */
+export type ServerSays = { tutor: boolean; lab: boolean };
+
+/** One question to /api/health: the platform asks it once and gives the answer to the tutor and to the lab, so a start makes one request and waits for one timeout. */
+export async function serverSays(doFetch: typeof fetch = (...a) => fetch(...a), waitMs = 4000): Promise<ServerSays> {
   const stop = new AbortController();
   const timer = setTimeout(() => stop.abort(), waitMs);
   try {
     const res = await doFetch(API.health, { cache: "no-store", signal: stop.signal });
-    if (!res.ok) return false;
+    if (!res.ok) return { tutor: false, lab: false };
     const body = (await res.json()) as Partial<Health>;
-    return body.ok === true && body.tutor === "on";
+    return { tutor: body.ok === true && body.tutor === "on", lab: body.ok === true && body.lab === "on" };
   } catch {
-    return false;
+    return { tutor: false, lab: false };
   } finally {
     clearTimeout(timer);
   }
+}
+
+/** Whether the server says its tutor is on. Anything else (off, unreachable, slow, not a Worker at all) is "no". */
+export async function tutorIsOn(doFetch: typeof fetch = (...a) => fetch(...a), waitMs = 4000): Promise<boolean> {
+  return (await serverSays(doFetch, waitMs)).tutor;
 }
 
 export async function httpError(res: Response, now: () => number = Date.now) {

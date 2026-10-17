@@ -19,17 +19,19 @@ import { aboutThisBuild } from "./about";
 import { updates } from "./updates";
 import { showStorageNotice } from "./storage-notice";
 import { storeName } from "./store-slot";
-import { createLab, labIsOn } from "./lab";
+import { createLab } from "./lab";
 import { createLocalDb } from "./local-db";
-import { createTutor, tutorIsOn as serverSaysOn } from "./tutor";
+import { createTutor, serverSays, type ServerSays } from "./tutor";
 import { takeLinkKey, storedKey, storeKey, forgetKey, keyDeclined, declineKey, allowKey, showUnlock, markKeyChanged, takeKeyChanged, KEY_CHANGED_TEXT } from "./unlock";
 
 const db = createLocalDb({ name: storeName(), onUnavailable: showStorageNotice });
 const link = takeLinkKey(); // first of all: a key in the address leaves the address bar at once
 let openUnlock: (() => Promise<boolean>) | null = null; // asks for the key again; set while this device has none
 let groupKey: string | null = null; // the Magic Key, once it is known to fit (or kept with the definitions): the proof for the tutor is made with it
-let serverAnswer: Promise<boolean> | null = null; // whether the server says its tutor is on: asked once, for the tutor and for the grayed Explain button
-const tutorIsOn = () => (serverAnswer ??= serverSaysOn());
+let serverAnswer: Promise<ServerSays> | null = null; // what the server says in /api/health: asked once, for the tutor, the grayed Explain button and the lab
+const serverSaid = () => (serverAnswer ??= serverSays());
+const tutorIsOn = async () => (await serverSaid()).tutor;
+const labOn = async () => (await serverSaid()).lab;
 let openData: Promise<DrillData> | null = null; // the open part of the term data, read once
 const readOpenData = () => (openData ??= fetch(dataUrl).then((r) => r.json()));
 let unlocked: DrillData | null = null; // the term data with the definitions, once the prompt took a key into the running page: loadData answers with it from then on
@@ -153,9 +155,6 @@ async function sample(): Promise<Sample | null> {
   }
   return null;
 }
-
-let labAnswer: Promise<boolean> | null = null; // whether the server says it answers the lab's calls: asked once
-const labOn = () => (labAnswer ??= labIsOn());
 
 let account: Account | null = null;
 let changeKey: (() => Promise<boolean>) | null = null; // the prompt for another key, made when first asked for

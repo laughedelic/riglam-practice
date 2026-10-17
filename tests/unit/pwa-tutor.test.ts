@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { testMagicKey as generateKey } from "../support/magic-key";
 import { HEADER, type TutorEvent, type TutorRequest } from "../../src/ai/protocol";
 import { DEVICE_ID, checkProof } from "../../src/ai/proof";
-import { createTutor, deviceId, tutorIsOn } from "../../src/pwa/tutor";
+import { createTutor, deviceId, serverSays, tutorIsOn } from "../../src/pwa/tutor";
 
 const request: TutorRequest = { kind: "chat", cats: ["form", "color"], turns: [{ role: "user", content: "CARD ум" }] };
 const sse = (e: TutorEvent | { type: string }) => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`;
@@ -206,6 +206,17 @@ describe("tutorIsOn", () => {
     expect(await tutorIsOn(health({ ok: true }))).toBe(false);
     expect(await tutorIsOn(health({ tutor: "on" }))).toBe(false);
     expect(await tutorIsOn(health({ ok: true, tutor: "on" }, 503))).toBe(false);
+  });
+
+  it("says what the server says of the tutor and of the lab from one request", async () => {
+    let asked = 0;
+    const once = (body: unknown) => (async () => (asked++, json(200, body))) as unknown as typeof fetch;
+    expect(await serverSays(once({ ok: true, tutor: "on", lab: "on" }))).toEqual({ tutor: true, lab: true });
+    expect(await serverSays(once({ ok: true, tutor: "on" }))).toEqual({ tutor: true, lab: false });
+    expect(await serverSays(once({ ok: true, tutor: "off", lab: "on" }))).toEqual({ tutor: false, lab: true });
+    expect(await serverSays(once({ ok: false, tutor: "on", lab: "on" }))).toEqual({ tutor: false, lab: false });
+    expect(asked).toBe(4);
+    expect(await serverSays((async () => { throw new TypeError("offline"); }) as unknown as typeof fetch)).toEqual({ tutor: false, lab: false });
   });
 
   it("is false for an answer that is not JSON (a static host with no server)", async () => {
