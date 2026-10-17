@@ -242,8 +242,11 @@ test("the explain requests ask for the two facts about an example and the reason
     expect(ask).not.toContain("=> yes");
   }
   expect(DEBATE_ASK).not.toContain("You accepted");
-  expect(DEBATE_ASK).toContain("for a wrong Accept or a timeout the reference counter-example in the card, or one you name when the card has none");
+  expect(DEBATE_ASK).toContain("for a wrong Accept or a timeout the reference counter-example in the card)");
+  expect(DEBATE_ASK).not.toContain("or one you name");
+  expect(DEBATE_ASK).toContain("or a timeout on a question whose reference is EMPTY (then accepting was right), write a plain line");
   expect(FIRST_ASK).toContain("for a cell marked wrong without one, the reference example in the card");
+  expect(FIRST_ASK).toContain("If there is no example at all (the learner wrote nothing or NONE and the card's reference is EMPTY), write a plain line");
   expect(GUIDE).toContain("everyday facts such as a thing's color, shape or material need no source and no remark");
   expect(GUIDE).toContain("call it the reference, never the card");
   expect(DEBATE_ASK).toContain("Do not say what the right answer to the question was");

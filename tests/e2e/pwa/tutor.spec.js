@@ -97,7 +97,8 @@ withKey("a line with the two facts is shown as the subject and a list of consequ
 
 withKey("in Pervasions an accepted question's note names the tutor's counter-example", async ({ page }, testInfo) => {
   test.skip(isPhone(testInfo), "the wide layout has the table and the coach panel");
-  const line = 'Q2: "a banana" | A yes: it is a fruit | B no: it is a plant; pervasion: a plant is not a person\n';
+  // an example that is not in the practice list, so the random pair cannot settle either side from the data
+  const line = 'Q2: "a ripe mango" | A yes: it is a fruit | B no: it is a plant; pervasion: a plant is not a person\n';
   await server(page, { tutor: [{ status: 200, body: sse({ type: "delta", text: line }, { type: "done", truncated: false }) }] });
   await page.goto("/");
   await ready(page);
@@ -110,7 +111,7 @@ withKey("in Pervasions an accepted question's note names the tutor's counter-exa
   await explain(page).click();
   await page.locator(".grid .qm").first().click();
   const pop = page.locator(".grid .pop");
-  await expect(pop.locator(".ftake")).toHaveText("Why? Take a banana:");
+  await expect(pop.locator(".ftake")).toHaveText("Why? Take a ripe mango:");
   await expect(pop.locator(".fsteps li")).toHaveText([/^It follows it is .+, because it is a fruit\.$/, /^It follows it is not .+, because it is a plant\.A plant is not a person\.$/]);
   await expect(pop.locator(".fsteps .not")).toHaveText("not"); // the denied term's "not" is marked as in the questions
   await expect(pop.locator(".fsteps li").nth(1).locator(".fwhy")).toHaveText("A plant is not a person."); // the pervasion on a line under its consequence

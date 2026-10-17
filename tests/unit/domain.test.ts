@@ -507,7 +507,7 @@ test("every category of the real data is in the pool, and the relations of the p
 // A note takes the steps the term data gives: up the "is a" chain to the term, or up to a class the data marks as excluding one
 // the term is in, with why under it. A listed example is placed as the grading places it; elsewhere the tutor's class counts.
 test("a note states the term data's steps: up the chain to the term, or to the class that excludes it", () => {
-  const S: Record<string, string> = { "red things": "a red thing", food: "food", "wooden things": "a wooden thing", "musical instruments": "a musical instrument", thoughts: "a thought", "sense powers": "a sense power", "external forms": "an external form", smells: "a smell", drinks: "a drink", "white things": "a white thing", "permanent phenomena": "a permanent phenomenon" };
+  const S: Record<string, string> = { forms: "a form", "red things": "a red thing", food: "food", "wooden things": "a wooden thing", "musical instruments": "a musical instrument", thoughts: "a thought", "sense powers": "a sense power", "external forms": "an external form", smells: "a smell", drinks: "a drink", "white things": "a white thing", "permanent phenomena": "a permanent phenomenon" };
   const note = (a: string, ca: string, b: string, cb: string, line: string) => {
     const p = { a, b, catA: ca, catB: cb, relation: "4" as const }, terms = { a: S[a], b: S[b] };
     return factNote(parseFactLine(line)!, false, terms, { ix: rix, p, terms }).split("\n");
@@ -556,6 +556,15 @@ test("a note states the term data's steps: up the chain to the term, or to the c
     "It follows it is not a wooden thing, because it is an absence, which is a permanent phenomenon.",
     "A wooden thing is a form, which is a functional thing, and nothing is both a permanent phenomenon and a functional thing.",
   ]);
+  // a step the reason already names is not said again, and a name inside a longer one is not a step of its own: "an external form"
+  // is not also "a form", and "a form source" is neither
+  expect(note("forms", "form", "thoughts", "thought", 'Q2: "a puddle" | class: External form | A yes: it is an external form | B no: it is a puddle').slice(1)).toEqual([
+    "It follows it is a form, because it is an external form, which is a form.",
+    "It follows it is not a thought, because it is a puddle, which is an external form, which is a form.",
+    "A thought is a consciousness, and nothing is both a form and a consciousness.",
+  ]);
+  expect(note("forms", "form", "thoughts", "thought", 'Q2: "a glint" | class: Form source | A yes: it is a form source | B no: it is a glint')[1])
+    .toBe("It follows it is a form, because it is a form source, which is an external form, which is a form.");
   // the tutor's class does not overrule its own answer when they disagree
   expect(note("thoughts", "thought", "sense powers", "sp", 'Q2: "a hunch" | class: External form | A yes: it is a mind | B no: it is a hunch').slice(1, 3)).toEqual([
     "It follows it is a thought, because it is a mind.",

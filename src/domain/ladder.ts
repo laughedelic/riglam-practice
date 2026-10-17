@@ -34,13 +34,22 @@ const excludes = (ix: DataIndex, x: string, y: string) => {
 /** What the data says about a side: the answer, the reason after "because", and the sentence under it ("" when none). */
 export interface Rung { answer: "yes" | "no"; reason: string; why: string }
 
+// The steps of `links` (lowest first) that the tutor's reason names. A name is matched whole and longest first, and what it matches
+// is not matched again, so "a form source" names Form source and not Form too, and "an external form" names External form only.
+function namedUpTo(said: string, links: readonly string[]): number {
+  let left = said.toLowerCase(), from = 0;
+  const esc = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  for (const [i, l] of links.map((l, i) => [i, l] as const).sort((x, y) => bareOf(y[1]).length - bareOf(x[1]).length)) {
+    const re = new RegExp(`\\b${esc(bareOf(l))}s?\\b`);
+    if (re.test(left)) { from = Math.max(from, i + 1); left = left.replace(re, (m) => " ".repeat(m.length)); }
+  }
+  return from;
+}
+
 // The tutor's reason followed by the steps it does not already name: "it is a tree" + [External form, Form] gives
 // "it is a tree, which is an external form, which is a form". A reason that is not a plain "it is a ..." gets "so it is".
 function climb(said: string, links: readonly string[]): string {
-  const low = said.toLowerCase();
-  let from = 0;
-  links.forEach((l, i) => { if (new RegExp(`\\b${bareOf(l)}s?\\b`).test(low)) from = i + 1; });
-  const rest = links.slice(from);
+  const from = namedUpTo(said, links), rest = links.slice(from);
   if (!said) return rest.length ? "it is " + rest.map(termPhrase).join(", which is ") : "";
   if (!rest.length) return said;
   const plain = from > 0 || /^it is (a|an) [\w' -]+$/.test(said);
