@@ -5,7 +5,7 @@ import { L, el } from "../core/dom.js";
 import { REL, cellLabel, lcRel, notaOf, notaParts } from "../core/rel.js";
 import { isWide } from "../core/viewport.js";
 import { backWhy, chooseD, debateList, sayQ, submitWhy } from "./flow.js";
-import { QCELL, Wd, ansNode, qNode } from "./text.js";
+import { QCELL, Wd, ansNode, formulaNode, qNode } from "./text.js";
 import { favBtn } from "../practice/favorites.js";
 import { exLine, explainBtn, explainParts, factNode, fbNode, isaTxt, kbHints, nextBtn, recentNode, relCap, relList, relPopNode, relStrip, relWhy, resultBlock, termsItem, tutorAct, tutorItem, whyBtn, whyHead } from "../practice/screen.js";
 import { skipActs, subRowNode } from "../practice/skips.js";
@@ -25,11 +25,10 @@ function pairHead(s,p,o){
     o.sub?subRowNode({text:o.sub,cls:o.checked?(o.relOk?" key":" wrong"):"",disabled:true,why:relWhy()}):null));
   const rp=relPopNode(); if(rp) s.append(rp);
 }
-// the result of a debate: a headline and one chip per aspect (see resultBlock)
-function debateResult(u,p){
-  const r=u.res, k=REL[p.relation], imp=r.implied, ex=explainParts();
+// the result of a debate: a headline and one chip per aspect (see resultBlock); on a wide screen the graded answers sit under the headline
+function debateResult(u,p,lead){
+  const r=u.res, k=REL[p.relation], imp=r.implied;
   const head={ok:"Right.",part:"Relation right, but not everything else.",pend:"Relation and questions right.",bad:"Not quite."}[r.overall];
-  const decOk=QCELL.filter(c=>r.dec[c]).length;
   const impTxt=imp==="bad"?"your answers contradict each other. If no A is B, A cannot also be inside B (or B inside A), because that leaves one of them with no instances. The challenger would declare you finished."
     :imp?"your answers give "+lcRel(REL[imp].name)+(u.late?", and time ran out before you chose.":imp===u.rel?".":", but you chose "+lcRel(REL[u.rel].name)+"."):"";
   return resultBlock(r,head,[
@@ -37,68 +36,68 @@ function debateResult(u,p){
       el("p",null,el("b",{text:"Relation: "}),u.late?"time ran out.":r.relOk?"right.":"wrong."),
       el("p",null,(r.relOk?k.name:"The relation is "+lcRel(k.name))+": "+k.gloss(p.a,p.b).toLowerCase()+".",notaOf(p.relation)&&state.nota!=="codes"?[" ",el("span",{class:"nota math",text:notaOf(p.relation)})]:null)]},
     imp?{key:"imp",label:"Implied",st:u.late?"none":imp===u.rel?"ok":"bad",body:()=>el("p",null,el("b",{text:"From your answers: "}),impTxt)}:null,
-    {key:"q",label:"Questions "+decOk+"/4",st:decOk===4?"ok":"bad",body:()=>questionRows(u)},
     {key:"ex",label:"Examples",st:r.exBad?"bad":r.exOpen?"open":"ok",body:()=>el("p",null,el("b",{text:"Examples: "}),exLine(r,QCELL))},
-    termsItem(p),tutorItem(),labItem()].filter(Boolean));
+    termsItem(p),tutorItem(),labItem()].filter(Boolean),lead);
 }
-// the four questions as short rows; a tap opens one with the statement, the answer and what it earned (the first wrong one is open to begin with)
-function questionRows(u){
-  const r=u.res, ex=explainParts();
-  const open=u.qopen===undefined?QCELL.findIndex(c=>r.cells[c].v==="bad"):u.qopen;
-  return el("ul",{class:"qd"},QCELL.map((c,i)=>{
-    const rr=r.cells[c], a=u.ans[i], on=open===i, st=rr.v==="ok"?"ok":rr.v==="bad"?"bad":"part";
-    return el("li",{class:on?"open":""},
-      el("button",{type:"button",class:"qs","aria-expanded":on?"true":"false",onclick:()=>{ u.qopen=on?null:i; render(); }},
-        el("span",{class:"m "+st,"aria-hidden":"true",text:{ok:"✓",bad:"✗",part:"?"}[st]}),
-        el("span",{class:"qh"},el("b",{text:"Question "+(i+1)}),ansNode(a,null,null))),
-      on?el("div",{class:"qb"},
-        el("span",{class:"qq"},qNode(i)),
-        ansNode(a,a.limit&&a.ms!=null?a.ms:null,i),
-        // the tutor's note on an accepted question names its own counter-example, so the reference's is not shown beside it
-        ex.facts[c]&&a.say!=="why"?null:el("span",{class:"fbq"},el("b",{text:rr.msg[0]}),rr.msg[2]?[" ",el("i",{text:rr.msg[2]})]:null,isaTxt(rr.msg[1]||"")),
-        ex.cells[c]?el("span",{class:"cl"},ex.facts[c]?null:whyHead(),aiFlag(aiCase("explain","Claude’s note on Q"+(i+1),ex.cells[c],c),"q:"+c),ex.facts[c]?factNode(ex.facts[c],whyHead()):ex.cells[c]):null,
-        ex.cells[c]?flagEditorNode("q:"+c):null):null);
-  }));
+// how a question was judged, the same four states as its cell in the table (right, wrong, not checked, unsure); the row shows it by color only
+const qGrade=rr=>rr.uns?"uns":rr.v;
+const GRADE={ok:"right",bad:"wrong",cmp:"not checked",uns:"unsure"};
+// an answer opened on the result: the statement, the answer with its time, what it earned and Claude's note on it
+function questionBody(u,i){
+  const c=QCELL[i], rr=u.res.cells[c], a=u.ans[i], ex=explainParts();
+  return [el("span",{class:"qq"},qNode(i)),
+    ansNode(a,a.limit&&a.ms!=null?a.ms:null,i),
+    // the tutor's note on an accepted question names its own counter-example, so the reference's is not shown beside it
+    ex.facts[c]&&a.say!=="why"?null:el("span",{class:"fbq"},el("b",{text:rr.msg[0]}),rr.msg[2]?[" ",el("i",{text:rr.msg[2]})]:null,isaTxt(rr.msg[1]||"")),
+    ex.cells[c]?el("span",{class:"cl"},ex.facts[c]?null:whyHead(),aiFlag(aiCase("explain","Claude’s note on Q"+(i+1),ex.cells[c],c),"q:"+c),ex.facts[c]?factNode(ex.facts[c],whyHead()):ex.cells[c]):null,
+    ex.cells[c]?flagEditorNode("q:"+c):null];
 }
+// the number of the question whose counter-example the cell holds, in its top right corner: it ties the row of answers to the table
+const cellNum=c=>el("span",{class:"cnum","aria-hidden":"true",text:String(QCELL.indexOf(c)+1)});
 // each question's counter-example cell, filled in as the learner answered; an accepted question leaves its cell empty
 function debateCell(u,p){
   const r=u.res;
   return c=>{
     const rr=r.cells[c], a=u.ans[QCELL.indexOf(c)], t=(u.cells[c].t||"").trim(), vcls=" v-"+(rr.uns?"uns":rr.v);
     if(a.say!=="why"||!t) return el("div",{class:"cell locked"+vcls,"aria-label":cellLabel(c,p)+": "+(a.say==="accept"?"accepted, nothing here":"no example")},
-      rr.v==="bad"?fbNode(rr):el("span",{class:"empty",text:"∅"}),whyBtn(c,p));
-    return el("div",{class:"cell"+vcls,"aria-label":cellLabel(c,p)},el("span",{class:"cx",text:t}),fbNode(rr),whyBtn(c,p));
+      rr.v==="bad"?fbNode(rr):el("span",{class:"empty",text:"∅"}),whyBtn(c,p),cellNum(c));
+    return el("div",{class:"cell"+vcls,"aria-label":cellLabel(c,p)},el("span",{class:"cx",text:t}),fbNode(rr),whyBtn(c,p),cellNum(c));
   };
 }
 // the table before Check: the example posited for a question, or ∅ where it was accepted
 function debateDraftCell(u,p){
   return c=>{
     const a=u.ans[QCELL.indexOf(c)], t=(a.text||"").trim();
-    if(a.say!=="why"||!t) return el("div",{class:"cell locked","aria-label":cellLabel(c,p)+": "+(a.say==="accept"?"accepted, nothing here":"no example")},el("span",{class:"empty",text:"∅"}));
-    return el("div",{class:"cell","aria-label":cellLabel(c,p)},el("span",{class:"cx",text:t}));
+    if(a.say!=="why"||!t) return el("div",{class:"cell locked","aria-label":cellLabel(c,p)+": "+(a.say==="accept"?"accepted, nothing here":"no example")},el("span",{class:"empty",text:"∅"}),cellNum(c));
+    return el("div",{class:"cell","aria-label":cellLabel(c,p)},el("span",{class:"cx",text:t}),cellNum(c));
   };
 }
-// progress of the questions: one rhombus each, answered filled, the current one marked, no numbers (the order of the questions carries no meaning)
+// progress of the questions: one rhombus each, answered filled, the current one marked, no numbers on the marks (the order of the questions carries no meaning)
 const progStrip=i=>el("span",{class:"prog","aria-hidden":"true"},[0,1,2,3].map(k=>el("i",{class:k<i?"done":k===i?"now":""})));
 const qnParts=i=>[progStrip(i),"Question "+(i+1),el("span",{class:"sr",text:" of 4"}),Wd().lead?el("span",{class:"lead",text:Wd().lead}):null];
-// the answers given so far, kept above the next question on a phone so none looks discarded: "Q1 ✓   Q2 ?! an example ...".
-// No verdict yet, that comes with the result. An example is cut at about eight letters of width; the table shows it whole.
+// the answers given so far, kept above the next question on a phone so none looks discarded, as a key of four formulas in two columns:
+//   1 A ⇒ not B    2 A ⇒ B        ⇒ accepted, ⇏ Why?!
+//   3 B ⇒ A        4 not A ⇒ B
+// The numbers are the ones in the corners of the cells. No verdict while asking, and no example: the table shows it whole (the tag opens it with the statement).
+// After Check the row stays on the result and the number of each answer takes the color of its grade (as its cell does);
+// a tag then opens how that answer was judged, apart from the table of examples.
 function receiptNode(u,count,enter){
-  const w=Wd();
+  const w=Wd(), graded=!!u.checked;
   const items=[...Array(count).keys()].map(i=>{
     const a=u.ans[i], kind=a.say==="accept"?"acc":a.say==="why"?"why":"to";
-    // a mark for each answer, no words: ✓ accepted, ?! asked why; the open tag spells it out
-    const word=kind==="acc"?w.acd:kind==="why"?w.wyd:"Time out", mark=kind==="acc"?"\u2713":kind==="why"?"?!":"";
+    // ⇒ accepted, ⇏ asked why, a dash where there is no answer; the open tag spells it out
+    const word=kind==="acc"?w.acd:kind==="why"?w.wyd:"Time out", arrow=kind==="acc"?"\u21D2":kind==="why"?"\u21CF":"\u2013";
     const extra=a.say==="why"&&a.text?a.text:a.timeout&&a.say==="accept"?"time ran out":"";
-    const on=u.ro===i;
-    return el("button",{type:"button",class:"ri "+kind+(on?" on":""),"aria-expanded":on?"true":"false",title:word,"aria-label":"Question "+(i+1)+": "+word+(extra?", "+extra:"")+". "+(on?"Hide":"Show")+" the statement and your answer",
+    const on=u.ro===i, g=graded?qGrade(u.res.cells[QCELL[i]]):null;
+    return el("button",{type:"button",class:"ri "+kind+(g?" gr-"+g:"")+(on?" on":""),"aria-expanded":on?"true":"false",title:word+(extra?", "+extra:"")+(g?", "+GRADE[g]:""),
+      "aria-label":"Question "+(i+1)+": "+word+(extra?", "+extra:"")+(g?", "+GRADE[g]:"")+". "+(on?"Hide":"Show")+(g?" how it was judged":" the statement and your answer"),
       onclick:()=>{ u.ro=on?null:i; render(); }},
-      el("b",{class:"n",text:"Q"+(i+1)}),el("span",{class:"rw"+(mark?" rmk":""),"aria-hidden":mark?"true":null,text:mark||word}),extra?el("span",{class:"exn",text:extra,title:extra}):null);
+      el("b",{class:"n",text:String(i+1)}),formulaNode(i,arrow));
   });
-  // a tag opens the statement and the answer in full under the row; the row itself stays as it is
+  // a tag opens the statement and the answer in full under the row (after Check also what it earned); the row itself stays as it is
   const o=u.ro;
-  if(o!=null&&o<count) items.push(el("div",{class:"rdet"},el("span",{class:"qq"},qNode(o)),ansNode(u.ans[o],null,o)));
-  return el("div",{class:"rcpt"+(enter?" enter":""),role:"group","aria-label":"Your answers so far"},items);
+  if(o!=null&&o<count) items.push(el("div",{class:"rdet"},graded?questionBody(u,o):[el("span",{class:"qq"},qNode(o)),ansNode(u.ans[o],null,o)]));
+  return el("div",{class:"rcpt"+(graded?" graded":"")+(enter?" enter":""),role:"group","aria-label":graded?"Your answers, judged":"Your answers so far"},items);
 }
 export function renderDebate(s,c){
   const w=isWide(), p=state.cur.p, u=state.ui, stage=u.checked?"done":u.step<4?"ask":"rel";
@@ -118,8 +117,9 @@ export function renderDebate(s,c){
   // at the relation step the answers show as a table like the result
   if(done&&stage!=="done"&&w) s.append(qlog());
   else if(stage==="ask"&&u.step>0&&!w) s.append(receiptNode(u,u.step,enter));
-  // the relation step shows the answers in the same place and form (a tag opens its statement); the question they answer is in the line under the diamond
-  if(stage==="rel"&&!w) s.append(receiptNode(u,4,false));
+  // the relation step shows the answers in the same place and form (a tag opens its statement); the question they answer is in the line under the diamond.
+  // The result keeps them there with their grades, and a tag opens how that answer was judged
+  if(stage!=="ask"&&!w) s.append(receiptNode(u,4,false));
   if(stage==="rel"&&!w) s.append(el("div",{class:"section"+(u.open?" opt":"")},el("p",{class:"label"},"Your examples",el("span",{class:"hint",text:"∅ = you accepted: nothing exists there."})),exGrid(p,debateDraftCell(u,p))));
 
   if(stage==="ask"){
@@ -172,7 +172,7 @@ export function renderDebate(s,c){
     c.append(stage==="ask"?kbHints([Wd().ak,Wd().acc.toLowerCase()],[Wd().wk,Wd().why.toLowerCase()],["S","skip"],["F","favorite"]):kbHints(["1–5","relation, checks"],["S","skip"],["F","favorite"]));
     return;
   }
-  c.append(el("p",{class:"label"},"Result"),debateResult(u,p));
+  c.append(el("p",{class:"label"},"Result"),debateResult(u,p,receiptNode(u,4,false)));
   if(u.saveErr) c.append(el("p",{class:"status",text:u.saveErr}));
   const eb=explainBtn(); if(eb) c.append(el("div",{class:"actions left"},eb));
   c.append(kbHints(["Enter","next pair"],["F","favorite"]));

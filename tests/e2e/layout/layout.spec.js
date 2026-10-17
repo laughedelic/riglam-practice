@@ -138,14 +138,14 @@ const FLOWS = {
     await relOptions(page).first().click();
     await expect(page.locator(".vchip").first()).toBeVisible();
     await check("debate result");
+    // the graded answers: question 2 has the long example, question 4 is the last tag of the row
+    const answers = page.locator((wide ? ".coach" : "#stage") + " .rcpt.graded .ri");
+    await expect(answers).toHaveCount(4);
+    for (const k of [1, 3]) { await answers.nth(k).click(); await check(`debate result, answer ${k + 1} open`); }
     const chips = page.locator((wide ? ".coach" : "#stage") + " .vchip");
     for (let i = 0, n = await chips.count(); i < n; i++) {
       if ((await chips.nth(i).getAttribute("aria-selected")) !== "true") await chips.nth(i).click();
       await check(`debate chip ${i}`);
-      const rows = page.locator((wide ? ".coach" : "#stage") + " .qs");
-      if (await rows.count()) {
-        for (const k of [0, 3]) { await rows.nth(k).click(); await check(`debate chip ${i}, question ${k + 1}`); }
-      }
     }
   },
 

@@ -135,16 +135,16 @@ async function fillCells(pg){
  ok('the marks have no numbers (the order carries no meaning)',(await pg.locator('.qcard .prog').innerText()).trim()==='');
  await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(60);
  ok('after one answer: first mark done, second current',(await st())==='done,now,-,-',await st());
- ok('receipt above the card: "Q1" with what was said',await pg.locator('.rcpt').count()===1&&await pg.locator('.rcpt .ri').count()===1&&/^Q1\b/i.test(await pg.locator('.rcpt .ri .n').innerText())&&/^✓$/.test((await pg.locator('.rcpt .rw').innerText()).trim()),await pg.locator('.rcpt').innerText().catch(()=>''));
+ ok('receipt above the card: "1" and the first statement as a formula, ⇒ for accepted',await pg.locator('.rcpt').count()===1&&await pg.locator('.rcpt .ri').count()===1&&(await pg.locator('.rcpt .ri .n').innerText()).trim()==='1'&&(await pg.locator('.rcpt .fx').innerText()).trim()==='A ⇒ not B',await pg.locator('.rcpt').innerText().catch(()=>''));
  ok('the new card slides in (class enter), the receipt too',(await pg.locator('.qcard').getAttribute('class')).includes('enter')&&(await pg.locator('.rcpt').getAttribute('class')).includes('enter'));
  await pg.screenshot({path:D+'v49-receipt-accept.png'});
  await pg.locator('.qcard .btn.ghost').click(); await pg.waitForTimeout(80);
  const longEx='a very long counter-example about a clay pot that was filled with water and then placed on a table in the middle of a large room';
  await pg.fill('#dex',longEx); await pg.keyboard.press('Enter'); await pg.waitForTimeout(80);
  ok('after two answers: two done, third current',(await st())==='done,done,now,-',await st());
- const rc=await pg.evaluate(()=>{const r=document.querySelector('.rcpt'), x=r.querySelector('.exn'), s=document.getElementById('stage').getBoundingClientRect(), b=r.getBoundingClientRect(); return {txt:r.innerText, n:[...r.querySelectorAll('.n')].map(e=>e.innerText).join(','), clipped:x&&x.scrollWidth>x.clientWidth, h:Math.round(b.height), inside:b.left>=s.left-0.5&&b.right<=s.right+0.5, doc:document.documentElement.scrollWidth<=window.innerWidth};});
- ok('receipt shows all answers so far, in order: Q1 and Q2 with the example',rc.n==='Q1,Q2'&&/clay pot/.test(rc.txt),rc);
- ok('a long example is cut with an ellipsis, receipt stays inside the screen and within two lines',rc.clipped&&rc.h<=52&&rc.inside&&rc.doc,rc);
+ const rc=await pg.evaluate(()=>{const r=document.querySelector('.rcpt'), s=document.getElementById('stage').getBoundingClientRect(), b=r.getBoundingClientRect(); return {txt:r.innerText, n:[...r.querySelectorAll('.n')].map(e=>e.innerText).join(','), f:[...r.querySelectorAll('.fx')].map(e=>e.innerText.trim()).join(' | '), h:Math.round(b.height), inside:b.left>=s.left-0.5&&b.right<=s.right+0.5, doc:document.documentElement.scrollWidth<=window.innerWidth};});
+ ok('receipt shows all answers so far, in order: 1 accepted and 2 asked why (⇏), the example is not in the row',rc.n==='1,2'&&rc.f==='A ⇒ not B | A ⇏ B'&&!/clay pot/.test(rc.txt),rc);
+ ok('a long example cannot widen the receipt: it stays inside the screen, on one line for two answers',rc.h<=40&&rc.inside&&rc.doc,rc);
  await pg.screenshot({path:D+'v49-receipt-why.png'});
  await rings0(pg,'phone questions with receipt');
  await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(60);
@@ -187,8 +187,8 @@ async function fillCells(pg){
  await pg.screenshot({path:D+'v49-320-rel.png'});
  await pg.locator('#tabbar [role=tab]:has-text("Pervasions")').click(); await pg.waitForTimeout(100);
  await pg.locator('.qcard .btn.ghost').click(); await pg.waitForTimeout(60); await pg.fill('#dex','a counter-example that is long enough to need cutting off at 320 pixels'); await pg.keyboard.press('Enter'); await pg.waitForTimeout(80);
- const ov2=await pg.evaluate(()=>({sw:document.documentElement.scrollWidth,iw:window.innerWidth,ex:(()=>{const x=document.querySelector('.rcpt .exn');return x&&x.scrollWidth>x.clientWidth})()}));
- ok('320 px Questions with receipt: no horizontal overflow, example cut',ov2.sw<=ov2.iw&&ov2.ex,ov2);
+ const ov2=await pg.evaluate(()=>{const r=document.querySelector('.rcpt').getBoundingClientRect(), s=document.getElementById('stage').getBoundingClientRect(); return {sw:document.documentElement.scrollWidth,iw:window.innerWidth,inside:r.left>=s.left-0.5&&r.right<=s.right+0.5};});
+ ok('320 px Questions with receipt: no horizontal overflow, the receipt inside the screen',ov2.sw<=ov2.iw&&ov2.inside,ov2);
  await pg.screenshot({path:D+'v49-320-q.png'});
  await br.close();
 

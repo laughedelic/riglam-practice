@@ -166,7 +166,8 @@ export function placePops(){
 }
 // The result section: a headline, one chip per aspect, and the details of one chip below them (like tabs; tapping the open chip closes it).
 // With nothing chosen yet, the first chip that is not fine opens.
-export function resultBlock(r,head,items){
+// lead: shown between the headline and the chips (the graded answers of a debate on a wide screen)
+export function resultBlock(r,head,items,lead){
   let open=state.ui.rtab==="auto"?((items.find(i=>i.st==="bad"||i.st==="open")||{}).key||null):state.ui.rtab;
   if(open&&!items.some(i=>i.key===open)) open=null;
   const cur=items.find(i=>i.key===open);
@@ -175,6 +176,7 @@ export function resultBlock(r,head,items){
     i.st==="ok"||i.st==="bad"||i.st==="open"?el("span",{class:"ic","aria-hidden":"true",text:{ok:"✓",bad:"✗",open:"?"}[i.st]}):i.ic?el("span",{class:"ic","aria-hidden":"true",text:i.ic}):null,i.label)));
   return el("div",{class:"verdict "+r.overall},
     el("p",{class:"vl"},el("span",{class:"v",text:head})),
+    lead,
     chips,
     cur?el("div",{class:"vpanel",id:"vpanel",role:"tabpanel","aria-labelledby":"vt-"+cur.key},cur.body()):null);
 }
