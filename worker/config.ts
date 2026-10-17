@@ -33,6 +33,23 @@ export function readConfig(env: Env): Config {
   };
 }
 
+export interface LabConfig {
+  /** whether the server answers the check lab's model calls (worker/lab.ts) */
+  on: boolean;
+  /** the lab's own budgets in micro-dollars, apart from the tutor's */
+  deviceDailyMicro: number;
+  globalDailyMicro: number;
+}
+
+/** The lab's settings. It is off unless `LAB` is `on`, which only the `previews` block of wrangler.jsonc sets. */
+export function readLabConfig(env: Env): LabConfig {
+  return {
+    on: env.LAB?.trim() === "on",
+    deviceDailyMicro: micro(number(env.LAB_DEVICE_DAILY_BUDGET_USD, 1, 0, 1000)),
+    globalDailyMicro: micro(number(env.LAB_GLOBAL_DAILY_BUDGET_USD, 3, 0, 10000)),
+  };
+}
+
 export interface AccountConfig {
   /** who may create an account: anyone, only a caller with the study group's proof, or nobody (existing accounts still sign in) */
   signup: "open" | "group" | "closed";

@@ -35,10 +35,10 @@ const REPLY='Both: a clay pot fits.\nNeither: a stone is B, not A.\nCommon locus
   ok('all three agree: three calls, no judge',cl.length===3&&cl.every(j=>!j),cl);
   let runs=await S(pg,'labruns');
   ok('only the three runs are stored (no judge document)',Object.keys(runs).length===3&&!Object.values(runs).some(r=>r.kind==='judge'),Object.keys(runs));
-  await pg.locator('.vchip',{hasText:/lab/i}).click(); await pg.waitForTimeout(120);
+  await pg.locator('.vchip',{hasText:/quorum/i}).click(); await pg.waitForTimeout(120);
   ok('the panel says all agree and no judge was needed',/all agree, no judge needed/i.test(await pg.locator('.lab-h').innerText()),await pg.locator('.lab-h').innerText());
   ok('each thing says "All answers agree" and has no ruling row',await pg.locator('.lab-nj').count()===n&&await pg.locator('.lab-r.ruling').count()===0,[await pg.locator('.lab-nj').count(),n]);
-  ok('the chip shows = when all agree with the learner too, or ≠ when they agree against the learner (not "…")',/[=≠]/.test(await pg.locator('.vchip',{hasText:/lab/i}).innerText()));
+  ok('the chip shows = when all agree with the learner too, or ≠ when they agree against the learner (not "…")',/[=≠]/.test(await pg.locator('.vchip',{hasText:/quorum/i}).innerText()));
   const ask=pg.locator('.lab .btn',{hasText:/ask the judge/i});
   ok('an "Ask the judge" button is offered',await ask.count()===1);
   await ask.click(); await settle(pg); await pg.waitForTimeout(100);
@@ -61,7 +61,7 @@ const REPLY='Both: a clay pot fits.\nNeither: a stone is B, not A.\nCommon locus
   ok('the models differ: three calls and then the judge',cl.length===4&&cl.slice(0,3).every(j=>!j)&&cl[3]===true,cl);
   const jd=Object.values(await S(pg,'labruns')).find(r=>r.kind==='judge');
   ok('the judge record says the models differed',!!jd&&jd.why==='disagree',jd&&jd.why);
-  await pg.locator('.vchip',{hasText:/lab/i}).click(); await pg.waitForTimeout(120);
+  await pg.locator('.vchip',{hasText:/quorum/i}).click(); await pg.waitForTimeout(120);
   ok('the summary names the reason',/the judge ruled \(the models differed\)/i.test(await pg.locator('.lab-h').innerText()),await pg.locator('.lab-h').innerText());
   // the judge sided with the first two answers it saw (the order it was given is in the record)
   const nm={haiku:'Haiku',sonnet:'Sonnet',opus:'Opus'}, ord=jd.order.map(id=>id.split('_').pop());
@@ -80,7 +80,7 @@ const REPLY='Both: a clay pot fits.\nNeither: a stone is B, not A.\nCommon locus
   await answerWide(pg); await settle(pg);
   const cl=await labCalls(pg), jd=Object.values(await S(pg,'labruns')).find(r=>r.kind==='judge');
   ok('a spot check sends even a unanimous answer to the judge, marked as a spot check',cl.length===4&&!!jd&&jd.why==='spot',[cl,jd&&jd.why]);
-  await pg.locator('.vchip',{hasText:/lab/i}).click(); await pg.waitForTimeout(100);
+  await pg.locator('.vchip',{hasText:/quorum/i}).click(); await pg.waitForTimeout(100);
   ok('the summary says spot check',/spot check/i.test(await pg.locator('.lab-h').innerText()));
   await br.close();
  }
@@ -90,8 +90,8 @@ const REPLY='Both: a clay pot fits.\nNeither: a stone is B, not A.\nCommon locus
   await pg.locator('.rail .nv:has-text("Options")').click().catch(()=>{}); await pg.waitForTimeout(150);
   if(!(await pg.locator('.orow').count())){ await pg.locator('#optsbtn,.optsbtn,[aria-label="Options"]').first().click().catch(()=>{}); await pg.waitForTimeout(150); }
   const rows=await pg.locator('.orow').evaluateAll(r=>r.map(x=>x.innerText));
-  const lab=rows.find(t=>/^check lab/i.test(t.trim())), q=rows.find(t=>/^questions/i.test(t.trim()));
-  ok('the Check lab note says the judge rules only when the models differ',!!lab&&/only when they differ/i.test(lab)&&/three Claude calls/i.test(lab),lab);
+  const lab=rows.find(t=>/^quorum/i.test(t.trim())), q=rows.find(t=>/^questions/i.test(t.trim()));
+  ok('the Quorum note says the judge rules only when the models differ',!!lab&&/only when they differ/i.test(lab)&&/three Claude calls/i.test(lab),lab);
   ok('the Questions row explains itself as the statement of pervasion',!!q&&/statement of pervasion/i.test(q),q);
   await br.close();
  }

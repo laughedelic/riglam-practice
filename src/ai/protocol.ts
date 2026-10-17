@@ -7,6 +7,8 @@ export const API = {
   tutor: "/api/tutor",
   /** GET, with the device and proof headers: the definitions (`?have=<version>` asks only whether the copy kept is current) */
   course: "/api/course",
+  /** POST, with the device and proof headers: one model call of the check lab. Answered only by a server that has the lab on (a Preview). */
+  lab: "/api/lab",
 } as const;
 
 export const HEADER = {
@@ -71,10 +73,36 @@ export type TutorEvent =
   | { type: "done"; truncated: boolean }
   | { type: "error"; code: ErrorCode; message: string };
 
+/**
+ * What the lab route accepts (worker/lab.ts): the models the check lab compares, the effort levels it asks for, and the size of a prompt
+ * in characters. A model or an effort outside these is refused, so the route is not a way to use any model for anything.
+ */
+export const LAB = {
+  models: ["claude-haiku-5-5", "claude-sonnet-5-5", "claude-opus-5-5"],
+  efforts: ["low", "medium", "high"],
+  prompt: 100_000,
+} as const;
+
+/** The body of `POST /api/lab`: one prompt for one model, with no tools and no earlier turns. */
+export interface LabRequest {
+  model: string;
+  effort: string;
+  prompt: string;
+}
+
+/** The answer of `POST /api/lab`. `modelApplied` is the model that answered; the lab does not count a run that another model answered. */
+export interface LabResponse {
+  text: string;
+  truncated: boolean;
+  modelApplied: string;
+}
+
 /** The answer of /api/health. */
 export interface Health {
   ok: true;
   tutor: "on" | "off";
+  /** the lab's model calls (`POST /api/lab`) are answered; left out when they are not, as on every server that is not a Preview */
+  lab?: "on";
   /** optional accounts and sync (src/account/protocol.ts); a server from before accounts leaves it out */
   accounts?: "on" | "off";
 }

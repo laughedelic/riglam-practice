@@ -7,7 +7,7 @@ import type { About, Unlock, Updates } from "../platform/types";
 import type { AnswerView, DebateAnswer } from "../ai-shared/card";
 import type { CellId, RelKey } from "../ai-shared/relations";
 import type { Pair, PoolEntry, Verdict } from "../domain/types";
-import type { Account, Db, Sample, Tutor } from "../platform/types";
+import type { Account, Db, LabSample, Sample, Tutor } from "../platform/types";
 import type { AccountSlot } from "../ui/account";
 import type { TransferSlot } from "../ui/data-transfer";
 import type { KeyHeld } from "../platform/types";
@@ -115,6 +115,8 @@ export interface FlagDoc {
   suggest?: string;
   /** the pair the flag was made on, by its labels; not a whole pair */
   pair?: FlagPair | null;
+  /** set when the page wrote the flag by itself, not the learner: "quorum" for an example the check lab is divided about (`part` is "quorum" then) */
+  auto?: string;
   at: string;
   updatedAt: string;
   state: string;
@@ -177,6 +179,8 @@ export interface State {
   // what the platform offers
   db: Db | null;
   sample: Sample | null;
+  /** the check lab's model calls (platform.lab); the artifact's `sample` where the platform has no `lab`. Null hides the lab. */
+  labSample: LabSample | null;
   /** which build this is (platform.about), shown in Options; null until the server has been asked, and on a build with nothing to tell apart */
   about: About | null;
   /** updating the installed app in place (platform.updates), shown in Options; null where there is no installed copy */
@@ -237,8 +241,11 @@ export interface State {
 
   // the check lab
   lab: boolean;
+  /** a checked answer asks for its explanation by itself (Options, `rd-autoexplain`) */
+  autoExplain: boolean;
   labSpotN: number;
   labPause: number;
+  labPauseWhy: string;
   labRefC: { text: string; ver: string } | null;
 
   // display settings, some kept on the device

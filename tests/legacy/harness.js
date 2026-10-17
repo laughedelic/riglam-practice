@@ -49,12 +49,14 @@ window.claude={use:async n=>n==='db'?db:n==='sample'?sample:null};
   return {html};
 }
 async function open(vp,opts={}){
-  const lab=opts.lab; delete opts.lab;
+  const lab=opts.lab, autoExplain=opts.autoExplain; delete opts.lab; delete opts.autoExplain;
   const {html}=load();
   const br=await chromium.launch();
   const ctx=await br.newContext(Object.assign({viewport:vp,colorScheme:'light'},opts));
   // the lab is off in the old tests (it adds calls and renders); a test turns it on with {lab:true}
   await ctx.addInitScript(on=>{ try{ if(localStorage.getItem('rd-lab')===null) localStorage.setItem('rd-lab',on?'1':'0'); }catch(e){} },!!lab||process_env_lab);
+  // a checked answer does not ask for its explanation by itself in the old tests (they click Explain); a test turns it on with {autoExplain:true}
+  await ctx.addInitScript(on=>{ try{ if(localStorage.getItem('rd-autoexplain')===null) localStorage.setItem('rd-autoexplain',on?'1':'0'); }catch(e){} },!!autoExplain);
   await ctx.addInitScript(()=>{ window.__riglamTest=t=>{ window.__t=t; }; });
   const pg=await ctx.newPage(); pg.setDefaultTimeout(4000);
   const errs=[]; pg.on('console',m=>{if(m.type()==='error')errs.push(m.text())}); pg.on('pageerror',e=>errs.push('ERR '+e.message));

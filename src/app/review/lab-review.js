@@ -24,11 +24,11 @@ function labStats(){
 }
 export function labReview(box){
   const fl=Object.values(state.flags).sort((x,y)=>(y.updatedAt||y.at||"").localeCompare(x.updatedAt||x.at||"")), nNew=fl.filter(f=>f.state==="new").length;
-  const sec=el("div",{class:"section"},el("p",{class:"label"},"Lab",el("span",{class:"hint",text:fl.length?fl.length+" flagged"+(nNew?", "+nNew+" new":""):"no flags yet"})));
+  const sec=el("div",{class:"section"},el("p",{class:"label"},"Quorum",el("span",{class:"hint",text:fl.length?fl.length+" flagged"+(nNew?", "+nNew+" new":""):"no flags yet"})));
   const {by,cases}=labStats(), models=LAB_MODELS.filter(m=>by[m.id]);
   if(models.length) sec.append(el("table",{class:"tbl labt"},el("thead",null,el("tr",null,["Model","Runs","Time","Judge agrees"].map(h=>el("th",{text:h})))),
     el("tbody",null,models.map(m=>{ const o=by[m.id]; return el("tr",null,el("td",{text:m.name}),el("td",{class:"num",text:o.counted+(o.n>o.counted?" / "+o.n:"")}),el("td",{class:"num",text:o.counted?(o.ms/o.counted/1000).toFixed(1)+" s":"–"}),el("td",{class:"num",text:o.cmp?o.agree+" / "+o.cmp:"–"})); }))));
-  else sec.append(el("p",{class:"empty-note",text:state.lab?"Runs appear here after you check an answer.":"The lab is off (Options)."}));
+  else sec.append(el("p",{class:"empty-note",text:state.lab?"Runs appear here after you check an answer.":"Quorum is off (Options)."}));
   // cases where the models disagree
   const dis=[];
   for(const [k,cs] of Object.entries(cases)){
@@ -43,8 +43,8 @@ export function labReview(box){
   if(fl.length){
     sec.append(el("p",{class:"sublabel",text:"Flags"}));
     sec.append(el("ul",{class:"sum flagl"},fl.slice(0,40).map(f=>el("li",{class:f.state},el("span",{class:"m","aria-hidden":"true"},el("span",{class:"flg"})),
-      el("span",null,(f.thing?"“"+f.thing+"” · ":"")+(f.model?mname(f.model)+" · ":"")+f.part,
-        el("span",{class:"sub",text:(f.shown?"shown: "+f.shown:"")+(f.suggest?" · should be: "+f.suggest:"")}),
+      el("span",null,(f.thing?"“"+f.thing+"” · ":"")+(f.model?mname(f.model)+" · ":"")+(f.auto?"Quorum (automatic)":f.part),
+        el("span",{class:"sub",text:(f.shown?(f.auto?"":"shown: ")+f.shown:"")+(f.suggest?" · should be: "+f.suggest:"")}),
         f.note?el("span",{class:"sub",text:f.note}):null,
         el("span",{class:"skact"},
           el("span",{class:"fstate",text:f.state+" · "+dayOf(f.at)}),

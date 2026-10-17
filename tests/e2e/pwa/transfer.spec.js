@@ -10,6 +10,8 @@ const seeded = {
 };
 
 const open = async (page) => {
+  // the support test starts every page with "Check every answer with AI" off; this spec counts the settings the page has stored
+  await page.addInitScript(() => localStorage.removeItem("rd-autoexplain"));
   await page.goto("/");
   await ready(page);
 };

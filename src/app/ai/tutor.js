@@ -28,7 +28,13 @@ function applyVerify(text,U,C){
 }
 // The explanation is kept with the answer (applyVerify saves it along with the verdicts), so verdicts can be audited later.
 function saveExplain(U){ persist(U,U.debate?"Your debate":"Your answer"); }
-export async function ask(text,kind){
+// With "Check every answer with AI" on (Options), a checked answer asks for the explanation the Explain button would ask for, with no tap. It asks once per
+// answer, only where the tutor can answer (a device without the Magic Key still gets the grayed button), and it leaves the screen and the focus where they are.
+export function explainByItself(U){
+  if(!state.autoExplain||U!==state.ui||!U.checked||U.explained||U.ctl||!canAsk()) return;
+  ask(null,"explain",true);
+}
+export async function ask(text,kind,byItself){
   const U=state.ui, C=state.cur;                       // the pair this question belongs to, even if you switch tabs meanwhile
   if(!canAsk()||!U||U.ctl) return;
   const p=C.p, direct=!!state.sample;                  // the host's own model call, or else the app's server
@@ -38,7 +44,7 @@ export async function ask(text,kind){
   else U.chat.push({role:"user",content:body,hidden:!!kind});
   if(kind==="explain"){ U.explained=true; U.rtab="tutor"; }
   U.chat.push({role:"assistant",content:"",pending:true,kind});
-  U.chatErr=""; const ctl=U.ctl=new AbortController(); render(); if(U===state.ui) revealTutor();
+  U.chatErr=""; const ctl=U.ctl=new AbortController(); render(); if(U===state.ui&&!byItself) revealTutor();
   const turns=U.chat.filter(t=>!t.pending).map(t=>({role:t.role,content:t.content}));
   const slot=U.chat[U.chat.length-1];
   const onText=({text})=>{slot.content=text; if(U===state.ui){ const o=$("ans-live"); if(o){ fillTurn(o,{kind,pending:true,content:text},!o.closest("#chatscroll")); const sc=$("chatscroll"); if(sc) sc.scrollTop=0; } }};
@@ -60,7 +66,7 @@ export async function ask(text,kind){
     if(e&&ERR_OFF.includes(e.code)){ state.sample=null; state.tutor=null; }
   }
   U.ctl=null;
-  if(U===state.ui){ render(); if(kind==="explain") revealTutor(); const i=$("ask-in"); if(i&&!("ontouchstart" in window)) i.focus(); }
+  if(U===state.ui){ render(); if(byItself) return; if(kind==="explain") revealTutor(); const i=$("ask-in"); if(i&&!("ontouchstart" in window)) i.focus(); }
 }
 export function fillAns(node,text){
   node.replaceChildren();

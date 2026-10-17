@@ -1,9 +1,11 @@
 import { state } from "../state.js";
+import { autoFlags } from "./flags.js";
 import { ERR_OFF } from "./tutor.js";
 import { $ } from "../core/dom.js";
 import { CELLS, REL } from "../core/rel.js";
 import { typingEl } from "../core/viewport.js";
 import { QCELL } from "../debate/text.js";
+import { disputeText, quorumDisputes } from "../../domain/quorum.ts";
 import { put } from "../practice/answers.js";
 import { favSafe } from "../practice/favorites.js";
 import { skipCats } from "../practice/skips.js";
@@ -21,7 +23,7 @@ export const LAB_MODELS=[{k:"haiku",id:"claude-haiku-5-5",tier:"quick",name:"Hai
 export const LAB_JUDGE={k:"judge",id:"claude-opus-5-5",tier:"complex",name:"Judge"};
 export const labQ={}, flagQ={}, labLocal={};     // labLocal: the runs written in this session, kept apart from what the database snapshot returns
 export function setLab(on){ state.lab=!!on; try{ localStorage.setItem("rd-lab",state.lab?"1":"0"); }catch(e){} render(); }
-export const labShown=()=>!!(state.sample&&state.db&&(state.lab||Object.keys(state.labruns).length||Object.keys(labLocal).length||Object.keys(state.flags).length));
+export const labShown=()=>!!(state.labSample&&state.db&&(state.lab||Object.keys(state.labruns).length||Object.keys(labLocal).length||Object.keys(state.flags).length));
 export const labRuns=()=>Object.assign({},state.labruns,labLocal);
 // the database snapshots; a flag write in flight keeps the snapshot from replacing what the page just changed
 function labDataIn(){ if(state.tab==="review"&&state.mode!=="loading"&&!typingEl(document.activeElement)) render(); }
@@ -97,7 +99,7 @@ export function labThings(U){
 }
 function labWrite(col,id,doc){
   const clean=JSON.parse(JSON.stringify(doc));
-  labQ[id]=(labQ[id]||Promise.resolve()).catch(()=>{}).then(()=>put(col,id,clean)).catch(e=>{ state.flagErr="A lab record could not be saved ("+((e&&e.code)||"error")+")."; if(state.ui&&state.ui.lab) labRender(state.ui.lab); });
+  labQ[id]=(labQ[id]||Promise.resolve()).catch(()=>{}).then(()=>put(col,id,clean)).catch(e=>{ state.flagErr="A Quorum record could not be saved ("+((e&&e.code)||"error")+")."; if(state.ui&&state.ui.lab) labRender(state.ui.lab); });
 }
 // one model, one case; resolves when its record is stored. The model that answered must be the one asked for, else the run does not count.
 async function labCall(L,m,prompt,effort,kind,extra){
@@ -105,7 +107,7 @@ async function labCall(L,m,prompt,effort,kind,extra){
   /** @type {import("../types.ts").LabRunDoc} */
   const doc=Object.assign({kind,caseKey:key,model:m.id,effort,tierAsked:m.tier,promptVersion:LAB_VER,referenceVersion:ref.ver,at:new Date().toISOString(),promptChars:prompt.length,case:L.kase},extra||{});
   try{
-    const r=await state.sample(prompt,{model:m.id,modelTier:m.tier,effort,cache:false});
+    const r=await state.labSample(prompt,{model:m.id,modelTier:m.tier,effort,cache:false});
     doc.ms=Math.round(performance.now()-t0); doc.modelApplied=r.modelApplied||null; doc.tierApplied=r.modelTierApplied||null; doc.truncated=!!r.truncated;
     doc.raw=String(r.text||"").slice(0,3000); doc.replyChars=String(r.text||"").length;
     doc.valid=doc.modelApplied===m.id;
@@ -114,8 +116,8 @@ async function labCall(L,m,prompt,effort,kind,extra){
     st.status=doc.ok?(doc.valid?"ok":"mismatch"):"bad";
   }catch(e){
     doc.ms=Math.round(performance.now()-t0); doc.ok=false; doc.valid=false; doc.error=(e&&e.code)||"error"; st.status="err";
-    if(e&&e.code==="rate_limited") state.labPause=Date.now()+120000;            // no more lab calls for two minutes
-    if(e&&ERR_OFF.includes(e.code)) state.labPause=Date.now()+864e5;            // not allowed: none for this page load
+    if(e&&e.code==="rate_limited"){ state.labPause=Date.now()+(e.budget?864e5:120000); state.labPauseWhy=e.budget?"the budget for Quorum is used up (it comes back tomorrow)":"the models are busy (it tries again in two minutes)"; }   // no more lab calls for two minutes, or for this page load when the server's budget for them is used
+    if(e&&ERR_OFF.includes(e.code)){ state.labPause=Date.now()+864e5; state.labPauseWhy="the server does not allow it ("+e.code+")"; }   // not allowed: none for this page load
   }
   st.doc=doc;
   const id=(kind==="judge"?"lj_":"lr_")+favSafe(key)+(kind==="judge"?"":"_"+m.k);
@@ -141,13 +143,13 @@ function labRender(L){
   const f=btnSig(); render(); btnBack(f);
 }
 async function labRun(U,C,only,force){
-  const L=U.lab; if(!L||!state.sample) return;
+  const L=U.lab; if(!L||!state.labSample) return;
   const ref=labRef(), head=LAB_TASK+"\n\n"+ref.text+"\n\nCASE\n"+labCaseText(L.kase);
   L.busy=true; labRender(L);
   const todo=LAB_MODELS.filter(m=>!only||only.includes(m.k));
   await Promise.all(todo.map(m=>labCall(L,m,head,"medium","classify").then(()=>labRender(L))));
   await labJudge(U,force);
-  L.busy=false; labRender(L);
+  L.busy=false; labFlagDisputes(L); labRender(L);
 }
 const labGood=L=>LAB_MODELS.map(m=>L.runs[m.k]).filter(s=>s&&s.status==="ok");
 const labDiffers=L=>{ const g=labGood(L); return L.kase.things.some((t,i)=>new Set(g.map(s=>s.doc.recs[i].cell)).size>1); };
@@ -163,18 +165,33 @@ async function labJudge(U,force){
   L.runs.judge={status:"run"}; labRender(L);
   await labCall(L,LAB_JUDGE,LAB_JUDGE_TASK+"\n\n"+ref.text+"\n\nCASE\n"+labCaseText(L.kase)+"\n\n"+answers,"high","judge",{order,why:L.judgeWhy});
 }
+// Where Quorum is divided about an example, the page flags it by itself (see autoFlags). The page's verdict is read now, so a verdict Claude gave since the check counts.
+function labFlagDisputes(L){
+  try{
+    const J=L.runs.judge, judge=J&&J.status==="ok"&&J.doc&&J.doc.recs?J.doc.recs.map(r=>r.cell):null;
+    const models=LAB_MODELS.filter(m=>L.runs[m.k]&&L.runs[m.k].status==="ok").map(m=>({name:m.name,cells:L.runs[m.k].doc.recs.map(r=>r.cell)}));
+    const things=L.kase.things.map(t=>({text:t.text,cells:t.cells,page:Object.fromEntries(t.cells.map(c=>[c,L.u.res&&L.u.res.cells[c]?L.u.res.cells[c].v:t.page[c]]))}));
+    autoFlags(L.kase,quorumDisputes(things,models,judge).map(d=>({thing:things[d.index].text,shown:disputeText(d,things[d.index])})));
+  }catch(e){}          // the lab is optional: a failing flag must never break the page
+}
 // ask the judge about an answer all models agreed on
 export async function labJudgeNow(){
   const U=state.ui; if(!U||!U.lab||U.lab.busy||labGood(U.lab).length<2) return;
-  U.lab.busy=true; labRender(U.lab); await labJudge(U,"asked"); U.lab.busy=false; labRender(U.lab);
+  U.lab.busy=true; labRender(U.lab); await labJudge(U,"asked"); U.lab.busy=false; labFlagDisputes(U.lab); labRender(U.lab);
 }
 export function labStart(U,C){
-  if(!state.lab||!state.sample||!state.db||!state.DATA||U.lab||!U.res||!U.checked||Date.now()<state.labPause) return;
+  if(!state.lab||!state.labSample||!state.db||!state.DATA||U.lab||!U.res||!U.checked||Date.now()<state.labPause) return;
   const things=labThings(U); if(!things.length) return;
   const p=C.p, [ca,cb]=skipCats(p);
   const kase={tab:U.debate?"debate":"practice",answerId:U.saveId||null,a:p.a,b:p.b,catA:ca,catB:cb,relation:p.relation,chosen:U.late?null:U.rel,things};
   kase.key=(U.col||"answers")+"_"+(U.saveId||("t"+Date.now().toString(36)));
   U.lab={kase,runs:{},busy:false,u:U};
   labRun(U,C);
+}
+// Why Quorum did not start for a checked answer: the chip says so, so that a switch that is on never looks like a lab that is missing.
+export function labWhyNot(U){
+  if(Date.now()<state.labPause) return "Quorum is paused: "+(state.labPauseWhy||"a call failed")+".";
+  if(U.res&&!labThings(U).length) return "Nothing to check: no example was written. Quorum classifies the examples you write"+(U.debate?" (here the answers to Why?)":" in the cells")+".";
+  return "Quorum did not start for this answer.";
 }
 export function labAgain(){ const U=state.ui; if(!U||!U.lab||U.lab.busy) return; const bad=LAB_MODELS.filter(m=>{ const s=U.lab.runs[m.k]; return !s||s.status!=="ok"; }).map(m=>m.k); delete U.lab.runs.judge; labRun(U,state.cur,bad.length?bad:null); }
