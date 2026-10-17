@@ -11,4 +11,6 @@ export { FEATURE, RECENT_MAX, buildPool, cellsFor, chooseEntry, inUniverse, make
 export type { Clock, DrawState, Rng } from "./universe";
 export { cap, gradeOf, isMiss, pick } from "./util";
 export { NAME_CELL, VERDICT_RE, applyVerdicts, factNote, fitOf, noteParts, parseFactLine, parseVerdicts, partsText } from "./verdict";
-export type { Answer, CellVerdict, FactLine, NotePart, Side, Terms } from "./verdict";
+export type { Answer, CellVerdict, FactLine, NoteData, NotePart, Side, Terms } from "./verdict";
+export { catChain, knownClass, listedItem, rung, termPhrase } from "./ladder";
+export type { Rung } from "./ladder";

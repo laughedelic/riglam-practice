@@ -8,7 +8,7 @@ import { CELLS, REL, makeIndex, refOf } from "../../src/ai-shared";
 import type { CellId, DrillData, RelKey } from "../../src/ai-shared";
 import {
   FEATURE, RECENT_MAX, applyVerdicts, factNote, fitOf, noteParts, buildPool, cellsFor, chooseEntry, deriveRel, grade, gradeDebate, gradeOf, inUniverse, isMiss, judgeText, makePair,
-  nextPair, pairKey, parseFactLine, parseVerdicts, partsText, pick, relOfCells, summarize, termLine,
+  nextPair, pairKey, parseFactLine, parseVerdicts, pick, relOfCells, summarize, termLine,
 } from "../../src/domain";
 import type { DebateInput, GradeDraft, HistoryEntry, Pair, PoolEntry } from "../../src/domain";
 import openData from "../../src/data/drill-data.json";
@@ -410,10 +410,11 @@ test("verdicts settle only the cells that are still open, and the grade is count
 test("a fact line is read as two facts, and the verdict is what the facts give for the cell", () => {
   const line = (cell: string, a: string, b: string) => `${cell}: "a banana" | A ${a}: It is a thing you can eat. | B ${b}: It is not an internal form, because it is not in a person's continuum.`;
   expect(parseFactLine(line("Q2", "yes", "no"))).toEqual({
-    label: "Q2", cell: "anb", example: "a banana",
+    label: "Q2", cell: "anb", example: "a banana", cls: "",
     a: { answer: "yes", say: "It is a thing you can eat." }, b: { answer: "no", say: "It is not an internal form, because it is not in a person's continuum." },
   });
   expect(parseFactLine("- **Both**: “a cup” | a yes: x | b yes: y")?.cell).toBe("both");
+  expect(parseFactLine('Q4: "a pebble" | class: External form | A no: x | B no: y')).toMatchObject({ example: "a pebble", cls: "External form", a: { answer: "no", say: "x" } });
   expect(parseFactLine("Both: a cup => yes")).toBeNull();
   expect(parseFactLine("Both: a cup | A maybe: x | B yes: y")).toBeNull();
   const q = { both: "Q1", anb: "Q2", bna: "Q3", nei: "Q4" };
@@ -501,6 +502,50 @@ test("every category of the real data is in the pool, and the relations of the p
     const r = relOfCells(cellsFor(rix, e.a, e.b));
     expect(e.r, pairKey(e)).toBe(r === "3ab" || r === "3ba" ? "3" : r);
   }
+});
+
+// A note takes the steps the term data gives: up the "is a" chain to the term, or up to a class the data marks as excluding one
+// the term is in, with why under it. A listed example is placed as the grading places it; elsewhere the tutor's class counts.
+test("a note states the term data's steps: up the chain to the term, or to the class that excludes it", () => {
+  const S: Record<string, string> = { thoughts: "a thought", "sense powers": "a sense power", "external forms": "an external form", smells: "a smell", drinks: "a drink", "white things": "a white thing", "permanent phenomena": "a permanent phenomenon" };
+  const note = (a: string, ca: string, b: string, cb: string, line: string) => {
+    const p = { a, b, catA: ca, catB: cb, relation: "4" as const }, terms = { a: S[a], b: S[b] };
+    return factNote(parseFactLine(line)!, false, terms, { ix: rix, p, terms }).split("\n");
+  };
+  // the oak tree is listed (External form): no step is skipped, and the exclusion names the term's class
+  expect(note("thoughts", "thought", "sense powers", "sp", 'Q4: "an oak tree" | A no: it is a tree | B no: it is a tree')).toEqual([
+    "Take an oak tree:",
+    "It follows it is not a thought, because it is a tree, which is an external form, which is a form.",
+    "A thought is a consciousness, and nothing is both a form and a consciousness.",
+    "It follows it is not a sense power, because it is a tree.", // external and internal form are not exclusive in the data: the tutor's reason stays
+  ]);
+  expect(note("thoughts", "thought", "sense powers", "sp", 'Q2: "a thought about lunch" | A yes: it is a mind that apprehends lunch | B no: it is a consciousness').slice(2)).toEqual([
+    "It follows it is not a sense power, because it is a consciousness.",
+    "A sense power is an internal form, which is a form, and nothing is both a consciousness and a form.",
+  ]);
+  expect(note("external forms", "extf", "smells", "odr", 'Q2: "the saltiness of sea water" | A yes: it is a taste source | B no: it is a taste')[1])
+    .toBe("It follows it is an external form, because it is a taste source, which is an external form.");
+  expect(note("external forms", "extf", "permanent phenomena", "perm", 'Q4: "compassion" | A no: it is a mental factor | B no: it is a mental factor').slice(1)).toEqual([
+    "It follows it is not an external form, because it is a mental factor, which is a consciousness.",
+    "An external form is a form, and nothing is both a consciousness and a form.",
+    "It follows it is not a permanent phenomenon, because it is a mental factor, which is a consciousness, which is a functional thing.",
+    "Nothing is both a functional thing and a permanent phenomenon.",
+  ]);
+  // an example that is not listed takes the tutor's class; a reason that is not a plain "it is a ..." goes on with "so it is"
+  expect(note("external forms", "extf", "smells", "odr", 'Q2: "the taste of salt" | class: Taste source | A yes: it is the taste of salt | B no: it is a taste')[1])
+    .toBe("It follows it is an external form, because it is the taste of salt, so it is a taste source, which is an external form.");
+  // everyday terms the data does not chain keep the tutor's reasons
+  expect(note("drinks", "drink", "white things", "white", 'Q2: "a cup of hot tea" | A yes: it is a liquid people drink | B no: it is brown').slice(1)).toEqual([
+    "It follows it is a drink, because it is a liquid people drink.",
+    "It follows it is not a white thing, because it is brown.",
+  ]);
+  // a listed example is placed by the data, whatever the tutor answered; without the data's steps the statement has no reason
+  expect(note("drinks", "drink", "white things", "white", 'Q2: "a cup of hot tea" | A no: it is hot | B no: it is brown')[1]).toBe("It follows it is a drink.");
+  // the tutor's class does not overrule its own answer when they disagree
+  expect(note("thoughts", "thought", "sense powers", "sp", 'Q2: "a hunch" | class: External form | A yes: it is a mind | B no: it is a hunch').slice(1, 3)).toEqual([
+    "It follows it is a thought, because it is a mind.",
+    "It follows it is not a sense power, because it is a hunch.",
+  ]);
 });
 
 test("for every pair the page can draw, the right answer is ok in practice and in the debate", () => {

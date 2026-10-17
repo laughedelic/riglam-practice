@@ -2,7 +2,7 @@
 // built from the pair, the learner's answer and the term data, so the page and the Worker produce the same text.
 import { qPlain, QCELL } from "./debate";
 import { catFacts } from "./facts";
-import { matchItem, pairCats } from "./lookup";
+import { classNames, matchItem, pairCats } from "./lookup";
 import type { DataIndex } from "./lookup";
 import { CELLS, REL, cellLabel, refOf } from "./relations";
 import type { CellId, PairLike, RelKey } from "./relations";
@@ -58,7 +58,7 @@ export function cardNotes(ix: DataIndex, p: PairLike): string {
  * instructions and the fine points itself asks the page for this part only; `tutorCard` is the three put together.
  */
 export function cardBody(ix: DataIndex, p: PairLike, u: AnswerView): string {
-  const [ca,cb]=pairCats(ix,p);
+  const [ca,cb]=pairCats(ix,p), cls=classNames(ix);
   const card={A:ca?catFacts(ix,ca,p.a):{label:p.a,type:p.typeA}, B:cb?catFacts(ix,cb,p.b):{label:p.b,type:p.typeB}};
   const refTxt=(c: CellId)=>refOf(p,c)?JSON.stringify(refOf(p,c)):"EMPTY ("+((p.why&&p.why[c])||"no example")+")";
   let mid: string;
@@ -92,7 +92,8 @@ ${lines}`;
   }
   return `CARD (from the course booklet's term data; the relation and reference examples were computed from a list of classified examples):
 ${JSON.stringify(card)}
-${mid}`;
+${mid}${cls.length?`
+Classes (the booklet's "is a" tree, for "class:"): ${cls.join(", ")}.`:""}`;
 }
 
 /** The first message of a tutor chat: the standing instructions, the card, and the fine points. */

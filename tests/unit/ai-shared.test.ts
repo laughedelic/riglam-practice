@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { expect, test } from "vitest";
 import {
-  CELL_NAME, DEBATE_ASK, FIRST_ASK, GUIDE, american, cardBody, cardNotes, catByLabel, catFacts, explainAsk, finePoints, makeIndex, matchItem, norm, pairCats, qPlain, termFacts, tutorCard, tutorTools,
+  CELL_NAME, DEBATE_ASK, FIRST_ASK, GUIDE, american, cardBody, cardNotes, catByLabel, classNames, catFacts, explainAsk, finePoints, makeIndex, matchItem, norm, pairCats, qPlain, termFacts, tutorCard, tutorTools, upChain,
 } from "../../src/ai-shared";
 import type { AnswerView, DrillData, PairLike } from "../../src/ai-shared";
 import { state } from "../../src/app/state.js";
@@ -220,15 +220,16 @@ test("the explain request is the plain one when the page checked every example, 
 // The tutor states two facts about an example (is it A, is it B) and the reason for each; the page writes the consequences and draws
 // the conclusion (src/domain/verdict.ts), so the requests ask for the reason only.
 test("the explain requests ask for the two facts about an example and the reason for each, in one form, and for no conclusion", () => {
-  expect(FIRST_ASK).toContain('Both: "the example" | A yes: it is ... | B no: it is ...');
-  expect(DEBATE_ASK).toContain('Q2: "the example" | A yes: it is ... | B no: it is ...');
+  expect(FIRST_ASK).toContain('Both: "the example" | class: Taste source | A yes: it is ... | B no: it is ...');
+  expect(DEBATE_ASK).toContain('Q2: "the example" | class: Taste source | A yes: it is ... | B no: it is ...');
   for (const ask of [FIRST_ASK, DEBATE_ASK]) {
     expect(ask).toContain('the words after "because" in "Take the example: it follows it is (not) A, because ..."');
     expect(ask).toContain("write no conclusion, do not name the term again and do not add its definition");
     expect(ask).toContain("from which the term follows (or is excluded)");
     expect(ask).toContain("never the term in other words");
     expect(ask).toContain("never its negation");
-    expect(ask).toContain('go up the "is a" chain in a few words');
+    expect(ask).toContain("the most specific class in the card's list of classes that the example is");
+    expect(ask).toContain("the page adds the steps above the class");
     expect(ask).toContain("when one reason serves both terms, write it on both sides;");
     expect(ask).toContain("Connect the term to the class the reason excludes");
     expect(ask).toContain('add "; pervasion: " and one sentence on why only when it is not plain');
@@ -273,6 +274,18 @@ test("in the real data every category label and item name finds its own category
   for (const it of real.items) expect(matchItem(rix, it.n, true)?.n, it.n).toBe(it.n);
   for (const it of real.items) for (const c of it.c) expect(rix.CAT[c], `${it.n}: ${c}`).toBeDefined();
   for (const c of real.cats) if (c.kind === "dudra") expect(real.terms[c.term ?? ""], c.id).toBeDefined();
+});
+
+// The tutor names an example's class from the data's "is a" tree, and every type a listed example has is one of them.
+test("the card lists the classes of the real data's tree, which hold every listed example's type", () => {
+  const cls = classNames(rix);
+  expect(cls).toEqual(expect.arrayContaining(["Form", "External form", "Taste source", "Consciousness", "Mental factor", "Person", "Permanent"]));
+  expect(cls).not.toContain("Existent");
+  expect(cls).not.toContain("Matter");
+  expect(cls).not.toContain("Hidden phenomenon"); // not in the tree under Existent
+  for (const it of real.items) if (!["Expressive sound", "Non-existent"].includes(it.t)) expect(cls, it.n).toContain(it.t);
+  expect(cardBody(rix, { a: "forms", b: "minds", catA: "form", catB: "cons", relation: "con" }, practice())).toContain('Classes (the booklet\'s "is a" tree, for "class:"): Form, External form,');
+  expect(upChain(rix, "Taste source")).toEqual(["Taste source", "External form", "Form", "Functional thing", "Existent"]);
 });
 
 test("the real data is spelled the American way, in labels, item names and term names", () => {

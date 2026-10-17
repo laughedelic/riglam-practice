@@ -1,9 +1,12 @@
 // Claude's verdicts on examples the page could not classify. The tutor answers an "explain" request with one line per
 // cell, ending in "=> yes", "=> no" or "=> unsure"; the lines are read here and settle the cells still marked "cmp".
 import { QCELL } from "../ai-shared/debate";
+import { pairCats } from "../ai-shared/lookup";
+import type { DataIndex } from "../ai-shared/lookup";
 import { refOf } from "../ai-shared/relations";
 import type { CellId, PairLike } from "../ai-shared/relations";
 import { summarize } from "./grading";
+import { knownClass, listedItem, rung } from "./ladder";
 import type { GradeResult } from "./types";
 
 /** The end of a verdict line, which the page hides when it shows the tutor's answer. */
@@ -18,14 +21,14 @@ export interface CellVerdict {
 }
 
 /**
- * The tutor's line for an example, in the form `<cell>: <example> | A yes: <reason> | B no: <reason>`: two small facts, whether the
- * example is A and whether it is B, each with its reason. The tutor writes no conclusion; the page draws it (`fitOf`) and writes the
- * consequences (`factNote`).
+ * The tutor's line for an example, in the form `<cell>: <example> | class: <term> | A yes: <reason> | B no: <reason>`: the
+ * example's most specific class in the term data (optional), and two small facts, whether the example is A and whether it is B,
+ * each with its reason. The tutor writes no conclusion; the page draws it (`fitOf`) and writes the consequences (`factNote`).
  */
 export interface Side { answer: Answer; say: string }
-export interface FactLine { label: string; cell: CellId; example: string; a: Side; b: Side }
+export interface FactLine { label: string; cell: CellId; example: string; cls: string; a: Side; b: Side }
 
-const FACT_RE = /^(both|a not b|b not a|neither|q[1-4])\s*:\s*(.+?)\s*\|\s*A\s+(yes|no|unsure)\s*:\s*(.*?)\s*\|\s*B\s+(yes|no|unsure)\s*:\s*(.*)$/i;
+const FACT_RE = /^(both|a not b|b not a|neither|q[1-4])\s*:\s*(.+?)\s*(?:\|\s*class\s*:\s*([^|]*?)\s*)?\|\s*A\s+(yes|no|unsure)\s*:\s*(.*?)\s*\|\s*B\s+(yes|no|unsure)\s*:\s*(.*)$/i;
 const bare = (ln: string) => ln.replace(/^[-•*\s]+/, "").replace(/\*\*/g, "").trim();
 const unquote = (s: string) => s.trim().replace(/^["“”']+|["“”']+$/g, "").trim();
 /** What a cell takes: in A, in B. */
@@ -37,7 +40,7 @@ export function parseFactLine(ln: string): FactLine | null {
   if (!m) return null;
   const key = m[1].toLowerCase();
   const side = (answer: string, say: string): Side => ({ answer: answer.toLowerCase() as Answer, say: say.trim() });
-  return { label: /^q/.test(key) ? key.toUpperCase() : m[1], cell: NAME_CELL[key], example: unquote(m[2]), a: side(m[3], m[4]), b: side(m[5], m[6]) };
+  return { label: /^q/.test(key) ? key.toUpperCase() : m[1], cell: NAME_CELL[key], example: unquote(m[2]), cls: (m[3] || "").trim(), a: side(m[4], m[5]), b: side(m[6], m[7]) };
 }
 
 /** Whether the example belongs in the cell: yes when both facts match the cell, no when either one contradicts it, else unsure. */
@@ -84,21 +87,35 @@ function readSide(s: Side): { reason: string; perv: string } {
 const same = (x: string, y: string) => x.toLowerCase().replace(/\W+/g, " ").trim() === y.toLowerCase().replace(/\W+/g, " ").trim();
 const sentence = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) + "." : "");
 
+/** What the page knows besides the line: the term data, the pair, and its terms as the note writes them. */
+export interface NoteData { ix: DataIndex; p: PairLike; terms: Terms }
+
 /**
  * The note for a fact line. `accepted` is a debate question the learner accepted (or ran out of time on): the example is then the
  * tutor's counter-example to it. A note on an example that fits ends with its consequences; one that does not fit says so.
+ * With the term data (`d`), a listed example is placed as the grading places it, and a side whose steps the data gives
+ * (`rung`: up the chain to the term, or to a class that excludes it) takes those steps instead of the tutor's.
  */
-export function noteParts(f: FactLine, accepted: boolean): NotePart[] {
-  const fit = fitOf(f), out: NotePart[] = [{ kind: "take", subject: f.example }];
+export function noteParts(f: FactLine, accepted: boolean, d?: NoteData): NotePart[] {
+  const cats = d ? pairCats(d.ix, d.p) : [null, null];
+  const item = d && cats[0] ? listedItem(d.ix, d.p, f.example) : null;
+  const cls = item ? item.t : d ? knownClass(d.ix, f.cls) : "";
+  const out: NotePart[] = [{ kind: "take", subject: f.example }], answers: Answer[] = [];
   let said = "";
-  for (const [side, s] of [["A", f.a], ["B", f.b]] as const) {
-    if (s.answer === "unsure") { out.push({ kind: "unsure", side, say: plain(s.say) }); continue; }
-    const r = readSide(s);
+  for (const [k, side, s] of [[0, "A", f.a], [1, "B", f.b]] as const) {
+    const cid = cats[k], cat = d && cid ? d.ix.CAT[cid] : null;
+    const answer: Answer = item && cid ? (item.c.includes(cid) ? "yes" : "no") : s.answer;
+    answers.push(answer);
+    if (answer === "unsure") { out.push({ kind: "unsure", side, say: plain(s.say) }); continue; }
+    const r = readSide(s), own = answer === s.answer; // the tutor's reason is kept only for its own answer
+    const g = d && cat && cls ? rung(d.ix, cls, cat, side === "A" ? d.terms.a : d.terms.b, own ? r.reason : "") : null;
+    if (g && g.answer === answer) { out.push({ kind: "term", side, not: answer === "no", reason: g.reason, why: g.why }); continue; }
     // the pervasion of a denied term is said under its statement, and the same one is not said twice
-    const why = s.answer === "no" && r.perv && r.reason && !same(r.perv, said) ? r.perv : "";
+    const why = own && answer === "no" && r.perv && r.reason && !same(r.perv, said) ? r.perv : "";
     if (why) said = why;
-    out.push({ kind: "term", side, not: s.answer === "no", reason: r.reason, why: sentence(why) });
+    out.push({ kind: "term", side, not: answer === "no", reason: own ? r.reason : "", why: sentence(why) });
   }
+  const fit = fitOf({ cell: f.cell, a: { answer: answers[0], say: "" }, b: { answer: answers[1], say: "" } });
   const q = "Q" + (QCELL.indexOf(f.cell) + 1);
   if (fit === "no") out.push({ kind: "end", text: accepted ? `So it does not fit the cell of ${q} and is not a counter-example.` : "So it does not fit." });
   if (fit === "unsure") out.push({ kind: "end", text: accepted ? "Claude is unsure whether it is a counter-example." : "Claude is unsure whether it fits." });
@@ -117,7 +134,7 @@ export function partsText(parts: readonly NotePart[], terms: Terms): string {
     }
   }).join("\n");
 }
-export const factNote = (f: FactLine, accepted: boolean, terms: Terms): string => partsText(noteParts(f, accepted), terms);
+export const factNote = (f: FactLine, accepted: boolean, terms: Terms, d?: NoteData): string => partsText(noteParts(f, accepted, d), terms);
 
 /** The verdicts in the tutor's text, in order. A line with the two facts gives the verdict its facts give; otherwise a line of the form `<cell>: <example> => yes|no|unsure` does. Other lines are ignored, also when bulleted or in bold. */
 export function parseVerdicts(text: string | null | undefined): CellVerdict[] {

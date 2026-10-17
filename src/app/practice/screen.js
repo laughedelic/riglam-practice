@@ -95,7 +95,10 @@ const REL_LABEL=/^(common locus|pervasion|relation)$/i;
 const WHY_LEAD=/^why\?\s+(?=\S)/i;
 // A fact line's note (src/domain/verdict.ts) in the debate's form; in the debate it depends on whether the learner accepted that question.
 const acceptedQ=f=>{ const u=state.ui, a=u&&u.debate&&u.ans&&u.ans[QCELL.indexOf(f.cell)]; return !!a&&a.say!=="why"; };
-export const factText=f=>{ const p=state.cur.p; return partsText(noteParts(f,acceptedQ(f)),{a:singular(p.a),b:singular(p.b)}); };
+// the term data's steps (src/domain/ladder.ts) need the data, the pair and its terms as the note writes them
+const noteData=()=>{ const p=state.cur.p; return {ix:state,p,terms:{a:singular(p.a),b:singular(p.b)}}; };
+const partsOf=f=>noteParts(f,acceptedQ(f),noteData());
+export const factText=f=>partsText(partsOf(f),noteData().terms);
 // the terms with their A/B markers and the "not" as the questions show them; why a denied term follows goes on a line under it
 const notW=()=>el("span",{class:"not",text:"not"}), because=r=>r?", because "+r:"";
 function partNode(p){
@@ -108,7 +111,7 @@ function partNode(p){
 export const whyHead=()=>el("span",{class:"clh",text:"Why?"});
 /** A fact line's note: "Take S:" after the given heading, the consequences as a list, and the conclusion when there is one. */
 export function factNode(f,head){
-  const parts=noteParts(f,acceptedQ(f)), mid=parts.filter(p=>p.kind!=="take"&&p.kind!=="end");
+  const parts=partsOf(f), mid=parts.filter(p=>p.kind!=="take"&&p.kind!=="end");
   return el("div",{class:"fnote"},el("p",{class:"ftake"},head?[head," "]:null,"Take ",el("i",{text:f.example}),":"),
     el("ul",{class:"fsteps"},mid.map(p=>el("li",null,...partNode(p)))),parts.filter(p=>p.kind==="end").map(p=>el("p",{text:p.text})));
 }
