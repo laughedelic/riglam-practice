@@ -120,12 +120,18 @@ export interface QuorumRecord {
   why: "disagree" | null;
 }
 
+/** What a server offers of Quorum, as the page reads it from /api/health: nothing, or Quorum on by default, or Quorum for a device that asks for it. */
+export type QuorumOffer = false | NonNullable<Health["quorum"]>;
+
 /** The answer of /api/health. */
 export interface Health {
   ok: true;
   tutor: "on" | "off";
-  /** Quorum (worker/quorum.ts) is offered; left out when it is not, as on every server that is not a Preview */
-  quorum?: "on";
+  /**
+   * Quorum (worker/quorum.ts) is offered; left out when it is not, as on every server that is not a Preview. "on": a device has it on until it turns it off (a Preview);
+   * "optin": a device has it off until it turns it on.
+   */
+  quorum?: "on" | "optin";
   /** optional accounts and sync (src/account/protocol.ts); a server from before accounts leaves it out */
   accounts?: "on" | "off";
 }

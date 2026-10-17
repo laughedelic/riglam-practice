@@ -36,6 +36,8 @@ export function readConfig(env: Env): Config {
 export interface QuorumConfig {
   /** whether the server offers Quorum, the tutor's mode of several models and a judge (worker/quorum.ts) */
   on: boolean;
+  /** offered, but each device turns it on itself: a server that is not a test server, where Quorum is slower and keeps the text of every run */
+  optIn: boolean;
   /** Quorum's own budgets in micro-dollars, apart from the tutor's */
   deviceDailyMicro: number;
   globalDailyMicro: number;
@@ -43,10 +45,12 @@ export interface QuorumConfig {
   reserveMicro: number;
 }
 
-/** Quorum's settings. It is off unless `QUORUM` is `on`, which only the `previews` block of wrangler.jsonc sets. */
+/** Quorum's settings. It is off unless `QUORUM` is `on` (offered, and on for a device until it turns it off) or `optin` (offered, off for a device until it turns it on). */
 export function readQuorumConfig(env: Env): QuorumConfig {
+  const mode = env.QUORUM?.trim();
   return {
-    on: env.QUORUM?.trim() === "on",
+    on: mode === "on" || mode === "optin",
+    optIn: mode === "optin",
     deviceDailyMicro: micro(number(env.QUORUM_DEVICE_DAILY_BUDGET_USD, 3, 0, 1000)),
     globalDailyMicro: micro(number(env.QUORUM_GLOBAL_DAILY_BUDGET_USD, 12, 0, 10000)),
     reserveMicro: micro(number(env.QUORUM_RESERVE_USD, 0.4, 0.001, 20)),

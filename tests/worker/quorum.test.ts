@@ -1,5 +1,5 @@
 // Quorum (worker/quorum.ts): an explain question that asks for it is answered by three models and, where they give an example different cells, a judge.
-// Off unless the Worker is a Preview (QUORUM=on); counted in budgets of its own; every run is kept in quorum_records.
+// Off unless the Worker is a Preview (QUORUM=on, or optin: offered, the device turns it on); counted in budgets of its own; every run is kept in quorum_records.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../../worker/app";
 import { parseRequest } from "../../worker/tutor";
@@ -60,6 +60,19 @@ describe("when Quorum is offered", () => {
     expect(await health({ QUORUM: "on", ANTHROPIC_API_KEY: undefined })).not.toHaveProperty("quorum");
     expect(await health({ QUORUM: "on", DB: undefined })).not.toHaveProperty("quorum");
     expect(await health({ QUORUM: "on", RIGLAM_DATA_KEY: undefined })).not.toHaveProperty("quorum");
+  });
+
+  it("QUORUM=optin offers it as an opt-in: health says so, and a Quorum question is answered the same way", async () => {
+    expect(await health({ QUORUM: "optin" })).toEqual({ ok: true, tutor: "on", accounts: "on", quorum: "optin" });
+    expect(await health({ QUORUM: "optin", ANTHROPIC_API_KEY: undefined })).not.toHaveProperty("quorum");
+    expect(await health({ QUORUM: "optin", DB: undefined })).not.toHaveProperty("quorum");
+    for (const QUORUM of ["off", "yes", "", " "]) expect(await health({ QUORUM })).not.toHaveProperty("quorum");
+    const s = await setup();
+    const { res, models } = await quorum(s, { [HAIKU]: [text(BOTH)], [SONNET]: [text(BOTH)], [OPUS]: [text(BOTH)] }, { env: { QUORUM: "optin" } });
+    expect(res.status).toBe(200);
+    expect((await events(res)).map((e) => e.type)).toContain("quorum");
+    expect(models.calls.map((c) => c.body.model).sort()).toEqual([HAIKU, OPUS, SONNET]);
+    expect(stored(s)).toHaveLength(1);
   });
 
   it("is never on in the production settings of wrangler.jsonc, only in the previews block", async () => {

@@ -11,6 +11,7 @@
 //   updates the service worker's new versions: checked in the background, started from the banner or Options (./updates.ts)
 import dataUrl from "../data/drill-data.json?url";
 import { merge, lock } from "../data/course.js";
+import type { QuorumOffer } from "../ai/protocol";
 import type { Account, DrillData, Platform, Sample } from "../platform/types";
 import { createPwaAccount } from "./account";
 import { fetchCourse, forgetCourse, keepCourse, keptCourse, whyNot, type Definitions } from "./course";
@@ -20,7 +21,7 @@ import { updates } from "./updates";
 import { showStorageNotice } from "./storage-notice";
 import { storeName } from "./store-slot";
 import { createLocalDb } from "./local-db";
-import { createTutor, quorumIsOn, tutorIsOn as serverSaysOn } from "./tutor";
+import { createTutor, quorumOffer, tutorIsOn as serverSaysOn } from "./tutor";
 import { takeLinkKey, storedKey, storeKey, forgetKey, keyDeclined, declineKey, allowKey, showUnlock, markKeyChanged, takeKeyChanged, KEY_CHANGED_TEXT } from "./unlock";
 
 const db = createLocalDb({ name: storeName(), onUnavailable: showStorageNotice });
@@ -153,8 +154,8 @@ async function sample(): Promise<Sample | null> {
   return null;
 }
 
-let quorumAnswer: Promise<boolean> | null = null; // whether the server says it offers Quorum: asked once
-const quorumOn = () => (quorumAnswer ??= quorumIsOn());
+let quorumAnswer: Promise<QuorumOffer> | null = null; // what the server says it offers of Quorum: asked once
+const quorumAsked = () => (quorumAnswer ??= quorumOffer());
 
 let account: Account | null = null;
 let changeKey: (() => Promise<boolean>) | null = null; // the prompt for another key, made when first asked for
@@ -184,7 +185,7 @@ export const pwaPlatform: Platform = {
   about: () => aboutThisBuild(),
   updates,
   tutor: async () => (groupKey && (await tutorIsOn()) ? createTutor(groupKey) : null),
-  quorum: async () => !!(groupKey && (await quorumOn())),
+  quorum: async () => (groupKey ? await quorumAsked() : false),
   // Made on first ask and then kept; it finds out for itself whether the server has accounts, so the page can show its row at once.
   account: async () => (account ??= createPwaAccount(db, { read: () => groupKey ?? storedKey(), adopt: takeAccountKey, declined: keyDeclined, allow: allowKey })),
 };

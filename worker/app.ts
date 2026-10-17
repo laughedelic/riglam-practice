@@ -67,7 +67,8 @@ export function createApp(deps: Deps) {
   app.get(API.health, async (c) => {
     const tutor = await ready(c.env);
     // Quorum is a mode of the tutor, so it is offered where the tutor is on and this server is set to (a Preview)
-    const body: Health = { ok: true, tutor: tutor ? "on" : "off", accounts: (await accountsOn(c.env.DB)) ? "on" : "off", ...(tutor && readQuorumConfig(c.env).on ? { quorum: "on" as const } : {}) };
+    const offered = readQuorumConfig(c.env);
+    const body: Health = { ok: true, tutor: tutor ? "on" : "off", accounts: (await accountsOn(c.env.DB)) ? "on" : "off", ...(tutor && offered.on ? { quorum: offered.optIn ? ("optin" as const) : ("on" as const) } : {}) };
     return c.json(body, 200, { "cache-control": "no-store" });
   });
 

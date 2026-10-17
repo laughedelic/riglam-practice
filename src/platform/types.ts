@@ -6,7 +6,7 @@
 
 /** The term data as the page reads it (docs/DATA.md); the types live with the code that reads it. */
 import type { DrillData } from "../ai-shared/data";
-import type { QuorumRecord, TutorRequest } from "../ai/protocol";
+import type { QuorumOffer, QuorumRecord, TutorRequest } from "../ai/protocol";
 import type { Account, AccountView } from "../account/account";
 export type { DrillData, Account, AccountView };
 
@@ -187,8 +187,8 @@ export interface Platform {
   onKey?(tell: () => void | Promise<void>): () => void;
   /** The app's own tutor, or null (or absent) when the place has none or the server has it switched off. The page uses `sample` first when it has one. */
   tutor?(): Promise<Tutor | null>;
-  /** Whether the app's server offers Quorum, the tutor's mode of several models and a judge (a Preview, docs/SERVER.md), to this device. Absent or false: the page has no Quorum. */
-  quorum?(): Promise<boolean>;
+  /** What the app's server offers this device of Quorum, the tutor's mode of several models and a judge (docs/SERVER.md): "on" (a Preview: on until the device turns it off), "optin" (off until the device turns it on), or false. Absent: the page has no Quorum. */
+  quorum?(): Promise<QuorumOffer>;
   /** The optional account (a passkey and a server copy of the documents, src/account), or null (or absent) when the place has none. The page works the same without. */
   account?(): Promise<Account | null>;
   /** Which build this is and whether a newer one is out, or null (or absent) when the place has no builds to tell apart (the artifact). */

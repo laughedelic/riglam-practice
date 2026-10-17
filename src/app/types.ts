@@ -253,7 +253,11 @@ export interface State {
   // Quorum and the explanation
   /** the app's server offers Quorum (platform.quorum) */
   quorumOffered: boolean;
-  /** Quorum is on for this device (Options, `rd-quorum`) */
+  /** the server offers Quorum as an opt-in: off on a device until the device turns it on (a Preview has it on until the device turns it off) */
+  quorumOptIn: boolean;
+  /** what this device chose in Options (`rd-quorum`): null for not yet, then the server's default applies */
+  quorumChoice: boolean | null;
+  /** Quorum is on for this device: its own choice, else the server's default */
   quorum: boolean;
   /** a checked answer asks for its explanation by itself (Options, `rd-autoexplain`) */
   autoExplain: boolean;

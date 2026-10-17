@@ -1,6 +1,6 @@
 // The PWA's `tutor` capability: questions to the app's own server (docs/SERVER.md). The request proves that the sender has the
 // study group's key without sending it (src/ai/proof.ts); the answer comes back as server-sent events (src/ai/protocol.ts).
-import { API, HEADER, type BudgetScope, type Health, type QuorumRecord, type TutorEvent } from "../ai/protocol";
+import { API, HEADER, type BudgetScope, type Health, type QuorumOffer, type QuorumRecord, type TutorEvent } from "../ai/protocol";
 import { makeProof } from "../ai/proof";
 import { deviceId } from "./device";
 import type { Tutor } from "../platform/types";
@@ -16,7 +16,7 @@ const isAbort = (e: unknown) => e instanceof DOMException && e.name === "AbortEr
 const KNOWN = new Set(["rate_limited", "not_granted", "prompt_too_large", "bad_request", "refused", "unavailable"]);
 
 /** What the server says in /api/health about the tutor. Anything else (off, unreachable, slow, not a Worker at all) is "off" and no Quorum. */
-async function health(doFetch: typeof fetch, waitMs: number): Promise<{ tutor: boolean; quorum: boolean }> {
+async function health(doFetch: typeof fetch, waitMs: number): Promise<{ tutor: boolean; quorum: QuorumOffer }> {
   const stop = new AbortController();
   const timer = setTimeout(() => stop.abort(), waitMs);
   try {
@@ -24,7 +24,7 @@ async function health(doFetch: typeof fetch, waitMs: number): Promise<{ tutor: b
     if (!res.ok) return { tutor: false, quorum: false };
     const body = (await res.json()) as Partial<Health>;
     const tutor = body.ok === true && body.tutor === "on";
-    return { tutor, quorum: tutor && body.quorum === "on" };
+    return { tutor, quorum: tutor && (body.quorum === "on" || body.quorum === "optin") ? body.quorum : false };
   } catch {
     return { tutor: false, quorum: false };
   } finally {
@@ -37,8 +37,8 @@ export async function tutorIsOn(doFetch: typeof fetch = (...a) => fetch(...a), w
   return (await health(doFetch, waitMs)).tutor;
 }
 
-/** Whether the server says it offers Quorum (worker/quorum.ts): the tutor is on and this server is a Preview. */
-export async function quorumIsOn(doFetch: typeof fetch = (...a) => fetch(...a), waitMs = 4000): Promise<boolean> {
+/** What the server says it offers of Quorum (worker/quorum.ts): nothing unless the tutor is on and the server offers it, then "on" (on by default, a Preview) or "optin". */
+export async function quorumOffer(doFetch: typeof fetch = (...a) => fetch(...a), waitMs = 4000): Promise<QuorumOffer> {
   return (await health(doFetch, waitMs)).quorum;
 }
 

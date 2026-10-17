@@ -219,6 +219,43 @@ withKey("Options has the switch, on; off, the next explanation is asked of one m
   await expect(quorum(page)).toHaveCount(0);
 });
 
+// a server may offer Quorum as an opt-in (QUORUM=optin, docs/SERVER.md): slower, so a device has it off until the device turns it on
+withKey("on a server that offers Quorum as an opt-in it is off by default: one model answers, no chip; the switch says it is optional, and turning it on sends quorum: true", async ({ page }, testInfo) => {
+  const asked = await open(page, testInfo, { health: { ok: true, tutor: "on", quorum: "optin" } });
+  await explain(page).click();
+  await expect.poll(() => asked.length).toBe(1);
+  expect(asked[0].body.kind).toBe("explain");
+  expect(asked[0].body).not.toHaveProperty("quorum");
+  await expect(quorum(page)).toHaveCount(0);
+  expect(await page.evaluate(() => localStorage.getItem("rd-quorum"))).toBeNull();
+  await page.getByRole("button", { name: "Options" }).first().click();
+  await expect(page.getByText("Optional, and slower.")).toBeVisible();
+  await expect(sw(page)).toHaveAttribute("aria-checked", "false");
+  await sw(page).click();
+  await expect(sw(page)).toHaveAttribute("aria-checked", "true");
+  expect(await page.evaluate(() => localStorage.getItem("rd-quorum"))).toBe("1");
+  await page.getByRole("button", { name: /close options/i }).first().click();
+  await page.getByRole("button", { name: /next pair/i }).click();
+  await ready(page);
+  await answerOnPhone(page);
+  await explain(page).click();
+  await expect.poll(() => asked.length).toBe(2);
+  expect(asked[1].body).toMatchObject({ kind: "explain", quorum: true });
+  await expect(quorum(page)).toContainText(/[=≠]/);
+});
+
+withKey("an opt-in that this device turned on stays on at the next start, and a Preview's own default is not an opt-in", async ({ page }, testInfo) => {
+  test.skip(!isPhone(testInfo), "the answer flow is exercised in the phone layout");
+  await page.addInitScript(() => { if (localStorage.getItem("rd-quorum") === null) localStorage.setItem("rd-quorum", "1"); });
+  const asked = await open(page, testInfo, { health: { ok: true, tutor: "on", quorum: "optin" } });
+  await explain(page).click();
+  await expect.poll(() => asked.length).toBe(1);
+  expect(asked[0].body).toMatchObject({ kind: "explain", quorum: true });
+  await page.getByRole("button", { name: "Options" }).first().click();
+  await expect(page.getByText("For testing, on this test server only.")).toHaveCount(0);
+  await expect(sw(page)).toHaveAttribute("aria-checked", "true");
+});
+
 // the setting was called "rd-lab" while Quorum was a lab of the page: a device that turned it off keeps it off, under the new name
 withKey("a Quorum setting stored under its earlier name is kept, and moved to the new one", async ({ page }, testInfo) => {
   test.skip(!isPhone(testInfo), "the answer flow is exercised in the phone layout");

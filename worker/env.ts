@@ -24,7 +24,7 @@ export interface Env {
   GLOBAL_DAILY_BUDGET_USD?: string;
   /** what a question is assumed to cost until it has finished, in US dollars; held back from the budgets meanwhile */
   RESERVE_USD?: string;
-  /** `on` makes the server offer Quorum (worker/quorum.ts): an explain question is answered by several models and a judge. Set in the `previews` block of wrangler.jsonc only: any other value, or none, leaves it off. */
+  /** `on` makes the server offer Quorum (worker/quorum.ts): an explain question is answered by several models and a judge, and a device has it on until it turns it off. `optin` offers it too, but a device has it off until it turns it on. `on` is set in the `previews` block of wrangler.jsonc only; any other value, or none, leaves Quorum off. */
   QUORUM?: string;
   /** what one device may spend on Quorum per UTC day, in US dollars (Quorum has counters of its own, apart from the tutor's) */
   QUORUM_DEVICE_DAILY_BUDGET_USD?: string;

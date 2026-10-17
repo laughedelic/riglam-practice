@@ -49,7 +49,9 @@ export const state = {
   // and closes on the next tap, key press (Tab moves into it), scroll, or after UNDO_MS. Closing it changes nothing else; Review still lists the pair.
   hintOff: null,
   quorumOffered: false,   // the app's server offers Quorum, the tutor's mode of several models and a judge (platform.quorum): a Preview, with the Magic Key
-  quorum: true,           // Quorum is on for this device (Options, `rd-quorum`)
+  quorumOptIn: false,     // the server offers it as an opt-in: off on a device until the device turns it on (a Preview has it on until the device turns it off)
+  quorumChoice: null,     // what this device chose in Options (`rd-quorum`): true, false, or null for not yet (then the server's default applies)
+  quorum: false,          // Quorum is on for this device: its own choice, else the server's default (setQuorumOffer)
   autoExplain: true,   // a checked answer asks for its explanation by itself (Options); the Explain button is still there for one that was not asked
   flags: {},
   flagErr: "",
@@ -77,7 +79,7 @@ export const state = {
 try{ const v=localStorage.getItem("rd-notation"); if(v==="sets"||v==="logic") state.nota=v; }catch(e){}
 try{ if(localStorage.getItem("rd-deflang")==="enru") state.defLang="enru"; }catch(e){}   // an earlier "off" (words only) is now the codes
 // the setting was stored as "rd-lab" while Quorum was a lab of the page: a device that turned it off keeps it off
-try{ let q=localStorage.getItem("rd-quorum"); if(q===null){ q=localStorage.getItem("rd-lab"); if(q!==null){ localStorage.setItem("rd-quorum",q); localStorage.removeItem("rd-lab"); } } state.quorum=q!=="0"; }catch(e){}
+try{ let q=localStorage.getItem("rd-quorum"); if(q===null){ q=localStorage.getItem("rd-lab"); if(q!==null){ localStorage.setItem("rd-quorum",q); localStorage.removeItem("rd-lab"); } } state.quorumChoice=q===null?null:q!=="0"; }catch(e){}
 try{ state.autoExplain=localStorage.getItem("rd-autoexplain")!=="0"; }catch(e){}
 try{ state.recentOpen=localStorage.getItem("rd-recent")!=="0"; }catch(e){}
 try{ if(localStorage.getItem("rd-ab")==="0") state.showAB=false; if(localStorage.getItem("rd-full")==="0") state.fullPh=false; }catch(e){}

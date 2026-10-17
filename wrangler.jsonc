@@ -50,7 +50,8 @@
   // inherit the settings above except the static files and the compatibility date. What they have is this block: the same tutor
   // settings with lower budgets, persisted logs, and one shared database of their own (never production's), so a pull request that
   // changes the server or the schema cannot touch production data. Previews share its budget counters and accounts.
-  // QUORUM turns on the tutor's mode of several models and a judge (docs/SERVER.md, "Quorum"): it is here and nowhere else, so production does not offer it,
+  // QUORUM turns on the tutor's mode of several models and a judge (docs/SERVER.md, "Quorum"): it is here and nowhere else, so production does not offer it
+  // ("optin" would offer it with a device default of off, for a server that offers it to the public),
   // and it keeps a record of every run in this database (the examples learners checked and the answers). Quorum has budgets of its own, apart from the tutor's;
   // a run that finds them used up is answered by the one model, from the tutor's.
   // The secrets ANTHROPIC_API_KEY and RIGLAM_DATA_KEY are not here: they come from the Preview base config (`wrangler preview base-config
