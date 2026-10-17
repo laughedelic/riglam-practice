@@ -263,3 +263,42 @@ withKey("a start asks /api/health once for the tutor and the lab together, not o
   await expect.poll(() => calls.length).toBe(3);
   expect(health).toBe(2);
 });
+
+// A flag the learner deletes is not written again by the page unless the models are run again: the explanation that arrives later reads the disputes again,
+// but only to flag what this round of the models had not flagged.
+withKey("a flag the learner deleted while the explanation was still on its way does not come back when it arrives", async ({ page }, testInfo) => {
+  test.skip(!isPhone(testInfo), "the answer flow is exercised in the phone layout");
+  await page.addInitScript(() => localStorage.setItem("rd-autoexplain", "1"));
+  let release;
+  const released = new Promise((resolve) => { release = resolve; });
+  await page.route("**/api/tutor", async (route) => {
+    await released;
+    const lines = (await thingsOf(page)).map((t) => {
+      const [a, b] = FACTS[learner(t)];
+      return `${CELL[learner(t)]}: "${t.text}" | class: Table | A ${a}: because of its use | B ${b}: because of its make`;
+    });
+    await route.fulfill({ status: 200, contentType: "text/event-stream", body: sse({ type: "delta", text: lines.join("\n") + "\nExplanation: stand-in." }, { type: "done", truncated: false }) });
+  });
+  // Haiku puts every example in A, the others (and the judge) in neither: the models are divided
+  const calls = await open(page, testInfo, {
+    lab: (body) => {
+      const things = body.model === "claude-haiku-5-5" ? THINGS.map((t) => ({ ...t, inA: true })) : THINGS;
+      return { status: 200, contentType: "application/json", body: JSON.stringify({ text: JSON.stringify({ things }), truncated: false, modelApplied: body.model }) };
+    },
+  });
+  await expect.poll(() => calls.length).toBe(4); // three models, then the judge
+  const flags = () => page.evaluate(() => Object.values(window.__t.flags));
+  const things = await thingsOf(page);
+  expect(things.length).toBeGreaterThan(1);
+  await expect.poll(async () => (await flags()).length).toBe(things.length);
+  const gone = (await flags())[0];
+  await page.evaluate((id) => window.__t.removeFlag(id), gone.id);
+  await expect.poll(async () => (await flags()).length).toBe(things.length - 1);
+  release();
+  // the explanation is in: the chat is no longer waiting
+  await expect.poll(() => page.evaluate(() => !window.__t.ui.ctl && window.__t.ui.explained)).toBe(true);
+  await sleep(400);
+  const left = await flags();
+  expect(left).toHaveLength(things.length - 1);
+  expect(left.map((f) => f.id)).not.toContain(gone.id);
+});

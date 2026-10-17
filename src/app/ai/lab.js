@@ -156,17 +156,22 @@ async function labJudge(U,force){
   await labCall(L,LAB_JUDGE,LAB_JUDGE_TASK+"\n\n"+ref.text+"\n\nCASE\n"+labCaseText(L.kase)+"\n\n"+answers,"high","judge",{order,why:L.judgeWhy});
 }
 // Where Quorum is divided about an example, the page flags it by itself (see autoFlags). The page's verdict is read now, so a verdict Claude gave since the check counts.
-function labFlagDisputes(L){
+// `again`: the tutor's explanation came after the models. It flags only what this round of the models had not flagged yet, so a flag the learner deleted meanwhile stays
+// deleted (it comes back only when the models are run again).
+function labFlagDisputes(L,again){
   try{
     const J=L.runs.judge, judge=J&&J.status==="ok"&&J.doc&&J.doc.recs?J.doc.recs.map(r=>r.cell):null;
     const models=LAB_MODELS.filter(m=>L.runs[m.k]&&L.runs[m.k].status==="ok").map(m=>({name:m.name,cells:L.runs[m.k].doc.recs.map(r=>r.cell)}));
     const things=L.kase.things.map(t=>({text:t.text,cells:t.cells,page:Object.fromEntries(t.cells.map(c=>[c,L.u.res&&L.u.res.cells[c]?L.u.res.cells[c].v:t.page[c]]))}));
-    autoFlags(L.kase,quorumDisputes(things,models,judge).map(d=>({thing:things[d.index].text,shown:disputeText(d,things[d.index])})));
+    let found=quorumDisputes(things,models,judge).map(d=>({thing:things[d.index].text,shown:disputeText(d,things[d.index])}));
+    if(again) found=found.filter(f=>!(L.raised&&L.raised[f.thing])); else L.raised={};
+    for(const f of found) (L.raised||(L.raised={}))[f.thing]=1;
+    autoFlags(L.kase,found);
   }catch(e){}          // the lab is optional: a failing flag must never break the page
 }
 // The tutor's explanation can change the page's verdicts after the lab has finished (applyVerify); the same final verdicts must give the same flags whichever came
 // first, so the disputes are read again. A lab still at work reads them when it ends.
-export function labRecheck(U){ const L=U&&U.lab; if(L&&!L.busy) labFlagDisputes(L); }
+export function labRecheck(U){ const L=U&&U.lab; if(L&&!L.busy) labFlagDisputes(L,true); }
 // ask the judge about an answer all models agreed on
 export async function labJudgeNow(){
   const U=state.ui; if(!U||!U.lab||U.lab.busy||labGood(U.lab).length<2) return;
