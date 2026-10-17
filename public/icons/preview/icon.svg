@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Preview (staging and pull request builds): the same figure on the marigold of the booklet, stood upright, the upper rhombus
+       smaller. The overlap of red and blue is purple. The ground tells it from the Main icon at any size. -->
+  <rect width="512" height="512" fill="#faaf3f"/>
+  <polygon points="256,55.3 374.9,174.2 256,293.2 137.1,174.2" fill="#b83545"/>
+  <polygon points="256,159.4 404.7,308 256,456.7 107.3,308" fill="#3155a4"/>
+  <polygon points="322.9,226.3 256,293.2 189.1,226.3 256,159.4" fill="#6f3f8f"/>
+</svg>

@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { includeMarkup } from "./scripts/vite-include-markup.mjs";
+import { iconSet } from "./scripts/lib/icon-set.mjs";
 
 const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"));
 
@@ -21,20 +22,29 @@ const buildInfo = () => ({
   generateBundle() { this.emitFile({ type: "asset", fileName: "build.json", source: JSON.stringify(build) + "\n" }); },
 });
 
+// Which icon set the build carries: the Main icons (public/icons), or the Preview icons (public/icons/preview) in staging and pull request
+// builds, so that those apps are told apart from the real one on a home screen and in a tab (scripts/lib/icon-set.mjs says which build is which).
+const iconDir = iconSet() === "preview" ? "icons/preview" : "icons";
+const iconLinks = () => ({
+  name: "riglam-icon-links",
+  transformIndexHtml: (html) => html.replaceAll('href="icons/', `href="${iconDir}/`),
+});
+
 export default defineConfig({
   // Relative asset paths: the app works from a domain root, a sub-path, or a Pages preview URL.
   base: process.env.BASE_PATH ?? "./",
   define: { __APP_VERSION__: JSON.stringify(pkg.version), __BUILD__: JSON.stringify(build) },
   plugins: [
     buildInfo(),
+    iconLinks(),
     includeMarkup(fileURLToPath(new URL("./src/app/markup.html", import.meta.url))),
     VitePWA({
       registerType: "prompt", // the page asks the reader before it reloads onto a new version (src/pwa/updates.ts); the worker itself does not wait
       injectRegister: false,
-      includeAssets: ["icons/icon.svg", "icons/apple-touch-icon.png"],
+      includeAssets: [`${iconDir}/icon.svg`, `${iconDir}/apple-touch-icon.png`],
       workbox: {
         globPatterns: ["**/*.{js,css,html,json,woff2,png,svg,ico}"],
-        globIgnores: ["**/build.json"], // fetched from the network on purpose: it is how the page finds out that a newer build is out
+        globIgnores: ["**/build.json", ...(iconDir === "icons" ? ["icons/preview/**"] : ["icons/*.png", "icons/*.svg"])], // build.json is fetched from the network on purpose: it is how the page finds out that a newer build is out
         navigateFallback: "index.html",
         navigateFallbackDenylist: [/^\/api\//], // the server's paths are the server's, also when opened in a tab
         cleanupOutdatedCaches: true,
@@ -54,9 +64,9 @@ export default defineConfig({
         background_color: "#ffffff",
         theme_color: "#ffffff",
         icons: [
-          { src: "icons/icon-192.png", sizes: "192x192", type: "image/png" },
-          { src: "icons/icon-512.png", sizes: "512x512", type: "image/png" },
-          { src: "icons/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+          { src: `${iconDir}/icon-192.png`, sizes: "192x192", type: "image/png" },
+          { src: `${iconDir}/icon-512.png`, sizes: "512x512", type: "image/png" },
+          { src: `${iconDir}/icon-maskable-512.png`, sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
       },
     }),

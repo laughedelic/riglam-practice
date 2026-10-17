@@ -30,6 +30,7 @@ The branch is deployed as the Cloudflare [Worker Preview](https://developers.clo
 
 - Its variables and bindings are the `previews` block of `wrangler.jsonc`, the same block every pull request Preview uses: a D1 database of their own (`riglam-practice-staging`, shared by staging and the pull request Previews), lower budgets (`DEVICE_DAILY_BUDGET_USD` and `GLOBAL_DAILY_BUDGET_USD`) and, once they are set, the secrets of the Preview base configuration. A pull request that adds a table or changes the server runs against that database and never touches production data. Because the database is shared, so are its budget counters and accounts.
 - Its address is `staging-riglam-practice.<account>.workers.dev`, different from production, so the app installed from it is a separate app with its own stored data, named "Riglam practice (staging)". Passkeys belong to the host name, so accounts made there stay there.
+- The build carries the Preview icon (`public/icons/preview`, a yellow ground) in the page, the manifest and the home-screen icon, not the Main one (`public/icons`, a red ground); both are the same shapes with the same fine grain, the PNGs carrying it and the SVG favicon not. The staging deploy sets `RIGLAM_ICON_SET=preview`; a build on Workers Builds of any branch but `main` gets it by itself (`WORKERS_CI_BRANCH`, [scripts/lib/icon-set.mjs](../scripts/lib/icon-set.mjs)), so the Previews that pull requests get carry it too and none of them is taken for the real app.
 
 ```sh
 git switch staging
