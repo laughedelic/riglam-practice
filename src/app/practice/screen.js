@@ -112,13 +112,14 @@ function partNode(p,mark){
 export const whyHead=()=>el("span",{class:"clh",text:"Why?"});
 /**
  * A fact line's note: "Take S:" after the given heading, the consequences as a list, and the conclusion when there is one. `where`
- * names the note: the terms its texts name are underlined, each once, and the definition of the one tapped opens under its consequence.
+ * names the note: the terms its texts name are underlined, each once in a line of the list, and the definition of the one tapped
+ * opens under that line.
  */
 export function factNode(f,head,where){
-  const parts=partsOf(f), mid=parts.filter(p=>p.kind!=="take"&&p.kind!=="end"), seen=new Set();
+  const parts=partsOf(f), mid=parts.filter(p=>p.kind!=="take"&&p.kind!=="end");
   return el("div",{class:"fnote"},el("p",{class:"ftake"},head?[head," "]:null,"Take ",el("i",{text:f.example}),":"),
     el("ul",{class:"fsteps"},mid.map((p,k)=>{
-      const keys=[], mark=(t,kind)=>{ const key=where+"."+k+kind; keys.push(key); return withTerms(t,key,seen); };
+      const keys=[], seen=new Set(), mark=(t,kind)=>{ const key=where+"."+k+kind; keys.push(key); return withTerms(t,key,seen); };
       const body=partNode(p,where?mark:t=>t);
       return el("li",null,...body,...keys.map(defCard));
     })),parts.filter(p=>p.kind==="end").map(p=>el("p",{text:p.text})));
@@ -152,9 +153,9 @@ export function relWhy(){
 export function relPopNode(){
   if(!state.ui||!state.ui.checked||state.ui.pop!=="rel") return null;
   const rest=explainParts().rest; if(!rest.length) return null;
-  const fl=aiFlag(aiCase("explain","Claude’s note on the relation",rest.map(([k,t])=>k+": "+t).join("\n"),"rel"),"pop:rel"), seen=new Set();
+  const fl=aiFlag(aiCase("explain","Claude’s note on the relation",rest.map(([k,t])=>k+": "+t).join("\n"),"rel"),"pop:rel");
   return el("div",{class:"pop rpop",role:"dialog","aria-label":"Claude's explanation of the relation",tabindex:"-1"},el("p",{class:"clh",text:"Why?"}),fl,
-    rest.flatMap(([k,t],i)=>[el("p",null,k?el("b",{text:k+": "}):null,withTerms(t,"rel"+i,seen)),defCard("rel"+i)]),flagEditorNode("pop:rel"),
+    rest.flatMap(([k,t],i)=>[el("p",null,k?el("b",{text:k+": "}):null,withTerms(t,"rel"+i,new Set())),defCard("rel"+i)]),flagEditorNode("pop:rel"),
     el("button",{type:"button",class:"popx",onclick:e=>{ e.stopPropagation(); state.ui.pop=null; render(); },text:"Close"}));
 }
 export function popNode(){

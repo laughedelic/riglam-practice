@@ -88,14 +88,14 @@ withKey("a note underlines the terms it names and opens their definitions in pla
   await open(page, testInfo, { tutor: [{ status: 200, body: sse({ type: "delta", text: line }, { type: "done", truncated: false }) }] });
   await explain(page).click();
   await page.locator(".grid .qm").first().click();
-  const pop = page.locator(".grid .pop"), marks = pop.locator(".dterm"), def = pop.locator(".ddef");
+  const pop = page.locator(".grid .pop"), marks = pop.locator(".dterm[data-dt]"), def = pop.locator(".ddef"); // the terms of the text; the card has its own marks
   await expect(marks).toHaveText(["external form", "form", "matter"]);
   await expect(def).toHaveCount(0);
 
   await marks.first().click();
   await expect(marks.first()).toHaveAttribute("aria-expanded", "true");
   await expect(def.locator("dt")).toContainText("External form");
-  expect((await def.locator("dd").innerText()).length).toBeGreaterThan(10);
+  expect((await def.locator("dd").last().innerText()).length).toBeGreaterThan(10);
   expect(await overflow(page)).toBeLessThanOrEqual(0);
 
   await marks.nth(2).click();
@@ -155,7 +155,7 @@ withKey("the terms in the reasons of a fact note are underlined and open their d
   await open(page, testInfo, { tutor: [{ status: 200, body: sse({ type: "delta", text: line }, { type: "done", truncated: false }) }] });
   await explain(page).click();
   await page.locator(".grid .qm").first().click();
-  const pop = page.locator(".grid .pop"), marks = pop.locator(".fsteps .dterm"), def = pop.locator(".ddef");
+  const pop = page.locator(".grid .pop"), marks = pop.locator(".fsteps .dterm[data-dt]"), def = pop.locator(".ddef");
   await expect(marks).toHaveText(["external form", "matter"]);
   await expect(def).toHaveCount(0);
   await marks.first().click();
@@ -164,6 +164,18 @@ withKey("the terms in the reasons of a fact note are underlined and open their d
   await expect(def).toHaveCount(1);
   await expect(pop.locator(".fsteps li").nth(1).locator(".ddef dt")).toContainText("Matter");
   expect(await overflow(page)).toBeLessThanOrEqual(0);
+});
+
+// A term is underlined once in each line of a fact note, not once in the whole note: both lines name the color, and both show it.
+withKey("a term is underlined in each line of a fact note that names it", async ({ page }, testInfo) => {
+  const line = 'Both: "thing 1" | A yes: it is a color | B yes: it is a color\n';
+  await open(page, testInfo, { tutor: [{ status: 200, body: sse({ type: "delta", text: line }, { type: "done", truncated: false }) }] });
+  await explain(page).click();
+  await page.locator(".grid .qm").first().click();
+  const pop = page.locator(".grid .pop");
+  await expect(pop.locator(".fsteps li")).toHaveCount(2);
+  await expect(pop.locator(".fsteps li").nth(0).locator(".dterm")).toHaveText(["color"]);
+  await expect(pop.locator(".fsteps li").nth(1).locator(".dterm")).toHaveText(["color"]);
 });
 
 // The tutor states two facts about an example and a reason for each; the page writes them as consequences ("Take S, it follows it is

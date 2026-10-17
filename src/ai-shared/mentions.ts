@@ -70,9 +70,10 @@ function matcherFor(data: DrillData): Matcher {
 
 /**
  * The terms a text names, in order and not overlapping. Words in quotation marks are left out: in the tutor's notes they are
- * the learner's example ("the sound of a drum"), not the tutor's terms.
+ * the learner's example ("the sound of a drum"), not the tutor's terms. A text that quotes terms on purpose, such as the page's
+ * own note on a pair ("form" and "matter" pick out ...), asks for them with `quoted`.
  */
-export function termMentions(ix: DataIndex, text: string): Mention[] {
+export function termMentions(ix: DataIndex, text: string, opts: { quoted?: boolean } = {}): Mention[] {
   if (!ix.DATA || !ix.DATA.terms || !text) return [];
   const { re, terms } = matcherFor(ix.DATA);
   const quoted: [number, number][] = [];
@@ -80,7 +81,7 @@ export function termMentions(ix: DataIndex, text: string): Mention[] {
   const out: Mention[] = [];
   for (const m of text.matchAll(re)) {
     const start = m.index, end = start + m[0].length, term = terms.get(formOf(m[0]));
-    if (term && !quoted.some(([a, b]) => start < b && end > a)) out.push({ start, end, term });
+    if (term && (opts.quoted || !quoted.some(([a, b]) => start < b && end > a))) out.push({ start, end, term });
   }
   return out;
 }

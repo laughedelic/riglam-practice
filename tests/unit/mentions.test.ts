@@ -50,6 +50,11 @@ test("words in quotation marks are the learner's example, not the tutor's terms"
   expect(marked("“the matter” is matter.")).toBe("“the matter” is [matter=Matter].");
 });
 
+test("a text that quotes its terms on purpose can ask for them", () => {
+  const quoted = (text: string) => termMentions(makeIndex(data()), text, { quoted: true }).map((m) => text.slice(m.start, m.end));
+  expect(quoted('"form" and "matter" pick out the same class: form.')).toEqual(["form", "matter", "form"]);
+});
+
 test("nothing to find in an empty text or with no terms", () => {
   expect(termMentions(makeIndex(data()), "")).toEqual([]);
   expect(termMentions(makeIndex({ ...data(), terms: {} }), "a form")).toEqual([]);
