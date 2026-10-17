@@ -90,8 +90,8 @@ const REPLY='Both: a clay pot fits.\nNeither: a stone is B, not A.\nCommon locus
   await pg.locator('.rail .nv:has-text("Options")').click().catch(()=>{}); await pg.waitForTimeout(150);
   if(!(await pg.locator('.orow').count())){ await pg.locator('#optsbtn,.optsbtn,[aria-label="Options"]').first().click().catch(()=>{}); await pg.waitForTimeout(150); }
   const rows=await pg.locator('.orow').evaluateAll(r=>r.map(x=>x.innerText));
-  const lab=rows.find(t=>/^check lab/i.test(t.trim())), q=rows.find(t=>/^questions/i.test(t.trim()));
-  ok('the Check lab note says the judge rules only when the models differ',!!lab&&/only when they differ/i.test(lab)&&/three Claude calls/i.test(lab),lab);
+  const lab=rows.find(t=>/^quorum/i.test(t.trim())), q=rows.find(t=>/^questions/i.test(t.trim()));
+  ok('the Quorum note says the judge rules only when the models differ',!!lab&&/only when they differ/i.test(lab)&&/three Claude calls/i.test(lab),lab);
   ok('the Questions row explains itself as the statement of pervasion',!!q&&/statement of pervasion/i.test(q),q);
   await br.close();
  }

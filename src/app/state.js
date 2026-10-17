@@ -56,6 +56,7 @@ export const state = {
   flags: {},
   flagErr: "",
   labPause: 0,
+  labPauseWhy: "",   // what the Quorum chip says about a pause
   flagPending: 0,
   // the reference the models get, built from the page's own data: every category with its definition, then the classification notes
   labRefC: null,

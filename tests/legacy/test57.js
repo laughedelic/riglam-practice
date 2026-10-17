@@ -99,7 +99,9 @@ const settle=pg=>pg.waitForFunction(()=>{const u=window.__t.ui; return u&&u.lab&
   const n1=(await calls(pg)).length;
   await answerWide(pg); await pg.waitForTimeout(400);
   ok('after a rate limit the lab pauses: no new calls for the next answer',(await calls(pg)).length===n1,[n1,(await calls(pg)).length]);
-  ok('the page works and no lab panel is shown for that answer',await pg.evaluate(()=>!window.__t.ui.lab)&&await pg.locator('.vchip',{hasText:/quorum/i}).count()===0);
+  ok('the page works, no run starts for that answer, and the Quorum chip says it is paused',await pg.evaluate(()=>!window.__t.ui.lab)&&await pg.locator('.vchip',{hasText:/quorum/i}).count()===1);
+  await pg.locator('.vchip',{hasText:/quorum/i}).click(); await pg.waitForTimeout(80);
+  ok('the chip names the pause and its reason, and shows no model rows',/paused/i.test(await pg.locator('#vpanel .lab').innerText())&&/busy|budget|allow/i.test(await pg.locator('#vpanel .lab').innerText())&&await pg.locator('#vpanel .lab-r').count()===0);
   // resume and re-run the missing one
   await pg.keyboard.press('Enter'); await pg.waitForTimeout(60);
   await pg.evaluate(()=>{ window.__labFail={}; window.__t.labPause=0; });
@@ -132,7 +134,7 @@ const settle=pg=>pg.waitForFunction(()=>{const u=window.__t.ui; return u&&u.lab&
   const {br,pg,errs}=await open({width:1280,height:800},{lab:true});
   await pg.locator('#obtn').click(); await pg.waitForTimeout(150);
   const sw=pg.locator('#over .sw',{hasText:/three models/i});
-  ok('Options has the Check lab switch, on',await sw.count()===1&&await sw.getAttribute('aria-checked')==='true');
+  ok('Options has the Quorum switch, on',await sw.count()===1&&await sw.getAttribute('aria-checked')==='true');
   ok('the Options text says it uses the viewer\'s own Claude usage',/own usage/.test(await pg.locator('#over').innerText()));
   await sw.click(); await pg.waitForTimeout(80);
   ok('turning it off is remembered in the browser',await pg.evaluate(()=>localStorage.getItem('rd-lab'))==='0'&&!(await pg.evaluate(()=>window.__t.lab)));
@@ -245,8 +247,8 @@ const settle=pg=>pg.waitForFunction(()=>{const u=window.__t.ui; return u&&u.lab&
   await pg.evaluate(()=>{ window.__labAns={haiku:(t,i)=>({inB:i!==0})}; });
   for(let k=0;k<2;k++){ await answerWide(pg); await settle(pg); await pg.waitForTimeout(80); if(k===0){ await pg.locator('.vchip',{hasText:/quorum/i}).click(); await pg.waitForTimeout(80); await pg.locator('.lab-c').first().locator('.lab-r',{hasText:/haiku/i}).locator('.lp[aria-label^="Flag in B"]').click(); await pg.waitForTimeout(60); await pg.locator('#flag-note').fill('B is wrong'); await pg.locator('.flagedit .btn',{hasText:/^submit$/i}).click(); await pg.waitForTimeout(80); await pg.locator('#stage .actions .btn',{hasText:/next pair/i}).click(); await pg.waitForTimeout(80); } }
   await pg.locator('#tabs .nv',{hasText:/review/i}).click(); await pg.waitForTimeout(250);
-  const sec=pg.locator('.rcol .section',{has:pg.locator('.label',{hasText:/^Lab/})});
-  ok('Review has a Lab section',await sec.count()===1);
+  const sec=pg.locator('.rcol .section',{has:pg.locator('.label',{hasText:/^Quorum/})});
+  ok('Review has a Quorum section',await sec.count()===1);
   ok('its heading counts the flags',/1 flagged, 1 new/.test(await sec.locator('.label .hint').innerText()),await sec.locator('.label .hint').innerText());
   const trs=await sec.locator('table.labt tbody tr').allInnerTexts();
   ok('a model table lists Haiku, Sonnet and Opus with counted runs, time and agreement with the judge',trs.length===3&&/Haiku\s+2/.test(trs[0].replace(/\t/g,' '))&&/\d+ \/ \d+/.test(trs[0]),trs);
@@ -270,7 +272,7 @@ const settle=pg=>pg.waitForFunction(()=>{const u=window.__t.ui; return u&&u.lab&
  {
   const {br,pg,errs}=await open({width:1280,height:800});
   await pg.locator('#tabs .nv',{hasText:/review/i}).click(); await pg.waitForTimeout(200);
-  ok('with the lab off and nothing stored, Review has no Lab section',await pg.locator('.rcol .label',{hasText:/^Lab/}).count()===0);
+  ok('with the lab off and nothing stored, Review has no Quorum section',await pg.locator('.rcol .label',{hasText:/^Quorum/}).count()===0);
   await br.close();
  }
  // 10b. keyboard focus: a run finishing does not move it; a saved flag returns it to the flagged part

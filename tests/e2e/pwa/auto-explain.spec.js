@@ -1,4 +1,4 @@
-// "Check and explain by itself" (Options, `rd-autoexplain`): a checked answer asks the app's server for its explanation without a tap on Explain.
+// "Check every answer with AI" (Options, `rd-autoexplain`): a checked answer asks the app's server for its explanation without a tap on Explain.
 // On by default. The server is a stand-in with routes, as in tutor.spec.js.
 import { test as plain } from "@playwright/test";
 import { test, expect } from "../../support/test.js";
@@ -31,7 +31,7 @@ async function answerOnPhone(page) {
 }
 const explain = (page) => page.getByRole("button", { name: /^explain$|check and explain/i });
 const discuss = (page) => page.getByRole("button", { name: /discuss with ai/i });
-const toggle = (page) => page.getByRole("switch", { name: /check and explain by itself/i });
+const toggle = (page) => page.getByRole("switch", { name: /check every answer with ai/i });
 
 /** The page with the setting as given (null: never set, which is the default), the server, and one answer checked. */
 async function answered(page, testInfo, { setting = null, tutor } = {}) {

@@ -32,6 +32,14 @@ async function answerOnPhone(page) {
     await page.waitForTimeout(100);
   }
 }
+async function answerWithoutExamples(page) {
+  await relOptions(page).first().click();
+  for (let i = 0; i < 6 && (await page.locator("#cin").isVisible()); i++) {
+    await page.locator("#cin").focus();
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(100);
+  }
+}
 const quorum = (page) => page.locator(".vchip").filter({ hasText: /quorum/i });
 const open = async (page, testInfo, setup) => {
   test.skip(!isPhone(testInfo), "the answer flow is exercised in the phone layout");
@@ -101,4 +109,23 @@ withKey("a used-up budget stops the lab for the rest of the visit", async ({ pag
   await answerOnPhone(page);
   await page.waitForTimeout(500);
   expect(calls).toHaveLength(3);
+  // the chip is there for the next answer too, and says why nothing ran
+  await quorum(page).click();
+  await expect(page.locator(".lab")).toContainText(/paused: the budget for Quorum is used up/i);
+  await expect(page.locator(".lab .lab-r")).toHaveCount(0);
+});
+
+withKey("an answer with no example written still has the Quorum chip, which says there was nothing to check", async ({ page }, testInfo) => {
+  test.skip(!isPhone(testInfo), "the answer flow is exercised in the phone layout");
+  await page.addInitScript(() => { window.__riglamTest = (t) => { window.__t = t; }; });
+  const calls = await server(page);
+  await page.goto("/");
+  await ready(page);
+  await answerWithoutExamples(page);
+  await expect(quorum(page)).toBeVisible();
+  await quorum(page).click();
+  await expect(page.locator(".lab")).toContainText(/nothing to check: no example was written/i);
+  await page.waitForTimeout(300);
+  expect(calls).toHaveLength(0);
+  expect(await overflow(page)).toBeLessThanOrEqual(0);
 });

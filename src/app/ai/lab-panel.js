@@ -1,6 +1,6 @@
 import { state } from "../state.js";
 import { flagEditorNode, flagPart } from "./flags.js";
-import { LAB_JUDGE, LAB_MODELS, labAgain, labJudgeNow } from "./lab.js";
+import { LAB_JUDGE, LAB_MODELS, labAgain, labJudgeNow, labWhyNot } from "./lab.js";
 import { CELL_NAME } from "../../ai-shared/prompts.ts";
 import { el } from "../core/dom.js";
 
@@ -18,7 +18,12 @@ function labState(U){
   return {runs,diff,judgeDiff,busy:L.busy};
 }
 export function labItem(){
-  if(!state.lab||!state.ui||!state.ui.lab) return null;
+  if(!state.lab||!state.ui) return null;
+  // no run for this answer (nothing written to check, or a pause): the chip is there anyway and says why
+  if(!state.ui.lab){
+    if(!state.labSample||!state.db||!state.ui.checked) return null;
+    return {key:"lab",label:"Quorum",st:"none",ic:"",body:()=>el("div",{class:"lab"},el("p",{class:"lab-h"},el("b",{text:"Quorum "}),el("span",{class:"lab-s",text:labWhyNot(state.ui)})))};
+  }
   const s=labState(state.ui);
   // the chip never opens by itself; its sign says whether the answers agree ("…" while running, "≠" when models differ from each other or from you, "=" when all agree)
   return {key:"lab",label:"Quorum",st:"none",ic:s.busy?"…":!s.runs.length?"":(s.diff||s.judgeDiff)?"≠":"=",body:()=>labNode(),

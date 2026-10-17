@@ -243,6 +243,7 @@ export interface State {
   autoExplain: boolean;
   labSpotN: number;
   labPause: number;
+  labPauseWhy: string;
   labRefC: { text: string; ver: string } | null;
 
   // display settings, some kept on the device
