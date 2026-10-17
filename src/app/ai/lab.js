@@ -21,7 +21,7 @@ export const LAB_MODELS=[{k:"haiku",id:"claude-haiku-5-5",tier:"quick",name:"Hai
 export const LAB_JUDGE={k:"judge",id:"claude-opus-5-5",tier:"complex",name:"Judge"};
 export const labQ={}, flagQ={}, labLocal={};     // labLocal: the runs written in this session, kept apart from what the database snapshot returns
 export function setLab(on){ state.lab=!!on; try{ localStorage.setItem("rd-lab",state.lab?"1":"0"); }catch(e){} render(); }
-export const labShown=()=>!!(state.sample&&state.db&&(state.lab||Object.keys(state.labruns).length||Object.keys(labLocal).length||Object.keys(state.flags).length));
+export const labShown=()=>!!(state.labSample&&state.db&&(state.lab||Object.keys(state.labruns).length||Object.keys(labLocal).length||Object.keys(state.flags).length));
 export const labRuns=()=>Object.assign({},state.labruns,labLocal);
 // the database snapshots; a flag write in flight keeps the snapshot from replacing what the page just changed
 function labDataIn(){ if(state.tab==="review"&&state.mode!=="loading"&&!typingEl(document.activeElement)) render(); }
@@ -105,7 +105,7 @@ async function labCall(L,m,prompt,effort,kind,extra){
   /** @type {import("../types.ts").LabRunDoc} */
   const doc=Object.assign({kind,caseKey:key,model:m.id,effort,tierAsked:m.tier,promptVersion:LAB_VER,referenceVersion:ref.ver,at:new Date().toISOString(),promptChars:prompt.length,case:L.kase},extra||{});
   try{
-    const r=await state.sample(prompt,{model:m.id,modelTier:m.tier,effort,cache:false});
+    const r=await state.labSample(prompt,{model:m.id,modelTier:m.tier,effort,cache:false});
     doc.ms=Math.round(performance.now()-t0); doc.modelApplied=r.modelApplied||null; doc.tierApplied=r.modelTierApplied||null; doc.truncated=!!r.truncated;
     doc.raw=String(r.text||"").slice(0,3000); doc.replyChars=String(r.text||"").length;
     doc.valid=doc.modelApplied===m.id;
@@ -114,7 +114,7 @@ async function labCall(L,m,prompt,effort,kind,extra){
     st.status=doc.ok?(doc.valid?"ok":"mismatch"):"bad";
   }catch(e){
     doc.ms=Math.round(performance.now()-t0); doc.ok=false; doc.valid=false; doc.error=(e&&e.code)||"error"; st.status="err";
-    if(e&&e.code==="rate_limited") state.labPause=Date.now()+120000;            // no more lab calls for two minutes
+    if(e&&e.code==="rate_limited") state.labPause=Date.now()+(e.budget?864e5:120000);   // no more lab calls for two minutes, or for this page load when the server's budget for them is used
     if(e&&ERR_OFF.includes(e.code)) state.labPause=Date.now()+864e5;            // not allowed: none for this page load
   }
   st.doc=doc;
@@ -141,7 +141,7 @@ function labRender(L){
   const f=btnSig(); render(); btnBack(f);
 }
 async function labRun(U,C,only,force){
-  const L=U.lab; if(!L||!state.sample) return;
+  const L=U.lab; if(!L||!state.labSample) return;
   const ref=labRef(), head=LAB_TASK+"\n\n"+ref.text+"\n\nCASE\n"+labCaseText(L.kase);
   L.busy=true; labRender(L);
   const todo=LAB_MODELS.filter(m=>!only||only.includes(m.k));
@@ -169,7 +169,7 @@ export async function labJudgeNow(){
   U.lab.busy=true; labRender(U.lab); await labJudge(U,"asked"); U.lab.busy=false; labRender(U.lab);
 }
 export function labStart(U,C){
-  if(!state.lab||!state.sample||!state.db||!state.DATA||U.lab||!U.res||!U.checked||Date.now()<state.labPause) return;
+  if(!state.lab||!state.labSample||!state.db||!state.DATA||U.lab||!U.res||!U.checked||Date.now()<state.labPause) return;
   const things=labThings(U); if(!things.length) return;
   const p=C.p, [ca,cb]=skipCats(p);
   const kase={tab:U.debate?"debate":"practice",answerId:U.saveId||null,a:p.a,b:p.b,catA:ca,catB:cb,relation:p.relation,chosen:U.late?null:U.rel,things};

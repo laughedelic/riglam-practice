@@ -10,6 +10,7 @@ Hosting is the same Cloudflare Worker that serves the static files (`wrangler.js
 worker/index.ts         the Worker entry: createApp(...).fetch
 worker/app.ts           routes, origin and proof checks, the budget, the server-sent stream (Hono)
 worker/tutor.ts         one question: the model calls through the Anthropic SDK, the tool loop, the cost
+worker/lab.ts           one model call of the check lab (Previews only): the checks on the request, the call, the cost
 worker/budget.ts        the spend counters in D1: reserve, settle, the kill switch, pruning
 worker/prices.ts        price per million tokens for each model; unknown models are charged at the highest rate
 worker/config.ts        settings from variables, with defaults
@@ -34,9 +35,11 @@ tests/worker/           Vitest tests with stand-ins for D1 and the model API
 
 | Route | What it does |
 |---|---|
-| `GET /api/health` | `{"ok":true,"tutor":"on"\|"off","accounts":"on"\|"off"}`. `off` when the database, a secret or the kill switch says so. No sign-in. |
+| `GET /api/health` | `{"ok":true,"tutor":"on"\|"off","accounts":"on"\|"off"}`, and `"lab":"on"` where the check lab is answered (a Preview, see "The check lab"; the field is left out elsewhere). `off` when the database, a secret or the kill switch says so. No sign-in. |
 | `GET /api/course` | The definitions `{version, definitions}` to a request with a valid proof (headers `x-riglam-device`, `x-riglam-proof`); `?have=<version>` answers `{version, unchanged: true}` when current. 401 `not_granted` for a wrong proof, 429 `rate_limited` with `resetsAt` after 30 wrong proofs from one caller in an hour, 503 `unavailable` when the table is empty. |
 | `POST /api/tutor` | One tutor question. Body `{kind: "chat" \| "explain", cats: [category ids], turns: [{role, content}]}` (`src/ai/protocol.ts`). The answer is `text/event-stream` of `delta` (a piece of text), `done` (`truncated` says the model ran out of room) and `error` (`code`, `message`). Requests that cannot be served are plain JSON errors with a status: 400, 401, 403 (another site's `Origin`), 413, 429, 503. |
+
+| `POST /api/lab` | One model call of the check lab, on a Preview only. Body `{model, effort, prompt}`; the answer is JSON `{text, truncated, modelApplied}` (`src/ai/protocol.ts`). Same proof headers as the tutor. 503 `unavailable` where the lab is off, 400, 401, 403, 413, and 429 with `scope` when the lab's own budget is used. See "The check lab". |
 
 | `POST /api/account/key`, `GET /api/account/key` | An account carries the Magic Key (needs a session and the access proof), and gives it to its signed-in devices. See "Accounts and sync". |
 | `/api/account/...`, `POST /api/sync` | Optional accounts and the server copy of the documents; see "Accounts and sync". |
@@ -90,6 +93,16 @@ Prices are in `worker/prices.ts`, copied from Anthropic's pricing page; update t
 ## The model calls
 
 `worker/tutor.ts` calls the Messages API through the official SDK (`@anthropic-ai/sdk`) with streaming. The model does its own thinking depth (adaptive; the `thinking` parameter is left out) at the configured effort. Automatic prompt caching (a top-level `cache_control`) makes a follow-up question re-read the earlier turns at the cache price. The Worker runs the lookup tools itself and sends the results back to the model; a failing tool is reported to the model as an error result, not to the page. Server-side fallbacks to another model are not enabled: when the model refuses or is unavailable the page gets an error and nothing is retried on a different model.
+
+## The check lab
+
+The page has a check lab (the chip "Quorum" on a result, Options "Check lab"): after each checked answer it asks Haiku, Sonnet and Opus the same classification question, as three separate calls, and Opus again as judge where they differ or as a spot check (`src/app/ai/lab.js`). Every run is stored on the device so that the models can be compared. In the artifact the calls use the host's own model. In the installed app they go to `POST /api/lab`, which a Preview answers and production does not:
+
+- The Worker answers only when the variable `LAB` is `on`. It is set in the `previews` block of `wrangler.jsonc` and nowhere else, which is also how a Preview differs from production in everything else (its own database, lower budgets), so production has no lab route and `/api/health` leaves `lab` out.
+- It is not a way to use any model for anything. A request names one of three models (`LAB.models` in `src/ai/protocol.ts`), one of three effort levels and a prompt of at most 100 000 characters; the Worker sends the prompt as the only message, with no tools and no standing instructions, and returns the text with the model that answered. A dated name of the requested model counts as that model; another model is reported as it is, and the page does not count that run. It needs the same proof of the Magic Key as the tutor and the same switch (`settings.tutor = 'off'` stops it too).
+- The prompt is the page's, built from the term data and the definitions it holds (`labRef` in `src/app/ai/lab.js`). The lab is for development, so its wording stays with the page; if it ever moves out of previews, the prompt should move to `src/ai-shared` and the request shrink to the case.
+- It has budgets of its own, `LAB_DEVICE_DAILY_BUDGET_USD` (default `1.00`) and `LAB_GLOBAL_DAILY_BUDGET_USD` (default `3`), counted in the same `budget` table under the scopes `lab` and `lab:dev:<id>`, so the lab cannot use up the tutor's budget. One round of three calls costs a few cents. The held amount is `RESERVE_USD`, and the calls are logged in `usage_log` with kind `lab`. A used-up budget is a 429 as for the tutor, and the page stops the lab for the rest of the visit.
+- The page offers the lab only when the device has the Magic Key and `/api/health` says `lab: "on"` (`src/pwa/lab.ts`, the `lab` capability of the platform).
 
 ## Accounts and sync
 

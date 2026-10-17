@@ -31,7 +31,7 @@ export async function tutorIsOn(doFetch: typeof fetch = (...a) => fetch(...a), w
   }
 }
 
-async function httpError(res: Response, now: () => number = Date.now) {
+export async function httpError(res: Response, now: () => number = Date.now) {
   let code = "";
   let scope: BudgetScope | undefined;
   let resetsAt: string | undefined;

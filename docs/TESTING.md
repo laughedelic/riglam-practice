@@ -24,6 +24,7 @@ Each file in `tests/legacy` is a node script from the page's earlier test pipeli
 
 - `harness.js` wraps `dist/artifact/index.html` in the same document skeleton the artifact frame uses and mocks `window.claude`: `db` (collections `answers`, `debates`, `batches`, `favorites`, `skips`, `labruns`, `flags`) and `sample` (the AI, with hooks such as `window.__reply`, `__labAns`, `__labFail`). Tests reach the page's internals through `window.__t`, which the page exports through its test hook (end of `src/app/app.js`) when the harness defines `window.__riglamTest`. A test that needs another internal adds it to that block.
 - `LAB=1` turns the check lab on in every test (some tests turn it on themselves).
+- A checked answer does not ask for its explanation by itself in the old tests (Options, "Check and explain by itself", is on by default in the app): the harness starts every page with `rd-autoexplain` set to `0`, and a test passes `{autoExplain:true}` to `open` to turn it on. The PWA specs do the same through `tests/support/test.js`.
 - Random pairs make a check or two flaky now and then, so a failing file is retried once.
 - Not migrated: `test40f_noskips.js` (an old variant kept for reference upstream). The layout scans of the old pipeline are the layout matrix now; `ring.js` stays only as the focus-ring check some legacy tests call (`ringScan`).
 - Screenshots the tests take go to `tests/legacy/out/t/` (ignored by git).

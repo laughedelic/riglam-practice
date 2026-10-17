@@ -1,7 +1,9 @@
 // PWA build: stands in for the Claude artifact frame.
 //   db      local IndexedDB store (./local-db.ts)
-//   sample  not available yet (no server): the page hides the check lab. Only `npm run dev` has one, a stand-in for the model
-//           (./dev-sample.ts); `?ai=off` in the address takes it away there too.
+//   sample  not available (the tutor is the server's): only `npm run dev` has one, a stand-in for the model (./dev-sample.ts);
+//           `?ai=off` in the address takes it away there too.
+//   lab     the check lab's model calls: the dev stand-in, or the app's own server (./lab.ts) when it says it answers them, which only a
+//           Preview does (docs/SERVER.md), and this device has the Magic Key. Otherwise the page hides the lab.
 //   unlock  a way to enter the Magic Key, while this device has none (./unlock.ts); the definitions come from the server (./course.ts)
 //   keyHeld while it has one: enter another, or forget it (./unlock.ts)
 //   tutor   the app's own server (./tutor.ts), when it has the tutor on and this device has the Magic Key
@@ -17,6 +19,7 @@ import { aboutThisBuild } from "./about";
 import { updates } from "./updates";
 import { showStorageNotice } from "./storage-notice";
 import { storeName } from "./store-slot";
+import { createLab, labIsOn } from "./lab";
 import { createLocalDb } from "./local-db";
 import { createTutor, tutorIsOn as serverSaysOn } from "./tutor";
 import { takeLinkKey, storedKey, storeKey, forgetKey, keyDeclined, declineKey, allowKey, showUnlock, markKeyChanged, takeKeyChanged, KEY_CHANGED_TEXT } from "./unlock";
@@ -151,6 +154,9 @@ async function sample(): Promise<Sample | null> {
   return null;
 }
 
+let labAnswer: Promise<boolean> | null = null; // whether the server says it answers the lab's calls: asked once
+const labOn = () => (labAnswer ??= labIsOn());
+
 let account: Account | null = null;
 let changeKey: (() => Promise<boolean>) | null = null; // the prompt for another key, made when first asked for
 
@@ -167,6 +173,8 @@ export const pwaPlatform: Platform = {
   loadData,
   db: async () => db,
   sample,
+  // The dev stand-in answers the lab too; a build asks the server, and only with the key (the server would refuse the request anyway).
+  lab: async () => (await sample()) ?? (groupKey && (await labOn()) ? createLab(groupKey) : null),
   onKey(tell) {
     keyListeners.add(tell);
     return () => void keyListeners.delete(tell);
