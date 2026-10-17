@@ -217,29 +217,22 @@ test("the explain request is the plain one when the page checked every example, 
   expect(dbt).toContain("Q1 is the Both cell, Q2 A not B, Q3 B not A, Q4 Neither.");
 });
 
-// A debate line is shown beside the learner's example, so a counter-example that is right must read as fitting, not as "fails".
-test("the debate request judges a Why? example as fitting or not, and an Accept as a statement about the question", () => {
-  expect(DEBATE_ASK).toContain('after Why?, judge the example ("it fits" or "it does not fit")');
-  expect(DEBATE_ASK).toContain('after Accept, say whether the statement holds ("You accepted Q1, and the statement holds: ..." or "You accepted Q2, but there is a counter-example: ...")');
-  expect(DEBATE_ASK).not.toContain("but the statement does not hold");
-  expect(DEBATE_ASK).not.toContain('"so it fails"');
-  expect(FIRST_ASK).toContain('("it fits" or "it does not fit")');
-});
-
-// The type is written as the page writes it elsewhere ("x is a form"), not as "(Form)" after the example; an empty cell is
-// explained by the relation, and a Why? line does not give the answer to the question.
-test("the explain requests give the reasons for A and for B separately, the type only when it is the reason, and the reason for an empty cell", () => {
+// The tutor states two facts about an example (is it A, is it B) with a sentence each; the page draws the conclusion (src/domain/verdict.ts),
+// so the requests ask for no conclusion and no "so".
+test("the explain requests ask for the two facts about an example, in one form, and for no conclusion", () => {
+  expect(FIRST_ASK).toContain('Both: "the example" | A yes: one sentence | B no: one sentence');
+  expect(DEBATE_ASK).toContain('Q2: "the example" | A yes: one sentence | B no: one sentence');
   for (const ask of [FIRST_ASK, DEBATE_ASK]) {
+    expect(ask).toContain("whether the example is A, and whether it is B");
+    expect(ask).toContain('Write no conclusion and no "so"');
+    expect(ask).toContain("only when the type is that reason");
     expect(ask).toContain('"a wooden chair" is a form');
     expect(ask).toContain('"is an" before a vowel');
+    expect(ask).not.toContain("so it fits");
+    expect(ask).not.toContain("=> yes");
   }
-  for (const ask of [FIRST_ASK, DEBATE_ASK]) {
-    expect(ask).toContain("is or is not A and why it is or is not B");
-    expect(ask).toContain("only when the type is that reason");
-    expect(ask).toContain('never one reason from which both are concluded with "so"');
-  }
-  expect(DEBATE_ASK).toContain("do not say what the right answer to the question was");
-  expect(DEBATE_ASK).toContain("give the reason from the correct relation in the card");
+  expect(DEBATE_ASK).toContain('says "You accepted Q2, but there is a counter-example" itself');
+  expect(DEBATE_ASK).toContain("Do not say what the right answer to the question was");
   expect(DEBATE_ASK).toContain("A and B are mutually inclusive, so whatever is B is A");
 });
 

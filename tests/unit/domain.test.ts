@@ -7,8 +7,8 @@ import { expect, test } from "vitest";
 import { CELLS, REL, makeIndex, refOf } from "../../src/ai-shared";
 import type { CellId, DrillData, RelKey } from "../../src/ai-shared";
 import {
-  FEATURE, RECENT_MAX, applyVerdicts, buildPool, cellsFor, chooseEntry, deriveRel, grade, gradeDebate, gradeOf, inUniverse, isMiss, judgeText, makePair,
-  nextPair, pairKey, parseVerdicts, pick, relOfCells, summarize, termLine,
+  FEATURE, RECENT_MAX, applyVerdicts, factNote, fitOf, buildPool, cellsFor, chooseEntry, deriveRel, grade, gradeDebate, gradeOf, inUniverse, isMiss, judgeText, makePair,
+  nextPair, pairKey, parseFactLine, parseVerdicts, pick, relOfCells, summarize, termLine,
 } from "../../src/domain";
 import type { DebateInput, GradeDraft, HistoryEntry, Pair, PoolEntry } from "../../src/domain";
 import openData from "../../src/data/drill-data.json";
@@ -403,6 +403,39 @@ test("verdicts settle only the cells that are still open, and the grade is count
   expect([res.exBad, res.exOpen, res.overall]).toEqual([1, 0, "part"]);
   expect(applyVerdicts(p, res, parseVerdicts("Both: x => no"))).toBe(0);
   expect(res.cells.both.v).toBe("ok");
+});
+
+// A line with the two facts about an example (is it A, is it B) is read as a fact line, and the cell it fits is drawn from the facts,
+// so a reason about the wrong term cannot make a wrong verdict.
+test("a fact line is read as two facts, and the verdict is what the facts give for the cell", () => {
+  const line = (cell: string, a: string, b: string) => `${cell}: "a banana" | A ${a}: It is a thing you can eat. | B ${b}: It is not an internal form, because it is not in a person's continuum.`;
+  expect(parseFactLine(line("Q2", "yes", "no"))).toEqual({
+    label: "Q2", cell: "anb", example: "a banana",
+    a: { answer: "yes", say: "It is a thing you can eat." }, b: { answer: "no", say: "It is not an internal form, because it is not in a person's continuum." },
+  });
+  expect(parseFactLine("- **Both**: “a cup” | a yes: x | b yes: y")?.cell).toBe("both");
+  expect(parseFactLine("Both: a cup => yes")).toBeNull();
+  expect(parseFactLine("Both: a cup | A maybe: x | B yes: y")).toBeNull();
+  const q = { both: "Q1", anb: "Q2", bna: "Q3", nei: "Q4" };
+  const fit = (cell: CellId, a: string, b: string) => fitOf(parseFactLine(line(q[cell], a, b))!);
+  expect([fit("both", "yes", "yes"), fit("anb", "yes", "no"), fit("bna", "no", "yes"), fit("nei", "no", "no")]).toEqual(["yes", "yes", "yes", "yes"]);
+  expect([fit("both", "yes", "no"), fit("anb", "yes", "yes"), fit("bna", "yes", "yes"), fit("nei", "no", "yes")]).toEqual(["no", "no", "no", "no"]);
+  expect([fit("both", "yes", "unsure"), fit("nei", "unsure", "unsure"), fit("anb", "no", "unsure")]).toEqual(["unsure", "unsure", "no"]); // one fact that contradicts the cell settles it
+  // the verdict lines of both forms are read in order
+  expect(parseVerdicts([line("Q2", "yes", "no"), "Both: a cup => no", line("Q4", "no", "yes")].join("\n"))).toEqual([
+    { cell: "anb", answer: "yes" }, { cell: "both", answer: "no" }, { cell: "nei", answer: "no" },
+  ]);
+});
+
+test("the note for a fact line draws its conclusion from the facts, for a Why? example and for a counter-example to an accepted question", () => {
+  const f = parseFactLine('Q3: "a banana" | A no: It is not an internal form | B yes: It is a thing you can eat.')!;
+  expect(factNote(f, false)).toBe('"a banana". It is not an internal form. It is a thing you can eat. So it fits.');
+  expect(factNote(f, true)).toBe("You accepted Q3, but there is a counter-example: a banana. It is not an internal form. It is a thing you can eat.");
+  const off = parseFactLine('Q3: "a stone" | A yes: It is a rock. | B yes: It is a thing you can eat.')!;
+  expect(factNote(off, false)).toBe('"a stone". It is a rock. It is a thing you can eat. So it does not fit.');
+  expect(factNote(off, true)).toBe("a stone. It is a rock. It is a thing you can eat. It does not fit the cell of Q3, so it is not a counter-example.");
+  const unsure = parseFactLine('Both: "a song" | A yes: x | B unsure: y')!;
+  expect(factNote(unsure, false)).toBe('"a song". X. Y. Claude is unsure whether it fits.');
 });
 
 // ---- small helpers ----

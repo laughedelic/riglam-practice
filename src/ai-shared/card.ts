@@ -107,8 +107,8 @@ export function explainAsk(U: Pick<AnswerView, "debate" | "res">): string {
   if(!open.length) return base;
   const nm=(c: CellId)=>dbt?"Q"+(CELLS.indexOf(c)+1):CELL_NAME[c];
   return base+`
-The page could not check the examples in: ${open.map(nm).join(", ")}. End each of those cell lines with " => yes" if the example belongs in that cell (an existent thing; in Neither a non-existent such as the horn of a rabbit counts too), " => no" if it does not, or " => unsure".`+(dbt?`
+The page could not check the examples in: ${open.map(nm).join(", ")}. The page reads your "A" and "B" answers on those lines as the check, so make them exact: the example belongs in a cell when its answers are the cell's (Both: A yes, B yes; A not B: A yes, B no; B not A: A no, B yes; Neither: A no, B no; an existent thing, but in Neither a non-existent such as the horn of a rabbit counts too).`+(dbt?`
 Q1 is the Both cell, Q2 A not B, Q3 B not A, Q4 Neither.`:"")+`
 How to decide: read the example in its ordinary sense (a song is the sound of someone singing or playing; a stone is an ordinary stone at room temperature). Place it under A or B first, then use the correct relation above: it is computed and right, so if whatever is B is A, a B belongs in Both. Use classify_example or lookup_term when a classification is not obvious.
-Say "unsure" only when the sources disagree on how to classify the thing (see the fine points) or when you cannot tell what the example names. Then the line names each reading and the cell it gives, in a few words. A word that could also mean something else is not a reason for "unsure": decide on the ordinary reading and mention the other one briefly.`;
+Answer "unsure" only on a side where the sources disagree on how to classify the thing (see the fine points) or where you cannot tell what the example names. Then that side's sentence names each reading, in a few words. A word that could also mean something else is not a reason for "unsure": decide on the ordinary reading and mention the other one briefly.`;
 }

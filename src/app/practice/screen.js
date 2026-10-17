@@ -4,7 +4,7 @@ import { labItem } from "../ai/lab-panel.js";
 import { ask, fillAns } from "../ai/tutor.js";
 import { CELL_NAME } from "../../ai-shared/prompts.ts";
 import { canAsk } from "../core/ask.js";
-import { NAME_CELL, VERDICT_RE } from "../../domain/verdict.ts";
+import { NAME_CELL, VERDICT_RE, factNote, parseFactLine } from "../../domain/verdict.ts";
 import { $, L, el } from "../core/dom.js";
 import { lockIcon } from "../core/icons.js";
 import { CELLS, ORDER, REL, cellLabel, lcRel, notaOf, notaParts } from "../core/rel.js";
@@ -93,11 +93,14 @@ function quizCell(c){
 const REL_LABEL=/^(common locus|pervasion|relation)$/i;
 // A note opens under the heading "Why?", so the "Why?" the tutor starts a debate line with would be said twice.
 const WHY_LEAD=/^why\?\s+(?=\S)/i;
+// The note for a line that gives the two facts about an example (src/domain/verdict.ts); in the debate it depends on whether the learner accepted that question.
+export const factNoteOf=f=>{ const u=state.ui, a=u&&u.debate&&u.ans&&u.ans[QCELL.indexOf(f.cell)]; return factNote(f,!!a&&a.say!=="why"); };
 export function explainParts(){
   const out={cells:{},rest:[]};
   const a=state.ui&&state.ui.chat&&state.ui.chat.find(t=>t.role==="assistant"&&t.kind==="explain"&&!t.pending&&t.content);
   if(!a) return out;
   for(const ln0 of a.content.split("\n")){
+    const f=parseFactLine(ln0); if(f){ out.cells[f.cell]=factNoteOf(f); continue; }
     const ln=ln0.replace(/^[-•*\s]+/,"").replace(/\*\*/g,"").replace(VERDICT_RE,"").trim(); if(!ln) continue;
     const m=ln.match(/^(both|a not b|b not a|neither|q[1-4])\s*:\s*(.+)$/i);
     if(m){ out.cells[NAME_CELL[m[1].toLowerCase()]]=m[2].replace(WHY_LEAD,""); continue; }

@@ -10,5 +10,5 @@ export type {
 export { FEATURE, RECENT_MAX, buildPool, cellsFor, chooseEntry, inUniverse, makePair, nextPair, pairKey, relOfCells } from "./universe";
 export type { Clock, DrawState, Rng } from "./universe";
 export { cap, gradeOf, isMiss, pick } from "./util";
-export { NAME_CELL, VERDICT_RE, applyVerdicts, parseVerdicts } from "./verdict";
-export type { Answer, CellVerdict } from "./verdict";
+export { NAME_CELL, VERDICT_RE, applyVerdicts, factNote, fitOf, parseFactLine, parseVerdicts } from "./verdict";
+export type { Answer, CellVerdict, FactLine, Side } from "./verdict";

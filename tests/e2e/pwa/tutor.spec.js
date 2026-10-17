@@ -81,6 +81,33 @@ withKey("a note under a cell is headed Why?", async ({ page }, testInfo) => {
   await expect(pop.locator(".popnote")).toHaveCount(0);
 });
 
+// The tutor states two facts about an example; the page draws the conclusion, and in the debate words the note by what the learner answered.
+withKey("a line with the two facts is shown as a note with the conclusion the facts give", async ({ page }, testInfo) => {
+  const line = 'Both: "thing 1" | A yes: It is a form. | B yes: It is a thing.\n';
+  await open(page, testInfo, { tutor: [{ status: 200, body: sse({ type: "delta", text: line }, { type: "done", truncated: false }) }] });
+  await explain(page).click();
+  await page.locator(".grid .qm").first().click();
+  await expect(page.locator(".grid .pop p").nth(1)).toHaveText('"thing 1". It is a form. It is a thing. So it fits.');
+  await expect(page.locator(".grid .pop")).not.toContainText("|");
+});
+
+withKey("in Pervasions an accepted question's note names the tutor's counter-example", async ({ page }, testInfo) => {
+  test.skip(isPhone(testInfo), "the wide layout has the table and the coach panel");
+  const line = 'Q2: "a banana" | A yes: It is a thing you can eat. | B no: It is not an internal form.\n';
+  await server(page, { tutor: [{ status: 200, body: sse({ type: "delta", text: line }, { type: "done", truncated: false }) }] });
+  await page.goto("/");
+  await ready(page);
+  await page.locator('.rail .nv:has-text("Pervasions")').click();
+  for (let i = 0; i < 4; i++) {
+    await page.locator(".qcard .btn").first().click(); // accept each question
+    await page.waitForTimeout(150);
+  }
+  await relOptions(page).first().click();
+  await explain(page).click();
+  await page.locator(".grid .qm").first().click();
+  await expect(page.locator(".grid .pop p").nth(1)).toHaveText("You accepted Q2, but there is a counter-example: a banana. It is a thing you can eat. It is not an internal form.");
+});
+
 withKey("a follow-up question sends the whole conversation as a chat", async ({ page }, testInfo) => {
   const asked = await open(page, testInfo);
   await explain(page).click();
