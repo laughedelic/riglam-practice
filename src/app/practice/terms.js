@@ -130,13 +130,13 @@ function parentMark(n){
   const go=e=>{ e.stopPropagation(); goTo(n); };
   return el("span",{class:"dterm",role:"button",tabindex:"0","data-dp":n,onclick:go,onkeydown:press(go)},n.toLowerCase());
 }
-// where the term sits, as the Terms panel reads it: the term first, then each higher category; the ones with a readable definition
+// where the term sits, under its name: "is a functional thing is an existent", each higher category that has a readable definition
 // can be opened (`live`; a floating card is not)
 function upLine(n,live){
-  const names=(state.DATA.chains||{})[n]||[n]; if(names.length<2) return null;
+  const names=((state.DATA.chains||{})[n]||[n]).slice(1); if(!names.length) return null;
   return el("dd",{class:"tm-up"},el("p",null,names.flatMap((m,i)=>{
-    const low=m.toLowerCase(), word=!i?el("b",{text:low}):live&&hasDef(state.DATA.terms[m])?parentMark(m):low;
-    return i?[" ",el("i",{class:"isa",text:isA(low)})," ",word]:[word];
+    const low=m.toLowerCase(), word=live&&hasDef(state.DATA.terms[m])?parentMark(m):low;
+    return [i?" ":"",el("i",{class:"isa",text:isA(low)})," ",word];
   })));
 }
 // The same entry as the Terms panel had: the name and chapter, where the term sits, then the definition, in English and, if chosen, Russian.

@@ -20,7 +20,6 @@
 .tm-defs .src{font:400 12px/1.4 var(--body);color:var(--ink-muted);font-style:italic}
 .tm-defs dd.out p:not(.src){color:var(--ink-muted)}
 .tm-defs dd.tm-up{display:block;font:400 13px/1.45 var(--text-serif);color:var(--ink-muted)}
-.tm-up b{color:var(--ink)}
 .tm-up .isa{font-size:.85em}
 .tm-locked{display:grid;gap:10px;padding-top:10px;border-top:1px solid var(--line)}
 .tm-key{margin:0;font:400 14px/1.5 var(--text-serif)}

@@ -78,14 +78,16 @@ withKey("a definition shows where its term sits, and a higher category opens in 
   expect(at, "some term of the pair has a higher category with a definition").toBeGreaterThanOrEqual(0);
   const first = await def.locator("dt").innerText();
   const parent = (await up.first().innerText()).toLowerCase();
-  await expect(def.locator(".tm-up b")).toHaveText(first.split(" · ")[0].toLowerCase()); // the term itself, plain, then its categories
+  const name = first.split(" · ")[0];
+  await expect(def.locator(".tm-up")).toHaveText(/^is[\s\u00a0]an?[\s\u00a0]/); // the categories only: the name is above, not repeated
+  expect((await def.locator(".tm-up").innerText()).toLowerCase()).not.toContain(name.toLowerCase());
 
   await up.first().click();
   await expect(def).toHaveCount(1); // the card is replaced in its place, never stacked
   expect((await def.locator("dt").innerText()).toLowerCase()).toContain(parent);
   await expect(marks.nth(at)).toHaveAttribute("aria-expanded", "true");
   const back = def.locator(".ddback");
-  await expect(back).toHaveText(new RegExp(first.split(" · ")[0], "i"));
+  await expect(back).toHaveText(new RegExp(name, "i"));
   expect(await overflow(page)).toBeLessThanOrEqual(0);
 
   await back.click();
