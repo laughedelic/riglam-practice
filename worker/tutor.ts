@@ -78,9 +78,10 @@ export function describeFailure(e: unknown): { code: ErrorCode; message: string 
 
 /**
  * Runs the question. Never throws: the result says how it ended, and `emit` has been told. `model` and `effort` answer in place of the configured ones
- * (Quorum asks the same question of several models, worker/quorum.ts).
+ * (Quorum asks the same question of several models, worker/quorum.ts). `onRound` is told as each round starts: the text of a round that ends in a lookup
+ * is streamed like any other, and a caller that wants the final answer alone starts again from there.
  */
-export async function runTutor(p: { client: Anthropic; kit: Kit; config: Config; request: TutorRequest; emit: Emit; signal: AbortSignal; model?: string; effort?: Config["effort"] }): Promise<Outcome> {
+export async function runTutor(p: { client: Anthropic; kit: Kit; config: Config; request: TutorRequest; emit: Emit; signal: AbortSignal; model?: string; effort?: Config["effort"]; onRound?: () => void }): Promise<Outcome> {
   const { client, kit, config, emit, signal } = p;
   const model = p.model ?? config.model;
   const effort = p.effort ?? config.effort;
@@ -92,6 +93,7 @@ export async function runTutor(p: { client: Anthropic; kit: Kit; config: Config;
 
   while (rounds < config.maxRounds) {
     rounds += 1;
+    p.onRound?.();
     const lastRound = rounds === config.maxRounds;
     let sent = Promise.resolve();
     let chars = 0;

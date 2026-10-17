@@ -120,6 +120,10 @@ export async function runQuorum(p: {
       signal,
       model: who.id,
       effort,
+      // the words before a lookup are not the answer, and glued to its first line they would hide the fact lines the answer starts with
+      onRound: () => {
+        text = "";
+      },
       emit: async (e) => {
         if (e.type === "delta") text += e.text;
         else if (e.type === "done") truncated = e.truncated;

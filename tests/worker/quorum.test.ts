@@ -209,6 +209,19 @@ describe("when the models differ", () => {
     expect(log(s)).toEqual([{ kind: "explain", model: "quorum", outcome: "answered", micro: 20200, rounds: 4 }]);
   });
 
+  it("reads the answer a model gives after a lookup, not the words it said before the lookup", async () => {
+    const s = await setup();
+    // the words before the lookup would run straight into the first fact line ("Let me look. Both: ...") and hide it
+    const lookup: Round = { text: ["Let me look. "], tool: { id: "tu_1", name: "lookup_term", input: { name: "form" } }, usage: { input: 1000, output: 10 } };
+    const { res, models } = await quorum(s, { [HAIKU]: [lookup, text(ANB, "First tail.")], [SONNET]: [text(BOTH, "Second tail.")], [OPUS]: [text(BOTH, "Third tail."), text(ANB, "Judge tail.")] });
+    const got = await events(res);
+    expect(models.calls).toHaveLength(5); // Haiku twice, Sonnet, Opus, and the judge: Haiku's reading counted, so the answers differ
+    const record = (got.find((e) => e.type === "quorum") as any).record;
+    expect(record).toMatchObject({ shown: "Judge", why: "disagree" });
+    expect(record.models[0]).toMatchObject({ name: "Haiku", ok: true, text: `${ANB}\nFirst tail.` });
+    expect(JSON.parse(stored(s)[0].things)).toEqual([{ example: "a table", lines: ["both"], cells: { Haiku: "anb", Sonnet: "both", Opus: "both", Judge: "anb" } }]);
+  });
+
   it("shows the strongest answer that came when the judge fails, and says so in the record", async () => {
     const s = await setup();
     const { res } = await quorum(s, { ...differing, [OPUS]: [text(ANB, "Third tail."), { error: { status: 500, type: "api_error" } }] });
