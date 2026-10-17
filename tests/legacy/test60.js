@@ -19,12 +19,12 @@ async function phoneQs(pg,sayWhyAt){
   await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(120);
   await pg.locator('.qcard .btn.ghost').click(); await pg.waitForTimeout(80); await pg.fill('#dex','a clay pot'); await pg.keyboard.press('Enter'); await pg.waitForTimeout(200);
   await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(200);
-  const st=await pg.evaluate(()=>{const r=document.querySelector('.rcpt'); return {marks:[...r.querySelectorAll('.ri')].map(b=>({m:b.querySelector('.rw').innerText.trim(),t:b.title,a:b.getAttribute('aria-label'),col:getComputedStyle(b.querySelector('.rw')).color,bg:getComputedStyle(b.querySelector('.rw')).backgroundColor})),text:r.innerText,h:Math.round(r.getBoundingClientRect().height),sw:r.scrollWidth,cw:r.clientWidth};});
-  ok(w+' px: the strip shows a check for Accept and ?! for Why?',st.marks.map(x=>x.m).join('|')==='✓|?!|✓',st.marks);
+  const st=await pg.evaluate(()=>{const r=document.querySelector('.rcpt'); return {marks:[...r.querySelectorAll('.ri')].map(b=>({m:b.querySelector('.ar').innerText.trim(),t:b.title,a:b.getAttribute('aria-label'),col:getComputedStyle(b.querySelector('.ar')).color,bg:getComputedStyle(b.querySelector('.ar')).backgroundColor})),text:r.innerText,h:Math.round(r.getBoundingClientRect().height),sw:r.scrollWidth,cw:r.clientWidth};});
+  ok(w+' px: the strip shows ⇒ for Accept and ⇏ for Why?',st.marks.map(x=>x.m).join('|')==='⇒|⇏|⇒',st.marks);
   ok(w+' px: no words in the strip (no Accept, no Why)',!/accept|why/i.test(st.text),st.text);
-  ok(w+' px: both marks have one neutral colour, not the green or red of a grade',st.marks.every(x=>x.col===st.marks[0].col)&&st.marks[0].col===await rgb(pg,'var(--ink-muted)')&&st.marks.every(x=>x.bg==='rgba(0, 0, 0, 0)'),st.marks);
-  ok(w+' px: each tag still says in words what it is (title and label)',st.marks[0].t==='Accepted'&&st.marks[1].t==='Why?!'&&/Accepted/.test(st.marks[0].a)&&/Why\?!/.test(st.marks[1].a),st.marks);
-  ok(w+' px: three answers fit on one row without overflow',st.h<=40&&st.sw<=st.cw+1,st);
+  ok(w+' px: both arrows have one neutral colour, not the green or red of a grade',st.marks.every(x=>x.col===st.marks[0].col)&&st.marks[0].col===await rgb(pg,'var(--ink)')&&st.marks.every(x=>x.bg==='rgba(0, 0, 0, 0)'),st.marks);
+  ok(w+' px: each tag still says in words what it is (title and label); the title of a Why?! also holds its example, which the row no longer shows',st.marks[0].t==='Accepted'&&st.marks[1].t==='Why?!, a clay pot'&&/Accepted/.test(st.marks[0].a)&&/Why\?!/.test(st.marks[1].a),st.marks);
+  ok(w+' px: three answers fit in two rows without overflow',st.h<=60&&st.sw<=st.cw+1,st);
   await pg.locator('.rcpt .ri').nth(0).click(); await pg.waitForTimeout(120);
   const pa=await pg.evaluate(()=>{const p=document.querySelector('.rcpt .rdet .pill.acc'); const s=getComputedStyle(p); return {t:p.innerText,bg:s.backgroundColor,col:s.color,tt:s.textTransform};});
   ok(w+' px: the open tag says "✓ Accepted" in a quiet tag, not marigold',pa.t==='✓ Accepted'&&pa.bg!==await rgb(pg,'var(--marigold)')&&pa.col===await rgb(pg,'var(--ink-muted)'),pa);
@@ -36,13 +36,13 @@ async function phoneQs(pg,sayWhyAt){
     // the relation step uses the same marks
     await pg.locator('.rcpt .ri').nth(1).click(); await pg.waitForTimeout(80);
     await pg.locator(".qcard .btn").first().click(); await pg.waitForTimeout(250);
-    const rs=await pg.evaluate(()=>[...document.querySelectorAll('.rcpt .ri .rw')].map(x=>x.innerText.trim()).join('|'));
-    ok('the relation step strip uses the same marks',rs==='✓|?!|✓|✓',rs);
+    const rs=await pg.evaluate(()=>[...document.querySelectorAll('.rcpt .ri .ar')].map(x=>x.innerText.trim()).join('|'));
+    ok('the relation step strip uses the same marks',rs==='⇒|⇏|⇒|⇒',rs);
     // the result: the same marks, each with a grade in front; an opened answer says ✓ Accepted / Why?!
     const rel=await pg.evaluate(()=>window.__t.cur.p.relation);
     await pg.locator('.rels .rel').nth(ORDER[rel]).click(); await pg.waitForTimeout(300);
-    const rm=await pg.evaluate(()=>[...document.querySelectorAll('.rcpt.graded .ri .rw')].map(x=>x.innerText.trim()).join('|'));
-    ok('in the result the row keeps the same marks, each graded by color only',rm==='✓|?!|✓|✓'&&await pg.locator('.rcpt.graded .ri[class*="gr-"]').count()===4&&await pg.locator('.rcpt.graded .ri .gm').count()===0,rm);
+    const rm=await pg.evaluate(()=>[...document.querySelectorAll('.rcpt.graded .ri .ar')].map(x=>x.innerText.trim()).join('|'));
+    ok('in the result the row keeps the same marks, each graded by color only',rm==='⇒|⇏|⇒|⇒'&&await pg.locator('.rcpt.graded .ri[class*="gr-"]').count()===4&&await pg.locator('.rcpt.graded .ri .gm').count()===0,rm);
     await pg.locator('.rcpt.graded .ri').nth(1).click(); await pg.waitForTimeout(120);
     const pills=await pg.evaluate(()=>[...document.querySelectorAll('.rcpt .rdet .pill')].map(p=>p.innerText.trim()));
     ok('an opened answer in the result carries the state word',pills.length===1&&pills[0]==='Why?!',pills);

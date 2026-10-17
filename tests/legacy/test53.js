@@ -1,7 +1,7 @@
 const {open}=require('./harness.js');
 const D=require('./harness.js').SHOTS;
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
-const items=pg=>pg.evaluate(()=>[...document.querySelectorAll('.rcpt .ri')].map(r=>({n:r.querySelector('.n').innerText,w:r.querySelector('.rw').innerText,ex:(r.querySelector('.exn')||{}).innerText||'',cls:r.className})));
+const items=pg=>pg.evaluate(()=>[...document.querySelectorAll('.rcpt .ri')].map(r=>({n:r.querySelector('.n').innerText,f:r.querySelector('.fx').innerText.trim(),ar:r.querySelector('.ar').innerText.trim(),title:r.title,cls:r.className})));
 (async()=>{
  for(const [w,h] of [[390,844],[320,640]]){
   const {br,pg,errs}=await open({width:w,height:h},{isMobile:true,hasTouch:true});
@@ -9,12 +9,12 @@ const items=pg=>pg.evaluate(()=>[...document.querySelectorAll('.rcpt .ri')].map(
   await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(60);
   await pg.locator('.qcard .btn.ghost').click(); await pg.waitForTimeout(60); await pg.fill('#dex','a clay pot filled with water'); await pg.keyboard.press('Enter'); await pg.waitForTimeout(80);
   let it=await items(pg);
-  ok(w+' px: after two answers the receipt lists Q1 and Q2 in order',it.length===2&&it[0].n==='Q1'&&it[1].n==='Q2'&&it[0].w.trim()==='✓'&&it[1].w.trim()==='?!'&&/clay/.test(it[1].ex),it);
+  ok(w+' px: after two answers the receipt lists 1 and 2 in order, ⇒ then ⇏, the example is in the title only',it.length===2&&it[0].n==='1'&&it[1].n==='2'&&it[0].ar==='⇒'&&it[1].ar==='⇏'&&it[1].f==='A ⇏ B'&&/clay/.test(it[1].title),it);
   await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(400);
   it=await items(pg);
-  ok(w+' px: after three answers: Q1, Q2, Q3',it.map(x=>x.n).join()==='Q1,Q2,Q3'&&it[2].w.trim()==='✓',it);
-  const g=await pg.evaluate(()=>{const r=document.querySelector('.rcpt'), b=r.getBoundingClientRect(), s=document.getElementById('stage').getBoundingClientRect(); return {h:Math.round(b.height), inside:b.left>=s.left-0.5&&b.right<=s.right+0.5, doc:document.documentElement.scrollWidth<=innerWidth, ex:(()=>{const x=r.querySelector('.exn'); return x&&x.scrollWidth>x.clientWidth;})()};});
-  ok(w+' px: the receipt stays inside the screen and within two lines',g.inside&&g.doc&&g.h<=(w>=390?52:70),g);
+  ok(w+' px: after three answers: 1, 2, 3 and the third statement is B ⇒ A',it.map(x=>x.n).join()==='1,2,3'&&it[2].f==='B ⇒ A'&&it[2].ar==='⇒',it);
+  const g=await pg.evaluate(()=>{const r=document.querySelector('.rcpt'), b=r.getBoundingClientRect(), s=document.getElementById('stage').getBoundingClientRect(); return {h:Math.round(b.height), inside:b.left>=s.left-0.5&&b.right<=s.right+0.5, doc:document.documentElement.scrollWidth<=innerWidth};});
+  ok(w+' px: the receipt stays inside the screen and within two lines of formulas',g.inside&&g.doc&&g.h<=60,g);
   await pg.screenshot({path:D+'v53-receipt-'+w+'.png',clip:{x:0,y:60,width:w,height:Math.min(h-60,360)}});
   ok(w+' px: the live card is still the current question (marks done,done,done,now)',await pg.evaluate(()=>[...document.querySelectorAll('.qcard .prog i')].map(i=>i.className||'-').join(','))==='done,done,done,now');
   ok(w+' px: no page errors',errs.filter(e=>!/fonts|ERR_|proxy/i.test(e)).length===0,errs);
@@ -28,7 +28,7 @@ const items=pg=>pg.evaluate(()=>[...document.querySelectorAll('.rcpt .ri')].map(
   await pg.click('.trow .tval'); await pg.waitForTimeout(80); await pg.keyboard.press('Control+a'); await pg.keyboard.type('2'); await pg.keyboard.press('Enter'); await pg.waitForTimeout(150);
   await pg.waitForTimeout(2400);
   const it=await items(pg);
-  ok('a question that timed out shows in the receipt with "time ran out"',it.length>=1&&/time ran out/.test(it[0].ex),it);
+  ok('a question that timed out shows in the receipt, its title says "time ran out"',it.length>=1&&/time ran out/.test(it[0].title),it);
   await br.close();
  }
  console.log(out.join('\n')); process.exit(out.some(l=>l.startsWith('FAIL'))?1:0);

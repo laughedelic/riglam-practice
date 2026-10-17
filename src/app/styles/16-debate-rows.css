@@ -1,6 +1,16 @@
-/* the four answers of a debate on the result: the row of answers stays (see 21 and 23) and the number of each answer takes the color of its
-   cell in the table (right, wrong, unsure; not checked keeps the muted ink). The ✓ and ?! after the number are still the answers, in neutral ink */
+/* the four answers of a debate, as formulas: the number of the question, then the statement with its answer as the arrow (⇒ accepted, ⇏ Why?!).
+   The letters are colored like the A and B chips; "not" is the red italic of the table headings */
+.rcpt .n{flex:none;min-width:.7em;font:700 11px/1.4 var(--body);color:var(--ink-muted)}
+.rcpt .fx{white-space:nowrap}
+.rcpt .ab{font:700 14px/1.4 var(--body);color:var(--vermilion-ink)} .rcpt .ab.lb{color:var(--heading)}
+.rcpt .ar{margin:0 .1em;font-size:16px;line-height:1}
+.rcpt .ri.to .ar{color:var(--faint)}
+/* the number of an answer takes the color of its cell in the table (right, wrong, unsure; not checked keeps the muted ink) */
 .rcpt .ri.gr-ok .n{color:var(--cell-ok)} .rcpt .ri.gr-bad .n{color:var(--bad)} .rcpt .ri.gr-uns .n{color:var(--cell-uns)}
+/* the same number in the top right corner of the cell, so the row and the table read together; the first line of the cell leaves room for it */
+.cnum{position:absolute;top:4px;right:6px;font:700 11px/1 var(--body);color:var(--ink-muted);pointer-events:none}
+.cell:has(>.cnum)>:first-child{padding-right:8px}
+.cell.v-ok .cnum{color:var(--cell-ok)} .cell.v-bad .cnum{color:var(--bad)} .cell.v-uns .cnum{color:var(--cell-uns)}
 .verdict .rcpt{margin-top:10px}
 /* what an answer earned, in the tag opened on the result */
 .fbq{display:block;font-size:13px;line-height:1.45;color:var(--ink-muted)}
