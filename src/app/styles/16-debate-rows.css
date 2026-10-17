@@ -1,7 +1,6 @@
-/* the four answers of a debate on the result: the row of answers stays (see 21 and 23) and each answer gets its grade in front.
-   The ✓ and ?! after the number are still the answers, in neutral ink; the grade before it is green, red or yellow like the table */
-.rcpt .gm{flex:none;font:700 13px/1.3 var(--body)}
-.rcpt .gm.ok{color:var(--cell-ok)} .rcpt .gm.bad{color:var(--bad)} .rcpt .gm.part{color:var(--cell-open)}
+/* the four answers of a debate on the result: the row of answers stays (see 21 and 23) and the number of each answer takes the color of its
+   cell in the table (right, wrong, unsure; not checked keeps the muted ink). The ✓ and ?! after the number are still the answers, in neutral ink */
+.rcpt .ri.gr-ok .n{color:var(--cell-ok)} .rcpt .ri.gr-bad .n{color:var(--bad)} .rcpt .ri.gr-uns .n{color:var(--cell-uns)}
 .verdict .rcpt{margin-top:10px}
 /* what an answer earned, in the tag opened on the result */
 .fbq{display:block;font-size:13px;line-height:1.45;color:var(--ink-muted)}

@@ -42,7 +42,7 @@ async function phoneQs(pg,sayWhyAt){
     const rel=await pg.evaluate(()=>window.__t.cur.p.relation);
     await pg.locator('.rels .rel').nth(ORDER[rel]).click(); await pg.waitForTimeout(300);
     const rm=await pg.evaluate(()=>[...document.querySelectorAll('.rcpt.graded .ri .rw')].map(x=>x.innerText.trim()).join('|'));
-    ok('in the result the row keeps the same marks, each with a grade',rm==='✓|?!|✓|✓'&&await pg.locator('.rcpt.graded .ri .gm').count()===4,rm);
+    ok('in the result the row keeps the same marks, each graded by color only',rm==='✓|?!|✓|✓'&&await pg.locator('.rcpt.graded .ri[class*="gr-"]').count()===4&&await pg.locator('.rcpt.graded .ri .gm').count()===0,rm);
     await pg.locator('.rcpt.graded .ri').nth(1).click(); await pg.waitForTimeout(120);
     const pills=await pg.evaluate(()=>[...document.querySelectorAll('.rcpt .rdet .pill')].map(p=>p.innerText.trim()));
     ok('an opened answer in the result carries the state word',pills.length===1&&pills[0]==='Why?!',pills);

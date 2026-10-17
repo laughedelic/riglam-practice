@@ -39,9 +39,9 @@ function debateResult(u,p,lead){
     {key:"ex",label:"Examples",st:r.exBad?"bad":r.exOpen?"open":"ok",body:()=>el("p",null,el("b",{text:"Examples: "}),exLine(r,QCELL))},
     termsItem(p),tutorItem(),labItem()].filter(Boolean),lead);
 }
-// how a question was judged: right, wrong, or "?" for an example that is not checked
-const qGrade=rr=>rr.v==="ok"?"ok":rr.v==="bad"?"bad":"part";
-const GRADE={ok:["\u2713","right"],bad:["\u2717","wrong"],part:["?","not checked"]};
+// how a question was judged, the same four states as its cell in the table (right, wrong, not checked, unsure); the row shows it by color only
+const qGrade=rr=>rr.uns?"uns":rr.v;
+const GRADE={ok:"right",bad:"wrong",cmp:"not checked",uns:"unsure"};
 // an answer opened on the result: the statement, the answer with its time, what it earned and Claude's note on it
 function questionBody(u,i){
   const c=QCELL[i], rr=u.res.cells[c], a=u.ans[i], ex=explainParts();
@@ -74,7 +74,7 @@ const progStrip=i=>el("span",{class:"prog","aria-hidden":"true"},[0,1,2,3].map(k
 const qnParts=i=>[progStrip(i),"Question "+(i+1),el("span",{class:"sr",text:" of 4"}),Wd().lead?el("span",{class:"lead",text:Wd().lead}):null];
 // the answers given so far, kept above the next question on a phone so none looks discarded: "Q1 ✓   Q2 ?! an example ...".
 // No verdict while asking. An example is cut at about eight letters of width; the table shows it whole.
-// After Check the row stays on the result and each answer gets its grade in front, "✗ Q1 ✓   ✓ Q2 ?! an example ...";
+// After Check the row stays on the result and the number of each answer takes the color of its grade (as its cell does);
 // a tag then opens how that answer was judged, apart from the table of examples.
 function receiptNode(u,count,enter){
   const w=Wd(), graded=!!u.checked;
@@ -84,10 +84,9 @@ function receiptNode(u,count,enter){
     const word=kind==="acc"?w.acd:kind==="why"?w.wyd:"Time out", mark=kind==="acc"?"\u2713":kind==="why"?"?!":"";
     const extra=a.say==="why"&&a.text?a.text:a.timeout&&a.say==="accept"?"time ran out":"";
     const on=u.ro===i, g=graded?qGrade(u.res.cells[QCELL[i]]):null;
-    return el("button",{type:"button",class:"ri "+kind+(on?" on":""),"aria-expanded":on?"true":"false",title:word,
-      "aria-label":"Question "+(i+1)+": "+word+(extra?", "+extra:"")+(g?", "+GRADE[g][1]:"")+". "+(on?"Hide":"Show")+(g?" how it was judged":" the statement and your answer"),
+    return el("button",{type:"button",class:"ri "+kind+(g?" gr-"+g:"")+(on?" on":""),"aria-expanded":on?"true":"false",title:word+(g?", "+GRADE[g]:""),
+      "aria-label":"Question "+(i+1)+": "+word+(extra?", "+extra:"")+(g?", "+GRADE[g]:"")+". "+(on?"Hide":"Show")+(g?" how it was judged":" the statement and your answer"),
       onclick:()=>{ u.ro=on?null:i; render(); }},
-      g?el("span",{class:"gm "+g,"aria-hidden":"true",text:GRADE[g][0]}):null,
       el("b",{class:"n",text:"Q"+(i+1)}),el("span",{class:"rw"+(mark?" rmk":""),"aria-hidden":mark?"true":null,text:mark||word}),extra?el("span",{class:"exn",text:extra,title:extra}):null);
   });
   // a tag opens the statement and the answer in full under the row (after Check also what it earned); the row itself stays as it is
