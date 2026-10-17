@@ -6,6 +6,7 @@ import { CELL_NAME } from "../../ai-shared/prompts.ts";
 import { canAsk } from "../core/ask.js";
 import { NAME_CELL, VERDICT_RE } from "../../domain/verdict.ts";
 import { $, L, el } from "../core/dom.js";
+import { lockIcon } from "../core/icons.js";
 import { CELLS, ORDER, REL, cellLabel, lcRel, notaOf, notaParts } from "../core/rel.js";
 import { gradeOf } from "../core/util.js";
 import { isWide } from "../core/viewport.js";
@@ -15,7 +16,7 @@ import { favBtn } from "./favorites.js";
 import { check } from "./grading.js";
 import { next } from "./queue.js";
 import { skipActs, subRowNode } from "./skips.js";
-import { defCard, hasDefs, termsNode, withTerms } from "./terms.js";
+import { defCard, termsNode, withTerms } from "./terms.js";
 import { answerList } from "./universe.js";
 import { exGrid } from "../review/review.js";
 import { openChat, tutorTurns } from "../shell/chat.js";
@@ -92,8 +93,6 @@ function quizCell(c){
 const REL_LABEL=/^(common locus|pervasion|relation)$/i;
 // A note opens under the heading "Why?", so the "Why?" the tutor starts a debate line with would be said twice.
 const WHY_LEAD=/^why\?\s+(?=\S)/i;
-// the line under a note: how to read the definitions of the terms it underlines, or, with none underlined, that the definitions are one chip away
-const defsHint=marked=>marked?el("p",{class:"popnote",text:"Tap an underlined term for its definition."}):hasDefs(state.cur.p)?el("p",{class:"popnote",text:"Definitions of these terms are under Terms."}):null;
 export function explainParts(){
   const out={cells:{},rest:[]};
   const a=state.ui&&state.ui.chat&&state.ui.chat.find(t=>t.role==="assistant"&&t.kind==="explain"&&!t.pending&&t.content);
@@ -124,14 +123,14 @@ export function relPopNode(){
   const rest=explainParts().rest; if(!rest.length) return null;
   const fl=aiFlag(aiCase("explain","Claude’s note on the relation",rest.map(([k,t])=>k+": "+t).join("\n"),"rel"),"pop:rel"), seen=new Set();
   return el("div",{class:"pop rpop",role:"dialog","aria-label":"Claude's explanation of the relation",tabindex:"-1"},el("p",{class:"clh",text:"Why?"}),fl,
-    rest.flatMap(([k,t],i)=>[el("p",null,k?el("b",{text:k+": "}):null,withTerms(t,"rel"+i,seen)),defCard("rel"+i)]),defsHint(seen.size),flagEditorNode("pop:rel"),
+    rest.flatMap(([k,t],i)=>[el("p",null,k?el("b",{text:k+": "}):null,withTerms(t,"rel"+i,seen)),defCard("rel"+i)]),flagEditorNode("pop:rel"),
     el("button",{type:"button",class:"popx",onclick:e=>{ e.stopPropagation(); state.ui.pop=null; render(); },text:"Close"}));
 }
 export function popNode(){
   if(!state.ui||!state.ui.checked||!state.ui.pop||state.ui.pop==="rel") return null;
   const t=explainParts().cells[state.ui.pop]; if(!t) return null;
   const fl=aiFlag(aiCase("explain","Claude’s note on "+(state.ui.debate?"Q"+(QCELL.indexOf(state.ui.pop)+1):CELL_NAME[state.ui.pop]),t,state.ui.pop),"pop:"+state.ui.pop), seen=new Set();
-  return el("div",{class:"pop",role:"dialog","aria-label":"Claude's explanation",tabindex:"-1"},el("p",{class:"clh",text:"Why?"}),fl,el("p",null,withTerms(t,"pop:"+state.ui.pop,seen)),defCard("pop:"+state.ui.pop),defsHint(seen.size),flagEditorNode("pop:"+state.ui.pop),
+  return el("div",{class:"pop",role:"dialog","aria-label":"Claude's explanation",tabindex:"-1"},el("p",{class:"clh",text:"Why?"}),fl,el("p",null,withTerms(t,"pop:"+state.ui.pop,seen)),defCard("pop:"+state.ui.pop),flagEditorNode("pop:"+state.ui.pop),
     el("button",{type:"button",class:"popx",onclick:e=>{ e.stopPropagation(); state.ui.pop=null; render(); },text:"Close"}));
 }
 export function placePops(){
@@ -171,7 +170,18 @@ function quizResult(){
     {key:"ex",label:"Examples",st:r.exBad?"bad":r.exOpen?"open":"ok",body:()=>el("p",null,el("b",{text:"Examples: "}),exLine(r,CELLS),state.ui.exLate?" Time ran out; cells you had not reached count as empty.":null)},
     termsItem(p),tutorItem(),labItem()].filter(Boolean));
 }
-export const explainBtn=()=>canAsk()&&state.ui.checked&&!state.ui.explained&&!state.ui.ctl?el("button",{class:"btn ghost",type:"button",onclick:()=>ask(null,"explain"),text:state.ui.res.exOpen?"Check and explain":"Explain"}):null;
+// The grayed Explain opens the prompt for the Magic Key; once a key is taken, the question the reader asked for goes out (if this is still the same result).
+function askAfterKey(){
+  const U=state.ui;
+  Promise.resolve(state.unlock.open()).then(taken=>{ if(taken&&state.ui===U&&canAsk()&&U.checked&&!U.explained&&!U.ctl) ask(null,"explain"); });
+}
+export const explainBtn=()=>{
+  if(!state.ui.checked||state.ui.explained||state.ui.ctl) return null;
+  if(canAsk()) return el("button",{class:"btn ghost",type:"button",onclick:()=>ask(null,"explain"),text:state.ui.res.exOpen?"Check and explain":"Explain"});
+  // The server has a tutor but this device has no Magic Key: the button is there, grayed, and says what it needs when tapped.
+  if(state.unlock&&state.unlock.tutor) return el("button",{class:"btn ghost needs-key",type:"button","aria-disabled":"true",title:"Explain needs the Magic Key",onclick:askAfterKey},lockIcon(),"Explain");
+  return null;
+};
 export const nextBtn=()=>el("button",{class:"btn",type:"button",onclick:next,text:state.cur.retry&&!state.retryQ.length?"Back to new pairs":"Next pair"});
 export const kbHints=(...rows)=>el("div",{class:"kbh"},rows.map(([k,t])=>el("span",null,el("b",{text:k}),t)));
 export function recentNode(c,list){

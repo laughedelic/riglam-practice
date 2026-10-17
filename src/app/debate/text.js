@@ -40,6 +40,12 @@ export const Wd=()=>WORDINGS[state.wording];
 export const termNode=x=>{ const lab=x==="A"?state.cur.p.a:state.cur.p.b, [w,...r]=(SING[american(lab)]||lab.replace(/^(\w+) things$/,"a $1 thing")).split(" ");
   return el("span",{class:"qterm"},el("span",{class:"keep"},state.showAB?[L(x)," "]:null,el("span",{class:"t",text:w})),r.length?el("span",{class:"t",text:" "+r.join(" ")}):null); };
 export const qNode=i=>Wd().q[i].map(x=>x==="A"||x==="B"?termNode(x):x===N?el("span",{class:"not",text:"not"}):x);
+// the four statements as formulas, the short form of the row of answers: 1 A ⇒ not B, 2 A ⇒ B, 3 B ⇒ A, 4 not A ⇒ B.
+// The arrow is the answer: ⇒ accepted, ⇏ Why?! (the logic notation of Options uses the same two). Letters, no chips: four chips in a row are too busy.
+const FORM=[["A",0,"B",1],["A",0,"B",0],["B",0,"A",0],["A",1,"B",0]];
+const fSide=(x,n)=>[n?el("span",{class:"not",text:"not"}):null,n?" ":null,el("span",{class:"ab"+(x==="B"?" lb":""),text:x})];
+export const formulaNode=(i,arrow)=>{ const [l,nl,r,nr]=FORM[i];
+  return el("span",{class:"fx"},fSide(l,nl)," ",el("span",{class:"ar math",text:arrow})," ",fSide(r,nr)); };
 // an answer at a glance: Accept is a filled tag, Why? an outlined one followed by the example.
 // The tags carry the marks of the short form (✓ and ?!); title and label words (acd, wyd) are the same words without the mark.
 // a Why? answer is spelled out as the sentence it asserts, so the example is tied to its cell:

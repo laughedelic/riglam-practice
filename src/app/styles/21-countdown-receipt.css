@@ -7,16 +7,12 @@
 .prog i{position:relative;width:13px;height:13px;clip-path:var(--rhombus);background:var(--line)}
 .prog i.done,.prog i.now{background:var(--ink)}
 .prog i.now::after{content:"";position:absolute;inset:3px;clip-path:var(--rhombus);background:var(--marigold)}
-.rcpt{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 14px;min-width:0;padding:6px 10px;background:var(--paper-tint);border:1px solid var(--line);font-size:13px;line-height:1.4;color:var(--ink-muted)}
-.rcpt .ri{display:inline-flex;align-items:baseline;gap:5px;min-width:0;max-width:100%}
-.rcpt .n,.rcpt .rw{flex:none;font:700 10.5px/1.4 var(--body);letter-spacing:.06em;text-transform:uppercase}
-/* a quiet tag, not a button: a glyph for what was said, no fill (the live Accept button is the marigold one) */
-.rcpt .rw::before{margin-right:4px}
-.rcpt .ri.to .rw::before{content:"\2013"}
-/* the marks are answers, not grades: one neutral ink for both, no green or red */
-.rcpt .rw.rmk{font:700 13px/1.3 var(--body);letter-spacing:0;text-transform:none;color:var(--ink-muted)}
-.rcpt .rw.rmk::before{content:none}
-.rcpt .exn{min-width:0;max-width:8em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--text-serif);font-style:italic}
+/* the answers so far: a key of four formulas in two columns, 1 and 2 above 3 and 4 as the cells lie in the table (see 16 for the formulas).
+   A third column takes the rest of the width, so an opened tag (rdet, see 23) can use all of it without widening the two */
+.rcpt{display:grid;grid-template-columns:repeat(2,max-content) minmax(0,1fr);align-items:baseline;gap:2px 0;min-width:0;padding:6px 10px;background:var(--paper-tint);border:1px solid var(--line);font-size:13px;line-height:1.4;color:var(--ink)}
+.rcpt .ri{display:inline-flex;align-items:baseline;gap:6px;min-width:0;max-width:100%}
+.rcpt .ri:nth-child(odd){grid-column:1}
+.rcpt .ri:nth-child(even){grid-column:2;margin-left:18px}
 @media (prefers-reduced-motion:no-preference){
   .qcard.enter{animation:qin .2s ease-out}
   .rcpt.enter{animation:rin .16s ease-out}
@@ -35,7 +31,7 @@
 /* the Russian name of a term, beside the English one in a definition entry: regular weight, muted like the Russian definition */
 .tm-defs dt .tm-ru{font-weight:400;color:var(--ink-muted)}
 /* Skip: a text link under the list or the card on a phone, a quiet button in the action row on a wide screen.
-   A skipped pair is neither right nor wrong, so it gets the neutral grey of "not checked": dashed, no red, no green. */
+   A skipped pair is neither right nor wrong, so it gets the neutral gray of "not checked": dashed, no red, no green. */
 .actions .skipw{color:var(--ink-muted);box-shadow:inset 0 0 0 1px var(--line)}
 .actions .skipw:hover{box-shadow:inset 0 0 0 1px var(--line),inset 0 -4px 0 var(--vermilion)}
 .sum .m.skip{align-self:start;width:18px;height:18px;margin-top:1px;border:1.5px dashed var(--faint);color:var(--ink-muted);font-size:12px;line-height:14px;text-align:center}

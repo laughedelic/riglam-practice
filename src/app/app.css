@@ -1,7 +1,7 @@
 /* The page's stylesheet, in cascade order. Each file is a layer over the ones before it (the page grew by versions, and a
    later block overrides an earlier rule on purpose), so the order of these lines is part of the style: keep it, and move a
    rule to another file only together with what depends on its position. Both builds import this file; docs/ARCHITECTURE.md. */
-@import "./styles/00-tokens.css"; /* colours, fonts, sizes and the felt tiles; the dark theme */
+@import "./styles/00-tokens.css"; /* colors, fonts, sizes and the felt tiles; the dark theme */
 @import "./styles/01-base.css"; /* reset, the edge bands, the body, the segmented control */
 @import "./styles/02-card.css"; /* the practice card: pair header, relation chip, relation list, table of answers */
 @import "./styles/03-result.css"; /* feedback, tutor text, action row and buttons, summary */

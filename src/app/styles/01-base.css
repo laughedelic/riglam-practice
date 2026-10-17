@@ -1,6 +1,6 @@
 *{box-sizing:border-box}
 html{background:var(--paper)}
-.band{position:fixed;top:0;bottom:0;width:var(--band);background:var(--band-colour);isolation:isolate;pointer-events:none;z-index:0}
+.band{position:fixed;top:0;bottom:0;width:var(--band);background:var(--band-color);isolation:isolate;pointer-events:none;z-index:0}
 .band.l{left:0} .band.r{right:0}
 .band::after,.plane::after{content:"";position:absolute;inset:0;mix-blend-mode:soft-light;opacity:var(--grain-strength);background:var(--grain) repeat}
 .band{--grain:var(--grain-crimson)}

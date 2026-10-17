@@ -1,5 +1,5 @@
-// The proof that a request comes from someone who has the study group's key (docs/DATA.md), without sending the key.
-// proof = HMAC-SHA256 over a fixed label and the device id, keyed with the data key, as base64url. The server holds the
+// The proof that a request comes from someone who has the Magic Key (src/ai/magic-key.ts, docs/DATA.md), without sending it.
+// proof = HMAC-SHA256 over a fixed label and the device id, keyed with the Magic Key's text, as base64url. The server holds the
 // same key (a secret) and recomputes it. The device id is a random value the app makes once per device; it is how the
 // server keeps one device's budget apart from another's. It proves nothing by itself: anyone can invent an id, so the
 // per-device limit stops accidents and one heavy user, and the global budget is the real limit.
@@ -21,13 +21,13 @@ const message = (device: string): Uint8Array<ArrayBuffer> => {
   return out;
 };
 
-const hmacKey = (key: string, usage: "sign" | "verify") => crypto.subtle.importKey("raw", fromBase64Url(key), { name: "HMAC", hash: "SHA-256" }, false, [usage]);
+const hmacKey = (key: string, usage: "sign" | "verify") => crypto.subtle.importKey("raw", new TextEncoder().encode(key), { name: "HMAC", hash: "SHA-256" }, false, [usage]);
 
 /** The id the app gives a device: 22 base64url characters of randomness. */
 export const DEVICE_ID = /^[A-Za-z0-9_-]{16,64}$/;
 export const newDeviceId = (): string => toBase64Url(crypto.getRandomValues(new Uint8Array(16)));
 
-/** The proof for `device`, made with the data key `key` (43 base64url characters). */
+/** The proof for `device`, made with the Magic Key `key` (its dashed words, as `parseMagicKey` gives them). */
 export async function makeProof(key: string, device: string): Promise<string> {
   return toBase64Url(new Uint8Array(await crypto.subtle.sign("HMAC", await hmacKey(key, "sign"), message(device))));
 }

@@ -8,9 +8,16 @@ function stub() {
   const rows: { path: string; col: string; id: string; data: unknown }[] = [];
   const store = {
     index: () => ({ getAll: (col: string) => ({ result: rows.filter((r) => r.col === col) }) }),
-    get: (path: string) => ({ result: rows.find((r) => r.path === path) }),
-    put: (r: (typeof rows)[number]) => { if (!control.fail && !control.failNext) rows.push(r); return {}; },
-    delete: () => ({}),
+    get: (path: string) => {
+      const req: { result?: unknown; onsuccess?: () => void } = { result: rows.find((r) => r.path === path) };
+      queueMicrotask(() => req.onsuccess?.());
+      return req;
+    },
+    put: (r: (typeof rows)[number]) => {
+      if (!control.fail && !control.failNext) { const at = rows.findIndex((x) => x.path === r.path); if (at >= 0) rows.splice(at, 1); rows.push(r); }
+      return {};
+    },
+    delete: (path: string) => { const at = rows.findIndex((x) => x.path === path); if (at >= 0) rows.splice(at, 1); return {}; },
   };
   const db = {
     transaction: (_store: string, mode: string) => {
@@ -98,5 +105,103 @@ describe("a write that could not be saved", () => {
     expect(await mine).toBe("failed");
     other.close();
     expect((await ref.get()).exists).toBe(false);
+  });
+});
+
+describe("a storage that never answers", () => {
+  const silent = { open: () => ({}) } as unknown as IDBFactory; // a request that neither succeeds nor fails
+
+  it("is given up on after the timeout: reads come back empty, writes stay in memory, and the page is told once", async () => {
+    let told = 0;
+    const db = createLocalDb({ indexedDB: silent, channel: false, timeoutMs: 30, onUnavailable: () => told++ });
+    const ref = db.doc("answers/a1");
+    expect((await ref.get()).exists).toBe(false); // waited for the timeout, not for ever
+    await ref.set({ v: 1 }); // does not wait again
+    expect((await ref.get()).data()).toEqual({ v: 1 });
+    expect(told).toBe(1);
+  });
+
+  it("says it is not usable once the storage stopped answering, and knows its own name", async () => {
+    const db = createLocalDb({ indexedDB: silent, channel: false, timeoutMs: 30, name: "riglam-2" });
+    expect(db.name).toBe("riglam-2");
+    expect(db.usable()).toBe(true);
+    await db.doc("answers/a1").get();
+    expect(db.usable()).toBe(false);
+  });
+
+  it("does not take the server's copy as received while the storage is not answering, so sync fetches it again", async () => {
+    const db = createLocalDb({ indexedDB: silent, channel: false, timeoutMs: 30 });
+    await expect(db.applyRemote("answers", "a1", { v: 1 })).rejects.toMatchObject({ code: "unavailable" });
+    expect((await db.doc("answers/a1").get()).exists).toBe(false);
+  });
+
+  it("does not report a storage that answers in time", async () => {
+    const { factory } = stub();
+    let told = 0;
+    const db = createLocalDb({ indexedDB: factory, channel: false, timeoutMs: 500, onUnavailable: () => told++ });
+    await db.doc("answers/a1").set({ v: 1 });
+    expect(told).toBe(0);
+  });
+});
+
+describe("the server's copy of a document (applyRemote with a revision)", () => {
+  it("is stored when nothing was written since the revision was read", async () => {
+    const { factory } = stub();
+    const db = createLocalDb({ indexedDB: factory, channel: false });
+    await db.doc("answers/a1").set({ v: 1 });
+    expect(await db.applyRemote("answers", "a1", { v: 2 }, db.revision("answers", "a1"))).toBe(true);
+    expect((await db.doc("answers/a1").get()).data()).toEqual({ v: 2 });
+  });
+
+  it("is dropped when the page wrote the document after that, even if that write is still being saved", async () => {
+    const { factory, control } = stub();
+    const db = createLocalDb({ indexedDB: factory, channel: false });
+    const ref = db.doc("answers/a1");
+    await ref.set({ v: 1 });
+    const revision = db.revision("answers", "a1");
+    control.delay = 20;
+    const saving = ref.set({ v: 3 }); // begun, not finished
+    expect(await db.applyRemote("answers", "a1", { v: 2 }, revision)).toBe(false); // refused, and it says so
+    await saving;
+    expect((await ref.get()).data()).toEqual({ v: 3 });
+  });
+
+  it("says a write by the page is under way from its start until onWrite has been told, and not for the server's copy", async () => {
+    const { factory, control } = stub();
+    const db = createLocalDb({ indexedDB: factory, channel: false });
+    const ref = db.doc("answers/a1");
+    await ref.set({ v: 1 });
+    const seen: boolean[] = [];
+    db.onWrite(() => void seen.push(db.writing("answers", "a1"))); // the hook runs before the write is over: it can note it first
+    expect(db.writing("answers", "a1")).toBe(false);
+    control.delay = 20;
+    const saving = ref.set({ v: 2 });
+    expect(db.writing("answers", "a1")).toBe(true);
+    await saving;
+    expect(seen).toEqual([true]);
+    expect(db.writing("answers", "a1")).toBe(false);
+    const remote = db.applyRemote("answers", "a1", { v: 3 });
+    expect(db.writing("answers", "a1")).toBe(false);
+    await remote;
+  });
+
+  it("is not stored over a value another tab wrote, which this tab has not heard of yet", async () => {
+    const { factory, rows } = stub();
+    const tabA = createLocalDb({ indexedDB: factory, channel: false });
+    const tabB = createLocalDb({ indexedDB: factory, channel: false });
+    await tabA.doc("answers/a1").set({ v: 1 });
+    await tabB.collection("answers").get(); // tab B has it too
+    await tabB.doc("answers/a1").set({ v: 3 }); // newer, in the storage; tab A's memory still says 1
+    expect(await tabA.applyRemote("answers", "a1", { v: 2 }, tabA.revision("answers", "a1"))).toBe(false);
+    expect(rows.find((r) => r.path === "answers/a1")?.data).toEqual({ v: 3 });
+    expect((await tabA.doc("answers/a1").get()).data()).toEqual({ v: 1 }); // the broadcast of tab B brings 3 in
+  });
+
+  it("is stored as before when no revision is given", async () => {
+    const { factory } = stub();
+    const db = createLocalDb({ indexedDB: factory, channel: false });
+    await db.doc("answers/a1").set({ v: 1 });
+    await db.applyRemote("answers", "a1", null);
+    expect((await db.doc("answers/a1").get()).exists).toBe(false);
   });
 });

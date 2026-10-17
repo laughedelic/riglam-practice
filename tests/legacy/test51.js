@@ -12,13 +12,13 @@ const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.
  const bar=await pg.evaluate(()=>{const i=document.querySelector('.qcard .tbar i'); const c=getComputedStyle(i).backgroundColor; const t=document.createElement('i'); t.style.color='var(--heading)'; document.body.append(t); const hc=getComputedStyle(t).color; t.remove(); return {c,hc};});
  ok('the countdown bar starts in the heading blue, not grey',bar.c===bar.hc,bar);
  await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(400);
- const r=await pg.evaluate(()=>{const p=document.querySelector('.rcpt .ri.acc'), w=p.querySelector('.rw'), s=getComputedStyle(p); return {bg:s.backgroundColor, glyph:w.innerText, col:getComputedStyle(w).color, ok:getComputedStyle(document.documentElement).getPropertyValue('--cell-ok').trim(), n:document.querySelectorAll('.rcpt .ri').length};});
- ok('receipt tag: no fill, a check mark in a neutral colour (not the green of a verdict), one entry per answer',r.bg==='rgba(0, 0, 0, 0)'&&/✓/.test(r.glyph)&&r.col!==r.ok&&r.n===1,r);
+ const r=await pg.evaluate(()=>{const p=document.querySelector('.rcpt .ri.acc'), w=p.querySelector('.ar'), s=getComputedStyle(p); return {bg:s.backgroundColor, glyph:w.innerText, f:p.querySelector('.fx').innerText.trim(), col:getComputedStyle(w).color, ok:getComputedStyle(document.documentElement).getPropertyValue('--cell-ok').trim(), n:document.querySelectorAll('.rcpt .ri').length};});
+ ok('receipt tag: no fill, the statement as a formula with ⇒ in a neutral colour (not the green of a verdict), one entry per answer',r.bg==='rgba(0, 0, 0, 0)'&&r.glyph==='⇒'&&r.f==='A ⇒ not B'&&r.col!==r.ok&&r.n===1,r);
  const live=await pg.evaluate(()=>getComputedStyle(document.querySelector('.qcard .btn')).backgroundColor);
  ok('the live Accept button keeps its marigold fill (receipt no longer looks like it)',live!==r.bg&&live!=='rgba(0, 0, 0, 0)',live);
  await pg.locator('.qcard .btn.ghost').click(); await pg.waitForTimeout(80); await pg.fill('#dex','a clay pot'); await pg.keyboard.press('Enter'); await pg.waitForTimeout(300);
- const r2=await pg.evaluate(()=>({n:[...document.querySelectorAll('.rcpt .ri .n')].map(e=>e.innerText).join(','),why:(document.querySelector('.rcpt .ri.why .rw')||{}).innerText,ex:(document.querySelector('.rcpt .ri.why .exn')||{}).innerText}));
- ok('receipt now lists Q1 and Q2; the Why? answer shows the mark ?! and its example',r2.n==='Q1,Q2'&&(r2.why||'').trim()==='?!'&&r2.ex==='a clay pot',r2);
+ const r2=await pg.evaluate(()=>({n:[...document.querySelectorAll('.rcpt .ri .n')].map(e=>e.innerText).join(','),why:(document.querySelector('.rcpt .ri.why .ar')||{}).innerText,f:(document.querySelector('.rcpt .ri.why .fx')||{}).innerText,txt:document.querySelector('.rcpt').innerText}));
+ ok('receipt now lists 1 and 2; the Why? answer is the arrow ⇏ on its formula, without the example (the tag opens it)',r2.n==='1,2'&&(r2.why||'').trim()==='⇏'&&(r2.f||'').trim()==='A ⇏ B'&&!/clay pot/.test(r2.txt),r2);
  ok('no page errors',errs.filter(e=>!/fonts|ERR_|proxy/i.test(e)).length===0,errs);
  await br.close();
  // short term beside a long one

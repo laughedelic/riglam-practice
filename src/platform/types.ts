@@ -7,7 +7,8 @@
 /** The term data as the page reads it (docs/DATA.md); the types live with the code that reads it. */
 import type { DrillData } from "../ai-shared/data";
 import type { TutorRequest } from "../ai/protocol";
-export type { DrillData };
+import type { Account, AccountView } from "../account/account";
+export type { DrillData, Account, AccountView };
 
 /** A stored document: a plain JSON object. */
 export type Doc = Record<string, any>;
@@ -114,6 +115,49 @@ export interface TutorOptions {
  */
 export type Tutor = (request: TutorRequest, options?: TutorOptions) => Promise<SampleResult>;
 
+/**
+ * `open` shows the prompt for the Magic Key; `tutor` says that the place has a tutor that is waiting for it (so the page shows Explain grayed).
+ * When the server needs time to say so, `tutor` starts false and `answer` settles with the real value: the page does not wait for it,
+ * sets `tutor` when it arrives and draws again.
+ */
+export interface Unlock {
+  /** Resolves when the prompt is closed: true if a key was entered and taken (the page has been told through `onKey`), otherwise false. */
+  open(): Promise<boolean>;
+  tutor: boolean;
+  answer?: Promise<boolean>;
+}
+
+/** Which build runs, for Options (platform.about). */
+export interface About {
+  version: string;
+  /** the commit the build was made from, short; ends in "+local" for a build with uncommitted changes */
+  commit: string;
+  builtAt: string;
+  /** whether the server has a newer build than this one; "unknown" while offline or when the server does not say */
+  latest: "current" | "newer" | "unknown";
+  /** the pull request branches a staging build was made from, when the server says */
+  branches?: string[];
+}
+
+/** Where the check for a newer version stands (platform.updates). */
+export type UpdateStatus =
+  | "current" // nothing newer was found at the last check
+  | "checking"
+  | "downloading" // a newer version was found and is being fetched in the background
+  | "ready" // a newer version is on the device and starts when the app is reloaded
+  | "unknown"; // the last check failed (no connection, or the server did not answer)
+
+/** Updating the installed app in place (src/pwa/updates.ts). The page shows the status in Options; the place shows its own prompt when a version is ready. */
+export interface Updates {
+  status(): UpdateStatus;
+  /** Asks the server for a newer version now. A check younger than `maxAgeMs` is not repeated. Never rejects. */
+  check(maxAgeMs?: number): Promise<void>;
+  /** Starts the version that is ready: the app reloads. Does nothing unless the status is "ready". */
+  apply(): void;
+  /** Calls `fn` whenever the status changes; returns the way to stop. */
+  subscribe(fn: () => void): () => void;
+}
+
 export interface Platform {
   /** Which build runs the page. Informational; the page must not branch on it. */
   readonly target: "pwa" | "artifact" | "test";
@@ -123,6 +167,29 @@ export interface Platform {
   db(): Promise<Db | null>;
   /** Model calls, or null when there are none (the page then hides the tutor, Explain and the check lab). */
   sample(): Promise<Sample | null>;
+  /** The way to enter the Magic Key (the study group's key: it opens the definitions and the tutor), or null (or absent) when the place has no key to ask for or this device has it. */
+  unlock?(): Promise<Unlock | null>;
+  /** The other half of `unlock`: set while this device has the Magic Key, null (or absent) otherwise. */
+  keyHeld?(): Promise<KeyHeld | null>;
+  /**
+   * Calls `tell` after a Magic Key typed in the prompt was taken into the running page, instead of reloading it: the page then asks
+   * `loadData`, `unlock`, `keyHeld` and `tutor` again and draws what it has, so the pair on the screen stays. `tell` may be async;
+   * the prompt waits for it. Returns the way to stop. A place that does not offer it makes the prompt reload the page.
+   */
+  onKey?(tell: () => void | Promise<void>): () => void;
   /** The app's own tutor, or null (or absent) when the place has none or the server has it switched off. The page uses `sample` first when it has one. */
   tutor?(): Promise<Tutor | null>;
+  /** The optional account (a passkey and a server copy of the documents, src/account), or null (or absent) when the place has none. The page works the same without. */
+  account?(): Promise<Account | null>;
+  /** Which build this is and whether a newer one is out, or null (or absent) when the place has no builds to tell apart (the artifact). */
+  about?(): Promise<About | null>;
+  /** Updating in place, or absent when the place has no installed copy to update (the artifact, the tests). */
+  updates?: Updates;
+}
+
+/** What a device that has the Magic Key can do with it: take another one (the study group changed it), or forget it (the definitions and the tutor lock again). */
+export interface KeyHeld {
+  /** As `Unlock.open`. */
+  change(): Promise<boolean>;
+  forget(): void;
 }

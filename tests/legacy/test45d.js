@@ -22,7 +22,7 @@ async function run(label,vp,opts,wide){
  ok(label+': chips include relation, examples, terms; no Questions chip (the answers have a row of their own)',chips.includes('relation')&&!chips.some(c=>/^questions/.test(c))&&chips.includes('examples')&&chips.includes('terms'),chips);
  ok(label+': at most one panel',await pg.locator(root+' .vpanel').count()<=1);
  const tags=pg.locator(root+' .rcpt.graded .ri');
- ok(label+': the result shows the four answers, each with a grade',await tags.count()===4&&await pg.locator(root+' .rcpt.graded .ri .gm').count()===4,await tags.count());
+ ok(label+': the result shows the four answers, each graded by the color of its number',await tags.count()===4&&await pg.locator(root+' .rcpt.graded .ri[class*="gr-"]').count()===4&&await pg.locator(root+' .rcpt.graded .ri .gm').count()===0,await tags.count());
  const chipOpen=()=>pg.locator(root+' .vchip[aria-selected=true]').allInnerTexts();
  const chip0=await chipOpen();
  const was=await tags.nth(1).getAttribute('aria-expanded');
