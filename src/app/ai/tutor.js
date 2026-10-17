@@ -3,7 +3,7 @@ import { $, el } from "../core/dom.js";
 import { canAsk } from "../core/ask.js";
 import { CELLS } from "../core/rel.js";
 import { persist } from "../practice/answers.js";
-import { factNode, fillTurn, revealTutor } from "../practice/screen.js";
+import { factNode, fillTurn, noteData, revealTutor } from "../practice/screen.js";
 import { render } from "../shell/render.js";
 import { cardBody, explainAsk, tutorCard } from "../../ai-shared/card.ts";
 import { pairCats } from "../../ai-shared/lookup.ts";
@@ -17,7 +17,7 @@ const TIER="default";
 // The card, the standing instructions, the explain request and the tools are built in src/ai-shared from the term data,
 // so that the Worker tutor produces the same text; the page passes `state` as the data index.
 function applyVerify(text,U,C){
-  const n=applyVerdicts(C.p,U.res,parseVerdicts(text));
+  const n=applyVerdicts(C.p,U.res,parseVerdicts(text,noteData(C.p))); // the cells settle as the notes read
   if(n&&state.db&&U.doc&&U.saveId){
     for(const c of CELLS){ U.doc.cells[c].verdict=U.res.cells[c].v; if(U.res.cells[c].by) U.doc.cells[c].by="claude"; }
     if(U.doc.qs) for(const q of U.doc.qs){ const r=U.res.cells[q.c]; q.verdict=r.v; if(r.by) q.by="claude"; }

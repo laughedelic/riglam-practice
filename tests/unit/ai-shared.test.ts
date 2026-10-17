@@ -231,14 +231,19 @@ test("the explain requests ask for the two facts about an example and the reason
     expect(ask).toContain("the most specific class in the card's list of classes that the example is");
     expect(ask).toContain("the page adds the steps above the class");
     expect(ask).toContain("when one reason serves both terms, write it on both sides;");
-    expect(ask).toContain("Connect the term to the class the reason excludes");
     expect(ask).toContain('add "; pervasion: " and one sentence on why only when it is not plain');
-    expect(ask).toContain("never for everyday differences such as two colors or two shapes");
-    expect(ask).toContain("Answer unsure only when the example's classification is really in doubt");
+    expect(ask).toContain("Never for everyday differences such as two colors or two shapes");
+    expect(ask).toContain("never the example's own name");
+    expect(ask).toContain("Start from the term and say what class it is in");
+    expect(ask).toContain('do not write "only"');
+    expect(ask).toContain("never answer against your own reason");
+    expect(ask).toContain('A feature the example\'s name does not fix, such as the color of "an apple"');
     expect(ask).not.toContain("so it fits");
     expect(ask).not.toContain("=> yes");
   }
   expect(DEBATE_ASK).not.toContain("You accepted");
+  expect(DEBATE_ASK).toContain("for a wrong Accept or a timeout the reference counter-example in the card, or one you name when the card has none");
+  expect(FIRST_ASK).toContain("for a cell marked wrong without one, the reference example in the card");
   expect(GUIDE).toContain("everyday facts such as a thing's color, shape or material need no source and no remark");
   expect(GUIDE).toContain("call it the reference, never the card");
   expect(DEBATE_ASK).toContain("Do not say what the right answer to the question was");

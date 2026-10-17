@@ -507,7 +507,7 @@ test("every category of the real data is in the pool, and the relations of the p
 // A note takes the steps the term data gives: up the "is a" chain to the term, or up to a class the data marks as excluding one
 // the term is in, with why under it. A listed example is placed as the grading places it; elsewhere the tutor's class counts.
 test("a note states the term data's steps: up the chain to the term, or to the class that excludes it", () => {
-  const S: Record<string, string> = { thoughts: "a thought", "sense powers": "a sense power", "external forms": "an external form", smells: "a smell", drinks: "a drink", "white things": "a white thing", "permanent phenomena": "a permanent phenomenon" };
+  const S: Record<string, string> = { "red things": "a red thing", food: "food", "wooden things": "a wooden thing", "musical instruments": "a musical instrument", thoughts: "a thought", "sense powers": "a sense power", "external forms": "an external form", smells: "a smell", drinks: "a drink", "white things": "a white thing", "permanent phenomena": "a permanent phenomenon" };
   const note = (a: string, ca: string, b: string, cb: string, line: string) => {
     const p = { a, b, catA: ca, catB: cb, relation: "4" as const }, terms = { a: S[a], b: S[b] };
     return factNote(parseFactLine(line)!, false, terms, { ix: rix, p, terms }).split("\n");
@@ -541,6 +541,21 @@ test("a note states the term data's steps: up the chain to the term, or to the c
   ]);
   // a listed example is placed by the data, whatever the tutor answered; without the data's steps the statement has no reason
   expect(note("drinks", "drink", "white things", "white", 'Q2: "a cup of hot tea" | A no: it is hot | B no: it is brown')[1]).toBe("It follows it is a drink.");
+  // an alias settles a side that is not about a feature: "an apple" is food whatever the tutor says, while its color stays the tutor's
+  const apple = 'Q2: "an apple" | A yes: it is a red apple | B no: it is eaten as food';
+  expect(note("red things", "red", "food", "food", apple).slice(1)).toEqual([
+    "It follows it is a red thing, because it is a red apple.",
+    "It follows it is food.",
+    "So it does not fit.",
+  ]);
+  const d = { ix: rix, p: { a: "red things", b: "food", catA: "red", catB: "food", relation: "4" as const }, terms: { a: "a red thing", b: "food" } };
+  expect(parseVerdicts(apple, d)).toEqual([{ cell: "anb", answer: "no" }]); // the cell settles as the note reads
+  expect(parseVerdicts(apple)).toEqual([{ cell: "anb", answer: "yes" }]); // without the data, the tutor's facts
+  // a permanent phenomenon is excluded from a form through functional thing
+  expect(note("wooden things", "wooden", "musical instruments", "instr", 'Q4: "the absence of an elephant in this room" | A no: it is an absence | B no: it is an absence').slice(1, 3)).toEqual([
+    "It follows it is not a wooden thing, because it is an absence, which is a permanent phenomenon.",
+    "A wooden thing is a form, which is a functional thing, and nothing is both a permanent phenomenon and a functional thing.",
+  ]);
   // the tutor's class does not overrule its own answer when they disagree
   expect(note("thoughts", "thought", "sense powers", "sp", 'Q2: "a hunch" | class: External form | A yes: it is a mind | B no: it is a hunch').slice(1, 3)).toEqual([
     "It follows it is a thought, because it is a mind.",

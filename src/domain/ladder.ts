@@ -72,11 +72,14 @@ export function rung(ix: DataIndex, cls: string, cat: Cat, subject: string, said
   return null;
 }
 
-/** The example as a listed practice item for the pair, as the grading finds it (`judgeText`), or null. */
-export function listedItem(ix: DataIndex, p: PairLike, example: string): Item | null {
+/**
+ * The example as a listed practice item for the pair, or null. By default as the grading finds it (`judgeText`): an alias ("apple"
+ * for "a red apple") does not count when either category is about a feature such as a color; `exactOnly` decides it instead.
+ */
+export function listedItem(ix: DataIndex, p: PairLike, example: string, exactOnly?: boolean): Item | null {
   const [ca, cb] = pairCats(ix, p);
   if (!ca || !cb) return null;
-  const it = matchItem(ix, example, FEATURE.has(ca) || FEATURE.has(cb));
+  const it = matchItem(ix, example, exactOnly ?? (FEATURE.has(ca) || FEATURE.has(cb)));
   return it && inUniverse(ix, it, ca, cb) ? it : null;
 }
 

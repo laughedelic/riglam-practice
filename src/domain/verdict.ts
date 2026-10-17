@@ -7,6 +7,7 @@ import { refOf } from "../ai-shared/relations";
 import type { CellId, PairLike } from "../ai-shared/relations";
 import { summarize } from "./grading";
 import { knownClass, listedItem, rung } from "./ladder";
+import { FEATURE } from "./universe";
 import type { GradeResult } from "./types";
 
 /** The end of a verdict line, which the page hides when it shows the tutor's answer. */
@@ -91,21 +92,32 @@ const sentence = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) + "." : "")
 export interface NoteData { ix: DataIndex; p: PairLike; terms: Terms }
 
 /**
+ * What the term data says of a fact line: the pair's categories, the example's class (a listed example's type, else the tutor's
+ * class when the data has it) and the two answers. A side the data settles for a listed example takes the data's answer, as the
+ * grading would: an alias ("an apple" for "a red apple") settles a side such as food, but not one about a feature such as red.
+ */
+export function placeFacts(f: FactLine, d?: NoteData): { cats: readonly [string | null, string | null]; cls: string; answers: readonly [Answer, Answer] } {
+  if (!d) return { cats: [null, null], cls: "", answers: [f.a.answer, f.b.answer] };
+  const cats = pairCats(d.ix, d.p), any = cats[0] ? listedItem(d.ix, d.p, f.example, false) : null;
+  const on = (cid: string | null, s: Side): Answer => {
+    const it = cid && any ? (FEATURE.has(cid) ? listedItem(d.ix, d.p, f.example, true) : any) : null;
+    return it && cid ? (it.c.includes(cid) ? "yes" : "no") : s.answer;
+  };
+  return { cats, cls: any ? any.t : knownClass(d.ix, f.cls), answers: [on(cats[0], f.a), on(cats[1], f.b)] };
+}
+
+/**
  * The note for a fact line. `accepted` is a debate question the learner accepted (or ran out of time on): the example is then the
  * tutor's counter-example to it. A note on an example that fits ends with its consequences; one that does not fit says so.
  * With the term data (`d`), a listed example is placed as the grading places it, and a side whose steps the data gives
  * (`rung`: up the chain to the term, or to a class that excludes it) takes those steps instead of the tutor's.
  */
 export function noteParts(f: FactLine, accepted: boolean, d?: NoteData): NotePart[] {
-  const cats = d ? pairCats(d.ix, d.p) : [null, null];
-  const item = d && cats[0] ? listedItem(d.ix, d.p, f.example) : null;
-  const cls = item ? item.t : d ? knownClass(d.ix, f.cls) : "";
-  const out: NotePart[] = [{ kind: "take", subject: f.example }], answers: Answer[] = [];
+  const { cats, cls, answers } = placeFacts(f, d);
+  const out: NotePart[] = [{ kind: "take", subject: f.example }];
   let said = "";
   for (const [k, side, s] of [[0, "A", f.a], [1, "B", f.b]] as const) {
-    const cid = cats[k], cat = d && cid ? d.ix.CAT[cid] : null;
-    const answer: Answer = item && cid ? (item.c.includes(cid) ? "yes" : "no") : s.answer;
-    answers.push(answer);
+    const cid = cats[k], cat = d && cid ? d.ix.CAT[cid] : null, answer = answers[k];
     if (answer === "unsure") { out.push({ kind: "unsure", side, say: plain(s.say) }); continue; }
     const r = readSide(s), own = answer === s.answer; // the tutor's reason is kept only for its own answer
     const g = d && cat && cls ? rung(d.ix, cls, cat, side === "A" ? d.terms.a : d.terms.b, own ? r.reason : "") : null;
@@ -136,12 +148,16 @@ export function partsText(parts: readonly NotePart[], terms: Terms): string {
 }
 export const factNote = (f: FactLine, accepted: boolean, terms: Terms, d?: NoteData): string => partsText(noteParts(f, accepted, d), terms);
 
-/** The verdicts in the tutor's text, in order. A line with the two facts gives the verdict its facts give; otherwise a line of the form `<cell>: <example> => yes|no|unsure` does. Other lines are ignored, also when bulleted or in bold. */
-export function parseVerdicts(text: string | null | undefined): CellVerdict[] {
+/** The verdicts in the tutor's text, in order. A line with the two facts gives the verdict its facts give (with the term data, as `placeFacts` settles them); otherwise a line of the form `<cell>: <example> => yes|no|unsure` does. Other lines are ignored, also when bulleted or in bold. */
+export function parseVerdicts(text: string | null | undefined, d?: NoteData): CellVerdict[] {
   const out: CellVerdict[] = [];
   for (const ln of (text || "").split("\n")) {
     const f = parseFactLine(ln);
-    if (f) { out.push({ cell: f.cell, answer: fitOf(f) }); continue; }
+    if (f) {
+      const [a, b] = placeFacts(f, d).answers; // with the term data, the answers the note shows
+      out.push({ cell: f.cell, answer: fitOf({ cell: f.cell, a: { answer: a, say: "" }, b: { answer: b, say: "" } }) });
+      continue;
+    }
     const m = ln.replace(/^[-•*\s]+/, "").replace(/\*\*/g, "").match(/^(both|a not b|b not a|neither|q[1-4])\s*:\s*(.*?)\s*=>\s*(yes|no|unsure)\W*$/i);
     if (!m) continue;
     out.push({ cell: NAME_CELL[m[1].toLowerCase()], answer: m[3].toLowerCase() as Answer });

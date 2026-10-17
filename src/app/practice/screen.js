@@ -96,7 +96,7 @@ const WHY_LEAD=/^why\?\s+(?=\S)/i;
 // A fact line's note (src/domain/verdict.ts) in the debate's form; in the debate it depends on whether the learner accepted that question.
 const acceptedQ=f=>{ const u=state.ui, a=u&&u.debate&&u.ans&&u.ans[QCELL.indexOf(f.cell)]; return !!a&&a.say!=="why"; };
 // the term data's steps (src/domain/ladder.ts) need the data, the pair and its terms as the note writes them
-const noteData=()=>{ const p=state.cur.p; return {ix:state,p,terms:{a:singular(p.a),b:singular(p.b)}}; };
+export const noteData=(p=state.cur.p)=>({ix:state,p,terms:{a:singular(p.a),b:singular(p.b)}});
 const partsOf=f=>noteParts(f,acceptedQ(f),noteData());
 export const factText=f=>partsText(partsOf(f),noteData().terms);
 // the terms with their A/B markers and the "not" as the questions show them; why a denied term follows goes on a line under it
