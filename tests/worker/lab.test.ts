@@ -202,6 +202,16 @@ describe("when the model call fails", () => {
     expect((await json(res)).error.code).toBe("rate_limited");
   });
 
+  it("charges the text that came before a connection that broke, not the count the stream opened with", async () => {
+    const s = await setup();
+    const { res } = await lab(s, [{ text: ["x".repeat(30)], cut: true, usage: { input: 100 } }]);
+    expect(res.status).toBe(503);
+    // 100 input tokens, and the output estimated from the 30 characters that came: 10 tokens (the stream opened with a count of 1)
+    expect(log(s)[0]).toMatchObject({ outcome: "error" });
+    expect(log(s)[0].micro).toBeGreaterThanOrEqual(100 * 2 + 10 * 10);
+    expect(scopes(s).lab![0]).toBe(log(s)[0].micro);
+  });
+
   it("passes on a refusal", async () => {
     const s = await setup();
     const { res } = await lab(s, [{ text: [], stop: "refusal" }]);

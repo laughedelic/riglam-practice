@@ -42,11 +42,16 @@ export async function runLab(p: { client: Anthropic; config: Config; request: La
     messages: [{ role: "user", content: request.prompt }],
     output_config: { effort: request.effort as (typeof LAB.efforts)[number] },
   });
+  let chars = 0;
+  stream.on("text", (delta) => void (chars += delta.length));
   try {
     message = await stream.finalMessage();
   } catch (e) {
-    // what the model had used up to the failure still counts (the input is known at the start)
-    addTokens(tokens, stream.currentMessage?.usage);
+    // what the model had used up to the failure still counts: the input is known at the start, the output is estimated from the text that came
+    // (the count in a half-streamed message is only what the stream opened with)
+    const seen = stream.currentMessage?.usage;
+    addTokens(tokens, seen);
+    tokens.output = Math.max(seen?.output_tokens ?? 0, Math.ceil(chars / 3));
     return finish({ outcome: "error", error: describeFailure(e) });
   }
   addTokens(tokens, message.usage);

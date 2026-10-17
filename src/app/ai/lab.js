@@ -1,7 +1,6 @@
 import { state } from "../state.js";
 import { autoFlags } from "./flags.js";
-import { ERR_OFF } from "./tutor.js";
-import { $ } from "../core/dom.js";
+import { ERR_OFF } from "../core/ask.js";
 import { CELLS, REL } from "../core/rel.js";
 import { typingEl } from "../core/viewport.js";
 import { QCELL } from "../debate/text.js";
@@ -10,7 +9,7 @@ import { put } from "../practice/answers.js";
 import { favSafe } from "../practice/favorites.js";
 import { skipCats } from "../practice/skips.js";
 import { norm } from "../practice/universe.js";
-import { render } from "../shell/render.js";
+import { render, renderKeepFocus } from "../shell/render.js";
 
 /* ---------- check lab (development): independent runs of Haiku, Sonnet and Opus on every checked answer ---------- */
 // Each checked answer goes to three models as independent calls. They are told the two categories and the things the learner wrote, not which cell the
@@ -101,6 +100,7 @@ function labWrite(col,id,doc){
   const clean=JSON.parse(JSON.stringify(doc));
   labQ[id]=(labQ[id]||Promise.resolve()).catch(()=>{}).then(()=>put(col,id,clean)).catch(e=>{ state.flagErr="A Quorum record could not be saved ("+((e&&e.code)||"error")+")."; if(state.ui&&state.ui.lab) labRender(state.ui.lab); });
 }
+function labPaused(until,why){ if(until>state.labPause){ state.labPause=until; state.labPauseWhy=why; } }
 // one model, one case; resolves when its record is stored. The model that answered must be the one asked for, else the run does not count.
 async function labCall(L,m,prompt,effort,kind,extra){
   const key=L.kase.key, st=L.runs[m.k]=/** @type {{status: string, doc?: object, id?: string}} */({status:"run"}), t0=performance.now(), ref=labRef();
@@ -116,31 +116,21 @@ async function labCall(L,m,prompt,effort,kind,extra){
     st.status=doc.ok?(doc.valid?"ok":"mismatch"):"bad";
   }catch(e){
     doc.ms=Math.round(performance.now()-t0); doc.ok=false; doc.valid=false; doc.error=(e&&e.code)||"error"; st.status="err";
-    if(e&&e.code==="rate_limited"){ state.labPause=Date.now()+(e.budget?864e5:120000); state.labPauseWhy=e.budget?"the budget for Quorum is used up (it comes back tomorrow)":"the models are busy (it tries again in two minutes)"; }   // no more lab calls for two minutes, or for this page load when the server's budget for them is used
-    if(e&&ERR_OFF.includes(e.code)){ state.labPause=Date.now()+864e5; state.labPauseWhy="the server does not allow it ("+e.code+")"; }   // not allowed: none for this page load
+    // no more lab calls for two minutes, or for this page load when the server's budget for them is used or it does not allow them; calls that fail together
+    // differently (one hit the budget while another found the models busy) leave the longer pause
+    if(e&&e.code==="rate_limited") labPaused(Date.now()+(e.budget?864e5:120000),e.budget?"the budget for Quorum is used up (it comes back tomorrow)":"the models are busy (it tries again in two minutes)");
+    if(e&&ERR_OFF.includes(e.code)) labPaused(Date.now()+864e5,"the server does not allow it ("+e.code+")");
   }
   st.doc=doc;
   const id=(kind==="judge"?"lj_":"lr_")+favSafe(key)+(kind==="judge"?"":"_"+m.k);
   st.id=id; labLocal[id]=doc; labWrite("labruns",id,doc);
   return st;
 }
-// A render that the lab causes (a run finished) keeps the keyboard focus where it was: on the same button, found again by its label.
-function btnSig(){
-  const a=/** @type {HTMLButtonElement} */(document.activeElement); if(!a||a.tagName!=="BUTTON") return null;
-  const box=a.closest("#stage,#coach"); if(!box) return null;
-  const k=b=>b.textContent+"|"+(b.getAttribute("aria-label")||"")+"|"+(b.getAttribute("data-fid")||""), same=[...box.querySelectorAll("button")].filter(b=>k(b)===k(a));
-  return {box:box.id,k:k(a),i:same.indexOf(a)};
-}
-function btnBack(f){
-  if(!f) return; const box=$(f.box); if(!box) return;
-  const k=b=>b.textContent+"|"+(b.getAttribute("aria-label")||"")+"|"+(b.getAttribute("data-fid")||""), same=[...box.querySelectorAll("button")].filter(b=>k(b)===f.k), n=same[f.i]||same[0];
-  if(n&&document.activeElement!==n) n.focus({preventScroll:true});
-}
 // a render while a note is being typed would take the focus away: it waits until the field is left
 function labRender(L){
   if(L.u!==state.ui) return;
   if(typingEl(document.activeElement)){ if(!L.wait){ L.wait=setTimeout(()=>{ L.wait=null; labRender(L); },1200); } return; }
-  const f=btnSig(); render(); btnBack(f);
+  renderKeepFocus();
 }
 async function labRun(U,C,only,force){
   const L=U.lab; if(!L||!state.labSample) return;
@@ -174,6 +164,9 @@ function labFlagDisputes(L){
     autoFlags(L.kase,quorumDisputes(things,models,judge).map(d=>({thing:things[d.index].text,shown:disputeText(d,things[d.index])})));
   }catch(e){}          // the lab is optional: a failing flag must never break the page
 }
+// The tutor's explanation can change the page's verdicts after the lab has finished (applyVerify); the same final verdicts must give the same flags whichever came
+// first, so the disputes are read again. A lab still at work reads them when it ends.
+export function labRecheck(U){ const L=U&&U.lab; if(L&&!L.busy) labFlagDisputes(L); }
 // ask the judge about an answer all models agreed on
 export async function labJudgeNow(){
   const U=state.ui; if(!U||!U.lab||U.lab.busy||labGood(U.lab).length<2) return;
