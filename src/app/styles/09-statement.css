@@ -3,7 +3,7 @@
 .qterm .t{font-style:italic}
 .qterm .keep{white-space:nowrap}
 .qterm .L{transform:translateY(-.08em)}
-.qt .not,.qlog .not,.sum .not{font-family:inherit;font-size:inherit}
+.qt .not,.qlog .not,.sum .not,.fnote .not{font-family:inherit;font-size:inherit}
 .qn .lead{margin-left:10px;font:italic 400 14px/1.4 var(--text-serif);letter-spacing:0;text-transform:none;color:var(--ink-muted)}
 .qlog .qq,.sum .qq{display:block;font-family:var(--text-serif);font-size:15px;line-height:1.55}
 /* an answer at a glance */

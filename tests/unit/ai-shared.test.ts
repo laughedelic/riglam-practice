@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { expect, test } from "vitest";
 import {
-  CELL_NAME, DEBATE_ASK, FIRST_ASK, GUIDE, american, cardBody, cardNotes, catByLabel, catFacts, explainAsk, finePoints, makeIndex, matchItem, norm, pairCats, qPlain, termFacts, tutorCard, tutorTools,
+  CELL_NAME, DEBATE_ASK, FIRST_ASK, GUIDE, american, cardBody, cardNotes, catByLabel, classNames, catFacts, explainAsk, finePoints, makeIndex, matchItem, norm, pairCats, qPlain, termFacts, tutorCard, tutorTools, upChain,
 } from "../../src/ai-shared";
 import type { AnswerView, DrillData, PairLike } from "../../src/ai-shared";
 import { state } from "../../src/app/state.js";
@@ -215,31 +215,43 @@ test("the explain request is the plain one when the page checked every example, 
   expect(dbt.startsWith(DEBATE_ASK)).toBe(true);
   expect(dbt).toContain("The page could not check the examples in: Q2, Q3.");
   expect(dbt).toContain("Q1 is the Both cell, Q2 A not B, Q3 B not A, Q4 Neither.");
+  // the unsure rule on open examples includes a feature the example's name does not fix, as the reason text says
+  expect(open).toContain('where the example\'s name does not fix the feature that side is about (the color of "an apple", the shape of "a box")');
 });
 
-// A debate line is shown beside the learner's example, so a counter-example that is right must read as fitting, not as "fails".
-test("the debate request judges a Why? example as fitting or not, and an Accept as a statement about the question", () => {
-  expect(DEBATE_ASK).toContain('after Why?, judge the example ("it fits" or "it does not fit")');
-  expect(DEBATE_ASK).toContain('after Accept, say whether the statement holds ("You accepted Q1, and the statement holds: ..." or "You accepted Q2, but there is a counter-example: ...")');
-  expect(DEBATE_ASK).not.toContain("but the statement does not hold");
-  expect(DEBATE_ASK).not.toContain('"so it fails"');
-  expect(FIRST_ASK).toContain('("it fits" or "it does not fit")');
-});
-
-// The type is written as the page writes it elsewhere ("x is a form"), not as "(Form)" after the example; an empty cell is
-// explained by the relation, and a Why? line does not give the answer to the question.
-test("the explain requests give the reasons for A and for B separately, the type only when it is the reason, and the reason for an empty cell", () => {
+// The tutor states two facts about an example (is it A, is it B) and the reason for each; the page writes the consequences and draws
+// the conclusion (src/domain/verdict.ts), so the requests ask for the reason only.
+test("the explain requests ask for the two facts about an example and the reason for each, in one form, and for no conclusion", () => {
+  expect(FIRST_ASK).toContain('Both: "the example" | class: Taste source | A yes: it is ... | B no: it is ...');
+  expect(DEBATE_ASK).toContain('Q2: "the example" | class: Taste source | A yes: it is ... | B no: it is ...');
   for (const ask of [FIRST_ASK, DEBATE_ASK]) {
-    expect(ask).toContain('"a wooden chair" is a form');
-    expect(ask).toContain('"is an" before a vowel');
+    expect(ask).toContain('the words after "because" in "Take the example: it follows it is (not) A, because ..."');
+    expect(ask).toContain("write no conclusion, do not name the term again and do not add its definition");
+    expect(ask).toContain("from which the term follows (or is excluded)");
+    expect(ask).toContain("never the term in other words");
+    expect(ask).toContain("never its negation");
+    expect(ask).toContain("the most specific class in the card's list of classes that the example is");
+    expect(ask).toContain("the page adds the steps above the class");
+    expect(ask).toContain("when one reason serves both terms, write it on both sides;");
+    expect(ask).toContain('add "; pervasion: " and one sentence on why only when it is not plain');
+    expect(ask).toContain("Never for everyday differences such as two colors or two shapes");
+    expect(ask).toContain("never the example's own name");
+    expect(ask).toContain("Start from the term and say what class it is in");
+    expect(ask).toContain('do not write "only"');
+    expect(ask).toContain("never answer against your own reason");
+    expect(ask).toContain('A feature the example\'s name does not fix, such as the color of "an apple"');
+    expect(ask).not.toContain("so it fits");
+    expect(ask).not.toContain("=> yes");
   }
-  for (const ask of [FIRST_ASK, DEBATE_ASK]) {
-    expect(ask).toContain("is or is not A and why it is or is not B");
-    expect(ask).toContain("only when the type is that reason");
-    expect(ask).toContain('never one reason from which both are concluded with "so"');
-  }
-  expect(DEBATE_ASK).toContain("do not say what the right answer to the question was");
-  expect(DEBATE_ASK).toContain("give the reason from the correct relation in the card");
+  expect(DEBATE_ASK).not.toContain("You accepted");
+  expect(DEBATE_ASK).toContain("for a wrong Accept or a timeout the reference counter-example in the card)");
+  expect(DEBATE_ASK).not.toContain("or one you name");
+  expect(DEBATE_ASK).toContain("or a timeout on a question whose reference is EMPTY (then accepting was right), write a plain line");
+  expect(FIRST_ASK).toContain("for a cell marked wrong without one, the reference example in the card");
+  expect(FIRST_ASK).toContain("If there is no example at all (the learner wrote nothing or NONE and the card's reference is EMPTY), write a plain line");
+  expect(GUIDE).toContain("everyday facts such as a thing's color, shape or material need no source and no remark");
+  expect(GUIDE).toContain("call it the reference, never the card");
+  expect(DEBATE_ASK).toContain("Do not say what the right answer to the question was");
   expect(DEBATE_ASK).toContain("A and B are mutually inclusive, so whatever is B is A");
 });
 
@@ -272,6 +284,18 @@ test("in the real data every category label and item name finds its own category
   for (const it of real.items) expect(matchItem(rix, it.n, true)?.n, it.n).toBe(it.n);
   for (const it of real.items) for (const c of it.c) expect(rix.CAT[c], `${it.n}: ${c}`).toBeDefined();
   for (const c of real.cats) if (c.kind === "dudra") expect(real.terms[c.term ?? ""], c.id).toBeDefined();
+});
+
+// The tutor names an example's class from the data's "is a" tree, and every type a listed example has is one of them.
+test("the card lists the classes of the real data's tree, which hold every listed example's type", () => {
+  const cls = classNames(rix);
+  expect(cls).toEqual(expect.arrayContaining(["Form", "External form", "Taste source", "Consciousness", "Mental factor", "Person", "Permanent"]));
+  expect(cls).not.toContain("Existent");
+  expect(cls).not.toContain("Matter");
+  expect(cls).not.toContain("Hidden phenomenon"); // not in the tree under Existent
+  for (const it of real.items) if (!["Expressive sound", "Non-existent"].includes(it.t)) expect(cls, it.n).toContain(it.t);
+  expect(cardBody(rix, { a: "forms", b: "minds", catA: "form", catB: "cons", relation: "con" }, practice())).toContain('Classes (the booklet\'s "is a" tree, for "class:"): Form, External form,');
+  expect(upChain(rix, "Taste source")).toEqual(["Taste source", "External form", "Form", "Functional thing", "Existent"]);
 });
 
 test("the real data is spelled the American way, in labels, item names and term names", () => {
