@@ -218,19 +218,25 @@ test("the explain request is the plain one when the page checked every example, 
 });
 
 // A debate line is shown beside the learner's example, so a counter-example that is right must read as fitting, not as "fails".
-test("the debate request judges a Why? example as fitting or not, and an Accept by its statement", () => {
-  expect(DEBATE_ASK).toContain('after Why?, the example ("so it fits" or "so it does not fit")');
-  expect(DEBATE_ASK).toContain('after Accept, the statement ("so the statement holds" or "but the statement does not hold")');
+test("the debate request judges a Why? example as fitting or not, and an Accept as a statement about the question", () => {
+  expect(DEBATE_ASK).toContain('after Why?, judge the example ("it fits" or "it does not fit")');
+  expect(DEBATE_ASK).toContain('after Accept, say whether the statement holds ("You accepted Q1, and the statement holds: ..." or "You accepted Q2, but there is a counter-example: ...")');
+  expect(DEBATE_ASK).not.toContain("but the statement does not hold");
   expect(DEBATE_ASK).not.toContain('"so it fails"');
-  expect(FIRST_ASK).toContain('("so it fits" or "so it does not fit"');
+  expect(FIRST_ASK).toContain('("it fits" or "it does not fit")');
 });
 
 // The type is written as the page writes it elsewhere ("x is a form"), not as "(Form)" after the example; an empty cell is
 // explained by the relation, and a Why? line does not give the answer to the question.
-test("the explain requests write the type as a statement and give the reason for an empty cell", () => {
+test("the explain requests give the reasons for A and for B separately, the type only when it is the reason, and the reason for an empty cell", () => {
   for (const ask of [FIRST_ASK, DEBATE_ASK]) {
     expect(ask).toContain('"a wooden chair" is a form');
     expect(ask).toContain('"is an" before a vowel');
+  }
+  for (const ask of [FIRST_ASK, DEBATE_ASK]) {
+    expect(ask).toContain("is or is not A and why it is or is not B");
+    expect(ask).toContain("only when the type is that reason");
+    expect(ask).toContain('never one reason from which both are concluded with "so"');
   }
   expect(DEBATE_ASK).toContain("do not say what the right answer to the question was");
   expect(DEBATE_ASK).toContain("give the reason from the correct relation in the card");

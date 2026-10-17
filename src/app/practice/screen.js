@@ -16,7 +16,7 @@ import { favBtn } from "./favorites.js";
 import { check } from "./grading.js";
 import { next } from "./queue.js";
 import { skipActs, subRowNode } from "./skips.js";
-import { hasDefs, termsNode } from "./terms.js";
+import { termsNode } from "./terms.js";
 import { answerList } from "./universe.js";
 import { exGrid } from "../review/review.js";
 import { openChat, tutorTurns } from "../shell/chat.js";
@@ -93,8 +93,6 @@ function quizCell(c){
 const REL_LABEL=/^(common locus|pervasion|relation)$/i;
 // A note opens under the heading "Why?", so the "Why?" the tutor starts a debate line with would be said twice.
 const WHY_LEAD=/^why\?\s+(?=\S)/i;
-// the pointer under a note: the definitions of the terms are one chip away, when the pair has any
-const defsHint=()=>hasDefs(state.cur.p)?el("p",{class:"popnote",text:"Definitions of these terms are under Terms."}):null;
 export function explainParts(){
   const out={cells:{},rest:[]};
   const a=state.ui&&state.ui.chat&&state.ui.chat.find(t=>t.role==="assistant"&&t.kind==="explain"&&!t.pending&&t.content);
@@ -125,14 +123,14 @@ export function relPopNode(){
   const rest=explainParts().rest; if(!rest.length) return null;
   const fl=aiFlag(aiCase("explain","Claude’s note on the relation",rest.map(([k,t])=>k+": "+t).join("\n"),"rel"),"pop:rel");
   return el("div",{class:"pop rpop",role:"dialog","aria-label":"Claude's explanation of the relation",tabindex:"-1"},el("p",{class:"clh",text:"Why?"}),fl,
-    rest.map(([k,t])=>el("p",null,k?el("b",{text:k+": "}):null,t)),defsHint(),flagEditorNode("pop:rel"),
+    rest.map(([k,t])=>el("p",null,k?el("b",{text:k+": "}):null,t)),flagEditorNode("pop:rel"),
     el("button",{type:"button",class:"popx",onclick:e=>{ e.stopPropagation(); state.ui.pop=null; render(); },text:"Close"}));
 }
 export function popNode(){
   if(!state.ui||!state.ui.checked||!state.ui.pop||state.ui.pop==="rel") return null;
   const t=explainParts().cells[state.ui.pop]; if(!t) return null;
   const fl=aiFlag(aiCase("explain","Claude’s note on "+(state.ui.debate?"Q"+(QCELL.indexOf(state.ui.pop)+1):CELL_NAME[state.ui.pop]),t,state.ui.pop),"pop:"+state.ui.pop);
-  return el("div",{class:"pop",role:"dialog","aria-label":"Claude's explanation",tabindex:"-1"},el("p",{class:"clh",text:"Why?"}),fl,el("p",{text:t}),defsHint(),flagEditorNode("pop:"+state.ui.pop),
+  return el("div",{class:"pop",role:"dialog","aria-label":"Claude's explanation",tabindex:"-1"},el("p",{class:"clh",text:"Why?"}),fl,el("p",{text:t}),flagEditorNode("pop:"+state.ui.pop),
     el("button",{type:"button",class:"popx",onclick:e=>{ e.stopPropagation(); state.ui.pop=null; render(); },text:"Close"}));
 }
 export function placePops(){
