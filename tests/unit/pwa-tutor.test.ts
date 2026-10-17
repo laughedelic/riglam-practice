@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { testMagicKey as generateKey } from "../support/magic-key";
 import { HEADER, type QuorumRecord, type TutorEvent, type TutorRequest } from "../../src/ai/protocol";
 import { DEVICE_ID, checkProof } from "../../src/ai/proof";
-import { createTutor, deviceId, quorumOffer, tutorIsOn } from "../../src/pwa/tutor";
+import { createTutor, deviceId, quorumOffer, serverSays, tutorIsOn } from "../../src/pwa/tutor";
 
 const request: TutorRequest = { kind: "chat", cats: ["form", "color"], turns: [{ role: "user", content: "CARD ум" }] };
 const sse = (e: TutorEvent | { type: string }) => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`;
@@ -232,6 +232,17 @@ describe("tutorIsOn", () => {
     expect(await quorumOffer(health({ ok: true, tutor: "off", quorum: "optin" }))).toBe(false);
     expect(await quorumOffer(health({ ok: true, tutor: "on", quorum: "on" }, 503))).toBe(false);
     expect(await quorumOffer((async () => { throw new TypeError("offline"); }) as unknown as typeof fetch)).toBe(false);
+  });
+
+  it("says what the server says of the tutor and of Quorum from one request", async () => {
+    let asked = 0;
+    const once = (body: unknown) => (async () => (asked++, json(200, body))) as unknown as typeof fetch;
+    expect(await serverSays(once({ ok: true, tutor: "on", quorum: "on" }))).toEqual({ tutor: true, quorum: "on" });
+    expect(await serverSays(once({ ok: true, tutor: "on" }))).toEqual({ tutor: true, quorum: false });
+    expect(await serverSays(once({ ok: true, tutor: "off", quorum: "on" }))).toEqual({ tutor: false, quorum: false });
+    expect(await serverSays(once({ ok: false, tutor: "on", quorum: "on" }))).toEqual({ tutor: false, quorum: false });
+    expect(asked).toBe(4);
+    expect(await serverSays((async () => { throw new TypeError("offline"); }) as unknown as typeof fetch)).toEqual({ tutor: false, quorum: false });
   });
 
   it("is false for an answer that is not JSON (a static host with no server)", async () => {

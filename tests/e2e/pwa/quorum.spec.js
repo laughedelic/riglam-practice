@@ -112,6 +112,14 @@ withKey("on a server that offers Quorum, Explain is asked with quorum: true and 
   await expect(quorum(page)).toContainText("=");
 });
 
+// one request for the tutor and Quorum together (the account row asks for itself: that is the other one)
+withKey("a start asks /api/health once for the tutor and Quorum together, not once for each", async ({ page }, testInfo) => {
+  let health = 0;
+  page.on("request", (r) => { if (new URL(r.url()).pathname === "/api/health") health += 1; });
+  await open(page, testInfo);
+  expect(health).toBe(2);
+});
+
 withKey("Check every answer with AI asks Quorum too, once, without a tap", async ({ page }, testInfo) => {
   const asked = await open(page, testInfo, undefined, null);
   await expect(quorum(page)).toContainText(/[=≠]/);

@@ -4,7 +4,7 @@ import { CELLS, REL } from "../core/rel.js";
 import { QCELL } from "../debate/text.js";
 import { cellFor, disputeText, quorumDisputes, readings } from "../../domain/quorum.ts";
 import { norm } from "../practice/universe.js";
-import { render } from "../shell/render.js";
+import { render, renderKeepFocus } from "../shell/render.js";
 
 /* ---------- Quorum: the tutor's mode of several models and a judge (Preview servers, docs/SERVER.md) ---------- */
 // With Quorum on, the explanation of a checked answer (Explain, or "Check every answer with AI") is asked of the app's server with `quorum: true`. The server has Haiku,
@@ -24,7 +24,7 @@ export const quorumChip=()=>!!(state.quorumOffered&&state.quorum&&state.db);
 export const quorumShown=()=>!!(state.db&&(state.quorumOffered||state.sample||Object.keys(state.flags).length));
 
 export function quorumBegin(U){ U.quorum={busy:true,steps:[],record:null}; }
-export function quorumStep(U,step){ const q=U.quorum; if(!q) return; q.steps.push(step); if(U===state.ui&&U.rtab==="quorum") render(); }
+export function quorumStep(U,step){ const q=U.quorum; if(!q) return; q.steps.push(step); if(U===state.ui&&U.rtab==="quorum") renderKeepFocus(); }
 export function quorumDropped(U){ delete U.quorum; }
 // the answer is in: keep the record, and flag the examples the models are divided about
 export function quorumEnd(U,r){

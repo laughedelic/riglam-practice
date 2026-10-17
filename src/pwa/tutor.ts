@@ -15,8 +15,11 @@ export function tutorError(code: string, message: string, extra: { text?: string
 const isAbort = (e: unknown) => e instanceof DOMException && e.name === "AbortError";
 const KNOWN = new Set(["rate_limited", "not_granted", "prompt_too_large", "bad_request", "refused", "unavailable"]);
 
-/** What the server says in /api/health about the tutor. Anything else (off, unreachable, slow, not a Worker at all) is "off" and no Quorum. */
-async function health(doFetch: typeof fetch, waitMs: number): Promise<{ tutor: boolean; quorum: QuorumOffer }> {
+/** What the server says in /api/health about its tutor and about Quorum. Anything else (off, unreachable, slow, not a Worker at all) is "off" and no Quorum. */
+export type ServerSays = { tutor: boolean; quorum: QuorumOffer };
+
+/** One question to /api/health: the platform asks it once and gives the answer to the tutor and to Quorum, so a start makes one request and waits for one timeout. */
+export async function serverSays(doFetch: typeof fetch = (...a) => fetch(...a), waitMs = 4000): Promise<ServerSays> {
   const stop = new AbortController();
   const timer = setTimeout(() => stop.abort(), waitMs);
   try {
@@ -34,12 +37,12 @@ async function health(doFetch: typeof fetch, waitMs: number): Promise<{ tutor: b
 
 /** Whether the server says its tutor is on. */
 export async function tutorIsOn(doFetch: typeof fetch = (...a) => fetch(...a), waitMs = 4000): Promise<boolean> {
-  return (await health(doFetch, waitMs)).tutor;
+  return (await serverSays(doFetch, waitMs)).tutor;
 }
 
 /** What the server says it offers of Quorum (worker/quorum.ts): nothing unless the tutor is on and the server offers it, then "on" (on by default, a Preview) or "optin". */
 export async function quorumOffer(doFetch: typeof fetch = (...a) => fetch(...a), waitMs = 4000): Promise<QuorumOffer> {
-  return (await health(doFetch, waitMs)).quorum;
+  return (await serverSays(doFetch, waitMs)).quorum;
 }
 
 export async function httpError(res: Response, now: () => number = Date.now) {

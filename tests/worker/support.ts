@@ -68,6 +68,8 @@ export interface Round {
   error?: { status: number; type: string };
   /** stream the text, then wait for the caller to hang up */
   hang?: boolean;
+  /** stream the text, then break the connection (before the closing usage event) */
+  cut?: boolean;
 }
 
 const sse = (event: string, data: unknown) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
@@ -95,6 +97,11 @@ function body(r: Round, n: number, signal: AbortSignal | null | undefined): Read
   return new ReadableStream({
     async start(c) {
       for (const p of parts) c.enqueue(enc.encode(p));
+      if (r.cut) {
+        await new Promise((resolve) => setTimeout(resolve, 20)); // an error discards what is queued: let the reader take the text first
+        c.error(new TypeError("terminated"));
+        return;
+      }
       if (r.hang) {
         await new Promise<void>((resolve) => signal?.addEventListener("abort", () => resolve()));
         c.error(new DOMException("aborted", "AbortError"));

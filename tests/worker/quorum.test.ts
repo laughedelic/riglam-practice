@@ -249,6 +249,15 @@ describe("when a model fails", () => {
     expect(models.calls).toHaveLength(3);
   });
 
+  it("charges a call whose connection broke for the text that came, not for the count its stream opened with", async () => {
+    const s = await setup();
+    const fail: Round[] = [{ error: { status: 500, type: "api_error" } }];
+    // 3 000 characters are about 1 000 tokens of output; the count the stream opened with is 1
+    const { res } = await quorum(s, { [HAIKU]: [{ text: ["x".repeat(3000)], cut: true, usage: { input: 0 } }], [SONNET]: fail, [OPUS]: fail });
+    expect((await events(res)).map((e) => e.type)).toEqual(["step", "step", "step", "error"]);
+    expect(log(s)[0].micro).toBeGreaterThanOrEqual(400);
+  });
+
   it("answers with an error and keeps no record when no model answers, and still counts what was used", async () => {
     const s = await setup();
     const fail: Round[] = [{ error: { status: 500, type: "api_error" } }];
