@@ -6,6 +6,7 @@ import { test, expect } from "../../support/test.js";
 import { ready, relOptions, isPhone, overflow } from "../../support/page.js";
 import { dataKey, serveCourse, withCourse } from "../../support/data-key.js";
 import { checkProof } from "../../../src/ai/proof.ts";
+import { seedRandom } from "../../support/artifact-host.js";
 
 const withKey = withCourse ? test : test.skip;
 
@@ -298,6 +299,70 @@ withKey("a flag the learner deleted while the explanation was still on its way d
   // the explanation is in: the chat is no longer waiting
   await expect.poll(() => page.evaluate(() => !window.__t.ui.ctl && window.__t.ui.explained)).toBe(true);
   await sleep(400);
+  const left = await flags();
+  expect(left).toHaveLength(things.length - 1);
+  expect(left.map((f) => f.id)).not.toContain(gone.id);
+});
+
+// A used-up budget or a busy model pauses the lab; Run the missing ones again (and Ask the judge) wait for the pause the way a start does.
+withKey("Run the missing ones again waits for the pause, says why, and works once the pause is over", async ({ page }, testInfo) => {
+  const budget = { status: 429, contentType: "application/json", body: JSON.stringify({ error: { code: "rate_limited", message: "x", scope: "device", resetsAt: "2099-01-01T00:00:00Z" } }) };
+  let recovered = false;
+  const calls = await open(page, testInfo, {
+    lab: (body) => (recovered ? { status: 200, contentType: "application/json", body: JSON.stringify({ text: JSON.stringify({ things: THINGS }), truncated: false, modelApplied: body.model }) } : budget),
+  });
+  await expect.poll(() => calls.length).toBe(3);
+  await quorum(page).click();
+  const again = page.getByRole("button", { name: "Run the missing ones again" });
+  await again.click();
+  await page.waitForTimeout(400);
+  expect(calls).toHaveLength(3);
+  await expect(page.locator(".lab")).toContainText(/paused: the budget for Quorum is used up/i);
+  // the pause is over (here: lifted) and the server answers again: the same button runs the models
+  recovered = true;
+  await page.evaluate(() => { window.__t.labPause = 0; });
+  await again.click();
+  await expect.poll(() => calls.length).toBe(6);
+  await expect(page.locator(".lab")).not.toContainText(/paused/i);
+});
+
+// The explanation can change a page verdict after the models are done, and the flag that names that verdict has to say the new one. A flag the learner deleted
+// meanwhile is not written again.
+withKey("when the explanation changes a page verdict after the models are done, the flag that names it is rewritten, and a deleted flag stays deleted", async ({ page }, testInfo) => {
+  test.skip(!isPhone(testInfo), "the answer flow is exercised in the phone layout");
+  await page.addInitScript(() => localStorage.setItem("rd-autoexplain", "1"));
+  // the first pair is the same on every run: one whose examples the page cannot judge by itself until the explanation comes
+  await page.addInitScript(seedRandom, 12345);
+  let release;
+  const released = new Promise((resolve) => { release = resolve; });
+  await page.route("**/api/tutor", async (route) => {
+    await released;
+    const lines = (await thingsOf(page)).map((t) => {
+      const [a, b] = FACTS[learner(t)];
+      return `${CELL[learner(t)]}: "${t.text}" | class: Table | A ${a}: because of its use | B ${b}: because of its make`;
+    });
+    await route.fulfill({ status: 200, contentType: "text/event-stream", body: sse({ type: "delta", text: lines.join("\n") + "\nExplanation: stand-in." }, { type: "done", truncated: false }) });
+  });
+  const calls = await open(page, testInfo, {
+    lab: (body) => {
+      const things = body.model === "claude-haiku-5-5" ? THINGS.map((t) => ({ ...t, inA: true })) : THINGS;
+      return { status: 200, contentType: "application/json", body: JSON.stringify({ text: JSON.stringify({ things }), truncated: false, modelApplied: body.model }) };
+    },
+  });
+  await expect.poll(() => calls.length).toBe(4);
+  const flags = () => page.evaluate(() => Object.values(window.__t.flags));
+  const things = await thingsOf(page);
+  expect(things.length).toBeGreaterThan(1);
+  await expect.poll(async () => (await flags()).length).toBe(things.length);
+  // the page has not checked these examples yet: that is what the flags say
+  for (const f of await flags()) expect(f.shown).toContain("(the page: not checked)");
+  const gone = (await flags())[0];
+  await page.evaluate((id) => window.__t.removeFlag(id), gone.id);
+  await expect.poll(async () => (await flags()).length).toBe(things.length - 1);
+  release();
+  await expect.poll(() => page.evaluate(() => !window.__t.ui.ctl && window.__t.ui.explained)).toBe(true);
+  // the explanation says every example fits where the learner put it: the flags that are still there say so
+  await expect.poll(async () => (await flags()).every((f) => f.shown.includes("(the page: fits)")), { timeout: 10000 }).toBe(true);
   const left = await flags();
   expect(left).toHaveLength(things.length - 1);
   expect(left.map((f) => f.id)).not.toContain(gone.id);

@@ -83,6 +83,7 @@ function labNode(){
   if(!L.busy&&LAB_MODELS.some(m=>!L.runs[m.k]||L.runs[m.k].status!=="ok")) acts.append(el("button",{type:"button",class:"btn ghost",onclick:labAgain,text:"Run the missing ones again"}));
   if(!L.busy&&!(J&&J.status!=="err"&&J.status!=="bad")&&st.runs.length>=2) acts.append(el("button",{type:"button",class:"btn ghost",onclick:labJudgeNow,text:"Ask the judge"}));
   if(acts.childNodes.length) box.append(acts);
+  if(L.held) box.append(el("p",{class:"status",text:L.held}));
   box.append(el("p",{class:"note faint",text:"Tap any value to flag it. Each run is stored for the model comparison; your page verdicts are not changed by it."}));
   if(state.flagErr) box.append(el("p",{class:"status",text:state.flagErr}));
   return box;

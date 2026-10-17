@@ -101,6 +101,8 @@ function labWrite(col,id,doc){
   labQ[id]=(labQ[id]||Promise.resolve()).catch(()=>{}).then(()=>put(col,id,clean)).catch(e=>{ state.flagErr="A Quorum record could not be saved ("+((e&&e.code)||"error")+")."; if(state.ui&&state.ui.lab) labRender(state.ui.lab); });
 }
 function labPaused(until,why){ if(until>state.labPause){ state.labPause=until; state.labPauseWhy=why; } }
+// A retry by hand waits for the pause like a start does; the panel says why nothing ran (the longer pause may be a day, the shorter one two minutes).
+function labHeld(L){ if(Date.now()>=state.labPause){ L.held=""; return false; } L.held="Quorum is paused: "+(state.labPauseWhy||"a call failed")+"."; labRender(L); return true; }
 // one model, one case; resolves when its record is stored. The model that answered must be the one asked for, else the run does not count.
 async function labCall(L,m,prompt,effort,kind,extra){
   const key=L.kase.key, st=L.runs[m.k]=/** @type {{status: string, doc?: object, id?: string}} */({status:"run"}), t0=performance.now(), ref=labRef();
@@ -135,7 +137,7 @@ function labRender(L){
 async function labRun(U,C,only,force){
   const L=U.lab; if(!L||!state.labSample) return;
   const ref=labRef(), head=LAB_TASK+"\n\n"+ref.text+"\n\nCASE\n"+labCaseText(L.kase);
-  L.busy=true; labRender(L);
+  L.busy=true; L.held=""; labRender(L);
   const todo=LAB_MODELS.filter(m=>!only||only.includes(m.k));
   await Promise.all(todo.map(m=>labCall(L,m,head,"medium","classify").then(()=>labRender(L))));
   await labJudge(U,force);
@@ -156,17 +158,18 @@ async function labJudge(U,force){
   await labCall(L,LAB_JUDGE,LAB_JUDGE_TASK+"\n\n"+ref.text+"\n\nCASE\n"+labCaseText(L.kase)+"\n\n"+answers,"high","judge",{order,why:L.judgeWhy});
 }
 // Where Quorum is divided about an example, the page flags it by itself (see autoFlags). The page's verdict is read now, so a verdict Claude gave since the check counts.
-// `again`: the tutor's explanation came after the models. It flags only what this round of the models had not flagged yet, so a flag the learner deleted meanwhile stays
-// deleted (it comes back only when the models are run again).
+// `again`: the tutor's explanation came after the models. What this round of the models had flagged is only updated where its flag is still there (the verdict it
+// names may have changed), so a flag the learner deleted meanwhile stays deleted (it comes back only when the models are run again); the rest is flagged as usual.
 function labFlagDisputes(L,again){
   try{
     const J=L.runs.judge, judge=J&&J.status==="ok"&&J.doc&&J.doc.recs?J.doc.recs.map(r=>r.cell):null;
     const models=LAB_MODELS.filter(m=>L.runs[m.k]&&L.runs[m.k].status==="ok").map(m=>({name:m.name,cells:L.runs[m.k].doc.recs.map(r=>r.cell)}));
     const things=L.kase.things.map(t=>({text:t.text,cells:t.cells,page:Object.fromEntries(t.cells.map(c=>[c,L.u.res&&L.u.res.cells[c]?L.u.res.cells[c].v:t.page[c]]))}));
     let found=quorumDisputes(things,models,judge).map(d=>({thing:things[d.index].text,shown:disputeText(d,things[d.index])}));
-    if(again) found=found.filter(f=>!(L.raised&&L.raised[f.thing])); else L.raised={};
+    const before=again?Object.assign({},L.raised):{}; if(!again) L.raised={};
     for(const f of found) (L.raised||(L.raised={}))[f.thing]=1;
-    autoFlags(L.kase,found);
+    autoFlags(L.kase,found.filter(f=>!before[f.thing]));
+    autoFlags(L.kase,found.filter(f=>before[f.thing]),true);
   }catch(e){}          // the lab is optional: a failing flag must never break the page
 }
 // The tutor's explanation can change the page's verdicts after the lab has finished (applyVerify); the same final verdicts must give the same flags whichever came
@@ -174,7 +177,7 @@ function labFlagDisputes(L,again){
 export function labRecheck(U){ const L=U&&U.lab; if(L&&!L.busy) labFlagDisputes(L,true); }
 // ask the judge about an answer all models agreed on
 export async function labJudgeNow(){
-  const U=state.ui; if(!U||!U.lab||U.lab.busy||labGood(U.lab).length<2) return;
+  const U=state.ui; if(!U||!U.lab||U.lab.busy||labGood(U.lab).length<2||labHeld(U.lab)) return;
   U.lab.busy=true; labRender(U.lab); await labJudge(U,"asked"); U.lab.busy=false; labFlagDisputes(U.lab); labRender(U.lab);
 }
 export function labStart(U,C){
@@ -192,4 +195,4 @@ export function labWhyNot(U){
   if(U.res&&!labThings(U).length) return "Nothing to check: no example was written. Quorum classifies the examples you write"+(U.debate?" (here the answers to Why?)":" in the cells")+".";
   return "Quorum did not start for this answer.";
 }
-export function labAgain(){ const U=state.ui; if(!U||!U.lab||U.lab.busy) return; const bad=LAB_MODELS.filter(m=>{ const s=U.lab.runs[m.k]; return !s||s.status!=="ok"; }).map(m=>m.k); delete U.lab.runs.judge; labRun(U,state.cur,bad.length?bad:null); }
+export function labAgain(){ const U=state.ui; if(!U||!U.lab||U.lab.busy||labHeld(U.lab)) return; const bad=LAB_MODELS.filter(m=>{ const s=U.lab.runs[m.k]; return !s||s.status!=="ok"; }).map(m=>m.k); delete U.lab.runs.judge; labRun(U,state.cur,bad.length?bad:null); }
