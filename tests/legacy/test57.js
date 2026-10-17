@@ -30,7 +30,7 @@ const settle=pg=>pg.waitForFunction(()=>{const u=window.__t.ui; return u&&u.lab&
   ok('the lab is on by default',await pg.evaluate(()=>window.__t.lab));
   await pg.evaluate(()=>{ window.__labdelay=250; window.__labAns={haiku:(t,i)=>({inB:i===0?false:true}), opus:(t,i)=>({exists:true})}; });
   const n=await answerWide(pg); await pg.waitForTimeout(100);
-  let chip=await pg.locator('.vchip',{hasText:/lab/i}).innerText();
+  let chip=await pg.locator('.vchip',{hasText:/quorum/i}).innerText();
   ok('while the models run the Lab chip shows an ellipsis',/…/.test(chip),chip);
   await settle(pg); await pg.waitForTimeout(80);
   const cl=await calls(pg);
@@ -47,9 +47,9 @@ const settle=pg=>pg.waitForFunction(()=>{const u=window.__t.ui; return u&&u.lab&
   const casePart=cp.split('\nCASE\n')[1]||'';
   ok('the models are told the two categories and the things only, not the learner\'s cell or relation',/^A = /.test(casePart)&&/\nB = /.test(casePart)&&/Things:/.test(casePart)&&!/relation|Three possibilities|Mutually|you put|chosen|learner chose/i.test(casePart),casePart);
   ok('the reference is built from the page\'s categories and notes',/CATEGORY REFERENCE/.test(cp)&&/CLASSIFICATION NOTES/.test(cp)&&cp.length>2000,cp.length);
-  chip=await pg.locator('.vchip',{hasText:/lab/i}).innerText();
+  chip=await pg.locator('.vchip',{hasText:/quorum/i}).innerText();
   ok('Haiku differs from the others, so the chip carries ≠ and does not open by itself',/≠/.test(chip)&&await pg.locator('#vpanel .lab').count()===0,chip);
-  await pg.locator('.vchip',{hasText:/lab/i}).click(); await pg.waitForTimeout(120);
+  await pg.locator('.vchip',{hasText:/quorum/i}).click(); await pg.waitForTimeout(120);
   const rows=await pg.locator('.lab-c').first().locator('.lab-r').count();
   ok('the panel shows a card per thing with a row for each of the three models, the judge and the page',await pg.locator('.lab-c').count()===n&&rows===5,[await pg.locator('.lab-c').count(),rows]);
   const nm=await pg.locator('.lab-c').first().locator('.mn').allInnerTexts();
@@ -72,7 +72,7 @@ const settle=pg=>pg.waitForFunction(()=>{const u=window.__t.ui; return u&&u.lab&
  {
   const {br,pg,errs}=await open({width:1280,height:800},{lab:true});
   await answerWide(pg); await settle(pg); await pg.waitForTimeout(80);
-  let chip=await pg.locator('.vchip',{hasText:/lab/i}).innerText();
+  let chip=await pg.locator('.vchip',{hasText:/quorum/i}).innerText();
   ok('the models agree with each other and with the learner: the chip carries =',/=/.test(chip)||/≠/.test(chip),chip);   // the mock answers "both" for everything; the learner's cells differ for some things
   await pg.keyboard.press('Enter'); await pg.waitForTimeout(80);
   // mismatch: Haiku's call is answered by another model
@@ -83,7 +83,7 @@ const settle=pg=>pg.waitForFunction(()=>{const u=window.__t.ui; return u&&u.lab&
   ok('a run answered by another model is stored but marked not valid',hk.valid===false&&hk.ok===true&&hk.modelApplied==='claude-sonnet-5-5',hk);
   const jp=await pg.evaluate(()=>window.__labcalls.filter(c=>c.judge).pop().prompt);
   ok('it does not go to the judge: the judge sees two answers',/ANSWER 2/.test(jp)&&!/ANSWER 3/.test(jp)&&jd.order.length===2,jd.order);
-  await pg.locator('.vchip',{hasText:/lab/i}).click(); await pg.waitForTimeout(100);
+  await pg.locator('.vchip',{hasText:/quorum/i}).click(); await pg.waitForTimeout(100);
   ok('the panel says that run was not counted',/not counted/i.test(await pg.locator('.lab .status').first().innerText()));
   await pg.keyboard.press('Enter'); await pg.waitForTimeout(80);
   // failure: Sonnet rate limited
@@ -93,13 +93,13 @@ const settle=pg=>pg.waitForFunction(()=>{const u=window.__t.ui; return u&&u.lab&
   const sr=Object.values(await S(pg,'labruns')).filter(r=>r.model==='claude-sonnet-5-5').pop();
   ok('a failed call is stored with its error code',sr.ok===false&&sr.error==='rate_limited'&&sr.valid===false,sr);
   ok('the other two still ran and the judge ruled on them',(await calls(pg)).length-before===4);
-  await pg.locator('.vchip',{hasText:/lab/i}).click(); await pg.waitForTimeout(100);
+  await pg.locator('.vchip',{hasText:/quorum/i}).click(); await pg.waitForTimeout(100);
   ok('the panel names the failure and offers to run the missing one again',/Sonnet: failed \(rate_limited\)/.test(await pg.locator('.lab .status').first().innerText())&&await pg.locator('.lab .btn',{hasText:/missing/i}).count()===1);
   await pg.keyboard.press('Enter'); await pg.waitForTimeout(80);
   const n1=(await calls(pg)).length;
   await answerWide(pg); await pg.waitForTimeout(400);
   ok('after a rate limit the lab pauses: no new calls for the next answer',(await calls(pg)).length===n1,[n1,(await calls(pg)).length]);
-  ok('the page works and no lab panel is shown for that answer',await pg.evaluate(()=>!window.__t.ui.lab)&&await pg.locator('.vchip',{hasText:/lab/i}).count()===0);
+  ok('the page works and no lab panel is shown for that answer',await pg.evaluate(()=>!window.__t.ui.lab)&&await pg.locator('.vchip',{hasText:/quorum/i}).count()===0);
   // resume and re-run the missing one
   await pg.keyboard.press('Enter'); await pg.waitForTimeout(60);
   await pg.evaluate(()=>{ window.__labFail={}; window.__t.labPause=0; });
@@ -115,7 +115,7 @@ const settle=pg=>pg.waitForFunction(()=>{const u=window.__t.ui; return u&&u.lab&
   await answerWide(pg); await settle(pg); await pg.waitForTimeout(80);
   const orn=Object.values(await S(pg,'labruns')).find(r=>r.model==='claude-opus-5-5'&&r.kind!=='judge');
   ok('an unreadable reply is stored as not ok with the raw text',orn.ok===false&&orn.valid===true&&/both/.test(orn.raw)&&!!orn.error,orn);
-  await pg.locator('.vchip',{hasText:/lab/i}).click(); await pg.waitForTimeout(100);
+  await pg.locator('.vchip',{hasText:/quorum/i}).click(); await pg.waitForTimeout(100);
   ok('the panel says the reply was unreadable',/Opus: unreadable reply/.test(await pg.locator('.lab .status').first().innerText()));
   await pg.evaluate(()=>{ window.__labRaw={}; });
   const b=(await calls(pg)).length;
@@ -138,7 +138,7 @@ const settle=pg=>pg.waitForFunction(()=>{const u=window.__t.ui; return u&&u.lab&
   ok('turning it off is remembered in the browser',await pg.evaluate(()=>localStorage.getItem('rd-lab'))==='0'&&!(await pg.evaluate(()=>window.__t.lab)));
   await pg.keyboard.press('Escape'); await pg.waitForTimeout(80);
   await answerWide(pg); await pg.waitForTimeout(400);
-  ok('with the lab off no calls are made and there is no Lab chip',(await calls(pg)).length===0&&await pg.locator('.vchip',{hasText:/lab/i}).count()===0&&Object.keys(await S(pg,'labruns')).length===0);
+  ok('with the lab off no calls are made and there is no Lab chip',(await calls(pg)).length===0&&await pg.locator('.vchip',{hasText:/quorum/i}).count()===0&&Object.keys(await S(pg,'labruns')).length===0);
   await pg.keyboard.press('Enter'); await pg.waitForTimeout(80);
   await pg.locator('#obtn').click(); await pg.waitForTimeout(100); await pg.locator('#over .sw',{hasText:/three models/i}).click(); await pg.waitForTimeout(60); await pg.keyboard.press('Escape'); await pg.waitForTimeout(60);
   await answerWide(pg); await settle(pg);
@@ -150,7 +150,7 @@ const settle=pg=>pg.waitForFunction(()=>{const u=window.__t.ui; return u&&u.lab&
  {
   const {br,pg,errs}=await open({width:1280,height:800},{lab:true});
   await answerWide(pg); await settle(pg); await pg.waitForTimeout(80);
-  await pg.locator('.vchip',{hasText:/lab/i}).click(); await pg.waitForTimeout(100);
+  await pg.locator('.vchip',{hasText:/quorum/i}).click(); await pg.waitForTimeout(100);
   const card=pg.locator('.lab-c').first(), hrow=card.locator('.lab-r',{hasText:/haiku/i});
   const keyBefore=await pg.evaluate(()=>window.__t.cur.p.a+'|'+window.__t.cur.p.b);
   await hrow.locator('.lp[aria-label^="Flag in A"]').click(); await pg.waitForTimeout(100);
@@ -201,7 +201,7 @@ const settle=pg=>pg.waitForFunction(()=>{const u=window.__t.ui; return u&&u.lab&
   const {br,pg,errs}=await open({width:1280,height:800},{lab:true});
   await pg.evaluate(()=>{ window.__labdelays={opus:1200,judge:50}; });
   await answerWide(pg); await pg.waitForTimeout(350);
-  await pg.locator('.vchip',{hasText:/lab/i}).click(); await pg.waitForTimeout(80);
+  await pg.locator('.vchip',{hasText:/quorum/i}).click(); await pg.waitForTimeout(80);
   await pg.locator('.lab-c').first().locator('.lab-r',{hasText:/haiku/i}).locator('.lp[aria-label^="Flag in B"]').click(); await pg.waitForTimeout(80);
   await pg.keyboard.type('abc');
   await pg.waitForTimeout(1500);
@@ -218,7 +218,7 @@ const settle=pg=>pg.waitForFunction(()=>{const u=window.__t.ui; return u&&u.lab&
  {
   const {br,pg,errs}=await open({width:1280,height:800},{lab:true});
   await answerWide(pg); await settle(pg); await pg.waitForTimeout(80);
-  await pg.locator('.vchip',{hasText:/lab/i}).click(); await pg.waitForTimeout(80);
+  await pg.locator('.vchip',{hasText:/quorum/i}).click(); await pg.waitForTimeout(80);
   await pg.evaluate(()=>{ window.__failSet={flags:true}; });
   const row=pg.locator('.lab-c').first().locator('.lab-r',{hasText:/opus/i});
   await row.locator('.lp[aria-label^="Flag exists"]').click(); await pg.waitForTimeout(60); await pg.locator('#flag-note').fill('x'); await pg.locator('.flagedit .btn',{hasText:/^submit$/i}).click(); await pg.waitForTimeout(400);
@@ -235,7 +235,7 @@ const settle=pg=>pg.waitForFunction(()=>{const u=window.__t.ui; return u&&u.lab&
   await pg.keyboard.press(String(ORDER[rel]+1)); await pg.waitForTimeout(150); await settle(pg); await pg.waitForTimeout(80);
   const runs=Object.values(await S(pg,'labruns')), r=runs.find(x=>x.model==='claude-haiku-5-5');
   ok('a checked debate runs the lab too, on the examples posited with Why?',!!r&&r.case.tab==='debate'&&r.case.things.length===4&&/^debates_/.test(r.caseKey)&&runs.length===4,r&&r.caseKey);
-  ok('the Questions result has the Lab chip',await pg.locator('.vchip',{hasText:/lab/i}).count()===1);
+  ok('the Questions result has the Lab chip',await pg.locator('.vchip',{hasText:/quorum/i}).count()===1);
   ok('no page errors (debate lab)',noErr(errs).length===0,errs);
   await br.close();
  }
@@ -243,7 +243,7 @@ const settle=pg=>pg.waitForFunction(()=>{const u=window.__t.ui; return u&&u.lab&
  {
   const {br,pg,errs}=await open({width:1280,height:800},{lab:true});
   await pg.evaluate(()=>{ window.__labAns={haiku:(t,i)=>({inB:i!==0})}; });
-  for(let k=0;k<2;k++){ await answerWide(pg); await settle(pg); await pg.waitForTimeout(80); if(k===0){ await pg.locator('.vchip',{hasText:/lab/i}).click(); await pg.waitForTimeout(80); await pg.locator('.lab-c').first().locator('.lab-r',{hasText:/haiku/i}).locator('.lp[aria-label^="Flag in B"]').click(); await pg.waitForTimeout(60); await pg.locator('#flag-note').fill('B is wrong'); await pg.locator('.flagedit .btn',{hasText:/^submit$/i}).click(); await pg.waitForTimeout(80); await pg.locator('#stage .actions .btn',{hasText:/next pair/i}).click(); await pg.waitForTimeout(80); } }
+  for(let k=0;k<2;k++){ await answerWide(pg); await settle(pg); await pg.waitForTimeout(80); if(k===0){ await pg.locator('.vchip',{hasText:/quorum/i}).click(); await pg.waitForTimeout(80); await pg.locator('.lab-c').first().locator('.lab-r',{hasText:/haiku/i}).locator('.lp[aria-label^="Flag in B"]').click(); await pg.waitForTimeout(60); await pg.locator('#flag-note').fill('B is wrong'); await pg.locator('.flagedit .btn',{hasText:/^submit$/i}).click(); await pg.waitForTimeout(80); await pg.locator('#stage .actions .btn',{hasText:/next pair/i}).click(); await pg.waitForTimeout(80); } }
   await pg.locator('#tabs .nv',{hasText:/review/i}).click(); await pg.waitForTimeout(250);
   const sec=pg.locator('.rcol .section',{has:pg.locator('.label',{hasText:/^Lab/})});
   ok('Review has a Lab section',await sec.count()===1);
@@ -282,8 +282,8 @@ const settle=pg=>pg.waitForFunction(()=>{const u=window.__t.ui; return u&&u.lab&
   ok('after the result the Next pair button has the focus',/next pair/i.test(await foc()),await foc());
   await settle(pg); await pg.waitForTimeout(100);
   ok('it still has it after the lab runs and the panel updates',/next pair/i.test(await foc()),await foc());
-  await pg.locator('.vchip',{hasText:/lab/i}).click(); await pg.waitForTimeout(100);
-  await pg.locator('.vchip',{hasText:/lab/i}).focus();
+  await pg.locator('.vchip',{hasText:/quorum/i}).click(); await pg.waitForTimeout(100);
+  await pg.locator('.vchip',{hasText:/quorum/i}).focus();
   await pg.evaluate(()=>window.__t.labAgain&&0);
   await pg.locator('.lab-c').first().locator('.lab-r',{hasText:/sonnet/i}).locator('.lp[aria-label^="Flag exists"]').click(); await pg.waitForTimeout(80);
   await pg.locator('#flag-note').fill('ok'); await pg.locator('.flagedit .btn',{hasText:/^submit$/i}).click(); await pg.waitForTimeout(150);
@@ -300,7 +300,7 @@ const settle=pg=>pg.waitForFunction(()=>{const u=window.__t.ui; return u&&u.lab&
   const {br,pg,errs}=await open({width:w,height:h},{isMobile:true,hasTouch:true,lab:true});
   await pg.evaluate(()=>{ window.__labAns={haiku:(t,i)=>({inB:false,unsure:i===0}),opus:(t,i)=>({exists:i!==1})}; });
   await answerPhone(pg); await settle(pg); await pg.waitForTimeout(100);
-  await pg.locator('.vchip',{hasText:/lab/i}).click(); await pg.waitForTimeout(150);
+  await pg.locator('.vchip',{hasText:/quorum/i}).click(); await pg.waitForTimeout(150);
   const over=()=>pg.evaluate(()=>({doc:document.documentElement.scrollWidth>innerWidth,card:(()=>{const c=document.getElementById('stage'); return c.scrollWidth>c.clientWidth+1;})(),lab:(()=>{const c=document.querySelector('.lab'); return c?c.scrollWidth>c.clientWidth+1:null;})()}));
   let o=await over(); ok(w+' px: the open Lab panel does not overflow sideways',!o.doc&&!o.card&&!o.lab,o);
   const small=await pg.locator('.lab .lp').evaluateAll(b=>b.filter(x=>x.getBoundingClientRect().height<26).length);
@@ -320,7 +320,7 @@ const settle=pg=>pg.waitForFunction(()=>{const u=window.__t.ui; return u&&u.lab&
  {
   const {br,pg,errs}=await open({width:390,height:844},{isMobile:true,hasTouch:true,lab:true,colorScheme:'dark'});
   await answerPhone(pg); await settle(pg); await pg.waitForTimeout(100);
-  await pg.locator('.vchip',{hasText:/lab/i}).click(); await pg.waitForTimeout(150);
+  await pg.locator('.vchip',{hasText:/quorum/i}).click(); await pg.waitForTimeout(150);
   await pg.locator('.lab .lp[aria-label^="Flag cell"]').first().click(); await pg.waitForTimeout(100);
   await pg.screenshot({path:D+'v57-lab-dark.png'});
   const lowc=await pg.evaluate(()=>{ const rgb=s=>s.match(/\d+(\.\d+)?/g).map(Number); const lum=c=>{const a=c.slice(0,3).map(v=>{v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4)}); return .2126*a[0]+.7152*a[1]+.0722*a[2];}; const bad=[]; for(const n of document.querySelectorAll('.lab .lp,.lab .mn,.lab-s,.flagedit .fh,.flagedit textarea')){ const cs=getComputedStyle(n); let bg=null,e=n; while(e&&!bg){ const b=rgb(getComputedStyle(e).backgroundColor); if(b.length>=3&&(b[3]===undefined||b[3]>0.5)) bg=b; e=e.parentElement; } const fg=rgb(cs.color); const L1=lum(fg),L2=lum(bg||[16,22,43]); const cr=(Math.max(L1,L2)+.05)/(Math.min(L1,L2)+.05); if(cr<3.5) bad.push([n.className,n.innerText.slice(0,20),cr.toFixed(2)]); } return bad; });

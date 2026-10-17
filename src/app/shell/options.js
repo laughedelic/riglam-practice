@@ -2,6 +2,7 @@ import { state } from "../state.js";
 import { accountControls } from "../../ui/account";
 import { dataTransferControls } from "../../ui/data-transfer";
 import { setLab } from "../ai/lab.js";
+import { canAsk } from "../core/ask.js";
 import { ico } from "../core/icons.js";
 import { MAGIC_KEY_NOTE } from "../../ui/magic-key-note.ts";
 import { $, el } from "../core/dom.js";
@@ -29,6 +30,7 @@ const segOf=(label,rows,cur_,on)=>el("div",{class:"seg",role:"group","aria-label
 function setNota(k){ state.nota=k; try{ localStorage.setItem("rd-notation",k); }catch(e){} render(); }
 export function setDefLang(k){ state.defLang=k==="enru"?"enru":"en"; try{ localStorage.setItem("rd-deflang",state.defLang); }catch(e){} render(); }
 function setShow(key,on){ if(key==="ab") state.showAB=on; else state.fullPh=on; try{ localStorage.setItem("rd-"+key,on?"1":"0"); }catch(e){} render(); }
+function setAutoExplain(on){ state.autoExplain=on; try{ localStorage.setItem("rd-autoexplain",on?"1":"0"); }catch(e){} render(); }
 function setWording(k){ state.wording=k; try{ localStorage.setItem("rd-wording",k); }catch(e){} render(); }
 // Options and the tutor chat are not tabs: they open over the workspace (the chat only on narrow screens) and close with Back or Escape.
 export function renderOptionsBtn(){
@@ -83,8 +85,10 @@ export function optionsInto(o){
       el("button",{type:"button",class:"sw",role:"switch","aria-checked":state.showAB?"true":"false",onclick:()=>setShow("ab",!state.showAB)},el("i",{class:"knob","aria-hidden":"true"}),el("span",{class:"swl",text:"A/B markers"}),el("span",{class:"swt",text:"before the terms"})),
       el("button",{type:"button",class:"sw",role:"switch","aria-checked":state.fullPh?"true":"false",onclick:()=>setShow("full",!state.fullPh)},el("i",{class:"knob","aria-hidden":"true"}),el("span",{class:"swl",text:"Full phrases"}),el("span",{class:"swt",text:"spell out Why? answers"}))),
       "Applies to the statements and to your answers."),
-    state.sample&&state.db?row("Check lab",el("button",{type:"button",class:"sw",role:"switch","aria-checked":state.lab?"true":"false",onclick:()=>setLab(!state.lab)},el("i",{class:"knob","aria-hidden":"true"}),el("span",{class:"swl",text:"Three models check every answer"}),el("span",{class:"swt",text:state.lab?"on":"off"})),
-      "For development. After each check, Haiku, Sonnet and Opus classify your examples independently: three Claude calls from your own usage. Opus rules as judge only when they differ, and on about one answer in ten as a spot check; when all three agree, that is the verdict. Every run is stored so the models can be compared, and any box with Claude\u2019s text has a flag. Your page verdicts do not change."):null,
+    canAsk()?row("Explain",el("button",{type:"button",class:"sw",role:"switch","aria-checked":state.autoExplain?"true":"false",onclick:()=>setAutoExplain(!state.autoExplain)},el("i",{class:"knob","aria-hidden":"true"}),el("span",{class:"swl",text:"Check and explain by itself"}),el("span",{class:"swt",text:state.autoExplain?"on":"off"})),
+      "When you check an answer, Claude explains it right away and checks the examples the page could not, with no tap on Explain. One tutor question per answer. Off, the Explain button waits for you."):null,
+    state.labSample&&state.db?row("Check lab",el("button",{type:"button",class:"sw",role:"switch","aria-checked":state.lab?"true":"false",onclick:()=>setLab(!state.lab)},el("i",{class:"knob","aria-hidden":"true"}),el("span",{class:"swl",text:"Three models check every answer"}),el("span",{class:"swt",text:state.lab?"on":"off"})),
+      "For development. After each check, Haiku, Sonnet and Opus classify your examples independently: three Claude calls"+(state.labSample===state.sample?" from your own usage":", from this test server\u2019s daily budget for the lab")+". Opus rules as judge only when they differ, and on about one answer in ten as a spot check; when all three agree, that is the verdict. Every run is stored so the models can be compared, and any box with Claude\u2019s text has a flag. Your page verdicts do not change."):null,
     timeRow("rel","Relation time","The Blitz countdown for choosing the relation, in Relations and in Pervasions."),
     timeRow("ex","Example time","The Blitz countdown for each example in Relations (a table of three cells gets three times this) and for each question in Pervasions."),
     state.unlock?row(mkBtn(),el("button",{type:"button",class:"btn ghost",onclick:()=>{ toggleOpts(false); state.unlock.open(); }},"Enter the Magic Key"),

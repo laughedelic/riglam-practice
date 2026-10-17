@@ -24,6 +24,12 @@ export interface Env {
   GLOBAL_DAILY_BUDGET_USD?: string;
   /** what a question is assumed to cost until it has finished, in US dollars; held back from the budgets meanwhile */
   RESERVE_USD?: string;
+  /** `on` makes the server answer the check lab's model calls (`POST /api/lab`, worker/lab.ts). Set in the `previews` block of wrangler.jsonc only: any other value, or none, leaves the lab off. */
+  LAB?: string;
+  /** what one device may spend on the lab per UTC day, in US dollars (the lab has counters of its own, apart from the tutor's) */
+  LAB_DEVICE_DAILY_BUDGET_USD?: string;
+  /** what all devices together may spend on the lab per UTC day, in US dollars */
+  LAB_GLOBAL_DAILY_BUDGET_USD?: string;
   /** who may create an account: `open` (default), `group` (only with the study group's proof) or `closed` */
   SIGNUP?: string;
   /** most accounts (default 300) */
