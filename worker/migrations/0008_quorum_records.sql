@@ -2,13 +2,13 @@
 -- "previews"); production never does. One row per Quorum question: every model's answer, the judge's, which text the learner saw, and the examples
 -- with the cell each call gave them (docs/SERVER.md, "Quorum"). Unlike usage_log, THIS TABLE HOLDS TEXT: the card
 -- of the pair with what the learner wrote, and the answers. A person who turns Quorum off in Options (or has no Magic Key) adds none.
+-- A row does not say which device asked: the text is kept for what the models said about the examples, not for whose it was.
 -- Rows are not pruned. Read them in the Cloudflare dashboard's D1 console, for example:
 --   SELECT at, json_extract(things, '$[0].example') AS example, disputed, shown FROM quorum_records ORDER BY at DESC LIMIT 20;
 CREATE TABLE quorum_records (
   id TEXT PRIMARY KEY,
   at TEXT NOT NULL,
   day TEXT NOT NULL,
-  device TEXT NOT NULL,
   -- 'explain' (Quorum answers nothing else)
   kind TEXT NOT NULL,
   -- JSON: the ids of the pair's categories, as the page sent them

@@ -145,7 +145,10 @@ describe("when the models agree", () => {
     }
     // the row that was kept: every answer, the examples with the cell each gave, and what it cost
     const [row] = stored(s);
-    expect(row).toMatchObject({ id: record.id, day: "2026-10-13", device: s.device, kind: "explain", shown: "Opus", judged: 0, disputed: 0, outcome: "answered", micro: 4000 + 8000 + 200 });
+    expect(row).toMatchObject({ id: record.id, day: "2026-10-13", kind: "explain", shown: "Opus", judged: 0, disputed: 0, outcome: "answered", micro: 4000 + 8000 + 200 });
+    // the text of a question is kept without whose device asked it
+    expect(Object.keys(row)).not.toContain("device");
+    expect(JSON.stringify(row)).not.toContain(s.device);
     expect(JSON.parse(row.cats)).toEqual(["c_form", "c_round"]);
     expect(row.prompt).toBe("CARD: A is form, B is round.");
     expect(JSON.parse(row.things)).toEqual([{ example: "a table", lines: ["both"], cells: { Haiku: "both", Sonnet: "both", Opus: "both" } }]);

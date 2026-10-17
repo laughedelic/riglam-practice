@@ -152,7 +152,7 @@ export function createApp(deps: Deps) {
         if (single) await emit({ type: "single", why: "budget" }).catch(() => {});
         const outcome =
           pool === "quorum"
-            ? await runQuorum({ client, kit, config, request: parsed.request, emit, signal: abort.signal, device, day, now: when, save: (r) => saveRecord(env.DB!, r) })
+            ? await runQuorum({ client, kit, config, request: parsed.request, emit, signal: abort.signal, day, now: when, save: (r) => saveRecord(env.DB!, r) })
             : await runTutor({ client, kit, config, request: parsed.request, emit, signal: abort.signal });
         // The held amount is replaced by the real cost even when the page has gone away or the call failed.
         await settle(env.DB!, { day, device, held: cost.reserveMicro, actual: outcome.micro, now: when, kind: parsed.request.kind, model: pool === "quorum" ? "quorum" : config.model, rounds: outcome.rounds, tokens: outcome.tokens, outcome: outcome.outcome, pool }).catch((e) =>

@@ -20,7 +20,6 @@ export interface StoredRecord {
   id: string;
   at: Date;
   day: string;
-  device: string;
   request: TutorRequest;
   runs: QuorumRun[];
   rows: QuorumRow[];
@@ -36,13 +35,12 @@ const PROMPT_CHARS = 6000;
 export async function saveRecord(db: D1Database, r: StoredRecord): Promise<void> {
   await db
     .prepare(
-      "INSERT INTO quorum_records (id, at, day, device, kind, cats, prompt, things, runs, shown, judged, disputed, micro, outcome) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+      "INSERT INTO quorum_records (id, at, day, kind, cats, prompt, things, runs, shown, judged, disputed, micro, outcome) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
     )
     .bind(
       r.id,
       r.at.toISOString(),
       r.day,
-      r.device,
       r.request.kind,
       JSON.stringify(r.request.cats),
       (r.request.turns[0]?.content ?? "").slice(0, PROMPT_CHARS),
@@ -91,7 +89,6 @@ export async function runQuorum(p: {
   request: TutorRequest;
   emit: Emit;
   signal: AbortSignal;
-  device: string;
   day: string;
   now: Date;
   save: (r: StoredRecord) => Promise<void>;
@@ -164,7 +161,7 @@ export async function runQuorum(p: {
   const rows = quorumRows(judge?.ok ? [...usable, judge] : usable);
 
   try {
-    await p.save({ id, at: p.now, day: p.day, device: p.device, request, runs, rows, shown: shown.name, judged: !!judge, disputed: differ.length, micro, outcome });
+    await p.save({ id, at: p.now, day: p.day, request, runs, rows, shown: shown.name, judged: !!judge, disputed: differ.length, micro, outcome });
   } catch (e) {
     console.error("quorum record not saved", e instanceof Error ? e.name : typeof e);
   }
