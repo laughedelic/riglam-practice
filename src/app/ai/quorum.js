@@ -27,16 +27,17 @@ export function quorumBegin(U){ U.quorum={busy:true,steps:[],record:null}; }
 export function quorumStep(U,step){ const q=U.quorum; if(!q) return; q.steps.push(step); if(U===state.ui&&U.rtab==="quorum") renderKeepFocus(); }
 export function quorumDropped(U){ delete U.quorum; }
 // the answer is in: keep the record, and flag the examples the models are divided about
-export function quorumEnd(U,r){
+// `C` is the pair the question was asked about: the learner may have gone to another pair while the models worked, and the flags belong to the one answered.
+export function quorumEnd(U,r,C){
   const q=U.quorum; if(!q) return;
   q.busy=false; q.record=r.quorum||null; if(r.single) q.single=r.single;
-  quorumFlagDisputes(U);
+  quorumFlagDisputes(U,C);
 }
 
 // the things the learner wrote in this answer, each with the cell(s) it stood in and the page's verdict there
 export function quorumThings(U){
   const out=[], seen={};
-  const add=(text,c)=>{ const t=String(text||"").trim(), k=norm(t); if(!k) return; let o=seen[k]; if(!o){ o=seen[k]={text:t.slice(0,120),cells:[],page:{}}; out.push(o); } if(!o.cells.includes(c)){ o.cells.push(c); o.page[c]=U.res.cells[c].v; } };
+  const add=(text,c)=>{ const t=String(text||"").trim(), k=norm(t); if(!k) return; let o=seen[k]; if(!o){ o=seen[k]={text:t.slice(0,1000),cells:[],page:{}}; out.push(o); } if(!o.cells.includes(c)){ o.cells.push(c); o.page[c]=U.res.cells[c].v; } };
   if(U.debate) QCELL.forEach((c,i)=>{ if(U.ans[i].say==="why") add(U.ans[i].text,c); });
   else CELLS.forEach(c=>{ if(!REL[U.rel].empty.includes(c)&&!U.cells[c].none) add(U.cells[c].t,c); });
   return out.slice(0,6);
@@ -48,14 +49,14 @@ export function runReading(run,text){
   return all.find(r=>r.cell)||all[0]||null;
 }
 // Where Quorum is divided about an example, the page flags it by itself (see autoFlags). The page's verdict is read now, so a verdict Claude gave since the check counts.
-function quorumFlagDisputes(U){
+function quorumFlagDisputes(U,C){
   try{
-    const rec=U.quorum&&U.quorum.record; if(!rec||!U.res||!state.cur) return;
+    const rec=U.quorum&&U.quorum.record; if(!rec||!U.res||!C) return;
     const things=quorumThings(U).map(t=>({text:t.text,cells:t.cells,page:Object.fromEntries(t.cells.map(c=>[c,U.res.cells[c]?U.res.cells[c].v:t.page[c]]))}));
     const read=run=>things.map(t=>cellFor(readings(run.text),t.text));
     const models=rec.models.filter(m=>m.ok).map(m=>({name:m.name,cells:read(m)}));
     const judge=rec.judge&&rec.judge.ok?read(rec.judge):null;
-    const p=state.cur.p, kase={key:flagKeyOf(U),a:p.a,b:p.b,relation:p.relation,tab:U.debate?"debate":"practice"};
+    const p=C.p, kase={key:flagKeyOf(U),a:p.a,b:p.b,relation:p.relation,tab:U.debate?"debate":"practice"};
     autoFlags(kase,quorumDisputes(things,models,judge).map(d=>({thing:things[d.index].text,shown:disputeText(d,things[d.index]),runId:rec.id})));
   }catch(e){}          // Quorum is optional: a failing flag must never break the page
 }

@@ -391,3 +391,45 @@ plain("a device with no Magic Key has no Quorum until the key is entered", async
   expect(asked[0].body.quorum).toBe(true);
   await expect(quorum(page)).toContainText(/[=≠]/);
 });
+
+// The learner can go to another pair (here, another tab) while the models work. The answer being waited for is the old pair's: its flags are written for it.
+withKey("flags raised after the learner went to another pair belong to the pair that was answered", async ({ page }, testInfo) => {
+  let release, reach;
+  const released = new Promise((resolve) => { release = resolve; });
+  const reached = new Promise((resolve) => { reach = resolve; }); // the stand-in has the question (it read the page for the examples before it was called)
+  let answered; // the examples of the answer being asked about, read before the learner leaves it
+  const asked = await open(page, testInfo, { tutor: async () => { reach(); await released; return { status: 200, body: run(answered, DIFFER) }; } });
+  const before = await page.evaluate(() => ({ a: window.__t.cur.p.a, b: window.__t.cur.p.b, relation: window.__t.cur.p.relation }));
+  answered = await page.evaluate(() => window.__t.quorumThings(window.__t.ui).map((t) => ({ text: t.text, cells: t.cells, page: t.page })));
+  const things = answered.map((t) => t.text);
+  await explain(page).click();
+  await reached;
+  expect(asked).toHaveLength(1);
+  await page.getByRole("tab", { name: "Pervasions" }).filter({ visible: true }).first().click();
+  await expect.poll(() => page.evaluate(() => window.__t.tab)).not.toBe("practice");
+  await expect.poll(() => page.evaluate(([a, b]) => window.__t.cur.p.a !== a || window.__t.cur.p.b !== b, [before.a, before.b])).toBe(true); // the page now has another pair
+  release();
+  await expect.poll(async () => (await flags(page)).length).toBe(things.length);
+  for (const f of await flags(page)) expect(f.pair).toMatchObject(before);
+});
+
+// An example longer than the page's usual excerpt is sent whole to the models, so the page finds it in their answers by its whole text.
+withKey("an example of more than 120 characters is found in the models' answers, and its disagreement is flagged", async ({ page }, testInfo) => {
+  test.skip(!isPhone(testInfo), "the answer flow is exercised in the phone layout");
+  await page.addInitScript(() => { window.__riglamTest = (t) => { window.__t = t; }; localStorage.setItem("rd-autoexplain", "0"); });
+  const LONG = "a very long example that goes on and on about nothing in particular, only to be longer than a hundred and twenty characters in all, and then some more";
+  expect(LONG.length).toBeGreaterThan(120);
+  await server(page, { tutor: (_body, _n, things) => ({ status: 200, body: run(things, DIFFER) }) });
+  await page.goto("/");
+  await ready(page);
+  await relOptions(page).first().click();
+  for (let i = 0; i < 4 && (await page.locator("#cin").isVisible()); i++) {
+    await page.fill("#cin", i === 0 ? LONG : "thing " + (i + 1));
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(100);
+  }
+  expect((await thingsOf(page))[0]).toBe(LONG);
+  await explain(page).click();
+  await expect(quorum(page)).toContainText(/[=≠]/);
+  await expect.poll(async () => (await flags(page)).some((f) => f.thing === LONG)).toBe(true);
+});

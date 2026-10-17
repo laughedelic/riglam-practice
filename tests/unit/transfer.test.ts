@@ -131,6 +131,25 @@ describe("what is replaced", () => {
   });
 });
 
+describe("a setting under an earlier name", () => {
+  const fileWith = (preferences: Record<string, string>) => parseDataFile(JSON.stringify({ format: FORMAT, version: 1, collections: {}, preferences }));
+
+  it("brings in the Quorum choice a file made as 'rd-lab' as 'rd-quorum'", async () => {
+    const storage = fakeStorage();
+    const plan = await planImport(newDb(), fileWith({ "rd-lab": "0", "rd-blitz": "1" }), { storage });
+    expect(plan.preferences).toEqual({ "rd-quorum": "0", "rd-blitz": "1" });
+    await applyImport(newDb(), plan, { storage });
+    expect(storage.getItem("rd-quorum")).toBe("0");
+    expect(storage.getItem("rd-lab")).toBeNull();
+  });
+
+  it("prefers the new name when a file has both, and still leaves a device's own choice alone", async () => {
+    expect(fileWith({ "rd-lab": "0", "rd-quorum": "1" }).preferences).toEqual({ "rd-quorum": "1" });
+    const plan = await planImport(newDb(), fileWith({ "rd-lab": "0" }), { storage: fakeStorage({ "rd-quorum": "1" }) });
+    expect(plan.preferences).toEqual({});
+  });
+});
+
 describe("a file that is not right", () => {
   const file = (collections: unknown) => parseDataFile(JSON.stringify({ format: FORMAT, version: 1, collections }));
 

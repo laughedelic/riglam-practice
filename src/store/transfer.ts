@@ -90,6 +90,11 @@ export function parseDataFile(text: string): DataFile {
   if (!isPlain(raw.collections)) throw new TransferError("That data file holds no collections.");
   const preferences: Record<string, string> = {};
   if (isPlain(raw.preferences)) for (const [k, v] of Object.entries(raw.preferences)) if (typeof v === "string") preferences[k] = v;
+  // Quorum's switch was stored as "rd-lab" while it was a lab of the page: a file from then carries the choice under that name
+  if ("rd-lab" in preferences) {
+    if (!("rd-quorum" in preferences)) preferences["rd-quorum"] = preferences["rd-lab"];
+    delete preferences["rd-lab"];
+  }
   return {
     format: FORMAT,
     version: raw.version,

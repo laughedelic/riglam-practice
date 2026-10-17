@@ -61,7 +61,7 @@ export async function ask(text,kind,byItself){
     }else r=await state.tutor({kind:kind==="explain"?"explain":"chat",cats:pairCats(state,p).filter(Boolean),turns,...(quorum?{quorum:true}:{})},{signal:ctl.signal,onText,onStep:s=>quorumStep(U,s)});
     slot.content=r.text+(r.truncated?"\n(Cut short.)":""); delete slot.pending;
     if(kind==="explain"){ if(U.doc) U.doc.explain=String(r.text||"").slice(0,3000); if(!(U.res.exOpen&&applyVerify(r.text,U,C))) saveExplain(U); }
-    if(quorum) quorumEnd(U,r);                          // after the verdicts: the flags compare the models with the page's verdicts as they now stand
+    if(quorum) quorumEnd(U,r,C);                          // after the verdicts: the flags compare the models with the page's verdicts as they now stand
   }catch(e){
     if(e&&e.text){ slot.content=e.text; delete slot.pending; } else U.chat.pop();
     if(kind==="explain") U.explained=false;
