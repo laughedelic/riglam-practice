@@ -97,7 +97,7 @@ export function labThings(U){
 }
 function labWrite(col,id,doc){
   const clean=JSON.parse(JSON.stringify(doc));
-  labQ[id]=(labQ[id]||Promise.resolve()).catch(()=>{}).then(()=>put(col,id,clean)).catch(e=>{ state.flagErr="A lab record could not be saved ("+((e&&e.code)||"error")+")."; if(state.ui&&state.ui.lab) labRender(state.ui.lab); });
+  labQ[id]=(labQ[id]||Promise.resolve()).catch(()=>{}).then(()=>put(col,id,clean)).catch(e=>{ state.flagErr="A Quorum record could not be saved ("+((e&&e.code)||"error")+")."; if(state.ui&&state.ui.lab) labRender(state.ui.lab); });
 }
 // one model, one case; resolves when its record is stored. The model that answered must be the one asked for, else the run does not count.
 async function labCall(L,m,prompt,effort,kind,extra){
@@ -114,8 +114,8 @@ async function labCall(L,m,prompt,effort,kind,extra){
     st.status=doc.ok?(doc.valid?"ok":"mismatch"):"bad";
   }catch(e){
     doc.ms=Math.round(performance.now()-t0); doc.ok=false; doc.valid=false; doc.error=(e&&e.code)||"error"; st.status="err";
-    if(e&&e.code==="rate_limited") state.labPause=Date.now()+(e.budget?864e5:120000);   // no more lab calls for two minutes, or for this page load when the server's budget for them is used
-    if(e&&ERR_OFF.includes(e.code)) state.labPause=Date.now()+864e5;            // not allowed: none for this page load
+    if(e&&e.code==="rate_limited"){ state.labPause=Date.now()+(e.budget?864e5:120000); state.labPauseWhy=e.budget?"the budget for Quorum is used up (it comes back tomorrow)":"the models are busy (it tries again in two minutes)"; }   // no more lab calls for two minutes, or for this page load when the server's budget for them is used
+    if(e&&ERR_OFF.includes(e.code)){ state.labPause=Date.now()+864e5; state.labPauseWhy="the server does not allow it ("+e.code+")"; }   // not allowed: none for this page load
   }
   st.doc=doc;
   const id=(kind==="judge"?"lj_":"lr_")+favSafe(key)+(kind==="judge"?"":"_"+m.k);
@@ -176,5 +176,11 @@ export function labStart(U,C){
   kase.key=(U.col||"answers")+"_"+(U.saveId||("t"+Date.now().toString(36)));
   U.lab={kase,runs:{},busy:false,u:U};
   labRun(U,C);
+}
+// Why Quorum did not start for a checked answer: the chip says so, so that a switch that is on never looks like a lab that is missing.
+export function labWhyNot(U){
+  if(Date.now()<state.labPause) return "Quorum is paused: "+(state.labPauseWhy||"a call failed")+".";
+  if(U.res&&!labThings(U).length) return "Nothing to check: no example was written. Quorum classifies the examples you write"+(U.debate?" (here the answers to Why?)":" in the cells")+".";
+  return "Quorum did not start for this answer.";
 }
 export function labAgain(){ const U=state.ui; if(!U||!U.lab||U.lab.busy) return; const bad=LAB_MODELS.filter(m=>{ const s=U.lab.runs[m.k]; return !s||s.status!=="ok"; }).map(m=>m.k); delete U.lab.runs.judge; labRun(U,state.cur,bad.length?bad:null); }

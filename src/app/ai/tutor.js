@@ -28,7 +28,7 @@ function applyVerify(text,U,C){
 }
 // The explanation is kept with the answer (applyVerify saves it along with the verdicts), so verdicts can be audited later.
 function saveExplain(U){ persist(U,U.debate?"Your debate":"Your answer"); }
-// With "Check and explain by itself" on (Options), a checked answer asks for the explanation the Explain button would ask for, with no tap. It asks once per
+// With "Check every answer with AI" on (Options), a checked answer asks for the explanation the Explain button would ask for, with no tap. It asks once per
 // answer, only where the tutor can answer (a device without the Magic Key still gets the grayed button), and it leaves the screen and the focus where they are.
 export function explainByItself(U){
   if(!state.autoExplain||U!==state.ui||!U.checked||U.explained||U.ctl||!canAsk()) return;

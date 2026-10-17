@@ -1,4 +1,4 @@
-// "Check and explain by itself" in the artifact build, where the page asks the host's own model (`sample`): a checked answer asks for its explanation
+// "Check every answer with AI" in the artifact build, where the page asks the host's own model (`sample`): a checked answer asks for its explanation
 // at once, in Relations and in Pervasions, and not when the setting is off. The host is the mock of tests/support/claude-mock.js.
 import { test, expect } from "@playwright/test";
 import { routeArtifact } from "../../support/artifact-host.js";

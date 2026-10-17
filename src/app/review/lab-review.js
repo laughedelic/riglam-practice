@@ -24,11 +24,11 @@ function labStats(){
 }
 export function labReview(box){
   const fl=Object.values(state.flags).sort((x,y)=>(y.updatedAt||y.at||"").localeCompare(x.updatedAt||x.at||"")), nNew=fl.filter(f=>f.state==="new").length;
-  const sec=el("div",{class:"section"},el("p",{class:"label"},"Lab",el("span",{class:"hint",text:fl.length?fl.length+" flagged"+(nNew?", "+nNew+" new":""):"no flags yet"})));
+  const sec=el("div",{class:"section"},el("p",{class:"label"},"Quorum",el("span",{class:"hint",text:fl.length?fl.length+" flagged"+(nNew?", "+nNew+" new":""):"no flags yet"})));
   const {by,cases}=labStats(), models=LAB_MODELS.filter(m=>by[m.id]);
   if(models.length) sec.append(el("table",{class:"tbl labt"},el("thead",null,el("tr",null,["Model","Runs","Time","Judge agrees"].map(h=>el("th",{text:h})))),
     el("tbody",null,models.map(m=>{ const o=by[m.id]; return el("tr",null,el("td",{text:m.name}),el("td",{class:"num",text:o.counted+(o.n>o.counted?" / "+o.n:"")}),el("td",{class:"num",text:o.counted?(o.ms/o.counted/1000).toFixed(1)+" s":"–"}),el("td",{class:"num",text:o.cmp?o.agree+" / "+o.cmp:"–"})); }))));
-  else sec.append(el("p",{class:"empty-note",text:state.lab?"Runs appear here after you check an answer.":"The lab is off (Options)."}));
+  else sec.append(el("p",{class:"empty-note",text:state.lab?"Runs appear here after you check an answer.":"Quorum is off (Options)."}));
   // cases where the models disagree
   const dis=[];
   for(const [k,cs] of Object.entries(cases)){
