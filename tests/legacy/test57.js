@@ -249,18 +249,22 @@ const settle=pg=>pg.waitForFunction(()=>{const u=window.__t.ui; return u&&u.lab&
   await pg.locator('#tabs .nv',{hasText:/review/i}).click(); await pg.waitForTimeout(250);
   const sec=pg.locator('.rcol .section',{has:pg.locator('.label',{hasText:/^Quorum/})});
   ok('Review has a Quorum section',await sec.count()===1);
-  ok('its heading counts the flags',/1 flagged, 1 new/.test(await sec.locator('.label .hint').innerText()),await sec.locator('.label .hint').innerText());
+  // the flag raised by hand, and the ones the page wrote by itself where the models gave different cells (Haiku differs from the others on the things after the first)
+  const fl0=Object.values(await S(pg,'flags')), hand=fl0.find(f=>!f.auto), autos=fl0.filter(f=>f.auto);
+  ok('its heading counts the flags: the one raised by hand and the automatic ones',fl0.length>=2&&fl0.filter(f=>!f.auto).length===1&&new RegExp('^'+fl0.length+' flagged, '+fl0.length+' new').test(await sec.locator('.label .hint').innerText()),await sec.locator('.label .hint').innerText());
+  ok('Quorum flagged by itself each thing on which the models differed, with the cells shown and no note',autos.length>=2&&autos.every(f=>f.auto==='quorum'&&f.part==='quorum'&&f.note===''&&f.state==='new'&&/^The models gave different cells\. Models: Haiku /.test(f.shown))&&/Quorum \(automatic\)/.test(await sec.locator('.flagl').innerText()),autos);
   const trs=await sec.locator('table.labt tbody tr').allInnerTexts();
   ok('a model table lists Haiku, Sonnet and Opus with counted runs, time and agreement with the judge',trs.length===3&&/Haiku\s+2/.test(trs[0].replace(/\t/g,' '))&&/\d+ \/ \d+/.test(trs[0]),trs);
   const dis=await sec.locator('.sublabel',{hasText:/disagree/i}).count();
   ok('"Models disagree" lists the things where the models gave different cells',dis===1&&await sec.locator('.sublabel',{hasText:/disagree/i}).evaluate(e=>e.nextElementSibling.querySelectorAll('li').length)>=2);
-  await sec.locator('.flagl li .btn',{hasText:/reviewed/i}).click(); await pg.waitForTimeout(150);
-  ok('Reviewed changes the stored state',Object.values(await S(pg,'flags'))[0].state==='reviewed');
-  await sec.locator('.flagl li .btn',{hasText:/resolved/i}).click(); await pg.waitForTimeout(150);
-  ok('Resolved changes it again, and the entry is dimmed',Object.values(await S(pg,'flags'))[0].state==='resolved'&&await sec.locator('.flagl li.resolved').count()===1);
-  ok('the flag entry shows what was flagged and the note',/B is wrong/.test(await sec.locator('.flagl').innerText())&&/Haiku/.test(await sec.locator('.flagl').innerText()));
-  await sec.locator('.flagl li .btn',{hasText:/delete/i}).click(); await pg.waitForTimeout(150);
-  ok('Delete removes it',Object.keys(await S(pg,'flags')).length===0&&await sec.locator('.flagl').count()===0);
+  const mine=sec.locator('.flagl li',{hasText:/B is wrong/});
+  await mine.locator('.btn',{hasText:/reviewed/i}).click(); await pg.waitForTimeout(150);
+  ok('Reviewed changes the stored state',(await S(pg,'flags'))[hand.id].state==='reviewed');
+  await mine.locator('.btn',{hasText:/resolved/i}).click(); await pg.waitForTimeout(150);
+  ok('Resolved changes it again, and the entry is dimmed',(await S(pg,'flags'))[hand.id].state==='resolved'&&await sec.locator('.flagl li.resolved').count()===1);
+  ok('the flag entry shows what was flagged and the note',/B is wrong/.test(await mine.innerText())&&/Haiku/.test(await mine.innerText()));
+  await mine.locator('.btn',{hasText:/delete/i}).click(); await pg.waitForTimeout(150);
+  ok('Delete removes it, and leaves the automatic ones',!(await S(pg,'flags'))[hand.id]&&Object.keys(await S(pg,'flags')).length===autos.length&&await mine.count()===0);
   // a flag arriving from elsewhere appears
   await pg.evaluate(()=>{ window.__S.flags.fl_ext={id:'fl_ext',caseKey:'x',thing:'a tree',part:'cell',model:'sonnet',shown:'Both',note:'from another device',suggest:'',state:'new',at:new Date().toISOString(),updatedAt:new Date().toISOString()}; window.__subs.flags.forEach(f=>f({docs:Object.entries(window.__S.flags).map(([id,d])=>({id,data:()=>d}))})); });
   await pg.waitForTimeout(200);
@@ -311,7 +315,7 @@ const settle=pg=>pg.waitForFunction(()=>{const u=window.__t.ui; return u&&u.lab&
   ok(w+' px: the editor opens and its note field is focused and visible above the tab bar',await pg.evaluate(()=>{const t=document.getElementById('flag-note'); if(!t||document.activeElement!==t) return false; const r=t.getBoundingClientRect(); const bar=document.querySelector('.actions'); const br=bar?bar.getBoundingClientRect():{top:innerHeight}; return r.top>=0&&r.bottom<=br.top+1;}));
   o=await over(); ok(w+' px: still no sideways overflow with the editor open',!o.doc&&!o.card&&!o.lab,o);
   await pg.keyboard.type('check this'); await pg.locator('.flagedit .btn',{hasText:/^submit$/i}).click(); await pg.waitForTimeout(150);
-  ok(w+' px: saving on the phone writes the flag',Object.keys(await S(pg,'flags')).length===1);
+  ok(w+' px: saving on the phone writes the flag',Object.values(await S(pg,'flags')).filter(f=>!f.auto).length===1);
   await pg.screenshot({path:D+'v57-lab-'+w+'.png'});
   // focus rings of the flag buttons
   const ring=(await pg.evaluate(ringScan)).filter(x=>/\.lp|flag|lab/i.test(x));

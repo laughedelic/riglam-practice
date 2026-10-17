@@ -154,3 +154,43 @@ plain("an answer checked before the Magic Key was entered gets its Quorum run on
   await expect.poll(() => calls.length).toBe(3);
   await expect(quorum(page)).toContainText(/[=≠]/);
 });
+
+// Where Quorum is divided about an example, the page flags it by itself (a flag with auto "quorum"): that is the copy of a disagreement that can leave the
+// run it came from, and what the flag review will read.
+withKey("where the models differ, the page flags each such example by itself, and a later run does not touch a flag that was reviewed", async ({ page }, testInfo) => {
+  const calls = await open(page, testInfo, {
+    lab: (body) => {
+      // Haiku puts every example in A, Sonnet and Opus (and the judge) in neither
+      const things = body.model === "claude-haiku-5-5" ? THINGS.map((t) => ({ ...t, inA: true })) : THINGS;
+      return { status: 200, contentType: "application/json", body: JSON.stringify({ text: JSON.stringify({ things }), truncated: false, modelApplied: body.model }) };
+    },
+  });
+  await expect.poll(() => calls.length).toBe(4); // three models, then the judge
+  const flags = () => page.evaluate(() => Object.values(window.__t.flags));
+  const things = await page.evaluate(() => window.__t.labThings(window.__t.ui).map((t) => t.text));
+  expect(things.length).toBeGreaterThan(0);
+  await expect.poll(async () => (await flags()).length).toBe(things.length);
+  const made = await flags();
+  expect(made.map((f) => f.thing).sort()).toEqual([...things].sort());
+  for (const f of made) {
+    expect(f).toMatchObject({ auto: "quorum", part: "quorum", state: "new", note: "" });
+    expect(f.shown).toMatch(/^The models gave different cells\. Models: Haiku A not B, Sonnet Neither, Opus Neither\. Judge: Neither\./);
+    expect(f.caseKey).toMatch(/^answers_/);
+    expect(f.pair).toMatchObject({ tab: "practice" });
+  }
+  // Review lists them as automatic flags
+  await page.getByRole("tab", { name: "Review" }).filter({ visible: true }).first().click();
+  await expect(page.locator(".flagl li").first()).toContainText(/Quorum \(automatic\)/);
+  await expect(page.locator(".flagl li")).toHaveCount(things.length);
+  // one reviewed by hand stays as it was when the judge is asked again; the others are written again only if their words changed (here they did not)
+  const id = made[0].id;
+  await page.evaluate((i) => window.__t.setFlagState(i, "reviewed"), id);
+  const before = await page.evaluate((i) => window.__t.flags[i], id);
+  await page.getByRole("tab", { name: /^(Relations|Practice|Pervasions)/ }).first().click().catch(() => {});
+  await page.evaluate(() => window.__t.labJudgeNow());
+  await expect.poll(() => calls.length).toBe(5);
+  await page.waitForTimeout(300);
+  const after = await flags();
+  expect(after).toHaveLength(things.length);
+  expect(after.find((f) => f.id === id)).toEqual(before);
+});

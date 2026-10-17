@@ -1,9 +1,11 @@
 import { state } from "../state.js";
+import { autoFlags } from "./flags.js";
 import { ERR_OFF } from "./tutor.js";
 import { $ } from "../core/dom.js";
 import { CELLS, REL } from "../core/rel.js";
 import { typingEl } from "../core/viewport.js";
 import { QCELL } from "../debate/text.js";
+import { disputeText, quorumDisputes } from "../../domain/quorum.ts";
 import { put } from "../practice/answers.js";
 import { favSafe } from "../practice/favorites.js";
 import { skipCats } from "../practice/skips.js";
@@ -147,7 +149,7 @@ async function labRun(U,C,only,force){
   const todo=LAB_MODELS.filter(m=>!only||only.includes(m.k));
   await Promise.all(todo.map(m=>labCall(L,m,head,"medium","classify").then(()=>labRender(L))));
   await labJudge(U,force);
-  L.busy=false; labRender(L);
+  L.busy=false; labFlagDisputes(L); labRender(L);
 }
 const labGood=L=>LAB_MODELS.map(m=>L.runs[m.k]).filter(s=>s&&s.status==="ok");
 const labDiffers=L=>{ const g=labGood(L); return L.kase.things.some((t,i)=>new Set(g.map(s=>s.doc.recs[i].cell)).size>1); };
@@ -163,10 +165,19 @@ async function labJudge(U,force){
   L.runs.judge={status:"run"}; labRender(L);
   await labCall(L,LAB_JUDGE,LAB_JUDGE_TASK+"\n\n"+ref.text+"\n\nCASE\n"+labCaseText(L.kase)+"\n\n"+answers,"high","judge",{order,why:L.judgeWhy});
 }
+// Where Quorum is divided about an example, the page flags it by itself (see autoFlags). The page's verdict is read now, so a verdict Claude gave since the check counts.
+function labFlagDisputes(L){
+  try{
+    const J=L.runs.judge, judge=J&&J.status==="ok"&&J.doc&&J.doc.recs?J.doc.recs.map(r=>r.cell):null;
+    const models=LAB_MODELS.filter(m=>L.runs[m.k]&&L.runs[m.k].status==="ok").map(m=>({name:m.name,cells:L.runs[m.k].doc.recs.map(r=>r.cell)}));
+    const things=L.kase.things.map(t=>({text:t.text,cells:t.cells,page:Object.fromEntries(t.cells.map(c=>[c,L.u.res&&L.u.res.cells[c]?L.u.res.cells[c].v:t.page[c]]))}));
+    autoFlags(L.kase,quorumDisputes(things,models,judge).map(d=>({thing:things[d.index].text,shown:disputeText(d,things[d.index])})));
+  }catch(e){}          // the lab is optional: a failing flag must never break the page
+}
 // ask the judge about an answer all models agreed on
 export async function labJudgeNow(){
   const U=state.ui; if(!U||!U.lab||U.lab.busy||labGood(U.lab).length<2) return;
-  U.lab.busy=true; labRender(U.lab); await labJudge(U,"asked"); U.lab.busy=false; labRender(U.lab);
+  U.lab.busy=true; labRender(U.lab); await labJudge(U,"asked"); U.lab.busy=false; labFlagDisputes(U.lab); labRender(U.lab);
 }
 export function labStart(U,C){
   if(!state.lab||!state.labSample||!state.db||!state.DATA||U.lab||!U.res||!U.checked||Date.now()<state.labPause) return;
