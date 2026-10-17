@@ -217,21 +217,20 @@ test("the explain request is the plain one when the page checked every example, 
   expect(dbt).toContain("Q1 is the Both cell, Q2 A not B, Q3 B not A, Q4 Neither.");
 });
 
-// The tutor states two facts about an example (is it A, is it B) with a sentence each; the page draws the conclusion (src/domain/verdict.ts),
-// so the requests ask for no conclusion and no "so".
-test("the explain requests ask for the two facts about an example, in one form, and for no conclusion", () => {
-  expect(FIRST_ASK).toContain('Both: "the example" | A yes: one sentence | B no: one sentence');
-  expect(DEBATE_ASK).toContain('Q2: "the example" | A yes: one sentence | B no: one sentence');
+// The tutor states two facts about an example (is it A, is it B) and the reason for each; the page writes the consequences and draws
+// the conclusion (src/domain/verdict.ts), so the requests ask for the reason only.
+test("the explain requests ask for the two facts about an example and the reason for each, in one form, and for no conclusion", () => {
+  expect(FIRST_ASK).toContain('Both: "the example" | A yes: it is ... | B no: it is ...');
+  expect(DEBATE_ASK).toContain('Q2: "the example" | A yes: it is ... | B no: it is ...');
   for (const ask of [FIRST_ASK, DEBATE_ASK]) {
-    expect(ask).toContain("whether the example is A, and whether it is B");
-    expect(ask).toContain('Write no conclusion and no "so"');
-    expect(ask).toContain("only when the type is that reason");
-    expect(ask).toContain('"a wooden chair" is a form');
-    expect(ask).toContain('"is an" before a vowel');
+    expect(ask).toContain('the words after "because" in "Take the example, it follows it is (not) A, because ..."');
+    expect(ask).toContain("write no conclusion, do not name the term again and do not add its definition");
+    expect(ask).toContain("whatever has the reason must be (or not be) the term");
+    expect(ask).toContain('add " <= " and the reason for it');
     expect(ask).not.toContain("so it fits");
     expect(ask).not.toContain("=> yes");
   }
-  expect(DEBATE_ASK).toContain('says "You accepted Q2, but there is a counter-example" itself');
+  expect(DEBATE_ASK).toContain('The page also says "You accepted Q2, but there is a counter-example" itself');
   expect(DEBATE_ASK).toContain("Do not say what the right answer to the question was");
   expect(DEBATE_ASK).toContain("A and B are mutually inclusive, so whatever is B is A");
 });

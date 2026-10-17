@@ -81,19 +81,22 @@ withKey("a note under a cell is headed Why?", async ({ page }, testInfo) => {
   await expect(pop.locator(".popnote")).toHaveCount(0);
 });
 
-// The tutor states two facts about an example; the page draws the conclusion, and in the debate words the note by what the learner answered.
-withKey("a line with the two facts is shown as a note with the conclusion the facts give", async ({ page }, testInfo) => {
-  const line = 'Both: "thing 1" | A yes: It is a form. | B yes: It is a thing.\n';
+// The tutor states two facts about an example and a reason for each; the page writes them as consequences ("Take S, it follows it is
+// P, because R") with the pair's own terms, draws the conclusion, and in the debate words the note by what the learner answered.
+withKey("a line with the two facts is shown as consequences and the conclusion the facts give", async ({ page }, testInfo) => {
+  const line = 'Both: "thing 1" | A yes: it is a form. | B yes: it is a thing\n';
   await open(page, testInfo, { tutor: [{ status: 200, body: sse({ type: "delta", text: line }, { type: "done", truncated: false }) }] });
   await explain(page).click();
   await page.locator(".grid .qm").first().click();
-  await expect(page.locator(".grid .pop p").nth(1)).toHaveText('"thing 1". It is a form. It is a thing. So it fits.');
+  const note = page.locator(".grid .pop p").nth(1);
+  await expect(note).toHaveText(/^Take thing 1, it follows it is .+, because it is a form\.\s*Take thing 1, it follows it is .+, because it is a thing\.\s*So it fits\.$/);
+  expect(await note.locator("br").count()).toBe(2);
   await expect(page.locator(".grid .pop")).not.toContainText("|");
 });
 
 withKey("in Pervasions an accepted question's note names the tutor's counter-example", async ({ page }, testInfo) => {
   test.skip(isPhone(testInfo), "the wide layout has the table and the coach panel");
-  const line = 'Q2: "a banana" | A yes: It is a thing you can eat. | B no: It is not an internal form.\n';
+  const line = 'Q2: "a banana" | A yes: it is a fruit | B no: it is not in a person\'s continuum\n';
   await server(page, { tutor: [{ status: 200, body: sse({ type: "delta", text: line }, { type: "done", truncated: false }) }] });
   await page.goto("/");
   await ready(page);
@@ -105,7 +108,8 @@ withKey("in Pervasions an accepted question's note names the tutor's counter-exa
   await relOptions(page).first().click();
   await explain(page).click();
   await page.locator(".grid .qm").first().click();
-  await expect(page.locator(".grid .pop p").nth(1)).toHaveText("You accepted Q2, but there is a counter-example: a banana. It is a thing you can eat. It is not an internal form.");
+  await expect(page.locator(".grid .pop p").nth(1)).toHaveText(
+    /^You accepted Q2, but there is a counter-example: a banana\.\s*Take a banana, it follows it is .+, because it is a fruit\.\s*Take a banana, it follows it is not .+, because it is not in a person's continuum\.$/);
 });
 
 withKey("a follow-up question sends the whole conversation as a chat", async ({ page }, testInfo) => {

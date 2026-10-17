@@ -427,15 +427,33 @@ test("a fact line is read as two facts, and the verdict is what the facts give f
   ]);
 });
 
-test("the note for a fact line draws its conclusion from the facts, for a Why? example and for a counter-example to an accepted question", () => {
-  const f = parseFactLine('Q3: "a banana" | A no: It is not an internal form | B yes: It is a thing you can eat.')!;
-  expect(factNote(f, false)).toBe('"a banana". It is not an internal form. It is a thing you can eat. So it fits.');
-  expect(factNote(f, true)).toBe("You accepted Q3, but there is a counter-example: a banana. It is not an internal form. It is a thing you can eat.");
-  const off = parseFactLine('Q3: "a stone" | A yes: It is a rock. | B yes: It is a thing you can eat.')!;
-  expect(factNote(off, false)).toBe('"a stone". It is a rock. It is a thing you can eat. So it does not fit.');
-  expect(factNote(off, true)).toBe("a stone. It is a rock. It is a thing you can eat. It does not fit the cell of Q3, so it is not a counter-example.");
-  const unsure = parseFactLine('Both: "a song" | A yes: x | B unsure: y')!;
-  expect(factNote(unsure, false)).toBe('"a song". X. Y. Claude is unsure whether it fits.');
+// The note writes each fact as a consequence in the debate's form, "Take S, it follows it is P, because R", with the example as S and
+// the term as P, and draws the conclusion from the facts.
+test("the note for a fact line is a consequence per term and a conclusion, for a Why? example and for an accepted question", () => {
+  const terms = { a: "a memory", b: "a mind" };
+  const f = parseFactLine('Q1: "the memory of a holiday" | A yes: it is a mental consciousness that remembers. | B yes: a mental consciousness')!;
+  expect(factNote(f, false, terms).split("\n")).toEqual([
+    "Take the memory of a holiday, it follows it is a memory, because it is a mental consciousness that remembers.",
+    "Take the memory of a holiday, it follows it is a mind, because it is a mental consciousness.",
+    "So it fits.",
+  ]);
+  expect(factNote(f, true, terms).split("\n")[0]).toBe("You accepted Q1, but there is a counter-example: the memory of a holiday.");
+  // a reason for the reason becomes one more consequence
+  const chain = parseFactLine('Q3: "hearing music" | A no: It is not a consciousness that remembers | B yes: it is an ear consciousness <= it is a consciousness that knows a sound')!;
+  expect(factNote(chain, false, terms).split("\n")).toEqual([
+    "Take hearing music, it follows it is not a memory, because it is not a consciousness that remembers.",
+    "Take hearing music, it follows it is a mind, because it is an ear consciousness.",
+    "Take hearing music, it follows it is an ear consciousness, because it is a consciousness that knows a sound.",
+    "So it fits.",
+  ]);
+  const off = parseFactLine('Q2: "a rock" | A no: it is a form | B no: it is a form')!;
+  expect(factNote(off, false, terms).split("\n").at(-1)).toBe("So it does not fit.");
+  expect(factNote(off, true, terms).split("\n").at(-1)).toBe("So it does not fit the cell of Q2 and is not a counter-example.");
+  const unsure = parseFactLine('Both: "a dream" | A yes: it is a mental consciousness | B unsure: the sources differ')!;
+  expect(factNote(unsure, false, terms).split("\n").slice(1)).toEqual([
+    "Take a dream: whether it is a mind is not settled: the sources differ.",
+    "Claude is unsure whether it fits.",
+  ]);
 });
 
 // ---- small helpers ----

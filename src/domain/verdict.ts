@@ -18,8 +18,9 @@ export interface CellVerdict {
 }
 
 /**
- * The tutor's line for an example, in the form `<cell>: <example> | A yes: <sentence> | B no: <sentence>`: two small facts, whether the
- * example is A and whether it is B, each with a sentence saying why. The tutor writes no conclusion; the page draws it (`fitOf`).
+ * The tutor's line for an example, in the form `<cell>: <example> | A yes: <reason> | B no: <reason>`: two small facts, whether the
+ * example is A and whether it is B, each with its reason. The tutor writes no conclusion; the page draws it (`fitOf`) and writes the
+ * consequences (`factNote`).
  */
 export interface Side { answer: Answer; say: string }
 export interface FactLine { label: string; cell: CellId; example: string; a: Side; b: Side }
@@ -47,19 +48,40 @@ export function fitOf(f: Pick<FactLine, "cell" | "a" | "b">): Answer {
   return got.includes("unsure") ? "unsure" : "yes";
 }
 
-const sentence = (s: string) => { const t = s.trim().replace(/[.;,\s]+$/, ""); return t ? t[0].toUpperCase() + t.slice(1) + "." : ""; };
+/** The pair's two terms in the singular, with their article, as the debate questions write them ("a memory", "matter"). */
+export interface Terms { a: string; b: string }
+
+// A reason is the words after "because"; one without a subject of its own ("a form") is read as "it is a form".
+const reasonOf = (s: string) => {
+  const t = s.trim().replace(/[.;,\s]+$/, "");
+  if (!t) return "";
+  const r = t[0].toLowerCase() + t.slice(1);
+  return /^(it|its|it's|they)\b/.test(r) ? r : "it is " + r;
+};
 /**
- * The note the page shows for a line: the two sentences as the tutor wrote them and a conclusion drawn from the facts. `accepted` is
- * a debate question the learner accepted (or ran out of time on): the example is then the tutor's counter-example to it.
+ * One side as consequences in the debate's form, "Take S, it follows it is P, because R": the tutor gives R (and, after "<=", a reason
+ * for R when R is not obvious, which becomes a second consequence); the page gives S, the example, and P, the term.
  */
-export function factNote(f: FactLine, accepted: boolean): string {
-  const fit = fitOf(f), why = [sentence(f.a.say), sentence(f.b.say)].filter(Boolean).join(" ");
+function consequences(subject: string, term: string, side: Side): string[] {
+  const [r1 = "", r2 = ""] = side.say.split(/\s*<=\s*/), R1 = reasonOf(r1), R2 = reasonOf(r2);
+  // an unsure side says what the readings are, which is no reason for the term: it follows a colon as written
+  if (side.answer === "unsure") { const why = side.say.trim().replace(/[.;,\s]+$/, ""); return [`Take ${subject}: whether it is ${term} is not settled${why ? ": " + why : ""}.`]; }
+  const out = [`Take ${subject}, it follows it is ${side.answer === "no" ? "not " : ""}${term}${R1 ? `, because ${R1}` : ""}.`];
+  if (R1 && R2) out.push(`Take ${subject}, it follows ${R1}, because ${R2}.`);
+  return out;
+}
+/**
+ * The note the page shows for a line, one sentence per line: a consequence for each term and a conclusion drawn from the facts.
+ * `accepted` is a debate question the learner accepted (or ran out of time on): the example is then the tutor's counter-example to it.
+ */
+export function factNote(f: FactLine, accepted: boolean, terms: Terms): string {
+  const fit = fitOf(f), body = [...consequences(f.example, terms.a, f.a), ...consequences(f.example, terms.b, f.b)];
   if (accepted) {
     const q = "Q" + (QCELL.indexOf(f.cell) + 1);
-    if (fit === "yes") return `You accepted ${q}, but there is a counter-example: ${f.example}. ${why}`.trim();
-    return `${f.example}. ${why} ${fit === "no" ? `It does not fit the cell of ${q}, so it is not a counter-example.` : "Claude is unsure whether it is a counter-example."}`.trim();
+    if (fit === "yes") return [`You accepted ${q}, but there is a counter-example: ${f.example}.`, ...body].join("\n");
+    return [...body, fit === "no" ? `So it does not fit the cell of ${q} and is not a counter-example.` : "Claude is unsure whether it is a counter-example."].join("\n");
   }
-  return `"${f.example}". ${why} ${fit === "yes" ? "So it fits." : fit === "no" ? "So it does not fit." : "Claude is unsure whether it fits."}`.trim();
+  return [...body, fit === "yes" ? "So it fits." : fit === "no" ? "So it does not fit." : "Claude is unsure whether it fits."].join("\n");
 }
 
 /** The verdicts in the tutor's text, in order. A line with the two facts gives the verdict its facts give; otherwise a line of the form `<cell>: <example> => yes|no|unsure` does. Other lines are ignored, also when bulleted or in bold. */

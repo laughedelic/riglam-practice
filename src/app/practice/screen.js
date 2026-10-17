@@ -11,7 +11,7 @@ import { CELLS, ORDER, REL, cellLabel, lcRel, notaOf, notaParts } from "../core/
 import { gradeOf } from "../core/util.js";
 import { isWide } from "../core/viewport.js";
 import { stopTimer } from "../debate/flow.js";
-import { QCELL, termNode } from "../debate/text.js";
+import { QCELL, singular, termNode } from "../debate/text.js";
 import { favBtn } from "./favorites.js";
 import { check } from "./grading.js";
 import { next } from "./queue.js";
@@ -94,7 +94,9 @@ const REL_LABEL=/^(common locus|pervasion|relation)$/i;
 // A note opens under the heading "Why?", so the "Why?" the tutor starts a debate line with would be said twice.
 const WHY_LEAD=/^why\?\s+(?=\S)/i;
 // The note for a line that gives the two facts about an example (src/domain/verdict.ts); in the debate it depends on whether the learner accepted that question.
-export const factNoteOf=f=>{ const u=state.ui, a=u&&u.debate&&u.ans&&u.ans[QCELL.indexOf(f.cell)]; return factNote(f,!!a&&a.say!=="why"); };
+export const factNoteOf=f=>{ const u=state.ui, a=u&&u.debate&&u.ans&&u.ans[QCELL.indexOf(f.cell)], p=state.cur.p; return factNote(f,!!a&&a.say!=="why",{a:singular(p.a),b:singular(p.b)}); };
+// a note of several lines (the consequences of a fact line) keeps its lines
+export const noteText=t=>String(t).split("\n").flatMap((s,i)=>i?[el("br"),s]:[s]);
 export function explainParts(){
   const out={cells:{},rest:[]};
   const a=state.ui&&state.ui.chat&&state.ui.chat.find(t=>t.role==="assistant"&&t.kind==="explain"&&!t.pending&&t.content);
@@ -133,7 +135,7 @@ export function popNode(){
   if(!state.ui||!state.ui.checked||!state.ui.pop||state.ui.pop==="rel") return null;
   const t=explainParts().cells[state.ui.pop]; if(!t) return null;
   const fl=aiFlag(aiCase("explain","Claude’s note on "+(state.ui.debate?"Q"+(QCELL.indexOf(state.ui.pop)+1):CELL_NAME[state.ui.pop]),t,state.ui.pop),"pop:"+state.ui.pop);
-  return el("div",{class:"pop",role:"dialog","aria-label":"Claude's explanation",tabindex:"-1"},el("p",{class:"clh",text:"Why?"}),fl,el("p",{text:t}),flagEditorNode("pop:"+state.ui.pop),
+  return el("div",{class:"pop",role:"dialog","aria-label":"Claude's explanation",tabindex:"-1"},el("p",{class:"clh",text:"Why?"}),fl,el("p",null,noteText(t)),flagEditorNode("pop:"+state.ui.pop),
     el("button",{type:"button",class:"popx",onclick:e=>{ e.stopPropagation(); state.ui.pop=null; render(); },text:"Close"}));
 }
 export function placePops(){

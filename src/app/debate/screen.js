@@ -7,7 +7,7 @@ import { isWide } from "../core/viewport.js";
 import { backWhy, chooseD, debateList, sayQ, submitWhy } from "./flow.js";
 import { QCELL, Wd, ansNode, qNode } from "./text.js";
 import { favBtn } from "../practice/favorites.js";
-import { exLine, explainBtn, explainParts, fbNode, isaTxt, kbHints, nextBtn, recentNode, relCap, relList, relPopNode, relStrip, relWhy, resultBlock, termsItem, tutorAct, tutorItem, whyBtn } from "../practice/screen.js";
+import { exLine, explainBtn, explainParts, fbNode, isaTxt, kbHints, nextBtn, noteText, recentNode, relCap, relList, relPopNode, relStrip, relWhy, resultBlock, termsItem, tutorAct, tutorItem, whyBtn } from "../practice/screen.js";
 import { skipActs, subRowNode } from "../practice/skips.js";
 import { exGrid } from "../review/review.js";
 import { fitPair, render, setSteps } from "../shell/render.js";
@@ -55,7 +55,7 @@ function questionRows(u){
         el("span",{class:"qq"},qNode(i)),
         ansNode(a,a.limit&&a.ms!=null?a.ms:null,i),
         el("span",{class:"fbq"},el("b",{text:rr.msg[0]}),rr.msg[2]?[" ",el("i",{text:rr.msg[2]})]:null,isaTxt(rr.msg[1]||"")),
-        ex.cells[c]?el("span",{class:"cl"},el("span",{class:"clh",text:"Why?"}),aiFlag(aiCase("explain","Claude’s note on Q"+(i+1),ex.cells[c],c),"q:"+c),ex.cells[c]):null,
+        ex.cells[c]?el("span",{class:"cl"},el("span",{class:"clh",text:"Why?"}),aiFlag(aiCase("explain","Claude’s note on Q"+(i+1),ex.cells[c],c),"q:"+c),noteText(ex.cells[c])):null,
         ex.cells[c]?flagEditorNode("q:"+c):null):null);
   }));
 }

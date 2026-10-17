@@ -37,7 +37,9 @@ const SING={"functional things":"a functional thing","impermanent things":"an im
 try{ const v=localStorage.getItem("rd-wording"); if(WORDINGS[v]) state.wording=v; }catch(e){}
 export const Wd=()=>WORDINGS[state.wording];
 // the chip and the first word of its term stay on one line
-export const termNode=x=>{ const lab=x==="A"?state.cur.p.a:state.cur.p.b, [w,...r]=(SING[american(lab)]||lab.replace(/^(\w+) things$/,"a $1 thing")).split(" ");
+/** A category label in the singular, with its article ("memories" -> "a memory"). */
+export const singular=lab=>SING[american(lab)]||lab.replace(/^(\w+) things$/,"a $1 thing");
+export const termNode=x=>{ const lab=x==="A"?state.cur.p.a:state.cur.p.b, [w,...r]=singular(lab).split(" ");
   return el("span",{class:"qterm"},el("span",{class:"keep"},state.showAB?[L(x)," "]:null,el("span",{class:"t",text:w})),r.length?el("span",{class:"t",text:" "+r.join(" ")}):null); };
 export const qNode=i=>Wd().q[i].map(x=>x==="A"||x==="B"?termNode(x):x===N?el("span",{class:"not",text:"not"}):x);
 // an answer at a glance: Accept is a filled tag, Why? an outlined one followed by the example.

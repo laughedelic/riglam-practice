@@ -3,7 +3,7 @@ import { $, el } from "../core/dom.js";
 import { canAsk } from "../core/ask.js";
 import { CELLS } from "../core/rel.js";
 import { persist } from "../practice/answers.js";
-import { factNoteOf, fillTurn, revealTutor } from "../practice/screen.js";
+import { factNoteOf, fillTurn, noteText, revealTutor } from "../practice/screen.js";
 import { render } from "../shell/render.js";
 import { cardBody, explainAsk, tutorCard } from "../../ai-shared/card.ts";
 import { pairCats } from "../../ai-shared/lookup.ts";
@@ -67,7 +67,7 @@ export function fillAns(node,text){
   const lines=(text||"").split("\n").map(s=>s.trim()).filter(Boolean);
   if(!lines.length){ node.append(el("p",{class:"status thinking"},"Thinking",el("span",{class:"dots","aria-hidden":"true"},el("i"),el("i"),el("i")))); return; }
   for(const ln0 of lines){
-    const f=parseFactLine(ln0); if(f){ node.append(el("p",null,el("b",{text:f.label+": "}),factNoteOf(f))); continue; }
+    const f=parseFactLine(ln0); if(f){ node.append(el("p",null,el("b",{text:f.label+": "}),noteText(factNoteOf(f)))); continue; }
     const ln=ln0.replace(VERDICT_RE,"");
     const m=ln.replace(/^[-•]\s*/,"").match(/^([A-Za-z][A-Za-z0-9 ,'’-]{0,28}):\s+(.*)$/);
     node.append(m?el("p",null,el("b",{text:m[1]+": "}),m[2]):el("p",{text:ln.replace(/^[-•]\s*/,"")}));
