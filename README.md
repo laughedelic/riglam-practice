@@ -15,7 +15,7 @@ One source builds two things:
 nvm use            # Node 22
 npm ci
 npm run dev        # the PWA with hot reload at http://localhost:5173 (open it once as .../#k=<key> to unlock the definitions);
-                   # Explain, the chat and the check lab work with a stand-in for the model, ?ai=off shows the app without it
+                   # Explain and the chat work with a stand-in for the model, ?ai=off shows the app without it
 npm run build      # both builds (the artifact build needs the course data, see docs/DATA.md)
 npm test           # builds, then unit tests and browser tests (needs Chromium: npx playwright install chromium)
 npm run check:fast # lint, typecheck and unit tests: seconds, no browser

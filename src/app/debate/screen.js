@@ -1,6 +1,6 @@
 import { state } from "../state.js";
 import { aiCase, aiFlag, flagEditorNode } from "../ai/flags.js";
-import { labItem } from "../ai/lab-panel.js";
+import { quorumItem } from "../ai/quorum-panel.js";
 import { L, el } from "../core/dom.js";
 import { REL, cellLabel, lcRel, notaOf, notaParts } from "../core/rel.js";
 import { isWide } from "../core/viewport.js";
@@ -39,7 +39,7 @@ function debateResult(u,p){
     imp?{key:"imp",label:"Implied",st:u.late?"none":imp===u.rel?"ok":"bad",body:()=>el("p",null,el("b",{text:"From your answers: "}),impTxt)}:null,
     {key:"q",label:"Questions "+decOk+"/4",st:decOk===4?"ok":"bad",body:()=>questionRows(u)},
     {key:"ex",label:"Examples",st:r.exBad?"bad":r.exOpen?"open":"ok",body:()=>el("p",null,el("b",{text:"Examples: "}),exLine(r,QCELL))},
-    termsItem(p),tutorItem(),labItem()].filter(Boolean));
+    termsItem(p),tutorItem(),quorumItem()].filter(Boolean));
 }
 // the four questions as short rows; a tap opens one with the statement, the answer and what it earned (the first wrong one is open to begin with)
 function questionRows(u){

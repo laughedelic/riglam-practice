@@ -24,12 +24,14 @@ export interface Env {
   GLOBAL_DAILY_BUDGET_USD?: string;
   /** what a question is assumed to cost until it has finished, in US dollars; held back from the budgets meanwhile */
   RESERVE_USD?: string;
-  /** `on` makes the server answer the check lab's model calls (`POST /api/lab`, worker/lab.ts). Set in the `previews` block of wrangler.jsonc only: any other value, or none, leaves the lab off. */
-  LAB?: string;
-  /** what one device may spend on the lab per UTC day, in US dollars (the lab has counters of its own, apart from the tutor's) */
-  LAB_DEVICE_DAILY_BUDGET_USD?: string;
-  /** what all devices together may spend on the lab per UTC day, in US dollars */
-  LAB_GLOBAL_DAILY_BUDGET_USD?: string;
+  /** `on` makes the server offer Quorum (worker/quorum.ts): an explain question is answered by several models and a judge. Set in the `previews` block of wrangler.jsonc only: any other value, or none, leaves it off. */
+  QUORUM?: string;
+  /** what one device may spend on Quorum per UTC day, in US dollars (Quorum has counters of its own, apart from the tutor's) */
+  QUORUM_DEVICE_DAILY_BUDGET_USD?: string;
+  /** what all devices together may spend on Quorum per UTC day, in US dollars */
+  QUORUM_GLOBAL_DAILY_BUDGET_USD?: string;
+  /** what a Quorum question is assumed to cost until it has finished, in US dollars; held back from Quorum's budgets meanwhile */
+  QUORUM_RESERVE_USD?: string;
   /** who may create an account: `open` (default), `group` (only with the study group's proof) or `closed` */
   SIGNUP?: string;
   /** most accounts (default 300) */

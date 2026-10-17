@@ -1,6 +1,6 @@
 // The PWA's `tutor` capability: questions to the app's own server (docs/SERVER.md). The request proves that the sender has the
 // study group's key without sending it (src/ai/proof.ts); the answer comes back as server-sent events (src/ai/protocol.ts).
-import { API, HEADER, type BudgetScope, type Health, type TutorEvent } from "../ai/protocol";
+import { API, HEADER, type BudgetScope, type Health, type QuorumRecord, type TutorEvent } from "../ai/protocol";
 import { makeProof } from "../ai/proof";
 import { deviceId } from "./device";
 import type { Tutor } from "../platform/types";
@@ -15,20 +15,31 @@ export function tutorError(code: string, message: string, extra: { text?: string
 const isAbort = (e: unknown) => e instanceof DOMException && e.name === "AbortError";
 const KNOWN = new Set(["rate_limited", "not_granted", "prompt_too_large", "bad_request", "refused", "unavailable"]);
 
-/** Whether the server says its tutor is on. Anything else (off, unreachable, slow, not a Worker at all) is "no". */
-export async function tutorIsOn(doFetch: typeof fetch = (...a) => fetch(...a), waitMs = 4000): Promise<boolean> {
+/** What the server says in /api/health about the tutor. Anything else (off, unreachable, slow, not a Worker at all) is "off" and no Quorum. */
+async function health(doFetch: typeof fetch, waitMs: number): Promise<{ tutor: boolean; quorum: boolean }> {
   const stop = new AbortController();
   const timer = setTimeout(() => stop.abort(), waitMs);
   try {
     const res = await doFetch(API.health, { cache: "no-store", signal: stop.signal });
-    if (!res.ok) return false;
+    if (!res.ok) return { tutor: false, quorum: false };
     const body = (await res.json()) as Partial<Health>;
-    return body.ok === true && body.tutor === "on";
+    const tutor = body.ok === true && body.tutor === "on";
+    return { tutor, quorum: tutor && body.quorum === "on" };
   } catch {
-    return false;
+    return { tutor: false, quorum: false };
   } finally {
     clearTimeout(timer);
   }
+}
+
+/** Whether the server says its tutor is on. */
+export async function tutorIsOn(doFetch: typeof fetch = (...a) => fetch(...a), waitMs = 4000): Promise<boolean> {
+  return (await health(doFetch, waitMs)).tutor;
+}
+
+/** Whether the server says it offers Quorum (worker/quorum.ts): the tutor is on and this server is a Preview. */
+export async function quorumIsOn(doFetch: typeof fetch = (...a) => fetch(...a), waitMs = 4000): Promise<boolean> {
+  return (await health(doFetch, waitMs)).quorum;
 }
 
 export async function httpError(res: Response, now: () => number = Date.now) {
@@ -101,12 +112,17 @@ export function createTutor(key: string, doFetch: typeof fetch = (...a) => fetch
     }
     if (!res.ok || !res.body) throw await httpError(res);
     let text = "";
+    let quorum: QuorumRecord | undefined;
+    let single: "budget" | undefined;
     try {
       for await (const e of events(res.body)) {
         if (e.type === "delta") {
           text += e.text;
           options.onText?.({ text });
-        } else if (e.type === "done") return { text, truncated: e.truncated };
+        } else if (e.type === "step") options.onStep?.({ name: e.name, ok: e.ok });
+        else if (e.type === "quorum") quorum = e.record;
+        else if (e.type === "single") single = e.why;
+        else if (e.type === "done") return { text, truncated: e.truncated, ...(quorum ? { quorum } : {}), ...(single ? { single } : {}) };
         else if (e.type === "error") throw tutorError(KNOWN.has(e.code) ? e.code : "unavailable", e.message, { text: text || undefined });
       }
     } catch (e) {

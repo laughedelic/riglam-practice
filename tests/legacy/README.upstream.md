@@ -16,7 +16,7 @@ Snapshot of 2026-10-12 (page version 63, version id 1791778425-4118). The tests 
 ## Run
 
 - Node 22 (`/opt/node22/bin/node`), global `playwright` at `/opt/node22/lib/node_modules/playwright`, Chromium at `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`. Do not run `playwright install`.
-- Env: `LAB=1` turns the Check lab on for every test (the harness also sets the spot-check rate `labSpotN` to 1 then). Without it the lab is off. Some tests pass `{lab:true}` themselves.
+- The artifact no longer has the check lab (the old Quorum runs of three models were dropped from it; Quorum is now a mode of the app's server, tested in tests/e2e/pwa/quorum.spec.js), so the harness has no lab mock and `test57` is gone.
 - One test: `node test61.js`. All: `sh runall.sh`. A full run takes several minutes; do not rebuild the page while it runs. Random pairs make a few checks flaky; rerun a failing file once before looking into it.
 - Do not run two at once against the same page file, and do not rebuild while a run is going.
 
@@ -32,6 +32,6 @@ All of these are the same absolute scratchpad directory of the practice session:
 
 ## Things to know
 
-- The hook injection in `harness.js` matches the end of the page's script (`})();` before `</script>`); a page that no longer ends that way needs the regular expression changed. It exports internal functions and state (`cur`, `ui`, `tab`, `flags`, `skips`, `labruns`, `labSpotN`, ...); adding a new export means adding it to that line (test40f has its own copy of the hook on its line 4).
-- The mock `sample` answers with a fixed text unless a test sets `window.__reply`, `window.__delay`, `window.__labAns`, `window.__labFail` and similar.
+- The hook injection in `harness.js` matches the end of the page's script (`})();` before `</script>`); a page that no longer ends that way needs the regular expression changed. It exports internal functions and state (`cur`, `ui`, `tab`, `flags`, `skips`, `quorum`, ... ); adding a new export means adding it to that line (test40f has its own copy of the hook on its line 4).
+- The mock `sample` answers with a fixed text unless a test sets `window.__reply`, `window.__delay` and similar.
 - Tests do not touch the network except `http://t/**`, which the harness answers itself.

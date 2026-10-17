@@ -17,7 +17,7 @@ const MAX_TURN_CHARS = 20_000;
 export function parseRequest(body: unknown): Parsed {
   const bad = (code: ErrorCode, message: string): Parsed => ({ ok: false, code, message });
   if (!body || typeof body !== "object" || Array.isArray(body)) return bad("bad_request", "the body is not an object");
-  const { kind, cats, turns } = body as Record<string, unknown>;
+  const { kind, cats, turns, quorum } = body as Record<string, unknown>;
   if (kind !== "chat" && kind !== "explain") return bad("bad_request", "unknown kind");
   if (!Array.isArray(cats) || cats.length > LIMITS.cats || cats.some((c) => typeof c !== "string" || c.length > 100)) return bad("bad_request", "cats must be at most two short strings");
   if (!Array.isArray(turns) || turns.length < 1) return bad("bad_request", "turns must be a list");
@@ -33,7 +33,8 @@ export function parseRequest(body: unknown): Parsed {
   if (chars > LIMITS.chars) return bad("prompt_too_large", "the conversation is too long");
   const list = turns as Turn[];
   if (list[0].role !== "user" || list[list.length - 1].role !== "user") return bad("bad_request", "the conversation must start and end with the learner");
-  return { ok: true, request: { kind: kind as TutorKind, cats: cats as string[], turns: list.map((t) => ({ role: t.role, content: t.content })) } };
+  if (quorum !== undefined && typeof quorum !== "boolean") return bad("bad_request", "quorum must be true or false");
+  return { ok: true, request: { kind: kind as TutorKind, cats: cats as string[], turns: list.map((t) => ({ role: t.role, content: t.content })), ...(quorum ? { quorum: true } : {}) } };
 }
 
 /** The first turn with the fine points added, in the wording the page uses. */
@@ -75,14 +76,19 @@ export function describeFailure(e: unknown): { code: ErrorCode; message: string 
   return { code: "unavailable", message: "The tutor could not answer." };
 }
 
-/** Runs the question. Never throws: the result says how it ended, and `emit` has been told. */
-export async function runTutor(p: { client: Anthropic; kit: Kit; config: Config; request: TutorRequest; emit: Emit; signal: AbortSignal }): Promise<Outcome> {
+/**
+ * Runs the question. Never throws: the result says how it ended, and `emit` has been told. `model` and `effort` answer in place of the configured ones
+ * (Quorum asks the same question of several models, worker/quorum.ts).
+ */
+export async function runTutor(p: { client: Anthropic; kit: Kit; config: Config; request: TutorRequest; emit: Emit; signal: AbortSignal; model?: string; effort?: Config["effort"] }): Promise<Outcome> {
   const { client, kit, config, emit, signal } = p;
+  const model = p.model ?? config.model;
+  const effort = p.effort ?? config.effort;
   const tokens = noTokens();
   let rounds = 0;
   const messages: Anthropic.MessageParam[] = withFinePoints(p.request.turns, kit.finePoints(p.request.cats)).map((t) => ({ role: t.role, content: t.content }));
   const system = [{ type: "text" as const, text: kit.guide }];
-  const finish = (o: Partial<Outcome> & Pick<Outcome, "outcome">): Outcome => ({ tokens, micro: costOfTokens(config.model, tokens), rounds, ...o });
+  const finish = (o: Partial<Outcome> & Pick<Outcome, "outcome">): Outcome => ({ tokens, micro: costOfTokens(model, tokens), rounds, ...o });
 
   while (rounds < config.maxRounds) {
     rounds += 1;
@@ -91,14 +97,14 @@ export async function runTutor(p: { client: Anthropic; kit: Kit; config: Config;
     let chars = 0;
     const stream = client.messages.stream(
       {
-        model: config.model,
+        model,
         max_tokens: config.maxTokens,
         system,
         messages,
         tools: kit.tools,
         // on the last round the model must answer with what it has
         ...(lastRound ? { tool_choice: { type: "none" as const } } : {}),
-        output_config: { effort: config.effort },
+        output_config: { effort },
         cache_control: { type: "ephemeral" },
       },
       { signal },

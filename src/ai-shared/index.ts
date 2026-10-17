@@ -8,7 +8,7 @@ export { catFacts, termFacts } from "./facts";
 export type { Facts } from "./facts";
 export { american, catByLabel, classNames, makeIndex, matchItem, norm, pairCats, spelled, stripDet, upChain } from "./lookup";
 export type { DataIndex } from "./lookup";
-export { CELL_NAME, DEBATE_ASK, DEBATE_NOTE, FIRST_ASK, GUIDE } from "./prompts";
+export { CELL_NAME, DEBATE_ASK, DEBATE_NOTE, FIRST_ASK, GUIDE, judgeNote } from "./prompts";
 export { CELLS, REL, cellLabel, refOf } from "./relations";
 export type { CellId, PairLike, RelKey, Relation } from "./relations";
 export { cardBody, cardNotes, explainAsk, finePoints, tutorCard } from "./card";

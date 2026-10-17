@@ -120,6 +120,23 @@ export function fakeAnthropic(rounds: Round[]) {
   return { fetch, calls };
 }
 
+/** A fetch that answers each model with the rounds scripted for it, in the order that model is asked (Quorum asks several at once, so the order of calls across models is not fixed). `calls` has them all. */
+export function fakeModels(rounds: Record<string, Round[]>) {
+  const calls: { url: string; body: any }[] = [];
+  const asked: Record<string, number> = {};
+  const fetch = (async (input: Request | string | URL, init?: RequestInit) => {
+    const req = input instanceof Request ? input : new Request(input, init);
+    const json = JSON.parse(await req.clone().text());
+    calls.push({ url: req.url, body: json });
+    const list = rounds[json.model] ?? [{ error: { status: 500, type: "api_error" } }];
+    const n = (asked[json.model] = (asked[json.model] ?? 0) + 1);
+    const r = list[Math.min(n - 1, list.length - 1)];
+    if (r.error) return new Response(JSON.stringify({ type: "error", error: { type: r.error.type, message: "scripted" } }), { status: r.error.status, headers: { "content-type": "application/json" } });
+    return new Response(body(r, calls.length, init?.signal ?? req.signal), { status: 200, headers: { "content-type": "text/event-stream" } });
+  }) as typeof globalThis.fetch;
+  return { fetch, calls };
+}
+
 /* ---------- the kit ---------- */
 
 export function fakeKit(over: Partial<Kit> = {}) {

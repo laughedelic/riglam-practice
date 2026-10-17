@@ -23,7 +23,7 @@
 @import "./styles/19-terms.css"; /* version 47: the Terms panel */
 @import "./styles/20-relation-help.css"; /* version 48: the relation's "?", the numbers on the map, Blitz as an icon */
 @import "./styles/21-countdown-receipt.css"; /* version 49 and the patches after it: countdown row, progress, receipts, Skip, review segments, Recent */
-@import "./styles/22-check-lab.css"; /* version 57: the check lab and flags */
+@import "./styles/22-check-lab.css"; /* version 57: Quorum and flags */
 @import "./styles/23-tutor-chat.css"; /* version 58: exchanges of the tutor chat, the line under the diamond, receipts as tags */
 @import "./styles/24-ai-flags.css"; /* version 59: a flag on every box with Claude's text, the judge's ruling */
 @import "./styles/25-toolbar.css"; /* version 62: toolbar icons, the hint after a skip */

@@ -1,0 +1,332 @@
+// Quorum in the installed app, the tutor's mode on a Preview: with the switch on, the explanation of a checked answer is asked of the server with `quorum: true`,
+// and the server's answer carries the run (the three models and the judge) for the chip under the result. These specs stand in for the server with routes. They check
+// that the mode is offered only when the server says it is, what is sent, what the chip and its panel show for each kind of run, the flags (by hand and automatic),
+// the Options switch and that the panel fits a phone.
+import { test as plain } from "@playwright/test";
+import { test, expect } from "../../support/test.js";
+import { ready, relOptions, isPhone, overflow } from "../../support/page.js";
+import { dataKey, serveCourse, withCourse } from "../../support/data-key.js";
+import { checkProof } from "../../../src/ai/proof.ts";
+
+const withKey = withCourse ? test : test.skip;
+
+const sse = (...events) => events.map((e) => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`).join("");
+const PLAIN = sse({ type: "delta", text: "Stand-in tutor: this is the stand-in answer." }, { type: "done", truncated: false });
+const RECORD_ID = "11111111-2222-4333-8444-555555555555";
+
+const FACTS = { both: ["yes", "yes"], anb: ["yes", "no"], bna: ["no", "yes"], nei: ["no", "no"] };
+const CELL = { both: "Both", anb: "A not B", bna: "B not A", nei: "Neither" };
+const learner = (t) => t.cells[0]; // the cell the learner put the example in
+const elsewhere = (t) => (learner(t) === "anb" ? "nei" : "anb"); // a cell that is not the learner's
+
+/** One answer in the tutor's form: a line for each example, in the cell the learner put it in, with the facts of the cell `pick` gives it (null: unsure). */
+function answerText(things, pick) {
+  const lines = things.map((t) => {
+    const c = pick(t);
+    const [a, b] = c ? FACTS[c] : ["unsure", "unsure"];
+    return `${CELL[learner(t)]}: "${t.text}" | class: Table | A ${a}: because of its use | B ${b}: because of its make`;
+  });
+  return lines.join("\n") + "\nExplanation: this is the stand-in answer.";
+}
+
+const MODELS = [["Haiku", "claude-haiku-5-5"], ["Sonnet", "claude-sonnet-5-5"], ["Opus", "claude-opus-5-5"]];
+/** The server's events for a run. `picks` has a function for each call that answered (Haiku, Sonnet, Opus, Judge); a missing one failed, or was not asked. */
+function run(things, picks) {
+  const models = MODELS.map(([name, model]) => (picks[name] ? { name, model, text: answerText(things, picks[name]), ok: true, ms: 1400 } : { name, model, text: "", ok: false, ms: 300, error: "unavailable" }));
+  const judge = picks.Judge ? { name: "Judge", model: "claude-opus-5-5", text: answerText(things, picks.Judge), ok: true, ms: 4200 } : null;
+  const shown = judge ?? models.filter((m) => m.ok).at(-1);
+  return sse(
+    ...models.map((m) => ({ type: "step", name: m.name, ok: m.ok })),
+    ...(judge ? [{ type: "step", name: "Judge", ok: true }] : []),
+    { type: "delta", text: shown.text },
+    { type: "quorum", record: { id: RECORD_ID, models, judge, shown: shown.name, why: judge ? "disagree" : null } },
+    { type: "done", truncated: false },
+  );
+}
+const AGREE = { Haiku: learner, Sonnet: learner, Opus: learner };
+const DIFFER = { Haiku: elsewhere, Sonnet: learner, Opus: learner, Judge: learner };
+
+/**
+ * Stands in for the server. `tutor(body, n, things)` answers each explain question, as {status, body}; `things` are the examples the learner wrote, read from the page.
+ * By default the three models agree with the learner. A chat question gets a plain answer. The questions are kept.
+ */
+async function server(page, { health = { ok: true, tutor: "on", quorum: "on" }, tutor = (_body, _n, things) => ({ status: 200, body: run(things, AGREE) }) } = {}) {
+  const asked = [];
+  await page.route("**/api/health", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(health) }));
+  await page.route("**/api/tutor", async (route) => {
+    const request = route.request();
+    const body = request.postDataJSON();
+    asked.push({ headers: request.headers(), body });
+    if (body.kind !== "explain") return route.fulfill({ status: 200, contentType: "text/event-stream", body: PLAIN });
+    const things = await page.evaluate(() => window.__t.quorumThings(window.__t.ui).map((t) => ({ text: t.text, cells: t.cells })));
+    const reply = await tutor(body, asked.length, things);
+    return route.fulfill({ status: reply.status, contentType: reply.status === 200 ? "text/event-stream" : "application/json", body: reply.body });
+  });
+  return asked;
+}
+
+async function answerOnPhone(page) {
+  await relOptions(page).first().click();
+  for (let i = 0; i < 4 && (await page.locator("#cin").isVisible()); i++) {
+    await page.fill("#cin", "thing " + (i + 1));
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(100);
+  }
+}
+const explain = (page) => page.getByRole("button", { name: /^explain$|check and explain/i });
+const quorum = (page) => page.locator(".vchip").filter({ hasText: /quorum/i });
+const sw = (page) => page.getByRole("switch", { name: /several models explain/i });
+const rowOf = (page, name) => page.locator(".lab-r").filter({ has: page.locator(".mn", { hasText: name }) });
+const flags = (page) => page.evaluate(() => Object.values(window.__t.flags));
+const thingsOf = (page) => page.evaluate(() => window.__t.quorumThings(window.__t.ui).map((t) => t.text));
+
+/** The page with one answer checked; Explain is not tapped yet. `setting` is the stored value of "Check every answer with AI" (null: its default, on). */
+const open = async (page, testInfo, setup, setting = "0") => {
+  test.skip(!isPhone(testInfo), "the answer flow is exercised in the phone layout");
+  await page.addInitScript((v) => { window.__riglamTest = (t) => { window.__t = t; }; if (v !== null) localStorage.setItem("rd-autoexplain", v); else localStorage.removeItem("rd-autoexplain"); }, setting);
+  const asked = await server(page, setup);
+  await page.goto("/");
+  await ready(page);
+  await answerOnPhone(page);
+  return asked;
+};
+/** … and Explain tapped, with the run's chip shown. */
+const explained = async (page, testInfo, setup) => {
+  const asked = await open(page, testInfo, setup);
+  await explain(page).click();
+  await expect(quorum(page)).toContainText(/[=≠]/);
+  return asked;
+};
+
+withKey("on a server that offers Quorum, Explain is asked with quorum: true and a proof of the key, and the chip says the models agree", async ({ page }, testInfo) => {
+  const asked = await explained(page, testInfo);
+  expect(asked).toHaveLength(1);
+  const { headers, body } = asked[0];
+  expect(body.kind).toBe("explain");
+  expect(body.quorum).toBe(true);
+  expect(await checkProof(dataKey, headers["x-riglam-device"], headers["x-riglam-proof"])).toBe(true);
+  expect(JSON.stringify([headers, body])).not.toContain(dataKey);
+  await expect(quorum(page)).toContainText("=");
+});
+
+withKey("Check every answer with AI asks Quorum too, once, without a tap", async ({ page }, testInfo) => {
+  const asked = await open(page, testInfo, undefined, null);
+  await expect(quorum(page)).toContainText(/[=≠]/);
+  expect(asked).toHaveLength(1);
+  expect(asked[0].body).toMatchObject({ kind: "explain", quorum: true });
+});
+
+withKey("a follow-up question in the chat is not a Quorum question", async ({ page }, testInfo) => {
+  const asked = await explained(page, testInfo);
+  await page.getByRole("button", { name: /discuss with ai/i }).click();
+  await page.fill("#ask-in", "Why not?");
+  await page.keyboard.press("Enter");
+  await expect.poll(() => asked.length).toBe(2);
+  expect(asked[1].body.kind).toBe("chat");
+  expect(asked[1].body).not.toHaveProperty("quorum");
+});
+
+withKey("while the models work the chip shows it, and the answer comes with the run", async ({ page }, testInfo) => {
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  await open(page, testInfo, { tutor: async (_body, _n, things) => { await gate; return { status: 200, body: run(things, AGREE) }; } });
+  await explain(page).click();
+  await expect(quorum(page)).toContainText("…");
+  await quorum(page).click();
+  await expect(page.locator(".lab")).toContainText("Models answered: 0 of 3");
+  release();
+  await expect(quorum(page)).toContainText("=");
+  await expect(page.locator(".lab")).toContainText("Done: 3 of 3 models answered; all agree, no judge needed.");
+});
+
+withKey("the panel shows what each model and the judge said of each example, and the answer you see is the judge's", async ({ page }, testInfo) => {
+  await explained(page, testInfo, { tutor: (_b, _n, things) => ({ status: 200, body: run(things, DIFFER) }) });
+  await expect(quorum(page)).toContainText("≠");
+  await quorum(page).click();
+  const panel = page.locator(".lab");
+  const n = (await thingsOf(page)).length;
+  expect(n).toBeGreaterThan(0);
+  await expect(panel).toContainText("Done: 3 of 3 models answered; the judge ruled (the models differed).");
+  await expect(panel.locator(".lab-nj")).toHaveText("The answer you see is the judge’s.");
+  for (const name of ["Haiku", "Sonnet", "Opus", "Judge’s ruling", "Page"]) await expect(rowOf(page, name)).toHaveCount(n);
+  // Haiku differs from the ruling, the others are with it
+  await expect(rowOf(page, "Haiku").first()).toContainText("≠ ruling");
+  await expect(rowOf(page, "Sonnet").first()).toContainText("= ruling");
+  await expect(rowOf(page, "Haiku").first()).toContainText("1.4 s");
+  await panel.locator("details.lab-txt summary").click();
+  await expect(panel.locator(".lab-tn", { hasText: "Judge (shown)" })).toBeVisible();
+  expect(await overflow(page)).toBeLessThanOrEqual(0);
+});
+
+withKey("a call that failed is named, and the answer is the strongest of the others", async ({ page }, testInfo) => {
+  await explained(page, testInfo, { tutor: (_b, _n, things) => ({ status: 200, body: run(things, { Sonnet: learner, Opus: learner }) }) });
+  await quorum(page).click();
+  const panel = page.locator(".lab");
+  await expect(panel.locator(".status")).toContainText("Haiku: failed (unavailable).");
+  await expect(panel).toContainText("Done: 2 of 3 models answered; all agree, no judge needed.");
+  await expect(panel.locator(".lab-nj")).toHaveText("The answer you see is Opus’s.");
+  await expect(rowOf(page, "Haiku").first()).toContainText("no answer");
+});
+
+withKey("when the budget of Quorum is used the one model answers, and the chip says so", async ({ page }, testInfo) => {
+  await open(page, testInfo, { tutor: () => ({ status: 200, body: sse({ type: "single", why: "budget" }, { type: "delta", text: "Stand-in tutor: one model." }, { type: "done", truncated: false }) }) });
+  await explain(page).click();
+  await expect(quorum(page)).toBeVisible();
+  await quorum(page).click();
+  await expect(page.locator(".lab")).toContainText("Quorum’s budget for today is used, so one model answered this.");
+  await expect(page.locator(".lab .lab-r")).toHaveCount(0);
+});
+
+withKey("an answer that came with no run says so", async ({ page }, testInfo) => {
+  await open(page, testInfo, { tutor: () => ({ status: 200, body: PLAIN }) });
+  await explain(page).click();
+  await expect(quorum(page)).toBeVisible();
+  await quorum(page).click();
+  await expect(page.locator(".lab")).toContainText("No Quorum record came with this answer.");
+});
+
+withKey("a server that does not offer Quorum is asked as ever: no quorum in the question, no chip, no switch", async ({ page }, testInfo) => {
+  const asked = await open(page, testInfo, { health: { ok: true, tutor: "on" }, tutor: () => ({ status: 200, body: PLAIN }) });
+  await explain(page).click();
+  await expect.poll(() => asked.length).toBe(1);
+  expect(asked[0].body.kind).toBe("explain");
+  expect(asked[0].body).not.toHaveProperty("quorum");
+  await expect(quorum(page)).toHaveCount(0);
+  await page.getByRole("button", { name: "Options" }).first().click();
+  await expect(sw(page)).toHaveCount(0);
+});
+
+withKey("Options has the switch, on; off, the next explanation is asked of one model and the chip is gone", async ({ page }, testInfo) => {
+  const asked = await explained(page, testInfo);
+  await page.getByRole("button", { name: "Options" }).first().click();
+  await expect(page.getByText("The server keeps each run")).toBeVisible();
+  await expect(sw(page)).toHaveAttribute("aria-checked", "true");
+  await sw(page).click();
+  await expect(sw(page)).toHaveAttribute("aria-checked", "false");
+  expect(await page.evaluate(() => localStorage.getItem("rd-lab"))).toBe("0");
+  await page.getByRole("button", { name: /close options/i }).first().click();
+  await expect(quorum(page)).toHaveCount(0);
+  await page.getByRole("button", { name: /next pair/i }).click();
+  await ready(page);
+  await answerOnPhone(page);
+  await explain(page).click();
+  await expect.poll(() => asked.length).toBe(2);
+  expect(asked[1].body.kind).toBe("explain");
+  expect(asked[1].body).not.toHaveProperty("quorum");
+  await expect(quorum(page)).toHaveCount(0);
+});
+
+withKey("any value in the panel can be flagged, with a note, and the flag names the run", async ({ page }, testInfo) => {
+  await explained(page, testInfo, { tutor: (_b, _n, things) => ({ status: 200, body: run(things, DIFFER) }) });
+  await quorum(page).click();
+  const haiku = rowOf(page, "Haiku").first();
+  await haiku.locator(".lcell button").click();
+  await expect(page.locator(".flagedit")).toContainText("Flag: Haiku: cell");
+  await page.fill("#flag-note", "Haiku is wrong here");
+  await page.getByRole("button", { name: "Submit" }).click();
+  const byHand = async () => (await flags(page)).filter((f) => !f.auto);
+  await expect.poll(async () => (await byHand()).length).toBe(1);
+  const [flag] = await byHand();
+  expect(flag).toMatchObject({ part: "cell", model: "haiku", runId: RECORD_ID, note: "Haiku is wrong here", state: "new" });
+  expect(flag.shown).toBe("A not B");
+  expect((await thingsOf(page)).includes(flag.thing)).toBe(true);
+  await expect(haiku.locator(".lcell button")).toHaveAttribute("aria-pressed", "true");
+});
+
+// Where Quorum is divided about an example, the page flags it by itself (a flag with auto "quorum"): that is the copy of a disagreement that can leave the
+// run it came from, and what the flag review reads.
+withKey("where the models differ, the page flags each such example by itself and names the run; a flag that was reviewed is not touched by a later run", async ({ page }, testInfo) => {
+  await explained(page, testInfo, { tutor: (_b, _n, things) => ({ status: 200, body: run(things, DIFFER) }) });
+  const things = await thingsOf(page);
+  expect(things.length).toBeGreaterThan(0);
+  await expect.poll(async () => (await flags(page)).length).toBe(things.length);
+  const made = await flags(page);
+  expect(made.map((f) => f.thing).sort()).toEqual([...things].sort());
+  for (const f of made) {
+    expect(f).toMatchObject({ auto: "quorum", part: "quorum", state: "new", note: "", runId: RECORD_ID });
+    expect(f.shown).toMatch(/^The models gave different cells\. Models: Haiku [^,]+, Sonnet [^,]+, Opus [^.]+\. Judge: [^.]+\./);
+    expect(f.caseKey).toMatch(/^answers_/);
+    expect(f.pair).toMatchObject({ tab: "practice" });
+  }
+  // Review lists them as automatic flags
+  await page.getByRole("tab", { name: "Review" }).filter({ visible: true }).first().click();
+  await expect(page.locator(".flagl li")).toHaveCount(things.length);
+  await expect(page.locator(".flagl li").first()).toContainText(/Quorum \(automatic\)/);
+  // one reviewed by hand stays as it was when the same answer is flagged again; the others are written again only if their words changed
+  const id = made[0].id;
+  await page.locator(".flagl li", { hasText: made[0].thing }).getByRole("button", { name: "Reviewed" }).click();
+  await expect.poll(async () => (await flags(page)).find((f) => f.id === id)?.state).toBe("reviewed");
+  const before = (await flags(page)).find((f) => f.id === id);
+  const again = await page.evaluate(
+    ([kase, found]) => { window.__t.autoFlags(kase, found); return Object.values(window.__t.flags).length; },
+    [{ key: made[0].caseKey, a: made[0].pair.a, b: made[0].pair.b, relation: made[0].pair.relation, tab: "practice" }, made.map((f) => ({ thing: f.thing, shown: f.shown + " (again)", runId: "another" }))],
+  );
+  expect(again).toBe(things.length);
+  const after = await flags(page);
+  expect(after.find((f) => f.id === id)).toEqual(before);
+  // the ones still new are rewritten with the new words and the new run
+  for (const f of after.filter((f) => f.id !== id)) expect(f).toMatchObject({ runId: "another", state: "new" });
+  // Resolved and Delete work on the list
+  await page.locator(".flagl li", { hasText: made[0].thing }).getByRole("button", { name: "Resolved" }).click();
+  await expect.poll(async () => (await flags(page)).find((f) => f.id === id)?.state).toBe("resolved");
+  await page.locator(".flagl li", { hasText: made[0].thing }).getByRole("button", { name: "Delete" }).click();
+  await expect.poll(async () => (await flags(page)).length).toBe(things.length - 1);
+});
+
+withKey("where the models agree there are no automatic flags", async ({ page }, testInfo) => {
+  await explained(page, testInfo);
+  await page.waitForTimeout(300);
+  expect((await flags(page)).filter((f) => f.auto)).toEqual([]);
+});
+
+withKey("the panel fits a phone of any width, and its flags are big enough to touch", async ({ page }, testInfo) => {
+  await explained(page, testInfo, { tutor: (_b, _n, things) => ({ status: 200, body: run(things, DIFFER) }) });
+  await quorum(page).click();
+  await page.locator("details.lab-txt summary").click();
+  for (const width of [320, 360, 390]) {
+    await page.setViewportSize({ width, height: 800 });
+    expect(await overflow(page), `${width} px`).toBeLessThanOrEqual(0);
+    const small = await page.locator(".lab .lp").evaluateAll((bs) => bs.filter((b) => b.getBoundingClientRect().height < 26).length);
+    expect(small, `${width} px`).toBe(0);
+    const out = await page.locator(".lab").evaluate((p) => [...p.querySelectorAll("*")].filter((n) => n.getBoundingClientRect().right > innerWidth + 1).length);
+    expect(out, `${width} px`).toBe(0);
+  }
+});
+
+withKey("the panel is readable in the dark theme", async ({ page }, testInfo) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await explained(page, testInfo, { tutor: (_b, _n, things) => ({ status: 200, body: run(things, DIFFER) }) });
+  await quorum(page).click();
+  const colors = await page.locator(".lab-r").first().evaluate((r) => {
+    const rgb = (c) => c.match(/[\d.]+/g).slice(0, 3).map(Number);
+    const lum = ([r, g, b]) => [r, g, b].map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }).reduce((s, v, i) => s + v * [0.2126, 0.7152, 0.0722][i], 0);
+    let bg = r; let back = "rgba(0, 0, 0, 0)";
+    while (bg && /rgba\(.*, 0\)|transparent/.test(back)) { back = getComputedStyle(bg).backgroundColor; bg = bg.parentElement; }
+    const fg = getComputedStyle(r.querySelector(".mn")).color;
+    const [l1, l2] = [lum(rgb(fg)), lum(rgb(back))].sort((x, y) => y - x);
+    return { fg, back, ratio: (l1 + 0.05) / (l2 + 0.05) };
+  });
+  expect(colors.ratio, JSON.stringify(colors)).toBeGreaterThan(4.5);
+});
+
+// A device that has no Magic Key can check an answer, but cannot ask the tutor, so it has no Quorum; the tap on Explain that opens the prompt goes on with a run once the key is taken.
+plain("a device with no Magic Key has no Quorum until the key is entered", async ({ page }, testInfo) => {
+  plain.skip(!isPhone(testInfo), "the answer flow is exercised in the phone layout");
+  plain.skip(!withCourse, "needs the course data to unlock the definitions");
+  await page.addInitScript(() => { window.__riglamTest = (t) => { window.__t = t; }; localStorage.setItem("rd-autoexplain", "0"); });
+  await serveCourse(page);
+  const asked = await server(page);
+  await page.goto("/");
+  await ready(page);
+  await answerOnPhone(page);
+  await page.waitForTimeout(300);
+  await expect(quorum(page)).toHaveCount(0);
+  expect(asked).toHaveLength(0);
+  await page.getByRole("button", { name: /^explain$/i }).click({ force: true });
+  await page.fill("#unlock-key", dataKey);
+  await page.locator("#unlock").getByRole("button", { name: "Unlock", exact: true }).click();
+  await expect(page.locator("#unlock")).toHaveCount(0);
+  await expect.poll(() => asked.length).toBe(1); // the tap on Explain goes on once the key is taken
+  expect(asked[0].body.quorum).toBe(true);
+  await expect(quorum(page)).toContainText(/[=≠]/);
+});

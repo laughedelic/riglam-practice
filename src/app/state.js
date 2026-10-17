@@ -10,7 +10,6 @@ export const state = {
   LABELIDX: {},
   db: null,
   sample: null,
-  labSample: null,   // the check lab's model calls (platform.lab; in the artifact its `sample`)
   account: null, // optional sign-in with a server copy of the documents (platform.account), when the place has one
   acct: {},      // the same for the Account row (src/ui/account.ts)
   xfer: {},      // what the "Your data" row of Options keeps between renders (src/ui/data-transfer.ts)
@@ -49,17 +48,12 @@ export const state = {
   // After a skip on a narrow screen a small hint opens under the icon: "Skipped a / b · Undo". It blocks nothing (no scrim), is outside the cards so nothing shifts,
   // and closes on the next tap, key press (Tab moves into it), scroll, or after UNDO_MS. Closing it changes nothing else; Review still lists the pair.
   hintOff: null,
-  labSpotN: 10,  // one unanimous answer in labSpotN also goes to the judge (chosen by the case key, so a rerun repeats the choice); 0 never, 1 always
-  lab: true,
+  quorumOffered: false,   // the app's server offers Quorum, the tutor's mode of several models and a judge (platform.quorum): a Preview, with the Magic Key
+  quorum: true,           // Quorum is on for this device (Options; the key of the setting is still "rd-lab", from when it was the check lab)
   autoExplain: true,   // a checked answer asks for its explanation by itself (Options); the Explain button is still there for one that was not asked
-  labruns: {},
   flags: {},
   flagErr: "",
-  labPause: 0,
-  labPauseWhy: "",   // what the Quorum chip says about a pause
   flagPending: 0,
-  // the reference the models get, built from the page's own data: every category with its definition, then the classification notes
-  labRefC: null,
   // A draw replaces the whole screen, which would send the scroll back to the top. While the screen is the same one (the same pair, step and
   // result, with a row opened or a chip changed), the scroll stays where it was; a new screen starts at the top, as the callers ask with top0().
   lastSig: "",
@@ -82,7 +76,7 @@ export const state = {
 
 try{ const v=localStorage.getItem("rd-notation"); if(v==="sets"||v==="logic") state.nota=v; }catch(e){}
 try{ if(localStorage.getItem("rd-deflang")==="enru") state.defLang="enru"; }catch(e){}   // an earlier "off" (words only) is now the codes
-try{ state.lab=localStorage.getItem("rd-lab")!=="0"; }catch(e){}
+try{ state.quorum=localStorage.getItem("rd-lab")!=="0"; }catch(e){}
 try{ state.autoExplain=localStorage.getItem("rd-autoexplain")!=="0"; }catch(e){}
 try{ state.recentOpen=localStorage.getItem("rd-recent")!=="0"; }catch(e){}
 try{ if(localStorage.getItem("rd-ab")==="0") state.showAB=false; if(localStorage.getItem("rd-full")==="0") state.fullPh=false; }catch(e){}

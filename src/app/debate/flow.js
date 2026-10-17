@@ -1,5 +1,4 @@
 import { state } from "../state.js";
-import { labStart } from "../ai/lab.js";
 import { explainByItself } from "../ai/tutor.js";
 import { $ } from "../core/dom.js";
 import { CELLS } from "../core/rel.js";
@@ -93,5 +92,4 @@ export async function checkDebate(){
     correct:state.ui.res.relOk,grade:state.ui.res.overall,cells,qs,at:new Date().toISOString(),pair:p};
   if(state.ui.late) state.ui.doc.timeout="relation";
   persist(state.ui,"Your answers");
-  labStart(state.ui,state.cur);
 }

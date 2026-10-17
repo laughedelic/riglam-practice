@@ -19,5 +19,4 @@
 .lab-r .lt .vs{margin-right:6px;font:700 10px/1.2 var(--body);letter-spacing:.04em;text-transform:uppercase}
 .lab-r .lt .vs.yes{color:var(--cell-ok)}
 .lab-r .lt .vs.no{color:var(--cell-uns)}
-.lab-sided{color:var(--ink-muted);font-size:12.5px}
 .lab-nj{color:var(--ink-muted);font-size:12.5px;font-style:italic}

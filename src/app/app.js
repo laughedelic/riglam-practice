@@ -1,6 +1,6 @@
 import { state } from "./state.js";
-import { aiCase, aiFlag, decorateAns, flagId, openFlag, removeFlag, saveFlag, setFlagState } from "./ai/flags.js";
-import { LAB_MODELS, labAgain, labJudgeNow, labParse, labRef, labRuns, labStart, labSubscribe, labThings, setLab } from "./ai/lab.js";
+import { aiCase, aiFlag, autoFlags, decorateAns, flagId, flagsSubscribe, openFlag, removeFlag, saveFlag, setFlagState } from "./ai/flags.js";
+import { quorumThings, setQuorum } from "./ai/quorum.js";
 import { refOf } from "./core/rel.js";
 import { favKey } from "./practice/favorites.js";
 import { advance, next } from "./practice/queue.js";
@@ -38,12 +38,12 @@ async function bootSteps(platform){
   try{ state.db=await platform.db(); }catch(e){ state.db=null; }
   waiting("the other parts of the app");
   try{ state.sample=await platform.sample(); }catch(e){ state.sample=null; }
-  try{ state.labSample=platform.lab?await platform.lab():state.sample; }catch(e){ state.labSample=null; }
   try{ state.unlock=platform.unlock?await platform.unlock():null; }catch(e){ state.unlock=null; }
   try{ state.keyHeld=platform.keyHeld?await platform.keyHeld():null; }catch(e){ state.keyHeld=null; }
   // the server may need seconds to say whether it has a tutor: the page opens first and draws again when the answer comes
   if(state.unlock&&state.unlock.answer){ const u=state.unlock; u.answer.then(on=>{ u.tutor=!!on; if(state.mode!=="loading") render(); },()=>{}); }
   try{ state.tutor=platform.tutor?await platform.tutor():null; }catch(e){ state.tutor=null; }
+  try{ state.quorumOffered=!!(state.tutor&&platform.quorum&&await platform.quorum()); }catch(e){ state.quorumOffered=false; }
   try{ state.account=platform.account?await platform.account():null; }catch(e){ state.account=null; }
   // which build this is: asked in the background (it looks at the server), shown in Options when it arrives
   if(platform.about) platform.about().then(a=>{ state.about=a; if(state.optsOpen) render(); },()=>{});
@@ -72,7 +72,7 @@ async function bootSteps(platform){
     if(state.mode==="loading") settle(); else if(!same&&state.tab==="review") render();
   },()=>{ state.gotS=true; settle(); });
   setTimeout(()=>{ if(!state.gotS){ state.gotS=true; settle(); } },2500);       // never hold the first pair for the skips
-  labSubscribe();
+  flagsSubscribe();
   state.db.collection("debates").onSnapshot(snap=>{
     const m={}; snap.docs.forEach(d=>{m[d.id]=d.data();}); state.debates=m; settle();
   },()=>{});
@@ -80,13 +80,10 @@ async function bootSteps(platform){
 // What depends on the key, read again after the prompt took one: the definitions in the data, the tutor, and the Options row (enter a key / change it).
 async function rekey(platform){
   state.DATA=await platform.loadData(); indexData(); buildPool();
-  state.labRefC=null;                     // the reference for the check lab quotes the definitions
   try{ state.unlock=platform.unlock?await platform.unlock():null; }catch(e){ state.unlock=null; }
   try{ state.keyHeld=platform.keyHeld?await platform.keyHeld():null; }catch(e){ state.keyHeld=null; }
   try{ state.tutor=platform.tutor?await platform.tutor():null; }catch(e){ state.tutor=null; }
-  try{ state.labSample=platform.lab?await platform.lab():state.sample; }catch(e){ state.labSample=null; }
-  // an answer checked before the key was taken has no Quorum run (there was no lab then): it starts now
-  if(state.labSample&&state.ui&&state.ui.checked&&state.cur) labStart(state.ui,state.cur);
+  try{ state.quorumOffered=!!(state.tutor&&platform.quorum&&await platform.quorum()); }catch(e){ state.quorumOffered=false; }
   state.keyAsk=false;
   if(state.mode!=="loading") render();
 }
@@ -98,6 +95,6 @@ function settle(){
 
 /* ---------- test hook (begin): lets the browser tests in tests/ read internals; inert unless a test defines window.__riglamTest ---------- */
 function exposeTestHook(){
-if(typeof window.__riglamTest==="function") window.__riglamTest({get cur(){return state.cur},get ui(){return state.ui},get tab(){return state.tab},get favs(){return state.favs},get mode(){return state.mode},get view(){return state.view},get optsOpen(){return state.optsOpen},favKey,refOf,render,choose,fbNode,defParts,termsNode,lockedDefs,setDefLang,get defLang(){return state.defLang},get DATA(){return state.DATA},next,advance,get skips(){return state.skips},set skips(v){state.skips=v},skipPair,undoSkip,isSkipped,hiddenKeys,get POOL(){return state.POOL},nextGenerated,SKIP_DAYS,get lab(){return state.lab},setLab,labThings,get flags(){return state.flags},get labruns(){return state.labruns},labRuns,LAB_MODELS,labRef,labParse,flagId,labAgain,openFlag,saveFlag,removeFlag,setFlagState,get labPause(){return state.labPause},set labPause(v){state.labPause=v},get labSpotN(){return state.labSpotN},set labSpotN(v){state.labSpotN=v},labJudgeNow,aiCase,aiFlag,decorateAns});
+if(typeof window.__riglamTest==="function") window.__riglamTest({get cur(){return state.cur},get ui(){return state.ui},get tab(){return state.tab},get favs(){return state.favs},get mode(){return state.mode},get view(){return state.view},get optsOpen(){return state.optsOpen},favKey,refOf,render,choose,fbNode,defParts,termsNode,lockedDefs,setDefLang,get defLang(){return state.defLang},get DATA(){return state.DATA},next,advance,get skips(){return state.skips},set skips(v){state.skips=v},skipPair,undoSkip,isSkipped,hiddenKeys,get POOL(){return state.POOL},nextGenerated,SKIP_DAYS,get quorum(){return state.quorum},get quorumOffered(){return state.quorumOffered},setQuorum,quorumThings,get flags(){return state.flags},flagId,openFlag,saveFlag,removeFlag,setFlagState,aiCase,aiFlag,autoFlags,decorateAns});
 }
 /* ---------- test hook (end) ---------- */
