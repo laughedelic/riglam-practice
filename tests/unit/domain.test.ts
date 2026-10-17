@@ -8,7 +8,7 @@ import { CELLS, REL, makeIndex, refOf } from "../../src/ai-shared";
 import type { CellId, DrillData, RelKey } from "../../src/ai-shared";
 import {
   FEATURE, RECENT_MAX, applyVerdicts, factNote, fitOf, noteParts, buildPool, cellsFor, chooseEntry, deriveRel, grade, gradeDebate, gradeOf, inUniverse, isMiss, judgeText, makePair,
-  nextPair, pairKey, parseFactLine, parseVerdicts, pick, relOfCells, summarize, termLine,
+  nextPair, pairKey, parseFactLine, parseVerdicts, pick, relOfCells, summarize, termLine, disputeText, quorumDisputes,
 } from "../../src/domain";
 import type { DebateInput, GradeDraft, HistoryEntry, Pair, PoolEntry } from "../../src/domain";
 import openData from "../../src/data/drill-data.json";
@@ -609,6 +609,45 @@ test("the real data draws pairs of every relation, for a long run", () => {
     hist.push({ key: p.relation, catA: p.catA, catB: p.catB, grade: i % 3 ? "ok" : "bad" });
   }
   expect([...rels].sort()).toEqual(["3ab", "3ba", "4", "con", "mi"]);
+});
+
+// ---- Quorum: which examples are worth a flag ----
+
+const th = (text: string, cells: ("both" | "anb" | "bna" | "nei")[], page: Record<string, string>) => ({ text, cells, page });
+const run = (name: string, ...cells: ("both" | "anb" | "bna" | "nei")[]) => ({ name, cells });
+
+test("Quorum is disputed where the models give different cells, and the text names each model's cell", () => {
+  const things = [th("a table", ["anb"], { anb: "ok" }), th("a song", ["bna"], { bna: "ok" })];
+  const d = quorumDisputes(things, [run("Haiku", "anb", "nei"), run("Sonnet", "anb", "bna"), run("Opus", "anb", "bna")], ["anb", "bna"]);
+  expect(d).toHaveLength(1);
+  expect(d[0]).toMatchObject({ index: 1, kinds: ["models"], ruling: "bna", judge: "bna" });
+  expect(disputeText(d[0], things[1])).toBe("The models gave different cells. Models: Haiku Neither, Sonnet B not A, Opus B not A. Judge: B not A. You put it in B not A (the page: fits).");
+});
+
+test("Quorum is disputed where the models agree but the page's verdict cannot stand beside the cell they agree on", () => {
+  const things = [th("a table", ["anb"], { anb: "bad" }), th("a song", ["bna"], { bna: "ok" }), th("a stone", ["both"], { both: "ok" }), th("a mule", ["nei"], { nei: "cmp" })];
+  const models = [run("Haiku", "anb", "anb", "both", "bna"), run("Sonnet", "anb", "anb", "both", "bna")];
+  const d = quorumDisputes(things, models, null);
+  // a table: the page says it does not fit A not B, the models put it there; a song: the page says it fits B not A, the models say A not B
+  expect(d.map((x) => [x.index, x.kinds, x.ruling])).toEqual([[0, ["page"], "anb"], [1, ["page"], "anb"]]);
+  expect(disputeText(d[0], things[0])).toBe("The models agree, but the page does not. Models: Haiku A not B, Sonnet A not B. You put it in A not B (the page: does not fit).");
+});
+
+test("Quorum is not disputed where the page and the ruling agree, where the page did not check, or with fewer than two runs", () => {
+  const things = [th("a table", ["anb"], { anb: "ok" }), th("a song", ["bna"], { bna: "bad" }), th("a mule", ["nei"], { nei: "cmp" })];
+  // the learner is wrong about the song and the page says so: nothing to flag
+  expect(quorumDisputes(things, [run("Haiku", "anb", "anb", "nei"), run("Sonnet", "anb", "anb", "nei")], null)).toEqual([]);
+  expect(quorumDisputes(things, [run("Haiku", "bna", "nei", "both")], ["bna", "nei", "both"])).toEqual([]);
+  // models that differ are disputed even when the page did not check
+  expect(quorumDisputes(things, [run("Haiku", "anb", "anb", "nei"), run("Sonnet", "anb", "anb", "both")], null).map((x) => x.index)).toEqual([2]);
+});
+
+test("Quorum: an example written in two cells is disputed if the ruling contradicts the page in either", () => {
+  const things = [th("a pot", ["anb", "bna"], { anb: "ok", bna: "bad" })];
+  expect(quorumDisputes(things, [run("Haiku", "anb"), run("Sonnet", "anb")], null)).toEqual([]);
+  const d = quorumDisputes(things, [run("Haiku", "bna"), run("Sonnet", "bna")], null);
+  expect(d.map((x) => x.kinds)).toEqual([["page"]]);
+  expect(disputeText(d[0], things[0])).toContain("You put it in A not B (the page: fits), B not A (the page: does not fit).");
 });
 
 // ---- the code stays free of the page and the browser ----

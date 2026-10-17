@@ -115,6 +115,8 @@ export interface FlagDoc {
   suggest?: string;
   /** the pair the flag was made on, by its labels; not a whole pair */
   pair?: FlagPair | null;
+  /** set when the page wrote the flag by itself, not the learner: "quorum" for an example the check lab is divided about (`part` is "quorum" then) */
+  auto?: string;
   at: string;
   updatedAt: string;
   state: string;

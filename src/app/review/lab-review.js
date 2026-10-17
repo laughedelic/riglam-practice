@@ -43,8 +43,8 @@ export function labReview(box){
   if(fl.length){
     sec.append(el("p",{class:"sublabel",text:"Flags"}));
     sec.append(el("ul",{class:"sum flagl"},fl.slice(0,40).map(f=>el("li",{class:f.state},el("span",{class:"m","aria-hidden":"true"},el("span",{class:"flg"})),
-      el("span",null,(f.thing?"“"+f.thing+"” · ":"")+(f.model?mname(f.model)+" · ":"")+f.part,
-        el("span",{class:"sub",text:(f.shown?"shown: "+f.shown:"")+(f.suggest?" · should be: "+f.suggest:"")}),
+      el("span",null,(f.thing?"“"+f.thing+"” · ":"")+(f.model?mname(f.model)+" · ":"")+(f.auto?"Quorum (automatic)":f.part),
+        el("span",{class:"sub",text:(f.shown?(f.auto?"":"shown: ")+f.shown:"")+(f.suggest?" · should be: "+f.suggest:"")}),
         f.note?el("span",{class:"sub",text:f.note}):null,
         el("span",{class:"skact"},
           el("span",{class:"fstate",text:f.state+" · "+dayOf(f.at)}),
