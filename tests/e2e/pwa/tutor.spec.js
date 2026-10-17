@@ -81,6 +81,103 @@ withKey("a note under a cell is headed Why?", async ({ page }, testInfo) => {
   await expect(pop.locator(".popnote")).toHaveCount(0);
 });
 
+// The terms a note names are dot-underlined when this device has their definitions, each once; a tap opens the definition under the
+// text, inside the note. Another term replaces it; a tap elsewhere or Escape closes it and leaves the note open.
+withKey("a note underlines the terms it names and opens their definitions in place", async ({ page }, testInfo) => {
+  const line = 'Both: "thing 1" is an external form, so it fits: every form is matter, and matter is a form. => yes\n';
+  await open(page, testInfo, { tutor: [{ status: 200, body: sse({ type: "delta", text: line }, { type: "done", truncated: false }) }] });
+  await explain(page).click();
+  await page.locator(".grid .qm").first().click();
+  const pop = page.locator(".grid .pop"), marks = pop.locator(".dterm[data-dt]"), def = pop.locator(".ddef"); // the terms of the text; the card has its own marks
+  await expect(marks).toHaveText(["external form", "form", "matter"]);
+  await expect(def).toHaveCount(0);
+
+  await marks.first().click();
+  await expect(marks.first()).toHaveAttribute("aria-expanded", "true");
+  await expect(def.locator("dt")).toContainText("External form");
+  expect((await def.locator("dd").last().innerText()).length).toBeGreaterThan(10);
+  expect(await overflow(page)).toBeLessThanOrEqual(0);
+
+  await marks.nth(2).click();
+  await expect(def).toHaveCount(1);
+  await expect(def.locator("dt")).toContainText("Matter");
+  await expect(marks.first()).toHaveAttribute("aria-expanded", "false");
+
+  await pop.locator(".clh").click();
+  await expect(def).toHaveCount(0);
+  await expect(pop).toBeVisible();
+
+  await marks.nth(1).focus();
+  await page.keyboard.press("Enter");
+  await expect(def.locator("dt")).toContainText("Form");
+  await page.keyboard.press("Escape");
+  await expect(def).toHaveCount(0);
+  await expect(pop).toBeVisible();
+  // the focus stays on the term, so Enter opens its definition again
+  await expect(marks.nth(1)).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(def.locator("dt")).toContainText("Form");
+});
+
+// A definition belongs to the note it was opened in: opening another note or closing this one drops it, so the next Escape closes
+// the note on view, and coming back to the first note shows it without the definition.
+withKey("an open definition is dropped when its note is switched or closed", async ({ page }, testInfo) => {
+  const lines = 'Both: "thing 1" is an external form, so it fits. => yes\nNeither: "thing 2" is matter, so it fits. => yes\n';
+  await open(page, testInfo, { tutor: [{ status: 200, body: sse({ type: "delta", text: lines }, { type: "done", truncated: false }) }] });
+  await explain(page).click();
+  const qms = page.locator(".grid .qm"), pop = page.locator(".grid .pop"), def = pop.locator(".ddef");
+  await qms.first().click();
+  await pop.locator(".dterm").first().click();
+  await expect(def).toHaveCount(1);
+
+  await qms.nth(1).click();
+  await expect(pop.locator(".dterm")).toHaveText(["matter"]);
+  await expect(def).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(pop).toHaveCount(0);
+
+  await qms.first().click();
+  await expect(pop.locator(".dterm")).toHaveText(["external form"]);
+  await expect(def).toHaveCount(0);
+
+  await pop.locator(".dterm").first().click();
+  await expect(def).toHaveCount(1);
+  await pop.locator(".popx").click();
+  await expect(pop).toHaveCount(0);
+  await qms.first().click();
+  await expect(def).toHaveCount(0);
+});
+
+// The same in a note the page writes from the two facts: the terms of a reason are underlined once, and the definition opens under
+// its consequence, inside the list.
+withKey("the terms in the reasons of a fact note are underlined and open their definitions under the consequence", async ({ page }, testInfo) => {
+  const line = 'Both: "thing 1" | A yes: it is an external form | B yes: it is matter\n';
+  await open(page, testInfo, { tutor: [{ status: 200, body: sse({ type: "delta", text: line }, { type: "done", truncated: false }) }] });
+  await explain(page).click();
+  await page.locator(".grid .qm").first().click();
+  const pop = page.locator(".grid .pop"), marks = pop.locator(".fsteps .dterm[data-dt]"), def = pop.locator(".ddef");
+  await expect(marks).toHaveText(["external form", "matter"]);
+  await expect(def).toHaveCount(0);
+  await marks.first().click();
+  await expect(pop.locator(".fsteps li").first().locator(".ddef dt")).toContainText("External form");
+  await marks.nth(1).click();
+  await expect(def).toHaveCount(1);
+  await expect(pop.locator(".fsteps li").nth(1).locator(".ddef dt")).toContainText("Matter");
+  expect(await overflow(page)).toBeLessThanOrEqual(0);
+});
+
+// A term is underlined once in each line of a fact note, not once in the whole note: both lines name the color, and both show it.
+withKey("a term is underlined in each line of a fact note that names it", async ({ page }, testInfo) => {
+  const line = 'Both: "thing 1" | A yes: it is a color | B yes: it is a color\n';
+  await open(page, testInfo, { tutor: [{ status: 200, body: sse({ type: "delta", text: line }, { type: "done", truncated: false }) }] });
+  await explain(page).click();
+  await page.locator(".grid .qm").first().click();
+  const pop = page.locator(".grid .pop");
+  await expect(pop.locator(".fsteps li")).toHaveCount(2);
+  await expect(pop.locator(".fsteps li").nth(0).locator(".dterm")).toHaveText(["color"]);
+  await expect(pop.locator(".fsteps li").nth(1).locator(".dterm")).toHaveText(["color"]);
+});
+
 // The tutor states two facts about an example and a reason for each; the page writes them as consequences ("Take S, it follows it is
 // P, because R") with the pair's own terms, draws the conclusion, and in the debate words the note by what the learner answered.
 withKey("a line with the two facts is shown as the subject and a list of consequences", async ({ page }, testInfo) => {

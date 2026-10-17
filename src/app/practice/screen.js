@@ -16,7 +16,7 @@ import { favBtn } from "./favorites.js";
 import { check } from "./grading.js";
 import { next } from "./queue.js";
 import { skipActs, subRowNode } from "./skips.js";
-import { termsNode } from "./terms.js";
+import { defCard, termsNode, withTerms } from "./terms.js";
 import { answerList } from "./universe.js";
 import { exGrid } from "../review/review.js";
 import { openChat, tutorTurns } from "../shell/chat.js";
@@ -100,20 +100,29 @@ export const noteData=(p=state.cur.p)=>({ix:state,p,terms:{a:singular(p.a),b:sin
 const partsOf=f=>noteParts(f,acceptedQ(f),noteData());
 export const factText=f=>partsText(partsOf(f),noteData().terms);
 // the terms with their A/B markers and the "not" as the questions show them; why a denied term follows goes on a line under it
-const notW=()=>el("span",{class:"not",text:"not"}), because=r=>r?", because "+r:"";
-function partNode(p){
+const notW=()=>el("span",{class:"not",text:"not"});
+// `mark(text,key)` is the text with the Dudra terms it names underlined (withTerms), for a note that has a `where` to key them by
+function partNode(p,mark){
   switch(p.kind){
-    case "term": return ["It follows it is ",p.not?[notW()," "]:null,termNode(p.side),because(p.reason),".",p.why?el("span",{class:"fwhy",text:p.why}):null];
-    case "unsure": return ["Whether it is ",termNode(p.side)," is not settled",p.say?": "+p.say:"","."];
+    case "term": return ["It follows it is ",p.not?[notW()," "]:null,termNode(p.side),p.reason?[", because ",...mark(p.reason,"r")]:null,".",p.why?el("span",{class:"fwhy"},mark(p.why,"w")):null];
+    case "unsure": return ["Whether it is ",termNode(p.side)," is not settled",p.say?[": ",...mark(p.say,"s")]:"","."];
     default: return [p.text];
   }
 }
 export const whyHead=()=>el("span",{class:"clh",text:"Why?"});
-/** A fact line's note: "Take S:" after the given heading, the consequences as a list, and the conclusion when there is one. */
-export function factNode(f,head){
+/**
+ * A fact line's note: "Take S:" after the given heading, the consequences as a list, and the conclusion when there is one. `where`
+ * names the note: the terms its texts name are underlined, each once in a line of the list, and the definition of the one tapped
+ * opens under that line.
+ */
+export function factNode(f,head,where){
   const parts=partsOf(f), mid=parts.filter(p=>p.kind!=="take"&&p.kind!=="end");
   return el("div",{class:"fnote"},el("p",{class:"ftake"},head?[head," "]:null,"Take ",el("i",{text:f.example}),":"),
-    el("ul",{class:"fsteps"},mid.map(p=>el("li",null,...partNode(p)))),parts.filter(p=>p.kind==="end").map(p=>el("p",{text:p.text})));
+    el("ul",{class:"fsteps"},mid.map((p,k)=>{
+      const keys=[], seen=new Set(), mark=(t,kind)=>{ const key=where+"."+k+kind; keys.push(key); return withTerms(t,key,seen); };
+      const body=partNode(p,where?mark:t=>t);
+      return el("li",null,...body,...keys.map(defCard));
+    })),parts.filter(p=>p.kind==="end").map(p=>el("p",{text:p.text})));
 }
 export function explainParts(){
   const out={cells:{},facts:{},rest:[]};
@@ -146,15 +155,15 @@ export function relPopNode(){
   const rest=explainParts().rest; if(!rest.length) return null;
   const fl=aiFlag(aiCase("explain","Claude’s note on the relation",rest.map(([k,t])=>k+": "+t).join("\n"),"rel"),"pop:rel");
   return el("div",{class:"pop rpop",role:"dialog","aria-label":"Claude's explanation of the relation",tabindex:"-1"},el("p",{class:"clh",text:"Why?"}),fl,
-    rest.map(([k,t])=>el("p",null,k?el("b",{text:k+": "}):null,t)),flagEditorNode("pop:rel"),
+    rest.flatMap(([k,t],i)=>[el("p",null,k?el("b",{text:k+": "}):null,withTerms(t,"rel"+i,new Set())),defCard("rel"+i)]),flagEditorNode("pop:rel"),
     el("button",{type:"button",class:"popx",onclick:e=>{ e.stopPropagation(); state.ui.pop=null; render(); },text:"Close"}));
 }
 export function popNode(){
   if(!state.ui||!state.ui.checked||!state.ui.pop||state.ui.pop==="rel") return null;
   const t=explainParts().cells[state.ui.pop]; if(!t) return null;
-  const fl=aiFlag(aiCase("explain","Claude’s note on "+(state.ui.debate?"Q"+(QCELL.indexOf(state.ui.pop)+1):CELL_NAME[state.ui.pop]),t,state.ui.pop),"pop:"+state.ui.pop);
+  const fl=aiFlag(aiCase("explain","Claude’s note on "+(state.ui.debate?"Q"+(QCELL.indexOf(state.ui.pop)+1):CELL_NAME[state.ui.pop]),t,state.ui.pop),"pop:"+state.ui.pop), seen=new Set();
   const f=explainParts().facts[state.ui.pop];
-  return el("div",{class:"pop",role:"dialog","aria-label":"Claude's explanation",tabindex:"-1"},f?null:el("p",{class:"clh",text:"Why?"}),fl,f?factNode(f,whyHead()):el("p",{text:t}),flagEditorNode("pop:"+state.ui.pop),
+  return el("div",{class:"pop",role:"dialog","aria-label":"Claude's explanation",tabindex:"-1"},f?null:el("p",{class:"clh",text:"Why?"}),fl,f?factNode(f,whyHead(),"pop:"+state.ui.pop):[el("p",null,withTerms(t,"pop:"+state.ui.pop,seen)),defCard("pop:"+state.ui.pop)],flagEditorNode("pop:"+state.ui.pop),
     el("button",{type:"button",class:"popx",onclick:e=>{ e.stopPropagation(); state.ui.pop=null; render(); },text:"Close"}));
 }
 export function placePops(){

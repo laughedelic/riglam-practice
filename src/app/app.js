@@ -6,7 +6,7 @@ import { favKey } from "./practice/favorites.js";
 import { advance, next } from "./practice/queue.js";
 import { choose, fbNode } from "./practice/screen.js";
 import { SKIP_DAYS, hiddenKeys, isSkipped, skipPair, undoSkip } from "./practice/skips.js";
-import { defParts, termsNode, lockedDefs } from "./practice/terms.js";
+import { defParts, termsNode } from "./practice/terms.js";
 import { buildPool, indexData, nextGenerated } from "./practice/universe.js";
 import { signature } from "../ui/account";
 import { setDefLang } from "./shell/options.js";
@@ -95,6 +95,6 @@ function settle(){
 
 /* ---------- test hook (begin): lets the browser tests in tests/ read internals; inert unless a test defines window.__riglamTest ---------- */
 function exposeTestHook(){
-if(typeof window.__riglamTest==="function") window.__riglamTest({get cur(){return state.cur},get ui(){return state.ui},get tab(){return state.tab},get favs(){return state.favs},get mode(){return state.mode},get view(){return state.view},get optsOpen(){return state.optsOpen},favKey,refOf,render,choose,fbNode,defParts,termsNode,lockedDefs,setDefLang,get defLang(){return state.defLang},get DATA(){return state.DATA},next,advance,get skips(){return state.skips},set skips(v){state.skips=v},skipPair,undoSkip,isSkipped,hiddenKeys,get POOL(){return state.POOL},nextGenerated,SKIP_DAYS,get quorum(){return state.quorum},get quorumOffered(){return state.quorumOffered},get quorumOptIn(){return state.quorumOptIn},setQuorum,quorumThings,get flags(){return state.flags},flagId,openFlag,saveFlag,removeFlag,setFlagState,aiCase,aiFlag,autoFlags,decorateAns});
+if(typeof window.__riglamTest==="function") window.__riglamTest({get cur(){return state.cur},get ui(){return state.ui},get tab(){return state.tab},get favs(){return state.favs},get mode(){return state.mode},get view(){return state.view},get optsOpen(){return state.optsOpen},favKey,refOf,render,choose,fbNode,defParts,termsNode,setDefLang,get defLang(){return state.defLang},get DATA(){return state.DATA},next,advance,get skips(){return state.skips},set skips(v){state.skips=v},skipPair,undoSkip,isSkipped,hiddenKeys,get POOL(){return state.POOL},nextGenerated,SKIP_DAYS,get quorum(){return state.quorum},get quorumOffered(){return state.quorumOffered},get quorumOptIn(){return state.quorumOptIn},setQuorum,quorumThings,get flags(){return state.flags},flagId,openFlag,saveFlag,removeFlag,setFlagState,aiCase,aiFlag,autoFlags,decorateAns});
 }
 /* ---------- test hook (end) ---------- */

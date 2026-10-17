@@ -1,21 +1,21 @@
 #!/usr/bin/env node
-// Renders the PNG icons the manifest and iOS need from public/icons/icon.svg (a marigold rhombus on the
-// crimson of the booklet bands). Run `npm run icons` after changing the SVG; the PNGs are committed.
-import sharp from "sharp";
+// Renders the PNG icons the manifest and iOS need from the two SVGs: public/icons/icon.svg (the Main icon, in every build) and
+// public/icons/preview/icon.svg (the Preview icon, in staging and pull request builds: RIGLAM_ICON_SET=preview, see vite.config.js).
+// The SVGs are flat; the PNGs get the generated grain (scripts/lib/grain.mjs, laid on by scripts/lib/render-icon.mjs), which the SVG icon
+// leaves out because at favicon size it would only average out.
+// Run `npm run icons` after changing an SVG; the PNGs are committed.
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { renderIcon } from "./lib/render-icon.mjs";
 
-const dir = resolve(dirname(fileURLToPath(import.meta.url)), "../public/icons");
-const svg = readFileSync(resolve(dir, "icon.svg"));
-const sizes = { "icon-192.png": 192, "icon-512.png": 512, "apple-touch-icon.png": 180 };
-for (const [name, size] of Object.entries(sizes)) {
-  await sharp(svg, { density: 384 }).resize(size, size).png({ compressionLevel: 9 }).toFile(resolve(dir, name));
-  console.log("wrote", name);
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "../public/icons");
+// The maskable icon is the same picture: the art sits inside the central 80% circle, which is all a mask keeps.
+const sizes = { "icon-192.png": 192, "icon-512.png": 512, "icon-maskable-512.png": 512, "apple-touch-icon.png": 180 };
+for (const dir of [root, resolve(root, "preview")]) {
+  const svg = readFileSync(resolve(dir, "icon.svg"));
+  for (const [name, size] of Object.entries(sizes)) {
+    await (await renderIcon(svg, size)).toFile(resolve(dir, name));
+    console.log("wrote", dir.slice(root.length - "public/icons".length), name);
+  }
 }
-// Maskable: the rhombus must sit inside the central 80% circle, so draw it smaller on the same ground.
-const maskable = Buffer.from(
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="#b83545"/><polygon points="256,136 376,256 256,376 136,256" fill="#faaf3f"/></svg>`,
-);
-await sharp(maskable, { density: 384 }).resize(512, 512).png({ compressionLevel: 9 }).toFile(resolve(dir, "icon-maskable-512.png"));
-console.log("wrote icon-maskable-512.png");

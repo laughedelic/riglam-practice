@@ -5,8 +5,10 @@ const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.
 const ORDER={mi:0,'3ab':1,'3ba':2,'4':3,con:4};
 const EMPTY={mi:['anb','bna'],con:['both'],'3ab':['anb'],'3ba':['bna'],'4':[]};
 const CELLS=['both','anb','bna','nei'];
+// the definition of the i-th underlined term of the Terms panel
+async function openMark(pg,i){ await pg.locator('.terms .dterm').nth(i).click(); await pg.waitForTimeout(100); }
 async function toTerms(pg){
- // find a pair whose Terms panel has definitions with a Russian definition, answer it, open Terms and the definitions
+ // find a pair whose Terms panel has underlined terms, answer it and open Terms
  for(let i=0;i<40;i++){
   const rel=await pg.evaluate(()=>window.__t.cur.p.relation);
   await pg.locator('.rels .rel').nth(ORDER[rel]).click(); await pg.waitForTimeout(60);
@@ -14,7 +16,7 @@ async function toTerms(pg){
   for(let k=0;k<n;k++){ await pg.fill('#cin','x'+k); await pg.keyboard.press('Enter'); await pg.waitForTimeout(40); }
   await pg.waitForTimeout(100); await pg.evaluate(()=>document.activeElement&&document.activeElement.blur());
   await pg.locator('.vchip:has-text("Terms")').click(); await pg.waitForTimeout(80);
-  const b=pg.locator('.tm-tog'); if(await b.count()){ await b.click(); await pg.waitForTimeout(100); return true; }
+  if(await pg.locator('.terms .dterm').count()) return true;
   await pg.locator('#stage .actions button:has-text("Next")').first().click(); await pg.waitForTimeout(120);
  }
  return false;
@@ -26,8 +28,9 @@ async function toTerms(pg){
  let found=false;
  for(let t=0;t<12&&!found;t++){
   if(!await toTerms(pg)){ break; }
-  const c=await pg.evaluate(()=>({ru:document.querySelectorAll('.tm-defs .ru').length, name:document.querySelectorAll('.tm-defs .tm-ru').length, n:document.querySelectorAll('.tm-defs .tm-d').length}));
-  ok('English only: no Russian definition and no Russian name in the entries ('+c.n+' entries)',c.ru===0&&c.name===0,c);
+  await openMark(pg,0);
+  const c=await pg.evaluate(()=>({ru:document.querySelectorAll('.ddef .ru').length, name:document.querySelectorAll('.ddef .tm-ru').length, n:document.querySelectorAll('.ddef .tm-d').length}));
+  ok('English only: no Russian definition and no Russian name in the entry',c.ru===0&&c.name===0&&c.n===1,c);
   // switch on from Options
   await pg.evaluate(()=>document.activeElement&&document.activeElement.blur());
   await pg.locator('#mopt').click(); await pg.waitForTimeout(150);
@@ -39,12 +42,16 @@ async function toTerms(pg){
   await pg.locator('.orow:has-text("Definitions") button:has-text("English + Russian")').click(); await pg.waitForTimeout(120);
   ok('choosing it is stored',await pg.evaluate(()=>localStorage.getItem('rd-deflang'))==='enru'&&await pg.evaluate(()=>window.__t.defLang)==='enru');
   await pg.keyboard.press('Escape'); await pg.waitForTimeout(150);
-  const c2=await pg.evaluate(()=>({ru:document.querySelectorAll('.tm-defs .ru').length, name:[...document.querySelectorAll('.tm-defs .tm-ru')].map(x=>x.innerText), n:document.querySelectorAll('.tm-defs .tm-d').length, lang:[...document.querySelectorAll('.tm-defs .tm-ru')].every(x=>x.getAttribute('lang')==='ru')}));
-  ok('English + Russian: every entry names the Russian term beside the English one',c2.name.length===c2.n&&c2.n>0&&c2.lang,c2);
-  const dt=await pg.evaluate(()=>{const d=document.querySelector('.tm-defs dt'); const ru=d.querySelector('.tm-ru'); return {txt:d.innerText.replace(/\s+/g,' '), w:getComputedStyle(ru).fontWeight, col:getComputedStyle(ru).color, dtCol:getComputedStyle(d).color};});
+  // a tap outside the definition closed it: open the first one again, then the others until one has a Russian definition
+  await openMark(pg,0);
+  const c2=await pg.evaluate(()=>({ru:document.querySelectorAll('.ddef .ru').length, name:[...document.querySelectorAll('.ddef .tm-ru')].map(x=>x.innerText), n:document.querySelectorAll('.ddef .tm-d').length, lang:[...document.querySelectorAll('.ddef .tm-ru')].every(x=>x.getAttribute('lang')==='ru')}));
+  ok('English + Russian: the entry names the Russian term beside the English one',c2.name.length===c2.n&&c2.n>0&&c2.lang,c2);
+  const dt=await pg.evaluate(()=>{const d=document.querySelector('.ddef dt'); const ru=d.querySelector('.tm-ru'); return {txt:d.innerText.replace(/\s+/g,' '), w:getComputedStyle(ru).fontWeight, col:getComputedStyle(ru).color, dtCol:getComputedStyle(d).color};});
   ok('the Russian name is regular weight and muted, e.g. "Form · рупа · chapter"',/ · /.test(dt.txt)&&/[а-яё]/i.test(dt.txt)&&+dt.w<=400&&dt.col!==dt.dtCol,dt);
   await pg.screenshot({path:D+'v54-defs-ru.png'});
-  if(c2.ru>0){ found=true; ok('English + Russian: the Russian definitions show too ('+c2.ru+')',true); }
+  let ruDefs=c2.ru;
+  for(let i=1,m=await pg.locator('.terms .dterm').count();!ruDefs&&i<m;i++){ await openMark(pg,i); ruDefs=await pg.locator('.ddef .ru').count(); }
+  if(ruDefs>0){ found=true; ok('English + Russian: the Russian definition shows too ('+ruDefs+')',true); }
   else { // switch off again and try another pair
    await pg.evaluate(()=>window.__t.setDefLang('en')); await pg.evaluate(()=>document.activeElement&&document.activeElement.blur());
    await pg.locator('#stage .actions button:has-text("Next")').first().click(); await pg.waitForTimeout(120);
@@ -55,7 +62,7 @@ async function toTerms(pg){
  ok('the page overflows nowhere',await pg.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
  // back to English only
  await pg.evaluate(()=>window.__t.setDefLang('en')); await pg.waitForTimeout(120);
- ok('switching back removes the Russian again',await pg.evaluate(()=>document.querySelectorAll('.tm-defs .ru, .tm-defs .tm-ru').length===0));
+ ok('switching back removes the Russian again',await pg.evaluate(()=>document.querySelectorAll('.ddef .ru, .ddef .tm-ru').length===0));
  ok('no page errors',errs.filter(e=>!/fonts|ERR_|proxy/i.test(e)).length===0,errs);
  await br.close();
  // 320 px and wide: the options row fits
