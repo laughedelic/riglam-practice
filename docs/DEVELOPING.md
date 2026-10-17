@@ -24,6 +24,7 @@ In `npm run dev` the parts that ask Claude (the tutor, Explain, the check lab) a
 | How the page looks | the file for its area in `src/app/styles/` | `tests/e2e/layout/layout.spec.js` |
 | Something that differs between the installed app and the artifact | `src/pwa/` or `src/artifact/` (TypeScript), never a branch on the build inside `src/app` | the unit tests of that folder |
 | The term data | `npm run data:import -- <full.json>`; never by hand | `npm run data:check` |
+| The app icon | the SVGs `public/icons/icon.svg` (Main) and `public/icons/preview/icon.svg` (Preview), then `npm run icons` for the PNGs | `tests/unit/icons.test.ts` |
 
 New code is TypeScript. The page modules in `src/app` are JavaScript and are type-checked with relaxed settings; they may import `src/ai-shared`, `src/domain` and `src/ui`, and nothing else from outside `src/app` (a unit test checks it).
 

@@ -74,7 +74,7 @@ function previewUrl(out) {
 function deployBranch(branch) {
   const sha = git(root, ["rev-parse", "--short", "HEAD"]);
   run("npm", ["ci"]);
-  run("npm", ["run", "build:pwa"]);
+  run("npm", ["run", "build:pwa"], { RIGLAM_ICON_SET: "preview" }); // the Preview icon, so that a pull request's app is not taken for the real one
   const out = execFileSync("npx", ["--yes", `wrangler@${wranglerVersion()}`, "preview", "--message", sha, "--json"], { cwd: root, encoding: "utf8", stdio: ["inherit", "pipe", "inherit"] });
   console.log(`${branch} ${sha} is at ${previewUrl(out)}`);
 }
@@ -96,8 +96,8 @@ function deploy({ here = false } = {}) {
   const manifest = readManifest(root, "HEAD");
   if (!manifest) throw new StagingError(`this checkout of ${TARGET} has no staging.json: rebuild it with npm run staging`);
   run("npm", ["ci"]);
-  // A second name and short name, so that the staging app can be installed next to the real one and told apart.
-  run("npm", ["run", "build:pwa"], { RIGLAM_APP_NAME: "Riglam practice (staging)", RIGLAM_APP_SHORT_NAME: "Staging" });
+  // A second name, short name and icon, so that the staging app can be installed next to the real one and told apart.
+  run("npm", ["run", "build:pwa"], { RIGLAM_APP_NAME: "Riglam practice (staging)", RIGLAM_APP_SHORT_NAME: "Staging", RIGLAM_ICON_SET: "preview" });
   // What is deployed, readable at /staging-build.json (not precached: it is written after the build).
   writeFileSync(resolve(root, "dist/pwa/staging-build.json"), `${JSON.stringify({ commit: sha, base: manifest.base, branches: manifest.branches, builtAt: new Date().toISOString() }, null, 2)}\n`);
   const wrangler = ["--yes", `wrangler@${wranglerVersion()}`];

@@ -21,20 +21,29 @@ const buildInfo = () => ({
   generateBundle() { this.emitFile({ type: "asset", fileName: "build.json", source: JSON.stringify(build) + "\n" }); },
 });
 
+// Which icon set the build carries: the Main icons (public/icons), or with RIGLAM_ICON_SET=preview the Preview icons (public/icons/preview)
+// that staging and pull request builds set, so that those apps are told apart from the real one on a home screen and in a tab.
+const iconDir = process.env.RIGLAM_ICON_SET === "preview" ? "icons/preview" : "icons";
+const iconSet = () => ({
+  name: "riglam-icon-set",
+  transformIndexHtml: (html) => html.replaceAll('href="icons/', `href="${iconDir}/`),
+});
+
 export default defineConfig({
   // Relative asset paths: the app works from a domain root, a sub-path, or a Pages preview URL.
   base: process.env.BASE_PATH ?? "./",
   define: { __APP_VERSION__: JSON.stringify(pkg.version), __BUILD__: JSON.stringify(build) },
   plugins: [
     buildInfo(),
+    iconSet(),
     includeMarkup(fileURLToPath(new URL("./src/app/markup.html", import.meta.url))),
     VitePWA({
       registerType: "prompt", // the page asks the reader before it reloads onto a new version (src/pwa/updates.ts); the worker itself does not wait
       injectRegister: false,
-      includeAssets: ["icons/icon.svg", "icons/apple-touch-icon.png"],
+      includeAssets: [`${iconDir}/icon.svg`, `${iconDir}/apple-touch-icon.png`],
       workbox: {
         globPatterns: ["**/*.{js,css,html,json,woff2,png,svg,ico}"],
-        globIgnores: ["**/build.json"], // fetched from the network on purpose: it is how the page finds out that a newer build is out
+        globIgnores: ["**/build.json", ...(iconDir === "icons" ? ["icons/preview/**"] : ["icons/*.png", "icons/*.svg"])], // build.json is fetched from the network on purpose: it is how the page finds out that a newer build is out
         navigateFallback: "index.html",
         navigateFallbackDenylist: [/^\/api\//], // the server's paths are the server's, also when opened in a tab
         cleanupOutdatedCaches: true,
@@ -54,9 +63,9 @@ export default defineConfig({
         background_color: "#ffffff",
         theme_color: "#ffffff",
         icons: [
-          { src: "icons/icon-192.png", sizes: "192x192", type: "image/png" },
-          { src: "icons/icon-512.png", sizes: "512x512", type: "image/png" },
-          { src: "icons/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+          { src: `${iconDir}/icon-192.png`, sizes: "192x192", type: "image/png" },
+          { src: `${iconDir}/icon-512.png`, sizes: "512x512", type: "image/png" },
+          { src: `${iconDir}/icon-maskable-512.png`, sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
       },
     }),
