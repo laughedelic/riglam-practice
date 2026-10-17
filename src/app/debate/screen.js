@@ -55,7 +55,7 @@ function questionRows(u){
         el("span",{class:"qq"},qNode(i)),
         ansNode(a,a.limit&&a.ms!=null?a.ms:null,i),
         el("span",{class:"fbq"},el("b",{text:rr.msg[0]}),rr.msg[2]?[" ",el("i",{text:rr.msg[2]})]:null,isaTxt(rr.msg[1]||"")),
-        ex.cells[c]?el("span",{class:"cl"},el("span",{class:"clh",text:"Claude"}),aiFlag(aiCase("explain","Claude’s note on Q"+(i+1),ex.cells[c],c),"q:"+c),ex.cells[c]):null,
+        ex.cells[c]?el("span",{class:"cl"},el("span",{class:"clh",text:"Why?"}),aiFlag(aiCase("explain","Claude’s note on Q"+(i+1),ex.cells[c],c),"q:"+c),ex.cells[c]):null,
         ex.cells[c]?flagEditorNode("q:"+c):null):null);
   }));
 }
@@ -144,7 +144,7 @@ export function renderDebate(s,c){
   }
 
   if(stage==="rel"||stage==="done"){
-    if(w) s.append(relStrip(chooseD,stage==="done"),stage==="rel"?timerSlot("rel",relTimedD()):null,relCap("Pick the relation your answers give (keys 1–5). Picking it checks your answers."));
+    if(w) s.append(...[relStrip(chooseD,stage==="done"),stage==="rel"?timerSlot("rel",relTimedD()):null,relCap("Pick the relation your answers give (keys 1–5). Picking it checks your answers.")].filter(Boolean)); // append(null) would write the text "null"
     else if(stage==="rel"&&u.open) s.append(relList(chooseD,null));
   }
   if(stage==="done"){

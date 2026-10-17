@@ -91,6 +91,8 @@ function quizCell(c){
 // Claude's explanation split by where it belongs: a line per cell (or Q1 to Q4) goes to that cell, the lines on the common locus,
 // the pervasion and the relation to the "?" beside the relation. Anything else (the explanation, the misconception) belongs to the Why panel.
 const REL_LABEL=/^(common locus|pervasion|relation)$/i;
+// A note opens under the heading "Why?", so the "Why?" the tutor starts a debate line with would be said twice.
+const WHY_LEAD=/^why\?\s+(?=\S)/i;
 export function explainParts(){
   const out={cells:{},rest:[]};
   const a=state.ui&&state.ui.chat&&state.ui.chat.find(t=>t.role==="assistant"&&t.kind==="explain"&&!t.pending&&t.content);
@@ -98,7 +100,7 @@ export function explainParts(){
   for(const ln0 of a.content.split("\n")){
     const ln=ln0.replace(/^[-•*\s]+/,"").replace(/\*\*/g,"").replace(VERDICT_RE,"").trim(); if(!ln) continue;
     const m=ln.match(/^(both|a not b|b not a|neither|q[1-4])\s*:\s*(.+)$/i);
-    if(m){ out.cells[NAME_CELL[m[1].toLowerCase()]]=m[2]; continue; }
+    if(m){ out.cells[NAME_CELL[m[1].toLowerCase()]]=m[2].replace(WHY_LEAD,""); continue; }
     const g=ln.match(/^([A-Za-z][A-Za-z0-9 ,'’-]{0,28}):\s+(.*)$/);
     if(g&&REL_LABEL.test(g[1])) out.rest.push([g[1],g[2]]);
   }
@@ -120,7 +122,7 @@ export function relPopNode(){
   if(!state.ui||!state.ui.checked||state.ui.pop!=="rel") return null;
   const rest=explainParts().rest; if(!rest.length) return null;
   const fl=aiFlag(aiCase("explain","Claude’s note on the relation",rest.map(([k,t])=>k+": "+t).join("\n"),"rel"),"pop:rel");
-  return el("div",{class:"pop rpop",role:"dialog","aria-label":"Claude's explanation of the relation",tabindex:"-1"},el("p",{class:"clh",text:"Claude"}),fl,
+  return el("div",{class:"pop rpop",role:"dialog","aria-label":"Claude's explanation of the relation",tabindex:"-1"},el("p",{class:"clh",text:"Why?"}),fl,
     rest.map(([k,t])=>el("p",null,k?el("b",{text:k+": "}):null,t)),flagEditorNode("pop:rel"),
     el("button",{type:"button",class:"popx",onclick:e=>{ e.stopPropagation(); state.ui.pop=null; render(); },text:"Close"}));
 }
@@ -128,7 +130,7 @@ export function popNode(){
   if(!state.ui||!state.ui.checked||!state.ui.pop||state.ui.pop==="rel") return null;
   const t=explainParts().cells[state.ui.pop]; if(!t) return null;
   const fl=aiFlag(aiCase("explain","Claude’s note on "+(state.ui.debate?"Q"+(QCELL.indexOf(state.ui.pop)+1):CELL_NAME[state.ui.pop]),t,state.ui.pop),"pop:"+state.ui.pop);
-  return el("div",{class:"pop",role:"dialog","aria-label":"Claude's explanation",tabindex:"-1"},el("p",{class:"clh",text:"Claude"}),fl,el("p",{text:t}),flagEditorNode("pop:"+state.ui.pop),
+  return el("div",{class:"pop",role:"dialog","aria-label":"Claude's explanation",tabindex:"-1"},el("p",{class:"clh",text:"Why?"}),fl,el("p",{text:t}),flagEditorNode("pop:"+state.ui.pop),
     el("button",{type:"button",class:"popx",onclick:e=>{ e.stopPropagation(); state.ui.pop=null; render(); },text:"Close"}));
 }
 export function placePops(){
