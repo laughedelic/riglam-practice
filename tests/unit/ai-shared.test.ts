@@ -229,8 +229,9 @@ test("the explain requests ask for the two facts about an example and the reason
     expect(ask).toContain("never the term in other words");
     expect(ask).toContain("never its negation");
     expect(ask).toContain('go up the "is a" chain in a few words');
-    expect(ask).toContain("write it on both sides word for word");
-    expect(ask).toContain('add "; pervasion: " and why only when it is not plain');
+    expect(ask).toContain("when one reason serves both terms, write it on both sides;");
+    expect(ask).toContain("Connect the term to the class the reason excludes");
+    expect(ask).toContain('add "; pervasion: " and one sentence on why only when it is not plain');
     expect(ask).toContain("never for everyday differences such as two colors or two shapes");
     expect(ask).toContain("Answer unsure only when the example's classification is really in doubt");
     expect(ask).not.toContain("so it fits");

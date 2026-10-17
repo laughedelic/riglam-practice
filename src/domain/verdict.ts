@@ -64,18 +64,14 @@ const plain = (s: string) => s.trim().replace(/[.;,\s]+$/, "");
  * The parts of a note, which the page writes in the debate's form (it renders the terms with their A/B markers and the "not" as it
  * does in the questions):
  * - take: "Take S:", the example as the subject, once;
- * - term: "It follows it is (not) P, because R.", P the pair's term on that side, R the tutor's reason;
- * - pair: "It follows it is both A and B (or neither A nor B), because R.", when the tutor gives both terms the same answer and reason;
- * - pervasion: "Whatever is X is necessarily not P, because W.", why a denied term follows from the reason (the tutor's "pervasion:");
- *   X is the reason's class, or, for a reason that does not name one, "Whatever has that reason"; side "AB" is a pair's;
+ * - term: "It follows it is (not) P, because R.", P the pair's term on that side, R the tutor's reason, one per term even when the
+ *   reasons are the same; `why` is a sentence under it on why a denied term follows from the reason (the tutor's "pervasion:"), or "";
  * - unsure: "Whether it is P is not settled: W.";
  * - end: the conclusion, written only when the example does not plainly fit.
  */
 export type NotePart =
   | { kind: "take"; subject: string }
-  | { kind: "term"; side: "A" | "B"; not: boolean; reason: string }
-  | { kind: "pair"; not: boolean; reason: string }
-  | { kind: "pervasion"; side: "A" | "B" | "AB"; what: string; reason: string }
+  | { kind: "term"; side: "A" | "B"; not: boolean; reason: string; why: string }
   | { kind: "unsure"; side: "A" | "B"; say: string }
   | { kind: "end"; text: string };
 
@@ -85,8 +81,8 @@ function readSide(s: Side): { reason: string; perv: string } {
   const perv = plain(p);
   return { reason: reasonOf(r), perv: /^(the )?same\b|^as above\b/i.test(perv) ? "" : perv };
 }
-const whatOf = (reason: string) => (/^it is /.test(reason) ? reason.slice(6) : "");
 const same = (x: string, y: string) => x.toLowerCase().replace(/\W+/g, " ").trim() === y.toLowerCase().replace(/\W+/g, " ").trim();
+const sentence = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) + "." : "");
 
 /**
  * The note for a fact line. `accepted` is a debate question the learner accepted (or ran out of time on): the example is then the
@@ -94,27 +90,20 @@ const same = (x: string, y: string) => x.toLowerCase().replace(/\W+/g, " ").trim
  */
 export function noteParts(f: FactLine, accepted: boolean): NotePart[] {
   const fit = fitOf(f), out: NotePart[] = [{ kind: "take", subject: f.example }];
-  const a = readSide(f.a), b = readSide(f.b);
-  if (f.a.answer !== "unsure" && f.a.answer === f.b.answer && a.reason && same(a.reason, b.reason)) {
-    const not = f.a.answer === "no", perv = a.perv || b.perv;
-    out.push({ kind: "pair", not, reason: a.reason });
-    if (not && perv) out.push({ kind: "pervasion", side: "AB", what: whatOf(a.reason), reason: perv });
-  } else {
-    let said = "";
-    for (const [side, s, r] of [["A", f.a, a], ["B", f.b, b]] as const) {
-      if (s.answer === "unsure") { out.push({ kind: "unsure", side, say: plain(s.say) }); continue; }
-      out.push({ kind: "term", side, not: s.answer === "no", reason: r.reason });
-      // the pervasion of a denied term is about its reason ("whatever is a form ..."); the same one is not said twice
-      if (s.answer === "no" && r.perv && r.reason && !same(r.perv, said)) { out.push({ kind: "pervasion", side, what: whatOf(r.reason), reason: r.perv }); said = r.perv; }
-    }
+  let said = "";
+  for (const [side, s] of [["A", f.a], ["B", f.b]] as const) {
+    if (s.answer === "unsure") { out.push({ kind: "unsure", side, say: plain(s.say) }); continue; }
+    const r = readSide(s);
+    // the pervasion of a denied term is said under its statement, and the same one is not said twice
+    const why = s.answer === "no" && r.perv && r.reason && !same(r.perv, said) ? r.perv : "";
+    if (why) said = why;
+    out.push({ kind: "term", side, not: s.answer === "no", reason: r.reason, why: sentence(why) });
   }
   const q = "Q" + (QCELL.indexOf(f.cell) + 1);
   if (fit === "no") out.push({ kind: "end", text: accepted ? `So it does not fit the cell of ${q} and is not a counter-example.` : "So it does not fit." });
   if (fit === "unsure") out.push({ kind: "end", text: accepted ? "Claude is unsure whether it is a counter-example." : "Claude is unsure whether it fits." });
   return out;
 }
-/** The subject of a pervasion line: the class the reason names, if it names one. */
-export const pervLead = (what: string): string => (what ? `Whatever is ${what}` : "Whatever has that reason");
 /** The note as plain text, a line per part, for where the page has no markers to show (a flag on the note keeps this text). */
 export function partsText(parts: readonly NotePart[], terms: Terms): string {
   const t = (side: "A" | "B") => (side === "A" ? terms.a : terms.b);
@@ -122,9 +111,7 @@ export function partsText(parts: readonly NotePart[], terms: Terms): string {
   return parts.map((p) => {
     switch (p.kind) {
       case "take": return `Take ${p.subject}:`;
-      case "term": return `It follows it is ${p.not ? "not " : ""}${t(p.side)}${because(p.reason)}.`;
-      case "pair": return `It follows it is ${p.not ? `neither ${terms.a} nor ${terms.b}` : `both ${terms.a} and ${terms.b}`}${because(p.reason)}.`;
-      case "pervasion": return `${pervLead(p.what)} is necessarily ${p.side === "AB" ? `neither ${terms.a} nor ${terms.b}` : `not ${t(p.side)}`}${because(p.reason)}.`;
+      case "term": return `It follows it is ${p.not ? "not " : ""}${t(p.side)}${because(p.reason)}.${p.why ? "\n" + p.why : ""}`;
       case "unsure": return `Whether it is ${t(p.side)} is not settled${p.say ? ": " + p.say : ""}.`;
       case "end": return p.text;
     }

@@ -4,7 +4,7 @@ import { labItem } from "../ai/lab-panel.js";
 import { ask, fillAns } from "../ai/tutor.js";
 import { CELL_NAME } from "../../ai-shared/prompts.ts";
 import { canAsk } from "../core/ask.js";
-import { NAME_CELL, VERDICT_RE, noteParts, parseFactLine, partsText, pervLead } from "../../domain/verdict.ts";
+import { NAME_CELL, VERDICT_RE, noteParts, parseFactLine, partsText } from "../../domain/verdict.ts";
 import { $, L, el } from "../core/dom.js";
 import { lockIcon } from "../core/icons.js";
 import { CELLS, ORDER, REL, cellLabel, lcRel, notaOf, notaParts } from "../core/rel.js";
@@ -96,14 +96,11 @@ const WHY_LEAD=/^why\?\s+(?=\S)/i;
 // A fact line's note (src/domain/verdict.ts) in the debate's form; in the debate it depends on whether the learner accepted that question.
 const acceptedQ=f=>{ const u=state.ui, a=u&&u.debate&&u.ans&&u.ans[QCELL.indexOf(f.cell)]; return !!a&&a.say!=="why"; };
 export const factText=f=>{ const p=state.cur.p; return partsText(noteParts(f,acceptedQ(f)),{a:singular(p.a),b:singular(p.b)}); };
-// the terms with their A/B markers and the "not" as the questions show them; "both … and", "neither … nor" bold as in a Why?! answer
-const notW=()=>el("span",{class:"not",text:"not"}), conn=w=>el("b",{class:"conn",text:w}), because=r=>r?", because "+r:"";
-const bothOr=not=>[conn(not?"neither":"both")," ",termNode("A")," ",conn(not?"nor":"and")," ",termNode("B")];
+// the terms with their A/B markers and the "not" as the questions show them; why a denied term follows goes on a line under it
+const notW=()=>el("span",{class:"not",text:"not"}), because=r=>r?", because "+r:"";
 function partNode(p){
   switch(p.kind){
-    case "term": return ["It follows it is ",p.not?[notW()," "]:null,termNode(p.side),because(p.reason),"."];
-    case "pair": return ["It follows it is ",bothOr(p.not),because(p.reason),"."];
-    case "pervasion": return [pervLead(p.what)+" is necessarily ",p.side==="AB"?bothOr(true):[notW()," ",termNode(p.side)],because(p.reason),"."];
+    case "term": return ["It follows it is ",p.not?[notW()," "]:null,termNode(p.side),because(p.reason),".",p.why?el("span",{class:"fwhy",text:p.why}):null];
     case "unsure": return ["Whether it is ",termNode(p.side)," is not settled",p.say?": "+p.say:"","."];
     default: return [p.text];
   }
