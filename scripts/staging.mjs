@@ -74,7 +74,7 @@ function previewUrl(out) {
 function deployBranch(branch) {
   const sha = git(root, ["rev-parse", "--short", "HEAD"]);
   run("npm", ["ci"]);
-  run("npm", ["run", "build:pwa"], { RIGLAM_ICON_SET: "preview" }); // the Preview icon, so that a pull request's app is not taken for the real one
+  run("npm", ["run", "build:pwa"]);
   const out = execFileSync("npx", ["--yes", `wrangler@${wranglerVersion()}`, "preview", "--message", sha, "--json"], { cwd: root, encoding: "utf8", stdio: ["inherit", "pipe", "inherit"] });
   console.log(`${branch} ${sha} is at ${previewUrl(out)}`);
 }

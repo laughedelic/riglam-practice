@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { includeMarkup } from "./scripts/vite-include-markup.mjs";
+import { iconSet } from "./scripts/lib/icon-set.mjs";
 
 const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"));
 
@@ -21,11 +22,11 @@ const buildInfo = () => ({
   generateBundle() { this.emitFile({ type: "asset", fileName: "build.json", source: JSON.stringify(build) + "\n" }); },
 });
 
-// Which icon set the build carries: the Main icons (public/icons), or with RIGLAM_ICON_SET=preview the Preview icons (public/icons/preview)
-// that staging and pull request builds set, so that those apps are told apart from the real one on a home screen and in a tab.
-const iconDir = process.env.RIGLAM_ICON_SET === "preview" ? "icons/preview" : "icons";
-const iconSet = () => ({
-  name: "riglam-icon-set",
+// Which icon set the build carries: the Main icons (public/icons), or the Preview icons (public/icons/preview) in staging and pull request
+// builds, so that those apps are told apart from the real one on a home screen and in a tab (scripts/lib/icon-set.mjs says which build is which).
+const iconDir = iconSet() === "preview" ? "icons/preview" : "icons";
+const iconLinks = () => ({
+  name: "riglam-icon-links",
   transformIndexHtml: (html) => html.replaceAll('href="icons/', `href="${iconDir}/`),
 });
 
@@ -35,7 +36,7 @@ export default defineConfig({
   define: { __APP_VERSION__: JSON.stringify(pkg.version), __BUILD__: JSON.stringify(build) },
   plugins: [
     buildInfo(),
-    iconSet(),
+    iconLinks(),
     includeMarkup(fileURLToPath(new URL("./src/app/markup.html", import.meta.url))),
     VitePWA({
       registerType: "prompt", // the page asks the reader before it reloads onto a new version (src/pwa/updates.ts); the worker itself does not wait

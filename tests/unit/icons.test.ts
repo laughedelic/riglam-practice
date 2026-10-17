@@ -6,6 +6,7 @@ import sharp from "sharp";
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
+import { iconSet } from "../../scripts/lib/icon-set.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const sets = { main: { dir: resolve(root, "public/icons"), ground: [0xb8, 0x35, 0x45] }, preview: { dir: resolve(root, "public/icons/preview"), ground: [0xfa, 0xaf, 0x3f] } };
@@ -46,6 +47,16 @@ for (const [name, set] of Object.entries(sets)) {
 
 test("the Main and Preview icons have different grounds", () => {
   expect(sets.main.ground).not.toEqual(sets.preview.ground);
+});
+
+test("a build carries the Preview icons when it is told so, or when Workers Builds builds a branch other than main", () => {
+  expect(iconSet({})).toBe("main"); // a local build, GitHub Actions
+  expect(iconSet({ WORKERS_CI_BRANCH: "main" })).toBe("main"); // production
+  expect(iconSet({ WORKERS_CI_BRANCH: "claude/some-branch" })).toBe("preview"); // a pull request Preview
+  expect(iconSet({ WORKERS_CI_BRANCH: "staging" })).toBe("preview");
+  expect(iconSet({ RIGLAM_ICON_SET: "preview" })).toBe("preview"); // the staging deploy from a machine
+  expect(iconSet({ RIGLAM_ICON_SET: "main", WORKERS_CI_BRANCH: "x" })).toBe("main"); // an explicit choice wins
+  expect(iconSet({ RIGLAM_ICON_SET: "bogus" })).toBe("main");
 });
 
 const dist = resolve(root, "dist/pwa");
