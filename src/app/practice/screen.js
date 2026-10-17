@@ -104,8 +104,8 @@ const notW=()=>el("span",{class:"not",text:"not"});
 // `mark(text,key)` is the text with the Dudra terms it names underlined (withTerms), for a note that has a `where` to key them by
 function partNode(p,mark){
   switch(p.kind){
-    case "term": return ["It follows it is ",p.not?[notW()," "]:null,termNode(p.side),p.reason?[", because ",mark(p.reason,"r")]:null,".",p.why?el("span",{class:"fwhy"},mark(p.why,"w")):null];
-    case "unsure": return ["Whether it is ",termNode(p.side)," is not settled",p.say?[": ",mark(p.say,"s")]:"","."];
+    case "term": return ["It follows it is ",p.not?[notW()," "]:null,termNode(p.side),p.reason?[", because ",...mark(p.reason,"r")]:null,".",p.why?el("span",{class:"fwhy"},mark(p.why,"w")):null];
+    case "unsure": return ["Whether it is ",termNode(p.side)," is not settled",p.say?[": ",...mark(p.say,"s")]:"","."];
     default: return [p.text];
   }
 }
