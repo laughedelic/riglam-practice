@@ -83,15 +83,15 @@ withKey("a note under a cell is headed Why?", async ({ page }, testInfo) => {
 
 // The tutor states two facts about an example and a reason for each; the page writes them as consequences ("Take S, it follows it is
 // P, because R") with the pair's own terms, draws the conclusion, and in the debate words the note by what the learner answered.
-withKey("a line with the two facts is shown as consequences and the conclusion the facts give", async ({ page }, testInfo) => {
+withKey("a line with the two facts is shown as the subject and a list of consequences", async ({ page }, testInfo) => {
   const line = 'Both: "thing 1" | A yes: it is a form. | B yes: it is a thing\n';
   await open(page, testInfo, { tutor: [{ status: 200, body: sse({ type: "delta", text: line }, { type: "done", truncated: false }) }] });
   await explain(page).click();
   await page.locator(".grid .qm").first().click();
-  const note = page.locator(".grid .pop p").nth(1);
-  await expect(note).toHaveText(/^Take thing 1:\s*It follows it is .+, because it is a form\.\s*It follows it is .+, because it is a thing\.$/);
-  expect(await note.locator("br").count()).toBe(2);
-  await expect(note.locator(".qterm")).toHaveCount(2); // the terms as the questions show them, with their A/B markers per the setting
+  const pop = page.locator(".grid .pop");
+  await expect(pop.locator(".ftake")).toHaveText("Why? Take thing 1:"); // the heading and the subject on one line
+  await expect(pop.locator(".fsteps li")).toHaveText([/^It follows it is .+, because it is a form\.$/, /^It follows it is .+, because it is a thing\.$/]);
+  await expect(pop.locator(".fsteps .qterm")).toHaveCount(2); // the terms as the questions show them, with their A/B markers per the setting
   await expect(page.locator(".grid .pop")).not.toContainText("|");
 });
 
@@ -109,9 +109,10 @@ withKey("in Pervasions an accepted question's note names the tutor's counter-exa
   await relOptions(page).first().click();
   await explain(page).click();
   await page.locator(".grid .qm").first().click();
-  const note = page.locator(".grid .pop p").nth(1);
-  await expect(note).toHaveText(/^Take a banana:\s*It follows it is .+, because it is a fruit\.\s*It follows it is not .+, because it is not in a person's continuum\.$/);
-  await expect(note.locator(".not")).toHaveText("not"); // the denied term's "not" is marked as in the questions
+  const pop = page.locator(".grid .pop");
+  await expect(pop.locator(".ftake")).toHaveText("Why? Take a banana:");
+  await expect(pop.locator(".fsteps li")).toHaveText([/^It follows it is .+, because it is a fruit\.$/, /^It follows it is not .+, because it is not in a person's continuum\.$/]);
+  await expect(pop.locator(".fsteps .not")).toHaveText("not"); // the denied term's "not" is marked as in the questions
 });
 
 withKey("a follow-up question sends the whole conversation as a chat", async ({ page }, testInfo) => {

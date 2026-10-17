@@ -225,13 +225,20 @@ test("the explain requests ask for the two facts about an example and the reason
   for (const ask of [FIRST_ASK, DEBATE_ASK]) {
     expect(ask).toContain('the words after "because" in "Take the example: it follows it is (not) A, because ..."');
     expect(ask).toContain("write no conclusion, do not name the term again and do not add its definition");
-    expect(ask).toContain("whatever has the reason must be (or not be) the term");
-    expect(ask).toContain('give the steps after " <= ", the higher class first, at most two');
-    expect(ask).toContain('add "; pervasion: " and why');
+    expect(ask).toContain("from which the term follows (or is excluded)");
+    expect(ask).toContain("never the term in other words");
+    expect(ask).toContain("never its negation");
+    expect(ask).toContain('go up the "is a" chain in a few words');
+    expect(ask).toContain("write it on both sides word for word");
+    expect(ask).toContain('add "; pervasion: " and why only when it is not plain');
+    expect(ask).toContain("never for everyday differences such as two colors or two shapes");
+    expect(ask).toContain("Answer unsure only when the example's classification is really in doubt");
     expect(ask).not.toContain("so it fits");
     expect(ask).not.toContain("=> yes");
   }
   expect(DEBATE_ASK).not.toContain("You accepted");
+  expect(GUIDE).toContain("everyday facts such as a thing's color, shape or material need no source and no remark");
+  expect(GUIDE).toContain("call it the reference, never the card");
   expect(DEBATE_ASK).toContain("Do not say what the right answer to the question was");
   expect(DEBATE_ASK).toContain("A and B are mutually inclusive, so whatever is B is A");
 });

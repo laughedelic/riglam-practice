@@ -61,40 +61,53 @@ const reasonOf = (s: string) => {
 const plain = (s: string) => s.trim().replace(/[.;,\s]+$/, "");
 
 /**
- * The parts of a note, one per line, which the page writes in the debate's form (it renders the terms with their A/B markers and
- * the "not" as it does in the questions):
+ * The parts of a note, which the page writes in the debate's form (it renders the terms with their A/B markers and the "not" as it
+ * does in the questions):
  * - take: "Take S:", the example as the subject, once;
  * - term: "It follows it is (not) P, because R.", P the pair's term on that side, R the tutor's reason;
- * - step: "It follows R1, because R2.", the reason for a reason that is not obvious (the tutor's "<=");
+ * - pair: "It follows it is both A and B (or neither A nor B), because R.", when the tutor gives both terms the same answer and reason;
  * - pervasion: "Whatever is X is necessarily not P, because W.", why a denied term follows from the reason (the tutor's "pervasion:");
- *   X is the reason's class, or, for a reason that does not name one, "Whatever has that reason";
+ *   X is the reason's class, or, for a reason that does not name one, "Whatever has that reason"; side "AB" is a pair's;
  * - unsure: "Whether it is P is not settled: W.";
  * - end: the conclusion, written only when the example does not plainly fit.
  */
 export type NotePart =
   | { kind: "take"; subject: string }
   | { kind: "term"; side: "A" | "B"; not: boolean; reason: string }
-  | { kind: "step"; what: string; reason: string }
-  | { kind: "pervasion"; side: "A" | "B"; what: string; reason: string }
+  | { kind: "pair"; not: boolean; reason: string }
+  | { kind: "pervasion"; side: "A" | "B" | "AB"; what: string; reason: string }
   | { kind: "unsure"; side: "A" | "B"; say: string }
   | { kind: "end"; text: string };
 
-function sideParts(side: "A" | "B", s: Side): NotePart[] {
-  if (s.answer === "unsure") return [{ kind: "unsure", side, say: plain(s.say) }];
-  const [chain, perv = ""] = s.say.split(/\s*;?\s*pervasion\s*:\s*/i);
-  const rs = chain.split(/\s*<=\s*/).map(reasonOf).filter(Boolean);
-  const out: NotePart[] = [{ kind: "term", side, not: s.answer === "no", reason: rs[0] || "" }];
-  // the pervasion of a denied term is about the first reason ("whatever is a form ..."), so it comes right after it
-  if (s.answer === "no" && plain(perv) && rs[0]) out.push({ kind: "pervasion", side, what: /^it is /.test(rs[0]) ? rs[0].slice(6) : "", reason: plain(perv) });
-  for (let i = 1; i < rs.length; i++) out.push({ kind: "step", what: rs[i - 1], reason: rs[i] });
-  return out;
+// a reason and, after "pervasion:", why a denied term follows from it; a pervasion that only points back ("same") says nothing
+function readSide(s: Side): { reason: string; perv: string } {
+  const [r, p = ""] = s.say.split(/\s*;?\s*pervasion\s*:\s*/i);
+  const perv = plain(p);
+  return { reason: reasonOf(r), perv: /^(the )?same\b|^as above\b/i.test(perv) ? "" : perv };
 }
+const whatOf = (reason: string) => (/^it is /.test(reason) ? reason.slice(6) : "");
+const same = (x: string, y: string) => x.toLowerCase().replace(/\W+/g, " ").trim() === y.toLowerCase().replace(/\W+/g, " ").trim();
+
 /**
  * The note for a fact line. `accepted` is a debate question the learner accepted (or ran out of time on): the example is then the
  * tutor's counter-example to it. A note on an example that fits ends with its consequences; one that does not fit says so.
  */
 export function noteParts(f: FactLine, accepted: boolean): NotePart[] {
-  const fit = fitOf(f), out: NotePart[] = [{ kind: "take", subject: f.example }, ...sideParts("A", f.a), ...sideParts("B", f.b)];
+  const fit = fitOf(f), out: NotePart[] = [{ kind: "take", subject: f.example }];
+  const a = readSide(f.a), b = readSide(f.b);
+  if (f.a.answer !== "unsure" && f.a.answer === f.b.answer && a.reason && same(a.reason, b.reason)) {
+    const not = f.a.answer === "no", perv = a.perv || b.perv;
+    out.push({ kind: "pair", not, reason: a.reason });
+    if (not && perv) out.push({ kind: "pervasion", side: "AB", what: whatOf(a.reason), reason: perv });
+  } else {
+    let said = "";
+    for (const [side, s, r] of [["A", f.a, a], ["B", f.b, b]] as const) {
+      if (s.answer === "unsure") { out.push({ kind: "unsure", side, say: plain(s.say) }); continue; }
+      out.push({ kind: "term", side, not: s.answer === "no", reason: r.reason });
+      // the pervasion of a denied term is about its reason ("whatever is a form ..."); the same one is not said twice
+      if (s.answer === "no" && r.perv && r.reason && !same(r.perv, said)) { out.push({ kind: "pervasion", side, what: whatOf(r.reason), reason: r.perv }); said = r.perv; }
+    }
+  }
   const q = "Q" + (QCELL.indexOf(f.cell) + 1);
   if (fit === "no") out.push({ kind: "end", text: accepted ? `So it does not fit the cell of ${q} and is not a counter-example.` : "So it does not fit." });
   if (fit === "unsure") out.push({ kind: "end", text: accepted ? "Claude is unsure whether it is a counter-example." : "Claude is unsure whether it fits." });
@@ -105,12 +118,13 @@ export const pervLead = (what: string): string => (what ? `Whatever is ${what}` 
 /** The note as plain text, a line per part, for where the page has no markers to show (a flag on the note keeps this text). */
 export function partsText(parts: readonly NotePart[], terms: Terms): string {
   const t = (side: "A" | "B") => (side === "A" ? terms.a : terms.b);
+  const because = (r: string) => (r ? `, because ${r}` : "");
   return parts.map((p) => {
     switch (p.kind) {
       case "take": return `Take ${p.subject}:`;
-      case "term": return `It follows it is ${p.not ? "not " : ""}${t(p.side)}${p.reason ? `, because ${p.reason}` : ""}.`;
-      case "step": return `It follows ${p.what}, because ${p.reason}.`;
-      case "pervasion": return `${pervLead(p.what)} is necessarily not ${t(p.side)}, because ${p.reason}.`;
+      case "term": return `It follows it is ${p.not ? "not " : ""}${t(p.side)}${because(p.reason)}.`;
+      case "pair": return `It follows it is ${p.not ? `neither ${terms.a} nor ${terms.b}` : `both ${terms.a} and ${terms.b}`}${because(p.reason)}.`;
+      case "pervasion": return `${pervLead(p.what)} is necessarily ${p.side === "AB" ? `neither ${terms.a} nor ${terms.b}` : `not ${t(p.side)}`}${because(p.reason)}.`;
       case "unsure": return `Whether it is ${t(p.side)} is not settled${p.say ? ": " + p.say : ""}.`;
       case "end": return p.text;
     }

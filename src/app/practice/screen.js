@@ -93,25 +93,28 @@ function quizCell(c){
 const REL_LABEL=/^(common locus|pervasion|relation)$/i;
 // A note opens under the heading "Why?", so the "Why?" the tutor starts a debate line with would be said twice.
 const WHY_LEAD=/^why\?\s+(?=\S)/i;
-// The note for a line that gives the two facts about an example (src/domain/verdict.ts); in the debate it depends on whether the learner accepted that question.
 // A fact line's note (src/domain/verdict.ts) in the debate's form; in the debate it depends on whether the learner accepted that question.
 const acceptedQ=f=>{ const u=state.ui, a=u&&u.debate&&u.ans&&u.ans[QCELL.indexOf(f.cell)]; return !!a&&a.say!=="why"; };
 export const factText=f=>{ const p=state.cur.p; return partsText(noteParts(f,acceptedQ(f)),{a:singular(p.a),b:singular(p.b)}); };
-// the terms with their A/B markers and the "not" as the questions show them, a line per part
-const notW=()=>el("span",{class:"not",text:"not"});
+// the terms with their A/B markers and the "not" as the questions show them; "both … and", "neither … nor" bold as in a Why?! answer
+const notW=()=>el("span",{class:"not",text:"not"}), conn=w=>el("b",{class:"conn",text:w}), because=r=>r?", because "+r:"";
+const bothOr=not=>[conn(not?"neither":"both")," ",termNode("A")," ",conn(not?"nor":"and")," ",termNode("B")];
 function partNode(p){
   switch(p.kind){
-    case "take": return ["Take ",el("i",{text:p.subject}),":"];
-    case "term": return ["It follows it is ",p.not?[notW()," "]:null,termNode(p.side),p.reason?", because "+p.reason:"","."];
-    case "step": return ["It follows "+p.what+", because "+p.reason+"."];
-    case "pervasion": return [pervLead(p.what)+" is necessarily ",notW()," ",termNode(p.side),", because "+p.reason+"."];
+    case "term": return ["It follows it is ",p.not?[notW()," "]:null,termNode(p.side),because(p.reason),"."];
+    case "pair": return ["It follows it is ",bothOr(p.not),because(p.reason),"."];
+    case "pervasion": return [pervLead(p.what)+" is necessarily ",p.side==="AB"?bothOr(true):[notW()," ",termNode(p.side)],because(p.reason),"."];
     case "unsure": return ["Whether it is ",termNode(p.side)," is not settled",p.say?": "+p.say:"","."];
     default: return [p.text];
   }
 }
-export const factNode=f=>el("span",{class:"fnote"},noteParts(f,acceptedQ(f)).flatMap((p,i)=>i?[el("br"),...partNode(p)]:partNode(p)).flat().filter(x=>x!=null&&x!==""));
-/** What a note on a cell shows: the consequences of a fact line, or the tutor's own text. */
-export const cellNote=c=>{ const ex=explainParts(); return ex.facts[c]?factNode(ex.facts[c]):ex.cells[c]; };
+export const whyHead=()=>el("span",{class:"clh",text:"Why?"});
+/** A fact line's note: "Take S:" after the given heading, the consequences as a list, and the conclusion when there is one. */
+export function factNode(f,head){
+  const parts=noteParts(f,acceptedQ(f)), mid=parts.filter(p=>p.kind!=="take"&&p.kind!=="end");
+  return el("div",{class:"fnote"},el("p",{class:"ftake"},head?[head," "]:null,"Take ",el("i",{text:f.example}),":"),
+    el("ul",{class:"fsteps"},mid.map(p=>el("li",null,...partNode(p)))),parts.filter(p=>p.kind==="end").map(p=>el("p",{text:p.text})));
+}
 export function explainParts(){
   const out={cells:{},facts:{},rest:[]};
   const a=state.ui&&state.ui.chat&&state.ui.chat.find(t=>t.role==="assistant"&&t.kind==="explain"&&!t.pending&&t.content);
@@ -150,7 +153,8 @@ export function popNode(){
   if(!state.ui||!state.ui.checked||!state.ui.pop||state.ui.pop==="rel") return null;
   const t=explainParts().cells[state.ui.pop]; if(!t) return null;
   const fl=aiFlag(aiCase("explain","Claude’s note on "+(state.ui.debate?"Q"+(QCELL.indexOf(state.ui.pop)+1):CELL_NAME[state.ui.pop]),t,state.ui.pop),"pop:"+state.ui.pop);
-  return el("div",{class:"pop",role:"dialog","aria-label":"Claude's explanation",tabindex:"-1"},el("p",{class:"clh",text:"Why?"}),fl,el("p",null,cellNote(state.ui.pop)),flagEditorNode("pop:"+state.ui.pop),
+  const f=explainParts().facts[state.ui.pop];
+  return el("div",{class:"pop",role:"dialog","aria-label":"Claude's explanation",tabindex:"-1"},f?null:el("p",{class:"clh",text:"Why?"}),fl,f?factNode(f,whyHead()):el("p",{text:t}),flagEditorNode("pop:"+state.ui.pop),
     el("button",{type:"button",class:"popx",onclick:e=>{ e.stopPropagation(); state.ui.pop=null; render(); },text:"Close"}));
 }
 export function placePops(){
