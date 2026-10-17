@@ -18,6 +18,8 @@ const FACTS = { both: ["yes", "yes"], anb: ["yes", "no"], bna: ["no", "yes"], ne
 const CELL = { both: "Both", anb: "A not B", bna: "B not A", nei: "Neither" };
 const learner = (t) => t.cells[0]; // the cell the learner put the example in
 const elsewhere = (t) => (learner(t) === "anb" ? "nei" : "anb"); // a cell that is not the learner's
+// the cell the page itself can stand beside: the learner's, unless the page already knows the example does not fit there (the pair is random, so it may)
+const withPage = (t) => (t.page[learner(t)] === "bad" ? elsewhere(t) : learner(t));
 
 /** One answer in the tutor's form: a line for each example, in the cell the learner put it in, with the facts of the cell `pick` gives it (null: unsure). */
 function answerText(things, pick) {
@@ -44,6 +46,7 @@ function run(things, picks) {
   );
 }
 const AGREE = { Haiku: learner, Sonnet: learner, Opus: learner };
+const CONSISTENT = { Haiku: withPage, Sonnet: withPage, Opus: withPage };
 const DIFFER = { Haiku: elsewhere, Sonnet: learner, Opus: learner, Judge: learner };
 
 /**
@@ -58,7 +61,7 @@ async function server(page, { health = { ok: true, tutor: "on", quorum: "on" }, 
     const body = request.postDataJSON();
     asked.push({ headers: request.headers(), body });
     if (body.kind !== "explain") return route.fulfill({ status: 200, contentType: "text/event-stream", body: PLAIN });
-    const things = await page.evaluate(() => window.__t.quorumThings(window.__t.ui).map((t) => ({ text: t.text, cells: t.cells })));
+    const things = await page.evaluate(() => window.__t.quorumThings(window.__t.ui).map((t) => ({ text: t.text, cells: t.cells, page: t.page })));
     const reply = await tutor(body, asked.length, things);
     return route.fulfill({ status: reply.status, contentType: reply.status === 200 ? "text/event-stream" : "application/json", body: reply.body });
   });
@@ -240,8 +243,9 @@ withKey("any value in the panel can be flagged, with a note, and the flag names 
   await expect.poll(async () => (await byHand()).length).toBe(1);
   const [flag] = await byHand();
   expect(flag).toMatchObject({ part: "cell", model: "haiku", runId: RECORD_ID, note: "Haiku is wrong here", state: "new" });
-  expect(flag.shown).toBe("A not B");
-  expect((await thingsOf(page)).includes(flag.thing)).toBe(true);
+  const first = await page.evaluate(() => window.__t.quorumThings(window.__t.ui).map((t) => ({ text: t.text, cells: t.cells }))[0]);
+  expect(flag.thing).toBe(first.text);
+  expect(flag.shown).toBe(CELL[elsewhere(first)]); // the cell Haiku gave the first example
   await expect(haiku.locator(".lcell button")).toHaveAttribute("aria-pressed", "true");
 });
 
@@ -285,8 +289,8 @@ withKey("where the models differ, the page flags each such example by itself and
   await expect.poll(async () => (await flags(page)).length).toBe(things.length - 1);
 });
 
-withKey("where the models agree there are no automatic flags", async ({ page }, testInfo) => {
-  await explained(page, testInfo);
+withKey("where the models agree, and the page can stand beside them, there are no automatic flags", async ({ page }, testInfo) => {
+  await explained(page, testInfo, { tutor: (_b, _n, things) => ({ status: 200, body: run(things, CONSISTENT) }) });
   await page.waitForTimeout(300);
   expect((await flags(page)).filter((f) => f.auto)).toEqual([]);
 });
