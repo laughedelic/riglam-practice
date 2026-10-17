@@ -71,6 +71,12 @@ describe("when Quorum is offered", () => {
     expect(wrangler.slice(at)).toMatch(/"QUORUM":\s*"on"/);
   });
 
+  it("has no route of its own: it is asked through /api/tutor, and the old /api/lab is gone", async () => {
+    const s = await setup({ QUORUM: "on" });
+    const app = createApp({ kit: async () => fakeKit().kit, now: () => NOW });
+    for (const method of ["POST", "GET"]) expect((await app.request("/api/lab", { method, headers: s.headers() }, s.env)).status).toBe(404);
+  });
+
   it("is asked only by an explain question: a chat question that asks for it is answered by the one model", async () => {
     const s = await setup();
     const { res, models } = await quorum(s, { [SONNET]: [{ text: ["Fine."] }] }, { body: ask({ kind: "chat", quorum: true }) });

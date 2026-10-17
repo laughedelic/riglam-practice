@@ -41,26 +41,26 @@ export function quorumItem(){
 }
 const failure=run=>run.name+": failed ("+(run.error||"error")+")";
 function quorumNode(s){
-  const U=state.ui, q=U.quorum, rec=q&&q.record, box=el("div",{class:"lab"});
-  box.append(el("p",{class:"lab-h"},el("b",{text:"Quorum "}),el("span",{class:"lab-s",text:s.sum})));
+  const U=state.ui, q=U.quorum, rec=q&&q.record, box=el("div",{class:"quorum"});
+  box.append(el("p",{class:"quorum-h"},el("b",{text:"Quorum "}),el("span",{class:"quorum-s",text:s.sum})));
   if(!rec){ box.append(el("p",{class:"note faint",text:q&&q.busy?"The models answer one after the other; the explanation appears when they are done.":"With Quorum on, the explanation of a checked answer comes from several models and this panel shows each of them. The server keeps the run so the models can be compared."})); return box; }
   const errs=rec.models.concat(rec.judge?[rec.judge]:[]).filter(r=>!r.ok).map(failure);
   if(errs.length) box.append(el("p",{class:"status",text:errs.join(". ")+"."}));
-  box.append(el("p",{class:"lab-nj",text:"The answer you see is "+(rec.shown==="Judge"?"the judge’s":rec.shown+"’s")+"."}));
+  box.append(el("p",{class:"quorum-nj",text:"The answer you see is "+(rec.shown==="Judge"?"the judge’s":rec.shown+"’s")+"."}));
   const p=state.cur.p, tab=U.debate?"debate":"practice", J=rec.judge&&rec.judge.ok?rec.judge:null, caseKey=flagKeyOf(U);
   quorumThings(U).forEach((t,i)=>{
     const base={caseKey,thing:t.text,runId:rec.id,pair:{a:p.a,b:p.b,relation:p.relation,tab}};
     const jr=runReading(J,t.text), jcell=jr&&jr.cell;
     const rowFor=run=>{
       const isJudge=run===rec.judge, name=isJudge?"Judge’s ruling":run.name;
-      if(!run.ok) return el("div",{class:"lab-r off"},el("span",{class:"mn",text:name}),el("span",{class:"lab-w",text:"no answer"}));
+      if(!run.ok) return el("div",{class:"quorum-r off"},el("span",{class:"mn",text:name}),el("span",{class:"quorum-w",text:"no answer"}));
       const r=runReading(run,t.text);
-      if(!r) return el("div",{class:"lab-r"},el("span",{class:"mn",text:name}),el("span",{class:"lab-w",text:"does not mention it"}));
+      if(!r) return el("div",{class:"quorum-r"},el("span",{class:"mn",text:name}),el("span",{class:"quorum-w",text:"does not mention it"}));
       const c=Object.assign({},base,{model:isJudge?"judge":run.name.toLowerCase()}), P=(part,partLabel,shown,txt,cls)=>flagPart(Object.assign({},c,{part,partLabel,shown}),"t"+i,txt,cls);
       const same=!!r.cell&&t.cells.includes(r.cell);
       // against the ruling: the judge's cell, when it ruled
       const vs=!isJudge&&jcell&&r.cell?r.cell===jcell:null;
-      return el("div",{class:"lab-r"+(isJudge?" ruling":"")},
+      return el("div",{class:"quorum-r"+(isJudge?" ruling":"")},
         el("span",{class:"mn",text:name}),
         el("span",{class:"lps"},
           r.cell?el("span",{class:"lcell "+(same?"ok":"diff"),title:same?"Same cell as yours":"A different cell from yours"},P("cell","cell",CELL_NAME[r.cell],CELL_NAME[r.cell])):P("unsure","cell","unsure","unsure","uns"),
@@ -70,15 +70,15 @@ function quorumNode(s){
     };
     const rows=rec.models.map(rowFor); if(rec.judge) rows.push(rowFor(rec.judge));
     // the page's own verdict(s) for this thing
-    const pv=t.cells.map(c=>{ const rr=U.res.cells[c]; if(!rr) return null; const by=rr.by==="claude"?" (checked by Claude)":""; const lab_=({ok:"fits",bad:"does not fit",cmp:"not checked"})[rr.v]||rr.v; return {c,txt:CELL_NAME[c]+": "+lab_+by}; }).filter(Boolean);
-    const pr=el("div",{class:"lab-r page"},el("span",{class:"mn",text:"Page"}),el("span",{class:"lps"},pv.map(x=>flagPart(Object.assign({},base,{part:"verdict",partLabel:"page verdict",n:x.c,shown:x.txt}),"t"+i,x.txt))));
-    const head=el("p",{class:"lab-t"},el("b",{lang:"en",text:"“"+t.text+"”"}),el("span",{class:"you",text:" you put it in "+t.cells.map(c=>CELL_NAME[c]).join(", ")}),
+    const pv=t.cells.map(c=>{ const rr=U.res.cells[c]; if(!rr) return null; const by=rr.by==="claude"?" (checked by Claude)":""; const says=({ok:"fits",bad:"does not fit",cmp:"not checked"})[rr.v]||rr.v; return {c,txt:CELL_NAME[c]+": "+says+by}; }).filter(Boolean);
+    const pr=el("div",{class:"quorum-r page"},el("span",{class:"mn",text:"Page"}),el("span",{class:"lps"},pv.map(x=>flagPart(Object.assign({},base,{part:"verdict",partLabel:"page verdict",n:x.c,shown:x.txt}),"t"+i,x.txt))));
+    const head=el("p",{class:"quorum-t"},el("b",{lang:"en",text:"“"+t.text+"”"}),el("span",{class:"you",text:" you put it in "+t.cells.map(c=>CELL_NAME[c]).join(", ")}),
       flagPart(Object.assign({},base,{part:"check",partLabel:"the whole check",shown:"all runs"}),"t"+i,"Flag all","all"));
-    box.append(el("div",{class:"lab-c"},head,rows,pr,flagEditorNode("t"+i)));
+    box.append(el("div",{class:"quorum-c"},head,rows,pr,flagEditorNode("t"+i)));
   });
   // the answers themselves
-  const all=el("details",{class:"lab-txt"},el("summary",{text:"The answers"}));
-  for(const run of rec.models.concat(rec.judge?[rec.judge]:[])) if(run.ok) all.append(el("p",{class:"lab-tn"},el("b",{text:(run===rec.judge?"Judge":run.name)+(rec.shown===run.name?" (shown)":"")})),el("p",{class:"lab-tt",text:run.text}));
+  const all=el("details",{class:"quorum-txt"},el("summary",{text:"The answers"}));
+  for(const run of rec.models.concat(rec.judge?[rec.judge]:[])) if(run.ok) all.append(el("p",{class:"quorum-tn"},el("b",{text:(run===rec.judge?"Judge":run.name)+(rec.shown===run.name?" (shown)":"")})),el("p",{class:"quorum-tt",text:run.text}));
   box.append(all);
   box.append(el("p",{class:"note faint",text:"Tap any value to flag it. The server keeps this run so the models can be compared; the page verdicts are the ones from the answer you see."}));
   if(state.flagErr) box.append(el("p",{class:"status",text:state.flagErr}));

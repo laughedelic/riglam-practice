@@ -32,7 +32,7 @@ const test = base.extend({
     await page.addInitScript((reply) => {
       window.__riglamTest = (t) => { window.__t = t; };
       window.__reply = reply;
-      try { localStorage.setItem("rd-lab", "0"); localStorage.setItem("rd-autoexplain", "0"); } catch { /* storage unavailable */ }
+      try { localStorage.setItem("rd-autoexplain", "0"); } catch { /* storage unavailable */ }
     }, CLAUDE_REPLY);
     await routeArtifact(page, { ai: true });
     await page.goto("http://artifact.test/");

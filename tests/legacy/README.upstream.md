@@ -16,7 +16,7 @@ Snapshot of 2026-10-12 (page version 63, version id 1791778425-4118). The tests 
 ## Run
 
 - Node 22 (`/opt/node22/bin/node`), global `playwright` at `/opt/node22/lib/node_modules/playwright`, Chromium at `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`. Do not run `playwright install`.
-- The artifact no longer has the check lab (the old Quorum runs of three models were dropped from it; Quorum is now a mode of the app's server, tested in tests/e2e/pwa/quorum.spec.js), so the harness has no lab mock and `test57` is gone.
+- The artifact no longer runs Quorum itself (the three-model runs of the page were dropped from it; Quorum is now a mode of the app's server, tested in tests/e2e/pwa/quorum.spec.js), so the harness has no mock for it and `test57` is gone.
 - One test: `node test61.js`. All: `sh runall.sh`. A full run takes several minutes; do not rebuild the page while it runs. Random pairs make a few checks flaky; rerun a failing file once before looking into it.
 - Do not run two at once against the same page file, and do not rebuild while a run is going.
 

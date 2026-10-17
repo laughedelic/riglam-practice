@@ -11,7 +11,7 @@ import { render } from "../shell/render.js";
 // Sonnet and Opus answer it on their own; where they put an example in different cells, Opus reads their answers and writes the one that is shown. The text you read and
 // the verdicts the page takes from it (tutor.js, applyVerify) are that one answer. The server keeps every run; the page keeps nothing of it but the flags it raises
 // (collection "flags") where the models are divided, and shows the run to the maintainer in the Quorum chip (quorum-panel.js). With Quorum off, one model answers as ever.
-export const setQuorum=on=>{ state.quorum=!!on; try{ localStorage.setItem("rd-lab",state.quorum?"1":"0"); }catch(e){} render(); };   // "rd-lab": the key from when Quorum was the check lab
+export const setQuorum=on=>{ state.quorum=!!on; try{ localStorage.setItem("rd-quorum",state.quorum?"1":"0"); }catch(e){} render(); };
 // whether the next explain question goes to Quorum: the server offers it, this device has it on, and the question goes to the server (the artifact asks its host's model instead)
 export const quorumWanted=()=>!!(state.quorumOffered&&state.quorum&&state.tutor&&!state.sample);
 // whether the Quorum chip belongs on a checked answer; Review shows the flags wherever there is a tutor to flag, or flags to look at

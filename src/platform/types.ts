@@ -173,7 +173,7 @@ export interface Platform {
   loadData(): Promise<DrillData>;
   /** The document store, or null when there is none (the page then runs without saving). */
   db(): Promise<Db | null>;
-  /** Model calls, or null when there are none (the page then hides the tutor, Explain and the check lab). */
+  /** Model calls, or null when there are none (the page then hides the tutor and Explain). */
   sample(): Promise<Sample | null>;
   /** The way to enter the Magic Key (the study group's key: it opens the definitions and the tutor), or null (or absent) when the place has no key to ask for or this device has it. */
   unlock?(): Promise<Unlock | null>;

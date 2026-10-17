@@ -123,8 +123,8 @@ export interface FlagDoc {
   state: string;
 }
 
-/** collection `labruns`: one model's answer to one case of the old check lab, or the judge's. Older versions of the page wrote it; this one only keeps what is there (export, sync). Loosely typed. */
-export interface LabRunDoc {
+/** collection `labruns`: one model's answer to one case of the earlier Quorum, run by the page itself, or the judge's. Older versions of the page wrote it under that name, which a stored collection keeps; this one only keeps what is there (export, sync). Loosely typed. */
+export interface QuorumRunDoc {
   kind: string;
   caseKey: string;
   model: string;
@@ -253,7 +253,7 @@ export interface State {
   // Quorum and the explanation
   /** the app's server offers Quorum (platform.quorum) */
   quorumOffered: boolean;
-  /** Quorum is on for this device (Options; stored under the old key `rd-lab`) */
+  /** Quorum is on for this device (Options, `rd-quorum`) */
   quorum: boolean;
   /** a checked answer asks for its explanation by itself (Options, `rd-autoexplain`) */
   autoExplain: boolean;

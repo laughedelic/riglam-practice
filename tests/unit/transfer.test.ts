@@ -182,6 +182,7 @@ describe("the list of settings", () => {
     const files = (readdirSync(dir, { recursive: true }) as string[]).filter((f) => f.endsWith(".js"));
     const used = new Set<string>();
     for (const f of files) for (const m of readFileSync(new URL(f, dir), "utf8").matchAll(/["'](rd-[a-z-]+)["']/g)) used.add(m[1]);
+    used.delete("rd-lab"); // the earlier name of rd-quorum: read once and removed (state.js), never stored again
     expect(files.length).toBeGreaterThan(20);
     expect([...used].sort()).toEqual([...PREFERENCE_KEYS].sort());
   });
@@ -206,7 +207,7 @@ describe("a preview that is out of date", () => {
     const file = fileWith({ a1: { pairId: "a1", at: NEW, from: "file" } });
     const plan = await planImport(db, file);
     expect(plan.totals.update).toBe(1);
-    // the check lab saves a verdict while the preview is open
+    // a flag is saved while the preview is open
     await put(db, "answers", "a1", { pairId: "a1", at: OLD, verifiedAt: "2026-10-03T10:00:00.000Z", from: "local" });
     const report = await applyImport(db, plan, { storage: null });
     expect(report).toMatchObject({ written: 0, skipped: 1, failed: [] });

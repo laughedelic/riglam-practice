@@ -68,7 +68,7 @@ test("what the app keeps is exported to one file and comes back through import",
 
   await chooseFile(page, path);
   const summary = page.getByRole("group", { name: "What the import would do" });
-  await expect(summary).toContainText("Adds 2 check-lab runs, 1 flag.");
+  await expect(summary).toContainText("Adds 2 Quorum runs, 1 flag.");
   await expect(summary).toContainText("Restores 1 setting");
   expect((await stored(page)).docs.labruns).toEqual({}); // nothing is written before the person confirms
 

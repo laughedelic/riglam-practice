@@ -21,7 +21,7 @@ export const VERSION = 1;
 export const COLLECTIONS = SYNC_COLLECTIONS;
 
 /** The localStorage keys of the page's settings (notation, wording, timers ...). tests/unit/transfer.test.ts checks this list against app.js. */
-export const PREFERENCE_KEYS = ["rd-notation", "rd-deflang", "rd-ab", "rd-full", "rd-wording", "rd-timer", "rd-timer-rel", "rd-blitz", "rd-lab", "rd-autoexplain", "rd-recent"] as const;
+export const PREFERENCE_KEYS = ["rd-notation", "rd-deflang", "rd-ab", "rd-full", "rd-wording", "rd-timer", "rd-timer-rel", "rd-blitz", "rd-quorum", "rd-autoexplain", "rd-recent"] as const;
 
 /** Largest file accepted, in bytes; a person's history is a few hundred kilobytes. */
 export const MAX_FILE_BYTES = 40 * 1024 * 1024;
@@ -183,7 +183,7 @@ export interface ImportReport {
 
 /**
  * Writes the planned documents and restores the planned settings. A document that fails is reported and the rest go on.
- * The preview can be minutes old (a check-lab verdict or another tab may have saved a newer copy since), so each document is
+ * The preview can be minutes old (a flag or another tab may have saved a newer copy since), so each document is
  * compared again just before it is written, with the same rule as the plan.
  */
 export async function applyImport(db: Db, plan: ImportPlan, opts: { storage?: Storage | null } = {}): Promise<ImportReport> {

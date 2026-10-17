@@ -49,7 +49,7 @@ export const state = {
   // and closes on the next tap, key press (Tab moves into it), scroll, or after UNDO_MS. Closing it changes nothing else; Review still lists the pair.
   hintOff: null,
   quorumOffered: false,   // the app's server offers Quorum, the tutor's mode of several models and a judge (platform.quorum): a Preview, with the Magic Key
-  quorum: true,           // Quorum is on for this device (Options; the key of the setting is still "rd-lab", from when it was the check lab)
+  quorum: true,           // Quorum is on for this device (Options, `rd-quorum`)
   autoExplain: true,   // a checked answer asks for its explanation by itself (Options); the Explain button is still there for one that was not asked
   flags: {},
   flagErr: "",
@@ -76,7 +76,8 @@ export const state = {
 
 try{ const v=localStorage.getItem("rd-notation"); if(v==="sets"||v==="logic") state.nota=v; }catch(e){}
 try{ if(localStorage.getItem("rd-deflang")==="enru") state.defLang="enru"; }catch(e){}   // an earlier "off" (words only) is now the codes
-try{ state.quorum=localStorage.getItem("rd-lab")!=="0"; }catch(e){}
+// the setting was stored as "rd-lab" while Quorum was a lab of the page: a device that turned it off keeps it off
+try{ let q=localStorage.getItem("rd-quorum"); if(q===null){ q=localStorage.getItem("rd-lab"); if(q!==null){ localStorage.setItem("rd-quorum",q); localStorage.removeItem("rd-lab"); } } state.quorum=q!=="0"; }catch(e){}
 try{ state.autoExplain=localStorage.getItem("rd-autoexplain")!=="0"; }catch(e){}
 try{ state.recentOpen=localStorage.getItem("rd-recent")!=="0"; }catch(e){}
 try{ if(localStorage.getItem("rd-ab")==="0") state.showAB=false; if(localStorage.getItem("rd-full")==="0") state.fullPh=false; }catch(e){}

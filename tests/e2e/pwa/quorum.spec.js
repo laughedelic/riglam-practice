@@ -76,7 +76,7 @@ async function answerOnPhone(page) {
 const explain = (page) => page.getByRole("button", { name: /^explain$|check and explain/i });
 const quorum = (page) => page.locator(".vchip").filter({ hasText: /quorum/i });
 const sw = (page) => page.getByRole("switch", { name: /several models explain/i });
-const rowOf = (page, name) => page.locator(".lab-r").filter({ has: page.locator(".mn", { hasText: name }) });
+const rowOf = (page, name) => page.locator(".quorum-r").filter({ has: page.locator(".mn", { hasText: name }) });
 const flags = (page) => page.evaluate(() => Object.values(window.__t.flags));
 const thingsOf = (page) => page.evaluate(() => window.__t.quorumThings(window.__t.ui).map((t) => t.text));
 
@@ -133,38 +133,38 @@ withKey("while the models work the chip shows it, and the answer comes with the 
   await explain(page).click();
   await expect(quorum(page)).toContainText("…");
   await quorum(page).click();
-  await expect(page.locator(".lab")).toContainText("Models answered: 0 of 3");
+  await expect(page.locator(".quorum")).toContainText("Models answered: 0 of 3");
   release();
   await expect(quorum(page)).toContainText("=");
-  await expect(page.locator(".lab")).toContainText("Done: 3 of 3 models answered; all agree, no judge needed.");
+  await expect(page.locator(".quorum")).toContainText("Done: 3 of 3 models answered; all agree, no judge needed.");
 });
 
 withKey("the panel shows what each model and the judge said of each example, and the answer you see is the judge's", async ({ page }, testInfo) => {
   await explained(page, testInfo, { tutor: (_b, _n, things) => ({ status: 200, body: run(things, DIFFER) }) });
   await expect(quorum(page)).toContainText("≠");
   await quorum(page).click();
-  const panel = page.locator(".lab");
+  const panel = page.locator(".quorum");
   const n = (await thingsOf(page)).length;
   expect(n).toBeGreaterThan(0);
   await expect(panel).toContainText("Done: 3 of 3 models answered; the judge ruled (the models differed).");
-  await expect(panel.locator(".lab-nj")).toHaveText("The answer you see is the judge’s.");
+  await expect(panel.locator(".quorum-nj")).toHaveText("The answer you see is the judge’s.");
   for (const name of ["Haiku", "Sonnet", "Opus", "Judge’s ruling", "Page"]) await expect(rowOf(page, name)).toHaveCount(n);
   // Haiku differs from the ruling, the others are with it
   await expect(rowOf(page, "Haiku").first()).toContainText("≠ ruling");
   await expect(rowOf(page, "Sonnet").first()).toContainText("= ruling");
   await expect(rowOf(page, "Haiku").first()).toContainText("1.4 s");
-  await panel.locator("details.lab-txt summary").click();
-  await expect(panel.locator(".lab-tn", { hasText: "Judge (shown)" })).toBeVisible();
+  await panel.locator("details.quorum-txt summary").click();
+  await expect(panel.locator(".quorum-tn", { hasText: "Judge (shown)" })).toBeVisible();
   expect(await overflow(page)).toBeLessThanOrEqual(0);
 });
 
 withKey("a call that failed is named, and the answer is the strongest of the others", async ({ page }, testInfo) => {
   await explained(page, testInfo, { tutor: (_b, _n, things) => ({ status: 200, body: run(things, { Sonnet: learner, Opus: learner }) }) });
   await quorum(page).click();
-  const panel = page.locator(".lab");
+  const panel = page.locator(".quorum");
   await expect(panel.locator(".status")).toContainText("Haiku: failed (unavailable).");
   await expect(panel).toContainText("Done: 2 of 3 models answered; all agree, no judge needed.");
-  await expect(panel.locator(".lab-nj")).toHaveText("The answer you see is Opus’s.");
+  await expect(panel.locator(".quorum-nj")).toHaveText("The answer you see is Opus’s.");
   await expect(rowOf(page, "Haiku").first()).toContainText("no answer");
 });
 
@@ -173,8 +173,8 @@ withKey("when the budget of Quorum is used the one model answers, and the chip s
   await explain(page).click();
   await expect(quorum(page)).toBeVisible();
   await quorum(page).click();
-  await expect(page.locator(".lab")).toContainText("Quorum’s budget for today is used, so one model answered this.");
-  await expect(page.locator(".lab .lab-r")).toHaveCount(0);
+  await expect(page.locator(".quorum")).toContainText("Quorum’s budget for today is used, so one model answered this.");
+  await expect(page.locator(".quorum .quorum-r")).toHaveCount(0);
 });
 
 withKey("an answer that came with no run says so", async ({ page }, testInfo) => {
@@ -182,7 +182,7 @@ withKey("an answer that came with no run says so", async ({ page }, testInfo) =>
   await explain(page).click();
   await expect(quorum(page)).toBeVisible();
   await quorum(page).click();
-  await expect(page.locator(".lab")).toContainText("No Quorum record came with this answer.");
+  await expect(page.locator(".quorum")).toContainText("No Quorum record came with this answer.");
 });
 
 withKey("a server that does not offer Quorum is asked as ever: no quorum in the question, no chip, no switch", async ({ page }, testInfo) => {
@@ -203,7 +203,7 @@ withKey("Options has the switch, on; off, the next explanation is asked of one m
   await expect(sw(page)).toHaveAttribute("aria-checked", "true");
   await sw(page).click();
   await expect(sw(page)).toHaveAttribute("aria-checked", "false");
-  expect(await page.evaluate(() => localStorage.getItem("rd-lab"))).toBe("0");
+  expect(await page.evaluate(() => localStorage.getItem("rd-quorum"))).toBe("0");
   await page.getByRole("button", { name: /close options/i }).first().click();
   await expect(quorum(page)).toHaveCount(0);
   await page.getByRole("button", { name: /next pair/i }).click();
@@ -214,6 +214,18 @@ withKey("Options has the switch, on; off, the next explanation is asked of one m
   expect(asked[1].body.kind).toBe("explain");
   expect(asked[1].body).not.toHaveProperty("quorum");
   await expect(quorum(page)).toHaveCount(0);
+});
+
+// the setting was called "rd-lab" while Quorum was a lab of the page: a device that turned it off keeps it off, under the new name
+withKey("a Quorum setting stored under its earlier name is kept, and moved to the new one", async ({ page }, testInfo) => {
+  test.skip(!isPhone(testInfo), "the answer flow is exercised in the phone layout");
+  await page.addInitScript(() => { if (localStorage.getItem("rd-quorum") === null && localStorage.getItem("rd-lab") === null) localStorage.setItem("rd-lab", "0"); });
+  const asked = await open(page, testInfo);
+  await explain(page).click();
+  await expect.poll(() => asked.length).toBe(1);
+  expect(asked[0].body).not.toHaveProperty("quorum");
+  await expect(quorum(page)).toHaveCount(0);
+  expect(await page.evaluate(() => [localStorage.getItem("rd-quorum"), localStorage.getItem("rd-lab")])).toEqual(["0", null]);
 });
 
 withKey("any value in the panel can be flagged, with a note, and the flag names the run", async ({ page }, testInfo) => {
@@ -282,13 +294,13 @@ withKey("where the models agree there are no automatic flags", async ({ page }, 
 withKey("the panel fits a phone of any width, and its flags are big enough to touch", async ({ page }, testInfo) => {
   await explained(page, testInfo, { tutor: (_b, _n, things) => ({ status: 200, body: run(things, DIFFER) }) });
   await quorum(page).click();
-  await page.locator("details.lab-txt summary").click();
+  await page.locator("details.quorum-txt summary").click();
   for (const width of [320, 360, 390]) {
     await page.setViewportSize({ width, height: 800 });
     expect(await overflow(page), `${width} px`).toBeLessThanOrEqual(0);
-    const small = await page.locator(".lab .lp").evaluateAll((bs) => bs.filter((b) => b.getBoundingClientRect().height < 26).length);
+    const small = await page.locator(".quorum .lp").evaluateAll((bs) => bs.filter((b) => b.getBoundingClientRect().height < 26).length);
     expect(small, `${width} px`).toBe(0);
-    const out = await page.locator(".lab").evaluate((p) => [...p.querySelectorAll("*")].filter((n) => n.getBoundingClientRect().right > innerWidth + 1).length);
+    const out = await page.locator(".quorum").evaluate((p) => [...p.querySelectorAll("*")].filter((n) => n.getBoundingClientRect().right > innerWidth + 1).length);
     expect(out, `${width} px`).toBe(0);
   }
 });
@@ -297,7 +309,7 @@ withKey("the panel is readable in the dark theme", async ({ page }, testInfo) =>
   await page.emulateMedia({ colorScheme: "dark" });
   await explained(page, testInfo, { tutor: (_b, _n, things) => ({ status: 200, body: run(things, DIFFER) }) });
   await quorum(page).click();
-  const colors = await page.locator(".lab-r").first().evaluate((r) => {
+  const colors = await page.locator(".quorum-r").first().evaluate((r) => {
     const rgb = (c) => c.match(/[\d.]+/g).slice(0, 3).map(Number);
     const lum = ([r, g, b]) => [r, g, b].map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }).reduce((s, v, i) => s + v * [0.2126, 0.7152, 0.0722][i], 0);
     let bg = r; let back = "rgba(0, 0, 0, 0)";

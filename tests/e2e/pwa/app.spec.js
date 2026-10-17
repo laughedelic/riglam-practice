@@ -43,7 +43,7 @@ test("features that need Claude are absent, not broken", async ({ page }, testIn
     await expect(page.getByRole("button", { name: /explain/i })).toHaveCount(0);
   }
   await page.getByRole("button", { name: /options/i }).filter({ visible: true }).first().click();
-  await expect(page.getByText(/check lab/i)).toHaveCount(0);
+  await expect(page.getByText(/quorum/i)).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
