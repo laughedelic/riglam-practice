@@ -1,9 +1,10 @@
 // The check lab in the installed app (Quorum): on a Preview the server answers the lab's model calls (POST /api/lab), and the page runs three models
 // on each checked answer. These specs stand in for the server with routes. They check that the lab appears only when the server says it answers,
 // what each call sends (a proof made with the key, the model asked for) and what the page shows when the answers come back or the budget is used up.
+import { test as plain } from "@playwright/test";
 import { test, expect } from "../../support/test.js";
 import { ready, relOptions, isPhone, overflow } from "../../support/page.js";
-import { dataKey, withCourse } from "../../support/data-key.js";
+import { dataKey, serveCourse, withCourse } from "../../support/data-key.js";
 import { checkProof } from "../../../src/ai/proof.ts";
 
 const withKey = withCourse ? test : test.skip;
@@ -128,4 +129,28 @@ withKey("an answer with no example written still has the Quorum chip, which says
   await page.waitForTimeout(300);
   expect(calls).toHaveLength(0);
   expect(await overflow(page)).toBeLessThanOrEqual(0);
+});
+
+// A device that has no Magic Key yet can check an answer (there is no lab then); the key entered afterwards gives that answer its run too.
+plain("an answer checked before the Magic Key was entered gets its Quorum run once the key is taken", async ({ page }, testInfo) => {
+  test.skip(!isPhone(testInfo), "the answer flow is exercised in the phone layout");
+  test.skip(!withCourse, "needs the course data to unlock the definitions");
+  await page.addInitScript(() => { window.__riglamTest = (t) => { window.__t = t; }; });
+  await serveCourse(page);
+  const calls = await server(page);
+  await page.route("**/api/tutor", (route) =>
+    route.fulfill({ status: 200, contentType: "text/event-stream", body: `event: delta\ndata: ${JSON.stringify({ type: "delta", text: "Stand-in." })}\n\nevent: done\ndata: ${JSON.stringify({ type: "done", truncated: false })}\n\n` }),
+  );
+  await page.goto("/");
+  await ready(page);
+  await page.evaluate(() => { window.__t.labSpotN = 0; });
+  await answerOnPhone(page);
+  await page.waitForTimeout(300);
+  await expect(quorum(page)).toHaveCount(0);
+  expect(calls).toHaveLength(0);
+  await page.getByRole("button", { name: /^explain$/i }).click({ force: true });
+  await page.fill("#unlock-key", dataKey);
+  await page.locator("#unlock").getByRole("button", { name: "Unlock", exact: true }).click();
+  await expect.poll(() => calls.length).toBe(3);
+  await expect(quorum(page)).toContainText(/[=≠]/);
 });
