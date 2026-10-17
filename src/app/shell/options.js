@@ -78,7 +78,7 @@ export function optionsInto(o){
     row("Questions",segOf("Wording of the questions",Object.entries(WORDINGS).map(([k,w])=>[k,w.name]),state.wording,setWording),
       "How the statement of pervasion is worded in Pervasions: the four statements you accept or answer with Why?."),
     row("Definitions",segOf("Languages of the definitions",[["en","English"],["enru","English + Russian"]],state.defLang,setDefLang),
-      "In the Terms panel. With Russian on, each entry also shows the Russian name of the term and, where the booklet translation has one, its Russian definition."),
+      "Shown when you open a term\u2019s definition, in the Terms panel and in the tutor\u2019s notes. With Russian on, each entry also shows the Russian name of the term and, where there is one, its Russian definition."),
     row("Show",el("div",{class:"octl"},
       el("button",{type:"button",class:"sw",role:"switch","aria-checked":state.showAB?"true":"false",onclick:()=>setShow("ab",!state.showAB)},el("i",{class:"knob","aria-hidden":"true"}),el("span",{class:"swl",text:"A/B markers"}),el("span",{class:"swt",text:"before the terms"})),
       el("button",{type:"button",class:"sw",role:"switch","aria-checked":state.fullPh?"true":"false",onclick:()=>setShow("full",!state.fullPh)},el("i",{class:"knob","aria-hidden":"true"}),el("span",{class:"swl",text:"Full phrases"}),el("span",{class:"swt",text:"spell out Why? answers"}))),
@@ -88,7 +88,7 @@ export function optionsInto(o){
     timeRow("rel","Relation time","The Blitz countdown for choosing the relation, in Relations and in Pervasions."),
     timeRow("ex","Example time","The Blitz countdown for each example in Relations (a table of three cells gets three times this) and for each question in Pervasions."),
     state.unlock?row(mkBtn(),el("button",{type:"button",class:"btn ghost",onclick:()=>{ toggleOpts(false); state.unlock.open(); }},"Enter the Magic Key"),
-      "The definitions follow the course booklet, and the tutor (Explain) answers from it, so both need the Magic Key from your study group's link. This device has none yet: open the link once on this device, or paste it here.","key",mkPop()):null,
+      "The definitions and the tutor (Explain) need the Magic Key from your study group's link. This device has none yet: open the link once on this device, or paste it here.","key",mkPop()):null,
     state.keyHeld?row(mkBtn(),keyControls(),
       state.keyAsk?"Forget the Magic Key on this device? The definitions and the tutor close again until a key is entered. Your answers and settings stay. An account that carries the key gives it back when you sign in."
         :"This device has the Magic Key, so the definitions and the tutor are open. If the study group changed the key, enter the new one; or forget the key on this device.","key",mkPop()):null,

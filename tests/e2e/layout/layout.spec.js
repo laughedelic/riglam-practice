@@ -100,8 +100,8 @@ const FLOWS = {
     await answerAll(s, rel, LONG);
     await check("result");
     await eachChip(s, "result");
-    const toggle = page.locator(".tm-tog");
-    if (await toggle.count()) { await toggle.click(); await check("terms with definitions"); }
+    const mark = page.locator(".terms .dterm");
+    if (await mark.count()) { await mark.first().click(); await check("terms with a definition open"); }
   },
 
   async "practice, explanation and its notes"(s) {

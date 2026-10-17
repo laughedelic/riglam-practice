@@ -43,7 +43,7 @@ test("Options has a Magic Key row that opens the prompt, and the prompt says wha
   await page.goto("/");
   await ready(page);
   await page.getByRole("button", { name: /options/i }).filter({ visible: true }).first().click();
-  await expect(page.getByText("so both need the Magic Key")).toBeVisible();
+  await expect(page.getByText("need the Magic Key from your study group")).toBeVisible();
   await expect(page.locator(".orow .tl svg.ico")).toHaveCount(1); // a key beside the row's name
   // "Magic Key" in the row's name is dotted and opens a note on the name
   await page.locator(".orow .tl .keyname").click();
@@ -126,53 +126,25 @@ const answerFirstPair = async (page) => {
   }
 };
 
-// answers the first pair far enough to get the result with its Terms panel, and opens the list of definitions
-const openTermDefinitions = async (page) => {
+// answers the first pair far enough to get the result, and opens its Terms panel
+const openTerms = async (page) => {
   await page.goto("/");
   await ready(page);
   await answerFirstPair(page); // the result has the Terms panel
   await page.getByRole("tab", { name: "Terms" }).click();
-  const terms = page.locator(".tm-tog");
-  await expect(terms.first()).toBeVisible();
-  await terms.first().click();
+  await expect(page.locator(".terms")).toBeVisible();
 };
 
-test("in the Terms panel a locked definition says where to look it up, and one note offers the Magic Key", async ({ page }, testInfo) => {
+test("in the Terms panel nothing is underlined without the key, and one note offers the Magic Key", async ({ page }, testInfo) => {
   test.skip(!isPhone(testInfo), "the answer flow is exercised in the phone layout");
-  await openTermDefinitions(page);
-  await expect(page.getByText(/Look it up in the booklet, chapter [IVX]+: /).first()).toBeVisible();
-  await expect(page.getByText(/Locked: /)).toHaveCount(0); // no "locked" line under each term any more
-  await expect(page.getByText("To read the full definitions here, enter the Magic Key")).toHaveCount(1);
+  await openTerms(page);
+  await expect(page.locator(".terms .dterm")).toHaveCount(0);
+  await expect(page.locator(".tm-tog, .terms .tm-defs")).toHaveCount(0); // no Definitions fold, no list
+  await expect(page.getByText("To read the definitions of the terms here, enter the Magic Key")).toHaveCount(1);
+  await expect(page.getByText(/booklet/i)).toHaveCount(0);
+  await expect(page.getByText(/Locked: /)).toHaveCount(0);
   await page.locator(".tm-locked").getByRole("button", { name: "Unlock definitions" }).click();
   await expect(page.locator("#unlock")).toBeVisible();
-});
-
-test("locked definitions still show the Russian name of each term when English + Russian is chosen, and only then", async ({ page }, testInfo) => {
-  test.skip(!isPhone(testInfo), "the answer flow is exercised in the phone layout");
-  await page.addInitScript(hook);
-  await openTermDefinitions(page);
-  await expect(page.locator(".tm-locked .tm-d").first()).toBeVisible();
-  await expect(page.locator(".tm-locked .tm-ru")).toHaveCount(0); // English only: the name alone
-  await page.evaluate(() => window.__t.setDefLang("enru"));
-  const names = page.locator(".tm-locked .tm-d dt");
-  const russian = page.locator(".tm-locked .tm-d dt .tm-ru");
-  await expect(russian.first()).toBeVisible();
-  expect(await russian.count()).toBe(await names.count()); // the open data names every term in Russian
-  await expect(russian.first()).toHaveAttribute("lang", "ru");
-});
-
-test("a locked term from every booklet section says where to look it up", async ({ page }) => {
-  await page.addInitScript(hook);
-  await page.goto("/");
-  await ready(page);
-  const lines = await page.evaluate(() => {
-    const T = window.__t.DATA.terms, first = {};
-    for (const n of Object.keys(T)) if (T[n].ch && !first[T[n].ch]) first[T[n].ch] = n;
-    return Object.entries(first).map(([ch, n]) => [ch, window.__t.lockedDefs([n]).querySelector(".src")?.textContent ?? ""]);
-  });
-  expect(lines.length).toBeGreaterThan(10); // the chapters I to XI, the Dampilon tables and the sections without a numeral
-  for (const [ch, line] of lines) expect(line, ch).toMatch(/^Look it up in /);
-  expect(lines.map(([, line]) => line)).toContain("Look it up in the booklet, section Debate.");
 });
 
 test("the page opens without waiting for the server to say whether it has a tutor, and grays Explain when it does", async ({ page }, testInfo) => {
@@ -231,8 +203,8 @@ withKey("the words typed with spaces, in any case, open the definitions", async 
 withKey("a key entered while a pair is being reviewed keeps the pair and the result, and opens the definitions in place", async ({ page }, testInfo) => {
   test.skip(!isPhone(testInfo), "the answer flow is exercised in the phone layout");
   await page.addInitScript(hook);
-  await openTermDefinitions(page);
-  const shown = () => page.evaluate(() => ({ pair: window.__t.cur.p.a + " / " + window.__t.cur.p.b, relation: window.__t.cur.p.relation, checked: !!window.__t.ui.checked, defs: !!window.__t.ui.defs }));
+  await openTerms(page);
+  const shown = () => page.evaluate(() => ({ pair: window.__t.cur.p.a + " / " + window.__t.cur.p.b, relation: window.__t.cur.p.relation, checked: !!window.__t.ui.checked }));
   const before = await shown();
   expect(before.checked).toBe(true);
   await page.evaluate(() => { window.__sameDocument = true; });
@@ -241,7 +213,7 @@ withKey("a key entered while a pair is being reviewed keeps the pair and the res
   await page.locator("#unlock").getByRole("button", { name: "Unlock", exact: true }).click();
   await expect(page.locator("#unlock")).toHaveCount(0);
   await expect(page.locator(".tm-locked")).toHaveCount(0);
-  await expect(page.locator(".tm-defs .tm-d dd").first()).toBeVisible();
+  await expect(page.locator(".terms .dterm").first()).toBeVisible(); // the terms with a definition are underlined now
   expect(await shown(), "the same pair, with its result, is on the screen").toEqual(before);
   expect(await page.evaluate(() => window.__sameDocument)).toBe(true);
   expect(await overflow(page)).toBeLessThanOrEqual(0);
