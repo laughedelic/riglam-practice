@@ -69,6 +69,54 @@ withKey("Explain asks the server, shows the answer, and sends the card without t
   expect(body.turns[0].content).not.toContain("Fine points"); // and the notes
 });
 
+// A note on a cell opens under the heading "Why?", so a Why? the tutor starts its debate line with is not said twice.
+withKey("a note under a cell is headed Why?", async ({ page }, testInfo) => {
+  const line = 'Both: Why? "thing 1" is a form, so it fits. => yes\n';
+  await open(page, testInfo, { tutor: [{ status: 200, body: sse({ type: "delta", text: line }, { type: "done", truncated: false }) }] });
+  await explain(page).click();
+  await page.locator(".grid .qm").first().click();
+  const pop = page.locator(".grid .pop");
+  await expect(pop.locator(".clh")).toHaveText("Why?");
+  await expect(pop.locator("p").nth(1)).toHaveText('"thing 1" is a form, so it fits.');
+  await expect(pop.locator(".popnote")).toHaveCount(0);
+});
+
+// The tutor states two facts about an example and a reason for each; the page writes them as consequences ("Take S, it follows it is
+// P, because R") with the pair's own terms, draws the conclusion, and in the debate words the note by what the learner answered.
+withKey("a line with the two facts is shown as the subject and a list of consequences", async ({ page }, testInfo) => {
+  const line = 'Both: "thing 1" | A yes: it is a form. | B yes: it is a thing\n';
+  await open(page, testInfo, { tutor: [{ status: 200, body: sse({ type: "delta", text: line }, { type: "done", truncated: false }) }] });
+  await explain(page).click();
+  await page.locator(".grid .qm").first().click();
+  const pop = page.locator(".grid .pop");
+  await expect(pop.locator(".ftake")).toHaveText("Why? Take thing 1:"); // the heading and the subject on one line
+  await expect(pop.locator(".fsteps li")).toHaveText([/^It follows it is .+, because it is a form\.$/, /^It follows it is .+, because it is a thing\.$/]);
+  await expect(pop.locator(".fsteps .qterm")).toHaveCount(2); // the terms as the questions show them, with their A/B markers per the setting
+  await expect(page.locator(".grid .pop")).not.toContainText("|");
+});
+
+withKey("in Pervasions an accepted question's note names the tutor's counter-example", async ({ page }, testInfo) => {
+  test.skip(isPhone(testInfo), "the wide layout has the table and the coach panel");
+  // an example that is not in the practice list, so the random pair cannot settle either side from the data
+  const line = 'Q2: "a ripe mango" | A yes: it is a fruit | B no: it is a plant; pervasion: a plant is not a person\n';
+  await server(page, { tutor: [{ status: 200, body: sse({ type: "delta", text: line }, { type: "done", truncated: false }) }] });
+  await page.goto("/");
+  await ready(page);
+  await page.locator('.rail .nv:has-text("Pervasions")').click();
+  for (let i = 0; i < 4; i++) {
+    await page.locator(".qcard .btn").first().click(); // accept each question
+    await page.waitForTimeout(150);
+  }
+  await relOptions(page).first().click();
+  await explain(page).click();
+  await page.locator(".grid .qm").first().click();
+  const pop = page.locator(".grid .pop");
+  await expect(pop.locator(".ftake")).toHaveText("Why? Take a ripe mango:");
+  await expect(pop.locator(".fsteps li")).toHaveText([/^It follows it is .+, because it is a fruit\.$/, /^It follows it is not .+, because it is a plant\.A plant is not a person\.$/]);
+  await expect(pop.locator(".fsteps .not")).toHaveText("not"); // the denied term's "not" is marked as in the questions
+  await expect(pop.locator(".fsteps li").nth(1).locator(".fwhy")).toHaveText("A plant is not a person."); // the pervasion on a line under its consequence
+});
+
 withKey("a follow-up question sends the whole conversation as a chat", async ({ page }, testInfo) => {
   const asked = await open(page, testInfo);
   await explain(page).click();

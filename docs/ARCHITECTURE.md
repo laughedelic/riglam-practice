@@ -55,7 +55,7 @@ src/app/
 | File | What |
 |---|---|
 | `data.ts` | the types of the term data (`DrillData`, `Term`, `Cat`, `Item`) |
-| `lookup.ts` | `norm`, `makeIndex(data)` (the lookup tables), `matchItem`, `catByLabel`, `pairCats`: how a learner's words resolve to a practice item or category |
+| `lookup.ts` | `norm`, `makeIndex(data)` (the lookup tables), `matchItem`, `catByLabel`, `pairCats`: how a learner's words resolve to a practice item or category; `upChain` (a term and its parents) and `classNames` (the classes of the "is a" tree the tutor names an example's class from) |
 | `relations.ts`, `debate.ts` | the five relations, the four cells and the four questions in their canonical wording |
 | `facts.ts` | `termFacts`, `catFacts`: what the data says about a term or category |
 | `prompts.ts` | the tutor's standing instructions and the two "explain" requests |
@@ -74,7 +74,8 @@ The page's JavaScript imports these files with their `.ts` extension; Vite compi
 |---|---|
 | `universe.ts` | `cellsFor(index, a, b)` (the items in each of the four cells for two categories), `relOfCells`, `inUniverse`, `buildPool(index)` (every pair of categories worth drilling), `makePair(index, entry)` (labels, examples and the reason for each empty cell), `nextPair(index, pool, state)` (the draw: the relation least seen lately first, then a pair weighted by recent mistakes, lowered for pairs seen or skipped lately) |
 | `grading.ts` | `grade(index, pair, answer)` for Relations, `gradeDebate(index, pair, answer)` for Pervasions, `judgeText` (where an example belongs), `deriveRel` (the relation three debate answers imply), `summarize` (the counts and the overall grade) |
-| `verdict.ts` | `parseVerdicts(text)` reads the lines `Both: ... => yes` of the tutor's answer; `applyVerdicts(pair, result, verdicts)` settles the cells that were still open |
+| `verdict.ts` | `parseFactLine(line)` reads the tutor's line for an example, `Both: "the example" \| class: Taste source \| A yes: ... \| B no: ...` (the example's class, is it A, is it B, and the reason for each); `fitOf` draws the verdict for the cell from the two answers, and `noteParts` gives the note the page shows: the subject once ("Take S:"), a consequence per term in the debate's form ("It follows it is (not) P, because R"), with the pervasion of a denied term on a line under it when the tutor gives one; with the term data a listed example is placed as the grading places it and a side takes the steps `ladder.ts` gives, and a conclusion only when the example does not fit (`partsText` is the same as plain text); `parseVerdicts(text)` reads these lines, and the older `Both: ... => yes` form saved explanations have; `applyVerdicts(pair, result, verdicts)` settles the cells that were still open |
+| `ladder.ts` | `rung(index, class, category, ...)`: the steps from an example's class to a term of the pair, from the term data: up the chain of parents to the term, or up to a class the data marks as excluding one the term is in (`contra`), with the sentence that says so ("A sense power is an internal form, which is a form, and nothing is both a consciousness and a form."); null when the data cannot tell. `listedItem` finds the example as the grading does |
 | `types.ts`, `util.ts` | the pair, the result of a check and the pool entry; `cap`, `pick`, `gradeOf`, `isMiss` |
 
 Randomness is a parameter (`rng`, `Math.random` by default), so the same data and the same random numbers give the same pairs. `tests/unit/domain.test.ts` checks the rules on made-up data and, on the real open data, that the right answer is graded ok for every pair the page can draw; it also checks that the folder imports nothing but itself and `src/ai-shared` and touches no `window`, `document`, storage or network.

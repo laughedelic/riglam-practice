@@ -7,7 +7,7 @@ import { isWide } from "../core/viewport.js";
 import { backWhy, chooseD, debateList, sayQ, submitWhy } from "./flow.js";
 import { QCELL, Wd, ansNode, qNode } from "./text.js";
 import { favBtn } from "../practice/favorites.js";
-import { exLine, explainBtn, explainParts, fbNode, isaTxt, kbHints, nextBtn, recentNode, relCap, relList, relPopNode, relStrip, relWhy, resultBlock, termsItem, tutorAct, tutorItem, whyBtn } from "../practice/screen.js";
+import { exLine, explainBtn, explainParts, factNode, fbNode, isaTxt, kbHints, nextBtn, recentNode, relCap, relList, relPopNode, relStrip, relWhy, resultBlock, termsItem, tutorAct, tutorItem, whyBtn, whyHead } from "../practice/screen.js";
 import { skipActs, subRowNode } from "../practice/skips.js";
 import { exGrid } from "../review/review.js";
 import { fitPair, render, setSteps } from "../shell/render.js";
@@ -54,8 +54,9 @@ function questionRows(u){
       on?el("div",{class:"qb"},
         el("span",{class:"qq"},qNode(i)),
         ansNode(a,a.limit&&a.ms!=null?a.ms:null,i),
-        el("span",{class:"fbq"},el("b",{text:rr.msg[0]}),rr.msg[2]?[" ",el("i",{text:rr.msg[2]})]:null,isaTxt(rr.msg[1]||"")),
-        ex.cells[c]?el("span",{class:"cl"},el("span",{class:"clh",text:"Claude"}),aiFlag(aiCase("explain","Claude’s note on Q"+(i+1),ex.cells[c],c),"q:"+c),ex.cells[c]):null,
+        // the tutor's note on an accepted question names its own counter-example, so the reference's is not shown beside it
+        ex.facts[c]&&a.say!=="why"?null:el("span",{class:"fbq"},el("b",{text:rr.msg[0]}),rr.msg[2]?[" ",el("i",{text:rr.msg[2]})]:null,isaTxt(rr.msg[1]||"")),
+        ex.cells[c]?el("span",{class:"cl"},ex.facts[c]?null:whyHead(),aiFlag(aiCase("explain","Claude’s note on Q"+(i+1),ex.cells[c],c),"q:"+c),ex.facts[c]?factNode(ex.facts[c],whyHead()):ex.cells[c]):null,
         ex.cells[c]?flagEditorNode("q:"+c):null):null);
   }));
 }
@@ -144,7 +145,7 @@ export function renderDebate(s,c){
   }
 
   if(stage==="rel"||stage==="done"){
-    if(w) s.append(relStrip(chooseD,stage==="done"),stage==="rel"?timerSlot("rel",relTimedD()):null,relCap("Pick the relation your answers give (keys 1–5). Picking it checks your answers."));
+    if(w) s.append(...[relStrip(chooseD,stage==="done"),stage==="rel"?timerSlot("rel",relTimedD()):null,relCap("Pick the relation your answers give (keys 1–5). Picking it checks your answers.")].filter(Boolean)); // append(null) would write the text "null"
     else if(stage==="rel"&&u.open) s.append(relList(chooseD,null));
   }
   if(stage==="done"){
