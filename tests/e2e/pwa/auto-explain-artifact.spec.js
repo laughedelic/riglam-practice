@@ -8,7 +8,7 @@ test.skip(({ viewport }) => !viewport || viewport.width < 1100, "the wide layout
 async function start(page, setting) {
   await page.addInitScript((v) => {
     window.__riglamTest = (t) => { window.__t = t; };
-    try { localStorage.setItem("rd-lab", "0"); if (v !== null) localStorage.setItem("rd-autoexplain", v); } catch { /* storage unavailable */ }
+    try { if (v !== null) localStorage.setItem("rd-autoexplain", v); } catch { /* storage unavailable */ }
   }, setting);
   await routeArtifact(page, { ai: true });
   await page.goto("http://artifact.test/");

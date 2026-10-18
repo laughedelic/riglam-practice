@@ -7,12 +7,12 @@ import type { Tokens } from "./prices";
 
 export const dayOf = (now: Date): string => now.toISOString().slice(0, 10);
 
-export type Scope = "global" | `dev:${string}` | "lab" | `lab:dev:${string}`;
+export type Scope = "global" | `dev:${string}` | "quorum" | `quorum:dev:${string}`;
 
-/** Whose money a call is: the tutor's, or the check lab's (worker/lab.ts), which has counters of its own so that it cannot use up the tutor's budget. */
-export type Pool = "tutor" | "lab";
-const globalOf = (pool: Pool): Scope => (pool === "lab" ? "lab" : "global");
-const deviceOf = (pool: Pool, device: string): Scope => (pool === "lab" ? `lab:dev:${device}` : `dev:${device}`);
+/** Whose money a call is: the tutor's, or Quorum's (worker/quorum.ts), which has counters of its own so that it cannot use up the tutor's budget. */
+export type Pool = "tutor" | "quorum";
+const globalOf = (pool: Pool): Scope => (pool === "quorum" ? "quorum" : "global");
+const deviceOf = (pool: Pool, device: string): Scope => (pool === "quorum" ? `quorum:dev:${device}` : `dev:${device}`);
 
 export type Reservation = { ok: true } | { ok: false; scope: "device" | "global" };
 

@@ -12,7 +12,7 @@ npm run dev     # the PWA with hot reload at http://localhost:5173
 
 The definitions of the terms are not in the repository ([DATA.md](DATA.md)). Without them the page still runs, with the open data only. The artifact build and the tests that read definitions need the folder `data-private/`; without it, use `npm run build:pwa`, and those tests skip. `npm run dev` has no server, so the definitions stay locked there.
 
-In `npm run dev` the parts that ask Claude (the tutor, Explain, the check lab) are served by a stand-in that calls no model. Add `?ai=slow`, `?ai=rate_limited` or `?ai=error` to the address to see how the page behaves when the model is slow or fails, and `?ai=off` to see the page without them.
+In `npm run dev` the parts that ask Claude (the tutor and Explain) are served by a stand-in that calls no model. Add `?ai=slow`, `?ai=rate_limited` or `?ai=error` to the address to see how the page behaves when the model is slow or fails, and `?ai=off` to see the page without them.
 
 ## Where a change goes
 
@@ -37,7 +37,7 @@ Rules that fail a test if you break them, so you can find out early:
 
 ## Stored data
 
-The page stores answers, debates, favorites, skipped pairs, flags and check-lab runs on the device (or in the artifact's database). People already have these. The shape of each document is typed in `src/app/types.ts`, and the writers are checked against it, so a misspelled field fails `npm run typecheck`.
+The page stores answers, debates, favorites, skipped pairs and flags on the device (or in the artifact's database), and keeps the runs of an earlier Quorum that people already hold. People already have these. The shape of each document is typed in `src/app/types.ts`, and the writers are checked against it, so a misspelled field fails `npm run typecheck`.
 
 Never rename a collection or change a document shape without a migration of the data that exists. Export and import ([ARCHITECTURE.md](ARCHITECTURE.md#export-and-import)) carries a file version for this reason: an old file must still import.
 

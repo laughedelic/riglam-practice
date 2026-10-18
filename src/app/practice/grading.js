@@ -1,5 +1,4 @@
 import { state } from "../state.js";
-import { labStart } from "../ai/lab.js";
 import { explainByItself } from "../ai/tutor.js";
 import { CELLS, REL } from "../core/rel.js";
 import { pairsOf } from "../core/util.js";
@@ -29,5 +28,4 @@ export async function check(){
   if(state.ui.late||state.ui.exLate) doc.timeout=state.ui.late&&state.ui.exLate?"both":state.ui.late?"relation":"examples";
   state.ui.doc=doc;
   persist(state.ui,"Your answer");
-  labStart(state.ui,state.cur);
 }

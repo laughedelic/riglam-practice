@@ -6,7 +6,7 @@
 
 /** The term data as the page reads it (docs/DATA.md); the types live with the code that reads it. */
 import type { DrillData } from "../ai-shared/data";
-import type { TutorRequest } from "../ai/protocol";
+import type { QuorumOffer, QuorumRecord, TutorRequest } from "../ai/protocol";
 import type { Account, AccountView } from "../account/account";
 export type { DrillData, Account, AccountView };
 
@@ -101,16 +101,18 @@ export interface SampleResult {
 /** The `sample` capability: one model call, from a prompt or a list of turns (the artifact runtime's sample.d.ts). */
 export type Sample = (input: string | { role: string; content: string }[], options?: SampleOptions) => Promise<SampleResult>;
 
-/**
- * The `lab` capability: one model call of the check lab, from one prompt. `options.model` names the model that must answer and `options.effort` how hard it
- * thinks. The reply says which model answered (`modelApplied`), and the lab counts a run only when it is the one it asked for. The artifact's `sample` is one.
- */
-export type LabSample = (prompt: string, options?: SampleOptions) => Promise<SampleResult>;
-
 export interface TutorOptions {
   signal?: AbortSignal;
   /** called with all the text so far each time more of the answer arrives */
   onText?: (partial: { text: string }) => void;
+  /** Quorum only: called as each model (and then the judge) has answered or failed */
+  onStep?: (step: { name: string; ok: boolean }) => void;
+}
+
+/** The answer of the tutor: the text, and for a question Quorum answered, its record; `single` says that Quorum was asked for but the one model answered (its budget is used). */
+export interface TutorResult extends SampleResult {
+  quorum?: QuorumRecord;
+  single?: "budget";
 }
 
 /**
@@ -119,7 +121,7 @@ export interface TutorOptions {
  * error that has a `code`: the server's (`rate_limited`, `not_granted`, `prompt_too_large`, `bad_request`, `refused`,
  * `unavailable`), `offline`, or `cancelled` when `signal` aborted. A rejection after some text arrived carries it as `text`.
  */
-export type Tutor = (request: TutorRequest, options?: TutorOptions) => Promise<SampleResult>;
+export type Tutor = (request: TutorRequest, options?: TutorOptions) => Promise<TutorResult>;
 
 /**
  * `open` shows the prompt for the Magic Key; `tutor` says that the place has a tutor that is waiting for it (so the page shows Explain grayed).
@@ -171,13 +173,8 @@ export interface Platform {
   loadData(): Promise<DrillData>;
   /** The document store, or null when there is none (the page then runs without saving). */
   db(): Promise<Db | null>;
-  /** Model calls, or null when there are none (the page then hides the tutor, Explain and the check lab). */
+  /** Model calls, or null when there are none (the page then hides the tutor and Explain). */
   sample(): Promise<Sample | null>;
-  /**
-   * The check lab's model calls, or null when the place has none (the page then hides the lab). Absent means the lab uses `sample`, as in the artifact; the PWA
-   * has this one, because its `sample` is not the lab's: the page would then use it for the tutor too.
-   */
-  lab?(): Promise<LabSample | null>;
   /** The way to enter the Magic Key (the study group's key: it opens the definitions and the tutor), or null (or absent) when the place has no key to ask for or this device has it. */
   unlock?(): Promise<Unlock | null>;
   /** The other half of `unlock`: set while this device has the Magic Key, null (or absent) otherwise. */
@@ -190,6 +187,8 @@ export interface Platform {
   onKey?(tell: () => void | Promise<void>): () => void;
   /** The app's own tutor, or null (or absent) when the place has none or the server has it switched off. The page uses `sample` first when it has one. */
   tutor?(): Promise<Tutor | null>;
+  /** What the app's server offers this device of Quorum, the tutor's mode of several models and a judge (docs/SERVER.md): "on" (a Preview: on until the device turns it off), "optin" (off until the device turns it on), or false. Absent: the page has no Quorum. */
+  quorum?(): Promise<QuorumOffer>;
   /** The optional account (a passkey and a server copy of the documents, src/account), or null (or absent) when the place has none. The page works the same without. */
   account?(): Promise<Account | null>;
   /** Which build this is and whether a newer one is out, or null (or absent) when the place has no builds to tell apart (the artifact). */

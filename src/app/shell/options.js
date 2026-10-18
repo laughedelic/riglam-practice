@@ -1,7 +1,7 @@
 import { state } from "../state.js";
 import { accountControls } from "../../ui/account";
 import { dataTransferControls } from "../../ui/data-transfer";
-import { setLab } from "../ai/lab.js";
+import { setQuorum } from "../ai/quorum.js";
 import { canAsk } from "../core/ask.js";
 import { ico } from "../core/icons.js";
 import { MAGIC_KEY_NOTE } from "../../ui/magic-key-note.ts";
@@ -87,8 +87,8 @@ export function optionsInto(o){
       "Applies to the statements and to your answers."),
     canAsk()?row("AI tutor",el("button",{type:"button",class:"sw",role:"switch","aria-checked":state.autoExplain?"true":"false",onclick:()=>setAutoExplain(!state.autoExplain)},el("i",{class:"knob","aria-hidden":"true"}),el("span",{class:"swl",text:"Check every answer with AI"}),el("span",{class:"swt",text:state.autoExplain?"on":"off"})),
       "Right after you check an answer, the AI tutor explains it and checks the examples the page could not. Off, the Explain button waits for you."):null,
-    state.labSample&&state.db?row("Quorum",el("button",{type:"button",class:"sw",role:"switch","aria-checked":state.lab?"true":"false",onclick:()=>setLab(!state.lab)},el("i",{class:"knob","aria-hidden":"true"}),el("span",{class:"swl",text:"Three models check every answer"}),el("span",{class:"swt",text:state.lab?"on":"off"})),
-      "For development. After each check, Haiku, Sonnet and Opus classify your examples independently: three Claude calls"+(state.labSample===state.sample?" from your own usage":", from this test server\u2019s daily budget for Quorum")+". Opus rules as judge only when they differ, and on about one answer in ten as a spot check; when all three agree, that is the verdict. Every run is stored so the models can be compared, and any box with Claude\u2019s text has a flag. Your page verdicts do not change."):null,
+    state.quorumOffered&&state.db?row("Quorum",el("button",{type:"button",class:"sw",role:"switch","aria-checked":state.quorum?"true":"false",onclick:()=>setQuorum(!state.quorum)},el("i",{class:"knob","aria-hidden":"true"}),el("span",{class:"swl",text:"Several models explain"}),el("span",{class:"swt",text:state.quorum?"on":"off"})),
+      (state.quorumOptIn?"Optional, and slower. ":"For testing, on this test server only. ")+"With Quorum on, the explanation of an answer with an example the page could not check comes from Haiku, Sonnet and Opus, each on its own; where they put an example in different cells, Opus reads their answers and writes the one you see. The Quorum chip under a result shows all of them. The server keeps each run (the pair with what you wrote, and the answers), so the models can be compared. When the page checked every example itself, and with Quorum off, one model answers as in the app and nothing is kept."):null,
     timeRow("rel","Relation time","The Blitz countdown for choosing the relation, in Relations and in Pervasions."),
     timeRow("ex","Example time","The Blitz countdown for each example in Relations (a table of three cells gets three times this) and for each question in Pervasions."),
     state.unlock?row(mkBtn(),el("button",{type:"button",class:"btn ghost",onclick:()=>{ toggleOpts(false); state.unlock.open(); }},"Enter the Magic Key"),

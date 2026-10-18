@@ -2,8 +2,8 @@
 //   db      local IndexedDB store (./local-db.ts)
 //   sample  not available (the tutor is the server's): only `npm run dev` has one, a stand-in for the model (./dev-sample.ts);
 //           `?ai=off` in the address takes it away there too.
-//   lab     the check lab's model calls: the dev stand-in, or the app's own server (./lab.ts) when it says it answers them, which only a
-//           Preview does (docs/SERVER.md), and this device has the Magic Key. Otherwise the page hides the lab.
+//   quorum  whether the app's server offers Quorum, the tutor's mode of several models and a judge: only a Preview does (docs/SERVER.md), and
+//           only to a device that has the Magic Key. Otherwise the page has no Quorum.
 //   unlock  a way to enter the Magic Key, while this device has none (./unlock.ts); the definitions come from the server (./course.ts)
 //   keyHeld while it has one: enter another, or forget it (./unlock.ts)
 //   tutor   the app's own server (./tutor.ts), when it has the tutor on and this device has the Magic Key
@@ -19,7 +19,6 @@ import { aboutThisBuild } from "./about";
 import { updates } from "./updates";
 import { showStorageNotice } from "./storage-notice";
 import { storeName } from "./store-slot";
-import { createLab } from "./lab";
 import { createLocalDb } from "./local-db";
 import { createTutor, serverSays, type ServerSays } from "./tutor";
 import { takeLinkKey, storedKey, storeKey, forgetKey, keyDeclined, declineKey, allowKey, showUnlock, markKeyChanged, takeKeyChanged, KEY_CHANGED_TEXT } from "./unlock";
@@ -28,10 +27,10 @@ const db = createLocalDb({ name: storeName(), onUnavailable: showStorageNotice }
 const link = takeLinkKey(); // first of all: a key in the address leaves the address bar at once
 let openUnlock: (() => Promise<boolean>) | null = null; // asks for the key again; set while this device has none
 let groupKey: string | null = null; // the Magic Key, once it is known to fit (or kept with the definitions): the proof for the tutor is made with it
-let serverAnswer: Promise<ServerSays> | null = null; // what the server says in /api/health: asked once, for the tutor, the grayed Explain button and the lab
+let serverAnswer: Promise<ServerSays> | null = null; // what the server says in /api/health: asked once, for the tutor, the grayed Explain button and Quorum
 const serverSaid = () => (serverAnswer ??= serverSays());
 const tutorIsOn = async () => (await serverSaid()).tutor;
-const labOn = async () => (await serverSaid()).lab;
+const quorumOffered = async () => (await serverSaid()).quorum;
 let openData: Promise<DrillData> | null = null; // the open part of the term data, read once
 const readOpenData = () => (openData ??= fetch(dataUrl).then((r) => r.json()));
 let unlocked: DrillData | null = null; // the term data with the definitions, once the prompt took a key into the running page: loadData answers with it from then on
@@ -172,8 +171,6 @@ export const pwaPlatform: Platform = {
   loadData,
   db: async () => db,
   sample,
-  // The dev stand-in answers the lab too; a build asks the server, and only with the key (the server would refuse the request anyway).
-  lab: async () => (await sample()) ?? (groupKey && (await labOn()) ? createLab(groupKey) : null),
   onKey(tell) {
     keyListeners.add(tell);
     return () => void keyListeners.delete(tell);
@@ -186,6 +183,7 @@ export const pwaPlatform: Platform = {
   about: () => aboutThisBuild(),
   updates,
   tutor: async () => (groupKey && (await tutorIsOn()) ? createTutor(groupKey) : null),
+  quorum: async () => (groupKey ? await quorumOffered() : false),
   // Made on first ask and then kept; it finds out for itself whether the server has accounts, so the page can show its row at once.
   account: async () => (account ??= createPwaAccount(db, { read: () => groupKey ?? storedKey(), adopt: takeAccountKey, declined: keyDeclined, allow: allowKey })),
 };

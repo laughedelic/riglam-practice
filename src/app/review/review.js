@@ -1,5 +1,5 @@
 import { state } from "../state.js";
-import { labShown } from "../ai/lab.js";
+import { quorumShown } from "../ai/quorum.js";
 import { L, el } from "../core/dom.js";
 import { CELLS, REL, lcRel } from "../core/rel.js";
 import { dayOf, gradeOf, isMiss, pairsOf } from "../core/util.js";
@@ -10,7 +10,7 @@ import { popNode } from "../practice/screen.js";
 import { skipSection } from "../practice/skips.js";
 import { answerList } from "../practice/universe.js";
 import { renderDebateStats } from "./debate-stats.js";
-import { labReview } from "./lab-review.js";
+import { flagReview } from "./flag-review.js";
 import { render, top0 } from "../shell/render.js";
 import { switchTo } from "../shell/tabs.js";
 
@@ -44,7 +44,7 @@ function revOverview(box,all){
     el("table",{class:"tbl"},el("tbody",null,byRel.map(([r,n,k])=>el("tr",null,el("td",{text:rname[r]}),el("td",{class:"num"},n?k+" / "+n:"–",n?barNode(pct(k,n)):null)))))));
 
   renderDebateStats(box);
-  if(labShown()) labReview(box);
+  if(quorumShown()) flagReview(box);
 }
 function revMistakes(box,all,miss){
   // mistakes

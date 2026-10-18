@@ -7,8 +7,6 @@ export const API = {
   tutor: "/api/tutor",
   /** GET, with the device and proof headers: the definitions (`?have=<version>` asks only whether the copy kept is current) */
   course: "/api/course",
-  /** POST, with the device and proof headers: one model call of the check lab. Answered only by a server that has the lab on (a Preview). */
-  lab: "/api/lab",
 } as const;
 
 export const HEADER = {
@@ -32,6 +30,11 @@ export interface TutorRequest {
   cats: string[];
   /** the conversation so far, oldest first; the last turn is the learner's */
   turns: Turn[];
+  /**
+   * Asks for Quorum (worker/quorum.ts), the tutor's mode on a Preview: several models answer an explain request and the judge's answer is the one shown.
+   * A server that has Quorum off, and any request that is not an explain, answers with the one model as always.
+   */
+  quorum?: boolean;
 }
 
 /** What the server accepts. Anything above these is refused with `prompt_too_large`. */
@@ -71,38 +74,64 @@ export interface ErrorBody {
 export type TutorEvent =
   | { type: "delta"; text: string }
   | { type: "done"; truncated: boolean }
-  | { type: "error"; code: ErrorCode; message: string };
+  | { type: "error"; code: ErrorCode; message: string }
+  /** Quorum: a model has answered (`ok`) or failed, or the judge has (`name` "Judge"); sent as they happen, so the page can show how far it is */
+  | { type: "step"; name: string; ok: boolean }
+  /** Quorum: every answer and the ruling, before `done` */
+  | { type: "quorum"; record: QuorumRecord }
+  /** Quorum was asked for, but this answer is one model's: Quorum's budget for the day is used */
+  | { type: "single"; why: "budget" };
 
 /**
- * What the lab route accepts (worker/lab.ts): the models the check lab compares, the effort levels it asks for, and the size of a prompt
- * in characters. A model or an effort outside these is refused, so the route is not a way to use any model for anything.
+ * The models of Quorum (worker/quorum.ts). Each answers the explain request on its own, with the tutor's instructions and tools; where they give different
+ * cells for an example, the judge reads the answers and writes the one the learner sees. The names are what the chip shows.
  */
-export const LAB = {
-  models: ["claude-haiku-5-5", "claude-sonnet-5-5", "claude-opus-5-5"],
-  efforts: ["low", "medium", "high"],
-  prompt: 100_000,
+export const QUORUM = {
+  models: [
+    { id: "claude-haiku-5-5", name: "Haiku" },
+    { id: "claude-sonnet-5-5", name: "Sonnet" },
+    { id: "claude-opus-5-5", name: "Opus" },
+  ],
+  judge: { id: "claude-opus-5-5", name: "Judge" },
 } as const;
 
-/** The body of `POST /api/lab`: one prompt for one model, with no tools and no earlier turns. */
-export interface LabRequest {
+/** One call of a Quorum run: a model's answer, or the judge's. A call that failed has no text and says why in `error`. */
+export interface QuorumRun {
+  name: string;
   model: string;
-  effort: string;
-  prompt: string;
+  text: string;
+  ok: boolean;
+  /** milliseconds from the start of the call to its end */
+  ms: number;
+  truncated?: boolean;
+  error?: ErrorCode;
 }
 
-/** The answer of `POST /api/lab`. `modelApplied` is the model that answered; the lab does not count a run that another model answered. */
-export interface LabResponse {
-  text: string;
-  truncated: boolean;
-  modelApplied: string;
+/** What the maintainer sees of a Quorum run, and what the server keeps of it (migrations/0008_quorum_records.sql). */
+export interface QuorumRecord {
+  /** the stored row's id, which the flags made on this run carry */
+  id: string;
+  /** the models' answers, in the order of `QUORUM.models` */
+  models: QuorumRun[];
+  /** the judge's answer, when it was asked (`why`) */
+  judge: QuorumRun | null;
+  /** the name of the call whose text the learner saw: "Judge", or the model's name when the answers agreed (or only one could be used) */
+  shown: string;
+  why: "disagree" | null;
 }
+
+/** What a server offers of Quorum, as the page reads it from /api/health: nothing, or Quorum on by default, or Quorum for a device that asks for it. */
+export type QuorumOffer = false | NonNullable<Health["quorum"]>;
 
 /** The answer of /api/health. */
 export interface Health {
   ok: true;
   tutor: "on" | "off";
-  /** the lab's model calls (`POST /api/lab`) are answered; left out when they are not, as on every server that is not a Preview */
-  lab?: "on";
+  /**
+   * Quorum (worker/quorum.ts) is offered; left out when it is not, as on every server that is not a Preview. "on": a device has it on until it turns it off (a Preview);
+   * "optin": a device has it off until it turns it on.
+   */
+  quorum?: "on" | "optin";
   /** optional accounts and sync (src/account/protocol.ts); a server from before accounts leaves it out */
   accounts?: "on" | "off";
 }
