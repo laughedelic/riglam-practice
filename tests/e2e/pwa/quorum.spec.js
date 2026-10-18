@@ -355,6 +355,12 @@ withKey("where the models differ, the page flags each such example by itself and
   expect(after.find((f) => f.id === id)).toEqual(before);
   // the ones still new are rewritten with the new words and the new run
   for (const f of after.filter((f) => f.id !== id)) expect(f).toMatchObject({ runId: "another", state: "new" });
+  // a later run that says the same words still becomes the run the flag names; the reviewed one is left alone
+  const kase = { key: made[0].caseKey, a: made[0].pair.a, b: made[0].pair.b, relation: made[0].pair.relation, tab: "practice" };
+  await page.evaluate(([k, found]) => { window.__t.autoFlags(k, found); }, [kase, made.map((f) => ({ thing: f.thing, shown: f.shown + " (again)", runId: "third" }))]);
+  const third = await flags(page);
+  expect(third.find((f) => f.id === id)).toEqual(before);
+  for (const f of third.filter((f) => f.id !== id)) expect(f).toMatchObject({ runId: "third", shown: expect.stringContaining("(again)"), state: "new" });
   // Resolved and Delete work on the list
   await page.locator(".flagl li", { hasText: made[0].thing }).getByRole("button", { name: "Resolved" }).click();
   await expect.poll(async () => (await flags(page)).find((f) => f.id === id)?.state).toBe("resolved");

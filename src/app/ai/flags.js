@@ -52,7 +52,7 @@ export function autoFlags(kase,found){
   const now=new Date().toISOString();
   for(const {thing,shown,runId} of found){
     const c={caseKey:kase.key,thing,part:"quorum",model:"",n:null}, id=flagId(c), had=state.flags[id];
-    if(had&&(had.auto!=="quorum"||had.state!=="new"||had.shown===shown)) continue;
+    if(had&&(had.auto!=="quorum"||had.state!=="new"||(had.shown===shown&&(had.runId||null)===(runId||null)))) continue;   // same words from the same run: nothing to write
     /** @type {import("../types.ts").FlagDoc} */
     const draft={id,caseKey:kase.key,thing,part:"quorum",model:"",runId:runId||null,n:null,shown,note:"",suggest:"",pair:{a:kase.a,b:kase.b,relation:kase.relation,tab:kase.tab},auto:"quorum",at:had?had.at:now,updatedAt:now,state:"new"};
     const doc=JSON.parse(JSON.stringify(draft));
