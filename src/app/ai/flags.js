@@ -32,7 +32,8 @@ const flagOf=c=>state.flags[flagId(c)];
 function renderKeep(){ const sc=$("chatscroll"), y=sc?sc.scrollTop:0; render(); const n=$("chatscroll"); if(n&&y) n.scrollTop=y; }
 function flagWrite(k,fn,undo){
   state.flagErr=""; state.flagPending++;
-  return flagQ[k]=(flagQ[k]||Promise.resolve()).catch(()=>{}).then(fn).catch(e=>{ undo(); state.flagErr="The flag could not be saved ("+((e&&e.code)||"error")+"), so it was undone."; renderKeep(); }).finally(()=>{ state.flagPending--; });
+  return flagQ[k]=(flagQ[k]||Promise.resolve()).catch(()=>{}).then(fn).catch(e=>{ undo(); state.flagErr="The flag could not be saved ("+((e&&e.code)||"error")+"), so it was undone."; renderKeep(); })
+    .finally(()=>{ state.flagPending--; if(!state.flagPending) flushFlags(); });   // the snapshot of a write arrives while it is pending and sends nothing; what it wrote goes now
 }
 // A device without the Magic Key cannot flag (flags go to the app's maintainer, and only the study group's devices may write to it): it gets the same prompt as Explain
 export function openFlag(c,where){

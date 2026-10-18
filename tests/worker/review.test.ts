@@ -164,6 +164,16 @@ describe("the outcomes", () => {
     expect(JSON.parse(row(w).reviews!).map((r: { failed?: string }) => r.failed)).toEqual([undefined, "unreadable"]);
   });
 
+  it("the words a model says before it looks a term up are not part of its verdict", async () => {
+    const w = await world();
+    await send(w, report("fl_a"));
+    const looks: Round = { text: ["{not the verdict} "], tool: { id: "tu_1", name: "lookup_term", input: { name: "form" } } };
+    const api = models({ [SONNET]: [looks, says()], [OPUS]: [says()] });
+    expect(await pass(w, api)).toEqual({ done: 1, retried: 0 });
+    expect(row(w)).toMatchObject({ state: "answered", reply: "Hot things and white things can overlap." });
+    expect(JSON.parse(row(w).reviews!).map((r: { failed?: string }) => r.failed)).toEqual([undefined, undefined]);
+  });
+
   it("one model alone cannot settle a flag", async () => {
     const w = await world({ REVIEW_MODELS: SONNET });
     await send(w, report("fl_a"));
@@ -208,6 +218,30 @@ describe("reports that need no model", () => {
   });
 });
 
+describe("reports stored before the review knew what to do with them", () => {
+  it("a flag a program wrote that is waiting for review (sent by an earlier version) is the maintainer's without a call", async () => {
+    const w = await world();
+    await sendAll(w, report("fl_a", { auto: "quorum", part: "quorum", note: "", shown: "The models gave different cells." }), report("fl_b"));
+    w.db.sql("UPDATE flag_reports SET state = 'sent', outcome = NULL, reason = NULL WHERE id = 'fl_a'");
+    const api = both(says());
+    expect(await pass(w, api)).toEqual({ done: 2, retried: 0 });
+    expect(api.calls(SONNET)).toHaveLength(1); // the learner's flag only
+    expect(row(w, "fl_a")).toMatchObject({ state: "maintainer", outcome: "escalate", reason: "automatic flag (quorum): not reviewed by the models; the maintainer decides", reviews: "[]" });
+  });
+
+  it("a stored flag with a field that is not text goes to the maintainer and does not stop the pass", async () => {
+    const w = await world();
+    await sendAll(w, report("fl_a"), report("fl_b"));
+    const flag = JSON.stringify({ id: "fl_a", caseKey: { toString: 0 }, part: "explain", shown: "x", note: "y", state: "new" });
+    w.db.sql("UPDATE flag_reports SET flag = ? WHERE id = 'fl_a'", flag);
+    const api = both(says());
+    expect(await pass(w, api)).toEqual({ done: 2, retried: 0 });
+    expect(row(w, "fl_a")).toMatchObject({ state: "maintainer", reason: "the exercise could not be read", reply: null });
+    expect(row(w, "fl_b")).toMatchObject({ state: "answered" });
+    expect(api.calls(SONNET)).toHaveLength(1);
+  });
+});
+
 describe("when the pass cannot go on", () => {
   it("does nothing when the review is off, without an API key, or without course data; the reports wait unclaimed", async () => {
     const w = await world();
@@ -240,6 +274,18 @@ describe("when the pass cannot go on", () => {
     w.clock.now = new Date(w.clock.now.getTime() + 86_400_000);
     expect(await pass(w, api)).toEqual({ done: 1, retried: 0 });
     expect(row(w, "fl_b").state).toBe("answered");
+  });
+
+  it("a report the budget cannot cover has not used one of its tries: it is still reviewed the next day, however many passes were refused", async () => {
+    const w = await world({ REVIEW_DAILY_BUDGET_USD: "0.05" }); // less than one hold
+    await send(w, report("fl_a"));
+    const api = both(says());
+    for (let i = 0; i < MAX_ATTEMPTS + 2; i++) expect(await pass(w, api)).toEqual({ done: 0, retried: 0, stopped: "budget" });
+    expect(row(w)).toMatchObject({ state: "sent", claimed_at: null, attempts: 0 });
+    expect(api.calls(SONNET)).toHaveLength(0);
+    w.env.REVIEW_DAILY_BUDGET_USD = "5";
+    expect(await pass(w, api)).toEqual({ done: 1, retried: 0 });
+    expect(row(w)).toMatchObject({ state: "answered", reply: "Hot things and white things can overlap.", attempts: 1 });
   });
 
   it("a model API that fails gives the report back for the next pass, and after the last attempt the maintainer has what there is", async () => {
@@ -294,6 +340,31 @@ describe("sent again", () => {
     expect(row(w)).toMatchObject({ state: "sent", reply: null, outcome: null, claimed_at: null, attempts: 0 });
     expect(await pass(w, both(says({ reply: "Second." })))).toEqual({ done: 1, retried: 0 });
     expect(row(w)).toMatchObject({ state: "answered", reply: "Second." });
+  });
+
+  it("a flag edited after the pass listed it, before the pass took it, is left for the next pass with its tries unspent", async () => {
+    const w = await world();
+    await sendAll(w, report("fl_a"), report("fl_b"));
+    const api = both(says());
+    // the first model call is for fl_a; by then the pass has listed both, and fl_b is edited
+    api.onFirstCall(async () => void (await send(w, report("fl_b", { note: "A better note." }))));
+    expect(await pass(w, api)).toEqual({ done: 1, retried: 0 });
+    expect(row(w, "fl_a")).toMatchObject({ state: "answered" });
+    expect(row(w, "fl_b")).toMatchObject({ state: "sent", claimed_at: null, attempts: 0, reply: null });
+    expect(await pass(w, both(says({ reply: "Second." })))).toEqual({ done: 1, retried: 0 });
+    expect(row(w, "fl_b")).toMatchObject({ state: "answered", reply: "Second." });
+    expect(api.calls(SONNET).map((c) => c.body.messages[0].content).join("")).not.toContain("A better note.");
+  });
+
+  it("the same words sent from another device of the account keep the first report and its review; changed words replace it", async () => {
+    const w = await world();
+    const me = await signUp(w, "me");
+    await send(w, report("fl_a"), DEV_A, me.cookie);
+    await pass(w, both(says()));
+    expect((await send(w, report("fl_a", { state: "resolved" }), DEV_B, me.cookie)).status).toBe(200);
+    expect(w.db.sql("SELECT device, state, reply FROM flag_reports")).toEqual([{ device: DEV_A, state: "answered", reply: "Hot things and white things can overlap." }]);
+    expect((await send(w, report("fl_a", { note: "Another note." }), DEV_B, me.cookie)).status).toBe(200);
+    expect(w.db.sql("SELECT device, state, reply FROM flag_reports")).toEqual([{ device: DEV_B, state: "sent", reply: null }]);
   });
 
   it("the same words sent again keep their review, even with the flag's own state or time changed; other words start it again", async () => {

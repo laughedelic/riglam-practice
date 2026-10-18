@@ -37,26 +37,39 @@ function readStatus(v: unknown): ReportStatus | null {
   };
 }
 
-/** The ids of flags removed on this device that the server has not yet been told about. Without usable storage they last for the visit. */
+/**
+ * The ids of flags removed on this device that the server has not yet been told about. Without usable storage they last for the
+ * visit; so do the ids written after storage refused a write (full), which it would otherwise still show without them.
+ */
 function pendingStore() {
   let memory: string[] = [];
+  let refused = false;
   return {
     read(): string[] {
+      if (refused) return memory;
       try {
         const v = JSON.parse(localStorage.getItem(PENDING) ?? "[]");
-        return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
-      } catch {
-        return memory;
-      }
+        memory = Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+      } catch { /* the visit's own copy */ }
+      return memory;
     },
     write(ids: string[]) {
       memory = ids.slice(-KEPT_MAX);
       try {
         if (memory.length) localStorage.setItem(PENDING, JSON.stringify(memory));
         else localStorage.removeItem(PENDING);
-      } catch { /* kept for the visit only */ }
+      } catch {
+        refused = true;
+      }
     },
   };
+}
+
+/** Keeps the id of a report removed while this device has no `reports` capability (offline at the start, no key), so that the next start that has it takes the report back. */
+export function withdrawLater(id: string) {
+  const pending = pendingStore();
+  const left = pending.read();
+  if (!left.includes(id)) pending.write([...left, id]);
 }
 
 /** The reports for a device that has `key` (already known to be the study group's). */

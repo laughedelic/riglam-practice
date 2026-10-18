@@ -6,7 +6,7 @@ import { testMagicKey } from "../support/magic-key";
 import { HEADER } from "../../src/ai/protocol";
 import { checkProof } from "../../src/ai/proof";
 import { REPORT_LIMITS, type FlagReport, type ReportRequest } from "../../src/report/protocol";
-import { createReports, reportsAreOn } from "../../src/pwa/reports";
+import { createReports, reportsAreOn, withdrawLater } from "../../src/pwa/reports";
 import { readFileSync } from "node:fs";
 import { flagStateText } from "../../src/domain/flags";
 
@@ -134,6 +134,29 @@ describe("taking back", () => {
     const later = client(testMagicKey(), storing);
     await later.reports.flush();
     expect(later.seen.map((s) => s.body)).toEqual([{ withdraw: ["fl_a", "fl_b"] }]);
+    expect(kept.has("riglam.flagsToWithdraw")).toBe(false);
+  });
+
+  it("keeps the removals of the visit when storage refuses a write, so the next flush still has them", async () => {
+    const kept = new Map<string, string>();
+    vi.stubGlobal("localStorage", { getItem: (k: string) => kept.get(k) ?? null, setItem: () => { throw new Error("the quota is full"); }, removeItem: (k: string) => void kept.delete(k) });
+    let up = false;
+    const { reports, seen } = client(testMagicKey(), (body) => (up ? storing(body) : json(503, { error: { code: "unavailable" } })));
+    await reports.withdraw("fl_a");
+    await reports.withdraw("fl_b");
+    up = true;
+    await reports.flush();
+    expect(seen.at(-1)?.body).toEqual({ withdraw: ["fl_a", "fl_b"] });
+  });
+
+  it("a removal made while the device had no reports is kept, and the next client says it", async () => {
+    const kept = stubStorage();
+    withdrawLater("fl_a");
+    withdrawLater("fl_a");
+    expect(JSON.parse(kept.get("riglam.flagsToWithdraw")!)).toEqual(["fl_a"]);
+    const { reports, seen } = client(testMagicKey(), storing);
+    await reports.flush();
+    expect(seen.map((s) => s.body)).toEqual([{ withdraw: ["fl_a"] }]);
     expect(kept.has("riglam.flagsToWithdraw")).toBe(false);
   });
 
