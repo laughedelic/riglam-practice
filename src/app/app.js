@@ -1,5 +1,6 @@
 import { state } from "./state.js";
 import { aiCase, aiFlag, autoFlags, decorateAns, flagId, flagsSubscribe, openFlag, removeFlag, saveFlag, setFlagState } from "./ai/flags.js";
+import { flushFlags } from "./ai/flag-reports.js";
 import { quorumThings, setQuorum, setQuorumOffer } from "./ai/quorum.js";
 import { refOf } from "./core/rel.js";
 import { favKey } from "./practice/favorites.js";
@@ -44,6 +45,7 @@ async function bootSteps(platform){
   if(state.unlock&&state.unlock.answer){ const u=state.unlock; u.answer.then(on=>{ u.tutor=!!on; if(state.mode!=="loading") render(); },()=>{}); }
   try{ state.tutor=platform.tutor?await platform.tutor():null; }catch(e){ state.tutor=null; }
   try{ state.reports=platform.reports?await platform.reports():null; }catch(e){ state.reports=null; }
+  state.withdrawLater=platform.withdrawReport||null;
   try{ setQuorumOffer(state.tutor&&platform.quorum?await platform.quorum():false); }catch(e){ setQuorumOffer(false); }
   try{ state.account=platform.account?await platform.account():null; }catch(e){ state.account=null; }
   // which build this is: asked in the background (it looks at the server), shown in Options when it arrives
@@ -84,8 +86,10 @@ async function rekey(platform){
   try{ state.unlock=platform.unlock?await platform.unlock():null; }catch(e){ state.unlock=null; }
   try{ state.keyHeld=platform.keyHeld?await platform.keyHeld():null; }catch(e){ state.keyHeld=null; }
   try{ state.tutor=platform.tutor?await platform.tutor():null; }catch(e){ state.tutor=null; }
+  try{ state.reports=platform.reports?await platform.reports():null; }catch(e){ state.reports=null; }
   try{ setQuorumOffer(state.tutor&&platform.quorum?await platform.quorum():false); }catch(e){ setQuorumOffer(false); }
   state.keyAsk=false;
+  flushFlags();                   // flags that were waiting for a key go now
   if(state.mode!=="loading") render();
 }
 function settle(){

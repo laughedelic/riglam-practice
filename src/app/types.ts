@@ -213,6 +213,8 @@ export interface State {
   tutor: Tutor | null;
   /** sends flags to the app's server (platform.reports), when the place has a server for them and this device has the Magic Key */
   reports: Reports | null;
+  /** keeps the removal of a flag for a later start that has `reports` (platform.withdrawReport) */
+  withdrawLater: ((id: string) => void) | null;
   /** optional sign-in with a server copy of the documents (platform.account), when the place has one */
   account: Account | null;
   /** the same for the Account row (src/ui/account.ts) */
@@ -251,8 +253,6 @@ export interface State {
   skipErr: string;
   flagErr: string;
   flagPending: number;
-  /** true while unsent flags are being sent, so that two runs do not overlap */
-  reportBusy: boolean;
 
   // skips
   skipNote: SkipNote | null;
