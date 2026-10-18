@@ -101,8 +101,12 @@ export function readManifest(cwd, ref) {
   return data;
 }
 
-/** What a build depends on, to tell whether the branch on origin is already the result: the base commit and each pull request's head, in order. */
-export const inputsOf = (baseSha, entries) => ({ baseSha, pulls: entries.map((e) => `${e.number}@${e.sha ?? "gone"}`) });
+/**
+ * What a build depends on, to tell whether the branch on origin is already the result: the base commit and each pull request's head, in
+ * order, and the pull request it is stacked on (`3@abc<2`), since a child follows its parent's fate: retargeting it changes the build
+ * though its head did not move.
+ */
+export const inputsOf = (baseSha, entries) => ({ baseSha, pulls: entries.map((e) => `${e.number}@${e.sha ?? "gone"}${e.parent !== null && e.parent !== undefined ? `<${e.parent}` : ""}`) });
 
 const sameInputs = (manifest, wanted) => Boolean(manifest?.baseSha) && manifest.baseSha === wanted.baseSha && JSON.stringify(manifest.inputs) === JSON.stringify(wanted.pulls);
 

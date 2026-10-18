@@ -29,6 +29,9 @@ export function statusOf(entry, result) {
 /** The status that takes the place of an old one on a pull request that is no longer on staging: the label came off, or it was closed. */
 export const leftStatus = (open = true) => ({ state: "success", description: open ? "Not in staging (no label)" : "Not in staging (closed)" });
 
+/** The status for the commit a pull request was reported on, when its branch is no longer on origin. */
+export const goneStatus = () => ({ state: "success", description: "Not in staging (its branch is gone)" });
+
 /** The marker of a comment, so that the same head commit is never told twice. */
 export const commentMarker = (skip) => `<!-- staging-conflict ${skip.sha} -->`;
 
@@ -109,8 +112,11 @@ export async function publish(client, { result, openPulls, runUrl, log = console
   // commit it was given it, must not go on saying it is in. That commit is the one in the manifest, not necessarily the head now.
   const now = new Set(result.entries.map((e) => e.number));
   const stillOpen = new Set(openPulls.map((p) => p.number));
+  // The same goes for one that is still listed but whose branch is gone from origin: it has no head to report on now.
   for (const old of [...(result.previous?.pulls ?? []), ...(result.previous?.skipped ?? [])]) {
-    if (old.sha && !now.has(old.number)) await status(old.sha, leftStatus(stillOpen.has(old.number)), `#${old.number}`);
+    if (!old.sha) continue;
+    if (!now.has(old.number)) await status(old.sha, leftStatus(stillOpen.has(old.number)), `#${old.number}`);
+    else if (!result.entries.find((e) => e.number === old.number)?.sha) await status(old.sha, goneStatus(), `#${old.number}`);
   }
 
   for (const skip of repair ? result.skipped : newSkips(result)) {

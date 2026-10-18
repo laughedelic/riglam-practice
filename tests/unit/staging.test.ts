@@ -6,7 +6,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { MANIFEST, StagingError, migrationWarnings, push, rebuild, selectPulls } from "../../scripts/lib/staging.mjs";
-import { commentMarker, conflictComment, describe as describeResult, leftStatus, newSkips, publish, statusOf, summary, whySkipped } from "../../scripts/lib/staging-report.mjs";
+import { commentMarker, conflictComment, describe as describeResult, goneStatus, leftStatus, newSkips, publish, statusOf, summary, whySkipped } from "../../scripts/lib/staging-report.mjs";
 import { githubClient } from "../../scripts/lib/staging-github.mjs";
 
 const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_SYSTEM: "/dev/null" } }).trim();
@@ -267,6 +267,17 @@ test("the same inputs as origin/staging build nothing; a new head, a moved main 
   expect(rebuild({ cwd: work, entries: [entry(1, "feat-a"), entry(2, "feat-b")] }).upToDate).toBe(false);
 });
 
+test("a pull request retargeted to another base is built again though its head did not move", () => {
+  branch(work, "p", { "a.txt": "one\nTWO-p\nthree\n" });
+  branch(work, "q", { "q.txt": "q\n" }, "p");
+  const stacked = [entry(1, "p"), entry(2, "q", { base: "p", parent: 1 })];
+  rebuild({ cwd: work, entries: stacked });
+  expect(JSON.parse(git(work, "show", `staging:${MANIFEST}`)).inputs[1]).toMatch(/^2@[0-9a-f]{40}<1$/);
+  push({ cwd: work });
+  expect(rebuild({ cwd: work, entries: stacked }).upToDate).toBe(true);
+  expect(rebuild({ cwd: work, entries: [entry(1, "p"), entry(2, "q")] }).upToDate).toBe(false);
+});
+
 test("a manifest from before the rebuild had inputs is rebuilt", () => {
   branch(work, "feat-a", { "b.txt": "b\n" });
   git(work, "switch", "--quiet", "-c", "staging", "origin/main");
@@ -452,6 +463,14 @@ test("a run that built nothing reads what went in and what was left out from the
   expect(statusOf(again.entries[0], again)).toEqual(statusOf(built.entries[0], built));
   expect(statusOf(again.entries[2], again)).toEqual(statusOf(built.entries[2], built));
   expect(statusOf(again.entries[3], again)).toEqual(statusOf(built.entries[3], built));
+});
+
+test("a pull request whose branch is gone loses the status of the commit it was reported on", async () => {
+  const gone = { ...entry(1, "branch-1"), sha: null };
+  const result = { ...sampleResult(), entries: [gone], merged: [], skipped: [{ ...gone, reason: "gone", files: [], withMain: false, with: [] }], previous: { pulls: [{ number: 1, sha: "1".repeat(40) }], skipped: [] } };
+  const client = fakeClient();
+  await publish(client, { result, openPulls: [{ number: 1, head: { sha: "1".repeat(40) } }] });
+  expect(client.calls.filter((c) => c[0] === "status")).toEqual([["status", "1".repeat(40), "success", goneStatus().description, "staging", undefined]]);
 });
 
 test("a refused call is logged and does not stop the rest", async () => {

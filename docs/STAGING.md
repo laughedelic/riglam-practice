@@ -20,7 +20,7 @@ The workflow [staging.yml](../.github/workflows/staging.yml) runs
 - when `main` changes (a merge), and
 - every 30 minutes, as a net under the events. A pull request stacked on a branch that does not have the workflow file yet, one that conflicts with `main`, and a push made by a workflow's own token do not start a `pull_request` workflow; the schedule catches them.
 
-Every run reads the open pull requests afresh, so a run that was queued behind another needs nothing from the event that started it. A run that finds `origin/staging` already built from the same `main` and the same pull request heads (they are recorded in `staging.json`) builds and pushes nothing; it only makes good a status or a comment that GitHub refused after the last push. Otherwise it pushes the new branch, which starts the deploy (below), and then runs lint, types, a build and the unit tests on the result in a second job, because that is where two pull requests can break each other.
+Every run reads the open pull requests afresh, so a run that was queued behind another needs nothing from the event that started it. A run that finds `origin/staging` already built from the same `main`, the same pull request heads and the same stacking (they are recorded in `staging.json`) builds and pushes nothing; it only makes good a status or a comment that GitHub refused after the last push. Otherwise it pushes the new branch, which starts the deploy (below), and then runs lint, types, a build and the unit tests on the result in a second job, because that is where two pull requests can break each other.
 
 ## When a pull request does not merge
 
