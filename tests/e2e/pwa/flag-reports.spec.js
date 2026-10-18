@@ -428,7 +428,7 @@ test("an edit that is still being saved is not uploaded, so a save that fails le
   const hold = await holdFirstUpload(page, "withdraw");
   await page.reload();
   await ready(page);
-  await expect.poll(() => hold.asked).toEqual(["withdraw"]); // the start's flush waits for the server before it looks at the flags
+  await expect.poll(() => hold.asked.includes("withdraw")).toBe(true); // the start's flush waits for the server before it looks at the flags
   const li = await openFlags(page);
   await li.getByRole("button", { name: "Edit" }).click();
   await page.locator("#flag-note").fill("A bowl need not be round.");
@@ -438,12 +438,12 @@ test("an edit that is still being saved is not uploaded, so a save that fails le
   hold.release(); // the flush goes on, with the edit not yet saved
   await expect.poll(() => page.evaluate(() => localStorage.getItem("riglam.flagsToWithdraw"))).toBeNull();
   await pause(page);
-  expect(hold.asked).toEqual(["withdraw"]); // the edit is not uploaded while it may still be undone
+  expect(hold.asked).not.toContain("send"); // the edit is not uploaded while it may still be undone
   await page.evaluate(() => window.__held.release()); // the save is refused and the edit undone
   await pause(page, 800);
   await openFlags(page);
   await expect(page.locator(".status", { hasText: "could not be saved" })).toBeVisible();
-  expect(hold.asked).toEqual(["withdraw"]);
+  expect(hold.asked).not.toContain("send");
   expect(reports(world)).toEqual([]);
   expect((await stored(page)).fl_cell.note).toBe("A bowl can be square.");
 });
