@@ -178,6 +178,23 @@ test("a flag that could not be sent waits, says so, and goes when the server is 
   await expect.poll(() => reports(world).length).toBe(1);
 });
 
+test("a sent mark that arrives with the flag's document alone (another tab, another device of the account) shows in an open Review", async ({ page }) => {
+  await giveKey(page);
+  const world = await serverWorld({}, { stubCourse: true });
+  await bridge(page, world);
+  await page.route("**/api/flags", (route) => route.abort("connectionfailed")); // this tab cannot send it
+  await seed(page);
+  const li = await openFlags(page);
+  await expect(li.locator("summary").first()).toContainText("Waiting to be sent");
+  // the same flag with only the mark added: same id, state and time
+  await page.evaluate(async () => {
+    const ref = (await window.__riglam.platform.db()).collection("flags").doc("fl_cell");
+    const doc = (await ref.get()).data();
+    await ref.set({ ...doc, sentAt: new Date().toISOString() });
+  });
+  await expect(li.locator("summary").first()).toContainText("Sent to the maintainer");
+});
+
 /** Holds the first request of `kind` ("send" or "withdraw") to the server about flags until `release()`; `asked` notes every such request, in the order they were made. */
 async function holdFirstUpload(page, kind = "send") {
   const asked = [];
