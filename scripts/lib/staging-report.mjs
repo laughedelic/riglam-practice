@@ -5,6 +5,9 @@
 /** The name of the check run on a pull request. */
 export const CHECK_NAME = "staging";
 
+/** The most files a check summary names: GitHub refuses a check run whose summary is over 65,535 characters, and then nothing would be reported. */
+const MAX_FILES = 40;
+
 const ticks = (names) => names.map((n) => `\`${n}\``).join(", ");
 const cut = (text, max = 140) => (text.length <= max ? text : `${text.slice(0, max - 1)}…`);
 
@@ -56,7 +59,8 @@ function leftOutSummary(skip) {
     "Staging left this pull request out because it does not merge cleanly.",
     "",
     "Conflicts in:",
-    ...skip.files.map((f) => `- \`${f}\``),
+    ...skip.files.slice(0, MAX_FILES).map((f) => `- \`${f}\``),
+    ...(skip.files.length > MAX_FILES ? [`- and ${skip.files.length - MAX_FILES} more`] : []),
     ...(others.length ? ["", `${skip.files.length === 1 ? "That file was" : "Those files were"} also changed by ${others.join(" and by ")}.`] : []),
     "",
     "Merge `main` (or the pull request above) into this branch and push, as for any pull request. Staging rebuilds by itself after each push.",
@@ -67,6 +71,9 @@ function leftOutSummary(skip) {
 
 /** The pull requests that were left out for a conflict (or a missing branch) that the branch on origin did not already have: news. */
 export const newSkips = (result) => result.skipped.filter((s) => s.reason !== "parent" && !(result.previous?.skipped ?? []).some((p) => p.number === s.number));
+
+/** The workflow command that shows `text` as a warning on the run. The runner reads `%`, CR and LF in it, and the branch and file names in it come from pull requests. */
+export const leftOutWarning = (text) => `::warning title=Left out of staging::${text.replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A")}`;
 
 /** Plain text for the log. */
 export function describe(result) {

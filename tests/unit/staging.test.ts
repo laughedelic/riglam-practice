@@ -6,7 +6,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { MANIFEST, StagingError, migrationWarnings, push, rebuild, selectPulls } from "../../scripts/lib/staging.mjs";
-import { checkOf, describe as describeResult, goneCheck, leftCheck, newSkips, publish, summary, whySkipped } from "../../scripts/lib/staging-report.mjs";
+import { checkOf, describe as describeResult, goneCheck, leftCheck, leftOutWarning, newSkips, publish, summary, whySkipped } from "../../scripts/lib/staging-report.mjs";
 import { githubClient } from "../../scripts/lib/staging-github.mjs";
 
 const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_SYSTEM: "/dev/null" } }).trim();
@@ -350,6 +350,13 @@ test("each pull request's check says whether it is in, where, or why not", () =>
   const one = { ...result.skipped[0], files: ["a.js"] };
   expect(checkOf(result.entries[3], { ...result, skipped: [{ ...one, withMain: false, with: [] }] }).summary).not.toContain("also changed by");
   expect(checkOf(result.entries[3], { ...result, skipped: [{ ...one, with: [] }] }).summary).toContain("That file was also changed by `main`, since this branch left it.");
+  // a conflict in thousands of files still fits in what GitHub accepts, so the red check is made
+  const many = Array.from({ length: 5000 }, (_, i) => `src/generated/file-${i}.json`);
+  const big = checkOf(result.entries[3], { ...result, skipped: [{ ...one, files: many }] });
+  expect(big.summary.length).toBeLessThan(10000);
+  expect(big.summary).toContain("- `src/generated/file-39.json`\n- and 4960 more");
+  expect(big.summary).not.toContain("file-40.json");
+  expect(big.title.length).toBeLessThanOrEqual(140);
   expect(checkOf(result.entries[4], result)).toEqual({ conclusion: "failure", title: "Left out of staging: the pull request below it (#4) is left out", summary: expect.stringContaining("the pull request below it (#4) is left out") });
   expect(leftCheck()).toEqual({ conclusion: "neutral", title: "Not in staging (no label)", summary: expect.stringContaining("does not have the label") });
   expect(leftCheck(false)).toEqual({ conclusion: "neutral", title: "Not in staging (closed)", summary: expect.stringContaining("closed or merged") });
@@ -365,6 +372,13 @@ test("only a pull request that was not left out before is news, and a pull reque
   expect(newSkips(result).map((s: any) => s.number)).toEqual([4]);
   expect(newSkips({ ...result, previous: null }).map((s: any) => s.number)).toEqual([4]);
   expect(newSkips({ ...result, previous: { skipped: [{ number: 4 }] } })).toEqual([]);
+});
+
+test("the warning on the run keeps a name from a pull request from starting another workflow command", () => {
+  expect(leftOutWarning("#4 feat: conflicts in `a.js`")).toBe("::warning title=Left out of staging::#4 feat: conflicts in `a.js`");
+  const text = leftOutWarning("#4 x: conflicts in `a\n::add-mask::secret\r::warning::y` 100%");
+  expect(text.split("\n")).toHaveLength(1);
+  expect(text).toBe("::warning title=Left out of staging::#4 x: conflicts in `a%0A::add-mask::secret%0D::warning::y` 100%25");
 });
 
 test("the log and the run summary list what went in and what was left out", () => {

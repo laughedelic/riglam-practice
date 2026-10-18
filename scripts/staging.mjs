@@ -21,7 +21,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { LABEL, StagingError, git, push, readManifest, rebuild, selectPulls } from "./lib/staging.mjs";
 import { githubClient } from "./lib/staging-github.mjs";
-import { describe, newSkips, publish, summary, whySkipped } from "./lib/staging-report.mjs";
+import { describe, leftOutWarning, newSkips, publish, summary, whySkipped } from "./lib/staging-report.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const TARGET = "staging";
@@ -170,7 +170,10 @@ async function sync(opts) {
   if (opts.report) await publish(client, { result, openPulls: pulls, runUrl, label: opts.label });
   // A pull request that has just stopped merging is the news. It is told where it belongs, by its own check, and not by failing this run: the
   // run's own check lands on whichever pull request started it, which is not the one that conflicts.
-  for (const s of newSkips(result)) console.log(`${process.env.GITHUB_ACTIONS ? `::warning title=Left out of staging::#${s.number} ` : `left out now: #${s.number} `}${s.branch}: ${whySkipped(s)}`);
+  for (const s of newSkips(result)) {
+    const line = `#${s.number} ${s.branch}: ${whySkipped(s)}`;
+    console.log(process.env.GITHUB_ACTIONS ? leftOutWarning(line) : `left out now: ${line}`);
+  }
   return 0;
 }
 
