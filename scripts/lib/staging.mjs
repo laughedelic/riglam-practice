@@ -1,24 +1,24 @@
-// The `staging` branch: main with the open pull requests merged in, rebuilt from a list (docs/STAGING.md).
-// Everything here is git plumbing with no network except fetch and push, so tests/unit/staging.test.ts runs it on throwaway repositories.
+// The `staging` branch: main with the pull requests labeled `staging` merged in, rebuilt from scratch each time (docs/STAGING.md).
+// Choosing and ordering the pull requests is a pure function of what GitHub lists. Building is git plumbing with no network except fetch
+// and push, so tests/unit/staging.test.ts runs it on throwaway repositories.
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-/** The file on the staging branch that records which branches it was built from. */
+/** The file on the staging branch that records what it was built from (the only file on it that main does not have). */
 export const MANIFEST = "staging.json";
+
+/** The label that puts a pull request on staging. */
+export const LABEL = "staging";
 
 export class StagingError extends Error {}
 
-/** Thrown when a branch does not merge cleanly onto what is already merged. */
-export class ConflictError extends StagingError {
-  constructor(branch, files, merged) {
-    super(`${branch} does not merge cleanly (conflicts in ${files.join(", ") || "unknown files"}). Bring the branch up to date with main or with the branch it conflicts with, push it, and run the rebuild again.`);
-    this.branch = branch;
-    this.files = files;
-    this.merged = merged;
-  }
-}
+/**
+ * @typedef {{ number: number, title: string, branch: string, base: string, sha: string | null, parent: number | null, labeled: boolean, via: number | null }} Entry
+ * A pull request staging holds: `parent` is the open pull request whose branch this one is stacked on, `via` the labeled pull request that
+ * brought it in when it is not labeled itself.
+ */
 
 /**
  * Runs git in `cwd` and returns its output without the final newline. `allowFail` returns null instead of throwing.
@@ -36,17 +36,60 @@ export function git(cwd, args, { env, allowFail = false } = {}) {
   }
 }
 
+const hasLabel = (pull, label) => (pull.labels ?? []).some((l) => (typeof l === "string" ? l : l?.name) === label);
+
 /**
- * The branch list after `add` and `remove`: order kept, new names at the end, no duplicates.
- * @param {string[]} current
- * @param {string[]} [add]
- * @param {string[]} [remove]
+ * The pull requests staging holds, in merge order. Those labeled `label` go in, and so does every open pull request they are stacked on
+ * (the one whose branch is the base of another), because the child cannot be tried without its parent. The order keeps a stack together:
+ * a parent before its children, and otherwise by pull request number, which does not change from one run to the next.
+ * A labeled pull request from a fork is left out, because its branch is not in this repository.
+ * @param {object[]} pulls  open pull requests as the REST API lists them (number, title, draft, labels, head.ref, head.sha, head.repo.full_name, base.ref)
+ * @param {{ repo: string, label?: string }} options  `repo` is "owner/name"
+ * @returns {{ entries: Entry[], ignored: { number: number, why: string }[] }}
  */
-export function planBranches(current, add = [], remove = []) {
-  const gone = new Set(remove);
-  const out = [];
-  for (const name of [...current, ...add]) if (!gone.has(name) && !out.includes(name)) out.push(name);
-  return out;
+export function selectPulls(pulls, { repo, label = LABEL }) {
+  const sorted = [...pulls].filter((p) => !p.state || p.state === "open").sort((a, b) => a.number - b.number);
+  const ignored = [];
+  const here = new Map(); // head branch -> pull request, for those whose branch is in this repository
+  for (const p of sorted) {
+    if (p.head?.repo?.full_name?.toLowerCase() === repo.toLowerCase()) {
+      if (!here.has(p.head.ref)) here.set(p.head.ref, p);
+    } else if (hasLabel(p, label)) {
+      ignored.push({ number: p.number, why: "its branch is in another repository" });
+    }
+  }
+  const parentOf = (p) => {
+    const parent = here.get(p.base?.ref);
+    return parent && parent !== p ? parent : null;
+  };
+
+  /** @type {Map<number, Entry>} */
+  const chosen = new Map();
+  const entryOf = (p, labeled, via) => ({ number: p.number, title: p.title ?? "", branch: p.head.ref, base: p.base.ref, sha: p.head.sha ?? null, parent: null, labeled, via });
+  for (const p of here.values()) if (hasLabel(p, label)) chosen.set(p.number, entryOf(p, true, null));
+  for (const entry of [...chosen.values()]) {
+    const seen = new Set([entry.number]);
+    for (let parent = parentOf(here.get(entry.branch)); parent && !seen.has(parent.number); parent = parentOf(parent)) {
+      seen.add(parent.number);
+      if (!chosen.has(parent.number)) chosen.set(parent.number, entryOf(parent, false, entry.number));
+    }
+  }
+  for (const entry of chosen.values()) {
+    const parent = parentOf(here.get(entry.branch));
+    entry.parent = parent && chosen.has(parent.number) ? parent.number : null;
+  }
+
+  const children = new Map(); // parent number (or null for a root) -> entries, by number
+  for (const entry of [...chosen.values()].sort((a, b) => a.number - b.number)) children.set(entry.parent, [...(children.get(entry.parent) ?? []), entry]);
+  const entries = [];
+  const visit = (entry) => {
+    entries.push(entry);
+    for (const child of children.get(entry.number) ?? []) visit(child);
+  };
+  for (const root of children.get(null) ?? []) visit(root);
+  // Pull requests whose bases lead round in a circle have no root; they still go in, in number order.
+  for (const entry of chosen.values()) if (!entries.includes(entry)) entries.push(entry);
+  return { entries, ignored };
 }
 
 /** The manifest committed at `ref`, or null when the ref or the file is missing. */
@@ -54,8 +97,27 @@ export function readManifest(cwd, ref) {
   const text = git(cwd, ["show", `${ref}:${MANIFEST}`], { allowFail: true });
   if (text === null) return null;
   const data = JSON.parse(text);
-  if (!Array.isArray(data.branches) || data.branches.some((b) => typeof b !== "string")) throw new StagingError(`${ref}:${MANIFEST} has no list of branch names`);
+  if (data.branches !== undefined && (!Array.isArray(data.branches) || data.branches.some((b) => typeof b !== "string"))) throw new StagingError(`${ref}:${MANIFEST} has no list of branch names`);
   return data;
+}
+
+/**
+ * What a build depends on, to tell whether the branch on origin is already the result: the base commit and each pull request's head, in
+ * order, and the pull request it is stacked on (`3@abc<2`), since a child follows its parent's fate: retargeting it changes the build
+ * though its head did not move.
+ */
+export const inputsOf = (baseSha, entries) => ({ baseSha, pulls: entries.map((e) => `${e.number}@${e.sha ?? "gone"}${e.parent !== null && e.parent !== undefined ? `<${e.parent}` : ""}`) });
+
+const sameInputs = (manifest, wanted) => Boolean(manifest?.baseSha) && manifest.baseSha === wanted.baseSha && JSON.stringify(manifest.inputs) === JSON.stringify(wanted.pulls);
+
+/** Migration numbers used by more than one file: two pull requests that each added "the next one" both reach the shared database. */
+export function migrationWarnings(files) {
+  const byNumber = new Map();
+  for (const file of files) {
+    const number = /^(\d+)_/.exec(file.split("/").pop() ?? "")?.[1];
+    if (number) byNumber.set(number, [...(byNumber.get(number) ?? []), file.split("/").pop()]);
+  }
+  return [...byNumber.values()].filter((names) => names.length > 1).map((names) => `migrations with the same number, applied in the order of their names: ${names.join(", ")}`);
 }
 
 const short = (sha) => sha.slice(0, 7);
@@ -67,55 +129,99 @@ function identity(cwd) {
 }
 
 /**
- * Builds the staging commit: the tip of `remote/base`, then each branch merged in the listed order (a merge commit each), then one commit
- * with the manifest. The list comes from the manifest on `remote/target` (or the local `target`), changed by `add` and `remove`.
- * Moves the local `target` branch to the new commit and returns it; nothing is pushed.
- * @param {{ cwd: string, remote?: string, base?: string, target?: string, add?: string[], remove?: string[] }} options
- * @returns {{ sha: string, baseSha: string, merged: { branch: string, sha: string, addsNothing: boolean }[] }}
+ * @typedef {Entry & { addsNothing: boolean }} Merged
+ * @typedef {Entry & { reason: "conflict" | "parent" | "gone", files: string[], withMain: boolean, with: number[] }} Skipped
  */
-export function rebuild({ cwd, remote = "origin", base = "main", target = "staging", add = [], remove = [] }) {
-  git(cwd, ["fetch", "--prune", remote]);
-  const previous = readManifest(cwd, `${remote}/${target}`) ?? readManifest(cwd, target);
-  const branches = planBranches(previous?.branches ?? [], add, remove);
-  if (!previous && !branches.length) throw new StagingError(`there is no ${MANIFEST} on ${remote}/${target} yet: name the first branches with --add`);
 
-  const baseRef = `${remote}/${base}`;
-  const baseSha = git(cwd, ["rev-parse", baseRef]);
-  const heads = new Map();
-  for (const branch of branches) {
-    const sha = git(cwd, ["rev-parse", "--verify", "--quiet", `${remote}/${branch}^{commit}`], { allowFail: true });
-    if (!sha) throw new StagingError(`${branch} is not a branch on ${remote} (merged and deleted? then remove it: --remove ${branch})`);
-    heads.set(branch, sha);
+/**
+ * Builds the staging commit from nothing but main and the entries: the tip of `remote/base`, then each entry's branch merged in the given
+ * order (a merge commit each), then one commit that writes the manifest. An entry that does not merge cleanly is left out with the files in
+ * conflict, and so is every entry stacked on it; the others still go in. Nothing is kept from an earlier build, so there is nothing to go stale.
+ * Moves the local `target` branch to the new commit and returns it; nothing is pushed.
+ *
+ * When `remote/target` was built from the very same inputs, nothing is built (`upToDate`), unless `force`; `merged` and `skipped` are then
+ * read from its manifest.
+ * @param {{ cwd: string, entries: Entry[], remote?: string, base?: string, target?: string, force?: boolean }} options
+ * @returns {{ upToDate: boolean, sha: string | null, baseSha: string, merged: Merged[], skipped: Skipped[], warnings: string[], previous: any, entries: Entry[] }}
+ */
+export function rebuild({ cwd, entries, remote = "origin", base = "main", target = "staging", force = false }) {
+  git(cwd, ["fetch", "--prune", "--quiet", remote]);
+  const previous = readManifest(cwd, `${remote}/${target}`);
+  const baseSha = git(cwd, ["rev-parse", `${remote}/${base}`]);
+  // The head the remote has now is what goes in, whatever the pull request list said a moment ago.
+  const resolved = entries.map((e) => ({ ...e, sha: git(cwd, ["rev-parse", "--verify", "--quiet", `${remote}/${e.branch}^{commit}`], { allowFail: true }) }));
+  const inputs = inputsOf(baseSha, resolved);
+  if (!force && sameInputs(previous, inputs)) {
+    // Nothing is built, but what went in and what was left out is still known, from the manifest: a status or a comment that a refused call
+    // lost after the last push is made good from it (publish with `repair`).
+    const byNumber = new Map(resolved.map((e) => [e.number, e]));
+    const merged = (previous.pulls ?? []).map((p) => ({ ...byNumber.get(p.number), addsNothing: p.addsNothing === true }));
+    const skipped = (previous.skipped ?? []).map((s) => ({ ...byNumber.get(s.number), withMain: false, with: [], ...s }));
+    return { upToDate: true, sha: git(cwd, ["rev-parse", `${remote}/${target}`]), baseSha, merged, skipped, warnings: [], previous, entries: resolved };
   }
 
   const env = identity(cwd);
   const dir = mkdtempSync(join(tmpdir(), "riglam-staging-"));
+  /** @type {Merged[]} */
   const merged = [];
+  /** @type {Skipped[]} */
+  const skipped = [];
+  const filesOf = (e) => (git(cwd, ["diff", "--name-only", `${baseSha}...${e.sha}`], { allowFail: true }) ?? "").split("\n").filter(Boolean);
   try {
     git(cwd, ["worktree", "add", "--quiet", "--detach", dir, baseSha]);
-    for (const branch of branches) {
-      const sha = heads.get(branch);
+    for (const entry of resolved) {
+      const left = (reason, files = [], extra = {}) => skipped.push({ ...entry, reason, files, withMain: false, with: [], ...extra });
+      if (!entry.sha) {
+        left("gone");
+        continue;
+      }
+      if (entry.parent !== null && skipped.some((s) => s.number === entry.parent)) {
+        left("parent");
+        continue;
+      }
       const treeBefore = git(dir, ["rev-parse", "HEAD^{tree}"]);
-      if (git(dir, ["merge-base", "--is-ancestor", sha, "HEAD"], { allowFail: true, env }) !== null) {
-        merged.push({ branch, sha, addsNothing: true });
+      if (git(dir, ["merge-base", "--is-ancestor", entry.sha, "HEAD"], { allowFail: true, env }) !== null) {
+        merged.push({ ...entry, addsNothing: true });
         continue;
       }
       try {
-        git(dir, ["merge", "--no-ff", "--no-edit", "-m", `Merge ${branch} into ${target}`, sha], { env });
+        git(dir, ["merge", "--no-ff", "--no-edit", "-m", `Merge #${entry.number} (${entry.branch}) into ${target}`, entry.sha], { env });
       } catch {
         const files = (git(dir, ["diff", "--name-only", "--diff-filter=U"], { allowFail: true }) ?? "").split("\n").filter(Boolean);
         git(dir, ["merge", "--abort"], { allowFail: true });
-        throw new ConflictError(branch, files, merged.map((m) => m.branch));
+        git(dir, ["reset", "--hard", "--quiet", "HEAD"], { allowFail: true });
+        // Who else changed those files: main since this branch left it, and the pull requests merged before it.
+        const forkPoint = git(cwd, ["merge-base", baseSha, entry.sha], { allowFail: true });
+        const mainChanged = forkPoint ? (git(cwd, ["diff", "--name-only", forkPoint, baseSha], { allowFail: true }) ?? "").split("\n") : [];
+        left("conflict", files, { withMain: files.some((f) => mainChanged.includes(f)), with: merged.filter((m) => filesOf(m).some((f) => files.includes(f))).map((m) => m.number) });
+        continue;
       }
-      merged.push({ branch, sha, addsNothing: git(dir, ["rev-parse", "HEAD^{tree}"]) === treeBefore });
+      merged.push({ ...entry, addsNothing: git(dir, ["rev-parse", "HEAD^{tree}"]) === treeBefore });
     }
-    writeFileSync(join(dir, MANIFEST), `${JSON.stringify({ base, branches }, null, 2)}\n`);
+
+    const warnings = migrationWarnings((git(dir, ["ls-tree", "--name-only", "HEAD", "worker/migrations/"], { allowFail: true }) ?? "").split("\n").filter(Boolean));
+    const manifest = {
+      base,
+      baseSha,
+      inputs: inputs.pulls,
+      branches: merged.map((m) => m.branch),
+      pulls: merged.map((m) => ({ number: m.number, branch: m.branch, sha: m.sha, ...(m.addsNothing ? { addsNothing: true } : {}) })),
+      skipped: skipped.map((s) => ({ number: s.number, branch: s.branch, sha: s.sha, reason: s.reason, files: s.files, parent: s.parent, withMain: s.withMain, with: s.with })),
+    };
+    writeFileSync(join(dir, MANIFEST), `${JSON.stringify(manifest, null, 2)}\n`);
     git(dir, ["add", "--", MANIFEST]);
-    const lines = [`chore(staging): ${base} ${short(baseSha)} and ${branches.length} ${branches.length === 1 ? "branch" : "branches"}`, "", `${base} ${short(baseSha)}`, ...merged.map((m) => `${m.branch} ${short(m.sha)}${m.addsNothing ? " (adds nothing)" : ""}`)];
+    const count = `${merged.length} pull ${merged.length === 1 ? "request" : "requests"}`;
+    const lines = [
+      `chore(staging): ${base} ${short(baseSha)} and ${count}${skipped.length ? `, ${skipped.length} left out` : ""}`,
+      "",
+      `${base} ${short(baseSha)}`,
+      ...merged.map((m) => `#${m.number} ${m.branch} ${short(m.sha)}${m.addsNothing ? " (adds nothing)" : ""}`),
+      ...skipped.map((s) => `left out: #${s.number} ${s.branch} ${s.sha ? short(s.sha) : "(no branch)"} (${s.reason}${s.files.length ? `: ${s.files.join(", ")}` : ""})`),
+    ];
     git(dir, ["commit", "--quiet", "-m", lines.join("\n")], { env });
     const sha = git(dir, ["rev-parse", "HEAD"]);
     moveBranch(cwd, target, sha);
-    return { sha, baseSha, merged };
+    return { upToDate: false, sha, baseSha, merged, skipped, warnings, previous, entries: resolved };
   } finally {
     git(cwd, ["worktree", "remove", "--force", dir], { allowFail: true });
     rmSync(dir, { recursive: true, force: true });
