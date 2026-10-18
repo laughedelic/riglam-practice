@@ -125,6 +125,8 @@ export interface FlagDoc {
   state: string;
   /** when the flag was last sent to the app's server (ai/flag-reports.js); it counts as sent while this is not earlier than `updatedAt` */
   sentAt?: string;
+  /** where the server's review of the sent flag stands and the reply to read under it (ai/flag-reports.js); written by the page, not by the learner, and dropped when the flag is edited */
+  review?: { state: string; reply?: string; at?: string };
 }
 
 /** collection `labruns`: one model's answer to one case of the earlier Quorum, run by the page itself, or the judge's. Older versions of the page wrote it under that name, which a stored collection keeps; this one only keeps what is there (export, sync). Loosely typed. */
@@ -253,6 +255,9 @@ export interface State {
   skipErr: string;
   flagErr: string;
   flagPending: number;
+  /** when the server was last asked for the replies to the sent flags (ms since the epoch), and whether that is under way */
+  repliesAt: number;
+  repliesBusy: boolean;
 
   // skips
   skipNote: SkipNote | null;

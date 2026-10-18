@@ -60,6 +60,42 @@ async function sendNow(ids){
   }
   if(state.tab==="review"&&state.mode!=="loading"&&!typingEl(document.activeElement)) render();
 }
+/* ---------- replies: how the review of a sent flag stands ---------- */
+// The server reviews each report (docs/SERVER.md, "Reviewing flags") and may reply. The page asks about its sent flags at the start and when Review
+// is opened (at most once a minute), and keeps the answer on the flag as `review` ({state, reply, at}); the reply is shown as plain text under
+// the flag. A flag whose review is over ("fixed", "decided") is not asked about again. An edit drops `review` (saveFlag writes a fresh document).
+// All such flags are asked about, newest first, in the batches Reports.status makes of the server's limit: a fixed share of them would leave
+// the later ones without a reply for as long as the earlier ones stay "answered" or "with the maintainer". What comes back is kept only for the
+// version of the flag that was asked about.
+const REPLY_EVERY_MS=60*1000, OVER=new Set(["fixed","decided"]);
+export async function checkReplies(force){
+  const R=state.reports; if(!R||state.repliesBusy||!state.db) return;
+  const now=Date.now(); if(!force&&now-state.repliesAt<REPLY_EVERY_MS) return;
+  const ids=Object.keys(state.flags).filter(id=>{ const f=state.flags[id]; return isSent(f)&&!(f.review&&OVER.has(f.review.state)); })
+    .sort((x,y)=>(state.flags[y].updatedAt||"").localeCompare(state.flags[x].updatedAt||""));
+  if(!ids.length) return;
+  const asked=new Map(ids.map(id=>[id,state.flags[id].updatedAt]));
+  state.repliesBusy=true; state.repliesAt=now;
+  try{
+    const told=await R.status(ids); let changed=false;
+    for(const t of told){
+      const cur=state.flags[t.id], had=cur&&cur.review;
+      // not a flag that was edited meanwhile, even if the edit has been sent again (the server replied to its old words), and not one that has not moved
+      if(!cur||!asked.has(t.id)||cur.updatedAt!==asked.get(t.id)||!isSent(cur)||(had&&had.state===t.state&&(had.reply||"")===(t.reply||""))) continue;
+      const review={state:t.state}; if(t.reply) review.reply=t.reply; if(t.replyAt) review.at=t.replyAt;
+      if(t.state==="sent"&&!had) continue;     // nothing to keep yet
+      // in turn with the flag's other writes, and looked at again then (flagTurn): an edit or a removal made while an earlier write waited is not written over
+      await flagTurn(t.id,async()=>{
+        const now=state.flags[t.id];
+        if(!now||now.updatedAt!==asked.get(t.id)||!isSent(now)) return;
+        const doc=Object.assign({},now,{review}); state.flags[t.id]=doc; changed=true;
+        await put("flags",t.id,doc);      // if this fails the reply is kept for this visit and asked for again at the next
+      });
+    }
+    if(changed&&state.tab==="review"&&state.mode!=="loading"&&!typingEl(document.activeElement)) render();
+  }catch(e){ /* asked again later */ }
+  finally{ state.repliesBusy=false; }
+}
 // the flags that were never sent or were edited since, oldest first, and the removals that did not reach the server; one that is waiting for its
 // turn sees everything written until it starts, so a second call while one waits is the same run
 export function flushFlags(){
@@ -75,6 +111,7 @@ async function flushNow(){
     const todo=[...waiting.filter(id=>!autoFlagOf(state.flags[id])).slice(0,20),...waiting.filter(id=>autoFlagOf(state.flags[id])).slice(0,50)];
     if(todo.length) await sendNow(todo);
   }catch(e){ /* tried again at the next start */ }
+  checkReplies();
 }
 // A removed flag is taken back from the server in its turn. The removal is kept on the device at once (platform.withdrawReport), before it waits for the uploads ahead of it, so
 // that closing the page then does not lose it; where there is no way to send it now (offline at the start, no key), the next start that has one does.

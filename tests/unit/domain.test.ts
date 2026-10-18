@@ -627,6 +627,7 @@ test("a flag says in words what it is on", () => {
   expect(flaggedPart({ part: "explain", n: "nei", pair: { tab: "debate" } })).toBe("Claude’s note on Q4");
   expect(flaggedPart({ part: "explain", n: "rel" })).toBe("Claude’s note on the relation");
   expect(flaggedPart({ part: "chat", n: "3" })).toBe("Claude’s answer in the chat");
+  expect(flaggedPart({ part: "reply", n: "fl_a" })).toBe("The reply to a flag");
   expect(flaggedPart({ part: "verdict", thing: "a pot", model: "m1" }, (id) => id.toUpperCase())).toBe("“a pot” · M1 · verdict");
   expect([flagStateText("new"), flagStateText(undefined), flagStateText("reviewed"), flagStateText("resolved")]).toEqual(["Not reviewed yet", "Not reviewed yet", "Reviewed", "Resolved"]);
 });

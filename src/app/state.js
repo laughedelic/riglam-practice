@@ -58,6 +58,8 @@ export const state = {
   flags: {},
   flagErr: "",
   flagPending: 0,
+  repliesAt: 0,       // when the server was last asked how the review of the sent flags stands (ai/flag-reports.js)
+  repliesBusy: false,
   // A draw replaces the whole screen, which would send the scroll back to the top. While the screen is the same one (the same pair, step and
   // result, with a row opened or a chip changed), the scroll stays where it was; a new screen starts at the top, as the callers ask with top0().
   lastSig: "",

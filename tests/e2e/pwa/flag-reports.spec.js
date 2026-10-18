@@ -178,6 +178,170 @@ test("a flag that could not be sent waits, says so, and goes when the server is 
   await expect.poll(() => reports(world).length).toBe(1);
 });
 
+/** A sent flag whose review has run on the server: `state` and `reply` as the Worker's review writes them (worker/review.ts). The page asks again when it starts. */
+const reviewed = (world, state, reply) => world.sql("UPDATE flag_reports SET state = ?, reply = ?, reply_at = ? WHERE id = 'fl_cell'", state, reply, at);
+const REPLY = "You are right: <b>a wooden bowl</b> is both.\nSecond line & <img src=x onerror=window.pwned=1>";
+
+test("the reply to a sent flag shows under it as plain text with the state; flagging the reply sends a follow-up to the maintainer", async ({ page }) => {
+  await giveKey(page);
+  const world = await serverWorld({}, { stubCourse: true });
+  await start(page, world);
+  await expect.poll(async () => (await stored(page)).fl_cell.sentAt).toBeTruthy();
+  reviewed(world, "maintainer", REPLY);
+  await page.reload();
+  await ready(page);
+  const li = await openFlags(page);
+  await expect(li.locator("summary").first()).toContainText("With the maintainer");
+  const box = li.locator(".freply");
+  await expect(box.locator(".clh")).toHaveText("Reply so far, until the maintainer decides");
+  await expect(box.locator(".rtext")).toHaveText(REPLY);
+  await expect(box.locator("b, img")).toHaveCount(0); // the reply is text, whatever it contains
+  expect(await page.evaluate(() => window.pwned)).toBeUndefined();
+  await expect.poll(async () => (await stored(page)).fl_cell.review).toEqual({ state: "maintainer", reply: REPLY, at });
+  expect((await stored(page)).fl_cell.updatedAt).toBe(at); // keeping the reply does not count as an edit, so the flag is not sent again
+
+  await box.getByRole("button", { name: "Flag this reply" }).click();
+  await expect(li.locator(".flagedit .fv")).toHaveText("The reply to a flag");
+  await page.locator("#flag-note").fill("A bowl is not a stove.");
+  await page.locator(".flagedit").getByRole("button", { name: "Submit" }).click();
+  await expect.poll(() => reports(world).length).toBe(2);
+  const follow = reports(world).map((r) => ({ flag: JSON.parse(r.flag), answer: r.answer })).find((r) => r.flag.part === "reply");
+  expect(follow.flag).toMatchObject({ n: "fl_cell", shown: REPLY, asked: "A bowl can be square.", note: "A bowl is not a stove.", caseKey: "answers_r-test1" });
+  expect(JSON.parse(follow.answer).explain).toContain("a wooden bowl is both"); // with the same exercise
+  // the follow-up is a flag of its own, newest first; the reply it is on now offers to edit it
+  const flags = page.locator(".flags > li");
+  await expect(flags).toHaveCount(2);
+  await expect(flags.first().locator("summary").first()).toContainText("The reply to a flag");
+  await expect(flags.last().locator(".freply").getByRole("button", { name: "Edit your follow-up" })).toBeVisible();
+});
+
+test("editing a flag drops the reply that was for its old words", async ({ page }) => {
+  await giveKey(page);
+  const world = await serverWorld({}, { stubCourse: true });
+  await start(page, world);
+  await expect.poll(async () => (await stored(page)).fl_cell.sentAt).toBeTruthy();
+  reviewed(world, "answered", "Hot and white can overlap.");
+  await page.reload();
+  await ready(page);
+  const li = await openFlags(page);
+  await expect(li.locator("summary").first()).toContainText("Answered");
+  await expect(li.locator(".freply .rtext")).toHaveText("Hot and white can overlap.");
+  await li.getByRole("button", { name: "Edit" }).click();
+  await page.locator("#flag-note").fill("A bowl need not be round.");
+  await page.locator(".flagedit").getByRole("button", { name: "Submit" }).click();
+  await expect(li.locator(".freply")).toHaveCount(0);
+  await expect.poll(() => world.sql("SELECT state, reply FROM flag_reports WHERE id = 'fl_cell'")).toEqual([{ state: "sent", reply: null }]); // the server starts the review again
+  await expect(li.locator("summary").first()).toContainText("Sent to the maintainer");
+});
+
+test("a reply that reaches the page after the flag was edited and sent again is not kept for the new words", async ({ page }) => {
+  await giveKey(page);
+  const world = await serverWorld({}, { stubCourse: true });
+  await start(page, world);
+  await expect.poll(async () => (await stored(page)).fl_cell.sentAt).toBeTruthy();
+  reviewed(world, "answered", "Hot and white can overlap.");
+  // the server answers the status request now, but the answer is held until the flag has been edited and sent again
+  let held, release;
+  const asked = new Promise((resolve) => { held = resolve; });
+  const gate = new Promise((resolve) => { release = resolve; });
+  await page.route("**/api/flags", async (route) => {
+    const request = route.request();
+    if (!request.postDataJSON()?.status) return route.fallback();
+    const headers = await request.allHeaders();
+    delete headers["content-length"];
+    const res = await world.app.request(request.url(), { method: "POST", headers, body: request.postData() }, world.env);
+    const body = Buffer.from(await res.arrayBuffer());
+    held();
+    await gate;
+    await route.fulfill({ status: res.status, headers: Object.fromEntries(res.headers), body });
+  });
+  await page.reload();
+  await ready(page);
+  await asked;
+  const li = await openFlags(page);
+  await li.getByRole("button", { name: "Edit" }).click();
+  await page.locator("#flag-note").fill("A bowl need not be round.");
+  await page.locator(".flagedit").getByRole("button", { name: "Submit" }).click();
+  await expect.poll(async () => { const f = (await stored(page)).fl_cell; return f.sentAt >= f.updatedAt && f.updatedAt > at; }).toBe(true);
+  release();
+  await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 500))); // the held answer has been handled by now
+  await expect(li.locator(".freply")).toHaveCount(0);
+  await expect(li.locator("summary").first()).toContainText("Sent to the maintainer");
+  expect((await stored(page)).fl_cell.review).toBeUndefined();
+});
+
+test("a reply that arrives with the flag's document alone (another device of the account, another tab) shows in an open Review", async ({ page }) => {
+  await giveKey(page);
+  const world = await serverWorld({}, { stubCourse: true });
+  await start(page, world);
+  await expect.poll(async () => (await stored(page)).fl_cell.sentAt).toBeTruthy();
+  const li = await openFlags(page);
+  await expect(li.locator("summary").first()).toContainText("Sent to the maintainer");
+  // the same flag with only its review changed: same id, state and time
+  await page.evaluate(async () => {
+    const ref = (await window.__riglam.platform.db()).collection("flags").doc("fl_cell");
+    const doc = (await ref.get()).data();
+    await ref.set({ ...doc, review: { state: "answered", reply: "Arrived from another device.", at: doc.updatedAt } });
+  });
+  await expect(li.locator("summary").first()).toContainText("Answered");
+  await expect(li.locator(".freply .rtext")).toHaveText("Arrived from another device.");
+});
+
+test("the write of a reply, tried again after a storage fault, does not put the old flag back over an edit made meanwhile", async ({ page }) => {
+  await giveKey(page);
+  const world = await serverWorld({}, { stubCourse: true });
+  await holdWrite(page, "review");
+  await start(page, world);
+  await expect.poll(async () => (await stored(page)).fl_cell.sentAt).toBeTruthy();
+  reviewed(world, "answered", "Hot and white can overlap.");
+  await page.reload();
+  await ready(page);
+  await expect.poll(() => page.evaluate(() => window.__held?.tried)).toBe(1); // the start asked, and the write of the reply is held
+  const li = await openFlags(page);
+  await li.getByRole("button", { name: "Edit" }).click();
+  await page.locator("#flag-note").fill("A bowl need not be round.");
+  await page.locator(".flagedit").getByRole("button", { name: "Submit" }).click();
+  await expect(li.locator(".fbody")).toContainText("Your note: A bowl need not be round.");
+  await page.evaluate(() => window.__held.release()); // the held write fails; the page tries it again
+  await expect.poll(() => page.evaluate(() => window.__held.tried)).toBeGreaterThanOrEqual(2);
+  await pause(page);
+  const f = (await stored(page)).fl_cell;
+  expect(f.note).toBe("A bowl need not be round.");
+  expect(f.review).toBeUndefined(); // the reply was for the old words
+});
+
+test("every sent flag whose review is not over is asked about, in batches, newest first", async ({ page }) => {
+  await giveKey(page);
+  const world = await serverWorld({}, { stubCourse: true });
+  const asked = [];
+  await bridge(page, world);
+  await page.route("**/api/flags", (route) => {
+    const ids = route.request().postDataJSON()?.status;
+    if (ids) asked.push(ids);
+    return route.fallback();
+  });
+  await seed(page);
+  await expect.poll(async () => (await stored(page)).fl_cell.sentAt).toBeTruthy();
+  const sentAt = "2026-10-14T12:00:00.000Z";
+  await page.evaluate(async ({ flag, sentAt }) => {
+    const db = await window.__riglam.platform.db();
+    for (let i = 0; i < 55; i++) {
+      const updatedAt = "2026-10-14T10:" + String(i).padStart(2, "0") + ":00.000Z";
+      await db.collection("flags").doc("fl_n" + i).set({ ...flag, id: "fl_n" + i, updatedAt, sentAt });
+    }
+  }, { flag, sentAt });
+  asked.length = 0;
+  await page.reload();
+  await ready(page);
+  await expect.poll(() => asked.length).toBe(2);
+  const ids = asked.flat();
+  expect(ids).toHaveLength(56);
+  expect(new Set(ids).size).toBe(56);
+  expect(asked[0]).toHaveLength(50);
+  expect(asked[0][0]).toBe("fl_n54"); // newest first
+  expect(ids.at(-1)).toBe("fl_cell"); // the oldest, which a cut at the first 50 would never have asked about
+});
+
 test("a sent mark that arrives with the flag's document alone (another tab, another device of the account) shows in an open Review", async ({ page }) => {
   await giveKey(page);
   const world = await serverWorld({}, { stubCourse: true });

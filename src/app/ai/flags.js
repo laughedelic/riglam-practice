@@ -18,7 +18,7 @@ export function flagsSubscribe(){
   try{
     state.db.collection("flags").orderBy("updatedAt","desc").limit(300).onSnapshot(snap=>{
       if(state.flagPending) return;
-      /** @type {Record<string, any>} */ const m={}; snap.docs.forEach(d=>{m[d.id]=d.data();}); const same=JSON.stringify(Object.keys(m).sort().map(k=>[k,m[k].state,m[k].updatedAt,m[k].sentAt||null]))===JSON.stringify(Object.keys(state.flags).sort().map(k=>[k,state.flags[k].state,state.flags[k].updatedAt,state.flags[k].sentAt||null]));
+      /** @type {Record<string, any>} */ const m={}; snap.docs.forEach(d=>{m[d.id]=d.data();}); const same=JSON.stringify(Object.keys(m).sort().map(k=>[k,m[k].state,m[k].updatedAt,m[k].sentAt||null,m[k].review||null]))===JSON.stringify(Object.keys(state.flags).sort().map(k=>[k,state.flags[k].state,state.flags[k].updatedAt,state.flags[k].sentAt||null,state.flags[k].review||null]));
       state.flags=m; if(!same&&state.tab==="review"&&state.mode!=="loading"&&!typingEl(document.activeElement)) render();
       flushFlags();                    // flags that were not sent yet (this device had no way, or none that worked) go now
     },()=>{});

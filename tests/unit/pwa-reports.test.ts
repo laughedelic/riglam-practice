@@ -183,6 +183,44 @@ describe("taking back", () => {
   });
 });
 
+describe("hearing back", () => {
+  const told = (...status: unknown[]) => json(200, { stored: [], withdrawn: [], status });
+
+  it("asks about the ids with the proof, and reads what the server says about each", async () => {
+    const key = testMagicKey();
+    const { reports, seen } = client(key, () => told({ id: "fl_a", state: "answered", reply: "You are right.", replyAt: "2026-10-15T20:00:00.000Z" }, { id: "fl_b", state: "sent" }));
+    expect(await reports.status(["fl_a", "fl_b"])).toEqual([{ id: "fl_a", state: "answered", reply: "You are right.", replyAt: "2026-10-15T20:00:00.000Z" }, { id: "fl_b", state: "sent" }]);
+    expect(seen).toHaveLength(1);
+    expect(seen[0].body.status).toEqual(["fl_a", "fl_b"]);
+    expect(seen[0].body.send).toBeUndefined();
+    const headers = seen[0].init.headers as Record<string, string>;
+    expect(await checkProof(key, DEVICE, headers[HEADER.proof])).toBe(true);
+  });
+
+  it("keeps only what is a status: a known state, an id, and a reply that is text, cut to the length the server keeps", async () => {
+    const { reports } = client(testMagicKey(), () => told(
+      { id: "fl_a", state: "answered", reply: "x".repeat(5000), replyAt: 5, extra: "dropped" },
+      { id: "fl_b", state: "exploded", reply: "hi" }, { id: 7, state: "sent" }, null, "fl_c", { id: "fl_d", state: "maintainer", reply: "  " },
+    ));
+    const got = await reports.status(["fl_a"]);
+    expect(got.map((g) => g.id)).toEqual(["fl_a", "fl_d"]);
+    expect(got[0].reply).toHaveLength(1200);
+    expect(got[0]).not.toHaveProperty("extra");
+    expect(got[0]).not.toHaveProperty("replyAt");
+    expect(got[1]).toEqual({ id: "fl_d", state: "maintainer" });
+  });
+
+  it("asks at most so many ids at a time, and gives back what it learned when the server stops answering", async () => {
+    let calls = 0;
+    const { reports, seen } = client(testMagicKey(), (body) => (++calls === 1 ? told(...(body.status ?? []).map((id) => ({ id, state: "sent" }))) : json(503, { error: { code: "unavailable" } })));
+    const ids = Array.from({ length: REPORT_LIMITS.status * 2 + 1 }, (_, i) => "fl_" + i);
+    expect((await reports.status(ids)).map((s) => s.id)).toEqual(ids.slice(0, REPORT_LIMITS.status));
+    expect(seen).toHaveLength(2);
+    expect(await client(testMagicKey(), () => { throw new TypeError("offline"); }).reports.status(["fl_a"])).toEqual([]);
+    expect(await client(testMagicKey(), storing).reports.status(["fl_a"])).toEqual([]); // an answer without a status says nothing
+  });
+});
+
 describe("whether the server takes reports", () => {
   const health = (body: unknown, status = 200) => (async () => json(status, body)) as unknown as typeof fetch;
   it("only when its health answer says so", async () => {
@@ -205,5 +243,12 @@ describe("what the page shares with the server", () => {
     expect(flagStateText("new", false)).toBe("Waiting to be sent");
     expect(flagStateText("reviewed", false)).toBe("Reviewed");
     expect(flagStateText("resolved", true)).toBe("Resolved");
+    // where the server's review stands wins once it has moved beyond "sent"
+    expect(flagStateText("new", true, "sent")).toBe("Sent to the maintainer");
+    expect(flagStateText("new", true, "answered")).toBe("Answered");
+    expect(flagStateText("new", true, "maintainer")).toBe("With the maintainer");
+    expect(flagStateText("new", true, "fixed")).toBe("Fixed");
+    expect(flagStateText("new", true, "decided")).toBe("Decided");
+    expect(flagStateText("new", true, "unheard-of")).toBe("Sent to the maintainer");
   });
 });

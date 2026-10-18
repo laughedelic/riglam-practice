@@ -8,7 +8,7 @@
 import type { DrillData } from "../ai-shared/data";
 import type { QuorumOffer, QuorumRecord, TutorRequest } from "../ai/protocol";
 import type { Account, AccountView } from "../account/account";
-import type { FlagReport } from "../report/protocol";
+import type { FlagReport, ReportStatus } from "../report/protocol";
 export type { DrillData, Account, AccountView, FlagReport };
 
 /** A stored document: a plain JSON object. */
@@ -129,9 +129,12 @@ export type Tutor = (request: TutorRequest, options?: TutorOptions) => Promise<T
  * (src/report/protocol.ts). The place has it only when its server takes reports and this device has the Magic Key.
  * No method rejects. `send` resolves with the ids the server now holds (fewer than asked when it could not be reached or
  * refused). `withdraw` keeps the id on the device until the server has taken the report back; `flush` tries again.
+ * `status` asks where the review of these flags stands and what the reply is; it resolves with what the server told
+ * (nothing when it could not be reached or refused).
  */
 export interface Reports {
   send(reports: FlagReport[]): Promise<string[]>;
+  status(ids: string[]): Promise<ReportStatus[]>;
   withdraw(id: string): Promise<void>;
   flush(): Promise<void>;
 }
