@@ -228,6 +228,46 @@ test("a reply that reaches the page after the flag was edited and sent again is 
   expect((await stored(page)).fl_cell.review).toBeUndefined();
 });
 
+test("a reply that arrives with the flag's document alone (another device of the account, another tab) shows in an open Review", async ({ page }) => {
+  await giveKey(page);
+  const world = await serverWorld({}, { stubCourse: true });
+  await start(page, world);
+  await expect.poll(async () => (await stored(page)).fl_cell.sentAt).toBeTruthy();
+  const li = await openFlags(page);
+  await expect(li.locator("summary").first()).toContainText("Sent to the maintainer");
+  // the same flag with only its review changed: same id, state and time
+  await page.evaluate(async () => {
+    const ref = (await window.__riglam.platform.db()).collection("flags").doc("fl_cell");
+    const doc = (await ref.get()).data();
+    await ref.set({ ...doc, review: { state: "answered", reply: "Arrived from another device.", at: doc.updatedAt } });
+  });
+  await expect(li.locator("summary").first()).toContainText("Answered");
+  await expect(li.locator(".freply .rtext")).toHaveText("Arrived from another device.");
+});
+
+test("the write of a reply, tried again after a storage fault, does not put the old flag back over an edit made meanwhile", async ({ page }) => {
+  await giveKey(page);
+  const world = await serverWorld({}, { stubCourse: true });
+  await holdWrite(page, "review");
+  await start(page, world);
+  await expect.poll(async () => (await stored(page)).fl_cell.sentAt).toBeTruthy();
+  reviewed(world, "answered", "Hot and white can overlap.");
+  await page.reload();
+  await ready(page);
+  await expect.poll(() => page.evaluate(() => window.__held?.tried)).toBe(1); // the start asked, and the write of the reply is held
+  const li = await openFlags(page);
+  await li.getByRole("button", { name: "Edit" }).click();
+  await page.locator("#flag-note").fill("A bowl need not be round.");
+  await page.locator(".flagedit").getByRole("button", { name: "Submit" }).click();
+  await expect(li.locator(".fbody")).toContainText("Your note: A bowl need not be round.");
+  await page.evaluate(() => window.__held.release()); // the held write fails; the page tries it again
+  await expect.poll(() => page.evaluate(() => window.__held.tried)).toBeGreaterThanOrEqual(2);
+  await pause(page);
+  const f = (await stored(page)).fl_cell;
+  expect(f.note).toBe("A bowl need not be round.");
+  expect(f.review).toBeUndefined(); // the reply was for the old words
+});
+
 test("every sent flag whose review is not over is asked about, in batches, newest first", async ({ page }) => {
   await giveKey(page);
   const world = await serverWorld({}, { stubCourse: true });

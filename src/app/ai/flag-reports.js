@@ -80,8 +80,13 @@ export async function checkReplies(force){
       if(!cur||!asked.has(t.id)||cur.updatedAt!==asked.get(t.id)||!isSent(cur)||(had&&had.state===t.state&&(had.reply||"")===(t.reply||""))) continue;
       const review={state:t.state}; if(t.reply) review.reply=t.reply; if(t.replyAt) review.at=t.replyAt;
       if(t.state==="sent"&&!had) continue;     // nothing to keep yet
-      const doc=Object.assign({},cur,{review}); state.flags[t.id]=doc; changed=true;
-      try{ await put("flags",t.id,doc); }catch(e){ /* kept for this visit; asked again at the next */ }
+      // in turn with the flag's other writes, and looked at again then (flagTurn): an edit or a removal made while an earlier write waited is not written over
+      await flagTurn(t.id,async()=>{
+        const now=state.flags[t.id];
+        if(!now||now.updatedAt!==asked.get(t.id)||!isSent(now)) return;
+        const doc=Object.assign({},now,{review}); state.flags[t.id]=doc; changed=true;
+        await put("flags",t.id,doc);      // if this fails the reply is kept for this visit and asked for again at the next
+      });
     }
     if(changed&&state.tab==="review"&&state.mode!=="loading"&&!typingEl(document.activeElement)) render();
   }catch(e){ /* asked again later */ }
