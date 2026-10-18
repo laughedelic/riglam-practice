@@ -7,7 +7,8 @@ export const AMPLITUDE = 42; // gray levels per standard deviation of the noise 
 export const STRONG = 1.6; // the strength the icons use
 export const SEED = 20261017;
 
-function rng(seed) {
+/** The seeded generator (mulberry32) behind the tile; the lattice of the hero images draws its cells from it too. */
+export function rng(seed) {
   let a = seed >>> 0;
   return () => {
     a = (a + 0x6d2b79f5) >>> 0;

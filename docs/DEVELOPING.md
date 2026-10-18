@@ -25,6 +25,7 @@ In `npm run dev` the parts that ask Claude (the tutor and Explain) are served by
 | Something that differs between the installed app and the artifact | `src/pwa/` or `src/artifact/` (TypeScript), never a branch on the build inside `src/app` | the unit tests of that folder |
 | The term data | `npm run data:import -- <full.json>`; never by hand | `npm run data:check` |
 | The app icon | the SVGs `public/icons/icon.svg` (Main) and `public/icons/preview/icon.svg` (Preview), then `npm run icons` for the PNGs, which get the generated grain of `scripts/lib/grain.mjs` (the SVGs stay flat) | `tests/unit/icons.test.ts` |
+| The README hero and the link preview picture | `scripts/social/settings.json` (words, colors, grain) or `scripts/social/draw.js` (the drawing), then `npm run social` for the PNGs in `docs/images/` (needs Chromium, like the browser tests; `npm run social -- --check` redraws without writing). The 2:1 `social-preview.png` is for GitHub's social preview: the repository's owner uploads it in Settings, under Social preview | `tests/unit/social-images.test.ts` |
 
 New code is TypeScript. The page modules in `src/app` are JavaScript and are type-checked with relaxed settings; they may import `src/ai-shared`, `src/domain` and `src/ui`, and nothing else from outside `src/app` (a unit test checks it).
 

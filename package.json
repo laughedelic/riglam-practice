@@ -29,6 +29,7 @@
     "data:sql": "node scripts/data.mjs sql",
     "data:fixture": "node scripts/data.mjs fixture",
     "icons": "node scripts/make-icons.mjs",
+    "social": "node scripts/make-social.mjs",
     "fonts": "node scripts/fetch-fonts.mjs",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
