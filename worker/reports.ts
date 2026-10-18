@@ -88,6 +88,7 @@ export function reportRoutes(deps: AccountDeps) {
 
     const user = (await sessionOf(c, now).catch(() => null))?.userId ?? null;
     const statements: D1PreparedStatement[] = [];
+    let giveBack = async () => {};
 
     if (sends.length) {
       const day = dayOf(now);
@@ -103,13 +104,26 @@ export function reportRoutes(deps: AccountDeps) {
           { who: `${k.prefix}ip:${caller}`, cap: k.cap.perCaller, n: k.n },
           { who: `${k.prefix}all`, cap: k.cap.perDay, n: k.n },
         ]);
-      const used = await db
-        .prepare(`SELECT who, n FROM flag_quota WHERE day = ?1 AND who IN (${scopes.map((_, i) => `?${i + 2}`).join(", ")})`)
-        .bind(day, ...scopes.map((s) => s.who))
-        .all<{ who: string; n: number }>();
-      const full = scopes.some((s) => (used.results.find((r) => r.who === s.who)?.n ?? 0) + s.n > s.cap);
+      // Each scope's share of the day is taken in one statement that fails when it would pass the limit (as the Magic Key's guess limit does),
+      // so requests that arrive together cannot all pass; when one scope has no room the shares already taken are given back. The count of
+      // reports held is a look, not a reservation: it is a limit on storage, and a few reports over it do no harm.
+      let took: D1Result[];
+      try {
+        took = await db.batch(
+          scopes.map((s) =>
+            db.prepare("INSERT INTO flag_quota (day, who, n) VALUES (?1, ?2, ?3) ON CONFLICT (day, who) DO UPDATE SET n = n + excluded.n WHERE n + excluded.n <= ?4").bind(day, s.who, s.n, s.cap),
+          ),
+        );
+      } catch {
+        return fail("unavailable", "flag reports cannot count what they take");
+      }
+      const taken = scopes.filter((_, i) => took[i].meta.changes > 0);
+      giveBack = async () => {
+        await db.batch(taken.map((s) => db.prepare("UPDATE flag_quota SET n = n - ?3 WHERE day = ?1 AND who = ?2").bind(day, s.who, s.n))).catch(() => {});
+      };
       const held = (await db.prepare("SELECT COUNT(*) AS n FROM flag_reports").first<{ n: number }>())?.n ?? 0;
-      if (full || held + sends.length > REPORT_LIMITS.held) {
+      if (taken.length < scopes.length || held + sends.length > REPORT_LIMITS.held) {
+        await giveBack();
         const tomorrow = Date.parse(day) + 86_400_000;
         return fail("quota", "too many flags were sent today; try again tomorrow", { "retry-after": String(Math.max(60, Math.ceil((tomorrow - now.getTime()) / 1000))) });
       }
@@ -124,16 +138,18 @@ export function reportRoutes(deps: AccountDeps) {
         // the same flag edited on another device of the account replaces the report that device sent
         if (user) statements.push(db.prepare("DELETE FROM flag_reports WHERE user_id = ?1 AND id = ?2 AND device <> ?3").bind(user, r.id, device));
       }
-      for (const s of scopes) {
-        statements.push(db.prepare("INSERT INTO flag_quota (day, who, n) VALUES (?1, ?2, ?3) ON CONFLICT (day, who) DO UPDATE SET n = n + excluded.n").bind(day, s.who, s.n));
-      }
     }
 
     // a report can be taken back by the device that sent it, and by any device signed in to the account that did
     for (const id of withdrawn) {
       statements.push(db.prepare("DELETE FROM flag_reports WHERE id = ?1 AND (device = ?2 OR (user_id IS NOT NULL AND user_id = ?3))").bind(id, device, user));
     }
-    await db.batch(statements);
+    try {
+      await db.batch(statements);
+    } catch (e) {
+      await giveBack();
+      throw e;
+    }
     if (sends.length && Math.random() < 0.02) await db.prepare("DELETE FROM flag_quota WHERE day < ?1").bind(dayOf(new Date(now.getTime() - 3 * 86_400_000))).run().catch(() => {});
 
     const answer: ReportResponse = { stored: sends.map((r) => r.id), withdrawn };

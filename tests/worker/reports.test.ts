@@ -200,6 +200,25 @@ describe("limits", () => {
     expect((await send(w, 1, {}, 100)).status).toBe(200);
   });
 
+  it("requests that arrive together cannot all pass a limit: the share of the day is taken before the reports are stored", async () => {
+    const w = await world();
+    for (let i = 0; i < 3; i++) expect((await send(w, 5, {}, i * 5)).status).toBe(200);
+    // 15 of the 20 are used: each of these two would fit alone, both together would not. Each request is held where it counts the reports
+    // held until the other is there too (or a moment has passed), so that they overlap as two requests in flight can.
+    const db = w.env.DB as unknown as { prepare: (sql: string) => unknown };
+    const real = db.prepare.bind(db);
+    let first: (() => void) | null = null;
+    db.prepare = (sql: string) =>
+      /SELECT COUNT\(\*\) AS n FROM flag_reports/.test(sql)
+        ? { first: async () => { await new Promise<void>((go) => { if (first) { first(); go(); } else { first = go; setTimeout(go, 100); } }); return (real(sql) as { first: () => Promise<unknown> }).first(); } }
+        : real(sql);
+    const both = await Promise.all([send(w, 5, {}, 100), send(w, 5, {}, 200)]);
+    expect(both.map((r) => r.status).sort()).toEqual([200, 429]);
+    expect(rows(w)).toHaveLength(REPORT_LIMITS.perDevice);
+    // the refused request gave back what it had taken
+    expect(w.db.sql<{ who: string; n: number }>("SELECT who, n FROM flag_quota").map((r) => r.n)).toEqual([20, 20, 20]);
+  });
+
   it("a sender who makes up device ids is held by the limit on its address", async () => {
     const w = await world();
     let stored = 0;
