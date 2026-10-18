@@ -223,6 +223,20 @@ describe("reading", () => {
     expect(reports.map((r) => [r.id, r.parent?.id])).toEqual([["fl_f", "fl_a"], ["fl_g", undefined], ["fl_h", undefined]]);
   });
 
+  it("a follow-up finds the flag it follows by its whole id, not by the cut-off one that is shown", async () => {
+    const w = await open();
+    const long = "fl_" + "x".repeat(147); // a valid id of 150 characters; the list shows at most 120 of a field
+    const decoy = long.slice(0, 120); // another report whose id is the first 120 of it
+    await sendAll(w, report(long), report(decoy), report("fl_f", { part: "reply", n: long, note: "When?" }));
+    w.db.sql("UPDATE flag_reports SET state = 'maintainer' WHERE id = 'fl_f'");
+    const [follow] = (await json(await admin(w, ""))).reports as { id: string; parent?: { id: string } }[];
+    expect(follow).toMatchObject({ id: "fl_f", parent: { id: long } });
+    // one that names nothing valid has no parent
+    w.db.sql("UPDATE flag_reports SET flag = ? WHERE id = 'fl_f'", JSON.stringify({ id: "fl_f", part: "reply", n: "a b", note: "When?" }));
+    const [bare] = (await json(await admin(w, ""))).reports as { id: string; parent?: unknown }[];
+    expect(bare.parent).toBeUndefined();
+  });
+
   it("a stored flag with a field that is not text does not stop the list or the report", async () => {
     const w = await open();
     await sendAll(w, report("fl_a"), report("fl_b"));

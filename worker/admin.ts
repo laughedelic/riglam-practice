@@ -223,8 +223,10 @@ export function adminRoutes(deps: AccountDeps) {
     // read on any device of the account, as `status` has it; a report without an account never matches by it)
     for (const [i, r] of reports.entries()) {
       const mine = rows.results[i];
-      const parent = r.flag.part === "reply" && r.flag.n
-        ? await db.prepare(`SELECT ${COLUMNS} FROM flag_reports WHERE id = ?1 AND (device = ?2 OR user_id = ?3) ORDER BY device = ?2 DESC LIMIT 1`).bind(r.flag.n, mine.device, mine.user_id).first<Row>()
+      // the flag's own id, whole: the cut text of `flag.n` that is shown could name another report
+      const followed = r.flag.part === "reply" ? obj(parse(mine.flag)).n : undefined;
+      const parent = validDocId(followed)
+        ? await db.prepare(`SELECT ${COLUMNS} FROM flag_reports WHERE id = ?1 AND (device = ?2 OR user_id = ?3) ORDER BY device = ?2 DESC LIMIT 1`).bind(followed, mine.device, mine.user_id).first<Row>()
         : null;
       if (parent) Object.assign(r, { parent: present(parent, false) });
     }
