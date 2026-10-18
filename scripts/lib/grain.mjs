@@ -4,7 +4,8 @@
 
 export const TILE = 256;
 export const AMPLITUDE = 42; // gray levels per standard deviation of the noise at normal strength
-export const STRONG = 1.6; // the strength the icons use
+export const MID = 1; // the strength of the page of the icons
+export const STRONG = 1.6; // the strength of their bands and figure
 export const SEED = 20261017;
 
 /** The seeded generator (mulberry32) behind the tile; the lattice of the hero images draws its cells from it too. */
@@ -58,5 +59,13 @@ export function stretchedTile(tile = fineNoiseTile()) {
       );
     }
   }
+  return out;
+}
+
+/** Two grain maps of the same size joined by a mask: `mild` where the mask byte is 255, `strong` where it is 0, mixed in between (the
+ *  antialiased edge of a shape). All three are gray bytes of equal length. */
+export function zonedGrain(mild, strong, mask) {
+  const out = new Uint8ClampedArray(mask.length);
+  for (let i = 0; i < out.length; i++) out[i] = Math.round(strong[i] + ((mild[i] - strong[i]) * mask[i]) / 255);
   return out;
 }
