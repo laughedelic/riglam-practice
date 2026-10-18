@@ -349,7 +349,9 @@ test("the comment names the files and who else changed them, and carries a marke
   const text = conflictComment(skip);
   expect(text.startsWith(commentMarker(skip))).toBe(true);
   expect(text).toContain("- `a.js`\n- `b.js`");
-  expect(text).toContain("`main`, which changed them since this branch left it and by #1, which is on staging before it");
+  expect(text).toContain("Those files were also changed by `main`, since this branch left it and by #1, which is on staging before it.");
+  expect(conflictComment({ ...skip, files: ["a.js"], withMain: false, with: [] })).not.toContain("also changed by");
+  expect(conflictComment({ ...skip, files: ["a.js"], with: [] })).toContain("That file was also changed by `main`, since this branch left it.");
   expect(text).toContain("Merge `main`");
 });
 

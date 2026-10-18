@@ -34,14 +34,14 @@ export const commentMarker = (skip) => `<!-- staging-conflict ${skip.sha} -->`;
 
 /** The comment for a pull request that staging has just stopped merging. */
 export function conflictComment(skip) {
-  const others = [...(skip.withMain ? ["`main`, which changed them since this branch left it"] : []), ...skip.with.map((n) => `#${n}, which is on staging before it`)];
+  const others = [...(skip.withMain ? ["`main`, since this branch left it"] : []), ...skip.with.map((n) => `#${n}, which is on staging before it`)];
   return [
     commentMarker(skip),
     "Staging left this pull request out because it does not merge cleanly.",
     "",
     "Conflicts in:",
     ...skip.files.map((f) => `- \`${f}\``),
-    ...(others.length ? ["", `The same files were changed by ${others.join(" and by ")}.`] : []),
+    ...(others.length ? ["", `${skip.files.length === 1 ? "That file was" : "Those files were"} also changed by ${others.join(" and by ")}.`] : []),
     "",
     "Merge `main` (or the pull request above) into this branch and push, as for any pull request. Staging rebuilds by itself and the status `staging` turns green. This comment is posted once for a conflict.",
   ].join("\n");

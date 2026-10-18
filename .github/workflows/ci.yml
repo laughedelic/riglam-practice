@@ -10,7 +10,6 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-# (trial edit of a workflow file, to be reverted)
 permissions:
   contents: read
 

@@ -10,8 +10,6 @@ name: Staging
 # conflicts with main, does not start a `pull_request` workflow; a push by a workflow's own token does not either.
 
 on:
-  pull_request: # TEMPORARY, to try this workflow from its own pull request before it is on main
-    types: [labeled]
   pull_request_target:
     types: [labeled, unlabeled, synchronize, reopened, closed, edited]
   push:
@@ -26,6 +24,8 @@ permissions:
 jobs:
   sync:
     name: Rebuild staging
+    # Dependabot's own pushes get a read-only token here, and no pull request of its is on staging; the push to main and the schedule cover the rest.
+    if: ${{ github.actor != 'dependabot[bot]' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     # One rebuild at a time. A run waiting behind another is replaced by a newer one, which is fine: every run reads the pull requests afresh.
@@ -42,11 +42,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.event_name == 'pull_request' && github.sha || 'main' }} # TEMPORARY
+          ref: main
           fetch-depth: 0
-          # The token that pushes `staging`. The default one cannot push a change to a file under .github/workflows, so when a labeled pull
-          # request changes one, or when Workers Builds does not start on a push made with the default token, set the secret STAGING_TOKEN
-          # (a fine-grained token with contents write, or a classic one with the workflow scope).
+          # The token that pushes `staging`: the default one, unless the secret STAGING_TOKEN is set (a fine-grained token with contents write,
+          # or a classic one with the workflow scope). Only needed if a push is ever refused or does not start the Workers Builds build.
           token: ${{ secrets.STAGING_TOKEN || github.token }}
       - uses: actions/setup-node@v7
         with:
