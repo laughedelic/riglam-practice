@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/hero-dark.png">
+  <img alt="Riglam: the path of reasoning" src="docs/images/hero-light.png">
+</picture>
+
 # riglam-practice
 
 Practice in logic and debate on the "path of reasoning" (*rigs lam*): drills for the Dudra and Tarig courses. The first drill compares two phenomena (pick the relation, then give an example for each combination); the second asks the four debate questions about a pair.
@@ -38,13 +43,13 @@ src/pwa/                   PWA only: platform adapter, local `db` (IndexedDB), a
 src/artifact/              artifact only: platform adapter (embedded data, `window.claude`), head (title, font links)
 worker/                    the server: a Cloudflare Worker for /api/* (tutor access check, spend budgets, optional passkey accounts and document sync, flag reports and their scheduled review), D1 schema
 src/ai/                    the contract between page and server (protocol, access proof), shared by both
-scripts/                   build-artifact, artifact-verify, data (key, import, export), fonts, icons, Vite plugins
+scripts/                   build-artifact, artifact-verify, data (key, import, export), fonts, icons, social (the hero pictures), Vite plugins
 tests/unit/                Vitest unit tests (artifact comparison, artifact and PWA build contracts, the data tiers, the shape of src/app, the tutor code in src/ai-shared, the rules in src/domain)
 tests/worker/              Vitest tests of the server with stand-ins for D1 and the model API
 tests/e2e/                 Playwright: PWA specs, parity with the artifact build, the layout matrix, and the legacy page suite
 tests/legacy/              the page's regression suite (harness, 28 test files)
 public/                    icons
-docs/                      developing, architecture, term data and key, artifact loop, deploy, releasing, testing
+docs/                      developing, architecture, term data and key, artifact loop, deploy, releasing, testing; images/ has the README hero and the link preview picture
 .github/workflows/         CI, release
 ```
 

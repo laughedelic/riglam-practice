@@ -1,0 +1,38 @@
+{
+  "text": {
+    "title": "Riglam",
+    "line": "The path of reasoning",
+    "tibetan": "རིགས་ལམ",
+    "lineSize": 127,
+    "tibetanSize": 129
+  },
+  "images": {
+    "hero-light": {
+      "file": "docs/images/hero-light.png",
+      "height": 320,
+      "ground": { "kind": "bands", "center": "#fdf3e2", "sides": "#e74536" },
+      "figure": { "a": "#faaf3f", "b": "#3155a4", "overlap": "#4c8a63", "size": 98 },
+      "textColor": "#14151c",
+      "tibetanColor": "rgba(0, 0, 0, 0.09)",
+      "grain": { "ground": "mid", "sides": "strong", "figure": "strong", "size": 1 }
+    },
+    "hero-dark": {
+      "file": "docs/images/hero-dark.png",
+      "height": 320,
+      "ground": { "kind": "bands", "center": "#10162b", "sides": "#b83545" },
+      "figure": { "a": "#faaf3f", "b": "#3155a4", "overlap": "#4c8a63", "size": 98 },
+      "textColor": "#faf6ec",
+      "tibetanColor": "rgba(255, 255, 255, 0.2)",
+      "grain": { "ground": "mid", "sides": "strong", "figure": "strong", "size": 1 }
+    },
+    "social-preview": {
+      "file": "docs/images/social-preview.png",
+      "height": 640,
+      "ground": { "kind": "lattice", "base": "#10162b" },
+      "figure": { "a": "#faaf3f", "b": "#3155a4", "overlap": "#4c8a63", "size": 100 },
+      "textColor": "#faf6ec",
+      "tibetanColor": "rgba(255, 255, 255, 0.2)",
+      "grain": { "ground": "mid", "sides": "mid", "figure": "mid", "size": 1 }
+    }
+  }
+}

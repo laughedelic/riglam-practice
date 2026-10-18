@@ -1,0 +1,18 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Riglam hero images</title>
+<style>
+  @font-face { font-family: "Sorts Mill Goudy"; font-weight: 400; src: url(fonts/sorts-mill-goudy-latin.woff2) format("woff2"); }
+  @font-face { font-family: "Noto Serif Tibetan"; font-weight: 600; src: url(fonts/noto-serif-tibetan-600-riglam.woff2) format("woff2"); }
+</style>
+<canvas id="picture"></canvas>
+<script type="module">
+  import { draw } from "./draw.js";
+  // Called by scripts/make-social.mjs with the words and one image of settings.json; returns the picture as a PNG data URL.
+  window.render = async (text, image) => {
+    const canvas = document.getElementById("picture");
+    const info = await draw(canvas, text, image);
+    return { png: canvas.toDataURL("image/png"), info };
+  };
+  window.ready = true;
+</script>
