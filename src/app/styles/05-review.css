@@ -44,6 +44,7 @@
 .xbody{display:grid;gap:10px;min-width:0}
 .xbody .cell .qn{display:block;font:700 10.5px/1.3 var(--body);letter-spacing:.06em;color:var(--ink-muted)}
 .xbody .cell.locked .empty{font-size:16px}
+.xbody .cell .noans{font-size:14px;color:var(--ink-muted)}
 .favs .xexp{display:block;padding:0}
 .favs .xexp summary{display:block;cursor:pointer;font:700 10.5px/1.4 var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-muted)}
 .xexp summary::before{content:"▸ "} .xexp[open] summary::before{content:"▾ "}
