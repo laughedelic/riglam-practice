@@ -135,13 +135,56 @@ export function readReviewAnswer(raw: unknown): ReviewAnswer | null {
   };
 }
 
+const oneLine = (s: unknown, max: number): string => (typeof s === "string" ? s : "").replace(/\s+/g, " ").trim().slice(0, max);
+// a verdict is a short lowercase word ("ok", "bad", "cmp"); anything else is not one the page wrote
+const verdictOf = (v: unknown): string | undefined => (typeof v === "string" && /^[a-z]{1,10}$/.test(v) ? v : undefined);
+const refsOf = (src: Partial<Record<CellId, string | null>> | undefined, max: number): Partial<Record<CellId, string>> => {
+  const out: Partial<Record<CellId, string>> = {};
+  for (const c of CELLS) { const v = src?.[c]; if (typeof v === "string") out[c] = oneLine(v, max); }
+  return out;
+};
+
+/**
+ * The stored answer as the card may print it. The card writes some of the answer's texts as they are (the pair's labels in a
+ * cell's name, the reference note, the reason a cell is empty, a verdict), so each text a device could have written is set on
+ * one line and cut to REVIEW_LIMITS, and a verdict or a relation the page does not use is dropped, before the card is made.
+ * Throws for a relation the app does not know: there is no card for it.
+ */
+function cleanAnswer(a: ReviewAnswer): ReviewAnswer {
+  const L = REVIEW_LIMITS, p = a.pair, rel = (k: unknown) => typeof k === "string" && Object.prototype.hasOwnProperty.call(REL, k);
+  if (!rel(p.relation)) throw new RangeError("not a relation: " + String(p.relation));
+  const pair: PairLike = {
+    a: oneLine(p.a, L.label), b: oneLine(p.b, L.label),
+    catA: p.catA == null ? p.catA : oneLine(p.catA, 80), catB: p.catB == null ? p.catB : oneLine(p.catB, 80),
+    typeA: p.typeA == null ? p.typeA : oneLine(p.typeA, L.type), typeB: p.typeB == null ? p.typeB : oneLine(p.typeB, L.type),
+    relation: p.relation, ex: refsOf(p.ex, L.cell), why: refsOf(p.why, L.cell), note: p.note == null ? p.note : oneLine(p.note, L.pairNote),
+  };
+  const cells = {} as ReviewAnswer["cells"];
+  for (const c of CELLS) {
+    const x = a.cells?.[c] || {}, verdict = verdictOf(x.verdict);
+    cells[c] = { text: oneLine(x.text, L.cell), none: !!x.none, ...(verdict ? { verdict } : {}) };
+  }
+  const qs = a.qs?.filter((q) => QCELL.includes(q?.c)).map((q) => {
+    const verdict = verdictOf(q.verdict);
+    return { c: q.c, say: q.say === "accept" || q.say === "why" ? q.say : null, text: oneLine(q.text, L.cell), timeout: !!q.timeout, ...(verdict ? { verdict } : {}) };
+  });
+  return {
+    ...(a.mode === "debate" ? { mode: "debate" } : {}),
+    chosen: rel(a.chosen) ? a.chosen : null, cells, ...(qs ? { qs } : {}),
+    implied: a.implied === "bad" || rel(a.implied) ? a.implied : null,
+    ...(a.timeout ? { timeout: oneLine(a.timeout, 12) } : {}),
+    pair, ...(typeof a.explain === "string" ? { explain: a.explain } : {}),
+  };
+}
+
 /**
  * The first message of a review: the tutor's card for the pair and the answer, what the tutor said, and the flag.
- * Everything a learner's device sent is cut to REVIEW_LIMITS and written as a quoted string, so a line break inside it
- * cannot open a section of its own; REVIEW_GUIDE tells the reviewer to treat it as material, not instructions.
+ * Everything a learner's device sent is cut to REVIEW_LIMITS and written as a quoted string (the stored answer's texts that the
+ * card prints as they are are set on one line instead, `cleanAnswer`), so a line break inside it cannot open a section of its
+ * own; REVIEW_GUIDE tells the reviewer to treat it as material, not instructions.
  */
-export function reviewRequest(ix: DataIndex, flag: ReviewFlag, a: ReviewAnswer): string {
-  const q = (s: string | undefined, max: number) => JSON.stringify(String(s || "").trim().slice(0, max));
+export function reviewRequest(ix: DataIndex, flag: ReviewFlag, answer: ReviewAnswer): string {
+  const q = (s: string | undefined, max: number) => JSON.stringify(String(s || "").trim().slice(0, max)), a = cleanAnswer(answer);
   return [
     cardBody(ix, a.pair, storedView(a)) + cardNotes(ix, a.pair),
     "",
