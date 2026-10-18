@@ -149,6 +149,18 @@ describe("taking back", () => {
     expect(seen.at(-1)?.body).toEqual({ withdraw: ["fl_a", "fl_b"] });
   });
 
+  it("keeps every removal the server has not acknowledged, however many there are, and says them in requests of the allowed size", async () => {
+    const kept = stubStorage();
+    const ids = Array.from({ length: 260 }, (_, i) => `fl_${i}`);
+    for (const id of ids) withdrawLater(id);
+    expect(JSON.parse(kept.get("riglam.flagsToWithdraw")!)).toEqual(ids);
+    const { reports, seen } = client(testMagicKey(), storing);
+    await reports.flush();
+    expect(seen.flatMap((s) => (s.body as { withdraw: string[] }).withdraw)).toEqual(ids);
+    expect(seen.every((s) => (s.body as { withdraw: string[] }).withdraw.length <= REPORT_LIMITS.withdraw)).toBe(true);
+    expect(kept.has("riglam.flagsToWithdraw")).toBe(false);
+  });
+
   it("a removal made while the device had no reports is kept, and the next client says it", async () => {
     const kept = stubStorage();
     withdrawLater("fl_a");
