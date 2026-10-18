@@ -77,7 +77,7 @@ test("a flag opens to show what Claude said, the note and the exercise it was ma
   const chat = item(page, "Claude’s answer in the chat");
   await chat.locator("summary").first().click();
   await expect(chat.locator(".fsaid .q")).toHaveText("Is a thought round?");
-  // the check lab's marks are for the artifact, where the lab runs
+  // Reviewed and Resolved are for the flags the page raises by itself (Quorum), not for the learner's own
   await expect(body.getByRole("button", { name: "Reviewed" })).toHaveCount(0);
 });
 

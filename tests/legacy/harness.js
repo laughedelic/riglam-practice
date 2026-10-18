@@ -7,7 +7,6 @@
 const {chromium}=require('@playwright/test');
 const fs=require('fs');
 const path=require('path');
-const process_env_lab=process.env.LAB==='1';
 const ROOT=path.resolve(__dirname,'../..');
 const SHOTS=path.join(__dirname,'out','t')+'/';
 fs.mkdirSync(SHOTS,{recursive:true});
@@ -19,28 +18,9 @@ const subs={answers:[],debates:[],batches:[],favorites:[],skips:[],labruns:[],fl
 function snap(n){const docs=Object.entries(S[n]).map(([id,d])=>({id,exists:true,data:()=>d}));return {docs,size:docs.length,empty:!docs.length};}
 const db={collection(n){const q={orderBy(){return q},limit(){return q},onSnapshot(f){subs[n].push(f);setTimeout(()=>f(snap(n)),10);return()=>{}},
  doc(id){return{set:async d=>{ if((window.__failSet||{})[n]) throw {code:'quota_exceeded'}; window.__ops.push(['set',n,id]); S[n][id]=d; setTimeout(()=>subs[n].forEach(f=>f(snap(n))),5); },delete:async()=>{ window.__ops.push(['delete',n,id]); delete S[n][id]; setTimeout(()=>subs[n].forEach(f=>f(snap(n))),5); } }}};return q;}};
-window.__asks=[];window.__labcalls=[];
-const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-// default lab answer: everything is in both categories and exists; a test overrides per model with window.__labAns[model]=(thing,i)=>record, "judge" included
-const short=id=>/haiku/.test(id)?'haiku':/sonnet/.test(id)?'sonnet':'opus';
-function labReply(prompt,model){
-  const judge=String(prompt).includes('You are the judge');
-  const m=String(prompt).split('Things:\\n')[1]||''; const things=[...m.matchAll(/^\\d+\\. (".*")$/gm)].map(x=>JSON.parse(x[1]));
-  const f=(window.__labAns||{})[judge?'judge':short(model)]||((t,i)=>({}));
-  const arr=things.map((t,i)=>Object.assign({thing:t,reading:'mock '+t,inA:true,inB:true,exists:true,unsure:false},judge?{right:[1,2,3],reason:'mock reason'}:{},f(t,i)));
-  return JSON.stringify({things:arr});
-}
+window.__asks=[];
 const sample=async(turns,opts)=>{
   window.__asks.push(turns.length);
-  if(opts&&opts.model){
-    const judge=String(turns).includes('You are the judge');
-    window.__labcalls.push({model:opts.model,tier:opts.modelTier,effort:opts.effort,cache:opts.cache,judge,len:String(turns).length,prompt:String(turns)});
-    await sleep(((window.__labdelays||{})[judge?'judge':short(opts.model)])||window.__labdelay||25);
-    const fail=(window.__labFail||{})[judge?'judge':short(opts.model)]; if(fail) throw {code:fail,message:fail};
-    const raw=(window.__labRaw||{})[judge?'judge':short(opts.model)];
-    const sh=judge?'judge':short(opts.model); const applied=(window.__applied&&sh in window.__applied)?window.__applied[sh]:opts.model;
-    return {text:raw!==undefined?raw:labReply(turns,opts.model),truncated:false,modelTierApplied:opts.modelTier,modelApplied:applied||undefined};
-  }
   if(window.__delay) await new Promise(r=>setTimeout(r,window.__delay)); const t1='Both: a clay pot fits.\\nNeither: a stone is B, not A.'; if(opts.onText) opts.onText({text:t1.slice(0,12)}); await new Promise(r=>setTimeout(r,60)); return {text:window.__reply||t1,truncated:false};
 };
 window.claude={use:async n=>n==='db'?db:n==='sample'?sample:null};
@@ -49,19 +29,17 @@ window.claude={use:async n=>n==='db'?db:n==='sample'?sample:null};
   return {html};
 }
 async function open(vp,opts={}){
-  const lab=opts.lab; delete opts.lab;
+  const autoExplain=opts.autoExplain; delete opts.autoExplain;
   const {html}=load();
   const br=await chromium.launch();
   const ctx=await br.newContext(Object.assign({viewport:vp,colorScheme:'light'},opts));
-  // the lab is off in the old tests (it adds calls and renders); a test turns it on with {lab:true}
-  await ctx.addInitScript(on=>{ try{ if(localStorage.getItem('rd-lab')===null) localStorage.setItem('rd-lab',on?'1':'0'); }catch(e){} },!!lab||process_env_lab);
+  // a checked answer does not ask for its explanation by itself in the old tests (they click Explain); a test turns it on with {autoExplain:true}
+  await ctx.addInitScript(on=>{ try{ if(localStorage.getItem('rd-autoexplain')===null) localStorage.setItem('rd-autoexplain',on?'1':'0'); }catch(e){} },!!autoExplain);
   await ctx.addInitScript(()=>{ window.__riglamTest=t=>{ window.__t=t; }; });
   const pg=await ctx.newPage(); pg.setDefaultTimeout(4000);
   const errs=[]; pg.on('console',m=>{if(m.type()==='error')errs.push(m.text())}); pg.on('pageerror',e=>errs.push('ERR '+e.message));
   await pg.route('http://t/**',r=>r.fulfill({body:html,contentType:'text/html'}));
   await pg.goto('http://t/index.html',{waitUntil:'domcontentloaded'}); await pg.waitForTimeout(800);
-  // old lab tests expect a judge on every case: the spot check is switched to "always" (a test sets window.__t.labSpotN itself to try the real rule)
-  if(lab||process_env_lab) await pg.evaluate(()=>{ window.__t.labSpotN=1; });
   return {br,pg,errs};
 }
 // Waits until `read` (a function run in the page) returns the same value on `times` reads in a row, `every` ms apart, and
