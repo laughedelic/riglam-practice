@@ -14,5 +14,7 @@ export type { Clock, DrawState, Rng } from "./universe";
 export { cap, gradeOf, isMiss, pick } from "./util";
 export { NAME_CELL, VERDICT_RE, applyVerdicts, factNote, fitOf, noteParts, parseFactLine, parseVerdicts, partsText, placeFacts } from "./verdict";
 export type { Answer, CellVerdict, FactLine, NoteData, NotePart, Side, Terms } from "./verdict";
+export { cellFor, cellOfFacts, disputeText, divided, quorumDisputes, quorumRows, readings } from "./quorum";
+export type { Dispute, QuorumAnswer, QuorumRow, QuorumThing, Reading } from "./quorum";
 export { catChain, knownClass, listedItem, rung, termPhrase } from "./ladder";
 export type { Rung } from "./ladder";

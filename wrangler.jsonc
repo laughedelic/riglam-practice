@@ -50,6 +50,10 @@
   // inherit the settings above except the static files and the compatibility date. What they have is this block: the same tutor
   // settings with lower budgets, persisted logs, and one shared database of their own (never production's), so a pull request that
   // changes the server or the schema cannot touch production data. Previews share its budget counters and accounts.
+  // QUORUM turns on the tutor's mode of several models and a judge (docs/SERVER.md, "Quorum"): it is here and nowhere else, so production does not offer it
+  // ("optin" would offer it with a device default of off, for a server that offers it to the public),
+  // and it keeps a record of every run in this database (the examples learners checked and the answers). Quorum has budgets of its own, apart from the tutor's;
+  // a run that finds them used up is answered by the one model, from the tutor's.
   // The secrets ANTHROPIC_API_KEY and RIGLAM_DATA_KEY are not here: they come from the Preview base config (`wrangler preview base-config
   // secret put`), which a Preview copies when it is created. `npm run staging -- deploy` applies the database's migrations before it deploys
   // `staging`; those of a pull request are applied by hand (wrangler's migration command reads the top level only, which is why
@@ -70,7 +74,11 @@
       "TUTOR_MAX_ROUNDS": "4",
       "DEVICE_DAILY_BUDGET_USD": "0.50",
       "GLOBAL_DAILY_BUDGET_USD": "2",
-      "RESERVE_USD": "0.05"
+      "RESERVE_USD": "0.05",
+      "QUORUM": "on",
+      "QUORUM_DEVICE_DAILY_BUDGET_USD": "3",
+      "QUORUM_GLOBAL_DAILY_BUDGET_USD": "12",
+      "QUORUM_RESERVE_USD": "0.40"
     },
     "d1_databases": [{ "binding": "DB", "database_name": "riglam-practice-staging", "database_id": "5c0fcda4-2f7e-4c18-b1ee-ef287d217d49" }]
   }

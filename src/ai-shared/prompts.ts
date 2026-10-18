@@ -36,3 +36,17 @@ export const DEBATE_ASK = `Explain this debate. Use these lines, in this order:
 - "Pervasion:" whether whatever is A is necessarily B, and the reverse;
 - "Explanation:" only if the learner was wrong: two sentences on what to look at to get it right, without repeating the lines above;
 - "Misconception:" only if the learner was wrong, one sentence.`;
+
+/**
+ * What the judge of Quorum is told after the learner's request (worker/quorum.ts): the other tutors' drafts, numbered in the order given, and the examples they
+ * put in different cells (`says`: what each draft says of it, in the draft order). The judge answers the request itself, so the learner sees one answer in the usual form.
+ */
+export function judgeNote(drafts: readonly string[], differ: readonly { example: string; says: readonly string[] }[]): string {
+  const list = differ.map((d) => `- "${d.example}": ` + d.says.map((s, i) => `draft ${i + 1} ${s}`).join(", ")).join("\n");
+  return [
+    "Other tutors answered this request independently. Their drafts follow, numbered in no particular order. They put some examples in different cells:",
+    list,
+    "Settle each of those examples yourself, from the card and the tools, as you settle any other example, and then write the one answer to the request above, in the form it asks for and with the lines it asks for. Where the drafts agree, keep what is right in them and correct what is wrong. Never mention the drafts, other tutors or this comparison.",
+    ...drafts.map((d, i) => `DRAFT ${i + 1}\n${d}`),
+  ].join("\n\n");
+}

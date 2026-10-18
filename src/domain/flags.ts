@@ -31,7 +31,7 @@ export const autoFlagOf = (flag: object): AutoFlag | null => AUTO_FLAGS.find((a)
 
 /**
  * The stored answer a flag was made on. A flag's case key is the collection and the id of the answer on screen
- * ("answers_r-mv9q", "debates_q-mv9q"); the check lab uses the same key. A key that names no collection gives null,
+ * ("answers_r-mv9q", "debates_q-mv9q"); the flags Quorum raises by itself use the same key. A key that names no collection gives null,
  * and an answer that was never saved is simply not found under the id.
  */
 export function flagAnswerRef(f: FlagRef): { col: AnswerCol; id: string } | null {
@@ -43,7 +43,7 @@ const isCell = (n: string): n is CellId => Object.prototype.hasOwnProperty.call(
 
 /**
  * What the flag is on, in words: Claude's whole explanation, its note on one cell (a question in a debate) or on the
- * relation, or one answer in the chat. A part of the check lab is named by the example, the model and the part;
+ * relation, or one answer in the chat. A part of an answer of several models is named by the example, the model and the part;
  * `modelName` turns a model id into its name.
  */
 export function flaggedPart(f: FlagRef, modelName: (id: string) => string = (id) => id): string {
