@@ -13,7 +13,7 @@
 .ansrow.two .btn{flex:1;justify-content:center}
 .ansrow input{flex:1;min-width:0;font:15px var(--body);color:var(--ink);background:var(--paper);border:1px solid var(--ink-muted);border-radius:0;padding:9px 11px}
 .btn .kbd{margin-left:10px;color:inherit;opacity:.6}
-/* the timer: a slim bar that drains over the limit, warms from grey-blue to saffron to red, and pulses gently over the last quarter.
+/* the timer: a slim bar that drains over the limit, warms from gray-blue to saffron to red, and pulses gently over the last quarter.
    --t is the limit and --e the time already used, so a redraw keeps the bar where it was. */
 .tbar{height:5px;background:var(--line);overflow:hidden}
 .tbar i{display:block;height:100%;transform-origin:0 50%;background:var(--faint);

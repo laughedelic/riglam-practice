@@ -83,6 +83,10 @@ export interface LocalDbOptions {
   indexedDB?: IDBFactory;
   name?: string;
   channel?: boolean;
+  /** How long a read or write of IndexedDB may take before the storage counts as not answering (default 8 s). */
+  timeoutMs?: number;
+  /** Called once, when the storage did not answer in time: from then on the store works in memory only, like in a private window. */
+  onUnavailable?: () => void;
 }
 
 /** A write made on this device through the `db` capability. `data` is null for a deletion. */
@@ -104,6 +108,10 @@ export interface LocalDb extends Db {
   applyRemote(col: string, id: string, data: Doc | null, revision?: number): Promise<boolean>;
   /** A number that changes with every write of the document on this device, by the page, another tab or `applyRemote`, from the moment the write begins. */
   revision(col: string, id: string): number;
+  /** The name of the IndexedDB database this store is. */
+  readonly name: string;
+  /** False once the storage stopped answering (src: `timeoutMs`): from then on the store works in memory only, and what it holds is not what a reload would show. */
+  usable(): boolean;
   /** Whether a write by the page has begun but `onWrite` has not yet been told of it (it is being saved). */
   writing(col: string, id: string): boolean;
   /** Resolves once no write by the page is under way (the hooks of those that finished have been told). */
@@ -137,7 +145,21 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
       req.onblocked = () => resolve(null);
     }));
 
-  const tx = async <T = unknown>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest<T> | undefined): Promise<T | undefined> => {
+  // A storage that never answers (seen on a phone whose IndexedDB hung after the app was killed) must not keep the page on "Loading." for ever:
+  // after `timeoutMs` the store goes on in memory, and `onUnavailable` lets the page say so.
+  let dead = false;
+  const tx = <T = unknown>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest<T> | undefined): Promise<T | undefined> => {
+    if (dead) return Promise.resolve(undefined);
+    return new Promise<T | undefined>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        dead = true;
+        try { opts.onUnavailable?.(); } catch { /* the notice is not the store's business */ }
+        resolve(undefined);
+      }, opts.timeoutMs ?? 8000);
+      txNow<T>(mode, fn).then((v) => { clearTimeout(timer); resolve(v); }, (e) => { clearTimeout(timer); reject(e); });
+    });
+  };
+  const txNow = async <T = unknown>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest<T> | undefined): Promise<T | undefined> => {
     const d = await open();
     if (!d) return undefined;
     return new Promise<T | undefined>((resolve, reject) => {
@@ -196,7 +218,7 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
     for (const fn of [...(listeners.get(col) ?? [])]) queueMicrotask(fn);
   };
 
-  const channel = opts.channel !== false && globalThis.BroadcastChannel ? new BroadcastChannel("riglam-db") : null;
+  const channel = opts.channel !== false && globalThis.BroadcastChannel ? new BroadcastChannel(dbName === DB_NAME ? "riglam-db" : `${dbName}-db`) : null;
   if (channel) {
     channel.onmessage = async ({ data: { col, id } }: MessageEvent<{ col: string; id: string }>) => {
       const row = await tx<Stored | undefined>("readonly", (s) => s.get(`${col}/${id}`)).catch(() => null);
@@ -254,6 +276,8 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
           return false;
         }
       } else await tx("readwrite", (s) => (data === null ? s.delete(path) : s.put({ path, col, id, data: mine })) as IDBRequest);
+      // The server's copy must not count as received when it only reached memory: sync would move its cursor past it and never bring it again.
+      if (remote && dead) throw err("unavailable", "the storage on this device is not answering");
     } catch (e) {
       // Not saved: the page must not go on showing a document that a reload would lose. Put back what was there, unless another write has replaced it since.
       if (versions.get(path) === stamp && m.get(id) === mine) {
@@ -428,6 +452,8 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
       if (revision !== undefined && (versions.get(`${col}/${id}`) ?? 0) !== revision) return false;
       return write(col, id, data, true, revision !== undefined);
     },
+    name: dbName,
+    usable: () => !dead,
     /** Resolves once the IndexedDB connection is open (or known to be unavailable). For tests. */
     ready: open,
     close() { channel?.close(); return open().then((d) => d?.close()); },

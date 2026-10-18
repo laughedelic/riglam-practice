@@ -4,7 +4,7 @@
 //                 origin/staging and changed with --add <branch> and --remove <branch> (both can be repeated). Stops at a conflict.
 //   push          push staging to origin (force, but only over the state this clone last fetched)
 //   list          show what origin/staging was built from
-//   deploy        build the app from the checked-out staging branch and put it on the Worker Preview named staging (wrangler.staging.jsonc)
+//   deploy        build the app from the checked-out staging branch and put it on the Worker Preview named staging
 //                 deploy --here  the same for whatever commit is checked out, without the branch checks (for a build service such as Workers Builds,
 //                                which builds other branches too: a branch other than staging gets its own Preview, by WORKERS_CI_BRANCH)
 // Exit 0 on success, 1 when the work could not be done (a conflict, a missing branch), 2 on a usage problem.
@@ -17,7 +17,6 @@ import { ConflictError, StagingError, git, push, readManifest, rebuild } from ".
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const TARGET = "staging";
 const PREVIEW = "staging";
-const CONFIG = "wrangler.staging.jsonc";
 const MIGRATIONS_CONFIG = "wrangler.staging-migrations.jsonc";
 const D1_NAME = "riglam-practice-staging";
 
@@ -67,9 +66,10 @@ function previewUrl(out) {
 }
 
 /**
- * A branch other than staging (a pull request): the app as the branch has it, on the Preview that wrangler names after the branch.
- * It reads wrangler.jsonc, whose `previews` block is empty, so the Preview has no database and no secrets: the tutor is off and
- * nothing can be spent. Its name is wrangler's own, the one `npx wrangler preview` (Workers Builds' default) would give it.
+ * A branch other than staging (a pull request): the app as the branch has it, on the Preview that wrangler names after the branch
+ * (the name `npx wrangler preview`, Workers Builds' default, would give it). Like staging, it reads the `previews` block of wrangler.jsonc:
+ * the shared staging database, the preview budgets and the secrets of the Preview base config. It applies no migrations: a Preview does not
+ * apply them itself, and a branch's migration would stay in the database shared with staging and the other Previews (docs/STAGING.md).
  */
 function deployBranch(branch) {
   const sha = git(root, ["rev-parse", "--short", "HEAD"]);
@@ -96,14 +96,14 @@ function deploy({ here = false } = {}) {
   const manifest = readManifest(root, "HEAD");
   if (!manifest) throw new StagingError(`this checkout of ${TARGET} has no staging.json: rebuild it with npm run staging`);
   run("npm", ["ci"]);
-  // A second name and short name, so that the staging app can be installed next to the real one and told apart.
-  run("npm", ["run", "build:pwa"], { RIGLAM_APP_NAME: "Riglam practice (staging)", RIGLAM_APP_SHORT_NAME: "Staging" });
+  // A second name, short name and icon, so that the staging app can be installed next to the real one and told apart.
+  run("npm", ["run", "build:pwa"], { RIGLAM_APP_NAME: "Riglam practice (staging)", RIGLAM_APP_SHORT_NAME: "Staging", RIGLAM_ICON_SET: "preview" });
   // What is deployed, readable at /staging-build.json (not precached: it is written after the build).
   writeFileSync(resolve(root, "dist/pwa/staging-build.json"), `${JSON.stringify({ commit: sha, base: manifest.base, branches: manifest.branches, builtAt: new Date().toISOString() }, null, 2)}\n`);
   const wrangler = ["--yes", `wrangler@${wranglerVersion()}`];
   run("npx", [...wrangler, "d1", "migrations", "apply", D1_NAME, "--remote", "-c", MIGRATIONS_CONFIG]);
   // A Preview, not a deploy: it has the database and variables of the `previews` block and none of production's secrets or data.
-  const out = execFileSync("npx", [...wrangler, "preview", "--name", PREVIEW, "-c", CONFIG, "--message", sha, "--json"], { cwd: root, encoding: "utf8", stdio: ["inherit", "pipe", "inherit"] });
+  const out = execFileSync("npx", [...wrangler, "preview", "--name", PREVIEW, "--message", sha, "--json"], { cwd: root, encoding: "utf8", stdio: ["inherit", "pipe", "inherit"] });
   console.log(`staging ${sha} is at ${previewUrl(out)}`);
 }
 

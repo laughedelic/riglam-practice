@@ -3,32 +3,43 @@
 //   sample  not available yet (no server): the page hides the check lab. Only `npm run dev` has one, a stand-in for the model
 //           (./dev-sample.ts); `?ai=off` in the address takes it away there too.
 //   unlock  a way to enter the Magic Key, while this device has none (./unlock.ts); the definitions come from the server (./course.ts)
+//   keyHeld while it has one: enter another, or forget it (./unlock.ts)
 //   tutor   the app's own server (./tutor.ts), when it has the tutor on and this device has the Magic Key
 //   reports flags sent to the app's own server (./reports.ts), when it takes them and this device has the Magic Key
 //   account optional sign-in with a passkey and a server copy of the documents (./account.ts), when the server has accounts on
+//   updates the service worker's new versions: checked in the background, started from the banner or Options (./updates.ts)
 import dataUrl from "../data/drill-data.json?url";
 import { merge, lock } from "../data/course.js";
 import type { Account, DrillData, Platform, Sample } from "../platform/types";
 import { createPwaAccount } from "./account";
 import { fetchCourse, forgetCourse, keepCourse, keptCourse, whyNot, type Definitions } from "./course";
 import { createAccountClient } from "../account/client";
+import { aboutThisBuild } from "./about";
+import { updates } from "./updates";
+import { showStorageNotice } from "./storage-notice";
+import { storeName } from "./store-slot";
 import { createLocalDb } from "./local-db";
 import { createReports, reportsAreOn } from "./reports";
 import { createTutor, tutorIsOn as serverSaysOn } from "./tutor";
-import { takeLinkKey, storedKey, storeKey, forgetKey, showUnlock, markKeyChanged, takeKeyChanged, KEY_CHANGED_TEXT } from "./unlock";
+import { takeLinkKey, storedKey, storeKey, forgetKey, keyDeclined, declineKey, allowKey, showUnlock, markKeyChanged, takeKeyChanged, KEY_CHANGED_TEXT } from "./unlock";
 
-const db = createLocalDb();
+const db = createLocalDb({ name: storeName(), onUnavailable: showStorageNotice });
 const link = takeLinkKey(); // first of all: a key in the address leaves the address bar at once
-let openUnlock: (() => void) | null = null; // asks for the key again; set while this device has none
+let openUnlock: (() => Promise<boolean>) | null = null; // asks for the key again; set while this device has none
 let groupKey: string | null = null; // the Magic Key, once it is known to fit (or kept with the definitions): the proof for the tutor is made with it
 let serverAnswer: Promise<boolean> | null = null; // whether the server says its tutor is on: asked once, for the tutor and for the grayed Explain button
 const tutorIsOn = () => (serverAnswer ??= serverSaysOn());
+let openData: Promise<DrillData> | null = null; // the open part of the term data, read once
+const readOpenData = () => (openData ??= fetch(dataUrl).then((r) => r.json()));
+let unlocked: DrillData | null = null; // the term data with the definitions, once the prompt took a key into the running page: loadData answers with it from then on
+const keyListeners = new Set<() => void | Promise<void>>(); // the page, which reads the capabilities and the data again when a key was taken in place
 
 // The open data comes with the app. The definitions come from the server to a device that has the Magic Key (from the link, or kept
 // on this device from an earlier visit), and are kept on the device, so later visits open at once and work offline. A visit with a
 // kept copy asks the server in the background whether the copy is current and the key still fits.
 async function loadData(): Promise<DrillData> {
-  const data = await (await fetch(dataUrl)).json();
+  if (unlocked) return unlocked;
+  const data = await readOpenData();
   const stored = storedKey();
   const key = link.key ?? stored;
   let problem = link.present && !link.key ? "That link has no Magic Key in it." : null;
@@ -68,7 +79,7 @@ async function loadData(): Promise<DrillData> {
       if (link.key || got.reason === "rate_limited") problem = whyNot(got);
     }
   }
-  openUnlock = showUnlock({ problem, verify });
+  openUnlock = showUnlock({ problem, verify, apply: applyKey });
   return lock(data);
 }
 
@@ -91,9 +102,11 @@ async function refresh(key: string, have: string) {
 /** The key the server stopped accepting may have been changed: an account that carries the key (and is signed in here) has the new one. */
 async function recoverFromAccount(): Promise<boolean> {
   try {
+    if (keyDeclined()) return false;
     const key = await createAccountClient().fetchKey();
     const got = await fetchCourse(key);
     if (!got.ok || !("definitions" in got)) return false;
+    if (keyDeclined()) return false; // the reader forgot the key while this was under way: that wins (the check and the store below run with no wait between them)
     if (!storeKey(key)) return false; // nowhere to keep it: a reload would find the device without it and fetch it again, for ever
     keepCourse({ version: got.version, definitions: got.definitions });
     return true;
@@ -107,12 +120,28 @@ function takeAccountKey(key: string) {
   if (storeKey(key)) location.reload(); // with nowhere to keep the key a reload would start locked again and fetch it again, for ever
 }
 
-/** For the Magic Key prompt: null when the key opens the definitions (they are kept, so the reload that follows starts unlocked), otherwise what to tell the reader. */
+/** For the Magic Key prompt: null when the key opens the definitions (they are kept, so a reload would start unlocked), otherwise what to tell the reader. */
 async function verify(key: string): Promise<string | null> {
   const got = await fetchCourse(key);
   if (!got.ok) return whyNot(got);
   if ("definitions" in got) keepCourse({ version: got.version, definitions: got.definitions });
   return null;
+}
+
+/**
+ * The prompt verified `key` and kept it with the definitions: take it into the running page, so that what the reader was doing stays
+ * (the reload that used to follow lost the pair on the screen). The page is told through `onKey` and reads the data and the
+ * capabilities again. False when that is not possible (the page does not listen yet, or there are no definitions): the caller reloads.
+ */
+async function applyKey(key: string): Promise<boolean> {
+  const kept = keptCourse();
+  if (!keyListeners.size || !kept) return false;
+  unlocked = merge(await readOpenData(), kept.definitions);
+  groupKey = key;
+  link.key = null; // a key from the link that did not fit is out of the way now
+  link.present = false;
+  await Promise.all([...keyListeners].map((tell) => tell()));
+  return true;
 }
 
 /** `npm run dev` only: a stand-in for the model. `import.meta.env.DEV` is false in a build, so the module is not part of it (a unit test checks). */
@@ -125,18 +154,35 @@ async function sample(): Promise<Sample | null> {
 }
 
 let account: Account | null = null;
+let changeKey: (() => Promise<boolean>) | null = null; // the prompt for another key, made when first asked for
+
+/** The reader forgets the Magic Key on this device: the key and the kept definitions go, and the page starts again, locked. Answers and settings stay. */
+function forgetEverything() {
+  declineKey(); // an account that carries the key would hand it back at the next start
+  forgetKey();
+  forgetCourse();
+  location.reload();
+}
 
 export const pwaPlatform: Platform = {
   target: "pwa",
   loadData,
   db: async () => db,
   sample,
+  onKey(tell) {
+    keyListeners.add(tell);
+    return () => void keyListeners.delete(tell);
+  },
   // Offered while there is no key: the page opens the prompt when the reader reaches something that needs it (Explain, the definitions, Options).
   unlock: async () => (groupKey || !openUnlock ? null : { open: openUnlock, tutor: false, answer: tutorIsOn() }),
+  // While this device has the key: another one can be entered (the prompt keeps the old one until the new one is checked), or the key is forgotten, with the kept definitions.
+  keyHeld: async () => (groupKey ? { change: () => (changeKey ??= showUnlock({ verify, apply: applyKey }))(), forget: forgetEverything } : null),
   // Only with the key (the server would refuse the request anyway) and only when the server says its tutor is on: otherwise the page hides the tutor.
+  about: () => aboutThisBuild(),
+  updates,
   tutor: async () => (groupKey && (await tutorIsOn()) ? createTutor(groupKey) : null),
   // Only with the key, like the tutor, and only when the server says it takes reports: otherwise flags stay on the device.
   reports: async () => (groupKey && (await reportsAreOn()) ? createReports(groupKey) : null),
   // Made on first ask and then kept; it finds out for itself whether the server has accounts, so the page can show its row at once.
-  account: async () => (account ??= createPwaAccount(db, { read: () => groupKey ?? storedKey(), adopt: takeAccountKey })),
+  account: async () => (account ??= createPwaAccount(db, { read: () => groupKey ?? storedKey(), adopt: takeAccountKey, declined: keyDeclined, allow: allowKey })),
 };

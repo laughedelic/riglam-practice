@@ -63,9 +63,10 @@ export interface AccountDeps {
   proof?: () => Promise<Record<string, string>>;
   /**
    * The Magic Key on this device. A signed-in account that does not carry the key is asked to, when this device has it; a device without
-   * the key takes it from an account that carries it (`adopt` stores it and starts the page again, unlocked).
+   * the key takes it from an account that carries it (`adopt` stores it and starts the page again, unlocked), unless the reader
+   * forgot the key here (`declined`); signing in or up is the reader asking again, so it calls `allow` first.
    */
-  magicKey?: { read(): string | null; adopt(key: string): void };
+  magicKey?: { read(): string | null; adopt(key: string): void; declined?(): boolean; allow?(): void };
 }
 
 const MESSAGES = {
@@ -162,10 +163,10 @@ export function createAccount(deps: AccountDeps): Account {
           keep.write(carried);
           set({ person: carried });
         }
-      } else if (!have && p.hasKey) {
+      } else if (!have && p.hasKey && !magic.declined?.()) {
         const key = await client.fetchKey();
-        // The request may outlast a sign-out or an account switch: the key of an account that is not signed in here any more is not taken, nor one the device got meanwhile.
-        if (v.person?.id === p.id && !magic.read()) magic.adopt(key);
+        // The request may outlast a sign-out or an account switch: the key of an account that is not signed in here any more is not taken, nor one the device got meanwhile, nor one the reader forgot (in another tab) while it was coming.
+        if (v.person?.id === p.id && !magic.read() && !magic.declined?.()) magic.adopt(key);
       }
     } catch { /* offline, or the key no longer fits */ }
   }
@@ -236,6 +237,7 @@ export function createAccount(deps: AccountDeps): Account {
         const started = await client.registerOptions(name.trim(), proof);
         const response = await passkeys.create(started.options);
         const me = await client.registerVerify(started.challengeId, response, proof);
+        deps.magicKey?.allow?.();
         await adopt(personOf(me.user));
         return "Account created. What this device keeps is being copied to it.";
       }),
@@ -245,6 +247,7 @@ export function createAccount(deps: AccountDeps): Account {
         const started = await client.loginOptions();
         const response = await passkeys.get(started.options);
         const me = await client.loginVerify(started.challengeId, response);
+        deps.magicKey?.allow?.();
         await adopt(personOf(me.user));
         return "Signed in. Your documents are being brought together.";
       }),
