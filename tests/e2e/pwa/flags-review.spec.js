@@ -31,15 +31,39 @@ const flags = {
   },
 };
 
-async function openReview(page) {
+// An older answer: its pair kept no reference examples, and Claude's explanation has a line with the two facts, about terms
+// that no pair on screen is likely to have.
+const older = {
+  pairId: "r-old1", a: "blue things", b: "hollow things", chosen: "4", key: "4", correct: true, grade: "ok",
+  cells: {
+    both: { text: "a blue pipe", none: false, verdict: "ok" },
+    anb: { text: "a blue ball", none: false, verdict: "ok" },
+    bna: { text: "a clear pipe", none: false, verdict: "ok" },
+    nei: { text: "a thought", none: false, verdict: "ok" },
+  },
+  at: "2026-10-14T08:00:00.000Z",
+  pair: { id: "r-old1", a: "blue things", b: "hollow things", relation: "4" },
+  explain: "Both: a blue pipe | A yes: it is blue | B yes: it is hollow\nCommon locus: yes, a blue pipe.",
+};
+const olderFlag = {
+  id: "fl_old", caseKey: "answers_r-old1", thing: "", part: "explain", model: "", runId: null, n: null,
+  shown: older.explain, note: "Check this.", suggest: "", pair: { a: "blue things", b: "hollow things", relation: "4", tab: "practice" },
+  at: "2026-10-14T08:05:00.000Z", updatedAt: "2026-10-14T08:05:00.000Z", state: "new",
+};
+
+async function openReview(page, { more = false } = {}) {
   await giveKey(page); // flagging needs the Magic Key, also in a run without the course data
   await page.goto("/");
   await ready(page);
-  await page.evaluate(async ({ answer, flags }) => {
+  await page.evaluate(async ({ answer, flags, older, olderFlag, more }) => {
     const db = await window.__riglam.platform.db();
     await db.collection("answers").doc(answer.pairId).set(answer);
     for (const [id, f] of Object.entries(flags)) await db.collection("flags").doc(id).set(f);
-  }, { answer, flags });
+    if (more) {
+      await db.collection("answers").doc(older.pairId).set(older);
+      await db.collection("flags").doc(olderFlag.id).set(olderFlag);
+    }
+  }, { answer, flags, older, olderFlag, more });
   await page.reload();
   await ready(page);
   await page.getByRole("tab", { name: /review/i }).filter({ visible: true }).first().click();
@@ -110,4 +134,21 @@ test("a mistake opens to show the exercise as it was checked", async ({ page }) 
   await expect(li.locator(".grid .cell")).toHaveCount(4);
   await expect(li).toContainText("You chose mutually exclusive.");
   await expect(li.getByRole("button", { name: "Practice this pair" })).toBeVisible();
+});
+
+test("an older answer without references says that, and a fact line is read against its own pair", async ({ page }) => {
+  await openReview(page, { more: true });
+  const li = item(page, "blue things / hollow things");
+  await li.locator("summary").first().click();
+  const body = li.locator(".fbody");
+  // the pair kept no reference for Both, which this relation does not leave empty: the grid does not claim nothing goes there
+  const grid = body.locator(".grid .cell");
+  await expect(grid).toHaveCount(4);
+  await expect(grid.nth(0)).toContainText("No reference was kept.");
+  await expect(body.locator(".grid")).not.toContainText("Nothing goes here.");
+  // the flagged text and the explanation under it name the terms of the stored pair, not of the exercise on screen
+  await expect(body.locator(".fsaid .fnote .fsteps li").first()).toContainText(/It follows it is (A )?a blue thing, because it is blue/);
+  await expect(body.locator(".fsaid .fnote .fsteps li").nth(1)).toContainText(/It follows it is (B )?a hollow thing, because it is hollow/);
+  await body.locator(".xexp summary").click();
+  await expect(body.locator(".xexp .fnote .fsteps li").first()).toContainText("a blue thing");
 });

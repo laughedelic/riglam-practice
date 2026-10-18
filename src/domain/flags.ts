@@ -59,6 +59,14 @@ export function flaggedPart(f: FlagRef, modelName: (id: string) => string = (id)
 }
 
 /**
+ * The question a chat answer answered, for the flag on it, from the turn before it. A turn the learner typed is the question; the
+ * first turn of a chat also carries the card (it is `hidden`), and then the question alone is `asked`, when it was a question
+ * (the first turn of an explanation holds the page's own request and has none).
+ */
+export const flagAsked = (turn: { role?: string; content?: string; hidden?: boolean; asked?: string } | null | undefined): string | null =>
+  !turn || turn.role !== "user" ? null : turn.asked || (turn.hidden ? null : turn.content || null);
+
+/**
  * A flag's state in words. "new" is every flag nobody has looked at yet; where flags are sent to the maintainer, `sent` says whether
  * this one has been (undefined where they are not).
  */
@@ -74,8 +82,9 @@ export function flagStateText(state: string | undefined, sent?: boolean): string
  *   learner gets the reply, and a tutor fault is also counted for the maintainer's list of tutor improvements.
  * - "fix": they agree it is wording only; the change is prepared on its own and the learner gets the reply.
  * - "escalate": the fault is in the data, the rules that build pairs, or the grading (a change of the course data or
- *   the app that the maintainer decides), or the reviewers disagree, are unsure, or are fewer than two. An agreed reply
- *   goes with it, so the learner can read a first answer while the maintainer decides.
+ *   the app that the maintainer decides), or the reviewers disagree, are unsure, or are fewer than two. When both are
+ *   sure of the verdict and the cause, their agreed reply and fix go with it, so the learner can read a first answer while
+ *   the maintainer decides; otherwise there is neither (the maintainer has both reviews).
  */
 export interface FlagOutcome {
   action: "reply" | "fix" | "escalate";
@@ -95,8 +104,9 @@ export function decideFlag(reviews: readonly FlagReview[]): FlagOutcome {
   const [first] = reviews, same = (k: "verdict" | "cause") => reviews.every((r) => r[k] === first[k]);
   if (!same("verdict")) return out("escalate", "the reviewers disagree on whether the learner is right");
   if (first.verdict === "unclear") return out("escalate", "the reviewers cannot tell");
-  if (!same("cause")) return out("escalate", "the reviewers disagree on the cause", first);
-  if (!reviews.every((r) => r.confident)) return out("escalate", "a reviewer is not sure", first);
+  // nothing is agreed yet, so neither reviewer's reply or fix is kept (the maintainer reads both reviews): the learner reads only what both stand behind
+  if (!same("cause")) return out("escalate", "the reviewers disagree on the cause");
+  if (!reviews.every((r) => r.confident)) return out("escalate", "a reviewer is not sure", { ...first, reply: "", fix: "" });
   if (first.verdict === "learner_wrong") return out("reply", "the learner is wrong", first);
   if (first.cause === "tutor") return out("reply", "the tutor was wrong", first);
   if (first.cause === "wording") return out("fix", "wording only", first);
