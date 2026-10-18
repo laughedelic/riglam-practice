@@ -68,20 +68,61 @@ async function holdWrite(page, field) {
   }, field);
 }
 
+/**
+ * Makes the first deletion of a flag document fail as a storage fault does ("unavailable"), so that the page undoes the removal. Call before the page starts.
+ */
+async function failDelete(page) {
+  await page.addInitScript(() => {
+    const patch = (db) => {
+      const real = db.collection.bind(db);
+      let first = true;
+      db.collection = (name) => {
+        const col = real(name);
+        if (name !== "flags") return col;
+        return new Proxy(col, {
+          get(target, prop) {
+            const v = Reflect.get(target, prop);
+            if (prop !== "doc") return typeof v === "function" ? v.bind(target) : v;
+            return (id) =>
+              new Proxy(target.doc(id), {
+                get(ref, p) {
+                  const w = Reflect.get(ref, p);
+                  if (p !== "delete") return typeof w === "function" ? w.bind(ref) : w;
+                  return () => {
+                    if (!first) return w.call(ref);
+                    first = false;
+                    return Promise.reject({ code: "unavailable" });
+                  };
+                },
+              });
+          },
+        });
+      };
+    };
+    Object.defineProperty(window, "__riglam", {
+      configurable: true,
+      set(v) {
+        Object.defineProperty(window, "__riglam", { value: v, writable: true, configurable: true });
+        v.platform.db().then(patch);
+      },
+    });
+  });
+}
+
 /** Opens the page on the world, puts the answer and the flag on the device, and opens Review's Flags. */
-async function start(page, world) {
+async function start(page, world, doc = flag) {
   const device = await bridge(page, world);
-  await seed(page);
+  await seed(page, doc);
   return device;
 }
-async function seed(page) {
+async function seed(page, doc = flag) {
   await page.goto("/");
   await ready(page);
   await page.evaluate(async ({ answer, flag }) => {
     const db = await window.__riglam.platform.db();
     await db.collection("answers").doc(answer.pairId).set(answer);
     await db.collection("flags").doc(flag.id).set(flag);
-  }, { answer, flag });
+  }, { answer, flag: doc });
   await page.reload();
   await ready(page);
 }
@@ -230,6 +271,63 @@ test("a flag deleted while the device could not reach the server's reports is ta
   await page.reload();
   await ready(page);
   await expect.poll(() => reports(world)).toEqual([]);
+});
+
+test("the removal of a flag is kept on the device at once, while an upload ahead of it is still on its way", async ({ page }) => {
+  await giveKey(page);
+  const world = await serverWorld({}, { stubCourse: true });
+  await start(page, world);
+  await expect.poll(async () => (await stored(page)).fl_cell.sentAt).toBeTruthy();
+  const hold = await holdFirstUpload(page);
+  const li = await openFlags(page);
+  await li.getByRole("button", { name: "Edit" }).click();
+  await page.locator("#flag-note").fill("A bowl need not be round.");
+  await page.locator(".flagedit").getByRole("button", { name: "Submit" }).click();
+  await expect.poll(() => hold.asked.length).toBe(1); // the upload of the edit, held
+  await li.getByRole("button", { name: "Delete" }).click();
+  await expect.poll(async () => Object.keys(await stored(page))).toEqual([]);
+  // the page may be closed now: the removal is already on the device, and the next start sends it
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("riglam.flagsToWithdraw"))).toContain("fl_cell");
+  expect(hold.asked).toEqual(["send"]);
+  hold.release();
+  await expect.poll(() => hold.asked.filter((a) => a === "withdraw").length).toBe(1);
+  await expect.poll(() => reports(world)).toEqual([]);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("riglam.flagsToWithdraw"))).toBeNull();
+});
+
+test("a flag whose deletion fails is undone, and its report stays on the server", async ({ page }) => {
+  await giveKey(page);
+  const world = await serverWorld({}, { stubCourse: true });
+  const device = await bridge(page, world);
+  await failDelete(page);
+  await seed(page);
+  await expect.poll(() => reports(world).length).toBe(1);
+  await expect.poll(async () => (await stored(page)).fl_cell.sentAt).toBeTruthy();
+  const li = await openFlags(page);
+  await pause(page);
+  const asked = device.seen.filter((r) => r.includes("/api/flags")).length;
+  await li.getByRole("button", { name: "Delete" }).click();
+  await expect(page.locator(".status", { hasText: "could not be saved" })).toBeVisible();
+  await pause(page);
+  expect(Object.keys(await stored(page))).toEqual(["fl_cell"]);
+  expect(device.seen.filter((r) => r.includes("/api/flags")).length).toBe(asked); // nothing took the report back
+  expect(reports(world).length).toBe(1);
+  expect(await page.evaluate(() => localStorage.getItem("riglam.flagsToWithdraw"))).toBeNull();
+  await expect(li.locator("summary").first()).toContainText("Sent to the maintainer");
+});
+
+test("a flag edited on a device whose clock is ahead is marked sent, and is not uploaded again and again", async ({ page }) => {
+  await giveKey(page);
+  const world = await serverWorld({}, { stubCourse: true });
+  const ahead = "2099-01-01T00:00:00.000Z";
+  const device = await start(page, world, { ...flag, updatedAt: ahead });
+  await expect.poll(() => reports(world).length).toBe(1);
+  await expect.poll(async () => (await stored(page)).fl_cell.sentAt >= ahead).toBe(true);
+  const uploads = () => device.seen.filter((r) => r.includes("/api/flags")).length;
+  const before = uploads();
+  await pause(page, 800);
+  expect(uploads()).toBe(before); // marked sent, so nothing goes again
+  expect((await stored(page)).fl_cell.updatedAt).toBe(ahead);
 });
 
 plain("a Magic Key entered in the prompt lets the waiting flag go without a reload", async ({ page }) => {
