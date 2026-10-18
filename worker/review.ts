@@ -10,12 +10,12 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { parseReview, readReviewAnswer, type FlagReview, type ReviewFlag } from "../src/ai-shared";
-import { decideFlag, flaggedPart, type FlagOutcome, type FlagRef } from "../src/domain/flags";
+import { autoFlagOf, decideFlag, flaggedPart, type FlagOutcome, type FlagRef } from "../src/domain/flags";
 import { dayOf, prune, reserveReview, settleReview, type ReviewRun } from "./budget";
 import { readConfig, readReviewConfig, type Config, type ReviewConfig } from "./config";
 import type { Env } from "./env";
 import type { Kit } from "./kit";
-import { reportsOn } from "./reports";
+import { autoReason, reportsOn } from "./reports";
 import { runTutor } from "./tutor";
 
 export interface ReviewDeps {
@@ -55,6 +55,7 @@ interface Row {
   flag: string;
   answer: string | null;
   attempts: number;
+  updated_at: string;
 }
 
 const str = (v: unknown): string | undefined => (typeof v === "string" && v ? v : undefined);
@@ -70,16 +71,19 @@ function prepare(kit: Kit, row: Row): { request: string } | { skip: string } {
   } catch {
     return { skip: "the report could not be read" };
   }
+  // A flag a program wrote is the maintainer's from the start; one stored before it was (the report was sent by an earlier version) is given the same reason here.
+  const auto = autoFlagOf(flag);
+  if (auto) return { skip: autoReason(auto) };
   // A follow-up on a reply goes straight to the maintainer: the reply was the review's, and a second opinion from the same reviewers would only repeat it.
   if (flag.part === "reply") return { skip: "a follow-up on a reply" };
   if (answer === null) return { skip: "the exercise was not kept with the flag" };
   const a = readReviewAnswer(answer);
   if (!a) return { skip: "the exercise could not be read" };
-  const f: ReviewFlag = { what: flaggedPart(flag as FlagRef), shown: str(flag.shown), asked: str(flag.asked), note: str(flag.note), suggest: str(flag.suggest) };
   try {
+    const f: ReviewFlag = { what: flaggedPart(flag as FlagRef), shown: str(flag.shown), asked: str(flag.asked), note: str(flag.note), suggest: str(flag.suggest) };
     return { request: kit.reviewRequest(f, a) };
   } catch {
-    // a pair the data does not know, for one
+    // a pair the data does not know, for one, or a field that is not text (a device can send anything; one report must not stop the pass)
     return { skip: "the exercise could not be read" };
   }
 }
@@ -98,6 +102,10 @@ async function reviewOnce(p: { client: Anthropic; kit: Kit; tutor: Config; confi
     kit: { ...p.kit, guide: p.kit.reviewGuide },
     config: { ...p.tutor, model: p.model, effort: p.config.effort, maxTokens: p.config.maxTokens, maxRounds: p.config.maxRounds },
     request: { kind: "explain", cats: [], turns: [{ role: "user", content: p.request }] },
+    // the words before a lookup are not the verdict, and glued to it they would make it unreadable
+    onRound: () => {
+      said = "";
+    },
     emit: async (e) => {
       if (e.type === "delta") said += e.text;
     },
@@ -137,8 +145,9 @@ async function record(db: D1Database, row: Row, claim: string, outcome: FlagOutc
     .run();
 }
 
-const unclaim = (db: D1Database, row: Row, claim: string) =>
-  db.prepare("UPDATE flag_reports SET claimed_at = NULL WHERE device = ?1 AND id = ?2 AND claimed_at = ?3").bind(row.device, row.id, claim).run();
+/** Gives the report back to the next pass; `attempt` also gives back the count that taking it added (a pass that never asked a model has not used one of the report's tries). */
+const unclaim = (db: D1Database, row: Row, claim: string, attempt = false) =>
+  db.prepare(`UPDATE flag_reports SET claimed_at = NULL${attempt ? ", attempts = attempts - 1" : ""} WHERE device = ?1 AND id = ?2 AND claimed_at = ?3`).bind(row.device, row.id, claim).run();
 
 /** One pass: reviews up to `REVIEW_BATCH` waiting reports, oldest first. */
 export async function reviewPass(env: Env, deps: ReviewDeps): Promise<PassResult> {
@@ -151,7 +160,7 @@ export async function reviewPass(env: Env, deps: ReviewDeps): Promise<PassResult
     const now = (deps.now ?? (() => new Date()))();
     const config = readReviewConfig(env);
     const waiting = await db
-      .prepare("SELECT device, id, flag, answer, attempts FROM flag_reports WHERE state = 'sent' AND (claimed_at IS NULL OR claimed_at < ?1) ORDER BY updated_at LIMIT ?2")
+      .prepare("SELECT device, id, flag, answer, attempts, updated_at FROM flag_reports WHERE state = 'sent' AND (claimed_at IS NULL OR claimed_at < ?1) ORDER BY updated_at LIMIT ?2")
       .bind(new Date(now.getTime() - STALE_CLAIM_MS).toISOString(), config.batch)
       .all<Row>();
     if (!waiting.results.length) return result;
@@ -168,9 +177,10 @@ export async function reviewPass(env: Env, deps: ReviewDeps): Promise<PassResult
       // once the day's budget is used, only the reports that need no model go on
       if (!("skip" in prepared) && outOfBudget) continue;
       const claim = now.toISOString() + "/" + Math.random().toString(36).slice(2, 8);
+      // only the report that was listed: one edited since (its words, and so its request, are no longer these) waits for the next pass
       const taken = await db
-        .prepare("UPDATE flag_reports SET claimed_at = ?3, attempts = attempts + 1 WHERE device = ?1 AND id = ?2 AND state = 'sent' AND (claimed_at IS NULL OR claimed_at < ?4)")
-        .bind(row.device, row.id, claim, new Date(now.getTime() - STALE_CLAIM_MS).toISOString())
+        .prepare("UPDATE flag_reports SET claimed_at = ?3, attempts = attempts + 1 WHERE device = ?1 AND id = ?2 AND state = 'sent' AND (claimed_at IS NULL OR claimed_at < ?4) AND updated_at = ?5")
+        .bind(row.device, row.id, claim, new Date(now.getTime() - STALE_CLAIM_MS).toISOString(), row.updated_at)
         .run();
       if (!taken.meta.changes) continue;
       const taking: Row = { ...row, attempts: row.attempts + 1 };
@@ -182,7 +192,7 @@ export async function reviewPass(env: Env, deps: ReviewDeps): Promise<PassResult
         }
         if (!(await reserveReview(db, { day, micro: config.reserveMicro, cap: config.dailyMicro }))) {
           outOfBudget = true;
-          await unclaim(db, taking, claim);
+          await unclaim(db, taking, claim, true);
           continue;
         }
         const runs = await Promise.all(config.models.map((model) => reviewOnce({ client, kit, tutor, config, model, request: prepared.request })));

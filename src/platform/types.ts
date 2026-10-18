@@ -205,6 +205,8 @@ export interface Platform {
   tutor?(): Promise<Tutor | null>;
   /** Sending flags to the app's server, or null (or absent) when the place has no server for them or this device lacks the Magic Key (flags then stay on the device). */
   reports?(): Promise<Reports | null>;
+  /** Keeps the id of a flag removed while `reports` gave null (offline at the start, no key), so that a later start that has it takes the report back from the server. */
+  withdrawReport?(id: string): void;
   /** What the app's server offers this device of Quorum, the tutor's mode of several models and a judge (docs/SERVER.md): "on" (a Preview: on until the device turns it off), "optin" (off until the device turns it on), or false. Absent: the page has no Quorum. */
   quorum?(): Promise<QuorumOffer>;
   /** The optional account (a passkey and a server copy of the documents, src/account), or null (or absent) when the place has none. The page works the same without. */

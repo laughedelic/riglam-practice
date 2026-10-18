@@ -4,7 +4,7 @@
 import { test as plain } from "@playwright/test";
 import { test, expect } from "../../support/test.js";
 import { ready } from "../../support/page.js";
-import { giveKey } from "../../support/data-key.js";
+import { dataKey, giveKey } from "../../support/data-key.js";
 import { bridge, serverWorld } from "../../support/server-bridge.js";
 
 const at = "2026-10-14T09:00:00.000Z";
@@ -213,6 +213,94 @@ test("every sent flag whose review is not over is asked about, in batches, newes
   expect(asked[0]).toHaveLength(50);
   expect(asked[0][0]).toBe("fl_n54"); // newest first
   expect(ids.at(-1)).toBe("fl_cell"); // the oldest, which a cut at the first 50 would never have asked about
+});
+
+/** Holds the first upload of a flag until `release()`; `asked` notes every request to the server about flags, in the order they were made. */
+async function holdFirstUpload(page) {
+  const asked = [];
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  let held = false;
+  await page.route("**/api/flags", async (route) => {
+    const body = route.request().postDataJSON();
+    asked.push(body.send ? "send" : body.withdraw ? "withdraw" : "other");
+    if (body.send && !held) { held = true; await gate; }
+    return route.fallback();
+  });
+  return { asked, release };
+}
+const pause = (page, ms = 400) => page.evaluate((t) => new Promise((resolve) => setTimeout(resolve, t)), ms);
+
+test("an edit made while the earlier upload is on its way goes after it, so the server ends with the newer words", async ({ page }) => {
+  await giveKey(page);
+  const world = await serverWorld({}, { stubCourse: true });
+  await start(page, world);
+  await expect.poll(async () => (await stored(page)).fl_cell.sentAt).toBeTruthy();
+  const hold = await holdFirstUpload(page);
+  const li = await openFlags(page);
+  for (const note of ["A bowl need not be round.", "A bowl is not a stove."]) {
+    await li.getByRole("button", { name: "Edit" }).click();
+    await page.locator("#flag-note").fill(note);
+    await page.locator(".flagedit").getByRole("button", { name: "Submit" }).click();
+    await expect(li.locator(".fbody")).toContainText("Your note: " + note);
+  }
+  await pause(page);
+  expect(hold.asked).toEqual(["send"]); // the second upload waits for its turn
+  hold.release();
+  await expect.poll(() => reports(world).map((r) => JSON.parse(r.flag).note)).toEqual(["A bowl is not a stove."]);
+  await expect.poll(async () => { const f = (await stored(page)).fl_cell; return f.sentAt >= f.updatedAt && f.note === "A bowl is not a stove."; }).toBe(true);
+  expect(hold.asked).toEqual(["send", "send"]);
+});
+
+test("a flag deleted while its upload is on its way is taken back after the upload, not brought back by it", async ({ page }) => {
+  await giveKey(page);
+  const world = await serverWorld({}, { stubCourse: true });
+  await start(page, world);
+  await expect.poll(async () => (await stored(page)).fl_cell.sentAt).toBeTruthy();
+  const hold = await holdFirstUpload(page);
+  const li = await openFlags(page);
+  await li.getByRole("button", { name: "Edit" }).click();
+  await page.locator("#flag-note").fill("A bowl need not be round.");
+  await page.locator(".flagedit").getByRole("button", { name: "Submit" }).click();
+  await expect.poll(() => hold.asked.length).toBe(1); // the upload of the edit, held
+  await li.getByRole("button", { name: "Delete" }).click();
+  await pause(page);
+  expect(hold.asked).toEqual(["send"]); // the removal waits for it
+  hold.release();
+  await expect.poll(() => hold.asked.filter((a) => a === "withdraw").length).toBe(1);
+  await pause(page);
+  expect(reports(world)).toEqual([]);
+});
+
+test("a flag deleted while the device could not reach the server's reports is taken back when it can", async ({ page }) => {
+  await giveKey(page);
+  const world = await serverWorld({}, { stubCourse: true });
+  const device = await start(page, world);
+  await expect.poll(() => reports(world).length).toBe(1);
+  await expect.poll(async () => (await stored(page)).fl_cell.sentAt).toBeTruthy();
+  device.offline = true; // the start finds no server, so the page has no way to take the report back now
+  await page.reload();
+  await ready(page);
+  const li = await openFlags(page);
+  await li.getByRole("button", { name: "Delete" }).click();
+  await expect.poll(async () => Object.keys(await stored(page))).toEqual([]);
+  expect(reports(world).length).toBe(1);
+  device.offline = false;
+  await page.reload();
+  await ready(page);
+  await expect.poll(() => reports(world)).toEqual([]);
+});
+
+plain("a Magic Key entered in the prompt lets the waiting flag go without a reload", async ({ page }) => {
+  const world = await serverWorld({}, { stubCourse: true });
+  await start(page, world);
+  const li = await openFlags(page);
+  await expect(li.locator("summary").first()).toContainText("Not reviewed yet");
+  await li.getByRole("button", { name: "Edit" }).click();
+  await page.fill("#unlock-key", dataKey);
+  await page.locator("#unlock").getByRole("button", { name: "Unlock", exact: true }).click();
+  await expect.poll(() => reports(world).length).toBe(1);
+  await expect(li.locator("summary").first()).toContainText("Sent to the maintainer");
 });
 
 plain("a device without the Magic Key cannot flag: Edit is greyed and opens the prompt, and nothing is sent", async ({ page }) => {
