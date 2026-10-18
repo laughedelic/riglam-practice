@@ -5,7 +5,8 @@
 //                      for Quorum, several models and a judge (worker/quorum.ts)
 //   /api/account/*     optional accounts, signed in with a passkey (worker/accounts.ts)
 //   POST /api/sync     the server copy of a signed-in person's documents (worker/sync.ts)
-//   POST /api/flags    reports of learners' flags, from any device (worker/reports.ts)
+//   POST /api/flags    reports of learners' flags, from any device with the Magic Key (worker/reports.ts)
+//   /api/admin/flags   the maintainer's reading and deciding of those reports, with the admin key (worker/admin.ts)
 // Everything else the Worker is asked for is the static site, which the platform serves itself; only /api/* reaches this code.
 
 import Anthropic from "@anthropic-ai/sdk";
@@ -13,6 +14,7 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { API, HEADER, LIMITS, type BudgetScope, type CourseResponse, type ErrorCode, type Health, type TutorEvent } from "../src/ai/protocol";
 import { accountRoutes, accountsOn } from "./accounts";
+import { adminRoutes } from "./admin";
 import { dayOf, prune, reserve, settle, tutorSwitchedOn, type Pool } from "./budget";
 import { readConfig, readQuorumConfig } from "./config";
 import { readCourseRows, usableDefinitions } from "./course";
@@ -176,6 +178,7 @@ export function createApp(deps: Deps) {
   app.route("/", accountRoutes({ now }));
   app.route("/", syncRoutes({ now }));
   app.route("/", reportRoutes({ now }));
+  app.route("/", adminRoutes({ now }));
 
   app.all("/api/*", (c) => c.json({ error: { code: "not_found", message: "no such endpoint" } }, 404));
   // The site itself is served by the platform; this only catches a request that reached the Worker by mistake.

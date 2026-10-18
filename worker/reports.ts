@@ -28,7 +28,7 @@ export async function reportsOn(db: D1Database | undefined): Promise<boolean> {
   if (!db) return false;
   try {
     // one query: the switch, and a look at the table and the columns the review added that fails when a migration has not been applied
-    const row = await db.prepare("SELECT (SELECT value FROM settings WHERE key = 'reports') AS v, (SELECT COUNT(*) FROM flag_reports WHERE reply IS NULL AND claimed_at IS NULL AND digest IS NULL AND 0) AS probe").first<{ v: string | null }>();
+    const row = await db.prepare("SELECT (SELECT value FROM settings WHERE key = 'reports') AS v, (SELECT COUNT(*) FROM flag_reports WHERE reply IS NULL AND claimed_at IS NULL AND digest IS NULL AND decision IS NULL AND decided_at IS NULL AND 0) AS probe").first<{ v: string | null }>();
     return row?.v !== "off";
   } catch {
     return false;
@@ -205,7 +205,7 @@ export function reportRoutes(deps: AccountDeps) {
            updated_at = CASE WHEN ${same} THEN flag_reports.updated_at ELSE excluded.updated_at END,
            attempts = CASE WHEN ${same} THEN flag_reports.attempts ELSE 0 END,
            ${first("outcome")}, ${first("reason")},
-           ${["reply", "reply_at", "cause", "fix", "reviews", "reviewed_at", "claimed_at"].map(keep).join(", ")}`,
+           ${["reply", "reply_at", "cause", "fix", "reviews", "reviewed_at", "claimed_at", "decision", "decided_at"].map(keep).join(", ")}`,
       );
       const version = typeof body.app === "string" ? body.app.slice(0, 40) : null;
       await backfillDigests(db, sends.map((r) => r.id), device, user).catch(() => {});
