@@ -6,7 +6,7 @@ import { fakeD1 } from "./support";
 
 const DAY = "2026-10-13";
 const caps = { deviceCap: 100, globalCap: 250 };
-const hold = (db: D1Database, device: string, micro = 100, over: Partial<typeof caps> = {}) => reserve(db, { day: DAY, device, micro, ...caps, ...over });
+const hold = (db: D1Database, device: string, micro = 100, over: Partial<typeof caps> & { pool?: "quorum" } = {}) => reserve(db, { day: DAY, device, micro, ...caps, ...over });
 const rows = (sql: ReturnType<typeof fakeD1>["sql"]) => Object.fromEntries(sql<{ scope: string; micro: number; calls: number }>("SELECT scope, micro, calls FROM budget WHERE day = ?", DAY).map((r) => [r.scope, [r.micro, r.calls]]));
 
 describe("days", () => {
@@ -42,6 +42,16 @@ describe("reserve", () => {
     const { d1 } = fakeD1();
     const results = await Promise.all(["a", "b", "c", "d", "e"].map((d) => hold(d1, d, 100, { globalCap: 300, deviceCap: 1000 })));
     expect(results.filter((r) => r.ok)).toHaveLength(3);
+  });
+
+  it("keeps Quorum's counters apart from the tutor's: a full Quorum leaves the tutor room, and a settled Quorum call moves only its own", async () => {
+    const { d1, sql } = fakeD1();
+    expect(await hold(d1, "a", 100, { pool: "quorum" })).toEqual({ ok: true });
+    expect(await hold(d1, "a", 100, { pool: "quorum" })).toEqual({ ok: false, scope: "device" });
+    expect(await hold(d1, "a")).toEqual({ ok: true });
+    expect(rows(sql)).toEqual({ quorum: [100, 1], "quorum:dev:a": [100, 1], global: [100, 1], "dev:a": [100, 1] });
+    await settle(d1, { day: DAY, device: "a", held: 100, actual: 30, now: new Date("2026-10-13T10:00:00Z"), kind: "explain", model: "quorum", rounds: 4, tokens: noTokens(), outcome: "answered", pool: "quorum" });
+    expect(rows(sql)).toEqual({ quorum: [30, 1], "quorum:dev:a": [30, 1], global: [100, 1], "dev:a": [100, 1] });
   });
 
   it("starts each day from zero", async () => {

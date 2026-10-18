@@ -1,10 +1,10 @@
 // The PWA's tutor client (src/pwa/tutor.ts): the request it makes, the way it reads the server-sent answer, and how every
 // failure reaches the page as an error with a `code`. The server is a fake `fetch`; worker/ has its own tests.
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { generateKey } from "../../src/data/course.js";
-import { HEADER, type TutorEvent, type TutorRequest } from "../../src/ai/protocol";
+import { testMagicKey as generateKey } from "../support/magic-key";
+import { HEADER, type QuorumRecord, type TutorEvent, type TutorRequest } from "../../src/ai/protocol";
 import { DEVICE_ID, checkProof } from "../../src/ai/proof";
-import { createTutor, deviceId, tutorIsOn } from "../../src/pwa/tutor";
+import { createTutor, deviceId, quorumOffer, serverSays, tutorIsOn } from "../../src/pwa/tutor";
 
 const request: TutorRequest = { kind: "chat", cats: ["form", "color"], turns: [{ role: "user", content: "CARD ум" }] };
 const sse = (e: TutorEvent | { type: string }) => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`;
@@ -80,6 +80,21 @@ describe("the answer", () => {
       streamOf([": keep-alive\n\n", sse({ type: "mystery" }), "event: delta\r\ndata: {\"type\":\"delta\",\"text\":\"ok\"}\r\n\r\n", "data: not json\n\n", sse({ type: "done", truncated: false })]),
     );
     expect(await ask(request)).toEqual({ text: "ok", truncated: false });
+  });
+
+  it("sends the Quorum flag with the question, reports each step as it comes, and returns the record with the text", async () => {
+    const record: QuorumRecord = { id: "r1", models: [{ name: "Haiku", model: "claude-haiku-5-5", text: "x", ok: true, ms: 10 }], judge: null, shown: "Haiku", why: null };
+    const { ask, seen } = tutorWith(generateKey(), () => streamOf([sse({ type: "step", name: "Haiku", ok: true }), sse({ type: "step", name: "Opus", ok: false }), sse({ type: "delta", text: "x" }), sse({ type: "quorum", record }), sse({ type: "done", truncated: false })]));
+    const steps: { name: string; ok: boolean }[] = [];
+    const r = await ask({ ...request, kind: "explain", quorum: true }, { onStep: (s) => steps.push(s) });
+    expect(JSON.parse(seen[0].init.body as string)).toMatchObject({ kind: "explain", quorum: true });
+    expect(steps).toEqual([{ name: "Haiku", ok: true }, { name: "Opus", ok: false }]);
+    expect(r).toEqual({ text: "x", truncated: false, quorum: record });
+  });
+
+  it("says when Quorum was asked for but the one model answered", async () => {
+    const { ask } = tutorWith(generateKey(), () => streamOf([sse({ type: "single", why: "budget" }), sse({ type: "delta", text: "x" }), sse({ type: "done", truncated: false })]));
+    expect(await ask({ ...request, quorum: true })).toEqual({ text: "x", truncated: false, single: "budget" });
   });
 
   it("takes a last event that has no blank line after it", async () => {
@@ -206,6 +221,31 @@ describe("tutorIsOn", () => {
     expect(await tutorIsOn(health({ ok: true }))).toBe(false);
     expect(await tutorIsOn(health({ tutor: "on" }))).toBe(false);
     expect(await tutorIsOn(health({ ok: true, tutor: "on" }, 503))).toBe(false);
+  });
+
+  it("offers Quorum only when the tutor is on and the server says Quorum is", async () => {
+    expect(await quorumOffer(health({ ok: true, tutor: "on", quorum: "on" }))).toBe("on");
+    expect(await quorumOffer(health({ ok: true, tutor: "on", quorum: "optin" }))).toBe("optin");
+    expect(await quorumOffer(health({ ok: true, tutor: "on" }))).toBe(false);
+    expect(await quorumOffer(health({ ok: true, tutor: "on", quorum: "yes" }))).toBe(false);
+    expect(await quorumOffer(health({ ok: true, tutor: "off", quorum: "on" }))).toBe(false);
+    expect(await quorumOffer(health({ ok: true, tutor: "off", quorum: "optin" }))).toBe(false);
+    expect(await quorumOffer(health({ ok: true, tutor: "on", quorum: "on" }, 503))).toBe(false);
+    expect(await quorumOffer((async () => { throw new TypeError("offline"); }) as unknown as typeof fetch)).toBe(false);
+  });
+
+  it("says what the server says of the tutor, Quorum and flag reports from one request", async () => {
+    let asked = 0;
+    const once = (body: unknown) => (async () => (asked++, json(200, body))) as unknown as typeof fetch;
+    expect(await serverSays(once({ ok: true, tutor: "on", quorum: "on" }))).toEqual({ tutor: true, quorum: "on", reports: false });
+    expect(await serverSays(once({ ok: true, tutor: "on" }))).toEqual({ tutor: true, quorum: false, reports: false });
+    expect(await serverSays(once({ ok: true, tutor: "off", quorum: "on" }))).toEqual({ tutor: false, quorum: false, reports: false });
+    expect(await serverSays(once({ ok: false, tutor: "on", quorum: "on" }))).toEqual({ tutor: false, quorum: false, reports: false });
+    // flag reports are told apart from the tutor: a server can take flags with its tutor off
+    expect(await serverSays(once({ ok: true, tutor: "off", reports: "on" }))).toEqual({ tutor: false, quorum: false, reports: true });
+    expect(await serverSays(once({ ok: false, reports: "on" }))).toMatchObject({ reports: false });
+    expect(asked).toBe(6);
+    expect(await serverSays((async () => { throw new TypeError("offline"); }) as unknown as typeof fetch)).toEqual({ tutor: false, quorum: false, reports: false });
   });
 
   it("is false for an answer that is not JSON (a static host with no server)", async () => {

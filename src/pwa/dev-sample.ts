@@ -1,11 +1,11 @@
-// Development only: a stand-in for the model, so that the tutor, "Explain", the follow-up chat and the check lab can be worked on with
+// Development only: a stand-in for the model, so that the tutor, "Explain" and the follow-up chat can be worked on with
 // `npm run dev` without a key or a server. Nothing is called; the replies are fixed text in the shape the page reads (the lines of
-// the explanation, the verdicts at the end of a cell line, the lab's JSON), so the page's parsing and layout run for real.
+// the explanation, the verdicts at the end of a cell line), so the page's parsing and layout run for real.
 //
 // It is not part of any build: platform.ts imports it behind `import.meta.env.DEV`, and tests/unit/pwa-build.test.ts looks for DEV_MARK
 // in dist/pwa. The address can change what the stand-in does: `?ai=off` has no `sample` at all (as the installed app), `?ai=slow` streams
 // slowly, `?ai=rate_limited` and `?ai=error` fail the way the page's error messages expect.
-import type { Sample, SampleOptions, SampleResult } from "../platform/types";
+import type { Sample, SampleResult } from "../platform/types";
 
 export const DEV_MARK = "Dev stand-in";
 
@@ -44,16 +44,7 @@ function explain(ask: string): string {
   ].join("\n");
 }
 
-function lab(prompt: string): string {
-  const judge = prompt.includes("You are the judge");
-  const things = [...(prompt.split("Things:\n")[1] ?? "").matchAll(/^\d+\. (".*")$/gm)].map((m) => JSON.parse(m[1]) as string);
-  return JSON.stringify({
-    things: things.map((thing) => ({ thing, reading: `${DEV_MARK}: ${thing}`, inA: true, inB: true, exists: true, unsure: false, ...(judge ? { right: [1, 2, 3], reason: DEV_MARK } : {}) })),
-  });
-}
-
-function reply(turns: Turns, options: SampleOptions): string {
-  if (options.model) return lab(typeof turns === "string" ? turns : JSON.stringify(turns));
+function reply(turns: Turns): string {
   const ask = askOf(lastUserText(turns));
   if (/^Explain this (answer|debate)/.test(ask)) return explain(ask);
   return `${DEV_MARK}: no model is called here. You asked: “${ask.slice(0, 160)}”`;
@@ -69,8 +60,7 @@ export function devSample(mode: string | null = null): Sample {
     if (options.signal?.aborted) throw cancelled(""); // Stop pressed while waiting: cancelled, not the failure the mode asks for
     if (failure) throw Object.assign(new Error(failure), { code: failure });
 
-    const text = reply(turns, options);
-    if (options.model) return { text, truncated: false, modelApplied: options.model, modelTierApplied: options.modelTier };
+    const text = reply(turns);
 
     // stream it as words, the way the real call delivers text, so "Thinking", the growing answer and Stop are all there to see
     const words = text.split(/(?<=\s)/);

@@ -58,6 +58,17 @@ export function makeIndex(DATA: DrillData): DataIndex {
   return { DATA, CAT, ITEMIDX, ALIASIDX, LABELIDX };
 }
 
+/** The term and its parents, lowest first; empty for a name the data does not have. */
+export function upChain(ix: DataIndex, name: string): string[] {
+  const T = ix.DATA.terms, out: string[] = [];
+  for (let n: string | undefined = name; n && Object.hasOwn(T, n) && !out.includes(n); n = T[n].parent) out.push(n);
+  return out;
+}
+/** The classes of the data's "is a" tree under Existent, which the tutor names an example's class from (not the other names of form, "matter"). */
+export function classNames(ix: DataIndex): string[] {
+  return Object.keys(ix.DATA.terms).filter((n) => n !== "Existent" && !/matter$/i.test(n) && upChain(ix, n).at(-1) === "Existent");
+}
+
 /** Older batch pairs carry only labels; recover their categories when the labels are known. */
 export function catByLabel(ix: DataIndex, l: unknown): string | null {
   const k = spelled(l);

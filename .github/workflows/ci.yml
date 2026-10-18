@@ -22,34 +22,21 @@ jobs:
     name: Lint, build, unit tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    env:
-      # Decrypts the course part of the term data for the artifact build and the tests (docs/DATA.md). The PWA build does not need it.
-      RIGLAM_DATA_KEY: ${{ secrets.RIGLAM_DATA_KEY }}
     steps:
-      - name: Data key present?
-        run: |
-          if [ -z "$RIGLAM_DATA_KEY" ]; then
-            echo "::error::The repository secret RIGLAM_DATA_KEY is not set (or not available to this run, as for Dependabot: add it under Dependabot secrets too). See docs/DATA.md."
-            exit 1
-          fi
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # Made-up definitions and notes for every term (docs/DATA.md): CI never holds the real course data, so nothing real can reach a log or a report.
+      - run: npm run data:fixture
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run build
       - run: npm run test:unit
       - name: Check the hosting config
         run: npx --yes wrangler@${{ env.WRANGLER_VERSION }} deploy --dry-run
-      # Only the PWA build is kept: it holds the encrypted definitions. The artifact build holds them in the clear, so it is not uploaded.
-      - uses: actions/upload-artifact@v4
-        with:
-          name: pwa-build
-          path: dist/pwa/
-          retention-days: 14
 
   # The browser tests, in parallel. Each job builds both outputs itself (about 10 seconds), because the artifact build must not be uploaded.
   # The legacy suite is the long part (test40q alone takes about two minutes), so it is split with Playwright's --shard; layout and PWA specs share one job.
@@ -62,25 +49,19 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: legacy 1/3, slug: legacy-1, args: "--project=legacy --shard=1/3" }
-          - { name: legacy 2/3, slug: legacy-2, args: "--project=legacy --shard=2/3" }
-          - { name: legacy 3/3, slug: legacy-3, args: "--project=legacy --shard=3/3" }
-          - { name: layout and PWA, slug: layout-pwa, args: "--project=layout --project=pwa-desktop --project=pwa-phone" }
-    env:
-      RIGLAM_DATA_KEY: ${{ secrets.RIGLAM_DATA_KEY }}
+          - { name: legacy 1/3, args: "--project=legacy --shard=1/3" }
+          - { name: legacy 2/3, args: "--project=legacy --shard=2/3" }
+          - { name: legacy 3/3, args: "--project=legacy --shard=3/3" }
+          - { name: layout and PWA, args: "--project=layout --project=pwa-desktop --project=pwa-phone" }
     steps:
-      - name: Data key present?
-        run: |
-          if [ -z "$RIGLAM_DATA_KEY" ]; then
-            echo "::error::The repository secret RIGLAM_DATA_KEY is not set (or not available to this run, as for Dependabot: add it under Dependabot secrets too). See docs/DATA.md."
-            exit 1
-          fi
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # Made-up definitions and notes for every term (docs/DATA.md): CI never holds the real course data, so nothing real can reach a log or a report.
+      - run: npm run data:fixture
       - run: npm run build
       - name: Cache Playwright browsers
         uses: actions/cache@v6
@@ -88,14 +69,10 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - run: npx playwright install --with-deps chromium
+      # Nothing from this step is uploaded: the HTML report and the traces record page content and step arguments (URLs, typed text),
+      # which can include the course definitions and the data key, and artifacts (unlike logs) are not masked.
+      # Read a failure in this job's log, or run the spec locally with `--trace on`.
       - run: npx playwright test ${{ matrix.args }}
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: playwright-report-${{ matrix.slug }}
-          path: playwright-report/
-          retention-days: 7
-          if-no-files-found: ignore
 
   # One check for the whole suite, under the name that branch protection requires (docs/RELEASING.md), whatever the jobs above are called or however many there are.
   check:
@@ -124,67 +101,3 @@ jobs:
       - uses: amannn/action-semantic-pull-request@v6
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # Preview of the PWA for every pull request, and a "staging" alias that follows main.
-  # Needs the repository secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID (docs/DEPLOY.md); without them the job only says so.
-  deploy-preview:
-    name: Deploy preview
-    needs: check
-    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-      pull-requests: write
-    env:
-      ALIAS: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.number) || 'staging' }}
-      # On pull requests GITHUB_SHA is a merge commit that is not on the branch; label previews with the head commit.
-      BUILD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-    steps:
-      # The Cloudflare credentials are given only to the two steps that use them, not to `npm ci`, which runs the dependencies' install scripts.
-      - name: Credentials present?
-        id: creds
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then echo "ok=true" >> "$GITHUB_OUTPUT"
-          else echo "::notice::Preview skipped: CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID are not set (see docs/DEPLOY.md)"; fi
-      - uses: actions/checkout@v7
-        if: steps.creds.outputs.ok
-      # The Worker script (worker/) is bundled by wrangler from the sources and their dependencies; the static files come from the build above.
-      - uses: actions/setup-node@v7
-        if: steps.creds.outputs.ok
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
-        if: steps.creds.outputs.ok
-      - uses: actions/download-artifact@v4
-        if: steps.creds.outputs.ok
-        with:
-          name: pwa-build
-          path: dist/pwa
-      - name: Upload a version with a preview alias
-        id: upload
-        if: steps.creds.outputs.ok
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          npx --yes wrangler@${WRANGLER_VERSION} versions upload --preview-alias "$ALIAS" --message "${BUILD_SHA::7}" | tee upload.log
-          url=$(grep -Eo 'https://[^ ]+' upload.log | grep -i "$ALIAS" | head -n1 || true)
-          echo "url=$url" >> "$GITHUB_OUTPUT"
-      - name: Comment the preview address on the pull request
-        if: steps.creds.outputs.ok && github.event_name == 'pull_request' && steps.upload.outputs.url
-        uses: actions/github-script@v7
-        env:
-          PREVIEW_URL: ${{ steps.upload.outputs.url }}
-        with:
-          script: |
-            const marker = '<!-- riglam-preview -->';
-            const body = `${marker}\nPreview of this pull request: ${process.env.PREVIEW_URL}\n\nBuilt from ${process.env.BUILD_SHA.slice(0, 7)}. Add the data key to the address (\`#k=...\`) to unlock the definitions; the key is not kept here.`;
-            const { data: comments } = await github.rest.issues.listComments({ ...context.repo, issue_number: context.issue.number });
-            const mine = comments.find((c) => c.body.startsWith(marker));
-            if (mine) await github.rest.issues.updateComment({ ...context.repo, comment_id: mine.id, body });
-            else await github.rest.issues.createComment({ ...context.repo, issue_number: context.issue.number, body });

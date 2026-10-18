@@ -7,8 +7,8 @@ import { expect, test } from "vitest";
 import { CELLS, REL, makeIndex, refOf } from "../../src/ai-shared";
 import type { CellId, DrillData, RelKey } from "../../src/ai-shared";
 import {
-  FEATURE, RECENT_MAX, applyVerdicts, buildPool, cellsFor, chooseEntry, deriveRel, grade, gradeDebate, gradeOf, inUniverse, isMiss, judgeText, makePair,
-  nextPair, pairKey, parseVerdicts, pick, relOfCells, summarize, termLine,
+  FEATURE, RECENT_MAX, AUTO_FLAGS, applyVerdicts, autoFlagOf, decideFlag, factNote, fitOf, flagAnswerRef, flagAsked, flagStateText, flaggedPart, noteParts, buildPool, cellsFor, chooseEntry, deriveRel, grade, gradeDebate, gradeOf, inUniverse, isMiss, judgeText, makePair,
+  nextPair, pairKey, parseFactLine, parseVerdicts, pick, relOfCells, summarize, termLine, cellFor, cellOfFacts, disputeText, divided, quorumDisputes, quorumRows, readings,
 } from "../../src/domain";
 import type { DebateInput, GradeDraft, HistoryEntry, Pair, PoolEntry } from "../../src/domain";
 import openData from "../../src/data/drill-data.json";
@@ -405,6 +405,77 @@ test("verdicts settle only the cells that are still open, and the grade is count
   expect(res.cells.both.v).toBe("ok");
 });
 
+// A line with the two facts about an example (is it A, is it B) is read as a fact line, and the cell it fits is drawn from the facts,
+// so a reason about the wrong term cannot make a wrong verdict.
+test("a fact line is read as two facts, and the verdict is what the facts give for the cell", () => {
+  const line = (cell: string, a: string, b: string) => `${cell}: "a banana" | A ${a}: It is a thing you can eat. | B ${b}: It is not an internal form, because it is not in a person's continuum.`;
+  expect(parseFactLine(line("Q2", "yes", "no"))).toEqual({
+    label: "Q2", cell: "anb", example: "a banana", cls: "",
+    a: { answer: "yes", say: "It is a thing you can eat." }, b: { answer: "no", say: "It is not an internal form, because it is not in a person's continuum." },
+  });
+  expect(parseFactLine("- **Both**: “a cup” | a yes: x | b yes: y")?.cell).toBe("both");
+  expect(parseFactLine('Q4: "a pebble" | class: External form | A no: x | B no: y')).toMatchObject({ example: "a pebble", cls: "External form", a: { answer: "no", say: "x" } });
+  expect(parseFactLine("Both: a cup => yes")).toBeNull();
+  expect(parseFactLine("Both: a cup | A maybe: x | B yes: y")).toBeNull();
+  const q = { both: "Q1", anb: "Q2", bna: "Q3", nei: "Q4" };
+  const fit = (cell: CellId, a: string, b: string) => fitOf(parseFactLine(line(q[cell], a, b))!);
+  expect([fit("both", "yes", "yes"), fit("anb", "yes", "no"), fit("bna", "no", "yes"), fit("nei", "no", "no")]).toEqual(["yes", "yes", "yes", "yes"]);
+  expect([fit("both", "yes", "no"), fit("anb", "yes", "yes"), fit("bna", "yes", "yes"), fit("nei", "no", "yes")]).toEqual(["no", "no", "no", "no"]);
+  expect([fit("both", "yes", "unsure"), fit("nei", "unsure", "unsure"), fit("anb", "no", "unsure")]).toEqual(["unsure", "unsure", "no"]); // one fact that contradicts the cell settles it
+  // the verdict lines of both forms are read in order
+  expect(parseVerdicts([line("Q2", "yes", "no"), "Both: a cup => no", line("Q4", "no", "yes")].join("\n"))).toEqual([
+    { cell: "anb", answer: "yes" }, { cell: "both", answer: "no" }, { cell: "nei", answer: "no" },
+  ]);
+});
+
+// The note writes the example once as the subject ("Take S:") and each fact as a consequence in the debate's form, "It follows it is
+// (not) P, because R", with the term as P; a note on an example that fits has no conclusion line, one that does not fit says so.
+test("the note for a fact line is the subject, a consequence per term, and a conclusion only when the example does not fit", () => {
+  const terms = { a: "a memory", b: "a mind" };
+  const f = parseFactLine('Q1: "the memory of a holiday" | A yes: it is a mental consciousness that remembers. | B yes: a mental consciousness')!;
+  expect(noteParts(f, true)).toEqual([
+    { kind: "take", subject: "the memory of a holiday" },
+    { kind: "term", side: "A", not: false, reason: "it is a mental consciousness that remembers", why: "" },
+    { kind: "term", side: "B", not: false, reason: "it is a mental consciousness", why: "" },
+  ]);
+  expect(factNote(f, false, terms).split("\n")).toEqual([
+    "Take the memory of a holiday:",
+    "It follows it is a memory, because it is a mental consciousness that remembers.",
+    "It follows it is a mind, because it is a mental consciousness.",
+  ]);
+  // a denied term can say, on a line under it, why it follows from the reason; a pervasion on a term the example is (yes) is not shown
+  const perv = parseFactLine('Q3: "hearing music" | A no: it is an ear consciousness; pervasion: memory is mental, not sense consciousness | B yes: it is an ear consciousness, which is a sense consciousness; pervasion: z')!;
+  expect(factNote(perv, false, terms).split("\n")).toEqual([
+    "Take hearing music:",
+    "It follows it is not a memory, because it is an ear consciousness.",
+    "Memory is mental, not sense consciousness.",
+    "It follows it is a mind, because it is an ear consciousness, which is a sense consciousness.",
+  ]);
+  const noClass = parseFactLine('Q2: "a rock" | A no: it does not arise from memory; pervasion: x | B no: it is a form')!;
+  expect(noteParts(noClass, false)[1]).toEqual({ kind: "term", side: "A", not: true, reason: "it does not arise from memory", why: "X." });
+  const off = parseFactLine('Q2: "a rock" | A no: it is a form | B no: it is a stone')!;
+  expect(factNote(off, false, terms).split("\n").at(-1)).toBe("So it does not fit.");
+  expect(factNote(off, true, terms).split("\n").at(-1)).toBe("So it does not fit the cell of Q2 and is not a counter-example.");
+  const unsure = parseFactLine('Both: "a dream" | A yes: it is a mental consciousness | B unsure: the sources differ')!;
+  expect(factNote(unsure, false, terms).split("\n").slice(2)).toEqual(["Whether it is a mind is not settled: the sources differ.", "Claude is unsure whether it fits."]);
+});
+
+// Each term gets its own statement, also when the reasons are the same; a pervasion said twice, or one that only points back, is said once.
+test("each term is its own consequence, and a pervasion is not repeated", () => {
+  const terms = { a: "an external form", b: "a physical thing outside a person's continuum" };
+  const both = parseFactLine("Q4: \"a memory\" | A no: it is a consciousness; pervasion: form and consciousness are two of the three kinds of functional thing | B no: It is a consciousness.; pervasion: same")!;
+  expect(factNote(both, false, terms).split("\n")).toEqual([
+    "Take a memory:",
+    "It follows it is not an external form, because it is a consciousness.",
+    "Form and consciousness are two of the three kinds of functional thing.",
+    "It follows it is not a physical thing outside a person's continuum, because it is a consciousness.",
+  ]);
+  const whys = (line: string) => noteParts(parseFactLine(line)!, false).filter((p) => p.kind === "term" && p.why).length;
+  expect(whys('Q4: "a memory" | A no: it is a consciousness; pervasion: w | B no: it is a mind; pervasion: w')).toBe(1);
+  expect(whys('Q4: "a memory" | A no: it is a consciousness; pervasion: w | B no: it is a mind; pervasion: the same')).toBe(1);
+  expect(whys('Q4: "a memory" | A no: it is a consciousness; pervasion: w | B no: it is a mind; pervasion: v')).toBe(2);
+});
+
 // ---- small helpers ----
 
 test("pick draws one of the choices from the given random source; grades of old answers read as before", () => {
@@ -431,6 +502,82 @@ test("every category of the real data is in the pool, and the relations of the p
     const r = relOfCells(cellsFor(rix, e.a, e.b));
     expect(e.r, pairKey(e)).toBe(r === "3ab" || r === "3ba" ? "3" : r);
   }
+});
+
+// A note takes the steps the term data gives: up the "is a" chain to the term, or up to a class the data marks as excluding one
+// the term is in, with why under it. A listed example is placed as the grading places it; elsewhere the tutor's class counts.
+test("a note states the term data's steps: up the chain to the term, or to the class that excludes it", () => {
+  const S: Record<string, string> = { forms: "a form", "red things": "a red thing", food: "food", "wooden things": "a wooden thing", "musical instruments": "a musical instrument", thoughts: "a thought", "sense powers": "a sense power", "external forms": "an external form", smells: "a smell", drinks: "a drink", "white things": "a white thing", "permanent phenomena": "a permanent phenomenon" };
+  const note = (a: string, ca: string, b: string, cb: string, line: string) => {
+    const p = { a, b, catA: ca, catB: cb, relation: "4" as const }, terms = { a: S[a], b: S[b] };
+    return factNote(parseFactLine(line)!, false, terms, { ix: rix, p, terms }).split("\n");
+  };
+  // the oak tree is listed (External form): no step is skipped, and the exclusion names the term's class
+  expect(note("thoughts", "thought", "sense powers", "sp", 'Q4: "an oak tree" | A no: it is a tree | B no: it is a tree')).toEqual([
+    "Take an oak tree:",
+    "It follows it is not a thought, because it is a tree, which is an external form, which is a form.",
+    "A thought is a consciousness, and nothing is both a form and a consciousness.",
+    "It follows it is not a sense power, because it is a tree.", // external and internal form are not exclusive in the data: the tutor's reason stays
+  ]);
+  expect(note("thoughts", "thought", "sense powers", "sp", 'Q2: "a thought about lunch" | A yes: it is a mind that apprehends lunch | B no: it is a consciousness').slice(2)).toEqual([
+    "It follows it is not a sense power, because it is a consciousness.",
+    "A sense power is an internal form, which is a form, and nothing is both a consciousness and a form.",
+  ]);
+  expect(note("external forms", "extf", "smells", "odr", 'Q2: "the saltiness of sea water" | A yes: it is a taste source | B no: it is a taste')[1])
+    .toBe("It follows it is an external form, because it is a taste source, which is an external form.");
+  expect(note("external forms", "extf", "permanent phenomena", "perm", 'Q4: "compassion" | A no: it is a mental factor | B no: it is a mental factor').slice(1)).toEqual([
+    "It follows it is not an external form, because it is a mental factor, which is a consciousness.",
+    "An external form is a form, and nothing is both a consciousness and a form.",
+    "It follows it is not a permanent phenomenon, because it is a mental factor, which is a consciousness, which is a functional thing.",
+    "Nothing is both a functional thing and a permanent phenomenon.",
+  ]);
+  // an example that is not listed takes the tutor's class; a reason that is not a plain "it is a ..." goes on with "so it is"
+  expect(note("external forms", "extf", "smells", "odr", 'Q2: "the taste of salt" | class: Taste source | A yes: it is the taste of salt | B no: it is a taste')[1])
+    .toBe("It follows it is an external form, because it is the taste of salt, so it is a taste source, which is an external form.");
+  // everyday terms the data does not chain keep the tutor's reasons
+  expect(note("drinks", "drink", "white things", "white", 'Q2: "a cup of hot tea" | A yes: it is a liquid people drink | B no: it is brown').slice(1)).toEqual([
+    "It follows it is a drink, because it is a liquid people drink.",
+    "It follows it is not a white thing, because it is brown.",
+  ]);
+  // a listed example is placed by the data, whatever the tutor answered; without the data's steps the statement has no reason
+  expect(note("drinks", "drink", "white things", "white", 'Q2: "a cup of hot tea" | A no: it is hot | B no: it is brown')[1]).toBe("It follows it is a drink.");
+  // an alias settles a side that is not about a feature: "an apple" is food whatever the tutor says, while its color stays the tutor's
+  const apple = 'Q2: "an apple" | A yes: it is a red apple | B no: it is eaten as food';
+  expect(note("red things", "red", "food", "food", apple).slice(1)).toEqual([
+    "It follows it is a red thing, because it is a red apple.",
+    "It follows it is food.",
+    "So it does not fit.",
+  ]);
+  const d = { ix: rix, p: { a: "red things", b: "food", catA: "red", catB: "food", relation: "4" as const }, terms: { a: "a red thing", b: "food" } };
+  expect(parseVerdicts(apple, d)).toEqual([{ cell: "anb", answer: "no" }]); // the cell settles as the note reads
+  expect(parseVerdicts(apple)).toEqual([{ cell: "anb", answer: "yes" }]); // without the data, the tutor's facts
+  // a permanent phenomenon is excluded from a form through functional thing
+  expect(note("wooden things", "wooden", "musical instruments", "instr", 'Q4: "the absence of an elephant in this room" | A no: it is an absence | B no: it is an absence').slice(1, 3)).toEqual([
+    "It follows it is not a wooden thing, because it is an absence, which is a permanent phenomenon.",
+    "A wooden thing is a form, which is a functional thing, and nothing is both a permanent phenomenon and a functional thing.",
+  ]);
+  // a step the reason already names is not said again, and a name inside a longer one is not a step of its own: "an external form"
+  // is not also "a form", and "a form source" is neither
+  expect(note("forms", "form", "thoughts", "thought", 'Q2: "a puddle" | class: External form | A yes: it is an external form | B no: it is a puddle').slice(1)).toEqual([
+    "It follows it is a form, because it is an external form, which is a form.",
+    "It follows it is not a thought, because it is a puddle, which is an external form, which is a form.",
+    "A thought is a consciousness, and nothing is both a form and a consciousness.",
+  ]);
+  expect(note("forms", "form", "thoughts", "thought", 'Q2: "a glint" | class: Form source | A yes: it is a form source | B no: it is a glint')[1])
+    .toBe("It follows it is a form, because it is a form source, which is an external form, which is a form.");
+  // an alias the data gives a step names that step: "a visible form" is Form source (not Form), so External form still follows
+  expect(note("forms", "form", "thoughts", "thought", 'Q2: "a glint" | class: Form source | A yes: it is a visible form | B no: it is a glint')[1])
+    .toBe("It follows it is a form, because it is a visible form, which is an external form, which is a form.");
+  expect(note("forms", "form", "thoughts", "thought", 'Q2: "a glint" | class: Form source | A yes: it is a visible form and an external form | B no: it is a glint')[1])
+    .toBe("It follows it is a form, because it is a visible form and an external form, which is a form.");
+  // an alias names the step only as a class ("a taste"), not inside the example's own phrase ("the taste of salt")
+  expect(note("external forms", "extf", "smells", "odr", 'Q2: "the taste of salt" | class: Taste source | A yes: it is a taste | B no: it is a taste')[1])
+    .toBe("It follows it is an external form, because it is a taste, which is an external form.");
+  // the tutor's class does not overrule its own answer when they disagree
+  expect(note("thoughts", "thought", "sense powers", "sp", 'Q2: "a hunch" | class: External form | A yes: it is a mind | B no: it is a hunch').slice(1, 3)).toEqual([
+    "It follows it is a thought, because it is a mind.",
+    "It follows it is not a sense power, because it is a hunch.",
+  ]);
 });
 
 test("for every pair the page can draw, the right answer is ok in practice and in the debate", () => {
@@ -462,6 +609,144 @@ test("the real data draws pairs of every relation, for a long run", () => {
     hist.push({ key: p.relation, catA: p.catA, catB: p.catB, grade: i % 3 ? "ok" : "bad" });
   }
   expect([...rels].sort()).toEqual(["3ab", "3ba", "4", "con", "mi"]);
+});
+
+// ---- flags on what Claude said ----
+
+test("a flag names the stored answer it was made on, by its case key", () => {
+  expect(flagAnswerRef({ caseKey: "answers_r-mv9q" })).toEqual({ col: "answers", id: "r-mv9q" });
+  expect(flagAnswerRef({ caseKey: "debates_q-mv9q_2" })).toEqual({ col: "debates", id: "q-mv9q_2" });
+  expect(flagAnswerRef({ caseKey: "labruns_x" })).toBeNull();
+  expect(flagAnswerRef({})).toBeNull();
+});
+
+test("a flag says in words what it is on", () => {
+  expect(flaggedPart({ part: "explain", n: null })).toBe("Claude’s explanation");
+  expect(flaggedPart({ part: "explain", n: "both", caseKey: "answers_r-1" })).toBe("Claude’s note on Both");
+  expect(flaggedPart({ part: "explain", n: "bna", caseKey: "debates_q-1" })).toBe("Claude’s note on Q3");
+  expect(flaggedPart({ part: "explain", n: "nei", pair: { tab: "debate" } })).toBe("Claude’s note on Q4");
+  expect(flaggedPart({ part: "explain", n: "rel" })).toBe("Claude’s note on the relation");
+  expect(flaggedPart({ part: "chat", n: "3" })).toBe("Claude’s answer in the chat");
+  expect(flaggedPart({ part: "reply", n: "fl_a" })).toBe("The reply to a flag");
+  expect(flaggedPart({ part: "verdict", thing: "a pot", model: "m1" }, (id) => id.toUpperCase())).toBe("“a pot” · M1 · verdict");
+  expect([flagStateText("new"), flagStateText(undefined), flagStateText("reviewed"), flagStateText("resolved")]).toEqual(["Not reviewed yet", "Not reviewed yet", "Reviewed", "Resolved"]);
+});
+
+test("a flag written by a program is told from a hand-made one by a name the app knows", () => {
+  expect(AUTO_FLAGS).toEqual(["quorum"]);
+  expect(autoFlagOf({ auto: "quorum", part: "quorum" })).toBe("quorum");
+  for (const flag of [{}, { auto: "" }, { auto: "other" }, { auto: true }, { auto: ["quorum"] }, { auto: "Quorum" }, { note: "auto: quorum" }]) expect(autoFlagOf(flag)).toBeNull();
+});
+
+test("a flag on a chat answer keeps the question it answered", () => {
+  expect(flagAsked({ role: "user", content: "Why not?" })).toBe("Why not?");
+  expect(flagAsked({ role: "user", content: "THE CARD\n\nIs a chair a form?", hidden: true, asked: "Is a chair a form?" })).toBe("Is a chair a form?"); // the first turn of a chat
+  expect(flagAsked({ role: "user", content: "THE CARD\n\nExplain.", hidden: true })).toBeNull(); // the page's own request
+  expect(flagAsked({ role: "user", content: "Check the examples.", hidden: true })).toBeNull();
+  expect(flagAsked({ role: "assistant", content: "Yes." })).toBeNull();
+  expect(flagAsked(undefined)).toBeNull();
+});
+
+test("after two reviews a flag gets a reply, a prepared fix, or goes to the maintainer", () => {
+  const r = (verdict: string, cause: string, confident = true) => ({ verdict, cause, confident, reply: verdict + " " + cause, fix: cause === "none" ? "" : "change " + cause }) as Parameters<typeof decideFlag>[0][number];
+  const act = (...rs: ReturnType<typeof r>[]) => decideFlag(rs).action;
+  expect(decideFlag([r("learner_wrong", "none"), r("learner_wrong", "none")])).toEqual({ action: "reply", reason: "the learner is wrong", reply: "learner_wrong none", fix: "", cause: "none" });
+  expect(act(r("learner_right", "tutor"), r("learner_right", "tutor"))).toBe("reply");
+  expect(act(r("partly", "tutor"), r("partly", "tutor"))).toBe("reply");
+  expect(act(r("learner_right", "wording"), r("learner_right", "wording"))).toBe("fix");
+  for (const cause of ["data", "generator", "grading"]) {
+    const o = decideFlag([r("learner_right", cause), r("learner_right", cause)]);
+    expect(o.action).toBe("escalate");
+    expect(o.reply).toBe("learner_right " + cause); // the learner can read the agreed reply while the maintainer decides
+  }
+  expect(decideFlag([r("learner_right", "generator")])).toMatchObject({ action: "escalate", reason: "fewer than two reviews", reply: "" });
+  expect(decideFlag([r("learner_right", "tutor"), r("learner_wrong", "none")])).toMatchObject({ action: "escalate", reply: "" });
+  expect(act(r("unclear", "none"), r("unclear", "none"))).toBe("escalate");
+  expect(act(r("learner_right", "tutor"), r("learner_right", "data"))).toBe("escalate");
+  expect(act(r("learner_wrong", "none"), r("learner_wrong", "none", false))).toBe("escalate");
+  // nothing is agreed when the causes differ or a reviewer is unsure: no reply for the learner, and no reviewer's fix
+  expect(decideFlag([r("learner_right", "tutor"), r("learner_right", "data")])).toEqual({ action: "escalate", reason: "the reviewers disagree on the cause", reply: "", fix: "", cause: "" });
+  expect(decideFlag([r("learner_right", "data"), r("learner_right", "data", false)])).toEqual({ action: "escalate", reason: "a reviewer is not sure", reply: "", fix: "", cause: "data" });
+  expect(decideFlag([r("learner_wrong", "none"), r("learner_wrong", "none", false)])).toMatchObject({ action: "escalate", reason: "a reviewer is not sure", reply: "" }); // nothing the reviewers do not stand behind is shown
+  expect(act(r("learner_right", "none"), r("learner_right", "none"))).toBe("escalate");
+});
+
+// ---- Quorum: which examples are worth a flag ----
+
+const th = (text: string, cells: ("both" | "anb" | "bna" | "nei")[], page: Record<string, string>) => ({ text, cells, page });
+const run = (name: string, ...cells: ("both" | "anb" | "bna" | "nei")[]) => ({ name, cells });
+
+test("Quorum is disputed where the models give different cells, and the text names each model's cell", () => {
+  const things = [th("a table", ["anb"], { anb: "ok" }), th("a song", ["bna"], { bna: "ok" })];
+  const d = quorumDisputes(things, [run("Haiku", "anb", "nei"), run("Sonnet", "anb", "bna"), run("Opus", "anb", "bna")], ["anb", "bna"]);
+  expect(d).toHaveLength(1);
+  expect(d[0]).toMatchObject({ index: 1, kinds: ["models"], ruling: "bna", judge: "bna" });
+  expect(disputeText(d[0], things[1])).toBe("The models gave different cells. Models: Haiku Neither, Sonnet B not A, Opus B not A. Judge: B not A. You put it in B not A (the page: fits).");
+});
+
+test("Quorum is disputed where the models agree but the page's verdict cannot stand beside the cell they agree on", () => {
+  const things = [th("a table", ["anb"], { anb: "bad" }), th("a song", ["bna"], { bna: "ok" }), th("a stone", ["both"], { both: "ok" }), th("a mule", ["nei"], { nei: "cmp" })];
+  const models = [run("Haiku", "anb", "anb", "both", "bna"), run("Sonnet", "anb", "anb", "both", "bna")];
+  const d = quorumDisputes(things, models, null);
+  // a table: the page says it does not fit A not B, the models put it there; a song: the page says it fits B not A, the models say A not B
+  expect(d.map((x) => [x.index, x.kinds, x.ruling])).toEqual([[0, ["page"], "anb"], [1, ["page"], "anb"]]);
+  expect(disputeText(d[0], things[0])).toBe("The models agree, but the page does not. Models: Haiku A not B, Sonnet A not B. You put it in A not B (the page: does not fit).");
+});
+
+test("Quorum is not disputed where the page and the ruling agree, where the page did not check, or with fewer than two runs", () => {
+  const things = [th("a table", ["anb"], { anb: "ok" }), th("a song", ["bna"], { bna: "bad" }), th("a mule", ["nei"], { nei: "cmp" })];
+  // the learner is wrong about the song and the page says so: nothing to flag
+  expect(quorumDisputes(things, [run("Haiku", "anb", "anb", "nei"), run("Sonnet", "anb", "anb", "nei")], null)).toEqual([]);
+  expect(quorumDisputes(things, [run("Haiku", "bna", "nei", "both")], ["bna", "nei", "both"])).toEqual([]);
+  // models that differ are disputed even when the page did not check
+  expect(quorumDisputes(things, [run("Haiku", "anb", "anb", "nei"), run("Sonnet", "anb", "anb", "both")], null).map((x) => x.index)).toEqual([2]);
+});
+
+test("Quorum: an example written in two cells is disputed if the ruling contradicts the page in either", () => {
+  const things = [th("a pot", ["anb", "bna"], { anb: "ok", bna: "bad" })];
+  expect(quorumDisputes(things, [run("Haiku", "anb"), run("Sonnet", "anb")], null)).toEqual([]);
+  const d = quorumDisputes(things, [run("Haiku", "bna"), run("Sonnet", "bna")], null);
+  expect(d.map((x) => x.kinds)).toEqual([["page"]]);
+  expect(disputeText(d[0], things[0])).toContain("You put it in A not B (the page: fits), B not A (the page: does not fit).");
+});
+
+test("Quorum: an answer that is unsure about an example, or does not mention it, gives no cell and divides nobody", () => {
+  const things = [th("a table", ["anb"], { anb: "ok" })];
+  expect(quorumDisputes(things, [{ name: "Haiku", cells: [null] }, run("Sonnet", "bna")], null)).toEqual([]);
+  expect(quorumDisputes(things, [{ name: "Haiku", cells: [null] }, { name: "Sonnet", cells: [null] }], null)).toEqual([]);
+  // a ruling still counts when only one model gave a cell
+  expect(quorumDisputes(things, [{ name: "Haiku", cells: [null] }, run("Sonnet", "bna")], ["bna"]).map((x) => [x.kinds, x.ruling])).toEqual([[["page"], "bna"]]);
+});
+
+// ---- Quorum: what the answers say of the examples ----
+
+const fact = (label: string, ex: string, a: string, b: string) => `${label}: "${ex}" | class: Table | A ${a}: it is ${ex} | B ${b}: because it is wood`;
+
+test("an answer's fact lines give the cell each example belongs in, from its two facts", () => {
+  const text = [fact("Both", "a table", "yes", "yes"), fact("A not B", "a song", "yes", "no"), fact("B not A", "wood", "no", "yes"), fact("Neither", "a horn", "no", "no"), fact("Both", "an apple", "unsure", "yes"), "Common locus: yes."].join("\n");
+  expect(readings(text).map((r) => [r.example, r.line, r.cell, r.a, r.b])).toEqual([
+    ["a table", "both", "both", "yes", "yes"], ["a song", "anb", "anb", "yes", "no"], ["wood", "bna", "bna", "no", "yes"], ["a horn", "nei", "nei", "no", "no"], ["an apple", "both", null, "unsure", "yes"],
+  ]);
+  expect(cellOfFacts("yes", "no")).toBe("anb");
+  expect(cellOfFacts("unsure", "no")).toBeNull();
+  // a cell is looked up by the example, in the words of the page's own matching (case, quotes and punctuation do not matter)
+  const rs = readings(text);
+  expect(cellFor(rs, "A Song!")).toBe("anb");
+  expect(cellFor(rs, "an apple")).toBeNull();
+  expect(cellFor(rs, "a stone")).toBeNull();
+});
+
+test("the examples of several answers are gathered, with the cell each answer gave; they are divided by two different cells only", () => {
+  const rows = quorumRows([
+    { name: "Haiku", text: [fact("Both", "a table", "yes", "yes"), fact("Neither", "a stone", "no", "no")].join("\n") },
+    { name: "Sonnet", text: [fact("Both", "A table", "yes", "no"), fact("Neither", "a stone", "unsure", "no")].join("\n") },
+    { name: "Opus", text: fact("Both", "a table.", "yes", "no") },
+  ]);
+  expect(rows).toEqual([
+    { example: "a table", lines: ["both"], cells: { Haiku: "both", Sonnet: "anb", Opus: "anb" } },
+    { example: "a stone", lines: ["nei"], cells: { Haiku: "nei", Sonnet: null } },
+  ]);
+  expect(rows.map(divided)).toEqual([true, false]);
 });
 
 // ---- the code stays free of the page and the browser ----

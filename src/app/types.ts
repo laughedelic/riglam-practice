@@ -3,11 +3,15 @@
 // the data users already have: never rename a collection or change a document without a migration (CLAUDE.md).
 // Fields written by older versions of the page may be missing, so most fields besides the keys are optional.
 import type { Cat, DrillData, Item } from "../ai-shared/data";
+import type { About, Unlock, Updates } from "../platform/types";
 import type { AnswerView, DebateAnswer } from "../ai-shared/card";
 import type { CellId, RelKey } from "../ai-shared/relations";
 import type { Pair, PoolEntry, Verdict } from "../domain/types";
-import type { Db, Sample, Tutor } from "../platform/types";
+import type { Account, Db, Reports, Sample, Tutor } from "../platform/types";
+import type { QuorumRecord } from "../ai/protocol";
+import type { AccountSlot } from "../ui/account";
 import type { TransferSlot } from "../ui/data-transfer";
+import type { KeyHeld } from "../platform/types";
 
 export type { Pair, PoolEntry, Verdict };
 type Feature = import("../ui/features").Feature;
@@ -109,17 +113,25 @@ export interface FlagDoc {
   /** which turn or part of the case: always stored as a string (a turn index, a relation, a cell) */
   n?: string | null;
   shown?: string;
+  /** for an answer in the chat: the learner's question it answered (written since flags are listed in Review) */
+  asked?: string;
   note?: string;
   suggest?: string;
   /** the pair the flag was made on, by its labels; not a whole pair */
   pair?: FlagPair | null;
+  /** set when the page wrote the flag by itself, not the learner: "quorum" for an example Quorum is divided about (`part` is "quorum" then; `runId` is the record of the run) */
+  auto?: string;
   at: string;
   updatedAt: string;
   state: string;
+  /** when the flag was last sent to the app's server (ai/flag-reports.js); it counts as sent while this is not earlier than `updatedAt` */
+  sentAt?: string;
+  /** where the server's review of the sent flag stands and the reply to read under it (ai/flag-reports.js); written by the page, not by the learner, and dropped when the flag is edited */
+  review?: { state: string; reply?: string; at?: string };
 }
 
-/** collection `labruns`: one model's answer to one case of the check lab, or the judge's. Loosely typed. */
-export interface LabRunDoc {
+/** collection `labruns`: one model's answer to one case of the earlier Quorum, run by the page itself, or the judge's. Older versions of the page wrote it under that name, which a stored collection keeps; this one only keeps what is there (export, sync). Loosely typed. */
+export interface QuorumRunDoc {
   kind: string;
   caseKey: string;
   model: string;
@@ -129,9 +141,22 @@ export interface LabRunDoc {
   [extra: string]: unknown;
 }
 
+/** Quorum for the answer on screen (src/app/ai/quorum.js): the calls that have answered while it runs, then its record. */
+export interface UiQuorum {
+  /** the explanation is being asked of Quorum */
+  busy: boolean;
+  steps: { name: string; ok: boolean }[];
+  /** the whole run, once it is in; null while it runs and when the one model answered instead */
+  record: QuorumRecord | null;
+  /** Quorum was on, but the one model answered: its budget for the day is used */
+  single?: "budget";
+}
+
 /** What the page is showing for the current pair: the answer state, loosely typed. See practice/screen.js and debate/flow.js. */
 export interface Ui extends AnswerView {
-  /** present once the answer is checked, which is the only time the tutor and the check lab are reachable */
+  /** Quorum's run for this answer, once the explanation was asked with Quorum on */
+  quorum?: UiQuorum;
+  /** present once the answer is checked, which is the only time the tutor is reachable */
   res: AnswerView["res"] & { [field: string]: any };
   /** debate: the four answers, with their timings (ms, msEx, limit) */
   ans?: (DebateAnswer & { [field: string]: any })[];
@@ -175,8 +200,28 @@ export interface State {
   // what the platform offers
   db: Db | null;
   sample: Sample | null;
+  /** which build this is (platform.about), shown in Options; null until the server has been asked, and on a build with nothing to tell apart */
+  about: About | null;
+  /** updating the installed app in place (platform.updates), shown in Options; null where there is no installed copy */
+  updates: Updates | null;
+  /** opens the prompt for the Magic Key (platform.unlock) while this device has none; `tutor` is whether the server has a tutor waiting for it */
+  unlock: Unlock | null;
+  /** while this device has the Magic Key: take another one, or forget it (platform.keyHeld) */
+  keyHeld: KeyHeld | null;
+  /** the Magic Key row of Options is asking whether to forget the key */
+  keyAsk: boolean;
+  /** the note on the name "Magic Key" is open in the Options row */
+  mkNote: boolean;
   /** a question to the app's own server (platform.tutor), when the place has one; `sample` is used first */
   tutor: Tutor | null;
+  /** sends flags to the app's server (platform.reports), when the place has a server for them and this device has the Magic Key */
+  reports: Reports | null;
+  /** keeps the removal of a flag for a later start that has `reports` (platform.withdrawReport) */
+  withdrawLater: ((id: string) => void) | null;
+  /** optional sign-in with a server copy of the documents (platform.account), when the place has one */
+  account: Account | null;
+  /** the same for the Account row (src/ui/account.ts) */
+  acct: AccountSlot;
 
   // the stored collections as the page holds them
   batches: BatchDoc[];
@@ -184,7 +229,6 @@ export interface State {
   debates: Record<string, DebateDoc>;
   favs: Record<string, FavDoc>;
   skips: Record<string, SkipDoc>;
-  labruns: Record<string, LabRunDoc>;
   flags: Record<string, FlagDoc>;
   /** what the "Your data" row of Options keeps between renders (src/ui/data-transfer.ts) */
   xfer: TransferSlot;
@@ -212,16 +256,25 @@ export interface State {
   skipErr: string;
   flagErr: string;
   flagPending: number;
+  /** when the server was last asked for the replies to the sent flags (ms since the epoch), and whether that is under way */
+  repliesAt: number;
+  repliesBusy: boolean;
 
   // skips
   skipNote: SkipNote | null;
   hintOff: any;
 
-  // the check lab
-  lab: boolean;
-  labSpotN: number;
-  labPause: number;
-  labRefC: { text: string; ver: string } | null;
+  // Quorum and the explanation
+  /** the app's server offers Quorum (platform.quorum) */
+  quorumOffered: boolean;
+  /** the server offers Quorum as an opt-in: off on a device until the device turns it on (a Preview has it on until the device turns it off) */
+  quorumOptIn: boolean;
+  /** what this device chose in Options (`rd-quorum`): null for not yet, then the server's default applies */
+  quorumChoice: boolean | null;
+  /** Quorum is on for this device: its own choice, else the server's default */
+  quorum: boolean;
+  /** a checked answer asks for its explanation by itself (Options, `rd-autoexplain`) */
+  autoExplain: boolean;
 
   // display settings, some kept on the device
   nota: "codes" | "sets" | "logic" | string;

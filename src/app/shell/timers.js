@@ -1,5 +1,6 @@
 import { state } from "../state.js";
 import { $, el } from "../core/dom.js";
+import { tbIcon } from "../core/icons.js";
 import { REL } from "../core/rel.js";
 import { isWide, syncVv, wideMq } from "../core/viewport.js";
 import { asking, checkDebate, limitMs, setBlitz, setTimer, startQ, stopTimer } from "../debate/flow.js";
@@ -20,19 +21,8 @@ wideMq.addEventListener("change",()=>{ syncVv(); if(state.mode!=="loading") rend
 // Blitz: a bolt in the top bar, left, next to the heading (the mode of practice): outline when off, filled when on. No box, no number: the seconds are in its name
 // and editable in Options and beside the countdown. Two independent times: the relation (Relations and Pervasions) and the examples (each example in
 // Relations, each question in Pervasions). The countdown that is running is the one the in-place field shows; changing one never changes the other.
-// The toolbar icons (bolt, star, skip, and mic and speaker for voice) share one line style: 24 px, stroke 1.75, outline when off, filled when on.
-export function tbIcon(name){
-  const P={
-  bolt:'<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
-  star:'<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
-  skip:'<polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/>',
-  mic:'<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/>',
-  speak:'<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/>'
-  };
-  const svg=document.createElementNS("http://www.w3.org/2000/svg","svg");
-  svg.setAttribute("viewBox","0 0 24 24"); svg.setAttribute("class","tbi"); svg.setAttribute("aria-hidden","true"); svg.innerHTML=P[name];
-  return svg;
-}
+// The toolbar icons (bolt, star, skip) share one line style: 24 px, stroke 1.75, outline when off, filled when on (src/app/core/icons.js).
+export { tbIcon };
 // which countdown belongs to the screen: "rel" while the relation is to be picked, "ex" for the examples (Relations) or the four questions (Pervasions)
 export const tkind=()=>{
   if(!state.ui||state.ui.checked||state.mode!=="quiz"||state.tab==="review") return null;

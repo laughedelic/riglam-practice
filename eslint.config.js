@@ -33,6 +33,10 @@ export default defineConfig([
     languageOptions: { ecmaVersion: 2022, sourceType: "module", globals: { ...globals.node } },
   },
   {
+    files: ["scripts/social/*.js"], // runs in the page of scripts/make-social.mjs
+    languageOptions: { ecmaVersion: 2022, sourceType: "module", globals: { ...globals.browser } },
+  },
+  {
     files: ["tests/**/*.js"],
     languageOptions: { ecmaVersion: 2022, sourceType: "module", globals: { ...globals.node, ...globals.browser } },
   },

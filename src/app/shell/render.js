@@ -6,6 +6,7 @@ import { renderDebate } from "../debate/screen.js";
 import { isFav } from "../practice/favorites.js";
 import { placePops, renderQuiz } from "../practice/screen.js";
 import { syncSkipBtn } from "../practice/skips.js";
+import { dropStaleDef } from "../practice/terms.js";
 import { renderReview } from "../review/review.js";
 import { renderOver } from "./chat.js";
 import { renderOptionsBtn } from "./options.js";
@@ -52,14 +53,37 @@ export function setSteps(labels,on,go){
   const st=$("steps"); st.replaceChildren(); st.hidden=false;
   labels.forEach((l,i)=>st.append(el("button",{type:"button",class:i<on?"done":i===on?"on":"","aria-current":i===on?"step":null,disabled:!(go&&go[i]),onclick:go&&go[i]?go[i]:null,text:(i+1)+" "+l})));
 }
+// What has the focus, so that a redraw can give it back: a text field by its id and selection; in the Options panel any control by its place among the controls
+// (the panel is redrawn when the account's sync status changes, and a focused button or switch would otherwise be lost).
+const OVER_CONTROLS="button,input,textarea,select,[tabindex]";
 function focusKey(){
   const a=/** @type {HTMLInputElement} */(document.activeElement);
-  return a&&(a.tagName==="INPUT"||a.tagName==="TEXTAREA")&&a.id?{id:a.id,s:a.selectionStart,e:a.selectionEnd}:null;
+  if(!a) return null;
+  if((a.tagName==="INPUT"||a.tagName==="TEXTAREA")&&a.id) return {id:a.id,s:a.selectionStart,e:a.selectionEnd};
+  const over=$("over");
+  if(over&&over.contains(a)){ const i=[...over.querySelectorAll(OVER_CONTROLS)].indexOf(a); if(i>=0) return {i,s:a.selectionStart,e:a.selectionEnd}; }
+  return null;
 }
 function restoreFocus(f){
-  const n=f&&/** @type {HTMLInputElement} */($(f.id)); if(!n||n.disabled||document.activeElement===n) return;
+  if(!f) return;
+  const n=/** @type {HTMLInputElement|null} */(f.id!==undefined?$(f.id):(()=>{ const over=$("over"); return over?over.querySelectorAll(OVER_CONTROLS)[f.i]||null:null; })());
+  if(!n||n.disabled||document.activeElement===n) return;
   n.focus({preventScroll:true}); try{ n.setSelectionRange(f.s,f.e); }catch(e){}
 }
+// A redraw that the learner did not ask for (a run finished, an explanation began by itself) keeps the keyboard focus where it was: on the same button,
+// found again by its label. The renderer itself gives back only text fields and the Options panel's controls.
+function btnSig(){
+  const a=/** @type {HTMLButtonElement} */(document.activeElement); if(!a||a.tagName!=="BUTTON") return null;
+  const box=a.closest("#stage,#coach"); if(!box) return null;
+  const k=b=>b.textContent+"|"+(b.getAttribute("aria-label")||"")+"|"+(b.getAttribute("data-fid")||""), same=[...box.querySelectorAll("button")].filter(b=>k(b)===k(a));
+  return {box:box.id,k:k(a),i:same.indexOf(a)};
+}
+function btnBack(f){
+  if(!f) return; const box=$(f.box); if(!box) return;
+  const k=b=>b.textContent+"|"+(b.getAttribute("aria-label")||"")+"|"+(b.getAttribute("data-fid")||""), same=[...box.querySelectorAll("button")].filter(b=>k(b)===f.k), n=same[f.i]||same[0];
+  if(n&&document.activeElement!==n) n.focus({preventScroll:true});
+}
+export function renderKeepFocus(){ const f=btnSig(); render(); btnBack(f); }
 export const focusCin=()=>{ const i=$("cin"); if(i) i.focus({preventScroll:true}); };
 function screenSig(){
   const p=state.cur&&state.cur.p;
@@ -84,7 +108,7 @@ function renderNow(){
   if(state.mode==="nodata"){ s.append(el("p",{class:"status",text:"The practice data could not be loaded. Reload the page to try again."})); renderOver(); return; }
   if(state.tab==="review") renderReview(s);
   else if(state.mode==="quiz"){ if(state.tab==="debate"&&state.ui&&state.ui.debate) renderDebate(s,c); else renderQuiz(s,c); }
-  renderOver(); restoreFocus(f); placePops(); voiceAfterRender();
+  renderOver(); restoreFocus(f); placePops(); dropStaleDef(); voiceAfterRender();
 }
 
 // Fit the terms around the fixed chips and diamond. The diamond stays in the middle and each term has

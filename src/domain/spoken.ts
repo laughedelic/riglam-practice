@@ -73,7 +73,7 @@ const NAMES: [string, RelKey | "3"][] = [
 ];
 
 /** The pair's two terms as the page names them ("functional things", "products"). */
-export interface Terms {
+export interface PairTerms {
   a: string;
   b: string;
 }
@@ -95,7 +95,7 @@ function findTerm(heard: string[], term: string[], name: "ta" | "tb"): Span[] {
   return out;
 }
 /** The heard words with the first term said in them as "ta" and the second as "tb"; `found` is how many of the two were said. */
-function mask(w: string, terms: Terms): { words: string[]; found: number } {
+function mask(w: string, terms: PairTerms): { words: string[]; found: number } {
   const orig = w.split(" ").filter(Boolean), sing = orig.map(singular), ta = termWords(terms.a), tb = termWords(terms.b);
   const all = [...(ta.length ? findTerm(sing, ta, "ta") : []), ...(tb.length ? findTerm(sing, tb, "tb") : [])].sort((x, y) => y.score - x.score || x.from - y.from);
   const used = new Array<boolean>(orig.length).fill(false), spans: Span[] = [];
@@ -139,7 +139,7 @@ function relationByPhrase(w: string): RelKey | null {
 // What is written under the options, with the pair's own terms: "All products are functional things, not the reverse" (three
 // possibilities, the first-named term inside), "... and all functional things are products" (mutually inclusive).
 const LINKS = "is|are|in|inside|within|under|to|belong|belongs|fall|falls|included|contained|covered|by|part|subset|contain|contains|include|includes|encompass|encompasses|cover|covers|pervade|pervades";
-function relationByTerms(w: string, terms: Terms): RelKey | null {
+function relationByTerms(w: string, terms: PairTerms): RelKey | null {
   const { words, found } = mask(w, terms);
   if (!found) return null;
   const n = plain(words);
@@ -168,7 +168,7 @@ function relationByTerms(w: string, terms: Terms): RelKey | null {
  * the like give the direction, with or without "three possibilities" before them. With the pair's `terms` it also
  * takes what is written under each option ("All products are functional things, not the reverse").
  */
-export function spokenRelation(alts: readonly string[], order: readonly RelKey[], terms?: Terms): RelKey | "3" | null {
+export function spokenRelation(alts: readonly string[], order: readonly RelKey[], terms?: PairTerms): RelKey | "3" | null {
   let vague = false;
   for (const heard of alts) {
     const w = plainWords(heard).replace(/\bbeing a\b/g, "b in a");
@@ -214,7 +214,7 @@ export function spokenRelation(alts: readonly string[], order: readonly RelKey[]
  * "first" or "second" (the order the pair was read in), as the two letters in any of the ways a recognizer writes
  * "A in B", or as the whole phrase ("all products are functional things, not the reverse").
  */
-export function spokenDirection(alts: readonly string[], terms?: Terms): "3ab" | "3ba" | null {
+export function spokenDirection(alts: readonly string[], terms?: PairTerms): "3ab" | "3ba" | null {
   for (const heard of alts) {
     const w = plainWords(heard).replace(/\bbeing a\b/g, "b in a");
     const whole = terms ? relationByTerms(w, terms) : null;

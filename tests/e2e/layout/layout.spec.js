@@ -32,7 +32,7 @@ const test = base.extend({
     await page.addInitScript((reply) => {
       window.__riglamTest = (t) => { window.__t = t; };
       window.__reply = reply;
-      try { localStorage.setItem("rd-lab", "0"); } catch { /* storage unavailable */ }
+      try { localStorage.setItem("rd-autoexplain", "0"); } catch { /* storage unavailable */ }
     }, CLAUDE_REPLY);
     await routeArtifact(page, { ai: true });
     await page.goto("http://artifact.test/");
@@ -100,8 +100,8 @@ const FLOWS = {
     await answerAll(s, rel, LONG);
     await check("result");
     await eachChip(s, "result");
-    const toggle = page.locator(".tm-tog");
-    if (await toggle.count()) { await toggle.click(); await check("terms with definitions"); }
+    const mark = page.locator(".terms .dterm");
+    if (await mark.count()) { await mark.first().click(); await check("terms with a definition open"); }
   },
 
   async "practice, explanation and its notes"(s) {

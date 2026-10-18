@@ -4,19 +4,8 @@ const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.
 const ORDER={mi:0,'3ab':1,'3ba':2,'4':3,con:4};
 const noErr=e=>e.filter(x=>!/fonts|ERR_|proxy/i.test(x));
 const S=(pg,n)=>pg.evaluate(n=>window.__S[n],n);
-const labCalls=pg=>pg.evaluate(()=>window.__labcalls.map(c=>!!c.judge));
-const settle=pg=>pg.waitForFunction(()=>{const u=window.__t.ui; return u&&u.lab&&!u.lab.busy;},null,{timeout:6000});
 const blur=pg=>pg.evaluate(()=>document.activeElement&&document.activeElement.blur());
 const other=r=>r==='mi'?'con':'mi';
-// wide: pick the right relation, fill the open cells, Show result
-async function answerWide(pg){
-  const rel=await pg.evaluate(()=>window.__t.cur.p.relation);
-  await pg.locator('.strip .chip').nth(ORDER[rel]).click(); await pg.waitForTimeout(60);
-  const n=await pg.locator('.grid input:not([disabled])').count();
-  for(let i=0;i<n;i++) await pg.locator('.grid input:not([disabled])').nth(i).fill('thing '+(i+1));
-  await pg.locator('#stage .actions .btn',{hasText:/show result/i}).click(); await pg.waitForTimeout(60);
-  return n;
-}
 async function relPhone(pg,relKey){
   const rel=relKey||await pg.evaluate(()=>window.__t.cur.p.relation);
   await pg.locator('.rels .rel').nth(ORDER[rel]).click(); await pg.waitForTimeout(80);
@@ -26,73 +15,15 @@ async function relPhone(pg,relKey){
 const flagDocs=async pg=>Object.values(await S(pg,'flags'));
 const REPLY='Both: a clay pot fits.\nNeither: a stone is B, not A.\nCommon locus: yes, a clay pot.\nPervasion: whatever is A is B.\nExplanation: look at what both terms cover first.\nMisconception: you took A for B.';
 (async()=>{
- // ================= the judge only rules where the models differ =================
+ // ================= Options: the Questions helper line =================
  {
-  const {br,pg,errs}=await open({width:1280,height:800},{lab:true});
-  await pg.evaluate(()=>{ window.__t.labSpotN=0; });
-  const n=await answerWide(pg); await settle(pg);
-  let cl=await labCalls(pg);
-  ok('all three agree: three calls, no judge',cl.length===3&&cl.every(j=>!j),cl);
-  let runs=await S(pg,'labruns');
-  ok('only the three runs are stored (no judge document)',Object.keys(runs).length===3&&!Object.values(runs).some(r=>r.kind==='judge'),Object.keys(runs));
-  await pg.locator('.vchip',{hasText:/lab/i}).click(); await pg.waitForTimeout(120);
-  ok('the panel says all agree and no judge was needed',/all agree, no judge needed/i.test(await pg.locator('.lab-h').innerText()),await pg.locator('.lab-h').innerText());
-  ok('each thing says "All answers agree" and has no ruling row',await pg.locator('.lab-nj').count()===n&&await pg.locator('.lab-r.ruling').count()===0,[await pg.locator('.lab-nj').count(),n]);
-  ok('the chip shows = when all agree with the learner too, or ≠ when they agree against the learner (not "…")',/[=≠]/.test(await pg.locator('.vchip',{hasText:/lab/i}).innerText()));
-  const ask=pg.locator('.lab .btn',{hasText:/ask the judge/i});
-  ok('an "Ask the judge" button is offered',await ask.count()===1);
-  await ask.click(); await settle(pg); await pg.waitForTimeout(100);
-  cl=await labCalls(pg);
-  ok('asking calls only the judge',cl.length===4&&cl[3]===true,cl);
-  runs=await S(pg,'labruns'); const jd=Object.values(runs).find(r=>r.kind==='judge');
-  ok('the judge record says it was asked, and sees the three answers',!!jd&&jd.why==='asked'&&jd.order.length===3&&jd.ok,jd&&{why:jd.why,order:jd.order});
-  ok('the ruling row is separate and labelled "Judge’s ruling"',await pg.locator('.lab-r.ruling').count()===n&&/judge’s ruling/i.test(await pg.locator('.lab-r.ruling .mn').first().innerText()));
-  ok('each model row is marked against the ruling',await pg.locator('.lab-r .vs').count()===3*n&&await pg.locator('.lab-r .vs.yes').count()===3*n);
-  ok('the ruling says which answers it sided with',/^Sided with \w+ and \w+ and \w+\./.test((await pg.locator('.lab-sided').first().innerText()).trim()),await pg.locator('.lab-sided').first().innerText());
-  ok('the button is gone once the judge has ruled',await pg.locator('.lab .btn',{hasText:/ask the judge/i}).count()===0);
-  ok('no page errors (judge asked)',noErr(errs).length===0,errs);
-  await br.close();
- }
- {
-  const {br,pg,errs}=await open({width:1280,height:800},{lab:true});
-  await pg.evaluate(()=>{ window.__t.labSpotN=0; window.__labAns={haiku:()=>({inA:false,inB:false}),judge:()=>({right:[1,2]})}; });
-  const n=await answerWide(pg); await settle(pg);
-  const cl=await labCalls(pg);
-  ok('the models differ: three calls and then the judge',cl.length===4&&cl.slice(0,3).every(j=>!j)&&cl[3]===true,cl);
-  const jd=Object.values(await S(pg,'labruns')).find(r=>r.kind==='judge');
-  ok('the judge record says the models differed',!!jd&&jd.why==='disagree',jd&&jd.why);
-  await pg.locator('.vchip',{hasText:/lab/i}).click(); await pg.waitForTimeout(120);
-  ok('the summary names the reason',/the judge ruled \(the models differed\)/i.test(await pg.locator('.lab-h').innerText()),await pg.locator('.lab-h').innerText());
-  // the judge sided with the first two answers it saw (the order it was given is in the record)
-  const nm={haiku:'Haiku',sonnet:'Sonnet',opus:'Opus'}, ord=jd.order.map(id=>id.split('_').pop());
-  const inOrder=['haiku','sonnet','opus'].filter(k=>ord.slice(0,2).includes(k)), want='Sided with '+inOrder.map(k=>nm[k]).join(' and ')+', not '+nm[ord[2]]+'.';
-  ok('the ruling names the models it sided with and the one it did not',(await pg.locator('.lab-sided').first().innerText()).trim()===want,[await pg.locator('.lab-sided').first().innerText(),want]);
-  const marks=await pg.locator('.lab-c').first().locator('.lab-r:not(.ruling):not(.page) .vs').evaluateAll(v=>v.map(x=>x.className.replace('vs ','')));
-  ok('two rows are marked "= ruling" and one "≠ ruling" on a thing',marks.filter(x=>x==='yes').length===2&&marks.filter(x=>x==='no').length===1,marks);
-  ok('no judge button once it has ruled',await pg.locator('.lab .btn',{hasText:/ask the judge/i}).count()===0);
-  ok('no page errors (differ)',noErr(errs).length===0,errs);
-  await br.close();
- }
- // the spot check
- {
-  const {br,pg,errs}=await open({width:1280,height:800},{lab:true});
-  await pg.evaluate(()=>{ window.__t.labSpotN=1; });
-  await answerWide(pg); await settle(pg);
-  const cl=await labCalls(pg), jd=Object.values(await S(pg,'labruns')).find(r=>r.kind==='judge');
-  ok('a spot check sends even a unanimous answer to the judge, marked as a spot check',cl.length===4&&!!jd&&jd.why==='spot',[cl,jd&&jd.why]);
-  await pg.locator('.vchip',{hasText:/lab/i}).click(); await pg.waitForTimeout(100);
-  ok('the summary says spot check',/spot check/i.test(await pg.locator('.lab-h').innerText()));
-  await br.close();
- }
- // Options: the lab note and the Questions helper line
- {
-  const {br,pg,errs}=await open({width:1280,height:800},{lab:true});
+  const {br,pg,errs}=await open({width:1280,height:800});
   await pg.locator('.rail .nv:has-text("Options")').click().catch(()=>{}); await pg.waitForTimeout(150);
   if(!(await pg.locator('.orow').count())){ await pg.locator('#optsbtn,.optsbtn,[aria-label="Options"]').first().click().catch(()=>{}); await pg.waitForTimeout(150); }
   const rows=await pg.locator('.orow').evaluateAll(r=>r.map(x=>x.innerText));
-  const lab=rows.find(t=>/^check lab/i.test(t.trim())), q=rows.find(t=>/^questions/i.test(t.trim()));
-  ok('the Check lab note says the judge rules only when the models differ',!!lab&&/only when they differ/i.test(lab)&&/three Claude calls/i.test(lab),lab);
+  const q=rows.find(t=>/^questions/i.test(t.trim()));
   ok('the Questions row explains itself as the statement of pervasion',!!q&&/statement of pervasion/i.test(q),q);
+  ok('the artifact has no Quorum row: it asks its host\'s model, one model, and keeps no runs',!rows.some(t=>/^quorum/i.test(t.trim())),rows.map(t=>t.slice(0,20)));
   await br.close();
  }
 
