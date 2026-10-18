@@ -6,7 +6,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { MANIFEST, StagingError, migrationWarnings, push, rebuild, selectPulls } from "../../scripts/lib/staging.mjs";
-import { checkOf, commentMarker, conflictComment, describe as describeResult, goneCheck, leftCheck, newSkips, publish, summary, whySkipped } from "../../scripts/lib/staging-report.mjs";
+import { checkOf, describe as describeResult, goneCheck, leftCheck, newSkips, publish, summary, whySkipped } from "../../scripts/lib/staging-report.mjs";
 import { githubClient } from "../../scripts/lib/staging-github.mjs";
 
 const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_SYSTEM: "/dev/null" } }).trim();
@@ -343,8 +343,13 @@ test("each pull request's check says whether it is in, where, or why not", () =>
   expect(checkOf(result.entries[5], result).title).toBe("In staging, but it adds nothing to main");
   const left = checkOf(result.entries[3], result);
   expect(left).toEqual({ conclusion: "failure", title: "Left out of staging: conflicts in `a.js`, `b.js` (also changed by main and #1)", summary: expect.stringContaining("Conflicts in:\n- `a.js`\n- `b.js`") });
-  expect(left.summary).toContain("Merge `main`");
+  // the summary is all an agent that follows the pull request is shown, so it names the files, who else changed them, and what to do
+  expect(left.summary).toContain("Those files were also changed by `main`, since this branch left it and by #1, which is on staging before it.");
+  expect(left.summary).toContain("Merge `main` (or the pull request above) into this branch and push");
   expect(left.summary).toContain("turns green when the branch merges cleanly");
+  const one = { ...result.skipped[0], files: ["a.js"] };
+  expect(checkOf(result.entries[3], { ...result, skipped: [{ ...one, withMain: false, with: [] }] }).summary).not.toContain("also changed by");
+  expect(checkOf(result.entries[3], { ...result, skipped: [{ ...one, with: [] }] }).summary).toContain("That file was also changed by `main`, since this branch left it.");
   expect(checkOf(result.entries[4], result)).toEqual({ conclusion: "failure", title: "Left out of staging: the pull request below it (#4) is left out", summary: expect.stringContaining("the pull request below it (#4) is left out") });
   expect(leftCheck()).toEqual({ conclusion: "neutral", title: "Not in staging (no label)", summary: expect.stringContaining("does not have the label") });
   expect(leftCheck(false)).toEqual({ conclusion: "neutral", title: "Not in staging (closed)", summary: expect.stringContaining("closed or merged") });
@@ -362,20 +367,6 @@ test("only a pull request that was not left out before is news, and a pull reque
   expect(newSkips({ ...result, previous: { skipped: [{ number: 4 }] } })).toEqual([]);
 });
 
-test("the comment names the files and who else changed them, and carries a marker for its head commit", () => {
-  const skip = sampleResult().skipped[0];
-  const text = conflictComment(skip);
-  expect(text.startsWith(commentMarker(skip))).toBe(true);
-  expect(text).toContain("- `a.js`\n- `b.js`");
-  expect(text).toContain("Those files were also changed by `main`, since this branch left it and by #1, which is on staging before it.");
-  expect(conflictComment({ ...skip, files: ["a.js"], withMain: false, with: [] })).not.toContain("also changed by");
-  expect(conflictComment({ ...skip, files: ["a.js"], with: [] })).toContain("That file was also changed by `main`, since this branch left it.");
-  expect(text).toContain("Merge `main`");
-  // the comment is posted once, and says where to look from then on
-  expect(text).toContain("This comment is posted once.");
-  expect(text).toContain("the check `staging` on this pull request is where to look");
-});
-
 test("the log and the run summary list what went in and what was left out", () => {
   const result = sampleResult();
   expect(describeResult(result)).toContain("  - #4 branch-4: left out, conflicts in `a.js`, `b.js`");
@@ -388,7 +379,7 @@ test("the log and the run summary list what went in and what was left out", () =
   expect(summary({ ...result, upToDate: true })).toContain("Nothing to do");
 });
 
-function fakeClient(existingComments: Record<number, string[]> = {}, failOn?: string, current: Record<string, { conclusion: string; title: string; summary: string }> = {}, closed: number[] = []) {
+function fakeClient(failOn?: string, current: Record<string, { conclusion: string; title: string; summary: string }> = {}, closed: number[] = []) {
   const calls: any[] = [];
   return {
     calls,
@@ -400,12 +391,6 @@ function fakeClient(existingComments: Record<number, string[]> = {}, failOn?: st
       if (failOn === "check") throw new Error("403");
       calls.push(["check", sha, check.conclusion, check.title, check.name, check.detailsUrl]);
     },
-    async comments(n: number) {
-      return existingComments[n] ?? [];
-    },
-    async comment(n: number, body: string) {
-      calls.push(["comment", n, body.split("\n")[1]]);
-    },
     async closedLabeled(label: string) {
       calls.push(["closed", label]);
       return closed;
@@ -416,59 +401,40 @@ function fakeClient(existingComments: Record<number, string[]> = {}, failOn?: st
   };
 }
 
-test("publish sets a check on each pull request, clears the old ones, comments once on what just stopped merging, and tidies the labels", async () => {
+test("publish sets a check on each pull request, clears the old ones, and tidies the labels", async () => {
   const result = sampleResult();
   // #7 lost its label and has a new head since; #9 was closed; #11 and #12 were merged or closed a while ago and still have the label
   const open = [...result.entries, { number: 7, head: { sha: "8".repeat(40) } }, { number: 1, head: { sha: "1".repeat(40) } }];
-  const client = fakeClient({}, undefined, {}, [11, 12]);
+  const client = fakeClient(undefined, {}, [11, 12]);
   await publish(client, { result, openPulls: open, runUrl: "https://example.com/run/1", label: "staging" });
   const checks = client.calls.filter((c) => c[0] === "check");
   expect(checks.map((c) => [c[1].slice(0, 1), c[2]])).toEqual([["1", "success"], ["2", "success"], ["3", "success"], ["4", "failure"], ["5", "failure"], ["6", "success"], ["7", "neutral"], ["9", "neutral"]]);
   // the old check goes on the commit it was set on (the manifest's), not on the head the pull request has now
   expect(checks.at(-2)).toEqual(["check", "7".repeat(40), "neutral", "Not in staging (no label)", "staging", "https://example.com/run/1"]);
   expect(checks.at(-1)).toEqual(["check", "9".repeat(40), "neutral", "Not in staging (closed)", "staging", "https://example.com/run/1"]);
-  expect(client.calls.filter((c) => c[0] === "comment")).toEqual([["comment", 4, "Staging left this pull request out because it does not merge cleanly."]]);
   expect(client.calls.filter((c) => c[0] === "unlabel")).toEqual([["unlabel", 11, "staging"], ["unlabel", 12, "staging"]]);
 
-  // told already (the marker is on the pull request): not again
-  const told = fakeClient({ 4: [`hello\n${commentMarker(result.skipped[0])}`] });
-  await publish(told, { result, openPulls: open });
-  expect(told.calls.filter((c) => c[0] === "comment")).toEqual([]);
-  // still left out as before: not news
-  const same = fakeClient();
-  await publish(same, { result: { ...result, previous: { ...result.previous, skipped: [{ number: 4 }, { number: 5 }] } }, openPulls: open });
-  expect(same.calls.filter((c) => c[0] === "comment")).toEqual([]);
   // no label to look for, nothing to tidy
-  expect(told.calls.some((c) => c[0] === "closed" || c[0] === "unlabel")).toBe(false);
+  const bare = fakeClient();
+  await publish(bare, { result, openPulls: open });
+  expect(bare.calls.some((c) => c[0] === "closed" || c[0] === "unlabel")).toBe(false);
 });
 
-test("a pull request that stays as it was is not told again, so a rebuild that changes nothing for it makes no new check", async () => {
+test("a pull request that stays as it was is not told again, so a rebuild or a run that built nothing makes no new check for it", async () => {
   const result = sampleResult();
   const have = Object.fromEntries(result.entries.map((e) => [e.sha, checkOf(e, result)]));
-  const client = fakeClient({}, undefined, have);
+  const client = fakeClient(undefined, have);
   await publish(client, { result, openPulls: [] });
+  // only the two that left staging are new
   expect(client.calls.filter((c) => c[0] === "check").map((c) => c[1].slice(0, 1))).toEqual(["7", "9"]);
-  // a change of reason is told: #4 was left out for another file
-  const moved = fakeClient({}, undefined, { ...have, ["4".repeat(40)]: { ...have["4".repeat(40)], summary: "something older" } });
+  // a change of what is said is told: #4 was left out for another file
+  const moved = fakeClient(undefined, { ...have, ["4".repeat(40)]: { ...have["4".repeat(40)], summary: "something older" } });
   await publish(moved, { result, openPulls: [] });
   expect(moved.calls.filter((c) => c[0] === "check").map((c) => [c[1].slice(0, 1), c[2]])).toEqual([["4", "failure"], ["7", "neutral"], ["9", "neutral"]]);
-});
-
-test("a run that built nothing makes good what a refused call lost: the missing checks and the missing comment, nothing twice", async () => {
-  const result = { ...sampleResult(), upToDate: true, previous: { pulls: [], skipped: [{ number: 4 }, { number: 5 }] } };
-  const have = { [result.entries[0].sha]: checkOf(result.entries[0], result), ["4".repeat(40)]: { conclusion: "failure", title: "something older", summary: "x" } };
-  const client = fakeClient({}, undefined, have);
-  await publish(client, { result, openPulls: [], runUrl: "https://example.com/run/2", repair: true });
-
-  // #1 has its check; the others are made, #4 because it says something else
-  const set = client.calls.filter((c) => c[0] === "check").map((c) => c[1].slice(0, 1));
-  expect(set).toEqual(["2", "3", "4", "5", "6"]);
-  // the conflict comment was never posted (still not news by the manifest's account): it is now, once
-  expect(client.calls.filter((c) => c[0] === "comment")).toEqual([["comment", 4, "Staging left this pull request out because it does not merge cleanly."]]);
-
-  const told = fakeClient({ 4: [commentMarker(result.skipped[0])] });
-  await publish(told, { result, openPulls: [], repair: true });
-  expect(told.calls.filter((c) => c[0] === "comment")).toEqual([]);
+  // and what a refused call lost after the last push is made good: #1 and #4 have none
+  const lost = fakeClient(undefined, { ...have, ["1".repeat(40)]: undefined as any, ["4".repeat(40)]: undefined as any });
+  await publish(lost, { result: { ...result, upToDate: true }, openPulls: [], runUrl: "https://example.com/run/2" });
+  expect(lost.calls.filter((c) => c[0] === "check").map((c) => c[1].slice(0, 1))).toEqual(["1", "4", "7", "9"]);
 });
 
 test("a run that built nothing reads what went in and what was left out from the manifest", () => {
@@ -505,11 +471,10 @@ test("a pull request whose branch is gone loses the check of the commit it was r
 
 test("a refused call is logged and does not stop the rest", async () => {
   const log: string[] = [];
-  const client = fakeClient({}, "check", {}, [11]);
+  const client = fakeClient("check", {}, [11]);
   await publish(client, { result: sampleResult(), openPulls: [], label: "staging", log: (l) => log.push(l) });
   expect(log.length).toBeGreaterThan(3);
   expect(log[0]).toBe("could not report the check of #1: 403");
-  expect(client.calls.filter((c) => c[0] === "comment")).toHaveLength(1);
   expect(client.calls.filter((c) => c[0] === "unlabel")).toEqual([["unlabel", 11, "staging"]]);
 });
 

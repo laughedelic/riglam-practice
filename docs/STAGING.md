@@ -20,16 +20,15 @@ The workflow [staging.yml](../.github/workflows/staging.yml) runs
 - when `main` changes (a merge), and
 - every 30 minutes, as a net under the events. A pull request stacked on a branch that does not have the workflow file yet, one that conflicts with `main`, and a push made by a workflow's own token do not start a `pull_request` workflow; the schedule catches them.
 
-Every run reads the open pull requests afresh, so a run that was queued behind another needs nothing from the event that started it. A run that finds `origin/staging` already built from the same `main`, the same pull request heads and the same stacking (they are recorded in `staging.json`) builds and pushes nothing; it only makes good a check or a comment that GitHub refused after the last push. Otherwise it pushes the new branch, which starts the deploy (below), and then runs lint, types, a build and the unit tests on the result in a second job, because that is where two pull requests can break each other.
+Every run reads the open pull requests afresh, so a run that was queued behind another needs nothing from the event that started it. A run that finds `origin/staging` already built from the same `main`, the same pull request heads and the same stacking (they are recorded in `staging.json`) builds and pushes nothing; it only makes good a check that GitHub refused after the last push. Otherwise it pushes the new branch, which starts the deploy (below), and then runs lint, types, a build and the unit tests on the result in a second job, because that is where two pull requests can break each other.
 
 ## When a pull request does not merge
 
 The rebuild leaves that pull request out, and every pull request stacked on it, and builds the rest. Nothing stops at the first conflict.
 
-- The pull request gets a check run named `staging` in red, with the files in conflict, who else changed them (`main` since the branch left it, or a pull request that is on staging before it) and what to do. A failed check run reaches whoever follows the pull request, a person or an agent watching it, like a failed CI job.
+- The pull request gets a check run named `staging` in red, with the files in conflict, who else changed them (`main` since the branch left it, or a pull request that is on staging before it) and what to do. A failed check run reaches whoever follows the pull request, a person or an agent watching it, like a failed CI job, and its summary is what they are shown.
 - A check is made only when it differs from the one the commit has: a pull request that stays out for the same reason is not told again at every rebuild, and one whose conflict changes (another file, another pull request) is. When the branch merges cleanly the check is made again, green. A pull request that leaves staging, by losing its label or being closed, gets a neutral "Not in staging" in place of the old one.
-- When it stops merging, it also gets one comment saying the same, which tells the author where to look from then on. The comment is posted once per conflict (a run that finds it missing posts it again).
-- The run fails the first time a pull request is left out, so that it is seen, and passes while the same pull requests stay out.
+- The run itself passes. It is the pull request's own check that is red, not the run, because a run's checks are shown on the pull request that started it, which is not necessarily the one that conflicts. A pull request that has just stopped merging is also named as a warning in the run's log.
 - The fix is the one for any pull request: merge `main` (or the pull request it conflicts with) into its branch and push. Staging rebuilds on its own and the check turns green. Never resolve a conflict on `staging`.
 
 After a pull request that others are stacked on is squash-merged, its children conflict with the squashed commit until `main` is merged into them; they also drop out of the rebuild until then, and come back when it is.
@@ -48,7 +47,7 @@ npm run staging -- sync --pulls pulls.json     # the open pull requests from a f
 npm run staging -- list                        # what origin/staging was built from, and whether those branches have moved
 ```
 
-A hand push is replaced by the next workflow run, so use it to look, not to keep. `--report` (checks, comments, labels) is for the workflow: only a GitHub App can write a check run, so it needs the workflow's own token, not a personal one.
+A hand push is replaced by the next workflow run, so use it to look, not to keep. `--report` (checks, labels) is for the workflow: only a GitHub App can write a check run, so it needs the workflow's own token, not a personal one.
 
 ## The staging Preview
 

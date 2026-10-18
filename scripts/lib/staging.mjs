@@ -152,8 +152,8 @@ export function rebuild({ cwd, entries, remote = "origin", base = "main", target
   const resolved = entries.map((e) => ({ ...e, sha: git(cwd, ["rev-parse", "--verify", "--quiet", `${remote}/${e.branch}^{commit}`], { allowFail: true }) }));
   const inputs = inputsOf(baseSha, resolved);
   if (!force && sameInputs(previous, inputs)) {
-    // Nothing is built, but what went in and what was left out is still known, from the manifest: a status or a comment that a refused call
-    // lost after the last push is made good from it (publish with `repair`).
+    // Nothing is built, but what went in and what was left out is still known, from the manifest: a check that a refused call lost after the
+    // last push is made good from it (publish).
     const byNumber = new Map(resolved.map((e) => [e.number, e]));
     const merged = (previous.pulls ?? []).map((p) => ({ ...byNumber.get(p.number), addsNothing: p.addsNothing === true }));
     const skipped = (previous.skipped ?? []).map((s) => ({ ...byNumber.get(s.number), withMain: false, with: [], ...s }));

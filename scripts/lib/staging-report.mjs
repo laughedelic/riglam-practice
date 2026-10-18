@@ -1,6 +1,6 @@
-// What a staging rebuild tells people (docs/STAGING.md): a check run named `staging` on each pull request's head commit, one comment on a
-// pull request that has just stopped merging, and a summary of the run. The texts are pure; `publish` takes the GitHub calls as an object
-// (scripts/lib/staging-github.mjs), so tests/unit/staging.test.ts runs it with a stand-in.
+// What a staging rebuild tells people (docs/STAGING.md): a check run named `staging` on each pull request's head commit, and a summary of the
+// run. The texts are pure; `publish` takes the GitHub calls as an object (scripts/lib/staging-github.mjs), so tests/unit/staging.test.ts runs
+// it with a stand-in.
 
 /** The name of the check run on a pull request. */
 export const CHECK_NAME = "staging";
@@ -44,10 +44,13 @@ export const leftCheck = (open = true) => ({
 /** The check for the commit a pull request was reported on, when its branch is no longer on origin. */
 export const goneCheck = () => ({ conclusion: "neutral", title: "Not in staging (its branch is gone)", summary: "This pull request is not on the `staging` branch: its branch is not on origin any more." });
 
-/** What a pull request that is left out is told, apart from how often: the files, who else changed them, and what to do. */
-function leftOutText(skip) {
-  if (skip.reason === "parent") return [`Staging left this pull request out because the pull request below it (#${skip.parent}) is left out.`];
-  if (skip.reason === "gone") return ["Staging left this pull request out because its branch is not on origin."];
+/**
+ * The summary of the failed check on a pull request that is left out: the files, who else changed them, and what to do. It is all that
+ * reaches an agent that follows the pull request, so it stands on its own.
+ */
+function leftOutSummary(skip) {
+  if (skip.reason === "parent") return `Staging left this pull request out because the pull request below it (#${skip.parent}) is left out.\n\nThis check turns green when that one is back in.`;
+  if (skip.reason === "gone") return "Staging left this pull request out because its branch is not on origin.\n\nThis check turns green when the branch is back.";
   const others = [...(skip.withMain ? ["`main`, since this branch left it"] : []), ...skip.with.map((n) => `#${n}, which is on staging before it`)];
   return [
     "Staging left this pull request out because it does not merge cleanly.",
@@ -57,25 +60,8 @@ function leftOutText(skip) {
     ...(others.length ? ["", `${skip.files.length === 1 ? "That file was" : "Those files were"} also changed by ${others.join(" and by ")}.`] : []),
     "",
     "Merge `main` (or the pull request above) into this branch and push, as for any pull request. Staging rebuilds by itself after each push.",
-  ];
-}
-
-/** The summary of the failed check on a pull request that is left out. */
-function leftOutSummary(skip) {
-  const fix = skip.reason === "conflict" ? "This check turns green when the branch merges cleanly, and is made again, red, if the conflict changes." : "This check turns green when the pull request is back in.";
-  return [...leftOutText(skip), "", fix].join("\n");
-}
-
-/** The marker of a comment, so that the same head commit is never told twice. */
-export const commentMarker = (skip) => `<!-- staging-conflict ${skip.sha} -->`;
-
-/** The comment for a pull request that staging has just stopped merging. */
-export function conflictComment(skip) {
-  return [
-    commentMarker(skip),
-    ...leftOutText(skip),
     "",
-    "This comment is posted once. From here on, the check `staging` on this pull request is where to look: it names the files in conflict as of the latest rebuild and turns green when the branch merges cleanly.",
+    "This check turns green when the branch merges cleanly, and is made again, red, if the conflict changes. Never resolve a conflict on `staging` itself.",
   ].join("\n");
 }
 
@@ -110,17 +96,16 @@ export function summary(result, { runUrl = "" } = {}) {
 }
 
 /**
- * Posts the checks and the comments for a rebuild, and takes the label off pull requests that are merged or closed. Nothing here may fail
- * the run: a refused call is logged and the next one goes on.
+ * Posts the checks for a rebuild and takes the label off pull requests that are merged or closed. Nothing here may fail the run: a refused
+ * call is logged and the next one goes on.
  *
  * A check run is made only where the commit does not have this one already, so a pull request that stays left out for the same reason is
- * not told again at every rebuild: only a change reaches whoever follows it. With `repair`, nothing was rebuilt (the result is read from the
- * manifest), and the comment is looked for on every pull request left out for a conflict, not only on those that just were. That is how a
- * call that was refused after the last push is made good by a later run.
- * @param {{ currentCheck(sha: string, name: string): Promise<{ conclusion: string, title: string, summary: string } | null>, setCheck(sha: string, check: { name: string, conclusion: string, title: string, summary: string, detailsUrl?: string }): Promise<void>, comments(number: number): Promise<string[]>, comment(number: number, body: string): Promise<void>, closedLabeled(label: string): Promise<number[]>, removeLabel(number: number, label: string): Promise<void> }} client
- * @param {{ result: any, openPulls: any[], runUrl?: string, label?: string, log?: (line: string) => void, repair?: boolean }} options
+ * not told again at every rebuild: only a change reaches whoever follows it. The same call after a run that built nothing therefore makes
+ * good a check that GitHub refused after the last push, and does nothing else.
+ * @param {{ currentCheck(sha: string, name: string): Promise<{ conclusion: string, title: string, summary: string } | null>, setCheck(sha: string, check: { name: string, conclusion: string, title: string, summary: string, detailsUrl?: string }): Promise<void>, closedLabeled(label: string): Promise<number[]>, removeLabel(number: number, label: string): Promise<void> }} client
+ * @param {{ result: any, openPulls: any[], runUrl?: string, label?: string, log?: (line: string) => void }} options
  */
-export async function publish(client, { result, openPulls, runUrl, label, log = console.error, repair = false }) {
+export async function publish(client, { result, openPulls, runUrl, label, log = console.error }) {
   const attempt = async (what, call) => {
     try {
       await call();
@@ -146,14 +131,6 @@ export async function publish(client, { result, openPulls, runUrl, label, log = 
     if (!old.sha) continue;
     if (!now.has(old.number)) await check(old.sha, leftCheck(stillOpen.has(old.number)), `#${old.number}`);
     else if (!result.entries.find((e) => e.number === old.number)?.sha) await check(old.sha, goneCheck(), `#${old.number}`);
-  }
-
-  for (const skip of repair ? result.skipped : newSkips(result)) {
-    if (skip.reason !== "conflict") continue;
-    await attempt(`comment on #${skip.number}`, async () => {
-      if ((await client.comments(skip.number)).some((body) => body.includes(commentMarker(skip)))) return;
-      await client.comment(skip.number, conflictComment(skip));
-    });
   }
 
   // A merged or closed pull request has no use for the label, and it leaves staging by itself anyway: take it off, wherever it was missed.

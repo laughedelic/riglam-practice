@@ -1,6 +1,6 @@
 // The few GitHub REST calls the staging rebuild makes (docs/STAGING.md): list the open pull requests, read and write the `staging` check run on
-// a commit, read and write pull request comments, and take a label off a closed pull request. Plain `fetch`, no dependencies; `fetchImpl` is
-// for tests. Only a GitHub App can write a check run, so the token has to be the workflow's own (`github.token`), not a personal one.
+// a commit, and take a label off a closed pull request. Plain `fetch`, no dependencies; `fetchImpl` is for tests. Only a GitHub App can write
+// a check run, so the token has to be the workflow's own (`github.token`), not a personal one.
 import { StagingError } from "./staging.mjs";
 
 /**
@@ -38,11 +38,6 @@ export function githubClient({ repo, token, apiUrl = process.env.GITHUB_API_URL 
     /** Makes a finished check run on a commit. @param {string} sha @param {{ name: string, conclusion: string, title: string, summary: string, detailsUrl?: string }} check */
     async setCheck(sha, { name, conclusion, title, summary, detailsUrl }) {
       await request("POST", "/check-runs", { name, head_sha: sha, status: "completed", conclusion, output: { title, summary }, ...(detailsUrl ? { details_url: detailsUrl } : {}) });
-    },
-    /** The texts of a pull request's comments. */
-    comments: async (number) => (await all(`/issues/${number}/comments`)).map((c) => c.body ?? ""),
-    async comment(number, body) {
-      await request("POST", `/issues/${number}/comments`, { body });
     },
     /** The numbers of the closed (or merged) pull requests that still have a label. */
     closedLabeled: async (label) => (await all(`/issues?state=closed&labels=${encodeURIComponent(label)}`)).filter((i) => i.pull_request).map((i) => i.number),

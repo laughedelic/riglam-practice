@@ -3,8 +3,8 @@
 //   sync (the default)  rebuild the staging branch: main, then every open pull request labeled `staging` merged in (and the pull requests those
 //                       are stacked on), in stack order and then by number. Only the local branch is moved unless told otherwise.
 //                         --push      push it to origin (force, but only over the state this clone last fetched)
-//                         --report    set the `staging` check on each pull request, comment on one that just stopped merging, and take the label off
-//                                     the ones that are merged or closed (needs the workflow's GITHUB_TOKEN: only an app can write a check run)
+//                         --report    set the `staging` check on each pull request and take the label off the ones that are merged or closed
+//                                     (needs the workflow's GITHUB_TOKEN: only an app can write a check run)
 //                         --force     build even when origin/staging was built from the same inputs
 //                         --pulls <file>  read the open pull requests from a JSON file (the REST API's list) instead of asking GitHub
 //                         --label <name>  the label to look for, `staging` unless told otherwise
@@ -14,14 +14,14 @@
 //   deploy              build the app from the checked-out staging branch and put it on the Worker Preview named staging
 //                       deploy --here  the same for whatever commit is checked out, without the branch checks (for a build service such as Workers Builds,
 //                                      which builds other branches too: a branch other than staging gets its own Preview, by WORKERS_CI_BRANCH)
-// Exit 0 on success, 1 when the work could not be done or a pull request has just stopped merging, 2 on a usage problem.
+// Exit 0 on success, 1 when the work could not be done, 2 on a usage problem.
 import { execFileSync } from "node:child_process";
 import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { LABEL, StagingError, git, push, readManifest, rebuild, selectPulls } from "./lib/staging.mjs";
 import { githubClient } from "./lib/staging-github.mjs";
-import { describe, newSkips, publish, summary } from "./lib/staging-report.mjs";
+import { describe, newSkips, publish, summary, whySkipped } from "./lib/staging-report.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const TARGET = "staging";
@@ -155,8 +155,8 @@ async function sync(opts) {
   toActions("GITHUB_STEP_SUMMARY", `${summary(result, { runUrl })}\n`);
   if (result.upToDate) {
     toActions("GITHUB_OUTPUT", "changed=false\n");
-    // Nothing was built, but a check or a comment that a refused call lost after the last push is made good here.
-    if (opts.report) await publish(client, { result, openPulls: pulls, runUrl, label: opts.label, repair: true });
+    // Nothing was built, but a check that a refused call lost after the last push is made good here.
+    if (opts.report) await publish(client, { result, openPulls: pulls, runUrl, label: opts.label });
     return 0;
   }
 
@@ -168,10 +168,10 @@ async function sync(opts) {
   console.log(`pushed ${TARGET} ${pushed.slice(0, 7)}`);
   toActions("GITHUB_OUTPUT", `changed=true\nsha=${pushed}\n`);
   if (opts.report) await publish(client, { result, openPulls: pulls, runUrl, label: opts.label });
-  // A pull request that has just stopped merging is the news: the run fails, so that it is seen. One that still conflicts, as before, is not.
-  const news = newSkips(result);
-  if (news.length) console.error(`\nleft out now: ${news.map((s) => `#${s.number}`).join(", ")}`);
-  return news.length ? 1 : 0;
+  // A pull request that has just stopped merging is the news. It is told where it belongs, by its own check, and not by failing this run: the
+  // run's own check lands on whichever pull request started it, which is not the one that conflicts.
+  for (const s of newSkips(result)) console.log(`${process.env.GITHUB_ACTIONS ? `::warning title=Left out of staging::#${s.number} ` : `left out now: #${s.number} `}${s.branch}: ${whySkipped(s)}`);
+  return 0;
 }
 
 try {

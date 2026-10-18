@@ -1,12 +1,14 @@
 name: Staging trial
 
-# Temporary: does a failed check run made with the workflow token wake an agent that watches the pull request? Removed before the merge.
+# Temporary: what the token of the staging job can read and do. Removed before the merge.
 on:
   pull_request:
     paths: [".github/workflows/staging-trial.yml"]
 
 permissions:
+  contents: read
   checks: write
+  pull-requests: write
 
 jobs:
   trial:
@@ -14,9 +16,16 @@ jobs:
     steps:
       - env:
           GH_TOKEN: ${{ github.token }}
-          SHA: ${{ github.event.pull_request.head.sha }}
+          BEFORE: ${{ github.event.before }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
-          curl -fsS -X POST \
-            -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
-            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/check-runs" \
-            -d "{\"name\":\"staging\",\"head_sha\":\"$SHA\",\"status\":\"completed\",\"conclusion\":\"failure\",\"details_url\":\"$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID\",\"output\":{\"title\":\"Left out of staging: trial\",\"summary\":\"A failed check run made by the workflow, to see whether it reaches an agent that watches this pull request.\"}}"
+          api() { curl -sS -o /tmp/out -w '%{http_code}' -X "$1" -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY$2"; }
+          echo "--- check runs named staging on $BEFORE"
+          echo "status $(api GET "/commits/$BEFORE/check-runs?check_name=staging&per_page=100")"
+          jq '[.check_runs[] | {id, name, slug: .app.slug, conclusion, title: .output.title, summary: .output.summary}]' /tmp/out
+          echo "--- closed pull requests with the label"
+          echo "status $(api GET "/issues?state=closed&labels=staging&per_page=100")"
+          jq 'length' /tmp/out
+          echo "--- remove a label this pull request does not have"
+          echo "status $(api DELETE "/issues/83/labels/staging")"
+          cat /tmp/out; echo
