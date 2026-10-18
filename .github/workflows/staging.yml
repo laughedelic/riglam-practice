@@ -10,6 +10,8 @@ name: Staging
 # conflicts with main, does not start a `pull_request` workflow; a push by a workflow's own token does not either.
 
 on:
+  pull_request: # TEMPORARY, to try this workflow from its own pull request before it is on main
+    types: [labeled]
   pull_request_target:
     types: [labeled, unlabeled, synchronize, reopened, closed, edited]
   push:
@@ -40,7 +42,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: main
+          ref: ${{ github.event_name == 'pull_request' && github.sha || 'main' }} # TEMPORARY
           fetch-depth: 0
           # The token that pushes `staging`. The default one cannot push a change to a file under .github/workflows, so when a labeled pull
           # request changes one, or when Workers Builds does not start on a push made with the default token, set the secret STAGING_TOKEN
