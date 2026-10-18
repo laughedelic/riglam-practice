@@ -35,8 +35,8 @@ Without `data-private/`: `npm run build:pwa`, the unit tests that do not need it
 
 ## What a reader sees
 
-- With the key (from the link, or kept from an earlier visit): the definitions are in the Terms panels. The first unlock needs the network; the definitions are then kept on the device, and each later visit asks the server in the background whether they changed.
-- Without it: the terms, translations and relations work and nothing greets the reader with a prompt. A locked term in the Terms panel says in which booklet chapter or section to look it up, with one note and a button that opens the prompt. Explain shows grayed when the server has a tutor, and a tap opens the prompt too, as does the Magic Key row in Options. The prompt (`src/pwa/unlock.ts`) takes the words or the whole link and opens by itself only when a link carries a key that does not fit. A key that does not fit is refused and not kept.
+- With the key (from the link, or kept from an earlier visit): the terms in the Terms panel and in the tutor's notes that have a definition are dot-underlined, and a tap opens the definition in place (a term's higher categories in its card open the same way). The first unlock needs the network; the definitions are then kept on the device, and each later visit asks the server in the background whether they changed.
+- Without it: the terms, translations and relations work and nothing greets the reader with a prompt. The Terms panel has no underlines, only one note and a button that opens the prompt. Explain shows grayed when the server has a tutor, and a tap opens the prompt too, as does the Magic Key row in Options. The prompt (`src/pwa/unlock.ts`) takes the words or the whole link and opens by itself only when a link carries a key that does not fit. A key that does not fit is refused and not kept. A key that fits is taken into the running page with no reload (`platform.onKey`): the definitions and the tutor open, and the pair and answer on the screen stay; Explain, if that is what opened the prompt, goes on to ask its question.
 - A key the server stops accepting (after a change of the secret) is forgotten, together with the kept definitions, on the next visit with a connection; the visit after that opens the prompt once, with a message that the key was changed.
 - An app added to the iPhone home screen has storage of its own, separate from Safari, and a link cannot be opened inside it. Its dialog is the way in: type or paste the key there once.
 - If the browser's storage is cleared, the app asks again.
@@ -47,7 +47,7 @@ Without `data-private/`: `npm run build:pwa`, the unit tests that do not need it
 npm run data:key                      # print a new Magic Key (four random words)
 npm run data:import -- full.json      # split a knowledge-base export into src/data/drill-data.json and data-private/
 npm run data:export -- full.json      # the full data, definitions and notes put back
-npm run data:check                    # check that the open file holds no definition or note and data-private/ matches it (it also says how many terms have no definition; a term can have none)
+npm run data:check                    # check that the open file holds no definition or note and data-private/ matches it (every term needs a definition; publish makes the same check)
 npm run data:publish                  # load data-private/ into the production database (wrangler; --config <file> for another database)
 npm run data:sql -- out.sql           # the statements publish runs, to load by other means
 npm run data:fixture                  # write made-up definitions and notes into data-private/ (refuses to overwrite real ones; --replace does)

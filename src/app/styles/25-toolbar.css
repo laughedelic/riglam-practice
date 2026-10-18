@@ -14,3 +14,13 @@
 .skiphint .skipmsg{flex:1;min-width:0}
 .skiphint .skipundo{position:relative;flex:none;min-height:44px;padding:0 12px;border:0;background:transparent;font:700 13px/1 var(--body);color:var(--ink);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
 .skiphint .skipundo:focus-visible{box-shadow:var(--focus-ring)}
+/* the lock and the key beside text: the lock is closed on what needs the Magic Key and opens while that button is hovered or focused */
+.ico{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round;stroke-linecap:round;flex:none;display:block}
+.lockic{display:inline-flex;margin-right:8px}
+.lockic .open,.btn:hover .lockic .closed,.btn:focus-visible .lockic .closed{display:none}
+.btn:hover .lockic .open,.btn:focus-visible .lockic .open{display:block}
+.tl .ico{display:inline-block;vertical-align:-3px;margin-right:6px}
+.btn>.ico{margin-right:8px}
+/* "Magic Key" with a dotted underline: it opens a note on the name (src/ui/magic-key-note.ts) */
+.keyname{padding:0;border:0;background:none;font:inherit;letter-spacing:inherit;text-transform:inherit;color:inherit;cursor:help;text-decoration:underline dotted;text-underline-offset:3px}
+.keyname:focus-visible{box-shadow:var(--focus-ring)}

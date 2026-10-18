@@ -6,7 +6,7 @@ import { favKey } from "./practice/favorites.js";
 import { advance, next } from "./practice/queue.js";
 import { choose, fbNode } from "./practice/screen.js";
 import { SKIP_DAYS, hiddenKeys, isSkipped, skipPair, undoSkip } from "./practice/skips.js";
-import { defParts, termsNode, lockedDefs } from "./practice/terms.js";
+import { defParts, termsNode } from "./practice/terms.js";
 import { buildPool, indexData, nextGenerated } from "./practice/universe.js";
 import { signature } from "../ui/account";
 import { setDefLang } from "./shell/options.js";
@@ -24,19 +24,37 @@ export function startApp(platform){
   boot(platform);
   exposeTestHook();
 }
+// What the start is waiting for, in words: the recovery panel of the PWA page (index.html) shows it when the start takes too long.
+function waiting(what){ try{ window.__riglamWaiting=typeof what==="function"?what:()=>what; }catch(e){} }
 async function boot(platform){
+  try{ await bootSteps(platform); }
+  catch(e){ try{ window.__riglamFailed=String(e&&e.message||e); }catch(_){} throw e; }
+}
+async function bootSteps(platform){
+  waiting("the practice data");
   try{ state.DATA=await platform.loadData(); indexData(); buildPool(); }
   catch(e){ state.mode="nodata"; render(); return; }
+  waiting("the storage on this device");
   try{ state.db=await platform.db(); }catch(e){ state.db=null; }
+  waiting("the other parts of the app");
   try{ state.sample=await platform.sample(); }catch(e){ state.sample=null; }
   try{ state.unlock=platform.unlock?await platform.unlock():null; }catch(e){ state.unlock=null; }
+  try{ state.keyHeld=platform.keyHeld?await platform.keyHeld():null; }catch(e){ state.keyHeld=null; }
   // the server may need seconds to say whether it has a tutor: the page opens first and draws again when the answer comes
   if(state.unlock&&state.unlock.answer){ const u=state.unlock; u.answer.then(on=>{ u.tutor=!!on; if(state.mode!=="loading") render(); },()=>{}); }
   try{ state.tutor=platform.tutor?await platform.tutor():null; }catch(e){ state.tutor=null; }
   try{ state.reports=platform.reports?await platform.reports():null; }catch(e){ state.reports=null; }
   try{ state.account=platform.account?await platform.account():null; }catch(e){ state.account=null; }
+  // which build this is: asked in the background (it looks at the server), shown in Options when it arrives
+  if(platform.about) platform.about().then(a=>{ state.about=a; if(state.optsOpen) render(); },()=>{});
+  // updating in place: the platform tells when a newer version is ready; Options shows where it stands
+  state.updates=platform.updates||null;
+  if(state.updates) state.updates.subscribe(()=>{ if(state.optsOpen) render(); });
+  // A Magic Key entered in the prompt is taken in place (no reload), so the pair on the screen and the answer being given stay.
+  if(platform.onKey) platform.onKey(()=>rekey(platform));
   if(state.account){ let seen=signature(state.account.view()); state.account.subscribe(v=>{ const now=signature(v); if(now!==seen){ seen=now; if(state.optsOpen) render(); } }); }
   if(!state.db){ state.gotA=state.gotB=state.gotS=true; advance(); state.mode="quiz"; render(); return; }
+  waiting(()=>"the saved "+[!state.gotB&&"batches",!state.gotA&&"answers",!state.gotS&&"skipped pairs"].filter(Boolean).join(", ")+" on this device");
   state.db.collection("batches").orderBy("order","asc").onSnapshot(snap=>{
     state.batches=snap.docs.map(d=>Object.assign({id:d.id},d.data())); state.gotB=true; settle();
   },()=>{ state.gotB=true; settle(); });
@@ -59,6 +77,16 @@ async function boot(platform){
     const m={}; snap.docs.forEach(d=>{m[d.id]=d.data();}); state.debates=m; settle();
   },()=>{});
 }
+// What depends on the key, read again after the prompt took one: the definitions in the data, the tutor, and the Options row (enter a key / change it).
+async function rekey(platform){
+  state.DATA=await platform.loadData(); indexData(); buildPool();
+  state.labRefC=null;                     // the reference for the check lab quotes the definitions
+  try{ state.unlock=platform.unlock?await platform.unlock():null; }catch(e){ state.unlock=null; }
+  try{ state.keyHeld=platform.keyHeld?await platform.keyHeld():null; }catch(e){ state.keyHeld=null; }
+  try{ state.tutor=platform.tutor?await platform.tutor():null; }catch(e){ state.tutor=null; }
+  state.keyAsk=false;
+  if(state.mode!=="loading") render();
+}
 function settle(){
   if(!state.gotB||!state.gotA||!state.gotS) return;
   if(state.mode==="loading"){ advance(); render(); return; }
@@ -67,6 +95,6 @@ function settle(){
 
 /* ---------- test hook (begin): lets the browser tests in tests/ read internals; inert unless a test defines window.__riglamTest ---------- */
 function exposeTestHook(){
-if(typeof window.__riglamTest==="function") window.__riglamTest({get cur(){return state.cur},get ui(){return state.ui},get tab(){return state.tab},get favs(){return state.favs},get mode(){return state.mode},get view(){return state.view},get optsOpen(){return state.optsOpen},favKey,refOf,render,choose,fbNode,defParts,termsNode,lockedDefs,setDefLang,get defLang(){return state.defLang},get DATA(){return state.DATA},next,advance,get skips(){return state.skips},set skips(v){state.skips=v},skipPair,undoSkip,isSkipped,hiddenKeys,get POOL(){return state.POOL},nextGenerated,SKIP_DAYS,get lab(){return state.lab},setLab,labThings,get flags(){return state.flags},get labruns(){return state.labruns},labRuns,LAB_MODELS,labRef,labParse,flagId,labAgain,openFlag,saveFlag,removeFlag,setFlagState,get labPause(){return state.labPause},set labPause(v){state.labPause=v},get labSpotN(){return state.labSpotN},set labSpotN(v){state.labSpotN=v},labJudgeNow,aiCase,aiFlag,decorateAns});
+if(typeof window.__riglamTest==="function") window.__riglamTest({get cur(){return state.cur},get ui(){return state.ui},get tab(){return state.tab},get favs(){return state.favs},get mode(){return state.mode},get view(){return state.view},get optsOpen(){return state.optsOpen},favKey,refOf,render,choose,fbNode,defParts,termsNode,setDefLang,get defLang(){return state.defLang},get DATA(){return state.DATA},next,advance,get skips(){return state.skips},set skips(v){state.skips=v},skipPair,undoSkip,isSkipped,hiddenKeys,get POOL(){return state.POOL},nextGenerated,SKIP_DAYS,get lab(){return state.lab},setLab,labThings,get flags(){return state.flags},get labruns(){return state.labruns},labRuns,LAB_MODELS,labRef,labParse,flagId,labAgain,openFlag,saveFlag,removeFlag,setFlagState,get labPause(){return state.labPause},set labPause(v){state.labPause=v},get labSpotN(){return state.labSpotN},set labSpotN(v){state.labSpotN=v},labJudgeNow,aiCase,aiFlag,decorateAns});
 }
 /* ---------- test hook (end) ---------- */

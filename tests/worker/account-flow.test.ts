@@ -232,6 +232,35 @@ describe("the account carries the Magic Key", () => {
     expect(b.account.view().person).toMatchObject({ hasKey: true });
   });
 
+  it("a device that forgot the key does not take it back from its account until the reader signs in again", async () => {
+    const w = await world();
+    const a = await device(w, { ...withKey(w), magicKey: { read: () => w.key, adopt: () => {} } });
+    await a.account.signUp("p");
+
+    let declined = true;
+    const taken: string[] = [];
+    const b = await device(w, { key: a.key, magicKey: { read: () => null, adopt: (k) => void taken.push(k), declined: () => declined, allow: () => void (declined = false) } });
+    await b.account.signIn(); // the reader asks: the flag is lifted and the key taken
+    expect(declined).toBe(false);
+    expect(taken).toEqual([w.key]);
+
+    // the next start with the flag back: the account is confirmed, and nothing is taken
+    declined = true;
+    taken.length = 0;
+    const real = b.client.me.bind(b.client);
+    let answered!: () => void;
+    const done = new Promise<void>((r) => (answered = r));
+    b.client.me = async () => { try { return await real(); } finally { setTimeout(answered, 20); } };
+    await b.account.start();
+    await done;
+    expect(taken).toEqual([]);
+
+    // and with the flag lifted, the same start takes it
+    declined = false;
+    await b.account.start();
+    await vi.waitFor(() => expect(taken).toEqual([w.key]));
+  });
+
   it("a share that finishes after a sign-out does not bring the person back", async () => {
     const w = await world();
     const first = await device(w, { magicKey: { read: () => null, adopt: () => {} } });
@@ -269,6 +298,25 @@ describe("the account carries the Magic Key", () => {
     const signing = b.account.signIn();
     await vi.waitFor(() => expect(b.account.view().person).not.toBeNull());
     b.account.signedOut();
+    release();
+    await signing;
+    expect(taken).toEqual([]);
+  });
+
+  it("a key that arrives after the reader forgot the key here is not taken", async () => {
+    const w = await world();
+    const a = await device(w, { ...withKey(w), magicKey: { read: () => w.key, adopt: () => {} } });
+    await a.account.signUp("p");
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    let declined = false;
+    const taken: string[] = [];
+    const b = await device(w, { key: a.key, magicKey: { read: () => null, adopt: (k) => void taken.push(k), declined: () => declined, allow: () => {} } });
+    const real = b.client.fetchKey.bind(b.client);
+    b.client.fetchKey = async () => { const k = await real(); await gate; return k; };
+    const signing = b.account.signIn();
+    await vi.waitFor(() => expect(b.account.view().person).not.toBeNull());
+    declined = true; // another tab forgets the key while the request is under way
     release();
     await signing;
     expect(taken).toEqual([]);

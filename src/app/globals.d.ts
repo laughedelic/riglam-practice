@@ -7,4 +7,7 @@ interface Element extends HTMLOrSVGElement, ElementCSSInlineStyle {}
 // Defined by a test before the page runs; the page hands it its internals (the end of app.js).
 interface Window {
   __riglamTest?: (hook: Record<string, unknown>) => void;
+  // What the start is waiting for, and why it failed: read by the recovery panel of the PWA page (index.html).
+  __riglamWaiting?: () => string;
+  __riglamFailed?: string;
 }

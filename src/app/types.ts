@@ -3,13 +3,14 @@
 // the data users already have: never rename a collection or change a document without a migration (CLAUDE.md).
 // Fields written by older versions of the page may be missing, so most fields besides the keys are optional.
 import type { Cat, DrillData, Item } from "../ai-shared/data";
-import type { Unlock } from "../platform/types";
+import type { About, Unlock, Updates } from "../platform/types";
 import type { AnswerView, DebateAnswer } from "../ai-shared/card";
 import type { CellId, RelKey } from "../ai-shared/relations";
 import type { Pair, PoolEntry, Verdict } from "../domain/types";
 import type { Account, Db, Reports, Sample, Tutor } from "../platform/types";
 import type { AccountSlot } from "../ui/account";
 import type { TransferSlot } from "../ui/data-transfer";
+import type { KeyHeld } from "../platform/types";
 
 export type { Pair, PoolEntry, Verdict };
 
@@ -180,8 +181,18 @@ export interface State {
   // what the platform offers
   db: Db | null;
   sample: Sample | null;
+  /** which build this is (platform.about), shown in Options; null until the server has been asked, and on a build with nothing to tell apart */
+  about: About | null;
+  /** updating the installed app in place (platform.updates), shown in Options; null where there is no installed copy */
+  updates: Updates | null;
   /** opens the prompt for the Magic Key (platform.unlock) while this device has none; `tutor` is whether the server has a tutor waiting for it */
   unlock: Unlock | null;
+  /** while this device has the Magic Key: take another one, or forget it (platform.keyHeld) */
+  keyHeld: KeyHeld | null;
+  /** the Magic Key row of Options is asking whether to forget the key */
+  keyAsk: boolean;
+  /** the note on the name "Magic Key" is open in the Options row */
+  mkNote: boolean;
   /** a question to the app's own server (platform.tutor), when the place has one; `sample` is used first */
   tutor: Tutor | null;
   /** sends flags to the app's server (platform.reports), when the place has a server for them and this device has the Magic Key */
