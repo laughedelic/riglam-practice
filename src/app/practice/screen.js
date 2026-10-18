@@ -1,6 +1,6 @@
 import { state } from "../state.js";
 import { aiCase, aiFlag, decorateAns, flagEditorNode } from "../ai/flags.js";
-import { labItem } from "../ai/lab-panel.js";
+import { quorumItem } from "../ai/quorum-panel.js";
 import { ask, fillAns } from "../ai/tutor.js";
 import { CELL_NAME } from "../../ai-shared/prompts.ts";
 import { canAsk } from "../core/ask.js";
@@ -199,7 +199,7 @@ function quizResult(){
       el("p",null,(r.relOk?k.name:"The relation is "+lcRel(k.name))+": "+k.gloss(p.a,p.b).toLowerCase()+".",notaOf(p.relation)&&state.nota!=="codes"?[" ",el("span",{class:"nota math",text:notaOf(p.relation)})]:null)]},
     {key:"cells",label:"Cells",st:r.occBad?"bad":"ok",body:()=>el("p",null,el("b",{text:"Cells: "}),r.occBad?(r.occBad+" filled or left empty wrongly."):"the right ones are filled and empty.")},
     {key:"ex",label:"Examples",st:r.exBad?"bad":r.exOpen?"open":"ok",body:()=>el("p",null,el("b",{text:"Examples: "}),exLine(r,CELLS),state.ui.exLate?" Time ran out; cells you had not reached count as empty.":null)},
-    termsItem(p),tutorItem(),labItem()].filter(Boolean));
+    termsItem(p),tutorItem(),quorumItem()].filter(Boolean));
 }
 // The grayed Explain opens the prompt for the Magic Key; once a key is taken, the question the reader asked for goes out (if this is still the same result).
 function askAfterKey(){

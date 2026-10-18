@@ -1,6 +1,6 @@
 // Vite plugin for the artifact build: `import text from "virtual:riglam-full-data"` is the full term data as JSON
 // text, made by putting the definitions and notes back into the open data. The artifact is private to its owner and
-// its tutor and check lab read the notes, so it carries everything. The build needs the course data (data-private/,
+// its tutor reads the notes, so it carries everything. The build needs the course data (data-private/,
 // docs/DATA.md) and stops without it: a page published with locked definitions would replace the real one.
 import { hasCourse, readFull } from "./lib/course-files.mjs";
 

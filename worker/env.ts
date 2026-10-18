@@ -34,6 +34,14 @@ export interface Env {
   REVIEW_MAX_TOKENS?: string;
   /** most flags one scheduled pass reviews (default 5) */
   REVIEW_BATCH?: string;
+  /** `on` makes the server offer Quorum (worker/quorum.ts): an explain question is answered by several models and a judge, and a device has it on until it turns it off. `optin` offers it too, but a device has it off until it turns it on. `on` is set in the `previews` block of wrangler.jsonc only; any other value, or none, leaves Quorum off. */
+  QUORUM?: string;
+  /** what one device may spend on Quorum per UTC day, in US dollars (Quorum has counters of its own, apart from the tutor's) */
+  QUORUM_DEVICE_DAILY_BUDGET_USD?: string;
+  /** what all devices together may spend on Quorum per UTC day, in US dollars */
+  QUORUM_GLOBAL_DAILY_BUDGET_USD?: string;
+  /** what a Quorum question is assumed to cost until it has finished, in US dollars; held back from Quorum's budgets meanwhile */
+  QUORUM_RESERVE_USD?: string;
   /** who may create an account: `open` (default), `group` (only with the study group's proof) or `closed` */
   SIGNUP?: string;
   /** most accounts (default 300) */

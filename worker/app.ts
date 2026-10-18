@@ -1,7 +1,8 @@
 // The Worker's routes (docs/SERVER.md):
 //   GET  /api/health   are the tutor and the accounts on? (no sign-in)
 //   GET  /api/course   the definitions, for a device that has the Magic Key (src/ai/magic-key.ts)
-//   POST /api/tutor    one tutor question; the answer comes back as server-sent events (src/ai/protocol.ts)
+//   POST /api/tutor    one tutor question; the answer comes back as server-sent events (src/ai/protocol.ts). On a Preview an explain question may ask
+//                      for Quorum, several models and a judge (worker/quorum.ts)
 //   /api/account/*     optional accounts, signed in with a passkey (worker/accounts.ts)
 //   POST /api/sync     the server copy of a signed-in person's documents (worker/sync.ts)
 //   POST /api/flags    reports of learners' flags, from any device (worker/reports.ts)
@@ -12,13 +13,14 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { API, HEADER, LIMITS, type BudgetScope, type CourseResponse, type ErrorCode, type Health, type TutorEvent } from "../src/ai/protocol";
 import { accountRoutes, accountsOn } from "./accounts";
-import { dayOf, prune, reserve, settle, tutorSwitchedOn } from "./budget";
-import { readConfig } from "./config";
+import { dayOf, prune, reserve, settle, tutorSwitchedOn, type Pool } from "./budget";
+import { readConfig, readQuorumConfig } from "./config";
 import { readCourseRows, usableDefinitions } from "./course";
 import type { Env } from "./env";
 import type { Kit } from "./kit";
 import { callerOf, gate, magicKeyOf, type Gate } from "./magic";
 import { reportRoutes, reportsOn } from "./reports";
+import { runQuorum, saveRecord } from "./quorum";
 import { syncRoutes } from "./sync";
 import { parseRequest, runTutor } from "./tutor";
 
@@ -65,7 +67,16 @@ export function createApp(deps: Deps) {
     !!(env.DB && env.ANTHROPIC_API_KEY && magicKeyOf(env) && (await tutorSwitchedOn(env.DB).catch(() => false)) && (await deps.kit(env).catch(() => null)));
 
   app.get(API.health, async (c) => {
-    const body: Health = { ok: true, tutor: (await ready(c.env)) ? "on" : "off", accounts: (await accountsOn(c.env.DB)) ? "on" : "off", reports: (await reportsOn(c.env.DB)) ? "on" : "off" };
+    const tutor = await ready(c.env);
+    // Quorum is a mode of the tutor, so it is offered where the tutor is on and this server is set to (a Preview)
+    const offered = readQuorumConfig(c.env);
+    const body: Health = {
+      ok: true,
+      tutor: tutor ? "on" : "off",
+      accounts: (await accountsOn(c.env.DB)) ? "on" : "off",
+      reports: (await reportsOn(c.env.DB)) ? "on" : "off",
+      ...(tutor && offered.on ? { quorum: offered.optIn ? ("optin" as const) : ("on" as const) } : {}),
+    };
     return c.json(body, 200, { "cache-control": "no-store" });
   });
 
@@ -108,9 +119,21 @@ export function createApp(deps: Deps) {
     if (!kit) return fail("unavailable", "the tutor has no data");
 
     const config = readConfig(env);
+    const quorum = readQuorumConfig(env);
     const when = now();
     const day = dayOf(when);
-    const held = await reserve(env.DB!, { day, device, micro: config.reserveMicro, deviceCap: config.deviceDailyMicro, globalCap: config.globalDailyMicro });
+    // An explain question that asks for Quorum gets it where the server offers it and Quorum's budget has room; otherwise it is the one model's, as ever.
+    let pool: Pool = "tutor";
+    let cost = { reserveMicro: config.reserveMicro, deviceCap: config.deviceDailyMicro, globalCap: config.globalDailyMicro };
+    let single = false;
+    if (parsed.request.quorum && parsed.request.kind === "explain" && quorum.on) {
+      const quorumCost = { reserveMicro: quorum.reserveMicro, deviceCap: quorum.deviceDailyMicro, globalCap: quorum.globalDailyMicro };
+      if ((await reserve(env.DB!, { day, device, micro: quorumCost.reserveMicro, deviceCap: quorumCost.deviceCap, globalCap: quorumCost.globalCap, pool: "quorum" })).ok) {
+        pool = "quorum";
+        cost = quorumCost;
+      } else single = true;
+    }
+    const held = pool === "quorum" ? ({ ok: true } as const) : await reserve(env.DB!, { day, device, micro: cost.reserveMicro, deviceCap: cost.deviceCap, globalCap: cost.globalCap });
     if (!held.ok) {
       const tomorrow = Date.parse(day) + 86_400_000;
       return fail(
@@ -134,9 +157,13 @@ export function createApp(deps: Deps) {
         const emit = async (e: TutorEvent) => {
           await stream.writeSSE({ event: e.type, data: JSON.stringify(e) });
         };
-        const outcome = await runTutor({ client, kit, config, request: parsed.request, emit, signal: abort.signal });
+        if (single) await emit({ type: "single", why: "budget" }).catch(() => {});
+        const outcome =
+          pool === "quorum"
+            ? await runQuorum({ client, kit, config, request: parsed.request, emit, signal: abort.signal, day, now: when, save: (r) => saveRecord(env.DB!, r) })
+            : await runTutor({ client, kit, config, request: parsed.request, emit, signal: abort.signal });
         // The held amount is replaced by the real cost even when the page has gone away or the call failed.
-        await settle(env.DB!, { day, device, held: config.reserveMicro, actual: outcome.micro, now: when, kind: parsed.request.kind, model: config.model, rounds: outcome.rounds, tokens: outcome.tokens, outcome: outcome.outcome }).catch((e) =>
+        await settle(env.DB!, { day, device, held: cost.reserveMicro, actual: outcome.micro, now: when, kind: parsed.request.kind, model: pool === "quorum" ? "quorum" : config.model, rounds: outcome.rounds, tokens: outcome.tokens, outcome: outcome.outcome, pool }).catch((e) =>
           console.error("settle failed", e instanceof Error ? e.name : typeof e),
         );
         if (outcome.error) await emit({ type: "error", code: outcome.error.code, message: outcome.error.message }).catch(() => {});

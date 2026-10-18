@@ -6,9 +6,9 @@ The term data has two tiers. Only the definitions, and the commentary that quote
 |---|---|---|---|---|
 | Open | terms (name, Wylie, Sanskrit, aliases, chapter), Russian and Chinese terms, relations and classification, everyday items, categories | `src/data/drill-data.json` | plain JSON, one term per line so that diffs read | plain, precached |
 | Course: definitions | `d` (English) and `d_ru` (Russian) of each term | the server's database (`course_data`), and `data-private/definitions.json` on a machine that works with the data | not included (git-ignored folder) | fetched from the server with the Magic Key, then kept on the device |
-| Course: notes | `note` of each term and the group `notes`: commentary read only by the Claude tutor and the check lab | the server's database, and `data-private/notes.json` | not included | not included, and the server never sends them out |
+| Course: notes | `note` of each term and the group `notes`: commentary read only by the Claude tutor | the server's database, and `data-private/notes.json` | not included | not included, and the server never sends them out |
 
-The artifact build carries all of it, because the artifact is private to its owner and its tutor and check lab read the notes; it reads `data-private/`. The tutor Worker ([SERVER.md](SERVER.md)) reads the notes from its database, so the tutor sees them and a browser never receives them.
+The artifact build carries all of it, because the artifact is private to its owner and its tutor reads the notes; it reads `data-private/`. The tutor Worker ([SERVER.md](SERVER.md)) reads the notes from its database, so the tutor sees them and a browser never receives them.
 
 ## The Magic Key
 

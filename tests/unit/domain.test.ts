@@ -8,7 +8,7 @@ import { CELLS, REL, makeIndex, refOf } from "../../src/ai-shared";
 import type { CellId, DrillData, RelKey } from "../../src/ai-shared";
 import {
   FEATURE, RECENT_MAX, AUTO_FLAGS, applyVerdicts, autoFlagOf, decideFlag, factNote, fitOf, flagAnswerRef, flagStateText, flaggedPart, noteParts, buildPool, cellsFor, chooseEntry, deriveRel, grade, gradeDebate, gradeOf, inUniverse, isMiss, judgeText, makePair,
-  nextPair, pairKey, parseFactLine, parseVerdicts, pick, relOfCells, summarize, termLine,
+  nextPair, pairKey, parseFactLine, parseVerdicts, pick, relOfCells, summarize, termLine, cellFor, cellOfFacts, disputeText, divided, quorumDisputes, quorumRows, readings,
 } from "../../src/domain";
 import type { DebateInput, GradeDraft, HistoryEntry, Pair, PoolEntry } from "../../src/domain";
 import openData from "../../src/data/drill-data.json";
@@ -655,6 +655,84 @@ test("after two reviews a flag gets a reply, a prepared fix, or goes to the main
   expect(act(r("learner_right", "tutor"), r("learner_right", "data"))).toBe("escalate");
   expect(decideFlag([r("learner_wrong", "none"), r("learner_wrong", "none", false)])).toMatchObject({ action: "escalate", reason: "a reviewer is not sure", reply: "" }); // nothing the reviewers do not stand behind is shown
   expect(act(r("learner_right", "none"), r("learner_right", "none"))).toBe("escalate");
+});
+
+// ---- Quorum: which examples are worth a flag ----
+
+const th = (text: string, cells: ("both" | "anb" | "bna" | "nei")[], page: Record<string, string>) => ({ text, cells, page });
+const run = (name: string, ...cells: ("both" | "anb" | "bna" | "nei")[]) => ({ name, cells });
+
+test("Quorum is disputed where the models give different cells, and the text names each model's cell", () => {
+  const things = [th("a table", ["anb"], { anb: "ok" }), th("a song", ["bna"], { bna: "ok" })];
+  const d = quorumDisputes(things, [run("Haiku", "anb", "nei"), run("Sonnet", "anb", "bna"), run("Opus", "anb", "bna")], ["anb", "bna"]);
+  expect(d).toHaveLength(1);
+  expect(d[0]).toMatchObject({ index: 1, kinds: ["models"], ruling: "bna", judge: "bna" });
+  expect(disputeText(d[0], things[1])).toBe("The models gave different cells. Models: Haiku Neither, Sonnet B not A, Opus B not A. Judge: B not A. You put it in B not A (the page: fits).");
+});
+
+test("Quorum is disputed where the models agree but the page's verdict cannot stand beside the cell they agree on", () => {
+  const things = [th("a table", ["anb"], { anb: "bad" }), th("a song", ["bna"], { bna: "ok" }), th("a stone", ["both"], { both: "ok" }), th("a mule", ["nei"], { nei: "cmp" })];
+  const models = [run("Haiku", "anb", "anb", "both", "bna"), run("Sonnet", "anb", "anb", "both", "bna")];
+  const d = quorumDisputes(things, models, null);
+  // a table: the page says it does not fit A not B, the models put it there; a song: the page says it fits B not A, the models say A not B
+  expect(d.map((x) => [x.index, x.kinds, x.ruling])).toEqual([[0, ["page"], "anb"], [1, ["page"], "anb"]]);
+  expect(disputeText(d[0], things[0])).toBe("The models agree, but the page does not. Models: Haiku A not B, Sonnet A not B. You put it in A not B (the page: does not fit).");
+});
+
+test("Quorum is not disputed where the page and the ruling agree, where the page did not check, or with fewer than two runs", () => {
+  const things = [th("a table", ["anb"], { anb: "ok" }), th("a song", ["bna"], { bna: "bad" }), th("a mule", ["nei"], { nei: "cmp" })];
+  // the learner is wrong about the song and the page says so: nothing to flag
+  expect(quorumDisputes(things, [run("Haiku", "anb", "anb", "nei"), run("Sonnet", "anb", "anb", "nei")], null)).toEqual([]);
+  expect(quorumDisputes(things, [run("Haiku", "bna", "nei", "both")], ["bna", "nei", "both"])).toEqual([]);
+  // models that differ are disputed even when the page did not check
+  expect(quorumDisputes(things, [run("Haiku", "anb", "anb", "nei"), run("Sonnet", "anb", "anb", "both")], null).map((x) => x.index)).toEqual([2]);
+});
+
+test("Quorum: an example written in two cells is disputed if the ruling contradicts the page in either", () => {
+  const things = [th("a pot", ["anb", "bna"], { anb: "ok", bna: "bad" })];
+  expect(quorumDisputes(things, [run("Haiku", "anb"), run("Sonnet", "anb")], null)).toEqual([]);
+  const d = quorumDisputes(things, [run("Haiku", "bna"), run("Sonnet", "bna")], null);
+  expect(d.map((x) => x.kinds)).toEqual([["page"]]);
+  expect(disputeText(d[0], things[0])).toContain("You put it in A not B (the page: fits), B not A (the page: does not fit).");
+});
+
+test("Quorum: an answer that is unsure about an example, or does not mention it, gives no cell and divides nobody", () => {
+  const things = [th("a table", ["anb"], { anb: "ok" })];
+  expect(quorumDisputes(things, [{ name: "Haiku", cells: [null] }, run("Sonnet", "bna")], null)).toEqual([]);
+  expect(quorumDisputes(things, [{ name: "Haiku", cells: [null] }, { name: "Sonnet", cells: [null] }], null)).toEqual([]);
+  // a ruling still counts when only one model gave a cell
+  expect(quorumDisputes(things, [{ name: "Haiku", cells: [null] }, run("Sonnet", "bna")], ["bna"]).map((x) => [x.kinds, x.ruling])).toEqual([[["page"], "bna"]]);
+});
+
+// ---- Quorum: what the answers say of the examples ----
+
+const fact = (label: string, ex: string, a: string, b: string) => `${label}: "${ex}" | class: Table | A ${a}: it is ${ex} | B ${b}: because it is wood`;
+
+test("an answer's fact lines give the cell each example belongs in, from its two facts", () => {
+  const text = [fact("Both", "a table", "yes", "yes"), fact("A not B", "a song", "yes", "no"), fact("B not A", "wood", "no", "yes"), fact("Neither", "a horn", "no", "no"), fact("Both", "an apple", "unsure", "yes"), "Common locus: yes."].join("\n");
+  expect(readings(text).map((r) => [r.example, r.line, r.cell, r.a, r.b])).toEqual([
+    ["a table", "both", "both", "yes", "yes"], ["a song", "anb", "anb", "yes", "no"], ["wood", "bna", "bna", "no", "yes"], ["a horn", "nei", "nei", "no", "no"], ["an apple", "both", null, "unsure", "yes"],
+  ]);
+  expect(cellOfFacts("yes", "no")).toBe("anb");
+  expect(cellOfFacts("unsure", "no")).toBeNull();
+  // a cell is looked up by the example, in the words of the page's own matching (case, quotes and punctuation do not matter)
+  const rs = readings(text);
+  expect(cellFor(rs, "A Song!")).toBe("anb");
+  expect(cellFor(rs, "an apple")).toBeNull();
+  expect(cellFor(rs, "a stone")).toBeNull();
+});
+
+test("the examples of several answers are gathered, with the cell each answer gave; they are divided by two different cells only", () => {
+  const rows = quorumRows([
+    { name: "Haiku", text: [fact("Both", "a table", "yes", "yes"), fact("Neither", "a stone", "no", "no")].join("\n") },
+    { name: "Sonnet", text: [fact("Both", "A table", "yes", "no"), fact("Neither", "a stone", "unsure", "no")].join("\n") },
+    { name: "Opus", text: fact("Both", "a table.", "yes", "no") },
+  ]);
+  expect(rows).toEqual([
+    { example: "a table", lines: ["both"], cells: { Haiku: "both", Sonnet: "anb", Opus: "anb" } },
+    { example: "a stone", lines: ["nei"], cells: { Haiku: "nei", Sonnet: null } },
+  ]);
+  expect(rows.map(divided)).toEqual([true, false]);
 });
 
 // ---- the code stays free of the page and the browser ----

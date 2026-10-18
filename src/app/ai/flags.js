@@ -1,8 +1,8 @@
 import { state } from "../state.js";
-import { mname } from "./lab-panel.js";
-import { sendFlags, withdrawFlag } from "./flag-reports.js";
-import { flagQ, hash36 } from "./lab.js";
+import { mname } from "./quorum-panel.js";
+import { flushFlags, sendFlags, withdrawFlag } from "./flag-reports.js";
 import { $, el } from "../core/dom.js";
+import { typingEl } from "../core/viewport.js";
 import { put } from "../practice/answers.js";
 import { favSafe } from "../practice/favorites.js";
 import { render } from "../shell/render.js";
@@ -11,6 +11,19 @@ import { render } from "../shell/render.js";
 // a flag is one document per part: {caseKey, thing, part, model, shown, asked, note, suggest, state}; it can be changed or removed, and it is the labeled data for the model comparison.
 // It keeps what Claude said in full (up to SHOWN_MAX), and for an answer in the chat the question it answered, so Review can show the flag with its whole exchange.
 const SHOWN_MAX=2000;
+export const flagQ={};     // the writes of one flag, in order
+export const hash36=s=>{ let h=5381; s=String(s); for(let i=0;i<s.length;i++) h=((h<<5)+h+s.charCodeAt(i))|0; return (h>>>0).toString(36); };
+// the flags of the database, kept up to date; a flag write in flight keeps the snapshot from replacing what the page just changed
+export function flagsSubscribe(){
+  try{
+    state.db.collection("flags").orderBy("updatedAt","desc").limit(300).onSnapshot(snap=>{
+      if(state.flagPending) return;
+      /** @type {Record<string, any>} */ const m={}; snap.docs.forEach(d=>{m[d.id]=d.data();}); const same=JSON.stringify(Object.keys(m).sort().map(k=>[k,m[k].state,m[k].updatedAt]))===JSON.stringify(Object.keys(state.flags).sort().map(k=>[k,state.flags[k].state,state.flags[k].updatedAt]));
+      state.flags=m; if(!same&&state.tab==="review"&&state.mode!=="loading"&&!typingEl(document.activeElement)) render();
+      flushFlags();                    // flags that were not sent yet (this device had no way, or none that worked) go now
+    },()=>{});
+  }catch(e){}          // flags are optional: a failing subscription must never stop the page from starting
+}
 // a case opened from Review carries the id of the flag it edits; a new one gets its id from what it is on
 export const flagId=c=>c.id||"fl_"+favSafe(c.caseKey).slice(0,60)+"_"+hash36([c.caseKey,c.thing||"",c.part,c.model||"",c.n||""].join("|"));
 const flagOf=c=>state.flags[flagId(c)];
@@ -41,6 +54,22 @@ export function saveFlag(){
 }
 function refocusFlag(id){ requestAnimationFrame(()=>{ const b=document.querySelector('[data-fid="'+id+'"]'); if(b) b.focus({preventScroll:true}); }); }
 function cancelFlag(){ const F=state.ui.flagEdit; state.ui.flagEdit=null; renderKeep(); if(F) refocusFlag(flagId(F.c)); }
+// A flag the page writes by itself where Quorum is divided about an example (src/domain/quorum.ts): one document per example, `part` "quorum", `auto` "quorum",
+// the cells in `shown`, `runId` the record of the run on the server, and no note. A later run on the same answer rewrites a flag that is still new; one that was reviewed or resolved stays as it is,
+// and a deleted one comes back only if the answer is explained again.
+export function autoFlags(kase,found){
+  if(!state.db||!found.length) return;
+  const now=new Date().toISOString();
+  for(const {thing,shown,runId} of found){
+    const c={caseKey:kase.key,thing,part:"quorum",model:"",n:null}, id=flagId(c), had=state.flags[id];
+    if(had&&(had.auto!=="quorum"||had.state!=="new"||(had.shown===shown&&(had.runId||null)===(runId||null)))) continue;   // same words from the same run: nothing to write
+    /** @type {import("../types.ts").FlagDoc} */
+    const draft={id,caseKey:kase.key,thing,part:"quorum",model:"",runId:runId||null,n:null,shown,note:"",suggest:"",pair:{a:kase.a,b:kase.b,relation:kase.relation,tab:kase.tab},auto:"quorum",at:had?had.at:now,updatedAt:now,state:"new"};
+    const doc=JSON.parse(JSON.stringify(draft));
+    state.flags[id]=doc;
+    flagWrite(id,()=>put("flags",id,doc),()=>{ if(had) state.flags[id]=had; else delete state.flags[id]; });
+  }
+}
 export function removeFlag(id){
   const had=state.flags[id]; if(!had) return; delete state.flags[id]; if(state.ui) state.ui.flagEdit=null; renderKeep(); refocusFlag(id);
   if(state.db) flagWrite(id,()=>state.db.collection("flags").doc(id).delete(),()=>{ state.flags[id]=had; });
@@ -76,7 +105,9 @@ export function flagPart(c,where,text,cls){
 /* ---------- a flag on every box that shows text written by Claude (v59) ---------- */
 // A small flag in the top-right corner of the box, never beside Close: the Why panel and the chat show the word with it, the small ? notes only the icon.
 // The editor opens inside the same box. A flag is the same document whichever box it was made in (the note on a cell is one flag in the ? note and in the question row).
-const flagKey=()=>state.ui.lab&&state.ui.lab.kase?state.ui.lab.kase.key:(state.ui.col||"answers")+"_"+(state.ui.saveId||state.ui.fkey||(state.ui.fkey="t"+Date.now().toString(36)));
+// the key of the answer's flags: the collection and id it is saved under (an answer that is not saved gets a key of its own)
+export const flagKeyOf=U=>(U.col||"answers")+"_"+(U.saveId||U.fkey||(U.fkey="t"+Date.now().toString(36)));
+const flagKey=()=>flagKeyOf(state.ui);
 export function aiCase(part,partLabel,shown,n,asked){
   return {caseKey:flagKey(),part,partLabel,shown:String(shown||"").slice(0,SHOWN_MAX),n:n==null?null:String(n),asked:asked||undefined,pair:{a:state.cur.p.a,b:state.cur.p.b,relation:state.cur.p.relation,tab:state.ui.debate?"debate":"practice"}};
 }

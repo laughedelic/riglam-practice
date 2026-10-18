@@ -1,5 +1,5 @@
 import { state } from "../state.js";
-import { labStart } from "../ai/lab.js";
+import { explainByItself } from "../ai/tutor.js";
 import { CELLS, REL } from "../core/rel.js";
 import { pairsOf } from "../core/util.js";
 import { stopTimer } from "../debate/flow.js";
@@ -17,6 +17,7 @@ export async function check(){
   const p=state.cur.p;
   stopTimer(); clearSkip(p); state.ui.res=grade(state,p,state.ui); state.ui.checked=true; state.ui.open=false; render();
   top0(); const bs=document.querySelectorAll("#stage .actions .btn"); if(bs.length) bs[bs.length-1].focus({preventScroll:true});
+  explainByItself(state.ui);
   if(!state.db) return;
   const cells=/** @type {import("../types.ts").AnswerDoc["cells"]} */({});
   for(const c of CELLS) cells[c]={text:(state.ui.cells[c].t||"").trim(), none:REL[state.ui.rel].empty.includes(c)||state.ui.cells[c].none, verdict:state.ui.res.cells[c].v};
@@ -27,5 +28,4 @@ export async function check(){
   if(state.ui.late||state.ui.exLate) doc.timeout=state.ui.late&&state.ui.exLate?"both":state.ui.late?"relation":"examples";
   state.ui.doc=doc;
   persist(state.ui,"Your answer");
-  labStart(state.ui,state.cur);
 }

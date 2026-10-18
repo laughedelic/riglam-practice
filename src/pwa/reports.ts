@@ -2,11 +2,12 @@
 // (docs/SERVER.md, "Flag reports"). Only a device that has the Magic Key gets it; the request proves that without sending the
 // key (src/ai/proof.ts), as the tutor's does. A flag the learner removes is taken back; where that cannot be done at once
 // the id is kept on the device and tried again.
-import { API, HEADER, type Health } from "../ai/protocol";
+import { HEADER } from "../ai/protocol";
 import { makeProof } from "../ai/proof";
 import { REPORT_API, REPORT_LIMITS, autoFlagOf, type FlagReport, type ReportRequest, type ReportResponse } from "../report/protocol";
 import type { Reports } from "../platform/types";
 import { deviceId } from "./device";
+import { serverSays } from "./tutor";
 
 const PENDING = "riglam.flagsToWithdraw";
 /** most ids kept for a later try; the oldest go first */
@@ -15,21 +16,8 @@ const KEPT_MAX = 200;
 declare const __APP_VERSION__: string | undefined;
 const appVersion = (): string | undefined => (typeof __APP_VERSION__ === "string" ? __APP_VERSION__ : undefined);
 
-/** Whether the server says it takes reports. Anything else (off, unreachable, slow, a server from before them) is "no". */
-export async function reportsAreOn(doFetch: typeof fetch = (...a) => fetch(...a), waitMs = 4000): Promise<boolean> {
-  const stop = new AbortController();
-  const timer = setTimeout(() => stop.abort(), waitMs);
-  try {
-    const res = await doFetch(API.health, { cache: "no-store", signal: stop.signal });
-    if (!res.ok) return false;
-    const body = (await res.json()) as Partial<Health>;
-    return body.ok === true && body.reports === "on";
-  } catch {
-    return false;
-  } finally {
-    clearTimeout(timer);
-  }
-}
+/** Whether the server says it takes reports. Anything else (off, unreachable, slow, a server from before them) is "no". The platform asks /api/health once for all of it (serverSays). */
+export const reportsAreOn = async (doFetch: typeof fetch = (...a) => fetch(...a), waitMs = 4000): Promise<boolean> => (await serverSays(doFetch, waitMs)).reports;
 
 /** The ids of flags removed on this device that the server has not yet been told about. Without usable storage they last for the visit. */
 function pendingStore() {

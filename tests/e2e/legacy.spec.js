@@ -19,7 +19,7 @@ mkdirSync(resolve(cwd, "t"), { recursive: true });
 const TESTS = [
   "test40b", "test40f", "test40k", "test40n", "test40q", "test40r", "test40v", "test40w",
   "test45", "test45d", "test46", "test47", "test48", "test49", "test51", "test52", "test53", "test54",
-  "test55", "test56", "test57", "test58", "test59", "test60", "test61", "test62", "test63", "t55b",
+  "test55", "test56", "test58", "test59", "test60", "test61", "test62", "test63", "t55b",
 ];
 
 function run(file) {
