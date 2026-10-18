@@ -3,7 +3,8 @@
 //   sync (the default)  rebuild the staging branch: main, then every open pull request labeled `staging` merged in (and the pull requests those
 //                       are stacked on), in stack order and then by number. Only the local branch is moved unless told otherwise.
 //                         --push      push it to origin (force, but only over the state this clone last fetched)
-//                         --report    set the `staging` status on each pull request and comment on one that just stopped merging (needs GITHUB_TOKEN)
+//                         --report    set the `staging` check on each pull request, comment on one that just stopped merging, and take the label off
+//                                     the ones that are merged or closed (needs the workflow's GITHUB_TOKEN: only an app can write a check run)
 //                         --force     build even when origin/staging was built from the same inputs
 //                         --pulls <file>  read the open pull requests from a JSON file (the REST API's list) instead of asking GitHub
 //                         --label <name>  the label to look for, `staging` unless told otherwise
@@ -154,8 +155,8 @@ async function sync(opts) {
   toActions("GITHUB_STEP_SUMMARY", `${summary(result, { runUrl })}\n`);
   if (result.upToDate) {
     toActions("GITHUB_OUTPUT", "changed=false\n");
-    // Nothing was built, but a status or a comment that a refused call lost after the last push is made good here.
-    if (opts.report) await publish(client, { result, openPulls: pulls, runUrl, repair: true });
+    // Nothing was built, but a check or a comment that a refused call lost after the last push is made good here.
+    if (opts.report) await publish(client, { result, openPulls: pulls, runUrl, label: opts.label, repair: true });
     return 0;
   }
 
@@ -166,7 +167,7 @@ async function sync(opts) {
   const pushed = push({ cwd: root, target: TARGET });
   console.log(`pushed ${TARGET} ${pushed.slice(0, 7)}`);
   toActions("GITHUB_OUTPUT", `changed=true\nsha=${pushed}\n`);
-  if (opts.report) await publish(client, { result, openPulls: pulls, runUrl });
+  if (opts.report) await publish(client, { result, openPulls: pulls, runUrl, label: opts.label });
   // A pull request that has just stopped merging is the news: the run fails, so that it is seen. One that still conflicts, as before, is not.
   const news = newSkips(result);
   if (news.length) console.error(`\nleft out now: ${news.map((s) => `#${s.number}`).join(", ")}`);

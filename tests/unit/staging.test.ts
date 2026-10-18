@@ -6,7 +6,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { MANIFEST, StagingError, migrationWarnings, push, rebuild, selectPulls } from "../../scripts/lib/staging.mjs";
-import { commentMarker, conflictComment, describe as describeResult, goneStatus, leftStatus, newSkips, publish, statusOf, summary, whySkipped } from "../../scripts/lib/staging-report.mjs";
+import { checkOf, commentMarker, conflictComment, describe as describeResult, goneCheck, leftCheck, newSkips, publish, summary, whySkipped } from "../../scripts/lib/staging-report.mjs";
 import { githubClient } from "../../scripts/lib/staging-github.mjs";
 
 const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_SYSTEM: "/dev/null" } }).trim();
@@ -336,17 +336,23 @@ function sampleResult() {
   };
 }
 
-test("each pull request's status says whether it is in, where, or why not", () => {
+test("each pull request's check says whether it is in, where, or why not", () => {
   const result = sampleResult();
-  expect(statusOf(result.entries[0], result)).toEqual({ state: "success", description: "In staging (1 of 4)" });
-  expect(statusOf(result.entries[1], result)).toEqual({ state: "success", description: "In staging (as the parent of #3)" });
-  expect(statusOf(result.entries[5], result)).toEqual({ state: "success", description: "In staging (4 of 4), but it adds nothing to main" });
-  expect(statusOf(result.entries[3], result)).toEqual({ state: "failure", description: "Left out of staging: conflicts in `a.js`, `b.js` (also changed by main and #1)" });
-  expect(statusOf(result.entries[4], result)).toEqual({ state: "failure", description: "Left out of staging: the pull request below it (#4) is left out" });
-  expect(leftStatus()).toEqual({ state: "success", description: "Not in staging (no label)" });
-  expect(leftStatus(false)).toEqual({ state: "success", description: "Not in staging (closed)" });
-  expect(statusOf({ ...result.entries[3], number: 4 }, { ...result, skipped: [{ ...result.skipped[0], files: ["f".repeat(200)] }] }).description.length).toBeLessThanOrEqual(140);
+  expect(checkOf(result.entries[0], result)).toEqual({ conclusion: "success", title: "In staging", summary: expect.stringContaining("on the `staging` branch") });
+  expect(checkOf(result.entries[1], result).title).toBe("In staging, as the parent of #3");
+  expect(checkOf(result.entries[5], result).title).toBe("In staging, but it adds nothing to main");
+  const left = checkOf(result.entries[3], result);
+  expect(left).toEqual({ conclusion: "failure", title: "Left out of staging: conflicts in `a.js`, `b.js` (also changed by main and #1)", summary: expect.stringContaining("Conflicts in:\n- `a.js`\n- `b.js`") });
+  expect(left.summary).toContain("Merge `main`");
+  expect(left.summary).toContain("turns green when the branch merges cleanly");
+  expect(checkOf(result.entries[4], result)).toEqual({ conclusion: "failure", title: "Left out of staging: the pull request below it (#4) is left out", summary: expect.stringContaining("the pull request below it (#4) is left out") });
+  expect(leftCheck()).toEqual({ conclusion: "neutral", title: "Not in staging (no label)", summary: expect.stringContaining("does not have the label") });
+  expect(leftCheck(false)).toEqual({ conclusion: "neutral", title: "Not in staging (closed)", summary: expect.stringContaining("closed or merged") });
+  expect(goneCheck().title).toBe("Not in staging (its branch is gone)");
+  expect(checkOf({ ...result.entries[3], number: 4 }, { ...result, skipped: [{ ...result.skipped[0], files: ["f".repeat(200)] }] }).title.length).toBeLessThanOrEqual(140);
   expect(whySkipped({ reason: "gone" })).toBe("its branch is not on origin");
+  // the text of a pull request that is in does not depend on who else is, so another pull request joining does not make a new check
+  expect(checkOf(result.entries[0], { ...result, merged: [...result.merged, { ...result.entries[3], addsNothing: false }] })).toEqual(checkOf(result.entries[0], result));
 });
 
 test("only a pull request that was not left out before is news, and a pull request left out because of its parent never is", () => {
@@ -365,10 +371,9 @@ test("the comment names the files and who else changed them, and carries a marke
   expect(conflictComment({ ...skip, files: ["a.js"], withMain: false, with: [] })).not.toContain("also changed by");
   expect(conflictComment({ ...skip, files: ["a.js"], with: [] })).toContain("That file was also changed by `main`, since this branch left it.");
   expect(text).toContain("Merge `main`");
-  // the comment is the one notification, so it says where to look from then on
+  // the comment is posted once, and says where to look from then on
   expect(text).toContain("This comment is posted once.");
-  expect(text).toContain("the status `staging` in this pull request's checks is where to look");
-  expect(text).toContain("check it after each push");
+  expect(text).toContain("the check `staging` on this pull request is where to look");
 });
 
 test("the log and the run summary list what went in and what was left out", () => {
@@ -383,17 +388,17 @@ test("the log and the run summary list what went in and what was left out", () =
   expect(summary({ ...result, upToDate: true })).toContain("Nothing to do");
 });
 
-function fakeClient(existingComments: Record<number, string[]> = {}, failOn?: string, current: Record<string, { state: string; description: string }> = {}) {
+function fakeClient(existingComments: Record<number, string[]> = {}, failOn?: string, current: Record<string, { conclusion: string; title: string; summary: string }> = {}, closed: number[] = []) {
   const calls: any[] = [];
   return {
     calls,
-    async currentStatus(sha: string, context: string) {
-      calls.push(["current", sha.slice(0, 1), context]);
+    async currentCheck(sha: string, name: string) {
+      calls.push(["current", sha.slice(0, 1), name]);
       return current[sha] ?? null;
     },
-    async setStatus(sha: string, status: any) {
-      if (failOn === "status") throw new Error("403");
-      calls.push(["status", sha, status.state, status.description, status.context, status.targetUrl]);
+    async setCheck(sha: string, check: any) {
+      if (failOn === "check") throw new Error("403");
+      calls.push(["check", sha, check.conclusion, check.title, check.name, check.detailsUrl]);
     },
     async comments(n: number) {
       return existingComments[n] ?? [];
@@ -401,22 +406,29 @@ function fakeClient(existingComments: Record<number, string[]> = {}, failOn?: st
     async comment(n: number, body: string) {
       calls.push(["comment", n, body.split("\n")[1]]);
     },
+    async closedLabeled(label: string) {
+      calls.push(["closed", label]);
+      return closed;
+    },
+    async removeLabel(n: number, label: string) {
+      calls.push(["unlabel", n, label]);
+    },
   };
 }
 
-test("publish sets a status on each pull request, clears the old ones, and comments once on what just stopped merging", async () => {
+test("publish sets a check on each pull request, clears the old ones, comments once on what just stopped merging, and tidies the labels", async () => {
   const result = sampleResult();
-  // #7 lost its label and has a new head since; #9 was closed
+  // #7 lost its label and has a new head since; #9 was closed; #11 and #12 were merged or closed a while ago and still have the label
   const open = [...result.entries, { number: 7, head: { sha: "8".repeat(40) } }, { number: 1, head: { sha: "1".repeat(40) } }];
-  const client = fakeClient();
-  await publish(client, { result, openPulls: open, runUrl: "https://example.com/run/1" });
-  const statuses = client.calls.filter((c) => c[0] === "status");
-  expect(statuses.map((c) => [c[1].slice(0, 1), c[2]])).toEqual([["1", "success"], ["2", "success"], ["3", "success"], ["4", "failure"], ["5", "failure"], ["6", "success"], ["7", "success"], ["9", "success"]]);
-  // the old status goes from the commit it was set on (the manifest's), not from the head the pull request has now
-  expect(statuses.at(-2)).toEqual(["status", "7".repeat(40), "success", "Not in staging (no label)", "staging", "https://example.com/run/1"]);
-  expect(statuses.at(-1)).toEqual(["status", "9".repeat(40), "success", "Not in staging (closed)", "staging", "https://example.com/run/1"]);
-  expect(client.calls.some((c) => c[0] === "current")).toBe(false);
+  const client = fakeClient({}, undefined, {}, [11, 12]);
+  await publish(client, { result, openPulls: open, runUrl: "https://example.com/run/1", label: "staging" });
+  const checks = client.calls.filter((c) => c[0] === "check");
+  expect(checks.map((c) => [c[1].slice(0, 1), c[2]])).toEqual([["1", "success"], ["2", "success"], ["3", "success"], ["4", "failure"], ["5", "failure"], ["6", "success"], ["7", "neutral"], ["9", "neutral"]]);
+  // the old check goes on the commit it was set on (the manifest's), not on the head the pull request has now
+  expect(checks.at(-2)).toEqual(["check", "7".repeat(40), "neutral", "Not in staging (no label)", "staging", "https://example.com/run/1"]);
+  expect(checks.at(-1)).toEqual(["check", "9".repeat(40), "neutral", "Not in staging (closed)", "staging", "https://example.com/run/1"]);
   expect(client.calls.filter((c) => c[0] === "comment")).toEqual([["comment", 4, "Staging left this pull request out because it does not merge cleanly."]]);
+  expect(client.calls.filter((c) => c[0] === "unlabel")).toEqual([["unlabel", 11, "staging"], ["unlabel", 12, "staging"]]);
 
   // told already (the marker is on the pull request): not again
   const told = fakeClient({ 4: [`hello\n${commentMarker(result.skipped[0])}`] });
@@ -426,16 +438,30 @@ test("publish sets a status on each pull request, clears the old ones, and comme
   const same = fakeClient();
   await publish(same, { result: { ...result, previous: { ...result.previous, skipped: [{ number: 4 }, { number: 5 }] } }, openPulls: open });
   expect(same.calls.filter((c) => c[0] === "comment")).toEqual([]);
+  // no label to look for, nothing to tidy
+  expect(told.calls.some((c) => c[0] === "closed" || c[0] === "unlabel")).toBe(false);
 });
 
-test("a run that built nothing makes good what a refused call lost: the missing statuses and the missing comment, nothing twice", async () => {
+test("a pull request that stays as it was is not told again, so a rebuild that changes nothing for it makes no new check", async () => {
+  const result = sampleResult();
+  const have = Object.fromEntries(result.entries.map((e) => [e.sha, checkOf(e, result)]));
+  const client = fakeClient({}, undefined, have);
+  await publish(client, { result, openPulls: [] });
+  expect(client.calls.filter((c) => c[0] === "check").map((c) => c[1].slice(0, 1))).toEqual(["7", "9"]);
+  // a change of reason is told: #4 was left out for another file
+  const moved = fakeClient({}, undefined, { ...have, ["4".repeat(40)]: { ...have["4".repeat(40)], summary: "something older" } });
+  await publish(moved, { result, openPulls: [] });
+  expect(moved.calls.filter((c) => c[0] === "check").map((c) => [c[1].slice(0, 1), c[2]])).toEqual([["4", "failure"], ["7", "neutral"], ["9", "neutral"]]);
+});
+
+test("a run that built nothing makes good what a refused call lost: the missing checks and the missing comment, nothing twice", async () => {
   const result = { ...sampleResult(), upToDate: true, previous: { pulls: [], skipped: [{ number: 4 }, { number: 5 }] } };
-  const have = { ["1".repeat(40)]: { state: "success", description: "In staging (1 of 4)" }, ["4".repeat(40)]: { state: "failure", description: "something older" } };
+  const have = { [result.entries[0].sha]: checkOf(result.entries[0], result), ["4".repeat(40)]: { conclusion: "failure", title: "something older", summary: "x" } };
   const client = fakeClient({}, undefined, have);
   await publish(client, { result, openPulls: [], runUrl: "https://example.com/run/2", repair: true });
 
-  // #1 has its status; the others are set, #4 because it says something else
-  const set = client.calls.filter((c) => c[0] === "status").map((c) => c[1].slice(0, 1));
+  // #1 has its check; the others are made, #4 because it says something else
+  const set = client.calls.filter((c) => c[0] === "check").map((c) => c[1].slice(0, 1));
   expect(set).toEqual(["2", "3", "4", "5", "6"]);
   // the conflict comment was never posted (still not news by the manifest's account): it is now, once
   expect(client.calls.filter((c) => c[0] === "comment")).toEqual([["comment", 4, "Staging left this pull request out because it does not merge cleanly."]]);
@@ -464,26 +490,27 @@ test("a run that built nothing reads what went in and what was left out from the
     expect.objectContaining({ number: 2, reason: "parent", parent: 1, withMain: false, with: [] }),
   ]);
   // so that the texts are the same as after the build
-  expect(statusOf(again.entries[0], again)).toEqual(statusOf(built.entries[0], built));
-  expect(statusOf(again.entries[2], again)).toEqual(statusOf(built.entries[2], built));
-  expect(statusOf(again.entries[3], again)).toEqual(statusOf(built.entries[3], built));
+  expect(checkOf(again.entries[0], again)).toEqual(checkOf(built.entries[0], built));
+  expect(checkOf(again.entries[2], again)).toEqual(checkOf(built.entries[2], built));
+  expect(checkOf(again.entries[3], again)).toEqual(checkOf(built.entries[3], built));
 });
 
-test("a pull request whose branch is gone loses the status of the commit it was reported on", async () => {
+test("a pull request whose branch is gone loses the check of the commit it was reported on", async () => {
   const gone = { ...entry(1, "branch-1"), sha: null };
   const result = { ...sampleResult(), entries: [gone], merged: [], skipped: [{ ...gone, reason: "gone", files: [], withMain: false, with: [] }], previous: { pulls: [{ number: 1, sha: "1".repeat(40) }], skipped: [] } };
   const client = fakeClient();
   await publish(client, { result, openPulls: [{ number: 1, head: { sha: "1".repeat(40) } }] });
-  expect(client.calls.filter((c) => c[0] === "status")).toEqual([["status", "1".repeat(40), "success", goneStatus().description, "staging", undefined]]);
+  expect(client.calls.filter((c) => c[0] === "check")).toEqual([["check", "1".repeat(40), "neutral", goneCheck().title, "staging", undefined]]);
 });
 
 test("a refused call is logged and does not stop the rest", async () => {
   const log: string[] = [];
-  const client = fakeClient({}, "status");
-  await publish(client, { result: sampleResult(), openPulls: [], log: (l) => log.push(l) });
+  const client = fakeClient({}, "check", {}, [11]);
+  await publish(client, { result: sampleResult(), openPulls: [], label: "staging", log: (l) => log.push(l) });
   expect(log.length).toBeGreaterThan(3);
-  expect(log[0]).toBe("could not set the status of #1: 403");
+  expect(log[0]).toBe("could not report the check of #1: 403");
   expect(client.calls.filter((c) => c[0] === "comment")).toHaveLength(1);
+  expect(client.calls.filter((c) => c[0] === "unlabel")).toEqual([["unlabel", 11, "staging"]]);
 });
 
 test("the GitHub client lists every page of pull requests and says what GitHub answered when it refuses", async () => {
@@ -491,16 +518,44 @@ test("the GitHub client lists every page of pull requests and says what GitHub a
   const page = (n: number) => Array.from({ length: n }, (_, i) => ({ number: i }));
   const fetchImpl = (async (url: string, init: any) => {
     seen.push(`${init.method} ${url}`);
-    if (url.includes("/statuses/")) return new Response("no", { status: 403 });
+    if (url.includes("/check-runs") && init.method === "POST") return new Response("no", { status: 403 });
     return new Response(JSON.stringify(url.endsWith("page=1") ? page(100) : page(3)), { status: 200 });
   }) as unknown as typeof fetch;
   const client = githubClient({ repo: "me/app", token: "t", apiUrl: "https://api.test", fetchImpl });
   expect(await client.openPulls()).toHaveLength(103);
   expect(seen).toEqual(["GET https://api.test/repos/me/app/pulls?state=open&per_page=100&page=1", "GET https://api.test/repos/me/app/pulls?state=open&per_page=100&page=2"]);
-  await expect(client.setStatus("abc", { state: "success", description: "d", context: "staging" })).rejects.toThrow(/POST \/statuses\/abc answered 403: no/);
+  await expect(client.setCheck("abc", { name: "staging", conclusion: "success", title: "t", summary: "s" })).rejects.toThrow(/POST \/check-runs answered 403: no/);
+});
 
-  const statuses = (async () => new Response(JSON.stringify({ statuses: [{ context: "ci", state: "failure", description: "x" }, { context: "staging", state: "success", description: null }] }), { status: 200 })) as unknown as typeof fetch;
-  const reader = githubClient({ repo: "me/app", token: "t", apiUrl: "https://api.test", fetchImpl: statuses });
-  expect(await reader.currentStatus("abc", "staging")).toEqual({ state: "success", description: "" });
-  expect(await reader.currentStatus("abc", "other")).toBeNull();
+test("the GitHub client reads the check run its own app made, makes a finished one, and tidies labels", async () => {
+  const sent: { method: string; url: string; body?: any }[] = [];
+  const answers: Record<string, () => Response> = {
+    "GET /commits/abc/check-runs": () =>
+      new Response(JSON.stringify({ check_runs: [
+        { id: 1, app: { slug: "github-actions" }, conclusion: "failure", output: { title: "older", summary: "x" } },
+        { id: 3, app: { slug: "some-bot" }, conclusion: "success", output: { title: "another app", summary: "y" } },
+        { id: 2, app: { slug: "github-actions" }, conclusion: "success", output: { title: "newer", summary: null } },
+      ] }), { status: 200 }),
+    "GET /issues": () => new Response(JSON.stringify([{ number: 5, pull_request: {} }, { number: 6 }, { number: 7, pull_request: {} }]), { status: 200 }),
+    "DELETE /issues/7/labels/staging": () => new Response("gone", { status: 404 }),
+    "DELETE /issues/8/labels/staging": () => new Response("no", { status: 403 }),
+  };
+  const fetchImpl = (async (url: string, init: any) => {
+    const path = url.replace("https://api.test/repos/me/app", "");
+    sent.push({ method: init.method, url: path, body: init.body ? JSON.parse(init.body) : undefined });
+    return (answers[`${init.method} ${path.split("?")[0]}`] ?? (() => new Response("{}", { status: 201 })))();
+  }) as unknown as typeof fetch;
+  const client = githubClient({ repo: "me/app", token: "t", apiUrl: "https://api.test", fetchImpl });
+
+  expect(await client.currentCheck("abc", "staging")).toEqual({ conclusion: "success", title: "newer", summary: "" });
+  expect(sent[0].url).toBe("/commits/abc/check-runs?check_name=staging&per_page=100");
+  await client.setCheck("abc", { name: "staging", conclusion: "failure", title: "t", summary: "s", detailsUrl: "https://example.com/run/1" });
+  expect(sent.at(-1)).toEqual({ method: "POST", url: "/check-runs", body: { name: "staging", head_sha: "abc", status: "completed", conclusion: "failure", output: { title: "t", summary: "s" }, details_url: "https://example.com/run/1" } });
+
+  expect(await client.closedLabeled("staging")).toEqual([5, 7]);
+  expect(sent.at(-1)?.url).toBe("/issues?state=closed&labels=staging&per_page=100&page=1");
+  await client.removeLabel(5, "staging");
+  expect(sent.at(-1)).toEqual({ method: "DELETE", url: "/issues/5/labels/staging", body: undefined });
+  await client.removeLabel(7, "staging"); // it did not have the label any more: fine
+  await expect(client.removeLabel(8, "staging")).rejects.toThrow(/answered 403/);
 });

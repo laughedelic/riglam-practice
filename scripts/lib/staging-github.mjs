@@ -1,5 +1,6 @@
-// The few GitHub REST calls the staging rebuild makes (docs/STAGING.md): list the open pull requests, set a commit status, read and write
-// pull request comments. Plain `fetch`, no dependencies; `fetchImpl` is for tests.
+// The few GitHub REST calls the staging rebuild makes (docs/STAGING.md): list the open pull requests, read and write the `staging` check run on
+// a commit, read and write pull request comments, and take a label off a closed pull request. Plain `fetch`, no dependencies; `fetchImpl` is
+// for tests. Only a GitHub App can write a check run, so the token has to be the workflow's own (`github.token`), not a personal one.
 import { StagingError } from "./staging.mjs";
 
 /**
@@ -28,19 +29,30 @@ export function githubClient({ repo, token, apiUrl = process.env.GITHUB_API_URL 
   return {
     /** Every open pull request, with its labels. */
     openPulls: () => all("/pulls?state=open"),
-    /** @param {string} sha @param {{ state: string, description: string, context: string, targetUrl?: string }} status */
-    async setStatus(sha, { state, description, targetUrl, context }) {
-      await request("POST", `/statuses/${sha}`, { state, description, context, ...(targetUrl ? { target_url: targetUrl } : {}) });
+    /** The latest check run of this name that the workflow's own app made on a commit, or null when it made none. */
+    async currentCheck(sha, name) {
+      const runs = (await request("GET", `/commits/${sha}/check-runs?check_name=${encodeURIComponent(name)}&per_page=100`)).check_runs ?? [];
+      const mine = runs.filter((r) => r.app?.slug === "github-actions").sort((a, b) => b.id - a.id)[0];
+      return mine ? { conclusion: mine.conclusion, title: mine.output?.title ?? "", summary: mine.output?.summary ?? "" } : null;
     },
-    /** The latest status of `context` on a commit, or null when it has none. */
-    async currentStatus(sha, context) {
-      const status = (await request("GET", `/commits/${sha}/status?per_page=100`)).statuses?.find((s) => s.context === context);
-      return status ? { state: status.state, description: status.description ?? "" } : null;
+    /** Makes a finished check run on a commit. @param {string} sha @param {{ name: string, conclusion: string, title: string, summary: string, detailsUrl?: string }} check */
+    async setCheck(sha, { name, conclusion, title, summary, detailsUrl }) {
+      await request("POST", "/check-runs", { name, head_sha: sha, status: "completed", conclusion, output: { title, summary }, ...(detailsUrl ? { details_url: detailsUrl } : {}) });
     },
     /** The texts of a pull request's comments. */
     comments: async (number) => (await all(`/issues/${number}/comments`)).map((c) => c.body ?? ""),
     async comment(number, body) {
       await request("POST", `/issues/${number}/comments`, { body });
+    },
+    /** The numbers of the closed (or merged) pull requests that still have a label. */
+    closedLabeled: async (label) => (await all(`/issues?state=closed&labels=${encodeURIComponent(label)}`)).filter((i) => i.pull_request).map((i) => i.number),
+    /** Takes a label off a pull request; one that does not have it is fine. */
+    async removeLabel(number, label) {
+      try {
+        await request("DELETE", `/issues/${number}/labels/${encodeURIComponent(label)}`);
+      } catch (e) {
+        if (!/answered 404/.test(e.message)) throw e;
+      }
     },
   };
 }
