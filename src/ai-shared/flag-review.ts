@@ -76,6 +76,65 @@ Answer with one JSON object and nothing else:
 /** The longest each learner-sent text can be in a review request; the page keeps flags within these, a server enforces them again. */
 export const REVIEW_LIMITS = { what: 200, shown: 2000, asked: 600, note: 800, suggest: 300, explain: 4000, cell: 300, label: 120, type: 200, pairNote: 300 } as const;
 
+const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
+const isRel = (k: unknown): k is RelKey => typeof k === "string" && Object.prototype.hasOwnProperty.call(REL, k);
+const text = (v: unknown, max: number): string => (typeof v === "string" ? v.slice(0, max) : "");
+
+/**
+ * A stored answer received from a device, read into the shape of a review: only the fields a review uses, each checked and cut to
+ * REVIEW_LIMITS. A device can send anything, so nothing is passed on as it came; null when it is not an answer the card can be
+ * made from (no pair, a relation the app does not know). The card is built from the data the server has; what comes from the
+ * device here is the pair's labels, notes and reference examples and the learner's own words.
+ */
+export function readReviewAnswer(raw: unknown): ReviewAnswer | null {
+  if (!isObj(raw) || !isObj(raw.pair)) return null;
+  const p = raw.pair;
+  if (typeof p.a !== "string" || typeof p.b !== "string" || !isRel(p.relation)) return null;
+  const chosen = raw.chosen == null ? null : isRel(raw.chosen) ? raw.chosen : undefined;
+  if (chosen === undefined) return null;
+  const perCell = <T>(src: unknown, f: (v: unknown) => T | undefined): Partial<Record<CellId, T>> => {
+    const out: Partial<Record<CellId, T>> = {};
+    if (isObj(src)) for (const c of CELLS) { const v = f(src[c]); if (v !== undefined) out[c] = v; }
+    return out;
+  };
+  const pair: PairLike = {
+    a: p.a.slice(0, REVIEW_LIMITS.label),
+    b: p.b.slice(0, REVIEW_LIMITS.label),
+    catA: typeof p.catA === "string" ? p.catA.slice(0, 80) : null,
+    catB: typeof p.catB === "string" ? p.catB.slice(0, 80) : null,
+    typeA: text(p.typeA, REVIEW_LIMITS.type),
+    typeB: text(p.typeB, REVIEW_LIMITS.type),
+    relation: p.relation,
+    ex: perCell(p.ex, (v) => (typeof v === "string" ? v.slice(0, REVIEW_LIMITS.cell) : undefined)),
+    why: perCell(p.why, (v) => (typeof v === "string" ? v.slice(0, REVIEW_LIMITS.cell) : undefined)),
+    note: text(p.note, REVIEW_LIMITS.pairNote),
+  };
+  const cells = {} as ReviewAnswer["cells"];
+  for (const c of CELLS) {
+    const x = isObj(raw.cells) && isObj(raw.cells[c]) ? (raw.cells[c] as Record<string, unknown>) : {};
+    const verdict = text(x.verdict, 10);
+    cells[c] = { text: text(x.text, REVIEW_LIMITS.cell), none: x.none === true, ...(/^[a-z]+$/.test(verdict) ? { verdict } : {}) };
+  }
+  const qs = Array.isArray(raw.qs)
+    ? raw.qs.filter(isObj).flatMap((q) => {
+        const c = QCELL.find((x) => x === q.c);
+        if (!c) return [];
+        const verdict = text(q.verdict, 10);
+        return [{ c, say: q.say === "accept" || q.say === "why" ? q.say : null, text: text(q.text, REVIEW_LIMITS.cell), timeout: q.timeout === true, ...(/^[a-z]+$/.test(verdict) ? { verdict } : {}) }];
+      }).slice(0, QCELL.length)
+    : undefined;
+  return {
+    ...(raw.mode === "debate" ? { mode: "debate" } : {}),
+    chosen,
+    cells,
+    ...(qs ? { qs } : {}),
+    implied: raw.implied === "bad" || isRel(raw.implied) ? raw.implied : null,
+    ...(typeof raw.timeout === "string" ? { timeout: raw.timeout.slice(0, 12) } : {}),
+    pair,
+    ...(typeof raw.explain === "string" ? { explain: raw.explain.slice(0, REVIEW_LIMITS.explain) } : {}),
+  };
+}
+
 const oneLine = (s: unknown, max: number): string => (typeof s === "string" ? s : "").replace(/\s+/g, " ").trim().slice(0, max);
 // a verdict is a short lowercase word ("ok", "bad", "cmp"); anything else is not one the page wrote
 const verdictOf = (v: unknown): string | undefined => (typeof v === "string" && /^[a-z]{1,10}$/.test(v) ? v : undefined);

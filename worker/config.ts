@@ -81,3 +81,32 @@ export function readAccountConfig(env: Env): AccountConfig {
     dailyCeremonies: Math.round(number(env.CEREMONIES_PER_DAY, 2_000, 10, 1_000_000)),
   };
 }
+
+export interface ReviewConfig {
+  /** the reviewing models, one review each; the rule (decideFlag) needs two that agree */
+  models: string[];
+  effort: Config["effort"];
+  maxTokens: number;
+  maxRounds: number;
+  /** what the reviews of all reports together may spend per UTC day, in micro-dollars; the tutor's budgets are separate */
+  dailyMicro: number;
+  /** what the reviews of one report are assumed to cost until they have finished */
+  reserveMicro: number;
+  /** most reports one pass reviews */
+  batch: number;
+}
+
+/** The review settings, each from its variable when that is a sensible value and from the default otherwise. */
+export function readReviewConfig(env: Env): ReviewConfig {
+  const named = (env.REVIEW_MODELS ?? "").split(",").map((m) => m.trim()).filter(Boolean).slice(0, 3);
+  const tutor = readConfig(env);
+  return {
+    models: named.length ? named : ["claude-sonnet-5-5", "claude-opus-5-5"],
+    effort: tutor.effort,
+    maxTokens: Math.round(number(env.REVIEW_MAX_TOKENS, 2500, 500, 16000)),
+    maxRounds: tutor.maxRounds,
+    dailyMicro: micro(number(env.REVIEW_DAILY_BUDGET_USD, 1, 0, 1000)),
+    reserveMicro: micro(number(env.REVIEW_RESERVE_USD, 0.1, 0.001, 5)),
+    batch: Math.round(number(env.REVIEW_BATCH, 5, 1, 20)),
+  };
+}

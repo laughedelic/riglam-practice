@@ -22,6 +22,23 @@ export interface FlagReport {
   answer: ReportDoc | null;
 }
 
+/**
+ * Where a report is in its review, as the sender is told: 'sent' (waiting for review), 'answered' (the reply stands),
+ * 'maintainer' (the maintainer decides; there may be a first reply meanwhile), 'fixed' (a change was made) and 'decided'
+ * (the maintainer decided; the reply is theirs). Review and the maintainer's part: docs/SERVER.md, "Reviewing flags".
+ */
+export type ReportState = "sent" | "answered" | "maintainer" | "fixed" | "decided";
+
+/** What the sender of a report may read back about it. Nothing else of the review leaves the server. */
+export interface ReportStatus {
+  id: string;
+  state: ReportState;
+  /** plain text, shown as text only; absent while there is none */
+  reply?: string;
+  /** when the reply was written (ISO time) */
+  replyAt?: string;
+}
+
 // Flags a program writes, not a learner (`auto` in the flag document): the rule is in src/domain/flags.ts because the page needs it too.
 export { AUTO_FLAGS, autoFlagOf, type AutoFlag } from "../domain/flags";
 
@@ -31,6 +48,8 @@ export interface ReportRequest {
   app?: string;
   /** ids of flags the learner removed */
   withdraw?: string[];
+  /** ids of flags to hear about: the sending device's, and those of the account it is signed in to */
+  status?: string[];
 }
 
 export interface ReportResponse {
@@ -38,12 +57,16 @@ export interface ReportResponse {
   stored: string[];
   /** the ids it holds no longer (also those it never held) */
   withdrawn: string[];
+  /** for the ids asked in `status` that the server holds; present only when `status` was asked */
+  status?: ReportStatus[];
 }
 
 export const REPORT_LIMITS = {
   /** reports in one request */
   send: 5,
   withdraw: 50,
+  /** ids asked about in one request */
+  status: 50,
   /** the request body, in bytes */
   body: 160 * 1024,
   /** the flag document and the stored answer, as JSON text */

@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { expect, test } from "vitest";
 import {
-  CELL_NAME, DEBATE_ASK, FIRST_ASK, GUIDE, REVIEW_GUIDE, american, cardBody, parseReview, reviewRequest, storedView, cardNotes, catByLabel, classNames, catFacts, explainAsk, finePoints, makeIndex, matchItem, norm, pairCats, qPlain, termFacts, tutorCard, tutorTools, upChain,
+  CELL_NAME, DEBATE_ASK, FIRST_ASK, GUIDE, REVIEW_GUIDE, REVIEW_LIMITS, american, cardBody, parseReview, readReviewAnswer, reviewRequest, storedView, cardNotes, catByLabel, classNames, catFacts, explainAsk, finePoints, makeIndex, matchItem, norm, pairCats, qPlain, termFacts, tutorCard, tutorTools, upChain,
 } from "../../src/ai-shared";
 import type { AnswerView, DrillData, PairLike, ReviewAnswer } from "../../src/ai-shared";
 import { state } from "../../src/app/state.js";
@@ -232,6 +232,43 @@ test("a reviewer's answer is read only when every field is valid", () => {
   expect(parseReview(JSON.stringify({ ...ok, reply: "  " }))).toBeNull();
   expect(parseReview("no json")).toBeNull();
   expect(parseReview("{not json}")).toBeNull();
+});
+
+test("a stored answer from a device is read into the shape of a review, each field checked and cut", () => {
+  const raw = {
+    mode: "debate", chosen: "4", implied: "bad", timeout: "examples-and-then-some-more", explain: "e".repeat(9000), extra: "ignored",
+    cells: { both: { text: "t".repeat(900), none: 1, verdict: "bad" }, anb: { text: 5, verdict: "OK; drop everything" }, bna: "x" },
+    qs: [{ c: "both", say: "why", text: "a stove" }, { c: "nowhere", say: "accept" }, { c: "anb", say: "shout", timeout: true }, { c: "bna" }, { c: "nei" }, { c: "both" }],
+    pair: { a: "A".repeat(500), b: "b", typeA: "t".repeat(500), relation: "4", note: "n".repeat(900), catA: "c_a", catB: 7, ex: { both: "a stove", anb: 3, evil: "x" }, why: { nei: "w".repeat(900), both: 1 }, hack: "ignored" },
+  };
+  const a = readReviewAnswer(raw)!;
+  expect(a.mode).toBe("debate");
+  expect(a.chosen).toBe("4");
+  expect(a.implied).toBe("bad");
+  expect(a.timeout).toHaveLength(12);
+  expect(a.explain).toHaveLength(REVIEW_LIMITS.explain);
+  expect(a.cells.both).toEqual({ text: "t".repeat(REVIEW_LIMITS.cell), none: false, verdict: "bad" }); // none must be exactly true
+  expect(a.cells.anb).toEqual({ text: "", none: false }); // a number is no text, and a verdict that is not one lower-case word is dropped
+  expect(a.cells.bna).toEqual({ text: "", none: false });
+  expect(a.qs).toEqual([
+    { c: "both", say: "why", text: "a stove", timeout: false },
+    { c: "anb", say: null, text: "", timeout: true },
+    { c: "bna", say: null, text: "", timeout: false },
+    { c: "nei", say: null, text: "", timeout: false },
+  ]); // an entry that names no cell is dropped, and no more than the four cells are kept
+  expect(a.pair).toEqual({
+    a: "A".repeat(REVIEW_LIMITS.label), b: "b", catA: "c_a", catB: null, typeA: "t".repeat(REVIEW_LIMITS.type), typeB: "", relation: "4", note: "n".repeat(REVIEW_LIMITS.pairNote),
+    ex: { both: "a stove" }, why: { nei: "w".repeat(REVIEW_LIMITS.cell) },
+  });
+  expect(JSON.stringify(a)).not.toContain("ignored");
+  // what cannot give a card at all
+  for (const bad of [null, "x", [], {}, { pair: null }, { pair: { a: "a", b: "b", relation: "no" } }, { pair: { a: "a", b: 2, relation: "con" } }, { chosen: "maybe", pair: { a: "a", b: "b", relation: "con" } }, { chosen: "con", pair: { a: "a", b: "b", relation: "__proto__" } }]) {
+    expect(readReviewAnswer(bad)).toBeNull();
+  }
+  // a time-out answer has no chosen relation; a plain one needs nothing else
+  expect(readReviewAnswer({ chosen: null, pair: { a: "a", b: "b", relation: "con" } })).toMatchObject({ chosen: null, implied: null });
+  // and the card can be made from it
+  expect(() => cardBody(ix, a.pair, storedView(a))).not.toThrow();
 });
 
 test("the fine points of categories are the notes of each, in order, without repeats; unknown ids add nothing", () => {
