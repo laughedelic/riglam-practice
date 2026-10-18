@@ -101,6 +101,12 @@ export interface SampleResult {
 /** The `sample` capability: one model call, from a prompt or a list of turns (the artifact runtime's sample.d.ts). */
 export type Sample = (input: string | { role: string; content: string }[], options?: SampleOptions) => Promise<SampleResult>;
 
+/**
+ * The `lab` capability: one model call of the check lab, from one prompt. `options.model` names the model that must answer and `options.effort` how hard it
+ * thinks. The reply says which model answered (`modelApplied`), and the lab counts a run only when it is the one it asked for. The artifact's `sample` is one.
+ */
+export type LabSample = (prompt: string, options?: SampleOptions) => Promise<SampleResult>;
+
 export interface TutorOptions {
   signal?: AbortSignal;
   /** called with all the text so far each time more of the answer arrives */
@@ -167,6 +173,11 @@ export interface Platform {
   db(): Promise<Db | null>;
   /** Model calls, or null when there are none (the page then hides the tutor, Explain and the check lab). */
   sample(): Promise<Sample | null>;
+  /**
+   * The check lab's model calls, or null when the place has none (the page then hides the lab). Absent means the lab uses `sample`, as in the artifact; the PWA
+   * has this one, because its `sample` is not the lab's: the page would then use it for the tutor too.
+   */
+  lab?(): Promise<LabSample | null>;
   /** The way to enter the Magic Key (the study group's key: it opens the definitions and the tutor), or null (or absent) when the place has no key to ask for or this device has it. */
   unlock?(): Promise<Unlock | null>;
   /** The other half of `unlock`: set while this device has the Magic Key, null (or absent) otherwise. */

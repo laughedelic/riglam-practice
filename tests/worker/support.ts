@@ -61,11 +61,15 @@ export interface Round {
   text?: string[];
   tool?: { id: string; name: string; input: unknown };
   stop?: "end_turn" | "tool_use" | "max_tokens" | "refusal";
+  /** the model the API says answered (default claude-sonnet-5-5) */
+  model?: string;
   usage?: { input?: number; output?: number; cacheRead?: number; cacheWrite?: number };
   /** answer with an HTTP error instead */
   error?: { status: number; type: string };
   /** stream the text, then wait for the caller to hang up */
   hang?: boolean;
+  /** stream the text, then break the connection (before the closing usage event) */
+  cut?: boolean;
 }
 
 const sse = (event: string, data: unknown) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
@@ -74,7 +78,7 @@ function body(r: Round, n: number, signal: AbortSignal | null | undefined): Read
   const u = r.usage ?? {};
   const enc = new TextEncoder();
   const parts: string[] = [
-    sse("message_start", { type: "message_start", message: { id: `msg_${n}`, type: "message", role: "assistant", content: [], model: "claude-sonnet-5-5", stop_reason: null, stop_sequence: null, usage: { input_tokens: u.input ?? 100, output_tokens: 1, cache_read_input_tokens: u.cacheRead ?? 0, cache_creation_input_tokens: u.cacheWrite ?? 0 } } }),
+    sse("message_start", { type: "message_start", message: { id: `msg_${n}`, type: "message", role: "assistant", content: [], model: r.model ?? "claude-sonnet-5-5", stop_reason: null, stop_sequence: null, usage: { input_tokens: u.input ?? 100, output_tokens: 1, cache_read_input_tokens: u.cacheRead ?? 0, cache_creation_input_tokens: u.cacheWrite ?? 0 } } }),
   ];
   let index = 0;
   if (r.text?.length) {
@@ -93,6 +97,11 @@ function body(r: Round, n: number, signal: AbortSignal | null | undefined): Read
   return new ReadableStream({
     async start(c) {
       for (const p of parts) c.enqueue(enc.encode(p));
+      if (r.cut) {
+        await new Promise((resolve) => setTimeout(resolve, 20)); // an error discards what is queued: let the reader take the text first
+        c.error(new TypeError("terminated"));
+        return;
+      }
       if (r.hang) {
         await new Promise<void>((resolve) => signal?.addEventListener("abort", () => resolve()));
         c.error(new DOMException("aborted", "AbortError"));

@@ -10,6 +10,7 @@ export const state = {
   LABELIDX: {},
   db: null,
   sample: null,
+  labSample: null,   // the check lab's model calls (platform.lab; in the artifact its `sample`)
   account: null, // optional sign-in with a server copy of the documents (platform.account), when the place has one
   acct: {},      // the same for the Account row (src/ui/account.ts)
   xfer: {},      // what the "Your data" row of Options keeps between renders (src/ui/data-transfer.ts)
@@ -50,10 +51,12 @@ export const state = {
   hintOff: null,
   labSpotN: 10,  // one unanimous answer in labSpotN also goes to the judge (chosen by the case key, so a rerun repeats the choice); 0 never, 1 always
   lab: true,
+  autoExplain: true,   // a checked answer asks for its explanation by itself (Options); the Explain button is still there for one that was not asked
   labruns: {},
   flags: {},
   flagErr: "",
   labPause: 0,
+  labPauseWhy: "",   // what the Quorum chip says about a pause
   flagPending: 0,
   // the reference the models get, built from the page's own data: every category with its definition, then the classification notes
   labRefC: null,
@@ -80,6 +83,7 @@ export const state = {
 try{ const v=localStorage.getItem("rd-notation"); if(v==="sets"||v==="logic") state.nota=v; }catch(e){}
 try{ if(localStorage.getItem("rd-deflang")==="enru") state.defLang="enru"; }catch(e){}   // an earlier "off" (words only) is now the codes
 try{ state.lab=localStorage.getItem("rd-lab")!=="0"; }catch(e){}
+try{ state.autoExplain=localStorage.getItem("rd-autoexplain")!=="0"; }catch(e){}
 try{ state.recentOpen=localStorage.getItem("rd-recent")!=="0"; }catch(e){}
 try{ if(localStorage.getItem("rd-ab")==="0") state.showAB=false; if(localStorage.getItem("rd-full")==="0") state.fullPh=false; }catch(e){}
 try{

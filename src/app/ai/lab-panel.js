@@ -1,6 +1,6 @@
 import { state } from "../state.js";
 import { flagEditorNode, flagPart } from "./flags.js";
-import { LAB_JUDGE, LAB_MODELS, labAgain, labJudgeNow } from "./lab.js";
+import { LAB_JUDGE, LAB_MODELS, labAgain, labJudgeNow, labWhyNot } from "./lab.js";
 import { CELL_NAME } from "../../ai-shared/prompts.ts";
 import { el } from "../core/dom.js";
 
@@ -18,10 +18,15 @@ function labState(U){
   return {runs,diff,judgeDiff,busy:L.busy};
 }
 export function labItem(){
-  if(!state.lab||!state.ui||!state.ui.lab) return null;
+  if(!state.lab||!state.ui) return null;
+  // no run for this answer (nothing written to check, or a pause): the chip is there anyway and says why
+  if(!state.ui.lab){
+    if(!state.labSample||!state.db||!state.ui.checked) return null;
+    return {key:"lab",label:"Quorum",st:"none",ic:"",body:()=>el("div",{class:"lab"},el("p",{class:"lab-h"},el("b",{text:"Quorum "}),el("span",{class:"lab-s",text:labWhyNot(state.ui)})))};
+  }
   const s=labState(state.ui);
   // the chip never opens by itself; its sign says whether the answers agree ("…" while running, "≠" when models differ from each other or from you, "=" when all agree)
-  return {key:"lab",label:"Lab",st:"none",ic:s.busy?"…":!s.runs.length?"":(s.diff||s.judgeDiff)?"≠":"=",body:()=>labNode(),
+  return {key:"lab",label:"Quorum",st:"none",ic:s.busy?"…":!s.runs.length?"":(s.diff||s.judgeDiff)?"≠":"=",body:()=>labNode(),
     onopen:()=>requestAnimationFrame(()=>{ const v=document.querySelector(".vchips"); if(v) v.scrollIntoView({block:"start"}); })};
 }
 export const mname=k=>k==="judge"?"Judge":(LAB_MODELS.find(m=>m.k===k)||{}).name||k;
@@ -32,7 +37,7 @@ function labNode(){
   const sum=L.busy?(J&&J.status==="run"?"Judge is ruling…":"Models running: "+done+" of 3 done"):"Done: "+st.runs.length+" of 3 models answered"+(jok?"; the judge ruled"+(jwhy?" ("+jwhy+")":""):st.runs.length>=2&&!(J&&J.status!=="ok")?"; all agree, no judge needed":"");
   // which models the judge sided with, from the answer numbers it was given (the order of the runs it saw)
   const sided=i=>{ const r=jok&&J.doc.recs&&J.doc.recs[i]; if(!r||!Array.isArray(r.right)||!J.doc.order) return null; const ids=r.right.map(n=>J.doc.order[n-1]).filter(Boolean); return LAB_MODELS.filter(m=>ids.some(id=>id.endsWith("_"+m.k))).map(m=>m.k); };
-  box.append(el("p",{class:"lab-h"},el("b",{text:"Lab "}),el("span",{class:"lab-s",text:sum})));
+  box.append(el("p",{class:"lab-h"},el("b",{text:"Quorum "}),el("span",{class:"lab-s",text:sum})));
   const errs=LAB_MODELS.concat([LAB_JUDGE]).map(m=>L.runs[m.k]&&["err","bad","mismatch"].includes(L.runs[m.k].status)?m.name+": "+({err:"failed ("+L.runs[m.k].doc.error+")",bad:"unreadable reply",mismatch:"another model answered, run not counted"}[L.runs[m.k].status]):null).filter(Boolean);
   if(errs.length) box.append(el("p",{class:"status",text:errs.join(". ")+"."}));
   L.kase.things.forEach((t,i)=>{
@@ -78,6 +83,7 @@ function labNode(){
   if(!L.busy&&LAB_MODELS.some(m=>!L.runs[m.k]||L.runs[m.k].status!=="ok")) acts.append(el("button",{type:"button",class:"btn ghost",onclick:labAgain,text:"Run the missing ones again"}));
   if(!L.busy&&!(J&&J.status!=="err"&&J.status!=="bad")&&st.runs.length>=2) acts.append(el("button",{type:"button",class:"btn ghost",onclick:labJudgeNow,text:"Ask the judge"}));
   if(acts.childNodes.length) box.append(acts);
+  if(L.held) box.append(el("p",{class:"status",text:L.held}));
   box.append(el("p",{class:"note faint",text:"Tap any value to flag it. Each run is stored for the model comparison; your page verdicts are not changed by it."}));
   if(state.flagErr) box.append(el("p",{class:"status",text:state.flagErr}));
   return box;

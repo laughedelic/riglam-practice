@@ -32,6 +32,23 @@ export function saveFlag(){
 }
 function refocusFlag(id){ requestAnimationFrame(()=>{ const b=document.querySelector('[data-fid="'+id+'"]'); if(b) b.focus({preventScroll:true}); }); }
 function cancelFlag(){ const F=state.ui.flagEdit; state.ui.flagEdit=null; renderKeep(); if(F) refocusFlag(flagId(F.c)); }
+// A flag the page writes by itself where Quorum is divided about an example (src/domain/quorum.ts): one document per example, `part` "quorum", `auto` "quorum",
+// the cells in `shown` and no note. A later run on the same answer rewrites a flag that is still new; one that was reviewed or resolved stays as it is, and a deleted one comes back only if the models are run again.
+// `present`: only a flag that is still there is rewritten (what the models had flagged before is read again, and a deleted one stays deleted).
+export function autoFlags(kase,found,present){
+  if(!state.db||!found.length) return;
+  const now=new Date().toISOString();
+  for(const {thing,shown} of found){
+    const c={caseKey:kase.key,thing,part:"quorum",model:"",n:null}, id=flagId(c), had=state.flags[id];
+    if(present&&!had) continue;
+    if(had&&(had.auto!=="quorum"||had.state!=="new"||had.shown===shown)) continue;
+    /** @type {import("../types.ts").FlagDoc} */
+    const draft={id,caseKey:kase.key,thing,part:"quorum",model:"",runId:null,n:null,shown,note:"",suggest:"",pair:{a:kase.a,b:kase.b,relation:kase.relation,tab:kase.tab},auto:"quorum",at:had?had.at:now,updatedAt:now,state:"new"};
+    const doc=JSON.parse(JSON.stringify(draft));
+    state.flags[id]=doc;
+    flagWrite(id,()=>put("flags",id,doc),()=>{ if(had) state.flags[id]=had; else delete state.flags[id]; });
+  }
+}
 export function removeFlag(id){
   const had=state.flags[id]; if(!had) return; delete state.flags[id]; if(state.ui) state.ui.flagEdit=null; renderKeep(); refocusFlag(id);
   if(state.db) flagWrite(id,()=>state.db.collection("flags").doc(id).delete(),()=>{ state.flags[id]=had; });

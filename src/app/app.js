@@ -1,6 +1,6 @@
 import { state } from "./state.js";
 import { aiCase, aiFlag, decorateAns, flagId, openFlag, removeFlag, saveFlag, setFlagState } from "./ai/flags.js";
-import { LAB_MODELS, labAgain, labJudgeNow, labParse, labRef, labRuns, labSubscribe, labThings, setLab } from "./ai/lab.js";
+import { LAB_MODELS, labAgain, labJudgeNow, labParse, labRef, labRuns, labStart, labSubscribe, labThings, setLab } from "./ai/lab.js";
 import { refOf } from "./core/rel.js";
 import { favKey } from "./practice/favorites.js";
 import { advance, next } from "./practice/queue.js";
@@ -38,6 +38,7 @@ async function bootSteps(platform){
   try{ state.db=await platform.db(); }catch(e){ state.db=null; }
   waiting("the other parts of the app");
   try{ state.sample=await platform.sample(); }catch(e){ state.sample=null; }
+  try{ state.labSample=platform.lab?await platform.lab():state.sample; }catch(e){ state.labSample=null; }
   try{ state.unlock=platform.unlock?await platform.unlock():null; }catch(e){ state.unlock=null; }
   try{ state.keyHeld=platform.keyHeld?await platform.keyHeld():null; }catch(e){ state.keyHeld=null; }
   // the server may need seconds to say whether it has a tutor: the page opens first and draws again when the answer comes
@@ -83,6 +84,9 @@ async function rekey(platform){
   try{ state.unlock=platform.unlock?await platform.unlock():null; }catch(e){ state.unlock=null; }
   try{ state.keyHeld=platform.keyHeld?await platform.keyHeld():null; }catch(e){ state.keyHeld=null; }
   try{ state.tutor=platform.tutor?await platform.tutor():null; }catch(e){ state.tutor=null; }
+  try{ state.labSample=platform.lab?await platform.lab():state.sample; }catch(e){ state.labSample=null; }
+  // an answer checked before the key was taken has no Quorum run (there was no lab then): it starts now
+  if(state.labSample&&state.ui&&state.ui.checked&&state.cur) labStart(state.ui,state.cur);
   state.keyAsk=false;
   if(state.mode!=="loading") render();
 }
