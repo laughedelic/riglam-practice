@@ -43,7 +43,7 @@ describe("when Quorum is offered", () => {
   };
 
   it("is off unless QUORUM is on: health leaves it out, and the question is answered by the one model as ever", async () => {
-    expect(await health({})).toEqual({ ok: true, tutor: "on", accounts: "on" });
+    expect(await health({})).toEqual({ ok: true, tutor: "on", accounts: "on", reports: "on" });
     for (const value of [undefined, "", "off", "true", "1"]) {
       const s = await setup();
       const { res, models } = await quorum(s, { [SONNET]: [{ text: ["One model."] }] }, { env: { QUORUM: value } });
@@ -56,14 +56,14 @@ describe("when Quorum is offered", () => {
   });
 
   it("is said in health when QUORUM is on and the tutor is on, and not when the tutor is not", async () => {
-    expect(await health({ QUORUM: "on" })).toEqual({ ok: true, tutor: "on", accounts: "on", quorum: "on" });
+    expect(await health({ QUORUM: "on" })).toEqual({ ok: true, tutor: "on", accounts: "on", reports: "on", quorum: "on" });
     expect(await health({ QUORUM: "on", ANTHROPIC_API_KEY: undefined })).not.toHaveProperty("quorum");
     expect(await health({ QUORUM: "on", DB: undefined })).not.toHaveProperty("quorum");
     expect(await health({ QUORUM: "on", RIGLAM_DATA_KEY: undefined })).not.toHaveProperty("quorum");
   });
 
   it("QUORUM=optin offers it as an opt-in: health says so, and a Quorum question is answered the same way", async () => {
-    expect(await health({ QUORUM: "optin" })).toEqual({ ok: true, tutor: "on", accounts: "on", quorum: "optin" });
+    expect(await health({ QUORUM: "optin" })).toEqual({ ok: true, tutor: "on", accounts: "on", reports: "on", quorum: "optin" });
     expect(await health({ QUORUM: "optin", ANTHROPIC_API_KEY: undefined })).not.toHaveProperty("quorum");
     expect(await health({ QUORUM: "optin", DB: undefined })).not.toHaveProperty("quorum");
     for (const QUORUM of ["off", "yes", "", " "]) expect(await health({ QUORUM })).not.toHaveProperty("quorum");

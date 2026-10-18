@@ -10,6 +10,8 @@ export const state = {
   LABELIDX: {},
   db: null,
   sample: null,
+  reports: null, // sends flags to the app's server (platform.reports), when the place has a server for them and this device has the Magic Key
+  withdrawLater: null, // keeps the removal of a flag for a later start that has `reports` (platform.withdrawReport)
   account: null, // optional sign-in with a server copy of the documents (platform.account), when the place has one
   acct: {},      // the same for the Account row (src/ui/account.ts)
   xfer: {},      // what the "Your data" row of Options keeps between renders (src/ui/data-transfer.ts)

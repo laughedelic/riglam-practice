@@ -14,8 +14,10 @@ export const KEY_STORE = "riglam.magicKey";
 /**
  * Stands in for GET /api/course: the real definitions to a request whose proof was made with `key`, not_granted to any other.
  * `calls` collects the requests (their `have` query and whether the proof fitted). `version` is what the server says it holds.
+ * `stub` serves no definitions at all in a run that has no course data, so that the key still fits: for a spec about something that
+ * needs a device with the key but not the definitions (the flags).
  */
-export async function serveCourse(page, key = dataKey, { version = "v1" } = {}) {
+export async function serveCourse(page, key = dataKey, { version = "v1", stub = false } = {}) {
   const calls = [];
   await page.route("**/api/course**", async (route) => {
     const request = route.request();
@@ -25,9 +27,19 @@ export async function serveCourse(page, key = dataKey, { version = "v1" } = {}) 
     calls.push({ have, fits });
     const json = (status, body) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
     if (!fits) return json(401, { error: { code: "not_granted", message: "the Magic Key does not match" } });
-    if (!withCourse) return json(503, { error: { code: "unavailable", message: "no course data in this run" } });
+    if (!withCourse && !stub) return json(503, { error: { code: "unavailable", message: "no course data in this run" } });
     if (have === version) return json(200, { version, unchanged: true });
-    return json(200, { version, definitions: readParts().definitions });
+    return json(200, { version, definitions: withCourse ? readParts().definitions : {} });
   });
   return calls;
+}
+
+/** Puts the Magic Key on the device before the page starts, and a stand-in server that accepts it also where the run has no course data. */
+export async function giveKey(page) {
+  await page.addInitScript(([store, key]) => {
+    try {
+      localStorage.setItem(store, key);
+    } catch { /* storage unavailable */ }
+  }, [KEY_STORE, dataKey]);
+  return serveCourse(page, dataKey, { stub: true });
 }

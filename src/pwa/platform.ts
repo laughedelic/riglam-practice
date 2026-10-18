@@ -7,6 +7,7 @@
 //   unlock  a way to enter the Magic Key, while this device has none (./unlock.ts); the definitions come from the server (./course.ts)
 //   keyHeld while it has one: enter another, or forget it (./unlock.ts)
 //   tutor   the app's own server (./tutor.ts), when it has the tutor on and this device has the Magic Key
+//   reports flags sent to the app's own server (./reports.ts), when it takes them and this device has the Magic Key
 //   account optional sign-in with a passkey and a server copy of the documents (./account.ts), when the server has accounts on
 //   updates the service worker's new versions: checked in the background, started from the banner or Options (./updates.ts)
 import dataUrl from "../data/drill-data.json?url";
@@ -20,6 +21,7 @@ import { updates } from "./updates";
 import { showStorageNotice } from "./storage-notice";
 import { storeName } from "./store-slot";
 import { createLocalDb } from "./local-db";
+import { createReports, withdrawLater } from "./reports";
 import { createTutor, serverSays, type ServerSays } from "./tutor";
 import { takeLinkKey, storedKey, storeKey, forgetKey, keyDeclined, declineKey, allowKey, showUnlock, markKeyChanged, takeKeyChanged, KEY_CHANGED_TEXT } from "./unlock";
 
@@ -27,7 +29,7 @@ const db = createLocalDb({ name: storeName(), onUnavailable: showStorageNotice }
 const link = takeLinkKey(); // first of all: a key in the address leaves the address bar at once
 let openUnlock: (() => Promise<boolean>) | null = null; // asks for the key again; set while this device has none
 let groupKey: string | null = null; // the Magic Key, once it is known to fit (or kept with the definitions): the proof for the tutor is made with it
-let serverAnswer: Promise<ServerSays> | null = null; // what the server says in /api/health: asked once, for the tutor, the grayed Explain button and Quorum
+let serverAnswer: Promise<ServerSays> | null = null; // what the server says in /api/health: asked once, for the tutor, the grayed Explain button, Quorum and the flag reports
 const serverSaid = () => (serverAnswer ??= serverSays());
 const tutorIsOn = async () => (await serverSaid()).tutor;
 const quorumOffered = async () => (await serverSaid()).quorum;
@@ -183,6 +185,9 @@ export const pwaPlatform: Platform = {
   about: () => aboutThisBuild(),
   updates,
   tutor: async () => (groupKey && (await tutorIsOn()) ? createTutor(groupKey) : null),
+  // Only with the key, like the tutor, and only when the server says it takes reports: otherwise flags stay on the device.
+  reports: async () => (groupKey && (await serverSaid()).reports ? createReports(groupKey) : null),
+  withdrawReport: withdrawLater,
   quorum: async () => (groupKey ? await quorumOffered() : false),
   // Made on first ask and then kept; it finds out for itself whether the server has accounts, so the page can show its row at once.
   account: async () => (account ??= createPwaAccount(db, { read: () => groupKey ?? storedKey(), adopt: takeAccountKey, declined: keyDeclined, allow: allowKey })),

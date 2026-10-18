@@ -1,6 +1,6 @@
 // The seam between the page and the place it runs in. The page (src/app) is started with a `Platform` and asks it
 // for everything it cannot do itself: its term data, the two capabilities of the Claude artifact runtime, `db`
-// (a document store) and `sample` (one model call), and `tutor`, a question to the app's own server. Each build supplies its own adapter (src/pwa/platform.ts,
+// (a document store) and `sample` (one model call), `tutor`, a question to the app's own server, and `reports`, flags sent to it. Each build supplies its own adapter (src/pwa/platform.ts,
 // src/artifact/platform.ts); the tests supply a mock. A capability the place cannot provide is `null` and the page
 // hides the features that need it.
 
@@ -8,7 +8,8 @@
 import type { DrillData } from "../ai-shared/data";
 import type { QuorumOffer, QuorumRecord, TutorRequest } from "../ai/protocol";
 import type { Account, AccountView } from "../account/account";
-export type { DrillData, Account, AccountView };
+import type { FlagReport } from "../report/protocol";
+export type { DrillData, Account, AccountView, FlagReport };
 
 /** A stored document: a plain JSON object. */
 export type Doc = Record<string, any>;
@@ -124,6 +125,18 @@ export interface TutorResult extends SampleResult {
 export type Tutor = (request: TutorRequest, options?: TutorOptions) => Promise<TutorResult>;
 
 /**
+ * The `reports` capability: a learner's flag goes to the app's server with the stored answer it was made on
+ * (src/report/protocol.ts). The place has it only when its server takes reports and this device has the Magic Key.
+ * No method rejects. `send` resolves with the ids the server now holds (fewer than asked when it could not be reached or
+ * refused). `withdraw` keeps the id on the device until the server has taken the report back; `flush` tries again.
+ */
+export interface Reports {
+  send(reports: FlagReport[]): Promise<string[]>;
+  withdraw(id: string): Promise<void>;
+  flush(): Promise<void>;
+}
+
+/**
  * `open` shows the prompt for the Magic Key; `tutor` says that the place has a tutor that is waiting for it (so the page shows Explain grayed).
  * When the server needs time to say so, `tutor` starts false and `answer` settles with the real value: the page does not wait for it,
  * sets `tutor` when it arrives and draws again.
@@ -187,6 +200,10 @@ export interface Platform {
   onKey?(tell: () => void | Promise<void>): () => void;
   /** The app's own tutor, or null (or absent) when the place has none or the server has it switched off. The page uses `sample` first when it has one. */
   tutor?(): Promise<Tutor | null>;
+  /** Sending flags to the app's server, or null (or absent) when the place has no server for them or this device lacks the Magic Key (flags then stay on the device). */
+  reports?(): Promise<Reports | null>;
+  /** Keeps the id of a flag removed while `reports` gave null (offline at the start, no key), so that a later start that has it takes the report back from the server. */
+  withdrawReport?(id: string): void;
   /** What the app's server offers this device of Quorum, the tutor's mode of several models and a judge (docs/SERVER.md): "on" (a Preview: on until the device turns it off), "optin" (off until the device turns it on), or false. Absent: the page has no Quorum. */
   quorum?(): Promise<QuorumOffer>;
   /** The optional account (a passkey and a server copy of the documents, src/account), or null (or absent) when the place has none. The page works the same without. */

@@ -3,6 +3,7 @@ import { flagEditorNode, openFlag, removeFlag, setFlagState } from "../ai/flags.
 import { mname } from "../ai/quorum-panel.js";
 import { fillAns } from "../ai/tutor.js";
 import { el } from "../core/dom.js";
+import { isSent } from "../ai/flag-reports.js";
 import { dayOf } from "../core/util.js";
 import { flagAnswerRef, flagStateText, flaggedPart } from "../../domain/flags.ts";
 import { exerciseNode, noteContext } from "./exercise.js";
@@ -27,7 +28,7 @@ function flagItem(f){
   const pair=f.pair?f.pair.a+" / "+f.pair.b:doc?doc.a+" / "+doc.b:"A flag";
   return el("li",{class:f.state},el("details",{open:openFlags.has(f.id)||editing,ontoggle:e=>{ if(e.target.open) openFlags.add(f.id); else openFlags.delete(f.id); }},
     el("summary",null,el("span",{class:"m","aria-hidden":"true"},el("span",{class:"flg"})),
-      el("span",null,pair,el("span",{class:"sub",text:what+" · "+flagStateText(f.state)+" · "+dayOf(f.at)}))),
+      el("span",null,pair,el("span",{class:"sub",text:what+" · "+flagStateText(f.state,state.reports?isSent(f):undefined)+" · "+dayOf(f.at)}))),
     el("div",{class:"fbody"},
       el("div",{class:"fsaid"},el("p",{class:"clh",text:what}),f.asked?el("p",{class:"q",text:f.asked}):null,said),
       f.note?el("p",{class:"note"},el("b",{text:"Your note: "}),f.note):null,
@@ -38,13 +39,13 @@ function flagItem(f){
         marks&&f.state==="new"?el("button",{type:"button",class:"btn ghost",onclick:()=>setFlagState(f.id,"reviewed"),text:"Reviewed"}):null,
         marks&&f.state!=="resolved"?el("button",{type:"button",class:"btn ghost",onclick:()=>setFlagState(f.id,"resolved"),text:"Resolved"}):null,
         el("button",{type:"button",class:"btn ghost",onclick:()=>{ openFlags.delete(f.id); removeFlag(f.id); },text:"Delete"}),
-        state.ui&&!editing&&!auto?el("button",{type:"button","data-fid":f.id,class:"btn",onclick:()=>{ openFlags.add(f.id); openFlag(caseOf(f,what),where); },text:"Edit"}):null))));
+        state.ui&&!editing&&!auto?el("button",{type:"button","data-fid":f.id,class:state.unlock?"btn ghost needs-key":"btn",title:state.unlock?"Flagging needs the Magic Key":null,onclick:()=>{ openFlags.add(f.id); openFlag(caseOf(f,what),where); },text:"Edit"}):null))));
 }
 export function flagSection(box){
   if(!state.db) return;
   const list=Object.values(state.flags).sort(byNewest), nNew=list.filter(f=>f.state==="new").length;
   const sec=el("div",{class:"section"},el("p",{class:"label"},"Flags",el("span",{class:"hint",text:list.length?list.length+" flagged"+(nNew&&nNew<list.length?", "+nNew+" not reviewed":""):"none yet"})));
-  if(!list.length) sec.append(el("p",{class:"empty-note",text:"Tap the flag on anything Claude wrote to say what is wrong with it. Your flags stay here with the exercise they were made on."}));
+  if(!list.length) sec.append(el("p",{class:"empty-note",text:"Tap the flag on anything Claude wrote to say what is wrong with it. Your flags stay here with the exercise they were made on"+(state.reports?", and each is sent to the app’s maintainer.":".")}));
   else sec.append(el("ul",{class:"favs flags"},list.map(flagItem)));
   if(state.flagErr) sec.append(el("p",{class:"status",text:state.flagErr}));
   box.append(sec);

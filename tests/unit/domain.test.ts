@@ -7,7 +7,7 @@ import { expect, test } from "vitest";
 import { CELLS, REL, makeIndex, refOf } from "../../src/ai-shared";
 import type { CellId, DrillData, RelKey } from "../../src/ai-shared";
 import {
-  FEATURE, RECENT_MAX, applyVerdicts, decideFlag, flagAnswerRef, flagAsked, flagStateText, flaggedPart, factNote, fitOf, noteParts, buildPool, cellsFor, chooseEntry, deriveRel, grade, gradeDebate, gradeOf, inUniverse, isMiss, judgeText, makePair,
+  FEATURE, RECENT_MAX, AUTO_FLAGS, applyVerdicts, autoFlagOf, decideFlag, factNote, fitOf, flagAnswerRef, flagAsked, flagStateText, flaggedPart, noteParts, buildPool, cellsFor, chooseEntry, deriveRel, grade, gradeDebate, gradeOf, inUniverse, isMiss, judgeText, makePair,
   nextPair, pairKey, parseFactLine, parseVerdicts, pick, relOfCells, summarize, termLine, cellFor, cellOfFacts, disputeText, divided, quorumDisputes, quorumRows, readings,
 } from "../../src/domain";
 import type { DebateInput, GradeDraft, HistoryEntry, Pair, PoolEntry } from "../../src/domain";
@@ -629,6 +629,12 @@ test("a flag says in words what it is on", () => {
   expect(flaggedPart({ part: "chat", n: "3" })).toBe("Claude’s answer in the chat");
   expect(flaggedPart({ part: "verdict", thing: "a pot", model: "m1" }, (id) => id.toUpperCase())).toBe("“a pot” · M1 · verdict");
   expect([flagStateText("new"), flagStateText(undefined), flagStateText("reviewed"), flagStateText("resolved")]).toEqual(["Not reviewed yet", "Not reviewed yet", "Reviewed", "Resolved"]);
+});
+
+test("a flag written by a program is told from a hand-made one by a name the app knows", () => {
+  expect(AUTO_FLAGS).toEqual(["quorum"]);
+  expect(autoFlagOf({ auto: "quorum", part: "quorum" })).toBe("quorum");
+  for (const flag of [{}, { auto: "" }, { auto: "other" }, { auto: true }, { auto: ["quorum"] }, { auto: "Quorum" }, { note: "auto: quorum" }]) expect(autoFlagOf(flag)).toBeNull();
 });
 
 test("a flag on a chat answer keeps the question it answered", () => {

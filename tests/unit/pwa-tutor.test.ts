@@ -234,15 +234,18 @@ describe("tutorIsOn", () => {
     expect(await quorumOffer((async () => { throw new TypeError("offline"); }) as unknown as typeof fetch)).toBe(false);
   });
 
-  it("says what the server says of the tutor and of Quorum from one request", async () => {
+  it("says what the server says of the tutor, Quorum and flag reports from one request", async () => {
     let asked = 0;
     const once = (body: unknown) => (async () => (asked++, json(200, body))) as unknown as typeof fetch;
-    expect(await serverSays(once({ ok: true, tutor: "on", quorum: "on" }))).toEqual({ tutor: true, quorum: "on" });
-    expect(await serverSays(once({ ok: true, tutor: "on" }))).toEqual({ tutor: true, quorum: false });
-    expect(await serverSays(once({ ok: true, tutor: "off", quorum: "on" }))).toEqual({ tutor: false, quorum: false });
-    expect(await serverSays(once({ ok: false, tutor: "on", quorum: "on" }))).toEqual({ tutor: false, quorum: false });
-    expect(asked).toBe(4);
-    expect(await serverSays((async () => { throw new TypeError("offline"); }) as unknown as typeof fetch)).toEqual({ tutor: false, quorum: false });
+    expect(await serverSays(once({ ok: true, tutor: "on", quorum: "on" }))).toEqual({ tutor: true, quorum: "on", reports: false });
+    expect(await serverSays(once({ ok: true, tutor: "on" }))).toEqual({ tutor: true, quorum: false, reports: false });
+    expect(await serverSays(once({ ok: true, tutor: "off", quorum: "on" }))).toEqual({ tutor: false, quorum: false, reports: false });
+    expect(await serverSays(once({ ok: false, tutor: "on", quorum: "on" }))).toEqual({ tutor: false, quorum: false, reports: false });
+    // flag reports are told apart from the tutor: a server can take flags with its tutor off
+    expect(await serverSays(once({ ok: true, tutor: "off", reports: "on" }))).toEqual({ tutor: false, quorum: false, reports: true });
+    expect(await serverSays(once({ ok: false, reports: "on" }))).toMatchObject({ reports: false });
+    expect(asked).toBe(6);
+    expect(await serverSays((async () => { throw new TypeError("offline"); }) as unknown as typeof fetch)).toEqual({ tutor: false, quorum: false, reports: false });
   });
 
   it("is false for an answer that is not JSON (a static host with no server)", async () => {

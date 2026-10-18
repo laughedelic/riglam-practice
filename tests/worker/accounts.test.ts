@@ -639,6 +639,6 @@ describe("when accounts are off", () => {
   it("does not stop the tutor, nor does the tutor's switch stop accounts", async () => {
     const w = await world();
     w.db.sql("INSERT INTO settings (key, value) VALUES ('tutor', 'off') RETURNING key");
-    expect(await json(await w.call("/api/health"))).toEqual({ ok: true, tutor: "off", accounts: "on" });
+    expect(await json(await w.call("/api/health"))).toEqual({ ok: true, tutor: "off", accounts: "on", reports: "on" });
   });
 });

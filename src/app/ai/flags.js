@@ -1,5 +1,6 @@
 import { state } from "../state.js";
 import { mname } from "./quorum-panel.js";
+import { flagTurn, flushFlags, sendFlags, withdrawFlag } from "./flag-reports.js";
 import { $, el } from "../core/dom.js";
 import { flagAsked } from "../../domain/flags.ts";
 import { typingEl } from "../core/viewport.js";
@@ -11,15 +12,15 @@ import { render } from "../shell/render.js";
 // a flag is one document per part: {caseKey, thing, part, model, shown, asked, note, suggest, state}; it can be changed or removed, and it is the labeled data for the model comparison.
 // It keeps what Claude said in full (up to SHOWN_MAX), and for an answer in the chat the question it answered, so Review can show the flag with its whole exchange.
 const SHOWN_MAX=2000;
-export const flagQ={};     // the writes of one flag, in order
 export const hash36=s=>{ let h=5381; s=String(s); for(let i=0;i<s.length;i++) h=((h<<5)+h+s.charCodeAt(i))|0; return (h>>>0).toString(36); };
 // the flags of the database, kept up to date; a flag write in flight keeps the snapshot from replacing what the page just changed
 export function flagsSubscribe(){
   try{
     state.db.collection("flags").orderBy("updatedAt","desc").limit(300).onSnapshot(snap=>{
       if(state.flagPending) return;
-      /** @type {Record<string, any>} */ const m={}; snap.docs.forEach(d=>{m[d.id]=d.data();}); const same=JSON.stringify(Object.keys(m).sort().map(k=>[k,m[k].state,m[k].updatedAt]))===JSON.stringify(Object.keys(state.flags).sort().map(k=>[k,state.flags[k].state,state.flags[k].updatedAt]));
+      /** @type {Record<string, any>} */ const m={}; snap.docs.forEach(d=>{m[d.id]=d.data();}); const same=JSON.stringify(Object.keys(m).sort().map(k=>[k,m[k].state,m[k].updatedAt,m[k].sentAt||null]))===JSON.stringify(Object.keys(state.flags).sort().map(k=>[k,state.flags[k].state,state.flags[k].updatedAt,state.flags[k].sentAt||null]));
       state.flags=m; if(!same&&state.tab==="review"&&state.mode!=="loading"&&!typingEl(document.activeElement)) render();
+      flushFlags();                    // flags that were not sent yet (this device had no way, or none that worked) go now
     },()=>{});
   }catch(e){}          // flags are optional: a failing subscription must never stop the page from starting
 }
@@ -28,11 +29,14 @@ export const flagId=c=>c.id||"fl_"+favSafe(c.caseKey).slice(0,60)+"_"+hash36([c.
 const flagOf=c=>state.flags[flagId(c)];
 // a render that keeps the chat view where it is scrolled (the overlay is rebuilt and would start at the top again)
 function renderKeep(){ const sc=$("chatscroll"), y=sc?sc.scrollTop:0; render(); const n=$("chatscroll"); if(n&&y) n.scrollTop=y; }
+// a write of one flag, in turn with its others (flagTurn, ai/flag-reports.js); one that fails is undone and says so
 function flagWrite(k,fn,undo){
-  state.flagErr=""; state.flagPending++;
-  flagQ[k]=(flagQ[k]||Promise.resolve()).catch(()=>{}).then(fn).catch(e=>{ undo(); state.flagErr="The flag could not be saved ("+((e&&e.code)||"error")+"), so it was undone."; renderKeep(); }).finally(()=>{ state.flagPending--; });
+  state.flagErr="";
+  return flagTurn(k,fn,e=>{ undo(); state.flagErr="The flag could not be saved ("+((e&&e.code)||"error")+"), so it was undone."; renderKeep(); });
 }
+// A device without the Magic Key cannot flag (flags go to the app's maintainer, and only the study group's devices may write to it): it gets the same prompt as Explain
 export function openFlag(c,where){
+  if(state.unlock){ state.unlock.open(); return; }
   const had=flagOf(c); state.ui.flagEdit={c,where,note:had?had.note||"":"",suggest:had?had.suggest||"":""}; renderKeep();
   requestAnimationFrame(()=>{ const t=$("flag-note"); if(t){ t.focus({preventScroll:true}); const e=t.closest(".flagedit"); (e||t).scrollIntoView({block:"nearest"}); } });
 }
@@ -44,7 +48,10 @@ export function saveFlag(){
     asked:F.c.asked?String(F.c.asked).slice(0,600):undefined,note:F.note.trim().slice(0,800),suggest:F.suggest.trim().slice(0,300),pair:F.c.pair||null,at:had?had.at:now,updatedAt:now,state:had?had.state:"new"};
   const doc=JSON.parse(JSON.stringify(draft)); // without the undefined fields
   state.flags[id]=doc; state.ui.flagEdit=null; renderKeep(); refocusFlag(id);
-  if(state.db) flagWrite(id,()=>put("flags",id,doc),()=>{ if(had) state.flags[id]=had; else delete state.flags[id]; });
+  if(state.db){
+    const written=flagWrite(id,()=>put("flags",id,doc),()=>{ if(had) state.flags[id]=had; else delete state.flags[id]; });
+    if(state.reports) written.then(()=>sendFlags([id]));
+  }
 }
 function refocusFlag(id){ requestAnimationFrame(()=>{ const b=document.querySelector('[data-fid="'+id+'"]'); if(b) b.focus({preventScroll:true}); }); }
 function cancelFlag(){ const F=state.ui.flagEdit; state.ui.flagEdit=null; renderKeep(); if(F) refocusFlag(flagId(F.c)); }
@@ -66,7 +73,9 @@ export function autoFlags(kase,found){
 }
 export function removeFlag(id){
   const had=state.flags[id]; if(!had) return; delete state.flags[id]; if(state.ui) state.ui.flagEdit=null; renderKeep(); refocusFlag(id);
-  if(state.db) flagWrite(id,()=>state.db.collection("flags").doc(id).delete(),()=>{ state.flags[id]=had; });
+  // the report is taken back once the local flag is gone; a deletion that fails is undone, and then the server keeps the report it has of the flag that is back
+  if(state.db) flagWrite(id,async()=>{ await state.db.collection("flags").doc(id).delete(); withdrawFlag(id); },()=>{ state.flags[id]=had; });
+  else withdrawFlag(id);
 }
 export function setFlagState(id,to){
   const had=state.flags[id]; if(!had) return; const doc=Object.assign({},had,{state:to,updatedAt:new Date().toISOString()}); state.flags[id]=doc; renderKeep();
@@ -84,6 +93,7 @@ export function flagEditorNode(where){
   return el("div",{class:"flagedit",role:"group","aria-label":"Flag"},
     el("p",{class:"fh"},el("span",{class:"flg","aria-hidden":"true"}),el("b",{text:had?"Flagged: ":"Flag: "}),el("span",{class:"fv",text:nm})),
     note,sug,
+    state.reports?el("p",{class:"fnote",text:"Submit sends this flag and the exercise it is on to the app’s maintainer."}):null,
     el("div",{class:"fa"},el("button",{type:"button",class:"btn",onclick:saveFlag,text:"Submit"}),
       el("button",{type:"button",class:"btn ghost",onclick:cancelFlag,text:"Cancel"}),
       had?el("button",{type:"button",class:"back",onclick:()=>removeFlag(flagId(F.c)),text:"Remove flag"}):null));
@@ -107,7 +117,7 @@ export function aiFlag(c,where,word){
   if(!state.db||!state.ui||!state.cur||!state.cur.p) return null;
   const on=!!flagOf(c), F=state.ui.flagEdit, active=!!(F&&flagId(F.c)===flagId(c));
   return el("button",{type:"button","data-fid":flagId(c),class:"aiflag"+(word?" wd":"")+(on?" flagged":"")+(active?" active":""),"aria-pressed":on?"true":"false",
-    "aria-label":(on?"Flagged: ":"Flag ")+c.partLabel,title:on?"Flagged. Tap to change":"Flag "+c.partLabel,onclick:e=>{ e.stopPropagation(); openFlag(c,where); }},
+    "aria-label":(on?"Flagged: ":"Flag ")+c.partLabel,title:state.unlock?"Flagging needs the Magic Key":on?"Flagged. Tap to change":"Flag "+c.partLabel,onclick:e=>{ e.stopPropagation(); openFlag(c,where); }},
     el("span",{class:"flg","aria-hidden":"true"}),word?el("span",{class:"fw",text:on?"Flagged":"Flag"}):null);
 }
 // one answer of Claude in the Why panel (explain turn) or the chat: the flag first, so it floats to the top-right, and the editor last

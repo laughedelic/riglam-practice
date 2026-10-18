@@ -5,6 +5,7 @@
 //                      for Quorum, several models and a judge (worker/quorum.ts)
 //   /api/account/*     optional accounts, signed in with a passkey (worker/accounts.ts)
 //   POST /api/sync     the server copy of a signed-in person's documents (worker/sync.ts)
+//   POST /api/flags    reports of learners' flags, from any device (worker/reports.ts)
 // Everything else the Worker is asked for is the static site, which the platform serves itself; only /api/* reaches this code.
 
 import Anthropic from "@anthropic-ai/sdk";
@@ -18,6 +19,7 @@ import { readCourseRows, usableDefinitions } from "./course";
 import type { Env } from "./env";
 import type { Kit } from "./kit";
 import { callerOf, gate, magicKeyOf, type Gate } from "./magic";
+import { reportRoutes, reportsOn } from "./reports";
 import { runQuorum, saveRecord } from "./quorum";
 import { syncRoutes } from "./sync";
 import { parseRequest, runTutor } from "./tutor";
@@ -68,7 +70,13 @@ export function createApp(deps: Deps) {
     const tutor = await ready(c.env);
     // Quorum is a mode of the tutor, so it is offered where the tutor is on and this server is set to (a Preview)
     const offered = readQuorumConfig(c.env);
-    const body: Health = { ok: true, tutor: tutor ? "on" : "off", accounts: (await accountsOn(c.env.DB)) ? "on" : "off", ...(tutor && offered.on ? { quorum: offered.optIn ? ("optin" as const) : ("on" as const) } : {}) };
+    const body: Health = {
+      ok: true,
+      tutor: tutor ? "on" : "off",
+      accounts: (await accountsOn(c.env.DB)) ? "on" : "off",
+      reports: (await reportsOn(c.env.DB)) ? "on" : "off",
+      ...(tutor && offered.on ? { quorum: offered.optIn ? ("optin" as const) : ("on" as const) } : {}),
+    };
     return c.json(body, 200, { "cache-control": "no-store" });
   });
 
@@ -167,6 +175,7 @@ export function createApp(deps: Deps) {
 
   app.route("/", accountRoutes({ now }));
   app.route("/", syncRoutes({ now }));
+  app.route("/", reportRoutes({ now }));
 
   app.all("/api/*", (c) => c.json({ error: { code: "not_found", message: "no such endpoint" } }, 404));
   // The site itself is served by the platform; this only catches a request that reached the Worker by mistake.

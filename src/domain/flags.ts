@@ -20,6 +20,16 @@ export interface FlagRef {
 export type AnswerCol = "answers" | "debates";
 
 /**
+ * Flags a program writes, not a learner (`auto` in the flag document, src/app/ai/flags.js). Quorum's is the only one so far: the
+ * models that explained one example disagreed. They are sent to the app's server like the others but counted on their own, so they
+ * cannot use up the day's hand-made flags, and the models do not review them (docs/SERVER.md, "Flag reports"). A value not listed
+ * here makes a flag an ordinary one, so a device cannot give itself the allowance of an automatic flag by naming one that does not exist.
+ */
+export const AUTO_FLAGS = ["quorum"] as const;
+export type AutoFlag = (typeof AUTO_FLAGS)[number];
+export const autoFlagOf = (flag: object): AutoFlag | null => AUTO_FLAGS.find((a) => a === (flag as { auto?: unknown }).auto) ?? null;
+
+/**
  * The stored answer a flag was made on. A flag's case key is the collection and the id of the answer on screen
  * ("answers_r-mv9q", "debates_q-mv9q"); the flags Quorum raises by itself use the same key. A key that names no collection gives null,
  * and an answer that was never saved is simply not found under the id.
@@ -56,9 +66,14 @@ export function flaggedPart(f: FlagRef, modelName: (id: string) => string = (id)
 export const flagAsked = (turn: { role?: string; content?: string; hidden?: boolean; asked?: string } | null | undefined): string | null =>
   !turn || turn.role !== "user" ? null : turn.asked || (turn.hidden ? null : turn.content || null);
 
-/** A flag's state in words. "new" is every flag nobody has looked at yet. */
-export function flagStateText(state: string | undefined): string {
-  return state === "reviewed" ? "Reviewed" : state === "resolved" ? "Resolved" : "Not reviewed yet";
+/**
+ * A flag's state in words. "new" is every flag nobody has looked at yet; where flags are sent to the maintainer, `sent` says whether
+ * this one has been (undefined where they are not).
+ */
+export function flagStateText(state: string | undefined, sent?: boolean): string {
+  if (state === "reviewed") return "Reviewed";
+  if (state === "resolved") return "Resolved";
+  return sent === undefined ? "Not reviewed yet" : sent ? "Sent to the maintainer" : "Waiting to be sent";
 }
 
 /**
