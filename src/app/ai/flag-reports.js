@@ -2,7 +2,7 @@ import { state } from "../state.js";
 import { typingEl } from "../core/viewport.js";
 import { put } from "../practice/answers.js";
 import { render } from "../shell/render.js";
-import { flagAnswerRef } from "../../domain/flags.ts";
+import { autoFlagOf, flagAnswerRef } from "../../domain/flags.ts";
 
 /* ---------- reports: a flag goes to the app's server ---------- */
 // Where the place has a server for flags and this device has the Magic Key (platform.reports), a flag is sent to the app's maintainer
@@ -64,7 +64,8 @@ export async function flushFlags(){
   state.reportBusy=true;
   try{
     await R.flush();
-    const todo=Object.keys(state.flags).filter(id=>!isSent(state.flags[id])).sort((x,y)=>(state.flags[x].updatedAt||"").localeCompare(state.flags[y].updatedAt||"")).slice(0,20);
+    const waiting=Object.keys(state.flags).filter(id=>!isSent(state.flags[id])).sort((x,y)=>(state.flags[x].updatedAt||"").localeCompare(state.flags[y].updatedAt||""));
+    const todo=[...waiting.filter(id=>!autoFlagOf(state.flags[id])).slice(0,20),...waiting.filter(id=>autoFlagOf(state.flags[id])).slice(0,50)];
     if(todo.length) await sendFlags(todo);
   }catch(e){ /* tried again at the next start */ }
   finally{ state.reportBusy=false; }

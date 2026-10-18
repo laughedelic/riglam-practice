@@ -187,6 +187,17 @@ describe("reports that need no model", () => {
     expect(w.db.sql("SELECT * FROM budget")).toEqual([]);
   });
 
+  it("a flag a program wrote (Quorum's) is the maintainer's from the start: no pass asks a model about it, and the sender reads that it is with the maintainer", async () => {
+    const w = await world();
+    await sendAll(w, report("fl_a", { auto: "quorum", part: "quorum", note: "", shown: "The models gave different cells." }), report("fl_b"));
+    expect(row(w, "fl_a")).toMatchObject({ state: "maintainer", outcome: "escalate", attempts: 0, claimed_at: null });
+    const api = both(says());
+    expect(await pass(w, api)).toEqual({ done: 1, retried: 0 });
+    expect(api.calls(SONNET)).toHaveLength(1); // the learner's flag only
+    expect(row(w, "fl_a")).toMatchObject({ state: "maintainer", reviews: null, attempts: 0 });
+    expect(await json(await ask(w, ["fl_a"]))).toMatchObject({ status: [{ id: "fl_a", state: "maintainer" }] });
+  });
+
   it("a kit that cannot make the request is the same as an exercise that cannot be read", async () => {
     const w = await world();
     await send(w, report("fl_a"));
