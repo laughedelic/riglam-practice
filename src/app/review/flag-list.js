@@ -39,7 +39,7 @@ function flagItem(f){
         marks&&f.state==="new"?el("button",{type:"button",class:"btn ghost",onclick:()=>setFlagState(f.id,"reviewed"),text:"Reviewed"}):null,
         marks&&f.state!=="resolved"?el("button",{type:"button",class:"btn ghost",onclick:()=>setFlagState(f.id,"resolved"),text:"Resolved"}):null,
         el("button",{type:"button",class:"btn ghost",onclick:()=>{ openFlags.delete(f.id); removeFlag(f.id); },text:"Delete"}),
-        state.ui&&!editing&&!auto?el("button",{type:"button",class:state.unlock?"btn ghost needs-key":"btn",title:state.unlock?"Flagging needs the Magic Key":null,onclick:()=>{ openFlags.add(f.id); openFlag(caseOf(f,what),where); },text:"Edit"}):null))));
+        state.ui&&!editing&&!auto?el("button",{type:"button","data-fid":f.id,class:state.unlock?"btn ghost needs-key":"btn",title:state.unlock?"Flagging needs the Magic Key":null,onclick:()=>{ openFlags.add(f.id); openFlag(caseOf(f,what),where); },text:"Edit"}):null))));
 }
 export function flagSection(box){
   if(!state.db) return;
