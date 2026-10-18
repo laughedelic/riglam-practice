@@ -38,7 +38,8 @@ async function answerFor(f){
 }
 export const sendFlags=ids=>inOrder(()=>sendNow(ids));
 async function sendNow(ids){
-  const R=state.reports; if(!R) return;
+  // not while a write of a flag is pending: its optimistic document would go, and if the write then fails and is undone the server would keep a flag the device does not have (the last write to end runs the flush)
+  const R=state.reports; if(!R||state.flagPending) return;
   const flags=ids.filter(id=>state.flags[id]&&!isSent(state.flags[id])).map(id=>Object.assign({},state.flags[id],{id}));
   const items=[];
   for(const f of flags){ const answer=await answerFor(f); if(answer!==undefined) items.push({id:f.id,flag:f,answer}); }
