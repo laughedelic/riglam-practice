@@ -79,6 +79,28 @@ async function digestOf(r: FlagReport): Promise<string> {
   return [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))].slice(0, 12).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+/**
+ * A report stored before the review existed (migration 0006) has no digest, and without one "the same words" cannot be told from changed ones: sent again, it would lose its reply and
+ * be reviewed once more. The digest is worked out from what the row holds (what it was made of when the report was sent) for the reports of this sender and its account that are
+ * being sent again. A row that cannot be read is left as it is.
+ */
+async function backfillDigests(db: D1Database, ids: string[], device: string, user: string | null): Promise<void> {
+  const marks = ids.map((_, i) => `?${i + 3}`).join(", ");
+  const old = await db
+    .prepare(`SELECT device, id, flag, answer FROM flag_reports WHERE digest IS NULL AND id IN (${marks}) AND (device = ?1 OR (user_id IS NOT NULL AND user_id = ?2))`)
+    .bind(device, user, ...ids)
+    .all<{ device: string; id: string; flag: string; answer: string | null }>();
+  for (const o of old.results) {
+    let digest: string;
+    try {
+      digest = await digestOf({ id: o.id, flag: JSON.parse(o.flag), answer: o.answer === null ? null : JSON.parse(o.answer) });
+    } catch {
+      continue;
+    }
+    await db.prepare("UPDATE flag_reports SET digest = ?3 WHERE device = ?1 AND id = ?2 AND digest IS NULL").bind(o.device, o.id, digest).run();
+  }
+}
+
 const STATES: readonly ReportState[] = ["sent", "answered", "maintainer", "fixed", "decided"];
 
 /** The state and reply the sender may read, for the flags it asks about that it or its account sent. */
@@ -182,6 +204,7 @@ export function reportRoutes(deps: AccountDeps) {
            ${["reply", "reply_at", "cause", "fix", "reviews", "reviewed_at", "claimed_at", "decision", "decided_at"].map(keep).join(", ")}`,
       );
       const version = typeof body.app === "string" ? body.app.slice(0, 40) : null;
+      await backfillDigests(db, sends.map((r) => r.id), device, user).catch(() => {});
       for (const r of sends) {
         const auto = autoFlagOf(r.flag);
         const start = auto ? { state: "maintainer", outcome: "escalate", reason: autoReason(auto) } : { state: "sent", outcome: null, reason: null };

@@ -73,8 +73,9 @@ export function autoFlags(kase,found){
 }
 export function removeFlag(id){
   const had=state.flags[id]; if(!had) return; delete state.flags[id]; if(state.ui) state.ui.flagEdit=null; renderKeep(); refocusFlag(id);
-  if(state.db) flagWrite(id,()=>state.db.collection("flags").doc(id).delete(),()=>{ state.flags[id]=had; });
-  withdrawFlag(id);
+  // the report is taken back once the local flag is gone; a deletion that fails is undone, and then the server keeps the report it has of the flag that is back
+  if(state.db) flagWrite(id,async()=>{ await state.db.collection("flags").doc(id).delete(); withdrawFlag(id); },()=>{ state.flags[id]=had; });
+  else withdrawFlag(id);
 }
 export function setFlagState(id,to){
   const had=state.flags[id]; if(!had) return; const doc=Object.assign({},had,{state:to,updatedAt:new Date().toISOString()}); state.flags[id]=doc; renderKeep();

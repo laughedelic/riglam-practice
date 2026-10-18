@@ -288,6 +288,35 @@ describe("when the pass cannot go on", () => {
     expect(row(w)).toMatchObject({ state: "answered", reply: "Hot things and white things can overlap.", attempts: 1 });
   });
 
+  it("reports the budget holds back do not keep a report that needs no model from reaching the maintainer, however far down the list it is", async () => {
+    const w = await world({ REVIEW_DAILY_BUDGET_USD: "0.05", REVIEW_BATCH: "2" }); // less than one hold, and two to a page
+    await sendAll(w, report("fl_a"), report("fl_b"), report("fl_c"), report("fl_d"), report("fl_e", { part: "reply" }), report("fl_f", {}, null));
+    const api = both(says());
+    expect(await pass(w, api)).toEqual({ done: 2, retried: 0, stopped: "budget" });
+    expect(rows(w).map((r) => [r.id, r.state, r.claimed_at, r.attempts])).toEqual([
+      ["fl_a", "sent", null, 0],
+      ["fl_b", "sent", null, 0],
+      ["fl_c", "sent", null, 0],
+      ["fl_d", "sent", null, 0],
+      ["fl_e", "maintainer", null, 1],
+      ["fl_f", "maintainer", null, 1],
+    ]);
+    expect(api.calls(SONNET)).toHaveLength(0);
+  });
+
+  it("looks only so far down the list when the budget is used up", async () => {
+    const w = await world({ REVIEW_DAILY_BUDGET_USD: "0.05", REVIEW_BATCH: "5" });
+    const put = (id: string, at: string, r: FlagReport) =>
+      w.db.sql("INSERT INTO flag_reports (device, id, caller, flag, answer, state, created_at, updated_at) VALUES (?1, ?2, 'c', ?3, ?4, 'sent', ?5, ?5)", DEV_A, id, JSON.stringify(r.flag), r.answer === null ? null : JSON.stringify(r.answer), at);
+    for (let i = 0; i < 70; i++) put("fl_" + String(i).padStart(3, "0"), `2026-10-15T08:${String(i).padStart(2, "0")}:00.000Z`, report("x"));
+    put("fl_follow_up", "2026-10-15T10:00:00.000Z", report("x", { part: "reply" }));
+    expect(await pass(w, both(says()))).toEqual({ done: 0, retried: 0, stopped: "budget" });
+    expect(row(w, "fl_follow_up").state).toBe("sent"); // beyond the 60 reports a pass looks through
+    w.db.sql("UPDATE flag_reports SET state = 'maintainer' WHERE id < 'fl_020'");
+    expect(await pass(w, both(says()))).toEqual({ done: 1, retried: 0, stopped: "budget" }); // now it is within them
+    expect(row(w, "fl_follow_up").state).toBe("maintainer");
+  });
+
   it("a model API that fails gives the report back for the next pass, and after the last attempt the maintainer has what there is", async () => {
     const w = await world();
     await send(w, report("fl_a"));
@@ -379,6 +408,25 @@ describe("sent again", () => {
     await pass(w, both(says()));
     await send(w, report("fl_a", { note: "Another note." }, answer({ chosen: "4" })));
     expect(row(w).state).toBe("sent");
+  });
+});
+
+describe("reports stored before the digest existed", () => {
+  it("the same words sent again keep their review, from the same device and from another device of the account", async () => {
+    const w = await world();
+    const me = await signUp(w, "me");
+    await send(w, report("fl_a"), DEV_A, me.cookie);
+    await pass(w, both(says()));
+    w.db.sql("UPDATE flag_reports SET digest = NULL"); // as stored by the version before the review
+    expect((await send(w, report("fl_a", { state: "resolved" }), DEV_A, me.cookie)).status).toBe(200);
+    expect(row(w)).toMatchObject({ state: "answered", reply: "Hot things and white things can overlap.", attempts: 1 });
+    w.db.sql("UPDATE flag_reports SET digest = NULL");
+    expect((await send(w, report("fl_a", { state: "resolved" }), DEV_B, me.cookie)).status).toBe(200);
+    expect(w.db.sql("SELECT device, state, reply FROM flag_reports")).toEqual([{ device: DEV_A, state: "answered", reply: "Hot things and white things can overlap." }]);
+    // other words are still a new report
+    w.db.sql("UPDATE flag_reports SET digest = NULL");
+    expect((await send(w, report("fl_a", { note: "Another note." }), DEV_A, me.cookie)).status).toBe(200);
+    expect(row(w)).toMatchObject({ state: "sent", reply: null, attempts: 0 });
   });
 });
 
