@@ -20,6 +20,16 @@ export interface FlagRef {
 export type AnswerCol = "answers" | "debates";
 
 /**
+ * Flags a program writes, not a learner (`auto` in the flag document, src/app/ai/flags.js). Quorum's is the only one so far: the
+ * models that explained one example disagreed. They are sent to the app's server like the others but counted on their own, so they
+ * cannot use up the day's hand-made flags, and the models do not review them (docs/SERVER.md, "Flag reports"). A value not listed
+ * here makes a flag an ordinary one, so a device cannot give itself the allowance of an automatic flag by naming one that does not exist.
+ */
+export const AUTO_FLAGS = ["quorum"] as const;
+export type AutoFlag = (typeof AUTO_FLAGS)[number];
+export const autoFlagOf = (flag: object): AutoFlag | null => AUTO_FLAGS.find((a) => a === (flag as { auto?: unknown }).auto) ?? null;
+
+/**
  * The stored answer a flag was made on. A flag's case key is the collection and the id of the answer on screen
  * ("answers_r-mv9q", "debates_q-mv9q"); the check lab uses the same key. A key that names no collection gives null,
  * and an answer that was never saved is simply not found under the id.

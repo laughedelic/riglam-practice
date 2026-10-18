@@ -12,7 +12,7 @@ import { Hono } from "hono";
 import { validDocId } from "../src/account/protocol";
 import { DEVICE_ID } from "../src/ai/proof";
 import { HEADER } from "../src/ai/protocol";
-import { REPORT_API, REPORT_LIMITS, type FlagReport, type ReportDoc, type ReportResponse, type ReportState, type ReportStatus } from "../src/report/protocol";
+import { REPORT_API, REPORT_LIMITS, autoFlagOf, type FlagReport, type ReportDoc, type ReportResponse, type ReportState, type ReportStatus } from "../src/report/protocol";
 import { fail, keyRefusal, readObject, sessionOf, type AccountDeps } from "./accounts";
 import { dayOf } from "./budget";
 import type { Env } from "./env";
@@ -121,16 +121,23 @@ export function reportRoutes(deps: AccountDeps) {
 
     if (sends.length) {
       const day = dayOf(now);
-      const scopes = [
-        { who: `dev:${device}`, cap: REPORT_LIMITS.perDevice },
-        { who: `ip:${caller}`, cap: REPORT_LIMITS.perCaller },
-        { who: "all", cap: REPORT_LIMITS.perDay },
+      // Hand-made flags and automatic ones (src/report/protocol.ts, AUTO_FLAGS) are counted apart, so that neither can use up the other's day.
+      const kinds = [
+        { n: sends.filter((r) => !autoFlagOf(r.flag)).length, prefix: "", cap: REPORT_LIMITS },
+        { n: sends.filter((r) => autoFlagOf(r.flag)).length, prefix: "auto:", cap: REPORT_LIMITS.auto },
       ];
+      const scopes = kinds
+        .filter((k) => k.n > 0)
+        .flatMap((k) => [
+          { who: `${k.prefix}dev:${device}`, cap: k.cap.perDevice, n: k.n },
+          { who: `${k.prefix}ip:${caller}`, cap: k.cap.perCaller, n: k.n },
+          { who: `${k.prefix}all`, cap: k.cap.perDay, n: k.n },
+        ]);
       const used = await db
-        .prepare("SELECT who, n FROM flag_quota WHERE day = ?1 AND who IN (?2, ?3, ?4)")
+        .prepare(`SELECT who, n FROM flag_quota WHERE day = ?1 AND who IN (${scopes.map((_, i) => `?${i + 2}`).join(", ")})`)
         .bind(day, ...scopes.map((s) => s.who))
         .all<{ who: string; n: number }>();
-      const full = scopes.some((s) => (used.results.find((r) => r.who === s.who)?.n ?? 0) + sends.length > s.cap);
+      const full = scopes.some((s) => (used.results.find((r) => r.who === s.who)?.n ?? 0) + s.n > s.cap);
       const held = (await db.prepare("SELECT COUNT(*) AS n FROM flag_reports").first<{ n: number }>())?.n ?? 0;
       if (full || held + sends.length > REPORT_LIMITS.held) {
         const tomorrow = Date.parse(day) + 86_400_000;
@@ -155,7 +162,7 @@ export function reportRoutes(deps: AccountDeps) {
         if (user) statements.push(db.prepare("DELETE FROM flag_reports WHERE user_id = ?1 AND id = ?2 AND device <> ?3").bind(user, r.id, device));
       }
       for (const s of scopes) {
-        statements.push(db.prepare("INSERT INTO flag_quota (day, who, n) VALUES (?1, ?2, ?3) ON CONFLICT (day, who) DO UPDATE SET n = n + excluded.n").bind(day, s.who, sends.length));
+        statements.push(db.prepare("INSERT INTO flag_quota (day, who, n) VALUES (?1, ?2, ?3) ON CONFLICT (day, who) DO UPDATE SET n = n + excluded.n").bind(day, s.who, s.n));
       }
     }
 
