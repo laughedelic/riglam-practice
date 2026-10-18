@@ -1,6 +1,6 @@
 import { state } from "../state.js";
 import { flagEditorNode, flagKeyOf, flagPart } from "./flags.js";
-import { quorumChip, quorumThings, runReading } from "./quorum.js";
+import { quorumChip, quorumNeeded, quorumThings, runReading } from "./quorum.js";
 import { CELL_NAME } from "../../ai-shared/prompts.ts";
 import { el } from "../core/dom.js";
 
@@ -13,7 +13,7 @@ const MODELS=3;     // the models of a run (src/ai/protocol.ts, QUORUM.models); 
 
 function statusOf(U){
   const q=U.quorum, rec=q&&q.record;
-  if(!q) return {ic:"",sum:"On: Explain asks three models, and Opus rules where they differ."};
+  if(!q) return {ic:"",sum:quorumNeeded(U)?"On: Explain asks three models, and Opus rules where they differ.":"Not needed here: every example has a verdict, so one model explains."};
   if(q.busy){
     const n=q.steps.filter(s=>s.name!=="Judge").length;
     return {ic:"…",sum:q.steps.some(s=>s.name==="Judge")?"The judge has ruled; the answer is on its way.":n<MODELS?"Models answered: "+n+" of "+MODELS:"Comparing the answers…"};
@@ -43,7 +43,12 @@ const failure=run=>run.name+": failed ("+(run.error||"error")+")";
 function quorumNode(s){
   const U=state.ui, q=U.quorum, rec=q&&q.record, box=el("div",{class:"quorum"});
   box.append(el("p",{class:"quorum-h"},el("b",{text:"Quorum "}),el("span",{class:"quorum-s",text:s.sum})));
-  if(!rec){ box.append(el("p",{class:"note faint",text:q&&q.busy?"The models answer one after the other; the explanation appears when they are done.":"With Quorum on, the explanation of a checked answer comes from several models and this panel shows each of them. The server keeps the run so the models can be compared."})); return box; }
+  if(!rec){
+    const why=q&&q.busy?"The models answer one after the other; the explanation appears when they are done."
+      :!q&&!quorumNeeded(U)?"Quorum is for examples the page could not check itself. Every example here has a verdict, so one model explains and the server keeps nothing."
+      :"With Quorum on, the explanation of an answer with an example the page could not check comes from several models, and this panel shows each of them. The server keeps the run so the models can be compared.";
+    box.append(el("p",{class:"note faint",text:why})); return box;
+  }
   const errs=rec.models.concat(rec.judge?[rec.judge]:[]).filter(r=>!r.ok).map(failure);
   if(errs.length) box.append(el("p",{class:"status",text:errs.join(". ")+"."}));
   box.append(el("p",{class:"quorum-nj",text:"The answer you see is "+(rec.shown==="Judge"?"the judge’s":rec.shown+"’s")+"."}));

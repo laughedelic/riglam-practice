@@ -38,7 +38,7 @@ export async function ask(text,kind,byItself){
   const U=state.ui, C=state.cur;                       // the pair this question belongs to, even if you switch tabs meanwhile
   if(!canAsk()||!U||U.ctl) return;
   const p=C.p, direct=!!state.sample;                  // the host's own model call, or else the app's server
-  const quorum=kind==="explain"&&quorumWanted();      // the explanation of a checked answer is asked of Quorum, where this server offers it and this device has it on
+  const quorum=kind==="explain"&&quorumWanted(U);     // the explanation of a checked answer is asked of Quorum, where this server offers it, this device has it on and an example is left to check
   const body=kind==="explain"?explainAsk(U):text;
   // The server holds the standing instructions and the notes itself, so what it gets as the first turn is the card alone.
   if(!U.chat) U.chat=[{role:"user",content:(direct?tutorCard(state,p,U):cardBody(state,p,U))+"\n\n"+body, hidden:true}];

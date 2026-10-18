@@ -76,6 +76,14 @@ async function answerOnPhone(page) {
     await page.waitForTimeout(100);
   }
 }
+// every cell left empty: the page has a verdict for each (right, or "missing"), so no example is left for it to check
+async function answerBlank(page) {
+  await relOptions(page).first().click();
+  for (let i = 0; i < 4 && (await page.locator("#cin").isVisible()); i++) {
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(100);
+  }
+}
 const explain = (page) => page.getByRole("button", { name: /^explain$|check and explain/i });
 const quorum = (page) => page.locator(".vchip").filter({ hasText: /quorum/i });
 const sw = (page) => page.getByRole("switch", { name: /several models explain/i });
@@ -83,14 +91,14 @@ const rowOf = (page, name) => page.locator(".quorum-r").filter({ has: page.locat
 const flags = (page) => page.evaluate(() => Object.values(window.__t.flags));
 const thingsOf = (page) => page.evaluate(() => window.__t.quorumThings(window.__t.ui).map((t) => t.text));
 
-/** The page with one answer checked; Explain is not tapped yet. `setting` is the stored value of "Check every answer with AI" (null: its default, on). */
-const open = async (page, testInfo, setup, setting = "0") => {
+/** The page with one answer checked; Explain is not tapped yet. `setting` is the stored value of "Check every answer with AI" (null: its default, on); `answer` fills the cells. */
+const open = async (page, testInfo, setup, setting = "0", answer = answerOnPhone) => {
   test.skip(!isPhone(testInfo), "the answer flow is exercised in the phone layout");
   await page.addInitScript((v) => { window.__riglamTest = (t) => { window.__t = t; }; if (v !== null) localStorage.setItem("rd-autoexplain", v); else localStorage.removeItem("rd-autoexplain"); }, setting);
   const asked = await server(page, setup);
   await page.goto("/");
   await ready(page);
-  await answerOnPhone(page);
+  await answer(page);
   return asked;
 };
 /** … and Explain tapped, with the run's chip shown. */
@@ -194,6 +202,26 @@ withKey("an answer that came with no run says so", async ({ page }, testInfo) =>
   await expect(quorum(page)).toBeVisible();
   await quorum(page).click();
   await expect(page.locator(".quorum")).toContainText("No Quorum record came with this answer.");
+});
+
+withKey("an answer the page checked in full is explained by the one model: no quorum in the question, and the chip says why", async ({ page }, testInfo) => {
+  const asked = await open(page, testInfo, { tutor: () => ({ status: 200, body: PLAIN }) }, "0", answerBlank);
+  expect(await page.evaluate(() => window.__t.ui.res.exOpen)).toBe(0);
+  await explain(page).click();
+  await expect.poll(() => asked.length).toBe(1);
+  expect(asked[0].body.kind).toBe("explain");
+  expect(asked[0].body).not.toHaveProperty("quorum");
+  await expect(quorum(page)).toBeVisible();
+  await quorum(page).click();
+  await expect(page.locator(".quorum")).toContainText("Not needed here: every example has a verdict, so one model explains.");
+  await expect(page.locator(".quorum .quorum-r")).toHaveCount(0);
+});
+
+withKey("Check every answer with AI asks one model, with no quorum, for an answer the page checked in full", async ({ page }, testInfo) => {
+  const asked = await open(page, testInfo, { tutor: () => ({ status: 200, body: PLAIN }) }, null, answerBlank);
+  await expect.poll(() => asked.length).toBe(1);
+  expect(asked[0].body.kind).toBe("explain");
+  expect(asked[0].body).not.toHaveProperty("quorum");
 });
 
 withKey("a server that does not offer Quorum is asked as ever: no quorum in the question, no chip, no switch", async ({ page }, testInfo) => {

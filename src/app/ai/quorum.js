@@ -17,8 +17,13 @@ export function setQuorumOffer(offer){
   state.quorumOffered=!!offer; state.quorumOptIn=offer==="optin";
   state.quorum=!!offer&&(state.quorumChoice===null?offer==="on":state.quorumChoice);
 }
-// whether the next explain question goes to Quorum: the server offers it, this device has it on, and the question goes to the server (the artifact asks its host's model instead)
-export const quorumWanted=()=>!!(state.quorumOffered&&state.quorum&&state.tutor&&!state.sample);
+// whether this device uses Quorum for an explain question: the server offers it, this device has it on, and the question goes to the server (the artifact asks its host's model instead)
+export const quorumOn=()=>!!(state.quorumOffered&&state.quorum&&state.tutor&&!state.sample);
+// Quorum has something to decide only where the page could not check an example (verdict "cmp"): the tutor's lines are then the check, and the models can put it in different
+// cells. When every cell has a verdict, the tutor only explains what the page computed, and three models would explain it three times.
+export const quorumNeeded=U=>!!(U&&U.res&&U.res.exOpen>0);
+// whether the explain question of this answer goes to Quorum
+export const quorumWanted=U=>quorumOn()&&quorumNeeded(U);
 // whether the Quorum chip belongs on a checked answer; Review shows the flags wherever there is a tutor to flag, or flags to look at
 export const quorumChip=()=>!!(state.quorumOffered&&state.quorum&&state.db);
 export const quorumShown=()=>!!(state.db&&(state.quorumOffered||state.sample||Object.keys(state.flags).length));
