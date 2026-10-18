@@ -5,6 +5,7 @@ import { REPORT_API, REPORT_LIMITS, type FlagReport } from "../../src/report/pro
 import { makeProof } from "../../src/ai/proof";
 import { HEADER } from "../../src/ai/protocol";
 import { GUESSES_PER_HOUR } from "../../worker/magic";
+import { COOKIE, SESSION_MS } from "../../worker/session";
 import { signUp, world, type World } from "./accounts-support";
 import { json } from "./support";
 
@@ -62,6 +63,22 @@ describe("sending", () => {
     await post(w, { send: [report("fl_a")] }, { cookie: me.cookie });
     await post(w, { send: [report("fl_b")] }, { device: DEV_B, cookie: "__Secure-riglam-session=nope" });
     expect(rows(w).map((r) => [r.id, r.user_id])).toEqual([["fl_a", me.id], ["fl_b", null]]);
+  });
+
+  it("extends the browser's cookie when sending extends the session, as the account's own routes do", async () => {
+    const w = await world();
+    const me = await signUp(w, "me");
+    const token = me.cookie.split("=")[1];
+    w.clock.now = new Date(w.clock.now.getTime() + 10 * 86_400_000);
+    expect((await post(w, { send: [report("fl_a")] }, { cookie: me.cookie })).headers.get("set-cookie")).toBeNull(); // more than half is left
+    w.clock.now = new Date(w.clock.now.getTime() + 25 * 86_400_000); // the second half
+    const res = await post(w, { send: [report("fl_b")] }, { cookie: me.cookie });
+    expect(res.status).toBe(200);
+    const header = res.headers.get("set-cookie") ?? "";
+    expect(header).toContain(`${COOKIE}=${token}`);
+    expect(header).toMatch(new RegExp(`Max-Age=${SESSION_MS / 1000}`));
+    // the server's session is extended too, so the next request finds more than half left and sets nothing
+    expect((await post(w, { send: [report("fl_c")] }, { cookie: me.cookie })).headers.get("set-cookie")).toBeNull();
   });
 
   it("replaces the report of the same flag, and a report without a kept answer is fine", async () => {

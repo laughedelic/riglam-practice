@@ -24,11 +24,12 @@ const reports = (world) => world.sql("SELECT device, id, user_id, flag, answer F
 const stored = (page) => page.evaluate(async () => Object.fromEntries((await (await window.__riglam.platform.db()).collection("flags").get()).docs.map((d) => [d.id, d.data()])));
 
 /**
- * Makes the first write of a flag document that has `field` wait until `window.__held.release()` and then fail as a passing storage fault does ("unavailable"), so that the
- * page's retry (put, practice/answers.js) comes after whatever the test does meanwhile. `window.__held.tried` counts the writes of flags with that field. Call before the page starts.
+ * Makes the first write of a flag document that has `field` wait until `window.__held.release()` and then fail with `code`: as a passing storage fault does ("unavailable"), so that the
+ * page's retry (put, practice/answers.js) comes after whatever the test does meanwhile, or as a refusal that is not tried again ("invalid_argument"), so that the page undoes the flag.
+ * `window.__held.tried` counts the writes of flags with that field. Call before the page starts.
  */
-async function holdWrite(page, field) {
-  await page.addInitScript((field) => {
+async function holdWrite(page, field, code = "unavailable") {
+  await page.addInitScript(({ field, code }) => {
     const patch = (db) => {
       const real = db.collection.bind(db);
       const held = (window.__held = { tried: 0, release: () => {} });
@@ -50,7 +51,7 @@ async function holdWrite(page, field) {
                     held.tried++;
                     if (!first) return w.call(ref, doc);
                     first = false;
-                    return new Promise((_, reject) => { held.release = () => reject({ code: "unavailable" }); });
+                    return new Promise((_, reject) => { held.release = () => reject({ code }); });
                   };
                 },
               });
@@ -65,7 +66,7 @@ async function holdWrite(page, field) {
         v.platform.db().then(patch);
       },
     });
-  }, field);
+  }, { field, code });
 }
 
 /**
@@ -177,8 +178,8 @@ test("a flag that could not be sent waits, says so, and goes when the server is 
   await expect.poll(() => reports(world).length).toBe(1);
 });
 
-/** Holds the first upload of a flag until `release()`; `asked` notes every request to the server about flags, in the order they were made. */
-async function holdFirstUpload(page) {
+/** Holds the first request of `kind` ("send" or "withdraw") to the server about flags until `release()`; `asked` notes every such request, in the order they were made. */
+async function holdFirstUpload(page, kind = "send") {
   const asked = [];
   let release;
   const gate = new Promise((resolve) => { release = resolve; });
@@ -186,7 +187,7 @@ async function holdFirstUpload(page) {
   await page.route("**/api/flags", async (route) => {
     const body = route.request().postDataJSON();
     asked.push(body.send ? "send" : body.withdraw ? "withdraw" : "other");
-    if (body.send && !held) { held = true; await gate; }
+    if (body[kind] && !held) { held = true; await gate; }
     return route.fallback();
   });
   return { asked, release };
@@ -252,6 +253,35 @@ test("the write of the sent mark, tried again after a storage fault, does not pu
   expect((await stored(page)).fl_cell.note).toBe("A bowl need not be round.");
   await expect.poll(async () => { const f = (await stored(page)).fl_cell; return f.sentAt >= f.updatedAt; }).toBe(true);
   expect(reports(world).map((r) => JSON.parse(r.flag).note)).toEqual(["A bowl need not be round."]);
+});
+
+test("an edit that is still being saved is not uploaded, so a save that fails leaves the server with the flag the device has", async ({ page }) => {
+  await giveKey(page);
+  const world = await serverWorld({}, { stubCourse: true });
+  await holdWrite(page, "suggest", "invalid_argument");
+  await start(page, world, { ...flag, sentAt: at }); // the flag was sent already
+  await page.evaluate(() => localStorage.setItem("riglam.flagsToWithdraw", JSON.stringify(["fl_other"])));
+  const hold = await holdFirstUpload(page, "withdraw");
+  await page.reload();
+  await ready(page);
+  await expect.poll(() => hold.asked).toEqual(["withdraw"]); // the start's flush waits for the server before it looks at the flags
+  const li = await openFlags(page);
+  await li.getByRole("button", { name: "Edit" }).click();
+  await page.locator("#flag-note").fill("A bowl need not be round.");
+  await page.locator("#flag-sug").fill("a round wooden bowl");
+  await page.locator(".flagedit").getByRole("button", { name: "Submit" }).click();
+  await expect.poll(() => page.evaluate(() => window.__held.tried)).toBe(1); // the save of the edit is held
+  hold.release(); // the flush goes on, with the edit not yet saved
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("riglam.flagsToWithdraw"))).toBeNull();
+  await pause(page);
+  expect(hold.asked).toEqual(["withdraw"]); // the edit is not uploaded while it may still be undone
+  await page.evaluate(() => window.__held.release()); // the save is refused and the edit undone
+  await pause(page, 800);
+  await openFlags(page);
+  await expect(page.locator(".status", { hasText: "could not be saved" })).toBeVisible();
+  expect(hold.asked).toEqual(["withdraw"]);
+  expect(reports(world)).toEqual([]);
+  expect((await stored(page)).fl_cell.note).toBe("A bowl can be square.");
 });
 
 test("a flag deleted while the device could not reach the server's reports is taken back when it can", async ({ page }) => {
