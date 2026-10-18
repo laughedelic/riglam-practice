@@ -64,20 +64,6 @@ test("stopping the call keeps what has arrived and says it was cancelled", async
   expect(err.text.length).toBeGreaterThan(40);
 });
 
-test("the check lab gets JSON for the things it listed, from the model it asked for", async () => {
-  const prompt = 'Check these.\nThings:\n1. "a clay pot"\n2. "the horn of a rabbit"\n';
-  const r = await done(devSample()(prompt, { model: "some-model", modelTier: "fast" }));
-  expect(r.modelApplied).toBe("some-model");
-  expect(r.modelTierApplied).toBe("fast");
-  const parsed = JSON.parse(r.text);
-  expect(parsed.things.map((t: { thing: string }) => t.thing)).toEqual(["a clay pot", "the horn of a rabbit"]);
-  expect(parsed.things[0]).toMatchObject({ inA: true, inB: true, exists: true, unsure: false });
-  expect(parsed.things[0].right).toBeUndefined();
-
-  const judged = JSON.parse((await done(devSample()(`You are the judge.\n${prompt}`, { model: "judge-model" }))).text);
-  expect(judged.things[0]).toMatchObject({ right: [1, 2, 3] });
-});
-
 test("?ai=rate_limited and ?ai=error fail with the codes the page has messages for", async () => {
   const turns = [{ role: "user", content: "hi" }];
   expect((await done(devSample("rate_limited")(turns)).catch((e) => e)).code).toBe("rate_limited");

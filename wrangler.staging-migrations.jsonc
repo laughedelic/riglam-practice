@@ -1,0 +1,8 @@
+{
+  // Only for `wrangler d1 migrations apply riglam-practice-staging --remote -c wrangler.staging-migrations.jsonc`, which
+  // `npm run staging -- deploy` runs before it deploys a Preview (docs/STAGING.md). The Previews' database is bound under `previews` in
+  // wrangler.jsonc, where wrangler's migration command does not look, so the same database is declared at the top level here.
+  "d1_databases": [
+    { "binding": "DB", "database_name": "riglam-practice-staging", "database_id": "5c0fcda4-2f7e-4c18-b1ee-ef287d217d49", "migrations_dir": "worker/migrations" }
+  ]
+}

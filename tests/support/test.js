@@ -1,16 +1,18 @@
-// `test` for the PWA specs: every page starts with the data key stored on the device (as after opening the study group's link),
-// or, with no key, with the unlock dialog already dismissed so that it does not cover the page. unlock.spec.js uses the plain test.
+// `test` for the PWA specs: every page starts with the Magic Key stored on the device (as after opening the study group's link)
+// and a stand-in server that accepts it (tests/support/data-key.js). unlock.spec.js uses the plain test. The tutor does not explain a checked
+// answer by itself here (Options, `rd-autoexplain`): the specs click Explain, and the ones for the setting turn it on.
 import { test as base, expect } from "@playwright/test";
-import { dataKey } from "./data-key.js";
+import { dataKey, serveCourse, KEY_STORE, withCourse } from "./data-key.js";
 
 export const test = base.extend({
   page: async ({ page }, use) => {
-    await page.addInitScript((key) => {
+    await page.addInitScript(([store, key]) => {
       try {
-        if (key) localStorage.setItem("riglam.dataKey", key);
-        else sessionStorage.setItem("riglam.unlockDismissed", "1");
+        if (key) localStorage.setItem(store, key);
+        if (localStorage.getItem("rd-autoexplain") === null) localStorage.setItem("rd-autoexplain", "0");
       } catch { /* storage unavailable */ }
-    }, dataKey);
+    }, [KEY_STORE, withCourse ? dataKey : null]);
+    await serveCourse(page);
     await use(page);
   },
 });

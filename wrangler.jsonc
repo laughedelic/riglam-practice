@@ -14,13 +14,18 @@
     "binding": "ASSETS",
     "run_worker_first": ["/api/*"]
   },
-  // The encrypted course files are bundled into the Worker script as bytes; it opens them with its RIGLAM_DATA_KEY secret
-  // (worker/kit.ts). They are not in the static files, so a browser cannot fetch the notes.
-  "rules": [{ "type": "Data", "globs": ["**/*.enc"], "fallthrough": true }],
-  // Only the lines the Worker writes itself (errors, with no text of any question). No line per request.
-  "observability": { "enabled": true, "logs": { "invocation_logs": false } },
-  // The tutor's settings (worker/config.ts has the same values as defaults). A change is a pull request.
-  // Dollars are US dollars per UTC day. The secrets ANTHROPIC_API_KEY and RIGLAM_DATA_KEY are not here: `wrangler secret put`.
+  // Logs (one line per request, plus the lines the Worker writes itself), traces and Issues (errors grouped by Cloudflare), all kept in
+  // the Cloudflare dashboard. Query strings are removed from the recorded URLs. The Worker never logs the text of a question or an answer,
+  // and request bodies are not recorded. Issues needs Wrangler 4.134 or later, and must stay in this file: a deploy without it turns Issues off.
+  "observability": {
+    "enabled": true,
+    "redact_query_string": true,
+    "logs": { "enabled": true, "invocation_logs": true },
+    "traces": { "enabled": true },
+    "issues": { "enabled": true }
+  },
+  // The tutor's and the accounts' settings (worker/config.ts has the same values as defaults). A change is a pull request.
+  // Dollars are US dollars per UTC day. The secrets ANTHROPIC_API_KEY and RIGLAM_DATA_KEY (the Magic Key) are not here: `wrangler secret put`.
   "vars": {
     "TUTOR_MODEL": "claude-sonnet-5-5",
     "TUTOR_EFFORT": "medium",
@@ -28,12 +33,53 @@
     "TUTOR_MAX_ROUNDS": "4",
     "DEVICE_DAILY_BUDGET_USD": "1.00",
     "GLOBAL_DAILY_BUDGET_USD": "8",
-    "RESERVE_USD": "0.05"
+    "RESERVE_USD": "0.05",
+    "SIGNUP": "open",
+    "MAX_ACCOUNTS": "300",
+    "MAX_DOCS_PER_ACCOUNT": "5000",
+    "DAILY_WRITES_PER_ACCOUNT": "3000",
+    "CEREMONIES_PER_DAY": "2000"
   },
   // The D1 database for the budget counters (docs/SERVER.md). Migrations are applied by hand:
   //   npx wrangler d1 migrations apply riglam-practice --remote
   // Until that has been done the tutor reports itself off and everything else works.
   "d1_databases": [
     { "binding": "DB", "database_name": "riglam-practice", "database_id": "7dc5e040-56c9-49e3-af60-ee0a8e49a500", "migrations_dir": "worker/migrations" }
-  ]
+  ],
+  // Worker Previews (`wrangler preview`: every pull request branch, and the `staging` branch, docs/DEPLOY.md and docs/STAGING.md) do not
+  // inherit the settings above except the static files and the compatibility date. What they have is this block: the same tutor
+  // settings with lower budgets, persisted logs, and one shared database of their own (never production's), so a pull request that
+  // changes the server or the schema cannot touch production data. Previews share its budget counters and accounts.
+  // QUORUM turns on the tutor's mode of several models and a judge (docs/SERVER.md, "Quorum"): it is here and nowhere else, so production does not offer it
+  // ("optin" would offer it with a device default of off, for a server that offers it to the public),
+  // and it keeps a record of every run in this database (the examples learners checked and the answers). Quorum has budgets of its own, apart from the tutor's;
+  // a run that finds them used up is answered by the one model, from the tutor's.
+  // The secrets ANTHROPIC_API_KEY and RIGLAM_DATA_KEY are not here: they come from the Preview base config (`wrangler preview base-config
+  // secret put`), which a Preview copies when it is created. `npm run staging -- deploy` applies the database's migrations before it deploys
+  // `staging`; those of a pull request are applied by hand (wrangler's migration command reads the top level only, which is why
+  // wrangler.staging-migrations.jsonc declares the database again).
+  "previews": {
+    "observability": {
+      "enabled": true,
+      "redact_query_string": true,
+      "logs": { "enabled": true, "invocation_logs": true, "persist": true },
+      "traces": { "enabled": true, "persist": true },
+      "issues": { "enabled": true }
+    },
+    // Dollars are US dollars per UTC day. The other settings are the defaults of worker/config.ts, the same as above.
+    "vars": {
+      "TUTOR_MODEL": "claude-sonnet-5-5",
+      "TUTOR_EFFORT": "medium",
+      "TUTOR_MAX_TOKENS": "6000",
+      "TUTOR_MAX_ROUNDS": "4",
+      "DEVICE_DAILY_BUDGET_USD": "0.50",
+      "GLOBAL_DAILY_BUDGET_USD": "2",
+      "RESERVE_USD": "0.05",
+      "QUORUM": "on",
+      "QUORUM_DEVICE_DAILY_BUDGET_USD": "3",
+      "QUORUM_GLOBAL_DAILY_BUDGET_USD": "12",
+      "QUORUM_RESERVE_USD": "0.40"
+    },
+    "d1_databases": [{ "binding": "DB", "database_name": "riglam-practice-staging", "database_id": "5c0fcda4-2f7e-4c18-b1ee-ef287d217d49" }]
+  }
 }

@@ -5,7 +5,7 @@ import { isSkipped } from "./skips.js";
 import { nextGenerated } from "./universe.js";
 import { render, top0 } from "../shell/render.js";
 
-export function freshUi(){return {rel:null, open:true, cells:{both:{t:"",none:false},anb:{t:"",none:false},bna:{t:"",none:false},nei:{t:"",none:false}}, checked:false, res:null, chat:null, chatErr:"", q:"", ci:0, seen:0, review:false, rtab:"auto", pop:null, defs:false, tq:null, tid:null, tph:null, late:false, exLate:false};}
+export function freshUi(){return {rel:null, open:true, cells:{both:{t:"",none:false},anb:{t:"",none:false},bna:{t:"",none:false},nei:{t:"",none:false}}, checked:false, res:null, chat:null, chatErr:"", q:"", ci:0, seen:0, review:false, rtab:"auto", pop:null, tq:null, tid:null, tph:null, late:false, exLate:false};}
 
 /* ---------- queue: retry run, then older prepared pairs not yet answered, then generated ---------- */
 function nextPair(){

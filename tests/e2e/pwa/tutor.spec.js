@@ -1,13 +1,14 @@
 // The tutor in the installed app: questions go to the app's own server (/api/tutor), which these specs stand in for with
 // routes. They check what the page offers (only when the server says its tutor is on), what it sends (the card without the
 // instructions, a proof made with the key) and what it shows when the answer streams in or the server refuses.
+import { test as plain } from "@playwright/test";
 import { test, expect } from "../../support/test.js";
 import { ready, relOptions, isPhone, overflow } from "../../support/page.js";
-import { dataKey } from "../../support/data-key.js";
+import { dataKey, serveCourse, withCourse } from "../../support/data-key.js";
 import { checkProof } from "../../../src/ai/proof.ts";
 
-// The tutor needs the study group's key to be a real one that opens the definitions (docs/DATA.md).
-const withKey = dataKey ? test : test.skip;
+// The page stores the Magic Key only when the stand-in server can give the definitions that open with it (tests/support/test.js).
+const withKey = withCourse ? test : test.skip;
 
 const sse = (...events) => events.map((e) => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`).join("");
 const ANSWER = sse({ type: "delta", text: "Stand-in tutor: " }, { type: "delta", text: "this is the stand-in answer." }, { type: "done", truncated: false });
@@ -66,6 +67,151 @@ withKey("Explain asks the server, shows the answer, and sends the card without t
   expect(body.turns[0].content.startsWith("CARD (from the course booklet's term data")).toBe(true);
   expect(body.turns[0].content).not.toContain("terse debate tutor"); // the server holds the standing instructions
   expect(body.turns[0].content).not.toContain("Fine points"); // and the notes
+});
+
+// A note on a cell opens under the heading "Why?", so a Why? the tutor starts its debate line with is not said twice.
+withKey("a note under a cell is headed Why?", async ({ page }, testInfo) => {
+  const line = 'Both: Why? "thing 1" is a form, so it fits. => yes\n';
+  await open(page, testInfo, { tutor: [{ status: 200, body: sse({ type: "delta", text: line }, { type: "done", truncated: false }) }] });
+  await explain(page).click();
+  await page.locator(".grid .qm").first().click();
+  const pop = page.locator(".grid .pop");
+  await expect(pop.locator(".clh")).toHaveText("Why?");
+  await expect(pop.locator("p").nth(1)).toHaveText('"thing 1" is a form, so it fits.');
+  await expect(pop.locator(".popnote")).toHaveCount(0);
+});
+
+// The terms a note names are dot-underlined when this device has their definitions, each once; a tap opens the definition under the
+// text, inside the note. Another term replaces it; a tap elsewhere or Escape closes it and leaves the note open.
+withKey("a note underlines the terms it names and opens their definitions in place", async ({ page }, testInfo) => {
+  const line = 'Both: "thing 1" is an external form, so it fits: every form is matter, and matter is a form. => yes\n';
+  await open(page, testInfo, { tutor: [{ status: 200, body: sse({ type: "delta", text: line }, { type: "done", truncated: false }) }] });
+  await explain(page).click();
+  await page.locator(".grid .qm").first().click();
+  const pop = page.locator(".grid .pop"), marks = pop.locator(".dterm[data-dt]"), def = pop.locator(".ddef"); // the terms of the text; the card has its own marks
+  await expect(marks).toHaveText(["external form", "form", "matter"]);
+  await expect(def).toHaveCount(0);
+
+  await marks.first().click();
+  await expect(marks.first()).toHaveAttribute("aria-expanded", "true");
+  await expect(def.locator("dt")).toContainText("External form");
+  expect((await def.locator("dd").last().innerText()).length).toBeGreaterThan(10);
+  expect(await overflow(page)).toBeLessThanOrEqual(0);
+
+  await marks.nth(2).click();
+  await expect(def).toHaveCount(1);
+  await expect(def.locator("dt")).toContainText("Matter");
+  await expect(marks.first()).toHaveAttribute("aria-expanded", "false");
+
+  await pop.locator(".clh").click();
+  await expect(def).toHaveCount(0);
+  await expect(pop).toBeVisible();
+
+  await marks.nth(1).focus();
+  await page.keyboard.press("Enter");
+  await expect(def.locator("dt")).toContainText("Form");
+  await page.keyboard.press("Escape");
+  await expect(def).toHaveCount(0);
+  await expect(pop).toBeVisible();
+  // the focus stays on the term, so Enter opens its definition again
+  await expect(marks.nth(1)).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(def.locator("dt")).toContainText("Form");
+});
+
+// A definition belongs to the note it was opened in: opening another note or closing this one drops it, so the next Escape closes
+// the note on view, and coming back to the first note shows it without the definition.
+withKey("an open definition is dropped when its note is switched or closed", async ({ page }, testInfo) => {
+  const lines = 'Both: "thing 1" is an external form, so it fits. => yes\nNeither: "thing 2" is matter, so it fits. => yes\n';
+  await open(page, testInfo, { tutor: [{ status: 200, body: sse({ type: "delta", text: lines }, { type: "done", truncated: false }) }] });
+  await explain(page).click();
+  const qms = page.locator(".grid .qm"), pop = page.locator(".grid .pop"), def = pop.locator(".ddef");
+  await qms.first().click();
+  await pop.locator(".dterm").first().click();
+  await expect(def).toHaveCount(1);
+
+  await qms.nth(1).click();
+  await expect(pop.locator(".dterm")).toHaveText(["matter"]);
+  await expect(def).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(pop).toHaveCount(0);
+
+  await qms.first().click();
+  await expect(pop.locator(".dterm")).toHaveText(["external form"]);
+  await expect(def).toHaveCount(0);
+
+  await pop.locator(".dterm").first().click();
+  await expect(def).toHaveCount(1);
+  await pop.locator(".popx").click();
+  await expect(pop).toHaveCount(0);
+  await qms.first().click();
+  await expect(def).toHaveCount(0);
+});
+
+// The same in a note the page writes from the two facts: the terms of a reason are underlined once, and the definition opens under
+// its consequence, inside the list.
+withKey("the terms in the reasons of a fact note are underlined and open their definitions under the consequence", async ({ page }, testInfo) => {
+  const line = 'Both: "thing 1" | A yes: it is an external form | B yes: it is matter\n';
+  await open(page, testInfo, { tutor: [{ status: 200, body: sse({ type: "delta", text: line }, { type: "done", truncated: false }) }] });
+  await explain(page).click();
+  await page.locator(".grid .qm").first().click();
+  const pop = page.locator(".grid .pop"), marks = pop.locator(".fsteps .dterm[data-dt]"), def = pop.locator(".ddef");
+  await expect(marks).toHaveText(["external form", "matter"]);
+  await expect(def).toHaveCount(0);
+  await marks.first().click();
+  await expect(pop.locator(".fsteps li").first().locator(".ddef dt")).toContainText("External form");
+  await marks.nth(1).click();
+  await expect(def).toHaveCount(1);
+  await expect(pop.locator(".fsteps li").nth(1).locator(".ddef dt")).toContainText("Matter");
+  expect(await overflow(page)).toBeLessThanOrEqual(0);
+});
+
+// A term is underlined once in each line of a fact note, not once in the whole note: both lines name the color, and both show it.
+withKey("a term is underlined in each line of a fact note that names it", async ({ page }, testInfo) => {
+  const line = 'Both: "thing 1" | A yes: it is a color | B yes: it is a color\n';
+  await open(page, testInfo, { tutor: [{ status: 200, body: sse({ type: "delta", text: line }, { type: "done", truncated: false }) }] });
+  await explain(page).click();
+  await page.locator(".grid .qm").first().click();
+  const pop = page.locator(".grid .pop");
+  await expect(pop.locator(".fsteps li")).toHaveCount(2);
+  await expect(pop.locator(".fsteps li").nth(0).locator(".dterm")).toHaveText(["color"]);
+  await expect(pop.locator(".fsteps li").nth(1).locator(".dterm")).toHaveText(["color"]);
+});
+
+// The tutor states two facts about an example and a reason for each; the page writes them as consequences ("Take S, it follows it is
+// P, because R") with the pair's own terms, draws the conclusion, and in the debate words the note by what the learner answered.
+withKey("a line with the two facts is shown as the subject and a list of consequences", async ({ page }, testInfo) => {
+  const line = 'Both: "thing 1" | A yes: it is a form. | B yes: it is a thing\n';
+  await open(page, testInfo, { tutor: [{ status: 200, body: sse({ type: "delta", text: line }, { type: "done", truncated: false }) }] });
+  await explain(page).click();
+  await page.locator(".grid .qm").first().click();
+  const pop = page.locator(".grid .pop");
+  await expect(pop.locator(".ftake")).toHaveText("Why? Take thing 1:"); // the heading and the subject on one line
+  await expect(pop.locator(".fsteps li")).toHaveText([/^It follows it is .+, because it is a form\.$/, /^It follows it is .+, because it is a thing\.$/]);
+  await expect(pop.locator(".fsteps .qterm")).toHaveCount(2); // the terms as the questions show them, with their A/B markers per the setting
+  await expect(page.locator(".grid .pop")).not.toContainText("|");
+});
+
+withKey("in Pervasions an accepted question's note names the tutor's counter-example", async ({ page }, testInfo) => {
+  test.skip(isPhone(testInfo), "the wide layout has the table and the coach panel");
+  // an example that is not in the practice list, so the random pair cannot settle either side from the data
+  const line = 'Q2: "a ripe mango" | A yes: it is a fruit | B no: it is a plant; pervasion: a plant is not a person\n';
+  await server(page, { tutor: [{ status: 200, body: sse({ type: "delta", text: line }, { type: "done", truncated: false }) }] });
+  await page.goto("/");
+  await ready(page);
+  await page.locator('.rail .nv:has-text("Pervasions")').click();
+  for (let i = 0; i < 4; i++) {
+    await page.locator(".qcard .btn").first().click(); // accept each question
+    await page.waitForTimeout(150);
+  }
+  await relOptions(page).first().click();
+  await explain(page).click();
+  await page.locator(".grid .qm").first().click();
+  const pop = page.locator(".grid .pop");
+  await expect(pop.locator(".ftake")).toHaveText("Why? Take a ripe mango:");
+  await expect(pop.locator(".fsteps li")).toHaveText([/^It follows it is .+, because it is a fruit\.$/, /^It follows it is not .+, because it is a plant\.A plant is not a person\.$/]);
+  await expect(pop.locator(".fsteps .not")).toHaveText("not"); // the denied term's "not" is marked as in the questions
+  await expect(pop.locator(".fsteps li").nth(1).locator(".fwhy")).toHaveText("A plant is not a person."); // the pervasion on a line under its consequence
 });
 
 withKey("a follow-up question sends the whole conversation as a chat", async ({ page }, testInfo) => {
@@ -145,4 +291,56 @@ withKey("on a wide screen the error and a follow-up answer appear in the coach p
   await expect(page.getByText("this is the stand-in answer.")).toBeVisible();
   expect(asked.map((a) => a.body.kind)).toEqual(["explain", "chat"]);
   expect(await overflow(page)).toBeLessThanOrEqual(0);
+});
+
+// A device without the Magic Key still sees Explain when the server has a tutor: grayed, and a tap says what it needs.
+plain("without the Magic Key Explain is there, grayed, and opens the Magic Key prompt; with the server's tutor off it is not there", async ({ page }, testInfo) => {
+  test.skip(!isPhone(testInfo), "the answer flow is exercised in the phone layout");
+  const asked = await server(page);
+  await page.goto("/");
+  await ready(page);
+  await expect(page.locator("#unlock")).toHaveCount(0); // nothing greets the reader with a prompt
+  await answerOnPhone(page);
+  await expect(explain(page)).toHaveAttribute("aria-disabled", "true");
+  // a closed lock marks what needs the key; it opens while the button is hovered
+  const lock = explain(page).locator(".lockic");
+  await expect(lock.locator(".closed")).toBeVisible();
+  await expect(lock.locator(".open")).toBeHidden();
+  await explain(page).hover();
+  await expect(lock.locator(".open")).toBeVisible();
+  await expect(lock.locator(".closed")).toBeHidden();
+  await explain(page).click({ force: true }); // aria-disabled, but it can be tapped
+  await expect(page.locator("#unlock")).toBeVisible();
+  await expect(page.locator("#unlock")).toContainText("Magic Key");
+  expect(asked).toEqual([]); // no question was sent
+
+  const off = await page.context().newPage();
+  await server(off, { health: { ok: true, tutor: "off" } });
+  await off.goto("/");
+  await ready(off);
+  await answerOnPhone(off);
+  await expect(explain(off)).toHaveCount(0);
+});
+
+// The grayed Explain was tapped for a reason: once the key is entered, the page stays as it was and the question goes out.
+plain("Explain without the Magic Key: entering the key in the prompt keeps the result and asks the question", async ({ page }, testInfo) => {
+  test.skip(!isPhone(testInfo), "the answer flow is exercised in the phone layout");
+  test.skip(!withCourse, "needs the course data to unlock the definitions");
+  await serveCourse(page);
+  const asked = await server(page);
+  await page.goto("/");
+  await ready(page);
+  await answerOnPhone(page);
+  const pair = () => page.locator("#stage .head .pair").first().innerText();
+  const before = await pair();
+  await page.evaluate(() => { window.__sameDocument = true; });
+  await explain(page).click({ force: true });
+  await page.fill("#unlock-key", dataKey);
+  await page.locator("#unlock").getByRole("button", { name: "Unlock", exact: true }).click();
+  await expect(page.locator("#unlock")).toHaveCount(0);
+  await openAnswer(page);
+  expect(asked).toHaveLength(1);
+  expect(asked[0].body.kind).toBe("explain");
+  expect(await pair()).toBe(before);
+  expect(await page.evaluate(() => window.__sameDocument), "the page was not reloaded").toBe(true);
 });

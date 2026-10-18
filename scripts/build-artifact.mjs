@@ -17,9 +17,9 @@ const parts = resolve(out, ".parts");
 try {
   await build(config);
 } catch (e) {
-  // the usual failure is a missing data key (scripts/vite-full-data.mjs): say that in one line instead of a stack trace
-  const key = /needs the data key[^\n]*/.exec(String(e?.message ?? e));
-  console.error(key ? `build:artifact failed: ${key[0]}` : e);
+  // the usual failure is missing course data (scripts/vite-full-data.mjs): say that in one line instead of a stack trace
+  const missing = /needs the course data[^\n]*/.exec(String(e?.message ?? e));
+  console.error(missing ? `build:artifact failed: ${missing[0]}` : e);
   process.exit(1);
 }
 

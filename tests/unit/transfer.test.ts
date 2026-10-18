@@ -131,6 +131,25 @@ describe("what is replaced", () => {
   });
 });
 
+describe("a setting under an earlier name", () => {
+  const fileWith = (preferences: Record<string, string>) => parseDataFile(JSON.stringify({ format: FORMAT, version: 1, collections: {}, preferences }));
+
+  it("brings in the Quorum choice a file made as 'rd-lab' as 'rd-quorum'", async () => {
+    const storage = fakeStorage();
+    const plan = await planImport(newDb(), fileWith({ "rd-lab": "0", "rd-blitz": "1" }), { storage });
+    expect(plan.preferences).toEqual({ "rd-quorum": "0", "rd-blitz": "1" });
+    await applyImport(newDb(), plan, { storage });
+    expect(storage.getItem("rd-quorum")).toBe("0");
+    expect(storage.getItem("rd-lab")).toBeNull();
+  });
+
+  it("prefers the new name when a file has both, and still leaves a device's own choice alone", async () => {
+    expect(fileWith({ "rd-lab": "0", "rd-quorum": "1" }).preferences).toEqual({ "rd-quorum": "1" });
+    const plan = await planImport(newDb(), fileWith({ "rd-lab": "0" }), { storage: fakeStorage({ "rd-quorum": "1" }) });
+    expect(plan.preferences).toEqual({});
+  });
+});
+
 describe("a file that is not right", () => {
   const file = (collections: unknown) => parseDataFile(JSON.stringify({ format: FORMAT, version: 1, collections }));
 
@@ -182,6 +201,7 @@ describe("the list of settings", () => {
     const files = (readdirSync(dir, { recursive: true }) as string[]).filter((f) => f.endsWith(".js"));
     const used = new Set<string>();
     for (const f of files) for (const m of readFileSync(new URL(f, dir), "utf8").matchAll(/["'](rd-[a-z-]+)["']/g)) used.add(m[1]);
+    used.delete("rd-lab"); // the earlier name of rd-quorum: read once and removed (state.js), never stored again
     expect(files.length).toBeGreaterThan(20);
     expect([...used].sort()).toEqual([...PREFERENCE_KEYS].sort());
   });
@@ -206,7 +226,7 @@ describe("a preview that is out of date", () => {
     const file = fileWith({ a1: { pairId: "a1", at: NEW, from: "file" } });
     const plan = await planImport(db, file);
     expect(plan.totals.update).toBe(1);
-    // the check lab saves a verdict while the preview is open
+    // a flag is saved while the preview is open
     await put(db, "answers", "a1", { pairId: "a1", at: OLD, verifiedAt: "2026-10-03T10:00:00.000Z", from: "local" });
     const report = await applyImport(db, plan, { storage: null });
     expect(report).toMatchObject({ written: 0, skipped: 1, failed: [] });

@@ -34,7 +34,9 @@ export function skipPair(){
   if(!state.ui||state.mode!=="quiz"||state.ui.checked||!state.cur||!state.cur.p||(state.tab!=="practice"&&state.tab!=="debate")) return;
   stopTimer(); dropSkipNote();
   const p=state.cur.p, k=skipKey(p), had=state.skips[k], [ca,cb]=skipCats(p), wasDebate=!!state.ui.debate, prev={cur: state.cur,rq:state.retryQ.slice(),rt:state.retryTag};
-  const doc=JSON.parse(JSON.stringify({key:k,a:p.a,b:p.b,catA:ca,catB:cb,relation:p.relation,pair:p,from:wasDebate?"debate":"practice",n:(had&&had.n||0)+1,at:new Date().toISOString()}));
+  /** @type {import("../types.ts").SkipDoc} */
+  const draft={key:k,a:p.a,b:p.b,catA:ca,catB:cb,relation:p.relation,pair:p,from:wasDebate?"debate":"practice",n:(had&&had.n||0)+1,at:new Date().toISOString()};
+  const doc=JSON.parse(JSON.stringify(draft));          // without the undefined fields
   state.skips[k]=doc;
   if(state.db) skipWrite(k,()=>put("skips",k,doc),()=>{ if(had) state.skips[k]=had; else delete state.skips[k]; });
   if(wasDebate) advanceDebate(); else advance();

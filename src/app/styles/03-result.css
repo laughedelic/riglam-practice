@@ -36,6 +36,8 @@ div.verdict{display:block}
 .btn.ghost:hover{box-shadow:inset 0 0 0 1.5px var(--ink-muted),inset 0 -4px 0 var(--vermilion)}
 .btn:disabled{opacity:.45;cursor:default;box-shadow:none}
 .btn.ghost:disabled{box-shadow:inset 0 0 0 1.5px var(--ink-muted)}
+.btn.needs-key{color:var(--ink-muted);box-shadow:inset 0 0 0 1.5px var(--line)}
+.btn.needs-key:hover{box-shadow:inset 0 0 0 1.5px var(--ink-muted)}
 .btn:focus-visible,.nb:focus-visible,.seg button:focus-visible,.obtn:focus-visible,.sw:focus-visible,.back:focus-visible,.tabs button:focus-visible,input:focus-visible,.subt:focus-visible{box-shadow:var(--focus-ring)}
 
 /* summary */
