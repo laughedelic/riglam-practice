@@ -17,6 +17,17 @@ export const isSent=f=>!!f.sentAt&&f.sentAt>=f.updatedAt;
 const order={tail:Promise.resolve(),flush:null};
 const inOrder=fn=>{ const run=order.tail.then(fn); order.tail=run.catch(()=>{}); return run; };
 
+// The writes of one flag to the database, in order: the editor's, a removal's, a change of state and the mark that the flag was sent. A write waits for the earlier ones of its flag, so
+// one that is tried again after a passing fault (put, practice/answers.js) cannot land after a later edit or removal and put the old document back; the write looks at the flag again
+// when its turn comes. While any is pending, the snapshot of the flags does not replace what the page has just changed and flags waiting to go are not sent; when the last has ended
+// they go. A failure goes to `undo` where the caller has one; otherwise the page tries again later.
+export const flagQ={};
+export function flagTurn(k,fn,undo){
+  state.flagPending++;
+  return flagQ[k]=(flagQ[k]||Promise.resolve()).catch(()=>{}).then(fn).catch(e=>{ if(undo) undo(e); })
+    .finally(()=>{ state.flagPending--; if(!state.flagPending) flushFlags(); });
+}
+
 // The stored answer the flag was made on: the page's copy, else the one in storage (the copies fill in as the saved collections load, and a
 // flag can be sent before that). null when it was never saved or is too large to send; undefined when storage could not be read, and the flag waits.
 async function answerFor(f){
@@ -34,11 +45,14 @@ async function sendNow(ids){
   if(!items.length) return;
   const stored=await R.send(items);
   for(const f of flags){
-    const cur=state.flags[f.id];
-    // marked only if the flag is still the one that was sent: an edit made meanwhile sends itself
-    if(!stored.includes(f.id)||!cur||cur.updatedAt!==f.updatedAt||isSent(cur)) continue;
-    const doc=Object.assign({},cur,{sentAt:new Date().toISOString()}); state.flags[f.id]=doc;
-    try{ await put("flags",f.id,doc); }catch(e){ /* the server has it; the mark is set again with the next send */ }
+    if(!stored.includes(f.id)) continue;
+    await flagTurn(f.id,async()=>{
+      const cur=state.flags[f.id];
+      // marked only if the flag is still the one that was sent: an edit made meanwhile sends itself
+      if(!cur||cur.updatedAt!==f.updatedAt||isSent(cur)) return;
+      const doc=Object.assign({},cur,{sentAt:new Date().toISOString()}); state.flags[f.id]=doc;
+      await put("flags",f.id,doc);     // if this fails the server has the flag all the same, and the mark is set again with the next send
+    });
   }
   if(state.tab==="review"&&state.mode!=="loading"&&!typingEl(document.activeElement)) render();
 }
