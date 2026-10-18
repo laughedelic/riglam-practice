@@ -1,6 +1,7 @@
 import { state } from "../state.js";
 import { mname } from "./quorum-panel.js";
 import { $, el } from "../core/dom.js";
+import { flagAsked } from "../../domain/flags.ts";
 import { typingEl } from "../core/viewport.js";
 import { put } from "../practice/answers.js";
 import { favSafe } from "../practice/favorites.js";
@@ -113,7 +114,7 @@ export function aiFlag(c,where,word){
 export function decorateAns(a,t,idx,over){
   if(!state.ui||t.pending||!t.content||a.childNodes.length===1&&a.firstChild.classList&&a.firstChild.classList.contains("status")) return;
   const where=(over?"o":"i")+idx, expl=t.kind==="explain", q=!expl&&state.ui.chat?state.ui.chat[idx-1]:null;
-  const fl=aiFlag(aiCase(expl?"explain":"chat",expl?"Claude’s explanation":"Claude’s answer",t.content,expl?null:idx,q&&q.role==="user"&&!q.hidden?q.content:null),where,true);
+  const fl=aiFlag(aiCase(expl?"explain":"chat",expl?"Claude’s explanation":"Claude’s answer",t.content,expl?null:idx,flagAsked(q)),where,true);
   if(fl){ a.prepend(fl); a.classList.add("hasflag"); }
   const ed=flagEditorNode(where); if(ed) a.append(ed);
 }

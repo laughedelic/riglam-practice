@@ -5,7 +5,7 @@ import { fillAns } from "../ai/tutor.js";
 import { el } from "../core/dom.js";
 import { dayOf } from "../core/util.js";
 import { flagAnswerRef, flagStateText, flaggedPart } from "../../domain/flags.ts";
-import { exerciseNode } from "./exercise.js";
+import { exerciseNode, noteContext } from "./exercise.js";
 
 /* ---------- Review: your flags, each with the exercise it was made on ---------- */
 // A flag is the learner's note on something Claude said (ai/flags.js). Here each one opens to show what Claude said,
@@ -23,7 +23,7 @@ function flagItem(f){
   // a flag the page raised by itself (Quorum, where the models are divided) has no note of the learner's: it can be marked reviewed or resolved, and it is not edited
   const auto=!!f.auto, doc=answerOf(f), what=auto?(f.thing?"“"+f.thing+"” · ":"")+"Quorum (automatic)":flaggedPart(f,mname), where="rv:"+f.id, editing=!!(state.ui&&state.ui.flagEdit&&state.ui.flagEdit.where===where);
   const marks=auto;
-  const said=el("div",{class:"ans"}); fillAns(said,f.shown||"");
+  const said=el("div",{class:"ans"}); fillAns(said,f.shown||"",doc?noteContext(doc):f.pair?{p:f.pair,accepted:()=>false}:undefined);
   const pair=f.pair?f.pair.a+" / "+f.pair.b:doc?doc.a+" / "+doc.b:"A flag";
   return el("li",{class:f.state},el("details",{open:openFlags.has(f.id)||editing,ontoggle:e=>{ if(e.target.open) openFlags.add(f.id); else openFlags.delete(f.id); }},
     el("summary",null,el("span",{class:"m","aria-hidden":"true"},el("span",{class:"flg"})),

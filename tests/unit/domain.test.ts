@@ -7,7 +7,7 @@ import { expect, test } from "vitest";
 import { CELLS, REL, makeIndex, refOf } from "../../src/ai-shared";
 import type { CellId, DrillData, RelKey } from "../../src/ai-shared";
 import {
-  FEATURE, RECENT_MAX, applyVerdicts, decideFlag, flagAnswerRef, flagStateText, flaggedPart, factNote, fitOf, noteParts, buildPool, cellsFor, chooseEntry, deriveRel, grade, gradeDebate, gradeOf, inUniverse, isMiss, judgeText, makePair,
+  FEATURE, RECENT_MAX, applyVerdicts, decideFlag, flagAnswerRef, flagAsked, flagStateText, flaggedPart, factNote, fitOf, noteParts, buildPool, cellsFor, chooseEntry, deriveRel, grade, gradeDebate, gradeOf, inUniverse, isMiss, judgeText, makePair,
   nextPair, pairKey, parseFactLine, parseVerdicts, pick, relOfCells, summarize, termLine, cellFor, cellOfFacts, disputeText, divided, quorumDisputes, quorumRows, readings,
 } from "../../src/domain";
 import type { DebateInput, GradeDraft, HistoryEntry, Pair, PoolEntry } from "../../src/domain";
@@ -631,6 +631,15 @@ test("a flag says in words what it is on", () => {
   expect([flagStateText("new"), flagStateText(undefined), flagStateText("reviewed"), flagStateText("resolved")]).toEqual(["Not reviewed yet", "Not reviewed yet", "Reviewed", "Resolved"]);
 });
 
+test("a flag on a chat answer keeps the question it answered", () => {
+  expect(flagAsked({ role: "user", content: "Why not?" })).toBe("Why not?");
+  expect(flagAsked({ role: "user", content: "THE CARD\n\nIs a chair a form?", hidden: true, asked: "Is a chair a form?" })).toBe("Is a chair a form?"); // the first turn of a chat
+  expect(flagAsked({ role: "user", content: "THE CARD\n\nExplain.", hidden: true })).toBeNull(); // the page's own request
+  expect(flagAsked({ role: "user", content: "Check the examples.", hidden: true })).toBeNull();
+  expect(flagAsked({ role: "assistant", content: "Yes." })).toBeNull();
+  expect(flagAsked(undefined)).toBeNull();
+});
+
 test("after two reviews a flag gets a reply, a prepared fix, or goes to the maintainer", () => {
   const r = (verdict: string, cause: string, confident = true) => ({ verdict, cause, confident, reply: verdict + " " + cause, fix: cause === "none" ? "" : "change " + cause }) as Parameters<typeof decideFlag>[0][number];
   const act = (...rs: ReturnType<typeof r>[]) => decideFlag(rs).action;
@@ -648,6 +657,9 @@ test("after two reviews a flag gets a reply, a prepared fix, or goes to the main
   expect(act(r("unclear", "none"), r("unclear", "none"))).toBe("escalate");
   expect(act(r("learner_right", "tutor"), r("learner_right", "data"))).toBe("escalate");
   expect(act(r("learner_wrong", "none"), r("learner_wrong", "none", false))).toBe("escalate");
+  // nothing is agreed when the causes differ or a reviewer is unsure: no reply for the learner, and no reviewer's fix
+  expect(decideFlag([r("learner_right", "tutor"), r("learner_right", "data")])).toEqual({ action: "escalate", reason: "the reviewers disagree on the cause", reply: "", fix: "", cause: "" });
+  expect(decideFlag([r("learner_right", "data"), r("learner_right", "data", false)])).toEqual({ action: "escalate", reason: "a reviewer is not sure", reply: "", fix: "", cause: "data" });
   expect(act(r("learner_right", "none"), r("learner_right", "none"))).toBe("escalate");
 });
 

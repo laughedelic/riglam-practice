@@ -97,15 +97,16 @@ const WHY_LEAD=/^why\?\s+(?=\S)/i;
 const acceptedQ=f=>{ const u=state.ui, a=u&&u.debate&&u.ans&&u.ans[QCELL.indexOf(f.cell)]; return !!a&&a.say!=="why"; };
 // the term data's steps (src/domain/ladder.ts) need the data, the pair and its terms as the note writes them
 export const noteData=(p=state.cur.p)=>({ix:state,p,terms:{a:singular(p.a),b:singular(p.b)}});
-const partsOf=f=>noteParts(f,acceptedQ(f),noteData());
+// `ctx` ({p, accepted}) is given where a stored note is shown away from the exercise on screen (Review): its pair and what was accepted, not the live ones
+const partsOf=(f,ctx)=>noteParts(f,ctx?ctx.accepted(f):acceptedQ(f),noteData(ctx?ctx.p:undefined));
 export const factText=f=>partsText(partsOf(f),noteData().terms);
 // the terms with their A/B markers and the "not" as the questions show them; why a denied term follows goes on a line under it
 const notW=()=>el("span",{class:"not",text:"not"});
 // `mark(text,key)` is the text with the Dudra terms it names underlined (withTerms), for a note that has a `where` to key them by
-function partNode(p,mark){
+function partNode(p,mark,pair){
   switch(p.kind){
-    case "term": return ["It follows it is ",p.not?[notW()," "]:null,termNode(p.side),p.reason?[", because ",...mark(p.reason,"r")]:null,".",p.why?el("span",{class:"fwhy"},mark(p.why,"w")):null];
-    case "unsure": return ["Whether it is ",termNode(p.side)," is not settled",p.say?[": ",...mark(p.say,"s")]:"","."];
+    case "term": return ["It follows it is ",p.not?[notW()," "]:null,termNode(p.side,pair),p.reason?[", because ",...mark(p.reason,"r")]:null,".",p.why?el("span",{class:"fwhy"},mark(p.why,"w")):null];
+    case "unsure": return ["Whether it is ",termNode(p.side,pair)," is not settled",p.say?[": ",...mark(p.say,"s")]:"","."];
     default: return [p.text];
   }
 }
@@ -115,12 +116,12 @@ export const whyHead=()=>el("span",{class:"clh",text:"Why?"});
  * names the note: the terms its texts name are underlined, each once in a line of the list, and the definition of the one tapped
  * opens under that line.
  */
-export function factNode(f,head,where){
-  const parts=partsOf(f), mid=parts.filter(p=>p.kind!=="take"&&p.kind!=="end");
+export function factNode(f,head,where,ctx){
+  const parts=partsOf(f,ctx), mid=parts.filter(p=>p.kind!=="take"&&p.kind!=="end");
   return el("div",{class:"fnote"},el("p",{class:"ftake"},head?[head," "]:null,"Take ",el("i",{text:f.example}),":"),
     el("ul",{class:"fsteps"},mid.map((p,k)=>{
       const keys=[], seen=new Set(), mark=(t,kind)=>{ const key=where+"."+k+kind; keys.push(key); return withTerms(t,key,seen); };
-      const body=partNode(p,where?mark:t=>t);
+      const body=partNode(p,where?mark:t=>t,ctx&&ctx.p);
       return el("li",null,...body,...keys.map(defCard));
     })),parts.filter(p=>p.kind==="end").map(p=>el("p",{text:p.text})));
 }
