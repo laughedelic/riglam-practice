@@ -20,6 +20,9 @@ import { callerOf, gate } from "./magic";
 
 const isPlain = (v: unknown): v is ReportDoc => !!v && typeof v === "object" && !Array.isArray(v);
 
+/** Why an automatic flag is with the maintainer from the start; the review gives the same reason to one that was stored before they were (worker/review.ts). */
+export const autoReason = (auto: string) => `automatic flag (${auto}): not reviewed by the models; the maintainer decides`;
+
 /** True when the database has the reports table and the operator has not switched reports off (settings: reports = off). */
 export async function reportsOn(db: D1Database | undefined): Promise<boolean> {
   if (!db) return false;
@@ -181,8 +184,12 @@ export function reportRoutes(deps: AccountDeps) {
       const version = typeof body.app === "string" ? body.app.slice(0, 40) : null;
       for (const r of sends) {
         const auto = autoFlagOf(r.flag);
-        const start = auto ? { state: "maintainer", outcome: "escalate", reason: `automatic flag (${auto}): not reviewed by the models; the maintainer decides` } : { state: "sent", outcome: null, reason: null };
-        statements.push(upsert.bind(device, r.id, user, caller, JSON.stringify(r.flag), r.answer === null ? null : JSON.stringify(r.answer), version, await digestOf(r), stamp, start.state, start.outcome, start.reason));
+        const start = auto ? { state: "maintainer", outcome: "escalate", reason: autoReason(auto) } : { state: "sent", outcome: null, reason: null };
+        const digest = await digestOf(r);
+        // The account already holds these very words from another of its devices, with their review: that report stays, and a second one
+        // would start the review again and drop the first one's reply (the words that changed are a new report, below).
+        if (user && (await db.prepare("SELECT 1 AS held FROM flag_reports WHERE user_id = ?1 AND id = ?2 AND device <> ?3 AND digest = ?4").bind(user, r.id, device, digest).first())) continue;
+        statements.push(upsert.bind(device, r.id, user, caller, JSON.stringify(r.flag), r.answer === null ? null : JSON.stringify(r.answer), version, digest, stamp, start.state, start.outcome, start.reason));
         // the same flag edited on another device of the account replaces the report that device sent
         if (user) statements.push(db.prepare("DELETE FROM flag_reports WHERE user_id = ?1 AND id = ?2 AND device <> ?3").bind(user, r.id, device));
       }
