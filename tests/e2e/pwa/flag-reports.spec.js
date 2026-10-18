@@ -147,6 +147,74 @@ test("editing a flag drops the reply that was for its old words", async ({ page 
   await expect(li.locator("summary").first()).toContainText("Sent to the maintainer");
 });
 
+test("a reply that reaches the page after the flag was edited and sent again is not kept for the new words", async ({ page }) => {
+  await giveKey(page);
+  const world = await serverWorld({}, { stubCourse: true });
+  await start(page, world);
+  await expect.poll(async () => (await stored(page)).fl_cell.sentAt).toBeTruthy();
+  reviewed(world, "answered", "Hot and white can overlap.");
+  // the server answers the status request now, but the answer is held until the flag has been edited and sent again
+  let held, release;
+  const asked = new Promise((resolve) => { held = resolve; });
+  const gate = new Promise((resolve) => { release = resolve; });
+  await page.route("**/api/flags", async (route) => {
+    const request = route.request();
+    if (!request.postDataJSON()?.status) return route.fallback();
+    const headers = await request.allHeaders();
+    delete headers["content-length"];
+    const res = await world.app.request(request.url(), { method: "POST", headers, body: request.postData() }, world.env);
+    const body = Buffer.from(await res.arrayBuffer());
+    held();
+    await gate;
+    await route.fulfill({ status: res.status, headers: Object.fromEntries(res.headers), body });
+  });
+  await page.reload();
+  await ready(page);
+  await asked;
+  const li = await openFlags(page);
+  await li.getByRole("button", { name: "Edit" }).click();
+  await page.locator("#flag-note").fill("A bowl need not be round.");
+  await page.locator(".flagedit").getByRole("button", { name: "Submit" }).click();
+  await expect.poll(async () => { const f = (await stored(page)).fl_cell; return f.sentAt >= f.updatedAt && f.updatedAt > at; }).toBe(true);
+  release();
+  await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 500))); // the held answer has been handled by now
+  await expect(li.locator(".freply")).toHaveCount(0);
+  await expect(li.locator("summary").first()).toContainText("Sent to the maintainer");
+  expect((await stored(page)).fl_cell.review).toBeUndefined();
+});
+
+test("every sent flag whose review is not over is asked about, in batches, newest first", async ({ page }) => {
+  await giveKey(page);
+  const world = await serverWorld({}, { stubCourse: true });
+  const asked = [];
+  await bridge(page, world);
+  await page.route("**/api/flags", (route) => {
+    const ids = route.request().postDataJSON()?.status;
+    if (ids) asked.push(ids);
+    return route.fallback();
+  });
+  await seed(page);
+  await expect.poll(async () => (await stored(page)).fl_cell.sentAt).toBeTruthy();
+  const sentAt = "2026-10-14T12:00:00.000Z";
+  await page.evaluate(async ({ flag, sentAt }) => {
+    const db = await window.__riglam.platform.db();
+    for (let i = 0; i < 55; i++) {
+      const updatedAt = "2026-10-14T10:" + String(i).padStart(2, "0") + ":00.000Z";
+      await db.collection("flags").doc("fl_n" + i).set({ ...flag, id: "fl_n" + i, updatedAt, sentAt });
+    }
+  }, { flag, sentAt });
+  asked.length = 0;
+  await page.reload();
+  await ready(page);
+  await expect.poll(() => asked.length).toBe(2);
+  const ids = asked.flat();
+  expect(ids).toHaveLength(56);
+  expect(new Set(ids).size).toBe(56);
+  expect(asked[0]).toHaveLength(50);
+  expect(asked[0][0]).toBe("fl_n54"); // newest first
+  expect(ids.at(-1)).toBe("fl_cell"); // the oldest, which a cut at the first 50 would never have asked about
+});
+
 plain("a device without the Magic Key cannot flag: Edit is greyed and opens the prompt, and nothing is sent", async ({ page }) => {
   const world = await serverWorld();
   const device = await start(page, world);
