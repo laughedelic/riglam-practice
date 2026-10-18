@@ -1,0 +1,81 @@
+name: Staging
+
+# Rebuilds the `staging` branch: main with every open pull request labeled `staging` merged in, stacks together (docs/STAGING.md).
+# Pushing the branch is what deploys it: Cloudflare Workers Builds builds `staging` as the Preview of that name (docs/DEPLOY.md), so this
+# workflow only does the git work and holds no Cloudflare credential.
+#
+# It runs the script of `main` whatever the event (`pull_request_target` and an explicit `ref`), and the pull requests' own branches are only
+# merged by git, never checked out and run. Only the `checks` job runs code from them, with a read-only token and no secret.
+# The events are quick; the schedule is the net under them. A pull request stacked on a branch that does not have this file yet, or one that
+# conflicts with main, does not start a `pull_request` workflow; a push by a workflow's own token does not either.
+
+on:
+  pull_request_target:
+    types: [labeled, unlabeled, synchronize, reopened, closed, edited]
+  push:
+    branches: [main]
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    name: Rebuild staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # One rebuild at a time. A run waiting behind another is replaced by a newer one, which is fine: every run reads the pull requests afresh.
+    concurrency:
+      group: staging
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      statuses: write
+      pull-requests: write
+    outputs:
+      changed: ${{ steps.sync.outputs.changed }}
+      sha: ${{ steps.sync.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+          # The token that pushes `staging`. The default one cannot push a change to a file under .github/workflows, so when a labeled pull
+          # request changes one, or when Workers Builds does not start on a push made with the default token, set the secret STAGING_TOKEN
+          # (a fine-grained token with contents write, or a classic one with the workflow scope).
+          token: ${{ secrets.STAGING_TOKEN || github.token }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - name: Rebuild and push staging
+        id: sync
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          node scripts/staging.mjs sync --push --report
+
+  # The checks a contributor runs on staging by hand (docs/STAGING.md): this is where two pull requests can break each other.
+  checks:
+    name: Checks on staging
+    needs: sync
+    if: ${{ !cancelled() && needs.sync.outputs.changed == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.sync.outputs.sha }}
+          persist-credentials: false
+      # No cache: a run started by a pull request event must not write one that main's CI reads.
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - run: npm ci
+      # Made-up definitions and notes for every term (docs/DATA.md), as in ci.yml.
+      - run: npm run data:fixture
+      - run: npm run build
+      - run: npm run check:fast

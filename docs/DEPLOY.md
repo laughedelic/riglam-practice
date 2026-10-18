@@ -41,7 +41,7 @@ In the Workers Builds settings: *Branch control → Enable Preview Builds*, buil
 
 ## Staging
 
-The open pull requests are merged into the `staging` branch and deployed as the Worker Preview `staging`, with its own database, secrets and budgets: [STAGING.md](STAGING.md).
+The open pull requests labeled `staging` are merged into the `staging` branch by a workflow and deployed as the Worker Preview `staging`, with its own database, secrets and budgets: [STAGING.md](STAGING.md).
 
 ## The server's setup
 

@@ -1,18 +1,26 @@
 #!/usr/bin/env node
 // npm run staging [-- <command> [options]]    (docs/STAGING.md)
-//   (no command)  rebuild the staging branch: main, then each branch listed in staging.json merged in order. The list is read from
-//                 origin/staging and changed with --add <branch> and --remove <branch> (both can be repeated). Stops at a conflict.
-//   push          push staging to origin (force, but only over the state this clone last fetched)
-//   list          show what origin/staging was built from
-//   deploy        build the app from the checked-out staging branch and put it on the Worker Preview named staging
-//                 deploy --here  the same for whatever commit is checked out, without the branch checks (for a build service such as Workers Builds,
-//                                which builds other branches too: a branch other than staging gets its own Preview, by WORKERS_CI_BRANCH)
-// Exit 0 on success, 1 when the work could not be done (a conflict, a missing branch), 2 on a usage problem.
+//   sync (the default)  rebuild the staging branch: main, then every open pull request labeled `staging` merged in (and the pull requests those
+//                       are stacked on), in stack order and then by number. Only the local branch is moved unless told otherwise.
+//                         --push      push it to origin (force, but only over the state this clone last fetched)
+//                         --report    set the `staging` status on each pull request and comment on one that just stopped merging (needs GITHUB_TOKEN)
+//                         --force     build even when origin/staging was built from the same inputs
+//                         --pulls <file>  read the open pull requests from a JSON file (the REST API's list) instead of asking GitHub
+//                         --label <name>  the label to look for, `staging` unless told otherwise
+//                       Pull requests come from the GitHub API with GITHUB_TOKEN (GH_TOKEN), or from `gh api` when there is none.
+//   push                push staging to origin (force, but only over the state this clone last fetched)
+//   list                show what origin/staging was built from
+//   deploy              build the app from the checked-out staging branch and put it on the Worker Preview named staging
+//                       deploy --here  the same for whatever commit is checked out, without the branch checks (for a build service such as Workers Builds,
+//                                      which builds other branches too: a branch other than staging gets its own Preview, by WORKERS_CI_BRANCH)
+// Exit 0 on success, 1 when the work could not be done or a pull request has just stopped merging, 2 on a usage problem.
 import { execFileSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ConflictError, StagingError, git, push, readManifest, rebuild } from "./lib/staging.mjs";
+import { LABEL, StagingError, git, push, readManifest, rebuild, selectPulls } from "./lib/staging.mjs";
+import { githubClient } from "./lib/staging-github.mjs";
+import { describe, newSkips, publish, summary } from "./lib/staging-report.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const TARGET = "staging";
@@ -21,23 +29,25 @@ const MIGRATIONS_CONFIG = "wrangler.staging-migrations.jsonc";
 const D1_NAME = "riglam-practice-staging";
 
 const [first, ...rest] = process.argv.slice(2);
-const command = first && !first.startsWith("-") ? first : "rebuild";
+const command = first && !first.startsWith("-") ? first : "sync";
 const args = command === first ? rest : process.argv.slice(2);
 
 function options() {
-  const out = { add: [], remove: [] };
+  const out = { push: false, report: false, force: false, pulls: null, label: LABEL };
   for (let i = 0; i < args.length; i++) {
     const [flag, inline] = args[i].split("=", 2);
-    if (flag !== "--add" && flag !== "--remove") usage(`unknown option ${args[i]}`);
-    const value = inline ?? args[++i];
-    if (!value || value.startsWith("-")) usage(`${flag} needs a branch name`);
-    out[flag.slice(2)].push(value);
+    if (["--push", "--report", "--force"].includes(flag)) out[flag.slice(2)] = true;
+    else if (flag === "--pulls" || flag === "--label") {
+      const value = inline ?? args[++i];
+      if (!value || value.startsWith("-")) usage(`${flag} needs a value`);
+      out[flag.slice(2)] = value;
+    } else usage(`unknown option ${args[i]}`);
   }
   return out;
 }
 
 function usage(problem) {
-  console.error(`${problem}\nusage: staging.mjs [rebuild [--add <branch>] [--remove <branch>] | push | list | deploy [--here]]`);
+  console.error(`${problem}\nusage: staging.mjs [sync [--push] [--report] [--force] [--pulls <file>] [--label <name>] | push | list | deploy [--here]]`);
   process.exit(2);
 }
 
@@ -52,8 +62,13 @@ function wranglerVersion() {
   }
 }
 
-function describe(result) {
-  console.log(`staging is ${result.sha.slice(0, 7)}: main ${result.baseSha.slice(0, 7)}${result.merged.map((m) => `\n  + ${m.branch} ${m.sha.slice(0, 7)}${m.addsNothing ? "  (adds nothing to main: already merged? then --remove it)" : ""}`).join("")}`);
+/** "owner/name" of the repository: the environment of a workflow run, or the origin remote. */
+function repository() {
+  if (process.env.GITHUB_REPOSITORY) return process.env.GITHUB_REPOSITORY;
+  const url = git(root, ["remote", "get-url", "origin"]);
+  const match = /github\.com[:/]([^/]+\/[^/]+?)(?:\.git)?$/.exec(url);
+  if (!match) throw new StagingError(`cannot tell the GitHub repository from the origin remote ${url}`);
+  return match[1];
 }
 
 /** The Preview's first address from the JSON `wrangler preview` prints, or the whole output when it has another shape. */
@@ -99,7 +114,7 @@ function deploy({ here = false } = {}) {
   // A second name, short name and icon, so that the staging app can be installed next to the real one and told apart.
   run("npm", ["run", "build:pwa"], { RIGLAM_APP_NAME: "Riglam practice (staging)", RIGLAM_APP_SHORT_NAME: "Staging", RIGLAM_ICON_SET: "preview" });
   // What is deployed, readable at /staging-build.json (not precached: it is written after the build).
-  writeFileSync(resolve(root, "dist/pwa/staging-build.json"), `${JSON.stringify({ commit: sha, base: manifest.base, branches: manifest.branches, builtAt: new Date().toISOString() }, null, 2)}\n`);
+  writeFileSync(resolve(root, "dist/pwa/staging-build.json"), `${JSON.stringify({ commit: sha, base: manifest.base, baseSha: manifest.baseSha, branches: manifest.branches, pulls: manifest.pulls, builtAt: new Date().toISOString() }, null, 2)}\n`);
   const wrangler = ["--yes", `wrangler@${wranglerVersion()}`];
   run("npx", [...wrangler, "d1", "migrations", "apply", D1_NAME, "--remote", "-c", MIGRATIONS_CONFIG]);
   // A Preview, not a deploy: it has the database and variables of the `previews` block and none of production's secrets or data.
@@ -107,20 +122,71 @@ function deploy({ here = false } = {}) {
   console.log(`staging ${sha} is at ${previewUrl(out)}`);
 }
 
-try {
-  if (command === "rebuild") {
-    const { add, remove } = options();
-    const result = rebuild({ cwd: root, target: TARGET, add, remove });
-    describe(result);
+/** Every open pull request: from a file, from the API with a token, or from the gh command line. */
+async function openPulls(client, file, repo) {
+  if (file) return JSON.parse(readFileSync(file, "utf8"));
+  if (client) return client.openPulls();
+  try {
+    return JSON.parse(execFileSync("gh", ["api", "--paginate", "--slurp", `repos/${repo}/pulls?state=open&per_page=100`], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] })).flat();
+  } catch (e) {
+    throw new StagingError(`cannot list the open pull requests: set GITHUB_TOKEN, sign in with gh, or pass --pulls <file> (${String(e.stderr || e.message).trim()})`);
+  }
+}
+
+/** Appends `lines` to a file that GitHub Actions names in the environment (the step summary, the step outputs), when there is one. */
+function toActions(variable, text) {
+  if (process.env[variable]) appendFileSync(process.env[variable], text);
+}
+
+async function sync(opts) {
+  const repo = repository();
+  const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+  const client = token ? githubClient({ repo, token }) : null;
+  if (opts.report && !client) throw new StagingError("--report needs GITHUB_TOKEN");
+
+  const pulls = await openPulls(client, opts.pulls, repo);
+  const { entries, ignored } = selectPulls(pulls, { repo, label: opts.label });
+  for (const i of ignored) console.log(`#${i.number} is left out: ${i.why}`);
+
+  const result = rebuild({ cwd: root, entries, target: TARGET, force: opts.force });
+  console.log(describe(result));
+  const runUrl = process.env.GITHUB_RUN_ID ? `${process.env.GITHUB_SERVER_URL}/${repo}/actions/runs/${process.env.GITHUB_RUN_ID}` : undefined;
+  toActions("GITHUB_STEP_SUMMARY", `${summary(result, { runUrl })}\n`);
+  if (result.upToDate) {
+    toActions("GITHUB_OUTPUT", "changed=false\n");
+    return 0;
+  }
+
+  if (!opts.push) {
     console.log(`\nLocal ${TARGET} is updated. Next: npm run check:fast, then npm run staging -- push`);
+    return 0;
+  }
+  const pushed = push({ cwd: root, target: TARGET });
+  console.log(`pushed ${TARGET} ${pushed.slice(0, 7)}`);
+  toActions("GITHUB_OUTPUT", `changed=true\nsha=${pushed}\n`);
+  if (opts.report) await publish(client, { result, openPulls: pulls, runUrl });
+  // A pull request that has just stopped merging is the news: the run fails, so that it is seen. One that still conflicts, as before, is not.
+  const news = newSkips(result);
+  if (news.length) console.error(`\nleft out now: ${news.map((s) => `#${s.number}`).join(", ")}`);
+  return news.length ? 1 : 0;
+}
+
+try {
+  if (command === "sync") {
+    process.exitCode = await sync(options());
   } else if (command === "push") {
     console.log(`pushed ${TARGET} ${push({ cwd: root, target: TARGET }).slice(0, 7)}`);
   } else if (command === "list") {
     git(root, ["fetch", "--quiet", "--prune", "origin"]);
     const manifest = readManifest(root, `origin/${TARGET}`);
     if (!manifest) throw new StagingError(`origin/${TARGET} does not exist yet`);
-    console.log(`origin/${TARGET} ${git(root, ["rev-parse", "--short", `origin/${TARGET}`])} = ${manifest.base} + ${manifest.branches.length} branches`);
-    for (const b of manifest.branches) console.log(`  ${b} ${git(root, ["rev-parse", "--short", `origin/${b}`], { allowFail: true }) ?? "(gone from origin)"}`);
+    const pulls = manifest.pulls ?? (manifest.branches ?? []).map((branch) => ({ branch }));
+    console.log(`origin/${TARGET} ${git(root, ["rev-parse", "--short", `origin/${TARGET}`])} = ${manifest.base} ${manifest.baseSha?.slice(0, 7) ?? ""} + ${pulls.length} pull requests`);
+    for (const p of pulls) {
+      const now = git(root, ["rev-parse", "--short", `origin/${p.branch}`], { allowFail: true });
+      console.log(`  ${p.number ? `#${p.number} ` : ""}${p.branch} ${now ?? "(gone from origin)"}${p.sha && now && !p.sha.startsWith(now) ? "  (has moved since)" : ""}`);
+    }
+    for (const s of manifest.skipped ?? []) console.log(`  left out: #${s.number} ${s.branch} (${s.reason}${s.files?.length ? `: ${s.files.join(", ")}` : ""})`);
   } else if (command === "deploy") {
     if (args.some((a) => a !== "--here")) usage(`unknown option ${args.find((a) => a !== "--here")}`);
     deploy({ here: args.includes("--here") });
@@ -130,6 +196,5 @@ try {
 } catch (e) {
   if (!(e instanceof StagingError)) throw e;
   console.error(e.message);
-  if (e instanceof ConflictError && e.merged.length) console.error(`(merged cleanly before it: ${e.merged.join(", ")})`);
   process.exit(1);
 }
