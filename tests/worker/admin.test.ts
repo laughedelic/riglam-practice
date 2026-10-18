@@ -6,7 +6,7 @@ import { HEADER } from "../../src/ai/protocol";
 import { REPORT_API, type FlagReport } from "../../src/report/protocol";
 import { ADMIN_API, ADMIN_GUESSES_PER_HOUR } from "../../worker/admin";
 import { reviewPass } from "../../worker/review";
-import { world, type World } from "./accounts-support";
+import { signUp, world, type World } from "./accounts-support";
 import { fakeAnthropic, fakeKit, json } from "./support";
 
 const KEY = "admin-key-for-tests-0123456789-abcdef";
@@ -36,6 +36,14 @@ const admin = (w: World, path: string, init: { body?: unknown; auth?: string | n
     origin: null,
     headers: { ...(init.auth === null ? {} : { authorization: init.auth ?? `Bearer ${KEY}` }), ...(init.ip ? { "cf-connecting-ip": init.ip } : {}) },
   });
+
+/** Reports sent a second apart, so that "oldest first" is the order they were sent in. */
+async function sendAll(w: World, ...rs: FlagReport[]) {
+  for (const r of rs) {
+    expect((await send(w, r)).status).toBe(200);
+    w.clock.now = new Date(w.clock.now.getTime() + 1000);
+  }
+}
 
 const rows = (w: World) => w.db.sql<{ id: string; state: string; reply: string | null; decision: string | null; decided_at: string | null }>("SELECT id, state, reply, decision, decided_at FROM flag_reports ORDER BY id");
 const open = () => world({ RIGLAM_ADMIN_KEY: KEY });
@@ -76,6 +84,29 @@ describe("who may use it", () => {
     expect((await admin(w, "", { ip: "198.51.100.8" })).status).toBe(200);
     w.clock.now = new Date(w.clock.now.getTime() + 3_600_000);
     expect((await admin(w, "", { ip: "198.51.100.7" })).status).toBe(200);
+  });
+
+  it("requests that arrive together cannot all pass the limit: only so many keys are looked at, however many are in flight", async () => {
+    const w = await open();
+    const answers = await Promise.all(Array.from({ length: 3 * ADMIN_GUESSES_PER_HOUR }, (_, i) => admin(w, "", { auth: `Bearer wrong-${i}`, ip: "198.51.100.7" })));
+    const codes = await Promise.all(answers.map(async (r) => (await json(r)).error.code as string));
+    expect(codes.filter((c) => c === "not_granted")).toHaveLength(ADMIN_GUESSES_PER_HOUR);
+    expect(codes.filter((c) => c === "quota")).toHaveLength(2 * ADMIN_GUESSES_PER_HOUR);
+    expect(w.db.sql<{ n: number }>("SELECT n FROM guesses WHERE who LIKE 'admin:%'")[0].n).toBe(ADMIN_GUESSES_PER_HOUR);
+  });
+
+  it("a right key leaves no guess behind, and a counter that cannot be written is no way to test keys", async () => {
+    const w = await open();
+    expect((await admin(w, "", { ip: "198.51.100.7" })).status).toBe(200);
+    expect(w.db.sql("SELECT n FROM guesses")).toEqual([]);
+    const real = w.env.DB!;
+    const db = new Proxy(real, {
+      get: (target, prop) => (prop === "prepare" ? (sql: string) => (/INSERT INTO guesses/.test(sql) ? { bind: () => ({ run: () => Promise.reject(new Error("d1 is down")) }) } : target.prepare(sql)) : Reflect.get(target, prop)),
+    });
+    for (const auth of [`Bearer ${KEY}`, "Bearer wrong"]) {
+      const res = await w.app.request("https://practice.example" + ADMIN_API, { headers: { authorization: auth } }, { ...w.env, DB: db });
+      expect([res.status, (await json(res)).error.code]).toEqual([503, "unavailable"]);
+    }
   });
 
   it("does not count against the Magic Key's limit, and the Magic Key does not open it", async () => {
@@ -176,6 +207,33 @@ describe("reading", () => {
     expect(follow).toMatchObject({ id: "fl_f", flag: { what: "The reply to a flag", part: "reply", n: "fl_a" }, parent: { id: "fl_a", state: "answered", cause: "data" } });
   });
 
+  it("a follow-up comes with the flag it follows from another device of the same account, and never from another account", async () => {
+    const w = await open();
+    const me = await signUp(w, "me");
+    const other = await signUp(w, "other");
+    await send(w, report("fl_a"), DEV_A, me.cookie);
+    escalated(w, "fl_a", { state: "answered" });
+    // the reply to the flag was read on another device of the account and flagged there
+    await send(w, report("fl_f", { part: "reply", n: "fl_a", shown: "You are right.", note: "When?" }), DEV_B, me.cookie);
+    // another account's flag with the same number, and one of no account
+    await send(w, report("fl_g", { part: "reply", n: "fl_a", note: "Not mine." }), "deviceCCCCCCCCCCCCCCCC", other.cookie);
+    await send(w, report("fl_h", { part: "reply", n: "fl_a", note: "Nor mine." }), "deviceDDDDDDDDDDDDDDDD");
+    w.db.sql("UPDATE flag_reports SET state = 'maintainer' WHERE id IN ('fl_f', 'fl_g', 'fl_h')");
+    const reports = (await json(await admin(w, ""))).reports as { id: string; parent?: { id: string } }[];
+    expect(reports.map((r) => [r.id, r.parent?.id])).toEqual([["fl_f", "fl_a"], ["fl_g", undefined], ["fl_h", undefined]]);
+  });
+
+  it("a stored flag with a field that is not text does not stop the list or the report", async () => {
+    const w = await open();
+    await sendAll(w, report("fl_a"), report("fl_b"));
+    w.db.sql("UPDATE flag_reports SET flag = ? WHERE id = 'fl_a'", JSON.stringify({ id: "fl_a", caseKey: { toString: 0 }, part: "explain", n: { toString: null }, thing: 5, model: [1], pair: { tab: {} }, shown: ["x"], note: "Still here." }));
+    const body = await json(await admin(w, "?state=all"));
+    expect(body.reports.map((r: { id: string }) => r.id)).toEqual(["fl_a", "fl_b"]);
+    expect(body.reports[0].flag).toMatchObject({ what: "Claude’s explanation", note: "Still here." });
+    expect(body.reports[0].flag.caseKey).toBeUndefined();
+    expect((await admin(w, `/${DEV_A}/fl_a`)).status).toBe(200);
+  });
+
   it("one report comes with the stored answer; a reference that is none, or names nothing, is told so", async () => {
     const w = await open();
     await send(w, report("fl_a"));
@@ -215,14 +273,48 @@ describe("deciding", () => {
     const w = await open();
     await send(w, report("fl_a"));
     escalated(w, "fl_a");
-    expect((await decide(w, { digest: await digestOf(w), state: "fixed" })).status).toBe(200);
-    expect(rows(w)[0]).toMatchObject({ state: "fixed", reply: "You are right." });
+    expect((await decide(w, { digest: await digestOf(w), state: "answered" })).status).toBe(200);
+    expect(rows(w)[0]).toMatchObject({ state: "answered", reply: "You are right." });
     expect((await decide(w, { digest: await digestOf(w), state: "answered", reply: "" })).status).toBe(200);
     expect(rows(w)[0]).toMatchObject({ state: "answered", reply: null });
     await decide(w, { digest: await digestOf(w), state: "decided", reply: "a\u0000b\u001b[31m\tc\r\nd " + "x".repeat(3000) });
     const reply = rows(w)[0].reply!;
     expect(reply.startsWith("a b [31m c \nd x")).toBe(true);
     expect(reply).toHaveLength(1200);
+  });
+
+  it("a report that is fixed or decided is not changed again, because the device has stopped asking about it; the sender's own edit opens it again", async () => {
+    const w = await open();
+    await send(w, report("fl_a"));
+    escalated(w, "fl_a");
+    expect((await decide(w, { digest: await digestOf(w), state: "fixed", reply: "Fixed." })).status).toBe(200);
+    for (const state of ["fixed", "decided", "answered"]) {
+      const res = await decide(w, { digest: await digestOf(w), state, reply: "Changed afterwards." });
+      const error = (await json(res)).error;
+      expect([res.status, error.code]).toEqual([409, "conflict"]);
+      expect(error.message).toContain("closed");
+    }
+    expect(rows(w)[0]).toMatchObject({ state: "fixed", reply: "Fixed." });
+    expect(await status(w, ["fl_a"])).toEqual([{ id: "fl_a", state: "fixed", reply: "Fixed.", replyAt: expect.any(String) }]);
+    await send(w, report("fl_a", { note: "It is not fixed for me." }));
+    expect(rows(w)[0]).toMatchObject({ state: "sent", reply: null });
+    escalated(w, "fl_a");
+    expect((await decide(w, { digest: await digestOf(w), state: "decided", reply: "Looked again." })).status).toBe(200);
+  });
+
+  it("the record of a decision goes when the sender changes the words, and stays when the same words are sent again", async () => {
+    const w = await open();
+    await send(w, report("fl_a"));
+    escalated(w, "fl_a");
+    await decide(w, { digest: await digestOf(w), state: "decided", reply: "Decided.", decision: "No change; the example is right." });
+    await send(w, report("fl_a", { state: "resolved" })); // the same words
+    expect(rows(w)[0]).toMatchObject({ state: "decided", decision: "No change; the example is right.", decided_at: w.clock.now.toISOString() });
+    await send(w, report("fl_a", { note: "Another note." })); // other words
+    expect(rows(w)[0]).toMatchObject({ state: "sent", reply: null, decision: null, decided_at: null });
+    // a decision on the new words without a note of its own does not bring the old note back
+    escalated(w, "fl_a");
+    await decide(w, { digest: await digestOf(w), state: "answered" });
+    expect(rows(w)[0]).toMatchObject({ state: "answered", decision: null });
   });
 
   it("refuses what is not a decision, and changes nothing", async () => {
