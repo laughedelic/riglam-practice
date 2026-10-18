@@ -430,6 +430,8 @@ test("a flag deleted while the device could not reach the server's reports is ta
   const li = await openFlags(page);
   await li.getByRole("button", { name: "Delete" }).click();
   await expect.poll(async () => Object.keys(await stored(page))).toEqual([]);
+  // the page shows the flag gone before the deletion is stored; the report is taken back only after that, and the removal is then kept on the device
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("riglam.flagsToWithdraw"))).toContain("fl_cell");
   expect(reports(world).length).toBe(1);
   device.offline = false;
   await page.reload();
@@ -471,13 +473,14 @@ test("a flag whose deletion fails is undone, and its report stays on the server"
   await pause(page);
   const asked = device.seen.filter((r) => r.includes("/api/flags")).length;
   await li.getByRole("button", { name: "Delete" }).click();
+  await pause(page, 800); // the deletion fails and is undone
+  const back = await openFlags(page); // a phone shows the Flags part of Review again only when asked
   await expect(page.locator(".status", { hasText: "could not be saved" })).toBeVisible();
-  await pause(page);
   expect(Object.keys(await stored(page))).toEqual(["fl_cell"]);
   expect(device.seen.filter((r) => r.includes("/api/flags")).length).toBe(asked); // nothing took the report back
   expect(reports(world).length).toBe(1);
   expect(await page.evaluate(() => localStorage.getItem("riglam.flagsToWithdraw"))).toBeNull();
-  await expect(li.locator("summary").first()).toContainText("Sent to the maintainer");
+  await expect(back.locator("summary").first()).toContainText("Sent to the maintainer");
 });
 
 test("a flag edited on a device whose clock is ahead is marked sent, and is not uploaded again and again", async ({ page }) => {
