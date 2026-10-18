@@ -365,6 +365,10 @@ test("the comment names the files and who else changed them, and carries a marke
   expect(conflictComment({ ...skip, files: ["a.js"], withMain: false, with: [] })).not.toContain("also changed by");
   expect(conflictComment({ ...skip, files: ["a.js"], with: [] })).toContain("That file was also changed by `main`, since this branch left it.");
   expect(text).toContain("Merge `main`");
+  // the comment is the one notification, so it says where to look from then on
+  expect(text).toContain("This comment is posted once.");
+  expect(text).toContain("the status `staging` in this pull request's checks is where to look");
+  expect(text).toContain("check it after each push");
 });
 
 test("the log and the run summary list what went in and what was left out", () => {

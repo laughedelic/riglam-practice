@@ -46,7 +46,9 @@ export function conflictComment(skip) {
     ...skip.files.map((f) => `- \`${f}\``),
     ...(others.length ? ["", `${skip.files.length === 1 ? "That file was" : "Those files were"} also changed by ${others.join(" and by ")}.`] : []),
     "",
-    "Merge `main` (or the pull request above) into this branch and push, as for any pull request. Staging rebuilds by itself and the status `staging` turns green. This comment is posted once for a conflict.",
+    "Merge `main` (or the pull request above) into this branch and push, as for any pull request. Staging rebuilds by itself after each push.",
+    "",
+    "This comment is posted once. From here on, the status `staging` in this pull request's checks is where to look: it names the files in conflict as of the latest rebuild and turns green when the branch merges cleanly. It does not notify anyone, so check it after each push, and again when `main` or the pull request above moves.",
   ].join("\n");
 }
 

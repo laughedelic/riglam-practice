@@ -27,7 +27,7 @@ Every run reads the open pull requests afresh, so a run that was queued behind a
 The rebuild leaves that pull request out, and every pull request stacked on it, and builds the rest. Nothing stops at the first conflict.
 
 - The pull request gets the status `staging` in red, with the files in conflict and who else changed them (`main` since the branch left it, or a pull request that is on staging before it).
-- When it stops merging, it also gets one comment saying the same, which notifies whoever follows the pull request. The comment is posted once per conflict (a run that finds it missing posts it again); the status is updated on every build, and a pull request that leaves staging, by losing its label or being closed, gets a green "Not in staging" in place of the old one.
+- When it stops merging, it also gets one comment saying the same, which notifies whoever follows the pull request. The comment is posted once per conflict (a run that finds it missing posts it again) and tells the author to watch the status. The status is updated on every build but, being a commit status and not a failed check run, it does not notify the author or an agent subscribed to the pull request. A pull request that leaves staging, by losing its label or being closed, gets a green "Not in staging" in place of the old one.
 - The run fails the first time a pull request is left out, so that it is seen, and passes while the same pull requests stay out.
 - The fix is the one for any pull request: merge `main` (or the pull request it conflicts with) into its branch and push. Staging rebuilds on its own and the status turns green. Never resolve a conflict on `staging`.
 
