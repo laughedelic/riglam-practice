@@ -28,8 +28,8 @@ const post = async (w: World, body: unknown, who: { device?: string; cookie?: st
   });
 };
 const rows = (w: World) =>
-  w.db.sql<{ device: string; id: string; user_id: string | null; caller: string; flag: string; answer: string | null; app: string | null; state: string }>(
-    "SELECT device, id, user_id, caller, flag, answer, app, state FROM flag_reports ORDER BY device, id",
+  w.db.sql<{ device: string; id: string; user_id: string | null; caller: string; flag: string; answer: string | null; app: string | null; state: string; outcome: string | null; reason: string | null }>(
+    "SELECT device, id, user_id, caller, flag, answer, app, state, outcome, reason FROM flag_reports ORDER BY device, id",
   );
 
 describe("sending", () => {
@@ -225,10 +225,35 @@ describe("automatic flags", () => {
   const sendAuto = (w: World, n: number, who: { device?: string; ip?: string } = {}, from = 0) => post(w, { send: Array.from({ length: n }, (_, i) => auto("fa_" + (from + i))) }, who);
   const sendOwn = (w: World, n: number, who: { device?: string; ip?: string } = {}, from = 0) => post(w, { send: Array.from({ length: n }, (_, i) => report("fl_" + (from + i))) }, who);
 
-  it("are stored like any report", async () => {
+  it("are stored like any report, but as with the maintainer: the reviewing models are not asked about them", async () => {
     const w = await world();
     expect((await sendAuto(w, 1)).status).toBe(200);
-    expect(JSON.parse(rows(w)[0].flag)).toMatchObject({ auto: "quorum", part: "quorum" });
+    expect((await sendOwn(w, 1)).status).toBe(200);
+    const [mine, theirs] = [rows(w).find((r) => r.id === "fl_0")!, rows(w).find((r) => r.id === "fa_0")!];
+    expect(JSON.parse(theirs.flag)).toMatchObject({ auto: "quorum", part: "quorum" });
+    expect([theirs.state, theirs.outcome, theirs.reason]).toEqual(["maintainer", "escalate", "automatic flag (quorum): not reviewed by the models; the maintainer decides"]);
+    expect([mine.state, mine.outcome, mine.reason]).toEqual(["sent", null, null]);
+  });
+
+  it("keep the maintainer's decision when the same words are sent again, and go back to the maintainer when the words change", async () => {
+    const w = await world();
+    await post(w, { send: [auto("fa_1")] });
+    w.db.sql("UPDATE flag_reports SET state = 'decided', reply = 'Quorum was right.' WHERE id = 'fa_1'");
+    await post(w, { send: [auto("fa_1", { updatedAt: "later" })] });
+    expect(rows(w)[0].state).toBe("decided"); // only a time changed
+    await post(w, { send: [auto("fa_1", { shown: "The models gave other cells." })] });
+    expect(rows(w)[0]).toMatchObject({ state: "maintainer", outcome: "escalate" });
+    expect(w.db.sql<{ reply: string | null }>("SELECT reply FROM flag_reports")[0].reply).toBeNull();
+  });
+
+  it("change how they are handled when a flag changes from one kind to the other", async () => {
+    const w = await world();
+    await post(w, { send: [report("fl_a")] });
+    expect(rows(w)[0].state).toBe("sent");
+    await post(w, { send: [report("fl_a", { auto: "quorum" })] }); // the same words, now a program's
+    expect(rows(w)[0]).toMatchObject({ state: "maintainer", outcome: "escalate" });
+    await post(w, { send: [report("fl_a")] }); // and a learner's again
+    expect(rows(w)[0]).toMatchObject({ state: "sent", outcome: null, reason: null });
   });
 
   it("do not use up the hand-made flags of the day, and hand-made ones do not use up theirs", async () => {
