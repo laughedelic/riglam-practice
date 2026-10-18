@@ -7,7 +7,7 @@ import { expect, test } from "vitest";
 import { CELLS, REL, makeIndex, refOf } from "../../src/ai-shared";
 import type { CellId, DrillData, RelKey } from "../../src/ai-shared";
 import {
-  FEATURE, RECENT_MAX, applyVerdicts, factNote, fitOf, noteParts, buildPool, cellsFor, chooseEntry, deriveRel, grade, gradeDebate, gradeOf, inUniverse, isMiss, judgeText, makePair,
+  FEATURE, RECENT_MAX, applyVerdicts, decideFlag, flagAnswerRef, flagAsked, flagStateText, flaggedPart, factNote, fitOf, noteParts, buildPool, cellsFor, chooseEntry, deriveRel, grade, gradeDebate, gradeOf, inUniverse, isMiss, judgeText, makePair,
   nextPair, pairKey, parseFactLine, parseVerdicts, pick, relOfCells, summarize, termLine, cellFor, cellOfFacts, disputeText, divided, quorumDisputes, quorumRows, readings,
 } from "../../src/domain";
 import type { DebateInput, GradeDraft, HistoryEntry, Pair, PoolEntry } from "../../src/domain";
@@ -609,6 +609,58 @@ test("the real data draws pairs of every relation, for a long run", () => {
     hist.push({ key: p.relation, catA: p.catA, catB: p.catB, grade: i % 3 ? "ok" : "bad" });
   }
   expect([...rels].sort()).toEqual(["3ab", "3ba", "4", "con", "mi"]);
+});
+
+// ---- flags on what Claude said ----
+
+test("a flag names the stored answer it was made on, by its case key", () => {
+  expect(flagAnswerRef({ caseKey: "answers_r-mv9q" })).toEqual({ col: "answers", id: "r-mv9q" });
+  expect(flagAnswerRef({ caseKey: "debates_q-mv9q_2" })).toEqual({ col: "debates", id: "q-mv9q_2" });
+  expect(flagAnswerRef({ caseKey: "labruns_x" })).toBeNull();
+  expect(flagAnswerRef({})).toBeNull();
+});
+
+test("a flag says in words what it is on", () => {
+  expect(flaggedPart({ part: "explain", n: null })).toBe("Claude’s explanation");
+  expect(flaggedPart({ part: "explain", n: "both", caseKey: "answers_r-1" })).toBe("Claude’s note on Both");
+  expect(flaggedPart({ part: "explain", n: "bna", caseKey: "debates_q-1" })).toBe("Claude’s note on Q3");
+  expect(flaggedPart({ part: "explain", n: "nei", pair: { tab: "debate" } })).toBe("Claude’s note on Q4");
+  expect(flaggedPart({ part: "explain", n: "rel" })).toBe("Claude’s note on the relation");
+  expect(flaggedPart({ part: "chat", n: "3" })).toBe("Claude’s answer in the chat");
+  expect(flaggedPart({ part: "verdict", thing: "a pot", model: "m1" }, (id) => id.toUpperCase())).toBe("“a pot” · M1 · verdict");
+  expect([flagStateText("new"), flagStateText(undefined), flagStateText("reviewed"), flagStateText("resolved")]).toEqual(["Not reviewed yet", "Not reviewed yet", "Reviewed", "Resolved"]);
+});
+
+test("a flag on a chat answer keeps the question it answered", () => {
+  expect(flagAsked({ role: "user", content: "Why not?" })).toBe("Why not?");
+  expect(flagAsked({ role: "user", content: "THE CARD\n\nIs a chair a form?", hidden: true, asked: "Is a chair a form?" })).toBe("Is a chair a form?"); // the first turn of a chat
+  expect(flagAsked({ role: "user", content: "THE CARD\n\nExplain.", hidden: true })).toBeNull(); // the page's own request
+  expect(flagAsked({ role: "user", content: "Check the examples.", hidden: true })).toBeNull();
+  expect(flagAsked({ role: "assistant", content: "Yes." })).toBeNull();
+  expect(flagAsked(undefined)).toBeNull();
+});
+
+test("after two reviews a flag gets a reply, a prepared fix, or goes to the maintainer", () => {
+  const r = (verdict: string, cause: string, confident = true) => ({ verdict, cause, confident, reply: verdict + " " + cause, fix: cause === "none" ? "" : "change " + cause }) as Parameters<typeof decideFlag>[0][number];
+  const act = (...rs: ReturnType<typeof r>[]) => decideFlag(rs).action;
+  expect(decideFlag([r("learner_wrong", "none"), r("learner_wrong", "none")])).toEqual({ action: "reply", reason: "the learner is wrong", reply: "learner_wrong none", fix: "", cause: "none" });
+  expect(act(r("learner_right", "tutor"), r("learner_right", "tutor"))).toBe("reply");
+  expect(act(r("partly", "tutor"), r("partly", "tutor"))).toBe("reply");
+  expect(act(r("learner_right", "wording"), r("learner_right", "wording"))).toBe("fix");
+  for (const cause of ["data", "generator", "grading"]) {
+    const o = decideFlag([r("learner_right", cause), r("learner_right", cause)]);
+    expect(o.action).toBe("escalate");
+    expect(o.reply).toBe("learner_right " + cause); // the learner can read the agreed reply while the maintainer decides
+  }
+  expect(decideFlag([r("learner_right", "generator")])).toMatchObject({ action: "escalate", reason: "fewer than two reviews", reply: "" });
+  expect(decideFlag([r("learner_right", "tutor"), r("learner_wrong", "none")])).toMatchObject({ action: "escalate", reply: "" });
+  expect(act(r("unclear", "none"), r("unclear", "none"))).toBe("escalate");
+  expect(act(r("learner_right", "tutor"), r("learner_right", "data"))).toBe("escalate");
+  expect(act(r("learner_wrong", "none"), r("learner_wrong", "none", false))).toBe("escalate");
+  // nothing is agreed when the causes differ or a reviewer is unsure: no reply for the learner, and no reviewer's fix
+  expect(decideFlag([r("learner_right", "tutor"), r("learner_right", "data")])).toEqual({ action: "escalate", reason: "the reviewers disagree on the cause", reply: "", fix: "", cause: "" });
+  expect(decideFlag([r("learner_right", "data"), r("learner_right", "data", false)])).toEqual({ action: "escalate", reason: "a reviewer is not sure", reply: "", fix: "", cause: "data" });
+  expect(act(r("learner_right", "none"), r("learner_right", "none"))).toBe("escalate");
 });
 
 // ---- Quorum: which examples are worth a flag ----

@@ -1,5 +1,4 @@
 import { state } from "../state.js";
-import { quorumShown } from "../ai/quorum.js";
 import { L, el } from "../core/dom.js";
 import { CELLS, REL, lcRel } from "../core/rel.js";
 import { dayOf, gradeOf, isMiss, pairsOf } from "../core/util.js";
@@ -10,11 +9,13 @@ import { popNode } from "../practice/screen.js";
 import { skipSection } from "../practice/skips.js";
 import { answerList } from "../practice/universe.js";
 import { renderDebateStats } from "./debate-stats.js";
-import { flagReview } from "./flag-review.js";
+import { exerciseNode, practiceAgain } from "./exercise.js";
+import { flagCount, flagSection } from "./flag-list.js";
 import { render, top0 } from "../shell/render.js";
 import { switchTo } from "../shell/tabs.js";
 
 /* ---------- review ---------- */
+const openMiss=new Set();
 export function pct(n,d){ return d?Math.round(100*n/d):0; }
 export function barNode(p){ return el("span",{class:"bar"+(p<50?" b-low":p<80?" b-mid":""),style:"width:"+Math.max(4,Math.round(p*.6))+"px"}); }
 // Review in three groups: Overview, Mistakes, Favorites. Wide screens show the three side by side; narrow screens switch between them.
@@ -44,17 +45,20 @@ function revOverview(box,all){
     el("table",{class:"tbl"},el("tbody",null,byRel.map(([r,n,k])=>el("tr",null,el("td",{text:rname[r]}),el("td",{class:"num"},n?k+" / "+n:"–",n?barNode(pct(k,n)):null)))))));
 
   renderDebateStats(box);
-  if(quorumShown()) flagReview(box);
 }
 function revMistakes(box,all,miss){
   // mistakes
   const sec=el("div",{class:"section"},el("p",{class:"label"},"Mistakes",el("span",{class:"hint",text:miss.length+" in total"})));
   if(!miss.length) sec.append(el("p",{class:"empty-note",text:"None yet."}));
-  else sec.append(el("ul",{class:"sum"},miss.slice(0,25).map(a=>{
-    const g=gradeOf(a), bad=CELLS.filter(c=>a.cells&&a.cells[c]&&a.cells[c].verdict==="bad");
+  else sec.append(el("ul",{class:"favs mist"},miss.slice(0,25).map(a=>{
+    const g=gradeOf(a), bad=CELLS.filter(c=>a.cells&&a.cells[c]&&a.cells[c].verdict==="bad"), k=a.pairId+"|"+a.at;
     const sub=(a.correct?"Relation right ("+lcRel(REL[a.key].name)+"), ":(a.chosen==null?"No pick, time ran out":"Chose "+(REL[a.chosen]?lcRel(REL[a.chosen].name):a.chosen))+"; correct: "+(REL[a.key]?lcRel(REL[a.key].name):a.key)+". ")+
       (bad.length?"wrong cell"+(bad.length>1?"s":"")+": "+bad.map(c=>({both:"both",anb:"A not B",bna:"B not A",nei:"neither"}[c])).join(", ")+".":"")+(a.timeout==="examples"||a.timeout==="both"?" Time ran out on the examples.":"")+" "+dayOf(a.at);
-    return el("li",null,el("span",{class:"m "+g,text:g==="part"?"~":"✗"}),el("span",null,a.a+" / "+a.b,el("span",{class:"sub",text:sub})));
+    // a mistake opens to show the exercise as it was checked: your examples, the verdicts and Claude's explanation
+    const p=pairFromAnswer(a);
+    return el("li",null,el("details",{open:openMiss.has(k),ontoggle:e=>{ if(e.target.open) openMiss.add(k); else openMiss.delete(k); }},
+      el("summary",null,el("span",{class:"m "+g,text:g==="part"?"~":"✗"}),el("span",null,a.a+" / "+a.b,el("span",{class:"sub",text:sub}))),
+      el("div",{class:"fbody"},exerciseNode(a),p?el("div",{class:"actions left"},el("button",{type:"button",class:"btn",onclick:()=>practiceAgain(p,"Retry"),text:"Practice this pair"})):null)));
   })));
   const retryable=uniqueMistakePairs(miss);
   if(retryable.length) sec.append(el("div",{class:"actions left"},el("button",{class:"btn",type:"button",onclick:()=>startRetry(retryable),text:"Retry "+Math.min(10,retryable.length)+(Math.min(10,retryable.length)>1?" mistakes":" mistake")})));
@@ -68,22 +72,23 @@ function revMistakes(box,all,miss){
     el("table",{class:"tbl"},el("tbody",null,weak.map(([c,o])=>el("tr",null,el("td",null,state.CAT[c].labels[0],el("span",{class:"types",text:state.CAT[c].type})),el("td",{class:"num",text:o.bad+" of "+o.n+" missed"})))))));
 }
 export function renderReview(s){
-  const all=answerList(), nsk=Object.keys(state.skips).length;
+  const all=answerList(), nsk=Object.keys(state.skips).length, nfl=state.db?flagCount():0;
   if(!all.length){
     const pane=el("div",{class:"rpane"}); s.append(pane);
-    pane.append(el("p",{class:"empty-note",text:"No practice answers yet. Your history and weak spots will show up here."})); favSection(pane); if(nsk) skipSection(pane); renderDebateStats(pane); return;
+    pane.append(el("p",{class:"empty-note",text:"No practice answers yet. Your history and weak spots will show up here."})); favSection(pane); if(nsk) skipSection(pane); if(nfl) flagSection(pane); renderDebateStats(pane); return;
   }
   const miss=all.filter(isMiss).reverse(), nf=Object.keys(state.favs).length;
   /** @type {[string, string, (box: HTMLElement, all: object[], miss: object[]) => void, string][]} */
   const parts=[["overview","Overview",revOverview,""],["mistakes","Mistakes",revMistakes,miss.length?String(miss.length):""],["favs","Favorites",(b)=>favSection(b),state.db&&nf?String(nf):""]];
   if(nsk) parts.push(["skips","Skipped",(b)=>skipSection(b),String(nsk)]);
+  if(nfl) parts.push(["flags","Flags",(b)=>flagSection(b),String(nfl)]);
   if(isWide()){
-    // three columns; the skipped pairs sit under the favorites, both lists of pairs picked by hand
-    s.append(el("div",{class:"rev3"},parts.filter(p=>p[0]!=="skips").map(([k,,fn])=>{ const col=el("div",{class:"rcol","data-part":k}); fn(col,all,miss); if(k==="favs"&&nsk) skipSection(col); return col; })));
+    // three columns; the skipped pairs sit under the favorites, both lists of pairs picked by hand, and the flags under the mistakes
+    s.append(el("div",{class:"rev3"},parts.filter(p=>p[0]!=="skips"&&p[0]!=="flags").map(([k,,fn])=>{ const col=el("div",{class:"rcol","data-part":k}); fn(col,all,miss); if(k==="favs"&&nsk) skipSection(col); if(k==="mistakes"&&nfl) flagSection(col); return col; })));
     return;
   }
   if(!parts.some(p=>p[0]===state.reviewSeg)) state.reviewSeg="overview";
-  s.append(el("div",{class:"seg rseg"+(parts.length>3?" r4":""),role:"group","aria-label":"Review sections"},
+  s.append(el("div",{class:"seg rseg"+(parts.length>4?" r5":parts.length>3?" r4":""),role:"group","aria-label":"Review sections"},
     parts.map(([k,l,,n])=>el("button",{type:"button","aria-pressed":state.reviewSeg===k?"true":"false",onclick:()=>{ state.reviewSeg=k; render(); top0(); }},
       l,n?el("span",{class:"cnt",text:" "+n}):null))));
   const pane=el("div",{class:"rpane"}), cur_=parts.find(p=>p[0]===state.reviewSeg);

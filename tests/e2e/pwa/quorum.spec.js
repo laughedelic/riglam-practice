@@ -339,11 +339,20 @@ withKey("where the models differ, the page flags each such example by itself and
   }
   // Review lists them as automatic flags
   await page.getByRole("tab", { name: "Review" }).filter({ visible: true }).first().click();
-  await expect(page.locator(".flagl li")).toHaveCount(things.length);
-  await expect(page.locator(".flagl li").first()).toContainText(/Quorum \(automatic\)/);
+  const seg = page.locator(".rseg button", { hasText: /^Flags/ });
+  if (await seg.count()) await seg.click(); // a phone shows one part of Review at a time
+  // an entry opens to show the flag, the exercise and its buttons
+  const entry = (thing) => page.locator(".flags > li").filter({ has: page.locator("summary", { hasText: "“" + thing + "”" }) });
+  const press = async (thing, name) => {
+    const open = await entry(thing).locator(":scope > details").evaluate((d) => d.open);
+    if (!open) await entry(thing).locator(":scope > details > summary").click();
+    await entry(thing).getByRole("button", { name, exact: true }).click();
+  };
+  await expect(page.locator(".flags > li")).toHaveCount(things.length);
+  await expect(page.locator(".flags > li").first()).toContainText(/Quorum \(automatic\)/);
   // one reviewed by hand stays as it was when the same answer is flagged again; the others are written again only if their words changed
   const id = made[0].id;
-  await page.locator(".flagl li", { hasText: made[0].thing }).getByRole("button", { name: "Reviewed" }).click();
+  await press(made[0].thing, "Reviewed");
   await expect.poll(async () => (await flags(page)).find((f) => f.id === id)?.state).toBe("reviewed");
   const before = (await flags(page)).find((f) => f.id === id);
   const again = await page.evaluate(
@@ -362,9 +371,9 @@ withKey("where the models differ, the page flags each such example by itself and
   expect(third.find((f) => f.id === id)).toEqual(before);
   for (const f of third.filter((f) => f.id !== id)) expect(f).toMatchObject({ runId: "third", shown: expect.stringContaining("(again)"), state: "new" });
   // Resolved and Delete work on the list
-  await page.locator(".flagl li", { hasText: made[0].thing }).getByRole("button", { name: "Resolved" }).click();
+  await press(made[0].thing, "Resolved");
   await expect.poll(async () => (await flags(page)).find((f) => f.id === id)?.state).toBe("resolved");
-  await page.locator(".flagl li", { hasText: made[0].thing }).getByRole("button", { name: "Delete" }).click();
+  await press(made[0].thing, "Delete");
   await expect.poll(async () => (await flags(page)).length).toBe(things.length - 1);
 });
 

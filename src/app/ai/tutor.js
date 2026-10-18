@@ -41,7 +41,7 @@ export async function ask(text,kind,byItself){
   const quorum=kind==="explain"&&quorumWanted(U);     // the explanation of a checked answer is asked of Quorum, where this server offers it, this device has it on and an example is left to check
   const body=kind==="explain"?explainAsk(U):text;
   // The server holds the standing instructions and the notes itself, so what it gets as the first turn is the card alone.
-  if(!U.chat) U.chat=[{role:"user",content:(direct?tutorCard(state,p,U):cardBody(state,p,U))+"\n\n"+body, hidden:true}];
+  if(!U.chat) U.chat=[{role:"user",content:(direct?tutorCard(state,p,U):cardBody(state,p,U))+"\n\n"+body, hidden:true, asked:kind?undefined:text}];   // `asked`: the question alone, for a flag on its answer
   else U.chat.push({role:"user",content:body,hidden:!!kind});
   if(kind==="explain"){ U.explained=true; U.rtab="tutor"; }
   U.chat.push({role:"assistant",content:"",pending:true,kind});
@@ -73,12 +73,13 @@ export async function ask(text,kind,byItself){
   U.ctl=null;
   if(U===state.ui){ draw(); if(byItself) return; if(kind==="explain") revealTutor(); const i=$("ask-in"); if(i&&!("ontouchstart" in window)) i.focus(); }
 }
-export function fillAns(node,text){
+// `ctx` ({p, accepted}) reads the fact lines against a stored pair instead of the exercise on screen (practice/screen.js, factNode)
+export function fillAns(node,text,ctx){
   node.replaceChildren();
   const lines=(text||"").split("\n").map(s=>s.trim()).filter(Boolean);
   if(!lines.length){ node.append(el("p",{class:"status thinking"},"Thinking",el("span",{class:"dots","aria-hidden":"true"},el("i"),el("i"),el("i")))); return; }
   for(const ln0 of lines){
-    const f=parseFactLine(ln0); if(f){ node.append(factNode(f,el("b",{text:f.label+":"}))); continue; }
+    const f=parseFactLine(ln0); if(f){ node.append(factNode(f,el("b",{text:f.label+":"}),undefined,ctx)); continue; }
     const ln=ln0.replace(VERDICT_RE,"");
     const m=ln.replace(/^[-•]\s*/,"").match(/^([A-Za-z][A-Za-z0-9 ,'’-]{0,28}):\s+(.*)$/);
     node.append(m?el("p",null,el("b",{text:m[1]+": "}),m[2]):el("p",{text:ln.replace(/^[-•]\s*/,"")}));

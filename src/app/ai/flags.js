@@ -1,13 +1,16 @@
 import { state } from "../state.js";
 import { mname } from "./quorum-panel.js";
 import { $, el } from "../core/dom.js";
+import { flagAsked } from "../../domain/flags.ts";
 import { typingEl } from "../core/viewport.js";
 import { put } from "../practice/answers.js";
 import { favSafe } from "../practice/favorites.js";
 import { render } from "../shell/render.js";
 
 /* ---------- flags: any part of any AI answer ---------- */
-// a flag is one document per part: {caseKey, thing, part, model, shown, note, suggest, state}; it can be changed or removed, and it is the labeled data for the model comparison
+// a flag is one document per part: {caseKey, thing, part, model, shown, asked, note, suggest, state}; it can be changed or removed, and it is the labeled data for the model comparison.
+// It keeps what Claude said in full (up to SHOWN_MAX), and for an answer in the chat the question it answered, so Review can show the flag with its whole exchange.
+const SHOWN_MAX=2000;
 export const flagQ={};     // the writes of one flag, in order
 export const hash36=s=>{ let h=5381; s=String(s); for(let i=0;i<s.length;i++) h=((h<<5)+h+s.charCodeAt(i))|0; return (h>>>0).toString(36); };
 // the flags of the database, kept up to date; a flag write in flight keeps the snapshot from replacing what the page just changed
@@ -20,7 +23,8 @@ export function flagsSubscribe(){
     },()=>{});
   }catch(e){}          // flags are optional: a failing subscription must never stop the page from starting
 }
-export const flagId=c=>"fl_"+favSafe(c.caseKey).slice(0,60)+"_"+hash36([c.caseKey,c.thing||"",c.part,c.model||"",c.n||""].join("|"));
+// a case opened from Review carries the id of the flag it edits; a new one gets its id from what it is on
+export const flagId=c=>c.id||"fl_"+favSafe(c.caseKey).slice(0,60)+"_"+hash36([c.caseKey,c.thing||"",c.part,c.model||"",c.n||""].join("|"));
 const flagOf=c=>state.flags[flagId(c)];
 // a render that keeps the chat view where it is scrolled (the overlay is rebuilt and would start at the top again)
 function renderKeep(){ const sc=$("chatscroll"), y=sc?sc.scrollTop:0; render(); const n=$("chatscroll"); if(n&&y) n.scrollTop=y; }
@@ -36,8 +40,8 @@ export function saveFlag(){
   const F=state.ui.flagEdit; if(!F) return;
   const id=flagId(F.c), had=state.flags[id], now=new Date().toISOString();
   /** @type {import("../types.ts").FlagDoc} */
-  const draft={id,caseKey:F.c.caseKey,thing:F.c.thing||"",part:F.c.part,model:F.c.model||"",runId:F.c.runId||null,n:F.c.n||null,shown:String(F.c.shown||"").slice(0,600),
-    note:F.note.trim().slice(0,800),suggest:F.suggest.trim().slice(0,300),pair:F.c.pair||null,at:had?had.at:now,updatedAt:now,state:had?had.state:"new"};
+  const draft={id,caseKey:F.c.caseKey,thing:F.c.thing||"",part:F.c.part,model:F.c.model||"",runId:F.c.runId||null,n:F.c.n||null,shown:String(F.c.shown||"").slice(0,SHOWN_MAX),
+    asked:F.c.asked?String(F.c.asked).slice(0,600):undefined,note:F.note.trim().slice(0,800),suggest:F.suggest.trim().slice(0,300),pair:F.c.pair||null,at:had?had.at:now,updatedAt:now,state:had?had.state:"new"};
   const doc=JSON.parse(JSON.stringify(draft)); // without the undefined fields
   state.flags[id]=doc; state.ui.flagEdit=null; renderKeep(); refocusFlag(id);
   if(state.db) flagWrite(id,()=>put("flags",id,doc),()=>{ if(had) state.flags[id]=had; else delete state.flags[id]; });
@@ -96,8 +100,8 @@ export function flagPart(c,where,text,cls){
 // the key of the answer's flags: the collection and id it is saved under (an answer that is not saved gets a key of its own)
 export const flagKeyOf=U=>(U.col||"answers")+"_"+(U.saveId||U.fkey||(U.fkey="t"+Date.now().toString(36)));
 const flagKey=()=>flagKeyOf(state.ui);
-export function aiCase(part,partLabel,shown,n){
-  return {caseKey:flagKey(),part,partLabel,shown:String(shown||"").slice(0,400),n:n==null?null:String(n),pair:{a:state.cur.p.a,b:state.cur.p.b,relation:state.cur.p.relation,tab:state.ui.debate?"debate":"practice"}};
+export function aiCase(part,partLabel,shown,n,asked){
+  return {caseKey:flagKey(),part,partLabel,shown:String(shown||"").slice(0,SHOWN_MAX),n:n==null?null:String(n),asked:asked||undefined,pair:{a:state.cur.p.a,b:state.cur.p.b,relation:state.cur.p.relation,tab:state.ui.debate?"debate":"practice"}};
 }
 export function aiFlag(c,where,word){
   if(!state.db||!state.ui||!state.cur||!state.cur.p) return null;
@@ -109,8 +113,8 @@ export function aiFlag(c,where,word){
 // one answer of Claude in the Why panel (explain turn) or the chat: the flag first, so it floats to the top-right, and the editor last
 export function decorateAns(a,t,idx,over){
   if(!state.ui||t.pending||!t.content||a.childNodes.length===1&&a.firstChild.classList&&a.firstChild.classList.contains("status")) return;
-  const where=(over?"o":"i")+idx, expl=t.kind==="explain";
-  const fl=aiFlag(aiCase(expl?"explain":"chat",expl?"Claude’s explanation":"Claude’s answer",t.content,expl?null:idx),where,true);
+  const where=(over?"o":"i")+idx, expl=t.kind==="explain", q=!expl&&state.ui.chat?state.ui.chat[idx-1]:null;
+  const fl=aiFlag(aiCase(expl?"explain":"chat",expl?"Claude’s explanation":"Claude’s answer",t.content,expl?null:idx,flagAsked(q)),where,true);
   if(fl){ a.prepend(fl); a.classList.add("hasflag"); }
   const ed=flagEditorNode(where); if(ed) a.append(ed);
 }
