@@ -1,0 +1,22 @@
+name: Staging trial
+
+# Temporary: does a failed check run made with the workflow token wake an agent that watches the pull request? Removed before the merge.
+on:
+  pull_request:
+    paths: [".github/workflows/staging-trial.yml"]
+
+permissions:
+  checks: write
+
+jobs:
+  trial:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          curl -fsS -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/check-runs" \
+            -d "{\"name\":\"staging\",\"head_sha\":\"$SHA\",\"status\":\"completed\",\"conclusion\":\"failure\",\"details_url\":\"$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID\",\"output\":{\"title\":\"Left out of staging: trial\",\"summary\":\"A failed check run made by the workflow, to see whether it reaches an agent that watches this pull request.\"}}"
