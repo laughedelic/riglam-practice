@@ -32,6 +32,11 @@ export async function reportsOn(db: D1Database | undefined): Promise<boolean> {
   }
 }
 
+/** The fields of a flag that are later turned into words (the part it is on, the review card, the maintainer's list): a device can send anything, so each must be text or absent. */
+const TEXT_FIELDS = ["caseKey", "thing", "part", "model", "n", "shown", "asked", "note", "suggest"] as const;
+const hasText = (flag: ReportDoc) =>
+  TEXT_FIELDS.every((k) => flag[k] == null || typeof flag[k] === "string") && (flag.pair == null || (isPlain(flag.pair) && (flag.pair.tab == null || typeof flag.pair.tab === "string")));
+
 /** The reports of a request, checked; or the reason it is refused. The last of several with one id counts. */
 function readSends(raw: unknown): FlagReport[] | string {
   if (raw === undefined) return [];
@@ -42,6 +47,7 @@ function readSends(raw: unknown): FlagReport[] | string {
     if (!isPlain(r) || !validDocId(r.id)) return "a report has no valid id";
     if (!isPlain(r.flag) || r.flag.id !== r.id) return "a report must carry its flag, with the same id";
     if (JSON.stringify(r.flag).length > REPORT_LIMITS.flag) return "a flag is too large";
+    if (!hasText(r.flag)) return "a flag's caseKey, thing, part, model, n, shown, asked, note and suggest must be text, and its pair an object";
     if (r.answer !== null && r.answer !== undefined) {
       if (!isPlain(r.answer)) return "an answer must be an object or null";
       if (JSON.stringify(r.answer).length > REPORT_LIMITS.answer) return "an answer is too large";

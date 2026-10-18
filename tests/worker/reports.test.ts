@@ -33,6 +33,17 @@ const rows = (w: World) =>
   );
 
 describe("sending", () => {
+  it("refuses a report whose flag has a field that is not text where the readers of reports turn it into words", async () => {
+    const w = await world();
+    // a value whose conversion to text throws would stop whoever lists or reviews the reports
+    for (const over of [{ caseKey: { toString: 0 } }, { n: 5 }, { part: ["explain"] }, { note: { a: 1 } }, { pair: "a pair" }, { pair: { tab: 1 } }]) {
+      const res = await post(w, { send: [report("fl_a", over)] });
+      expect([res.status, (await json(res)).error.code], JSON.stringify(over)).toEqual([400, "bad_request"]);
+    }
+    expect(rows(w)).toEqual([]);
+    expect((await post(w, { send: [report("fl_a", { n: null, asked: undefined, pair: { a: "hot", b: "white", relation: "con", tab: "practice" } })] })).status).toBe(200);
+  });
+
   it("stores a report from a device that is not signed in", async () => {
     const w = await world();
     const res = await post(w, { send: [report("fl_a")], app: "0.3.0" });
