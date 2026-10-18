@@ -42,6 +42,8 @@ const STALE_CLAIM_MS = 15 * 60_000;
 /** Passes that may take one report before it goes to the maintainer without a full review. */
 export const MAX_ATTEMPTS = 3;
 const CALL_LIMIT_MS = 180_000;
+/** Once the day's budget is used up, a pass looks this far down the list for reports that need no model. */
+const SCAN_MAX = 60;
 
 /** False when the operator has switched the review off in `settings` (review = off); reports are still taken. */
 async function reviewSwitchedOn(db: D1Database): Promise<boolean> {
@@ -149,7 +151,7 @@ async function record(db: D1Database, row: Row, claim: string, outcome: FlagOutc
 const unclaim = (db: D1Database, row: Row, claim: string, attempt = false) =>
   db.prepare(`UPDATE flag_reports SET claimed_at = NULL${attempt ? ", attempts = attempts - 1" : ""} WHERE device = ?1 AND id = ?2 AND claimed_at = ?3`).bind(row.device, row.id, claim).run();
 
-/** One pass: reviews up to `REVIEW_BATCH` waiting reports, oldest first. */
+/** One pass: reviews up to `REVIEW_BATCH` waiting reports, oldest first (and, once the day's budget is used, sends the ones that need no model on to the maintainer from further down the list). */
 export async function reviewPass(env: Env, deps: ReviewDeps): Promise<PassResult> {
   const result: PassResult = { done: 0, retried: 0 };
   const db = env.DB;
@@ -159,11 +161,19 @@ export async function reviewPass(env: Env, deps: ReviewDeps): Promise<PassResult
     if (!(await reportsOn(db)) || !(await reviewSwitchedOn(db))) return { ...result, stopped: "off" };
     const now = (deps.now ?? (() => new Date()))();
     const config = readReviewConfig(env);
-    const waiting = await db
-      .prepare("SELECT device, id, flag, answer, attempts, updated_at FROM flag_reports WHERE state = 'sent' AND (claimed_at IS NULL OR claimed_at < ?1) ORDER BY updated_at LIMIT ?2")
-      .bind(new Date(now.getTime() - STALE_CLAIM_MS).toISOString(), config.batch)
-      .all<Row>();
-    if (!waiting.results.length) return result;
+    const staleBefore = new Date(now.getTime() - STALE_CLAIM_MS).toISOString();
+    /** The next `batch` waiting reports, oldest first, after `after` if there is one (the order is total, so that no report is passed over or listed twice). */
+    const list = async (after: Row | null): Promise<Row[]> =>
+      (
+        await db
+          .prepare(
+            `SELECT device, id, flag, answer, attempts, updated_at FROM flag_reports WHERE state = 'sent' AND (claimed_at IS NULL OR claimed_at < ?1)${after ? " AND (updated_at, device, id) > (?3, ?4, ?5)" : ""} ORDER BY updated_at, device, id LIMIT ?2`,
+          )
+          .bind(...[staleBefore, config.batch, ...(after ? [after.updated_at, after.device, after.id] : [])])
+          .all<Row>()
+      ).results;
+    let page = await list(null);
+    if (!page.length) return result;
 
     const kit = await deps.kit(env).catch(() => null);
     if (!kit) return { ...result, stopped: "no data" };
@@ -172,46 +182,54 @@ export async function reviewPass(env: Env, deps: ReviewDeps): Promise<PassResult
     const day = dayOf(now);
 
     let outOfBudget = false;
-    for (const row of waiting.results) {
-      const prepared = prepare(kit, row);
-      // once the day's budget is used, only the reports that need no model go on
-      if (!("skip" in prepared) && outOfBudget) continue;
-      const claim = now.toISOString() + "/" + Math.random().toString(36).slice(2, 8);
-      // only the report that was listed: one edited since (its words, and so its request, are no longer these) waits for the next pass
-      const taken = await db
-        .prepare("UPDATE flag_reports SET claimed_at = ?3, attempts = attempts + 1 WHERE device = ?1 AND id = ?2 AND state = 'sent' AND (claimed_at IS NULL OR claimed_at < ?4) AND updated_at = ?5")
-        .bind(row.device, row.id, claim, new Date(now.getTime() - STALE_CLAIM_MS).toISOString(), row.updated_at)
-        .run();
-      if (!taken.meta.changes) continue;
-      const taking: Row = { ...row, attempts: row.attempts + 1 };
-      try {
-        if ("skip" in prepared) {
-          await record(db, taking, claim, escalation(prepared.skip), [], now);
+    for (let listed = page.length; ; ) {
+      for (const row of page) {
+        const prepared = prepare(kit, row);
+        // once the day's budget is used, only the reports that need no model go on
+        if (!("skip" in prepared) && outOfBudget) continue;
+        const claim = now.toISOString() + "/" + Math.random().toString(36).slice(2, 8);
+        // only the report that was listed: one edited since (its words, and so its request, are no longer these) waits for the next pass
+        const taken = await db
+          .prepare("UPDATE flag_reports SET claimed_at = ?3, attempts = attempts + 1 WHERE device = ?1 AND id = ?2 AND state = 'sent' AND (claimed_at IS NULL OR claimed_at < ?4) AND updated_at = ?5")
+          .bind(row.device, row.id, claim, new Date(now.getTime() - STALE_CLAIM_MS).toISOString(), row.updated_at)
+          .run();
+        if (!taken.meta.changes) continue;
+        const taking: Row = { ...row, attempts: row.attempts + 1 };
+        try {
+          if ("skip" in prepared) {
+            await record(db, taking, claim, escalation(prepared.skip), [], now);
+            result.done += 1;
+            continue;
+          }
+          if (!(await reserveReview(db, { day, micro: config.reserveMicro, cap: config.dailyMicro }))) {
+            outOfBudget = true;
+            await unclaim(db, taking, claim, true);
+            continue;
+          }
+          const runs = await Promise.all(config.models.map((model) => reviewOnce({ client, kit, tutor, config, model, request: prepared.request })));
+          // the cost is settled whatever came of the reviews
+          await settleReview(db, { day, held: config.reserveMicro, now, device: row.device, runs }).catch((e) => console.error("review settle failed", e instanceof Error ? e.name : typeof e));
+          if (runs.some((r) => r.failure === "error") && taking.attempts < MAX_ATTEMPTS) {
+            // the model API failed: the report waits for the next pass, and so does everything behind it
+            await unclaim(db, taking, claim);
+            result.retried += 1;
+            return { ...result, stopped: "error" };
+          }
+          await record(db, taking, claim, decideFlag(runs.flatMap((r) => (r.review ? [r.review] : []))), runs, now);
           result.done += 1;
-          continue;
-        }
-        if (!(await reserveReview(db, { day, micro: config.reserveMicro, cap: config.dailyMicro }))) {
-          outOfBudget = true;
-          await unclaim(db, taking, claim, true);
-          continue;
-        }
-        const runs = await Promise.all(config.models.map((model) => reviewOnce({ client, kit, tutor, config, model, request: prepared.request })));
-        // the cost is settled whatever came of the reviews
-        await settleReview(db, { day, held: config.reserveMicro, now, device: row.device, runs }).catch((e) => console.error("review settle failed", e instanceof Error ? e.name : typeof e));
-        if (runs.some((r) => r.failure === "error") && taking.attempts < MAX_ATTEMPTS) {
-          // the model API failed: the report waits for the next pass, and so does everything behind it
-          await unclaim(db, taking, claim);
-          result.retried += 1;
+        } catch (e) {
+          // only the kind of error is logged: its text could quote a report
+          console.error("review failed", e instanceof Error ? e.name : typeof e);
+          await unclaim(db, taking, claim).catch(() => {});
           return { ...result, stopped: "error" };
         }
-        await record(db, taking, claim, decideFlag(runs.flatMap((r) => (r.review ? [r.review] : []))), runs, now);
-        result.done += 1;
-      } catch (e) {
-        // only the kind of error is logged: its text could quote a report
-        console.error("review failed", e instanceof Error ? e.name : typeof e);
-        await unclaim(db, taking, claim).catch(() => {});
-        return { ...result, stopped: "error" };
       }
+      // Once the day's budget is used the models cannot take another report, but one that needs no model (a follow-up on a reply, an exercise that was not kept) must still reach the
+      // maintainer: the list goes on past the reports the budget holds back, a bounded way down.
+      if (!outOfBudget || page.length < config.batch || listed >= SCAN_MAX) break;
+      page = await list(page[page.length - 1]);
+      if (!page.length) break;
+      listed += page.length;
     }
     if (outOfBudget) result.stopped = "budget";
     if (result.done) await prune(db, day).catch(() => {});
