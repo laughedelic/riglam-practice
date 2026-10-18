@@ -108,6 +108,42 @@ describe("a write that could not be saved", () => {
   });
 });
 
+describe("a storage that never answers", () => {
+  const silent = { open: () => ({}) } as unknown as IDBFactory; // a request that neither succeeds nor fails
+
+  it("is given up on after the timeout: reads come back empty, writes stay in memory, and the page is told once", async () => {
+    let told = 0;
+    const db = createLocalDb({ indexedDB: silent, channel: false, timeoutMs: 30, onUnavailable: () => told++ });
+    const ref = db.doc("answers/a1");
+    expect((await ref.get()).exists).toBe(false); // waited for the timeout, not for ever
+    await ref.set({ v: 1 }); // does not wait again
+    expect((await ref.get()).data()).toEqual({ v: 1 });
+    expect(told).toBe(1);
+  });
+
+  it("says it is not usable once the storage stopped answering, and knows its own name", async () => {
+    const db = createLocalDb({ indexedDB: silent, channel: false, timeoutMs: 30, name: "riglam-2" });
+    expect(db.name).toBe("riglam-2");
+    expect(db.usable()).toBe(true);
+    await db.doc("answers/a1").get();
+    expect(db.usable()).toBe(false);
+  });
+
+  it("does not take the server's copy as received while the storage is not answering, so sync fetches it again", async () => {
+    const db = createLocalDb({ indexedDB: silent, channel: false, timeoutMs: 30 });
+    await expect(db.applyRemote("answers", "a1", { v: 1 })).rejects.toMatchObject({ code: "unavailable" });
+    expect((await db.doc("answers/a1").get()).exists).toBe(false);
+  });
+
+  it("does not report a storage that answers in time", async () => {
+    const { factory } = stub();
+    let told = 0;
+    const db = createLocalDb({ indexedDB: factory, channel: false, timeoutMs: 500, onUnavailable: () => told++ });
+    await db.doc("answers/a1").set({ v: 1 });
+    expect(told).toBe(0);
+  });
+});
+
 describe("the server's copy of a document (applyRemote with a revision)", () => {
   it("is stored when nothing was written since the revision was read", async () => {
     const { factory } = stub();

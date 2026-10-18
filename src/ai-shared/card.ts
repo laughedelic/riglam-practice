@@ -2,7 +2,7 @@
 // built from the pair, the learner's answer and the term data, so the page and the Worker produce the same text.
 import { qPlain, QCELL } from "./debate";
 import { catFacts } from "./facts";
-import { matchItem, pairCats } from "./lookup";
+import { classNames, matchItem, pairCats } from "./lookup";
 import type { DataIndex } from "./lookup";
 import { CELLS, REL, cellLabel, refOf } from "./relations";
 import type { CellId, PairLike, RelKey } from "./relations";
@@ -58,7 +58,7 @@ export function cardNotes(ix: DataIndex, p: PairLike): string {
  * instructions and the fine points itself asks the page for this part only; `tutorCard` is the three put together.
  */
 export function cardBody(ix: DataIndex, p: PairLike, u: AnswerView): string {
-  const [ca,cb]=pairCats(ix,p);
+  const [ca,cb]=pairCats(ix,p), cls=classNames(ix);
   const card={A:ca?catFacts(ix,ca,p.a):{label:p.a,type:p.typeA}, B:cb?catFacts(ix,cb,p.b):{label:p.b,type:p.typeB}};
   const refTxt=(c: CellId)=>refOf(p,c)?JSON.stringify(refOf(p,c)):"EMPTY ("+((p.why&&p.why[c])||"no example")+")";
   let mid: string;
@@ -92,7 +92,8 @@ ${lines}`;
   }
   return `CARD (from the course booklet's term data; the relation and reference examples were computed from a list of classified examples):
 ${JSON.stringify(card)}
-${mid}`;
+${mid}${cls.length?`
+Classes (the booklet's "is a" tree, for "class:"): ${cls.join(", ")}.`:""}`;
 }
 
 /** The first message of a tutor chat: the standing instructions, the card, and the fine points. */
@@ -107,8 +108,8 @@ export function explainAsk(U: Pick<AnswerView, "debate" | "res">): string {
   if(!open.length) return base;
   const nm=(c: CellId)=>dbt?"Q"+(CELLS.indexOf(c)+1):CELL_NAME[c];
   return base+`
-The page could not check the examples in: ${open.map(nm).join(", ")}. End each of those cell lines with " => yes" if the example belongs in that cell (an existent thing; in Neither a non-existent such as the horn of a rabbit counts too), " => no" if it does not, or " => unsure".`+(dbt?`
+The page could not check the examples in: ${open.map(nm).join(", ")}. The page reads your "A" and "B" answers on those lines as the check, so make them exact: the example belongs in a cell when its answers are the cell's (Both: A yes, B yes; A not B: A yes, B no; B not A: A no, B yes; Neither: A no, B no; an existent thing, but in Neither a non-existent such as the horn of a rabbit counts too).`+(dbt?`
 Q1 is the Both cell, Q2 A not B, Q3 B not A, Q4 Neither.`:"")+`
 How to decide: read the example in its ordinary sense (a song is the sound of someone singing or playing; a stone is an ordinary stone at room temperature). Place it under A or B first, then use the correct relation above: it is computed and right, so if whatever is B is A, a B belongs in Both. Use classify_example or lookup_term when a classification is not obvious.
-Say "unsure" only when the sources disagree on how to classify the thing (see the fine points) or when you cannot tell what the example names. Then the line names each reading and the cell it gives, in a few words. A word that could also mean something else is not a reason for "unsure": decide on the ordinary reading and mention the other one briefly.`;
+Answer "unsure" only on a side where the sources disagree on how to classify the thing (see the fine points), where you cannot tell what the example names, or where the example's name does not fix the feature that side is about (the color of "an apple", the shape of "a box"). Then that side's sentence names each reading, in a few words. A word that could also mean something else is not a reason for "unsure": decide on the ordinary reading and mention the other one briefly.`;
 }

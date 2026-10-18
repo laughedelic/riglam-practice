@@ -24,7 +24,7 @@ export interface Options {
   /** headers that show the study group's link, for a sign-up */
   proof?: () => Promise<Record<string, string>>;
   /** the Magic Key on this device (see AccountDeps.magicKey) */
-  magicKey?: { read(): string | null; adopt(key: string): void };
+  magicKey?: { read(): string | null; adopt(key: string): void; declined?(): boolean; allow?(): void };
 }
 
 export async function device(w: World, opts: Options = {}) {

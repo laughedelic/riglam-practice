@@ -1,4 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Main: the four-possibilities figure, two rhombi side by side on the crimson of the booklet bands. Where they overlap
+       the colors make green (yellow and blue), as the Dudra set has it. The art stays inside the central 80% circle that every mask keeps. -->
   <rect width="512" height="512" fill="#b83545"/>
-  <polygon points="256,96 416,256 256,416 96,256" fill="#faaf3f"/>
+  <polygon points="193.7,117.6 332.1,256 193.7,394.4 55.3,256" fill="#faaf3f"/>
+  <polygon points="318.3,117.6 456.7,256 318.3,394.4 179.9,256" fill="#3155a4"/>
+  <polygon points="256,179.9 332.1,256 256,332.1 179.9,256" fill="#4c8a63"/>
 </svg>

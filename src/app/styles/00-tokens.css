@@ -7,13 +7,13 @@
   --heading:#2f5496; --marigold:#faaf3f; --on-marigold:#000000; --lapis:#3155a4; --on-lapis:#ffffff;
   --vermilion:#e74536; --on-vermilion:#000000; --vermilion-ink:#c2301f;
   --cover-indigo:#6768c1; --cover-saffron:#f9ba13; --cover-crimson:#b83545; --cover-red:#e6341f;
-  --band-colour:var(--cover-crimson);
-  /* felt grain per cover colour: grey tiles (128 = neutral) laid over the colour with soft-light */
+  --band-color:var(--cover-crimson);
+  /* felt grain per cover color: gray tiles (128 = neutral) laid over the color with soft-light */
   --grain-indigo:url("../felt-indigo.png") 0 0/120px 120px; --grain-saffron:url("../felt-saffron.png") 0 0/154px 154px;
   --grain-crimson:url("../felt-crimson.png") 0 0/147px 147px; --grain-strength:1;
   --good:var(--heading); --good-soft:#e8eef8; --bad:var(--vermilion-ink); --bad-soft:#fde8e5; --warn:#8a5300; --warn-soft:#fdf3e2;
   --focus-ring:0 0 0 2px #ffffff, 0 0 0 4px #3155a4;
-  /* cell states: green for right (page or Claude), grey for not checked, yellow for unsure */
+  /* cell states: green for right (page or Claude), gray for not checked, yellow for unsure */
   --cell-ok:#2f7a4a; --cell-ok-soft:#e3f2e7; --cell-open:#5f6577; --cell-open-soft:#eff0f3;
   --cell-uns:#8a5300; --cell-uns-soft:#fff1d6; --cell-uns-edge:#faaf3f;
   --display:"Inter","Helvetica Neue",Arial,sans-serif;

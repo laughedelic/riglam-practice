@@ -10,6 +10,7 @@ import { HEADER } from "../ai/protocol";
 import { makeProof } from "../ai/proof";
 import type { LocalDb } from "./local-db";
 import { deviceId } from "./device";
+import { syncName } from "./store-slot";
 
 const KEPT = "riglam.account";
 const POLL_MS = 60_000;
@@ -33,11 +34,17 @@ const keep = {
 };
 
 /** One tab at a time runs a round of sync; the others leave it to that one. Without Web Locks every tab may run one (the server settles it). */
-const exclusive = async <T>(fn: () => Promise<T>, wait = false): Promise<T | undefined> => {
+const exclusive = (lockName: string) => async <T>(fn: () => Promise<T>, wait = false): Promise<T | undefined> => {
   const locks = (navigator as Navigator & { locks?: LockManager }).locks;
   if (!locks) return fn();
   // A round that was asked for (sign-out, Sync now) waits for the other tab's round to end; a background one leaves it to that tab.
-  return locks.request("riglam-sync", wait ? {} : { ifAvailable: true }, async (lock) => (lock ? fn() : undefined));
+  return locks.request(lockName, wait ? {} : { ifAvailable: true }, async (lock) => (lock ? fn() : undefined));
+};
+
+// While the storage does not answer, what the store holds is only what is in memory: sync must not judge a server copy against it (a copy
+// that "matches" or "is gone" there says nothing about what is stored) nor move its cursor past anything. A failed round tries again later.
+const stored = (db: LocalDb) => {
+  if (!db.usable()) throw Object.assign(new Error("the storage on this device is not answering"), { code: "unavailable" });
 };
 
 const storeOf = (db: LocalDb): SyncStore => ({
@@ -47,23 +54,29 @@ const storeOf = (db: LocalDb): SyncStore => ({
   writing: (col, id) => db.writing(col, id),
   idle: () => db.idle(),
   async documents(col) {
+    stored(db);
     const snap = await db.collection(col).get();
+    stored(db); // the storage may have timed out during the read, which then comes back empty
     return snap.docs.map((d) => ({ id: d.id, data: d.data() ?? {} }));
   },
   async read(col, id) {
+    stored(db);
     const snap = await db.doc(`${col}/${id}`).get();
+    stored(db);
     return snap.exists ? (snap.data() ?? null) : null;
   },
 });
 
 /** The account of this device. `magicKey` is the Magic Key on this device: `read` gives it (a new account needs its proof), `adopt` takes the one the account carries. */
-export function createPwaAccount(db: LocalDb, magicKey: { read(): string | null; adopt(key: string): void }): Account {
+export function createPwaAccount(db: LocalDb, magicKey: { read(): string | null; adopt(key: string): void; declined?(): boolean; allow?(): void }): Account {
   const client = createAccountClient();
+  const syncDb = syncName(db.name); // the cursor and the unsent changes belong to the store this database is
+  const outbox = idbOutbox(undefined, syncDb);
   const sync = createSync({
     store: storeOf(db),
-    outbox: idbOutbox(),
+    outbox,
     post: (request) => client.sync(request),
-    exclusive,
+    exclusive: exclusive(syncDb),
     onSignedOut: () => account.signedOut(),
   });
   const account: Account = createAccount({
