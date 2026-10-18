@@ -10,8 +10,6 @@ import { deviceId } from "./device";
 import { serverSays } from "./tutor";
 
 const PENDING = "riglam.flagsToWithdraw";
-/** most ids kept for a later try; the oldest go first */
-const KEPT_MAX = 200;
 
 declare const __APP_VERSION__: string | undefined;
 const appVersion = (): string | undefined => (typeof __APP_VERSION__ === "string" ? __APP_VERSION__ : undefined);
@@ -36,7 +34,7 @@ function pendingStore() {
       return memory;
     },
     write(ids: string[]) {
-      memory = ids.slice(-KEPT_MAX);
+      memory = ids.slice();
       try {
         if (memory.length) localStorage.setItem(PENDING, JSON.stringify(memory));
         else localStorage.removeItem(PENDING);
