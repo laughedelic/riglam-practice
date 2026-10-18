@@ -23,6 +23,51 @@ const flag = {
 const reports = (world) => world.sql("SELECT device, id, user_id, flag, answer FROM flag_reports ORDER BY id");
 const stored = (page) => page.evaluate(async () => Object.fromEntries((await (await window.__riglam.platform.db()).collection("flags").get()).docs.map((d) => [d.id, d.data()])));
 
+/**
+ * Makes the first write of a flag document that has `field` wait until `window.__held.release()` and then fail as a passing storage fault does ("unavailable"), so that the
+ * page's retry (put, practice/answers.js) comes after whatever the test does meanwhile. `window.__held.tried` counts the writes of flags with that field. Call before the page starts.
+ */
+async function holdWrite(page, field) {
+  await page.addInitScript((field) => {
+    const patch = (db) => {
+      const real = db.collection.bind(db);
+      const held = (window.__held = { tried: 0, release: () => {} });
+      let first = true;
+      db.collection = (name) => {
+        const col = real(name);
+        if (name !== "flags") return col;
+        return new Proxy(col, {
+          get(target, prop) {
+            const v = Reflect.get(target, prop);
+            if (prop !== "doc") return typeof v === "function" ? v.bind(target) : v;
+            return (id) =>
+              new Proxy(target.doc(id), {
+                get(ref, p) {
+                  const w = Reflect.get(ref, p);
+                  if (p !== "set") return typeof w === "function" ? w.bind(ref) : w;
+                  return (doc) => {
+                    if (!doc[field]) return w.call(ref, doc);
+                    held.tried++;
+                    if (!first) return w.call(ref, doc);
+                    first = false;
+                    return new Promise((_, reject) => { held.release = () => reject({ code: "unavailable" }); });
+                  };
+                },
+              });
+          },
+        });
+      };
+    };
+    Object.defineProperty(window, "__riglam", {
+      configurable: true,
+      set(v) {
+        Object.defineProperty(window, "__riglam", { value: v, writable: true, configurable: true });
+        v.platform.db().then(patch);
+      },
+    });
+  }, field);
+}
+
 /** Opens the page on the world, puts the answer and the flag on the device, and opens Review's Flags. */
 async function start(page, world) {
   const device = await bridge(page, world);
@@ -183,6 +228,46 @@ test("a reply that reaches the page after the flag was edited and sent again is 
   expect((await stored(page)).fl_cell.review).toBeUndefined();
 });
 
+test("a reply that arrives with the flag's document alone (another device of the account, another tab) shows in an open Review", async ({ page }) => {
+  await giveKey(page);
+  const world = await serverWorld({}, { stubCourse: true });
+  await start(page, world);
+  await expect.poll(async () => (await stored(page)).fl_cell.sentAt).toBeTruthy();
+  const li = await openFlags(page);
+  await expect(li.locator("summary").first()).toContainText("Sent to the maintainer");
+  // the same flag with only its review changed: same id, state and time
+  await page.evaluate(async () => {
+    const ref = (await window.__riglam.platform.db()).collection("flags").doc("fl_cell");
+    const doc = (await ref.get()).data();
+    await ref.set({ ...doc, review: { state: "answered", reply: "Arrived from another device.", at: doc.updatedAt } });
+  });
+  await expect(li.locator("summary").first()).toContainText("Answered");
+  await expect(li.locator(".freply .rtext")).toHaveText("Arrived from another device.");
+});
+
+test("the write of a reply, tried again after a storage fault, does not put the old flag back over an edit made meanwhile", async ({ page }) => {
+  await giveKey(page);
+  const world = await serverWorld({}, { stubCourse: true });
+  await holdWrite(page, "review");
+  await start(page, world);
+  await expect.poll(async () => (await stored(page)).fl_cell.sentAt).toBeTruthy();
+  reviewed(world, "answered", "Hot and white can overlap.");
+  await page.reload();
+  await ready(page);
+  await expect.poll(() => page.evaluate(() => window.__held?.tried)).toBe(1); // the start asked, and the write of the reply is held
+  const li = await openFlags(page);
+  await li.getByRole("button", { name: "Edit" }).click();
+  await page.locator("#flag-note").fill("A bowl need not be round.");
+  await page.locator(".flagedit").getByRole("button", { name: "Submit" }).click();
+  await expect(li.locator(".fbody")).toContainText("Your note: A bowl need not be round.");
+  await page.evaluate(() => window.__held.release()); // the held write fails; the page tries it again
+  await expect.poll(() => page.evaluate(() => window.__held.tried)).toBeGreaterThanOrEqual(2);
+  await pause(page);
+  const f = (await stored(page)).fl_cell;
+  expect(f.note).toBe("A bowl need not be round.");
+  expect(f.review).toBeUndefined(); // the reply was for the old words
+});
+
 test("every sent flag whose review is not over is asked about, in batches, newest first", async ({ page }) => {
   await giveKey(page);
   const world = await serverWorld({}, { stubCourse: true });
@@ -270,6 +355,26 @@ test("a flag deleted while its upload is on its way is taken back after the uplo
   await expect.poll(() => hold.asked.filter((a) => a === "withdraw").length).toBe(1);
   await pause(page);
   expect(reports(world)).toEqual([]);
+});
+
+test("the write of the sent mark, tried again after a storage fault, does not put the old flag back over an edit made meanwhile", async ({ page }) => {
+  await giveKey(page);
+  const world = await serverWorld({}, { stubCourse: true });
+  await holdWrite(page, "sentAt");
+  await start(page, world);
+  await expect.poll(() => reports(world).length).toBe(1);
+  await expect.poll(() => page.evaluate(() => window.__held.tried)).toBe(1); // the mark of the start's upload is held
+  const li = await openFlags(page);
+  await li.getByRole("button", { name: "Edit" }).click();
+  await page.locator("#flag-note").fill("A bowl need not be round.");
+  await page.locator(".flagedit").getByRole("button", { name: "Submit" }).click();
+  await expect(li.locator(".fbody")).toContainText("Your note: A bowl need not be round.");
+  await page.evaluate(() => window.__held.release()); // the held write fails; the page tries it again
+  await expect.poll(() => page.evaluate(() => window.__held.tried)).toBeGreaterThanOrEqual(2);
+  await pause(page);
+  expect((await stored(page)).fl_cell.note).toBe("A bowl need not be round.");
+  await expect.poll(async () => { const f = (await stored(page)).fl_cell; return f.sentAt >= f.updatedAt; }).toBe(true);
+  expect(reports(world).map((r) => JSON.parse(r.flag).note)).toEqual(["A bowl need not be round."]);
 });
 
 test("a flag deleted while the device could not reach the server's reports is taken back when it can", async ({ page }) => {

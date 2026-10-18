@@ -1,6 +1,6 @@
 import { state } from "../state.js";
 import { mname } from "./quorum-panel.js";
-import { flushFlags, sendFlags, withdrawFlag } from "./flag-reports.js";
+import { flagTurn, flushFlags, sendFlags, withdrawFlag } from "./flag-reports.js";
 import { $, el } from "../core/dom.js";
 import { flagAsked } from "../../domain/flags.ts";
 import { typingEl } from "../core/viewport.js";
@@ -12,14 +12,13 @@ import { render } from "../shell/render.js";
 // a flag is one document per part: {caseKey, thing, part, model, shown, asked, note, suggest, state}; it can be changed or removed, and it is the labeled data for the model comparison.
 // It keeps what Claude said in full (up to SHOWN_MAX), and for an answer in the chat the question it answered, so Review can show the flag with its whole exchange.
 const SHOWN_MAX=2000;
-export const flagQ={};     // the writes of one flag, in order
 export const hash36=s=>{ let h=5381; s=String(s); for(let i=0;i<s.length;i++) h=((h<<5)+h+s.charCodeAt(i))|0; return (h>>>0).toString(36); };
 // the flags of the database, kept up to date; a flag write in flight keeps the snapshot from replacing what the page just changed
 export function flagsSubscribe(){
   try{
     state.db.collection("flags").orderBy("updatedAt","desc").limit(300).onSnapshot(snap=>{
       if(state.flagPending) return;
-      /** @type {Record<string, any>} */ const m={}; snap.docs.forEach(d=>{m[d.id]=d.data();}); const same=JSON.stringify(Object.keys(m).sort().map(k=>[k,m[k].state,m[k].updatedAt]))===JSON.stringify(Object.keys(state.flags).sort().map(k=>[k,state.flags[k].state,state.flags[k].updatedAt]));
+      /** @type {Record<string, any>} */ const m={}; snap.docs.forEach(d=>{m[d.id]=d.data();}); const same=JSON.stringify(Object.keys(m).sort().map(k=>[k,m[k].state,m[k].updatedAt,m[k].review||null]))===JSON.stringify(Object.keys(state.flags).sort().map(k=>[k,state.flags[k].state,state.flags[k].updatedAt,state.flags[k].review||null]));
       state.flags=m; if(!same&&state.tab==="review"&&state.mode!=="loading"&&!typingEl(document.activeElement)) render();
       flushFlags();                    // flags that were not sent yet (this device had no way, or none that worked) go now
     },()=>{});
@@ -30,10 +29,10 @@ export const flagId=c=>c.id||"fl_"+favSafe(c.caseKey).slice(0,60)+"_"+hash36([c.
 const flagOf=c=>state.flags[flagId(c)];
 // a render that keeps the chat view where it is scrolled (the overlay is rebuilt and would start at the top again)
 function renderKeep(){ const sc=$("chatscroll"), y=sc?sc.scrollTop:0; render(); const n=$("chatscroll"); if(n&&y) n.scrollTop=y; }
+// a write of one flag, in turn with its others (flagTurn, ai/flag-reports.js); one that fails is undone and says so
 function flagWrite(k,fn,undo){
-  state.flagErr=""; state.flagPending++;
-  return flagQ[k]=(flagQ[k]||Promise.resolve()).catch(()=>{}).then(fn).catch(e=>{ undo(); state.flagErr="The flag could not be saved ("+((e&&e.code)||"error")+"), so it was undone."; renderKeep(); })
-    .finally(()=>{ state.flagPending--; if(!state.flagPending) flushFlags(); });   // the snapshot of a write arrives while it is pending and sends nothing; what it wrote goes now
+  state.flagErr="";
+  return flagTurn(k,fn,e=>{ undo(); state.flagErr="The flag could not be saved ("+((e&&e.code)||"error")+"), so it was undone."; renderKeep(); });
 }
 // A device without the Magic Key cannot flag (flags go to the app's maintainer, and only the study group's devices may write to it): it gets the same prompt as Explain
 export function openFlag(c,where){
