@@ -99,6 +99,6 @@ export function accountControls(account: Account, el: El, rerender: () => void, 
     slot.focus = undefined;
     queueMicrotask(() => document.getElementById(id)?.focus({ preventScroll: true }));
   }
-  box.append(el("p", { class: "onote", text: "Copied: answers, debates, favorites, skipped pairs, flags and check-lab runs. Not copied: these settings (Export saves them). The Magic Key is not among the documents; only an account that carries it shares it." }));
+  box.append(el("p", { class: "onote", text: "Copied: answers, debates, favorites, skipped pairs, flags and earlier Quorum runs. Not copied: these settings (Export saves them). The Magic Key is not among the documents; only an account that carries it shares it." }));
   return box;
 }

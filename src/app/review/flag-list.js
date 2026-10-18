@@ -1,6 +1,6 @@
 import { state } from "../state.js";
 import { flagEditorNode, flagId, openFlag, removeFlag, setFlagState } from "../ai/flags.js";
-import { mname } from "../ai/lab-panel.js";
+import { mname } from "../ai/quorum-panel.js";
 import { fillAns } from "../ai/tutor.js";
 import { el } from "../core/dom.js";
 import { checkReplies, isSent } from "../ai/flag-reports.js";
@@ -36,8 +36,9 @@ function replyNode(f){
     state.ui&&!editing?el("div",{class:"actions left"},el("button",{type:"button",class:state.unlock?"btn ghost needs-key":"btn ghost",title:state.unlock?"Flagging needs the Magic Key":null,onclick:()=>{ openFlags.add(f.id); openFlag(c,where); },text:had?"Edit your follow-up":"Flag this reply"})):null);
 }
 function flagItem(f){
-  const doc=answerOf(f), what=flaggedPart(f,mname), where="rv:"+f.id, editing=editingAt(where)||editingAt("rr:"+f.id);
-  const marks=!!(state.sample&&state.lab); // where the check lab runs (the artifact), its owner marks flags as reviewed and resolved
+  // a flag the page raised by itself (Quorum, where the models are divided) has no note of the learner's: it can be marked reviewed or resolved, and it is not edited
+  const auto=!!f.auto, doc=answerOf(f), what=auto?(f.thing?"“"+f.thing+"” · ":"")+"Quorum (automatic)":flaggedPart(f,mname), where="rv:"+f.id, editing=editingAt(where)||editingAt("rr:"+f.id);
+  const marks=auto;
   const said=el("div",{class:"ans"}); fillAns(said,f.shown||"");
   const pair=f.pair?f.pair.a+" / "+f.pair.b:doc?doc.a+" / "+doc.b:"A flag";
   return el("li",{class:f.state},el("details",{open:openFlags.has(f.id)||editing,ontoggle:e=>{ if(e.target.open) openFlags.add(f.id); else openFlags.delete(f.id); }},
@@ -54,7 +55,7 @@ function flagItem(f){
         marks&&f.state==="new"?el("button",{type:"button",class:"btn ghost",onclick:()=>setFlagState(f.id,"reviewed"),text:"Reviewed"}):null,
         marks&&f.state!=="resolved"?el("button",{type:"button",class:"btn ghost",onclick:()=>setFlagState(f.id,"resolved"),text:"Resolved"}):null,
         el("button",{type:"button",class:"btn ghost",onclick:()=>{ openFlags.delete(f.id); removeFlag(f.id); },text:"Delete"}),
-        state.ui&&!editing?el("button",{type:"button",class:state.unlock?"btn ghost needs-key":"btn",title:state.unlock?"Flagging needs the Magic Key":null,onclick:()=>{ openFlags.add(f.id); openFlag(caseOf(f,what),where); },text:"Edit"}):null))));
+        state.ui&&!editing&&!auto?el("button",{type:"button",class:state.unlock?"btn ghost needs-key":"btn",title:state.unlock?"Flagging needs the Magic Key":null,onclick:()=>{ openFlags.add(f.id); openFlag(caseOf(f,what),where); },text:"Edit"}):null))));
 }
 export function flagSection(box){
   if(!state.db) return;

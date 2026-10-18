@@ -8,6 +8,7 @@ import type { AnswerView, DebateAnswer } from "../ai-shared/card";
 import type { CellId, RelKey } from "../ai-shared/relations";
 import type { Pair, PoolEntry, Verdict } from "../domain/types";
 import type { Account, Db, Reports, Sample, Tutor } from "../platform/types";
+import type { QuorumRecord } from "../ai/protocol";
 import type { AccountSlot } from "../ui/account";
 import type { TransferSlot } from "../ui/data-transfer";
 import type { KeyHeld } from "../platform/types";
@@ -117,6 +118,8 @@ export interface FlagDoc {
   suggest?: string;
   /** the pair the flag was made on, by its labels; not a whole pair */
   pair?: FlagPair | null;
+  /** set when the page wrote the flag by itself, not the learner: "quorum" for an example Quorum is divided about (`part` is "quorum" then; `runId` is the record of the run) */
+  auto?: string;
   at: string;
   updatedAt: string;
   state: string;
@@ -126,8 +129,8 @@ export interface FlagDoc {
   review?: { state: string; reply?: string; at?: string };
 }
 
-/** collection `labruns`: one model's answer to one case of the check lab, or the judge's. Loosely typed. */
-export interface LabRunDoc {
+/** collection `labruns`: one model's answer to one case of the earlier Quorum, run by the page itself, or the judge's. Older versions of the page wrote it under that name, which a stored collection keeps; this one only keeps what is there (export, sync). Loosely typed. */
+export interface QuorumRunDoc {
   kind: string;
   caseKey: string;
   model: string;
@@ -137,9 +140,22 @@ export interface LabRunDoc {
   [extra: string]: unknown;
 }
 
+/** Quorum for the answer on screen (src/app/ai/quorum.js): the calls that have answered while it runs, then its record. */
+export interface UiQuorum {
+  /** the explanation is being asked of Quorum */
+  busy: boolean;
+  steps: { name: string; ok: boolean }[];
+  /** the whole run, once it is in; null while it runs and when the one model answered instead */
+  record: QuorumRecord | null;
+  /** Quorum was on, but the one model answered: its budget for the day is used */
+  single?: "budget";
+}
+
 /** What the page is showing for the current pair: the answer state, loosely typed. See practice/screen.js and debate/flow.js. */
 export interface Ui extends AnswerView {
-  /** present once the answer is checked, which is the only time the tutor and the check lab are reachable */
+  /** Quorum's run for this answer, once the explanation was asked with Quorum on */
+  quorum?: UiQuorum;
+  /** present once the answer is checked, which is the only time the tutor is reachable */
   res: AnswerView["res"] & { [field: string]: any };
   /** debate: the four answers, with their timings (ms, msEx, limit) */
   ans?: (DebateAnswer & { [field: string]: any })[];
@@ -210,7 +226,6 @@ export interface State {
   debates: Record<string, DebateDoc>;
   favs: Record<string, FavDoc>;
   skips: Record<string, SkipDoc>;
-  labruns: Record<string, LabRunDoc>;
   flags: Record<string, FlagDoc>;
   /** what the "Your data" row of Options keeps between renders (src/ui/data-transfer.ts) */
   xfer: TransferSlot;
@@ -248,11 +263,17 @@ export interface State {
   skipNote: SkipNote | null;
   hintOff: any;
 
-  // the check lab
-  lab: boolean;
-  labSpotN: number;
-  labPause: number;
-  labRefC: { text: string; ver: string } | null;
+  // Quorum and the explanation
+  /** the app's server offers Quorum (platform.quorum) */
+  quorumOffered: boolean;
+  /** the server offers Quorum as an opt-in: off on a device until the device turns it on (a Preview has it on until the device turns it off) */
+  quorumOptIn: boolean;
+  /** what this device chose in Options (`rd-quorum`): null for not yet, then the server's default applies */
+  quorumChoice: boolean | null;
+  /** Quorum is on for this device: its own choice, else the server's default */
+  quorum: boolean;
+  /** a checked answer asks for its explanation by itself (Options, `rd-autoexplain`) */
+  autoExplain: boolean;
 
   // display settings, some kept on the device
   nota: "codes" | "sets" | "logic" | string;

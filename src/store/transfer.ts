@@ -21,7 +21,7 @@ export const VERSION = 1;
 export const COLLECTIONS = SYNC_COLLECTIONS;
 
 /** The localStorage keys of the page's settings (notation, wording, timers ...). tests/unit/transfer.test.ts checks this list against app.js. */
-export const PREFERENCE_KEYS = ["rd-notation", "rd-deflang", "rd-ab", "rd-full", "rd-wording", "rd-timer", "rd-timer-rel", "rd-blitz", "rd-lab", "rd-recent"] as const;
+export const PREFERENCE_KEYS = ["rd-notation", "rd-deflang", "rd-ab", "rd-full", "rd-wording", "rd-timer", "rd-timer-rel", "rd-blitz", "rd-quorum", "rd-autoexplain", "rd-recent"] as const;
 
 /** Largest file accepted, in bytes; a person's history is a few hundred kilobytes. */
 export const MAX_FILE_BYTES = 40 * 1024 * 1024;
@@ -90,6 +90,11 @@ export function parseDataFile(text: string): DataFile {
   if (!isPlain(raw.collections)) throw new TransferError("That data file holds no collections.");
   const preferences: Record<string, string> = {};
   if (isPlain(raw.preferences)) for (const [k, v] of Object.entries(raw.preferences)) if (typeof v === "string") preferences[k] = v;
+  // Quorum's switch was stored as "rd-lab" while it was a lab of the page: a file from then carries the choice under that name
+  if ("rd-lab" in preferences) {
+    if (!("rd-quorum" in preferences)) preferences["rd-quorum"] = preferences["rd-lab"];
+    delete preferences["rd-lab"];
+  }
   return {
     format: FORMAT,
     version: raw.version,
@@ -183,7 +188,7 @@ export interface ImportReport {
 
 /**
  * Writes the planned documents and restores the planned settings. A document that fails is reported and the rest go on.
- * The preview can be minutes old (a check-lab verdict or another tab may have saved a newer copy since), so each document is
+ * The preview can be minutes old (a flag or another tab may have saved a newer copy since), so each document is
  * compared again just before it is written, with the same rule as the plan.
  */
 export async function applyImport(db: Db, plan: ImportPlan, opts: { storage?: Storage | null } = {}): Promise<ImportReport> {

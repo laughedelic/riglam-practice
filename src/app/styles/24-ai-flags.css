@@ -14,10 +14,9 @@
 .ans>.aiflag{top:-4px;right:0}
 .ans.hasflag>.aiflag+*{padding-right:64px}
 .pop .flagedit,.cl+.flagedit{margin-top:2px}
-.lab-r.ruling{margin-top:4px;padding-top:6px;border-top:1px solid var(--line)}
-.lab-r.ruling .mn{color:var(--ink)}
-.lab-r .lt .vs{margin-right:6px;font:700 10px/1.2 var(--body);letter-spacing:.04em;text-transform:uppercase}
-.lab-r .lt .vs.yes{color:var(--cell-ok)}
-.lab-r .lt .vs.no{color:var(--cell-uns)}
-.lab-sided{color:var(--ink-muted);font-size:12.5px}
-.lab-nj{color:var(--ink-muted);font-size:12.5px;font-style:italic}
+.quorum-r.ruling{margin-top:4px;padding-top:6px;border-top:1px solid var(--line)}
+.quorum-r.ruling .mn{color:var(--ink)}
+.quorum-r .lt .vs{margin-right:6px;font:700 10px/1.2 var(--body);letter-spacing:.04em;text-transform:uppercase}
+.quorum-r .lt .vs.yes{color:var(--cell-ok)}
+.quorum-r .lt .vs.no{color:var(--cell-uns)}
+.quorum-nj{color:var(--ink-muted);font-size:12.5px;font-style:italic}

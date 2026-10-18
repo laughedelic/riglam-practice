@@ -27,7 +27,7 @@ const WORDS: Record<string, [string, string]> = {
   favorites: ["favorite", "favorites"],
   skips: ["skipped pair", "skipped pairs"],
   batches: ["batch", "batches"],
-  labruns: ["check-lab run", "check-lab runs"],
+  labruns: ["Quorum run", "Quorum runs"],
   flags: ["flag", "flags"],
 };
 const noun = (collection: string, n: number) => `${n} ${WORDS[collection]?.[n === 1 ? 0 : 1] ?? collection}`;

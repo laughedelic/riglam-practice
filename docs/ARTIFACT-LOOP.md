@@ -1,6 +1,6 @@
 # The artifact loop
 
-The practice page started as a Claude artifact and was polished there through comments, Claude's own `db` (answers, favorites, skips, debates, check-lab runs) and `sample` (tutor, answer checking). This repo keeps that way of working. The artifact is a build target of the repo, not a separate copy.
+The practice page started as a Claude artifact and was polished there through comments, Claude's own `db` (answers, favorites, skips, debates, flags) and `sample` (tutor, answer checking). This repo keeps that way of working. The artifact is a build target of the repo, not a separate copy.
 
 ```
  src/app, src/artifact, src/data
