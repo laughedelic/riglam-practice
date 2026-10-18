@@ -13,7 +13,7 @@ import { validDocId } from "../src/account/protocol";
 import { DEVICE_ID } from "../src/ai/proof";
 import { HEADER } from "../src/ai/protocol";
 import { REPORT_API, REPORT_LIMITS, autoFlagOf, type FlagReport, type ReportDoc, type ReportResponse, type ReportState, type ReportStatus } from "../src/report/protocol";
-import { fail, keyRefusal, readObject, sessionOf, type AccountDeps } from "./accounts";
+import { fail, keyRefusal, readObject, renewCookie, sessionOf, type AccountDeps } from "./accounts";
 import { dayOf } from "./budget";
 import type { Env } from "./env";
 import { callerOf, gate } from "./magic";
@@ -120,6 +120,10 @@ async function statusOf(db: D1Database, ids: string[], device: string, user: str
 
 export function reportRoutes(deps: AccountDeps) {
   const app = new Hono<{ Bindings: Env }>();
+
+  // a request that extends the signed-in session here (sessionOf) would otherwise leave the browser's cookie to end at the old time, since the account routes then find the
+  // session already extended and do not renew it
+  app.use(REPORT_API.reports, renewCookie);
 
   app.post(REPORT_API.reports, async (c) => {
     const env = c.env;
