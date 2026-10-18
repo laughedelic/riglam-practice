@@ -12,7 +12,7 @@ import { Hono } from "hono";
 import { validDocId } from "../src/account/protocol";
 import { DEVICE_ID } from "../src/ai/proof";
 import { HEADER } from "../src/ai/protocol";
-import { REPORT_API, REPORT_LIMITS, type FlagReport, type ReportDoc, type ReportResponse, type ReportState, type ReportStatus } from "../src/report/protocol";
+import { REPORT_API, REPORT_LIMITS, autoFlagOf, type FlagReport, type ReportDoc, type ReportResponse, type ReportState, type ReportStatus } from "../src/report/protocol";
 import { fail, keyRefusal, readObject, sessionOf, type AccountDeps } from "./accounts";
 import { dayOf } from "./budget";
 import type { Env } from "./env";
@@ -66,7 +66,7 @@ function readIds(raw: unknown, name: string, most: number): string[] | string {
 async function digestOf(r: FlagReport): Promise<string> {
   const f = r.flag;
   const part = (k: string) => (typeof f[k] === "string" ? f[k] : "");
-  const bytes = new TextEncoder().encode(JSON.stringify([part("caseKey"), part("thing"), part("part"), part("model"), part("n"), part("shown"), part("asked"), part("note"), part("suggest"), r.answer]));
+  const bytes = new TextEncoder().encode(JSON.stringify([part("caseKey"), part("thing"), part("part"), part("model"), part("n"), part("shown"), part("asked"), part("note"), part("suggest"), autoFlagOf(f) ?? "", r.answer]));
   return [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))].slice(0, 12).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
@@ -121,16 +121,23 @@ export function reportRoutes(deps: AccountDeps) {
 
     if (sends.length) {
       const day = dayOf(now);
-      const scopes = [
-        { who: `dev:${device}`, cap: REPORT_LIMITS.perDevice },
-        { who: `ip:${caller}`, cap: REPORT_LIMITS.perCaller },
-        { who: "all", cap: REPORT_LIMITS.perDay },
+      // Hand-made flags and automatic ones (AUTO_FLAGS, src/domain/flags.ts) are counted apart, so that neither can use up the other's day.
+      const kinds = [
+        { n: sends.filter((r) => !autoFlagOf(r.flag)).length, prefix: "", cap: REPORT_LIMITS },
+        { n: sends.filter((r) => autoFlagOf(r.flag)).length, prefix: "auto:", cap: REPORT_LIMITS.auto },
       ];
+      const scopes = kinds
+        .filter((k) => k.n > 0)
+        .flatMap((k) => [
+          { who: `${k.prefix}dev:${device}`, cap: k.cap.perDevice, n: k.n },
+          { who: `${k.prefix}ip:${caller}`, cap: k.cap.perCaller, n: k.n },
+          { who: `${k.prefix}all`, cap: k.cap.perDay, n: k.n },
+        ]);
       const used = await db
-        .prepare("SELECT who, n FROM flag_quota WHERE day = ?1 AND who IN (?2, ?3, ?4)")
+        .prepare(`SELECT who, n FROM flag_quota WHERE day = ?1 AND who IN (${scopes.map((_, i) => `?${i + 2}`).join(", ")})`)
         .bind(day, ...scopes.map((s) => s.who))
         .all<{ who: string; n: number }>();
-      const full = scopes.some((s) => (used.results.find((r) => r.who === s.who)?.n ?? 0) + sends.length > s.cap);
+      const full = scopes.some((s) => (used.results.find((r) => r.who === s.who)?.n ?? 0) + s.n > s.cap);
       const held = (await db.prepare("SELECT COUNT(*) AS n FROM flag_reports").first<{ n: number }>())?.n ?? 0;
       if (full || held + sends.length > REPORT_LIMITS.held) {
         const tomorrow = Date.parse(day) + 86_400_000;
@@ -138,24 +145,29 @@ export function reportRoutes(deps: AccountDeps) {
       }
       const stamp = now.toISOString();
       // The same words sent again keep their review; changed words (or a changed answer) start it again, and a review that is running is dropped (claimed_at is the guard, worker/review.ts).
+      // An automatic flag is not reviewed by the models: it is stored as with the maintainer, who decides (docs/SERVER.md, "Reviewing flags").
       const same = "flag_reports.digest = excluded.digest";
       const keep = (column: string) => `${column} = CASE WHEN ${same} THEN flag_reports.${column} ELSE NULL END`;
+      const first = (column: string) => `${column} = CASE WHEN ${same} THEN flag_reports.${column} ELSE excluded.${column} END`;
       const upsert = db.prepare(
-        `INSERT INTO flag_reports (device, id, user_id, caller, flag, answer, app, digest, state, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'sent', ?9, ?9)
+        `INSERT INTO flag_reports (device, id, user_id, caller, flag, answer, app, digest, state, outcome, reason, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?10, ?11, ?12, ?9, ?9)
          ON CONFLICT (device, id) DO UPDATE SET user_id = excluded.user_id, caller = excluded.caller, flag = excluded.flag, answer = excluded.answer, app = excluded.app, digest = excluded.digest,
-           state = CASE WHEN ${same} THEN flag_reports.state ELSE 'sent' END,
+           ${first("state")},
            updated_at = CASE WHEN ${same} THEN flag_reports.updated_at ELSE excluded.updated_at END,
            attempts = CASE WHEN ${same} THEN flag_reports.attempts ELSE 0 END,
-           ${["reply", "reply_at", "outcome", "cause", "reason", "fix", "reviews", "reviewed_at", "claimed_at"].map(keep).join(", ")}`,
+           ${first("outcome")}, ${first("reason")},
+           ${["reply", "reply_at", "cause", "fix", "reviews", "reviewed_at", "claimed_at"].map(keep).join(", ")}`,
       );
       const version = typeof body.app === "string" ? body.app.slice(0, 40) : null;
       for (const r of sends) {
-        statements.push(upsert.bind(device, r.id, user, caller, JSON.stringify(r.flag), r.answer === null ? null : JSON.stringify(r.answer), version, await digestOf(r), stamp));
+        const auto = autoFlagOf(r.flag);
+        const start = auto ? { state: "maintainer", outcome: "escalate", reason: `automatic flag (${auto}): not reviewed by the models; the maintainer decides` } : { state: "sent", outcome: null, reason: null };
+        statements.push(upsert.bind(device, r.id, user, caller, JSON.stringify(r.flag), r.answer === null ? null : JSON.stringify(r.answer), version, await digestOf(r), stamp, start.state, start.outcome, start.reason));
         // the same flag edited on another device of the account replaces the report that device sent
         if (user) statements.push(db.prepare("DELETE FROM flag_reports WHERE user_id = ?1 AND id = ?2 AND device <> ?3").bind(user, r.id, device));
       }
       for (const s of scopes) {
-        statements.push(db.prepare("INSERT INTO flag_quota (day, who, n) VALUES (?1, ?2, ?3) ON CONFLICT (day, who) DO UPDATE SET n = n + excluded.n").bind(day, s.who, sends.length));
+        statements.push(db.prepare("INSERT INTO flag_quota (day, who, n) VALUES (?1, ?2, ?3) ON CONFLICT (day, who) DO UPDATE SET n = n + excluded.n").bind(day, s.who, s.n));
       }
     }
 

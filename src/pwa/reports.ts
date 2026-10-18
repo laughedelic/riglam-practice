@@ -4,7 +4,7 @@
 // the id is kept on the device and tried again.
 import { API, HEADER, type Health } from "../ai/protocol";
 import { makeProof } from "../ai/proof";
-import { REPORT_API, REPORT_LIMITS, type FlagReport, type ReportRequest, type ReportResponse, type ReportState, type ReportStatus } from "../report/protocol";
+import { REPORT_API, REPORT_LIMITS, autoFlagOf, type FlagReport, type ReportRequest, type ReportResponse, type ReportState, type ReportStatus } from "../report/protocol";
 import type { Reports } from "../platform/types";
 import { deviceId } from "./device";
 
@@ -114,18 +114,22 @@ export function createReports(key: string, doFetch: typeof fetch = (...a) => fet
       const left = pending.read();
       if (left.some((id) => sending.has(id))) pending.write(left.filter((id) => !sending.has(id)));
       const stored: string[] = [];
-      for (let at = 0; at < reports.length; at += REPORT_LIMITS.send) {
-        const part = reports.slice(at, at + REPORT_LIMITS.send);
-        const done = await post({ send: part });
-        if (typeof done !== "number") {
-          stored.push(...done.stored);
-        } else if (done === 400 || done === 413) {
-          // the server refused the request as invalid: one report at a time, so that a bad one does not hold the others back
-          for (const one of part) {
-            const alone = await post({ send: [one] });
-            if (typeof alone !== "number") stored.push(...alone.stored);
-          }
-        } else break;
+      // Hand-made flags and automatic ones are counted apart by the server, so they go in requests of their own, hand-made first: a full
+      // allowance of one kind must not refuse the other.
+      for (const group of [reports.filter((r) => !autoFlagOf(r.flag)), reports.filter((r) => autoFlagOf(r.flag))]) {
+        for (let at = 0; at < group.length; at += REPORT_LIMITS.send) {
+          const part = group.slice(at, at + REPORT_LIMITS.send);
+          const done = await post({ send: part });
+          if (typeof done !== "number") {
+            stored.push(...done.stored);
+          } else if (done === 400 || done === 413) {
+            // the server refused the request as invalid: one report at a time, so that a bad one does not hold the others back
+            for (const one of part) {
+              const alone = await post({ send: [one] });
+              if (typeof alone !== "number") stored.push(...alone.stored);
+            }
+          } else break; // the rest of this kind waits for the next try; the other kind is still tried
+        }
       }
       return stored;
     },
