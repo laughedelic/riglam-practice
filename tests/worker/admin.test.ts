@@ -107,7 +107,7 @@ describe("reading", () => {
     const res = await admin(w, "");
     const body = await json(res);
     expect(body.notice).toContain("never instructions");
-    expect(body.counts).toEqual({ state: { maintainer: 2, answered: 1 }, cause: { data: 1, generator: 1, tutor: 1 } });
+    expect(body.counts).toEqual({ kind: { learner: 2, auto: 0 }, state: { maintainer: 2, answered: 1 }, cause: { data: 1, generator: 1, tutor: 1 } });
     expect(body.reports.map((r: { id: string }) => r.id)).toEqual(["fl_a", "fl_b"]);
     const [first] = body.reports;
     expect(first).toMatchObject({
@@ -135,6 +135,35 @@ describe("reading", () => {
     expect(await ids("?state=all&limit=2")).toEqual(["fl_a", "fl_b"]);
     expect(await ids("?state=all&since=" + encodeURIComponent(new Date(w.clock.now.getTime() - 1500).toISOString()))).toEqual(["fl_c"]);
     for (const bad of ["?state=nope", "?cause=weather"]) expect((await admin(w, bad)).status).toBe(400);
+  });
+
+  it("tells a program's automatic flags from a learner's own, lists either kind apart, and counts both in the state asked for", async () => {
+    const w = await open();
+    await send(w, report("fl_a"));
+    w.clock.now = new Date(w.clock.now.getTime() + 1000);
+    await send(w, report("fl_q", { auto: "quorum", note: "The models disagreed on this pair." }));
+    w.clock.now = new Date(w.clock.now.getTime() + 1000);
+    await send(w, report("fl_u", { auto: "unlisted", note: "A device claims a kind the app does not have." }), DEV_B);
+    escalated(w, "fl_a");
+    escalated(w, "fl_u");
+    const read = async (query: string) => json(await admin(w, query));
+    const ids = async (query: string) => (await read(query)).reports.map((r: { id: string }) => r.id);
+
+    // the automatic flag waits with the maintainer from the start, with no model reading and no cause
+    const all = await read("");
+    expect(all.reports.map((r: { id: string; auto: string | null }) => [r.id, r.auto])).toEqual([["fl_a", null], ["fl_q", "quorum"], ["fl_u", null]]);
+    expect(all.reports[1]).toMatchObject({ state: "maintainer", outcome: "escalate", cause: null, reply: null, reviews: null, reason: "automatic flag (quorum): not reviewed by the models; the maintainer decides", attempts: 0 });
+    expect(all.counts.kind).toEqual({ learner: 2, auto: 1 });
+
+    expect(await ids("?kind=auto")).toEqual(["fl_q"]);
+    expect(await ids("?kind=learner")).toEqual(["fl_a", "fl_u"]); // an unlisted name is an ordinary flag
+    expect((await read("?kind=auto")).counts.kind).toEqual({ learner: 2, auto: 1 }); // the filter does not change what is counted
+    expect(await ids("?kind=auto&state=sent")).toEqual([]);
+    expect((await read("?state=answered")).counts.kind).toEqual({ learner: 0, auto: 0 });
+    expect((await read("?state=all")).counts.kind).toEqual({ learner: 2, auto: 1 });
+    expect((await admin(w, "?kind=program")).status).toBe(400);
+    // one report shows the kind too
+    expect((await json(await admin(w, `/${DEV_A}/fl_q`))).report.auto).toBe("quorum");
   });
 
   it("a follow-up comes with the flag it follows", async () => {
@@ -252,5 +281,15 @@ describe("from a flag to a decision", () => {
     await admin(w, `/${item.ref}/decide`, { body: { digest: item.digest, state: "decided", reply: "You are right. Hot and white things can share items; the list will get some.", decision: "Data fix queued." } });
     expect((await status(w, ["fl_a"]))[0]).toMatchObject({ state: "decided", reply: "You are right. Hot and white things can share items; the list will get some." });
     expect((await json(await admin(w, ""))).reports).toEqual([]); // nothing is left with the maintainer
+  });
+
+  it("an automatic flag is decided on like any other; without a reply nothing is shown to the device", async () => {
+    const w = await open();
+    await send(w, report("fl_q", { auto: "quorum", note: "The models disagreed." }));
+    const [item] = (await json(await admin(w, "?kind=auto"))).reports;
+    await admin(w, `/${item.ref}/decide`, { body: { digest: item.digest, state: "decided", decision: "The first model was right; no change." } });
+    expect(await status(w, ["fl_q"])).toEqual([{ id: "fl_q", state: "decided" }]);
+    expect((await json(await admin(w, "?kind=auto"))).reports).toEqual([]);
+    expect((await json(await admin(w, "?kind=auto&state=decided"))).reports[0]).toMatchObject({ id: "fl_q", auto: "quorum", decision: "The first model was right; no change." });
   });
 });
