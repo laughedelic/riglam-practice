@@ -218,3 +218,64 @@ describe("limits", () => {
     expect((await send(w, 5)).status).toBe(200);
   });
 });
+
+describe("automatic flags", () => {
+  // what a program writes, not a learner (AUTO_FLAGS in src/report/protocol.ts): Quorum's disagreement between models
+  const auto = (id: string, over: Record<string, unknown> = {}) => report(id, { auto: "quorum", part: "quorum", shown: "The models gave different cells.", note: "", ...over });
+  const sendAuto = (w: World, n: number, who: { device?: string; ip?: string } = {}, from = 0) => post(w, { send: Array.from({ length: n }, (_, i) => auto("fa_" + (from + i))) }, who);
+  const sendOwn = (w: World, n: number, who: { device?: string; ip?: string } = {}, from = 0) => post(w, { send: Array.from({ length: n }, (_, i) => report("fl_" + (from + i))) }, who);
+
+  it("are stored like any report", async () => {
+    const w = await world();
+    expect((await sendAuto(w, 1)).status).toBe(200);
+    expect(JSON.parse(rows(w)[0].flag)).toMatchObject({ auto: "quorum", part: "quorum" });
+  });
+
+  it("do not use up the hand-made flags of the day, and hand-made ones do not use up theirs", async () => {
+    const w = await world();
+    for (let i = 0; i < REPORT_LIMITS.perDevice / 5; i++) expect((await sendOwn(w, 5, {}, i * 5)).status).toBe(200);
+    expect((await sendOwn(w, 1, {}, 100)).status).toBe(429);
+    for (let i = 0; i < 4; i++) expect((await sendAuto(w, 5, {}, i * 5)).status, "20 hand-made flags sent, automatic ones still go").toBe(200);
+    const w2 = await world();
+    for (let i = 0; i < REPORT_LIMITS.auto.perDevice / 5; i++) expect((await sendAuto(w2, 5, {}, i * 5)).status).toBe(200);
+    expect((await sendOwn(w2, 5)).status, "a day of automatic flags leaves the hand-made allowance whole").toBe(200);
+  });
+
+  it("have limits of their own: per device, per address and in all, and the next day starts again", async () => {
+    const w = await world();
+    for (let i = 0; i < REPORT_LIMITS.auto.perDevice / 5; i++) expect((await sendAuto(w, 5, {}, i * 5)).status).toBe(200);
+    const res = await sendAuto(w, 1, {}, 500);
+    expect([res.status, (await json(res)).error.code]).toEqual([429, "quota"]);
+    expect(rows(w)).toHaveLength(REPORT_LIMITS.auto.perDevice);
+    w.clock.now = new Date(w.clock.now.getTime() + 86_400_000);
+    expect((await sendAuto(w, 1, {}, 500)).status).toBe(200);
+
+    // a sender that makes up device ids is held by the limit on its address
+    const v = await world();
+    let stored = 0;
+    for (let d = 0; d < 60; d++) {
+      const res = await sendAuto(v, 5, { device: "dev" + String(d).padStart(16, "0"), ip: "203.0.113.7" }, d * 5);
+      if (res.status === 200) stored += 5;
+    }
+    expect(stored).toBe(REPORT_LIMITS.auto.perCaller);
+  });
+
+  it("a name that is not an automatic kind is an ordinary flag: it counts against the 20 a day", async () => {
+    const w = await world();
+    for (let i = 0; i < REPORT_LIMITS.perDevice / 5; i++) {
+      expect((await post(w, { send: Array.from({ length: 5 }, (_, j) => auto("fl_" + (i * 5 + j), { auto: "other" })) })).status).toBe(200);
+    }
+    expect((await post(w, { send: [auto("fl_x", { auto: "other" })] })).status).toBe(429);
+    expect((await post(w, { send: [auto("fl_y", { auto: true })] })).status).toBe(429);
+  });
+
+  it("a request with both kinds counts each kind, and is refused when either is full", async () => {
+    const w = await world();
+    for (let i = 0; i < REPORT_LIMITS.auto.perDevice / 5; i++) expect((await sendAuto(w, 5, {}, i * 5)).status).toBe(200);
+    const mixed = [report("fl_a"), auto("fa_999")];
+    const res = await post(w, { send: mixed });
+    expect(res.status).toBe(429);
+    expect(rows(w).map((r) => r.id)).not.toContain("fl_a");
+    expect((await post(w, { send: [report("fl_a")] })).status).toBe(200);
+  });
+});

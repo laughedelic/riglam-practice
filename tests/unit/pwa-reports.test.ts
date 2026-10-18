@@ -77,6 +77,42 @@ describe("sending", () => {
   });
 });
 
+describe("automatic flags", () => {
+  // a program's flags (Quorum's) are counted apart by the server, so they never share a request with the hand-made ones
+  const auto = (id: string): FlagReport => ({ id, flag: { id, auto: "quorum", part: "quorum" }, answer: null });
+
+  it("go in requests of their own, after the hand-made flags, whatever the order they were given in", async () => {
+    const { reports, seen } = client(testMagicKey(), storing);
+    const given = [auto("fa_1"), report("fl_a"), auto("fa_2"), report("fl_b")];
+    expect(await reports.send(given)).toEqual(["fl_a", "fl_b", "fa_1", "fa_2"]);
+    expect(seen.map((s) => s.body.send?.map((r) => r.id))).toEqual([["fl_a", "fl_b"], ["fa_1", "fa_2"]]);
+  });
+
+  it("a name that is not an automatic kind goes with the hand-made flags", async () => {
+    const { reports, seen } = client(testMagicKey(), storing);
+    const other: FlagReport = { id: "fa_x", flag: { id: "fa_x", auto: "somebody" }, answer: null };
+    await reports.send([other, report("fl_a")]);
+    expect(seen.map((s) => s.body.send?.map((r) => r.id))).toEqual([["fa_x", "fl_a"]]);
+  });
+
+  it("a full allowance of one kind does not stop the other from being tried", async () => {
+    const { reports, seen } = client(testMagicKey(), (body) => ((body.send ?? []).some((r) => !r.flag.auto) ? json(429, { error: { code: "quota" } }) : storing(body)));
+    expect(await reports.send([report("fl_a"), auto("fa_1")])).toEqual(["fa_1"]);
+    expect(seen).toHaveLength(2);
+    const autoFull = client(testMagicKey(), (body) => ((body.send ?? []).some((r) => r.flag.auto) ? json(429, { error: { code: "quota" } }) : storing(body)));
+    expect(await autoFull.reports.send([auto("fa_1"), report("fl_a")])).toEqual(["fl_a"]);
+  });
+
+  it("are split into requests of the size the server takes, and a bad one is tried alone, as the others are", async () => {
+    const { reports, seen } = client(testMagicKey(), (body) => ((body.send ?? []).some((r) => r.id === "fa_bad") ? json(400, { error: { code: "bad_request" } }) : storing(body)));
+    const ids = Array.from({ length: REPORT_LIMITS.send + 1 }, (_, i) => "fa_" + i);
+    expect(await reports.send(ids.map(auto))).toEqual(ids);
+    expect(seen.map((s) => s.body.send?.length)).toEqual([REPORT_LIMITS.send, 1]);
+    const bad = client(testMagicKey(), (body) => ((body.send ?? []).some((r) => r.id === "fa_bad") ? json(400, { error: { code: "bad_request" } }) : storing(body)));
+    expect(await bad.reports.send(["fa_1", "fa_bad", "fa_2"].map(auto))).toEqual(["fa_1", "fa_2"]);
+  });
+});
+
 describe("taking back", () => {
   it("tells the server at once", async () => {
     stubStorage();

@@ -22,6 +22,9 @@ export interface FlagReport {
   answer: ReportDoc | null;
 }
 
+// Flags a program writes, not a learner (`auto` in the flag document): the rule is in src/domain/flags.ts because the page needs it too.
+export { AUTO_FLAGS, autoFlagOf, type AutoFlag } from "../domain/flags";
+
 export interface ReportRequest {
   send?: FlagReport[];
   /** the app's version, kept with the reports sent in this request */
@@ -50,6 +53,8 @@ export const REPORT_LIMITS = {
   perDevice: 20,
   perCaller: 60,
   perDay: 1000,
-  /** reports held at a time; a further new one is refused */
+  /** the same limits for automatic flags (`autoFlagOf`), counted apart from the hand-made ones */
+  auto: { perDevice: 100, perCaller: 200, perDay: 2000 },
+  /** reports held at a time, of both kinds; a further new one is refused */
   held: 20_000,
 } as const;
