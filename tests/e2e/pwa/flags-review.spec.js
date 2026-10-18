@@ -50,18 +50,33 @@ const olderFlag = {
   at: "2026-10-14T08:05:00.000Z", updatedAt: "2026-10-14T08:05:00.000Z", state: "new",
 };
 
-async function openReview(page, { more = false } = {}) {
+// A mistake whose Both cell was left blank (the time ran out) although the pair has an example for it, whose B-not-A cell is blank with no example to give,
+// and whose A-not-B cell the learner marked empty.
+const blank = {
+  pairId: "r-blank1", a: "square things", b: "metal things", chosen: "4", key: "4", correct: false, grade: "bad",
+  cells: {
+    both: { text: "", none: false, verdict: "bad" },
+    anb: { text: "", none: true, verdict: "bad" },
+    bna: { text: "", none: false, verdict: "ok" },
+    nei: { text: "a thought", none: false, verdict: "ok" },
+  },
+  at: "2026-10-14T07:00:00.000Z",
+  pair: { id: "r-blank1", a: "square things", b: "metal things", relation: "4", ex: { both: "a metal box", anb: "a paper box", nei: "a thought" }, why: {} },
+};
+
+async function openReview(page, { more = false, withBlank = false } = {}) {
   await page.goto("/");
   await ready(page);
-  await page.evaluate(async ({ answer, flags, older, olderFlag, more }) => {
+  await page.evaluate(async ({ answer, flags, older, olderFlag, more, blank, withBlank }) => {
     const db = await window.__riglam.platform.db();
     await db.collection("answers").doc(answer.pairId).set(answer);
+    if (withBlank) await db.collection("answers").doc(blank.pairId).set(blank);
     for (const [id, f] of Object.entries(flags)) await db.collection("flags").doc(id).set(f);
     if (more) {
       await db.collection("answers").doc(older.pairId).set(older);
       await db.collection("flags").doc(olderFlag.id).set(olderFlag);
     }
-  }, { answer, flags, older, olderFlag, more });
+  }, { answer, flags, older, olderFlag, more, blank, withBlank });
   await page.reload();
   await ready(page);
   await page.getByRole("tab", { name: /review/i }).filter({ visible: true }).first().click();
@@ -149,4 +164,37 @@ test("an older answer without references says that, and a fact line is read agai
   await expect(body.locator(".fsaid .fnote .fsteps li").nth(1)).toContainText(/It follows it is (B )?a hollow thing, because it is hollow/);
   await body.locator(".xexp summary").click();
   await expect(body.locator(".xexp .fnote .fsteps li").first()).toContainText("a blue thing");
+});
+
+test("a cell left blank is shown as no answer, not as the claim that nothing goes there", async ({ page }) => {
+  await openReview(page, { withBlank: true });
+  const seg = page.locator(".rseg button", { hasText: /^Mistakes/ });
+  if (await seg.count()) await seg.click();
+  const li = page.locator(".mist > li", { hasText: "square things / metal things" });
+  await li.locator("summary").first().click();
+  const grid = li.locator(".grid .cell");
+  await expect(grid).toHaveCount(4);
+  // time ran out on Both, which has an example to give: not the empty sign, and the reference is still there
+  await expect(grid.nth(0)).toContainText("No answer");
+  await expect(grid.nth(0)).not.toContainText("∅");
+  await expect(grid.nth(0)).toContainText("Reference: a metal box.");
+  // the learner's own empty cell, and a blank one with nothing to give, keep the empty sign
+  await expect(grid.nth(1)).toContainText("∅");
+  await expect(grid.nth(1)).not.toContainText("No answer");
+  await expect(grid.nth(2)).toContainText("∅");
+  await expect(grid.nth(2)).not.toContainText("No answer");
+  await expect(grid.nth(3)).toContainText("a thought");
+});
+
+test("saving or cancelling a flag's edit in Review puts the focus back on its Edit button", async ({ page }) => {
+  await openReview(page);
+  const li = item(page, "Claude’s note on Both");
+  await li.locator("summary").first().click();
+  await li.getByRole("button", { name: "Edit" }).click();
+  await page.locator(".flagedit").getByRole("button", { name: "Cancel" }).click();
+  await expect(li.getByRole("button", { name: "Edit" })).toBeFocused();
+  await li.getByRole("button", { name: "Edit" }).click();
+  await page.locator("#flag-note").fill("A bowl can be square or round.");
+  await page.locator(".flagedit").getByRole("button", { name: "Submit" }).click();
+  await expect(li.getByRole("button", { name: "Edit" })).toBeFocused();
 });
