@@ -42,15 +42,18 @@ async function sendNow(ids){
   const flags=ids.filter(id=>state.flags[id]&&!isSent(state.flags[id])).map(id=>Object.assign({},state.flags[id],{id}));
   const items=[];
   for(const f of flags){ const answer=await answerFor(f); if(answer!==undefined) items.push({id:f.id,flag:f,answer}); }
-  if(!items.length) return;
-  const stored=await R.send(items);
+  // a flag removed while its exercise was being read stays out: sending starts by clearing the removal kept for its id, which must not be lost (there is no wait between this line and that)
+  const going=items.filter(i=>state.flags[i.id]);
+  if(!going.length) return;
+  const stored=await R.send(going);
   for(const f of flags){
     if(!stored.includes(f.id)) continue;
     await flagTurn(f.id,async()=>{
       const cur=state.flags[f.id];
       // marked only if the flag is still the one that was sent: an edit made meanwhile sends itself
       if(!cur||cur.updatedAt!==f.updatedAt||isSent(cur)) return;
-      const doc=Object.assign({},cur,{sentAt:new Date().toISOString()}); state.flags[f.id]=doc;
+      // never earlier than the revision: a flag edited on a device whose clock is ahead has an `updatedAt` later than now, and would stay unsent and go again
+      const now=new Date().toISOString(), doc=Object.assign({},cur,{sentAt:now>cur.updatedAt?now:cur.updatedAt}); state.flags[f.id]=doc;
       await put("flags",f.id,doc);     // if this fails the server has the flag all the same, and the mark is set again with the next send
     });
   }
@@ -109,8 +112,10 @@ async function flushNow(){
   }catch(e){ /* tried again at the next start */ }
   checkReplies();
 }
-// a removed flag is taken back from the server in its turn; where there is no way to now (offline at the start, no key), the platform keeps the removal for a start that has one
+// A removed flag is taken back from the server in its turn. The removal is kept on the device at once (platform.withdrawReport), before it waits for the uploads ahead of it, so
+// that closing the page then does not lose it; where there is no way to send it now (offline at the start, no key), the next start that has one does.
 export function withdrawFlag(id){
+  if(state.withdrawLater) state.withdrawLater(id);
   const R=state.reports;
-  if(R) inOrder(()=>R.withdraw(id)); else if(state.withdrawLater) state.withdrawLater(id);
+  if(R) inOrder(()=>R.withdraw(id));
 }
