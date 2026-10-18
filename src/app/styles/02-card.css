@@ -1,6 +1,6 @@
 /* card */
 .head{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;justify-items:center;min-width:0}
-/* A [chip] diamond [chip] B on one centre line. The chips and the diamond stay put; only the terms adapt:
+/* A [chip] diamond [chip] B on one center line. The chips and the diamond stay put; only the terms adapt:
    the text scales with the screen, the diamond stays in the middle and a long term wraps in its half.
    Only a word too long for its half moves the diamond over or shrinks the text, down to 13px (fitPair). */
 .pair{--tsz:clamp(15px,calc(8px + 2.4vw),23px);display:grid;grid-template-columns:minmax(0,1fr) auto auto auto minmax(0,1fr);justify-content:center;align-items:center;column-gap:8px;width:100%;margin:0}

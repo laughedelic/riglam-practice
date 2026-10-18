@@ -13,19 +13,19 @@ async function terms(pg,label,root){
  ok(label+': lineage uses "is a" and no chevron',/ is[\s\u00a0]an?[\s\u00a0]/.test(await pg.locator(root+' .tm-rows').innerText())&&!/›/.test(await pg.locator(root+' .terms').innerText()),await pg.locator(root+' .tm-rows').innerText());
  const fs=await pg.evaluate(r=>[getComputedStyle(document.querySelector(r+' .tm-t')).fontSize,getComputedStyle(document.querySelector(r+' .tm-c')).fontSize],root);
  ok(label+': classification text is larger than before (15 px and up)',parseFloat(fs[1])>=15&&parseFloat(fs[0])>=16,fs);
- const tog=pg.locator(root+' .tm-tog');
- ok(label+': optional definitions button, closed to begin with',await tog.count()===1&&/definitions \(\d+\)/i.test(await tog.innerText())&&await pg.locator(root+' .tm-defs').count()===0,await tog.innerText());
- await tog.click(); await pg.waitForTimeout(80);
- const n=await pg.locator(root+' .tm-defs dt').count();
- const txt=await pg.locator(root+' .tm-defs').innerText();
- ok(label+': definitions listed, one entry per term, no raw source tag in the text',n>=2&&n===await pg.locator(root+' .tm-defs dd').count()&&!/\((Purbuchok|tables|Dampilon|no definition|not defined)/i.test(txt)&&(await pg.locator(root+' .tm-defs dd').allInnerTexts()).every(x=>x.trim().length>3),txt.slice(0,400));
+ const marks=pg.locator(root+' .terms .dterm');
+ ok(label+': the terms with a definition are underlined, and there is no Definitions button or list',await marks.count()>=1&&await pg.locator(root+' .tm-tog').count()===0&&await pg.locator(root+' .tm-defs').count()===0,await pg.locator(root+' .terms').innerText());
+ await marks.first().click(); await pg.waitForTimeout(80);
+ const n=await pg.locator(root+' .ddef .tm-d').count();
+ const txt=await pg.locator(root+' .ddef').innerText();
+ ok(label+': a tap opens one definition under the text, with no raw source tag or booklet remark in it',n===1&&await pg.locator(root+' .ddef dd').count()>=1&&!/\((Purbuchok|tables|Dampilon|no definition|not defined)|not defined in the booklet/i.test(txt)&&(await pg.locator(root+' .ddef dd').allInnerTexts()).every(x=>x.trim().length>3),txt.slice(0,400));
  await pg.waitForTimeout(120);
- const vis=await pg.evaluate(r=>{const d=document.querySelector(r+' .tm-defs dt'), a=document.querySelector('#stage > .actions'), b=d.getBoundingClientRect(); return {top:Math.round(b.top),bottom:Math.round(b.bottom),actionsTop:a?Math.round(a.getBoundingClientRect().top):innerHeight,h:innerHeight};},root);
- ok(label+': opening the definitions brings the first one into view',vis.top>=0&&vis.bottom<=vis.actionsTop,vis);
- out.push('INFO '+label+' definitions: '+n+' terms, Russian lines '+await pg.locator(root+' .tm-defs .ru').count());
+ const vis=await pg.evaluate(r=>{const d=document.querySelector(r+' .ddef dt'), a=document.querySelector('#stage > .actions'), b=d.getBoundingClientRect(); return {top:Math.round(b.top),bottom:Math.round(b.bottom),actionsTop:a?Math.round(a.getBoundingClientRect().top):innerHeight,h:innerHeight};},root);
+ ok(label+': opening a definition brings it into view',vis.top>=0&&vis.bottom<=vis.actionsTop,vis);
+ out.push('INFO '+label+' underlined: '+await marks.count()+' terms, Russian lines '+await pg.locator(root+' .ddef .ru').count());
  await pg.screenshot({path:D+'v47-'+label+'-terms.png'});
- await pg.locator(root+' .tm-tog').click(); await pg.waitForTimeout(60);
- ok(label+': toggle hides them again',await pg.locator(root+' .tm-defs').count()===0);
+ await marks.first().click(); await pg.waitForTimeout(60);
+ ok(label+': a second tap hides it again (a mouse still on the term floats its card, which is not the open one)',await pg.locator(root+' .ddef:not(.peek)').count()===0);
 }
 (async()=>{
  let {br,pg,errs}=await open({width:390,height:844},{isMobile:true,hasTouch:true});

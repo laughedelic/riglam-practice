@@ -1,5 +1,5 @@
 /* version 47: the Terms panel */
-.terms{display:grid;gap:12px}
+.terms{position:relative;display:grid;gap:12px}
 .tm-sum{margin:0;font:400 13.5px/1.55 var(--text-serif);color:var(--ink-muted)}
 .tm-sum b{color:var(--ink)}
 .tm-rows{display:grid;gap:12px}
@@ -10,8 +10,6 @@
 .tm-n + .tm-c{margin-top:1px}
 .tm-c{margin:2px 0 0;font:400 15px/1.5 var(--text-serif);overflow-wrap:anywhere}
 .tm-c .isa{font-size:.85em}
-.tm-tog{justify-self:start;min-height:36px;padding:0 12px;border:0;background:transparent;box-shadow:inset 0 0 0 1.5px var(--ink-muted);font:700 11px/1 var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink);cursor:pointer}
-.tm-tog:hover{background:var(--paper-tint)}
 .tm-defs{display:grid;gap:14px;margin:0;padding-top:10px;border-top:1px solid var(--line)}
 .tm-d{display:grid;gap:3px}
 .tm-defs dt{font:700 14px/1.4 var(--text-serif)}
@@ -21,6 +19,8 @@
 .tm-defs .ru{color:var(--ink-muted)}
 .tm-defs .src{font:400 12px/1.4 var(--body);color:var(--ink-muted);font-style:italic}
 .tm-defs dd.out p:not(.src){color:var(--ink-muted)}
-.tm-locked{display:grid;gap:10px}
+.tm-defs dd.tm-up{display:block;font:400 13px/1.45 var(--text-serif);color:var(--ink-muted)}
+.tm-up .isa{font-size:.85em}
+.tm-locked{display:grid;gap:10px;padding-top:10px;border-top:1px solid var(--line)}
 .tm-key{margin:0;font:400 14px/1.5 var(--text-serif)}
 .tm-locked .btn{justify-self:start}

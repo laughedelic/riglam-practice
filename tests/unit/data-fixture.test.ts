@@ -59,16 +59,18 @@ test("check passes with no data-private/ and with both files, and refuses a data
   expect(half.stderr).toMatch(/only one of definitions\.json and notes\.json/);
 });
 
-test("check says when terms of the open data have no definition, and still passes (a term can have none)", () => {
+test("check and publish refuse data-private/ when a term of the open data has no definition", () => {
   expect(fixture().status).toBe(0);
   const file = priv("definitions.json");
   const definitions = JSON.parse(readFileSync(file, "utf8"));
   const gone = Object.keys(definitions).slice(0, 2);
   for (const k of gone) delete definitions[k];
   writeFileSync(file, JSON.stringify(definitions));
-  const run = check();
-  expect(run.status, run.stderr).toBe(0);
-  expect(run.stdout).toMatch(/notice: 2 of \d+ terms of the open data have no definition/);
-  expect(run.stdout).toContain(gone[0]);
+  for (const run of [check(), spawnSync(process.execPath, [join(dir, "scripts/data.mjs"), "publish", "--local"], { cwd: dir, encoding: "utf8" })]) {
+    expect(run.status).not.toBe(0);
+    expect(run.stderr).toMatch(/2 of \d+ terms of the open data have no definition/);
+    expect(run.stderr).toContain(gone[0]);
+    expect(run.stderr).not.toMatch(/wrangler/);
+  }
 });
 
