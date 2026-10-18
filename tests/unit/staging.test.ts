@@ -321,7 +321,7 @@ function sampleResult() {
       { ...entries[4], reason: "parent", parent: 4, files: [], withMain: false, with: [] },
     ],
     warnings: ["something to know"],
-    previous: { pulls: [{ number: 1 }, { number: 7 }], skipped: [{ number: 5 }] },
+    previous: { pulls: [{ number: 1, sha: "1".repeat(40) }, { number: 7, sha: "7".repeat(40) }, { number: 9, sha: "9".repeat(40) }], skipped: [{ number: 5, sha: "5".repeat(40) }] },
   };
 }
 
@@ -333,6 +333,7 @@ test("each pull request's status says whether it is in, where, or why not", () =
   expect(statusOf(result.entries[3], result)).toEqual({ state: "failure", description: "Left out of staging: conflicts in `a.js`, `b.js` (also changed by main and #1)" });
   expect(statusOf(result.entries[4], result)).toEqual({ state: "failure", description: "Left out of staging: the pull request below it (#4) is left out" });
   expect(leftStatus()).toEqual({ state: "success", description: "Not in staging (no label)" });
+  expect(leftStatus(false)).toEqual({ state: "success", description: "Not in staging (closed)" });
   expect(statusOf({ ...result.entries[3], number: 4 }, { ...result, skipped: [{ ...result.skipped[0], files: ["f".repeat(200)] }] }).description.length).toBeLessThanOrEqual(140);
   expect(whySkipped({ reason: "gone" })).toBe("its branch is not on origin");
 });
@@ -367,10 +368,14 @@ test("the log and the run summary list what went in and what was left out", () =
   expect(summary({ ...result, upToDate: true })).toContain("Nothing to do");
 });
 
-function fakeClient(existingComments: Record<number, string[]> = {}, failOn?: string) {
+function fakeClient(existingComments: Record<number, string[]> = {}, failOn?: string, current: Record<string, { state: string; description: string }> = {}) {
   const calls: any[] = [];
   return {
     calls,
+    async currentStatus(sha: string, context: string) {
+      calls.push(["current", sha.slice(0, 1), context]);
+      return current[sha] ?? null;
+    },
     async setStatus(sha: string, status: any) {
       if (failOn === "status") throw new Error("403");
       calls.push(["status", sha, status.state, status.description, status.context, status.targetUrl]);
@@ -386,12 +391,16 @@ function fakeClient(existingComments: Record<number, string[]> = {}, failOn?: st
 
 test("publish sets a status on each pull request, clears the old ones, and comments once on what just stopped merging", async () => {
   const result = sampleResult();
-  const open = [...result.entries, { number: 7, head: { sha: "7".repeat(40) } }, { number: 1, head: { sha: "1".repeat(40) } }];
+  // #7 lost its label and has a new head since; #9 was closed
+  const open = [...result.entries, { number: 7, head: { sha: "8".repeat(40) } }, { number: 1, head: { sha: "1".repeat(40) } }];
   const client = fakeClient();
   await publish(client, { result, openPulls: open, runUrl: "https://example.com/run/1" });
   const statuses = client.calls.filter((c) => c[0] === "status");
-  expect(statuses.map((c) => [c[1].slice(0, 1), c[2]])).toEqual([["1", "success"], ["2", "success"], ["3", "success"], ["4", "failure"], ["5", "failure"], ["6", "success"], ["7", "success"]]);
-  expect(statuses.at(-1)).toEqual(["status", "7".repeat(40), "success", "Not in staging (no label)", "staging", "https://example.com/run/1"]);
+  expect(statuses.map((c) => [c[1].slice(0, 1), c[2]])).toEqual([["1", "success"], ["2", "success"], ["3", "success"], ["4", "failure"], ["5", "failure"], ["6", "success"], ["7", "success"], ["9", "success"]]);
+  // the old status goes from the commit it was set on (the manifest's), not from the head the pull request has now
+  expect(statuses.at(-2)).toEqual(["status", "7".repeat(40), "success", "Not in staging (no label)", "staging", "https://example.com/run/1"]);
+  expect(statuses.at(-1)).toEqual(["status", "9".repeat(40), "success", "Not in staging (closed)", "staging", "https://example.com/run/1"]);
+  expect(client.calls.some((c) => c[0] === "current")).toBe(false);
   expect(client.calls.filter((c) => c[0] === "comment")).toEqual([["comment", 4, "Staging left this pull request out because it does not merge cleanly."]]);
 
   // told already (the marker is on the pull request): not again
@@ -402,6 +411,47 @@ test("publish sets a status on each pull request, clears the old ones, and comme
   const same = fakeClient();
   await publish(same, { result: { ...result, previous: { ...result.previous, skipped: [{ number: 4 }, { number: 5 }] } }, openPulls: open });
   expect(same.calls.filter((c) => c[0] === "comment")).toEqual([]);
+});
+
+test("a run that built nothing makes good what a refused call lost: the missing statuses and the missing comment, nothing twice", async () => {
+  const result = { ...sampleResult(), upToDate: true, previous: { pulls: [], skipped: [{ number: 4 }, { number: 5 }] } };
+  const have = { ["1".repeat(40)]: { state: "success", description: "In staging (1 of 4)" }, ["4".repeat(40)]: { state: "failure", description: "something older" } };
+  const client = fakeClient({}, undefined, have);
+  await publish(client, { result, openPulls: [], runUrl: "https://example.com/run/2", repair: true });
+
+  // #1 has its status; the others are set, #4 because it says something else
+  const set = client.calls.filter((c) => c[0] === "status").map((c) => c[1].slice(0, 1));
+  expect(set).toEqual(["2", "3", "4", "5", "6"]);
+  // the conflict comment was never posted (still not news by the manifest's account): it is now, once
+  expect(client.calls.filter((c) => c[0] === "comment")).toEqual([["comment", 4, "Staging left this pull request out because it does not merge cleanly."]]);
+
+  const told = fakeClient({ 4: [commentMarker(result.skipped[0])] });
+  await publish(told, { result, openPulls: [], repair: true });
+  expect(told.calls.filter((c) => c[0] === "comment")).toEqual([]);
+});
+
+test("a run that built nothing reads what went in and what was left out from the manifest", () => {
+  branch(work, "p", { "a.txt": "one\nTWO-p\nthree\n" });
+  branch(work, "q", { "q.txt": "q\n" }, "p");
+  branch(work, "r", { "r.txt": "r\n" });
+  branch(work, "same", { "s.txt": "s\n" });
+  onMain(work, { "a.txt": "one\nTWO-main\nthree\n", "s.txt": "s\n" });
+  const entries = [entry(1, "p"), entry(2, "q", { base: "p", parent: 1 }), entry(3, "r"), entry(4, "same", { labeled: false, via: 3 })];
+  const built = rebuild({ cwd: work, entries });
+  push({ cwd: work });
+
+  const again = rebuild({ cwd: work, entries });
+  expect(again.upToDate).toBe(true);
+  expect(again.merged.map((m) => [m.number, m.addsNothing, m.via])).toEqual(built.merged.map((m) => [m.number, m.addsNothing, m.via]));
+  expect(again.merged.find((m) => m.number === 4)?.addsNothing).toBe(true);
+  expect(again.skipped).toEqual([
+    expect.objectContaining({ number: 1, reason: "conflict", files: ["a.txt"], withMain: true, with: [], title: "pull request 1" }),
+    expect.objectContaining({ number: 2, reason: "parent", parent: 1, withMain: false, with: [] }),
+  ]);
+  // so that the texts are the same as after the build
+  expect(statusOf(again.entries[0], again)).toEqual(statusOf(built.entries[0], built));
+  expect(statusOf(again.entries[2], again)).toEqual(statusOf(built.entries[2], built));
+  expect(statusOf(again.entries[3], again)).toEqual(statusOf(built.entries[3], built));
 });
 
 test("a refused call is logged and does not stop the rest", async () => {
@@ -425,4 +475,9 @@ test("the GitHub client lists every page of pull requests and says what GitHub a
   expect(await client.openPulls()).toHaveLength(103);
   expect(seen).toEqual(["GET https://api.test/repos/me/app/pulls?state=open&per_page=100&page=1", "GET https://api.test/repos/me/app/pulls?state=open&per_page=100&page=2"]);
   await expect(client.setStatus("abc", { state: "success", description: "d", context: "staging" })).rejects.toThrow(/POST \/statuses\/abc answered 403: no/);
+
+  const statuses = (async () => new Response(JSON.stringify({ statuses: [{ context: "ci", state: "failure", description: "x" }, { context: "staging", state: "success", description: null }] }), { status: 200 })) as unknown as typeof fetch;
+  const reader = githubClient({ repo: "me/app", token: "t", apiUrl: "https://api.test", fetchImpl: statuses });
+  expect(await reader.currentStatus("abc", "staging")).toEqual({ state: "success", description: "" });
+  expect(await reader.currentStatus("abc", "other")).toBeNull();
 });

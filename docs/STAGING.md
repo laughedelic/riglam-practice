@@ -20,14 +20,14 @@ The workflow [staging.yml](../.github/workflows/staging.yml) runs
 - when `main` changes (a merge), and
 - every 30 minutes, as a net under the events. A pull request stacked on a branch that does not have the workflow file yet, one that conflicts with `main`, and a push made by a workflow's own token do not start a `pull_request` workflow; the schedule catches them.
 
-Every run reads the open pull requests afresh, so a run that was queued behind another needs nothing from the event that started it. A run that finds `origin/staging` already built from the same `main` and the same pull request heads (they are recorded in `staging.json`) does nothing. Otherwise it pushes the new branch, which starts the deploy (below), and then runs lint, types, a build and the unit tests on the result in a second job, because that is where two pull requests can break each other.
+Every run reads the open pull requests afresh, so a run that was queued behind another needs nothing from the event that started it. A run that finds `origin/staging` already built from the same `main` and the same pull request heads (they are recorded in `staging.json`) builds and pushes nothing; it only makes good a status or a comment that GitHub refused after the last push. Otherwise it pushes the new branch, which starts the deploy (below), and then runs lint, types, a build and the unit tests on the result in a second job, because that is where two pull requests can break each other.
 
 ## When a pull request does not merge
 
 The rebuild leaves that pull request out, and every pull request stacked on it, and builds the rest. Nothing stops at the first conflict.
 
 - The pull request gets the status `staging` in red, with the files in conflict and who else changed them (`main` since the branch left it, or a pull request that is on staging before it).
-- When it stops merging, it also gets one comment saying the same, which notifies whoever follows the pull request. The comment is posted once per conflict; the status is updated on every build.
+- When it stops merging, it also gets one comment saying the same, which notifies whoever follows the pull request. The comment is posted once per conflict (a run that finds it missing posts it again); the status is updated on every build, and a pull request that leaves staging, by losing its label or being closed, gets a green "Not in staging" in place of the old one.
 - The run fails the first time a pull request is left out, so that it is seen, and passes while the same pull requests stay out.
 - The fix is the one for any pull request: merge `main` (or the pull request it conflicts with) into its branch and push. Staging rebuilds on its own and the status turns green. Never resolve a conflict on `staging`.
 

@@ -26,8 +26,8 @@ export function statusOf(entry, result) {
   return { state: "success", description: cut(`In staging (${how})${merged?.addsNothing ? ", but it adds nothing to main" : ""}`) };
 }
 
-/** The status that takes the place of an old one on a pull request that is no longer on staging. */
-export const leftStatus = () => ({ state: "success", description: "Not in staging (no label)" });
+/** The status that takes the place of an old one on a pull request that is no longer on staging: the label came off, or it was closed. */
+export const leftStatus = (open = true) => ({ state: "success", description: open ? "Not in staging (no label)" : "Not in staging (closed)" });
 
 /** The marker of a comment, so that the same head commit is never told twice. */
 export const commentMarker = (skip) => `<!-- staging-conflict ${skip.sha} -->`;
@@ -79,10 +79,14 @@ export function summary(result, { runUrl = "" } = {}) {
 
 /**
  * Posts the statuses and the comments for a rebuild. Nothing here may fail the run: a refused call is logged and the next one goes on.
- * @param {{ setStatus(sha: string, status: { state: string, description: string, targetUrl?: string, context: string }): Promise<void>, comments(number: number): Promise<string[]>, comment(number: number, body: string): Promise<void> }} client
- * @param {{ result: any, openPulls: any[], runUrl?: string, log?: (line: string) => void }} options
+ *
+ * With `repair`, nothing was rebuilt (the result is read from the manifest): a status is only set where the commit does not have it yet, and
+ * the comment is looked for on every pull request left out for a conflict, not only on those that just were. That is how a call that was
+ * refused after the last push is made good by a later run.
+ * @param {{ setStatus(sha: string, status: { state: string, description: string, targetUrl?: string, context: string }): Promise<void>, currentStatus(sha: string, context: string): Promise<{ state: string, description: string } | null>, comments(number: number): Promise<string[]>, comment(number: number, body: string): Promise<void> }} client
+ * @param {{ result: any, openPulls: any[], runUrl?: string, log?: (line: string) => void, repair?: boolean }} options
  */
-export async function publish(client, { result, openPulls, runUrl, log = console.error }) {
+export async function publish(client, { result, openPulls, runUrl, log = console.error, repair = false }) {
   const attempt = async (what, call) => {
     try {
       await call();
@@ -90,19 +94,26 @@ export async function publish(client, { result, openPulls, runUrl, log = console
       log(`could not ${what}: ${e.message}`);
     }
   };
-  const status = (sha, s, what) => attempt(`set the status of ${what}`, () => client.setStatus(sha, { ...s, targetUrl: runUrl, context: STATUS_CONTEXT }));
+  const status = (sha, s, what) =>
+    attempt(`set the status of ${what}`, async () => {
+      if (repair) {
+        const current = await client.currentStatus(sha, STATUS_CONTEXT);
+        if (current?.state === s.state && current.description === s.description) return;
+      }
+      await client.setStatus(sha, { ...s, targetUrl: runUrl, context: STATUS_CONTEXT });
+    });
 
   for (const e of result.entries) if (e.sha) await status(e.sha, statusOf(e, result), `#${e.number}`);
 
-  // A pull request that was on staging and is not any more (the label came off): its old status must not go on saying it is in.
+  // A pull request that was on staging and is not any more (the label came off, or it was closed): the status it was given then, on the
+  // commit it was given it, must not go on saying it is in. That commit is the one in the manifest, not necessarily the head now.
   const now = new Set(result.entries.map((e) => e.number));
-  const before = [...(result.previous?.pulls ?? []), ...(result.previous?.skipped ?? [])];
-  for (const old of before) {
-    const open = openPulls.find((p) => p.number === old.number);
-    if (open && !now.has(open.number)) await status(open.head.sha, leftStatus(), `#${open.number}`);
+  const stillOpen = new Set(openPulls.map((p) => p.number));
+  for (const old of [...(result.previous?.pulls ?? []), ...(result.previous?.skipped ?? [])]) {
+    if (old.sha && !now.has(old.number)) await status(old.sha, leftStatus(stillOpen.has(old.number)), `#${old.number}`);
   }
 
-  for (const skip of newSkips(result)) {
+  for (const skip of repair ? result.skipped : newSkips(result)) {
     if (skip.reason !== "conflict") continue;
     await attempt(`comment on #${skip.number}`, async () => {
       if ((await client.comments(skip.number)).some((body) => body.includes(commentMarker(skip)))) return;

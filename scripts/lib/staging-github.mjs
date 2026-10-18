@@ -32,6 +32,11 @@ export function githubClient({ repo, token, apiUrl = process.env.GITHUB_API_URL 
     async setStatus(sha, { state, description, targetUrl, context }) {
       await request("POST", `/statuses/${sha}`, { state, description, context, ...(targetUrl ? { target_url: targetUrl } : {}) });
     },
+    /** The latest status of `context` on a commit, or null when it has none. */
+    async currentStatus(sha, context) {
+      const status = (await request("GET", `/commits/${sha}/status?per_page=100`)).statuses?.find((s) => s.context === context);
+      return status ? { state: status.state, description: status.description ?? "" } : null;
+    },
     /** The texts of a pull request's comments. */
     comments: async (number) => (await all(`/issues/${number}/comments`)).map((c) => c.body ?? ""),
     async comment(number, body) {

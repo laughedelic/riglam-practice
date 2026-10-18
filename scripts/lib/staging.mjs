@@ -135,7 +135,8 @@ function identity(cwd) {
  * conflict, and so is every entry stacked on it; the others still go in. Nothing is kept from an earlier build, so there is nothing to go stale.
  * Moves the local `target` branch to the new commit and returns it; nothing is pushed.
  *
- * When `remote/target` was built from the very same inputs, nothing is built (`upToDate`), unless `force`.
+ * When `remote/target` was built from the very same inputs, nothing is built (`upToDate`), unless `force`; `merged` and `skipped` are then
+ * read from its manifest.
  * @param {{ cwd: string, entries: Entry[], remote?: string, base?: string, target?: string, force?: boolean }} options
  * @returns {{ upToDate: boolean, sha: string | null, baseSha: string, merged: Merged[], skipped: Skipped[], warnings: string[], previous: any, entries: Entry[] }}
  */
@@ -146,7 +147,14 @@ export function rebuild({ cwd, entries, remote = "origin", base = "main", target
   // The head the remote has now is what goes in, whatever the pull request list said a moment ago.
   const resolved = entries.map((e) => ({ ...e, sha: git(cwd, ["rev-parse", "--verify", "--quiet", `${remote}/${e.branch}^{commit}`], { allowFail: true }) }));
   const inputs = inputsOf(baseSha, resolved);
-  if (!force && sameInputs(previous, inputs)) return { upToDate: true, sha: git(cwd, ["rev-parse", `${remote}/${target}`]), baseSha, merged: [], skipped: [], warnings: [], previous, entries: resolved };
+  if (!force && sameInputs(previous, inputs)) {
+    // Nothing is built, but what went in and what was left out is still known, from the manifest: a status or a comment that a refused call
+    // lost after the last push is made good from it (publish with `repair`).
+    const byNumber = new Map(resolved.map((e) => [e.number, e]));
+    const merged = (previous.pulls ?? []).map((p) => ({ ...byNumber.get(p.number), addsNothing: p.addsNothing === true }));
+    const skipped = (previous.skipped ?? []).map((s) => ({ ...byNumber.get(s.number), withMain: false, with: [], ...s }));
+    return { upToDate: true, sha: git(cwd, ["rev-parse", `${remote}/${target}`]), baseSha, merged, skipped, warnings: [], previous, entries: resolved };
+  }
 
   const env = identity(cwd);
   const dir = mkdtempSync(join(tmpdir(), "riglam-staging-"));
@@ -193,8 +201,8 @@ export function rebuild({ cwd, entries, remote = "origin", base = "main", target
       baseSha,
       inputs: inputs.pulls,
       branches: merged.map((m) => m.branch),
-      pulls: merged.map((m) => ({ number: m.number, branch: m.branch, sha: m.sha })),
-      skipped: skipped.map((s) => ({ number: s.number, branch: s.branch, sha: s.sha, reason: s.reason, files: s.files })),
+      pulls: merged.map((m) => ({ number: m.number, branch: m.branch, sha: m.sha, ...(m.addsNothing ? { addsNothing: true } : {}) })),
+      skipped: skipped.map((s) => ({ number: s.number, branch: s.branch, sha: s.sha, reason: s.reason, files: s.files, parent: s.parent, withMain: s.withMain, with: s.with })),
     };
     writeFileSync(join(dir, MANIFEST), `${JSON.stringify(manifest, null, 2)}\n`);
     git(dir, ["add", "--", MANIFEST]);

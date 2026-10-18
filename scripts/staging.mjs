@@ -154,6 +154,8 @@ async function sync(opts) {
   toActions("GITHUB_STEP_SUMMARY", `${summary(result, { runUrl })}\n`);
   if (result.upToDate) {
     toActions("GITHUB_OUTPUT", "changed=false\n");
+    // Nothing was built, but a status or a comment that a refused call lost after the last push is made good here.
+    if (opts.report) await publish(client, { result, openPulls: pulls, runUrl, repair: true });
     return 0;
   }
 
