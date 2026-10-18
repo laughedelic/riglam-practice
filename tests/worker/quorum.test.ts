@@ -75,12 +75,13 @@ describe("when Quorum is offered", () => {
     expect(stored(s)).toHaveLength(1);
   });
 
-  it("is never on in the production settings of wrangler.jsonc, only in the previews block", async () => {
+  it("is an opt-in in the production settings of wrangler.jsonc and on only in the previews block", async () => {
     const { readFileSync } = await import("node:fs");
     const wrangler = readFileSync(new URL("../../wrangler.jsonc", import.meta.url), "utf8");
     const at = wrangler.indexOf('"previews"');
     expect(at).toBeGreaterThan(0);
-    expect(wrangler.slice(0, at)).not.toMatch(/"QUORUM"/);
+    expect(wrangler.slice(0, at)).toMatch(/"QUORUM":\s*"optin"/);
+    expect(wrangler.slice(0, at)).not.toMatch(/"QUORUM":\s*"on"/);
     expect(wrangler.slice(at)).toMatch(/"QUORUM":\s*"on"/);
   });
 
