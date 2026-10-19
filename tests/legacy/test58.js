@@ -28,7 +28,7 @@ const other=r=>r==='mi'?'con':'mi';
  {
   const {br,pg,errs}=await open({width:390,height:844},{isMobile:true,hasTouch:true});
   const names=await pg.locator('#tabbar button').allInnerTexts();
-  ok('the tab bar reads Home, Review, Options',JSON.stringify(names.map(s=>s.trim().toLowerCase()))==='["home","review","options"]',names);
+  ok('the tab bar reads Practice, Review, Options',JSON.stringify(names.map(s=>s.trim().toLowerCase()))==='["practice","review","options"]',names);
   ok('each name fits its tab at 390 px',await pg.evaluate(()=>[...document.querySelectorAll('#tabbar button')].every(b=>b.scrollWidth<=b.clientWidth+1)));
 
   // ---- one pair across the two modes
@@ -63,19 +63,22 @@ const other=r=>r==='mi'?'con':'mi';
   const p2=await key(pg);
   ok('Next pair in Pervasions draws a new pair',p2!==p1);
   await tabPhone(pg,'Relations');
-  ok('Relations takes that new pair (its old one is finished), fresh',await key(pg)===p2&&await pg.evaluate(()=>!window.__t.ui.rel&&!window.__t.ui.checked),[p2,await key(pg)]);
+  ok('Relations comes back to its result for the first pair (a result is left only with Next pair)',await key(pg)===p1&&await pg.evaluate(()=>window.__t.ui.checked),[p1,await key(pg)]);
+  await pg.locator('#stage .actions .btn',{hasText:/next pair/i}).click(); await pg.waitForTimeout(200);
+  ok('Next pair in Relations moves on to a new pair, fresh',await key(pg)!==p1&&await pg.evaluate(()=>!window.__t.ui.rel&&!window.__t.ui.checked),[p1,await key(pg)]);
   // a pair finished in one mode gives the other a new pair
   await relPhone(pg);
-  ok('p2 finished in Relations',await pg.evaluate(()=>window.__t.ui.checked));
+  ok('that pair finished in Relations',await pg.evaluate(()=>window.__t.ui.checked));
+  const pr=await key(pg);
   await tabPhone(pg,'Pervasions');
   const p3=await key(pg);
-  ok('the other mode shows the same unfinished pair? No: Pervasions held p2 fresh, so it restores p2',p3===p2,[p2,p3]);
+  ok('Pervasions held p2 fresh, so it restores p2',p3===p2,[p2,p3]);
   // skipping in one mode: the other follows
   await pg.locator('#mskip').click(); await pg.waitForTimeout(150);
   const p4=await key(pg);
   ok('skipping in Pervasions draws a new pair',p4!==p2);
   await tabPhone(pg,'Relations');
-  ok('Relations opens the pair drawn after the skip',await key(pg)===p4,[p4,await key(pg)]);
+  ok('Relations comes back to its own result, not the pair drawn after the skip',await key(pg)===pr&&await pg.evaluate(()=>window.__t.ui.checked),[pr,p4,await key(pg)]);
   ok('no page errors (pairs)',noErr(errs).length===0,errs);
   await br.close();
  }
@@ -285,7 +288,7 @@ const other=r=>r==='mi'?'con':'mi';
  {
   const {br,pg,errs}=await open({width:1280,height:800});
   const rail=(await pg.locator('.rail .nv').allInnerTexts()).slice(0,4);
-  ok('the rail reads Home, Relations, Pervasions, Review',JSON.stringify(rail.map(s=>s.trim().toLowerCase()))==='["home","relations","pervasions","review"]',rail);
+  ok('the rail reads Practice, Relations, Pervasions, Review',JSON.stringify(rail.map(s=>s.trim().toLowerCase()))==='["practice","relations","pervasions","review"]',rail);
   ok('the coach panel has no "Coach" label; it starts with Recent or the key hints',!/^coach$/i.test(((await pg.locator('#coach').innerText())||'').trim().split('\n')[0]||'')&&!/\bcoach\b/i.test(await pg.locator('#coach').innerText()),await pg.locator('#coach').innerText());
   const p1=await key(pg);
   await pg.locator('.rail .nv:has-text("Pervasions")').click(); await pg.waitForTimeout(150);

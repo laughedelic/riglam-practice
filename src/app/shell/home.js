@@ -5,16 +5,17 @@ import { dayOf, gradeOf, today } from "../core/util.js";
 import { attemptOf, begun, setTab } from "./tabs.js";
 
 /* ---------- Home ---------- */
-// The first screen: a line on today's practice, then one row per exercise. An exercise that holds an unfinished attempt says
-// "Continue" on its own row; it is never listed a second time. An exercise opens over Home with a back arrow (narrow screens);
+// (In the bars and the back arrow's name this screen is "Practice"; in the code it stays `home`.)
+// The first screen: a line on today's practice, then one row per exercise. An exercise with an attempt waiting (begun, or its result not yet
+// left with Next pair) says "Continue" on its own row; it is never listed a second time. An exercise opens over Home with a back arrow (narrow screens);
 // on wide screens the rail lists the same exercises. A new exercise is one more entry here.
 export const EXERCISES=[
   {k:"practice",name:"Relations",desc:"Pick how two terms relate, then give an example for each case that exists."},
   {k:"debate",name:"Pervasions",desc:"Answer the four questions on two terms, then pick how they relate."}
 ];
 export const exName=k=>(EXERCISES.find(e=>e.k===k)||{name:""}).name;
-/** An exercise with an attempt begun and not finished, waiting while you are elsewhere. */
-export const parked=k=>state.tab!==k&&begun((attemptOf(k)||{}).ui);
+/** An exercise with an attempt waiting while you are elsewhere: begun, or checked and its result not yet left with Next pair. */
+export const parked=k=>{ const u=(attemptOf(k)||{}).ui; return state.tab!==k&&!!u&&(u.checked||begun(u)); };
 /** Today's pairs over every exercise, and how many were fully right. */
 export function todayCount(){
   const list=[...Object.values(state.answers),...Object.values(state.debates)].filter(a=>dayOf(a.at)===today());

@@ -26,14 +26,14 @@ export function ago(iso){
   const d=Math.round(h/24); return d===1?"1 day":d+" days";
 }
 export const isEx=()=>state.tab==="practice"||state.tab==="debate";
-// The bars. Wide: the rail lists Home, the exercises and Review (built once, from EXERCISES); an exercise with a parked attempt has a dot.
+// The bars (Home, the start screen, is called "Practice" in them). Wide: the rail lists Home, the exercises and Review (built once, from EXERCISES); an exercise with a parked attempt has a dot.
 // Narrow: the tab bar has Home, Review and Options (an exercise belongs to Home), and the top bar shows the brand on Home and Review,
 // or the back arrow and the exercise's name in an exercise. The buttons stay the same elements, so a click keeps its focus.
 const navItem=(k,label,cls)=>el("button",{type:"button",class:"nv"+(cls?" "+cls:""),"data-go":k},el("i",{"aria-hidden":"true"}),el("span",{class:"nvl",text:label}),
   cls?el("span",{class:"nvd",hidden:true,title:"Attempt in progress"}):null);
 function renderTabs(){
   const rail=$("tabs");
-  if(!rail.firstChild) rail.append(navItem("home","Home"),el("p",{class:"nvh","aria-hidden":"true",text:"Exercises"}),...EXERCISES.map(e=>navItem(e.k,e.name,"ex")),navItem("review","Review"));
+  if(!rail.firstChild) rail.append(navItem("home","Practice"),el("p",{class:"nvh","aria-hidden":"true",text:"Exercises"}),...EXERCISES.map(e=>navItem(e.k,e.name,"ex")),navItem("review","Review"));
   for(const b of rail.querySelectorAll("[data-go]")){
     const k=b.getAttribute("data-go"), on=!state.optsOpen&&state.tab===k;
     on?b.setAttribute("aria-current","page"):b.removeAttribute("aria-current");

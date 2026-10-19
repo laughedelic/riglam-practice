@@ -9,8 +9,8 @@ import { render, top0 } from "./render.js";
 const hold={};
 // The screens: Home, the exercises ("practice" is Relations, "debate" Pervasions) and Review. Each exercise keeps its own attempt while
 // you are anywhere else: an unfinished one is parked and comes back as it was ("Continue" on Home). Relations and Pervasions work on one
-// pair: opening one while the other has an unfinished pair, and nothing unfinished of its own begun, opens that pair at its first step.
-// An exercise whose attempt is finished opens on a new pair, as Next pair does.
+// pair: opening one while the other has an unfinished pair, and nothing of its own begun or checked, opens that pair at its first step.
+// A checked attempt comes back on its result too; only Next pair moves on from it.
 const isEx=k=>k==="practice"||k==="debate";
 const sameP=(x,y)=>!!x&&!!y&&((x.id&&x.id===y.id)||(x.a===y.a&&x.b===y.b&&x.relation===y.relation));
 function adoptPair(k,p){
@@ -37,8 +37,8 @@ export function switchTo(k){
   if(isEx(k)&&state.own!==k){
     const left=state.cur&&state.cur.p&&state.ui&&!state.ui.checked?state.cur.p:null;
     hold[state.own]={cur: state.cur,ui: state.ui}; state.own=k;
-    const h=hold[k], mine=!!h&&!!h.ui&&!h.ui.checked;
-    if(mine&&(begun(h.ui)||!left||sameP(h.cur.p,left))){ state.cur=h.cur; state.ui=h.ui; }
+    const h=hold[k];
+    if(h&&h.ui&&(h.ui.checked||begun(h.ui)||!left||sameP(h.cur.p,left))){ state.cur=h.cur; state.ui=h.ui; }
     else if(left&&adoptPair(k,left)){}
     else if(k==="debate") advanceDebate(); else advance();
   }
@@ -51,10 +51,8 @@ export function setTab(k){
   if(state.optsOpen) toggleOpts(false);
   if(state.view==="chat") closeChat();
   if(state.tab===k){ top0(); return; }
-  const from=state.tab, done=isEx(k)&&state.own===k&&!!state.ui&&!!state.ui.checked;
-  switchTo(k);
-  if(done){ if(k==="debate") advanceDebate(); else advance(); }               // back from elsewhere to a finished attempt: a new pair
-  render(); top0(); keepFocus(from);
+  const from=state.tab;
+  switchTo(k); render(); top0(); keepFocus(from);
 }
 // A Home row or the back arrow is gone once it has been used: the keyboard focus goes to the new screen (back on Home, to the row of
 // the exercise just left), not to the end of the page. A rail or tab bar button stays, and keeps it.
