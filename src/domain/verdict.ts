@@ -217,7 +217,8 @@ export function parseRelationVerdict(text: string | null | undefined, asked: Rel
 /**
  * Settles the relation of the learner's own pair with the tutor's verdict, and with it the cells the relation asked for leaves empty: they are
  * right when the pair has that relation, or when the relation it has leaves them empty too, and wrong when it does not (something belongs
- * there). A cell left blank that the asked relation leaves possible is right after all when the relation the pair has leaves it empty. Changes `p` (the relation it has, when the tutor named one) and `res`, and counts again. Returns whether the verdict settled anything;
+ * there). A cell left blank that the asked relation leaves possible is right after all when the relation the pair has leaves it empty, and a cell with an example
+ * in it is wrong when the relation the pair has leaves it empty. Changes `p` (the relation it has, when the tutor named one) and `res`, and counts again. Returns whether the verdict settled anything;
  * an "unsure" closes the question without settling it.
  */
 export function applyRelationVerdict(p: PairLike, res: GradeResult, v: RelationVerdict): boolean {
@@ -230,6 +231,8 @@ export function applyRelationVerdict(p: PairLike, res: GradeResult, v: RelationV
     const r = res.cells[c];
     // a blank cell the asked relation leaves possible (the only "bad" occupancy cell an own pair has before this verdict) is right when the relation the pair has leaves it empty
     if (has && r.v === "bad" && r.kind === "occ" && has.empty.includes(c)) { r.v = "ok"; r.msg = ["Right, empty. ", ""]; continue; }
+    // an example in a cell the relation the pair has leaves empty cannot be right: as in the usual exercise, the cell is filled wrongly, whatever Claude said of the example
+    if (has && r.kind === "ex" && has.empty.includes(c)) { r.v = "bad"; r.kind = "occ"; r.uns = false; r.msg = ["Nothing goes here. ", "The relation your pair has leaves this cell empty; see the explanation."]; continue; }
     if (r.v !== "open") continue;
     if (has && !has.empty.includes(c)) { r.v = "bad"; r.msg = ["Not empty. ", "Something belongs here for your pair; see the explanation."]; }
     else if (has) { r.v = "ok"; r.msg = ["Right, empty. ", ""]; }

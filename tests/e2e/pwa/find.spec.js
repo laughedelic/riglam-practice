@@ -172,6 +172,10 @@ withKey("asking again after an answer that settled nothing shows the new explana
   await expect(headline(page)).toHaveText("Claude could not settle your pair.");
   await expect.poll(async () => (await saved(page))[0].cells.anb.verdict).toBe("bad"); // the first answer turned the example down
   await expect(page.getByRole("button", { name: /^Discuss with AI/ })).toBeVisible(); // the follow-up chat stays next to Ask again
+  await page.getByRole("button", { name: /^Discuss with AI/ }).click();
+  await expect(page.locator("#over .ctx")).toContainText("pair not settled"); // not "relation and cells right": the pair is not judged
+  await expect(page.locator("#over .ctx")).not.toContainText("cells right");
+  await page.getByRole("button", { name: "Back to the result" }).click();
   await page.getByRole("button", { name: "Ask again" }).click();
   await expect(headline(page)).toHaveText("That pair is not mutually exclusive.");
   expect(asked).toHaveLength(2);

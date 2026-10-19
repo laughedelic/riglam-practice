@@ -921,19 +921,42 @@ test("a blank cell the asked relation leaves possible is right after all when th
     applyRelationVerdict(p, res, verdict);
     return res;
   };
-  // four possibilities was asked and the pair is mutually inclusive: nothing goes in B not A, so the blank was right
+  // four possibilities was asked and the pair is mutually inclusive: nothing goes in B not A, so the blank was right (the example in A not B is the one cell wrong)
   let res = blank("4", { answer: "no", rel: "mi" });
-  expect([res.cells.bna.v, res.cells.bna.msg[0], res.occBad, res.overall]).toEqual(["ok", "Right, empty. ", 0, "bad"]);
+  expect([res.cells.bna.v, res.cells.bna.msg[0], res.cells.anb.v, res.occBad, res.overall]).toEqual(["ok", "Right, empty. ", "bad", 1, "bad"]);
   // the pair has the relation asked for, or another one that leaves the cell possible, or the tutor names none: it stays missing
   res = blank("4", { answer: "yes", rel: "4" });
   expect([res.cells.bna.v, res.occBad]).toEqual(["bad", 1]);
   res = blank("4", { answer: "no", rel: "3ab" });
-  expect([res.cells.bna.v, res.occBad]).toEqual(["bad", 1]);
+  expect([res.cells.bna.v, res.occBad]).toEqual(["bad", 2]); // the other is the example in A not B, which three possibilities (A in B) leaves empty
   res = blank("4", { answer: "no", rel: null });
   expect([res.cells.bna.v, res.occBad]).toEqual(["bad", 1]);
   // Both is the cell mutually exclusive things leave empty
   res = blank("4", { answer: "no", rel: "con" }, "both");
   expect([res.cells.both.v, res.cells.both.msg[0], res.occBad]).toEqual(["ok", "Right, empty. ", 0]);
+});
+
+test("an example in a cell the relation the pair has leaves empty is a cell filled wrongly, whatever the tutor said of the example", () => {
+  const settled = (verdicts: Parameters<typeof applyVerdicts>[2], rel: RelKey | null) => {
+    const p = findPair(ix, "4", named("red apples"), named("pears"), seeded(1));
+    const res = gradeFind(ix, p, { rel: "4", cells: cellsOf({ both: "a", anb: "b", bna: "c", nei: "d" }) }); // four possibilities was asked and every cell is filled
+    applyVerdicts(p, res, verdicts);
+    applyRelationVerdict(p, res, { answer: "no", rel });
+    return res;
+  };
+  const wrong = (res: ReturnType<typeof settled>) => [res.cells.anb, res.cells.bna].map((r) => [r.v, r.kind, r.msg[0], r.uns]);
+  // the pair is mutually inclusive: A not B and B not A stay empty, whether the tutor turned the examples down, took them or could not tell
+  for (const answer of ["no", "yes", "unsure"] as const) {
+    const res = settled([{ cell: "anb", answer }, { cell: "bna", answer }], "mi");
+    expect(wrong(res), answer).toEqual([["bad", "occ", "Nothing goes here. ", false], ["bad", "occ", "Nothing goes here. ", false]]);
+    expect([res.occBad, res.exBad, res.exN, res.overall]).toEqual([2, 0, 2, "bad"]);
+  }
+  // the examples in the cells that mutual inclusion leaves possible are still the tutor's to settle
+  expect(settled([], "mi").cells.both.v).toBe("cmp");
+  // three possibilities (A in B) empties A not B only
+  expect(wrong(settled([], "3ab")).map((r) => r[0])).toEqual(["bad", "cmp"]);
+  // when the tutor names no relation for the pair, the examples stay to be checked
+  expect(wrong(settled([], null)).map((r) => r[0])).toEqual(["cmp", "cmp"]);
 });
 
 test("a pair of the learner's own gets no reference example from the page when the tutor turns an example down", () => {
