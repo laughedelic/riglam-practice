@@ -79,6 +79,18 @@ test("the tab gives a relation, wants two different phenomena, and fits the widt
   await expect(page.locator("#fw-a")).toHaveValue("forms"); // the words stay
 });
 
+test("Enter in the first field always moves to the second, and only Enter in the second uses the pair", async ({ page }, testInfo) => {
+  await open(page);
+  await goFind(page, testInfo);
+  await page.fill("#fw-a", "red apples");
+  await page.fill("#fw-b", "pears");
+  await page.locator("#fw-a").press("Enter"); // both are filled, and the first is where the cursor is: it still goes to the second
+  await expect(page.locator("#fw-b")).toBeFocused();
+  await expect(page.locator("#fw-a")).toBeVisible(); // the pair step is still open
+  await page.locator("#fw-b").press("Enter");
+  await expect(page.locator("#fw-a")).toBeHidden();
+});
+
 test("a pair of the course data is graded on the spot, and the answer is kept apart from the Relations answers", async ({ page }, testInfo) => {
   await open(page);
   await goFind(page, testInfo);

@@ -47,7 +47,7 @@ function pairStep(s,c){
       if(e.key!=="Enter") return;
       e.preventDefault();
       const other=document.getElementById("fw-b");
-      if(k==="a"&&other&&!u.wordB.trim()) other.focus(); else usePair();
+      if(k==="a"&&other) other.focus(); else usePair(); // Enter in the first field always goes to the second, which is the one that submits
     });
     return el("div",{class:"fw"},L(k.toUpperCase()),inp);
   };
