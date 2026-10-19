@@ -177,12 +177,12 @@ withKey("asking again after an answer that settled nothing shows the new explana
   await expect(page.locator(".vpanel")).not.toContainText("FIRST-ANSWER");
 });
 
-test("Review does not say a cell is empty when Claude has not judged the pair", async ({ page }, testInfo) => {
+test("Review does not say a cell is empty, or give a reference, when Claude has not judged the pair", async ({ page }, testInfo) => {
   await open(page);
   await goFind(page, testInfo);
   await askFor(page, "Mutually exclusive");
   await usePair(page, "red apples", "pears");
-  await examples(page, testInfo, { anb: "a red apple", bna: "a green pear", nei: "a stone" });
+  await examples(page, testInfo, { anb: "a red apple", bna: "a green pear" }); // Neither is left blank
   await expect(headline(page)).toHaveText("Your pair is waiting for Claude.");
   await (isPhone(testInfo) ? page.locator(".tabbar button", { hasText: "Review" }) : page.locator(".rail .nv", { hasText: "Review" })).click();
   await page.locator("#stage .favs.mist summary").first().click();
@@ -190,6 +190,8 @@ test("Review does not say a cell is empty when Claude has not judged the pair", 
   await expect(body).toContainText("Claude had not judged the pair.");
   await expect(body).toContainText("Empty by the relation asked for.");
   await expect(body).not.toContainText("Nothing goes here.");
+  await expect(body).toContainText("No answer");
+  await expect(body).not.toContainText("horn of a rabbit"); // the page has no reference for a pair it does not know
 });
 
 test("Review counts the Find a pair answers on their own", async ({ page }, testInfo) => {

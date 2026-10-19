@@ -914,10 +914,10 @@ test("the tutor's verdict on the relation settles the relation, the pair's own r
 });
 
 test("a blank cell the asked relation leaves possible is right after all when the relation the pair has leaves it empty", () => {
-  const blank = (asked: RelKey, verdict: Parameters<typeof applyRelationVerdict>[2]) => {
+  const blank = (asked: RelKey, verdict: Parameters<typeof applyRelationVerdict>[2], left: CellId = "bna") => {
     const p = findPair(ix, asked, named("red apples"), named("pears"), seeded(1));
-    const res = gradeFind(ix, p, { rel: asked, cells: cellsOf({ both: "x", anb: "y", nei: "z" }) }); // B not A is left blank
-    expect([res.cells.bna.v, res.cells.bna.msg[0], res.occBad]).toEqual(["bad", "Missing. ", 1]);
+    const res = gradeFind(ix, p, { rel: asked, cells: cellsOf(Object.fromEntries(CELLS.filter((c) => c !== left).map((c) => [c, "x " + c]))) }); // one cell is left blank (B not A)
+    expect([res.cells[left].v, res.cells[left].msg[0], res.occBad]).toEqual(["bad", "Missing. ", 1]);
     applyRelationVerdict(p, res, verdict);
     return res;
   };
@@ -931,6 +931,23 @@ test("a blank cell the asked relation leaves possible is right after all when th
   expect([res.cells.bna.v, res.occBad]).toEqual(["bad", 1]);
   res = blank("4", { answer: "no", rel: null });
   expect([res.cells.bna.v, res.occBad]).toEqual(["bad", 1]);
+  // Both is the cell mutually exclusive things leave empty
+  res = blank("4", { answer: "no", rel: "con" }, "both");
+  expect([res.cells.both.v, res.cells.both.msg[0], res.occBad]).toEqual(["ok", "Right, empty. ", 0]);
+});
+
+test("a pair of the learner's own gets no reference example from the page when the tutor turns an example down", () => {
+  const p = findPair(ix, "4", named("red apples"), named("pears"), seeded(1));
+  const res = gradeFind(ix, p, { rel: "4", cells: cellsOf({ both: "x", anb: "y", bna: "z", nei: "the horn of a rabbit" }) });
+  applyVerdicts(p, res, [{ cell: "nei", answer: "no" }, { cell: "both", answer: "unsure" }]);
+  expect(res.cells.nei.msg).toEqual(["Does not fit", "", "by Claude"]);
+  expect(res.cells.both.msg[1]).toBe("Claude could not settle it; see below.");
+  // a pair of the practice list keeps its example
+  const known = findPair(ix, "4", named("wooden things"), named("forms"), seeded(1));
+  const kr = gradeFind(ix, known, { rel: "4", cells: cellsOf({ nei: "x" }) });
+  kr.cells.nei = { v: "cmp", msg: ["Not checked. ", ""], kind: "ex" };
+  applyVerdicts(known, kr, [{ cell: "nei", answer: "no" }]);
+  expect(kr.cells.nei.msg[1]).toBe(". Example: " + known.ex!.nei + ".");
 });
 
 test("the tutor alone places the examples of a pair of the learner's own, also when both phenomena are categories the data cannot judge", () => {

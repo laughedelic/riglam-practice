@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { expect, test } from "vitest";
 import {
-  CELL_NAME, DEBATE_ASK, FIND_ASK, FIND_ASK_OWN, FIND_NOTE, FIND_OWN_NOTE, FIND_REL_NAMES, FIRST_ASK, GUIDE, REVIEW_GUIDE, REVIEW_LIMITS, american, cardBody, parseReview, readReviewAnswer, reviewRequest, storedView, cardNotes, catByLabel, categoryOf, classNames, catFacts, explainAsk, finePoints, makeIndex, matchItem, norm, pairCats, qPlain, termFacts, termNamed, tutorCard, tutorTools, upChain,
+  CELL_NAME, DEBATE_ASK, FIND_ASK, FIND_ASK_OWN, FIND_NOTE, FIND_OWN_NOTE, FIND_REL_NAMES, FIRST_ASK, GUIDE, REVIEW_GUIDE, REVIEW_LIMITS, american, cardBody, refOf, parseReview, readReviewAnswer, reviewRequest, storedView, cardNotes, catByLabel, categoryOf, classNames, catFacts, explainAsk, finePoints, makeIndex, matchItem, norm, pairCats, qPlain, termFacts, termNamed, tutorCard, tutorTools, upChain,
 } from "../../src/ai-shared";
 import type { AnswerView, DrillData, PairLike, ReviewAnswer } from "../../src/ai-shared";
 import { state } from "../../src/app/state.js";
@@ -533,6 +533,14 @@ test("a card for every pair of the real data, named by the learner and asked in 
 
 const here = resolve(__dirname, "../../src/ai-shared");
 const sources = readdirSync(here).filter((f) => f.endsWith(".ts")).map((f) => join(here, f));
+
+test("a pair of the learner's own has no reference, not even the non-existent for Neither", () => {
+  const pair: PairLike = { a: "A", b: "B", relation: "mi", ex: {}, why: {} };
+  expect(refOf(pair, "nei")).toBe("the horn of a rabbit"); // a pair of the practice list keeps the class's example of a non-existent
+  expect(refOf(pair, "both")).toBeNull();
+  expect(refOf({ ...pair, own: true }, "nei")).toBeNull();
+  expect(refOf({ ...pair, own: true, ex: { both: "x" } }, "both")).toBe("x");
+});
 
 test("src/ai-shared imports only itself and touches nothing of the page or the browser", () => {
   expect(sources.length).toBeGreaterThan(5);
