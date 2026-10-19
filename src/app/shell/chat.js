@@ -6,7 +6,9 @@ import { REL } from "../core/rel.js";
 import { isWide } from "../core/viewport.js";
 import { askRow, fillTurn } from "../practice/screen.js";
 import { optionsInto } from "./options.js";
-import { render } from "./render.js";
+import { exName } from "./home.js";
+import { isEx, render } from "./render.js";
+import { sessionInto } from "./session.js";
 
 export function openChat(){
   if(!state.ui||!state.ui.chat||isWide()) return;
@@ -51,11 +53,12 @@ function chatInto(o){
   tutorTurns(box,true); sc.append(box); o.append(sc);
 }
 export function renderOver(){
-  const o=$("over"), chat=state.view==="chat"&&!isWide()&&state.ui&&state.ui.chat, show=state.optsOpen||!!chat, was=!o.hidden;
-  o.replaceChildren(); o.hidden=!show; o.dataset.kind=state.optsOpen?"options":"chat"; o.setAttribute("aria-label",state.optsOpen?"Options":"Discuss with AI");
+  const o=$("over"), chat=state.view==="chat"&&!isWide()&&state.ui&&state.ui.chat, sess=state.sessOpen&&state.mode==="quiz"&&isEx();
+  const kind=state.optsOpen?"options":sess?"session":"chat", show=state.optsOpen||sess||!!chat, was=!o.hidden;
+  o.replaceChildren(); o.hidden=!show; o.dataset.kind=kind; o.setAttribute("aria-label",{options:"Options",session:exName(state.tab)+" settings",chat:"Discuss with AI"}[kind]);
   document.documentElement.classList.toggle("ov",show);
   if(!show) return;
-  if(state.optsOpen) optionsInto(o); else chatInto(o);
+  if(kind==="options") optionsInto(o); else if(kind==="session") sessionInto(o); else chatInto(o);
   const sc=$("chatscroll"); if(sc) sc.scrollTop=0;
-  if(!was&&!state.optsOpen&&!document.activeElement.matches("input")){ const b=o.querySelector(".oc"); if(b) b.focus({preventScroll:true}); }
+  if(!was&&kind==="chat"&&!document.activeElement.matches("input")){ const b=o.querySelector(".oc"); if(b) b.focus({preventScroll:true}); }
 }

@@ -1,4 +1,4 @@
-const {open,go}=require('./harness.js');
+const {open,go,settings}=require('./harness.js');
 const D=require('./harness.js').SHOTS;
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
 const ORDER={mi:0,'3ab':1,'3ba':2,'4':3,con:4};
@@ -15,14 +15,19 @@ async function relPhone(pg,relKey){
 const flagDocs=async pg=>Object.values(await S(pg,'flags'));
 const REPLY='Both: a clay pot fits.\nNeither: a stone is B, not A.\nCommon locus: yes, a clay pot.\nPervasion: whatever is A is B.\nExplanation: look at what both terms cover first.\nMisconception: you took A for B.';
 (async()=>{
- // ================= Options: the Questions helper line =================
+ // ================= the settings of Pervasions: the Questions helper line =================
  {
   const {br,pg,errs}=await open({width:1280,height:800});
-  await pg.locator('.rail .nv:has-text("Options")').click().catch(()=>{}); await pg.waitForTimeout(150);
-  if(!(await pg.locator('.orow').count())){ await pg.locator('#optsbtn,.optsbtn,[aria-label="Options"]').first().click().catch(()=>{}); await pg.waitForTimeout(150); }
-  const rows=await pg.locator('.orow').evaluateAll(r=>r.map(x=>x.innerText));
-  const q=rows.find(t=>/^questions/i.test(t.trim()));
+  await go(pg,'Relations'); await settings(pg);
+  ok('Relations has no Questions row (the wording is Pervasions only)',!(await pg.locator('.orow').evaluateAll(r=>r.map(x=>x.innerText))).some(t=>/^questions/i.test(t.trim())));
+  await pg.keyboard.press('Escape'); await go(pg,'Pervasions'); await settings(pg);
+  const srows=await pg.locator('.orow').evaluateAll(r=>r.map(x=>x.innerText));
+  const q=srows.find(t=>/^questions/i.test(t.trim()));
   ok('the Questions row explains itself as the statement of pervasion',!!q&&/statement of pervasion/i.test(q),q);
+  await pg.keyboard.press('Escape');
+  await pg.locator('#obtn').click(); await pg.waitForTimeout(150);
+  const rows=await pg.locator('.orow').evaluateAll(r=>r.map(x=>x.innerText));
+  ok('Options no longer holds the settings of an exercise',!rows.some(t=>/^(notation|questions|definitions|show|relation time|example time)/i.test(t.trim())),rows.map(t=>t.slice(0,20)));
   ok('the artifact has no Quorum row: it asks its host\'s model, one model, and keeps no runs',!rows.some(t=>/^quorum/i.test(t.trim())),rows.map(t=>t.slice(0,20)));
   await br.close();
  }

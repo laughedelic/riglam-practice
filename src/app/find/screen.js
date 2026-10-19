@@ -10,6 +10,7 @@ import { cellView, exLine, explainBtn, kbHints, quizCell, recentNode, relPopNode
 import { subRowNode } from "../practice/skips.js";
 import { exGrid } from "../review/review.js";
 import { fitPair, setSteps } from "../shell/render.js";
+import { sessBtn } from "../shell/session.js";
 import { anotherRelation, checkFind, editPair, findList, usePair } from "./flow.js";
 
 /* ---------- Find a pair: the screen ---------- */
@@ -107,6 +108,7 @@ export function renderFind(s,c){
   }
   s.append(cap(),table());
   const acts=el("div",{class:"actions"}), fb=p.own?null:favBtn(p); if(fb) acts.append(fb);
+  { const sb=sessBtn(); if(sb) acts.append(sb); }
   if(!done) acts.append(el("span",{class:"kbd spacer",text:"Enter moves to the next cell, then shows the result"}),el("button",{type:"button",class:"btn ghost",onclick:editPair,text:"Change pair"}),el("button",{type:"button",class:"btn",onclick:checkFind,text:"Show result"}));
   else acts.append(nextBtn());
   s.append(acts);

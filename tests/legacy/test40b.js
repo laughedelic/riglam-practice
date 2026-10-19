@@ -1,4 +1,4 @@
-const {open,go}=require('./harness.js');
+const {open,go,settings}=require('./harness.js');
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
 const ORDER={mi:0,'3ab':1,'3ba':2,'4':3,con:4};
 (async()=>{
@@ -20,7 +20,7 @@ const ORDER={mi:0,'3ab':1,'3ba':2,'4':3,con:4};
   // debate with blitz
   await pg.evaluate(()=>document.activeElement&&document.activeElement.blur());
   await go(pg,'Pervasions'); await pg.waitForTimeout(150);
-  await pg.click(W?'#obtn':'#mopt'); await pg.waitForTimeout(80);
+  await settings(pg);
   await pg.fill('.orow:has-text("Example time") .tcustom','2'); await pg.keyboard.press('Tab'); await pg.waitForTimeout(100);
   ok(name+': custom time stored',await pg.locator('.orow:has-text("Example time") .tcustom').inputValue()==='2');
   await pg.click('#over .oc'); await pg.waitForTimeout(80);
@@ -31,9 +31,9 @@ const ORDER={mi:0,'3ab':1,'3ba':2,'4':3,con:4};
   await pg.click('#mbz:visible, .actions .bz:visible'); await pg.waitForTimeout(80);
   ok(name+': blitz off, no bar',await pg.locator('.tbar').count()===0);
   // notation modes
-  await pg.click(W?'#obtn':'#mopt'); await pg.waitForTimeout(80);
+  await settings(pg);
   await pg.locator('#over .seg button:has-text("Sets")').first().click(); await pg.waitForTimeout(80);
-  ok(name+': options stay open after a change',await pg.locator('#over').isVisible()&&/contained|intersection/i.test(await pg.locator('#over').innerText()));
+  ok(name+': settings stay open after a change',await pg.locator('#over').isVisible()&&/contained|intersection/i.test(await pg.locator('#over').innerText()));
   await pg.click('#over .oc'); await pg.waitForTimeout(80);
   ok(name+': no page errors',errs.filter(e=>!/ERR_CERT|net::/.test(e)).length===0,errs);
   await br.close();

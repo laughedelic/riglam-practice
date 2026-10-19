@@ -41,6 +41,7 @@ export const state = {
   retryTag: "Retry",
   nota: "codes",
   optsOpen: false,
+  sessOpen: false,
   navDepth: 0,    // history entries held above Home (shell/history.js): one for an open exercise or Review, the chat view, Options
   navSkip: 0,     // steps back the page took itself, whose popstate is to be ignored
   navQ: false,    // a check of the entries against the state is due after this render
@@ -75,7 +76,7 @@ export const state = {
   // display switches (Options): the A/B chips in statements and answers, and the Why? answer spelled out as a sentence
   showAB: true,
   fullPh: true,
-  /* the blitz timer: a switch above the questions turns it on; its length is set in the options. A slim bar under the
+  /* the blitz timer: a switch above the questions turns it on; its length is set in the settings of the exercise. A slim bar under the
   question drains over the limit and flashes gently at the end. When time runs out, the statement counts as accepted. */
   timerMs: 10000,
   blitz: false,

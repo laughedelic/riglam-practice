@@ -1,5 +1,5 @@
-// Options opens over the page. The system Back closes it (and then the exercise) instead of leaving the app, it keeps its place when a setting
-// changes, and the Blitz clock stands still while it is open (an attempt is never graded behind it).
+// Options opens over the page. The system Back closes it (and then the exercise) instead of leaving the app, and the Blitz clock stands still
+// while it is open (an attempt is never graded behind it). The settings of an exercise (settings.spec.js) keep their place when a setting changes.
 import { test, expect } from "../../support/test.js";
 import { goTo, ready } from "../../support/page.js";
 
@@ -50,10 +50,10 @@ test("closing Options with its own Back button or Escape leaves no extra step", 
   await expect.poll(() => page.url()).toBe("about:blank");
 });
 
-test("Options keeps its place when a setting changes", async ({ page }) => {
+test("the settings of an exercise keep their place when a setting changes", async ({ page }) => {
   await page.goto("/");
   await ready(page);
-  await optionsBtn(page).click();
+  await page.getByRole("button", { name: "Settings for Relations" }).click();
   await expect(page.locator("#over .opts")).toBeVisible();
   // Each step is one page.evaluate: the panel is redrawn now and then in the background (fonts, the update check), and a locator that found the old
   // box before a redraw would read or set a box that is already gone.

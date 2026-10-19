@@ -1,17 +1,19 @@
 <div class="band l" aria-hidden="true"></div><div class="band r" aria-hidden="true"></div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><symbol id="riglam-figure" viewBox="111.9 61.4 288.2 389.2"><polygon fill="#faaf3f" points="256,61.4 371.3,176.7 256,292 140.7,176.7"/><polygon fill="#3155a4" points="256,162.3 400.1,306.4 256,450.6 111.9,306.4"/><polygon fill="#4c8a63" points="320.9,227.2 256,292 191.1,227.2 256,162.3"/></symbol></svg>
 <div class="app" id="app" data-tab="home">
   <nav class="rail" aria-label="Sections">
-    <div class="brandrow"><span class="mk" aria-hidden="true"></span><span class="brand">Dudra practice</span></div>
+    <div class="brandrow"><svg class="fig" aria-hidden="true"><use href="#riglam-figure"/></svg><span class="brand lock"><span class="nm">Riglam</span> <span class="pr">practice</span></span></div>
     <div class="tabs" id="tabs"></div>
     <button type="button" class="nv opt" id="obtn" aria-haspopup="dialog" aria-expanded="false"><i aria-hidden="true"></i><span class="nvl">Options</span></button>
     <div class="today" id="today"></div>
   </nav>
   <header class="mbar">
     <button type="button" class="ib back" id="mback" hidden aria-label="Back to Practice" title="Practice"></button>
-    <span class="mk" id="mmk" aria-hidden="true"></span><span class="brand" id="mttl">Dudra practice</span>
+    <svg class="fig" id="mmk" aria-hidden="true"><use href="#riglam-figure"/></svg><span class="brand lock" id="mttl"><span class="nm">Riglam</span> <span class="pr">practice</span></span>
     <button type="button" class="bz" id="mbz" role="switch" hidden aria-checked="false"></button><span class="sp"></span>
     <button type="button" class="ib" id="mfav" hidden aria-pressed="false"></button>
     <button type="button" class="ib" id="mskip" hidden aria-label="Skip this pair" title="Skip this pair (S)"></button>
+    <button type="button" class="ib" id="msess" hidden aria-haspopup="dialog" aria-expanded="false"></button>
   </header>
   <div class="skiphint" id="skiphint" role="status" hidden></div>
   <div class="steps" id="steps" hidden></div>

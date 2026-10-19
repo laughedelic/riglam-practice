@@ -64,7 +64,7 @@ ok('the rail lists Practice (Home), the three exercises and Review',await pg.loc
  await pg.screenshot({path:D+'w-review.png'});
  // options
  await pg.click('#obtn'); await pg.waitForTimeout(100);
- ok('options open over the workspace, rail stays',await vis('#over')&&await vis('.rail')&&/notation/i.test(await pg.locator('#over').innerText()));
+ ok('options open over the workspace, rail stays',await vis('#over')&&await vis('.rail')&&/set in the exercise/i.test(await pg.locator('#over').innerText()));
  await pg.screenshot({path:D+'w-options.png'});
  await pg.keyboard.press('Escape'); await pg.waitForTimeout(80);
  ok('Escape closes options and refocuses the button',!(await vis('#over'))&&await pg.evaluate(()=>document.activeElement.id==='obtn'));

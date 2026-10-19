@@ -1,4 +1,4 @@
-const {open,go,settled}=require('./harness.js');
+const {open,go,settled,settings}=require('./harness.js');
 const {ringScan}=require('./ring.js');
 const D=require('./harness.js').SHOTS;
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
@@ -130,9 +130,9 @@ const other=r=>r==='mi'?'con':'mi';
  {
   const {br,pg,errs}=await open({width:390,height:844},{isMobile:true,hasTouch:true});
   // Options: two rows, each sets only its own
-  await pg.click('#mopt'); await pg.waitForTimeout(100);
+  await settings(pg);
   const rows=await pg.locator('#over .orow .tl').allInnerTexts();
-  ok('Options has a Relation time row and an Example time row, and no single "Blitz time"',rows.some(t=>/^relation time$/i.test(t.trim()))&&rows.some(t=>/^example time$/i.test(t.trim()))&&!rows.some(t=>/^blitz time$/i.test(t.trim())),rows);
+  ok('the settings have a Relation time row and an Example time row, and no single "Blitz time"',rows.some(t=>/^relation time$/i.test(t.trim()))&&rows.some(t=>/^example time$/i.test(t.trim()))&&!rows.some(t=>/^blitz time$/i.test(t.trim())),rows);
   await pg.locator('.orow:has-text("Relation time") .seg').getByRole('button',{name:'30 s',exact:true}).click(); await pg.waitForTimeout(80);
   await pg.locator('.orow:has-text("Example time") .seg').getByRole('button',{name:'5 s',exact:true}).click(); await pg.waitForTimeout(80);
   const st=await pg.evaluate(()=>[localStorage.getItem('rd-timer-rel'),localStorage.getItem('rd-timer'),[...document.querySelectorAll('.orow')].map(o=>o.querySelector('.tl').innerText+':'+[...o.querySelectorAll('.seg button[aria-pressed=true]')].map(b=>b.innerText).join(','))]);

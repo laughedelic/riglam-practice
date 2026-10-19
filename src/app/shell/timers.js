@@ -9,21 +9,24 @@ import { check } from "../practice/grading.js";
 import { fillable } from "../practice/screen.js";
 import { skipPair } from "../practice/skips.js";
 import { toggleOpts } from "./options.js";
+import { toggleSess } from "./session.js";
 import { focusCin, render } from "./render.js";
 import { setTab } from "./tabs.js";
 
-$("obtn").addEventListener("click",()=>toggleOpts());
-$("mopt").addEventListener("click",()=>toggleOpts());
+// Options is a place like the others: a tap on it while it is open stays (Back, Escape or another item leaves)
+$("obtn").addEventListener("click",()=>toggleOpts(true));
+$("mopt").addEventListener("click",()=>toggleOpts(true));
 // Home, the exercises and Review, in the rail and the tab bar; the back arrow of an exercise goes Home
 for(const id of ["tabs","tabbar"]) $(id).addEventListener("click",e=>{ const b=/** @type {Element} */(e.target).closest("[data-go]"); if(b) setTab(b.getAttribute("data-go")); });
 $("mback").append(tbIcon("back")); $("mback").addEventListener("click",()=>setTab("home"));
 $("mfav").addEventListener("click",()=>{ if(state.cur&&state.cur.p&&!state.cur.p.own) toggleFav(state.cur.p); });
 $("mbz").addEventListener("click",()=>setBlitz(!state.blitz));
+$("msess").addEventListener("click",()=>toggleSess(true));
 $("mskip").append(tbIcon("skip")); $("mskip").addEventListener("click",skipPair);
 wideMq.addEventListener("change",()=>{ syncVv(); if(state.mode!=="loading") render(); });
-// The blitz switch sits above the questions, since it is used often; its length is in the options.
+// The blitz switch sits above the questions, since it is used often; its lengths are in the settings of the exercise.
 // Blitz: a bolt in the top bar, left, next to the heading (the mode of practice): outline when off, filled when on. No box, no number: the seconds are in its name
-// and editable in Options and beside the countdown. Two independent times: the relation (Relations and Pervasions) and the examples (each example in
+// and editable in the settings of the exercise and beside the countdown. Two independent times: the relation (Relations and Pervasions) and the examples (each example in
 // Relations, each question in Pervasions). The countdown that is running is the one the in-place field shows; changing one never changes the other.
 // The toolbar icons (bolt, star, skip) share one line style: 24 px, stroke 1.75, outline when off, filled when on (src/app/core/icons.js).
 export { tbIcon };
@@ -90,7 +93,7 @@ export const relTimedD=()=>!!(state.blitz&&state.ui&&state.ui.debate&&state.ui.s
 const exMul=()=>(relTimed()&&state.ui.rel)?Math.max(1,fillable().length):1;
 export function ensureRelTimer(){
   const u=state.ui;
-  if(!u||state.mode!=="quiz"||u.checked||!state.blitz||state.timeEdit||u.tq||state.optsOpen) return;
+  if(!u||state.mode!=="quiz"||u.checked||!state.blitz||state.timeEdit||u.tq||state.optsOpen||state.sessOpen) return;
   const now=performance.now();
   if(u.debate){
     if(state.tab!=="debate"||u.step<4||u.rel||!state.relMs) return;

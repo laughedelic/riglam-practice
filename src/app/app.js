@@ -10,7 +10,7 @@ import { SKIP_DAYS, hiddenKeys, isSkipped, skipPair, undoSkip } from "./practice
 import { defParts, termsNode } from "./practice/terms.js";
 import { buildPool, indexData, nextGenerated } from "./practice/universe.js";
 import { signature } from "../ui/account";
-import { setDefLang } from "./shell/options.js";
+import { setDefLang } from "./shell/session.js";
 import { render, renderKeepFocus, renderSession } from "./shell/render.js";
 import "./core/viewport.js";
 import "./shell/keys.js";

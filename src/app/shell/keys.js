@@ -9,6 +9,7 @@ import { skipPair } from "../practice/skips.js";
 import { closeDef } from "../practice/terms.js";
 import { closeChat } from "./chat.js";
 import { toggleOpts } from "./options.js";
+import { toggleSess } from "./session.js";
 import { isEx, render } from "./render.js";
 
 // a tap outside a note closes it, and a tap outside a term's definition closes that (a tap on a term stops before this)
@@ -17,8 +18,8 @@ document.addEventListener("click",e=>{
   const d=!!u.dterm&&!at(".ddef"), p=!!u.pop&&!at(".pop,.why"); if(d) u.dterm=null; if(p) u.pop=null; if(d||p) render();
 });
 document.addEventListener("keydown",e=>{
-  if(e.key==="Escape"){ if(state.optsOpen){ toggleOpts(false); return; } if(state.view==="chat"){ closeChat(); return; } if(state.ui&&state.ui.dterm){ closeDef(); return; } if(state.ui&&state.ui.pop){ state.ui.pop=null; render(); return; } }
-  if(state.mode!=="quiz"||!state.ui||state.optsOpen||state.view||e.metaKey||e.ctrlKey||e.altKey) return;
+  if(e.key==="Escape"){ if(state.sessOpen){ toggleSess(false); return; } if(state.optsOpen){ toggleOpts(false); return; } if(state.view==="chat"){ closeChat(); return; } if(state.ui&&state.ui.dterm){ closeDef(); return; } if(state.ui&&state.ui.pop){ state.ui.pop=null; render(); return; } }
+  if(state.mode!=="quiz"||!state.ui||state.optsOpen||state.sessOpen||state.view||e.metaKey||e.ctrlKey||e.altKey) return;
   const t=e.target&&/** @type {Element} */(e.target).tagName;
   if((e.key==="f"||e.key==="F")&&!e.shiftKey&&t!=="INPUT"&&t!=="TEXTAREA"&&state.db&&state.cur&&state.cur.p&&!state.cur.p.own&&isEx()){ e.preventDefault(); toggleFav(state.cur.p); return; }
   if(state.tab==="practice"&&!state.ui.debate){

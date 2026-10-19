@@ -12,6 +12,7 @@ import { skipActs, subRowNode } from "../practice/skips.js";
 import { defCard, withTerms } from "../practice/terms.js";
 import { exGrid } from "../review/review.js";
 import { fitPair, render, setSteps } from "../shell/render.js";
+import { sessBtn } from "../shell/session.js";
 import { blitzBtn, relTimedD, timerSlot } from "../shell/timers.js";
 
 function pairHead(s,p,o){
@@ -157,7 +158,7 @@ export function renderDebate(s,c){
   }
 
   const acts=el("div",{class:"actions"});
-  if(w){ const fb=favBtn(p); if(fb) acts.append(fb); acts.append(blitzBtn()); if(stage!=="done") skipActs().forEach(n=>{ if(n) acts.append(n); }); }
+  if(w){ const fb=favBtn(p); if(fb) acts.append(fb); acts.append(blitzBtn()); { const sb=sessBtn(); if(sb) acts.append(sb); } if(stage!=="done") skipActs().forEach(n=>{ if(n) acts.append(n); }); }
   if(stage==="done"){
     if(!w){ const ta=tutorAct(); if(ta) acts.append(ta); }
     acts.append(nextBtn());

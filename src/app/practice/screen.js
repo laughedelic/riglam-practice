@@ -21,6 +21,7 @@ import { answerList } from "./universe.js";
 import { exGrid } from "../review/review.js";
 import { openChat, tutorTurns } from "../shell/chat.js";
 import { CELL_FULL, ago, fitPair, focusCin, render, setSteps } from "../shell/render.js";
+import { sessBtn } from "../shell/session.js";
 import { blitzBtn, relTimed, relTimedD, timerSlot } from "../shell/timers.js";
 
 /* ---------- practice: one pair ---------- */
@@ -249,7 +250,7 @@ function quizWide(s,c){
   s.append(el("div",{class:"section"}, el("p",{class:"label"},"Examples",el("span",{class:"hint",text:"∅ = nothing exists. Neither also takes a non-existent."})), exGrid(p,quizCell,true)));
   const acts=el("div",{class:"actions"});
   const fb=favBtn(p); if(fb) acts.append(fb);
-  acts.append(blitzBtn());
+  acts.append(blitzBtn()); const sb=sessBtn(); if(sb) acts.append(sb);
   if(!state.ui.checked){
     skipActs(state.ui.rel?"Enter moves to the next cell, then shows the result":"").forEach(n=>{ if(n) acts.append(n); });
     if(state.ui.rel) acts.append(el("button",{class:"btn",type:"button",onclick:check,text:"Show result"}));      // before a relation is picked the cells are closed and there is nothing to show

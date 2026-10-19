@@ -22,7 +22,7 @@ export const limitMs=()=>state.blitz?state.timerMs:0;
 export function stopTimer(){ if(state.ui&&state.ui.tid){ clearTimeout(state.ui.tid); state.ui.tid=null; } if(state.ui) state.ui.tq=null; }
 export function startQ(){
   stopTimer();
-  if(!state.ui||!state.ui.debate||state.ui.checked||state.ui.step>3||state.optsOpen) return;
+  if(!state.ui||!state.ui.debate||state.ui.checked||state.ui.step>3||state.optsOpen||state.sessOpen) return;
   const a=state.ui.ans[state.ui.step], lim=limitMs(); a.limit=lim;
   state.ui.qStart=performance.now();
   if(lim){ const u=state.ui; u.tq={t0:state.ui.qStart,limit:lim}; u.tid=setTimeout(()=>expireQ(u),lim); }

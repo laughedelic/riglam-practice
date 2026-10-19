@@ -5,6 +5,7 @@ import { advance, freshUi } from "../practice/queue.js";
 import { skipCats } from "../practice/skips.js";
 import { closeChat } from "./chat.js";
 import { toggleOpts } from "./options.js";
+import { toggleSess } from "./session.js";
 import { render, top0 } from "./render.js";
 
 const hold={};
@@ -54,6 +55,7 @@ export function switchTo(k){
 export function setTab(k){
   if(state.mode!=="quiz"&&isEx(k)) return;
   if(state.optsOpen) toggleOpts(false);
+  if(state.sessOpen) toggleSess(false);
   if(state.view==="chat") closeChat();
   if(state.tab===k){ top0(); return; }
   const from=state.tab;

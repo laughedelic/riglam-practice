@@ -4,6 +4,7 @@ const P={
   bolt:'<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
   star:'<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
   skip:'<polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/>',
+  sliders:'<line x1="4" y1="7" x2="8.5" y2="7"/><circle cx="11" cy="7" r="2.5"/><line x1="13.5" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="12" y2="12"/><circle cx="14.5" cy="12" r="2.5"/><line x1="17" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="5.5" y2="17"/><circle cx="8" cy="17" r="2.5"/><line x1="10.5" y1="17" x2="20" y2="17"/>',
   back:'<polyline points="15 4 7 12 15 20"/>',
   chev:'<polyline points="9 5 16 12 9 19"/>',
   lock:'<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',

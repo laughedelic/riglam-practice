@@ -70,7 +70,7 @@ const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.
  await pg.screenshot({path:D+'n-7fav.png'});
  // options
  await pg.click('#mopt'); await pg.waitForTimeout(100);
- ok('options overlay covers the screen with Back',await vis('#over')&&await pg.evaluate(()=>{const r=document.getElementById('over').getBoundingClientRect();return r.height>=innerHeight-1}));
+ ok('options overlay covers the work area with Back, and the tab bar stays under it with Options marked',await vis('#over')&&await pg.evaluate(()=>{const r=document.getElementById('over').getBoundingClientRect(), t=document.getElementById('tabbar').getBoundingClientRect();return r.top<=1&&Math.abs(r.bottom-t.top)<=1&&t.height>0&&document.getElementById('mopt').getAttribute('aria-expanded')==='true'&&!document.querySelector('#tabbar [aria-current]')}));
  await pg.screenshot({path:D+'n-8options.png'});
  await pg.click('#over .oc'); await pg.waitForTimeout(80);
  ok('Back closes options',!(await vis('#over')));

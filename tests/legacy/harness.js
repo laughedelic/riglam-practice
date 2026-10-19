@@ -54,6 +54,8 @@ async function go(pg,name){
   else await pg.locator('[data-go="home"]').filter({visible:true}).first().click();
   if(k!=='home') await pg.locator('.exr[data-go="'+k+'"]').click();
 }
+// Opens the settings of the exercise on screen (its sliders button: in the top bar on a phone, in the action row on a wide screen).
+async function settings(pg){ await pg.locator('#msess:visible, .sessb:visible').first().click(); await pg.waitForTimeout(100); }
 // Waits until `read` (a function run in the page) returns the same value on `times` reads in a row, `every` ms apart, and
 // returns that value. A test uses it before it measures a position, so that a render that arrives late (the saved answer
 // coming back from the db) or a transition in progress cannot change the layout between two measurements. It stops waiting
@@ -67,4 +69,4 @@ async function settled(pg,read,{every=40,times=3,timeout=3000}={}){
     await pg.waitForTimeout(every);
   }
 }
-module.exports={open,go,SHOTS,settled};
+module.exports={open,go,settings,SHOTS,settled};

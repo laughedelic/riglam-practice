@@ -13,6 +13,7 @@ import { renderOver } from "./chat.js";
 import { navSync } from "./history.js";
 import { EXERCISES, exName, parked, renderHome, todayCount } from "./home.js";
 import { renderOptionsBtn } from "./options.js";
+import { syncSessBtn } from "./session.js";
 import { ensureRelTimer, syncBlitzBtn, tbIcon } from "./timers.js";
 
 /* ---------- rendering ---------- */
@@ -44,7 +45,9 @@ function renderTabs(){
     const k=b.getAttribute("data-go"), on=!state.optsOpen&&(k==="home"?state.tab==="home"||isEx():state.tab===k);
     on?b.setAttribute("aria-current","page"):b.removeAttribute("aria-current");
   }
-  const ex=isEx(); $("mback").hidden=!ex; $("mmk").hidden=ex; $("mttl").textContent=ex?exName(state.tab):state.tab==="review"?"Review":"Dudra practice";
+  const ex=isEx(), t=$("mttl"), name=ex?exName(state.tab):state.tab==="review"?"Review":null;
+  $("mback").hidden=!ex; $("mmk").style.display=name?"none":""; t.classList.toggle("lock",name===null);
+  if(name===null){ if(!t.firstElementChild) t.replaceChildren(el("span",{class:"nm",text:"Riglam"})," ",el("span",{class:"pr",text:"practice"})); } else t.textContent=name;
 }
 // the rail's "Today" block: the exercise on screen, or every exercise on Home and in Review
 export function renderSession(){
@@ -66,7 +69,7 @@ export function setSteps(labels,on,go){
   const st=$("steps"); st.replaceChildren(); st.hidden=false;
   labels.forEach((l,i)=>st.append(el("button",{type:"button",class:i<on?"done":i===on?"on":"","aria-current":i===on?"step":null,disabled:!(go&&go[i]),onclick:go&&go[i]?go[i]:null,text:(i+1)+" "+l})));
 }
-// What has the focus, so that a redraw can give it back: a text field by its id and selection; in the Options panel any control by its place among the controls
+// What has the focus, so that a redraw can give it back: a text field by its id and selection; in the Options panel and the settings sheet any control by its place among the controls
 // (the panel is redrawn when the account's sync status changes, and a focused button or switch would otherwise be lost).
 const OVER_CONTROLS="button,input,textarea,select,[tabindex]";
 function focusKey(){
@@ -84,7 +87,7 @@ function restoreFocus(f){
   n.focus({preventScroll:true}); try{ n.setSelectionRange(f.s,f.e); }catch(e){}
 }
 // A redraw that the learner did not ask for (a run finished, an explanation began by itself) keeps the keyboard focus where it was: on the same button,
-// found again by its label. The renderer itself gives back only text fields and the Options panel's controls.
+// found again by its label. The renderer itself gives back only text fields and the controls of the Options panel and the settings sheet.
 function btnSig(){
   const a=/** @type {HTMLButtonElement} */(document.activeElement); if(!a||a.tagName!=="BUTTON") return null;
   const box=a.closest("#stage,#coach"); if(!box) return null;
@@ -100,7 +103,7 @@ export function renderKeepFocus(){ const f=btnSig(); render(); btnBack(f); }
 export const focusCin=()=>{ const i=$("cin"); if(i) i.focus({preventScroll:true}); };
 function screenSig(){
   const p=state.cur&&state.cur.p;
-  return [state.tab,state.mode,state.view,state.optsOpen?1:0,isWide()?1:0,p?(p.id||p.a+"|"+p.b):"",state.ui?[state.ui.checked?1:0,state.ui.step||0,state.ui.ci||0,state.ui.rel?1:0,state.ui.open?1:0,state.ui.debate?1:0,state.ui.find?1:0].join(""):""].join("/");
+  return [state.tab,state.mode,state.view,state.optsOpen?1:0,state.sessOpen?1:0,isWide()?1:0,p?(p.id||p.a+"|"+p.b):"",state.ui?[state.ui.checked?1:0,state.ui.step||0,state.ui.ci||0,state.ui.rel?1:0,state.ui.open?1:0,state.ui.debate?1:0,state.ui.find?1:0].join(""):""].join("/");
 }
 export function render(){
   const sig=screenSig(), keep=sig===state.lastSig?["stage","coach","over","opts"].map(id=>{ const n=$(id); return /** @type {[string, number]} */([id,n?n.scrollTop:0]); }):null;
@@ -114,7 +117,7 @@ function renderNow(){
   const w=isWide(); if(w&&state.view==="chat") state.view=null;
   const app=$("app"), s=$("stage"), c=$("coach"), f=focusKey();
   app.dataset.tab=state.tab; app.dataset.wide=w?"1":"0";
-  renderOptionsBtn(); renderTabs(); renderSession(); syncFavBtn(); syncSkipBtn(); syncBlitzBtn();
+  renderOptionsBtn(); renderTabs(); renderSession(); syncFavBtn(); syncSkipBtn(); syncBlitzBtn(); syncSessBtn();
   s.replaceChildren(); c.replaceChildren(); $("steps").replaceChildren(); $("steps").hidden=true;
   s.className="card"+(state.tab==="review"?" rv":state.tab==="home"?" hm":"");
   if(state.tab==="home"){ renderHome(s); renderOver(); restoreFocus(f); return; }

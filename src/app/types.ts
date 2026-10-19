@@ -246,6 +246,7 @@ export interface State {
   mode: "loading" | "quiz" | "nodata" | "nodb" | string;
   view: "chat" | string | null;
   optsOpen: boolean;
+  sessOpen: boolean;
   navDepth: number;
   navSkip: number;
   navQ: boolean;
