@@ -89,7 +89,10 @@
       "QUORUM": "on",
       "QUORUM_DEVICE_DAILY_BUDGET_USD": "3",
       "QUORUM_GLOBAL_DAILY_BUDGET_USD": "12",
-      "QUORUM_RESERVE_USD": "0.40"
+      "QUORUM_RESERVE_USD": "0.40",
+      // Learned facts (docs/SERVER.md): keep what an explain answer says of each example the page could not check, in this database. Production
+      // has no such setting yet, so it keeps none.
+      "EXAMPLE_FACTS": "record"
     },
     "d1_databases": [{ "binding": "DB", "database_name": "riglam-practice-staging", "database_id": "5c0fcda4-2f7e-4c18-b1ee-ef287d217d49" }]
   }

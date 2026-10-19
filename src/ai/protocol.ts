@@ -35,6 +35,18 @@ export interface TutorRequest {
    * A server that has Quorum off, and any request that is not an explain, answers with the one model as always.
    */
   quorum?: boolean;
+  /**
+   * The learner's examples that the page could not check itself (verdict "not checked"), each with the cell it stands in. Sent with an explain
+   * request only. A server that keeps learned facts (docs/SERVER.md, "Learned facts") reads the answer's lines about these examples and keeps what
+   * the models said of each; it ignores the lines about any other example. A device that does not share its examples leaves the field out.
+   */
+  examples?: ExplainExample[];
+}
+
+/** One of the learner's examples in an explain request: its text as typed, and the cell it stands in. */
+export interface ExplainExample {
+  cell: "both" | "anb" | "bna" | "nei";
+  text: string;
 }
 
 /** What the server accepts. Anything above these is refused with `prompt_too_large`. */
@@ -43,6 +55,9 @@ export const LIMITS = {
   /** all turns together, in characters */
   chars: 60_000,
   cats: 2,
+  /** examples one explain request may name, and the characters of each */
+  examples: 8,
+  exampleChars: 200,
   /** the request body, in bytes */
   body: 200_000,
 } as const;

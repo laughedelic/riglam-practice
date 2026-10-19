@@ -18,3 +18,5 @@ export { cellFor, cellOfFacts, disputeText, divided, quorumDisputes, quorumRows,
 export type { Dispute, QuorumAnswer, QuorumRow, QuorumThing, Reading } from "./quorum";
 export { catChain, knownClass, listedItem, rung, termPhrase } from "./ladder";
 export type { Rung } from "./ladder";
+export { FACTS_EPOCH, FACT_LIMITS, factKey, learn, opinionOf, ruleSide, servable } from "./learned";
+export type { FactRow, FactSource, FactState, Opinion, Ruling, Strength } from "./learned";

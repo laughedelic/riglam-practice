@@ -2,7 +2,7 @@ import { state } from "../state.js";
 import { $, el } from "../core/dom.js";
 import { ERR_OFF, canAsk } from "../core/ask.js";
 import { CELLS } from "../core/rel.js";
-import { quorumBegin, quorumDropped, quorumEnd, quorumStep, quorumWanted } from "./quorum.js";
+import { quorumBegin, quorumDropped, quorumEnd, quorumStep, quorumThings, quorumWanted } from "./quorum.js";
 import { persist } from "../practice/answers.js";
 import { factNode, fillTurn, noteData, revealTutor } from "../practice/screen.js";
 import { render, renderKeepFocus } from "../shell/render.js";
@@ -25,6 +25,12 @@ function applyVerify(text,U,C){
     persist(U,"The verification");
   }
   return n;
+}
+// The learner's examples the page could not check (verdict "cmp"), each with its cell: the server keeps what the explanation says of them where it is
+// set to (docs/SERVER.md, "Learned facts"). Read before the verdicts arrive, so these are the examples the explanation is the check of.
+function openExamples(U){
+  if(!U||!U.res) return [];
+  return quorumThings(U).filter(t=>t.text.length<=200).flatMap(t=>t.cells.filter(c=>U.res.cells[c]&&U.res.cells[c].v==="cmp").map(c=>({cell:c,text:t.text}))).slice(0,8);
 }
 // The explanation is kept with the answer (applyVerify saves it along with the verdicts), so verdicts can be audited later.
 function saveExplain(U){ persist(U,U.debate?"Your debate":"Your answer"); }
@@ -58,7 +64,10 @@ export async function ask(text,kind,byItself){
     if(direct){
       try{ r=await state.sample(turns,opts); }
       catch(e){ if(e&&e.code==="tools_unavailable"){ delete opts.tools; r=await state.sample(turns,opts); } else throw e; }
-    }else r=await state.tutor({kind:kind==="explain"?"explain":"chat",cats:pairCats(state,p).filter(Boolean),turns,...(quorum?{quorum:true}:{})},{signal:ctl.signal,onText,onStep:s=>quorumStep(U,s)});
+    }else{
+      const examples=kind==="explain"?openExamples(U):[];
+      r=await state.tutor({kind:kind==="explain"?"explain":"chat",cats:pairCats(state,p).filter(Boolean),turns,...(quorum?{quorum:true}:{}),...(examples.length?{examples}:{})},{signal:ctl.signal,onText,onStep:s=>quorumStep(U,s)});
+    }
     slot.content=r.text+(r.truncated?"\n(Cut short.)":""); delete slot.pending;
     if(kind==="explain"){ if(U.doc) U.doc.explain=String(r.text||"").slice(0,3000); if(!(U.res.exOpen&&applyVerify(r.text,U,C))) saveExplain(U); }
     if(quorum) quorumEnd(U,r,C);                          // after the verdicts: the flags compare the models with the page's verdicts as they now stand

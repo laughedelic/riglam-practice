@@ -12,15 +12,16 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import { API, HEADER, LIMITS, type BudgetScope, type CourseResponse, type ErrorCode, type Health, type TutorEvent } from "../src/ai/protocol";
+import { API, HEADER, LIMITS, QUORUM, type BudgetScope, type CourseResponse, type ErrorCode, type Health, type TutorEvent } from "../src/ai/protocol";
 import { accountRoutes, accountsOn } from "./accounts";
 import { adminRoutes } from "./admin";
 import { dayOf, prune, reserve, settle, tutorSwitchedOn, type Pool } from "./budget";
-import { readConfig, readQuorumConfig } from "./config";
+import { readConfig, readFactsConfig, readQuorumConfig } from "./config";
 import { readCourseRows, usableDefinitions } from "./course";
 import type { Env } from "./env";
 import type { Kit } from "./kit";
 import { callerOf, gate, magicKeyOf, type Gate } from "./magic";
+import { keepFacts, type Analysis } from "./learned";
 import { reportRoutes, reportsOn } from "./reports";
 import { runQuorum, saveRecord } from "./quorum";
 import { syncRoutes } from "./sync";
@@ -122,6 +123,7 @@ export function createApp(deps: Deps) {
 
     const config = readConfig(env);
     const quorum = readQuorumConfig(env);
+    const facts = readFactsConfig(env);
     const when = now();
     const day = dayOf(when);
     // An explain question that asks for Quorum gets it where the server offers it and Quorum's budget has room; otherwise it is the one model's, as ever.
@@ -160,15 +162,36 @@ export function createApp(deps: Deps) {
           await stream.writeSSE({ event: e.type, data: JSON.stringify(e) });
         };
         if (single) await emit({ type: "single", why: "budget" }).catch(() => {});
+        // the answers, for the learned facts: the one model's final text (a round that ends in a lookup starts it again), or every usable call of a Quorum run
+        let text = "";
+        let heard: Analysis[] = [];
         const outcome =
           pool === "quorum"
-            ? await runQuorum({ client, kit, config, request: parsed.request, emit, signal: abort.signal, day, now: when, save: (r) => saveRecord(env.DB!, r) })
-            : await runTutor({ client, kit, config, request: parsed.request, emit, signal: abort.signal });
+            ? await runQuorum({
+                client, kit, config, request: parsed.request, emit, signal: abort.signal, day, now: when,
+                save: (r) => {
+                  heard = r.runs.filter((x) => x.ok).map((x) => ({ name: x.name, model: x.model, text: x.text, judge: x.name === QUORUM.judge.name }));
+                  return saveRecord(env.DB!, r);
+                },
+              })
+            : await runTutor({
+                client, kit, config, request: parsed.request, signal: abort.signal,
+                onRound: () => { text = ""; },
+                emit: (e) => { if (e.type === "delta") text += e.text; return emit(e); },
+              });
         // The held amount is replaced by the real cost even when the page has gone away or the call failed.
         await settle(env.DB!, { day, device, held: cost.reserveMicro, actual: outcome.micro, now: when, kind: parsed.request.kind, model: pool === "quorum" ? "quorum" : config.model, rounds: outcome.rounds, tokens: outcome.tokens, outcome: outcome.outcome, pool }).catch((e) =>
           console.error("settle failed", e instanceof Error ? e.name : typeof e),
         );
         if (outcome.error) await emit({ type: "error", code: outcome.error.code, message: outcome.error.message }).catch(() => {});
+        // What the answer says of the examples the page could not check is kept where the server is set to (docs/SERVER.md, "Learned facts").
+        const examples = parsed.request.kind === "explain" ? (parsed.request.examples ?? []) : [];
+        if (examples.length && facts.record && (outcome.outcome === "answered" || outcome.outcome === "truncated")) {
+          if (pool !== "quorum") heard = text.trim() ? [{ name: "Tutor", model: config.model, text }] : [];
+          await keepFacts(env.DB!, { kit, cats: parsed.request.cats, examples, analyses: heard, quorum: pool === "quorum", day, maxRows: facts.maxRows }).catch((e) =>
+            console.error("facts not kept", e instanceof Error ? e.name : typeof e),
+          );
+        }
       } finally {
         finished();
       }

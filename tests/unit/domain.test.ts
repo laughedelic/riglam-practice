@@ -9,8 +9,9 @@ import type { CellId, DrillData, RelKey } from "../../src/ai-shared";
 import {
   FEATURE, RECENT_MAX, AUTO_FLAGS, applyVerdicts, autoFlagOf, decideFlag, factNote, fitOf, flagAnswerRef, flagAsked, flagStateText, flaggedPart, noteParts, buildPool, cellsFor, chooseEntry, deriveRel, grade, gradeDebate, gradeOf, inUniverse, isMiss, judgeText, makePair,
   nextPair, pairKey, parseFactLine, parseVerdicts, pick, relOfCells, summarize, termLine, cellFor, cellOfFacts, disputeText, divided, quorumDisputes, quorumRows, readings,
+  FACTS_EPOCH, factKey, learn, opinionOf, ruleSide, servable,
 } from "../../src/domain";
-import type { DebateInput, GradeDraft, HistoryEntry, Pair, PoolEntry } from "../../src/domain";
+import type { Answer, DebateInput, FactRow, GradeDraft, HistoryEntry, Opinion, Pair, PoolEntry, Ruling } from "../../src/domain";
 import openData from "../../src/data/drill-data.json";
 
 /** A small deterministic random source (mulberry32), so a test draws the same numbers every time. */
@@ -747,6 +748,74 @@ test("the examples of several answers are gathered, with the cell each answer ga
     { example: "a stone", lines: ["nei"], cells: { Haiku: "nei", Sonnet: null } },
   ]);
   expect(rows.map(divided)).toEqual([true, false]);
+});
+
+// ---- learned facts: what the analyses said of a learner's example, per category ----
+
+const op = (model: string, a: Answer, b: Answer, judge = false): Opinion => ({ name: model, model, judge, cls: "Table", sides: [{ answer: a, say: `${model} says ${a}; pervasion: whatever` }, { answer: b, say: `${model} says ${b}.` }] });
+
+test("an example is kept by its words as the lookup compares them, and not at all when it is too long", () => {
+  expect(factKey("A Grey Table!")).toBe("gray table");
+  expect(factKey("  the colour of a pot ")).toBe("color of a pot");
+  expect(factKey("")).toBeNull();
+  expect(factKey("x".repeat(81))).toBeNull();
+  expect(factKey("x".repeat(80))).toBe("x".repeat(80));
+});
+
+test("an answer's opinion of an example is its first line about it that is sure of something", () => {
+  const text = [fact("Both", "A table", "unsure", "unsure"), "Common locus: a table.", fact("A not B", "a table", "yes", "no"), fact("Both", "a stone", "no", "no")].join("\n");
+  expect(opinionOf(text, "the table")).toEqual({ cls: "Table", sides: [{ answer: "yes", say: "it is a table" }, { answer: "no", say: "because it is wood" }] });
+  expect(opinionOf(fact("Both", "a table", "unsure", "unsure"), "table")?.sides.map((s) => s.answer)).toEqual(["unsure", "unsure"]);
+  expect(opinionOf(text, "a song")).toBeNull();
+});
+
+test("one explain question settles a side of an example by how far its answers agree", () => {
+  const side = (r: Ruling | null) => r && [r.answer, r.strength];
+  expect(side(ruleSide([op("Sonnet", "yes", "no")], null, 0))).toEqual(["yes", "single"]);
+  expect(side(ruleSide([op("Haiku", "yes", "no"), op("Sonnet", "yes", "no"), op("Opus", "yes", "no")], null, 1))).toEqual(["no", "unanimous"]);
+  expect(side(ruleSide([op("Haiku", "unsure", "no"), op("Sonnet", "yes", "no"), op("Opus", "yes", "no")], null, 0))).toEqual(["yes", "partial"]);
+  // divided: the judge rules, or else the majority; on a tie the strongest model (the last) has it
+  expect(side(ruleSide([op("Haiku", "no", "no"), op("Sonnet", "yes", "no"), op("Opus", "yes", "no")], op("Judge", "no", "no", true), 0))).toEqual(["no", "ruled"]);
+  expect(side(ruleSide([op("Haiku", "no", "no"), op("Sonnet", "yes", "no"), op("Opus", "yes", "no")], null, 0))).toEqual(["yes", "split"]);
+  expect(side(ruleSide([op("Sonnet", "no", "no"), op("Opus", "yes", "no")], op("Judge", "unsure", "no", true), 0))).toEqual(["yes", "split"]);
+  // the judge was asked about another side: it is unanimous here only if every model agrees with it
+  expect(side(ruleSide([op("Haiku", "yes", "no"), op("Opus", "yes", "yes")], op("Judge", "yes", "no", true), 0))).toEqual(["yes", "unanimous"]);
+  expect(side(ruleSide([op("Haiku", "no", "no"), op("Opus", "no", "yes")], op("Judge", "yes", "no", true), 0))).toEqual(["yes", "ruled"]);
+  expect(ruleSide([], null, 0)).toBeNull();
+  const r = ruleSide([op("Haiku", "yes", "no"), op("Opus", "yes", "no")], null, 0)!;
+  expect(r.reason).toBe("Opus says yes"); // the strongest model speaks, without its pervasion
+  expect(r.votes).toEqual([{ model: "Haiku", answer: "yes" }, { model: "Opus", answer: "yes" }]);
+});
+
+test("a fact becomes checked by agreement, disputed by disagreement, and only the maintainer settles a dispute", () => {
+  const at = (day: string) => ({ src: "explain" as const, text: "a table", day });
+  const rule = (answer: Answer, strength: Ruling["strength"]): Ruling => ({ answer, strength, reason: "r " + answer, cls: "Table", votes: [{ model: "m", answer }] });
+  const one = learn(null, rule("yes", "single"), at("2026-10-19"));
+  expect(one).toMatchObject({ answer: "yes", state: "candidate", agree: 1, against: 0, seen: 1, epoch: FACTS_EPOCH, first_day: "2026-10-19", last_day: "2026-10-19" });
+  expect(learn(null, rule("no", "unanimous"), at("d")).state).toBe("checked");
+  expect(learn(null, rule("no", "ruled"), at("d")).state).toBe("candidate");
+  expect(learn(null, rule("no", "split"), at("d"))).toMatchObject({ state: "disputed", against: 1 });
+  const two = learn(one, rule("yes", "single"), at("2026-10-20"));
+  expect(two).toMatchObject({ state: "checked", agree: 2, seen: 2, first_day: "2026-10-19", last_day: "2026-10-20" });
+  expect(learn(two, rule("unsure", "single"), at("d"))).toMatchObject({ state: "checked", agree: 2, answer: "yes", seen: 3 });
+  const torn = learn(two, rule("no", "unanimous"), at("d"));
+  expect(torn).toMatchObject({ state: "disputed", answer: "yes", agree: 2, against: 1 });
+  expect(learn(torn, rule("yes", "unanimous"), at("d")).state).toBe("disputed");
+  expect(learn(two, rule("yes", "split"), at("d")).state).toBe("disputed");
+  // a first "unsure" is taken over by the first sure answer
+  expect(learn(learn(null, rule("unsure", "single"), at("d")), rule("no", "single"), at("d"))).toMatchObject({ answer: "no", state: "candidate", seen: 2 });
+  // the maintainer's row is never changed by a model; an older epoch starts again
+  const mine: FactRow = { ...two, state: "reviewed", src: "maintainer", answer: "no" };
+  expect(learn(mine, rule("yes", "unanimous"), at("d"))).toMatchObject({ state: "reviewed", answer: "no", src: "maintainer", seen: 3 });
+  expect(learn({ ...two, epoch: FACTS_EPOCH - 1 }, rule("no", "single"), at("d"))).toMatchObject({ answer: "no", state: "candidate", agree: 1, seen: 3, epoch: FACTS_EPOCH });
+});
+
+test("only a checked fact of this epoch, or the maintainer's, with a yes or no, may answer a check", () => {
+  expect(servable({ state: "checked", answer: "yes", epoch: FACTS_EPOCH })).toBe(true);
+  expect(servable({ state: "reviewed", answer: "no", epoch: 0 })).toBe(true);
+  expect(servable({ state: "checked", answer: "yes", epoch: FACTS_EPOCH - 1 })).toBe(false);
+  expect(servable({ state: "checked", answer: "unsure", epoch: FACTS_EPOCH })).toBe(false);
+  for (const state of ["candidate", "disputed"] as const) expect(servable({ state, answer: "yes", epoch: FACTS_EPOCH })).toBe(false);
 });
 
 // ---- the code stays free of the page and the browser ----
