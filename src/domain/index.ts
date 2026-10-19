@@ -20,3 +20,5 @@ export { catChain, knownClass, listedItem, rung, termPhrase } from "./ladder";
 export type { Rung } from "./ladder";
 export { FACTS_EPOCH, FACT_LIMITS, factKey, learn, opinionOf, ruleSide, servable } from "./learned";
 export type { FactRow, FactSource, FactState, Opinion, Ruling, Strength } from "./learned";
+export { DRAWN, drawable, placeByClass } from "./reference";
+export type { Placement } from "./reference";
