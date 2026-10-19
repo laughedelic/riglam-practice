@@ -55,7 +55,7 @@ export function syncSessBtn(){
 export function sessBtn(){
   if(!isWide()) return null;
   const t="Settings for "+exName(state.tab);
-  return el("button",{type:"button",class:"bz sessb","aria-haspopup":"dialog","aria-expanded":state.sessOpen?"true":"false","aria-label":t,title:t,onclick:()=>toggleSess(true)},tbIcon("sliders"));
+  return el("button",{type:"button",class:"sessb","aria-haspopup":"dialog","aria-expanded":state.sessOpen?"true":"false","aria-label":t,title:t,onclick:()=>toggleSess(true)},tbIcon("sliders"));
 }
 
 // one row per Blitz time: the relation's, and the one of an example (Relations) or a question (Pervasions); each sets only its own

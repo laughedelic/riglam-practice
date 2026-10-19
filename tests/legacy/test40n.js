@@ -18,7 +18,7 @@ const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.
  const ORDER={mi:0,'3ab':1,'3ba':2,'4':3,con:4};
  await pg.locator('.rels .rel').nth(ORDER[rel]).click(); await pg.waitForTimeout(100);
  ok('Examples step with the field focused near the top',(await pg.locator('#steps button.on').innerText()).toLowerCase().includes('examples')&&await pg.evaluate(()=>document.activeElement.id==='cin'));
- ok('typing hides the tab bar',await pg.evaluate(()=>document.documentElement.classList.contains('typing'))&&!(await vis('.tabbar')));
+ ok('typing keeps the tab bar, a little lower',await pg.evaluate(()=>document.documentElement.classList.contains('typing'))&&await vis('.tabbar')&&await pg.evaluate(()=>document.getElementById('tabbar').getBoundingClientRect().height<56));
  const fieldBottom=await settled(pg,()=>document.getElementById('cin').getBoundingClientRect().bottom);
  ok('field is high on the screen',fieldBottom<460,fieldBottom);
  await pg.screenshot({path:D+'n-2cell.png'});

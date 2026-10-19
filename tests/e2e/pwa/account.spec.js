@@ -189,13 +189,13 @@ test("the delete confirmation takes the focus when it opens, and the delete butt
   await expect(page.getByRole("button", { name: "Delete account ..." })).toBeFocused();
 });
 
-test("a switch in Options keeps the focus while the sync status redraws the screen", async ({ page }) => {
+test("a control in Options keeps the focus while the sync status redraws the screen", async ({ page }) => {
   const world = await serverWorld();
   const { device } = await start(page, world);
   await openOptions(page);
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(status(page).first()).toContainText("Up to date", { timeout: 15_000 });
-  const sw = page.getByRole("switch", { name: /A\/B markers/ });
+  const sw = page.getByRole("button", { name: "Export" });
   await sw.focus();
   await expect(sw).toBeFocused();
   device.offline = true;
