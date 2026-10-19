@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { expect, test } from "vitest";
 import {
-  CELL_NAME, DEBATE_ASK, FIND_ASK, FIND_ASK_OWN, FIND_NOTE, FIND_OWN_NOTE, FIND_REL_NAMES, FIRST_ASK, GUIDE, REVIEW_GUIDE, REVIEW_LIMITS, american, cardBody, refOf, parseReview, readReviewAnswer, reviewRequest, storedView, cardNotes, catByLabel, categoryOf, classNames, catFacts, explainAsk, finePoints, makeIndex, matchItem, norm, pairCats, qPlain, termFacts, termNamed, tutorCard, tutorTools, upChain,
+  CELL_NAME, DEBATE_ASK, FIND_ASK, FIND_ASK_OWN, FIND_NOTE, FIND_OWN_NOTE, FIND_REL_NAMES, FIRST_ASK, GUIDE, REVIEW_GUIDE, REVIEW_LIMITS, american, cardBody, refOf, parseReview, readReviewAnswer, reviewRequest, storedView, cardNotes, catByLabel, categoryOf, classNames, catFacts, explainAsk, finePoints, makeIndex, matchItem, noteCats, norm, pairCats, qPlain, termFacts, termNamed, tutorCard, tutorTools, upChain,
 } from "../../src/ai-shared";
 import type { AnswerView, DrillData, PairLike, ReviewAnswer } from "../../src/ai-shared";
 import { state } from "../../src/app/state.js";
@@ -157,6 +157,15 @@ test("the card is the instructions, the body and the fine points, which a server
   expect(cardNotes(ix, pair())).toBe("\nFine points (from the sources; apply them):\n- A fine point about forms.");
   expect(cardNotes(ix, pair({ catA: "form", catB: "wood", b: "wooden things" }))).toBe("\nFine points (from the sources; apply them):\n- A fine point about forms.\n- Another fine point.");
   expect(cardNotes(ix, pair({ a: "unknown a", b: "unknown b", catA: null, catB: null }))).toBe("");
+  // a pair of the learner's own: each side the data recognizes brings its fine points, also when the other side is only the learner's words
+  const half = pair({ a: "forms", b: "unknown b", catA: "form", catB: null, own: true });
+  expect(noteCats(ix, half)).toEqual(["form"]);
+  expect(cardNotes(ix, half)).toBe("\nFine points (from the sources; apply them):\n- A fine point about forms.");
+  expect(noteCats(ix, pair({ a: "unknown a", b: "wooden things", catA: null, catB: "wood", own: true }))).toEqual(["wood"]);
+  expect(noteCats(ix, pair({ a: "unknown a", b: "unknown b", catA: null, catB: null, own: true }))).toEqual([]);
+  // a pair of the practice list needs both categories, as before
+  expect(noteCats(ix, pair({ a: "forms", b: "unknown b", catA: "form", catB: null }))).toEqual([]);
+  expect(noteCats(ix, pair())).toEqual(["form", "mind"]);
 });
 
 // ---- the review of a flag ----

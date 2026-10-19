@@ -2,7 +2,7 @@
 // each cell the relation leaves possible. A pair of the course data is graded on the spot; a pair of the learner's own words waits for the tutor,
 // which the specs stand in for with routes (tutor.spec.js). The relation asked for is drawn, so a spec asks for another until it has the one it needs.
 import { test, expect } from "../../support/test.js";
-import { goTo, ready, isPhone, overflow } from "../../support/page.js";
+import { goTo, ready, isPhone, overflow, relOptions } from "../../support/page.js";
 import { withCourse } from "../../support/data-key.js";
 
 const sse = (...events) => events.map((e) => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`).join("");
@@ -76,6 +76,37 @@ test("the tab gives a relation, wants two different phenomena, and fits the widt
   }
   expect(other).not.toBe(before);
   await expect(page.locator("#fw-a")).toHaveValue("forms"); // the words stay
+});
+
+test("a pair of the learner's own with every cell filled keeps the Cells chip open until Claude has judged the relation", async ({ page }, testInfo) => {
+  await open(page);
+  await goFind(page, testInfo);
+  await askFor(page, "Four possibilities");
+  await usePair(page, "red apples", "pears");
+  await examples(page, testInfo, { both: "a red pear", anb: "a red apple", bna: "a green pear", nei: "a stone" });
+  await expect(headline(page)).toHaveText("Your pair is waiting for Claude.");
+  const cells = page.locator(".vchip", { hasText: "Cells" });
+  await expect(cells).toHaveClass(/open/); // not the green check: which cells stay empty is for the relation Claude finds
+  await cells.click();
+  await expect(page.locator(".vpanel")).toContainText("depends on the relation Claude finds");
+});
+
+test("the grid of the pair rows does not reach the Flag label of the other exercises", async ({ page }) => {
+  await open(page);
+  await page.evaluate(() => { const s = document.createElement("span"); s.className = "fw"; s.id = "other-fw"; s.textContent = "Flag"; document.body.append(s); });
+  expect(await page.locator("#other-fw").evaluate((n) => getComputedStyle(n).display)).not.toBe("grid");
+});
+
+test("Enter in the first field always moves to the second, and only Enter in the second uses the pair", async ({ page }, testInfo) => {
+  await open(page);
+  await goFind(page, testInfo);
+  await page.fill("#fw-a", "red apples");
+  await page.fill("#fw-b", "pears");
+  await page.locator("#fw-a").press("Enter"); // both are filled, and the first is where the cursor is: it still goes to the second
+  await expect(page.locator("#fw-b")).toBeFocused();
+  await expect(page.locator("#fw-a")).toBeVisible(); // the pair step is still open
+  await page.locator("#fw-b").press("Enter");
+  await expect(page.locator("#fw-a")).toBeHidden();
 });
 
 test("a pair of the course data is graded on the spot, and the answer is kept apart from the Relations answers", async ({ page }, testInfo) => {
@@ -170,6 +201,7 @@ withKey("asking again after an answer that settled nothing shows the new explana
   await page.getByRole("button", { name: /^explain$|check and explain/i }).click();
   await expect(headline(page)).toHaveText("Claude could not settle your pair.");
   await expect.poll(async () => (await saved(page))[0].cells.anb.verdict).toBe("bad"); // the first answer turned the example down
+  await expect(page.locator(".vpanel")).toContainText("FIRST-ANSWER"); // and what Claude said about it is shown, though the pair is not judged yet
   await expect(page.getByRole("button", { name: /^Discuss with AI/ })).toBeVisible(); // the follow-up chat stays next to Ask again
   await page.getByRole("button", { name: /^Discuss with AI/ }).click();
   await expect(page.locator("#over .ctx")).toContainText("pair not settled"); // not "relation and cells right": the pair is not judged
@@ -205,6 +237,27 @@ test("Review does not say a cell is empty, or give a reference, when Claude has 
   await expect(body).not.toContainText("Nothing goes here.");
   await expect(body).toContainText("No answer");
   await expect(body).not.toContainText("horn of a rabbit"); // the page has no reference for a pair it does not know
+});
+
+test("Practice this pair in Review starts that pair after an answer in Relations and a visit to Find a pair", async ({ page }, testInfo) => {
+  test.skip(!isPhone(testInfo), "the answer flow is exercised in the phone layout");
+  await open(page);
+  const mine = await page.evaluate(() => `${window.__t.cur.p.a} / ${window.__t.cur.p.b}`);
+  await relOptions(page).first().click();
+  for (let i = 0; i < 4 && (await page.locator("#cin").isVisible()); i++) {
+    await page.fill("#cin", "thing " + (i + 1));
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(100);
+  }
+  await page.getByRole("button", { name: "Add to favorites" }).click();
+  await goTo(page, "Find a pair");
+  await goTo(page, "Review");
+  const seg = page.locator(".rseg button", { hasText: /^Favorites/ });
+  if (await seg.count()) await seg.click();
+  await page.locator(".favs > li summary").first().click();
+  await page.getByRole("button", { name: "Practice this pair" }).first().click();
+  await expect(page.locator(".retry-tag")).toContainText("Favorite"); // the favorite itself, not the pair the tab switch drew
+  expect(await page.evaluate(() => `${window.__t.cur.p.a} / ${window.__t.cur.p.b}`)).toBe(mine);
 });
 
 test("Review counts the Find a pair answers on their own", async ({ page }, testInfo) => {

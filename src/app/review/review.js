@@ -122,4 +122,4 @@ function uniqueMistakePairs(miss){
   }
   return out;
 }
-function startRetry(ps){ state.retryQ=ps.slice(0,10); state.retryTag="Retry"; switchTo("practice"); advance(); render(); top0(); }
+function startRetry(ps){ switchTo("practice"); state.retryQ=ps.slice(0,10); state.retryTag="Retry"; advance(); render(); top0(); }

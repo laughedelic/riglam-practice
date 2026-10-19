@@ -115,7 +115,7 @@ const skipBtn=()=>el("button",{type:"button",class:"btn ghost skipw",title:"Skip
 function startSkipped(f){
   const p=f.pair||{a:f.a,b:f.b,relation:f.relation,ex:{},why:{}};
   if(f.from==="debate"){ switchTo("debate"); state.cur={p,debate:true}; state.ui=freshDebateUi(); state.mode="quiz"; startQ(); }
-  else { state.retryQ=[p]; state.retryTag="Skipped"; switchTo("practice"); advance(); }
+  else { switchTo("practice"); state.retryQ=[p]; state.retryTag="Skipped"; advance(); }
   render(); top0();
 }
 function unskipKey(k){

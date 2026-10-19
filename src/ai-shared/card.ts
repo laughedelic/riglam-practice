@@ -3,7 +3,7 @@
 import { qPlain, QCELL } from "./debate";
 import { catFacts, termFacts } from "./facts";
 import type { Facts } from "./facts";
-import { categoryOf, classNames, matchItem, pairCats } from "./lookup";
+import { categoryOf, classNames, matchItem, noteCats, pairCats } from "./lookup";
 import type { DataIndex } from "./lookup";
 import { termNamed } from "./mentions";
 import { CELLS, REL, cellLabel, refOf } from "./relations";
@@ -52,7 +52,7 @@ export function finePoints(ix: DataIndex, catIds: readonly (string | null | unde
 
 /** The fine points of the pair's two categories as the tail of the card; empty when there are none. */
 export function cardNotes(ix: DataIndex, p: PairLike): string {
-  const notes=finePoints(ix,pairCats(ix,p));
+  const notes=finePoints(ix,noteCats(ix,p));
   return notes.length?"\nFine points (from the sources; apply them):\n"+notes.map(n=>"- "+n).join("\n"):"";
 }
 
