@@ -6,10 +6,11 @@
 
 /** The term data as the page reads it (docs/DATA.md); the types live with the code that reads it. */
 import type { DrillData } from "../ai-shared/data";
+import type { Examples } from "../ai-shared/examples";
 import type { QuorumOffer, QuorumRecord, TutorRequest } from "../ai/protocol";
 import type { Account, AccountView } from "../account/account";
 import type { FlagReport, ReportStatus } from "../report/protocol";
-export type { DrillData, Account, AccountView, FlagReport };
+export type { DrillData, Examples, Account, AccountView, FlagReport };
 
 /** A stored document: a plain JSON object. */
 export type Doc = Record<string, any>;
@@ -209,6 +210,11 @@ export interface Platform {
   withdrawReport?(id: string): void;
   /** What the app's server offers this device of Quorum, the tutor's mode of several models and a judge (docs/SERVER.md): "on" (a Preview: on until the device turns it off), "optin" (off until the device turns it on), or false. Absent: the page has no Quorum. */
   quorum?(): Promise<QuorumOffer>;
+  /**
+   * The course's reference examples (the device part, docs/DATA.md), or null (or absent) when this device has none: no key, the
+   * server has none, or they have not arrived yet. They come in the background, after the page started; a later call may have them.
+   */
+  examples?(): Promise<Examples | null>;
   /** The optional account (a passkey and a server copy of the documents, src/account), or null (or absent) when the place has none. The page works the same without. */
   account?(): Promise<Account | null>;
   /** Which build this is and whether a newer one is out, or null (or absent) when the place has no builds to tell apart (the artifact). */

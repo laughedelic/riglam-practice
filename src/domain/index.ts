@@ -18,3 +18,5 @@ export { cellFor, cellOfFacts, disputeText, divided, quorumDisputes, quorumRows,
 export type { Dispute, QuorumAnswer, QuorumRow, QuorumThing, Reading } from "./quorum";
 export { catChain, knownClass, listedItem, rung, termPhrase } from "./ladder";
 export type { Rung } from "./ladder";
+export { DRAWN, drawable, placeByClass } from "./reference";
+export type { Placement } from "./reference";

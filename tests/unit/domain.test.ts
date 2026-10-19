@@ -9,6 +9,7 @@ import type { CellId, DrillData, RelKey } from "../../src/ai-shared";
 import {
   FEATURE, RECENT_MAX, AUTO_FLAGS, applyVerdicts, autoFlagOf, decideFlag, factNote, fitOf, flagAnswerRef, flagAsked, flagStateText, flaggedPart, noteParts, buildPool, cellsFor, chooseEntry, deriveRel, grade, gradeDebate, gradeOf, inUniverse, isMiss, judgeText, makePair,
   nextPair, pairKey, parseFactLine, parseVerdicts, pick, relOfCells, summarize, termLine, cellFor, cellOfFacts, disputeText, divided, quorumDisputes, quorumRows, readings,
+  drawable, placeByClass,
 } from "../../src/domain";
 import type { DebateInput, GradeDraft, HistoryEntry, Pair, PoolEntry } from "../../src/domain";
 import openData from "../../src/data/drill-data.json";
@@ -747,6 +748,66 @@ test("the examples of several answers are gathered, with the cell each answer ga
     { example: "a stone", lines: ["nei"], cells: { Haiku: "nei", Sonnet: null } },
   ]);
   expect(rows.map(divided)).toEqual([true, false]);
+});
+
+// ---- placing a reference example by its classes ----
+//   Form and Consciousness are functional things and exclude each other; Permanent excludes Functional thing; Color is an
+//   external form; a non-existent excludes every existent.
+
+const refIx = () => makeIndex({
+  terms: {
+    Existent: { name: "Existent", ch: "I" },
+    "Functional thing": { name: "Functional thing", ch: "I", parent: "Existent" },
+    Permanent: { name: "Permanent", ch: "I", parent: "Existent", contra: ["Functional thing"] },
+    Form: { name: "Form", ch: "I", parent: "Functional thing", contra: ["Consciousness"] },
+    Consciousness: { name: "Consciousness", ch: "I", parent: "Functional thing" },
+    "External form": { name: "External form", ch: "I", parent: "Form" },
+    Color: { name: "Color", ch: "I", parent: "External form" },
+    "Non-existent": { name: "Non-existent", ch: "I", contra: ["Existent"] },
+  },
+  chains: {},
+  cats: [
+    { id: "form", kind: "dudra", term: "Form", labels: ["forms"], type: "form" },
+    { id: "extf", kind: "dudra", term: "External form", labels: ["external forms"], type: "form" },
+    { id: "cons", kind: "dudra", term: "Consciousness", labels: ["consciousnesses"], type: "consciousness" },
+    { id: "perm", kind: "dudra", term: "Permanent", labels: ["permanent phenomena"], type: "permanent" },
+    { id: "round", kind: "everyday", labels: ["round things"], type: "form: things that are round" },
+    { id: "moods", kind: "everyday", labels: ["moods"], type: "consciousness: moods" },
+  ],
+  items: [],
+  bodySkip: [],
+});
+const placed = (ex: Parameters<typeof placeByClass>[1]) => {
+  const ix = refIx();
+  return Object.fromEntries(ix.DATA.cats.map((c) => [c.id, placeByClass(ix, ex, c)]));
+};
+
+test("placeByClass: yes up the chain to a Dudra category's term, no by an exclusion, and nothing it cannot prove", () => {
+  expect(placed({ cls: ["Color"] })).toEqual({ form: "yes", extf: "yes", cons: "no", perm: "no", round: null, moods: "no" });
+  // the class is the category's term itself; a class above the term says nothing about it
+  expect(placed({ cls: ["Form"] })).toEqual({ form: "yes", extf: null, cons: "no", perm: "no", round: null, moods: "no" });
+});
+
+test("placeByClass: what an example is not, and a non-existent, prove a no", () => {
+  expect(placed({ cls: ["Form"], not: ["External form"] }).extf).toBe("no");
+  expect(placed({ cls: ["Functional thing"], not: ["Form"] })).toEqual({ form: "no", extf: "no", cons: null, perm: "no", round: "no", moods: null });
+  expect(Object.values(placed({ cls: ["Non-existent"], ne: true }))).toEqual(Array(6).fill("no"));
+  expect(Object.values(placed({ ne: true }))).toEqual(Array(6).fill("no"));
+});
+
+test("placeByClass: passes over classes the data does not have, and leaves out a side the data says both of", () => {
+  expect(placed({ cls: ["Unheard-of class", "Color"] })).toEqual(placed({ cls: ["Color"] }));
+  expect(Object.values(placed({ cls: ["Unheard-of class"] }))).toEqual(Array(6).fill(null));
+  expect(Object.values(placed({}))).toEqual(Array(6).fill(null));
+  expect(placed({ cls: ["Color"], not: ["Form"] }).form, "a wrong class in the data shows as no answer, not a wrong one").toBeNull();
+});
+
+test("drawable: confirmed and textbook examples up to the level, never a commentator's", () => {
+  expect(drawable({ cf: "confirmed", lv: 2 }, 2)).toBe(true);
+  expect(drawable({ cf: "textbook", lv: 1 }, 2)).toBe(true);
+  expect(drawable({ cf: "textbook", lv: 3 }, 2)).toBe(false);
+  expect(drawable({ cf: "commentator", lv: 1 }, 4)).toBe(false);
+  expect(drawable({ lv: 1 }, 4)).toBe(false);
 });
 
 // ---- the code stays free of the page and the browser ----

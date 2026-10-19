@@ -12,14 +12,17 @@ export const withCourse = hasCourse();
 export const KEY_STORE = "riglam.magicKey";
 
 /**
- * Stands in for GET /api/course: the real definitions to a request whose proof was made with `key`, not_granted to any other.
+ * Stands in for GET /api/course: the real definitions to a request whose proof was made with `key`, not_granted to any other
+ * (and for GET /api/course/examples, which has none).
  * `calls` collects the requests (their `have` query and whether the proof fitted). `version` is what the server says it holds.
  * `stub` serves no definitions at all in a run that has no course data, so that the key still fits: for a spec about something that
  * needs a device with the key but not the definitions (the flags).
  */
 export async function serveCourse(page, key = dataKey, { version = "v1", stub = false } = {}) {
   const calls = [];
-  await page.route("**/api/course**", async (route) => {
+  // the reference examples are not served here: the page asks for them in the background and goes on without
+  await page.route((url) => url.pathname === "/api/course/examples", (route) => route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: { code: "unavailable", message: "no examples in this run" } }) }));
+  await page.route((url) => url.pathname === "/api/course", async (route) => {
     const request = route.request();
     const headers = request.headers();
     const have = new URL(request.url()).searchParams.get("have");

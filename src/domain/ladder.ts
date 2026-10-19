@@ -26,7 +26,8 @@ export function catChain(ix: DataIndex, cat: Cat): string[] {
   return top ? upChain(ix, top) : [];
 }
 
-const excludes = (ix: DataIndex, x: string, y: string) => {
+/** Whether the data marks the classes `x` and `y` as excluding each other (`contra` on either). */
+export const excludes = (ix: DataIndex, x: string, y: string) => {
   const T = ix.DATA.terms;
   return (T[x].contra || []).includes(y) || (T[y].contra || []).includes(x);
 };

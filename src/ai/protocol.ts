@@ -2,11 +2,15 @@
 // Both sides import this file, so the shapes cannot drift apart. The tutor request carries only what the person typed
 // and the facts of the page's own state; the standing instructions, the notes and the lookup tools stay on the server.
 
+import type { Examples } from "../ai-shared/examples";
+
 export const API = {
   health: "/api/health",
   tutor: "/api/tutor",
   /** GET, with the device and proof headers: the definitions (`?have=<version>` asks only whether the copy kept is current) */
   course: "/api/course",
+  /** GET, with the same headers: the reference examples a device may keep (`?have=<version>` as for the definitions) */
+  examples: "/api/course/examples",
 } as const;
 
 export const HEADER = {
@@ -16,6 +20,9 @@ export const HEADER = {
 
 /** The answer of `GET /api/course`: the definitions as `{ [term]: { d?, d_ru? } }` with their version, or only the version when `have` named it. */
 export type CourseResponse = { version: string; definitions: Record<string, { d?: string; d_ru?: string }> } | { version: string; unchanged: true };
+
+/** The answer of `GET /api/course/examples`: the device part of the reference examples (src/ai-shared/examples.ts) with its version, or only the version when `have` named it. */
+export type ExamplesResponse = { version: string; examples: Examples } | { version: string; unchanged: true };
 
 export interface Turn {
   role: "user" | "assistant";
