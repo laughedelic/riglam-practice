@@ -155,7 +155,9 @@ const FLOWS = {
     const { page, wide, check } = s;
     await goTo(page, "Find a pair");
     await check("pair step");
-    await page.getByRole("button", { name: "Another relation" }).click();
+    await page.getByRole("button", { name: "Choose relation" }).click();
+    await check("relation picker");
+    await page.locator(".rels .rel").filter({ hasText: "Three possibilities, A in B" }).click();
     // the learner's own long words: a pair the page cannot judge, so its result is open
     await page.fill("#fw-a", LONG + "a");
     await page.fill("#fw-b", LONG + "b");

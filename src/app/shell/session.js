@@ -34,6 +34,7 @@ export function setDefLang(k){ state.defLang=k==="enru"?"enru":"en"; store("rd-d
 function setShow(key,on){ if(key==="ab") state.showAB=on; else state.fullPh=on; store("rd-"+key,on?"1":"0"); render(); }
 function setAutoExplain(on){ state.autoExplain=on; store("rd-autoexplain",on?"1":"0"); render(); }
 function setWording(k){ state.wording=k; store("rd-wording",k); render(); }
+function setFindSuggest(on){ state.findSuggest=on; store("rd-findsuggest",on?"1":"0"); render(); }
 
 export function toggleSess(on){
   const was=state.sessOpen; state.sessOpen=on===undefined?!was:on;
@@ -72,7 +73,7 @@ export function sessionInto(o){
   o.append(el("button",{type:"button",class:"scrim",tabindex:"-1","aria-label":"Close the settings",onclick:()=>toggleSess(false)}));
   const sheet=el("div",{class:"sheet"});
   sheet.append(el("div",{class:"oh"},el("h2",{text:exName(state.tab)+" settings"}),el("span",{class:"sp"}),el("button",{type:"button",class:"oc",onclick:()=>toggleSess(false),"aria-label":"Close the settings",text:"Done"})));
-  const box=el("div",{class:"opts",id:"opts"}), perv=state.tab==="debate", timed=state.tab==="practice"||perv;
+  const box=el("div",{class:"opts",id:"opts"}), perv=state.tab==="debate", find=state.tab==="find", timed=state.tab==="practice"||perv;
   box.append(...[
     row("Notation",segOf("Notation",[["codes","Shorthand"],["sets","Sets"],["logic","Logic"]],state.nota,setNota),symsNode()),
     perv?row("Questions",segOf("Wording of the questions",Object.entries(WORDINGS).map(([k,w])=>[k,w.name]),state.wording,setWording),
@@ -83,6 +84,8 @@ export function sessionInto(o){
       switchOf("A/B markers","before the terms",state.showAB,()=>setShow("ab",!state.showAB)),
       switchOf("Full phrases","spell out Why? answers",state.fullPh,()=>setShow("full",!state.fullPh))),
       "Applies to the statements and to your answers."),
+    find?row("Terms",switchOf("Suggest terms",state.findSuggest?"on":"off",state.findSuggest,()=>setFindSuggest(!state.findSuggest)),
+      "While you name a pair, the field offers terms from the course as you type, so you can pick one. This is a gentle way in when the terms are new. Turn it off to type whatever comes to mind, without the list steering you; words that match a course term are still recognized."):null,
     canAsk()?row("AI tutor",switchOf("Check every answer with AI",state.autoExplain?"on":"off",state.autoExplain,()=>setAutoExplain(!state.autoExplain)),
       "Right after you check an answer, the AI tutor explains it and checks the examples the page could not. Off, the Explain button waits for you."):null,
     timed?timeRow("rel","Relation time","The Blitz countdown for choosing the relation, in Relations and in Pervasions. The bolt switches Blitz on and off."):null,

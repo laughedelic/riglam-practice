@@ -6,7 +6,9 @@ import { isFind } from "../core/util.js";
 import { isWide } from "../core/viewport.js";
 import { persist } from "../practice/answers.js";
 import { freshUi } from "../practice/queue.js";
+import { clearSkip } from "../practice/skips.js";
 import { focusCin, render, top0 } from "../shell/render.js";
+import { switchTo } from "../shell/tabs.js";
 import { drawRelation, findPair, gradeFind, nameThing, sameThing } from "../../domain/find.ts";
 
 /* ---------- Find a pair: the usual exercise the other way round ---------- */
@@ -21,18 +23,42 @@ export function freshFindUi(rel){
   return Object.assign(freshUi(),{find:true, rel, open:false, step:0, wordA:"", wordB:"", pairErr:"", own:false, focusA:true});
 }
 const asked=rel=>{ state.findAsked=[...state.findAsked,rel].slice(-SIX); return rel; };
-/** The next relation to ask for, with no pair named yet. */
-export function advanceFind(){
-  state.cur=/** @type {any} */({p:null,find:true}); state.ui=freshFindUi(asked(drawRelation(state.findAsked))); state.mode="quiz";
+/** The next relation to ask for, with no pair named yet: the one the learner picked, else a draw (leaving out `not`, the one just given up). */
+export function advanceFind(not){
+  state.cur=/** @type {any} */({p:null,find:true}); state.ui=freshFindUi(asked(state.findRel||drawRelation(state.findAsked,Math.random,not))); state.mode="quiz";
 }
-/** Asks for another relation instead, while no examples are written; the words typed stay. */
+/** Asks for another, drawn relation instead, while no examples are written; the words typed stay. */
 export function anotherRelation(){
   const u=state.ui; if(!u||!u.find||u.checked||u.step!==0) return;
   u.rel=asked(drawRelation(state.findAsked,Math.random,u.rel)); u.pairErr="";
   Object.assign(u,{cells:freshUi().cells, ci:0, seen:0, pop:null});
   render();
 }
+/**
+ * The learner picks the relation to practice, or null for a different one each time. A pick stays for the next pairs until Random is picked, and also
+ * applies to the pair on screen: the words stay, and so do the examples written, except those in a cell the new relation leaves empty (as in Relations).
+ * Random on a screen with no pair named yet asks for another relation at once; with a pair named the pair keeps the relation it has.
+ */
+export function chooseRel(k){
+  const u=state.ui; if(!u||!u.find||u.checked) return;
+  state.findRel=k; try{ if(k) localStorage.setItem("rd-findrel",k); else localStorage.removeItem("rd-findrel"); }catch(e){}
+  u.open=false; u.pairErr="";
+  if(!k){ if(u.step===0) anotherRelation(); else render(); return; }
+  if(k!==u.rel){
+    asked(k); u.rel=k; u.ci=0; u.seen=0; u.pop=null;
+    for(const c of REL[k].empty){ u.cells[c].t=""; u.cells[c].none=false; }
+    if(state.cur.p&&state.cur.p.own) state.cur.p.relation=k;
+  }
+  render();
+  if(u.step===1) focusFirstCell();
+}
 const focusWord=k=>{ const i=$("fw-"+k); if(i) i.focus({preventScroll:true}); };
+// the first example field, where there is a keyboard to type with
+function focusFirstCell(){
+  if(!isWide()){ focusCin(); return; }
+  const first=CELLS.find(c=>!REL[state.ui.rel].empty.includes(c)), i=first&&$("in-"+first);
+  if(i&&!("ontouchstart" in window)) i.focus();
+}
 /** The pair is named: on to the examples. The same words as before keep the examples written; other words start a new pair. */
 export function usePair(){
   const u=state.ui; if(!u||!u.find||u.checked||u.step!==0) return;
@@ -47,9 +73,7 @@ export function usePair(){
   }
   u.own=!!state.cur.p.own; u.pairErr=""; u.step=1;
   render(); top0();
-  if(!isWide()){ focusCin(); return; }
-  const first=CELLS.find(c=>!REL[u.rel].empty.includes(c)), i=first&&$("in-"+first);
-  if(i&&!("ontouchstart" in window)) i.focus();
+  focusFirstCell();
 }
 /** Back to the words of the pair, to change them. */
 export function editPair(){
@@ -61,6 +85,7 @@ export function editPair(){
 export function checkFind(){
   const u=state.ui; if(!u||!u.find||u.checked||u.step!==1||!state.cur.p) return;
   const p=state.cur.p;
+  clearSkip(p,u.rel);
   u.res=gradeFind(state,p,u); u.checked=true; u.open=false; render();
   top0(); const bs=document.querySelectorAll("#stage .actions .btn"); if(bs.length) bs[bs.length-1].focus({preventScroll:true});
   explainByItself(u);
@@ -71,4 +96,12 @@ export function checkFind(){
   u.doc={pairId:p.id,mode:"find",a:p.a,b:p.b,catA:p.catA||null,catB:p.catB||null,chosen:u.rel,key:p.relation,correct:u.res.relOk,grade:u.res.overall,cells,at:new Date().toISOString(),pair:p};
   if(u.res.relOpen) u.doc.relOpen=true;
   persist(u,"Your answer");
+}
+/** Opens a pair that was skipped (Review, Skipped) at its examples, for the relation that was asked for then. The relation the learner has picked is not changed. */
+export function resumeFind(pair,rel){
+  switchTo("find");
+  const p=JSON.parse(JSON.stringify(pair));       // a copy: the skipped pair stays as it was kept
+  state.cur=/** @type {any} */({p,find:true});
+  state.ui=Object.assign(freshFindUi(rel||p.relation),{step:1, wordA:p.a, wordB:p.b, own:!!p.own, focusA:false});
+  state.mode="quiz"; render(); top0();
 }
