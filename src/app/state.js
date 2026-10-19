@@ -27,7 +27,7 @@ export const state = {
   gotB: false,
   gotA: false,
   gotS: false,
-  tab: "practice",
+  tab: "home",    // the screen: "home", an exercise ("practice" is Relations, "debate" Pervasions) or "review"
   mode: "loading",
   ui: null,
   cur: null,
@@ -40,8 +40,9 @@ export const state = {
   retryTag: "Retry",
   nota: "codes",
   optsOpen: false,
-  ovPushed: 0,    // history entries held for the overlays that are open (shell/history.js): Back closes an overlay instead of leaving the app
-  ovPending: 0,   // steps back the page took itself, whose popstate is to be ignored
+  navDepth: 0,    // history entries held above Home (shell/history.js): one for an open exercise or Review, the chat view, Options
+  navSkip: 0,     // steps back the page took itself, whose popstate is to be ignored
+  navQ: false,    // a check of the entries against the state is due after this render
   view: null,
   reviewSeg: "overview",
   defLang: "en",  // definitions in the Terms panel: "en", or "enru" (English with the Russian definition and the Russian name of each term)

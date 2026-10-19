@@ -2,12 +2,16 @@ import { state } from "../state.js";
 import { advanceDebate, freshDebateUi, startQ, stopTimer } from "../debate/flow.js";
 import { advance, freshUi } from "../practice/queue.js";
 import { skipCats } from "../practice/skips.js";
+import { closeChat } from "./chat.js";
+import { toggleOpts } from "./options.js";
 import { render, top0 } from "./render.js";
 
- const hold={};
-// Practice and Debate each keep their own pair while you look at the other tab or at Review.
-// Relations and Pervasions work on one pair: leaving one with its pair unfinished, the other opens the same pair at its first step (and keeps its own
-// progress if it already holds that pair). A pair that is finished gives the other tab a new pair, as Next pair does.
+const hold={};
+// The screens: Home, the exercises ("practice" is Relations, "debate" Pervasions) and Review. Each exercise keeps its own attempt while
+// you are anywhere else: an unfinished one is parked and comes back as it was ("Continue" on Home). Relations and Pervasions work on one
+// pair: opening one while the other has an unfinished pair, and nothing unfinished of its own begun, opens that pair at its first step.
+// An exercise whose attempt is finished opens on a new pair, as Next pair does.
+const isEx=k=>k==="practice"||k==="debate";
 const sameP=(x,y)=>!!x&&!!y&&((x.id&&x.id===y.id)||(x.a===y.a&&x.b===y.b&&x.relation===y.relation));
 function adoptPair(k,p){
   const [ca,cb]=skipCats(p); if(!ca||!cb) return false;
@@ -16,17 +20,47 @@ function adoptPair(k,p){
   else { state.cur={p:q}; state.ui=freshUi(); state.mode="quiz"; }
   return true;
 }
+/** Whether an attempt has begun: a relation picked, an example written, a question answered. A pair only drawn has not. */
+export function begun(u){
+  if(!u||u.checked) return false;
+  if(u.rel) return true;
+  if(u.debate) return u.step>0||u.ans.some(a=>a.say||a.text);
+  return Object.values(u.cells).some(c=>c.t.trim()||c.none);
+}
+/** The attempt an exercise holds: the one on screen for the current exercise, the parked one for the others. */
+export function attemptOf(k){
+  const h=k===state.own?{cur:state.cur,ui:state.ui}:hold[k];
+  return h&&h.ui?h:null;
+}
 export function switchTo(k){
   stopTimer();
-  if(k!=="review"&&state.own!==k){
-    const left=state.cur&&state.cur.p&&state.ui&&!state.ui.checked?state.cur.p:null, was=state.cur&&state.cur.p;
+  if(isEx(k)&&state.own!==k){
+    const left=state.cur&&state.cur.p&&state.ui&&!state.ui.checked?state.cur.p:null;
     hold[state.own]={cur: state.cur,ui: state.ui}; state.own=k;
-    const h=hold[k];
-    if(h&&h.cur&&was&&sameP(h.cur.p,was)){ state.cur=h.cur; state.ui=h.ui; }
+    const h=hold[k], mine=!!h&&!!h.ui&&!h.ui.checked;
+    if(mine&&(begun(h.ui)||!left||sameP(h.cur.p,left))){ state.cur=h.cur; state.ui=h.ui; }
     else if(left&&adoptPair(k,left)){}
     else if(k==="debate") advanceDebate(); else advance();
   }
   state.tab=k;
   if(k==="debate"&&state.ui&&state.ui.debate&&!state.ui.checked&&state.ui.step<4) startQ();
 }
-export function setTab(k){ if(state.mode!=="quiz"&&k!=="review") return; switchTo(k); render(); top0(); }
+// Going to a screen from the bars, Home or the back arrow. A screen shows itself, not a panel over it: Options and the chat close first.
+export function setTab(k){
+  if(state.mode!=="quiz"&&isEx(k)) return;
+  if(state.optsOpen) toggleOpts(false);
+  if(state.view==="chat") closeChat();
+  if(state.tab===k){ top0(); return; }
+  const from=state.tab, done=isEx(k)&&state.own===k&&!!state.ui&&!!state.ui.checked;
+  switchTo(k);
+  if(done){ if(k==="debate") advanceDebate(); else advance(); }               // back from elsewhere to a finished attempt: a new pair
+  render(); top0(); keepFocus(from);
+}
+// A Home row or the back arrow is gone once it has been used: the keyboard focus goes to the new screen (back on Home, to the row of
+// the exercise just left), not to the end of the page. A rail or tab bar button stays, and keeps it.
+function keepFocus(from){
+  const a=/** @type {HTMLElement|null} */(document.activeElement);
+  if(a&&a!==document.body&&a.isConnected&&a.offsetParent) return;
+  const row=/** @type {HTMLElement|null} */(state.tab==="home"?document.querySelector(`.exr[data-go="${from}"]`):null);
+  (row||/** @type {HTMLElement} */(document.getElementById("stage"))).focus({preventScroll:true});
+}

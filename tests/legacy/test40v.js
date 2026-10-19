@@ -1,4 +1,4 @@
-const {open}=require('./harness.js');
+const {open,go}=require('./harness.js');
 const D=require('./harness.js').SHOTS;
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
 const ORDER={mi:0,'3ab':1,'3ba':2,'4':3,con:4};
@@ -27,7 +27,7 @@ const ORDER={mi:0,'3ab':1,'3ba':2,'4':3,con:4};
  ok('chat view: field still on top after the answer',await pg.evaluate(()=>{const f=document.getElementById('ask-in'); return !!f&&f.getBoundingClientRect().bottom<260;}));
  // ---- blitz on the Questions tab ----
  await pg.keyboard.press('Escape'); await pg.waitForTimeout(100);
- await pg.locator('#tabbar [role=tab]:has-text("Pervasions")').click(); await pg.waitForTimeout(150);
+ await go(pg,'Pervasions'); await pg.waitForTimeout(150);
  ok('blitz: a bolt icon in the top bar, no number inside, no box, no row of its own',await pg.locator('#mbz:visible').count()===1&&await pg.locator('#mbz .bzn').count()===0&&(await pg.locator('#mbz').innerText()).trim()===''&&await pg.locator('#mbz svg.tbi').count()===1&&await pg.evaluate(()=>{const s=getComputedStyle(document.getElementById('mbz')); return s.backgroundColor==='rgba(0, 0, 0, 0)'&&s.boxShadow==='none';})&&await pg.locator('.trow:not(.ph)').count()===0,await pg.locator('#mbz').innerText());
  const bzbox=await pg.locator('#mbz').boundingBox(), starbox=await pg.locator('#mfav').boundingBox();
  const brandbox=await pg.locator('.mbar .brand').boundingBox();
@@ -64,7 +64,7 @@ const ORDER={mi:0,'3ab':1,'3ba':2,'4':3,con:4};
  await pg.keyboard.press('2'); await pg.waitForTimeout(100);
  ok('wide: key 2 still picks the second chip, caption names the direction',await pg.evaluate(()=>window.__t.ui.rel)==='3ab'&&/A in B/.test(await pg.locator('.cap').innerText()),await pg.locator('.cap').innerText());
  ok('wide: coach hints the keys',/1–5/.test(await pg.locator('.coach').innerText()));
- await pg.locator('[role=tab]:visible:has-text("Pervasions")').click(); await pg.waitForTimeout(150);
+ await go(pg,'Pervasions'); await pg.waitForTimeout(150);
  await pg.click('.actions .bz'); await pg.waitForTimeout(80);
  ok('wide: the Blitz icon sits in the action row next to Favorite',await pg.locator('.actions .fav + .bz').count()===1);
  await pg.click('.trow .tval'); await pg.waitForTimeout(80); await pg.keyboard.press('Control+a'); await pg.keyboard.type('20'); await pg.keyboard.press('Enter'); await pg.waitForTimeout(120);

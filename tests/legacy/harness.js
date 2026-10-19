@@ -29,7 +29,7 @@ window.claude={use:async n=>n==='db'?db:n==='sample'?sample:null};
   return {html};
 }
 async function open(vp,opts={}){
-  const autoExplain=opts.autoExplain; delete opts.autoExplain;
+  const autoExplain=opts.autoExplain; delete opts.autoExplain; const home=!!opts.home; delete opts.home;
   const {html}=load();
   const br=await chromium.launch();
   const ctx=await br.newContext(Object.assign({viewport:vp,colorScheme:'light'},opts));
@@ -40,7 +40,19 @@ async function open(vp,opts={}){
   const errs=[]; pg.on('console',m=>{if(m.type()==='error')errs.push(m.text())}); pg.on('pageerror',e=>errs.push('ERR '+e.message));
   await pg.route('http://t/**',r=>r.fulfill({body:html,contentType:'text/html'}));
   await pg.goto('http://t/index.html',{waitUntil:'domcontentloaded'}); await pg.waitForTimeout(800);
+  // the app opens on Home; the old tests start in Relations, as the page did before Home ({home:true} stays on Home)
+  if(!home) await pg.evaluate(()=>{ const r=document.querySelector('.exr[data-go="practice"]:not(:disabled)'); if(r) r.click(); });
   return {br,pg,errs};
+}
+// Goes to a screen as a learner would: Home, Review or an exercise ("Relations", "Pervasions"). On a wide screen the rail lists them all;
+// on a phone the tab bar has Home and Review, and an exercise is opened from Home.
+const GO={Home:'home',Relations:'practice',Pervasions:'debate',Review:'review'};
+async function go(pg,name){
+  const k=GO[name], b=pg.locator('[data-go="'+k+'"]').filter({visible:true});
+  if(await b.count()) return b.first().click();
+  if(await pg.locator('#mback').isVisible()) await pg.locator('#mback').click();
+  else await pg.locator('[data-go="home"]').filter({visible:true}).first().click();
+  if(k!=='home') await pg.locator('.exr[data-go="'+k+'"]').click();
 }
 // Waits until `read` (a function run in the page) returns the same value on `times` reads in a row, `every` ms apart, and
 // returns that value. A test uses it before it measures a position, so that a render that arrives late (the saved answer
@@ -55,4 +67,4 @@ async function settled(pg,read,{every=40,times=3,timeout=3000}={}){
     await pg.waitForTimeout(every);
   }
 }
-module.exports={open,SHOTS,settled};
+module.exports={open,go,SHOTS,settled};

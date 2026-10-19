@@ -1,4 +1,4 @@
-const {open}=require('./harness.js');
+const {open,go}=require('./harness.js');
 const {ringScan}=require('./ring.js');
 const D=require('./harness.js').SHOTS;
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
@@ -57,7 +57,7 @@ async function rings(pg,label){ const r=await pg.evaluate(ringScan); ok(label+':
  await rings(pg,'phone chat view');
  await pg.keyboard.press('Escape'); await pg.waitForTimeout(100);
  // Questions tab
- await pg.locator('[role=tab]:visible:has-text("Pervasions")').click(); await pg.waitForTimeout(150);
+ await go(pg,'Pervasions'); await pg.waitForTimeout(150);
  await rings(pg,'phone questions');
  await pg.click('#mbz'); await pg.waitForTimeout(100); await rings(pg,'phone questions, Blitz on');
  await pg.click('#mbz'); await pg.waitForTimeout(80);
@@ -91,7 +91,7 @@ async function rings(pg,label){ const r=await pg.evaluate(ringScan); ok(label+':
  await pg.screenshot({path:D+'v48-wide.png'});
  await rings(pg,'wide result');
  await pg.keyboard.press('Escape');
- await pg.locator('[role=tab]:visible:has-text("Pervasions")').click(); await pg.waitForTimeout(150);
+ await go(pg,'Pervasions'); await pg.waitForTimeout(150);
  ok('wide: Blitz icon in the action row beside Favorite',await pg.locator('.actions .fav + .bz').count()===1&&await pg.locator('.blitzrow').count()===0);
  await rings(pg,'wide questions');
  await pg.click('.actions .bz'); await pg.waitForTimeout(80); await rings(pg,'wide Blitz on');

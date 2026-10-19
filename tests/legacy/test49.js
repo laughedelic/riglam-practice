@@ -1,4 +1,4 @@
-const {open}=require('./harness.js');
+const {open,go}=require('./harness.js');
 const {ringScan}=require('./ring.js');
 const D=require('./harness.js').SHOTS;
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
@@ -26,12 +26,12 @@ async function fillCells(pg){
  ok('countdown started for the relation pick',await pg.evaluate(()=>!!window.__t.ui.tq&&!window.__t.ui.late));
  await pg.screenshot({path:D+'v49-relcount.png'});
  // one state across both tabs
- await pg.locator('#tabbar [role=tab]:has-text("Pervasions")').click(); await pg.waitForTimeout(150);
+ await go(pg,'Pervasions'); await pg.waitForTimeout(150);
  ok('Questions tab: same switch, still on',(await pg.locator('#mbz').getAttribute('aria-checked'))==='true'&&await pg.locator('#mbz').isVisible());
  ok('Questions tab: the question timer bar shows (Blitz on)',await pg.locator('.qcard .trow .tbar').count()===1);
  await pg.click('#mbz'); await pg.waitForTimeout(100);
  ok('Questions tab: switching off removes the bar',await pg.locator('.trow:not(.ph)').count()===0&&(await pg.locator('#mbz').getAttribute('aria-checked'))==='false');
- await pg.locator('#tabbar [role=tab]:has-text("Relations")').click(); await pg.waitForTimeout(150);
+ await go(pg,'Relations'); await pg.waitForTimeout(150);
  ok('Relations tab: Blitz stays off after switching it off on Questions',(await pg.locator('#mbz').getAttribute('aria-checked'))==='false'&&await pg.locator('.trow:not(.ph)').count()===0);
  await pg.click('#mbz'); await pg.waitForTimeout(100);
  await setSecs(pg,2);
@@ -111,8 +111,8 @@ async function fillCells(pg){
  await pg.locator('.rels .rel').nth(ORDER[await pg.evaluate(()=>window.__t.cur.p.relation)]).click(); await pg.waitForTimeout(150);
  const k5=await pg.evaluate(()=>window.__t.ui.rel), n5=cellsOf(k5);
  await pg.evaluate(()=>document.activeElement&&document.activeElement.blur()); await pg.waitForTimeout(100);
- await pg.locator('#tabbar [role=tab]:has-text("Pervasions")').click(); await pg.waitForTimeout(2000*n5+800);
- await pg.locator('#tabbar [role=tab]:has-text("Relations")').click(); await pg.waitForTimeout(250);
+ await go(pg,'Pervasions'); await pg.waitForTimeout(2000*n5+800);
+ await go(pg,'Relations'); await pg.waitForTimeout(250);
  ok('leaving the tab during the examples does not run the clock; back, it starts over',await pg.evaluate(()=>!window.__t.ui.checked&&!window.__t.ui.exLate&&!!window.__t.ui.tq&&window.__t.ui.tph==='ex'),await pg.evaluate(()=>({c:window.__t.ui.checked,e:window.__t.ui.exLate,tq:!!window.__t.ui.tq})));
  // changing the seconds restarts the examples clock with the new total
  await setSecs(pg,4);
@@ -121,7 +121,7 @@ async function fillCells(pg){
  await pg.waitForTimeout(500);
  ok('phone: no page errors',errs.filter(e=>!/fonts|ERR_|proxy/i.test(e)).length===0,errs);
  // review lines
- await pg.locator('#tabbar [role=tab]:has-text("Review")').click(); await pg.waitForTimeout(200);
+ await go(pg,'Review'); await pg.waitForTimeout(200);
  await pg.locator('.rseg button').nth(1).click(); await pg.waitForTimeout(120);
  const body=await pg.locator('body').innerText();
  ok('Review lists "No pick, time ran out" and "Time ran out on the examples"',/No pick, time ran out/.test(body)&&/Time ran out on the examples/.test(body),body.slice(0,400));
@@ -129,7 +129,7 @@ async function fillCells(pg){
 
 // ================= phone: Questions progress strip and receipt =================
  ({br,pg,errs}=await open({width:390,height:844},{isMobile:true,hasTouch:true}));
- await pg.locator('#tabbar [role=tab]:has-text("Pervasions")').click(); await pg.waitForTimeout(150);
+ await go(pg,'Pervasions'); await pg.waitForTimeout(150);
  const st=async()=>pg.evaluate(()=>[...document.querySelectorAll('.qcard .prog i')].map(i=>i.className||'-').join(','));
  ok('first question: four marks, first is current, no receipt, no slide-in',(await st())==='now,-,-,-'&&await pg.locator('.rcpt').count()===0&&!(await pg.locator('.qcard').getAttribute('class')).includes('enter'),await st());
  ok('the marks have no numbers (the order carries no meaning)',(await pg.locator('.qcard .prog').innerText()).trim()==='');
@@ -151,7 +151,7 @@ async function fillCells(pg){
  await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(80);
  ok('after four answers: no card, the relation step keeps the four answers as tags in the same place',await pg.locator('.qcard').count()===0&&await pg.locator('.rcpt .ri').count()===4);
  // re-render does not replay the animation
- await pg.locator('#tabbar [role=tab]:has-text("Relations")').click(); await pg.locator('#tabbar [role=tab]:has-text("Pervasions")').click(); await pg.waitForTimeout(100);
+ await go(pg,'Relations'); await go(pg,'Pervasions'); await pg.waitForTimeout(100);
  await pg.locator('#stage .actions button:has-text("Next")').first().click().catch(()=>{});
  await pg.waitForTimeout(100);
  ok('phone: no page errors',errs.filter(e=>!/fonts|ERR_|proxy/i.test(e)).length===0,errs);
@@ -159,7 +159,7 @@ async function fillCells(pg){
 
  // reduced motion: no animation at all
  ({br,pg,errs}=await open({width:390,height:844},{isMobile:true,hasTouch:true,reducedMotion:'reduce'}));
- await pg.locator('#tabbar [role=tab]:has-text("Pervasions")').click(); await pg.waitForTimeout(150);
+ await go(pg,'Pervasions'); await pg.waitForTimeout(150);
  await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(60);
  const an=await pg.evaluate(()=>[getComputedStyle(document.querySelector('.qcard')).animationName,getComputedStyle(document.querySelector('.rcpt')).animationName]);
  ok('reduced motion: no slide-in animation',an.every(a=>a==='none'),an);
@@ -167,7 +167,7 @@ async function fillCells(pg){
 
  // short phone (keyboard open height): the receipt must not push the field out of view
  ({br,pg,errs}=await open({width:390,height:554},{isMobile:true,hasTouch:true}));
- await pg.locator('[role=tab]:visible:has-text("Pervasions")').click(); await pg.waitForTimeout(150);
+ await go(pg,'Pervasions'); await pg.waitForTimeout(150);
  const pos=[];
  for(let q=0;q<4;q++){
   await pg.locator('.qcard .btn.ghost').click(); await pg.waitForTimeout(80);
@@ -185,7 +185,7 @@ async function fillCells(pg){
  const ov1=await pg.evaluate(()=>({sw:document.documentElement.scrollWidth,iw:window.innerWidth,bar:document.querySelector('.lrow .trow').getBoundingClientRect().right<=window.innerWidth}));
  ok('320 px Relations with Blitz: no horizontal overflow, countdown inside',ov1.sw<=ov1.iw&&ov1.bar,ov1);
  await pg.screenshot({path:D+'v49-320-rel.png'});
- await pg.locator('#tabbar [role=tab]:has-text("Pervasions")').click(); await pg.waitForTimeout(100);
+ await go(pg,'Pervasions'); await pg.waitForTimeout(100);
  await pg.locator('.qcard .btn.ghost').click(); await pg.waitForTimeout(60); await pg.fill('#dex','a counter-example that is long enough to need cutting off at 320 pixels'); await pg.keyboard.press('Enter'); await pg.waitForTimeout(80);
  const ov2=await pg.evaluate(()=>({sw:document.documentElement.scrollWidth,iw:window.innerWidth,ex:(()=>{const x=document.querySelector('.rcpt .exn');return x&&x.scrollWidth>x.clientWidth})()}));
  ok('320 px Questions with receipt: no horizontal overflow, example cut',ov2.sw<=ov2.iw&&ov2.ex,ov2);
@@ -216,7 +216,7 @@ async function fillCells(pg){
  await pg.locator('.strip .chip').nth(ORDER[wr2]===0?1:0).click(); await pg.waitForTimeout(150);
  ok('wide: changing the pick during the examples keeps the same clock',await pg.evaluate(t=>window.__t.ui.tq&&window.__t.ui.tq.t0===t&&window.__t.ui.tph==='ex',t0));
  await pg.screenshot({path:D+'v49-wide-ex.png'});
- await pg.locator('[role=tab]:visible:has-text("Pervasions")').click(); await pg.waitForTimeout(150);
+ await go(pg,'Pervasions'); await pg.waitForTimeout(150);
  ok('wide Questions: same switch state (on), icon in the action row',await pg.locator('#stage .actions .bz').count()===1&&(await pg.locator('#stage .actions .bz').getAttribute('aria-checked'))==='true');
  ok('wide Questions: strip on the card, the log of answers above it',await pg.locator('.qcard .prog i').count()===4);
  await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(80);

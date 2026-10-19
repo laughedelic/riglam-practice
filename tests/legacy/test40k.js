@@ -1,9 +1,9 @@
-const {open}=require('./harness.js');
+const {open,go}=require('./harness.js');
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
 (async()=>{
  // keyboard-open height: nothing may sit above the field, so each of the four Why? fields stays in the visible area
  const {br,pg,errs}=await open({width:390,height:554},{isMobile:true,hasTouch:true});
- await pg.locator('[role=tab]:visible:has-text("Pervasions")').click(); await pg.waitForTimeout(150);
+ await go(pg,'Pervasions'); await pg.waitForTimeout(150);
  const pos=[];
  for(let q=0;q<4;q++){
   await pg.locator('.qcard .btn.ghost').click(); await pg.waitForTimeout(80);

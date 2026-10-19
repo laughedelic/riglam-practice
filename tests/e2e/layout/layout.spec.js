@@ -9,7 +9,7 @@
 // motion is reduced so that no step is scanned halfway through a slide.
 import { test as base, expect } from "@playwright/test";
 import { routeArtifact, seedRandom } from "../../support/artifact-host.js";
-import { relOptions } from "../../support/page.js";
+import { goTo, relOptions } from "../../support/page.js";
 import { scanPage } from "../../support/layout-scans.js";
 
 // The widths at which the layout changes (360, 520 and 1100 px) and the ones around them, from the narrowest phone to a laptop.
@@ -48,6 +48,9 @@ const test = base.extend({
       const found = await page.evaluate(scanPage, { wideFields });
       if (found.length) findings.push(`${step}: ${found.join(" | ")}`);
     };
+    await check("home");
+    await goTo(page, "Relations");
+    await page.waitForFunction(() => window.__t.tab === "practice");
     await use({ page, wide, check, settle });
     expect(errors, "uncaught errors in the page").toEqual([]);
     expect(findings, "layout findings").toEqual([]);
@@ -89,7 +92,6 @@ async function eachChip({ page, wide, check }, label) {
   }
 }
 
-const tab = (page, name) => page.getByRole("tab", { name }).filter({ visible: true }).first();
 
 const FLOWS = {
   async "practice, answer and result"(s) {
@@ -120,7 +122,7 @@ const FLOWS = {
 
   async "debate, questions and result"(s) {
     const { page, wide, check, settle } = s;
-    await tab(page, "Pervasions").click();
+    await goTo(page, "Pervasions");
     await check("first question");
     const card = page.locator(".qcard");
     await card.locator(".btn").first().click(); // question 1: accept
@@ -156,7 +158,7 @@ const FLOWS = {
     await page.keyboard.press("f");
     await page.keyboard.press("Enter");
     await page.keyboard.press("s");
-    await tab(page, "Pervasions").click();
+    await goTo(page, "Pervasions");
     const blitz = page.locator("#mbz, .actions .bz").filter({ visible: true }).first();
     if (await blitz.count()) {
       await blitz.click();
@@ -168,7 +170,7 @@ const FLOWS = {
     await page.locator("#mopt, #obtn").filter({ visible: true }).first().click();
     await check("Options");
     await page.keyboard.press("Escape");
-    await tab(page, "Review").click();
+    await goTo(page, "Review");
     if (wide) {
       await expect(page.locator(".rev3 .rcol")).toHaveCount(3);
       await check("Review");

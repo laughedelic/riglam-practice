@@ -1,24 +1,28 @@
 <div class="band l" aria-hidden="true"></div><div class="band r" aria-hidden="true"></div>
-<div class="app" id="app" data-tab="practice">
+<div class="app" id="app" data-tab="home">
   <nav class="rail" aria-label="Sections">
     <div class="brandrow"><span class="mk" aria-hidden="true"></span><span class="brand">Dudra practice</span></div>
-    <div class="tabs" role="tablist" id="tabs" aria-label="Sections"></div>
-    <button type="button" class="nv opt" id="obtn" aria-expanded="false">Options</button>
+    <div class="tabs" id="tabs"></div>
+    <button type="button" class="nv opt" id="obtn" aria-haspopup="dialog" aria-expanded="false"><i aria-hidden="true"></i><span class="nvl">Options</span></button>
     <div class="today" id="today"></div>
   </nav>
   <header class="mbar">
-    <span class="mk" aria-hidden="true"></span><span class="brand">Dudra practice</span>
+    <button type="button" class="ib back" id="mback" hidden aria-label="Back to Home" title="Home"></button>
+    <span class="mk" id="mmk" aria-hidden="true"></span><span class="brand" id="mttl">Dudra practice</span>
     <button type="button" class="bz" id="mbz" role="switch" hidden aria-checked="false"></button><span class="sp"></span>
     <button type="button" class="ib" id="mfav" hidden aria-pressed="false"></button>
     <button type="button" class="ib" id="mskip" hidden aria-label="Skip this pair" title="Skip this pair (S)"></button>
-    <button type="button" class="ib" id="mopt" aria-label="Options" aria-expanded="false">⋯</button>
   </header>
   <div class="skiphint" id="skiphint" role="status" hidden></div>
   <div class="steps" id="steps" hidden></div>
   <main class="work">
-    <section class="card" id="stage" aria-live="polite"><p class="status">Loading. For each pair you pick the relation, then give an example for each combination that exists.</p></section>
+    <section class="card" id="stage" tabindex="-1" aria-live="polite"><p class="status">Loading.</p></section>
     <aside class="coach" id="coach" aria-label="Coach"></aside>
   </main>
-  <nav class="tabbar" id="tabbar" role="tablist" aria-label="Sections"></nav>
+  <nav class="tabbar" id="tabbar" aria-label="Sections">
+    <button type="button" data-go="home"><i aria-hidden="true"></i>Home</button>
+    <button type="button" data-go="review"><i aria-hidden="true"></i>Review</button>
+    <button type="button" id="mopt" aria-haspopup="dialog" aria-expanded="false"><i aria-hidden="true"></i>Options</button>
+  </nav>
   <div class="over" id="over" role="dialog" aria-modal="true" hidden></div>
 </div>

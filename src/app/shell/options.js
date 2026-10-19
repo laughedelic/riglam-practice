@@ -9,7 +9,6 @@ import { $, el } from "../core/dom.js";
 import { asking, setTimer, startQ, stopTimer } from "../debate/flow.js";
 import { WORDINGS } from "../debate/text.js";
 import { overHead } from "./chat.js";
-import { overlayClosed, overlayOpened } from "./history.js";
 import { render } from "./render.js";
 import { kindMs } from "./timers.js";
 
@@ -37,12 +36,11 @@ function setWording(k){ state.wording=k; try{ localStorage.setItem("rd-wording",
 export function renderOptionsBtn(){
   for(const id of ["obtn","mopt"]){ const b=$(id); b.setAttribute("aria-expanded",state.optsOpen?"true":"false"); b.classList.toggle("open",state.optsOpen); }
 }
-// The Blitz clock does not run behind the panel: it stops when Options opens and starts again, with its full time, when it closes (as when you come back to a tab).
-// `fromBack` is the system Back, which has already taken the history entry off.
-export function toggleOpts(on,fromBack){
+// The Blitz clock does not run behind the panel: it stops when Options opens and starts again, with its full time, when it closes (as when you come back to an exercise).
+export function toggleOpts(on){
   const was=state.optsOpen; state.optsOpen=on===undefined?!state.optsOpen:on;
-  if(state.optsOpen&&!was){ stopTimer(); overlayOpened(); }
-  else if(!state.optsOpen&&was){ if(fromBack!==true) overlayClosed(); if(state.blitz&&asking()) startQ(); }
+  if(state.optsOpen&&!was) stopTimer();
+  else if(!state.optsOpen&&was&&state.blitz&&asking()) startQ();
   render();
   if(state.optsOpen&&state.updates) state.updates.check(60000); // the Version row is about to be read: look for a newer one unless a look is younger than a minute
   if(state.optsOpen){ const b=document.querySelector("#over .oc"); if(b) b.focus({preventScroll:true}); }

@@ -10,9 +10,13 @@ import { fillable } from "../practice/screen.js";
 import { skipPair } from "../practice/skips.js";
 import { toggleOpts } from "./options.js";
 import { focusCin, render } from "./render.js";
+import { setTab } from "./tabs.js";
 
 $("obtn").addEventListener("click",()=>toggleOpts());
 $("mopt").addEventListener("click",()=>toggleOpts());
+// Home, the exercises and Review, in the rail and the tab bar; the back arrow of an exercise goes Home
+for(const id of ["tabs","tabbar"]) $(id).addEventListener("click",e=>{ const b=/** @type {Element} */(e.target).closest("[data-go]"); if(b) setTab(b.getAttribute("data-go")); });
+$("mback").append(tbIcon("back")); $("mback").addEventListener("click",()=>setTab("home"));
 $("mfav").addEventListener("click",()=>{ if(state.cur&&state.cur.p) toggleFav(state.cur.p); });
 $("mbz").addEventListener("click",()=>setBlitz(!state.blitz));
 $("mskip").append(tbIcon("skip")); $("mskip").addEventListener("click",skipPair);
@@ -25,7 +29,7 @@ wideMq.addEventListener("change",()=>{ syncVv(); if(state.mode!=="loading") rend
 export { tbIcon };
 // which countdown belongs to the screen: "rel" while the relation is to be picked, "ex" for the examples (Relations) or the four questions (Pervasions)
 export const tkind=()=>{
-  if(!state.ui||state.ui.checked||state.mode!=="quiz"||state.tab==="review") return null;
+  if(!state.ui||state.ui.checked||state.mode!=="quiz"||(state.tab!=="practice"&&state.tab!=="debate")) return null;
   if(state.ui.debate) return state.ui.step<4?"ex":state.ui.rel?null:"rel";
   return state.ui.rel?"ex":"rel";
 };

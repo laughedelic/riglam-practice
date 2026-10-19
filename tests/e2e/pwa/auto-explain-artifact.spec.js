@@ -2,6 +2,7 @@
 // at once, in Relations and in Pervasions, and not when the setting is off. The host is the mock of tests/support/claude-mock.js.
 import { test, expect } from "@playwright/test";
 import { routeArtifact } from "../../support/artifact-host.js";
+import { goTo } from "../../support/page.js";
 
 test.skip(({ viewport }) => !viewport || viewport.width < 1100, "the wide layout answers with keys and one click");
 
@@ -13,6 +14,7 @@ async function start(page, setting) {
   await routeArtifact(page, { ai: true });
   await page.goto("http://artifact.test/");
   await page.waitForFunction(() => window.__t && window.__t.cur);
+  await goTo(page, "Relations");
 }
 const relations = async (page) => {
   const rel = await page.evaluate(() => window.__t.cur.p.relation);
@@ -22,7 +24,7 @@ const relations = async (page) => {
   await page.locator("#stage .actions .btn", { hasText: /show result/i }).click();
 };
 const pervasions = async (page) => {
-  await page.getByRole("tab", { name: "Pervasions" }).filter({ visible: true }).first().click();
+  await goTo(page, "Pervasions");
   for (let i = 0; i < 4; i++) { await page.keyboard.press("a"); await page.waitForTimeout(50); }
   await page.keyboard.press("1");
 };

@@ -1,10 +1,10 @@
-const {open}=require('./harness.js');
+const {open,go}=require('./harness.js');
 const {ringScan}=require('./ring.js');
 const D=require('./harness.js').SHOTS;
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
 const noErr=e=>e.filter(x=>!/fonts|ERR_|proxy/i.test(x));
 const rgb=(pg,css)=>pg.evaluate(c=>{const t=document.createElement('i'); t.style.color=c; document.body.append(t); const v=getComputedStyle(t).color; t.remove(); return v;},css);
-const pervTab=async pg=>{ await pg.locator('#tabbar [role=tab]:has-text("Pervasions")').click(); await pg.waitForTimeout(150); };
+const pervTab=async pg=>{ await go(pg,'Pervasions'); await pg.waitForTimeout(150); };
 const hint=pg=>pg.evaluate(()=>{const h=document.getElementById('skiphint'); return h&&!h.hidden?h.innerText.replace(/\s+/g,' ').trim():null;});
 const curKey=pg=>pg.evaluate(()=>{const p=window.__t.cur.p; return p.a+' / '+p.b;});
 const fillOf=(pg,sel)=>pg.evaluate(s=>getComputedStyle(document.querySelector(s)).fill,sel);
@@ -13,10 +13,10 @@ const fillOf=(pg,sel)=>pg.evaluate(s=>getComputedStyle(document.querySelector(s)
  for(const [w,h] of [[430,900],[390,844],[375,667],[360,740],[340,700],[320,640]]){
   const {br,pg,errs}=await open({width:w,height:h},{isMobile:true,hasTouch:true});
   await pervTab(pg);
-  const g=await pg.evaluate(()=>{const R=s=>{const e=document.querySelector(s); if(!e||e.hidden) return null; const b=e.getBoundingClientRect(); return {l:Math.round(b.left),r:Math.round(b.right),t:Math.round(b.top),b:Math.round(b.bottom),w:Math.round(b.width),h:Math.round(b.height)};}; const m=document.querySelector('.mbar'); return {brand:R('.mbar .brand'),mk:R('.mbar .mk'),bz:R('#mbz'),fav:R('#mfav'),skip:R('#mskip'),opt:R('#mopt'),bar:R('.mbar'),barOver:m.scrollWidth>m.clientWidth,page:document.documentElement.scrollWidth-innerWidth,lineH:parseFloat(getComputedStyle(document.querySelector('.mbar .brand')).lineHeight)};});
-  ok(w+' px: bolt, star, skip and options are all in the top bar',!!(g.bz&&g.fav&&g.skip&&g.opt),g);
-  ok(w+' px: order left to right: heading, bolt | star, skip, options; none overlaps another',g.bz&&g.mk.r<=g.brand.l+1&&g.brand.r<=g.bz.l+7&&g.bz.r<=g.fav.l+1&&g.fav.r<=g.skip.l+1&&g.skip.r<=g.opt.l+1&&g.opt.r<=g.bar.r+10,g);
-  ok(w+' px: every icon has a touch area of at least 44 px tall and 36 px wide',[g.bz,g.fav,g.skip,g.opt].every(x=>x&&x.h>=44&&x.w>=36),g);
+  const g=await pg.evaluate(()=>{const R=s=>{const e=document.querySelector(s); if(!e||e.hidden) return null; const b=e.getBoundingClientRect(); return {l:Math.round(b.left),r:Math.round(b.right),t:Math.round(b.top),b:Math.round(b.bottom),w:Math.round(b.width),h:Math.round(b.height)};}; const m=document.querySelector('.mbar'); return {brand:R('.mbar .brand'),back:R('#mback'),bz:R('#mbz'),fav:R('#mfav'),skip:R('#mskip'),opt:R('#mopt'),bar:R('.mbar'),barOver:m.scrollWidth>m.clientWidth,page:document.documentElement.scrollWidth-innerWidth,lineH:parseFloat(getComputedStyle(document.querySelector('.mbar .brand')).lineHeight)};});
+  ok(w+' px: back, bolt, star and skip are all in the top bar; Options is in the tab bar',!!(g.back&&g.bz&&g.fav&&g.skip)&&!!g.opt&&g.opt.t>=g.bar.b,g);
+  ok(w+' px: order left to right: back, heading, bolt | star, skip; none overlaps another',g.bz&&g.back.r<=g.brand.l+1&&g.brand.r<=g.bz.l+7&&g.bz.r<=g.fav.l+1&&g.fav.r<=g.skip.l+1&&g.skip.r<=g.bar.r+10,g);
+  ok(w+' px: every icon has a touch area of at least 44 px tall and 36 px wide',[g.back,g.bz,g.fav,g.skip].every(x=>x&&x.h>=44&&x.w>=36),g);
   ok(w+' px: no sideways scroll in the bar or the page',!g.barOver&&g.page<=0,g);
   if(w>=360) ok(w+' px: the heading stays on one line',g.brand.h<=g.lineH+2,[g.brand,g.lineH]);
   else ok(w+' px: the heading may wrap to two lines but does not touch the bolt',g.brand.r<=g.bz.l+7,g);
@@ -25,7 +25,7 @@ const fillOf=(pg,sel)=>pg.evaluate(s=>getComputedStyle(document.querySelector(s)
   ok(w+' px: bolt, star and skip are the same size (24 px) and stroke (1.75), outline when off',ic.every(x=>x.w==='24px'&&x.h==='24px'&&parseFloat(x.sw)===1.75&&x.fill==='none'),ic);
   ok(w+' px: no page errors',noErr(errs).length===0,errs);
   if(w===390||w===320){
-   for(const id of ['mbz','mfav','mskip','mopt']){ await pg.focus('#'+id); const r=await pg.evaluate(ringScan); ok(w+' px: focus ring of #'+id+' is not clipped',r.length===0,r); }
+   for(const id of ['mback','mbz','mfav','mskip','mopt']){ await pg.focus('#'+id); const r=await pg.evaluate(ringScan); ok(w+' px: focus ring of #'+id+' is not clipped',r.length===0,r); }
    await pg.screenshot({path:D+'s62-bar-'+w+'.png',clip:{x:0,y:0,width:w,height:70}});
   }
   await br.close();
@@ -40,7 +40,7 @@ const fillOf=(pg,sel)=>pg.evaluate(s=>getComputedStyle(document.querySelector(s)
   await pg.click('#mbz'); await pg.waitForTimeout(100);
   ok('Blitz on: the bolt is filled with the highlight colour (lapis)',await fillOf(pg,'#mbz .tbi')===lapis&&await col('#mbz')===lapis,[await fillOf(pg,'#mbz .tbi'),await col('#mbz'),lapis]);
   ok('Blitz on keeps its name with both times, on one switch for Relations and Pervasions',/^Blitz on: \d+ s relation, \d+ s question$/.test(await pg.locator('#mbz').getAttribute('aria-label')));
-  await pg.locator('#tabbar [role=tab]:has-text("Relations")').click(); await pg.waitForTimeout(150);
+  await go(pg,'Relations'); await pg.waitForTimeout(150);
   ok('on Relations the same bolt is on and its name says example',await pg.locator('#mbz').getAttribute('aria-checked')==='true'&&/ s example$/.test(await pg.locator('#mbz').getAttribute('aria-label')));
   await pg.click('#mbz'); await pg.waitForTimeout(100);
   ok('the star is an outline off and filled (ink) on',await fillOf(pg,'#mfav .tbi')==='none'&&(await pg.click('#mfav'),await pg.waitForTimeout(100),await fillOf(pg,'#mfav .tbi')!=='none'&&await col('#mfav')===ink));
@@ -57,7 +57,7 @@ const fillOf=(pg,sel)=>pg.evaluate(s=>getComputedStyle(document.querySelector(s)
    ['a key press',async()=>{ await pg.keyboard.press('x'); }],
    ['Escape',async()=>{ await pg.keyboard.press('Escape'); }],
    ['a scroll',async()=>{ await pg.waitForTimeout(350); await pg.evaluate(()=>document.getElementById('stage').dispatchEvent(new Event('scroll'))); }],
-   ['a tap on the tab bar',async()=>{ await pg.locator('#tabbar [role=tab]:has-text("Review")').click(); }],
+   ['a tap on the tab bar',async()=>{ await go(pg,'Review'); }],
   ];
   for(const [name,act] of closeCases){
    if(name==='a tap on the tab bar'){ /* go back first */ }
@@ -76,7 +76,7 @@ const fillOf=(pg,sel)=>pg.evaluate(s=>getComputedStyle(document.querySelector(s)
   ok('Enter on the focused Skip icon skips and opens the hint',afterSkip!==before&&!!(await hint(pg)),[before,afterSkip]);
   await pg.keyboard.press('Tab'); await pg.waitForTimeout(60);
   ok('Tab does not close the hint',!!(await hint(pg)));
-  await pg.keyboard.press('Tab'); await pg.waitForTimeout(60);
+  // Skip is the last button of the top bar (Options is in the tab bar), so the next Tab is the hint's Undo
   const af=await pg.evaluate(()=>document.activeElement&&document.activeElement.className+'|'+document.activeElement.textContent);
   ok('Tab reaches Undo inside the hint',/skipundo\|Undo/.test(af),af);
   await pg.keyboard.press('Enter'); await pg.waitForTimeout(150);

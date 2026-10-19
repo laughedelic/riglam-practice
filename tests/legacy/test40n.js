@@ -1,4 +1,4 @@
-const {open,settled}=require('./harness.js');
+const {open,go,settled}=require('./harness.js');
 const D=require('./harness.js').SHOTS;
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
 (async()=>{
@@ -60,7 +60,7 @@ const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.
  ok('Next button moves on and keeps what was typed',/cell 2/i.test(await pg.locator('.cwho .n').innerText())&&(await pg.evaluate(()=>window.__t.ui.cells[['both','anb','bna','nei'].find(c=>({mi:['anb','bna'],con:['both'],'3ab':['anb'],'3ba':['bna'],'4':[]}[window.__t.ui.rel]).indexOf(c)<0)].t))==='x');
  await pg.evaluate(()=>document.activeElement.blur()); await pg.waitForTimeout(150);
  // review
- await pg.locator('#tabbar [role=tab]:has-text("Review")').click(); await pg.waitForTimeout(150);
+ await go(pg,'Review'); await pg.waitForTimeout(150);
  ok('review: segmented control with three parts',await pg.locator('.rseg button').count()===3&&await pg.locator('.rseg button[aria-pressed=true]').innerText().then(t=>/overview/i.test(t)));
  await pg.screenshot({path:D+'n-6review.png'});
  await pg.locator('.rseg button').nth(1).click(); await pg.waitForTimeout(100);
@@ -75,7 +75,7 @@ const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.
  await pg.click('#over .oc'); await pg.waitForTimeout(80);
  ok('Back closes options',!(await vis('#over')));
  // questions tab
- await pg.locator('#tabbar [role=tab]:has-text("Pervasions")').click(); await pg.waitForTimeout(150);
+ await go(pg,'Pervasions'); await pg.waitForTimeout(150);
  ok('questions: steps Questions/Relation/Result, card visible',(await pg.locator('#steps button.on').innerText()).toLowerCase().includes('questions')&&await vis('.qcard'));
  await pg.screenshot({path:D+'n-9q.png'});
  await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(60);

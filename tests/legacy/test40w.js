@@ -1,4 +1,4 @@
-const {open}=require('./harness.js');
+const {open,go}=require('./harness.js');
 const D=require('./harness.js').SHOTS;
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
 (async()=>{
@@ -6,7 +6,7 @@ const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.
  const vis=async s=>await pg.locator(s).first().isVisible();
  ok('rail shown, top bar and tab bar hidden',await vis('.rail')&&!(await vis('.mbar'))&&!(await vis('.tabbar'))&&!(await vis('#steps')));
  ok('no page scroll',await pg.evaluate(()=>document.documentElement.scrollHeight<=innerHeight+1&&document.body.scrollHeight<=innerHeight+1));
- ok('three rail tabs',await pg.locator('#tabs [role=tab]').count()===3);
+ ok('the rail lists Home, the two exercises and Review',await pg.locator('#tabs [data-go]').count()===4);
  const rel=await pg.evaluate(()=>window.__t.cur.p.relation);
  const ORDER={mi:0,'3ab':1,'3ba':2,'4':3,con:4};
  await pg.locator('.strip .chip').nth(ORDER[rel]).click(); await pg.waitForTimeout(100);
@@ -45,7 +45,7 @@ const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.
  await pg.screenshot({path:D+'w-wrong.png'});
  await pg.keyboard.press('Enter'); await pg.waitForTimeout(120);
  // questions tab
- await pg.locator('#tabs [role=tab]:has-text("Pervasions")').click(); await pg.waitForTimeout(150);
+ await go(pg,'Pervasions'); await pg.waitForTimeout(150);
  ok('questions tab: card and coach',await vis('.qcard')&&await vis('.coach'));
  await pg.screenshot({path:D+'w-q0.png'});
  await pg.keyboard.press('a'); await pg.waitForTimeout(60);
@@ -59,7 +59,7 @@ const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.
  ok('debate checked: verdict chips in the coach, Questions chip holds four rows',await vis('.coach .verdict')&&await pg.locator('.coach .vchip:has-text("Questions")').count()===1&&await (async()=>{ const q=pg.locator('.coach .vchip:has-text("Questions")'); if(await q.getAttribute('aria-selected')!=='true') await q.click(); return await pg.locator('.coach .qd li').count()===4; })());
  await pg.screenshot({path:D+'w-q2.png'});
  // review
- await pg.locator('#tabs [role=tab]:has-text("Review")').click(); await pg.waitForTimeout(150);
+ await go(pg,'Review'); await pg.waitForTimeout(150);
  ok('review: three columns, no coach',await pg.locator('.rev3 .rcol').count()===3&&!(await vis('.coach')));
  await pg.screenshot({path:D+'w-review.png'});
  // options

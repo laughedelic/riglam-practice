@@ -1,4 +1,4 @@
-const {open,settled}=require('./harness.js');
+const {open,go,settled}=require('./harness.js');
 const {ringScan}=require('./ring.js');
 const D=require('./harness.js').SHOTS;
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
@@ -7,7 +7,7 @@ const EMPTY={mi:['anb','bna'],con:['both'],'3ab':['anb'],'3ba':['bna'],'4':[]};
 const CELLS=['both','anb','bna','nei'];
 const noErr=e=>e.filter(x=>!/fonts|ERR_|proxy/i.test(x));
 const key=pg=>pg.evaluate(()=>{const p=window.__t.cur.p; return p.a+' / '+p.b;});
-const tabPhone=(pg,name)=>pg.locator('#tabbar [role=tab]:has-text("'+name+'")').click().then(()=>pg.waitForTimeout(150));
+const tabPhone=(pg,name)=>go(pg,name).then(()=>pg.waitForTimeout(150));
 const blur=pg=>pg.evaluate(()=>document.activeElement&&document.activeElement.blur());
 // phone, Relations: pick the given relation (default the right one), fill every open cell, the last Enter checks
 async function relPhone(pg,relKey){
@@ -27,9 +27,9 @@ const other=r=>r==='mi'?'con':'mi';
  // ================= phone =================
  {
   const {br,pg,errs}=await open({width:390,height:844},{isMobile:true,hasTouch:true});
-  const names=await pg.locator('#tabbar [role=tab]').allInnerTexts();
-  ok('the tab bar reads Relations, Pervasions, Review',JSON.stringify(names.map(s=>s.trim().toLowerCase()))==='["relations","pervasions","review"]',names);
-  ok('"Pervasions" fits its tab at 390 px',await pg.evaluate(()=>[...document.querySelectorAll('#tabbar [role=tab]')].every(b=>b.scrollWidth<=b.clientWidth+1)));
+  const names=await pg.locator('#tabbar button').allInnerTexts();
+  ok('the tab bar reads Home, Review, Options',JSON.stringify(names.map(s=>s.trim().toLowerCase()))==='["home","review","options"]',names);
+  ok('each name fits its tab at 390 px',await pg.evaluate(()=>[...document.querySelectorAll('#tabbar button')].every(b=>b.scrollWidth<=b.clientWidth+1)));
 
   // ---- one pair across the two modes
   const p1=await key(pg);
@@ -284,8 +284,8 @@ const other=r=>r==='mi'?'con':'mi';
  // ================= wide =================
  {
   const {br,pg,errs}=await open({width:1280,height:800});
-  const rail=(await pg.locator('.rail .nv').allInnerTexts()).slice(0,3);
-  ok('the rail reads Relations, Pervasions, Review',JSON.stringify(rail.map(s=>s.trim().toLowerCase()))==='["relations","pervasions","review"]',rail);
+  const rail=(await pg.locator('.rail .nv').allInnerTexts()).slice(0,4);
+  ok('the rail reads Home, Relations, Pervasions, Review',JSON.stringify(rail.map(s=>s.trim().toLowerCase()))==='["home","relations","pervasions","review"]',rail);
   ok('the coach panel has no "Coach" label; it starts with Recent or the key hints',!/^coach$/i.test(((await pg.locator('#coach').innerText())||'').trim().split('\n')[0]||'')&&!/\bcoach\b/i.test(await pg.locator('#coach').innerText()),await pg.locator('#coach').innerText());
   const p1=await key(pg);
   await pg.locator('.rail .nv:has-text("Pervasions")').click(); await pg.waitForTimeout(150);

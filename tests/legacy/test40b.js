@@ -1,4 +1,4 @@
-const {open}=require('./harness.js');
+const {open,go}=require('./harness.js');
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
 const ORDER={mi:0,'3ab':1,'3ba':2,'4':3,con:4};
 (async()=>{
@@ -19,7 +19,7 @@ const ORDER={mi:0,'3ab':1,'3ba':2,'4':3,con:4};
   ok(name+': the button triggers the check; Why chip open with the answer',(await pg.evaluate(()=>window.__asks.length))===c0+1&&await pg.locator('.vpanel .tutor .ans').count()===1&&/^why$/i.test((await pg.locator('.vchip[aria-selected=true]').innerText()).trim()));
   // debate with blitz
   await pg.evaluate(()=>document.activeElement&&document.activeElement.blur());
-  await pg.locator('[role=tab]:visible:has-text("Pervasions")').click(); await pg.waitForTimeout(150);
+  await go(pg,'Pervasions'); await pg.waitForTimeout(150);
   await pg.click(W?'#obtn':'#mopt'); await pg.waitForTimeout(80);
   await pg.fill('.orow:has-text("Example time") .tcustom','2'); await pg.keyboard.press('Tab'); await pg.waitForTimeout(100);
   ok(name+': custom time stored',await pg.locator('.orow:has-text("Example time") .tcustom').inputValue()==='2');

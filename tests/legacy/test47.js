@@ -1,4 +1,4 @@
-const {open}=require('./harness.js');
+const {open,go}=require('./harness.js');
 const D=require('./harness.js').SHOTS;
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
 const ORDER={mi:0,'3ab':1,'3ba':2,'4':3,con:4};
@@ -37,7 +37,7 @@ async function terms(pg,label,root){
  await pg.evaluate(()=>document.activeElement&&document.activeElement.blur());
  await terms(pg,'phone-relations','#stage');
  // Questions tab: picking the relation checks
- await pg.locator('[role=tab]:visible:has-text("Pervasions")').click(); await pg.waitForTimeout(150);
+ await go(pg,'Pervasions'); await pg.waitForTimeout(150);
  await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(40); await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(40);
  await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(40); await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(100);
  await pg.locator('.rels .rel').nth(3).click(); await pg.waitForTimeout(250);
@@ -52,7 +52,7 @@ async function terms(pg,label,root){
  const ids=await pg.locator('.cell input:not([disabled])').evaluateAll(a=>a.map(x=>x.id)); for(const id of ids) await pg.fill('#'+id,'zzz'); await pg.click('#stage .actions .btn:not(.ghost):not(.fav)'); await pg.waitForTimeout(200);
  await pg.evaluate(()=>document.activeElement&&document.activeElement.blur());
  await terms(pg,'wide-relations','.coach');
- await pg.locator('[role=tab]:visible:has-text("Pervasions")').click(); await pg.waitForTimeout(150);
+ await go(pg,'Pervasions'); await pg.waitForTimeout(150);
  await pg.keyboard.press('a'); await pg.waitForTimeout(40); await pg.keyboard.press('a'); await pg.waitForTimeout(40); await pg.keyboard.press('a'); await pg.waitForTimeout(40); await pg.keyboard.press('a'); await pg.waitForTimeout(100);
  ok('wide: the coach key hints say picking checks (the placeholder paragraph is gone)',/relation, checks/i.test(await pg.locator('.coach').innerText())&&!/verdict appears at once/i.test(await pg.locator('.coach').innerText()),await pg.locator('.coach').innerText());
  await pg.keyboard.press('2'); await pg.waitForTimeout(250);

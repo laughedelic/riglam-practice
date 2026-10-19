@@ -1,10 +1,10 @@
-const {open}=require('./harness.js');
+const {open,go}=require('./harness.js');
 const D=require('./harness.js').SHOTS;
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
 async function run(label,vp,opts,wide){
  const {br,pg,errs}=await open(vp,opts);
  const vis=async s=>await pg.locator(s).first().isVisible();
- await pg.locator('[role=tab]:visible:has-text("Pervasions")').click(); await pg.waitForTimeout(150);
+ await go(pg,'Pervasions'); await pg.waitForTimeout(150);
  // Q1 accept, Q2 why, Q3 accept, Q4 accept
  await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(60);
  await pg.locator('.qcard .btn.ghost').click(); await pg.waitForTimeout(60);

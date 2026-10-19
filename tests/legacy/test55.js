@@ -1,4 +1,4 @@
-const {open}=require('./harness.js');
+const {open,go}=require('./harness.js');
 const {ringScan}=require('./ring.js');
 const D=require('./harness.js').SHOTS;
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
@@ -19,8 +19,8 @@ async function answerPhone(pg){ // pick the right relation, fill the cells, fini
  // ---------------- phone, Relations ----------------
  {
   const {br,pg,errs}=await open({width:390,height:844},{isMobile:true,hasTouch:true});
-  const ib=await pg.evaluate(()=>{const R=s=>{const e=document.querySelector(s); const b=e.getBoundingClientRect(); return {l:Math.round(b.left),r:Math.round(b.right),t:Math.round(b.top),w:Math.round(b.width),h:Math.round(b.height),vis:!e.hidden&&b.width>0};}; return {skip:R('#mskip'),fav:R('#mfav'),opt:R('#mopt'),label:document.getElementById('mskip').getAttribute('aria-label'),title:document.getElementById('mskip').title,svg:document.querySelectorAll('#mskip svg.tbi').length,txt:document.getElementById('mskip').innerText.trim()};});
-  ok('phone: Skip is an icon button in the top bar, next to the star, with a 44 px touch area, a name and the S key in its title',ib.skip.vis&&ib.skip.w>=44&&ib.skip.h>=44&&ib.skip.t<20&&ib.skip.l>=ib.fav.r-1&&ib.skip.r<=ib.opt.l+1&&ib.svg===1&&ib.txt===''&&ib.label==='Skip this pair'&&/\(S\)/.test(ib.title),ib);
+  const ib=await pg.evaluate(()=>{const R=s=>{const e=document.querySelector(s); const b=e.getBoundingClientRect(); return {l:Math.round(b.left),r:Math.round(b.right),t:Math.round(b.top),w:Math.round(b.width),h:Math.round(b.height),vis:!e.hidden&&b.width>0};}; return {skip:R('#mskip'),fav:R('#mfav'),bar:R('.mbar'),label:document.getElementById('mskip').getAttribute('aria-label'),title:document.getElementById('mskip').title,svg:document.querySelectorAll('#mskip svg.tbi').length,txt:document.getElementById('mskip').innerText.trim()};});
+  ok('phone: Skip is an icon button in the top bar, next to the star, with a 44 px touch area, a name and the S key in its title',ib.skip.vis&&ib.skip.w>=44&&ib.skip.h>=44&&ib.skip.t<20&&ib.skip.l>=ib.fav.r-1&&ib.skip.r<=ib.bar.l+ib.bar.w+1&&ib.svg===1&&ib.txt===''&&ib.label==='Skip this pair'&&/\(S\)/.test(ib.title),ib);
   ok('phone: no Skip text anywhere in the page body; the line under the diamond only says "pick a relation"',await pg.locator('.skiplink, .skiprow').count()===0&&!/skip/i.test(await pg.locator('#stage').innerText())&&/^pick a relation$/i.test((await pg.locator('.head .subrow').innerText()).trim()),await pg.locator('.head .subrow').innerText());
   const a=await curKey(pg);
   const rt0=await relTop(pg);
@@ -86,7 +86,7 @@ async function answerPhone(pg){ // pick the right relation, fill the cells, fini
   await answerPhone(pg);
   ok('an answered pair is saved as usual',Object.keys(await pg.evaluate(()=>window.__S.answers)).length===1);
   ok('once the pair is checked the icon is dimmed and cannot be pressed',await pg.evaluate(()=>document.getElementById('mskip').disabled));
-  await pg.locator('#tabbar [role=tab]:has-text("Review")').click(); await pg.waitForTimeout(150);
+  await go(pg,'Review'); await pg.waitForTimeout(150);
   ok('on Review the Skip icon is not shown',await pg.evaluate(()=>document.getElementById('mskip').hidden));
   const seg=await pg.evaluate(()=>[...document.querySelectorAll('.rseg button')].map(b=>b.innerText.replace(/\s+/g,' ').trim()));
   ok('Review has a fourth segment "Skipped" with the count',seg.length===4&&/^skipped 4$/i.test(seg[3]),seg);
@@ -103,7 +103,7 @@ async function answerPhone(pg){ // pick the right relation, fill the cells, fini
   const left=Object.values(await skipsOf(pg)).map(d=>d.a+' / '+d.b);
   ok('answering a skipped pair clears its record',left.length===3&&!left.includes(first),left);
   ok('the delete was written',await pg.evaluate(()=>window.__ops.filter(o=>o[0]==='delete'&&o[1]==='skips').length)>=1);
-  await pg.locator('#tabbar [role=tab]:has-text("Review")').click(); await pg.waitForTimeout(150);
+  await go(pg,'Review'); await pg.waitForTimeout(150);
   const seg2=await pg.evaluate(()=>[...document.querySelectorAll('.rseg button')].map(b=>b.innerText.replace(/\s+/g,' ').trim()));
   ok('Review shows the new count',/^skipped 3$/i.test(seg2[3]||''),seg2);
   // Remove
@@ -116,7 +116,7 @@ async function answerPhone(pg){ // pick the right relation, fill the cells, fini
  // ---------------- phone, Questions ----------------
  {
   const {br,pg,errs}=await open({width:390,height:844},{isMobile:true,hasTouch:true});
-  await pg.locator('#tabbar [role=tab]:has-text("Pervasions")').click(); await pg.waitForTimeout(150);
+  await go(pg,'Pervasions'); await pg.waitForTimeout(150);
   const a=await curKey(pg);
   const ipos=pg=>pg.evaluate(()=>{const b=document.getElementById('mskip').getBoundingClientRect(); return [Math.round(b.left),Math.round(b.top)].join(',');});
   const p0=await ipos(pg);
@@ -153,7 +153,7 @@ async function answerPhone(pg){ // pick the right relation, fill the cells, fini
   // the answer to a skipped Questions pair
   const sd=Object.values(await skipsOf(pg))[0];
   // Review: no answers yet but a skip -> Skipped visible
-  await pg.locator('#tabbar [role=tab]:has-text("Review")').click(); await pg.waitForTimeout(150);
+  await go(pg,'Review'); await pg.waitForTimeout(150);
   ok('Review with skips but no answers still lists the pairs',await pg.locator('.skips li').count()===3);
   await pg.screenshot({path:D+'v55-review-noanswers.png'});
   await pg.locator('.skips li').filter({hasText:sd.a+' / '+sd.b}).locator('button:has-text("Practice")').click(); await pg.waitForTimeout(200);
@@ -204,7 +204,7 @@ async function answerPhone(pg){ // pick the right relation, fill the cells, fini
   await pg.locator('#stage .actions button:has-text("Show result")').click(); await pg.waitForTimeout(200);
   ok('after Show result there is no Skip button and S does nothing',await pg.locator('#stage .actions button:has-text("Skip")').count()===0&&await (async()=>{const k=await curKey(pg); await pg.keyboard.press('s'); await pg.waitForTimeout(100); return k===await curKey(pg)&&Object.keys(await skipsOf(pg)).length===2;})());
   // Questions tab wide
-  await pg.locator('.rail button:has-text("Pervasions"), [role=tab]:has-text("Pervasions")').first().click(); await pg.waitForTimeout(150);
+  await go(pg,'Pervasions'); await pg.waitForTimeout(150);
   const bt2=await pg.evaluate(()=>[...document.querySelectorAll('#stage .actions .btn')].map(b=>b.innerText.trim()));
   ok('wide Questions: Skip in the action row',bt2.some(t=>/^skip$/i.test(t)),bt2);
   ok('wide Questions: the coach lists the S key',/S\s*skip/i.test(await pg.locator('#coach .kbh').innerText()));
@@ -213,13 +213,13 @@ async function answerPhone(pg){ // pick the right relation, fill the cells, fini
   ok('the S key skips a Questions pair after one answer',await curKey(pg)!==qa&&Object.values(await skipsOf(pg)).some(d=>d.from==='debate'&&d.a+' / '+d.b===qa));
   await pg.screenshot({path:D+'v55-wide-q.png'});
   // Review wide: answer one pair first
-  await pg.locator('[role=tab]:has-text("Relations"), .rail button:has-text("Relations")').first().click(); await pg.waitForTimeout(150);
+  await go(pg,'Relations'); await pg.waitForTimeout(150);
   if(await pg.locator('#stage .actions button:has-text("Next")').count()){ await pg.locator('#stage .actions button:has-text("Next")').first().click(); await pg.waitForTimeout(150); }
   const rel3=await pg.evaluate(()=>window.__t.cur.p.relation);
   await pg.locator('.strip .chip').nth(ORDER[rel3]).click(); await pg.waitForTimeout(60);
   const ids3=await pg.locator('.cell input:not([disabled])').evaluateAll(x=>x.map(i=>i.id)); for(const id of ids3) await pg.fill('#'+id,'zzz');
   await pg.locator('#stage .actions button:has-text("Show result")').click(); await pg.waitForTimeout(200);
-  await pg.locator('.rail button:has-text("Review"), [role=tab]:has-text("Review")').first().click(); await pg.waitForTimeout(200);
+  await go(pg,'Review'); await pg.waitForTimeout(200);
   const cols=await pg.evaluate(()=>[...document.querySelectorAll('.rev3 .rcol')].map(c=>({part:c.dataset.part,skips:c.querySelectorAll('.skips li').length})));
   ok('wide Review: three columns, the skipped pairs under the favorites',cols.length===3&&cols[2].part==='favs'&&cols[2].skips===3,cols);
   await pg.screenshot({path:D+'v55-review-wide.png'});
@@ -238,9 +238,9 @@ async function answerPhone(pg){ // pick the right relation, fill the cells, fini
   ok('320: the hint fits the screen (long pair names are cut with an ellipsis, Undo stays visible)',await pg.evaluate(()=>{const n=document.getElementById('skiphint'); const b=n.getBoundingClientRect(); const u=n.querySelector('.skipundo').getBoundingClientRect(); const m=n.querySelector('.skipmsg'); return !n.hidden&&b.left>=0&&b.right<=innerWidth&&u.right<=b.right+0.5&&u.left>=b.left&&m.scrollWidth>=m.clientWidth&&document.documentElement.scrollWidth<=innerWidth;}));
   await pg.screenshot({path:D+'v55-320.png'});
   // Review with skips and answers at 320: four segments
-  await pg.locator('#tabbar [role=tab]:has-text("Relations")').click(); await pg.waitForTimeout(100);
+  await go(pg,'Relations'); await pg.waitForTimeout(100);
   await answerPhone(pg);
-  await pg.locator('#tabbar [role=tab]:has-text("Review")').click(); await pg.waitForTimeout(150);
+  await go(pg,'Review'); await pg.waitForTimeout(150);
   const seg=await pg.evaluate(()=>{const r=document.querySelector('.rseg'); const b=[...r.querySelectorAll('button')]; return {n:b.length, over:r.scrollWidth>r.clientWidth, clipped:b.some(x=>x.scrollWidth>x.clientWidth+1), txt:b.map(x=>x.innerText.replace(/\s+/g,' ').trim())};});
   ok('320: four Review segments fit without clipping',seg.n===4&&!seg.over&&!seg.clipped,seg);
   await pg.locator('.rseg button').nth(3).click(); await pg.waitForTimeout(100);

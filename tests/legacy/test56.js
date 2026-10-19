@@ -1,4 +1,4 @@
-const {open}=require('./harness.js');
+const {open,go}=require('./harness.js');
 const {ringScan}=require('./ring.js');
 const D=require('./harness.js').SHOTS;
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
@@ -80,12 +80,12 @@ const PAIRS=[["Physical things outside a person's continuum","Plants"],["Pot","P
   await pg.evaluate(()=>window.__t.render()); await pg.waitForTimeout(80);
   ok('still folded after a redraw',await pg.evaluate(()=>!document.querySelector('#coach details.recent').open));
   const r1=await pg.evaluate(ringScan); ok('no focus ring is clipped (folded Recent)',r1.length===0,r1);
-  await pg.locator('[role=tab]:has-text("Pervasions"), .rail button:has-text("Pervasions")').first().click(); await pg.waitForTimeout(150);
+  await go(pg,'Pervasions'); await pg.waitForTimeout(150);
   ct=await pg.locator('#coach').innerText();
   ok('Coach (Questions) has no placeholder paragraph',!/for each statement|accept it|pick the relation your answers|appear here/i.test(ct.replace(/accept.*relation/i,'')) || !/(For each statement|Here you then find)/i.test(ct),ct);
   await pg.keyboard.press('a'); await pg.waitForTimeout(100);
   // fold again via keyboard: summary is a native button-like control
-  await pg.locator('[role=tab]:has-text("Relations"), .rail button:has-text("Relations")').first().click(); await pg.waitForTimeout(100);
+  await go(pg,'Relations'); await pg.waitForTimeout(100);
   await pg.locator('#coach details.recent summary').focus(); await pg.keyboard.press('Enter'); await pg.waitForTimeout(100);
   ok('Enter on the focused heading unfolds it again',await pg.evaluate(()=>document.querySelector('#coach details.recent').open&&localStorage.getItem('rd-recent')==='1'));
   ok('no page errors (wide)',errs.filter(e=>!/fonts|ERR_|proxy/i.test(e)).length===0,errs);

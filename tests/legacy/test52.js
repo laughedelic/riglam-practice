@@ -1,4 +1,4 @@
-const {open}=require('./harness.js');
+const {open,go}=require('./harness.js');
 const {ringScan}=require('./ring.js');
 const D=require('./harness.js').SHOTS;
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
@@ -33,7 +33,7 @@ const geo=(pg)=>pg.evaluate(()=>{const g=document.querySelector('#stage .grid'),
  await pg.screenshot({path:D+'v52-rel-result.png'});
  // ---- Questions result ----
  await pg.evaluate(()=>document.activeElement&&document.activeElement.blur());
- await pg.locator('#tabbar [role=tab]:has-text("Pervasions")').click(); await pg.waitForTimeout(150);
+ await go(pg,'Pervasions'); await pg.waitForTimeout(150);
  await pg.evaluate(r=>{window.__reply=r;},REPLY_D);
  for(let i=0;i<4;i++){ await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(50); }
  await pg.locator('.rels .rel').nth(3).click(); await pg.waitForTimeout(300);

@@ -11,7 +11,7 @@ import { defParts, termsNode } from "./practice/terms.js";
 import { buildPool, indexData, nextGenerated } from "./practice/universe.js";
 import { signature } from "../ui/account";
 import { setDefLang } from "./shell/options.js";
-import { render, renderSession } from "./shell/render.js";
+import { render, renderKeepFocus, renderSession } from "./shell/render.js";
 import "./core/viewport.js";
 import "./shell/keys.js";
 import "./shell/history.js";
@@ -96,7 +96,7 @@ async function rekey(platform){
 function settle(){
   if(!state.gotB||!state.gotA||!state.gotS) return;
   if(state.mode==="loading"){ advance(); render(); return; }
-  if(state.tab==="review") render(); else renderSession();
+  if(state.tab==="review") render(); else if(state.tab==="home") renderKeepFocus(); else renderSession();   // Home shows today's numbers
 }
 
 /* ---------- test hook (begin): lets the browser tests in tests/ read internals; inert unless a test defines window.__riglamTest ---------- */

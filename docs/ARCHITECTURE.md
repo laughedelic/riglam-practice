@@ -36,10 +36,12 @@ src/app/
   core/         vocabulary and helpers that depend on nothing else: relations (rel), DOM helpers (dom), viewport, small utilities
   practice/     Relations: the term universe and pair draws, grading, saving answers, favorites, skipped pairs, the screens, the terms panel
   debate/       Pervasions (the four questions): wording, flow, the screens
-  review/       the Review tab: answers, mistakes, favorites, debate statistics, the flags
+  review/       the Review screen: answers, mistakes, favorites, debate statistics, the flags
   ai/           the tutor (asking, verdicts, chat), Quorum (the chip and panel of a run, the automatic flags), flags; the tutor's text and tools are built by src/ai-shared
-  shell/        rendering, tabs, options, the chat overlay, the system Back (history), keyboard shortcuts, timers and the toolbar
+  shell/        rendering, Home and moving between screens (home, tabs), options, the chat overlay, the system Back (history), keyboard shortcuts, timers and the toolbar
 ```
+
+The screens: the app opens on Home (`shell/home.js`): a line on today's practice, then one row per exercise (`EXERCISES`). An exercise opens over Home; on a phone the top bar has a back arrow and the exercise's name, and the tab bar holds Home, Review and Options. On a wide screen the rail lists Home, the exercises and Review. Each exercise keeps one attempt while you are elsewhere (`shell/tabs.js`): a begun, unfinished one is parked and its row on Home says "Continue" (a dot in the rail); a finished one makes way for a new pair. The system Back closes one level at a time (Options, then the chat view, then the exercise or Review) and leaves the app only from Home: `shell/history.js` keeps one history entry per open level, each marked with its depth, and is left out in the Claude artifact's frame.
 
 - Every variable that used to be module-level is a property of `state` (`state.ui`, `state.cur`, `state.db`, ...), because an ES module cannot assign to a binding it imports. A module-level `let` outside `state.js` fails a unit test.
 - Modules import each other freely, including in cycles (the screens call the actions and the actions render). That works because only functions are called across modules, and only after loading; do not call an imported function while a module loads. Modules whose top-level code wires listeners (`core/viewport.js`, `shell/render.js`, `shell/keys.js`, `shell/history.js`, `shell/timers.js`) are imported by the entry for that effect.

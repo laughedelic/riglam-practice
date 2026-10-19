@@ -1,4 +1,4 @@
-const {open}=require('./harness.js');
+const {open,go}=require('./harness.js');
 const D=require('./harness.js').SHOTS;
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
 const ORDER={mi:0,'3ab':1,'3ba':2,'4':3,con:4};
@@ -108,7 +108,7 @@ const REPLY='Both: a clay pot fits.\nNeither: a stone is B, not A.\nCommon locus
  // ================= Pervasions: the note on a question =================
  {
   const {br,pg,errs}=await open({width:390,height:844},{isMobile:true,hasTouch:true});
-  await pg.locator('#tabbar [role=tab]:has-text("Pervasions")').click(); await pg.waitForTimeout(150);
+  await go(pg,'Pervasions'); await pg.waitForTimeout(150);
   await pg.evaluate(()=>{window.__reply='Q1: you accepted, but a clay pot is both.\nQ2: fine.\nQ3: fine.\nQ4: fine.\nRelation: the four give four possibilities.\nPervasion: A does not entail B.\nMisconception: you took B for A.';});
   for(let i=0;i<4;i++){ await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(70); }
   const rel=await pg.evaluate(()=>window.__t.cur.p.relation);

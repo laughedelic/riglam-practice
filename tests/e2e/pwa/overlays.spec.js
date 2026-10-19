@@ -1,14 +1,16 @@
-// Options opens over the page. The system Back closes it instead of leaving the app, it keeps its place when a setting changes, and the Blitz
-// clock stands still while it is open (an attempt is never graded behind it).
+// Options opens over the page. The system Back closes it (and then the exercise) instead of leaving the app, it keeps its place when a setting
+// changes, and the Blitz clock stands still while it is open (an attempt is never graded behind it).
 import { test, expect } from "../../support/test.js";
-import { ready } from "../../support/page.js";
+import { goTo, ready } from "../../support/page.js";
 
 const optionsBtn = (page) => page.getByRole("button", { name: /options/i }).filter({ visible: true }).first();
 const hook = () => { window.__riglamTest = (t) => { window.__t = t; }; };
 const blitz = () => { localStorage.setItem("rd-blitz", "1"); localStorage.setItem("rd-timer-rel", "2000"); localStorage.setItem("rd-timer", "2000"); };
 const bodyText = (page) => page.evaluate(() => document.body.innerText);
 
-test("Back closes Options and stays in the app", async ({ page }) => {
+const level = (page) => page.evaluate(() => (history.state && history.state.riglamNav) || 0);
+
+test("Back closes Options, then the exercise, and stays in the app", async ({ page }) => {
   await page.goto("/");
   await ready(page);
   const url = page.url();
@@ -17,12 +19,17 @@ test("Back closes Options and stays in the app", async ({ page }) => {
   await page.goBack();
   await expect(page.locator("#over")).toBeHidden();
   expect(page.url()).toBe(url);
-  await ready(page);
+  await expect(page.locator("#stage .head .pair")).toBeVisible();
 
   // Forward onto the entry of an overlay that is gone does not leave a dead step behind
   await page.goForward();
   await expect(page.locator("#over")).toBeHidden();
-  await expect.poll(() => page.evaluate(() => history.state)).toBeNull();
+  await expect.poll(() => level(page)).toBe(1);
+
+  // the next Back closes the exercise: Home
+  await page.goBack();
+  await expect(page.locator('.exr[data-go="practice"]')).toBeVisible();
+  await expect.poll(() => level(page)).toBe(0);
 });
 
 test("closing Options with its own Back button or Escape leaves no extra step", async ({ page }) => {
@@ -33,9 +40,12 @@ test("closing Options with its own Back button or Escape leaves no extra step", 
     await expect(page.locator("#over")).toBeVisible();
     await close();
     await expect(page.locator("#over")).toBeHidden();
-    await expect.poll(() => page.evaluate(() => history.state)).toBeNull();
+    await expect.poll(() => level(page)).toBe(1);
   }
-  // from the first screen, Back leaves the app as it always did
+  // Home from the bars takes the exercise's step away too; from Home, Back leaves the app as it always did
+  await goTo(page, "Home");
+  await expect(page.locator('.exr[data-go="practice"]')).toBeVisible();
+  await expect.poll(() => level(page)).toBe(0);
   await page.goBack();
   await expect.poll(() => page.url()).toBe("about:blank");
 });
@@ -75,7 +85,7 @@ test("a Pervasions question's clock stands still behind Options", async ({ page 
   await page.addInitScript(blitz);
   await page.goto("/");
   await ready(page);
-  await page.getByRole("tab", { name: /pervasions/i }).filter({ visible: true }).first().click();
+  await goTo(page, "Pervasions");
   await expect.poll(() => page.evaluate(() => window.__t.ui.debate)).toBe(true);
   await optionsBtn(page).click();
   await page.waitForTimeout(3000);

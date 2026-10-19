@@ -1,0 +1,57 @@
+/* ---------- Home (structure B) ----------
+   Home is the first screen: a line on today's practice, then one row per exercise; a row with an unfinished attempt says "Continue".
+   Narrow: an exercise opens over Home with a back arrow in the top bar, and the tab bar holds Home, Review and Options.
+   Wide: the rail lists Home, the exercises (a dot on one with an attempt waiting) and Review. */
+.card.hm{gap:22px;padding-top:18px}
+.hday{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 12px;margin:0;padding-bottom:14px;border-bottom:1px solid var(--line);font-size:14px;color:var(--ink-muted)}
+.hday .hl{font:700 11px/16px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--ink)}
+.hday b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+.hday .hsep{color:var(--faint)}
+.card.hm>.status{padding-bottom:14px;border-bottom:1px solid var(--line)}   /* in the line's place while loading, so nothing moves */
+.home{display:grid;gap:10px}
+.exs{display:grid;border-top:1.5px solid var(--ink);border-bottom:1.5px solid var(--ink)}
+.exr{display:grid;grid-template-columns:minmax(0,1fr) 20px;align-items:center;gap:12px;min-height:76px;padding:14px 8px 14px 14px;
+  border:0;border-top:1px solid var(--line);background:transparent;color:inherit;text-align:left;cursor:pointer}
+.exr:first-child{border-top:0}
+@media (hover:hover){
+  .exr:hover:not(:disabled){background:var(--paper-tint)}
+  .exr:hover:not(:disabled) .exa{color:var(--ink)}
+}
+.exr:active:not(:disabled){background:var(--paper-tint);box-shadow:inset 4px 0 0 var(--vermilion)}
+.exr:focus-visible{box-shadow:var(--focus-ring)}
+.exr:disabled{cursor:default;opacity:.55}
+.ext{display:grid;gap:3px;min-width:0}
+.exh{display:flex;align-items:baseline;flex-wrap:wrap;gap:2px 12px}
+.exn{font:700 15px/1.3 var(--body);color:var(--ink)}
+.exd{font:400 13px/1.45 var(--body);color:var(--ink-muted)}
+.exc{display:inline-flex;align-items:center;gap:6px;font:700 10.5px/16px var(--body);letter-spacing:.07em;text-transform:uppercase;color:var(--ink);white-space:nowrap}
+.exc i{width:9px;height:9px;clip-path:var(--rhombus);background:var(--vermilion);flex:none}
+.exa{display:grid;place-items:center;color:var(--faint)}
+.exa .tbi{width:20px;height:20px;stroke-width:2}
+
+/* the top bar in an exercise: the back arrow takes the brand mark's place, the exercise's name the brand's */
+.ib.back{margin:0 -4px 0 -12px;color:var(--ink)}
+.mk[hidden]{display:none}
+/* while Options is open it is the place you are on, in both bars; the screen under it is marked again when it closes */
+.tabbar #mopt.open{color:var(--ink);box-shadow:inset 0 4px 0 var(--vermilion)}
+.tabbar #mopt.open i{background:var(--marigold)}
+/* on Home the day's numbers are on the page itself */
+.app[data-tab="home"] #today{visibility:hidden}
+
+/* the rail: Home, then the exercises under a small heading, then Review */
+.rail .tabs{gap:2px}
+.nvh{margin:14px 0 4px;padding-left:10px;font:700 10.5px/14px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+.nv .nvl{flex:1;min-width:0}
+.nvd{width:7px;height:7px;border-radius:50%;background:var(--vermilion);flex:none}
+.nvd[hidden]{display:none}
+.nv[data-go="review"]{margin-top:14px}
+
+@media (min-width:1100px){
+  .app[data-tab="home"] .work{grid-template-columns:minmax(0,1fr)}
+  .app[data-tab="home"] .coach{display:none}
+  .card.hm{padding:28px 40px 0}
+  .card.hm>*{width:100%;max-width:640px}
+  .exr{min-height:84px;padding-inline:18px 12px}
+}
+/* the screen takes the focus after a move (keyboard), without a ring around the whole page */
+#stage:focus{outline:0}

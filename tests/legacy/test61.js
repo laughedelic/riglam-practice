@@ -1,4 +1,4 @@
-const {open}=require('./harness.js');
+const {open,go}=require('./harness.js');
 const D=require('./harness.js').SHOTS;
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
 const ORDER={mi:0,'3ab':1,'3ba':2,'4':3,con:4};
@@ -13,7 +13,7 @@ async function relPhone(pg,relKey){
   for(let k=0;k<4;k++){ if(await pg.evaluate(()=>window.__t.ui.checked)) break; await pg.fill('#cin','thing '+(k+1)); await pg.keyboard.press('Enter'); await pg.waitForTimeout(80); }
   await blur(pg);
 }
-const pervTab=async pg=>{ await pg.locator('#tabbar [role=tab]:has-text("Pervasions")').click(); await pg.waitForTimeout(150); };
+const pervTab=async pg=>{ await go(pg,'Pervasions'); await pg.waitForTimeout(150); };
 const subTxt=pg=>pg.evaluate(()=>{const r=document.querySelector('.head .subrow'); return r?r.innerText.replace(/\s+/g,' ').trim():null;});
 (async()=>{
  // the question card: at 320 the lead text is shown with an ellipsis, nothing overflows

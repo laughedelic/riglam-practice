@@ -4,7 +4,7 @@
 // the Options switch and that the panel fits a phone.
 import { test as plain } from "@playwright/test";
 import { test, expect } from "../../support/test.js";
-import { ready, relOptions, isPhone, overflow } from "../../support/page.js";
+import { goTo, ready, relOptions, isPhone, overflow } from "../../support/page.js";
 import { dataKey, serveCourse, withCourse } from "../../support/data-key.js";
 import { checkProof } from "../../../src/ai/proof.ts";
 
@@ -338,7 +338,7 @@ withKey("where the models differ, the page flags each such example by itself and
     expect(f.pair).toMatchObject({ tab: "practice" });
   }
   // Review lists them as automatic flags
-  await page.getByRole("tab", { name: "Review" }).filter({ visible: true }).first().click();
+  await goTo(page, "Review");
   const seg = page.locator(".rseg button", { hasText: /^Flags/ });
   if (await seg.count()) await seg.click(); // a phone shows one part of Review at a time
   // an entry opens to show the flag, the exercise and its buttons
@@ -448,7 +448,7 @@ withKey("flags raised after the learner went to another pair belong to the pair 
   await explain(page).click();
   await reached;
   expect(asked).toHaveLength(1);
-  await page.getByRole("tab", { name: "Pervasions" }).filter({ visible: true }).first().click();
+  await goTo(page, "Pervasions");
   await expect.poll(() => page.evaluate(() => window.__t.tab)).not.toBe("practice");
   await expect.poll(() => page.evaluate(([a, b]) => window.__t.cur.p.a !== a || window.__t.cur.p.b !== b, [before.a, before.b])).toBe(true); // the page now has another pair
   release();

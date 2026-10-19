@@ -1,11 +1,11 @@
-const {open}=require('./harness.js');
+const {open,go}=require('./harness.js');
 const D=require('./harness.js').SHOTS;
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
 (async()=>{
  // Blitz on Questions: skipping stops the old timer, the new question has its own
  {
   const {br,pg,errs}=await open({width:390,height:844},{isMobile:true,hasTouch:true});
-  await pg.locator('#tabbar [role=tab]:has-text("Pervasions")').click(); await pg.waitForTimeout(150);
+  await go(pg,'Pervasions'); await pg.waitForTimeout(150);
   await pg.click('#mbz'); await pg.waitForTimeout(100);
   await pg.click('.trow .tval'); await pg.waitForTimeout(80); await pg.keyboard.press('Control+a'); await pg.keyboard.type('2'); await pg.keyboard.press('Enter'); await pg.waitForTimeout(150);
   const id=await pg.evaluate(()=>window.__t.cur.p.id);
@@ -39,7 +39,7 @@ const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.
   const {br,pg,errs}=await open({width:390,height:844},{isMobile:true,hasTouch:true,colorScheme:'dark'});
   await pg.locator('#mskip').click(); await pg.waitForTimeout(150);
   await pg.screenshot({path:D+'v55-dark-note.png'});
-  await pg.locator('#tabbar [role=tab]:has-text("Review")').click(); await pg.waitForTimeout(150);
+  await go(pg,'Review'); await pg.waitForTimeout(150);
   await pg.screenshot({path:D+'v55-dark-review.png'});
   await br.close();
  }

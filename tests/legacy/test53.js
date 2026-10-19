@@ -1,11 +1,11 @@
-const {open}=require('./harness.js');
+const {open,go}=require('./harness.js');
 const D=require('./harness.js').SHOTS;
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
 const items=pg=>pg.evaluate(()=>[...document.querySelectorAll('.rcpt .ri')].map(r=>({n:r.querySelector('.n').innerText,w:r.querySelector('.rw').innerText,ex:(r.querySelector('.exn')||{}).innerText||'',cls:r.className})));
 (async()=>{
  for(const [w,h] of [[390,844],[320,640]]){
   const {br,pg,errs}=await open({width:w,height:h},{isMobile:true,hasTouch:true});
-  await pg.locator('#tabbar [role=tab]:has-text("Pervasions")').click(); await pg.waitForTimeout(150);
+  await go(pg,'Pervasions'); await pg.waitForTimeout(150);
   await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(60);
   await pg.locator('.qcard .btn.ghost').click(); await pg.waitForTimeout(60); await pg.fill('#dex','a clay pot filled with water'); await pg.keyboard.press('Enter'); await pg.waitForTimeout(80);
   let it=await items(pg);
@@ -23,7 +23,7 @@ const items=pg=>pg.evaluate(()=>[...document.querySelectorAll('.rcpt .ri')].map(
  // a timed-out question shows in the receipt
  {
   const {br,pg,errs}=await open({width:390,height:844},{isMobile:true,hasTouch:true});
-  await pg.locator('#tabbar [role=tab]:has-text("Pervasions")').click(); await pg.waitForTimeout(150);
+  await go(pg,'Pervasions'); await pg.waitForTimeout(150);
   await pg.click('#mbz'); await pg.waitForTimeout(100);
   await pg.click('.trow .tval'); await pg.waitForTimeout(80); await pg.keyboard.press('Control+a'); await pg.keyboard.type('2'); await pg.keyboard.press('Enter'); await pg.waitForTimeout(150);
   await pg.waitForTimeout(2400);

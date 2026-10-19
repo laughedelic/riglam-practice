@@ -1,4 +1,5 @@
 const {chromium}=require('@playwright/test');
+const {go}=require('./harness.js');
 const fs=require('fs');
 const path=require('path');
 let page_=fs.readFileSync(path.resolve(__dirname,'../../dist/artifact/index.html'),'utf8');
@@ -22,6 +23,7 @@ const errs=[];
  pg.on('console',m=>{if(m.type()==='error')errs.push(m.text())}); pg.on('pageerror',e=>errs.push('ERR '+e.message));
  await pg.route('http://t/**',r=>r.fulfill({body:html,contentType:'text/html'}));
  await pg.goto('http://t/index.html',{waitUntil:'domcontentloaded'}); await pg.waitForTimeout(700);
+ await go(pg,'Relations'); await pg.waitForTimeout(100);
  const fav=pg.locator('#stage .actions .fav'); const openFirst=async sec=>{ const d=sec.locator('.favs > li').nth(0).locator('details'); if(!(await d.evaluate(n=>n.open))) await d.locator('summary').click(); };
  ok('star button on the relations card',await fav.count()===1&&await fav.getAttribute('aria-pressed')==='false');
  ok('label shown on a wide screen, star shown',(await pg.locator('.fav .fl').isVisible())&&/☆/.test(await fav.innerText()));
@@ -48,7 +50,7 @@ const errs=[];
  const inp=pg.locator('.cell input:not([disabled])').first(); if(await inp.count()){ await inp.fill('f'); ok('typing f in a field does not toggle',(await pg.evaluate(()=>Object.keys(window.__S.favorites).length))===1&&await inp.inputValue()==='f'); }
  ok('next pair is not a favorite',await pg.locator('#stage .actions .fav').getAttribute('aria-pressed')==='false');
  // review
- await pg.click('[role=tab]:visible:has-text("Review")'); await pg.waitForTimeout(150);
+ await go(pg,'Review'); await pg.waitForTimeout(150);
  let sec=pg.locator('.section:has(> .label:has-text("Favorites"))');
  ok('review lists the favorite',await sec.locator('.favs > li').count()===1&&/saved/.test(await sec.locator('.label').innerText()),await sec.innerText());
  await sec.locator('summary').click(); await pg.waitForTimeout(50);
@@ -66,12 +68,12 @@ const errs=[];
  ok('the practiced pair is marked',await pg.locator('#stage .actions .fav').getAttribute('aria-pressed')==='true');
  // debate tab (a switch keeps the pair, so draw a new one first)
  await pg.evaluate(()=>window.__t.next()); await pg.waitForTimeout(100);
- await pg.click('[role=tab]:visible:has-text("Pervasions")'); await pg.waitForTimeout(150);
+ await go(pg,'Pervasions'); await pg.waitForTimeout(150);
  ok('star also on the questions tab',await pg.locator('#stage .actions .fav').count()===1&&await pg.locator('#stage .actions .fav').getAttribute('aria-pressed')==='false');
  await pg.locator('#stage .actions .fav').click(); await pg.waitForTimeout(100);
  ok('debate pair can be favorited',(await pg.evaluate(()=>Object.keys(window.__S.favorites).length))===2);
  // remove from review
- await pg.click('[role=tab]:visible:has-text("Review")'); await pg.waitForTimeout(150);
+ await go(pg,'Review'); await pg.waitForTimeout(150);
  sec=pg.locator('.section:has(> .label:has-text("Favorites"))');
  await openFirst(sec); await sec.locator('button:has-text("Remove")').first().click(); await pg.waitForTimeout(150);
  ok('remove deletes the document',(await pg.evaluate(()=>Object.keys(window.__S.favorites).length))===1&&await sec.locator('.favs > li').count()===1);
@@ -83,7 +85,7 @@ const errs=[];
  await pg.evaluate(()=>{window.__fail.del=0}); await openFirst(sec); await sec.locator('button:has-text("Remove")').first().click(); await pg.waitForTimeout(250);
  ok('empty list explains how to add',/star a pair/.test(await sec.locator('.label').innerText())&&/Press the star/.test(await sec.innerText()),await sec.innerText());
  // a failed save is undone
- await pg.click('[role=tab]:visible:has-text("Relations")'); await pg.waitForTimeout(100);
+ await go(pg,'Relations'); await pg.waitForTimeout(100);
  await pg.evaluate(()=>{window.__fail.set=2}); await pg.locator('#stage .actions .fav').click(); await pg.waitForTimeout(2600);
  ok('failed save: star undone with a message',await pg.locator('#stage .actions .fav').getAttribute('aria-pressed')==='false'&&/could not be saved/.test(await pg.locator('#stage').innerText()),await pg.locator('#stage').innerText());
  await pg.screenshot({path:'f-card.png',fullPage:false});

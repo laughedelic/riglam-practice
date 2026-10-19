@@ -1,31 +1,42 @@
 import { state } from "../state.js";
 import { closeChat } from "./chat.js";
 import { toggleOpts } from "./options.js";
+import { setTab } from "./tabs.js";
 
 /* ---------- the system Back (key, button, swipe) ---------- */
-// Options and the tutor chat open over the page without a new address, so on a phone Back would leave the app. Each one that opens adds one history
-// entry (same address), and Back takes it off again and closes the overlay. Closing from the page (its own Back button, Escape) closes at once and
-// then takes the entry off, so the page never waits for the browser. The Claude artifact's frame is left alone (its history is the host's), and where
-// the browser refuses an entry nothing changes: the overlay then closes with its own button only.
-const MARK="riglamOverlay";
+// The app has one address, so on a phone Back would leave it. Instead the page keeps one history entry (same address) for each level
+// above Home that is open: an exercise or Review, then the tutor chat view, then Options. Back takes one off and closes that level:
+// Options, then the chat, then the exercise or Review (back to Home); Back on Home leaves the app. Moving between exercises and Review
+// replaces the level instead of adding one. The page only sets the state (open a screen, close a panel); after each render the number
+// of entries is brought in line with it (`navSync`). Each entry carries its depth, so a step forward onto an entry whose level is gone is
+// told apart from a step back, and taken back. The Claude artifact's frame is left alone (its history is the host's), and where the
+// browser refuses an entry nothing changes: every level still closes with its own button.
+const MARK="riglamNav";
 const canPush=()=>{ try{ return window.parent===window; }catch(e){ return false; } };
-function back(){ state.ovPending++; try{ history.back(); }catch(e){ state.ovPending--; } }
-export function overlayOpened(){
-  if(!canPush()) return;
-  try{ history.pushState({[MARK]:true},""); state.ovPushed++; }catch(e){}
+// how many levels are open above Home, from the state alone
+const depth=()=>(state.tab!=="home"?1:0)+(state.view==="chat"?1:0)+(state.optsOpen?1:0);
+function sync(){
+  state.navQ=false;
+  if(state.navSkip>0||!canPush()) return;
+  const want=depth(), have=state.navDepth;
+  try{
+    if(want>have){ for(let d=have+1;d<=want;d++) history.pushState({[MARK]:d},""); state.navDepth=want; }
+    else if(want<have){ state.navSkip++; state.navDepth=want; history.go(want-have); }
+  }catch(e){ state.navSkip=0; state.navDepth=want; }
 }
-export function overlayClosed(){
-  if(state.ovPushed<1) return;
-  state.ovPushed--; back();
+// Called after each render. Several renders of one action (close Options, open an exercise) are settled together, once.
+export function navSync(){ if(!state.navQ){ state.navQ=true; queueMicrotask(sync); } }
+// Back closes the top level: Options, then the chat view, then the exercise or Review.
+function closeTop(){
+  if(state.optsOpen) toggleOpts(false); else if(state.view==="chat") closeChat(); else if(state.tab!=="home") setTab("home");
 }
 addEventListener("popstate",e=>{
-  if(state.ovPending>0){ state.ovPending--; return; }                       // the end of a step back the page took itself
-  if(state.ovPushed>0){
-    state.ovPushed--;
-    if(state.optsOpen) toggleOpts(false,true); else if(state.view==="chat") closeChat(true);
-    return;
-  }
-  if(e.state&&e.state[MARK]) back();                                          // forward onto an entry whose overlay is gone: step back again
+  if(state.navSkip>0){ state.navSkip--; if(!state.navSkip) navSync(); return; }   // the end of a step back the page took itself
+  const at=e.state&&e.state[MARK]||0;
+  if(at<state.navDepth){
+    state.navDepth=at;
+    for(let n=depth();n>at;n--) closeTop();                                      // each close renders; navSync then finds nothing to do
+  } else if(at>state.navDepth){ state.navSkip++; history.go(state.navDepth-at); } // forward onto an entry whose level is gone: step back again
 });
-// After a reload on such an entry the overlay is gone but the entry stays: it becomes an ordinary one.
+// After a reload on such an entry the app is on Home again but the entry stays: it becomes an ordinary one.
 try{ if(history.state&&history.state[MARK]) history.replaceState(null,""); }catch(e){}

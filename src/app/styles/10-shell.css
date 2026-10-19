@@ -24,8 +24,8 @@ button:focus-visible{box-shadow:var(--focus-ring)}
 .tabbar{display:grid;grid-template-columns:repeat(3,1fr);flex:none;height:56px;border-top:1.5px solid var(--ink);background:var(--paper)}
 .tabbar button{display:grid;place-items:center;align-content:center;gap:4px;border:0;background:transparent;font:700 11px/14px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-muted);cursor:pointer}
 .tabbar i,.nv i{width:10px;height:10px;clip-path:var(--rhombus);background:var(--line);flex:none}
-.tabbar button[aria-selected="true"]{color:var(--ink);box-shadow:inset 0 4px 0 var(--vermilion)}
-.tabbar button[aria-selected="true"] i,.nv[aria-selected="true"] i{background:var(--marigold)}
+.tabbar button[aria-current="page"]{color:var(--ink);box-shadow:inset 0 4px 0 var(--vermilion)}
+.tabbar button[aria-current="page"] i,.nv[aria-current="page"] i{background:var(--marigold)}
 html.typing .tabbar{display:none}
 
 .work{flex:1;min-height:0;display:flex;flex-direction:column;padding-inline:16px}
