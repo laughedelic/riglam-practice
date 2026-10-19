@@ -9,7 +9,7 @@ import { freshUi } from "../practice/queue.js";
 import { clearSkip } from "../practice/skips.js";
 import { focusCin, render, top0 } from "../shell/render.js";
 import { switchTo } from "../shell/tabs.js";
-import { drawRelation, findPair, gradeFind, nameThing, sameThing } from "../../domain/find.ts";
+import { drawRelation, findId, findPair, gradeFind, nameThing, sameThing } from "../../domain/find.ts";
 
 /* ---------- Find a pair: the usual exercise the other way round ---------- */
 // The learner is given a relation and names two phenomena that stand in it, then writes an example for each cell the relation leaves possible, as in Relations.
@@ -102,10 +102,11 @@ export function checkFind(){
   if(u.res.relOpen) u.doc.relOpen=true;
   persist(u,"Your answer");
 }
-/** Opens a pair that was skipped (Review, Skipped) at its examples, for the relation that was asked for then (it counts as asked, so the draw after it leaves it out). The relation the learner has picked is not changed. */
+/** Opens a pair that was skipped (Review, Skipped) at its examples, for the relation that was asked for then (it counts as asked, so the draw after it leaves it out). The relation the learner has picked is not changed. The attempt has an id of its own, as it is the id of the answer: another relation chosen here leaves the skip on the list, and answering that later must not replace this answer. */
 export function resumeFind(pair,rel){
   switchTo("find");
   const p=JSON.parse(JSON.stringify(pair));       // a copy: the skipped pair stays as it was kept
+  p.id=findId();
   state.cur=/** @type {any} */({p,find:true});
   state.ui=Object.assign(freshFindUi(asked(rel||p.relation)),{step:1, wordA:p.a, wordB:p.b, own:!!p.own, focusA:false});
   state.mode="quiz"; render(); top0();

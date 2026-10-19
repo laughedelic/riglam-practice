@@ -9,7 +9,7 @@ import type { CellId, DrillData, RelKey } from "../../src/ai-shared";
 import {
   FEATURE, RECENT_MAX, AUTO_FLAGS, applyVerdicts, autoFlagOf, decideFlag, factNote, fitOf, flagAnswerRef, flagAsked, flagStateText, flaggedPart, noteParts, buildPool, cellsFor, chooseEntry, deriveRel, grade, gradeDebate, gradeOf, inUniverse, isMiss, judgeText, makePair,
   nextPair, pairKey, parseFactLine, parseVerdicts, pick, relOfCells, summarize, termLine, cellFor, cellOfFacts, disputeText, divided, quorumDisputes, quorumRows, readings,
-  FIND_RELS, applyRelationVerdict, drawRelation, findPair, gradeFind, judgeable, nameThing, pairOf, parseRelationVerdict, sameThing,
+  FIND_RELS, applyRelationVerdict, drawRelation, findId, findPair, gradeFind, judgeable, nameThing, pairOf, parseRelationVerdict, sameThing,
 } from "../../src/domain";
 import type { DebateInput, GradeDraft, HistoryEntry, Pair, PoolEntry } from "../../src/domain";
 import openData from "../../src/data/drill-data.json";
@@ -782,6 +782,12 @@ test("the relation to ask for is one of the five, never the one turned down, and
   expect(count([], "mi").mi).toBe(0);
   expect(count([null, undefined, "x" as RelKey]).mi).toBeGreaterThan(0); // answers of other modes and old ones carry no relation, or an unknown one
   expect(drawRelation([], () => 0.999999999)).toBe("con"); // the last of the list is where a random source at the top ends up
+});
+
+test("every attempt at a pair of this mode has an id of its own, in the form of the pair ids", () => {
+  expect(findId(seeded(1), () => 1_700_000_000_000)).toMatch(/^f-[0-9a-z]+$/);
+  expect(findId(seeded(1), () => 1_700_000_000_000)).not.toBe(findId(seeded(2), () => 1_700_000_000_000));
+  expect(findId()).not.toBe(findId());
 });
 
 test("a pair the data can judge is made as the draw makes its pairs, under the learner's labels; any other is the learner's own", () => {

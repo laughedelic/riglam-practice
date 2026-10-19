@@ -437,3 +437,27 @@ test("a pair opened again from Review counts as asked, so the next relation is a
   await page.getByRole("button", { name: "Next relation" }).click();
   expect(await relation(page)).not.toBe("Mutually inclusive");
 });
+
+test("a skipped pair answered for another relation and then again for its own keeps both answers", async ({ page }, testInfo) => {
+  await open(page);
+  await goFind(page, testInfo);
+  await askFor(page, "Mutually inclusive");
+  await usePair(page, "my cat", "my dog");
+  await skip(page, testInfo).click();
+  await expect.poll(async () => (await skipDocs(page)).length).toBe(1);
+  await tabNamed(page, testInfo, "Review").click();
+  await page.locator(".skips li").getByRole("button", { name: "Practice" }).click();
+  await askFor(page, "Four possibilities"); // another relation: the skip, kept under the first one, stays on the list
+  await examples(page, testInfo, { both: "a pet", anb: "a cat", bna: "a dog", nei: "a stone" });
+  await expect(headline(page)).toHaveText("Your pair is waiting for Claude.");
+  await expect.poll(async () => (await saved(page)).length).toBe(1);
+  await expect.poll(async () => (await skipDocs(page)).length).toBe(1);
+  await tabNamed(page, testInfo, "Review").click();
+  await page.locator(".skips li").getByRole("button", { name: "Practice" }).click();
+  expect(await relation(page)).toBe("Mutually inclusive");
+  await examples(page, testInfo, { both: "a pet", nei: "a stone" });
+  await expect(headline(page)).toHaveText("Your pair is waiting for Claude.");
+  await expect.poll(async () => (await saved(page)).length).toBe(2);
+  const ids = (await saved(page)).map((d) => d.pairId);
+  expect(new Set(ids).size).toBe(2);
+});

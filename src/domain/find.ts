@@ -54,6 +54,9 @@ export function nameThing(ix: DataIndex, text: string): Named {
 /** Whether two named phenomena are the same one (the same words, or the same label of a category). */
 export const sameThing = (x: Named, y: Named): boolean => !!spelled(x.label) && spelled(x.label) === spelled(y.label);
 
+/** A new id for a pair of this mode: it is the id of the answer kept for it, so every attempt (also one at a pair opened again from the skipped ones) has its own. */
+export const findId = (rng: Rng = Math.random, now: Clock = Date.now): string => "f-" + now().toString(36) + rng().toString(36).slice(2, 6);
+
 /**
  * The pair the learner named, for the relation asked for. A pair of practice categories the data can judge is made as the draw makes its pairs
  * (the relation it really has, an example for each cell that has one, the reason for each that has none), under the learner's labels. Any other
@@ -68,7 +71,7 @@ export function findPair(ix: DataIndex, asked: RelKey, a: Named, b: Named, rng: 
     return p;
   }
   return {
-    id: "f-" + now().toString(36) + rng().toString(36).slice(2, 6), a: a.label, b: b.label, catA: a.cat, catB: b.cat,
+    id: findId(rng, now), a: a.label, b: b.label, catA: a.cat, catB: b.cat,
     typeA: "", typeB: "", relation: asked, ex: {}, why: {}, own: true,
   };
 }
