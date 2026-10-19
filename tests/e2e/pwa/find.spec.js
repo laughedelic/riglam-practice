@@ -8,14 +8,14 @@ import { withCourse } from "../../support/data-key.js";
 const sse = (...events) => events.map((e) => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`).join("");
 const say = (text) => sse({ type: "delta", text }, { type: "done", truncated: false });
 
-/** The page with a hook on its internals, and a stand-in server whose tutor answers `text` to every question. */
+/** The page with a hook on its internals, and a stand-in server whose tutor answers `text` to every question (a list: to the first question the first, and so on, the last one again after that). */
 async function open(page, text = "Stand-in tutor: no verdict.") {
   await page.addInitScript(() => { window.__riglamTest = (api) => { window.__t = api; }; });
-  const asked = [];
+  const asked = [], replies = [].concat(text);
   await page.route("**/api/health", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, tutor: "on" }) }));
   await page.route("**/api/tutor", (route) => {
     asked.push(route.request().postDataJSON());
-    return route.fulfill({ status: 200, contentType: "text/event-stream", body: say(text) });
+    return route.fulfill({ status: 200, contentType: "text/event-stream", body: say(replies[Math.min(asked.length, replies.length) - 1]) });
   });
   await page.goto("/");
   await ready(page);
@@ -156,6 +156,40 @@ withKey("when the tutor says the pair has another relation, the answer is wrong 
   await expect(page.locator(".vpanel")).toContainText("four possibilities");
   const [doc] = await saved(page);
   expect(doc).toMatchObject({ chosen: "con", key: "4", correct: false });
+});
+
+withKey("asking again after an answer that settled nothing shows the new explanation, not the first", async ({ page }, testInfo) => {
+  test.skip(!isPhone(testInfo), "the explanation inside the result is the phone layout's; the wide one lists every turn");
+  const asked = await open(page, [
+    "Relation: Mutually exclusive => unsure\nExplanation: FIRST-ANSWER",
+    "Relation: Four possibilities => no\nExplanation: SECOND-ANSWER",
+  ]);
+  await goFind(page, testInfo);
+  await askFor(page, "Mutually exclusive");
+  await usePair(page, "red apples", "pears");
+  await examples(page, testInfo, { anb: "a red apple", bna: "a green pear", nei: "a stone" });
+  await page.getByRole("button", { name: /^explain$|check and explain/i }).click();
+  await expect(headline(page)).toHaveText("Claude could not settle your pair.");
+  await page.getByRole("button", { name: "Ask again" }).click();
+  await expect(headline(page)).toHaveText("That pair is not mutually exclusive.");
+  expect(asked).toHaveLength(2);
+  await expect(page.locator(".vpanel")).toContainText("SECOND-ANSWER"); // the Why panel opens on its own when Claude answers
+  await expect(page.locator(".vpanel")).not.toContainText("FIRST-ANSWER");
+});
+
+test("Review does not say a cell is empty when Claude has not judged the pair", async ({ page }, testInfo) => {
+  await open(page);
+  await goFind(page, testInfo);
+  await askFor(page, "Mutually exclusive");
+  await usePair(page, "red apples", "pears");
+  await examples(page, testInfo, { anb: "a red apple", bna: "a green pear", nei: "a stone" });
+  await expect(headline(page)).toHaveText("Your pair is waiting for Claude.");
+  await (isPhone(testInfo) ? page.locator(".tabbar button", { hasText: "Review" }) : page.locator(".rail .nv", { hasText: "Review" })).click();
+  await page.locator("#stage .favs.mist summary").first().click();
+  const body = page.locator("#stage .xbody");
+  await expect(body).toContainText("Claude had not judged the pair.");
+  await expect(body).toContainText("Empty by the relation asked for.");
+  await expect(body).not.toContainText("Nothing goes here.");
 });
 
 test("Review counts the Find a pair answers on their own", async ({ page }, testInfo) => {

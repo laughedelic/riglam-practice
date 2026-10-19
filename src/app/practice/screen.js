@@ -125,9 +125,15 @@ export function factNode(f,head,where,ctx){
       return el("li",null,...body,...keys.map(defCard));
     })),parts.filter(p=>p.kind==="end").map(p=>el("p",{text:p.text})));
 }
+// the newest explanation (a pair of one's own that Claude left unsettled can be asked again): the notes and the Why panel show that one, earlier turns stay in the chat
+function latestExplain(ok=/** @type {(t:any)=>boolean} */(()=>true)){
+  const chat=(state.ui&&state.ui.chat)||[];
+  for(let i=chat.length-1;i>=0;i--){ const t=chat[i]; if(t.role==="assistant"&&t.kind==="explain"&&ok(t)) return t; }
+  return null;
+}
 export function explainParts(){
   const out={cells:{},facts:{},rest:[]};
-  const a=state.ui&&state.ui.chat&&state.ui.chat.find(t=>t.role==="assistant"&&t.kind==="explain"&&!t.pending&&t.content);
+  const a=latestExplain(t=>!t.pending&&t.content);
   if(!a) return out;
   for(const ln0 of a.content.split("\n")){
     const f=parseFactLine(ln0); if(f){ out.cells[f.cell]=factText(f); out.facts[f.cell]=f; continue; }
@@ -311,7 +317,7 @@ export function fillTurn(node,t,lean){
 }
 function inlineExplain(){
   if(!state.ui.chat&&!state.ui.chatErr) return null;
-  const box=el("div",{class:"tutor"}), first=(state.ui.chat||[]).find(t=>t.role==="assistant");
+  const box=el("div",{class:"tutor"}), first=latestExplain()||(state.ui.chat||[]).find(t=>t.role==="assistant");
   if(first){ const a=el("div",{class:"ans",id:first.pending&&state.view!=="chat"?"ans-live":null}); fillTurn(a,first,true); decorateAns(a,first,state.ui.chat.indexOf(first),false); box.append(a); }
   if(state.ui.chatErr&&state.view!=="chat") box.append(el("p",{class:"status",text:state.ui.chatErr}));
   return box;

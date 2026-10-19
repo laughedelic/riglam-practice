@@ -97,7 +97,8 @@ export interface NoteData { ix: DataIndex; p: PairLike; terms: Terms }
  * grading would: an alias ("an apple" for "a red apple") settles a side such as food, but not one about a feature such as red.
  */
 export function placeFacts(f: FactLine, d?: NoteData): { cats: readonly [string | null, string | null]; cls: string; answers: readonly [Answer, Answer] } {
-  if (!d) return { cats: [null, null], cls: "", answers: [f.a.answer, f.b.answer] };
+  // a pair of the learner's own (Find a pair) is one the data cannot judge, so everything about its examples is the tutor's, even when both phenomena are categories
+  if (!d || d.p.own) return { cats: [null, null], cls: "", answers: [f.a.answer, f.b.answer] };
   const cats = pairCats(d.ix, d.p), any = cats[0] ? listedItem(d.ix, d.p, f.example, false) : null;
   const on = (cid: string | null, s: Side): Answer => {
     const it = cid && any ? (FEATURE.has(cid) ? listedItem(d.ix, d.p, f.example, true) : any) : null;
@@ -214,7 +215,7 @@ export function parseRelationVerdict(text: string | null | undefined, asked: Rel
 /**
  * Settles the relation of the learner's own pair with the tutor's verdict, and with it the cells the relation asked for leaves empty: they are
  * right when the pair has that relation, or when the relation it has leaves them empty too, and wrong when it does not (something belongs
- * there). Changes `p` (the relation it has, when the tutor named one) and `res`, and counts again. Returns whether the verdict settled anything;
+ * there). A cell left blank that the asked relation leaves possible is right after all when the relation the pair has leaves it empty. Changes `p` (the relation it has, when the tutor named one) and `res`, and counts again. Returns whether the verdict settled anything;
  * an "unsure" closes the question without settling it.
  */
 export function applyRelationVerdict(p: PairLike, res: GradeResult, v: RelationVerdict): boolean {
@@ -225,6 +226,8 @@ export function applyRelationVerdict(p: PairLike, res: GradeResult, v: RelationV
   const has = v.rel ? REL[v.rel] : null;
   for (const c of CELLS) {
     const r = res.cells[c];
+    // a blank cell the asked relation leaves possible (the only "bad" occupancy cell an own pair has before this verdict) is right when the relation the pair has leaves it empty
+    if (has && r.v === "bad" && r.kind === "occ" && has.empty.includes(c)) { r.v = "ok"; r.msg = ["Right, empty. ", ""]; continue; }
     if (r.v !== "open") continue;
     if (has && !has.empty.includes(c)) { r.v = "bad"; r.msg = ["Not empty. ", "Something belongs here for your pair; see the explanation."]; }
     else if (has) { r.v = "ok"; r.msg = ["Right, empty. ", ""]; }

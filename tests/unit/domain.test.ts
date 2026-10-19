@@ -913,6 +913,41 @@ test("the tutor's verdict on the relation settles the relation, the pair's own r
   expect(applyRelationVerdict(known, kr, { answer: "no", rel: "4" })).toBe(false);
 });
 
+test("a blank cell the asked relation leaves possible is right after all when the relation the pair has leaves it empty", () => {
+  const blank = (asked: RelKey, verdict: Parameters<typeof applyRelationVerdict>[2]) => {
+    const p = findPair(ix, asked, named("red apples"), named("pears"), seeded(1));
+    const res = gradeFind(ix, p, { rel: asked, cells: cellsOf({ both: "x", anb: "y", nei: "z" }) }); // B not A is left blank
+    expect([res.cells.bna.v, res.cells.bna.msg[0], res.occBad]).toEqual(["bad", "Missing. ", 1]);
+    applyRelationVerdict(p, res, verdict);
+    return res;
+  };
+  // four possibilities was asked and the pair is mutually inclusive: nothing goes in B not A, so the blank was right
+  let res = blank("4", { answer: "no", rel: "mi" });
+  expect([res.cells.bna.v, res.cells.bna.msg[0], res.occBad, res.overall]).toEqual(["ok", "Right, empty. ", 0, "bad"]);
+  // the pair has the relation asked for, or another one that leaves the cell possible, or the tutor names none: it stays missing
+  res = blank("4", { answer: "yes", rel: "4" });
+  expect([res.cells.bna.v, res.occBad]).toEqual(["bad", 1]);
+  res = blank("4", { answer: "no", rel: "3ab" });
+  expect([res.cells.bna.v, res.occBad]).toEqual(["bad", 1]);
+  res = blank("4", { answer: "no", rel: null });
+  expect([res.cells.bna.v, res.occBad]).toEqual(["bad", 1]);
+});
+
+test("the tutor alone places the examples of a pair of the learner's own, also when both phenomena are categories the data cannot judge", () => {
+  const own = findPair(ix, "mi", named("gray things"), named("wooden things"), seeded(1));
+  expect(own.own).toBe(true);
+  expect([own.catA, own.catB]).toEqual(["gray", "wooden"]); // listed as a pair the data cannot judge (nopair)
+  const line = 'Both: "a wooden chair" | class: Form | A yes: it is painted gray | B yes: it is made of wood';
+  const terms = { a: "a gray thing", b: "a wooden thing" };
+  // the tutor accepts the chair as both; the data would say it is not gray, but this is not a pair the data answers for
+  expect(parseVerdicts(line, { ix, p: own, terms })).toEqual([{ cell: "both", answer: "yes" }]);
+  expect(noteParts(parseFactLine(line)!, false, { ix, p: own, terms }).some((n) => n.kind === "end")).toBe(false);
+  // the same line for a pair the data does answer for is placed by the data
+  const known = { ...own, own: false };
+  expect(parseVerdicts(line, { ix, p: known, terms })).toEqual([{ cell: "both", answer: "no" }]);
+  expect(noteParts(parseFactLine(line)!, false, { ix, p: known, terms }).some((n) => n.kind === "end")).toBe(true);
+});
+
 test("every label of every category of the real data names that category, and its plural or singular too", () => {
   for (const c of real.cats) {
     for (const l of c.labels) {

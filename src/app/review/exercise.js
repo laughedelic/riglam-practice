@@ -10,7 +10,7 @@ import { switchTo } from "../shell/tabs.js";
 
 /* ---------- a stored answer as it was checked: the relation, the four cells and Claude's explanation ---------- */
 // Shown under a mistake and under a flag in Review, so the exercise can be read again without practicing it.
-const VERDICT={ok:"Right.",bad:"Wrong.",cmp:"Not checked.",part:"Partly right."};
+const VERDICT={ok:"Right.",bad:"Wrong.",cmp:"Not checked.",open:"Not checked.",part:"Partly right."};
 // a cell the relation leaves empty has no reference; any other cell without one is an older pair that did not keep it
 const emptyBy=(p,c)=>!!REL[p.relation]&&REL[p.relation].empty.includes(c);
 function storedCell(doc,p,c){
@@ -25,7 +25,7 @@ function storedCell(doc,p,c){
   return el("div",{class:"cell"+(none?" locked":"")+(v?" v-"+v:""),"aria-label":cellLabel(c,p)},
     debate?el("span",{class:"qn",text:"Q"+(i+1)}):null,
     none?el("span",{class:"empty",text:debate&&q&&q.say==="accept"?"Accepted":"∅"}):left?el("span",{class:"noans",text:"No answer"}):el("span",{class:"cx",text:text}),
-    el("div",{class:"fb"},VERDICT[v]?el("b",{text:VERDICT[v]+" "}):null,ref?"Reference: "+ref+".":why||(emptyBy(p,c)?"Nothing goes here.":"No reference was kept."),by==="claude"?el("i",{text:" Checked by Claude."}):null));
+    el("div",{class:"fb"},VERDICT[v]?el("b",{text:VERDICT[v]+" "}):null,ref?"Reference: "+ref+".":why||(v==="open"?"Empty by the relation asked for.":emptyBy(p,c)?"Nothing goes here.":"No reference was kept."),by==="claude"?el("i",{text:" Checked by Claude."}):null));
 }
 export const storedPair=doc=>doc.pair||/** @type {import("../types.ts").Pair} */({a:doc.a,b:doc.b,relation:doc.key,ex:{},why:{}});
 // what a note of Claude's is read against in Review: the stored pair and the questions the learner accepted, not the exercise on screen
