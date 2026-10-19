@@ -3,7 +3,7 @@
 // practice data (and the data can judge the pair) the answer is graded exactly like the usual exercise's, with the relation asked for taken as
 // the relation "chosen". Otherwise the page can settle nothing itself: the pair is the learner's own (`own`), and the relation and the examples
 // wait for the tutor (see `applyRelationVerdict` in verdict.ts).
-import { categoryOf, spelled, stripDet } from "../ai-shared/lookup";
+import { categoryOf, spelled, stemmed, stripDet } from "../ai-shared/lookup";
 import type { DataIndex } from "../ai-shared/lookup";
 import { pluralOf } from "../ai-shared/mentions";
 import { CELLS, REL } from "../ai-shared/relations";
@@ -48,7 +48,7 @@ export function nameThing(ix: DataIndex, text: string): Named {
   if (!cat) return { label: typed, cat: null };
   const k = stripDet(spelled(typed)), want = new Set([k, pluralOf(k), k.replace(/ies$/, "y"), k.replace(/(?:es|s)$/, "")]);
   const labels = ix.CAT[cat].labels;
-  return { label: labels.find((l) => want.has(spelled(l))) ?? labels[0], cat };
+  return { label: labels.find((l) => want.has(spelled(l))) ?? labels.find((l) => stemmed(spelled(l)) === stemmed(k)) ?? labels[0], cat };
 }
 
 /** Whether two named phenomena are the same one (the same words, or the same label of a category). */

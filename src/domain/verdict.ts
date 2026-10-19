@@ -169,12 +169,14 @@ export function parseVerdicts(text: string | null | undefined, d?: NoteData): Ce
 /**
  * Settles the cells that are still open ("cmp") with the verdicts, in order, and counts the result again. Changes
  * `res` in place. Returns how many cells a verdict settled (an "unsure" counts: it closes the question, not the cell).
+ * With `again` (Claude is asked a second time about a pair of the learner's own that its first answer left unsettled) a cell that
+ * Claude settled before is settled again by the new answer; the cells the page graded itself are never touched.
  */
-export function applyVerdicts(p: PairLike, res: GradeResult, verdicts: readonly CellVerdict[]): number {
+export function applyVerdicts(p: PairLike, res: GradeResult, verdicts: readonly CellVerdict[], again = false): number {
   let n = 0;
   for (const { cell: c, answer: ok } of verdicts) {
     const r = res.cells[c];
-    if (!r || r.v !== "cmp") continue;
+    if (!r || (r.v !== "cmp" && !(again && r.by === "claude"))) continue;
     const ref = refOf(p, c);
     r.v = ok === "yes" ? "ok" : ok === "no" ? "bad" : "cmp"; r.uns = ok === "unsure"; r.by = "claude"; n++;
     r.msg = ok === "yes" ? ["Verified", "", "by Claude"] : ok === "no" ? ["Does not fit", ref ? ". Example: " + ref + "." : "", "by Claude"] : ["Unsure. ", "Claude could not settle it; see below." + (ref ? " Reference: " + ref + "." : "")];

@@ -161,8 +161,8 @@ withKey("when the tutor says the pair has another relation, the answer is wrong 
 withKey("asking again after an answer that settled nothing shows the new explanation, not the first", async ({ page }, testInfo) => {
   test.skip(!isPhone(testInfo), "the explanation inside the result is the phone layout's; the wide one lists every turn");
   const asked = await open(page, [
-    "Relation: Mutually exclusive => unsure\nExplanation: FIRST-ANSWER",
-    "Relation: Four possibilities => no\nExplanation: SECOND-ANSWER",
+    'Relation: Mutually exclusive => unsure\nA not B: "a red apple" | class: Apple | A yes: it is a red apple | B yes: it is a pear\nExplanation: FIRST-ANSWER',
+    'Relation: Four possibilities => no\nA not B: "a red apple" | class: Apple | A yes: it is a red apple | B no: it is an apple\nExplanation: SECOND-ANSWER',
   ]);
   await goFind(page, testInfo);
   await askFor(page, "Mutually exclusive");
@@ -170,11 +170,21 @@ withKey("asking again after an answer that settled nothing shows the new explana
   await examples(page, testInfo, { anb: "a red apple", bna: "a green pear", nei: "a stone" });
   await page.getByRole("button", { name: /^explain$|check and explain/i }).click();
   await expect(headline(page)).toHaveText("Claude could not settle your pair.");
+  await expect.poll(async () => (await saved(page))[0].cells.anb.verdict).toBe("bad"); // the first answer turned the example down
+  await expect(page.getByRole("button", { name: /^Discuss with AI/ })).toBeVisible(); // the follow-up chat stays next to Ask again
   await page.getByRole("button", { name: "Ask again" }).click();
   await expect(headline(page)).toHaveText("That pair is not mutually exclusive.");
   expect(asked).toHaveLength(2);
   await expect(page.locator(".vpanel")).toContainText("SECOND-ANSWER"); // the Why panel opens on its own when Claude answers
   await expect(page.locator(".vpanel")).not.toContainText("FIRST-ANSWER");
+  await expect.poll(async () => (await saved(page))[0].cells.anb.verdict).toBe("ok"); // and the second answer took the example back
+});
+
+test("the singular form of a compound label names the category, so the pair is graded on the spot", async ({ page }, testInfo) => {
+  await open(page);
+  await goFind(page, testInfo);
+  await usePair(page, "a thing that changes", "a thing you can eat");
+  expect(await page.evaluate(() => [window.__t.cur.p.own, window.__t.cur.p.a, window.__t.cur.p.b])).toEqual([undefined, "things that change", "things you can eat"]);
 });
 
 test("Review does not say a cell is empty, or give a reference, when Claude has not judged the pair", async ({ page }, testInfo) => {

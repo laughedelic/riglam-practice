@@ -324,11 +324,15 @@ function inlineExplain(){
 }
 // the left button of the action row, beside Next pair: Explain, while Claude answers Stop, afterwards the follow-up chat
 export function tutorAct(){
-  const eb=explainBtn(); if(eb) return eb;
+  const eb=explainBtn();
+  // "Ask again" (a pair of one's own that Claude left unsettled) comes with the discussion, since Claude may have asked something to answer
+  if(eb&&!(state.ui.explained&&state.ui.chat&&canAsk())) return eb;
   if(!state.ui.chat||!canAsk()) return null;
   if(state.ui.ctl) return el("button",{class:"btn ghost",type:"button",onclick:()=>state.ui.ctl&&state.ui.ctl.abort(),text:"Stop"});
   const n=state.ui.chat.filter(t=>t.role==="user"&&!t.hidden).length;
-  return el("button",{class:"btn ghost stage-chat",type:"button",onclick:openChat,text:n?"Discuss with AI · "+n:"Discuss with AI"});
+  const discuss=el("button",{class:"btn ghost stage-chat",type:"button",onclick:openChat,text:n?"Discuss with AI · "+n:"Discuss with AI"});
+  if(!eb) return discuss;
+  const both=document.createDocumentFragment(); both.append(eb,discuss); return both;
 }
 function quizNarrow(s){
   const p=state.cur.p, stp=state.ui.checked?2:(!state.ui.rel||state.ui.open)?0:1;

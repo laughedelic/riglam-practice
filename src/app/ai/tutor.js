@@ -17,7 +17,8 @@ const TIER="default";
 // The card, the standing instructions, the explain request and the tools are built in src/ai-shared from the term data,
 // so that the Worker tutor produces the same text; the page passes `state` as the data index.
 function applyVerify(text,U,C){
-  let n=applyVerdicts(C.p,U.res,parseVerdicts(text,noteData(C.p))); // the cells settle as the notes read
+  // a pair of the learner's own that Claude has not settled can be asked about again: the new answer then replaces what Claude said about the examples before
+  let n=applyVerdicts(C.p,U.res,parseVerdicts(text,noteData(C.p)),!!(U.find&&C.p.own&&U.res.relOpen)); // the cells settle as the notes read
   // Find a pair, a pair of the learner's own: the tutor says whether it has the relation asked for, which settles that and the cells the relation leaves empty
   if(U.find&&C.p.own){ const v=parseRelationVerdict(text,U.rel); if(v&&applyRelationVerdict(C.p,U.res,v)) n++; }
   if(n&&state.db&&U.doc&&U.saveId){

@@ -965,6 +965,40 @@ test("the tutor alone places the examples of a pair of the learner's own, also w
   expect(noteParts(parseFactLine(line)!, false, { ix, p: known, terms }).some((n) => n.kind === "end")).toBe(true);
 });
 
+test("the learner's words name a category of the real data also in the singular form of a compound label", () => {
+  const cat = (t: string) => nameThing(rix, t);
+  expect(cat("a thing that changes")).toEqual({ label: "things that change", cat: "ft" });
+  expect(cat("A thing you can eat.")).toEqual({ label: "things you can eat", cat: "food" });
+  expect(cat("an object of eye consciousness")).toEqual({ label: "objects of eye consciousness", cat: "vis" });
+  expect(cat("a sense consciousness").cat).toBe("sense");
+  expect(cat("the metal things")).toEqual({ label: "metal things", cat: "metal" });
+  expect(cat("a thing that changes").label).not.toBe("functional things"); // the label shown is the one the words matched, not the first of the category
+  expect(cat("a thing that changes slowly").cat).toBeNull();
+  // two spellings of one phrase are the same phenomenon to type twice
+  expect(sameThing(cat("a thing you can eat"), cat("things you can eat"))).toBe(true);
+  // a loose match never takes a label of another category: every label still names its own category
+  for (const c of real.cats) for (const l of c.labels) expect(rix.CAT[nameThing(rix, l).cat as string].labels, l).toContain(l);
+});
+
+test("asking Claude again about a pair of the learner's own replaces what it said about the examples before, and never what the page graded", () => {
+  const p = findPair(ix, "4", named("red apples"), named("pears"), seeded(1));
+  const fresh = () => gradeFind(ix, p, { rel: "4", cells: cellsOf({ both: "a", anb: "b", nei: "c" }) }); // B not A is left blank: the page graded it "Missing"
+  const first: Parameters<typeof applyVerdicts>[2] = [{ cell: "both", answer: "no" }, { cell: "anb", answer: "yes" }, { cell: "bna", answer: "yes" }];
+  const second: Parameters<typeof applyVerdicts>[2] = [{ cell: "both", answer: "yes" }, { cell: "anb", answer: "unsure" }, { cell: "bna", answer: "yes" }];
+  // as it was: the first verdicts stand
+  let res = fresh();
+  applyVerdicts(p, res, first);
+  expect(applyVerdicts(p, res, second)).toBe(0); // nothing is open any more
+  expect([res.cells.both.v, res.cells.anb.v]).toEqual(["bad", "ok"]);
+  // asked again: the second answer settles the cells Claude settled before
+  res = fresh();
+  applyVerdicts(p, res, first);
+  applyVerdicts(p, res, second, true);
+  expect([res.cells.both.v, res.cells.both.by, res.cells.anb.v, res.cells.anb.uns]).toEqual(["ok", "claude", "cmp", true]);
+  // the cell the page graded itself (left blank, "Missing") is never taken over by a verdict
+  expect([res.cells.bna.v, res.cells.bna.msg[0], res.cells.bna.by]).toEqual(["bad", "Missing. ", undefined]);
+});
+
 test("every label of every category of the real data names that category, and its plural or singular too", () => {
   for (const c of real.cats) {
     for (const l of c.labels) {
