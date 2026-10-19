@@ -92,7 +92,9 @@ export interface FavDoc {
 
 /** collection `skips`: a pair hidden for a while; `n` counts how often it was skipped. */
 export interface SkipDoc extends FavDoc {
-  from: "debate" | "practice";
+  from: "debate" | "practice" | "find";
+  /** Find a pair: the relation that was asked for when the pair was skipped (the key is `f_` plus that relation and the words, not the categories) */
+  asked?: RelKey;
   n: number;
 }
 
@@ -186,8 +188,10 @@ export interface SkipNote {
   key: string;
   had: SkipDoc | undefined;
   debate: boolean;
+  /** Find a pair: Undo gives back the screen that was skipped (`prev.ui`, with the examples written) and the relations asked lately (`prev.fa`) */
+  find?: boolean;
   ui: Ui | null;
-  prev: { cur: Current | null; rq: Pair[]; rt: string };
+  prev: { cur: Current | null; rq: Pair[]; rt: string; ui?: Ui | null; fa?: RelKey[] };
   tid: number;
 }
 
@@ -256,6 +260,10 @@ export interface State {
   recent: string[];
   /** the relations Find a pair asked for lately, oldest first */
   findAsked: RelKey[];
+  /** the relation Find a pair keeps asking for, picked by the learner (`rd-findrel`); null: a different one each time */
+  findRel: RelKey | null;
+  /** Find a pair offers the terms of the course while the pair is typed (Options, `rd-findsuggest`) */
+  findSuggest: boolean;
   lastSig: string;
   fitQ: number;
 

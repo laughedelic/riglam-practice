@@ -1,6 +1,8 @@
 // The page's shared state. These were module-level variables of the old single script; an ES module cannot assign to a binding it
 // imports, so they are properties of one object. The preference reads below fill in what this device saved.
 
+import { FIND_RELS } from "../domain/find.ts";
+
 /** @type {import("./types.ts").State} */
 export const state = {
   DATA: null,
@@ -34,6 +36,8 @@ export const state = {
   retryQ: [],
   recent: [],
   findAsked: [],   // the relations Find a pair asked for lately, oldest first: the draw of the next one leans away from them (find/flow.js)
+  findRel: null,   // the relation Find a pair keeps asking for once the learner has picked one (`rd-findrel`); null: a different one each time
+  findSuggest: true, // Find a pair offers the terms of the course while the pair is typed (Options, `rd-findsuggest`); off: plain fields
   debates: {},
   own: "practice",
   favs: {},
@@ -89,6 +93,8 @@ try{ if(localStorage.getItem("rd-deflang")==="enru") state.defLang="enru"; }catc
 try{ let q=localStorage.getItem("rd-quorum"); if(q===null){ q=localStorage.getItem("rd-lab"); if(q!==null){ localStorage.setItem("rd-quorum",q); localStorage.removeItem("rd-lab"); } } state.quorumChoice=q===null?null:q!=="0"; }catch(e){}
 try{ state.autoExplain=localStorage.getItem("rd-autoexplain")!=="0"; }catch(e){}
 try{ state.recentOpen=localStorage.getItem("rd-recent")!=="0"; }catch(e){}
+try{ const v=localStorage.getItem("rd-findrel"); if(FIND_RELS.includes(/** @type {any} */(v))) state.findRel=/** @type {any} */(v); }catch(e){}
+try{ state.findSuggest=localStorage.getItem("rd-findsuggest")!=="0"; }catch(e){}
 try{ if(localStorage.getItem("rd-ab")==="0") state.showAB=false; if(localStorage.getItem("rd-full")==="0") state.fullPh=false; }catch(e){}
 try{
   const v=+localStorage.getItem("rd-timer"); if(v>=2000&&v<=120000) state.timerMs=v;
