@@ -42,7 +42,7 @@ function chatInto(o){
   const p=state.cur.p;
   o.append(overHead("Discuss with AI",closeChat,"Back to the result"));
   const v=state.ui.checked&&state.ui.res?{ok:"all right",part:"relation right, not everything else",pend:"relation and cells right",bad:"not quite"}[state.ui.res.overall]:"";
-  o.append(el("p",{class:"ctx"},el("b",{text:p.a+" / "+p.b}),el("small",{text:REL[p.relation].name+(v?" · "+v:"")})));
+  o.append(el("p",{class:"ctx"},el("b",{text:p.a+" / "+p.b}),el("small",{text:(state.ui.find?"Asked for: "+REL[state.ui.rel].name:REL[p.relation].name)+(v?" · "+v:"")})));
   const dock=el("div",{class:"dock"});
   if(state.ui.ctl) dock.append(el("button",{class:"btn ghost",type:"button",onclick:()=>state.ui.ctl&&state.ui.ctl.abort(),text:"Stop"}));
   else if(canAsk()) dock.append(askRow("ask-in"));

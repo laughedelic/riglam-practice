@@ -75,12 +75,12 @@ export function relCap(hint){
   return el("p",{class:"cap"},el("b",{text:r.name+". "}),r.gloss(state.cur.p.a,state.cur.p.b)+".");
 }
 // one cell of the 2x2 table: an example field, or the verdict on it once checked
-function quizCell(c){
+export function quizCell(c){
   const p=state.cur.p, implied=state.ui.rel?REL[state.ui.rel].empty:[], r=state.ui.checked&&state.ui.res.cells[c];
   const vcls=r?" v-"+(r.uns?"uns":r.v):"";
   if(implied.includes(c)){
     return el("div",{class:"cell locked"+vcls,"aria-label":cellLabel(c,p)+": nothing, by your relation"},
-      r&&r.v==="bad"?fbNode(r):el("span",{class:"empty",text:"∅"}),whyBtn(c,p));
+      r&&(r.v==="bad"||r.v==="open")?fbNode(r):el("span",{class:"empty",text:"∅"}),whyBtn(c,p));
   }
   const off=state.ui.checked||!state.ui.rel||state.ui.cells[c].none;
   const inp=el("input",{type:"text",id:"in-"+c,placeholder:state.ui.cells[c].none?"∅":"example",value:state.ui.cells[c].t,disabled:off,"aria-label":cellLabel(c,p),autocomplete:"off"});
@@ -208,22 +208,24 @@ function askAfterKey(){
   Promise.resolve(state.unlock.open()).then(taken=>{ if(taken&&state.ui===U&&canAsk()&&U.checked&&!U.explained&&!U.ctl) ask(null,"explain"); });
 }
 export const explainBtn=()=>{
-  if(!state.ui.checked||state.ui.explained||state.ui.ctl) return null;
-  if(canAsk()) return el("button",{class:"btn ghost",type:"button",onclick:()=>ask(null,"explain"),text:state.ui.res.exOpen?"Check and explain":"Explain"});
+  // a pair of one's own that Claude has not judged (Find a pair) can be asked again
+  if(!state.ui.checked||(state.ui.explained&&!state.ui.res.relOpen)||state.ui.ctl) return null;
+  if(canAsk()) return el("button",{class:"btn ghost",type:"button",onclick:()=>ask(null,"explain"),text:state.ui.explained?"Ask again":state.ui.res.exOpen||state.ui.res.relOpen?"Check and explain":"Explain"});
   // The server has a tutor but this device has no Magic Key: the button is there, grayed, and says what it needs when tapped.
   if(state.unlock&&state.unlock.tutor) return el("button",{class:"btn ghost needs-key",type:"button","aria-disabled":"true",title:"Explain needs the Magic Key",onclick:askAfterKey},lockIcon(),"Explain");
   return null;
 };
 export const nextBtn=()=>el("button",{class:"btn",type:"button",onclick:next,text:state.cur.retry&&!state.retryQ.length?"Back to new pairs":"Next pair"});
 export const kbHints=(...rows)=>el("div",{class:"kbh"},rows.map(([k,t])=>el("span",null,el("b",{text:k}),t)));
-export function recentNode(c,list){
+// `rel(a)` is the relation named under an answer: the pair's, or in Find a pair the one it was asked for
+export function recentNode(c,list,rel=a=>a.key){
   if(!list.length) return;
   c.append(el("details",{class:"recent",open:state.recentOpen,ontoggle:e=>{ state.recentOpen=e.target.open; try{ localStorage.setItem("rd-recent",state.recentOpen?"1":"0"); }catch(_){} }},
     el("summary",{class:"label"},el("span",{class:"rmk","aria-hidden":"true"}),"Recent",el("span",{class:"hint",text:String(list.length)})),
     el("ul",{class:"hist"},list.map(a=>{
       const g=gradeOf(a);
       return el("li",null,el("span",{class:"s "+g,text:{ok:"✓",part:"~",bad:"✗",pend:"?"}[g]||"✗"}),
-        el("span",null,a.a+" / "+a.b,el("small",{text:REL[a.key]?REL[a.key].name:""})),el("small",{text:ago(a.at)}));
+        el("span",null,a.a+" / "+a.b,el("small",{text:REL[rel(a)]?REL[rel(a)].name:""})),el("small",{text:ago(a.at)}));
     }))));
 }
 
@@ -270,13 +272,13 @@ function cellPrompt(c){
 }
 // narrow screens: one cell at a time, the field near the top so the on-screen keyboard never covers it.
 // The last cell's Done shows the result at once; there is no review list.
-function cellView(s){
+export function cellView(s){
   const order=fillable();
   state.ui.ci=Math.max(0,Math.min(state.ui.ci||0,order.length-1)); state.ui.seen=Math.max(state.ui.seen||0,state.ui.ci);
   const c=order[state.ui.ci], last=state.ui.ci===order.length-1;
   // the 2x2 map has the table's layout; a square carries the number of its cell, as in "Cell 2 of 3", and a skipped one stays blank
   const map=el("div",{class:"cmap","aria-hidden":"true"},CELLS.map(k=>el("i",{class:REL[state.ui.rel].empty.includes(k)?"lock":k===c?"now":state.ui.cells[k].t.trim()?"fill":"",text:REL[state.ui.rel].empty.includes(k)?"":String(order.indexOf(k)+1)})));
-  const skipped=SKIPPED(), skipTxt=skipped.length?"Skipped by your relation: "+skipped.map(k=>CELL_FULL[k]).join("; ")+".":"";
+  const skipped=SKIPPED(), skipTxt=skipped.length?(state.ui.find?"Empty by this relation: ":"Skipped by your relation: ")+skipped.map(k=>CELL_FULL[k]).join("; ")+".":"";
   const inp=el("input",{type:"text",id:"cin",placeholder:"example",value:state.ui.cells[c].t,"aria-label":cellLabel(c,state.cur.p),autocomplete:"off",autocapitalize:"off",enterkeyhint:last?"done":"next"});
   inp.addEventListener("input",e=>{state.ui.cells[c].t=e.target.value;});
   const go=()=>{

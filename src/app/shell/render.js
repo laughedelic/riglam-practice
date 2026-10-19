@@ -1,8 +1,9 @@
 import { state } from "../state.js";
 import { $, el } from "../core/dom.js";
-import { dayOf, gradeOf, today } from "../core/util.js";
+import { dayOf, gradeOf, isFind, today } from "../core/util.js";
 import { isWide } from "../core/viewport.js";
 import { renderDebate } from "../debate/screen.js";
+import { renderFind } from "../find/screen.js";
 import { isFav } from "../practice/favorites.js";
 import { placePops, renderQuiz } from "../practice/screen.js";
 import { syncSkipBtn } from "../practice/skips.js";
@@ -17,7 +18,7 @@ import { ensureRelTimer, syncBlitzBtn, tbIcon } from "./timers.js";
 /* ---------- rendering ---------- */
 // One layout state for every tab: wide screens show a rail, the workspace and a coach panel side by side;
 // narrow screens show a top bar, one screen at a time (steps) and a tab bar. Both are built from the same parts.
-const TABS=[["practice","Relations"],["debate","Pervasions"],["review","Review"]];
+const TABS=[["practice","Relations"],["debate","Pervasions"],["find","Find a pair"],["review","Review"]];
 export const CELL_FULL={both:"Both A and B", anb:"A, not B", bna:"B, not A", nei:"Neither A nor B"};
 export function top0(){ for(const id of ["stage","coach","over"]){ const n=$(id); if(n) n.scrollTop=0; } }
 export function ago(iso){
@@ -37,13 +38,14 @@ function renderTabs(){
 // the rail's "Today" block
 export function renderSession(){
   const s=$("today"); s.replaceChildren();
-  const list=Object.values(state.tab==="debate"?state.debates:state.answers).filter(a=>dayOf(a.at)===today());
+  // Find a pair keeps its answers with the Relations answers; each tab counts its own
+  const list=Object.values(state.tab==="debate"?state.debates:state.answers).filter(a=>dayOf(a.at)===today()&&(state.tab==="debate"||isFind(a)===(state.tab==="find")));
   s.append(el("span",{text:"Today"}),el("b",{text:String(list.length)}),
     el("span",{text:list.length?(state.tab==="debate"?"debated":"answered")+", "+list.filter(a=>gradeOf(a)==="ok").length+" fully right":"nothing answered yet"}));
 }
 // the star in the narrow top bar (the wide layout has the Favorite button next to Check)
 function syncFavBtn(){
-  const b=$("mfav"), ok=!!(state.db&&state.mode==="quiz"&&state.cur&&state.cur.p&&state.tab!=="review");
+  const b=$("mfav"), ok=!!(state.db&&state.mode==="quiz"&&state.cur&&state.cur.p&&!state.cur.p.own&&state.tab!=="review");   // a pair of the learner's own (Find a pair) has no categories to keep
   b.hidden=!ok; if(!ok) return;
   const on=isFav(state.cur.p), t=on?"Remove from favorites":"Add to favorites";
   b.replaceChildren(tbIcon("star")); b.setAttribute("aria-pressed",on?"true":"false"); b.setAttribute("aria-label",t); b.title=t+" (F)";
@@ -87,7 +89,7 @@ export function renderKeepFocus(){ const f=btnSig(); render(); btnBack(f); }
 export const focusCin=()=>{ const i=$("cin"); if(i) i.focus({preventScroll:true}); };
 function screenSig(){
   const p=state.cur&&state.cur.p;
-  return [state.tab,state.mode,state.view,state.optsOpen?1:0,isWide()?1:0,p?(p.id||p.a+"|"+p.b):"",state.ui?[state.ui.checked?1:0,state.ui.step||0,state.ui.ci||0,state.ui.rel?1:0,state.ui.open?1:0,state.ui.debate?1:0].join(""):""].join("/");
+  return [state.tab,state.mode,state.view,state.optsOpen?1:0,isWide()?1:0,p?(p.id||p.a+"|"+p.b):"",state.ui?[state.ui.checked?1:0,state.ui.step||0,state.ui.ci||0,state.ui.rel?1:0,state.ui.open?1:0,state.ui.debate?1:0,state.ui.find?1:0].join(""):""].join("/");
 }
 export function render(){
   const sig=screenSig(), keep=sig===state.lastSig?["stage","coach","over","opts"].map(id=>{ const n=$(id); return /** @type {[string, number]} */([id,n?n.scrollTop:0]); }):null;
@@ -107,7 +109,11 @@ function renderNow(){
   if(state.mode==="loading"){ s.append(el("p",{class:"status",text:"Loading."})); renderOver(); return; }
   if(state.mode==="nodata"){ s.append(el("p",{class:"status",text:"The practice data could not be loaded. Reload the page to try again."})); renderOver(); return; }
   if(state.tab==="review") renderReview(s);
-  else if(state.mode==="quiz"){ if(state.tab==="debate"&&state.ui&&state.ui.debate) renderDebate(s,c); else renderQuiz(s,c); }
+  else if(state.mode==="quiz"){
+    if(state.tab==="debate"&&state.ui&&state.ui.debate) renderDebate(s,c);
+    else if(state.tab==="find"&&state.ui&&state.ui.find) renderFind(s,c);
+    else renderQuiz(s,c);
+  }
   renderOver(); restoreFocus(f); placePops(); dropStaleDef();
 }
 

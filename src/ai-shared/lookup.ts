@@ -1,6 +1,7 @@
 // Looking things up in the term data: the index built from it, and matching of free text to a practice item or
 // category. Pure functions of the data, so the page and the Worker tutor resolve a learner's words the same way.
 import type { Cat, DrillData, Item } from "./data";
+import { pluralOf, termNamed } from "./mentions";
 import type { PairLike } from "./relations";
 
 /** The lookup tables over the data. The page keeps the same five fields on its `state`, so `state` can be passed as an index. */
@@ -77,6 +78,17 @@ export function catByLabel(ix: DataIndex, l: unknown): string | null {
 export function pairCats(ix: DataIndex, p: PairLike): [string, string] | [null, null] {
   const a = p.catA || catByLabel(ix, p.a), b = p.catB || catByLabel(ix, p.b);
   return a && b && a !== b ? [a, b] : [null, null];
+}
+/**
+ * The practice category a learner's words name, or null: one of its labels (singular or plural, with or without an article), or its
+ * Dudra term ("Consciousness", "permanent phenomenon"). A phenomenon the practice list has no category for gives null.
+ */
+export function categoryOf(ix: DataIndex, text: unknown): string | null {
+  const k = stripDet(spelled(text));
+  if (!k) return null;
+  for (const t of [k, pluralOf(k), k.replace(/ies$/, "y"), k.replace(/(?:es|s)$/, "")]) if (ix.LABELIDX[t]) return ix.LABELIDX[t];
+  const term = termNamed(ix, k);
+  return (term && ix.DATA.cats.find((c) => c.kind === "dudra" && c.term === term)?.id) || null;
 }
 /** The practice item a learner's words name, or null. With `exactOnly` aliases do not count. */
 export function matchItem(ix: DataIndex, text: unknown, exactOnly?: boolean): Item | null {

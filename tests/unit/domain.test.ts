@@ -9,6 +9,7 @@ import type { CellId, DrillData, RelKey } from "../../src/ai-shared";
 import {
   FEATURE, RECENT_MAX, AUTO_FLAGS, applyVerdicts, autoFlagOf, decideFlag, factNote, fitOf, flagAnswerRef, flagAsked, flagStateText, flaggedPart, noteParts, buildPool, cellsFor, chooseEntry, deriveRel, grade, gradeDebate, gradeOf, inUniverse, isMiss, judgeText, makePair,
   nextPair, pairKey, parseFactLine, parseVerdicts, pick, relOfCells, summarize, termLine, cellFor, cellOfFacts, disputeText, divided, quorumDisputes, quorumRows, readings,
+  FIND_RELS, applyRelationVerdict, drawRelation, findPair, gradeFind, judgeable, nameThing, pairOf, parseRelationVerdict, sameThing,
 } from "../../src/domain";
 import type { DebateInput, GradeDraft, HistoryEntry, Pair, PoolEntry } from "../../src/domain";
 import openData from "../../src/data/drill-data.json";
@@ -747,6 +748,205 @@ test("the examples of several answers are gathered, with the cell each answer ga
     { example: "a stone", lines: ["nei"], cells: { Haiku: "nei", Sonnet: null } },
   ]);
   expect(rows.map(divided)).toEqual([true, false]);
+});
+
+// ---- the pair-finding mode: the usual exercise the other way round ----
+
+const named = (text: string) => nameThing(ix, text);
+
+test("the learner's words name a category by a label (singular or plural, with an article) or stay as typed", () => {
+  expect(nameThing(ix, "Forms")).toEqual({ label: "forms", cat: "form" });
+  expect(nameThing(ix, "a wooden thing.")).toEqual({ label: "wooden things", cat: "wooden" });
+  expect(nameThing(ix, "  the   bodies ")).toEqual({ label: "bodies", cat: "form" });
+  expect(nameThing(ix, "a sound")).toEqual({ label: "sounds", cat: "snd" });
+  expect(nameThing(ix, "Red apples!")).toEqual({ label: "Red apples", cat: null });
+  expect(nameThing(ix, "  ")).toEqual({ label: "", cat: null });
+  // two names of one category are two different words for the same thing in the course, but not the same thing to type twice
+  expect(sameThing(named("forms"), named("a form"))).toBe(true);
+  expect(sameThing(named("forms"), named("bodies"))).toBe(false);
+  expect(sameThing(named(""), named(""))).toBe(false);
+});
+
+test("the relation to ask for is one of the five, never the one turned down, and one asked often lately comes up less", () => {
+  const rng = seeded(11);
+  const count = (asked: (RelKey | null | undefined)[], not?: RelKey) => {
+    const n: Record<string, number> = Object.fromEntries(FIND_RELS.map((k) => [k, 0]));
+    for (let i = 0; i < 800; i++) n[drawRelation(asked, rng, not)]++;
+    return n;
+  };
+  const fresh = count([]), worn = count(["4", "4", "4", "4", "4", "4"]);
+  expect(Object.keys(fresh).sort()).toEqual(["3ab", "3ba", "4", "con", "mi"]);
+  for (const k of FIND_RELS) expect(fresh[k], k).toBeGreaterThan(0);
+  expect(worn["4"]).toBeLessThan(fresh["4"] / 2);
+  expect(worn["4"]).toBeGreaterThan(0); // the weight has a floor
+  expect(count([], "mi").mi).toBe(0);
+  expect(count([null, undefined, "x" as RelKey]).mi).toBeGreaterThan(0); // answers of other modes and old ones carry no relation, or an unknown one
+  expect(drawRelation([], () => 0.999999999)).toBe("con"); // the last of the list is where a random source at the top ends up
+});
+
+test("a pair the data can judge is made as the draw makes its pairs, under the learner's labels; any other is the learner's own", () => {
+  const at = () => 1_700_000_000_000;
+  const known = findPair(ix, "3ab", named("wooden things"), named("a form"), seeded(4), at);
+  expect(known).toMatchObject({ a: "wooden things", b: "forms", catA: "wooden", catB: "form", relation: "3ab" });
+  expect(known.id).toMatch(/^f-[0-9a-z]+$/);
+  expect(known.own).toBeUndefined();
+  expect(known.generated).toBeUndefined();
+  expect(known.note).toBeTruthy();
+  expect(known).toEqual(findPair(ix, "3ab", named("wooden things"), named("a form"), seeded(4), at));
+  // the relation of a known pair is the one its categories have, not the one asked for
+  expect(findPair(ix, "mi", named("wooden things"), named("a form"), seeded(4), at).relation).toBe("3ab");
+  // two labels of one category are a pair of the course too (mutually inclusive)
+  expect(findPair(ix, "4", named("forms"), named("bodies"), seeded(4), at)).toMatchObject({ a: "forms", b: "bodies", catA: "form", catB: "form", relation: "mi" });
+  // a pair the data lists as no-pair, an everyday category beside a sense one, a phenomenon of the learner's own: nothing is known about it
+  for (const [x, y] of [["gray things", "wooden things"], ["plain things", "wooden things"], ["red apples", "pears"], ["forms", "red apples"]]) {
+    const p = findPair(ix, "4", named(x), named(y), seeded(4), at);
+    expect(p, x + "/" + y).toMatchObject({ own: true, relation: "4", ex: {}, why: {}, typeA: "", typeB: "" });
+    expect(p.id).toMatch(/^f-[0-9a-z]+$/);
+  }
+  expect(findPair(ix, "4", named("forms"), named("red apples"), seeded(4), at)).toMatchObject({ a: "forms", catA: "form", b: "red apples", catB: null });
+  expect(judgeable(ix, "gray", "wooden")).toBe(false);
+  expect(() => findPair(ix, "4", named("forms"), named("a form"))).toThrow(RangeError);
+  expect(() => findPair(ix, "4", named("pears"), named("Pears."))).toThrow(RangeError);
+});
+
+test("pairOf makes the pair of two categories under any labels, and makePair is the same with the labels drawn", () => {
+  const at = () => 1_700_000_000_000;
+  const a = pairOf(ix, "wooden", "gray", "wooden things", "gray things", seeded(9), at);
+  expect(a).toMatchObject({ a: "wooden things", b: "gray things", relation: "4", generated: true });
+  expect(a.id).toMatch(/^g-/);
+});
+
+test("a known pair is graded in the pair-finding mode as in the usual exercise, with the relation asked for as the relation chosen", () => {
+  const p = findPair(ix, "3ab", named("wooden things"), named("forms"), seeded(1));
+  const right = (rel: RelKey) => Object.fromEntries(CELLS.map((c) => [c, { t: REL[rel].empty.includes(c) ? "" : refOf(p, c) || "", none: REL[rel].empty.includes(c) }])) as Record<CellId, { t: string; none: boolean }>;
+  const good = gradeFind(ix, p, { rel: "3ab", cells: right("3ab") });
+  expect(good.overall).toBe("ok");
+  expect(good).toEqual(grade(ix, p, { rel: "3ab", cells: right("3ab") }));
+  expect(good.relOpen).toBeUndefined();
+  // a pair that does not have the relation asked for is wrong, though its examples are checked
+  const wrong = gradeFind(ix, p, { rel: "mi", cells: right("3ab") });
+  expect(wrong.relOk).toBe(false);
+  expect(wrong.overall).toBe("bad");
+  expect(wrong.relOpen).toBeUndefined();
+  expect(() => gradeFind(ix, p, { rel: null, cells: right("3ab") })).toThrow();
+});
+
+test("the learner's own pair is not decided by the page: the relation and the examples are left to the tutor", () => {
+  const p = findPair(ix, "mi", named("red apples"), named("pears"), seeded(1));
+  const r = gradeFind(ix, p, { rel: "mi", cells: cellsOf({ both: "a red pear", nei: "a stone" }, ["anb", "bna"]) });
+  expect(r).toMatchObject({ relOk: false, relOpen: true, overall: "pend" });
+  expect(CELLS.map((c) => r.cells[c].v)).toEqual(["cmp", "open", "open", "cmp"]);
+  expect(r.cells.anb.msg).toEqual(["Empty by the relation. ", "Claude checks that nothing goes here."]);
+  expect(r.cells.both.kind).toBe("ex");
+  expect(r.cells.anb.kind).toBe("occ");
+  expect([r.occBad, r.exBad, r.exOpen, r.exN]).toEqual([0, 0, 2, 2]);
+  // as in the usual exercise, a cell the relation leaves empty, or one the learner marks empty, is not read for text; the tutor says whether it is right to leave it
+  expect(gradeFind(ix, p, { rel: "mi", cells: cellsOf({ both: "x", anb: "y", nei: "z" }) }).cells.anb.v).toBe("open");
+  expect(gradeFind(ix, p, { rel: "4", cells: cellsOf({ both: "x", anb: "y", nei: "z" }, ["bna"]) }).cells.bna.v).toBe("open");
+  // a cell the relation leaves possible with nothing in it is missing, but nothing is final until the tutor has said whether the pair has the relation
+  const gap = gradeFind(ix, p, { rel: "4", cells: cellsOf({ both: "x", anb: "y", bna: "z" }) });
+  expect(gap.cells.nei).toMatchObject({ v: "bad", kind: "occ" });
+  expect([gap.occBad, gap.overall, gap.relOpen]).toEqual([1, "pend", true]);
+});
+
+test("the tutor's line on the relation of a pair: which relation holds, in the loose forms it may be written", () => {
+  const read = (t: string, asked: RelKey) => parseRelationVerdict(t, asked);
+  expect(read("Relation: Four possibilities => yes", "4")).toEqual({ answer: "yes", rel: "4" });
+  expect(read("Relation: Four possibilities => YES.", "4")).toEqual({ answer: "yes", rel: "4" });
+  expect(read("- **Relation**: mutually inclusive => no", "4")).toEqual({ answer: "no", rel: "mi" });
+  expect(read("Relation: Three possibilities, A in B => no", "mi")).toEqual({ answer: "no", rel: "3ab" });
+  expect(read("Relation: three possibilities A in B => no", "mi")).toEqual({ answer: "no", rel: "3ab" });
+  expect(read("Relation: Three possibilities, B in A => no", "3ab")).toEqual({ answer: "no", rel: "3ba" });
+  expect(read("Relation: Mutually exclusive => no", "3ba")).toEqual({ answer: "no", rel: "con" });
+  expect(read("Relation: none of them => unsure", "4")).toEqual({ answer: "unsure", rel: null });
+  expect(read("Relation: => no", "4")).toEqual({ answer: "no", rel: null }); // wrong, but it says not which relation the pair has
+  // the relation named wins over the yes or no when the two disagree
+  expect(read("Relation: Mutually exclusive => yes", "4")).toEqual({ answer: "no", rel: "con" });
+  expect(read("Relation: Four possibilities => no", "4")).toEqual({ answer: "unsure", rel: null });
+  // the first line counts; lines without a verdict, and other lines, do not
+  expect(read("Both: x => yes\nRelation: Four possibilities\nRelation: Mutually inclusive => no\nRelation: Four possibilities => yes", "4")).toEqual({ answer: "no", rel: "mi" });
+  expect(read("Both: x => yes", "4")).toBeNull();
+  expect(read("", "4")).toBeNull();
+  expect(parseRelationVerdict(null, "4")).toBeNull();
+  expect(parseRelationVerdict(undefined, "4")).toBeNull();
+});
+
+test("the tutor's verdict on the relation settles the relation, the pair's own relation, and the cells the relation asked for leaves empty", () => {
+  const own = (asked: RelKey, none: CellId[]) => {
+    const p = findPair(ix, asked, named("red apples"), named("pears"), seeded(1));
+    return { p, res: gradeFind(ix, p, { rel: asked, cells: cellsOf(Object.fromEntries(CELLS.filter((c) => !none.includes(c)).map((c) => [c, "x " + c])), none) }) };
+  };
+  // yes: the relation asked for holds, so the cells it leaves empty are right
+  let { p, res } = own("mi", ["anb", "bna"]);
+  expect(applyRelationVerdict(p, res, { answer: "yes", rel: "mi" })).toBe(true);
+  expect([res.relOpen, res.relOk, p.relation, res.cells.anb.v, res.cells.anb.msg[0], res.overall]).toEqual([false, true, "mi", "ok", "Right, empty. ", "pend"]);
+  // the examples are still to be checked; once they are, the answer is ok
+  expect(applyVerdicts(p, res, parseVerdicts("Both: x => yes\nNeither: y => yes"))).toBe(2);
+  expect(res.overall).toBe("ok");
+  // a second verdict changes nothing
+  expect(applyRelationVerdict(p, res, { answer: "no", rel: "4" })).toBe(false);
+  expect([res.relOk, p.relation]).toEqual([true, "mi"]);
+  // no, and the pair has four possibilities: nothing is empty, so the cells marked empty are wrong
+  ({ p, res } = own("mi", ["anb", "bna"]));
+  expect(applyRelationVerdict(p, res, { answer: "no", rel: "4" })).toBe(true);
+  expect([res.relOpen, res.relOk, p.relation, res.cells.anb.v, res.cells.bna.v, res.overall]).toEqual([false, false, "4", "bad", "bad", "bad"]);
+  expect(res.cells.anb.msg[0]).toBe("Not empty. ");
+  // no, and the pair has three possibilities (A in B): A not B is empty for it too, B not A is not
+  ({ p, res } = own("mi", ["anb", "bna"]));
+  applyRelationVerdict(p, res, { answer: "no", rel: "3ab" });
+  expect([p.relation, res.cells.anb.v, res.cells.anb.msg[0], res.cells.bna.v]).toEqual(["3ab", "ok", "Right, empty. ", "bad"]);
+  // no, without saying which relation the pair has: the cells stay open
+  ({ p, res } = own("mi", ["anb", "bna"]));
+  applyRelationVerdict(p, res, { answer: "no", rel: null });
+  expect([res.relOpen, res.relOk, p.relation, res.cells.anb.v, res.overall]).toEqual([false, false, "mi", "open", "bad"]);
+  // yes, but the learner marked a cell empty that the relation leaves possible: it is wrong, as the usual exercise shows a counter-example
+  ({ p, res } = own("4", ["bna"]));
+  applyRelationVerdict(p, res, { answer: "yes", rel: "4" });
+  expect([res.relOk, res.cells.bna.v, res.cells.bna.msg[0], res.overall]).toEqual([true, "bad", "Not empty. ", "part"]);
+  // unsure: nothing is settled, the question is closed
+  ({ p, res } = own("4", []));
+  expect(applyRelationVerdict(p, res, { answer: "unsure", rel: null })).toBe(true);
+  expect([res.relOpen, res.relUns, res.overall, p.relation]).toEqual([true, true, "pend", "4"]);
+  // a pair of the data has its relation graded already
+  const known = findPair(ix, "3ab", named("wooden things"), named("forms"), seeded(1));
+  const kr = gradeFind(ix, known, { rel: "3ab", cells: cellsOf({ both: "a gray wooden table", bna: "a thought" }, ["anb"]) });
+  expect(applyRelationVerdict(known, kr, { answer: "no", rel: "4" })).toBe(false);
+});
+
+test("every label of every category of the real data names that category, and its plural or singular too", () => {
+  for (const c of real.cats) {
+    for (const l of c.labels) {
+      const n = nameThing(rix, l);
+      if (n.cat !== c.id) expect(rix.LABELIDX[l.toLowerCase()], `${c.id}: ${l} is also a label of another category`).toBeDefined(); // two categories may share a label; then the label names the one the index has
+      expect(n.label.length, l).toBeGreaterThan(0);
+    }
+  }
+  const cats = new Set(real.cats.flatMap((c) => c.labels.map((l) => nameThing(rix, l).cat)));
+  expect(cats.size).toBeGreaterThan(real.cats.length * 0.9);
+  expect(nameThing(rix, "a form").cat).toBe("form");
+  expect(nameThing(rix, "the unicorn")).toEqual({ label: "the unicorn", cat: null });
+});
+
+test("for every pair the page can draw, naming it and asking for its relation is graded ok; asking for another relation is not", () => {
+  const rng = seeded(31);
+  for (const e of realPool) {
+    const drawn = makePair(rix, e, rng), why = `${pairKey(e)} ${drawn.a} / ${drawn.b}`;
+    const a = nameThing(rix, drawn.a), b = nameThing(rix, drawn.b);
+    if (sameThing(a, b)) continue; // the same words in two places of one category cannot be told apart
+    expect(a.cat && b.cat, why).toBeTruthy();
+    const p = findPair(rix, drawn.relation, a, b, rng);
+    expect(p.own, why).toBeUndefined();
+    const asked = p.relation, cells = Object.fromEntries(CELLS.map((c) => [c, { t: REL[asked].empty.includes(c) ? "" : refOf(p, c) || "", none: REL[asked].empty.includes(c) }])) as Record<CellId, { t: string; none: boolean }>;
+    const r = gradeFind(rix, p, { rel: asked, cells });
+    expect(r.relOk, why).toBe(true);
+    expect(CELLS.map((c) => r.cells[c].v).filter((v) => v === "bad"), why).toEqual([]);
+    expect(["ok", "pend"], why).toContain(r.overall);
+    if (e.a !== e.b) expect(r.overall, why).toBe("ok");
+    const other = FIND_RELS.find((k) => k !== asked && !(asked === "3ab" || asked === "3ba" ? ["3ab", "3ba"] : []).includes(k)) as RelKey;
+    const wrong = gradeFind(rix, p, { rel: other, cells });
+    expect(wrong.relOk, why).toBe(false);
+    expect(wrong.overall, why).toBe("bad");
+  }
 });
 
 // ---- the code stays free of the page and the browser ----

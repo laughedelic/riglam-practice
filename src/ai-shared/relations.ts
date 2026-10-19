@@ -35,6 +35,8 @@ export interface PairLike {
   ex?: Partial<Record<CellId, string | null>>;
   why?: Partial<Record<CellId, string>>;
   note?: string;
+  /** a pair the learner made up in the pair-finding mode that the practice data cannot judge: `relation` is only the one asked for, and `ex` and `why` are empty */
+  own?: boolean;
 }
 
 // A non-existent (the horn of a rabbit) is a possibility in the "neither" cell, as the class takes it, so that cell

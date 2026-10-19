@@ -32,7 +32,11 @@ export const storedPair=doc=>doc.pair||/** @type {import("../types.ts").Pair} */
 export const noteContext=(doc,p=storedPair(doc))=>({p,accepted:f=>{ const q=doc.mode==="debate"&&doc.qs?doc.qs.find(y=>y.c===f.cell):null; return !!q&&q.say!=="why"; }});
 export function exerciseNode(doc){
   const p=storedPair(doc), key=REL[doc.key], mine=doc.chosen&&REL[doc.chosen];
-  const rel=doc.correct?el("p",{class:"note"},el("b",{text:"Relation right: "}),lcRel(key?key.name:doc.key)+".")
+  // Find a pair: the relation was given, and the question is whether the named pair has it
+  const asked=doc.mode==="find"?mine||REL[doc.key]:null;
+  const rel=doc.mode==="find"?el("p",{class:"note"},el("b",{text:"Asked for: "}),lcRel(asked?asked.name:doc.chosen)+". ",
+      doc.correct?"The pair has it.":doc.relOpen?"Claude had not judged the pair.":key&&doc.key!==doc.chosen?"The pair is "+lcRel(key.name)+".":"The pair does not have it.")
+    :doc.correct?el("p",{class:"note"},el("b",{text:"Relation right: "}),lcRel(key?key.name:doc.key)+".")
     :el("p",{class:"note"},el("b",{text:"Relation: "}),(key?key.name:doc.key)+". ",mine?"You chose "+lcRel(mine.name)+".":"Time ran out before you chose.");
   const box=el("div",{class:"xbody"},rel,exGrid(p,c=>storedCell(doc,p,c)));
   if(doc.explain){

@@ -9,7 +9,7 @@ import { render, renderKeepFocus } from "../shell/render.js";
 import { cardBody, explainAsk, tutorCard } from "../../ai-shared/card.ts";
 import { pairCats } from "../../ai-shared/lookup.ts";
 import { tutorTools } from "../../ai-shared/tools.ts";
-import { VERDICT_RE, applyVerdicts, parseFactLine, parseVerdicts } from "../../domain/verdict.ts";
+import { VERDICT_RE, applyRelationVerdict, applyVerdicts, parseFactLine, parseRelationVerdict, parseVerdicts } from "../../domain/verdict.ts";
 
 const TIER="default";
 
@@ -17,11 +17,14 @@ const TIER="default";
 // The card, the standing instructions, the explain request and the tools are built in src/ai-shared from the term data,
 // so that the Worker tutor produces the same text; the page passes `state` as the data index.
 function applyVerify(text,U,C){
-  const n=applyVerdicts(C.p,U.res,parseVerdicts(text,noteData(C.p))); // the cells settle as the notes read
+  let n=applyVerdicts(C.p,U.res,parseVerdicts(text,noteData(C.p))); // the cells settle as the notes read
+  // Find a pair, a pair of the learner's own: the tutor says whether it has the relation asked for, which settles that and the cells the relation leaves empty
+  if(U.find&&C.p.own){ const v=parseRelationVerdict(text,U.rel); if(v&&applyRelationVerdict(C.p,U.res,v)) n++; }
   if(n&&state.db&&U.doc&&U.saveId){
     for(const c of CELLS){ U.doc.cells[c].verdict=U.res.cells[c].v; if(U.res.cells[c].by) U.doc.cells[c].by="claude"; }
     if(U.doc.qs) for(const q of U.doc.qs){ const r=U.res.cells[q.c]; q.verdict=r.v; if(r.by) q.by="claude"; }
     U.doc.grade=U.res.overall; U.doc.verifiedAt=new Date().toISOString();
+    if(U.find){ U.doc.correct=U.res.relOk; U.doc.key=C.p.relation; if(U.res.relOpen) U.doc.relOpen=true; else delete U.doc.relOpen; }
     persist(U,"The verification");
   }
   return n;
@@ -60,7 +63,7 @@ export async function ask(text,kind,byItself){
       catch(e){ if(e&&e.code==="tools_unavailable"){ delete opts.tools; r=await state.sample(turns,opts); } else throw e; }
     }else r=await state.tutor({kind:kind==="explain"?"explain":"chat",cats:pairCats(state,p).filter(Boolean),turns,...(quorum?{quorum:true}:{})},{signal:ctl.signal,onText,onStep:s=>quorumStep(U,s)});
     slot.content=r.text+(r.truncated?"\n(Cut short.)":""); delete slot.pending;
-    if(kind==="explain"){ if(U.doc) U.doc.explain=String(r.text||"").slice(0,3000); if(!(U.res.exOpen&&applyVerify(r.text,U,C))) saveExplain(U); }
+    if(kind==="explain"){ if(U.doc) U.doc.explain=String(r.text||"").slice(0,3000); if(!((U.res.exOpen||U.res.relOpen)&&applyVerify(r.text,U,C))) saveExplain(U); }
     if(quorum) quorumEnd(U,r,C);                          // after the verdicts: the flags compare the models with the page's verdicts as they now stand
   }catch(e){
     if(e&&e.text){ slot.content=e.text; delete slot.pending; } else U.chat.pop();
