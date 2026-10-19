@@ -40,6 +40,8 @@ export const state = {
   retryTag: "Retry",
   nota: "codes",
   optsOpen: false,
+  ovPushed: 0,    // history entries held for the overlays that are open (shell/history.js): Back closes an overlay instead of leaving the app
+  ovPending: 0,   // steps back the page took itself, whose popstate is to be ignored
   view: null,
   reviewSeg: "overview",
   defLang: "en",  // definitions in the Terms panel: "en", or "enru" (English with the Russian definition and the Russian name of each term)

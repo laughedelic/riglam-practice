@@ -241,6 +241,8 @@ export interface State {
   mode: "loading" | "quiz" | "nodata" | "nodb" | string;
   view: "chat" | string | null;
   optsOpen: boolean;
+  ovPushed: number;
+  ovPending: number;
   reviewSeg: string;
   ui: Ui | null;
   cur: Current | null;

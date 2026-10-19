@@ -14,6 +14,7 @@ import { setDefLang } from "./shell/options.js";
 import { render, renderSession } from "./shell/render.js";
 import "./core/viewport.js";
 import "./shell/keys.js";
+import "./shell/history.js";
 import "./debate/text.js";
 import "./shell/timers.js";
 

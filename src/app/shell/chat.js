@@ -5,16 +5,18 @@ import { $, el } from "../core/dom.js";
 import { REL } from "../core/rel.js";
 import { isWide } from "../core/viewport.js";
 import { askRow, fillTurn } from "../practice/screen.js";
+import { overlayClosed, overlayOpened } from "./history.js";
 import { optionsInto } from "./options.js";
 import { render } from "./render.js";
 
 export function openChat(){
   if(!state.ui||!state.ui.chat||isWide()) return;
   const first=!state.ui.chat.some(t=>t.role==="user"&&!t.hidden);
+  if(state.view!=="chat") overlayOpened();
   state.view="chat"; render();
   const i=first&&$("ask-in"); if(i) i.focus({preventScroll:true});
 }
-export function closeChat(){ state.view=null; render(); const b=document.querySelector(".stage-chat"); if(b) b.focus({preventScroll:true}); }
+export function closeChat(fromBack){ if(state.view==="chat"&&fromBack!==true) overlayClosed(); state.view=null; render(); const b=document.querySelector(".stage-chat"); if(b) b.focus({preventScroll:true}); }
 export function overHead(title,onBack,label){
   return el("div",{class:"oh"},el("button",{type:"button",class:"oc",onclick:onBack,"aria-label":label,text:"‹ Back"}),el("h2",{text:title}));
 }

@@ -38,11 +38,11 @@ src/app/
   debate/       Pervasions (the four questions): wording, flow, the screens
   review/       the Review tab: answers, mistakes, favorites, debate statistics, the flags
   ai/           the tutor (asking, verdicts, chat), Quorum (the chip and panel of a run, the automatic flags), flags; the tutor's text and tools are built by src/ai-shared
-  shell/        rendering, tabs, options, the chat overlay, keyboard shortcuts, timers and the toolbar
+  shell/        rendering, tabs, options, the chat overlay, the system Back (history), keyboard shortcuts, timers and the toolbar
 ```
 
 - Every variable that used to be module-level is a property of `state` (`state.ui`, `state.cur`, `state.db`, ...), because an ES module cannot assign to a binding it imports. A module-level `let` outside `state.js` fails a unit test.
-- Modules import each other freely, including in cycles (the screens call the actions and the actions render). That works because only functions are called across modules, and only after loading; do not call an imported function while a module loads. Modules whose top-level code wires listeners (`core/viewport.js`, `shell/render.js`, `shell/keys.js`, `shell/timers.js`) are imported by the entry for that effect.
+- Modules import each other freely, including in cycles (the screens call the actions and the actions render). That works because only functions are called across modules, and only after loading; do not call an imported function while a module loads. Modules whose top-level code wires listeners (`core/viewport.js`, `shell/render.js`, `shell/keys.js`, `shell/history.js`, `shell/timers.js`) are imported by the entry for that effect.
 - `types.ts` holds the TypeScript types of the stored documents (one per collection: answers, debates, batches, favorites, skips, flags, and `labruns`, the runs of an earlier Quorum that people already hold, whose stored name stays), the pair on screen and `State`. `state.js` is annotated with `State`, so a misspelled `state.x`, or a misspelled field of a stored document, fails `npm run typecheck`. A stored shape changes there only together with a migration (see `CLAUDE.md`).
 - `core/` and `state.js` import only each other, `src/ai-shared` and `src/domain` (a unit test checks it); everything else may import everything. The page imports no other code from outside `src/app`.
 - What the page does around the rules (stop the clock, render, save, ask the tutor) stays in the page modules: `practice/grading.js` and `debate/flow.js` call `grade` and `gradeDebate` from `src/domain`, `practice/universe.js` calls `buildPool` and `nextPair`, and `ai/tutor.js` calls `parseVerdicts` and `applyVerdicts`.
