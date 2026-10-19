@@ -404,3 +404,36 @@ test("Next relation in Random mode never asks for the relation just given", asyn
   await page.getByRole("button", { name: "Next relation" }).click();
   expect(await relation(page)).not.toBe("Mutually inclusive");
 });
+
+test("a skip that could not be saved is undone and said on the screen", async ({ page }, testInfo) => {
+  await open(page);
+  await goFind(page, testInfo);
+  await askFor(page, "Mutually inclusive");
+  await usePair(page, "my cat", "my dog");
+  await page.evaluate(async () => { // the skips collection refuses writes
+    const db = await window.__riglam.platform.db(), real = db.collection.bind(db);
+    db.collection = (name) => (name === "skips" ? { doc: () => ({ set: async () => { throw Object.assign(new Error("full"), { code: "quota_exceeded" }); }, delete: async () => {} }) } : real(name));
+  });
+  await skip(page, testInfo).click();
+  await expect(page.locator("#stage .status")).toContainText("The skip could not be saved (quota_exceeded), so it was undone.");
+  expect(await page.evaluate(() => Object.keys(window.__t.skips).length)).toBe(0);
+});
+
+test("a pair opened again from Review counts as asked, so the next relation is a different one", async ({ page }, testInfo) => {
+  await open(page);
+  await goFind(page, testInfo);
+  await askFor(page, "Mutually inclusive");
+  await usePair(page, "my cat", "my dog");
+  await skip(page, testInfo).click();
+  await askFor(page, "Four possibilities"); // the history of asked relations now ends here
+  await usePair(page, "red apples", "pears");
+  await page.locator("#stage .head .mid").click();
+  await page.locator(".rels .rel").first().click(); // Random for the next pairs; this pair keeps four possibilities
+  await tabNamed(page, testInfo, "Review").click();
+  await page.locator(".skips li").getByRole("button", { name: "Practice" }).click();
+  expect(await relation(page)).toBe("Mutually inclusive");
+  await page.evaluate(() => { Math.random = () => 0; }); // the draw would take the first relation of the list, which is this one, if only the other were left out
+  await examples(page, testInfo, { both: "a pet", nei: "a stone" });
+  await page.getByRole("button", { name: "Next relation" }).click();
+  expect(await relation(page)).not.toBe("Mutually inclusive");
+});

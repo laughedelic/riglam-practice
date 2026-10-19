@@ -102,11 +102,11 @@ export function checkFind(){
   if(u.res.relOpen) u.doc.relOpen=true;
   persist(u,"Your answer");
 }
-/** Opens a pair that was skipped (Review, Skipped) at its examples, for the relation that was asked for then. The relation the learner has picked is not changed. */
+/** Opens a pair that was skipped (Review, Skipped) at its examples, for the relation that was asked for then (it counts as asked, so the draw after it leaves it out). The relation the learner has picked is not changed. */
 export function resumeFind(pair,rel){
   switchTo("find");
   const p=JSON.parse(JSON.stringify(pair));       // a copy: the skipped pair stays as it was kept
   state.cur=/** @type {any} */({p,find:true});
-  state.ui=Object.assign(freshFindUi(rel||p.relation),{step:1, wordA:p.a, wordB:p.b, own:!!p.own, focusA:false});
+  state.ui=Object.assign(freshFindUi(asked(rel||p.relation)),{step:1, wordA:p.a, wordB:p.b, own:!!p.own, focusA:false});
   state.mode="quiz"; render(); top0();
 }
