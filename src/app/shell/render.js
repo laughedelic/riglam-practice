@@ -9,6 +9,7 @@ import { syncSkipBtn } from "../practice/skips.js";
 import { dropStaleDef } from "../practice/terms.js";
 import { renderReview } from "../review/review.js";
 import { renderOver } from "./chat.js";
+import { overlayClosed } from "./history.js";
 import { renderOptionsBtn } from "./options.js";
 import { setTab } from "./tabs.js";
 import { ensureRelTimer, syncBlitzBtn, tbIcon } from "./timers.js";
@@ -89,14 +90,14 @@ function screenSig(){
   return [state.tab,state.mode,state.view,state.optsOpen?1:0,isWide()?1:0,p?(p.id||p.a+"|"+p.b):"",state.ui?[state.ui.checked?1:0,state.ui.step||0,state.ui.ci||0,state.ui.rel?1:0,state.ui.open?1:0,state.ui.debate?1:0].join(""):""].join("/");
 }
 export function render(){
-  const sig=screenSig(), keep=sig===state.lastSig?["stage","coach","over"].map(id=>{ const n=$(id); return /** @type {[string, number]} */([id,n?n.scrollTop:0]); }):null;
+  const sig=screenSig(), keep=sig===state.lastSig?["stage","coach","over","opts"].map(id=>{ const n=$(id); return /** @type {[string, number]} */([id,n?n.scrollTop:0]); }):null;
   state.lastSig=sig;
   renderNow();
   if(keep) for(const [id,y] of keep){ const n=$(id); if(n&&y&&!n.hidden) n.scrollTop=y; }
 }
 function renderNow(){
   ensureRelTimer();
-  const w=isWide(); if(w&&state.view==="chat") state.view=null;
+  const w=isWide(); if(w&&state.view==="chat"){ state.view=null; overlayClosed(); }
   const app=$("app"), s=$("stage"), c=$("coach"), f=focusKey();
   app.dataset.tab=state.tab; app.dataset.wide=w?"1":"0";
   renderOptionsBtn(); renderTabs(); renderSession(); syncFavBtn(); syncSkipBtn(); syncBlitzBtn();

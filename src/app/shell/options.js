@@ -6,9 +6,10 @@ import { canAsk } from "../core/ask.js";
 import { ico } from "../core/icons.js";
 import { MAGIC_KEY_NOTE } from "../../ui/magic-key-note.ts";
 import { $, el } from "../core/dom.js";
-import { setTimer } from "../debate/flow.js";
+import { asking, setTimer, startQ, stopTimer } from "../debate/flow.js";
 import { WORDINGS } from "../debate/text.js";
 import { overHead } from "./chat.js";
+import { overlayClosed, overlayOpened } from "./history.js";
 import { render } from "./render.js";
 import { kindMs } from "./timers.js";
 
@@ -36,8 +37,13 @@ function setWording(k){ state.wording=k; try{ localStorage.setItem("rd-wording",
 export function renderOptionsBtn(){
   for(const id of ["obtn","mopt"]){ const b=$(id); b.setAttribute("aria-expanded",state.optsOpen?"true":"false"); b.classList.toggle("open",state.optsOpen); }
 }
-export function toggleOpts(on){
-  state.optsOpen=on===undefined?!state.optsOpen:on; render();
+// The Blitz clock does not run behind the panel: it stops when Options opens and starts again, with its full time, when it closes (as when you come back to a tab).
+// `fromBack` is the system Back, which has already taken the history entry off.
+export function toggleOpts(on,fromBack){
+  const was=state.optsOpen; state.optsOpen=on===undefined?!state.optsOpen:on;
+  if(state.optsOpen&&!was){ stopTimer(); overlayOpened(); }
+  else if(!state.optsOpen&&was){ if(fromBack!==true) overlayClosed(); if(state.blitz&&asking()) startQ(); }
+  render();
   if(state.optsOpen&&state.updates) state.updates.check(60000); // the Version row is about to be read: look for a newer one unless a look is younger than a minute
   if(state.optsOpen){ const b=document.querySelector("#over .oc"); if(b) b.focus({preventScroll:true}); }
   else { const b=[$("obtn"),$("mopt")].find(x=>x.offsetParent); if(b) b.focus({preventScroll:true}); }
@@ -61,7 +67,7 @@ function aboutNode(a){
 }
 export function optionsInto(o){
   o.append(overHead("Options",()=>toggleOpts(false),"Close options"));
-  const box=el("div",{class:"opts"});
+  const box=el("div",{class:"opts",id:"opts"});
   // "Magic Key" in the label of its rows is dotted and opens a note on the name
   const mkBtn=()=>el("button",{type:"button",class:"keyname","aria-expanded":state.mkNote?"true":"false",onclick:()=>{ state.mkNote=!state.mkNote; render(); }},"Magic Key");
   const mkPop=()=>state.mkNote?el("div",{class:"pop"},MAGIC_KEY_NOTE.map(t=>el("p",{text:t})),el("button",{type:"button",class:"popx",onclick:()=>{ state.mkNote=false; render(); }},"Hide")):null;

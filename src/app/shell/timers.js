@@ -86,7 +86,7 @@ export const relTimedD=()=>!!(state.blitz&&state.ui&&state.ui.debate&&state.ui.s
 const exMul=()=>(relTimed()&&state.ui.rel)?Math.max(1,fillable().length):1;
 export function ensureRelTimer(){
   const u=state.ui;
-  if(!u||state.mode!=="quiz"||u.checked||!state.blitz||state.timeEdit||u.tq) return;
+  if(!u||state.mode!=="quiz"||u.checked||!state.blitz||state.timeEdit||u.tq||state.optsOpen) return;
   const now=performance.now();
   if(u.debate){
     if(state.tab!=="debate"||u.step<4||u.rel||!state.relMs) return;
