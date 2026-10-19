@@ -33,6 +33,7 @@ export const state = {
   cur: null,
   retryQ: [],
   recent: [],
+  findAsked: [],   // the relations Find a pair asked for lately, oldest first: the draw of the next one leans away from them (find/flow.js)
   debates: {},
   own: "practice",
   favs: {},

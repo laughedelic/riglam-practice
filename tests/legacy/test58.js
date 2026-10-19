@@ -287,8 +287,8 @@ const other=r=>r==='mi'?'con':'mi';
  // ================= wide =================
  {
   const {br,pg,errs}=await open({width:1280,height:800});
-  const rail=(await pg.locator('.rail .nv').allInnerTexts()).slice(0,4);
-  ok('the rail reads Practice, Relations, Pervasions, Review',JSON.stringify(rail.map(s=>s.trim().toLowerCase()))==='["practice","relations","pervasions","review"]',rail);
+  const rail=(await pg.locator('.rail .nv').allInnerTexts()).slice(0,5);
+  ok('the rail reads Practice, Relations, Pervasions, Find a pair, Review',JSON.stringify(rail.map(s=>s.trim().toLowerCase()))==='["practice","relations","pervasions","find a pair","review"]',rail);
   ok('the coach panel has no "Coach" label; it starts with Recent or the key hints',!/^coach$/i.test(((await pg.locator('#coach').innerText())||'').trim().split('\n')[0]||'')&&!/\bcoach\b/i.test(await pg.locator('#coach').innerText()),await pg.locator('#coach').innerText());
   const p1=await key(pg);
   await pg.locator('.rail .nv:has-text("Pervasions")').click(); await pg.waitForTimeout(150);

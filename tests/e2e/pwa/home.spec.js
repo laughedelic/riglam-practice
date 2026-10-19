@@ -12,7 +12,7 @@ test("the app opens on Home: today's line and one row per exercise", async ({ pa
   await expect(row(page, "practice")).toBeEnabled();
   await expect(page.locator("#stage .hday")).toContainText(/today/i);
   await expect(page.locator("#stage .hday")).toContainText(/nothing practiced yet/i);
-  await expect(page.locator(".exr")).toHaveText([/Relations/, /Pervasions/]);
+  await expect(page.locator(".exr")).toHaveText([/Relations/, /Pervasions/, /Find a pair/]);
   await expect(page.locator(".exr .exc")).toHaveCount(0);
   if (isPhone(testInfo)) {
     await expect(page.locator("#tabbar button")).toHaveText(["Practice", "Review", "Options"]);

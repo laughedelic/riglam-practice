@@ -68,15 +68,20 @@ function noteFor(p: Names & { relation: RelKey }): string {
   return t[p.relation];
 }
 
+/** Whether the items of the data can tell the relation of two different categories: not a pair the data lists as no-pair, and not an everyday category with a sense one. */
+export function judgeable(ix: DataIndex, a: string, b: string): boolean {
+  const A = ix.CAT[a], B = ix.CAT[b];
+  if ((ix.DATA.nopair || []).some((x) => x.join("|") === [a, b].sort().join("|"))) return false;
+  return !((A.kind === "everyday" || B.kind === "everyday") && (A.sense || B.sense));
+}
+
 /** Every pair of categories worth drilling, with its relation, and every category that has two labels (a pair of its own labels). */
 export function buildPool(ix: DataIndex): PoolEntry[] {
   const ids = Object.keys(ix.CAT), out: PoolEntry[] = [];
-  const nop = (ix.DATA.nopair || []).map((x) => x.join("|"));
   for (let i = 0; i < ids.length; i++) {
     for (let j = i + 1; j < ids.length; j++) {
-      const a = ids[i], b = ids[j], A = ix.CAT[a], B = ix.CAT[b];
-      if (nop.includes([a, b].sort().join("|"))) continue;
-      if ((A.kind === "everyday" || B.kind === "everyday") && (A.sense || B.sense)) continue;
+      const a = ids[i], b = ids[j];
+      if (!judgeable(ix, a, b)) continue;
       const r = relOfCells(cellsFor(ix, a, b));
       out.push({ a, b, r: r === "3ab" || r === "3ba" ? "3" : r });
     }
@@ -99,6 +104,11 @@ export function makePair(ix: DataIndex, cand: PoolEntry, rng: Rng = Math.random,
     if (rng() < 0.5) [a, b] = [b, a];
     la = pick(ix.CAT[a].labels, rng); lb = pick(ix.CAT[b].labels, rng);
   }
+  return pairOf(ix, a, b, la, lb, rng, now);
+}
+
+/** The pair for two categories in this order, shown under these labels (the learner's words in the pair-finding mode, a label of the category in a draw). */
+export function pairOf(ix: DataIndex, a: string, b: string, la: string, lb: string, rng: Rng = Math.random, now: Clock = Date.now): Pair {
   const cells = cellsFor(ix, a, b), relation = relOfCells(cells);
   const ex: Partial<Record<CellId, string | null>> = {}, why: Partial<Record<CellId, string>> = {};
   const p: Pair = {

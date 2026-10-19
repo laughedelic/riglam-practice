@@ -6,7 +6,7 @@ const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.
  const vis=async s=>await pg.locator(s).first().isVisible();
  ok('rail shown, top bar and tab bar hidden',await vis('.rail')&&!(await vis('.mbar'))&&!(await vis('.tabbar'))&&!(await vis('#steps')));
  ok('no page scroll',await pg.evaluate(()=>document.documentElement.scrollHeight<=innerHeight+1&&document.body.scrollHeight<=innerHeight+1));
- ok('the rail lists Practice (Home), the two exercises and Review',await pg.locator('#tabs [data-go]').count()===4);
+ok('the rail lists Practice (Home), the three exercises and Review',await pg.locator('#tabs [data-go]').count()===5);
  const rel=await pg.evaluate(()=>window.__t.cur.p.relation);
  const ORDER={mi:0,'3ab':1,'3ba':2,'4':3,con:4};
  await pg.locator('.strip .chip').nth(ORDER[rel]).click(); await pg.waitForTimeout(100);

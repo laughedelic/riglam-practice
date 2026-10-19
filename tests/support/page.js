@@ -18,7 +18,7 @@ export async function ready(page) {
   await expect(relOptions(page)).toHaveCount(5);
 }
 
-const SCREENS = { Home: "home", Relations: "practice", Pervasions: "debate", Review: "review" };
+const SCREENS = { Home: "home", Relations: "practice", Pervasions: "debate", "Find a pair": "find", Review: "review" };
 /** Goes to a screen as a learner would: the rail on a wide screen; on a phone the tab bar (Home, Review), and an exercise from Home. */
 export async function goTo(page, name) {
   const k = SCREENS[name], b = page.locator(`[data-go="${k}"]`).filter({ visible: true });

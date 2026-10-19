@@ -1,8 +1,9 @@
 import { state } from "../state.js";
 import { $, el } from "../core/dom.js";
-import { dayOf, gradeOf, today } from "../core/util.js";
+import { dayOf, gradeOf, isFind, today } from "../core/util.js";
 import { isWide } from "../core/viewport.js";
 import { renderDebate } from "../debate/screen.js";
+import { renderFind } from "../find/screen.js";
 import { isFav } from "../practice/favorites.js";
 import { placePops, renderQuiz } from "../practice/screen.js";
 import { syncSkipBtn } from "../practice/skips.js";
@@ -25,7 +26,7 @@ export function ago(iso){
   const h=Math.round(m/60); if(h<24) return h+" h";
   const d=Math.round(h/24); return d===1?"1 day":d+" days";
 }
-export const isEx=()=>state.tab==="practice"||state.tab==="debate";
+export const isEx=()=>state.tab==="practice"||state.tab==="debate"||state.tab==="find";
 // The bars (Home, the start screen, is called "Practice" in them). Wide: the rail lists Home, the exercises and Review (built once, from EXERCISES); an exercise with a parked attempt has a dot.
 // Narrow: the tab bar has Home, Review and Options (an exercise belongs to Home), and the top bar shows the brand on Home and Review,
 // or the back arrow and the exercise's name in an exercise. The buttons stay the same elements, so a click keeps its focus.
@@ -48,13 +49,14 @@ function renderTabs(){
 // the rail's "Today" block: the exercise on screen, or every exercise on Home and in Review
 export function renderSession(){
   const s=$("today"); s.replaceChildren();
-  const t=isEx()?(()=>{ const list=Object.values(state.tab==="debate"?state.debates:state.answers).filter(a=>dayOf(a.at)===today()); return {n:list.length,ok:list.filter(a=>gradeOf(a)==="ok").length}; })():todayCount();
-  const what=state.tab==="debate"?"debated":state.tab==="practice"?"answered":"practiced";
+  // Find a pair keeps its answers with the Relations answers; in an exercise each counts its own
+  const t=isEx()?(()=>{ const list=Object.values(state.tab==="debate"?state.debates:state.answers).filter(a=>dayOf(a.at)===today()&&(state.tab==="debate"||isFind(a)===(state.tab==="find"))); return {n:list.length,ok:list.filter(a=>gradeOf(a)==="ok").length}; })():todayCount();
+  const what=state.tab==="debate"?"debated":isEx()?"answered":"practiced";
   s.append(el("span",{text:"Today"}),el("b",{text:String(t.n)}),el("span",{text:t.n?what+", "+t.ok+" fully right":"nothing "+(isEx()?"answered":"practiced")+" yet"}));
 }
 // the star in the narrow top bar (the wide layout has the Favorite button next to Check)
 function syncFavBtn(){
-  const b=$("mfav"), ok=!!(state.db&&state.mode==="quiz"&&state.cur&&state.cur.p&&isEx());
+  const b=$("mfav"), ok=!!(state.db&&state.mode==="quiz"&&state.cur&&state.cur.p&&!state.cur.p.own&&isEx());   // a pair of the learner's own (Find a pair) has no categories to keep
   b.hidden=!ok; if(!ok) return;
   const on=isFav(state.cur.p), t=on?"Remove from favorites":"Add to favorites";
   b.replaceChildren(tbIcon("star")); b.setAttribute("aria-pressed",on?"true":"false"); b.setAttribute("aria-label",t); b.title=t+" (F)";
@@ -98,7 +100,7 @@ export function renderKeepFocus(){ const f=btnSig(); render(); btnBack(f); }
 export const focusCin=()=>{ const i=$("cin"); if(i) i.focus({preventScroll:true}); };
 function screenSig(){
   const p=state.cur&&state.cur.p;
-  return [state.tab,state.mode,state.view,state.optsOpen?1:0,isWide()?1:0,p?(p.id||p.a+"|"+p.b):"",state.ui?[state.ui.checked?1:0,state.ui.step||0,state.ui.ci||0,state.ui.rel?1:0,state.ui.open?1:0,state.ui.debate?1:0].join(""):""].join("/");
+  return [state.tab,state.mode,state.view,state.optsOpen?1:0,isWide()?1:0,p?(p.id||p.a+"|"+p.b):"",state.ui?[state.ui.checked?1:0,state.ui.step||0,state.ui.ci||0,state.ui.rel?1:0,state.ui.open?1:0,state.ui.debate?1:0,state.ui.find?1:0].join(""):""].join("/");
 }
 export function render(){
   const sig=screenSig(), keep=sig===state.lastSig?["stage","coach","over","opts"].map(id=>{ const n=$(id); return /** @type {[string, number]} */([id,n?n.scrollTop:0]); }):null;
@@ -120,7 +122,11 @@ function renderNow(){
   if(state.mode==="loading"){ s.append(el("p",{class:"status",text:"Loading."})); renderOver(); return; }
   if(state.mode==="nodata"){ s.append(el("p",{class:"status",text:"The practice data could not be loaded. Reload the page to try again."})); renderOver(); return; }
   if(state.tab==="review") renderReview(s);
-  else if(state.mode==="quiz"){ if(state.tab==="debate"&&state.ui&&state.ui.debate) renderDebate(s,c); else renderQuiz(s,c); }
+  else if(state.mode==="quiz"){
+    if(state.tab==="debate"&&state.ui&&state.ui.debate) renderDebate(s,c);
+    else if(state.tab==="find"&&state.ui&&state.ui.find) renderFind(s,c);
+    else renderQuiz(s,c);
+  }
   renderOver(); restoreFocus(f); placePops(); dropStaleDef();
 }
 

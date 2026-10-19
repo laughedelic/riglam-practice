@@ -1,5 +1,6 @@
 import { state } from "../state.js";
 import { advanceDebate, freshDebateUi, startQ, stopTimer } from "../debate/flow.js";
+import { advanceFind } from "../find/flow.js";
 import { advance, freshUi } from "../practice/queue.js";
 import { skipCats } from "../practice/skips.js";
 import { closeChat } from "./chat.js";
@@ -7,11 +8,12 @@ import { toggleOpts } from "./options.js";
 import { render, top0 } from "./render.js";
 
 const hold={};
-// The screens: Home, the exercises ("practice" is Relations, "debate" Pervasions) and Review. Each exercise keeps its own attempt while
-// you are anywhere else: an unfinished one is parked and comes back as it was ("Continue" on Home). Relations and Pervasions work on one
-// pair: opening one while the other has an unfinished pair, and nothing of its own begun or checked, opens that pair at its first step.
+// The screens: Home, the exercises ("practice" is Relations, "debate" Pervasions, "find" Find a pair) and Review. Each exercise keeps its own
+// attempt while you are anywhere else: an unfinished one is parked and comes back as it was ("Continue" on Home). Relations and Pervasions work
+// on one pair: opening one while the other has an unfinished pair, and nothing of its own begun or checked, opens that pair at its first step.
+// Find a pair is its own exercise (the learner names the pair): it gives no pair to the other two and takes none from them.
 // A checked attempt comes back on its result too; only Next pair moves on from it.
-const isEx=k=>k==="practice"||k==="debate";
+const isEx=k=>k==="practice"||k==="debate"||k==="find";
 const sameP=(x,y)=>!!x&&!!y&&((x.id&&x.id===y.id)||(x.a===y.a&&x.b===y.b&&x.relation===y.relation));
 function adoptPair(k,p){
   const [ca,cb]=skipCats(p); if(!ca||!cb) return false;
@@ -23,9 +25,11 @@ function adoptPair(k,p){
 /** Whether an attempt has begun: a relation picked, an example written, a question answered. A pair only drawn has not. */
 export function begun(u){
   if(!u||u.checked) return false;
+  const typed=()=>Object.values(u.cells).some(c=>c.t.trim()||c.none);
+  if(u.find) return u.step>0||!!u.wordA.trim()||!!u.wordB.trim()||typed();          // Find a pair: its relation is given, so words count
   if(u.rel) return true;
   if(u.debate) return u.step>0||u.ans.some(a=>a.say||a.text);
-  return Object.values(u.cells).some(c=>c.t.trim()||c.none);
+  return typed();
 }
 /** The attempt an exercise holds: the one on screen for the current exercise, the parked one for the others. */
 export function attemptOf(k){
@@ -35,10 +39,11 @@ export function attemptOf(k){
 export function switchTo(k){
   stopTimer();
   if(isEx(k)&&state.own!==k){
-    const left=state.cur&&state.cur.p&&state.ui&&!state.ui.checked?state.cur.p:null;
-    hold[state.own]={cur: state.cur,ui: state.ui}; state.own=k;
+    const from=state.own, left=k!=="find"&&from!=="find"&&state.cur&&state.cur.p&&state.ui&&!state.ui.checked?state.cur.p:null;
+    hold[from]={cur: state.cur,ui: state.ui}; state.own=k;
     const h=hold[k];
     if(h&&h.ui&&(h.ui.checked||begun(h.ui)||!left||sameP(h.cur.p,left))){ state.cur=h.cur; state.ui=h.ui; }
+    else if(k==="find") advanceFind();
     else if(left&&adoptPair(k,left)){}
     else if(k==="debate") advanceDebate(); else advance();
   }

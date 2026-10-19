@@ -46,7 +46,7 @@ async function open(vp,opts={}){
 }
 // Goes to a screen as a learner would: Home, Review or an exercise ("Relations", "Pervasions"). On a wide screen the rail lists them all;
 // on a phone the tab bar has Home and Review, and an exercise is opened from Home.
-const GO={Home:'home',Relations:'practice',Pervasions:'debate',Review:'review'};
+const GO={Home:'home',Relations:'practice',Pervasions:'debate','Find a pair':'find',Review:'review'};
 async function go(pg,name){
   const k=GO[name], b=pg.locator('[data-go="'+k+'"]').filter({visible:true});
   if(await b.count()) return b.first().click();

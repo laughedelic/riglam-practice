@@ -42,14 +42,15 @@ export interface QuestionDoc {
 export interface AnswerDoc {
   pairId: string;
   batchId?: string | null;
-  mode?: "debate";
+  /** "debate": a Pervasions answer (collection `debates`); "find": a Find a pair answer, kept in `answers` and left out of the Relations lists */
+  mode?: "debate" | "find";
   a: string;
   b: string;
   catA?: string | null;
   catB?: string | null;
-  /** the relation the learner chose, null when time ran out */
+  /** the relation the learner chose, null when time ran out; in Find a pair, the relation they were asked for */
   chosen: RelKey | null;
-  /** the correct relation */
+  /** the correct relation; in Find a pair, the one the named pair has (the one asked for, until the tutor has judged a pair of the learner's own) */
   key: RelKey;
   /** debate: the relation the first three answers imply, or "bad" */
   implied?: RelKey | "bad" | null;
@@ -61,6 +62,8 @@ export interface AnswerDoc {
   pair: Pair;
   retryOf?: string;
   timeout?: "both" | "relation" | "examples";
+  /** Find a pair: the pair is the learner's own and the tutor has not yet said whether it has the relation asked for (`correct` is not settled) */
+  relOpen?: boolean;
   /** the tutor's explanation, kept with the answer */
   explain?: string;
   verifiedAt?: string;
@@ -169,6 +172,8 @@ export interface Ui extends AnswerView {
 export interface Current {
   p: Pair;
   debate?: boolean;
+  /** Find a pair (src/app/find): there is no pair in `p` (it is null, though typed as a pair) until the learner has named one */
+  find?: boolean;
   legacy?: boolean;
   retry?: boolean;
   tag?: string;
@@ -250,6 +255,8 @@ export interface State {
   retryQ: Pair[];
   retryTag: string;
   recent: string[];
+  /** the relations Find a pair asked for lately, oldest first */
+  findAsked: RelKey[];
   lastSig: string;
   fitQ: number;
 

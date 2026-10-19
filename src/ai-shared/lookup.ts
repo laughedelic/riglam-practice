@@ -1,6 +1,7 @@
 // Looking things up in the term data: the index built from it, and matching of free text to a practice item or
 // category. Pure functions of the data, so the page and the Worker tutor resolve a learner's words the same way.
 import type { Cat, DrillData, Item } from "./data";
+import { pluralOf, termNamed } from "./mentions";
 import type { PairLike } from "./relations";
 
 /** The lookup tables over the data. The page keeps the same five fields on its `state`, so `state` can be passed as an index. */
@@ -77,6 +78,40 @@ export function catByLabel(ix: DataIndex, l: unknown): string | null {
 export function pairCats(ix: DataIndex, p: PairLike): [string, string] | [null, null] {
   const a = p.catA || catByLabel(ix, p.a), b = p.catB || catByLabel(ix, p.b);
   return a && b && a !== b ? [a, b] : [null, null];
+}
+// A phrase without the plural or third-person -s of any of its words, so that "a thing that changes" and the label "things that change" are one phrase.
+const stemWord = (w: string): string =>
+  w === "phenomena" ? "phenomenon"
+  : w.length <= 3 || /(?:ss|us|is)$/.test(w) ? w
+  : /ies$/.test(w) ? w.slice(0, -3) + "y"
+  : /(?:ches|shes|xes|zes|sses)$/.test(w) ? w.slice(0, -2)
+  : w.endsWith("s") ? w.slice(0, -1) : w;
+/** The loose form of a phrase in which a learner's words are compared with the labels of compound categories ("things you can eat"). */
+export const stemmed = (s: string): string => s.split(" ").map(stemWord).join(" ");
+// one table per label table: the loose form of every label -> category id (the first category wins, as for the labels themselves)
+const stemTables = new WeakMap<object, Record<string, string>>();
+function stemTable(ix: DataIndex): Record<string, string> {
+  let t = stemTables.get(ix.LABELIDX);
+  if (!t) {
+    t = table<string>();
+    for (const [l, id] of Object.entries(ix.LABELIDX)) { const k = stemmed(l); if (!t[k]) t[k] = id; }
+    stemTables.set(ix.LABELIDX, t);
+  }
+  return t;
+}
+/**
+ * The practice category a learner's words name, or null: one of its labels (singular or plural, with or without an article, a compound one
+ * such as "things that change" also as "a thing that changes"), or its Dudra term ("Consciousness", "permanent phenomenon"). A phenomenon the
+ * practice list has no category for gives null.
+ */
+export function categoryOf(ix: DataIndex, text: unknown): string | null {
+  const k = stripDet(spelled(text));
+  if (!k) return null;
+  for (const t of [k, pluralOf(k), k.replace(/ies$/, "y"), k.replace(/(?:es|s)$/, "")]) if (ix.LABELIDX[t]) return ix.LABELIDX[t];
+  const loose = stemTable(ix)[stemmed(k)];
+  if (loose) return loose;
+  const term = termNamed(ix, k);
+  return (term && ix.DATA.cats.find((c) => c.kind === "dudra" && c.term === term)?.id) || null;
 }
 /** The practice item a learner's words name, or null. With `exactOnly` aliases do not count. */
 export function matchItem(ix: DataIndex, text: unknown, exactOnly?: boolean): Item | null {

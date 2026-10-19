@@ -9,6 +9,7 @@ import { popNode } from "../practice/screen.js";
 import { skipSection } from "../practice/skips.js";
 import { answerList } from "../practice/universe.js";
 import { renderDebateStats } from "./debate-stats.js";
+import { renderFindStats } from "./find-stats.js";
 import { exerciseNode, practiceAgain } from "./exercise.js";
 import { flagCount, flagSection } from "./flag-list.js";
 import { render, top0 } from "../shell/render.js";
@@ -45,6 +46,7 @@ function revOverview(box,all){
     el("table",{class:"tbl"},el("tbody",null,byRel.map(([r,n,k])=>el("tr",null,el("td",{text:rname[r]}),el("td",{class:"num"},n?k+" / "+n:"–",n?barNode(pct(k,n)):null)))))));
 
   renderDebateStats(box);
+  renderFindStats(box);
 }
 function revMistakes(box,all,miss){
   // mistakes
@@ -75,7 +77,7 @@ export function renderReview(s){
   const all=answerList(), nsk=Object.keys(state.skips).length, nfl=state.db?flagCount():0;
   if(!all.length){
     const pane=el("div",{class:"rpane"}); s.append(pane);
-    pane.append(el("p",{class:"empty-note",text:"No practice answers yet. Your history and weak spots will show up here."})); favSection(pane); if(nsk) skipSection(pane); if(nfl) flagSection(pane); renderDebateStats(pane); return;
+    pane.append(el("p",{class:"empty-note",text:"No practice answers yet. Your history and weak spots will show up here."})); favSection(pane); if(nsk) skipSection(pane); if(nfl) flagSection(pane); renderDebateStats(pane); renderFindStats(pane); return;
   }
   const miss=all.filter(isMiss).reverse(), nf=Object.keys(state.favs).length;
   /** @type {[string, string, (box: HTMLElement, all: object[], miss: object[]) => void, string][]} */

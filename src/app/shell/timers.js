@@ -17,7 +17,7 @@ $("mopt").addEventListener("click",()=>toggleOpts());
 // Home, the exercises and Review, in the rail and the tab bar; the back arrow of an exercise goes Home
 for(const id of ["tabs","tabbar"]) $(id).addEventListener("click",e=>{ const b=/** @type {Element} */(e.target).closest("[data-go]"); if(b) setTab(b.getAttribute("data-go")); });
 $("mback").append(tbIcon("back")); $("mback").addEventListener("click",()=>setTab("home"));
-$("mfav").addEventListener("click",()=>{ if(state.cur&&state.cur.p) toggleFav(state.cur.p); });
+$("mfav").addEventListener("click",()=>{ if(state.cur&&state.cur.p&&!state.cur.p.own) toggleFav(state.cur.p); });
 $("mbz").addEventListener("click",()=>setBlitz(!state.blitz));
 $("mskip").append(tbIcon("skip")); $("mskip").addEventListener("click",skipPair);
 wideMq.addEventListener("change",()=>{ syncVv(); if(state.mode!=="loading") render(); });
