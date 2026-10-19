@@ -9,10 +9,10 @@ import type { CellId, DrillData, RelKey } from "../../src/ai-shared";
 import {
   FEATURE, RECENT_MAX, AUTO_FLAGS, applyVerdicts, autoFlagOf, decideFlag, factNote, fitOf, flagAnswerRef, flagAsked, flagStateText, flaggedPart, noteParts, buildPool, cellsFor, chooseEntry, deriveRel, grade, gradeDebate, gradeOf, inUniverse, isMiss, judgeText, makePair,
   nextPair, pairKey, parseFactLine, parseVerdicts, pick, relOfCells, summarize, termLine, cellFor, cellOfFacts, disputeText, divided, quorumDisputes, quorumRows, readings,
-  drawable, placeByClass,
 } from "../../src/domain";
 import type { DebateInput, GradeDraft, HistoryEntry, Pair, PoolEntry } from "../../src/domain";
 import openData from "../../src/data/drill-data.json";
+import { drawable, placeByClass } from "../../src/domain";
 
 /** A small deterministic random source (mulberry32), so a test draws the same numbers every time. */
 const seeded = (seed: number) => () => {
@@ -750,6 +750,32 @@ test("the examples of several answers are gathered, with the cell each answer ga
   expect(rows.map(divided)).toEqual([true, false]);
 });
 
+// ---- the code stays free of the page and the browser ----
+
+const here = resolve(__dirname, "../../src/domain");
+const aiShared = resolve(__dirname, "../../src/ai-shared");
+const sources = readdirSync(here).filter((f) => f.endsWith(".ts")).map((f) => join(here, f));
+
+test("src/domain imports only itself and src/ai-shared, and touches nothing of the page or the browser", () => {
+  expect(sources.length).toBeGreaterThan(4);
+  for (const f of sources) {
+    const text = readFileSync(f, "utf8");
+    for (const m of text.matchAll(/^(?:import|export)\s[^;]*?from\s+["']([^"']+)["']/gm)) {
+      expect(m[1].startsWith("./") || m[1].startsWith("../ai-shared"), `${f} imports ${m[1]}`).toBe(true);
+      const target = resolve(dirname(f), m[1]);
+      expect(target.startsWith(here) || target.startsWith(aiShared), `${f} imports ${m[1]}`).toBe(true);
+    }
+    const code = text.replace(/\/\/.*$/gm, "").replace(/\/\*[^]*?\*\//g, "");
+    expect(code, f).not.toMatch(/\b(window|document|localStorage|sessionStorage|navigator|fetch|XMLHttpRequest|process)\b/);
+  }
+});
+
+test("src/ai-shared does not depend on src/domain", () => {
+  for (const f of readdirSync(aiShared).filter((f) => f.endsWith(".ts"))) {
+    expect(readFileSync(join(aiShared, f), "utf8"), f).not.toMatch(/from\s+["'][^"']*domain/);
+  }
+});
+
 // ---- placing a reference example by its classes ----
 //   Form and Consciousness are functional things and exclude each other; Permanent excludes Functional thing; Color is an
 //   external form; a non-existent excludes every existent.
@@ -808,30 +834,4 @@ test("drawable: confirmed and textbook examples up to the level, never a comment
   expect(drawable({ cf: "textbook", lv: 3 }, 2)).toBe(false);
   expect(drawable({ cf: "commentator", lv: 1 }, 4)).toBe(false);
   expect(drawable({ lv: 1 }, 4)).toBe(false);
-});
-
-// ---- the code stays free of the page and the browser ----
-
-const here = resolve(__dirname, "../../src/domain");
-const aiShared = resolve(__dirname, "../../src/ai-shared");
-const sources = readdirSync(here).filter((f) => f.endsWith(".ts")).map((f) => join(here, f));
-
-test("src/domain imports only itself and src/ai-shared, and touches nothing of the page or the browser", () => {
-  expect(sources.length).toBeGreaterThan(4);
-  for (const f of sources) {
-    const text = readFileSync(f, "utf8");
-    for (const m of text.matchAll(/^(?:import|export)\s[^;]*?from\s+["']([^"']+)["']/gm)) {
-      expect(m[1].startsWith("./") || m[1].startsWith("../ai-shared"), `${f} imports ${m[1]}`).toBe(true);
-      const target = resolve(dirname(f), m[1]);
-      expect(target.startsWith(here) || target.startsWith(aiShared), `${f} imports ${m[1]}`).toBe(true);
-    }
-    const code = text.replace(/\/\/.*$/gm, "").replace(/\/\*[^]*?\*\//g, "");
-    expect(code, f).not.toMatch(/\b(window|document|localStorage|sessionStorage|navigator|fetch|XMLHttpRequest|process)\b/);
-  }
-});
-
-test("src/ai-shared does not depend on src/domain", () => {
-  for (const f of readdirSync(aiShared).filter((f) => f.endsWith(".ts"))) {
-    expect(readFileSync(join(aiShared, f), "utf8"), f).not.toMatch(/from\s+["'][^"']*domain/);
-  }
 });

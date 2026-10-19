@@ -1,9 +1,12 @@
-// The reference examples format (src/data/examples.js): the device part made from the full one, the checks against the open data,
-// and the made-up examples CI uses (scripts/lib/made-up-course.mjs). Invented examples only: the real ones are course tier.
+// The reference examples: the format (src/data/examples.js), with the device part made from the full one and the checks against the
+// open data; the made-up examples CI uses (scripts/lib/made-up-course.mjs); and how the tutor's code reads and matches them
+// (src/ai-shared/examples.ts, the classify_example tool). Invented examples only: the real ones are course tier.
 import { expect, test } from "vitest";
 import { DEVICE_FORMAT, FORMAT, VERSION, deviceExamples, examplesProblems } from "../../src/data/examples.js";
 import { MADE_UP_SOURCES, madeUpExamples } from "../../scripts/lib/made-up-course.mjs";
 import { readOpen } from "../../scripts/lib/course-files.mjs";
+import { makeExampleIndex, makeIndex, matchExamples, readExamples, tutorTools } from "../../src/ai-shared";
+import type { DrillData } from "../../src/ai-shared";
 
 const OPEN = { terms: { Form: {}, Color: {} } };
 const full = (items: object[]) => ({ format: FORMAT, version: VERSION, sources: { MA: { tier: "open" }, MX: { tier: "course" } }, items });
@@ -61,4 +64,62 @@ test("the made-up examples fit the open data, are the same every time, and exerc
   expect(items.some((i) => i.src.some(([id]) => id === "MX"))).toBe(true);
   const device = JSON.stringify(deviceExamples(made, open.built).items);
   expect(device).not.toMatch(/"MX"|[\u4e00-\u9fff]|"src"|"web"|"mem"|"base"/);
+});
+
+// ---- the reference examples ----
+//   invented examples over a small chain: Color < External form < Form < Existent
+
+const exData = (): DrillData => ({
+  terms: {
+    Existent: { name: "Existent", ch: "I" },
+    Form: { name: "Form", ch: "I", parent: "Existent" },
+    "External form": { name: "External form", ch: "I", parent: "Form" },
+    Color: { name: "Color", ch: "I", parent: "External form" },
+  },
+  chains: { Form: ["Form", "Existent"] },
+  cats: [{ id: "form", kind: "dudra", term: "Form", labels: ["forms"], type: "form" }],
+  items: [{ n: "a blue ball", t: "Form", c: ["form"] }],
+  bodySkip: [],
+});
+const REF = readExamples({
+  format: "riglam-examples-device", version: 2, sources: {},
+  items: [
+    { n: "a vemo lake", al: ["vemo", "вемо"], cls: ["Color", "Unheard-of class"], not: ["Existent"], lv: 1, k: "thing", cf: "confirmed", gloss: "Invented for the test.", s: ["MA"] },
+    { n: "the kipa glow", al: ["kipa"], cls: ["Form"], lv: 3, cf: "commentator" },
+    { n: "a kipa stone", al: ["kipa"], cls: ["Form"], lv: 2, cf: "textbook" },
+    { n: "a blue ball", cls: ["Color"], lv: 1, cf: "textbook" },
+    { lv: 1 }, { n: "no level" }, null,
+  ],
+})!;
+
+test("readExamples keeps the items with a name and a level, and reads nothing from what is not the format", () => {
+  expect(REF.items.map((i) => i.n)).toEqual(["a vemo lake", "the kipa glow", "a kipa stone", "a blue ball"]);
+  expect(readExamples(null)).toBeNull();
+  expect(readExamples({ items: "no" })).toBeNull();
+  expect(readExamples([1, 2])).toBeNull();
+});
+
+test("matchExamples finds an example by its name, without the article, by an alias, in the plural, and every example a name names", () => {
+  const eix = makeExampleIndex(REF);
+  for (const words of ["a vemo lake", "Vemo lake", "the vemo lakes", "VEMO", "вемо"]) expect(matchExamples(eix, words).map((i) => i.n), words).toEqual(["a vemo lake"]);
+  expect(matchExamples(eix, "kipa").map((i) => i.n)).toEqual(["the kipa glow", "a kipa stone"]);
+  for (const words of ["", "constructor", "toString", "lake", null]) expect(matchExamples(eix, words), String(words)).toEqual([]);
+});
+
+test("classify_example looks in the practice list first, then in the reference examples, and shows a shared name as two", () => {
+  const ix = makeIndex(exData());
+  const classify = (examples: ReturnType<typeof makeExampleIndex> | null) => tutorTools(ix, examples).find((t) => t.name === "classify_example")!;
+  const eix = makeExampleIndex(REF);
+  expect(classify(null).description).not.toMatch(/reference/);
+  expect(classify(eix).description).toMatch(/reference examples/);
+  expect(classify(null).execute({ thing: "a vemo lake" })).toEqual({ found: false });
+  expect(classify(eix).execute({ thing: "a blue ball" })).toMatchObject({ found: true, item: "a blue ball", dudra_type: "Form", categories: ["forms"] });
+  expect(classify(eix).execute({ thing: "vemo" })).toEqual({
+    found: true, source: "reference", item: "a vemo lake", existent: true,
+    classes: ["Color > External form > Form > Existent"], not: ["Existent"], level: 1, kind: "thing", confirmation: "confirmed", why: "Invented for the test.",
+  });
+  const two = classify(eix).execute({ thing: "kipa" }) as { ambiguous: boolean; candidates: { item: string; level: number }[] };
+  expect(two.ambiguous).toBe(true);
+  expect(two.candidates.map((c) => [c.item, c.level])).toEqual([["the kipa glow", 3], ["a kipa stone", 2]]);
+  expect(classify(eix).execute({ thing: "something else" })).toEqual({ found: false });
 });
