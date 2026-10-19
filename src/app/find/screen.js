@@ -75,7 +75,7 @@ function findResult(){
     :!r.relOk?"That pair is not "+lcRel(asked.name)+"."
     :{ok:"Right.",part:"The pair has the relation, but not everything else is right.",pend:"Pair and cells right.",bad:"Not quite."}[r.overall];
   const nota=k=>notaOf(k)&&state.nota!=="codes"?[" ",el("span",{class:"nota math",text:notaOf(k)})]:null;
-  const cellsOpen=CELLS.some(c=>r.cells[c].v==="open");
+  const cellsOpen=r.relOpen||CELLS.some(c=>r.cells[c].v==="open"); // which cells stay empty is for the relation Claude finds, so nothing is said of them before
   return resultBlock(r,head,[
     {key:"rel",label:"Pair",st:r.relOpen?"open":r.relOk?"ok":"bad",body:()=>r.relOpen?[
         el("p",null,el("b",{text:"Pair: "}),r.relUns?"Claude could not settle it.":"not judged yet."),
@@ -85,8 +85,8 @@ function findResult(){
       :r.relOk?[el("p",null,el("b",{text:"Pair: "}),"right."),el("p",null,asked.name+": "+gl(asked)+".",nota(u.rel))]
       :[el("p",null,el("b",{text:"Pair: "}),"wrong."),
         el("p",null,named?p.a+" and "+p.b+" are "+lcRel(actual.name)+" ("+lcRel(gl(actual))+"), not "+lcRel(asked.name)+".":"Claude says "+p.a+" and "+p.b+" are not "+lcRel(asked.name)+".",named?nota(p.relation):null)]},
-    {key:"cells",label:"Cells",st:r.occBad?"bad":cellsOpen?"open":"ok",body:()=>el("p",null,el("b",{text:"Cells: "}),
-      r.occBad?(r.occBad+" filled or left empty wrongly."):cellsOpen?"which ones stay empty depends on the relation Claude finds.":"the right ones are filled and empty.")},
+    {key:"cells",label:"Cells",st:r.relOpen?"open":r.occBad?"bad":cellsOpen?"open":"ok",body:()=>el("p",null,el("b",{text:"Cells: "}),
+      r.relOpen||(!r.occBad&&cellsOpen)?"which ones stay empty depends on the relation Claude finds.":r.occBad?(r.occBad+" filled or left empty wrongly."):"the right ones are filled and empty.")},
     {key:"ex",label:"Examples",st:r.exBad?"bad":r.exOpen?"open":"ok",body:()=>el("p",null,el("b",{text:"Examples: "}),exLine(r,CELLS))},
     p.own?null:termsItem(p),tutorItem(),quorumItem()].filter(Boolean));
 }

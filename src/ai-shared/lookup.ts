@@ -79,6 +79,11 @@ export function pairCats(ix: DataIndex, p: PairLike): [string, string] | [null, 
   const a = p.catA || catByLabel(ix, p.a), b = p.catB || catByLabel(ix, p.b);
   return a && b && a !== b ? [a, b] : [null, null];
 }
+/** The categories the tutor's fine points are taken from: the pair's two, and for a pair of the learner's own each side the data recognizes (the other may be the learner's words only). */
+export function noteCats(ix: DataIndex, p: PairLike): string[] {
+  if (!p.own) return pairCats(ix, p).filter((c): c is string => !!c);
+  return [p.catA || catByLabel(ix, p.a), p.catB || catByLabel(ix, p.b)].filter((c): c is string => !!c);
+}
 // A phrase without the plural or third-person -s of any of its words, so that "a thing that changes" and the label "things that change" are one phrase.
 const stemWord = (w: string): string =>
   w === "phenomena" ? "phenomenon"

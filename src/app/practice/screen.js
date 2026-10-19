@@ -310,7 +310,7 @@ export function fillTurn(node,t,lean){
   if(!lean||t.kind!=="explain"||!t.content){ fillAns(node,t.content); return; }
   const raw=String(t.content), lines=raw.split("\n");
   if(t.pending&&!/\n\s*$/.test(raw)) lines.pop();           // the last line may still be growing
-  const wrong=!!(state.ui&&state.ui.res&&(state.ui.res.overall==="bad"||state.ui.res.overall==="part"));
+  const wrong=!!(state.ui&&state.ui.res&&(state.ui.res.overall==="bad"||state.ui.res.overall==="part"||state.ui.res.relOpen)); // a pair Claude has not judged is not "right" either
   const rest=wrong?lines.filter(l=>l.trim()&&!CELL_LN.test(l.trim())&&!REL_LN.test(l.trim())).join("\n"):"";
   if(rest||t.pending){ fillAns(node,rest); return; }
   node.replaceChildren(el("p",{class:"status",text:"Claude's notes on the cells and the relation are on the ? marks."}));
