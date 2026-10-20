@@ -58,9 +58,20 @@ test("a phone's menu is a drawer: the scrim, Escape and a choice close it", asyn
   expect(await overflow(page)).toBeLessThanOrEqual(0);
 });
 
-test("a wide screen's menu is pinned open by the menu button, kept across a reload, and peeks from the left edge", async ({ page }, testInfo) => {
+test("a wide screen starts with the menu pinned; the menu button unpins it, the choice is kept across a reload, and an unpinned menu peeks from the left edge", async ({ page }, testInfo) => {
   test.skip(isPhone(testInfo), "the panel is the wide screen's");
   await page.goto("/");
+  await ready(page);
+  // nothing stored yet: pinned beside the exercise (it would be stretched across the whole width without it)
+  await expect(page.locator("#menu")).toBeVisible();
+  expect(await menuState(page)).toBe("pinned");
+  const [menuRight, stageLeft] = await page.evaluate(() => [document.getElementById("menu").getBoundingClientRect().right, document.getElementById("stage").getBoundingClientRect().left]);
+  expect(stageLeft).toBeGreaterThanOrEqual(menuRight - 1);
+  // beside the exercise it has no close button of its own: the menu button, which is not covered, does that
+  await expect(page.locator("#menu .mclose")).toHaveCount(0);
+  await page.locator("#menubtn").click();
+  await expect(page.locator("#menu")).toBeHidden();
+  await page.reload();
   await ready(page);
   await expect(page.locator("#menu")).toBeHidden();
   // resting on the strip at the left edge shows it over the exercise; leaving takes it away
@@ -70,22 +81,12 @@ test("a wide screen's menu is pinned open by the menu button, kept across a relo
   await expect(page.locator("#menu .mclose")).toHaveCount(1); // the peeking panel covers the menu button, so it has a button of its own
   await page.mouse.move(700, 400);
   await expect(page.locator("#menu")).toBeHidden();
-  // the button pins it beside the exercise
+  // the button pins it again, and that is kept too
   await page.locator("#menubtn").click();
   expect(await menuState(page)).toBe("pinned");
-  await expect(page.locator("#menu")).toBeVisible();
-  const [menuRight, stageLeft] = await page.evaluate(() => [document.getElementById("menu").getBoundingClientRect().right, document.getElementById("stage").getBoundingClientRect().left]);
-  expect(stageLeft).toBeGreaterThanOrEqual(menuRight - 1);
   await page.reload();
   await ready(page);
   await expect(page.locator("#menu")).toBeVisible();
-  // beside the exercise it has no close button of its own: the menu button, which is not covered, does that
-  await expect(page.locator("#menu .mclose")).toHaveCount(0);
-  await page.locator("#menubtn").click();
-  await expect(page.locator("#menu")).toBeHidden();
-  await page.reload();
-  await ready(page);
-  await expect(page.locator("#menu")).toBeHidden();
 });
 
 test("an attempt begun and left says continue on its row and comes back as it was", async ({ page }) => {
