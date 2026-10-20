@@ -292,6 +292,39 @@ test("the practice options hold only what Syllogisms uses: the wording, which is
   expect(await page.evaluate(() => localStorage.getItem("rd-syllogism-level"))).toBe("1");
 });
 
+test("the structure is shown only on request: S, P and R under the sentence, and what each reply says in them; the choice is kept", async ({ page }) => {
+  await open(page);
+  await expect(page.locator(".sylkey")).toHaveCount(0); // off at first: the card is the sentence and the replies
+  await expect(page.locator(".sylmeans")).toHaveCount(0);
+  await page.locator("#msess").click();
+  const row = page.locator("#opts .orow", { hasText: "Show the structure" });
+  await expect(row).toContainText("S is the subject, P the predicate and R the reason");
+  await row.getByRole("switch").click();
+  expect(await page.evaluate(() => localStorage.getItem("rd-syllogism-guide"))).toBe("1");
+  await page.keyboard.press("Escape");
+  const key = page.locator(".sylkey li");
+  await expect(key).toHaveCount(3);
+  await expect(key.nth(0)).toContainText(/^S\s*the subject:/);
+  await expect(key.nth(1)).toContainText(/^P\s*the predicate:/);
+  await expect(key.nth(2)).toContainText(/^R\s*the reason:/);
+  // the words of the syllogism on the card stand in the key, in the order S, P, R
+  const [subject, predicate, reason] = await page.locator(".sylt b").allTextContents();
+  await expect(key.nth(0).locator("b").nth(1)).toHaveText(subject);
+  await expect(key.nth(1).locator("b").nth(1)).toHaveText(predicate);
+  await expect(key.nth(2).locator("b").nth(1)).toHaveText(reason);
+  await expect(page.locator(".sylsay .sylmeans")).toHaveText(["S is not R.", "S is R, but not everything that is R is P.", "S is R, and everything that is R is P."]);
+  // the replies still read and work as before: the name, then what it says
+  await expect(page.locator(".sylask .sylsay")).toHaveText([/^1\s*The reason is not established/i, /^2\s*There is no pervasion/i, /^3\s*Accept/i]);
+  expect(await overflow(page)).toBeLessThanOrEqual(0);
+  // kept, and gone with the reply: the result has the sheet of the checks only
+  await page.reload();
+  await expect(page.locator(".sylkey li")).toHaveCount(3);
+  await draw(page, 1);
+  await say(page, "accept");
+  await expect(headline(page)).toHaveText("Right.");
+  await expect(page.locator(".sylkey")).toHaveCount(0);
+});
+
 test("the tutor's chat is not part of Syllogisms yet", async ({ page }) => {
   await open(page);
   if (await page.locator("#mchat").isVisible()) await expect(page.locator("#mchat")).toHaveAttribute("aria-label", "Recent answers"); // a wide screen: only the panel of recent answers and keys
