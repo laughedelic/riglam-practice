@@ -31,7 +31,7 @@ export const state = {
   gotB: false,
   gotA: false,
   gotS: false,
-  tab: "practice",
+  tab: "practice",    // the screen: an exercise ("practice" is Relations, "debate" Pervasions, "find" Find a pair) or "review"; the app opens on the exercise used last
   mode: "loading",
   ui: null,
   cur: null,
@@ -39,16 +39,26 @@ export const state = {
   recent: [],
   findAsked: [],   // the relations Find a pair asked for lately, oldest first: the draw of the next one leans away from them (find/flow.js)
   findRel: null,   // the relation Find a pair keeps asking for once the learner has picked one (`rd-findrel`); null: a different one each time
-  findSuggest: true, // Find a pair offers the terms of the course while the pair is typed (Options, `rd-findsuggest`); off: plain fields
+  findSuggest: true, // Find a pair offers the terms of the course while the pair is typed (the settings of Find a pair, `rd-findsuggest`); off: plain fields
   debates: {},
   own: "practice",
   favs: {},
   favErr: "",
   retryTag: "Retry",
   nota: "codes",
-  optsOpen: false,
-  ovPushed: 0,    // history entries held for the overlays that are open (shell/history.js): Back closes an overlay instead of leaving the app
-  ovPending: 0,   // steps back the page took itself, whose popstate is to be ignored
+  optsOpen: false,   // Settings (the device and the account) covers the exercise
+  sessOpen: false,   // the Practice options of the exercise on screen: a sheet on a phone, a popover on a wide screen
+  sessPage: null,    // the option whose own page is open in the Practice options (shell/session.js), or null for the list
+  skipAsk: false,    // the dialog that asks before a pair with answers in it is skipped
+  menuOpen: false,   // narrow screens: the menu slides over the exercise
+  menuPin: true,     // wide screens: the menu is pinned open beside the exercise (`rd-menu`, pinned until it is unpinned); otherwise it only peeks from the left edge
+  menuPeek: false,   // wide screens: the pointer is on the left edge, the menu shows while it stays there
+  coachOpen: false,  // wide screens: the panel at the right (recent answers and keys before the result, the tutor after it) is open
+  navDepth: 0,    // history entries held above the first screen (shell/history.js): the exercise itself on a narrow screen, Review, the chat view, Settings, the options and their pages, the skip question
+  navSkip: 0,     // steps back the page took itself, whose popstate is to be ignored
+  navQ: false,    // a check of the entries against the state is due after this render
+  navBack: false, // the system's Back is closing levels, and the browser has animated the screen away itself (a swipe from the edge): the panels do not move as well (shell/history.js, shell/motion.js)
+  motion: false,  // the first screen has been drawn: panels that open or close after it slide (shell/motion.js)
   view: null,
   reviewSeg: "overview",
   defLang: "en",  // definitions in the Terms panel: "en", or "enru" (English with the Russian definition and the Russian name of each term)
@@ -56,16 +66,13 @@ export const state = {
   skips: {},
   skipNote: null,
   skipErr: "",
-  // After a skip on a narrow screen a small hint opens under the icon: "Skipped a / b · Undo". It blocks nothing (no scrim), is outside the cards so nothing shifts,
-  // and closes on the next tap, key press (Tab moves into it), scroll, or after UNDO_MS. Closing it changes nothing else; Review still lists the pair.
-  hintOff: null,
   quorumOffered: false,   // the app's server offers Quorum, the tutor's mode of several models and a judge (platform.quorum): a Preview, with the Magic Key
   quorumOptIn: false,     // the server offers it as an opt-in: off on a device until the device turns it on (a Preview has it on until the device turns it off)
   quorumChoice: null,     // what this device chose in Options (`rd-quorum`): true, false, or null for not yet (then the server's default applies)
   quorum: false,          // Quorum is on for this device: its own choice, else the server's default (setQuorumOffer)
   autoExplain: true,   // a checked answer asks for its explanation by itself (Options); the Explain button is still there for one that was not asked
   learns: false,       // the app's server keeps the examples the tutor checked (platform.shares): Options tells the learner and offers the switch
-  shareExamples: true, // this device lets it (Options, `rd-share`): an explain question names the examples the page could not check; off, it names none
+  shareExamples: true, // this device lets it (Practice options, `rd-share`): an explain question names the examples the page could not check; off, it names none
   flags: {},
   flagErr: "",
   flagPending: 0,
@@ -74,6 +81,7 @@ export const state = {
   // A draw replaces the whole screen, which would send the scroll back to the top. While the screen is the same one (the same pair, step and
   // result, with a row opened or a chip changed), the scroll stays where it was; a new screen starts at the top, as the callers ask with top0().
   lastSig: "",
+  lastUi: null,
   fitQ: 0,
   // the last answers, newest first, in the coach panel
   // The heading folds the list away (a per-device choice, kept in the browser); folded, the panel shows just the heading.
@@ -82,15 +90,17 @@ export const state = {
   // display switches (Options): the A/B chips in statements and answers, and the Why? answer spelled out as a sentence
   showAB: true,
   fullPh: true,
-  /* the blitz timer: a switch above the questions turns it on; its length is set in the options. A slim bar under the
+  /* the blitz timer: a switch above the questions turns it on; its length is set in the settings of the exercise. A slim bar under the
   question drains over the limit and flashes gently at the end. When time runs out, the statement counts as accepted. */
   timerMs: 10000,
   blitz: false,
-  timeEdit: false,
-  timeDraft: "",
+  bzHold: 0,         // the timer of a hold on the stopwatch in the top bar (shell/topbar.js)
+  blitzUse: true,    // the Blitz page of the practice options can take the stopwatch away from the top bar altogether (on by default)
   relMs: undefined,  // the relation has its own time; it starts from the one time of earlier versions
 };
 
+try{ const v=localStorage.getItem("rd-ex"); if(v==="debate"||v==="find") state.tab=state.own=v; }catch(e){}
+try{ state.menuPin=localStorage.getItem("rd-menu")!=="0"; }catch(e){ state.menuPin=true; }   // a wide screen starts with the menu pinned (the exercise would be stretched too wide without it); the button unpins it
 try{ const v=localStorage.getItem("rd-notation"); if(v==="sets"||v==="logic") state.nota=v; }catch(e){}
 try{ if(localStorage.getItem("rd-deflang")==="enru") state.defLang="enru"; }catch(e){}   // an earlier "off" (words only) is now the codes
 // the setting was stored as "rd-lab" while Quorum was a lab of the page: a device that turned it off keeps it off
@@ -104,6 +114,8 @@ try{ if(localStorage.getItem("rd-ab")==="0") state.showAB=false; if(localStorage
 try{
   const v=+localStorage.getItem("rd-timer"); if(v>=2000&&v<=120000) state.timerMs=v;
   const b=localStorage.getItem("rd-blitz"); state.blitz=b!==null?b==="1":v>0;     // an earlier version stored only the length: a length meant the timer was on
+  state.blitzUse=localStorage.getItem("rd-blitzuse")!=="0";
+  if(!state.blitzUse) state.blitz=false;
 }catch(e){}
 state.relMs = state.timerMs;
 try{ const v=+localStorage.getItem("rd-timer-rel"); if(v>=2000&&v<=120000) state.relMs=v; }catch(e){}

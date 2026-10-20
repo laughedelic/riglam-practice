@@ -1,21 +1,22 @@
 /* finger-sized inputs: 16px keeps iOS from zooming into a field */
 @media (pointer:coarse){input{font-size:16px !important}}
 @media (max-width:520px){
-  .work,.steps,.mbar,.over{padding-inline:12px}
+  .work,.steps,.over{padding-inline:12px}
   .qt{font-size:17px}
 }
 @media (min-width:1100px){
-  .app{display:grid;grid-template-columns:208px minmax(0,1fr);grid-template-rows:minmax(0,1fr);max-width:calc(1480px + 2 * var(--band))}
-  .rail{display:flex;grid-column:1}
-  .work{grid-column:2;display:grid;grid-template-columns:minmax(0,1fr) clamp(300px,30vw,372px);padding:0;min-width:0}
-  .app[data-tab="review"] .work{grid-template-columns:minmax(0,1fr)}
-  .mbar,.steps,.tabbar{display:none !important}
-  .coach{display:flex;grid-column:2}
-  .app[data-tab="review"] .coach{display:none}
+  .app{max-width:calc(1480px + 2 * var(--band))}
+  .work{display:grid;grid-template-columns:minmax(0,1fr);padding:0;min-width:0}
+  .app{--coachw:clamp(300px,30vw,372px)}
+  .app[data-coach="1"] .work{grid-template-columns:minmax(0,1fr) var(--coachw)}
+  .app[data-coach="1"] .mbar .mbt{right:var(--coachw)}   /* the Blitz countdown runs over the workspace only, ending where the right panel begins */
+  .steps{display:none !important}
+  .coach:not([hidden]){display:flex;grid-column:2}
   .card{grid-column:1;margin-inline:0;padding:22px 28px 0;gap:12px}
-  .card>.actions{position:static;border-top:0;margin-inline:0;padding:8px 0 16px;background:transparent}
-  .card.rv{overflow:hidden;margin-inline:0;padding:22px 28px 0}
-  .over{left:calc(var(--band) + 208px);padding-inline:28px}
+  .card>.pbar{margin-inline:-28px;padding-inline:28px}
+  .card.rv{margin-inline:0;padding:0 28px}
+  .rseg{max-width:560px}
+  .over{padding-inline:28px}
   .over .opts{max-width:560px}
   .pair{--tsz:28px}
   .card:not(.rv) .cell,.card:not(.rv) .cell.locked{min-height:112px}

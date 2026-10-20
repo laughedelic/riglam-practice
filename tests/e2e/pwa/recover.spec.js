@@ -58,5 +58,5 @@ test("a storage that never answers does not keep the page on Loading: it starts,
   // the bar covers the buttons at the top of a phone: it can be put away
   await page.locator("#store").getByRole("button", { name: "Hide" }).click();
   await expect(page.locator("#store")).toBeHidden();
-  await expect(page.getByRole("button", { name: /options/i }).filter({ visible: true }).first()).toBeVisible();
+  await expect(page.locator("#menubtn")).toBeVisible();
 });

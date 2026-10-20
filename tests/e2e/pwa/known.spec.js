@@ -201,11 +201,12 @@ withKey("the course's reference examples on the device settle an example they na
   expect(asked.known).toHaveLength(0);
 });
 
-// the server keeps the examples the tutor checked (health says `learns`): the learner is told in Options, and can keep a device's examples out
+// the server keeps the examples the tutor checked (health says `learns`): the learner is told in the Practice options, and can keep a device's examples out
 const share = (page) => page.getByRole("switch", { name: /share my examples/i });
-const openOptions = (page) => page.getByRole("button", { name: "Options" }).first().click();
+const openOptions = (page) => page.getByRole("button", { name: "Practice options" }).click();
+const closeOptions = (page) => page.locator("#over .oc").click();
 
-withKey("Options tells the learner that the server keeps examples and offers the switch only where the server says it does", async ({ page }, testInfo) => {
+withKey("the practice options tell the learner that the server keeps examples and offers the switch only where the server says it does", async ({ page }, testInfo) => {
   await open(page, testInfo, { health: { ok: true, tutor: "on" } });
   await openOptions(page);
   await expect(page.getByText("Check every answer with AI")).toBeVisible();
@@ -220,7 +221,7 @@ withKey("with the switch on, an explain question names the examples; off, it nam
   // the server does not answer from what it learned here (no `known`), so the notice does not promise it
   await expect(page.getByText("you still get answers learned from other people")).toHaveCount(0);
   await expect(share(page)).toHaveAttribute("aria-checked", "true");
-  await page.getByRole("button", { name: /close options/i }).first().click();
+  await closeOptions(page);
   await explain(page).click();
   await expect.poll(() => asked.tutor.length).toBe(1);
   expect(asked.tutor[0].body.examples.length).toBeGreaterThan(0);
@@ -233,7 +234,7 @@ withKey("with the switch on, an explain question names the examples; off, it nam
   await ready(page);
   await openOptions(page);
   await expect(share(page)).toHaveAttribute("aria-checked", "false");
-  await page.getByRole("button", { name: /close options/i }).first().click();
+  await closeOptions(page);
   await answer(page);
   await explain(page).click();
   await expect.poll(() => asked.tutor.length).toBe(2);
@@ -254,7 +255,7 @@ withKey("a switch turned off in another tab is honored by this one before it nam
   await expect(share(page)).toHaveAttribute("aria-checked", "false");
 });
 
-withKey("Options says that the sharing switch and Quorum are separate, each for what it keeps", async ({ page }, testInfo) => {
+withKey("the practice options say that the sharing switch and Quorum are separate, each for what it keeps", async ({ page }, testInfo) => {
   await open(page, testInfo, { health: { ok: true, tutor: "on", learns: "on", quorum: "optin" } });
   await openOptions(page);
   await expect(page.getByText("Quorum, below, is separate")).toBeVisible();

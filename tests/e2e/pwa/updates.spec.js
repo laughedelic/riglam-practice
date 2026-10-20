@@ -6,7 +6,7 @@ import { createServer } from "node:http";
 import { readFileSync, existsSync, statSync } from "node:fs";
 import { extname, join, normalize } from "node:path";
 import { test, expect } from "../../support/test.js";
-import { ready } from "../../support/page.js";
+import { ready, openSettings, openMenu } from "../../support/page.js";
 
 const DIST = join(process.cwd(), "dist/pwa");
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".json": "application/json", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png", ".woff2": "font/woff2", ".webmanifest": "application/manifest+json" };
@@ -43,7 +43,7 @@ async function installed(page) {
   await expect.poll(() => controlled(page)).toBe(true);
 }
 
-test("a newer version is found, offered, and started from the banner without closing the app", async ({ page }) => {
+test("a newer version is found, offered, and started from the toast without closing the app", async ({ page }) => {
   await installed(page);
   expect(await which(page)).not.toBe("v2");
   await expect(page.locator("#upd")).toBeHidden();
@@ -53,6 +53,11 @@ test("a newer version is found, offered, and started from the banner without clo
   await page.evaluate(() => window.__riglam.platform.updates.check());
   await expect(page.locator("#upd")).toBeVisible();
   await expect(page.locator("#upd")).toContainText("New version ready");
+  // a small card under the top bar, not a bar across the screen: it leaves the pair bar and the foot of the screen alone
+  const [t, vp, top] = await Promise.all([page.locator("#upd").boundingBox(), page.viewportSize(), page.locator(".mbar").boundingBox()]);
+  expect(t.width).toBeLessThan(vp.width - 20);
+  expect(t.y).toBeGreaterThanOrEqual(top.y + top.height);
+  expect(t.y + t.height).toBeLessThan(vp.height / 2);
   expect(await isOld(page), "the page the reader is using is not reloaded behind their back").toBe(true);
 
   await page.locator("#upd").getByRole("button", { name: "Update now" }).click();
@@ -62,7 +67,51 @@ test("a newer version is found, offered, and started from the banner without clo
   await expect(page.locator("#upd")).toBeHidden();
 });
 
-test("Later hides the banner, and Options still offers the update", async ({ page }) => {
+test("the toast goes away by itself after a while, and the menu keeps the way to update", async ({ page }) => {
+  await installed(page);
+  await page.clock.install(); // the toast's timer is made after this, so the clock can run it
+  newVersion = true;
+  await page.evaluate(() => window.__riglam.platform.updates.check());
+  await expect(page.locator("#upd")).toBeVisible();
+  await page.clock.fastForward(25_000);
+  await expect(page.locator("#upd")).toBeHidden();
+  await openMenu(page);
+  await expect(page.locator("#menu .ver")).toContainText("Update available");
+});
+
+test("the toast waits while the pointer or the focus is on it, and goes only when neither is", async ({ page }) => {
+  await installed(page);
+  await page.clock.install();
+  newVersion = true;
+  await page.evaluate(() => window.__riglam.platform.updates.check());
+  const toast = page.locator("#upd");
+  await expect(toast).toBeVisible();
+  await toast.getByRole("button", { name: "Update now" }).focus();
+  await toast.hover();
+  await page.clock.runFor(25_000);
+  await expect(toast).toBeVisible();
+  // the pointer leaves and the focus stays: the notice stays too
+  await page.mouse.move(2, 2);
+  await page.clock.runFor(25_000);
+  await expect(toast).toBeVisible();
+  // the focus leaves as well: now it counts down
+  await page.evaluate(() => /** @type {HTMLElement} */ (document.activeElement).blur());
+  await page.clock.runFor(25_000);
+  await expect(toast).toBeHidden();
+});
+
+test("a redraw of the menu by an update keeps the focus on the control the reader is on", async ({ page }) => {
+  await installed(page);
+  await openMenu(page);
+  const row = page.locator('#menu .mrow[data-go="debate"]');
+  await row.focus();
+  newVersion = true;
+  await page.evaluate(() => window.__riglam.platform.updates.check());
+  await expect(page.locator("#menu .ver")).toContainText("Update available");
+  await expect(row).toBeFocused();
+});
+
+test("Later hides the toast, and Settings still offers the update", async ({ page }) => {
   await installed(page);
   newVersion = true;
   await page.evaluate(() => window.__riglam.platform.updates.check());
@@ -70,7 +119,7 @@ test("Later hides the banner, and Options still offers the update", async ({ pag
   await page.locator("#upd").getByRole("button", { name: "Later" }).click();
   await expect(page.locator("#upd")).toBeHidden();
 
-  await page.getByRole("button", { name: /options/i }).filter({ visible: true }).first().click();
+  await openSettings(page);
   const row = page.locator(".orow", { hasText: "Version" });
   await expect(row).toContainText("A newer version is ready.");
   await markOld(page);
@@ -78,12 +127,12 @@ test("Later hides the banner, and Options still offers the update", async ({ pag
   await expect.poll(() => isOld(page).catch(() => true), { timeout: 15_000 }).toBe(false);
 });
 
-test("Options looks for a newer version when it opens, and says when there is none", async ({ page }) => {
+test("Settings looks for a newer version when it opens, and says when there is none", async ({ page }) => {
   await installed(page);
   await page.waitForTimeout(100);
   newVersion = true;
   // a look younger than a minute is not repeated, so ask the way the Check button does
-  await page.getByRole("button", { name: /options/i }).filter({ visible: true }).first().click();
+  await openSettings(page);
   const row = page.locator(".orow", { hasText: "Version" });
   await expect(row).toContainText("This is the newest version.");
   await row.getByRole("button", { name: "Check for updates" }).click();
@@ -117,6 +166,6 @@ test("a check the server does not answer says so and does not break the page", a
   await installed(page);
   down = true;
   await page.evaluate(() => window.__riglam.platform.updates.check());
-  await page.getByRole("button", { name: /options/i }).filter({ visible: true }).first().click();
+  await openSettings(page);
   await expect(page.locator(".orow", { hasText: "Version" })).toContainText("Could not check for a newer version");
 });

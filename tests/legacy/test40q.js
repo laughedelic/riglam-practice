@@ -1,4 +1,4 @@
-const {open}=require('./harness.js');
+const {open,go}=require('./harness.js');
 const D=require('./harness.js').SHOTS;
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
 (async()=>{
@@ -8,7 +8,7 @@ const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.
   for(let mask=0;mask<16;mask++){
    for(const relIdx of (mask===5||mask===0?[0,1,2,3,4]:[mask%5])){
     const {br,pg,errs}=await open(vp,o);
-    await pg.locator('[role=tab]:visible:has-text("Pervasions")').click(); await pg.waitForTimeout(120);
+    await go(pg,'Pervasions'); await pg.waitForTimeout(120);
     for(let q=0;q<4;q++){
      if(mask>>q&1){ await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(30); }
      else { await pg.locator('.qcard .btn.ghost').click(); await pg.waitForTimeout(30); await pg.fill('#dex','example '+q); await pg.keyboard.press('Enter'); await pg.waitForTimeout(40); }

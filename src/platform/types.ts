@@ -212,7 +212,7 @@ export interface Platform {
   tutor?(): Promise<Tutor | null>;
   /** The learned facts of the app's server, or null (or absent) when the place has none, this device has no Magic Key, or the server does not answer from them. */
   known?(): Promise<Known | null>;
-  /** Whether the app's server keeps what the tutor's answers say of the learner's examples (docs/SERVER.md, "Learned facts"); false (or absent) when the place has no such server or this device has no Magic Key. The page then tells the learner and offers the switch in Options. */
+  /** Whether the app's server keeps what the tutor's answers say of the learner's examples (docs/SERVER.md, "Learned facts"); false (or absent) when the place has no such server or this device has no Magic Key. The page then tells the learner and offers the switch in the Practice options. */
   shares?(): Promise<boolean>;
   /** Sending flags to the app's server, or null (or absent) when the place has no server for them or this device lacks the Magic Key (flags then stay on the device). */
   reports?(): Promise<Reports | null>;

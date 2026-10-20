@@ -1,10 +1,10 @@
 // Quorum in the installed app, the tutor's mode on a Preview: with the switch on, the explanation of a checked answer is asked of the server with `quorum: true`,
 // and the server's answer carries the run (the three models and the judge) for the chip under the result. These specs stand in for the server with routes. They check
 // that the mode is offered only when the server says it is, what is sent, what the chip and its panel show for each kind of run, the flags (by hand and automatic),
-// the Options switch and that the panel fits a phone.
+// the switch in the practice options and that the panel fits a phone.
 import { test as plain } from "@playwright/test";
 import { test, expect } from "../../support/test.js";
-import { ready, relOptions, isPhone, overflow } from "../../support/page.js";
+import { goTo, ready, relOptions, isPhone, overflow } from "../../support/page.js";
 import { dataKey, serveCourse, withCourse } from "../../support/data-key.js";
 import { checkProof } from "../../../src/ai/proof.ts";
 
@@ -246,19 +246,19 @@ withKey("a server that does not offer Quorum is asked as ever: no quorum in the 
   expect(asked[0].body).not.toHaveProperty("quorum");
   expect(asked[0].body.examples.length).toBeGreaterThan(0); // the examples are named whether or not the server has Quorum
   await expect(quorum(page)).toHaveCount(0);
-  await page.getByRole("button", { name: "Options" }).first().click();
+  await page.getByRole("button", { name: "Practice options" }).click();
   await expect(sw(page)).toHaveCount(0);
 });
 
-withKey("Options has the switch, on; off, the next explanation is asked of one model and the chip is gone", async ({ page }, testInfo) => {
+withKey("the practice options have the switch, on; off, the next explanation is asked of one model and the chip is gone", async ({ page }, testInfo) => {
   const asked = await explained(page, testInfo);
-  await page.getByRole("button", { name: "Options" }).first().click();
+  await page.getByRole("button", { name: "Practice options" }).click();
   await expect(page.getByText("The server keeps each run")).toBeVisible();
   await expect(sw(page)).toHaveAttribute("aria-checked", "true");
   await sw(page).click();
   await expect(sw(page)).toHaveAttribute("aria-checked", "false");
   expect(await page.evaluate(() => localStorage.getItem("rd-quorum"))).toBe("0");
-  await page.getByRole("button", { name: /close options/i }).first().click();
+  await page.locator("#over .oc").click();
   await expect(quorum(page)).toHaveCount(0);
   await page.getByRole("button", { name: /next pair/i }).click();
   await ready(page);
@@ -279,14 +279,14 @@ withKey("on a server that offers Quorum as an opt-in it is off by default: one m
   expect(asked[0].body).not.toHaveProperty("quorum");
   await expect(quorum(page)).toHaveCount(0);
   expect(await page.evaluate(() => localStorage.getItem("rd-quorum"))).toBeNull();
-  await page.getByRole("button", { name: "Options" }).first().click();
+  await page.getByRole("button", { name: "Practice options" }).click();
   await expect(page.getByText("Optional: a deeper check, but slower.")).toBeVisible();
   await expect(page.getByText("With Quorum off, one model answers and no run is kept.")).toBeVisible();
   await expect(sw(page)).toHaveAttribute("aria-checked", "false");
   await sw(page).click();
   await expect(sw(page)).toHaveAttribute("aria-checked", "true");
   expect(await page.evaluate(() => localStorage.getItem("rd-quorum"))).toBe("1");
-  await page.getByRole("button", { name: /close options/i }).first().click();
+  await page.locator("#over .oc").click();
   await page.getByRole("button", { name: /next pair/i }).click();
   await ready(page);
   await answerOnPhone(page);
@@ -303,7 +303,7 @@ withKey("an opt-in that this device turned on stays on at the next start, and a 
   await explain(page).click();
   await expect.poll(() => asked.length).toBe(1);
   expect(asked[0].body).toMatchObject({ kind: "explain", quorum: true });
-  await page.getByRole("button", { name: "Options" }).first().click();
+  await page.getByRole("button", { name: "Practice options" }).click();
   await expect(page.getByText("For testing, on this test server only.")).toHaveCount(0);
   await expect(sw(page)).toHaveAttribute("aria-checked", "true");
 });
@@ -354,7 +354,7 @@ withKey("where the models differ, the page flags each such example by itself and
     expect(f.pair).toMatchObject({ tab: "practice" });
   }
   // Review lists them as automatic flags
-  await page.getByRole("tab", { name: "Review" }).filter({ visible: true }).first().click();
+  await goTo(page, "Review");
   const seg = page.locator(".rseg button", { hasText: /^Flags/ });
   if (await seg.count()) await seg.click(); // a phone shows one part of Review at a time
   // an entry opens to show the flag, the exercise and its buttons
@@ -464,7 +464,7 @@ withKey("flags raised after the learner went to another pair belong to the pair 
   await explain(page).click();
   await reached;
   expect(asked).toHaveLength(1);
-  await page.getByRole("tab", { name: "Pervasions" }).filter({ visible: true }).first().click();
+  await goTo(page, "Pervasions");
   await expect.poll(() => page.evaluate(() => window.__t.tab)).not.toBe("practice");
   await expect.poll(() => page.evaluate(([a, b]) => window.__t.cur.p.a !== a || window.__t.cur.p.b !== b, [before.a, before.b])).toBe(true); // the page now has another pair
   release();
