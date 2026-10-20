@@ -47,7 +47,10 @@
     "QUORUM": "optin",
     "QUORUM_DEVICE_DAILY_BUDGET_USD": "1.00",
     "QUORUM_GLOBAL_DAILY_BUDGET_USD": "4",
-    "QUORUM_RESERVE_USD": "0.40"
+    "QUORUM_RESERVE_USD": "0.40",
+    // Learned facts (docs/SERVER.md, "Learned facts"): production keeps what an explain answer says of the examples a learner typed, as the example's words only (no device,
+    // account, pair or cell), and the app tells the learner and offers the switch "Share my examples" in Options. It does not answer from them here: `serve` is set in the previews block only.
+    "EXAMPLE_FACTS": "record"
   },
   // The review of flag reports (worker/review.ts, docs/SERVER.md): a pass every ten minutes. It looks at one table first and does
   // nothing, at no cost, when no report waits. Cron triggers run on the deployed Worker only, not on preview URLs.
@@ -91,7 +94,7 @@
       "QUORUM_GLOBAL_DAILY_BUDGET_USD": "12",
       "QUORUM_RESERVE_USD": "0.40",
       // Learned facts (docs/SERVER.md): keep what an explain answer says of each example the page could not check, in this database, and answer
-      // later checks of the same examples from it (POST /api/known). Production has no such setting yet, so it keeps and answers none.
+      // later checks of the same examples from it (POST /api/known). Production only keeps them (the top-level vars).
       "EXAMPLE_FACTS": "serve"
     },
     "d1_databases": [{ "binding": "DB", "database_name": "riglam-practice-staging", "database_id": "5c0fcda4-2f7e-4c18-b1ee-ef287d217d49" }]

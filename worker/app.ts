@@ -87,6 +87,7 @@ export function createApp(deps: Deps) {
       reports: (await reportsOn(c.env.DB)) ? "on" : "off",
       ...(tutor && offered.on ? { quorum: offered.optIn ? ("optin" as const) : ("on" as const) } : {}),
       ...(tutor && readFactsConfig(c.env).serve ? { known: "on" as const } : {}),
+      ...(tutor && readFactsConfig(c.env).record ? { learns: "on" as const } : {}),
     };
     return c.json(body, 200, { "cache-control": "no-store" });
   });

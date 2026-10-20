@@ -74,7 +74,7 @@ export async function ask(text,kind,byItself){
       try{ r=await state.sample(turns,opts); }
       catch(e){ if(e&&e.code==="tools_unavailable"){ delete opts.tools; r=await state.sample(turns,opts); } else throw e; }
     }else{
-      const examples=kind==="explain"?openExamples(U):[];
+      const examples=kind==="explain"&&state.shareExamples?openExamples(U):[];
       r=await state.tutor({kind:kind==="explain"?"explain":"chat",cats:noteCats(state,p),turns,...(quorum?{quorum:true}:{}),...(examples.length?{examples}:{})},{signal:ctl.signal,onText,onStep:s=>quorumStep(U,s)});
     }
     slot.content=r.text+(r.truncated?"\n(Cut short.)":""); delete slot.pending;

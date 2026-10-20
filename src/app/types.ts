@@ -296,6 +296,10 @@ export interface State {
   quorum: boolean;
   /** a checked answer asks for its explanation by itself (Options, `rd-autoexplain`) */
   autoExplain: boolean;
+  /** the app's server keeps the examples the tutor checked (platform.shares): Options tells the learner and offers the switch */
+  learns: boolean;
+  /** this device lets it (Options, `rd-share`): an explain question names the examples the page could not check; off, it names none */
+  shareExamples: boolean;
 
   // display settings, some kept on the device
   nota: "codes" | "sets" | "logic" | string;

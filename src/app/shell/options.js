@@ -32,6 +32,7 @@ function setNota(k){ state.nota=k; try{ localStorage.setItem("rd-notation",k); }
 export function setDefLang(k){ state.defLang=k==="enru"?"enru":"en"; try{ localStorage.setItem("rd-deflang",state.defLang); }catch(e){} render(); }
 function setShow(key,on){ if(key==="ab") state.showAB=on; else state.fullPh=on; try{ localStorage.setItem("rd-"+key,on?"1":"0"); }catch(e){} render(); }
 function setFindSuggest(on){ state.findSuggest=on; try{ localStorage.setItem("rd-findsuggest",on?"1":"0"); }catch(e){} render(); }
+function setShareExamples(on){ state.shareExamples=on; try{ localStorage.setItem("rd-share",on?"1":"0"); }catch(e){} render(); }
 function setAutoExplain(on){ state.autoExplain=on; try{ localStorage.setItem("rd-autoexplain",on?"1":"0"); }catch(e){} render(); }
 function setWording(k){ state.wording=k; try{ localStorage.setItem("rd-wording",k); }catch(e){} render(); }
 // Options and the tutor chat are not tabs: they open over the workspace (the chat only on narrow screens) and close with Back or Escape.
@@ -96,6 +97,10 @@ export function optionsInto(o){
       "While you name a pair, the field offers terms from the course as you type, so you can pick one. This is a gentle way in when the terms are new. Turn it off to type whatever comes to mind, without the list steering you; words that match a course term are still recognized."),
     canAsk()?row("AI tutor",el("button",{type:"button",class:"sw",role:"switch","aria-checked":state.autoExplain?"true":"false",onclick:()=>setAutoExplain(!state.autoExplain)},el("i",{class:"knob","aria-hidden":"true"}),el("span",{class:"swl",text:"Check every answer with AI"}),el("span",{class:"swt",text:state.autoExplain?"on":"off"})),
       "Right after you check an answer, the AI tutor explains it and checks the examples the page could not. Off, the Explain button waits for you."):null,
+    canAsk()&&state.learns?row("Examples",el("button",{type:"button",class:"sw",role:"switch","aria-checked":state.shareExamples?"true":"false",onclick:()=>setShareExamples(!state.shareExamples)},el("i",{class:"knob","aria-hidden":"true"}),el("span",{class:"swl",text:"Share my examples"}),el("span",{class:"swt",text:state.shareExamples?"on":"off"})),
+      "When the AI tutor checks an example the page could not, this app\u2019s server keeps the words of the example (not who wrote it, which pair it was for, or where you put it), so that the same example can be checked later without the AI."
+        +(state.known?" Your checks are answered from what it learned this way, from your examples and from other people\u2019s.":"")
+        +" Turn this off to keep your examples out: checks work as before"+(state.known?", and you still get answers learned from other people\u2019s examples":"")+"."):null,
     state.quorumOffered&&state.db?row("Quorum",el("button",{type:"button",class:"sw",role:"switch","aria-checked":state.quorum?"true":"false",onclick:()=>setQuorum(!state.quorum)},el("i",{class:"knob","aria-hidden":"true"}),el("span",{class:"swl",text:"Several models explain"}),el("span",{class:"swt",text:state.quorum?"on":"off"})),
       state.quorumOptIn
         ?"Optional: a deeper check, but slower. When the page could not check an example you wrote, three AI models (Haiku, Sonnet and Opus) each work it out and Opus rules where they differ, so the explanation is more reliable. An answer takes about a minute instead of a few seconds, and it counts against a daily limit of its own; when that is used up, one model answers as usual. The server keeps each such run (the pair with what you wrote, and the answers), so the models can be compared. With Quorum off, one model answers and nothing is kept."

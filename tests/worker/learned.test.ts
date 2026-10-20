@@ -130,11 +130,24 @@ describe("learned facts", () => {
       expect(parseRequest({ kind: "explain", cats: [], turns, examples }), JSON.stringify(examples).slice(0, 40)).toMatchObject({ ok: false, code: "bad_request" });
   });
 
-  it("are kept and answered on Previews only: production has no EXAMPLE_FACTS", () => {
+  it("are answered on Previews only: production keeps them (record) and does not serve", () => {
     const wrangler = readFileSync(new URL("../../wrangler.jsonc", import.meta.url), "utf8");
     const at = wrangler.indexOf('"previews"');
-    expect(wrangler.slice(0, at)).not.toMatch(/"EXAMPLE_FACTS"/);
+    expect(wrangler.slice(0, at)).toMatch(/"EXAMPLE_FACTS":\s*"record"/);
+    expect(wrangler.slice(0, at)).not.toMatch(/"EXAMPLE_FACTS":\s*"serve"/);
     expect(wrangler.slice(at)).toMatch(/"EXAMPLE_FACTS":\s*"serve"/);
+  });
+
+  it("are offered in health as kept where EXAMPLE_FACTS is record or serve, and as answered only for serve", async () => {
+    const health = async (env: Partial<Env>) => {
+      const s = await setup(env);
+      return (await createApp({ kit: async () => fakeKit().kit, now: () => NOW }).request("/api/health", {}, s.env)).json();
+    };
+    expect(await health({ EXAMPLE_FACTS: "record" })).toMatchObject({ tutor: "on", learns: "on" });
+    expect(await health({ EXAMPLE_FACTS: "record" })).not.toHaveProperty("known");
+    expect(await health({ EXAMPLE_FACTS: "serve" })).toMatchObject({ learns: "on", known: "on" });
+    expect(await health({})).not.toHaveProperty("learns");
+    expect(await health({ EXAMPLE_FACTS: "record", ANTHROPIC_API_KEY: undefined })).not.toHaveProperty("learns");
   });
 });
 

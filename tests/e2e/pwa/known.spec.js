@@ -177,3 +177,48 @@ withKey("the course's reference examples on the device settle an example they na
   await page.waitForTimeout(300);
   expect(asked.known).toHaveLength(0);
 });
+
+// the server keeps the examples the tutor checked (health says `learns`): the learner is told in Options, and can keep a device's examples out
+const share = (page) => page.getByRole("switch", { name: /share my examples/i });
+const openOptions = (page) => page.getByRole("button", { name: "Options" }).first().click();
+
+withKey("Options tells the learner that the server keeps examples and offers the switch only where the server says it does", async ({ page }, testInfo) => {
+  await open(page, testInfo, { health: { ok: true, tutor: "on" } });
+  await openOptions(page);
+  await expect(page.getByText("Check every answer with AI")).toBeVisible();
+  await expect(share(page)).toHaveCount(0);
+});
+
+withKey("with the switch on, an explain question names the examples; off, it names none, and the choice stays after a reload", async ({ page }, testInfo) => {
+  const asked = await open(page, testInfo, { health: { ok: true, tutor: "on", learns: "on" }, known: () => ({ status: 200, body: { known: [] } }) });
+  await openOptions(page);
+  await expect(page.getByText("keeps the words of the example")).toBeVisible();
+  await expect(page.getByText("not who wrote it, which pair it was for, or where you put it")).toBeVisible();
+  // the server does not answer from what it learned here (no `known`), so the notice does not promise it
+  await expect(page.getByText("you still get answers learned from other people")).toHaveCount(0);
+  await expect(share(page)).toHaveAttribute("aria-checked", "true");
+  await page.getByRole("button", { name: /close options/i }).first().click();
+  await explain(page).click();
+  await expect.poll(() => asked.tutor.length).toBe(1);
+  expect(asked.tutor[0].body.examples.length).toBeGreaterThan(0);
+  await openOptions(page);
+  await share(page).click();
+  await expect(share(page)).toHaveAttribute("aria-checked", "false");
+  expect(await page.evaluate(() => localStorage.getItem("rd-share"))).toBe("0");
+  await page.reload();
+  await ready(page);
+  await openOptions(page);
+  await expect(share(page)).toHaveAttribute("aria-checked", "false");
+  await page.getByRole("button", { name: /close options/i }).first().click();
+  await answer(page);
+  await explain(page).click();
+  await expect.poll(() => asked.tutor.length).toBe(2);
+  expect(asked.tutor[1].body.kind).toBe("explain");
+  expect(asked.tutor[1].body).not.toHaveProperty("examples");
+});
+
+withKey("where the server also answers from what it learned, the notice says so", async ({ page }, testInfo) => {
+  await open(page, testInfo, { health: { ok: true, tutor: "on", known: "on", learns: "on" } });
+  await openOptions(page);
+  await expect(page.getByText("you still get answers learned from other people")).toBeVisible();
+});

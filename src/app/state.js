@@ -64,6 +64,8 @@ export const state = {
   quorumChoice: null,     // what this device chose in Options (`rd-quorum`): true, false, or null for not yet (then the server's default applies)
   quorum: false,          // Quorum is on for this device: its own choice, else the server's default (setQuorumOffer)
   autoExplain: true,   // a checked answer asks for its explanation by itself (Options); the Explain button is still there for one that was not asked
+  learns: false,       // the app's server keeps the examples the tutor checked (platform.shares): Options tells the learner and offers the switch
+  shareExamples: true, // this device lets it (Options, `rd-share`): an explain question names the examples the page could not check; off, it names none
   flags: {},
   flagErr: "",
   flagPending: 0,
@@ -94,6 +96,7 @@ try{ if(localStorage.getItem("rd-deflang")==="enru") state.defLang="enru"; }catc
 // the setting was stored as "rd-lab" while Quorum was a lab of the page: a device that turned it off keeps it off
 try{ let q=localStorage.getItem("rd-quorum"); if(q===null){ q=localStorage.getItem("rd-lab"); if(q!==null){ localStorage.setItem("rd-quorum",q); localStorage.removeItem("rd-lab"); } } state.quorumChoice=q===null?null:q!=="0"; }catch(e){}
 try{ state.autoExplain=localStorage.getItem("rd-autoexplain")!=="0"; }catch(e){}
+try{ state.shareExamples=localStorage.getItem("rd-share")!=="0"; }catch(e){}
 try{ state.recentOpen=localStorage.getItem("rd-recent")!=="0"; }catch(e){}
 try{ const v=localStorage.getItem("rd-findrel"); if(FIND_RELS.includes(/** @type {any} */(v))) state.findRel=/** @type {any} */(v); }catch(e){}
 try{ state.findSuggest=localStorage.getItem("rd-findsuggest")!=="0"; }catch(e){}

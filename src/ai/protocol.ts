@@ -185,4 +185,6 @@ export interface Health {
   reports?: "on" | "off";
   /** `POST /api/known` answers from the learned facts (EXAMPLE_FACTS=serve); left out where it does not */
   known?: "on";
+  /** the server keeps what an explain answer says of the learner's examples (EXAMPLE_FACTS=record or serve), so the page tells the learner and offers the switch; left out where it does not */
+  learns?: "on";
 }

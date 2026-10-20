@@ -21,6 +21,7 @@ const WAIT_MS = 4000;           // the server's answer is worth a short wait, no
 /** Reads what the platform has of both: on start, and again after the Magic Key changed. */
 export async function loadKnown(platform){
   try{ state.known=platform.known?await platform.known():null; }catch(e){ state.known=null; }
+  try{ state.learns=!!(platform.shares&&await platform.shares()); }catch(e){ state.learns=false; }
   try{ const ex=platform.examples?readExamples(await platform.examples()):null; state.EX=ex&&ex.items.length?makeExampleIndex(ex):null; }catch(e){ state.EX=null; }
 }
 
