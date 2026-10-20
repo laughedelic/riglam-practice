@@ -21,7 +21,7 @@ const CHECKS=/** @type {const} */([["e","Reason","established","not established"
 const sentence=c=>el("p",{class:"sylt",lang:"en"},syllogismPieces(c,state.syllogismWording).map(x=>typeof x==="string"?x:el("b",{class:"syl-"+x.part,text:x.text})));
 
 // the structure, for a beginner (the option "Show the structure"): which part is which, and what each reply says in S, P and R
-const KEY=/** @type {const} */([["S","subject","the subject","what the syllogism is about"],["P","predicate","the predicate","what is said of it: the thesis"],["R","reason","the reason","what is offered as proof"]]);
+const KEY=/** @type {const} */([["S","subject","the subject","what the syllogism is about"],["P","predicate","the predicate","what is said of it"],["R","reason","the reason","what is offered as proof"]]);
 const MEANS={reason:"S is not R.",pervasion:"S is R, but not everything that is R is P.",accept:"S is R, and everything that is R is P."};
 const structure=c=>el("ul",{class:"sylkey","aria-label":"The parts of the syllogism"},KEY.map(([letter,part,name,what])=>
   el("li",null,el("span",{class:"sylkl","aria-hidden":"true",text:letter}),el("span",{class:"sylkd"},el("b",{text:name+": "}),el("b",{class:"syl-"+part,text:c[part]}),el("small",{text:what})))));
