@@ -10,8 +10,10 @@ import { SKIP_DAYS, hiddenKeys, isSkipped, skipPair, undoSkip } from "./practice
 import { defParts, termsNode } from "./practice/terms.js";
 import { buildPool, indexData, nextGenerated } from "./practice/universe.js";
 import { signature } from "../ui/account";
-import { setDefLang } from "./shell/options.js";
-import { render, renderSession } from "./shell/render.js";
+import { setDefLang } from "./shell/session.js";
+import { renderMenu } from "./shell/menu.js";
+import { render } from "./shell/render.js";
+import { startFirst } from "./shell/tabs.js";
 import "./core/viewport.js";
 import "./shell/keys.js";
 import "./shell/history.js";
@@ -49,15 +51,15 @@ async function bootSteps(platform){
   state.withdrawLater=platform.withdrawReport||null;
   try{ setQuorumOffer(state.tutor&&platform.quorum?await platform.quorum():false); }catch(e){ setQuorumOffer(false); }
   try{ state.account=platform.account?await platform.account():null; }catch(e){ state.account=null; }
-  // which build this is: asked in the background (it looks at the server), shown in Options when it arrives
-  if(platform.about) platform.about().then(a=>{ state.about=a; if(state.optsOpen) render(); },()=>{});
-  // updating in place: the platform tells when a newer version is ready; Options shows where it stands
+  // which build this is: asked in the background (it looks at the server), shown in the menu and in Settings when it arrives
+  if(platform.about) platform.about().then(a=>{ state.about=a; if(state.optsOpen) render(); else renderMenu(); },()=>{});
+  // updating in place: the platform tells when a newer version is ready; the menu and Settings show where it stands
   state.updates=platform.updates||null;
-  if(state.updates) state.updates.subscribe(()=>{ if(state.optsOpen) render(); });
+  if(state.updates) state.updates.subscribe(()=>{ if(state.optsOpen) render(); else renderMenu(); });
   // A Magic Key entered in the prompt is taken in place (no reload), so the pair on the screen and the answer being given stay.
   if(platform.onKey) platform.onKey(()=>rekey(platform));
   if(state.account){ let seen=signature(state.account.view()); state.account.subscribe(v=>{ const now=signature(v); if(now!==seen){ seen=now; if(state.optsOpen) render(); } }); }
-  if(!state.db){ state.gotA=state.gotB=state.gotS=true; advance(); state.mode="quiz"; render(); return; }
+  if(!state.db){ state.gotA=state.gotB=state.gotS=true; startFirst(); render(); return; }
   waiting(()=>"the saved "+[!state.gotB&&"batches",!state.gotA&&"answers",!state.gotS&&"skipped pairs"].filter(Boolean).join(", ")+" on this device");
   state.db.collection("batches").orderBy("order","asc").onSnapshot(snap=>{
     state.batches=snap.docs.map(d=>Object.assign({id:d.id},d.data())); state.gotB=true; settle();
@@ -81,7 +83,7 @@ async function bootSteps(platform){
     const m={}; snap.docs.forEach(d=>{m[d.id]=d.data();}); state.debates=m; settle();
   },()=>{});
 }
-// What depends on the key, read again after the prompt took one: the definitions in the data, the tutor, and the Options row (enter a key / change it).
+// What depends on the key, read again after the prompt took one: the definitions in the data, the tutor, and the Settings row (enter a key / change it).
 async function rekey(platform){
   state.DATA=await platform.loadData(); indexData(); buildPool();
   try{ state.unlock=platform.unlock?await platform.unlock():null; }catch(e){ state.unlock=null; }
@@ -95,8 +97,8 @@ async function rekey(platform){
 }
 function settle(){
   if(!state.gotB||!state.gotA||!state.gotS) return;
-  if(state.mode==="loading"){ advance(); render(); return; }
-  if(state.tab==="review") render(); else renderSession();
+  if(state.mode==="loading"){ startFirst(); render(); return; }
+  if(state.tab==="review") render(); else renderMenu();   // the menu shows today's numbers
 }
 
 /* ---------- test hook (begin): lets the browser tests in tests/ read internals; inert unless a test defines window.__riglamTest ---------- */

@@ -1,6 +1,6 @@
 // The layout of the page at a matrix of window sizes, in the states where text is longest and boxes are tightest: the question, the
 // answers, the result with each of its chips, the explanation with the notes it opens, the debate from its questions to its result,
-// Blitz, Options, Review. After each step the page is scanned (tests/support/layout-scans.js): nothing may pass the window edge, a
+// Blitz, the menu, the practice options, Settings, Review. After each step the page is scanned (tests/support/layout-scans.js): nothing may pass the window edge, a
 // container that clips or scrolls sideways, or leave a control without room for its focus ring. A finding names the size, the flow, the
 // step and the element. These specs replace the legacy scans (scanx3, sweep63, scan47, scan48, ring).
 //
@@ -9,7 +9,7 @@
 // motion is reduced so that no step is scanned halfway through a slide.
 import { test as base, expect } from "@playwright/test";
 import { routeArtifact, seedRandom } from "../../support/artifact-host.js";
-import { relOptions } from "../../support/page.js";
+import { goTo, openMenu, relOptions } from "../../support/page.js";
 import { scanPage } from "../../support/layout-scans.js";
 
 // The widths at which the layout changes (360, 520 and 1100 px) and the ones around them, from the narrowest phone to a laptop.
@@ -48,6 +48,8 @@ const test = base.extend({
       const found = await page.evaluate(scanPage, { wideFields });
       if (found.length) findings.push(`${step}: ${found.join(" | ")}`);
     };
+    await check("first screen");
+    await page.waitForFunction(() => window.__t.tab === "practice");
     await use({ page, wide, check, settle });
     expect(errors, "uncaught errors in the page").toEqual([]);
     expect(findings, "layout findings").toEqual([]);
@@ -67,7 +69,7 @@ async function answerAll({ page, wide, check, settle }, rel, text) {
     const ids = await page.locator(".cell input:not([disabled])").evaluateAll((a) => a.map((x) => x.id));
     for (const id of ids) await page.fill("#" + id, text);
     await check("cells filled");
-    await page.click("#stage .actions .btn:not(.ghost):not(.fav)");
+    await page.click("#stage .pbar .fwd");
   } else {
     const n = 4 - IMPLIED[rel].length;
     for (let i = 0; i < n; i++) {
@@ -80,16 +82,15 @@ async function answerAll({ page, wide, check, settle }, rel, text) {
   await expect(page.locator(".vchip").first()).toBeVisible();
 }
 
-/** Opens every chip of the result in turn (on a wide screen they are in the coach panel, on a phone under the table). */
-async function eachChip({ page, wide, check }, label) {
-  const chips = page.locator((wide ? ".coach" : "#stage") + " .vchip");
+/** Opens every chip of the result in turn (in the result, under the table). */
+async function eachChip({ page, check }, label) {
+  const chips = page.locator("#stage .vchip");
   for (let i = 0, n = await chips.count(); i < n; i++) {
     if ((await chips.nth(i).getAttribute("aria-selected")) !== "true") await chips.nth(i).click();
     await check(`${label} chip ${i}`);
   }
 }
 
-const tab = (page, name) => page.getByRole("tab", { name }).filter({ visible: true }).first();
 
 const FLOWS = {
   async "practice, answer and result"(s) {
@@ -105,10 +106,10 @@ const FLOWS = {
   },
 
   async "practice, explanation and its notes"(s) {
-    const { page, wide, check } = s;
+    const { page, check } = s;
     const rel = await pickRelation(page);
     await answerAll(s, rel, LONG);
-    await page.locator((wide ? ".coach" : "#stage") + ' button:has-text("xplain")').first().click();
+    await page.locator('#stage .verdict .xpl').first().click();
     await page.waitForFunction(() => window.__sampleDone >= 1);
     await check("explained");
     const notes = page.locator(".grid .qm");
@@ -119,8 +120,8 @@ const FLOWS = {
   },
 
   async "debate, questions and result"(s) {
-    const { page, wide, check, settle } = s;
-    await tab(page, "Pervasions").click();
+    const { page, check, settle } = s;
+    await goTo(page, "Pervasions");
     await check("first question");
     const card = page.locator(".qcard");
     await card.locator(".btn").first().click(); // question 1: accept
@@ -138,11 +139,11 @@ const FLOWS = {
     await relOptions(page).first().click();
     await expect(page.locator(".vchip").first()).toBeVisible();
     await check("debate result");
-    const chips = page.locator((wide ? ".coach" : "#stage") + " .vchip");
+    const chips = page.locator("#stage .vchip");
     for (let i = 0, n = await chips.count(); i < n; i++) {
       if ((await chips.nth(i).getAttribute("aria-selected")) !== "true") await chips.nth(i).click();
       await check(`debate chip ${i}`);
-      const rows = page.locator((wide ? ".coach" : "#stage") + " .qs");
+      const rows = page.locator("#stage .qs");
       if (await rows.count()) {
         for (const k of [0, 3]) { await rows.nth(k).click(); await check(`debate chip ${i}, question ${k + 1}`); }
       }
@@ -151,7 +152,7 @@ const FLOWS = {
 
   async "find a pair, naming it, examples and result"(s) {
     const { page, wide, check } = s;
-    await tab(page, "Find a pair").click();
+    await goTo(page, "Find a pair");
     await check("pair step");
     await page.getByRole("button", { name: "Choose relation" }).click();
     await check("relation picker");
@@ -165,7 +166,7 @@ const FLOWS = {
     await answerAll(s, rel, LONG);
     await check("result, pair not judged");
     await eachChip(s, "find result");
-    await page.locator((wide ? ".coach" : "#stage") + ' button:has-text("xplain")').first().click();
+    await page.locator('#stage .verdict .xpl').first().click();
     await page.waitForFunction(() => window.__sampleDone >= 1);
     await check("explained, no verdict on the pair");
     // a pair of the course data, asked for a relation it may not have: the result says which one it has
@@ -179,35 +180,35 @@ const FLOWS = {
     if (!wide) await page.getByRole("button", { name: "Next relation" }).click();
   },
 
-  async "Blitz, Options and Review"(s) {
+  async "Blitz, the menu, options and Review"(s) {
     const { page, wide, check } = s;
-    // Review shows an empty note until there is history, so first leave an answer, a favorite and a skipped pair (F, Enter, S on the keyboard)
+    // Review shows an empty note until there is history, so first leave an answer, a favorite and a skipped pair (F, Next pair, S on the keyboard)
     await answerAll(s, await pickRelation(page), LONG);
     await page.keyboard.press("f");
-    await page.keyboard.press("Enter");
+    await page.click("#stage .pbar .fwd");
     await page.keyboard.press("s");
-    await tab(page, "Pervasions").click();
-    const blitz = page.locator("#mbz, .actions .bz").filter({ visible: true }).first();
-    if (await blitz.count()) {
-      await blitz.click();
-      await check("Blitz on");
-      const seconds = page.locator(".trow .tval");
-      if (await seconds.count()) { await seconds.click(); await check("Blitz seconds being edited"); await page.keyboard.press("Escape"); }
-      await blitz.click();
-    }
-    await page.locator("#mopt, #obtn").filter({ visible: true }).first().click();
-    await check("Options");
+    await goTo(page, "Pervasions");
+    const blitz = page.locator("#mbz");
+    await blitz.click();
+    await check("Blitz on");
+    await blitz.click();
+    await openMenu(page);
+    await check("menu");
+    if (!wide) await page.keyboard.press("Escape");
+    await page.locator("#msess").click();
+    await check("practice options");
+    await page.getByRole("button", { name: "Blitz times: details" }).click();
+    await check("practice options, Blitz times");
     await page.keyboard.press("Escape");
-    await tab(page, "Review").click();
-    if (wide) {
-      await expect(page.locator(".rev3 .rcol")).toHaveCount(3);
-      await check("Review");
-    } else {
-      // Overview, Mistakes, Favorites and Skipped
-      const sections = page.locator(".rseg button");
-      await expect(sections).toHaveCount(4);
-      for (let i = 0; i < 4; i++) { await sections.nth(i).click(); await check(`Review, ${await sections.nth(i).innerText()}`); }
-    }
+    await page.keyboard.press("Escape");
+    await goTo(page, "Settings");
+    await check("Settings");
+    await page.keyboard.press("Escape");
+    await goTo(page, "Review");
+    // Overview, Mistakes, Favorites and Skipped
+    const sections = page.locator(".rseg button");
+    await expect(sections).toHaveCount(4);
+    for (let i = 0; i < 4; i++) { await sections.nth(i).click(); await check(`Review, ${await sections.nth(i).innerText()}`); }
   },
 };
 
@@ -218,7 +219,7 @@ const RUNS = {
   "practice, explanation and its notes": [{ seed: 3 }, { seed: 3, wideFields: 45 }],
   "debate, questions and result": [{ seed: 1 }, { seed: 1, wideFields: 45 }],
   "find a pair, naming it, examples and result": [{ seed: 1 }, { seed: 1, wideFields: 45 }],
-  "Blitz, Options and Review": [{ seed: 1 }],
+  "Blitz, the menu, options and Review": [{ seed: 1 }],
 };
 
 for (const [w, h] of SIZES) {

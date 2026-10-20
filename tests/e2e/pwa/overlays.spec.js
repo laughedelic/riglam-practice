@@ -1,49 +1,62 @@
-// Options opens over the page. The system Back closes it instead of leaving the app, it keeps its place when a setting changes, and the Blitz
-// clock stands still while it is open (an attempt is never graded behind it).
+// Settings opens over the exercise. The system Back closes it (and then, on a phone, the exercise's level: the menu opens) instead of leaving the app, and the
+// Blitz clock stands still while it is open (an attempt is never graded behind it). The practice options (settings.spec.js) keep their place when a setting changes.
 import { test, expect } from "../../support/test.js";
-import { ready } from "../../support/page.js";
+import { goTo, isPhone, openSettings, ready } from "../../support/page.js";
 
-const optionsBtn = (page) => page.getByRole("button", { name: /options/i }).filter({ visible: true }).first();
 const hook = () => { window.__riglamTest = (t) => { window.__t = t; }; };
 const blitz = () => { localStorage.setItem("rd-blitz", "1"); localStorage.setItem("rd-timer-rel", "2000"); localStorage.setItem("rd-timer", "2000"); };
 const bodyText = (page) => page.evaluate(() => document.body.innerText);
+const level = (page) => page.evaluate(() => (history.state && history.state.riglamNav) || 0);
+const base = (testInfo) => (isPhone(testInfo) ? 1 : 0); // a phone has the menu under the exercise
 
-test("Back closes Options and stays in the app", async ({ page }) => {
+test("Back closes Settings and stays in the app; the next Back opens the menu on a phone", async ({ page }, testInfo) => {
   await page.goto("/");
   await ready(page);
-  const url = page.url();
-  await optionsBtn(page).click();
+  const b = base(testInfo), url = page.url();
+  await openSettings(page);
   await expect(page.locator("#over")).toBeVisible();
+  await expect.poll(() => level(page)).toBe(b + 1);
   await page.goBack();
   await expect(page.locator("#over")).toBeHidden();
   expect(page.url()).toBe(url);
-  await ready(page);
+  await expect(page.locator("#stage .head .pair")).toBeVisible();
 
   // Forward onto the entry of an overlay that is gone does not leave a dead step behind
   await page.goForward();
   await expect(page.locator("#over")).toBeHidden();
-  await expect.poll(() => page.evaluate(() => history.state)).toBeNull();
+  await expect.poll(() => level(page)).toBe(b);
+
+  if (isPhone(testInfo)) {
+    await page.goBack();
+    await expect(page.locator("#menu")).toBeVisible();
+    await expect.poll(() => level(page)).toBe(0);
+  }
 });
 
-test("closing Options with its own Back button or Escape leaves no extra step", async ({ page }) => {
+test("closing Settings with its own back arrow or Escape leaves no extra step", async ({ page }, testInfo) => {
   await page.goto("/");
   await ready(page);
+  const b = base(testInfo);
   for (const close of [() => page.locator("#over .oc").click(), () => page.keyboard.press("Escape")]) {
-    await optionsBtn(page).click();
+    await openSettings(page);
     await expect(page.locator("#over")).toBeVisible();
     await close();
     await expect(page.locator("#over")).toBeHidden();
-    await expect.poll(() => page.evaluate(() => history.state)).toBeNull();
+    await expect.poll(() => level(page)).toBe(b);
   }
-  // from the first screen, Back leaves the app as it always did
-  await page.goBack();
-  await expect.poll(() => page.url()).toBe("about:blank");
+  // Review is a level too: the back arrow takes it off again
+  await goTo(page, "Review");
+  await expect(page.locator("#mttl")).toHaveText("Review");
+  await expect.poll(() => level(page)).toBe(b + 1);
+  await page.locator("#mback").click();
+  await expect(page.locator("#mttl")).toHaveText("Relations");
+  await expect.poll(() => level(page)).toBe(b);
 });
 
-test("Options keeps its place when a setting changes", async ({ page }) => {
+test("the practice options keep their place when a setting changes", async ({ page }) => {
   await page.goto("/");
   await ready(page);
-  await optionsBtn(page).click();
+  await page.locator("#msess").click();
   await expect(page.locator("#over .opts")).toBeVisible();
   // Each step is one page.evaluate: the panel is redrawn now and then in the background (fonts, the update check), and a locator that found the old
   // box before a redraw would read or set a box that is already gone.
@@ -56,11 +69,11 @@ test("Options keeps its place when a setting changes", async ({ page }) => {
   await expect.poll(() => page.evaluate(() => document.getElementById("opts").scrollTop)).toBe(before);
 });
 
-test("the relation's Blitz clock stands still behind Options", async ({ page }) => {
+test("the relation's Blitz clock stands still behind Settings", async ({ page }) => {
   await page.addInitScript(blitz);
   await page.goto("/");
   await ready(page);
-  await optionsBtn(page).click();
+  await openSettings(page);
   await expect(page.locator("#over")).toBeVisible();
   await page.waitForTimeout(3000); // longer than the 2 s limit
   await page.locator("#over .oc").click();
@@ -70,14 +83,14 @@ test("the relation's Blitz clock stands still behind Options", async ({ page }) 
   await expect.poll(() => bodyText(page), { timeout: 6000 }).toMatch(/time ran out/i);
 });
 
-test("a Pervasions question's clock stands still behind Options", async ({ page }) => {
+test("a Pervasions question's clock stands still behind Settings", async ({ page }) => {
   await page.addInitScript(hook);
   await page.addInitScript(blitz);
   await page.goto("/");
   await ready(page);
-  await page.getByRole("tab", { name: /pervasions/i }).filter({ visible: true }).first().click();
+  await goTo(page, "Pervasions");
   await expect.poll(() => page.evaluate(() => window.__t.ui.debate)).toBe(true);
-  await optionsBtn(page).click();
+  await openSettings(page);
   await page.waitForTimeout(3000);
   expect(await page.evaluate(() => window.__t.ui.step)).toBe(0);
   await page.locator("#over .oc").click();

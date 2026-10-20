@@ -1,4 +1,4 @@
-const {open,settled}=require('./harness.js');
+const {open,go,settled,settings}=require('./harness.js');
 const {ringScan}=require('./ring.js');
 const D=require('./harness.js').SHOTS;
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
@@ -7,7 +7,7 @@ const EMPTY={mi:['anb','bna'],con:['both'],'3ab':['anb'],'3ba':['bna'],'4':[]};
 const CELLS=['both','anb','bna','nei'];
 const noErr=e=>e.filter(x=>!/fonts|ERR_|proxy/i.test(x));
 const key=pg=>pg.evaluate(()=>{const p=window.__t.cur.p; return p.a+' / '+p.b;});
-const tabPhone=(pg,name)=>pg.locator('#tabbar [role=tab]:has-text("'+name+'")').click().then(()=>pg.waitForTimeout(150));
+const tabPhone=(pg,name)=>go(pg,name).then(()=>pg.waitForTimeout(150));
 const blur=pg=>pg.evaluate(()=>document.activeElement&&document.activeElement.blur());
 // phone, Relations: pick the given relation (default the right one), fill every open cell, the last Enter checks
 async function relPhone(pg,relKey){
@@ -27,9 +27,10 @@ const other=r=>r==='mi'?'con':'mi';
  // ================= phone =================
  {
   const {br,pg,errs}=await open({width:390,height:844},{isMobile:true,hasTouch:true});
-  const names=await pg.locator('#tabbar [role=tab]').allInnerTexts();
-  ok('the tab bar reads Relations, Pervasions, Find a pair, Review',JSON.stringify(names.map(s=>s.trim().toLowerCase()))==='["relations","pervasions","find a pair","review"]',names);
-  ok('"Pervasions" fits its tab at 390 px',await pg.evaluate(()=>[...document.querySelectorAll('#tabbar [role=tab]')].every(b=>b.scrollWidth<=b.clientWidth+1)));
+  await pg.locator('#menubtn').click(); await pg.waitForTimeout(250);
+  const names=await pg.locator('#menu .mrow b, #menu .fbtn').allInnerTexts();
+  ok('the menu reads Relations, Pervasions, Find a pair, then Review and Settings',JSON.stringify(names.map(s=>s.trim().toLowerCase()))==='["relations","pervasions","find a pair","review","settings"]',names);
+  ok('each name fits its row at 390 px',await pg.evaluate(()=>[...document.querySelectorAll('#menu .mrow, #menu .fbtn')].every(b=>b.scrollWidth<=b.clientWidth+1)));
 
   // ---- one pair across the two modes
   const p1=await key(pg);
@@ -63,19 +64,22 @@ const other=r=>r==='mi'?'con':'mi';
   const p2=await key(pg);
   ok('Next pair in Pervasions draws a new pair',p2!==p1);
   await tabPhone(pg,'Relations');
-  ok('Relations takes that new pair (its old one is finished), fresh',await key(pg)===p2&&await pg.evaluate(()=>!window.__t.ui.rel&&!window.__t.ui.checked),[p2,await key(pg)]);
+  ok('Relations comes back to its result for the first pair (a result is left only with Next pair)',await key(pg)===p1&&await pg.evaluate(()=>window.__t.ui.checked),[p1,await key(pg)]);
+  await pg.locator('#stage .actions .btn',{hasText:/next pair/i}).click(); await pg.waitForTimeout(200);
+  ok('Next pair in Relations moves on to a new pair, fresh',await key(pg)!==p1&&await pg.evaluate(()=>!window.__t.ui.rel&&!window.__t.ui.checked),[p1,await key(pg)]);
   // a pair finished in one mode gives the other a new pair
   await relPhone(pg);
-  ok('p2 finished in Relations',await pg.evaluate(()=>window.__t.ui.checked));
+  ok('that pair finished in Relations',await pg.evaluate(()=>window.__t.ui.checked));
+  const pr=await key(pg);
   await tabPhone(pg,'Pervasions');
   const p3=await key(pg);
-  ok('the other mode shows the same unfinished pair? No: Pervasions held p2 fresh, so it restores p2',p3===p2,[p2,p3]);
+  ok('Pervasions held p2 fresh, so it restores p2',p3===p2,[p2,p3]);
   // skipping in one mode: the other follows
-  await pg.locator('#mskip').click(); await pg.waitForTimeout(150);
+  await pg.locator('#stage .pbar .skipw').click(); await pg.waitForTimeout(150);
   const p4=await key(pg);
   ok('skipping in Pervasions draws a new pair',p4!==p2);
   await tabPhone(pg,'Relations');
-  ok('Relations opens the pair drawn after the skip',await key(pg)===p4,[p4,await key(pg)]);
+  ok('Relations comes back to its own result, not the pair drawn after the skip',await key(pg)===pr&&await pg.evaluate(()=>window.__t.ui.checked),[pr,p4,await key(pg)]);
   ok('no page errors (pairs)',noErr(errs).length===0,errs);
   await br.close();
  }
@@ -88,7 +92,7 @@ const other=r=>r==='mi'?'con':'mi';
   const rel=await pg.evaluate(()=>window.__t.cur.p.relation);
   await relPhone(pg,other(rel));
   ok('a wrong relation: the result is not fully right',await pg.evaluate(()=>window.__t.ui.checked&&window.__t.ui.res.overall!=='ok'),await pg.evaluate(()=>window.__t.ui.res&&window.__t.ui.res.overall));
-  await pg.locator('#stage .actions button:has-text("xplain")').first().click(); await pg.waitForTimeout(400);
+  await pg.locator('#stage .xpl').first().click(); await pg.waitForTimeout(400);
   const sel=await pg.locator('.vchip[aria-selected=true]').innerText();
   ok('the chip is called Why and is open after Explain',/^why$/i.test(sel.trim()),sel);
   const txt=await pg.locator('.vpanel').innerText();
@@ -97,9 +101,9 @@ const other=r=>r==='mi'?'con':'mi';
   const rt=await pg.locator('.rpop').innerText();
   ok('the ? beside the relation holds common locus and pervasion, not the explanation or misconception',/Common locus/.test(rt)&&/Pervasion/.test(rt)&&!/Explanation|Misconception/.test(rt),rt);
   await pg.keyboard.press('Escape'); await pg.waitForTimeout(80);
-  const btns=await pg.locator('#stage > .actions .btn').allInnerTexts();
-  ok('the follow-up button reads "Discuss with AI"',btns.some(t=>/^discuss with ai$/i.test(t.trim())),btns);
-  await pg.locator('#stage > .actions .stage-chat').click(); await pg.waitForTimeout(200);
+  const chatLbl=await pg.locator('#mchat').getAttribute('aria-label');
+  ok('the follow-up button (the chat button in the top bar) reads "Discuss with AI"',await pg.locator('#mchat').isVisible()&&/^discuss with ai(, an answer is waiting)?$/i.test((chatLbl||'').trim()),chatLbl);
+  await pg.locator('#mchat').click(); await pg.waitForTimeout(200);
   ok('the chat view is headed "Discuss with AI" and labelled so',/^discuss with ai$/i.test((await pg.locator('#over h2').innerText()).trim())&&await pg.locator('#over').getAttribute('aria-label')==='Discuss with AI');
   const chat=await pg.locator('#chatscroll').innerText();
   ok('the chat view still holds the whole answer',/Both:/.test(chat)&&/Pervasion/.test(chat)&&/Misconception/.test(chat),chat);
@@ -116,7 +120,7 @@ const other=r=>r==='mi'?'con':'mi';
   await relPhone(pg);
   // force a fully right result so the rule is tested whatever the examples were
   await pg.evaluate(()=>{ const u=window.__t.ui; u.res.overall='ok'; window.__t.render(); });
-  await pg.locator('#stage .actions button:has-text("xplain")').first().click(); await pg.waitForTimeout(400);
+  await pg.locator('#stage .xpl').first().click(); await pg.waitForTimeout(400);
   const t2=await pg.locator('.vpanel').innerText();
   ok('a right answer: the Why panel shows only a pointer to the ? marks',/\? marks/.test(t2)&&!/Explanation|Misconception|Common locus|Pervasion/.test(t2),t2);
   ok('no page errors (why)',noErr(errs).length===0,errs);
@@ -126,10 +130,11 @@ const other=r=>r==='mi'?'con':'mi';
  // ================= phone: Blitz, two times =================
  {
   const {br,pg,errs}=await open({width:390,height:844},{isMobile:true,hasTouch:true});
-  // Options: two rows, each sets only its own
-  await pg.click('#mopt'); await pg.waitForTimeout(100);
+  // Practice options > Blitz times: two rows, each sets only its own
+  const lim=sel=>pg.locator(sel).getAttribute('style').then(t=>(/--t:\s*(\d+)ms/.exec(t||'')||[])[1]);
+  await settings(pg); await pg.getByRole('button',{name:'Blitz times: details'}).click(); await pg.waitForTimeout(100);
   const rows=await pg.locator('#over .orow .tl').allInnerTexts();
-  ok('Options has a Relation time row and an Example time row, and no single "Blitz time"',rows.some(t=>/^relation time$/i.test(t.trim()))&&rows.some(t=>/^example time$/i.test(t.trim()))&&!rows.some(t=>/^blitz time$/i.test(t.trim())),rows);
+  ok('the Blitz times page has a Relation time row and an Example time row, and no single "Blitz time"',rows.some(t=>/^relation time$/i.test(t.trim()))&&rows.some(t=>/^example time$/i.test(t.trim()))&&!rows.some(t=>/^blitz time$/i.test(t.trim())),rows);
   await pg.locator('.orow:has-text("Relation time") .seg').getByRole('button',{name:'30 s',exact:true}).click(); await pg.waitForTimeout(80);
   await pg.locator('.orow:has-text("Example time") .seg').getByRole('button',{name:'5 s',exact:true}).click(); await pg.waitForTimeout(80);
   const st=await pg.evaluate(()=>[localStorage.getItem('rd-timer-rel'),localStorage.getItem('rd-timer'),[...document.querySelectorAll('.orow')].map(o=>o.querySelector('.tl').innerText+':'+[...o.querySelectorAll('.seg button[aria-pressed=true]')].map(b=>b.innerText).join(','))]);
@@ -142,19 +147,19 @@ const other=r=>r==='mi'?'con':'mi';
 
   // Blitz on in Relations: the pick uses the relation time, the examples the example time
   await pg.click('#mbz'); await pg.waitForTimeout(150);
-  ok('Relations, the pick: the row reads the relation time (3 s) and the bolt name has it',(await pg.locator('.lrow .tval').innerText()).trim()==='3 s'&&/^Blitz on: 3 s relation, \d+ s example$/.test(await pg.locator('#mbz').getAttribute('aria-label')));
+  ok('Relations, the pick: the countdown along the pair bar runs the relation time (3 s) and the bolt name has it',await lim('#stage .pbar .pbt')==='3000'&&/^Blitz on: 3 s relation, \d+ s example$/.test(await pg.locator('#mbz').getAttribute('aria-label')));
   const rel=await pg.evaluate(()=>window.__t.cur.p.relation);
   await pg.locator('.rels .rel').nth(ORDER[rel]).click(); await pg.waitForTimeout(150);
   const n=CELLS.filter(c=>!EMPTY[rel].includes(c)).length;
-  ok('then the examples: n × 15 s, the bolt name has 15 s',(await pg.locator('.cview .trow .tval').innerText()).replace(/\s+/g,' ').trim()===(n>1?n+' × ':'')+'15 s'&&/^Blitz on: 3 s relation, 15 s example$/.test(await pg.locator('#mbz').getAttribute('aria-label')));
+  ok('then the examples: n × 15 s, the bolt name has 15 s',await lim('#stage .pbar .pbt')===String(n*15000)&&/^Blitz on: 3 s relation, 15 s example$/.test(await pg.locator('#mbz').getAttribute('aria-label')));
   await pg.click('#mbz'); await pg.waitForTimeout(100);
 
   // Pervasions: relation timer after the four questions
   await tabPhone(pg,'Pervasions');
   await pg.click('#mbz'); await pg.waitForTimeout(100);
-  ok('Pervasions question: the row reads the example time (15 s)',(await pg.locator('.qcard .trow .tval').innerText()).trim()==='15 s');
+  ok('Pervasions question: the countdown runs the example time (15 s)',await lim('#stage .pbar .pbt')==='15000');
   for(let i=0;i<4;i++){ await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(70); }
-  ok('the relation step has a countdown with the relation time (3 s)',(await pg.locator('.lrow .trow .tval').innerText()).trim()==='3 s'&&await pg.evaluate(()=>!!window.__t.ui.tq&&window.__t.ui.tph==='rel'));
+  ok('the relation step has a countdown with the relation time (3 s)',await lim('#stage .pbar .pbt')==='3000'&&await pg.evaluate(()=>!!window.__t.ui.tq&&window.__t.ui.tph==='rel'));
   ok('the bolt name has the 3 s relation time there',/3 s relation/.test(await pg.locator('#mbz').getAttribute('aria-label')));
   await pg.waitForTimeout(3300);
   const late=await pg.evaluate(()=>({checked:window.__t.ui.checked,late:window.__t.ui.late,relOk:window.__t.ui.res&&window.__t.ui.res.relOk,rel:window.__t.ui.rel,right:window.__t.cur.p.relation,doc:Object.values(window.__S.debates)[0]}));
@@ -173,27 +178,27 @@ const other=r=>r==='mi'?'con':'mi';
   const {br,pg,errs}=await open({width:390,height:844},{isMobile:true,hasTouch:true});
   const geo=sel=>pg.evaluate(s=>{const out={}; for(const k of s){ const n=document.querySelector(k); out[k]=n?Math.round(n.getBoundingClientRect().top)+'/'+Math.round(n.getBoundingClientRect().height):null; } return out;},sel);
   // relation list
-  const g0=await geo(['.rels','.head']);
+  const g0=await geo(['.rels','.head','.pbar']);
   await pg.click('#mbz'); await pg.waitForTimeout(150);
-  const g1=await geo(['.rels','.head']);
+  const g1=await geo(['.rels','.head','.pbar']);
   ok('relation list: the list does not move when Blitz goes on',JSON.stringify(g0)===JSON.stringify(g1),[g0,g1]);
   await pg.click('#mbz'); await pg.waitForTimeout(100);
   // cell view
   const rel=await pg.evaluate(()=>window.__t.cur.p.relation);
   await pg.locator('.rels .rel').nth(ORDER[rel]).click(); await pg.waitForTimeout(150);
   await blur(pg);
-  const c0=await geo(['.cview .cin','.cview .chint']);
-  ok('cell view: the countdown row is under the field (below the input row, above the hint)',await pg.evaluate(()=>{const i=document.querySelector('.cview .cin').getBoundingClientRect(), t=document.querySelector('.cview .trow').getBoundingClientRect(), h=document.querySelector('.cview .chint').getBoundingClientRect(); return t.top>=i.bottom-1&&t.bottom<=h.top+1;}));
+  const c0=await geo(['.cview .cin','.cview .chint','.pbar']);
   await pg.click('#mbz'); await pg.waitForTimeout(150);
-  const c1=await geo(['.cview .cin','.cview .chint']);
+  const c1=await geo(['.cview .cin','.cview .chint','.pbar']);
+  ok('cell view: the countdown runs along the top edge of the pair bar, under the field and the hint',await pg.evaluate(()=>{const i=document.querySelector('.cview .cin').getBoundingClientRect(), t=document.querySelector('.pbar .pbt').getBoundingClientRect(), b=document.querySelector('.pbar').getBoundingClientRect(), h=document.querySelector('.cview .chint').getBoundingClientRect(); return Math.abs(t.top-b.top)<=3&&t.top>=i.bottom-1&&t.top>=h.bottom-1;}));
   ok('cell view: field and hint do not move when Blitz goes on',JSON.stringify(c0)===JSON.stringify(c1),[c0,c1]);
   await pg.click('#mbz'); await pg.waitForTimeout(100);
   // Pervasions card
   await blur(pg); await tabPhone(pg,'Pervasions');
-  const q0=await geo(['.qcard','.qcard .ansrow','.qcard .qt']);
-  ok('Pervasions card: the countdown row is under the Accept / Why? buttons',await pg.evaluate(()=>{const a=document.querySelector('.qcard .ansrow').getBoundingClientRect(), t=document.querySelector('.qcard .trow').getBoundingClientRect(); return t.top>=a.bottom-1;}));
+  const q0=await geo(['.qcard','.qcard .ansrow','.qcard .qt','.pbar']);
   await pg.click('#mbz'); await pg.waitForTimeout(150);
-  const q1=await geo(['.qcard','.qcard .ansrow','.qcard .qt']);
+  const q1=await geo(['.qcard','.qcard .ansrow','.qcard .qt','.pbar']);
+  ok('Pervasions card: the countdown runs along the top edge of the pair bar, under the Accept / Why? buttons',await pg.evaluate(()=>{const a=document.querySelector('.qcard .ansrow').getBoundingClientRect(), t=document.querySelector('.pbar .pbt').getBoundingClientRect(), b=document.querySelector('.pbar').getBoundingClientRect(); return Math.abs(t.top-b.top)<=3&&t.top>=a.bottom-1;}));
   ok('Pervasions card: it keeps its size and the buttons stay put when Blitz goes on',JSON.stringify(q0)===JSON.stringify(q1),[q0,q1]);
   await pg.locator('.qcard .btn.ghost').click(); await pg.waitForTimeout(100);
   const w0=await geo(['.qcard','#dex']);
@@ -284,23 +289,26 @@ const other=r=>r==='mi'?'con':'mi';
  // ================= wide =================
  {
   const {br,pg,errs}=await open({width:1280,height:800});
-  const rail=(await pg.locator('.rail .nv').allInnerTexts()).slice(0,4);
- ok('the rail reads Relations, Pervasions, Find a pair, Review',JSON.stringify(rail.map(s=>s.trim().toLowerCase()))==='["relations","pervasions","find a pair","review"]',rail);
-  ok('the coach panel has no "Coach" label; it starts with Recent or the key hints',!/^coach$/i.test(((await pg.locator('#coach').innerText())||'').trim().split('\n')[0]||'')&&!/\bcoach\b/i.test(await pg.locator('#coach').innerText()),await pg.locator('#coach').innerText());
+  await pg.locator('#menubtn').click(); await pg.waitForTimeout(150);
+  const rail=await pg.locator('#menu .mrow b, #menu .fbtn').allInnerTexts();
+  ok('the menu reads Relations, Pervasions, Find a pair, Review, Settings',JSON.stringify(rail.map(s=>s.trim().toLowerCase()))==='["relations","pervasions","find a pair","review","settings"]',rail);
+  await pg.locator('#mchat').click(); await pg.waitForTimeout(150);
+  ok('the coach panel (opened by the chat button) has no "Coach" label; it starts with Recent or the key hints',await pg.locator('#coach').isVisible()&&!/^coach$/i.test(((await pg.locator('#coach').innerText())||'').trim().split('\n')[0]||'')&&!/\bcoach\b/i.test(await pg.locator('#coach').innerText()),await pg.locator('#coach').innerText());
   const p1=await key(pg);
-  await pg.locator('.rail .nv:has-text("Pervasions")').click(); await pg.waitForTimeout(150);
+  await go(pg,'Pervasions'); await pg.waitForTimeout(150);
   ok('wide: Pervasions opens the same pair',await key(pg)===p1);
-  ok('wide Pervasions: the coach has no "Coach" label either',!/\bcoach\b/i.test(await pg.locator('#coach').innerText()),await pg.locator('#coach').innerText());
+  if(!(await pg.locator('#coach').isVisible())){ await pg.locator('#mchat').click(); await pg.waitForTimeout(150); }
+  ok('wide Pervasions: the coach has no "Coach" label either',await pg.locator('#coach').isVisible()&&!/\bcoach\b/i.test(await pg.locator('#coach').innerText()),await pg.locator('#coach').innerText());
   // geometry: Blitz does not move the strip, the caption, the cells
-  await pg.locator('.rail .nv:has-text("Relations")').click(); await pg.waitForTimeout(150);
+  await go(pg,'Relations'); await pg.waitForTimeout(150);
   const geo=sel=>pg.evaluate(s=>{const out={}; for(const k of s){ const n=document.querySelector(k); out[k]=n?Math.round(n.getBoundingClientRect().top)+'/'+Math.round(n.getBoundingClientRect().height):null; } return out;},sel);
-  const a0=await geo(['.strip','.cap','.grid']);
-  await pg.locator('#stage .actions .bz').click(); await pg.waitForTimeout(150);
-  const a1=await geo(['.strip','.cap','.grid']);
+  const a0=await geo(['.strip','.cap','.grid','.pbar']);
+  await pg.locator('#mbz').click(); await pg.waitForTimeout(150);
+  const a1=await geo(['.strip','.cap','.grid','.pbar']);
   ok('wide Relations: the strip, the caption and the table do not move when Blitz goes on',JSON.stringify(a0)===JSON.stringify(a1),[a0,a1]);
-  await pg.locator('#stage .actions .bz').click(); await pg.waitForTimeout(100);
+  await pg.locator('#mbz').click(); await pg.waitForTimeout(100);
   // wide Pervasions relation timer
-  await pg.locator('.rail .nv:has-text("Pervasions")').click(); await pg.waitForTimeout(150);
+  await go(pg,'Pervasions'); await pg.waitForTimeout(150);
   await pg.evaluate(()=>{localStorage.setItem('rd-timer-rel','2000');});
   await pg.reload({waitUntil:'domcontentloaded'}).catch(()=>{});
   await pg.waitForTimeout(900);

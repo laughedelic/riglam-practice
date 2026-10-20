@@ -2,7 +2,7 @@
 // each cell the relation leaves possible. A pair of the course data is graded on the spot; a pair of the learner's own words waits for the tutor,
 // which the specs stand in for with routes (tutor.spec.js). The relation asked for is drawn, so a spec picks the one it needs in the relation picker (which also keeps it).
 import { test, expect } from "../../support/test.js";
-import { ready, isPhone, overflow, relOptions } from "../../support/page.js";
+import { goTo, openMenu, ready, isPhone, overflow, relOptions } from "../../support/page.js";
 import { withCourse } from "../../support/data-key.js";
 
 const sse = (...events) => events.map((e) => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`).join("");
@@ -21,14 +21,18 @@ async function open(page, text = "Stand-in tutor: no verdict.") {
   await ready(page);
   return asked;
 }
-const goFind = async (page, testInfo) => {
-  await (isPhone(testInfo) ? page.locator(".tabbar button", { hasText: "Find a pair" }) : page.locator(".rail .nv", { hasText: "Find a pair" })).click();
+const goFind = async (page) => {
+  await goTo(page, "Find a pair");
   await expect(page.locator("#fw-a")).toBeVisible();
 };
 const relation = async (page) => (await page.locator("#stage .head .subt").innerText()).replace(/ · your choice$/, "");
-const tabNamed = (page, testInfo, name) => (isPhone(testInfo) ? page.locator(".tabbar button", { hasText: name }) : page.locator(".rail .nv", { hasText: name }));
-/** Skip: the icon of the top bar on a phone, the button of the action row when wide. */
-const skip = (page, testInfo) => (isPhone(testInfo) ? page.locator("#mskip") : page.getByRole("button", { name: "Skip", exact: true }));
+/** Skip: the button at the left of the pair bar. */
+const skip = (page) => page.locator(".pbar .skipw");
+/** Skip once the pair is named: the question before a skip is answered with "Skip anyway". */
+async function skipOut(page) {
+  await skip(page).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Skip anyway" }).click();
+}
 const skipDocs = (page) => page.evaluate(async () => (await (await window.__riglam.platform.db()).collection("skips").get()).docs.map((d) => d.data()));
 /** Picks the relation in the picker, which the diamond opens; it stays the relation asked for until Random is picked. */
 async function askFor(page, name) {
@@ -54,7 +58,7 @@ async function examples(page, testInfo, ex) {
     return;
   }
   for (const cell of ["both", "anb", "bna", "nei"]) if (await page.locator("#in-" + cell).count()) await page.fill("#in-" + cell, ex[cell] || "");
-  await page.getByRole("button", { name: "Show result" }).click();
+  await page.locator(".pbar .fwd").click(); // Check
 }
 const saved = (page) => page.evaluate(async () => (await (await window.__riglam.platform.db()).collection("answers").get()).docs.map((d) => d.data()));
 const headline = (page) => page.locator(".verdict .vl .v").first();
@@ -62,8 +66,7 @@ const withKey = withCourse ? test : test.skip;
 
 test("the tab gives a relation, wants two different phenomena, and fits the width", async ({ page }, testInfo) => {
   await open(page);
-  await goFind(page, testInfo);
-  await expect(page.locator(".tabbar button, .rail .nv").filter({ visible: true })).toHaveCount(isPhone(testInfo) ? 4 : 5); // the three exercises and Review (and Options in the rail)
+  await goFind(page);
   expect(["Mutually inclusive", "Mutually exclusive", "Three possibilities, A in B", "Three possibilities, B in A", "Four possibilities"]).toContain(await relation(page));
   const go = page.getByRole("button", { name: "Use this pair" });
   await expect(go).toBeDisabled();
@@ -75,7 +78,7 @@ test("the tab gives a relation, wants two different phenomena, and fits the widt
   await expect(page.locator("#fw-a")).toBeVisible(); // still naming the pair
   expect(await overflow(page)).toBeLessThanOrEqual(0);
   const before = await relation(page);
-  await skip(page, testInfo).click(); // before a pair is named Skip only asks for another relation, and never the same one
+  await skip(page).click(); // before a pair is named Skip only asks for another relation, and never the same one
   expect(await relation(page)).not.toBe(before);
   await expect(page.locator("#fw-a")).toHaveValue("forms"); // the words stay
   expect(await skipDocs(page)).toHaveLength(0); // nothing was set aside
@@ -114,7 +117,7 @@ test("Enter in the first field always moves to the second, and only Enter in the
 
 test("a pair of the course data is graded on the spot, and the answer is kept apart from the Relations answers", async ({ page }, testInfo) => {
   await open(page);
-  await goFind(page, testInfo);
+  await goFind(page);
   await askFor(page, "Mutually exclusive");
   await usePair(page, "forms", "minds");
   const ex = await page.evaluate(() => window.__t.cur.p.ex);
@@ -126,14 +129,15 @@ test("a pair of the course data is graded on the spot, and the answer is kept ap
   const [doc] = await expect.poll(async () => (await saved(page)).length).toBe(1).then(() => saved(page));
   expect(doc).toMatchObject({ mode: "find", a: "forms", b: "minds", chosen: "con", key: "con", correct: true, grade: "ok" });
   expect(doc.relOpen).toBeUndefined();
-  // not a Relations answer: the Today count of Relations stays at nothing
-  await (isPhone(testInfo) ? page.locator(".tabbar button", { hasText: "Relations" }) : page.locator(".rail .nv", { hasText: "Relations" })).click();
-  await expect(page.locator("#today")).toContainText("nothing answered yet");
+  // the answer is counted in today's line of the menu, but it is not a Relations answer: the Relations row has nothing to continue
+  await openMenu(page);
+  await expect(page.locator("#menu .mtoday")).toContainText(/1 pair/i);
+  await expect(page.locator("#menu .mrow", { hasText: "Relations" })).not.toContainText(/continue/i);
 });
 
 test("a pair that does not have the relation asked for is wrong, and says which relation it has", async ({ page }, testInfo) => {
   await open(page);
-  await goFind(page, testInfo);
+  await goFind(page);
   await askFor(page, "Mutually inclusive");
   await usePair(page, "forms", "minds");
   await examples(page, testInfo, { both: "a stone", anb: "a cup of hot tea", bna: "tasting sugar", nei: "a dog" });
@@ -152,7 +156,7 @@ withKey("a pair of the learner's own words waits for the tutor, which judges the
     "Common locus: none.",
   ].join("\n");
   const asked = await open(page, reply);
-  await goFind(page, testInfo);
+  await goFind(page);
   await askFor(page, "Mutually exclusive");
   await usePair(page, "red apples", "pears");
   expect(await page.evaluate(() => window.__t.cur.p.own)).toBe(true);
@@ -179,7 +183,7 @@ withKey("a pair of the learner's own words waits for the tutor, which judges the
 withKey("when the tutor says the pair has another relation, the answer is wrong and shows which one", async ({ page }, testInfo) => {
   const reply = ["Relation: Four possibilities => no", 'A not B: "a red apple" | class: Apple | A yes: it is a red apple | B no: it is an apple'].join("\n");
   await open(page, reply);
-  await goFind(page, testInfo);
+  await goFind(page);
   await askFor(page, "Mutually exclusive");
   await usePair(page, "red apples", "red things");
   await examples(page, testInfo, { anb: "a red apple", bna: "a red rose", nei: "a stone" });
@@ -197,7 +201,7 @@ withKey("asking again after an answer that settled nothing shows the new explana
     'Relation: Mutually exclusive => unsure\nA not B: "a red apple" | class: Apple | A yes: it is a red apple | B yes: it is a pear\nExplanation: FIRST-ANSWER',
     'Relation: Four possibilities => no\nA not B: "a red apple" | class: Apple | A yes: it is a red apple | B no: it is an apple\nExplanation: SECOND-ANSWER',
   ]);
-  await goFind(page, testInfo);
+  await goFind(page);
   await askFor(page, "Mutually exclusive");
   await usePair(page, "red apples", "pears");
   await examples(page, testInfo, { anb: "a red apple", bna: "a green pear", nei: "a stone" });
@@ -220,19 +224,19 @@ withKey("asking again after an answer that settled nothing shows the new explana
 
 test("the singular form of a compound label names the category, so the pair is graded on the spot", async ({ page }, testInfo) => {
   await open(page);
-  await goFind(page, testInfo);
+  await goFind(page);
   await usePair(page, "a thing that changes", "a thing you can eat");
   expect(await page.evaluate(() => [window.__t.cur.p.own, window.__t.cur.p.a, window.__t.cur.p.b])).toEqual([undefined, "things that change", "things you can eat"]);
 });
 
 test("Review does not say a cell is empty, or give a reference, when Claude has not judged the pair", async ({ page }, testInfo) => {
   await open(page);
-  await goFind(page, testInfo);
+  await goFind(page);
   await askFor(page, "Mutually exclusive");
   await usePair(page, "red apples", "pears");
   await examples(page, testInfo, { anb: "a red apple", bna: "a green pear" }); // Neither is left blank
   await expect(headline(page)).toHaveText("Your pair is waiting for Claude.");
-  await (isPhone(testInfo) ? page.locator(".tabbar button", { hasText: "Review" }) : page.locator(".rail .nv", { hasText: "Review" })).click();
+  await goTo(page, "Review");
   await page.locator("#stage .favs.mist summary").first().click();
   const body = page.locator("#stage .xbody");
   await expect(body).toContainText("Claude had not judged the pair.");
@@ -253,8 +257,8 @@ test("Practice this pair in Review starts that pair after an answer in Relations
     await page.waitForTimeout(100);
   }
   await page.getByRole("button", { name: "Add to favorites" }).click();
-  await page.locator(".tabbar button", { hasText: "Find a pair" }).click();
-  await page.locator(".tabbar button", { hasText: "Review" }).click();
+  await goTo(page, "Find a pair");
+  await goTo(page, "Review");
   const seg = page.locator(".rseg button", { hasText: /^Favorites/ });
   if (await seg.count()) await seg.click();
   await page.locator(".favs > li summary").first().click();
@@ -265,12 +269,12 @@ test("Practice this pair in Review starts that pair after an answer in Relations
 
 test("Review counts the Find a pair answers on their own", async ({ page }, testInfo) => {
   await open(page);
-  await goFind(page, testInfo);
+  await goFind(page);
   await askFor(page, "Mutually exclusive");
   await usePair(page, "forms", "minds");
   await examples(page, testInfo, await page.evaluate(() => window.__t.cur.p.ex));
   await expect(headline(page)).toHaveText("Right.");
-  await (isPhone(testInfo) ? page.locator(".tabbar button", { hasText: "Review" }) : page.locator(".rail .nv", { hasText: "Review" })).click();
+  await goTo(page, "Review");
   const review = page.locator("#stage");
   await expect(review).toContainText("No practice answers yet"); // none of Relations
   await expect(review.locator(".label", { hasText: "Find a pair" })).toContainText("1 pairs, pair right 100%");
@@ -293,22 +297,21 @@ test("the learner picks the relation, it stays for the next pairs and after a re
   await askFor(page, "Four possibilities");
   await expect(page.locator("#stage .head .subt")).toHaveText("Four possibilities · your choice");
   expect(await page.evaluate(() => localStorage.getItem("rd-findrel"))).toBe("4");
-  await expect(skip(page, testInfo)).toBeDisabled(); // no pair to set aside, and this is the relation they want
+  await expect(skip(page)).toBeDisabled(); // no pair to set aside, and this is the relation they want
   await expect(page.getByRole("button", { name: "Change relation" })).toBeVisible();
   await usePair(page, "my cat", "my dog");
   await examples(page, testInfo, { both: "a pet", anb: "a cat", bna: "a dog", nei: "a stone" });
   await page.getByRole("button", { name: "Next relation" }).click();
   expect(await relation(page)).toBe("Four possibilities");
   await page.reload();
-  await ready(page);
-  await goFind(page, testInfo);
+  await expect(page.locator("#fw-a")).toBeVisible(); // the app opens on the exercise used last
   expect(await relation(page)).toBe("Four possibilities");
   await page.locator("#stage .head .mid").click(); // back to Random: another relation at once, and no more choice
   await page.locator(".rels .rel").first().click();
   expect(await page.evaluate(() => localStorage.getItem("rd-findrel"))).toBeNull();
   expect(await relation(page)).not.toBe("Four possibilities");
   await expect(page.locator("#stage .head .subt")).not.toContainText("your choice");
-  await expect(skip(page, testInfo)).toBeEnabled();
+  await expect(skip(page)).toBeEnabled();
 });
 
 test("picking another relation after the pair is named keeps the pair and the examples that still fit", async ({ page }, testInfo) => {
@@ -334,7 +337,7 @@ test("Skip once the pair is named sets it aside without examples, Undo gives it 
   await usePair(page, "my cat", "my dog");
   await page.evaluate(() => { const u = window.__t.ui; u.cells.both.t = "a pet"; }); // a start that is not finished
   const rel = await page.evaluate(() => window.__t.ui.rel);
-  await skip(page, testInfo).click();
+  await skipOut(page);
   await expect(page.locator("#fw-a")).toHaveValue(""); // the next relation, no pair named yet
   await expect.poll(async () => (await skipDocs(page)).length).toBe(1);
   const [doc] = await skipDocs(page);
@@ -345,9 +348,10 @@ test("Skip once the pair is named sets it aside without examples, Undo gives it 
   await expect(page.locator("#stage .head .tx.ta")).toHaveText("my cat"); // the same screen, with what was written
   expect(await page.evaluate(() => window.__t.ui.cells.both.t)).toBe("a pet");
   await page.evaluate(() => (document.activeElement instanceof HTMLElement) && document.activeElement.blur());
-  await page.keyboard.press("s"); // the key does the same
+  await page.keyboard.press("s"); // the key does the same, and asks the same question
+  await page.getByRole("alertdialog").getByRole("button", { name: "Skip anyway" }).click();
   await expect.poll(async () => (await skipDocs(page)).length).toBe(1);
-  await tabNamed(page, testInfo, "Review").click();
+  await goTo(page, "Review");
   const li = page.locator(".skips li");
   await expect(li).toContainText("my cat / my dog");
   await expect(li).toContainText("Find a pair, ");
@@ -359,13 +363,13 @@ test("Skip once the pair is named sets it aside without examples, Undo gives it 
   await expect.poll(async () => (await skipDocs(page)).length).toBe(0); // answering the pair takes it off the list
 });
 
-test("Options can turn the suggestions of the pair fields off, and a course term is still recognized", async ({ page }, testInfo) => {
+test("The settings of Find a pair can turn the suggestions of the pair fields off, and a course term is still recognized", async ({ page }, testInfo) => {
   await open(page);
   await goFind(page, testInfo);
   await expect(page.locator("#fw-a")).toHaveAttribute("list", "fw-terms");
   expect(await page.locator("#fw-terms option").count()).toBeGreaterThan(5);
-  await page.locator("#mopt, #obtn").filter({ visible: true }).first().click();
-  const row = page.locator(".orow", { hasText: "Find a pair" });
+  await page.locator("#msess").click();
+  const row = page.locator("#over .orow", { hasText: "Suggest terms" });
   await expect(row).toContainText("without the list steering you");
   await row.getByRole("switch").click();
   expect(await page.evaluate(() => localStorage.getItem("rd-findsuggest"))).toBe("0");
@@ -414,7 +418,7 @@ test("a skip that could not be saved is undone and said on the screen", async ({
     const db = await window.__riglam.platform.db(), real = db.collection.bind(db);
     db.collection = (name) => (name === "skips" ? { doc: () => ({ set: async () => { throw Object.assign(new Error("full"), { code: "quota_exceeded" }); }, delete: async () => {} }) } : real(name));
   });
-  await skip(page, testInfo).click();
+  await skipOut(page);
   await expect(page.locator("#stage .status")).toContainText("The skip could not be saved (quota_exceeded), so it was undone.");
   expect(await page.evaluate(() => Object.keys(window.__t.skips).length)).toBe(0);
 });
@@ -424,12 +428,12 @@ test("a pair opened again from Review counts as asked, so the next relation is a
   await goFind(page, testInfo);
   await askFor(page, "Mutually inclusive");
   await usePair(page, "my cat", "my dog");
-  await skip(page, testInfo).click();
+  await skipOut(page);
   await askFor(page, "Four possibilities"); // the history of asked relations now ends here
   await usePair(page, "red apples", "pears");
   await page.locator("#stage .head .mid").click();
   await page.locator(".rels .rel").first().click(); // Random for the next pairs; this pair keeps four possibilities
-  await tabNamed(page, testInfo, "Review").click();
+  await goTo(page, "Review");
   await page.locator(".skips li").getByRole("button", { name: "Practice" }).click();
   expect(await relation(page)).toBe("Mutually inclusive");
   await page.evaluate(() => { Math.random = () => 0; }); // the draw would take the first relation of the list, which is this one, if only the other were left out
@@ -443,16 +447,16 @@ test("a skipped pair answered for another relation and then again for its own ke
   await goFind(page, testInfo);
   await askFor(page, "Mutually inclusive");
   await usePair(page, "my cat", "my dog");
-  await skip(page, testInfo).click();
+  await skipOut(page);
   await expect.poll(async () => (await skipDocs(page)).length).toBe(1);
-  await tabNamed(page, testInfo, "Review").click();
+  await goTo(page, "Review");
   await page.locator(".skips li").getByRole("button", { name: "Practice" }).click();
   await askFor(page, "Four possibilities"); // another relation: the skip, kept under the first one, stays on the list
   await examples(page, testInfo, { both: "a pet", anb: "a cat", bna: "a dog", nei: "a stone" });
   await expect(headline(page)).toHaveText("Your pair is waiting for Claude.");
   await expect.poll(async () => (await saved(page)).length).toBe(1);
   await expect.poll(async () => (await skipDocs(page)).length).toBe(1);
-  await tabNamed(page, testInfo, "Review").click();
+  await goTo(page, "Review");
   await page.locator(".skips li").getByRole("button", { name: "Practice" }).click();
   expect(await relation(page)).toBe("Mutually inclusive");
   await examples(page, testInfo, { both: "a pet", nei: "a stone" });

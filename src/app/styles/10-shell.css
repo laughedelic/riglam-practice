@@ -1,47 +1,64 @@
-/* ---------- app shell (version 40) ----------
-   One screen, no page scroll. Narrow: top bar, steps, one working area that scrolls inside itself, tab bar.
-   Wide (1100px and up): rail | workspace | coach panel. The same parts are used by both. */
+/* ---------- app shell (version 40, rebuilt around the menu) ----------
+   One screen, no page scroll: a top bar over a working area that scrolls inside itself, the pair bar at its foot. There is no tab bar and no rail.
+   The menu is a drawer over the exercise on a narrow screen, and a panel beside it on a wide one (13-layout.css, 28-menu.css).
+   Wide (1100px and up): [menu] | top bar over [workspace | tutor's panel]. The same parts are used by both. */
 html,body{height:100%}
 body{margin:0;overflow:hidden}
-.app{position:relative;z-index:1;display:flex;flex-direction:column;height:var(--vvh,100%);translate:0 var(--vvt,0px);
+.app{position:relative;z-index:1;display:flex;height:var(--vvh,100%);translate:0 var(--vvt,0px);
   max-width:calc(640px + 2 * var(--band));margin-inline:auto;padding-inline:var(--band);overflow:hidden}
-.rail,.coach{display:none}
-.mk{width:14px;height:14px;background:var(--marigold);clip-path:var(--rhombus);flex:none}
+.col{position:relative;flex:1;min-width:0;display:flex;flex-direction:column}
+.coach{display:none}
+/* the logo figure (the four possibilities of the icons, as in the README banner): yellow A over blue B, green where they overlap; one colorway for both grounds (the colors are in the symbol in markup.html) */
+.fig{width:21px;height:28px;flex:none;display:block}
 .brand{font:900 12px/1 var(--display);letter-spacing:.04em;text-transform:uppercase}
+/* the name of the app: RIGLAM in letter-spaced capitals, then "practice" (the display serif until the design system takes the hero's) */
+.brand.lock{font:400 20px/1 var(--serif);letter-spacing:.01em;text-transform:none;white-space:nowrap}
+.brand.lock .nm{letter-spacing:.12em;text-transform:uppercase}
 .sp{flex:1}
-.mbar{display:flex;align-items:center;gap:10px;flex:none;height:48px;padding-inline:16px;border-bottom:1.5px solid var(--ink)}
-.ib{width:44px;height:44px;margin-right:-10px;display:grid;place-items:center;border:0;background:transparent;font:700 20px/1 var(--body);color:var(--ink-muted);cursor:pointer}
+/* the top bar: the menu at the left, the name of the screen, then what applies to the exercise as a whole; the tutor's chat is the right-most button */
+.mbar{display:flex;align-items:center;gap:0;flex:none;height:52px;padding-inline:6px;border-bottom:1.5px solid var(--ink)}
+.mbar .ttl{margin:0 8px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:400 21px/1.2 var(--serif)}
+.ib{position:relative;width:44px;height:44px;flex:none;display:grid;place-items:center;border:0;background:transparent;font:700 20px/1 var(--body);color:var(--ink-muted);cursor:pointer}
 .ib[aria-pressed="true"]{color:var(--ink)}
 .ib.open{color:var(--ink)}
 .ib[hidden]{display:none}
+.ib:hover:not(:disabled){color:var(--ink)}
 button:focus-visible{box-shadow:var(--focus-ring)}
+/* a dot on a button: something waits behind it (an answer of the tutor, the missing Magic Key) */
+.att{position:absolute;top:9px;right:9px;width:9px;height:9px;border-radius:50%;background:var(--vermilion);box-shadow:0 0 0 2px var(--paper)}
 .steps{display:flex;gap:6px;flex:none;padding:10px 16px 4px}
 .steps[hidden]{display:none}
 .steps button{flex:1;min-width:0;border:0;border-top:4px solid var(--line);background:transparent;padding:5px 0 0;text-align:left;font:700 10.5px/14px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--faint);cursor:default;white-space:nowrap}
 .steps button:not(:disabled){cursor:pointer}
 .steps button.on{color:var(--ink);border-color:var(--vermilion)}
 .steps button.done{color:var(--ink-muted);border-color:var(--lapis)}
-.tabbar{display:grid;grid-template-columns:repeat(3,1fr);flex:none;height:56px;border-top:1.5px solid var(--ink);background:var(--paper)}
-.tabbar button{display:grid;place-items:center;align-content:center;gap:4px;border:0;background:transparent;font:700 11px/14px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-muted);cursor:pointer}
-.tabbar i,.nv i{width:10px;height:10px;clip-path:var(--rhombus);background:var(--line);flex:none}
-.tabbar button[aria-selected="true"]{color:var(--ink);box-shadow:inset 0 4px 0 var(--vermilion)}
-.tabbar button[aria-selected="true"] i,.nv[aria-selected="true"] i{background:var(--marigold)}
-html.typing .tabbar{display:none}
 
 .work{flex:1;min-height:0;display:flex;flex-direction:column;padding-inline:16px}
 .card{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:18px;padding:14px 0 0;border-top:0;background:var(--paper)}
 .card>*{flex:none}
-.card>.actions{position:sticky;bottom:0;z-index:2;margin-top:auto;padding:10px 0;background:var(--paper);border-top:1px solid var(--line)}
 .card>.retry-tag{align-self:center}
 .card>.tutor{scroll-margin-bottom:72px}
 .card>:last-child:not(.actions){margin-bottom:14px}
 /* the scrollers clip sideways, so the focus ring (4px) needs room: they reach 6px into the page margin and pad their content back in */
 :root{--bleed:6px}
 .card,.opts,.chat{margin-inline:calc(-1*var(--bleed));padding-inline:var(--bleed)}
-.card>.actions{margin-inline:calc(-1*var(--bleed));padding-inline:var(--bleed)}
+/* the pair bar (src/app/shell/pbar.js): Skip and the star at the left, the forward button at the right, at the foot of the scrolling card; the countdown runs along its top edge */
+.card>.pbar{display:block;position:sticky;bottom:0;z-index:2;margin-top:auto;margin-inline:calc(-1*var(--bleed));padding:8px var(--bleed) calc(8px + env(safe-area-inset-bottom,0px));background:var(--paper);border-top:1px solid var(--line)}
+.pbar .prow{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.pbar .pl{display:flex;align-items:center;gap:2px;min-width:0}
+.pbar .pbt{position:absolute;left:0;right:0;top:-1px;height:4px}
+.pbar .skipw{height:44px;padding:0 12px}
+.pbar .skipw .tbi{width:18px;height:18px;margin-right:6px}
+.pbar .starb{margin-left:2px}
+.pbar .fwd{height:44px;padding:0 20px;justify-content:center;white-space:nowrap}
+.pbar .pnote{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px;padding:0 2px 2px;font:400 13px/1.4 var(--text-serif);color:var(--ink-muted)}
+.pbar .skipmsg{flex:1}
+.pbar .skipundo{position:relative;flex:none;min-height:44px;padding:0 8px;border:0;background:transparent;font:700 13px/1 var(--body);color:var(--ink);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.pbar .skipundo:focus-visible{box-shadow:var(--focus-ring)}
 .card.rv{display:block;padding-top:0}
 .card.rv>*{margin-top:0}
-.rseg{display:flex;position:sticky;top:0;z-index:2;margin-block:12px 14px}
+.card.rv>.rseg{margin-top:12px}
+.rseg{display:flex;position:sticky;top:0;z-index:2;margin-bottom:14px}
 .rseg button{flex:1;height:36px;padding:0 4px}
 .rseg .cnt{font-variant-numeric:tabular-nums}
 .rseg button:nth-child(2) .cnt{color:var(--vermilion-ink)}

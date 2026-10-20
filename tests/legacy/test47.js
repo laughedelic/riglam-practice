@@ -1,4 +1,4 @@
-const {open}=require('./harness.js');
+const {open,go}=require('./harness.js');
 const D=require('./harness.js').SHOTS;
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
 const ORDER={mi:0,'3ab':1,'3ba':2,'4':3,con:4};
@@ -37,7 +37,7 @@ async function terms(pg,label,root){
  await pg.evaluate(()=>document.activeElement&&document.activeElement.blur());
  await terms(pg,'phone-relations','#stage');
  // Questions tab: picking the relation checks
- await pg.locator('[role=tab]:visible:has-text("Pervasions")').click(); await pg.waitForTimeout(150);
+ await go(pg,'Pervasions'); await pg.waitForTimeout(150);
  await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(40); await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(40);
  await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(40); await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(100);
  await pg.locator('.rels .rel').nth(3).click(); await pg.waitForTimeout(250);
@@ -49,14 +49,15 @@ async function terms(pg,label,root){
  ({br,pg,errs}=await open({width:1280,height:800}));
  const rel2=await pg.evaluate(()=>window.__t.cur.p.relation);
  await pg.locator('.strip .chip').nth(ORDER[rel2]).click(); await pg.waitForTimeout(100);
- const ids=await pg.locator('.cell input:not([disabled])').evaluateAll(a=>a.map(x=>x.id)); for(const id of ids) await pg.fill('#'+id,'zzz'); await pg.click('#stage .actions .btn:not(.ghost):not(.fav)'); await pg.waitForTimeout(200);
+ const ids=await pg.locator('.cell input:not([disabled])').evaluateAll(a=>a.map(x=>x.id)); for(const id of ids) await pg.fill('#'+id,'zzz'); await pg.click('#stage .pbar .fwd'); await pg.waitForTimeout(200);
  await pg.evaluate(()=>document.activeElement&&document.activeElement.blur());
- await terms(pg,'wide-relations','.coach');
- await pg.locator('[role=tab]:visible:has-text("Pervasions")').click(); await pg.waitForTimeout(150);
+ await terms(pg,'wide-relations','#stage'); // the result stays in the middle on a wide screen; the coach panel holds the tutor
+ await go(pg,'Pervasions'); await pg.waitForTimeout(150);
  await pg.keyboard.press('a'); await pg.waitForTimeout(40); await pg.keyboard.press('a'); await pg.waitForTimeout(40); await pg.keyboard.press('a'); await pg.waitForTimeout(40); await pg.keyboard.press('a'); await pg.waitForTimeout(100);
+ await pg.click('#mchat'); await pg.waitForTimeout(100); // the key hints are in the tutor's panel, which the chat button opens
  ok('wide: the coach key hints say picking checks (the placeholder paragraph is gone)',/relation, checks/i.test(await pg.locator('.coach').innerText())&&!/verdict appears at once/i.test(await pg.locator('.coach').innerText()),await pg.locator('.coach').innerText());
  await pg.keyboard.press('2'); await pg.waitForTimeout(250);
- ok('wide-questions: key 2 picks the relation and checks (result in the coach, no Check)',await pg.evaluate(()=>window.__t.ui.checked)===true&&await pg.locator('.coach .vchips').count()===1&&!(await pg.locator('.btn').allInnerTexts()).some(t=>/^check$/i.test(t.trim())));
+ ok('wide-questions: key 2 picks the relation and checks (result in the middle, no Check)',await pg.evaluate(()=>window.__t.ui.checked)===true&&await pg.locator('#stage .vchips').count()===1&&!(await pg.locator('.btn').allInnerTexts()).some(t=>/^check$/i.test(t.trim())));
  const parsed=await pg.evaluate(()=>Object.values(window.__t.DATA.terms).map(t=>[t.name,window.__t.defParts(t.d),window.__t.defParts(t.d_ru)]));
  const TAG=/^\((Purbuchok|tables|Dampilon|no |not |defined|mutually|booklet)|\((tables|Dampilon|Purbuchok)\)/i; const leak=parsed.filter(([n,e,r])=>TAG.test(e.body)||TAG.test(r.body));
  ok('every term: source tag parsed out of the English and Russian text',leak.length===0,leak.slice(0,5));

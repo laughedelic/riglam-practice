@@ -1,16 +1,21 @@
 import { state } from "../state.js";
-import { advanceDebate, freshDebateUi, startQ, stopTimer } from "../debate/flow.js";
+import { $ } from "../core/dom.js";
+import { advanceDebate, asking, freshDebateUi, startQ, stopTimer } from "../debate/flow.js";
 import { advanceFind } from "../find/flow.js";
 import { advance, freshUi } from "../practice/queue.js";
 import { skipCats } from "../practice/skips.js";
+import { closeChat } from "./chat.js";
+import { toggleOpts } from "./options.js";
+import { toggleSess } from "./session.js";
 import { render, top0 } from "./render.js";
 
- const hold={};
-// Practice, Debate and Find a pair each keep their own pair while you look at another tab or at Review.
-// Relations and Pervasions work on one pair: leaving one with its pair unfinished, the other opens the same pair at its first step (and keeps its own
-// progress if it already holds that pair). A pair that is finished gives the other tab a new pair, as Next pair does.
-// Find a pair is its own exercise (the learner names the pair): it gives no pair to the other two and takes none from them. Going to or from it, the exercise
-// you left keeps its place if it was unfinished, and a finished one starts again.
+const hold={};
+// The screens: the exercises ("practice" is Relations, "debate" Pervasions, "find" Find a pair) and Review. Each exercise keeps its own
+// attempt while you are anywhere else: an unfinished one is parked and comes back as it was ("continue" in the menu). Relations and Pervasions work
+// on one pair: opening one while the other has an unfinished pair, and nothing of its own begun or checked, opens that pair at its first step.
+// Find a pair is its own exercise (the learner names the pair): it gives no pair to the other two and takes none from them.
+// A checked attempt comes back on its result too; only Next pair moves on from it.
+const isEx=k=>k==="practice"||k==="debate"||k==="find";
 const sameP=(x,y)=>!!x&&!!y&&((x.id&&x.id===y.id)||(x.a===y.a&&x.b===y.b&&x.relation===y.relation));
 function adoptPair(k,p){
   const [ca,cb]=skipCats(p); if(!ca||!cb) return false;
@@ -19,21 +24,55 @@ function adoptPair(k,p){
   else { state.cur={p:q}; state.ui=freshUi(); state.mode="quiz"; }
   return true;
 }
+/** Whether an attempt has begun: a relation picked, an example written, a question answered. A pair only drawn has not. */
+export function begun(u){
+  if(!u||u.checked) return false;
+  const typed=()=>Object.values(u.cells).some(c=>c.t.trim()||c.none);
+  if(u.find) return u.step>0||!!u.wordA.trim()||!!u.wordB.trim()||typed();          // Find a pair: its relation is given, so words count
+  if(u.rel) return true;
+  if(u.debate) return u.step>0||u.ans.some(a=>a.say||a.text);
+  return typed();
+}
+/** The attempt an exercise holds: the one on screen for the current exercise, the parked one for the others. */
+export function attemptOf(k){
+  const h=k===state.own?{cur:state.cur,ui:state.ui}:hold[k];
+  return h&&h.ui?h:null;
+}
+/** The first pair, in the exercise the app opens on (the one used last). */
+export function startFirst(){
+  if(state.tab==="debate") advanceDebate(); else if(state.tab==="find") advanceFind(); else advance();
+  state.mode="quiz";
+}
 export function switchTo(k){
   stopTimer();
-  if(k!=="review"&&state.own!==k){
-    const from=state.own, left=state.cur&&state.cur.p&&state.ui&&!state.ui.checked?state.cur.p:null, was=state.cur&&state.cur.p;
+  if(isEx(k)&&state.own!==k){
+    const from=state.own, left=k!=="find"&&from!=="find"&&state.cur&&state.cur.p&&state.ui&&!state.ui.checked?state.cur.p:null;
     hold[from]={cur: state.cur,ui: state.ui}; state.own=k;
     const h=hold[k];
-    if(k==="find"||from==="find"){
-      if(h&&h.cur&&h.ui&&!h.ui.checked){ state.cur=h.cur; state.ui=h.ui; }
-      else if(k==="find") advanceFind(); else if(k==="debate") advanceDebate(); else advance();
-    }
-    else if(h&&h.cur&&was&&sameP(h.cur.p,was)){ state.cur=h.cur; state.ui=h.ui; }
+    if(h&&h.ui&&(h.ui.checked||begun(h.ui)||!left||sameP(h.cur.p,left))){ state.cur=h.cur; state.ui=h.ui; }
+    else if(k==="find") advanceFind();
     else if(left&&adoptPair(k,left)){}
     else if(k==="debate") advanceDebate(); else advance();
   }
   state.tab=k;
+  if(isEx(k)) try{ localStorage.setItem("rd-ex",k); }catch(e){}
   if(k==="debate"&&state.ui&&state.ui.debate&&!state.ui.checked&&state.ui.step<4) startQ();
 }
-export function setTab(k){ if(state.mode!=="quiz"&&k!=="review") return; switchTo(k); render(); top0(); }
+// Going to a screen from the menu or the back arrow. A screen shows itself, not a panel over it: Settings, the options and the chat close first, and so does the menu.
+export function setTab(k){
+  if(state.mode!=="quiz"&&isEx(k)) return;
+  if(state.optsOpen) toggleOpts(false);
+  if(state.sessOpen) toggleSess(false);
+  if(state.view==="chat") closeChat();
+  state.skipAsk=false; state.menuOpen=false; state.menuPeek=false;
+  if(state.tab!==k) switchTo(k);
+  if(state.blitz&&asking()&&!state.ui.tq) startQ();       // the question's clock stood still behind the menu
+  render(); top0(); focusStage();
+}
+// A menu row is gone once it has been used (the drawer closes): the keyboard focus goes to the new screen, not to the end of the page.
+// A button that is still there (the pinned menu's) keeps it.
+function focusStage(){
+  const a=/** @type {HTMLElement|null} */(document.activeElement);
+  if(a&&a!==document.body&&a.isConnected&&a.offsetParent) return;
+  $("stage").focus({preventScroll:true});
+}

@@ -1,10 +1,10 @@
-const {open}=require('./harness.js');
+const {open,go}=require('./harness.js');
 const D=require('./harness.js').SHOTS;
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
 async function run(label,vp,opts,wide){
  const {br,pg,errs}=await open(vp,opts);
  const vis=async s=>await pg.locator(s).first().isVisible();
- await pg.locator('[role=tab]:visible:has-text("Pervasions")').click(); await pg.waitForTimeout(150);
+ await go(pg,'Pervasions'); await pg.waitForTimeout(150);
  // Q1 accept, Q2 why, Q3 accept, Q4 accept
  await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(60);
  await pg.locator('.qcard .btn.ghost').click(); await pg.waitForTimeout(60);
@@ -17,7 +17,7 @@ async function run(label,vp,opts,wide){
  await pg.locator(wide?'.strip .chip':'.rels .rel').first().click(); await pg.waitForTimeout(250);
  ok(label+': picking the relation shows the result at once, no Check button',await pg.evaluate(()=>window.__t.ui.checked)===true&&!(await pg.locator('.btn').allInnerTexts()).some(t=>/^check$/i.test(t.trim())));
  await pg.evaluate(()=>document.activeElement&&document.activeElement.blur());
- const root=wide?'.coach':'#stage';
+ const root='#stage'; // the result stays in the middle on a wide screen, too; the tutor's panel (#coach) opens with Explain
  const chips=(await pg.locator(root+' .vchips .vchip').allInnerTexts()).map(s=>s.replace(/[✓✗?]\s*/g,'').trim().toLowerCase());
  ok(label+': chips include relation, questions n/4, examples, terms',chips.includes('relation')&&chips.some(c=>/^questions \d\/4$/.test(c))&&chips.includes('examples')&&chips.includes('terms'),chips);
  ok(label+': at most one panel',await pg.locator(root+' .vpanel').count()<=1);
@@ -36,9 +36,11 @@ async function run(label,vp,opts,wide){
  ok(label+': tapping again closes it',await pg.locator(root+' .qs').nth(1).getAttribute('aria-expanded')==='false');
  await pg.screenshot({path:D+'d45-'+label+'-q0.png'});
  // explain
- const eb=pg.locator((wide?'.coach':'#stage')+' button:has-text("xplain")');
+ if(wide) ok(label+': the tutor panel is closed before Explain',await pg.evaluate(()=>document.getElementById('coach').hidden));
+ const eb=pg.locator('#stage .verdict .xpl');
  await eb.first().click(); await pg.waitForTimeout(300);
- ok(label+': Why chip opens',await pg.locator(root+' .vchip[aria-selected=true]').innerText().then(t=>/^why$/i.test(t.trim())),await pg.locator(root+' .vchip[aria-selected=true]').count());
+ /* a phone shows the explanation under the Why chip; a wide screen opens the tutor panel at the right (no Why chip there) */
+ ok(label+': Why chip opens'+(wide?' (wide: the tutor panel opens with the explanation)':''),wide?await pg.locator('#coach:not([hidden]) .tutor .ans').count()===1&&await pg.locator('#vt-tutor').count()===0:await pg.locator(root+' .vchip[aria-selected=true]').innerText().then(t=>/^why$/i.test(t.trim())),await pg.locator(root+' .vchip[aria-selected=true]').count());
  ok(label+': [?] on explained cells',await pg.locator('.grid .qm').count()===2,await pg.locator('.grid .qm').count());
  await pg.locator('.grid .qm').first().click(); await pg.waitForTimeout(100);
  ok(label+': popover shows',await pg.locator('.grid .pop').count()===1&&/clay pot|stone/.test(await pg.locator('.grid .pop').innerText()));

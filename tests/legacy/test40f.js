@@ -1,4 +1,5 @@
 const {chromium}=require('@playwright/test');
+const {go}=require('./harness.js');
 const fs=require('fs');
 const path=require('path');
 let page_=fs.readFileSync(path.resolve(__dirname,'../../dist/artifact/index.html'),'utf8');
@@ -22,33 +23,37 @@ const errs=[];
  pg.on('console',m=>{if(m.type()==='error')errs.push(m.text())}); pg.on('pageerror',e=>errs.push('ERR '+e.message));
  await pg.route('http://t/**',r=>r.fulfill({body:html,contentType:'text/html'}));
  await pg.goto('http://t/index.html',{waitUntil:'domcontentloaded'}); await pg.waitForTimeout(700);
- const fav=pg.locator('#stage .actions .fav'); const openFirst=async sec=>{ const d=sec.locator('.favs > li').nth(0).locator('details'); if(!(await d.evaluate(n=>n.open))) await d.locator('summary').click(); };
- ok('star button on the relations card',await fav.count()===1&&await fav.getAttribute('aria-pressed')==='false');
- ok('label shown on a wide screen, star shown',(await pg.locator('.fav .fl').isVisible())&&/☆/.test(await fav.innerText()));
- ok('button is left of Check',await pg.evaluate(()=>{const f=document.querySelector('#stage .actions .fav').getBoundingClientRect(),c=[...document.querySelectorAll('#stage .actions .btn')].pop().getBoundingClientRect();return f.left<c.left&&f.right<=document.documentElement.clientWidth}));
+ await go(pg,'Relations'); await pg.waitForTimeout(100);
+ const fav=pg.locator('#stage .pbar .starb'); const openFirst=async sec=>{ const d=sec.locator('.favs > li').nth(0).locator('details'); if(!(await d.evaluate(n=>n.open))) await d.locator('summary').click(); };
+ ok('star button in the pair bar of the relations card',await fav.count()===1&&await fav.getAttribute('aria-pressed')==='false');
+ ok('star shown, an outline while off',(await fav.isVisible())&&await pg.locator('#stage .pbar .starb svg.tbi').count()===1&&await pg.evaluate(()=>getComputedStyle(document.querySelector('#stage .pbar .starb .tbi')).fill==='none'));
+ ok('button is in the left group of the pair bar, after Skip',await pg.evaluate(()=>{const f=document.querySelector('#stage .pbar .starb').getBoundingClientRect(),c=document.querySelector('#stage .pbar .skipw').getBoundingClientRect();return f.left>=c.right&&f.right<=document.documentElement.clientWidth}));
  const key=await pg.evaluate(()=>window.__t.favKey(window.__t.cur.p));
+ // a favorite is kept per pair of categories, so a draw of the same categories under other labels would show as one too: draw again until the pair is not a favorite
+ const fresh=async()=>{ for(let i=0;i<30&&await pg.evaluate(()=>window.__t.favKey(window.__t.cur.p) in window.__S.favorites);i++){ await pg.evaluate(()=>window.__t.next()); await pg.waitForTimeout(40); } };
  await fav.click(); await pg.waitForTimeout(100);
- ok('click marks it',await pg.locator('#stage .actions .fav').getAttribute('aria-pressed')==='true'&&/★/.test(await pg.locator('#stage .actions .fav').innerText()));
+ ok('click marks it',await pg.locator('#stage .pbar .starb').getAttribute('aria-pressed')==='true'&&await pg.evaluate(()=>getComputedStyle(document.querySelector('#stage .pbar .starb .tbi')).fill!=='none'));
  let S=await pg.evaluate(()=>JSON.parse(JSON.stringify(window.__S.favorites)));
  ok('saved under a stable key with the pair',Object.keys(S).length===1&&S[key]&&S[key].a&&S[key].relation&&S[key].pair&&S[key].pair.ex,Object.keys(S));
  ok('key is db-safe',/^[A-Za-z0-9_]+$/.test(key),key);
  await pg.keyboard.press('f'); await pg.waitForTimeout(100);
- ok('F removes it',await pg.locator('#stage .actions .fav').getAttribute('aria-pressed')==='false'&&(await pg.evaluate(()=>Object.keys(window.__S.favorites).length))===0);
+ ok('F removes it',await pg.locator('#stage .pbar .starb').getAttribute('aria-pressed')==='false'&&(await pg.evaluate(()=>Object.keys(window.__S.favorites).length))===0);
  await pg.keyboard.press('F'); await pg.waitForTimeout(100);
- ok('F again adds it',await pg.locator('#stage .actions .fav').getAttribute('aria-pressed')==='true');
+ ok('F again adds it',await pg.locator('#stage .pbar .starb').getAttribute('aria-pressed')==='true');
  // answer: choose relation, check, star remains
  const rel=await pg.evaluate(()=>window.__t.cur.p.relation);
  const ORDER={mi:1,'3ab':2,'3ba':3,'4':4,con:5}; await pg.locator('.strip .chip').nth(ORDER[rel]-1).click();
- await pg.click('#stage .actions .btn:not(.ghost)'); await pg.waitForTimeout(150);
- ok('star stays after Check and still on',await pg.locator('#stage .actions .fav').count()===1&&await pg.locator('#stage .actions .fav').getAttribute('aria-pressed')==='true');
+ ok('button is left of Check',await pg.evaluate(()=>{const f=document.querySelector('#stage .pbar .starb').getBoundingClientRect(),c=document.querySelector('#stage .pbar .fwd').getBoundingClientRect();return f.left<c.left&&f.right<=document.documentElement.clientWidth}));
+ await pg.click('#stage .pbar .fwd'); await pg.waitForTimeout(150);
+ ok('star stays after Check and still on',await pg.locator('#stage .pbar .starb').count()===1&&await pg.locator('#stage .pbar .starb').getAttribute('aria-pressed')==='true');
  ok('answer saved too',(await pg.evaluate(()=>Object.keys(window.__S.answers).length))===1);
  // typing into an input must not trigger the shortcut
- await pg.click('#stage .actions .btn:not(.ghost):last-child'); await pg.waitForTimeout(150);
+ await pg.click('#stage .pbar .fwd'); await pg.waitForTimeout(150); await fresh();
  const rel2=await pg.evaluate(()=>window.__t.cur.p.relation); await pg.locator('.strip .chip').nth(ORDER[rel2]-1).click();
  const inp=pg.locator('.cell input:not([disabled])').first(); if(await inp.count()){ await inp.fill('f'); ok('typing f in a field does not toggle',(await pg.evaluate(()=>Object.keys(window.__S.favorites).length))===1&&await inp.inputValue()==='f'); }
- ok('next pair is not a favorite',await pg.locator('#stage .actions .fav').getAttribute('aria-pressed')==='false');
+ ok('next pair is not a favorite',await pg.locator('#stage .pbar .starb').getAttribute('aria-pressed')==='false');
  // review
- await pg.click('[role=tab]:visible:has-text("Review")'); await pg.waitForTimeout(150);
+ await go(pg,'Review'); await pg.waitForTimeout(150);
  let sec=pg.locator('.section:has(> .label:has-text("Favorites"))');
  ok('review lists the favorite',await sec.locator('.favs > li').count()===1&&/saved/.test(await sec.locator('.label').innerText()),await sec.innerText());
  await sec.locator('summary').click(); await pg.waitForTimeout(50);
@@ -63,15 +68,15 @@ const errs=[];
  // practice it
  await sec.locator('button:has-text("Practice this pair")').click(); await pg.waitForTimeout(150);
  ok('practice shows the same pair with a Favorite tag',await pg.evaluate(([a,b])=>window.__t.tab==='practice'&&window.__t.cur.p.a===a&&window.__t.cur.p.b===b,fa)&&/favorite/i.test(await pg.locator('.retry-tag').innerText()),[fa,await pg.evaluate(()=>[window.__t.tab,window.__t.cur.p.a,window.__t.cur.p.b]),await pg.locator('.retry-tag').allInnerTexts()]);
- ok('the practiced pair is marked',await pg.locator('#stage .actions .fav').getAttribute('aria-pressed')==='true');
+ ok('the practiced pair is marked',await pg.locator('#stage .pbar .starb').getAttribute('aria-pressed')==='true');
  // debate tab (a switch keeps the pair, so draw a new one first)
- await pg.evaluate(()=>window.__t.next()); await pg.waitForTimeout(100);
- await pg.click('[role=tab]:visible:has-text("Pervasions")'); await pg.waitForTimeout(150);
- ok('star also on the questions tab',await pg.locator('#stage .actions .fav').count()===1&&await pg.locator('#stage .actions .fav').getAttribute('aria-pressed')==='false');
- await pg.locator('#stage .actions .fav').click(); await pg.waitForTimeout(100);
+ await pg.evaluate(()=>window.__t.next()); await pg.waitForTimeout(100); await fresh();
+ await go(pg,'Pervasions'); await pg.waitForTimeout(150);
+ ok('star also on the questions tab',await pg.locator('#stage .pbar .starb').count()===1&&await pg.locator('#stage .pbar .starb').getAttribute('aria-pressed')==='false');
+ await pg.locator('#stage .pbar .starb').click(); await pg.waitForTimeout(100);
  ok('debate pair can be favorited',(await pg.evaluate(()=>Object.keys(window.__S.favorites).length))===2);
  // remove from review
- await pg.click('[role=tab]:visible:has-text("Review")'); await pg.waitForTimeout(150);
+ await go(pg,'Review'); await pg.waitForTimeout(150);
  sec=pg.locator('.section:has(> .label:has-text("Favorites"))');
  await openFirst(sec); await sec.locator('button:has-text("Remove")').first().click(); await pg.waitForTimeout(150);
  ok('remove deletes the document',(await pg.evaluate(()=>Object.keys(window.__S.favorites).length))===1&&await sec.locator('.favs > li').count()===1);
@@ -83,9 +88,9 @@ const errs=[];
  await pg.evaluate(()=>{window.__fail.del=0}); await openFirst(sec); await sec.locator('button:has-text("Remove")').first().click(); await pg.waitForTimeout(250);
  ok('empty list explains how to add',/star a pair/.test(await sec.locator('.label').innerText())&&/Press the star/.test(await sec.innerText()),await sec.innerText());
  // a failed save is undone
- await pg.click('[role=tab]:visible:has-text("Relations")'); await pg.waitForTimeout(100);
- await pg.evaluate(()=>{window.__fail.set=2}); await pg.locator('#stage .actions .fav').click(); await pg.waitForTimeout(2600);
- ok('failed save: star undone with a message',await pg.locator('#stage .actions .fav').getAttribute('aria-pressed')==='false'&&/could not be saved/.test(await pg.locator('#stage').innerText()),await pg.locator('#stage').innerText());
+ await go(pg,'Relations'); await pg.waitForTimeout(100);
+ await pg.evaluate(()=>{window.__fail.set=2}); await pg.locator('#stage .pbar .starb').click(); await pg.waitForTimeout(2600);
+ ok('failed save: star undone with a message',await pg.locator('#stage .pbar .starb').getAttribute('aria-pressed')==='false'&&/could not be saved/.test(await pg.locator('#stage').innerText()),await pg.locator('#stage').innerText());
  await pg.screenshot({path:'f-card.png',fullPage:false});
  console.log(out.join('\n')); console.log('ERRS',JSON.stringify(errs));
  await br.close();

@@ -1,5 +1,5 @@
 export const wideMq=window.matchMedia("(min-width:1100px)"), isWide=()=>wideMq.matches;
-// A phone keyboard covers part of the screen. The app follows the visible area, and the tab bar steps aside while a field is in use.
+// A phone keyboard covers part of the screen. The app follows the visible area; the tab bar stays and shrinks while a field is in use.
 const vv=window.visualViewport;
 export function syncVv(){
   const r=document.documentElement.style;

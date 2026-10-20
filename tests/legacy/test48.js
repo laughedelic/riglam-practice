@@ -1,4 +1,4 @@
-const {open}=require('./harness.js');
+const {open,go}=require('./harness.js');
 const {ringScan}=require('./ring.js');
 const D=require('./harness.js').SHOTS;
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
@@ -28,7 +28,7 @@ async function rings(pg,label){ const r=await pg.evaluate(ringScan); ok(label+':
  await pg.evaluate(()=>document.activeElement&&document.activeElement.blur());
  ok('no "?" beside the relation before Claude has explained',await pg.locator('.subrow .rq').count()===0);
  await rings(pg,'phone result');
- await pg.locator('#stage .actions button:has-text("xplain")').click(); await pg.waitForTimeout(350);
+ await pg.locator('#stage .verdict .xpl').click(); await pg.waitForTimeout(350);
  ok('after Explain: "?" beside the relation name, in the caption row',await pg.locator('.head .subrow .qm.rq').count()===1&&await pg.locator('.head .subrow .subt').count()===1);
  const sub=await pg.evaluate(()=>{const s=document.querySelector('.subt').getBoundingClientRect(), q=document.querySelector('.rq').getBoundingClientRect(), h=document.querySelector('.head').getBoundingClientRect(); return {gap:Math.round(q.left-s.right),qw:Math.round(q.width),inside:q.left>=h.left&&q.right<=h.right+0.5,sameLine:Math.abs((q.top+q.height/2)-(s.top+s.height/2))<8};});
  ok('the "?" sits right of the name on the same line, inside the heading',sub.gap<=10&&sub.gap>=0&&sub.inside&&sub.sameLine,sub);
@@ -51,20 +51,20 @@ async function rings(pg,label){ const r=await pg.evaluate(ringScan); ok(label+':
  ok('opening a cell note closes the relation note (one note at a time)',await pg.locator('.rpop').count()===0&&await pg.locator('.grid .pop').count()===1);
  await pg.keyboard.press('Escape'); await pg.waitForTimeout(60);
  // the chat view keeps the whole answer
- await pg.locator('.stage-chat').click(); await pg.waitForTimeout(200);
+ await pg.locator('#mchat').click(); await pg.waitForTimeout(200);
  const chat=await pg.locator('#chatscroll').innerText();
  ok('chat view shows the whole answer, cell lines included',/Both:/.test(chat)&&/Pervasion/.test(chat),chat);
  await rings(pg,'phone chat view');
  await pg.keyboard.press('Escape'); await pg.waitForTimeout(100);
  // Questions tab
- await pg.locator('[role=tab]:visible:has-text("Pervasions")').click(); await pg.waitForTimeout(150);
+ await go(pg,'Pervasions'); await pg.waitForTimeout(150);
  await rings(pg,'phone questions');
  await pg.click('#mbz'); await pg.waitForTimeout(100); await rings(pg,'phone questions, Blitz on');
  await pg.click('#mbz'); await pg.waitForTimeout(80);
  await pg.evaluate(r=>{window.__reply=r;},REPLY_D);
  for(let i=0;i<4;i++){ await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(40); }
  await pg.locator('.rels .rel').nth(3).click(); await pg.waitForTimeout(250);
- await pg.locator('#stage .actions button:has-text("xplain")').click(); await pg.waitForTimeout(350);
+ await pg.locator('#stage .verdict .xpl').click(); await pg.waitForTimeout(350);
  ok('Pervasions tab: "?" beside the relation after Explain',await pg.locator('.head .subrow .qm.rq').count()===1);
  const tut2=await pg.locator('.vpanel').innerText();
  ok('Pervasions tab: Why panel has no Q lines and does not repeat Relation or Pervasion',!/\bQ[14]:/.test(tut2)&&!/Relation:|Pervasion/.test(tut2),tut2);
@@ -80,21 +80,21 @@ async function rings(pg,label){ const r=await pg.evaluate(ringScan); ok(label+':
  await pg.locator('.strip .chip').nth(ORDER[rel2]).click(); await pg.waitForTimeout(100);
  const ids=await pg.locator('.cell input:not([disabled])').evaluateAll(a=>a.map(x=>x.id)); for(const id of ids) await pg.fill('#'+id,'zzz');
  await pg.focus('#'+ids[0]); await rings(pg,'wide cells');
- const btns=await pg.locator('#stage .actions .btn').allInnerTexts();
- ok('wide: the button reads Show result, not Check',btns.some(t=>/show result/i.test(t))&&!btns.some(t=>/^check$/i.test(t.trim())),btns);
- await pg.click('#stage .actions .btn:not(.ghost):not(.fav)'); await pg.waitForTimeout(200);
+ const btns=await pg.locator('#stage .pbar .skipw, #stage .pbar .starb, #stage .pbar .fwd').evaluateAll(a=>a.map(b=>b.className.split(' ').pop()+':'+b.textContent.trim().replace(/N$/,'')));
+ ok('wide: the pair bar has Skip and the star, and the forward button reads Check before the result (the old "Show result" wording is gone)',btns.length===3&&/^skipw:skip$/i.test(btns[0])&&/^starb/.test(btns[1])&&/^fwd:check$/i.test(btns[2]),btns);
+ await pg.click('#stage .pbar .fwd'); await pg.waitForTimeout(200);
  await pg.evaluate(()=>document.activeElement&&document.activeElement.blur());
- await pg.locator('.coach button:has-text("xplain")').click(); await pg.waitForTimeout(350);
+ await pg.locator('#stage .verdict .xpl').click(); await pg.waitForTimeout(350);
  ok('wide: "?" beside the relation name under the diagram',await pg.locator('#stage .subrow .qm.rq').count()===1);
  await pg.locator('#stage .rq').click(); await pg.waitForTimeout(150);
  ok('wide: relation note opens in the workspace',await pg.locator('#stage .rpop').count()===1&&/Pervasion/.test(await pg.locator('#stage .rpop').innerText()));
  await pg.screenshot({path:D+'v48-wide.png'});
  await rings(pg,'wide result');
  await pg.keyboard.press('Escape');
- await pg.locator('[role=tab]:visible:has-text("Pervasions")').click(); await pg.waitForTimeout(150);
- ok('wide: Blitz icon in the action row beside Favorite',await pg.locator('.actions .fav + .bz').count()===1&&await pg.locator('.blitzrow').count()===0);
+ await go(pg,'Pervasions'); await pg.waitForTimeout(150);
+ ok('wide: Blitz switch in the top bar, not in the pair bar',await pg.locator('.mbar #mbz[role=switch]').isVisible()&&await pg.locator('.actions .bz').count()===0&&await pg.locator('.blitzrow').count()===0);
  await rings(pg,'wide questions');
- await pg.click('.actions .bz'); await pg.waitForTimeout(80); await rings(pg,'wide Blitz on');
+ await pg.click('#mbz'); await pg.waitForTimeout(80); await rings(pg,'wide Blitz on');
  ok('wide: no page errors',errs.filter(e=>!/ERR_CERT|net::/.test(e)).length===0,errs);
  console.log(out.join('\n')); await br.close();
 })().catch(e=>{console.log(out.join('\n'));console.log('CRASH',e.message.split('\n').slice(0,8).join(' | '));process.exit(1)});

@@ -1,15 +1,15 @@
-const {open}=require('./harness.js');
+const {open,go}=require('./harness.js');
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
 (async()=>{
  let {br,pg,errs}=await open({width:360,height:740},{isMobile:true,hasTouch:true});
- await pg.locator('#tabbar [role=tab]:has-text("Pervasions")').click(); await pg.waitForTimeout(150);
+ await go(pg,'Pervasions'); await pg.waitForTimeout(150);
  ok('no caption row under the pair while asking (the card carries the progress)',await pg.locator('.head .subrow').count()===0);
  const h0=await pg.evaluate(()=>{const s=document.querySelector('.qn .sr').getBoundingClientRect(); return {w:Math.round(s.width),h:Math.round(s.height),aria:document.querySelector('.qn').textContent};});
  ok('card header shows "Question 1" and no visible "of 4"; the text for a reader still has it',h0.w<=1&&h0.h<=1&&/Question 1 of 4/.test(h0.aria),h0);
  const hh=await pg.evaluate(()=>{const q=document.querySelector('.qn'); return Math.round(q.getBoundingClientRect().height)<=22;});
  ok('360 px: the card header is one line',hh);
  await pg.click('#mbz'); await pg.waitForTimeout(150);
- const bar=await pg.evaluate(()=>{const i=document.querySelector('.qcard .tbar i'); const c=getComputedStyle(i).backgroundColor; const t=document.createElement('i'); t.style.color='var(--heading)'; document.body.append(t); const hc=getComputedStyle(t).color; t.remove(); return {c,hc};});
+ const bar=await pg.evaluate(()=>{const i=document.querySelector('.pbar .tbar i'); const c=getComputedStyle(i).backgroundColor; const t=document.createElement('i'); t.style.color='var(--heading)'; document.body.append(t); const hc=getComputedStyle(t).color; t.remove(); return {c,hc};});
  ok('the countdown bar starts in the heading blue, not grey',bar.c===bar.hc,bar);
  await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(400);
  const r=await pg.evaluate(()=>{const p=document.querySelector('.rcpt .ri.acc'), w=p.querySelector('.rw'), s=getComputedStyle(p); return {bg:s.backgroundColor, glyph:w.innerText, col:getComputedStyle(w).color, ok:getComputedStyle(document.documentElement).getPropertyValue('--cell-ok').trim(), n:document.querySelectorAll('.rcpt .ri').length};});

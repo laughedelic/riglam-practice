@@ -3,7 +3,7 @@
 // instructions, a proof made with the key) and what it shows when the answer streams in or the server refuses.
 import { test as plain } from "@playwright/test";
 import { test, expect } from "../../support/test.js";
-import { ready, relOptions, isPhone, overflow } from "../../support/page.js";
+import { goTo, ready, relOptions, isPhone, overflow } from "../../support/page.js";
 import { dataKey, serveCourse, withCourse } from "../../support/data-key.js";
 import { checkProof } from "../../../src/ai/proof.ts";
 
@@ -199,7 +199,7 @@ withKey("in Pervasions an accepted question's note names the tutor's counter-exa
   await server(page, { tutor: [{ status: 200, body: sse({ type: "delta", text: line }, { type: "done", truncated: false }) }] });
   await page.goto("/");
   await ready(page);
-  await page.locator('.rail .nv:has-text("Pervasions")').click();
+  await goTo(page, "Pervasions");
   for (let i = 0; i < 4; i++) {
     await page.locator(".qcard .btn").first().click(); // accept each question
     await page.waitForTimeout(150);
@@ -283,7 +283,7 @@ withKey("on a wide screen the error and a follow-up answer appear in the coach p
   await page.goto("/");
   await ready(page);
   await relOptions(page).first().click();
-  await page.getByRole("button", { name: /show result/i }).click();
+  await page.locator("#stage .pbar .fwd").click(); // Check, with the cells left empty
   await explain(page).click();
   await expect(page.getByText(/limit for today is used up/i)).toBeVisible();
   await page.fill("#ask-in", "Why not?");

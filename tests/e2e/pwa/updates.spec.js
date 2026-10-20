@@ -6,7 +6,7 @@ import { createServer } from "node:http";
 import { readFileSync, existsSync, statSync } from "node:fs";
 import { extname, join, normalize } from "node:path";
 import { test, expect } from "../../support/test.js";
-import { ready } from "../../support/page.js";
+import { ready, openSettings } from "../../support/page.js";
 
 const DIST = join(process.cwd(), "dist/pwa");
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".json": "application/json", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png", ".woff2": "font/woff2", ".webmanifest": "application/manifest+json" };
@@ -62,7 +62,7 @@ test("a newer version is found, offered, and started from the banner without clo
   await expect(page.locator("#upd")).toBeHidden();
 });
 
-test("Later hides the banner, and Options still offers the update", async ({ page }) => {
+test("Later hides the banner, and Settings still offers the update", async ({ page }) => {
   await installed(page);
   newVersion = true;
   await page.evaluate(() => window.__riglam.platform.updates.check());
@@ -70,7 +70,7 @@ test("Later hides the banner, and Options still offers the update", async ({ pag
   await page.locator("#upd").getByRole("button", { name: "Later" }).click();
   await expect(page.locator("#upd")).toBeHidden();
 
-  await page.getByRole("button", { name: /options/i }).filter({ visible: true }).first().click();
+  await openSettings(page);
   const row = page.locator(".orow", { hasText: "Version" });
   await expect(row).toContainText("A newer version is ready.");
   await markOld(page);
@@ -78,12 +78,12 @@ test("Later hides the banner, and Options still offers the update", async ({ pag
   await expect.poll(() => isOld(page).catch(() => true), { timeout: 15_000 }).toBe(false);
 });
 
-test("Options looks for a newer version when it opens, and says when there is none", async ({ page }) => {
+test("Settings looks for a newer version when it opens, and says when there is none", async ({ page }) => {
   await installed(page);
   await page.waitForTimeout(100);
   newVersion = true;
   // a look younger than a minute is not repeated, so ask the way the Check button does
-  await page.getByRole("button", { name: /options/i }).filter({ visible: true }).first().click();
+  await openSettings(page);
   const row = page.locator(".orow", { hasText: "Version" });
   await expect(row).toContainText("This is the newest version.");
   await row.getByRole("button", { name: "Check for updates" }).click();
@@ -117,6 +117,6 @@ test("a check the server does not answer says so and does not break the page", a
   await installed(page);
   down = true;
   await page.evaluate(() => window.__riglam.platform.updates.check());
-  await page.getByRole("button", { name: /options/i }).filter({ visible: true }).first().click();
+  await openSettings(page);
   await expect(page.locator(".orow", { hasText: "Version" })).toContainText("Could not check for a newer version");
 });

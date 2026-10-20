@@ -1,4 +1,4 @@
-const {open}=require('./harness.js');
+const {open,go,settings}=require('./harness.js');
 const D=require('./harness.js').SHOTS;
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
 const ORDER={mi:0,'3ab':1,'3ba':2,'4':3,con:4};
@@ -15,15 +15,25 @@ async function relPhone(pg,relKey){
 const flagDocs=async pg=>Object.values(await S(pg,'flags'));
 const REPLY='Both: a clay pot fits.\nNeither: a stone is B, not A.\nCommon locus: yes, a clay pot.\nPervasion: whatever is A is B.\nExplanation: look at what both terms cover first.\nMisconception: you took A for B.';
 (async()=>{
- // ================= Options: the Questions helper line =================
+ // ================= the settings of Pervasions: the Questions helper line =================
  {
   const {br,pg,errs}=await open({width:1280,height:800});
-  await pg.locator('.rail .nv:has-text("Options")').click().catch(()=>{}); await pg.waitForTimeout(150);
-  if(!(await pg.locator('.orow').count())){ await pg.locator('#optsbtn,.optsbtn,[aria-label="Options"]').first().click().catch(()=>{}); await pg.waitForTimeout(150); }
-  const rows=await pg.locator('.orow').evaluateAll(r=>r.map(x=>x.innerText));
-  const q=rows.find(t=>/^questions/i.test(t.trim()));
-  ok('the Questions row explains itself as the statement of pervasion',!!q&&/statement of pervasion/i.test(q),q);
-  ok('the artifact has no Quorum row: it asks its host\'s model, one model, and keeps no runs',!rows.some(t=>/^quorum/i.test(t.trim())),rows.map(t=>t.slice(0,20)));
+  await go(pg,'Relations'); await settings(pg);
+  const cards=async()=>(await pg.locator('#over .ocard .om > b').allInnerTexts()).map(t=>t.trim());
+  ok('Relations has no Questions option (the wording is Pervasions only)',(await cards()).length>0&&!(await cards()).some(t=>/questions/i.test(t)),await cards());
+  await pg.keyboard.press('Escape'); await go(pg,'Pervasions'); await settings(pg);
+  const q=(await cards()).find(t=>/questions/i.test(t));
+  if(q){ await pg.getByRole('button',{name:q+': details'}).click(); await pg.waitForTimeout(100); }
+  const qt=q?await pg.locator('#over').innerText():'';
+  ok('the Questions option explains itself as the statement of pervasion',!!q&&/statement of pervasion/i.test(qt),[q,qt]);
+  await pg.keyboard.press('Escape'); await pg.waitForTimeout(100);
+  const sw=(await pg.locator('#over .sw .swl').allInnerTexts()).map(t=>t.trim().toLowerCase());
+  ok('the artifact has no Quorum switch under AI tutor: it asks its host\'s model, one model, and keeps no runs',sw.includes('check every answer with ai')&&!sw.some(t=>/quorum|several models/.test(t))&&!/quorum/i.test(await pg.locator('#over').innerText()),sw);
+  await pg.locator('#over .oc').click(); await pg.waitForTimeout(100);
+  await go(pg,'Settings'); await pg.waitForTimeout(150);
+  const rows=await pg.locator('#over .orow').evaluateAll(r=>r.map(x=>x.innerText));
+  ok('Settings no longer holds the settings of an exercise',!rows.some(t=>/^(notation|questions|definitions|show|relation time|example time)/i.test(t.trim())),rows.map(t=>t.slice(0,20)));
+  ok('Settings has no Quorum row either',!rows.some(t=>/^quorum/i.test(t.trim())),rows.map(t=>t.slice(0,20)));
   await br.close();
  }
 
@@ -34,7 +44,7 @@ const REPLY='Both: a clay pot fits.\nNeither: a stone is B, not A.\nCommon locus
   const rel=await pg.evaluate(()=>window.__t.cur.p.relation);
   await relPhone(pg,other(rel));
   ok('a wrong relation: the result is not fully right',await pg.evaluate(()=>window.__t.ui.checked&&window.__t.ui.res.overall!=='ok'));
-  await pg.locator('#stage .actions button:has-text("xplain")').first().click(); await pg.waitForTimeout(400);
+  await pg.locator('#stage .xpl').first().click(); await pg.waitForTimeout(400);
   // the Why panel
   const fl=pg.locator('.vpanel .ans .aiflag');
   ok('the Why panel has one flag, with the word Flag',await fl.count()===1&&/^flag$/i.test((await fl.innerText()).trim()),await fl.count());
@@ -75,7 +85,7 @@ const REPLY='Both: a clay pot fits.\nNeither: a stone is B, not A.\nCommon locus
   ok('the cell note flag is stored with the cell as n',!!e3&&/clay pot/.test(e3.shown),fd.map(f=>[f.part,f.n]));
   await pg.keyboard.press('Escape'); await pg.waitForTimeout(80);
   // the chat view
-  await pg.locator('#stage > .actions .stage-chat').click(); await pg.waitForTimeout(200);
+  await pg.locator('#mchat').click(); await pg.waitForTimeout(200);
   const cf=pg.locator('#over .ans .aiflag');
   ok('the chat view flags the first answer: the same flag as the Why panel, already set',await cf.count()===1&&await cf.first().getAttribute('aria-pressed')==='true');
   await pg.fill('#ask-in','and why?'); await pg.keyboard.press('Enter'); await pg.waitForTimeout(350);
@@ -97,7 +107,7 @@ const REPLY='Both: a clay pot fits.\nNeither: a stone is B, not A.\nCommon locus
   await pg.evaluate(r=>{window.__reply=r;},REPLY);
   await relPhone(pg);
   await pg.evaluate(()=>{ const u=window.__t.ui; u.res.overall='ok'; window.__t.render(); });
-  await pg.locator('#stage .actions button:has-text("xplain")').first().click(); await pg.waitForTimeout(400);
+  await pg.locator('#stage .xpl').first().click(); await pg.waitForTimeout(400);
   ok('a right answer: no flag on the pointer text, the ? notes still have theirs',await pg.locator('.vpanel .ans .aiflag').count()===0&&await pg.locator('.qm').count()>=2);
   await pg.locator('.rq').click(); await pg.waitForTimeout(100);
   ok('the relation note of the next pair has an unflagged flag',await pg.locator('.rpop .aiflag').count()===1&&await pg.locator('.rpop .aiflag').getAttribute('aria-pressed')==='false');
@@ -108,12 +118,12 @@ const REPLY='Both: a clay pot fits.\nNeither: a stone is B, not A.\nCommon locus
  // ================= Pervasions: the note on a question =================
  {
   const {br,pg,errs}=await open({width:390,height:844},{isMobile:true,hasTouch:true});
-  await pg.locator('#tabbar [role=tab]:has-text("Pervasions")').click(); await pg.waitForTimeout(150);
+  await go(pg,'Pervasions'); await pg.waitForTimeout(150);
   await pg.evaluate(()=>{window.__reply='Q1: you accepted, but a clay pot is both.\nQ2: fine.\nQ3: fine.\nQ4: fine.\nRelation: the four give four possibilities.\nPervasion: A does not entail B.\nMisconception: you took B for A.';});
   for(let i=0;i<4;i++){ await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(70); }
   const rel=await pg.evaluate(()=>window.__t.cur.p.relation);
   await pg.locator('.rels .rel').nth(ORDER[other(rel)]).click(); await pg.waitForTimeout(250);
-  await pg.locator('#stage .actions button:has-text("xplain")').first().click(); await pg.waitForTimeout(400);
+  await pg.locator('#stage .xpl').first().click(); await pg.waitForTimeout(400);
   await pg.locator('.vchip',{hasText:/questions/i}).click().catch(()=>{}); await pg.waitForTimeout(100);
   const rows=await pg.locator('.qd li').count();
   const q1=pg.locator('.qd .qs').first(); if((await q1.getAttribute('aria-expanded'))!=='true'){ await q1.click(); await pg.waitForTimeout(100); }

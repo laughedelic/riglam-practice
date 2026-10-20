@@ -1,0 +1,110 @@
+/* ---------- the menu, the practice options, the question before a skip ----------
+   The menu holds where you can go: today's line (it opens Review), the exercises (a "continue" tag on one whose attempt waits), Review and Settings, the key button
+   while this device has no Magic Key, and the version. Narrow: a drawer over the exercise from the left, behind a scrim. Wide: a panel beside the exercise, pinned
+   by the menu button, or hidden and shown while the pointer rests on the strip at the left edge. */
+.menu{display:flex;flex-direction:column;width:248px;flex:none;min-height:0;background:var(--paper);border-right:1.5px solid var(--ink)}
+.menu[hidden]{display:none}
+.app[data-menu="open"] .menu,.app[data-menu="peek"] .menu{position:absolute;z-index:26;top:0;bottom:0;left:var(--band);box-shadow:6px 0 0 rgba(20,16,12,.16)}
+.app[data-menu="open"] .menu{width:min(320px,calc(100% - 2 * var(--band) - 40px))}
+.menuscrim{position:absolute;z-index:25;inset:0 var(--band);border:0;padding:0;background:rgba(20,16,12,.38);cursor:default}
+.menuscrim[hidden]{display:none}
+.menuedge{position:absolute;z-index:6;top:52px;bottom:0;left:var(--band);width:14px;border:0;padding:0;background:transparent;box-shadow:inset 3px 0 0 var(--line);cursor:e-resize}
+.menuedge[hidden]{display:none}
+.menuedge:hover,.menuedge:focus-visible{box-shadow:inset 4px 0 0 var(--vermilion)}
+.mh{display:flex;align-items:center;gap:10px;height:52px;flex:none;padding:0 6px 0 16px;border-bottom:1.5px solid var(--ink)}
+.mh .brand.lock{font-size:18px}
+.mbody{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;padding:6px 0 10px}
+.mtoday{display:flex;align-items:baseline;flex-wrap:wrap;gap:2px 10px;position:relative;width:100%;padding:12px 40px 12px 16px;border:0;border-bottom:1px solid var(--line);background:transparent;text-align:left;font:400 13.5px/1.45 var(--body);color:var(--ink-muted);cursor:pointer}
+.mtoday>b:first-child{font:700 11px/16px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--ink)}
+.mtoday b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+.mtoday i{position:absolute;right:12px;top:50%;translate:0 -50%;display:grid;color:var(--faint)}
+.mtoday i .tbi{width:18px;height:18px;stroke-width:2}
+.mtoday:hover{background:var(--paper-tint)}
+.mgrp{margin:14px 0 4px;padding-left:16px;font:700 10.5px/14px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+.mrow{display:flex;align-items:center;gap:10px;width:100%;min-height:56px;padding:10px 16px;border:0;background:transparent;text-align:left;color:inherit;cursor:pointer}
+.mrow .t{display:grid;gap:2px;min-width:0;flex:1}
+.mrow b{font:700 14.5px/1.3 var(--body);color:var(--ink)}
+.mrow small{font:400 12.5px/1.4 var(--body);color:var(--ink-muted)}
+.mrow:hover:not(:disabled){background:var(--paper-tint)}
+.mrow[aria-current="page"]{background:var(--paper-tint);box-shadow:inset 4px 0 0 var(--vermilion)}
+.mrow:disabled{cursor:default;opacity:.55}
+/* the rows run edge to edge of the scrolling list, which would cut an outer ring: theirs is drawn inside (the layout scan reads --ring-inset) */
+.mrow,.mtoday{--ring-inset:1}
+.mrow:focus-visible,.mtoday:focus-visible{outline:2px solid var(--focus-edge);outline-offset:-3px;box-shadow:none}
+.mrow[aria-current="page"]:focus-visible{box-shadow:inset 4px 0 0 var(--vermilion)}
+.fbtn:focus-visible{box-shadow:var(--focus-ring)}
+.tag{display:inline-flex;align-items:center;gap:6px;flex:none;font:700 10.5px/16px var(--body);letter-spacing:.07em;text-transform:uppercase;color:var(--ink);white-space:nowrap}
+.tag i{width:9px;height:9px;clip-path:var(--rhombus);background:var(--vermilion);flex:none}
+.mfoot{flex:none;display:grid;gap:4px;padding:6px 8px 10px;border-top:1.5px solid var(--ink)}
+.mfr{display:flex;align-items:center;gap:2px}
+.fbtn{flex:1 1 0;min-width:0;display:inline-flex;align-items:center;justify-content:center;gap:6px;height:44px;padding:0 6px;border:0;background:transparent;font:700 12px/16px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-muted);cursor:pointer}
+.fbtn .tbi{width:20px;height:20px}
+.keyb{margin-right:4px}
+.keyb .att{top:auto;right:10px;bottom:9px}
+.fbtn:hover{color:var(--ink)}
+.fbtn[aria-current="page"]{color:var(--ink);box-shadow:inset 0 -3px 0 var(--vermilion)}
+.ver{display:flex;align-items:center;flex-wrap:wrap;gap:0 6px;min-height:32px;margin:0;padding:0 8px;font:12.5px/1.4 var(--body);color:var(--ink-muted)}
+.ver b{color:var(--ink)}
+.ver .ib{width:32px;height:32px}
+.ver .ib .tbi{width:18px;height:18px}
+.ver .spin{width:24px;height:24px;pointer-events:none}
+.ver .spin .tbi{width:16px;height:16px}
+@media (prefers-reduced-motion:no-preference){.ver .spin .tbi{animation:vspin 1.1s linear infinite}}
+@keyframes vspin{to{transform:rotate(360deg)}}
+.lnk{padding:0;border:0;background:none;font:inherit;color:var(--ink);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.lnk:focus-visible{box-shadow:var(--focus-ring)}
+/* the screen takes the focus after a move (keyboard), without a ring around the whole page */
+#stage:focus{outline:0}
+
+/* the practice options of an exercise: a sheet from the bottom of a phone, a popover under the top bar of a wide screen (src/app/shell/session.js) */
+.over[data-kind="session"]{padding:0;background:transparent}
+.over .scrim{flex:1;min-height:48px;border:0;padding:0;background:rgba(20,16,12,.38);cursor:default}
+.over .sheet{display:flex;flex-direction:column;flex:none;max-height:min(86%,680px);padding-inline:16px;background:var(--paper);border-top:2px solid var(--ink)}
+.shh{display:flex;align-items:center;gap:4px;flex:none;min-height:60px;border-bottom:1px solid var(--line)}
+.shh .ttl2{min-width:0}
+.shh h2{margin:0;font:400 21px/1.2 var(--serif)}
+.shh small{display:block;font:12.5px/1.3 var(--body);color:var(--ink-muted)}
+.shh .ob{width:44px;height:44px;margin-left:-12px;display:grid;place-items:center;border:0;background:transparent;color:var(--ink);cursor:pointer}
+.shh .oc{margin-right:-12px}
+.over .sheet .opts{padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))}
+.grp{margin:6px 0 -8px;font:700 10.5px/14px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+/* an option as a card: its name, the quick choice or a line saying what is set, and a chevron into its own page */
+.ocard{display:grid;grid-template-columns:minmax(0,1fr) 44px;align-items:center;gap:6px;padding:12px 4px 12px 14px;border:1.5px solid var(--line)}
+.ocard .om{display:grid;gap:8px;min-width:0;justify-items:start}
+.ocard .seg{flex-wrap:wrap;max-width:100%}
+.ocard .om>b{font:700 12px/16px var(--body);letter-spacing:.06em;text-transform:uppercase}
+.ocard .sum1{font:400 13px/1.4 var(--body);color:var(--ink-muted)}
+.go2{width:44px;height:44px;display:grid;place-items:center;border:0;background:transparent;color:var(--ink-muted);cursor:pointer}
+.go2 .tbi{width:20px;height:20px;stroke-width:2}
+.go2:hover{color:var(--ink)}
+.ocard:has(.go2:focus-visible){box-shadow:var(--focus-ring)}
+.capl{margin:0;font:400 13px/1.55 var(--text-serif);color:var(--ink-muted)}
+.picks{display:grid;gap:8px}
+.pick{display:block;width:100%;padding:12px 14px;border:1.5px solid var(--line);background:transparent;text-align:left;cursor:pointer;color:inherit}
+.pick .t{display:grid;gap:4px}
+.pick b{font:700 14px/1.3 var(--body)}
+.pick small{font:400 13px/1.45 var(--text-serif);color:var(--ink-muted)}
+.pick[aria-pressed="true"]{border-color:var(--lapis);background:var(--good-soft);box-shadow:inset 4px 0 0 var(--lapis)}
+.pick:hover{border-color:var(--ink-muted)}
+@media (min-width:1100px){
+  .over[data-kind="session"] .scrim{position:absolute;inset:0;background:transparent}
+  .over[data-kind="session"] .sheet{position:absolute;top:56px;right:12px;width:min(420px,calc(100% - 24px));max-height:calc(100% - 72px);border:1.5px solid var(--ink);box-shadow:4px 4px 0 var(--ink)}
+}
+
+/* the question before a pair with something in it is skipped: a dialog in the middle, "Keep going" first */
+.over[data-kind="skip"]{padding:16px;background:transparent;align-items:center;justify-content:center}
+.over[data-kind="skip"] .scrim{position:absolute;inset:0;flex:none;background:rgba(20,16,12,.38)}
+.dlg{position:relative;width:min(100%,420px);padding:18px 18px 16px;background:var(--paper);border:1.5px solid var(--ink);box-shadow:4px 4px 0 var(--ink)}
+.dlg h2{margin:0 0 8px;font:400 22px/1.2 var(--serif)}
+.dlg p{margin:0 0 16px;font:400 14px/1.55 var(--text-serif);color:var(--ink-muted)}
+.dact{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+.dact .btn{height:44px}
+
+/* the result's head: Explain (or Stop) at the right of the headline */
+.verdict .vl .xpl{margin-left:auto;height:34px;padding:0 14px;align-self:center}
+/* a cell the page could not judge: a dashed chip that asks Claude to check it */
+.cchip{align-self:start;justify-self:start;margin:2px 3px 3px;min-height:26px;padding:0 10px;border:1.5px dashed var(--cell-open);background:transparent;font:700 11px/1 var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--cell-open);cursor:pointer;display:inline-flex;align-items:center}
+button.cchip:hover{background:var(--paper);box-shadow:inset 0 -3px 0 var(--vermilion)}
+button.cchip:focus-visible{box-shadow:var(--focus-ring)}
+.cchip.busy{cursor:default;border-style:solid}
+.flink{display:flex}
