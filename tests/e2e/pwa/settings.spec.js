@@ -8,6 +8,7 @@ const blitz = () => { localStorage.setItem("rd-blitz", "1"); localStorage.setIte
 const sessBtn = (page) => page.locator("#msess");
 const AI = ["check every answer with ai", "several models explain"]; // there when the tutor can answer
 const names = (page) => page.locator("#over .ocard .om > b, #over .sw .swl").allInnerTexts().then((t) => t.map((s) => s.trim().toLowerCase()).filter((s) => !AI.includes(s)));
+const sections = (page) => page.locator("#over .grp").allInnerTexts().then((t) => t.map((s) => s.trim().toLowerCase()).filter((s) => s !== "ai tutor"));
 const rowNames = (page) => page.locator("#over .orow .tl").allInnerTexts().then((t) => t.map((s) => s.trim().toLowerCase()));
 const level = (page) => page.evaluate(() => (history.state && history.state.riglamNav) || 0);
 const base = (testInfo) => (isPhone(testInfo) ? 1 : 0); // a phone has the menu under the exercise
@@ -21,8 +22,9 @@ test("the sliders button opens the practice options of the exercise and the X cl
   await expect(sheet).toBeVisible();
   await expect(sheet).toHaveAttribute("aria-label", "Practice options");
   await expect(sheet.locator(".shh h2")).toHaveText("Practice options");
-  await expect(sheet.locator(".shh small")).toHaveText("Relations");
-  expect(await names(page)).toEqual(["notation", "blitz times", "a/b markers", "full phrases", "definitions"]);
+  await expect(sheet.locator(".shh small")).toHaveCount(0); // the exercise is not a subtitle of the sheet: what only it has is a section
+  expect(await names(page)).toEqual(["notation", "blitz times", "a/b markers", "definitions"]);
+  expect(await sections(page)).toEqual([]); // Relations has nothing of its own yet
   await page.locator("#over .oc").click();
   await expect(sheet).toBeHidden();
   await expect(sessBtn(page)).toBeFocused();
@@ -38,11 +40,13 @@ test("each exercise lists what it uses; Review has no practice options", async (
   await ready(page);
   await goTo(page, "Pervasions");
   await sessBtn(page).click();
-  expect(await names(page)).toEqual(["notation", "wording of the questions", "blitz times", "a/b markers", "full phrases", "definitions"]);
+  expect(await names(page)).toEqual(["wording of the questions", "full phrases", "notation", "blitz times", "a/b markers", "definitions"]);
+  expect(await sections(page)).toEqual(["pervasions", "every exercise"]); // what only Pervasions has, then what every exercise has
   await page.keyboard.press("Escape");
   await goTo(page, "Find a pair");
   await sessBtn(page).click();
-  expect(await names(page)).toEqual(["notation", "a/b markers", "full phrases", "definitions", "suggest terms"]);
+  expect(await names(page)).toEqual(["suggest terms", "notation", "a/b markers", "definitions"]);
+  expect(await sections(page)).toEqual(["find a pair", "every exercise"]);
   await page.keyboard.press("Escape");
   await goTo(page, "Review");
   await expect(sessBtn(page)).toBeHidden();
@@ -145,6 +149,26 @@ test("a Blitz time set on its page is stored for its own countdown", async ({ pa
   expect(await page.evaluate(() => [localStorage.getItem("rd-timer-rel"), localStorage.getItem("rd-timer")])).toEqual(["30000", "5000"]);
   await page.locator("#over .ob").click();
   await expect(page.locator("#over .ocard", { hasText: "Blitz times" })).toContainText("Relation 30 s · Example 5 s");
+});
+
+test("a custom Blitz time is stored on leaving the field, and Escape drops what was typed and goes back one level", async ({ page }) => {
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto("/");
+  await ready(page);
+  await sessBtn(page).click();
+  await page.getByRole("button", { name: "Blitz times: details" }).click();
+  const field = page.locator("#over .orow", { hasText: "Example time" }).locator(".tcustom");
+  await field.fill("7");
+  await field.press("Tab");
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("rd-timer"))).toBe("7000");
+  await field.fill("99");
+  await field.press("Escape");
+  await expect(page.locator("#over .shh h2")).toHaveText("Practice options"); // one level back: the page is closed, the sheet is not
+  expect(await page.evaluate(() => localStorage.getItem("rd-timer"))).toBe("7000");
+  await page.getByRole("button", { name: "Blitz times: details" }).click();
+  await expect(field).toHaveValue("7");
+  expect(errors).toEqual([]);
 });
 
 test("the A/B markers and Full phrases switches are kept", async ({ page }) => {

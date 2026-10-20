@@ -16,15 +16,15 @@ const LONG='a very long example phrase that goes on and on a very long example p
     await pg.evaluate(()=>{ document.querySelectorAll('.coach .ask input').forEach(i=>i.size=45); });
     await pg.waitForTimeout(100);
     const m=await pg.evaluate(()=>{
-      const c=document.getElementById('coach'), r=c.getBoundingClientRect(), vp=document.querySelector('.vpanel'), t=document.querySelector('.vpanel > .tutor'), a=document.querySelector('.coach .ask'), b=a&&a.querySelector('button');
+      const c=document.getElementById('coach'), r=c.getBoundingClientRect(), t=document.querySelector('#coach .tutor'), a=document.querySelector('.coach .ask'), b=a&&a.querySelector('button');
       const R=e=>e&&e.getBoundingClientRect().right;
       const padR=parseFloat(getComputedStyle(c).paddingRight)||0;
-      return {sw:c.scrollWidth,cw:c.clientWidth,coachR:R(c),vpR:R(vp),tutorR:R(t),askR:R(a),btnR:R(b),padR,has:!!a};
+      return {sw:c.scrollWidth,cw:c.clientWidth,coachR:R(c),tutorR:R(t),askR:R(a),btnR:R(b),padR,has:!!a};
     });
     console.log(W,JSON.stringify(m));
     ok(m.has,W+': the follow-up field is shown');
     ok(m.sw<=m.cw,W+': coach panel does not scroll sideways ('+m.sw+'/'+m.cw+')');
-    ok(!m.tutorR||m.tutorR<=m.vpR+0.5,W+': tutor block inside the result panel (right '+Math.round(m.tutorR)+' vs '+Math.round(m.vpR)+')');
+    ok(!!m.tutorR&&m.tutorR<=m.coachR-m.padR+0.5,W+': tutor block inside the coach panel (right '+Math.round(m.tutorR)+' vs '+Math.round(m.coachR-m.padR)+')');
     ok(m.btnR<=m.coachR-m.padR+0.5,W+': Ask button inside the coach (right '+Math.round(m.btnR)+' vs '+Math.round(m.coachR-m.padR)+')');
     ok(!errs.filter(e=>!/Failed to load resource/.test(e)).length,W+': no page errors '+errs.join('|'));
     await pg.screenshot({path:'t/test63_'+W+'.png'});

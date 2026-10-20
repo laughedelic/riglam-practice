@@ -54,7 +54,7 @@ const PAIRS=[["Physical things outside a person's continuum","Plants"],["Pot","P
   ok(w+' px: the diamond is in the centre for '+PAIRS.length+' pairs, except where a word does not fit at 13 px ('+exceptions.length+'), nothing overflows',bad.length===0,bad);
   await br.close();
  }
- // 3. wide: Show result, Coach copy, Recent fold
+ // 3. wide: Check, Coach copy, Recent fold
  {
   const {br,pg,errs}=await open({width:1280,height:800});
   const acts=()=>pg.evaluate(()=>[...document.querySelectorAll('#stage .pbar .btn')].map(b=>b.textContent.trim().toLowerCase()).filter(Boolean));

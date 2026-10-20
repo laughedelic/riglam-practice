@@ -53,7 +53,7 @@ function versionLine(){
   const a=state.about, u=state.updates; if(!a) return null;
   const st=u?u.status():null, v="v"+a.version;
   const refresh=(label)=>el("button",{type:"button",class:"ib ver-refresh","aria-label":label,title:label,onclick:()=>u.check()},tbIcon("refresh"));
-  if(st==="ready") return el("p",{class:"ver",role:"status"},v," · ",el("b",{text:"update ready"})," · ",el("button",{type:"button",class:"lnk",onclick:()=>u.apply()},"Install"));
+  if(st==="ready") return el("p",{class:"ver",role:"status"},v," · ",el("b",{text:"Update available"})," · ",el("button",{type:"button",class:"lnk",onclick:()=>u.apply()},"Install"));
   if(st==="downloading") return el("p",{class:"ver",role:"status"},v," · downloading an update");
   if(st==="checking") return el("p",{class:"ver",role:"status"},v," · checking",el("span",{class:"ib spin","aria-hidden":"true"},tbIcon("refresh")));
   if(st==="unknown") return el("p",{class:"ver",role:"status"},v," · could not check",refresh("Check for updates"));

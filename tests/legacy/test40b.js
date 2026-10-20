@@ -33,7 +33,7 @@ const ORDER={mi:0,'3ab':1,'3ba':2,'4':3,con:4};
   ok(name+': blitz off, no bar',await pg.locator('.tbar').count()===0);
   // notation modes
   await settings(pg);
-  await pg.locator('#over .seg button:has-text("Sets")').first().click(); await pg.waitForTimeout(80);
+  await pg.locator('#over .seg[aria-label="Notation"] button:has-text("Sets")').first().click(); await pg.waitForTimeout(80);
   await pg.locator('#over .go2[aria-label="Notation: details"]').click(); await pg.waitForTimeout(80);
   ok(name+': settings stay open after a change',await pg.locator('#over').isVisible()&&/contained|intersection/i.test(await pg.locator('#over').innerText())&&/sets/i.test(await pg.locator('#over .pick[aria-pressed=true]').innerText()));
   await pg.click('#over .oc'); await pg.waitForTimeout(80);

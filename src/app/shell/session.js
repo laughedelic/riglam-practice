@@ -73,8 +73,9 @@ const timesLine=()=>el("small",{class:"sum1",text:"Relation "+secs("rel")+" s ·
 function timeBlock(kind,label,note){
   const now=secs(kind), preset=[5,10,15,30].includes(now);
   const inp=el("input",{type:"number",min:"2",max:"120",inputmode:"numeric",class:"tcustom",placeholder:"sec","aria-label":"Custom "+label.toLowerCase()+" in seconds",value:preset?"":String(now)});
-  inp.addEventListener("change",e=>{ const v=Math.round(+/** @type {HTMLInputElement} */(e.target).value); if(v>=2&&v<=120) setTimer(v*1000,kind); else render(); });
-  inp.addEventListener("keydown",e=>{ e.stopPropagation(); if(e.key==="Escape") sessBack(); });
+  let cancelled=false; // Escape drops what was typed: leaving the field must not store it
+  inp.addEventListener("change",e=>{ if(cancelled) return; const v=Math.round(+/** @type {HTMLInputElement} */(e.target).value); if(v>=2&&v<=120) setTimer(v*1000,kind); else render(); });
+  inp.addEventListener("keydown",e=>{ e.stopPropagation(); if(e.key==="Escape"){ cancelled=true; inp.value=preset?"":String(now); sessBack(); } });
   return row(label,el("div",{class:"tset"},segOf(label,[[5,"5 s"],[10,"10 s"],[15,"15 s"],[30,"30 s"]],preset?now:-1,s=>setTimer(s*1000,kind)),inp),note);
 }
 // a page's choices: one pressed, each with a word on what it does
@@ -101,16 +102,21 @@ function listBody(){
     ?"Optional: a deeper check, but slower. When the page could not check an example you wrote, three AI models (Haiku, Sonnet and Opus) each work it out and Opus rules where they differ, so the explanation is more reliable. An answer takes about a minute instead of a few seconds, and it counts against a daily limit of its own; when that is used up, one model answers as usual. The server keeps each such run (the pair with what you wrote, and the answers), so the models can be compared. With Quorum off, one model answers and nothing is kept."
     :"For testing, on this test server only. With Quorum on, the explanation of an answer with an example the page could not check comes from Haiku, Sonnet and Opus, each on its own; where they put an example in different cells, Opus reads their answers and writes the one you see. The Quorum chip under a result shows all of them. The server keeps each run (the pair with what you wrote, and the answers), so the models can be compared. When the page checked every example itself, and with Quorum off, one model answers as in the app and nothing is kept.";
   const tutor=canAsk(), quorum=state.quorumOffered&&state.db;
-  return [
-    card("Notation",chips("Notation",Object.entries(SYMS).map(([k,v])=>[k,v[0]]),state.nota,setNota),"nota"),
+  // what only this exercise has comes first, under its name; what every exercise has follows
+  const own=[
     perv?card("Wording of the questions",chips("Wording of the questions",Object.entries(WORDINGS).map(([k,w])=>[k,w.name]),state.wording,setWording),"wording"):null,
-    timed?card("Blitz times",timesLine(),"times"):null,
-    group("Help while you practice"),
-    sw("A/B markers","before the terms",state.showAB,()=>setShow("ab",!state.showAB)),
-    sw("Full phrases","spell out Why? answers",state.fullPh,()=>setShow("full",!state.fullPh)),
-    card("Definitions",chips("Languages of the definitions",[["en","English"],["enru","English + Russian"]],state.defLang,setDefLang),"defs"),
+    perv?sw("Full phrases","spell out Why? answers",state.fullPh,()=>setShow("full",!state.fullPh)):null,
     find?sw("Suggest terms",state.findSuggest?"on":"off",state.findSuggest,()=>setFindSuggest(!state.findSuggest),
-      "While you name a pair, the field offers terms from the course as you type, so you can pick one. This is a gentle way in when the terms are new. Turn it off to type whatever comes to mind, without the list steering you; words that match a course term are still recognized."):null,
+      "While you name a pair, the field offers terms from the course as you type, so you can pick one. This is a gentle way in when the terms are new. Turn it off to type whatever comes to mind, without the list steering you; words that match a course term are still recognized."):null
+  ].filter(Boolean);
+  return [
+    own.length?group(exName(state.tab)):null,
+    ...own,
+    own.length?group("Every exercise"):null,
+    card("Notation",chips("Notation",Object.entries(SYMS).map(([k,v])=>[k,v[0]]),state.nota,setNota),"nota"),
+    timed?card("Blitz times",timesLine(),"times"):null,
+    sw("A/B markers","before the terms",state.showAB,()=>setShow("ab",!state.showAB)),
+    card("Definitions",chips("Languages of the definitions",[["en","English"],["enru","English + Russian"]],state.defLang,setDefLang),"defs"),
     tutor||quorum?group("AI tutor"):null,
     tutor?sw("Check every answer with AI",state.autoExplain?"on":"off",state.autoExplain,()=>setAutoExplain(!state.autoExplain),
       "Right after you check an answer, the AI tutor explains it and checks the examples the page could not. Off, the Explain button waits for you."):null,
@@ -125,7 +131,7 @@ export function sessionInto(o){
   const sheet=el("div",{class:"sheet"});
   sheet.append(el("div",{class:"shh"},
     page?el("button",{type:"button",class:"ob",onclick:sessBack,"aria-label":"Back to the options",title:"Back"},tbIcon("back")):null,
-    el("div",{class:"ttl2"},el("h2",{text:page?PAGES[page]:"Practice options"}),el("small",{text:page?"Practice options":exName(state.tab)})),
+    el("div",{class:"ttl2"},el("h2",{text:page?PAGES[page]:"Practice options"}),page?el("small",{text:"Practice options"}):null),
     el("span",{class:"sp"}),
     el("button",{type:"button",class:"oc",onclick:()=>toggleSess(false),"aria-label":"Close the practice options",title:"Close"},tbIcon("close"))));
   sheet.append(el("div",{class:"opts",id:"opts"},...(page?pageBody(page):listBody()).filter(Boolean)));

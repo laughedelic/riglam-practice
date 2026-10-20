@@ -47,13 +47,13 @@ button:focus-visible{box-shadow:var(--focus-ring)}
 .pbar .prow{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .pbar .pl{display:flex;align-items:center;gap:2px;min-width:0}
 .pbar .pbt{position:absolute;left:0;right:0;top:-1px;height:4px}
-.pbar .skipw{height:40px;padding:0 12px}
+.pbar .skipw{height:44px;padding:0 12px}
 .pbar .skipw .tbi{width:18px;height:18px;margin-right:6px}
 .pbar .starb{margin-left:2px}
 .pbar .fwd{height:44px;padding:0 20px;justify-content:center;white-space:nowrap}
-.pbar .pnote{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:32px;padding:0 2px 6px;font:400 13px/1.4 var(--text-serif);color:var(--ink-muted)}
+.pbar .pnote{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px;padding:0 2px 2px;font:400 13px/1.4 var(--text-serif);color:var(--ink-muted)}
 .pbar .skipmsg{flex:1}
-.pbar .skipundo{position:relative;flex:none;min-height:32px;padding:0 8px;border:0;background:transparent;font:700 13px/1 var(--body);color:var(--ink);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.pbar .skipundo{position:relative;flex:none;min-height:44px;padding:0 8px;border:0;background:transparent;font:700 13px/1 var(--body);color:var(--ink);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
 .pbar .skipundo:focus-visible{box-shadow:var(--focus-ring)}
 .card.rv{display:block;padding-top:0}
 .card.rv>*{margin-top:0}

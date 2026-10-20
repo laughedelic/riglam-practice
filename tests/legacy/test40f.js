@@ -29,6 +29,8 @@ const errs=[];
  ok('star shown, an outline while off',(await fav.isVisible())&&await pg.locator('#stage .pbar .starb svg.tbi').count()===1&&await pg.evaluate(()=>getComputedStyle(document.querySelector('#stage .pbar .starb .tbi')).fill==='none'));
  ok('button is in the left group of the pair bar, after Skip',await pg.evaluate(()=>{const f=document.querySelector('#stage .pbar .starb').getBoundingClientRect(),c=document.querySelector('#stage .pbar .skipw').getBoundingClientRect();return f.left>=c.right&&f.right<=document.documentElement.clientWidth}));
  const key=await pg.evaluate(()=>window.__t.favKey(window.__t.cur.p));
+ // a favorite is kept per pair of categories, so a draw of the same categories under other labels would show as one too: draw again until the pair is not a favorite
+ const fresh=async()=>{ for(let i=0;i<30&&await pg.evaluate(()=>window.__t.favKey(window.__t.cur.p) in window.__S.favorites);i++){ await pg.evaluate(()=>window.__t.next()); await pg.waitForTimeout(40); } };
  await fav.click(); await pg.waitForTimeout(100);
  ok('click marks it',await pg.locator('#stage .pbar .starb').getAttribute('aria-pressed')==='true'&&await pg.evaluate(()=>getComputedStyle(document.querySelector('#stage .pbar .starb .tbi')).fill!=='none'));
  let S=await pg.evaluate(()=>JSON.parse(JSON.stringify(window.__S.favorites)));
@@ -46,7 +48,7 @@ const errs=[];
  ok('star stays after Check and still on',await pg.locator('#stage .pbar .starb').count()===1&&await pg.locator('#stage .pbar .starb').getAttribute('aria-pressed')==='true');
  ok('answer saved too',(await pg.evaluate(()=>Object.keys(window.__S.answers).length))===1);
  // typing into an input must not trigger the shortcut
- await pg.click('#stage .pbar .fwd'); await pg.waitForTimeout(150);
+ await pg.click('#stage .pbar .fwd'); await pg.waitForTimeout(150); await fresh();
  const rel2=await pg.evaluate(()=>window.__t.cur.p.relation); await pg.locator('.strip .chip').nth(ORDER[rel2]-1).click();
  const inp=pg.locator('.cell input:not([disabled])').first(); if(await inp.count()){ await inp.fill('f'); ok('typing f in a field does not toggle',(await pg.evaluate(()=>Object.keys(window.__S.favorites).length))===1&&await inp.inputValue()==='f'); }
  ok('next pair is not a favorite',await pg.locator('#stage .pbar .starb').getAttribute('aria-pressed')==='false');
@@ -68,7 +70,7 @@ const errs=[];
  ok('practice shows the same pair with a Favorite tag',await pg.evaluate(([a,b])=>window.__t.tab==='practice'&&window.__t.cur.p.a===a&&window.__t.cur.p.b===b,fa)&&/favorite/i.test(await pg.locator('.retry-tag').innerText()),[fa,await pg.evaluate(()=>[window.__t.tab,window.__t.cur.p.a,window.__t.cur.p.b]),await pg.locator('.retry-tag').allInnerTexts()]);
  ok('the practiced pair is marked',await pg.locator('#stage .pbar .starb').getAttribute('aria-pressed')==='true');
  // debate tab (a switch keeps the pair, so draw a new one first)
- await pg.evaluate(()=>window.__t.next()); await pg.waitForTimeout(100);
+ await pg.evaluate(()=>window.__t.next()); await pg.waitForTimeout(100); await fresh();
  await go(pg,'Pervasions'); await pg.waitForTimeout(150);
  ok('star also on the questions tab',await pg.locator('#stage .pbar .starb').count()===1&&await pg.locator('#stage .pbar .starb').getAttribute('aria-pressed')==='false');
  await pg.locator('#stage .pbar .starb').click(); await pg.waitForTimeout(100);

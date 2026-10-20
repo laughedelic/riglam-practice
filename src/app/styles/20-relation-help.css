@@ -5,5 +5,5 @@
 .rpop{margin-block:0}
 .bz{position:relative;display:inline-grid;place-items:center;width:44px;height:44px;padding:0;border:0;background:transparent;color:var(--ink-muted);cursor:pointer;flex:none}
 .bz[hidden]{display:none}
-.bz[aria-checked="true"]{color:var(--lapis)}
+.bz[aria-checked="true"],.bz[aria-checked="true"]:hover:not(:disabled){color:var(--lapis)}
 .bz:focus-visible{box-shadow:var(--focus-ring)}
