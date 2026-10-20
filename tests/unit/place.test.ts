@@ -1,7 +1,7 @@
 // "Place a thing" (src/domain/place.ts): which categories a reference example is offered against, the answer and the reason of each,
 // the draw by level, and the grading of the ticks. Invented data and examples only.
 import { expect, test } from "vitest";
-import { makeIndex } from "../../src/ai-shared";
+import { makeIndex, upTo } from "../../src/ai-shared";
 import type { DrillData, Example } from "../../src/ai-shared";
 import { buildPool } from "../../src/domain";
 import { drawPlace, gradePlace, placeLevelUp, placeQuestionRows, placeRows } from "../../src/domain/place";
@@ -95,31 +95,38 @@ test("placeQuestionRows: one to three yes, the narrowest always, no rows half fr
   expect(horn.every((r) => !r.answer)).toBe(true);
 });
 
-test("drawPlace: only examples a cell takes, up to the level, those of the level more often, recent names last, null when nothing fits", () => {
+test("drawPlace: only examples a cell takes, of the levels that are on, each level as often as the others, recent names last, null when nothing fits", () => {
   const data = ix();
   const items = [
     ex("a blue wall", ["Color"], 1), ex("a round plate", ["Shape"], 1), ex("a hard text", ["Color"], 2), ex("a deep thought", ["Consciousness"], 3),
     ex("a rule about walls", ["Color"], 1, { k: "statement" }), ex("a poem about walls", ["Color"], 1, { cf: "commentator" }), ex("a wall seen by a master", ["Color"], 1, { bg: "expert" }),
     ex("the hope of the unknown", ["Unheard-of class"], 1), ex("a thing with no class", [], 1),
   ];
-  const drawn = (level: number, n = 300, avoid?: Set<string>) => {
+  const drawn = (levels: number[], n = 300, avoid?: Set<string>) => {
     const out: Record<string, number> = {};
-    for (let s = 0; s < n; s++) { const q = drawPlace(data, items, { level, rng: seeded(s), avoid }); if (q) out[q.thing.n] = (out[q.thing.n] ?? 0) + 1; }
+    for (let s = 0; s < n; s++) { const q = drawPlace(data, items, { levels, rng: seeded(s), avoid }); if (q) out[q.thing.n] = (out[q.thing.n] ?? 0) + 1; }
     return out;
   };
-  expect(Object.keys(drawn(1)).sort()).toEqual(["a blue wall", "a round plate"]);
-  const two = drawn(2);
+  expect(Object.keys(drawn([1])).sort()).toEqual(["a blue wall", "a round plate"]);
+  const two = drawn([1, 2]);
   expect(Object.keys(two).sort()).toEqual(["a blue wall", "a hard text", "a round plate"]);
-  expect(two["a hard text"], "the level itself is drawn more often").toBeGreaterThan(two["a blue wall"]);
-  expect(Object.keys(drawn(3)).sort()).toEqual(["a blue wall", "a deep thought", "a hard text", "a round plate"]);
-  expect(Object.keys(drawn(1, 100, new Set(["a blue wall"])))).toEqual(["a round plate"]);
-  expect(Object.keys(drawn(1, 100, new Set(["a blue wall", "a round plate"]))).sort(), "when all are recent, they are drawn anyway").toEqual(["a blue wall", "a round plate"]);
-  expect(drawPlace(data, [], { level: 1, rng: seeded(1) })).toBeNull();
-  expect(drawPlace(data, [items[7], items[8]], { level: 4, rng: seeded(1) })).toBeNull();
-  // the same draw for the same random source; a level outside 1 to 4 is held to it
-  expect(drawPlace(data, items, { level: 2, rng: seeded(5) })).toEqual(drawPlace(data, items, { level: 2, rng: seeded(5) }));
-  expect(drawPlace(data, items, { level: 9, rng: seeded(5) })).toEqual(drawPlace(data, items, { level: 4, rng: seeded(5) }));
-  expect(drawPlace(data, items, { level: -3, rng: seeded(5) })).toEqual(drawPlace(data, items, { level: 1, rng: seeded(5) }));
+  expect(two["a hard text"], "a level with one thing is drawn as often as one with two, so that thing twice as often").toBeGreaterThan(two["a blue wall"]);
+  expect(Object.keys(drawn(upTo(3))).sort()).toEqual(["a blue wall", "a deep thought", "a hard text", "a round plate"]);
+  // a set, not a ceiling
+  expect(Object.keys(drawn([2, 3])).sort()).toEqual(["a deep thought", "a hard text"]);
+  const skip = drawn([1, 3]);
+  expect(Object.keys(skip).sort(), "no level 2").toEqual(["a blue wall", "a deep thought", "a round plate"]);
+  expect(skip["a deep thought"], "half of the draws are of level 3").toBeGreaterThan(110);
+  expect(skip["a deep thought"]).toBeLessThan(190);
+  expect(Object.keys(drawn([1], 100, new Set(["a blue wall"])))).toEqual(["a round plate"]);
+  expect(Object.keys(drawn([1], 100, new Set(["a blue wall", "a round plate"]))).sort(), "when all are recent, they are drawn anyway").toEqual(["a blue wall", "a round plate"]);
+  expect(drawPlace(data, [], { levels: [1], rng: seeded(1) })).toBeNull();
+  expect(drawPlace(data, [items[7], items[8]], { levels: [4], rng: seeded(1) })).toBeNull();
+  // the same draw for the same random source; levels that are not 1 to 4 count for nothing, and none left means the default
+  expect(drawPlace(data, items, { levels: [2], rng: seeded(5) })).toEqual(drawPlace(data, items, { levels: [2], rng: seeded(5) }));
+  expect(drawPlace(data, items, { levels: [9], rng: seeded(5) })).toEqual(drawPlace(data, items, { levels: [1, 2], rng: seeded(5) }));
+  expect(drawPlace(data, items, { levels: [], rng: seeded(5) })).toEqual(drawPlace(data, items, { levels: [1, 2], rng: seeded(5) }));
+  expect(drawPlace(data, items, { levels: [3, -3, 1], rng: seeded(5) })).toEqual(drawPlace(data, items, { levels: [1, 3], rng: seeded(5) }));
 });
 
 test("gradePlace: a row is right when ticked exactly if the thing is in the category", () => {
@@ -138,14 +145,17 @@ test("gradePlace: a row is right when ticked exactly if the thing is in the cate
   expect(gradePlace(q, [...yes, "not-a-category"]).ok, "an id that is not a row changes nothing").toBe(true);
 });
 
-test("placeLevelUp: ten correct answers at the level, and a level above to offer", () => {
+test("placeLevelUp: ten correct answers at the highest level on, and the level above it to offer", () => {
   const ok = (lv: number, n: number) => Array.from({ length: n }, () => ({ lv, ok: true }));
-  expect(placeLevelUp(ok(1, 9), 1)).toBe(false);
-  expect(placeLevelUp(ok(1, 10), 1)).toBe(true);
-  expect(placeLevelUp([...ok(1, 9), { lv: 1, ok: false }], 1)).toBe(false);
-  expect(placeLevelUp([...ok(1, 6), ...ok(2, 6)], 1)).toBe(false);
-  expect(placeLevelUp(ok(4, 30), 4)).toBe(false);
-  expect(placeLevelUp(ok(2, 3), 2, 3)).toBe(true);
+  expect(placeLevelUp(ok(1, 9), [1])).toBeNull();
+  expect(placeLevelUp(ok(1, 10), [1])).toBe(2);
+  expect(placeLevelUp([...ok(1, 9), { lv: 1, ok: false }], [1])).toBeNull();
+  expect(placeLevelUp([...ok(1, 6), ...ok(2, 6)], [1, 2]), "ten at the highest level on, not in all").toBeNull();
+  expect(placeLevelUp(ok(2, 10), [1, 2])).toBe(3);
+  expect(placeLevelUp(ok(1, 30), [1, 2]), "an easier level does not offer").toBeNull();
+  expect(placeLevelUp(ok(3, 10), [1, 3]), "above the highest on, not the next one that is off").toBe(4);
+  expect(placeLevelUp(ok(4, 30), [4]), "nothing above the top").toBeNull();
+  expect(placeLevelUp(ok(2, 3), [2], 3)).toBe(3);
 });
 
 test("over the real categories and made-up examples: every row agrees with placeByClass and has a reason, and the draw is quick", () => {
@@ -155,7 +165,7 @@ test("over the real categories and made-up examples: every row agrees with place
   let asked = 0, yesRows = 0, noRows = 0;
   const t0 = performance.now();
   for (let s = 0; s < 400; s++) {
-    const q = drawPlace(rix, items, { level: 1 + (s % 4), rng: seeded(s) });
+    const q = drawPlace(rix, items, { levels: upTo(1 + (s % 4)), rng: seeded(s) });
     if (!q) continue;
     asked++;
     expect(q.rows.length).toBeGreaterThanOrEqual(3);

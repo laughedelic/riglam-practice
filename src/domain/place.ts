@@ -3,7 +3,8 @@
 // the sources say it is not, or because it does not exist), each with the steps that show why (`rung`), so that grading is complete:
 // every category offered has an answer, and none is a guess. Pure functions of the data and of a random source, like the pair draw.
 import type { Cat } from "../ai-shared/data";
-import type { Example } from "../ai-shared/examples";
+import { normLevels } from "../ai-shared/examples";
+import type { Example, Levels } from "../ai-shared/examples";
 import { upChain } from "../ai-shared/lookup";
 import type { DataIndex } from "../ai-shared/lookup";
 import { catChain, rung, termPhrase } from "./ladder";
@@ -31,8 +32,8 @@ export interface PlaceQuestion {
 }
 
 export interface PlaceDraw {
-  /** the highest level of thing to draw; things of exactly this level are drawn three times as often as easier ones */
-  level: number;
+  /** the levels of thing to draw from (the learner's switches); each level that has things is drawn as often as the others */
+  levels: Levels;
   rng: () => number;
   /** names drawn lately, passed over while others remain */
   avoid?: ReadonlySet<string>;
@@ -40,7 +41,7 @@ export interface PlaceDraw {
   size?: number;
 }
 
-/** The correct answers at a level after which the next level is offered (never taken without a tap). */
+/** The correct answers at the highest level that is on after which the next level is offered (never taken without a tap). */
 export const PLACE_NEED = 10;
 
 const MAX_LEVEL = 4;
@@ -110,22 +111,24 @@ export function placeQuestionRows(ix: DataIndex, ex: Example, rng: () => number,
 
 /**
  * The next thing to place: a reference example `cellExample` allows at the level, for which the data settles enough categories
- * (`placeQuestionRows`). Things of exactly the level are drawn three times as often as easier ones; names in `avoid` wait while
- * others remain. Null when nothing qualifies (a device with no examples, or none at that level).
+ * (`placeQuestionRows`). A level is drawn first, each level that still has things as likely as the others, then a thing of it; names
+ * in `avoid` wait while others remain. Levels outside 1 to 4 count for nothing, and none left means the default levels. Null when nothing
+ * qualifies (a device with no examples, or none at those levels).
  */
 export function drawPlace(ix: DataIndex, items: readonly Example[], draw: PlaceDraw): PlaceQuestion | null {
-  const level = Math.min(MAX_LEVEL, Math.max(1, Math.round(draw.level)));
-  const usable = items.filter((ex) => cellExample(ex, level) && ex.cls?.length);
+  const levels = normLevels(draw.levels);
+  const usable = items.filter((ex) => cellExample(ex, levels) && ex.cls?.length);
   const fresh = usable.filter((ex) => !draw.avoid?.has(ex.n));
   for (const pool of fresh.length ? [fresh, usable] : [usable]) {
-    let left = pool.map((ex) => ({ ex, w: ex.lv === level ? 3 : 1 }));
+    let left = pool;
     while (left.length) {
-      const total = left.reduce((s, x) => s + x.w, 0);
-      let at = draw.rng() * total, k = 0;
-      while (k < left.length - 1 && (at -= left[k].w) >= 0) k++;
-      const rows = placeQuestionRows(ix, left[k].ex, draw.rng, draw.size);
-      if (rows) return { thing: left[k].ex, rows };
-      left = left.filter((_, i) => i !== k);
+      const have = levels.filter((l) => left.some((ex) => ex.lv === l));
+      const level = have[Math.floor(draw.rng() * have.length)];
+      const of = left.filter((ex) => ex.lv === level);
+      const thing = of[Math.floor(draw.rng() * of.length)];
+      const rows = placeQuestionRows(ix, thing, draw.rng, draw.size);
+      if (rows) return { thing, rows };
+      left = left.filter((ex) => ex !== thing);
     }
   }
   return null;
@@ -152,7 +155,11 @@ export function gradePlace(q: PlaceQuestion, picked: readonly string[]): PlaceRe
   return { rows, right, ok: right === rows.length };
 }
 
-/** Whether to offer the next level: `need` correct answers at `level` among the results, and a level above it to offer. */
-export function placeLevelUp(results: readonly { lv: number; ok: boolean }[], level: number, need = PLACE_NEED): boolean {
-  return level < MAX_LEVEL && results.filter((r) => r.lv === level && r.ok).length >= need;
+/**
+ * The level to offer adding: the one above the highest level that is on, once `need` of the results at that highest level are right;
+ * null before that, and at the top level. The offer adds the level and switches nothing off.
+ */
+export function placeLevelUp(results: readonly { lv: number; ok: boolean }[], levels: Levels, need = PLACE_NEED): number | null {
+  const top = Math.max(...normLevels(levels));
+  return top < MAX_LEVEL && results.filter((r) => r.lv === top && r.ok).length >= need ? top + 1 : null;
 }
