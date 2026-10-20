@@ -21,6 +21,7 @@ body{margin:0;overflow:hidden}
 .mbar{position:relative;display:flex;align-items:center;gap:0;flex:none;height:52px;padding-inline:6px;border-bottom:1.5px solid var(--ink)}
 /* the Blitz countdown (shell/timers.js, drawn by renderBar): a 4px bar over the bar's line, so no row shifts when it comes and goes */
 .mbar .mbt{position:absolute;left:0;right:0;bottom:-2px;height:4px}
+.mbar .ib:focus-visible{z-index:1}   /* the ring of a button reaches below the countdown: it stays over it */
 .mbar .ttl{margin:0 8px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:400 21px/1.2 var(--serif)}
 .ib{position:relative;width:44px;height:44px;flex:none;display:grid;place-items:center;border:0;background:transparent;font:700 20px/1 var(--body);color:var(--ink-muted);cursor:pointer}
 .ib[aria-pressed="true"]{color:var(--ink)}

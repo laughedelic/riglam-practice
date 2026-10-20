@@ -7,7 +7,8 @@ import { $ } from "../core/dom.js";
 // itself (the class `leaving`) that plays the way out and is removed. The times and curves are in 28-menu.css (`--mo`); `MS` is the same time. Nothing moves
 //  - under reduced motion,
 //  - before the first screen has been drawn,
-//  - when the system's own Back (a swipe from the edge, the button) did it: the system has just animated the screen away, a second motion on top of it would be two.
+//  - when the browser animated the Back itself (the swipe from the edge, `hasUAVisualTransition`): it has just animated the screen away, a second motion on top of it would be two.
+//    (A Back it did not animate, the button or the key, plays the panel's own motion like any other close.)
 export const MS=200;
 export const moves=()=>state.motion&&!state.navBack&&!matchMedia("(prefers-reduced-motion: reduce)").matches;
 

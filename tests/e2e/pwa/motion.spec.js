@@ -1,6 +1,6 @@
 // How the panels move (src/app/shell/motion.js, the motion block of src/app/styles/28-menu.css): the menu, the practice options, the chat and the tutor's panel slide in
-// from their own side with their shade fading on the same curve and over the same time, and go the same way back from a copy of themselves; the system's Back, reduced
-// motion and the first screen move nothing. The other specs run with reduced motion (playwright.config.js); these ask for it.
+// from their own side with their shade fading on the same curve and over the same time, and go the same way back from a copy of themselves; a Back the browser animated itself (the swipe from the edge),
+// reduced motion and the first screen move nothing. The other specs run with reduced motion (playwright.config.js); these ask for it.
 import { test, expect } from "../../support/test.js";
 import { ready, openMenu, isPhone, relOptions } from "../../support/page.js";
 
@@ -91,8 +91,9 @@ test("the copy that plays the options out stays inert when the page is redrawn a
   });
   await page.keyboard.press("Escape");
   await expect.poll(() => page.evaluate(() => window.__copy)).toEqual({ inert: true, hidden: "true" });
-  await page.waitForTimeout(80);
-  expect(await page.evaluate(() => { const n = document.querySelector(".over.leaving"); return n ? n.inert : true; })).toBe(true); // and a later redraw leaves it so
+  // a redraw while the copy is still playing (switching Blitz redraws the page) leaves it inert too
+  const after = await page.evaluate(() => { document.getElementById("mbz").click(); const n = document.querySelector(".over.leaving"); return n ? { inert: n.inert, hidden: n.getAttribute("aria-hidden") } : null; });
+  expect(after).toEqual({ inert: true, hidden: "true" });
 });
 
 test("the practice options slide up from the bottom of a phone with their shade, and a popover unrolls under the top bar of a wide screen", async ({ page }, testInfo) => {
