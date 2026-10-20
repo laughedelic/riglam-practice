@@ -48,5 +48,6 @@ addEventListener("popstate",e=>{
     for(let n=depth();n>at;n--) closeTop();                                      // each close renders; navSync then finds nothing to do
   } else if(at>state.navDepth){ state.navSkip++; history.go(state.navDepth-at); } // forward onto an entry whose level is gone: step back again
 });
-// After a reload on such an entry the app is on its first screen again but the entry stays: it becomes an ordinary one.
-try{ if(history.state&&history.state[MARK]) history.replaceState(null,""); }catch(e){}
+// After a reload on such an entry the app is on its first screen again and the entry stays: it becomes that screen's own (level 1 on a phone, 0 on a wide screen),
+// so a reload adds no entry. (Entries behind it that the page had pushed before the reload belong to a page that is gone; stepping back onto one reloads the app.)
+try{ if(history.state&&history.state[MARK]){ state.navDepth=depth(); history.replaceState({[MARK]:state.navDepth},""); } }catch(e){}

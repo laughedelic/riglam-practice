@@ -139,6 +139,53 @@ test("a wide screen has no menu step: Back from the exercise leaves the app", as
   await expect.poll(() => page.url()).toBe("about:blank");
 });
 
+test("on a phone a reload keeps its history entry instead of adding one", async ({ page }, testInfo) => {
+  test.skip(!isPhone(testInfo), "the menu is the phone's root");
+  await page.goto("/");
+  await ready(page);
+  const entries = () => page.evaluate(() => history.length);
+  const before = await entries();
+  await page.reload();
+  await ready(page);
+  expect(await entries(), "a reload leaves the history as long as it was").toBe(before);
+  await expect.poll(() => level(page)).toBe(1);
+  await page.goBack();
+  await expect(page.locator("#menu")).toBeVisible();
+  await page.goBack();
+  await expect.poll(() => page.url()).toBe("about:blank");
+});
+
+test("the phone's drawer is a modal: the exercise behind it is out of reach until it closes", async ({ page }, testInfo) => {
+  test.skip(!isPhone(testInfo), "the drawer is the phone's");
+  await page.goto("/");
+  await ready(page);
+  const behind = page.locator("#app > .col");
+  await expect(behind).toHaveJSProperty("inert", false);
+  await page.locator("#menubtn").click();
+  await expect(page.locator("#menu")).toHaveAttribute("role", "dialog");
+  await expect(page.locator("#menu")).toHaveAttribute("aria-modal", "true");
+  await expect(behind).toHaveJSProperty("inert", true);
+  // Tab goes round the menu (and out to the browser's own controls) but never into the exercise
+  for (let i = 0; i < 14; i++) {
+    await page.keyboard.press("Tab");
+    expect(await page.evaluate(() => !!document.activeElement.closest("#app > .col"))).toBe(false);
+  }
+  await page.locator("#menu .mclose").click();
+  await expect(page.locator("#menu")).toBeHidden();
+  await expect(behind).toHaveJSProperty("inert", false);
+  await expect(page.locator("#menubtn")).toBeFocused();
+});
+
+test("on a wide screen the menu is not a modal: the exercise stays within reach", async ({ page }, testInfo) => {
+  test.skip(isPhone(testInfo), "the wide screen's");
+  await page.goto("/");
+  await ready(page);
+  await openMenu(page);
+  await expect(page.locator("#app > .col")).toHaveJSProperty("inert", false);
+  await expect(page.locator("#menu")).not.toHaveAttribute("aria-modal", /.*/);
+  await expect(page.locator("#menu")).not.toHaveAttribute("role", /.*/);
+});
+
 test("a result left open comes back as it was; Next pair moves on", async ({ page }, testInfo) => {
   test.skip(!isPhone(testInfo), "the answer flow is exercised in the phone layout");
   await page.addInitScript(hook);
