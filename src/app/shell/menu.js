@@ -5,6 +5,7 @@ import { isWide } from "../core/viewport.js";
 import { asking, startQ, stopTimer } from "../debate/flow.js";
 import { EXERCISES, parked, todayCount } from "./exercises.js";
 import { toggleOpts } from "./options.js";
+import { enter, leave } from "./motion.js";
 import { render } from "./render.js";
 import { setTab } from "./tabs.js";
 
@@ -74,22 +75,26 @@ export function renderMenu(){
   // the phone's drawer is a modal: the exercise behind it cannot be reached by the keyboard or a screen reader until it closes
   const col=/** @type {HTMLElement|null} */(document.querySelector("#app > .col")); if(col) col.inert=!w&&shown;
   if(!w&&shown){ m.setAttribute("role","dialog"); m.setAttribute("aria-modal","true"); } else { m.removeAttribute("role"); m.removeAttribute("aria-modal"); }
+  // opening and closing: the panel and the shade behind it (the phone's) come and go together, on one curve (motion.js)
+  const was=!m.hidden, sc=$("menuscrim"), shade=!w&&shown, shaded=!sc.hidden;
+  if(was&&!shown) leave(m,true);
+  if(shaded&&!shade) leave(sc,true);
   $("app").dataset.menu=w?(state.menuPin?"pinned":shown?"peek":"closed"):(shown?"open":"closed");
-  $("menuscrim").hidden=w||!shown; $("menuedge").hidden=!(w&&!shown);
+  sc.hidden=!shade; $("menuedge").hidden=!(w&&!shown);
+  if(!shaded&&shade) enter(sc,true,{persistent:true});
   const mb=$("menubtn"); mb.setAttribute("aria-expanded",shown?"true":"false"); mb.classList.toggle("open",shown);
-  const fresh=m.hidden&&shown;
   m.hidden=!shown;
   if(!shown){ m.replaceChildren(); return; }
   m.classList.toggle("peek",w&&!state.menuPin);
-  m.classList.toggle("enter",fresh&&!w); // the phone's drawer slides in once when it opens; a render later on does not repeat it (the peek of a wide screen just appears, under the pointer)
+  if(!was) enter(m,true,{persistent:true});
   // a redraw of the menu alone (an update's status, today's numbers) keeps the keyboard focus on the same control, or on the last one when that one is gone
   const at=m.contains(document.activeElement)?[...m.querySelectorAll(CONTROLS)].indexOf(/** @type {Element} */(document.activeElement)):-1;
   m.replaceChildren(
-    el("div",{class:"mh"},figure(),
-      el("span",{class:"brand lock"},el("span",{class:"nm",text:"Riglam"})," ",el("span",{class:"pr",text:"practice"})),
-      el("span",{class:"sp"}),
-      // pinned beside the exercise, the menu button (which is not covered) closes it: a second button would do the same
-      w&&state.menuPin?null:el("button",{type:"button",class:"ib mclose","aria-label":"Close the menu",title:"Close the menu",onclick:closeMenu},tbIcon("close"))),
+    // the close button is where the menu button was, so the same place opens and closes the menu; pinned beside the exercise the menu button (which is not covered) closes it, and a second button would do the same
+    el("div",{class:"mh"},
+      w&&state.menuPin?null:el("button",{type:"button",class:"ib mclose","aria-label":"Close the menu",title:"Close the menu",onclick:closeMenu},tbIcon("close")),
+      figure(),
+      el("span",{class:"brand lock"},el("span",{class:"nm",text:"Riglam"})," ",el("span",{class:"pr",text:"practice"}))),
     el("div",{class:"mbody"},todayLine(),...rows()),
     el("div",{class:"mfoot"},
       el("div",{class:"mfr"},

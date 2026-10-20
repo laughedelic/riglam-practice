@@ -3,7 +3,7 @@ const D=require('./harness.js').SHOTS;
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
 const ORDER={mi:0,'3ab':1,'3ba':2,'4':3,con:4};
 async function phone(){
- const {br,pg,errs}=await open({width:390,height:844},{isMobile:true,hasTouch:true});
+ const {br,pg,errs}=await open({width:390,height:844},{isMobile:true,hasTouch:true,reducedMotion:'no-preference'});
  await pg.evaluate(()=>{window.__delay=1200;});
  const rel=await pg.evaluate(()=>window.__t.cur.p.relation);
  await pg.locator('.rels .rel').nth(ORDER[rel]).click(); await pg.waitForTimeout(100);

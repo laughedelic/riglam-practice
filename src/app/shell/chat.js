@@ -7,6 +7,7 @@ import { REL } from "../core/rel.js";
 import { isWide } from "../core/viewport.js";
 import { askRow, fillTurn } from "../practice/screen.js";
 import { skipInto } from "../practice/skips.js";
+import { enter, leave } from "./motion.js";
 import { optionsInto } from "./options.js";
 import { isEx, render } from "./render.js";
 import { sessionInto } from "./session.js";
@@ -22,16 +23,17 @@ export function openChat(){
 }
 export function closeChat(){ state.view=null; render(); const b=$("mchat"); if(b&&!b.hidden) b.focus({preventScroll:true}); }
 export function toggleCoach(on){ state.coachOpen=on===undefined?!state.coachOpen:on; render(); }
-// The button itself: there whenever the tutor can answer (on a wide screen also without, for the recent answers), but pressable only once there is a result to talk
-// about or a conversation, so it never opens an empty panel; a panel that is open can always be closed. A dot marks an answer of the tutor that is not on screen.
+// The button itself: there whenever the tutor can answer, but pressable only once there is a result to talk about or a conversation, so it never opens an empty panel;
+// a panel that is open can always be closed. A dot marks an answer of the tutor that is not on screen. Where the tutor cannot answer, a wide screen still has the panel
+// with the recent answers and the keys, and the button for it does not show a chat: it is the "recent" one, and it is always pressable.
 export function syncChatBtn(){
-  const b=/** @type {HTMLButtonElement} */($("mchat")), w=isWide(), u=state.ui, ex=state.mode==="quiz"&&isEx()&&!!u;
-  b.hidden=!ex||(!w&&(!canAsk()||!!u.syllogism)); if(b.hidden) return;      // the tutor does not know Syllogisms yet: there, the button only opens the panel of recent answers
-  const label=w?(canAsk()&&!u.syllogism?"Tutor’s chat and recent answers":"Recent answers"):"Discuss with AI";
+  const b=/** @type {HTMLButtonElement} */($("mchat")), w=isWide(), u=state.ui, ex=state.mode==="quiz"&&isEx()&&!!u, ai=canAsk()&&!(u&&u.syllogism);   // the tutor does not know Syllogisms yet: there, the button only opens the panel of recent answers
+  b.hidden=!ex||(!w&&!ai); if(b.hidden) return;
+  const label=w?(ai?"Tutor’s chat and recent answers":"Recent answers"):"Discuss with AI";
   const waiting=!!u.chat&&u.chat.some(t=>t.role==="assistant"&&!t.pending&&t.content)&&(w?!state.coachOpen:state.view!=="chat");
-  b.replaceChildren(tbIcon("chat")); if(waiting) b.append(el("i",{class:"att","aria-hidden":"true"}));
+  b.replaceChildren(tbIcon(w&&!ai?"recent":"chat")); if(waiting) b.append(el("i",{class:"att","aria-hidden":"true"}));
   b.setAttribute("aria-label",label+(waiting?", an answer is waiting":"")); b.title=label;
-  b.disabled=!(u.checked||u.chat)&&!(w&&state.coachOpen);
+  b.disabled=w&&!ai?false:!(u.checked||u.chat)&&!(w&&state.coachOpen);
   if(w){ b.setAttribute("aria-pressed",state.coachOpen?"true":"false"); b.classList.toggle("open",state.coachOpen); b.removeAttribute("aria-haspopup"); }
   else { b.removeAttribute("aria-pressed"); b.classList.remove("open"); b.setAttribute("aria-haspopup","dialog"); }
 }
@@ -58,8 +60,8 @@ export function tutorTurns(box,newestFirst,lean){
 }
 // The chat on a narrow screen is a drawer from the right, behind a scrim, the mirror of the menu: the title, and the close button where the chat button was.
 // It keeps the field right under the heading, because the on-screen keyboard covers the lower third of the screen.
-function chatInto(o,fresh){
-  const p=state.cur.p, label="Close the chat", d=el("div",{class:"cdrawer"+(fresh?" enter":"")}); // it slides in once, when it opens (a later render, as an answer streams in, does not repeat it)
+function chatInto(o){
+  const p=state.cur.p, label="Close the chat", d=el("div",{class:"cdrawer"});
   o.append(el("button",{type:"button",class:"scrim",tabindex:"-1","aria-label":label,onclick:closeChat}),d);
   d.append(el("div",{class:"oh"},el("h2",{text:"Discuss with AI"}),el("button",{type:"button",class:"oc",onclick:closeChat,"aria-label":label,title:label},tbIcon("close"))));
   // Find a pair: the pair is what is judged, and a pair of the learner's own stays open until Claude has said whether it has the relation (the overall grade is "pend" then, too)
@@ -77,14 +79,16 @@ export function renderOver(){
   const o=$("over"), chat=state.view==="chat"&&!isWide()&&state.ui&&(state.ui.chat||state.ui.checked), ex=state.mode==="quiz"&&isEx();
   const sess=state.sessOpen&&ex, ask=state.skipAsk&&ex;
   const kind=state.optsOpen?"options":ask?"skip":sess?"session":"chat", show=state.optsOpen||ask||sess||!!chat, was=!o.hidden&&o.dataset.kind===kind;
+  if(!o.hidden&&(!show||!was)) leave(o); // what was open goes the way it came (another one may come in its place)
   o.replaceChildren(); o.hidden=!show; o.dataset.kind=kind; o.setAttribute("aria-label",{options:"Settings",session:"Practice options",skip:"Skip this pair?",chat:"Discuss with AI"}[kind]);
   document.documentElement.classList.toggle("ov",show);
   // Whatever is open here (Settings, the question before a skip, the practice options, the phone's chat) covers the exercise and its bars, which cannot be reached by
   // the keyboard or a screen reader until it closes (Enter on a Check button hidden behind it would grade the pair). The menu is outside this column and stays:
   // moving to another screen from it closes the overlay like any other move (setTab).
-  for(const n of /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll("#app > .col > :not(#over)"))) n.inert=show;
+  for(const n of /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll("#app > .col > :not(#over):not(.leaving)"))) n.inert=show; // (a copy playing a panel out stays inert)
   if(!show) return;
-  if(kind==="options") optionsInto(o); else if(kind==="session") sessionInto(o); else if(kind==="skip") skipInto(o); else chatInto(o,!was);
+  enter(o,!was); // before the parts are made: they carry on from where the motion is
+  if(kind==="options") optionsInto(o); else if(kind==="session") sessionInto(o); else if(kind==="skip") skipInto(o); else chatInto(o);
   const sc=$("chatscroll"); if(sc) sc.scrollTop=0;
   if(!was&&kind==="chat"&&!document.activeElement.matches("input")){ const b=o.querySelector(".oc"); if(b) b.focus({preventScroll:true}); }
   if(!was&&kind==="skip"){ const b=/** @type {HTMLElement|null} */(o.querySelector(".prim")); if(b) b.focus({preventScroll:true}); }

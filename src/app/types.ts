@@ -296,6 +296,8 @@ export interface State {
   navDepth: number;
   navSkip: number;
   navQ: boolean;
+  navBack: boolean;
+  motion: boolean;
   reviewSeg: string;
   ui: Ui | null;
   cur: Current | null;

@@ -396,6 +396,23 @@ test("a different relation after Change pair keeps the examples the new relation
   expect(await page.evaluate(() => window.__t.ui.cells.nei.t)).toBe("a stone");
 });
 
+test("while the words of a new pair are asked for, the star and the key F leave the old pair alone", async ({ page }, testInfo) => {
+  await open(page);
+  await goFind(page);
+  await usePair(page, "forms", "minds");
+  const star = page.locator(".pbar .starb");
+  await expect(star).toHaveAttribute("aria-pressed", "false"); // the pair of the course has a star
+  await (isPhone(testInfo) ? page.locator("#steps button").first() : page.getByRole("button", { name: "Change pair" })).click();
+  await expect(page.locator("#fw-a")).toBeVisible();
+  await expect(star).toHaveCount(0); // the old pair is kept until "Use this pair", but it is not the one being named
+  await page.locator("#fw-a").blur();
+  await page.keyboard.press("f");
+  const favs = () => page.evaluate(async () => (await (await window.__riglam.platform.db()).collection("favorites").get()).docs.length);
+  expect(await favs()).toBe(0);
+  await page.getByRole("button", { name: "Use this pair" }).click(); // the same words: the pair is back, and so is its star
+  await expect(star).toHaveAttribute("aria-pressed", "false");
+});
+
 test("Next relation in Random mode never asks for the relation just given", async ({ page }, testInfo) => {
   await open(page);
   await goFind(page, testInfo);

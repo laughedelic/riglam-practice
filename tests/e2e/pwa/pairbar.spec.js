@@ -172,8 +172,11 @@ test("on a wide screen the result stays in the middle, the key N goes on, and th
   await expect.poll(() => pairOf(page)).not.toBe(pair);
 });
 
+const tutorOn = (page) => page.route("**/api/health", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, tutor: "on" }) }));
+
 test("the tutor's chat button waits for a result: it opens nothing until the pair is checked", async ({ page }, testInfo) => {
-  test.skip(isPhone(testInfo), "without the key the phone has no chat button at all (tutor.spec.js covers it with the key)");
+  test.skip(isPhone(testInfo), "the phone's chat is a drawer (tutor.spec.js)");
+  await tutorOn(page);
   await page.addInitScript(hook);
   await page.goto("/");
   await ready(page);
@@ -187,4 +190,39 @@ test("the tutor's chat button waits for a result: it opens nothing until the pai
   await expect(page.locator("#coach")).toBeVisible();
   await page.locator("#mchat").click();
   await expect(page.locator("#coach")).toBeHidden();
+});
+
+test("where the tutor cannot answer, a wide screen's button is the recent answers, not a chat, and it is always there to press", async ({ page }, testInfo) => {
+  test.skip(isPhone(testInfo), "a phone has no panel beside the exercise, and no button without a tutor");
+  await page.route("**/api/health", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, tutor: "off" }) }));
+  await page.addInitScript(hook);
+  await page.goto("/");
+  await ready(page);
+  const b = page.locator("#mchat");
+  await expect(b).toHaveAccessibleName("Recent answers");
+  await expect(b).toBeEnabled();
+  expect(await b.evaluate((n) => n.innerHTML)).not.toContain("M3 3h11v7"); // not the bubbles of the chat icon
+  await b.click();
+  await expect(page.locator("#coach")).toBeVisible();
+  await expect(page.locator("#coach")).toContainText("next cell"); // nothing answered yet: the key hints
+  await pickRight(page);
+  await checkAll(page, testInfo);
+  await page.locator("#stage .pbar .fwd").click(); // the next pair: there is no chat to close, the panel stays for as long as it is wanted
+  await expect(page.locator("#coach")).toBeVisible();
+  await expect(page.locator("#coach")).toContainText("Recent");
+});
+
+test("with a tutor the panel closes with its pair: the next pair never starts with a chat panel that holds only the recent answers", async ({ page }, testInfo) => {
+  test.skip(isPhone(testInfo), "the phone's chat is a drawer");
+  await tutorOn(page);
+  await page.addInitScript(hook);
+  await page.goto("/");
+  await ready(page);
+  await pickRight(page);
+  await checkAll(page, testInfo);
+  await page.locator("#mchat").click();
+  await expect(page.locator("#coach")).toBeVisible();
+  await page.locator("#stage .pbar .fwd").click(); // Next pair
+  await expect(page.locator("#coach")).toBeHidden();
+  await expect(page.locator("#mchat")).toBeDisabled();
 });
