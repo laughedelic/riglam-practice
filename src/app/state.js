@@ -94,6 +94,7 @@ export const state = {
   bzHold: 0,         // the timer of a hold on the stopwatch in the top bar (shell/topbar.js)
   blitzUse: true,    // the Blitz page of the practice options can take the stopwatch away from the top bar altogether (on by default)
   relMs: undefined,  // the relation has its own time; it starts from the one time of earlier versions
+  sylMs: 15000,      // a syllogism has its own time (Syllogisms), stored as `rd-timer-syl`
 };
 
 try{ const v=localStorage.getItem("rd-ex"); if(v==="debate"||v==="find"||v==="syllogism") state.tab=state.own=v; }catch(e){}
@@ -116,3 +117,4 @@ try{
 }catch(e){}
 state.relMs = state.timerMs;
 try{ const v=+localStorage.getItem("rd-timer-rel"); if(v>=2000&&v<=120000) state.relMs=v; }catch(e){}
+try{ const v=+localStorage.getItem("rd-timer-syl"); if(v>=2000&&v<=120000) state.sylMs=v; }catch(e){}

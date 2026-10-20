@@ -340,7 +340,8 @@ export const syllogismPieces = (c: Syllogism, wording: Wording = "take"): Piece[
 export interface SyllogismResult {
   grade: "ok" | "bad";
   correct: boolean;
-  said: Reply;
+  /** the reply that was given; null when the time ran out first (Blitz) */
+  said: Reply | null;
   expected: Reply;
   /** the learner named a fault that is there, but not the first one to name */
   missedPoint: boolean;
@@ -377,6 +378,11 @@ export function gradeSyllogism(c: Syllogism, said: Reply): SyllogismResult {
     missedPoint: !correct && c.answer === "reason" && said === "pervasion" && !c.checks.v.ok,
     confusion: correct ? "" : confusionOf(c, said),
   };
+}
+
+/** The result when the time runs out with no reply (Blitz): wrong, and the right reply is named; nothing was mixed up, so there is nothing to say about it. */
+export function gradeTimeout(c: Syllogism): SyllogismResult {
+  return { grade: "bad", correct: false, said: null, expected: c.answer, missedPoint: false, confusion: "" };
 }
 
 /** What the learner's counter-example (a thing that is the reason and is not the predicate) comes to: "ok", "bad", or "cmp" when the data cannot place it. */

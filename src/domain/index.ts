@@ -20,5 +20,5 @@ export { cellFor, cellOfFacts, disputeText, divided, quorumDisputes, quorumRows,
 export type { Dispute, QuorumAnswer, QuorumRow, QuorumThing, Reading } from "./quorum";
 export { catChain, knownClass, listedItem, rung, termPhrase } from "./ladder";
 export type { Rung } from "./ladder";
-export { RELIEF, REPLIES, SITUATIONS, WORDINGS, syllogismOf, syllogismPieces, syllogismText, drawSyllogism, gradeSyllogism, gradeExample, pervasionConflicts, widest, withoutPhrases } from "./syllogism";
+export { RELIEF, REPLIES, SITUATIONS, WORDINGS, syllogismOf, syllogismPieces, syllogismText, drawSyllogism, gradeSyllogism, gradeTimeout, gradeExample, pervasionConflicts, widest, withoutPhrases } from "./syllogism";
 export type { Check, Syllogism, SyllogismDraw, SyllogismHistory, SyllogismResult, ExampleVerdict, Pervasion, Piece, Reply, Situation, Wording } from "./syllogism";
