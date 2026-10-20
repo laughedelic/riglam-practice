@@ -387,7 +387,8 @@ export function exLine(r,keys){
   const cl=r.exOpen&&state.ui.ctl?el("span",{class:"exl",text:"Claude is checking."}):null;
   if(r.exBad) return [r.exBad+" of "+r.exN+" wrong"+(r.exOpen?", "+r.exOpen+" not checked yet":"")+".",cl];
   if(r.exOpen) return [r.exOpen+" of "+r.exN+" not checked yet.",cl];
-  return "all "+r.exN+" fit"+(keys.some(c=>r.cells[c].by)?" (checked with Claude).":".");
+  const by=b=>keys.some(c=>r.cells[c].by===b);
+  return "all "+r.exN+" fit"+(by("claude")?" (checked with Claude).":by("course")?" (checked by the course examples).":".");
 }
 // in a lineage the terms are joined by "is a" (short for "is a kind of"), small and italic; the sign > would read as "greater than"
 export const isA=n=>/^[aeiou]/i.test(n)?"is\u00a0an":"is\u00a0a";

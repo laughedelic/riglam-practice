@@ -3,12 +3,12 @@
 // the data users already have: never rename a collection or change a document without a migration (CLAUDE.md).
 // Fields written by older versions of the page may be missing, so most fields besides the keys are optional.
 import type { Cat, DrillData, Item } from "../ai-shared/data";
+import type { ExampleIndex } from "../ai-shared/examples";
 import type { About, Unlock, Updates } from "../platform/types";
 import type { AnswerView, DebateAnswer } from "../ai-shared/card";
-import type { ExampleIndex } from "../ai-shared/examples";
 import type { CellId, RelKey } from "../ai-shared/relations";
 import type { Pair, PoolEntry, Verdict } from "../domain/types";
-import type { Account, Db, Reports, Sample, Tutor } from "../platform/types";
+import type { Account, Db, Known, Reports, Sample, Tutor } from "../platform/types";
 import type { QuorumRecord } from "../ai/protocol";
 import type { AccountSlot } from "../ui/account";
 import type { TransferSlot } from "../ui/data-transfer";
@@ -20,7 +20,7 @@ export interface CellDoc {
   text: string;
   none?: boolean;
   verdict?: Verdict;
-  /** "claude" when Claude's check settled the verdict */
+  /** "claude" when Claude's check settled the verdict (now, or earlier through the server's learned facts), "course" when the course's reference examples did */
   by?: string;
 }
 
@@ -223,6 +223,8 @@ export interface State {
   mkNote: boolean;
   /** a question to the app's own server (platform.tutor), when the place has one; `sample` is used first */
   tutor: Tutor | null;
+  /** what the app's server learned of examples from earlier checks (platform.known), asked before the tutor about an example the page could not check */
+  known: Known | null;
   /** the course's reference examples this device holds (platform.examples), by name; null when it has none (src/app/core/examples.js) */
   EX: ExampleIndex | null;
   /** sends flags to the app's server (platform.reports), when the place has a server for them and this device has the Magic Key */
