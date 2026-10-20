@@ -74,6 +74,8 @@ export interface KnownFact {
   text: string;
   line: string;
   by: "learned" | "reviewed";
+  /** only one side of the example is known, and it already fails the cell: the line has "unsure" for the other side */
+  half?: true;
 }
 export interface KnownResponse {
   known: KnownFact[];

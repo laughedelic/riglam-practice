@@ -157,6 +157,37 @@ describe("known facts", () => {
     expect((await json(await known(s, { cats: ["c_round", "c_form"], examples: [{ cell: "bna", text: "a table" }] }))).known[0].line).toBe('B not A: "a table" | class: Table | A no: it is round | B yes: it is a form');
   });
 
+  it("answer an example with one servable side that already fails the cell, with that side only and the other left unsure", async () => {
+    const s = await setup();
+    await unanimous(s, "yes", "no");                  // a table: a form, not round
+    s.db.sql("DELETE FROM example_facts WHERE cat = 'c_round'");
+    const ask = (cell: string, cats = ["c_form", "c_round"]) => known(s, { cats, examples: [{ cell, text: "a table" }] }).then(json);
+    expect(await ask("nei")).toEqual({ known: [{ cell: "nei", text: "a table", line: 'Neither: "a table" | class: Table | A yes: it is a form | B unsure: ', by: "learned", half: true }] });
+    expect((await ask("bna")).known[0], "A must be no there").toMatchObject({ half: true, line: 'B not A: "a table" | class: Table | A yes: it is a form | B unsure: ' });
+    expect((await ask("anb")).known, "a yes for A could still fit: it takes both sides to say so").toEqual([]);
+    expect((await ask("both")).known, "the same").toEqual([]);
+    // the other category pair, the other way round: the form is B now
+    expect((await ask("nei", ["c_round", "c_form"])).known[0]).toMatchObject({ cell: "nei", half: true, line: 'Neither: "a table" | class: Table | A unsure:  | B yes: it is a form' });
+    // both sides known: a whole line, with no half
+    await unanimous(s, "yes", "no");
+    expect((await ask("anb")).known[0]).not.toHaveProperty("half");
+    expect((await ask("nei")).known[0], "the other side is there now").toMatchObject({ cell: "nei" });
+    expect((await ask("nei")).known[0]).not.toHaveProperty("half");
+  });
+
+  it("do not serve a half from a row that is not servable, and call it reviewed only when every row it rests on is", async () => {
+    const s = await setup();
+    await unanimous(s, "yes", "no");
+    s.db.sql("DELETE FROM example_facts WHERE cat = 'c_round'");
+    const nei = { cats: ["c_form", "c_round"], examples: [{ cell: "nei", text: "a table" }] };
+    s.db.sql("UPDATE example_facts SET state = 'disputed'");
+    expect((await json(await known(s, nei))).known, "a disputed side").toEqual([]);
+    s.db.sql("UPDATE example_facts SET state = 'reviewed'");
+    expect((await json(await known(s, nei))).known[0]).toMatchObject({ half: true, by: "reviewed" });
+    s.db.sql("UPDATE example_facts SET state = 'checked'");
+    expect((await json(await known(s, nei))).known[0]).toMatchObject({ half: true, by: "learned" });
+  });
+
   it("answer nothing of a candidate, a disputed or an older row, and say reviewed where the maintainer decided both sides", async () => {
     const s = await setup();
     await explain(s, { [SONNET]: [text(line("Both", "a table", "yes", "no"))] }, {}, { EXAMPLE_FACTS: "serve" }); // one model: candidates

@@ -21,8 +21,8 @@ export type { Dispute, QuorumAnswer, QuorumRow, QuorumThing, Reading } from "./q
 export { catChain, knownClass, listedItem, rung, termPhrase } from "./ladder";
 export type { Rung } from "./ladder";
 export { FACTS_EPOCH, FACT_LIMITS, factKey, knownLine, learn, opinionOf, ruleSide, servable } from "./learned";
-export { openExamples, referenceLines } from "./known";
-export type { OpenExample } from "./known";
+export { failsCell, openExamples, referenceLines, wholeFirst } from "./known";
+export type { KnownLine, OpenExample } from "./known";
 export type { FactRow, FactSource, FactState, Opinion, Ruling, Strength } from "./learned";
 export { DRAWN, drawable, placeByClass } from "./reference";
 export type { Placement } from "./reference";

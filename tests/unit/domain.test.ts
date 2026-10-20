@@ -16,7 +16,7 @@ import openData from "../../src/data/drill-data.json";
 import { drawable, placeByClass } from "../../src/domain";
 import { FACTS_EPOCH, factKey, learn, opinionOf, ruleSide, servable } from "../../src/domain";
 import type { Answer, FactRow, Opinion, Ruling } from "../../src/domain";
-import { knownLine, openExamples, referenceLines } from "../../src/domain";
+import { knownLine, openExamples, referenceLines, wholeFirst } from "../../src/domain";
 import { makeExampleIndex } from "../../src/ai-shared/examples";
 
 /** A small deterministic random source (mulberry32), so a test draws the same numbers every time. */
@@ -1247,11 +1247,31 @@ test("the reference examples settle an open example when every one of its name p
   const ix = refIx();
   const open = [{ cell: "anb", text: "A red flower" }, { cell: "nei", text: "a rabbit's horn" }, { cell: "both", text: "a cup" }, { cell: "nei", text: "a song" }] as const;
   const lines = referenceLines(ix, refExamples, refPair(), open);
-  expect(lines).toEqual([`A not B: "A red flower" | class: Color | A yes:  | B no: `, `Neither: "a rabbit's horn" | A no: it does not exist | B no: it does not exist`]);
-  expect(parseVerdicts(lines.join("\n"))).toEqual([{ cell: "anb", answer: "yes" }, { cell: "nei", answer: "yes" }]);
+  expect(lines).toEqual([
+    { cell: "anb", text: "A red flower", line: `A not B: "A red flower" | class: Color | A yes:  | B no: ` },
+    { cell: "nei", text: "a rabbit's horn", line: `Neither: "a rabbit's horn" | A no: it does not exist | B no: it does not exist` },
+  ]);
+  expect(parseVerdicts(lines.map((l) => l.line).join("\n"))).toEqual([{ cell: "anb", answer: "yes" }, { cell: "nei", answer: "yes" }]);
   expect(referenceLines(ix, refExamples, refPair(true), open), "a pair of the learner's own").toEqual([]);
   expect(referenceLines(ix, null, refPair(), open)).toEqual([]);
   expect(referenceLines(ix, refExamples, { ...refPair(), catB: "nowhere", b: "nothing known" }, open), "a side the data does not have").toEqual([]);
+});
+
+test("an example placed on one side only is settled when that side fails the cell, and never when it could only fit", () => {
+  const ix = refIx();
+  // a red flower is a form; nothing says whether it is round
+  const pair = { ...refPair(), b: "round things", relation: "4" as RelKey, catB: "round" };
+  const open = [
+    { cell: "nei", text: "a red flower" }, { cell: "anb", text: "a red flower" }, { cell: "both", text: "a red flower" }, { cell: "bna", text: "the horn of a rabbit" },
+  ] as const;
+  const lines = referenceLines(ix, refExamples, pair, open);
+  // the horn of a rabbit does not exist, so it is placed on both sides: the whole line comes first, though it was asked about last
+  expect(lines.map((l) => [l.cell, l.text, !!l.half])).toEqual([["bna", "the horn of a rabbit", false], ["nei", "a red flower", true]]);
+  expect(lines[1]!.line).toBe(`Neither: "a red flower" | class: Color | A yes:  | B unsure: `);
+  expect(parseVerdicts(lines[1]!.line)).toEqual([{ cell: "nei", answer: "no" }]);
+  // fitting needs both sides: the same example in "A not B" or "Both" says nothing yet
+  expect(lines.some((l) => l.cell === "anb" || l.cell === "both")).toBe(false);
+  expect(wholeFirst([{ n: 1, half: true as const }, { n: 2 }, { n: 3, half: true as const }, { n: 4 }]).map((x) => x.n)).toEqual([2, 4, 1, 3]);
 });
 
 test("the open examples are the learner's examples still not checked, none for a pair of the learner's own", () => {

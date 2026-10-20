@@ -34,10 +34,11 @@ export function saveVerdicts(U,C){
   persist(U,"The verification");
 }
 // The learner's examples the page could not check (verdict "cmp"), each with its cell: the server keeps what the explanation says of them where it is
-// set to (docs/SERVER.md, "Learned facts"). Read before the verdicts arrive, so these are the examples the explanation is the check of.
+// set to (docs/SERVER.md, "Learned facts"). Read before the verdicts arrive, so these are the examples the explanation is the check of. An example that
+// one known side already failed (`half`, known.js) is named too: the explanation says its other side, which the server keeps.
 function openExamples(U){
   if(!U||!U.res) return [];
-  return quorumThings(U).filter(t=>t.text.length<=200).flatMap(t=>t.cells.filter(c=>U.res.cells[c]&&U.res.cells[c].v==="cmp").map(c=>({cell:c,text:t.text}))).slice(0,8);
+  return quorumThings(U).filter(t=>t.text.length<=200).flatMap(t=>t.cells.filter(c=>U.res.cells[c]&&(U.res.cells[c].v==="cmp"||U.res.cells[c].half)).map(c=>({cell:c,text:t.text}))).slice(0,8);
 }
 // The explanation is kept with the answer (applyVerify saves it along with the verdicts), so verdicts can be audited later.
 function saveExplain(U){ persist(U,U.debate?"Your debate":"Your answer"); }

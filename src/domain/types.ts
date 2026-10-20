@@ -21,6 +21,8 @@ export interface CellResult {
   uns?: boolean;
   /** "claude" when Claude's check settled the verdict */
   by?: string;
+  /** settled as not fitting by one known side of the example; the other side is still the tutor's to say */
+  half?: boolean;
 }
 
 /** What grading produces before the counts are added. */

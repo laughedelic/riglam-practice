@@ -3,7 +3,9 @@
 // as one analysis with several voices; the one model's answer counts as one voice. `knownFacts` answers POST /api/known from the rows that may be served.
 import type { ExplainExample, KnownFact } from "../src/ai/protocol";
 import { CELL_NAME } from "../src/ai-shared/prompts";
+import { failsCell, wholeFirst } from "../src/domain/known";
 import { FACTS_EPOCH, FACT_LIMITS, factKey, knownLine, learn, opinionOf, ruleSide, servable, type FactRow, type FactSource, type Opinion } from "../src/domain/learned";
+import type { Answer } from "../src/domain/verdict";
 import type { Kit } from "./kit";
 
 /** One answer to the explain question: a model's (the tutor's, or one of Quorum's), or the judge's. */
@@ -81,8 +83,10 @@ export async function keepFacts(
 }
 
 /**
- * What may be answered of the examples without the AI: an example both of whose rows (one per category of the pair) may be served (`servable`), as the
- * tutor's line for its cell. `cats` must be the data's own two; anything else is answered with nothing.
+ * What may be answered of the examples without the AI, as the tutor's line for the cell asked about: an example both of whose rows (one per category of
+ * the pair) may be served (`servable`), and one with a single servable row when that row already fails the cell (a half line, with "unsure" for the other
+ * side: the page marks the example as not fitting at once, and the tutor still says the rest). `cats` must be the data's own two; anything else is
+ * answered with nothing.
  */
 export async function knownFacts(
   db: D1Database,
@@ -100,10 +104,20 @@ export async function knownFacts(
     .all<Pick<FactRow, "answer" | "cls" | "reason" | "state" | "epoch"> & { thing: string; cat: string }>();
   const row = new Map(results.filter((r) => servable(r, p.epoch ?? FACTS_EPOCH)).map((r) => [`${r.thing}\n${r.cat}`, r]));
   const out: KnownFact[] = [];
+  const unknown = { answer: "unsure" as Answer, reason: "", cls: "" };
   for (const e of asked) {
     const a = row.get(`${e.key}\n${catA}`), b = row.get(`${e.key}\n${catB}`);
-    if (!a || !b) continue;
-    out.push({ cell: e.cell, text: e.text, line: knownLine(CELL_NAME[e.cell], e.text, a, b), by: a.state === "reviewed" && b.state === "reviewed" ? "reviewed" : "learned" });
+    if (!a && !b) continue;
+    const half = !a || !b;
+    if (half && !failsCell(e.cell, (a ?? unknown).answer, (b ?? unknown).answer)) continue;
+    const known = [a, b].filter((r) => !!r);
+    out.push({
+      cell: e.cell,
+      text: e.text,
+      line: knownLine(CELL_NAME[e.cell], e.text, a ?? unknown, b ?? unknown),
+      by: known.every((r) => r.state === "reviewed") ? "reviewed" : "learned",
+      ...(half ? { half: true as const } : {}),
+    });
   }
-  return out;
+  return wholeFirst(out);
 }

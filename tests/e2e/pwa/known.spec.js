@@ -17,6 +17,9 @@ const CELL = { both: "Both", anb: "A not B", bna: "B not A", nei: "Neither" };
 /** The line the server would keep for an example: the facts of the cell the learner put it in, so it fits there. */
 const fits = (e) => ({ cell: e.cell, text: e.text, line: `${CELL[e.cell]}: "${e.text}" | class: Table | A ${FACTS[e.cell][0]}: of its use | B ${FACTS[e.cell][1]}: of its make`, by: "learned" });
 
+/** The line the server would keep for an example it knows on one side only: the side A, which fails the cell the learner put it in, and nothing of B. */
+const failed = (e) => ({ cell: e.cell, text: e.text, line: `${CELL[e.cell]}: "${e.text}" | class: Table | A ${e.cell === "both" || e.cell === "anb" ? "no" : "yes"}: of its use | B unsure: `, by: "learned", half: true });
+
 /** Stands in for the server: `known(body)` answers POST /api/known as {status, body}; the tutor gives a plain answer. The requests are kept. */
 async function server(page, { health = { ok: true, tutor: "on", known: "on" }, known = (body) => ({ status: 200, body: { known: body.examples.map(fits) } }) } = {}) {
   const asked = { known: [], tutor: [] };
@@ -58,7 +61,7 @@ const open = async (page, testInfo, setup, { autoExplain = "0", text, before } =
   return asked;
 };
 const explain = (page) => page.getByRole("button", { name: /^explain$|check and explain/i });
-const cellsOf = (page) => page.evaluate(() => Object.fromEntries(Object.entries(window.__t.ui.res.cells).map(([c, r]) => [c, { v: r.v, by: r.by || null, tag: r.msg && r.msg[2] || null }])));
+const cellsOf = (page) => page.evaluate(() => Object.fromEntries(Object.entries(window.__t.ui.res.cells).map(([c, r]) => [c, { v: r.v, by: r.by || null, tag: r.msg && r.msg[2] || null, half: !!r.half }])));
 const thingsOf = (page) => page.evaluate(() => window.__t.quorumThings(window.__t.ui).map((t) => ({ text: t.text, cells: t.cells })));
 
 withKey("a check asks the server what it knows of the examples it could not check, with a proof of the key, and the cells it knows settle", async ({ page }, testInfo) => {
@@ -91,6 +94,26 @@ withKey("with Check every answer with AI on, the explanation is asked after the 
   const rest = asked.known[0].body.examples.filter((e) => e.text !== first.text || e.cell !== first.cell);
   if (rest.length) expect(asked.tutor[0].body.examples).toEqual(rest);
   else expect(asked.tutor[0].body).not.toHaveProperty("examples");
+});
+
+// half knowledge: one failed side is enough to say an example does not fit, whatever the other side is; fitting needs both
+withKey("an example the server knows on one side only, and that side fails its cell, fails at once; the explanation still names it for the other side", async ({ page }, testInfo) => {
+  let first;
+  const asked = await open(page, testInfo, {
+    known: (body) => { first = body.examples[0]; return { status: 200, body: { known: [failed(first)] } }; },
+  });
+  await expect.poll(() => asked.known.length).toBe(1);
+  await expect.poll(async () => (await cellsOf(page))[first.cell]?.v).toBe("bad");
+  const cells = await cellsOf(page);
+  expect(cells[first.cell]).toMatchObject({ v: "bad", by: "claude", tag: "from an earlier check", half: true });
+  // nothing was said of the other examples, and nothing of this one is "verified": the page only knows it does not fit
+  for (const [c, r] of Object.entries(cells)) if (c !== first.cell && asked.known[0].body.examples.some((e) => e.cell === c)) expect(r).toMatchObject({ v: "cmp", half: false });
+  // it stays offline until the learner asks: then the explanation is asked about the half-known example along with the rest, so the tutor says its other side
+  expect(asked.tutor).toHaveLength(0);
+  await explain(page).click();
+  await expect.poll(() => asked.tutor.length).toBe(1);
+  expect(asked.tutor[0].body.examples).toEqual(asked.known[0].body.examples);
+  expect((await cellsOf(page))[first.cell]).toMatchObject({ v: "bad", half: true });
 });
 
 withKey("a server that knows nothing, refuses or does not say it answers leaves the examples to the tutor, as before", async ({ page }, testInfo) => {
