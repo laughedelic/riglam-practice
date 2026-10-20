@@ -2,6 +2,8 @@
 /* the toolbar icons share one line style: 24 px, stroke 1.75, outline when off, filled when on */
 .tbi{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linejoin:round;stroke-linecap:round;flex:none;display:block}
 .ib[aria-pressed="true"] .tbi{fill:currentColor}
+/* the "recent" clock is an open arc with an arrow and hands: filled it would be a blob, so pressed it is drawn heavier, in the ink color */
+.ib[aria-pressed="true"] .tbi.rc{fill:none;stroke-width:2.5}
 /* the stopwatch is filled in its dial only, the hands stay drawn in the page's color */
 .bz[aria-checked="true"] .tbi .fa{fill:currentColor}
 .bz[aria-checked="true"] .tbi .fb{stroke:var(--paper)}

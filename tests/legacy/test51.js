@@ -9,7 +9,7 @@ const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.
  const hh=await pg.evaluate(()=>{const q=document.querySelector('.qn'); return Math.round(q.getBoundingClientRect().height)<=22;});
  ok('360 px: the card header is one line',hh);
  await pg.click('#mbz'); await pg.waitForTimeout(150);
- const bar=await pg.evaluate(()=>{const i=document.querySelector('.pbar .tbar i'); const c=getComputedStyle(i).backgroundColor; const t=document.createElement('i'); t.style.color='var(--heading)'; document.body.append(t); const hc=getComputedStyle(t).color; t.remove(); return {c,hc};});
+ const bar=await pg.evaluate(()=>{const i=document.querySelector('#mbar .tbar i'); const c=getComputedStyle(i).backgroundColor; const t=document.createElement('i'); t.style.color='var(--heading)'; document.body.append(t); const hc=getComputedStyle(t).color; t.remove(); return {c,hc};});
  ok('the countdown bar starts in the heading blue, not grey',bar.c===bar.hc,bar);
  await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(400);
  const r=await pg.evaluate(()=>{const p=document.querySelector('.rcpt .ri.acc'), w=p.querySelector('.rw'), s=getComputedStyle(p); return {bg:s.backgroundColor, glyph:w.innerText, col:getComputedStyle(w).color, ok:getComputedStyle(document.documentElement).getPropertyValue('--cell-ok').trim(), n:document.querySelectorAll('.rcpt .ri').length};});

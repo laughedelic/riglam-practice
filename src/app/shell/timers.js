@@ -10,7 +10,7 @@ import { focusCin, render } from "./render.js";
 
 // Blitz: a stopwatch in the top bar, next to the practice options (the mode of practice): outline when off, filled when on. No box, no number: the seconds are in its name
 // and set in the Practice options of the exercise (Blitz times). Two independent times: the relation (Relations and Pervasions) and the examples (each example in
-// Relations, each question in Pervasions). The countdown that is running is the bar on the top edge of the pair bar (shell/pbar.js); changing one time never changes the other.
+// Relations, each question in Pervasions). The countdown that is running is the bar on the lower edge of the top bar (renderBar in shell/topbar.js); changing one time never changes the other.
 // The toolbar icons (stopwatch, star, skip) share one line style: 24 px, stroke 1.75, outline when off, filled when on (src/app/core/icons.js).
 // which countdown belongs to the screen: "rel" while the relation is to be picked, "ex" for the examples (Relations) or the four questions (Pervasions)
 export const tkind=()=>{
@@ -70,7 +70,7 @@ function expireRelD(u){
 }
 // a new start: after a change of the switch or the time, the running countdown begins again with its full time
 export function relReset(){ if(state.ui&&!state.ui.checked&&(!state.ui.debate||state.ui.step>3)) stopTimer(); }
-/** The countdown bar of the pair on screen, or null while no countdown runs: drawn by the pair bar on its top edge. */
+/** The countdown bar of the pair on screen, or null while no countdown runs: drawn by the top bar on its lower edge. */
 export function timerBar(){
   if(!state.ui||!state.ui.tq) return null;
   const e=Math.max(0,Math.round(performance.now()-state.ui.tq.t0));

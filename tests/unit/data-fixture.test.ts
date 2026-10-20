@@ -24,13 +24,13 @@ const keep = (name: string) => {
   writeFileSync(priv(name), "REAL");
 };
 
-test("writes both files into an empty data-private/", () => {
+test("writes the course files and the examples into an empty data-private/", () => {
   const run = fixture();
   expect(run.status, run.stderr).toBe(0);
-  expect(existsSync(priv("definitions.json")) && existsSync(priv("notes.json"))).toBe(true);
+  for (const f of ["definitions.json", "notes.json", "examples.json", "examples-device.json"]) expect(existsSync(priv(f)), f).toBe(true);
 });
 
-test.each(["definitions.json", "notes.json"])("refuses when only %s is there, and leaves it alone", (name) => {
+test.each(["definitions.json", "notes.json", "examples.json"])("refuses when only %s is there, and leaves it alone", (name) => {
   keep(name);
   const run = fixture();
   expect(run.status).not.toBe(0);
@@ -74,3 +74,41 @@ test("check and publish refuse data-private/ when a term of the open data has no
   }
 });
 
+
+const data = (...a: string[]) => spawnSync(process.execPath, [join(dir, "scripts/data.mjs"), ...a], { cwd: dir, encoding: "utf8" });
+
+test("import-examples checks the examples against the open data and writes both parts; check refuses a device part not made from them", () => {
+  expect(fixture().status).toBe(0);
+  const full = JSON.parse(readFileSync(priv("examples.json"), "utf8"));
+  const exported = join(dir, "exported.json");
+  writeFileSync(exported, JSON.stringify({ ...full, items: full.items.slice(0, 10) }));
+  const run = data("import-examples", exported);
+  expect(run.status, run.stderr).toBe(0);
+  expect(run.stdout).toMatch(/written: data-private\/examples\.json, data-private\/examples-device\.json \(10 examples\)/);
+  expect(JSON.parse(readFileSync(priv("examples-device.json"), "utf8")).items).toHaveLength(10);
+  expect(data("import-examples", exported).stdout).toMatch(/nothing changed/);
+  expect(data("check").stdout).toMatch(/10 examples/);
+
+  writeFileSync(exported, JSON.stringify({ ...full, items: [{ ...full.items[0], cls: ["Not a term here"] }] }));
+  const bad = data("import-examples", exported);
+  expect(bad.status).not.toBe(0);
+  expect(bad.stderr).toMatch(/"Not a term here" in cls, which is not a term of the open data/);
+  expect(JSON.parse(readFileSync(priv("examples.json"), "utf8")).items, "a refused import writes nothing").toHaveLength(10);
+
+  const device = JSON.parse(readFileSync(priv("examples-device.json"), "utf8"));
+  writeFileSync(priv("examples-device.json"), JSON.stringify({ ...device, items: device.items.slice(1) }));
+  const stale = data("check");
+  expect(stale.status).not.toBe(0);
+  expect(stale.stderr).toMatch(/examples-device\.json was not made from examples\.json/);
+  rmSync(priv("examples-device.json"));
+  expect(data("check").stderr).toMatch(/only one of examples\.json and examples-device\.json/);
+});
+
+test("sql loads the examples rows when data-private/ has them, and only the definitions and notes otherwise", () => {
+  expect(fixture().status).toBe(0);
+  const kinds = () => [...data("sql").stdout.matchAll(/VALUES \('([a-z_]+)'/g)].map((m) => m[1]);
+  expect(kinds()).toEqual(["definitions", "notes", "examples", "examples_device"]);
+  rmSync(priv("examples.json"));
+  rmSync(priv("examples-device.json"));
+  expect(kinds()).toEqual(["definitions", "notes"]);
+});

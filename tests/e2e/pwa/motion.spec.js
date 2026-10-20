@@ -1,6 +1,6 @@
 // How the panels move (src/app/shell/motion.js, the motion block of src/app/styles/28-menu.css): the menu, the practice options, the chat and the tutor's panel slide in
-// from their own side with their shade fading on the same curve and over the same time, and go the same way back from a copy of themselves; the system's Back, reduced
-// motion and the first screen move nothing. The other specs run with reduced motion (playwright.config.js); these ask for it.
+// from their own side with their shade fading on the same curve and over the same time, and go the same way back from a copy of themselves; a Back the browser animated itself (the swipe from the edge),
+// reduced motion and the first screen move nothing. The other specs run with reduced motion (playwright.config.js); these ask for it.
 import { test, expect } from "../../support/test.js";
 import { ready, openMenu, isPhone, relOptions } from "../../support/page.js";
 
@@ -91,8 +91,9 @@ test("the copy that plays the options out stays inert when the page is redrawn a
   });
   await page.keyboard.press("Escape");
   await expect.poll(() => page.evaluate(() => window.__copy)).toEqual({ inert: true, hidden: "true" });
-  await page.waitForTimeout(80);
-  expect(await page.evaluate(() => { const n = document.querySelector(".over.leaving"); return n ? n.inert : true; })).toBe(true); // and a later redraw leaves it so
+  // a redraw while the copy is still playing (switching Blitz redraws the page) leaves it inert too
+  const after = await page.evaluate(() => { document.getElementById("mbz").click(); const n = document.querySelector(".over.leaving"); return n ? { inert: n.inert, hidden: n.getAttribute("aria-hidden") } : null; });
+  expect(after).toEqual({ inert: true, hidden: "true" });
 });
 
 test("the practice options slide up from the bottom of a phone with their shade, and a popover unrolls under the top bar of a wide screen", async ({ page }, testInfo) => {
@@ -158,13 +159,92 @@ test("nothing moves under reduced motion, and no copy is left behind", async ({ 
   expect(await started(page)).toEqual([]);
 });
 
-test("the system's Back moves nothing: the screen has just been animated away by the system", async ({ page }, testInfo) => {
+test("a Back the browser does not animate (the key, the button) opens the menu by sliding it over the exercise", async ({ page }, testInfo) => {
   test.skip(!isPhone(testInfo), "Back from the exercise opens the menu on a phone");
   await load(page);
   await page.goBack();
   await expect(page.locator("#menu")).toBeVisible();
+  const open = await seen(page, "slide-l", "m-fade");
+  expect(find(open, "slide-l").on).toBe("menu");
+  expect(await page.evaluate(() => getComputedStyle(document.getElementById("menu")).position)).toBe("absolute"); // over the exercise, not beside it
+});
+
+test("a Back the browser animates itself (the swipe from the edge) moves nothing more", async ({ page }, testInfo) => {
+  test.skip(!isPhone(testInfo), "Back from the exercise opens the menu on a phone");
+  // what the popstate event says of such a swipe: the browser has performed a visual transition
+  await page.addInitScript(() => { Object.defineProperty(PopStateEvent.prototype, "hasUAVisualTransition", { get: () => true, configurable: true }); });
+  await load(page);
+  await page.goBack();
+  await expect(page.locator("#menu")).toBeVisible();
+  await page.waitForTimeout(100);
   expect(await started(page)).toEqual([]);
   await expect(page.locator("#menu.enter")).toHaveCount(0);
+});
+
+test("the shade is the whole screen under a drawer or a sheet, so it never stays behind as a rectangle when the panel slides away", async ({ page }, testInfo) => {
+  test.skip(!isPhone(testInfo), "the shades are the phone's");
+  await load(page);
+  const area = () => page.evaluate(() => {
+    const o = document.querySelector(".over:not(.leaving)").getBoundingClientRect(), shades = [...document.querySelectorAll(".over .scrim")].map((n) => n.getBoundingClientRect());
+    return { over: [o.x, o.y, o.width, o.height], shades: shades.map((r) => [r.x, r.y, r.width, r.height]) };
+  });
+  await page.locator("#msess").click(); // the options: a sheet from the bottom
+  await expect(page.locator("#over")).toBeVisible();
+  let { over, shades } = await area();
+  expect(shades).toEqual([over]);
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#over")).toBeHidden();
+  await expect(leaving(page)).toHaveCount(0, { timeout: 2000 });
+  await tutorOn(page);
+  await page.reload();
+  await ready(page);
+  await relOptions(page).first().click();
+  for (let i = 0; i < 4 && (await page.locator("#cin").isVisible()); i++) { await page.fill("#cin", "thing " + (i + 1)); await page.keyboard.press("Enter"); await page.waitForTimeout(100); }
+  await expect(page.locator("#mchat")).toBeEnabled();
+  await page.locator("#mchat").click(); // the chat: a drawer from the right
+  await expect(page.locator("#over")).toBeVisible();
+  ({ over, shades } = await area());
+  expect(shades).toEqual([over]);
+});
+
+test("the crimson bands at the edges of the screen stay as they are: a panel on its way in or out goes under them, never over them", async ({ page }, testInfo) => {
+  // the copy that plays a panel out is kept, so the frame can be cut at the middle of the slide
+  await page.addInitScript((ms) => { const st = window.setTimeout; window.setTimeout = (f, d, ...a) => st(f, d === ms ? 1e9 : d, ...a); }, MS + 200);
+  await tutorOn(page);
+  await load(page);
+  const { width, height } = page.viewportSize();
+  const band = await page.evaluate(() => parseFloat(getComputedStyle(document.querySelector(".band")).width));
+  // (the pixel along the inner edge of a band is left out: the shade ends there, on a fraction of a pixel)
+  const edges = async () => [await page.screenshot({ clip: { x: 0, y: 0, width: band - 1, height } }), await page.screenshot({ clip: { x: width - band + 1, y: 0, width: band - 1, height } })];
+  const slideOutKeepsBands = async (what, close) => {
+    await expect(page.locator(".enter")).toHaveCount(0); // at rest
+    const rest = await edges();
+    await close();
+    await expect(leaving(page).first()).toBeAttached(); // the panel, and its shade where it has one
+    await page.evaluate(() => document.getAnimations().forEach((a) => { a.pause(); a.currentTime = 100; }));
+    const mid = await edges();
+    expect(mid[0].equals(rest[0]), what + ": the left band is as it was").toBe(true);
+    expect(mid[1].equals(rest[1]), what + ": the right band is as it was").toBe(true);
+    // (cancelled, not finished: the version line's spinner never ends)
+    await page.evaluate(() => { document.getAnimations().forEach((a) => a.cancel()); document.querySelectorAll(".leaving").forEach((n) => n.remove()); });
+  };
+  if (isPhone(testInfo)) {
+    await page.locator("#menubtn").click();
+    await expect(page.locator("#menu")).toBeVisible();
+    await slideOutKeepsBands("the menu drawer", () => page.keyboard.press("Escape"));
+    await relOptions(page).first().click();
+    for (let i = 0; i < 4 && (await page.locator("#cin").isVisible()); i++) { await page.fill("#cin", "thing " + (i + 1)); await page.keyboard.press("Enter"); await page.waitForTimeout(100); }
+    await page.locator("#mchat").click();
+    await expect(page.locator("#over")).toBeVisible();
+    await slideOutKeepsBands("the chat drawer", () => page.keyboard.press("Escape"));
+  } else {
+    await relOptions(page).first().click();
+    await page.locator("#stage .pbar .fwd").click(); // Check, with the cells left empty
+    await page.locator("#mchat").click();
+    await expect(page.locator("#coach")).toBeVisible();
+    await slideOutKeepsBands("the tutor's panel", () => page.locator("#mchat").click());
+    await slideOutKeepsBands("the pinned menu", () => page.locator("#menubtn").click());
+  }
 });
 
 test("a tap shows no highlight box, and the drawer's close button is where the menu button was", async ({ page }, testInfo) => {

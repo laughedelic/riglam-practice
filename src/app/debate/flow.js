@@ -1,5 +1,5 @@
 import { state } from "../state.js";
-import { explainByItself } from "../ai/tutor.js";
+import { afterCheck } from "../ai/known.js";
 import { $ } from "../core/dom.js";
 import { CELLS } from "../core/rel.js";
 import { isWide } from "../core/viewport.js";
@@ -85,7 +85,7 @@ export async function checkDebate(){
   QCELL.forEach((c,i)=>{ state.ui.cells[c].t=(state.ui.ans[i].text||"").trim(); state.ui.cells[c].none=state.ui.ans[i].say==="accept"; });
   clearSkip(p); state.ui.res=gradeDebate(state,p,/** @type {import("../../domain/types.ts").DebateInput} */(state.ui)); state.ui.checked=true; state.ui.open=false; render();
   focusAfterCheck();
-  explainByItself(state.ui);
+  afterCheck(state.ui);
   if(!state.db) return;
   const cells=/** @type {import("../types.ts").AnswerDoc["cells"]} */({}); for(const c of CELLS) cells[c]={text:state.ui.cells[c].t, none:state.ui.cells[c].none, verdict:state.ui.res.cells[c].v};
   const qs=QCELL.map((c,i)=>({c, say:state.ui.ans[i].say, text:state.ui.cells[c].t, dok:state.ui.res.dec[c], verdict:state.ui.res.cells[c].v,

@@ -5,7 +5,9 @@
 html,body{height:100%}
 body{margin:0;overflow:hidden}
 .app{position:relative;z-index:1;display:flex;height:var(--vvh,100%);translate:0 var(--vvt,0px);
-  max-width:calc(640px + 2 * var(--band));margin-inline:auto;padding-inline:var(--band);overflow:hidden}
+  max-width:calc(640px + 2 * var(--band));margin-inline:auto;padding-inline:var(--band);overflow:hidden;
+  /* what slides in and out (the menu, the chat drawer, the tutor's panel) is cut at the inner edge of the crimson bands, so it goes under them and never over them */
+  clip-path:inset(0 var(--band))}
 .col{position:relative;flex:1;min-width:0;display:flex;flex-direction:column}
 .coach{display:none}
 /* the logo figure (the four possibilities of the icons, as in the README banner): yellow A over blue B, green where they overlap; one colorway for both grounds (the colors are in the symbol in markup.html) */
@@ -16,7 +18,10 @@ body{margin:0;overflow:hidden}
 .brand.lock .nm{letter-spacing:.12em;text-transform:uppercase}
 .sp{flex:1}
 /* the top bar: the menu at the left, the name of the screen, then what applies to the exercise as a whole; the tutor's chat is the right-most button */
-.mbar{display:flex;align-items:center;gap:0;flex:none;height:52px;padding-inline:6px;border-bottom:1.5px solid var(--ink)}
+.mbar{position:relative;display:flex;align-items:center;gap:0;flex:none;height:52px;padding-inline:6px;border-bottom:1.5px solid var(--ink)}
+/* the Blitz countdown (shell/timers.js, drawn by renderBar): a 4px bar over the bar's line, so no row shifts when it comes and goes */
+.mbar .mbt{position:absolute;left:0;right:0;bottom:-2px;height:4px}
+.mbar .ib:focus-visible{z-index:1}   /* the ring of a button reaches below the countdown: it stays over it */
 .mbar .ttl{margin:0 8px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:400 21px/1.2 var(--serif)}
 .ib{position:relative;width:44px;height:44px;flex:none;display:grid;place-items:center;border:0;background:transparent;font:700 20px/1 var(--body);color:var(--ink-muted);cursor:pointer}
 .ib[aria-pressed="true"]{color:var(--ink)}
@@ -43,11 +48,10 @@ button:focus-visible{box-shadow:var(--focus-ring)}
 /* the scrollers clip sideways, so the focus ring (4px) needs room: they reach 6px into the page margin and pad their content back in */
 :root{--bleed:6px}
 .card,.opts,.chat{margin-inline:calc(-1*var(--bleed));padding-inline:var(--bleed)}
-/* the pair bar (src/app/shell/pbar.js): Skip and the star at the left, the forward button at the right, at the foot of the scrolling card; the countdown runs along its top edge */
+/* the pair bar (src/app/shell/pbar.js): Skip and the star at the left, the forward button at the right, at the foot of the scrolling card */
 .card>.pbar{display:block;position:sticky;bottom:0;z-index:2;margin-top:auto;margin-inline:calc(-1*var(--bleed));padding:8px var(--bleed) calc(8px + env(safe-area-inset-bottom,0px));background:var(--paper);border-top:1px solid var(--line)}
 .pbar .prow{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .pbar .pl{display:flex;align-items:center;gap:2px;min-width:0}
-.pbar .pbt{position:absolute;left:0;right:0;top:-1px;height:4px}
 .pbar .skipw{height:44px;padding:0 12px}
 .pbar .skipw .tbi{width:18px;height:18px;margin-right:6px}
 .pbar .starb{margin-left:2px}

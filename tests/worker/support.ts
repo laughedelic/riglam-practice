@@ -157,6 +157,8 @@ export function fakeKit(over: Partial<Kit> = {}) {
       return { found: true, name: (input as { name?: string })?.name };
     },
     finePoints: (cats) => cats.filter((c) => c === "c_form").map(() => "A person is not form; the body is."),
+    isCat: (id) => id.startsWith("c_"),
+    knownClass: (name) => (/^(a |an )?table$/i.test(name.trim()) ? "Table" : ""),
     reviewGuide: "REVIEW GUIDE: you judge a flag.",
     reviewRequest: (flag, answer) => "REVIEW REQUEST " + JSON.stringify({ flag, pair: [answer.pair.a, answer.pair.b] }),
     ...over,

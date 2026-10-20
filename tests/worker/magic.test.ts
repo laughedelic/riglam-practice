@@ -68,6 +68,42 @@ describe("GET /api/course", () => {
   });
 });
 
+describe("GET /api/course/examples", () => {
+  const DEVICE = JSON.stringify({ format: "riglam-examples-device", version: 2, sources: {}, items: [{ n: "a vemo", cls: ["Form"], lv: 1, s: [] }] });
+  const put = (s: Setup, kind: string, body: string, at = "2026-10-14T09:00:00.000Z") =>
+    s.env.DB!.prepare("INSERT OR REPLACE INTO course_data (kind, body, updated_at) VALUES (?1, ?2, ?3)").bind(kind, body, at).run();
+  const examples = async (s: Setup, headers: Record<string, string>, have?: string) => app().request(have ? `/api/course/examples?have=${have}` : "/api/course/examples", { headers }, s.env);
+
+  it("gives the device part to a proof that fits with its own version, says when a kept copy is current, and never sends the server's part", async () => {
+    const s = await setup();
+    await seedCourse(s.env.DB!, ROWS);
+    await put(s, "examples", JSON.stringify({ items: [{ n: "SERVER-ONLY" }] }));
+    await put(s, "examples_device", DEVICE);
+    const res = await examples(s, right(s));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    const body = await json(res);
+    expect(body).toEqual({ version: "2026-10-14T09:00:00.000Z", examples: JSON.parse(DEVICE) });
+    expect(await json(await examples(s, right(s), body.version))).toEqual({ version: body.version, unchanged: true });
+    expect(await json(await course(s, right(s))), "the definitions keep their own version").toMatchObject({ version: "2026-10-13T09:00:00.000Z" });
+  });
+
+  it("answers 503 while the server has no examples, or a row that is not a JSON object, and refuses a proof made with another key", async () => {
+    const s = await setup();
+    await seedCourse(s.env.DB!, ROWS);
+    const none = await examples(s, right(s));
+    expect(none.status).toBe(503);
+    expect((await json(none)).error.code).toBe("unavailable");
+    await put(s, "examples_device", "[1, 2]");
+    expect((await examples(s, right(s))).status).toBe(503);
+    await put(s, "examples_device", DEVICE, "2026-10-15T09:00:00.000Z");
+    const refused = await examples(s, await wrong());
+    expect(refused.status).toBe(401);
+    expect(JSON.stringify(await json(refused))).not.toContain("vemo");
+    expect(used(s)).toEqual([1]);
+  });
+});
+
 describe("the allowance of wrong guesses", () => {
   const spend = async (s: Setup, ip: string, times: number) => {
     for (let i = 0; i < times; i++) expect((await course(s, await wrong(ip))).status).toBe(401);
