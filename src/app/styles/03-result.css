@@ -4,6 +4,7 @@
 .verdict .v{font-weight:700}
 .verdict .v::before{content:"";display:inline-block;width:.62em;height:.8em;margin-right:.45em;vertical-align:-.04em;background:var(--v-band,var(--line));clip-path:var(--twin)}
 div.verdict{display:block}
+.card .verdict{scroll-margin-bottom:76px}
 .verdict.pend .v{color:var(--good)}
 .verdict .vl{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin:0}
 .checks{list-style:none;margin:8px 0 0;padding:8px 0 0;border-top:1px solid var(--line);display:grid;gap:3px;font-size:13.5px;width:100%}

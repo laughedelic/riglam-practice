@@ -2,7 +2,6 @@ import { state } from "../state.js";
 import { L, el } from "../core/dom.js";
 import { CELLS, REL, lcRel } from "../core/rel.js";
 import { dayOf, gradeOf, isMiss, pairsOf } from "../core/util.js";
-import { isWide } from "../core/viewport.js";
 import { favSection } from "../practice/favorites.js";
 import { advance } from "../practice/queue.js";
 import { popNode } from "../practice/screen.js";
@@ -19,7 +18,7 @@ import { switchTo } from "../shell/tabs.js";
 const openMiss=new Set();
 export function pct(n,d){ return d?Math.round(100*n/d):0; }
 export function barNode(p){ return el("span",{class:"bar"+(p<50?" b-low":p<80?" b-mid":""),style:"width:"+Math.max(4,Math.round(p*.6))+"px"}); }
-// Review in three groups: Overview, Mistakes, Favorites. Wide screens show the three side by side; narrow screens switch between them.
+// Review in groups: Overview, Mistakes, Favorites (and Skipped, Flags when there are some), one at a time, switched by the tabs at the top; the same on a wide screen.
 function revOverview(box,all){
   const relOk=all.filter(a=>a.correct).length, G={ok:0,pend:0,part:0,bad:0};
   for(const a of all){ const g=gradeOf(a); G[g in G?g:"bad"]++; }
@@ -84,11 +83,6 @@ export function renderReview(s){
   const parts=[["overview","Overview",revOverview,""],["mistakes","Mistakes",revMistakes,miss.length?String(miss.length):""],["favs","Favorites",(b)=>favSection(b),state.db&&nf?String(nf):""]];
   if(nsk) parts.push(["skips","Skipped",(b)=>skipSection(b),String(nsk)]);
   if(nfl) parts.push(["flags","Flags",(b)=>flagSection(b),String(nfl)]);
-  if(isWide()){
-    // three columns; the skipped pairs sit under the favorites, both lists of pairs picked by hand, and the flags under the mistakes
-    s.append(el("div",{class:"rev3"},parts.filter(p=>p[0]!=="skips"&&p[0]!=="flags").map(([k,,fn])=>{ const col=el("div",{class:"rcol","data-part":k}); fn(col,all,miss); if(k==="favs"&&nsk) skipSection(col); if(k==="mistakes"&&nfl) flagSection(col); return col; })));
-    return;
-  }
   if(!parts.some(p=>p[0]===state.reviewSeg)) state.reviewSeg="overview";
   s.append(el("div",{class:"seg rseg"+(parts.length>4?" r5":parts.length>3?" r4":""),role:"group","aria-label":"Review sections"},
     parts.map(([k,l,,n])=>el("button",{type:"button","aria-pressed":state.reviewSeg===k?"true":"false",onclick:()=>{ state.reviewSeg=k; render(); top0(); }},
