@@ -3,8 +3,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../../worker/app";
 import { EXAMPLES_ADMIN_API } from "../../worker/examples-admin";
+import { makeProof } from "../../src/ai/proof";
+import { HEADER } from "../../src/ai/protocol";
 import { REPORT_API, type FlagReport } from "../../src/report/protocol";
 import type { Env } from "../../worker/env";
+import { signUp, world } from "./accounts-support";
 import { NOW, fakeKit, json, setup } from "./support";
 
 type Setup = Awaited<ReturnType<typeof setup>>;
@@ -84,6 +87,20 @@ describe("a flag on an example", () => {
     expect(rows(s)[0].flagged).toBe(1);
     await send(s, flag("fl_b", { note: "no" }));
     expect(rows(s)[0].flagged).toBe(2);
+  });
+
+  it("counts once per report across the devices of an account: the note edited on another device does not count again", async () => {
+    const w = await world({ EXAMPLE_FACTS: "serve" });
+    const me = await signUp(w, "me");
+    put(w, "table", "c_form");
+    const sendFrom = async (device: string, r: FlagReport) =>
+      w.call(REPORT_API.reports, { body: { send: [r] }, cookie: me.cookie, headers: { [HEADER.device]: device, [HEADER.proof]: await makeProof(w.key, device) } });
+    expect((await sendFrom("deviceAAAAAAAAAAAAAAAA", flag("fl_a"))).status).toBe(200);
+    expect((await sendFrom("deviceBBBBBBBBBBBBBBBB", flag("fl_a", { note: "from the tablet" }))).status).toBe(200);
+    expect((await sendFrom("deviceAAAAAAAAAAAAAAAA", flag("fl_a", { note: "from the phone again" }))).status).toBe(200);
+    expect(rows(w)[0].flagged).toBe(1);
+    expect((await sendFrom("deviceBBBBBBBBBBBBBBBB", flag("fl_b", { note: "another flag" }))).status).toBe(200);
+    expect(rows(w)[0].flagged).toBe(2);
   });
 
   it("does nothing for an automatic flag, a flag with no example, an example too long to be kept, or a server that keeps no facts", async () => {

@@ -1209,6 +1209,9 @@ test("a fact becomes checked by agreement, disputed by disagreement, and only th
   expect(learn(two, rule("yes", "split"), at("d")).state).toBe("disputed");
   // a first "unsure" is taken over by the first sure answer
   expect(learn(learn(null, rule("unsure", "single"), at("d")), rule("no", "single"), at("d"))).toMatchObject({ answer: "no", state: "candidate", seen: 2 });
+  // an unsure row that a flag disputed stays disputed: only the maintainer closes a dispute
+  const flagged: FactRow = { ...learn(null, rule("unsure", "single"), at("d")), state: "disputed" };
+  expect(learn(flagged, rule("yes", "unanimous"), at("d"))).toMatchObject({ answer: "yes", state: "disputed", seen: 2 });
   // the maintainer's row is never changed by a model; an older epoch starts again
   const mine: FactRow = { ...two, state: "reviewed", src: "maintainer", answer: "no" };
   expect(learn(mine, rule("yes", "unanimous"), at("d"))).toMatchObject({ state: "reviewed", answer: "no", src: "maintainer", seen: 3 });

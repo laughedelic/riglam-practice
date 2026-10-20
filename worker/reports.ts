@@ -220,8 +220,8 @@ export function reportRoutes(deps: AccountDeps) {
         // The account already holds these very words from another of its devices, with their review: that report stays, and a second one
         // would start the review again and drop the first one's reply (the words that changed are a new report, below).
         if (user && (await db.prepare("SELECT 1 AS held FROM flag_reports WHERE user_id = ?1 AND id = ?2 AND device <> ?3 AND digest = ?4").bind(user, r.id, device, digest).first())) continue;
-        // A hand-made flag on an example is counted once, when its report is new: an edit of its note does not count again, and an automatic flag (Quorum's) is the models' own disagreement.
-        if (!auto && typeof r.flag.thing === "string" && r.flag.thing && !(await db.prepare("SELECT 1 AS held FROM flag_reports WHERE device = ?1 AND id = ?2").bind(device, r.id).first()))
+        // A hand-made flag on an example is counted once, when its report is new (none of this device's or this account's has the id): an edit of its note, on any device of the account, does not count again, and an automatic flag (Quorum's) is the models' own disagreement.
+        if (!auto && typeof r.flag.thing === "string" && r.flag.thing && !(await db.prepare("SELECT 1 AS held FROM flag_reports WHERE id = ?2 AND (device = ?1 OR user_id = ?3)").bind(device, r.id, user).first()))
           named.push({ thing: r.flag.thing, cats: [r.answer?.catA, r.answer?.catB] });
         statements.push(upsert.bind(device, r.id, user, caller, JSON.stringify(r.flag), r.answer === null ? null : JSON.stringify(r.answer), version, digest, stamp, start.state, start.outcome, start.reason));
         // the same flag edited on another device of the account replaces the report that device sent
