@@ -120,6 +120,19 @@ withKey("on a server that offers Quorum, Explain is asked with quorum: true and 
   await expect(quorum(page)).toContainText("=");
 });
 
+// the server keeps what the answer says of these (docs/SERVER.md, "Learned facts"): the examples the page could not check, with their cells, read before the verdicts arrive
+withKey("an explain question names the learner's examples the page could not check, each with its cell", async ({ page }, testInfo) => {
+  let open;
+  const asked = await explained(page, testInfo, {
+    tutor: (_body, _n, things) => {
+      open = things.flatMap((t) => t.cells.filter((c) => t.page[c] === "cmp").map((c) => ({ cell: c, text: t.text })));
+      return { status: 200, body: run(things, AGREE) };
+    },
+  });
+  expect(open.length).toBeGreaterThan(0);
+  expect(asked[0].body.examples).toEqual(open);
+});
+
 // one request for the tutor and Quorum together (the account row asks for itself: that is the other one)
 withKey("a start asks /api/health once for the tutor and Quorum together, not once for each", async ({ page }, testInfo) => {
   let health = 0;
@@ -211,6 +224,7 @@ withKey("an answer the page checked in full is explained by the one model: no qu
   await expect.poll(() => asked.length).toBe(1);
   expect(asked[0].body.kind).toBe("explain");
   expect(asked[0].body).not.toHaveProperty("quorum");
+  expect(asked[0].body).not.toHaveProperty("examples"); // nothing is left for the answer to check
   await expect(quorum(page)).toBeVisible();
   await quorum(page).click();
   await expect(page.locator(".quorum")).toContainText("Not needed here: every example has a verdict, so one model explains.");
@@ -230,6 +244,7 @@ withKey("a server that does not offer Quorum is asked as ever: no quorum in the 
   await expect.poll(() => asked.length).toBe(1);
   expect(asked[0].body.kind).toBe("explain");
   expect(asked[0].body).not.toHaveProperty("quorum");
+  expect(asked[0].body.examples.length).toBeGreaterThan(0); // the examples are named whether or not the server has Quorum
   await expect(quorum(page)).toHaveCount(0);
   await page.getByRole("button", { name: "Options" }).first().click();
   await expect(sw(page)).toHaveCount(0);

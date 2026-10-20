@@ -45,6 +45,10 @@ export interface Env {
   QUORUM_GLOBAL_DAILY_BUDGET_USD?: string;
   /** what a Quorum question is assumed to cost until it has finished, in US dollars; held back from Quorum's budgets meanwhile */
   QUORUM_RESERVE_USD?: string;
+  /** `record` makes the server keep what an explain answer says of each example the page could not check (worker/learned.ts, docs/SERVER.md "Learned facts"); `serve` also lets it answer from them. Any other value, or none, keeps nothing. */
+  EXAMPLE_FACTS?: string;
+  /** most rows of example_facts (default 50000): past it, new examples are not added */
+  EXAMPLE_FACTS_MAX_ROWS?: string;
   /** who may create an account: `open` (default), `group` (only with the study group's proof) or `closed` */
   SIGNUP?: string;
   /** most accounts (default 300) */
