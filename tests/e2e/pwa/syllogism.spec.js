@@ -245,6 +245,26 @@ test("an attempt at its counter-example waits in the menu and comes back; skippi
   await expect(page.locator('#menu .mrow[data-go="syllogism"]')).not.toContainText(/continue/i);
 });
 
+test("Review counts the answers: by the reply each syllogism called for, the mix-ups, and the last ones", async ({ page }) => {
+  await open(page);
+  await draw(page, 1); // accept
+  await say(page, "accept");
+  await expect(headline(page)).toHaveText("Right.");
+  await next(page).click();
+  await draw(page, 1); // the same again, answered wrongly: it was to be accepted
+  await say(page, "reason");
+  await expect(headline(page)).toHaveText("Not quite.");
+  await goTo(page, "Review");
+  const sec = page.locator(".section", { has: page.locator(".label", { hasText: "Syllogisms" }) });
+  await expect(sec.locator(".label .hint")).toHaveText("2 syllogisms, reply right 50%");
+  await expect(sec.locator("table").first().locator("tr", { hasText: "Accept" }).locator(".num")).toContainText("1 / 2");
+  await expect(sec.locator("table").first().locator("tr", { hasText: "The reason is not established" }).locator(".num")).toContainText("–");
+  await expect(sec.locator("table").nth(1)).toContainText("Said “the reason is not established” when it was “accept”");
+  await expect(sec.locator(".sylrow")).toHaveCount(2);
+  await expect(sec.locator(".sylrow").first()).toContainText("You said “the reason is not established”; right: accept");
+  expect(await overflow(page)).toBeLessThanOrEqual(0);
+});
+
 test("the practice options hold only what Syllogisms uses: the wording, which is kept, and the things drawn from", async ({ page }) => {
   await open(page);
   await page.locator("#msess").click();
