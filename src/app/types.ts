@@ -225,6 +225,8 @@ export interface State {
   tutor: Tutor | null;
   /** the course's reference examples this device holds (platform.examples), by name; null when it has none (src/app/core/examples.js) */
   EX: ExampleIndex | null;
+  /** the reference examples drawn into the cells go up to this level, 1 to 4 (Options, `rd-exlevel`) */
+  exLevel: number;
   /** sends flags to the app's server (platform.reports), when the place has a server for them and this device has the Magic Key */
   reports: Reports | null;
   /** keeps the removal of a flag for a later start that has `reports` (platform.withdrawReport) */

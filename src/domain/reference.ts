@@ -5,9 +5,11 @@
 // filled by guessing that what the data does not say is false.
 import type { Cat } from "../ai-shared/data";
 import type { Example } from "../ai-shared/examples";
-import { upChain } from "../ai-shared/lookup";
+import { spelled, stripDet, upChain } from "../ai-shared/lookup";
 import type { DataIndex } from "../ai-shared/lookup";
+import type { CellId } from "../ai-shared/relations";
 import { catChain, excludes } from "./ladder";
+import type { Witnesses } from "./universe";
 
 export type Placement = "yes" | "no" | null;
 
@@ -32,6 +34,41 @@ export const DRAWN = ["confirmed", "textbook"] as const;
 /** Whether an example may be drawn for a learner who sees examples up to `maxLevel`. */
 export function drawable(ex: Pick<Example, "cf" | "lv">, maxLevel: number): boolean {
   return (DRAWN as readonly (string | undefined)[]).includes(ex.cf) && ex.lv <= maxLevel;
+}
+
+/** The kinds that may stand in a cell. Things and representations always; relations and negations from level 3; a combination or a statement is another question's ("is X a Y?" would be wrong for it). */
+const PLAIN_KINDS = ["thing", "representation"];
+const LATER_KINDS = ["relation", "negation"];
+
+/**
+ * Whether the example may be shown as the reference of a cell of a practice pair for a learner who sees examples up to `maxLevel`: confirmed
+ * or textbook (`drawable`), a kind a cell takes, and no expert background (one a beginner could not read).
+ */
+export function cellExample(ex: Pick<Example, "cf" | "lv" | "k" | "bg">, maxLevel: number): boolean {
+  if (!drawable(ex, maxLevel) || ex.bg === "expert") return false;
+  return !ex.k || PLAIN_KINDS.includes(ex.k) || (maxLevel >= 3 && LATER_KINDS.includes(ex.k));
+}
+
+/**
+ * The reference examples that can stand in the cells of a pair of categories, up to `maxLevel`: those `cellExample` allows whose cell
+ * `placeByClass` proves for both categories (a side it cannot prove leaves the example out), and not those the practice list has under
+ * the same name (the list's own classes are the ones the practice grades with). A function of the pair, for `pairOf`.
+ */
+export function witnessesOf(ix: DataIndex, items: readonly Example[], maxLevel: number): Witnesses {
+  const usable = items.filter((ex) => cellExample(ex, maxLevel));
+  const key = (n: string) => stripDet(spelled(n));
+  const listed = new Set(ix.DATA.items.map((i) => key(i.n)));
+  return (a, b) => {
+    const out: Record<CellId, Example[]> = { both: [], anb: [], bna: [], nei: [] };
+    const A = ix.CAT[a], B = ix.CAT[b];
+    if (!A || !B) return out;
+    for (const ex of usable) {
+      if (listed.has(key(ex.n))) continue;
+      const x = placeByClass(ix, ex, A), y = placeByClass(ix, ex, B);
+      if (x && y) out[x === "yes" ? (y === "yes" ? "both" : "anb") : y === "yes" ? "bna" : "nei"].push(ex);
+    }
+    return out;
+  };
 }
 
 /** How well the sources confirm an example, best first. */
