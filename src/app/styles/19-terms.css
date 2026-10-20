@@ -24,3 +24,14 @@
 .tm-locked{display:grid;gap:10px;padding-top:10px;border-top:1px solid var(--line)}
 .tm-key{margin:0;font:400 14px/1.5 var(--text-serif)}
 .tm-locked .btn{justify-self:start}
+/* the reference examples under a definition */
+.ddef .tm-exr{font-size:13.5px}
+.tm-defs dd.tm-ex{display:block;margin-top:6px;padding-top:6px;border-top:1px dotted var(--line)}
+.tm-exh{margin:0 0 2px;font:400 12px/1.4 var(--body);color:var(--ink-muted);letter-spacing:.02em}
+.tm-ex ul{margin:0;padding:0;list-style:none;display:grid;gap:2px}
+.tm-exr{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 8px;width:100%;margin:0;padding:3px 0;font:400 14px/1.45 var(--text-serif);text-align:left;color:inherit}
+.tm-exr small{font:400 12px/1.4 var(--body);color:var(--ink-muted)}
+button.tm-exb{appearance:none;border:0;background:none;cursor:pointer;min-height:32px}
+button.tm-exb .tm-exn{text-decoration:underline dotted;text-underline-offset:3px}
+button.tm-exb.on .tm-exn{text-decoration-style:solid}
+.tm-why{margin:2px 0 4px;padding-left:10px;border-left:2px solid var(--line);font:400 13px/1.5 var(--text-serif);color:var(--ink-muted)}

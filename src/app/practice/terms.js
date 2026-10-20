@@ -6,6 +6,7 @@ import { REL } from "../core/rel.js";
 import { cap } from "../core/util.js";
 import { isA } from "./screen.js";
 import { catByLabel } from "./universe.js";
+import { examplesFor } from "../../domain/reference.ts";
 import { render } from "../shell/render.js";
 
 // Where a category sits: the Dudra term with its higher categories, or, for an everyday category, the Dudra term it falls under.
@@ -139,6 +140,22 @@ function upLine(n,live){
     return [i?" ":"",el("i",{class:"isa",text:isA(low)})," ",word];
   })));
 }
+// How well the sources confirm an example (the reference examples, docs/DATA.md), as the card says it. No source is named.
+const CONFIRMATION={confirmed:"in two or more sources",textbook:"in the course textbook",commentator:"from a commentary"};
+// Examples of the term, under its definition: a few, the plainest first, each with its level and how well it is confirmed; tapping one says why it is a good example.
+function examplesNode(n){
+  if(!state.EX) return null;
+  const list=examplesFor(state,state.EX.items,n); if(!list.length) return null;
+  const open=state.ui&&state.ui.dex;
+  return el("dd",{class:"tm-ex"},el("p",{class:"tm-exh",text:list.length>1?"Examples":"Example"}),el("ul",null,list.map(x=>{
+    const key=n+"|"+x.n, on=open===key, meta=["level "+x.lv,CONFIRMATION[x.cf||""]].filter(Boolean).join(" \u00b7 ");
+    const head=[el("span",{class:"tm-exn",text:x.n}),el("small",{text:meta})];
+    if(!x.gloss) return el("li",null,el("div",{class:"tm-exr"},head));
+    const toggle=e=>{ e.stopPropagation(); state.ui.dex=on?null:key; render(); const b=document.querySelector('.tm-ex button[data-dex="'+CSS.escape(key)+'"]'); if(b) /** @type {HTMLElement} */(b).focus({preventScroll:true}); };
+    return el("li",null,el("button",{type:"button",class:"tm-exr tm-exb"+(on?" on":""),"data-dex":key,"aria-expanded":on?"true":"false",onclick:toggle},head),
+      on?el("p",{class:"tm-why",text:x.gloss+(x.cn?" (this reading is less certain)":"")}):null);
+  })));
+}
 // The same entry as the Terms panel had: the name and chapter, where the term sits, then the definition, in English and, if chosen, Russian.
 // `trail` holds the terms looked at before this one in the same card, `live` is false for the floating card.
 function cardNode(n,id,trail,live=true){
@@ -152,7 +169,8 @@ function cardNode(n,id,trail,live=true){
       el("dd",{class:src?"out":""},
         src?el("p",{class:"src",text:src+(en.body?":":".")}):null,
         en.body?el("p",{lang:"en",text:endp(cap(en.body))}):null,
-        ruOn&&ru.body?el("p",{class:"ru",lang:"ru",text:endp(cap(ru.body))}):null))));
+        ruOn&&ru.body?el("p",{class:"ru",lang:"ru",text:endp(cap(ru.body))}):null),
+      live?examplesNode(n):null)));
 }
 // Pointing at a term with a mouse shows its card while the pointer stays, over the note; it is not kept in the state, so a render drops it.
 function peek(mark,term){
