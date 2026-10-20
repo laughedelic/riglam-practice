@@ -34,6 +34,8 @@ function setShow(key,on){ if(key==="ab") state.showAB=on; else state.fullPh=on; 
 function setAutoExplain(on){ state.autoExplain=on; store("rd-autoexplain",on?"1":"0"); render(); }
 function setWording(k){ state.wording=k; store("rd-wording",k); render(); }
 function setFindSuggest(on){ state.findSuggest=on; store("rd-findsuggest",on?"1":"0"); render(); }
+function setCqWording(k){ state.cqWording=k; store("rd-cqwording",k); render(); }
+function setCqLevel(n){ state.cqLevel=n; store("rd-cqlevel",String(n)); render(); }
 
 export function toggleSess(on){
   const was=state.sessOpen; state.sessOpen=on===undefined?!was:on;
@@ -96,7 +98,18 @@ function pageBody(id){
   return [el("p",{class:"capl",text:"Shown when you open a term’s definition, in the Terms panel and in the tutor’s notes."}),
     picks("Languages of the definitions",[["en","English","The definition in English."],["enru","English + Russian","Each entry also shows the Russian name of the term and, where there is one, its Russian definition."]],state.defLang,setDefLang)];
 }
+// Consequences has no terms to read, no notation and no tutor yet, so it shows only what it uses
+function consequenceBody(){
+  return [
+    row("Wording",chips("Wording of the consequence",[["take","Take X"],["textbook","Textbook"]],state.cqWording,setCqWording),
+      "Take X: “Take a tomato. It follows it is food because it is red.” Textbook: “It follows that the subject, a tomato, is food because of being red.”"),
+    row("Things",chips("Which things the consequences are about",[[1,"Everyday"],[2,"With course terms"]],state.cqLevel,setCqLevel),
+      "Everyday: ordinary things and their properties (a tomato, red, food). With course terms: also the classes of the course (a form, a sound, impermanent, a consciousness). The change applies from the next consequence."),
+    el("p",{class:"capl"},"The Magic Key, your account, data and the version are in ",el("button",{type:"button",class:"lnk",onclick:()=>{ toggleSess(false); toggleOpts(true); }},"Settings"),".")
+  ];
+}
 function listBody(){
+  if(state.tab==="cq") return consequenceBody();
   const perv=state.tab==="debate", find=state.tab==="find", timed=state.tab==="practice"||perv;
   const quorumNote=state.quorumOptIn
     ?"Optional: a deeper check, but slower. When the page could not check an example you wrote, three AI models (Haiku, Sonnet and Opus) each work it out and Opus rules where they differ, so the explanation is more reliable. An answer takes about a minute instead of a few seconds, and it counts against a daily limit of its own; when that is used up, one model answers as usual. The server keeps each such run (the pair with what you wrote, and the answers), so the models can be compared. With Quorum off, one model answers and nothing is kept."

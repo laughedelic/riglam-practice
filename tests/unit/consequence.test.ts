@@ -4,7 +4,7 @@ import { expect, test } from "vitest";
 import { makeIndex } from "../../src/ai-shared";
 import type { DrillData } from "../../src/ai-shared";
 import {
-  NO_PHRASE, REPLIES, SITUATIONS, consequenceOf, consequenceText, drawConsequence, gradeConsequence, pervasionConflicts,
+  NO_PHRASE, REPLIES, SITUATIONS, consequenceOf, consequencePieces, consequenceText, drawConsequence, gradeConsequence, gradeExample, pervasionConflicts,
 } from "../../src/domain/consequence";
 import type { Consequence, ConsequenceHistory, Reply, Situation } from "../../src/domain/consequence";
 import { inUniverse } from "../../src/domain/universe";
@@ -143,6 +143,27 @@ test("two wordings of the same consequence", () => {
   const c = consequenceOf(ix, "a tomato", "red", "food") as Consequence;
   expect(consequenceText(c)).toBe(`Take a tomato. It follows it is ${c.predicate} because it is red.`);
   expect(consequenceText(c, "textbook")).toBe(`It follows that the subject, a tomato, is ${c.predicate} because of being red.`);
+});
+
+test("a wording is also said in pieces, so that the page can set the three parts apart; the pieces read as the sentence", () => {
+  const c = consequenceOf(ix, "a tomato", "red", "food") as Consequence;
+  for (const w of ["take", "textbook"] as const) {
+    const pieces = consequencePieces(c, w);
+    expect(pieces.map((x) => (typeof x === "string" ? x : x.text)).join("")).toBe(consequenceText(c, w));
+    expect(pieces.filter((x) => typeof x !== "string")).toEqual([
+      { part: "subject", text: "a tomato" }, { part: "predicate", text: c.predicate }, { part: "reason", text: "red" },
+    ]);
+  }
+});
+
+test("a counter-example has to be the reason without being the predicate; a thing the data does not know is not checked", () => {
+  const c = consequenceOf(ix, "a tomato", "red", "food") as Consequence; // whatever is red is food: no
+  expect(gradeExample(ix, c, "a red ball")).toMatchObject({ v: "ok", line: `A red ball is red and is not ${c.predicate}, so it is a counter-example.` });
+  expect(gradeExample(ix, c, " a red ball. ").v).toBe("ok");
+  expect(gradeExample(ix, c, "a tomato")).toMatchObject({ v: "bad", line: `A tomato is red, but it is also ${c.predicate}, so it is no counter-example.` });
+  expect(gradeExample(ix, c, "a banana")).toMatchObject({ v: "bad", line: expect.stringContaining("A banana is not red") });
+  expect(gradeExample(ix, c, "a thing the course knows nothing of").v).toBe("cmp");
+  expect(gradeExample(ix, c, "   ").v).toBe("cmp");
 });
 
 test("grading: only the answer from the three checks is right, and a wrong reply says what was mixed up", () => {

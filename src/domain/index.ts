@@ -20,3 +20,5 @@ export { cellFor, cellOfFacts, disputeText, divided, quorumDisputes, quorumRows,
 export type { Dispute, QuorumAnswer, QuorumRow, QuorumThing, Reading } from "./quorum";
 export { catChain, knownClass, listedItem, rung, termPhrase } from "./ladder";
 export type { Rung } from "./ladder";
+export { NO_PHRASE, RELIEF, REPLIES, SITUATIONS, WORDINGS, consequenceOf, consequencePieces, consequenceText, drawConsequence, gradeConsequence, gradeExample, pervasionConflicts } from "./consequence";
+export type { Check, Consequence, ConsequenceDraw, ConsequenceHistory, ConsequenceResult, ExampleVerdict, Pervasion, Piece, Reply, Situation, Wording } from "./consequence";

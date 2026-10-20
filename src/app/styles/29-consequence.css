@@ -1,0 +1,20 @@
+/* Consequences: the card with the consequence and the three replies, the counter-example step, and the lines of the result */
+.cqcard{gap:14px}
+.cqt{margin:0;font:400 20px/1.6 var(--text-serif);overflow-wrap:anywhere}
+.cqt b{font-weight:700}
+.cq-subject{font-style:italic}
+.cqask{display:grid;gap:8px}
+.cqask .cqsay{height:auto;min-height:44px;padding:10px 16px;justify-content:space-between;text-align:left;font-size:15px;line-height:1.35}
+.cqex{display:grid;gap:10px}
+.cqex .cqright,.cqex .cqask2{margin:0}
+.cqex .cqright{font:400 14px/1.5 var(--body)}
+.cqex .cqask2{font:400 16px/1.6 var(--text-serif)}
+.cqex .cqright .m,.cqres .cqmine .m{display:inline-block;width:1.4em;font-weight:700}
+.cqex .cqright .m.ok,.cqres .cqmine .m.ok{color:var(--cell-ok)} .cqres .cqmine .m.bad{color:var(--bad)} .cqres .cqmine .m.cmp{color:var(--cell-open)}
+.cqex .chint{margin-top:-2px}
+.cqres{margin-top:12px}
+.cqres .cqwhat,.cqres .cqconf,.cqres .cqmine{margin:8px 0 0;font-size:14px;line-height:1.5}
+.cqres .cqconf{padding-left:10px;border-left:2px solid var(--line);color:var(--ink)}
+@media (max-width:480px){
+  .cqt{font-size:19px}
+}

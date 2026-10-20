@@ -21,7 +21,7 @@ export const VERSION = 1;
 export const COLLECTIONS = SYNC_COLLECTIONS;
 
 /** The localStorage keys of the page's settings (notation, wording, timers ...). tests/unit/transfer.test.ts checks this list against app.js. */
-export const PREFERENCE_KEYS = ["rd-notation", "rd-deflang", "rd-ab", "rd-full", "rd-wording", "rd-timer", "rd-timer-rel", "rd-blitz", "rd-quorum", "rd-autoexplain", "rd-recent", "rd-findrel", "rd-findsuggest"] as const;
+export const PREFERENCE_KEYS = ["rd-notation", "rd-deflang", "rd-ab", "rd-full", "rd-wording", "rd-timer", "rd-timer-rel", "rd-blitz", "rd-quorum", "rd-autoexplain", "rd-recent", "rd-findrel", "rd-findsuggest", "rd-cqwording", "rd-cqlevel"] as const;
 /** Kept on the device only, not carried by export and import: the exercise opened last and the pinned menu, which depend on this device and its screen. */
 export const DEVICE_KEYS = ["rd-ex", "rd-menu"] as const;
 

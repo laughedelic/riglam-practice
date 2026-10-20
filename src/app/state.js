@@ -37,6 +37,9 @@ export const state = {
   recent: [],
   findAsked: [],   // the relations Find a pair asked for lately, oldest first: the draw of the next one leans away from them (find/flow.js)
   findRel: null,   // the relation Find a pair keeps asking for once the learner has picked one (`rd-findrel`); null: a different one each time
+  cqRecent: [],    // the ids of the consequences drawn lately, oldest first: the draw of the next one leans away from them (consequence/flow.js)
+  cqLevel: 2,      // the highest level Consequences draws from: 1 everyday things only, 2 also the terms of the course (the settings of the exercise, `rd-cqlevel`)
+  cqWording: "take", // how a consequence is said: "take" (the class's) or "textbook" (`rd-cqwording`)
   findSuggest: true, // Find a pair offers the terms of the course while the pair is typed (the settings of Find a pair, `rd-findsuggest`); off: plain fields
   debates: {},
   own: "practice",
@@ -91,7 +94,7 @@ export const state = {
   relMs: undefined,  // the relation has its own time; it starts from the one time of earlier versions
 };
 
-try{ const v=localStorage.getItem("rd-ex"); if(v==="debate"||v==="find") state.tab=state.own=v; }catch(e){}
+try{ const v=localStorage.getItem("rd-ex"); if(v==="debate"||v==="find"||v==="cq") state.tab=state.own=v; }catch(e){}
 try{ state.menuPin=localStorage.getItem("rd-menu")==="1"; }catch(e){}
 try{ const v=localStorage.getItem("rd-notation"); if(v==="sets"||v==="logic") state.nota=v; }catch(e){}
 try{ if(localStorage.getItem("rd-deflang")==="enru") state.defLang="enru"; }catch(e){}   // an earlier "off" (words only) is now the codes
@@ -101,6 +104,7 @@ try{ state.autoExplain=localStorage.getItem("rd-autoexplain")!=="0"; }catch(e){}
 try{ state.recentOpen=localStorage.getItem("rd-recent")!=="0"; }catch(e){}
 try{ const v=localStorage.getItem("rd-findrel"); if(FIND_RELS.includes(/** @type {any} */(v))) state.findRel=/** @type {any} */(v); }catch(e){}
 try{ state.findSuggest=localStorage.getItem("rd-findsuggest")!=="0"; }catch(e){}
+try{ if(localStorage.getItem("rd-cqwording")==="textbook") state.cqWording="textbook"; if(localStorage.getItem("rd-cqlevel")==="1") state.cqLevel=1; }catch(e){}
 try{ if(localStorage.getItem("rd-ab")==="0") state.showAB=false; if(localStorage.getItem("rd-full")==="0") state.fullPh=false; }catch(e){}
 try{
   const v=+localStorage.getItem("rd-timer"); if(v>=2000&&v<=120000) state.timerMs=v;

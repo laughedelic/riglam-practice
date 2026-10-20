@@ -6,6 +6,7 @@ import type { Cat, DrillData, Item } from "../ai-shared/data";
 import type { About, Unlock, Updates } from "../platform/types";
 import type { AnswerView, DebateAnswer } from "../ai-shared/card";
 import type { CellId, RelKey } from "../ai-shared/relations";
+import type { Consequence, Pervasion, Reply, Situation, Wording } from "../domain/consequence";
 import type { Pair, PoolEntry, Verdict } from "../domain/types";
 import type { Account, Db, Reports, Sample, Tutor } from "../platform/types";
 import type { QuorumRecord } from "../ai/protocol";
@@ -43,7 +44,7 @@ export interface AnswerDoc {
   pairId: string;
   batchId?: string | null;
   /** "debate": a Pervasions answer (collection `debates`); "find": a Find a pair answer, kept in `answers` and left out of the Relations lists */
-  mode?: "debate" | "find";
+  mode?: "debate" | "find" | "cq";
   a: string;
   b: string;
   catA?: string | null;
@@ -69,6 +70,37 @@ export interface AnswerDoc {
   verifiedAt?: string;
 }
 export type DebateDoc = AnswerDoc & { mode: "debate"; qs: QuestionDoc[] };
+
+/** collection `answers`, mode "cq": one answer to a consequence (the Consequences exercise), left out of the Relations lists like Find a pair's. `catA` is the category of the reason and `catB` that of the predicate, as the draw reads them. */
+export interface ConsequenceDoc {
+  /** the id of the document */
+  pairId: string;
+  mode: "cq";
+  /** the consequence as the domain names it, "reason|predicate|subject" */
+  id: string;
+  subject: string;
+  reason: string;
+  predicate: string;
+  catA: string;
+  catB: string;
+  situation: Situation;
+  /** the reply that was right */
+  answer: Reply;
+  /** the reply the learner gave */
+  said: Reply;
+  correct: boolean;
+  /** "part": the reply was right, but the counter-example offered with it was not */
+  grade: "ok" | "part" | "bad";
+  /** the learner named a fault that is there, but not the first one to name */
+  missedPoint?: boolean;
+  pervasion: Pervasion;
+  level: 1 | 2;
+  links: number;
+  wording: Wording;
+  /** the counter-example offered after a right "there is no pervasion", and how the page judged it */
+  example?: { text: string; verdict: "ok" | "bad" | "cmp" };
+  at: string;
+}
 
 /** collection `batches`: an older set of prepared pairs. */
 export interface BatchDoc {
@@ -176,6 +208,9 @@ export interface Current {
   debate?: boolean;
   /** Find a pair (src/app/find): there is no pair in `p` (it is null, though typed as a pair) until the learner has named one */
   find?: boolean;
+  /** Consequences (src/app/consequence): there is no pair in `p` (it is null), the consequence on screen is `c` */
+  cq?: boolean;
+  c?: Consequence;
   legacy?: boolean;
   retry?: boolean;
   tag?: string;
@@ -233,6 +268,7 @@ export interface State {
 
   // the stored collections as the page holds them
   batches: BatchDoc[];
+  /** every document of the collection `answers`, also those of Find a pair and, in another shape, of Consequences (`isCq`, core/util.js); the lists that mean Relations leave those out */
   answers: Record<string, AnswerDoc>;
   debates: Record<string, DebateDoc>;
   favs: Record<string, FavDoc>;
@@ -268,6 +304,12 @@ export interface State {
   recent: string[];
   /** the relations Find a pair asked for lately, oldest first */
   findAsked: RelKey[];
+  /** ids of the consequences drawn lately, oldest first: the draw leans away from them (consequence/flow.js) */
+  cqRecent: string[];
+  /** the highest level the Consequences draw reaches: 1 everyday things only, 2 also the terms of the course (`rd-cqlevel`) */
+  cqLevel: 1 | 2;
+  /** how a consequence is worded (`rd-cqwording`) */
+  cqWording: Wording;
   /** the relation Find a pair keeps asking for, picked by the learner (`rd-findrel`); null: a different one each time */
   findRel: RelKey | null;
   /** Find a pair offers the terms of the course while the pair is typed (Options, `rd-findsuggest`) */

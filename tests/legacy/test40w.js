@@ -7,7 +7,7 @@ const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.
  ok('top bar with the menu button and the pair bar shown; steps and menu hidden (no rail, no tab bar)',await vis('.mbar')&&await vis('#menubtn')&&await vis('#stage .pbar')&&!(await vis('#steps'))&&!(await vis('#menu'))&&await pg.locator('.rail, .tabbar, #tabs').count()===0);
  ok('no page scroll',await pg.evaluate(()=>document.documentElement.scrollHeight<=innerHeight+1&&document.body.scrollHeight<=innerHeight+1));
 await pg.click('#menubtn'); await pg.waitForTimeout(100);
- ok('the menu button pins the menu: the three exercises, Review and Settings',await vis('#menu')&&await pg.locator('#menu .mrow[data-go]').count()===3&&await pg.locator('#menu .fbtn[data-go]').count()===2);
+ ok('the menu button pins the menu: the four exercises, Review and Settings',await vis('#menu')&&await pg.locator('#menu .mrow[data-go]').count()===4&&await pg.locator('#menu .fbtn[data-go]').count()===2);
  await pg.click('#menubtn'); await pg.waitForTimeout(100);
  const rel=await pg.evaluate(()=>window.__t.cur.p.relation);
  const ORDER={mi:0,'3ab':1,'3ba':2,'4':3,con:4};

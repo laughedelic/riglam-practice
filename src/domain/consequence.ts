@@ -8,14 +8,14 @@
 // (and the few pervasions stated by hand below) prove that a pervasion holds or is opposite; the items only disprove one, with a thing
 // that is the reason and is not the predicate. Pairs that neither can settle are never drawn.
 import type { DrillData, Item } from "../ai-shared/data";
-import { upChain } from "../ai-shared/lookup";
+import { matchItem, upChain } from "../ai-shared/lookup";
 import type { DataIndex } from "../ai-shared/lookup";
 import type { CellId } from "../ai-shared/relations";
 import { catChain, termPhrase } from "./ladder";
 import type { HistoryEntry } from "./types";
 import { cellsFor, judgeable } from "./universe";
 import type { Rng } from "./universe";
-import { RECENT_MAX } from "./universe";
+import { FEATURE, RECENT_MAX, inUniverse } from "./universe";
 import { cap, isMiss } from "./util";
 
 /** What the learner says: accept the consequence, deny the reason ("the reason is not established"), or deny the pervasion. */
@@ -330,14 +330,26 @@ export function consequenceOf(ix: DataIndex, subject: string, catR: string, catP
 
 // ---- wording ----
 
+/** A consequence as it is said, in pieces: plain text and the three parts that the page can show apart. */
+export type Piece = string | { part: "subject" | "predicate" | "reason"; text: string };
+const subj = (c: Consequence): Piece => ({ part: "subject", text: c.subject });
+const pred = (c: Consequence): Piece => ({ part: "predicate", text: c.predicate });
+const reas = (c: Consequence): Piece => ({ part: "reason", text: c.reason });
 /** The ways to say a consequence: the class's "Take X. It follows it is P because it is R." and the textbook's. */
+const PIECES = {
+  take: (c: Consequence): Piece[] => ["Take ", subj(c), ". It follows it is ", pred(c), " because it is ", reas(c), "."],
+  textbook: (c: Consequence): Piece[] => ["It follows that the subject, ", subj(c), ", is ", pred(c), " because of being ", reas(c), "."],
+};
+export type Wording = keyof typeof PIECES;
+const joined = (ps: Piece[]) => ps.map((x) => (typeof x === "string" ? x : x.text)).join("");
 export const WORDINGS = {
-  take: (c: Consequence) => `Take ${c.subject}. It follows it is ${c.predicate} because it is ${c.reason}.`,
-  textbook: (c: Consequence) => `It follows that the subject, ${c.subject}, is ${c.predicate} because of being ${c.reason}.`,
+  take: (c: Consequence) => joined(PIECES.take(c)),
+  textbook: (c: Consequence) => joined(PIECES.textbook(c)),
 } as const;
-export type Wording = keyof typeof WORDINGS;
 /** The consequence as a sentence, in one of the wordings (the class's by default). */
 export const consequenceText = (c: Consequence, wording: Wording = "take"): string => WORDINGS[wording](c);
+/** The same sentence in pieces, so that a page can set the subject, the predicate and the reason apart. */
+export const consequencePieces = (c: Consequence, wording: Wording = "take"): Piece[] => PIECES[wording](c);
 
 // ---- grading ----
 
@@ -382,6 +394,20 @@ export function gradeConsequence(c: Consequence, said: Reply): ConsequenceResult
     missedPoint: !correct && c.answer === "reason" && said === "pervasion" && !c.checks.v.ok,
     confusion: correct ? "" : confusionOf(c, said),
   };
+}
+
+/** What the learner's counter-example (a thing that is the reason and is not the predicate) comes to: "ok", "bad", or "cmp" when the data cannot place it. */
+export interface ExampleVerdict { v: "ok" | "bad" | "cmp"; line: string }
+
+/** Grades a counter-example to the pervasion: it has to be the reason without being the predicate. A thing the data does not know, or cannot use for these two categories, is not checked. */
+export function gradeExample(ix: DataIndex, c: Consequence, text: string): ExampleVerdict {
+  const t = text.trim().replace(/[.!]+$/, "");
+  const it = t ? matchItem(ix, t, FEATURE.has(c.catR) || FEATURE.has(c.catP)) : null;
+  if (!it || !inUniverse(ix, it, c.catR, c.catP)) return { v: "cmp", line: `Not checked: the page does not know ${t || "that"} well enough to say.` };
+  const name = cap(t), r = it.c.includes(c.catR), p = it.c.includes(c.catP);
+  if (r && !p) return { v: "ok", line: `${name} is ${c.reason} and is not ${c.predicate}, so it is a counter-example.` };
+  if (r) return { v: "bad", line: `${name} is ${c.reason}, but it is also ${c.predicate}, so it is no counter-example.` };
+  return { v: "bad", line: `${name} is not ${c.reason}, so it cannot show that being ${c.reason} is not enough for being ${c.predicate}.` };
 }
 
 // ---- the draw ----
