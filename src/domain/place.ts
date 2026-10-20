@@ -53,7 +53,7 @@ function explain(ix: DataIndex, ex: Example, cat: Cat, answer: boolean): { reaso
     if (r && (r.answer === "yes") === answer) return { reason: r.reason, why: r.why };
   }
   if (answer) return { reason: ex.cls?.includes(term) ? "it is " + termPhrase(term) : "", why: "" };
-  if (ex.ne) return { reason: "it does not exist, and only what exists is anything", why: "" };
+  if (ex.ne) return { reason: "it does not exist", why: `Nothing that does not exist is ${termPhrase(term)}.` };
   const said = (ex.not ?? []).find((n) => catChain(ix, cat).includes(n));
   if (said) return { reason: "the sources say it is not " + termPhrase(said), why: "" };
   return { reason: "", why: "" };

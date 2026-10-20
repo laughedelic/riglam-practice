@@ -63,7 +63,7 @@ test("placeRows: every Dudra category the data settles, with the answer and the 
 test("placeRows: a thing that does not exist, or the sources say is not a class, is no in what they exclude", () => {
   const horn = placeRows(ix(), ex("the horn of a hare", [], 1, { ne: true }));
   expect(horn.length).toBe(8);
-  for (const r of horn) { expect(r.answer, r.cat).toBe(false); expect(r.reason, r.cat).toMatch(/does not exist/); }
+  for (const r of horn) { expect(r.answer, r.cat).toBe(false); expect(r.reason, r.cat).toBe("it does not exist"); expect(r.why, r.cat).toBe(`Nothing that does not exist is ${r.phrase}.`); }
   const odd = ex("an odd form", ["Form"], 2, { not: ["Color"] });
   const rows = placeRows(ix(), odd);
   expect(rows.find((r) => r.cat === "col")).toMatchObject({ answer: false, reason: "the sources say it is not a color" });
