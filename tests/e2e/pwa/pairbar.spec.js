@@ -171,6 +171,28 @@ test("Blitz is the stopwatch in the top bar; its countdown runs along the lower 
   expect(await stageTop()).toBe(top);
 });
 
+test("on a wide screen the countdown runs over the workspace only: it ends where the right panel begins, as it begins where the menu ends", async ({ page }, testInfo) => {
+  test.skip(isPhone(testInfo), "a phone has no panel beside the exercise");
+  await page.goto("/");
+  await ready(page);
+  const mbt = page.locator("#mbar .mbt"), coach = page.locator("#coach");
+  await page.locator("#mbz").click();
+  await expect(mbt).toBeVisible();
+  const header = await page.locator("#mbar").boundingBox();
+  const closed = await mbt.boundingBox();
+  expect(closed.x + closed.width).toBeCloseTo(header.x + header.width, 0);
+  await page.locator("#mchat").click();
+  await expect(coach).toBeVisible();
+  const [c, open] = await Promise.all([coach.boundingBox(), mbt.boundingBox()]);
+  expect(open.x).toBeCloseTo(header.x, 0);
+  expect(open.x + open.width).toBeCloseTo(c.x, 0);
+  expect(c.x).toBeGreaterThan(header.x + header.width / 2); // the panel is at the right, so this is not the empty strip of a zero-width bar
+  await page.locator("#mchat").click();
+  await expect(coach).toBeHidden();
+  const back = await mbt.boundingBox();
+  expect(back.x + back.width).toBeCloseTo(header.x + header.width, 0);
+});
+
 test("on a wide screen the result stays in the middle, the key N goes on, and the focus is on the result", async ({ page }, testInfo) => {
   test.skip(isPhone(testInfo), "the wide layout's");
   await page.addInitScript(hook);

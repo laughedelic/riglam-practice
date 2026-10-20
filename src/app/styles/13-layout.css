@@ -7,7 +7,9 @@
 @media (min-width:1100px){
   .app{max-width:calc(1480px + 2 * var(--band))}
   .work{display:grid;grid-template-columns:minmax(0,1fr);padding:0;min-width:0}
-  .app[data-coach="1"] .work{grid-template-columns:minmax(0,1fr) clamp(300px,30vw,372px)}
+  .app{--coachw:clamp(300px,30vw,372px)}
+  .app[data-coach="1"] .work{grid-template-columns:minmax(0,1fr) var(--coachw)}
+  .app[data-coach="1"] .mbar .mbt{right:var(--coachw)}   /* the Blitz countdown runs over the workspace only, ending where the right panel begins */
   .steps{display:none !important}
   .coach:not([hidden]){display:flex;grid-column:2}
   .card{grid-column:1;margin-inline:0;padding:22px 28px 0;gap:12px}
