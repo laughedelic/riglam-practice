@@ -49,3 +49,5 @@
 @media (max-width:480px){
   .sylt{font-size:19px}
 }
+/* the tutor's explanation under the checks, on a narrow screen */
+.sylwhy{margin-top:14px}
