@@ -42,7 +42,7 @@ test("examplesFor takes only examples of the levels it is given", () => {
   expect(names(9, [1, 2])).toEqual(["a clay form", "a blue wall", "a shape of fog"]);
   expect(names(9, [1])).toEqual(["a clay form", "a blue wall"]);
   expect(names(9, [2])).toEqual(["a shape of fog"]);
-  expect(names(9, [1, 3])).toEqual(["a clay form", "a blue wall", "a green wall"]);
+  expect(names(9, [1, 3])).toEqual(["a clay form", "a hard form", "a blue wall"]); // no level 2 and no level 4
   expect(names(9, [])).toEqual([]);
 });
 
