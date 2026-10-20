@@ -83,8 +83,13 @@ export interface Ruling {
 }
 
 const definite = (a: Answer) => a !== "unsure";
+// A reason that names the pair's own letters ("a white one is B") is about that pair: the same category is the other letter in another pair, so it is not kept.
+const ABOUT_PAIR = /\b(?:is|are|be|in|of|to|not|both|and|or|than) [AB]\b/;
 // the reason, without the pervasion that may follow it (the note's own steps come from the term data), cut to size
-const reasonOf = (s: Side) => s.say.split(/\s*;?\s*pervasion\s*:/i)[0].trim().replace(/[.;,\s]+$/, "").slice(0, FACT_LIMITS.reason);
+const reasonOf = (s: Side) => {
+  const r = s.say.split(/\s*;?\s*pervasion\s*:/i)[0].trim().replace(/[.;,\s]+$/, "");
+  return ABOUT_PAIR.test(r) ? "" : r.slice(0, FACT_LIMITS.reason);
+};
 
 /** The ruling on side 0 (A) or 1 (B) of an example. `models` are the models' opinions in their order (weakest first), `judge` the judge's when it ruled. Null when nobody said anything. */
 export function ruleSide(models: readonly Opinion[], judge: Opinion | null, side: 0 | 1): Ruling | null {

@@ -1271,3 +1271,11 @@ test("a verdict known without the AI says where it came from, and never leaves a
   expect(applyVerdicts(p, res, [{ cell: "bna", answer: "no" }], false, "learned")).toBe(1);
   expect(res.cells.bna).toMatchObject({ v: "bad", msg: ["Does not fit", ". Example: a gray stone.", "from an earlier check"], by: "claude" });
 });
+
+test("a reason that names the pair's own letters is not kept, since the same category is the other letter in another pair", () => {
+  const said = (say: string): Opinion => ({ name: "m", model: "m", judge: false, cls: "Table", sides: [{ answer: "yes", say }, { answer: "no", say: "it is round" }] });
+  expect(ruleSide([said("a cabinet can be any color; a white one is B")], null, 0)?.reason).toBe("");
+  expect(ruleSide([said("it is in both A and B")], null, 0)?.reason).toBe("");
+  expect(ruleSide([said("A cabinet is furniture")], null, 0)?.reason, "an article is not a letter").toBe("A cabinet is furniture");
+  expect(ruleSide([said("it is a form; pervasion: what is B")], null, 0)?.reason, "the pervasion is left out before").toBe("it is a form");
+});
