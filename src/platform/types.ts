@@ -6,10 +6,11 @@
 
 /** The term data as the page reads it (docs/DATA.md); the types live with the code that reads it. */
 import type { DrillData } from "../ai-shared/data";
-import type { QuorumOffer, QuorumRecord, TutorRequest } from "../ai/protocol";
+import type { Examples } from "../ai-shared/examples";
+import type { KnownFact, KnownRequest, QuorumOffer, QuorumRecord, TutorRequest } from "../ai/protocol";
 import type { Account, AccountView } from "../account/account";
 import type { FlagReport, ReportStatus } from "../report/protocol";
-export type { DrillData, Account, AccountView, FlagReport };
+export type { DrillData, Examples, Account, AccountView, FlagReport };
 
 /** A stored document: a plain JSON object. */
 export type Doc = Record<string, any>;
@@ -125,6 +126,12 @@ export interface TutorResult extends SampleResult {
 export type Tutor = (request: TutorRequest, options?: TutorOptions) => Promise<TutorResult>;
 
 /**
+ * The `known` capability: what the app's server already knows of examples the page could not check (POST /api/known), each as the tutor's line for
+ * its cell. It resolves to an empty list when the server knows nothing, cannot be reached or refuses; it never throws.
+ */
+export type Known = (request: KnownRequest, options?: { signal?: AbortSignal }) => Promise<KnownFact[]>;
+
+/**
  * The `reports` capability: a learner's flag goes to the app's server with the stored answer it was made on
  * (src/report/protocol.ts). The place has it only when its server takes reports and this device has the Magic Key.
  * No method rejects. `send` resolves with the ids the server now holds (fewer than asked when it could not be reached or
@@ -203,12 +210,21 @@ export interface Platform {
   onKey?(tell: () => void | Promise<void>): () => void;
   /** The app's own tutor, or null (or absent) when the place has none or the server has it switched off. The page uses `sample` first when it has one. */
   tutor?(): Promise<Tutor | null>;
+  /** The learned facts of the app's server, or null (or absent) when the place has none, this device has no Magic Key, or the server does not answer from them. */
+  known?(): Promise<Known | null>;
   /** Sending flags to the app's server, or null (or absent) when the place has no server for them or this device lacks the Magic Key (flags then stay on the device). */
   reports?(): Promise<Reports | null>;
   /** Keeps the id of a flag removed while `reports` gave null (offline at the start, no key), so that a later start that has it takes the report back from the server. */
   withdrawReport?(id: string): void;
   /** What the app's server offers this device of Quorum, the tutor's mode of several models and a judge (docs/SERVER.md): "on" (a Preview: on until the device turns it off), "optin" (off until the device turns it on), or false. Absent: the page has no Quorum. */
   quorum?(): Promise<QuorumOffer>;
+  /**
+   * The course's reference examples (the device part, docs/DATA.md), or null (or absent) when this device has none: no key, the
+   * server has none, or they have not arrived yet. They come in the background, after the page started; a later call may have them.
+   */
+  examples?(): Promise<Examples | null>;
+  /** Calls `tell` whenever a newer copy of the examples was kept on the device (they are fetched in the background), so that the page reads `examples` again. Returns the way to stop. */
+  onExamples?(tell: () => void): () => void;
   /** The optional account (a passkey and a server copy of the documents, src/account), or null (or absent) when the place has none. The page works the same without. */
   account?(): Promise<Account | null>;
   /** Which build this is and whether a newer one is out, or null (or absent) when the place has no builds to tell apart (the artifact). */

@@ -24,6 +24,9 @@ const FULL = {
   notes: { form: ["A person is not form; the body is.", "Sound is form."], round: ["Sound is form.", "A ball is round."] },
 };
 
+/** Invented reference examples, as the row `examples` holds them. */
+const EXAMPLES = JSON.stringify({ format: "riglam-examples", version: 2, sources: { MA: { tier: "open" } }, items: [{ n: "a vemo", cls: ["Consciousness"], lv: 2, cf: "confirmed", src: [["MA", "1"]] }] });
+
 /** The open data and the course rows (JSON text) that `full` splits into. */
 function parts(full: typeof FULL = FULL) {
   const p = split(full);
@@ -65,6 +68,17 @@ describe("kitFrom", () => {
     const kit = await kitFrom(open, rows);
     expect(kit.run("classify_example", { thing: "a ball" })).toMatchObject({ found: true, dudra_type: "Form", categories: ["forms", "round things"] });
     expect(kit.run("classify_example", { thing: "a unicorn" })).toEqual({ found: false });
+  });
+
+  it("classifies an example the practice list lacks from the reference examples, and works on without them when the row is not JSON", async () => {
+    const { open, rows } = parts();
+    const kit = await kitFrom(open, { ...rows, examples: EXAMPLES });
+    expect(kit.run("classify_example", { thing: "a ball" })).toMatchObject({ found: true, dudra_type: "Form" });
+    expect(kit.run("classify_example", { thing: "a vemo" })).toMatchObject({ found: true, source: "reference", item: "a vemo", classes: ["Consciousness"], level: 2 });
+    expect(kit.tools.find((t) => t.name === "classify_example")!.description).toMatch(/reference examples/);
+    const without = await kitFrom(open, { ...rows, examples: "SECRET-EX {not json" });
+    expect(without.run("classify_example", { thing: "a vemo" })).toEqual({ found: false });
+    expect(vi.mocked(console.error).mock.calls.flat().join(" ")).not.toContain("SECRET");
   });
 
   it("throws for an unknown tool or an input the tool cannot use, so that the model sees an error result", async () => {
@@ -158,6 +172,19 @@ describe("loadKit", () => {
     const b = await loadKit(env, open, () => t);
     expect(b).not.toBe(a);
     expect(b!.finePoints(["form"]).join(" ")).toContain("NEW-NOTE");
+  });
+
+  it("takes new reference examples without a deployment, and works without that row", async () => {
+    const { open, rows } = parts();
+    const { db, env } = await withRows(rows, "2026-10-13T09:00:00.000Z");
+    let t = 1_000;
+    const a = await loadKit(env, open, () => t);
+    expect(a!.run("classify_example", { thing: "a vemo" })).toEqual({ found: false });
+    await db.d1.prepare("INSERT INTO course_data (kind, body, updated_at) VALUES ('examples', ?1, ?2)").bind(EXAMPLES, "2026-10-14T09:00:00.000Z").run();
+    t += 61_000;
+    const b = await loadKit(env, open, () => t);
+    expect(b).not.toBe(a);
+    expect(b!.run("classify_example", { thing: "a vemo" })).toMatchObject({ found: true, source: "reference" });
   });
 
   it("is null, and says so without quoting any text, when a row is not JSON", async () => {

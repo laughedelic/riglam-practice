@@ -356,13 +356,13 @@ test("Blitz: the stopwatch is in the top bar, the reply has a countdown, and a r
   await expect(sw).toBeVisible();
   await expect(sw).toHaveAttribute("aria-checked", "true");
   await expect(sw).toHaveAttribute("aria-label", "Blitz on: 60 s a syllogism");
-  await expect(page.locator(".pbar .pbt")).toBeVisible();
+  await expect(page.locator("#mbar .mbt")).toBeVisible();
   const c = await draw(page, 3, "witness");
   await say(page, "pervasion");
   await expect(page.locator("#sylex")).toHaveCount(0); // no counter-example against the clock
   await expect(headline(page)).toHaveText("Right.");
   await expect(page.locator(".sylmine")).toHaveCount(0);
-  await expect(page.locator(".pbar .pbt")).toHaveCount(0); // the clock stopped with the reply
+  await expect(page.locator("#mbar .mbt")).toHaveCount(0); // the clock stopped with the reply
   const [doc] = await expect.poll(async () => (await saved(page)).length).toBe(1).then(() => saved(page));
   expect(doc).toMatchObject({ situation: c.situation, said: "pervasion", correct: true, grade: "ok" });
   expect(doc.ms).toBeGreaterThanOrEqual(0);
@@ -372,7 +372,7 @@ test("Blitz: the stopwatch is in the top bar, the reply has a countdown, and a r
   await sw.click();
   await expect(sw).toHaveAttribute("aria-checked", "false");
   await page.locator(".pbar .fwd").click();
-  await expect(page.locator(".pbar .pbt")).toHaveCount(0);
+  await expect(page.locator("#mbar .mbt")).toHaveCount(0);
   await draw(page, 3, "witness");
   await say(page, "pervasion");
   await expect(page.locator("#sylex")).toBeVisible();
@@ -406,7 +406,7 @@ test("Blitz: the countdown stands still behind the practice options and starts a
   await page.waitForTimeout(3600); // longer than the time: nothing is graded behind the sheet
   await expect(page.locator(".sylres")).toHaveCount(0);
   await page.keyboard.press("Escape");
-  await expect(page.locator(".pbar .pbt")).toBeVisible();
+  await expect(page.locator("#mbar .mbt")).toBeVisible();
   await expect(headline(page)).toHaveText("Time is up.", { timeout: 6000 });
 });
 

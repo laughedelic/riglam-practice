@@ -7,7 +7,8 @@ import { $ } from "../core/dom.js";
 // itself (the class `leaving`) that plays the way out and is removed. The times and curves are in 28-menu.css (`--mo`); `MS` is the same time. Nothing moves
 //  - under reduced motion,
 //  - before the first screen has been drawn,
-//  - when the system's own Back (a swipe from the edge, the button) did it: the system has just animated the screen away, a second motion on top of it would be two.
+//  - when the browser animated the Back itself (the swipe from the edge, `hasUAVisualTransition`): it has just animated the screen away, a second motion on top of it would be two.
+//    (A Back it did not animate, the button or the key, plays the panel's own motion like any other close.)
 export const MS=200;
 export const moves=()=>state.motion&&!state.navBack&&!matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -25,7 +26,7 @@ export function enter(node,fresh,{persistent=false}={}){
     if(!moves()) return;
     const at=String(Date.now());
     node.dataset.at=at; node.classList.add("enter");
-    setTimeout(()=>{ if(node.dataset.at===at){ node.classList.remove("enter"); node.style.removeProperty("--ago"); delete node.dataset.at; } },MS+60);
+    setTimeout(()=>{ if(node.dataset.at===at){ node.classList.remove("enter"); node.style.removeProperty("--ago"); delete node.dataset.at; } },MS+400); // (a late first frame must not find the class gone)
   }
   if(!persistent&&node.dataset.at) node.style.setProperty("--ago",-Math.min(Date.now()-(+node.dataset.at),MS)+"ms");
 }
@@ -51,5 +52,5 @@ export function leave(node,placed=false){
   // a copy starts with every list at its top; the way out should show what was on screen
   const was=node.querySelectorAll("*"), now=ghost.querySelectorAll("*");
   was.forEach((n,i)=>{ if(n.scrollTop&&now[i]) now[i].scrollTop=n.scrollTop; });
-  setTimeout(()=>ghost.remove(),MS+60);
+  setTimeout(()=>ghost.remove(),MS+200); // (every way out ends invisible and stays so, so a late first frame still finds the copy)
 }

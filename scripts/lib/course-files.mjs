@@ -1,6 +1,7 @@
 // Reads and writes the term data files for the Node side: the data script, the artifact build and the tests.
 // The open data is committed (src/data/drill-data.json). The course part (definitions and notes) is kept in the
-// git-ignored folder data-private/ and on the server (docs/DATA.md). The format itself is in src/data/course.js.
+// git-ignored folder data-private/ and on the server (docs/DATA.md), and so are the reference examples, when this checkout has them.
+// The formats themselves are in src/data/course.js and src/data/examples.js.
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,6 +13,10 @@ export const files = {
   privateDir: resolve(root, "data-private"),
   definitions: resolve(root, "data-private/definitions.json"),
   notes: resolve(root, "data-private/notes.json"),
+  /** the reference examples as the knowledge base exports them: the server's row `examples` */
+  examples: resolve(root, "data-private/examples.json"),
+  /** the part of them a device with the Magic Key may fetch, made from the other at import: the row `examples_device` */
+  examplesDevice: resolve(root, "data-private/examples-device.json"),
 };
 
 export const readOpen = () => JSON.parse(readFileSync(files.open, "utf8"));
@@ -21,6 +26,18 @@ export const hasCourse = () => existsSync(files.definitions) && existsSync(files
 
 /** Whether data-private/ holds either course file. A checkout with only one of them is not empty: writing over it would lose that file. */
 export const hasAnyCourse = () => existsSync(files.definitions) || existsSync(files.notes);
+
+/** Whether data-private/ holds the reference examples (both parts). They are optional: without them the app has no examples. */
+export const hasExamples = () => existsSync(files.examples) && existsSync(files.examplesDevice);
+
+/** Whether data-private/ holds either part of the examples. */
+export const hasAnyExamples = () => existsSync(files.examples) || existsSync(files.examplesDevice);
+
+/** Both parts of the examples as objects, or null when this checkout has none. */
+export function readExamples() {
+  if (!hasExamples()) return null;
+  return { full: JSON.parse(readFileSync(files.examples, "utf8")), device: JSON.parse(readFileSync(files.examplesDevice, "utf8")) };
+}
 
 /** The two course parts as objects. */
 export function readParts() {
@@ -47,7 +64,7 @@ export function formatOpen(open) {
   return `{\n${lines.join(",\n")}\n}\n`;
 }
 
-function writeIfChanged(path, text) {
+export function writeIfChanged(path, text) {
   if (existsSync(path) && readFileSync(path, "utf8") === text) return false;
   writeFileSync(path, text);
   return true;
