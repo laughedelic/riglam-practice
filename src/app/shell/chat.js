@@ -79,6 +79,11 @@ export function renderOver(){
   const kind=state.optsOpen?"options":ask?"skip":sess?"session":"chat", show=state.optsOpen||ask||sess||!!chat, was=!o.hidden&&o.dataset.kind===kind;
   o.replaceChildren(); o.hidden=!show; o.dataset.kind=kind; o.setAttribute("aria-label",{options:"Settings",session:"Practice options",skip:"Skip this pair?",chat:"Discuss with AI"}[kind]);
   document.documentElement.classList.toggle("ov",show);
+  // A dialog (the question before a skip, the practice options, the phone's chat) is a modal: the exercise and its bars behind it cannot be reached by the keyboard
+  // or a screen reader until it closes (Enter on a Check button hidden behind the question would grade the pair). Settings is a screen, and the menu stays: moving
+  // to another screen from it closes the dialog like any other move (setTab).
+  const modal=show&&kind!=="options";
+  for(const n of /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll("#app > .col > :not(#over)"))) n.inert=modal;
   if(!show) return;
   if(kind==="options") optionsInto(o); else if(kind==="session") sessionInto(o); else if(kind==="skip") skipInto(o); else chatInto(o,!was);
   const sc=$("chatscroll"); if(sc) sc.scrollTop=0;

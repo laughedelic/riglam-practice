@@ -103,6 +103,30 @@ test("a skip after part of a pair is answered asks first; Keep going keeps what 
   expect(await page.evaluate(() => Object.keys(window.__t.skips).length)).toBe(0);
 });
 
+
+test("behind the question before a skip the exercise cannot be reached by the keyboard; Escape gives it back", async ({ page }, testInfo) => {
+  await page.addInitScript(hook);
+  await page.goto("/");
+  await ready(page);
+  await pickRight(page);
+  await typeFirst(page, testInfo);
+  await bar(page).locator(".skipw").click();
+  const dlg = page.getByRole("alertdialog");
+  await expect(dlg.getByRole("button", { name: "Keep going" })).toBeFocused();
+  const behind = page.locator("#app > .col > main.work");
+  await expect(behind).toHaveJSProperty("inert", true);
+  await expect(page.locator("#app > .col > header.mbar")).toHaveJSProperty("inert", true);
+  // Shift+Tab and Tab go round the question (and out to the browser's controls), never to the Check or Skip button behind it
+  for (let i = 0; i < 8; i++) {
+    await page.keyboard.press(i % 2 ? "Tab" : "Shift+Tab");
+    expect(await page.evaluate(() => !!document.activeElement.closest("main.work, header.mbar"))).toBe(false);
+  }
+  await page.keyboard.press("Escape");
+  await expect(dlg).toBeHidden();
+  await expect(behind).toHaveJSProperty("inert", false);
+  await expect(page.locator("#app > .col > header.mbar")).toHaveJSProperty("inert", false);
+});
+
 test("a pair only drawn is skipped at once, with the note and Undo and no question", async ({ page }) => {
   await page.addInitScript(hook);
   await page.goto("/");
