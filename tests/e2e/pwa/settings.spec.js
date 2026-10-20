@@ -242,3 +242,21 @@ test("Settings chosen in the menu while the practice options are open replaces t
   await page.keyboard.press("Escape");
   await expect(page.locator("#over")).toBeHidden();
 });
+
+test("behind Settings the exercise cannot be reached by the keyboard; the menu still can", async ({ page }, testInfo) => {
+  await page.goto("/");
+  await ready(page);
+  await openSettings(page);
+  await expect(page.locator("#over")).toHaveAttribute("data-kind", "options");
+  await expect(page.locator("#app > .col > main.work")).toHaveJSProperty("inert", true);
+  await expect(page.locator("#app > .col > header.mbar")).toHaveJSProperty("inert", true);
+  await expect(page.locator("#menu")).toHaveJSProperty("inert", false);
+  // Tab and Shift+Tab never land on the Check or Skip button under it (Enter there would grade the pair)
+  for (let i = 0; i < 12; i++) {
+    await page.keyboard.press(i % 3 ? "Tab" : "Shift+Tab");
+    expect(await page.evaluate(() => !!document.activeElement.closest("main.work, header.mbar"))).toBe(false);
+  }
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#over")).toBeHidden();
+  await expect(page.locator("#app > .col > main.work")).toHaveJSProperty("inert", false);
+});

@@ -5,7 +5,7 @@
 import { test, expect } from "@playwright/test";
 import { dataKey, serveCourse, withCourse } from "../../support/data-key.js";
 import { testMagicKey } from "../../support/magic-key.ts";
-import { ready, overflow, relOptions, isPhone, openSettings } from "../../support/page.js";
+import { ready, overflow, relOptions, isPhone, openMenu, openSettings } from "../../support/page.js";
 import { readFull } from "../../../scripts/lib/course-files.mjs";
 import { LOCKED_TEXT } from "../../../src/data/course.js";
 
@@ -67,6 +67,19 @@ test("Options has a Magic Key row that opens the prompt, and the prompt says wha
   await page.getByRole("button", { name: "Close" }).click();
   await expect(dlg).toBeHidden();
   await openPrompt(page); // and again
+});
+
+// The prompt is a native dialog and closes itself on Escape; the phone's menu it was opened from stays, with the focus to return to.
+test("Escape in the prompt closes only the prompt: the phone's menu stays under it", async ({ page }, testInfo) => {
+  test.skip(!isPhone(testInfo), "a wide screen's pinned menu does not close on Escape anyway");
+  await page.goto("/");
+  await ready(page);
+  await openMenu(page);
+  await page.locator("#menu .keyb").click(); // the key button of the drawer
+  await expect(page.locator("#unlock")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#unlock")).toBeHidden();
+  await expect(page.locator("#menu")).toBeVisible();
 });
 
 test("the prompt fits the screen and the page behind it does not scroll sideways", async ({ page }) => {

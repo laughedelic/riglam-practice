@@ -314,6 +314,22 @@ withKey("on a wide screen the error and a follow-up answer appear in the coach p
   expect(await overflow(page)).toBeLessThanOrEqual(0);
 });
 
+// The chat button opens the panel once the pair is checked; the field for a question is there before Explain has started a conversation, as in the phone's drawer.
+withKey("on a wide screen the chat button of a checked pair opens the panel with the follow-up field", async ({ page }, testInfo) => {
+  test.skip(isPhone(testInfo), "the phone's drawer has the field already (the chat drawer spec above)");
+  const asked = await server(page);
+  await page.goto("/");
+  await ready(page);
+  await relOptions(page).first().click();
+  await page.locator("#stage .pbar .fwd").click(); // Check, with the cells left empty
+  await page.locator("#mchat").click();
+  await expect(page.locator("#coach #ask-in")).toBeVisible();
+  await page.fill("#ask-in", "Why not?");
+  await page.keyboard.press("Enter");
+  await expect(page.getByText("this is the stand-in answer.")).toBeVisible();
+  expect(asked).toHaveLength(1);
+});
+
 // A device without the Magic Key still sees Explain when the server has a tutor: grayed, and a tap says what it needs.
 plain("without the Magic Key Explain is there, grayed, and opens the Magic Key prompt; with the server's tutor off it is not there", async ({ page }, testInfo) => {
   test.skip(!isPhone(testInfo), "the answer flow is exercised in the phone layout");
