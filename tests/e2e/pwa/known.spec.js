@@ -126,6 +126,18 @@ withKey("an example too long for the server is left out of the question, and the
   expect(examples.every((e) => e.text.length <= 200 && e.text !== long)).toBe(true);
 });
 
+withKey("Explain tapped while the lookup is pending asks nothing once the learner has gone on to the next pair", async ({ page }, testInfo) => {
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const asked = await open(page, testInfo, { known: async () => { await gate; return { status: 200, body: { known: [] } }; } });
+  await expect.poll(() => asked.known.length).toBe(1);
+  await explain(page).click();
+  await page.getByRole("button", { name: /next pair/i }).click();
+  await page.waitForTimeout(4500); // past the lookup's own wait (4 s), after which the question would have gone out
+  release();
+  expect(asked.tutor).toHaveLength(0);
+});
+
 withKey("a server that knows nothing, refuses or does not say it answers leaves the examples to the tutor, as before", async ({ page }, testInfo) => {
   const asked = await open(page, testInfo, { known: () => ({ status: 503, body: { error: { code: "unavailable" } } }) });
   await expect.poll(() => asked.known.length).toBe(1);
