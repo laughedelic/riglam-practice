@@ -1,8 +1,9 @@
 import { state } from "../state.js";
 import { el } from "../core/dom.js";
 import { isWide } from "../core/viewport.js";
+import { canAsk } from "../core/ask.js";
 import { next } from "../practice/queue.js";
-import { kbHints } from "../practice/screen.js";
+import { kbHints, renderTutor, tutorAct, tutorItem } from "../practice/screen.js";
 import { pairBar } from "../shell/pbar.js";
 import { ago } from "../shell/render.js";
 import { REPLIES, syllogismPieces } from "../../domain/syllogism.ts";
@@ -57,7 +58,7 @@ function result(){
   const u=state.ui, c=shownSyllogism(), g=u.grade, first=(CHECKS.find(([k])=>!c.checks[k].ok)||[])[0];
   return [
     el("div",{class:"verdict sylres "+u.overall},
-      el("p",{class:"vl"},el("span",{class:"v",text:g.correct?u.overall==="part"?"Right, but the counter-example is not one.":"Right.":u.timeout?"Time is up.":"Not quite."})),
+      el("p",{class:"vl"},el("span",{class:"v",text:g.correct?u.overall==="part"?"Right, but the counter-example is not one.":"Right.":u.timeout?"Time is up.":"Not quite."}),tutorAct()),
       g.correct?null:el("p",{class:"sylwhat"},(g.said?"You said “"+SAID[g.said]+"”. ":"")+"The right reply is “"+SAID[g.expected]+"”."),
       g.correct||!g.confusion?null:el("p",{class:"sylconf",text:g.confusion})),
     el("ol",{class:"sylchecks","aria-label":"The three checks, in the order they are made"},CHECKS.map(([k,label,yes,no],i)=>
@@ -69,6 +70,12 @@ function result(){
           // the learner's counter-example is judged under the pervasion it is about, after the line that says the pervasion fails
           k==="v"&&u.ex?el("p",{class:"sylmine"},el("span",{class:"m "+(u.ex.v==="ok"?"ok":u.ex.v==="bad"?"bad":"cmp"),"aria-hidden":"true",text:{ok:"✓",bad:"✗",cmp:"?"}[u.ex.v]}),el("b",{text:"Your counter-example: "}),u.ex.text+". "+u.ex.line):null))))
   ];
+}
+
+// the tutor's explanation under the checks on a narrow screen (on a wide one it is in the panel at the right); follow-up questions go to the chat view
+function explanation(){
+  const t=tutorItem(); if(!t) return [];
+  return [el("div",{class:"sylwhy"},el("p",{class:"label"},"Tutor"),t.body())];
 }
 
 // the last answers, newest first, in the panel at the right of a wide screen
@@ -87,9 +94,10 @@ export function renderSyllogism(s,c){
   if(u.step===0) card.append(replies());
   if(u.step===1) card.append(exampleStep(k));
   s.append(card);
-  if(u.checked) s.append(...result(),...(u.saveErr?[el("p",{class:"status",text:u.saveErr})]:[]));
+  if(u.checked) s.append(...result(),...(explanation()),...(u.saveErr?[el("p",{class:"status",text:u.saveErr})]:[]));
   s.append(pairBar(u.checked?{label:"Next",hint:"N",onclick:()=>next()}:u.step===1?{label:"Check",onclick:()=>exampleSyllogism()}:null));
   if(!w||!state.coachOpen) return;
+  if(u.chat||u.chatErr||(u.checked&&canAsk())) c.append(el("p",{class:"label"},"Tutor"),renderTutor());   // a checked syllogism has the follow-up field even before the first question, as on a phone
   recent(c);
   c.append(kbHints(...(u.checked?[["N","next syllogism"]]
     :u.step===1?[["Enter","check"],["Esc","back"],["S","skip"]]

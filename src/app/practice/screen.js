@@ -225,8 +225,9 @@ function askAfterKey(){
 }
 export const explainBtn=()=>{
   // a pair of one's own that Claude has not judged (Find a pair) can be asked again
-  if(!state.ui.checked||(state.ui.explained&&!state.ui.res.relOpen)||state.ui.ctl) return null;
-  if(canAsk()) return el("button",{class:"btn ghost xpl",type:"button",onclick:()=>ask(null,"explain"),text:state.ui.explained?"Ask again":state.ui.res.exOpen||state.ui.res.relOpen?"Check and explain":"Explain"});
+  const r=/** @type {any} */(state.ui.res)||{};   // Syllogisms have no result of cells
+  if(!state.ui.checked||(state.ui.explained&&!r.relOpen)||state.ui.ctl) return null;
+  if(canAsk()) return el("button",{class:"btn ghost xpl",type:"button",onclick:()=>ask(null,"explain"),text:state.ui.explained?"Ask again":r.exOpen||r.relOpen?"Check and explain":"Explain"});
   // The server has a tutor but this device has no Magic Key: the button is there, grayed, and says what it needs when tapped.
   if(state.unlock&&state.unlock.tutor) return el("button",{class:"btn ghost xpl needs-key",type:"button","aria-disabled":"true",title:"Explain needs the Magic Key",onclick:askAfterKey},lockIcon(),"Explain");
   return null;
@@ -319,7 +320,7 @@ export function cellView(s){
 const CELL_LN=/^[-•*\s]*(?:\*\*)?(?:both|a not b|b not a|neither|q[1-4])(?:\*\*)?\s*:/i;
 const REL_LN=/^[-•*\s]*(?:\*\*)?(?:common locus|pervasion|relation)(?:\*\*)?\s*:/i;
 export function fillTurn(node,t,lean){
-  if(!lean||t.kind!=="explain"||!t.content){ fillAns(node,t.content); return; }
+  if(!lean||t.kind!=="explain"||!t.content||(state.ui&&state.ui.syllogism)){ fillAns(node,t.content); return; }   // Syllogisms have no marks that show part of it
   const raw=String(t.content), lines=raw.split("\n");
   if(t.pending&&!/\n\s*$/.test(raw)) lines.pop();           // the last line may still be growing
   const wrong=!!(state.ui&&state.ui.res&&(state.ui.res.overall==="bad"||state.ui.res.overall==="part"||state.ui.res.relOpen)); // a pair Claude has not judged is not "right" either

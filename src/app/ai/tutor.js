@@ -10,6 +10,7 @@ import { render, renderKeepFocus } from "../shell/render.js";
 import { cardBody, explainAsk, tutorCard } from "../../ai-shared/card.ts";
 import { noteCats } from "../../ai-shared/lookup.ts";
 import { tutorTools } from "../../ai-shared/tools.ts";
+import { askSyllogism } from "../syllogism/tutor.js";
 import { VERDICT_RE, applyRelationVerdict, applyVerdicts, parseFactLine, parseRelationVerdict, parseVerdicts } from "../../domain/verdict.ts";
 
 const TIER="default";
@@ -40,6 +41,7 @@ export function explainByItself(U){
   ask(null,"explain",true);
 }
 export async function ask(text,kind,byItself){
+  if(state.ui&&state.ui.syllogism) return askSyllogism(text,kind,byItself);   // Syllogisms have their own card (syllogism/tutor.js)
   const U=state.ui, C=state.cur;                       // the pair this question belongs to, even if you switch tabs meanwhile
   if(!canAsk()||!U||U.ctl) return;
   const p=C.p, direct=!!state.sample;                  // the host's own model call, or else the app's server
@@ -103,7 +105,7 @@ function budgetCopy(e){
   }
   return lead+when+" Everything else in the app keeps working.";
 }
-function errCopy(e){
+export function errCopy(e){
   const c=e&&e.code;
   if(c==="cancelled") return "";
   if(c==="offline") return "No connection. The tutor needs the internet; try again when you are back online.";

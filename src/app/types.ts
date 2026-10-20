@@ -103,6 +103,8 @@ export interface SyllogismDoc {
   wording: Wording;
   /** the counter-example offered after a right "there is no pervasion", and how the page judged it */
   example?: { text: string; verdict: "ok" | "bad" | "cmp" };
+  /** the tutor's explanation, kept with the answer */
+  explain?: string;
   at: string;
 }
 
