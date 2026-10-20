@@ -20,20 +20,20 @@ async function fillCells(pg){
  const rel=await pg.evaluate(()=>window.__t.cur.p.relation);
  ok('Relations tab: the Blitz icon is in the top bar',await pg.locator('#mbz').isVisible());
  ok('Blitz is off at first: the bolt is an outline named "Blitz off", no number',(await pg.locator('#mbz').getAttribute('aria-checked'))==='false'&&await pg.locator('#mbz').getAttribute('aria-label')==='Blitz off'&&!/\d/.test(await pg.locator('#mbz').innerText()),await pg.locator('#mbz').innerText());
- ok('Relations tab, Blitz off: no countdown bar on the pair bar',await pg.locator('#stage .pbar .pbt').count()===0);
+ ok('Relations tab, Blitz off: no countdown bar under the top bar',await pg.locator('#mbar .mbt').count()===0);
  await pg.click('#mbz'); await pg.waitForTimeout(150);
  ok('Relations tab: the icon switches Blitz on',(await pg.locator('#mbz').getAttribute('aria-checked'))==='true');
- ok('Relations tab, Blitz on: a countdown bar runs along the top edge of the pair bar; the seconds are in the switch name',await pg.locator('#stage .pbar .pbt').count()===1&&/Blitz on: \d+ s relation, \d+ s example/.test(await pg.locator('#mbz').getAttribute('aria-label')),await pg.locator('#mbz').getAttribute('aria-label'));
+ ok('Relations tab, Blitz on: a countdown bar runs along the lower edge of the top bar; the seconds are in the switch name',await pg.locator('#mbar .mbt').count()===1&&/Blitz on: \d+ s relation, \d+ s example/.test(await pg.locator('#mbz').getAttribute('aria-label')),await pg.locator('#mbz').getAttribute('aria-label'));
  ok('countdown started for the relation pick',await pg.evaluate(()=>!!window.__t.ui.tq&&!window.__t.ui.late));
  await pg.screenshot({path:D+'v49-relcount.png'});
  // one state across both tabs
  await go(pg,'Pervasions'); await pg.waitForTimeout(150);
  ok('Questions tab: same switch, still on',(await pg.locator('#mbz').getAttribute('aria-checked'))==='true'&&await pg.locator('#mbz').isVisible());
- ok('Questions tab: the question timer bar shows on the pair bar (Blitz on)',await pg.locator('#stage .pbar .pbt').count()===1);
+ ok('Questions tab: the question timer bar shows under the top bar (Blitz on)',await pg.locator('#mbar .mbt').count()===1);
  await pg.click('#mbz'); await pg.waitForTimeout(100);
- ok('Questions tab: switching off removes the bar',await pg.locator('#stage .pbar .pbt').count()===0&&(await pg.locator('#mbz').getAttribute('aria-checked'))==='false');
+ ok('Questions tab: switching off removes the bar',await pg.locator('#mbar .mbt').count()===0&&(await pg.locator('#mbz').getAttribute('aria-checked'))==='false');
  await go(pg,'Relations'); await pg.waitForTimeout(150);
- ok('Relations tab: Blitz stays off after switching it off on Questions',(await pg.locator('#mbz').getAttribute('aria-checked'))==='false'&&await pg.locator('#stage .pbar .pbt').count()===0);
+ ok('Relations tab: Blitz stays off after switching it off on Questions',(await pg.locator('#mbz').getAttribute('aria-checked'))==='false'&&await pg.locator('#mbar .mbt').count()===0);
  await pg.click('#mbz'); await pg.waitForTimeout(100);
  const sumR=await setSecs(pg,2,'Relation time');
  ok('seconds edited on the Blitz times page: relation 2 s, stored as the relation time only',sumR==='Relation 2 s · Example 10 s'&&await pg.evaluate(()=>localStorage.getItem('rd-timer-rel'))==='2000'&&await pg.evaluate(()=>localStorage.getItem('rd-timer'))===null,sumR);
@@ -47,7 +47,7 @@ async function fillCells(pg){
  const ph=await pg.evaluate(()=>({tph:window.__t.ui.tph,late:window.__t.ui.late,lim:window.__t.ui.tq&&window.__t.ui.tq.limit}));
  ok('a pick in time starts the examples countdown with the examples time (10 s, not the relation time): seconds times the number of examples',ph.tph==='ex'&&!ph.late&&ph.lim===10000*n1,ph);
  const sumE=await setSecs(pg,2,'Example time');
- ok('the cell card shows the countdown bar, n × 2 s in all, after editing the example time; the relation time stays 2 s',await pg.locator('#stage .pbar .pbt').count()===1&&sumE==='Relation 2 s · Example 2 s'&&await pg.evaluate(()=>localStorage.getItem('rd-timer'))==='2000'&&await pg.evaluate(()=>localStorage.getItem('rd-timer-rel'))==='2000'&&await pg.evaluate(n=>window.__t.ui.tq.limit===2000*n,n1),sumE);
+ ok('the cell card shows the countdown bar, n × 2 s in all, after editing the example time; the relation time stays 2 s',await pg.locator('#mbar .mbt').count()===1&&sumE==='Relation 2 s · Example 2 s'&&await pg.evaluate(()=>localStorage.getItem('rd-timer'))==='2000'&&await pg.evaluate(()=>localStorage.getItem('rd-timer-rel'))==='2000'&&await pg.evaluate(n=>window.__t.ui.tq.limit===2000*n,n1),sumE);
  await pg.screenshot({path:D+'v49-excount.png'});
  await rings0(pg,'phone examples countdown');
  await fillCells(pg);
@@ -66,7 +66,7 @@ async function fillCells(pg){
  const n2=cellsOf(lt.right);
  ok('pick time up: the right relation is set, marked late, not checked, examples countdown running',lt.late&&lt.rel===lt.right&&!lt.checked&&lt.tph==='ex'&&lt.lim===2000*n2,lt);
  ok('pick time up: the heading says time ran out',/time ran out/i.test(await pg.locator('.head .subrow').innerText()),await pg.locator('.head .subrow').innerText());
- ok('pick time up: the cell field is focused, the countdown bar shows',await pg.evaluate(()=>document.activeElement&&document.activeElement.id==='cin')&&await pg.locator('#stage .pbar .pbt').count()===1);
+ ok('pick time up: the cell field is focused, the countdown bar shows',await pg.evaluate(()=>document.activeElement&&document.activeElement.id==='cin')&&await pg.locator('#mbar .mbt').count()===1);
  await pg.screenshot({path:D+'v49-late.png'});
  await rings0(pg,'phone, after time up');
  ok('late pick cannot be changed from the steps bar',await pg.evaluate(()=>{const b=document.querySelector('#steps button, #steps [role=button]'); return true;}));
@@ -118,7 +118,7 @@ async function fillCells(pg){
  // changing the seconds restarts the examples clock with the new total
  await setSecs(pg,4,'Example time');
  ok('changing the seconds restarts the examples countdown with the new total',await pg.evaluate(n=>window.__t.ui.tq&&window.__t.ui.tq.limit===4000*n,n5));
- ok('turning Blitz off on the examples step removes the bar and the clock',await (async()=>{ await pg.click('#mbz'); await pg.waitForTimeout(150); return await pg.locator('#stage .pbar .pbt').count()===0&&await pg.evaluate(()=>!window.__t.ui.tq&&!window.__t.ui.tid); })());
+ ok('turning Blitz off on the examples step removes the bar and the clock',await (async()=>{ await pg.click('#mbz'); await pg.waitForTimeout(150); return await pg.locator('#mbar .mbt').count()===0&&await pg.evaluate(()=>!window.__t.ui.tq&&!window.__t.ui.tid); })());
  await pg.waitForTimeout(500);
  ok('phone: no page errors',errs.filter(e=>!/fonts|ERR_|proxy/i.test(e)).length===0,errs);
  // review lines
@@ -183,7 +183,7 @@ async function fillCells(pg){
  // 320 px overflow
  ({br,pg,errs}=await open({width:320,height:640},{isMobile:true,hasTouch:true}));
  await pg.click('#mbz'); await pg.waitForTimeout(100);
- const ov1=await pg.evaluate(()=>({sw:document.documentElement.scrollWidth,iw:window.innerWidth,bar:document.querySelector('#stage .pbar .pbt').getBoundingClientRect().right<=window.innerWidth}));
+ const ov1=await pg.evaluate(()=>({sw:document.documentElement.scrollWidth,iw:window.innerWidth,bar:document.querySelector('#mbar .mbt').getBoundingClientRect().right<=window.innerWidth}));
  ok('320 px Relations with Blitz: no horizontal overflow, countdown inside',ov1.sw<=ov1.iw&&ov1.bar,ov1);
  await pg.screenshot({path:D+'v49-320-rel.png'});
  await go(pg,'Pervasions'); await pg.waitForTimeout(100);
@@ -197,13 +197,13 @@ async function fillCells(pg){
  ({br,pg,errs}=await open({width:1280,height:800}));
  ok('wide Relations: Blitz switch in the top bar (shared with the Questions tab)',await pg.locator('#mbz').count()===1&&await pg.locator('#mbz').isVisible());
  await pg.locator('#mbz').click(); await pg.waitForTimeout(150);
- ok('wide Relations: Blitz on shows the countdown bar on the pair bar',await pg.locator('#stage .pbar .pbt').count()===1&&await pg.evaluate(()=>!!window.__t.ui.tq));
+ ok('wide Relations: Blitz on shows the countdown bar under the top bar',await pg.locator('#mbar .mbt').count()===1&&await pg.evaluate(()=>!!window.__t.ui.tq));
  await pg.screenshot({path:D+'v49-wide-rel.png'});
  await setSecs(pg,2,'Relation time');
  ok('wide: the relation time is 2 s, the examples time untouched',await pg.evaluate(()=>localStorage.getItem('rd-timer-rel'))==='2000'&&await pg.evaluate(()=>localStorage.getItem('rd-timer'))===null);
  const wrel=await pg.evaluate(()=>window.__t.cur.p.relation);
  await pg.waitForTimeout(2500);
- const wl=await pg.evaluate(()=>({late:window.__t.ui.late,rel:window.__t.ui.rel,right:window.__t.cur.p.relation,cap:document.querySelector('.cap')&&document.querySelector('.cap').innerText,tph:window.__t.ui.tph,row:!!document.querySelector('#stage .pbar .pbt')}));
+ const wl=await pg.evaluate(()=>({late:window.__t.ui.late,rel:window.__t.ui.rel,right:window.__t.cur.p.relation,cap:document.querySelector('.cap')&&document.querySelector('.cap').innerText,tph:window.__t.ui.tph,row:!!document.querySelector('#mbar .mbt')}));
  ok('wide: pick time up sets the right relation, the caption says so, the examples countdown shows',wl.late&&wl.rel===wl.right&&/Time ran out/.test(wl.cap||'')&&wl.tph==='ex'&&wl.row,wl);
  await pg.screenshot({path:D+'v49-wide-late.png'});
  await setSecs(pg,2,'Example time');

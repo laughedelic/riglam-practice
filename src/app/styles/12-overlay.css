@@ -13,9 +13,9 @@
 .chat .tutor{border-top:0;padding-top:0}
 .dock{flex:none;padding:10px 0;border-top:1.5px solid var(--ink);background:var(--paper)}
 /* the tutor's chat on a narrow screen: a drawer from the right behind a scrim, the mirror of the menu (src/app/shell/chat.js); its close button is where the chat button was */
-.over[data-kind="chat"]{flex-direction:row;padding:0;background:transparent}
-.over[data-kind="chat"] .scrim{min-width:40px;min-height:0}
-.cdrawer{display:flex;flex-direction:column;flex:none;min-height:0;width:min(420px,calc(100% - 40px));padding-inline:16px;background:var(--paper);border-left:1.5px solid var(--ink);box-shadow:-6px 0 0 rgba(20,16,12,.16)}
+.over[data-kind="chat"]{flex-direction:row;justify-content:flex-end;padding:0;background:transparent}
+.over[data-kind="chat"] .scrim{position:absolute;inset:0;flex:none;min-width:0;min-height:0}   /* the shade is the whole screen under the drawer, so it fades as one thing while the drawer slides */
+.cdrawer{position:relative;display:flex;flex-direction:column;flex:none;min-height:0;width:min(420px,calc(100% - 40px));padding-inline:16px;background:var(--paper);border-left:1.5px solid var(--ink);box-shadow:-6px 0 0 rgba(20,16,12,.16)}
 .cdrawer .oh{justify-content:space-between}
 .cdrawer .oh .oc{margin:0 -12px 0 0}
 .dock .ask input{font-size:16px}
