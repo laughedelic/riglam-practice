@@ -15,7 +15,8 @@ export function renderSyllogismStats(s){
   if(!all.length) return;
   const right=all.filter(a=>a.correct).length;
   const rows=REPLIES.map(r=>{ const xs=all.filter(a=>a.answer===r); return [r,xs.length,xs.filter(a=>a.correct).length]; });
-  const given=all.filter(a=>a.example), shown=given.filter(a=>a.example.verdict==="ok").length;
+  // a counter-example the page could not place ("not checked") is neither one nor not one: it stays out of the row, as an unjudged example does in Find a pair
+  const given=all.filter(a=>a.example&&a.example.verdict!=="cmp"), shown=given.filter(a=>a.example.verdict==="ok").length;
   // what was said instead of what was right, the most frequent first
   const mix={};
   for(const a of all) if(!a.correct) mix[a.said+">"+a.answer]=(mix[a.said+">"+a.answer]||0)+1;
