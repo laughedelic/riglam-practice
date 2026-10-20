@@ -13,12 +13,16 @@ export { FEATURE, RECENT_MAX, buildPool, cellsFor, chooseEntry, inUniverse, judg
 export type { Clock, DrawState, Rng } from "./universe";
 export { cap, gradeOf, isMiss, pick } from "./util";
 export { NAME_CELL, VERDICT_RE, applyRelationVerdict, applyVerdicts, factNote, fitOf, noteParts, parseFactLine, parseRelationVerdict, parseVerdicts, partsText, placeFacts } from "./verdict";
-export type { Answer, CellVerdict, FactLine, NoteData, NotePart, RelationVerdict, Side, Terms } from "./verdict";
+export type { Answer, CellVerdict, FactLine, NoteData, NotePart, RelationVerdict, Side, Terms, VerdictSource } from "./verdict";
 export { FIND_RELS, drawRelation, findId, findPair, gradeFind, nameThing, sameThing } from "./find";
 export type { Named } from "./find";
 export { cellFor, cellOfFacts, disputeText, divided, quorumDisputes, quorumRows, readings } from "./quorum";
 export type { Dispute, QuorumAnswer, QuorumRow, QuorumThing, Reading } from "./quorum";
 export { catChain, knownClass, listedItem, rung, termPhrase } from "./ladder";
 export type { Rung } from "./ladder";
+export { FACTS_EPOCH, FACT_LIMITS, factKey, knownLine, learn, opinionOf, ruleSide, servable } from "./learned";
+export { failsCell, openExamples, referenceLines, wholeFirst } from "./known";
+export type { KnownLine, OpenExample } from "./known";
+export type { FactRow, FactSource, FactState, Opinion, Ruling, Strength } from "./learned";
 export { DRAWN, drawable, examplesFor, placeByClass } from "./reference";
 export type { Placement } from "./reference";

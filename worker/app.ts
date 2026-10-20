@@ -2,6 +2,7 @@
 //   GET  /api/health   are the tutor and the accounts on? (no sign-in)
 //   GET  /api/course   the definitions, for a device that has the Magic Key (src/ai/magic-key.ts)
 //   GET  /api/course/examples  the reference examples a device may keep, for a device that has the Magic Key
+//   POST /api/known    what the server already knows of examples the page could not check (learned facts, worker/learned.ts), where it is set to
 //   POST /api/tutor    one tutor question; the answer comes back as server-sent events (src/ai/protocol.ts). On a Preview an explain question may ask
 //                      for Quorum, several models and a judge (worker/quorum.ts)
 //   /api/account/*     optional accounts, signed in with a passkey (worker/accounts.ts)
@@ -13,19 +14,20 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import { API, HEADER, LIMITS, type BudgetScope, type CourseResponse, type ErrorCode, type ExamplesResponse, type Health, type TutorEvent } from "../src/ai/protocol";
+import { API, HEADER, LIMITS, QUORUM, type BudgetScope, type CourseResponse, type ErrorCode, type ExamplesResponse, type Health, type KnownResponse, type TutorEvent } from "../src/ai/protocol";
 import { accountRoutes, accountsOn } from "./accounts";
 import { adminRoutes } from "./admin";
 import { dayOf, prune, reserve, settle, tutorSwitchedOn, type Pool } from "./budget";
-import { readConfig, readQuorumConfig } from "./config";
+import { readConfig, readFactsConfig, readQuorumConfig } from "./config";
 import { readCourseRow, readCourseRows, usableDefinitions, usableRow } from "./course";
 import type { Env } from "./env";
 import type { Kit } from "./kit";
 import { callerOf, gate, magicKeyOf, type Gate } from "./magic";
+import { keepFacts, knownFacts, type Analysis } from "./learned";
 import { reportRoutes, reportsOn } from "./reports";
 import { runQuorum, saveRecord } from "./quorum";
 import { syncRoutes } from "./sync";
-import { parseRequest, runTutor } from "./tutor";
+import { parseKnown, parseRequest, runTutor } from "./tutor";
 
 export interface Deps {
   now?: () => Date;
@@ -36,6 +38,9 @@ export interface Deps {
   /** makes the kit for a request, or null when the tutor cannot run */
   kit: (env: Env) => Promise<Kit | null>;
 }
+
+/** A POST /api/known body: eight examples of 200 characters and two ids, with room to spare */
+const KNOWN_BODY = 8_000;
 
 const STATUS: Record<ErrorCode, 400 | 401 | 413 | 429 | 503> = { bad_request: 400, not_granted: 401, prompt_too_large: 413, rate_limited: 429, refused: 503, unavailable: 503 };
 
@@ -79,6 +84,7 @@ export function createApp(deps: Deps) {
       accounts: (await accountsOn(c.env.DB)) ? "on" : "off",
       reports: (await reportsOn(c.env.DB)) ? "on" : "off",
       ...(tutor && offered.on ? { quorum: offered.optIn ? ("optin" as const) : ("on" as const) } : {}),
+      ...(tutor && readFactsConfig(c.env).serve ? { known: "on" as const } : {}),
     };
     return c.json(body, 200, { "cache-control": "no-store" });
   });
@@ -108,6 +114,33 @@ export function createApp(deps: Deps) {
     return new Response(`{"version":${JSON.stringify(row.at)},"examples":${row.body}}`, { headers });
   });
 
+  // What the learned facts answer of the examples the page could not check: no model call, so no budget, but the Magic Key as for the tutor.
+  app.post(API.known, async (c) => {
+    const env = c.env;
+    if (Number(c.req.header("content-length") ?? 0) > KNOWN_BODY) return fail("prompt_too_large", "the request is too large");
+    const checked = await gate(env, now(), await callerOf(c.req.header("cf-connecting-ip")), c.req.header(HEADER.device) ?? "", c.req.header(HEADER.proof) ?? "");
+    if (!checked.ok) return refusal(checked, "the proof does not match");
+    if (!readFactsConfig(env).serve || !env.DB) return fail("unavailable", "this server does not answer from learned facts");
+    let body: unknown;
+    try {
+      const text = await c.req.text();
+      if (text.length > KNOWN_BODY) return fail("prompt_too_large", "the request is too large");
+      body = JSON.parse(text);
+    } catch {
+      return fail("bad_request", "the body is not JSON");
+    }
+    const parsed = parseKnown(body);
+    if (!parsed.ok) return fail("bad_request", parsed.message);
+    const kit = await deps.kit(env).catch(() => null);
+    if (!kit) return fail("unavailable", "the server has no data");
+    const known = await knownFacts(env.DB, { kit, ...parsed.request }).catch((e) => {
+      console.error("known facts not read", e instanceof Error ? e.name : typeof e);
+      return null;
+    });
+    if (!known) return fail("unavailable", "the learned facts cannot be read just now");
+    return c.json({ known } satisfies KnownResponse, 200, { "cache-control": "no-store" });
+  });
+
   app.post(API.tutor, async (c) => {
     const env = c.env;
     const length = Number(c.req.header("content-length") ?? 0);
@@ -135,6 +168,7 @@ export function createApp(deps: Deps) {
 
     const config = readConfig(env);
     const quorum = readQuorumConfig(env);
+    const facts = readFactsConfig(env);
     const when = now();
     const day = dayOf(when);
     // An explain question that asks for Quorum gets it where the server offers it and Quorum's budget has room; otherwise it is the one model's, as ever.
@@ -173,15 +207,36 @@ export function createApp(deps: Deps) {
           await stream.writeSSE({ event: e.type, data: JSON.stringify(e) });
         };
         if (single) await emit({ type: "single", why: "budget" }).catch(() => {});
+        // the answers, for the learned facts: the one model's final text (a round that ends in a lookup starts it again), or every usable call of a Quorum run
+        let text = "";
+        let heard: Analysis[] = [];
         const outcome =
           pool === "quorum"
-            ? await runQuorum({ client, kit, config, request: parsed.request, emit, signal: abort.signal, day, now: when, save: (r) => saveRecord(env.DB!, r) })
-            : await runTutor({ client, kit, config, request: parsed.request, emit, signal: abort.signal });
+            ? await runQuorum({
+                client, kit, config, request: parsed.request, emit, signal: abort.signal, day, now: when,
+                save: (r) => {
+                  heard = r.runs.filter((x) => x.ok).map((x) => ({ name: x.name, model: x.model, text: x.text, judge: x.name === QUORUM.judge.name }));
+                  return saveRecord(env.DB!, r);
+                },
+              })
+            : await runTutor({
+                client, kit, config, request: parsed.request, signal: abort.signal,
+                onRound: () => { text = ""; },
+                emit: (e) => { if (e.type === "delta") text += e.text; return emit(e); },
+              });
         // The held amount is replaced by the real cost even when the page has gone away or the call failed.
         await settle(env.DB!, { day, device, held: cost.reserveMicro, actual: outcome.micro, now: when, kind: parsed.request.kind, model: pool === "quorum" ? "quorum" : config.model, rounds: outcome.rounds, tokens: outcome.tokens, outcome: outcome.outcome, pool }).catch((e) =>
           console.error("settle failed", e instanceof Error ? e.name : typeof e),
         );
         if (outcome.error) await emit({ type: "error", code: outcome.error.code, message: outcome.error.message }).catch(() => {});
+        // What the answer says of the examples the page could not check is kept where the server is set to (docs/SERVER.md, "Learned facts").
+        const examples = parsed.request.kind === "explain" ? (parsed.request.examples ?? []) : [];
+        if (examples.length && facts.record && (outcome.outcome === "answered" || outcome.outcome === "truncated")) {
+          if (pool !== "quorum") heard = text.trim() ? [{ name: "Tutor", model: config.model, text }] : [];
+          await keepFacts(env.DB!, { kit, cats: parsed.request.cats, examples, analyses: heard, quorum: pool === "quorum", day, maxRows: facts.maxRows }).catch((e) =>
+            console.error("facts not kept", e instanceof Error ? e.name : typeof e),
+          );
+        }
       } finally {
         finished();
       }

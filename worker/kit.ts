@@ -5,6 +5,7 @@
 import { GUIDE, REVIEW_GUIDE, finePoints, makeExampleIndex, makeIndex, readExamples, reviewRequest, tutorTools } from "../src/ai-shared";
 import type { DrillData, ExampleIndex, ReviewAnswer, ReviewFlag } from "../src/ai-shared";
 import { merge } from "../src/data/course.js";
+import { knownClass } from "../src/domain/ladder";
 import { readCourseRow, readCourseRows, type CourseRows } from "./course";
 import type { Env } from "./env";
 
@@ -22,6 +23,10 @@ export interface Kit {
   run(name: string, input: unknown): unknown;
   /** the notes that belong to these category ids, one line each, without duplicates */
   finePoints(cats: string[]): string[];
+  /** whether the term data has a category with this id */
+  isCat(id: string): boolean;
+  /** the term the data has under this name (the case and an article do not matter), or "" */
+  knownClass(name: string): string;
   /** the system prompt of a reviewer of flags (the tools are the tutor's) */
   reviewGuide: string;
   /** the first message of a review: the card for the pair, what the tutor said and the flag; the pair of the answer must be one the data knows */
@@ -57,6 +62,8 @@ export async function kitFrom(openData: object, course: Pick<CourseRows, "defini
     },
     // Category ids come from the request; the shared function counts only the ids the data itself has notes for.
     finePoints: (cats) => finePoints(ix, cats),
+    isCat: (id) => Object.hasOwn(ix.CAT, id),
+    knownClass: (name) => knownClass(ix, name),
     reviewGuide: REVIEW_GUIDE,
     reviewRequest: (flag, answer) => reviewRequest(ix, flag, answer),
   };

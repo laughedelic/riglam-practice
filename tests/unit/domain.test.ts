@@ -14,6 +14,10 @@ import {
 import type { DebateInput, GradeDraft, HistoryEntry, Pair, PoolEntry } from "../../src/domain";
 import openData from "../../src/data/drill-data.json";
 import { drawable, examplesFor, placeByClass } from "../../src/domain";
+import { FACTS_EPOCH, factKey, learn, opinionOf, ruleSide, servable } from "../../src/domain";
+import type { Answer, FactRow, Opinion, Ruling } from "../../src/domain";
+import { knownLine, openExamples, referenceLines, wholeFirst } from "../../src/domain";
+import { makeExampleIndex } from "../../src/ai-shared/examples";
 
 /** A small deterministic random source (mulberry32), so a test draws the same numbers every time. */
 const seeded = (seed: number) => () => {
@@ -1149,6 +1153,151 @@ test("drawable: confirmed and textbook examples up to the level, never a comment
   expect(drawable({ cf: "textbook", lv: 3 }, 2)).toBe(false);
   expect(drawable({ cf: "commentator", lv: 1 }, 4)).toBe(false);
   expect(drawable({ lv: 1 }, 4)).toBe(false);
+});
+
+// ---- learned facts: what the analyses said of a learner's example, per category ----
+
+const op = (model: string, a: Answer, b: Answer, judge = false): Opinion => ({ name: model, model, judge, cls: "Table", sides: [{ answer: a, say: `${model} says ${a}; pervasion: whatever` }, { answer: b, say: `${model} says ${b}.` }] });
+
+test("an example is kept by its words as the lookup compares them, and not at all when it is too long", () => {
+  expect(factKey("A Grey Table!")).toBe("gray table");
+  expect(factKey("  the colour of a pot ")).toBe("color of a pot");
+  expect(factKey("")).toBeNull();
+  expect(factKey("x".repeat(81))).toBeNull();
+  expect(factKey("x".repeat(80))).toBe("x".repeat(80));
+});
+
+test("an answer's opinion of an example is its first line about it that is sure of something", () => {
+  const text = [fact("Both", "A table", "unsure", "unsure"), "Common locus: a table.", fact("A not B", "a table", "yes", "no"), fact("Both", "a stone", "no", "no")].join("\n");
+  expect(opinionOf(text, "the table")).toEqual({ cls: "Table", sides: [{ answer: "yes", say: "it is a table" }, { answer: "no", say: "because it is wood" }] });
+  expect(opinionOf(fact("Both", "a table", "unsure", "unsure"), "table")?.sides.map((s) => s.answer)).toEqual(["unsure", "unsure"]);
+  expect(opinionOf(text, "a song")).toBeNull();
+});
+
+test("one explain question settles a side of an example by how far its answers agree", () => {
+  const side = (r: Ruling | null) => r && [r.answer, r.strength];
+  expect(side(ruleSide([op("Sonnet", "yes", "no")], null, 0))).toEqual(["yes", "single"]);
+  expect(side(ruleSide([op("Haiku", "yes", "no"), op("Sonnet", "yes", "no"), op("Opus", "yes", "no")], null, 1))).toEqual(["no", "unanimous"]);
+  expect(side(ruleSide([op("Haiku", "unsure", "no"), op("Sonnet", "yes", "no"), op("Opus", "yes", "no")], null, 0))).toEqual(["yes", "partial"]);
+  // divided: the judge rules, or else the majority; on a tie the strongest model (the last) has it
+  expect(side(ruleSide([op("Haiku", "no", "no"), op("Sonnet", "yes", "no"), op("Opus", "yes", "no")], op("Judge", "no", "no", true), 0))).toEqual(["no", "ruled"]);
+  expect(side(ruleSide([op("Haiku", "no", "no"), op("Sonnet", "yes", "no"), op("Opus", "yes", "no")], null, 0))).toEqual(["yes", "split"]);
+  expect(side(ruleSide([op("Sonnet", "no", "no"), op("Opus", "yes", "no")], op("Judge", "unsure", "no", true), 0))).toEqual(["yes", "split"]);
+  // the judge was asked about another side: it is unanimous here only if every model agrees with it
+  expect(side(ruleSide([op("Haiku", "yes", "no"), op("Opus", "yes", "yes")], op("Judge", "yes", "no", true), 0))).toEqual(["yes", "unanimous"]);
+  expect(side(ruleSide([op("Haiku", "no", "no"), op("Opus", "no", "yes")], op("Judge", "yes", "no", true), 0))).toEqual(["yes", "ruled"]);
+  expect(ruleSide([], null, 0)).toBeNull();
+  const r = ruleSide([op("Haiku", "yes", "no"), op("Opus", "yes", "no")], null, 0)!;
+  expect(r.reason).toBe("Opus says yes"); // the strongest model speaks, without its pervasion
+  expect(r.votes).toEqual([{ model: "Haiku", answer: "yes" }, { model: "Opus", answer: "yes" }]);
+});
+
+test("a fact becomes checked by agreement, disputed by disagreement, and only the maintainer settles a dispute", () => {
+  const at = (day: string) => ({ src: "explain" as const, text: "a table", day });
+  const rule = (answer: Answer, strength: Ruling["strength"]): Ruling => ({ answer, strength, reason: "r " + answer, cls: "Table", votes: [{ model: "m", answer }] });
+  const one = learn(null, rule("yes", "single"), at("2026-10-19"));
+  expect(one).toMatchObject({ answer: "yes", state: "candidate", agree: 1, against: 0, seen: 1, epoch: FACTS_EPOCH, first_day: "2026-10-19", last_day: "2026-10-19" });
+  expect(learn(null, rule("no", "unanimous"), at("d")).state).toBe("checked");
+  expect(learn(null, rule("no", "ruled"), at("d")).state).toBe("candidate");
+  expect(learn(null, rule("no", "split"), at("d"))).toMatchObject({ state: "disputed", against: 1 });
+  const two = learn(one, rule("yes", "single"), at("2026-10-20"));
+  expect(two).toMatchObject({ state: "checked", agree: 2, seen: 2, first_day: "2026-10-19", last_day: "2026-10-20" });
+  expect(learn(two, rule("unsure", "single"), at("d"))).toMatchObject({ state: "checked", agree: 2, answer: "yes", seen: 3 });
+  const torn = learn(two, rule("no", "unanimous"), at("d"));
+  expect(torn).toMatchObject({ state: "disputed", answer: "yes", agree: 2, against: 1 });
+  expect(learn(torn, rule("yes", "unanimous"), at("d")).state).toBe("disputed");
+  expect(learn(two, rule("yes", "split"), at("d")).state).toBe("disputed");
+  // a first "unsure" is taken over by the first sure answer
+  expect(learn(learn(null, rule("unsure", "single"), at("d")), rule("no", "single"), at("d"))).toMatchObject({ answer: "no", state: "candidate", seen: 2 });
+  // the maintainer's row is never changed by a model; an older epoch starts again
+  const mine: FactRow = { ...two, state: "reviewed", src: "maintainer", answer: "no" };
+  expect(learn(mine, rule("yes", "unanimous"), at("d"))).toMatchObject({ state: "reviewed", answer: "no", src: "maintainer", seen: 3 });
+  expect(learn({ ...two, epoch: FACTS_EPOCH - 1 }, rule("no", "single"), at("d"))).toMatchObject({ answer: "no", state: "candidate", agree: 1, seen: 3, epoch: FACTS_EPOCH });
+});
+
+test("only a checked fact of this epoch, or the maintainer's, with a yes or no, may answer a check", () => {
+  expect(servable({ state: "checked", answer: "yes", epoch: FACTS_EPOCH })).toBe(true);
+  expect(servable({ state: "reviewed", answer: "no", epoch: 0 })).toBe(true);
+  expect(servable({ state: "checked", answer: "yes", epoch: FACTS_EPOCH - 1 })).toBe(false);
+  expect(servable({ state: "checked", answer: "unsure", epoch: FACTS_EPOCH })).toBe(false);
+  for (const state of ["candidate", "disputed"] as const) expect(servable({ state, answer: "yes", epoch: FACTS_EPOCH })).toBe(false);
+});
+
+// ---- examples known without the AI: the reference examples on the device, and the server's learned facts, as the tutor's lines ----
+
+test("a known example is written as the tutor's line, which reads back to the same facts", () => {
+  const line = knownLine("A not B", 'a "red" | flower\n', { answer: "yes", reason: "it is a color | a form", cls: "Color" }, { answer: "no", reason: "", cls: "" });
+  expect(line).toBe(`A not B: "a 'red' flower" | class: Color | A yes: it is a color a form | B no: `);
+  expect(parseFactLine(line)).toMatchObject({ cell: "anb", example: "a 'red' flower", cls: "Color", a: { answer: "yes", say: "it is a color a form" }, b: { answer: "no", say: "" } });
+  expect(knownLine("Both", "a pot", { answer: "no", reason: "r", cls: "" }, { answer: "no", reason: "s", cls: "Pot" })).toBe(`Both: "a pot" | class: Pot | A no: r | B no: s`);
+});
+
+const refPair = (own = false) => ({ a: "forms", b: "consciousnesses", relation: "con" as RelKey, catA: "form", catB: "cons", ex: {}, why: {}, ...(own ? { own: true } : {}) });
+const refExamples = makeExampleIndex({
+  format: "test", version: 1, sources: {},
+  items: [
+    { n: "a red flower", cls: ["Color"], lv: 1 },
+    { n: "the horn of a rabbit", al: ["a rabbit's horn"], ne: true, lv: 2 },
+    { n: "a cup", cls: ["Form"], lv: 1 },
+    { n: "a cup", cls: ["Functional thing"], lv: 1 },
+  ],
+});
+
+test("the reference examples settle an open example when every one of its name places it on both sides", () => {
+  const ix = refIx();
+  const open = [{ cell: "anb", text: "A red flower" }, { cell: "nei", text: "a rabbit's horn" }, { cell: "both", text: "a cup" }, { cell: "nei", text: "a song" }] as const;
+  const lines = referenceLines(ix, refExamples, refPair(), open);
+  expect(lines).toEqual([
+    { cell: "anb", text: "A red flower", line: `A not B: "A red flower" | class: Color | A yes:  | B no: ` },
+    { cell: "nei", text: "a rabbit's horn", line: `Neither: "a rabbit's horn" | A no: it does not exist | B no: it does not exist` },
+  ]);
+  expect(parseVerdicts(lines.map((l) => l.line).join("\n"))).toEqual([{ cell: "anb", answer: "yes" }, { cell: "nei", answer: "yes" }]);
+  expect(referenceLines(ix, refExamples, refPair(true), open), "a pair of the learner's own").toEqual([]);
+  expect(referenceLines(ix, null, refPair(), open)).toEqual([]);
+  expect(referenceLines(ix, refExamples, { ...refPair(), catB: "nowhere", b: "nothing known" }, open), "a side the data does not have").toEqual([]);
+});
+
+test("an example placed on one side only is settled when that side fails the cell, and never when it could only fit", () => {
+  const ix = refIx();
+  // a red flower is a form; nothing says whether it is round
+  const pair = { ...refPair(), b: "round things", relation: "4" as RelKey, catB: "round" };
+  const open = [
+    { cell: "nei", text: "a red flower" }, { cell: "anb", text: "a red flower" }, { cell: "both", text: "a red flower" }, { cell: "bna", text: "the horn of a rabbit" },
+  ] as const;
+  const lines = referenceLines(ix, refExamples, pair, open);
+  // the horn of a rabbit does not exist, so it is placed on both sides: the whole line comes first, though it was asked about last
+  expect(lines.map((l) => [l.cell, l.text, !!l.half])).toEqual([["bna", "the horn of a rabbit", false], ["nei", "a red flower", true]]);
+  expect(lines[1]!.line).toBe(`Neither: "a red flower" | class: Color | A yes:  | B unsure: `);
+  expect(parseVerdicts(lines[1]!.line)).toEqual([{ cell: "nei", answer: "no" }]);
+  // fitting needs both sides: the same example in "A not B" or "Both" says nothing yet
+  expect(lines.some((l) => l.cell === "anb" || l.cell === "both")).toBe(false);
+  expect(wholeFirst([{ n: 1, half: true as const }, { n: 2 }, { n: 3, half: true as const }, { n: 4 }]).map((x) => x.n)).toEqual([2, 4, 1, 3]);
+});
+
+test("the open examples are the learner's examples still not checked, none for a pair of the learner's own", () => {
+  const res = { cells: { both: { v: "ok" }, anb: { v: "cmp" }, bna: { v: "cmp" }, nei: { v: "bad" } } } as unknown as Parameters<typeof openExamples>[1];
+  const things = [{ text: "a pot", cells: ["both", "anb"] as CellId[] }, { text: "a mind", cells: ["bna"] as CellId[] }];
+  expect(openExamples(refPair(), res, things)).toEqual([{ cell: "anb", text: "a pot" }, { cell: "bna", text: "a mind" }]);
+  expect(openExamples(refPair(), res, things, 1)).toEqual([{ cell: "anb", text: "a pot" }]);
+  expect(openExamples(refPair(true), res, things)).toEqual([]);
+});
+
+test("a verdict known without the AI says where it came from, and never leaves a cell unsure", () => {
+  const p = pair();
+  const res = grade(ix, p, { rel: "4", cells: cellsOf({ ...perfect, both: "a gray dragon", bna: "a gray ghost", nei: "a thought" }) });
+  expect(applyVerdicts(p, res, [{ cell: "both", answer: "yes" }, { cell: "bna", answer: "unsure" }], false, "course")).toBe(1);
+  expect(res.cells.both).toMatchObject({ v: "ok", msg: ["Verified", "", "by the course examples"], by: "course" });
+  expect(res.cells.bna.v).toBe("cmp");
+  expect(applyVerdicts(p, res, [{ cell: "bna", answer: "no" }], false, "learned")).toBe(1);
+  expect(res.cells.bna).toMatchObject({ v: "bad", msg: ["Does not fit", ". Example: a gray stone.", "from an earlier check"], by: "claude" });
+});
+
+test("a reason that names the pair's own letters is not kept, since the same category is the other letter in another pair", () => {
+  const said = (say: string): Opinion => ({ name: "m", model: "m", judge: false, cls: "Table", sides: [{ answer: "yes", say }, { answer: "no", say: "it is round" }] });
+  expect(ruleSide([said("a cabinet can be any color; a white one is B")], null, 0)?.reason).toBe("");
+  expect(ruleSide([said("it is in both A and B")], null, 0)?.reason).toBe("");
+  expect(ruleSide([said("A cabinet is furniture")], null, 0)?.reason, "an article is not a letter").toBe("A cabinet is furniture");
+  expect(ruleSide([said("it is a form; pervasion: what is B")], null, 0)?.reason, "the pervasion is left out before").toBe("it is a form");
 });
 
 test("examplesFor: a term's own examples first, then the plainest, a spread of classes, never a statement or what the sources say it is not", () => {
