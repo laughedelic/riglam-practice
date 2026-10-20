@@ -56,11 +56,26 @@ export interface Examples {
   items: Example[];
 }
 
-/** The examples in `value` that have a name and a level, or null when it is not the format at all: data from elsewhere costs examples, never an error. */
+const LISTS = ["al", "cls", "not", "s"] as const;
+const TEXTS = ["k", "f", "cf", "cn", "bg", "gloss"] as const;
+const FLAGS = ["ne", "inc"] as const;
+const isTexts = (v: unknown) => Array.isArray(v) && v.every((x) => typeof x === "string");
+
+/** Whether `it` has a name and a level and every optional field the code reads is of its type (a wrong one would throw where it is read). */
+function usable(it: unknown): it is Example {
+  const e = it as Record<string, unknown> | null;
+  if (!e || typeof e !== "object" || typeof e.n !== "string" || !e.n.trim() || typeof e.lv !== "number") return false;
+  return LISTS.every((f) => e[f] === undefined || isTexts(e[f]))
+    && TEXTS.every((f) => e[f] === undefined || typeof e[f] === "string")
+    && FLAGS.every((f) => e[f] === undefined || typeof e[f] === "boolean")
+    && (e.sc === undefined || typeof e.sc === "number");
+}
+
+/** The usable examples in `value` (a name, a level, and optional fields of their types), or null when it is not the format at all: data from elsewhere costs examples, never an error. */
 export function readExamples(value: unknown): Examples | null {
   const v = value as Partial<Examples> | null;
   if (!v || typeof v !== "object" || !Array.isArray(v.items)) return null;
-  const items = v.items.filter((it): it is Example => !!it && typeof it === "object" && typeof it.n === "string" && !!it.n.trim() && typeof it.lv === "number");
+  const items = v.items.filter(usable);
   return { format: String(v.format ?? ""), version: Number(v.version ?? 0), ...(typeof v.built === "string" ? { built: v.built } : {}), sources: v.sources && typeof v.sources === "object" ? v.sources : {}, items };
 }
 
@@ -83,7 +98,9 @@ export function makeExampleIndex(data: Examples): ExampleIndex {
 export function matchExamples(eix: ExampleIndex, text: unknown): Example[] {
   const k = spelled(text);
   if (!k) return [];
-  for (const t of [k, stripDet(k), stripDet(k).replace(/s$/, ""), stripDet(k).replace(/es$/, "")]) if (eix.BYNAME[t]) return eix.BYNAME[t];
+  const bare = stripDet(k);
+  // the name without its article first: every name is indexed both ways, so "a kipa" finds what "kipa" finds, never only the example that has "a kipa" as an alias
+  for (const t of [bare, k, bare.replace(/s$/, ""), bare.replace(/es$/, "")]) if (eix.BYNAME[t]) return eix.BYNAME[t];
   return [];
 }
 
