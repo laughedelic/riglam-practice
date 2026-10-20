@@ -5,7 +5,7 @@ import { expect, test } from "vitest";
 import { DEVICE_FORMAT, FORMAT, VERSION, deviceExamples, examplesProblems } from "../../src/data/examples.js";
 import { MADE_UP_SOURCES, madeUpExamples } from "../../scripts/lib/made-up-course.mjs";
 import { readOpen } from "../../scripts/lib/course-files.mjs";
-import { makeExampleIndex, makeIndex, matchExamples, readExamples, tutorTools } from "../../src/ai-shared";
+import { exampleFacts, makeExampleIndex, makeIndex, matchExamples, readExamples, tutorTools } from "../../src/ai-shared";
 import type { DrillData } from "../../src/ai-shared";
 
 const OPEN = { terms: { Form: {}, Color: {} } };
@@ -18,13 +18,14 @@ const ITEM = {
 test("the device part leaves out the places, links, base, members, aliases in other scripts and the course booklets' ids", () => {
   const device = deviceExamples(full([ITEM, { n: "a kipa", al: ["\u6e56"], cls: ["Form"], lv: 1, src: [["MX", "1"]] }]), "2026-10-13");
   expect(device).toEqual({
-    format: DEVICE_FORMAT, version: VERSION, built: "2026-10-13", sources: { MA: { tier: "open" }, MX: { tier: "course" } },
+    format: DEVICE_FORMAT, version: VERSION, built: "2026-10-13", sources: { MA: { tier: "open" } },
     items: [
       { n: "a vemo lake", al: ["vemo", "вемо"], cls: ["Color"], not: ["Form"], lv: 2, sc: 1, k: "thing", cf: "confirmed", gloss: "Invented.", s: ["MA"] },
       { n: "a kipa", cls: ["Form"], lv: 1, s: [] },
     ],
   });
   expect(ITEM.al, "the full part is not changed").toHaveLength(4);
+  expect(JSON.stringify(device), "the course booklet's id is nowhere in what a device gets").not.toContain("MX");
 });
 
 test("examplesProblems accepts usable examples and names what is wrong otherwise", () => {
@@ -99,10 +100,29 @@ test("readExamples keeps the items with a name and a level, and reads nothing fr
   expect(readExamples([1, 2])).toBeNull();
 });
 
+test("readExamples drops an item whose optional field is not of its type, and the valid ones still work", () => {
+  const ok = { n: "a vemo", cls: ["Color"], lv: 1 };
+  const read = readExamples({
+    items: [
+      ok,
+      { ...ok, n: "cls is text", cls: "Form" }, { ...ok, n: "al is an object", al: {} }, { ...ok, n: "not has a number", not: [1] }, { ...ok, n: "s is text", s: "MA" },
+      { ...ok, n: "ne is text", ne: "false" }, { ...ok, n: "gloss is a list", gloss: ["x"] }, { ...ok, n: "sc is text", sc: "2" },
+      { ...ok, n: "a kipa", al: ["kipa"], not: ["Form"], ne: false, inc: true, s: ["MA"], k: "thing", cf: "confirmed" },
+    ],
+  })!;
+  expect(read.items.map((i) => i.n)).toEqual(["a vemo", "a kipa"]);
+  const ix = makeIndex(exData());
+  const eix = makeExampleIndex(read);
+  for (const words of ["a vemo", "kipa"]) for (const it of matchExamples(eix, words)) expect(() => exampleFacts(ix, it), words).not.toThrow();
+});
+
 test("matchExamples finds an example by its name, without the article, by an alias, in the plural, and every example a name names", () => {
   const eix = makeExampleIndex(REF);
   for (const words of ["a vemo lake", "Vemo lake", "the vemo lakes", "VEMO", "вемо"]) expect(matchExamples(eix, words).map((i) => i.n), words).toEqual(["a vemo lake"]);
   expect(matchExamples(eix, "kipa").map((i) => i.n)).toEqual(["the kipa glow", "a kipa stone"]);
+  // an article does not hide a shared name: "a dobe" and "dobe" name the same two examples
+  const eix2 = makeExampleIndex(readExamples({ items: [{ n: "the sule", al: ["a dobe"], lv: 1 }, { n: "the kari", al: ["dobe"], lv: 2 }] })!);
+  for (const words of ["a dobe", "dobe", "the dobe"]) expect(matchExamples(eix2, words).map((i) => i.n), words).toEqual(["the sule", "the kari"]);
   for (const words of ["", "constructor", "toString", "lake", null]) expect(matchExamples(eix, words), String(words)).toEqual([]);
 });
 

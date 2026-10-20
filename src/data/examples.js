@@ -20,21 +20,23 @@ export const sameName = (s) => String(s).trim().toLowerCase().replace(/\s+/g, " 
 
 /**
  * The device part of the full examples: each item without what only the server keeps and without aliases in other scripts, with
- * `s`, the ids of the sources it is in (sources of the `course` tier, the booklets, are left out). `built` is the stamp of the open
- * data it was checked against (drill-data.json), so a device can tell a part made for another release.
+ * `s`, the ids of the sources it is in. The sources of the `course` tier, the booklets, are left out of `s` and of the table of
+ * sources: their ids stay on the server. `built` is the stamp of the open data it was checked against (drill-data.json), so a device
+ * can tell a part made for another release.
  */
 export function deviceExamples(full, built) {
   const sources = full.sources ?? {};
+  const published = Object.fromEntries(Object.entries(sources).filter(([, v]) => v?.tier !== "course"));
   const items = full.items.map((it) => {
     const d = Object.fromEntries(Object.entries(it).filter(([k]) => !SERVER_ONLY.includes(k)));
     if (d.al) {
       d.al = d.al.filter((a) => !OTHER_SCRIPTS.test(a));
       if (!d.al.length) delete d.al;
     }
-    d.s = [...new Set((it.src ?? []).map(([id]) => id).filter((id) => sources[id]?.tier !== "course"))].sort();
+    d.s = [...new Set((it.src ?? []).map(([id]) => id).filter((id) => Object.hasOwn(published, id)))].sort();
     return d;
   });
-  return { format: DEVICE_FORMAT, version: VERSION, ...(built ? { built } : {}), sources, items };
+  return { format: DEVICE_FORMAT, version: VERSION, ...(built ? { built } : {}), sources: published, items };
 }
 
 const isText = (v) => typeof v === "string" && v.trim().length > 0;
@@ -58,7 +60,7 @@ export function examplesProblems(full, open) {
     for (const f of ["al", "cls", "not"]) if (it[f] !== undefined && !isTexts(it[f])) problems.push(`${what} has a ${f} that is not a list of names`);
     for (const f of ["cls", "not"]) for (const c of isTexts(it[f]) ? it[f] : []) if (!Object.hasOwn(open.terms, c)) problems.push(`${what} names ${JSON.stringify(c)} in ${f}, which is not a term of the open data`);
     if (!Array.isArray(it.src) || !it.src.length) problems.push(`${what} has no source`);
-    else for (const s of it.src) if (!Array.isArray(s) || !isText(s[0]) || !sources[s[0]]) problems.push(`${what} names a source that is not in the table: ${JSON.stringify(s)}`);
+    else for (const s of it.src) if (!Array.isArray(s) || !isText(s[0]) || !Object.hasOwn(sources, s[0])) problems.push(`${what} names a source that is not in the table: ${JSON.stringify(s)}`);
     const key = sameName(it.n);
     if (names.has(key)) problems.push(`${what} has the same name as ${JSON.stringify(names.get(key))}`);
     else names.set(key, it.n);
