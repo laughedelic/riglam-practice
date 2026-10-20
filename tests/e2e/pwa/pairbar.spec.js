@@ -173,6 +173,7 @@ test("Blitz is the stopwatch in the top bar; its countdown runs along the lower 
 
 test("on a wide screen the countdown runs over the workspace only: it ends where the right panel begins, as it begins where the menu ends", async ({ page }, testInfo) => {
   test.skip(isPhone(testInfo), "a phone has no panel beside the exercise");
+  await page.emulateMedia({ reducedMotion: "reduce" }); // the panel slides in: measure it where it rests (the project's own option does not reach the page)
   await page.goto("/");
   await ready(page);
   const mbt = page.locator("#mbar .mbt"), coach = page.locator("#coach");
