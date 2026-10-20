@@ -158,13 +158,52 @@ test("nothing moves under reduced motion, and no copy is left behind", async ({ 
   expect(await started(page)).toEqual([]);
 });
 
-test("the system's Back moves nothing: the screen has just been animated away by the system", async ({ page }, testInfo) => {
+test("a Back the browser does not animate (the key, the button) opens the menu by sliding it over the exercise", async ({ page }, testInfo) => {
   test.skip(!isPhone(testInfo), "Back from the exercise opens the menu on a phone");
   await load(page);
   await page.goBack();
   await expect(page.locator("#menu")).toBeVisible();
+  const open = await seen(page, "slide-l", "m-fade");
+  expect(find(open, "slide-l").on).toBe("menu");
+  expect(await page.evaluate(() => getComputedStyle(document.getElementById("menu")).position)).toBe("absolute"); // over the exercise, not beside it
+});
+
+test("a Back the browser animates itself (the swipe from the edge) moves nothing more", async ({ page }, testInfo) => {
+  test.skip(!isPhone(testInfo), "Back from the exercise opens the menu on a phone");
+  // what the popstate event says of such a swipe: the browser has performed a visual transition
+  await page.addInitScript(() => { Object.defineProperty(PopStateEvent.prototype, "hasUAVisualTransition", { get: () => true, configurable: true }); });
+  await load(page);
+  await page.goBack();
+  await expect(page.locator("#menu")).toBeVisible();
+  await page.waitForTimeout(100);
   expect(await started(page)).toEqual([]);
   await expect(page.locator("#menu.enter")).toHaveCount(0);
+});
+
+test("the shade is the whole screen under a drawer or a sheet, so it never stays behind as a rectangle when the panel slides away", async ({ page }, testInfo) => {
+  test.skip(!isPhone(testInfo), "the shades are the phone's");
+  await load(page);
+  const area = () => page.evaluate(() => {
+    const o = document.querySelector(".over:not(.leaving)").getBoundingClientRect(), shades = [...document.querySelectorAll(".over .scrim")].map((n) => n.getBoundingClientRect());
+    return { over: [o.x, o.y, o.width, o.height], shades: shades.map((r) => [r.x, r.y, r.width, r.height]) };
+  });
+  await page.locator("#msess").click(); // the options: a sheet from the bottom
+  await expect(page.locator("#over")).toBeVisible();
+  let { over, shades } = await area();
+  expect(shades).toEqual([over]);
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#over")).toBeHidden();
+  await expect(leaving(page)).toHaveCount(0, { timeout: 2000 });
+  await tutorOn(page);
+  await page.reload();
+  await ready(page);
+  await relOptions(page).first().click();
+  for (let i = 0; i < 4 && (await page.locator("#cin").isVisible()); i++) { await page.fill("#cin", "thing " + (i + 1)); await page.keyboard.press("Enter"); await page.waitForTimeout(100); }
+  await expect(page.locator("#mchat")).toBeEnabled();
+  await page.locator("#mchat").click(); // the chat: a drawer from the right
+  await expect(page.locator("#over")).toBeVisible();
+  ({ over, shades } = await area());
+  expect(shades).toEqual([over]);
 });
 
 test("a tap shows no highlight box, and the drawer's close button is where the menu button was", async ({ page }, testInfo) => {

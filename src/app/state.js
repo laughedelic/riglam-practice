@@ -55,7 +55,7 @@ export const state = {
   navDepth: 0,    // history entries held above the first screen (shell/history.js): the exercise itself on a narrow screen, Review, the chat view, Settings, the options and their pages, the skip question
   navSkip: 0,     // steps back the page took itself, whose popstate is to be ignored
   navQ: false,    // a check of the entries against the state is due after this render
-  navBack: false, // the system's Back is closing levels (shell/history.js): the system has animated the screen away already, so the panels do not move (shell/motion.js)
+  navBack: false, // the system's Back is closing levels, and the browser has animated the screen away itself (a swipe from the edge): the panels do not move as well (shell/history.js, shell/motion.js)
   motion: false,  // the first screen has been drawn: panels that open or close after it slide (shell/motion.js)
   view: null,
   reviewSeg: "overview",

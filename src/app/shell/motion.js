@@ -25,7 +25,7 @@ export function enter(node,fresh,{persistent=false}={}){
     if(!moves()) return;
     const at=String(Date.now());
     node.dataset.at=at; node.classList.add("enter");
-    setTimeout(()=>{ if(node.dataset.at===at){ node.classList.remove("enter"); node.style.removeProperty("--ago"); delete node.dataset.at; } },MS+60);
+    setTimeout(()=>{ if(node.dataset.at===at){ node.classList.remove("enter"); node.style.removeProperty("--ago"); delete node.dataset.at; } },MS+400); // (a late first frame must not find the class gone)
   }
   if(!persistent&&node.dataset.at) node.style.setProperty("--ago",-Math.min(Date.now()-(+node.dataset.at),MS)+"ms");
 }
@@ -51,5 +51,5 @@ export function leave(node,placed=false){
   // a copy starts with every list at its top; the way out should show what was on screen
   const was=node.querySelectorAll("*"), now=ghost.querySelectorAll("*");
   was.forEach((n,i)=>{ if(n.scrollTop&&now[i]) now[i].scrollTop=n.scrollTop; });
-  setTimeout(()=>ghost.remove(),MS+60);
+  setTimeout(()=>ghost.remove(),MS+200); // (every way out ends invisible and stays so, so a late first frame still finds the copy)
 }
