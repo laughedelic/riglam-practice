@@ -7,7 +7,7 @@ import { freshUi } from "../practice/queue.js";
 import { render, top0 } from "../shell/render.js";
 import { REPLIES, drawConsequence, gradeConsequence, gradeExample } from "../../domain/consequence.ts";
 
-/* ---------- Consequences: take a thing, the reason and the conclusion; accept it, deny the reason or deny the pervasion ---------- */
+/* ---------- Syllogisms: take a thing, the reason and the conclusion; accept it, deny the reason or deny the pervasion ---------- */
 // The rules (what is drawn, what is right, what the learner mixed up) are in src/domain/consequence.ts; this is the page around them: the steps, the screen
 // state and the saved answer. An answer is kept in the collection "answers" with `mode: "cq"`, so it is stored and synced like the others, and the lists that
 // mean the Relations exercise leave it out (practice/universe.js, answerList). The state of the screen is the usual one with `step` 0 while the reply is
@@ -69,6 +69,6 @@ function finishCq(){
     correct:g.correct,grade:u.overall,pervasion:c.pervasion,level:c.level,links:c.links,wording:state.cqWording,at:new Date().toISOString()};
   if(g.missedPoint) doc.missedPoint=true;
   if(u.ex) doc.example={text:u.ex.text,verdict:u.ex.v};
-  u.doc=/** @type {any} */(doc);       // the stored shape of Consequences is not a pair's (types.ts); persist() only reads its keys
+  u.doc=/** @type {any} */(doc);       // the stored shape of Syllogisms is not a pair's (types.ts); persist() only reads its keys
   persist(u,"Your answer");
 }

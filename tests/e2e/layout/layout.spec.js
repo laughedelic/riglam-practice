@@ -180,37 +180,35 @@ const FLOWS = {
     if (!wide) await page.getByRole("button", { name: "Next relation" }).click();
   },
 
-  async "consequences, replies, counter-example and result"(s) {
+  async "syllogisms, replies, counter-example and result"(s) {
     const { page, check, settle } = s;
-    await goTo(page, "Consequences");
-    await check("consequence");
-    /** draws until the consequence has this situation (the right reply follows from it) */
+    await goTo(page, "Syllogisms");
+    await check("syllogism");
+    /** draws until the syllogism has this situation (the right reply follows from it) */
     const draw = (n) => page.evaluate((sit) => { for (let i = 0; i < 600 && window.__t.cur.c.situation !== sit; i++) window.__t.next(); }, n);
-    // a wrong reply: what was mixed up, with each chip
+    // a wrong reply: what was mixed up, and the sheet of the three checks
     await draw(8);
     await settle();
-    await check("consequence, reason fails too");
-    await page.locator(".cqask .cqsay").nth(2).click();
+    await check("syllogism, reason fails too");
+    await page.locator(".cqask .cqsay").nth(1).click(); // the pervasion: the reason comes first
     await check("wrong reply");
-    await eachChip(s, "wrong reply");
     await page.click("#stage .pbar .fwd");
     // a right "no pervasion": the counter-example step, then a result with the example in it
     await draw(3);
     await settle();
-    await page.locator(".cqask .cqsay").nth(2).click();
+    await page.locator(".cqask .cqsay").nth(1).click();
     await check("counter-example step");
     await page.fill("#cqex", LONG + "and on and on");
     await page.keyboard.press("Enter");
     await expect(page.locator(".cqres")).toBeVisible();
     await check("result, counter-example not checked");
-    await eachChip(s, "right reply");
     await page.click("#stage .pbar .fwd");
     // the other wording, and the options of the exercise
     await page.locator("#msess").click();
-    await check("practice options, Consequences");
-    await page.getByRole("button", { name: "Textbook" }).click();
+    await check("practice options, Syllogisms");
+    await page.getByRole("button", { name: "Formal" }).click();
     await page.keyboard.press("Escape");
-    await check("textbook wording");
+    await check("formal wording");
   },
 
   async "Blitz, the menu, options and Review"(s) {
@@ -252,7 +250,7 @@ const RUNS = {
   "practice, explanation and its notes": [{ seed: 3 }, { seed: 3, wideFields: 45 }],
   "debate, questions and result": [{ seed: 1 }, { seed: 1, wideFields: 45 }],
   "find a pair, naming it, examples and result": [{ seed: 1 }, { seed: 1, wideFields: 45 }],
-  "consequences, replies, counter-example and result": [{ seed: 1 }, { seed: 1, wideFields: 45 }],
+  "syllogisms, replies, counter-example and result": [{ seed: 1 }, { seed: 1, wideFields: 45 }],
   "Blitz, the menu, options and Review": [{ seed: 1 }],
 };
 

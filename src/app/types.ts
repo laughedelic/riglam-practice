@@ -71,7 +71,7 @@ export interface AnswerDoc {
 }
 export type DebateDoc = AnswerDoc & { mode: "debate"; qs: QuestionDoc[] };
 
-/** collection `answers`, mode "cq": one answer to a consequence (the Consequences exercise), left out of the Relations lists like Find a pair's. `catA` is the category of the reason and `catB` that of the predicate, as the draw reads them. */
+/** collection `answers`, mode "cq": one answer to a consequence (the Syllogisms exercise), left out of the Relations lists like Find a pair's. `catA` is the category of the reason and `catB` that of the predicate, as the draw reads them. */
 export interface ConsequenceDoc {
   /** the id of the document */
   pairId: string;
@@ -208,7 +208,7 @@ export interface Current {
   debate?: boolean;
   /** Find a pair (src/app/find): there is no pair in `p` (it is null, though typed as a pair) until the learner has named one */
   find?: boolean;
-  /** Consequences (src/app/consequence): there is no pair in `p` (it is null), the consequence on screen is `c` */
+  /** Syllogisms (src/app/consequence): there is no pair in `p` (it is null), the consequence on screen is `c` */
   cq?: boolean;
   c?: Consequence;
   legacy?: boolean;
@@ -268,7 +268,7 @@ export interface State {
 
   // the stored collections as the page holds them
   batches: BatchDoc[];
-  /** every document of the collection `answers`, also those of Find a pair and, in another shape, of Consequences (`isCq`, core/util.js); the lists that mean Relations leave those out */
+  /** every document of the collection `answers`, also those of Find a pair and, in another shape, of Syllogisms (`isCq`, core/util.js); the lists that mean Relations leave those out */
   answers: Record<string, AnswerDoc>;
   debates: Record<string, DebateDoc>;
   favs: Record<string, FavDoc>;
@@ -306,7 +306,7 @@ export interface State {
   findAsked: RelKey[];
   /** ids of the consequences drawn lately, oldest first: the draw leans away from them (consequence/flow.js) */
   cqRecent: string[];
-  /** the highest level the Consequences draw reaches: 1 everyday things only, 2 also the terms of the course (`rd-cqlevel`) */
+  /** the highest level the Syllogisms draw reaches: 1 everyday things only, 2 also the terms of Dudra (`rd-cqlevel`) */
   cqLevel: 1 | 2;
   /** how a consequence is worded (`rd-cqwording`) */
   cqWording: Wording;

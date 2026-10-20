@@ -1,17 +1,17 @@
-// Consequences: "Take a tomato. It follows it is food because it is red." The learner accepts it, denies the reason or denies the pervasion. What is right comes from the
+// Syllogisms: "Take a tomato. It follows it is food because it is red." The learner accepts it, denies the reason or denies the pervasion. What is right comes from the
 // rules in src/domain/consequence.ts (tests/unit/consequence.test.ts); these specs are about the page around them: the replies and the keys, the counter-example step, the
 // result, the answer that is kept, the attempt that waits in the menu, the options and the width. The consequence is drawn, so a spec asks the page for one of the
 // kind it needs (the test hook's `next` draws until the situation fits) and reads what is right from the consequence on screen.
 import { test, expect } from "../../support/test.js";
 import { goTo, openMenu, ready, overflow } from "../../support/page.js";
 
-const REPLY = { accept: 0, reason: 1, pervasion: 2 };
+const REPLY = { reason: 0, pervasion: 1, accept: 2 }; // in the order of the checks
 
 async function open(page) {
   await page.addInitScript(() => { window.__riglamTest = (api) => { window.__t = api; }; });
   await page.goto("/");
   await ready(page);
-  await goTo(page, "Consequences");
+  await goTo(page, "Syllogisms");
   await expect(page.locator(".cqcard")).toBeVisible();
 }
 /** Draws consequences until one of this situation is on screen (1 to 8, see SITUATIONS in the domain). */
@@ -28,11 +28,14 @@ const headline = (page) => page.locator(".cqres .vl .v");
 const saved = (page) => page.evaluate(async () => (await (await window.__riglam.platform.db()).collection("answers").get()).docs.map((d) => d.data()));
 const next = (page) => page.locator(".pbar .fwd");
 
-test("the exercise is in the menu, gives a consequence with three replies and fits the width", async ({ page }) => {
+test("the exercise is in the menu, gives a syllogism with three replies, in the order of the checks, that look different, and fits the width", async ({ page }) => {
   await open(page);
-  await expect(page.locator("#mttl")).toHaveText("Consequences");
+  await expect(page.locator("#mttl")).toHaveText("Syllogisms");
   await expect(page.locator(".cqt")).toContainText(/^(Take .+\. It follows it is .+ because it is .+\.|It follows that)/);
-  await expect(page.locator(".cqask .cqsay")).toHaveText([/Accept/i, /The reason is not established/i, /There is no pervasion/i]);
+  await expect(page.locator(".cqask .cqsay")).toHaveText([/^1\s*The reason is not established/i, /^2\s*There is no pervasion/i, /^3\s*Accept/i]);
+  // told apart at a glance: each reply has its own tint
+  const tints = await page.locator(".cqask .cqsay").evaluateAll((bs) => bs.map((b) => getComputedStyle(b).backgroundColor));
+  expect(new Set(tints).size).toBe(3);
   await expect(page.locator(".pbar .fwd")).toHaveCount(0); // nothing to go forward to before a reply
   expect(await overflow(page)).toBeLessThanOrEqual(0);
   // the app opens on the exercise used last
@@ -47,8 +50,13 @@ test("a right reply is Right and is kept in the answers, apart from the Relation
   await say(page, "accept");
   await expect(headline(page)).toHaveText("Right.");
   await expect(page.locator(".cqres .cqconf")).toHaveCount(0);
-  await expect(page.locator(".vchip")).toHaveText([/Reason/i, /Pervasion/i, /Conclusion/i]);
-  await expect(page.locator(".vchip.ok")).toHaveCount(3);
+  // one sheet, no tabs: the three checks with their lines, and nothing marked as a fault
+  await expect(page.locator(".vchip, [role=tab]")).toHaveCount(0);
+  await expect(page.locator(".cqchk")).toHaveCount(3);
+  await expect(page.locator(".cqchk .cqch b")).toHaveText(["Reason", "Pervasion", "Thesis"]);
+  await expect(page.locator(".cqchk.holds")).toHaveCount(3);
+  await expect(page.locator(".cqchk.first")).toHaveCount(0);
+  for (const k of ["e", "v", "t"]) await expect(page.locator(".cqchecks")).toContainText(c.checks[k].line);
   expect(await overflow(page)).toBeLessThanOrEqual(0);
   const [doc] = await expect.poll(async () => (await saved(page)).length).toBe(1).then(() => saved(page));
   expect(doc).toMatchObject({ mode: "cq", subject: c.subject, reason: c.reason, predicate: c.predicate, catA: c.catR, catB: c.catP, situation: 1, answer: "accept", said: "accept", correct: true, grade: "ok" });
@@ -59,7 +67,7 @@ test("a right reply is Right and is kept in the answers, apart from the Relation
   await expect(page.locator("#stage.rv")).toBeVisible();
 });
 
-test("a wrong reply says what was mixed up, and the first check that fails is open", async ({ page }) => {
+test("a wrong reply says what was mixed up; the sheet shows all three checks, the first that fails is marked, and a failed check is not marked as a wrong answer", async ({ page }) => {
   await open(page);
   const c = await draw(page, 3); // the reason is established, the conclusion is false, the pervasion fails: no pervasion
   expect(c.answer).toBe("pervasion");
@@ -68,10 +76,17 @@ test("a wrong reply says what was mixed up, and the first check that fails is op
   await expect(page.locator(".cqres .cqwhat")).toContainText("You said “accept it”");
   await expect(page.locator(".cqres .cqwhat")).toContainText("The right reply is “there is no pervasion”");
   await expect(page.locator(".cqres .cqconf")).not.toBeEmpty();
-  await expect(page.locator(".vchip[aria-selected=true]")).toHaveText(/Pervasion/i); // the reason holds, so the pervasion is the first fault
-  await expect(page.locator("#vpanel")).toContainText(c.checks.v.line);
-  await page.locator(".vchip", { hasText: "Conclusion" }).click(); // another chip shows its own line
-  await expect(page.locator("#vpanel")).toContainText(c.checks.t.line);
+  await expect(page.locator(".cqchk.first")).toContainText("Pervasion"); // the reason holds, so the pervasion is the first fault
+  for (const k of ["e", "v", "t"]) await expect(page.locator(".cqchecks")).toContainText(c.checks[k].line); // all three at once
+  // the pervasion fails with the class's phrase, not with a counter-example
+  expect(c.checks.v.line).toBe(`Just because it is ${c.reason}, doesn't necessarily mean that it is ${c.predicate}.`);
+  await expect(page.locator(".cqchecks")).not.toContainText(c.witness);
+  await expect(page.locator(".cqchk.fails .cqst")).toHaveText(["no pervasion", "false"]);
+  await expect(page.locator(".cqchk.holds .cqst")).toHaveText(["established"]);
+  // a check that fails is not marked like the wrong answer: no cross, and not in the colour of the wrong answer
+  await expect(page.locator(".cqchecks")).not.toContainText("✗");
+  const [mark, fault] = await page.evaluate(() => [getComputedStyle(document.querySelector(".cqres .vl .v")).color, getComputedStyle(document.querySelector(".cqchk.fails .cqst")).color]);
+  expect(fault).not.toBe(mark);
   const [doc] = await expect.poll(async () => (await saved(page)).length).toBe(1).then(() => saved(page));
   expect(doc).toMatchObject({ mode: "cq", situation: 3, answer: "pervasion", said: "accept", correct: false, grade: "bad" });
 });
@@ -84,7 +99,7 @@ test("when both the reason and the pervasion fail, the reason comes first: denyi
   await expect(headline(page)).toHaveText("Not quite.");
   await expect(page.locator(".cqres")).toHaveClass(/bad/);
   await expect(page.locator(".cqres .cqconf")).toContainText("You are not wrong that the pervasion fails, but you missed the point");
-  await expect(page.locator(".vchip[aria-selected=true]")).toHaveText(/Reason/i);
+  await expect(page.locator(".cqchk.first")).toContainText("Reason");
   const [doc] = await expect.poll(async () => (await saved(page)).length).toBe(1).then(() => saved(page));
   expect(doc).toMatchObject({ situation: 8, said: "pervasion", correct: false, grade: "bad", missedPoint: true });
 });
@@ -133,10 +148,14 @@ test("a counter-example that is not one makes the result partly right; one left 
   await expect(page.locator(".cqres .cqmine")).toContainText("Not checked");
 });
 
-test("the keys 1, 2 and 3 reply, S skips, N goes on, and Escape leaves the counter-example", async ({ page }) => {
+test("the keys 1, 2 and 3 reply (the reason, the pervasion, accept), S skips, N goes on, and Escape leaves the counter-example", async ({ page }) => {
   await open(page);
-  await draw(page, 5);
-  await page.keyboard.press("2");
+  await draw(page, 5); // the reason is not established
+  await page.keyboard.press("1");
+  await expect(headline(page)).toHaveText("Right.");
+  await page.keyboard.press("n");
+  await draw(page, 1);
+  await page.keyboard.press("3");
   await expect(headline(page)).toHaveText("Right.");
   await page.keyboard.press("n");
   await expect(page.locator(".cqask")).toBeVisible();
@@ -145,12 +164,12 @@ test("the keys 1, 2 and 3 reply, S skips, N goes on, and Escape leaves the count
   await expect(page.locator(".cqask")).toBeVisible();
   await expect(page.locator(".cqt")).not.toHaveText(before);
   await draw(page, 3);
-  await page.keyboard.press("3");
+  await page.keyboard.press("2");
   await expect(page.locator("#cqex")).toBeVisible();
   await page.locator("#cqex").press("Escape"); // back to the replies, nothing is answered
   await expect(page.locator(".cqask")).toBeVisible();
   await expect(page.locator("#cqex")).toHaveCount(0);
-  expect(await saved(page)).toHaveLength(1);
+  expect(await saved(page)).toHaveLength(2);
 });
 
 test("an attempt at its counter-example waits in the menu and comes back; skipping it asks first", async ({ page }) => {
@@ -161,12 +180,12 @@ test("an attempt at its counter-example waits in the menu and comes back; skippi
   await goTo(page, "Relations");
   await openMenu(page);
   await expect(page.locator('#menu .mrow[data-go="cq"]')).toContainText(/continue/i);
-  await goTo(page, "Consequences");
+  await goTo(page, "Syllogisms");
   await expect(page.locator("#cqex")).toBeVisible();
   expect(await page.evaluate(() => window.__t.cur.c.id)).toBe(c.id);
   await page.locator(".pbar .skipw").click();
   const dialog = page.getByRole("alertdialog");
-  await expect(dialog).toContainText("Skip this consequence?");
+  await expect(dialog).toContainText("Skip this syllogism?");
   await dialog.getByRole("button", { name: "Keep going" }).click();
   await expect(page.locator("#cqex")).toBeVisible();
   await page.locator(".pbar .skipw").click();
@@ -177,18 +196,20 @@ test("an attempt at its counter-example waits in the menu and comes back; skippi
   await expect(page.locator('#menu .mrow[data-go="cq"]')).not.toContainText(/continue/i);
 });
 
-test("the practice options hold only what Consequences uses: the wording, which is kept, and the things drawn from", async ({ page }) => {
+test("the practice options hold only what Syllogisms uses: the wording, which is kept, and the things drawn from", async ({ page }) => {
   await open(page);
   await page.locator("#msess").click();
   const sheet = page.locator("#opts");
   await expect(sheet).toContainText("Wording");
   await expect(sheet).toContainText("Things");
+  await expect(sheet).toContainText("With Dudra terms");
+  await expect(sheet).not.toContainText(/course|textbook/i); // the page does not say "the course" or "textbook"
   await expect(sheet).not.toContainText("Notation");
   await expect(sheet).not.toContainText("Blitz");
-  await sheet.getByRole("button", { name: "Textbook" }).click();
+  await sheet.getByRole("button", { name: "Formal" }).click();
   await page.keyboard.press("Escape");
   await expect(page.locator(".cqt")).toContainText(/^It follows that the subject, .+, is .+ because of being .+\.$/);
-  await expect(page.locator(".cqt b")).toHaveCount(3); // the subject, the conclusion and the reason, apart from the words
+  await expect(page.locator(".cqt b")).toHaveCount(3); // the subject, the predicate and the reason, apart from the words
   await page.reload();
   await expect(page.locator(".cqt")).toContainText(/^It follows that the subject,/);
   // everyday things only: the consequences drawn from then on have no course term in them
@@ -200,7 +221,7 @@ test("the practice options hold only what Consequences uses: the wording, which 
   expect(await page.evaluate(() => localStorage.getItem("rd-cqlevel"))).toBe("1");
 });
 
-test("the Blitz and the tutor's chat are not part of Consequences", async ({ page }) => {
+test("the Blitz and the tutor's chat are not part of Syllogisms", async ({ page }) => {
   await open(page);
   await expect(page.locator("#mbz")).toBeHidden();
   if (await page.locator("#mchat").isVisible()) await expect(page.locator("#mchat")).toHaveAttribute("aria-label", "Recent answers"); // a wide screen: only the panel of recent answers and keys

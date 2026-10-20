@@ -21,7 +21,7 @@ import { cap, isMiss } from "./util";
 /** What the learner says: accept the consequence, deny the reason ("the reason is not established"), or deny the pervasion. */
 export type Reply = "accept" | "reason" | "pervasion";
 /** The replies in the order the buttons show them. */
-export const REPLIES: readonly Reply[] = ["accept", "reason", "pervasion"];
+export const REPLIES: readonly Reply[] = ["reason", "pervasion", "accept"];
 
 /** The eight combinations of the three checks: E (the subject is the reason), V (whatever is the reason is the predicate), T (the subject is the predicate). */
 export type Situation = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
@@ -248,7 +248,7 @@ export interface Consequence {
   /** how many of the four links between the parts it has */
   links: number;
   checks: { e: Check; v: Check; t: Check };
-  /** a thing that is the reason and is not the predicate, when the pervasion fails */
+  /** a thing that is the reason and is not the predicate, when the pervasion fails: kept for the tutor's explanation, the result does not show it */
   witness?: string;
 }
 
@@ -272,7 +272,7 @@ function proofOfE(ix: DataIndex, item: Item, r: string, reason: string, yes: boo
   return base;
 }
 
-function proofOfV(ix: DataIndex, pair: PairInfo, reason: string, predicate: string, witness: string | undefined): string {
+function proofOfV(ix: DataIndex, pair: PairInfo, reason: string, predicate: string): string {
   const every = `Whatever ${is(true, reason)} ${is(true, predicate)}`;
   if (pair.holds?.how === "same") return `${every}: these two name the same class.`;
   if (pair.holds?.how === "reviewed") return `${every}.`;
@@ -282,10 +282,8 @@ function proofOfV(ix: DataIndex, pair: PairInfo, reason: string, predicate: stri
     if (!up.length) return `${every}: these two name the same class.`;
     return up.length === 1 ? `${every}.` : `${every}, since it is ${up.map((t) => termWord(ix, t)).join(", which is ")}.`;
   }
-  const fails = `${cap(witness || "")} ${is(true, reason)} and ${is(false, predicate)}, so not everything that is ${reason} is ${predicate}.`;
-  if (!pair.opposite) return fails;
-  const [x, y] = pair.opposite;
-  return `${fails} The pervasion is even opposite: whatever is ${reason} is ${termWord(ix, x)}, whatever is ${predicate} is ${termWord(ix, y)}, and nothing is both.`;
+  // the class's phrase; why it fails (a counter-example, an opposite pervasion) is for the tutor's explanation, not for every result
+  return `Just because it is ${reason}, doesn't necessarily mean that it is ${predicate}.`;
 }
 
 function phrasesFor(pair: PairInfo, rng: Rng): [string, string] {
@@ -313,7 +311,7 @@ function make(ix: DataIndex, c: Cand, sit: Situation, rng: Rng): Consequence {
     situation: sit, answer: rule.answer, pervasion, level: pair.level, links: c.links, witness,
     checks: {
       e: { ok: rule.e, line: proofOfE(ix, item, pair.r, reason, rule.e) },
-      v: { ok: !!pair.holds, line: proofOfV(ix, pair, reason, predicate, witness) },
+      v: { ok: !!pair.holds, line: proofOfV(ix, pair, reason, predicate) },
       t: { ok: rule.t, line: `${cap(item.n)} ${is(rule.t, predicate)}.` },
     },
   };
@@ -335,16 +333,16 @@ export type Piece = string | { part: "subject" | "predicate" | "reason"; text: s
 const subj = (c: Consequence): Piece => ({ part: "subject", text: c.subject });
 const pred = (c: Consequence): Piece => ({ part: "predicate", text: c.predicate });
 const reas = (c: Consequence): Piece => ({ part: "reason", text: c.reason });
-/** The ways to say a consequence: the class's "Take X. It follows it is P because it is R." and the textbook's. */
+/** The ways to say a consequence: the class's "Take X. It follows it is P because it is R." and the formal one. */
 const PIECES = {
   take: (c: Consequence): Piece[] => ["Take ", subj(c), ". It follows it is ", pred(c), " because it is ", reas(c), "."],
-  textbook: (c: Consequence): Piece[] => ["It follows that the subject, ", subj(c), ", is ", pred(c), " because of being ", reas(c), "."],
+  formal: (c: Consequence): Piece[] => ["It follows that the subject, ", subj(c), ", is ", pred(c), " because of being ", reas(c), "."],
 };
 export type Wording = keyof typeof PIECES;
 const joined = (ps: Piece[]) => ps.map((x) => (typeof x === "string" ? x : x.text)).join("");
 export const WORDINGS = {
   take: (c: Consequence) => joined(PIECES.take(c)),
-  textbook: (c: Consequence) => joined(PIECES.textbook(c)),
+  formal: (c: Consequence) => joined(PIECES.formal(c)),
 } as const;
 /** The consequence as a sentence, in one of the wordings (the class's by default). */
 export const consequenceText = (c: Consequence, wording: Wording = "take"): string => WORDINGS[wording](c);
@@ -374,12 +372,12 @@ function confusionOf(c: Consequence, said: Reply): string {
   }
   if (c.answer === "pervasion") {
     return said === "accept"
-      ? (rule.t ? `You accepted because the conclusion is true, but the reason has to prove it, and it is false that ${every}.`
-        : `${S} is ${R}, but it is false that ${every}, so the reason does not prove the conclusion.`)
+      ? (rule.t ? `You accepted because the thesis is true, but the reason has to prove it, and it is false that ${every}.`
+        : `${S} is ${R}, but it is false that ${every}, so the reason does not prove the thesis.`)
       : `${S} is ${R}, so the reason is established; what fails is the step from ${R} to ${P}.`;
   }
   if (said === "accept") {
-    return rule.t ? `You accepted because the conclusion is true, but the reason has to prove it, and ${c.subject} is not ${R}.`
+    return rule.t ? `You accepted because the thesis is true, but the reason has to prove it, and ${c.subject} is not ${R}.`
       : `${S} is not ${R}, so the reason is not established.`;
   }
   if (c.checks.v.ok) return `${cap(every)}, so the pervasion holds; the trouble is that ${c.subject} is not ${R}.`;

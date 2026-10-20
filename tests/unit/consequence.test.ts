@@ -96,18 +96,20 @@ test("a pervasion holds only by the term chain, the same class or a stated pair;
   expect(consequenceOf(ix, "a song", "snd", "extf")?.checks.v.line).toBe("Whatever is a sound is an external form.");
   const form = consequenceOf(ix, "a song", "snd", "form");
   expect(form?.checks.v.line).toBe(`Whatever is a sound is ${form?.predicate}, since it is an external form, which is a form.`);
-  // red things and food overlap without either holding the other: an item that is the reason and not the predicate shows the pervasion fails
+  // red things and food overlap without either holding the other: the pervasion fails, and the line is the class's phrase (the counter-example is kept for the tutor, not shown)
   const fails = consequenceOf(ix, "a tomato", "red", "food");
-  expect(fails?.checks.v.line).toBe(`A red ball is red and is not ${fails?.predicate}, so not everything that is red is ${fails?.predicate}.`);
+  expect(fails?.checks.v.line).toBe(`Just because it is red, doesn't necessarily mean that it is ${fails?.predicate}.`);
+  expect(fails?.witness).toBe("a red ball");
   const back = consequenceOf(ix, "a tomato", "food", "red");
-  expect(back?.checks.v.line).toBe(`A banana is ${back?.reason} and is not red, so not everything that is ${back?.reason} is red.`);
+  expect(back?.checks.v.line).toBe(`Just because it is ${back?.reason}, doesn't necessarily mean that it is red.`);
+  expect(back?.witness).toBe("a banana");
 });
 
-test("the pervasion is opposite when the term chains exclude each other, and the line says why", () => {
+test("the pervasion is opposite when the term chains exclude each other", () => {
   const c = consequenceOf(ix, "a tomato", "red", "cons");
   expect(c?.situation).toBe(4);
   expect(c?.pervasion).toBe("opposite");
-  expect(c?.checks.v.line).toContain(`The pervasion is even opposite: whatever is red is a form, whatever is ${c?.predicate} is a consciousness, and nothing is both.`);
+  expect(c?.checks.v.line).toBe(`Just because it is red, doesn't necessarily mean that it is ${c?.predicate}.`);
   // items alone never prove an opposite: red and food share nothing in a made-up world where no tomato exists, and it still only fails
   const lone = makeIndex({ ...data(), items: data().items.filter((i) => i.n !== "a tomato") });
   expect(consequenceOf(lone, "a red ball", "red", "food")?.pervasion).toBe("fails");
@@ -142,12 +144,12 @@ test("a non-existent is never the subject, and a pair of categories the data can
 test("two wordings of the same consequence", () => {
   const c = consequenceOf(ix, "a tomato", "red", "food") as Consequence;
   expect(consequenceText(c)).toBe(`Take a tomato. It follows it is ${c.predicate} because it is red.`);
-  expect(consequenceText(c, "textbook")).toBe(`It follows that the subject, a tomato, is ${c.predicate} because of being red.`);
+  expect(consequenceText(c, "formal")).toBe(`It follows that the subject, a tomato, is ${c.predicate} because of being red.`);
 });
 
 test("a wording is also said in pieces, so that the page can set the three parts apart; the pieces read as the sentence", () => {
   const c = consequenceOf(ix, "a tomato", "red", "food") as Consequence;
-  for (const w of ["take", "textbook"] as const) {
+  for (const w of ["take", "formal"] as const) {
     const pieces = consequencePieces(c, w);
     expect(pieces.map((x) => (typeof x === "string" ? x : x.text)).join("")).toBe(consequenceText(c, w));
     expect(pieces.filter((x) => typeof x !== "string")).toEqual([
@@ -186,10 +188,10 @@ test("grading: only the answer from the three checks is right, and a wrong reply
   }
   const c = consequenceOf(ix, "a banana", "red", "food") as Consequence;
   expect(gradeConsequence(c, "pervasion").confusion).toBe("You are not wrong that the pervasion fails, but you missed the point: the reason comes first, and a banana is not red.");
-  expect(gradeConsequence(c, "accept").confusion).toBe("You accepted because the conclusion is true, but the reason has to prove it, and a banana is not red.");
+  expect(gradeConsequence(c, "accept").confusion).toBe("You accepted because the thesis is true, but the reason has to prove it, and a banana is not red.");
   const d = consequenceOf(ix, "a tomato", "red", "food") as Consequence;
   expect(gradeConsequence(d, "reason").confusion).toBe(`A tomato is red, so the reason is established; what fails is the step from red to ${d.predicate}.`);
-  expect(gradeConsequence(d, "accept").confusion).toBe(`You accepted because the conclusion is true, but the reason has to prove it, and it is false that whatever is red is ${d.predicate}.`);
+  expect(gradeConsequence(d, "accept").confusion).toBe(`You accepted because the thesis is true, but the reason has to prove it, and it is false that whatever is red is ${d.predicate}.`);
 });
 
 test("the proofs say why the subject is not the reason, by the classes that exclude each other", () => {

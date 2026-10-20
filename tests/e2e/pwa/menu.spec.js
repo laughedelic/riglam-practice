@@ -26,7 +26,7 @@ test("the menu has today's line, one row per exercise, Review and Settings", asy
   await openMenu(page);
   await expect(page.locator("#menu .mtoday")).toContainText(/today/i);
   await expect(page.locator("#menu .mtoday")).toContainText(/nothing practiced yet/i);
-  await expect(page.locator("#menu .mrow")).toHaveText([/Relations/, /Pervasions/, /Find a pair/, /Consequences/]);
+  await expect(page.locator("#menu .mrow")).toHaveText([/Relations/, /Pervasions/, /Find a pair/, /Syllogisms/]);
   await expect(page.locator("#menu .mrow .cont")).toHaveCount(0);
   await expect(row(page, "practice")).toHaveAttribute("aria-current", "page");
   await expect(page.locator("#menu .fbtn")).toHaveText(["Review", "Settings"]);

@@ -4,26 +4,28 @@ import { isWide } from "../core/viewport.js";
 import { next } from "../practice/queue.js";
 import { kbHints } from "../practice/screen.js";
 import { pairBar } from "../shell/pbar.js";
-import { ago, render } from "../shell/render.js";
+import { ago } from "../shell/render.js";
 import { REPLIES, consequencePieces } from "../../domain/consequence.ts";
 import { backCq, cqKey, cqList, cqOf, exampleCq, sayCq } from "./flow.js";
 
-/* ---------- Consequences: the screen ---------- */
-// One card holds the consequence, set in its three parts (the subject, the conclusion, the reason). Under it the three replies; after a right "there is no
-// pervasion" the card asks for a counter-example instead; then the result: whether the reply was right, what was mixed up if it was not, and a chip for each of
-// the three checks (the reason, the pervasion, the conclusion) with the line that shows it. See flow.js for the steps.
+/* ---------- Syllogisms: the screen ---------- */
+// One card holds the syllogism (the code calls it a consequence), set in its three parts (the subject, the predicate, the reason). Under it the three replies, in the
+// order of the checks; after a right "there is no pervasion" the card asks for a counter-example instead; then the result: whether the reply was right, what was mixed
+// up if it was not, and one sheet with the three checks (the reason, the pervasion, the thesis), each with the line that shows it. See flow.js for the steps.
 const SAY={accept:"Accept",reason:"The reason is not established",pervasion:"There is no pervasion"};
 const SAID={accept:"accept it",reason:"the reason is not established",pervasion:"there is no pervasion"};
-const CHECKS=/** @type {const} */([["e","Reason"],["v","Pervasion"],["t","Conclusion"]]);
+// what a check is called, and what it comes to when it holds and when it does not (a check that does not hold is the fault to find, not a wrong answer)
+const CHECKS=/** @type {const} */([["e","Reason","established","not established"],["v","Pervasion","pervasion","no pervasion"],["t","Thesis","true","false"]]);
 
-// the sentence, with the subject, the conclusion and the reason set apart
+// the sentence, with the subject, the predicate and the reason set apart
 const sentence=c=>el("p",{class:"cqt",lang:"en"},consequencePieces(c,state.cqWording).map(x=>typeof x==="string"?x:el("b",{class:"cq-"+x.part,text:x.text})));
 
+// the replies in the order of the checks, each with its own tint and its number (the key that gives it)
 function replies(){
   return el("div",{class:"cqask",role:"group","aria-label":"Your reply"},REPLIES.map(r=>
-    el("button",{type:"button",class:"btn ghost cqsay",onclick:()=>sayCq(r)},SAY[r],isWide()?el("span",{class:"kbd","aria-hidden":"true",text:cqKey(r)}):null)));
+    el("button",{type:"button",class:"btn ghost cqsay "+r,onclick:()=>sayCq(r)},el("span",{class:"cqn","aria-hidden":"true",text:cqKey(r)}),SAY[r])));
 }
-// after a right "there is no pervasion": a thing that is the reason and is not the conclusion; empty goes on without one
+// after a right "there is no pervasion": a thing that is the reason and is not the predicate; empty goes on without one
 function exampleStep(c){
   const u=state.ui;
   const inp=el("input",{type:"text",id:"cqex",placeholder:"Name a counter-example","aria-label":"A counter-example: something that is "+c.reason+" and is not "+c.predicate,value:u.exText,autocomplete:"off",autocapitalize:"off",spellcheck:"false",enterkeyhint:"done"});
@@ -39,21 +41,23 @@ function exampleStep(c){
     el("p",{class:"chint"},el("button",{type:"button",class:"back",onclick:backCq,text:"‹ Back"}),"Leave it empty to go on without one."));
 }
 
-// the result: the reply, what was mixed up, the counter-example, and one chip per check
+// the result: the reply, what was mixed up and the counter-example (in the box that says right or not), then the three checks on one sheet. A check that does not
+// hold is marked in its own way, not as a wrong answer: it is the fault the reply had to find. The first one that fails is the one the reply is about.
 function result(){
-  const u=state.ui, c=cqOf(), g=u.grade, open=u.rtab==="auto"?((CHECKS.find(([k])=>!c.checks[k].ok)||CHECKS[1])[0]):u.rtab;
-  const chips=el("div",{class:"vchips",role:"tablist","aria-label":"The three checks"},CHECKS.map(([k,label])=>
-    el("button",{type:"button",role:"tab",id:"vt-"+k,class:"vchip "+(c.checks[k].ok?"ok":"bad"),"aria-selected":open===k?"true":"false","aria-controls":"vpanel",
-      onclick:()=>{ u.rtab=open===k?null:k; render(); }},
-      el("span",{class:"ic","aria-hidden":"true",text:c.checks[k].ok?"✓":"✗"}),label)));
-  const cur=CHECKS.find(([k])=>k===open);
-  return el("div",{class:"verdict cqres "+u.overall},
-    el("p",{class:"vl"},el("span",{class:"v",text:g.correct?u.overall==="part"?"Right, but the counter-example is not one.":"Right.":"Not quite."})),
-    g.correct?null:el("p",{class:"cqwhat"},"You said “"+SAID[g.said]+"”. The right reply is “"+SAID[g.expected]+"”."),
-    g.correct?null:el("p",{class:"cqconf",text:g.confusion}),
-    u.ex?el("p",{class:"cqmine"},el("span",{class:"m "+(u.ex.v==="ok"?"ok":u.ex.v==="bad"?"bad":"cmp"),"aria-hidden":"true",text:{ok:"✓",bad:"✗",cmp:"?"}[u.ex.v]}),el("b",{text:"Your counter-example: "}),u.ex.text+". "+u.ex.line):null,
-    chips,
-    cur?el("div",{class:"vpanel",id:"vpanel",role:"tabpanel","aria-labelledby":"vt-"+cur[0]},el("p",null,el("b",{text:cur[1]+": "}),c.checks[cur[0]].line)):null);
+  const u=state.ui, c=cqOf(), g=u.grade, first=(CHECKS.find(([k])=>!c.checks[k].ok)||[])[0];
+  return [
+    el("div",{class:"verdict cqres "+u.overall},
+      el("p",{class:"vl"},el("span",{class:"v",text:g.correct?u.overall==="part"?"Right, but the counter-example is not one.":"Right.":"Not quite."})),
+      g.correct?null:el("p",{class:"cqwhat"},"You said “"+SAID[g.said]+"”. The right reply is “"+SAID[g.expected]+"”."),
+      g.correct?null:el("p",{class:"cqconf",text:g.confusion}),
+      u.ex?el("p",{class:"cqmine"},el("span",{class:"m "+(u.ex.v==="ok"?"ok":u.ex.v==="bad"?"bad":"cmp"),"aria-hidden":"true",text:{ok:"✓",bad:"✗",cmp:"?"}[u.ex.v]}),el("b",{text:"Your counter-example: "}),u.ex.text+". "+u.ex.line):null),
+    el("ol",{class:"cqchecks","aria-label":"The three checks, in the order they are made"},CHECKS.map(([k,label,yes,no],i)=>
+      el("li",{class:"cqchk "+(c.checks[k].ok?"holds":"fails")+(k===first?" first":"")},
+        el("span",{class:"cqcn","aria-hidden":"true",text:String(i+1)}),
+        el("div",{class:"cqcb"},
+          el("p",{class:"cqch"},el("b",{text:label}),el("span",{class:"cqst",text:c.checks[k].ok?yes:no})),
+          el("p",{class:"cqcl",text:c.checks[k].line})))))
+  ];
 }
 
 // the last answers, newest first, in the panel at the right of a wide screen
@@ -67,17 +71,17 @@ function recent(box){
 
 export function renderCq(s,c){
   const u=state.ui, k=cqOf(), w=isWide();
-  s.append(el("p",{class:"cap"},u.checked?"The three checks, in the order they are made: the reason first, then the pervasion, then the conclusion."
-    :"Is the consequence right? Accept it, or deny the reason or the pervasion."));
-  const card=el("div",{class:"qcard cqcard"},el("p",{class:"qn"},el("span",{class:"qnl"},"Consequence")),sentence(k));
+  s.append(el("p",{class:"cap"},u.checked?"The three checks, in the order they are made. The first one that fails gives the reply; if none fails, accept."
+    :"Is the syllogism right? Deny the reason, deny the pervasion, or accept it."));
+  const card=el("div",{class:"qcard cqcard"},el("p",{class:"qn"},el("span",{class:"qnl"},"Syllogism")),sentence(k));
   if(u.step===0) card.append(replies());
   if(u.step===1) card.append(exampleStep(k));
   s.append(card);
-  if(u.checked) s.append(result(),...(u.saveErr?[el("p",{class:"status",text:u.saveErr})]:[]));
+  if(u.checked) s.append(...result(),...(u.saveErr?[el("p",{class:"status",text:u.saveErr})]:[]));
   s.append(pairBar(u.checked?{label:"Next",hint:"N",onclick:()=>next()}:u.step===1?{label:"Check",onclick:()=>exampleCq()}:null));
   if(!w||!state.coachOpen) return;
   recent(c);
-  c.append(kbHints(...(u.checked?[["N","next consequence"]]
+  c.append(kbHints(...(u.checked?[["N","next syllogism"]]
     :u.step===1?[["Enter","check"],["Esc","back"],["S","skip"]]
     :[...REPLIES.map(r=>[cqKey(r),SAID[r]]),["S","skip"]])));
 }

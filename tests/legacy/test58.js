@@ -29,7 +29,7 @@ const other=r=>r==='mi'?'con':'mi';
   const {br,pg,errs}=await open({width:390,height:844},{isMobile:true,hasTouch:true});
   await pg.locator('#menubtn').click(); await pg.waitForTimeout(250);
   const names=await pg.locator('#menu .mrow b, #menu .fbtn').allInnerTexts();
-  ok('the menu reads Relations, Pervasions, Find a pair, Consequences, then Review and Settings',JSON.stringify(names.map(s=>s.trim().toLowerCase()))==='["relations","pervasions","find a pair","consequences","review","settings"]',names);
+  ok('the menu reads Relations, Pervasions, Find a pair, Syllogisms, then Review and Settings',JSON.stringify(names.map(s=>s.trim().toLowerCase()))==='["relations","pervasions","find a pair","syllogisms","review","settings"]',names);
   ok('each name fits its row at 390 px',await pg.evaluate(()=>[...document.querySelectorAll('#menu .mrow, #menu .fbtn')].every(b=>b.scrollWidth<=b.clientWidth+1)));
 
   // ---- one pair across the two modes
@@ -291,7 +291,7 @@ const other=r=>r==='mi'?'con':'mi';
   const {br,pg,errs}=await open({width:1280,height:800});
   await pg.locator('#menubtn').click(); await pg.waitForTimeout(150);
   const rail=await pg.locator('#menu .mrow b, #menu .fbtn').allInnerTexts();
-  ok('the menu reads Relations, Pervasions, Find a pair, Consequences, Review, Settings',JSON.stringify(rail.map(s=>s.trim().toLowerCase()))==='["relations","pervasions","find a pair","consequences","review","settings"]',rail);
+  ok('the menu reads Relations, Pervasions, Find a pair, Syllogisms, Review, Settings',JSON.stringify(rail.map(s=>s.trim().toLowerCase()))==='["relations","pervasions","find a pair","syllogisms","review","settings"]',rail);
   await toggleCoach(pg);
   ok('the coach panel (opened as the chat button does) has no "Coach" label; it starts with Recent or the key hints',await pg.locator('#coach').isVisible()&&!/^coach$/i.test(((await pg.locator('#coach').innerText())||'').trim().split('\n')[0]||'')&&!/\bcoach\b/i.test(await pg.locator('#coach').innerText()),await pg.locator('#coach').innerText());
   const p1=await key(pg);
