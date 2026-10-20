@@ -1,7 +1,7 @@
 // The two lookup tools the tutor can call while it answers: a term in the course data, and an example in the practice
 // list (or, where the server has them, the course's reference examples). A tool works on a data index, so the page runs it
 // on its own state and the Worker on an index it builds.
-import { exampleFacts, examplesFor, matchExamples } from "./examples";
+import { exampleFacts, examplesFor, matchExamples, upTo } from "./examples";
 import type { ExampleIndex } from "./examples";
 import { termFacts } from "./facts";
 import { matchItem, spelled, upChain } from "./lookup";
@@ -59,10 +59,10 @@ export function tutorTools(ix: DataIndex, examples?: ExampleIndex | null): Tutor
        const num=(v:unknown,lo:number,hi:number,dflt:number)=>typeof v==="number"&&Number.isFinite(v)?Math.min(hi,Math.max(lo,Math.round(v))):dflt;
        const cap=num(a.level,1,4,2), count=num(a.count,1,5,3);
        const of=(cls:string[]|undefined)=>{ const c=(cls??[]).filter(x=>upChain(ix,x).includes(hit.name)); return c.includes(hit.name)?hit.name:c[0]; };
-       const list=examplesFor(ix,examples.items,hit.name,count,cap);
+       const list=examplesFor(ix,examples.items,hit.name,count,upTo(cap));
        return {found:true, term:hit.name, level_cap:cap,
          examples:list.map(e=>({item:e.n, level:e.lv, ...(e.k?{kind:e.k}:{}), ...(e.cf?{confirmation:e.cf}:{}), of:of(e.cls), ...(e.gloss?{why:e.gloss}:{})})),
-         harder:examplesFor(ix,examples.items,hit.name,1000,4).some(e=>e.lv>cap)};
+         harder:examplesFor(ix,examples.items,hit.name,1000).some(e=>e.lv>cap)};
      }} as TutorTool]:[]),
   ];
 }

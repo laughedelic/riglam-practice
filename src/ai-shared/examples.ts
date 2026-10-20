@@ -56,6 +56,25 @@ export interface Examples {
   items: Example[];
 }
 
+/** The levels of the examples, from 1 (a plain thing) to 4. */
+export const LEVELS: readonly number[] = [1, 2, 3, 4];
+
+/** The levels a learner draws examples from: any mix, never none. */
+export type Levels = readonly number[];
+
+/** A new device draws from levels 1 and 2: level 1 alone has little for the consciousness side. */
+export const DEFAULT_LEVELS: Levels = [1, 2];
+
+/** The valid levels in a stored value (a list, or "1,2"), once each, in order; the default when none is valid. */
+export function normLevels(raw: unknown): number[] {
+  const list: unknown[] = typeof raw === "string" ? raw.split(",").map((s) => (s.trim() ? +s : NaN)) : Array.isArray(raw) ? raw : [];
+  const ok = LEVELS.filter((l) => list.includes(l));
+  return ok.length ? ok : [...DEFAULT_LEVELS];
+}
+
+/** Levels 1 up to `max`. */
+export const upTo = (max: number): number[] => LEVELS.filter((l) => l <= max);
+
 const LISTS = ["al", "cls", "not", "s"] as const;
 const TEXTS = ["k", "f", "cf", "cn", "bg", "gloss"] as const;
 const FLAGS = ["ne", "inc"] as const;
@@ -128,13 +147,13 @@ const rank = (ex: Pick<Example, "cf">) => { const i = CONFIRMED.indexOf(ex.cf ??
  * Examples of a term, for its definition card and the tutor's examples_of: its own (an instance of the term itself) before those of its subclasses, then the lowest
  * level, the better confirmed, and the name. A statement is not an example of a term and an example the sources say it is not an instance of
  * the term does not count. Up to `max`; after the term's own, as many different subclasses as possible first, so that a broad term shows a
- * spread and not three of one kind. Only examples up to `maxLevel`. The same list for the same data.
+ * spread and not three of one kind. Only examples of `levels` (all by default). The same list for the same data.
  */
-export function examplesFor(ix: DataIndex, items: readonly Example[], term: string, max = 3, maxLevel = 4): Example[] {
+export function examplesFor(ix: DataIndex, items: readonly Example[], term: string, max = 3, levels: Levels = LEVELS): Example[] {
   if (!Object.hasOwn(ix.DATA.terms, term)) return [];
   const ranked: { ex: Example; own: boolean; cls: string }[] = [];
   for (const ex of items) {
-    if (ex.k === "statement" || ex.lv > maxLevel || ex.not?.includes(term)) continue;
+    if (ex.k === "statement" || !levels.includes(ex.lv) || ex.not?.includes(term)) continue;
     const classes = (ex.cls ?? []).filter((c) => upChain(ix, c).includes(term));
     if (classes.length) ranked.push({ ex, own: classes.includes(term), cls: classes.includes(term) ? term : classes[0] });
   }
