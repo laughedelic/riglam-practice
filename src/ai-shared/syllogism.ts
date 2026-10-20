@@ -41,13 +41,13 @@ export const SYLLOGISM_NOTE = `This is the Syllogisms mode. The learner gets a s
 The right reply is the first of three checks that fails, made in this order: 1 Reason (is S R?), 2 Pervasion (is whatever is R also P?), 3 Thesis (is S P?). When the reason and the pervasion both fail, the reason comes first. A true thesis does not make the syllogism right: the reason has to prove it. After a right "There is no pervasion" the learner may name a counter-example: something that is R and is not P.
 The page has settled the three checks, the right reply and what was mixed up from the term data. They are right: explain them, never question or reverse them. In Blitz mode, running out of time is no reply.`;
 
-export const SYLLOGISM_ASK = `Explain this answer. The page shows the learner its line for each check (they are in the card), so say what those lines leave out and do not repeat them. Write lines only for the checks up to and including the first one that fails (all three when none fails), in this order, briefly for a check that holds:
-- "Reason:" what the subject is, down to its class, and so why it is or is not the reason; when it is not, name the reason's class too and why nothing is in both;
-- "Pervasion:" when it fails, the counter-example from the card, in a sentence that says it is the reason and is not the predicate, or, for an opposite pervasion, why what is the reason is not the predicate, naming both classes; when it holds, why, step by step up from the reason's class to the predicate, none skipped;
+export const SYLLOGISM_ASK = `Explain this answer. The page shows the learner its line for each check (they are in the card), so do not say them again in the same words: add what they leave out. Write lines only for the checks up to and including the first one that fails (all three when none fails), in this order, briefly for a check that holds:
+- "Reason:" what the subject is, down to its class, and so why it is or is not the reason; when it is not, name the reason's class too and why nothing is in both, but only as far as the card or the lookup tools show it, otherwise say only that the subject is not the reason;
+- "Pervasion:" when it fails, the counter-example from the card, in a sentence that says it is the reason and is not the predicate, or, for an opposite pervasion, why what is the reason is not the predicate, from the chains and the contradictory terms in the card (or the lookup tools); when it holds, why, step by step up from the reason's class to the predicate, none skipped;
 - "Thesis:" whether the subject is the predicate, in a few words;
 - "Counter-example:" only if the learner offered one: whether it is the reason and is not the predicate. The page's verdict is in the card; where the page could not place it, decide from the sources and say it is your own reading;
-- "Explanation:" only if the learner was wrong: two sentences on what to look at to get it right, without repeating the lines above;
-- "Misconception:" only if the learner was wrong, one sentence.`;
+- "Explanation:" only if the reply was wrong or the time ran out (not when a right reply came with a counter-example that is not one): two sentences on what to look at to get it right, without repeating the lines above;
+- "Misconception:" only if the learner gave a wrong reply, one sentence; never when the time ran out.`;
 
 const SAID: Record<Reply, string> = { accept: "Accept", reason: "The reason is not established", pervasion: "There is no pervasion" };
 const cut = (s: string, n: number) => (s.length > n ? s.slice(0, n) : s);
@@ -72,7 +72,9 @@ export function syllogismBody(ix: DataIndex, c: SyllogismView, a: SyllogismAnswe
     `2 Pervasion (is whatever is the reason also the predicate?): ${pervasion}. The page's line: ${JSON.stringify(c.checks.v.line)}`,
     `3 Thesis (is S the predicate?): ${c.checks.t.ok ? "TRUE" : "FALSE"}. The page's line: ${JSON.stringify(c.checks.t.line)}`,
   ].join("\n");
-  const said = a.grade.said ? JSON.stringify(SAID[a.grade.said]) : "nothing (time ran out)";
+  const replied = a.grade.said
+    ? `Learner replied: ${JSON.stringify(SAID[a.grade.said])}, which is ${a.grade.correct ? "right" : "wrong"}.`
+    : "The learner gave no reply: the time ran out (Blitz), so nothing was mixed up.";
   const ex = a.ex
     ? `\nThe learner's counter-example: ${JSON.stringify(cut(a.ex.text, 200))}; page verdict ${a.ex.v === "ok" ? "ok (it is the reason and is not the predicate)" : a.ex.v === "bad" ? "bad (it is not the reason, or it is the predicate too)" : "cmp (the page does not know it well enough to say)"}.`
     : "";
@@ -82,7 +84,7 @@ ${JSON.stringify(card)}
 Syllogism: ${JSON.stringify(a.sentence)}
 Checks (the page settled them):
 ${checks}
-Right reply: ${JSON.stringify(SAID[c.answer])}. Learner replied: ${said}, which is ${a.grade.correct ? "right" : "wrong"}.${a.grade.confusion ? "\nWhat the page says was mixed up: " + a.grade.confusion : ""}${ex}`;
+Right reply: ${JSON.stringify(SAID[c.answer])}. ${replied}${a.grade.confusion ? "\nWhat the page says was mixed up: " + a.grade.confusion : ""}${ex}`;
 }
 
 /** The categories the tutor's fine points are taken from: the reason's and the predicate's (the same one once). */

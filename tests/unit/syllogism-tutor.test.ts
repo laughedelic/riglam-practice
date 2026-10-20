@@ -68,7 +68,9 @@ test("a pervasion that holds names no counter-example, and an accepted syllogism
 
 test("time running out is said as no reply, and the learner's counter-example is quoted, cut, and given the page's verdict", () => {
   const c = find((x) => x.answer === "pervasion");
-  expect(syllogismBody(real, c, answered(c, null))).toContain("Learner replied: nothing (time ran out), which is wrong.");
+  expect(syllogismBody(real, c, answered(c, null))).toContain("The learner gave no reply: the time ran out (Blitz), so nothing was mixed up.");
+  expect(syllogismBody(real, c, answered(c, null))).not.toContain("Learner replied");
+  expect(SYLLOGISM_ASK).toContain("never when the time ran out");
   const long = "x".repeat(500);
   const ex = (v: "ok" | "bad" | "cmp") => syllogismBody(real, c, answered(c, "pervasion", { ex: { text: v === "cmp" ? long : 'a "quoted" thing', v } }));
   expect(ex("ok")).toContain(`The learner's counter-example: "a \\"quoted\\" thing"; page verdict ok (it is the reason and is not the predicate).`);

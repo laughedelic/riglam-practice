@@ -1,6 +1,7 @@
 import { state } from "../state.js";
 import { $ } from "../core/dom.js";
 import { isSyllogism } from "../core/util.js";
+import { canAsk } from "../core/ask.js";
 import { isWide } from "../core/viewport.js";
 import { persist } from "../practice/answers.js";
 import { explainByItself } from "../ai/tutor.js";
@@ -87,7 +88,7 @@ function finishSyllogism(){
   u.checked=true; u.step=2; render();
   top0();
   if(!isWide()){ const bs=document.querySelectorAll("#stage .actions .btn"); if(bs.length) /** @type {HTMLElement} */(bs[bs.length-1]).focus({preventScroll:true}); }
-  else $("stage").focus({preventScroll:true});
+  else { const x=state.autoExplain&&canAsk()?null:/** @type {HTMLElement|null} */(document.querySelector("#stage .verdict .xpl")); (x||$("stage")).focus({preventScroll:true}); }   // as after the other exercises: Explain, unless the answer is explained by itself
   explainByItself(u);                             // with "Check every answer with AI" on, the explanation comes by itself
   if(!state.db) return;
   u.saveId=docId();

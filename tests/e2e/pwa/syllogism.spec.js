@@ -386,7 +386,7 @@ withKey("Explain sends the card of the syllogism and the page's three checks, sh
   expect(card.startsWith("This is the Syllogisms mode.")).toBe(true);
   expect(card).not.toContain("terse debate tutor"); // the server holds the standing instructions
   expect(card).not.toContain("Fine points"); // and the notes
-  expect(card).toContain(JSON.stringify(c.checks.v.line));
+  for (const k of ["e", "v", "t"]) expect(card).toContain(JSON.stringify(c.checks[k].line));
   expect(card).toContain(`the counter-example kept for you: ${JSON.stringify(c.witness)}`);
   expect(card).toContain('Right reply: "There is no pervasion". Learner replied: "Accept", which is wrong.');
   expect(card).toContain('Explain this answer.');
@@ -416,7 +416,7 @@ withKey("a follow-up question goes on in the same conversation, from the panel o
   await expect(page.locator(".tutor .q", { hasText: "Why is that?" })).toBeVisible();
 });
 
-withKey("the practice options have the switch for the tutor, on by default; off, the next answer waits for a tap on Explain", async ({ page }) => {
+withKey("the practice options have the switch for the tutor, on; off, the next answer waits for a tap on Explain", async ({ page }, testInfo) => {
   await page.addInitScript(() => localStorage.setItem("rd-autoexplain", "1"));
   const asked = await tutor(page);
   await open(page);
@@ -430,6 +430,7 @@ withKey("the practice options have the switch for the tutor, on by default; off,
   await say(page, "accept");
   await expect(headline(page)).toHaveText("Right.");
   await expect(explain(page)).toBeVisible();
+  if (!isPhone(testInfo)) await expect(explain(page)).toBeFocused(); // as after the other exercises, a keyboard user is on Explain
   await page.waitForTimeout(400);
   expect(asked).toHaveLength(0); // nothing went out by itself
   await explain(page).click();
