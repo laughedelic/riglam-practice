@@ -147,19 +147,19 @@ const other=r=>r==='mi'?'con':'mi';
 
   // Blitz on in Relations: the pick uses the relation time, the examples the example time
   await pg.click('#mbz'); await pg.waitForTimeout(150);
-  ok('Relations, the pick: the countdown along the pair bar runs the relation time (3 s) and the bolt name has it',await lim('#stage .pbar .pbt')==='3000'&&/^Blitz on: 3 s relation, \d+ s example$/.test(await pg.locator('#mbz').getAttribute('aria-label')));
+  ok('Relations, the pick: the countdown under the top bar runs the relation time (3 s) and the bolt name has it',await lim('#mbar .mbt')==='3000'&&/^Blitz on: 3 s relation, \d+ s example$/.test(await pg.locator('#mbz').getAttribute('aria-label')));
   const rel=await pg.evaluate(()=>window.__t.cur.p.relation);
   await pg.locator('.rels .rel').nth(ORDER[rel]).click(); await pg.waitForTimeout(150);
   const n=CELLS.filter(c=>!EMPTY[rel].includes(c)).length;
-  ok('then the examples: n × 15 s, the bolt name has 15 s',await lim('#stage .pbar .pbt')===String(n*15000)&&/^Blitz on: 3 s relation, 15 s example$/.test(await pg.locator('#mbz').getAttribute('aria-label')));
+  ok('then the examples: n × 15 s, the bolt name has 15 s',await lim('#mbar .mbt')===String(n*15000)&&/^Blitz on: 3 s relation, 15 s example$/.test(await pg.locator('#mbz').getAttribute('aria-label')));
   await pg.click('#mbz'); await pg.waitForTimeout(100);
 
   // Pervasions: relation timer after the four questions
   await tabPhone(pg,'Pervasions');
   await pg.click('#mbz'); await pg.waitForTimeout(100);
-  ok('Pervasions question: the countdown runs the example time (15 s)',await lim('#stage .pbar .pbt')==='15000');
+  ok('Pervasions question: the countdown runs the example time (15 s)',await lim('#mbar .mbt')==='15000');
   for(let i=0;i<4;i++){ await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(70); }
-  ok('the relation step has a countdown with the relation time (3 s)',await lim('#stage .pbar .pbt')==='3000'&&await pg.evaluate(()=>!!window.__t.ui.tq&&window.__t.ui.tph==='rel'));
+  ok('the relation step has a countdown with the relation time (3 s)',await lim('#mbar .mbt')==='3000'&&await pg.evaluate(()=>!!window.__t.ui.tq&&window.__t.ui.tph==='rel'));
   ok('the bolt name has the 3 s relation time there',/3 s relation/.test(await pg.locator('#mbz').getAttribute('aria-label')));
   await pg.waitForTimeout(3300);
   const late=await pg.evaluate(()=>({checked:window.__t.ui.checked,late:window.__t.ui.late,relOk:window.__t.ui.res&&window.__t.ui.res.relOk,rel:window.__t.ui.rel,right:window.__t.cur.p.relation,doc:Object.values(window.__S.debates)[0]}));
@@ -190,7 +190,7 @@ const other=r=>r==='mi'?'con':'mi';
   const c0=await geo(['.cview .cin','.cview .chint','.pbar']);
   await pg.click('#mbz'); await pg.waitForTimeout(150);
   const c1=await geo(['.cview .cin','.cview .chint','.pbar']);
-  ok('cell view: the countdown runs along the top edge of the pair bar, under the field and the hint',await pg.evaluate(()=>{const i=document.querySelector('.cview .cin').getBoundingClientRect(), t=document.querySelector('.pbar .pbt').getBoundingClientRect(), b=document.querySelector('.pbar').getBoundingClientRect(), h=document.querySelector('.cview .chint').getBoundingClientRect(); return Math.abs(t.top-b.top)<=3&&t.top>=i.bottom-1&&t.top>=h.bottom-1;}));
+  ok('cell view: the countdown runs along the lower edge of the top bar, over its line, above the field and the hint',await pg.evaluate(()=>{const i=document.querySelector('.cview .cin').getBoundingClientRect(), t=document.querySelector('#mbar .mbt').getBoundingClientRect(), b=document.querySelector('#mbar').getBoundingClientRect(), h=document.querySelector('.cview .chint').getBoundingClientRect(); return Math.abs(t.bottom-b.bottom)<=1.5&&t.width>=b.width-1&&t.bottom<=i.top&&t.bottom<=h.top;}));
   ok('cell view: field and hint do not move when Blitz goes on',JSON.stringify(c0)===JSON.stringify(c1),[c0,c1]);
   await pg.click('#mbz'); await pg.waitForTimeout(100);
   // Pervasions card
@@ -198,7 +198,7 @@ const other=r=>r==='mi'?'con':'mi';
   const q0=await geo(['.qcard','.qcard .ansrow','.qcard .qt','.pbar']);
   await pg.click('#mbz'); await pg.waitForTimeout(150);
   const q1=await geo(['.qcard','.qcard .ansrow','.qcard .qt','.pbar']);
-  ok('Pervasions card: the countdown runs along the top edge of the pair bar, under the Accept / Why? buttons',await pg.evaluate(()=>{const a=document.querySelector('.qcard .ansrow').getBoundingClientRect(), t=document.querySelector('.pbar .pbt').getBoundingClientRect(), b=document.querySelector('.pbar').getBoundingClientRect(); return Math.abs(t.top-b.top)<=3&&t.top>=a.bottom-1;}));
+  ok('Pervasions card: the countdown runs along the lower edge of the top bar, above the question card with the Accept / Why? buttons',await pg.evaluate(()=>{const a=document.querySelector('.qcard .ansrow').getBoundingClientRect(), t=document.querySelector('#mbar .mbt').getBoundingClientRect(), b=document.querySelector('#mbar').getBoundingClientRect(); return Math.abs(t.bottom-b.bottom)<=1.5&&t.width>=b.width-1&&t.bottom<=a.top;}));
   ok('Pervasions card: it keeps its size and the buttons stay put when Blitz goes on',JSON.stringify(q0)===JSON.stringify(q1),[q0,q1]);
   await pg.locator('.qcard .btn.ghost').click(); await pg.waitForTimeout(100);
   const w0=await geo(['.qcard','#dex']);

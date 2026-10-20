@@ -206,6 +206,46 @@ test("the shade is the whole screen under a drawer or a sheet, so it never stays
   expect(shades).toEqual([over]);
 });
 
+test("the crimson bands at the edges of the screen stay as they are: a panel on its way in or out goes under them, never over them", async ({ page }, testInfo) => {
+  // the copy that plays a panel out is kept, so the frame can be cut at the middle of the slide
+  await page.addInitScript((ms) => { const st = window.setTimeout; window.setTimeout = (f, d, ...a) => st(f, d === ms ? 1e9 : d, ...a); }, MS + 200);
+  await tutorOn(page);
+  await load(page);
+  const { width, height } = page.viewportSize();
+  const band = await page.evaluate(() => parseFloat(getComputedStyle(document.querySelector(".band")).width));
+  // (the pixel along the inner edge of a band is left out: the shade ends there, on a fraction of a pixel)
+  const edges = async () => [await page.screenshot({ clip: { x: 0, y: 0, width: band - 1, height } }), await page.screenshot({ clip: { x: width - band + 1, y: 0, width: band - 1, height } })];
+  const slideOutKeepsBands = async (what, close) => {
+    await expect(page.locator(".enter")).toHaveCount(0); // at rest
+    const rest = await edges();
+    await close();
+    await expect(leaving(page).first()).toBeAttached(); // the panel, and its shade where it has one
+    await page.evaluate(() => document.getAnimations().forEach((a) => { a.pause(); a.currentTime = 100; }));
+    const mid = await edges();
+    expect(mid[0].equals(rest[0]), what + ": the left band is as it was").toBe(true);
+    expect(mid[1].equals(rest[1]), what + ": the right band is as it was").toBe(true);
+    // (cancelled, not finished: the version line's spinner never ends)
+    await page.evaluate(() => { document.getAnimations().forEach((a) => a.cancel()); document.querySelectorAll(".leaving").forEach((n) => n.remove()); });
+  };
+  if (isPhone(testInfo)) {
+    await page.locator("#menubtn").click();
+    await expect(page.locator("#menu")).toBeVisible();
+    await slideOutKeepsBands("the menu drawer", () => page.keyboard.press("Escape"));
+    await relOptions(page).first().click();
+    for (let i = 0; i < 4 && (await page.locator("#cin").isVisible()); i++) { await page.fill("#cin", "thing " + (i + 1)); await page.keyboard.press("Enter"); await page.waitForTimeout(100); }
+    await page.locator("#mchat").click();
+    await expect(page.locator("#over")).toBeVisible();
+    await slideOutKeepsBands("the chat drawer", () => page.keyboard.press("Escape"));
+  } else {
+    await relOptions(page).first().click();
+    await page.locator("#stage .pbar .fwd").click(); // Check, with the cells left empty
+    await page.locator("#mchat").click();
+    await expect(page.locator("#coach")).toBeVisible();
+    await slideOutKeepsBands("the tutor's panel", () => page.locator("#mchat").click());
+    await slideOutKeepsBands("the pinned menu", () => page.locator("#menubtn").click());
+  }
+});
+
 test("a tap shows no highlight box, and the drawer's close button is where the menu button was", async ({ page }, testInfo) => {
   test.skip(!isPhone(testInfo), "the phone's drawer");
   await load(page);

@@ -1,8 +1,8 @@
-// The pair bar at the foot of an exercise (src/app/shell/pbar.js): Skip and the star at the left, the forward button (Next cell, Check, Next pair) at the right, the
-// Blitz countdown along its top edge. A skip after part of a pair is answered asks first; the key N goes on to the next pair, and the focus after Check goes where the
-// next step is.
+// The pair bar at the foot of an exercise (src/app/shell/pbar.js): Skip and the star at the left, the forward button (Next cell, Check, Next pair) at the right. A skip
+// after part of a pair is answered asks first; the key N goes on to the next pair, and the focus after Check goes where the next step is. The Blitz countdown is not on
+// this bar but on the lower edge of the top bar (the test of Blitz below).
 import { test, expect } from "../../support/test.js";
-import { ready, relOptions, isPhone } from "../../support/page.js";
+import { ready, relOptions, isPhone, goTo } from "../../support/page.js";
 
 const hook = () => { window.__riglamTest = (t) => { window.__t = t; }; };
 const ORDER = { mi: 0, "3ab": 1, "3ba": 2, 4: 3, con: 4 };
@@ -140,19 +140,35 @@ test("a pair only drawn is skipped at once, with the note and Undo and no questi
   expect(await pairOf(page)).toBe(pair);
 });
 
-test("Blitz is the stopwatch in the top bar; its countdown runs along the top edge of the pair bar", async ({ page }) => {
+test("Blitz is the stopwatch in the top bar; its countdown runs along the lower edge of the top bar, over its line", async ({ page }) => {
   await page.goto("/");
   await ready(page);
-  const sw = page.locator("#mbz");
+  const sw = page.locator("#mbz"), mbt = page.locator("#mbar .mbt");
+  const stageTop = () => page.locator("#stage").evaluate((n) => n.getBoundingClientRect().top);
   await expect(sw).toHaveAttribute("role", "switch");
   await expect(sw).toHaveAttribute("aria-checked", "false");
-  await expect(bar(page).locator(".pbt")).toHaveCount(0);
+  await expect(mbt).toHaveCount(0);
+  const top = await stageTop();
   await sw.click();
   await expect(sw).toHaveAttribute("aria-checked", "true");
-  await expect(bar(page).locator(".pbt")).toBeVisible();
+  await expect(mbt).toBeVisible();
+  // over the bar's line, across its whole width; nothing under it moves, and the pair bar has no countdown of its own
+  const [h, b] = await Promise.all([page.locator("#mbar").boundingBox(), mbt.boundingBox()]);
+  expect(b.x).toBeCloseTo(h.x, 0);
+  expect(b.width).toBeCloseTo(h.width, 0);
+  expect(b.y).toBeLessThan(h.y + h.height - 1.5);
+  expect(b.y + b.height).toBeGreaterThanOrEqual(h.y + h.height);
+  expect(await stageTop()).toBe(top);
+  await expect(bar(page).locator(".tbar")).toHaveCount(0);
+  // Review has no countdown: the clock waits behind it and runs again, with its full time, when it is left
+  await goTo(page, "Review");
+  await expect(mbt).toHaveCount(0);
+  await page.locator("#mback").click();
+  await expect(mbt).toBeVisible();
   await sw.click();
   await expect(sw).toHaveAttribute("aria-checked", "false");
-  await expect(bar(page).locator(".pbt")).toHaveCount(0);
+  await expect(mbt).toHaveCount(0);
+  expect(await stageTop()).toBe(top);
 });
 
 test("on a wide screen the result stays in the middle, the key N goes on, and the focus is on the result", async ({ page }, testInfo) => {
@@ -205,6 +221,14 @@ test("where the tutor cannot answer, a wide screen's button is the recent answer
   await b.click();
   await expect(page.locator("#coach")).toBeVisible();
   await expect(page.locator("#coach")).toContainText("next cell"); // nothing answered yet: the key hints
+  // pressed, the clock is drawn heavier and stays an outline (an open arc filled is a blob)
+  await expect(b).toHaveAttribute("aria-pressed", "true");
+  const paint = () => b.locator("svg").evaluate((n) => [getComputedStyle(n).fill, getComputedStyle(n.querySelector("path")).fill, parseFloat(getComputedStyle(n).strokeWidth)]);
+  const [fill, pathFill, weight] = await paint();
+  expect([fill, pathFill]).toEqual(["none", "none"]);
+  await b.click(); // closed again: the lighter line
+  expect((await paint())[2]).toBeLessThan(weight);
+  await b.click();
   await pickRight(page);
   await checkAll(page, testInfo);
   await page.locator("#stage .pbar .fwd").click(); // the next pair: there is no chat to close, the panel stays for as long as it is wanted

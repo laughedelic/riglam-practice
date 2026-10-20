@@ -31,7 +31,7 @@ export function syncChatBtn(){
   b.hidden=!ex||(!w&&!ai); if(b.hidden) return;
   const label=w?(ai?"Tutor’s chat and recent answers":"Recent answers"):"Discuss with AI";
   const waiting=!!u.chat&&u.chat.some(t=>t.role==="assistant"&&!t.pending&&t.content)&&(w?!state.coachOpen:state.view!=="chat");
-  b.replaceChildren(tbIcon(w&&!ai?"recent":"chat")); if(waiting) b.append(el("i",{class:"att","aria-hidden":"true"}));
+  b.replaceChildren(w&&!ai?tbIcon("recent","tbi rc"):tbIcon("chat")); if(waiting) b.append(el("i",{class:"att","aria-hidden":"true"}));
   b.setAttribute("aria-label",label+(waiting?", an answer is waiting":"")); b.title=label;
   b.disabled=w&&!ai?false:!(u.checked||u.chat)&&!(w&&state.coachOpen);
   if(w){ b.setAttribute("aria-pressed",state.coachOpen?"true":"false"); b.classList.toggle("open",state.coachOpen); b.removeAttribute("aria-haspopup"); }
