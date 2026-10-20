@@ -67,6 +67,7 @@ test("a wide screen's menu is pinned open by the menu button, kept across a relo
   await page.mouse.move(30, 400); // onto the strip (inside the red band): the panel then covers it, so the pointer is moved, not "hovered"
   await expect(page.locator("#menu")).toBeVisible();
   expect(await menuState(page)).toBe("peek");
+  await expect(page.locator("#menu .mclose")).toHaveCount(1); // the peeking panel covers the menu button, so it has a button of its own
   await page.mouse.move(700, 400);
   await expect(page.locator("#menu")).toBeHidden();
   // the button pins it beside the exercise
@@ -78,8 +79,9 @@ test("a wide screen's menu is pinned open by the menu button, kept across a relo
   await page.reload();
   await ready(page);
   await expect(page.locator("#menu")).toBeVisible();
-  // its close button unpins it
-  await page.locator("#menu .mclose").click();
+  // beside the exercise it has no close button of its own: the menu button, which is not covered, does that
+  await expect(page.locator("#menu .mclose")).toHaveCount(0);
+  await page.locator("#menubtn").click();
   await expect(page.locator("#menu")).toBeHidden();
   await page.reload();
   await ready(page);
@@ -172,6 +174,12 @@ test("today's line opens Review; its back arrow returns to the exercise", async 
   await expect(page.locator("#mback")).toBeVisible();
   await expect(page.locator("#mback")).toHaveAccessibleName(/back/i);
   if (isPhone(testInfo)) await expect(page.locator("#menubtn")).toBeHidden();
+  else {
+    // the menu button keeps its place at the left of the bar, the back arrow follows it, and the pinned menu adds no third button of the same kind
+    const [m, b] = await Promise.all([page.locator("#menubtn").boundingBox(), page.locator("#mback").boundingBox()]);
+    expect(m.x).toBeLessThan(b.x);
+    await expect(page.locator("#menu .mclose")).toHaveCount(0);
+  }
   await page.locator("#mback").click();
   await expect(page.locator("#mttl")).toHaveText("Relations");
   await expect(page.locator("#mback")).toBeHidden();

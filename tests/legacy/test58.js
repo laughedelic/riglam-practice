@@ -1,4 +1,4 @@
-const {open,go,settled,settings}=require('./harness.js');
+const {open,go,settled,settings,toggleCoach}=require('./harness.js');
 const {ringScan}=require('./ring.js');
 const D=require('./harness.js').SHOTS;
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
@@ -132,12 +132,12 @@ const other=r=>r==='mi'?'con':'mi';
   const {br,pg,errs}=await open({width:390,height:844},{isMobile:true,hasTouch:true});
   // Practice options > Blitz times: two rows, each sets only its own
   const lim=sel=>pg.locator(sel).getAttribute('style').then(t=>(/--t:\s*(\d+)ms/.exec(t||'')||[])[1]);
-  await settings(pg); await pg.getByRole('button',{name:'Blitz times: details'}).click(); await pg.waitForTimeout(100);
+  await settings(pg); await pg.getByRole('button',{name:'Blitz: details'}).click(); await pg.waitForTimeout(100);
   const rows=await pg.locator('#over .orow .tl').allInnerTexts();
   ok('the Blitz times page has a Relation time row and an Example time row, and no single "Blitz time"',rows.some(t=>/^relation time$/i.test(t.trim()))&&rows.some(t=>/^example time$/i.test(t.trim()))&&!rows.some(t=>/^blitz time$/i.test(t.trim())),rows);
   await pg.locator('.orow:has-text("Relation time") .seg').getByRole('button',{name:'30 s',exact:true}).click(); await pg.waitForTimeout(80);
   await pg.locator('.orow:has-text("Example time") .seg').getByRole('button',{name:'5 s',exact:true}).click(); await pg.waitForTimeout(80);
-  const st=await pg.evaluate(()=>[localStorage.getItem('rd-timer-rel'),localStorage.getItem('rd-timer'),[...document.querySelectorAll('.orow')].map(o=>o.querySelector('.tl').innerText+':'+[...o.querySelectorAll('.seg button[aria-pressed=true]')].map(b=>b.innerText).join(','))]);
+  const st=await pg.evaluate(()=>[localStorage.getItem('rd-timer-rel'),localStorage.getItem('rd-timer'),[...document.querySelectorAll('.orow')].filter(o=>o.querySelector('.tl')).map(o=>o.querySelector('.tl').innerText+':'+[...o.querySelectorAll('.seg button[aria-pressed=true]')].map(b=>b.innerText).join(','))]);
   ok('Relation time 30 s and Example time 5 s are separate and both kept',st[0]==='30000'&&st[1]==='5000'&&st[2].map(s=>s.toLowerCase()).includes('relation time:30 s')&&st[2].map(s=>s.toLowerCase()).includes('example time:5 s'),st);
   await pg.locator('.orow:has-text("Example time") .seg').getByRole('button',{name:'15 s',exact:true}).click(); await pg.waitForTimeout(80);
   ok('changing the example time leaves the relation time at 30 s',await pg.evaluate(()=>localStorage.getItem('rd-timer-rel'))==='30000'&&await pg.evaluate(()=>localStorage.getItem('rd-timer'))==='15000');
@@ -292,12 +292,12 @@ const other=r=>r==='mi'?'con':'mi';
   await pg.locator('#menubtn').click(); await pg.waitForTimeout(150);
   const rail=await pg.locator('#menu .mrow b, #menu .fbtn').allInnerTexts();
   ok('the menu reads Relations, Pervasions, Find a pair, Consequences, Review, Settings',JSON.stringify(rail.map(s=>s.trim().toLowerCase()))==='["relations","pervasions","find a pair","consequences","review","settings"]',rail);
-  await pg.locator('#mchat').click(); await pg.waitForTimeout(150);
-  ok('the coach panel (opened by the chat button) has no "Coach" label; it starts with Recent or the key hints',await pg.locator('#coach').isVisible()&&!/^coach$/i.test(((await pg.locator('#coach').innerText())||'').trim().split('\n')[0]||'')&&!/\bcoach\b/i.test(await pg.locator('#coach').innerText()),await pg.locator('#coach').innerText());
+  await toggleCoach(pg);
+  ok('the coach panel (opened as the chat button does) has no "Coach" label; it starts with Recent or the key hints',await pg.locator('#coach').isVisible()&&!/^coach$/i.test(((await pg.locator('#coach').innerText())||'').trim().split('\n')[0]||'')&&!/\bcoach\b/i.test(await pg.locator('#coach').innerText()),await pg.locator('#coach').innerText());
   const p1=await key(pg);
   await go(pg,'Pervasions'); await pg.waitForTimeout(150);
   ok('wide: Pervasions opens the same pair',await key(pg)===p1);
-  if(!(await pg.locator('#coach').isVisible())){ await pg.locator('#mchat').click(); await pg.waitForTimeout(150); }
+  if(!(await pg.locator('#coach').isVisible())) await toggleCoach(pg);
   ok('wide Pervasions: the coach has no "Coach" label either',await pg.locator('#coach').isVisible()&&!/\bcoach\b/i.test(await pg.locator('#coach').innerText()),await pg.locator('#coach').innerText());
   // geometry: Blitz does not move the strip, the caption, the cells
   await go(pg,'Relations'); await pg.waitForTimeout(150);

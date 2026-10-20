@@ -1,4 +1,4 @@
-const {open,go}=require('./harness.js');
+const {open,go,toggleCoach}=require('./harness.js');
 const {ringScan}=require('./ring.js');
 const D=require('./harness.js').SHOTS;
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
@@ -178,9 +178,9 @@ async function answerPhone(pg){ // pick the right relation, fill the cells, fini
   const {br,pg,errs}=await open({width:1280,height:800});
   const bt0=await pg.evaluate(()=>[...document.querySelectorAll('#stage .pbar .btn')].map(b=>b.textContent.trim()));
   ok('wide Relations: the pair bar has a Skip button and no text link',bt0.some(t=>/^skip$/i.test(t))&&await pg.locator('.skiplink').count()===0,bt0);
-  await pg.locator('#mchat').click(); await pg.waitForTimeout(100); // the coach panel opens with the chat button
+  await toggleCoach(pg); // the coach panel opens (as with the chat button, which waits for a result)
   ok('wide: the coach lists the S key',/S\s*skip/i.test(await pg.locator('#coach .kbh').innerText()));
-  await pg.locator('#mchat').click(); await pg.waitForTimeout(100);
+  await toggleCoach(pg);
   const a=await curKey(pg);
   // S typed in a cell input does nothing
   const rel=await pg.evaluate(()=>window.__t.cur.p.relation);
@@ -219,9 +219,9 @@ async function answerPhone(pg){ // pick the right relation, fill the cells, fini
   await go(pg,'Pervasions'); await pg.waitForTimeout(150);
   const bt2=await pg.evaluate(()=>[...document.querySelectorAll('#stage .pbar .btn')].map(b=>b.textContent.trim()));
   ok('wide Questions: Skip in the pair bar',bt2.some(t=>/^skip$/i.test(t)),bt2);
-  await pg.locator('#mchat').click(); await pg.waitForTimeout(100);
+  await toggleCoach(pg);
   ok('wide Questions: the coach lists the S key',/S\s*skip/i.test(await pg.locator('#coach .kbh').innerText()));
-  await pg.locator('#mchat').click(); await pg.waitForTimeout(100);
+  await toggleCoach(pg);
   const qa=await curKey(pg);
   await pg.keyboard.press('a'); await pg.waitForTimeout(100); await pg.keyboard.press('s'); await pg.waitForTimeout(150);
   ok('the S key after one answer asks first',await pg.locator('#over[data-kind=skip]').isVisible());

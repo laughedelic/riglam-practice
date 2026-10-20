@@ -6,7 +6,7 @@ import { createServer } from "node:http";
 import { readFileSync, existsSync, statSync } from "node:fs";
 import { extname, join, normalize } from "node:path";
 import { test, expect } from "../../support/test.js";
-import { ready, openSettings } from "../../support/page.js";
+import { ready, openSettings, openMenu } from "../../support/page.js";
 
 const DIST = join(process.cwd(), "dist/pwa");
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".json": "application/json", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png", ".woff2": "font/woff2", ".webmanifest": "application/manifest+json" };
@@ -43,7 +43,7 @@ async function installed(page) {
   await expect.poll(() => controlled(page)).toBe(true);
 }
 
-test("a newer version is found, offered, and started from the banner without closing the app", async ({ page }) => {
+test("a newer version is found, offered, and started from the toast without closing the app", async ({ page }) => {
   await installed(page);
   expect(await which(page)).not.toBe("v2");
   await expect(page.locator("#upd")).toBeHidden();
@@ -53,6 +53,11 @@ test("a newer version is found, offered, and started from the banner without clo
   await page.evaluate(() => window.__riglam.platform.updates.check());
   await expect(page.locator("#upd")).toBeVisible();
   await expect(page.locator("#upd")).toContainText("New version ready");
+  // a small card under the top bar, not a bar across the screen: it leaves the pair bar and the foot of the screen alone
+  const [t, vp, top] = await Promise.all([page.locator("#upd").boundingBox(), page.viewportSize(), page.locator(".mbar").boundingBox()]);
+  expect(t.width).toBeLessThan(vp.width - 20);
+  expect(t.y).toBeGreaterThanOrEqual(top.y + top.height);
+  expect(t.y + t.height).toBeLessThan(vp.height / 2);
   expect(await isOld(page), "the page the reader is using is not reloaded behind their back").toBe(true);
 
   await page.locator("#upd").getByRole("button", { name: "Update now" }).click();
@@ -62,7 +67,19 @@ test("a newer version is found, offered, and started from the banner without clo
   await expect(page.locator("#upd")).toBeHidden();
 });
 
-test("Later hides the banner, and Settings still offers the update", async ({ page }) => {
+test("the toast goes away by itself after a while, and the menu keeps the way to update", async ({ page }) => {
+  await installed(page);
+  await page.clock.install(); // the toast's timer is made after this, so the clock can run it
+  newVersion = true;
+  await page.evaluate(() => window.__riglam.platform.updates.check());
+  await expect(page.locator("#upd")).toBeVisible();
+  await page.clock.fastForward(25_000);
+  await expect(page.locator("#upd")).toBeHidden();
+  await openMenu(page);
+  await expect(page.locator("#menu .ver")).toContainText("Update available");
+});
+
+test("Later hides the toast, and Settings still offers the update", async ({ page }) => {
   await installed(page);
   newVersion = true;
   await page.evaluate(() => window.__riglam.platform.updates.check());

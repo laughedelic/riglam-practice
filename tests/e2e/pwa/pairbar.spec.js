@@ -147,3 +147,20 @@ test("on a wide screen the result stays in the middle, the key N goes on, and th
   await page.keyboard.press("n");
   await expect.poll(() => pairOf(page)).not.toBe(pair);
 });
+
+test("the tutor's chat button waits for a result: it opens nothing until the pair is checked", async ({ page }, testInfo) => {
+  test.skip(isPhone(testInfo), "without the key the phone has no chat button at all (tutor.spec.js covers it with the key)");
+  await page.addInitScript(hook);
+  await page.goto("/");
+  await ready(page);
+  await expect(page.locator("#mchat")).toBeVisible();
+  await expect(page.locator("#mchat")).toBeDisabled();
+  await expect(page.locator("#coach")).toBeHidden();
+  await pickRight(page);
+  await checkAll(page, testInfo);
+  await expect(page.locator("#mchat")).toBeEnabled();
+  await page.locator("#mchat").click();
+  await expect(page.locator("#coach")).toBeVisible();
+  await page.locator("#mchat").click();
+  await expect(page.locator("#coach")).toBeHidden();
+});

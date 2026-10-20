@@ -69,4 +69,7 @@ async function settled(pg,read,{every=40,times=3,timeout=3000}={}){
     await pg.waitForTimeout(every);
   }
 }
-module.exports={open,go,settings,SHOTS,settled};
+// The tutor's panel on a wide screen: the chat button opens it only once there is a result, so a check of what it holds before that (the key hints, Recent)
+// opens it as the button used to, through the test hook.
+async function toggleCoach(pg){ await pg.evaluate(()=>{ window.__t.coachOpen=!window.__t.coachOpen; window.__t.render(); }); await pg.waitForTimeout(100); }
+module.exports={open,go,settings,toggleCoach,SHOTS,settled};

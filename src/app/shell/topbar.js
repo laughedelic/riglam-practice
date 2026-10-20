@@ -6,7 +6,7 @@ import { setBlitz } from "../debate/flow.js";
 import { openChat, syncChatBtn, toggleCoach } from "./chat.js";
 import { exName } from "./exercises.js";
 import { isEx } from "./render.js";
-import { syncSessBtn, toggleSess } from "./session.js";
+import { openBlitzOptions, syncSessBtn, toggleSess } from "./session.js";
 import { setTab } from "./tabs.js";
 import { syncBlitzBtn } from "./timers.js";
 
@@ -22,6 +22,21 @@ export function renderBar(){
 }
 $("mback").append(tbIcon("back"));
 $("mback").addEventListener("click",()=>setTab(state.own));
-$("mbz").addEventListener("click",()=>setBlitz(!state.blitz));
+// A press switches Blitz; holding the stopwatch opens the Blitz page of the practice options instead (the page is also under the sliders button, for a keyboard or a
+// pointer that does not hold). The click that ends a hold is not a press, so it is taken before it reaches anything (the sheet that has opened under the pointer
+// would take it as a click on its scrim), and the browser's own menu for a long touch is kept away.
+const HOLD_MS=500;
+function eatNextClick(){
+  const eat=e=>{ e.stopPropagation(); e.preventDefault(); };
+  const done=()=>setTimeout(()=>document.removeEventListener("click",eat,true),0);
+  document.addEventListener("click",eat,{capture:true,once:true});
+  document.addEventListener("pointerup",done,{capture:true,once:true});
+  document.addEventListener("pointercancel",done,{capture:true,once:true});
+}
+const mbz=$("mbz");
+mbz.addEventListener("pointerdown",e=>{ if(e.button) return; clearTimeout(state.bzHold); state.bzHold=window.setTimeout(()=>{ eatNextClick(); openBlitzOptions(); },HOLD_MS); });
+for(const t of ["pointerup","pointerleave","pointercancel"]) mbz.addEventListener(t,()=>clearTimeout(state.bzHold));
+mbz.addEventListener("contextmenu",e=>e.preventDefault());
+mbz.addEventListener("click",()=>setBlitz(!state.blitz));
 $("msess").addEventListener("click",()=>toggleSess(true));
 $("mchat").addEventListener("click",()=>{ if(isWide()) toggleCoach(); else openChat(); });

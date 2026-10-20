@@ -213,7 +213,7 @@ withKey("asking again after an answer that settled nothing shows the new explana
   await page.getByRole("button", { name: /^Discuss with AI/ }).click();
   await expect(page.locator("#over .ctx")).toContainText("pair not settled"); // not "relation and cells right": the pair is not judged
   await expect(page.locator("#over .ctx")).not.toContainText("cells right");
-  await page.getByRole("button", { name: "Back to the result" }).click();
+  await page.locator("#over .oc").click(); // the chat's close button
   await page.getByRole("button", { name: "Ask again" }).click();
   await expect(headline(page)).toHaveText("That pair is not mutually exclusive.");
   expect(asked).toHaveLength(2);

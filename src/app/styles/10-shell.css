@@ -22,6 +22,7 @@ body{margin:0;overflow:hidden}
 .ib[aria-pressed="true"]{color:var(--ink)}
 .ib.open{color:var(--ink)}
 .ib[hidden]{display:none}
+#mbz{-webkit-touch-callout:none;user-select:none}  /* held to open the Blitz options: a long touch must not select or call up a menu */
 .ib:hover:not(:disabled){color:var(--ink)}
 button:focus-visible{box-shadow:var(--focus-ring)}
 /* a dot on a button: something waits behind it (an answer of the tutor, the missing Magic Key) */

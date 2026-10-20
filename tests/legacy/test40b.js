@@ -21,7 +21,7 @@ const ORDER={mi:0,'3ab':1,'3ba':2,'4':3,con:4};
   await pg.evaluate(()=>document.activeElement&&document.activeElement.blur());
   await go(pg,'Pervasions'); await pg.waitForTimeout(150);
   await settings(pg);
-  await pg.locator('.go2[aria-label="Blitz times: details"]').click(); await pg.waitForTimeout(80);
+  await pg.locator('.go2[aria-label="Blitz: details"]').click(); await pg.waitForTimeout(80);
   await pg.fill('.orow:has-text("Example time") .tcustom','2'); await pg.keyboard.press('Tab'); await pg.waitForTimeout(100);
   ok(name+': custom time stored',await pg.locator('.orow:has-text("Example time") .tcustom').inputValue()==='2');
   await pg.click('#over .oc'); await pg.waitForTimeout(80);

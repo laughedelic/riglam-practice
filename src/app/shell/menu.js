@@ -46,7 +46,7 @@ function rows(){
 function keyButton(){
   if(!state.unlock) return null;
   return el("button",{type:"button",class:"ib keyb",title:"No Magic Key on this device: what is it?","aria-label":"No Magic Key on this device: what is it?",
-    onclick:()=>{ state.unlock.open(); }},tbIcon("key"),el("i",{class:"att","aria-hidden":"true"}));
+    onclick:()=>{ state.unlock.open(); }},tbIcon("key"));
 }
 // the version, and where the look for a newer one stands (platform.about, platform.updates)
 function versionLine(){
@@ -73,14 +73,17 @@ export function renderMenu(){
   $("app").dataset.menu=w?(state.menuPin?"pinned":shown?"peek":"closed"):(shown?"open":"closed");
   $("menuscrim").hidden=w||!shown; $("menuedge").hidden=!(w&&!shown);
   const mb=$("menubtn"); mb.setAttribute("aria-expanded",shown?"true":"false"); mb.classList.toggle("open",shown);
+  const fresh=m.hidden&&shown;
   m.hidden=!shown;
   if(!shown){ m.replaceChildren(); return; }
   m.classList.toggle("peek",w&&!state.menuPin);
-  const closeLabel=w&&state.menuPin?"Unpin the menu":"Close the menu";
+  m.classList.toggle("enter",fresh&&!w); // the phone's drawer slides in once when it opens; a render later on does not repeat it (the peek of a wide screen just appears, under the pointer)
   m.replaceChildren(
     el("div",{class:"mh"},figure(),
       el("span",{class:"brand lock"},el("span",{class:"nm",text:"Riglam"})," ",el("span",{class:"pr",text:"practice"})),
-      el("span",{class:"sp"}),el("button",{type:"button",class:"ib mclose","aria-label":closeLabel,title:closeLabel,onclick:closeMenu},tbIcon("close"))),
+      el("span",{class:"sp"}),
+      // pinned beside the exercise, the menu button (which is not covered) closes it: a second button would do the same
+      w&&state.menuPin?null:el("button",{type:"button",class:"ib mclose","aria-label":"Close the menu",title:"Close the menu",onclick:closeMenu},tbIcon("close"))),
     el("div",{class:"mbody"},todayLine(),...rows()),
     el("div",{class:"mfoot"},
       el("div",{class:"mfr"},
