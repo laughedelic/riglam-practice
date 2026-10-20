@@ -23,6 +23,7 @@
     "staging": "node scripts/staging.mjs",
     "data:key": "node scripts/data.mjs key",
     "data:import": "node scripts/data.mjs import",
+    "data:import-examples": "node scripts/data.mjs import-examples",
     "data:export": "node scripts/data.mjs export",
     "data:check": "node scripts/data.mjs check",
     "data:publish": "node scripts/data.mjs publish",

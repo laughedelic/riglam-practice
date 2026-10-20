@@ -5,6 +5,7 @@
 import type { Cat, DrillData, Item } from "../ai-shared/data";
 import type { About, Unlock, Updates } from "../platform/types";
 import type { AnswerView, DebateAnswer } from "../ai-shared/card";
+import type { ExampleIndex } from "../ai-shared/examples";
 import type { CellId, RelKey } from "../ai-shared/relations";
 import type { Pair, PoolEntry, Verdict } from "../domain/types";
 import type { Account, Db, Reports, Sample, Tutor } from "../platform/types";
@@ -222,6 +223,8 @@ export interface State {
   mkNote: boolean;
   /** a question to the app's own server (platform.tutor), when the place has one; `sample` is used first */
   tutor: Tutor | null;
+  /** the course's reference examples this device holds (platform.examples), by name; null when it has none (src/app/core/examples.js) */
+  EX: ExampleIndex | null;
   /** sends flags to the app's server (platform.reports), when the place has a server for them and this device has the Magic Key */
   reports: Reports | null;
   /** keeps the removal of a flag for a later start that has `reports` (platform.withdrawReport) */

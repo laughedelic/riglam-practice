@@ -1,6 +1,7 @@
 // The Worker's routes (docs/SERVER.md):
 //   GET  /api/health   are the tutor and the accounts on? (no sign-in)
 //   GET  /api/course   the definitions, for a device that has the Magic Key (src/ai/magic-key.ts)
+//   GET  /api/course/examples  the reference examples a device may keep, for a device that has the Magic Key
 //   POST /api/tutor    one tutor question; the answer comes back as server-sent events (src/ai/protocol.ts). On a Preview an explain question may ask
 //                      for Quorum, several models and a judge (worker/quorum.ts)
 //   /api/account/*     optional accounts, signed in with a passkey (worker/accounts.ts)
@@ -12,12 +13,12 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import { API, HEADER, LIMITS, type BudgetScope, type CourseResponse, type ErrorCode, type Health, type TutorEvent } from "../src/ai/protocol";
+import { API, HEADER, LIMITS, type BudgetScope, type CourseResponse, type ErrorCode, type ExamplesResponse, type Health, type TutorEvent } from "../src/ai/protocol";
 import { accountRoutes, accountsOn } from "./accounts";
 import { adminRoutes } from "./admin";
 import { dayOf, prune, reserve, settle, tutorSwitchedOn, type Pool } from "./budget";
 import { readConfig, readQuorumConfig } from "./config";
-import { readCourseRows, usableDefinitions } from "./course";
+import { readCourseRow, readCourseRows, usableDefinitions, usableRow } from "./course";
 import type { Env } from "./env";
 import type { Kit } from "./kit";
 import { callerOf, gate, magicKeyOf, type Gate } from "./magic";
@@ -93,6 +94,18 @@ export function createApp(deps: Deps) {
     if (c.req.query("have") === rows.version) return new Response(JSON.stringify({ version: rows.version, unchanged: true } satisfies CourseResponse), { headers });
     // the stored text goes out as it is: it was checked to be JSON when it was loaded
     return new Response(`{"version":${JSON.stringify(rows.version)},"definitions":${rows.definitions}}`, { headers });
+  });
+
+  // The device part of the reference examples, the same way: an optional row with its own version, so a device asks for it apart from the definitions.
+  app.get(API.examples, async (c) => {
+    const env = c.env;
+    const checked = await gate(env, now(), await callerOf(c.req.header("cf-connecting-ip")), c.req.header(HEADER.device) ?? "", c.req.header(HEADER.proof) ?? "");
+    if (!checked.ok) return refusal(checked, "the Magic Key does not match");
+    const row = await readCourseRow(env.DB, "examples_device");
+    if (!row || !usableRow("examples_device", row)) return fail("unavailable", "the examples are not on the server");
+    const headers = { "content-type": "application/json", "cache-control": "no-store" };
+    if (c.req.query("have") === row.at) return new Response(JSON.stringify({ version: row.at, unchanged: true } satisfies ExamplesResponse), { headers });
+    return new Response(`{"version":${JSON.stringify(row.at)},"examples":${row.body}}`, { headers });
   });
 
   app.post(API.tutor, async (c) => {
