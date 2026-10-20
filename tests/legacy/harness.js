@@ -30,12 +30,14 @@ window.claude={use:async n=>n==='db'?db:n==='sample'?sample:null};
 }
 async function open(vp,opts={}){
   const autoExplain=opts.autoExplain; delete opts.autoExplain;
+  const freshMenu=opts.freshMenu; delete opts.freshMenu; // the page's own default (a wide screen starts with the menu pinned); the old tests start with the menu away, as it came on demand
   const {html}=load();
   const br=await chromium.launch();
-  const ctx=await br.newContext(Object.assign({viewport:vp,colorScheme:'light'},opts));
+  const ctx=await br.newContext(Object.assign({viewport:vp,colorScheme:'light',reducedMotion:'reduce'},opts));
   // a checked answer does not ask for its explanation by itself in the old tests (they click Explain); a test turns it on with {autoExplain:true}
   await ctx.addInitScript(on=>{ try{ if(localStorage.getItem('rd-autoexplain')===null) localStorage.setItem('rd-autoexplain',on?'1':'0'); }catch(e){} },!!autoExplain);
   await ctx.addInitScript(()=>{ window.__riglamTest=t=>{ window.__t=t; }; });
+  if(!freshMenu) await ctx.addInitScript(()=>{ try{ if(localStorage.getItem('rd-menu')===null) localStorage.setItem('rd-menu','0'); }catch(e){} });
   const pg=await ctx.newPage(); pg.setDefaultTimeout(4000);
   const errs=[]; pg.on('console',m=>{if(m.type()==='error')errs.push(m.text())}); pg.on('pageerror',e=>errs.push('ERR '+e.message));
   await pg.route('http://t/**',r=>r.fulfill({body:html,contentType:'text/html'}));

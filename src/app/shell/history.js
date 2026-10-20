@@ -45,7 +45,8 @@ addEventListener("popstate",e=>{
   const at=e.state&&e.state[MARK]||0;
   if(at<state.navDepth){
     state.navDepth=at;
-    for(let n=depth();n>at;n--) closeTop();                                      // each close renders; navSync then finds nothing to do
+    state.navBack=true;                                                          // the system has moved the screen away itself: the panels it closes do not move as well
+    try{ for(let n=depth();n>at;n--) closeTop(); } finally{ state.navBack=false; } // each close renders; navSync then finds nothing to do
   } else if(at>state.navDepth){ state.navSkip++; history.go(state.navDepth-at); } // forward onto an entry whose level is gone: step back again
 });
 // After a reload on such an entry the app is on its first screen again and the entry stays: it becomes that screen's own (level 1 on a phone, 0 on a wide screen),

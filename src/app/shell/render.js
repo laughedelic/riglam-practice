@@ -12,6 +12,7 @@ import { renderReview } from "../review/review.js";
 import { renderOver } from "./chat.js";
 import { navSync } from "./history.js";
 import { renderMenu } from "./menu.js";
+import { enter, leave } from "./motion.js";
 import { ensureRelTimer } from "./timers.js";
 import { renderBar } from "./topbar.js";
 
@@ -75,6 +76,7 @@ export function render(){
   const sig=screenSig(), keep=sig===state.lastSig?["stage","coach","over","opts"].map(id=>{ const n=$(id); return /** @type {[string, number]} */([id,n?n.scrollTop:0]); }):null;
   state.lastSig=sig;
   renderNow();
+  state.motion=true; // from now on panels slide (shell/motion.js)
   if(keep) for(const [id,y] of keep){ const n=$(id); if(n&&y&&!n.hidden) n.scrollTop=y; }
   navSync();
 }
@@ -85,10 +87,12 @@ function renderNow(){
   // the phone's drawer stopped the question's clock; when the window turns wide with it open there is no drawer to wait for, and the clock runs again
   if(drawerGone&&state.blitz&&asking()&&!state.ui.tq) startQ();
   ensureRelTimer();
-  // the tutor's panel closes with the pair it was opened for
-  if(state.lastUi!==state.ui){ if(state.lastUi&&state.lastUi.chat) state.coachOpen=false; state.lastUi=state.ui; }
+  // the tutor's panel closes with the pair it was opened for, so a new pair never starts with a chat panel that has only the recent answers in it; where there is no
+  // tutor the panel is the recent answers and the keys, and stays open as long as it is wanted
+  if(state.lastUi!==state.ui){ if(state.lastUi&&(state.lastUi.chat||canAsk())) state.coachOpen=false; state.lastUi=state.ui; }
   const app=$("app"), s=$("stage"), c=$("coach"), f=focusKey(), coach=w&&state.mode==="quiz"&&isEx()&&state.coachOpen;
-  app.dataset.tab=state.tab; app.dataset.wide=w?"1":"0"; app.dataset.coach=coach?"1":"0"; c.hidden=!coach;
+  if(!c.hidden&&!coach) leave(c,true);
+  app.dataset.tab=state.tab; app.dataset.wide=w?"1":"0"; app.dataset.coach=coach?"1":"0"; const opened=c.hidden&&coach; c.hidden=!coach; if(opened) enter(c,true,{persistent:true});
   renderBar(); renderMenu();
   s.replaceChildren(); c.replaceChildren(); $("steps").replaceChildren(); $("steps").hidden=true;
   s.className="card"+(state.tab==="review"?" rv":"");
