@@ -76,6 +76,24 @@ describe("learned facts", () => {
     ]);
   });
 
+  it("count a Quorum model whose answer leaves the example out as unsure, so two others agreeing are only a candidate", async () => {
+    const s = await setup();
+    await explain(
+      s,
+      {
+        [HAIKU]: [text(line("Both", "a table", "yes", "no"))],
+        [SONNET]: [text(line("Both", "a table", "yes", "no"))],
+        [OPUS]: [text(line("Neither", "a stone", "no", "no"))],
+      },
+      { quorum: true },
+      { QUORUM: "on" },
+    );
+    expect(facts(s).map((r) => [r.cat, r.answer, r.state, JSON.parse(r.models).map((m: { answer: string }) => m.answer)])).toEqual([
+      ["c_form", "yes", "candidate", ["yes", "yes", "unsure"]],
+      ["c_round", "no", "candidate", ["no", "no", "unsure"]],
+    ]);
+  });
+
   it("keep nothing where EXAMPLE_FACTS is not record or serve", async () => {
     for (const EXAMPLE_FACTS of [undefined, "", "off", "on", "yes"]) {
       const s = await setup();

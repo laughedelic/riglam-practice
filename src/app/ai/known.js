@@ -16,6 +16,7 @@ import { applyVerdicts, parseVerdicts } from "../../domain/verdict.ts";
 // (src/domain/known.ts): the cell is marked `half`, and the explanation still names it, so the tutor says the other side (what the server keeps).
 
 const WAIT_MS = 4000;           // the server's answer is worth a short wait, not a slow check
+const MAX_CHARS = 200;           // the longest example the server takes (src/ai/protocol.ts, LIMITS.exampleChars): it refuses the whole question for one longer
 
 /** Reads what the platform has of the server's learned facts: on start, and again after the Magic Key changed. (The reference examples are state.EX, core/examples.js.) */
 export async function loadKnown(platform){
@@ -49,7 +50,7 @@ async function settleKnown(U,C){
   if(!U.res||!U.res.exOpen||!C||!C.p) return;
   const p=C.p, d=noteData(p);
   let n=0;
-  const open=()=>openExamples(p,U.res,quorumThings(U));
+  const open=()=>openExamples(p,U.res,quorumThings(U).filter(t=>t.text.length<=MAX_CHARS));   // a longer one is left to the tutor, as in its explain request
   if(state.EX) n+=settle(U,p,d,referenceLines(state,state.EX,p,open()),"course");
   const left=open(), cats=pairCats(state,p);
   if(state.known&&left.length&&cats[0]&&cats[1]){

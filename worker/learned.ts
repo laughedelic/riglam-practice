@@ -18,6 +18,9 @@ export interface Analysis {
 
 type Stored = Omit<FactRow, "models"> & { models: string };
 
+/** The opinion of a model whose answer says nothing of an example: unsure on both sides. */
+const silent = (a: Analysis): Opinion => ({ name: a.name, model: a.model, judge: false, cls: "", sides: [{ answer: "unsure", say: "" }, { answer: "unsure", say: "" }] });
+
 async function readRow(db: D1Database, thing: string, cat: string): Promise<FactRow | null> {
   const r = await db
     .prepare("SELECT answer, cls, reason, state, agree, against, src, models, epoch, text, seen, first_day, last_day FROM example_facts WHERE thing = ?1 AND cat = ?2")
@@ -68,7 +71,9 @@ export async function keepFacts(
       const o = opinionOf(a.text, text);
       return o ? { ...o, cls: p.kit.knownClass(o.cls), name: a.name, model: a.model, judge: !!a.judge } : null;
     };
-    const models = p.analyses.filter((a) => !a.judge).map(said).filter((o): o is Opinion => !!o);
+    // a model whose answer leaves the example out has not confirmed it: it votes "unsure" where another model named it, so two others agreeing are not unanimous
+    const heard = p.analyses.filter((a) => !a.judge).map((a) => ({ a, o: said(a) }));
+    const models = heard.map(({ a, o }) => o ?? (heard.some((h) => h.o) ? silent(a) : null)).filter((o): o is Opinion => !!o);
     const judgeOf = p.analyses.find((a) => a.judge);
     const judge = judgeOf ? said(judgeOf) : null;
     for (const [side, cat] of [[0, catA], [1, catB]] as const) {
