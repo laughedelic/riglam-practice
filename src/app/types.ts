@@ -6,6 +6,7 @@ import type { Cat, DrillData, Item } from "../ai-shared/data";
 import type { ExampleIndex } from "../ai-shared/examples";
 import type { About, Unlock, Updates } from "../platform/types";
 import type { AnswerView, DebateAnswer } from "../ai-shared/card";
+import type { ExampleIndex } from "../ai-shared/examples";
 import type { CellId, RelKey } from "../ai-shared/relations";
 import type { Pair, PoolEntry, Verdict } from "../domain/types";
 import type { Account, Db, Known, Reports, Sample, Tutor } from "../platform/types";
@@ -225,7 +226,7 @@ export interface State {
   tutor: Tutor | null;
   /** what the app's server learned of examples from earlier checks (platform.known), asked before the tutor about an example the page could not check */
   known: Known | null;
-  /** the course's reference examples this device holds (platform.examples), by name; null without them */
+  /** the course's reference examples this device holds (platform.examples), by name; null when it has none (src/app/core/examples.js) */
   EX: ExampleIndex | null;
   /** sends flags to the app's server (platform.reports), when the place has a server for them and this device has the Magic Key */
   reports: Reports | null;
