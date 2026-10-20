@@ -18,6 +18,8 @@ export const state = {
   acct: {},      // the same for the Account row (src/ui/account.ts)
   xfer: {},      // what the "Your data" row of Options keeps between renders (src/ui/data-transfer.ts)
   tutor: null,   // a question to the app's own server (platform.tutor), when the place has one; `sample` is used first
+  known: null,   // what that server learned of examples from earlier checks (platform.known), asked before the tutor (ai/known.js)
+  EX: null,      // the course's reference examples this device holds (platform.examples), indexed by name (ai-shared/examples.ts); null when it has none
   about: null,   // {version, commit, builtAt, latest, branches?}: which build this is (platform.about), shown in Options
   updates: null, // {status, check, apply, subscribe}: updating the installed app in place (platform.updates), shown in Options
   unlock: null,  // {open, tutor}: opens the prompt for the Magic Key (platform.unlock) while this device has none; `tutor` is whether the server has a tutor waiting for it
@@ -58,7 +60,7 @@ export const state = {
   navDepth: 0,    // history entries held above the first screen (shell/history.js): the exercise itself on a narrow screen, Review, the chat view, Settings, the options and their pages, the skip question
   navSkip: 0,     // steps back the page took itself, whose popstate is to be ignored
   navQ: false,    // a check of the entries against the state is due after this render
-  navBack: false, // the system's Back is closing levels (shell/history.js): the system has animated the screen away already, so the panels do not move (shell/motion.js)
+  navBack: false, // the system's Back is closing levels, and the browser has animated the screen away itself (a swipe from the edge): the panels do not move as well (shell/history.js, shell/motion.js)
   motion: false,  // the first screen has been drawn: panels that open or close after it slide (shell/motion.js)
   view: null,
   reviewSeg: "overview",

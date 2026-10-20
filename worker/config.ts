@@ -110,3 +110,18 @@ export function readReviewConfig(env: Env): ReviewConfig {
     batch: Math.round(number(env.REVIEW_BATCH, 5, 1, 20)),
   };
 }
+
+export interface FactsConfig {
+  /** whether the server keeps what an explain answer says of the learner's examples (worker/learned.ts) */
+  record: boolean;
+  /** whether it may answer a check from the kept facts (not used yet: recording comes first) */
+  serve: boolean;
+  /** most rows of example_facts; past it, new examples are not added (rows already there are still updated) */
+  maxRows: number;
+}
+
+/** The settings of learned facts. Off unless `EXAMPLE_FACTS` is `record` (keep them) or `serve` (keep them, and answer from them). */
+export function readFactsConfig(env: Env): FactsConfig {
+  const mode = env.EXAMPLE_FACTS?.trim();
+  return { record: mode === "record" || mode === "serve", serve: mode === "serve", maxRows: Math.round(number(env.EXAMPLE_FACTS_MAX_ROWS, 50_000, 0, 10_000_000)) };
+}
