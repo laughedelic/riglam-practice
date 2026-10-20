@@ -116,6 +116,16 @@ withKey("an example the server knows on one side only, and that side fails its c
   expect((await cellsOf(page))[first.cell]).toMatchObject({ v: "bad", half: true });
 });
 
+// the server refuses a whole question for one example over 200 characters, so a long one never goes with the others
+withKey("an example too long for the server is left out of the question, and the others are still asked", async ({ page }, testInfo) => {
+  const long = "a very long description of a thing, " + "x".repeat(220);
+  const asked = await open(page, testInfo, undefined, { text: (i) => (i === 0 ? long : "thing " + (i + 1)) });
+  await expect.poll(() => asked.known.length).toBe(1);
+  const { examples } = asked.known[0].body;
+  expect(examples.length).toBeGreaterThan(0);
+  expect(examples.every((e) => e.text.length <= 200 && e.text !== long)).toBe(true);
+});
+
 withKey("a server that knows nothing, refuses or does not say it answers leaves the examples to the tutor, as before", async ({ page }, testInfo) => {
   const asked = await open(page, testInfo, { known: () => ({ status: 503, body: { error: { code: "unavailable" } } }) });
   await expect.poll(() => asked.known.length).toBe(1);
