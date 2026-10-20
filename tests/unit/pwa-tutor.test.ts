@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { testMagicKey as generateKey } from "../support/magic-key";
 import { HEADER, type QuorumRecord, type TutorEvent, type TutorRequest } from "../../src/ai/protocol";
 import { DEVICE_ID, checkProof } from "../../src/ai/proof";
-import { createTutor, deviceId, quorumOffer, serverSays, tutorIsOn } from "../../src/pwa/tutor";
+import { createKnown, createTutor, deviceId, quorumOffer, serverSays, tutorIsOn } from "../../src/pwa/tutor";
 
 const request: TutorRequest = { kind: "chat", cats: ["form", "color"], turns: [{ role: "user", content: "CARD ум" }] };
 const sse = (e: TutorEvent | { type: string }) => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`;
@@ -237,15 +237,18 @@ describe("tutorIsOn", () => {
   it("says what the server says of the tutor, Quorum and flag reports from one request", async () => {
     let asked = 0;
     const once = (body: unknown) => (async () => (asked++, json(200, body))) as unknown as typeof fetch;
-    expect(await serverSays(once({ ok: true, tutor: "on", quorum: "on" }))).toEqual({ tutor: true, quorum: "on", reports: false });
-    expect(await serverSays(once({ ok: true, tutor: "on" }))).toEqual({ tutor: true, quorum: false, reports: false });
-    expect(await serverSays(once({ ok: true, tutor: "off", quorum: "on" }))).toEqual({ tutor: false, quorum: false, reports: false });
-    expect(await serverSays(once({ ok: false, tutor: "on", quorum: "on" }))).toEqual({ tutor: false, quorum: false, reports: false });
+    expect(await serverSays(once({ ok: true, tutor: "on", quorum: "on" }))).toEqual({ tutor: true, quorum: "on", reports: false, known: false });
+    expect(await serverSays(once({ ok: true, tutor: "on" }))).toEqual({ tutor: true, quorum: false, reports: false, known: false });
+    expect(await serverSays(once({ ok: true, tutor: "off", quorum: "on" }))).toEqual({ tutor: false, quorum: false, reports: false, known: false });
+    expect(await serverSays(once({ ok: false, tutor: "on", quorum: "on" }))).toEqual({ tutor: false, quorum: false, reports: false, known: false });
     // flag reports are told apart from the tutor: a server can take flags with its tutor off
-    expect(await serverSays(once({ ok: true, tutor: "off", reports: "on" }))).toEqual({ tutor: false, quorum: false, reports: true });
-    expect(await serverSays(once({ ok: false, reports: "on" }))).toMatchObject({ reports: false });
-    expect(asked).toBe(6);
-    expect(await serverSays((async () => { throw new TypeError("offline"); }) as unknown as typeof fetch)).toEqual({ tutor: false, quorum: false, reports: false });
+    expect(await serverSays(once({ ok: true, tutor: "off", reports: "on" }))).toEqual({ tutor: false, quorum: false, reports: true, known: false });
+    expect(await serverSays(once({ ok: false, reports: "on" }))).toMatchObject({ reports: false, known: false });
+    // learned facts are answered only beside a tutor that is on
+    expect(await serverSays(once({ ok: true, tutor: "on", known: "on" }))).toMatchObject({ tutor: true, known: true });
+    expect(await serverSays(once({ ok: true, tutor: "off", known: "on" }))).toMatchObject({ known: false });
+    expect(asked).toBe(8);
+    expect(await serverSays((async () => { throw new TypeError("offline"); }) as unknown as typeof fetch)).toEqual({ tutor: false, quorum: false, reports: false, known: false });
   });
 
   it("is false for an answer that is not JSON (a static host with no server)", async () => {
@@ -286,5 +289,28 @@ describe("deviceId", () => {
     const id = deviceId();
     expect(id).toMatch(DEVICE_ID);
     expect(deviceId()).toBe(id);
+  });
+});
+
+describe("the known facts", () => {
+  const fact = { cell: "anb", text: "a pot", line: 'A not B: "a pot" | A yes: x | B no: y', by: "learned" };
+  const knownWith = (respond: () => Response | Promise<Response>) => {
+    const seen: { url: string; init: RequestInit }[] = [];
+    const doFetch = (async (url: string, init: RequestInit) => (seen.push({ url, init }), respond())) as unknown as typeof fetch;
+    return { ask: createKnown(generateKey(), doFetch, () => "d".repeat(22)), seen };
+  };
+  const req = { cats: ["form", "color"], examples: [{ cell: "anb" as const, text: "a pot" }] };
+
+  it("asks the server with the device and its proof, and gives back the lines it knows", async () => {
+    const { ask, seen } = knownWith(() => json(200, { known: [fact, { cell: "both" }, null] }));
+    expect(await ask(req)).toEqual([fact]);
+    expect(seen[0].url).toBe("/api/known");
+    expect(seen[0].init).toMatchObject({ method: "POST", cache: "no-store", body: JSON.stringify(req) });
+    expect(Object.keys(seen[0].init.headers as object)).toEqual(expect.arrayContaining([HEADER.device, HEADER.proof]));
+  });
+
+  it("knows nothing, and never throws, when the server refuses, answers something else or cannot be reached", async () => {
+    for (const respond of [() => json(401, { error: { code: "not_granted" } }), () => json(503, {}), () => json(200, { known: "no" }), () => new Response("<html>"), () => { throw new TypeError("offline"); }])
+      expect(await knownWith(respond).ask(req)).toEqual([]);
   });
 });

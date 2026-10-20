@@ -77,3 +77,61 @@ export function madeUpCourse(open) {
   });
   return { definitions, notes };
 }
+
+/** The sources of the made-up examples: three published works and one course booklet, whose id a device must never get. */
+export const MADE_UP_SOURCES = { MA: { tier: "open" }, MB: { tier: "open" }, MC: { tier: "open" }, MX: { tier: "course" } };
+const KINDS = ["thing", "thing", "thing", "representation", "relation", "negation"];
+const CONFIRMATIONS = ["confirmed", "textbook", "commentator"];
+
+/**
+ * Reference examples in the format of the knowledge base's exporter (src/data/examples.js), with invented names: classes are terms of
+ * `open`, picked at random, so they say nothing true. Every field of the format occurs, aliases in Chinese and Tibetan script and
+ * places in a course booklet included, so that what the device part leaves out is tested too.
+ */
+export function madeUpExamples(open, count = 80) {
+  const terms = Object.keys(open.terms);
+  const pickTerm = (next) => terms[Math.floor(next() * terms.length)];
+  const items = [];
+  const seen = new Set();
+  for (let i = 0; items.length < count; i++) {
+    const next = source("ex:" + i);
+    const n = `a ${word(next, LATIN)} ${word(next, LATIN)}${i % 9 === 4 ? " " + word(next, LATIN) : ""}`;
+    if (seen.has(n)) continue;
+    seen.add(n);
+    const it = { n };
+    if (i % 3 === 0) it.al = [`${word(next, LATIN)} ${word(next, LATIN)}`, word(next, CYRILLIC)];
+    if (i % 11 === 2) (it.al ??= []).push(String.fromCharCode(0x4e00 + Math.floor(next() * 500)), String.fromCharCode(0x0f40 + Math.floor(next() * 30)));
+    if (i % 17 === 8 && open.terms["Non-existent"]) {
+      it.cls = ["Non-existent"];
+      it.ne = true;
+    } else {
+      it.cls = [pickTerm(next)];
+      if (i % 8 === 5) it.cls.push(pickTerm(next));
+      it.cls = [...new Set(it.cls)];
+    }
+    if (i % 6 === 1) it.not = [pickTerm(next)];
+    it.lv = 1 + Math.floor(next() * 4);
+    it.sc = it.lv - 1;
+    it.k = KINDS[Math.floor(next() * KINDS.length)];
+    if (it.k === "relation" && i % 2 === 0 && items.length >= 2) {
+      it.f = "combination";
+      it.mem = [items[items.length - 1].n, items[items.length - 2].n];
+    }
+    it.cf = CONFIRMATIONS[Math.floor(next() * CONFIRMATIONS.length)];
+    if (i % 5 === 2) {
+      it.bg = "glossed";
+      it.gloss = prose("gloss:" + i, 60 + Math.floor(next() * 100), LATIN);
+      if (i % 10 === 2) it.cn = "medium";
+    }
+    if (i % 7 === 3 && items.length) it.base = items[0].n;
+    if (i % 10 === 7) it.web = [`https://example.org/${word(next, LATIN)}`];
+    const ids = Object.keys(MADE_UP_SOURCES);
+    it.src = Array.from({ length: 1 + Math.floor(next() * 4) }, () => {
+      const at = 1 + Math.floor(next() * 300);
+      return [ids[Math.floor(next() * ids.length)], `${at}-${at + Math.floor(next() * 5)}`];
+    });
+    items.push(it);
+  }
+  items.sort((a, b) => a.n.localeCompare(b.n));
+  return { format: "riglam-examples", version: 2, sources: MADE_UP_SOURCES, items };
+}

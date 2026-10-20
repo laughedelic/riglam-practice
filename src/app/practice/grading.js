@@ -1,5 +1,5 @@
 import { state } from "../state.js";
-import { explainByItself } from "../ai/tutor.js";
+import { afterCheck } from "../ai/known.js";
 import { checkFind } from "../find/flow.js";
 import { CELLS, REL } from "../core/rel.js";
 import { pairsOf } from "../core/util.js";
@@ -19,7 +19,7 @@ export async function check(){
   const p=state.cur.p;
   stopTimer(); clearSkip(p); state.ui.res=grade(state,p,state.ui); state.ui.checked=true; state.ui.open=false; render();
   focusAfterCheck();
-  explainByItself(state.ui);
+  afterCheck(state.ui);
   if(!state.db) return;
   const cells=/** @type {import("../types.ts").AnswerDoc["cells"]} */({});
   for(const c of CELLS) cells[c]={text:(state.ui.cells[c].t||"").trim(), none:REL[state.ui.rel].empty.includes(c)||state.ui.cells[c].none, verdict:state.ui.res.cells[c].v};
