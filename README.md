@@ -5,7 +5,7 @@
 
 # riglam-practice
 
-Practice in logic and debate on the "path of reasoning" (*rigs lam*): drills for the Dudra and Tarig courses. The first drill compares two phenomena (pick the relation, then give an example for each combination); the second asks the four debate questions about a pair.
+Practice in logic and debate on the "path of reasoning" (*rigs lam*): drills for the Dudra and Tarig courses. The first drill compares two phenomena (pick the relation, then give an example for each combination); the second asks the four debate questions about a pair; the third turns the first round: it names a relation and asks for a pair of phenomena that has it, then for the examples.
 
 One source builds two things:
 

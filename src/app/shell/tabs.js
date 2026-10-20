@@ -1,13 +1,16 @@
 import { state } from "../state.js";
 import { advanceDebate, freshDebateUi, startQ, stopTimer } from "../debate/flow.js";
+import { advanceFind } from "../find/flow.js";
 import { advance, freshUi } from "../practice/queue.js";
 import { skipCats } from "../practice/skips.js";
 import { render, top0 } from "./render.js";
 
  const hold={};
-// Practice and Debate each keep their own pair while you look at the other tab or at Review.
+// Practice, Debate and Find a pair each keep their own pair while you look at another tab or at Review.
 // Relations and Pervasions work on one pair: leaving one with its pair unfinished, the other opens the same pair at its first step (and keeps its own
 // progress if it already holds that pair). A pair that is finished gives the other tab a new pair, as Next pair does.
+// Find a pair is its own exercise (the learner names the pair): it gives no pair to the other two and takes none from them. Going to or from it, the exercise
+// you left keeps its place if it was unfinished, and a finished one starts again.
 const sameP=(x,y)=>!!x&&!!y&&((x.id&&x.id===y.id)||(x.a===y.a&&x.b===y.b&&x.relation===y.relation));
 function adoptPair(k,p){
   const [ca,cb]=skipCats(p); if(!ca||!cb) return false;
@@ -19,10 +22,14 @@ function adoptPair(k,p){
 export function switchTo(k){
   stopTimer();
   if(k!=="review"&&state.own!==k){
-    const left=state.cur&&state.cur.p&&state.ui&&!state.ui.checked?state.cur.p:null, was=state.cur&&state.cur.p;
-    hold[state.own]={cur: state.cur,ui: state.ui}; state.own=k;
+    const from=state.own, left=state.cur&&state.cur.p&&state.ui&&!state.ui.checked?state.cur.p:null, was=state.cur&&state.cur.p;
+    hold[from]={cur: state.cur,ui: state.ui}; state.own=k;
     const h=hold[k];
-    if(h&&h.cur&&was&&sameP(h.cur.p,was)){ state.cur=h.cur; state.ui=h.ui; }
+    if(k==="find"||from==="find"){
+      if(h&&h.cur&&h.ui&&!h.ui.checked){ state.cur=h.cur; state.ui=h.ui; }
+      else if(k==="find") advanceFind(); else if(k==="debate") advanceDebate(); else advance();
+    }
+    else if(h&&h.cur&&was&&sameP(h.cur.p,was)){ state.cur=h.cur; state.ui=h.ui; }
     else if(left&&adoptPair(k,left)){}
     else if(k==="debate") advanceDebate(); else advance();
   }

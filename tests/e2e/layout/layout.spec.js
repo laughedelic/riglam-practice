@@ -149,6 +149,36 @@ const FLOWS = {
     }
   },
 
+  async "find a pair, naming it, examples and result"(s) {
+    const { page, wide, check } = s;
+    await tab(page, "Find a pair").click();
+    await check("pair step");
+    await page.getByRole("button", { name: "Choose relation" }).click();
+    await check("relation picker");
+    await page.locator(".rels .rel").filter({ hasText: "Three possibilities, A in B" }).click();
+    // the learner's own long words: a pair the page cannot judge, so its result is open
+    await page.fill("#fw-a", LONG + "a");
+    await page.fill("#fw-b", LONG + "b");
+    await check("pair named");
+    await page.getByRole("button", { name: "Use this pair" }).click();
+    const rel = await page.evaluate(() => window.__t.ui.rel);
+    await answerAll(s, rel, LONG);
+    await check("result, pair not judged");
+    await eachChip(s, "find result");
+    await page.locator((wide ? ".coach" : "#stage") + ' button:has-text("xplain")').first().click();
+    await page.waitForFunction(() => window.__sampleDone >= 1);
+    await check("explained, no verdict on the pair");
+    // a pair of the course data, asked for a relation it may not have: the result says which one it has
+    await page.getByRole("button", { name: "Next relation" }).click();
+    await page.fill("#fw-a", "forms");
+    await page.fill("#fw-b", "minds");
+    await page.getByRole("button", { name: "Use this pair" }).click();
+    await answerAll(s, await page.evaluate(() => window.__t.ui.rel), LONG);
+    await check("result, pair of the data");
+    await eachChip(s, "find result");
+    if (!wide) await page.getByRole("button", { name: "Next relation" }).click();
+  },
+
   async "Blitz, Options and Review"(s) {
     const { page, wide, check } = s;
     // Review shows an empty note until there is history, so first leave an answer, a favorite and a skipped pair (F, Enter, S on the keyboard)
@@ -187,6 +217,7 @@ const RUNS = {
   "practice, answer and result": [{ seed: 1 }, { seed: 2 }, { seed: 1, wideFields: 45 }],
   "practice, explanation and its notes": [{ seed: 3 }, { seed: 3, wideFields: 45 }],
   "debate, questions and result": [{ seed: 1 }, { seed: 1, wideFields: 45 }],
+  "find a pair, naming it, examples and result": [{ seed: 1 }, { seed: 1, wideFields: 45 }],
   "Blitz, Options and Review": [{ seed: 1 }],
 };
 

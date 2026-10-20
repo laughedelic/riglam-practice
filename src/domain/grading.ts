@@ -118,6 +118,6 @@ export function summarize(res: GradeDraft): GradeResult {
   out.exBad = cs.filter((r) => r.kind === "ex" && r.v === "bad").length;
   out.exOpen = cs.filter((r) => r.v === "cmp").length;
   out.exN = cs.filter((r) => r.kind === "ex").length;
-  out.overall = !out.relOk ? "bad" : (out.occBad || out.exBad) ? "part" : out.exOpen ? "pend" : "ok";
+  out.overall = out.relOpen ? "pend" : !out.relOk ? "bad" : (out.occBad || out.exBad) ? "part" : out.exOpen ? "pend" : "ok";
   return out;
 }

@@ -1,0 +1,14 @@
+/* Find a pair: the fourth tab, the step in which the learner names the pair, and the open state of a cell Claude has yet to judge */
+.tabbar{grid-template-columns:repeat(4,1fr)}
+/* four labels of 11px capitals do not fit 80px: "Find a pair" would wrap and lift its diamond above the others */
+.tabbar button{white-space:nowrap}
+@media (max-width:359px){.tabbar button{font-size:10px;letter-spacing:.02em}}
+.fpair{gap:10px}
+.fpair .fw{display:grid;grid-template-columns:20px minmax(0,1fr);align-items:center;gap:10px}
+.fpair .fw input{min-width:0;height:48px;font:16px var(--body);color:var(--ink);background:var(--paper);border:1px solid var(--ink-muted);border-radius:0;padding:0 12px}
+.ferr{margin:0;font:400 13px/1.4 var(--text-serif);color:var(--bad)}
+.ferr:empty{display:none}
+.cell.v-open{border:1.5px dashed var(--cell-open);background:var(--cell-open-soft)}
+.cell.v-open .fb b{color:var(--cell-open)}
+.cell.locked.v-open{place-content:start;text-align:left}
+.favs.mist .m.ok{color:var(--good)} .favs.mist .m.pend{color:var(--cell-open)}

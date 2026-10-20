@@ -45,7 +45,7 @@ export function favBtn(p){
   return el("button",{type:"button",class:"btn ghost fav","aria-pressed":on?"true":"false","aria-label":on?"Remove from favorites":"Add to favorites",title:(on?"Remove from favorites":"Add to favorites")+" (F)",onclick:()=>toggleFav(p)},
     el("span",{class:"star","aria-hidden":"true",text:on?"★":"☆"}), el("span",{class:"fl",text:"Favorite"}));
 }
-function startFav(p){ state.retryQ=[p]; state.retryTag="Favorite"; switchTo("practice"); advance(); render(); top0(); }
+function startFav(p){ switchTo("practice"); state.retryQ=[p]; state.retryTag="Favorite"; advance(); render(); top0(); } // switch first: leaving another tab may draw a pair
 export function favSection(s){
   if(!state.db) return;
   const list=Object.values(state.favs).sort((x,y)=>(y.at||"").localeCompare(x.at||""));

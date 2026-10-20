@@ -3,8 +3,8 @@
 import { QCELL } from "../ai-shared/debate";
 import { pairCats } from "../ai-shared/lookup";
 import type { DataIndex } from "../ai-shared/lookup";
-import { refOf } from "../ai-shared/relations";
-import type { CellId, PairLike } from "../ai-shared/relations";
+import { CELLS, REL, refOf } from "../ai-shared/relations";
+import type { CellId, PairLike, RelKey } from "../ai-shared/relations";
 import { summarize } from "./grading";
 import { knownClass, listedItem, rung } from "./ladder";
 import { FEATURE } from "./universe";
@@ -97,7 +97,8 @@ export interface NoteData { ix: DataIndex; p: PairLike; terms: Terms }
  * grading would: an alias ("an apple" for "a red apple") settles a side such as food, but not one about a feature such as red.
  */
 export function placeFacts(f: FactLine, d?: NoteData): { cats: readonly [string | null, string | null]; cls: string; answers: readonly [Answer, Answer] } {
-  if (!d) return { cats: [null, null], cls: "", answers: [f.a.answer, f.b.answer] };
+  // a pair of the learner's own (Find a pair) is one the data cannot judge, so everything about its examples is the tutor's, even when both phenomena are categories
+  if (!d || d.p.own) return { cats: [null, null], cls: "", answers: [f.a.answer, f.b.answer] };
   const cats = pairCats(d.ix, d.p), any = cats[0] ? listedItem(d.ix, d.p, f.example, false) : null;
   const on = (cid: string | null, s: Side): Answer => {
     const it = cid && any ? (FEATURE.has(cid) ? listedItem(d.ix, d.p, f.example, true) : any) : null;
@@ -168,16 +169,74 @@ export function parseVerdicts(text: string | null | undefined, d?: NoteData): Ce
 /**
  * Settles the cells that are still open ("cmp") with the verdicts, in order, and counts the result again. Changes
  * `res` in place. Returns how many cells a verdict settled (an "unsure" counts: it closes the question, not the cell).
+ * With `again` (Claude is asked a second time about a pair of the learner's own that its first answer left unsettled) a cell that
+ * Claude settled before is settled again by the new answer; the cells the page graded itself are never touched.
  */
-export function applyVerdicts(p: PairLike, res: GradeResult, verdicts: readonly CellVerdict[]): number {
+export function applyVerdicts(p: PairLike, res: GradeResult, verdicts: readonly CellVerdict[], again = false): number {
   let n = 0;
   for (const { cell: c, answer: ok } of verdicts) {
     const r = res.cells[c];
-    if (!r || r.v !== "cmp") continue;
+    if (!r || (r.v !== "cmp" && !(again && r.by === "claude"))) continue;
     const ref = refOf(p, c);
     r.v = ok === "yes" ? "ok" : ok === "no" ? "bad" : "cmp"; r.uns = ok === "unsure"; r.by = "claude"; n++;
     r.msg = ok === "yes" ? ["Verified", "", "by Claude"] : ok === "no" ? ["Does not fit", ref ? ". Example: " + ref + "." : "", "by Claude"] : ["Unsure. ", "Claude could not settle it; see below." + (ref ? " Reference: " + ref + "." : "")];
   }
   summarize(res);
   return n;
+}
+
+/**
+ * The tutor's verdict on a pair the page could not judge (the pair-finding mode): the line `Relation: <the relation that holds> => yes|no|unsure`,
+ * where yes means the relation asked for. `rel` is the relation of the pair as far as the line says: the asked one for yes, the other one it names
+ * for no (null when it names none).
+ */
+export interface RelationVerdict {
+  answer: Answer;
+  rel: RelKey | null;
+}
+const REL_LINE = /^relation\s*:\s*(.*?)\s*=>\s*(yes|no|unsure)\W*$/i;
+// the five relations as the tutor is asked to write them (FIND_REL_NAMES in src/ai-shared/prompts.ts), loosely: case, commas and spacing do not matter
+const REL_NAMES: readonly (readonly [RegExp, RelKey])[] = [
+  [/mutually inclusive/, "mi"], [/mutually exclusive/, "con"], [/three possibilities,? ?a in b/, "3ab"], [/three possibilities,? ?b in a/, "3ba"], [/four possibilities/, "4"],
+];
+/** The first `Relation:` line with a verdict, read against the relation asked for; null when there is none. The relation named wins over the yes or no if the two disagree. */
+export function parseRelationVerdict(text: string | null | undefined, asked: RelKey): RelationVerdict | null {
+  for (const ln of (text || "").split("\n")) {
+    const m = bare(ln).match(REL_LINE);
+    if (!m) continue;
+    const said = m[1].toLowerCase().replace(/\s+/g, " "), found = REL_NAMES.filter(([re]) => re.test(said)).map(([, k]) => k);
+    const other = found.find((k) => k !== asked) ?? null;
+    let answer = m[2].toLowerCase() as Answer;
+    if (answer === "yes" && found.length && !found.includes(asked)) answer = "no";
+    if (answer === "no" && !other && found.length) answer = "unsure"; // it names the asked relation and says no: the line contradicts itself
+    return { answer, rel: answer === "yes" ? asked : answer === "no" ? other : null };
+  }
+  return null;
+}
+
+/**
+ * Settles the relation of the learner's own pair with the tutor's verdict, and with it the cells the relation asked for leaves empty: they are
+ * right when the pair has that relation, or when the relation it has leaves them empty too, and wrong when it does not (something belongs
+ * there). A cell left blank that the asked relation leaves possible is right after all when the relation the pair has leaves it empty, and a cell with an example
+ * in it is wrong when the relation the pair has leaves it empty. Changes `p` (the relation it has, when the tutor named one) and `res`, and counts again. Returns whether the verdict settled anything;
+ * an "unsure" closes the question without settling it.
+ */
+export function applyRelationVerdict(p: PairLike, res: GradeResult, v: RelationVerdict): boolean {
+  if (!res.relOpen) return false;
+  if (v.answer === "unsure") { res.relUns = true; return true; }
+  res.relOpen = false; res.relUns = false; res.relOk = v.answer === "yes";
+  if (v.rel) p.relation = v.rel;
+  const has = v.rel ? REL[v.rel] : null;
+  for (const c of CELLS) {
+    const r = res.cells[c];
+    // a blank cell the asked relation leaves possible (the only "bad" occupancy cell an own pair has before this verdict) is right when the relation the pair has leaves it empty
+    if (has && r.v === "bad" && r.kind === "occ" && has.empty.includes(c)) { r.v = "ok"; r.msg = ["Right, empty. ", ""]; continue; }
+    // an example in a cell the relation the pair has leaves empty cannot be right: as in the usual exercise, the cell is filled wrongly, whatever Claude said of the example
+    if (has && r.kind === "ex" && has.empty.includes(c)) { r.v = "bad"; r.kind = "occ"; r.uns = false; r.msg = ["Nothing goes here. ", "The relation your pair has leaves this cell empty; see the explanation."]; continue; }
+    if (r.v !== "open") continue;
+    if (has && !has.empty.includes(c)) { r.v = "bad"; r.msg = ["Not empty. ", "Something belongs here for your pair; see the explanation."]; }
+    else if (has) { r.v = "ok"; r.msg = ["Right, empty. ", ""]; }
+  }
+  summarize(res);
+  return true;
 }
