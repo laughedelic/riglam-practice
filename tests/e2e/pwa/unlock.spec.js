@@ -162,8 +162,8 @@ test("the page opens without waiting for the server to say whether it has a tuto
   release();
   if (!isPhone(testInfo)) return; // the answer flow is exercised in the phone layout
   await answerFirstPair(page);
-  await expect(page.locator("button.needs-key")).toHaveText("Explain");
-  await expect(page.locator("button.needs-key")).toHaveAttribute("aria-disabled", "true");
+  await expect(page.locator("button.xpl.needs-key")).toHaveText("Explain"); // the dashed "check" chips are locked too
+  await expect(page.locator("button.xpl.needs-key")).toHaveAttribute("aria-disabled", "true");
 });
 
 withKey("the key in a link opens the definitions, leaves the address bar, and stays on the device", async ({ page }) => {

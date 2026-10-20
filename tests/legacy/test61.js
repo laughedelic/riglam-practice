@@ -35,8 +35,8 @@ const subTxt=pg=>pg.evaluate(()=>{const r=document.querySelector('.head .subrow'
   await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(100);
   await pg.locator('.qcard .btn').first().click(); await pg.waitForTimeout(100);
   await pg.locator('.qcard .btn.ghost').click(); await pg.waitForTimeout(120);
-  const g=await pg.evaluate(()=>{const i=document.getElementById('dex').getBoundingClientRect(), n=document.querySelector('.qcard .btn:not(.ghost)')&&document.querySelector('.qcard .ansrow .btn'); const b=n&&n.getBoundingClientRect(); return {inBottom:Math.round(i.bottom),btnBottom:b&&Math.round(b.bottom),h:innerHeight};});
-  ok('390x520 (keyboard open): the Why field and its Next button are in view on question 3',g.inBottom<=g.h-6&&(!g.btnBottom||g.btnBottom<=g.h-6),g);
+  const g=await pg.evaluate(()=>{const i=document.getElementById('dex').getBoundingClientRect(), n=document.querySelector('.qcard .btn:not(.ghost)')&&document.querySelector('.qcard .ansrow .btn'); const b=n&&n.getBoundingClientRect(), pb=document.querySelector('#stage .pbar'); return {inBottom:Math.round(i.bottom),btnBottom:b&&Math.round(b.bottom),pbTop:pb&&Math.round(pb.getBoundingClientRect().top),h:innerHeight};});
+  ok('390x520 (keyboard open): the Why field and its Next button are in view on question 3, above the pair bar',g.inBottom<=g.h-6&&(!g.btnBottom||g.btnBottom<=g.h-6)&&(!g.pbTop||g.btnBottom<=g.pbTop),g);
   await br.close();
  }
  // ============ the flag form ============
@@ -45,7 +45,7 @@ const subTxt=pg=>pg.evaluate(()=>{const r=document.querySelector('.head .subrow'
   await pg.evaluate(r=>{window.__reply=r;},REPLY);
   const rel=await pg.evaluate(()=>window.__t.cur.p.relation);
   await relPhone(pg,other(rel));
-  await pg.locator('#stage .actions button:has-text("xplain")').first().click(); await pg.waitForTimeout(400);
+  await pg.locator('#stage .xpl').click(); await pg.waitForTimeout(400);
   await pg.locator('.vpanel .ans .aiflag').click(); await pg.waitForTimeout(120);
   let g=await pg.evaluate(()=>{const h=document.querySelector('.flagedit .fh'); return {t:h.innerText.replace(/\s+/g,' ').trim(),h:Math.round(h.getBoundingClientRect().height),btns:[...document.querySelectorAll('.flagedit .fa button')].map(b=>b.innerText.trim())};});
   ok('the editor header only names what is flagged: "Flag: Claude’s explanation", no copy of the text',g.t==='Flag: Claude’s explanation'&&g.h<=22&&!/look at|clay pot|=/.test(g.t),g);
@@ -66,8 +66,8 @@ const subTxt=pg=>pg.evaluate(()=>{const r=document.querySelector('.head .subrow'
   await pg.evaluate(r=>{window.__reply=r;},REPLY);
   const rel=await pg.evaluate(()=>window.__t.cur.p.relation);
   await relPhone(pg,other(rel));
-  await pg.locator('#stage .actions button:has-text("xplain")').first().click(); await pg.waitForTimeout(400);
-  await pg.locator('#stage > .actions .stage-chat').click(); await pg.waitForTimeout(200);
+  await pg.locator('#stage .xpl').click(); await pg.waitForTimeout(400);
+  await pg.locator('#mchat').click(); await pg.waitForTimeout(200);
   await pg.evaluate(()=>{window.__delay=900;});
   await pg.fill('#ask-in','I thought a cat is made of matter'); await pg.keyboard.press('Enter'); await pg.waitForTimeout(250);
   const th=await pg.evaluate(()=>{const o=document.getElementById('over'), live=document.getElementById('ans-live'); const x=live&&live.closest('.xch'); const q=x&&x.querySelector('.q'); const sc=document.getElementById('chatscroll'); const kids=x?[...x.children].map(c=>c.classList.contains('q')?'q':c.classList.contains('ans')?'ans':'?'):[]; return {has:!!live,txt:live&&live.innerText.trim(),kids,liveTop:live&&Math.round(live.getBoundingClientRect().top),qTop:q&&Math.round(q.getBoundingClientRect().top),scTop:sc&&Math.round(sc.getBoundingClientRect().top),st:sc&&sc.scrollTop,first:x&&x===document.querySelector('#over .xch')};});
@@ -91,8 +91,8 @@ const subTxt=pg=>pg.evaluate(()=>{const r=document.querySelector('.head .subrow'
   await pg.locator('.strip .chip').nth(ORDER[other(rel)]).click(); await pg.waitForTimeout(60);
   const n=await pg.locator('.grid input:not([disabled])').count();
   for(let i=0;i<n;i++) await pg.locator('.grid input:not([disabled])').nth(i).fill('thing '+(i+1));
-  await pg.locator('#stage .actions .btn',{hasText:/show result/i}).click(); await pg.waitForTimeout(200);
-  await pg.locator('.coach button:has-text("Explain"), .coach button:has-text("Check and explain")').first().click(); await pg.waitForTimeout(300);
+  await pg.locator('#stage .pbar .fwd').click(); await pg.waitForTimeout(200);
+  await pg.locator('#stage .xpl').click(); await pg.waitForTimeout(300);
   await pg.fill('.coach #ask-in','why is that?'); await pg.keyboard.press('Enter'); await pg.waitForTimeout(500);
   const order=await pg.evaluate(()=>{const t=document.querySelector('#coach .tutor, .vpanel .tutor'); if(!t) return null; const kids=[...t.querySelectorAll('.q,.ans')]; return kids.map(c=>c.classList.contains('q')?'q:'+c.innerText.slice(0,12):'ans');});
   ok('wide: in the sidebar the question stays above its answer',!!order&&order.length>=2&&order.findIndex(x=>x.startsWith('q:why'))<order.length-1&&order[order.findIndex(x=>x.startsWith('q:why'))+1]==='ans',order);

@@ -283,7 +283,7 @@ withKey("on a wide screen the error and a follow-up answer appear in the coach p
   await page.goto("/");
   await ready(page);
   await relOptions(page).first().click();
-  await page.getByRole("button", { name: /show result/i }).click();
+  await page.locator("#stage .pbar .fwd").click(); // Check, with the cells left empty
   await explain(page).click();
   await expect(page.getByText(/limit for today is used up/i)).toBeVisible();
   await page.fill("#ask-in", "Why not?");

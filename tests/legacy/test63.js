@@ -11,8 +11,8 @@ const LONG='a very long example phrase that goes on and on a very long example p
     await pg.locator('.strip .chip').nth(ORDER[rel]).click(); await pg.waitForTimeout(80);
     const n=await pg.locator('.grid input:not([disabled])').count();
     for(let i=0;i<n;i++) await pg.locator('.grid input:not([disabled])').nth(i).fill(LONG);
-    await pg.locator('#stage .actions .btn',{hasText:/check|show result/i}).first().click(); await pg.waitForTimeout(250);
-    await pg.locator('.coach button:has-text("Explain"), .coach button:has-text("Check and explain")').first().click().catch(()=>{}); await pg.waitForTimeout(500);
+    await pg.locator('#stage .pbar .fwd').click(); await pg.waitForTimeout(250);
+    await pg.locator('#stage .xpl').click().catch(()=>{}); await pg.waitForTimeout(500);
     await pg.evaluate(()=>{ document.querySelectorAll('.coach .ask input').forEach(i=>i.size=45); });
     await pg.waitForTimeout(100);
     const m=await pg.evaluate(()=>{

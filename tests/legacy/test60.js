@@ -52,7 +52,7 @@ async function phoneQs(pg,sayWhyAt){
  // wide: the relation step lists the statements with the answers
  {
   const {br,pg,errs}=await open({width:1280,height:800});
-  await pg.locator('.rail .nv:has-text("Pervasions")').click(); await pg.waitForTimeout(150);
+  await go(pg,'Pervasions'); await pg.waitForTimeout(150);
   await pg.keyboard.press('a'); await pg.waitForTimeout(100); await pg.keyboard.press('a'); await pg.waitForTimeout(100); await pg.keyboard.press('a'); await pg.waitForTimeout(100); await pg.keyboard.press('a'); await pg.waitForTimeout(150);
   const pills=await pg.evaluate(()=>[...document.querySelectorAll('#stage .pill')].map(p=>({t:p.innerText.trim(),bg:getComputedStyle(p).backgroundColor,cur:getComputedStyle(p).cursor})));
   const mar=await rgb(pg,'var(--marigold)');

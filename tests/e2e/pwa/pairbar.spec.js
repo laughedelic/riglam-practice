@@ -57,12 +57,12 @@ test("the forward button says Next cell until the last cell, then Check, then Ne
   await pickRight(page);
   const labels = [];
   for (let i = 0; i < 4 && (await page.locator("#cin").isVisible()); i++) {
-    labels.push((await fwd(page).innerText()).trim());
+    labels.push((await fwd(page).textContent()).trim()); // innerText would be the capitals the buttons are drawn in
     await page.fill("#cin", "thing " + (i + 1));
     await fwd(page).click();
   }
   expect(labels.length).toBeGreaterThan(1);
-  expect(labels.slice(0, -1).every((l) => l === "Next cell")).toBe(true);
+  expect(labels.slice(0, -1)).toEqual(Array(labels.length - 1).fill("Next cell"));
   expect(labels.at(-1)).toBe("Check");
   await expect.poll(() => page.evaluate(() => window.__t.ui.checked)).toBe(true);
   await expect(fwd(page)).toHaveText("Next pair");

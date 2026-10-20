@@ -26,7 +26,7 @@ const geo=(pg)=>pg.evaluate(()=>{const g=document.querySelector('#stage .grid'),
  ok('switching chips: the table keeps its place and the stage does not jump',new Set(tops.map(t=>t.split('/')[0])).size<=2&&true,tops);
  ok('the clicked chip is still on screen after switching',await pg.evaluate(()=>{const c=document.querySelector('.vchip[aria-selected=true]'); if(!c) return true; const r=c.getBoundingClientRect(), a=document.querySelector('#stage .actions').getBoundingClientRect(); return r.top>=0&&r.bottom<=a.top+1;}));
  // Explain: the tutor answer comes into view
- await pg.locator('#stage .actions button:has-text("xplain")').click(); await pg.waitForTimeout(450);
+ await pg.locator('#stage .xpl').click(); await pg.waitForTimeout(450);
  ok('Explain: the Tutor panel is in view above the action bar and the table is still first',await pg.evaluate(()=>{const t=document.querySelector('#stage .tutor, #stage .vpanel'), a=document.querySelector('#stage .actions').getBoundingClientRect(); const g=document.querySelector('#stage .grid').getBoundingClientRect(), v=document.querySelector('#stage .verdict').getBoundingClientRect(); const r=t.getBoundingClientRect(); return r.bottom>0&&r.top<a.top&&g.top<v.top;}));
  ok('the "?" marks sit on the cells of the table and open inside the card',await (async()=>{ const q=pg.locator('.grid .qm').first(); if(!await q.count()) return false; await q.scrollIntoViewIfNeeded(); await q.click(); await pg.waitForTimeout(150); const r=await pg.evaluate(()=>{const p=document.querySelector('.grid .pop'); if(!p) return false; const b=p.getBoundingClientRect(), s=document.getElementById('stage').getBoundingClientRect(); return b.left>=s.left-1&&b.right<=s.right+1;}); await pg.keyboard.press('Escape'); await pg.waitForTimeout(80); return r; })());
  const r1=await pg.evaluate(ringScan); ok('Relations result: no focus ring is clipped',r1.length===0,r1);
@@ -54,11 +54,11 @@ const geo=(pg)=>pg.evaluate(()=>{const g=document.querySelector('#stage .grid'),
  await pg.screenshot({path:D+'v52-rel-result-360.png'});
  ok('360x640: no horizontal overflow on the result',await pg.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
  await br.close();
- // ---- wide is unchanged: table in the workspace, verdict in the coach ----
+ // ---- wide: the table and the verdict stay in the middle; the tutor panel opens only on a request ----
  ({br,pg,errs}=await open({width:1280,height:800}));
  await pg.locator('.strip .chip').nth(ORDER[await pg.evaluate(()=>window.__t.cur.p.relation)]).click(); await pg.waitForTimeout(200);
- await pg.locator('#stage .actions button:has-text("Show result")').click(); await pg.waitForTimeout(300);
- ok('wide: the verdict stays in the coach, the table in the workspace',await pg.locator('.coach .verdict').count()===1&&await pg.locator('#stage .verdict').count()===0&&await pg.locator('#stage .grid').count()===1);
+ await pg.locator('#stage .pbar .fwd').click(); await pg.waitForTimeout(300);
+ ok('wide: the verdict stays in the middle under the table (the tutor panel is closed until asked)',await pg.locator('.coach .verdict').count()===0&&await pg.locator('#stage .verdict').count()===1&&await pg.locator('#stage .grid').count()===1&&await pg.locator('#coach').isHidden());
  await br.close();
  console.log(out.join('\n')); process.exit(out.some(l=>l.startsWith('FAIL'))?1:0);
 })().catch(e=>{console.log(out.join('\n')); console.log('CRASH',e.message.split('\n').slice(0,6).join('\n')); process.exit(2);});

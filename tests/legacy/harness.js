@@ -52,7 +52,7 @@ async function go(pg,name){
     if(!(await pg.locator('#menubtn').isVisible())) await pg.locator('#mback').click();
     await pg.locator('#menubtn').click();
   }
-  await pg.locator('#menu [data-go="'+k+'"]').click();
+  await pg.locator('#menu :is(.mrow,.fbtn)[data-go="'+k+'"]').click(); // not the today line, which also opens Review
 }
 // Opens the practice options of the exercise on screen (the sliders button in the top bar).
 async function settings(pg){ await pg.locator('#msess').click(); await pg.waitForTimeout(100); }

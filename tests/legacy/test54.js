@@ -17,7 +17,7 @@ async function toTerms(pg){
   await pg.waitForTimeout(100); await pg.evaluate(()=>document.activeElement&&document.activeElement.blur());
   await pg.locator('.vchip:has-text("Terms")').click(); await pg.waitForTimeout(80);
   if(await pg.locator('.terms .dterm').count()) return true;
-  await pg.locator('#stage .actions button:has-text("Next")').first().click(); await pg.waitForTimeout(120);
+  await pg.locator('#stage .pbar .fwd').click(); await pg.waitForTimeout(120);
  }
  return false;
 }
@@ -34,12 +34,12 @@ async function toTerms(pg){
   // switch on from Options
   await pg.evaluate(()=>document.activeElement&&document.activeElement.blur());
   await settings(pg);
-  const row=await pg.evaluate(()=>{const r=[...document.querySelectorAll('.orow')].find(x=>/definitions/i.test(x.querySelector('.tl').innerText)); return r?{txt:r.innerText, btns:[...r.querySelectorAll('button')].map(b=>b.innerText+':'+b.getAttribute('aria-pressed'))}:null;});
+  const row=await pg.evaluate(()=>{const r=[...document.querySelectorAll('#over .ocard')].find(x=>/definitions/i.test(x.querySelector('.om b').innerText)); return r?{txt:r.innerText, btns:[...r.querySelectorAll('.seg button')].map(b=>b.innerText+':'+b.getAttribute('aria-pressed'))}:null;});
   ok('the settings have a Definitions row with English and English + Russian',row&&/English/i.test(row.btns.join())&&/English \+ Russian/i.test(row.btns.join()),row);
   ok('English is selected at first',row&&/^English:true/i.test(row.btns[0]),row);
   await pg.screenshot({path:D+'v54-options.png'});
   const r1=await pg.evaluate(ringScan); ok('the settings with the new row: no focus ring is clipped',r1.length===0,r1);
-  await pg.locator('.orow:has-text("Definitions") button:has-text("English + Russian")').click(); await pg.waitForTimeout(120);
+  await pg.locator('#over .ocard:has-text("Definitions") .seg button:has-text("English + Russian")').click(); await pg.waitForTimeout(120);
   ok('choosing it is stored',await pg.evaluate(()=>localStorage.getItem('rd-deflang'))==='enru'&&await pg.evaluate(()=>window.__t.defLang)==='enru');
   await pg.keyboard.press('Escape'); await pg.waitForTimeout(150);
   // a tap outside the definition closed it: open the first one again, then the others until one has a Russian definition
@@ -54,7 +54,7 @@ async function toTerms(pg){
   if(ruDefs>0){ found=true; ok('English + Russian: the Russian definition shows too ('+ruDefs+')',true); }
   else { // switch off again and try another pair
    await pg.evaluate(()=>window.__t.setDefLang('en')); await pg.evaluate(()=>document.activeElement&&document.activeElement.blur());
-   await pg.locator('#stage .actions button:has-text("Next")').first().click(); await pg.waitForTimeout(120);
+   await pg.locator('#stage .pbar .fwd').click(); await pg.waitForTimeout(120);
   }
  }
  ok('some pair showed a Russian definition',found);
@@ -69,7 +69,7 @@ async function toTerms(pg){
  for(const [w,h] of [[320,640],[1280,800]]){
   ({br,pg,errs}=await open({width:w,height:h},w<1000?{isMobile:true,hasTouch:true}:{}));
   await settings(pg);
-  const o=await pg.evaluate(()=>({sw:document.documentElement.scrollWidth<=innerWidth, fit:(()=>{const r=[...document.querySelectorAll('.orow')].find(x=>/definitions/i.test(x.innerText)); if(!r) return false; const b=r.getBoundingClientRect(), p=document.querySelector('.opts').getBoundingClientRect(); return b.right<=p.right+0.5;})()}));
+  const o=await pg.evaluate(()=>({sw:document.documentElement.scrollWidth<=innerWidth, fit:(()=>{const r=[...document.querySelectorAll('#over .ocard')].find(x=>/definitions/i.test(x.innerText)); if(!r) return false; const b=r.getBoundingClientRect(), p=document.querySelector('.opts').getBoundingClientRect(); return b.right<=p.right+0.5;})()}));
   ok(w+' px: the Definitions row fits in the settings',o.sw&&o.fit,o);
   await pg.screenshot({path:D+'v54-options-'+w+'.png'});
   await br.close();

@@ -28,7 +28,11 @@
 .mrow:hover:not(:disabled){background:var(--paper-tint)}
 .mrow[aria-current="page"]{background:var(--paper-tint);box-shadow:inset 4px 0 0 var(--vermilion)}
 .mrow:disabled{cursor:default;opacity:.55}
-.mrow:focus-visible,.mtoday:focus-visible,.fbtn:focus-visible{box-shadow:var(--focus-ring)}
+/* the rows run edge to edge of the scrolling list, which would cut an outer ring: theirs is drawn inside (the layout scan reads --ring-inset) */
+.mrow,.mtoday{--ring-inset:1}
+.mrow:focus-visible,.mtoday:focus-visible{outline:2px solid var(--focus-edge);outline-offset:-3px;box-shadow:none}
+.mrow[aria-current="page"]:focus-visible{box-shadow:inset 4px 0 0 var(--vermilion)}
+.fbtn:focus-visible{box-shadow:var(--focus-ring)}
 .tag{display:inline-flex;align-items:center;gap:6px;flex:none;font:700 10.5px/16px var(--body);letter-spacing:.07em;text-transform:uppercase;color:var(--ink);white-space:nowrap}
 .tag i{width:9px;height:9px;clip-path:var(--rhombus);background:var(--vermilion);flex:none}
 .mfoot{flex:none;display:grid;gap:4px;padding:6px 8px 10px;border-top:1.5px solid var(--ink)}
@@ -65,6 +69,7 @@
 /* an option as a card: its name, the quick choice or a line saying what is set, and a chevron into its own page */
 .ocard{display:grid;grid-template-columns:minmax(0,1fr) 44px;align-items:center;gap:6px;padding:12px 4px 12px 14px;border:1.5px solid var(--line)}
 .ocard .om{display:grid;gap:8px;min-width:0;justify-items:start}
+.ocard .seg{flex-wrap:wrap;max-width:100%}
 .ocard .om>b{font:700 12px/16px var(--body);letter-spacing:.06em;text-transform:uppercase}
 .ocard .sum1{font:400 13px/1.4 var(--body);color:var(--ink-muted)}
 .go2{width:44px;height:44px;display:grid;place-items:center;border:0;background:transparent;color:var(--ink-muted);cursor:pointer}

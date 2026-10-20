@@ -1,4 +1,4 @@
-const {open,go}=require('./harness.js');
+const {open,go,settings}=require('./harness.js');
 const D=require('./harness.js').SHOTS;
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
 const items=pg=>pg.evaluate(()=>[...document.querySelectorAll('.rcpt .ri')].map(r=>({n:r.querySelector('.n').innerText,w:r.querySelector('.rw').innerText,ex:(r.querySelector('.exn')||{}).innerText||'',cls:r.className})));
@@ -25,7 +25,7 @@ const items=pg=>pg.evaluate(()=>[...document.querySelectorAll('.rcpt .ri')].map(
   const {br,pg,errs}=await open({width:390,height:844},{isMobile:true,hasTouch:true});
   await go(pg,'Pervasions'); await pg.waitForTimeout(150);
   await pg.click('#mbz'); await pg.waitForTimeout(100);
-  await pg.click('.trow .tval'); await pg.waitForTimeout(80); await pg.keyboard.press('Control+a'); await pg.keyboard.type('2'); await pg.keyboard.press('Enter'); await pg.waitForTimeout(150);
+  await settings(pg); await pg.getByRole('button',{name:'Blitz times: details'}).click(); await pg.locator('#over .orow:has-text("Example time") .tcustom').fill('2'); await pg.keyboard.press('Enter'); await pg.waitForTimeout(80); await pg.locator('#over .oc').click(); await pg.waitForTimeout(150);
   await pg.waitForTimeout(2400);
   const it=await items(pg);
   ok('a question that timed out shows in the receipt with "time ran out"',it.length>=1&&/time ran out/.test(it[0].ex),it);
