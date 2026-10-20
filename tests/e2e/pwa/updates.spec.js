@@ -79,6 +79,38 @@ test("the toast goes away by itself after a while, and the menu keeps the way to
   await expect(page.locator("#menu .ver")).toContainText("Update available");
 });
 
+test("the toast waits while the pointer or the focus is on it, and goes only when neither is", async ({ page }) => {
+  await installed(page);
+  await page.clock.install();
+  newVersion = true;
+  await page.evaluate(() => window.__riglam.platform.updates.check());
+  const toast = page.locator("#upd");
+  await expect(toast).toBeVisible();
+  await toast.getByRole("button", { name: "Update now" }).focus();
+  await toast.hover();
+  await page.clock.runFor(25_000);
+  await expect(toast).toBeVisible();
+  // the pointer leaves and the focus stays: the notice stays too
+  await page.mouse.move(2, 2);
+  await page.clock.runFor(25_000);
+  await expect(toast).toBeVisible();
+  // the focus leaves as well: now it counts down
+  await page.evaluate(() => /** @type {HTMLElement} */ (document.activeElement).blur());
+  await page.clock.runFor(25_000);
+  await expect(toast).toBeHidden();
+});
+
+test("a redraw of the menu by an update keeps the focus on the control the reader is on", async ({ page }) => {
+  await installed(page);
+  await openMenu(page);
+  const row = page.locator('#menu .mrow[data-go="debate"]');
+  await row.focus();
+  newVersion = true;
+  await page.evaluate(() => window.__riglam.platform.updates.check());
+  await expect(page.locator("#menu .ver")).toContainText("Update available");
+  await expect(row).toBeFocused();
+});
+
 test("Later hides the toast, and Settings still offers the update", async ({ page }) => {
   await installed(page);
   newVersion = true;

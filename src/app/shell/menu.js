@@ -68,8 +68,12 @@ function onClick(e){
   const b=/** @type {Element} */(e.target).closest("[data-go]"); if(b) pick(b.getAttribute("data-go"));
 }
 
+const CONTROLS="button,[tabindex]";
 export function renderMenu(){
   const m=$("menu"), w=isWide(), shown=menuVisible();
+  // the phone's drawer is a modal: the exercise behind it cannot be reached by the keyboard or a screen reader until it closes
+  const col=/** @type {HTMLElement|null} */(document.querySelector("#app > .col")); if(col) col.inert=!w&&shown;
+  if(!w&&shown){ m.setAttribute("role","dialog"); m.setAttribute("aria-modal","true"); } else { m.removeAttribute("role"); m.removeAttribute("aria-modal"); }
   $("app").dataset.menu=w?(state.menuPin?"pinned":shown?"peek":"closed"):(shown?"open":"closed");
   $("menuscrim").hidden=w||!shown; $("menuedge").hidden=!(w&&!shown);
   const mb=$("menubtn"); mb.setAttribute("aria-expanded",shown?"true":"false"); mb.classList.toggle("open",shown);
@@ -78,6 +82,8 @@ export function renderMenu(){
   if(!shown){ m.replaceChildren(); return; }
   m.classList.toggle("peek",w&&!state.menuPin);
   m.classList.toggle("enter",fresh&&!w); // the phone's drawer slides in once when it opens; a render later on does not repeat it (the peek of a wide screen just appears, under the pointer)
+  // a redraw of the menu alone (an update's status, today's numbers) keeps the keyboard focus on the same control, or on the last one when that one is gone
+  const at=m.contains(document.activeElement)?[...m.querySelectorAll(CONTROLS)].indexOf(/** @type {Element} */(document.activeElement)):-1;
   m.replaceChildren(
     el("div",{class:"mh"},figure(),
       el("span",{class:"brand lock"},el("span",{class:"nm",text:"Riglam"})," ",el("span",{class:"pr",text:"practice"})),
@@ -92,6 +98,7 @@ export function renderMenu(){
         keyButton()),
       versionLine()));
   m.onclick=onClick;
+  if(at>=0){ const cs=m.querySelectorAll(CONTROLS), n=/** @type {HTMLElement|undefined} */(cs[Math.min(at,cs.length-1)]); if(n) n.focus({preventScroll:true}); }
 }
 // the narrow drawer
 // The Blitz clock stands still behind it and starts again, with its full time, when it closes.

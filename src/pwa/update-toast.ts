@@ -35,11 +35,17 @@ export function mountUpdateToast(updates: Updates): void {
     clearTimeout(timer);
     timer = window.setTimeout(dismiss, STAYS_MS);
   };
-  const hold = () => clearTimeout(timer);
-  toast.addEventListener("pointerenter", hold);
-  toast.addEventListener("focusin", hold);
-  toast.addEventListener("pointerleave", wait);
-  toast.addEventListener("focusout", wait);
+  // it stays while the pointer or the focus is on it, and counts down again only when neither is
+  let hovered = false;
+  const settle = () => {
+    if (toast.hidden) return;
+    if (hovered || toast.contains(document.activeElement)) clearTimeout(timer);
+    else wait();
+  };
+  toast.addEventListener("pointerenter", () => { hovered = true; settle(); });
+  toast.addEventListener("pointerleave", () => { hovered = false; settle(); });
+  toast.addEventListener("focusin", settle);
+  toast.addEventListener("focusout", () => setTimeout(settle, 0)); // the focus has moved on (or out) only after this event
   const show = () => {
     const was = toast.hidden;
     toast.hidden = dismissed || updates.status() !== "ready";
