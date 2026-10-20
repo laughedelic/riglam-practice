@@ -6,7 +6,6 @@ import type { Cat, DrillData, Item } from "../ai-shared/data";
 import type { ExampleIndex } from "../ai-shared/examples";
 import type { About, Unlock, Updates } from "../platform/types";
 import type { AnswerView, DebateAnswer } from "../ai-shared/card";
-import type { ExampleIndex } from "../ai-shared/examples";
 import type { CellId, RelKey } from "../ai-shared/relations";
 import type { Pair, PoolEntry, Verdict } from "../domain/types";
 import type { Account, Db, Known, Reports, Sample, Tutor } from "../platform/types";
