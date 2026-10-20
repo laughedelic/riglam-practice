@@ -100,11 +100,14 @@ export async function ask(text,kind,byItself){
     if(kind==="explain") U.explained=false;
     if(quorum) quorumDropped(U);
     if(U.chat.length===1) U.chat=null;
+    delete U.shareAsk;                                      // the question failed or was stopped, so nothing was kept: no notice until it is asked again
     U.chatErr=errCopy(e);
     if(e&&ERR_OFF.includes(e.code)){ state.sample=null; state.tutor=null; }
   }
   U.ctl=null;
-  if(U===state.ui){ draw(); if(byItself) return; if(kind==="explain") revealTutor(); const i=$("ask-in"); if(i&&!("ontouchstart" in window)) i.focus(); }
+  // the notice is a card with two buttons: the redraw keeps the focus on the one the learner is on, and the follow-up field does not take it
+  const noting=!!U.shareAsk&&!state.shareTold;
+  if(U===state.ui){ (byItself||noting?renderKeepFocus:render)(); if(byItself) return; if(kind==="explain") revealTutor(); const i=$("ask-in"); if(i&&!noting&&!("ontouchstart" in window)) i.focus(); }
 }
 // `ctx` ({p, accepted}) reads the fact lines against a stored pair instead of the exercise on screen (practice/screen.js, factNode)
 export function fillAns(node,text,ctx){

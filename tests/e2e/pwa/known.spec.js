@@ -273,6 +273,7 @@ withKey("the switch in the practice options tells the device's answer too, so no
   await expect(page.getByText("not who wrote it, which pair it was for, or where you put it")).toBeVisible();
   // the server does not answer from what it learned here (no `known`), so the notice does not promise it
   await expect(page.getByText("you still get answers learned from other people")).toHaveCount(0);
+  await expect(page.getByText("checked later without the AI")).toHaveCount(0); // nor that the same example is answered without the AI
   await expect(share(page)).toHaveAttribute("aria-checked", "true");
   await share(page).click();
   await expect(share(page)).toHaveAttribute("aria-checked", "false");
@@ -358,4 +359,38 @@ withKey("where the server also answers from what it learned, the switch's note s
   await open(page, testInfo, { health: { ok: true, tutor: "on", known: "on", learns: "on" } });
   await openOptions(page);
   await expect(page.getByText("you still get answers learned from other people")).toBeVisible();
+  await expect(page.getByText("checked later without the AI")).toBeVisible();
+});
+
+withKey("a question that failed leaves no notice, and the next one shows it", async ({ page }, testInfo) => {
+  const asked = await open(page, testInfo, LEARNS);
+  let fail = true;
+  await page.route("**/api/tutor", (route) => {
+    if (fail) return route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "busy" }) });
+    return route.fallback();
+  });
+  await explain(page).click();
+  await expect(page.locator("#vpanel .status")).toBeVisible(); // the failure is told
+  await expect(notice(page)).toHaveCount(0);
+  fail = false;
+  await explain(page).click();
+  await expect.poll(() => asked.tutor.length).toBe(1);
+  await expect(notice(page)).toBeVisible();
+});
+
+withKey("on a wide screen the notice heads the tutor's panel, and the practice options open over it without hiding it", async ({ page }, testInfo) => {
+  const asked = await open(page, testInfo, LEARNS);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await explain(page).click();
+  await expect.poll(() => asked.tutor.length).toBe(1);
+  await expect(page.locator("#coach .tutor .sharenote")).toBeVisible();
+  await expect(page.locator("#coach .tutor .sharenote")).toHaveCount(1);
+  await openOptions(page);
+  const sheet = await page.locator("#over .sheet").boundingBox();
+  const card = await page.locator(".sharenote").boundingBox();
+  expect(sheet.x).toBeLessThan(card.x + card.width); // the sheet is drawn over the panel's column ...
+  await expect(page.locator("#over .sheet").getByRole("switch", { name: /share my examples/i })).toBeVisible();
+  await share(page).click(); // ... and its switch answers the card
+  await closeOptions(page);
+  await expect(notice(page)).toHaveCount(0);
 });
