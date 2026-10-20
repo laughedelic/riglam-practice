@@ -223,6 +223,30 @@ test("the draw is the same for the same random numbers, and does not repeat what
   expect(run(4)).not.toEqual(run(5));
 });
 
+test("the one just shown is not drawn again as the next, at either level, when the pool has another", () => {
+  for (const level of [1, 2] as const) {
+    const st = { hist: [] as SyllogismHistory[], recent: [] as string[], level, rng: seeded(8 + level) };
+    let last = "";
+    for (let i = 0; i < 3000; i++) {
+      const c = drawSyllogism(real, st);
+      expect(c.id, `level ${level}, draw ${i}`).not.toBe(last);
+      last = c.id;
+    }
+  }
+});
+
+test("a thing only the course's terms name is no subject of the everyday level, and may be one at the next", () => {
+  const d = data(); d.items = d.items.map((i) => (i.n === "a tomato" ? { ...i, dudraOnly: true } : i));
+  const dx = makeIndex(d);
+  const subjects = (level: 1 | 2) => {
+    const st = { hist: [] as SyllogismHistory[], recent: [] as string[], level, rng: seeded(31) };
+    return new Set(Array.from({ length: 600 }, () => drawSyllogism(dx, st)).map((c) => c.subject));
+  };
+  expect(subjects(1).has("a tomato")).toBe(false);
+  expect(subjects(2).has("a tomato")).toBe(true);
+  expect(syllogismOf(dx, "a tomato", "red", "food", seeded(1))?.level).toBe(2); // asked for by name, it says what level it needs
+});
+
 test("the draw asks the answer asked lately less, and brings back the categories the learner missed", () => {
   const share = (hist: SyllogismHistory[], pick: (c: Syllogism) => boolean) => {
     const st = { hist, recent: [] as string[], rng: seeded(11) };
@@ -324,7 +348,8 @@ test("every drawn syllogism is what the items and the term data say, checked aga
     expect(c.answer, why).toBe(!e ? "reason" : c.pervasion !== "holds" ? "pervasion" : "accept");
     expect(c.answer, why).toBe(SITUATIONS[c.situation].answer);
     expect(c.reason, why).not.toBe(c.predicate);
-    expect(c.level, why).toBe(real.CAT[c.catR].kind === "everyday" && real.CAT[c.catP].kind === "everyday" ? 1 : 2);
+    const everyday = real.CAT[c.catR].kind === "everyday" && real.CAT[c.catP].kind === "everyday" && !real.DATA.items.find((i) => i.n === c.subject)?.dudraOnly;
+    expect(c.level, why).toBe(everyday ? 1 : 2); // the course's terms in the reason, the predicate or the subject make it level 2
     expect(syllogismText(c), why).toContain(c.subject);
   }
   expect([...seen].sort(), "every situation turns up").toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
@@ -338,6 +363,7 @@ test("level 1 draws only everyday things and properties, and still gives all thr
     answers.add(c.answer);
     expect(c.level).toBe(1);
     expect(real.CAT[c.catR].kind + real.CAT[c.catP].kind).toBe("everydayeveryday");
+    expect(real.DATA.items.find((i) => i.n === c.subject)?.dudraOnly, c.subject).toBeFalsy(); // the subject is an everyday thing too
   }
   expect([...answers].sort()).toEqual([...REPLIES].sort());
 });

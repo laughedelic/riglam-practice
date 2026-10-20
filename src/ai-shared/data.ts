@@ -55,6 +55,8 @@ export interface Item {
   ne?: boolean;
   /** cannot follow "Take" in the syllogism drill (said in the second person) */
   nosubject?: boolean;
+  /** a thing only the course's terms name (uncomposed space): the syllogism drill leaves it out of the everyday level */
+  dudraOnly?: boolean;
 }
 
 export interface DrillData {
