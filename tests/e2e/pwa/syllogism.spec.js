@@ -267,6 +267,19 @@ test("Review counts the answers: by the reply each syllogism called for, the mix
   expect(await overflow(page)).toBeLessThanOrEqual(0);
 });
 
+test("Review leaves a counter-example the page could not place out of the row of counter-examples that were one", async ({ page }) => {
+  await open(page);
+  await draw(page, 2);
+  await say(page, "pervasion");
+  await page.fill("#sylex", "a thing the course knows nothing of");
+  await page.locator("#sylex").press("Enter");
+  await expect(page.locator(".sylchk .sylmine")).toContainText("Not checked");
+  await goTo(page, "Review");
+  const sec = page.locator(".section", { has: page.locator(".label", { hasText: "Syllogisms" }) });
+  await expect(sec.locator("table").first().locator("tr", { hasText: "Counter-examples that were one" })).toHaveCount(0);
+  await expect(sec.locator(".sylrow")).toContainText("(not checked)");
+});
+
 test("the practice options hold only what Syllogisms uses: the wording, which is kept, and the things drawn from", async ({ page }) => {
   await open(page);
   await page.locator("#msess").click();
