@@ -56,6 +56,25 @@ export interface Examples {
   items: Example[];
 }
 
+/** The levels of the examples, from 1 (a plain thing) to 4. */
+export const LEVELS: readonly number[] = [1, 2, 3, 4];
+
+/** The levels a learner draws examples from: any mix, never none. */
+export type Levels = readonly number[];
+
+/** A new device draws from levels 1 and 2: level 1 alone has little for the consciousness side. */
+export const DEFAULT_LEVELS: Levels = [1, 2];
+
+/** The valid levels in a stored value (a list, or "1,2"), once each, in order; the default when none is valid. */
+export function normLevels(raw: unknown): number[] {
+  const list: unknown[] = typeof raw === "string" ? raw.split(",").map((s) => (s.trim() ? +s : NaN)) : Array.isArray(raw) ? raw : [];
+  const ok = LEVELS.filter((l) => list.includes(l));
+  return ok.length ? ok : [...DEFAULT_LEVELS];
+}
+
+/** Levels 1 up to `max`. */
+export const upTo = (max: number): number[] => LEVELS.filter((l) => l <= max);
+
 const LISTS = ["al", "cls", "not", "s"] as const;
 const TEXTS = ["k", "f", "cf", "cn", "bg", "gloss"] as const;
 const FLAGS = ["ne", "inc"] as const;

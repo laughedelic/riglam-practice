@@ -17,6 +17,9 @@
 .sw[aria-checked="true"] .knob{box-shadow:inset 0 0 0 1.5px var(--lapis);background:var(--lapis)}
 .sw[aria-checked="true"] .knob::after{left:17px;background:var(--on-lapis)}
 @media (prefers-reduced-motion:no-preference){.sw .knob::after{transition:left .12s}}
+.sw[aria-disabled="true"]{cursor:default;opacity:.7}
+.lvls{display:grid;gap:10px;justify-items:start}
+.lvl{display:grid;gap:1px}
 .swl{font:700 11px/16px var(--body);letter-spacing:.06em;text-transform:uppercase}
 .swt{font-size:13px;color:var(--ink-muted)}
 .blitzrow{display:flex;justify-content:flex-end}

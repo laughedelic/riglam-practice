@@ -4,7 +4,8 @@
 // not, or when it does not exist. Anything else the data cannot tell, and the example stays out of that cell: a cell is never
 // filled by guessing that what the data does not say is false.
 import type { Cat } from "../ai-shared/data";
-import type { Example } from "../ai-shared/examples";
+import { LEVELS } from "../ai-shared/examples";
+import type { Example, Levels } from "../ai-shared/examples";
 import { spelled, stripDet, upChain } from "../ai-shared/lookup";
 import type { DataIndex } from "../ai-shared/lookup";
 import type { CellId } from "../ai-shared/relations";
@@ -31,31 +32,45 @@ export function placeByClass(ix: DataIndex, ex: Pick<Example, "cls" | "not" | "n
 /** The confirmations an example needs to be drawn into a cell; a commentator's example is shown with its term only. */
 export const DRAWN = ["confirmed", "textbook"] as const;
 
-/** Whether an example may be drawn for a learner who sees examples up to `maxLevel`. */
-export function drawable(ex: Pick<Example, "cf" | "lv">, maxLevel: number): boolean {
-  return (DRAWN as readonly (string | undefined)[]).includes(ex.cf) && ex.lv <= maxLevel;
+/** Whether an example may be drawn for a learner who draws examples from `levels`. */
+export function drawable(ex: Pick<Example, "cf" | "lv">, levels: Levels): boolean {
+  return (DRAWN as readonly (string | undefined)[]).includes(ex.cf) && levels.includes(ex.lv);
 }
 
-/** The kinds that may stand in a cell. Things and representations always; relations and negations from level 3; a combination or a statement is another question's ("is X a Y?" would be wrong for it). */
+/** Switches a level on or off. The last level on stays on: examples always come from somewhere. */
+export function toggleLevel(levels: Levels, level: number): number[] {
+  const on = levels.includes(level);
+  if (on && levels.length === 1) return [...levels];
+  return LEVELS.filter((l) => (l === level ? !on : levels.includes(l)));
+}
+
+/** How many examples a learner can be shown at each level (`drawable` by confirmation), for the switches of the levels. */
+export function levelCounts(items: readonly Pick<Example, "cf" | "lv">[]): Record<number, number> {
+  const out: Record<number, number> = {};
+  for (const l of LEVELS) out[l] = items.filter((ex) => drawable(ex, [l])).length;
+  return out;
+}
+
+/** The kinds that may stand in a cell. Things and representations always; relations and negations when level 3 or 4 is on; a combination or a statement is another question's ("is X a Y?" would be wrong for it). */
 const PLAIN_KINDS = ["thing", "representation"];
 const LATER_KINDS = ["relation", "negation"];
 
 /**
- * Whether the example may be shown as the reference of a cell of a practice pair for a learner who sees examples up to `maxLevel`: confirmed
+ * Whether the example may be shown as the reference of a cell of a practice pair for a learner who draws examples from `levels`: confirmed
  * or textbook (`drawable`), a kind a cell takes, and no expert background (one a beginner could not read).
  */
-export function cellExample(ex: Pick<Example, "cf" | "lv" | "k" | "bg">, maxLevel: number): boolean {
-  if (!drawable(ex, maxLevel) || ex.bg === "expert") return false;
-  return !ex.k || PLAIN_KINDS.includes(ex.k) || (maxLevel >= 3 && LATER_KINDS.includes(ex.k));
+export function cellExample(ex: Pick<Example, "cf" | "lv" | "k" | "bg">, levels: Levels): boolean {
+  if (!drawable(ex, levels) || ex.bg === "expert") return false;
+  return !ex.k || PLAIN_KINDS.includes(ex.k) || (levels.some((l) => l >= 3) && LATER_KINDS.includes(ex.k));
 }
 
 /**
- * The reference examples that can stand in the cells of a pair of categories, up to `maxLevel`: those `cellExample` allows whose cell
+ * The reference examples that can stand in the cells of a pair of categories, from `levels`: those `cellExample` allows whose cell
  * `placeByClass` proves for both categories (a side it cannot prove leaves the example out), and not those the practice list has under
  * the same name (the list's own classes are the ones the practice grades with). A function of the pair, for `pairOf`.
  */
-export function witnessesOf(ix: DataIndex, items: readonly Example[], maxLevel: number): Witnesses {
-  const usable = items.filter((ex) => cellExample(ex, maxLevel));
+export function witnessesOf(ix: DataIndex, items: readonly Example[], levels: Levels): Witnesses {
+  const usable = items.filter((ex) => cellExample(ex, levels));
   const key = (n: string) => stripDet(spelled(n));
   const listed = new Set(ix.DATA.items.map((i) => key(i.n)));
   return (a, b) => {
