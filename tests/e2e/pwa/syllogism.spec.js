@@ -416,6 +416,26 @@ withKey("a follow-up question goes on in the same conversation, from the panel o
   await expect(page.locator(".tutor .q", { hasText: "Why is that?" })).toBeVisible();
 });
 
+withKey("the practice options have the switch for the tutor, on by default; off, the next answer waits for a tap on Explain", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("rd-autoexplain", "1"));
+  const asked = await tutor(page);
+  await open(page);
+  await page.locator("#msess").click();
+  const sw = page.getByRole("switch", { name: /check every answer with ai/i });
+  await expect(sw).toHaveAttribute("aria-checked", "true");
+  await sw.click();
+  await expect(sw).toHaveAttribute("aria-checked", "false");
+  await page.keyboard.press("Escape");
+  await draw(page, 1);
+  await say(page, "accept");
+  await expect(headline(page)).toHaveText("Right.");
+  await expect(explain(page)).toBeVisible();
+  await page.waitForTimeout(400);
+  expect(asked).toHaveLength(0); // nothing went out by itself
+  await explain(page).click();
+  await expect.poll(() => asked.length).toBe(1);
+});
+
 withKey("with 'Check every answer with AI' on the explanation comes by itself, once, and a refusal leaves Explain to try again", async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("rd-autoexplain", "1")); // after the support script, which starts every page with it off
   const asked = await tutor(page, [

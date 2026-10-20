@@ -109,7 +109,7 @@ function pageBody(id){
   return [el("p",{class:"capl",text:"Shown when you open a term’s definition, in the Terms panel and in the tutor’s notes."}),
     picks("Languages of the definitions",[["en","English","The definition in English."],["enru","English + Russian","Each entry also shows the Russian name of the term and, where there is one, its Russian definition."]],state.defLang,setDefLang)];
 }
-// Syllogisms has no terms to read, no notation and no tutor yet, so it shows only what it uses
+// Syllogisms has no terms to read and no notation, so it shows only what it uses (and the tutor's switch, where the tutor can answer)
 function syllogismBody(){
   return [
     row("Wording",chips("Wording of the syllogism",[["take","Take X"],["formal","Formal"]],state.syllogismWording,setSyllogismWording),
@@ -119,6 +119,8 @@ function syllogismBody(){
     sw("Show the structure",state.syllogismGuide?"on":"off",state.syllogismGuide,()=>setSyllogismGuide(!state.syllogismGuide),
       "For when the structure is new: under the sentence, S is the subject, P the predicate and R the reason, and each reply says in them what it means."),
     card("Blitz",state.blitzUse?timesLine():el("small",{class:"sum1",text:"Off"}),"times"),
+    ...(canAsk()?[group("AI tutor"),sw("Check every answer with AI",state.autoExplain?"on":"off",state.autoExplain,()=>setAutoExplain(!state.autoExplain),
+      "Right after you check an answer, the AI tutor explains it. Off, the Explain button waits for you.")]:[]),
     el("p",{class:"capl"},"The Magic Key, your account, data and the version are in ",el("button",{type:"button",class:"lnk",onclick:()=>{ toggleSess(false); toggleOpts(true); }},"Settings"),".")
   ];
 }
