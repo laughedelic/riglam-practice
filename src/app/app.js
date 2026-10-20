@@ -1,6 +1,7 @@
 import { state } from "./state.js";
 import { aiCase, aiFlag, autoFlags, decorateAns, flagId, flagsSubscribe, openFlag, removeFlag, saveFlag, setFlagState } from "./ai/flags.js";
 import { flushFlags } from "./ai/flag-reports.js";
+import { loadKnown } from "./ai/known.js";
 import { quorumThings, setQuorum, setQuorumOffer } from "./ai/quorum.js";
 import { loadExamples } from "./core/examples.js";
 import { refOf } from "./core/rel.js";
@@ -50,6 +51,7 @@ async function bootSteps(platform){
   // (listening first, so that a copy that arrives while this reads is not missed)
   if(platform.onExamples) platform.onExamples(()=>{ loadExamples(platform); });
   await loadExamples(platform);
+  await loadKnown(platform);
   try{ state.reports=platform.reports?await platform.reports():null; }catch(e){ state.reports=null; }
   state.withdrawLater=platform.withdrawReport||null;
   try{ setQuorumOffer(state.tutor&&platform.quorum?await platform.quorum():false); }catch(e){ setQuorumOffer(false); }
@@ -86,13 +88,14 @@ async function bootSteps(platform){
     const m={}; snap.docs.forEach(d=>{m[d.id]=d.data();}); state.debates=m; settle();
   },()=>{});
 }
-// What depends on the key, read again after the prompt took one: the definitions in the data, the tutor, and the Options row (enter a key / change it).
+// What depends on the key, read again after the prompt took one: the definitions in the data, the tutor (and what is known without it), and the Options row (enter a key / change it).
 async function rekey(platform){
   state.DATA=await platform.loadData(); indexData(); buildPool();
   try{ state.unlock=platform.unlock?await platform.unlock():null; }catch(e){ state.unlock=null; }
   try{ state.keyHeld=platform.keyHeld?await platform.keyHeld():null; }catch(e){ state.keyHeld=null; }
   try{ state.tutor=platform.tutor?await platform.tutor():null; }catch(e){ state.tutor=null; }
   await loadExamples(platform);
+  await loadKnown(platform);
   try{ state.reports=platform.reports?await platform.reports():null; }catch(e){ state.reports=null; }
   try{ setQuorumOffer(state.tutor&&platform.quorum?await platform.quorum():false); }catch(e){ setQuorumOffer(false); }
   state.keyAsk=false;

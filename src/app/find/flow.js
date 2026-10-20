@@ -1,5 +1,5 @@
 import { state } from "../state.js";
-import { explainByItself } from "../ai/tutor.js";
+import { afterCheck } from "../ai/known.js";
 import { $ } from "../core/dom.js";
 import { moreRefs } from "../core/examples.js";
 import { CELLS, REL } from "../core/rel.js";
@@ -94,7 +94,7 @@ export function checkFind(){
   clearSkip(p,u.rel);
   u.res=gradeFind(state,p,u); u.checked=true; u.open=false; render();
   top0(); const bs=document.querySelectorAll("#stage .actions .btn"); if(bs.length) bs[bs.length-1].focus({preventScroll:true});
-  explainByItself(u);
+  afterCheck(u);
   if(!state.db) return;
   const cells=/** @type {import("../types.ts").AnswerDoc["cells"]} */({});
   for(const c of CELLS) cells[c]={text:(u.cells[c].t||"").trim(), none:REL[u.rel].empty.includes(c)||u.cells[c].none, verdict:u.res.cells[c].v};
