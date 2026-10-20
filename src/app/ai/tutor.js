@@ -58,7 +58,9 @@ export function explainByItself(U){
 export async function ask(text,kind,byItself){
   const U=state.ui, C=state.cur;                       // the pair this question belongs to, even if you switch tabs meanwhile
   if(!canAsk()||!U||U.ctl) return;
-  if(U.knowing){ await U.knowing; if(U.ctl||(kind==="explain"&&U.explained)) return; }  // the examples known without the AI settle first (known.js), so the question is about the rest
+  // the examples known without the AI settle first (known.js), so the question is about the rest; if the learner left the answer meanwhile (Next, or another tab:
+  // Next cannot stop a question that has not started), nothing is asked of it
+  if(U.knowing){ await U.knowing; if(U!==state.ui||!canAsk()||U.ctl||(kind==="explain"&&U.explained)) return; }
   const p=C.p, direct=!!state.sample;                  // the host's own model call, or else the app's server
   const quorum=kind==="explain"&&quorumWanted(U);     // the explanation of a checked answer is asked of Quorum, where this server offers it, this device has it on and an example is left to check
   const body=kind==="explain"?explainAsk(U):text;
