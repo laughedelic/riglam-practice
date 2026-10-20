@@ -39,6 +39,8 @@ test("the exercise is in the menu, gives a syllogism with three replies, in the 
   await expect(page.locator("#mttl")).toHaveText("Syllogisms");
   await expect(page.locator(".sylt")).toContainText(/^(Take .+\. It follows it is .+ because it is .+\.|It follows that)/);
   await expect(page.locator(".sylask .sylsay")).toHaveText([/^1\s*The reason is not established/i, /^2\s*There is no pervasion/i, /^3\s*Accept/i]);
+  // the subject is set apart in the sentence: its class is the one the stylesheet names
+  await expect(page.locator(".sylt b.syl-subject")).toHaveCSS("font-style", "italic");
   // told apart at a glance: each reply has its own tint
   const tints = await page.locator(".sylask .sylsay").evaluateAll((bs) => bs.map((b) => getComputedStyle(b).backgroundColor));
   expect(new Set(tints).size).toBe(3);

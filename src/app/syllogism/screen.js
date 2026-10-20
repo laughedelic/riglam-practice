@@ -18,7 +18,7 @@ const SAID={accept:"accept it",reason:"the reason is not established",pervasion:
 const CHECKS=/** @type {const} */([["e","Reason","established","not established"],["v","Pervasion","holds","no pervasion"],["t","Thesis","true","false"]]);
 
 // the sentence, with the subject, the predicate and the reason set apart
-const sentence=c=>el("p",{class:"sylt",lang:"en"},syllogismPieces(c,state.syllogismWording).map(x=>typeof x==="string"?x:el("b",{class:"syllogism-"+x.part,text:x.text})));
+const sentence=c=>el("p",{class:"sylt",lang:"en"},syllogismPieces(c,state.syllogismWording).map(x=>typeof x==="string"?x:el("b",{class:"syl-"+x.part,text:x.text})));
 
 // the replies in the order of the checks, each with its own tint and its number (the key that gives it)
 function replies(){
