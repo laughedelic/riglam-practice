@@ -3,7 +3,7 @@ import { setQuorum } from "../ai/quorum.js";
 import { canAsk } from "../core/ask.js";
 import { $, el } from "../core/dom.js";
 import { tbIcon } from "../core/icons.js";
-import { asking, setTimer, startQ, stopTimer } from "../debate/flow.js";
+import { asking, setBlitz, setTimer, startQ, stopTimer } from "../debate/flow.js";
 import { WORDINGS } from "../debate/text.js";
 import { NOT } from "../../ai-shared/debate.ts";
 import { exName } from "./exercises.js";
@@ -13,7 +13,7 @@ import { segOf, settingRow as row, switchOf } from "./rows.js";
 import { kindMs } from "./timers.js";
 
 /* ---------- the Practice options of an exercise ---------- */
-// What changes how an exercise looks, ticks or is checked (notation, wording of the questions, the Blitz times, A/B markers, full phrases, the language of the
+// What changes how an exercise looks, ticks or is checked (notation, wording of the questions, Blitz (on or off, and its times), A/B markers, full phrases, the language of the
 // definitions, the tutor's check) opens from the sliders button at the top of the exercise: a sheet from the bottom of a phone, a popover under the bar on a wide
 // screen. Settings (options.js) keeps what belongs to the app, the device and the account. A setting is in one of the two, never both. The sheet shows only what the
 // exercise on screen uses. Like Settings it pauses the Blitz clock; the clock starts again, with its full time, when the sheet closes.
@@ -26,7 +26,7 @@ const SYMS={
   sets:["Sets","Each term stands for the set of things it covers.",[["∩","intersection: what is both"],["∅","the empty set: nothing"],["≠ ∅","not empty"],["⊂","contained in"],["⊃","contains"],["=","the same set"]]],
   logic:["Logic","Each term stands for a statement: it is A, it is B.",[["⇒","follows: A ⇒ B, if A then B"],["⇐","follows from"],["⇔","each follows from the other"],["⇏","does not follow"],["¬","negation: not"]]]
 };
-const PAGES={nota:"Notation",wording:"Questions",times:"Blitz times",defs:"Definitions"};
+const PAGES={nota:"Notation",wording:"Questions",times:"Blitz",defs:"Definitions"};
 const store=(key,v)=>{ try{ localStorage.setItem(key,v); }catch(e){} };
 function setNota(k){ state.nota=k; store("rd-notation",k); render(); }
 export function setDefLang(k){ state.defLang=k==="enru"?"enru":"en"; store("rd-deflang",state.defLang); render(); }
@@ -34,6 +34,8 @@ function setShow(key,on){ if(key==="ab") state.showAB=on; else state.fullPh=on; 
 function setAutoExplain(on){ state.autoExplain=on; store("rd-autoexplain",on?"1":"0"); render(); }
 function setWording(k){ state.wording=k; store("rd-wording",k); render(); }
 function setFindSuggest(on){ state.findSuggest=on; store("rd-findsuggest",on?"1":"0"); render(); }
+// Blitz off takes the stopwatch away from the top bar, and a running countdown with it
+function setBlitzUse(on){ state.blitzUse=on; store("rd-blitzuse",on?"1":"0"); if(!on) setBlitz(false); else render(); }
 
 export function toggleSess(on){
   const was=state.sessOpen; state.sessOpen=on===undefined?!was:on;
@@ -45,6 +47,8 @@ export function toggleSess(on){
   else { const b=$("msess"); if(b.offsetParent) b.focus({preventScroll:true}); }
 }
 function openPage(id){ state.sessPage=id; render(); const b=document.querySelector("#over .ob"); if(b) /** @type {HTMLElement} */(b).focus({preventScroll:true}); }
+/** The Blitz page of the practice options: what holding the stopwatch in the top bar opens. */
+export function openBlitzOptions(){ if(!state.sessOpen) toggleSess(true); openPage("times"); }
 /** Back or Escape in the options: from a page to the list, from the list to the exercise. */
 export function sessBack(){
   if(state.sessPage){ state.sessPage=null; render(); const b=document.querySelector("#over .go2"); if(b) /** @type {HTMLElement} */(b).focus({preventScroll:true}); }
@@ -66,7 +70,7 @@ const group=t=>el("p",{class:"grp",text:t});
 const sw=(label,word,on,toggle,note)=>el("div",{class:"orow"},switchOf(label,word,on,toggle),note?el("p",{class:"onote",text:note}):null);
 const chips=(label,rows,cur,on)=>segOf(label,rows,cur,on);
 const secs=kind=>Math.round(kindMs(kind)/1000);
-// the Blitz times in a line
+// the Blitz times in a line (the card says Off instead when Blitz is switched off)
 const timesLine=()=>el("small",{class:"sum1",text:"Relation "+secs("rel")+" s · Example "+secs("ex")+" s"});
 
 // one Blitz time: presets and a custom number of seconds; each sets only its own
@@ -91,8 +95,11 @@ function pageBody(id){
     picks("Notation",Object.entries(SYMS).map(([k,[name,desc,rows]])=>[k,name,desc,symbols(rows)]),state.nota,setNota)];
   if(id==="wording") return [el("p",{class:"capl",text:"How the statement of pervasion is worded in Pervasions: the four statements you accept or answer with Why?."}),
     picks("Wording of the questions",Object.entries(WORDINGS).map(([k,w])=>[k,w.name,sample(w)]),state.wording,setWording)];
-  if(id==="times") return [timeBlock("rel","Relation time","The Blitz countdown for choosing the relation, in Relations and in Pervasions."),
-    timeBlock("ex","Example time","The Blitz countdown for each example in Relations (a table of three cells gets three times this) and for each question in Pervasions.")];
+  if(id==="times") return [
+    el("p",{class:"capl",text:"Blitz is a countdown for each step of a pair, switched on and off with the stopwatch in the top bar. Hold the stopwatch to come back to this page."}),
+    sw("Use Blitz",state.blitzUse?"on":"off",state.blitzUse,()=>setBlitzUse(!state.blitzUse),"Off takes the stopwatch out of the top bar. The times stay as they are for when it is on again."),
+    ...(state.blitzUse?[timeBlock("rel","Relation time","The Blitz countdown for choosing the relation, in Relations and in Pervasions."),
+      timeBlock("ex","Example time","The Blitz countdown for each example in Relations (a table of three cells gets three times this) and for each question in Pervasions.")]:[])];
   return [el("p",{class:"capl",text:"Shown when you open a term’s definition, in the Terms panel and in the tutor’s notes."}),
     picks("Languages of the definitions",[["en","English","The definition in English."],["enru","English + Russian","Each entry also shows the Russian name of the term and, where there is one, its Russian definition."]],state.defLang,setDefLang)];
 }
@@ -114,7 +121,7 @@ function listBody(){
     ...own,
     own.length?group("Every exercise"):null,
     card("Notation",chips("Notation",Object.entries(SYMS).map(([k,v])=>[k,v[0]]),state.nota,setNota),"nota"),
-    timed?card("Blitz times",timesLine(),"times"):null,
+    timed?card("Blitz",state.blitzUse?timesLine():el("small",{class:"sum1",text:"Off"}),"times"):null,
     sw("A/B markers","before the terms",state.showAB,()=>setShow("ab",!state.showAB)),
     card("Definitions",chips("Languages of the definitions",[["en","English"],["enru","English + Russian"]],state.defLang,setDefLang),"defs"),
     tutor||quorum?group("AI tutor"):null,

@@ -3,7 +3,7 @@ const D=require('./harness.js').SHOTS;
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
 // the Blitz time is set on the "Blitz times" page of the practice options: kind 'rel' is the relation time, 'ex' the time of each example (Relations) or question (Pervasions)
 async function setTime(pg,kind,sec){
-  await settings(pg); await pg.locator('.go2[aria-label="Blitz times: details"]').click(); await pg.waitForTimeout(100);
+  await settings(pg); await pg.locator('.go2[aria-label="Blitz: details"]').click(); await pg.waitForTimeout(100);
   const f=pg.locator('input.tcustom[aria-label="Custom '+(kind==='rel'?'relation':'example')+' time in seconds"]');
   await f.fill(String(sec)); await pg.keyboard.press('Enter'); await pg.waitForTimeout(100);
   await pg.locator('#over .oc').click(); await pg.waitForTimeout(150);

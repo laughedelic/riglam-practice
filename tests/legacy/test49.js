@@ -7,7 +7,7 @@ const EMPTY={mi:['anb','bna'],con:['both'],'3ab':['anb'],'3ba':['bna'],'4':[]};
 const CELLS=['both','anb','bna','nei'];
 const REPLY_Q='Both: a clay pot fits.\nNeither: a stone is B, not A.\nCommon locus: yes, a clay pot.\nPervasion: whatever is A is B.\nMisconception: none.';
 // sets one Blitz time ('Relation time' or 'Example time') on the Blitz times page of the practice options, closes the sheet and returns the summary line of the Blitz times card
-async function setSecs(pg,v,kind){ await settings(pg); await pg.getByRole('button',{name:'Blitz times: details'}).click(); await pg.locator('#over .orow:has-text("'+kind+'") .tcustom').fill(String(v)); await pg.keyboard.press('Enter'); await pg.waitForTimeout(80); await pg.locator('#over .ob').click(); await pg.waitForTimeout(80); const sum=(await pg.locator('#over .ocard:has-text("Blitz times") .sum1').innerText()).replace(/\s+/g,' ').trim(); await pg.locator('#over .oc').click(); await pg.waitForTimeout(150); return sum; }
+async function setSecs(pg,v,kind){ await settings(pg); await pg.getByRole('button',{name:'Blitz: details'}).click(); await pg.locator('#over .orow:has-text("'+kind+'") .tcustom').fill(String(v)); await pg.keyboard.press('Enter'); await pg.waitForTimeout(80); await pg.locator('#over .ob').click(); await pg.waitForTimeout(80); const sum=(await pg.locator('#over .ocard:has-text("Blitz") .sum1').innerText()).replace(/\s+/g,' ').trim(); await pg.locator('#over .oc').click(); await pg.waitForTimeout(150); return sum; }
 async function fillCells(pg){
  const rk=await pg.evaluate(()=>window.__t.ui.rel), order=CELLS.filter(c=>!EMPTY[rk].includes(c));
  for(let i=0;i<order.length;i++){ await pg.fill('#cin','thing '+i); await pg.keyboard.press('Enter'); await pg.waitForTimeout(60); }

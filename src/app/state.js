@@ -88,6 +88,8 @@ export const state = {
   question drains over the limit and flashes gently at the end. When time runs out, the statement counts as accepted. */
   timerMs: 10000,
   blitz: false,
+  bzHold: 0,         // the timer of a hold on the stopwatch in the top bar (shell/topbar.js)
+  blitzUse: true,    // the Blitz page of the practice options can take the stopwatch away from the top bar altogether (on by default)
   relMs: undefined,  // the relation has its own time; it starts from the one time of earlier versions
 };
 
@@ -105,6 +107,8 @@ try{ if(localStorage.getItem("rd-ab")==="0") state.showAB=false; if(localStorage
 try{
   const v=+localStorage.getItem("rd-timer"); if(v>=2000&&v<=120000) state.timerMs=v;
   const b=localStorage.getItem("rd-blitz"); state.blitz=b!==null?b==="1":v>0;     // an earlier version stored only the length: a length meant the timer was on
+  state.blitzUse=localStorage.getItem("rd-blitzuse")!=="0";
+  if(!state.blitzUse) state.blitz=false;
 }catch(e){}
 state.relMs = state.timerMs;
 try{ const v=+localStorage.getItem("rd-timer-rel"); if(v>=2000&&v<=120000) state.relMs=v; }catch(e){}

@@ -23,7 +23,7 @@ test("the sliders button opens the practice options of the exercise and the X cl
   await expect(sheet).toHaveAttribute("aria-label", "Practice options");
   await expect(sheet.locator(".shh h2")).toHaveText("Practice options");
   await expect(sheet.locator(".shh small")).toHaveCount(0); // the exercise is not a subtitle of the sheet: what only it has is a section
-  expect(await names(page)).toEqual(["notation", "blitz times", "a/b markers", "definitions"]);
+  expect(await names(page)).toEqual(["notation", "blitz", "a/b markers", "definitions"]);
   expect(await sections(page)).toEqual([]); // Relations has nothing of its own yet
   await page.locator("#over .oc").click();
   await expect(sheet).toBeHidden();
@@ -40,7 +40,7 @@ test("each exercise lists what it uses; Review has no practice options", async (
   await ready(page);
   await goTo(page, "Pervasions");
   await sessBtn(page).click();
-  expect(await names(page)).toEqual(["wording of the questions", "full phrases", "notation", "blitz times", "a/b markers", "definitions"]);
+  expect(await names(page)).toEqual(["wording of the questions", "full phrases", "notation", "blitz", "a/b markers", "definitions"]);
   expect(await sections(page)).toEqual(["pervasions", "every exercise"]); // what only Pervasions has, then what every exercise has
   await page.keyboard.press("Escape");
   await goTo(page, "Find a pair");
@@ -111,7 +111,7 @@ test("the system Back closes a page, then the sheet, then the exercise's level",
   await expect.poll(() => level(page)).toBe(b);
   await sessBtn(page).click();
   await expect.poll(() => level(page)).toBe(b + 1);
-  await page.getByRole("button", { name: "Blitz times: details" }).click();
+  await page.getByRole("button", { name: "Blitz: details" }).click();
   await expect.poll(() => level(page)).toBe(b + 2);
   await page.goBack();
   await expect(page.locator("#over .shh h2")).toHaveText("Practice options");
@@ -142,13 +142,13 @@ test("a Blitz time set on its page is stored for its own countdown", async ({ pa
   await page.goto("/");
   await ready(page);
   await sessBtn(page).click();
-  await expect(page.locator("#over .ocard", { hasText: "Blitz times" })).toContainText(/Relation \d+ s · Example \d+ s/);
-  await page.getByRole("button", { name: "Blitz times: details" }).click();
+  await expect(page.locator("#over .ocard", { hasText: "Blitz" })).toContainText(/Relation \d+ s · Example \d+ s/);
+  await page.getByRole("button", { name: "Blitz: details" }).click();
   await page.locator("#over .orow", { hasText: "Relation time" }).getByRole("button", { name: "30 s", exact: true }).click();
   await page.locator("#over .orow", { hasText: "Example time" }).getByRole("button", { name: "5 s", exact: true }).click();
   expect(await page.evaluate(() => [localStorage.getItem("rd-timer-rel"), localStorage.getItem("rd-timer")])).toEqual(["30000", "5000"]);
   await page.locator("#over .ob").click();
-  await expect(page.locator("#over .ocard", { hasText: "Blitz times" })).toContainText("Relation 30 s · Example 5 s");
+  await expect(page.locator("#over .ocard", { hasText: "Blitz" })).toContainText("Relation 30 s · Example 5 s");
 });
 
 test("a custom Blitz time is stored on leaving the field, and Escape drops what was typed and goes back one level", async ({ page }) => {
@@ -157,7 +157,7 @@ test("a custom Blitz time is stored on leaving the field, and Escape drops what 
   await page.goto("/");
   await ready(page);
   await sessBtn(page).click();
-  await page.getByRole("button", { name: "Blitz times: details" }).click();
+  await page.getByRole("button", { name: "Blitz: details" }).click();
   const field = page.locator("#over .orow", { hasText: "Example time" }).locator(".tcustom");
   await field.fill("7");
   await field.press("Tab");
@@ -166,9 +166,57 @@ test("a custom Blitz time is stored on leaving the field, and Escape drops what 
   await field.press("Escape");
   await expect(page.locator("#over .shh h2")).toHaveText("Practice options"); // one level back: the page is closed, the sheet is not
   expect(await page.evaluate(() => localStorage.getItem("rd-timer"))).toBe("7000");
-  await page.getByRole("button", { name: "Blitz times: details" }).click();
+  await page.getByRole("button", { name: "Blitz: details" }).click();
   await expect(field).toHaveValue("7");
   expect(errors).toEqual([]);
+});
+
+test("Blitz can be switched off in its options: the stopwatch leaves the top bar, and the choice is kept", async ({ page }) => {
+  await page.addInitScript(blitz); // the page opens with Blitz running, as an earlier visit left it
+  await page.goto("/");
+  await ready(page);
+  await expect(page.locator("#mbz")).toBeVisible();
+  await expect(page.locator("#mbz")).toHaveAttribute("aria-checked", "true");
+  await sessBtn(page).click();
+  await page.getByRole("button", { name: "Blitz: details" }).click();
+  const use = page.getByRole("switch", { name: /use blitz/i });
+  await expect(use).toHaveAttribute("aria-checked", "true"); // on unless it was turned off
+  await use.click();
+  await expect(page.locator("#mbz")).toBeHidden();
+  await expect(page.locator("#over .orow", { hasText: "Relation time" })).toHaveCount(0); // the times wait for it to be on again
+  expect(await page.evaluate(() => [localStorage.getItem("rd-blitzuse"), localStorage.getItem("rd-blitz")])).toEqual(["0", "0"]);
+  await page.locator("#over .ob").click();
+  await expect(page.locator("#over .ocard", { hasText: "Blitz" })).toContainText("Off");
+  await page.reload();
+  await ready(page);
+  await expect(page.locator("#mbz")).toBeHidden(); // off stays off, even where an old visit left Blitz running
+  await sessBtn(page).click();
+  await page.getByRole("button", { name: "Blitz: details" }).click();
+  await page.getByRole("switch", { name: /use blitz/i }).click();
+  await expect(page.locator("#mbz")).toBeVisible();
+  await expect(page.locator("#mbz")).toHaveAttribute("aria-checked", "false"); // the stopwatch is back, not running
+  await expect(page.locator("#over .orow", { hasText: "Relation time" })).toHaveCount(1);
+});
+
+test("holding the stopwatch opens the Blitz options, and a press still switches Blitz", async ({ page }) => {
+  await page.goto("/");
+  await ready(page);
+  const mbz = page.locator("#mbz");
+  await expect(mbz).toHaveAttribute("aria-checked", "false");
+  await mbz.click();
+  await expect(mbz).toHaveAttribute("aria-checked", "true");
+  await mbz.click();
+  await expect(mbz).toHaveAttribute("aria-checked", "false");
+  const b = await mbz.boundingBox();
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+  await page.mouse.down();
+  await expect(page.locator("#over .shh h2")).toHaveText("Blitz"); // the page opens while the button is still held
+  await page.mouse.up();
+  await page.waitForTimeout(150);
+  await expect(page.locator("#over .shh h2")).toHaveText("Blitz"); // letting go neither closes the sheet nor presses the switch
+  await expect(page.locator("#over .shh small")).toHaveText("Practice options");
+  await page.locator("#over .oc").click();
+  await expect(mbz).toHaveAttribute("aria-checked", "false");
 });
 
 test("the A/B markers and Full phrases switches are kept", async ({ page }) => {

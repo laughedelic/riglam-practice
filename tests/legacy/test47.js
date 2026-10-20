@@ -1,4 +1,4 @@
-const {open,go}=require('./harness.js');
+const {open,go,toggleCoach}=require('./harness.js');
 const D=require('./harness.js').SHOTS;
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
 const ORDER={mi:0,'3ab':1,'3ba':2,'4':3,con:4};
@@ -54,7 +54,7 @@ async function terms(pg,label,root){
  await terms(pg,'wide-relations','#stage'); // the result stays in the middle on a wide screen; the coach panel holds the tutor
  await go(pg,'Pervasions'); await pg.waitForTimeout(150);
  await pg.keyboard.press('a'); await pg.waitForTimeout(40); await pg.keyboard.press('a'); await pg.waitForTimeout(40); await pg.keyboard.press('a'); await pg.waitForTimeout(40); await pg.keyboard.press('a'); await pg.waitForTimeout(100);
- await pg.click('#mchat'); await pg.waitForTimeout(100); // the key hints are in the tutor's panel, which the chat button opens
+ await toggleCoach(pg); // the key hints are in the tutor's panel (opened as the chat button does, which waits for a result)
  ok('wide: the coach key hints say picking checks (the placeholder paragraph is gone)',/relation, checks/i.test(await pg.locator('.coach').innerText())&&!/verdict appears at once/i.test(await pg.locator('.coach').innerText()),await pg.locator('.coach').innerText());
  await pg.keyboard.press('2'); await pg.waitForTimeout(250);
  ok('wide-questions: key 2 picks the relation and checks (result in the middle, no Check)',await pg.evaluate(()=>window.__t.ui.checked)===true&&await pg.locator('#stage .vchips').count()===1&&!(await pg.locator('.btn').allInnerTexts()).some(t=>/^check$/i.test(t.trim())));

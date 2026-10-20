@@ -313,4 +313,6 @@ export interface State {
   timerMs: number;
   relMs: number;
   blitz: boolean;
+  blitzUse: boolean;
+  bzHold: number;
 }

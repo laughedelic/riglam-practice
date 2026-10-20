@@ -227,6 +227,27 @@ withKey("a follow-up question sends the whole conversation as a chat", async ({ 
   expect(asked[1].body.turns[2].content).toBe("Why not?");
 });
 
+// The chat is a drawer from the right behind a scrim, the mirror of the menu: its close button sits where the chat button was.
+withKey("the chat is a drawer from the right: the close button, the scrim and Escape return to the result", async ({ page }, testInfo) => {
+  await page.emulateMedia({ reducedMotion: "reduce" }); // the drawer slides in; measure it where it rests
+  await open(page, testInfo);
+  await explain(page).click();
+  await openAnswer(page);
+  const [o, d] = await Promise.all([page.locator("#over").boundingBox(), page.locator("#over .cdrawer").boundingBox()]);
+  expect(Math.round(d.x + d.width)).toBe(Math.round(o.x + o.width)); // flush with the right edge of the page
+  expect(d.x).toBeGreaterThanOrEqual(o.x + 40); // a dimmed strip of the exercise stays at the left
+  expect(await overflow(page)).toBeLessThanOrEqual(0);
+  await page.locator("#over .oc").click();
+  await expect(page.locator("#over")).toBeHidden();
+  await expect(page.locator("#mchat")).toBeFocused();
+  await page.locator("#mchat").click();
+  await page.mouse.click(10, 400); // on the scrim
+  await expect(page.locator("#over")).toBeHidden();
+  await page.locator("#mchat").click();
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#over")).toBeHidden();
+});
+
 withKey("when the day's budget is used the page says so", async ({ page }, testInfo) => {
   await open(page, testInfo, { tutor: [{ status: 429, body: JSON.stringify({ error: { code: "rate_limited", message: "budget" } }) }] });
   await explain(page).click();

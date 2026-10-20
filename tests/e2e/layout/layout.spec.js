@@ -197,8 +197,8 @@ const FLOWS = {
     if (!wide) await page.keyboard.press("Escape");
     await page.locator("#msess").click();
     await check("practice options");
-    await page.getByRole("button", { name: "Blitz times: details" }).click();
-    await check("practice options, Blitz times");
+    await page.getByRole("button", { name: "Blitz: details" }).click();
+    await check("practice options, Blitz");
     await page.keyboard.press("Escape");
     await page.keyboard.press("Escape");
     await goTo(page, "Settings");

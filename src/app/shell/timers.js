@@ -20,12 +20,12 @@ export const tkind=()=>{
 };
 export const kindMs=k=>k==="rel"?state.relMs:state.timerMs;
 const bzLabel=()=>state.blitz?"Blitz on: "+Math.round(state.relMs/1000)+" s relation, "+Math.round(state.timerMs/1000)+" s "+(state.ui&&state.ui.debate?"question":"example"):"Blitz off";
-// the switch in the top bar; Relations and Pervasions share the one
+// the switch in the top bar; Relations and Pervasions share the one. Not there when Blitz is switched off in its options (state.blitzUse)
 export function syncBlitzBtn(){
   const b=$("mbz"), ok=state.mode==="quiz"&&(state.tab==="debate"||state.tab==="practice");
-  b.hidden=!ok; if(!ok) return;
+  b.hidden=!ok||!state.blitzUse; if(b.hidden) return;
   b.replaceChildren(tbIcon("watch"));
-  b.setAttribute("aria-checked",state.blitz?"true":"false"); b.setAttribute("aria-label",bzLabel()); b.title=bzLabel();
+  b.setAttribute("aria-checked",state.blitz?"true":"false"); b.setAttribute("aria-label",bzLabel()); b.title=bzLabel()+" (hold for the Blitz options)";
 }
 const exMul=()=>(relTimed()&&state.ui.rel)?Math.max(1,fillable().length):1;
 
