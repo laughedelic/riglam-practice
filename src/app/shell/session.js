@@ -1,5 +1,6 @@
 import { state } from "../state.js";
 import { setQuorum } from "../ai/quorum.js";
+import { setShare } from "../ai/share-notice.js";
 import { canAsk } from "../core/ask.js";
 import { $, el } from "../core/dom.js";
 import { tbIcon } from "../core/icons.js";
@@ -32,7 +33,7 @@ function setNota(k){ state.nota=k; store("rd-notation",k); render(); }
 export function setDefLang(k){ state.defLang=k==="enru"?"enru":"en"; store("rd-deflang",state.defLang); render(); }
 function setShow(key,on){ if(key==="ab") state.showAB=on; else state.fullPh=on; store("rd-"+key,on?"1":"0"); render(); }
 function setAutoExplain(on){ state.autoExplain=on; store("rd-autoexplain",on?"1":"0"); render(); }
-function setShareExamples(on){ state.shareExamples=on; store("rd-share",on?"1":"0"); render(); }
+function setShareExamples(on){ setShare(on); render(); }
 function setWording(k){ state.wording=k; store("rd-wording",k); render(); }
 function setFindSuggest(on){ state.findSuggest=on; store("rd-findsuggest",on?"1":"0"); render(); }
 // Blitz off takes the stopwatch away from the top bar, and a running countdown with it

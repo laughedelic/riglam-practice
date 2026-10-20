@@ -4,6 +4,7 @@ import { ERR_OFF, canAsk } from "../core/ask.js";
 import { CELLS } from "../core/rel.js";
 import { isWide } from "../core/viewport.js";
 import { quorumBegin, quorumDropped, quorumEnd, quorumStep, quorumThings, quorumWanted } from "./quorum.js";
+import { showShareNotice } from "./share-notice.js";
 import { persist } from "../practice/answers.js";
 import { factNode, fillTurn, noteData, revealTutor } from "../practice/screen.js";
 import { render, renderKeepFocus } from "../shell/render.js";
@@ -42,10 +43,9 @@ function openExamples(U){
   return quorumThings(U).filter(t=>t.text.length<=200).flatMap(t=>t.cells.filter(c=>U.res.cells[c]&&(U.res.cells[c].v==="cmp"||U.res.cells[c].half)).map(c=>({cell:c,text:t.text}))).slice(0,8);
 }
 // Whether this device shares its examples with the server, read where they are sent: another tab may have turned the switch off since this page started (`rd-share`),
-// and the opt-out wins; it stays in memory too, in case the storage cannot be read again.
+// and the opt-out wins; it stays in memory too, in case the storage cannot be read again. The same for having been told (another tab may have shown the notice).
 function sharing(){
-  if(!state.shareExamples) return false;
-  try{ if(localStorage.getItem("rd-share")==="0") state.shareExamples=false; }catch(e){}
+  try{ if(localStorage.getItem("rd-share")==="0") state.shareExamples=false; if(localStorage.getItem("rd-share-told")==="1") state.shareTold=true; }catch(e){}
   return state.shareExamples;
 }
 // The explanation is kept with the answer (applyVerify saves it along with the verdicts), so verdicts can be audited later.
@@ -87,8 +87,10 @@ export async function ask(text,kind,byItself){
       catch(e){ if(e&&e.code==="tools_unavailable"){ delete opts.tools; r=await state.sample(turns,opts); } else throw e; }
     }else{
       const examples=kind==="explain"&&sharing()?openExamples(U):[];
-      // the server keeps them only with `share`, which a page sends where the server said it keeps learned facts, so that the learner was told in the Practice options
-      r=await state.tutor({kind:kind==="explain"?"explain":"chat",cats:noteCats(state,p),turns,...(quorum?{quorum:true}:{}),...(examples.length?{examples,...(state.learns?{share:true}:{})}:{})},{signal:ctl.signal,onText,onStep:s=>quorumStep(U,s)});
+      // the server keeps them only with `share`, which a page sends where the server said it keeps learned facts and the learner was told (share-notice.js); the first question
+      // that names examples goes without it, and the notice appears
+      if(examples.length&&state.learns&&!state.shareTold) showShareNotice();
+      r=await state.tutor({kind:kind==="explain"?"explain":"chat",cats:noteCats(state,p),turns,...(quorum?{quorum:true}:{}),...(examples.length?{examples,...(state.learns&&state.shareTold?{share:true}:{})}:{})},{signal:ctl.signal,onText,onStep:s=>quorumStep(U,s)});
     }
     slot.content=r.text+(r.truncated?"\n(Cut short.)":""); delete slot.pending;
     if(kind==="explain"){ if(U.doc) U.doc.explain=String(r.text||"").slice(0,3000); if(!((U.res.exOpen||U.res.relOpen)&&applyVerify(r.text,U,C))) saveExplain(U); }

@@ -201,35 +201,54 @@ withKey("the course's reference examples on the device settle an example they na
   expect(asked.known).toHaveLength(0);
 });
 
-// the server keeps the examples the tutor checked (health says `learns`): the learner is told in the Practice options, and can keep a device's examples out
+// the server keeps the examples the tutor checked (health says `learns`): the learner is told once, when the first question names their examples, and can keep them out;
+// the practice options keep the switch. The question that comes with the notice goes without the `share` marker, so the server keeps nothing of it.
 const share = (page) => page.getByRole("switch", { name: /share my examples/i });
 const openOptions = (page) => page.getByRole("button", { name: "Practice options" }).click();
 const closeOptions = (page) => page.locator("#over .oc").click();
+const notice = (page) => page.locator("#sharenote");
+const LEARNS = { health: { ok: true, tutor: "on", learns: "on" }, known: () => ({ status: 200, body: { known: [] } }) };
+/** A device that was told before: the notice is not shown and the marker is sent. */
+const told = { before: (page) => page.addInitScript(() => { if (!localStorage.getItem("rd-share-told")) localStorage.setItem("rd-share-told", "1"); }) };
 
-withKey("the practice options tell the learner that the server keeps examples and offers the switch only where the server says it does", async ({ page }, testInfo) => {
+withKey("the practice options offer the switch only where the server says it keeps examples", async ({ page }, testInfo) => {
   await open(page, testInfo, { health: { ok: true, tutor: "on" } });
   await openOptions(page);
   await expect(page.getByText("Check every answer with AI")).toBeVisible();
   await expect(share(page)).toHaveCount(0);
 });
 
-withKey("with the switch on, an explain question names the examples; off, it names none, and the choice stays after a reload", async ({ page }, testInfo) => {
-  const asked = await open(page, testInfo, { health: { ok: true, tutor: "on", learns: "on" }, known: () => ({ status: 200, body: { known: [] } }) });
-  await openOptions(page);
-  await expect(page.getByText("keeps the words of the example")).toBeVisible();
-  await expect(page.getByText("not who wrote it, which pair it was for, or where you put it")).toBeVisible();
-  // the server does not answer from what it learned here (no `known`), so the notice does not promise it
-  await expect(page.getByText("you still get answers learned from other people")).toHaveCount(0);
-  await expect(share(page)).toHaveAttribute("aria-checked", "true");
-  await closeOptions(page);
+withKey("the first question that names examples shows the notice and goes without the marker; Share keeps the answer, and the next question carries the marker", async ({ page }, testInfo) => {
+  const asked = await open(page, testInfo, LEARNS);
+  await expect(notice(page)).toHaveCount(0);
   await explain(page).click();
   await expect.poll(() => asked.tutor.length).toBe(1);
   expect(asked.tutor[0].body.examples.length).toBeGreaterThan(0);
-  expect(asked.tutor[0].body.share).toBe(true); // the server keeps nothing without it
-  await openOptions(page);
-  await share(page).click();
-  await expect(share(page)).toHaveAttribute("aria-checked", "false");
-  expect(await page.evaluate(() => localStorage.getItem("rd-share"))).toBe("0");
+  expect(asked.tutor[0].body).not.toHaveProperty("share"); // the server keeps nothing until the learner has been told
+  await expect(notice(page)).toBeVisible();
+  await expect(notice(page)).toContainText("Build knowledge together");
+  await expect(notice(page)).toContainText("Nothing about you is kept");
+  await expect(notice(page)).toContainText("practice options");
+  await notice(page).getByRole("button", { name: "Share", exact: true }).click();
+  await expect(notice(page)).toHaveCount(0);
+  expect(await page.evaluate(() => [localStorage.getItem("rd-share"), localStorage.getItem("rd-share-told")])).toEqual(["1", "1"]);
+  await page.reload();
+  await ready(page);
+  await answer(page);
+  await explain(page).click();
+  await expect.poll(() => asked.tutor.length).toBe(2);
+  expect(asked.tutor[1].body.share).toBe(true);
+  await expect(notice(page)).toHaveCount(0); // once only
+});
+
+withKey("Don't share in the notice keeps the device's examples out, and the answer stays after a reload", async ({ page }, testInfo) => {
+  const asked = await open(page, testInfo, LEARNS);
+  await explain(page).click();
+  await expect.poll(() => asked.tutor.length).toBe(1);
+  await expect(notice(page)).toBeVisible();
+  await notice(page).getByRole("button", { name: /don.t share/i }).click();
+  await expect(notice(page)).toHaveCount(0);
+  expect(await page.evaluate(() => [localStorage.getItem("rd-share"), localStorage.getItem("rd-share-told")])).toEqual(["0", "1"]);
   await page.reload();
   await ready(page);
   await openOptions(page);
@@ -240,10 +259,40 @@ withKey("with the switch on, an explain question names the examples; off, it nam
   await expect.poll(() => asked.tutor.length).toBe(2);
   expect(asked.tutor[1].body.kind).toBe("explain");
   expect(asked.tutor[1].body).not.toHaveProperty("examples");
+  await expect(notice(page)).toHaveCount(0);
+});
+
+withKey("the switch in the practice options tells the device's answer too, so no notice follows", async ({ page }, testInfo) => {
+  const asked = await open(page, testInfo, LEARNS);
+  await openOptions(page);
+  await expect(page.getByText("keeps the words of the example")).toBeVisible();
+  await expect(page.getByText("not who wrote it, which pair it was for, or where you put it")).toBeVisible();
+  // the server does not answer from what it learned here (no `known`), so the notice does not promise it
+  await expect(page.getByText("you still get answers learned from other people")).toHaveCount(0);
+  await expect(share(page)).toHaveAttribute("aria-checked", "true");
+  await share(page).click();
+  await expect(share(page)).toHaveAttribute("aria-checked", "false");
+  await share(page).click();
+  await expect(share(page)).toHaveAttribute("aria-checked", "true");
+  expect(await page.evaluate(() => [localStorage.getItem("rd-share"), localStorage.getItem("rd-share-told")])).toEqual(["1", "1"]);
+  await closeOptions(page);
+  await explain(page).click();
+  await expect.poll(() => asked.tutor.length).toBe(1);
+  expect(asked.tutor[0].body.share).toBe(true);
+  await expect(notice(page)).toHaveCount(0);
+});
+
+withKey("a device that was told sends the marker with its first question", async ({ page }, testInfo) => {
+  const asked = await open(page, testInfo, LEARNS, told);
+  await explain(page).click();
+  await expect.poll(() => asked.tutor.length).toBe(1);
+  expect(asked.tutor[0].body.share).toBe(true);
+  expect(asked.tutor[0].body.examples.length).toBeGreaterThan(0);
+  await expect(notice(page)).toHaveCount(0);
 });
 
 withKey("a switch turned off in another tab is honored by this one before it names examples", async ({ page }, testInfo) => {
-  const asked = await open(page, testInfo, { health: { ok: true, tutor: "on", learns: "on" }, known: () => ({ status: 200, body: { known: [] } }) });
+  const asked = await open(page, testInfo, LEARNS, told);
   // the other tab's write
   await page.evaluate(() => localStorage.setItem("rd-share", "0"));
   await explain(page).click();
@@ -251,8 +300,16 @@ withKey("a switch turned off in another tab is honored by this one before it nam
   expect(asked.tutor[0].body.kind).toBe("explain");
   expect(asked.tutor[0].body).not.toHaveProperty("examples");
   expect(asked.tutor[0].body).not.toHaveProperty("share");
+  await expect(notice(page)).toHaveCount(0);
   await openOptions(page);
   await expect(share(page)).toHaveAttribute("aria-checked", "false");
+});
+
+withKey("a server that keeps no examples shows no notice", async ({ page }, testInfo) => {
+  const asked = await open(page, testInfo, { health: { ok: true, tutor: "on" } });
+  await explain(page).click();
+  await expect.poll(() => asked.tutor.length).toBe(1);
+  await expect(notice(page)).toHaveCount(0);
 });
 
 withKey("the practice options say that the sharing switch and Quorum are separate, each for what it keeps", async ({ page }, testInfo) => {
@@ -263,7 +320,7 @@ withKey("the practice options say that the sharing switch and Quorum are separat
   await expect(page.getByText("nothing is kept")).toHaveCount(0);
 });
 
-withKey("where the server also answers from what it learned, the notice says so", async ({ page }, testInfo) => {
+withKey("where the server also answers from what it learned, the switch's note says so", async ({ page }, testInfo) => {
   await open(page, testInfo, { health: { ok: true, tutor: "on", known: "on", learns: "on" } });
   await openOptions(page);
   await expect(page.getByText("you still get answers learned from other people")).toBeVisible();
