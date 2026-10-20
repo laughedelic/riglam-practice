@@ -3,7 +3,7 @@
 // instructions, a proof made with the key) and what it shows when the answer streams in or the server refuses.
 import { test as plain } from "@playwright/test";
 import { test, expect } from "../../support/test.js";
-import { ready, relOptions, isPhone, overflow } from "../../support/page.js";
+import { goTo, ready, relOptions, isPhone, overflow } from "../../support/page.js";
 import { dataKey, serveCourse, withCourse } from "../../support/data-key.js";
 import { checkProof } from "../../../src/ai/proof.ts";
 
@@ -199,7 +199,7 @@ withKey("in Pervasions an accepted question's note names the tutor's counter-exa
   await server(page, { tutor: [{ status: 200, body: sse({ type: "delta", text: line }, { type: "done", truncated: false }) }] });
   await page.goto("/");
   await ready(page);
-  await page.locator('.rail .nv:has-text("Pervasions")').click();
+  await goTo(page, "Pervasions");
   for (let i = 0; i < 4; i++) {
     await page.locator(".qcard .btn").first().click(); // accept each question
     await page.waitForTimeout(150);
@@ -225,6 +225,27 @@ withKey("a follow-up question sends the whole conversation as a chat", async ({ 
   expect(asked[1].body.turns.map((t) => t.role)).toEqual(["user", "assistant", "user"]);
   expect(asked[1].body.turns[1].content).toContain("this is the stand-in answer.");
   expect(asked[1].body.turns[2].content).toBe("Why not?");
+});
+
+// The chat is a drawer from the right behind a scrim, the mirror of the menu: its close button sits where the chat button was.
+withKey("the chat is a drawer from the right: the close button, the scrim and Escape return to the result", async ({ page }, testInfo) => {
+  await page.emulateMedia({ reducedMotion: "reduce" }); // the drawer slides in; measure it where it rests
+  await open(page, testInfo);
+  await explain(page).click();
+  await openAnswer(page);
+  const [o, d] = await Promise.all([page.locator("#over").boundingBox(), page.locator("#over .cdrawer").boundingBox()]);
+  expect(Math.round(d.x + d.width)).toBe(Math.round(o.x + o.width)); // flush with the right edge of the page
+  expect(d.x).toBeGreaterThanOrEqual(o.x + 40); // a dimmed strip of the exercise stays at the left
+  expect(await overflow(page)).toBeLessThanOrEqual(0);
+  await page.locator("#over .oc").click();
+  await expect(page.locator("#over")).toBeHidden();
+  await expect(page.locator("#mchat")).toBeFocused();
+  await page.locator("#mchat").click();
+  await page.mouse.click(10, 400); // on the scrim
+  await expect(page.locator("#over")).toBeHidden();
+  await page.locator("#mchat").click();
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#over")).toBeHidden();
 });
 
 withKey("when the day's budget is used the page says so", async ({ page }, testInfo) => {
@@ -283,7 +304,7 @@ withKey("on a wide screen the error and a follow-up answer appear in the coach p
   await page.goto("/");
   await ready(page);
   await relOptions(page).first().click();
-  await page.getByRole("button", { name: /show result/i }).click();
+  await page.locator("#stage .pbar .fwd").click(); // Check, with the cells left empty
   await explain(page).click();
   await expect(page.getByText(/limit for today is used up/i)).toBeVisible();
   await page.fill("#ask-in", "Why not?");
@@ -291,6 +312,22 @@ withKey("on a wide screen the error and a follow-up answer appear in the coach p
   await expect(page.getByText("this is the stand-in answer.")).toBeVisible();
   expect(asked.map((a) => a.body.kind)).toEqual(["explain", "chat"]);
   expect(await overflow(page)).toBeLessThanOrEqual(0);
+});
+
+// The chat button opens the panel once the pair is checked; the field for a question is there before Explain has started a conversation, as in the phone's drawer.
+withKey("on a wide screen the chat button of a checked pair opens the panel with the follow-up field", async ({ page }, testInfo) => {
+  test.skip(isPhone(testInfo), "the phone's drawer has the field already (the chat drawer spec above)");
+  const asked = await server(page);
+  await page.goto("/");
+  await ready(page);
+  await relOptions(page).first().click();
+  await page.locator("#stage .pbar .fwd").click(); // Check, with the cells left empty
+  await page.locator("#mchat").click();
+  await expect(page.locator("#coach #ask-in")).toBeVisible();
+  await page.fill("#ask-in", "Why not?");
+  await page.keyboard.press("Enter");
+  await expect(page.getByText("this is the stand-in answer.")).toBeVisible();
+  expect(asked).toHaveLength(1);
 });
 
 // A device without the Magic Key still sees Explain when the server has a tutor: grayed, and a tap says what it needs.

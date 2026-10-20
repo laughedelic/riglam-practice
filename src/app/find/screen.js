@@ -4,18 +4,18 @@ import { canAsk } from "../core/ask.js";
 import { L, el } from "../core/dom.js";
 import { CELLS, ORDER, REL, lcRel, notaOf, notaParts } from "../core/rel.js";
 import { isWide } from "../core/viewport.js";
-import { favBtn } from "../practice/favorites.js";
 import { next } from "../practice/queue.js";
-import { cellView, exLine, explainBtn, kbHints, quizCell, recentNode, relPopNode, relWhy, resultBlock, termsItem, tutorAct, tutorItem } from "../practice/screen.js";
-import { skipActs, subRowNode } from "../practice/skips.js";
+import { cellView, coachInto, errLines, exLine, quizCell, relPopNode, relWhy, resultBlock, termsItem, tutorItem } from "../practice/screen.js";
+import { subRowNode } from "../practice/skips.js";
 import { exGrid } from "../review/review.js";
+import { pairBar } from "../shell/pbar.js";
 import { fitPair, render, setSteps } from "../shell/render.js";
 import { checkFind, chooseRel, editPair, findList, usePair } from "./flow.js";
 
 /* ---------- Find a pair: the screen ---------- */
 // The same parts as Relations (the heading with the diamond, the table of examples, one cell at a time on a phone, the result with its chips), with a first step
 // in which the learner names the pair and a relation that is given, not picked. See flow.js for the steps.
-const nextBtn=()=>el("button",{class:"btn",type:"button",onclick:next,text:"Next relation"});
+const nextFwd=()=>({label:"Next relation",hint:"N",onclick:()=>next()});
 // the relation asked for, in the words of the course, with the letters A and B since the pair is the learner's
 const cap=()=>{ const r=REL[state.ui.rel]; return el("p",{class:"cap"},el("b",{text:r.name+". "}),r.gloss("A","B")+"."); };
 
@@ -57,7 +57,8 @@ function relPicker(){
 function pairStep(s,c){
   const u=state.ui;
   s.append(cap());
-  const go=el("button",{type:"button",class:"btn",onclick:usePair,disabled:!(u.wordA.trim()&&u.wordB.trim()),text:"Use this pair"});
+  const bar=pairBar({label:"Use this pair",onclick:()=>usePair(),disabled:!(u.wordA.trim()&&u.wordB.trim())});
+  const go=/** @type {HTMLButtonElement} */(bar.querySelector(".fwd"));
   const err=el("p",{class:"ferr",role:"alert",text:u.pairErr});
   const word=(k,key,what)=>{
     const inp=el("input",{type:"text",id:"fw-"+k,placeholder:what+" phenomenon",value:u[key],"aria-label":what+" phenomenon, "+k.toUpperCase(),autocomplete:"off",autocapitalize:"off",spellcheck:"false",list:state.findSuggest?"fw-terms":null,enterkeyhint:k==="a"?"next":"done"});
@@ -74,14 +75,10 @@ function pairStep(s,c){
     el("p",{class:"label"},"Your pair",el("span",{class:"hint",text:state.findSuggest?"course terms or your own words":"whatever comes to mind"})),
     word("a","wordA","First"),word("b","wordB","Second"),err,
     state.findSuggest?el("datalist",{id:"fw-terms"},(state.DATA?state.DATA.cats:[]).map(cat=>el("option",{value:cat.labels[0]}))):null));
-  s.append(el("div",{class:"actions"},
-    el("button",{type:"button",class:"btn ghost",onclick:()=>{ u.open=true; render(); },text:state.findRel?"Change relation":"Choose relation"}),
-    ...(isWide()?skipActs(""):[]),go));
+  s.append(el("div",{class:"flink"},el("button",{type:"button",class:"btn ghost",onclick:()=>{ u.open=true; render(); },text:state.findRel?"Change relation":"Choose relation"})));
+  s.append(bar);
   if(u.focusA){ u.focusA=false; setTimeout(()=>{ const i=document.getElementById("fw-a"); if(i&&(document.activeElement===document.body||!document.activeElement)&&!("ontouchstart" in window)) i.focus({preventScroll:true}); }); }
-  if(isWide()){
-    recentNode(c,findList().slice(-5).reverse(),a=>a.chosen);
-    c.append(kbHints(["Enter","next field, then the examples"],...(state.findRel?[]:[["S","another relation"]])));
-  }
+  coachInto(c,findList().slice(-5).reverse(),a=>a.chosen,[["Enter","next field, then the examples"],...(state.findRel?[]:[["S","another relation"]])]);
 }
 
 // the result of an answer: a headline and one chip per aspect (see resultBlock). The pair is the first aspect: a pair the course data cannot judge
@@ -113,7 +110,7 @@ function findResult(){
 
 export function renderFind(s,c){
   renderFindBody(s,c);
-  if(state.skipErr) s.append(el("p",{class:"status",text:state.skipErr}));   // a skip that could not be saved was undone: it is said on every step, as in Relations
+  errLines(s);   // a skip that could not be saved was undone: it is said on every step, as in Relations
 }
 function renderFindBody(s,c){
   const u=state.ui, p=state.cur.p, w=isWide(), done=u.checked;
@@ -122,27 +119,12 @@ function renderFindBody(s,c){
   if(u.open&&!done){ s.append(relPicker()); return; }
   if(u.step===0){ pairStep(s,c); return; }
   const table=()=>el("div",{class:"section"},w&&!done?el("p",{class:"label"},"Examples",el("span",{class:"hint",text:"∅ = nothing exists. Neither also takes a non-existent."})):null,exGrid(p,quizCell,true));
-  if(!w){
-    if(!done){ cellView(s); return; }
-    s.append(table(),findResult());
+  if(!w&&!done){ cellView(s); return; }
+  s.append(...(w?[cap()]:[]),table());
+  if(done){
+    s.append(findResult());
     if(u.saveErr) s.append(el("p",{class:"status",text:u.saveErr}));
-    const acts=el("div",{class:"actions"}), ta=tutorAct(); if(ta) acts.append(ta);
-    acts.append(nextBtn()); s.append(acts);
-    return;
-  }
-  s.append(cap(),table());
-  const acts=el("div",{class:"actions"}), fb=p.own?null:favBtn(p); if(fb) acts.append(fb);
-  if(!done) acts.append(...skipActs("Enter moves to the next cell, then shows the result"),el("button",{type:"button",class:"btn ghost",onclick:editPair,text:"Change pair"}),el("button",{type:"button",class:"btn",onclick:checkFind,text:"Show result"}));
-  else acts.append(nextBtn());
-  s.append(acts);
-  if(state.favErr) s.append(el("p",{class:"status",text:state.favErr}));
-  if(!done){
-    recentNode(c,findList().slice(-5).reverse(),a=>a.chosen);
-    c.append(kbHints(["Enter","next cell"],["S","skip"],...(p.own?[]:[["F","favorite"]])));
-    return;
-  }
-  c.append(el("p",{class:"label"},"Result"),findResult());
-  if(u.saveErr) c.append(el("p",{class:"status",text:u.saveErr}));
-  const eb=explainBtn(); if(eb) c.append(el("div",{class:"actions left"},eb));
-  c.append(kbHints(["Enter","next relation"],...(p.own?[]:[["F","favorite"]])));
+    s.append(pairBar(nextFwd()));
+  } else s.append(pairBar({label:"Check",onclick:()=>checkFind()},[el("button",{type:"button",class:"btn ghost",onclick:()=>editPair(),text:"Change pair"})]));
+  coachInto(c,findList().slice(-5).reverse(),a=>a.chosen,done?[["N","next relation"],...(p.own?[]:[["F","favorite"]])]:[["Enter","next cell"],["S","skip"],...(p.own?[]:[["F","favorite"]])]);
 }

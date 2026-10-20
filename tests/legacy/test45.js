@@ -32,7 +32,7 @@ const EMPTY={mi:['anb','bna'],con:['both'],'3ab':['anb'],'3ba':['bna'],'4':[]};
  const h1=await pg.evaluate(()=>document.querySelector('.verdict').getBoundingClientRect().height);
  ok('closed result block is compact (<130px)',h1<130,h1);
  // explain
- await pg.locator('#stage .actions button:has-text("xplain")').click(); await pg.waitForTimeout(300);
+ await pg.locator('#stage .verdict .xpl').click(); await pg.waitForTimeout(300);
  ok('explain opens the Why chip right under the chips',await pg.locator('.vchip[aria-selected=true]').innerText().then(t=>/^why$/i.test(t.trim()))&&await pg.locator('.vpanel .tutor').count()===1,await pg.locator('.vchip[aria-selected=true]').count());
  const whys=await pg.locator('.grid .qm').count();
  ok('[?] markers on the cells Claude explained (2: both, neither)',whys===2,whys);
