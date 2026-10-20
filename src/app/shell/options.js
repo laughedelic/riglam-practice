@@ -3,13 +3,13 @@ import { accountControls } from "../../ui/account";
 import { dataTransferControls } from "../../ui/data-transfer";
 import { setQuorum } from "../ai/quorum.js";
 import { canAsk } from "../core/ask.js";
-import { EX_LEVELS } from "../core/examples.js";
 import { ico } from "../core/icons.js";
 import { MAGIC_KEY_NOTE } from "../../ui/magic-key-note.ts";
 import { $, el } from "../core/dom.js";
 import { asking, setTimer, startQ, stopTimer } from "../debate/flow.js";
 import { WORDINGS } from "../debate/text.js";
 import { overHead } from "./chat.js";
+import { levelSwitches } from "./levels.js";
 import { overlayClosed, overlayOpened } from "./history.js";
 import { render } from "./render.js";
 import { kindMs } from "./timers.js";
@@ -34,7 +34,6 @@ export function setDefLang(k){ state.defLang=k==="enru"?"enru":"en"; try{ localS
 function setShow(key,on){ if(key==="ab") state.showAB=on; else state.fullPh=on; try{ localStorage.setItem("rd-"+key,on?"1":"0"); }catch(e){} render(); }
 function setFindSuggest(on){ state.findSuggest=on; try{ localStorage.setItem("rd-findsuggest",on?"1":"0"); }catch(e){} render(); }
 function setAutoExplain(on){ state.autoExplain=on; try{ localStorage.setItem("rd-autoexplain",on?"1":"0"); }catch(e){} render(); }
-function setExLevel(k){ state.exLevel=k; try{ localStorage.setItem("rd-exlevel",String(k)); }catch(e){} render(); }
 function setWording(k){ state.wording=k; try{ localStorage.setItem("rd-wording",k); }catch(e){} render(); }
 // Options and the tutor chat are not tabs: they open over the workspace (the chat only on narrow screens) and close with Back or Escape.
 export function renderOptionsBtn(){
@@ -96,8 +95,8 @@ export function optionsInto(o){
       "Applies to the statements and to your answers."),
     row("Find a pair",el("button",{type:"button",class:"sw",role:"switch","aria-checked":state.findSuggest?"true":"false",onclick:()=>setFindSuggest(!state.findSuggest)},el("i",{class:"knob","aria-hidden":"true"}),el("span",{class:"swl",text:"Suggest terms"}),el("span",{class:"swt",text:state.findSuggest?"on":"off"})),
       "While you name a pair, the field offers terms from the course as you type, so you can pick one. This is a gentle way in when the terms are new. Turn it off to type whatever comes to mind, without the list steering you; words that match a course term are still recognized."),
-    state.EX?row("Examples",segOf("Examples up to level",EX_LEVELS.map(l=>[l,"Level "+l]),state.exLevel,setExLevel),
-      "The examples shown for the cells of a pair, besides the plain ones the page has always had, go up to this level. Level 1 is a plain thing, such as a pot or a color. Each level up takes more steps to reach: a picture of a thing, a part of it, something that is not a thing. Level 2 is a good start; raise it when it comes easily. Relations and negations join from level 3. Only examples the sources confirm are shown."):null,
+    state.EX?row("Examples",levelSwitches(),
+      "The examples shown for the cells of a pair, besides the plain ones the page has always had, come from the levels that are on, in any mix. Each level up takes more steps to reach. Levels 1 and 2 are a good start; switch more on when it comes easily. Relations and negations join when level 3 or 4 is on. Only examples the sources confirm are shown. A definition card shows examples of every level, the plainest first."):null,
     canAsk()?row("AI tutor",el("button",{type:"button",class:"sw",role:"switch","aria-checked":state.autoExplain?"true":"false",onclick:()=>setAutoExplain(!state.autoExplain)},el("i",{class:"knob","aria-hidden":"true"}),el("span",{class:"swl",text:"Check every answer with AI"}),el("span",{class:"swt",text:state.autoExplain?"on":"off"})),
       "Right after you check an answer, the AI tutor explains it and checks the examples the page could not. Off, the Explain button waits for you."):null,
     state.quorumOffered&&state.db?row("Quorum",el("button",{type:"button",class:"sw",role:"switch","aria-checked":state.quorum?"true":"false",onclick:()=>setQuorum(!state.quorum)},el("i",{class:"knob","aria-hidden":"true"}),el("span",{class:"swl",text:"Several models explain"}),el("span",{class:"swt",text:state.quorum?"on":"off"})),

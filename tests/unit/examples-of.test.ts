@@ -35,13 +35,15 @@ const tool = (name: string, examples = ITEMS) => {
 type Result = { found: boolean; term?: string; level_cap?: number; examples?: { item: string; level: number; kind?: string; confirmation?: string; of: string; why?: string }[]; harder?: boolean };
 const run = (input: unknown, items = ITEMS) => tool("examples_of", items).execute(input) as Result;
 
-test("examplesFor takes only examples up to the level", () => {
+test("examplesFor takes only examples of the levels it is given", () => {
   const ix = makeIndex(data());
-  const names = (max: number, lv?: number) => examplesFor(ix, ITEMS, "Form", max, lv).map((i) => i.n);
+  const names = (max: number, lv?: number[]) => examplesFor(ix, ITEMS, "Form", max, lv).map((i) => i.n);
   expect(names(9)).toEqual(["a clay form", "a hard form", "a blue wall", "a shape of fog", "a green wall"]);
-  expect(names(9, 2)).toEqual(["a clay form", "a blue wall", "a shape of fog"]);
-  expect(names(9, 1)).toEqual(["a clay form", "a blue wall"]);
-  expect(names(9, 0)).toEqual([]);
+  expect(names(9, [1, 2])).toEqual(["a clay form", "a blue wall", "a shape of fog"]);
+  expect(names(9, [1])).toEqual(["a clay form", "a blue wall"]);
+  expect(names(9, [2])).toEqual(["a shape of fog"]);
+  expect(names(9, [1, 3])).toEqual(["a clay form", "a blue wall", "a green wall"]);
+  expect(names(9, [])).toEqual([]);
 });
 
 test("examples_of is a tool only where the reference examples are, and lists a term's own examples first with the class of each", () => {
