@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { expect, test } from "vitest";
 import {
-  CELL_NAME, DEBATE_ASK, FIRST_ASK, GUIDE, REVIEW_GUIDE, REVIEW_LIMITS, american, cardBody, parseReview, readReviewAnswer, reviewRequest, storedView, cardNotes, catByLabel, classNames, catFacts, explainAsk, finePoints, makeIndex, matchItem, norm, pairCats, qPlain, termFacts, tutorCard, tutorTools, upChain,
+  CELL_NAME, DEBATE_ASK, FIND_ASK, FIND_ASK_OWN, FIND_NOTE, FIND_OWN_NOTE, FIND_REL_NAMES, FIRST_ASK, GUIDE, REVIEW_GUIDE, REVIEW_LIMITS, american, cardBody, refOf, parseReview, readReviewAnswer, reviewRequest, storedView, cardNotes, catByLabel, categoryOf, classNames, catFacts, explainAsk, finePoints, makeIndex, matchItem, noteCats, norm, pairCats, qPlain, termFacts, termNamed, tutorCard, tutorTools, upChain,
 } from "../../src/ai-shared";
 import type { AnswerView, DrillData, PairLike, ReviewAnswer } from "../../src/ai-shared";
 import { state } from "../../src/app/state.js";
@@ -157,6 +157,15 @@ test("the card is the instructions, the body and the fine points, which a server
   expect(cardNotes(ix, pair())).toBe("\nFine points (from the sources; apply them):\n- A fine point about forms.");
   expect(cardNotes(ix, pair({ catA: "form", catB: "wood", b: "wooden things" }))).toBe("\nFine points (from the sources; apply them):\n- A fine point about forms.\n- Another fine point.");
   expect(cardNotes(ix, pair({ a: "unknown a", b: "unknown b", catA: null, catB: null }))).toBe("");
+  // a pair of the learner's own: each side the data recognizes brings its fine points, also when the other side is only the learner's words
+  const half = pair({ a: "forms", b: "unknown b", catA: "form", catB: null, own: true });
+  expect(noteCats(ix, half)).toEqual(["form"]);
+  expect(cardNotes(ix, half)).toBe("\nFine points (from the sources; apply them):\n- A fine point about forms.");
+  expect(noteCats(ix, pair({ a: "unknown a", b: "wooden things", catA: null, catB: "wood", own: true }))).toEqual(["wood"]);
+  expect(noteCats(ix, pair({ a: "unknown a", b: "unknown b", catA: null, catB: null, own: true }))).toEqual([]);
+  // a pair of the practice list needs both categories, as before
+  expect(noteCats(ix, pair({ a: "forms", b: "unknown b", catA: "form", catB: null }))).toEqual([]);
+  expect(noteCats(ix, pair())).toEqual(["form", "mind"]);
 });
 
 // ---- the review of a flag ----
@@ -435,10 +444,112 @@ test("a card for every pair of categories of the real data is complete text", ()
   }
 });
 
+// ---- the pair-finding mode ----
+
+test("a learner's words name a category by a label or by its term, and a term by its name, alias or Russian name", () => {
+  expect(categoryOf(ix, "A form")).toBe("form");
+  expect(categoryOf(ix, "hue")).toBe("col"); // a label in the singular
+  expect(categoryOf(ix, "Smells.")).toBe("odr");
+  expect(categoryOf(ix, "Odor source")).toBe("odr"); // the term of a Dudra category, not one of its labels
+  expect(categoryOf(ix, "рупа")).toBe("form"); // the Russian name of its term
+  expect(categoryOf(ix, "Stuff")).toBeNull(); // a term the data has but no category stands for
+  expect(categoryOf(ix, "a unicorn")).toBeNull();
+  expect(categoryOf(ix, "")).toBeNull();
+  expect(categoryOf(ix, undefined)).toBeNull();
+  expect(termNamed(ix, "the Mind")).toBe("Mind");
+  expect(termNamed(ix, "minds")).toBe("Mind");
+  expect(termNamed(ix, "stuff")).toBe("Matter");
+  expect(termNamed(ix, "ум")).toBe("Mind");
+  expect(termNamed(ix, "nothing")).toBeNull();
+  expect(termNamed(ix, "")).toBeNull();
+});
+
+const find = (extra: Partial<AnswerView> = {}): AnswerView => ({
+  find: true, rel: "con", cells: { both: { t: "", none: true }, anb: { t: "Wooden Chair!" }, bna: { t: "a dragon" }, nei: { t: " " } }, res: noRes(["ok", "ok", "cmp", "bad"]), ...extra,
+});
+const own = (extra: Partial<PairLike> = {}): PairLike => ({ a: "red apples", b: "Stuff", catA: null, catB: null, typeA: "", typeB: "", relation: "4", ex: {}, why: {}, own: true, ...extra });
+
+test("the pair-finding card says which relation was asked for, and for a pair the data knows it gives the reference as the usual card does", () => {
+  const card = tutorCard(ix, pair(), find());
+  expect(card.startsWith(GUIDE)).toBe(true);
+  expect(card).toContain(FIND_NOTE);
+  expect(card).toContain('A = "forms", B = "minds".');
+  expect(card).toContain("Relation asked for: Mutually exclusive (Nothing is both). Correct relation of this pair: Mutually exclusive.");
+  expect(card).toContain("Reference note: No common locus.");
+  expect(card).toContain("- both: learner wrote NONE; reference EMPTY (Nothing is both.); page verdict ok");
+  expect(card).toContain('- forms, not minds: learner wrote "Wooden Chair!" [in the practice list as: a wooden chair, type Form]; reference "a wooden chair"; page verdict ok');
+  expect(card).not.toContain(FIND_OWN_NOTE);
+  expect(card).not.toContain("This is the four-questions debate mode");
+  // a pair that does not have the relation asked for is told apart from it in the card
+  expect(tutorCard(ix, pair({ relation: "mi" }), find())).toContain("Relation asked for: Mutually exclusive (Nothing is both). Correct relation of this pair: Mutually inclusive.");
+  expect(tutorCard(ix, pair(), find({ rel: "3ab", exLate: true }))).toContain("Time ran out on the examples: cells the learner had not reached are blank.");
+});
+
+test("the card of the learner's own pair holds what the data says of each side, and leaves the relation and every example to the tutor", () => {
+  const p = own(), cells = { both: { t: "a red pear" }, anb: { t: "", none: true }, bna: { t: "" }, nei: { t: "a stone" } };
+  const card = tutorCard(ix, p, find({ rel: "4", cells, res: noRes(["cmp", "open", "bad", "cmp"]) }));
+  expect(card).toContain(FIND_NOTE);
+  expect(card).toContain(FIND_OWN_NOTE);
+  expect(card).toContain('"A":{"label":"red apples","not_in_the_course_data":true}');
+  expect(card).toMatch(/"B":\{"label":"Stuff"[^}]*"term":"Matter"/); // a term without a practice category still has its facts
+  expect(card).toContain("Relation asked for: Four possibilities (They overlap; neither contains the other).");
+  expect(card).not.toContain("Correct relation of this pair");
+  expect(card).not.toContain("Reference note");
+  expect(card).toContain('- both: learner wrote "a red pear"; reference none, for you to decide; page verdict cmp');
+  expect(card).toContain("- red apples, not Stuff: learner wrote NONE; reference none, for you to decide; page verdict open");
+  expect(card).toContain("- Stuff, not red apples: learner wrote (blank); reference none, for you to decide; page verdict bad");
+  expect(card).toContain("a cell the relation leaves empty is open");
+  expect(card).not.toMatch(/undefined|NaN|\[object/);
+  // a side the data knows as a category carries that category's facts, under the learner's words
+  const half = tutorCard(ix, own({ a: "Hues" }), find({ rel: "4", cells, res: noRes(["cmp", "open", "bad", "cmp"]) }));
+  expect(half).toMatch(/"A":\{"label":"Hues"[^}]*"term":"Color"/);
+});
+
+test("the pair-finding explain request: the usual one for a pair the data knows, one that asks for the relation for the learner's own", () => {
+  expect(explainAsk(find({ res: noRes(["ok", "bad", "ok", "ok"]) }))).toBe(FIND_ASK);
+  expect(explainAsk({ ...find({ res: noRes(["ok", "bad", "ok", "ok"]) }), own: true })).toBe(FIND_ASK_OWN);
+  expect(FIND_ASK).not.toContain("Relation:");
+  expect(FIND_ASK_OWN).toContain("Relation:");
+  for (const name of FIND_REL_NAMES) expect(FIND_ASK_OWN).toContain(name);
+  expect(FIND_ASK_OWN).toContain("=> yes");
+  expect(FIND_ASK_OWN).toContain("=> unsure");
+  // the examples the page could not check are asked for in the same form as in the other modes
+  const open = explainAsk({ ...find({ res: noRes(["cmp", "open", "bad", "cmp"]) }), own: true });
+  expect(open.startsWith(FIND_ASK_OWN)).toBe(true);
+  expect(open).toContain(`The page could not check the examples in: ${CELL_NAME.both}, ${CELL_NAME.nei}.`);
+  expect(open).toContain("check it against the relation you decided on, since the page has no reference for this pair");
+  expect(open).not.toContain("it is computed and right");
+  const known = explainAsk(find({ res: noRes(["cmp", "ok", "ok", "ok"]) }));
+  expect(known.startsWith(FIND_ASK)).toBe(true);
+  expect(known).toContain("it is computed and right");
+  // the plain and debate requests are what they were
+  expect(explainAsk(practice({ res: noRes(["ok", "bad", "ok", "ok"]) }))).toBe(FIRST_ASK);
+  expect(explainAsk(debate({ res: noRes(["ok", "bad", "ok", "ok"]) }))).toBe(DEBATE_ASK);
+});
+
+test("a card for every pair of the real data, named by the learner and asked in the pair-finding mode, is complete text", () => {
+  const ids = real.cats.map((c) => c.id);
+  for (const a of ids.slice(0, 12)) {
+    for (const b of ids.slice(0, 12)) {
+      if (a === b) continue;
+      const p: PairLike = { a: rix.CAT[a].labels[0], b: rix.CAT[b].labels[0], catA: a, catB: b, typeA: "x", typeB: "y", relation: "4", ex: { both: "a stone" } };
+      for (const q of [p, { ...p, own: true, ex: {}, why: {} }]) expect(tutorCard(rix, q, find({ rel: "mi" })), `${a} ${b}`).not.toMatch(/undefined|NaN|\[object/);
+    }
+  }
+});
+
 // ---- the code stays free of the page and the browser ----
 
 const here = resolve(__dirname, "../../src/ai-shared");
 const sources = readdirSync(here).filter((f) => f.endsWith(".ts")).map((f) => join(here, f));
+
+test("a pair of the learner's own has no reference, not even the non-existent for Neither", () => {
+  const pair: PairLike = { a: "A", b: "B", relation: "mi", ex: {}, why: {} };
+  expect(refOf(pair, "nei")).toBe("the horn of a rabbit"); // a pair of the practice list keeps the class's example of a non-existent
+  expect(refOf(pair, "both")).toBeNull();
+  expect(refOf({ ...pair, own: true }, "nei")).toBeNull();
+  expect(refOf({ ...pair, own: true, ex: { both: "x" } }, "both")).toBe("x");
+});
 
 test("src/ai-shared imports only itself and touches nothing of the page or the browser", () => {
   expect(sources.length).toBeGreaterThan(5);

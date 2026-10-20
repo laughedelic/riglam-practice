@@ -23,8 +23,11 @@ const REASON = `After "class:" put the most specific class in the card's list of
   - for a term the example is not, add "; pervasion: " and one sentence on why only when it is not plain that nothing with the reason is the term; the page shows it under that term's consequence when the term data does not give it. Start from the term and say what class it is in, so both classes are named and it is plain that nothing is in both ("green things are visible forms, and nothing is both"); do not name the example again and do not write "only". Never for everyday differences such as two colors or two shapes.
 State each fact as it is, even when the example then does not belong in the cell (the page draws the fit), and never answer against your own reason.
 Answer unsure when the example's classification is really in doubt. A feature the example's name does not fix, such as the color of "an apple" or the shape of "a box", is in doubt: answer unsure on that side and say which reading would make it the term ("an apple can be red or green; a red one is A"). Other everyday facts about everyday things are not in doubt.`;
+// the line for an example, the same in every mode that asks for one
+const FACT_FORM = `The line has exactly this form: Both: "the example" | class: Taste source | A yes: it is ... | B no: it is ... ${REASON}`;
+const CELL_LABELS = `labelled with the cell name ("Both", "A not B", "B not A", "Neither")`;
 export const FIRST_ASK = `Explain this answer. Use these lines, in this order:
-- one line per cell where the learner wrote an example or the page marked it wrong, labelled with the cell name ("Both", "A not B", "B not A", "Neither"). The example is the learner's, or for a cell marked wrong without one, the reference example in the card. The line has exactly this form: Both: "the example" | class: Taste source | A yes: it is ... | B no: it is ... ${REASON} If there is no example at all (the learner wrote nothing or NONE and the card's reference is EMPTY), write a plain line without the bars: what kind of thing would fit, or why nothing can, with the reason from the correct relation in the card;
+- one line per cell where the learner wrote an example or the page marked it wrong, ${CELL_LABELS}. The example is the learner's, or for a cell marked wrong without one, the reference example in the card. ${FACT_FORM} If there is no example at all (the learner wrote nothing or NONE and the card's reference is EMPTY), write a plain line without the bars: what kind of thing would fit, or why nothing can, with the reason from the correct relation in the card;
 - "Common locus:" yes or no, with one example or the reason there is none;
 - "Pervasion:" whether whatever is A is necessarily B, and the reverse;
 - "Explanation:" only if the learner was wrong: two sentences on what to look at to get it right, without repeating the lines above;
@@ -35,6 +38,26 @@ export const DEBATE_ASK = `Explain this debate. Use these lines, in this order:
 - "Relation:" what Q1 to Q3 give and whether it matches the correct relation;
 - "Pervasion:" whether whatever is A is necessarily B, and the reverse;
 - "Explanation:" only if the learner was wrong: two sentences on what to look at to get it right, without repeating the lines above;
+- "Misconception:" only if the learner was wrong, one sentence.`;
+
+// The pair-finding mode is the usual exercise the other way round: the learner is given the relation and names the pair. The card says so; the
+// two asks are for a pair the page can judge from the term data (the reference is in the card, as in the usual exercise) and for one it cannot.
+export const FIND_NOTE = `This is the pair-finding mode, the usual exercise the other way round. The learner was given a relation and had to come up with two phenomena A and B that stand in it, then name an example for each combination of A and B that the relation leaves possible (the cells it leaves empty stay empty). The pair is right when it has the asked relation. An example is right when it belongs in its cell for this pair of A and B.`;
+export const FIND_OWN_NOTE = `The page has no reference for this pair (A or B is not in its practice list), so the relation of A and B and the placing of every example are for you to decide, from the course's definitions and rules; the card holds what the term data says about A and B where it has them, and lookup_term gives the rest.`;
+/** The names a tutor writes the relation in on the line the page reads (src/domain/find.ts, parseRelationVerdict). */
+export const FIND_REL_NAMES = ["Mutually inclusive", "Mutually exclusive", "Three possibilities, A in B", "Three possibilities, B in A", "Four possibilities"] as const;
+const TAIL = `- "Common locus:" yes or no, with one example or the reason there is none;
+- "Pervasion:" whether whatever is A is necessarily B, and the reverse;`;
+export const FIND_ASK = `Explain this answer: the learner was given the relation in the card and named the pair A and B. Use these lines, in this order:
+- one line per cell where the learner wrote an example or the page marked it wrong, ${CELL_LABELS}. The example is the learner's, or for a cell marked wrong without one, the reference example in the card. ${FACT_FORM} If there is no example at all (the learner wrote nothing or NONE and the card's reference is EMPTY), write a plain line without the bars: what kind of thing would fit, or why nothing can, with the reason from the correct relation in the card;
+${TAIL}
+- "Explanation:" only if the pair does not have the asked relation or an example is wrong: two sentences on what to look at to get it right, without repeating the lines above, and for a pair that does not have the asked relation one pair of course terms that does;
+- "Misconception:" only if the learner was wrong, one sentence.`;
+export const FIND_ASK_OWN = `Judge this answer: the learner was given the relation in the card and named the pair A and B, which the page cannot check. Use these lines, in this order:
+- "Relation:" the relation that holds between A and B, in exactly these words: ${FIND_REL_NAMES.join("; ")}; then " => yes" if it is the relation asked for, " => no" if it is another one, or " => unsure" if the sources disagree or A or B is too vague to say what it covers. Write nothing after the verdict. Example: Relation: Mutually exclusive => no;
+- one line for each example the learner wrote, ${CELL_LABELS}, for the cell it was written in. ${FACT_FORM} Judge it against A and B as the learner named them, whatever the relation turns out to be;
+${TAIL}
+- "Explanation:" only if the pair does not have the asked relation or an example is wrong: two sentences on what to look at to get it right, without repeating the lines above, and for a pair that does not have the asked relation one pair of course terms that does;
 - "Misconception:" only if the learner was wrong, one sentence.`;
 
 /**
