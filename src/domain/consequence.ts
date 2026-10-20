@@ -395,15 +395,20 @@ export function gradeConsequence(c: Consequence, said: Reply): ConsequenceResult
 }
 
 /** What the learner's counter-example (a thing that is the reason and is not the predicate) comes to: "ok", "bad", or "cmp" when the data cannot place it. */
-export interface ExampleVerdict { v: "ok" | "bad" | "cmp"; line: string }
+export interface ExampleVerdict { v: "ok" | "bad" | "cmp" | "self"; line: string }
 
-/** Grades a counter-example to the pervasion: it has to be the reason without being the predicate. A thing the data does not know, or cannot use for these two categories, is not checked. */
+/**
+ * Grades a counter-example to the pervasion: it has to be the reason without being the predicate. A thing the data does not know, or cannot use for these two categories,
+ * is not checked. The subject itself is "self": it may be the reason without being the predicate, but it is on the card already, so it is not taken as an answer (the page
+ * asks for another thing and grades nothing).
+ */
 export function gradeExample(ix: DataIndex, c: Consequence, text: string): ExampleVerdict {
   const t = text.trim().replace(/[.!]+$/, "");
   const it = t ? matchItem(ix, t, FEATURE.has(c.catR) || FEATURE.has(c.catP)) : null;
+  if (it && it.n === c.subject) return { v: "self", line: `That is the subject itself. Name another thing that is ${c.reason} and is not ${c.predicate}.` };
   if (!it || !inUniverse(ix, it, c.catR, c.catP)) return { v: "cmp", line: `Not checked: the page does not know ${t || "that"} well enough to say.` };
   const name = cap(t), r = it.c.includes(c.catR), p = it.c.includes(c.catP);
-  if (r && !p) return { v: "ok", line: `${name} is ${c.reason} and is not ${c.predicate}, so it is a counter-example.` };
+  if (r && !p) return { v: "ok", line: `${name} is ${c.reason} and is not ${c.predicate}, so there is no pervasion.` };
   if (r) return { v: "bad", line: `${name} is ${c.reason}, but it is also ${c.predicate}, so it is no counter-example.` };
   return { v: "bad", line: `${name} is not ${c.reason}, so it cannot show that being ${c.reason} is not enough for being ${c.predicate}.` };
 }

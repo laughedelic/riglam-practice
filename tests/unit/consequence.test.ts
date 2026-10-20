@@ -160,9 +160,17 @@ test("a wording is also said in pieces, so that the page can set the three parts
 
 test("a counter-example has to be the reason without being the predicate; a thing the data does not know is not checked", () => {
   const c = consequenceOf(ix, "a tomato", "red", "food") as Consequence; // whatever is red is food: no
-  expect(gradeExample(ix, c, "a red ball")).toMatchObject({ v: "ok", line: `A red ball is red and is not ${c.predicate}, so it is a counter-example.` });
+  expect(gradeExample(ix, c, "a red ball")).toMatchObject({ v: "ok", line: `A red ball is red and is not ${c.predicate}, so there is no pervasion.` });
   expect(gradeExample(ix, c, " a red ball. ").v).toBe("ok");
-  expect(gradeExample(ix, c, "a tomato")).toMatchObject({ v: "bad", line: `A tomato is red, but it is also ${c.predicate}, so it is no counter-example.` });
+  // the subject itself is no answer, even when it is the reason without being the predicate (it is on the card already): the page asks for another thing
+  const own = consequenceOf(ix, "a red ball", "red", "food") as Consequence; // the subject is red and is not food
+  expect(own.checks.e.ok && !own.checks.t.ok).toBe(true);
+  expect(gradeExample(ix, own, "a red ball")).toMatchObject({ v: "self", line: `That is the subject itself. Name another thing that is red and is not ${own.predicate}.` });
+  expect(gradeExample(ix, own, "the red ball").v).toBe("self");
+  expect(gradeExample(ix, own, "red balls.").v).toBe("self");
+  expect(gradeExample(ix, c, "a tomato").v).toBe("self"); // the subject of the first consequence
+  // another thing is graded as before
+  expect(gradeExample(ix, own, "a tomato")).toMatchObject({ v: "bad", line: `A tomato is red, but it is also ${own.predicate}, so it is no counter-example.` });
   expect(gradeExample(ix, c, "a banana")).toMatchObject({ v: "bad", line: expect.stringContaining("A banana is not red") });
   expect(gradeExample(ix, c, "a thing the course knows nothing of").v).toBe("cmp");
   expect(gradeExample(ix, c, "   ").v).toBe("cmp");

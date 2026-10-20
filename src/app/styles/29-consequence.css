@@ -14,11 +14,12 @@
 .cqex .cqright,.cqex .cqask2{margin:0}
 .cqex .cqright{font:400 14px/1.5 var(--body)}
 .cqex .cqask2{font:400 16px/1.6 var(--text-serif)}
-.cqex .cqright .m,.cqres .cqmine .m{display:inline-block;width:1.4em;font-weight:700}
-.cqex .cqright .m.ok,.cqres .cqmine .m.ok{color:var(--cell-ok)} .cqres .cqmine .m.bad{color:var(--bad)} .cqres .cqmine .m.cmp{color:var(--cell-open)}
+.cqex .cqright .m,.cqchk .cqmine .m{display:inline-block;width:1.4em;font-weight:700}
+.cqex .cqright .m.ok,.cqchk .cqmine .m.ok{color:var(--cell-ok)} .cqchk .cqmine .m.bad{color:var(--bad)} .cqchk .cqmine .m.cmp{color:var(--cell-open)}
+.cqex .cqnote{margin:0;padding-left:10px;border-left:2px solid var(--cell-uns-edge);font:400 14px/1.5 var(--body)}
 .cqex .chint{margin-top:-2px}
 .cqres{margin-top:12px}
-.cqres .cqwhat,.cqres .cqconf,.cqres .cqmine{margin:8px 0 0;font-size:14px;line-height:1.5}
+.cqres .cqwhat,.cqres .cqconf{margin:8px 0 0;font-size:14px;line-height:1.5}
 .cqres .cqconf{padding-left:10px;border-left:2px solid var(--line);color:var(--ink)}
 /* the sheet of the three checks: a check that does not hold is the fault to find, so it is marked in amber and by words, never as the wrong answer is (the first one is the reply) */
 .cqchecks{list-style:none;margin:12px 0 0;padding:0;border:1px solid var(--line);background:var(--paper)}
@@ -33,6 +34,7 @@
 .cqst{padding:3px 7px;border:1px solid var(--line);color:var(--ink-muted);font:600 11px/1.2 var(--body);letter-spacing:.04em;text-transform:uppercase}
 .cqchk.fails .cqst{border-color:var(--cell-uns-edge);background:var(--cell-uns-soft);color:var(--cell-uns)}
 .cqcl{margin-top:2px;font:400 14px/1.5 var(--body);color:var(--ink)}
+.cqchk .cqmine{margin:6px 0 0;font:400 14px/1.5 var(--body)}
 @media (max-width:480px){
   .cqt{font-size:19px}
 }

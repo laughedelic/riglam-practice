@@ -16,7 +16,7 @@ const KEYS=["1","2","3"];
 /** The answers to consequences, oldest first. They sit in the collection of the Relations answers, in a shape of their own (types.ts, ConsequenceDoc). */
 export const cqList=()=>/** @type {import("../types.ts").ConsequenceDoc[]} */(/** @type {unknown} */(Object.values(state.answers).filter(isCq))).sort((x,y)=>(x.at||"").localeCompare(y.at||""));
 export function freshCqUi(){
-  return Object.assign(freshUi(),{cq:true, open:false, step:0, said:null, grade:null, ex:null, exText:""});
+  return Object.assign(freshUi(),{cq:true, open:false, step:0, said:null, grade:null, ex:null, exText:"", exNote:""});
 }
 /** The consequence on screen. */
 export const cqOf=()=>/** @type {import("../../domain/consequence.ts").Consequence} */(state.cur.c);
@@ -44,14 +44,15 @@ export function sayCq(reply){
 /** The counter-example step is done: with what was typed, or with nothing. */
 export function exampleCq(){
   const u=state.ui; if(!u||!u.cq||u.checked||u.step!==1) return;
-  const t=(u.exText||"").trim();
-  u.ex=t?Object.assign({text:t},gradeExample(state,cqOf(),t)):null;
+  const t=(u.exText||"").trim(), g=t?gradeExample(state,cqOf(),t):null;
+  if(g&&g.v==="self"){ u.exNote=g.line; render(); focusEx(); return; }      // the subject itself is no answer: ask again, nothing is graded
+  u.ex=g?Object.assign({text:t},g):null;
   finishCq();
 }
 /** Back from the counter-example to the reply. */
 export function backCq(){
   const u=state.ui; if(!u||!u.cq||u.checked||u.step!==1) return;
-  u.step=0; u.said=null; u.grade=null; u.exText=""; render();
+  u.step=0; u.said=null; u.grade=null; u.exText=""; u.exNote=""; render();
 }
 const docId=()=>"cq-"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 function finishCq(){

@@ -14,12 +14,18 @@ async function open(page) {
   await goTo(page, "Syllogisms");
   await expect(page.locator(".cqcard")).toBeVisible();
 }
-/** Draws consequences until one of this situation is on screen (1 to 8, see SITUATIONS in the domain). */
-async function draw(page, situation) {
-  const found = await page.evaluate((s) => {
-    for (let i = 0; i < 600; i++) { if (window.__t.cur.c.situation === s) return true; window.__t.next(); }
+/**
+ * Draws consequences until one of this situation is on screen (1 to 8, see SITUATIONS in the domain). With `need` "witness", one that has a counter-example other than
+ * its subject; with "both", one for which the data has another thing that is the reason and the predicate.
+ */
+async function draw(page, situation, need = "") {
+  const found = await page.evaluate(([s, n]) => {
+    const things = () => window.__t.DATA.items.filter((i) => !i.ne && !i.comp && !i.body);
+    const fits = (c) => c.situation === s && (n === "witness" ? c.witness && c.witness !== c.subject
+      : n === "both" ? things().some((i) => i.n !== c.subject && i.c.includes(c.catR) && i.c.includes(c.catP)) : true);
+    for (let i = 0; i < 600; i++) { if (fits(window.__t.cur.c)) return true; window.__t.next(); }
     return false;
-  }, situation);
+  }, [situation, need]);
   expect(found, "situation " + situation).toBe(true);
   return page.evaluate(() => JSON.parse(JSON.stringify(window.__t.cur.c)));
 }
@@ -37,6 +43,8 @@ test("the exercise is in the menu, gives a syllogism with three replies, in the 
   const tints = await page.locator(".cqask .cqsay").evaluateAll((bs) => bs.map((b) => getComputedStyle(b).backgroundColor));
   expect(new Set(tints).size).toBe(3);
   await expect(page.locator(".pbar .fwd")).toHaveCount(0); // nothing to go forward to before a reply
+  // nothing repeats the name of the exercise above the card: no label on the card, no explaining sentence
+  await expect(page.locator(".qnl, .cap")).toHaveCount(0);
   expect(await overflow(page)).toBeLessThanOrEqual(0);
   // the app opens on the exercise used last
   await page.reload();
@@ -55,6 +63,7 @@ test("a right reply is Right and is kept in the answers, apart from the Relation
   await expect(page.locator(".cqchk")).toHaveCount(3);
   await expect(page.locator(".cqchk .cqch b")).toHaveText(["Reason", "Pervasion", "Thesis"]);
   await expect(page.locator(".cqchk.holds")).toHaveCount(3);
+  await expect(page.locator(".cqchk .cqst")).toHaveText(["established", "holds", "true"]);
   await expect(page.locator(".cqchk.first")).toHaveCount(0);
   for (const k of ["e", "v", "t"]) await expect(page.locator(".cqchecks")).toContainText(c.checks[k].line);
   expect(await overflow(page)).toBeLessThanOrEqual(0);
@@ -106,31 +115,58 @@ test("when both the reason and the pervasion fail, the reason comes first: denyi
 
 test("a right 'there is no pervasion' asks for a counter-example: a real one keeps the result Right", async ({ page }) => {
   await open(page);
-  const c = await draw(page, 3);
+  const c = await draw(page, 3, "witness");
   await say(page, "pervasion");
   await expect(page.locator("#cqex")).toBeVisible();
   await expect(page.locator(".cqex")).toContainText("Right: there is no pervasion.");
   await expect(page.locator(".cqres")).toHaveCount(0); // the result waits for the example
   expect(await overflow(page)).toBeLessThanOrEqual(0);
-  // in this situation the subject is the reason and is not the conclusion: it is a counter-example itself
-  await page.fill("#cqex", c.subject);
+  // the data has another thing that is the reason and is not the predicate
+  await page.fill("#cqex", c.witness);
   await page.locator("#cqex").press("Enter");
   await expect(headline(page)).toHaveText("Right.");
-  await expect(page.locator(".cqres .cqmine")).toContainText("a counter-example");
+  // the counter-example is judged in the pervasion's row, under the line that says the pervasion fails (not in the box that says right or wrong)
+  const mine = page.locator(".cqchk", { hasText: "Pervasion" }).locator(".cqmine");
+  await expect(mine).toContainText(`Your counter-example: ${c.witness}.`);
+  await expect(mine).toContainText("so there is no pervasion.");
+  await expect(page.locator(".cqchk", { hasText: "Pervasion" }).locator(".cqcl + .cqmine")).toHaveCount(1);
+  await expect(page.locator(".cqres .cqmine")).toHaveCount(0);
   const [doc] = await expect.poll(async () => (await saved(page)).length).toBe(1).then(() => saved(page));
-  expect(doc).toMatchObject({ situation: 3, correct: true, grade: "ok", example: { text: c.subject, verdict: "ok" } });
+  expect(doc).toMatchObject({ situation: 3, correct: true, grade: "ok", example: { text: c.witness, verdict: "ok" } });
+});
+
+test("the subject itself is not taken as a counter-example: the page asks for another thing, and grades nothing", async ({ page }) => {
+  await open(page);
+  const c = await draw(page, 3); // the subject is the reason and is not the predicate: it would be a counter-example, but it is on the card already
+  await say(page, "pervasion");
+  await page.fill("#cqex", c.subject);
+  await page.locator("#cqex").press("Enter");
+  await expect(page.locator(".cqnote")).toBeVisible();
+  await expect(page.locator(".cqnote")).toContainText("That is the subject itself. Name another thing");
+  await expect(page.locator("#cqex")).toBeFocused();
+  await expect(page.locator(".cqres")).toHaveCount(0); // still at the step, nothing is graded and nothing is saved
+  expect(await saved(page)).toHaveLength(0);
+  await page.locator(".pbar .fwd").click(); // Check does the same
+  await expect(page.locator(".cqnote")).toBeVisible();
+  await page.locator("#cqex").press("a"); // typing something else takes the note away
+  await expect(page.locator(".cqnote")).toBeHidden();
+  await page.fill("#cqex", "");
+  await page.locator("#cqex").press("Enter"); // and leaving it empty goes on
+  await expect(headline(page)).toHaveText("Right.");
 });
 
 test("a counter-example that is not one makes the result partly right; one left out, or one the page cannot place, does not", async ({ page }) => {
   await open(page);
-  const c = await draw(page, 2); // the subject is the reason and the conclusion, and the pervasion fails: the subject is no counter-example
+  const c = await draw(page, 2, "both"); // the subject is the reason and the predicate, and the pervasion fails
   expect(c.answer).toBe("pervasion");
   await say(page, "pervasion");
-  await page.fill("#cqex", c.subject);
+  // another thing that is the reason and the predicate too is no counter-example
+  const both = await page.evaluate((x) => window.__t.DATA.items.find((i) => !i.ne && !i.comp && !i.body && i.n !== x.subject && i.c.includes(x.catR) && i.c.includes(x.catP)).n, c);
+  await page.fill("#cqex", both);
   await page.locator(".pbar .fwd").click(); // Check
   await expect(headline(page)).toHaveText("Right, but the counter-example is not one.");
   await expect(page.locator(".cqres")).toHaveClass(/part/);
-  await expect(page.locator(".cqres .cqmine")).toContainText("it is no counter-example");
+  await expect(page.locator(".cqchk .cqmine")).toContainText("it is no counter-example");
   const [doc] = await expect.poll(async () => (await saved(page)).length).toBe(1).then(() => saved(page));
   expect(doc).toMatchObject({ situation: 2, said: "pervasion", correct: true, grade: "part", example: { verdict: "bad" } });
   await next(page).click();
@@ -138,14 +174,14 @@ test("a counter-example that is not one makes the result partly right; one left 
   await say(page, "pervasion");
   await page.locator(".pbar .fwd").click(); // nothing typed: on without a counter-example
   await expect(headline(page)).toHaveText("Right.");
-  await expect(page.locator(".cqres .cqmine")).toHaveCount(0);
+  await expect(page.locator(".cqchk .cqmine")).toHaveCount(0);
   await next(page).click();
   await draw(page, 2);
   await say(page, "pervasion");
   await page.fill("#cqex", "a thing the course knows nothing of");
   await page.locator("#cqex").press("Enter");
   await expect(headline(page)).toHaveText("Right.");
-  await expect(page.locator(".cqres .cqmine")).toContainText("Not checked");
+  await expect(page.locator(".cqchk .cqmine")).toContainText("Not checked");
 });
 
 test("the keys 1, 2 and 3 reply (the reason, the pervasion, accept), S skips, N goes on, and Escape leaves the counter-example", async ({ page }) => {

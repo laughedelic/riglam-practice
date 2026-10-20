@@ -111,7 +111,7 @@ function consequenceBody(){
     row("Wording",chips("Wording of the syllogism",[["take","Take X"],["formal","Formal"]],state.cqWording,setCqWording),
       "Take X: “Take a tomato. It follows it is food because it is red.” Formal: “It follows that the subject, a tomato, is food because of being red.”"),
     row("Things",chips("Which things the syllogisms are about",[[1,"Everyday"],[2,"With Dudra terms"]],state.cqLevel,setCqLevel),
-      "Everyday: ordinary things and their properties (a tomato, red, food). With Dudra terms: also the classes of Dudra (a form, a sound, impermanent, a consciousness). The change applies from the next syllogism."),
+      "Everyday (a tomato, red, food). With Dudra terms (a form, a sound, impermanent, a consciousness, etc.). The change applies from the next syllogism."),
     el("p",{class:"capl"},"The Magic Key, your account, data and the version are in ",el("button",{type:"button",class:"lnk",onclick:()=>{ toggleSess(false); toggleOpts(true); }},"Settings"),".")
   ];
 }
