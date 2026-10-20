@@ -41,10 +41,13 @@ export function deviceExamples(full, built) {
 
 const isText = (v) => typeof v === "string" && v.trim().length > 0;
 const isTexts = (v) => Array.isArray(v) && v.every(isText);
+/** The optional fields the page and the tutor read, by type (src/ai-shared/examples.ts reads the same ones: an item wrong in one of them is dropped there, so the import must refuse it here). */
+const TEXT_FIELDS = ["k", "f", "cf", "cn", "bg", "gloss"];
+const FLAG_FIELDS = ["ne", "inc"];
 
 /**
  * What is wrong with the full examples against the open data, as sentences (none when it is usable): the format, the fields of each
- * item, classes that are not terms of the open data, source ids missing from the table, and two items with the same name.
+ * item and their types, classes that are not terms of the open data, source ids missing from the table, and two items with the same name.
  */
 export function examplesProblems(full, open) {
   if (!full || typeof full !== "object" || Array.isArray(full)) return ["the examples file is not a JSON object"];
@@ -59,6 +62,9 @@ export function examplesProblems(full, open) {
     if (![1, 2, 3, 4].includes(it.lv)) problems.push(`${what} has the level ${JSON.stringify(it.lv)}, not 1 to 4`);
     for (const f of ["al", "cls", "not"]) if (it[f] !== undefined && !isTexts(it[f])) problems.push(`${what} has a ${f} that is not a list of names`);
     for (const f of ["cls", "not"]) for (const c of isTexts(it[f]) ? it[f] : []) if (!Object.hasOwn(open.terms, c)) problems.push(`${what} names ${JSON.stringify(c)} in ${f}, which is not a term of the open data`);
+    for (const f of TEXT_FIELDS) if (it[f] !== undefined && typeof it[f] !== "string") problems.push(`${what} has a ${f} that is not text`);
+    for (const f of FLAG_FIELDS) if (it[f] !== undefined && typeof it[f] !== "boolean") problems.push(`${what} has a ${f} that is not true or false`);
+    if (it.sc !== undefined && typeof it.sc !== "number") problems.push(`${what} has an sc that is not a number`);
     if (!Array.isArray(it.src) || !it.src.length) problems.push(`${what} has no source`);
     else for (const s of it.src) if (!Array.isArray(s) || !isText(s[0]) || !Object.hasOwn(sources, s[0])) problems.push(`${what} names a source that is not in the table: ${JSON.stringify(s)}`);
     const key = sameName(it.n);

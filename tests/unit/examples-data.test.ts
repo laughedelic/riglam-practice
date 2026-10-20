@@ -52,6 +52,21 @@ test("examplesProblems accepts usable examples and names what is wrong otherwise
   ]);
 });
 
+test("an item the reader would drop is refused at the import: the two check the same fields", () => {
+  const wrong: Record<string, unknown>[] = [
+    { ne: "false" }, { inc: 1 }, { sc: "2" }, { gloss: ["x"] }, { k: 3 }, { f: {} }, { cf: false }, { cn: null }, { bg: 1 },
+    { al: "vemo" }, { al: [1] }, { cls: "Color" }, { cls: [null] }, { not: "Form" }, { not: [["Form"]] },
+  ];
+  for (const bad of wrong) {
+    const item = { ...ITEM, n: "a vemo", al: ["vemo"], base: undefined, ...bad };
+    expect(examplesProblems(full([item]), OPEN), JSON.stringify(bad)).not.toEqual([]);
+    expect(readExamples({ items: [{ ...deviceExamples(full([ITEM]), "x").items[0], ...bad }] })!.items, JSON.stringify(bad)).toEqual([]);
+  }
+  const good = { ...ITEM, ne: false, inc: true, sc: 2, k: "thing", f: "combination", cn: "medium", bg: "glossed" };
+  expect(examplesProblems(full([good]), OPEN)).toEqual([]);
+  expect(readExamples(deviceExamples(full([good]), "x"))!.items).toHaveLength(1);
+});
+
 test("the made-up examples fit the open data, are the same every time, and exercise every field the device part drops", () => {
   const open = readOpen();
   const made = madeUpExamples(open);
@@ -65,6 +80,7 @@ test("the made-up examples fit the open data, are the same every time, and exerc
   expect(items.some((i) => i.src.some(([id]) => id === "MX"))).toBe(true);
   const device = JSON.stringify(deviceExamples(made, open.built).items);
   expect(device).not.toMatch(/"MX"|[\u4e00-\u9fff]|"src"|"web"|"mem"|"base"/);
+  expect(readExamples(deviceExamples(made, open.built))!.items, "the reader keeps every item of a checked file").toHaveLength(made.items.length);
 });
 
 // ---- the reference examples ----
