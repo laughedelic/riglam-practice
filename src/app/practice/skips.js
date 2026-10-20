@@ -67,7 +67,7 @@ function skipFind(){
   const doc=JSON.parse(JSON.stringify(draft));
   state.skips[k]=doc;
   if(state.db) skipWrite(k,()=>put("skips",k,doc),()=>{ if(had) state.skips[k]=had; else delete state.skips[k]; });
-  advanceFind(state.findRel?undefined:u.rel);
+  advanceFind();
   const n=state.skipNote={p,key:k,had,debate:false,find:true,ui: state.ui,prev,tid:0};
   n.tid=setTimeout(()=>{ if(state.skipNote===n){ state.skipNote=null; hideSkipHint(); if(isWide()) render(); } },UNDO_MS);
   render(); top0(); showSkipHint();

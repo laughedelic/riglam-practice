@@ -9,7 +9,7 @@ import { freshUi } from "../practice/queue.js";
 import { clearSkip } from "../practice/skips.js";
 import { focusCin, render, top0 } from "../shell/render.js";
 import { switchTo } from "../shell/tabs.js";
-import { drawRelation, findPair, gradeFind, nameThing, sameThing } from "../../domain/find.ts";
+import { drawRelation, findId, findPair, gradeFind, nameThing, sameThing } from "../../domain/find.ts";
 
 /* ---------- Find a pair: the usual exercise the other way round ---------- */
 // The learner is given a relation and names two phenomena that stand in it, then writes an example for each cell the relation leaves possible, as in Relations.
@@ -23,15 +23,21 @@ export function freshFindUi(rel){
   return Object.assign(freshUi(),{find:true, rel, open:false, step:0, wordA:"", wordB:"", pairErr:"", own:false, focusA:true});
 }
 const asked=rel=>{ state.findAsked=[...state.findAsked,rel].slice(-SIX); return rel; };
-/** The next relation to ask for, with no pair named yet: the one the learner picked, else a draw (leaving out `not`, the one just given up). */
-export function advanceFind(not){
+// the relation is now `k`: the examples written stay, except those in a cell it leaves empty (as in Relations)
+function useRel(u,k){
+  u.rel=k; u.ci=0; u.seen=0; u.pop=null;
+  for(const c of REL[k].empty){ u.cells[c].t=""; u.cells[c].none=false; }
+}
+/** The next relation to ask for, with no pair named yet: the one the learner picked, else a draw that leaves out `not` (by default the one asked last, so a draw is never the same twice running). */
+export function advanceFind(not=state.findAsked[state.findAsked.length-1]){
   state.cur=/** @type {any} */({p:null,find:true}); state.ui=freshFindUi(asked(state.findRel||drawRelation(state.findAsked,Math.random,not))); state.mode="quiz";
 }
-/** Asks for another, drawn relation instead, while no examples are written; the words typed stay. */
+/** Asks for another, drawn relation instead, while no examples are being written; the words and the examples already written stay (those in a cell the new relation leaves empty go). */
 export function anotherRelation(){
   const u=state.ui; if(!u||!u.find||u.checked||u.step!==0) return;
-  u.rel=asked(drawRelation(state.findAsked,Math.random,u.rel)); u.pairErr="";
-  Object.assign(u,{cells:freshUi().cells, ci:0, seen:0, pop:null});
+  u.pairErr="";
+  useRel(u,asked(drawRelation(state.findAsked,Math.random,u.rel)));
+  if(state.cur.p&&state.cur.p.own) state.cur.p.relation=u.rel;
   render();
 }
 /**
@@ -45,8 +51,7 @@ export function chooseRel(k){
   u.open=false; u.pairErr="";
   if(!k){ if(u.step===0) anotherRelation(); else render(); return; }
   if(k!==u.rel){
-    asked(k); u.rel=k; u.ci=0; u.seen=0; u.pop=null;
-    for(const c of REL[k].empty){ u.cells[c].t=""; u.cells[c].none=false; }
+    useRel(u,asked(k));
     if(state.cur.p&&state.cur.p.own) state.cur.p.relation=k;
   }
   render();
@@ -97,11 +102,12 @@ export function checkFind(){
   if(u.res.relOpen) u.doc.relOpen=true;
   persist(u,"Your answer");
 }
-/** Opens a pair that was skipped (Review, Skipped) at its examples, for the relation that was asked for then. The relation the learner has picked is not changed. */
+/** Opens a pair that was skipped (Review, Skipped) at its examples, for the relation that was asked for then (it counts as asked, so the draw after it leaves it out). The relation the learner has picked is not changed. The attempt has an id of its own, as it is the id of the answer: another relation chosen here leaves the skip on the list, and answering that later must not replace this answer. */
 export function resumeFind(pair,rel){
   switchTo("find");
   const p=JSON.parse(JSON.stringify(pair));       // a copy: the skipped pair stays as it was kept
+  p.id=findId();
   state.cur=/** @type {any} */({p,find:true});
-  state.ui=Object.assign(freshFindUi(rel||p.relation),{step:1, wordA:p.a, wordB:p.b, own:!!p.own, focusA:false});
+  state.ui=Object.assign(freshFindUi(asked(rel||p.relation)),{step:1, wordA:p.a, wordB:p.b, own:!!p.own, focusA:false});
   state.mode="quiz"; render(); top0();
 }

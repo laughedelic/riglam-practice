@@ -374,3 +374,89 @@ test("The settings of Find a pair can turn the suggestions of the pair fields of
   await usePair(page, "forms", "minds");
   expect(await page.evaluate(() => window.__t.cur.p.own)).toBeUndefined(); // typed by hand, still the categories of the course
 });
+
+test("a different relation after Change pair keeps the examples the new relation leaves possible", async ({ page }, testInfo) => {
+  await open(page);
+  await goFind(page, testInfo);
+  await askFor(page, "Four possibilities");
+  await usePair(page, "my cat", "my dog");
+  await page.evaluate(() => { const u = window.__t.ui; u.cells.nei.t = "a stone"; }); // Neither is possible in every relation
+  await (isPhone(testInfo) ? page.locator("#steps button").first() : page.getByRole("button", { name: "Change pair" })).click();
+  await expect(page.locator("#fw-a")).toBeVisible();
+  await page.locator("#stage .head .mid").click();
+  await page.locator(".rels .rel").first().click(); // Random: another relation at once
+  expect(await relation(page)).not.toBe("Four possibilities");
+  expect(await page.evaluate(() => window.__t.ui.cells.nei.t)).toBe("a stone");
+  await page.getByRole("button", { name: "Use this pair" }).click(); // the same words: the examples are still there
+  expect(await page.evaluate(() => window.__t.ui.cells.nei.t)).toBe("a stone");
+});
+
+test("Next relation in Random mode never asks for the relation just given", async ({ page }, testInfo) => {
+  await open(page);
+  await goFind(page, testInfo);
+  await askFor(page, "Mutually inclusive");
+  await usePair(page, "my cat", "my dog");
+  await page.locator("#stage .head .mid").click(); // back to Random for the next pairs; this pair keeps its relation
+  await page.locator(".rels .rel").first().click();
+  await page.evaluate(() => { Math.random = () => 0; }); // the draw would take the first relation of the list, the one just given, if it were allowed
+  await examples(page, testInfo, { both: "a pet", nei: "a stone" });
+  await page.getByRole("button", { name: "Next relation" }).click();
+  expect(await relation(page)).not.toBe("Mutually inclusive");
+});
+
+test("a skip that could not be saved is undone and said on the screen", async ({ page }, testInfo) => {
+  await open(page);
+  await goFind(page, testInfo);
+  await askFor(page, "Mutually inclusive");
+  await usePair(page, "my cat", "my dog");
+  await page.evaluate(async () => { // the skips collection refuses writes
+    const db = await window.__riglam.platform.db(), real = db.collection.bind(db);
+    db.collection = (name) => (name === "skips" ? { doc: () => ({ set: async () => { throw Object.assign(new Error("full"), { code: "quota_exceeded" }); }, delete: async () => {} }) } : real(name));
+  });
+  await skip(page, testInfo).click();
+  await expect(page.locator("#stage .status")).toContainText("The skip could not be saved (quota_exceeded), so it was undone.");
+  expect(await page.evaluate(() => Object.keys(window.__t.skips).length)).toBe(0);
+});
+
+test("a pair opened again from Review counts as asked, so the next relation is a different one", async ({ page }, testInfo) => {
+  await open(page);
+  await goFind(page, testInfo);
+  await askFor(page, "Mutually inclusive");
+  await usePair(page, "my cat", "my dog");
+  await skip(page, testInfo).click();
+  await askFor(page, "Four possibilities"); // the history of asked relations now ends here
+  await usePair(page, "red apples", "pears");
+  await page.locator("#stage .head .mid").click();
+  await page.locator(".rels .rel").first().click(); // Random for the next pairs; this pair keeps four possibilities
+  await tabNamed(page, testInfo, "Review").click();
+  await page.locator(".skips li").getByRole("button", { name: "Practice" }).click();
+  expect(await relation(page)).toBe("Mutually inclusive");
+  await page.evaluate(() => { Math.random = () => 0; }); // the draw would take the first relation of the list, which is this one, if only the other were left out
+  await examples(page, testInfo, { both: "a pet", nei: "a stone" });
+  await page.getByRole("button", { name: "Next relation" }).click();
+  expect(await relation(page)).not.toBe("Mutually inclusive");
+});
+
+test("a skipped pair answered for another relation and then again for its own keeps both answers", async ({ page }, testInfo) => {
+  await open(page);
+  await goFind(page, testInfo);
+  await askFor(page, "Mutually inclusive");
+  await usePair(page, "my cat", "my dog");
+  await skip(page, testInfo).click();
+  await expect.poll(async () => (await skipDocs(page)).length).toBe(1);
+  await tabNamed(page, testInfo, "Review").click();
+  await page.locator(".skips li").getByRole("button", { name: "Practice" }).click();
+  await askFor(page, "Four possibilities"); // another relation: the skip, kept under the first one, stays on the list
+  await examples(page, testInfo, { both: "a pet", anb: "a cat", bna: "a dog", nei: "a stone" });
+  await expect(headline(page)).toHaveText("Your pair is waiting for Claude.");
+  await expect.poll(async () => (await saved(page)).length).toBe(1);
+  await expect.poll(async () => (await skipDocs(page)).length).toBe(1);
+  await tabNamed(page, testInfo, "Review").click();
+  await page.locator(".skips li").getByRole("button", { name: "Practice" }).click();
+  expect(await relation(page)).toBe("Mutually inclusive");
+  await examples(page, testInfo, { both: "a pet", nei: "a stone" });
+  await expect(headline(page)).toHaveText("Your pair is waiting for Claude.");
+  await expect.poll(async () => (await saved(page)).length).toBe(2);
+  const ids = (await saved(page)).map((d) => d.pairId);
+  expect(new Set(ids).size).toBe(2);
+});

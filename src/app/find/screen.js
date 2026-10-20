@@ -113,6 +113,10 @@ function findResult(){
 }
 
 export function renderFind(s,c){
+  renderFindBody(s,c);
+  if(state.skipErr) s.append(el("p",{class:"status",text:state.skipErr}));   // a skip that could not be saved was undone: it is said on every step, as in Relations
+}
+function renderFindBody(s,c){
   const u=state.ui, p=state.cur.p, w=isWide(), done=u.checked;
   if(!w) setSteps(["Pair","Examples","Result"],done?2:u.step,[done||u.step===0?null:editPair,null,null]);
   findHead(s);

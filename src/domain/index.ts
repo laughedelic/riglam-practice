@@ -14,7 +14,7 @@ export type { Clock, DrawState, Rng } from "./universe";
 export { cap, gradeOf, isMiss, pick } from "./util";
 export { NAME_CELL, VERDICT_RE, applyRelationVerdict, applyVerdicts, factNote, fitOf, noteParts, parseFactLine, parseRelationVerdict, parseVerdicts, partsText, placeFacts } from "./verdict";
 export type { Answer, CellVerdict, FactLine, NoteData, NotePart, RelationVerdict, Side, Terms } from "./verdict";
-export { FIND_RELS, drawRelation, findPair, gradeFind, nameThing, sameThing } from "./find";
+export { FIND_RELS, drawRelation, findId, findPair, gradeFind, nameThing, sameThing } from "./find";
 export type { Named } from "./find";
 export { cellFor, cellOfFacts, disputeText, divided, quorumDisputes, quorumRows, readings } from "./quorum";
 export type { Dispute, QuorumAnswer, QuorumRow, QuorumThing, Reading } from "./quorum";
