@@ -202,11 +202,12 @@ withKey("the course's reference examples on the device settle an example they na
 });
 
 // the server keeps the examples the tutor checked (health says `learns`): the learner is told once, when the first question names their examples, and can keep them out;
-// the practice options keep the switch. The question that comes with the notice goes without the `share` marker, so the server keeps nothing of it.
+// the practice options keep the switch. The notice is a card at the head of the answer, in the page's flow. The question that comes with it goes without the `share`
+// marker, so the server keeps nothing of it.
 const share = (page) => page.getByRole("switch", { name: /share my examples/i });
 const openOptions = (page) => page.getByRole("button", { name: "Practice options" }).click();
 const closeOptions = (page) => page.locator("#over .oc").click();
-const notice = (page) => page.locator("#sharenote");
+const notice = (page) => page.locator(".sharenote");
 const LEARNS = { health: { ok: true, tutor: "on", learns: "on" }, known: () => ({ status: 200, body: { known: [] } }) };
 /** A device that was told before: the notice is not shown and the marker is sent. */
 const told = { before: (page) => page.addInitScript(() => { if (!localStorage.getItem("rd-share-told")) localStorage.setItem("rd-share-told", "1"); }) };
@@ -226,9 +227,12 @@ withKey("the first question that names examples shows the notice and goes withou
   expect(asked.tutor[0].body.examples.length).toBeGreaterThan(0);
   expect(asked.tutor[0].body).not.toHaveProperty("share"); // the server keeps nothing until the learner has been told
   await expect(notice(page)).toBeVisible();
-  await expect(notice(page)).toContainText("Build knowledge together");
-  await expect(notice(page)).toContainText("Nothing about you is kept");
+  await expect(page.locator("#vpanel .tutor .sharenote")).toHaveCount(1); // in the flow, at the head of the answer (the Why chip): nothing hides the answer or the practice options
+  await expect(notice(page)).toContainText("Share your examples?");
+  await expect(notice(page)).toContainText("we all build knowledge together");
+  await expect(notice(page)).toContainText("nothing that says who you are is kept");
   await expect(notice(page)).toContainText("practice options");
+  await expect(notice(page)).not.toContainText("answers sooner"); // this server does not answer from what it keeps
   await notice(page).getByRole("button", { name: "Share", exact: true }).click();
   await expect(notice(page)).toHaveCount(0);
   expect(await page.evaluate(() => [localStorage.getItem("rd-share"), localStorage.getItem("rd-share-told")])).toEqual(["1", "1"]);
@@ -280,6 +284,36 @@ withKey("the switch in the practice options tells the device's answer too, so no
   await expect.poll(() => asked.tutor.length).toBe(1);
   expect(asked.tutor[0].body.share).toBe(true);
   await expect(notice(page)).toHaveCount(0);
+});
+
+withKey("where the server also answers from what it keeps, the notice says other learners get answers sooner", async ({ page }, testInfo) => {
+  const asked = await open(page, testInfo, { ...LEARNS, health: { ok: true, tutor: "on", known: "on", learns: "on" } });
+  await explain(page).click();
+  await expect.poll(() => asked.tutor.length).toBe(1);
+  await expect(notice(page)).toContainText("other learners get answers sooner");
+});
+
+withKey("with Check every answer with AI on, the notice comes with the explanation that began by itself", async ({ page }, testInfo) => {
+  const asked = await open(page, testInfo, LEARNS, { autoExplain: "1" });
+  await expect.poll(() => asked.tutor.length).toBe(1);
+  expect(asked.tutor[0].body).not.toHaveProperty("share");
+  await expect(notice(page)).toBeVisible();
+  await notice(page).getByRole("button", { name: /don.t share/i }).click();
+  await expect(notice(page)).toHaveCount(0);
+});
+
+withKey("the switch in the practice options answers the notice that is waiting, and takes it away", async ({ page }, testInfo) => {
+  const asked = await open(page, testInfo, LEARNS);
+  await explain(page).click();
+  await expect.poll(() => asked.tutor.length).toBe(1);
+  await expect(notice(page)).toBeVisible();
+  await openOptions(page);
+  await expect(share(page)).toHaveAttribute("aria-checked", "true");
+  await share(page).click();
+  await expect(share(page)).toHaveAttribute("aria-checked", "false");
+  await closeOptions(page);
+  await expect(notice(page)).toHaveCount(0);
+  expect(await page.evaluate(() => [localStorage.getItem("rd-share"), localStorage.getItem("rd-share-told")])).toEqual(["0", "1"]);
 });
 
 withKey("a device that was told sends the marker with its first question", async ({ page }, testInfo) => {

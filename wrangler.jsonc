@@ -49,7 +49,7 @@
     "QUORUM_GLOBAL_DAILY_BUDGET_USD": "4",
     "QUORUM_RESERVE_USD": "0.40",
     // Learned facts (docs/SERVER.md, "Learned facts"): production keeps what an explain answer says of the examples a learner typed, as the example's words only (no device,
-    // account, pair or cell), and the app tells the learner and offers the switch "Share my examples" in Options. It does not answer from them here: `serve` is set in the previews block only.
+    // account, pair or cell), and the app tells the learner once and offers the switch "Share my examples" in the practice options. It does not answer from them here: `serve` is set in the previews block only.
     "EXAMPLE_FACTS": "record"
   },
   // The review of flag reports (worker/review.ts, docs/SERVER.md): a pass every ten minutes. It looks at one table first and does

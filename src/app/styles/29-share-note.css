@@ -1,13 +1,7 @@
-/* The one-time notice before a device's examples are kept (ai/share-notice.js): a small card under the top bar, centered on a phone, at the right on a wide screen, like the
-   notice of a newer version (src/pwa/shell.css, #upd). */
-#sharenote{position:fixed;z-index:30;top:calc(60px + env(safe-area-inset-top,0px));left:12px;right:12px;margin-inline:auto;width:min(26rem,calc(100% - 24px));box-sizing:border-box;padding:12px 14px;background:var(--paper,#fff);color:var(--ink,#000);border:1.5px solid var(--ink,#000);box-shadow:4px 4px 0 var(--ink,#000);font:14px/1.45 var(--body,sans-serif)}
-#sharenote p{margin:0 0 8px}
-#sharenote .sn-t{font-weight:700}
-#sharenote .sn-s{font-size:13px;color:var(--ink-muted,#4d5260)}
-#sharenote .sn-a{display:flex;flex-wrap:wrap;gap:8px}
-#sharenote .btn{height:36px;padding:0 12px}
-@media (min-width:900px){#sharenote{left:auto;right:16px;margin-inline:0}}
-/* below the notice of a newer version when both are up */
-body:has(#upd:not([hidden])) #sharenote{top:calc(132px + env(safe-area-inset-top,0px))}
-@media (prefers-reduced-motion:no-preference){#sharenote{animation:sharenote-in .22s ease-out}}
-@keyframes sharenote-in{from{opacity:0;transform:translateY(-8px)}}
+/* The one-time notice before a device's examples are kept (ai/share-notice.js): a card at the head of the tutor's answer, in the flow of the page. */
+.sharenote{display:grid;gap:8px;padding:12px 14px;border:1.5px solid var(--ink);background:var(--paper);box-shadow:3px 3px 0 var(--ink);font-size:14px;line-height:1.45}
+.sharenote p{margin:0}
+.sharenote .sn-t{font-weight:700}
+.sharenote .sn-s{font-size:13px;color:var(--ink-muted)}
+.sharenote .sn-a{display:flex;flex-wrap:wrap;gap:8px}
+.sharenote .btn{height:36px;padding:0 12px}

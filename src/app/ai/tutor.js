@@ -4,7 +4,6 @@ import { ERR_OFF, canAsk } from "../core/ask.js";
 import { CELLS } from "../core/rel.js";
 import { isWide } from "../core/viewport.js";
 import { quorumBegin, quorumDropped, quorumEnd, quorumStep, quorumThings, quorumWanted } from "./quorum.js";
-import { showShareNotice } from "./share-notice.js";
 import { persist } from "../practice/answers.js";
 import { factNode, fillTurn, noteData, revealTutor } from "../practice/screen.js";
 import { render, renderKeepFocus } from "../shell/render.js";
@@ -65,6 +64,11 @@ export async function ask(text,kind,byItself){
   const p=C.p, direct=!!state.sample;                  // the host's own model call, or else the app's server
   const quorum=kind==="explain"&&quorumWanted(U);     // the explanation of a checked answer is asked of Quorum, where this server offers it, this device has it on and an example is left to check
   const body=kind==="explain"?explainAsk(U):text;
+  // The server keeps the examples only with `share`, which a page sends where the server said it keeps learned facts and the learner was told (share-notice.js). The first
+  // question that names examples goes without it, and the notice comes with the answer.
+  const examples=!direct&&kind==="explain"&&sharing()?openExamples(U):[];
+  const share=examples.length>0&&state.learns&&state.shareTold;
+  if(examples.length&&state.learns&&!state.shareTold) U.shareAsk=true;   // the card is shown with this answer until the learner has answered it (anywhere)
   // The server holds the standing instructions and the notes itself, so what it gets as the first turn is the card alone.
   if(!U.chat) U.chat=[{role:"user",content:(direct?tutorCard(state,p,U):cardBody(state,p,U))+"\n\n"+body, hidden:true, asked:kind?undefined:text}];   // `asked`: the question alone, for a flag on its answer
   else U.chat.push({role:"user",content:body,hidden:!!kind});
@@ -86,11 +90,7 @@ export async function ask(text,kind,byItself){
       try{ r=await state.sample(turns,opts); }
       catch(e){ if(e&&e.code==="tools_unavailable"){ delete opts.tools; r=await state.sample(turns,opts); } else throw e; }
     }else{
-      const examples=kind==="explain"&&sharing()?openExamples(U):[];
-      // the server keeps them only with `share`, which a page sends where the server said it keeps learned facts and the learner was told (share-notice.js); the first question
-      // that names examples goes without it, and the notice appears
-      if(examples.length&&state.learns&&!state.shareTold) showShareNotice();
-      r=await state.tutor({kind:kind==="explain"?"explain":"chat",cats:noteCats(state,p),turns,...(quorum?{quorum:true}:{}),...(examples.length?{examples,...(state.learns&&state.shareTold?{share:true}:{})}:{})},{signal:ctl.signal,onText,onStep:s=>quorumStep(U,s)});
+      r=await state.tutor({kind:kind==="explain"?"explain":"chat",cats:noteCats(state,p),turns,...(quorum?{quorum:true}:{}),...(examples.length?{examples,...(share?{share:true}:{})}:{})},{signal:ctl.signal,onText,onStep:s=>quorumStep(U,s)});
     }
     slot.content=r.text+(r.truncated?"\n(Cut short.)":""); delete slot.pending;
     if(kind==="explain"){ if(U.doc) U.doc.explain=String(r.text||"").slice(0,3000); if(!((U.res.exOpen||U.res.relOpen)&&applyVerify(r.text,U,C))) saveExplain(U); }
