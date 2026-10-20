@@ -1,7 +1,7 @@
-// The consequence drill: "Take a tomato. It follows it is food because it is red." The learner answers that they accept it, that
+// The syllogism drill: "Take a tomato. It follows it is food because it is red." The learner answers that they accept it, that
 // the reason is not established, or that there is no pervasion. The answer is not a guess of the generator: it follows from three
 // checks of the term data, E (the subject is the reason), V (whatever is the reason is the predicate) and T (the subject is the
-// predicate), which fall into eight situations. A consequence is drawn by its answer and situation first, then by the links between
+// predicate), which fall into eight situations. A syllogism is drawn by its answer and situation first, then by the links between
 // its parts, so that the faulty ones tempt and the absurd ones stay few. Pure functions of the term data, like the rest of this folder.
 //
 // What proves what, as the practice data allows it: the subject's own category list proves E and T either way. Only the term chain
@@ -18,7 +18,7 @@ import type { Rng } from "./universe";
 import { FEATURE, RECENT_MAX, inUniverse } from "./universe";
 import { cap, isMiss } from "./util";
 
-/** What the learner says: accept the consequence, deny the reason ("the reason is not established"), or deny the pervasion. */
+/** What the learner says: accept the syllogism, deny the reason ("the reason is not established"), or deny the pervasion. */
 export type Reply = "accept" | "reason" | "pervasion";
 /** The replies in the order the buttons show them. */
 export const REPLIES: readonly Reply[] = ["reason", "pervasion", "accept"];
@@ -55,7 +55,7 @@ const SIT_IDS = Object.keys(SITUATIONS).map(Number) as Situation[];
 
 // What a category says after "it is" and after "because of being": the first phrase is the plain one, the others are other labels of the
 // same class (so that "impermanent because a product" can be drawn). Some of the data's labels have no phrase here ("hidden phenomena" is
-// the existent in the data and would make every consequence trivial). A category without a phrase is not drawn; the unit test names those.
+// the existent in the data and would make every syllogism trivial). A category without a phrase is not drawn; the unit test names those.
 const PHRASES: Record<string, readonly string[]> = {
   ft: ["impermanent", "a product", "a functional thing", "momentary", "able to perform a function"],
   perm: ["permanent", "a permanent phenomenon", "uncomposed", "non-produced"],
@@ -84,7 +84,7 @@ const GROUPS: readonly (readonly string[])[] = [
 
 // Pervasions among the practice categories that the term chain cannot show (an everyday category has no place of its own in it). Each one
 // follows from the category's own description in the data ("consciousness: mental consciousness remembering"). The others the items show
-// (everything made of wood is an external form, and so on) wait for a review: some rest on how the data treats a body.
+// (everything made of wood is an external form, and so on) only disprove a pervasion; they are not taken as proof that it holds.
 const REVIEWED: ReadonlySet<string> = new Set(["drink>liquid", "memory>ment", "thought>ment", "dream>ment"]);
 
 const WIDEST: ReadonlySet<string> = new Set(["Existent", "Functional thing"]);
@@ -92,7 +92,7 @@ const WIDEST: ReadonlySet<string> = new Set(["Existent", "Functional thing"]);
 const NOT_A_SUBJECT: ReadonlySet<string> = new Set(["you"]);
 
 type Holds = { how: "same" } | { how: "chain"; steps: string[] } | { how: "reviewed" };
-/** A pair of categories (reason, predicate) the drill can make consequences from, and what is known about its pervasion. */
+/** A pair of categories (reason, predicate) the drill can make syllogisms from, and what is known about its pervasion. */
 interface PairInfo {
   r: string;
   p: string;
@@ -187,7 +187,7 @@ function matches(rule: SituationRule, pair: PairInfo): boolean {
   }
 }
 
-/** How many of the four links between the parts a consequence has: the thesis is true, the reason is true or near the subject, the reason and predicate have something in common, the predicate is true or near the subject. */
+/** How many of the four links between the parts a syllogism has: the thesis is true, the reason is true or near the subject, the reason and predicate have something in common, the predicate is true or near the subject. */
 function linksOf(t: Table, pair: PairInfo, item: Item, rule: SituationRule): number {
   const nearTo = (x: string) => item.c.some((c) => c !== x && t.near.get(x)?.has(c));
   return (rule.t ? 1 : 0) + (rule.e || nearTo(pair.r) ? 1 : 0) + (pair.related ? 1 : 0) + (rule.t || nearTo(pair.p) ? 1 : 0);
@@ -230,8 +230,8 @@ export const pervasionConflicts = (ix: DataIndex): string[] => tableOf(ix).confl
 /** One of the three checks: whether it holds, and the sentence that shows it. */
 export interface Check { ok: boolean; line: string }
 
-/** A consequence to answer: what it says, what is right, and why, so that it can be shown and graded without the data. */
-export interface Consequence {
+/** A syllogism to answer: what it says, what is right, and why, so that it can be shown and graded without the data. */
+export interface Syllogism {
   /** the subject, the reason and the predicate, "reason|predicate|subject": the same one has the same id */
   id: string;
   subject: string;
@@ -297,7 +297,7 @@ function phrasesFor(pair: PairInfo, rng: Rng): [string, string] {
   return [rs[Math.floor(rng() * rs.length)], ps[Math.floor(rng() * ps.length)]];
 }
 
-function make(ix: DataIndex, c: Cand, sit: Situation, rng: Rng): Consequence {
+function make(ix: DataIndex, c: Cand, sit: Situation, rng: Rng): Syllogism {
   const { pair, item } = c, rule = SITUATIONS[sit];
   const [reason, first] = phrasesFor(pair, rng);
   // two categories that share a phrase would give "it is X because it is X"
@@ -317,8 +317,8 @@ function make(ix: DataIndex, c: Cand, sit: Situation, rng: Rng): Consequence {
   };
 }
 
-/** What the data says about a consequence of this subject (an item's name), reason and predicate (category ids), or null when the data cannot settle it. */
-export function consequenceOf(ix: DataIndex, subject: string, catR: string, catP: string, rng: Rng = Math.random): Consequence | null {
+/** What the data says about the syllogism of this subject (an item's name), reason and predicate (category ids), or null when the data cannot settle it. */
+export function syllogismOf(ix: DataIndex, subject: string, catR: string, catP: string, rng: Rng = Math.random): Syllogism | null {
   const t = tableOf(ix), pair = t.pairs.find((x) => x.r === catR && x.p === catP), item = ix.DATA.items.find((i) => i.n === subject);
   if (!pair || !item || item.ne) return null;
   const cell = (["both", "anb", "bna", "nei"] as const).find((k) => pair.cells[k].includes(item));
@@ -328,31 +328,31 @@ export function consequenceOf(ix: DataIndex, subject: string, catR: string, catP
 
 // ---- wording ----
 
-/** A consequence as it is said, in pieces: plain text and the three parts that the page can show apart. */
+/** A syllogism as it is said, in pieces: plain text and the three parts that the page can show apart. */
 export type Piece = string | { part: "subject" | "predicate" | "reason"; text: string };
-const subj = (c: Consequence): Piece => ({ part: "subject", text: c.subject });
-const pred = (c: Consequence): Piece => ({ part: "predicate", text: c.predicate });
-const reas = (c: Consequence): Piece => ({ part: "reason", text: c.reason });
-/** The ways to say a consequence: the class's "Take X. It follows it is P because it is R." and the formal one. */
+const subj = (c: Syllogism): Piece => ({ part: "subject", text: c.subject });
+const pred = (c: Syllogism): Piece => ({ part: "predicate", text: c.predicate });
+const reas = (c: Syllogism): Piece => ({ part: "reason", text: c.reason });
+/** The ways to say a syllogism: the class's "Take X. It follows it is P because it is R." and the formal one. */
 const PIECES = {
-  take: (c: Consequence): Piece[] => ["Take ", subj(c), ". It follows it is ", pred(c), " because it is ", reas(c), "."],
-  formal: (c: Consequence): Piece[] => ["It follows that the subject, ", subj(c), ", is ", pred(c), " because of being ", reas(c), "."],
+  take: (c: Syllogism): Piece[] => ["Take ", subj(c), ". It follows it is ", pred(c), " because it is ", reas(c), "."],
+  formal: (c: Syllogism): Piece[] => ["It follows that the subject, ", subj(c), ", is ", pred(c), " because of being ", reas(c), "."],
 };
 export type Wording = keyof typeof PIECES;
 const joined = (ps: Piece[]) => ps.map((x) => (typeof x === "string" ? x : x.text)).join("");
 export const WORDINGS = {
-  take: (c: Consequence) => joined(PIECES.take(c)),
-  formal: (c: Consequence) => joined(PIECES.formal(c)),
+  take: (c: Syllogism) => joined(PIECES.take(c)),
+  formal: (c: Syllogism) => joined(PIECES.formal(c)),
 } as const;
-/** The consequence as a sentence, in one of the wordings (the class's by default). */
-export const consequenceText = (c: Consequence, wording: Wording = "take"): string => WORDINGS[wording](c);
+/** The syllogism as a sentence, in one of the wordings (the class's by default). */
+export const syllogismText = (c: Syllogism, wording: Wording = "take"): string => WORDINGS[wording](c);
 /** The same sentence in pieces, so that a page can set the subject, the predicate and the reason apart. */
-export const consequencePieces = (c: Consequence, wording: Wording = "take"): Piece[] => PIECES[wording](c);
+export const syllogismPieces = (c: Syllogism, wording: Wording = "take"): Piece[] => PIECES[wording](c);
 
 // ---- grading ----
 
 /** The result of an answer. A reply that finds a real fault but not the one to name first (the reason, when both fail) is wrong all the same, and says so (`missedPoint`). */
-export interface ConsequenceResult {
+export interface SyllogismResult {
   grade: "ok" | "bad";
   correct: boolean;
   said: Reply;
@@ -363,11 +363,11 @@ export interface ConsequenceResult {
   confusion: string;
 }
 
-function confusionOf(c: Consequence, said: Reply): string {
+function confusionOf(c: Syllogism, said: Reply): string {
   const S = cap(c.subject), R = c.reason, P = c.predicate, every = `whatever is ${R} is ${P}`;
   const rule = SITUATIONS[c.situation];
   if (c.answer === "accept") {
-    return said === "reason" ? `${S} is ${R} and ${every}, so there is nothing to deny: the consequence stands.`
+    return said === "reason" ? `${S} is ${R} and ${every}, so there is nothing to deny: the syllogism stands.`
       : `${cap(every)}, so the pervasion holds.`;
   }
   if (c.answer === "pervasion") {
@@ -384,8 +384,8 @@ function confusionOf(c: Consequence, said: Reply): string {
   return `You are not wrong that the pervasion fails, but you missed the point: the reason comes first, and ${c.subject} is not ${R}.`;
 }
 
-/** Grades a reply to a consequence. Needs no data: the consequence carries its own proofs. */
-export function gradeConsequence(c: Consequence, said: Reply): ConsequenceResult {
+/** Grades a reply to a syllogism. Needs no data: the syllogism carries its own proofs. */
+export function gradeSyllogism(c: Syllogism, said: Reply): SyllogismResult {
   const correct = said === c.answer;
   return {
     grade: correct ? "ok" : "bad", correct, said, expected: c.answer,
@@ -402,7 +402,7 @@ export interface ExampleVerdict { v: "ok" | "bad" | "cmp" | "self"; line: string
  * is not checked. The subject itself is "self": it may be the reason without being the predicate, but it is on the card already, so it is not taken as an answer (the page
  * asks for another thing and grades nothing).
  */
-export function gradeExample(ix: DataIndex, c: Consequence, text: string): ExampleVerdict {
+export function gradeExample(ix: DataIndex, c: Syllogism, text: string): ExampleVerdict {
   const t = text.trim().replace(/[.!]+$/, "");
   const it = t ? matchItem(ix, t, FEATURE.has(c.catR) || FEATURE.has(c.catP)) : null;
   if (it && it.n === c.subject) return { v: "self", line: `That is the subject itself. Name another thing that is ${c.reason} and is not ${c.predicate}.` };
@@ -416,28 +416,28 @@ export function gradeExample(ix: DataIndex, c: Consequence, text: string): Examp
 // ---- the draw ----
 
 /** What the draw reads from an earlier answer: a history entry (`catA` is the reason's category, `catB` the predicate's) with the reply that was right and the situation. */
-export interface ConsequenceHistory extends HistoryEntry {
+export interface SyllogismHistory extends HistoryEntry {
   answer?: Reply;
   situation?: Situation;
 }
-export interface ConsequenceDraw {
+export interface SyllogismDraw {
   /** the earlier answers, oldest first */
-  hist: readonly ConsequenceHistory[];
-  /** ids of the consequences drawn lately; the draw appends to it and keeps the last RECENT_MAX */
+  hist: readonly SyllogismHistory[];
+  /** ids of the syllogisms drawn lately; the draw appends to it and keeps the last RECENT_MAX */
   recent: string[];
   /** the highest level to draw from: 1 everyday things and properties only, 2 also the terms of the course (the default) */
   level?: 1 | 2;
   rng?: Rng;
 }
 
-/** The share of consequences drawn with nothing linking their parts, as light relief (when the data has such ones). */
+/** The share of syllogisms drawn with nothing linking their parts, as light relief (when the data has such ones). */
 export const RELIEF = 0.1;
 
-/** The consequence to practice next. See the note on the draw: the answer, then the situation, then the triple by its links. */
-export function drawConsequence(ix: DataIndex, st: ConsequenceDraw): Consequence {
+/** The syllogism to practice next. See the note on the draw: the answer, then the situation, then the triple by its links. */
+export function drawSyllogism(ix: DataIndex, st: SyllogismDraw): Syllogism {
   const rng = st.rng || Math.random, top = st.level ?? 2, hist = st.hist;
   const usable = (s: Situation) => viewOf(ix, s, top).all.length > 0;
-  // light relief: now and then a consequence with nothing linking its parts at all (the reason is not established, and the pervasion fails as well)
+  // light relief: now and then a syllogism with nothing linking its parts at all (the reason is not established, and the pervasion fails as well)
   const zero = rng() < RELIEF ? viewOf(ix, 8, top).zero : [];
   let sit: Situation = 8, pool = zero;
   if (!zero.length) {
@@ -446,7 +446,7 @@ export function drawConsequence(ix: DataIndex, st: ConsequenceDraw): Consequence
     for (const h of hist.slice(-6)) if (h.answer) aw[h.answer] = Math.max(0.15, aw[h.answer] * 0.45);
     for (const h of hist.slice(-30)) if (h.answer && isMiss(h)) aw[h.answer] *= 1.4;
     const replies = REPLIES.filter((a) => SIT_IDS.some((s) => SITUATIONS[s].answer === a && usable(s)));
-    if (!replies.length) throw new Error("no consequence to draw from");
+    if (!replies.length) throw new Error("no syllogism to draw from");
     const answer = chooseWeighted(replies, (a) => aw[a], rng);
     sit = chooseWeighted(SIT_IDS.filter((s) => SITUATIONS[s].answer === answer && usable(s)), (s) => SITUATIONS[s].weight, rng);
     const v = viewOf(ix, sit, top);

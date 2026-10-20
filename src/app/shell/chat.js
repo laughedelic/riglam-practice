@@ -26,8 +26,8 @@ export function toggleCoach(on){ state.coachOpen=on===undefined?!state.coachOpen
 // about or a conversation, so it never opens an empty panel; a panel that is open can always be closed. A dot marks an answer of the tutor that is not on screen.
 export function syncChatBtn(){
   const b=/** @type {HTMLButtonElement} */($("mchat")), w=isWide(), u=state.ui, ex=state.mode==="quiz"&&isEx()&&!!u;
-  b.hidden=!ex||(!w&&(!canAsk()||!!u.cq)); if(b.hidden) return;      // the tutor does not know Syllogisms yet: there, the button only opens the panel of recent answers
-  const label=w?(canAsk()&&!u.cq?"Tutor’s chat and recent answers":"Recent answers"):"Discuss with AI";
+  b.hidden=!ex||(!w&&(!canAsk()||!!u.syllogism)); if(b.hidden) return;      // the tutor does not know Syllogisms yet: there, the button only opens the panel of recent answers
+  const label=w?(canAsk()&&!u.syllogism?"Tutor’s chat and recent answers":"Recent answers"):"Discuss with AI";
   const waiting=!!u.chat&&u.chat.some(t=>t.role==="assistant"&&!t.pending&&t.content)&&(w?!state.coachOpen:state.view!=="chat");
   b.replaceChildren(tbIcon("chat")); if(waiting) b.append(el("i",{class:"att","aria-hidden":"true"}));
   b.setAttribute("aria-label",label+(waiting?", an answer is waiting":"")); b.title=label;

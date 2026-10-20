@@ -34,8 +34,8 @@ function setShow(key,on){ if(key==="ab") state.showAB=on; else state.fullPh=on; 
 function setAutoExplain(on){ state.autoExplain=on; store("rd-autoexplain",on?"1":"0"); render(); }
 function setWording(k){ state.wording=k; store("rd-wording",k); render(); }
 function setFindSuggest(on){ state.findSuggest=on; store("rd-findsuggest",on?"1":"0"); render(); }
-function setCqWording(k){ state.cqWording=k; store("rd-cqwording",k); render(); }
-function setCqLevel(n){ state.cqLevel=n; store("rd-cqlevel",String(n)); render(); }
+function setSyllogismWording(k){ state.syllogismWording=k; store("rd-syllogism-wording",k); render(); }
+function setSyllogismLevel(n){ state.syllogismLevel=n; store("rd-syllogism-level",String(n)); render(); }
 // Blitz off takes the stopwatch away from the top bar, and a running countdown with it
 function setBlitzUse(on){ state.blitzUse=on; store("rd-blitzuse",on?"1":"0"); if(!on) setBlitz(false); else render(); }
 
@@ -106,17 +106,17 @@ function pageBody(id){
     picks("Languages of the definitions",[["en","English","The definition in English."],["enru","English + Russian","Each entry also shows the Russian name of the term and, where there is one, its Russian definition."]],state.defLang,setDefLang)];
 }
 // Syllogisms has no terms to read, no notation and no tutor yet, so it shows only what it uses
-function consequenceBody(){
+function syllogismBody(){
   return [
-    row("Wording",chips("Wording of the syllogism",[["take","Take X"],["formal","Formal"]],state.cqWording,setCqWording),
+    row("Wording",chips("Wording of the syllogism",[["take","Take X"],["formal","Formal"]],state.syllogismWording,setSyllogismWording),
       "Take X: “Take a tomato. It follows it is food because it is red.” Formal: “It follows that the subject, a tomato, is food because of being red.”"),
-    row("Things",chips("Which things the syllogisms are about",[[1,"Everyday"],[2,"With Dudra terms"]],state.cqLevel,setCqLevel),
+    row("Things",chips("Which things the syllogisms are about",[[1,"Everyday"],[2,"With Dudra terms"]],state.syllogismLevel,setSyllogismLevel),
       "Everyday (a tomato, red, food). With Dudra terms (a form, a sound, impermanent, a consciousness, etc.). The change applies from the next syllogism."),
     el("p",{class:"capl"},"The Magic Key, your account, data and the version are in ",el("button",{type:"button",class:"lnk",onclick:()=>{ toggleSess(false); toggleOpts(true); }},"Settings"),".")
   ];
 }
 function listBody(){
-  if(state.tab==="cq") return consequenceBody();
+  if(state.tab==="syllogism") return syllogismBody();
   const perv=state.tab==="debate", find=state.tab==="find", timed=state.tab==="practice"||perv;
   const quorumNote=state.quorumOptIn
     ?"Optional: a deeper check, but slower. When the page could not check an example you wrote, three AI models (Haiku, Sonnet and Opus) each work it out and Opus rules where they differ, so the explanation is more reliable. An answer takes about a minute instead of a few seconds, and it counts against a daily limit of its own; when that is used up, one model answers as usual. The server keeps each such run (the pair with what you wrote, and the answers), so the models can be compared. With Quorum off, one model answers and nothing is kept."

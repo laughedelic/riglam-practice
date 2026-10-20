@@ -190,17 +190,17 @@ const FLOWS = {
     await draw(8);
     await settle();
     await check("syllogism, reason fails too");
-    await page.locator(".cqask .cqsay").nth(1).click(); // the pervasion: the reason comes first
+    await page.locator(".sylask .sylsay").nth(1).click(); // the pervasion: the reason comes first
     await check("wrong reply");
     await page.click("#stage .pbar .fwd");
     // a right "no pervasion": the counter-example step, then a result with the example in it
     await draw(3);
     await settle();
-    await page.locator(".cqask .cqsay").nth(1).click();
+    await page.locator(".sylask .sylsay").nth(1).click();
     await check("counter-example step");
-    await page.fill("#cqex", LONG + "and on and on");
+    await page.fill("#sylex", LONG + "and on and on");
     await page.keyboard.press("Enter");
-    await expect(page.locator(".cqres")).toBeVisible();
+    await expect(page.locator(".sylres")).toBeVisible();
     await check("result, counter-example not checked");
     await page.click("#stage .pbar .fwd");
     // the other wording, and the options of the exercise

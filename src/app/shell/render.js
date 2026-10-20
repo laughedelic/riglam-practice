@@ -2,7 +2,7 @@ import { state } from "../state.js";
 import { canAsk } from "../core/ask.js";
 import { $, el } from "../core/dom.js";
 import { isWide, syncVv, wideMq } from "../core/viewport.js";
-import { renderCq } from "../consequence/screen.js";
+import { renderSyllogism } from "../syllogism/screen.js";
 import { asking, startQ } from "../debate/flow.js";
 import { renderDebate } from "../debate/screen.js";
 import { renderFind } from "../find/screen.js";
@@ -26,7 +26,7 @@ export function ago(iso){
   const h=Math.round(m/60); if(h<24) return h+" h";
   const d=Math.round(h/24); return d===1?"1 day":d+" days";
 }
-export const isEx=()=>state.tab==="practice"||state.tab==="debate"||state.tab==="find"||state.tab==="cq";
+export const isEx=()=>state.tab==="practice"||state.tab==="debate"||state.tab==="find"||state.tab==="syllogism";
 // the three steps of a narrow screen; go[i] makes step i a button
 export function setSteps(labels,on,go){
   const st=$("steps"); st.replaceChildren(); st.hidden=false;
@@ -99,7 +99,7 @@ function renderNow(){
   else if(state.mode==="quiz"){
     if(state.tab==="debate"&&state.ui&&state.ui.debate) renderDebate(s,c);
     else if(state.tab==="find"&&state.ui&&state.ui.find) renderFind(s,c);
-    else if(state.tab==="cq"&&state.ui&&state.ui.cq) renderCq(s,c);
+    else if(state.tab==="syllogism"&&state.ui&&state.ui.syllogism) renderSyllogism(s,c);
     else renderQuiz(s,c);
   }
   renderOver(); restoreFocus(f&&f.id!==undefined&&state.skipAsk?null:f); placePops(); dropStaleDef(); // the question before a skip has the focus, not the field under it
