@@ -28,7 +28,7 @@ const other=r=>r==='mi'?'con':'mi';
  {
   const {br,pg,errs}=await open({width:390,height:844},{isMobile:true,hasTouch:true});
   const names=await pg.locator('#tabbar [role=tab]').allInnerTexts();
-  ok('the tab bar reads Relations, Pervasions, Review',JSON.stringify(names.map(s=>s.trim().toLowerCase()))==='["relations","pervasions","review"]',names);
+  ok('the tab bar reads Relations, Pervasions, Find a pair, Review',JSON.stringify(names.map(s=>s.trim().toLowerCase()))==='["relations","pervasions","find a pair","review"]',names);
   ok('"Pervasions" fits its tab at 390 px',await pg.evaluate(()=>[...document.querySelectorAll('#tabbar [role=tab]')].every(b=>b.scrollWidth<=b.clientWidth+1)));
 
   // ---- one pair across the two modes
@@ -284,8 +284,8 @@ const other=r=>r==='mi'?'con':'mi';
  // ================= wide =================
  {
   const {br,pg,errs}=await open({width:1280,height:800});
-  const rail=(await pg.locator('.rail .nv').allInnerTexts()).slice(0,3);
-  ok('the rail reads Relations, Pervasions, Review',JSON.stringify(rail.map(s=>s.trim().toLowerCase()))==='["relations","pervasions","review"]',rail);
+  const rail=(await pg.locator('.rail .nv').allInnerTexts()).slice(0,4);
+ ok('the rail reads Relations, Pervasions, Find a pair, Review',JSON.stringify(rail.map(s=>s.trim().toLowerCase()))==='["relations","pervasions","find a pair","review"]',rail);
   ok('the coach panel has no "Coach" label; it starts with Recent or the key hints',!/^coach$/i.test(((await pg.locator('#coach').innerText())||'').trim().split('\n')[0]||'')&&!/\bcoach\b/i.test(await pg.locator('#coach').innerText()),await pg.locator('#coach').innerText());
   const p1=await key(pg);
   await pg.locator('.rail .nv:has-text("Pervasions")').click(); await pg.waitForTimeout(150);

@@ -41,8 +41,10 @@ export function tutorTurns(box,newestFirst,lean){
 function chatInto(o){
   const p=state.cur.p;
   o.append(overHead("Discuss with AI",closeChat,"Back to the result"));
-  const v=state.ui.checked&&state.ui.res?{ok:"all right",part:"relation right, not everything else",pend:"relation and cells right",bad:"not quite"}[state.ui.res.overall]:"";
-  o.append(el("p",{class:"ctx"},el("b",{text:p.a+" / "+p.b}),el("small",{text:REL[p.relation].name+(v?" · "+v:"")})));
+  // Find a pair: the pair is what is judged, and a pair of the learner's own stays open until Claude has said whether it has the relation (the overall grade is "pend" then, too)
+  const r=state.ui.checked&&state.ui.res, fd=!!state.ui.find;
+  const v=!r?"":r.relOpen?(r.relUns?"pair not settled":"pair not judged yet"):{ok:"all right",part:(fd?"pair":"relation")+" right, not everything else",pend:(fd?"pair":"relation")+" and cells right",bad:"not quite"}[r.overall];
+  o.append(el("p",{class:"ctx"},el("b",{text:p.a+" / "+p.b}),el("small",{text:(state.ui.find?"Asked for: "+REL[state.ui.rel].name:REL[p.relation].name)+(v?" · "+v:"")})));
   const dock=el("div",{class:"dock"});
   if(state.ui.ctl) dock.append(el("button",{class:"btn ghost",type:"button",onclick:()=>state.ui.ctl&&state.ui.ctl.abort(),text:"Stop"}));
   else if(canAsk()) dock.append(askRow("ask-in"));

@@ -13,7 +13,7 @@ import { focusCin, render } from "./render.js";
 
 $("obtn").addEventListener("click",()=>toggleOpts());
 $("mopt").addEventListener("click",()=>toggleOpts());
-$("mfav").addEventListener("click",()=>{ if(state.cur&&state.cur.p) toggleFav(state.cur.p); });
+$("mfav").addEventListener("click",()=>{ if(state.cur&&state.cur.p&&!state.cur.p.own) toggleFav(state.cur.p); });
 $("mbz").addEventListener("click",()=>setBlitz(!state.blitz));
 $("mskip").append(tbIcon("skip")); $("mskip").addEventListener("click",skipPair);
 wideMq.addEventListener("change",()=>{ syncVv(); if(state.mode!=="loading") render(); });

@@ -33,7 +33,7 @@ function pluralWord(w: string): string {
   if (/[^aeiou]y$/.test(w)) return w.slice(0, -1) + "ies";
   return w + "s";
 }
-function pluralOf(form: string): string {
+export function pluralOf(form: string): string {
   const m = AFTER_HEAD.exec(form), head = m ? form.slice(0, m.index) : form, tail = m ? form.slice(m.index) : "";
   return head.replace(/\S+$/, pluralWord) + tail;
 }
@@ -84,6 +84,27 @@ export function termMentions(ix: DataIndex, text: string, opts: { quoted?: boole
     if (term && (opts.quoted || !quoted.some(([a, b]) => start < b && end > a))) out.push({ start, end, term });
   }
   return out;
+}
+
+/**
+ * The term a whole text names: its name, an alias or its Russian name, with or without an article, or a plural of the name ("products",
+ * "permanent phenomena"). Names win over aliases; null when the text names no term. Like `namesTerm` it does not skip everyday words, since
+ * the caller knows the text stands for a term as a whole (what a learner named as one of the two phenomena of a pair).
+ */
+export function termNamed(ix: DataIndex, text: string): string | null {
+  const f = formOf(text.replace(/^\s*(?:a|an|the)\s+/i, ""));
+  if (!f || !ix.DATA || !ix.DATA.terms) return null;
+  const entries = Object.entries(ix.DATA.terms);
+  const same = (n: string | undefined): boolean => {
+    const g = n ? formOf(n) : "";
+    return !!g && (g === f || (!NO_PLURAL.has(g) && pluralOf(g) === f));
+  };
+  return (
+    entries.find(([key, t]) => same(t.name || key))?.[0] ??
+    entries.find(([, t]) => (t.aliases || []).some(same))?.[0] ??
+    entries.find(([, t]) => same(t.ru))?.[0] ??
+    null
+  );
 }
 
 /**

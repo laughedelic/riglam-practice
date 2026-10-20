@@ -1,5 +1,6 @@
 import { state } from "../state.js";
 import { explainByItself } from "../ai/tutor.js";
+import { checkFind } from "../find/flow.js";
 import { CELLS, REL } from "../core/rel.js";
 import { pairsOf } from "../core/util.js";
 import { stopTimer } from "../debate/flow.js";
@@ -14,6 +15,7 @@ import { grade } from "../../domain/grading.ts";
 // step around it: stop the clock, show the result, and save the answer.
 export async function check(){
   if(!state.ui||!state.ui.rel||state.ui.checked) return;
+  if(state.ui.find){ checkFind(); return; }              // Find a pair shares the cells and their keys, and checks in its own way
   const p=state.cur.p;
   stopTimer(); clearSkip(p); state.ui.res=grade(state,p,state.ui); state.ui.checked=true; state.ui.open=false; render();
   top0(); const bs=document.querySelectorAll("#stage .actions .btn"); if(bs.length) bs[bs.length-1].focus({preventScroll:true});

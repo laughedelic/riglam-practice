@@ -31,6 +31,7 @@ const segOf=(label,rows,cur_,on)=>el("div",{class:"seg",role:"group","aria-label
 function setNota(k){ state.nota=k; try{ localStorage.setItem("rd-notation",k); }catch(e){} render(); }
 export function setDefLang(k){ state.defLang=k==="enru"?"enru":"en"; try{ localStorage.setItem("rd-deflang",state.defLang); }catch(e){} render(); }
 function setShow(key,on){ if(key==="ab") state.showAB=on; else state.fullPh=on; try{ localStorage.setItem("rd-"+key,on?"1":"0"); }catch(e){} render(); }
+function setFindSuggest(on){ state.findSuggest=on; try{ localStorage.setItem("rd-findsuggest",on?"1":"0"); }catch(e){} render(); }
 function setAutoExplain(on){ state.autoExplain=on; try{ localStorage.setItem("rd-autoexplain",on?"1":"0"); }catch(e){} render(); }
 function setWording(k){ state.wording=k; try{ localStorage.setItem("rd-wording",k); }catch(e){} render(); }
 // Options and the tutor chat are not tabs: they open over the workspace (the chat only on narrow screens) and close with Back or Escape.
@@ -91,6 +92,8 @@ export function optionsInto(o){
       el("button",{type:"button",class:"sw",role:"switch","aria-checked":state.showAB?"true":"false",onclick:()=>setShow("ab",!state.showAB)},el("i",{class:"knob","aria-hidden":"true"}),el("span",{class:"swl",text:"A/B markers"}),el("span",{class:"swt",text:"before the terms"})),
       el("button",{type:"button",class:"sw",role:"switch","aria-checked":state.fullPh?"true":"false",onclick:()=>setShow("full",!state.fullPh)},el("i",{class:"knob","aria-hidden":"true"}),el("span",{class:"swl",text:"Full phrases"}),el("span",{class:"swt",text:"spell out Why? answers"}))),
       "Applies to the statements and to your answers."),
+    row("Find a pair",el("button",{type:"button",class:"sw",role:"switch","aria-checked":state.findSuggest?"true":"false",onclick:()=>setFindSuggest(!state.findSuggest)},el("i",{class:"knob","aria-hidden":"true"}),el("span",{class:"swl",text:"Suggest terms"}),el("span",{class:"swt",text:state.findSuggest?"on":"off"})),
+      "While you name a pair, the field offers terms from the course as you type, so you can pick one. This is a gentle way in when the terms are new. Turn it off to type whatever comes to mind, without the list steering you; words that match a course term are still recognized."),
     canAsk()?row("AI tutor",el("button",{type:"button",class:"sw",role:"switch","aria-checked":state.autoExplain?"true":"false",onclick:()=>setAutoExplain(!state.autoExplain)},el("i",{class:"knob","aria-hidden":"true"}),el("span",{class:"swl",text:"Check every answer with AI"}),el("span",{class:"swt",text:state.autoExplain?"on":"off"})),
       "Right after you check an answer, the AI tutor explains it and checks the examples the page could not. Off, the Explain button waits for you."):null,
     state.quorumOffered&&state.db?row("Quorum",el("button",{type:"button",class:"sw",role:"switch","aria-checked":state.quorum?"true":"false",onclick:()=>setQuorum(!state.quorum)},el("i",{class:"knob","aria-hidden":"true"}),el("span",{class:"swl",text:"Several models explain"}),el("span",{class:"swt",text:state.quorum?"on":"off"})),
