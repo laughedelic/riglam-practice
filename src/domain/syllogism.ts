@@ -81,7 +81,8 @@ interface PairInfo {
   /** the reason and the predicate have something in common */
   related: boolean;
 }
-interface Cand { pair: PairInfo; item: Item; links: number }
+interface Cand { pair: PairInfo; item: Item; links: number; /** 2 when the pair or the subject needs the course's terms (the subject's `dudraOnly`) */ level: 1 | 2 }
+const levelOf = (pair: PairInfo, item: Item): 1 | 2 => (item.dudraOnly ? 2 : pair.level);
 /** The candidates of one pair of categories, with how likely they are as a group. */
 interface Group { pair: PairInfo; cands: Cand[]; mean: number }
 /** The candidates of a situation up to a level, by how well their parts are linked. `linked`: enough links for their level; `some`: at least one; `zero`: none. */
@@ -183,7 +184,7 @@ function candidates(ix: DataIndex, sit: Situation): Cand[] {
   const rule = SITUATIONS[sit], out: Cand[] = [];
   for (const pair of t.pairs) {
     if (!matches(rule, pair)) continue;
-    for (const item of pair.cells[rule.cell]) if (!item.ne && !item.nosubject) out.push({ pair, item, links: linksOf(t, pair, item, rule) });
+    for (const item of pair.cells[rule.cell]) if (!item.ne && !item.nosubject) out.push({ pair, item, links: linksOf(t, pair, item, rule), level: levelOf(pair, item) });
   }
   t.bySit.set(sit, out);
   return out;
@@ -198,11 +199,11 @@ function groupsOf(cands: readonly Cand[]): Group[] {
 function viewOf(ix: DataIndex, sit: Situation, top: 1 | 2): View {
   const t = tableOf(ix), key = `${sit}:${top}`, hit = t.views.get(key);
   if (hit) return hit;
-  const all = candidates(ix, sit).filter((c) => c.pair.level <= top);
+  const all = candidates(ix, sit).filter((c) => c.level <= top);
   // at least one link at level 1, two at level 2 (the course's terms are easier to confuse, so they are held to more sense)
   const v: View = {
     all: groupsOf(all), zero: groupsOf(all.filter((c) => c.links === 0)), some: groupsOf(all.filter((c) => c.links > 0)),
-    linked: groupsOf(all.filter((c) => c.links >= (c.pair.level === 1 ? 1 : 2))),
+    linked: groupsOf(all.filter((c) => c.links >= (c.level === 1 ? 1 : 2))),
   };
   t.views.set(key, v);
   return v;
@@ -292,7 +293,7 @@ function make(ix: DataIndex, c: Cand, sit: Situation, rng: Rng): Syllogism {
   const pervasion: Pervasion = pair.holds ? "holds" : pair.opposite ? "opposite" : "fails";
   return {
     id: `${pair.r}|${pair.p}|${item.n}`, subject: item.n, predicate, reason, catR: pair.r, catP: pair.p,
-    situation: sit, answer: rule.answer, pervasion, level: pair.level, links: c.links, witness,
+    situation: sit, answer: rule.answer, pervasion, level: c.level, links: c.links, witness,
     checks: {
       e: { ok: rule.e, line: proofOfE(ix, item, pair.r, reason, rule.e) },
       v: { ok: !!pair.holds, line: proofOfV(ix, pair, reason, predicate) },
@@ -307,7 +308,7 @@ export function syllogismOf(ix: DataIndex, subject: string, catR: string, catP: 
   if (!pair || !item || item.ne) return null;
   const cell = (["both", "anb", "bna", "nei"] as const).find((k) => pair.cells[k].includes(item));
   const sit = SIT_IDS.find((s) => { const rule = SITUATIONS[s]; return rule.cell === cell && matches(rule, pair); });
-  return sit ? make(ix, { pair, item, links: linksOf(t, pair, item, SITUATIONS[sit]) }, sit, rng) : null;
+  return sit ? make(ix, { pair, item, links: linksOf(t, pair, item, SITUATIONS[sit]), level: levelOf(pair, item) }, sit, rng) : null;
 }
 
 // ---- wording ----
@@ -444,8 +445,11 @@ export function drawSyllogism(ix: DataIndex, st: SyllogismDraw): Syllogism {
     if (h.catB) weak[h.catB] = (weak[h.catB] || 0) + 1;
   }
   const seen = new Set(st.recent), seenPair = new Set(st.recent.map((id) => id.split("|").slice(0, 2).join("|")));
+  // the one just shown is not drawn again, when the pool has another
+  const last = st.recent[st.recent.length - 1];
+  const others = last ? pool.map((g) => ({ ...g, cands: g.cands.filter((c) => `${g.pair.r}|${g.pair.p}|${c.item.n}` !== last) })).filter((g) => g.cands.length) : pool;
   // the pair of categories first, then a subject, so that a pair with many subjects does not crowd out the others
-  const group = chooseWeighted(pool, (g) => {
+  const group = chooseWeighted(others.length ? others : pool, (g) => {
     const { r, p } = g.pair;
     return g.mean * (seenPair.has(`${r}|${p}`) ? 0.4 : 1) * (1 + 1.5 * ((weak[r] || 0) + (weak[p] || 0)));
   }, rng);

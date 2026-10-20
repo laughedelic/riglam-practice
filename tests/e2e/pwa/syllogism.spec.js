@@ -89,7 +89,7 @@ test("a wrong reply says what was mixed up; the sheet shows all three checks, th
   for (const k of ["e", "v", "t"]) await expect(page.locator(".sylchecks")).toContainText(c.checks[k].line); // all three at once
   // the pervasion fails with the class's phrase, not with a counter-example
   expect(c.checks.v.line).toBe(`Just because it is ${c.reason}, doesn't necessarily mean that it is ${c.predicate}.`);
-  await expect(page.locator(".sylchecks")).not.toContainText(c.witness);
+  await expect(page.locator(".sylchk", { hasText: "Pervasion" }).locator(".sylcl")).toHaveText(c.checks.v.line); // exactly that sentence: no counter-example in it
   await expect(page.locator(".sylchk.fails .sylst")).toHaveText(["no pervasion", "false"]);
   await expect(page.locator(".sylchk.holds .sylst")).toHaveText(["established"]);
   // a check that fails is not marked like the wrong answer: no cross, and not in the colour of the wrong answer
