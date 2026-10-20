@@ -2,7 +2,7 @@ import { state } from "../state.js";
 import { ORDER } from "../core/rel.js";
 import { isWide } from "../core/viewport.js";
 import { checkDebate, chooseD, sayQ } from "../debate/flow.js";
-import { toggleFav } from "../practice/favorites.js";
+import { favTarget, toggleFav } from "../practice/favorites.js";
 import { next } from "../practice/queue.js";
 import { choose } from "../practice/screen.js";
 import { closeSkipAsk, skipPair } from "../practice/skips.js";
@@ -24,7 +24,7 @@ document.addEventListener("keydown",e=>{
   if(e.key==="Escape"){ if(state.skipAsk){ closeSkipAsk(); return; } if(state.sessOpen){ sessBack(); return; } if(state.optsOpen){ toggleOpts(false); return; } if(state.view==="chat"){ closeChat(); return; } if(menuVisible()&&(!isWide()||state.menuPeek)){ closeMenu(); return; } if(state.ui&&state.ui.dterm){ closeDef(); return; } if(state.ui&&state.ui.pop){ state.ui.pop=null; render(); return; } if(state.ui&&state.ui.find&&state.ui.open&&!state.ui.checked){ state.ui.open=false; render(); return; } }
   if(state.mode!=="quiz"||!state.ui||state.optsOpen||state.sessOpen||state.skipAsk||state.view||state.tab==="review"||(state.menuOpen&&!isWide())||e.metaKey||e.ctrlKey||e.altKey) return;
   const t=e.target&&/** @type {Element} */(e.target).tagName;
-  if((e.key==="f"||e.key==="F")&&!e.shiftKey&&t!=="INPUT"&&t!=="TEXTAREA"&&state.db&&state.cur&&state.cur.p&&!state.cur.p.own&&isEx()){ e.preventDefault(); toggleFav(state.cur.p); return; }
+  if((e.key==="f"||e.key==="F")&&!e.shiftKey&&t!=="INPUT"&&t!=="TEXTAREA"&&state.db&&favTarget()&&!favTarget().own&&isEx()){ e.preventDefault(); toggleFav(favTarget()); return; }
   if(state.tab==="practice"&&!state.ui.debate){
     if(!state.ui.checked&&t!=="INPUT"&&/^[1-5]$/.test(e.key)&&(isWide()||!state.ui.rel||state.ui.open)){ e.preventDefault(); choose(ORDER[+e.key-1]); }
     else if(!state.ui.checked&&t!=="INPUT"&&t!=="TEXTAREA"&&(e.key==="s"||e.key==="S")&&!e.shiftKey){ e.preventDefault(); skipPair(); }

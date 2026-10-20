@@ -77,6 +77,24 @@ test("the copy that plays a panel out cannot be reached, read or typed into", as
   expect(copy).toEqual({ inert: true, hidden: "true", ids: 0, id: "", over: "none" });
 });
 
+test("the copy that plays the options out stays inert when the page is redrawn around it", async ({ page }) => {
+  await load(page);
+  await page.locator("#msess").click();
+  await expect(page.locator("#over")).toBeVisible();
+  // the page redraws in the same task that makes the copy, so it is read when that task is over
+  await page.evaluate(() => {
+    window.__copy = null;
+    new MutationObserver(() => {
+      const n = document.querySelector(".over.leaving");
+      if (n && !window.__copy) window.__copy = { inert: n.inert, hidden: n.getAttribute("aria-hidden") };
+    }).observe(document.getElementById("app"), { childList: true, subtree: true });
+  });
+  await page.keyboard.press("Escape");
+  await expect.poll(() => page.evaluate(() => window.__copy)).toEqual({ inert: true, hidden: "true" });
+  await page.waitForTimeout(80);
+  expect(await page.evaluate(() => { const n = document.querySelector(".over.leaving"); return n ? n.inert : true; })).toBe(true); // and a later redraw leaves it so
+});
+
 test("the practice options slide up from the bottom of a phone with their shade, and a popover unrolls under the top bar of a wide screen", async ({ page }, testInfo) => {
   await load(page);
   await page.locator("#msess").click();
