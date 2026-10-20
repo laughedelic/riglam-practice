@@ -4,7 +4,7 @@
 import { expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
-import { hasCourse, readFull, readOpen, root } from "../../scripts/lib/course-files.mjs";
+import { hasCourse, hasExamples, readExamples, readFull, readOpen, root } from "../../scripts/lib/course-files.mjs";
 import { split } from "../../src/data/course.js";
 import { parseMagicKey } from "../../src/ai/magic-key";
 
@@ -20,7 +20,7 @@ test("the open file has no definitions, no notes and no group notes", () => {
 });
 
 test("the course part is not tracked, and no encrypted copy is", () => {
-  expect(execFileSync("git", ["check-ignore", "-v", "data-private/definitions.json"], { cwd: root }).toString()).toMatch(/\.gitignore/);
+  for (const f of ["definitions.json", "notes.json", "examples.json", "examples-device.json"]) expect(execFileSync("git", ["check-ignore", "-v", `data-private/${f}`], { cwd: root }).toString()).toMatch(/\.gitignore/);
   expect(trackedFiles().filter((f) => f.startsWith("data-private/") || f.endsWith(".enc"))).toEqual([]);
 });
 
@@ -44,6 +44,22 @@ withCourse("no tracked file holds a definition or a note in the clear", () => {
     let content: string;
     try { content = readFileSync(`${root}/${f}`, "utf8"); } catch { continue; } // deleted in the working tree
     for (const s of secrets) expect(content.includes(s), `${f} holds: ${s.slice(0, 40)}`).toBe(false);
+  }
+});
+
+// The reference examples are course tier too. A tracked file may name a few of them (an everyday "a clay pot" is in the open data as
+// well), but not many, and no gloss.
+test.skipIf(!hasExamples())("no tracked file holds the reference examples: more than a few of their names, or a gloss", () => {
+  const items: { n: string; gloss?: string }[] = readExamples()!.full.items;
+  const glosses = items.map((i) => i.gloss).filter((g): g is string => typeof g === "string" && g.length > 30);
+  const names = items.map((i) => i.n).filter((n) => n.length > 12);
+  expect(names.length).toBeGreaterThan(20);
+  for (const f of trackedFiles().filter((f) => !/\.(png|woff2|ico|jpg|svg)$/.test(f))) {
+    let content: string;
+    try { content = readFileSync(`${root}/${f}`, "utf8"); } catch { continue; }
+    for (const g of glosses) expect(content.includes(g), `${f} holds a gloss: ${g.slice(0, 40)}`).toBe(false);
+    const named = names.filter((n) => content.includes(n));
+    expect(named.length, `${f} names ${named.length} examples: ${named.slice(0, 3).join(", ")}`).toBeLessThanOrEqual(5);
   }
 });
 

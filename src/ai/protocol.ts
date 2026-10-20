@@ -2,11 +2,17 @@
 // Both sides import this file, so the shapes cannot drift apart. The tutor request carries only what the person typed
 // and the facts of the page's own state; the standing instructions, the notes and the lookup tools stay on the server.
 
+import type { Examples } from "../ai-shared/examples";
+
 export const API = {
   health: "/api/health",
   tutor: "/api/tutor",
   /** GET, with the device and proof headers: the definitions (`?have=<version>` asks only whether the copy kept is current) */
   course: "/api/course",
+  /** GET, with the same headers: the reference examples a device may keep (`?have=<version>` as for the definitions) */
+  examples: "/api/course/examples",
+  /** POST, with the same headers: what the server already knows of examples the page could not check (`KnownRequest`, answered with `KnownResponse`) */
+  known: "/api/known",
 } as const;
 
 export const HEADER = {
@@ -16,6 +22,9 @@ export const HEADER = {
 
 /** The answer of `GET /api/course`: the definitions as `{ [term]: { d?, d_ru? } }` with their version, or only the version when `have` named it. */
 export type CourseResponse = { version: string; definitions: Record<string, { d?: string; d_ru?: string }> } | { version: string; unchanged: true };
+
+/** The answer of `GET /api/course/examples`: the device part of the reference examples (src/ai-shared/examples.ts) with its version, or only the version when `have` named it. */
+export type ExamplesResponse = { version: string; examples: Examples } | { version: string; unchanged: true };
 
 export interface Turn {
   role: "user" | "assistant";
@@ -35,6 +44,41 @@ export interface TutorRequest {
    * A server that has Quorum off, and any request that is not an explain, answers with the one model as always.
    */
   quorum?: boolean;
+  /**
+   * The learner's examples that the page could not check itself (verdict "not checked"), each with the cell it stands in. Sent with an explain
+   * request only. A server that keeps learned facts (docs/SERVER.md, "Learned facts") reads the answer's lines about these examples and keeps what
+   * the models said of each; it ignores the lines about any other example. A device that does not share its examples leaves the field out.
+   */
+  examples?: ExplainExample[];
+}
+
+/** One of the learner's examples in an explain request: its text as typed, and the cell it stands in. */
+export interface ExplainExample {
+  cell: "both" | "anb" | "bna" | "nei";
+  text: string;
+}
+
+/** `POST /api/known`: the pair's two category ids (A, then B) and the examples the page could not check, as in an explain request. */
+export interface KnownRequest {
+  cats: string[];
+  examples: ExplainExample[];
+}
+
+/**
+ * One example the server could answer without the AI (docs/SERVER.md, "Learned facts"): the line the tutor would write of it, in the tutor's own
+ * form (`<cell>: "<example>" | class: <term> | A yes|no: <reason> | B yes|no: <reason>`, src/domain/verdict.ts), so the page reads it as it reads the
+ * tutor's lines. `by` is "reviewed" when the maintainer decided both sides, else "learned" (earlier analyses agreed).
+ */
+export interface KnownFact {
+  cell: ExplainExample["cell"];
+  text: string;
+  line: string;
+  by: "learned" | "reviewed";
+  /** only one side of the example is known, and it already fails the cell: the line has "unsure" for the other side */
+  half?: true;
+}
+export interface KnownResponse {
+  known: KnownFact[];
 }
 
 /** What the server accepts. Anything above these is refused with `prompt_too_large`. */
@@ -43,6 +87,9 @@ export const LIMITS = {
   /** all turns together, in characters */
   chars: 60_000,
   cats: 2,
+  /** examples one explain request may name, and the characters of each */
+  examples: 8,
+  exampleChars: 200,
   /** the request body, in bytes */
   body: 200_000,
 } as const;
@@ -136,4 +183,6 @@ export interface Health {
   accounts?: "on" | "off";
   /** reports of flags (src/report/protocol.ts); a server from before them leaves it out */
   reports?: "on" | "off";
+  /** `POST /api/known` answers from the learned facts (EXAMPLE_FACTS=serve); left out where it does not */
+  known?: "on";
 }

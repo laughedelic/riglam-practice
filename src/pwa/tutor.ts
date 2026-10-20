@@ -1,9 +1,9 @@
 // The PWA's `tutor` capability: questions to the app's own server (docs/SERVER.md). The request proves that the sender has the
 // study group's key without sending it (src/ai/proof.ts); the answer comes back as server-sent events (src/ai/protocol.ts).
-import { API, HEADER, type BudgetScope, type Health, type QuorumOffer, type QuorumRecord, type TutorEvent } from "../ai/protocol";
+import { API, HEADER, type BudgetScope, type Health, type KnownFact, type KnownResponse, type QuorumOffer, type QuorumRecord, type TutorEvent } from "../ai/protocol";
 import { makeProof } from "../ai/proof";
 import { deviceId } from "./device";
-import type { Tutor } from "../platform/types";
+import type { Known, Tutor } from "../platform/types";
 
 export { deviceId };
 
@@ -15,8 +15,8 @@ export function tutorError(code: string, message: string, extra: { text?: string
 const isAbort = (e: unknown) => e instanceof DOMException && e.name === "AbortError";
 const KNOWN = new Set(["rate_limited", "not_granted", "prompt_too_large", "bad_request", "refused", "unavailable"]);
 
-/** What the server says in /api/health about its tutor, Quorum and flag reports. Anything else (off, unreachable, slow, not a Worker at all) is "off" and no Quorum. */
-export type ServerSays = { tutor: boolean; quorum: QuorumOffer; reports: boolean };
+/** What the server says in /api/health about its tutor, Quorum, flag reports and learned facts. Anything else (off, unreachable, slow, not a Worker at all) is "off" and no Quorum. */
+export type ServerSays = { tutor: boolean; quorum: QuorumOffer; reports: boolean; known: boolean };
 
 /** One question to /api/health: the platform asks it once and gives the answer to the tutor, to Quorum and to the flag reports, so a start makes one request and waits for one timeout. */
 export async function serverSays(doFetch: typeof fetch = (...a) => fetch(...a), waitMs = 4000): Promise<ServerSays> {
@@ -24,12 +24,12 @@ export async function serverSays(doFetch: typeof fetch = (...a) => fetch(...a), 
   const timer = setTimeout(() => stop.abort(), waitMs);
   try {
     const res = await doFetch(API.health, { cache: "no-store", signal: stop.signal });
-    if (!res.ok) return { tutor: false, quorum: false, reports: false };
+    if (!res.ok) return { tutor: false, quorum: false, reports: false, known: false };
     const body = (await res.json()) as Partial<Health>;
     const tutor = body.ok === true && body.tutor === "on";
-    return { tutor, quorum: tutor && (body.quorum === "on" || body.quorum === "optin") ? body.quorum : false, reports: body.ok === true && body.reports === "on" };
+    return { tutor, quorum: tutor && (body.quorum === "on" || body.quorum === "optin") ? body.quorum : false, reports: body.ok === true && body.reports === "on", known: tutor && body.known === "on" };
   } catch {
-    return { tutor: false, quorum: false, reports: false };
+    return { tutor: false, quorum: false, reports: false, known: false };
   } finally {
     clearTimeout(timer);
   }
@@ -133,5 +133,29 @@ export function createTutor(key: string, doFetch: typeof fetch = (...a) => fetch
       throw isAbort(e) ? tutorError("cancelled", "cancelled") : tutorError("offline", "the connection broke", { text: text || undefined });
     }
     throw tutorError("unavailable", "the answer was cut off", { text: text || undefined });
+  };
+}
+
+/**
+ * What the server already knows of examples the page could not check (POST /api/known), for a device that has `key`. It never throws: no connection, a
+ * refusal or an answer in another form is "nothing known", and the examples go to the tutor as ever.
+ */
+export function createKnown(key: string, doFetch: typeof fetch = (...a) => fetch(...a), device: () => string = deviceId): Known {
+  return async (request, options = {}) => {
+    try {
+      const id = device();
+      const res = await doFetch(API.known, {
+        method: "POST",
+        headers: { "content-type": "application/json", [HEADER.device]: id, [HEADER.proof]: await makeProof(key, id) },
+        body: JSON.stringify(request),
+        cache: "no-store",
+        signal: options.signal,
+      });
+      if (!res.ok) return [];
+      const body = (await res.json()) as Partial<KnownResponse>;
+      return Array.isArray(body.known) ? body.known.filter((k): k is KnownFact => !!k && typeof k.line === "string" && typeof k.cell === "string" && typeof k.text === "string") : [];
+    } catch {
+      return [];
+    }
   };
 }

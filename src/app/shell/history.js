@@ -40,12 +40,15 @@ function closeTop(){
   else if(state.tab==="review") setTab(state.own);
   else if(!isWide()&&!state.menuOpen) toggleMenu(true);
 }
+// Did the browser animate the Back itself? A swipe from the edge shows the page sliding away over the one before it, and `hasUAVisualTransition` of the popstate
+// event says so. Then the panels the Back closes do not move as well. When it did not (the Back key or button, a keyboard), they move like any other close, the menu
+// sliding in over the exercise. A browser that cannot say is taken to have animated it: better one motion missing than two.
 addEventListener("popstate",e=>{
   if(state.navSkip>0){ state.navSkip--; if(!state.navSkip) navSync(); return; }   // the end of a step back the page took itself
   const at=e.state&&e.state[MARK]||0;
   if(at<state.navDepth){
     state.navDepth=at;
-    state.navBack=true;                                                          // the system has moved the screen away itself: the panels it closes do not move as well
+    state.navBack=e.hasUAVisualTransition!==false;                               // the browser has moved the screen away itself: the panels it closes do not move as well
     try{ for(let n=depth();n>at;n--) closeTop(); } finally{ state.navBack=false; } // each close renders; navSync then finds nothing to do
   } else if(at>state.navDepth){ state.navSkip++; history.go(state.navDepth-at); } // forward onto an entry whose level is gone: step back again
 });
