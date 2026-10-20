@@ -15,7 +15,7 @@ export { cardBody, cardNotes, explainAsk, finePoints, tutorCard } from "./card";
 export type { AnswerView, DebateAnswer } from "./card";
 export { CAUSES, REVIEW_GUIDE, REVIEW_LIMITS, VERDICTS, parseReview, readReviewAnswer, reviewRequest, storedView } from "./flag-review";
 export type { FlagCause, FlagReview, FlagVerdict, ReviewAnswer, ReviewFlag } from "./flag-review";
-export { exampleFacts, makeExampleIndex, matchExamples, readExamples } from "./examples";
+export { exampleFacts, examplesFor, makeExampleIndex, matchExamples, readExamples } from "./examples";
 export type { Example, ExampleIndex, Examples } from "./examples";
 export { tutorTools } from "./tools";
 export type { TutorTool } from "./tools";

@@ -76,7 +76,10 @@ describe("kitFrom", () => {
     expect(kit.run("classify_example", { thing: "a ball" })).toMatchObject({ found: true, dudra_type: "Form" });
     expect(kit.run("classify_example", { thing: "a vemo" })).toMatchObject({ found: true, source: "reference", item: "a vemo", classes: ["Consciousness"], level: 2 });
     expect(kit.tools.find((t) => t.name === "classify_example")!.description).toMatch(/reference examples/);
+    expect(kit.run("examples_of", { term: "Consciousness", level: 2 })).toMatchObject({ found: true, term: "Consciousness", examples: [{ item: "a vemo", level: 2, of: "Consciousness" }] });
     const without = await kitFrom(open, { ...rows, examples: "SECRET-EX {not json" });
+    expect(without.tools.map((t) => t.name)).not.toContain("examples_of");
+    expect(() => without.run("examples_of", { term: "Consciousness" })).toThrow("unknown tool");
     expect(without.run("classify_example", { thing: "a vemo" })).toEqual({ found: false });
     expect(vi.mocked(console.error).mock.calls.flat().join(" ")).not.toContain("SECRET");
   });

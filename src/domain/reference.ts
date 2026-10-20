@@ -4,6 +4,7 @@
 // not, or when it does not exist. Anything else the data cannot tell, and the example stays out of that cell: a cell is never
 // filled by guessing that what the data does not say is false.
 import type { Cat } from "../ai-shared/data";
+import { examplesFor } from "../ai-shared/examples";
 import type { Example } from "../ai-shared/examples";
 import { spelled, stripDet, upChain } from "../ai-shared/lookup";
 import type { DataIndex } from "../ai-shared/lookup";
@@ -71,33 +72,5 @@ export function witnessesOf(ix: DataIndex, items: readonly Example[], maxLevel: 
   };
 }
 
-/** How well the sources confirm an example, best first. */
-const CONFIRMED = ["confirmed", "textbook", "commentator"];
-const rank = (ex: Pick<Example, "cf">) => { const i = CONFIRMED.indexOf(ex.cf ?? ""); return i < 0 ? CONFIRMED.length : i; };
-
-/**
- * Examples of a term for its definition card: its own (an instance of the term itself) before those of its subclasses, then the lowest
- * level, the better confirmed, and the name. A statement is not an example of a term and an example the sources say it is not an instance of
- * the term does not count. Up to `max`; after the term's own, as many different subclasses as possible first, so that a broad term shows a
- * spread and not three of one kind. The same list for the same data.
- */
-export function examplesFor(ix: DataIndex, items: readonly Example[], term: string, max = 3): Example[] {
-  if (!Object.hasOwn(ix.DATA.terms, term)) return [];
-  const ranked: { ex: Example; own: boolean; cls: string }[] = [];
-  for (const ex of items) {
-    if (ex.k === "statement" || ex.not?.includes(term)) continue;
-    const classes = (ex.cls ?? []).filter((c) => upChain(ix, c).includes(term));
-    if (classes.length) ranked.push({ ex, own: classes.includes(term), cls: classes.includes(term) ? term : classes[0] });
-  }
-  ranked.sort((a, b) => Number(b.own) - Number(a.own) || a.ex.lv - b.ex.lv || rank(a.ex) - rank(b.ex) || a.ex.n.localeCompare(b.ex.n));
-  const out = ranked.filter((r) => r.own).slice(0, max);
-  const seen = new Set<string>();
-  for (const r of ranked) {
-    if (out.length < max && !r.own && !seen.has(r.cls)) {
-      out.push(r);
-      seen.add(r.cls);
-    }
-  }
-  for (const r of ranked) if (out.length < max && !out.includes(r)) out.push(r);
-  return out.map((r) => r.ex);
-}
+// The examples of a term (for a definition card, and for the tutor's examples_of) are chosen in src/ai-shared/examples.ts, where the tutor's code can use them.
+export { examplesFor };
