@@ -61,7 +61,7 @@ function versionLine(){
   return el("p",{class:"ver",role:"status",text:v+(a.latest==="newer"?" · a newer version is out":"")});
 }
 function pick(k){
-  if(k==="settings"){ state.menuOpen=false; state.menuPeek=false; toggleOpts(true); }
+  if(k==="settings"){ state.menuOpen=false; state.menuPeek=false; state.sessOpen=false; state.sessPage=null; state.skipAsk=false; toggleOpts(true); } // a screen shows itself, not a panel under it (as setTab does)
   else setTab(k);
 }
 function onClick(e){

@@ -79,6 +79,10 @@ export function renderOver(){
   const kind=state.optsOpen?"options":ask?"skip":sess?"session":"chat", show=state.optsOpen||ask||sess||!!chat, was=!o.hidden&&o.dataset.kind===kind;
   o.replaceChildren(); o.hidden=!show; o.dataset.kind=kind; o.setAttribute("aria-label",{options:"Settings",session:"Practice options",skip:"Skip this pair?",chat:"Discuss with AI"}[kind]);
   document.documentElement.classList.toggle("ov",show);
+  // Whatever is open here (Settings, the question before a skip, the practice options, the phone's chat) covers the exercise and its bars, which cannot be reached by
+  // the keyboard or a screen reader until it closes (Enter on a Check button hidden behind it would grade the pair). The menu is outside this column and stays:
+  // moving to another screen from it closes the overlay like any other move (setTab).
+  for(const n of /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll("#app > .col > :not(#over)"))) n.inert=show;
   if(!show) return;
   if(kind==="options") optionsInto(o); else if(kind==="session") sessionInto(o); else if(kind==="skip") skipInto(o); else chatInto(o,!was);
   const sc=$("chatscroll"); if(sc) sc.scrollTop=0;

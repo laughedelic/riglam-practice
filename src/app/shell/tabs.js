@@ -44,8 +44,10 @@ export function attemptOf(k){
 }
 /** The first pair, in the exercise the app opens on (the one used last). */
 export function startFirst(){
-  if(state.tab==="debate") advanceDebate(); else if(state.tab==="find") advanceFind(); else if(state.tab==="cq") advanceCq(); else advance();
+  const k=state.tab==="review"?state.own:state.tab;   // Review opened before the first pair is drawn: the exercise under it gets its pair
+  if(k==="debate") advanceDebate(); else if(k==="find") advanceFind(); else if(k==="cq") advanceCq(); else advance();
   state.mode="quiz";
+  if(k!==state.tab) stopTimer();                       // its clock starts when Review is left (setTab)
 }
 export function switchTo(k){
   stopTimer();

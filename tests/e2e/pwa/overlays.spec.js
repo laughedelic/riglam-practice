@@ -1,7 +1,7 @@
 // Settings opens over the exercise. The system Back closes it (and then, on a phone, the exercise's level: the menu opens) instead of leaving the app, and the
 // Blitz clock stands still while it is open (an attempt is never graded behind it). The practice options (settings.spec.js) keep their place when a setting changes.
 import { test, expect } from "../../support/test.js";
-import { goTo, isPhone, openSettings, ready } from "../../support/page.js";
+import { goTo, isPhone, openMenu, openSettings, ready } from "../../support/page.js";
 
 const hook = () => { window.__riglamTest = (t) => { window.__t = t; }; };
 const blitz = () => { localStorage.setItem("rd-blitz", "1"); localStorage.setItem("rd-timer-rel", "2000"); localStorage.setItem("rd-timer", "2000"); };
@@ -96,5 +96,20 @@ test("a Pervasions question's clock stands still behind Settings", async ({ page
   await page.locator("#over .oc").click();
   await expect(page.locator("#over")).toBeHidden();
   expect(await page.evaluate(() => window.__t.ui.step)).toBe(0);
+  await expect.poll(() => page.evaluate(() => window.__t.ui.step), { timeout: 6000 }).toBeGreaterThan(0);
+});
+
+test("a Pervasions question's clock stopped by the phone's drawer runs again when the window turns wide", async ({ page }, testInfo) => {
+  test.skip(!isPhone(testInfo), "the drawer is the phone's");
+  await page.addInitScript(hook);
+  await page.addInitScript(blitz);
+  await page.goto("/");
+  await ready(page);
+  await goTo(page, "Pervasions");
+  await expect.poll(() => page.evaluate(() => window.__t.ui.debate)).toBe(true);
+  await openMenu(page);
+  await page.waitForTimeout(3000); // longer than the 2 s limit
+  expect(await page.evaluate(() => window.__t.ui.step)).toBe(0);
+  await page.setViewportSize({ width: 1280, height: 800 }); // the drawer is gone: a wide screen has none
   await expect.poll(() => page.evaluate(() => window.__t.ui.step), { timeout: 6000 }).toBeGreaterThan(0);
 });

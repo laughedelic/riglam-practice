@@ -3,6 +3,7 @@ import { canAsk } from "../core/ask.js";
 import { $, el } from "../core/dom.js";
 import { isWide, syncVv, wideMq } from "../core/viewport.js";
 import { renderCq } from "../consequence/screen.js";
+import { asking, startQ } from "../debate/flow.js";
 import { renderDebate } from "../debate/screen.js";
 import { renderFind } from "../find/screen.js";
 import { placePops, renderQuiz } from "../practice/screen.js";
@@ -78,9 +79,12 @@ export function render(){
   navSync();
 }
 function renderNow(){
-  ensureRelTimer();
   const w=isWide(); if(w&&state.view==="chat") state.view=null;
+  const drawerGone=w&&state.menuOpen;
   if(w) state.menuOpen=false; else state.menuPeek=false;
+  // the phone's drawer stopped the question's clock; when the window turns wide with it open there is no drawer to wait for, and the clock runs again
+  if(drawerGone&&state.blitz&&asking()&&!state.ui.tq) startQ();
+  ensureRelTimer();
   // the tutor's panel closes with the pair it was opened for
   if(state.lastUi!==state.ui){ if(state.lastUi&&state.lastUi.chat) state.coachOpen=false; state.lastUi=state.ui; }
   const app=$("app"), s=$("stage"), c=$("coach"), f=focusKey(), coach=w&&state.mode==="quiz"&&isEx()&&state.coachOpen;

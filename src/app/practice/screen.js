@@ -267,12 +267,13 @@ function quizWide(s,c){
   coachInto(c,answerList().slice(-5).reverse(),a=>a.key,u.checked?[["N","next pair"],["F","favorite"]]:[["1–5","relation"],["Enter","next cell"],["S","skip"],["F","favorite"]]);
 }
 /**
- * The panel at the right of a wide screen, when it is open: the tutor's conversation once there is one, the last answers, and the keys. It opens with the chat
- * button of the top bar, and by itself when an explanation is asked for; it closes with the pair it was opened for.
+ * The panel at the right of a wide screen, when it is open: the tutor's conversation once there is one (a checked pair has its follow-up field from the start),
+ * the last answers, and the keys. It opens with the chat button of the top bar, and by itself when an explanation is asked for; it closes with the pair it was
+ * opened for.
  */
 export function coachInto(c,list,rel,keys){
   if(!isWide()||!state.coachOpen||!state.ui) return;
-  if(state.ui.chat||state.ui.chatErr) c.append(el("p",{class:"label"},"Tutor"),renderTutor());
+  if(state.ui.chat||state.ui.chatErr||(state.ui.checked&&canAsk())) c.append(el("p",{class:"label"},"Tutor"),renderTutor()); // a checked pair has the follow-up field even before the first question, as on a phone
   recentNode(c,list,rel);
   c.append(kbHints(...keys));
 }

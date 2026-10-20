@@ -1,7 +1,7 @@
 // The practice options and Settings. What changes how an exercise looks, ticks or is checked opens from the exercise (the sliders button at the top: a sheet from
 // the bottom of a phone, a popover on a wide screen); each option with its own page. Settings (from the menu) keeps what belongs to the app, the device and the account.
 import { test, expect } from "../../support/test.js";
-import { goTo, isPhone, openSettings, ready } from "../../support/page.js";
+import { goTo, isPhone, openMenu, openSettings, ready } from "../../support/page.js";
 
 const hook = () => { window.__riglamTest = (t) => { window.__t = t; }; };
 const blitz = () => { localStorage.setItem("rd-blitz", "1"); localStorage.setItem("rd-timer-rel", "2000"); localStorage.setItem("rd-timer", "2000"); };
@@ -228,4 +228,35 @@ test("the A/B markers and Full phrases switches are kept", async ({ page }) => {
   await sw.click();
   await expect(sw).not.toHaveAttribute("aria-checked", was);
   expect(await page.evaluate(() => localStorage.getItem("rd-ab"))).toBe(was === "true" ? "0" : "1");
+});
+
+test("Settings chosen in the menu while the practice options are open replaces them: one Escape closes it", async ({ page }, testInfo) => {
+  test.skip(isPhone(testInfo), "on a phone the menu and the options are never on screen together");
+  await page.goto("/");
+  await ready(page);
+  await openMenu(page);
+  await sessBtn(page).click();
+  await expect(page.locator("#over")).toHaveAttribute("data-kind", "session");
+  await page.locator('#menu .fbtn[data-go="settings"]').click();
+  await expect(page.locator("#over")).toHaveAttribute("data-kind", "options");
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#over")).toBeHidden();
+});
+
+test("behind Settings the exercise cannot be reached by the keyboard; the menu still can", async ({ page }, testInfo) => {
+  await page.goto("/");
+  await ready(page);
+  await openSettings(page);
+  await expect(page.locator("#over")).toHaveAttribute("data-kind", "options");
+  await expect(page.locator("#app > .col > main.work")).toHaveJSProperty("inert", true);
+  await expect(page.locator("#app > .col > header.mbar")).toHaveJSProperty("inert", true);
+  await expect(page.locator("#menu")).toHaveJSProperty("inert", false);
+  // Tab and Shift+Tab never land on the Check or Skip button under it (Enter there would grade the pair)
+  for (let i = 0; i < 12; i++) {
+    await page.keyboard.press(i % 3 ? "Tab" : "Shift+Tab");
+    expect(await page.evaluate(() => !!document.activeElement.closest("main.work, header.mbar"))).toBe(false);
+  }
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#over")).toBeHidden();
+  await expect(page.locator("#app > .col > main.work")).toHaveJSProperty("inert", false);
 });
