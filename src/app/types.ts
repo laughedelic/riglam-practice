@@ -225,7 +225,7 @@ export interface State {
   tutor: Tutor | null;
   /** what the app's server learned of examples from earlier checks (platform.known), asked before the tutor about an example the page could not check */
   known: Known | null;
-  /** the course's reference examples this device holds (platform.examples), by name; null without them */
+  /** the course's reference examples this device holds (platform.examples), by name; null when it has none (src/app/core/examples.js) */
   EX: ExampleIndex | null;
   /** sends flags to the app's server (platform.reports), when the place has a server for them and this device has the Magic Key */
   reports: Reports | null;

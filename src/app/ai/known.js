@@ -3,7 +3,6 @@ import { quorumThings } from "./quorum.js";
 import { explainByItself, saveVerdicts } from "./tutor.js";
 import { noteData } from "../practice/screen.js";
 import { renderKeepFocus } from "../shell/render.js";
-import { makeExampleIndex, readExamples } from "../../ai-shared/examples.ts";
 import { pairCats } from "../../ai-shared/lookup.ts";
 import { openExamples, referenceLines, wholeFirst } from "../../domain/known.ts";
 import { applyVerdicts, parseVerdicts } from "../../domain/verdict.ts";
@@ -18,11 +17,10 @@ import { applyVerdicts, parseVerdicts } from "../../domain/verdict.ts";
 
 const WAIT_MS = 4000;           // the server's answer is worth a short wait, not a slow check
 
-/** Reads what the platform has of both: on start, and again after the Magic Key changed. */
+/** Reads what the platform has of the server's learned facts: on start, and again after the Magic Key changed. (The reference examples are state.EX, core/examples.js.) */
 export async function loadKnown(platform){
   try{ state.known=platform.known?await platform.known():null; }catch(e){ state.known=null; }
   try{ state.learns=!!(platform.shares&&await platform.shares()); }catch(e){ state.learns=false; }
-  try{ const ex=platform.examples?readExamples(await platform.examples()):null; state.EX=ex&&ex.items.length?makeExampleIndex(ex):null; }catch(e){ state.EX=null; }
 }
 
 /**
