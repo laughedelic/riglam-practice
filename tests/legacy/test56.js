@@ -1,10 +1,10 @@
-const {open,go}=require('./harness.js');
+const {open,go,toggleCoach}=require('./harness.js');
 const {ringScan}=require('./ring.js');
 const D=require('./harness.js').SHOTS;
 const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.stringify(x)));};
 const ORDER={mi:0,'3ab':1,'3ba':2,'4':3,con:4};
 // the tutor's panel (Coach) opens only on request: the chat button of the top bar; this opens it if it is closed and returns its text
-const coach=async pg=>{ if(!(await pg.locator('#coach').isVisible())){ await pg.locator('#mchat').click(); await pg.waitForTimeout(100); } return pg.locator('#coach').innerText(); };
+const coach=async pg=>{ if(!(await pg.locator('#coach').isVisible())) await toggleCoach(pg); return pg.locator('#coach').innerText(); }; // the panel closes with its pair, and the chat button waits for the next result: before it the test opens the panel as the button used to
 const PAIRS=[["Physical things outside a person's continuum","Plants"],["Pot","Plants"],["knowers","manifest phenomena"],["Things heard by the ear consciousness","Non-associated compositional factors"],["Consciousnesses","Non-product phenomena"],["Functional things","Impermanent things"],["Ear","Sound"]];
 (async()=>{
  // 1. Enter on a cell goes to the next cell; only the last submits (phone)

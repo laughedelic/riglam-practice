@@ -1,7 +1,6 @@
 import { el } from "../core/dom.js";
 import { isWide } from "../core/viewport.js";
-import { state } from "../state.js";
-import { favBtn } from "../practice/favorites.js";
+import { favBtn, favTarget } from "../practice/favorites.js";
 import { skipBtn, skipNoteNode } from "../practice/skips.js";
 import { timerBar } from "./timers.js";
 
@@ -19,7 +18,7 @@ export function pairBar(fwd,extra=[]){
   const bar=el("div",{class:"actions pbar"});
   const tb=timerBar(); if(tb){ tb.classList.add("pbt"); bar.append(tb); }
   const note=skipNoteNode(); if(note) bar.append(note);
-  const fb=state.cur&&state.cur.p?favBtn(state.cur.p):null;
+  const fp=favTarget(), fb=fp?favBtn(fp):null;
   bar.append(el("div",{class:"prow"},
     el("div",{class:"pl"},skipBtn(),fb,...extra.filter(Boolean)),
     fwd?el("button",{type:"button",class:"btn fwd",disabled:!!fwd.disabled,title:fwd.title||null,onclick:fwd.onclick},fwd.label,fwd.hint&&isWide()?el("span",{class:"kbd","aria-hidden":"true",text:fwd.hint}):null):null));

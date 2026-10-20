@@ -12,7 +12,10 @@ async function snapshot(page) {
       const r = n.getBoundingClientRect();
       return [n.id || n.className || n.tagName, Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)];
     });
-    return { html: document.getElementById("app").outerHTML, boxes, scrollW: document.documentElement.scrollWidth, innerW: innerWidth };
+    // the foot of the menu (the Magic Key button, the version and the update line) is the platform's own, and a wide screen shows the menu from the start
+    const app = document.getElementById("app").cloneNode(true);
+    app.querySelector("#menu .mfoot")?.remove();
+    return { html: app.outerHTML, boxes, scrollW: document.documentElement.scrollWidth, innerW: innerWidth };
   });
 }
 

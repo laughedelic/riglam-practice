@@ -52,12 +52,14 @@ export const state = {
   sessPage: null,    // the option whose own page is open in the Practice options (shell/session.js), or null for the list
   skipAsk: false,    // the dialog that asks before a pair with answers in it is skipped
   menuOpen: false,   // narrow screens: the menu slides over the exercise
-  menuPin: false,    // wide screens: the menu is pinned open beside the exercise (`rd-menu`); otherwise it only peeks from the left edge
+  menuPin: true,     // wide screens: the menu is pinned open beside the exercise (`rd-menu`, pinned until it is unpinned); otherwise it only peeks from the left edge
   menuPeek: false,   // wide screens: the pointer is on the left edge, the menu shows while it stays there
   coachOpen: false,  // wide screens: the panel at the right (recent answers and keys before the result, the tutor after it) is open
   navDepth: 0,    // history entries held above the first screen (shell/history.js): the exercise itself on a narrow screen, Review, the chat view, Settings, the options and their pages, the skip question
   navSkip: 0,     // steps back the page took itself, whose popstate is to be ignored
   navQ: false,    // a check of the entries against the state is due after this render
+  navBack: false, // the system's Back is closing levels (shell/history.js): the system has animated the screen away already, so the panels do not move (shell/motion.js)
+  motion: false,  // the first screen has been drawn: panels that open or close after it slide (shell/motion.js)
   view: null,
   reviewSeg: "overview",
   defLang: "en",  // definitions in the Terms panel: "en", or "enru" (English with the Russian definition and the Russian name of each term)
@@ -98,7 +100,7 @@ export const state = {
 };
 
 try{ const v=localStorage.getItem("rd-ex"); if(v==="debate"||v==="find"||v==="syllogism") state.tab=state.own=v; }catch(e){}
-try{ state.menuPin=localStorage.getItem("rd-menu")==="1"; }catch(e){}
+try{ state.menuPin=localStorage.getItem("rd-menu")!=="0"; }catch(e){ state.menuPin=true; }   // a wide screen starts with the menu pinned (the exercise would be stretched too wide without it); the button unpins it
 try{ const v=localStorage.getItem("rd-notation"); if(v==="sets"||v==="logic") state.nota=v; }catch(e){}
 try{ if(localStorage.getItem("rd-deflang")==="enru") state.defLang="enru"; }catch(e){}   // an earlier "off" (words only) is now the codes
 // the setting was stored as "rd-lab" while Quorum was a lab of the page: a device that turned it off keeps it off

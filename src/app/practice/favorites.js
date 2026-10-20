@@ -40,6 +40,8 @@ function setFav(p,on){
   }
 }
 export const toggleFav=p=>setFav(p,!isFav(p));
+/** The pair the star and the key F act on: the one on screen, but not while Find a pair asks for the words of another (the old pair stays until "Use this pair"). */
+export const favTarget=()=>{ const c=state.cur, u=state.ui; return c&&c.p&&!(u&&u.find&&!u.checked&&u.step===0)?c.p:null; };
 /** The star of the pair bar: pressed while the pair is a favorite. Not there without storage, and not for a pair of the learner's own (it has no categories to keep). */
 export function favBtn(p){
   if(!state.db||!p||p.own) return null;
