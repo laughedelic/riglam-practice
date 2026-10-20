@@ -4,30 +4,34 @@ import { expect } from "@playwright/test";
 
 export const relOptions = (page) => page.locator(".rels .rel, .strip .chip").filter({ visible: true });
 
-/** The app has booted when the data is loaded and a pair is on screen. It opens on Home; this opens Relations from there. */
+/** The app has booted when the data is loaded and a pair is on screen: it opens on the exercise (Relations, or the one used last). */
 export async function ready(page) {
-  const row = page.locator('.exr[data-go="practice"]'), pair = page.locator("#stage .head .pair");
-  await expect(row.or(pair)).toBeVisible();
-  if (await row.isVisible()) {
-    await expect(row).toBeEnabled();
-    // a spec that starts under a dialog (the Magic Key prompt) only needs the exercise open behind it
-    if (await page.locator("dialog[open]").count()) await row.dispatchEvent("click");
-    else await row.click();
-  }
+  const pair = page.locator("#stage .head .pair");
   await expect(pair).toBeVisible();
   await expect(relOptions(page)).toHaveCount(5);
 }
 
-const SCREENS = { Home: "home", Relations: "practice", Pervasions: "debate", "Find a pair": "find", Review: "review" };
-/** Goes to a screen as a learner would: the rail on a wide screen; on a phone the tab bar (Home, Review), and an exercise from Home. */
-export async function goTo(page, name) {
-  const k = SCREENS[name], b = page.locator(`[data-go="${k}"]`).filter({ visible: true });
-  if (await b.count()) return b.first().click();
-  const back = page.locator("#mback"); // in an exercise the tab bar hides while a field has the keyboard; the back arrow stays
-  if (await back.isVisible()) await back.click();
-  else await page.locator('[data-go="home"]').filter({ visible: true }).first().click();
-  if (k !== "home") await page.locator(`.exr[data-go="${k}"]`).click();
+/** Opens the menu if it is not showing: the drawer on a phone, the pinned panel on a wide screen. */
+export async function openMenu(page) {
+  const menu = page.locator("#menu");
+  if (!(await menu.isVisible())) {
+    // Review has no menu button on a phone (the back arrow returns to the exercise)
+    if (!(await page.locator("#menubtn").isVisible())) await page.locator("#mback").click();
+    await page.locator("#menubtn").click();
+  }
+  await expect(menu).toBeVisible();
 }
+
+const SCREENS = { Relations: "practice", Pervasions: "debate", "Find a pair": "find", Review: "review", Settings: "settings" };
+/** Goes to a screen as a learner would: from the menu. */
+export async function goTo(page, name) {
+  if (await page.locator("#over").isVisible()) await page.keyboard.press("Escape");
+  await openMenu(page);
+  await page.locator(`#menu :is(.mrow, .fbtn)[data-go="${SCREENS[name]}"]`).click();
+}
+
+/** Opens Settings (the Magic Key, the account, your data, the version) from the menu. */
+export const openSettings = (page) => goTo(page, "Settings");
 
 export const isPhone = (testInfo) => testInfo.project.name === "pwa-phone";
 export const overflow = (page) => page.evaluate(() => document.documentElement.scrollWidth - innerWidth);

@@ -7,7 +7,7 @@ import { stopTimer } from "../debate/flow.js";
 import { persist } from "./answers.js";
 import { clearSkip } from "./skips.js";
 import { pairCats } from "./universe.js";
-import { render, top0 } from "../shell/render.js";
+import { focusAfterCheck, render } from "../shell/render.js";
 import { grade } from "../../domain/grading.ts";
 
 /* ---------- grading ---------- */
@@ -18,7 +18,7 @@ export async function check(){
   if(state.ui.find){ checkFind(); return; }              // Find a pair shares the cells and their keys, and checks in its own way
   const p=state.cur.p;
   stopTimer(); clearSkip(p); state.ui.res=grade(state,p,state.ui); state.ui.checked=true; state.ui.open=false; render();
-  top0(); const bs=document.querySelectorAll("#stage .actions .btn"); if(bs.length) bs[bs.length-1].focus({preventScroll:true});
+  focusAfterCheck();
   explainByItself(state.ui);
   if(!state.db) return;
   const cells=/** @type {import("../types.ts").AnswerDoc["cells"]} */({});

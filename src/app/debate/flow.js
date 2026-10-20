@@ -2,12 +2,13 @@ import { state } from "../state.js";
 import { explainByItself } from "../ai/tutor.js";
 import { $ } from "../core/dom.js";
 import { CELLS } from "../core/rel.js";
+import { isWide } from "../core/viewport.js";
 import { QCELL } from "./text.js";
 import { persist } from "../practice/answers.js";
 import { freshUi } from "../practice/queue.js";
 import { clearSkip } from "../practice/skips.js";
 import { nextGenerated } from "../practice/universe.js";
-import { render, top0 } from "../shell/render.js";
+import { focusAfterCheck, render } from "../shell/render.js";
 import { relReset, tkind } from "../shell/timers.js";
 import { gradeDebate } from "../../domain/grading.ts";
 
@@ -19,10 +20,12 @@ export function freshDebateUi(){
 export const debateList=()=>Object.values(state.debates).sort((x,y)=>(x.at||"").localeCompare(y.at||""));
 export function advanceDebate(){ state.cur={p:nextGenerated(debateList()), debate:true}; state.ui=freshDebateUi(); state.mode="quiz"; startQ(); }
 export const limitMs=()=>state.blitz?state.timerMs:0;
+/** The clock stands still while something covers the exercise: Settings, the practice options, the question before a skip, the menu on a phone. It starts again, with its full time, when that closes. */
+export const paused=()=>state.optsOpen||state.sessOpen||state.skipAsk||(state.menuOpen&&!isWide());
 export function stopTimer(){ if(state.ui&&state.ui.tid){ clearTimeout(state.ui.tid); state.ui.tid=null; } if(state.ui) state.ui.tq=null; }
 export function startQ(){
   stopTimer();
-  if(!state.ui||!state.ui.debate||state.ui.checked||state.ui.step>3||state.optsOpen||state.sessOpen) return;
+  if(!state.ui||!state.ui.debate||state.ui.checked||state.ui.step>3||paused()) return;
   const a=state.ui.ans[state.ui.step], lim=limitMs(); a.limit=lim;
   state.ui.qStart=performance.now();
   if(lim){ const u=state.ui; u.tq={t0:state.ui.qStart,limit:lim}; u.tid=setTimeout(()=>expireQ(u),lim); }
@@ -81,7 +84,7 @@ export async function checkDebate(){
   const p=state.cur.p;
   QCELL.forEach((c,i)=>{ state.ui.cells[c].t=(state.ui.ans[i].text||"").trim(); state.ui.cells[c].none=state.ui.ans[i].say==="accept"; });
   clearSkip(p); state.ui.res=gradeDebate(state,p,/** @type {import("../../domain/types.ts").DebateInput} */(state.ui)); state.ui.checked=true; state.ui.open=false; render();
-  top0(); const bs=document.querySelectorAll("#stage .actions .btn"); if(bs.length) bs[bs.length-1].focus({preventScroll:true});
+  focusAfterCheck();
   explainByItself(state.ui);
   if(!state.db) return;
   const cells=/** @type {import("../types.ts").AnswerDoc["cells"]} */({}); for(const c of CELLS) cells[c]={text:state.ui.cells[c].t, none:state.ui.cells[c].none, verdict:state.ui.res.cells[c].v};

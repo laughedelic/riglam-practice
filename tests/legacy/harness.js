@@ -29,7 +29,7 @@ window.claude={use:async n=>n==='db'?db:n==='sample'?sample:null};
   return {html};
 }
 async function open(vp,opts={}){
-  const autoExplain=opts.autoExplain; delete opts.autoExplain; const home=!!opts.home; delete opts.home;
+  const autoExplain=opts.autoExplain; delete opts.autoExplain;
   const {html}=load();
   const br=await chromium.launch();
   const ctx=await br.newContext(Object.assign({viewport:vp,colorScheme:'light'},opts));
@@ -40,22 +40,22 @@ async function open(vp,opts={}){
   const errs=[]; pg.on('console',m=>{if(m.type()==='error')errs.push(m.text())}); pg.on('pageerror',e=>errs.push('ERR '+e.message));
   await pg.route('http://t/**',r=>r.fulfill({body:html,contentType:'text/html'}));
   await pg.goto('http://t/index.html',{waitUntil:'domcontentloaded'}); await pg.waitForTimeout(800);
-  // the app opens on Home; the old tests start in Relations, as the page did before Home ({home:true} stays on Home)
-  if(!home) await pg.evaluate(()=>{ const r=document.querySelector('.exr[data-go="practice"]:not(:disabled)'); if(r) r.click(); });
   return {br,pg,errs};
 }
-// Goes to a screen as a learner would: Home, Review or an exercise ("Relations", "Pervasions"). On a wide screen the rail lists them all;
-// on a phone the tab bar has Home and Review, and an exercise is opened from Home.
-const GO={Home:'home',Relations:'practice',Pervasions:'debate','Find a pair':'find',Review:'review'};
+// Goes to a screen as a learner would: the menu lists the exercises, Review and Settings (a drawer on a phone; on a wide screen the menu button pins it open).
+// From Review the back arrow returns to the exercise first; an open overlay (Settings, the practice options) is closed.
+const GO={Relations:'practice',Pervasions:'debate','Find a pair':'find',Review:'review',Settings:'settings'};
 async function go(pg,name){
-  const k=GO[name], b=pg.locator('[data-go="'+k+'"]').filter({visible:true});
-  if(await b.count()) return b.first().click();
-  if(await pg.locator('#mback').isVisible()) await pg.locator('#mback').click();
-  else await pg.locator('[data-go="home"]').filter({visible:true}).first().click();
-  if(k!=='home') await pg.locator('.exr[data-go="'+k+'"]').click();
+  const k=GO[name];
+  if(await pg.locator('#over').isVisible()) await pg.keyboard.press('Escape');
+  if(!(await pg.locator('#menu').isVisible())){
+    if(!(await pg.locator('#menubtn').isVisible())) await pg.locator('#mback').click();
+    await pg.locator('#menubtn').click();
+  }
+  await pg.locator('#menu [data-go="'+k+'"]').click();
 }
-// Opens the settings of the exercise on screen (its sliders button: in the top bar on a phone, in the action row on a wide screen).
-async function settings(pg){ await pg.locator('#msess:visible, .sessb:visible').first().click(); await pg.waitForTimeout(100); }
+// Opens the practice options of the exercise on screen (the sliders button in the top bar).
+async function settings(pg){ await pg.locator('#msess').click(); await pg.waitForTimeout(100); }
 // Waits until `read` (a function run in the page) returns the same value on `times` reads in a row, `every` ms apart, and
 // returns that value. A test uses it before it measures a position, so that a render that arrives late (the saved answer
 // coming back from the db) or a transition in progress cannot change the layout between two measurements. It stops waiting

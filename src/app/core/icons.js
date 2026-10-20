@@ -1,10 +1,16 @@
 // Line icons of the page: one style (24 px grid, round caps), drawn with the text color. The toolbar uses them at 24 px (class "tbi",
 // stroke 1.75, outline when off, filled when on, src/app/styles/25-toolbar.css); lock and key are small ones that sit beside text (class "ico").
 const P={
-  bolt:'<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
+  watch:'<circle class="fa" cx="12" cy="13.5" r="7.5"/><path class="fb" d="M12 9.5v4l2.5 2"/><path d="M9.5 2.5h5M12 2.5V6M18.5 6.5l1.5-1.5"/>',
+  menu:'<path d="M4 7h16M4 12h16M4 17h16"/>',
+  close:'<path d="M6 6l12 12M18 6L6 18"/>',
+  review:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  gear:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
+  refresh:'<path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v4h-4"/>',
+  chat:'<path d="M4 5h16v11H10l-6 4z"/>',
   star:'<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
   skip:'<polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/>',
-  sliders:'<line x1="4" y1="7" x2="8.5" y2="7"/><circle cx="11" cy="7" r="2.5"/><line x1="13.5" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="12" y2="12"/><circle cx="14.5" cy="12" r="2.5"/><line x1="17" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="5.5" y2="17"/><circle cx="8" cy="17" r="2.5"/><line x1="10.5" y1="17" x2="20" y2="17"/>',
+  sliders:'<path d="M4 8h9M17 8h3M4 16h3M11 16h9"/><circle cx="15" cy="8" r="2"/><circle cx="9" cy="16" r="2"/>',
   back:'<polyline points="15 4 7 12 15 20"/>',
   chev:'<polyline points="9 5 16 12 9 19"/>',
   lock:'<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',

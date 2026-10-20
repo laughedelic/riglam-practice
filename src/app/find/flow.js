@@ -7,7 +7,7 @@ import { isWide } from "../core/viewport.js";
 import { persist } from "../practice/answers.js";
 import { freshUi } from "../practice/queue.js";
 import { clearSkip } from "../practice/skips.js";
-import { focusCin, render, top0 } from "../shell/render.js";
+import { focusAfterCheck, focusCin, render, top0 } from "../shell/render.js";
 import { switchTo } from "../shell/tabs.js";
 import { drawRelation, findId, findPair, gradeFind, nameThing, sameThing } from "../../domain/find.ts";
 
@@ -92,7 +92,7 @@ export function checkFind(){
   const p=state.cur.p;
   clearSkip(p,u.rel);
   u.res=gradeFind(state,p,u); u.checked=true; u.open=false; render();
-  top0(); const bs=document.querySelectorAll("#stage .actions .btn"); if(bs.length) bs[bs.length-1].focus({preventScroll:true});
+  focusAfterCheck();
   explainByItself(u);
   if(!state.db) return;
   const cells=/** @type {import("../types.ts").AnswerDoc["cells"]} */({});

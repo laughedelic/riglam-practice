@@ -6,14 +6,12 @@ import { REL, cellLabel, lcRel, notaOf, notaParts } from "../core/rel.js";
 import { isWide } from "../core/viewport.js";
 import { backWhy, chooseD, debateList, sayQ, submitWhy } from "./flow.js";
 import { QCELL, Wd, ansNode, qNode } from "./text.js";
-import { favBtn } from "../practice/favorites.js";
-import { exLine, explainBtn, explainParts, factNode, fbNode, isaTxt, kbHints, nextBtn, recentNode, relCap, relList, relPopNode, relStrip, relWhy, resultBlock, termsItem, tutorAct, tutorItem, whyBtn, whyHead } from "../practice/screen.js";
-import { skipActs, subRowNode } from "../practice/skips.js";
+import { checkChip, coachInto, errLines, exLine, explainParts, factNode, fbNode, isaTxt, nextFwd, relCap, relList, relPopNode, relStrip, relWhy, resultBlock, termsItem, tutorItem, whyBtn, whyHead } from "../practice/screen.js";
+import { subRowNode } from "../practice/skips.js";
 import { defCard, withTerms } from "../practice/terms.js";
 import { exGrid } from "../review/review.js";
+import { pairBar } from "../shell/pbar.js";
 import { fitPair, render, setSteps } from "../shell/render.js";
-import { sessBtn } from "../shell/session.js";
-import { blitzBtn, relTimedD, timerSlot } from "../shell/timers.js";
 
 function pairHead(s,p,o){
   const np=o.rel?notaParts(o.rel):null;
@@ -29,7 +27,7 @@ function pairHead(s,p,o){
 }
 // the result of a debate: a headline and one chip per aspect (see resultBlock)
 function debateResult(u,p){
-  const r=u.res, k=REL[p.relation], imp=r.implied, ex=explainParts();
+  const r=u.res, k=REL[p.relation], imp=r.implied;
   const head={ok:"Right.",part:"Relation right, but not everything else.",pend:"Relation and questions right.",bad:"Not quite."}[r.overall];
   const decOk=QCELL.filter(c=>r.dec[c]).length;
   const impTxt=imp==="bad"?"your answers contradict each other. If no A is B, A cannot also be inside B (or B inside A), because that leaves one of them with no instances. The challenger would declare you finished."
@@ -69,7 +67,7 @@ function debateCell(u,p){
     const rr=r.cells[c], a=u.ans[QCELL.indexOf(c)], t=(u.cells[c].t||"").trim(), vcls=" v-"+(rr.uns?"uns":rr.v);
     if(a.say!=="why"||!t) return el("div",{class:"cell locked"+vcls,"aria-label":cellLabel(c,p)+": "+(a.say==="accept"?"accepted, nothing here":"no example")},
       rr.v==="bad"?fbNode(rr):el("span",{class:"empty",text:"∅"}),whyBtn(c,p));
-    return el("div",{class:"cell"+vcls,"aria-label":cellLabel(c,p)},el("span",{class:"cx",text:t}),fbNode(rr),whyBtn(c,p));
+    return el("div",{class:"cell"+vcls,"aria-label":cellLabel(c,p)},el("span",{class:"cx",text:t}),fbNode(rr),whyBtn(c,p),checkChip(rr));
   };
 }
 // the table before Check: the example posited for a question, or ∅ where it was accepted
@@ -141,41 +139,25 @@ export function renderDebate(s,c){
       });
       card.append(el("div",{class:"ansrow"},inp,nx),el("button",{type:"button",class:"back",onclick:backWhy,text:"Back"}));
     }
-    // the countdown sits under the response; with Blitz off its space stays, so the switch never moves the card
-    card.append(timerSlot("ex",state.blitz));
     s.append(card);
   }
 
   if(stage==="rel"||stage==="done"){
-    if(w) s.append(...[relStrip(chooseD,stage==="done"),stage==="rel"?timerSlot("rel",relTimedD()):null,relCap("Pick the relation your answers give (keys 1–5). Picking it checks your answers.")].filter(Boolean)); // append(null) would write the text "null"
+    if(w) s.append(relStrip(chooseD,stage==="done"),relCap("Pick the relation your answers give (keys 1–5). Picking it checks your answers."));
     else if(stage==="rel"&&u.open) s.append(relList(chooseD,null));
   }
   if(stage==="done"){
     // the table first (it is fixed), the verdict under it (its length changes with the chip)
     s.append(el("div",{class:"section"},el("p",{class:"label"},"Your examples",el("span",{class:"hint",text:"∅ = you accepted: nothing exists there."})),exGrid(p,debateCell(u,p),true)));
-    if(!w) s.append(debateResult(u,p));
-    if(!w&&u.saveErr) s.append(el("p",{class:"status",text:u.saveErr}));
+    s.append(debateResult(u,p));
+    if(u.saveErr) s.append(el("p",{class:"status",text:u.saveErr}));
   }
 
-  const acts=el("div",{class:"actions"});
-  if(w){ const fb=favBtn(p); if(fb) acts.append(fb); acts.append(blitzBtn()); { const sb=sessBtn(); if(sb) acts.append(sb); } if(stage!=="done") skipActs().forEach(n=>{ if(n) acts.append(n); }); }
-  if(stage==="done"){
-    if(!w){ const ta=tutorAct(); if(ta) acts.append(ta); }
-    acts.append(nextBtn());
-  }
-  if(acts.childNodes.length) s.append(acts);
-  if(state.favErr) s.append(el("p",{class:"status",text:state.favErr}));
-  if(state.skipErr) s.append(el("p",{class:"status",text:state.skipErr}));
+  s.append(pairBar(stage==="done"?nextFwd():null));
+  errLines(s);
 
   if(!w) return;
-  // the coach panel
-  if(stage!=="done"){
-    recentNode(c,debateList().slice(-5).reverse());
-    c.append(stage==="ask"?kbHints([Wd().ak,Wd().acc.toLowerCase()],[Wd().wk,Wd().why.toLowerCase()],["S","skip"],["F","favorite"]):kbHints(["1–5","relation, checks"],["S","skip"],["F","favorite"]));
-    return;
-  }
-  c.append(el("p",{class:"label"},"Result"),debateResult(u,p));
-  if(u.saveErr) c.append(el("p",{class:"status",text:u.saveErr}));
-  const eb=explainBtn(); if(eb) c.append(el("div",{class:"actions left"},eb));
-  c.append(kbHints(["Enter","next pair"],["F","favorite"]));
+  // the panel at the right, when it is open
+  coachInto(c,debateList().slice(-5).reverse(),a=>a.key,stage==="done"?[["N","next pair"],["F","favorite"]]
+    :stage==="ask"?[[Wd().ak,Wd().acc.toLowerCase()],[Wd().wk,Wd().why.toLowerCase()],["S","skip"],["F","favorite"]]:[["1–5","relation, checks"],["S","skip"],["F","favorite"]]);
 }

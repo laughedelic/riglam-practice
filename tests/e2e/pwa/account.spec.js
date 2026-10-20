@@ -2,11 +2,11 @@
 // The server is the Worker itself on a fake database (tests/support/server-bridge.js) and the passkeys are Chromium's virtual
 // authenticator, so the ceremonies, the cookie rules and the sync run for real; only the network and the biometrics are stood in for.
 import { test, expect } from "../../support/test.js";
-import { ready, overflow } from "../../support/page.js";
+import { ready, overflow, openSettings } from "../../support/page.js";
 import { dataKey, KEY_STORE, withCourse } from "../../support/data-key.js";
 import { bridge, serverWorld, virtualAuthenticator } from "../../support/server-bridge.js";
 
-const openOptions = (page) => page.getByRole("button", { name: /options/i }).filter({ visible: true }).first().click();
+const openOptions = (page) => openSettings(page);
 const acct = (page) => page.locator(".acct");
 const status = (page) => acct(page).locator(".onote[role=status]");
 

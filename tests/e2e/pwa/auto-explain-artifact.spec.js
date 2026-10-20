@@ -14,21 +14,20 @@ async function start(page, setting) {
   await routeArtifact(page, { ai: true });
   await page.goto("http://artifact.test/");
   await page.waitForFunction(() => window.__t && window.__t.cur);
-  await goTo(page, "Relations");
 }
 const relations = async (page) => {
   const rel = await page.evaluate(() => window.__t.cur.p.relation);
   await page.locator(".strip .chip").nth({ mi: 0, "3ab": 1, "3ba": 2, 4: 3, con: 4 }[rel]).click();
   const n = await page.locator(".grid input:not([disabled])").count();
   for (let i = 0; i < n; i++) await page.locator(".grid input:not([disabled])").nth(i).fill("thing " + (i + 1));
-  await page.locator("#stage .actions .btn", { hasText: /show result/i }).click();
+  await page.locator("#stage .pbar .fwd").click(); // Check
 };
 const pervasions = async (page) => {
   await goTo(page, "Pervasions");
   for (let i = 0; i < 4; i++) { await page.keyboard.press("a"); await page.waitForTimeout(50); }
   await page.keyboard.press("1");
 };
-const explainBtn = (page) => page.locator("#stage .actions .btn, #coach .btn").filter({ hasText: /^explain$|check and explain/i });
+const explainBtn = (page) => page.locator("#stage .xpl, #coach .btn").filter({ hasText: /^explain$|check and explain/i });
 
 test("a checked Relations answer is explained by itself, once", async ({ page }) => {
   await start(page, null);

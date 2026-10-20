@@ -29,7 +29,7 @@ export const state = {
   gotB: false,
   gotA: false,
   gotS: false,
-  tab: "home",    // the screen: "home", an exercise ("practice" is Relations, "debate" Pervasions) or "review"
+  tab: "practice",    // the screen: an exercise ("practice" is Relations, "debate" Pervasions, "find" Find a pair) or "review"; the app opens on the exercise used last
   mode: "loading",
   ui: null,
   cur: null,
@@ -44,9 +44,15 @@ export const state = {
   favErr: "",
   retryTag: "Retry",
   nota: "codes",
-  optsOpen: false,
-  sessOpen: false,
-  navDepth: 0,    // history entries held above Home (shell/history.js): one for an open exercise or Review, the chat view, Options
+  optsOpen: false,   // Settings (the device and the account) covers the exercise
+  sessOpen: false,   // the Practice options of the exercise on screen: a sheet on a phone, a popover on a wide screen
+  sessPage: null,    // the option whose own page is open in the Practice options (shell/session.js), or null for the list
+  skipAsk: false,    // the dialog that asks before a pair with answers in it is skipped
+  menuOpen: false,   // narrow screens: the menu slides over the exercise
+  menuPin: false,    // wide screens: the menu is pinned open beside the exercise (`rd-menu`); otherwise it only peeks from the left edge
+  menuPeek: false,   // wide screens: the pointer is on the left edge, the menu shows while it stays there
+  coachOpen: false,  // wide screens: the panel at the right (recent answers and keys before the result, the tutor after it) is open
+  navDepth: 0,    // history entries held above the first screen (shell/history.js): the exercise itself on a narrow screen, Review, the chat view, Settings, the options and their pages, the skip question
   navSkip: 0,     // steps back the page took itself, whose popstate is to be ignored
   navQ: false,    // a check of the entries against the state is due after this render
   view: null,
@@ -56,9 +62,6 @@ export const state = {
   skips: {},
   skipNote: null,
   skipErr: "",
-  // After a skip on a narrow screen a small hint opens under the icon: "Skipped a / b · Undo". It blocks nothing (no scrim), is outside the cards so nothing shifts,
-  // and closes on the next tap, key press (Tab moves into it), scroll, or after UNDO_MS. Closing it changes nothing else; Review still lists the pair.
-  hintOff: null,
   quorumOffered: false,   // the app's server offers Quorum, the tutor's mode of several models and a judge (platform.quorum): a Preview, with the Magic Key
   quorumOptIn: false,     // the server offers it as an opt-in: off on a device until the device turns it on (a Preview has it on until the device turns it off)
   quorumChoice: null,     // what this device chose in Options (`rd-quorum`): true, false, or null for not yet (then the server's default applies)
@@ -72,6 +75,7 @@ export const state = {
   // A draw replaces the whole screen, which would send the scroll back to the top. While the screen is the same one (the same pair, step and
   // result, with a row opened or a chip changed), the scroll stays where it was; a new screen starts at the top, as the callers ask with top0().
   lastSig: "",
+  lastUi: null,
   fitQ: 0,
   // the last answers, newest first, in the coach panel
   // The heading folds the list away (a per-device choice, kept in the browser); folded, the panel shows just the heading.
@@ -84,11 +88,11 @@ export const state = {
   question drains over the limit and flashes gently at the end. When time runs out, the statement counts as accepted. */
   timerMs: 10000,
   blitz: false,
-  timeEdit: false,
-  timeDraft: "",
   relMs: undefined,  // the relation has its own time; it starts from the one time of earlier versions
 };
 
+try{ const v=localStorage.getItem("rd-ex"); if(v==="debate"||v==="find") state.tab=state.own=v; }catch(e){}
+try{ state.menuPin=localStorage.getItem("rd-menu")==="1"; }catch(e){}
 try{ const v=localStorage.getItem("rd-notation"); if(v==="sets"||v==="logic") state.nota=v; }catch(e){}
 try{ if(localStorage.getItem("rd-deflang")==="enru") state.defLang="enru"; }catch(e){}   // an earlier "off" (words only) is now the codes
 // the setting was stored as "rd-lab" while Quorum was a lab of the page: a device that turned it off keeps it off

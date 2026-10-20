@@ -1,24 +1,21 @@
 import { state } from "../state.js";
+import { canAsk } from "../core/ask.js";
 import { $, el } from "../core/dom.js";
-import { dayOf, gradeOf, isFind, today } from "../core/util.js";
-import { isWide } from "../core/viewport.js";
+import { isWide, syncVv, wideMq } from "../core/viewport.js";
 import { renderDebate } from "../debate/screen.js";
 import { renderFind } from "../find/screen.js";
-import { isFav } from "../practice/favorites.js";
 import { placePops, renderQuiz } from "../practice/screen.js";
-import { syncSkipBtn } from "../practice/skips.js";
 import { dropStaleDef } from "../practice/terms.js";
 import { renderReview } from "../review/review.js";
 import { renderOver } from "./chat.js";
 import { navSync } from "./history.js";
-import { EXERCISES, exName, parked, renderHome, todayCount } from "./home.js";
-import { renderOptionsBtn } from "./options.js";
-import { syncSessBtn } from "./session.js";
-import { ensureRelTimer, syncBlitzBtn, tbIcon } from "./timers.js";
+import { renderMenu } from "./menu.js";
+import { ensureRelTimer } from "./timers.js";
+import { renderBar } from "./topbar.js";
 
 /* ---------- rendering ---------- */
-// One layout state for every tab: wide screens show a rail, the workspace and a coach panel side by side;
-// narrow screens show a top bar, one screen at a time (steps) and a tab bar. Both are built from the same parts.
+// One layout for every screen: a top bar over a workspace. Narrow screens show one step at a time (steps) with the menu as a drawer over it;
+// wide screens show the menu beside the workspace (pinned, or from the left edge) and the tutor's panel at its right when it is open.
 export const CELL_FULL={both:"Both A and B", anb:"A, not B", bna:"B, not A", nei:"Neither A nor B"};
 export function top0(){ for(const id of ["stage","coach","over"]){ const n=$(id); if(n) n.scrollTop=0; } }
 export function ago(iso){
@@ -28,61 +25,28 @@ export function ago(iso){
   const d=Math.round(h/24); return d===1?"1 day":d+" days";
 }
 export const isEx=()=>state.tab==="practice"||state.tab==="debate"||state.tab==="find";
-// The bars (Home, the start screen, is called "Practice" in them). Wide: the rail lists Home, the exercises and Review (built once, from EXERCISES); an exercise with a parked attempt has a dot.
-// Narrow: the tab bar has Home, Review and Options (an exercise belongs to Home), and the top bar shows the brand on Home and Review,
-// or the back arrow and the exercise's name in an exercise. The buttons stay the same elements, so a click keeps its focus.
-const navItem=(k,label,cls)=>el("button",{type:"button",class:"nv"+(cls?" "+cls:""),"data-go":k},el("i",{"aria-hidden":"true"}),el("span",{class:"nvl",text:label}),
-  cls?el("span",{class:"nvd",hidden:true,title:"Attempt in progress"}):null);
-function renderTabs(){
-  const rail=$("tabs");
-  if(!rail.firstChild) rail.append(navItem("home","Practice"),el("p",{class:"nvh","aria-hidden":"true",text:"Exercises"}),...EXERCISES.map(e=>navItem(e.k,e.name,"ex")),navItem("review","Review"));
-  for(const b of rail.querySelectorAll("[data-go]")){
-    const k=b.getAttribute("data-go"), on=!state.optsOpen&&state.tab===k;
-    on?b.setAttribute("aria-current","page"):b.removeAttribute("aria-current");
-    const d=/** @type {HTMLElement|null} */(b.querySelector(".nvd")); if(d){ const p=parked(k); d.hidden=!p; b.setAttribute("aria-label",exName(k)+(p?", attempt in progress":"")); }
-  }
-  for(const b of $("tabbar").querySelectorAll("[data-go]")){
-    const k=b.getAttribute("data-go"), on=!state.optsOpen&&(k==="home"?state.tab==="home"||isEx():state.tab===k);
-    on?b.setAttribute("aria-current","page"):b.removeAttribute("aria-current");
-  }
-  const ex=isEx(), t=$("mttl"), name=ex?exName(state.tab):state.tab==="review"?"Review":null;
-  $("mback").hidden=!ex; $("mmk").style.display=name?"none":""; t.classList.toggle("lock",name===null);
-  if(name===null){ if(!t.firstElementChild) t.replaceChildren(el("span",{class:"nm",text:"Riglam"})," ",el("span",{class:"pr",text:"practice"})); } else t.textContent=name;
-}
-// the rail's "Today" block: the exercise on screen, or every exercise on Home and in Review
-export function renderSession(){
-  const s=$("today"); s.replaceChildren();
-  // Find a pair keeps its answers with the Relations answers; in an exercise each counts its own
-  const t=isEx()?(()=>{ const list=Object.values(state.tab==="debate"?state.debates:state.answers).filter(a=>dayOf(a.at)===today()&&(state.tab==="debate"||isFind(a)===(state.tab==="find"))); return {n:list.length,ok:list.filter(a=>gradeOf(a)==="ok").length}; })():todayCount();
-  const what=state.tab==="debate"?"debated":isEx()?"answered":"practiced";
-  s.append(el("span",{text:"Today"}),el("b",{text:String(t.n)}),el("span",{text:t.n?what+", "+t.ok+" fully right":"nothing "+(isEx()?"answered":"practiced")+" yet"}));
-}
-// the star in the narrow top bar (the wide layout has the Favorite button next to Check)
-function syncFavBtn(){
-  const b=$("mfav"), ok=!!(state.db&&state.mode==="quiz"&&state.cur&&state.cur.p&&!state.cur.p.own&&isEx());   // a pair of the learner's own (Find a pair) has no categories to keep
-  b.hidden=!ok; if(!ok) return;
-  const on=isFav(state.cur.p), t=on?"Remove from favorites":"Add to favorites";
-  b.replaceChildren(tbIcon("star")); b.setAttribute("aria-pressed",on?"true":"false"); b.setAttribute("aria-label",t); b.title=t+" (F)";
-}
 // the three steps of a narrow screen; go[i] makes step i a button
 export function setSteps(labels,on,go){
   const st=$("steps"); st.replaceChildren(); st.hidden=false;
   labels.forEach((l,i)=>st.append(el("button",{type:"button",class:i<on?"done":i===on?"on":"","aria-current":i===on?"step":null,disabled:!(go&&go[i]),onclick:go&&go[i]?go[i]:null,text:(i+1)+" "+l})));
 }
-// What has the focus, so that a redraw can give it back: a text field by its id and selection; in the Options panel and the settings sheet any control by its place among the controls
-// (the panel is redrawn when the account's sync status changes, and a focused button or switch would otherwise be lost).
+// What has the focus, so that a redraw can give it back: a text field by its id and selection; in the menu, Settings and the practice options any control by its place among the controls
+// (Settings is redrawn when the account's sync status changes, the menu when an update arrives, and a focused button or switch would otherwise be lost).
+const KEEP_BOXES=["over","menu"];
 const OVER_CONTROLS="button,input,textarea,select,[tabindex]";
 function focusKey(){
   const a=/** @type {HTMLInputElement} */(document.activeElement);
   if(!a) return null;
   if((a.tagName==="INPUT"||a.tagName==="TEXTAREA")&&a.id) return {id:a.id,s:a.selectionStart,e:a.selectionEnd};
-  const over=$("over");
-  if(over&&over.contains(a)){ const i=[...over.querySelectorAll(OVER_CONTROLS)].indexOf(a); if(i>=0) return {i,s:a.selectionStart,e:a.selectionEnd}; }
+  for(const box of KEEP_BOXES){
+    const n=$(box);
+    if(n&&n.contains(a)){ const i=[...n.querySelectorAll(OVER_CONTROLS)].indexOf(a); if(i>=0) return {box,i,s:a.selectionStart,e:a.selectionEnd}; }
+  }
   return null;
 }
 function restoreFocus(f){
   if(!f) return;
-  const n=/** @type {HTMLInputElement|null} */(f.id!==undefined?$(f.id):(()=>{ const over=$("over"); return over?over.querySelectorAll(OVER_CONTROLS)[f.i]||null:null; })());
+  const n=/** @type {HTMLInputElement|null} */(f.id!==undefined?$(f.id):(()=>{ const box=$(f.box); return box?box.querySelectorAll(OVER_CONTROLS)[f.i]||null:null; })());
   if(!n||n.disabled||document.activeElement===n) return;
   n.focus({preventScroll:true}); try{ n.setSelectionRange(f.s,f.e); }catch(e){}
 }
@@ -103,7 +67,7 @@ export function renderKeepFocus(){ const f=btnSig(); render(); btnBack(f); }
 export const focusCin=()=>{ const i=$("cin"); if(i) i.focus({preventScroll:true}); };
 function screenSig(){
   const p=state.cur&&state.cur.p;
-  return [state.tab,state.mode,state.view,state.optsOpen?1:0,state.sessOpen?1:0,isWide()?1:0,p?(p.id||p.a+"|"+p.b):"",state.ui?[state.ui.checked?1:0,state.ui.step||0,state.ui.ci||0,state.ui.rel?1:0,state.ui.open?1:0,state.ui.debate?1:0,state.ui.find?1:0].join(""):""].join("/");
+  return [state.tab,state.mode,state.view,state.optsOpen?1:0,state.sessOpen?1:0,state.sessPage||"",state.skipAsk?1:0,state.coachOpen?1:0,isWide()?1:0,p?(p.id||p.a+"|"+p.b):"",state.ui?[state.ui.checked?1:0,state.ui.step||0,state.ui.ci||0,state.ui.rel?1:0,state.ui.open?1:0,state.ui.debate?1:0,state.ui.find?1:0].join(""):""].join("/");
 }
 export function render(){
   const sig=screenSig(), keep=sig===state.lastSig?["stage","coach","over","opts"].map(id=>{ const n=$(id); return /** @type {[string, number]} */([id,n?n.scrollTop:0]); }):null;
@@ -115,12 +79,14 @@ export function render(){
 function renderNow(){
   ensureRelTimer();
   const w=isWide(); if(w&&state.view==="chat") state.view=null;
-  const app=$("app"), s=$("stage"), c=$("coach"), f=focusKey();
-  app.dataset.tab=state.tab; app.dataset.wide=w?"1":"0";
-  renderOptionsBtn(); renderTabs(); renderSession(); syncFavBtn(); syncSkipBtn(); syncBlitzBtn(); syncSessBtn();
+  if(w) state.menuOpen=false; else state.menuPeek=false;
+  // the tutor's panel closes with the pair it was opened for
+  if(state.lastUi!==state.ui){ if(state.lastUi&&state.lastUi.chat) state.coachOpen=false; state.lastUi=state.ui; }
+  const app=$("app"), s=$("stage"), c=$("coach"), f=focusKey(), coach=w&&state.mode==="quiz"&&isEx()&&state.coachOpen;
+  app.dataset.tab=state.tab; app.dataset.wide=w?"1":"0"; app.dataset.coach=coach?"1":"0"; c.hidden=!coach;
+  renderBar(); renderMenu();
   s.replaceChildren(); c.replaceChildren(); $("steps").replaceChildren(); $("steps").hidden=true;
-  s.className="card"+(state.tab==="review"?" rv":state.tab==="home"?" hm":"");
-  if(state.tab==="home"){ renderHome(s); renderOver(); restoreFocus(f); return; }
+  s.className="card"+(state.tab==="review"?" rv":"");
   if(state.mode==="nodb"){ s.append(el("p",{class:"status",text:"Open this page in Claude while signed in to save your answers."})); }
   if(state.mode==="loading"){ s.append(el("p",{class:"status",text:"Loading."})); renderOver(); return; }
   if(state.mode==="nodata"){ s.append(el("p",{class:"status",text:"The practice data could not be loaded. Reload the page to try again."})); renderOver(); return; }
@@ -130,8 +96,21 @@ function renderNow(){
     else if(state.tab==="find"&&state.ui&&state.ui.find) renderFind(s,c);
     else renderQuiz(s,c);
   }
-  renderOver(); restoreFocus(f); placePops(); dropStaleDef();
+  renderOver(); restoreFocus(f&&f.id!==undefined&&state.skipAsk?null:f); placePops(); dropStaleDef(); // the question before a skip has the focus, not the field under it
 }
+/** After a check the result is shown from its top. A phone puts the focus on the forward button (Next pair); a wide screen on Explain, or on the screen itself when
+ *  the answer is explained by itself or already is, so that no key press moves on by mistake (Next pair is the N key). */
+export function focusAfterCheck(){
+  top0();
+  if(!isWide()){ const bs=document.querySelectorAll("#stage .actions .btn"); if(bs.length) bs[bs.length-1].focus({preventScroll:true}); return; }
+  const x=state.autoExplain&&canAsk()?null:/** @type {HTMLElement|null} */(document.querySelector("#stage .verdict .xpl"));
+  (x||$("stage")).focus({preventScroll:true});
+  // the result sits under the table: bring its foot into view above the pair bar, or its head when it is taller than the room there is
+  const v=document.querySelector("#stage .verdict");
+  if(v){ v.scrollIntoView({block:"end"}); if(v.getBoundingClientRect().top<$("stage").getBoundingClientRect().top) v.scrollIntoView({block:"start"}); }
+}
+
+wideMq.addEventListener("change",()=>{ syncVv(); if(state.mode!=="loading") render(); });
 
 // Fit the terms around the fixed chips and diamond. The diamond stays in the middle and each term has
 // its half: a term too long for one line there first tries text up to 15% smaller, then wraps in its half.

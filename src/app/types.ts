@@ -251,6 +251,12 @@ export interface State {
   view: "chat" | string | null;
   optsOpen: boolean;
   sessOpen: boolean;
+  sessPage: string | null;
+  skipAsk: boolean;
+  menuOpen: boolean;
+  menuPin: boolean;
+  menuPeek: boolean;
+  coachOpen: boolean;
   navDepth: number;
   navSkip: number;
   navQ: boolean;
@@ -267,6 +273,8 @@ export interface State {
   /** Find a pair offers the terms of the course while the pair is typed (Options, `rd-findsuggest`) */
   findSuggest: boolean;
   lastSig: string;
+  /** the attempt the last render drew: the tutor's panel closes with a pair that had a conversation */
+  lastUi: any;
   fitQ: number;
 
   // errors from saving
@@ -280,7 +288,6 @@ export interface State {
 
   // skips
   skipNote: SkipNote | null;
-  hintOff: any;
 
   // Quorum and the explanation
   /** the app's server offers Quorum (platform.quorum) */
@@ -306,6 +313,4 @@ export interface State {
   timerMs: number;
   relMs: number;
   blitz: boolean;
-  timeEdit: boolean;
-  timeDraft: string;
 }

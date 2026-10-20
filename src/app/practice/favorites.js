@@ -1,5 +1,6 @@
 import { state } from "../state.js";
 import { el } from "../core/dom.js";
+import { tbIcon } from "../core/icons.js";
 import { REL, cellLabel, notaOf, refOf } from "../core/rel.js";
 import { dayOf } from "../core/util.js";
 import { put } from "./answers.js";
@@ -39,11 +40,11 @@ function setFav(p,on){
   }
 }
 export const toggleFav=p=>setFav(p,!isFav(p));
+/** The star of the pair bar: pressed while the pair is a favorite. Not there without storage, and not for a pair of the learner's own (it has no categories to keep). */
 export function favBtn(p){
-  if(!state.db||!p) return null;
-  const on=isFav(p);
-  return el("button",{type:"button",class:"btn ghost fav","aria-pressed":on?"true":"false","aria-label":on?"Remove from favorites":"Add to favorites",title:(on?"Remove from favorites":"Add to favorites")+" (F)",onclick:()=>toggleFav(p)},
-    el("span",{class:"star","aria-hidden":"true",text:on?"★":"☆"}), el("span",{class:"fl",text:"Favorite"}));
+  if(!state.db||!p||p.own) return null;
+  const on=isFav(p), t=on?"Remove from favorites":"Add to favorites";
+  return el("button",{type:"button",class:"ib starb","aria-pressed":on?"true":"false","aria-label":t,title:t+" (F)",onclick:()=>toggleFav(p)},tbIcon("star"));
 }
 function startFav(p){ switchTo("practice"); state.retryQ=[p]; state.retryTag="Favorite"; advance(); render(); top0(); } // switch first: leaving another tab may draw a pair
 export function favSection(s){
