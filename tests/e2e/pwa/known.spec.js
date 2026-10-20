@@ -159,6 +159,7 @@ withKey("the page asks nothing of a server whose health does not offer it", asyn
   await expect.poll(() => asked.tutor.length).toBe(1);
   expect(asked.known).toHaveLength(0);
   expect(asked.tutor[0].body.examples.length).toBeGreaterThan(0);
+  expect(asked.tutor[0].body).not.toHaveProperty("share"); // a server that said nothing of keeping examples is not told the learner shares them
 });
 
 // the reference examples a device holds (GET /api/course/examples, kept in riglam.examples): a thing that does not exist is in neither category, whatever the pair
@@ -201,6 +202,7 @@ withKey("with the switch on, an explain question names the examples; off, it nam
   await explain(page).click();
   await expect.poll(() => asked.tutor.length).toBe(1);
   expect(asked.tutor[0].body.examples.length).toBeGreaterThan(0);
+  expect(asked.tutor[0].body.share).toBe(true); // the server keeps nothing without it
   await openOptions(page);
   await share(page).click();
   await expect(share(page)).toHaveAttribute("aria-checked", "false");
@@ -215,6 +217,27 @@ withKey("with the switch on, an explain question names the examples; off, it nam
   await expect.poll(() => asked.tutor.length).toBe(2);
   expect(asked.tutor[1].body.kind).toBe("explain");
   expect(asked.tutor[1].body).not.toHaveProperty("examples");
+});
+
+withKey("a switch turned off in another tab is honored by this one before it names examples", async ({ page }, testInfo) => {
+  const asked = await open(page, testInfo, { health: { ok: true, tutor: "on", learns: "on" }, known: () => ({ status: 200, body: { known: [] } }) });
+  // the other tab's write
+  await page.evaluate(() => localStorage.setItem("rd-share", "0"));
+  await explain(page).click();
+  await expect.poll(() => asked.tutor.length).toBe(1);
+  expect(asked.tutor[0].body.kind).toBe("explain");
+  expect(asked.tutor[0].body).not.toHaveProperty("examples");
+  expect(asked.tutor[0].body).not.toHaveProperty("share");
+  await openOptions(page);
+  await expect(share(page)).toHaveAttribute("aria-checked", "false");
+});
+
+withKey("Options says that the sharing switch and Quorum are separate, each for what it keeps", async ({ page }, testInfo) => {
+  await open(page, testInfo, { health: { ok: true, tutor: "on", learns: "on", quorum: "optin" } });
+  await openOptions(page);
+  await expect(page.getByText("Quorum, below, is separate")).toBeVisible();
+  await expect(page.getByText("with or without Quorum")).toBeVisible();
+  await expect(page.getByText("nothing is kept")).toHaveCount(0);
 });
 
 withKey("where the server also answers from what it learned, the notice says so", async ({ page }, testInfo) => {

@@ -50,6 +50,12 @@ export interface TutorRequest {
    * the models said of each; it ignores the lines about any other example. A device that does not share its examples leaves the field out.
    */
   examples?: ExplainExample[];
+  /**
+   * The learner has been told that the server keeps these examples and has not turned "Share my examples" off (Options). A page sends it with
+   * `examples` only where the server said it keeps learned facts (health: `learns`); the server keeps nothing from a request without it, so a page
+   * that was open before the notice existed records nothing.
+   */
+  share?: true;
 }
 
 /** One of the learner's examples in an explain request: its text as typed, and the cell it stands in. */

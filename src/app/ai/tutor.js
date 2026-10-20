@@ -40,6 +40,13 @@ function openExamples(U){
   if(!U||!U.res) return [];
   return quorumThings(U).filter(t=>t.text.length<=200).flatMap(t=>t.cells.filter(c=>U.res.cells[c]&&(U.res.cells[c].v==="cmp"||U.res.cells[c].half)).map(c=>({cell:c,text:t.text}))).slice(0,8);
 }
+// Whether this device shares its examples with the server, read where they are sent: another tab may have turned the switch off since this page started (`rd-share`),
+// and the opt-out wins; it stays in memory too, in case the storage cannot be read again.
+function sharing(){
+  if(!state.shareExamples) return false;
+  try{ if(localStorage.getItem("rd-share")==="0") state.shareExamples=false; }catch(e){}
+  return state.shareExamples;
+}
 // The explanation is kept with the answer (applyVerify saves it along with the verdicts), so verdicts can be audited later.
 function saveExplain(U){ persist(U,U.debate?"Your debate":"Your answer"); }
 // With "Check every answer with AI" on (Options), a checked answer asks for the explanation the Explain button would ask for, with no tap. It asks once per
@@ -74,8 +81,9 @@ export async function ask(text,kind,byItself){
       try{ r=await state.sample(turns,opts); }
       catch(e){ if(e&&e.code==="tools_unavailable"){ delete opts.tools; r=await state.sample(turns,opts); } else throw e; }
     }else{
-      const examples=kind==="explain"&&state.shareExamples?openExamples(U):[];
-      r=await state.tutor({kind:kind==="explain"?"explain":"chat",cats:noteCats(state,p),turns,...(quorum?{quorum:true}:{}),...(examples.length?{examples}:{})},{signal:ctl.signal,onText,onStep:s=>quorumStep(U,s)});
+      const examples=kind==="explain"&&sharing()?openExamples(U):[];
+      // the server keeps them only with `share`, which a page sends where the server said it keeps learned facts, so that the learner was told in Options
+      r=await state.tutor({kind:kind==="explain"?"explain":"chat",cats:noteCats(state,p),turns,...(quorum?{quorum:true}:{}),...(examples.length?{examples,...(state.learns?{share:true}:{})}:{})},{signal:ctl.signal,onText,onStep:s=>quorumStep(U,s)});
     }
     slot.content=r.text+(r.truncated?"\n(Cut short.)":""); delete slot.pending;
     if(kind==="explain"){ if(U.doc) U.doc.explain=String(r.text||"").slice(0,3000); if(!((U.res.exOpen||U.res.relOpen)&&applyVerify(r.text,U,C))) saveExplain(U); }

@@ -21,7 +21,7 @@ const TABLE = [{ cell: "both", text: "A table" }];
 async function explain(s: Setup, rounds: Record<string, Round[]>, over: Record<string, unknown> = {}, env: Partial<Env> = {}) {
   const models = fakeModels(rounds);
   const app = createApp({ kit: async () => fakeKit().kit, fetch: models.fetch, now: () => NOW, retries: 0 });
-  const res = await app.request("/api/tutor", { method: "POST", headers: s.headers(), body: ask({ examples: TABLE, ...over }) }, { EXAMPLE_FACTS: "record", ...s.env, ...env } as Env);
+  const res = await app.request("/api/tutor", { method: "POST", headers: s.headers(), body: ask({ examples: TABLE, share: true, ...over }) }, { EXAMPLE_FACTS: "record", ...s.env, ...env } as Env);
   return { res, got: await events(res), models };
 }
 const facts = (s: Setup) =>
@@ -87,6 +87,18 @@ describe("learned facts", () => {
     expect(facts(s)).toHaveLength(2);
   });
 
+  it("keep nothing unless the request says the learner shares: a page from before the notice sends examples without it", async () => {
+    const s = await setup();
+    const answer = { [SONNET]: [text(line("Both", "a table", "yes", "no"))] };
+    for (const share of [undefined, false]) {
+      const { res } = await explain(s, answer, { share });
+      expect(res.status).toBe(200);
+    }
+    expect(facts(s)).toEqual([]);
+    await explain(s, answer);
+    expect(facts(s)).toHaveLength(2);
+  });
+
   it("keep nothing of examples the page did not name, of a chat question, of a failed answer, or for categories the data does not have", async () => {
     const answer = { [SONNET]: [text(line("Both", "a table", "yes", "no"), line("Neither", "a stone", "no", "no"))] };
     const cases: [Record<string, unknown>, Record<string, Round[]>?][] = [
@@ -126,6 +138,12 @@ describe("learned facts", () => {
     expect(parseRequest({ kind: "explain", cats: [], turns, examples: [{ cell: "both", text: "a pot", extra: 1 }] })).toEqual({ ok: true, request: { kind: "explain", cats: [], turns, examples: [{ cell: "both", text: "a pot" }] } });
     expect((parseRequest({ kind: "chat", cats: [], turns, examples: [{ cell: "both", text: "a pot" }] }) as { request: object }).request).not.toHaveProperty("examples");
     expect((parseRequest({ kind: "explain", cats: [], turns, examples: [] }) as { request: object }).request).not.toHaveProperty("examples");
+    // `share` goes with the examples, and only as true or false
+    const pot = [{ cell: "both", text: "a pot" }];
+    expect(parseRequest({ kind: "explain", cats: [], turns, examples: pot, share: true })).toEqual({ ok: true, request: { kind: "explain", cats: [], turns, examples: pot, share: true } });
+    expect((parseRequest({ kind: "explain", cats: [], turns, examples: pot, share: false }) as { request: object }).request).not.toHaveProperty("share");
+    expect((parseRequest({ kind: "explain", cats: [], turns, share: true }) as { request: object }).request).not.toHaveProperty("share");
+    expect(parseRequest({ kind: "explain", cats: [], turns, examples: pot, share: "yes" })).toMatchObject({ ok: false, code: "bad_request" });
     for (const examples of ["a pot", [{ cell: "q1", text: "a pot" }], [{ cell: "both", text: "" }], [{ cell: "both", text: "x".repeat(201) }], Array(9).fill({ cell: "both", text: "a pot" }), [null]])
       expect(parseRequest({ kind: "explain", cats: [], turns, examples }), JSON.stringify(examples).slice(0, 40)).toMatchObject({ ok: false, code: "bad_request" });
   });

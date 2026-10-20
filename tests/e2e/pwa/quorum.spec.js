@@ -281,6 +281,7 @@ withKey("on a server that offers Quorum as an opt-in it is off by default: one m
   expect(await page.evaluate(() => localStorage.getItem("rd-quorum"))).toBeNull();
   await page.getByRole("button", { name: "Options" }).first().click();
   await expect(page.getByText("Optional: a deeper check, but slower.")).toBeVisible();
+  await expect(page.getByText("With Quorum off, one model answers and no run is kept.")).toBeVisible();
   await expect(sw(page)).toHaveAttribute("aria-checked", "false");
   await sw(page).click();
   await expect(sw(page)).toHaveAttribute("aria-checked", "true");
