@@ -53,45 +53,20 @@ export const SITUATIONS: Record<Situation, SituationRule> = {
 };
 const SIT_IDS = Object.keys(SITUATIONS).map(Number) as Situation[];
 
-// What a category says after "it is" and after "because of being": the first phrase is the plain one, the others are other labels of the
-// same class (so that "impermanent because a product" can be drawn). Some of the data's labels have no phrase here ("hidden phenomena" is
-// the existent in the data and would make every syllogism trivial). A category without a phrase is not drawn; the unit test names those.
-const PHRASES: Record<string, readonly string[]> = {
-  ft: ["impermanent", "a product", "a functional thing", "momentary", "able to perform a function"],
-  perm: ["permanent", "a permanent phenomenon", "uncomposed", "non-produced"],
-  form: ["a form", "matter", "a physical thing"],
-  extf: ["an external form"], intf: ["an internal form"], sp: ["a sense power"],
-  col: ["a color", "a hue"], shape: ["a shape"], vis: ["a visible form"], snd: ["a sound"], odr: ["an odor", "a smell"],
-  tst: ["a taste"], tng: ["a tangible object"],
-  cons: ["a consciousness", "a mind", "a knower", "an awareness"], sense: ["a sense consciousness", "a sense perception"],
-  eye: ["an eye consciousness"], ment: ["a mental consciousness"],
-  nonas: ["a non-associated compositional factor"], pers: ["a person", "a sentient being"], expr: ["an expressive sound"],
-  wooden: ["made of wood", "wooden"], metal: ["made of metal", "metal"], white: ["white"], red: ["red"], green: ["green"],
-  round: ["round"], square: ["square"], hot: ["hot"],
-  liquid: ["a liquid"], food: ["food", "something you can eat"], drink: ["a drink"], furn: ["furniture"], instr: ["a musical instrument"],
-  plant: ["a plant"], body: ["a body or a body part"], animal: ["an animal"], human: ["a human"],
-  emotion: ["an emotion", "a feeling"], memory: ["a memory"], thought: ["a thought"], dream: ["a dream"],
-};
-/** The categories the drill leaves out for want of a phrase. */
-export const NO_PHRASE: readonly string[] = ["hid"];
+// What the drill takes from the term data (src/data/drill-data.json, written in the project's knowledge base, practice/drill/items.py), none of it here:
+// - a category's `phrases`: what it says after "it is" and "because it is". The first is the plain one, the others are other labels of the same class
+//   (so that "impermanent because a product" can be drawn). A category with none is not drawn;
+// - a category's `within`: the pervasions among the practice categories that the term chain cannot show (an everyday category has no place of
+//   its own in it), stated by hand there. The others the items show (everything made of wood is an external form) only disprove a pervasion;
+// - the `confusable` groups: kinds of things that are mistaken for one another (a color for a shape), for the near misses;
+// - an item's `nosubject`: the page says it in the second person, and "Take you. It follows ..." reads as an order.
+// The rules themselves, and the wording of the sentences, are here.
+const phrasesOf = (ix: DataIndex, id: string): readonly string[] => ix.CAT[id]?.phrases ?? [];
+const hasPhrases = (ix: DataIndex, id: string) => phrasesOf(ix, id).length > 0;
+/** The categories the data gives no phrase: the drill leaves them out. */
+export const withoutPhrases = (ix: DataIndex): string[] => Object.keys(ix.CAT).filter((id) => !hasPhrases(ix, id));
 
-// Kinds of things that are mistaken for one another (a color for a shape), for the near misses; Dudra categories with the same parent
-// term, or a parent and its child, are near by the data (not under the two widest classes: a permanent thing is no near miss for a table).
-const GROUPS: readonly (readonly string[])[] = [
-  ["wooden", "metal"], ["white", "red", "green"], ["round", "square"], ["liquid", "food", "drink"], ["furn", "instr"],
-  ["plant", "animal", "human", "body"], ["emotion", "memory", "thought", "dream"],
-];
-
-// Pervasions among the practice categories that the term chain cannot show (an everyday category has no place of its own in it). Each one
-// follows from the category's own description in the data ("consciousness: mental consciousness remembering"). The others the items show
-// (everything made of wood is an external form, and so on) only disprove a pervasion; they are not taken as proof that it holds.
-const REVIEWED: ReadonlySet<string> = new Set(["drink>liquid", "memory>ment", "thought>ment", "dream>ment"]);
-
-const WIDEST: ReadonlySet<string> = new Set(["Existent", "Functional thing"]);
-// Things the page says in the second person cannot follow "Take": "Take you. It follows ..." reads as an order.
-const NOT_A_SUBJECT: ReadonlySet<string> = new Set(["you"]);
-
-type Holds = { how: "same" } | { how: "chain"; steps: string[] } | { how: "reviewed" };
+type Holds = { how: "same" } | { how: "chain"; steps: string[] } | { how: "stated" };
 /** A pair of categories (reason, predicate) the drill can make syllogisms from, and what is known about its pervasion. */
 interface PairInfo {
   r: string;
@@ -134,23 +109,32 @@ function excludingClasses(ix: DataIndex, r: string, p: string): [string, string]
 }
 function holdsBy(ix: DataIndex, r: string, p: string): Holds | null {
   if (r === p) return { how: "same" };
-  if (REVIEWED.has(`${r}>${p}`)) return { how: "reviewed" };
+  if (ix.CAT[r]?.within?.includes(p)) return { how: "stated" };
   const P = ix.CAT[p];
   if (P.kind !== "dudra" || !P.term) return null;
   const want = sameClass(ix, P.term), chain = catChain(ix, ix.CAT[r]), i = chain.findIndex((t) => want.has(t));
   return i < 0 ? null : { how: "chain", steps: chain.slice(0, i + 1) };
 }
 
+/** The terms too wide to make two categories near: on the chain of most of the Dudra categories (Existent, Functional thing), so a permanent thing is no near miss for a table. */
+export function widest(ix: DataIndex): Set<string> {
+  const dudra = Object.values(ix.CAT).filter((c) => c.kind === "dudra" && c.term), count = new Map<string, number>();
+  for (const c of dudra) for (const t of catChain(ix, c)) count.set(t, (count.get(t) || 0) + 1);
+  return new Set([...count].filter(([, n]) => n > dudra.length * WIDE_SHARE).map(([t]) => t));
+}
+/** The share of the Dudra categories a term must be above, on their chains, to be too wide. */
+const WIDE_SHARE = 0.75;
+
 function nearTable(ix: DataIndex): Map<string, Set<string>> {
-  const ids = Object.keys(ix.CAT), out = new Map<string, Set<string>>(ids.map((id) => [id, new Set<string>()]));
+  const ids = Object.keys(ix.CAT), out = new Map<string, Set<string>>(ids.map((id) => [id, new Set<string>()])), wide = widest(ix);
   const link = (x: string, y: string) => { out.get(x)?.add(y); out.get(y)?.add(x); };
-  for (const g of GROUPS) for (const x of g) for (const y of g) if (x !== y && ix.CAT[x] && ix.CAT[y]) link(x, y);
+  for (const g of ix.DATA.confusable ?? []) for (const x of g) for (const y of g) if (x !== y && ix.CAT[x] && ix.CAT[y]) link(x, y);
   for (const x of ids) {
     for (const y of ids) {
       const X = ix.CAT[x], Y = ix.CAT[y];
       if (x === y || X.kind !== "dudra" || Y.kind !== "dudra" || !X.term || !Y.term) continue;
       const tx = terms(ix)[X.term], ty = terms(ix)[Y.term];
-      if (tx?.parent && !WIDEST.has(tx.parent) && (tx.parent === ty?.parent || tx.parent === Y.term)) link(x, y);
+      if (tx?.parent && !wide.has(tx.parent) && (tx.parent === ty?.parent || tx.parent === Y.term)) link(x, y);
     }
   }
   return out;
@@ -161,10 +145,10 @@ const cache = new WeakMap<DrillData, Table>();
 function tableOf(ix: DataIndex): Table {
   const hit = cache.get(ix.DATA);
   if (hit) return hit;
-  const ids = Object.keys(ix.CAT).filter((id) => PHRASES[id]), pairs: PairInfo[] = [], conflicts: string[] = [];
+  const ids = Object.keys(ix.CAT).filter((id) => hasPhrases(ix, id)), pairs: PairInfo[] = [], conflicts: string[] = [];
   for (const r of ids) {
     for (const p of ids) {
-      if (r === p ? PHRASES[r].length < 2 : !judgeable(ix, r, p)) continue;
+      if (r === p ? phrasesOf(ix, r).length < 2 : !judgeable(ix, r, p)) continue;
       const cells = cellsFor(ix, r, p), level = ix.CAT[r].kind === "everyday" && ix.CAT[p].kind === "everyday" ? 1 : 2;
       const by = holdsBy(ix, r, p), excl = by || r === p ? null : excludingClasses(ix, r, p);
       // the data must agree with itself: a proved pervasion has no counter-example, a proved opposite no common thing
@@ -199,7 +183,7 @@ function candidates(ix: DataIndex, sit: Situation): Cand[] {
   const rule = SITUATIONS[sit], out: Cand[] = [];
   for (const pair of t.pairs) {
     if (!matches(rule, pair)) continue;
-    for (const item of pair.cells[rule.cell]) if (!item.ne && !NOT_A_SUBJECT.has(item.n)) out.push({ pair, item, links: linksOf(t, pair, item, rule) });
+    for (const item of pair.cells[rule.cell]) if (!item.ne && !item.nosubject) out.push({ pair, item, links: linksOf(t, pair, item, rule) });
   }
   t.bySit.set(sit, out);
   return out;
@@ -256,8 +240,8 @@ const is = (yes: boolean, phrase: string) => (yes ? "is " : "is not ") + phrase;
 
 // A term as the practice words it where it has a category ("a sound" for Sound source, "impermanent" for Functional thing), else as a term.
 function termWord(ix: DataIndex, t: string): string {
-  const cat = Object.values(ix.CAT).find((c) => c.kind === "dudra" && c.term === t && PHRASES[c.id]);
-  return cat ? PHRASES[cat.id][0] : termPhrase(t);
+  const cat = Object.values(ix.CAT).find((c) => c.kind === "dudra" && c.term === t && hasPhrases(ix, c.id));
+  return cat ? phrasesOf(ix, cat.id)[0] : termPhrase(t);
 }
 
 function proofOfE(ix: DataIndex, item: Item, r: string, reason: string, yes: boolean): string {
@@ -275,7 +259,7 @@ function proofOfE(ix: DataIndex, item: Item, r: string, reason: string, yes: boo
 function proofOfV(ix: DataIndex, pair: PairInfo, reason: string, predicate: string): string {
   const every = `Whatever ${is(true, reason)} ${is(true, predicate)}`;
   if (pair.holds?.how === "same") return `${every}: these two name the same class.`;
-  if (pair.holds?.how === "reviewed") return `${every}.`;
+  if (pair.holds?.how === "stated") return `${every}.`;
   if (pair.holds) {
     // the steps up the chain, from the reason's class (a Dudra reason is already that class) to the predicate's
     const up = pair.holds.steps.slice(ix.CAT[pair.r].kind === "dudra" ? 1 : 0);
@@ -286,8 +270,8 @@ function proofOfV(ix: DataIndex, pair: PairInfo, reason: string, predicate: stri
   return `Just because it is ${reason}, doesn't necessarily mean that it is ${predicate}.`;
 }
 
-function phrasesFor(pair: PairInfo, rng: Rng): [string, string] {
-  const rs = PHRASES[pair.r], ps = PHRASES[pair.p];
+function phrasesFor(ix: DataIndex, pair: PairInfo, rng: Rng): [string, string] {
+  const rs = phrasesOf(ix, pair.r), ps = phrasesOf(ix, pair.p);
   if (pair.r === pair.p) {
     const i = Math.floor(rng() * rs.length);
     let j = Math.floor(rng() * (rs.length - 1));
@@ -299,9 +283,9 @@ function phrasesFor(pair: PairInfo, rng: Rng): [string, string] {
 
 function make(ix: DataIndex, c: Cand, sit: Situation, rng: Rng): Syllogism {
   const { pair, item } = c, rule = SITUATIONS[sit];
-  const [reason, first] = phrasesFor(pair, rng);
+  const [reason, first] = phrasesFor(ix, pair, rng);
   // two categories that share a phrase would give "it is X because it is X"
-  const predicate = reason === first && pair.r !== pair.p ? PHRASES[pair.p].find((x) => x !== reason) || first : first;
+  const predicate = reason === first && pair.r !== pair.p ? phrasesOf(ix, pair.p).find((x) => x !== reason) || first : first;
   const others = pair.holds ? [] : pair.cells.anb.filter((i) => !i.ne && i !== item);
   const pool = others.length ? others : pair.cells.anb.filter((i) => !i.ne);
   const witness = pair.holds || !pool.length ? undefined : pool[Math.floor(rng() * pool.length)].n;

@@ -4,7 +4,7 @@ import { expect, test } from "vitest";
 import { makeIndex } from "../../src/ai-shared";
 import type { DrillData } from "../../src/ai-shared";
 import {
-  NO_PHRASE, REPLIES, SITUATIONS, syllogismOf, syllogismPieces, syllogismText, drawSyllogism, gradeSyllogism, gradeExample, pervasionConflicts,
+  REPLIES, SITUATIONS, syllogismOf, syllogismPieces, syllogismText, drawSyllogism, gradeSyllogism, gradeExample, pervasionConflicts, widest, withoutPhrases,
 } from "../../src/domain/syllogism";
 import type { Syllogism, SyllogismHistory, Reply, Situation } from "../../src/domain/syllogism";
 import { inUniverse } from "../../src/domain/universe";
@@ -33,14 +33,14 @@ const data = (extra: DrillData["items"] = []): DrillData => ({
   },
   chains: {},
   cats: [
-    { id: "ft", kind: "dudra", term: "Functional thing", labels: ["functional things"], type: "functional thing" },
-    { id: "form", kind: "dudra", term: "Form", labels: ["forms"], type: "form" },
-    { id: "extf", kind: "dudra", term: "External form", labels: ["external forms"], type: "external form" },
-    { id: "snd", kind: "dudra", term: "Sound source", labels: ["sounds"], type: "sound" },
-    { id: "cons", kind: "dudra", term: "Consciousness", labels: ["consciousnesses"], type: "consciousness" },
-    { id: "red", kind: "everyday", labels: ["red things"], type: "form: objects that are red" },
-    { id: "food", kind: "everyday", labels: ["food"], type: "form: things eaten as food" },
-    { id: "memory", kind: "everyday", labels: ["memories"], type: "consciousness: mental consciousness remembering" },
+    { id: "ft", kind: "dudra", term: "Functional thing", labels: ["functional things"], type: "functional thing", phrases: ["impermanent", "a product", "a functional thing"] },
+    { id: "form", kind: "dudra", term: "Form", labels: ["forms"], type: "form", phrases: ["a form", "matter"] },
+    { id: "extf", kind: "dudra", term: "External form", labels: ["external forms"], type: "external form", phrases: ["an external form"] },
+    { id: "snd", kind: "dudra", term: "Sound source", labels: ["sounds"], type: "sound", phrases: ["a sound"] },
+    { id: "cons", kind: "dudra", term: "Consciousness", labels: ["consciousnesses"], type: "consciousness", phrases: ["a consciousness", "a mind"] },
+    { id: "red", kind: "everyday", labels: ["red things"], type: "form: objects that are red", phrases: ["red"] },
+    { id: "food", kind: "everyday", labels: ["food"], type: "form: things eaten as food", phrases: ["food", "something you can eat"] },
+    { id: "memory", kind: "everyday", labels: ["memories"], type: "consciousness: mental consciousness remembering", phrases: ["a memory"], within: ["cons"] },
   ],
   items: [
     { n: "a tomato", t: "External form", c: ["ft", "form", "extf", "red", "food"] },
@@ -240,14 +240,38 @@ test("the draw asks the answer asked lately less, and brings back the categories
 // ---- the real open data ----
 
 test("every category of the open data has the words a syllogism needs, or is named as left out", () => {
-  const sample = Object.keys(real.CAT).filter((id) => !NO_PHRASE.includes(id));
-  // a category without words would silently never be drawn: a change of the data that adds one must add its words
+  // a category without words would silently never be drawn: a change of the data that adds one must add its words (items.py in the knowledge base)
+  expect(withoutPhrases(real)).toEqual(["hid"]); // the existent in the data: it would make every syllogism trivial
+  const sample = Object.keys(real.CAT).filter((id) => !withoutPhrases(real).includes(id));
   const drawn = new Set<string>();
   const st = { hist: [] as SyllogismHistory[], recent: [] as string[], rng: seeded(21) };
   for (let i = 0; i < 4000; i++) { const c = drawSyllogism(real, st); drawn.add(c.catR); drawn.add(c.catP); }
   const never = sample.filter((id) => !drawn.has(id));
   expect(never, "categories never drawn").toEqual([]);
-  for (const id of NO_PHRASE) expect(real.CAT[id], id).toBeTruthy();
+});
+
+test("what the drill says and takes for granted comes from the data: the words, the stated pervasions, the kinds that are mixed up, the subjects that are not taken", () => {
+  // the words: a changed phrase is what is said, and a category with no phrase is never drawn
+  const changed = data(); changed.cats = changed.cats.map((c) => (c.id === "red" ? { ...c, phrases: ["crimson"] } : c.id === "food" ? { ...c, phrases: undefined } : c));
+  expect(withoutPhrases(makeIndex(changed))).toEqual(["food"]);
+  const seen = new Set<string>();
+  const st = { hist: [] as SyllogismHistory[], recent: [] as string[], rng: seeded(5) };
+  const mi = makeIndex(changed);
+  for (let i = 0; i < 300; i++) { const c = drawSyllogism(mi, st); seen.add(c.reason); seen.add(c.predicate); expect([c.catR, c.catP]).not.toContain("food"); }
+  expect(seen.has("crimson")).toBe(true);
+  expect(seen.has("red")).toBe(false);
+  // a pervasion stated in the data holds; the same data without it does not make the pair hold by itself
+  const everyday = (within?: string[]) => { const d = data(); d.cats = d.cats.map((c) => (c.id === "food" ? { ...c, within } : c)); d.items = d.items.map((i) => (i.n === "a banana" || i.n === "a tomato" ? { ...i, c: [...i.c, "red"] } : i)); return d; };
+  // the term chain cannot show that food is red (neither is a term); the data states it, and the items agree (a banana and a tomato are both red here)
+  expect(syllogismOf(makeIndex(everyday(["red"])), "a tomato", "food", "red", seeded(1))?.pervasion).toBe("holds");
+  expect(syllogismOf(makeIndex(everyday(undefined)), "a tomato", "food", "red", seeded(1))).toBeNull();
+  // a subject the data marks is never taken, however many categories it is in
+  const marked = data(); marked.items = marked.items.map((i) => (i.n === "a tomato" ? { ...i, nosubject: true } : i));
+  const mk = makeIndex(marked), st2 = { hist: [] as SyllogismHistory[], recent: [] as string[], rng: seeded(9) };
+  for (let i = 0; i < 300; i++) expect(drawSyllogism(mk, st2).subject).not.toBe("a tomato");
+  // kinds that are mixed up make near misses; none are made without them
+  expect(widest(real)).toEqual(new Set(["Existent", "Functional thing"])); // not named in the code: the terms most categories share
+  expect(real.DATA.confusable?.length).toBeGreaterThan(0);
 });
 
 test("the term data and the items of the open data do not contradict each other", () => {
