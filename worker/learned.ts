@@ -1,8 +1,9 @@
 // Learned facts (docs/SERVER.md): after an explain question, what the answer says of each example the page could not check is kept in
 // example_facts (migrations/0009_example_facts.sql), one row per example and category, by the rules of src/domain/learned.ts. A Quorum run counts
-// as one analysis with several voices; the one model's answer counts as one voice. Nothing here is shown to the learner yet.
-import type { ExplainExample } from "../src/ai/protocol";
-import { FACT_LIMITS, factKey, learn, opinionOf, ruleSide, type FactRow, type FactSource, type Opinion } from "../src/domain/learned";
+// as one analysis with several voices; the one model's answer counts as one voice. `knownFacts` answers POST /api/known from the rows that may be served.
+import type { ExplainExample, KnownFact } from "../src/ai/protocol";
+import { CELL_NAME } from "../src/ai-shared/prompts";
+import { FACTS_EPOCH, FACT_LIMITS, factKey, knownLine, learn, opinionOf, ruleSide, servable, type FactRow, type FactSource, type Opinion } from "../src/domain/learned";
 import type { Kit } from "./kit";
 
 /** One answer to the explain question: a model's (the tutor's, or one of Quorum's), or the judge's. */
@@ -77,4 +78,32 @@ export async function keepFacts(
   }
   if (writes.length) await db.batch(writes);
   return writes.length;
+}
+
+/**
+ * What may be answered of the examples without the AI: an example both of whose rows (one per category of the pair) may be served (`servable`), as the
+ * tutor's line for its cell. `cats` must be the data's own two; anything else is answered with nothing.
+ */
+export async function knownFacts(
+  db: D1Database,
+  p: { kit: Pick<Kit, "isCat">; cats: readonly string[]; examples: readonly ExplainExample[]; epoch?: number },
+): Promise<KnownFact[]> {
+  const [catA, catB] = p.cats;
+  if (p.cats.length !== 2 || !catA || !catB || catA === catB || !p.kit.isCat(catA) || !p.kit.isCat(catB)) return [];
+  const asked = p.examples.slice(0, FACT_LIMITS.examples).map((e) => ({ ...e, key: factKey(e.text) })).filter((e): e is ExplainExample & { key: string } => !!e.key);
+  const things = [...new Set(asked.map((e) => e.key))];
+  if (!things.length) return [];
+  const marks = things.map((_, i) => `?${i + 3}`).join(", ");
+  const { results } = await db
+    .prepare(`SELECT thing, cat, answer, cls, reason, state, epoch FROM example_facts WHERE cat IN (?1, ?2) AND thing IN (${marks})`)
+    .bind(catA, catB, ...things)
+    .all<Pick<FactRow, "answer" | "cls" | "reason" | "state" | "epoch"> & { thing: string; cat: string }>();
+  const row = new Map(results.filter((r) => servable(r, p.epoch ?? FACTS_EPOCH)).map((r) => [`${r.thing}\n${r.cat}`, r]));
+  const out: KnownFact[] = [];
+  for (const e of asked) {
+    const a = row.get(`${e.key}\n${catA}`), b = row.get(`${e.key}\n${catB}`);
+    if (!a || !b) continue;
+    out.push({ cell: e.cell, text: e.text, line: knownLine(CELL_NAME[e.cell], e.text, a, b), by: a.state === "reviewed" && b.state === "reviewed" ? "reviewed" : "learned" });
+  }
+  return out;
 }

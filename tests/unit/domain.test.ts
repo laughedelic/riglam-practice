@@ -16,6 +16,8 @@ import openData from "../../src/data/drill-data.json";
 import { drawable, placeByClass } from "../../src/domain";
 import { FACTS_EPOCH, factKey, learn, opinionOf, ruleSide, servable } from "../../src/domain";
 import type { Answer, FactRow, Opinion, Ruling } from "../../src/domain";
+import { knownLine, openExamples, referenceLines } from "../../src/domain";
+import { makeExampleIndex } from "../../src/ai-shared/examples";
 
 /** A small deterministic random source (mulberry32), so a test draws the same numbers every time. */
 const seeded = (seed: number) => () => {
@@ -1219,4 +1221,53 @@ test("only a checked fact of this epoch, or the maintainer's, with a yes or no, 
   expect(servable({ state: "checked", answer: "yes", epoch: FACTS_EPOCH - 1 })).toBe(false);
   expect(servable({ state: "checked", answer: "unsure", epoch: FACTS_EPOCH })).toBe(false);
   for (const state of ["candidate", "disputed"] as const) expect(servable({ state, answer: "yes", epoch: FACTS_EPOCH })).toBe(false);
+});
+
+// ---- examples known without the AI: the reference examples on the device, and the server's learned facts, as the tutor's lines ----
+
+test("a known example is written as the tutor's line, which reads back to the same facts", () => {
+  const line = knownLine("A not B", 'a "red" | flower\n', { answer: "yes", reason: "it is a color | a form", cls: "Color" }, { answer: "no", reason: "", cls: "" });
+  expect(line).toBe(`A not B: "a 'red' flower" | class: Color | A yes: it is a color a form | B no: `);
+  expect(parseFactLine(line)).toMatchObject({ cell: "anb", example: "a 'red' flower", cls: "Color", a: { answer: "yes", say: "it is a color a form" }, b: { answer: "no", say: "" } });
+  expect(knownLine("Both", "a pot", { answer: "no", reason: "r", cls: "" }, { answer: "no", reason: "s", cls: "Pot" })).toBe(`Both: "a pot" | class: Pot | A no: r | B no: s`);
+});
+
+const refPair = (own = false) => ({ a: "forms", b: "consciousnesses", relation: "con" as RelKey, catA: "form", catB: "cons", ex: {}, why: {}, ...(own ? { own: true } : {}) });
+const refExamples = makeExampleIndex({
+  format: "test", version: 1, sources: {},
+  items: [
+    { n: "a red flower", cls: ["Color"], lv: 1 },
+    { n: "the horn of a rabbit", al: ["a rabbit's horn"], ne: true, lv: 2 },
+    { n: "a cup", cls: ["Form"], lv: 1 },
+    { n: "a cup", cls: ["Functional thing"], lv: 1 },
+  ],
+});
+
+test("the reference examples settle an open example when every one of its name places it on both sides", () => {
+  const ix = refIx();
+  const open = [{ cell: "anb", text: "A red flower" }, { cell: "nei", text: "a rabbit's horn" }, { cell: "both", text: "a cup" }, { cell: "nei", text: "a song" }] as const;
+  const lines = referenceLines(ix, refExamples, refPair(), open);
+  expect(lines).toEqual([`A not B: "A red flower" | class: Color | A yes:  | B no: `, `Neither: "a rabbit's horn" | A no: it does not exist | B no: it does not exist`]);
+  expect(parseVerdicts(lines.join("\n"))).toEqual([{ cell: "anb", answer: "yes" }, { cell: "nei", answer: "yes" }]);
+  expect(referenceLines(ix, refExamples, refPair(true), open), "a pair of the learner's own").toEqual([]);
+  expect(referenceLines(ix, null, refPair(), open)).toEqual([]);
+  expect(referenceLines(ix, refExamples, { ...refPair(), catB: "nowhere", b: "nothing known" }, open), "a side the data does not have").toEqual([]);
+});
+
+test("the open examples are the learner's examples still not checked, none for a pair of the learner's own", () => {
+  const res = { cells: { both: { v: "ok" }, anb: { v: "cmp" }, bna: { v: "cmp" }, nei: { v: "bad" } } } as unknown as Parameters<typeof openExamples>[1];
+  const things = [{ text: "a pot", cells: ["both", "anb"] as CellId[] }, { text: "a mind", cells: ["bna"] as CellId[] }];
+  expect(openExamples(refPair(), res, things)).toEqual([{ cell: "anb", text: "a pot" }, { cell: "bna", text: "a mind" }]);
+  expect(openExamples(refPair(), res, things, 1)).toEqual([{ cell: "anb", text: "a pot" }]);
+  expect(openExamples(refPair(true), res, things)).toEqual([]);
+});
+
+test("a verdict known without the AI says where it came from, and never leaves a cell unsure", () => {
+  const p = pair();
+  const res = grade(ix, p, { rel: "4", cells: cellsOf({ ...perfect, both: "a gray dragon", bna: "a gray ghost", nei: "a thought" }) });
+  expect(applyVerdicts(p, res, [{ cell: "both", answer: "yes" }, { cell: "bna", answer: "unsure" }], false, "course")).toBe(1);
+  expect(res.cells.both).toMatchObject({ v: "ok", msg: ["Verified", "", "by the course examples"], by: "course" });
+  expect(res.cells.bna.v).toBe("cmp");
+  expect(applyVerdicts(p, res, [{ cell: "bna", answer: "no" }], false, "learned")).toBe(1);
+  expect(res.cells.bna).toMatchObject({ v: "bad", msg: ["Does not fit", ". Example: a gray stone.", "from an earlier check"], by: "claude" });
 });

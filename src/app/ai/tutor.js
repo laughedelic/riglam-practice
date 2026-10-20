@@ -21,14 +21,17 @@ function applyVerify(text,U,C){
   let n=applyVerdicts(C.p,U.res,parseVerdicts(text,noteData(C.p)),!!(U.find&&C.p.own&&U.res.relOpen)); // the cells settle as the notes read
   // Find a pair, a pair of the learner's own: the tutor says whether it has the relation asked for, which settles that and the cells the relation leaves empty
   if(U.find&&C.p.own){ const v=parseRelationVerdict(text,U.rel); if(v&&applyRelationVerdict(C.p,U.res,v)) n++; }
-  if(n&&state.db&&U.doc&&U.saveId){
-    for(const c of CELLS){ U.doc.cells[c].verdict=U.res.cells[c].v; if(U.res.cells[c].by) U.doc.cells[c].by="claude"; }
-    if(U.doc.qs) for(const q of U.doc.qs){ const r=U.res.cells[q.c]; q.verdict=r.v; if(r.by) q.by="claude"; }
-    U.doc.grade=U.res.overall; U.doc.verifiedAt=new Date().toISOString();
-    if(U.find){ U.doc.correct=U.res.relOk; U.doc.key=C.p.relation; if(U.res.relOpen) U.doc.relOpen=true; else delete U.doc.relOpen; }
-    persist(U,"The verification");
-  }
+  if(n) saveVerdicts(U,C);
   return n;
+}
+/** Writes the verdicts that settled since the check into the answer's document, with who settled each ("claude", or "course" for the reference examples). */
+export function saveVerdicts(U,C){
+  if(!state.db||!U.doc||!U.saveId) return;
+  for(const c of CELLS){ U.doc.cells[c].verdict=U.res.cells[c].v; if(U.res.cells[c].by) U.doc.cells[c].by=U.res.cells[c].by; }
+  if(U.doc.qs) for(const q of U.doc.qs){ const r=U.res.cells[q.c]; q.verdict=r.v; if(r.by) q.by=r.by; }
+  U.doc.grade=U.res.overall; U.doc.verifiedAt=new Date().toISOString();
+  if(U.find){ U.doc.correct=U.res.relOk; U.doc.key=C.p.relation; if(U.res.relOpen) U.doc.relOpen=true; else delete U.doc.relOpen; }
+  persist(U,"The verification");
 }
 // The learner's examples the page could not check (verdict "cmp"), each with its cell: the server keeps what the explanation says of them where it is
 // set to (docs/SERVER.md, "Learned facts"). Read before the verdicts arrive, so these are the examples the explanation is the check of.
@@ -47,6 +50,7 @@ export function explainByItself(U){
 export async function ask(text,kind,byItself){
   const U=state.ui, C=state.cur;                       // the pair this question belongs to, even if you switch tabs meanwhile
   if(!canAsk()||!U||U.ctl) return;
+  if(U.knowing){ await U.knowing; if(U.ctl||(kind==="explain"&&U.explained)) return; }  // the examples known without the AI settle first (known.js), so the question is about the rest
   const p=C.p, direct=!!state.sample;                  // the host's own model call, or else the app's server
   const quorum=kind==="explain"&&quorumWanted(U);     // the explanation of a checked answer is asked of Quorum, where this server offers it, this device has it on and an example is left to check
   const body=kind==="explain"?explainAsk(U):text;

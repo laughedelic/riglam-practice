@@ -1,6 +1,7 @@
 import { state } from "./state.js";
 import { aiCase, aiFlag, autoFlags, decorateAns, flagId, flagsSubscribe, openFlag, removeFlag, saveFlag, setFlagState } from "./ai/flags.js";
 import { flushFlags } from "./ai/flag-reports.js";
+import { loadKnown } from "./ai/known.js";
 import { quorumThings, setQuorum, setQuorumOffer } from "./ai/quorum.js";
 import { refOf } from "./core/rel.js";
 import { favKey } from "./practice/favorites.js";
@@ -45,6 +46,7 @@ async function bootSteps(platform){
   // the server may need seconds to say whether it has a tutor: the page opens first and draws again when the answer comes
   if(state.unlock&&state.unlock.answer){ const u=state.unlock; u.answer.then(on=>{ u.tutor=!!on; if(state.mode!=="loading") render(); },()=>{}); }
   try{ state.tutor=platform.tutor?await platform.tutor():null; }catch(e){ state.tutor=null; }
+  await loadKnown(platform);
   try{ state.reports=platform.reports?await platform.reports():null; }catch(e){ state.reports=null; }
   state.withdrawLater=platform.withdrawReport||null;
   try{ setQuorumOffer(state.tutor&&platform.quorum?await platform.quorum():false); }catch(e){ setQuorumOffer(false); }
@@ -81,12 +83,13 @@ async function bootSteps(platform){
     const m={}; snap.docs.forEach(d=>{m[d.id]=d.data();}); state.debates=m; settle();
   },()=>{});
 }
-// What depends on the key, read again after the prompt took one: the definitions in the data, the tutor, and the Options row (enter a key / change it).
+// What depends on the key, read again after the prompt took one: the definitions in the data, the tutor (and what is known without it), and the Options row (enter a key / change it).
 async function rekey(platform){
   state.DATA=await platform.loadData(); indexData(); buildPool();
   try{ state.unlock=platform.unlock?await platform.unlock():null; }catch(e){ state.unlock=null; }
   try{ state.keyHeld=platform.keyHeld?await platform.keyHeld():null; }catch(e){ state.keyHeld=null; }
   try{ state.tutor=platform.tutor?await platform.tutor():null; }catch(e){ state.tutor=null; }
+  await loadKnown(platform);
   try{ state.reports=platform.reports?await platform.reports():null; }catch(e){ state.reports=null; }
   try{ setQuorumOffer(state.tutor&&platform.quorum?await platform.quorum():false); }catch(e){ setQuorumOffer(false); }
   state.keyAsk=false;

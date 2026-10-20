@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../../worker/app";
 import { parseRequest } from "../../worker/tutor";
-import { NOW, ask, events, fakeKit, fakeModels, setup, type Round } from "./support";
+import { NOW, ask, events, fakeKit, fakeModels, json, setup, type Round } from "./support";
 import type { Env } from "../../worker/env";
 
 type Setup = Awaited<ReturnType<typeof setup>>;
@@ -130,10 +130,73 @@ describe("learned facts", () => {
       expect(parseRequest({ kind: "explain", cats: [], turns, examples }), JSON.stringify(examples).slice(0, 40)).toMatchObject({ ok: false, code: "bad_request" });
   });
 
-  it("are kept on Previews only: production has no EXAMPLE_FACTS", () => {
+  it("are kept and answered on Previews only: production has no EXAMPLE_FACTS", () => {
     const wrangler = readFileSync(new URL("../../wrangler.jsonc", import.meta.url), "utf8");
     const at = wrangler.indexOf('"previews"');
     expect(wrangler.slice(0, at)).not.toMatch(/"EXAMPLE_FACTS"/);
-    expect(wrangler.slice(at)).toMatch(/"EXAMPLE_FACTS":\s*"record"/);
+    expect(wrangler.slice(at)).toMatch(/"EXAMPLE_FACTS":\s*"serve"/);
+  });
+});
+
+describe("known facts", () => {
+  const known = async (s: Setup, body: unknown, env: Partial<Env> = {}, headers = s.headers()) => {
+    const app = createApp({ kit: async () => fakeKit().kit, now: () => NOW });
+    return app.request("/api/known", { method: "POST", headers, body: typeof body === "string" ? body : JSON.stringify(body) }, { EXAMPLE_FACTS: "serve", ...s.env, ...env } as Env);
+  };
+  const unanimous = (s: Setup, a: string, b: string, env: Partial<Env> = { EXAMPLE_FACTS: "serve" }) =>
+    explain(s, { [HAIKU]: [text(line("Both", "a table", a, b))], [SONNET]: [text(line("Both", "a table", a, b))], [OPUS]: [text(line("Both", "a table", a, b))] }, { quorum: true }, { QUORUM: "on", ...env });
+
+  it("answer an example both of whose sides may be served, as the tutor's line for the cell asked about", async () => {
+    const s = await setup();
+    await unanimous(s, "yes", "no");
+    const res = await known(s, { cats: ["c_form", "c_round"], examples: [{ cell: "anb", text: "The table" }, { cell: "nei", text: "a stone" }] });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(await json(res)).toEqual({ known: [{ cell: "anb", text: "The table", line: 'A not B: "The table" | class: Table | A yes: it is a form | B no: it is round', by: "learned" }] });
+    // the categories the other way round give the sides the other way round
+    expect((await json(await known(s, { cats: ["c_round", "c_form"], examples: [{ cell: "bna", text: "a table" }] }))).known[0].line).toBe('B not A: "a table" | class: Table | A no: it is round | B yes: it is a form');
+  });
+
+  it("answer nothing of a candidate, a disputed or an older row, and say reviewed where the maintainer decided both sides", async () => {
+    const s = await setup();
+    await explain(s, { [SONNET]: [text(line("Both", "a table", "yes", "no"))] }, {}, { EXAMPLE_FACTS: "serve" }); // one model: candidates
+    const ask = { cats: ["c_form", "c_round"], examples: [{ cell: "anb", text: "a table" }] };
+    expect((await json(await known(s, ask))).known).toEqual([]);
+    s.db.sql("UPDATE example_facts SET state = 'checked'");
+    expect((await json(await known(s, ask))).known).toHaveLength(1);
+    s.db.sql("UPDATE example_facts SET epoch = 0");
+    expect((await json(await known(s, ask))).known, "an older epoch").toEqual([]);
+    s.db.sql("UPDATE example_facts SET state = 'reviewed'");
+    expect((await json(await known(s, ask))).known[0].by).toBe("reviewed");
+    s.db.sql("UPDATE example_facts SET state = 'disputed', epoch = 1 WHERE cat = 'c_round'");
+    expect((await json(await known(s, ask))).known, "one side disputed").toEqual([]);
+  });
+
+  it("are answered only where EXAMPLE_FACTS is serve, to a device with the Magic Key, for a well-formed question", async () => {
+    const s = await setup();
+    await unanimous(s, "yes", "no");
+    const ask = { cats: ["c_form", "c_round"], examples: [{ cell: "anb", text: "a table" }] };
+    for (const EXAMPLE_FACTS of [undefined, "record", "off"]) expect((await known(s, ask, { EXAMPLE_FACTS })).status, String(EXAMPLE_FACTS)).toBe(503);
+    expect((await known(s, ask, {}, s.headers({ "x-riglam-proof": "0".repeat(64) }))).status).toBe(401);
+    for (const body of ["not json", { cats: ["c_form"], examples: ask.examples }, { cats: ask.cats, examples: [] }, { cats: ask.cats, examples: [{ cell: "q1", text: "a table" }] }])
+      expect((await known(s, body)).status, JSON.stringify(body)).toBe(400);
+    expect((await known(s, "x".repeat(9000))).status).toBe(413);
+    expect((await json(await known(s, { cats: ["c_form", "other"], examples: ask.examples }))).known, "a category the data does not have").toEqual([]);
+  });
+
+  it("are offered in health where the tutor is on and EXAMPLE_FACTS is serve", async () => {
+    const health = async (env: Partial<Env>) => {
+      const s = await setup(env);
+      return (await createApp({ kit: async () => fakeKit().kit, now: () => NOW }).request("/api/health", {}, s.env)).json();
+    };
+    expect(await health({ EXAMPLE_FACTS: "serve" })).toMatchObject({ tutor: "on", known: "on" });
+    expect(await health({ EXAMPLE_FACTS: "record" })).not.toHaveProperty("known");
+    expect(await health({ EXAMPLE_FACTS: "serve", ANTHROPIC_API_KEY: undefined })).not.toHaveProperty("known");
+  });
+
+  it("say unavailable, not nothing, when the table cannot be read", async () => {
+    const s = await setup();
+    s.db.sql("DROP TABLE example_facts");
+    expect((await known(s, { cats: ["c_form", "c_round"], examples: [{ cell: "anb", text: "a table" }] })).status).toBe(503);
   });
 });

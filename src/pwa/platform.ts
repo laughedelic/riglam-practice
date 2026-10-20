@@ -8,6 +8,7 @@
 //   examples the reference examples kept on this device, fetched from the server in the background once the key is known to fit (./course.ts)
 //   keyHeld while it has one: enter another, or forget it (./unlock.ts)
 //   tutor   the app's own server (./tutor.ts), when it has the tutor on and this device has the Magic Key
+//   known   what that server learned of examples from earlier checks (./tutor.ts), when it answers from it (a Preview) and this device has the Magic Key
 //   reports flags sent to the app's own server (./reports.ts), when it takes them and this device has the Magic Key
 //   account optional sign-in with a passkey and a server copy of the documents (./account.ts), when the server has accounts on
 //   updates the service worker's new versions: checked in the background, started from the banner or Options (./updates.ts)
@@ -23,7 +24,7 @@ import { showStorageNotice } from "./storage-notice";
 import { storeName } from "./store-slot";
 import { createLocalDb } from "./local-db";
 import { createReports, withdrawLater } from "./reports";
-import { createTutor, serverSays, type ServerSays } from "./tutor";
+import { createKnown, createTutor, serverSays, type ServerSays } from "./tutor";
 import { takeLinkKey, storedKey, storeKey, forgetKey, keyDeclined, declineKey, allowKey, showUnlock, markKeyChanged, takeKeyChanged, KEY_CHANGED_TEXT } from "./unlock";
 
 const db = createLocalDb({ name: storeName(), onUnavailable: showStorageNotice });
@@ -200,6 +201,8 @@ export const pwaPlatform: Platform = {
   about: () => aboutThisBuild(),
   updates,
   tutor: async () => (groupKey && (await tutorIsOn()) ? createTutor(groupKey) : null),
+  // Only with the key, and only when the server says it answers from what it learned (a Preview set to; docs/SERVER.md, "Learned facts").
+  known: async () => (groupKey && (await serverSaid()).known ? createKnown(groupKey) : null),
   // Only with the key, like the tutor, and only when the server says it takes reports: otherwise flags stay on the device.
   reports: async () => (groupKey && (await serverSaid()).reports ? createReports(groupKey) : null),
   withdrawReport: withdrawLater,

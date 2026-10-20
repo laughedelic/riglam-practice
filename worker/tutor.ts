@@ -4,7 +4,7 @@
 // Prompt caching is automatic (a top-level cache_control), so a follow-up question re-reads the earlier turns at the cache price.
 
 import Anthropic from "@anthropic-ai/sdk";
-import { LIMITS, type ErrorCode, type ExplainExample, type Turn, type TutorEvent, type TutorKind, type TutorRequest } from "../src/ai/protocol";
+import { LIMITS, type ErrorCode, type ExplainExample, type KnownRequest, type Turn, type TutorEvent, type TutorKind, type TutorRequest } from "../src/ai/protocol";
 import type { Config } from "./config";
 import type { Kit } from "./kit";
 import { addTokens, costOfTokens, noTokens, type Tokens } from "./prices";
@@ -40,6 +40,14 @@ export function parseRequest(body: unknown): Parsed {
     ok: true,
     request: { kind: kind as TutorKind, cats: cats as string[], turns: list.map((t) => ({ role: t.role, content: t.content })), ...(quorum ? { quorum: true } : {}), ...(named ? { examples: named } : {}) },
   };
+}
+
+/** Checks the body of a POST /api/known request: the pair's two category ids and one to eight examples, as an explain request names them. */
+export function parseKnown(body: unknown): { ok: true; request: KnownRequest } | { ok: false; message: string } {
+  const { cats, examples } = (body && typeof body === "object" && !Array.isArray(body) ? body : {}) as Record<string, unknown>;
+  if (!Array.isArray(cats) || cats.length !== 2 || cats.some((c) => typeof c !== "string" || c.length > 100)) return { ok: false, message: "cats must be two short strings" };
+  if (!validExamples(examples) || !(examples as unknown[]).length) return { ok: false, message: "examples must be a short list of {cell, text}" };
+  return { ok: true, request: { cats: cats as string[], examples: (examples as ExplainExample[]).map((e) => ({ cell: e.cell, text: e.text })) } };
 }
 
 const CELL_IDS = new Set(["both", "anb", "bna", "nei"]);

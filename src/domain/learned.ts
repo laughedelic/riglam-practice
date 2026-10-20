@@ -167,3 +167,15 @@ export function learn(stored: FactRow | null, r: Ruling, at: { src: FactSource; 
 /** Whether a row may answer a check without the AI: the maintainer's decision, or a checked row of this epoch, with a yes or no. */
 export const servable = (row: Pick<FactRow, "state" | "answer" | "epoch">, epoch: number = FACTS_EPOCH): boolean =>
   definite(row.answer) && (row.state === "reviewed" || (row.state === "checked" && row.epoch === epoch));
+
+// a learner's words or a stored reason inside a line: nothing that would end the line, a field or the quoted example
+const inLine = (s: string) => String(s ?? "").replace(/[|\r\n]+/g, " ").replace(/"/g, "'").replace(/\s+/g, " ").trim();
+
+/**
+ * The tutor's line for an example whose two sides are known (`parseFactLine` reads it back): `cellName` as the line names the cell ("Both", "A not B"),
+ * `a` and `b` the answers on the pair's two categories with their reasons, the class the first that has one.
+ */
+export function knownLine(cellName: string, text: string, a: Pick<FactRow, "answer" | "reason" | "cls">, b: Pick<FactRow, "answer" | "reason" | "cls">): string {
+  const cls = inLine(a.cls || b.cls);
+  return `${cellName}: "${inLine(text)}"${cls ? ` | class: ${cls}` : ""} | A ${a.answer}: ${inLine(a.reason)} | B ${b.answer}: ${inLine(b.reason)}`;
+}
