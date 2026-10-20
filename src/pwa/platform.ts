@@ -37,6 +37,7 @@ const quorumOffered = async () => (await serverSaid()).quorum;
 let openData: Promise<DrillData> | null = null; // the open part of the term data, read once
 const readOpenData = () => (openData ??= fetch(dataUrl).then((r) => r.json()));
 let unlocked: DrillData | null = null; // the term data with the definitions, once the prompt took a key into the running page: loadData answers with it from then on
+const exampleListeners = new Set<() => void>(); // the page, which reads the examples again when a newer copy was kept
 const keyListeners = new Set<() => void | Promise<void>>(); // the page, which reads the capabilities and the data again when a key was taken in place
 
 // The open data comes with the app. The definitions come from the server to a device that has the Magic Key (from the link, or kept
@@ -114,7 +115,10 @@ async function refreshExamples(key: string) {
   const kept = keptExamples();
   const got = await fetchExamples(key, kept?.version);
   if (storedKey() !== key) return; // the key changed meanwhile: these belong to the old one
-  if (got.ok && "examples" in got) keepExamples({ version: got.version, examples: got.examples });
+  if (got.ok && "examples" in got) {
+    keepExamples({ version: got.version, examples: got.examples });
+    for (const tell of exampleListeners) tell();
+  }
 }
 
 /** The key the server stopped accepting may have been changed: an account that carries the key (and is signed in here) has the new one. */
@@ -206,6 +210,10 @@ export const pwaPlatform: Platform = {
   quorum: async () => (groupKey ? await quorumOffered() : false),
   // What an earlier visit (or this one, once the background fetch is done) kept; nothing without the key.
   examples: async () => (groupKey ? keptExamples()?.examples ?? null : null),
+  onExamples(tell) {
+    exampleListeners.add(tell);
+    return () => void exampleListeners.delete(tell);
+  },
   // Made on first ask and then kept; it finds out for itself whether the server has accounts, so the page can show its row at once.
   account: async () => (account ??= createPwaAccount(db, { read: () => groupKey ?? storedKey(), adopt: takeAccountKey, declined: keyDeclined, allow: allowKey })),
 };

@@ -215,6 +215,8 @@ export interface Platform {
    * server has none, or they have not arrived yet. They come in the background, after the page started; a later call may have them.
    */
   examples?(): Promise<Examples | null>;
+  /** Calls `tell` whenever a newer copy of the examples was kept on the device (they are fetched in the background), so that the page reads `examples` again. Returns the way to stop. */
+  onExamples?(tell: () => void): () => void;
   /** The optional account (a passkey and a server copy of the documents, src/account), or null (or absent) when the place has none. The page works the same without. */
   account?(): Promise<Account | null>;
   /** Which build this is and whether a newer one is out, or null (or absent) when the place has no builds to tell apart (the artifact). */
