@@ -46,7 +46,7 @@ function rows(){
 function keyButton(){
   if(!state.unlock) return null;
   return el("button",{type:"button",class:"ib keyb",title:"No Magic Key on this device: what is it?","aria-label":"No Magic Key on this device: what is it?",
-    onclick:()=>{ state.unlock.open(); }},tbIcon("key"),el("i",{class:"att","aria-hidden":"true"}));
+    onclick:()=>{ state.unlock.open(); }},tbIcon("key"));
 }
 // the version, and where the look for a newer one stands (platform.about, platform.updates)
 function versionLine(){
