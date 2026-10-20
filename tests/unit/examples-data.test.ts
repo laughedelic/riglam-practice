@@ -28,6 +28,12 @@ test("the device part leaves out the places, links, base, members, aliases in ot
   expect(JSON.stringify(device), "the course booklet's id is nowhere in what a device gets").not.toContain("MX");
 });
 
+test("the device part drops an alias with any Han or Tibetan character, the extensions and compatibility forms included", () => {
+  const al = ["vemo", "\u{20000}", "a \u{f900} lake", "\u3007", "\u0f40", "\u6e56", "вемо", "hú"];
+  const device = deviceExamples(full([{ ...ITEM, al }]), "x");
+  expect(device.items[0].al).toEqual(["vemo", "вемо", "hú"]);
+});
+
 test("examplesProblems accepts usable examples and names what is wrong otherwise", () => {
   expect(examplesProblems(full([ITEM]), OPEN)).toEqual([]);
   expect(examplesProblems([], OPEN)).toEqual(["the examples file is not a JSON object"]);

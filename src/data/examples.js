@@ -12,8 +12,8 @@ export const VERSION = 2;
 
 /** What only the server keeps: the places in the sources, the web links, the base of an example and the members of a combination. */
 const SERVER_ONLY = ["src", "web", "base", "mem"];
-/** The app reads English and Russian: aliases in Chinese or Tibetan script stay on the server. */
-const OTHER_SCRIPTS = /[\u3400-\u9fff\u0f00-\u0fff]/;
+/** The app reads English and Russian: aliases in Chinese or Tibetan script stay on the server (the whole Han script, the extensions and compatibility forms too). */
+const OTHER_SCRIPTS = /[\p{Script=Han}\p{Script=Tibetan}]/u;
 
 /** The form in which two names count as the same: lower case, single spaces, no leading article. */
 export const sameName = (s) => String(s).trim().toLowerCase().replace(/\s+/g, " ").replace(/^(a|an|the) /, "");
