@@ -7,7 +7,7 @@ import { isWide } from "../core/viewport.js";
 import { backWhy, chooseD, debateList, sayQ, submitWhy } from "./flow.js";
 import { QCELL, Wd, ansNode, qNode } from "./text.js";
 import { favBtn } from "../practice/favorites.js";
-import { exLine, explainBtn, explainParts, factNode, fbNode, isaTxt, kbHints, nextBtn, recentNode, relCap, relList, relPopNode, relStrip, relWhy, resultBlock, termsItem, tutorAct, tutorItem, whyBtn, whyHead } from "../practice/screen.js";
+import { exLine, explainBtn, explainParts, factNode, fbNode, isaTxt, kbHints, learnedThing, nextBtn, recentNode, relCap, relList, relPopNode, relStrip, relWhy, resultBlock, termsItem, tutorAct, tutorItem, whyBtn, whyHead } from "../practice/screen.js";
 import { skipActs, subRowNode } from "../practice/skips.js";
 import { defCard, withTerms } from "../practice/terms.js";
 import { exGrid } from "../review/review.js";
@@ -57,7 +57,7 @@ function questionRows(u){
         ansNode(a,a.limit&&a.ms!=null?a.ms:null,i),
         // the tutor's note on an accepted question names its own counter-example, so the reference's is not shown beside it
         ex.facts[c]&&a.say!=="why"?null:el("span",{class:"fbq"},el("b",{text:rr.msg[0]}),rr.msg[2]?[" ",el("i",{text:rr.msg[2]})]:null,isaTxt(rr.msg[1]||"")),
-        ex.cells[c]?el("span",{class:"cl"},ex.facts[c]?null:whyHead(),aiFlag(aiCase("explain","Claude’s note on Q"+(i+1),ex.cells[c],c),"q:"+c),ex.facts[c]?factNode(ex.facts[c],whyHead(),"q:"+c):[el("span",null,withTerms(ex.cells[c],"q:"+c,new Set())),defCard("q:"+c)]):null,
+        ex.cells[c]?el("span",{class:"cl"},ex.facts[c]?null:whyHead(),aiFlag(aiCase("explain","Claude’s note on Q"+(i+1),ex.cells[c],c,undefined,learnedThing(c)),"q:"+c),ex.facts[c]?factNode(ex.facts[c],whyHead(),"q:"+c):[el("span",null,withTerms(ex.cells[c],"q:"+c,new Set())),defCard("q:"+c)]):null,
         ex.cells[c]?flagEditorNode("q:"+c):null):null);
   }));
 }

@@ -121,3 +121,22 @@ export async function knownFacts(
   }
   return wholeFirst(out);
 }
+
+/**
+ * A learner's flag that names an example (a flag with a `thing`, src/app/ai/flags.js) disputes what the server learned of it, at once: a row that was
+ * `candidate` or `checked` becomes `disputed`, so it is no longer served and no later analysis promotes it, until the maintainer decides
+ * (worker/examples-admin.ts). A `disputed` row stays so and a `reviewed` one keeps the maintainer's answer; both count the flag. `cats` are the
+ * categories of the pair the flag was made on, when the stored answer names them; without them every row of the example is flagged, which costs
+ * the next learner an analysis and cannot make the app say something wrong. Returns how many rows were flagged.
+ */
+export async function flagFacts(db: D1Database, p: { thing: unknown; cats?: readonly unknown[] }): Promise<number> {
+  const thing = factKey(p.thing);
+  if (!thing) return 0;
+  const cats = [...new Set((p.cats ?? []).filter((c): c is string => typeof c === "string" && c.length > 0 && c.length <= 80))].slice(0, 2);
+  const only = cats.length ? ` AND cat IN (${cats.map((_, i) => `?${i + 2}`).join(", ")})` : "";
+  const done = await db
+    .prepare(`UPDATE example_facts SET flagged = flagged + 1, state = CASE WHEN state IN ('candidate', 'checked') THEN 'disputed' ELSE state END WHERE thing = ?1${only}`)
+    .bind(thing, ...cats)
+    .run();
+  return done.meta.changes;
+}

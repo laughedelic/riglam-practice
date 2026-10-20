@@ -21,7 +21,7 @@ const fits = (e) => ({ cell: e.cell, text: e.text, line: `${CELL[e.cell]}: "${e.
 const failed = (e) => ({ cell: e.cell, text: e.text, line: `${CELL[e.cell]}: "${e.text}" | class: Table | A ${e.cell === "both" || e.cell === "anb" ? "no" : "yes"}: of its use | B unsure: `, by: "learned", half: true });
 
 /** Stands in for the server: `known(body)` answers POST /api/known as {status, body}; the tutor gives a plain answer. The requests are kept. */
-async function server(page, { health = { ok: true, tutor: "on", known: "on" }, known = (body) => ({ status: 200, body: { known: body.examples.map(fits) } }) } = {}) {
+async function server(page, { health = { ok: true, tutor: "on", known: "on" }, known = (body) => ({ status: 200, body: { known: body.examples.map(fits) } }), say = () => PLAIN } = {}) {
   const asked = { known: [], tutor: [] };
   await page.route("**/api/health", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(health) }));
   await page.route("**/api/known", async (route) => {
@@ -33,7 +33,7 @@ async function server(page, { health = { ok: true, tutor: "on", known: "on" }, k
   });
   await page.route("**/api/tutor", (route) => {
     asked.tutor.push({ body: route.request().postDataJSON() });
-    return route.fulfill({ status: 200, contentType: "text/event-stream", body: PLAIN });
+    return route.fulfill({ status: 200, contentType: "text/event-stream", body: say() });
   });
   return asked;
 }
@@ -114,6 +114,34 @@ withKey("an example the server knows on one side only, and that side fails its c
   await expect.poll(() => asked.tutor.length).toBe(1);
   expect(asked.tutor[0].body.examples).toEqual(asked.known[0].body.examples);
   expect((await cellsOf(page))[first.cell]).toMatchObject({ v: "bad", half: true });
+});
+
+// the flag on a cell's note names the example when a learned fact settled the cell, so that the server disputes the fact (worker/learned.ts, flagFacts)
+withKey("a flag on the note of a cell that a learned fact settled names the example", async ({ page }, testInfo) => {
+  const sent = [];
+  let first;
+  const asked = await open(page, testInfo, {
+    health: { ok: true, tutor: "on", known: "on", reports: "on" },
+    known: (body) => { first = body.examples[0]; return { status: 200, body: { known: [fits(first)] } }; },
+    // the explanation has a line for the learned cell, so that the cell has a note ("?")
+    say: () => sse({ type: "delta", text: fits(first).line }, { type: "done", truncated: false }),
+  }, {
+    before: (p) => p.route("**/api/flags", (route) => {
+      const body = route.request().postDataJSON();
+      sent.push(body);
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ stored: (body.send || []).map((r) => r.id), withdrawn: [] }) });
+    }),
+  });
+  await expect.poll(async () => (await cellsOf(page))[first?.cell]?.v).toBe("ok");
+  await explain(page).click();
+  await expect.poll(() => asked.tutor.length).toBe(1);
+  await page.locator(".qm").first().click();
+  await page.locator(".pop .aiflag").click();
+  await page.fill("#flag-note", "A table is not round.");
+  await page.getByRole("button", { name: "Submit" }).click();
+  await expect.poll(() => sent.flatMap((b) => b.send || []).length).toBe(1);
+  const report = sent.flatMap((b) => b.send || [])[0];
+  expect(report.flag).toMatchObject({ part: "explain", n: first.cell, thing: first.text });
 });
 
 withKey("a server that knows nothing, refuses or does not say it answers leaves the examples to the tutor, as before", async ({ page }, testInfo) => {

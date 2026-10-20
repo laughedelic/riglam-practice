@@ -15,7 +15,9 @@ import { HEADER } from "../src/ai/protocol";
 import { REPORT_API, REPORT_LIMITS, autoFlagOf, type FlagReport, type ReportDoc, type ReportResponse, type ReportState, type ReportStatus } from "../src/report/protocol";
 import { fail, keyRefusal, readObject, renewCookie, sessionOf, type AccountDeps } from "./accounts";
 import { dayOf } from "./budget";
+import { readFactsConfig } from "./config";
 import type { Env } from "./env";
+import { flagFacts } from "./learned";
 import { callerOf, gate } from "./magic";
 
 const isPlain = (v: unknown): v is ReportDoc => !!v && typeof v === "object" && !Array.isArray(v);
@@ -153,6 +155,8 @@ export function reportRoutes(deps: AccountDeps) {
 
     const user = (await sessionOf(c, now).catch(() => null))?.userId ?? null;
     const statements: D1PreparedStatement[] = [];
+    // the examples that the new flags name, to dispute what the server learned of them once the reports are stored (worker/learned.ts, flagFacts)
+    const named: { thing: string; cats: unknown[] }[] = [];
     let giveBack = async () => {};
 
     if (sends.length) {
@@ -216,6 +220,9 @@ export function reportRoutes(deps: AccountDeps) {
         // The account already holds these very words from another of its devices, with their review: that report stays, and a second one
         // would start the review again and drop the first one's reply (the words that changed are a new report, below).
         if (user && (await db.prepare("SELECT 1 AS held FROM flag_reports WHERE user_id = ?1 AND id = ?2 AND device <> ?3 AND digest = ?4").bind(user, r.id, device, digest).first())) continue;
+        // A hand-made flag on an example is counted once, when its report is new: an edit of its note does not count again, and an automatic flag (Quorum's) is the models' own disagreement.
+        if (!auto && typeof r.flag.thing === "string" && r.flag.thing && !(await db.prepare("SELECT 1 AS held FROM flag_reports WHERE device = ?1 AND id = ?2").bind(device, r.id).first()))
+          named.push({ thing: r.flag.thing, cats: [r.answer?.catA, r.answer?.catB] });
         statements.push(upsert.bind(device, r.id, user, caller, JSON.stringify(r.flag), r.answer === null ? null : JSON.stringify(r.answer), version, digest, stamp, start.state, start.outcome, start.reason));
         // the same flag edited on another device of the account replaces the report that device sent
         if (user) statements.push(db.prepare("DELETE FROM flag_reports WHERE user_id = ?1 AND id = ?2 AND device <> ?3").bind(user, r.id, device));
@@ -232,6 +239,9 @@ export function reportRoutes(deps: AccountDeps) {
       await giveBack();
       throw e;
     }
+    // never a reason to fail the report: the flag is stored, and the facts are disputed where the server keeps them
+    if (named.length && readFactsConfig(env).record)
+      for (const n of named) await flagFacts(db, n).catch((e) => console.error("facts not flagged", e instanceof Error ? e.name : typeof e));
     if (sends.length && Math.random() < 0.02) await db.prepare("DELETE FROM flag_quota WHERE day < ?1").bind(dayOf(new Date(now.getTime() - 3 * 86_400_000))).run().catch(() => {});
 
     const answer: ReportResponse = { stored: sends.map((r) => r.id), withdrawn };

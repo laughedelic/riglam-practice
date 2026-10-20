@@ -9,6 +9,7 @@
 //   POST /api/sync     the server copy of a signed-in person's documents (worker/sync.ts)
 //   POST /api/flags    reports of learners' flags, from any device with the Magic Key (worker/reports.ts)
 //   /api/admin/flags   the maintainer's reading and deciding of those reports, with the admin key (worker/admin.ts)
+//   /api/admin/examples   the maintainer's view of the learned facts, with the same key (worker/examples-admin.ts)
 // Everything else the Worker is asked for is the static site, which the platform serves itself; only /api/* reaches this code.
 
 import Anthropic from "@anthropic-ai/sdk";
@@ -17,6 +18,7 @@ import { streamSSE } from "hono/streaming";
 import { API, HEADER, LIMITS, QUORUM, type BudgetScope, type CourseResponse, type ErrorCode, type ExamplesResponse, type Health, type KnownResponse, type TutorEvent } from "../src/ai/protocol";
 import { accountRoutes, accountsOn } from "./accounts";
 import { adminRoutes } from "./admin";
+import { exampleAdminRoutes } from "./examples-admin";
 import { dayOf, prune, reserve, settle, tutorSwitchedOn, type Pool } from "./budget";
 import { readConfig, readFactsConfig, readQuorumConfig } from "./config";
 import { readCourseRow, readCourseRows, usableDefinitions, usableRow } from "./course";
@@ -247,6 +249,7 @@ export function createApp(deps: Deps) {
   app.route("/", syncRoutes({ now }));
   app.route("/", reportRoutes({ now }));
   app.route("/", adminRoutes({ now }));
+  app.route("/", exampleAdminRoutes({ now }));
 
   app.all("/api/*", (c) => c.json({ error: { code: "not_found", message: "no such endpoint" } }, 404));
   // The site itself is served by the platform; this only catches a request that reached the Worker by mistake.
