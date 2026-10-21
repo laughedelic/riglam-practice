@@ -328,6 +328,9 @@ test("the structure is shown only on request: S, P and R under the sentence, and
   await expect(page.locator(".sylsay .sylmeans")).toHaveText(["S is not R.", "S is R, but not everything that is R is P.", "S is R, and everything that is R is P."]);
   // the replies still read and work as before: the name, then what it says
   await expect(page.locator(".sylask .sylsay")).toHaveText([/^1\s*The reason is not established/i, /^2\s*There is no pervasion/i, /^3\s*Accept/i]);
+  // the name of a reply stays the reply, what it means is its description, and the letters are read because the meanings speak of S, P and R
+  await expect(page.getByRole("button", { name: "Accept", exact: true })).toHaveAccessibleDescription("S is R, and everything that is R is P.");
+  await expect(key.nth(0).locator(".sylkl")).not.toHaveAttribute("aria-hidden", "true");
   expect(await overflow(page)).toBeLessThanOrEqual(0);
   // kept, and gone with the reply: the result has the sheet of the checks only
   await page.reload();
@@ -336,6 +339,15 @@ test("the structure is shown only on request: S, P and R under the sentence, and
   await say(page, "accept");
   await expect(headline(page)).toHaveText("Right.");
   await expect(page.locator(".sylkey")).toHaveCount(0);
+  // off again: the key and the meanings go, the replies are as they were, and the choice is kept
+  await page.locator(".pbar .fwd").click();
+  await page.locator("#msess").click();
+  await page.locator("#opts .orow", { hasText: "Show the structure" }).getByRole("switch").click();
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".sylkey")).toHaveCount(0);
+  await expect(page.locator(".sylmeans")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Accept", exact: true })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem("rd-syllogism-guide"))).toBe("0");
 });
 
 test("the tutor's chat is not part of Syllogisms yet", async ({ page }) => {
