@@ -2,8 +2,8 @@
 // a worker that waits for every page of the app to close never gets its turn on a phone, where "closing" the app often leaves a page
 // alive, and a cold start opens the old version again (the old worker is the one that answers). The page that is open keeps running the
 // version it loaded until it is reloaded, and that is never done behind the reader's back (they may be in the middle of an answer): the
-// app looks for a newer version when it starts, when it comes back to the screen, when the connection returns and in Options, and offers
-// the reload in the banner (./update-banner.ts) and in Options.
+// app looks for a newer version when it starts, when it comes back to the screen, when the connection returns and in Settings, and offers
+// the reload in a toast (./update-toast.ts), in the menu and in Settings.
 import { registerSW } from "virtual:pwa-register";
 import type { UpdateStatus, Updates } from "../platform/types";
 import { latestCommit } from "./about";

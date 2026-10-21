@@ -2,7 +2,7 @@
 // The documents are written to collections the PWA never draws (labruns, flags), so the test does not depend on how the page shows an answer.
 import { readFileSync } from "node:fs";
 import { test, expect } from "../../support/test.js";
-import { ready } from "../../support/page.js";
+import { ready, openSettings } from "../../support/page.js";
 
 const seeded = {
   labruns: { lr_one: { kind: "run", model: "m", at: "2026-10-01T10:00:00.000Z" }, lr_two: { kind: "run", model: "m", at: "2026-10-02T10:00:00.000Z" } },
@@ -15,7 +15,7 @@ const open = async (page) => {
   await page.goto("/");
   await ready(page);
 };
-const openOptions = (page) => page.getByRole("button", { name: /options/i }).filter({ visible: true }).first().click();
+const openOptions = (page) => openSettings(page);
 const exportBtn = (page) => page.getByRole("button", { name: "Export your data to a file" });
 const importBtn = (page) => page.getByRole("button", { name: "Import data from a file" });
 const status = (page) => page.locator(".xferbox .onote");

@@ -1,7 +1,7 @@
 // The page running in the installed app: the practice flow against the real local storage, no AI features
 // while no server answers (tutor.spec.js has the server), and no sideways scrolling.
 import { test, expect } from "../../support/test.js";
-import { ready, relOptions, isPhone, overflow } from "../../support/page.js";
+import { goTo, ready, relOptions, isPhone, overflow, openSettings } from "../../support/page.js";
 
 // The phone layout takes one example at a time in a single field; the wide layout has four boxes. The flow runs on the phone.
 async function answerOnPhone(page) {
@@ -42,15 +42,15 @@ test("features that need Claude are absent, not broken", async ({ page }, testIn
     await answerOnPhone(page);
     await expect(page.getByRole("button", { name: /explain/i })).toHaveCount(0);
   }
-  await page.getByRole("button", { name: /options/i }).filter({ visible: true }).first().click();
+  await openSettings(page);
   await expect(page.getByText(/quorum/i)).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
-test("Options says which build this is, and that it is the newest", async ({ page }) => {
+test("Settings says which build this is, and that it is the newest", async ({ page }) => {
   await page.goto("/");
   await ready(page);
-  await page.getByRole("button", { name: /options/i }).filter({ visible: true }).first().click();
+  await openSettings(page);
   const row = page.locator(".orow", { hasText: "Version" });
   await expect(row).toContainText(/Version \d+\.\d+\.\d+ · build [0-9a-f]{7}|unknown/);
   await expect(row).toContainText("This is the newest version.");
@@ -62,7 +62,7 @@ test("the wide Pervasions result has no stray text between the relation chips an
   test.skip(isPhone(testInfo), "the chips and their description are the wide layout's");
   await page.goto("/");
   await ready(page);
-  await page.locator('.rail .nv:has-text("Pervasions")').click();
+  await goTo(page, "Pervasions");
   const card = page.locator(".qcard");
   for (let i = 0; i < 4; i++) {
     await card.locator(".btn").first().click(); // accept each question

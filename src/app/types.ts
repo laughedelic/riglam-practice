@@ -227,7 +227,7 @@ export interface State {
   known: Known | null;
   /** the course's reference examples this device holds (platform.examples), by name; null when it has none (src/app/core/examples.js) */
   EX: ExampleIndex | null;
-  /** the levels (1 to 4) the reference examples are drawn from, any mix, at least one (Options, `rd-exlevels`) */
+  /** the levels (1 to 4) the reference examples are drawn from, any mix, at least one (the practice options, `rd-exlevels`) */
   exLevels: number[];
   /** sends flags to the app's server (platform.reports), when the place has a server for them and this device has the Magic Key */
   reports: Reports | null;
@@ -257,8 +257,18 @@ export interface State {
   mode: "loading" | "quiz" | "nodata" | "nodb" | string;
   view: "chat" | string | null;
   optsOpen: boolean;
-  ovPushed: number;
-  ovPending: number;
+  sessOpen: boolean;
+  sessPage: string | null;
+  skipAsk: boolean;
+  menuOpen: boolean;
+  menuPin: boolean;
+  menuPeek: boolean;
+  coachOpen: boolean;
+  navDepth: number;
+  navSkip: number;
+  navQ: boolean;
+  navBack: boolean;
+  motion: boolean;
   reviewSeg: string;
   ui: Ui | null;
   cur: Current | null;
@@ -272,6 +282,8 @@ export interface State {
   /** Find a pair offers the terms of the course while the pair is typed (Options, `rd-findsuggest`) */
   findSuggest: boolean;
   lastSig: string;
+  /** the attempt the last render drew: the tutor's panel closes with a pair that had a conversation */
+  lastUi: any;
   fitQ: number;
 
   // errors from saving
@@ -285,7 +297,6 @@ export interface State {
 
   // skips
   skipNote: SkipNote | null;
-  hintOff: any;
 
   // Quorum and the explanation
   /** the app's server offers Quorum (platform.quorum) */
@@ -311,6 +322,6 @@ export interface State {
   timerMs: number;
   relMs: number;
   blitz: boolean;
-  timeEdit: boolean;
-  timeDraft: string;
+  blitzUse: boolean;
+  bzHold: number;
 }

@@ -1,4 +1,4 @@
-// "Check every answer with AI" (Options, `rd-autoexplain`): a checked answer asks the app's server for its explanation without a tap on Explain.
+// "Check every answer with AI" (the practice options of the exercise, `rd-autoexplain`): a checked answer asks the app's server for its explanation without a tap on Explain.
 // On by default. The server is a stand-in with routes, as in tutor.spec.js.
 import { test as plain } from "@playwright/test";
 import { test, expect } from "../../support/test.js";
@@ -57,15 +57,15 @@ withKey("by default a checked answer asks for its explanation by itself, once, a
   expect(asked).toHaveLength(1);
 });
 
-withKey("Options has the switch, on; turning it off makes the next answer wait for a tap on Explain", async ({ page }, testInfo) => {
+withKey("the practice options have the switch, on; turning it off makes the next answer wait for a tap on Explain", async ({ page }, testInfo) => {
   const asked = await answered(page, testInfo);
   await expect.poll(() => asked.length).toBe(1);
-  await page.getByRole("button", { name: "Options" }).first().click();
+  await page.getByRole("button", { name: "Practice options" }).click();
   await expect(toggle(page)).toHaveAttribute("aria-checked", "true");
   await toggle(page).click();
   await expect(toggle(page)).toHaveAttribute("aria-checked", "false");
   expect(await page.evaluate(() => localStorage.getItem("rd-autoexplain"))).toBe("0");
-  await page.getByRole("button", { name: /close options/i }).first().click();
+  await page.locator("#over .oc").click();
   await page.getByRole("button", { name: /next pair/i }).click();
   await ready(page);
   await answerOnPhone(page);

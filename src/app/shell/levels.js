@@ -7,7 +7,7 @@ import { render } from "./render.js";
 function setExLevels(levels){ state.exLevels=levels; try{ localStorage.setItem("rd-exlevels",levels.join(",")); }catch(e){} render(); }
 
 /**
- * The switches of the levels of the reference examples (Options): one per level, with what the level is and how many examples it has.
+ * The switches of the levels of the reference examples (practice options, Examples): one per level, with what the level is and how many examples it has.
  * Any mix can be on; the last one on stays on. Needs `state.EX`.
  */
 export function levelSwitches(){

@@ -6,6 +6,7 @@ const ringScan=()=>{
   const out=[];
   const els=[...document.querySelectorAll('button,input,select,textarea,summary,[tabindex]')].filter(n=>{const cs=getComputedStyle(n),r=n.getBoundingClientRect();return cs.display!=='none'&&cs.visibility!=='hidden'&&r.width>0&&r.height>0&&n.tabIndex>=0&&!n.disabled;});
   for(const n of els){
+    if(getComputedStyle(n).getPropertyValue('--ring-inset').trim()==='1') continue; // draws its ring inside itself (the menu rows)
     const r=n.getBoundingClientRect(); let a=n.parentElement;
     while(a&&a!==document.documentElement){
       const cs=getComputedStyle(a);
