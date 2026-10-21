@@ -90,7 +90,7 @@ test("the levels that are on: a stored value, switching one, and how many exampl
   expect(normLevels("1,2")).toEqual([1, 2]);
   expect(normLevels("3, 1,1,9,x")).toEqual([1, 3]);
   expect(normLevels([4, 2])).toEqual([2, 4]);
-  for (const bad of ["", "0", "x,y", null, undefined, 7, []]) expect(normLevels(bad), String(bad)).toEqual([1, 2]);
+  for (const bad of ["", "0", "x,y", null, undefined, 7, []]) expect(normLevels(bad), String(bad)).toEqual([1]);
   expect(upTo(3)).toEqual([1, 2, 3]);
   expect(toggleLevel([1, 2], 3)).toEqual([1, 2, 3]);
   expect(toggleLevel([1, 2, 3], 2)).toEqual([1, 3]);

@@ -59,14 +59,13 @@ test("Options has an Examples row with a switch and an explanation for each leve
   await expect(row.locator(".lvl")).toHaveCount(4);
   await expect(row.locator(".lvl").first()).toContainText("Plain things");
   await expect(levelSwitch(row, 1)).toContainText("examples"); // how many it has
-  await expect(levelSwitch(row, 1)).toHaveAttribute("aria-checked", "true"); // a new device draws from 1 and 2
-  await expect(levelSwitch(row, 2)).toHaveAttribute("aria-checked", "true");
+  await expect(levelSwitch(row, 1)).toHaveAttribute("aria-checked", "true"); // a new device draws from level 1 alone
+  await expect(levelSwitch(row, 2)).toHaveAttribute("aria-checked", "false");
   await expect(levelSwitch(row, 3)).toHaveAttribute("aria-checked", "false");
   await levelSwitch(row, 3).click();
   await expect(levelSwitch(row, 3)).toHaveAttribute("aria-checked", "true");
-  expect(await page.evaluate(() => localStorage.getItem("rd-exlevels"))).toBe("1,2,3");
+  expect(await page.evaluate(() => localStorage.getItem("rd-exlevels"))).toBe("1,3");
   await levelSwitch(row, 1).click();
-  await levelSwitch(row, 2).click();
   await expect(levelSwitch(row, 3), "the last level on stays on").toHaveAttribute("aria-checked", "true");
   await expect(levelSwitch(row, 3)).toHaveAttribute("aria-disabled", "true");
   await levelSwitch(row, 3).click({ force: true }); // marked disabled, which Playwright does not click otherwise
