@@ -4,7 +4,7 @@ import { expect, test } from "vitest";
 import { makeIndex, upTo } from "../../src/ai-shared";
 import type { DrillData, Example } from "../../src/ai-shared";
 import { buildPool } from "../../src/domain";
-import { drawPlace, gradePlace, placeLevelUp, placeQuestionRows, placeRows } from "../../src/domain/place";
+import { drawPlace, gradePlace, placeLevelDown, placeLevelUp, placeQuestionRows, placeRows } from "../../src/domain/place";
 import { placeByClass } from "../../src/domain/reference";
 import openData from "../../src/data/drill-data.json";
 import { madeUpExamples } from "../../scripts/lib/made-up-course.mjs";
@@ -122,10 +122,10 @@ test("drawPlace: only examples a cell takes, of the levels that are on, each lev
   expect(Object.keys(drawn([1], 100, new Set(["a blue wall", "a round plate"]))).sort(), "when all are recent, they are drawn anyway").toEqual(["a blue wall", "a round plate"]);
   expect(drawPlace(data, [], { levels: [1], rng: seeded(1) })).toBeNull();
   expect(drawPlace(data, [items[7], items[8]], { levels: [4], rng: seeded(1) })).toBeNull();
-  // the same draw for the same random source; levels that are not 1 to 4 count for nothing, and none left means the default
+  // the same draw for the same random source; levels that are not 1 to 4 count for nothing, and none left means the default (level 1)
   expect(drawPlace(data, items, { levels: [2], rng: seeded(5) })).toEqual(drawPlace(data, items, { levels: [2], rng: seeded(5) }));
-  expect(drawPlace(data, items, { levels: [9], rng: seeded(5) })).toEqual(drawPlace(data, items, { levels: [1, 2], rng: seeded(5) }));
-  expect(drawPlace(data, items, { levels: [], rng: seeded(5) })).toEqual(drawPlace(data, items, { levels: [1, 2], rng: seeded(5) }));
+  expect(drawPlace(data, items, { levels: [9], rng: seeded(5) })).toEqual(drawPlace(data, items, { levels: [1], rng: seeded(5) }));
+  expect(drawPlace(data, items, { levels: [], rng: seeded(5) })).toEqual(drawPlace(data, items, { levels: [1], rng: seeded(5) }));
   expect(drawPlace(data, items, { levels: [3, -3, 1], rng: seeded(5) })).toEqual(drawPlace(data, items, { levels: [1, 3], rng: seeded(5) }));
 });
 
@@ -145,17 +145,32 @@ test("gradePlace: a row is right when ticked exactly if the thing is in the cate
   expect(gradePlace(q, [...yes, "not-a-category"]).ok, "an id that is not a row changes nothing").toBe(true);
 });
 
-test("placeLevelUp: ten correct answers at the highest level on, and the level above it to offer", () => {
-  const ok = (lv: number, n: number) => Array.from({ length: n }, () => ({ lv, ok: true }));
-  expect(placeLevelUp(ok(1, 9), [1])).toBeNull();
-  expect(placeLevelUp(ok(1, 10), [1])).toBe(2);
-  expect(placeLevelUp([...ok(1, 9), { lv: 1, ok: false }], [1])).toBeNull();
-  expect(placeLevelUp([...ok(1, 6), ...ok(2, 6)], [1, 2]), "ten at the highest level on, not in all").toBeNull();
-  expect(placeLevelUp(ok(2, 10), [1, 2])).toBe(3);
-  expect(placeLevelUp(ok(1, 30), [1, 2]), "an easier level does not offer").toBeNull();
-  expect(placeLevelUp(ok(3, 10), [1, 3]), "above the highest on, not the next one that is off").toBe(4);
-  expect(placeLevelUp(ok(4, 30), [4]), "nothing above the top").toBeNull();
-  expect(placeLevelUp(ok(2, 3), [2], 3)).toBe(3);
+const run = (lv: number, n: number, ok: boolean) => Array.from({ length: n }, () => ({ lv, ok }));
+
+test("placeLevelUp: five right answers in a row at the highest level on, and the level above it to offer", () => {
+  expect(placeLevelUp(run(1, 4, true), [1])).toBeNull();
+  expect(placeLevelUp(run(1, 5, true), [1])).toBe(2);
+  expect(placeLevelUp([...run(1, 9, true), { lv: 1, ok: false }], [1]), "a miss ends the run").toBeNull();
+  expect(placeLevelUp([...run(1, 5, true), { lv: 1, ok: false }, ...run(1, 4, true)], [1]), "four since the miss").toBeNull();
+  expect(placeLevelUp([{ lv: 1, ok: false }, ...run(1, 5, true)], [1]), "an earlier miss does not count").toBe(2);
+  expect(placeLevelUp([...run(2, 4, true), ...run(1, 3, true), ...run(2, 1, true)], [1, 2]), "a lower level neither extends nor breaks the run").toBe(3);
+  expect(placeLevelUp([...run(2, 4, true), ...run(1, 3, false), ...run(2, 1, true)], [1, 2]), "a miss at a lower level does not break it either").toBe(3);
+  expect(placeLevelUp([...run(1, 6, true), ...run(2, 4, true)], [1, 2]), "five at the highest level on, not in all").toBeNull();
+  expect(placeLevelUp(run(1, 30, true), [1, 2]), "an easier level does not offer").toBeNull();
+  expect(placeLevelUp(run(3, 5, true), [1, 3]), "above the highest on, not the next one that is off").toBe(4);
+  expect(placeLevelUp(run(4, 30, true), [4]), "nothing above the top").toBeNull();
+  expect(placeLevelUp(run(2, 3, true), [2], 3)).toBe(3);
+});
+
+test("placeLevelDown: four wrong answers in a row at the highest level on suggest taking it off, never at level 1", () => {
+  expect(placeLevelDown(run(2, 3, false), [1, 2])).toBeNull();
+  expect(placeLevelDown(run(2, 4, false), [1, 2])).toBe(2);
+  expect(placeLevelDown([...run(2, 4, false), { lv: 2, ok: true }], [1, 2]), "a right answer ends the run").toBeNull();
+  expect(placeLevelDown([...run(2, 3, false), ...run(1, 2, true), ...run(2, 1, false)], [1, 2]), "a lower level does not break the run").toBe(2);
+  expect(placeLevelDown(run(1, 9, false), [1, 2]), "only the highest level on counts").toBeNull();
+  expect(placeLevelDown(run(1, 9, false), [1]), "nothing below level 1").toBeNull();
+  expect(placeLevelDown(run(3, 4, false), [3])).toBe(3);
+  expect(placeLevelDown(run(3, 2, false), [3], 2)).toBe(3);
 });
 
 test("over the real categories and made-up examples: every row agrees with placeByClass and has a reason, and the draw is quick", () => {

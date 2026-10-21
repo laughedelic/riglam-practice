@@ -41,8 +41,11 @@ export interface PlaceDraw {
   size?: number;
 }
 
-/** The correct answers at the highest level that is on after which the next level is offered (never taken without a tap). */
-export const PLACE_NEED = 10;
+/** The right answers in a row, at the highest level that is on, after which the next level is offered (never taken without a tap). */
+export const PLACE_STREAK = 5;
+
+/** The wrong answers in a row, at the highest level that is on, after which a level down is suggested. */
+export const PLACE_STUMBLE = 4;
 
 const MAX_LEVEL = 4;
 
@@ -155,11 +158,35 @@ export function gradePlace(q: PlaceQuestion, picked: readonly string[]): PlaceRe
   return { rows, right, ok: right === rows.length };
 }
 
+type Outcome = { lv: number; ok: boolean };
+
+/** How many of the latest results at level `lv` in a row are `ok === want`; results of other levels neither extend nor break the run. `results` are oldest first. */
+function runAt(results: readonly Outcome[], lv: number, want: boolean): number {
+  let n = 0;
+  for (let i = results.length - 1; i >= 0; i--) {
+    if (results[i]!.lv !== lv) continue;
+    if (results[i]!.ok !== want) break;
+    n++;
+  }
+  return n;
+}
+
 /**
- * The level to offer adding: the one above the highest level that is on, once `need` of the results at that highest level are right;
- * null before that, and at the top level. The offer adds the level and switches nothing off.
+ * The level to offer adding: the one above the highest level that is on, once the latest `need` results at that level in a row are right;
+ * null before that, and at the top level. The offer adds the level and switches nothing off. `results` are oldest first; the caller leaves out
+ * those from before the last time the offer was made, so a "not now" is not asked again at once.
  */
-export function placeLevelUp(results: readonly { lv: number; ok: boolean }[], levels: Levels, need = PLACE_NEED): number | null {
+export function placeLevelUp(results: readonly Outcome[], levels: Levels, need = PLACE_STREAK): number | null {
   const top = Math.max(...normLevels(levels));
-  return top < MAX_LEVEL && results.filter((r) => r.lv === top && r.ok).length >= need ? top + 1 : null;
+  return top < MAX_LEVEL && runAt(results, top, true) >= need ? top + 1 : null;
+}
+
+/**
+ * The level to suggest taking off: the highest level that is on, once the latest `need` results at it in a row are wrong, when a level
+ * is below it; null otherwise (nothing is suggested at level 1). The screen switches it off, or adds the level below first when it is the only one on.
+ * `results` are oldest first and trimmed as for `placeLevelUp`.
+ */
+export function placeLevelDown(results: readonly Outcome[], levels: Levels, need = PLACE_STUMBLE): number | null {
+  const top = Math.max(...normLevels(levels));
+  return top > 1 && runAt(results, top, false) >= need ? top : null;
 }
