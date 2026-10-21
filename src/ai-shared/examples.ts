@@ -62,8 +62,8 @@ export const LEVELS: readonly number[] = [1, 2, 3, 4];
 /** The levels a learner draws examples from: any mix, never none. */
 export type Levels = readonly number[];
 
-/** A new device draws from levels 1 and 2: level 1 alone has little for the consciousness side. */
-export const DEFAULT_LEVELS: Levels = [1, 2];
+/** A new device draws from level 1 alone, plain things being the gentlest start; the exercise offers the next level once the answers come easily. */
+export const DEFAULT_LEVELS: Levels = [1];
 
 /** The valid levels in a stored value (a list, or "1,2"), once each, in order; the default when none is valid. */
 export function normLevels(raw: unknown): number[] {
