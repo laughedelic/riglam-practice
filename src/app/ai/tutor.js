@@ -92,7 +92,7 @@ export async function ask(text,kind,byItself){
   const slot=U.chat[U.chat.length-1];
   const onText=({text})=>{slot.content=text; if(U===state.ui){ const o=$("ans-live"); if(o){ fillTurn(o,{kind,pending:true,content:text},!o.closest("#chatscroll")); const sc=$("chatscroll"); if(sc) sc.scrollTop=0; } }};
   const opts={signal:ctl.signal,modelTier:TIER,cache:false,onText};
-  if(state.DATA) opts.tools=tutorTools(state);
+  if(state.DATA) opts.tools=tutorTools(state,state.EX);
   try{
     let r;
     if(direct){
