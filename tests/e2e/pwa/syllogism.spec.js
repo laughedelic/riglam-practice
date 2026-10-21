@@ -369,12 +369,44 @@ test("Blitz: the countdown stands still behind the practice options and starts a
   await blitzOn(page, 3000);
   await open(page);
   await draw(page, 1);
+  await page.waitForTimeout(2000); // a third of the time is left
   await page.locator("#msess").click();
   await page.waitForTimeout(3600); // longer than the time: nothing is graded behind the sheet
   await expect(page.locator(".sylres")).toHaveCount(0);
   await page.keyboard.press("Escape");
   await expect(page.locator("#mbar .mbt")).toBeVisible();
-  await expect(headline(page)).toHaveText("Time is up.", { timeout: 6000 });
+  await page.waitForTimeout(1600); // more than what was left: the full time has started again
+  await expect(page.locator(".sylres")).toHaveCount(0);
+  await expect(headline(page)).toHaveText("Time is up.", { timeout: 4000 });
+});
+
+test("Blitz: each new syllogism has its own clock, after Next and after a skip", async ({ page }) => {
+  await blitzOn(page, 60000);
+  await open(page);
+  await draw(page, 1);
+  await say(page, "accept");
+  await expect(page.locator("#mbar .mbt")).toHaveCount(0); // stopped with the reply
+  await next(page).click();
+  await expect(page.locator("#mbar .mbt")).toBeVisible();
+  await page.locator(".pbar .skipw").click();
+  await expect(page.locator("#mbar .mbt")).toBeVisible();
+  await expect(page.locator(".sylask")).toBeVisible();
+  expect(await saved(page)).toHaveLength(1); // the skip kept nothing
+});
+
+test("Blitz: switched on while a counter-example is asked for, the clock starts when the learner goes back to the reply", async ({ page }) => {
+  await open(page);
+  const sw = page.locator("#mbz");
+  await expect(sw).toHaveAttribute("aria-checked", "false");
+  await draw(page, 3, "witness");
+  await say(page, "pervasion");
+  await expect(page.locator("#sylex")).toBeVisible();
+  await sw.click();
+  await expect(sw).toHaveAttribute("aria-checked", "true");
+  await expect(page.locator("#mbar .mbt")).toHaveCount(0); // no clock against the counter-example
+  await page.locator(".sylex .back").click();
+  await expect(page.locator(".sylask")).toBeVisible();
+  await expect(page.locator("#mbar .mbt")).toBeVisible();
 });
 
 test("Blitz: the time of a syllogism is its own, set in the practice options, and kept", async ({ page }) => {
