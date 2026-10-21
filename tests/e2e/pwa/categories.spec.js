@@ -150,6 +150,10 @@ test("the keyboard keeps its place: a tick or an answer leaves the focus on its 
   const rs = await rows(page);
   const first = page.locator(".catick").filter({ hasText: new RegExp(`^${rs.find((r) => r.answer).phrase}$`) });
   await first.focus();
+  await page.keyboard.press("Enter");
+  await expect(first, "Enter ticks a button that is not ticked yet, as on any button").toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("Space");
+  await expect(first).toHaveAttribute("aria-pressed", "false");
   await page.keyboard.press("Space");
   await expect(first).toHaveAttribute("aria-pressed", "true");
   await expect(first, "the focus stays on the button that was ticked").toBeFocused();
@@ -176,6 +180,10 @@ test("the keys: numbers tick, Enter checks, a number picks the most specific, N 
   if (!(await ui(page, "checked"))) {
     await page.keyboard.press("Enter");
     await expect(page.locator(".catask")).toHaveText("Which category is the most specific?");
+    if (await page.evaluate(() => matchMedia("(min-width:1100px)").matches)) {
+      await page.keyboard.press("Enter");
+      expect(await ui(page, "checked"), "on a wide screen a second Enter does not pick the first choice").toBe(false);
+    }
     const n = await page.evaluate(() => ({ cat: window.__t.ui.narrow.cat, all: window.__t.ui.narrow.options.map((o) => o.cat) }));
     await page.keyboard.press(String(n.all.indexOf(n.cat) + 1));
   }
@@ -225,6 +233,7 @@ test("after five right in a row the next level is offered with a tap, and Not no
   await expect(page.locator(".catoq")).toContainText("Level 1 is going well. Add level 2");
   await page.getByRole("button", { name: "Not now" }).click();
   await expect(page.locator(".catoffer")).toHaveCount(0);
+  expect(await page.evaluate(() => document.activeElement === document.body), "the focus does not fall to the page").toBe(false);
   await expect(page.locator('[role="status"].catnote')).toContainText("Level 1 stays as it is");
   expect(await page.evaluate(() => localStorage.getItem("rd-exlevels"))).toBeNull();
   // another five, and this time a tap adds the level
@@ -234,6 +243,19 @@ test("after five right in a row the next level is offered with a tap, and Not no
   await page.getByRole("button", { name: "Add level 2" }).click();
   await expect(page.locator('[role="status"].catnote')).toContainText("Level 2 is on now");
   expect(await page.evaluate(() => localStorage.getItem("rd-exlevels"))).toBe("1,2");
+  expect(await page.evaluate(() => document.activeElement === document.body), "the focus does not fall to the page").toBe(false);
+});
+
+test("an offer passed over with Next counts as Not now: it asks again after another five", async ({ page }) => {
+  await open(page);
+  const finishThing = async () => { await tickAnswer(page); await finish(page); };
+  for (let i = 0; i < 4; i++) { await finishThing(); await page.keyboard.press("n"); }
+  await finishThing();
+  await expect(page.locator(".catoffer")).toBeVisible();
+  await page.keyboard.press("n");
+  for (let i = 0; i < 4; i++) { await finishThing(); await expect(page.locator(".catoffer")).toHaveCount(0); await page.keyboard.press("n"); }
+  await finishThing();
+  await expect(page.locator(".catoffer")).toBeVisible();
 });
 
 test("four wrong in a row at the top level suggest switching it off; the practice options show the levels and the way to ask", async ({ page }) => {

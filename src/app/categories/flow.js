@@ -26,6 +26,7 @@ export const shownThing=()=>state.cur.q;
 
 /** Draws the next thing, from the levels that are on and leaning away from the ones asked lately. */
 export function advanceCategories(){
+  const o=state.ui&&state.ui.offer; if(o&&o.kind&&o.kind!=="done") spendRun();     // an offer passed over is Not now: it asks again after another run, not after every result
   const q=state.EX?drawPlace(state,state.EX.items,{levels:state.exLevels,rng:Math.random,avoid:new Set(state.catsRecent)}):null;
   if(q) state.catsRecent=[...state.catsRecent,q.thing.n].slice(-RECENT);
   state.cur=/** @type {any} */({p:null,cats:true,q:q||undefined}); state.ui=freshCategoriesUi(); state.mode="quiz";
@@ -82,7 +83,8 @@ function finishStep1(picked){
 export function continueCategories(){
   const u=state.ui; if(!u||!u.cats||u.step!==1||u.checked) return;
   u.step=2; render(); top0();
-  const first=document.querySelector(".catopt"); if(first) /** @type {HTMLElement} */(first).focus({preventScroll:true});     // the Continue button is gone: the focus goes to the first choice
+  const first=document.querySelector(".catopt");     // the Continue button is gone: the focus goes to the first choice on a phone, and to the page on a wide screen, where Enter would pick it
+  if(first&&!isWide()) /** @type {HTMLElement} */(first).focus({preventScroll:true}); else $("stage").focus({preventScroll:true});
 }
 /** The pick of step 2, one tap: the category the learner says is the most specific. */
 export function pickCategory(cat){
@@ -121,20 +123,19 @@ function levelOffer(){
   const down=placeLevelDown(results,state.exLevels); if(down) return {kind:"down",level:down};
   return null;
 }
-function answered(offer){
-  state.catsOfferAt=new Date().toISOString(); store("rd-cats-offer",state.catsOfferAt);
-  state.ui.offer=offer;
-}
+/** The run that led to an offer is spent: the next one counts from now. */
+function spendRun(){ state.catsOfferAt=new Date().toISOString(); store("rd-cats-offer",state.catsOfferAt); }
+function answered(offer){ spendRun(); state.ui.offer=offer; }
 /** "Add level N" or "Switch off level N": what the offer on the result says. Nothing is done without this tap. */
 export function acceptOffer(){
   const u=state.ui, o=u&&u.offer; if(!o||!o.kind||o.kind==="done") return;
   if(o.kind==="up"){
     answered({kind:"done",text:"Level "+o.level+" is on now, next to the level you were on. Switch either off in the practice options."});
-    setExLevels([...state.exLevels,o.level].sort((a,b)=>a-b));
+    setExLevels([...state.exLevels,o.level].sort((a,b)=>a-b)); focusFwd();
   } else {
     const rest=state.exLevels.filter(l=>l!==o.level), now=rest.length?rest:[o.level-1];     // the only level on: the one below takes its place
     answered({kind:"done",text:"Level "+o.level+" is off for now"+(rest.length?"":", level "+(o.level-1)+" is on instead")+". Switch levels on and off in the practice options."});
-    setExLevels(now);
+    setExLevels(now); focusFwd();
   }
 }
 /** "Not now": the level stays as it is, and the next offer needs another run. */
@@ -142,5 +143,5 @@ export function declineOffer(){
   const u=state.ui, o=u&&u.offer; if(!o||!o.kind||o.kind==="done") return;
   answered({kind:"done",text:o.kind==="up"?"Level "+(o.level-1)+" stays as it is. It asks again after another five right in a row."
     :"Level "+o.level+" stays on. It asks again after another four wrong in a row."});
-  render();
+  render(); focusFwd();
 }
