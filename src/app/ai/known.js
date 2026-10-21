@@ -31,7 +31,7 @@ export function afterCheck(U){
   const C=state.cur;
   U.knowing=settleKnown(U,C).catch(()=>{}).finally(()=>{ U.knowing=null; if(U===state.ui) explainByItself(U); });
 }
-/** Applies the lines one by one to the cells still open; a cell that a half line failed is marked, so that the explanation still asks about it. Returns how many cells settled. */
+/** Applies the lines one by one to the cells still open; a cell that a half line failed is marked, so that the explanation still asks about it, and one a learned fact settled, so that a flag on it names the example. Returns how many cells settled. */
 function settle(U,p,d,lines,from){
   let n=0;
   for(const k of lines){
@@ -39,6 +39,7 @@ function settle(U,p,d,lines,from){
     if(!r||r.v!=="cmp") continue;
     const got=applyVerdicts(p,U.res,parseVerdicts(k.line,d),false,from);
     if(got&&k.half&&r.v==="bad") r.half=true;
+    if(got&&from==="learned") r.learned=true;
     n+=got;
   }
   return n;
