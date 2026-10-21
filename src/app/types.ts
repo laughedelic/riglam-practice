@@ -474,6 +474,10 @@ export interface VoiceState {
   tries: number;
   /** speaking failed for want of a tap on the page: the Read again button says so */
   blocked: boolean;
+  /** the attempt whose Blitz clock voice holds (a question is being read, or an answer waits), else null */
+  clockUi: Ui | null;
+  /** the clock is held for the reading of the question */
+  rhold: boolean;
   /** ends the current listening */
   stop: { stop(): void; abort(): void } | null;
   /** the speaking or listening under way; a callback of one that was stopped finds another here and does nothing */

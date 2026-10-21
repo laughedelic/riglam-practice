@@ -2,7 +2,7 @@ import { state } from "../state.js";
 import { $, el } from "../core/dom.js";
 import { ORDER, REL } from "../core/rel.js";
 import { isWide } from "../core/viewport.js";
-import { chooseD, holdClock, releaseClock, sayQ, startQ, stopTimer, submitWhy } from "../debate/flow.js";
+import { chooseD, holdClock, releaseClock, sayQ, submitWhy } from "../debate/flow.js";
 import { Wd, termSing } from "../debate/text.js";
 import { check } from "../practice/grading.js";
 import { choose, fillable } from "../practice/screen.js";
@@ -11,6 +11,7 @@ import { plainWords, spokenConfirm, spokenDirection, spokenDontKnow, spokenExamp
 import { saveFeatures, withFeature } from "../../ui/features";
 import { canHear, canSpeak, listen, onVoices, speak, stopSpeaking, voiceList } from "../../ui/speech";
 import { CELL_FULL, render } from "./render.js";
+import { renderBar } from "./topbar.js";
 import { tbIcon } from "../core/icons.js";
 
 /* ---------- voice: the questions read aloud, answers by voice ---------- */
@@ -20,7 +21,8 @@ import { tbIcon } from "../core/icons.js";
 // (sayQ, choose, the cell's text), so the saved answers look as they always did; nothing of the voice is stored.
 // What was heard is not applied at once: it waits on the screen it was said for, with what it was taken as, until it is
 // confirmed (the Confirm button, Enter, or saying "yes"; or after a short pause, if Settings says so) or taken back (Change,
-// Escape, "no"). Saying another answer replaces it. While it waits, the Blitz clock is stopped.
+// Escape, "no"). Saying another answer replaces it. While it waits, and while a question is read, the Blitz clock is stopped
+// (holdFor, letGo).
 // The page renders as a whole, so this module works from what the screen asks: after each render it compares the
 // screen with the one it last spoke for, and a new one stops whatever the old one started.
 
@@ -53,6 +55,32 @@ const reading=()=>enabled()&&state.voice.read&&canSpeak();
 const hearing=()=>enabled()&&state.voice.answer!=="off"&&canHear();
 const handsFree=()=>enabled()&&state.voice.answer==="auto"&&canHear();
 
+// Called at the start of every render (shell/render.js), before the clocks and the top bar: a screen that is not the one voice spoke
+// for lets go of what was held for it, so that this render starts the countdown of the screen it shows and draws its bar.
+export function voiceBeforeRender(){
+  if(!enabled()) return;
+  const v=state.voice, a=asked();
+  if((a?a.key:"")===v.key) return;
+  quiet(); dropPend(); letGo(v.rhold?"fresh":"moved");
+}
+// The Blitz clock of the attempt on screen stands still while a question is read and while an answer waits. `how` is as in releaseClock.
+function holdFor(){
+  const v=state.voice, u=state.ui;
+  if(!u||u.hold) return;
+  holdClock();
+  if(u.hold) v.clockUi=u;
+}
+function letGo(how){
+  const v=state.voice, u=v.clockUi;
+  v.clockUi=null; v.rhold=false;
+  if(u) releaseClock(how,u);
+}
+// the reading of a question ends or is cut off: the time of the question starts now
+function endReading(){
+  if(!state.voice.rhold) return;
+  letGo("fresh"); renderBar();
+}
+
 // Called at the end of every render (shell/render.js).
 export function voiceAfterRender(){
   if(!enabled()) return;
@@ -64,7 +92,6 @@ export function voiceAfterRender(){
   const opening=!!a&&!v.began&&!v.seen;
   if(a) v.seen=true;
   v.held=opening;
-  if(v.pend){ dropPend(); releaseClock(false); }    // the screen moved on some other way: a tap, the time running out
   v.note=""; v.bad=false; v.tries=0; v.blocked=false; v.ask3=false;
   if(opening) paint();
   else if(a&&reading()) say(a,a.say,true);
@@ -79,32 +106,29 @@ function quiet(){
   if(v.phase==="speaking") stopSpeaking();
   v.phase="idle";
 }
-// `first`: the reading that comes with a new screen; when it ends, the clock of the question starts again
+// `first`: the reading that comes with a new screen; the clock of its question stands still until the reading ends
 function say(a,text,first){
   const v=state.voice, tok={};
-  quiet(); v.tok=tok; v.phase="speaking"; v.blocked=false; v.held=false; paint();
+  quiet(); endReading();
+  v.tok=tok; v.phase="speaking"; v.blocked=false; v.held=false;
+  // a question and the relation have a countdown of their own; the countdown of the examples covers all the cells of a pair
+  if(first&&(a.kind==="reply"||a.kind==="relation")){ holdFor(); v.rhold=!!v.clockUi; }
+  paint();
   speak(text,{voice:v.voiceId,rate:v.rate,done:(ok,err)=>{
     if(v.tok!==tok) return;
     v.tok=null; v.phase="idle";
+    endReading();
     // Chrome speaks only after the person has tapped or typed on the page once; the speaker button is that tap
     if(!ok&&err==="not-allowed"){ v.blocked=true; paint(); return; }
-    if(ok&&first) clockFrom(a);
     // after speaking, the audio output needs a moment before the microphone opens (the Voice lab's finding)
     if(handsFree()) setTimeout(()=>{ if(v.key===a.key&&v.phase==="idle"&&!v.tok) hear(a); },350);
     else paint();
   }});
 }
-// The Blitz countdown and a question's response time count from the end of the reading, not from when the question appeared.
-// Only a question and the relation start again; the countdown of the examples covers all the cells of a pair.
-function clockFrom(a){
-  const u=state.ui;
-  if(!u||u.checked) return;
-  if(a.kind==="reply"){ startQ(); render(); }
-  else if(a.kind==="relation"&&u.tq){ stopTimer(); render(); }
-}
 function hear(a){
   const v=state.voice, tok={};
-  quiet(); v.tok=tok; v.phase="listening"; v.note=""; v.bad=false; v.held=false; paint();
+  quiet(); endReading();
+  v.tok=tok; v.phase="listening"; v.note=""; v.bad=false; v.held=false; paint();
   const h=listen({
     interim:t=>{ if(v.tok!==tok) return; v.live=t; paintLive(); },
     done:res=>{
@@ -162,7 +186,7 @@ function take(a,alts){
   if(a.kind==="relation"){
     const t=terms(), order=/** @type {import("../../ai-shared/relations.ts").RelKey[]} */(ORDER);
     const k=(v.ask3&&spokenDirection(alts,t))||spokenRelation(alts,order,t);
-    if(k==="3"){ if(v.pend){ dropPend(); releaseClock(true); } v.ask3=true; return again(a,alts[0],"Three possibilities: which is inside the other, "+t.a+" or "+t.b+"?",true); }
+    if(k==="3"){ if(v.pend){ dropPend(); letGo("resume"); renderBar(); } v.ask3=true; return again(a,alts[0],"Three possibilities: which is inside the other, "+t.a+" or "+t.b+"?",true); }
     if(!k) return again(a,alts[0],v.ask3?"Say which is inside the other, "+t.a+" or "+t.b+".":"Say the relation, such as “four possibilities”, or what is written under it.");
     v.ask3=false;
     return offer(a,alts[0],REL[k].name,()=>{ if(state.ui.debate) chooseD(k); else choose(k,true); });
@@ -187,12 +211,12 @@ function nudge(a){
 
 /* ---------- an answer that waits for its confirmation ---------- */
 // After a short pause the answer goes on by itself, if Settings says so: 2 s in Blitz, 4 s otherwise, so that the practice without
-// a clock is not hurried. The Blitz clock is stopped while the answer waits (holdClock), so neither the pause nor the Confirm
+// a clock is not hurried. The Blitz clock is stopped while the answer waits (holdFor), so neither the pause nor the Confirm
 // counts against the time.
 const PAUSE_BLITZ=2000, PAUSE_CALM=4000;
 function offer(a,heard,label,apply){
   const v=state.voice;
-  dropPend(); holdClock();
+  dropPend(); holdFor();
   v.note=""; v.bad=false; v.tries=0;
   const h=String(heard).trim().replace(/[.!]+$/,"");
   const p=v.pend={key:a.key,said:same(h,label)?"Heard":"Heard “"+h+"”, taken as",label,apply,auto:null};
@@ -210,15 +234,15 @@ function confirm(){
   const v=state.voice, p=v.pend, a=asked();
   if(!p) return;
   dropPend(); quiet();
-  if(!a||a.key!==p.key){ releaseClock(false); return; }
-  releaseClock(true);
+  if(!a||a.key!==p.key){ letGo("moved"); return; }
+  letGo("resume");
   p.apply();
 }
 // take the answer back: the clock goes on, and the person says it again (the microphone opens by itself)
 function change(){
   const v=state.voice, a=asked();
   if(!v.pend) return;
-  dropPend(); quiet(); releaseClock(true);
+  dropPend(); quiet(); letGo("resume"); renderBar();
   v.note=""; v.bad=false;
   if(a&&hearing()) hear(a); else paint();
 }
@@ -286,7 +310,7 @@ export function voiceKey(k){
   return false;
 }
 for(const t of ["pointerdown","keydown"]) document.addEventListener(t,()=>{ state.voice.began=true; },{capture:true,once:true});
-document.addEventListener("visibilitychange",()=>{ if(document.hidden&&enabled()){ quiet(); paint(); } });
+document.addEventListener("visibilitychange",()=>{ if(document.hidden&&enabled()){ quiet(); endReading(); paint(); } });
 
 /* ---------- the Voice row of Settings ---------- */
 const SAMPLE="Do you accept that if it is a product, it follows it is a functional thing?";
@@ -302,7 +326,7 @@ function setVoice(k,val){
 // Voice is a feature on trial: its switch is the first control of its row, on or off (src/ui/features.ts keeps the choice on the device)
 function setEnabled(on){
   state.features=withFeature(state.features,"voice",on); saveFeatures(state.features);
-  if(!on){ quiet(); dropPend(); releaseClock(false); state.voice.key=""; }
+  if(!on){ quiet(); dropPend(); letGo("moved"); state.voice.key=""; }
   render();
 }
 // the voices by accent, American and British first

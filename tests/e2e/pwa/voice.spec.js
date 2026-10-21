@@ -31,7 +31,7 @@ async function voice(page, { settings = {}, heard = [], none = false, trial = tr
       ],
       addEventListener() {}, resume() {},
       cancel() { const u = this.cur; this.cur = null; if (u && u.onerror) u.onerror({ error: "interrupted" }); },
-      speak(u) { said.push(u.text); this.cur = u; setTimeout(() => { if (this.cur === u) { this.cur = null; if (u.onend) u.onend({}); } }, 20); },
+      speak(u) { said.push(u.text); this.cur = u; setTimeout(() => { if (this.cur === u) { this.cur = null; if (u.onend) u.onend({}); } }, window.__speakMs || 20); },
     };
     Object.defineProperty(window, "speechSynthesis", { value: synth, configurable: true });
     class Recognition {
@@ -294,6 +294,80 @@ test("with Blitz on the countdown stops while an answer waits, and goes on when 
   await confirm(page);
   await expect(page.locator(".qcard .qn")).toContainText("Question 2");
   await expect(bar).toHaveCount(1);   // the next question has its own
+});
+
+const bar = (page) => page.locator(".tbar i");
+const elapsed = (page) => page.locator(".tbar").evaluate((e) => parseFloat(e.style.getPropertyValue("--e")));
+
+test("Blitz: an answer given by hand while a spoken one waits leaves the next question with its own countdown", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("rd-blitz", "1"));
+  await voice(page, { settings: { answer: "tap" } });
+  await page.goto("/");
+  await ready(page);
+  await tab(page, "Pervasions");
+  await expect(bar(page)).toHaveCount(1);
+  await hear(page, "accept");
+  await expect(bar(page)).toHaveCSS("animation-play-state", "paused");
+  await page.getByRole("button", { name: /^Accept/ }).click();   // by hand, not Confirm
+  await expect(page.locator(".qcard .qn")).toContainText("Question 2");
+  await expect(bar(page)).toHaveCount(1);
+  await expect(bar(page)).toHaveCSS("animation-play-state", "running");
+  expect(await elapsed(page)).toBeLessThan(1500);   // the next question's own time, not the one the held question had used
+
+  // and Why? by hand while another waits: the same question goes on from where it stopped, with its bar
+  await page.waitForTimeout(1200);
+  await hear(page, "accept");
+  await page.getByRole("button", { name: /^Why\?/ }).click();
+  await expect(page.locator("#dex")).toBeVisible();
+  await expect(bar(page)).toHaveCount(1);
+  await expect(bar(page)).toHaveCSS("animation-play-state", "running");
+  expect(await elapsed(page)).toBeGreaterThan(1000);
+});
+
+test("Blitz: an attempt put aside with a spoken answer waiting gets its countdown back when it returns", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("rd-blitz", "1"));
+  await voice(page, { settings: { answer: "tap" } });
+  await page.goto("/");
+  await ready(page);
+  await tab(page, "Pervasions");
+  await hear(page, "accept");
+  await tab(page, "Relations");
+  await tab(page, "Pervasions");
+  await expect(page.locator(".qcard .qn")).toContainText("Question 1");
+  await expect(bar(page)).toHaveCount(1);
+  await expect(bar(page)).toHaveCSS("animation-play-state", "running");
+});
+
+test("Blitz: a question's countdown starts when its reading ends, not before", async ({ page }) => {
+  await page.addInitScript(() => { localStorage.setItem("rd-blitz", "1"); localStorage.setItem("rd-timer", "2000"); });
+  await voice(page, { settings: { read: "1", answer: "tap" } });
+  await page.goto("/");
+  await ready(page);
+  await page.evaluate(() => { window.__speakMs = 3200; });   // a long question
+  await tab(page, "Pervasions");
+  await expect.poll(async () => (await said(page)).at(-1) || "").toMatch(/Do you accept that/);
+  await page.waitForTimeout(2600);   // longer than the countdown, but the question is still being read
+  await expect(page.locator(".qcard .qn")).toContainText("Question 1");
+  await expect(page.locator("#vbar .vmic")).toBeVisible();
+  await expect(page.locator(".qcard .qn")).toContainText("Question 2", { timeout: 6000 });   // then it runs out after its own 2 seconds
+});
+
+test("Blitz in Relations: the examples countdown goes on from where it stopped when a cell is answered by hand", async ({ page }, testInfo) => {
+  test.skip(!isPhone(testInfo), "the cell view is the phone's");
+  await page.addInitScript(() => localStorage.setItem("rd-blitz", "1"));
+  await voice(page, { settings: { answer: "tap" } });
+  await page.goto("/");
+  await ready(page);
+  await hear(page, "mutually exclusive");
+  await confirm(page);
+  await expect(bar(page)).toHaveCount(1);
+  await page.waitForTimeout(1500);
+  await hear(page, "a gold ring");   // waits
+  await page.locator("#cin").fill("a clay pot");
+  await page.locator("#cin").press("Enter");   // by hand: the next cell
+  await expect(page.locator(".cwho .n")).toContainText("Cell 2");
+  await expect(bar(page)).toHaveCount(1);
+  expect(await elapsed(page)).toBeGreaterThan(1200);   // it did not start over
 });
 
 test("the relation said as what is written under the option, or three possibilities and then which is inside", async ({ page }) => {
