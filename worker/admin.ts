@@ -6,6 +6,8 @@
 //   GET  /api/admin/flags/:device/:id           one report, with the stored answer
 //   POST /api/admin/flags/:device/:id/decide    { digest, state, reply?, decision? }: the maintainer's decision; the reply is what the sender reads
 //
+// The same key opens the maintainer's view of what the server learned of learners' examples (worker/examples-admin.ts).
+//
 // It is a narrow door on purpose: it reads and writes reports and nothing else (no accounts, no documents, no budgets, no model). It is
 // off unless the secret RIGLAM_ADMIN_KEY (at least 32 characters) is set, and the key goes in an `Authorization: Bearer` header. Wrong keys
 // are counted per caller and hour, as the Magic Key's are. Everything in a report is text from a learner's device or from a model that read
@@ -102,6 +104,12 @@ async function checked(env: Env, now: Date, caller: string, header: string | und
   return { ok: false, response: fail("not_granted", "the key does not match") };
 }
 
+/** The maintainer's key checked and counted as every maintainer route does it: null when it fits, else the refusal to send (404 where there is no key). */
+export async function adminAccess(env: Env, now: Date, header: string | undefined, address: string | undefined): Promise<Response | null> {
+  const c = await checked(env, now, await callerOf(address), header);
+  return c.ok ? null : c.response;
+}
+
 interface Row {
   device: string;
   id: string;
@@ -187,8 +195,8 @@ export function adminRoutes(deps: AccountDeps) {
   const app = new Hono<{ Bindings: Env }>();
   const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
   const entry = async (env: Env, header: string | undefined, address: string | undefined): Promise<Response | null> => {
-    const c = await checked(env, deps.now(), await callerOf(address), header);
-    if (!c.ok) return c.response;
+    const refused = await adminAccess(env, deps.now(), header, address);
+    if (refused) return refused;
     return (await reportsOn(env.DB)) ? null : fail("unavailable", "flag reports are off");
   };
   const refOf = (device: string, id: string) => (DEVICE_ID.test(device) && validDocId(id) ? { device, id } : null);
