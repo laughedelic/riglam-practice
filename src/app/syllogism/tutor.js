@@ -51,7 +51,7 @@ export async function askSyllogism(text,kind,byItself){
     if(e&&e.text){ slot.content=e.text; delete slot.pending; } else U.chat.pop();
     if(kind==="explain") U.explained=false;
     if(U.chat.length===1) U.chat=null;
-    U.chatErr=errCopy(e);
+    U.chatErr=errCopy(e,"syllogism");
     if(e&&ERR_OFF.includes(e.code)){ state.sample=null; state.tutor=null; }
   }
   U.ctl=null;

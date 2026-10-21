@@ -138,13 +138,14 @@ function budgetCopy(e){
   }
   return lead+when+" Everything else in the app keeps working.";
 }
-export function errCopy(e){
+/** What the learner is told when the tutor could not answer; `thing` is what the exercise calls what it asks (a pair, a syllogism). */
+export function errCopy(e,thing="pair"){
   const c=e&&e.code;
   if(c==="cancelled") return "";
   if(c==="offline") return "No connection. The tutor needs the internet; try again when you are back online.";
   if(c==="rate_limited") return e.budget?budgetCopy(e):"Claude is busy or your usage limit is reached. Try again later.";
   if(c==="session_expired") return "Sign in to Claude again, then retry.";
-  if(c==="prompt_too_large") return "This conversation is too long. Move to the next pair.";
+  if(c==="prompt_too_large") return "This conversation is too long. Move to the next "+thing+".";
   if(ERR_OFF.includes(c)) return "Claude is not enabled for this page.";
   return "Claude could not answer just now. Try again.";
 }

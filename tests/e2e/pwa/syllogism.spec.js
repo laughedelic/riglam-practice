@@ -468,6 +468,15 @@ withKey("with 'Check every answer with AI' on the explanation comes by itself, o
   expect(asked.map((a) => a.kind)).toEqual(["explain", "explain"]);
 });
 
+withKey("a conversation the server refuses as too long tells the learner to move to the next syllogism", async ({ page }) => {
+  await tutor(page, [{ status: 413, body: JSON.stringify({ error: { code: "prompt_too_large", message: "too long" } }) }]);
+  await open(page);
+  await draw(page, 1);
+  await say(page, "accept");
+  await explain(page).click();
+  await expect(page.locator(".status", { hasText: "This conversation is too long. Move to the next syllogism." }).first()).toBeVisible();
+});
+
 // Blitz: the stopwatch of the other exercises, with a time of its own for the reply to a syllogism
 const blitzOn = (page, ms) => page.addInitScript((t) => { localStorage.setItem("rd-blitz", "1"); localStorage.setItem("rd-timer-syl", String(t)); }, ms);
 
