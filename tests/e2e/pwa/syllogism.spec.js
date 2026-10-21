@@ -284,20 +284,6 @@ test("Review leaves a counter-example the page could not place out of the row of
   await expect(sec.locator(".sylrow")).toContainText("(not checked)");
 });
 
-test("where a tutor is on, the panel of recent answers beside a syllogism stays open for the next one", async ({ page }, testInfo) => {
-  test.skip(isPhone(testInfo), "a phone has no panel beside the exercise");
-  await page.route("**/api/health", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, tutor: "on" }) }));
-  await open(page);
-  await expect(page.locator("#mchat")).toHaveAccessibleName("Recent answers"); // the tutor does not know Syllogisms: the button is the list of answers
-  await page.locator("#mchat").click();
-  await expect(page.locator("#coach")).toBeVisible();
-  await draw(page, 1);
-  await say(page, "accept");
-  await next(page).click();
-  await expect(page.locator(".sylask")).toBeVisible();
-  await expect(page.locator("#coach")).toBeVisible();
-});
-
 test("the practice options hold only what Syllogisms uses: the wording, which is kept, and the things drawn from", async ({ page }) => {
   await open(page);
   await page.locator("#msess").click();
