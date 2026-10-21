@@ -67,12 +67,13 @@ export async function ask(text,kind,byItself){
   const body=kind==="explain"?explainAsk(U):text;
   // The server keeps the examples only with `share`, which a page sends where the server said it keeps learned facts and the learner has been told (share-notice.js). The
   // first question that would name examples waits for the learner's answer to the one-time dialog (the answer, yes or no, is kept on the device); a learner who left the
-  // answer meanwhile (the dialog covers the page, but the browser's Back does not wait for it) is asked nothing for it.
+  // answer meanwhile (the dialog covers the page, but a shortcut or the browser's Back may still move the exercise on) is asked nothing for it, as after the lookup above.
+  // Without an answer (a browser that could not open the dialog) no example is named.
   let examples=!direct&&kind==="explain"&&sharing()?openExamples(U):[];
   if(examples.length&&state.learns&&!state.shareTold){
     await askShare();
     if(U!==state.ui||!canAsk()||U.ctl||(kind==="explain"&&U.explained)) return;
-    examples=sharing()?openExamples(U):[];
+    examples=state.shareTold&&sharing()?openExamples(U):[];
   }
   const share=examples.length>0&&state.learns&&state.shareTold;
   // The server holds the standing instructions and the notes itself, so what it gets as the first turn is the card alone.

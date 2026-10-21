@@ -19,7 +19,7 @@ document.addEventListener("click",e=>{
   const d=!!u.dterm&&!at(".ddef"), p=!!u.pop&&!at(".pop,.why"); if(d) u.dterm=null; if(p) u.pop=null; if(d||p) render();
 });
 document.addEventListener("keydown",e=>{
-  // a native dialog (the Magic Key prompt) closes itself on Escape and takes the keys it needs: the menu or Settings under it keep their level
+  // a native dialog (the Magic Key prompt, the sharing question) takes the keys it needs, and closes itself on Escape except the sharing question, which has to be answered: the menu or Settings under it keep their level
   if(/** @type {Element|null} */(e.target)?.closest?.("dialog[open]")) return;
   if(e.key==="Escape"){ if(state.skipAsk){ closeSkipAsk(); return; } if(state.sessOpen){ sessBack(); return; } if(state.optsOpen){ toggleOpts(false); return; } if(state.view==="chat"){ closeChat(); return; } if(menuVisible()&&(!isWide()||state.menuPeek)){ closeMenu(); return; } if(state.ui&&state.ui.dterm){ closeDef(); return; } if(state.ui&&state.ui.pop){ state.ui.pop=null; render(); return; } if(state.ui&&state.ui.find&&state.ui.open&&!state.ui.checked){ state.ui.open=false; render(); return; } }
   if(state.mode!=="quiz"||!state.ui||state.optsOpen||state.sessOpen||state.skipAsk||state.view||state.tab==="review"||(state.menuOpen&&!isWide())||e.metaKey||e.ctrlKey||e.altKey) return;

@@ -29,8 +29,9 @@ export function askShare(){
         el("button",{type:"button",class:"btn ghost",onclick:()=>answer(false)},"Don\u2019t share")),
       el("p",{class:"sn-s",text:"You can change this any time in Settings."}));
     // A key must never answer for the learner: Escape does nothing, and a browser that closes the dialog anyway (a second Escape) gets it opened again, with the focus
-    // on the dialog and not on a button (opening it focuses the first button, and the Enter that follows would say Ok).
-    const open=()=>{ dlg.showModal(); dlg.focus({preventScroll:true}); };
+    // on the dialog and not on a button (opening it focuses the first button, and the Enter that follows would say Ok). A browser that cannot open a modal dialog at all
+    // leaves the learner unasked, and nothing is named to the server for it (`state.shareTold` stays false).
+    const open=()=>{ try{ dlg.showModal(); dlg.focus({preventScroll:true}); }catch(e){ answered=true; state.shareAsk=null; dlg.remove(); done(); } };
     dlg.addEventListener("keydown",e=>{ if(e.key==="Escape") e.preventDefault(); });
     dlg.addEventListener("cancel",e=>e.preventDefault());
     dlg.addEventListener("close",()=>{ if(!answered) open(); });

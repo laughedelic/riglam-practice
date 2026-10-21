@@ -254,6 +254,10 @@ withKey("the first explain question that names examples waits for a dialog with 
   await expect(dialog(page)).toBeVisible();
   expect(asked.tutor).toHaveLength(0);
   expect(await pair()).toBe(was);
+  // a browser that closes it anyway (a second Escape in some) gets it opened again, with the focus on the dialog and not on the button an Enter would press
+  await page.evaluate(() => document.querySelector(".sharedlg").close());
+  await expect(dialog(page)).toBeVisible();
+  expect(await page.evaluate(() => document.activeElement.className)).toBe("sharedlg");
   await dialog(page).getByRole("button", { name: "Ok", exact: true }).click();
   await expect(dialog(page)).toHaveCount(0);
   await expect.poll(() => asked.tutor.length).toBe(1);
