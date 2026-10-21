@@ -214,7 +214,7 @@ test("a syllogism carries its proofs: it is plain data, and grading needs no ind
   expect(JSON.parse(JSON.stringify(c))).toEqual(c);
 });
 
-test("the draw is the same for the same random numbers, and does not repeat what was drawn lately", () => {
+test("the draw is the same for the same random numbers, and another seed draws another run", () => {
   const run = (seed: number) => {
     const st = { hist: [] as SyllogismHistory[], recent: [] as string[], rng: seeded(seed) };
     return Array.from({ length: 30 }, () => drawSyllogism(ix, st).id);

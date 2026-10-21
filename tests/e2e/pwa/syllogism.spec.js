@@ -71,11 +71,11 @@ test("a right reply is Right and is kept in the answers, apart from the Relation
   expect(await overflow(page)).toBeLessThanOrEqual(0);
   const [doc] = await expect.poll(async () => (await saved(page)).length).toBe(1).then(() => saved(page));
   expect(doc).toMatchObject({ mode: "syllogism", subject: c.subject, reason: c.reason, predicate: c.predicate, catA: c.catR, catB: c.catP, situation: 1, answer: "accept", said: "accept", correct: true, grade: "ok" });
-  // today's line counts it, and Review has no Relations answers to show for it
+  // Review lists the Relations answers and the other exercises' own parts: a syllogism is in none of them, and Today, which opens Review, does not count it either
   await openMenu(page);
-  await expect(page.locator("#menu .mtoday")).toContainText(/1 pair/i);
+  await expect(page.locator("#menu .mtoday")).toContainText(/nothing practiced yet/i);
   await goTo(page, "Review");
-  await expect(page.locator("#stage.rv")).toBeVisible();
+  await expect(page.locator(".empty-note").first()).toContainText("No practice answers yet");
 });
 
 test("a wrong reply says what was mixed up; the sheet shows all three checks, the first that fails is marked, and a failed check is not marked as a wrong answer", async ({ page }) => {
@@ -237,14 +237,30 @@ test("an attempt at its counter-example waits in the menu and comes back; skippi
   await page.locator(".pbar .skipw").click();
   const dialog = page.getByRole("alertdialog");
   await expect(dialog).toContainText("Skip this syllogism?");
+  await expect(page.locator("#over")).toHaveAttribute("aria-label", "Skip this syllogism?");
   await dialog.getByRole("button", { name: "Keep going" }).click();
   await expect(page.locator("#sylex")).toBeVisible();
   await page.locator(".pbar .skipw").click();
   await dialog.getByRole("button", { name: "Skip anyway" }).click();
   await expect(page.locator(".sylask")).toBeVisible();
   expect(await saved(page)).toHaveLength(0); // a skip keeps nothing
+  await goTo(page, "Relations"); // the row says "continue" only for an exercise that is not on screen
   await openMenu(page);
   await expect(page.locator('#menu .mrow[data-go="syllogism"]')).not.toContainText(/continue/i);
+});
+
+test("where a tutor is on, the panel of recent answers beside a syllogism stays open for the next one", async ({ page }, testInfo) => {
+  test.skip(isPhone(testInfo), "a phone has no panel beside the exercise");
+  await page.route("**/api/health", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, tutor: "on" }) }));
+  await open(page);
+  await expect(page.locator("#mchat")).toHaveAccessibleName("Recent answers"); // the tutor does not know Syllogisms: the button is the list of answers
+  await page.locator("#mchat").click();
+  await expect(page.locator("#coach")).toBeVisible();
+  await draw(page, 1);
+  await say(page, "accept");
+  await next(page).click();
+  await expect(page.locator(".sylask")).toBeVisible();
+  await expect(page.locator("#coach")).toBeVisible();
 });
 
 test("the practice options hold only what Syllogisms uses: the wording, which is kept, and the things drawn from", async ({ page }) => {

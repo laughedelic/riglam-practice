@@ -1,5 +1,5 @@
 import { state } from "../state.js";
-import { dayOf, gradeOf, today } from "../core/util.js";
+import { dayOf, gradeOf, isSyllogism, today } from "../core/util.js";
 import { attemptOf, begun } from "./tabs.js";
 
 /* ---------- the exercises ---------- */
@@ -14,8 +14,8 @@ export const EXERCISES=[
 export const exName=k=>(EXERCISES.find(e=>e.k===k)||{name:""}).name;
 /** An exercise with an attempt waiting while you are elsewhere: begun, or checked and its result not yet left with Next pair. */
 export const parked=k=>{ const u=(attemptOf(k)||{}).ui; return state.tab!==k&&!!u&&(u.checked||begun(u)); };
-/** Today's pairs over every exercise, and how many were fully right. */
+/** Today's pairs over every exercise that has its answers in Review, and how many were fully right (a syllogism is not a pair, and Review does not list it). */
 export function todayCount(){
-  const list=[...Object.values(state.answers),...Object.values(state.debates)].filter(a=>dayOf(a.at)===today());
+  const list=[...Object.values(state.answers).filter(a=>!isSyllogism(a)),...Object.values(state.debates)].filter(a=>dayOf(a.at)===today());
   return {n:list.length,ok:list.filter(a=>gradeOf(a)==="ok").length};
 }
