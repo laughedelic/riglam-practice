@@ -10,3 +10,9 @@ declare module "virtual:riglam-full-data" {
   const text: string;
   export default text;
 }
+
+/** The device part of the reference examples as JSON text, or null when this checkout has none (scripts/vite-full-data.mjs); artifact build only. */
+declare module "virtual:riglam-examples" {
+  const text: string | null;
+  export default text;
+}

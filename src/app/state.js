@@ -1,6 +1,7 @@
 // The page's shared state. These were module-level variables of the old single script; an ES module cannot assign to a binding it
 // imports, so they are properties of one object. The preference reads below fill in what this device saved.
 
+import { DEFAULT_LEVELS, normLevels } from "../ai-shared/examples.ts";
 import { FIND_RELS } from "../domain/find.ts";
 
 /** @type {import("./types.ts").State} */
@@ -20,6 +21,7 @@ export const state = {
   tutor: null,   // a question to the app's own server (platform.tutor), when the place has one; `sample` is used first
   known: null,   // what that server learned of examples from earlier checks (platform.known), asked before the tutor (ai/known.js)
   EX: null,      // the course's reference examples this device holds (platform.examples), indexed by name (ai-shared/examples.ts); null when it has none
+  exLevels: [...DEFAULT_LEVELS], // the levels (1 to 4) the reference examples are drawn from, any mix, at least one (the practice options, `rd-exlevels`, "1,3"); a new device starts with level 1 alone
   about: null,   // {version, commit, builtAt, latest, branches?}: which build this is (platform.about), shown in Options
   updates: null, // {status, check, apply, subscribe}: updating the installed app in place (platform.updates), shown in Options
   unlock: null,  // {open, tutor}: opens the prompt for the Magic Key (platform.unlock) while this device has none; `tutor` is whether the server has a tutor waiting for it
@@ -39,6 +41,14 @@ export const state = {
   recent: [],
   findAsked: [],   // the relations Find a pair asked for lately, oldest first: the draw of the next one leans away from them (find/flow.js)
   findRel: null,   // the relation Find a pair keeps asking for once the learner has picked one (`rd-findrel`); null: a different one each time
+  catsRecent: [],  // the things Categories asked lately, oldest first: the draw passes them over while others remain (categories/flow.js)
+  catsSession: [],  // the things finished on this page, oldest first: the run towards a level offer counts them before the database has handed them back (categories/flow.js)
+  catsAsk: "all",  // Categories asks step 1 all at once ("all") or one category at a time ("one"; the practice options of the exercise, `rd-cats-ask`)
+  catsOfferAt: "", // when the learner last answered the offer of another level (`rd-cats-offer`): only the answers after it count towards the next offer
+  syllogismRecent: [],    // the ids of the syllogisms drawn lately, oldest first: the draw of the next one leans away from them (syllogism/flow.js)
+  syllogismLevel: 2,      // the highest level Syllogisms draws from: 1 everyday things only, 2 also the terms of Dudra (the settings of the exercise, `rd-syllogism-level`)
+  syllogismWording: "take", // how a syllogism is said: "take" (the class's) or "formal" (`rd-syllogism-wording`)
+  syllogismGuide: false,    // the structure named under the sentence (S, P, R) and what each reply says in them, for a beginner (`rd-syllogism-guide`)
   findSuggest: true, // Find a pair offers the terms of the course while the pair is typed (the settings of Find a pair, `rd-findsuggest`); off: plain fields
   debates: {},
   own: "practice",
@@ -102,9 +112,10 @@ export const state = {
   // reading the questions aloud and answering by voice, with the browser's own speech (shell/voice.js); both off until turned on in Options
   voice: {read:false, answer:"off", confirm:"tap", voiceId:"", rate:1, key:"", phase:"idle", live:"", note:"", bad:false, pend:null,began:false,seen:false,held:false, ask3:false, tries:0, blocked:false, stop:null, tok:null, hooked:false},
   features: [],   // features on trial that are on for this device (src/ui/features.ts); app.js fills it in at the start
+  sylMs: 15000,      // a syllogism has its own time (Syllogisms), stored as `rd-timer-syl`
 };
 
-try{ const v=localStorage.getItem("rd-ex"); if(v==="debate"||v==="find") state.tab=state.own=v; }catch(e){}
+try{ const v=localStorage.getItem("rd-ex"); if(v==="debate"||v==="find"||v==="categories"||v==="syllogism") state.tab=state.own=v; }catch(e){}
 try{ state.menuPin=localStorage.getItem("rd-menu")!=="0"; }catch(e){ state.menuPin=true; }   // a wide screen starts with the menu pinned (the exercise would be stretched too wide without it); the button unpins it
 try{ const v=localStorage.getItem("rd-notation"); if(v==="sets"||v==="logic") state.nota=v; }catch(e){}
 try{ if(localStorage.getItem("rd-deflang")==="enru") state.defLang="enru"; }catch(e){}   // an earlier "off" (words only) is now the codes
@@ -115,6 +126,9 @@ try{ state.shareExamples=localStorage.getItem("rd-share")!=="0"; state.shareTold
 try{ state.recentOpen=localStorage.getItem("rd-recent")!=="0"; }catch(e){}
 try{ const v=localStorage.getItem("rd-findrel"); if(FIND_RELS.includes(/** @type {any} */(v))) state.findRel=/** @type {any} */(v); }catch(e){}
 try{ state.findSuggest=localStorage.getItem("rd-findsuggest")!=="0"; }catch(e){}
+try{ if(localStorage.getItem("rd-cats-ask")==="one") state.catsAsk="one"; state.catsOfferAt=localStorage.getItem("rd-cats-offer")||""; }catch(e){}
+try{ const v=localStorage.getItem("rd-exlevels"); if(v!==null) state.exLevels=normLevels(v); }catch(e){}
+try{ if(localStorage.getItem("rd-syllogism-wording")==="formal") state.syllogismWording="formal"; if(localStorage.getItem("rd-syllogism-level")==="1") state.syllogismLevel=1; state.syllogismGuide=localStorage.getItem("rd-syllogism-guide")==="1"; }catch(e){}
 try{ if(localStorage.getItem("rd-ab")==="0") state.showAB=false; if(localStorage.getItem("rd-full")==="0") state.fullPh=false; }catch(e){}
 try{
   const v=+localStorage.getItem("rd-timer"); if(v>=2000&&v<=120000) state.timerMs=v;
@@ -130,3 +144,4 @@ try{
   if(localStorage.getItem("rd-voice-confirm")==="auto") v.confirm="auto";
   v.voiceId=localStorage.getItem("rd-voice-name")||""; if(r>=0.5&&r<=2) v.rate=r;
 }catch(e){}
+try{ const v=+localStorage.getItem("rd-timer-syl"); if(v>=2000&&v<=120000) state.sylMs=v; }catch(e){}

@@ -6,7 +6,7 @@ const out=[]; const ok=(n,c,x)=>{out.push((c?'PASS ':'FAIL ')+n+(c?'':'  '+JSON.
  const vis=async s=>await pg.locator(s).first().isVisible();
  ok('top bar with the menu button and the pair bar shown; the menu pinned from the start (the exercise is not stretched across the whole width); no steps, no rail, no tab bar',await vis('.mbar')&&await vis('#menubtn')&&await vis('#stage .pbar')&&!(await vis('#steps'))&&await vis('#menu')&&await pg.evaluate(()=>document.getElementById('app').dataset.menu)==='pinned'&&await pg.locator('.rail, .tabbar, #tabs').count()===0);
  ok('no page scroll',await pg.evaluate(()=>document.documentElement.scrollHeight<=innerHeight+1&&document.body.scrollHeight<=innerHeight+1));
-ok('the pinned menu: the three exercises, Review and Settings',await vis('#menu')&&await pg.locator('#menu .mrow[data-go]').count()===3&&await pg.locator('#menu .fbtn[data-go]').count()===2);
+ok('the pinned menu: the four exercises, Review and Settings',await vis('#menu')&&await pg.locator('#menu .mrow[data-go]:not([data-go="categories"])').count()===4&&await pg.locator('#menu .fbtn[data-go]').count()===2);
  await pg.click('#menubtn'); await pg.waitForTimeout(100);
  ok('the menu button unpins it: the exercise has the whole width',!(await vis('#menu')));
  await pg.click('#menubtn'); await pg.waitForTimeout(100);

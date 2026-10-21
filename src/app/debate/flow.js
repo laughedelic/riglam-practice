@@ -10,6 +10,7 @@ import { clearSkip } from "../practice/skips.js";
 import { nextGenerated } from "../practice/universe.js";
 import { focusAfterCheck, render } from "../shell/render.js";
 import { ensureRelTimer, freezeBar, relReset, tkind } from "../shell/timers.js";
+import { startSyllogismClock, syllogismAsking } from "../syllogism/flow.js";
 import { gradeDebate } from "../../domain/grading.ts";
 
 export function freshDebateUi(){
@@ -26,6 +27,7 @@ export function stopTimer(){ if(state.ui&&state.ui.tid){ clearTimeout(state.ui.t
 // `spent`: the time of the question already gone (a countdown that goes on after a stop)
 export function startQ(spent=0){
   stopTimer();
+  if(syllogismAsking()){ if(!paused()) startSyllogismClock(); return; }       // Syllogisms: the one countdown of the reply
   if(!state.ui||!state.ui.debate||state.ui.checked||state.ui.step>3||state.ui.hold||paused()) return;
   const a=state.ui.ans[state.ui.step], lim=limitMs(); a.limit=lim;
   state.ui.qStart=performance.now()-spent;
@@ -50,15 +52,17 @@ export function releaseClock(resume){
   else if(resume&&h.run) ensureRelTimer(h.spent);
   else if(!resume) ensureRelTimer();
 }
-export const asking=()=>state.tab==="debate"&&state.ui&&state.ui.debate&&!state.ui.checked&&state.ui.step<4;
+/** Whether a question with a clock is on screen: a Pervasions question, or the reply to a syllogism. */
+export const asking=()=>(state.tab==="debate"&&state.ui&&state.ui.debate&&!state.ui.checked&&state.ui.step<4)||syllogismAsking();
 export function setBlitz(on){
   state.blitz=on; try{ localStorage.setItem("rd-blitz",on?"1":"0"); }catch(e){}
   if(asking()) startQ(); else relReset();
   render();
 }
-// kind "rel": the relation's time; otherwise the time of an example (Relations) or a question (Pervasions). Only the countdown that is running restarts.
+// kind "rel": the relation's time; "syl": the time of a syllogism; otherwise the time of an example (Relations) or a question (Pervasions). Only the countdown that is running restarts.
 export function setTimer(ms,kind){
   if(kind==="rel"){ state.relMs=ms; try{ localStorage.setItem("rd-timer-rel",String(ms)); }catch(e){} }
+  else if(kind==="syl"){ state.sylMs=ms; try{ localStorage.setItem("rd-timer-syl",String(ms)); }catch(e){} }
   else { state.timerMs=ms; try{ localStorage.setItem("rd-timer",String(ms)); }catch(e){} }
   if(state.blitz&&(kind||"ex")===tkind()){ if(asking()) startQ(); else relReset(); }
   render();

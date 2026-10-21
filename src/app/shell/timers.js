@@ -9,20 +9,24 @@ import { fillable } from "../practice/screen.js";
 import { focusCin, render } from "./render.js";
 
 // Blitz: a stopwatch in the top bar, next to the practice options (the mode of practice): outline when off, filled when on. No box, no number: the seconds are in its name
-// and set in the Practice options of the exercise (Blitz times). Two independent times: the relation (Relations and Pervasions) and the examples (each example in
-// Relations, each question in Pervasions). The countdown that is running is the bar on the lower edge of the top bar (renderBar in shell/topbar.js); changing one time never changes the other.
+// and set in the Practice options of the exercise (Blitz times). Three independent times: the relation (Relations and Pervasions), the examples (each example in
+// Relations, each question in Pervasions) and the syllogism (Syllogisms: one countdown for the reply). The countdown that is running is the bar on the lower edge of
+// the top bar (renderBar in shell/topbar.js); changing one time never changes the others.
 // The toolbar icons (stopwatch, star, skip) share one line style: 24 px, stroke 1.75, outline when off, filled when on (src/app/core/icons.js).
-// which countdown belongs to the screen: "rel" while the relation is to be picked, "ex" for the examples (Relations) or the four questions (Pervasions)
+// which countdown belongs to the screen: "rel" while the relation is to be picked, "ex" for the examples (Relations) or the four questions (Pervasions), "syl" for the
+// reply to a syllogism
 export const tkind=()=>{
+  if(state.ui&&state.ui.syllogism) return state.tab==="syllogism"&&!state.ui.checked&&state.ui.step===0&&state.mode==="quiz"?"syl":null;
   if(!state.ui||state.ui.checked||state.mode!=="quiz"||(state.tab!=="practice"&&state.tab!=="debate")) return null;
   if(state.ui.debate) return state.ui.step<4?"ex":state.ui.rel?null:"rel";
   return state.ui.rel?"ex":"rel";
 };
-export const kindMs=k=>k==="rel"?state.relMs:state.timerMs;
-const bzLabel=()=>state.blitz?"Blitz on: "+Math.round(state.relMs/1000)+" s relation, "+Math.round(state.timerMs/1000)+" s "+(state.ui&&state.ui.debate?"question":"example"):"Blitz off";
-// the switch in the top bar; Relations and Pervasions share the one. Not there when Blitz is switched off in its options (state.blitzUse)
+export const kindMs=k=>k==="rel"?state.relMs:k==="syl"?state.sylMs:state.timerMs;
+const bzLabel=()=>!state.blitz?"Blitz off":state.tab==="syllogism"?"Blitz on: "+Math.round(state.sylMs/1000)+" s a syllogism"
+  :"Blitz on: "+Math.round(state.relMs/1000)+" s relation, "+Math.round(state.timerMs/1000)+" s "+(state.ui&&state.ui.debate?"question":"example");
+// the switch in the top bar; the exercises share the one. Not there when Blitz is switched off in its options (state.blitzUse)
 export function syncBlitzBtn(){
-  const b=$("mbz"), ok=state.mode==="quiz"&&(state.tab==="debate"||state.tab==="practice");
+  const b=$("mbz"), ok=state.mode==="quiz"&&(state.tab==="debate"||state.tab==="practice"||state.tab==="syllogism");
   b.hidden=!ok||!state.blitzUse; if(b.hidden) return;
   b.replaceChildren(tbIcon("watch"));
   b.setAttribute("aria-checked",state.blitz?"true":"false"); b.setAttribute("aria-label",bzLabel()); b.title=bzLabel()+" (hold for the Blitz options)";

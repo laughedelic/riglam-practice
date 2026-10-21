@@ -53,7 +53,7 @@ async function bootSteps(platform){
   try{ state.tutor=platform.tutor?await platform.tutor():null; }catch(e){ state.tutor=null; }
   // the reference examples arrive in the background (the first time a key is used, or when the server has newer ones): read them when they do
   // (listening first, so that a copy that arrives while this reads is not missed)
-  if(platform.onExamples) platform.onExamples(()=>{ loadExamples(platform); });
+  if(platform.onExamples) platform.onExamples(()=>{ loadExamples(platform).then(()=>{ if(state.mode!=="loading") render(); }); });   // the menu and Categories show what the examples allow
   await loadExamples(platform);
   await loadKnown(platform);
   try{ state.reports=platform.reports?await platform.reports():null; }catch(e){ state.reports=null; }

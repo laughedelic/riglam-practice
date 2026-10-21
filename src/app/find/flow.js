@@ -1,6 +1,7 @@
 import { state } from "../state.js";
 import { afterCheck } from "../ai/known.js";
 import { $ } from "../core/dom.js";
+import { moreRefs } from "../core/examples.js";
 import { CELLS, REL } from "../core/rel.js";
 import { isFind } from "../core/util.js";
 import { isWide } from "../core/viewport.js";
@@ -73,7 +74,7 @@ export function usePair(){
   const had=state.cur.p;
   if(had&&had.a===a.label&&had.b===b.label){ if(had.own) had.relation=u.rel; }
   else {
-    state.cur=/** @type {any} */({p:findPair(state,u.rel,a,b),find:true});
+    state.cur=/** @type {any} */({p:findPair(state,u.rel,a,b,undefined,undefined,moreRefs()),find:true});
     Object.assign(u,{cells:freshUi().cells, ci:0, seen:0, pop:null});
   }
   u.own=!!state.cur.p.own; u.pairErr=""; u.step=1;

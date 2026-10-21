@@ -10,7 +10,7 @@ export type {
   CellResult, DebateInput, GradeDraft, GradeResult, HistoryEntry, Pair, PoolEntry, PoolRel, PracticeAnswer, Verdict,
 } from "./types";
 export { FEATURE, RECENT_MAX, buildPool, cellsFor, chooseEntry, inUniverse, judgeable, makePair, nextPair, pairKey, pairOf, relOfCells } from "./universe";
-export type { Clock, DrawState, Rng } from "./universe";
+export type { Clock, DrawState, Rng, Witnesses } from "./universe";
 export { cap, gradeOf, isMiss, pick } from "./util";
 export { NAME_CELL, VERDICT_RE, applyRelationVerdict, applyVerdicts, factNote, fitOf, noteParts, parseFactLine, parseRelationVerdict, parseVerdicts, partsText, placeFacts } from "./verdict";
 export type { Answer, CellVerdict, FactLine, NoteData, NotePart, RelationVerdict, Side, Terms, VerdictSource } from "./verdict";
@@ -24,7 +24,9 @@ export { FACTS_EPOCH, FACT_LIMITS, factKey, knownLine, learn, opinionOf, ruleSid
 export { failsCell, openExamples, referenceLines, wholeFirst } from "./known";
 export type { KnownLine, OpenExample } from "./known";
 export type { FactRow, FactSource, FactState, Opinion, Ruling, Strength } from "./learned";
-export { DRAWN, drawable, placeByClass } from "./reference";
+export { DRAWN, cellExample, drawable, examplesFor, levelCounts, placeByClass, toggleLevel, witnessesOf } from "./reference";
 export type { Placement } from "./reference";
 export { lettersDirection, plainWords, spokenConfirm, spokenDirection, spokenDontKnow, spokenExample, spokenRelation, spokenReply } from "./spoken";
-export type { PairTerms, Reply, SpokenExample, SpokenReply } from "./spoken";
+export type { PairTerms, SpokenExample, SpokenReply } from "./spoken";
+export { RELIEF, REPLIES, SITUATIONS, WORDINGS, syllogismOf, syllogismPieces, syllogismText, drawSyllogism, gradeSyllogism, gradeTimeout, gradeExample, pervasionConflicts, widest, withoutPhrases } from "./syllogism";
+export type { Check, Syllogism, SyllogismDraw, SyllogismHistory, SyllogismResult, ExampleVerdict, Pervasion, Piece, Reply, Situation, Wording } from "./syllogism";

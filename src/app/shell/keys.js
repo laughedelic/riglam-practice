@@ -1,6 +1,8 @@
 import { state } from "../state.js";
 import { ORDER } from "../core/rel.js";
 import { isWide } from "../core/viewport.js";
+import { checkCategories, continueCategories, pickCategory, sayCategory, tickCategory, tickNone } from "../categories/flow.js";
+import { backSyllogism, replyOfKey, saySyllogism } from "../syllogism/flow.js";
 import { checkDebate, chooseD, sayQ } from "../debate/flow.js";
 import { favTarget, toggleFav } from "../practice/favorites.js";
 import { next } from "../practice/queue.js";
@@ -22,7 +24,7 @@ document.addEventListener("click",e=>{
 document.addEventListener("keydown",e=>{
   // a native dialog (the Magic Key prompt, the sharing question) takes the keys it needs, and closes itself on Escape except the sharing question, which has to be answered: the menu or Settings under it keep their level
   if(/** @type {Element|null} */(e.target)?.closest?.("dialog[open]")) return;
-  if(e.key==="Escape"){ if(state.skipAsk){ closeSkipAsk(); return; } if(state.sessOpen){ sessBack(); return; } if(state.optsOpen){ toggleOpts(false); return; } if(state.view==="chat"){ closeChat(); return; } if(menuVisible()&&(!isWide()||state.menuPeek)){ closeMenu(); return; } if(state.ui&&state.ui.dterm){ closeDef(); return; } if(state.ui&&state.ui.pop){ state.ui.pop=null; render(); return; } if(state.ui&&state.ui.find&&state.ui.open&&!state.ui.checked){ state.ui.open=false; render(); return; } }
+  if(e.key==="Escape"){ if(state.skipAsk){ closeSkipAsk(); return; } if(state.sessOpen){ sessBack(); return; } if(state.optsOpen){ toggleOpts(false); return; } if(state.view==="chat"){ closeChat(); return; } if(menuVisible()&&(!isWide()||state.menuPeek)){ closeMenu(); return; } if(state.ui&&state.ui.dterm){ closeDef(); return; } if(state.ui&&state.ui.pop){ state.ui.pop=null; render(); return; } if(state.ui&&state.ui.find&&state.ui.open&&!state.ui.checked){ state.ui.open=false; render(); return; } if(state.tab==="syllogism"&&state.ui&&state.ui.syllogism&&state.ui.step===1&&!state.ui.checked){ backSyllogism(); return; } }
   if(state.mode!=="quiz"||!state.ui||state.optsOpen||state.sessOpen||state.skipAsk||state.view||state.tab==="review"||(state.menuOpen&&!isWide())||e.metaKey||e.ctrlKey||e.altKey) return;
   const t=e.target&&/** @type {Element} */(e.target).tagName;
   if((e.key==="v"||e.key==="r"||e.key==="Enter"||e.key==="Escape")&&!e.shiftKey&&t!=="INPUT"&&t!=="TEXTAREA"&&t!=="SELECT"&&(t!=="BUTTON"||e.key!=="Enter")&&voiceKey(e.key)){ e.preventDefault(); return; }
@@ -34,6 +36,24 @@ document.addEventListener("keydown",e=>{
   } else if(state.tab==="find"&&state.ui.find){
     if(!state.ui.checked&&t!=="INPUT"&&t!=="TEXTAREA"&&(e.key==="s"||e.key==="S")&&!e.shiftKey){ e.preventDefault(); skipPair(); }
     else if(state.ui.checked&&(e.key==="n"||e.key==="N")&&!e.shiftKey&&t!=="INPUT"&&t!=="TEXTAREA"){ e.preventDefault(); next(); }
+  } else if(state.tab==="categories"&&state.ui.cats){
+    const u=state.ui, q=state.cur.q, k=e.key.toLowerCase();
+    if(!q||t==="INPUT"||t==="TEXTAREA"||e.shiftKey) return;
+    if(u.checked){ if(k==="n"){ e.preventDefault(); next(); } }
+    else if(k==="s"){ e.preventDefault(); skipPair(); }
+    else if(u.step===0&&u.ask==="all"){
+      if(/^[1-9]$/.test(k)&&q.rows[+k-1]){ e.preventDefault(); tickCategory(q.rows[+k-1].cat); }
+      else if(k==="0"){ e.preventDefault(); tickNone(); }
+      else if(k==="enter"&&(t!=="BUTTON"||(/** @type {Element} */(e.target).classList.contains("catick")&&/** @type {Element} */(e.target).getAttribute("aria-pressed")==="true"))){ e.preventDefault(); checkCategories(); }   // a ticked button keeps the focus, and Enter there checks; on a button not ticked yet Enter ticks it, as on any button
+    } else if(u.step===0){ if(k==="y"){ e.preventDefault(); sayCategory(true); } else if(k==="n"){ e.preventDefault(); sayCategory(false); } }
+    else if(u.step===1){ if(k==="enter"&&t!=="BUTTON"){ e.preventDefault(); continueCategories(); } }
+    else if(u.step===2&&/^[1-9]$/.test(k)&&u.narrow.options[+k-1]){ e.preventDefault(); pickCategory(u.narrow.options[+k-1].cat); }
+  } else if(state.tab==="syllogism"&&state.ui.syllogism){
+    if(t==="INPUT"||t==="TEXTAREA"||e.shiftKey) return;
+    const k=e.key.toLowerCase();
+    if(!state.ui.checked&&state.ui.step===0&&replyOfKey(k)){ e.preventDefault(); saySyllogism(replyOfKey(k)); }
+    else if(!state.ui.checked&&k==="s"){ e.preventDefault(); skipPair(); }
+    else if(state.ui.checked&&k==="n"){ e.preventDefault(); next(); }
   } else if(state.tab==="debate"&&state.ui.debate){
     if(t==="INPUT"||t==="TEXTAREA") return;
     const k=e.key.toLowerCase();

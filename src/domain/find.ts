@@ -11,7 +11,7 @@ import type { CellId, RelKey } from "../ai-shared/relations";
 import { grade, summarize } from "./grading";
 import type { CellResult, GradeResult, Pair, PracticeAnswer } from "./types";
 import { judgeable, pairOf } from "./universe";
-import type { Clock, Rng } from "./universe";
+import type { Clock, Rng, Witnesses } from "./universe";
 
 /** The relations that can be asked for: the five of the course (three possibilities in both directions, since A is the one inside B in one and B inside A in the other). */
 export const FIND_RELS: readonly RelKey[] = ["mi", "3ab", "3ba", "4", "con"];
@@ -62,10 +62,10 @@ export const findId = (rng: Rng = Math.random, now: Clock = Date.now): string =>
  * (the relation it really has, an example for each cell that has one, the reason for each that has none), under the learner's labels. Any other
  * pair is the learner's own: it carries the relation asked for only as a placeholder (`own`), and nothing else is known about it.
  */
-export function findPair(ix: DataIndex, asked: RelKey, a: Named, b: Named, rng: Rng = Math.random, now: Clock = Date.now): Pair {
+export function findPair(ix: DataIndex, asked: RelKey, a: Named, b: Named, rng: Rng = Math.random, now: Clock = Date.now, more?: Witnesses): Pair {
   if (sameThing(a, b)) throw new RangeError("a pair needs two different phenomena");
   if (a.cat && b.cat && (a.cat === b.cat || judgeable(ix, a.cat, b.cat))) {
-    const p = pairOf(ix, a.cat, b.cat, a.label, b.label, rng, now);
+    const p = pairOf(ix, a.cat, b.cat, a.label, b.label, rng, now, more);
     p.id = "f-" + p.id.slice(2);
     delete p.generated;
     return p;

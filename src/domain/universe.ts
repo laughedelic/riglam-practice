@@ -26,6 +26,9 @@ export function inUniverse(ix: DataIndex, it: Item, a: string, b: string): boole
   return true;
 }
 
+/** More references for the cells of a pair of categories (the reference examples, src/domain/reference.ts): an example per cell it can fill, with `ne` where it does not exist. */
+export type Witnesses = (a: string, b: string) => Record<CellId, readonly { n: string; ne?: boolean }[]>;
+
 /** The items in each cell of the grid for two categories. */
 export function cellsFor(ix: DataIndex, a: string, b: string): Record<CellId, Item[]> {
   const out: Record<CellId, Item[]> = { both: [], anb: [], bna: [], nei: [] };
@@ -95,7 +98,7 @@ export function buildPool(ix: DataIndex): PoolEntry[] {
  * there is one, and the reason where a cell is empty. The random numbers are drawn in a fixed order; the id is made from
  * the clock and one more random number, so with both given the whole pair is reproducible.
  */
-export function makePair(ix: DataIndex, cand: PoolEntry, rng: Rng = Math.random, now: Clock = Date.now): Pair {
+export function makePair(ix: DataIndex, cand: PoolEntry, rng: Rng = Math.random, now: Clock = Date.now, more?: Witnesses): Pair {
   let a = cand.a, b = cand.b, la: string, lb: string;
   if (a === b) {
     const ls = ix.CAT[a].labels.slice().sort(() => rng() - 0.5);
@@ -104,12 +107,16 @@ export function makePair(ix: DataIndex, cand: PoolEntry, rng: Rng = Math.random,
     if (rng() < 0.5) [a, b] = [b, a];
     la = pick(ix.CAT[a].labels, rng); lb = pick(ix.CAT[b].labels, rng);
   }
-  return pairOf(ix, a, b, la, lb, rng, now);
+  return pairOf(ix, a, b, la, lb, rng, now, more);
 }
 
-/** The pair for two categories in this order, shown under these labels (the learner's words in the pair-finding mode, a label of the category in a draw). */
-export function pairOf(ix: DataIndex, a: string, b: string, la: string, lb: string, rng: Rng = Math.random, now: Clock = Date.now): Pair {
-  const cells = cellsFor(ix, a, b), relation = relOfCells(cells);
+/**
+ * The pair for two categories in this order, shown under these labels (the learner's words in the pair-finding mode, a label of the category in a draw).
+ * `more` adds references to the cells: the practice list decides the relation and which cells are empty, so a reference only joins a cell the list
+ * fills, and one the list does not agree with never makes a cell hold what the relation says it cannot.
+ */
+export function pairOf(ix: DataIndex, a: string, b: string, la: string, lb: string, rng: Rng = Math.random, now: Clock = Date.now, more?: Witnesses): Pair {
+  const cells = cellsFor(ix, a, b), relation = relOfCells(cells), extra = more ? more(a, b) : null;
   const ex: Partial<Record<CellId, string | null>> = {}, why: Partial<Record<CellId, string>> = {};
   const p: Pair = {
     id: "g-" + now().toString(36) + rng().toString(36).slice(2, 6), a: la, b: lb, catA: a, catB: b,
@@ -117,7 +124,8 @@ export function pairOf(ix: DataIndex, a: string, b: string, la: string, lb: stri
   };
   for (const c of CELLS) {
     // the neither cell prefers an existent, as in debate; a non-existent only when nothing existent fits
-    const pool = c === "nei" && cells.nei.some((i) => !i.ne) ? cells.nei.filter((i) => !i.ne) : cells[c];
+    const all: readonly { n: string; ne?: boolean }[] = extra && cells[c].length ? [...cells[c], ...extra[c]] : cells[c];
+    const pool = c === "nei" && all.some((i) => !i.ne) ? all.filter((i) => !i.ne) : all;
     ex[c] = pool.length ? pick(pool, rng).n : null;
     if (!ex[c]) why[c] = whyEmpty(c, p);
   }
@@ -141,6 +149,8 @@ export interface DrawState {
   rng?: Rng;
   /** the clock for the id of the pair that `nextPair` makes */
   now?: Clock;
+  /** more references for the cells than the practice list has */
+  more?: Witnesses;
 }
 
 /** The pool entry for the next pair: the relation that has been seen least lately, then a pair of categories weighted by what the learner got wrong. */
@@ -182,5 +192,5 @@ export function nextPair(ix: DataIndex, pool: readonly PoolEntry[], st: DrawStat
   const c = chooseEntry(ix, pool, st);
   st.recent.push(pairKey(c));
   if (st.recent.length > RECENT_MAX) st.recent.shift();
-  return makePair(ix, c, st.rng || Math.random, st.now || Date.now);
+  return makePair(ix, c, st.rng || Math.random, st.now || Date.now, st.more);
 }

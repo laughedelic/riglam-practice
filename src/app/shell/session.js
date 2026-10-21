@@ -3,10 +3,12 @@ import { setQuorum } from "../ai/quorum.js";
 import { canAsk } from "../core/ask.js";
 import { $, el } from "../core/dom.js";
 import { tbIcon } from "../core/icons.js";
+import { setCategoriesAsk } from "../categories/flow.js";
 import { asking, setBlitz, setTimer, startQ, stopTimer } from "../debate/flow.js";
 import { WORDINGS } from "../debate/text.js";
 import { NOT } from "../../ai-shared/debate.ts";
 import { exName } from "./exercises.js";
+import { levelSwitches } from "./levels.js";
 import { toggleOpts } from "./options.js";
 import { isEx, render } from "./render.js";
 import { segOf, settingRow as row, switchOf } from "./rows.js";
@@ -26,7 +28,7 @@ const SYMS={
   sets:["Sets","Each term stands for the set of things it covers.",[["∩","intersection: what is both"],["∅","the empty set: nothing"],["≠ ∅","not empty"],["⊂","contained in"],["⊃","contains"],["=","the same set"]]],
   logic:["Logic","Each term stands for a statement: it is A, it is B.",[["⇒","follows: A ⇒ B, if A then B"],["⇐","follows from"],["⇔","each follows from the other"],["⇏","does not follow"],["¬","negation: not"]]]
 };
-const PAGES={nota:"Notation",wording:"Questions",times:"Blitz",defs:"Definitions"};
+const PAGES={nota:"Notation",wording:"Questions",times:"Blitz",defs:"Definitions",levels:"Examples"};
 const store=(key,v)=>{ try{ localStorage.setItem(key,v); }catch(e){} };
 function setNota(k){ state.nota=k; store("rd-notation",k); render(); }
 export function setDefLang(k){ state.defLang=k==="enru"?"enru":"en"; store("rd-deflang",state.defLang); render(); }
@@ -34,6 +36,9 @@ function setShow(key,on){ if(key==="ab") state.showAB=on; else state.fullPh=on; 
 function setAutoExplain(on){ state.autoExplain=on; store("rd-autoexplain",on?"1":"0"); render(); }
 function setWording(k){ state.wording=k; store("rd-wording",k); render(); }
 function setFindSuggest(on){ state.findSuggest=on; store("rd-findsuggest",on?"1":"0"); render(); }
+function setSyllogismWording(k){ state.syllogismWording=k; store("rd-syllogism-wording",k); render(); }
+function setSyllogismGuide(on){ state.syllogismGuide=on; store("rd-syllogism-guide",on?"1":"0"); render(); }
+function setSyllogismLevel(n){ state.syllogismLevel=n; store("rd-syllogism-level",String(n)); render(); }
 // Blitz off takes the stopwatch away from the top bar, and a running countdown with it
 function setBlitzUse(on){ state.blitzUse=on; store("rd-blitzuse",on?"1":"0"); if(!on) setBlitz(false); else render(); }
 
@@ -47,6 +52,8 @@ export function toggleSess(on){
   else { const b=$("msess"); if(b.offsetParent) b.focus({preventScroll:true}); }
 }
 function openPage(id){ state.sessPage=id; render(); const b=document.querySelector("#over .ob"); if(b) /** @type {HTMLElement} */(b).focus({preventScroll:true}); }
+/** The Examples page of the practice options: where the levels are switched, and what an offer of another level points to. */
+export function openLevelOptions(){ if(!state.sessOpen) toggleSess(true); openPage("levels"); }
 /** The Blitz page of the practice options: what holding the stopwatch in the top bar opens. */
 export function openBlitzOptions(){ if(!state.sessOpen) toggleSess(true); openPage("times"); }
 /** Back or Escape in the options: from a page to the list, from the list to the exercise. */
@@ -70,8 +77,10 @@ const group=t=>el("p",{class:"grp",text:t});
 const sw=(label,word,on,toggle,note)=>el("div",{class:"orow"},switchOf(label,word,on,toggle),note?el("p",{class:"onote",text:note}):null);
 const chips=(label,rows,cur,on)=>segOf(label,rows,cur,on);
 const secs=kind=>Math.round(kindMs(kind)/1000);
+// the levels of the reference examples that are on, in a line
+const levelsLine=()=>el("small",{class:"sum1",text:(state.exLevels.length===1?"Level ":"Levels ")+state.exLevels.join(", ")});
 // the Blitz times in a line (the card says Off instead when Blitz is switched off)
-const timesLine=()=>el("small",{class:"sum1",text:"Relation "+secs("rel")+" s · Example "+secs("ex")+" s"});
+const timesLine=()=>el("small",{class:"sum1",text:state.tab==="syllogism"?"Syllogism "+secs("syl")+" s":"Relation "+secs("rel")+" s · Example "+secs("ex")+" s"});
 
 // one Blitz time: presets and a custom number of seconds; each sets only its own
 function timeBlock(kind,label,note){
@@ -96,14 +105,47 @@ function pageBody(id){
   if(id==="wording") return [el("p",{class:"capl",text:"How the statement of pervasion is worded in Pervasions: the four statements you accept or answer with Why?."}),
     picks("Wording of the questions",Object.entries(WORDINGS).map(([k,w])=>[k,w.name,sample(w)]),state.wording,setWording)];
   if(id==="times") return [
-    el("p",{class:"capl",text:"Blitz is a countdown for each step of a pair, switched on and off with the stopwatch in the top bar. Hold the stopwatch to come back to this page."}),
+    el("p",{class:"capl",text:state.tab==="syllogism"
+      ?"Blitz is a countdown for the reply to each syllogism, switched on and off with the stopwatch in the top bar. When the time is up the reply counts as wrong and the result shows the right one; a right “there is no pervasion” goes straight to the result, with no counter-example. Hold the stopwatch to come back to this page."
+      :"Blitz is a countdown for each step of a pair, switched on and off with the stopwatch in the top bar. Hold the stopwatch to come back to this page."}),
     sw("Use Blitz",state.blitzUse?"on":"off",state.blitzUse,()=>setBlitzUse(!state.blitzUse),"Off takes the stopwatch out of the top bar. The times stay as they are for when it is on again."),
-    ...(state.blitzUse?[timeBlock("rel","Relation time","The Blitz countdown for choosing the relation, in Relations and in Pervasions."),
-      timeBlock("ex","Example time","The Blitz countdown for each example in Relations (a table of three cells gets three times this) and for each question in Pervasions.")]:[])];
+    ...(!state.blitzUse?[]:state.tab==="syllogism"?[timeBlock("syl","Syllogism time","The Blitz countdown for the reply to each syllogism, in Syllogisms.")]
+      :[timeBlock("rel","Relation time","The Blitz countdown for choosing the relation, in Relations and in Pervasions."),
+        timeBlock("ex","Example time","The Blitz countdown for each example in Relations (a table of three cells gets three times this) and for each question in Pervasions.")])];
+  if(id==="levels") return [el("p",{class:"capl",text:state.tab==="categories"
+    ?"The things Categories shows come from the levels that are on, in any mix. Each level up takes more steps to reach: level 1 is the start, and another level is offered after five right in a row. Switch levels on and off here at any time."
+    :"The examples shown for the cells of a pair, besides the plain ones the page has always had, come from the levels that are on, in any mix. Each level up takes more steps to reach. Level 1 is the start; switch more on when it comes easily. Relations and negations join when level 3 or 4 is on. Only examples the sources confirm are shown. A definition card shows examples of every level, the plainest first."}),
+    levelSwitches()];
   return [el("p",{class:"capl",text:"Shown when you open a term’s definition, in the Terms panel and in the tutor’s notes."}),
     picks("Languages of the definitions",[["en","English","The definition in English."],["enru","English + Russian","Each entry also shows the Russian name of the term and, where there is one, its Russian definition."]],state.defLang,setDefLang)];
 }
+// Categories has no pair, notation or Blitz, so it shows only what it uses
+function categoriesBody(){
+  return [
+    row("Ask",chips("How step 1 asks",[["all","All at once"],["one","One by one"]],state.catsAsk,setCategoriesAsk),
+      "All at once: the categories come together and you tick the ones the thing is in. One by one: a question for each category, answered with yes or no. It applies at once to a thing you have not started, and from the next one otherwise."),
+    state.EX?card("Examples",levelsLine(),"levels"):null,
+    el("p",{class:"capl"},"The Magic Key, your account, data and the version are in ",el("button",{type:"button",class:"lnk",onclick:()=>{ toggleSess(false); toggleOpts(true); }},"Settings"),".")
+  ];
+}
+// Syllogisms has no terms to read and no notation, so it shows only what it uses (and the tutor's switch, where the tutor can answer)
+function syllogismBody(){
+  return [
+    row("Wording",chips("Wording of the syllogism",[["take","Take X"],["formal","Formal"]],state.syllogismWording,setSyllogismWording),
+      "Take X: “Take a tomato. It follows it is food because it is red.” Formal: “It follows that the subject, a tomato, is food because of being red.”"),
+    row("Things",chips("Which things the syllogisms are about",[[1,"Everyday"],[2,"With Dudra terms"]],state.syllogismLevel,setSyllogismLevel),
+      "Everyday (a tomato, red, food). With Dudra terms (a form, a sound, impermanent, a consciousness, etc.). The change applies from the next syllogism."),
+    sw("Show the structure",state.syllogismGuide?"on":"off",state.syllogismGuide,()=>setSyllogismGuide(!state.syllogismGuide),
+      "For when the structure is new: under the sentence, S is the subject, P the predicate and R the reason, and each reply says in them what it means."),
+    card("Blitz",state.blitzUse?timesLine():el("small",{class:"sum1",text:"Off"}),"times"),
+    ...(canAsk()?[group("AI tutor"),sw("Check every answer with AI",state.autoExplain?"on":"off",state.autoExplain,()=>setAutoExplain(!state.autoExplain),
+      "Right after you check an answer, the AI tutor explains it. Off, the Explain button waits for you.")]:[]),
+    el("p",{class:"capl"},"The Magic Key, your account, data and the version are in ",el("button",{type:"button",class:"lnk",onclick:()=>{ toggleSess(false); toggleOpts(true); }},"Settings"),".")
+  ];
+}
 function listBody(){
+  if(state.tab==="categories") return categoriesBody();
+  if(state.tab==="syllogism") return syllogismBody();
   const perv=state.tab==="debate", find=state.tab==="find", timed=state.tab==="practice"||perv;
   // the Quorum row and the Share my examples row (Settings, options.js) each say what the server keeps; each says the other is separate
   const apart=state.learns?" The words of an example are kept, or not, as \u201cShare my examples\u201d in Settings says, with or without Quorum.":"";
@@ -126,6 +168,7 @@ function listBody(){
     timed?card("Blitz",state.blitzUse?timesLine():el("small",{class:"sum1",text:"Off"}),"times"):null,
     sw("A/B markers","before the terms",state.showAB,()=>setShow("ab",!state.showAB)),
     card("Definitions",chips("Languages of the definitions",[["en","English"],["enru","English + Russian"]],state.defLang,setDefLang),"defs"),
+    state.EX&&(timed||find)?card("Examples",levelsLine(),"levels"):null,
     tutor||quorum?group("AI tutor"):null,
     tutor?sw("Check every answer with AI",state.autoExplain?"on":"off",state.autoExplain,()=>setAutoExplain(!state.autoExplain),
       "Right after you check an answer, the AI tutor explains it and checks the examples the page could not. Off, the Explain button waits for you."):null,
@@ -136,7 +179,7 @@ function listBody(){
 // the sheet: a scrim that closes it, and the panel
 export function sessionInto(o){
   o.append(el("button",{type:"button",class:"scrim",tabindex:"-1","aria-label":"Close the practice options",onclick:()=>toggleSess(false)}));
-  const page=state.sessPage&&PAGES[state.sessPage]?state.sessPage:null;
+  const page=state.sessPage&&PAGES[state.sessPage]&&(state.sessPage!=="levels"||state.EX)?state.sessPage:null;
   const sheet=el("div",{class:"sheet"});
   sheet.append(el("div",{class:"shh"},
     page?el("button",{type:"button",class:"ob",onclick:sessBack,"aria-label":"Back to the options",title:"Back"},tbIcon("back")):null,
