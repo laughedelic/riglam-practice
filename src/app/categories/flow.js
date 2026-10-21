@@ -4,7 +4,7 @@ import { isCategories } from "../core/util.js";
 import { isWide } from "../core/viewport.js";
 import { persist } from "../practice/answers.js";
 import { freshUi } from "../practice/queue.js";
-import { render, top0 } from "../shell/render.js";
+import { render, renderKeepFocus, top0 } from "../shell/render.js";
 import { setExLevels } from "../shell/levels.js";
 import { drawPlace, gradeNarrow, gradePlace, placeGrade, placeLevelDown, placeLevelUp, placeNarrow } from "../../domain/place.ts";
 
@@ -50,12 +50,12 @@ export function tickCategory(cat){
   const u=state.ui; if(!u||!u.cats||u.step!==0||u.checked||u.ask!=="all") return;
   u.none=false;
   u.ticked=u.ticked.includes(cat)?u.ticked.filter(c=>c!==cat):[...u.ticked,cat];
-  render();
+  renderKeepFocus();
 }
 export function tickNone(){
   const u=state.ui; if(!u||!u.cats||u.step!==0||u.checked||u.ask!=="all") return;
   u.none=!u.none; if(u.none) u.ticked=[];
-  render();
+  renderKeepFocus();
 }
 /** Check: grades what was ticked. Needs a tick or "None of these". */
 export function checkCategories(){
@@ -68,7 +68,7 @@ export function sayCategory(yes){
   const u=state.ui, q=state.cur.q; if(!u||!u.cats||u.step!==0||u.checked||u.ask!=="one"||!q||u.i>=q.rows.length) return;
   u.said[q.rows[u.i].cat]=yes; u.i++;
   if(u.i>=q.rows.length){ finishStep1(q.rows.filter(r=>u.said[r.cat]).map(r=>r.cat)); return; }
-  render();
+  renderKeepFocus();
 }
 function finishStep1(picked){
   const u=state.ui, q=state.cur.q;
@@ -82,6 +82,7 @@ function finishStep1(picked){
 export function continueCategories(){
   const u=state.ui; if(!u||!u.cats||u.step!==1||u.checked) return;
   u.step=2; render(); top0();
+  const first=document.querySelector(".catopt"); if(first) /** @type {HTMLElement} */(first).focus({preventScroll:true});     // the Continue button is gone: the focus goes to the first choice
 }
 /** The pick of step 2, one tap: the category the learner says is the most specific. */
 export function pickCategory(cat){

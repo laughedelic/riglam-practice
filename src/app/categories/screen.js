@@ -45,7 +45,7 @@ function rowNode(row,said,full,mode){
     if(!full&&ok){
       body.hidden=true; r.setAttribute("role","button"); r.tabIndex=0; r.setAttribute("aria-expanded","false");
       const flip=()=>{ body.hidden=!body.hidden; r.setAttribute("aria-expanded",String(!body.hidden)); };
-      r.onclick=flip; r.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); flip(); } };
+      r.onclick=flip; r.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); e.stopPropagation(); flip(); } };   // Enter here opens the reason; it is not the page's Continue
     }
   }
   return r;
@@ -74,11 +74,11 @@ function ticks(q){
 }
 // step 1, one at a time: yes or no for the category asked, and under the buttons the answers so far, newest first (the latest and the wrong ones open, the right ones folded)
 function oneByOne(q){
-  const u=state.ui, r=q.rows[u.i];
+  const u=state.ui;
   const yes=el("button",{type:"button",class:"btn ghost catyes",onclick:()=>sayCategory(true)},"Yes"), no=el("button",{type:"button",class:"btn ghost catno",onclick:()=>sayCategory(false)},"No");
   // every question of this thing sits in one grid cell, only the one asked showing, so the cell is as tall as the longest and the buttons stay where they are as the question changes
-  const asks=el("div",{class:"catasks"},q.rows.map((row,i)=>el("p",{class:"catask"+(i===u.i?"":" ghost"),"aria-hidden":i===u.i?null:"true",text:"Is "+q.thing.n+" "+row.phrase+"?"})));
-  const out=[asks,el("div",{class:"catyn"},yes,no)];
+  const asks=el("div",{class:"catasks"},q.rows.map((row,i)=>el("p",{class:"catask"+(i===u.i?"":" ghost"),id:i===u.i?"catq":null,"aria-hidden":i===u.i?null:"true",text:"Is "+q.thing.n+" "+row.phrase+"?"})));
+  const out=[asks,el("div",{class:"catyn",role:"group","aria-labelledby":"catq"},yes,no)];
   const done=q.rows.slice(0,u.i).reverse();
   if(done.length) out.push(el("div",{class:"catlog"},el("p",{class:"catnote",text:"Your answers, newest first"}),
     ...done.map((row,j)=>rowNode(row,!!u.said[row.cat],j===0||!!u.said[row.cat]!==row.answer,"one"))));

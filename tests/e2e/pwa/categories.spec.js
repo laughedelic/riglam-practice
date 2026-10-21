@@ -144,6 +144,27 @@ test("one by one: a question for each category, the buttons stay put and the ans
   expect(await overflow(page), "nothing runs off the side").toBeLessThanOrEqual(0);
 });
 
+test("the keyboard keeps its place: a tick or an answer leaves the focus on its button, Enter checks from a tick, and Enter on a folded row opens its reason", async ({ page }) => {
+  await open(page);
+  for (let i = 0; i < 60 && !(await page.evaluate(() => window.__t.cur.q.rows.filter((r) => r.answer).length >= 2)); i++) await page.keyboard.press("s");
+  const rs = await rows(page);
+  const first = page.locator(".catick").filter({ hasText: new RegExp(`^${rs.find((r) => r.answer).phrase}$`) });
+  await first.focus();
+  await page.keyboard.press("Space");
+  await expect(first).toHaveAttribute("aria-pressed", "true");
+  await expect(first, "the focus stays on the button that was ticked").toBeFocused();
+  for (const r of rs.filter((x) => x.answer).slice(1)) await tick(page, r);
+  await first.focus();
+  await page.keyboard.press("Enter"); // checks, instead of unticking
+  await expect(page.locator(".catgh").first()).toContainText("What applies");
+  if (await ui(page, "checked")) return;
+  const folded = page.locator('.catr[role="button"]').first();
+  await folded.focus();
+  await page.keyboard.press("Enter");
+  await expect(folded).toHaveAttribute("aria-expanded", "true");
+  expect(await ui(page, "step"), "Enter on a row does not go on to step 2").toBe(1);
+});
+
 test("the keys: numbers tick, Enter checks, a number picks the most specific, N goes on", async ({ page }) => {
   await open(page);
   for (let i = 0; i < 60 && !(await page.evaluate(() => window.__t.cur.q.rows.filter((r) => r.answer).length >= 2)); i++) await page.keyboard.press("s");
