@@ -5,7 +5,8 @@
 //            ends its text with an ellipsis on purpose; text for screen readers only, a pixel big)
 //   EDGE     a popup, sub-line, timer row, map or top-bar part, or anything in the Terms panel, sticks out of the window
 //   OUT      a button or field sticks out of the nearest container that clips it (or out of the window)
-//   RING     the 4 px focus ring of a control would be cut by a container that clips sideways (a control needs 4 px of room)
+//   RING     the 4 px focus ring of a control would be cut by a container that clips sideways (a control needs 4 px of room; one that sets the custom
+//            property --ring-inset to 1 draws its ring inside itself and is skipped)
 // `wideFields` makes every text field much wider by default, as a font with wide letters would: nothing may then pass its container.
 export function scanPage({ wideFields = 0 } = {}) {
   const found = [];
@@ -47,6 +48,7 @@ export function scanPage({ wideFields = 0 } = {}) {
 
   const focusable = [...document.querySelectorAll("button,input,select,textarea,summary,[tabindex]")].filter((n) => shown(n) && n.tabIndex >= 0 && !n.disabled);
   for (const n of focusable) {
+    if (getComputedStyle(n).getPropertyValue("--ring-inset").trim() === "1") continue; // draws its focus ring inside itself
     const r = n.getBoundingClientRect();
     for (let a = n.parentElement; a && a !== de; a = a.parentElement) {
       const cs = getComputedStyle(a);

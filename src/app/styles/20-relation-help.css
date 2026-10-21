@@ -1,14 +1,9 @@
-/* v48: the relation's "?" beside its name, the numbers on the map, Blitz as an icon */
+/* v48: the relation's "?" beside its name, the numbers on the map, Blitz as an icon (a stopwatch in the top bar) */
 .subrow{display:flex;align-items:center;justify-content:center;gap:4px;min-width:0}
 .qm.rq{position:static;width:24px;height:24px;flex:none;font-size:12px}
 .qm.rq::after{inset:-8px}
 .rpop{margin-block:0}
 .bz{position:relative;display:inline-grid;place-items:center;width:44px;height:44px;padding:0;border:0;background:transparent;color:var(--ink-muted);cursor:pointer;flex:none}
 .bz[hidden]{display:none}
-.bz[aria-checked="true"]{color:var(--lapis)}
+.bz[aria-checked="true"],.bz[aria-checked="true"]:hover:not(:disabled){color:var(--lapis)}
 .bz:focus-visible{box-shadow:var(--focus-ring)}
-.actions .bz{margin-right:auto}
-.actions .fav:has(+ .bz){margin-right:0;margin-left:0}
-.actions .fav + .bz{margin-left:8px}
-.trow{display:flex;align-items:center;gap:8px;min-height:30px}
-.trow .tbar{flex:1;min-width:0}
