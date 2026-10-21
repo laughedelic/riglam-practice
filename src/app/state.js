@@ -21,7 +21,7 @@ export const state = {
   tutor: null,   // a question to the app's own server (platform.tutor), when the place has one; `sample` is used first
   known: null,   // what that server learned of examples from earlier checks (platform.known), asked before the tutor (ai/known.js)
   EX: null,      // the course's reference examples this device holds (platform.examples), indexed by name (ai-shared/examples.ts); null when it has none
-  exLevels: [...DEFAULT_LEVELS], // the levels (1 to 4) the reference examples are drawn from, any mix, at least one (Options, `rd-exlevels`, "1,2"); a new device starts with 1 and 2, since level 1 alone has little for the consciousness side
+  exLevels: [...DEFAULT_LEVELS], // the levels (1 to 4) the reference examples are drawn from, any mix, at least one (Options, `rd-exlevels`, "1,2"); a new device starts with level 1 alone
   about: null,   // {version, commit, builtAt, latest, branches?}: which build this is (platform.about), shown in Options
   updates: null, // {status, check, apply, subscribe}: updating the installed app in place (platform.updates), shown in Options
   unlock: null,  // {open, tutor}: opens the prompt for the Magic Key (platform.unlock) while this device has none; `tutor` is whether the server has a tutor waiting for it
