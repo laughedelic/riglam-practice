@@ -110,8 +110,9 @@ export function flagPart(c,where,text,cls){
 // the key of the answer's flags: the collection and id it is saved under (an answer that is not saved gets a key of its own)
 export const flagKeyOf=U=>(U.col||"answers")+"_"+(U.saveId||U.fkey||(U.fkey="t"+Date.now().toString(36)));
 const flagKey=()=>flagKeyOf(state.ui);
-export function aiCase(part,partLabel,shown,n,asked){
-  return {caseKey:flagKey(),part,partLabel,shown:String(shown||"").slice(0,SHOWN_MAX),n:n==null?null:String(n),asked:asked||undefined,pair:{a:state.cur.p.a,b:state.cur.p.b,relation:state.cur.p.relation,tab:state.ui.debate?"debate":"practice"}};
+// `thing`: the learner's example, for a note on a cell that a fact the server learned settled (practice/screen.js, learnedThing): the server then disputes the fact
+export function aiCase(part,partLabel,shown,n,asked,thing){
+  return {caseKey:flagKey(),part,partLabel,shown:String(shown||"").slice(0,SHOWN_MAX),n:n==null?null:String(n),asked:asked||undefined,thing:thing||undefined,pair:{a:state.cur.p.a,b:state.cur.p.b,relation:state.cur.p.relation,tab:state.ui.debate?"debate":"practice"}};
 }
 export function aiFlag(c,where,word){
   if(!state.db||!state.ui||!state.cur||!state.cur.p) return null;
@@ -122,7 +123,7 @@ export function aiFlag(c,where,word){
 }
 // one answer of Claude in the Why panel (explain turn) or the chat: the flag first, so it floats to the top-right, and the editor last
 export function decorateAns(a,t,idx,over){
-  if(!state.ui||t.pending||!t.content||a.childNodes.length===1&&a.firstChild.classList&&a.firstChild.classList.contains("status")) return;
+  if(!state.ui||state.ui.syllogism||t.pending||!t.content||a.childNodes.length===1&&a.firstChild.classList&&a.firstChild.classList.contains("status")) return;
   const where=(over?"o":"i")+idx, expl=t.kind==="explain", q=!expl&&state.ui.chat?state.ui.chat[idx-1]:null;
   const fl=aiFlag(aiCase(expl?"explain":"chat",expl?"Claude’s explanation":"Claude’s answer",t.content,expl?null:idx,flagAsked(q)),where,true);
   if(fl){ a.prepend(fl); a.classList.add("hasflag"); }

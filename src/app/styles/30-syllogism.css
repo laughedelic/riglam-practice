@@ -1,0 +1,53 @@
+/* Syllogisms: the card with the syllogism and the three replies, the counter-example step, and the result with its sheet of three checks */
+.sylcard{gap:14px}
+.sylt{margin:0;font:400 20px/1.6 var(--text-serif);overflow-wrap:anywhere}
+.sylt b{font-weight:700}
+.syl-subject{font-style:italic}
+.sylask{display:grid;gap:8px}
+.sylask .sylsay{height:auto;min-height:44px;padding:10px 16px 10px 12px;justify-content:flex-start;gap:12px;text-align:left;font-size:15px;line-height:1.35}
+/* the three replies are told apart by a tint and a number, in the order of the checks: the reason (marigold), the pervasion (lapis), accept (green) */
+.sylsay .syln{flex:none;display:inline-grid;place-items:center;width:26px;height:26px;font:700 13px/1 var(--body)}
+.sylsay.reason{background:var(--warn-soft);background:color-mix(in srgb,var(--marigold) 26%,var(--paper))} /* the card behind is the same cream as --warn-soft, so the reply is a little stronger */ .sylsay.reason .syln{background:var(--marigold);color:var(--on-marigold)}
+.sylsay.pervasion{background:var(--good-soft)} .sylsay.pervasion .syln{background:var(--lapis);color:var(--on-lapis)}
+.sylsay.accept{background:var(--cell-ok-soft)} .sylsay.accept .syln{background:var(--cell-ok);color:var(--paper)}
+/* the structure, shown on request: the letters S, P and R in the squares of the checks, and what each reply says under its name */
+.sylkey{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.sylkey li{display:grid;grid-template-columns:26px minmax(0,1fr);gap:12px;align-items:start}
+.sylkl{display:inline-grid;place-items:center;width:26px;height:26px;border:1.5px solid var(--ink-muted);color:var(--ink-muted);font:700 13px/1 var(--body)}
+.sylkd{display:flex;flex-wrap:wrap;gap:0 6px;align-items:baseline;min-height:26px;padding-top:2px;font:400 14px/1.45 var(--body);overflow-wrap:anywhere}
+.sylkd small{flex-basis:100%;color:var(--ink-muted);font-size:13px}
+.sylsay .sylwords{display:grid;gap:2px;text-align:left}
+.sylsay .sylmeans{font:400 13px/1.4 var(--body);letter-spacing:0;text-transform:none;color:var(--ink-muted)}
+.sylex{display:grid;gap:10px}
+.sylex .sylright,.sylex .sylask2{margin:0}
+.sylex .sylright{font:400 14px/1.5 var(--body)}
+.sylex .sylask2{font:400 16px/1.6 var(--text-serif)}
+.sylex .sylright .m,.sylchk .sylmine .m{display:inline-block;width:1.4em;font-weight:700}
+.sylex .sylright .m.ok,.sylchk .sylmine .m.ok{color:var(--cell-ok)} .sylchk .sylmine .m.bad{color:var(--bad)} .sylchk .sylmine .m.cmp{color:var(--cell-open)}
+.sylex .sylnote{margin:0;padding-left:10px;border-left:2px solid var(--cell-uns-edge);font:400 14px/1.5 var(--body)}
+.sylex .chint{margin-top:-2px}
+.sylres{margin-top:12px}
+.sylres .sylwhat,.sylres .sylconf{margin:8px 0 0;font-size:14px;line-height:1.5}
+.sylres .sylconf{padding-left:10px;border-left:2px solid var(--line);color:var(--ink)}
+/* the sheet of the three checks: a check that does not hold is the fault to find, so it is marked in amber and by words, never as the wrong answer is (the first one is the reply) */
+.sylchecks{list-style:none;margin:12px 0 0;padding:0;border:1px solid var(--line);background:var(--paper)}
+.sylchk{display:grid;grid-template-columns:26px minmax(0,1fr);gap:12px;padding:12px 14px 12px 12px}
+.sylcb{min-width:0;overflow-wrap:anywhere} /* a long typed counter-example wraps inside the sheet */
+.sylchk+.sylchk{border-top:1px solid var(--line)}
+.sylchk.first{background:var(--warn-soft);box-shadow:inset 4px 0 0 var(--marigold)}
+.sylcn{display:inline-grid;place-items:center;width:26px;height:26px;border:1.5px solid var(--ink-muted);color:var(--ink-muted);font:700 13px/1 var(--body)}
+.sylchk.first .sylcn{background:var(--marigold);border-color:var(--marigold);color:var(--on-marigold)}
+.sylch,.sylcl{margin:0}
+.sylch{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;min-height:26px;font:400 14px/1.4 var(--body)}
+.sylch b{font-weight:700}
+.sylst{padding:3px 7px;border:1px solid var(--line);color:var(--ink-muted);font:600 11px/1.2 var(--body);letter-spacing:.04em;text-transform:uppercase}
+.sylchk.fails .sylst{border-color:var(--cell-uns-edge);background:var(--cell-uns-soft);color:var(--cell-uns)}
+.sylcl{margin-top:2px;font:400 14px/1.5 var(--body);color:var(--ink)}
+.sylchk .sylmine{margin:6px 0 0;font:400 14px/1.5 var(--body)}
+/* a row of the list of answers in Review: the mark and the syllogism, as the rows of Find a pair (no body to open) */
+.favs .sylrow{display:grid;grid-template-columns:20px minmax(0,1fr);gap:10px;padding:10px 4px;overflow-wrap:anywhere}
+@media (max-width:480px){
+  .sylt{font-size:19px}
+}
+/* the tutor's explanation under the checks, on a narrow screen */
+.sylwhy{margin-top:14px}

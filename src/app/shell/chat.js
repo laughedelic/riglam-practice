@@ -5,6 +5,7 @@ import { $, el } from "../core/dom.js";
 import { tbIcon } from "../core/icons.js";
 import { REL } from "../core/rel.js";
 import { isWide } from "../core/viewport.js";
+import { syllogismText } from "../../domain/syllogism.ts";
 import { askRow, fillTurn } from "../practice/screen.js";
 import { skipInto } from "../practice/skips.js";
 import { enter, leave } from "./motion.js";
@@ -67,7 +68,9 @@ function chatInto(o){
   // Find a pair: the pair is what is judged, and a pair of the learner's own stays open until Claude has said whether it has the relation (the overall grade is "pend" then, too)
   const r=state.ui.checked&&state.ui.res, fd=!!state.ui.find;
   const v=!r?"":r.relOpen?(r.relUns?"pair not settled":"pair not judged yet"):{ok:"all right",part:(fd?"pair":"relation")+" right, not everything else",pend:(fd?"pair":"relation")+" and cells right",bad:"not quite"}[r.overall];
-  d.append(el("p",{class:"ctx"},el("b",{text:p.a+" / "+p.b}),el("small",{text:(state.ui.find?"Asked for: "+REL[state.ui.rel].name:REL[p.relation].name)+(v?" · "+v:"")})));
+  // a syllogism has no pair: the sentence, and how the reply went
+  d.append(state.ui.syllogism?el("p",{class:"ctx"},el("b",{text:syllogismText(state.cur.c,state.syllogismWording)}),el("small",{text:state.ui.timeout?"Time is up":state.ui.grade.correct?"Right":"Not quite"}))
+    :el("p",{class:"ctx"},el("b",{text:p.a+" / "+p.b}),el("small",{text:(state.ui.find?"Asked for: "+REL[state.ui.rel].name:REL[p.relation].name)+(v?" · "+v:"")})));
   const dock=el("div",{class:"dock"});
   if(state.ui.ctl) dock.append(el("button",{class:"btn ghost",type:"button",onclick:()=>state.ui.ctl&&state.ui.ctl.abort(),text:"Stop"}));
   else if(canAsk()) dock.append(askRow("ask-in"));
@@ -80,7 +83,7 @@ export function renderOver(){
   const sess=state.sessOpen&&ex, ask=state.skipAsk&&ex;
   const kind=state.optsOpen?"options":ask?"skip":sess?"session":"chat", show=state.optsOpen||ask||sess||!!chat, was=!o.hidden&&o.dataset.kind===kind;
   if(!o.hidden&&(!show||!was)) leave(o); // what was open goes the way it came (another one may come in its place)
-  o.replaceChildren(); o.hidden=!show; o.dataset.kind=kind; o.setAttribute("aria-label",{options:"Settings",session:"Practice options",skip:"Skip this pair?",chat:"Discuss with AI"}[kind]);
+  o.replaceChildren(); o.hidden=!show; o.dataset.kind=kind; o.setAttribute("aria-label",{options:"Settings",session:"Practice options",skip:state.ui&&state.ui.syllogism?"Skip this syllogism?":"Skip this pair?",chat:"Discuss with AI"}[kind]);
   document.documentElement.classList.toggle("ov",show);
   // Whatever is open here (Settings, the question before a skip, the practice options, the phone's chat) covers the exercise and its bars, which cannot be reached by
   // the keyboard or a screen reader until it closes (Enter on a Check button hidden behind it would grade the pair). The menu is outside this column and stays:
