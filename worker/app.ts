@@ -87,6 +87,7 @@ export function createApp(deps: Deps) {
       reports: (await reportsOn(c.env.DB)) ? "on" : "off",
       ...(tutor && offered.on ? { quorum: offered.optIn ? ("optin" as const) : ("on" as const) } : {}),
       ...(tutor && readFactsConfig(c.env).serve ? { known: "on" as const } : {}),
+      ...(tutor && readFactsConfig(c.env).record ? { learns: "on" as const } : {}),
     };
     return c.json(body, 200, { "cache-control": "no-store" });
   });
@@ -231,9 +232,9 @@ export function createApp(deps: Deps) {
           console.error("settle failed", e instanceof Error ? e.name : typeof e),
         );
         if (outcome.error) await emit({ type: "error", code: outcome.error.code, message: outcome.error.message }).catch(() => {});
-        // What the answer says of the examples the page could not check is kept where the server is set to (docs/SERVER.md, "Learned facts").
+        // What the answer says of the examples the page could not check is kept where the server is set to, and only when the request says the learner shares them (docs/SERVER.md, "Learned facts").
         const examples = parsed.request.kind === "explain" ? (parsed.request.examples ?? []) : [];
-        if (examples.length && facts.record && (outcome.outcome === "answered" || outcome.outcome === "truncated")) {
+        if (examples.length && parsed.request.share && facts.record && (outcome.outcome === "answered" || outcome.outcome === "truncated")) {
           if (pool !== "quorum") heard = text.trim() ? [{ name: "Tutor", model: config.model, text }] : [];
           await keepFacts(env.DB!, { kit, cats: parsed.request.cats, examples, analyses: heard, quorum: pool === "quorum", day, maxRows: facts.maxRows }).catch((e) =>
             console.error("facts not kept", e instanceof Error ? e.name : typeof e),

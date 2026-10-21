@@ -21,6 +21,7 @@ const MAX_CHARS = 200;           // the longest example the server takes (src/ai
 /** Reads what the platform has of the server's learned facts: on start, and again after the Magic Key changed. (The reference examples are state.EX, core/examples.js.) */
 export async function loadKnown(platform){
   try{ state.known=platform.known?await platform.known():null; }catch(e){ state.known=null; }
+  try{ state.learns=!!(platform.shares&&await platform.shares()); }catch(e){ state.learns=false; }
 }
 
 /**
