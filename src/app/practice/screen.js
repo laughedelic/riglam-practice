@@ -173,10 +173,17 @@ export function relPopNode(){
     rest.flatMap(([k,t],i)=>[el("p",null,k?el("b",{text:k+": "}):null,withTerms(t,"rel"+i,new Set())),defCard("rel"+i)]),flagEditorNode("pop:rel"),
     el("button",{type:"button",class:"popx",onclick:e=>{ e.stopPropagation(); state.ui.pop=null; render(); },text:"Close"}));
 }
+// The example a cell holds when a fact the app's server learned settled its verdict ("from an earlier check", ai/known.js); a flag on the cell's note names it, and the server
+// disputes what it learned of it (docs/SERVER.md, "Learned facts"). undefined for any other cell.
+export function learnedThing(c){
+  const U=state.ui, r=U&&U.res&&U.res.cells[c]; if(!r||!r.learned) return undefined;
+  const t=U.debate?(U.ans[QCELL.indexOf(c)]||{}).text:(U.cells[c]||{}).t;
+  return String(t||"").trim().slice(0,200)||undefined;
+}
 export function popNode(){
   if(!state.ui||!state.ui.checked||!state.ui.pop||state.ui.pop==="rel") return null;
   const t=explainParts().cells[state.ui.pop]; if(!t) return null;
-  const fl=aiFlag(aiCase("explain","Claude’s note on "+(state.ui.debate?"Q"+(QCELL.indexOf(state.ui.pop)+1):CELL_NAME[state.ui.pop]),t,state.ui.pop),"pop:"+state.ui.pop), seen=new Set();
+  const fl=aiFlag(aiCase("explain","Claude’s note on "+(state.ui.debate?"Q"+(QCELL.indexOf(state.ui.pop)+1):CELL_NAME[state.ui.pop]),t,state.ui.pop,undefined,learnedThing(state.ui.pop)),"pop:"+state.ui.pop), seen=new Set();
   const f=explainParts().facts[state.ui.pop];
   return el("div",{class:"pop",role:"dialog","aria-label":"Claude's explanation",tabindex:"-1"},f?null:el("p",{class:"clh",text:"Why?"}),fl,f?factNode(f,whyHead(),"pop:"+state.ui.pop):[el("p",null,withTerms(t,"pop:"+state.ui.pop,seen)),defCard("pop:"+state.ui.pop)],flagEditorNode("pop:"+state.ui.pop),
     el("button",{type:"button",class:"popx",onclick:e=>{ e.stopPropagation(); state.ui.pop=null; render(); },text:"Close"}));
@@ -225,8 +232,9 @@ function askAfterKey(){
 }
 export const explainBtn=()=>{
   // a pair of one's own that Claude has not judged (Find a pair) can be asked again
-  if(!state.ui.checked||(state.ui.explained&&!state.ui.res.relOpen)||state.ui.ctl) return null;
-  if(canAsk()) return el("button",{class:"btn ghost xpl",type:"button",onclick:()=>ask(null,"explain"),text:state.ui.explained?"Ask again":state.ui.res.exOpen||state.ui.res.relOpen?"Check and explain":"Explain"});
+  const r=/** @type {any} */(state.ui.res)||{};   // Syllogisms have no result of cells
+  if(!state.ui.checked||(state.ui.explained&&!r.relOpen)||state.ui.ctl) return null;
+  if(canAsk()) return el("button",{class:"btn ghost xpl",type:"button",onclick:()=>ask(null,"explain"),text:state.ui.explained?"Ask again":r.exOpen||r.relOpen?"Check and explain":"Explain"});
   // The server has a tutor but this device has no Magic Key: the button is there, grayed, and says what it needs when tapped.
   if(state.unlock&&state.unlock.tutor) return el("button",{class:"btn ghost xpl needs-key",type:"button","aria-disabled":"true",title:"Explain needs the Magic Key",onclick:askAfterKey},lockIcon(),"Explain");
   return null;
@@ -319,7 +327,7 @@ export function cellView(s){
 const CELL_LN=/^[-•*\s]*(?:\*\*)?(?:both|a not b|b not a|neither|q[1-4])(?:\*\*)?\s*:/i;
 const REL_LN=/^[-•*\s]*(?:\*\*)?(?:common locus|pervasion|relation)(?:\*\*)?\s*:/i;
 export function fillTurn(node,t,lean){
-  if(!lean||t.kind!=="explain"||!t.content){ fillAns(node,t.content); return; }
+  if(!lean||t.kind!=="explain"||!t.content||(state.ui&&state.ui.syllogism)){ fillAns(node,t.content); return; }   // Syllogisms have no marks that show part of it
   const raw=String(t.content), lines=raw.split("\n");
   if(t.pending&&!/\n\s*$/.test(raw)) lines.pop();           // the last line may still be growing
   const wrong=!!(state.ui&&state.ui.res&&(state.ui.res.overall==="bad"||state.ui.res.overall==="part"||state.ui.res.relOpen)); // a pair Claude has not judged is not "right" either

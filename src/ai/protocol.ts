@@ -50,6 +50,12 @@ export interface TutorRequest {
    * the models said of each; it ignores the lines about any other example. A device that does not share its examples leaves the field out.
    */
   examples?: ExplainExample[];
+  /**
+   * The learner has been told that the server keeps these examples (the one-time dialog, or the switch "Share my examples" in Settings) and has not turned it off. A page sends it with
+   * `examples` only where the server said it keeps learned facts (health: `learns`); the server keeps nothing from a request without it, so a page
+   * that was open before the dialog existed records nothing.
+   */
+  share?: true;
 }
 
 /** One of the learner's examples in an explain request: its text as typed, and the cell it stands in. */
@@ -185,4 +191,6 @@ export interface Health {
   reports?: "on" | "off";
   /** `POST /api/known` answers from the learned facts (EXAMPLE_FACTS=serve); left out where it does not */
   known?: "on";
+  /** the server keeps what an explain answer says of the learner's examples (EXAMPLE_FACTS=record or serve), so the page tells the learner and offers the switch; left out where it does not */
+  learns?: "on";
 }

@@ -9,6 +9,7 @@ export const EXERCISES=[
   {k:"practice",name:"Relations",group:"Two terms",desc:"Pick how two terms relate, then give an example for each case that exists."},
   {k:"debate",name:"Pervasions",group:"Two terms",desc:"Answer the four questions on two terms, then pick how they relate."},
   {k:"find",name:"Find a pair",group:"Two terms",desc:"Take a relation and name two terms that have it, then give an example for each case."},
+  {k:"syllogism",name:"Syllogisms",group:"Reasons",desc:"A subject, a predicate and a reason: deny the reason, deny the pervasion, or accept it."},
   {k:"categories",name:"Categories",group:"One example",desc:"An example is shown: tick the categories it is in, then pick the most specific.",needs:"examples"}
 ];
 export const exName=k=>(EXERCISES.find(e=>e.k===k)||{name:""}).name;

@@ -17,7 +17,7 @@ const MAX_TURN_CHARS = 20_000;
 export function parseRequest(body: unknown): Parsed {
   const bad = (code: ErrorCode, message: string): Parsed => ({ ok: false, code, message });
   if (!body || typeof body !== "object" || Array.isArray(body)) return bad("bad_request", "the body is not an object");
-  const { kind, cats, turns, quorum, examples } = body as Record<string, unknown>;
+  const { kind, cats, turns, quorum, examples, share } = body as Record<string, unknown>;
   if (kind !== "chat" && kind !== "explain") return bad("bad_request", "unknown kind");
   if (!Array.isArray(cats) || cats.length > LIMITS.cats || cats.some((c) => typeof c !== "string" || c.length > 100)) return bad("bad_request", "cats must be at most two short strings");
   if (!Array.isArray(turns) || turns.length < 1) return bad("bad_request", "turns must be a list");
@@ -35,10 +35,11 @@ export function parseRequest(body: unknown): Parsed {
   if (list[0].role !== "user" || list[list.length - 1].role !== "user") return bad("bad_request", "the conversation must start and end with the learner");
   if (quorum !== undefined && typeof quorum !== "boolean") return bad("bad_request", "quorum must be true or false");
   if (examples !== undefined && !validExamples(examples)) return bad("bad_request", "examples must be a short list of {cell, text}");
+  if (share !== undefined && typeof share !== "boolean") return bad("bad_request", "share must be true or false");
   const named = kind === "explain" && Array.isArray(examples) && examples.length ? (examples as ExplainExample[]).map((e) => ({ cell: e.cell, text: e.text })) : null;
   return {
     ok: true,
-    request: { kind: kind as TutorKind, cats: cats as string[], turns: list.map((t) => ({ role: t.role, content: t.content })), ...(quorum ? { quorum: true } : {}), ...(named ? { examples: named } : {}) },
+    request: { kind: kind as TutorKind, cats: cats as string[], turns: list.map((t) => ({ role: t.role, content: t.content })), ...(quorum ? { quorum: true } : {}), ...(named ? { examples: named, ...(share === true ? { share: true as const } : {}) } : {}) },
   };
 }
 

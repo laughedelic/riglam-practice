@@ -36,6 +36,10 @@ export interface Cat {
   labels: string[];
   type: string;
   sense?: boolean;
+  /** how a thing of this category is said after "it is" (the syllogism drill); the first is the plain one. None: the drill leaves the category out */
+  phrases?: string[];
+  /** ids of the categories that everything in this one is also in, stated where the term hierarchy cannot show it (everyday categories) */
+  within?: string[];
 }
 
 /** An everyday or Dudra example with the categories it belongs to. */
@@ -49,6 +53,10 @@ export interface Item {
   body?: boolean;
   /** a non-existent (the horn of a rabbit) */
   ne?: boolean;
+  /** cannot follow "Take" in the syllogism drill (said in the second person) */
+  nosubject?: boolean;
+  /** a thing only the course's terms name (uncomposed space): the syllogism drill leaves it out of the everyday level */
+  dudraOnly?: boolean;
 }
 
 export interface DrillData {
@@ -62,6 +70,8 @@ export interface DrillData {
   sense?: string[];
   bodySkip: string[];
   nopair?: string[][];
+  /** groups of category ids whose things are mistaken for one another (the near misses of the syllogism drill) */
+  confusable?: string[][];
   /** short name -> the item it means ("chair" -> "a wooden chair") */
   aliases?: Record<string, string>;
   /** category id -> fine points for the tutor (full data only) */

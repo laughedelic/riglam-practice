@@ -1,0 +1,8 @@
+/* The one-time dialog before a device's examples are kept (ai/share-notice.js): a native modal dialog in the page's own look, like the question before a skip. */
+.sharedlg{box-sizing:border-box;width:min(26rem,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:auto;padding:18px 18px 16px;border:1.5px solid var(--ink);border-radius:0;background:var(--paper);color:var(--ink);box-shadow:4px 4px 0 var(--ink)}
+.sharedlg::backdrop{background:rgba(20,16,12,.38)}
+.sharedlg:focus{outline:0}
+.sharedlg h2{margin:0 0 8px;font:400 22px/1.2 var(--serif)}
+.sharedlg p{margin:0 0 12px;font:400 14px/1.55 var(--text-serif);color:var(--ink-muted)}
+.sharedlg .dact{margin:16px 0 12px}
+.sharedlg .sn-s{margin:0;font-size:13px}

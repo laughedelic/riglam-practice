@@ -45,6 +45,10 @@ export const state = {
   catsSession: [],  // the things finished on this page, oldest first: the run towards a level offer counts them before the database has handed them back (categories/flow.js)
   catsAsk: "all",  // Categories asks step 1 all at once ("all") or one category at a time ("one"; the practice options of the exercise, `rd-cats-ask`)
   catsOfferAt: "", // when the learner last answered the offer of another level (`rd-cats-offer`): only the answers after it count towards the next offer
+  syllogismRecent: [],    // the ids of the syllogisms drawn lately, oldest first: the draw of the next one leans away from them (syllogism/flow.js)
+  syllogismLevel: 2,      // the highest level Syllogisms draws from: 1 everyday things only, 2 also the terms of Dudra (the settings of the exercise, `rd-syllogism-level`)
+  syllogismWording: "take", // how a syllogism is said: "take" (the class's) or "formal" (`rd-syllogism-wording`)
+  syllogismGuide: false,    // the structure named under the sentence (S, P, R) and what each reply says in them, for a beginner (`rd-syllogism-guide`)
   findSuggest: true, // Find a pair offers the terms of the course while the pair is typed (the settings of Find a pair, `rd-findsuggest`); off: plain fields
   debates: {},
   own: "practice",
@@ -77,6 +81,10 @@ export const state = {
   quorumChoice: null,     // what this device chose in Options (`rd-quorum`): true, false, or null for not yet (then the server's default applies)
   quorum: false,          // Quorum is on for this device: its own choice, else the server's default (setQuorumOffer)
   autoExplain: true,   // a checked answer asks for its explanation by itself (Options); the Explain button is still there for one that was not asked
+  learns: false,       // the app's server keeps the examples the tutor checked (platform.shares): the dialog tells the learner, Settings offers the switch
+  shareExamples: true, // this device lets it (Settings, `rd-share`): an explain question names the examples the page could not check; off, it names none
+  shareTold: false,    // the learner has answered the dialog, or the switch (`rd-share-told`, ai/share-notice.js): until then no question carries the `share` marker
+  shareAsk: null,      // the one-time dialog is open: settles when the learner has answered it (ai/share-notice.js)
   flags: {},
   flagErr: "",
   flagPending: 0,
@@ -101,20 +109,23 @@ export const state = {
   bzHold: 0,         // the timer of a hold on the stopwatch in the top bar (shell/topbar.js)
   blitzUse: true,    // the Blitz page of the practice options can take the stopwatch away from the top bar altogether (on by default)
   relMs: undefined,  // the relation has its own time; it starts from the one time of earlier versions
+  sylMs: 15000,      // a syllogism has its own time (Syllogisms), stored as `rd-timer-syl`
 };
 
-try{ const v=localStorage.getItem("rd-ex"); if(v==="debate"||v==="find"||v==="categories") state.tab=state.own=v; }catch(e){}
+try{ const v=localStorage.getItem("rd-ex"); if(v==="debate"||v==="find"||v==="categories"||v==="syllogism") state.tab=state.own=v; }catch(e){}
 try{ state.menuPin=localStorage.getItem("rd-menu")!=="0"; }catch(e){ state.menuPin=true; }   // a wide screen starts with the menu pinned (the exercise would be stretched too wide without it); the button unpins it
 try{ const v=localStorage.getItem("rd-notation"); if(v==="sets"||v==="logic") state.nota=v; }catch(e){}
 try{ if(localStorage.getItem("rd-deflang")==="enru") state.defLang="enru"; }catch(e){}   // an earlier "off" (words only) is now the codes
 // the setting was stored as "rd-lab" while Quorum was a lab of the page: a device that turned it off keeps it off
 try{ let q=localStorage.getItem("rd-quorum"); if(q===null){ q=localStorage.getItem("rd-lab"); if(q!==null){ localStorage.setItem("rd-quorum",q); localStorage.removeItem("rd-lab"); } } state.quorumChoice=q===null?null:q!=="0"; }catch(e){}
 try{ state.autoExplain=localStorage.getItem("rd-autoexplain")!=="0"; }catch(e){}
+try{ state.shareExamples=localStorage.getItem("rd-share")!=="0"; state.shareTold=localStorage.getItem("rd-share-told")==="1"; }catch(e){}
 try{ state.recentOpen=localStorage.getItem("rd-recent")!=="0"; }catch(e){}
 try{ const v=localStorage.getItem("rd-findrel"); if(FIND_RELS.includes(/** @type {any} */(v))) state.findRel=/** @type {any} */(v); }catch(e){}
 try{ state.findSuggest=localStorage.getItem("rd-findsuggest")!=="0"; }catch(e){}
 try{ if(localStorage.getItem("rd-cats-ask")==="one") state.catsAsk="one"; state.catsOfferAt=localStorage.getItem("rd-cats-offer")||""; }catch(e){}
 try{ const v=localStorage.getItem("rd-exlevels"); if(v!==null) state.exLevels=normLevels(v); }catch(e){}
+try{ if(localStorage.getItem("rd-syllogism-wording")==="formal") state.syllogismWording="formal"; if(localStorage.getItem("rd-syllogism-level")==="1") state.syllogismLevel=1; state.syllogismGuide=localStorage.getItem("rd-syllogism-guide")==="1"; }catch(e){}
 try{ if(localStorage.getItem("rd-ab")==="0") state.showAB=false; if(localStorage.getItem("rd-full")==="0") state.fullPh=false; }catch(e){}
 try{
   const v=+localStorage.getItem("rd-timer"); if(v>=2000&&v<=120000) state.timerMs=v;
@@ -124,3 +135,4 @@ try{
 }catch(e){}
 state.relMs = state.timerMs;
 try{ const v=+localStorage.getItem("rd-timer-rel"); if(v>=2000&&v<=120000) state.relMs=v; }catch(e){}
+try{ const v=+localStorage.getItem("rd-timer-syl"); if(v>=2000&&v<=120000) state.sylMs=v; }catch(e){}
