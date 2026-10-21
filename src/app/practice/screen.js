@@ -1,7 +1,6 @@
 import { state } from "../state.js";
 import { aiCase, aiFlag, decorateAns, flagEditorNode } from "../ai/flags.js";
 import { quorumItem } from "../ai/quorum-panel.js";
-import { shareNotice } from "../ai/share-notice.js";
 import { ask, fillAns } from "../ai/tutor.js";
 import { CELL_NAME } from "../../ai-shared/prompts.ts";
 import { canAsk } from "../core/ask.js";
@@ -337,7 +336,7 @@ export function fillTurn(node,t,lean){
 }
 function inlineExplain(){
   if(!state.ui.chat&&!state.ui.chatErr) return null;
-  const box=el("div",{class:"tutor"},shareNotice()), first=latestExplain()||(state.ui.chat||[]).find(t=>t.role==="assistant");
+  const box=el("div",{class:"tutor"}), first=latestExplain()||(state.ui.chat||[]).find(t=>t.role==="assistant");
   if(first){ const a=el("div",{class:"ans",id:first.pending&&state.view!=="chat"?"ans-live":null}); fillTurn(a,first,true); decorateAns(a,first,state.ui.chat.indexOf(first),false); box.append(a); }
   if(state.ui.chatErr&&state.view!=="chat") box.append(el("p",{class:"status",text:state.ui.chatErr}));
   return box;
@@ -367,7 +366,7 @@ function quizNarrow(s){
 export function revealTutor(){ if(isWide()||state.view==="chat") return; const t=document.querySelector("#stage .tutor"); if(t) t.scrollIntoView({block:"nearest"}); }
 // the tutor conversation with its own follow-up field (wide screens: in the coach panel)
 export function renderTutor(){
-  const box=el("div",{class:"tutor"},shareNotice()); tutorTurns(box,false,true);
+  const box=el("div",{class:"tutor"}); tutorTurns(box,false,true);
   if(state.ui.ctl) box.append(el("div",{class:"actions"},el("button",{class:"btn ghost",type:"button",onclick:()=>state.ui.ctl&&state.ui.ctl.abort(),text:"Stop"})));
   else if(canAsk()) box.append(askRow("ask-in"));
   return box;

@@ -9,7 +9,7 @@
 //   keyHeld while it has one: enter another, or forget it (./unlock.ts)
 //   tutor   the app's own server (./tutor.ts), when it has the tutor on and this device has the Magic Key
 //   known   what that server learned of examples from earlier checks (./tutor.ts), when it answers from it (a Preview) and this device has the Magic Key
-//   shares  whether that server keeps the examples the tutor checked, when this device has the Magic Key (the one-time notice and the switch in the practice options)
+//   shares  whether that server keeps the examples the tutor checked, when this device has the Magic Key (the one-time dialog and the switch in Settings)
 //   reports flags sent to the app's own server (./reports.ts), when it takes them and this device has the Magic Key
 //   account optional sign-in with a passkey and a server copy of the documents (./account.ts), when the server has accounts on
 //   updates the service worker's new versions: checked in the background, started from the toast, the menu or Settings (./updates.ts)
@@ -208,7 +208,7 @@ export const pwaPlatform: Platform = {
   tutor: async () => (groupKey && (await tutorIsOn()) ? createTutor(groupKey) : null),
   // Only with the key, and only when the server says it answers from what it learned (a Preview set to; docs/SERVER.md, "Learned facts").
   known: async () => (groupKey && (await serverSaid()).known ? createKnown(groupKey) : null),
-  // Only with the key, and only when the server says it keeps the examples the tutor checked: the page then shows the notice and the switch.
+  // Only with the key, and only when the server says it keeps the examples the tutor checked: the page then asks once and shows the switch.
   shares: async () => !!(groupKey && (await serverSaid()).learns),
   // Only with the key, like the tutor, and only when the server says it takes reports: otherwise flags stay on the device.
   reports: async () => (groupKey && (await serverSaid()).reports ? createReports(groupKey) : null),

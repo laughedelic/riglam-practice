@@ -51,9 +51,9 @@ export interface TutorRequest {
    */
   examples?: ExplainExample[];
   /**
-   * The learner has been told that the server keeps these examples (the one-time notice, or the switch "Share my examples" in the practice options) and has not turned it off. A page sends it with
+   * The learner has been told that the server keeps these examples (the one-time dialog, or the switch "Share my examples" in Settings) and has not turned it off. A page sends it with
    * `examples` only where the server said it keeps learned facts (health: `learns`); the server keeps nothing from a request without it, so a page
-   * that was open before the notice existed records nothing.
+   * that was open before the dialog existed records nothing.
    */
   share?: true;
 }

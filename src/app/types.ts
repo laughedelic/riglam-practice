@@ -307,12 +307,14 @@ export interface State {
   quorum: boolean;
   /** a checked answer asks for its explanation by itself (Options, `rd-autoexplain`) */
   autoExplain: boolean;
-  /** the app's server keeps the examples the tutor checked (platform.shares): the notice tells the learner, the practice options offer the switch */
+  /** the app's server keeps the examples the tutor checked (platform.shares): the dialog tells the learner, Settings offers the switch */
   learns: boolean;
-  /** this device lets it (Practice options, `rd-share`): an explain question names the examples the page could not check; off, it names none */
+  /** this device lets it (Settings, `rd-share`): an explain question names the examples the page could not check; off, it names none */
   shareExamples: boolean;
-  /** the learner has answered the notice, or the switch (`rd-share-told`): until then no question carries the `share` marker */
+  /** the learner has answered the dialog, or the switch (`rd-share-told`): until then no question carries the `share` marker */
   shareTold: boolean;
+  /** the one-time dialog is open: settles when the learner has answered it (ai/share-notice.js) */
+  shareAsk: Promise<void> | null;
 
   // display settings, some kept on the device
   nota: "codes" | "sets" | "logic" | string;

@@ -4,6 +4,7 @@ import { ERR_OFF, canAsk } from "../core/ask.js";
 import { CELLS } from "../core/rel.js";
 import { isWide } from "../core/viewport.js";
 import { quorumBegin, quorumDropped, quorumEnd, quorumStep, quorumThings, quorumWanted } from "./quorum.js";
+import { askShare } from "./share-notice.js";
 import { persist } from "../practice/answers.js";
 import { factNode, fillTurn, noteData, revealTutor } from "../practice/screen.js";
 import { render, renderKeepFocus } from "../shell/render.js";
@@ -42,7 +43,7 @@ function openExamples(U){
   return quorumThings(U).filter(t=>t.text.length<=200).flatMap(t=>t.cells.filter(c=>U.res.cells[c]&&(U.res.cells[c].v==="cmp"||U.res.cells[c].half)).map(c=>({cell:c,text:t.text}))).slice(0,8);
 }
 // Whether this device shares its examples with the server, read where they are sent: another tab may have turned the switch off since this page started (`rd-share`),
-// and the opt-out wins; it stays in memory too, in case the storage cannot be read again. The same for having been told (another tab may have shown the notice).
+// and the opt-out wins; it stays in memory too, in case the storage cannot be read again. The same for having been told (another tab may have asked).
 function sharing(){
   try{ if(localStorage.getItem("rd-share")==="0") state.shareExamples=false; if(localStorage.getItem("rd-share-told")==="1") state.shareTold=true; }catch(e){}
   return state.shareExamples;
@@ -64,11 +65,16 @@ export async function ask(text,kind,byItself){
   const p=C.p, direct=!!state.sample;                  // the host's own model call, or else the app's server
   const quorum=kind==="explain"&&quorumWanted(U);     // the explanation of a checked answer is asked of Quorum, where this server offers it, this device has it on and an example is left to check
   const body=kind==="explain"?explainAsk(U):text;
-  // The server keeps the examples only with `share`, which a page sends where the server said it keeps learned facts and the learner was told (share-notice.js). The first
-  // question that names examples goes without it, and the notice comes with the answer.
-  const examples=!direct&&kind==="explain"&&sharing()?openExamples(U):[];
+  // The server keeps the examples only with `share`, which a page sends where the server said it keeps learned facts and the learner has been told (share-notice.js). The
+  // first question that would name examples waits for the learner's answer to the one-time dialog (the answer, yes or no, is kept on the device); a learner who left the
+  // answer meanwhile (the dialog covers the page, but the browser's Back does not wait for it) is asked nothing for it.
+  let examples=!direct&&kind==="explain"&&sharing()?openExamples(U):[];
+  if(examples.length&&state.learns&&!state.shareTold){
+    await askShare();
+    if(U!==state.ui||!canAsk()||U.ctl||(kind==="explain"&&U.explained)) return;
+    examples=sharing()?openExamples(U):[];
+  }
   const share=examples.length>0&&state.learns&&state.shareTold;
-  if(examples.length&&state.learns&&!state.shareTold) U.shareAsk=true;   // the card is shown with this answer until the learner has answered it (anywhere)
   // The server holds the standing instructions and the notes itself, so what it gets as the first turn is the card alone.
   if(!U.chat) U.chat=[{role:"user",content:(direct?tutorCard(state,p,U):cardBody(state,p,U))+"\n\n"+body, hidden:true, asked:kind?undefined:text}];   // `asked`: the question alone, for a flag on its answer
   else U.chat.push({role:"user",content:body,hidden:!!kind});
@@ -100,14 +106,11 @@ export async function ask(text,kind,byItself){
     if(kind==="explain") U.explained=false;
     if(quorum) quorumDropped(U);
     if(U.chat.length===1) U.chat=null;
-    delete U.shareAsk;                                      // the question failed or was stopped, so nothing was kept: no notice until it is asked again
     U.chatErr=errCopy(e);
     if(e&&ERR_OFF.includes(e.code)){ state.sample=null; state.tutor=null; }
   }
   U.ctl=null;
-  // the notice is a card with two buttons: the redraw keeps the focus on the one the learner is on, and the follow-up field does not take it
-  const noting=!!U.shareAsk&&!state.shareTold;
-  if(U===state.ui){ (byItself||noting?renderKeepFocus:render)(); if(byItself) return; if(kind==="explain") revealTutor(); const i=$("ask-in"); if(i&&!noting&&!("ontouchstart" in window)) i.focus(); }
+  if(U===state.ui){ draw(); if(byItself) return; if(kind==="explain") revealTutor(); const i=$("ask-in"); if(i&&!("ontouchstart" in window)) i.focus(); }
 }
 // `ctx` ({p, accepted}) reads the fact lines against a stored pair instead of the exercise on screen (practice/screen.js, factNode)
 export function fillAns(node,text,ctx){

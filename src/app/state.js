@@ -71,9 +71,10 @@ export const state = {
   quorumChoice: null,     // what this device chose in Options (`rd-quorum`): true, false, or null for not yet (then the server's default applies)
   quorum: false,          // Quorum is on for this device: its own choice, else the server's default (setQuorumOffer)
   autoExplain: true,   // a checked answer asks for its explanation by itself (Options); the Explain button is still there for one that was not asked
-  learns: false,       // the app's server keeps the examples the tutor checked (platform.shares): the notice tells the learner, the practice options offer the switch
-  shareExamples: true, // this device lets it (Practice options, `rd-share`): an explain question names the examples the page could not check; off, it names none
-  shareTold: false,    // the learner has answered the notice, or the switch (`rd-share-told`, ai/share-notice.js): until then no question carries the `share` marker
+  learns: false,       // the app's server keeps the examples the tutor checked (platform.shares): the dialog tells the learner, Settings offers the switch
+  shareExamples: true, // this device lets it (Settings, `rd-share`): an explain question names the examples the page could not check; off, it names none
+  shareTold: false,    // the learner has answered the dialog, or the switch (`rd-share-told`, ai/share-notice.js): until then no question carries the `share` marker
+  shareAsk: null,      // the one-time dialog is open: settles when the learner has answered it (ai/share-notice.js)
   flags: {},
   flagErr: "",
   flagPending: 0,

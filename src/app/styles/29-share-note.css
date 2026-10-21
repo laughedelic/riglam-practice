@@ -1,7 +1,8 @@
-/* The one-time notice before a device's examples are kept (ai/share-notice.js): a card at the head of the tutor's answer, in the flow of the page. */
-.sharenote{display:grid;gap:8px;padding:12px 14px;border:1.5px solid var(--ink);background:var(--paper);box-shadow:3px 3px 0 var(--ink);font-size:14px;line-height:1.45}
-.sharenote p{margin:0}
-.sharenote .sn-t{font-weight:700}
-.sharenote .sn-s{font-size:13px;color:var(--ink-muted)}
-.sharenote .sn-a{display:flex;flex-wrap:wrap;gap:8px}
-.sharenote .btn{height:36px;padding:0 12px}
+/* The one-time dialog before a device's examples are kept (ai/share-notice.js): a native modal dialog in the page's own look, like the question before a skip. */
+.sharedlg{box-sizing:border-box;width:min(26rem,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:auto;padding:18px 18px 16px;border:1.5px solid var(--ink);border-radius:0;background:var(--paper);color:var(--ink);box-shadow:4px 4px 0 var(--ink)}
+.sharedlg::backdrop{background:rgba(20,16,12,.38)}
+.sharedlg:focus{outline:0}
+.sharedlg h2{margin:0 0 8px;font:400 22px/1.2 var(--serif)}
+.sharedlg p{margin:0 0 12px;font:400 14px/1.55 var(--text-serif);color:var(--ink-muted)}
+.sharedlg .dact{margin:16px 0 12px}
+.sharedlg .sn-s{margin:0;font-size:13px}
