@@ -27,8 +27,8 @@ export function persist(u,what){
   if(!state.db||!u.doc||!u.saveId) return;
   saveAnswer(u.col||"answers",u.saveId,u.doc).then(()=>{ if(u.saveErr){ u.saveErr=""; if(u===state.ui) render(); } }).catch(e=>{
     const c=(e&&e.code)||"error";
-    // what is lost is said as the exercise has it: the others' answers are listed in Review, a syllogism is kept apart from those lists
-    const syl=u.doc&&u.doc.mode==="syllogism";
+    // what is lost is said as the exercise has it: the others' answers are listed in Review, a syllogism or a thing of Categories is kept apart from those lists
+    const syl=!!u.doc&&(u.doc.mode==="syllogism"||u.doc.mode==="categories");
     u.saveErr=NO_RETRY.includes(c)?what+" is on screen but could not be saved ("+c+"), so it will not "+(syl?"be kept.":"appear in Review.")
       :what+" is on screen but was not saved: the database did not respond. The page tries again after your next answer; until then it is "+(syl?"not kept.":"missing from Review.");
     if(u===state.ui) render();

@@ -32,3 +32,4 @@
 @import "./styles/28-menu.css"; /* the menu, the practice options sheet, the question before a skip */
 @import "./styles/29-share-note.css"; /* the one-time dialog before a device's examples are kept */
 @import "./styles/30-syllogism.css"; /* Syllogisms: the card with the syllogism and its three replies, the counter-example step, the result */
+@import "./styles/31-categories.css"; /* Categories: the thing, the ticks or yes and no, the split check, the most specific, the offer of a level */

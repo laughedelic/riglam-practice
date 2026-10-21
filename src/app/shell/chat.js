@@ -28,7 +28,7 @@ export function toggleCoach(on){ state.coachOpen=on===undefined?!state.coachOpen
 // a panel that is open can always be closed. A dot marks an answer of the tutor that is not on screen. Where the tutor cannot answer, a wide screen still has the panel
 // with the recent answers and the keys, and the button for it does not show a chat: it is the "recent" one, and it is always pressable.
 export function syncChatBtn(){
-  const b=/** @type {HTMLButtonElement} */($("mchat")), w=isWide(), u=state.ui, ex=state.mode==="quiz"&&isEx()&&!!u, ai=canAsk();
+  const b=/** @type {HTMLButtonElement} */($("mchat")), w=isWide(), u=state.ui, ex=state.mode==="quiz"&&isEx()&&!!u, ai=canAsk()&&!(u&&u.cats);   // the tutor does not know Categories yet: there, the button only opens the panel of recent answers
   b.hidden=!ex||(!w&&!ai); if(b.hidden) return;
   const label=w?(ai?"Tutor’s chat and recent answers":"Recent answers"):"Discuss with AI";
   const waiting=!!u.chat&&u.chat.some(t=>t.role==="assistant"&&!t.pending&&t.content)&&(w?!state.coachOpen:state.view!=="chat");
@@ -83,7 +83,7 @@ export function renderOver(){
   const sess=state.sessOpen&&ex, ask=state.skipAsk&&ex;
   const kind=state.optsOpen?"options":ask?"skip":sess?"session":"chat", show=state.optsOpen||ask||sess||!!chat, was=!o.hidden&&o.dataset.kind===kind;
   if(!o.hidden&&(!show||!was)) leave(o); // what was open goes the way it came (another one may come in its place)
-  o.replaceChildren(); o.hidden=!show; o.dataset.kind=kind; o.setAttribute("aria-label",{options:"Settings",session:"Practice options",skip:state.ui&&state.ui.syllogism?"Skip this syllogism?":"Skip this pair?",chat:"Discuss with AI"}[kind]);
+  o.replaceChildren(); o.hidden=!show; o.dataset.kind=kind; o.setAttribute("aria-label",{options:"Settings",session:"Practice options",skip:state.ui&&state.ui.syllogism?"Skip this syllogism?":state.ui&&state.ui.cats?"Skip this example?":"Skip this pair?",chat:"Discuss with AI"}[kind]);
   document.documentElement.classList.toggle("ov",show);
   // Whatever is open here (Settings, the question before a skip, the practice options, the phone's chat) covers the exercise and its bars, which cannot be reached by
   // the keyboard or a screen reader until it closes (Enter on a Check button hidden behind it would grade the pair). The menu is outside this column and stays:

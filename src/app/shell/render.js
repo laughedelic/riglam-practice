@@ -2,6 +2,7 @@ import { state } from "../state.js";
 import { canAsk } from "../core/ask.js";
 import { $, el } from "../core/dom.js";
 import { isWide, syncVv, wideMq } from "../core/viewport.js";
+import { renderCategories } from "../categories/screen.js";
 import { renderSyllogism } from "../syllogism/screen.js";
 import { asking, startQ } from "../debate/flow.js";
 import { renderDebate } from "../debate/screen.js";
@@ -27,7 +28,7 @@ export function ago(iso){
   const h=Math.round(m/60); if(h<24) return h+" h";
   const d=Math.round(h/24); return d===1?"1 day":d+" days";
 }
-export const isEx=()=>state.tab==="practice"||state.tab==="debate"||state.tab==="find"||state.tab==="syllogism";
+export const isEx=()=>state.tab==="practice"||state.tab==="debate"||state.tab==="find"||state.tab==="syllogism"||state.tab==="categories";
 // the three steps of a narrow screen; go[i] makes step i a button
 export function setSteps(labels,on,go){
   const st=$("steps"); st.replaceChildren(); st.hidden=false;
@@ -70,7 +71,7 @@ export function renderKeepFocus(){ const f=btnSig(); render(); btnBack(f); }
 export const focusCin=()=>{ const i=$("cin"); if(i) i.focus({preventScroll:true}); };
 function screenSig(){
   const p=state.cur&&state.cur.p;
-  return [state.tab,state.mode,state.view,state.optsOpen?1:0,state.sessOpen?1:0,state.sessPage||"",state.skipAsk?1:0,state.coachOpen?1:0,isWide()?1:0,p?(p.id||p.a+"|"+p.b):state.cur&&state.cur.c?state.cur.c.id:"",state.ui?[state.ui.checked?1:0,state.ui.step||0,state.ui.ci||0,state.ui.rel?1:0,state.ui.open?1:0,state.ui.debate?1:0,state.ui.find?1:0].join(""):""].join("/");
+  return [state.tab,state.mode,state.view,state.optsOpen?1:0,state.sessOpen?1:0,state.sessPage||"",state.skipAsk?1:0,state.coachOpen?1:0,isWide()?1:0,p?(p.id||p.a+"|"+p.b):state.cur&&state.cur.c?state.cur.c.id:state.cur&&state.cur.q?state.cur.q.thing.n:"",state.ui?[state.ui.checked?1:0,state.ui.step||0,state.ui.ci||0,state.ui.rel?1:0,state.ui.open?1:0,state.ui.debate?1:0,state.ui.find?1:0,state.ui.i||0].join(""):""].join("/");
 }
 export function render(){
   const sig=screenSig(), keep=sig===state.lastSig?["stage","coach","over","opts"].map(id=>{ const n=$(id); return /** @type {[string, number]} */([id,n?n.scrollTop:0]); }):null;
@@ -88,8 +89,8 @@ function renderNow(){
   if(drawerGone&&state.blitz&&asking()&&!state.ui.tq) startQ();
   ensureRelTimer();
   // the tutor's panel closes with the pair it was opened for, so a new pair never starts with a chat panel that has only the recent answers in it; where there is no
-  // tutor the panel is the recent answers and the keys, and stays open as long as it is wanted
-  if(state.lastUi!==state.ui){ if(state.lastUi&&(state.lastUi.chat||canAsk())) state.coachOpen=false; state.lastUi=state.ui; }
+  // tutor (or in Categories, which the tutor does not know) the panel is the recent answers and the keys, and stays open as long as it is wanted
+  if(state.lastUi!==state.ui){ if(state.lastUi&&(state.lastUi.chat||(canAsk()&&!state.lastUi.cats))) state.coachOpen=false; state.lastUi=state.ui; }
   const app=$("app"), s=$("stage"), c=$("coach"), f=focusKey(), coach=w&&state.mode==="quiz"&&isEx()&&state.coachOpen;
   if(!c.hidden&&!coach) leave(c,true);
   app.dataset.tab=state.tab; app.dataset.wide=w?"1":"0"; app.dataset.coach=coach?"1":"0"; const opened=c.hidden&&coach; c.hidden=!coach; if(opened) enter(c,true,{persistent:true});
@@ -103,6 +104,7 @@ function renderNow(){
   else if(state.mode==="quiz"){
     if(state.tab==="debate"&&state.ui&&state.ui.debate) renderDebate(s,c);
     else if(state.tab==="find"&&state.ui&&state.ui.find) renderFind(s,c);
+    else if(state.tab==="categories"&&state.ui&&state.ui.cats) renderCategories(s,c);
     else if(state.tab==="syllogism"&&state.ui&&state.ui.syllogism) renderSyllogism(s,c);
     else renderQuiz(s,c);
   }

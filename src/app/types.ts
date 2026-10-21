@@ -7,6 +7,7 @@ import type { ExampleIndex } from "../ai-shared/examples";
 import type { About, Unlock, Updates } from "../platform/types";
 import type { AnswerView, DebateAnswer } from "../ai-shared/card";
 import type { CellId, RelKey } from "../ai-shared/relations";
+import type { PlaceGrade, PlaceQuestion } from "../domain/place";
 import type { Syllogism, Pervasion, Reply, Situation, Wording } from "../domain/syllogism";
 import type { Pair, PoolEntry, Verdict } from "../domain/types";
 import type { Account, Db, Known, Reports, Sample, Tutor } from "../platform/types";
@@ -45,7 +46,7 @@ export interface AnswerDoc {
   pairId: string;
   batchId?: string | null;
   /** "debate": a Pervasions answer (collection `debates`); "find": a Find a pair answer, kept in `answers` and left out of the Relations lists */
-  mode?: "debate" | "find" | "syllogism";
+  mode?: "debate" | "find" | "categories" | "syllogism";
   a: string;
   b: string;
   catA?: string | null;
@@ -71,6 +72,30 @@ export interface AnswerDoc {
   verifiedAt?: string;
 }
 export type DebateDoc = AnswerDoc & { mode: "debate"; qs: QuestionDoc[] };
+
+/** collection `answers`, mode "categories": one thing placed (the Categories exercise), left out of the Relations lists like Find a pair's. */
+export interface CategoriesDoc {
+  /** the id of the document */
+  pairId: string;
+  mode: "categories";
+  /** the reference example, as the data names it */
+  thing: string;
+  /** its level, 1 to 4 */
+  level: number;
+  /** step 1: every category offered, whether the thing is in it, and what the learner said */
+  rows: { cat: string; yes: boolean; said: boolean }[];
+  /** step 2, when it was asked: the categories the thing is in, the most specific of them, and the one the learner picked */
+  narrow?: { options: string[]; right: string; picked: string };
+  /** step 1 was all right */
+  s1: boolean;
+  /** step 2 was right; absent when it was not asked */
+  s2?: boolean;
+  /** how the thing went: right when both parts asked are right */
+  grade: PlaceGrade;
+  /** how step 1 was asked: all at once or one by one */
+  ask: "all" | "one";
+  at: string;
+}
 
 /** collection `answers`, mode "syllogism": one answer to a syllogism (the Syllogisms exercise), left out of the Relations lists like Find a pair's. `catA` is the category of the reason and `catB` that of the predicate, as the draw reads them. */
 export interface SyllogismDoc {
@@ -215,6 +240,9 @@ export interface Current {
   debate?: boolean;
   /** Find a pair (src/app/find): there is no pair in `p` (it is null, though typed as a pair) until the learner has named one */
   find?: boolean;
+  /** Categories (src/app/categories): there is no pair in `p` (it is null), the thing and its categories on screen are `q` */
+  cats?: boolean;
+  q?: PlaceQuestion;
   /** Syllogisms (src/app/syllogism): there is no pair in `p` (it is null), the syllogism on screen is `c` */
   syllogism?: boolean;
   c?: Syllogism;
@@ -281,7 +309,7 @@ export interface State {
 
   // the stored collections as the page holds them
   batches: BatchDoc[];
-  /** every document of the collection `answers`, also those of Find a pair and, in another shape, of Syllogisms (`isSyllogism`, core/util.js); the lists that mean Relations leave those out */
+  /** every document of the collection `answers`, also those of Find a pair and, in another shape, of Categories and Syllogisms (`isCategories`, `isSyllogism`, core/util.js); the lists that mean Relations leave those out */
   answers: Record<string, AnswerDoc>;
   debates: Record<string, DebateDoc>;
   favs: Record<string, FavDoc>;
@@ -319,6 +347,14 @@ export interface State {
   recent: string[];
   /** the relations Find a pair asked for lately, oldest first */
   findAsked: RelKey[];
+  /** names of the things Categories asked lately, oldest first: the draw passes them over while others remain (categories/flow.js) */
+  catsRecent: string[];
+  /** the things of Categories finished on this page, oldest first: the run towards a level offer counts them before the database has handed them back (categories/flow.js) */
+  catsSession: CategoriesDoc[];
+  /** how Categories asks step 1: all at once, or one category at a time (`rd-cats-ask`) */
+  catsAsk: "all" | "one";
+  /** when the learner last answered the offer of another level (a time, `rd-cats-offer`): only answers after it count towards the next offer */
+  catsOfferAt: string;
   /** ids of the syllogisms drawn lately, oldest first: the draw leans away from them (syllogism/flow.js) */
   syllogismRecent: string[];
   /** the highest level the Syllogisms draw reaches: 1 everyday things only, 2 also the terms of Dudra (`rd-syllogism-level`) */

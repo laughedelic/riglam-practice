@@ -15,6 +15,9 @@ async function snapshot(page) {
     // the foot of the menu (the Magic Key button, the version and the update line) is the platform's own, and a wide screen shows the menu from the start
     const app = document.getElementById("app").cloneNode(true);
     app.querySelector("#menu .mfoot")?.remove();
+    // Categories is in the menu only where the device holds reference examples (the artifact carries them, the PWA gets them with the Magic Key), and the exercises are headed in two groups only then
+    app.querySelector('#menu [data-go="categories"]')?.remove();
+    app.querySelectorAll("#menu .mgrp").forEach((n) => n.remove());
     return { html: app.outerHTML, boxes, scrollW: document.documentElement.scrollWidth, innerW: innerWidth };
   });
 }

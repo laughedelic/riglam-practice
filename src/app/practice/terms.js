@@ -141,7 +141,7 @@ function upLine(n,live){
   })));
 }
 // How well the sources confirm an example (the reference examples, docs/DATA.md), as the card says it. No source is named.
-const CONFIRMATION={confirmed:"in two or more sources",textbook:"in the course textbook",commentator:"from a commentary"};
+export const CONFIRMATION={confirmed:"in two or more sources",textbook:"in the course textbook",commentator:"from a commentary"};
 // Examples of the term, under its definition: a few, the plainest first, each with its level and how well it is confirmed; tapping one says why it is a good example.
 function examplesNode(n){
   if(!state.EX) return null;

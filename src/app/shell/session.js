@@ -3,6 +3,7 @@ import { setQuorum } from "../ai/quorum.js";
 import { canAsk } from "../core/ask.js";
 import { $, el } from "../core/dom.js";
 import { tbIcon } from "../core/icons.js";
+import { setCategoriesAsk } from "../categories/flow.js";
 import { asking, setBlitz, setTimer, startQ, stopTimer } from "../debate/flow.js";
 import { WORDINGS } from "../debate/text.js";
 import { NOT } from "../../ai-shared/debate.ts";
@@ -51,6 +52,8 @@ export function toggleSess(on){
   else { const b=$("msess"); if(b.offsetParent) b.focus({preventScroll:true}); }
 }
 function openPage(id){ state.sessPage=id; render(); const b=document.querySelector("#over .ob"); if(b) /** @type {HTMLElement} */(b).focus({preventScroll:true}); }
+/** The Examples page of the practice options: where the levels are switched, and what an offer of another level points to. */
+export function openLevelOptions(){ if(!state.sessOpen) toggleSess(true); openPage("levels"); }
 /** The Blitz page of the practice options: what holding the stopwatch in the top bar opens. */
 export function openBlitzOptions(){ if(!state.sessOpen) toggleSess(true); openPage("times"); }
 /** Back or Escape in the options: from a page to the list, from the list to the exercise. */
@@ -109,10 +112,21 @@ function pageBody(id){
     ...(!state.blitzUse?[]:state.tab==="syllogism"?[timeBlock("syl","Syllogism time","The Blitz countdown for the reply to each syllogism, in Syllogisms.")]
       :[timeBlock("rel","Relation time","The Blitz countdown for choosing the relation, in Relations and in Pervasions."),
         timeBlock("ex","Example time","The Blitz countdown for each example in Relations (a table of three cells gets three times this) and for each question in Pervasions.")])];
-  if(id==="levels") return [el("p",{class:"capl",text:"The examples shown for the cells of a pair, besides the plain ones the page has always had, come from the levels that are on, in any mix. Each level up takes more steps to reach. Level 1 is the start; switch more on when it comes easily. Relations and negations join when level 3 or 4 is on. Only examples the sources confirm are shown. A definition card shows examples of every level, the plainest first."}),
+  if(id==="levels") return [el("p",{class:"capl",text:state.tab==="categories"
+    ?"The things Categories shows come from the levels that are on, in any mix. Each level up takes more steps to reach: level 1 is the start, and another level is offered after five right in a row. Switch levels on and off here at any time."
+    :"The examples shown for the cells of a pair, besides the plain ones the page has always had, come from the levels that are on, in any mix. Each level up takes more steps to reach. Level 1 is the start; switch more on when it comes easily. Relations and negations join when level 3 or 4 is on. Only examples the sources confirm are shown. A definition card shows examples of every level, the plainest first."}),
     levelSwitches()];
   return [el("p",{class:"capl",text:"Shown when you open a term’s definition, in the Terms panel and in the tutor’s notes."}),
     picks("Languages of the definitions",[["en","English","The definition in English."],["enru","English + Russian","Each entry also shows the Russian name of the term and, where there is one, its Russian definition."]],state.defLang,setDefLang)];
+}
+// Categories has no pair, notation or Blitz, so it shows only what it uses
+function categoriesBody(){
+  return [
+    row("Ask",chips("How step 1 asks",[["all","All at once"],["one","One by one"]],state.catsAsk,setCategoriesAsk),
+      "All at once: the categories come together and you tick the ones the thing is in. One by one: a question for each category, answered with yes or no. It applies at once to a thing you have not started, and from the next one otherwise."),
+    state.EX?card("Examples",levelsLine(),"levels"):null,
+    el("p",{class:"capl"},"The Magic Key, your account, data and the version are in ",el("button",{type:"button",class:"lnk",onclick:()=>{ toggleSess(false); toggleOpts(true); }},"Settings"),".")
+  ];
 }
 // Syllogisms has no terms to read and no notation, so it shows only what it uses (and the tutor's switch, where the tutor can answer)
 function syllogismBody(){
@@ -130,6 +144,7 @@ function syllogismBody(){
   ];
 }
 function listBody(){
+  if(state.tab==="categories") return categoriesBody();
   if(state.tab==="syllogism") return syllogismBody();
   const perv=state.tab==="debate", find=state.tab==="find", timed=state.tab==="practice"||perv;
   // the Quorum row and the Share my examples row (Settings, options.js) each say what the server keeps; each says the other is separate
