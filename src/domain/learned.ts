@@ -162,7 +162,9 @@ export function learn(stored: FactRow | null, r: Ruling, at: { src: FactSource; 
   if (!stored) return fresh();
   const seen = { ...stored, text: at.text, seen: stored.seen + 1, last_day: at.day };
   if (stored.state === "reviewed") return seen;
-  if (stored.epoch !== epoch || !definite(stored.answer)) return fresh();
+  if (stored.epoch !== epoch) return fresh();
+  // an unsure row starts again with the next analysis, but a dispute (a flag's, or the models') is closed only by the maintainer
+  if (!definite(stored.answer)) return stored.state === "disputed" ? { ...fresh(), state: "disputed" } : fresh();
   const heard = { ...seen, models: r.votes, src: at.src };
   if (!definite(r.answer)) return heard;
   if (r.strength === "split" || r.answer !== stored.answer) return { ...heard, state: "disputed", against: stored.against + 1 };

@@ -44,8 +44,18 @@ function explain(ask: string): string {
   ].join("\n");
 }
 
+/** What the card of a syllogism starts with (src/ai-shared/syllogism.ts): its explanation has the lines of the three checks, not a pair's. */
+const SYLLOGISM_CARD = "This is the Syllogisms mode.";
+const explainSyllogism = (): string => [
+  `Reason: ${DEV_MARK}, no model was asked, so this line says nothing about the subject and the reason.`,
+  "Pervasion: whether whatever is the reason is also the predicate, as the page's line says.",
+  `Explanation: ${DEV_MARK}. Check the reason first, then the pervasion.`,
+  "Misconception: none.",
+].join("\n");
+
 function reply(turns: Turns): string {
   const ask = askOf(lastUserText(turns));
+  if (/^Explain this answer/.test(ask) && (typeof turns === "string" ? turns : turns.map((t) => t.content).join("\n")).includes(SYLLOGISM_CARD)) return explainSyllogism();
   if (/^Explain this (answer|debate)/.test(ask)) return explain(ask);
   return `${DEV_MARK}: no model is called here. You asked: “${ask.slice(0, 160)}”`;
 }
