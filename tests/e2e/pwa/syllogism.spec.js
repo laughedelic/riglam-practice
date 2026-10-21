@@ -169,7 +169,7 @@ test("a counter-example that is not one makes the result partly right; one left 
   await page.locator(".pbar .fwd").click(); // Check
   await expect(headline(page)).toHaveText("Right, but the counter-example is not one.");
   await expect(page.locator(".sylres")).toHaveClass(/part/);
-  await expect(page.locator(".sylchk .sylmine")).toContainText("it is no counter-example");
+  await expect(page.locator(".sylchk .sylmine")).toContainText(/(it is|you are) no counter-example/);
   const [doc] = await expect.poll(async () => (await saved(page)).length).toBe(1).then(() => saved(page));
   expect(doc).toMatchObject({ situation: 2, said: "pervasion", correct: true, grade: "part", example: { verdict: "bad" } });
   await next(page).click();
