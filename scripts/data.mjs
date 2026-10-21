@@ -16,6 +16,7 @@ import { join } from "node:path";
 import { files, readExamples, readFull, readOpen, readParts, writeFull, writeIfChanged, hasAnyExamples, hasCourse, hasAnyCourse, hasExamples, root } from "./lib/course-files.mjs";
 import { WORDS } from "./lib/wordlist.mjs";
 import { madeUpCourse, madeUpExamples } from "./lib/made-up-course.mjs";
+import { rowStatements } from "./lib/course-sql.mjs";
 import { deviceExamples, examplesProblems } from "../src/data/examples.js";
 
 const args = process.argv.slice(2);
@@ -39,16 +40,12 @@ function randomWords(n) {
   return out.join("-");
 }
 
-const q = (text) => `'${text.replaceAll("'", "''")}'`;
-
-/** The statements that put the parts into the course_data table (the examples when there are any); a part that did not change keeps its version. */
+/** The statements that put the parts into the course_data table (the examples when there are any); a part that did not change keeps its version, and a part too long for one D1 statement goes in pieces (./lib/course-sql.mjs). */
 function statements(now = new Date().toISOString()) {
   const { definitions, notes } = readParts();
   const examples = readExamples();
   const rows = [["definitions", definitions], ["notes", notes], ...(examples ? [["examples", examples.full], ["examples_device", examples.device]] : [])];
-  return rows.map(([kind, value]) =>
-    `INSERT INTO course_data (kind, body, updated_at) VALUES (${q(kind)}, ${q(JSON.stringify(value))}, ${q(now)}) ` +
-    `ON CONFLICT (kind) DO UPDATE SET updated_at = CASE WHEN body = excluded.body THEN updated_at ELSE excluded.updated_at END, body = excluded.body;`);
+  return rows.flatMap(([kind, value]) => rowStatements(kind, JSON.stringify(value), now));
 }
 
 /** The terms of the open data that have no entry in definitions.json: every term has a definition, so a gap means an incomplete import. */
