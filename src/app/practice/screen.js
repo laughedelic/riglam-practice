@@ -173,10 +173,17 @@ export function relPopNode(){
     rest.flatMap(([k,t],i)=>[el("p",null,k?el("b",{text:k+": "}):null,withTerms(t,"rel"+i,new Set())),defCard("rel"+i)]),flagEditorNode("pop:rel"),
     el("button",{type:"button",class:"popx",onclick:e=>{ e.stopPropagation(); state.ui.pop=null; render(); },text:"Close"}));
 }
+// The example a cell holds when a fact the app's server learned settled its verdict ("from an earlier check", ai/known.js); a flag on the cell's note names it, and the server
+// disputes what it learned of it (docs/SERVER.md, "Learned facts"). undefined for any other cell.
+export function learnedThing(c){
+  const U=state.ui, r=U&&U.res&&U.res.cells[c]; if(!r||!r.learned) return undefined;
+  const t=U.debate?(U.ans[QCELL.indexOf(c)]||{}).text:(U.cells[c]||{}).t;
+  return String(t||"").trim().slice(0,200)||undefined;
+}
 export function popNode(){
   if(!state.ui||!state.ui.checked||!state.ui.pop||state.ui.pop==="rel") return null;
   const t=explainParts().cells[state.ui.pop]; if(!t) return null;
-  const fl=aiFlag(aiCase("explain","Claude’s note on "+(state.ui.debate?"Q"+(QCELL.indexOf(state.ui.pop)+1):CELL_NAME[state.ui.pop]),t,state.ui.pop),"pop:"+state.ui.pop), seen=new Set();
+  const fl=aiFlag(aiCase("explain","Claude’s note on "+(state.ui.debate?"Q"+(QCELL.indexOf(state.ui.pop)+1):CELL_NAME[state.ui.pop]),t,state.ui.pop,undefined,learnedThing(state.ui.pop)),"pop:"+state.ui.pop), seen=new Set();
   const f=explainParts().facts[state.ui.pop];
   return el("div",{class:"pop",role:"dialog","aria-label":"Claude's explanation",tabindex:"-1"},f?null:el("p",{class:"clh",text:"Why?"}),fl,f?factNode(f,whyHead(),"pop:"+state.ui.pop):[el("p",null,withTerms(t,"pop:"+state.ui.pop,seen)),defCard("pop:"+state.ui.pop)],flagEditorNode("pop:"+state.ui.pop),
     el("button",{type:"button",class:"popx",onclick:e=>{ e.stopPropagation(); state.ui.pop=null; render(); },text:"Close"}));
