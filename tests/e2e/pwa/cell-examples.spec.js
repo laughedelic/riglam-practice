@@ -1,6 +1,6 @@
-// The reference examples as references of a pair's cells, from the levels the learner switched on in Options ("Examples"). The examples are
+// The reference examples as references of a pair's cells, from the levels the learner switched on in the practice options ("Examples"). The examples are
 // invented (a plain and a second-level one for every term of the open data) and served by a stand-in for the server
-// (tests/support/data-key.js); the row exists only on a device that holds examples, and the levels that are on decide which are drawn.
+// (tests/support/data-key.js); the card exists only on a device that holds examples, and the levels that are on decide which are drawn.
 import { test, expect } from "../../support/test.js";
 import { ready } from "../../support/page.js";
 import { dataKey, KEY_STORE, serveCourse } from "../../support/data-key.js";
@@ -19,15 +19,20 @@ const part = () => ({
   },
 });
 const openOptions = async (page) => {
-  await page.getByRole("button", { name: /options/i }).filter({ visible: true }).first().click();
+  await page.getByRole("button", { name: "Practice options" }).click();
   await expect(page.locator("#opts")).toBeVisible();
 };
-const examplesRow = (page) => page.locator(".orow").filter({ has: page.locator(".tl", { hasText: "Examples" }) });
+const examplesCard = (page) => page.locator(".ocard").filter({ hasText: "Examples" });
+// the page of the Examples card: the switches of the levels
+const intoLevels = async (page) => {
+  await examplesCard(page).getByRole("button", { name: "Examples: details" }).click();
+  return page.locator(".lvls");
+};
+const openLevels = async (page) => { await openOptions(page); return intoLevels(page); };
 const levelSwitch = (row, level) => row.getByRole("switch", { name: new RegExp(`^Level ${level} `) });
 // switches on the levels asked for and the others off (the last level on cannot be switched off, so the ones to add go first)
 const levelsOn = async (page, wanted) => {
-  await openOptions(page);
-  const row = examplesRow(page);
+  const row = await openLevels(page);
   for (const off of [false, true]) {
     for (const l of [1, 2, 3, 4]) {
       if (wanted.includes(l) === off) continue;
@@ -36,7 +41,7 @@ const levelsOn = async (page, wanted) => {
       await sw.click();
     }
   }
-  await page.keyboard.press("Escape");
+  await page.locator("#over .oc").click();
 };
 // the references of 400 drawn pairs
 const drawn = (page) => page.evaluate(() => {
@@ -47,14 +52,15 @@ const drawn = (page) => page.evaluate(() => {
 
 test.beforeEach(async ({ page }) => { await page.addInitScript(hook); });
 
-test("Options has an Examples row with a switch and an explanation for each level when the device holds examples, and none without", async ({ page }) => {
+test("the practice options have an Examples card with a switch and an explanation for each level when the device holds examples, and none without", async ({ page }) => {
   await withKey(page);
   await serveCourse(page, dataKey, { stub: true, examples: part() });
   await page.goto("/");
   await ready(page);
   await expect.poll(() => page.evaluate(() => !!window.__t.EX)).toBe(true);
   await openOptions(page);
-  const row = examplesRow(page);
+  await expect(examplesCard(page), "the card says which levels are on").toContainText("Level 1");
+  const row = await intoLevels(page);
   await expect(row.getByRole("switch")).toHaveCount(4);
   await expect(row.locator(".lvl")).toHaveCount(4);
   await expect(row.locator(".lvl").first()).toContainText("Plain things");
@@ -74,11 +80,11 @@ test("Options has an Examples row with a switch and an explanation for each leve
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
 });
 
-test("the row is not there without examples", async ({ page }) => {
+test("the card is not there without examples", async ({ page }) => {
   await page.goto("/");
   await ready(page);
   await openOptions(page);
-  await expect(page.locator(".orow .tl", { hasText: "Examples" })).toHaveCount(0);
+  await expect(examplesCard(page)).toHaveCount(0);
 });
 
 test("the levels that are on decide which reference examples are drawn into the cells, and they are kept", async ({ page }) => {

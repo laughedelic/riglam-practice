@@ -11,7 +11,7 @@ export async function loadExamples(platform){
   try{ const ex=platform.examples?readExamples(await platform.examples()):null; state.EX=ex&&ex.items.length?makeExampleIndex(ex):null; }catch(e){ state.EX=null; }
 }
 
-/** What each level is, for its switch in Options: a name and a sentence (the levels are explained in docs/DATA.md). */
+/** What each level is, for its switch in the practice options: a name and a sentence (the levels are explained in docs/DATA.md). */
 export const LEVEL_INFO={
   1:["Plain things","Everyday things as they are: a clay pot, smoke, a color. No twist."],
   2:["One step","One twist on a plain thing: its absence, its cause, a mind that sees it. Or a term that needs a short note."],
