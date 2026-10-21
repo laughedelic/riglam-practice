@@ -11,6 +11,7 @@ const fresh = () => { const db = new DatabaseSync(":memory:"); db.exec(table); r
 const load = (db: DatabaseSync, kind: string, body: string, now: string) => { for (const s of rowStatements(kind, body, now)) db.exec(s); };
 const row = (db: DatabaseSync, kind: string) => db.prepare("SELECT body, updated_at AS at FROM course_data WHERE kind = ?").get(kind) as { body: string; at: string } | undefined;
 /** Text with apostrophes and characters of one to four bytes (Latin, Cyrillic, Chinese, Tibetan, an emoji), as the course data has. */
+const LONE_SURROGATE = /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/;
 const text = (n: number) => Array.from({ length: n }, (_, i) => ["it's ", "слово ", "名字", "ཨོཾ", "🙂", "x"][i % 6]).join("");
 
 test("pieces cut by bytes of the quoted text, never inside a character, and give the text back", () => {
@@ -18,7 +19,10 @@ test("pieces cut by bytes of the quoted text, never inside a character, and give
   const parts = pieces(body, 1_000);
   expect(parts.length).toBeGreaterThan(10);
   expect(parts.join("")).toBe(body);
-  for (const p of parts) expect(Buffer.byteLength(p.replaceAll("'", "''"))).toBeLessThanOrEqual(1_000);
+  for (const p of parts) {
+    expect(Buffer.byteLength(p.replaceAll("'", "''"))).toBeLessThanOrEqual(1_000);
+    expect(p, "no piece starts or ends inside an emoji").not.toMatch(LONE_SURROGATE);
+  }
   expect(pieces("", 10)).toEqual([""]);
   expect(pieces("short")).toEqual(["short"]);
 });
