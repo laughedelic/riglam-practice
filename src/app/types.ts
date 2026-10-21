@@ -321,6 +321,8 @@ export interface State {
   syllogismLevel: 1 | 2;
   /** how a syllogism is worded (`rd-syllogism-wording`) */
   syllogismWording: Wording;
+  /** the structure named under the sentence, and what each reply says in S, P and R (`rd-syllogism-guide`) */
+  syllogismGuide: boolean;
   /** the relation Find a pair keeps asking for, picked by the learner (`rd-findrel`); null: a different one each time */
   findRel: RelKey | null;
   /** Find a pair offers the terms of the course while the pair is typed (Options, `rd-findsuggest`) */

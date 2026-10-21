@@ -20,10 +20,17 @@ const CHECKS=/** @type {const} */([["e","Reason","established","not established"
 // the sentence, with the subject, the predicate and the reason set apart
 const sentence=c=>el("p",{class:"sylt",lang:"en"},syllogismPieces(c,state.syllogismWording).map(x=>typeof x==="string"?x:el("b",{class:"syl-"+x.part,text:x.text})));
 
-// the replies in the order of the checks, each with its own tint and its number (the key that gives it)
+// the structure, for a beginner (the option "Show the structure"): which part is which, and what each reply says in S, P and R
+const KEY=/** @type {const} */([["S","subject","the subject","what the syllogism is about"],["P","predicate","the predicate","what is said of it"],["R","reason","the reason","what is offered as proof"]]);
+const MEANS={reason:"S is not R.",pervasion:"S is R, but not everything that is R is P.",accept:"S is R, and everything that is R is P."};
+const structure=c=>el("ul",{class:"sylkey","aria-label":"The parts of the syllogism"},KEY.map(([letter,part,name,what])=>
+  el("li",null,el("span",{class:"sylkl",text:letter}),el("span",{class:"sylkd"},el("b",{text:name+": "}),el("b",{class:"syl-"+part,text:c[part]}),el("small",{text:what})))));
+
+// the replies in the order of the checks, each with its own tint and its number (the key that gives it); with the structure shown, each also says what it means (its name stays the reply, the meaning is its description)
 function replies(){
   return el("div",{class:"sylask",role:"group","aria-label":"Your reply"},REPLIES.map(r=>
-    el("button",{type:"button",class:"btn ghost sylsay "+r,onclick:()=>saySyllogism(r)},el("span",{class:"syln","aria-hidden":"true",text:keyOfReply(r)}),SAY[r])));
+    el("button",{type:"button",class:"btn ghost sylsay "+r,onclick:()=>saySyllogism(r),...(state.syllogismGuide?{"aria-label":SAY[r],"aria-describedby":"sylmean-"+r}:{})},el("span",{class:"syln","aria-hidden":"true",text:keyOfReply(r)}),
+      state.syllogismGuide?el("span",{class:"sylwords"},SAY[r],el("small",{class:"sylmeans",id:"sylmean-"+r,text:MEANS[r]})):SAY[r])));
 }
 // after a right "there is no pervasion": a thing that is the reason and is not the predicate; empty goes on without one
 function exampleStep(c){
@@ -76,6 +83,7 @@ function recent(box){
 export function renderSyllogism(s,c){
   const u=state.ui, k=shownSyllogism(), w=isWide();
   const card=el("div",{class:"qcard sylcard"},sentence(k));
+  if(u.step===0&&state.syllogismGuide) card.append(structure(k));
   if(u.step===0) card.append(replies());
   if(u.step===1) card.append(exampleStep(k));
   s.append(card);
