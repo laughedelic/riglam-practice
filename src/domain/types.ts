@@ -23,6 +23,8 @@ export interface CellResult {
   by?: string;
   /** settled as not fitting by one known side of the example; the other side is still the tutor's to say */
   half?: boolean;
+  /** settled from a fact the app's server learned of an earlier check (the tag "from an earlier check"): a flag on the cell's note names the example, so that the server disputes the fact */
+  learned?: boolean;
 }
 
 /** What grading produces before the counts are added. */

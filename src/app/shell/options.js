@@ -2,13 +2,16 @@ import { state } from "../state.js";
 import { accountControls } from "../../ui/account";
 import { dataTransferControls } from "../../ui/data-transfer";
 import { MAGIC_KEY_NOTE } from "../../ui/magic-key-note.ts";
+import { setShare } from "../ai/share-notice.js";
+import { canAsk } from "../core/ask.js";
 import { $, el } from "../core/dom.js";
 import { asking, startQ, stopTimer } from "../debate/flow.js";
 import { overHead } from "./chat.js";
 import { render } from "./render.js";
-import { settingRow as row } from "./rows.js";
+import { settingRow as row, switchOf } from "./rows.js";
 
 /* ---------- Settings: what belongs to the app, the device and the account (how an exercise looks and ticks is in its Practice options, session.js) ---------- */
+// Sharing the learner's examples is here, not in the practice options: it is set once and forgotten (the dialog of ai/share-notice.js asks the first time, and points here).
 // Settings opens from the menu over the exercise, with a back arrow; Back or Escape closes it. (In the code it is still `optsOpen`.)
 // The Blitz clock does not run behind the panel: it stops when Settings opens and starts again, with its full time, when it closes (as when you come back to an exercise).
 export function toggleOpts(on){
@@ -37,6 +40,16 @@ function aboutNode(a){
     el("p",{class:"onote"+(!u&&a.latest==="newer"?" bad":""),role:"status",text:status}),
     btn);
 }
+// Where the app's server keeps the examples the tutor checked (`state.learns`): the device's say in it. Using the switch counts as having been told.
+function shareRow(){
+  const on=state.shareExamples, known=!!state.known, quorum=!!(state.quorumOffered&&state.db);
+  return el("div",{class:"orow"},switchOf("Share my examples",on?"on":"off",on,()=>{ setShare(!on); render(); }),
+    el("p",{class:"onote",text:"When the AI tutor checks an example the page could not, this app\u2019s server keeps the words of the example (not who wrote it, which pair it was for, or where you put it)"
+      +(known?", so that the same example can be checked later without the AI.":", to build a shared reference of examples with other learners.")
+      +(known?" Your checks are answered from what it learned this way, from your examples and from other people\u2019s.":"")
+      +" Turn this off to keep your examples out of it: checks work as before"+(known?", and you still get answers learned from other people\u2019s examples":"")+"."
+      +(quorum?" Quorum, in the practice options, is separate: it keeps its own runs, whatever this says.":"")}));
+}
 export function optionsInto(o){
   o.append(overHead("Settings",()=>toggleOpts(false),"Back to the exercise"));
   const box=el("div",{class:"opts",id:"opts"});
@@ -49,6 +62,7 @@ export function optionsInto(o){
     state.keyHeld?row(mkBtn(),keyControls(),
       state.keyAsk?"Forget the Magic Key on this device? The definitions and the tutor close again until a key is entered. Your answers and settings stay. An account that carries the key gives it back when you sign in."
         :"This device has the Magic Key, so the definitions and the tutor are open. If the study group changed the key, enter the new one; or forget the key on this device.","key",mkPop()):null,
+    canAsk()&&state.learns?shareRow():null,
     state.account&&state.db&&state.account.view().available?row("Account",accountControls(state.account,el,render,state.acct)):null,
     state.db?row("Your data",dataTransferControls(state.db,el,render,state.xfer),"Saves everything this device keeps (answers, debates, favorites, skipped pairs and these settings) in one file, as a backup or to move to another device. Importing adds what is missing and never deletes anything."):null,
     state.about?row("Version and updates",aboutNode(state.about)):null,

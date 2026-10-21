@@ -22,7 +22,7 @@ export async function openMenu(page) {
   await expect(menu).toBeVisible();
 }
 
-const SCREENS = { Relations: "practice", Pervasions: "debate", "Find a pair": "find", Review: "review", Settings: "settings" };
+const SCREENS = { Relations: "practice", Pervasions: "debate", "Find a pair": "find", Syllogisms: "syllogism", Review: "review", Settings: "settings" };
 /** Goes to a screen as a learner would: from the menu. */
 export async function goTo(page, name) {
   if (await page.locator("#over").isVisible()) await page.keyboard.press("Escape");

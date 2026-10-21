@@ -3,7 +3,7 @@
 // server with routes: what the page sends, how a cell it learns about reads, that the explanation is then asked only about the rest, and that a
 // server that does not answer leaves everything as it was.
 import { test, expect } from "../../support/test.js";
-import { ready, relOptions, isPhone } from "../../support/page.js";
+import { ready, relOptions, isPhone, openSettings } from "../../support/page.js";
 import { dataKey, withCourse } from "../../support/data-key.js";
 import { checkProof } from "../../../src/ai/proof.ts";
 import { REL } from "../../../src/ai-shared/relations.ts";
@@ -21,7 +21,7 @@ const fits = (e) => ({ cell: e.cell, text: e.text, line: `${CELL[e.cell]}: "${e.
 const failed = (e) => ({ cell: e.cell, text: e.text, line: `${CELL[e.cell]}: "${e.text}" | class: Table | A ${e.cell === "both" || e.cell === "anb" ? "no" : "yes"}: of its use | B unsure: `, by: "learned", half: true });
 
 /** Stands in for the server: `known(body)` answers POST /api/known as {status, body}; the tutor gives a plain answer. The requests are kept. */
-async function server(page, { health = { ok: true, tutor: "on", known: "on" }, known = (body) => ({ status: 200, body: { known: body.examples.map(fits) } }) } = {}) {
+async function server(page, { health = { ok: true, tutor: "on", known: "on" }, known = (body) => ({ status: 200, body: { known: body.examples.map(fits) } }), say = () => PLAIN } = {}) {
   const asked = { known: [], tutor: [] };
   await page.route("**/api/health", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(health) }));
   await page.route("**/api/known", async (route) => {
@@ -33,7 +33,7 @@ async function server(page, { health = { ok: true, tutor: "on", known: "on" }, k
   });
   await page.route("**/api/tutor", (route) => {
     asked.tutor.push({ body: route.request().postDataJSON() });
-    return route.fulfill({ status: 200, contentType: "text/event-stream", body: PLAIN });
+    return route.fulfill({ status: 200, contentType: "text/event-stream", body: say() });
   });
   return asked;
 }
@@ -116,6 +116,34 @@ withKey("an example the server knows on one side only, and that side fails its c
   expect((await cellsOf(page))[first.cell]).toMatchObject({ v: "bad", half: true });
 });
 
+// the flag on a cell's note names the example when a learned fact settled the cell, so that the server disputes the fact (worker/learned.ts, flagFacts)
+withKey("a flag on the note of a cell that a learned fact settled names the example", async ({ page }, testInfo) => {
+  const sent = [];
+  let first;
+  const asked = await open(page, testInfo, {
+    health: { ok: true, tutor: "on", known: "on", reports: "on" },
+    known: (body) => { first = body.examples[0]; return { status: 200, body: { known: [fits(first)] } }; },
+    // the explanation has a line for the learned cell, so that the cell has a note ("?")
+    say: () => sse({ type: "delta", text: fits(first).line }, { type: "done", truncated: false }),
+  }, {
+    before: (p) => p.route("**/api/flags", (route) => {
+      const body = route.request().postDataJSON();
+      sent.push(body);
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ stored: (body.send || []).map((r) => r.id), withdrawn: [] }) });
+    }),
+  });
+  await expect.poll(async () => (await cellsOf(page))[first?.cell]?.v).toBe("ok");
+  await explain(page).click();
+  await expect.poll(() => asked.tutor.length).toBe(1);
+  await page.locator(".qm").first().click();
+  await page.locator(".pop .aiflag").click();
+  await page.fill("#flag-note", "A table is not round.");
+  await page.getByRole("button", { name: "Submit" }).click();
+  await expect.poll(() => sent.flatMap((b) => b.send || []).length).toBe(1);
+  const report = sent.flatMap((b) => b.send || [])[0];
+  expect(report.flag).toMatchObject({ part: "explain", n: first.cell, thing: first.text });
+});
+
 // the server refuses a whole question for one example over 200 characters, so a long one never goes with the others
 withKey("an example too long for the server is left out of the question, and the others are still asked", async ({ page }, testInfo) => {
   const long = "a very long description of a thing, " + "x".repeat(220);
@@ -153,6 +181,7 @@ withKey("the page asks nothing of a server whose health does not offer it", asyn
   await expect.poll(() => asked.tutor.length).toBe(1);
   expect(asked.known).toHaveLength(0);
   expect(asked.tutor[0].body.examples.length).toBeGreaterThan(0);
+  expect(asked.tutor[0].body).not.toHaveProperty("share"); // a server that said nothing of keeping examples is not told the learner shares them
 });
 
 // the reference examples a device holds (GET /api/course/examples, kept in riglam.examples): a thing that does not exist is in neither category, whatever the pair
@@ -170,4 +199,196 @@ withKey("the course's reference examples on the device settle an example they na
   // nothing was left to ask the server
   await page.waitForTimeout(300);
   expect(asked.known).toHaveLength(0);
+});
+
+// the server keeps the examples the tutor checked (health says `learns`): the first explain question that names a learner's examples waits for a dialog that has to be
+// answered, Ok or Don't share, and then goes out with the answer (so that first check is kept too, where the answer is yes). Settings keeps the switch: it is set once and
+// forgotten, so it is not among the practice options of an exercise.
+const share = (page) => page.getByRole("switch", { name: /share my examples/i });
+const openPractice = (page) => page.getByRole("button", { name: "Practice options" }).click();
+const closeOptions = (page) => page.locator("#over .oc").click();
+const dialog = (page) => page.getByRole("dialog", { name: "Share your examples?" });
+const saved = (page) => page.evaluate(() => [localStorage.getItem("rd-share"), localStorage.getItem("rd-share-told")]);
+const LEARNS = { health: { ok: true, tutor: "on", learns: "on" }, known: () => ({ status: 200, body: { known: [] } }) };
+/** A device that was told before: no dialog, and the marker is sent. */
+const told = { before: (page) => page.addInitScript(() => { if (!localStorage.getItem("rd-share-told")) localStorage.setItem("rd-share-told", "1"); }) };
+
+withKey("Settings offer the switch only where the server says it keeps examples", async ({ page }, testInfo) => {
+  await open(page, testInfo, { health: { ok: true, tutor: "on" } });
+  await openSettings(page);
+  await expect(page.locator("#over .opts")).toBeVisible();
+  await expect(share(page)).toHaveCount(0);
+});
+
+withKey("the switch is in Settings, not among the practice options of an exercise, which point to it", async ({ page }, testInfo) => {
+  await open(page, testInfo, LEARNS);
+  await openPractice(page);
+  await expect(page.getByText("Check every answer with AI")).toBeVisible();
+  await expect(share(page)).toHaveCount(0);
+  await expect(page.locator("#over .capl")).toContainText("sharing your examples");
+  await closeOptions(page);
+  await openSettings(page);
+  await expect(share(page)).toBeVisible();
+});
+
+withKey("the first explain question that names examples waits for a dialog with no way out but its two answers; Ok sends the question with the marker, once", async ({ page }, testInfo) => {
+  const asked = await open(page, testInfo, LEARNS);
+  await expect(dialog(page)).toHaveCount(0);
+  const pair = () => page.evaluate(() => window.__t.cur.p.a + "|" + window.__t.cur.p.b);
+  const was = await pair();
+  await explain(page).click();
+  await expect(dialog(page)).toBeVisible();
+  await expect(dialog(page)).toContainText("we all build knowledge together");
+  await expect(dialog(page)).toContainText("nothing about who you are is kept");
+  await expect(dialog(page)).toContainText("leave names out");
+  await expect(dialog(page)).toContainText("in Settings");
+  await expect(dialog(page)).not.toContainText("answers sooner"); // this server does not answer from what it keeps
+  const box = await dialog(page).boundingBox();
+  const { width, height } = page.viewportSize();
+  expect(box.x).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width).toBeLessThanOrEqual(width);
+  expect(box.y + box.height).toBeLessThanOrEqual(height);
+  // nothing is asked, and nothing behind it answers a key, until the learner has answered
+  for (const key of ["Escape", "Escape", "n", "Enter"]) await page.keyboard.press(key);
+  await page.waitForTimeout(300);
+  await expect(dialog(page)).toBeVisible();
+  expect(asked.tutor).toHaveLength(0);
+  expect(await pair()).toBe(was);
+  // a browser that closes it anyway (a second Escape in some) gets it opened again, with the focus on the dialog and not on the button an Enter would press
+  await page.evaluate(() => document.querySelector(".sharedlg").close());
+  await expect(dialog(page)).toBeVisible();
+  expect(await page.evaluate(() => document.activeElement.className)).toBe("sharedlg");
+  await dialog(page).getByRole("button", { name: "Ok", exact: true }).click();
+  await expect(dialog(page)).toHaveCount(0);
+  await expect.poll(() => asked.tutor.length).toBe(1);
+  expect(asked.tutor[0].body.share).toBe(true); // the first check is kept too
+  expect(asked.tutor[0].body.examples.length).toBeGreaterThan(0);
+  expect(await saved(page)).toEqual(["1", "1"]);
+  await page.reload();
+  await ready(page);
+  await answer(page);
+  await explain(page).click();
+  await expect.poll(() => asked.tutor.length).toBe(2);
+  expect(asked.tutor[1].body.share).toBe(true);
+  await expect(dialog(page)).toHaveCount(0); // once only
+});
+
+withKey("Don't share in the dialog sends the question without the examples, and the answer stays after a reload", async ({ page }, testInfo) => {
+  const asked = await open(page, testInfo, LEARNS);
+  await explain(page).click();
+  await expect(dialog(page)).toBeVisible();
+  await dialog(page).getByRole("button", { name: /don.t share/i }).click();
+  await expect.poll(() => asked.tutor.length).toBe(1);
+  expect(asked.tutor[0].body.kind).toBe("explain");
+  expect(asked.tutor[0].body).not.toHaveProperty("examples");
+  expect(asked.tutor[0].body).not.toHaveProperty("share");
+  expect(await saved(page)).toEqual(["0", "1"]);
+  await page.reload();
+  await ready(page);
+  await openSettings(page);
+  await expect(share(page)).toHaveAttribute("aria-checked", "false");
+  await closeOptions(page);
+  await answer(page);
+  await explain(page).click();
+  await expect.poll(() => asked.tutor.length).toBe(2);
+  expect(asked.tutor[1].body).not.toHaveProperty("examples");
+  await expect(dialog(page)).toHaveCount(0);
+});
+
+withKey("the switch in Settings tells the device's answer too, so no dialog follows", async ({ page }, testInfo) => {
+  const asked = await open(page, testInfo, LEARNS);
+  await openSettings(page);
+  await expect(page.getByText("keeps the words of the example")).toBeVisible();
+  await expect(page.getByText("not who wrote it, which pair it was for, or where you put it")).toBeVisible();
+  // the server does not answer from what it learned here (no `known`), so the note does not promise it
+  await expect(page.getByText("you still get answers learned from other people")).toHaveCount(0);
+  await expect(page.getByText("checked later without the AI")).toHaveCount(0); // nor that the same example is answered without the AI
+  await expect(share(page)).toHaveAttribute("aria-checked", "true");
+  await share(page).click();
+  await expect(share(page)).toHaveAttribute("aria-checked", "false");
+  await share(page).click();
+  await expect(share(page)).toHaveAttribute("aria-checked", "true");
+  expect(await saved(page)).toEqual(["1", "1"]);
+  await closeOptions(page);
+  await explain(page).click();
+  await expect.poll(() => asked.tutor.length).toBe(1);
+  expect(asked.tutor[0].body.share).toBe(true);
+  await expect(dialog(page)).toHaveCount(0);
+});
+
+withKey("where the server also answers from what it keeps, the dialog says other learners get answers sooner", async ({ page }, testInfo) => {
+  await open(page, testInfo, { ...LEARNS, health: { ok: true, tutor: "on", known: "on", learns: "on" } });
+  await explain(page).click();
+  await expect(dialog(page)).toContainText("other learners get answers sooner");
+});
+
+withKey("with Check every answer with AI on, the dialog comes by itself after the check, and the explanation waits for it", async ({ page }, testInfo) => {
+  const asked = await open(page, testInfo, LEARNS, { autoExplain: "1" });
+  await expect(dialog(page)).toBeVisible();
+  expect(asked.tutor).toHaveLength(0);
+  await dialog(page).getByRole("button", { name: /don.t share/i }).click();
+  await expect.poll(() => asked.tutor.length).toBe(1);
+  expect(asked.tutor[0].body).not.toHaveProperty("examples");
+});
+
+withKey("a device that was told sends the marker with its first question", async ({ page }, testInfo) => {
+  const asked = await open(page, testInfo, LEARNS, told);
+  await explain(page).click();
+  await expect.poll(() => asked.tutor.length).toBe(1);
+  expect(asked.tutor[0].body.share).toBe(true);
+  expect(asked.tutor[0].body.examples.length).toBeGreaterThan(0);
+  await expect(dialog(page)).toHaveCount(0);
+});
+
+withKey("a switch turned off in another tab is honored by this one before it names examples", async ({ page }, testInfo) => {
+  const asked = await open(page, testInfo, LEARNS, told);
+  // the other tab's write
+  await page.evaluate(() => localStorage.setItem("rd-share", "0"));
+  await explain(page).click();
+  await expect.poll(() => asked.tutor.length).toBe(1);
+  expect(asked.tutor[0].body.kind).toBe("explain");
+  expect(asked.tutor[0].body).not.toHaveProperty("examples");
+  expect(asked.tutor[0].body).not.toHaveProperty("share");
+  await expect(dialog(page)).toHaveCount(0);
+  await openSettings(page);
+  await expect(share(page)).toHaveAttribute("aria-checked", "false");
+});
+
+withKey("a server that keeps no examples asks nothing", async ({ page }, testInfo) => {
+  const asked = await open(page, testInfo, { health: { ok: true, tutor: "on" } });
+  await explain(page).click();
+  await expect.poll(() => asked.tutor.length).toBe(1);
+  await expect(dialog(page)).toHaveCount(0);
+  expect(asked.tutor[0].body).not.toHaveProperty("share"); // a server that said nothing of keeping examples is not told the learner shares them
+});
+
+withKey("Settings and the practice options say that the sharing switch and Quorum are separate, each for what it keeps", async ({ page }, testInfo) => {
+  await open(page, testInfo, { health: { ok: true, tutor: "on", learns: "on", quorum: "optin" } });
+  await openSettings(page);
+  await expect(page.getByText("Quorum, in the practice options, is separate")).toBeVisible();
+  await closeOptions(page);
+  await openPractice(page);
+  await expect(page.getByText("in Settings says, with or without Quorum")).toBeVisible();
+  await expect(page.getByText("nothing is kept")).toHaveCount(0);
+});
+
+withKey("where the server also answers from what it learned, the switch's note says so", async ({ page }, testInfo) => {
+  await open(page, testInfo, { health: { ok: true, tutor: "on", known: "on", learns: "on" } });
+  await openSettings(page);
+  await expect(page.getByText("you still get answers learned from other people")).toBeVisible();
+  await expect(page.getByText("checked later without the AI")).toBeVisible();
+});
+
+withKey("on a wide screen the dialog is in the middle of the window and answers the same", async ({ page }, testInfo) => {
+  const asked = await open(page, testInfo, LEARNS);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await explain(page).click();
+  await expect(dialog(page)).toBeVisible();
+  const box = await dialog(page).boundingBox();
+  expect(Math.abs(box.x + box.width / 2 - 640)).toBeLessThan(2);
+  expect(Math.abs(box.y + box.height / 2 - 400)).toBeLessThan(2);
+  await dialog(page).getByRole("button", { name: "Ok", exact: true }).click();
+  await expect.poll(() => asked.tutor.length).toBe(1);
+  expect(asked.tutor[0].body.share).toBe(true);
+  await expect(page.locator("#coach")).toBeVisible();
 });
