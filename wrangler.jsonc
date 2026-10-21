@@ -41,7 +41,13 @@
     "CEREMONIES_PER_DAY": "2000",
     "REVIEW_MODELS": "claude-sonnet-5-5,claude-opus-5-5",
     "REVIEW_DAILY_BUDGET_USD": "1.00",
-    "REVIEW_BATCH": "5"
+    "REVIEW_BATCH": "5",
+    // Quorum (docs/SERVER.md, "Quorum") is an opt-in here: offered to a device with the Magic Key and off until the device turns it on in Options, because a run
+    // waits for three models and a judge. It keeps a record of every run (the answers and what the learner wrote) in this database. Budgets of its own, apart from the tutor's.
+    "QUORUM": "optin",
+    "QUORUM_DEVICE_DAILY_BUDGET_USD": "1.00",
+    "QUORUM_GLOBAL_DAILY_BUDGET_USD": "4",
+    "QUORUM_RESERVE_USD": "0.40"
   },
   // The review of flag reports (worker/review.ts, docs/SERVER.md): a pass every ten minutes. It looks at one table first and does
   // nothing, at no cost, when no report waits. Cron triggers run on the deployed Worker only, not on preview URLs.
@@ -56,9 +62,8 @@
   // inherit the settings above except the static files and the compatibility date. What they have is this block: the same tutor
   // settings with lower budgets, persisted logs, and one shared database of their own (never production's), so a pull request that
   // changes the server or the schema cannot touch production data. Previews share its budget counters and accounts.
-  // QUORUM turns on the tutor's mode of several models and a judge (docs/SERVER.md, "Quorum"): it is here and nowhere else, so production does not offer it
-  // ("optin" would offer it with a device default of off, for a server that offers it to the public),
-  // and it keeps a record of every run in this database (the examples learners checked and the answers). Quorum has budgets of its own, apart from the tutor's;
+  // QUORUM turns on the tutor's mode of several models and a judge (docs/SERVER.md, "Quorum"): "on" is for Previews only: a device has it on until it turns it off. Production has "optin" (above), off for a device until it turns it on.
+  // It keeps a record of every run in this database (the examples learners checked and the answers). Quorum has budgets of its own, apart from the tutor's;
   // a run that finds them used up is answered by the one model, from the tutor's.
   // The secrets ANTHROPIC_API_KEY and RIGLAM_DATA_KEY are not here: they come from the Preview base config (`wrangler preview base-config
   // secret put`), which a Preview copies when it is created. `npm run staging -- deploy` applies the database's migrations before it deploys
@@ -84,7 +89,10 @@
       "QUORUM": "on",
       "QUORUM_DEVICE_DAILY_BUDGET_USD": "3",
       "QUORUM_GLOBAL_DAILY_BUDGET_USD": "12",
-      "QUORUM_RESERVE_USD": "0.40"
+      "QUORUM_RESERVE_USD": "0.40",
+      // Learned facts (docs/SERVER.md): keep what an explain answer says of each example the page could not check, in this database, and answer
+      // later checks of the same examples from it (POST /api/known). Production has no such setting yet, so it keeps and answers none.
+      "EXAMPLE_FACTS": "serve"
     },
     "d1_databases": [{ "binding": "DB", "database_name": "riglam-practice-staging", "database_id": "5c0fcda4-2f7e-4c18-b1ee-ef287d217d49" }]
   }

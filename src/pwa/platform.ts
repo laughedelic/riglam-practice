@@ -5,16 +5,18 @@
 //   quorum  whether the app's server offers Quorum, the tutor's mode of several models and a judge: only a Preview does (docs/SERVER.md), and
 //           only to a device that has the Magic Key. Otherwise the page has no Quorum.
 //   unlock  a way to enter the Magic Key, while this device has none (./unlock.ts); the definitions come from the server (./course.ts)
+//   examples the reference examples kept on this device, fetched from the server in the background once the key is known to fit (./course.ts)
 //   keyHeld while it has one: enter another, or forget it (./unlock.ts)
 //   tutor   the app's own server (./tutor.ts), when it has the tutor on and this device has the Magic Key
+//   known   what that server learned of examples from earlier checks (./tutor.ts), when it answers from it (a Preview) and this device has the Magic Key
 //   reports flags sent to the app's own server (./reports.ts), when it takes them and this device has the Magic Key
 //   account optional sign-in with a passkey and a server copy of the documents (./account.ts), when the server has accounts on
-//   updates the service worker's new versions: checked in the background, started from the banner or Options (./updates.ts)
+//   updates the service worker's new versions: checked in the background, started from the toast, the menu or Settings (./updates.ts)
 import dataUrl from "../data/drill-data.json?url";
 import { merge, lock } from "../data/course.js";
 import type { Account, DrillData, Platform, Sample } from "../platform/types";
 import { createPwaAccount } from "./account";
-import { fetchCourse, forgetCourse, keepCourse, keptCourse, whyNot, type Definitions } from "./course";
+import { fetchCourse, fetchExamples, forgetCourse, keepCourse, keepExamples, keptCourse, keptExamples, whyNot, type Definitions } from "./course";
 import { createAccountClient } from "../account/client";
 import { aboutThisBuild } from "./about";
 import { updates } from "./updates";
@@ -22,7 +24,7 @@ import { showStorageNotice } from "./storage-notice";
 import { storeName } from "./store-slot";
 import { createLocalDb } from "./local-db";
 import { createReports, withdrawLater } from "./reports";
-import { createTutor, serverSays, type ServerSays } from "./tutor";
+import { createKnown, createTutor, serverSays, type ServerSays } from "./tutor";
 import { takeLinkKey, storedKey, storeKey, forgetKey, keyDeclined, declineKey, allowKey, showUnlock, markKeyChanged, takeKeyChanged, KEY_CHANGED_TEXT } from "./unlock";
 
 const db = createLocalDb({ name: storeName(), onUnavailable: showStorageNotice });
@@ -36,6 +38,7 @@ const quorumOffered = async () => (await serverSaid()).quorum;
 let openData: Promise<DrillData> | null = null; // the open part of the term data, read once
 const readOpenData = () => (openData ??= fetch(dataUrl).then((r) => r.json()));
 let unlocked: DrillData | null = null; // the term data with the definitions, once the prompt took a key into the running page: loadData answers with it from then on
+const exampleListeners = new Set<() => void>(); // the page, which reads the examples again when a newer copy was kept
 const keyListeners = new Set<() => void | Promise<void>>(); // the page, which reads the capabilities and the data again when a key was taken in place
 
 // The open data comes with the app. The definitions come from the server to a device that has the Magic Key (from the link, or kept
@@ -61,6 +64,7 @@ async function loadData(): Promise<DrillData> {
       groupKey = key;
       storeKey(key);
       keepCourse({ version: got.version, definitions: got.definitions });
+      void refreshExamples(key);
       return merge(data, got.definitions);
     }
     if (!got.ok && got.reason === "not_granted") {
@@ -94,12 +98,27 @@ async function refresh(key: string, have: string) {
   if (storedKey() !== key) return;
   if (got.ok) {
     if ("definitions" in got) keepCourse({ version: got.version, definitions: got.definitions as Definitions });
+    void refreshExamples(key);
   } else if (got.reason === "not_granted") {
     forgetKey();
     forgetCourse();
     if (groupKey === key) groupKey = null; // the account's sign-in must not find the rejected key still held in memory
     if (await recoverFromAccount()) location.reload(); // the account carries the new key: start again with it
     else markKeyChanged(); // this visit still shows the kept copy; the next one explains and asks for the new key
+  }
+}
+
+/**
+ * Fetches the reference examples, or asks whether the kept copy is current. Called only after the server took the key, so a key that
+ * does not fit costs one wrong guess, not two. Any failure leaves things as they are: the definitions' check is what forgets a key.
+ */
+async function refreshExamples(key: string) {
+  const kept = keptExamples();
+  const got = await fetchExamples(key, kept?.version);
+  if (storedKey() !== key) return; // the key changed meanwhile: these belong to the old one
+  if (got.ok && "examples" in got) {
+    keepExamples({ version: got.version, examples: got.examples });
+    for (const tell of exampleListeners) tell();
   }
 }
 
@@ -142,6 +161,7 @@ async function applyKey(key: string): Promise<boolean> {
   if (!keyListeners.size || !kept) return false;
   unlocked = merge(await readOpenData(), kept.definitions);
   groupKey = key;
+  void refreshExamples(key);
   link.key = null; // a key from the link that did not fit is out of the way now
   link.present = false;
   await Promise.all([...keyListeners].map((tell) => tell()));
@@ -185,10 +205,18 @@ export const pwaPlatform: Platform = {
   about: () => aboutThisBuild(),
   updates,
   tutor: async () => (groupKey && (await tutorIsOn()) ? createTutor(groupKey) : null),
+  // Only with the key, and only when the server says it answers from what it learned (a Preview set to; docs/SERVER.md, "Learned facts").
+  known: async () => (groupKey && (await serverSaid()).known ? createKnown(groupKey) : null),
   // Only with the key, like the tutor, and only when the server says it takes reports: otherwise flags stay on the device.
   reports: async () => (groupKey && (await serverSaid()).reports ? createReports(groupKey) : null),
   withdrawReport: withdrawLater,
   quorum: async () => (groupKey ? await quorumOffered() : false),
+  // What an earlier visit (or this one, once the background fetch is done) kept; nothing without the key.
+  examples: async () => (groupKey ? keptExamples()?.examples ?? null : null),
+  onExamples(tell) {
+    exampleListeners.add(tell);
+    return () => void exampleListeners.delete(tell);
+  },
   // Made on first ask and then kept; it finds out for itself whether the server has accounts, so the page can show its row at once.
   account: async () => (account ??= createPwaAccount(db, { read: () => groupKey ?? storedKey(), adopt: takeAccountKey, declined: keyDeclined, allow: allowKey })),
 };

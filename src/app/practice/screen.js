@@ -12,16 +12,15 @@ import { gradeOf } from "../core/util.js";
 import { isWide } from "../core/viewport.js";
 import { stopTimer } from "../debate/flow.js";
 import { QCELL, singular, termNode } from "../debate/text.js";
-import { favBtn } from "./favorites.js";
 import { check } from "./grading.js";
 import { next } from "./queue.js";
-import { skipActs, subRowNode } from "./skips.js";
+import { subRowNode } from "./skips.js";
 import { defCard, termsNode, withTerms } from "./terms.js";
 import { answerList } from "./universe.js";
 import { exGrid } from "../review/review.js";
-import { openChat, tutorTurns } from "../shell/chat.js";
+import { tutorTurns } from "../shell/chat.js";
+import { pairBar } from "../shell/pbar.js";
 import { CELL_FULL, ago, fitPair, focusCin, render, setSteps } from "../shell/render.js";
-import { blitzBtn, relTimed, relTimedD, timerSlot } from "../shell/timers.js";
 import { voiceBar } from "../shell/voice.js";
 
 /* ---------- practice: one pair ---------- */
@@ -53,9 +52,7 @@ export function relList(onPick,heading){
       el("span",null, el("span",{class:"name",text:r.name}), el("span",{class:"gloss",text:r.gloss(p.a,p.b)})),
       el("span",{class:"nota math",text:notaOf(k)})));
   });
-  // the countdown row is always there (empty with Blitz off), so the switch never moves the list
-  const timed=state.ui.debate?relTimedD():relTimed(), lab=heading?el("p",{class:"label rel-label"},heading):null;
-  return el("div",{class:"section"}, el("div",{class:"lrow"},lab,timerSlot(state.ui.debate||!state.ui.rel?"rel":"ex",timed)), list);
+  return el("div",{class:"section"}, heading?el("p",{class:"label rel-label"},heading):null, list);
 }
 // ... and as a strip of five chips (wide screens), with the chosen relation explained under it
 export function relStrip(onPick,done){
@@ -76,18 +73,29 @@ export function relCap(hint){
   return el("p",{class:"cap"},el("b",{text:r.name+". "}),r.gloss(state.cur.p.a,state.cur.p.b)+".");
 }
 // one cell of the 2x2 table: an example field, or the verdict on it once checked
-function quizCell(c){
+export function quizCell(c){
   const p=state.cur.p, implied=state.ui.rel?REL[state.ui.rel].empty:[], r=state.ui.checked&&state.ui.res.cells[c];
   const vcls=r?" v-"+(r.uns?"uns":r.v):"";
   if(implied.includes(c)){
     return el("div",{class:"cell locked"+vcls,"aria-label":cellLabel(c,p)+": nothing, by your relation"},
-      r&&r.v==="bad"?fbNode(r):el("span",{class:"empty",text:"∅"}),whyBtn(c,p));
+      r&&(r.v==="bad"||r.v==="open")?fbNode(r):el("span",{class:"empty",text:"∅"}),whyBtn(c,p),checkChip(r));
   }
   const off=state.ui.checked||!state.ui.rel||state.ui.cells[c].none;
   const inp=el("input",{type:"text",id:"in-"+c,placeholder:state.ui.cells[c].none?"∅":"example",value:state.ui.cells[c].t,disabled:off,"aria-label":cellLabel(c,p),autocomplete:"off"});
   inp.addEventListener("input",e=>{state.ui.cells[c].t=e.target.value;});
   inp.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); const nx=nextInput(c); if(nx) nx.focus(); else check(); } });
-  return el("div",{class:"cell"+vcls}, el("div",{class:"field"},inp), r?fbNode(r):null, whyBtn(c,p));
+  return el("div",{class:"cell"+vcls}, el("div",{class:"field"},inp), r?fbNode(r):null, whyBtn(c,p), checkChip(r));
+}
+// A cell the page could not judge (an example it cannot classify, or a cell of a pair of one's own) carries a dashed "check" chip: a tap asks Claude to check it, as Explain does.
+// While Claude works it says so; with no tutor on this device there is no chip, since nothing could be done with it.
+export function checkChip(r){
+  if(!r||r.uns||(r.v!=="cmp"&&r.v!=="open")) return null;
+  const u=state.ui; if(!u||!u.checked) return null;
+  if(u.ctl) return el("span",{class:"cchip busy",role:"status",text:"checking"});
+  if(u.explained&&!u.res.relOpen) return null;
+  if(canAsk()) return el("button",{type:"button",class:"cchip",title:"Ask Claude to check this one",onclick:e=>{ e.stopPropagation(); ask(null,"explain"); },text:"check"});
+  if(state.unlock&&state.unlock.tutor) return el("button",{type:"button",class:"cchip needs-key",title:"Checking needs the Magic Key",onclick:e=>{ e.stopPropagation(); askAfterKey(); },text:"check"});
+  return null;
 }
 // Claude's explanation split by where it belongs: a line per cell (or Q1 to Q4) goes to that cell, the lines on the common locus,
 // the pervasion and the relation to the "?" beside the relation. Anything else (the explanation, the misconception) belongs to the Why panel.
@@ -126,9 +134,15 @@ export function factNode(f,head,where,ctx){
       return el("li",null,...body,...keys.map(defCard));
     })),parts.filter(p=>p.kind==="end").map(p=>el("p",{text:p.text})));
 }
+// the newest explanation (a pair of one's own that Claude left unsettled can be asked again): the notes and the Why panel show that one, earlier turns stay in the chat
+function latestExplain(ok=/** @type {(t:any)=>boolean} */(()=>true)){
+  const chat=(state.ui&&state.ui.chat)||[];
+  for(let i=chat.length-1;i>=0;i--){ const t=chat[i]; if(t.role==="assistant"&&t.kind==="explain"&&ok(t)) return t; }
+  return null;
+}
 export function explainParts(){
   const out={cells:{},facts:{},rest:[]};
-  const a=state.ui&&state.ui.chat&&state.ui.chat.find(t=>t.role==="assistant"&&t.kind==="explain"&&!t.pending&&t.content);
+  const a=latestExplain(t=>!t.pending&&t.content);
   if(!a) return out;
   for(const ln0 of a.content.split("\n")){
     const f=parseFactLine(ln0); if(f){ out.cells[f.cell]=factText(f); out.facts[f.cell]=f; continue; }
@@ -184,16 +198,18 @@ export function resultBlock(r,head,items){
   const chips=el("div",{class:"vchips",role:"tablist","aria-label":"Result details"},items.map(i=>el("button",{type:"button",role:"tab",id:"vt-"+i.key,class:"vchip "+i.st,"aria-selected":open===i.key?"true":"false","aria-controls":"vpanel",
     onclick:()=>{ state.ui.rtab=open===i.key?null:i.key; render(); if(state.ui.rtab&&i.onopen) i.onopen(); }},
     i.st==="ok"||i.st==="bad"||i.st==="open"?el("span",{class:"ic","aria-hidden":"true",text:{ok:"✓",bad:"✗",open:"?"}[i.st]}):i.ic?el("span",{class:"ic","aria-hidden":"true",text:i.ic}):null,i.label)));
+  const act=tutorAct();
   return el("div",{class:"verdict "+r.overall},
-    el("p",{class:"vl"},el("span",{class:"v",text:head})),
+    el("p",{class:"vl"},el("span",{class:"v",text:head}),act),
     chips,
     cur?el("div",{class:"vpanel",id:"vpanel",role:"tabpanel","aria-labelledby":"vt-"+cur.key},cur.body()):null);
 }
 // Also shown when the first question failed (no conversation was kept), so that the message says why nothing came back.
-export const tutorItem=()=>state.ui.chat||state.ui.chatErr?{key:"tutor",label:"Why",st:"none",body:()=>isWide()?renderTutor():inlineExplain()}:null;
+// On a wide screen the tutor's conversation is in the panel at the right, not among the chips.
+export const tutorItem=()=>!isWide()&&(state.ui.chat||state.ui.chatErr)?{key:"tutor",label:"Why",st:"none",body:()=>inlineExplain()}:null;
 export const termsItem=p=>({key:"terms",label:"Terms",st:"none",body:()=>termsNode(p)});
 function quizResult(){
-  const p=state.cur.p, r=state.ui.res, k=REL[p.relation], ex=explainParts();
+  const p=state.cur.p, r=state.ui.res, k=REL[p.relation];
   const head={ok:"Right.",part:"Relation right, but not everything else.",pend:"Relation and cells right.",bad:"Not quite."}[r.overall];
   return resultBlock(r,head,[
     {key:"rel",label:"Relation",st:r.relOk?"ok":"bad",body:()=>[
@@ -209,55 +225,59 @@ function askAfterKey(){
   Promise.resolve(state.unlock.open()).then(taken=>{ if(taken&&state.ui===U&&canAsk()&&U.checked&&!U.explained&&!U.ctl) ask(null,"explain"); });
 }
 export const explainBtn=()=>{
-  if(!state.ui.checked||state.ui.explained||state.ui.ctl) return null;
-  if(canAsk()) return el("button",{class:"btn ghost",type:"button",onclick:()=>ask(null,"explain"),text:state.ui.res.exOpen?"Check and explain":"Explain"});
+  // a pair of one's own that Claude has not judged (Find a pair) can be asked again
+  if(!state.ui.checked||(state.ui.explained&&!state.ui.res.relOpen)||state.ui.ctl) return null;
+  if(canAsk()) return el("button",{class:"btn ghost xpl",type:"button",onclick:()=>ask(null,"explain"),text:state.ui.explained?"Ask again":state.ui.res.exOpen||state.ui.res.relOpen?"Check and explain":"Explain"});
   // The server has a tutor but this device has no Magic Key: the button is there, grayed, and says what it needs when tapped.
-  if(state.unlock&&state.unlock.tutor) return el("button",{class:"btn ghost needs-key",type:"button","aria-disabled":"true",title:"Explain needs the Magic Key",onclick:askAfterKey},lockIcon(),"Explain");
+  if(state.unlock&&state.unlock.tutor) return el("button",{class:"btn ghost xpl needs-key",type:"button","aria-disabled":"true",title:"Explain needs the Magic Key",onclick:askAfterKey},lockIcon(),"Explain");
   return null;
 };
-export const nextBtn=()=>el("button",{class:"btn",type:"button",onclick:next,text:state.cur.retry&&!state.retryQ.length?"Back to new pairs":"Next pair"});
+/** The forward button of a checked pair (shell/pbar.js). */
+export const nextFwd=()=>({label:state.cur.retry&&!state.retryQ.length?"Back to new pairs":"Next pair",hint:"N",onclick:()=>next()});
 export const kbHints=(...rows)=>el("div",{class:"kbh"},rows.map(([k,t])=>el("span",null,el("b",{text:k}),t)));
-export function recentNode(c,list){
+// `rel(a)` is the relation named under an answer: the pair's, or in Find a pair the one it was asked for
+export function recentNode(c,list,rel=a=>a.key){
   if(!list.length) return;
   c.append(el("details",{class:"recent",open:state.recentOpen,ontoggle:e=>{ state.recentOpen=e.target.open; try{ localStorage.setItem("rd-recent",state.recentOpen?"1":"0"); }catch(_){} }},
     el("summary",{class:"label"},el("span",{class:"rmk","aria-hidden":"true"}),"Recent",el("span",{class:"hint",text:String(list.length)})),
     el("ul",{class:"hist"},list.map(a=>{
       const g=gradeOf(a);
       return el("li",null,el("span",{class:"s "+g,text:{ok:"✓",part:"~",bad:"✗",pend:"?"}[g]||"✗"}),
-        el("span",null,a.a+" / "+a.b,el("small",{text:REL[a.key]?REL[a.key].name:""})),el("small",{text:ago(a.at)}));
+        el("span",null,a.a+" / "+a.b,el("small",{text:REL[rel(a)]?REL[rel(a)].name:""})),el("small",{text:ago(a.at)}));
     }))));
 }
 
 export function renderQuiz(s,c){
   if(isWide()) quizWide(s,c); else quizNarrow(s);
-  if(state.favErr) s.append(el("p",{class:"status",text:state.favErr}));
-  if(state.skipErr) s.append(el("p",{class:"status",text:state.skipErr}));
+  errLines(s);
+}
+/** A favorite or a skip that could not be saved was undone: it is said on the screen, above the pair bar (which stays the last child of the stage). */
+export function errLines(s){
+  const bar=s.querySelector(":scope > .pbar");
+  for(const m of [state.favErr,state.skipErr]) if(m){ const n=el("p",{class:"status",text:m}); if(bar) s.insertBefore(n,bar); else s.append(n); }
 }
 function quizWide(s,c){
-  const p=state.cur.p;
+  const p=state.cur.p, u=state.ui;
   quizHead(s,true);
-  s.append(relStrip(choose,state.ui.checked||state.ui.late));
-  if(!state.ui.checked) s.append(timerSlot(state.ui.rel?"ex":"rel",relTimed()));
+  s.append(relStrip(choose,u.checked||u.late));
   s.append(relCap());
   if(!state.ui.checked){ const vb=voiceBar(); if(vb) s.append(vb); }
   s.append(el("div",{class:"section"}, el("p",{class:"label"},"Examples",el("span",{class:"hint",text:"∅ = nothing exists. Neither also takes a non-existent."})), exGrid(p,quizCell,true)));
-  const acts=el("div",{class:"actions"});
-  const fb=favBtn(p); if(fb) acts.append(fb);
-  acts.append(blitzBtn());
-  if(!state.ui.checked){
-    skipActs(state.ui.rel?"Enter moves to the next cell, then shows the result":"").forEach(n=>{ if(n) acts.append(n); });
-    if(state.ui.rel) acts.append(el("button",{class:"btn",type:"button",onclick:check,text:"Show result"}));      // before a relation is picked the cells are closed and there is nothing to show
-  } else acts.append(nextBtn());
-  s.append(acts);
-  if(!state.ui.checked){
-    recentNode(c,answerList().slice(-5).reverse());
-    c.append(kbHints(["1–5","relation"],["Enter","next cell"],["S","skip"],["F","favorite"]));
-    return;
-  }
-  c.append(el("p",{class:"label"},"Result"), quizResult());
-  if(state.ui.saveErr) c.append(el("p",{class:"status",text:state.ui.saveErr}));
-  const eb=explainBtn(); if(eb) c.append(el("div",{class:"actions left"},eb));
-  c.append(kbHints(["Enter","next pair"],["F","favorite"]));
+  // the result stays in the middle, under the table; the tutor's conversation is in the panel at the right
+  if(u.checked){ s.append(quizResult()); if(u.saveErr) s.append(el("p",{class:"status",text:u.saveErr})); }
+  s.append(pairBar(u.checked?nextFwd():u.rel?{label:"Check",onclick:()=>check()}:null));       // before a relation is picked the cells are closed and there is nothing to check
+  coachInto(c,answerList().slice(-5).reverse(),a=>a.key,u.checked?[["N","next pair"],["F","favorite"]]:[["1–5","relation"],["Enter","next cell"],["S","skip"],["F","favorite"]]);
+}
+/**
+ * The panel at the right of a wide screen, when it is open: the tutor's conversation once there is one (a checked pair has its follow-up field from the start),
+ * the last answers, and the keys. It opens with the chat button of the top bar, and by itself when an explanation is asked for; it closes with the pair it was
+ * opened for.
+ */
+export function coachInto(c,list,rel,keys){
+  if(!isWide()||!state.coachOpen||!state.ui) return;
+  if(state.ui.chat||state.ui.chatErr||(state.ui.checked&&canAsk())) c.append(el("p",{class:"label"},"Tutor"),renderTutor()); // a checked pair has the follow-up field even before the first question, as on a phone
+  recentNode(c,list,rel);
+  c.append(kbHints(...keys));
 }
 const SKIPPED=()=>CELLS.filter(k=>REL[state.ui.rel].empty.includes(k));
 export const fillable=()=>CELLS.filter(k=>!REL[state.ui.rel].empty.includes(k));
@@ -272,13 +292,13 @@ function cellPrompt(c){
 }
 // narrow screens: one cell at a time, the field near the top so the on-screen keyboard never covers it.
 // The last cell's Done shows the result at once; there is no review list.
-function cellView(s){
+export function cellView(s){
   const order=fillable();
   state.ui.ci=Math.max(0,Math.min(state.ui.ci||0,order.length-1)); state.ui.seen=Math.max(state.ui.seen||0,state.ui.ci);
   const c=order[state.ui.ci], last=state.ui.ci===order.length-1;
   // the 2x2 map has the table's layout; a square carries the number of its cell, as in "Cell 2 of 3", and a skipped one stays blank
   const map=el("div",{class:"cmap","aria-hidden":"true"},CELLS.map(k=>el("i",{class:REL[state.ui.rel].empty.includes(k)?"lock":k===c?"now":state.ui.cells[k].t.trim()?"fill":"",text:REL[state.ui.rel].empty.includes(k)?"":String(order.indexOf(k)+1)})));
-  const skipped=SKIPPED(), skipTxt=skipped.length?"Skipped by your relation: "+skipped.map(k=>CELL_FULL[k]).join("; ")+".":"";
+  const skipped=SKIPPED(), skipTxt=skipped.length?(state.ui.find?"Empty by this relation: ":"Skipped by your relation: ")+skipped.map(k=>CELL_FULL[k]).join("; ")+".":"";
   const inp=el("input",{type:"text",id:"cin",placeholder:"example",value:state.ui.cells[c].t,"aria-label":cellLabel(c,state.cur.p),autocomplete:"off",autocapitalize:"off",enterkeyhint:last?"done":"next"});
   inp.addEventListener("input",e=>{state.ui.cells[c].t=e.target.value;});
   const go=()=>{
@@ -289,12 +309,12 @@ function cellView(s){
   s.append(el("div",{class:"cview"},
     el("div",{class:"cmeta"},map,el("div",{class:"cwho"},el("span",{class:"n",text:"Cell "+(state.ui.ci+1)+" of "+order.length}),el("small",{text:CELL_FULL[c]}))),
     cellPrompt(c),
-    el("div",{class:"cin"},inp,el("button",{class:"btn",type:"button",onclick:go,text:last?"Done":"Next"})),
+    el("div",{class:"cin"},inp),
     voiceBar(),
-    timerSlot("ex",relTimed()),
     el("p",{class:"chint"},
       state.ui.ci>0?el("button",{type:"button",class:"back",onclick:()=>{state.ui.ci--; render(); focusCin();},text:"‹ Back"}):null,
-      "Leave it empty if nothing exists here."+(skipTxt?" "+skipTxt:""))));
+      "Leave it empty if nothing exists here."+(skipTxt?" "+skipTxt:""))),
+    pairBar({label:last?"Check":"Next cell",onclick:go}));
 }
 // the explanation on the narrow result screen; follow-up questions go to the chat view
 // The Why panel repeats nothing the "?" marks show: not the cells, not the common locus, the pervasion or the relation. When the answer was right it shows
@@ -305,45 +325,43 @@ export function fillTurn(node,t,lean){
   if(!lean||t.kind!=="explain"||!t.content){ fillAns(node,t.content); return; }
   const raw=String(t.content), lines=raw.split("\n");
   if(t.pending&&!/\n\s*$/.test(raw)) lines.pop();           // the last line may still be growing
-  const wrong=!!(state.ui&&state.ui.res&&(state.ui.res.overall==="bad"||state.ui.res.overall==="part"));
+  const wrong=!!(state.ui&&state.ui.res&&(state.ui.res.overall==="bad"||state.ui.res.overall==="part"||state.ui.res.relOpen)); // a pair Claude has not judged is not "right" either
   const rest=wrong?lines.filter(l=>l.trim()&&!CELL_LN.test(l.trim())&&!REL_LN.test(l.trim())).join("\n"):"";
   if(rest||t.pending){ fillAns(node,rest); return; }
   node.replaceChildren(el("p",{class:"status",text:"Claude's notes on the cells and the relation are on the ? marks."}));
 }
 function inlineExplain(){
   if(!state.ui.chat&&!state.ui.chatErr) return null;
-  const box=el("div",{class:"tutor"}), first=(state.ui.chat||[]).find(t=>t.role==="assistant");
+  const box=el("div",{class:"tutor"}), first=latestExplain()||(state.ui.chat||[]).find(t=>t.role==="assistant");
   if(first){ const a=el("div",{class:"ans",id:first.pending&&state.view!=="chat"?"ans-live":null}); fillTurn(a,first,true); decorateAns(a,first,state.ui.chat.indexOf(first),false); box.append(a); }
   if(state.ui.chatErr&&state.view!=="chat") box.append(el("p",{class:"status",text:state.ui.chatErr}));
   return box;
 }
-// the left button of the action row, beside Next pair: Explain, while Claude answers Stop, afterwards the follow-up chat
+// The tutor's button at the head of the result: Explain; while Claude answers, Stop. The follow-up conversation is the chat button of the top bar.
 export function tutorAct(){
-  const eb=explainBtn(); if(eb) return eb;
-  if(!state.ui.chat||!canAsk()) return null;
-  if(state.ui.ctl) return el("button",{class:"btn ghost",type:"button",onclick:()=>state.ui.ctl&&state.ui.ctl.abort(),text:"Stop"});
-  const n=state.ui.chat.filter(t=>t.role==="user"&&!t.hidden).length;
-  return el("button",{class:"btn ghost stage-chat",type:"button",onclick:openChat,text:n?"Discuss with AI · "+n:"Discuss with AI"});
+  const eb=explainBtn();
+  if(eb) return eb;
+  if(state.ui.ctl&&canAsk()) return el("button",{class:"btn ghost xpl",type:"button",onclick:()=>state.ui.ctl&&state.ui.ctl.abort(),text:"Stop"});
+  return null;
 }
 function quizNarrow(s){
   const p=state.cur.p, stp=state.ui.checked?2:(!state.ui.rel||state.ui.open)?0:1;
   setSteps(["Relation","Examples","Result"],stp,[(state.ui.checked||state.ui.late)?null:()=>{ state.ui.open=true; render(); },(state.ui.checked||!state.ui.rel)?null:()=>{ state.ui.open=false; render(); focusCin(); },null]);
   quizHead(s,false);
-  if(stp===0){ s.append(relList(choose,"Relation")); const vb=voiceBar(); if(vb) s.append(vb); }
+  if(stp===0){ const vb=voiceBar(); s.append(relList(choose,"Relation"),...(vb?[vb]:[]),pairBar(null)); }
   else if(stp===1) cellView(s);
   else {
     // the table is fixed once filled in, the verdict below it changes length with the chip: the table goes first so it never moves
     s.append(el("div",{class:"section"},exGrid(p,quizCell,true)),quizResult());
     if(state.ui.saveErr) s.append(el("p",{class:"status",text:state.ui.saveErr}));
-    const acts=el("div",{class:"actions"}), ta=tutorAct(); if(ta) acts.append(ta);
-    acts.append(nextBtn()); s.append(acts);
+    s.append(pairBar(nextFwd()));
   }
 }
 
 // after Explain on a narrow screen the answer is below the table: bring it into view (the sticky action bar is allowed for by scroll-margin)
 export function revealTutor(){ if(isWide()||state.view==="chat") return; const t=document.querySelector("#stage .tutor"); if(t) t.scrollIntoView({block:"nearest"}); }
 // the tutor conversation with its own follow-up field (wide screens: in the coach panel)
-function renderTutor(){
+export function renderTutor(){
   const box=el("div",{class:"tutor"}); tutorTurns(box,false,true);
   if(state.ui.ctl) box.append(el("div",{class:"actions"},el("button",{class:"btn ghost",type:"button",onclick:()=>state.ui.ctl&&state.ui.ctl.abort(),text:"Stop"})));
   else if(canAsk()) box.append(askRow("ask-in"));
@@ -372,15 +390,15 @@ function nextInput(c){
   const order=CELLS.filter(x=>!REL[state.ui.rel].empty.includes(x)&&!state.ui.cells[x].none);
   const i=order.indexOf(c); const n=order[i+1]; return n?$("in-"+n):null;
 }
-// The Examples line of a verdict. When some examples could not be checked, a chip in the line asks Claude to check and explain.
-const askChip=()=>el("button",{type:"button",class:"pill act","aria-label":"Ask Claude to check and explain",onclick:()=>ask(null,"explain"),text:"Ask Claude"});
+// The Examples line of a verdict.
 export function exLine(r,keys){
   if(!r.exN) return "none to check.";
   // while Claude works on the open ones, a line says so (asking is done by the Check and explain button in the action row)
   const cl=r.exOpen&&state.ui.ctl?el("span",{class:"exl",text:"Claude is checking."}):null;
   if(r.exBad) return [r.exBad+" of "+r.exN+" wrong"+(r.exOpen?", "+r.exOpen+" not checked yet":"")+".",cl];
   if(r.exOpen) return [r.exOpen+" of "+r.exN+" not checked yet.",cl];
-  return "all "+r.exN+" fit"+(keys.some(c=>r.cells[c].by)?" (checked with Claude).":".");
+  const by=b=>keys.some(c=>r.cells[c].by===b);
+  return "all "+r.exN+" fit"+(by("claude")?" (checked with Claude).":by("course")?" (checked by the course examples).":".");
 }
 // in a lineage the terms are joined by "is a" (short for "is a kind of"), small and italic; the sign > would read as "greater than"
 export const isA=n=>/^[aeiou]/i.test(n)?"is\u00a0an":"is\u00a0a";

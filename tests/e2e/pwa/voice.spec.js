@@ -4,7 +4,7 @@
 // speechSynthesis notes what it is asked to say and ends each utterance at once; SpeechRecognition answers each start
 // with the next phrase the test queued (a phrase, or a list of guesses best first), or with "no-speech" when none comes.
 import { test, expect } from "../../support/test.js";
-import { ready, isPhone, overflow } from "../../support/page.js";
+import { goTo, openSettings, ready, isPhone, overflow } from "../../support/page.js";
 
 /** Stands in for the browser's speech. `settings` are the rd-voice-* values to start with; `heard` the phrases queued from the start; `trial` turns the feature on. */
 async function voice(page, { settings = {}, heard = [], none = false, trial = true } = {}) {
@@ -63,8 +63,8 @@ async function voice(page, { settings = {}, heard = [], none = false, trial = tr
 const said = (page) => page.evaluate(() => window.__said.slice());
 const hearNext = (page, ...phrases) => page.evaluate((p) => window.__heard.push(...p), phrases);
 const docs = (page, col) => page.evaluate(async (col) => (await (await window.__riglam.platform.db()).collection(col).get()).docs.map((d) => d.data()), col);
-const openOptions = (page) => page.getByRole("button", { name: /options/i }).filter({ visible: true }).first().click();
-const tab = (page, name) => page.getByRole("tab", { name }).filter({ visible: true }).first().click();
+const openOptions = (page) => openSettings(page);
+const tab = (page, name) => goTo(page, name);
 const mic = (page) => page.locator("#vbar .vmic");
 const waiting = (page) => page.locator("#vbar .vtake");
 const confirm = (page) => page.locator("#vbar .vok").click();
@@ -280,7 +280,7 @@ test("with Blitz on the countdown stops while an answer waits, and goes on when 
   await page.goto("/");
   await ready(page);
   await tab(page, "Pervasions");
-  const bar = page.locator(".qcard .tbar i");
+  const bar = page.locator(".tbar i");
   await expect(bar).toHaveCount(1);   // the question's countdown runs
   await expect(bar).toHaveCSS("animation-play-state", "running");
   await hear(page, "accept");

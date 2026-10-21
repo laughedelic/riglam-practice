@@ -21,6 +21,8 @@ export interface CellResult {
   uns?: boolean;
   /** "claude" when Claude's check settled the verdict */
   by?: string;
+  /** settled as not fitting by one known side of the example; the other side is still the tutor's to say */
+  half?: boolean;
 }
 
 /** What grading produces before the counts are added. */
@@ -31,6 +33,10 @@ export interface GradeDraft {
   dec?: Record<CellId, boolean>;
   /** debate: the relation the first three answers imply, "bad" when they contradict each other, null when time ran out */
   implied?: RelKey | "bad" | null;
+  /** pair-finding: whether the learner's own pair has the relation asked for is not settled yet (the tutor settles it); `relOk` is false meanwhile */
+  relOpen?: boolean;
+  /** pair-finding: the tutor was asked and could not settle it */
+  relUns?: boolean;
 }
 
 /** The result of checking an answer. `overall`: ok, part (something wrong besides the relation), pend (examples unchecked), bad (wrong relation). */

@@ -11,15 +11,15 @@ import { plainWords, spokenConfirm, spokenDirection, spokenDontKnow, spokenExamp
 import { saveFeatures, withFeature } from "../../ui/features";
 import { canHear, canSpeak, listen, onVoices, speak, stopSpeaking, voiceList } from "../../ui/speech";
 import { CELL_FULL, render } from "./render.js";
-import { tbIcon } from "./timers.js";
+import { tbIcon } from "../core/icons.js";
 
 /* ---------- voice: the questions read aloud, answers by voice ---------- */
-// Two settings in Options, each on its own: Read aloud says each question when it appears; Answer by voice adds a microphone
+// Two settings in Settings, each on its own: Read aloud says each question when it appears; Answer by voice adds a microphone
 // under the answer controls (tap it, or press V), or listens by itself after each question (Hands-free). Both use the
 // browser's own speech (src/ui/speech.ts). What was heard goes through the same steps as a tap or a typed answer
 // (sayQ, choose, the cell's text), so the saved answers look as they always did; nothing of the voice is stored.
 // What was heard is not applied at once: it waits on the screen it was said for, with what it was taken as, until it is
-// confirmed (the Confirm button, Enter, or saying "yes"; or after a short pause, if Options says so) or taken back (Change,
+// confirmed (the Confirm button, Enter, or saying "yes"; or after a short pause, if Settings says so) or taken back (Change,
 // Escape, "no"). Saying another answer replaces it. While it waits, the Blitz clock is stopped.
 // The page renders as a whole, so this module works from what the screen asks: after each render it compares the
 // screen with the one it last spoke for, and a new one stops whatever the old one started.
@@ -34,7 +34,7 @@ const CELL_ASK={both:(A,B)=>"Name something that is both "+A+" and "+B+".",anb:(
   bna:(A,B)=>"Name something that is "+B+", but not "+A+".",nei:(A,B)=>"Name something that is neither "+A+" nor "+B+"."};
 export function asked(){
   const u=state.ui, p=state.cur&&state.cur.p;
-  if(state.mode!=="quiz"||!u||!p||u.checked||state.optsOpen||state.view||state.timeEdit) return null;
+  if(state.mode!=="quiz"||!u||!p||u.checked||state.optsOpen||state.sessOpen||state.skipAsk||(state.menuOpen&&!isWide())||state.view) return null;
   const id=p.id||p.a+"|"+p.b;
   if(u.debate){
     if(state.tab!=="debate") return null;
@@ -186,7 +186,7 @@ function nudge(a){
 }
 
 /* ---------- an answer that waits for its confirmation ---------- */
-// After a short pause the answer goes on by itself, if Options says so: 2 s in Blitz, 4 s otherwise, so that the practice without
+// After a short pause the answer goes on by itself, if Settings says so: 2 s in Blitz, 4 s otherwise, so that the practice without
 // a clock is not hurried. The Blitz clock is stopped while the answer waits (holdClock), so neither the pause nor the Confirm
 // counts against the time.
 const PAUSE_BLITZ=2000, PAUSE_CALM=4000;
@@ -288,7 +288,7 @@ export function voiceKey(k){
 for(const t of ["pointerdown","keydown"]) document.addEventListener(t,()=>{ state.voice.began=true; },{capture:true,once:true});
 document.addEventListener("visibilitychange",()=>{ if(document.hidden&&enabled()){ quiet(); paint(); } });
 
-/* ---------- the Options row ---------- */
+/* ---------- the Voice row of Settings ---------- */
 const SAMPLE="Do you accept that if it is a product, it follows it is a functional thing?";
 const RATES=[[0.85,"Slow"],[1,"Normal"],[1.25,"Fast"]];
 const KEYS={read:"rd-voice-read",answer:"rd-voice-answer",confirm:"rd-voice-confirm",voiceId:"rd-voice-name",rate:"rd-voice-rate"};

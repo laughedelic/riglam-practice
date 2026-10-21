@@ -9,14 +9,22 @@ export type { Judgement } from "./grading";
 export type {
   CellResult, DebateInput, GradeDraft, GradeResult, HistoryEntry, Pair, PoolEntry, PoolRel, PracticeAnswer, Verdict,
 } from "./types";
-export { FEATURE, RECENT_MAX, buildPool, cellsFor, chooseEntry, inUniverse, makePair, nextPair, pairKey, relOfCells } from "./universe";
+export { FEATURE, RECENT_MAX, buildPool, cellsFor, chooseEntry, inUniverse, judgeable, makePair, nextPair, pairKey, pairOf, relOfCells } from "./universe";
 export type { Clock, DrawState, Rng } from "./universe";
 export { cap, gradeOf, isMiss, pick } from "./util";
-export { NAME_CELL, VERDICT_RE, applyVerdicts, factNote, fitOf, noteParts, parseFactLine, parseVerdicts, partsText, placeFacts } from "./verdict";
-export type { Answer, CellVerdict, FactLine, NoteData, NotePart, Side, Terms } from "./verdict";
+export { NAME_CELL, VERDICT_RE, applyRelationVerdict, applyVerdicts, factNote, fitOf, noteParts, parseFactLine, parseRelationVerdict, parseVerdicts, partsText, placeFacts } from "./verdict";
+export type { Answer, CellVerdict, FactLine, NoteData, NotePart, RelationVerdict, Side, Terms, VerdictSource } from "./verdict";
+export { FIND_RELS, drawRelation, findId, findPair, gradeFind, nameThing, sameThing } from "./find";
+export type { Named } from "./find";
 export { cellFor, cellOfFacts, disputeText, divided, quorumDisputes, quorumRows, readings } from "./quorum";
 export type { Dispute, QuorumAnswer, QuorumRow, QuorumThing, Reading } from "./quorum";
 export { catChain, knownClass, listedItem, rung, termPhrase } from "./ladder";
 export type { Rung } from "./ladder";
+export { FACTS_EPOCH, FACT_LIMITS, factKey, knownLine, learn, opinionOf, ruleSide, servable } from "./learned";
+export { failsCell, openExamples, referenceLines, wholeFirst } from "./known";
+export type { KnownLine, OpenExample } from "./known";
+export type { FactRow, FactSource, FactState, Opinion, Ruling, Strength } from "./learned";
+export { DRAWN, drawable, placeByClass } from "./reference";
+export type { Placement } from "./reference";
 export { lettersDirection, plainWords, spokenConfirm, spokenDirection, spokenDontKnow, spokenExample, spokenRelation, spokenReply } from "./spoken";
 export type { PairTerms, Reply, SpokenExample, SpokenReply } from "./spoken";

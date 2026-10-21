@@ -4,7 +4,7 @@
 // Prompt caching is automatic (a top-level cache_control), so a follow-up question re-reads the earlier turns at the cache price.
 
 import Anthropic from "@anthropic-ai/sdk";
-import { LIMITS, type ErrorCode, type Turn, type TutorEvent, type TutorKind, type TutorRequest } from "../src/ai/protocol";
+import { LIMITS, type ErrorCode, type ExplainExample, type KnownRequest, type Turn, type TutorEvent, type TutorKind, type TutorRequest } from "../src/ai/protocol";
 import type { Config } from "./config";
 import type { Kit } from "./kit";
 import { addTokens, costOfTokens, noTokens, type Tokens } from "./prices";
@@ -17,7 +17,7 @@ const MAX_TURN_CHARS = 20_000;
 export function parseRequest(body: unknown): Parsed {
   const bad = (code: ErrorCode, message: string): Parsed => ({ ok: false, code, message });
   if (!body || typeof body !== "object" || Array.isArray(body)) return bad("bad_request", "the body is not an object");
-  const { kind, cats, turns, quorum } = body as Record<string, unknown>;
+  const { kind, cats, turns, quorum, examples } = body as Record<string, unknown>;
   if (kind !== "chat" && kind !== "explain") return bad("bad_request", "unknown kind");
   if (!Array.isArray(cats) || cats.length > LIMITS.cats || cats.some((c) => typeof c !== "string" || c.length > 100)) return bad("bad_request", "cats must be at most two short strings");
   if (!Array.isArray(turns) || turns.length < 1) return bad("bad_request", "turns must be a list");
@@ -34,7 +34,29 @@ export function parseRequest(body: unknown): Parsed {
   const list = turns as Turn[];
   if (list[0].role !== "user" || list[list.length - 1].role !== "user") return bad("bad_request", "the conversation must start and end with the learner");
   if (quorum !== undefined && typeof quorum !== "boolean") return bad("bad_request", "quorum must be true or false");
-  return { ok: true, request: { kind: kind as TutorKind, cats: cats as string[], turns: list.map((t) => ({ role: t.role, content: t.content })), ...(quorum ? { quorum: true } : {}) } };
+  if (examples !== undefined && !validExamples(examples)) return bad("bad_request", "examples must be a short list of {cell, text}");
+  const named = kind === "explain" && Array.isArray(examples) && examples.length ? (examples as ExplainExample[]).map((e) => ({ cell: e.cell, text: e.text })) : null;
+  return {
+    ok: true,
+    request: { kind: kind as TutorKind, cats: cats as string[], turns: list.map((t) => ({ role: t.role, content: t.content })), ...(quorum ? { quorum: true } : {}), ...(named ? { examples: named } : {}) },
+  };
+}
+
+/** Checks the body of a POST /api/known request: the pair's two category ids and one to eight examples, as an explain request names them. */
+export function parseKnown(body: unknown): { ok: true; request: KnownRequest } | { ok: false; message: string } {
+  const { cats, examples } = (body && typeof body === "object" && !Array.isArray(body) ? body : {}) as Record<string, unknown>;
+  if (!Array.isArray(cats) || cats.length !== 2 || cats.some((c) => typeof c !== "string" || c.length > 100)) return { ok: false, message: "cats must be two short strings" };
+  if (!validExamples(examples) || !(examples as unknown[]).length) return { ok: false, message: "examples must be a short list of {cell, text}" };
+  return { ok: true, request: { cats: cats as string[], examples: (examples as ExplainExample[]).map((e) => ({ cell: e.cell, text: e.text })) } };
+}
+
+const CELL_IDS = new Set(["both", "anb", "bna", "nei"]);
+function validExamples(v: unknown): boolean {
+  if (!Array.isArray(v) || v.length > LIMITS.examples) return false;
+  return v.every((e) => {
+    const { cell, text } = (e ?? {}) as Record<string, unknown>;
+    return typeof cell === "string" && CELL_IDS.has(cell) && typeof text === "string" && text.trim() !== "" && text.length <= LIMITS.exampleChars;
+  });
 }
 
 /** The first turn with the fine points added, in the wording the page uses. */

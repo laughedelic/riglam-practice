@@ -3,7 +3,7 @@
 // Edit is greyed and opens the Magic Key prompt, as Explain does. The server is the Worker itself on a fake database (tests/support/server-bridge.js).
 import { test as plain } from "@playwright/test";
 import { test, expect } from "../../support/test.js";
-import { ready } from "../../support/page.js";
+import { goTo, ready } from "../../support/page.js";
 import { dataKey, giveKey } from "../../support/data-key.js";
 import { bridge, serverWorld } from "../../support/server-bridge.js";
 
@@ -128,7 +128,7 @@ async function seed(page, doc = flag) {
   await ready(page);
 }
 async function openFlags(page) {
-  await page.getByRole("tab", { name: /review/i }).filter({ visible: true }).first().click();
+  await goTo(page, "Review");
   const seg = page.locator(".rseg button", { hasText: /^Flags/ });
   if (await seg.count()) await seg.click(); // a phone shows one part of Review at a time
   const li = page.locator(".section", { has: page.locator(".label", { hasText: /^Flags/ }) }).locator(".flags > li").first();

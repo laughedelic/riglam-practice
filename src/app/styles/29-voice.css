@@ -1,4 +1,4 @@
-/* voice: the bar under the answer controls (read again, the microphone, what was heard) and the Voice row of Options.
+/* voice: the bar under the answer controls (read again, the microphone, what was heard) and the Voice row of Settings.
    Shown only when Read aloud or Answer by voice is on, so the page is unchanged while both are off. */
 .vbar{min-width:0}
 .vrow{display:flex;align-items:center;gap:10px;min-height:44px;min-width:0}

@@ -35,14 +35,17 @@ export interface PairLike {
   ex?: Partial<Record<CellId, string | null>>;
   why?: Partial<Record<CellId, string>>;
   note?: string;
+  /** a pair the learner made up in the pair-finding mode that the practice data cannot judge: `relation` is only the one asked for, and `ex` and `why` are empty */
+  own?: boolean;
 }
 
 // A non-existent (the horn of a rabbit) is a possibility in the "neither" cell, as the class takes it, so that cell
 // always has a reference even for old saved pairs that stored none. Perdue 1992:393 and 2014:1026.
+// A pair of the learner's own (Find a pair) has no reference at all: nothing is known about what its two phenomena are, and a non-existent is not "neither" for every pair.
 const RABBIT = "the horn of a rabbit";
 export function refOf(p: PairLike, c: CellId): string | null {
   const k = p.ex && p.ex[c];
-  return k || (c === "nei" ? RABBIT : null);
+  return k || (c === "nei" && !p.own ? RABBIT : null);
 }
 export function cellLabel(c: CellId, p: PairLike): string {
   return {both: "both", anb: p.a + ", not " + p.b, bna: p.b + ", not " + p.a, nei: "neither"}[c];

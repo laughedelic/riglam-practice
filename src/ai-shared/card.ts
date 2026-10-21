@@ -1,12 +1,14 @@
 // The per-pair card the tutor gets as its first message, and the line that asks it to explain an answer. They are
 // built from the pair, the learner's answer and the term data, so the page and the Worker produce the same text.
 import { qPlain, QCELL } from "./debate";
-import { catFacts } from "./facts";
-import { classNames, matchItem, pairCats } from "./lookup";
+import { catFacts, termFacts } from "./facts";
+import type { Facts } from "./facts";
+import { categoryOf, classNames, matchItem, noteCats, pairCats } from "./lookup";
 import type { DataIndex } from "./lookup";
+import { termNamed } from "./mentions";
 import { CELLS, REL, cellLabel, refOf } from "./relations";
 import type { CellId, PairLike, RelKey } from "./relations";
-import { CELL_NAME, DEBATE_ASK, DEBATE_NOTE, FIRST_ASK, GUIDE } from "./prompts";
+import { CELL_NAME, DEBATE_ASK, DEBATE_NOTE, FIND_ASK, FIND_ASK_OWN, FIND_NOTE, FIND_OWN_NOTE, FIRST_ASK, GUIDE } from "./prompts";
 
 /** One answer of the debate mode: Accept, Why? (with an example), or nothing. */
 export interface DebateAnswer {
@@ -18,7 +20,9 @@ export interface DebateAnswer {
 /** The part of the page's answer state that the card and the explain request read. */
 export interface AnswerView {
   debate?: boolean;
-  /** the relation the learner chose; set when the card is built, since after a timeout the page has shown the right one */
+  /** the pair-finding mode: `rel` is the relation the learner was given, and the pair is the learner's own */
+  find?: boolean;
+  /** the relation the learner chose (in the pair-finding mode, the one they were given); set when the card is built, since after a timeout the page has shown the right one */
   rel?: RelKey | null;
   /** time ran out before the learner chose */
   late?: boolean;
@@ -48,8 +52,15 @@ export function finePoints(ix: DataIndex, catIds: readonly (string | null | unde
 
 /** The fine points of the pair's two categories as the tail of the card; empty when there are none. */
 export function cardNotes(ix: DataIndex, p: PairLike): string {
-  const notes=finePoints(ix,pairCats(ix,p));
+  const notes=finePoints(ix,noteCats(ix,p));
   return notes.length?"\nFine points (from the sources; apply them):\n"+notes.map(n=>"- "+n).join("\n"):"";
+}
+
+/** What the data says about one side of a pair the learner made up: its category, else the course term it names, else only its words. */
+function sideFacts(ix: DataIndex, label: string): Facts {
+  const cid = categoryOf(ix, label), term = termNamed(ix, label);
+  const f = cid ? catFacts(ix, cid, label) : term ? termFacts(ix, term) : null;
+  return f ? Object.assign({ label }, f, { label }) : { label, not_in_the_course_data: true }; // the learner's words, first as in the other cards
 }
 
 /**
@@ -59,7 +70,7 @@ export function cardNotes(ix: DataIndex, p: PairLike): string {
  */
 export function cardBody(ix: DataIndex, p: PairLike, u: AnswerView): string {
   const [ca,cb]=pairCats(ix,p), cls=classNames(ix);
-  const card={A:ca?catFacts(ix,ca,p.a):{label:p.a,type:p.typeA}, B:cb?catFacts(ix,cb,p.b):{label:p.b,type:p.typeB}};
+  const card=p.own?{A:sideFacts(ix,p.a), B:sideFacts(ix,p.b)}:{A:ca?catFacts(ix,ca,p.a):{label:p.a,type:p.typeA}, B:cb?catFacts(ix,cb,p.b):{label:p.b,type:p.typeB}};
   const refTxt=(c: CellId)=>refOf(p,c)?JSON.stringify(refOf(p,c)):"EMPTY ("+((p.why&&p.why[c])||"no example")+")";
   let mid: string;
   if(u.debate){
@@ -76,6 +87,21 @@ A = ${JSON.stringify(p.a)}, B = ${JSON.stringify(p.b)}.
 Correct relation: ${REL[p.relation].name}. The learner's Q1 to Q3 answers give: ${imp==="bad"?"a self-contradiction":imp?REL[imp].name:"nothing (time ran out)"}. Learner chose: ${u.late?"nothing (time ran out; the page then showed the right relation)":REL[u.rel as RelKey].name}.
 Reference note: ${p.note||"none"}
 Questions (verdict cmp = learner wrote an example the page could not classify):
+${lines}`;
+  } else if(u.find){
+    const rel=REL[u.rel as RelKey], own=!!p.own;
+    const lines=CELLS.map(c=>{
+      const none=rel.empty.includes(c)||u.cells[c].none, t=u.cells[c].t.trim(), r=u.res.cells[c];
+      const it=t?matchItem(ix,t):null;
+      return "- "+cellLabel(c,p)+": learner wrote "+(none?"NONE":(t?JSON.stringify(t):"(blank)"))+
+        (it?" [in the practice list as: "+it.n+", type "+it.t+"]":"")+
+        "; reference "+(own?"none, for you to decide":refTxt(c))+"; page verdict "+r.v;
+    }).join("\n");
+    mid=`${FIND_NOTE}
+A = ${JSON.stringify(p.a)}, B = ${JSON.stringify(p.b)}.
+Relation asked for: ${rel.name} (${rel.gloss("A","B")}). ${own?FIND_OWN_NOTE:`Correct relation of this pair: ${REL[p.relation].name}.`}${u.exLate?" Time ran out on the examples: cells the learner had not reached are blank.":""}
+${own?"":`Reference note: ${p.note||"none"}
+`}Cells (verdict cmp = learner wrote something the page could not classify${own?"; for a pair the page cannot judge every example is cmp, and a cell the relation leaves empty is open":""}):
 ${lines}`;
   } else {
     const lines=CELLS.map(c=>{
@@ -102,14 +128,14 @@ export function tutorCard(ix: DataIndex, p: PairLike, u: AnswerView): string {
 }
 
 // Explain also verifies the examples the page could not check: those cell lines end in a machine-readable verdict.
-export function explainAsk(U: Pick<AnswerView, "debate" | "res">): string {
+export function explainAsk(U: Pick<AnswerView, "debate" | "find" | "res"> & { own?: boolean }): string {
   const dbt=!!U.debate, open=CELLS.filter(c=>U.res.cells[c].v==="cmp");
-  const base=dbt?DEBATE_ASK:FIRST_ASK;
+  const base=dbt?DEBATE_ASK:U.find?(U.own?FIND_ASK_OWN:FIND_ASK):FIRST_ASK;
   if(!open.length) return base;
   const nm=(c: CellId)=>dbt?"Q"+(CELLS.indexOf(c)+1):CELL_NAME[c];
   return base+`
 The page could not check the examples in: ${open.map(nm).join(", ")}. The page reads your "A" and "B" answers on those lines as the check, so make them exact: the example belongs in a cell when its answers are the cell's (Both: A yes, B yes; A not B: A yes, B no; B not A: A no, B yes; Neither: A no, B no; an existent thing, but in Neither a non-existent such as the horn of a rabbit counts too).`+(dbt?`
 Q1 is the Both cell, Q2 A not B, Q3 B not A, Q4 Neither.`:"")+`
-How to decide: read the example in its ordinary sense (a song is the sound of someone singing or playing; a stone is an ordinary stone at room temperature). Place it under A or B first, then use the correct relation above: it is computed and right, so if whatever is B is A, a B belongs in Both. Use classify_example or lookup_term when a classification is not obvious.
+How to decide: read the example in its ordinary sense (a song is the sound of someone singing or playing; a stone is an ordinary stone at room temperature). Place it under A or B first, then ${U.own?"check it against the relation you decided on, since the page has no reference for this pair":"use the correct relation above: it is computed and right, so if whatever is B is A, a B belongs in Both"}. Use classify_example or lookup_term when a classification is not obvious.
 Answer "unsure" only on a side where the sources disagree on how to classify the thing (see the fine points), where you cannot tell what the example names, or where the example's name does not fix the feature that side is about (the color of "an apple", the shape of "a box"). Then that side's sentence names each reading, in a few words. A word that could also mean something else is not a reason for "unsure": decide on the ordinary reading and mention the other one briefly.`;
 }

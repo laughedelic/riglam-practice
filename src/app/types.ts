@@ -3,11 +3,12 @@
 // the data users already have: never rename a collection or change a document without a migration (CLAUDE.md).
 // Fields written by older versions of the page may be missing, so most fields besides the keys are optional.
 import type { Cat, DrillData, Item } from "../ai-shared/data";
+import type { ExampleIndex } from "../ai-shared/examples";
 import type { About, Unlock, Updates } from "../platform/types";
 import type { AnswerView, DebateAnswer } from "../ai-shared/card";
 import type { CellId, RelKey } from "../ai-shared/relations";
 import type { Pair, PoolEntry, Verdict } from "../domain/types";
-import type { Account, Db, Reports, Sample, Tutor } from "../platform/types";
+import type { Account, Db, Known, Reports, Sample, Tutor } from "../platform/types";
 import type { QuorumRecord } from "../ai/protocol";
 import type { AccountSlot } from "../ui/account";
 import type { TransferSlot } from "../ui/data-transfer";
@@ -20,7 +21,7 @@ export interface CellDoc {
   text: string;
   none?: boolean;
   verdict?: Verdict;
-  /** "claude" when Claude's check settled the verdict */
+  /** "claude" when Claude's check settled the verdict (now, or earlier through the server's learned facts), "course" when the course's reference examples did */
   by?: string;
 }
 
@@ -43,14 +44,15 @@ export interface QuestionDoc {
 export interface AnswerDoc {
   pairId: string;
   batchId?: string | null;
-  mode?: "debate";
+  /** "debate": a Pervasions answer (collection `debates`); "find": a Find a pair answer, kept in `answers` and left out of the Relations lists */
+  mode?: "debate" | "find";
   a: string;
   b: string;
   catA?: string | null;
   catB?: string | null;
-  /** the relation the learner chose, null when time ran out */
+  /** the relation the learner chose, null when time ran out; in Find a pair, the relation they were asked for */
   chosen: RelKey | null;
-  /** the correct relation */
+  /** the correct relation; in Find a pair, the one the named pair has (the one asked for, until the tutor has judged a pair of the learner's own) */
   key: RelKey;
   /** debate: the relation the first three answers imply, or "bad" */
   implied?: RelKey | "bad" | null;
@@ -62,6 +64,8 @@ export interface AnswerDoc {
   pair: Pair;
   retryOf?: string;
   timeout?: "both" | "relation" | "examples";
+  /** Find a pair: the pair is the learner's own and the tutor has not yet said whether it has the relation asked for (`correct` is not settled) */
+  relOpen?: boolean;
   /** the tutor's explanation, kept with the answer */
   explain?: string;
   verifiedAt?: string;
@@ -90,7 +94,9 @@ export interface FavDoc {
 
 /** collection `skips`: a pair hidden for a while; `n` counts how often it was skipped. */
 export interface SkipDoc extends FavDoc {
-  from: "debate" | "practice";
+  from: "debate" | "practice" | "find";
+  /** Find a pair: the relation that was asked for when the pair was skipped (the key is `f_` plus that relation and the words, not the categories) */
+  asked?: RelKey;
   n: number;
 }
 
@@ -170,6 +176,8 @@ export interface Ui extends AnswerView {
 export interface Current {
   p: Pair;
   debate?: boolean;
+  /** Find a pair (src/app/find): there is no pair in `p` (it is null, though typed as a pair) until the learner has named one */
+  find?: boolean;
   legacy?: boolean;
   retry?: boolean;
   tag?: string;
@@ -182,8 +190,10 @@ export interface SkipNote {
   key: string;
   had: SkipDoc | undefined;
   debate: boolean;
+  /** Find a pair: Undo gives back the screen that was skipped (`prev.ui`, with the examples written) and the relations asked lately (`prev.fa`) */
+  find?: boolean;
   ui: Ui | null;
-  prev: { cur: Current | null; rq: Pair[]; rt: string };
+  prev: { cur: Current | null; rq: Pair[]; rt: string; ui?: Ui | null; fa?: RelKey[] };
   tid: number;
 }
 
@@ -214,6 +224,10 @@ export interface State {
   mkNote: boolean;
   /** a question to the app's own server (platform.tutor), when the place has one; `sample` is used first */
   tutor: Tutor | null;
+  /** what the app's server learned of examples from earlier checks (platform.known), asked before the tutor about an example the page could not check */
+  known: Known | null;
+  /** the course's reference examples this device holds (platform.examples), by name; null when it has none (src/app/core/examples.js) */
+  EX: ExampleIndex | null;
   /** sends flags to the app's server (platform.reports), when the place has a server for them and this device has the Magic Key */
   reports: Reports | null;
   /** keeps the removal of a flag for a later start that has `reports` (platform.withdrawReport) */
@@ -242,13 +256,33 @@ export interface State {
   mode: "loading" | "quiz" | "nodata" | "nodb" | string;
   view: "chat" | string | null;
   optsOpen: boolean;
+  sessOpen: boolean;
+  sessPage: string | null;
+  skipAsk: boolean;
+  menuOpen: boolean;
+  menuPin: boolean;
+  menuPeek: boolean;
+  coachOpen: boolean;
+  navDepth: number;
+  navSkip: number;
+  navQ: boolean;
+  navBack: boolean;
+  motion: boolean;
   reviewSeg: string;
   ui: Ui | null;
   cur: Current | null;
   retryQ: Pair[];
   retryTag: string;
   recent: string[];
+  /** the relations Find a pair asked for lately, oldest first */
+  findAsked: RelKey[];
+  /** the relation Find a pair keeps asking for, picked by the learner (`rd-findrel`); null: a different one each time */
+  findRel: RelKey | null;
+  /** Find a pair offers the terms of the course while the pair is typed (Options, `rd-findsuggest`) */
+  findSuggest: boolean;
   lastSig: string;
+  /** the attempt the last render drew: the tutor's panel closes with a pair that had a conversation */
+  lastUi: any;
   fitQ: number;
 
   // errors from saving
@@ -262,7 +296,6 @@ export interface State {
 
   // skips
   skipNote: SkipNote | null;
-  hintOff: any;
 
   // Quorum and the explanation
   /** the app's server offers Quorum (platform.quorum) */
@@ -288,8 +321,8 @@ export interface State {
   timerMs: number;
   relMs: number;
   blitz: boolean;
-  timeEdit: boolean;
-  timeDraft: string;
+  blitzUse: boolean;
+  bzHold: number;
 
   // reading the questions aloud and answering by voice (shell/voice.js)
   voice: VoiceState;

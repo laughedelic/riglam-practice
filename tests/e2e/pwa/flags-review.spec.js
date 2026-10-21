@@ -2,7 +2,7 @@
 // and a mistake opens to show its exercise too (review/exercise.js). The answer and the flags are written to the device's
 // database before the page starts, so the test does not depend on which pair the page draws.
 import { test, expect } from "../../support/test.js";
-import { ready } from "../../support/page.js";
+import { goTo, ready } from "../../support/page.js";
 import { giveKey } from "../../support/data-key.js";
 
 const at = "2026-10-14T09:00:00.000Z";
@@ -81,7 +81,7 @@ async function openReview(page, { more = false, withBlank = false } = {}) {
   }, { answer, flags, older, olderFlag, more, blank, withBlank });
   await page.reload();
   await ready(page);
-  await page.getByRole("tab", { name: /review/i }).filter({ visible: true }).first().click();
+  await goTo(page, "Review");
   const seg = page.locator(".rseg button", { hasText: /^Flags/ });
   if (await seg.count()) await seg.click(); // a phone shows one part of Review at a time
 }
