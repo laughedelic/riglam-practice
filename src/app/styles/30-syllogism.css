@@ -36,6 +36,8 @@
 .sylchk.fails .sylst{border-color:var(--cell-uns-edge);background:var(--cell-uns-soft);color:var(--cell-uns)}
 .sylcl{margin-top:2px;font:400 14px/1.5 var(--body);color:var(--ink)}
 .sylchk .sylmine{margin:6px 0 0;font:400 14px/1.5 var(--body)}
+/* a row of the list of answers in Review: the mark and the syllogism, as the rows of Find a pair (no body to open) */
+.favs .sylrow{display:grid;grid-template-columns:20px minmax(0,1fr);gap:10px;padding:10px 4px;overflow-wrap:anywhere}
 @media (max-width:480px){
   .sylt{font-size:19px}
 }

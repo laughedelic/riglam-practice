@@ -71,11 +71,12 @@ test("a right reply is Right and is kept in the answers, apart from the Relation
   expect(await overflow(page)).toBeLessThanOrEqual(0);
   const [doc] = await expect.poll(async () => (await saved(page)).length).toBe(1).then(() => saved(page));
   expect(doc).toMatchObject({ mode: "syllogism", subject: c.subject, reason: c.reason, predicate: c.predicate, catA: c.catR, catB: c.catP, situation: 1, answer: "accept", said: "accept", correct: true, grade: "ok" });
-  // Review lists the Relations answers and the other exercises' own parts: a syllogism is in none of them, and Today, which opens Review, does not count it either
+  // today's line counts it, and Review lists it in its own part, not among the Relations answers
   await openMenu(page);
-  await expect(page.locator("#menu .mtoday")).toContainText(/nothing practiced yet/i);
+  await expect(page.locator("#menu .mtoday")).toContainText(/1 pair/i);
   await goTo(page, "Review");
-  await expect(page.locator(".empty-note").first()).toContainText("No practice answers yet");
+  await expect(page.locator(".section", { has: page.locator(".label", { hasText: "Syllogisms" }) })).toBeVisible();
+  await expect(page.locator(".empty-note").first()).toContainText("No practice answers yet"); // the Relations list has nothing of it
 });
 
 test("an answer that could not be saved says so on the result, without naming a list it would not be in", async ({ page }) => {
@@ -258,6 +259,39 @@ test("an attempt at its counter-example waits in the menu and comes back; skippi
   await goTo(page, "Relations"); // the row says "continue" only for an exercise that is not on screen
   await openMenu(page);
   await expect(page.locator('#menu .mrow[data-go="syllogism"]')).not.toContainText(/continue/i);
+});
+
+test("Review counts the answers: by the reply each syllogism called for, the mix-ups, and the last ones", async ({ page }) => {
+  await open(page);
+  await draw(page, 1); // accept
+  await say(page, "accept");
+  await expect(headline(page)).toHaveText("Right.");
+  await next(page).click();
+  await draw(page, 1); // the same again, answered wrongly: it was to be accepted
+  await say(page, "reason");
+  await expect(headline(page)).toHaveText("Not quite.");
+  await goTo(page, "Review");
+  const sec = page.locator(".section", { has: page.locator(".label", { hasText: "Syllogisms" }) });
+  await expect(sec.locator(".label .hint")).toHaveText("2 syllogisms, reply right 50%");
+  await expect(sec.locator("table").first().locator("tr", { hasText: "Accept" }).locator(".num")).toContainText("1 / 2");
+  await expect(sec.locator("table").first().locator("tr", { hasText: "The reason is not established" }).locator(".num")).toContainText("–");
+  await expect(sec.locator("table").nth(1)).toContainText("Said “the reason is not established” when it was “accept”");
+  await expect(sec.locator(".sylrow")).toHaveCount(2);
+  await expect(sec.locator(".sylrow").first()).toContainText("You said “the reason is not established”; right: accept");
+  expect(await overflow(page)).toBeLessThanOrEqual(0);
+});
+
+test("Review leaves a counter-example the page could not place out of the row of counter-examples that were one", async ({ page }) => {
+  await open(page);
+  await draw(page, 2);
+  await say(page, "pervasion");
+  await page.fill("#sylex", "a thing the course knows nothing of");
+  await page.locator("#sylex").press("Enter");
+  await expect(page.locator(".sylchk .sylmine")).toContainText("Not checked");
+  await goTo(page, "Review");
+  const sec = page.locator(".section", { has: page.locator(".label", { hasText: "Syllogisms" }) });
+  await expect(sec.locator("table").first().locator("tr", { hasText: "Counter-examples that were one" })).toHaveCount(0);
+  await expect(sec.locator(".sylrow")).toContainText("(not checked)");
 });
 
 test("where a tutor is on, the panel of recent answers beside a syllogism stays open for the next one", async ({ page }, testInfo) => {
