@@ -8,7 +8,7 @@ import { $, el } from "../core/dom.js";
 import { asking, startQ, stopTimer } from "../debate/flow.js";
 import { overHead } from "./chat.js";
 import { render } from "./render.js";
-import { segOf, settingRow as row, switchOf } from "./rows.js";
+import { settingRow as row, switchOf } from "./rows.js";
 import { voiceRow } from "./voice.js";
 
 /* ---------- Settings: what belongs to the app, the device and the account (how an exercise looks and ticks is in its Practice options, session.js) ---------- */
@@ -65,7 +65,7 @@ export function optionsInto(o){
         :"This device has the Magic Key, so the definitions and the tutor are open. If the study group changed the key, enter the new one; or forget the key on this device.","key",mkPop()):null,
     canAsk()&&state.learns?shareRow():null,
     state.account&&state.db&&state.account.view().available?row("Account",accountControls(state.account,el,render,state.acct)):null,
-    voiceRow(row,segOf),
+    voiceRow(),
     state.db?row("Your data",dataTransferControls(state.db,el,render,state.xfer),"Saves everything this device keeps (answers, debates, favorites, skipped pairs and these settings) in one file, as a backup or to move to another device. Importing adds what is missing and never deletes anything."):null,
     state.about?row("Version and updates",aboutNode(state.about)):null,
     el("p",{class:"onote",text:"How an exercise looks, ticks and is checked (notation, wording, Blitz times, definitions, the tutor\u2019s check) is set in its Practice options: the sliders button at the top of the exercise."})].filter(Boolean));

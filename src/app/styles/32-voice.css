@@ -1,10 +1,11 @@
-/* voice: the bar under the answer controls (read again, the microphone, what was heard) and the Voice row of Settings.
-   Shown only when Read aloud or Answer by voice is on, so the page is unchanged while both are off. */
+/* voice: the microphone in the middle of the pair bar, the bar under the answer controls (what was heard, and the way to hear the question), the Voice row of Settings
+   and the Voice page of the Practice options. Nothing shows while Voice is off, so the page is unchanged. */
 .vbar{min-width:0}
+.vbar[hidden]{display:none}
 .vrow{display:flex;align-items:center;gap:10px;min-height:44px;min-width:0}
-.vbar .ib{margin-right:0;flex:none}
-.vmic{flex:none;gap:7px;height:40px;padding:0 14px 0 11px}
-.vmic .tbi{width:20px;height:20px}
+.vhear{flex:none;height:36px;padding:0 14px;font-size:13px}
+.pbar .vmic{justify-content:center;width:44px;height:44px;padding:0}
+.vmic .tbi{width:22px;height:22px}
 .vmic.on{background:var(--vermilion);color:var(--on-vermilion);box-shadow:none}
 .vmic.on:hover{box-shadow:none}
 .vmic.on .tbi rect{fill:currentColor}
@@ -12,7 +13,8 @@
 @keyframes vpulse{50%{background:var(--vermilion-ink)}}
 .vst{flex:1;min-width:0;font-size:13px;line-height:1.4;color:var(--ink-muted);overflow-wrap:anywhere}
 .vst.bad{color:var(--bad)}
-.vopts{display:grid;gap:8px;justify-items:start;max-width:100%}
+.vsw{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.xchip{flex:none;padding:1px 7px;border:1px solid var(--ink-muted);font:700 10.5px/16px var(--body);letter-spacing:.07em;text-transform:uppercase;color:var(--ink-muted)}
 .vline{display:flex;flex-wrap:wrap;align-items:center;gap:8px;max-width:100%}
 .vsel{max-width:min(100%,300px);font:14px var(--body);color:var(--ink);background:var(--paper);border:1px solid var(--ink-muted);border-radius:0;padding:7px 9px}
 .vtry{height:36px;padding:0 14px;font-size:13px}

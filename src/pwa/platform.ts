@@ -2,6 +2,7 @@
 //   db      local IndexedDB store (./local-db.ts)
 //   sample  not available (the tutor is the server's): only `npm run dev` has one, a stand-in for the model (./dev-sample.ts);
 //           `?ai=off` in the address takes it away there too.
+//   preview whether this is a Preview build (staging, a pull request): features still on trial are on by default there (the Voice switch)
 //   quorum  whether the app's server offers Quorum, the tutor's mode of several models and a judge: only a Preview does (docs/SERVER.md), and
 //           only to a device that has the Magic Key. Otherwise the page has no Quorum.
 //   unlock  a way to enter the Magic Key, while this device has none (./unlock.ts); the definitions come from the server (./course.ts)
@@ -192,6 +193,7 @@ function forgetEverything() {
 export const pwaPlatform: Platform = {
   target: "pwa",
   loadData,
+  preview: typeof __PREVIEW__ === "boolean" && __PREVIEW__,
   db: async () => db,
   sample,
   onKey(tell) {

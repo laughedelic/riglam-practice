@@ -109,9 +109,9 @@ export const state = {
   bzHold: 0,         // the timer of a hold on the stopwatch in the top bar (shell/topbar.js)
   blitzUse: true,    // the Blitz page of the practice options can take the stopwatch away from the top bar altogether (on by default)
   relMs: undefined,  // the relation has its own time; it starts from the one time of earlier versions
-  // reading the questions aloud and answering by voice, with the browser's own speech (shell/voice.js); both off until turned on in Options
-  voice: {read:false, answer:"off", confirm:"tap", voiceId:"", rate:1, key:"", phase:"idle", live:"", note:"", bad:false, pend:null,began:false,seen:false,held:false, ask3:false, tries:0, blocked:false, clockUi:null, rhold:false, stop:null, tok:null, hooked:false},
-  features: [],   // features on trial that are on for this device (src/ui/features.ts); app.js fills it in at the start
+  // reading the questions aloud and answering by voice, with the browser's own speech (shell/voice.js). `on` is the Voice switch in Settings (app.js sets it
+  // at the start: the device's choice, else the build's default); `read` and `answer` are in the Practice options, both off until turned on there
+  voice: {on:false, muted:false, read:false, answer:"off", confirm:"tap", voiceId:"", rate:1, key:"", phase:"idle", live:"", note:"", bad:false, pend:null,began:false,seen:false,held:false, ask3:false, tries:0, blocked:false, clockUi:null, rhold:false, stop:null, tok:null, hooked:false},
   sylMs: 15000,      // a syllogism has its own time (Syllogisms), stored as `rd-timer-syl`
 };
 

@@ -36,6 +36,12 @@ const Recognition = (): (new () => Recognizer) | null => {
   return g.SpeechRecognition || g.webkitSpeechRecognition || null;
 };
 
+/**
+ * Whether Voice is on: the device's own choice (`rd-voice`, "1" or "0") when it made one, else the build's default, which is on in a
+ * Preview (staging, a pull request) and off in the real app.
+ */
+export const voiceOn = (stored: string | null, preview: boolean): boolean => (stored === "1" ? true : stored === "0" ? false : preview);
+
 export const canSpeak = (): boolean => !!synth();
 export const canHear = (): boolean => !!Recognition();
 
@@ -97,9 +103,15 @@ const voiceFor = (id: string) => {
 // Chrome can drop an utterance that nothing refers to, and then never reports its end.
 const held: SpeechSynthesisUtterance[] = [];
 
+// A synthesizer is not trusted to say it has finished, either: with no speech engine behind it (Chromium on Linux) the end never
+// comes. Reading takes about 70 ms a character at normal speed; four times that, and a few seconds more, is taken as the end.
+const READ_SLACK = 5000, READ_PER_CHAR = 280;
+/** How long after which the reading of `text` is taken as ended if the browser has not said so. */
+export const readingTimeout = (text: string, rate = 1): number => READ_SLACK + Math.round((text.length * READ_PER_CHAR) / (rate > 0 ? rate : 1));
+
 /**
  * Says `text`. `done(ok, error)` comes once, when it has been said, when it failed (`not-allowed`: the browser wants a
- * tap on the page first), or when it was cut off by `stopSpeaking` or by the next `speak`.
+ * tap on the page first), when it was cut off by `stopSpeaking` or by the next `speak`, or, as `timeout`, when the browser never said.
  */
 export function speak(text: string, opts: { voice?: string; rate?: number; done?: (ok: boolean, error?: string) => void } = {}): void {
   const s = synth();
@@ -113,7 +125,8 @@ export function speak(text: string, opts: { voice?: string; rate?: number; done?
   held.push(u);
   if (held.length > 8) held.shift();
   let over = false;
-  const end = (ok: boolean, error?: string) => { if (over) return; over = true; opts.done?.(ok, error); };
+  const end = (ok: boolean, error?: string) => { if (over) return; over = true; clearTimeout(timer); opts.done?.(ok, error); };
+  const timer = setTimeout(() => { if (over) return; s.cancel(); end(false, "timeout"); }, readingTimeout(text, u.rate));
   u.onend = () => end(true);
   u.onerror = (e) => end(false, e.error);
   s.speak(u);

@@ -17,7 +17,6 @@ import type { TransferSlot } from "../ui/data-transfer";
 import type { KeyHeld } from "../platform/types";
 
 export type { Pair, PoolEntry, Verdict };
-type Feature = import("../ui/features").Feature;
 
 export interface CellDoc {
   text: string;
@@ -423,8 +422,6 @@ export interface State {
 
   // reading the questions aloud and answering by voice (shell/voice.js)
   voice: VoiceState;
-  /** features on trial that are on for this device (src/ui/features.ts) */
-  features: Feature[];
 }
 
 /** A spoken answer that waits for its confirmation (shell/voice.js). */
@@ -443,6 +440,10 @@ export interface PendingAnswer {
 
 /** Voice settings (kept on the device) and what the voice is doing on the screen now. */
 export interface VoiceState {
+  /** the Voice switch in Settings: until it is on, none of the voice does anything */
+  on: boolean;
+  /** Read aloud is paused with the switch in the top bar, for this visit only */
+  muted: boolean;
   /** read each question aloud */
   read: boolean;
   /** answer by voice: not at all, when the microphone button is tapped, or listening after each question */
@@ -468,11 +469,11 @@ export interface VoiceState {
   began: boolean;
   /** a question was already shown (the first one is held, not read) */
   seen: boolean;
-  /** the question on the screen is the first one: nothing is read or listened to until the person taps the speaker or the microphone */
+  /** the question on the screen is the first one: nothing is read or listened to until the person asks for it (the line under the answer controls, or the microphone) */
   held: boolean;
   /** how often this screen was listened to without an answer coming of it */
   tries: number;
-  /** speaking failed for want of a tap on the page: the Read again button says so */
+  /** speaking failed for want of a tap on the page: the line under the answer controls says so, with a button to read the question */
   blocked: boolean;
   /** the attempt whose Blitz clock voice holds (a question is being read, or an answer waits), else null */
   clockUi: Ui | null;
@@ -482,6 +483,6 @@ export interface VoiceState {
   stop: { stop(): void; abort(): void } | null;
   /** the speaking or listening under way; a callback of one that was stopped finds another here and does nothing */
   tok: object | null;
-  /** the Options row listens for the browser's list of voices (once it has been shown) */
+  /** the Practice options listen for the browser's list of voices (once they have been shown) */
   hooked: boolean;
 }

@@ -36,6 +36,8 @@ export function startQ(spent=0){
 // The Blitz countdown stands still while a question is read aloud and while a spoken answer waits for its confirmation (shell/voice.js),
 // and that time is not counted in the time of the answer. `u.hold` also keeps the render from starting a countdown of its own.
 const stageOf=u=>u.debate?(u.step<4?"q"+u.step:"rel"):(u.rel?"ex":"pick");
+// the time of the question gone so far; while the clock is held, `qStart` is stale, and the time is what the hold kept
+const sinceStart=u=>u.hold?u.hold.spent:performance.now()-u.qStart;
 export function holdClock(){
   const u=state.ui; if(!u||u.hold||u.checked) return;
   const spent=u.debate&&u.step<4?performance.now()-u.qStart:u.tq?performance.now()-u.tq.t0:0;
@@ -54,13 +56,14 @@ export function releaseClock(how,ui=state.ui){
   freezeBar(false);
   if(ui.checked) return;
   const spent=how==="fresh"||(how==="moved"&&stageOf(ui)!==h.stage)?0:h.spent;
-  if(ui.debate&&ui.step<4) startQ(spent);
+  if(ui.debate&&ui.step<4){ if(state.tab==="debate") startQ(spent); }   // the screen may have gone to another tab with the hold still on it
   else if(how!=="resume"||h.run) ensureRelTimer(spent);
 }
 /** Whether a question with a clock is on screen: a Pervasions question, or the reply to a syllogism. */
 export const asking=()=>(state.tab==="debate"&&state.ui&&state.ui.debate&&!state.ui.checked&&state.ui.step<4)||syllogismAsking();
 export function setBlitz(on){
   state.blitz=on; try{ localStorage.setItem("rd-blitz",on?"1":"0"); }catch(e){}
+  if(on&&state.ui&&state.ui.hold){ state.ui.hold.spent=0; state.ui.hold.run=true; }   // switched on while the clock is held: it runs, from the start, when the hold ends
   if(asking()) startQ(); else relReset();
   render();
 }
@@ -89,7 +92,7 @@ function nextQ(){
 // and an example said together with Why? is taken at once.
 export function sayQ(say,voiced){
   if(!state.ui||!state.ui.debate||state.ui.checked||state.ui.step>3||state.ui.pickWhy) return;
-  const a=state.ui.ans[state.ui.step]; a.say=say; a.ms=Math.round(performance.now()-state.ui.qStart);
+  const a=state.ui.ans[state.ui.step]; a.say=say; a.ms=Math.round(sinceStart(state.ui));
   if(say==="accept"){ nextQ(); return; }
   state.ui.pickWhy=true; state.ui.exText="";
   if(voiced&&voiced.example){ state.ui.exText=voiced.example; submitWhy(); return; }
@@ -101,7 +104,7 @@ export function sayQ(say,voiced){
 export function submitWhy(){
   if(!state.ui||!state.ui.debate||state.ui.checked||state.ui.step>3||!state.ui.pickWhy) return;
   const t=(state.ui.exText||"").trim(); if(!t) return;
-  const a=state.ui.ans[state.ui.step]; a.text=t; a.msEx=Math.round(performance.now()-state.ui.qStart);
+  const a=state.ui.ans[state.ui.step]; a.text=t; a.msEx=Math.round(sinceStart(state.ui));
   nextQ();
 }
 export function backWhy(){

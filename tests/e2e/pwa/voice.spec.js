@@ -1,15 +1,16 @@
-// Voice: the questions read aloud and answers by voice (src/app/shell/voice.js), a feature on trial (src/ui/features.ts) that
-// these specs turn on for the device unless they test the switch itself. A heard answer waits for Confirm (or "yes"), or goes on
-// by itself after a pause when Options says so. The browser's speech is stood in for:
+// Voice: the questions read aloud and answers by voice (src/app/shell/voice.js), a feature on trial: its switch in Settings is off in the
+// real app (and so in this build) until it is turned on, and these specs turn it on for the device unless they test the switch itself.
+// The choices are in the Practice options, the microphone is in the middle of the pair bar and a switch in the top bar pauses the reading.
+// A heard answer waits for Confirm (or "yes"), or goes on by itself after a pause when the options say so. The browser's speech is stood in for:
 // speechSynthesis notes what it is asked to say and ends each utterance at once; SpeechRecognition answers each start
 // with the next phrase the test queued (a phrase, or a list of guesses best first), or with "no-speech" when none comes.
 import { test, expect } from "../../support/test.js";
-import { goTo, openSettings, ready, isPhone, overflow } from "../../support/page.js";
+import { goTo, openSettings, ready, isPhone, overflow, relOptions } from "../../support/page.js";
 
-/** Stands in for the browser's speech. `settings` are the rd-voice-* values to start with; `heard` the phrases queued from the start; `trial` turns the feature on. */
-async function voice(page, { settings = {}, heard = [], none = false, trial = true } = {}) {
-  await page.addInitScript(({ settings, heard, none, trial }) => {
-    if (trial && localStorage.getItem("riglam.features") === null) localStorage.setItem("riglam.features", "voice");
+/** Stands in for the browser's speech. `settings` are the rd-voice-* values to start with; `heard` the phrases queued from the start; `on` turns the Voice switch on for the device. */
+async function voice(page, { settings = {}, heard = [], none = false, on = true } = {}) {
+  await page.addInitScript(({ settings, heard, none, on }) => {
+    if (on && localStorage.getItem("rd-voice") === null) localStorage.setItem("rd-voice", "1");
     for (const [k, v] of Object.entries(settings)) localStorage.setItem("rd-voice-" + k, v);
     if (none) {
       for (const k of ["speechSynthesis", "SpeechRecognition", "webkitSpeechRecognition"]) Object.defineProperty(window, k, { value: undefined, configurable: true });
@@ -58,20 +59,21 @@ async function voice(page, { settings = {}, heard = [], none = false, trial = tr
     }
     window.SpeechRecognition = Recognition;
     window.webkitSpeechRecognition = Recognition;
-  }, { settings, heard, none, trial });
+  }, { settings, heard, none, on });
 }
 const said = (page) => page.evaluate(() => window.__said.slice());
 const hearNext = (page, ...phrases) => page.evaluate((p) => window.__heard.push(...p), phrases);
 const docs = (page, col) => page.evaluate(async (col) => (await (await window.__riglam.platform.db()).collection(col).get()).docs.map((d) => d.data()), col);
-const openOptions = (page) => openSettings(page);
 const tab = (page, name) => goTo(page, name);
-const mic = (page) => page.locator("#vbar .vmic");
+const mic = (page) => page.locator("#vmic");
+const listening = (page) => expect(mic(page)).toHaveAttribute("aria-pressed", "true");
+const idle = (page) => expect(mic(page)).toHaveAttribute("aria-pressed", "false");
 const waiting = (page) => page.locator("#vbar .vtake");
 const confirm = (page) => page.locator("#vbar .vok").click();
 /** Waits until the recognizer has taken what was queued and the mic is idle again, so the next phrase never meets a listening mic. */
 async function settle(page) {
   await page.waitForFunction(() => !window.__heard.length);
-  await expect(mic(page)).not.toContainText("Listening");
+  await idle(page);
 }
 /** Says a phrase with the mic button, and waits for the answer it was taken as to appear. */
 async function hear(page, ...phrases) {
@@ -81,74 +83,184 @@ async function hear(page, ...phrases) {
   await expect(waiting(page)).toBeVisible();
 }
 
-test("voice is off until its switch in Options turns it on; the switch stays there either way", async ({ page }) => {
-  await voice(page, { trial: false, settings: { read: "1", answer: "tap" } });
+const sheet = (page) => page.locator("#over .sheet");
+const openPracticeOptions = async (page) => { await page.locator("#msess").click(); await expect(sheet(page)).toBeVisible(); };
+const closeSheet = (page) => page.keyboard.press("Escape");
+
+test("Voice is off in the real app until its switch in Settings turns it on; that switch is the only voice control there", async ({ page }) => {
+  await voice(page, { on: false, settings: { read: "1", answer: "tap" } });
   await page.goto("/");
   await ready(page);
-  await expect(page.locator("#vbar")).toHaveCount(0);
+  await expect(page.locator("#vbar, #vmic")).toHaveCount(0);   // nothing of it on the screen
+  await expect(page.locator("#mrd")).toBeHidden();
   expect(await said(page)).toEqual([]);
-  await openOptions(page);
-  const sw = page.locator(".vopts").getByRole("switch", { name: /^voice/i });
+  await openPracticeOptions(page);
+  await expect(sheet(page).getByRole("switch", { name: /read aloud/i })).toHaveCount(0);   // and no Voice section in the Practice options
+  await closeSheet(page);
+  await openSettings(page);
+  const sw = page.getByRole("switch", { name: /^voice/i });
   await expect(sw).toHaveAttribute("aria-checked", "false");
-  await expect(page.getByRole("switch", { name: /read aloud/i })).toHaveCount(0);   // nothing else of the Voice row until it is on
+  await expect(page.locator(".xchip")).toHaveText("Experimental");
+  await expect(page.locator("#over").getByRole("switch", { name: /read aloud/i })).toHaveCount(0);   // its choices are not in Settings
+  await expect(page.locator("#over").getByLabel("Voice", { exact: true })).toHaveCount(0);
 
   await sw.click();
   await expect(sw).toHaveAttribute("aria-checked", "true");
-  await expect(page.getByRole("switch", { name: /read aloud/i })).toBeVisible();
-  expect(await page.evaluate(() => localStorage.getItem("riglam.features"))).toBe("voice");
+  await expect(page.locator("#over").getByRole("switch", { name: /read aloud/i })).toHaveCount(0);   // still just the one switch
+  expect(await page.evaluate(() => localStorage.getItem("rd-voice"))).toBe("1");
   await page.reload();   // the choice is kept on the device
   await ready(page);
-  await expect(page.locator("#vbar")).toBeVisible();
+  await expect(mic(page)).toBeVisible();
 
-  await openOptions(page);
+  await openSettings(page);
   await page.getByRole("switch", { name: /^voice/i }).click();
-  await expect(page.getByRole("switch", { name: /read aloud/i })).toHaveCount(0);
   await expect(page.getByRole("switch", { name: /^voice/i })).toHaveAttribute("aria-checked", "false");
+  expect(await page.evaluate(() => localStorage.getItem("rd-voice"))).toBe("0");
   await page.reload();
   await ready(page);
-  await expect(page.locator("#vbar")).toHaveCount(0);
-  expect(await page.evaluate(() => localStorage.getItem("riglam.features"))).toBeNull();
+  await expect(page.locator("#vbar, #vmic")).toHaveCount(0);
+  await expect(page.locator("#mrd")).toBeHidden();
+  expect(await said(page)).toEqual([]);
 });
 
-test("the address can turn voice on for a device too, and is cleaned afterwards", async ({ page }) => {
-  await voice(page, { trial: false, settings: { read: "1", answer: "tap" } });
-  await page.goto("/?features=voice");
-  await ready(page);
-  await expect(page.locator("#vbar")).toBeVisible();
-  expect(new URL(page.url()).search).toBe("");
-});
-
-test("with no speech in the browser there is no Voice row and no voice bar", async ({ page }) => {
+test("with no speech in the browser there is no Voice switch, no microphone and no voice bar", async ({ page }) => {
   await voice(page, { none: true, settings: { read: "1", answer: "tap" } });
   await page.goto("/");
   await ready(page);
-  await expect(page.locator("#vbar")).toHaveCount(0);
-  await openOptions(page);
+  await expect(page.locator("#vbar, #vmic")).toHaveCount(0);
+  await expect(page.locator("#mrd")).toBeHidden();
+  await openSettings(page);
   await expect(page.getByRole("switch", { name: /^voice/i })).toHaveCount(0);
 });
 
-test("both settings are off at first; Options turns them on, lists the voices by accent, reads a sample and keeps the choice", async ({ page }) => {
+test("the Practice options have the key choices of Voice, and a page for the details: voices by accent, a sample, how an answer is taken", async ({ page }) => {
   await voice(page);
   await page.goto("/");
   await ready(page);
-  await expect(page.locator("#vbar")).toHaveCount(0);
+  await expect(page.locator("#vbar")).toHaveCount(0);   // Read aloud and Answer by voice are both off at first: the mic is not there
+  await expect(mic(page)).toHaveCount(0);
   expect(await said(page)).toEqual([]);
-  await openOptions(page);
-  const row = page.locator(".vopts");
-  await row.getByRole("switch", { name: /read aloud/i }).click();
-  await expect(row.getByRole("switch", { name: /read aloud/i })).toHaveAttribute("aria-checked", "true");
-  expect((await said(page)).at(-1)).toMatch(/^Do you accept that/);
+  await openPracticeOptions(page);
+  await expect(sheet(page).getByText("Voice", { exact: true }).first()).toBeVisible();
+  const read = sheet(page).getByRole("switch", { name: /read aloud/i });
+  await expect(read).toHaveAttribute("aria-checked", "false");
+  await read.click();
+  await expect(read).toHaveAttribute("aria-checked", "true");
+  expect((await said(page)).at(-1)).toMatch(/^Do you accept that/);   // a sample, to hear the voice
+  await sheet(page).getByRole("button", { name: "Tap the mic" }).click();
+  expect(await page.evaluate(() => ["read", "answer"].map((k) => localStorage.getItem("rd-voice-" + k)))).toEqual(["1", "tap"]);
+
+  await sheet(page).getByRole("button", { name: "Answer by voice: details" }).click();   // the page of details
+  await expect(sheet(page).getByRole("heading", { name: "Voice" })).toBeVisible();
   // the English voices, by accent, American and British first; the best (Google's) first in each; the German one is not listed
-  const sel = row.getByLabel("Voice", { exact: true });
+  const sel = sheet(page).getByLabel("Voice", { exact: true });
   await expect(sel).toBeVisible();
   expect(await sel.evaluate((s) => [...s.querySelectorAll("optgroup")].map((g) => [g.label, [...g.querySelectorAll("option")].map((o) => o.textContent.split(" · ")[0])])))
     .toEqual([["American", ["Google US English"]], ["British", ["Google UK English Female", "Daniel"]], ["Australian", ["Karen"]]]);
   await expect(sel.locator("option").first()).toHaveText("Best on this device (Google US English)");
-  await row.getByRole("button", { name: "Hands-free" }).click();
-  await expect(row.getByRole("group", { name: "After an answer is heard" })).toBeVisible();
-  await row.getByRole("button", { name: "Go on by itself" }).click();
+  await sheet(page).getByRole("button", { name: /^Hands-free/ }).click();
+  await expect(sheet(page).getByRole("group", { name: "After an answer is heard" })).toBeVisible();
+  await sheet(page).getByRole("button", { name: /^Go on by itself/ }).click();
   expect(await page.evaluate(() => ["read", "answer", "confirm"].map((k) => localStorage.getItem("rd-voice-" + k)))).toEqual(["1", "auto", "auto"]);
+  await expect(sheet(page).getByRole("button", { name: "Settings" })).toBeVisible();   // where Voice itself is switched off
   expect(await overflow(page)).toBeLessThanOrEqual(0);
+  await sheet(page).getByRole("button", { name: "Back to the options" }).click();
+  await expect(sheet(page).getByRole("button", { name: "Hands-free" })).toHaveAttribute("aria-pressed", "true");   // and the list shows the choice
+});
+
+test("Find a pair and Syllogisms have no Voice section: only Relations and Pervasions read and listen", async ({ page }) => {
+  await voice(page, { settings: { read: "1", answer: "tap" } });
+  await page.goto("/");
+  await ready(page);
+  for (const name of ["Pervasions", "Find a pair", "Syllogisms"]) {
+    await tab(page, name);
+    await expect(page.locator("#msess")).toBeVisible();
+    await openPracticeOptions(page);
+    await expect(sheet(page).getByRole("switch", { name: /read aloud/i })).toHaveCount(name === "Pervasions" ? 1 : 0);
+    await closeSheet(page);
+  }
+});
+
+test("the microphone is the middle button of the pair bar, an icon with no label, and it lights up while it listens", async ({ page }) => {
+  await voice(page, { settings: { answer: "tap" } });
+  await page.goto("/");
+  await ready(page);
+  await expect(mic(page)).toBeVisible();
+  await expect(mic(page)).toHaveText("");
+  await expect(mic(page)).toHaveAttribute("title", /Say the relation, such as/);   // what it would take is its tooltip, not a line of text
+  await expect(page.locator("#vbar")).toBeHidden();   // and nothing else is said until there is something to say
+  const box = async (loc) => loc.evaluate((e) => { const r = e.getBoundingClientRect(); return { l: r.left, r: r.right, t: r.top, h: r.height }; });
+  const m = await box(mic(page)), skip = await box(page.locator(".pbar .skipw")), bar = await box(page.locator(".pbar .prow"));
+  expect(skip.r).toBeLessThan(m.l);
+  expect(Math.abs((m.l + m.r) / 2 - (bar.l + bar.r) / 2)).toBeLessThan(8);   // in the middle of the bar
+  expect(Math.abs(m.t + m.h / 2 - (skip.t + skip.h / 2))).toBeLessThan(4);   // on the line of the other buttons
+  expect(await overflow(page)).toBeLessThanOrEqual(0);
+
+  await page.evaluate(() => { window.__dead = true; });   // a recognizer that stays on, so that the lit microphone can be looked at
+  await mic(page).click();
+  await listening(page);   // lit while it listens (aria-pressed, the pulse)
+  await expect(page.locator("#vbar .vst")).toHaveText("Listening…");
+  expect(await mic(page).evaluate((e) => getComputedStyle(e).backgroundColor)).not.toBe("rgba(0, 0, 0, 0)");   // filled, not an outline like the other buttons
+  await mic(page).click();
+  await idle(page);
+  await page.evaluate(() => { window.__dead = false; });
+  await hear(page, "mutually exclusive");
+  await expect(waiting(page)).toBeVisible();
+});
+
+test("the Read aloud switch in the top bar, next to Blitz, pauses and resumes the reading", async ({ page }) => {
+  await voice(page, { settings: { read: "1", answer: "tap" } });
+  await page.goto("/");
+  await ready(page);
+  const sw = page.locator("#mrd");
+  await expect(sw).toBeVisible();
+  await expect(sw).toHaveAttribute("aria-checked", "true");
+  const x = (loc) => loc.evaluate((e) => e.getBoundingClientRect().left);
+  expect(await x(sw)).toBeLessThan(await x(page.locator("#mbz")));   // next to the Blitz switch
+  expect(await x(page.locator("#mbz")) - await x(sw)).toBeLessThan(80);
+  await tab(page, "Pervasions");
+  await expect.poll(async () => (await said(page)).length).toBe(1);   // read by itself (the first question the app opened on was held back)
+  await sw.click();   // paused
+  await expect(sw).toHaveAttribute("aria-checked", "false");
+  await expect(sw).toHaveAttribute("title", /paused/);
+  await hear(page, "I accept");
+  await confirm(page);
+  await expect(page.locator(".qcard .qn")).toContainText("Question 2");
+  await page.waitForTimeout(300);
+  expect(await said(page)).toHaveLength(1);   // nothing more was read
+  await sw.click();   // resumed: the question on the screen is read
+  await expect(sw).toHaveAttribute("aria-checked", "true");
+  await expect.poll(async () => (await said(page)).length).toBe(2);
+  expect((await said(page)).at(-1)).toMatch(/Do you accept that/);
+  // it is for this visit only: the choice in the options is still Read aloud on
+  expect(await page.evaluate(() => localStorage.getItem("rd-voice-read"))).toBe("1");
+  await page.reload();
+  await expect(page.locator("#stage .head .pair")).toBeVisible();
+  await expect(sw).toHaveAttribute("aria-checked", "true");
+});
+
+test("pausing in the middle of a reading cuts it off; the switch is not there with Read aloud off, or off Relations and Pervasions", async ({ page }) => {
+  await voice(page, { settings: { read: "1", answer: "tap" } });
+  await page.goto("/");
+  await ready(page);
+  await page.evaluate(() => { window.__speakMs = 4000; });   // a long reading
+  await tab(page, "Pervasions");
+  await expect.poll(async () => (await said(page)).length).toBe(1);
+  await page.locator("#mrd").click();
+  expect(await page.evaluate(() => window.speechSynthesis.cur)).toBeNull();   // stopped
+  await tab(page, "Syllogisms");
+  await expect(page.locator("#mrd")).toBeHidden();
+  await tab(page, "Relations");
+  await page.locator("#mrd").click();
+  await openPracticeOptions(page);
+  await sheet(page).getByRole("switch", { name: /read aloud/i }).click();   // turning Read aloud off takes the switch away
+  await sheet(page).getByRole("switch", { name: /read aloud/i }).click();   // and on again puts it back, not paused
+  await closeSheet(page);
+  await expect(page.locator("#mrd")).toHaveAttribute("aria-checked", "true");
+  await openPracticeOptions(page);
+  await sheet(page).getByRole("switch", { name: /read aloud/i }).click();
+  await closeSheet(page);
+  await expect(page.locator("#mrd")).toBeHidden();
 });
 
 test("Pervasions: each question is read aloud and answered with the mic; the answer waits on its own question for Confirm", async ({ page }) => {
@@ -167,7 +279,7 @@ test("Pervasions: each question is read aloud and answered with the mic; the ans
   await confirm(page);
   await expect(page.locator(".qcard .qn")).toContainText("Question 2");
   await expect(waiting(page)).toHaveCount(0);
-  await expect(page.locator("#vbar .vst")).not.toContainText("Heard");   // nothing of the last answer on the next question
+  await expect(page.locator("#vbar .vst")).toHaveCount(0);   // nothing of the last answer on the next question
   for (const n of [3, 4]) {
     await hear(page, "I accept");
     await confirm(page);
@@ -202,7 +314,7 @@ test("a heard answer can be taken back with Change, with \"no\" or by saying ano
   await page.waitForTimeout(1600);   // the answer waits; the time it waits is not the time the answer took
   await page.locator("#vbar .vno").click();   // Change: gone, and the mic is open again for the right answer
   await expect(waiting(page)).toHaveCount(0);
-  await expect(page.locator("#vbar .vmic")).toContainText("Listening");
+  await listening(page);
   await expect(page.locator(".qcard .qn")).toContainText("Question 1");
   await hearNext(page, "why a gold ring");   // the open mic takes it
   await expect(page.locator("#vbar .vwhat b")).toHaveText("Why? a gold ring");
@@ -213,7 +325,7 @@ test("a heard answer can be taken back with Change, with \"no\" or by saying ano
   await hearNext(page, "no");
   await page.keyboard.press("v");
   await expect(waiting(page)).toHaveCount(0);
-  await expect(page.locator("#vbar .vmic")).toContainText("Listening");   // and open again
+  await listening(page);   // and open again
   await hearNext(page, "yes");   // "yes" with nothing waiting is the answer Accept
   await expect(page.locator("#vbar .vwhat b")).toHaveText("Accept");
   await hearNext(page, "yes");   // and with an answer waiting it confirms
@@ -348,7 +460,7 @@ test("Blitz: a question's countdown starts when its reading ends, not before", a
   await expect.poll(async () => (await said(page)).at(-1) || "").toMatch(/Do you accept that/);
   await page.waitForTimeout(2600);   // longer than the countdown, but the question is still being read
   await expect(page.locator(".qcard .qn")).toContainText("Question 1");
-  await expect(page.locator("#vbar .vmic")).toBeVisible();
+  await expect(mic(page)).toBeVisible();
   await expect(page.locator(".qcard .qn")).toContainText("Question 2", { timeout: 6000 });   // then it runs out after its own 2 seconds
 });
 
@@ -405,7 +517,7 @@ test("words that are not an answer are said back, and the mic stays for another 
   await page.goto("/");
   await ready(page);
   const hint = "Say the relation, such as “four possibilities”, or what is written under it.";
-  await expect(page.locator("#vbar .vst")).toHaveText(hint);
+  await expect(mic(page)).toHaveAttribute("title", new RegExp(hint));   // the hint is the tooltip of the microphone: nothing is written under the options
   await hearNext(page, "good morning");
   await mic(page).click();
   await settle(page);
@@ -423,7 +535,7 @@ test("words that are not an answer are said back, and the mic stays for another 
   if (isPhone(testInfo)) await expect(page.locator("#cin")).toBeVisible();
   else await expect(page.locator(".strip .chip[aria-pressed=true]")).toHaveCount(1);
   // the next screen asks for the first example and shows nothing of the last answer
-  await expect(page.locator("#vbar .vst")).not.toContainText("Heard");
+  await expect(page.locator("#vbar .vst")).toHaveCount(0);
 });
 
 test("a recognizer that never ends does not leave the mic stuck: the next tap ends it and the one after listens", async ({ page }) => {
@@ -432,29 +544,44 @@ test("a recognizer that never ends does not leave the mic stuck: the next tap en
   await ready(page);
   await page.evaluate(() => { window.__dead = true; });
   await mic(page).click();
-  await expect(mic(page)).toContainText("Listening");
+  await listening(page);
   await mic(page).click();   // stop it; the recognizer does not answer, so the page ends the listening itself
-  await expect(mic(page)).toContainText("Speak");
+  await idle(page);
   await expect(page.locator("#vbar .vst")).toContainText("Nothing was heard");
   await page.evaluate(() => { window.__dead = false; });
   await hear(page, "four possibilities");
   await expect(page.locator("#vbar .vwhat b")).toHaveText("Four possibilities");
 });
 
-test("the question the app opens on is not read until the speaker is tapped; later ones are read by themselves", async ({ page }) => {
+test("the question the app opens on is not read until it is asked for; later ones are read by themselves", async ({ page }) => {
   await voice(page, { settings: { read: "1", answer: "tap" } });
   await page.goto("/");
   await ready(page);
-  await expect(page.locator("#vbar .vst")).toHaveText("Tap the speaker to hear the question, or the microphone to answer.");
+  const hear = page.getByRole("button", { name: "Hear the question" });
+  await expect(hear).toBeVisible();
   await page.waitForTimeout(500);
   expect(await said(page)).toEqual([]);   // nothing was said, and nothing is waiting to be said
-  await page.getByRole("button", { name: "Read the question again" }).click();
+  await hear.click();
   await expect.poll(async () => (await said(page)).at(-1) || "").toMatch(/What is the relation\?$/);
-  await expect(page.locator("#vbar .vst")).not.toContainText("Tap the speaker");
+  await expect(hear).toHaveCount(0);   // and the way to hear it goes away
   const before = (await said(page)).length;
   await tab(page, "Pervasions");   // moving on by hand: this screen is read by itself
   await expect.poll(async () => (await said(page)).length).toBeGreaterThan(before);
   await expect.poll(async () => (await said(page)).at(-1) || "").toMatch(/Do you accept that/);
+  await expect(hear).toHaveCount(0);
+});
+
+test("the first question can also be read with the R key, or by pausing and resuming Read aloud", async ({ page }) => {
+  await voice(page, { settings: { read: "1", answer: "tap" } });
+  await page.goto("/");
+  await ready(page);
+  expect(await said(page)).toEqual([]);
+  await page.locator("#mrd").click();   // pause
+  await page.locator("#mrd").click();   // and resume: reads the question on the screen
+  await expect.poll(async () => (await said(page)).length).toBe(1);
+  expect((await said(page)).at(-1)).toMatch(/What is the relation\?$/);
+  await page.keyboard.press("r");
+  await expect.poll(async () => (await said(page)).length).toBe(2);
 });
 
 test("\"I don't know\" gets a friendly nudge, said too with Read aloud, and nothing is taken as an answer", async ({ page }) => {
@@ -475,4 +602,77 @@ test("\"I don't know\" gets a friendly nudge, said too with Read aloud, and noth
   await hear(page, "I accept");   // and the next try is taken as usual
   await confirm(page);
   await expect(page.locator(".qcard .qn")).toContainText("Question 2");
+});
+
+/* ---------- what a second review of the Blitz clock found ---------- */
+
+test("Blitz: an answer given by hand while a spoken one waits is timed by the clock that stood still", async ({ page }) => {
+  await page.addInitScript(() => { localStorage.setItem("rd-blitz", "1"); localStorage.setItem("rd-timer", "8000"); });
+  await voice(page, { settings: { answer: "tap" } });
+  await page.goto("/");
+  await ready(page);
+  await tab(page, "Pervasions");
+  await hear(page, "accept");
+  await page.waitForTimeout(2200);   // the answer waits; the clock is stopped
+  await page.getByRole("button", { name: /^Accept/ }).click();   // by hand
+  for (const n of [2, 3, 4]) {
+    await expect(page.locator(".qcard .qn")).toContainText("Question " + n);
+    await page.getByRole("button", { name: /^Accept/ }).click();
+  }
+  await relOptions(page).first().click();
+  await expect.poll(async () => (await docs(page, "debates")).length).toBe(1);
+  const [d] = await docs(page, "debates");
+  expect(d.qs[0].ms).toBeLessThan(1500);   // not the 2 seconds it waited
+});
+
+test("Blitz switched on while an answer waits: the question gets its full time when the answer is taken back", async ({ page }) => {
+  await voice(page, { settings: { answer: "tap" } });
+  await page.goto("/");
+  await ready(page);
+  await tab(page, "Pervasions");
+  await page.waitForTimeout(1500);   // thinking time from before Blitz was on
+  await hear(page, "accept");
+  await page.locator("#mbz").click();
+  await page.locator("#vbar .vno").click();
+  await expect(bar(page)).toHaveCount(1);
+  await expect(bar(page)).toHaveCSS("animation-play-state", "running");
+  expect(await elapsed(page)).toBeLessThan(900);
+});
+
+test("Blitz: going to Review with an answer waiting leaves no countdown on the Review screen", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("rd-blitz", "1"));
+  await voice(page, { settings: { answer: "tap" } });
+  await page.goto("/");
+  await ready(page);
+  await tab(page, "Pervasions");
+  await hear(page, "accept");
+  await tab(page, "Review");
+  await page.waitForTimeout(300);
+  await expect(page.locator(".tbar")).toHaveCount(0);
+});
+
+test("Blitz in Relations: going back to the relation list does not start the examples countdown over", async ({ page }, testInfo) => {
+  test.skip(!isPhone(testInfo), "the steps to go back by are the phone's");
+  await page.addInitScript(() => localStorage.setItem("rd-blitz", "1"));
+  await voice(page, { settings: { read: "1", answer: "tap" } });
+  await page.goto("/");
+  await ready(page);
+  await relOptions(page).first().click();   // by hand: the examples, with their countdown
+  await expect(bar(page)).toHaveCount(1);
+  await page.waitForTimeout(1500);
+  await page.locator(".steps button").first().click();   // back to the relation list, which is read as a new screen
+  await expect.poll(async () => (await said(page)).at(-1) || "").toMatch(/What is the relation\?$/);
+  await page.waitForTimeout(200);
+  await expect(bar(page)).toHaveCount(1);
+  expect(await elapsed(page)).toBeGreaterThan(1200);   // it went on, as it does without voice
+});
+
+test("Hands-free: after the nudge for \"I don't know\" the microphone opens again, with Read aloud off", async ({ page }) => {
+  await voice(page, { settings: { answer: "auto" }, heard: ["I don't know", "I accept"] });
+  await page.goto("/");
+  await ready(page);
+  await tab(page, "Pervasions");   // moving on by hand: this screen listens by itself
+  await expect(waiting(page)).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator("#vbar .vwhat b")).toHaveText("Accept");
+  expect(await page.evaluate(() => window.__listens)).toBeGreaterThanOrEqual(2);
 });

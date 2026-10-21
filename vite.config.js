@@ -33,7 +33,7 @@ const iconLinks = () => ({
 export default defineConfig({
   // Relative asset paths: the app works from a domain root, a sub-path, or a Pages preview URL.
   base: process.env.BASE_PATH ?? "./",
-  define: { __APP_VERSION__: JSON.stringify(pkg.version), __BUILD__: JSON.stringify(build) },
+  define: { __APP_VERSION__: JSON.stringify(pkg.version), __BUILD__: JSON.stringify(build), __PREVIEW__: JSON.stringify(iconSet() === "preview") },
   plugins: [
     buildInfo(),
     iconLinks(),

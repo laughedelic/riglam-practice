@@ -13,6 +13,7 @@ import { toggleOpts } from "./options.js";
 import { isEx, render } from "./render.js";
 import { segOf, settingRow as row, switchOf } from "./rows.js";
 import { kindMs } from "./timers.js";
+import { voiceListRows, voicePageBody, voiceShown } from "./voice.js";
 
 /* ---------- the Practice options of an exercise ---------- */
 // What changes how an exercise looks, ticks or is checked (notation, wording of the questions, Blitz (on or off, and its times), A/B markers, full phrases, the language of the
@@ -28,7 +29,7 @@ const SYMS={
   sets:["Sets","Each term stands for the set of things it covers.",[["∩","intersection: what is both"],["∅","the empty set: nothing"],["≠ ∅","not empty"],["⊂","contained in"],["⊃","contains"],["=","the same set"]]],
   logic:["Logic","Each term stands for a statement: it is A, it is B.",[["⇒","follows: A ⇒ B, if A then B"],["⇐","follows from"],["⇔","each follows from the other"],["⇏","does not follow"],["¬","negation: not"]]]
 };
-const PAGES={nota:"Notation",wording:"Questions",times:"Blitz",defs:"Definitions",levels:"Examples"};
+const PAGES={nota:"Notation",wording:"Questions",times:"Blitz",defs:"Definitions",levels:"Examples",voice:"Voice"};
 const store=(key,v)=>{ try{ localStorage.setItem(key,v); }catch(e){} };
 function setNota(k){ state.nota=k; store("rd-notation",k); render(); }
 export function setDefLang(k){ state.defLang=k==="enru"?"enru":"en"; store("rd-deflang",state.defLang); render(); }
@@ -116,6 +117,8 @@ function pageBody(id){
     ?"The things Categories shows come from the levels that are on, in any mix. Each level up takes more steps to reach: level 1 is the start, and another level is offered after five right in a row. Switch levels on and off here at any time."
     :"The examples shown for the cells of a pair, besides the plain ones the page has always had, come from the levels that are on, in any mix. Each level up takes more steps to reach. Level 1 is the start; switch more on when it comes easily. Relations and negations join when level 3 or 4 is on. Only examples the sources confirm are shown. A definition card shows examples of every level, the plainest first."}),
     levelSwitches()];
+  if(id==="voice") return [...voicePageBody(picks),
+    el("p",{class:"capl"},"Voice itself is switched on and off in ",el("button",{type:"button",class:"lnk",onclick:()=>{ toggleSess(false); toggleOpts(true); }},"Settings"),".")];
   return [el("p",{class:"capl",text:"Shown when you open a term’s definition, in the Terms panel and in the tutor’s notes."}),
     picks("Languages of the definitions",[["en","English","The definition in English."],["enru","English + Russian","Each entry also shows the Russian name of the term and, where there is one, its Russian definition."]],state.defLang,setDefLang)];
 }
@@ -169,6 +172,8 @@ function listBody(){
     sw("A/B markers","before the terms",state.showAB,()=>setShow("ab",!state.showAB)),
     card("Definitions",chips("Languages of the definitions",[["en","English"],["enru","English + Russian"]],state.defLang,setDefLang),"defs"),
     state.EX&&(timed||find)?card("Examples",levelsLine(),"levels"):null,
+    voiceShown()?group("Voice"):null,
+    ...(voiceShown()?voiceListRows(sw,card,chips):[]),
     tutor||quorum?group("AI tutor"):null,
     tutor?sw("Check every answer with AI",state.autoExplain?"on":"off",state.autoExplain,()=>setAutoExplain(!state.autoExplain),
       "Right after you check an answer, the AI tutor explains it and checks the examples the page could not. Off, the Explain button waits for you."):null,
@@ -179,7 +184,7 @@ function listBody(){
 // the sheet: a scrim that closes it, and the panel
 export function sessionInto(o){
   o.append(el("button",{type:"button",class:"scrim",tabindex:"-1","aria-label":"Close the practice options",onclick:()=>toggleSess(false)}));
-  const page=state.sessPage&&PAGES[state.sessPage]&&(state.sessPage!=="levels"||state.EX)?state.sessPage:null;
+  const page=state.sessPage&&PAGES[state.sessPage]&&(state.sessPage!=="levels"||state.EX)&&(state.sessPage!=="voice"||voiceShown())?state.sessPage:null;
   const sheet=el("div",{class:"sheet"});
   sheet.append(el("div",{class:"shh"},
     page?el("button",{type:"button",class:"ob",onclick:sessBack,"aria-label":"Back to the options",title:"Back"},tbIcon("back")):null,

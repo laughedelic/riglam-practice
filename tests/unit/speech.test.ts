@@ -2,7 +2,7 @@
 // (the screen went off, another app took the microphone); the page then showed "Listening" for good and a tap on the
 // microphone did nothing. The recognizer here is a stand-in that says only what a test makes it say.
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { listen, type Heard } from "../../src/ui/speech.ts";
+import { listen, readingTimeout, speak, type Heard } from "../../src/ui/speech.ts";
 
 class Fake {
   static all: Fake[] = [];
@@ -163,4 +163,32 @@ test("a start that fails because the last recognizer is still going is tried aga
   last().say("accept");
   last().onend?.();
   expect(heard).toEqual([{ alts: ["accept"] }]);
+});
+
+// speak(): a synthesizer with no engine behind it never sends `end`; the reading is taken as ended after a time that follows the text.
+test("a reading the browser never ends is taken as ended, once, and cut off", () => {
+  const cancelled = vi.fn();
+  vi.stubGlobal("speechSynthesis", { cancel: cancelled, speak: vi.fn(), paused: false, resume: vi.fn(), getVoices: () => [] });
+  vi.stubGlobal("SpeechSynthesisUtterance", class { rate = 1; lang = ""; voice = null; constructor(public text: string) {} });
+  const done = vi.fn();
+  speak("Which relation is it?", { done });
+  vi.advanceTimersByTime(readingTimeout("Which relation is it?") - 1);
+  expect(done).not.toHaveBeenCalled();
+  vi.advanceTimersByTime(2);
+  expect(done).toHaveBeenCalledTimes(1);
+  expect(done).toHaveBeenCalledWith(false, "timeout");
+  expect(cancelled).toHaveBeenCalledTimes(2);   // before the reading, and when it was given up
+});
+
+test("a reading that ends in time does not time out afterwards, and a slower voice is given longer", () => {
+  let utter: any;
+  vi.stubGlobal("speechSynthesis", { cancel: vi.fn(), speak: (u: any) => { utter = u; }, paused: false, resume: vi.fn(), getVoices: () => [] });
+  vi.stubGlobal("SpeechSynthesisUtterance", class { rate = 1; lang = ""; voice = null; constructor(public text: string) {} });
+  const done = vi.fn();
+  speak("Yes.", { done });
+  utter.onend();
+  vi.advanceTimersByTime(60000);
+  expect(done).toHaveBeenCalledTimes(1);
+  expect(done.mock.calls[0][0]).toBe(true);
+  expect(readingTimeout("A longer question to read aloud.", 0.85)).toBeGreaterThan(readingTimeout("A longer question to read aloud.", 1.25));
 });

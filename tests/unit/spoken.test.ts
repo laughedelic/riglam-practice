@@ -1,12 +1,12 @@
 // Reading spoken answers (src/domain/spoken.ts) and the nearest-item match under it (src/ai-shared/lookup.ts): what a
 // speech recognizer's guesses turn into. The guesses below are the kind the Voice lab saw from Chrome's recognizer.
-// Also the switch that keeps voice off until it is turned on for a device (src/ui/features.ts).
+// Also the default of the Voice switch (src/ui/speech.ts).
 import { expect, test } from "vitest";
 import { makeIndex, nearestItem, similarity } from "../../src/ai-shared";
 import { lettersDirection, spokenConfirm, spokenDontKnow, spokenDirection, spokenExample, spokenRelation, spokenReply } from "../../src/domain";
 import type { DrillData, RelKey } from "../../src/ai-shared";
 import openData from "../../src/data/drill-data.json";
-import { applyParam } from "../../src/ui/features";
+import { voiceOn } from "../../src/ui/speech";
 
 const ix = makeIndex(openData as unknown as DrillData);
 const ORDER: RelKey[] = ["mi", "3ab", "3ba", "4", "con"];
@@ -138,13 +138,12 @@ test("an example: an item by its name or alias, near words snapped to it, other 
   expect(spokenExample(ix, ["", "  "])).toBeNull();
 });
 
-test("features on trial: the address turns one on or off, or all off, and unknown names are ignored", () => {
-  expect(applyParam([], null)).toEqual([]);
-  expect(applyParam([], "voice")).toEqual(["voice"]);
-  expect(applyParam(["voice"], "-voice")).toEqual([]);
-  expect(applyParam(["voice"], "none")).toEqual([]);
-  expect(applyParam(["voice", "gone"], "")).toEqual(["voice"]);
-  expect(applyParam([], " Voice , other")).toEqual(["voice"]);
+test("the Voice switch: the device's own choice wins, else a Preview has it on and the real app off", () => {
+  expect(voiceOn(null, false)).toBe(false);
+  expect(voiceOn(null, true)).toBe(true);
+  expect(voiceOn("1", false)).toBe(true);
+  expect(voiceOn("0", true)).toBe(false);
+  expect(voiceOn("", true)).toBe(true);   // not a choice
 });
 
 test("\"I don't know\" in its usual wordings, and not inside an answer", () => {
