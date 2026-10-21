@@ -34,6 +34,8 @@ function setShow(key,on){ if(key==="ab") state.showAB=on; else state.fullPh=on; 
 function setAutoExplain(on){ state.autoExplain=on; store("rd-autoexplain",on?"1":"0"); render(); }
 function setWording(k){ state.wording=k; store("rd-wording",k); render(); }
 function setFindSuggest(on){ state.findSuggest=on; store("rd-findsuggest",on?"1":"0"); render(); }
+function setSyllogismWording(k){ state.syllogismWording=k; store("rd-syllogism-wording",k); render(); }
+function setSyllogismLevel(n){ state.syllogismLevel=n; store("rd-syllogism-level",String(n)); render(); }
 // Blitz off takes the stopwatch away from the top bar, and a running countdown with it
 function setBlitzUse(on){ state.blitzUse=on; store("rd-blitzuse",on?"1":"0"); if(!on) setBlitz(false); else render(); }
 
@@ -103,7 +105,18 @@ function pageBody(id){
   return [el("p",{class:"capl",text:"Shown when you open a term’s definition, in the Terms panel and in the tutor’s notes."}),
     picks("Languages of the definitions",[["en","English","The definition in English."],["enru","English + Russian","Each entry also shows the Russian name of the term and, where there is one, its Russian definition."]],state.defLang,setDefLang)];
 }
+// Syllogisms has no terms to read, no notation and no tutor yet, so it shows only what it uses
+function syllogismBody(){
+  return [
+    row("Wording",chips("Wording of the syllogism",[["take","Take X"],["formal","Formal"]],state.syllogismWording,setSyllogismWording),
+      "Take X: “Take a tomato. It follows it is food because it is red.” Formal: “It follows that the subject, a tomato, is food because of being red.”"),
+    row("Things",chips("Which things the syllogisms are about",[[1,"Everyday"],[2,"With Dudra terms"]],state.syllogismLevel,setSyllogismLevel),
+      "Everyday (a tomato, red, food). With Dudra terms (a form, a sound, impermanent, a consciousness, etc.). The change applies from the next syllogism."),
+    el("p",{class:"capl"},"The Magic Key, your account, data and the version are in ",el("button",{type:"button",class:"lnk",onclick:()=>{ toggleSess(false); toggleOpts(true); }},"Settings"),".")
+  ];
+}
 function listBody(){
+  if(state.tab==="syllogism") return syllogismBody();
   const perv=state.tab==="debate", find=state.tab==="find", timed=state.tab==="practice"||perv;
   // the Quorum row and the Share my examples row (Settings, options.js) each say what the server keeps; each says the other is separate
   const apart=state.learns?" The words of an example are kept, or not, as \u201cShare my examples\u201d in Settings says, with or without Quorum.":"";
