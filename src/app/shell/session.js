@@ -127,9 +127,11 @@ function syllogismBody(){
 function listBody(){
   if(state.tab==="syllogism") return syllogismBody();
   const perv=state.tab==="debate", find=state.tab==="find", timed=state.tab==="practice"||perv;
+  // the Quorum row and the Share my examples row (Settings, options.js) each say what the server keeps; each says the other is separate
+  const apart=state.learns?" The words of an example are kept, or not, as \u201cShare my examples\u201d in Settings says, with or without Quorum.":"";
   const quorumNote=state.quorumOptIn
-    ?"Optional: a deeper check, but slower. When the page could not check an example you wrote, three AI models (Haiku, Sonnet and Opus) each work it out and Opus rules where they differ, so the explanation is more reliable. An answer takes about a minute instead of a few seconds, and it counts against a daily limit of its own; when that is used up, one model answers as usual. The server keeps each such run (the pair with what you wrote, and the answers), so the models can be compared. With Quorum off, one model answers and nothing is kept."
-    :"For testing, on this test server only. With Quorum on, the explanation of an answer with an example the page could not check comes from Haiku, Sonnet and Opus, each on its own; where they put an example in different cells, Opus reads their answers and writes the one you see. The Quorum chip under a result shows all of them. The server keeps each run (the pair with what you wrote, and the answers), so the models can be compared. When the page checked every example itself, and with Quorum off, one model answers as in the app and nothing is kept.";
+    ?"Optional: a deeper check, but slower. When the page could not check an example you wrote, three AI models (Haiku, Sonnet and Opus) each work it out and Opus rules where they differ, so the explanation is more reliable. An answer takes about a minute instead of a few seconds, and it counts against a daily limit of its own; when that is used up, one model answers as usual. The server keeps each such run (the pair with what you wrote, and the answers), so the models can be compared. With Quorum off, one model answers and no run is kept."+apart
+    :"For testing, on this test server only. With Quorum on, the explanation of an answer with an example the page could not check comes from Haiku, Sonnet and Opus, each on its own; where they put an example in different cells, Opus reads their answers and writes the one you see. The Quorum chip under a result shows all of them. The server keeps each run (the pair with what you wrote, and the answers), so the models can be compared. When the page checked every example itself, and with Quorum off, one model answers as in the app and no run is kept."+apart;
   const tutor=canAsk(), quorum=state.quorumOffered&&state.db;
   // what only this exercise has comes first, under its name; what every exercise has follows
   const own=[
@@ -150,7 +152,7 @@ function listBody(){
     tutor?sw("Check every answer with AI",state.autoExplain?"on":"off",state.autoExplain,()=>setAutoExplain(!state.autoExplain),
       "Right after you check an answer, the AI tutor explains it and checks the examples the page could not. Off, the Explain button waits for you."):null,
     quorum?sw("Several models explain",state.quorum?"on":"off",state.quorum,()=>setQuorum(!state.quorum),quorumNote):null,
-    el("p",{class:"capl"},"The Magic Key, your account, data and the version are in ",el("button",{type:"button",class:"lnk",onclick:()=>{ toggleSess(false); toggleOpts(true); }},"Settings"),".")
+    el("p",{class:"capl"},"The Magic Key, your account, data"+(tutor&&state.learns?", sharing your examples":"")+" and the version are in ",el("button",{type:"button",class:"lnk",onclick:()=>{ toggleSess(false); toggleOpts(true); }},"Settings"),".")
   ];
 }
 // the sheet: a scrim that closes it, and the panel
