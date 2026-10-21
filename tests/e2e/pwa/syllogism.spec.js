@@ -4,6 +4,7 @@
 // kind it needs (the test hook's `next` draws until the situation fits) and reads what is right from the syllogism on screen.
 import { test, expect } from "../../support/test.js";
 import { goTo, isPhone, openMenu, ready, overflow } from "../../support/page.js";
+import { withCourse } from "../../support/data-key.js";
 
 const REPLY = { reason: 0, pervasion: 1, accept: 2 }; // in the order of the checks
 
@@ -294,23 +295,6 @@ test("Review leaves a counter-example the page could not place out of the row of
   await expect(sec.locator(".sylrow")).toContainText("(not checked)");
 });
 
-test("where a tutor is on, the panel of recent answers beside a syllogism stays open for the next one", async ({ page }, testInfo) => {
-  test.skip(isPhone(testInfo), "a phone has no panel beside the exercise");
-  await page.route("**/api/health", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, tutor: "on" }) }));
-  await open(page);
-  await expect(page.locator("#mchat")).toHaveAccessibleName("Recent answers"); // the tutor does not know Syllogisms: the button is the list of answers
-  await page.locator("#mchat").click();
-  await expect(page.locator("#coach")).toBeVisible();
-  await draw(page, 1);
-  await say(page, "accept");
-  await next(page).click();
-  await expect(page.locator(".sylask")).toBeVisible();
-  await expect(page.locator("#coach")).toBeVisible();
-  await goTo(page, "Relations"); // a new pair of another exercise does not start with a panel that holds only the recent answers
-  await expect(page.locator("#stage")).toBeVisible();
-  await expect(page.locator("#coach")).toBeHidden();
-});
-
 test("the practice options hold only what Syllogisms uses: the wording, which is kept, and the things drawn from", async ({ page }) => {
   await open(page);
   await page.locator("#msess").click();
@@ -381,13 +365,127 @@ test("the structure is shown only on request: S, P and R under the sentence, and
   expect(await page.evaluate(() => localStorage.getItem("rd-syllogism-guide"))).toBe("0");
 });
 
-test("the tutor's chat is not part of Syllogisms yet", async ({ page }) => {
-  await page.route("**/api/health", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, tutor: "on" }) }));
+test("without a tutor server there is no Explain, and the chat button only opens the recent answers", async ({ page }) => {
   await open(page);
   if (await page.locator("#mchat").isVisible()) await expect(page.locator("#mchat")).toHaveAttribute("aria-label", "Recent answers"); // a wide screen: only the panel of recent answers and keys
   await draw(page, 1);
   await say(page, "accept");
-  await expect(page.locator(".xpl")).toHaveCount(0); // no Explain: the tutor does not know this exercise yet
+  await expect(page.locator(".xpl")).toHaveCount(0);
+});
+
+// The tutor: questions go to the app's own server (/api/tutor), which these specs stand in for with routes, as tutor.spec.js does.
+const withKey = withCourse ? test : test.skip;
+const sse = (...events) => events.map((e) => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`).join("");
+const ANSWER = sse({ type: "delta", text: "Reason: " }, { type: "delta", text: "this is the stand-in answer." }, { type: "done", truncated: false });
+async function tutor(page, answers = [{ status: 200, body: ANSWER }]) {
+  const asked = [];
+  await page.route("**/api/health", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, tutor: "on" }) }));
+  await page.route("**/api/tutor", (route) => {
+    asked.push(route.request().postDataJSON());
+    const reply = answers[Math.min(asked.length - 1, answers.length - 1)];
+    return route.fulfill({ status: reply.status, contentType: reply.status === 200 ? "text/event-stream" : "application/json", body: reply.body });
+  });
+  return asked;
+}
+const explain = (page) => page.getByRole("button", { name: /^explain$/i });
+// the explanation: under the checks on a phone, in the panel at the right on a wide screen
+const explained = (page) => page.locator(".tutor .ans").getByText("this is the stand-in answer.");
+
+withKey("Explain sends the card of the syllogism and the page's three checks, shows the answer with the checks, and keeps it with the answer", async ({ page }) => {
+  const asked = await tutor(page);
+  await open(page);
+  const c = await draw(page, 2, "both"); // the subject is the reason and the predicate, and the pervasion fails
+  await expect(explain(page)).toHaveCount(0); // nothing to explain before a reply
+  await say(page, "accept");
+  await expect(headline(page)).toHaveText("Not quite.");
+  await explain(page).click();
+  await expect(explained(page)).toBeVisible();
+  await expect(explain(page)).toHaveCount(0); // once for an answer
+  expect(await overflow(page)).toBeLessThanOrEqual(0);
+  expect(asked).toHaveLength(1);
+  const { kind, cats, turns } = asked[0];
+  expect(kind).toBe("explain");
+  expect(cats).toEqual(c.catR === c.catP ? [c.catR] : [c.catR, c.catP]);
+  expect(turns).toHaveLength(1);
+  expect(turns[0].role).toBe("user");
+  const card = turns[0].content;
+  expect(card.startsWith("This is the Syllogisms mode.")).toBe(true);
+  expect(card).not.toContain("terse debate tutor"); // the server holds the standing instructions
+  expect(card).not.toContain("Fine points"); // and the notes
+  for (const k of ["e", "v", "t"]) expect(card).toContain(JSON.stringify(c.checks[k].line));
+  expect(card).toContain(`the counter-example kept for you: ${JSON.stringify(c.witness)}`);
+  expect(card).toContain('Right reply: "There is no pervasion". Learner replied: "Accept", which is wrong.');
+  expect(card).toContain('Explain this answer.');
+  const [doc] = await expect.poll(async () => (await saved(page)).filter((d) => d.explain).length).toBe(1).then(() => saved(page));
+  expect(doc.explain).toBe("Reason: this is the stand-in answer.");
+});
+
+withKey("a follow-up question goes on in the same conversation, from the panel or the chat view", async ({ page }, testInfo) => {
+  const asked = await tutor(page);
+  await open(page);
+  await draw(page, 1);
+  await say(page, "accept");
+  await expect(headline(page)).toHaveText("Right.");
+  await explain(page).click();
+  await expect(explained(page)).toBeVisible();
+  if (isPhone(testInfo)) {
+    const sentence = (await page.locator(".sylt").innerText()).replace(/\s+/g, " ").trim();
+    await page.getByRole("button", { name: /discuss with ai/i }).click();
+    await expect(page.locator("#over .ctx")).toContainText(sentence); // the chat view says which syllogism it is about
+  }
+  await page.fill("#ask-in", "Why is that?");
+  await page.keyboard.press("Enter");
+  await expect.poll(() => asked.length).toBe(2);
+  expect(asked[1].kind).toBe("chat");
+  expect(asked[1].turns.map((t) => t.role)).toEqual(["user", "assistant", "user"]); // the card with the first request, the answer, the question
+  expect(asked[1].turns[2].content).toBe("Why is that?");
+  await expect(page.locator(".tutor .q", { hasText: "Why is that?" })).toBeVisible();
+});
+
+withKey("the practice options have the switch for the tutor, on; off, the next answer waits for a tap on Explain", async ({ page }, testInfo) => {
+  await page.addInitScript(() => localStorage.setItem("rd-autoexplain", "1"));
+  const asked = await tutor(page);
+  await open(page);
+  await page.locator("#msess").click();
+  const sw = page.getByRole("switch", { name: /check every answer with ai/i });
+  await expect(sw).toHaveAttribute("aria-checked", "true");
+  await sw.click();
+  await expect(sw).toHaveAttribute("aria-checked", "false");
+  await page.keyboard.press("Escape");
+  await draw(page, 1);
+  await say(page, "accept");
+  await expect(headline(page)).toHaveText("Right.");
+  await expect(explain(page)).toBeVisible();
+  if (!isPhone(testInfo)) await expect(explain(page)).toBeFocused(); // as after the other exercises, a keyboard user is on Explain
+  await page.waitForTimeout(400);
+  expect(asked).toHaveLength(0); // nothing went out by itself
+  await explain(page).click();
+  await expect.poll(() => asked.length).toBe(1);
+});
+
+withKey("with 'Check every answer with AI' on the explanation comes by itself, once, and a refusal leaves Explain to try again", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("rd-autoexplain", "1")); // after the support script, which starts every page with it off
+  const asked = await tutor(page, [
+    { status: 503, body: JSON.stringify({ error: { code: "unavailable", message: "off" } }) },
+    { status: 200, body: ANSWER },
+  ]);
+  await open(page);
+  await draw(page, 1);
+  await say(page, "accept");
+  await expect.poll(() => asked.length).toBe(1);
+  await expect(page.locator(".status", { hasText: "Claude could not answer just now" }).first()).toBeVisible();
+  await explain(page).click(); // the refused one did not count as asked
+  await expect(explained(page)).toBeVisible();
+  expect(asked.map((a) => a.kind)).toEqual(["explain", "explain"]);
+});
+
+withKey("a conversation the server refuses as too long tells the learner to move to the next syllogism", async ({ page }) => {
+  await tutor(page, [{ status: 413, body: JSON.stringify({ error: { code: "prompt_too_large", message: "too long" } }) }]);
+  await open(page);
+  await draw(page, 1);
+  await say(page, "accept");
+  await explain(page).click();
+  await expect(page.locator(".status", { hasText: "This conversation is too long. Move to the next syllogism." }).first()).toBeVisible();
 });
 
 // Blitz: the stopwatch of the other exercises, with a time of its own for the reply to a syllogism

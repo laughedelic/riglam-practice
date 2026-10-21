@@ -37,6 +37,15 @@ test("an explanation of a debate names the relation instead of a common locus, a
   expect(r.text.split("\n").filter((l) => VERDICT_LINE.test(l))).toEqual([]);
 });
 
+test("an explanation of a syllogism has the lines of its checks, not a pair's", async () => {
+  const card = "You are a terse debate tutor.\n\nThis is the Syllogisms mode. ...\nCARD (from the course booklet's term data; ...):\n{}";
+  const r = await done(devSample()([{ role: "user", content: `${card}\n\nExplain this answer. The page shows the learner its line for each check (they are in the card), so say what those lines leave out.\n- "Reason:" ...` }]));
+  const lines = r.text.split("\n");
+  for (const label of ["Reason:", "Pervasion:", "Explanation:", "Misconception:"]) expect(lines.some((l) => l.startsWith(label)), label).toBe(true);
+  expect(r.text).not.toMatch(/Common locus:/);
+  expect(r.text).toContain(DEV_MARK);
+});
+
 test("a question in the chat gets a reply that says no model was asked and quotes the question, not the card", async () => {
   const first = await done(devSample()([{ role: "user", content: `${CARD}\n\nWhy is wood not a sense object?` }]));
   expect(first.text).toContain(DEV_MARK);

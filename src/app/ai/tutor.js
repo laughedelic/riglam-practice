@@ -11,6 +11,7 @@ import { render, renderKeepFocus } from "../shell/render.js";
 import { cardBody, explainAsk, tutorCard } from "../../ai-shared/card.ts";
 import { noteCats } from "../../ai-shared/lookup.ts";
 import { tutorTools } from "../../ai-shared/tools.ts";
+import { askSyllogism } from "../syllogism/tutor.js";
 import { VERDICT_RE, applyRelationVerdict, applyVerdicts, parseFactLine, parseRelationVerdict, parseVerdicts } from "../../domain/verdict.ts";
 
 const TIER="default";
@@ -57,6 +58,7 @@ export function explainByItself(U){
   ask(null,"explain",true);
 }
 export async function ask(text,kind,byItself){
+  if(state.ui&&state.ui.syllogism) return askSyllogism(text,kind,byItself);   // Syllogisms have their own card (syllogism/tutor.js)
   const U=state.ui, C=state.cur;                       // the pair this question belongs to, even if you switch tabs meanwhile
   if(!canAsk()||!U||U.ctl) return;
   // the examples known without the AI settle first (known.js), so the question is about the rest; if the learner left the answer meanwhile (Next, or another tab:
@@ -136,13 +138,14 @@ function budgetCopy(e){
   }
   return lead+when+" Everything else in the app keeps working.";
 }
-function errCopy(e){
+/** What the learner is told when the tutor could not answer; `thing` is what the exercise calls what it asks (a pair, a syllogism). */
+export function errCopy(e,thing="pair"){
   const c=e&&e.code;
   if(c==="cancelled") return "";
   if(c==="offline") return "No connection. The tutor needs the internet; try again when you are back online.";
   if(c==="rate_limited") return e.budget?budgetCopy(e):"Claude is busy or your usage limit is reached. Try again later.";
   if(c==="session_expired") return "Sign in to Claude again, then retry.";
-  if(c==="prompt_too_large") return "This conversation is too long. Move to the next pair.";
+  if(c==="prompt_too_large") return "This conversation is too long. Move to the next "+thing+".";
   if(ERR_OFF.includes(c)) return "Claude is not enabled for this page.";
   return "Claude could not answer just now. Try again.";
 }

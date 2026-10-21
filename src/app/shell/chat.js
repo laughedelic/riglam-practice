@@ -5,6 +5,7 @@ import { $, el } from "../core/dom.js";
 import { tbIcon } from "../core/icons.js";
 import { REL } from "../core/rel.js";
 import { isWide } from "../core/viewport.js";
+import { syllogismText } from "../../domain/syllogism.ts";
 import { askRow, fillTurn } from "../practice/screen.js";
 import { skipInto } from "../practice/skips.js";
 import { enter, leave } from "./motion.js";
@@ -27,7 +28,7 @@ export function toggleCoach(on){ state.coachOpen=on===undefined?!state.coachOpen
 // a panel that is open can always be closed. A dot marks an answer of the tutor that is not on screen. Where the tutor cannot answer, a wide screen still has the panel
 // with the recent answers and the keys, and the button for it does not show a chat: it is the "recent" one, and it is always pressable.
 export function syncChatBtn(){
-  const b=/** @type {HTMLButtonElement} */($("mchat")), w=isWide(), u=state.ui, ex=state.mode==="quiz"&&isEx()&&!!u, ai=canAsk()&&!(u&&u.syllogism);   // the tutor does not know Syllogisms yet: there, the button only opens the panel of recent answers
+  const b=/** @type {HTMLButtonElement} */($("mchat")), w=isWide(), u=state.ui, ex=state.mode==="quiz"&&isEx()&&!!u, ai=canAsk();
   b.hidden=!ex||(!w&&!ai); if(b.hidden) return;
   const label=w?(ai?"Tutor’s chat and recent answers":"Recent answers"):"Discuss with AI";
   const waiting=!!u.chat&&u.chat.some(t=>t.role==="assistant"&&!t.pending&&t.content)&&(w?!state.coachOpen:state.view!=="chat");
@@ -67,7 +68,9 @@ function chatInto(o){
   // Find a pair: the pair is what is judged, and a pair of the learner's own stays open until Claude has said whether it has the relation (the overall grade is "pend" then, too)
   const r=state.ui.checked&&state.ui.res, fd=!!state.ui.find;
   const v=!r?"":r.relOpen?(r.relUns?"pair not settled":"pair not judged yet"):{ok:"all right",part:(fd?"pair":"relation")+" right, not everything else",pend:(fd?"pair":"relation")+" and cells right",bad:"not quite"}[r.overall];
-  d.append(el("p",{class:"ctx"},el("b",{text:p.a+" / "+p.b}),el("small",{text:(state.ui.find?"Asked for: "+REL[state.ui.rel].name:REL[p.relation].name)+(v?" · "+v:"")})));
+  // a syllogism has no pair: the sentence, and how the reply went
+  d.append(state.ui.syllogism?el("p",{class:"ctx"},el("b",{text:syllogismText(state.cur.c,state.syllogismWording)}),el("small",{text:state.ui.timeout?"Time is up":state.ui.grade.correct?"Right":"Not quite"}))
+    :el("p",{class:"ctx"},el("b",{text:p.a+" / "+p.b}),el("small",{text:(state.ui.find?"Asked for: "+REL[state.ui.rel].name:REL[p.relation].name)+(v?" · "+v:"")})));
   const dock=el("div",{class:"dock"});
   if(state.ui.ctl) dock.append(el("button",{class:"btn ghost",type:"button",onclick:()=>state.ui.ctl&&state.ui.ctl.abort(),text:"Stop"}));
   else if(canAsk()) dock.append(askRow("ask-in"));

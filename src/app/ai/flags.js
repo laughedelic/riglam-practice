@@ -123,7 +123,7 @@ export function aiFlag(c,where,word){
 }
 // one answer of Claude in the Why panel (explain turn) or the chat: the flag first, so it floats to the top-right, and the editor last
 export function decorateAns(a,t,idx,over){
-  if(!state.ui||t.pending||!t.content||a.childNodes.length===1&&a.firstChild.classList&&a.firstChild.classList.contains("status")) return;
+  if(!state.ui||state.ui.syllogism||t.pending||!t.content||a.childNodes.length===1&&a.firstChild.classList&&a.firstChild.classList.contains("status")) return;
   const where=(over?"o":"i")+idx, expl=t.kind==="explain", q=!expl&&state.ui.chat?state.ui.chat[idx-1]:null;
   const fl=aiFlag(aiCase(expl?"explain":"chat",expl?"Claude’s explanation":"Claude’s answer",t.content,expl?null:idx,flagAsked(q)),where,true);
   if(fl){ a.prepend(fl); a.classList.add("hasflag"); }
