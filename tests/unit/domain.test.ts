@@ -13,7 +13,7 @@ import {
 } from "../../src/domain";
 import type { DebateInput, GradeDraft, HistoryEntry, Pair, PoolEntry } from "../../src/domain";
 import openData from "../../src/data/drill-data.json";
-import { drawable, placeByClass } from "../../src/domain";
+import { drawable, examplesFor, placeByClass } from "../../src/domain";
 import { FACTS_EPOCH, factKey, learn, opinionOf, ruleSide, servable } from "../../src/domain";
 import type { Answer, FactRow, Opinion, Ruling } from "../../src/domain";
 import { knownLine, openExamples, referenceLines, wholeFirst } from "../../src/domain";
@@ -1301,4 +1301,30 @@ test("a reason that names the pair's own letters is not kept, since the same cat
   expect(ruleSide([said("it is in both A and B")], null, 0)?.reason).toBe("");
   expect(ruleSide([said("A cabinet is furniture")], null, 0)?.reason, "an article is not a letter").toBe("A cabinet is furniture");
   expect(ruleSide([said("it is a form; pervasion: what is B")], null, 0)?.reason, "the pervasion is left out before").toBe("it is a form");
+});
+
+test("examplesFor: a term's own examples first, then the plainest, a spread of classes, never a statement or what the sources say it is not", () => {
+  const ix = refIx();
+  const ex = (n: string, cls: string[], lv: number, extra: object = {}) => ({ n, cls, lv, cf: "confirmed", ...extra });
+  const items = [
+    ex("a blue wall", ["Color"], 1),
+    ex("a red wall", ["Color"], 1),
+    ex("a green wall", ["Color"], 3),
+    ex("a clay form", ["Form"], 4),
+    ex("a shape of smoke", ["External form"], 2, { cf: "commentator" }),
+    ex("a shape of fog", ["External form"], 2, { cf: "textbook" }),
+    ex("a mind", ["Consciousness"], 1),
+    ex("a rule about form", ["Form"], 1, { k: "statement" }),
+    ex("a color that is not a form", ["Color"], 1, { not: ["Form"] }),
+    ex("a hope", ["Unheard-of class"], 1),
+  ];
+  const names = (term: string, max?: number) => examplesFor(ix, items, term, max).map((i) => i.n);
+  expect(names("Form")).toEqual(["a clay form", "a blue wall", "a shape of fog"]); // own first; then one of each other class, lowest level first
+  expect(names("Form", 5)).toEqual(["a clay form", "a blue wall", "a shape of fog", "a red wall", "a shape of smoke"]);
+  expect(names("Color")).toEqual(["a blue wall", "a color that is not a form", "a red wall"]); // what is not a form still is a color
+  expect(names("External form")).toEqual(["a shape of fog", "a shape of smoke", "a blue wall"]);
+  expect(names("Consciousness")).toEqual(["a mind"]);
+  expect(names("Permanent")).toEqual([]);
+  expect(names("Unheard-of class")).toEqual([]);
+  expect(names("Form", 0)).toEqual([]);
 });

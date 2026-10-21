@@ -9,7 +9,7 @@ The term data has two tiers. Only the definitions, and the commentary that quote
 | Course: notes | `note` of each term and the group `notes`: commentary read only by the Claude tutor | the server's database, and `data-private/notes.json` | not included | not included, and the server never sends them out |
 | Course: examples | the reference examples: the knowledge base's example notes with their classes, level (1 to 4), kind and confirmation (below) | the server's database (rows `examples` and `examples_device`), and `data-private/examples.json` and `examples-device.json` | not included | the device part, fetched in the background with the Magic Key, then kept on the device |
 
-The artifact build carries all of it, because the artifact is private to its owner and its tutor reads the notes; it reads `data-private/`. The tutor Worker ([SERVER.md](SERVER.md)) reads the notes from its database, so the tutor sees them and a browser never receives them.
+The artifact build carries all of it, because the artifact is private to its owner and its tutor reads the notes; it reads `data-private/`. That includes the device part of the reference examples, when `data-private/` has them (about 240 KB with the real ones, against the page budget of 1 MiB in `tests/unit/artifact-build.test.ts`). The tutor Worker ([SERVER.md](SERVER.md)) reads the notes from its database, so the tutor sees them and a browser never receives them.
 
 ## The Magic Key
 
