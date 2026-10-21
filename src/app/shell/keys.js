@@ -1,6 +1,7 @@
 import { state } from "../state.js";
 import { ORDER } from "../core/rel.js";
 import { isWide } from "../core/viewport.js";
+import { checkCategories, continueCategories, pickCategory, sayCategory, tickCategory, tickNone } from "../categories/flow.js";
 import { checkDebate, chooseD, sayQ } from "../debate/flow.js";
 import { favTarget, toggleFav } from "../practice/favorites.js";
 import { next } from "../practice/queue.js";
@@ -32,6 +33,18 @@ document.addEventListener("keydown",e=>{
   } else if(state.tab==="find"&&state.ui.find){
     if(!state.ui.checked&&t!=="INPUT"&&t!=="TEXTAREA"&&(e.key==="s"||e.key==="S")&&!e.shiftKey){ e.preventDefault(); skipPair(); }
     else if(state.ui.checked&&(e.key==="n"||e.key==="N")&&!e.shiftKey&&t!=="INPUT"&&t!=="TEXTAREA"){ e.preventDefault(); next(); }
+  } else if(state.tab==="categories"&&state.ui.cats){
+    const u=state.ui, q=state.cur.q, k=e.key.toLowerCase();
+    if(!q||t==="INPUT"||t==="TEXTAREA"||e.shiftKey) return;
+    if(u.checked){ if(k==="n"){ e.preventDefault(); next(); } }
+    else if(k==="s"){ e.preventDefault(); skipPair(); }
+    else if(u.step===0&&u.ask==="all"){
+      if(/^[1-9]$/.test(k)&&q.rows[+k-1]){ e.preventDefault(); tickCategory(q.rows[+k-1].cat); }
+      else if(k==="0"){ e.preventDefault(); tickNone(); }
+      else if(k==="enter"&&t!=="BUTTON"){ e.preventDefault(); checkCategories(); }
+    } else if(u.step===0){ if(k==="y"){ e.preventDefault(); sayCategory(true); } else if(k==="n"){ e.preventDefault(); sayCategory(false); } }
+    else if(u.step===1){ if(k==="enter"&&t!=="BUTTON"){ e.preventDefault(); continueCategories(); } }
+    else if(u.step===2&&/^[1-9]$/.test(k)&&u.narrow.options[+k-1]){ e.preventDefault(); pickCategory(u.narrow.options[+k-1].cat); }
   } else if(state.tab==="debate"&&state.ui.debate){
     if(t==="INPUT"||t==="TEXTAREA") return;
     const k=e.key.toLowerCase();

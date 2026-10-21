@@ -27,7 +27,7 @@ export function toggleCoach(on){ state.coachOpen=on===undefined?!state.coachOpen
 // a panel that is open can always be closed. A dot marks an answer of the tutor that is not on screen. Where the tutor cannot answer, a wide screen still has the panel
 // with the recent answers and the keys, and the button for it does not show a chat: it is the "recent" one, and it is always pressable.
 export function syncChatBtn(){
-  const b=/** @type {HTMLButtonElement} */($("mchat")), w=isWide(), u=state.ui, ex=state.mode==="quiz"&&isEx()&&!!u, ai=canAsk();
+  const b=/** @type {HTMLButtonElement} */($("mchat")), w=isWide(), u=state.ui, ex=state.mode==="quiz"&&isEx()&&!!u, ai=canAsk()&&!(u&&u.cats);   // the tutor does not know Categories yet: there, the button only opens the panel of recent answers
   b.hidden=!ex||(!w&&!ai); if(b.hidden) return;
   const label=w?(ai?"Tutor’s chat and recent answers":"Recent answers"):"Discuss with AI";
   const waiting=!!u.chat&&u.chat.some(t=>t.role==="assistant"&&!t.pending&&t.content)&&(w?!state.coachOpen:state.view!=="chat");

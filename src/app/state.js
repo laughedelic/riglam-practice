@@ -41,6 +41,10 @@ export const state = {
   recent: [],
   findAsked: [],   // the relations Find a pair asked for lately, oldest first: the draw of the next one leans away from them (find/flow.js)
   findRel: null,   // the relation Find a pair keeps asking for once the learner has picked one (`rd-findrel`); null: a different one each time
+  catsRecent: [],  // the things Categories asked lately, oldest first: the draw passes them over while others remain (categories/flow.js)
+  catsSession: [],  // the things finished on this page, oldest first: the run towards a level offer counts them before the database has handed them back (categories/flow.js)
+  catsAsk: "all",  // Categories asks step 1 all at once ("all") or one category at a time ("one"; the practice options of the exercise, `rd-cats-ask`)
+  catsOfferAt: "", // when the learner last answered the offer of another level (`rd-cats-offer`): only the answers after it count towards the next offer
   findSuggest: true, // Find a pair offers the terms of the course while the pair is typed (the settings of Find a pair, `rd-findsuggest`); off: plain fields
   debates: {},
   own: "practice",
@@ -99,7 +103,7 @@ export const state = {
   relMs: undefined,  // the relation has its own time; it starts from the one time of earlier versions
 };
 
-try{ const v=localStorage.getItem("rd-ex"); if(v==="debate"||v==="find") state.tab=state.own=v; }catch(e){}
+try{ const v=localStorage.getItem("rd-ex"); if(v==="debate"||v==="find"||v==="categories") state.tab=state.own=v; }catch(e){}
 try{ state.menuPin=localStorage.getItem("rd-menu")!=="0"; }catch(e){ state.menuPin=true; }   // a wide screen starts with the menu pinned (the exercise would be stretched too wide without it); the button unpins it
 try{ const v=localStorage.getItem("rd-notation"); if(v==="sets"||v==="logic") state.nota=v; }catch(e){}
 try{ if(localStorage.getItem("rd-deflang")==="enru") state.defLang="enru"; }catch(e){}   // an earlier "off" (words only) is now the codes
@@ -109,6 +113,7 @@ try{ state.autoExplain=localStorage.getItem("rd-autoexplain")!=="0"; }catch(e){}
 try{ state.recentOpen=localStorage.getItem("rd-recent")!=="0"; }catch(e){}
 try{ const v=localStorage.getItem("rd-findrel"); if(FIND_RELS.includes(/** @type {any} */(v))) state.findRel=/** @type {any} */(v); }catch(e){}
 try{ state.findSuggest=localStorage.getItem("rd-findsuggest")!=="0"; }catch(e){}
+try{ if(localStorage.getItem("rd-cats-ask")==="one") state.catsAsk="one"; state.catsOfferAt=localStorage.getItem("rd-cats-offer")||""; }catch(e){}
 try{ const v=localStorage.getItem("rd-exlevels"); if(v!==null) state.exLevels=normLevels(v); }catch(e){}
 try{ if(localStorage.getItem("rd-ab")==="0") state.showAB=false; if(localStorage.getItem("rd-full")==="0") state.fullPh=false; }catch(e){}
 try{

@@ -2,6 +2,7 @@ import { state } from "../state.js";
 import { canAsk } from "../core/ask.js";
 import { $, el } from "../core/dom.js";
 import { isWide, syncVv, wideMq } from "../core/viewport.js";
+import { renderCategories } from "../categories/screen.js";
 import { asking, startQ } from "../debate/flow.js";
 import { renderDebate } from "../debate/screen.js";
 import { renderFind } from "../find/screen.js";
@@ -26,7 +27,7 @@ export function ago(iso){
   const h=Math.round(m/60); if(h<24) return h+" h";
   const d=Math.round(h/24); return d===1?"1 day":d+" days";
 }
-export const isEx=()=>state.tab==="practice"||state.tab==="debate"||state.tab==="find";
+export const isEx=()=>state.tab==="practice"||state.tab==="debate"||state.tab==="find"||state.tab==="categories";
 // the three steps of a narrow screen; go[i] makes step i a button
 export function setSteps(labels,on,go){
   const st=$("steps"); st.replaceChildren(); st.hidden=false;
@@ -69,7 +70,7 @@ export function renderKeepFocus(){ const f=btnSig(); render(); btnBack(f); }
 export const focusCin=()=>{ const i=$("cin"); if(i) i.focus({preventScroll:true}); };
 function screenSig(){
   const p=state.cur&&state.cur.p;
-  return [state.tab,state.mode,state.view,state.optsOpen?1:0,state.sessOpen?1:0,state.sessPage||"",state.skipAsk?1:0,state.coachOpen?1:0,isWide()?1:0,p?(p.id||p.a+"|"+p.b):"",state.ui?[state.ui.checked?1:0,state.ui.step||0,state.ui.ci||0,state.ui.rel?1:0,state.ui.open?1:0,state.ui.debate?1:0,state.ui.find?1:0].join(""):""].join("/");
+  return [state.tab,state.mode,state.view,state.optsOpen?1:0,state.sessOpen?1:0,state.sessPage||"",state.skipAsk?1:0,state.coachOpen?1:0,isWide()?1:0,p?(p.id||p.a+"|"+p.b):state.cur&&state.cur.q?state.cur.q.thing.n:"",state.ui?[state.ui.checked?1:0,state.ui.step||0,state.ui.ci||0,state.ui.rel?1:0,state.ui.open?1:0,state.ui.debate?1:0,state.ui.find?1:0,state.ui.i||0].join(""):""].join("/");
 }
 export function render(){
   const sig=screenSig(), keep=sig===state.lastSig?["stage","coach","over","opts"].map(id=>{ const n=$(id); return /** @type {[string, number]} */([id,n?n.scrollTop:0]); }):null;
@@ -102,6 +103,7 @@ function renderNow(){
   else if(state.mode==="quiz"){
     if(state.tab==="debate"&&state.ui&&state.ui.debate) renderDebate(s,c);
     else if(state.tab==="find"&&state.ui&&state.ui.find) renderFind(s,c);
+    else if(state.tab==="categories"&&state.ui&&state.ui.cats) renderCategories(s,c);
     else renderQuiz(s,c);
   }
   renderOver(); restoreFocus(f&&f.id!==undefined&&state.skipAsk?null:f); placePops(); dropStaleDef(); // the question before a skip has the focus, not the field under it

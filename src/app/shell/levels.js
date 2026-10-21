@@ -4,7 +4,7 @@ import { el } from "../core/dom.js";
 import { levelCounts, toggleLevel } from "../../domain/reference.ts";
 import { render } from "./render.js";
 
-function setExLevels(levels){ state.exLevels=levels; try{ localStorage.setItem("rd-exlevels",levels.join(",")); }catch(e){} render(); }
+export function setExLevels(levels){ state.exLevels=levels; try{ localStorage.setItem("rd-exlevels",levels.join(",")); }catch(e){} render(); }
 
 /**
  * The switches of the levels of the reference examples (practice options, Examples): one per level, with what the level is and how many examples it has.

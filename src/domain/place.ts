@@ -158,6 +158,61 @@ export function gradePlace(q: PlaceQuestion, picked: readonly string[]): PlaceRe
   return { rows, right, ok: right === rows.length };
 }
 
+/** One step of the line from the most specific category up to the top of the "is a" chain: a category the question offered for step 2, or one it left out. */
+export interface PlaceStep {
+  term: string;
+  phrase: string;
+  option: boolean;
+}
+
+/** Step 2 of a question: pick the most specific of the categories the thing is in. */
+export interface PlaceNarrow {
+  /** the categories of the question the thing is in, whatever was ticked in step 1 (the corrected set), in the order step 2 lists them */
+  options: PlaceRow[];
+  /** the most specific of them (a category id) */
+  cat: string;
+  /** from the most specific category up to the top, each marked as an option or not */
+  line: PlaceStep[];
+}
+
+/**
+ * Step 2 of the question: the categories the thing is in, from which the learner picks the most specific. Null when there is nothing to narrow:
+ * fewer than two categories apply, or they do not lie on one line of the "is a" chain (a thing of two classes can be in a category of each).
+ */
+export function placeNarrow(ix: DataIndex, q: PlaceQuestion, rng: () => number): PlaceNarrow | null {
+  const yes = q.rows.filter((r) => r.answer);
+  if (yes.length < 2) return null;
+  const narrowest = yes.reduce((a, b) => (depthOf(ix, b.term) > depthOf(ix, a.term) ? b : a));
+  const line = upChain(ix, narrowest.term);
+  if (!yes.every((r) => line.includes(r.term))) return null;
+  const offered = new Set(yes.map((r) => r.term));
+  return { options: shuffle(yes, rng), cat: narrowest.cat, line: line.map((term) => ({ term, phrase: termPhrase(term), option: offered.has(term) })) };
+}
+
+export interface NarrowGraded {
+  /** the category the learner picked */
+  picked: PlaceRow;
+  /** it is the most specific one */
+  ok: boolean;
+  /** the steps from the most specific category up to the one picked: "it is a color, which is a form source, which is an external form" */
+  upTo: PlaceStep[];
+}
+
+/** Grades the pick of step 2 (a category id); null for a category that was not offered. */
+export function gradeNarrow(n: PlaceNarrow, cat: string): NarrowGraded | null {
+  const picked = n.options.find((r) => r.cat === cat);
+  if (!picked) return null;
+  const at = n.line.findIndex((s) => s.term === picked.term);
+  return { picked, ok: cat === n.cat, upTo: n.line.slice(0, at + 1) };
+}
+
+/** How a thing went: `ok` when step 1 is all right and step 2 is right or was not asked (`s2` null), `bad` when no part that was asked is right, else `part`. */
+export type PlaceGrade = "ok" | "part" | "bad";
+export function placeGrade(s1: boolean, s2: boolean | null): PlaceGrade {
+  if (s2 === null) return s1 ? "ok" : "bad";
+  return s1 && s2 ? "ok" : s1 || s2 ? "part" : "bad";
+}
+
 type Outcome = { lv: number; ok: boolean };
 
 /** How many of the latest results at level `lv` in a row are `ok === want`; results of other levels neither extend nor break the run. `results` are oldest first. */

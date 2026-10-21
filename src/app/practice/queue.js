@@ -1,5 +1,6 @@
 import { state } from "../state.js";
 import { pairsOf } from "../core/util.js";
+import { advanceCategories } from "../categories/flow.js";
 import { advanceDebate } from "../debate/flow.js";
 import { advanceFind } from "../find/flow.js";
 import { isSkipped } from "./skips.js";
@@ -15,4 +16,4 @@ function nextPair(){
   return {p:nextGenerated()};
 }
 export function advance(){ state.cur=nextPair(); state.ui=freshUi(); state.mode="quiz"; }
-export function next(){ if(state.ui&&state.ui.ctl) state.ui.ctl.abort(); if(state.ui&&state.ui.debate) advanceDebate(); else if(state.ui&&state.ui.find) advanceFind(); else advance(); render(); top0(); }
+export function next(){ if(state.ui&&state.ui.ctl) state.ui.ctl.abort(); if(state.ui&&state.ui.debate) advanceDebate(); else if(state.ui&&state.ui.find) advanceFind(); else if(state.ui&&state.ui.cats) advanceCategories(); else advance(); render(); top0(); }

@@ -4,11 +4,12 @@ import { attemptOf, begun } from "./tabs.js";
 
 /* ---------- the exercises ---------- */
 // The list the menu is built from (shell/menu.js): a new exercise is one more entry here, plus its screen. `group` heads the entries
-// in the menu once there is more than one group.
+// in the menu once there is more than one group. `needs: "examples"` keeps the entry out of the menu on a device that holds no reference examples.
 export const EXERCISES=[
   {k:"practice",name:"Relations",group:"Two terms",desc:"Pick how two terms relate, then give an example for each case that exists."},
   {k:"debate",name:"Pervasions",group:"Two terms",desc:"Answer the four questions on two terms, then pick how they relate."},
-  {k:"find",name:"Find a pair",group:"Two terms",desc:"Take a relation and name two terms that have it, then give an example for each case."}
+  {k:"find",name:"Find a pair",group:"Two terms",desc:"Take a relation and name two terms that have it, then give an example for each case."},
+  {k:"categories",name:"Categories",group:"One example",desc:"An example is shown: tick the categories it is in, then pick the most specific.",needs:"examples"}
 ];
 export const exName=k=>(EXERCISES.find(e=>e.k===k)||{name:""}).name;
 /** An exercise with an attempt waiting while you are elsewhere: begun, or checked and its result not yet left with Next pair. */

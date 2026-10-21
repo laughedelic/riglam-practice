@@ -4,7 +4,7 @@ import { expect, test } from "vitest";
 import { makeIndex, upTo } from "../../src/ai-shared";
 import type { DrillData, Example } from "../../src/ai-shared";
 import { buildPool } from "../../src/domain";
-import { drawPlace, gradePlace, placeLevelDown, placeLevelUp, placeQuestionRows, placeRows } from "../../src/domain/place";
+import { drawPlace, gradeNarrow, gradePlace, placeGrade, placeLevelDown, placeLevelUp, placeNarrow, placeQuestionRows, placeRows } from "../../src/domain/place";
 import { placeByClass } from "../../src/domain/reference";
 import openData from "../../src/data/drill-data.json";
 import { madeUpExamples } from "../../scripts/lib/made-up-course.mjs";
@@ -145,6 +145,58 @@ test("gradePlace: a row is right when ticked exactly if the thing is in the cate
   expect(gradePlace(q, [...yes, "not-a-category"]).ok, "an id that is not a row changes nothing").toBe(true);
 });
 
+test("placeNarrow: the categories the thing is in, whatever was ticked, with the most specific and its line up; none when there is nothing to narrow", () => {
+  const data = ix();
+  let asked = 0, skipped = 0;
+  for (let s = 0; s < 200; s++) {
+    const q = { thing: wall, rows: placeQuestionRows(data, wall, seeded(s))! };
+    const yes = q.rows.filter((r) => r.answer);
+    const n = placeNarrow(data, q, seeded(s + 1000));
+    if (yes.length < 2) { expect(n, "one category applies: nothing to narrow").toBeNull(); skipped++; continue; }
+    asked++;
+    expect(n!.options.map((r) => r.cat).sort()).toEqual(yes.map((r) => r.cat).sort());
+    expect(n!.options.every((r) => r.answer)).toBe(true);
+    expect(n!.cat, "a color is the narrowest it can be in this data").toBe("col");
+    expect(n!.line.map((x) => x.term)).toEqual(["Color", "External form", "Form", "Functional thing", "Existent"]);
+    expect(n!.line.filter((x) => x.option).map((x) => x.term).sort()).toEqual(yes.map((r) => r.term).sort());
+    expect(n!.line[0]).toEqual({ term: "Color", phrase: "a color", option: true });
+  }
+  expect(asked).toBeGreaterThan(20);
+  expect(skipped).toBeGreaterThan(5);
+  // a thing of two classes is in a category of each: the categories do not lie on one line, so there is nothing to pick
+  const mixed = ex("a mixed thing", ["Color", "Consciousness"], 1);
+  expect(placeNarrow(data, { thing: mixed, rows: placeRows(data, mixed) }, seeded(1))).toBeNull();
+  // a thing that is nowhere has no category to pick
+  const horn = ex("the horn of a hare", [], 1, { ne: true });
+  expect(placeNarrow(data, { thing: horn, rows: placeRows(data, horn) }, seeded(1))).toBeNull();
+  // the order of the options follows the random source
+  const q = { thing: wall, rows: placeRows(data, wall) };
+  const orders = new Set(Array.from({ length: 30 }, (_, i) => placeNarrow(data, q, seeded(i))!.options.map((r) => r.cat).join()));
+  expect(orders.size).toBeGreaterThan(1);
+});
+
+test("gradeNarrow: only the most specific one is right, a broader one is true but not the most specific, and says how far up it is", () => {
+  const data = ix(), q = { thing: wall, rows: placeRows(data, wall) };
+  const n = placeNarrow(data, q, seeded(7))!;
+  expect(n.options.length).toBe(4);
+  expect(gradeNarrow(n, "col")).toMatchObject({ ok: true, picked: { cat: "col" } });
+  const broad = gradeNarrow(n, "form")!;
+  expect(broad.ok).toBe(false);
+  expect(broad.picked.cat).toBe("form");
+  expect(broad.upTo.map((x) => x.term), "from the most specific up to the pick").toEqual(["Color", "External form", "Form"]);
+  expect(gradeNarrow(n, "shape"), "a category that was not offered").toBeNull();
+  expect(gradeNarrow(n, "nonsense")).toBeNull();
+});
+
+test("placeGrade: right when step 1 is all right and step 2 is right or skipped, wrong when no part asked is right", () => {
+  expect(placeGrade(true, null)).toBe("ok");
+  expect(placeGrade(false, null)).toBe("bad");
+  expect(placeGrade(true, true)).toBe("ok");
+  expect(placeGrade(true, false)).toBe("part");
+  expect(placeGrade(false, true)).toBe("part");
+  expect(placeGrade(false, false)).toBe("bad");
+});
+
 const run = (lv: number, n: number, ok: boolean) => Array.from({ length: n }, () => ({ lv, ok }));
 
 test("placeLevelUp: five right answers in a row at the highest level on, and the level above it to offer", () => {
@@ -177,7 +229,7 @@ test("over the real categories and made-up examples: every row agrees with place
   const rix = makeIndex(openData as unknown as DrillData);
   const items = (madeUpExamples(openData as never, 400) as unknown as { items: Example[] }).items;
   expect(buildPool(rix).length).toBeGreaterThan(100);
-  let asked = 0, yesRows = 0, noRows = 0;
+  let asked = 0, narrowed = 0, yesRows = 0, noRows = 0;
   const t0 = performance.now();
   for (let s = 0; s < 400; s++) {
     const q = drawPlace(rix, items, { levels: upTo(1 + (s % 4)), rng: seeded(s) });
@@ -185,6 +237,17 @@ test("over the real categories and made-up examples: every row agrees with place
     asked++;
     expect(q.rows.length).toBeGreaterThanOrEqual(3);
     expect(q.rows.length).toBeLessThanOrEqual(6);
+    const n = placeNarrow(rix, q, seeded(s + 1));
+    const yes = q.rows.filter((r) => r.answer);
+    if (n) {
+      narrowed++;
+      expect(yes.length, q.thing.n).toBeGreaterThanOrEqual(2);
+      expect(n.options.length).toBe(yes.length);
+      expect(n.options.some((r) => r.cat === n.cat), q.thing.n).toBe(true);
+      expect(gradeNarrow(n, n.cat)!.ok).toBe(true);
+    } else if ((q.thing.cls ?? []).length === 1) {
+      expect(yes.length, `${q.thing.n}: a thing of one class has its categories on one line`).toBeLessThan(2);
+    }
     for (const r of q.rows) {
       expect(placeByClass(rix, q.thing, rix.CAT[r.cat]), `${q.thing.n} in ${r.cat}`).toBe(r.answer ? "yes" : "no");
       expect(r.reason, `${q.thing.n} in ${r.cat}`).toBeTruthy();
@@ -193,6 +256,7 @@ test("over the real categories and made-up examples: every row agrees with place
     }
   }
   expect(asked, "the made-up examples do give questions").toBeGreaterThan(300);
+  expect(narrowed, "step 2 is asked for a good share of them").toBeGreaterThan(50);
   expect(yesRows).toBeGreaterThan(0);
   expect(noRows).toBeGreaterThan(0);
   expect(performance.now() - t0, "400 draws").toBeLessThan(4000);
