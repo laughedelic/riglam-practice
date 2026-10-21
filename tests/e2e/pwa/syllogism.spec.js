@@ -79,6 +79,17 @@ test("a right reply is Right and is kept in the answers, apart from the Relation
   await expect(page.locator(".empty-note").first()).toContainText("No practice answers yet"); // the Relations list has nothing of it
 });
 
+test("an answer that could not be saved says so on the result, without naming a list it would not be in", async ({ page }) => {
+  await open(page);
+  await page.evaluate(async () => { // the answers collection refuses writes
+    const db = await window.__riglam.platform.db(), real = db.collection.bind(db);
+    db.collection = (name) => (name === "answers" ? { doc: () => ({ set: async () => { throw Object.assign(new Error("full"), { code: "quota_exceeded" }); } }) } : real(name));
+  });
+  await draw(page, 1);
+  await say(page, "accept");
+  await expect(page.locator(".sylres + .status, .status", { hasText: "could not be saved" }).first()).toHaveText("Your answer is on screen but could not be saved (quota_exceeded), so it will not be kept.");
+});
+
 test("a wrong reply says what was mixed up; the sheet shows all three checks, the first that fails is marked, and a failed check is not marked as a wrong answer", async ({ page }) => {
   await open(page);
   const c = await draw(page, 3); // the reason is established, the conclusion is false, the pervasion fails: no pervasion
@@ -295,6 +306,9 @@ test("where a tutor is on, the panel of recent answers beside a syllogism stays 
   await next(page).click();
   await expect(page.locator(".sylask")).toBeVisible();
   await expect(page.locator("#coach")).toBeVisible();
+  await goTo(page, "Relations"); // a new pair of another exercise does not start with a panel that holds only the recent answers
+  await expect(page.locator("#stage")).toBeVisible();
+  await expect(page.locator("#coach")).toBeHidden();
 });
 
 test("the practice options hold only what Syllogisms uses: the wording, which is kept, and the things drawn from", async ({ page }) => {
@@ -323,6 +337,7 @@ test("the practice options hold only what Syllogisms uses: the wording, which is
 });
 
 test("the tutor's chat is not part of Syllogisms yet", async ({ page }) => {
+  await page.route("**/api/health", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, tutor: "on" }) }));
   await open(page);
   if (await page.locator("#mchat").isVisible()) await expect(page.locator("#mchat")).toHaveAttribute("aria-label", "Recent answers"); // a wide screen: only the panel of recent answers and keys
   await draw(page, 1);
