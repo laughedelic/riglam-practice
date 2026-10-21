@@ -268,6 +268,8 @@ export interface State {
   known: Known | null;
   /** the course's reference examples this device holds (platform.examples), by name; null when it has none (src/app/core/examples.js) */
   EX: ExampleIndex | null;
+  /** the levels (1 to 4) the reference examples are drawn from, any mix, at least one (the practice options, `rd-exlevels`) */
+  exLevels: number[];
   /** sends flags to the app's server (platform.reports), when the place has a server for them and this device has the Magic Key */
   reports: Reports | null;
   /** keeps the removal of a flag for a later start that has `reports` (platform.withdrawReport) */

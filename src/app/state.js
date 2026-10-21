@@ -1,6 +1,7 @@
 // The page's shared state. These were module-level variables of the old single script; an ES module cannot assign to a binding it
 // imports, so they are properties of one object. The preference reads below fill in what this device saved.
 
+import { DEFAULT_LEVELS, normLevels } from "../ai-shared/examples.ts";
 import { FIND_RELS } from "../domain/find.ts";
 
 /** @type {import("./types.ts").State} */
@@ -20,6 +21,7 @@ export const state = {
   tutor: null,   // a question to the app's own server (platform.tutor), when the place has one; `sample` is used first
   known: null,   // what that server learned of examples from earlier checks (platform.known), asked before the tutor (ai/known.js)
   EX: null,      // the course's reference examples this device holds (platform.examples), indexed by name (ai-shared/examples.ts); null when it has none
+  exLevels: [...DEFAULT_LEVELS], // the levels (1 to 4) the reference examples are drawn from, any mix, at least one (the practice options, `rd-exlevels`, "1,3"); a new device starts with level 1 alone
   about: null,   // {version, commit, builtAt, latest, branches?}: which build this is (platform.about), shown in Options
   updates: null, // {status, check, apply, subscribe}: updating the installed app in place (platform.updates), shown in Options
   unlock: null,  // {open, tutor}: opens the prompt for the Magic Key (platform.unlock) while this device has none; `tutor` is whether the server has a tutor waiting for it
@@ -117,6 +119,7 @@ try{ state.shareExamples=localStorage.getItem("rd-share")!=="0"; state.shareTold
 try{ state.recentOpen=localStorage.getItem("rd-recent")!=="0"; }catch(e){}
 try{ const v=localStorage.getItem("rd-findrel"); if(FIND_RELS.includes(/** @type {any} */(v))) state.findRel=/** @type {any} */(v); }catch(e){}
 try{ state.findSuggest=localStorage.getItem("rd-findsuggest")!=="0"; }catch(e){}
+try{ const v=localStorage.getItem("rd-exlevels"); if(v!==null) state.exLevels=normLevels(v); }catch(e){}
 try{ if(localStorage.getItem("rd-syllogism-wording")==="formal") state.syllogismWording="formal"; if(localStorage.getItem("rd-syllogism-level")==="1") state.syllogismLevel=1; state.syllogismGuide=localStorage.getItem("rd-syllogism-guide")==="1"; }catch(e){}
 try{ if(localStorage.getItem("rd-ab")==="0") state.showAB=false; if(localStorage.getItem("rd-full")==="0") state.fullPh=false; }catch(e){}
 try{

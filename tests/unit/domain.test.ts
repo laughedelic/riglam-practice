@@ -1147,12 +1147,13 @@ test("placeByClass: passes over classes the data does not have, and leaves out a
   expect(placed({ cls: ["Color"], not: ["Form"] }).form, "a wrong class in the data shows as no answer, not a wrong one").toBeNull();
 });
 
-test("drawable: confirmed and textbook examples up to the level, never a commentator's", () => {
-  expect(drawable({ cf: "confirmed", lv: 2 }, 2)).toBe(true);
-  expect(drawable({ cf: "textbook", lv: 1 }, 2)).toBe(true);
-  expect(drawable({ cf: "textbook", lv: 3 }, 2)).toBe(false);
-  expect(drawable({ cf: "commentator", lv: 1 }, 4)).toBe(false);
-  expect(drawable({ lv: 1 }, 4)).toBe(false);
+test("drawable: confirmed and textbook examples of the levels that are on, never a commentator's", () => {
+  expect(drawable({ cf: "confirmed", lv: 2 }, [1, 2])).toBe(true);
+  expect(drawable({ cf: "textbook", lv: 1 }, [1, 2])).toBe(true);
+  expect(drawable({ cf: "textbook", lv: 3 }, [1, 2])).toBe(false);
+  expect(drawable({ cf: "textbook", lv: 1 }, [2, 3])).toBe(false);
+  expect(drawable({ cf: "commentator", lv: 1 }, [1, 2, 3, 4])).toBe(false);
+  expect(drawable({ lv: 1 }, [1, 2, 3, 4])).toBe(false);
 });
 
 // ---- learned facts: what the analyses said of a learner's example, per category ----
