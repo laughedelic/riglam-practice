@@ -30,18 +30,34 @@ window.claude={use:async n=>n==='db'?db:n==='sample'?sample:null};
 }
 async function open(vp,opts={}){
   const autoExplain=opts.autoExplain; delete opts.autoExplain;
+  const freshMenu=opts.freshMenu; delete opts.freshMenu; // the page's own default (a wide screen starts with the menu pinned); the old tests start with the menu away, as it came on demand
   const {html}=load();
   const br=await chromium.launch();
-  const ctx=await br.newContext(Object.assign({viewport:vp,colorScheme:'light'},opts));
+  const ctx=await br.newContext(Object.assign({viewport:vp,colorScheme:'light',reducedMotion:'reduce'},opts));
   // a checked answer does not ask for its explanation by itself in the old tests (they click Explain); a test turns it on with {autoExplain:true}
   await ctx.addInitScript(on=>{ try{ if(localStorage.getItem('rd-autoexplain')===null) localStorage.setItem('rd-autoexplain',on?'1':'0'); }catch(e){} },!!autoExplain);
   await ctx.addInitScript(()=>{ window.__riglamTest=t=>{ window.__t=t; }; });
+  if(!freshMenu) await ctx.addInitScript(()=>{ try{ if(localStorage.getItem('rd-menu')===null) localStorage.setItem('rd-menu','0'); }catch(e){} });
   const pg=await ctx.newPage(); pg.setDefaultTimeout(4000);
   const errs=[]; pg.on('console',m=>{if(m.type()==='error')errs.push(m.text())}); pg.on('pageerror',e=>errs.push('ERR '+e.message));
   await pg.route('http://t/**',r=>r.fulfill({body:html,contentType:'text/html'}));
   await pg.goto('http://t/index.html',{waitUntil:'domcontentloaded'}); await pg.waitForTimeout(800);
   return {br,pg,errs};
 }
+// Goes to a screen as a learner would: the menu lists the exercises, Review and Settings (a drawer on a phone; on a wide screen the menu button pins it open).
+// From Review the back arrow returns to the exercise first; an open overlay (Settings, the practice options) is closed.
+const GO={Relations:'practice',Pervasions:'debate','Find a pair':'find',Review:'review',Settings:'settings'};
+async function go(pg,name){
+  const k=GO[name];
+  if(await pg.locator('#over').isVisible()) await pg.keyboard.press('Escape');
+  if(!(await pg.locator('#menu').isVisible())){
+    if(!(await pg.locator('#menubtn').isVisible())) await pg.locator('#mback').click();
+    await pg.locator('#menubtn').click();
+  }
+  await pg.locator('#menu :is(.mrow,.fbtn)[data-go="'+k+'"]').click(); // not the today line, which also opens Review
+}
+// Opens the practice options of the exercise on screen (the sliders button in the top bar).
+async function settings(pg){ await pg.locator('#msess').click(); await pg.waitForTimeout(100); }
 // Waits until `read` (a function run in the page) returns the same value on `times` reads in a row, `every` ms apart, and
 // returns that value. A test uses it before it measures a position, so that a render that arrives late (the saved answer
 // coming back from the db) or a transition in progress cannot change the layout between two measurements. It stops waiting
@@ -55,4 +71,7 @@ async function settled(pg,read,{every=40,times=3,timeout=3000}={}){
     await pg.waitForTimeout(every);
   }
 }
-module.exports={open,SHOTS,settled};
+// The tutor's panel on a wide screen: the chat button opens it only once there is a result, so a check of what it holds before that (the key hints, Recent)
+// opens it as the button used to, through the test hook.
+async function toggleCoach(pg){ await pg.evaluate(()=>{ window.__t.coachOpen=!window.__t.coachOpen; window.__t.render(); }); await pg.waitForTimeout(100); }
+module.exports={open,go,settings,toggleCoach,SHOTS,settled};

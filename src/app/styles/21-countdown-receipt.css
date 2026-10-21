@@ -1,8 +1,4 @@
-/* v49: the countdown beside the relation list heading, progress of the questions */
-.lrow{display:flex;align-items:center;gap:10px;min-width:0;min-height:30px}
-.lrow .label{margin:0;flex:none}
-.lrow .trow{flex:1;min-width:0}
-.lrow .tval{min-height:30px}
+/* v49: progress of the questions, receipts */
 .prog{display:inline-flex;gap:4px;margin-right:9px;vertical-align:-1px}
 .prog i{position:relative;width:13px;height:13px;clip-path:var(--rhombus);background:var(--line)}
 .prog i.done,.prog i.now{background:var(--ink)}
@@ -34,7 +30,7 @@
 .sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 /* the Russian name of a term, beside the English one in a definition entry: regular weight, muted like the Russian definition */
 .tm-defs dt .tm-ru{font-weight:400;color:var(--ink-muted)}
-/* Skip: a text link under the list or the card on a phone, a quiet button in the action row on a wide screen.
+/* Skip: a quiet button in the pair bar.
    A skipped pair is neither right nor wrong, so it gets the neutral gray of "not checked": dashed, no red, no green. */
 .actions .skipw{color:var(--ink-muted);box-shadow:inset 0 0 0 1px var(--line)}
 .actions .skipw:hover{box-shadow:inset 0 0 0 1px var(--line),inset 0 -4px 0 var(--vermilion)}
@@ -45,8 +41,6 @@
 /* four review segments on a phone */
 .rseg.r4 button{padding:0 2px;letter-spacing:.02em}
 @media (max-width:360px){.rseg.r4 button{font-size:10px;letter-spacing:0}}
-/* room for the focus ring of a button that sits at the edge of a review column */
-.rcol{padding-inline:4px;margin-inline:-4px}
 /* Recent folds: the heading stays, a small rhombus is filled while the list is open */
 .recent>summary{cursor:pointer;list-style:none;justify-content:flex-start;gap:8px}
 .recent>summary::-webkit-details-marker{display:none}

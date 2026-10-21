@@ -2,6 +2,7 @@
 // at once, in Relations and in Pervasions, and not when the setting is off. The host is the mock of tests/support/claude-mock.js.
 import { test, expect } from "@playwright/test";
 import { routeArtifact } from "../../support/artifact-host.js";
+import { goTo } from "../../support/page.js";
 
 test.skip(({ viewport }) => !viewport || viewport.width < 1100, "the wide layout answers with keys and one click");
 
@@ -19,14 +20,14 @@ const relations = async (page) => {
   await page.locator(".strip .chip").nth({ mi: 0, "3ab": 1, "3ba": 2, 4: 3, con: 4 }[rel]).click();
   const n = await page.locator(".grid input:not([disabled])").count();
   for (let i = 0; i < n; i++) await page.locator(".grid input:not([disabled])").nth(i).fill("thing " + (i + 1));
-  await page.locator("#stage .actions .btn", { hasText: /show result/i }).click();
+  await page.locator("#stage .pbar .fwd").click(); // Check
 };
 const pervasions = async (page) => {
-  await page.getByRole("tab", { name: "Pervasions" }).filter({ visible: true }).first().click();
+  await goTo(page, "Pervasions");
   for (let i = 0; i < 4; i++) { await page.keyboard.press("a"); await page.waitForTimeout(50); }
   await page.keyboard.press("1");
 };
-const explainBtn = (page) => page.locator("#stage .actions .btn, #coach .btn").filter({ hasText: /^explain$|check and explain/i });
+const explainBtn = (page) => page.locator("#stage .xpl, #coach .btn").filter({ hasText: /^explain$|check and explain/i });
 
 test("a checked Relations answer is explained by itself, once", async ({ page }) => {
   await start(page, null);

@@ -2,6 +2,7 @@ import { state } from "../state.js";
 import { $, el } from "../core/dom.js";
 import { ERR_OFF, canAsk } from "../core/ask.js";
 import { CELLS } from "../core/rel.js";
+import { isWide } from "../core/viewport.js";
 import { quorumBegin, quorumDropped, quorumEnd, quorumStep, quorumThings, quorumWanted } from "./quorum.js";
 import { persist } from "../practice/answers.js";
 import { factNode, fillTurn, noteData, revealTutor } from "../practice/screen.js";
@@ -60,7 +61,9 @@ export async function ask(text,kind,byItself){
   // The server holds the standing instructions and the notes itself, so what it gets as the first turn is the card alone.
   if(!U.chat) U.chat=[{role:"user",content:(direct?tutorCard(state,p,U):cardBody(state,p,U))+"\n\n"+body, hidden:true, asked:kind?undefined:text}];   // `asked`: the question alone, for a flag on its answer
   else U.chat.push({role:"user",content:body,hidden:!!kind});
+  // the answer comes to the panel at the right on a wide screen (it opens), and to the Why chip of the result on a narrow one
   if(kind==="explain"){ U.explained=true; U.rtab="tutor"; }
+  if(isWide()&&U===state.ui) state.coachOpen=true;
   U.chat.push({role:"assistant",content:"",pending:true,kind});
   // an explanation that began by itself redraws the screen twice (it starts, it is in) with the learner's hands on the result: the focus stays on its button
   const draw=byItself?renderKeepFocus:render;
