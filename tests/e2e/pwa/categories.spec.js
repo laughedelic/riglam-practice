@@ -258,6 +258,19 @@ test("an offer passed over with Next counts as Not now: it asks again after anot
   await expect(page.locator(".catoffer")).toBeVisible();
 });
 
+// The tutor does not know Categories (its chat button only opens the recent answers there), so the panel is not the tutor's: it stays open from one thing to the next.
+test("where the tutor is on, the panel of recent answers opened in Categories stays open from one thing to the next", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "pwa-desktop", "the panel is on wide screens only");
+  await page.route("**/api/health", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, tutor: "on" }) }));
+  await open(page);
+  await page.getByRole("button", { name: /recent answers|tutor.s chat/i }).click();
+  await expect(page.locator("#coach")).toBeVisible();
+  await tickAnswer(page);
+  await finish(page);
+  await page.keyboard.press("n");
+  await expect(page.locator("#coach")).toBeVisible();
+});
+
 test("four wrong in a row at the top level suggest switching it off; the practice options show the levels and the way to ask", async ({ page }) => {
   await open(page);
   await page.evaluate(() => localStorage.setItem("rd-exlevels", "1,2"));

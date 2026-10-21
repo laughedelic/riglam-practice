@@ -89,8 +89,8 @@ function renderNow(){
   if(drawerGone&&state.blitz&&asking()&&!state.ui.tq) startQ();
   ensureRelTimer();
   // the tutor's panel closes with the pair it was opened for, so a new pair never starts with a chat panel that has only the recent answers in it; where there is no
-  // tutor the panel is the recent answers and the keys, and stays open as long as it is wanted
-  if(state.lastUi!==state.ui){ if(state.lastUi&&(state.lastUi.chat||canAsk())) state.coachOpen=false; state.lastUi=state.ui; }
+  // tutor (or in Categories, which the tutor does not know) the panel is the recent answers and the keys, and stays open as long as it is wanted
+  if(state.lastUi!==state.ui){ if(state.lastUi&&(state.lastUi.chat||(canAsk()&&!state.lastUi.cats))) state.coachOpen=false; state.lastUi=state.ui; }
   const app=$("app"), s=$("stage"), c=$("coach"), f=focusKey(), coach=w&&state.mode==="quiz"&&isEx()&&state.coachOpen;
   if(!c.hidden&&!coach) leave(c,true);
   app.dataset.tab=state.tab; app.dataset.wide=w?"1":"0"; app.dataset.coach=coach?"1":"0"; const opened=c.hidden&&coach; c.hidden=!coach; if(opened) enter(c,true,{persistent:true});
