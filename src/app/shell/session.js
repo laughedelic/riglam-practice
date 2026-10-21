@@ -73,7 +73,7 @@ const sw=(label,word,on,toggle,note)=>el("div",{class:"orow"},switchOf(label,wor
 const chips=(label,rows,cur,on)=>segOf(label,rows,cur,on);
 const secs=kind=>Math.round(kindMs(kind)/1000);
 // the Blitz times in a line (the card says Off instead when Blitz is switched off)
-const timesLine=()=>el("small",{class:"sum1",text:"Relation "+secs("rel")+" s · Example "+secs("ex")+" s"});
+const timesLine=()=>el("small",{class:"sum1",text:state.tab==="syllogism"?"Syllogism "+secs("syl")+" s":"Relation "+secs("rel")+" s · Example "+secs("ex")+" s"});
 
 // one Blitz time: presets and a custom number of seconds; each sets only its own
 function timeBlock(kind,label,note){
@@ -98,10 +98,13 @@ function pageBody(id){
   if(id==="wording") return [el("p",{class:"capl",text:"How the statement of pervasion is worded in Pervasions: the four statements you accept or answer with Why?."}),
     picks("Wording of the questions",Object.entries(WORDINGS).map(([k,w])=>[k,w.name,sample(w)]),state.wording,setWording)];
   if(id==="times") return [
-    el("p",{class:"capl",text:"Blitz is a countdown for each step of a pair, switched on and off with the stopwatch in the top bar. Hold the stopwatch to come back to this page."}),
+    el("p",{class:"capl",text:state.tab==="syllogism"
+      ?"Blitz is a countdown for the reply to each syllogism, switched on and off with the stopwatch in the top bar. When the time is up the reply counts as wrong and the result shows the right one; a right “there is no pervasion” goes straight to the result, with no counter-example. Hold the stopwatch to come back to this page."
+      :"Blitz is a countdown for each step of a pair, switched on and off with the stopwatch in the top bar. Hold the stopwatch to come back to this page."}),
     sw("Use Blitz",state.blitzUse?"on":"off",state.blitzUse,()=>setBlitzUse(!state.blitzUse),"Off takes the stopwatch out of the top bar. The times stay as they are for when it is on again."),
-    ...(state.blitzUse?[timeBlock("rel","Relation time","The Blitz countdown for choosing the relation, in Relations and in Pervasions."),
-      timeBlock("ex","Example time","The Blitz countdown for each example in Relations (a table of three cells gets three times this) and for each question in Pervasions.")]:[])];
+    ...(!state.blitzUse?[]:state.tab==="syllogism"?[timeBlock("syl","Syllogism time","The Blitz countdown for the reply to each syllogism, in Syllogisms.")]
+      :[timeBlock("rel","Relation time","The Blitz countdown for choosing the relation, in Relations and in Pervasions."),
+        timeBlock("ex","Example time","The Blitz countdown for each example in Relations (a table of three cells gets three times this) and for each question in Pervasions.")])];
   return [el("p",{class:"capl",text:"Shown when you open a term’s definition, in the Terms panel and in the tutor’s notes."}),
     picks("Languages of the definitions",[["en","English","The definition in English."],["enru","English + Russian","Each entry also shows the Russian name of the term and, where there is one, its Russian definition."]],state.defLang,setDefLang)];
 }
@@ -112,6 +115,7 @@ function syllogismBody(){
       "Take X: “Take a tomato. It follows it is food because it is red.” Formal: “It follows that the subject, a tomato, is food because of being red.”"),
     row("Things",chips("Which things the syllogisms are about",[[1,"Everyday"],[2,"With Dudra terms"]],state.syllogismLevel,setSyllogismLevel),
       "Everyday (a tomato, red, food). With Dudra terms (a form, a sound, impermanent, a consciousness, etc.). The change applies from the next syllogism."),
+    card("Blitz",state.blitzUse?timesLine():el("small",{class:"sum1",text:"Off"}),"times"),
     el("p",{class:"capl"},"The Magic Key, your account, data and the version are in ",el("button",{type:"button",class:"lnk",onclick:()=>{ toggleSess(false); toggleOpts(true); }},"Settings"),".")
   ];
 }

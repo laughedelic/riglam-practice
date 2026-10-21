@@ -50,9 +50,9 @@ function result(){
   const u=state.ui, c=shownSyllogism(), g=u.grade, first=(CHECKS.find(([k])=>!c.checks[k].ok)||[])[0];
   return [
     el("div",{class:"verdict sylres "+u.overall},
-      el("p",{class:"vl"},el("span",{class:"v",text:g.correct?u.overall==="part"?"Right, but the counter-example is not one.":"Right.":"Not quite."})),
-      g.correct?null:el("p",{class:"sylwhat"},"You said “"+SAID[g.said]+"”. The right reply is “"+SAID[g.expected]+"”."),
-      g.correct?null:el("p",{class:"sylconf",text:g.confusion})),
+      el("p",{class:"vl"},el("span",{class:"v",text:g.correct?u.overall==="part"?"Right, but the counter-example is not one.":"Right.":u.timeout?"Time is up.":"Not quite."})),
+      g.correct?null:el("p",{class:"sylwhat"},(g.said?"You said “"+SAID[g.said]+"”. ":"")+"The right reply is “"+SAID[g.expected]+"”."),
+      g.correct||!g.confusion?null:el("p",{class:"sylconf",text:g.confusion})),
     el("ol",{class:"sylchecks","aria-label":"The three checks, in the order they are made"},CHECKS.map(([k,label,yes,no],i)=>
       el("li",{class:"sylchk "+(c.checks[k].ok?"holds":"fails")+(k===first?" first":"")},
         el("span",{class:"sylcn","aria-hidden":"true",text:String(i+1)}),

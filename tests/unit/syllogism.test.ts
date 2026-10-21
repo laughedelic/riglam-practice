@@ -4,7 +4,7 @@ import { expect, test } from "vitest";
 import { makeIndex } from "../../src/ai-shared";
 import type { DrillData } from "../../src/ai-shared";
 import {
-  REPLIES, SITUATIONS, syllogismOf, syllogismPieces, syllogismText, drawSyllogism, gradeSyllogism, gradeExample, pervasionConflicts, widest, withoutPhrases,
+  REPLIES, SITUATIONS, syllogismOf, syllogismPieces, syllogismText, drawSyllogism, gradeSyllogism, gradeTimeout, gradeExample, pervasionConflicts, widest, withoutPhrases,
 } from "../../src/domain/syllogism";
 import type { Syllogism, SyllogismHistory, Reply, Situation } from "../../src/domain/syllogism";
 import { inUniverse } from "../../src/domain/universe";
@@ -218,6 +218,13 @@ test("grading: only the answer from the three checks is right, and a wrong reply
   const d = syllogismOf(ix, "a tomato", "red", "food") as Syllogism;
   expect(gradeSyllogism(d, "reason").confusion).toBe(`A tomato is red, so the reason is established; what fails is the step from red to ${d.predicate}.`);
   expect(gradeSyllogism(d, "accept").confusion).toBe(`You accepted because the thesis is true, but the reason has to prove it, and it is false that whatever is red is ${d.predicate}.`);
+});
+
+test("when the time runs out (Blitz) there is no reply: wrong, the right reply named, nothing said about a mix-up", () => {
+  for (const [subject, r, p] of [["a tomato", "red", "food"], ["a banana", "red", "food"], ["the memory of tea", "memory", "cons"]]) {
+    const c = syllogismOf(ix, subject, r, p) as Syllogism;
+    expect(gradeTimeout(c)).toEqual({ grade: "bad", correct: false, said: null, expected: c.answer, missedPoint: false, confusion: "" });
+  }
 });
 
 test("the proofs say why the subject is not the reason, by the classes that exclude each other", () => {

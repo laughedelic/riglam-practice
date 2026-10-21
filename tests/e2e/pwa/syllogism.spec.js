@@ -320,7 +320,7 @@ test("the practice options hold only what Syllogisms uses: the wording, which is
   await expect(sheet).toContainText("With Dudra terms");
   await expect(sheet).not.toContainText(/course|textbook/i); // the page does not say "the course" or "textbook"
   await expect(sheet).not.toContainText("Notation");
-  await expect(sheet).not.toContainText("Blitz");
+  await expect(sheet).toContainText("Blitz");
   await sheet.getByRole("button", { name: "Formal" }).click();
   await page.keyboard.press("Escape");
   await expect(page.locator(".sylt")).toContainText(/^It follows that the subject, .+, is .+ because of being .+\.$/);
@@ -336,12 +336,124 @@ test("the practice options hold only what Syllogisms uses: the wording, which is
   expect(await page.evaluate(() => localStorage.getItem("rd-syllogism-level"))).toBe("1");
 });
 
-test("the Blitz and the tutor's chat are not part of Syllogisms", async ({ page }) => {
+test("the tutor's chat is not part of Syllogisms yet", async ({ page }) => {
   await page.route("**/api/health", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, tutor: "on" }) }));
   await open(page);
-  await expect(page.locator("#mbz")).toBeHidden();
   if (await page.locator("#mchat").isVisible()) await expect(page.locator("#mchat")).toHaveAttribute("aria-label", "Recent answers"); // a wide screen: only the panel of recent answers and keys
   await draw(page, 1);
   await say(page, "accept");
   await expect(page.locator(".xpl")).toHaveCount(0); // no Explain: the tutor does not know this exercise yet
+});
+
+// Blitz: the stopwatch of the other exercises, with a time of its own for the reply to a syllogism
+const blitzOn = (page, ms) => page.addInitScript((t) => { localStorage.setItem("rd-blitz", "1"); localStorage.setItem("rd-timer-syl", String(t)); }, ms);
+
+test("Blitz: the stopwatch is in the top bar, the reply has a countdown, and a right 'there is no pervasion' goes straight to the result", async ({ page }) => {
+  await blitzOn(page, 60000);
+  await open(page);
+  const sw = page.locator("#mbz");
+  await expect(sw).toBeVisible();
+  await expect(sw).toHaveAttribute("aria-checked", "true");
+  await expect(sw).toHaveAttribute("aria-label", "Blitz on: 60 s a syllogism");
+  await expect(page.locator("#mbar .mbt")).toBeVisible();
+  const c = await draw(page, 3, "witness");
+  await say(page, "pervasion");
+  await expect(page.locator("#sylex")).toHaveCount(0); // no counter-example against the clock
+  await expect(headline(page)).toHaveText("Right.");
+  await expect(page.locator(".sylmine")).toHaveCount(0);
+  await expect(page.locator("#mbar .mbt")).toHaveCount(0); // the clock stopped with the reply
+  const [doc] = await expect.poll(async () => (await saved(page)).length).toBe(1).then(() => saved(page));
+  expect(doc).toMatchObject({ situation: c.situation, said: "pervasion", correct: true, grade: "ok" });
+  expect(doc.ms).toBeGreaterThanOrEqual(0);
+  expect(doc.timeout).toBeUndefined();
+  expect(doc.example).toBeUndefined();
+  // the stopwatch switches it off: the countdown goes, and a right "no pervasion" asks for a counter-example again
+  await sw.click();
+  await expect(sw).toHaveAttribute("aria-checked", "false");
+  await page.locator(".pbar .fwd").click();
+  await expect(page.locator("#mbar .mbt")).toHaveCount(0);
+  await draw(page, 3, "witness");
+  await say(page, "pervasion");
+  await expect(page.locator("#sylex")).toBeVisible();
+});
+
+test("Blitz: when the time is up the reply counts as wrong, the result names the right one, and the answer is kept as a time-out", async ({ page }) => {
+  await blitzOn(page, 3000);
+  await open(page);
+  await draw(page, 5);
+  const c = await page.evaluate(() => JSON.parse(JSON.stringify(window.__t.cur.c))); // the clock began with this syllogism
+  await expect(headline(page)).toHaveText("Time is up.", { timeout: 6000 });
+  await expect(page.locator(".sylres")).toHaveClass(/bad/);
+  await expect(page.locator(".sylres .sylwhat")).toHaveText("The right reply is “the reason is not established”.");
+  await expect(page.locator(".sylres .sylconf")).toHaveCount(0);
+  await expect(page.locator(".sylchecks")).toContainText(c.checks.e.line); // the three checks are shown as for any result
+  const [doc] = await expect.poll(async () => (await saved(page)).length).toBe(1).then(() => saved(page));
+  expect(doc).toMatchObject({ mode: "syllogism", answer: "reason", said: null, correct: false, grade: "bad", timeout: true, ms: 3000 });
+  // the Review counts it on its own row and not as a mix-up
+  await goTo(page, "Review");
+  const sec = page.locator(".section", { has: page.locator(".label", { hasText: "Syllogisms" }) });
+  await expect(sec).toContainText("Time ran out (Blitz)");
+  await expect(sec).toContainText("Time ran out; right: the reason is not established");
+  await expect(sec).not.toContainText("Said “");
+});
+
+test("Blitz: the countdown stands still behind the practice options and starts again, with its full time, when they close", async ({ page }) => {
+  await blitzOn(page, 3000);
+  await open(page);
+  await draw(page, 1);
+  await page.waitForTimeout(2000); // a third of the time is left
+  await page.locator("#msess").click();
+  await page.waitForTimeout(3600); // longer than the time: nothing is graded behind the sheet
+  await expect(page.locator(".sylres")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#mbar .mbt")).toBeVisible();
+  await page.waitForTimeout(1600); // more than what was left: the full time has started again
+  await expect(page.locator(".sylres")).toHaveCount(0);
+  await expect(headline(page)).toHaveText("Time is up.", { timeout: 4000 });
+});
+
+test("Blitz: each new syllogism has its own clock, after Next and after a skip", async ({ page }) => {
+  await blitzOn(page, 60000);
+  await open(page);
+  await draw(page, 1);
+  await say(page, "accept");
+  await expect(page.locator("#mbar .mbt")).toHaveCount(0); // stopped with the reply
+  await next(page).click();
+  await expect(page.locator("#mbar .mbt")).toBeVisible();
+  await page.locator(".pbar .skipw").click();
+  await expect(page.locator("#mbar .mbt")).toBeVisible();
+  await expect(page.locator(".sylask")).toBeVisible();
+  expect(await saved(page)).toHaveLength(1); // the skip kept nothing
+});
+
+test("Blitz: switched on while a counter-example is asked for, the clock starts when the learner goes back to the reply", async ({ page }) => {
+  await open(page);
+  const sw = page.locator("#mbz");
+  await expect(sw).toHaveAttribute("aria-checked", "false");
+  await draw(page, 3, "witness");
+  await say(page, "pervasion");
+  await expect(page.locator("#sylex")).toBeVisible();
+  await sw.click();
+  await expect(sw).toHaveAttribute("aria-checked", "true");
+  await expect(page.locator("#mbar .mbt")).toHaveCount(0); // no clock against the counter-example
+  await page.locator(".sylex .back").click();
+  await expect(page.locator(".sylask")).toBeVisible();
+  await expect(page.locator("#mbar .mbt")).toBeVisible();
+});
+
+test("Blitz: the time of a syllogism is its own, set in the practice options, and kept", async ({ page }) => {
+  await open(page);
+  await page.locator("#msess").click();
+  const sheet = page.locator("#opts");
+  await expect(sheet.locator(".ocard", { hasText: "Blitz" })).toContainText("Syllogism 15 s");
+  await sheet.getByRole("button", { name: "Blitz: details" }).click();
+  await expect(page.locator("#over .shh h2")).toHaveText("Blitz");
+  await expect(page.locator("#opts")).toContainText("Syllogism time");
+  await expect(page.locator("#opts")).not.toContainText("Relation time");
+  await page.locator("#opts").getByRole("button", { name: "30 s" }).click();
+  expect(await page.evaluate(() => [localStorage.getItem("rd-timer-syl"), localStorage.getItem("rd-timer"), localStorage.getItem("rd-timer-rel")])).toEqual(["30000", null, null]);
+  await page.reload(); // the app opens on the exercise used last
+  await expect(page.locator(".sylcard")).toBeVisible();
+  await page.locator("#msess").click();
+  await expect(page.locator("#opts .ocard", { hasText: "Blitz" })).toContainText("Syllogism 30 s");
 });

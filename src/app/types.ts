@@ -87,9 +87,13 @@ export interface SyllogismDoc {
   situation: Situation;
   /** the reply that was right */
   answer: Reply;
-  /** the reply the learner gave */
-  said: Reply;
+  /** the reply the learner gave; null when the time ran out first (Blitz) */
+  said: Reply | null;
   correct: boolean;
+  /** Blitz: the time ran out before a reply (counts as wrong) */
+  timeout?: boolean;
+  /** Blitz: how long the reply took, in ms */
+  ms?: number;
   /** "part": the reply was right, but the counter-example offered with it was not */
   grade: "ok" | "part" | "bad";
   /** the learner named a fault that is there, but not the first one to name */
@@ -369,6 +373,7 @@ export interface State {
   // the blitz timer
   timerMs: number;
   relMs: number;
+  sylMs: number;
   blitz: boolean;
   blitzUse: boolean;
   bzHold: number;
