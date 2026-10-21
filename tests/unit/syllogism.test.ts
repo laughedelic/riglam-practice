@@ -176,6 +176,24 @@ test("a counter-example has to be the reason without being the predicate; a thin
   expect(gradeExample(ix, c, "   ").v).toBe("cmp");
 });
 
+test("the line on a counter-example names the thing as the data does, not as it was typed, and the one thing said as \"you\" takes \"are\"", () => {
+  const c = syllogismOf(ix, "a tomato", "red", "food") as Syllogism;
+  expect(gradeExample(ix, c, "RED  balls").line).toBe(`A red ball is red and is not ${c.predicate}, so there is no pervasion.`);
+  const you = syllogismOf(real, "a tomato", "pers", "food", () => 0) as Syllogism;
+  expect(gradeExample(real, you, "you")).toEqual({ v: "ok", line: "You are a person and are not food, so there is no pervasion." });
+});
+
+test("an exclusion worded as the reason itself does not say that whatever is X is X", () => {
+  const c = syllogismOf(real, "the squareness of a box", "col", "vis", () => 0) as Syllogism;
+  expect(c.checks.e.line).toBe("The squareness of a box is not a color. The squareness of a box is a shape, and nothing is both a shape and a color.");
+  // and for every syllogism the real data can draw, no line says that what is the reason is the reason
+  const st = { hist: [] as SyllogismHistory[], recent: [] as string[], rng: seeded(21) };
+  for (let i = 0; i < 1500; i++) {
+    const d = drawSyllogism(real, st);
+    expect(d.checks.e.line, d.id).not.toMatch(/whatever is (.+) is \1,/);
+  }
+});
+
 test("grading: only the answer from the three checks is right, and a wrong reply says what was mixed up", () => {
   for (const sit of [1, 2, 3, 4, 5, 6, 7, 8] as Situation[]) {
     const [subject, r, p] = {

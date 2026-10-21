@@ -252,7 +252,12 @@ function proofOfE(ix: DataIndex, item: Item, r: string, reason: string, yes: boo
   const rc = catChain(ix, ix.CAT[r]);
   for (const x of upChain(ix, item.t)) {
     const y = rc.find((c) => excludes(ix, x, c));
-    if (y) return `${base} ${cap(item.n)} is ${termWord(ix, x)}, and whatever is ${reason} is ${termWord(ix, y)}, but nothing is both.`;
+    if (y) {
+      const xw = termWord(ix, x), yw = termWord(ix, y);
+      // where the excluded class is worded as the reason itself, "whatever is a color is a color" says nothing
+      return yw === reason ? `${base} ${cap(item.n)} is ${xw}, and nothing is both ${xw} and ${reason}.`
+        : `${base} ${cap(item.n)} is ${xw}, and whatever is ${reason} is ${yw}, but nothing is both.`;
+    }
   }
   return base;
 }
@@ -392,10 +397,11 @@ export function gradeExample(ix: DataIndex, c: Syllogism, text: string): Example
   const it = t ? matchItem(ix, t, FEATURE.has(c.catR) || FEATURE.has(c.catP)) : null;
   if (it && it.n === c.subject) return { v: "self", line: `That is the subject itself. Name another thing that is ${c.reason} and is not ${c.predicate}.` };
   if (!it || !inUniverse(ix, it, c.catR, c.catP)) return { v: "cmp", line: `Not checked: the page does not know ${t || "that"} well enough to say.` };
-  const name = cap(t), r = it.c.includes(c.catR), p = it.c.includes(c.catP);
-  if (r && !p) return { v: "ok", line: `${name} is ${c.reason} and is not ${c.predicate}, so there is no pervasion.` };
-  if (r) return { v: "bad", line: `${name} is ${c.reason}, but it is also ${c.predicate}, so it is no counter-example.` };
-  return { v: "bad", line: `${name} is not ${c.reason}, so it cannot show that being ${c.reason} is not enough for being ${c.predicate}.` };
+  // the thing as the data names it, not as it was typed ("red balls" is "a red ball"); the one thing said in the second person ("you") takes "are"
+  const name = cap(it.n), be = it.nosubject ? "are" : "is", it_ = it.nosubject ? "you" : "it", r = it.c.includes(c.catR), p = it.c.includes(c.catP);
+  if (r && !p) return { v: "ok", line: `${name} ${be} ${c.reason} and ${be} not ${c.predicate}, so there is no pervasion.` };
+  if (r) return { v: "bad", line: `${name} ${be} ${c.reason}, but ${it_} ${be} also ${c.predicate}, so ${it_} ${be} no counter-example.` };
+  return { v: "bad", line: `${name} ${be} not ${c.reason}, so ${it_} cannot show that being ${c.reason} is not enough for being ${c.predicate}.` };
 }
 
 // ---- the draw ----
