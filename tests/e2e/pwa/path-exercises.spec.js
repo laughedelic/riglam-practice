@@ -1,4 +1,4 @@
-// The exercises on the Path (src/app/path) beyond Relations: Syllogisms, Pervasions, Find a pair and Categories, each from its first step to
+// The exercises on the Path (src/app/path) beyond Relations: Syllogisms, Pervasions, Find a pair, Categories and Find an instance, each from its first step to
 // its result. The rules and what is stored are the classic flows' and have their own specs; these check that the Path draws each step, takes
 // the answers through the same steps and stores the answer as the classic page does. The page's state is read through the test hook.
 import { test, expect } from "../../support/test.js";
@@ -152,4 +152,42 @@ test("Categories: the categories ticked on the path, the check, the most specifi
     await expect(page.locator("#path .pline")).not.toHaveCount(0);   // the line from the most specific up
   }
   await expect.poll(async () => (await saved(page, "categories")).length).toBe(1);
+});
+
+// Find an instance draws its categories at random: another set (a skip, nothing entered yet) until one of the kind the test needs is on screen
+async function drawInstance(page, possible) {
+  for (let i = 0; i < 60; i++) {
+    const q = await page.evaluate(() => window.__t.cur.iq);
+    if (q.possible === possible) return q;
+    await page.evaluate(() => window.__t.skipPair());
+  }
+  throw new Error("no set with possible " + possible);
+}
+
+test("Find an instance: the categories as stops, a thing written, the check, and a row for each category", async ({ page }) => {
+  await open(page, "Find an instance");
+  const q = await drawInstance(page, true);
+  await expect(page.locator("#path .icat")).toHaveCount(q.cats.length);
+  await expect(page.locator("#path .icat").first()).toHaveText(q.labels[0]);
+  const field = page.locator("#iin");
+  await field.fill(q.known[0].slice(0, 4));
+  await expect(page.locator("#iin-things option")).not.toHaveCount(0);   // the things the data knows, as the words are typed
+  await field.fill(q.known[0]);
+  await field.press("Enter");
+  await expect(verdict(page)).toContainText("Right");
+  await expect(page.locator("#path .catrow")).toHaveCount(q.cats.length);
+  await expect.poll(async () => (await saved(page, "instance")).length).toBe(1);
+  expect((await saved(page, "instance"))[0]).toMatchObject({ cats: q.cats, possible: true, said: q.known[0], thing: q.known[0], grade: "ok" });
+});
+
+test("Find an instance: \"nothing is\" where the categories exclude each other, and why", async ({ page }) => {
+  await open(page, "Find an instance");
+  const q = await drawInstance(page, false);
+  await page.locator("#path .help button").click();
+  await expect(page.locator("#iin")).toHaveCount(0);
+  await station(page).click();
+  await expect(verdict(page)).toContainText("Right");
+  await expect(page.locator("#path")).toContainText(q.apart.why);
+  await expect.poll(async () => (await saved(page, "instance")).length).toBe(1);
+  expect((await saved(page, "instance"))[0]).toMatchObject({ cats: q.cats, possible: false, said: null, grade: "ok" });
 });

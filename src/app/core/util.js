@@ -10,3 +10,6 @@ export const isSyllogism=a=>!!a&&a.mode==="syllogism";
 // an answer of the Categories exercise (src/app/categories): kept in "answers" with its own mode, and left out of the Relations lists like Find a pair's
 /** @type {(a: any) => a is import("../types.ts").CategoriesDoc} */
 export const isCategories=a=>!!a&&a.mode==="categories";
+// an answer of Find an instance (src/app/instance): kept in "answers" with its own mode, and left out of the Relations lists like Find a pair's
+/** @type {(a: any) => a is import("../types.ts").InstanceDoc} */
+export const isInstance=a=>!!a&&a.mode==="instance";

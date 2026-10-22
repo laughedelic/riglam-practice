@@ -53,6 +53,7 @@ function List() {
     <span><b>Blitz</b><small>{state.blitzUse ? timesLine() : "off"}</small></span><Toggle on={state.blitzUse} /></button>{state.blitzUse ? <More page="times" label="times" /> : null}</Row>;
   const levels = state.EX ? <Row lb="Levels"><b>Examples</b><small>{levelsLine()}</small><More page="levels" /></Row> : null;
   const foot = <p class="pnoteline" style={{ padding: "10px 18px 4px calc(var(--m) + 22px)" }}>The Magic Key, your account, data{tutor && state.learns ? ", sharing your examples" : ""} and the version are in <button type="button" class="pbtn" style={{ padding: 0 }} onClick={toSettings}>Settings</button>.</p>;
+  if (tab === "instance") return foot;
   if (cats) return <>
     <Row lb="Ask"><b>How step 1 asks</b><Words label="How step 1 asks" items={[["all", "All at once"], ["one", "One by one"]]} cur={state.catsAsk} on={setCategoriesAsk} /></Row>
     {levels}{foot}</>;

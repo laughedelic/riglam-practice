@@ -45,6 +45,7 @@ export const state = {
   catsSession: [],  // the things finished on this page, oldest first: the run towards a level offer counts them before the database has handed them back (categories/flow.js)
   catsAsk: "all",  // Categories asks step 1 all at once ("all") or one category at a time ("one"; the practice options of the exercise, `rd-cats-ask`)
   catsOfferAt: "", // when the learner last answered the offer of another level (`rd-cats-offer`): only the answers after it count towards the next offer
+  instRecent: [],  // the sets of categories Find an instance asked lately, oldest first: the draw passes them over while others remain (instance/flow.ts)
   syllogismRecent: [],    // the ids of the syllogisms drawn lately, oldest first: the draw of the next one leans away from them (syllogism/flow.js)
   syllogismLevel: 2,      // the highest level Syllogisms draws from: 1 everyday things only, 2 also the terms of Dudra (the settings of the exercise, `rd-syllogism-level`)
   syllogismWording: "take", // how a syllogism is said: "take" (the class's) or "formal" (`rd-syllogism-wording`)
@@ -123,7 +124,7 @@ export const state = {
   pathOpen: {},      // the rows of Review the Path has unfolded, by key
 };
 
-try{ const v=localStorage.getItem("rd-ex"); if(v==="debate"||v==="find"||v==="categories"||v==="syllogism") state.tab=state.own=v; }catch(e){}
+try{ const v=localStorage.getItem("rd-ex"); if(v==="debate"||v==="find"||v==="categories"||v==="instance"||v==="syllogism") state.tab=state.own=v; }catch(e){}
 try{ state.menuPin=localStorage.getItem("rd-menu")!=="0"; }catch(e){ state.menuPin=true; }   // a wide screen starts with the menu pinned (the exercise would be stretched too wide without it); the button unpins it
 try{ const v=localStorage.getItem("rd-notation"); if(v==="sets"||v==="logic") state.nota=v; }catch(e){}
 try{ if(localStorage.getItem("rd-deflang")==="enru") state.defLang="enru"; }catch(e){}   // an earlier "off" (words only) is now the codes

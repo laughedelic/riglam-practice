@@ -16,6 +16,7 @@ const BRAND = '<polygon points="256,61 371,177 256,292 141,177" fill="#faaf3f"/>
 const PLACES: Record<string, { x: number; y: number; lines: string[] }> = {
   practice: { x: 74, y: 206, lines: ["how two", "terms relate"] }, debate: { x: 74, y: 298, lines: ["if A,", "is it B?"] }, find: { x: 74, y: 390, lines: ["terms for", "a relation"] },
   syllogism: { x: 196, y: 250, lines: ["accept, or", "say why not"] }, categories: { x: 316, y: 206, lines: ["what applies", "to a thing"] },
+  instance: { x: 316, y: 298, lines: ["a thing that", "is all of them"] },
 };
 const PLANNED = [{ k: "cons", name: "Consequences", x: 196, y: 342 }, { k: "debate-planned", name: "Debate", x: 258, y: 454 }];
 const MINI: Record<string, string> = { ok: "ok", part: "part", bad: "bad", pend: "pend" };
@@ -23,7 +24,7 @@ const MINI: Record<string, string> = { ok: "ok", part: "part", bad: "bad", pend:
 /** Today's answers in an exercise, oldest first. */
 function todayOf(k: string): string[] {
   const t = today();
-  const list = k === "debate" ? Object.values(state.debates) : Object.values(state.answers).filter((a) => (k === "practice" ? !a.mode : a.mode === ({ find: "find", syllogism: "syllogism", categories: "categories" } as Record<string, string>)[k]));
+  const list = k === "debate" ? Object.values(state.debates) : Object.values(state.answers).filter((a) => (k === "practice" ? !a.mode : a.mode === ({ find: "find", syllogism: "syllogism", categories: "categories", instance: "instance" } as Record<string, string>)[k]));
   return list.filter((a) => dayOf(a.at) === t).sort((a, b) => (a.at || "").localeCompare(b.at || "")).map((a) => MINI[gradeOf(a)] || "bad");
 }
 function go(k: string) {
@@ -86,7 +87,7 @@ export function Roadmap() {
         <text class="gl" x="258" y="420" text-anchor="middle">DEBATE</text>
         <path class="ln" d="M74 180 V196" /><path class="ln" d="M74 272 V288" /><path class="ln" d="M74 364 V380" />
         <path class="ln" d="M195 180 V240" /><path class="lnp" d="M196 316 V332" />
-        <path class="ln" d="M316 180 V196" /><path class="lnp" d="M258 428 V444" />
+        <path class="ln" d="M316 180 V196" /><path class="ln" d="M316 272 V288" /><path class="lnp" d="M258 428 V444" />
         {EXERCISES.map((e) => <Node k={e.k} name={e.name} />)}
         {PLANNED.map((p) => <Planned name={p.name} x={p.x} y={p.y} />)}
       </svg>
