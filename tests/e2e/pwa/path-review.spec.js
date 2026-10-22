@@ -4,6 +4,7 @@
 // depend on which pair the page draws. What is counted and stored is the classic page's (review.spec.js, flags-review.spec.js).
 import { test, expect } from "../../support/test.js";
 import { giveKey, withCourse } from "../../support/data-key.js";
+import { isPhone } from "../../support/page.js";
 
 const onPath = () => { if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path"); };
 const now = new Date().toISOString();
@@ -128,7 +129,7 @@ const withKey = withCourse ? test : test.skip;
 const sse = (...events) => events.map((e) => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`).join("");
 const say = (text) => sse({ type: "delta", text }, { type: "done", truncated: false });
 
-withKey("the tutor's page: a follow-up question, the answer above it, and a flag on the answer", async ({ page }) => {
+withKey("the tutor's page: a follow-up question, the answer above it, and a flag on the answer", async ({ page }, testInfo) => {
   const said = ["The first stand-in answer.", "The second stand-in answer."];
   let n = 0;
   await page.route("**/api/health", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, tutor: "on" }) }));
@@ -145,7 +146,7 @@ withKey("the tutor's page: a follow-up question, the answer above it, and a flag
   await expect(page.locator(".wtext")).toContainText("The first stand-in answer.");
   await page.getByRole("button", { name: /^The tutor/ }).click();
   const talk = page.locator("#path .ptalk");
-  await expect(page.locator("#ask-in")).toBeFocused();
+  if (!isPhone(testInfo)) await expect(page.locator("#ask-in")).toBeFocused();   // a touch screen keeps the keyboard down
   await page.locator("#ask-in").fill("Is a thought round?");
   await page.locator("#ask-in").press("Enter");
   await expect(talk.locator(".pans2")).toHaveCount(2);
@@ -156,6 +157,7 @@ withKey("the tutor's page: a follow-up question, the answer above it, and a flag
   await page.locator("#path .pflag").getByRole("button", { name: "Submit" }).click();
   await expect(talk.locator(".pans2").first().locator(".pflg")).toHaveClass(/\bon\b/);
   await expect.poll(async () => Object.values(await stored(page, "flags")).map((f) => [f.part, f.asked, f.note])).toEqual([["chat", "Is a thought round?", "A thought has no shape."]]);
+  if (isPhone(testInfo)) await page.evaluate(() => /** @type {HTMLElement} */ (document.activeElement)?.blur());   // the keyboard down: the foot is back
   await page.getByRole("button", { name: /^Back to the result/ }).click();
   await expect(page.locator(".pvline")).toBeVisible();
 });

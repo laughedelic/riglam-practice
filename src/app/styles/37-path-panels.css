@@ -56,7 +56,8 @@
 .pa .psheet .shead{display:grid; grid-template-columns:var(--m) 1fr auto; align-items:center; padding:0 10px 6px 0}
 .pa .psheet .shead h2{grid-column:2; padding-left:22px; font-size:22px; font-weight:500; font-style:italic}
 .pa .psheet .sbody{overflow-y:auto; position:relative; overscroll-behavior:contain}
-.pa .psheet .sbody::before,.pa .ppage::before{content:""; position:absolute; top:0; bottom:0; left:var(--m); width:1px; background:var(--mline); pointer-events:none}
+/* the margin line of a page or the sheet: a background that scrolls with what it holds, so that it goes on to the end of a long page */
+.pa .psheet .sbody,.pa .ppage{background-image:linear-gradient(var(--mline),var(--mline)); background-repeat:repeat-y; background-size:1px 1px; background-position:var(--m) 0; background-attachment:local}
 .pa .psheet .sback{display:flex; align-items:center; gap:6px; padding:6px 18px 4px calc(var(--m) + 18px); font-family:var(--mono); font-size:11.5px; color:var(--blue)}
 .pa .psheet .sback .i{width:14px; height:14px; transform:rotate(180deg)}
 .pa .road{position:absolute; inset:0; z-index:22; background-color:var(--paper); transform:translateY(-102%); transition:transform .38s cubic-bezier(.2,.8,.2,1),visibility 0s .38s; display:flex; flex-direction:column; visibility:hidden}

@@ -1,14 +1,23 @@
-// Settings on the Path: how the app looks on this device (the design, light or dark, the lab's settings), then the classic rows of Settings
-// (the Magic Key, sharing, the account, voice, your data, the version), hosted as they are for now.
+// Settings on the Path: how the app looks on this device (the design, light or dark, the lab's settings), then the rows of the app: the Magic
+// Key, sharing the examples, the account, voice, your data and the version. What each does is the classic page's (shell/options.js and the
+// shared rows of src/ui, which the Path builds in its own classes).
+import type { ComponentChildren } from "preact";
 import { useState } from "preact/hooks";
 import { state } from "../state.js";
+import { accountControls } from "../../ui/account";
+import { dataTransferControls } from "../../ui/data-transfer";
+import { MAGIC_KEY_NOTE } from "../../ui/magic-key-note.ts";
+import { setShare } from "../ai/share-notice.js";
+import { canAsk } from "../core/ask.js";
+import { el } from "../core/dom.js";
 import { exName } from "../shell/exercises.js";
-import { optionsInto, toggleOpts } from "../shell/options.js";
+import { aboutInfo, keyNote, shareNote, toggleOpts } from "../shell/options.js";
 import { render } from "../shell/render.js";
+import { setOn as setVoiceOn, voiceAvailable, voiceNote, voiceOn } from "../shell/voice.js";
 import { DEFAULT_LOOK, currentLook, lookLine, pastedLook, setLook, storedLook } from "./look.ts";
 import { setDesign } from "./index.tsx";
 import { Foot, Station, TopBar, pathNote } from "./shell.tsx";
-import { Bridge, Words } from "./ui.tsx";
+import { Bridge, Toggle, Words } from "./ui.tsx";
 
 const keepMode = () => { const m = storedLook().mode; return { mode: m === undefined ? null : m }; };
 function LookRows() {
@@ -37,12 +46,55 @@ function LookRows() {
     </span></div>
   </>;
 }
-/** The classic rows of Settings, without the Design row (the Path has its own, above). */
-function classicRows() {
-  const tmp = document.createElement("div"); optionsInto(tmp);
-  const box = tmp.querySelector(".opts"); if (!box) return [];
-  box.querySelector(".orow.design")?.remove();
-  return [...box.childNodes];
+/** A row of Settings: its name and what it does, and its controls under them. */
+const Row = ({ title, note, children }: { title: ComponentChildren; note?: ComponentChildren; children?: ComponentChildren }) =>
+  <div class="srow wide"><span /><span class="ct">{title}{note ? <small>{note}</small> : null}{children ? <div class="sctl">{children}</div> : null}</span></div>;
+/** A row that is a switch: the name and the toggle on one line, what it does under them. */
+const SwitchRow = ({ title, note, on, toggle, tag }: { title: string; note: string; on: boolean; toggle: () => void; tag?: string }) =>
+  <div class="srow wide"><span /><span class="ct"><button type="button" class="two" role="switch" aria-checked={on ? "true" : "false"} onClick={toggle}>
+    <span><b>{title}{tag ? <span class="ptag">{tag}</span> : null}</b></span><Toggle on={on} /></button><small>{note}</small></span></div>;
+
+// the shared rows of src/ui (the account, your data) build their nodes with the classic page's classes; the Path's are put in their place
+const PCLS: Record<string, string> = { btn: "pbtn", "btn ghost": "pbtn", onote: "pnoteline", "onote bad": "pnoteline bad", xfer: "pxfer", xferbox: "pxbox", xsum: "pxsum", acct: "pacct", acwho: "pacwho", acname: "pacname" };
+const pel = (tag: string, props?: Record<string, any> | null, ...kids: any[]) => {
+  const p = props ? { ...props } : props;
+  if (p && typeof p.class === "string") p.class = PCLS[p.class] ?? p.class;
+  if (p && tag === "input" && (p.type === "text" || !p.type)) p.class = "pfield";
+  return el(tag, p, ...kids);
+};
+
+/** The Magic Key: its name opens a note on the name; the device has none yet (enter it), or has it (another key, or forget it after a question). */
+function KeyRow() {
+  const held = !!state.keyHeld, k = state.keyHeld!;
+  if (!state.unlock && !held) return null;
+  const title = <b><button type="button" class="pkname" aria-expanded={state.mkNote ? "true" : "false"} onClick={() => { state.mkNote = !state.mkNote; render(); }}>Magic Key</button></b>;
+  return <Row title={title} note={keyNote(held)}>
+    {state.mkNote ? <div class="pkeynote">{MAGIC_KEY_NOTE.map((t: string) => <p>{t}</p>)}<button type="button" class="pbtn quiet" onClick={() => { state.mkNote = false; render(); }}>Hide</button></div> : null}
+    {!held ? <button type="button" class="pbtn" onClick={() => { toggleOpts(false); state.unlock!.open(); }}>Enter the Magic Key</button>
+      : state.keyAsk ? <><button type="button" class="pbtn" onClick={() => k.forget()}>Forget the key</button><button type="button" class="pbtn quiet" onClick={() => { state.keyAsk = false; render(); }}>Keep it</button></>
+      : <><button type="button" class="pbtn" onClick={() => { toggleOpts(false); k.change(); }}>Enter another key</button><button type="button" class="pbtn quiet" onClick={() => { state.keyAsk = true; render(); }}>Forget the key</button></>}
+  </Row>;
+}
+/** Version and updates: which build this is, where the update stands, and its one step. */
+function VersionRow() {
+  const a = state.about; if (!a) return null;
+  const i = aboutInfo(a), u = state.updates!;
+  return <Row title={<b>Version and updates</b>} note={i.line}>
+    <div class="pver">{i.from ? <p class="pnoteline">{i.from}</p> : null}<p class={"pnoteline" + (i.bad ? " bad" : "")} role="status">{i.status}</p></div>
+    {i.act === "update" ? <button type="button" class="pbtn" onClick={() => u.apply()}>Update now</button> : i.act === "check" ? <button type="button" class="pbtn" onClick={() => u.check()}>Check for updates</button> : null}
+  </Row>;
+}
+function AppRows() {
+  const acct = state.account && state.db && state.account.view().available;
+  return <>
+    <KeyRow />
+    {canAsk() && state.learns ? <SwitchRow title="Share my examples" note={shareNote()} on={state.shareExamples} toggle={() => { setShare(!state.shareExamples); render(); }} /> : null}
+    {acct ? <Row title={<b>Account</b>}><Bridge own cls="phost" fill={() => accountControls(state.account!, pel, render, state.acct)} /></Row> : null}
+    {voiceAvailable() ? <SwitchRow title="Voice" tag="Experimental" note={voiceNote()} on={voiceOn()} toggle={() => setVoiceOn(!voiceOn())} /> : null}
+    {state.db ? <Row title={<b>Your data</b>} note="Saves everything this device keeps (answers, debates, favorites, skipped pairs and these settings) in one file, as a backup or to move to another device. Importing adds what is missing and never deletes anything.">
+      <Bridge own cls="phost" fill={() => dataTransferControls(state.db!, pel, render, state.xfer)} /></Row> : null}
+    <VersionRow />
+  </>;
 }
 export function SettingsPage() {
   return <>
@@ -54,7 +106,7 @@ export function SettingsPage() {
         <div class="below" style={{ padding: "8px 0 0" }}><Words label="Design" items={[["path", "Path"], ["classic", "Classic"]]} cur={state.design} on={setDesign} /></div></span></div>
       <LookRows />
       <p class="glab">The app</p>
-      <Bridge cls="opts" fill={classicRows} />
+      <AppRows />
       <div style={{ height: "30px" }} />
     </div>
     <Foot><Station name="Back to the exercise" hint={exName(state.own)} act={() => toggleOpts(false)} /></Foot>

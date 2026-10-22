@@ -94,8 +94,8 @@ function Overview() {
     const mx = Math.max(1, ...days.map((x) => x[1]));
     out.push(<Group h="Relations" sub={all.length + (all.length === 1 ? " pair" : " pairs") + " answered, the relation right " + pct(relOk, all.length) + "%"} />,
       <div class="pgrades"><div class="psbar" role="img" aria-label={segs.map(([g, l]) => l + " " + pct(G[g], all.length) + "%").join(", ")}>
-        {segs.map(([g, l]) => <span class={"g-" + g} style={{ flex: G[g] }} title={l + ": " + G[g]} />)}</div>
-        <ul class="plegend2">{segs.map(([g, l]) => <li><i class={"g-" + g} />{l} <b>{pct(G[g], all.length)}%</b></li>)}</ul></div>,
+        {segs.map(([g, l]) => <span class={"pg-" + g} style={{ flex: G[g] }} title={l + ": " + G[g]} />)}</div>
+        <ul class="plegend2">{segs.map(([g, l]) => <li><i class={"pg-" + g} />{l} <b>{pct(G[g], all.length)}%</b></li>)}</ul></div>,
       <Group h="Last 14 days" sub="pairs per day" />,
       <div class="pdays">{days.map(([day, n], i) => <div class={"pday" + (i === 13 ? " today" : "")} title={day + ": " + n}>
         <span class="pdc"><i class={n ? "has" : ""} style={{ height: Math.max(2, Math.round(44 * n / mx)) + "px" }} /></span><span class="dn">{n ? String(n) : ""}</span></div>)}</div>,

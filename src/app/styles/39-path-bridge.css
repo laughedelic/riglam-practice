@@ -1,6 +1,6 @@
-/* The Path: the parts it still hosts from the classic page (.pbr), until each is drawn on the path itself: the other exercises, Review,
-   the tutor's conversation, and some rows of Settings and the practice options. They keep their own rules; here the classic colors and
-   fonts take the Path's, so that the hosted part sits on the same ground. */
+/* The Path: the parts it still hosts from the classic page (.pbr): an exercise in a state the Path does not draw, the definition cards and
+   the Terms panel, and what voice heard. They keep their own rules; here the classic colors and fonts take the Path's, so that the hosted
+   part sits on the same ground. */
 .pa .pbr{
   --line:var(--rule); --heading:var(--blue); --lapis:var(--blue); --on-lapis:var(--on-station); --ink-muted:var(--ink2); --faint:var(--ink3);
   --paper-tint:color-mix(in srgb,var(--gold) 10%,var(--paper)); --good:var(--blue); --good-soft:var(--blue-t); --bad:var(--red); --vermilion-ink:var(--red);
@@ -10,19 +10,19 @@
   --display:var(--main-f); --body:var(--main-f); --text-serif:var(--main-f); --serif:var(--main-f);
   font-size:15px; line-height:1.5; min-width:0
 }
-/* an exercise or Review: the classic card scrolls under the Path's top bar, with its own bar of buttons at the foot */
+/* an exercise in a state the Path does not draw: the classic card scrolls under the Path's top bar, with its own bar of buttons at the foot */
 .pa .pbr.card{flex:1; min-height:0; margin:0; padding:14px 16px 0}
-.pa .pbr.card.rv{padding:8px 16px 0}
 .pa .pbr.card > .pbar{margin-inline:-16px; padding-inline:16px}
-/* rows of Settings and pages of the practice options, under the Path's own heading */
-.pa .pbr.opts{padding:4px 16px 8px calc(var(--m) + 22px)}
-/* the tutor's conversation: the question field first, the newest exchange under it */
-.pa .pbr.ptalk{flex:1; min-height:0; overflow:auto; overscroll-behavior:contain; display:flex; flex-direction:column; gap:12px; padding:12px 16px 16px calc(var(--m) + 22px)}
-.pa .pbr.ptalk .chat{overflow:visible; margin:0; padding:0}
 /* the steps of a classic exercise sit under the Path's top bar; a wide screen hides them on the classic page, not here */
 .pa .pbr .steps{display:flex !important; padding:2px 0 4px}
 .pa .pbr.card{gap:18px}
-/* what voice heard, above the foot: Confirm and Change are the classic buttons for now */
+/* what voice heard, above the foot: the classic bar, which voice.js repaints in place as it listens (so that the focus stays on Confirm),
+   with its buttons in the Path's look */
 .pa .pbr.pvoice{flex:none; padding:0 16px 0 calc(var(--m) + 22px)}
-.pa .pbr.pvoice .vtake{border-top:0}
+.pa .pbr.pvoice .vtake{border-top:0; gap:4px 18px}
 .pa .pbr.pvoice .vwhat{flex-basis:120px}
+.pa .pbr.pvoice .vwhat b{font-family:var(--hand-f); font-style:var(--hand-st); font-weight:var(--hand-w); color:var(--blue); font-size:var(--hand-sz)}
+.pa .pbr.pvoice .btn,.pa .pbr.pvoice .btn.ghost,.pa .pbr.pvoice .btn:hover,.pa .pbr.pvoice .btn.ghost:hover{height:auto; min-height:32px; padding:6px 0; background:none; box-shadow:none;
+  font-family:var(--mono); font-size:12.5px; font-weight:600; letter-spacing:0; text-transform:none; color:var(--blue); text-decoration:underline; text-underline-offset:4px}
+.pa .pbr.pvoice .btn.ghost,.pa .pbr.pvoice .btn.ghost:hover{color:var(--ink2)}
+.pa .pbr.pvoice .btn:focus-visible{outline:2px solid var(--blue); outline-offset:1px; box-shadow:none}

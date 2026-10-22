@@ -1,4 +1,5 @@
-/* The Path: Review (today's trail and the other sections), the tutor's conversation, the flags on what the tutor says and Quorum's panel.
+/* The Path: Review (today's trail and the other sections), the tutor's conversation, the flags on what the tutor says and Quorum's panel,
+   Settings, and the practice options' own pages.
    Review's rows are the lab's "Review rows" (a stop for each answer, its verdict the stop's color, its cases as small diamonds); a row that
    unfolds keeps the line, and what it holds are stops of their own. */
 .pa .prseg{padding:0 18px 6px calc(var(--m) + 22px)}
@@ -51,8 +52,8 @@
 .pa .pgrades{padding:4px 18px 6px calc(var(--m) + 22px)}
 .pa .psbar{display:flex; height:8px; gap:2px}
 .pa .psbar span{min-width:3px}
-.pa .psbar .g-ok,.pa .plegend2 .g-ok{background:var(--green)} .pa .psbar .g-pend,.pa .plegend2 .g-pend{background:var(--ink3)}
-.pa .psbar .g-part,.pa .plegend2 .g-part{background:var(--partc)} .pa .psbar .g-bad,.pa .plegend2 .g-bad{background:var(--red)}
+.pa .psbar .pg-ok,.pa .plegend2 .pg-ok{background:var(--green)} .pa .psbar .pg-pend,.pa .plegend2 .pg-pend{background:var(--ink3)}
+.pa .psbar .pg-part,.pa .plegend2 .pg-part{background:var(--partc)} .pa .psbar .pg-bad,.pa .plegend2 .pg-bad{background:var(--red)}
 .pa .plegend2{list-style:none; padding:0; display:flex; flex-wrap:wrap; gap:4px 14px; margin-top:8px; font-size:13.5px; color:var(--ink2)}
 .pa .plegend2 i{display:inline-block; width:8px; height:8px; transform:rotate(45deg); margin-right:6px}
 .pa .plegend2 b{color:var(--ink); font-weight:600}
@@ -122,3 +123,28 @@
 .pa .pq2 .lab{color:var(--ink2)}
 .pa .pans2 .tsay{margin-top:4px}
 .pa .pq2{padding-top:2px}
+
+/* Settings: the rows of the app, and the shared rows of src/ui (the account, your data) built in the Path's classes */
+.pa .srow .two{display:flex; align-items:center; gap:12px; justify-content:space-between; width:100%; text-align:left}
+.pa .srow .two + small{margin-top:2px}
+.pa .srow .ptag{font-family:var(--mono); font-size:10px; font-weight:400; letter-spacing:.06em; text-transform:uppercase; color:var(--ink3); margin-left:10px; vertical-align:2px}
+.pa .srow .sctl{padding:4px 0 0; display:flex; flex-wrap:wrap; align-items:center; gap:0 18px}
+.pa .srow .sctl > .pdom,.pa .srow .sctl > .pver,.pa .srow .sctl > .pkeynote{flex-basis:100%}
+.pa .pkname{text-decoration:underline dotted var(--ink3); text-underline-offset:4px; cursor:help}
+.pa .pkeynote{margin:6px 0 2px; padding:8px 0 4px 12px; border-left:2px solid var(--rule); font-size:14px; color:var(--ink2); line-height:1.4; display:flex; flex-direction:column; gap:6px; align-items:flex-start}
+.pa .pver{display:flex; flex-direction:column; gap:2px; padding-top:2px}
+.pa .phost .pacct,.pa .phost .pxbox{display:flex; flex-direction:column; gap:6px; align-items:stretch}
+.pa .phost .pxfer{display:flex; flex-wrap:wrap; gap:0 18px}
+.pa .phost .pbtn[disabled]{color:var(--ink3); text-decoration:none; cursor:default}
+.pa .phost .pacwho{font-size:15px}
+.pa .phost .pacwho b{display:inline; font-size:inherit}
+.pa .phost .pacname{display:flex; flex-direction:column; gap:2px}
+.pa .phost .pacname .pfield{flex:none; height:34px; max-width:320px}
+.pa .phost .pxsum{display:flex; flex-direction:column; gap:4px; padding:6px 0 2px 12px; border-left:2px solid var(--rule)}
+
+/* the practice options' own pages: the levels of the examples, and voice */
+.pa .porow .plvn{margin-top:4px}
+.pa .porow .two[aria-disabled=true]{cursor:default}
+.pa .pnote3{padding:6px 18px 6px calc(var(--m) + 22px)}
+.pa .pvline2{display:flex; align-items:center; gap:14px; margin-top:6px}
+.pa .psel{flex:1; min-width:0; max-width:320px; height:32px; border:0; border-bottom:1.5px solid var(--ink2); border-radius:0; background:transparent; color:var(--ink); font:inherit; font-size:15px}

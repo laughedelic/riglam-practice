@@ -1,7 +1,8 @@
 // The tutor's conversation on the Path: a page in the tutor's color, opened from its button in the top bar once there is a result. What it is
 // about at the head, the question field (or Stop while the tutor writes), then the exchanges, the newest first, each answer above the question
-// it answers and each with its flag. The conversation is the classic page's (state.ui.chat, ai/tutor.js ask), and so are the flags.
-import { useEffect, useRef } from "preact/hooks";
+// it answers and each with its flag. The conversation is the classic page's (state.ui.chat, ai/tutor.js ask), and so are the flags; openChat
+// gives the field the cursor for the first question.
+import { useRef } from "preact/hooks";
 import { state } from "../state.js";
 import { aiCase } from "../ai/flags.js";
 import { ask } from "../ai/tutor.js";
@@ -53,9 +54,6 @@ export function TutorPage() {
     if (t.role === "user") groups.push({ q: t });
     else { const g = groups[groups.length - 1]; if (g && g.q && !g.a) { g.a = t; g.ai = idx; } else groups.push({ a: t, ai: idx }); }
   });
-  // the first question of a conversation: the field has the cursor (as the classic drawer gives it)
-  const first = !(u.chat || []).some((t: Turn) => t.role === "user" && !t.hidden);
-  useEffect(() => { if (first) { const i = document.getElementById("ask-in"); if (i) i.focus({ preventScroll: true }); } }, []);
   return <>
     <TopBar title="The tutor" />
     <div class="ppage ptalk">

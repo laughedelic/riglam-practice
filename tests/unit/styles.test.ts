@@ -51,9 +51,10 @@ test("every relative url() in the styles names an existing file", () => {
   }
 });
 
-// The Path (src/app/path) draws into #path with its own rules, 33-path-base.css to 38-path-exercises.css (39 styles the classic parts it hosts).
+// The Path (src/app/path) draws into #path with its own rules, 33-path-base.css to 38-path-exercises.css and 40-path-pages.css (39 styles the
+// classic parts it hosts).
 // A class name it shares with a classic rule that stands alone (`.status{...}`, not `.sum .status`) would bring that rule onto the Path too.
-const path = (f: string) => { const n = Number(f.slice(0, 2)); return n >= 33 && n <= 38; };
+const path = (f: string) => { const n = Number(f.slice(0, 2)); return n >= 33 && n !== 39; };
 const classic = (f: string) => Number(f.slice(0, 2)) < 33;
 const rules = (f: string) => [...readFileSync(resolve(dir, f), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]+)\{/g)].map((m) => m[1].trim()).filter((s) => !s.startsWith("@"));
 const classesIn = (sel: string) => [...sel.matchAll(/\.([a-zA-Z][\w-]*)/g)].map((m) => m[1]);

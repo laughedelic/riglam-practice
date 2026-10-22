@@ -81,7 +81,7 @@ function revMistakes(box,all,miss){
 export function mistakeLine(a){
   const bad=CELLS.filter(c=>a.cells&&a.cells[c]&&a.cells[c].verdict==="bad");
   return (a.correct?"Relation right ("+lcRel(REL[a.key].name)+"), ":(a.chosen==null?"No pick, time ran out":"Chose "+(REL[a.chosen]?lcRel(REL[a.chosen].name):a.chosen))+"; correct: "+(REL[a.key]?lcRel(REL[a.key].name):a.key)+". ")+
-    (bad.length?"wrong cell"+(bad.length>1?"s":"")+": "+bad.map(c=>({both:"both",anb:"A not B",bna:"B not A",nei:"neither"}[c])).join(", ")+".":"")+(a.timeout==="examples"||a.timeout==="both"?" Time ran out on the examples.":"");
+    (bad.length?(a.correct?"w":"W")+"rong cell"+(bad.length>1?"s":"")+": "+bad.map(c=>({both:"both",anb:"A not B",bna:"B not A",nei:"neither"}[c])).join(", ")+".":"")+(a.timeout==="examples"||a.timeout==="both"?" Time ran out on the examples.":"");
 }
 // the categories of the pairs missed most often, at most six, each in two pairs or more
 export function weakSpots(all){

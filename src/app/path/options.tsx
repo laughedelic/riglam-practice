@@ -1,6 +1,6 @@
 // The practice options of the exercise on screen, as the lab draws them: a sheet from the top bar, one row per option with its name in the
 // margin, its choices as words in a row or a toggle, and "more" into the option's own page. The settings themselves are the classic page's
-// (shell/session.js keeps them and stores them on the device); two pages are still drawn by it (the levels of the examples, and voice).
+// (shell/session.js, levels.js and voice.js keep them and store them on the device).
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef } from "preact/hooks";
 import { state } from "../state.js";
@@ -8,16 +8,18 @@ import { NOT } from "../../ai-shared/debate.ts";
 import { setQuorum } from "../ai/quorum.js";
 import { setCategoriesAsk } from "../categories/flow.js";
 import { canAsk } from "../core/ask.js";
-import { el } from "../core/dom.js";
+import { LEVEL_INFO } from "../core/examples.js";
 import { setTimer } from "../debate/flow.js";
 import { WORDINGS } from "../debate/text.js";
 import { exName } from "../shell/exercises.js";
-import { levelSwitches } from "../shell/levels.js";
+import { setExLevels } from "../shell/levels.js";
 import { toggleOpts } from "../shell/options.js";
-import { PAGES, SYMS, openPage, picks, quorumNote, sessBack, setAutoExplain, setBlitzUse, setDefLang, setFindSuggest, setNota, setShow, setSyllogismGuide, setSyllogismLevel, setSyllogismWording, setWording, toggleSess } from "../shell/session.js";
+import { PAGES, SYMS, openPage, quorumNote, sessBack, setAutoExplain, setBlitzUse, setDefLang, setFindSuggest, setNota, setShow, setSyllogismGuide, setSyllogismLevel, setSyllogismWording, setWording, toggleSess } from "../shell/session.js";
 import { kindMs } from "../shell/timers.js";
-import { voiceListRows, voicePageBody, voiceShown } from "../shell/voice.js";
-import { Bridge, D, Icon, Knob, Toggle, Words } from "./ui.tsx";
+import { ANSWERS, ANSWER_PICKS, CONFIRM_PICKS, RATES, READ_NOTE, SAMPLE, VOICE_LEAD, VOICE_SAY, WHERE, hookVoices, setVoice, voiceGroups, voiceShown } from "../shell/voice.js";
+import { levelCounts, toggleLevel } from "../../domain/reference.ts";
+import { canHear, canSpeak, speak, voiceList } from "../../ui/speech";
+import { D, Icon, Knob, Toggle, Words } from "./ui.tsx";
 
 // the names in the margin are short, as the lab's are: six letters fit beside the line
 const Row = ({ lb, children }: { lb: string; children?: ComponentChildren }) => <div class="porow"><span class="lb">{lb}</span><div class="ptx">{children}</div></div>;
@@ -30,14 +32,15 @@ const timesLine = () => state.tab === "syllogism" ? "Syllogism " + secs("syl") +
 const levelsLine = () => (state.exLevels.length === 1 ? "Level " : "Levels ") + state.exLevels.join(", ");
 const toSettings = () => { toggleSess(false); toggleOpts(true); };
 
-// the classic list builders, drawing the Path's rows: voice gives its rows through them
-const domSw = (label: string, word: string, on: boolean, toggle: () => void) => el("div", { class: "porow" }, el("span", { class: "lb" }), el("div", { class: "ptx" },
-  el("button", { type: "button", class: "two", role: "switch", "aria-checked": on ? "true" : "false", onclick: toggle }, el("span", null, el("b", { text: label }), el("small", { text: word })),
-    el("span", { class: "tg" + (on ? " on" : ""), "aria-hidden": "true" }, el("i")))));
-const domChips = (label: string, rows: [string, string][], cur: string, on: (k: string) => void) => el("span", { class: "seg2", role: "group", "aria-label": label },
-  rows.map(([k, l]) => el("button", { type: "button", "aria-pressed": cur === k ? "true" : "false", onclick: () => on(k), text: l })));
-const domCard = (title: string, quick: Node, page: string) => el("div", { class: "porow" }, el("span", { class: "lb" }), el("div", { class: "ptx" }, el("b", { text: title }), quick,
-  el("button", { type: "button", class: "more", onclick: () => openPage(page), text: "more" })));
+/** Voice in the list: Read aloud, and how an answer is taken (or, where the browser cannot listen, the voice and its speed), with its page. */
+function VoiceRows() {
+  const v = state.voice; hookVoices();
+  return <>
+    {canSpeak() ? <Switch lb="Read" title="Read aloud" note="each question" on={v.read} toggle={() => setVoice("read", !v.read)} /> : null}
+    {canHear() ? <Row lb="Voice"><b>Answer by voice</b><Words label="Answer by voice" items={ANSWERS as [string, string][]} cur={v.answer} on={(k) => setVoice("answer", k)} /><More page="voice" /><small>{WHERE}</small></Row>
+      : <Row lb="Voice"><b>Voice</b><small>Voice and speed</small><More page="voice" /></Row>}
+  </>;
+}
 
 function List() {
   const tab = state.tab, perv = tab === "debate", find = tab === "find", syl = tab === "syllogism", cats = tab === "categories", timed = tab === "practice" || perv;
@@ -65,7 +68,7 @@ function List() {
     <Switch lb="A/B" title="A/B markers" note="before the terms" on={state.showAB} toggle={() => setShow("ab", !state.showAB)} />
     <Row lb="Terms"><b>Definitions</b><Words label="Languages of the definitions" items={[["en", "English"], ["enru", "English + Russian"]]} cur={state.defLang} on={setDefLang} /><More page="defs" /></Row>
     {(timed || find) ? levels : null}
-    {voiceShown() ? <Bridge own fill={() => voiceListRows(domSw, domCard, domChips)} /> : null}
+    {voiceShown() ? <VoiceRows /> : null}
     {tutorRow}
     {quorum ? <Switch lb="Quorum" title="Several models explain" note={quorumNote()} on={state.quorum} toggle={() => setQuorum(!state.quorum)} /> : null}
     {foot}</>;
@@ -102,11 +105,49 @@ function Page({ id }: { id: string }) {
     <Switch lb="Blitz" title="Use Blitz" note="Off takes the stopwatch out of the top bar; the times stay for when it is on again." on={state.blitzUse} toggle={() => setBlitzUse(!state.blitzUse)} />
     {!state.blitzUse ? null : state.tab === "syllogism" ? <Time kind="syl" lb="Reply" label="Syllogism time" note="for the reply to each syllogism" />
       : <><Time kind="rel" lb="Pick" label="Relation time" note="for choosing the relation, in Relations and Pervasions" /><Time kind="ex" lb="Write" label="Example time" note="for each example in Relations (three cells get three times this) and each question in Pervasions" /></>}</>;
-  if (id === "levels") return <Bridge cls="opts" fill={() => [el("p", { class: "capl", text: state.tab === "categories"
-    ? "The things Categories shows come from the levels that are on, in any mix. Level 1 is the start, and another level is offered after five right in a row."
-    : "The examples shown for the cells of a pair come from the levels that are on, in any mix. Level 1 is the start; switch more on when it comes easily. Relations and negations join when level 3 or 4 is on." }), levelSwitches()]} />;
-  if (id === "voice") return <Bridge cls="opts" fill={() => voicePageBody(picks)} />;
+  if (id === "levels") return <Levels />;
+  if (id === "voice") return <VoicePage />;
   return null;
+}
+/** The levels of the examples: a switch for each, with what it is and how many examples it has; any mix, and the last one on stays on. */
+function Levels() {
+  const counts = levelCounts(state.EX!.items), only = state.exLevels.length === 1;
+  return <>
+    <p class="psub">{state.tab === "categories"
+      ? "The things Categories shows come from the levels that are on, in any mix. Level 1 is the start, and another level is offered after five right in a row."
+      : "The examples shown for the cells of a pair come from the levels that are on, in any mix. Level 1 is the start; switch more on when it comes easily. Relations and negations join when level 3 or 4 is on."}</p>
+    {Object.entries(LEVEL_INFO as unknown as Record<string, [string, string]>).map(([k, [name, text]]) => {
+      const l = +k, on = state.exLevels.includes(l), n = counts[l] || 0;
+      return <Row lb={"Lv " + l}><button type="button" class="two" role="switch" aria-checked={on ? "true" : "false"} aria-disabled={on && only ? "true" : undefined} onClick={() => setExLevels(toggleLevel(state.exLevels, l))}>
+        <span><b>{"Level " + l + " · " + name}</b><small>{n + (n === 1 ? " example" : " examples")}</small></span><Toggle on={on} /></button><small class="plvn">{text}</small></Row>;
+    })}
+    {only ? <p class="pnoteline pnote3">At least one level stays on.</p> : null}
+  </>;
+}
+/** The Voice page: the voice and its speed, how an answer is taken and what happens after it is heard. */
+function VoicePage() {
+  const v = state.voice, list = canSpeak() ? voiceList() : []; hookVoices();
+  return <>
+    <p class="psub">{VOICE_LEAD}</p>
+    {canSpeak() ? <>
+      <Switch lb="Read" title="Read aloud" note={"each question. " + READ_NOTE} on={v.read} toggle={() => setVoice("read", !v.read)} />
+      <Row lb="Voice"><b>Voice</b><small>This device’s English voices, by accent.</small>
+        <span class="pvline2"><select class="psel" aria-label="Voice" value={v.voiceId || ""} onChange={(e) => setVoice("voiceId", (e.currentTarget as HTMLSelectElement).value)}>
+          <option value="">{"Best on this device" + (list[0] ? " (" + list[0].name + ")" : "")}</option>
+          {voiceGroups(list).map((g: { accent: string; voices: { id: string; name: string; lang: string; local: boolean }[] }) => <optgroup label={g.accent}>
+            {g.voices.map((x) => <option value={x.id}>{x.name + " · " + x.lang + (x.local ? "" : " · online")}</option>)}</optgroup>)}
+        </select><button type="button" class="pbtn" onClick={() => speak(SAMPLE, { voice: v.voiceId, rate: v.rate })}>Try</button></span></Row>
+      <Row lb="Speed"><b>Speed of reading</b><Words label="Speed of reading" items={RATES as [number, string][]} cur={v.rate} on={(r) => setVoice("rate", r)} /></Row>
+    </> : null}
+    {canHear() ? <>
+      <p class="glab">Answer by voice</p>
+      <Picks label="Answer by voice" cur={v.answer} on={(k) => setVoice("answer", k)} items={ANSWER_PICKS as [string, string, string][]} />
+      {v.answer !== "off" ? <><p class="glab">After an answer is heard</p>
+        <Picks label="After an answer is heard" cur={v.confirm} on={(k) => setVoice("confirm", k)} items={CONFIRM_PICKS as [string, string, string][]} /></> : null}
+      <p class="psub">{VOICE_SAY}</p>
+    </> : null}
+    <p class="pnoteline pnote3">Voice itself is switched on and off in <button type="button" class="pbtn" style={{ padding: 0 }} onClick={toSettings}>Settings</button>.</p>
+  </>;
 }
 
 /** The sheet of the practice options: from the top, under the top bar, over a scrim; the knob at its foot folds it away. */
