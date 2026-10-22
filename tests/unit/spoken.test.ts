@@ -129,7 +129,7 @@ test("yes and no to an answer that waits to be confirmed", () => {
 
 test("an example: an item by its name or alias, near words snapped to it, other words kept as heard, and nothing", () => {
   expect(spokenExample(ix, ["A clay pot."])).toMatchObject({ text: "a clay pot", none: false });
-  expect(spokenExample(ix, ["table"])?.item?.n).toBe("a wooden table");
+  expect(spokenExample(ix, ["key"])?.item?.n).toBe("a metal key");
   expect(spokenExample(ix, ["a gold ring because it is both"])).toMatchObject({ text: "a gold ring" });
   expect(spokenExample(ix, ["for example a red ball"])).toMatchObject({ text: "a red ball" });
   expect(spokenExample(ix, ["a medal table"])).toMatchObject({ text: "a metal table", heard: "a medal table" });

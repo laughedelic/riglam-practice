@@ -4,12 +4,21 @@ The term data has two tiers. Only the definitions, and the commentary that quote
 
 | Tier | What | Where | In the repository | In the PWA |
 |---|---|---|---|---|
-| Open | terms (name, Wylie, Sanskrit, aliases, chapter), Russian and Chinese terms, relations and classification, everyday items, categories (with the words the syllogism drill says for each, the pervasions among everyday categories it may take as given, and the groups of kinds that are mixed up) | `src/data/drill-data.json` | plain JSON, one term per line so that diffs read | plain, precached |
+| Open | terms (name, Wylie, Sanskrit, aliases, chapter), Russian and Chinese terms, relations and classification, the practice items (below), categories (with the words the syllogism drill says for each, the pervasions among everyday categories it may take as given, the groups of kinds that are mixed up, and the stage each opens at) | `src/data/drill-data.json` | plain JSON, one term per line so that diffs read | plain, precached |
 | Course: definitions | `d` (English) and `d_ru` (Russian) of each term | the server's database (`course_data`), and `data-private/definitions.json` on a machine that works with the data | not included (git-ignored folder) | fetched from the server with the Magic Key, then kept on the device |
 | Course: notes | `note` of each term and the group `notes`: commentary read only by the Claude tutor | the server's database, and `data-private/notes.json` | not included | not included, and the server never sends them out |
 | Course: examples | the reference examples: the knowledge base's example notes with their classes, level (1 to 4), kind and confirmation (below) | the server's database (rows `examples` and `examples_device`), and `data-private/examples.json` and `examples-device.json` | not included | the device part, fetched in the background with the Magic Key, then kept on the device |
 
 The artifact build carries all of it, because the artifact is private to its owner and its tutor reads the notes; it reads `data-private/`. That includes the device part of the reference examples, when `data-private/` has them (about 240 KB with the real ones, against the page budget of 1 MiB in `tests/unit/artifact-build.test.ts`). The tutor Worker ([SERVER.md](SERVER.md)) reads the notes from its database, so the tutor sees them and a browser never receives them.
+
+## The practice items
+
+The practice items are the things the exercises compute the relations from and show in the cells: about five hundred, written for practice in the knowledge base (no source claims them). A few hundred everyday objects ("a leather sofa", "a hot metal spoon") are generated there from a table of modern objects and the materials, colors, shapes and options each can have, so that every two everyday categories that can go together really sit together on some item; people come from a smaller table of the same kind; the rest are written by hand. Each item has its Dudra type `t`, its categories `c`, and:
+
+- `st`, its stage on the learning ladder, from 1 (things around you) to 9: the plainest stage at which a newcomer knows it without the course's words. A category has an `st` too, the stage at which it opens. The app gives the stages their names and their help; the data says which thing and which category belongs where. Older data without them has everything at stage 1.
+- `may`, the everyday categories its name leaves open: "a chair" may be wooden or red, so it is never used to show "furniture that is not wooden", and a learner who writes it there is checked by the tutor, not by the list. It changes no relation, only which items may stand for a cell. "Hot" and "electric" are said or absent: "a blanket" is an ordinary one.
+
+`contrasts` lists pairs of items to show side by side once both are open: an object and the mind that knows it ("the bark of a dog" and "hearing a dog bark"), or two minds of one act. The everyday categories are a closed world (two of them are mutually exclusive when no item is in both), so the knowledge base's build fails when a pair turns exclusive that was not read over by hand.
 
 ## The Magic Key
 

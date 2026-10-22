@@ -1,7 +1,8 @@
 // The practice universe: which items fall in which cell for two categories, which relation that gives, the pool of
 // category pairs, and the draw of the next pair. Functions of the term data (a DataIndex), with the randomness passed
 // in, so the same data and the same random numbers give the same pairs.
-import type { Item } from "../ai-shared/data";
+import type { DrillData, Item } from "../ai-shared/data";
+import { leavesOpen } from "../ai-shared/lookup";
 import type { DataIndex } from "../ai-shared/lookup";
 import { CELLS } from "../ai-shared/relations";
 import type { CellId, RelKey } from "../ai-shared/relations";
@@ -14,12 +15,18 @@ export type Rng = () => number;
 /** Returns the current time in milliseconds, like `Date.now`; a pair's id is made from it. */
 export type Clock = () => number;
 
-// An alias ("table") names the thing without the feature the practice item has ("a wooden table"),
-// so it cannot settle colour, material, shape or temperature.
-export const FEATURE: ReadonlySet<string> = new Set(["wooden", "metal", "white", "red", "green", "round", "square", "hot"]);
+// An alias ("key") names the thing without the feature the practice item has ("a metal key"),
+// so it cannot settle color, material, shape, temperature or whether it runs on electricity.
+export const FEATURE: ReadonlySet<string> = new Set([
+  "wooden", "metal", "glass", "plastic", "fabric", "leather", "ceramic", "white", "black", "red", "green", "blue", "yellow", "round", "square", "hot", "electric",
+]);
 
-/** Whether the item can be used for the two categories: no sense-object items for sense categories, no body items where the body is skipped. */
+/**
+ * Whether the item can be used for the two categories: not one whose name leaves either open ("a chair" for wooden things), no
+ * sense-object items for sense categories, no body items where the body is skipped.
+ */
 export function inUniverse(ix: DataIndex, it: Item, a: string, b: string): boolean {
+  if (leavesOpen(it, a, b)) return false;
   const sense = ix.CAT[a].sense || ix.CAT[b].sense;
   if (sense && it.comp) return false;
   if (it.body && (ix.DATA.bodySkip.includes(a) || ix.DATA.bodySkip.includes(b))) return false;
@@ -29,12 +36,30 @@ export function inUniverse(ix: DataIndex, it: Item, a: string, b: string): boole
 /** More references for the cells of a pair of categories (the reference examples, src/domain/reference.ts): an example per cell it can fill, with `ne` where it does not exist. */
 export type Witnesses = (a: string, b: string) => Record<CellId, readonly { n: string; ne?: boolean }[]>;
 
-/** The items in each cell of the grid for two categories. */
+// Per category, what each item (by its place in the list) is: 1 in it, 2 left open by its name, 0 neither. The pool and the syllogism
+// drill ask for the cells of every pair, so the lists are read once per data, not once per pair; kept per data, as in syllogism.ts.
+const OUT = 0, IN = 1, OPEN = 2;
+const memberships = new WeakMap<DrillData, Map<string, Uint8Array>>();
+function membership(ix: DataIndex, cat: string): Uint8Array {
+  let byCat = memberships.get(ix.DATA);
+  if (!byCat) memberships.set(ix.DATA, (byCat = new Map()));
+  let m = byCat.get(cat);
+  if (!m) {
+    m = Uint8Array.from(ix.DATA.items, (it) => (it.may?.includes(cat) ? OPEN : it.c.includes(cat) ? IN : OUT));
+    byCat.set(cat, m);
+  }
+  return m;
+}
+
+/** The items in each cell of the grid for two categories (those `inUniverse` allows). */
 export function cellsFor(ix: DataIndex, a: string, b: string): Record<CellId, Item[]> {
   const out: Record<CellId, Item[]> = { both: [], anb: [], bna: [], nei: [] };
-  for (const it of ix.DATA.items) {
-    if (!inUniverse(ix, it, a, b)) continue;
-    const x = it.c.includes(a), y = it.c.includes(b);
+  const A = membership(ix, a), B = membership(ix, b), items = ix.DATA.items;
+  const sense = ix.CAT[a].sense || ix.CAT[b].sense, body = ix.DATA.bodySkip.includes(a) || ix.DATA.bodySkip.includes(b);
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    if (A[i] === OPEN || B[i] === OPEN || (sense && it.comp) || (body && it.body)) continue; // as inUniverse
+    const x = A[i] === IN, y = B[i] === IN;
     out[x && y ? "both" : x ? "anb" : y ? "bna" : "nei"].push(it);
   }
   return out;

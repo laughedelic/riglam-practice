@@ -288,6 +288,20 @@ test("grading needs a relation", () => {
   expect(() => grade(ix, pair(), { rel: null, cells: cellsOf({}) })).toThrow(/no relation/);
 });
 
+test("an item whose name leaves a category open neither shows it nor refuses it, and changes no relation", () => {
+  const d = data();
+  d.items.push({ n: "a chair", t: "Form", c: ["form", "matter", "thing"], may: ["wooden", "gray"] });
+  const mix = makeIndex(d), chair = mix.DATA.items.find((i) => i.n === "a chair")!;
+  expect(inUniverse(mix, chair, "form", "wooden")).toBe(false);
+  expect(inUniverse(mix, chair, "form", "mind")).toBe(true);
+  expect(names(cellsFor(mix, "wooden", "gray").anb)).toEqual(["a wooden chair"]); // not "a chair": it may be wooden
+  expect(names(cellsFor(mix, "wooden", "mind").nei)).not.toContain("a chair"); // nor wooden things' outside: it may be one
+  expect(names(cellsFor(mix, "form", "mind").anb)).toContain("a chair");
+  expect(relOfCells(cellsFor(mix, "wooden", "form"))).toBe(relOfCells(cellsFor(ix, "wooden", "form")));
+  expect(judgeText(mix, pair(), "nei", "a chair")).toBeNull(); // the tutor's to check
+  expect(judgeText(mix, pair({ catA: "form", catB: "mind", a: "forms", b: "minds" }), "anb", "a chair")?.v).toBe("ok");
+});
+
 test("an alias does not settle a feature: wooden, metal, white and the like need the exact name", () => {
   const d = data();
   d.aliases = { chair: "a wooden chair", stone: "a gray stone" };
@@ -510,6 +524,21 @@ test("every category of the real data is in the pool, and the relations of the p
   }
 });
 
+test("the real data: stages from 1 to 9, open qualities only of everyday categories and never also stated, contrasts of listed items", () => {
+  const ids = new Set(real.cats.map((c) => c.id)), everyday = new Set(real.cats.filter((c) => c.kind === "everyday").map((c) => c.id));
+  const stage = (st: unknown) => Number.isInteger(st) && (st as number) >= 1 && (st as number) <= 9;
+  expect(real.cats.filter((c) => !stage(c.st)).map((c) => c.id)).toEqual([]);
+  expect(real.items.filter((i) => !stage(i.st)).map((i) => i.n)).toEqual([]);
+  for (const it of real.items) {
+    expect((it.may ?? []).filter((c) => !everyday.has(c)), it.n).toEqual([]);
+    expect((it.may ?? []).filter((c) => it.c.includes(c)), it.n).toEqual([]);
+    expect(it.c.filter((c) => !ids.has(c)), it.n).toEqual([]);
+  }
+  const listed = new Set(real.items.map((i) => i.n));
+  expect((real.contrasts ?? []).flat().filter((n) => !listed.has(n))).toEqual([]);
+  expect(real.contrasts?.length).toBeGreaterThan(0);
+});
+
 // A note takes the steps the term data gives: up the "is a" chain to the term, or up to a class the data marks as excluding one
 // the term is in, with why under it. A listed example is placed as the grading places it; elsewhere the tutor's class counts.
 test("a note states the term data's steps: up the chain to the term, or to the class that excludes it", () => {
@@ -558,7 +587,7 @@ test("a note states the term data's steps: up the chain to the term, or to the c
   expect(parseVerdicts(apple, d)).toEqual([{ cell: "anb", answer: "no" }]); // the cell settles as the note reads
   expect(parseVerdicts(apple)).toEqual([{ cell: "anb", answer: "yes" }]); // without the data, the tutor's facts
   // a permanent phenomenon is excluded from a form through functional thing
-  expect(note("wooden things", "wooden", "musical instruments", "instr", 'Q4: "the absence of an elephant in this room" | A no: it is an absence | B no: it is an absence').slice(1, 3)).toEqual([
+  expect(note("wooden things", "wooden", "musical instruments", "instr", 'Q4: "the absence of an elephant in an empty room" | A no: it is an absence | B no: it is an absence').slice(1, 3)).toEqual([
     "It follows it is not a wooden thing, because it is an absence, which is a permanent phenomenon.",
     "A wooden thing is a form, which is a functional thing, and nothing is both a permanent phenomenon and a functional thing.",
   ]);

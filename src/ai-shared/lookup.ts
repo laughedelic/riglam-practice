@@ -118,6 +118,9 @@ export function categoryOf(ix: DataIndex, text: unknown): string | null {
   const term = termNamed(ix, k);
   return (term && ix.DATA.cats.find((c) => c.kind === "dudra" && c.term === term)?.id) || null;
 }
+/** Whether the item's name leaves one of the categories open ("a chair" may be wooden): then the item says nothing about it. */
+export const leavesOpen = (it: Pick<Item, "may">, ...cats: readonly (string | null | undefined)[]): boolean =>
+  !!it.may?.length && cats.some((c) => !!c && it.may!.includes(c));
 /** The practice item a learner's words name, or null. With `exactOnly` aliases do not count. */
 export function matchItem(ix: DataIndex, text: unknown, exactOnly?: boolean): Item | null {
   const k = spelled(text);

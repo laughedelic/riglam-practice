@@ -6,7 +6,7 @@ export { NOT, QCELL, QMINE, qPlain } from "./debate";
 export type { QToken } from "./debate";
 export { catFacts, termFacts } from "./facts";
 export type { Facts } from "./facts";
-export { american, catByLabel, categoryOf, classNames, makeIndex, matchItem, nearestItem, norm, noteCats, pairCats, similarity, spelled, stripDet, upChain } from "./lookup";
+export { american, catByLabel, categoryOf, classNames, leavesOpen, makeIndex, matchItem, nearestItem, norm, noteCats, pairCats, similarity, spelled, stripDet, upChain } from "./lookup";
 export type { NearItem } from "./lookup";
 export type { DataIndex } from "./lookup";
 export { CELL_NAME, DEBATE_ASK, DEBATE_NOTE, FIND_ASK, FIND_ASK_OWN, FIND_NOTE, FIND_OWN_NOTE, FIND_REL_NAMES, FIRST_ASK, GUIDE, judgeNote } from "./prompts";

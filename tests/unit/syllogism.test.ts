@@ -331,7 +331,7 @@ test("the rows of the note's table, on the open data", () => {
   const rows: [Situation, string, string, string][] = [
     [1, "a song", "snd", "ft"],
     [2, "a tomato", "red", "food"],
-    [3, "a metal table", "square", "green"],
+    [3, "a red box", "square", "green"],
     [4, "a glass of water", "liquid", "thought"],
     [5, "the sound of rain", "col", "ft"],
     [6, "a metal key", "memory", "cons"],
@@ -342,6 +342,14 @@ test("the rows of the note's table, on the open data", () => {
     const c = syllogismOf(real, subject, r, p);
     expect(c?.situation, `${subject} ${r} ${p}`).toBe(sit);
   }
+});
+
+test("a subject whose name leaves the reason or the predicate open is not settled, and is never drawn with them", () => {
+  const chair = real.DATA.items.find((i) => i.n === "a chair")!;
+  expect(chair.may).toContain("wooden");
+  expect(syllogismOf(real, "a chair", "wooden", "furn")).toBeNull();
+  expect(syllogismOf(real, "a chair", "furn", "wooden")).toBeNull();
+  expect(syllogismOf(real, "a chair", "furn", "form")?.situation).toBe(1);
 });
 
 test("every drawn syllogism is what the items and the term data say, checked again by brute force", () => {
@@ -356,6 +364,7 @@ test("every drawn syllogism is what the items and the term data say, checked aga
     expect(item, why).toBeTruthy();
     if (!item) continue;
     expect(item.ne, why).toBeFalsy();
+    expect((item.may ?? []).filter((x) => x === c.catR || x === c.catP), why).toEqual([]); // its name settles both
     const e = item.c.includes(c.catR), t = item.c.includes(c.catP);
     expect(c.checks.e.ok, why).toBe(e);
     expect(c.checks.t.ok, why).toBe(t);

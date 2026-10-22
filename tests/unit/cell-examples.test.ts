@@ -178,7 +178,9 @@ test("makePair, nextPair and findPair pass the references on", () => {
 test("over the real pairs and made-up examples: only the cells the list fills are filled, and each reference is proved for its cell", () => {
   const rix = makeIndex(openData as unknown as DrillData);
   const items = (madeUpExamples(openData as never, 400) as unknown as { items: { n: string; cls?: string[]; lv: number }[] }).items;
-  const more = witnessesOf(rix, items as never, upTo(3));
+  // the references of a pair are the same for every draw of it: worked out once per pair (the open data has some 1,500 pairs)
+  const of = witnessesOf(rix, items as never, upTo(3)), memo = new Map<string, ReturnType<typeof of>>();
+  const more: typeof of = (a, b) => { const k = `${a}|${b}`; let w = memo.get(k); if (!w) memo.set(k, (w = of(a, b))); return w; };
   const listed = new Set(rix.DATA.items.map((i) => i.n));
   let fromExamples = 0;
   for (const e of buildPool(rix)) {
@@ -198,4 +200,4 @@ test("over the real pairs and made-up examples: only the cells the list fills ar
     }
   }
   expect(fromExamples, "the made-up examples do reach cells").toBeGreaterThan(0);
-});
+}, 15_000); // every pair of the open data, four draws each: a few seconds
