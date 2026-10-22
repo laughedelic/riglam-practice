@@ -13,12 +13,12 @@ The artifact build carries all of it, because the artifact is private to its own
 
 ## The practice items
 
-The practice items are the things the exercises compute the relations from and show in the cells: about five hundred, written for practice in the knowledge base (no source claims them). A few hundred everyday objects ("a leather sofa", "a hot metal spoon") are generated there from a table of modern objects and the materials, colors, shapes and options each can have, so that every two everyday categories that can go together really sit together on some item; people come from a smaller table of the same kind; the rest are written by hand. Each item has its Dudra type `t`, its categories `c`, and:
+The practice items are the things the exercises compute the relations from and show in the cells: about five hundred, written for practice in the knowledge base (no source claims them). A few hundred everyday objects ("a fabric sofa", "a hot metal spoon") are generated there from a table of modern objects and the materials, colors, shapes and options each can have, so that every two everyday categories that can go together really sit together on some item; people come from a smaller table of the same kind; the rest are written by hand. Each item has its Dudra type `t`, its categories `c`, and:
 
-- `st`, its stage on the learning ladder, from 1 (things around you) to 9: the plainest stage at which a newcomer knows it without the course's words. A category has an `st` too, the stage at which it opens. The app gives the stages their names and their help; the data says which thing and which category belongs where. Older data without them has everything at stage 1.
+- `st`, its stage on the learning ladder, from 1 (things around you) to 9: the plainest stage at which a newcomer knows it without the course's words. A category has an `st` too, the stage at which it opens. The data says which thing and which category belongs where; the exercises do not read the stages yet.
 - `may`, the everyday categories its name leaves open: "a chair" may be wooden or red, so it is never used to show "furniture that is not wooden", and a learner who writes it there is checked by the tutor, not by the list. It changes no relation, only which items may stand for a cell. "Hot" and "electric" are said or absent: "a blanket" is an ordinary one.
 
-`contrasts` lists pairs of items to show side by side once both are open: an object and the mind that knows it ("the bark of a dog" and "hearing a dog bark"), or two minds of one act. The everyday categories are a closed world (two of them are mutually exclusive when no item is in both), so the knowledge base's build fails when a pair turns exclusive that was not read over by hand.
+`contrasts` lists pairs of items that belong together for a learner: an object and the mind that knows it ("the bark of a dog" and "hearing a dog bark"), or two minds of one act. The everyday categories are a closed world (two of them are mutually exclusive when no item is in both), so the knowledge base's build fails when a pair turns exclusive that was not read over by hand.
 
 ## The Magic Key
 

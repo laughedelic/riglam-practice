@@ -11,7 +11,7 @@ export interface DataIndex {
   CAT: Record<string, Cat>;
   /** normalized item name (also without its article) -> item */
   ITEMIDX: Record<string, Item>;
-  /** normalized alias ("table") -> item ("a wooden table"); never shadows an item name */
+  /** normalized alias ("key") -> item ("a metal key"); never shadows an item name */
   ALIASIDX: Record<string, Item>;
   /** normalized category label -> category id */
   LABELIDX: Record<string, string>;
