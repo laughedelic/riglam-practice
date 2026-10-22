@@ -62,7 +62,7 @@ function QuestionStep({ kb }: { kb: boolean }) {
           {u.pickWhy ? <>
             <div class="fieldrow"><input class="pfield" id="dex" value={u.exText} placeholder="posit a counter-example" autoComplete="off" autoCapitalize="off" spellcheck={false} enterKeyHint={last ? "done" : "next"} aria-label="Posit a counter-example"
               onInput={(e) => { u.exText = (e.currentTarget as HTMLInputElement).value; refreshPath(); }}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); submitWhy(); } }} /></div>
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); submitWhy(); } else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); backWhy(); } }} /></div>
             <p class="help"><span class="htx">Something that shows the statement fails. </span><button type="button" onMouseDown={(e) => e.preventDefault()} onClick={backWhy}>back</button></p>
           </> : null}</St>
         {u.pickWhy ? <Gap h={6} /> : null}</Sx>
@@ -73,7 +73,8 @@ function QuestionStep({ kb }: { kb: boolean }) {
     <VoiceBar />
     <Foot kbd={kb ? <KbdStation name={last ? "Relation" : "Next question"} ready={!!(u.exText || "").trim()} act={submitWhy} /> : null}
       aux={<>{kb ? <HideKeys /> : <SideStation kind="skip" act={skipPair} />}</>}>
-      <PreStation name="Relation" hint={last ? "answer this question first" : "answer the four questions first"} />
+      {u.pickWhy && (u.exText || "").trim() ? <Station name={last ? "Relation" : "Next question"} hint="your counter-example" act={submitWhy} />
+        : <PreStation name={u.pickWhy && !last ? "Next question" : "Relation"} hint={u.pickWhy ? "posit a counter-example first" : last ? "answer this question first" : "answer the four questions first"} />}
     </Foot>
   </>;
 }

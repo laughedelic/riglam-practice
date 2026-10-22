@@ -15,6 +15,8 @@ import { toggleOpts } from "./options.js";
 import { isEx, render } from "./render.js";
 import { sessBack } from "./session.js";
 import { voiceKey } from "./voice.js";
+// a category that can be ticked: the classic page's, or a row of the choices the Path ticks (path/categories.tsx)
+const ticks=b=>b.classList.contains("catick")||!!b.closest("#path .chs.multi");
 
 // a tap outside a note closes it, and a tap outside a term's definition closes that (a tap on a term stops before this)
 document.addEventListener("click",e=>{
@@ -44,7 +46,7 @@ document.addEventListener("keydown",e=>{
     else if(u.step===0&&u.ask==="all"){
       if(/^[1-9]$/.test(k)&&q.rows[+k-1]){ e.preventDefault(); tickCategory(q.rows[+k-1].cat); }
       else if(k==="0"){ e.preventDefault(); tickNone(); }
-      else if(k==="enter"&&(t!=="BUTTON"||(/** @type {Element} */(e.target).classList.contains("catick")&&/** @type {Element} */(e.target).getAttribute("aria-pressed")==="true"))){ e.preventDefault(); checkCategories(); }   // a ticked button keeps the focus, and Enter there checks; on a button not ticked yet Enter ticks it, as on any button
+      else if(k==="enter"&&(t!=="BUTTON"||(ticks(/** @type {Element} */(e.target))&&/** @type {Element} */(e.target).getAttribute("aria-pressed")==="true"))){ e.preventDefault(); checkCategories(); }   // a ticked button keeps the focus, and Enter there checks; on a button not ticked yet Enter ticks it, as on any button
     } else if(u.step===0){ if(k==="y"){ e.preventDefault(); sayCategory(true); } else if(k==="n"){ e.preventDefault(); sayCategory(false); } }
     else if(u.step===1){ if(k==="enter"&&t!=="BUTTON"){ e.preventDefault(); continueCategories(); } }
     else if(u.step===2&&/^[1-9]$/.test(k)&&u.narrow.options[+k-1]){ e.preventDefault(); pickCategory(u.narrow.options[+k-1].cat); }

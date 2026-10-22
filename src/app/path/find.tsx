@@ -2,6 +2,7 @@
 // (the pair with the relation asked for, whether it has it, a row for each case, the tutor's Why, the terms). The relation can be changed
 // while the pair is not checked; a pick stays for the next pairs until Random. The steps are the classic page's (find/flow.js).
 import type { ComponentChildren } from "preact";
+import { useEffect } from "preact/hooks";
 import { state } from "../state.js";
 import { canAsk } from "../core/ask.js";
 import { CELLS, ORDER, REL, lcRel, notaOf } from "../core/rel.js";
@@ -43,6 +44,12 @@ function Word({ k, key2, what, last }: { k: "a" | "b"; key2: "wordA" | "wordB"; 
 }
 function PairStep({ kb }: { kb: boolean }) {
   const u = u0(), ok = both();
+  // a new pair to name: the first field takes the cursor where there is a keyboard of keys (as find/screen.js does), unless a field has it
+  // (the roadmap gives the focus back to the top bar as it closes, after this draw: so the test is "no field has it", and it waits for that)
+  useEffect(() => {
+    if (!u.focusA) return; u.focusA = false;
+    setTimeout(() => { const a = document.activeElement; if (state.ui === u && !(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) && !("ontouchstart" in window)) focus("fw-a"); });
+  });
   return <>
     <Scroll>
       <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Pair" sub="two phenomena that relate like this" /><Gap h={6} />

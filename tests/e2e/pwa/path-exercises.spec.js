@@ -85,6 +85,27 @@ test("Find a pair: the relation asked, two words, an example for each case, and 
   expect((await saved(page, "find"))[0]).toMatchObject({ a: "pot", b: "clay things" });
 });
 
+test("Pervasions: Escape in the counter-example goes back to the two answers, and with words in it the station goes on", async ({ page }) => {
+  await open(page, "Pervasions");
+  await choice(page, "Why?").click();
+  const field = page.locator("#dex");
+  await expect(field).toBeFocused();
+  await field.press("Escape");
+  await expect(field).toHaveCount(0);
+  await expect(choices(page)).toHaveCount(2);
+  await choice(page, "Why?").click();
+  await field.fill("a stone");
+  await field.blur();
+  await station(page).click();   // the station takes the counter-example, as Enter does
+  await expect(page.locator("#path .sb.done")).toHaveCount(1);
+});
+
+test("Find a pair: where there is a keyboard of keys, the first word takes the cursor", async ({ page, isMobile }) => {
+  test.skip(!!isMobile, "a touch screen keeps its keyboard down");
+  await open(page, "Find a pair");
+  await expect(page.locator("#fw-a")).toBeFocused();
+});
+
 // the examples are invented (a plain one for every term of the open data) and served by a stand-in for the server, as in categories.spec.js
 const examples = () => ({
   version: "e1",
@@ -107,7 +128,7 @@ test("Categories: the categories ticked on the path, the check, the most specifi
   const right = rows.filter((r) => r.answer);
   for (const r of right) await choices(page).filter({ hasText: new RegExp("^" + r.phrase + "$") }).click();
   if (!right.length) await choice(page, "None of these").click();
-  await station(page).click();   // Check
+  await page.keyboard.press("Enter");   // the last one ticked keeps the focus, and Enter there checks (it does not untick it)
   await expect(verdict(page)).toContainText("All right");
   if (await page.evaluate(() => !!window.__t.ui.narrow)) {
     await station(page).click();   // Continue
