@@ -1,6 +1,7 @@
 import { state } from "../state.js";
 import { pairsOf } from "../core/util.js";
 import { advanceCategories } from "../categories/flow.js";
+import { advanceInstance } from "../instance/flow.ts";
 import { advanceSyllogism } from "../syllogism/flow.js";
 import { advanceDebate } from "../debate/flow.js";
 import { advanceFind } from "../find/flow.js";
@@ -21,4 +22,4 @@ function nextPair(){
 }
 export function advance(){ passNegOffer(); state.cur=nextPair(); state.ui=freshUi(); state.mode="quiz"; }
 // Next: a course term's stop comes first when one is due (practice/stops.ts); from the stop, Next goes on to the question.
-export function next(){ if(state.ui&&state.ui.ctl) state.ui.ctl.abort(); passStageOffer(); if(takeStop()){ render(); top0(); return; } if(state.ui&&state.ui.debate) advanceDebate(); else if(state.ui&&state.ui.find) advanceFind(); else if(state.ui&&state.ui.cats) advanceCategories(); else if(state.ui&&state.ui.syllogism) advanceSyllogism(); else advance(); render(); top0(); }
+export function next(){ if(state.ui&&state.ui.ctl) state.ui.ctl.abort(); passStageOffer(); if(takeStop()){ render(); top0(); return; } if(state.ui&&state.ui.debate) advanceDebate(); else if(state.ui&&state.ui.find) advanceFind(); else if(state.ui&&state.ui.cats) advanceCategories(); else if(state.ui&&state.ui.inst) advanceInstance(); else if(state.ui&&state.ui.syllogism) advanceSyllogism(); else advance(); render(); top0(); }

@@ -19,6 +19,7 @@ import { applyLook, currentLook, darkNow, lookClasses } from "./look.ts";
 import { OptionsSheet } from "./options.tsx";
 import { categoriesScreen } from "./categories.tsx";
 import { findScreen } from "./find.tsx";
+import { instanceScreen } from "./instance.tsx";
 import { pervasionsScreen } from "./pervasions.tsx";
 import { relationsScreen } from "./relations.tsx";
 import { ReviewPage } from "./review.tsx";
@@ -94,6 +95,7 @@ function screen(kb: boolean): { cls: string; node: ComponentChildren } {
   if (state.tab === "debate" && u.debate && state.cur && state.cur.p) return pervasionsScreen(kb);
   if (state.tab === "find" && u.find) return findScreen(kb);
   if (state.tab === "categories" && u.cats) return categoriesScreen();
+  if (state.tab === "instance" && u.inst) return instanceScreen(kb);
   if (state.tab === "syllogism" && u.syllogism && state.cur && state.cur.c) return syllogismScreen(kb);
   return { cls: "", node: <Hosted /> };
 }

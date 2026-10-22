@@ -54,6 +54,7 @@ export const state = {
   stageRun: freshRun(), // the run towards an offer of the stages, from the answers of every exercise (`rd-stage-run`, practice/stage-offer.ts)
   exRuns: {},       // each exercise's run of right answers until it warms up, and its right answers in all (`rd-ex-runs`)
   guided: {},       // each exercise's guided form on the Path, where set (`rd-guided`, practice/guided.ts); none: on
+  instRecent: [],  // the sets of categories Find an instance asked lately, oldest first: the draw passes them over while others remain (instance/flow.ts)
   syllogismRecent: [],    // the ids of the syllogisms drawn lately, oldest first: the draw of the next one leans away from them (syllogism/flow.js)
   syllogismWording: "take", // how a syllogism is said: "take" (the class's) or "formal" (`rd-syllogism-wording`)
   syllogismGuide: false,    // the structure named under the sentence (S, P, R) and what each reply says in them, for a beginner (`rd-syllogism-guide`)
@@ -135,7 +136,7 @@ export const state = {
   pathOpen: {},      // the rows of Review the Path has unfolded, by key
 };
 
-try{ const v=localStorage.getItem("rd-ex"); if(v==="debate"||v==="find"||v==="categories"||v==="syllogism") state.tab=state.own=v; }catch(e){}
+try{ const v=localStorage.getItem("rd-ex"); if(v==="debate"||v==="find"||v==="categories"||v==="instance"||v==="syllogism") state.tab=state.own=v; }catch(e){}
 try{ state.menuPin=localStorage.getItem("rd-menu")!=="0"; }catch(e){ state.menuPin=true; }   // a wide screen starts with the menu pinned (the exercise would be stretched too wide without it); the button unpins it
 try{ const v=localStorage.getItem("rd-notation"); if(v==="sets"||v==="logic") state.nota=v; }catch(e){}
 try{ if(localStorage.getItem("rd-deflang")==="enru") state.defLang="enru"; }catch(e){}   // an earlier "off" (words only) is now the codes
