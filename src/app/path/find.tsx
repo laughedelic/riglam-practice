@@ -44,8 +44,9 @@ function Word({ k, key2, what, last }: { k: "a" | "b"; key2: "wordA" | "wordB"; 
 }
 function PairStep({ kb }: { kb: boolean }) {
   const u = u0(), ok = both();
-  // a new pair to name: the first field takes the cursor where there is a keyboard of keys (as find/screen.js does), unless a field has it
-  // (the roadmap gives the focus back to the top bar as it closes, after this draw: so the test is "no field has it", and it waits for that)
+  // a new pair to name: the first field takes the cursor where there is a keyboard of keys, unless a field has it. The classic page
+  // (find/screen.js) does so only when nothing has the focus; here it does also when Find a pair is opened from the roadmap, which gives the
+  // focus back to the top bar as it closes, after this draw (so it waits for that)
   useEffect(() => {
     if (!u.focusA) return; u.focusA = false;
     setTimeout(() => { const a = document.activeElement; if (state.ui === u && !(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) && !("ontouchstart" in window)) focus("fw-a"); });
