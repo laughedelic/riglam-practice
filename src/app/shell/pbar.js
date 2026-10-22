@@ -17,9 +17,10 @@ export function pairBar(fwd,extra=[]){
   const bar=el("div",{class:"actions pbar"});
   const note=skipNoteNode(); if(note) bar.append(note);
   const fp=favTarget(), fb=fp?favBtn(fp):null;
-  bar.append(el("div",{class:"prow"},
+  const mic=micButton();
+  bar.append(el("div",{class:"prow"+(mic?" vm":"")},
     el("div",{class:"pl"},skipBtn(),fb,...extra.filter(Boolean)),
-    micButton(),
+    mic,
     fwd?el("button",{type:"button",class:"btn fwd",disabled:!!fwd.disabled,title:fwd.title||null,onclick:fwd.onclick},fwd.label,fwd.hint&&isWide()?el("span",{class:"kbd","aria-hidden":"true",text:fwd.hint}):null):null));
   bar.addEventListener("mousedown",e=>{ if(/** @type {Element} */(e.target).closest("button")) e.preventDefault(); });
   return bar;

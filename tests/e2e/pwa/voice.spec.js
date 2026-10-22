@@ -93,6 +93,7 @@ test("Voice is off in the real app until its switch in Settings turns it on; tha
   await ready(page);
   await expect(page.locator("#vbar, #vmic")).toHaveCount(0);   // nothing of it on the screen
   await expect(page.locator("#mrd")).toBeHidden();
+  await expect(page.locator(".pbar .prow")).toHaveCSS("display", "flex");   // the pair bar is as it was: the grid is only for a bar with the microphone
   expect(await said(page)).toEqual([]);
   await openPracticeOptions(page);
   await expect(sheet(page).getByRole("switch", { name: /read aloud/i })).toHaveCount(0);   // and no Voice section in the Practice options
@@ -101,6 +102,7 @@ test("Voice is off in the real app until its switch in Settings turns it on; tha
   const sw = page.getByRole("switch", { name: /^voice/i });
   await expect(sw).toHaveAttribute("aria-checked", "false");
   await expect(page.locator(".xchip")).toHaveText("Experimental");
+  await expect(page.locator("#over")).toContainText("sent to Google");   // where the audio goes is said where voice is switched on
   await expect(page.locator("#over").getByRole("switch", { name: /read aloud/i })).toHaveCount(0);   // its choices are not in Settings
   await expect(page.locator("#over").getByLabel("Voice", { exact: true })).toHaveCount(0);
 
@@ -147,6 +149,7 @@ test("the Practice options have the key choices of Voice, and a page for the det
   await read.click();
   await expect(read).toHaveAttribute("aria-checked", "true");
   expect((await said(page)).at(-1)).toMatch(/^Do you accept that/);   // a sample, to hear the voice
+  await expect(sheet(page)).toContainText("sent to Google");   // beside the choice that sends it
   await sheet(page).getByRole("button", { name: "Tap the mic" }).click();
   expect(await page.evaluate(() => ["read", "answer"].map((k) => localStorage.getItem("rd-voice-" + k)))).toEqual(["1", "tap"]);
 
@@ -187,6 +190,8 @@ test("the microphone is the middle button of the pair bar, an icon with no label
   await ready(page);
   await expect(mic(page)).toBeVisible();
   await expect(mic(page)).toHaveText("");
+  await expect(page.locator(".pbar .prow")).toHaveCSS("display", "grid");
+  await expect(mic(page)).toHaveAttribute("aria-label", "Answer by voice");
   await expect(mic(page)).toHaveAttribute("title", /Say the relation, such as/);   // what it would take is its tooltip, not a line of text
   await expect(page.locator("#vbar")).toBeHidden();   // and nothing else is said until there is something to say
   const box = async (loc) => loc.evaluate((e) => { const r = e.getBoundingClientRect(); return { l: r.left, r: r.right, t: r.top, h: r.height }; });
@@ -199,6 +204,7 @@ test("the microphone is the middle button of the pair bar, an icon with no label
   await page.evaluate(() => { window.__dead = true; });   // a recognizer that stays on, so that the lit microphone can be looked at
   await mic(page).click();
   await listening(page);   // lit while it listens (aria-pressed, the pulse)
+  await expect(mic(page)).toHaveAttribute("aria-label", "Answer by voice");   // the name stays; the state is aria-pressed
   await expect(page.locator("#vbar .vst")).toHaveText("Listening…");
   expect(await mic(page).evaluate((e) => getComputedStyle(e).backgroundColor)).not.toBe("rgba(0, 0, 0, 0)");   // filled, not an outline like the other buttons
   await mic(page).click();

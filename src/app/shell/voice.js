@@ -295,7 +295,7 @@ export function micButton(){
 function micState(b,a){
   const on=state.voice.phase==="listening";
   b.classList.toggle("on",on); b.setAttribute("aria-pressed",on?"true":"false");
-  b.setAttribute("aria-label",on?"Stop listening":"Answer by voice"); b.title=on?"Stop listening (V)":"Answer by voice (V). "+HINT[a.kind](a);
+  b.setAttribute("aria-label","Answer by voice"); b.title=on?"Stop listening (V)":"Answer by voice (V). "+HINT[a.kind](a);
 }
 // the bar and the microphone again, in place, without rendering the screen (which would rebuild the fields and move the focus)
 function paint(){
@@ -376,7 +376,7 @@ export function voiceRow(){
   const on=enabled();
   return el("div",{class:"orow"},
     el("div",{class:"vsw"},switchOf("Voice",on?"on":"off",on,()=>setOn(!on)),el("span",{class:"xchip",text:"Experimental"})),
-    el("p",{class:"onote",text:"Reads the questions aloud and lets you answer by voice, with your browser\u2019s own speech. Once it is on, its choices are in the Practice options of Relations and Pervasions."}));
+    el("p",{class:"onote",text:"Reads the questions aloud and lets you answer by voice, with your browser\u2019s own speech. "+(canHear()?"In Chrome, what you say is sent to Google to be turned into text. ":"")+"Once it is on, its choices are in the Practice options of Relations and Pervasions."}));
 }
 // the voices by accent, American and British first
 function voiceOptions(list,cur){
@@ -387,6 +387,8 @@ function voiceOptions(list,cur){
   return groups.map(g=>el("optgroup",{label:g.accent},g.voices.map(x=>el("option",{value:x.id,text:x.name+" · "+x.lang+(x.local?"":" · online"),selected:x.id===cur}))));
 }
 const ANSWERS=[["off","Off"],["tap","Tap the mic"],["auto","Hands-free"]];
+// where what is said goes: the browser's recognizer is not the app's
+const WHERE="In Chrome, what you say is sent to Google to be turned into text (other browsers use their own service). The app records nothing.";
 /** Whether the Practice options have a Voice section: Voice is on, the browser has some speech, and the exercise is one that reads and listens. */
 export const voiceShown=()=>enabled()&&(canSpeak()||canHear())&&(state.tab==="practice"||state.tab==="debate");
 /** The key choices, for the list of the Practice options: Read aloud, and Answer by voice with its details page. `sw`, `card` and `chips` are the list's own rows. */
@@ -396,7 +398,8 @@ export function voiceListRows(sw,card,chips){
   return [
     canSpeak()?sw("Read aloud","each question",v.read,()=>setVoice("read",!v.read)):null,
     canHear()?card("Answer by voice",chips("Answer by voice",ANSWERS,v.answer,k=>setVoice("answer",k)),"voice")
-      :card("Voice",el("small",{class:"sum1",text:"Voice and speed"}),"voice")];
+      :card("Voice",el("small",{class:"sum1",text:"Voice and speed"}),"voice"),
+    canHear()?el("p",{class:"onote",text:WHERE}):null];
 }
 /** The Voice page of the Practice options: the voice and its speed, how an answer is taken and what each choice means. `picks` is the page's own list of choices. */
 export function voicePageBody(picks){
