@@ -1,7 +1,7 @@
 // The Path's page: one column with the top bar, the screen in front (an exercise, Review, the tutor's conversation, Settings) and the foot,
 // and over it the roadmap, the practice options, the question before a skip and the note at the foot. Which screen shows is the classic
 // page's state (state.js: tab, view, optsOpen, sessOpen, menuOpen, skipAsk), so Back, the keys and the clocks work as they do there.
-// Relations is drawn on the path; the other exercises, Review and the tutor's conversation are the classic page's, hosted (ui.tsx, Bridge).
+// The exercises are drawn on the path; Review and the tutor's conversation are the classic page's, hosted (ui.tsx, Bridge).
 import type { ComponentChildren } from "preact";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { state } from "../state.js";
@@ -20,10 +20,14 @@ import { fitPair, isEx } from "../shell/render.js";
 import { setTab } from "../shell/tabs.js";
 import { applyLook, currentLook, darkNow, lookClasses } from "./look.ts";
 import { OptionsSheet } from "./options.tsx";
+import { categoriesScreen } from "./categories.tsx";
+import { findScreen } from "./find.tsx";
+import { pervasionsScreen } from "./pervasions.tsx";
 import { relationsScreen } from "./relations.tsx";
 import { Roadmap } from "./roadmap.tsx";
 import { aboveSync } from "./scroll.tsx";
 import { SettingsPage } from "./settings.tsx";
+import { syllogismScreen } from "./syllogism.tsx";
 import { Foot, PullCtx, Station, Toast, TopBar } from "./shell.tsx";
 import { Pull } from "./gesture.ts";
 import { Bridge, coarse } from "./ui.tsx";
@@ -36,7 +40,7 @@ function built(make: (box: HTMLElement, side: HTMLElement) => void): Node[] {
 }
 const waitingAnswer = () => { const u = state.ui; return !!u && !!u.chat && u.chat.some((t: { role: string; pending?: boolean; content?: string }) => t.role === "assistant" && !t.pending && t.content); };
 
-/** An exercise the Path does not draw yet: the classic screen, with its steps above it and its bar of buttons at its foot. */
+/** An exercise in a state the Path does not draw (none is expected): the classic screen, with its steps above it and its bar of buttons at its foot. */
 function Hosted() {
   const u = state.ui, tab = state.tab, ai = canAsk() && !(u && u.cats);
   const fill = () => {
@@ -103,6 +107,10 @@ function screen(kb: boolean): { cls: string; node: ComponentChildren } {
   if (state.view === "chat" && (state.ui.chat || state.ui.checked) && canAsk()) return { cls: "", node: <TutorPage /> };
   const u = state.ui;
   if (state.tab === "practice" && !u.debate && !u.find && !u.cats && !u.syllogism && state.cur && state.cur.p) return relationsScreen(kb);
+  if (state.tab === "debate" && u.debate && state.cur && state.cur.p) return pervasionsScreen(kb);
+  if (state.tab === "find" && u.find) return findScreen(kb);
+  if (state.tab === "categories" && u.cats) return categoriesScreen();
+  if (state.tab === "syllogism" && u.syllogism && state.cur && state.cur.c) return syllogismScreen(kb);
   return { cls: "", node: <Hosted /> };
 }
 

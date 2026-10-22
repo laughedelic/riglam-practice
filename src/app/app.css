@@ -39,4 +39,5 @@
 @import "./styles/35-path-station.css"; /* the Path: the strip, the station and its pull, the side stations, the layout with the keyboard up */
 @import "./styles/36-path-result.css"; /* the Path: the result, Why, the tutor at work */
 @import "./styles/37-path-panels.css"; /* the Path: the practice options, the roadmap, the pages, the toggles */
-@import "./styles/38-path-bridge.css"; /* the Path: the classic parts it still hosts */
+@import "./styles/38-path-exercises.css"; /* the Path: what the exercises draw beyond Relations (Syllogisms, Pervasions, Find a pair, Categories) */
+@import "./styles/39-path-bridge.css"; /* the Path: the classic parts it still hosts */

@@ -1,0 +1,93 @@
+/* The Path: what the exercises draw beyond Relations. Syllogisms as the lab draws them (the statement in three lines with S, P and R in the
+   margin, the checks as stops), and the same grammar for Pervasions (a statement of the challenger as a stop), Find a pair (the relation
+   asked for, the two words) and Categories (the thing, the categories to tick, the groups of the check, the line). */
+.pa .wterms b{color:var(--ink)} .pa .wterms .arr{color:var(--ink2)}
+.pa .perr{padding:8px 18px 0 calc(var(--m) + 22px)}
+.pa .pfnote{padding:4px 18px 6px calc(var(--m) + 22px); font-style:italic}
+.pa .relnm{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap}
+.pa .relnm b{font-size:19px}
+.pa .relg{font-size:14.5px; display:block}
+.pa .pbtns{display:flex; gap:18px; flex-wrap:wrap}
+.pa .plnk{color:var(--blue); text-decoration:underline; text-underline-offset:3px; font:inherit}
+
+/* choices that are ticked rather than taken: the diamond fills, the words turn to ink */
+.pa .chs.multi .crow.on{background-color:var(--blue-t)}
+.pa .chs.multi .crow.on b{color:var(--ink)}
+.pa .chs.multi .crow .d.yours{background-color:var(--blue)}
+
+/* a statement on the path: a line of large text beside its letter (S, P, R) or its diamond */
+.pa .stm{padding:2px 0; align-items:baseline}
+.pa .stm > .ab{position:relative; top:-2px}
+.pa .stm .cs{font-size:calc(var(--tn) * 26 / 34); font-weight:500; line-height:1.2; overflow-wrap:anywhere}
+.pa .stm.thing > .d{align-self:center}
+.pa .pcatm{display:block; font-family:var(--mono); font-size:10.5px; color:var(--ink3); margin-top:3px; letter-spacing:.02em}
+.pa .plegend{font-family:var(--mono); font-size:10.5px; color:var(--ink3); padding:6px 18px 4px calc(var(--m) + 22px)}
+.pa .chelp{padding:2px 18px 0 calc(var(--m) + 22px)}
+
+/* Syllogisms: the reply taken, what was answered, the three checks */
+.pa .sylsaid{padding:8px 0 4px; align-items:baseline}
+.pa .sylsaid .said{display:flex; align-items:center; gap:8px; font-size:18px; font-weight:600}
+.pa .sylsaid .pq{display:block; font-size:15px}
+.pa .pwhat{padding:2px 0 6px}
+.pa .pwhat .plead{font-size:17px; line-height:1.4}
+.pa .pwhat .plead s.no{font-style:normal}
+.pa .pwhat .conf{font-size:14.5px; color:var(--ink2); line-height:1.4; margin-top:4px}
+.pa .chk{padding:8px 0 10px; align-items:start}
+.pa .chk > .d{margin-top:6px}
+.pa .chk .lab2{font-family:var(--mono); font-size:11px; font-weight:600; letter-spacing:.02em; color:var(--ink3)}
+.pa .chk .lab2.ok{color:var(--green)} .pa .chk .lab2.no{color:var(--partc-t)}
+.pa .chk p{font-size:16px; line-height:1.35}
+.pa .chk.e p{color:var(--ink2)}
+.pa .chk.first p{color:var(--ink)}
+.pa .chk .mine{font-size:14.5px; color:var(--ink2); margin-top:6px; display:flex; gap:6px; align-items:baseline}
+.pa .chk .mine b{color:var(--ink); font-weight:600}
+.pa .chk .mine .mark{flex:none; transform:translateY(3px)}
+
+/* Pervasions: the statement, its terms and its "not"; an answer, short */
+.pa .qnow .plead,.pa .qlead{display:block; font-style:italic; color:var(--ink2); font-size:15px; margin-top:2px}
+.pa .qst{font-size:21px; line-height:1.3; margin-top:2px}
+.pa .pqt{font-style:italic}
+.pa .pqt .qab{font-family:var(--mono); font-style:normal; font-size:11px; font-weight:600; color:var(--ink3); margin-right:4px}
+.pa .pnot{font-weight:600; color:var(--red)}
+.pa .sb .pans .pwhy{font-family:var(--mono); font-style:normal; font-weight:600; font-size:12px; color:var(--ink); margin-right:4px}
+.pa .sb .pans .nil{font-family:var(--mono); font-style:normal; font-size:12px; color:var(--ink2)}
+.pa .sb.done .qq{font-size:16px; color:var(--ink2)}
+.pa .qres .qq{font-size:15px; color:var(--ink2); margin:2px 0 4px}
+.pa .qres .line1 .pans{margin:0}
+.pa .sx.later .sb.later{padding:6px 0}
+.pa .sx.later .sb.later > .d{margin-top:4px}
+
+/* Find a pair: the two words, under the relation asked for */
+.pa .asked{padding:4px 0 6px; align-items:start}
+.pa .asked > svg.rfig{margin-top:2px}
+.pa .pfw .fieldrow{margin-top:0}
+.pa .pfw .pfield{height:38px; font-size:max(16px,calc(var(--hand-sz) + 2px))}
+.pa .pfw > .ab{position:relative; top:-4px}
+.pa .fhelp{padding:0 18px 0 calc(var(--m) + 22px)}
+
+/* Categories: a category with its mark and what was done, the groups of the check, the line from the most specific up */
+.pa .pgh{display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; padding:12px 18px 2px calc(var(--m) + 22px)}
+.pa .pgh b{font-family:var(--mono); font-size:11.5px; letter-spacing:.08em; text-transform:uppercase; font-weight:600}
+.pa .pgh span{font-size:14px; font-style:italic; color:var(--ink2)}
+.pa .catrow{padding:7px 0 8px}
+.pa .catrow .line1{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap}
+.pa .catp{font-size:17px; font-weight:600}
+.pa .catrow.wrong .catp{color:var(--ink)}
+.pa .ctag{font-family:var(--mono); font-size:11px; color:var(--ink2); letter-spacing:.02em}
+.pa .catrow .mark .i{width:16px; height:16px}
+.pa .pline{padding:6px 0}
+.pa .pline > .d{margin-top:6px}
+.pa .pline .ptx{display:flex; gap:10px; align-items:baseline; flex-wrap:wrap}
+.pa .pline:not(.opt) .catp{font-weight:400; color:var(--ink2)}
+.pa .offer{padding:10px 0 12px; align-items:start}
+.pa .offer > .d{margin-top:7px}
+.pa .offer .oq{font-size:17px; font-weight:600; line-height:1.3}
+.pa .offer .xnote{font-size:14px; color:var(--ink2); line-height:1.35; margin-top:4px}
+.pa .pbtn.quiet{color:var(--ink2)}
+.pa .pstatus p + p{margin-top:8px}
+/* the questions answered, one line each, so that the question asked (or the relation) stays near the top */
+.pa .tight .sb.done{padding:5px 0}
+.pa .tight .sb.done > .d{margin-top:6px}
+.pa .tight .sb.done .ptx{display:flex; flex-wrap:wrap; column-gap:10px; align-items:baseline}
+.pa .tight .sb.done .pans{margin:0; min-width:0}
+.pa .tight .sb.done .qq{flex-basis:100%}
