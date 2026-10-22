@@ -76,6 +76,19 @@ test("Review on the Path: today's trail, a row unfolds into the answer, and Prac
   expect(errors).toEqual([]);
 });
 
+const debate = { ...answer, pairId: "d-test1", mode: "debate", chosen: "4", key: "4", implied: "4", correct: true, grade: "ok", explain: undefined,
+  qs: ["both", "anb", "bna", "nei"].map((c) => ({ c, say: "accept", verdict: "ok" })), pair: { ...answer.pair, id: "d-test1" } };
+test("Review on the Path: Practice this pair on an answer of Pervasions starts it in Pervasions", async ({ page }) => {
+  await seed(page, { debates: [debate] });
+  await openReview(page);
+  await expect(rows(page)).toHaveCount(1);
+  await expect(rows(page).first()).toContainText("Pervasions");
+  await rows(page).first().locator(".trb").click();
+  await page.locator("#path .pfold").getByRole("button", { name: "Practice this pair" }).click();
+  await expect(page.locator(".ptb-t")).toContainText("Pervasions");
+  await expect(page.locator("#path")).toContainText("round things");
+});
+
 test("Review on the Path: the totals, the mistakes with Retry, a favorite and a pair skipped", async ({ page }) => {
   await seed(page, { answers: [answer], favorites: [fav], skips: [skip] });
   await openReview(page);

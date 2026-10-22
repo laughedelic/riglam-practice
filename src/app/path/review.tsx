@@ -11,7 +11,7 @@ import { CELLS, REL, notaOf, refOf } from "../core/rel.js";
 import { dayOf, gradeOf, isMiss, today } from "../core/util.js";
 import { QCELL, qPlain } from "../debate/text.js";
 import { removeFav, startFav } from "../practice/favorites.js";
-import { SKIP_DAYS, skipActive, startSkipped, unskipKey } from "../practice/skips.js";
+import { SKIP_DAYS, debateAgain, skipActive, startSkipped, unskipKey } from "../practice/skips.js";
 import { answerList } from "../practice/universe.js";
 import { debateStats } from "../review/debate-stats.js";
 import { noteContext, practiceAgain } from "../review/exercise.js";
@@ -67,7 +67,7 @@ function TrailRow({ e, when }: { e: Entry; when: string }) {
       {e.doc ? <button type="button" class="trb" aria-expanded={open ? "true" : "false"} onClick={() => toggleOpen(k)}>{head}<span class="arr"><Icon n="chev" /></span></button> : head}
     </St>
     {open ? <div class="pfold"><StoredAnswer doc={e.doc as AnswerDoc} k={k} />
-      {p ? <St d={<span />} cls="pacts"><button type="button" class="pbtn" onClick={() => practiceAgain(p, "Retry")}>Practice this pair</button></St> : null}</div> : null}
+      {p ? <St d={<span />} cls="pacts"><button type="button" class="pbtn" onClick={() => e.mode === "debate" ? debateAgain(p) : practiceAgain(p, "Retry")}>Practice this pair</button></St> : null}</div> : null}
   </>;
 }
 const Empty = ({ children }: { children: ComponentChildren }) => <p class="pempty">{children}</p>;

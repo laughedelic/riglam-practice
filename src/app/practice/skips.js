@@ -154,10 +154,12 @@ export function skipInto(o){
 export function startSkipped(f){
   const p=f.pair||{a:f.a,b:f.b,relation:f.relation,ex:{},why:{}};
   if(f.from==="find"){ resumeFind(p,f.asked); return; }
-  if(f.from==="debate"){ switchTo("debate"); state.cur={p,debate:true}; state.ui=freshDebateUi(); state.mode="quiz"; startQ(); }
-  else { switchTo("practice"); state.retryQ=[p]; state.retryTag="Skipped"; advance(); }
+  if(f.from==="debate"){ debateAgain(p); return; }
+  switchTo("practice"); state.retryQ=[p]; state.retryTag="Skipped"; advance();
   render(); top0();
 }
+/** A pair of Pervasions taken again there (a skipped one, or one from Review on the Path). */
+export function debateAgain(p){ switchTo("debate"); state.cur={p,debate:true}; state.ui=freshDebateUi(); state.mode="quiz"; startQ(); render(); top0(); }
 export function unskipKey(k){
   const had=state.skips[k]; if(!had) return;
   delete state.skips[k]; render();
