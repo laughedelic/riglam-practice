@@ -1,6 +1,7 @@
-// The five relations of two phenomena and the four cells of the grid (both, A not B, B not A, neither).
+// The five relations of two phenomena and the four cells of the grid (both, A not B, B not A, neither), and the sixth that only a pair with a
+// negated side can have: four possibilities without anything that is neither.
 
-export type RelKey = "mi" | "con" | "3ab" | "3ba" | "4";
+export type RelKey = "mi" | "con" | "3ab" | "3ba" | "4" | "4n";
 export type CellId = "both" | "anb" | "bna" | "nei";
 
 export interface Relation {
@@ -19,7 +20,9 @@ export const REL: Record<RelKey, Relation> = {
   con:  {code:"MX", name:"Mutually exclusive", gloss:()=>"Nothing is both", sets:["∩","","= ∅"], logic:["⇒","¬",""], empty:["both"]},
   "3ab":{code:"3P", name:"Three possibilities, A in B", gloss:(a,b)=>"All "+a+" are "+b+", not the reverse", sets:["⊂","",""], logic:["⇒","",""], empty:["anb"]},
   "3ba":{code:"3P", name:"Three possibilities, B in A", gloss:(a,b)=>"All "+b+" are "+a+", not the reverse", sets:["⊃","",""], logic:["⇐","",""], empty:["bna"]},
-  "4":  {code:"4P", name:"Four possibilities", gloss:()=>"They overlap; neither contains the other", sets:["∩","","≠ ∅"], logic:["⇏","¬",""], empty:[]}
+  "4":  {code:"4P", name:"Four possibilities", gloss:()=>"They overlap; neither contains the other", sets:["∩","","≠ ∅"], logic:["⇏","¬",""], empty:[]},
+  // Perdue 2014 (after Kensur Yeshi Thupten) calls it so; Perdue 1992 (after Lati Rinpoche) calls the same case "three possibilities without there being something which is neither"
+  "4n": {code:"4PN", name:"Four possibilities without neither", gloss:()=>"They overlap, neither contains the other, and nothing is neither", sets:["∪","","= all"], logic:["∨","",""], empty:["nei"]}
 };
 export const CELLS: readonly CellId[] = ["both", "anb", "bna", "nei"];
 
@@ -37,15 +40,35 @@ export interface PairLike {
   note?: string;
   /** a pair the learner made up in the pair-finding mode that the practice data cannot judge: `relation` is only the one asked for, and `ex` and `why` are empty */
   own?: boolean;
+  /** a pair of the negation track: B (or A and B) is the negation of its category, "non-(wooden things)"; `catA` and `catB` stay the categories themselves */
+  neg?: Neg;
 }
+
+/** Which side of a pair is negated: B alone, or A and B. */
+export type Neg = "b" | "ab";
+/**
+ * Where a thing goes when a side is negated, by the cell it has in the plain pair: with B negated, what is both A and B is A but not non-B, and so on.
+ * Each map is its own inverse, so it also takes a cell of the negated pair back to the plain pair's.
+ */
+export const NEG_CELL: Record<Neg, Record<CellId, CellId>> = {
+  b: { both: "anb", anb: "both", bna: "nei", nei: "bna" },
+  ab: { both: "nei", anb: "bna", bna: "anb", nei: "both" },
+};
+/** Which of the two sides are negated, A then B. */
+export const negSides = (p: Pick<PairLike, "neg">): readonly [boolean, boolean] => [p.neg === "ab", !!p.neg];
+/** The negation of a label as the course book writes it: "non-products", and in brackets when it has more than one word, "non-(wooden things)". */
+export const negLabel = (label: string): string => "non-" + (/\s/.test(label) ? "(" + label + ")" : label);
+/** The label a negated label was made from. */
+export const plainLabel = (label: string): string => label.replace(/^non-\((.*)\)$|^non-(.*)$/, (_, x, y) => x ?? y);
 
 // A non-existent (the horn of a rabbit) is a possibility in the "neither" cell, as the class takes it, so that cell
 // always has a reference even for old saved pairs that stored none. Perdue 1992:393 and 2014:1026.
 // A pair of the learner's own (Find a pair) has no reference at all: nothing is known about what its two phenomena are, and a non-existent is not "neither" for every pair.
+// Nor has a pair with a negated side: a negation takes in what does not exist, so a non-existent is in another cell (and the pair stores its own examples).
 const RABBIT = "the horn of a rabbit";
 export function refOf(p: PairLike, c: CellId): string | null {
   const k = p.ex && p.ex[c];
-  return k || (c === "nei" && !p.own ? RABBIT : null);
+  return k || (c === "nei" && !p.own && !p.neg ? RABBIT : null);
 }
 export function cellLabel(c: CellId, p: PairLike): string {
   return {both: "both", anb: p.a + ", not " + p.b, bna: p.b + ", not " + p.a, nei: "neither"}[c];

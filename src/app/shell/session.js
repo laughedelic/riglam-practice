@@ -25,9 +25,9 @@ import { voiceListRows, voicePageBody, voiceShown } from "./voice.js";
 
 // what the symbols of each notation mean
 const SYMS={
-  codes:["Shorthand","Perdue's course book abbreviates the relations like this.",[["MI","mutually inclusive"],["MX","mutually exclusive"],["3P","three possibilities"],["4P","four possibilities"]]],
-  sets:["Sets","Each term stands for the set of things it covers.",[["∩","intersection: what is both"],["∅","the empty set: nothing"],["≠ ∅","not empty"],["⊂","contained in"],["⊃","contains"],["=","the same set"]]],
-  logic:["Logic","Each term stands for a statement: it is A, it is B.",[["⇒","follows: A ⇒ B, if A then B"],["⇐","follows from"],["⇔","each follows from the other"],["⇏","does not follow"],["¬","negation: not"]]]
+  codes:["Shorthand","Perdue's course book abbreviates the relations like this.",[["MI","mutually inclusive"],["MX","mutually exclusive"],["3P","three possibilities"],["4P","four possibilities"],["4PN","four possibilities without neither (with negations)"]]],
+  sets:["Sets","Each term stands for the set of things it covers.",[["∩","intersection: what is both"],["∅","the empty set: nothing"],["≠ ∅","not empty"],["⊂","contained in"],["⊃","contains"],["=","the same set"],["∪ = all","together they take in everything (with negations)"]]],
+  logic:["Logic","Each term stands for a statement: it is A, it is B.",[["⇒","follows: A ⇒ B, if A then B"],["⇐","follows from"],["⇔","each follows from the other"],["⇏","does not follow"],["¬","negation: not"],["∨","or: whatever is not A is B (with negations)"]]]
 };
 const PAGES={nota:"Notation",wording:"Questions",times:"Blitz",defs:"Definitions",stages:"Stages",voice:"Voice"};
 const store=(key,v)=>{ try{ localStorage.setItem(key,v); }catch(e){} };
@@ -37,6 +37,7 @@ function setShow(key,on){ if(key==="ab") state.showAB=on; else state.fullPh=on; 
 function setAutoExplain(on){ state.autoExplain=on; store("rd-autoexplain",on?"1":"0"); render(); }
 function setWording(k){ state.wording=k; store("rd-wording",k); render(); }
 function setFindSuggest(on){ state.findSuggest=on; store("rd-findsuggest",on?"1":"0"); render(); }
+function setNegation(k){ state.negation=k; store("rd-negation",k); render(); }
 function setSyllogismWording(k){ state.syllogismWording=k; store("rd-syllogism-wording",k); render(); }
 function setSyllogismGuide(on){ state.syllogismGuide=on; store("rd-syllogism-guide",on?"1":"0"); render(); }
 // Blitz off takes the stopwatch away from the top bar, and a running countdown with it
@@ -157,6 +158,8 @@ function listBody(){
   const tutor=canAsk(), quorum=state.quorumOffered&&state.db;
   // what only this exercise has comes first, under its name; what every exercise has follows
   const own=[
+    state.tab==="practice"?row("Negations",chips("Negations",[["off","Off"],["one","One side"],["both","Both sides"]],state.negation,setNegation),
+      "Some pairs negate a term: “furniture” and “non-(wooden things)”, which takes in everything that is not a wooden thing. One side: B is negated in about a third of the pairs. Both sides: half of those negate A and B. A negation can give a sixth answer, four possibilities without neither: something is both, something is each alone, and nothing is neither."):null,
     perv?card("Wording of the questions",chips("Wording of the questions",Object.entries(WORDINGS).map(([k,w])=>[k,w.name]),state.wording,setWording),"wording"):null,
     perv?sw("Full phrases","spell out Why? answers",state.fullPh,()=>setShow("full",!state.fullPh)):null,
     find?sw("Suggest terms",state.findSuggest?"on":"off",state.findSuggest,()=>setFindSuggest(!state.findSuggest),

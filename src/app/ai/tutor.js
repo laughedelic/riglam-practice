@@ -72,7 +72,8 @@ export async function ask(text,kind,byItself){
   // first question that would name examples waits for the learner's answer to the one-time dialog (the answer, yes or no, is kept on the device); a learner who left the
   // answer meanwhile (the dialog covers the page, but a shortcut or the browser's Back may still move the exercise on) is asked nothing for it, as after the lookup above.
   // Without an answer (a browser that could not open the dialog) no example is named.
-  let examples=!direct&&kind==="explain"&&sharing()?openExamples(U):[];
+  // a pair with a negated side names none: what the server keeps is said of the categories themselves
+  let examples=!direct&&kind==="explain"&&!p.neg&&sharing()?openExamples(U):[];
   if(examples.length&&state.learns&&!state.shareTold){
     await askShare();
     if(U!==state.ui||!canAsk()||U.ctl||(kind==="explain"&&U.explained)) return;

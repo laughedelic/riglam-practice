@@ -53,6 +53,7 @@ export const state = {
   syllogismWording: "take", // how a syllogism is said: "take" (the class's) or "formal" (`rd-syllogism-wording`)
   syllogismGuide: false,    // the structure named under the sentence (S, P, R) and what each reply says in them, for a beginner (`rd-syllogism-guide`)
   findSuggest: true, // Find a pair offers the terms of the course while the pair is typed (the settings of Find a pair, `rd-findsuggest`); off: plain fields
+  negation: "off",   // the negation track of Relations: "one" negates B in about a third of the pairs, "both" also A and B in half of those (`rd-negation`)
   debates: {},
   own: "practice",
   favs: {},
@@ -129,6 +130,7 @@ try{ state.shareExamples=localStorage.getItem("rd-share")!=="0"; state.shareTold
 try{ state.recentOpen=localStorage.getItem("rd-recent")!=="0"; }catch(e){}
 try{ const v=localStorage.getItem("rd-findrel"); if(FIND_RELS.includes(/** @type {any} */(v))) state.findRel=/** @type {any} */(v); }catch(e){}
 try{ state.findSuggest=localStorage.getItem("rd-findsuggest")!=="0"; }catch(e){}
+try{ const v=localStorage.getItem("rd-negation"); if(v==="one"||v==="both") state.negation=v; }catch(e){}
 try{ if(localStorage.getItem("rd-cats-ask")==="one") state.catsAsk="one"; state.catsOfferAt=localStorage.getItem("rd-cats-offer")||""; }catch(e){}
 // A device used before the ladder keeps what it had: its levels of the reference examples (also ones an import brings), or level 1, their default, become
 // the stages up to that level's (level 1 is stage 6), so its pairs and things stay as they were. `rd-ladder` marks a device that has started with the

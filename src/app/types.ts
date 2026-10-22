@@ -375,6 +375,8 @@ export interface State {
   findRel: RelKey | null;
   /** Find a pair offers the terms of the course while the pair is typed (Options, `rd-findsuggest`) */
   findSuggest: boolean;
+  /** the negation track of Relations (`rd-negation`): off, B negated in some pairs ("one"), or also A and B ("both") */
+  negation: "off" | "one" | "both";
   lastSig: string;
   /** the attempt the last render drew: the tutor's panel closes with a pair that had a conversation */
   lastUi: any;

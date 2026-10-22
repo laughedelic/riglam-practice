@@ -4,8 +4,8 @@
 import type { DrillData, Item } from "../ai-shared/data";
 import { leavesOpen } from "../ai-shared/lookup";
 import type { DataIndex } from "../ai-shared/lookup";
-import { CELLS } from "../ai-shared/relations";
-import type { CellId, RelKey } from "../ai-shared/relations";
+import { CELLS, NEG_CELL, negLabel, negSides } from "../ai-shared/relations";
+import type { CellId, Neg, RelKey } from "../ai-shared/relations";
 import { itemKnown, itemOn, poolAt, topStage } from "./stages";
 import type { StagedEntry, Stages } from "./stages";
 import type { HistoryEntry, Pair, PoolEntry } from "./types";
@@ -67,19 +67,32 @@ export function cellsFor(ix: DataIndex, a: string, b: string): Record<CellId, It
   return out;
 }
 
-/** The relation the filled cells show. */
+/**
+ * The relation the filled cells show. Four possibilities without neither needs an empty neither cell, which only a pair with a negated side
+ * has: the horn of a rabbit is in no category, so it is neither for every plain pair.
+ */
 export function relOfCells(c: Record<CellId, readonly unknown[]>): RelKey {
   if (!c.both.length) return "con";
   if (!c.anb.length && !c.bna.length) return "mi";
   if (!c.anb.length) return "3ab";
   if (!c.bna.length) return "3ba";
+  if (!c.nei.length) return "4n";
   return "4";
+}
+
+/** The cells of a pair with a side negated (NEG_CELL), from the plain pair's. */
+export function negateCells<T>(cells: Record<CellId, T>, neg: Neg): Record<CellId, T> {
+  const out = {} as Record<CellId, T>;
+  for (const c of CELLS) out[NEG_CELL[neg][c]] = cells[c];
+  return out;
 }
 
 const typeText = (ix: DataIndex, cid: string): string => ix.CAT[cid].type.split(":")[0];
 
 type Names = Pick<Pair, "a" | "b" | "typeA" | "typeB">;
-function whyEmpty(cell: CellId, p: Names): string {
+// a pair with a negated side says why with the plain pair's reason: "furniture" and "non-(wooden things)" have nothing in both because all furniture is wooden
+function whyEmpty(cell: CellId, p: Names, plain?: Names, neg?: Neg): string {
+  if (plain && neg) return whyEmpty(NEG_CELL[neg][cell], plain);
   const A = p.a, B = p.b;
   const q = (x: string) => "“" + x + "”";
   if (cell === "both") return q(A) + " are " + p.typeA + "; " + q(B) + " are " + p.typeB + ". Nothing is both.";
@@ -87,13 +100,18 @@ function whyEmpty(cell: CellId, p: Names): string {
   if (cell === "bna") return "Whatever falls under " + q(B) + " also falls under " + q(A) + ".";
   return "Whatever exists falls under " + q(A) + " or under " + q(B) + "; only a non-existent is neither.";
 }
-function noteFor(p: Names & { relation: RelKey }): string {
+function noteFor(p: Names & { relation: RelKey }, plain?: Names & { relation: RelKey }, neg?: Neg): string {
+  if (plain && neg) {
+    const outside = negSides({ neg }).flatMap((n, i) => (n ? ["“" + (i ? p.b : p.a) + "” takes in everything outside “" + (i ? plain.b : plain.a) + "”"] : []));
+    return outside.join(", and ") + ", what does not exist included. " + noteFor(plain);
+  }
   const t: Record<RelKey, string> = {
     mi: '"' + p.a + '" and "' + p.b + '" pick out the same class: ' + p.typeA + ".",
     con: cap(p.a) + " are " + p.typeA + " and " + p.b + " are " + p.typeB + ": no common locus.",
     "3ab": "Whatever falls under “" + p.a + "” also falls under “" + p.b + "”, but not the reverse.",
     "3ba": "Whatever falls under “" + p.b + "” also falls under “" + p.a + "”, but not the reverse.",
     "4": cap(p.a) + " and " + p.b + " overlap without either containing the other.",
+    "4n": cap(p.a) + " and " + p.b + " overlap without either containing the other, and whatever is not one is the other.",
   };
   return t[p.relation];
 }
@@ -113,7 +131,7 @@ export function buildPool(ix: DataIndex): PoolEntry[] {
       const a = ids[i], b = ids[j];
       if (!judgeable(ix, a, b)) continue;
       const r = relOfCells(cellsFor(ix, a, b));
-      out.push({ a, b, r: r === "3ab" || r === "3ba" ? "3" : r });
+      out.push({ a, b, r: r === "3ab" || r === "3ba" ? "3" : r === "4n" ? "4" : r }); // a plain pair is never 4n (relOfCells)
     }
   }
   for (const id of ids) if (ix.CAT[id].labels.length > 1) out.push({ a: id, b: id, r: "mi" });
@@ -124,18 +142,22 @@ export function buildPool(ix: DataIndex): PoolEntry[] {
  * A pair from a pool entry: a random order and random labels, the relation the data gives, an example per cell where
  * there is one, and the reason where a cell is empty. The random numbers are drawn in a fixed order; the id is made from
  * the clock and one more random number, so with both given the whole pair is reproducible. With `on`, the examples are
- * things of those stages (see pairOf).
+ * things of those stages (see pairOf). With `neg`, B (or A and B) is negated, under a label that is not a negation already where the category has one.
  */
-export function makePair(ix: DataIndex, cand: PoolEntry, rng: Rng = Math.random, now: Clock = Date.now, more?: Witnesses, on?: Stages): Pair {
+export function makePair(ix: DataIndex, cand: PoolEntry, rng: Rng = Math.random, now: Clock = Date.now, more?: Witnesses, on?: Stages, neg?: Neg): Pair {
   let a = cand.a, b = cand.b, la: string, lb: string;
+  const [na, nb] = negSides({ neg }), labels = (cid: string, n: boolean) => {
+    const all = ix.CAT[cid].labels, plain = all.filter((l) => !l.startsWith("non-"));
+    return n && plain.length ? plain : all;
+  };
   if (a === b) {
-    const ls = ix.CAT[a].labels.slice().sort(() => rng() - 0.5);
-    la = ls[0]; lb = ls[1];
+    const ls = labels(a, na || nb).slice().sort(() => rng() - 0.5);
+    la = ls[0]; lb = ls[1] ?? ls[0];
   } else {
     if (rng() < 0.5) [a, b] = [b, a];
-    la = pick(ix.CAT[a].labels, rng); lb = pick(ix.CAT[b].labels, rng);
+    la = pick(labels(a, na), rng); lb = pick(labels(b, nb), rng);
   }
-  return pairOf(ix, a, b, la, lb, rng, now, more, on);
+  return pairOf(ix, a, b, la, lb, rng, now, more, on, neg);
 }
 
 /**
@@ -143,23 +165,27 @@ export function makePair(ix: DataIndex, cand: PoolEntry, rng: Rng = Math.random,
  * `more` adds references to the cells: the practice list decides the relation and which cells are empty, so a reference only joins a cell the list
  * fills, and one the list does not agree with never makes a cell hold what the relation says it cannot. With `on`, a cell's example from the list
  * is a thing of those stages (`itemOn`) where the cell has one, else one the learner knows from a stage below (`itemKnown`), else any thing of the cell.
+ * With `neg`, the labels of the negated sides become their negations ("non-(wooden things)") and the cells move as NEG_CELL says.
  */
-export function pairOf(ix: DataIndex, a: string, b: string, la: string, lb: string, rng: Rng = Math.random, now: Clock = Date.now, more?: Witnesses, on?: Stages): Pair {
-  const cells = cellsFor(ix, a, b), relation = relOfCells(cells), extra = more ? more(a, b) : null;
+export function pairOf(ix: DataIndex, a: string, b: string, la: string, lb: string, rng: Rng = Math.random, now: Clock = Date.now, more?: Witnesses, on?: Stages, neg?: Neg): Pair {
+  const plainCells = cellsFor(ix, a, b), plainExtra = more ? more(a, b) : null;
+  const cells = neg ? negateCells(plainCells, neg) : plainCells, extra = plainExtra && neg ? negateCells(plainExtra, neg) : plainExtra;
+  const relation = relOfCells(cells), [na, nb] = negSides({ neg });
   const ex: Partial<Record<CellId, string | null>> = {}, why: Partial<Record<CellId, string>> = {};
   const p: Pair = {
-    id: "g-" + now().toString(36) + rng().toString(36).slice(2, 6), a: la, b: lb, catA: a, catB: b,
-    typeA: typeText(ix, a), typeB: typeText(ix, b), relation, ex, why, generated: true,
+    id: "g-" + now().toString(36) + rng().toString(36).slice(2, 6), a: na ? negLabel(la) : la, b: nb ? negLabel(lb) : lb, catA: a, catB: b,
+    typeA: typeText(ix, a), typeB: typeText(ix, b), relation, ex, why, generated: true, ...(neg ? { neg } : {}),
   };
+  const plain = neg ? { a: la, b: lb, typeA: p.typeA, typeB: p.typeB, relation: relOfCells(plainCells) } : undefined;
   for (const c of CELLS) {
-    // the neither cell prefers an existent, as in debate; a non-existent only when nothing existent fits
+    // the neither cell prefers an existent, as in debate; a non-existent only when nothing existent fits (with a negated side, any cell, as a negation takes in what does not exist)
     const listed = on ? [cells[c].filter((it) => itemOn(ix, it, a, b, on)), cells[c].filter((it) => itemKnown(ix, it, a, b, on))].find((l) => l.length) ?? cells[c] : cells[c];
     const all: readonly { n: string; ne?: boolean }[] = extra && cells[c].length ? [...listed, ...extra[c]] : listed;
-    const pool = c === "nei" && all.some((i) => !i.ne) ? all.filter((i) => !i.ne) : all;
+    const pool = (c === "nei" || neg) && all.some((i) => !i.ne) ? all.filter((i) => !i.ne) : all;
     ex[c] = pool.length ? pick(pool, rng).n : null;
-    if (!ex[c]) why[c] = whyEmpty(c, p);
+    if (!ex[c]) why[c] = whyEmpty(c, p, plain, neg);
   }
-  p.note = noteFor(p);
+  p.note = noteFor(p, plain, neg);
   return p;
 }
 
@@ -190,7 +216,15 @@ export interface DrawState {
   fresh?: boolean;
   /** every pair the stages can draw weighs the same, none more for being new at the highest stage: a device that kept its settings from before the ladder draws as it did */
   even?: boolean;
+  /**
+   * the negation track: about a third of the pairs have B negated ("one"), or, with "both", half of those have A and B negated. None: no negation,
+   * and the draw takes the same random numbers as before the track.
+   */
+  negation?: "one" | "both";
 }
+
+/** How many of the pairs have a negated side when the negation track is on. */
+export const NEG_SHARE = 1 / 3;
 
 /** How much more likely a three-possibility pair is while the learner has just reached a stage (`fresh`). */
 const FRESH_THREE = 2.5;
@@ -240,8 +274,9 @@ export function chooseEntry(ix: DataIndex, full: readonly PoolEntry[], st: DrawS
 
 /** The next pair to practice: chooses an entry (see chooseEntry), remembers it in `st.recent`, and makes the pair. */
 export function nextPair(ix: DataIndex, pool: readonly PoolEntry[], st: DrawState): Pair {
-  const c = chooseEntry(ix, pool, st);
+  const c = chooseEntry(ix, pool, st), rng = st.rng || Math.random;
   st.recent.push(pairKey(c));
   if (st.recent.length > RECENT_MAX) st.recent.shift();
-  return makePair(ix, c, st.rng || Math.random, st.now || Date.now, st.more, st.stages);
+  const neg: Neg | undefined = st.negation && rng() < NEG_SHARE ? (st.negation === "both" && rng() < 0.5 ? "ab" : "b") : undefined;
+  return makePair(ix, c, rng, st.now || Date.now, st.more, st.stages, neg);
 }

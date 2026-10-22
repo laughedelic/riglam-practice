@@ -17,8 +17,9 @@ import type { Stages } from "./stages";
 /** The relations that can be asked for: the five of the course (three possibilities in both directions, since A is the one inside B in one and B inside A in the other). */
 export const FIND_RELS: readonly RelKey[] = ["mi", "3ab", "3ba", "4", "con"];
 
-// three possibilities is asked for less often per direction, so that it comes up as often as each of the others
-const WEIGHT: Record<RelKey, number> = { mi: 1, con: 1, "3ab": 0.65, "3ba": 0.65, "4": 1 };
+// three possibilities is asked for less often per direction, so that it comes up as often as each of the others; four possibilities without
+// neither, the case of the negation track, is never asked for
+const WEIGHT: Record<RelKey, number> = { mi: 1, con: 1, "3ab": 0.65, "3ba": 0.65, "4": 1, "4n": 0 };
 
 /**
  * The relation to ask for next. `asked` are the relations asked lately, oldest first; the six last ones count less each time they were asked,

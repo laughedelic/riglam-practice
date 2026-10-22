@@ -6,7 +6,7 @@ import type { Facts } from "./facts";
 import { categoryOf, classNames, matchItem, noteCats, pairCats } from "./lookup";
 import type { DataIndex } from "./lookup";
 import { termNamed } from "./mentions";
-import { CELLS, REL, cellLabel, refOf } from "./relations";
+import { CELLS, REL, cellLabel, negSides, plainLabel, refOf } from "./relations";
 import type { CellId, PairLike, RelKey } from "./relations";
 import { CELL_NAME, DEBATE_ASK, DEBATE_NOTE, FIND_ASK, FIND_ASK_OWN, FIND_NOTE, FIND_OWN_NOTE, FIRST_ASK, GUIDE } from "./prompts";
 
@@ -71,8 +71,10 @@ function sideFacts(ix: DataIndex, label: string): Facts {
  * instructions and the fine points itself asks the page for this part only; `tutorCard` is the three put together.
  */
 export function cardBody(ix: DataIndex, p: PairLike, u: AnswerView): string {
-  const [ca,cb]=pairCats(ix,p), cls=classNames(ix);
-  const card=p.own?{A:sideFacts(ix,p.a), B:sideFacts(ix,p.b)}:{A:ca?catFacts(ix,ca,p.a):{label:p.a,type:p.typeA}, B:cb?catFacts(ix,cb,p.b):{label:p.b,type:p.typeB}};
+  const [ca,cb]=pairCats(ix,p), cls=classNames(ix), [na,nb]=negSides(p);
+  // a negated side is its label with the facts of the category it negates
+  const side=(cid: string|null, label: string, type: string|undefined, neg: boolean)=>neg?{label, negation_of:cid?catFacts(ix,cid,plainLabel(label)):{label:plainLabel(label),type}}:cid?catFacts(ix,cid,label):{label,type};
+  const card=p.own?{A:sideFacts(ix,p.a), B:sideFacts(ix,p.b)}:{A:side(ca,p.a,p.typeA,na), B:side(cb,p.b,p.typeB,nb)};
   const refTxt=(c: CellId)=>refOf(p,c)?JSON.stringify(refOf(p,c)):"EMPTY ("+((p.why&&p.why[c])||"no example")+")";
   let mid: string;
   if(u.debate){
@@ -113,7 +115,7 @@ ${lines}`;
         (it?" [in the practice list as: "+it.n+", type "+it.t+"]":"")+
         "; reference "+refTxt(c)+"; page verdict "+r.v;
     }).join("\n");
-    mid=`Correct relation: ${REL[p.relation].name}. Learner chose: ${u.late?"nothing (time ran out; the page then showed the right relation)":REL[u.rel as RelKey].name}.${u.exLate?" Time ran out on the examples: cells the learner had not reached are blank.":""}
+    mid=`${negLine(p)}Correct relation: ${REL[p.relation].name}. Learner chose: ${u.late?"nothing (time ran out; the page then showed the right relation)":REL[u.rel as RelKey].name}.${u.exLate?" Time ran out on the examples: cells the learner had not reached are blank.":""}
 Reference note: ${p.note||"none"}
 Cells (verdict cmp = learner wrote something the page could not classify):
 ${lines}`;
@@ -122,6 +124,14 @@ ${lines}`;
 ${JSON.stringify(card)}
 ${mid}${stageLine(u.stage)}${cls.length?`
 Classes (the booklet's "is a" tree, for "class:"): ${cls.join(", ")}.`:""}`;
+}
+
+/** What the tutor is told of a pair with a negated side (the negation track, src/domain/universe.ts): what the negation takes in, and the sixth relation. */
+export function negLine(p: Pick<PairLike, "a" | "b" | "neg">): string {
+  if (!p.neg) return "";
+  const names = p.neg === "ab" ? `A (${JSON.stringify(p.a)}) and B (${JSON.stringify(p.b)}) are negations` : `B (${JSON.stringify(p.b)}) is a negation`;
+  return `Negation: ${names} of the category in "negation_of". "non-X" takes in everything that is not an X: other existents, permanent phenomena and what does not exist (the horn of a rabbit). The cells and the relation were worked out with that. ${REL["4n"].name} (Perdue 2014; Perdue 1992 calls it three possibilities without there being something which is neither): something is both, something is each alone, nothing is neither.
+`;
 }
 
 /**
