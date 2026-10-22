@@ -66,8 +66,9 @@ function List() {
   return <>
     {perv ? <Row lb="Words"><b>Wording of the questions</b><Words label="Wording of the questions" items={Object.entries(WORDINGS).map(([k, w]) => [k, (w as { name: string }).name] as [string, string])} cur={state.wording} on={setWording} /><More page="wording" /></Row> : null}
     {perv ? <Switch lb="Why?" title="Full phrases" note="spell out Why? answers" on={state.fullPh} toggle={() => setShow("full", !state.fullPh)} /> : null}
-    {tab === "practice" ? <Row lb="Not"><b>Negations</b><Words label="Negations" items={[["off", "Off"], ["one", "One side"], ["both", "Both sides"]]} cur={state.negation} on={setNegation} />
-      <small>Some pairs negate a term: “non-(wooden things)” takes in everything that is not a wooden thing. A negation can give a sixth answer, four possibilities without neither.</small></Row> : null}
+    {tab === "practice" || perv || find ? <Row lb="Not"><b>Negations</b><Words label="Negations" items={[["off", "Off"], ["one", "One side"], ["both", "Both sides"]]} cur={state.negation} on={setNegation} />
+      <small>{find ? "Some relations asked for are then four possibilities without neither, which needs a negation: name one as “non-(wooden things)”."
+        : "Some pairs negate a term: “non-(wooden things)” takes in everything that is not a wooden thing. A negation can give a sixth answer, four possibilities without neither."}</small></Row> : null}
     {find ? <Switch lb="Hints" title="Suggest terms" note="terms of the course while you name a pair" on={state.findSuggest} toggle={() => setFindSuggest(!state.findSuggest)} /> : null}
     <Row lb="Signs"><b>Notation</b><Words label="Notation" items={Object.entries(SYMS).map(([k, v]) => [k, (v as unknown[])[0] as string] as [string, string])} cur={state.nota} on={setNota} /><More page="nota" /></Row>
     {timed ? blitz : null}

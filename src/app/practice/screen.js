@@ -13,9 +13,10 @@ import { isWide } from "../core/viewport.js";
 import { stopTimer } from "../debate/flow.js";
 import { QCELL, singular, termNode } from "../debate/text.js";
 import { check } from "./grading.js";
+import { negOfferNode } from "./negations.ts";
 import { next } from "./queue.js";
 import { subRowNode } from "./skips.js";
-import { defCard, termsNode, withTerms } from "./terms.js";
+import { defCard, newTermsNode, pairCatIds, termsNode, withTerms } from "./terms.js";
 import { answerList } from "./universe.js";
 import { exGrid } from "../review/review.js";
 import { tutorTurns } from "../shell/chat.js";
@@ -269,14 +270,15 @@ export function errLines(s){
 function quizWide(s,c){
   const p=state.cur.p, u=state.ui;
   quizHead(s,true);
+  if(!u.checked){ const nd=newTermsNode(pairCatIds(p)); if(nd) s.append(nd); }      // a newly opened category's definition, with the question (stages 1 to 3)
   s.append(relStrip(choose,u.checked||u.late));
   s.append(relCap());
   if(!state.ui.checked){ const vb=voiceBar(); if(vb) s.append(vb); }
   s.append(el("div",{class:"section"}, el("p",{class:"label"},"Examples",el("span",{class:"hint",text:"∅ = nothing exists. Neither also takes a non-existent."})), exGrid(p,quizCell,true)));
   // the result stays in the middle, under the table; the tutor's conversation is in the panel at the right
-  if(u.checked){ s.append(quizResult()); if(u.saveErr) s.append(el("p",{class:"status",text:u.saveErr})); }
+  if(u.checked){ s.append(quizResult()); const no=negOfferNode(); if(no) s.append(no); if(u.saveErr) s.append(el("p",{class:"status",text:u.saveErr})); }
   s.append(pairBar(u.checked?nextFwd():u.rel?{label:"Check",onclick:()=>check()}:null));       // before a relation is picked the cells are closed and there is nothing to check
-  coachInto(c,answerList().slice(-5).reverse(),a=>a.key,u.checked?[["N","next pair"],["F","favorite"]]:[["1–5","relation"],["Enter","next cell"],["S","skip"],["F","favorite"]]);
+  coachInto(c,answerList().slice(-5).reverse(),a=>a.key,u.checked?[["N","next pair"],["F","favorite"]]:[["1–"+orderOf(p).length,"relation"],["Enter","next cell"],["S","skip"],["F","favorite"]]);
 }
 /**
  * The panel at the right of a wide screen, when it is open: the tutor's conversation once there is one (a checked pair has its follow-up field from the start),
@@ -358,11 +360,12 @@ function quizNarrow(s){
   const p=state.cur.p, stp=state.ui.checked?2:(!state.ui.rel||state.ui.open)?0:1;
   setSteps(["Relation","Examples","Result"],stp,[(state.ui.checked||state.ui.late)?null:()=>{ state.ui.open=true; render(); },(state.ui.checked||!state.ui.rel)?null:()=>{ state.ui.open=false; render(); focusCin(); },null]);
   quizHead(s,false);
-  if(stp===0){ const vb=voiceBar(); s.append(relList(choose,"Relation"),...(vb?[vb]:[]),pairBar(null)); }
+  if(stp===0){ const vb=voiceBar(), nd=newTermsNode(pairCatIds(p)); s.append(...(nd?[nd]:[]),relList(choose,"Relation"),...(vb?[vb]:[]),pairBar(null)); }
   else if(stp===1) cellView(s);
   else {
     // the table is fixed once filled in, the verdict below it changes length with the chip: the table goes first so it never moves
     s.append(el("div",{class:"section"},exGrid(p,quizCell,true)),quizResult());
+    const no=negOfferNode(); if(no) s.append(no);
     if(state.ui.saveErr) s.append(el("p",{class:"status",text:state.ui.saveErr}));
     s.append(pairBar(nextFwd()));
   }

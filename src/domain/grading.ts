@@ -75,7 +75,11 @@ export function grade(ix: DataIndex, p: PairLike, u: PracticeAnswer): GradeResul
   return summarize({ relOk: u.rel === p.relation && !u.late, cells });
 }
 
-/** What three answers of the debate give: Q1 accepted = no common locus; Q2 and Q3 accepted = pervasion each way. Null when time ran out on one of them, "bad" when they contradict each other. */
+/**
+ * What the answers of the debate give: Q1 accepted = no common locus; Q2 and Q3 accepted = pervasion each way. Q4 counts only where the first three
+ * leave four possibilities: accepted, nothing is neither (a pair with a negated side, four possibilities without neither). Null when time ran out on
+ * one of the first three, "bad" when they contradict each other.
+ */
 export function deriveRel(ans: readonly DebateAnswer[]): RelKey | "bad" | null {
   const s = ans.slice(0, 3).map((a) => a.say);
   if (s.some((x) => x !== "accept" && x !== "why")) return null; // time ran out on one of them
@@ -84,7 +88,7 @@ export function deriveRel(ans: readonly DebateAnswer[]): RelKey | "bad" | null {
   if (!x && y && z) return "mi";
   if (!x && y && !z) return "3ab";
   if (!x && !y && z) return "3ba";
-  if (!x && !y && !z) return "4";
+  if (!x && !y && !z) return ans[3]?.say === "accept" ? "4n" : "4";
   return "bad"; // accepting no-common-locus together with a pervasion
 }
 

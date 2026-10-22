@@ -10,6 +10,7 @@ import type { CellId, RelKey } from "../ai-shared/relations";
 import type { PlaceGrade, PlaceQuestion } from "../domain/place";
 import type { Syllogism, Pervasion, Reply, Situation, Wording } from "../domain/syllogism";
 import type { Pair, PoolEntry, Verdict } from "../domain/types";
+import type { NegOutcome } from "../domain/stages";
 import type { Account, Db, Known, Reports, Sample, Tutor } from "../platform/types";
 import type { QuorumRecord } from "../ai/protocol";
 import type { AccountSlot } from "../ui/account";
@@ -237,6 +238,12 @@ export interface Ui extends AnswerView {
   [field: string]: any;
 }
 
+/** A Relations answer as the run towards a negation step counts it (practice/negations.ts): when it was given, whether the relation was right, and whether a side was negated. */
+export interface NegResult extends NegOutcome {
+  pairId: string;
+  at: string;
+}
+
 /** The pair on screen and how it got there. */
 export interface Current {
   p: Pair;
@@ -378,6 +385,10 @@ export interface State {
   findSuggest: boolean;
   /** the negation track of Relations (`rd-negation`): off, B negated in some pairs ("one"), or also A and B ("both") */
   negation: "off" | "one" | "both";
+  /** the Relations answers checked on this page, oldest first: the run towards the offer of a negation step counts them before the database has handed them back (practice/negations.ts) */
+  relSession: NegResult[];
+  /** when the learner last answered the offer of a negation step (a time, `rd-neg-offer`): only answers after it count towards the next offer */
+  negOfferAt: string;
   lastSig: string;
   /** the attempt the last render drew: the tutor's panel closes with a pair that had a conversation */
   lastUi: any;

@@ -6,8 +6,8 @@
 import { categoryOf, spelled, stemmed, stripDet } from "../ai-shared/lookup";
 import type { DataIndex } from "../ai-shared/lookup";
 import { pluralOf } from "../ai-shared/mentions";
-import { CELLS, REL } from "../ai-shared/relations";
-import type { CellId, RelKey } from "../ai-shared/relations";
+import { CELLS, REL, negLabel, plainLabel } from "../ai-shared/relations";
+import type { CellId, Neg, RelKey } from "../ai-shared/relations";
 import { grade, summarize } from "./grading";
 import type { CellResult, GradeResult, Pair, PracticeAnswer } from "./types";
 import { judgeable, pairOf } from "./universe";
@@ -16,38 +16,49 @@ import type { Stages } from "./stages";
 
 /** The relations that can be asked for: the five of the course (three possibilities in both directions, since A is the one inside B in one and B inside A in the other). */
 export const FIND_RELS: readonly RelKey[] = ["mi", "3ab", "3ba", "4", "con"];
+/** The five, and with the negation track on, four possibilities without neither, which only a pair with a negation has (the learner names one, "non-(wooden things)"). */
+export const FIND_ASKS: readonly RelKey[] = [...FIND_RELS, "4n"];
 
 // three possibilities is asked for less often per direction, so that it comes up as often as each of the others; four possibilities without
-// neither, the case of the negation track, is never asked for
-const WEIGHT: Record<RelKey, number> = { mi: 1, con: 1, "3ab": 0.65, "3ba": 0.65, "4": 1, "4n": 0 };
+// neither, the case of the negation track, as often as one direction of three possibilities, and only with the track on
+const WEIGHT: Record<RelKey, number> = { mi: 1, con: 1, "3ab": 0.65, "3ba": 0.65, "4": 1, "4n": 0.65 };
 
 /**
  * The relation to ask for next. `asked` are the relations asked lately, oldest first; the six last ones count less each time they were asked,
- * so the stream stays mixed. `not` is a relation to leave out (the one the learner just turned down).
+ * so the stream stays mixed. `not` is a relation to leave out (the one the learner just turned down). With `neg` (the negation track is on), four
+ * possibilities without neither is asked for too.
  */
-export function drawRelation(asked: readonly (RelKey | null | undefined)[], rng: Rng = Math.random, not?: RelKey | null): RelKey {
+export function drawRelation(asked: readonly (RelKey | null | undefined)[], rng: Rng = Math.random, not?: RelKey | null, neg = false): RelKey {
   const w: Record<RelKey, number> = { ...WEIGHT };
   for (const r of asked.slice(-6)) if (r && Object.hasOwn(w, r)) w[r] = Math.max(0.15, w[r] * 0.45);
-  const keys = FIND_RELS.filter((k) => k !== not);
+  const keys = (neg ? FIND_ASKS : FIND_RELS).filter((k) => k !== not);
   let x = rng() * keys.reduce((s, k) => s + w[k], 0);
   for (const k of keys) { if ((x -= w[k]) <= 0) return k; }
   return keys[keys.length - 1];
 }
 
-/** A phenomenon the learner named: the words as the page shows them, and the practice category they are, when they are one. */
+/** A phenomenon the learner named: the words as the page shows them, and the practice category they are, when they are one; `neg` when they name its negation. */
 export interface Named {
   label: string;
   cat: string | null;
+  neg?: boolean;
 }
+
+// the words of a negation and what they negate: "non-(wooden things)", "non-wooden things", "non wooden things"
+const NEG_WORDS = /^non[-\s]+\(?(.+?)\)?$/i;
 
 /**
  * What the learner's words name. Words that are a label of a practice category (singular or plural, with or without an article) or its Dudra
- * term become that category, shown under the label they matched; anything else is kept as typed.
+ * term become that category, shown under the label they matched; "non-" and such words, its negation, shown as the course book writes it
+ * ("non-(wooden things)"), unless the words with "non-" are a label of a category themselves; anything else is kept as typed.
  */
 export function nameThing(ix: DataIndex, text: string): Named {
   const typed = String(text || "").trim().replace(/\s+/g, " ").replace(/[.,;:!?]+$/, "").trim();
   const cat = categoryOf(ix, typed);
-  if (!cat) return { label: typed, cat: null };
+  if (!cat) {
+    const m = NEG_WORDS.exec(typed), of = m ? nameThing(ix, m[1]) : null;
+    return of && of.cat && !of.neg ? { label: negLabel(of.label), cat: of.cat, neg: true } : { label: typed, cat: null };
+  }
   const k = stripDet(spelled(typed)), want = new Set([k, pluralOf(k), k.replace(/ies$/, "y"), k.replace(/(?:es|s)$/, "")]);
   const labels = ix.CAT[cat].labels;
   return { label: labels.find((l) => want.has(spelled(l))) ?? labels.find((l) => stemmed(spelled(l)) === stemmed(k)) ?? labels[0], cat };
@@ -62,18 +73,20 @@ export const findId = (rng: Rng = Math.random, now: Clock = Date.now): string =>
 /**
  * The pair the learner named, for the relation asked for. A pair of practice categories the data can judge is made as the draw makes its pairs
  * (the relation it really has, an example for each cell that has one, of the stages `on` where the cell has one, the reason for each that has none),
- * under the learner's labels. Any other pair is the learner's own: it carries the relation asked for only as a placeholder (`own`), and nothing else is known about it.
+ * under the learner's labels, with the sides they negated negated. Any other pair is the learner's own: it carries the relation asked for only as a
+ * placeholder (`own`), and nothing else is known about it (a negated side keeps its words and has no category, as the category is not what it names).
  */
 export function findPair(ix: DataIndex, asked: RelKey, a: Named, b: Named, rng: Rng = Math.random, now: Clock = Date.now, more?: Witnesses, on?: Stages): Pair {
   if (sameThing(a, b)) throw new RangeError("a pair needs two different phenomena");
   if (a.cat && b.cat && (a.cat === b.cat || judgeable(ix, a.cat, b.cat))) {
-    const p = pairOf(ix, a.cat, b.cat, a.label, b.label, rng, now, more, on);
+    const neg: Neg | undefined = a.neg && b.neg ? "ab" : a.neg ? "a" : b.neg ? "b" : undefined;
+    const p = pairOf(ix, a.cat, b.cat, a.neg ? plainLabel(a.label) : a.label, b.neg ? plainLabel(b.label) : b.label, rng, now, more, on, neg);
     p.id = "f-" + p.id.slice(2);
     delete p.generated;
     return p;
   }
   return {
-    id: findId(rng, now), a: a.label, b: b.label, catA: a.cat, catB: b.cat,
+    id: findId(rng, now), a: a.label, b: b.label, catA: a.neg ? null : a.cat, catB: b.neg ? null : b.cat,
     typeA: "", typeB: "", relation: asked, ex: {}, why: {}, own: true,
   };
 }

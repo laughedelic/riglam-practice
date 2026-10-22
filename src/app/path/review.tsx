@@ -22,7 +22,6 @@ import { SAID, SAY, sylExample, sylLine, syllogismStats } from "../review/syllog
 import { exName } from "../shell/exercises.js";
 import { setTab } from "../shell/tabs.js";
 import { flagStateText, flaggedPart } from "../../domain/flags.ts";
-import { FIND_RELS } from "../../domain/find.ts";
 import { syllogismText } from "../../domain/syllogism.ts";
 import type { CellId, RelKey } from "../../ai-shared/relations.ts";
 import type { AnswerDoc, FavDoc, FlagDoc, SkipDoc } from "../types.ts";
@@ -107,7 +106,7 @@ function Overview() {
       {d.med != null ? <Stat name="Median time to answer, blitz" text={(d.med / 1000).toFixed(1) + " s"} /> : null}
       {d.timedN ? <Stat name="Ran out of time (counted as accepted)" text={d.outN + " / " + d.timedN} /> : null}</Sx>);
   if (f) out.push(<Group h="Find a pair" sub={f.all.length + " pairs, the pair right " + pct(f.right, f.judged.length) + "%"} />,
-    <Sx cls="walked">{FIND_RELS.map((r: RelKey, i: number) => <Stat fig={r} name={REL[r].name} k={f.rows[i][2] as number} n={f.rows[i][1] as number} />)}
+    <Sx cls="walked">{(f.rows as [RelKey, number, number][]).map(([r, n, k]) => <Stat fig={r} name={REL[r].name} k={k} n={n} />)}
       {f.own ? <Stat name="Pairs of your own words, judged by the tutor" text={String(f.own)} /> : null}</Sx>,
     <Trail>{f.all.slice().reverse().slice(0, 10).map((a: any) => { const e = entryOf(a, false); return <TrailRow e={e} when={dayOf(a.at)} />; })}</Trail>);
   if (y) out.push(<Group h="Syllogisms" sub={y.all.length + (y.all.length === 1 ? " syllogism" : " syllogisms") + ", the reply right " + pct(y.right, y.all.length) + "%"} />,

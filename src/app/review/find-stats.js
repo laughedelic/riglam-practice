@@ -4,7 +4,7 @@ import { REL, lcRel } from "../core/rel.js";
 import { dayOf, gradeOf, isFind } from "../core/util.js";
 import { exerciseNode, practiceAgain } from "./exercise.js";
 import { barNode, pct } from "./review.js";
-import { FIND_RELS } from "../../domain/find.ts";
+import { FIND_ASKS } from "../../domain/find.ts";
 
 /* ---------- Find a pair: statistics and the last answers in the Review tab ---------- */
 // The answers of Find a pair are kept with the Relations answers (collection "answers", mode "find") and left out of the Relations statistics; they are counted here.
@@ -16,7 +16,7 @@ export function findStats(){
   const all=Object.values(state.answers).filter(isFind).sort((x,y)=>(x.at||"").localeCompare(y.at||""));
   if(!all.length) return null;
   const judged=all.filter(a=>!a.relOpen), right=judged.filter(a=>a.correct).length, own=all.filter(a=>a.pair&&a.pair.own).length;
-  const rows=FIND_RELS.map(r=>{ const xs=judged.filter(a=>a.chosen===r); return [r,xs.length,xs.filter(a=>a.correct).length]; });
+  const rows=FIND_ASKS.filter(r=>r!=="4n"||all.some(a=>a.chosen===r)).map(r=>{ const xs=judged.filter(a=>a.chosen===r); return [r,xs.length,xs.filter(a=>a.correct).length]; });     // the sixth once it was asked for
   return {all,judged,right,own,rows};
 }
 // what a Find a pair answer says under its pair: the relation asked for, and whether the pair has it

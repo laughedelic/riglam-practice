@@ -4,9 +4,10 @@ import type { JSX } from "preact";
 import { state } from "../state.js";
 import type { DataIndex } from "../../ai-shared/lookup.ts";
 import { termMentions } from "../../ai-shared/mentions.ts";
-import { defCard, hasDef } from "../practice/terms.js";
+import { defCard, hasDef, newTerms, plainDefCard } from "../practice/terms.js";
 import { render } from "../shell/render.js";
-import { Bridge } from "./ui.tsx";
+import { topStage } from "../../domain/stages.ts";
+import { Bridge, Sx } from "./ui.tsx";
 
 const markOf = (id: string) => document.querySelector<HTMLElement>('#path .dterm[data-dt="' + CSS.escape(id) + '"]');
 function TermMark({ txt, term, id }: { txt: string; term: string; id: string }) {
@@ -46,4 +47,13 @@ export function DefCard({ where }: { where: string }) {
   const d = state.ui && state.ui.dterm;
   if (!d || !d.id.startsWith(where + "/")) return null;
   return <Bridge fill={() => defCard(where)} />;
+}
+/**
+ * A newly opened category's definition with the question, until the stages go past 3 (practice/terms.js, newTerms): `cats` the ids of the
+ * question's categories, a pair's two or the ones Categories asks about. The classic card for now.
+ */
+export function NewTerms({ cats }: { cats: (string | null | undefined)[] }) {
+  const terms = newTerms(cats) as string[]; if (!terms.length) return null;
+  return <Sx cls="cur newdefs"><p class="pgh"><b>New at stage {topStage(state.stages)}</b><span>what {terms.length > 1 ? "these terms mean" : "this term means"}</span></p>
+    <div class="wtext"><Bridge fill={() => terms.map(plainDefCard)} /></div></Sx>;
 }

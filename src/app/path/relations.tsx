@@ -6,7 +6,9 @@ import { state } from "../state.js";
 import { canAsk } from "../core/ask.js";
 import { CELLS, REL, notaOf, orderOf } from "../core/rel.js";
 import { check } from "../practice/grading.js";
+import { NEG_NOTE, acceptNegOffer, declineNegOffer, negOfferText, type NegOffer as Offer } from "../practice/negations.ts";
 import { next } from "../practice/queue.js";
+import { pairCatIds } from "../practice/terms.js";
 import { choose, explainParts, learnedThing, nextFwd } from "../practice/screen.js";
 import { skipPair } from "../practice/skips.js";
 import { render } from "../shell/render.js";
@@ -17,7 +19,7 @@ import { CASE, Choices, ErrLines, PairResult, PairStops, TermsRow, Thinking, Ver
 import { FlagBtn, FlagEditor, explainCase } from "./flags.tsx";
 import { Scroll } from "./scroll.tsx";
 import { Foot, PreStation, SideStation, Station, TopBar, VoiceBar } from "./shell.tsx";
-import { DefCard, TermText } from "./terms.tsx";
+import { DefCard, NewTerms, TermText } from "./terms.tsx";
 import { D, Fig, Gap, Head, Mark, St, Sx } from "./ui.tsx";
 
 /** the relation picked (the steps after the first have one) */
@@ -39,6 +41,7 @@ function PickStep({ kb }: { kb: boolean }) {
     <Scroll>
       {retry ? <p class="retry">{(state.cur!.tag || "Retry") + (state.retryQ.length ? " · " + state.retryQ.length + " more" : "")}</p> : null}
       <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Relation" sub="how do A and B relate?" /><Gap h={4} /><PairStops p={p} /><Gap h={8} /></Sx>
+      <NewTerms cats={pairCatIds(p)} />
       <Choices label="Relation" items={relChoices(p, u.rel || null)} picked={u.pk} onPick={pick} />
       <Sx cls="ptail" />
     </Scroll>
@@ -85,6 +88,18 @@ export function Row({ c, rel }: { c: CellId; rel: RelKey }) {
 export const resultRows = (rel: RelKey) => CELLS.filter((c) => !REL[rel].empty.includes(c) || u0().res.cells[c].v === "bad") as CellId[];
 export const isOpen = (c: CellId) => { const v = u0().res.cells[c].v; return v === "cmp" || v === "open"; };
 export const cases = (n: number) => (n === 1 ? "one case" : n + " cases");
+/** The offer of the next step of the negation track, once the pairs before it go well, or the line that says what the answer to it did. */
+function NegOffer() {
+  const o = u0().negOffer as Offer | null | undefined; if (!o) return null;
+  if (o.kind === "done") return <Sx cls="walked"><p class="pnoteline pfnote" role="status">{o.text}</p></Sx>;
+  const t = negOfferText(o.kind);
+  return <Sx cls="walked"><St d={<D cls="sub now" />} cls="offer"><div role="group" aria-label="Negations">
+    <p class="oq">{t.q}</p>
+    <p class="xnote">{t.ex}</p>
+    <span class="pbtns"><button type="button" class="pbtn" onClick={acceptNegOffer}>{t.yes}</button><button type="button" class="pbtn quiet" onClick={declineNegOffer}>Not now</button></span>
+    <p class="xnote">{NEG_NOTE}</p>
+  </div></St></Sx>;
+}
 function ResultStep() {
   const u = u0(), p = pairOf(), r = u.res, rel = relOf();
   const rows = resultRows(rel), unc = rows.filter(isOpen).length, nbad = rows.filter((c) => r.cells[c].v === "bad").length, nex = rows.filter((c) => !REL[rel].empty.includes(c)).length;
@@ -99,6 +114,7 @@ function ResultStep() {
       <Sx cls={nbad ? "nop" : "okp"}><Gap h={2} />{rows.map((c) => <Row c={c} rel={rel} />)}</Sx>
       <WhyRow unc={unc} again={!!r.relOpen} />
       <TermsRow p={p} />
+      <NegOffer />
       <ErrLines />
       <Sx cls="ptail" />
     </Scroll>
@@ -111,6 +127,6 @@ export function relationsScreen(kb: boolean): { cls: string; node: ComponentChil
   const u = u0(), step = u.checked ? 3 : !u.rel || u.open ? 1 : 2;
   const top = <TopBar title="Relations" tools mic tutor={tutorOnResult()} tutorDot={tutorWaiting()} />;
   if (step === 1) return { cls: "", node: <>{top}<PickStep kb={kb} /></> };
-  if (step === 2) return { cls: examplesReady() ? "ready" : "", node: <>{top}<ExamplesStep kb={kb} title="Relations" step={2} rel={relOf()} full={<Picked />} check={check} /></> };
+  if (step === 2) return { cls: examplesReady() ? "ready" : "", node: <>{top}<ExamplesStep kb={kb} title="Relations" step={2} rel={relOf()} full={<><Picked /><NewTerms cats={pairCatIds(pairOf())} /></>} check={check} /></> };
   return { cls: "done", node: <>{top}<ResultStep /></> };
 }

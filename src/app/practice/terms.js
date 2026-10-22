@@ -7,6 +7,7 @@ import { cap } from "../core/util.js";
 import { isA } from "./screen.js";
 import { catByLabel } from "./universe.js";
 import { exampleStage, examplesFor } from "../../domain/reference.ts";
+import { newCategories, topStage } from "../../domain/stages.ts";
 import { render } from "../shell/render.js";
 
 // Where a category sits: the Dudra term with its higher categories, or, for an everyday category, the Dudra term it falls under.
@@ -171,6 +172,20 @@ function cardNode(n,id,trail,live=true){
         en.body?el("p",{lang:"en",text:endp(cap(en.body))}):null,
         ruOn&&ru.body?el("p",{class:"ru",lang:"ru",text:endp(cap(ru.body))}):null),
       live?examplesNode(n):null)));
+}
+/** Of these categories (ids: a pair's two, or the ones Categories asks about), the terms of those that opened at the highest stage that is on, at stages 1 to 3, whose definition this device can read (domain/stages.ts, newCategories). */
+export function newTerms(cats){
+  if(!state.DATA) return [];
+  return newCategories(state,cats,state.stages).map(c=>state.CAT[c].term).filter(t=>hasDef(state.DATA.terms[t]));
+}
+/** The categories of a pair, as newTerms takes them: also a pair of two labels of one category ("colors" and "hues"), which pairCats leaves out. */
+export const pairCatIds=p=>[p.catA||catByLabel(p.a),p.catB||catByLabel(p.b)];
+/** The definition card of a term on its own, without its examples: what the question shows of a newly opened category. */
+export const plainDefCard=n=>cardNode(n,null,[],false);
+/** The classic page's definitions with the question: a newly opened category's, until the stages go past 3, when the definitions are a tap away. */
+export function newTermsNode(cats){
+  const terms=newTerms(cats); if(!terms.length) return null;
+  return el("div",{class:"section newdefs"},el("p",{class:"label"},"New at stage "+topStage(state.stages),el("span",{class:"hint",text:"what "+(terms.length>1?"these terms mean":"this term means")})),terms.map(plainDefCard));
 }
 // Pointing at a term with a mouse shows its card while the pointer stays, over the note; it is not kept in the state, so a render drops it.
 function peek(mark,term){

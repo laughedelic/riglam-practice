@@ -19,7 +19,7 @@ export function freshDebateUi(){
     pickWhy:false, exText:"", open:true, tq:null, tid:null, qStart:0, col:"debates"});
 }
 export const debateList=()=>Object.values(state.debates).sort((x,y)=>(x.at||"").localeCompare(y.at||""));
-export function advanceDebate(){ state.cur={p:nextGenerated(debateList()), debate:true}; state.ui=freshDebateUi(); state.mode="quiz"; startQ(); }
+export function advanceDebate(){ state.cur={p:nextGenerated(debateList(),true), debate:true}; state.ui=freshDebateUi(); state.mode="quiz"; startQ(); }     // the negation track (Practice options) applies here as in Relations
 export const limitMs=()=>state.blitz?state.timerMs:0;
 /** The clock stands still while something covers the exercise: Settings, the practice options, the question before a skip, the menu on a phone. It starts again, with its full time, when that closes. */
 export const paused=()=>state.optsOpen||state.sessOpen||state.skipAsk||(state.menuOpen&&!isWide());

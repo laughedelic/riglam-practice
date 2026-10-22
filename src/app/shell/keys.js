@@ -1,5 +1,5 @@
 import { state } from "../state.js";
-import { ORDER, orderOf } from "../core/rel.js";
+import { orderOf } from "../core/rel.js";
 import { isWide } from "../core/viewport.js";
 import { checkCategories, continueCategories, pickCategory, sayCategory, tickCategory, tickNone } from "../categories/flow.js";
 import { backSyllogism, replyOfKey, saySyllogism } from "../syllogism/flow.js";
@@ -63,7 +63,7 @@ document.addEventListener("keydown",e=>{
       if(state.ui.pickWhy) return;
       if(k==="a"||k==="y"){ e.preventDefault(); sayQ("accept"); } else if(k==="w"||k==="n"||k==="?"){ e.preventDefault(); sayQ("why"); } else if(k==="s"&&!e.shiftKey){ e.preventDefault(); skipPair(); }
     } else if(!state.ui.checked){
-      if(/^[1-5]$/.test(k)&&(isWide()||state.ui.open)){ e.preventDefault(); chooseD(ORDER[+k-1]); }
+      if(/^[1-6]$/.test(k)&&+k<=orderOf(state.cur.p).length&&(isWide()||state.ui.open)){ e.preventDefault(); chooseD(orderOf(state.cur.p)[+k-1]); }
       else if(k==="enter"&&state.ui.rel&&!state.ui.open&&t!=="BUTTON"){ e.preventDefault(); checkDebate(); }
       else if(k==="s"&&!e.shiftKey){ e.preventDefault(); skipPair(); }
     } else if(k==="n"&&!e.shiftKey){ e.preventDefault(); next(); }

@@ -162,8 +162,9 @@ function listBody(){
   const tutor=canAsk(), quorum=state.quorumOffered&&state.db;
   // what only this exercise has comes first, under its name; what every exercise has follows
   const own=[
-    state.tab==="practice"?row("Negations",chips("Negations",[["off","Off"],["one","One side"],["both","Both sides"]],state.negation,setNegation),
-      "Some pairs negate a term: “furniture” and “non-(wooden things)”, which takes in everything that is not a wooden thing. One side: B is negated in about a third of the pairs. Both sides: half of those negate A and B. A negation can give a sixth answer, four possibilities without neither: something is both, something is each alone, and nothing is neither."):null,
+    state.tab==="practice"||perv||find?row("Negations",chips("Negations",[["off","Off"],["one","One side"],["both","Both sides"]],state.negation,setNegation),
+      find?"Some relations asked for are then the sixth, four possibilities without neither: something is both, something is each alone, and nothing is neither. Only a pair with a negation has it; name one as “non-(wooden things)”, which takes in everything that is not a wooden thing. A negation can be named with negations off too."
+      :"Some pairs negate a term: “furniture” and “non-(wooden things)”, which takes in everything that is not a wooden thing. One side: B is negated in about a third of the pairs. Both sides: half of those negate A and B. A negation can give a sixth answer, four possibilities without neither: something is both, something is each alone, and nothing is neither. Relations and Pervasions share this choice; in Find a pair it asks for the sixth answer too."):null,
     perv?card("Wording of the questions",chips("Wording of the questions",Object.entries(WORDINGS).map(([k,w])=>[k,w.name]),state.wording,setWording),"wording"):null,
     perv?sw("Full phrases","spell out Why? answers",state.fullPh,()=>setShow("full",!state.fullPh)):null,
     find?sw("Suggest terms",state.findSuggest?"on":"off",state.findSuggest,()=>setFindSuggest(!state.findSuggest),

@@ -4,17 +4,17 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { expect, test } from "vitest";
-import { CELLS, REL, cardBody, explainAsk, makeIndex, negLabel, negLine, plainLabel, readReviewAnswer, refOf, reviewRequest } from "../../src/ai-shared";
+import { CELLS, NEG_CELL, REL, cardBody, explainAsk, isNeg, makeIndex, negLabel, negLine, negSides, plainLabel, readReviewAnswer, refOf, reviewRequest } from "../../src/ai-shared";
 import type { CellId, DrillData, RelKey } from "../../src/ai-shared";
 import {
   FEATURE, RECENT_MAX, AUTO_FLAGS, applyVerdicts, autoFlagOf, decideFlag, factNote, fitOf, flagAnswerRef, flagAsked, flagStateText, flaggedPart, noteParts, buildPool, cellsFor, chooseEntry, deriveRel, grade, gradeDebate, gradeOf, inUniverse, isMiss, judgeText, makePair,
   negateCells, nextPair, pairKey, parseFactLine, parseVerdicts, pick, relOfCells, summarize, termLine, cellFor, cellOfFacts, disputeText, divided, quorumDisputes, quorumRows, readings,
-  FIND_RELS, applyRelationVerdict, drawRelation, findId, findPair, gradeFind, judgeable, nameThing, pairOf, parseRelationVerdict, sameThing,
+  FIND_ASKS, FIND_RELS, applyRelationVerdict, drawRelation, findId, findPair, gradeFind, judgeable, nameThing, pairOf, parseRelationVerdict, sameThing,
 } from "../../src/domain";
 import type { DebateInput, GradeDraft, HistoryEntry, Pair, PoolEntry } from "../../src/domain";
 import openData from "../../src/data/drill-data.json";
 import { drawable, examplesFor, placeByClass } from "../../src/domain";
-import { DEFAULT_STAGES, HOLD_STAGE, MAX_STAGE, STAGES, catOpen, drawSyllogism, heldBack, itemKnown, itemOn, itemStageFor, levelAt, normStages, pairStage, physical, poolAt, stagesOfLevels, toggleStage, topStage } from "../../src/domain";
+import { DEFAULT_STAGES, DEFINITION_STAGE, HOLD_STAGE, MAX_STAGE, NEG_STREAK, STAGES, catOpen, drawSyllogism, heldBack, itemKnown, itemOn, itemStageFor, levelAt, negationOffer, newCategories, normStages, pairStage, physical, poolAt, stagesOfLevels, toggleStage, topStage } from "../../src/domain";
 import { drawPlace, itemRows, placeThings } from "../../src/domain/place";
 import { normLevels, upTo } from "../../src/ai-shared";
 import { FACTS_EPOCH, factKey, learn, opinionOf, ruleSide, servable } from "../../src/domain";
@@ -364,7 +364,7 @@ test("the debate: an unknown example stays open, a wrong one says where it belon
   expect([r.exOpen, r.overall]).toEqual([1, "part"]);
 });
 
-test("what three answers imply", () => {
+test("what the answers of the debate imply", () => {
   const A = { say: "accept" as const }, W = { say: "why" as const }, N = { say: null };
   expect(deriveRel([A, W, W, W])).toBe("con");
   expect(deriveRel([W, A, A, W])).toBe("mi");
@@ -374,7 +374,9 @@ test("what three answers imply", () => {
   expect(deriveRel([A, A, W, W])).toBe("bad"); // no common locus together with a pervasion
   expect(deriveRel([A, A, A, W])).toBe("bad");
   expect(deriveRel([A, W, N, W])).toBeNull();
-  expect(deriveRel([W, W, W, N])).toBe("4"); // the fourth answer does not enter
+  expect(deriveRel([W, W, W, N])).toBe("4"); // time ran out on the fourth: it does not enter
+  expect(deriveRel([W, W, W, A]), "nothing is neither: a pair with a negated side").toBe("4n");
+  expect(deriveRel([A, W, W, A]), "the fourth enters only after four possibilities").toBe("con");
 });
 
 test("summarize counts the cells and chooses the overall grade, changing the object it is given", () => {
@@ -568,6 +570,35 @@ test("the stages that are on: a stored value, switching one, the highest, and th
   // the levels themselves stay for the reference examples' own field and the tutor's lookup
   expect(normLevels("3, 1,1,9,x")).toEqual([1, 3]);
   expect(upTo(3)).toEqual([1, 2, 3]);
+});
+
+test("the real data: a newly opened category's definition shows with the question up to stage 3, and only for a Dudra term", () => {
+  const everyday = real.cats.find((c) => c.kind === "everyday")!.id;
+  expect(DEFINITION_STAGE).toBe(3);
+  expect(newCategories(rix, ["form", everyday], [1]), "Form opens at stage 1; an everyday category has no definition").toEqual(["form"]);
+  expect(newCategories(rix, ["form", "col"], [1, 2]), "only the one that opens at the highest stage on").toEqual(["col"]);
+  expect(newCategories(rix, ["col", "shape"], [2])).toEqual(["col", "shape"]);
+  expect(newCategories(rix, ["col", "col"], [2]), "once each").toEqual(["col"]);
+  expect(newCategories(rix, ["snd", "form"], [1, 3])).toEqual(["snd"]);
+  expect(newCategories(rix, ["ft", "form"], [1, 2, 3, 4]), "from the established bases on, a tap away").toEqual([]);
+  expect(newCategories(rix, ["form", null], [1])).toEqual(["form"]);
+  expect(newCategories(rix, ["nope", "form"], [2]), "an unknown id, and Form is not new at stage 2").toEqual([]);
+  expect(newCategories(rix, ["form", "col", "shape", "extf", everyday], [1, 2]), "the categories Categories asks about").toEqual(["col", "shape", "extf"]);
+});
+
+test("the negation track is offered step by step: one side after plain pairs in a row, both sides after negated ones", () => {
+  const run = (n: number, ok: boolean, neg = false) => Array.from({ length: n }, () => ({ ok, neg }));
+  expect(NEG_STREAK).toBe(5);
+  expect(negationOffer(run(4, true), "off")).toBeNull();
+  expect(negationOffer(run(5, true), "off")).toBe("one");
+  expect(negationOffer([...run(5, true), ...run(1, false)], "off"), "a miss ends the run").toBeNull();
+  expect(negationOffer([...run(1, false), ...run(5, true)], "off"), "an earlier miss does not count").toBe("one");
+  expect(negationOffer([...run(3, true), ...run(2, false, true), ...run(2, true)], "off"), "a negated pair neither extends nor breaks the plain run").toBe("one");
+  expect(negationOffer(run(9, true), "one"), "on one side, only negated pairs count").toBeNull();
+  expect(negationOffer([...run(4, true, true), ...run(3, false), ...run(1, true, true)], "one")).toBe("both");
+  expect(negationOffer([...run(4, true, true), ...run(1, false, true)], "one")).toBeNull();
+  expect(negationOffer(run(20, true, true), "both"), "nothing after both sides").toBeNull();
+  expect(negationOffer(run(3, true), "off", 3)).toBe("one");
 });
 
 test("the real data: a category opens at its stage and stays open; a person or what does not exist meets the physical categories from stage 4", () => {
@@ -963,6 +994,43 @@ test("the relation to ask for is one of the five, never the one turned down, and
   expect(count([], "mi").mi).toBe(0);
   expect(count([null, undefined, "x" as RelKey]).mi).toBeGreaterThan(0); // answers of other modes and old ones carry no relation, or an unknown one
   expect(drawRelation([], () => 0.999999999)).toBe("con"); // the last of the list is where a random source at the top ends up
+});
+
+test("with the negation track on, four possibilities without neither is asked for too; never with it off", () => {
+  const rng = seeded(12), n: Record<string, number> = Object.fromEntries(FIND_ASKS.map((k) => [k, 0])), off: Record<string, number> = { ...n };
+  for (let i = 0; i < 800; i++) { n[drawRelation([], rng, null, true)]++; off[drawRelation([], rng)]++; }
+  expect(n["4n"]).toBeGreaterThan(50);
+  expect(off["4n"]).toBe(0);
+  expect(drawRelation([], () => 0.999999999, null, true)).toBe("4n");
+  for (let i = 0; i < 200; i++) expect(drawRelation([], rng, "4n", true), "turned down").not.toBe("4n");
+});
+
+test("the learner can name a negation, and the pair is made with that side negated", () => {
+  const at = () => 1_700_000_000_000;
+  for (const w of ["non-(wooden things)", "non-wooden things", "Non wooden thing.", "non-(a wooden thing)"]) expect(named(w), w).toEqual({ label: "non-(wooden things)", cat: "wooden", neg: true });
+  expect(named("non-forms")).toEqual({ label: "non-forms", cat: "form", neg: true });
+  expect(named("non-apples")).toEqual({ label: "non-apples", cat: null });
+  expect(named("non-(non-forms)"), "a negation of a negation stays as typed").toEqual({ label: "non-(non-forms)", cat: null });
+  // all wooden things are forms: with B negated, nothing is neither (what is not a form is not wooden either), so four possibilities without neither
+  const b = findPair(ix, "4n", named("forms"), named("non-wooden things"), seeded(4), at);
+  expect(b).toMatchObject({ a: "forms", b: "non-(wooden things)", catA: "form", catB: "wooden", neg: "b", relation: "4n" });
+  expect(refOf(b, "nei")).toBeNull();
+  // the same with A negated: the pair of the learner's order, not B's
+  const a = findPair(ix, "4n", named("non-wooden things"), named("forms"), seeded(4), at);
+  expect(a).toMatchObject({ a: "non-(wooden things)", b: "forms", catA: "wooden", catB: "form", neg: "a", relation: "4n" });
+  // a thing and its own negation have no common locus, and nothing is neither
+  expect(findPair(ix, "con", named("wooden things"), named("non-wooden things"), seeded(4), at)).toMatchObject({ neg: "b", relation: "con" });
+  expect(findPair(ix, "mi", named("non-forms"), named("non-bodies"), seeded(4), at)).toMatchObject({ neg: "ab", relation: "mi" });
+  // a negation beside the learner's own words: the pair is the learner's own, and the negated side has no category (it is not the category it names)
+  expect(findPair(ix, "4", named("non-wooden things"), named("red apples"), seeded(4), at)).toMatchObject({ own: true, a: "non-(wooden things)", catA: null, b: "red apples" });
+});
+
+test("a negation of A alone moves the cells as A's own map, which is its own inverse; with B's it makes both sides", () => {
+  for (const neg of ["a", "b", "ab"] as const) for (const c of CELLS) expect(NEG_CELL[neg][NEG_CELL[neg][c]], neg + " " + c).toBe(c);
+  for (const c of CELLS) expect(NEG_CELL.a[NEG_CELL.b[c]]).toBe(NEG_CELL.ab[c]);
+  expect([negSides({ neg: "a" }), negSides({ neg: "b" }), negSides({ neg: "ab" }), negSides({})]).toEqual([[true, false], [false, true], [true, true], [false, false]]);
+  expect([isNeg("a"), isNeg("b"), isNeg("ab"), isNeg("x"), isNeg(undefined)]).toEqual([true, true, true, false, false]);
+  expect(negLine({ a: "non-forms", b: "sounds", neg: "a" })).toContain('Negation: A ("non-forms") is a negation');
 });
 
 test("every attempt at a pair of this mode has an id of its own, in the form of the pair ids", () => {
@@ -1586,7 +1654,7 @@ test("the tutor's facts on a negated side are read in reverse, and the tutor is 
 test("the negation track: about a third of the pairs negated, both sides only when asked, and none when off", () => {
   const count = (negation?: "one" | "both") => {
     const st = { hist: [] as HistoryEntry[], recent: [] as string[], rng: seeded(7), now: () => 0, stages: [1, 2, 3, 4, 5, 6], ...(negation ? { negation } : {}) };
-    const n = { none: 0, b: 0, ab: 0 };
+    const n: Record<string, number> = { none: 0, b: 0, ab: 0 };
     for (let i = 0; i < 300; i++) {
       const p = nextPair(rix, realPool, st);
       n[p.neg ?? "none"]++;

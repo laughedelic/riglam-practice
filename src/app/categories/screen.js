@@ -3,7 +3,7 @@ import { el } from "../core/dom.js";
 import { isWide } from "../core/viewport.js";
 import { next } from "../practice/queue.js";
 import { kbHints } from "../practice/screen.js";
-import { CONFIRMATION } from "../practice/terms.js";
+import { CONFIRMATION, newTermsNode } from "../practice/terms.js";
 import { pairBar } from "../shell/pbar.js";
 import { toggleOpts } from "../shell/options.js";
 import { ago } from "../shell/render.js";
@@ -147,7 +147,8 @@ export function renderCategories(s,c){
   const card=el("div",{class:"qcard catcard"});
   let fwd=null;
   if(u.step===0){
-    card.append(stepLabel(u.ask==="one"?"Step 1 of 2 · "+(u.i+1)+" of "+q.rows.length:"Step 1 of 2"),thingCard(q),...(u.ask==="one"?oneByOne(q):ticks(q)));
+    const nd=newTermsNode(u.ask==="one"?[q.rows[u.i]&&q.rows[u.i].cat]:q.rows.map(r=>r.cat));     // a newly opened category's definition, with the question (stages 1 to 3)
+    card.append(stepLabel(u.ask==="one"?"Step 1 of 2 · "+(u.i+1)+" of "+q.rows.length:"Step 1 of 2"),thingCard(q),...(nd?[nd]:[]),...(u.ask==="one"?oneByOne(q):ticks(q)));
     if(u.ask==="all") fwd={label:"Check",hint:"Enter",disabled:!u.ticked.length&&!u.none,onclick:checkCategories};
   } else if(u.step===1){
     const g=u.g1;

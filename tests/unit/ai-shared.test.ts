@@ -307,7 +307,7 @@ test("the debate card lists the four questions and what the learner's answers im
   const card = tutorCard(ix, pair({ relation: "4" }), debate());
   expect(card).toContain("This is the four-questions debate mode.");
   expect(card).toContain('A = "forms", B = "minds".');
-  expect(card).toContain("Correct relation: Four possibilities. The learner's Q1 to Q3 answers give: Three possibilities, A in B. Learner chose: Mutually exclusive.");
+  expect(card).toContain("Correct relation: Four possibilities. The learner's answers give: Three possibilities, A in B. Learner chose: Mutually exclusive.");
   expect(card).toContain(`- Q1 (${qPlain(0)}) counter-example cell: both; learner said ACCEPT; reference EMPTY (Nothing is both.); page verdict ok`);
   expect(card).toContain('learner said WHY with the example "a wooden chair" [in the practice list as: a wooden chair, type Form]');
   expect(card).toContain("learner said WHY without an example");
