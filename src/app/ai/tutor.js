@@ -9,6 +9,7 @@ import { persist } from "../practice/answers.js";
 import { factNode, fillTurn, noteData, revealTutor } from "../practice/screen.js";
 import { render, renderKeepFocus } from "../shell/render.js";
 import { cardBody, explainAsk, tutorCard } from "../../ai-shared/card.ts";
+import { topStage } from "../../domain/stages.ts";
 import { noteCats } from "../../ai-shared/lookup.ts";
 import { tutorTools } from "../../ai-shared/tools.ts";
 import { askSyllogism } from "../syllogism/tutor.js";
@@ -79,7 +80,7 @@ export async function ask(text,kind,byItself){
   }
   const share=examples.length>0&&state.learns&&state.shareTold;
   // The server holds the standing instructions and the notes itself, so what it gets as the first turn is the card alone.
-  if(!U.chat) U.chat=[{role:"user",content:(direct?tutorCard(state,p,U):cardBody(state,p,U))+"\n\n"+body, hidden:true, asked:kind?undefined:text}];   // `asked`: the question alone, for a flag on its answer
+  if(!U.chat){ U.stage=topStage(state.stages); U.chat=[{role:"user",content:(direct?tutorCard(state,p,U):cardBody(state,p,U))+"\n\n"+body, hidden:true, asked:kind?undefined:text}]; }   // `asked`: the question alone, for a flag on its answer
   else U.chat.push({role:"user",content:body,hidden:!!kind});
   // the answer comes to the panel at the right on a wide screen (it opens), and to the Why chip of the result on a narrow one
   if(kind==="explain"){ U.explained=true; U.rtab="tutor"; }

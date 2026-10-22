@@ -78,10 +78,12 @@ export interface CategoriesDoc {
   /** the id of the document */
   pairId: string;
   mode: "categories";
-  /** the reference example, as the data names it */
+  /** the thing: a practice item or a reference example, as the data names it */
   thing: string;
-  /** its level, 1 to 4 */
+  /** a reference example's level, 1 to 4; 1 for a practice item, a plain thing */
   level: number;
+  /** the thing's stage on the learning ladder, 1 to 9; absent in answers from before the stages */
+  stage?: number;
   /** step 1: every category offered, whether the thing is in it, and what the learner said */
   rows: { cat: string; yes: boolean; said: boolean }[];
   /** step 2, when it was asked: the categories the thing is in, the most specific of them, and the one the learner picked */
@@ -243,6 +245,8 @@ export interface Current {
   /** Categories (src/app/categories): there is no pair in `p` (it is null), the thing and its categories on screen are `q` */
   cats?: boolean;
   q?: PlaceQuestion;
+  /** Categories: what the draw of `q` drew from (categories/flow.js, drawKey); a draw that found nothing is tried again once it changes */
+  tried?: string;
   /** Syllogisms (src/app/syllogism): there is no pair in `p` (it is null), the syllogism on screen is `c` */
   syllogism?: boolean;
   c?: Syllogism;
@@ -296,8 +300,10 @@ export interface State {
   known: Known | null;
   /** the course's reference examples this device holds (platform.examples), by name; null when it has none (src/app/core/examples.js) */
   EX: ExampleIndex | null;
-  /** the levels (1 to 4) the reference examples are drawn from, any mix, at least one (the practice options, `rd-exlevels`) */
-  exLevels: number[];
+  /** the stages of the learning ladder every exercise draws from, any mix, at least one (the practice options, `rd-stages`; src/domain/stages.ts) */
+  stages: number[];
+  /** the pairs left that lean to three possibilities after the highest stage went up (`rd-stage-lean`) */
+  stageLean: number;
   /** sends flags to the app's server (platform.reports), when the place has a server for them and this device has the Magic Key */
   reports: Reports | null;
   /** keeps the removal of a flag for a later start that has `reports` (platform.withdrawReport) */
@@ -353,12 +359,10 @@ export interface State {
   catsSession: CategoriesDoc[];
   /** how Categories asks step 1: all at once, or one category at a time (`rd-cats-ask`) */
   catsAsk: "all" | "one";
-  /** when the learner last answered the offer of another level (a time, `rd-cats-offer`): only answers after it count towards the next offer */
+  /** when the learner last answered the offer of another stage (a time, `rd-cats-offer`): only answers after it count towards the next offer */
   catsOfferAt: string;
   /** ids of the syllogisms drawn lately, oldest first: the draw leans away from them (syllogism/flow.js) */
   syllogismRecent: string[];
-  /** the highest level the Syllogisms draw reaches: 1 everyday things only, 2 also the terms of Dudra (`rd-syllogism-level`) */
-  syllogismLevel: 1 | 2;
   /** how a syllogism is worded (`rd-syllogism-wording`) */
   syllogismWording: Wording;
   /** the structure named under the sentence, and what each reply says in S, P and R (`rd-syllogism-guide`) */

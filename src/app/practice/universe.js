@@ -4,6 +4,7 @@ import { catKey, hiddenKeys } from "./skips.js";
 import { catByLabel as byLabel, makeIndex, matchItem as itemFor, norm, pairCats as catsOf } from "../../ai-shared/lookup.ts";
 import { buildPool as poolOf, nextPair } from "../../domain/universe.ts";
 import { moreRefs } from "../core/examples.js";
+import { spendLean } from "../shell/stages.js";
 
 /* ---------- the practice universe ---------- */
 // The lookup tables and the matching of words to items and categories are in src/ai-shared, where the tutor code
@@ -20,5 +21,6 @@ export function answerList(){ return Object.values(state.answers).filter(a=>!isF
 /** @returns {import("../types.ts").Pair} */
 export function nextGenerated(hist){
   const hide=hiddenKeys();                // pairs skipped lately stay out, unless nothing else of the relation is left
-  return nextPair(state,state.POOL,{hist:hist||answerList(), recent:state.recent, isHidden:c=>hide.has(catKey(c.a,c.b)), more:moreRefs()});
+  // the pairs and their examples come from the stages that are on; the first pairs after the highest one went up lean to three possibilities
+  return nextPair(state,state.POOL,{hist:hist||answerList(), recent:state.recent, isHidden:c=>hide.has(catKey(c.a,c.b)), more:moreRefs(), stages:state.stages, fresh:spendLean()});
 }
