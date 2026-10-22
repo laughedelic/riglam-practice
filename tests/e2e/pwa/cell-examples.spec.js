@@ -90,7 +90,13 @@ test("a new device starts at stage 1, and the card is there without the referenc
   await expect(stagesCard(page)).toContainText("Stage 1");
   const row = await intoStages(page);
   await expect(stageSwitch(row, 7)).toContainText("0 things");
-  expect(await page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("1");
+  expect(await page.evaluate(() => localStorage.getItem("rd-stages")), "nothing chosen yet: an import may still bring the stages").toBeNull();
+  // the settings it stores from now on do not make it look like a device from before the stages
+  await page.evaluate(() => localStorage.setItem("rd-notation", "sets"));
+  await page.reload();
+  await ready(page);
+  await openOptions(page);
+  await expect(stagesCard(page)).toContainText("Stage 1");
   await page.close();
 });
 

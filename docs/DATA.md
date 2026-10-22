@@ -22,7 +22,7 @@ The practice items are the things the exercises compute the relations from and s
 
 ## The stages
 
-Every exercise draws from the stages the learner has switched on, any mix, at least one (the Stages page of the practice options, `rd-stages`). A new device starts at stage 1. A device used before the stages keeps what it had: the levels of its reference examples, or level 1, their default, become every stage up to that level's (level 1 is stage 6; `stagesOfLevels`), which leaves its pairs as they were. The rules are in `src/domain/stages.ts`:
+Every exercise draws from the stages the learner has switched on, any mix, at least one (the Stages page of the practice options, `rd-stages`). A new device starts at stage 1. A device used before the stages keeps what it had: the levels of its reference examples (`rd-exlevels`, also from an import), or level 1, their default, become every stage up to that level's (level 1 is stage 6; `stagesOfLevels`), which leaves its pairs as they were. A device that started with the stages is marked (`rd-ladder`, kept on the device only), and stores its stages only once it chooses, so an import can still bring them. The rules are in `src/domain/stages.ts`:
 
 - A category opens at its stage and stays open: it can be asked about once the highest stage that is on has reached it.
 - A thing is drawn when its own stage is on. A person, and what does not exist, meets the physical categories (Form, what is below it, and the everyday categories of forms) only from stage 4, where "a person is not its body" is taught; a mind may meet them from the start.

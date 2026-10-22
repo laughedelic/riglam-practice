@@ -22,8 +22,8 @@ export const COLLECTIONS = SYNC_COLLECTIONS;
 
 /** The localStorage keys of the page's settings (notation, wording, timers ...). tests/unit/transfer.test.ts checks this list against app.js. `rd-exlevels` is read once, where `rd-stages` is not yet set (state.js). */
 export const PREFERENCE_KEYS = ["rd-notation", "rd-deflang", "rd-ab", "rd-full", "rd-wording", "rd-timer", "rd-timer-rel", "rd-timer-syl", "rd-blitz", "rd-blitzuse", "rd-quorum", "rd-autoexplain", "rd-recent", "rd-findrel", "rd-findsuggest", "rd-stages", "rd-exlevels", "rd-cats-ask", "rd-share", "rd-syllogism-wording", "rd-syllogism-guide", "rd-voice", "rd-voice-read", "rd-voice-answer", "rd-voice-confirm", "rd-voice-name", "rd-voice-rate"] as const;
-/** Kept on the device only, not carried by export and import: the exercise opened last and the pinned menu, which depend on this device and its screen, whether this device was asked if its examples may be kept (the one-time dialog has to be answered on each device), when the offer of another stage was last answered, and how many pairs still lean to three possibilities after a stage was added. */
-export const DEVICE_KEYS = ["rd-ex", "rd-menu", "rd-share-told", "rd-cats-offer", "rd-stage-lean"] as const;
+/** Kept on the device only, not carried by export and import: the exercise opened last and the pinned menu, which depend on this device and its screen, whether this device was asked if its examples may be kept (the one-time dialog has to be answered on each device), when the offer of another stage was last answered, how many pairs still lean to three possibilities after a stage was added, and that the device has started with the stages. */
+export const DEVICE_KEYS = ["rd-ex", "rd-menu", "rd-share-told", "rd-cats-offer", "rd-stage-lean", "rd-ladder"] as const;
 
 /** Largest file accepted, in bytes; a person's history is a few hundred kilobytes. */
 export const MAX_FILE_BYTES = 40 * 1024 * 1024;

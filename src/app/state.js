@@ -128,16 +128,18 @@ try{ state.recentOpen=localStorage.getItem("rd-recent")!=="0"; }catch(e){}
 try{ const v=localStorage.getItem("rd-findrel"); if(FIND_RELS.includes(/** @type {any} */(v))) state.findRel=/** @type {any} */(v); }catch(e){}
 try{ state.findSuggest=localStorage.getItem("rd-findsuggest")!=="0"; }catch(e){}
 try{ if(localStorage.getItem("rd-cats-ask")==="one") state.catsAsk="one"; state.catsOfferAt=localStorage.getItem("rd-cats-offer")||""; }catch(e){}
-// A device used before the ladder keeps what it had: its levels of the reference examples, or level 1, their default, become the stages up to that level's
-// (level 1 is stage 6), so its pairs and things stay as they were. The choice is written at once, so a later start reads it as this device's own.
+// A device used before the ladder keeps what it had: its levels of the reference examples (also ones an import brings), or level 1, their default, become
+// the stages up to that level's (level 1 is stage 6), so its pairs and things stay as they were. `rd-ladder` marks a device that has started with the
+// ladder, so that its own settings later do not make it look like an old one; a new device writes no stages until it chooses, and an import can bring them.
 try{
   const v=localStorage.getItem("rd-stages");
   if(v!==null) state.stages=normStages(v);
   else {
-    const old=localStorage.getItem("rd-exlevels"), used=old!==null||Object.keys(localStorage).some(k=>k.startsWith("rd-"));
-    if(used) state.stages=stagesOfLevels(old!==null?normLevels(old):[1]);
-    localStorage.setItem("rd-stages",state.stages.join(","));
+    const old=localStorage.getItem("rd-exlevels");
+    const before=old!==null||(localStorage.getItem("rd-ladder")===null&&Object.keys(localStorage).some(k=>k.startsWith("rd-")));
+    if(before){ state.stages=stagesOfLevels(old!==null?normLevels(old):[1]); localStorage.setItem("rd-stages",state.stages.join(",")); }
   }
+  localStorage.setItem("rd-ladder","1");
   state.stageLean=Math.max(0,+(localStorage.getItem("rd-stage-lean")||0)||0);
 }catch(e){}
 // the structure under a syllogism is on for a beginner (the stages of everyday things) until the device chooses
