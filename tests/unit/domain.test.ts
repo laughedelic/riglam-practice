@@ -374,9 +374,11 @@ test("what the answers of the debate imply", () => {
   expect(deriveRel([A, A, W, W])).toBe("bad"); // no common locus together with a pervasion
   expect(deriveRel([A, A, A, W])).toBe("bad");
   expect(deriveRel([A, W, N, W])).toBeNull();
-  expect(deriveRel([W, W, W, N])).toBe("4"); // time ran out on the fourth: it does not enter
-  expect(deriveRel([W, W, W, A]), "nothing is neither: a pair with a negated side").toBe("4n");
-  expect(deriveRel([A, W, W, A]), "the fourth enters only after four possibilities").toBe("con");
+  expect(deriveRel([W, W, W, N])).toBe("4");
+  expect(deriveRel([W, W, W, A]), "on a plain pair the fourth does not enter (Blitz stores a time-out as accepted)").toBe("4");
+  expect(deriveRel([W, W, W, A], true), "nothing is neither: a pair with a negated side").toBe("4n");
+  expect(deriveRel([W, W, W, W], true)).toBe("4");
+  expect(deriveRel([A, W, W, A], true), "the fourth enters only after four possibilities").toBe("con");
 });
 
 test("summarize counts the cells and chooses the overall grade, changing the object it is given", () => {
@@ -1021,8 +1023,8 @@ test("the learner can name a negation, and the pair is made with that side negat
   // a thing and its own negation have no common locus, and nothing is neither
   expect(findPair(ix, "con", named("wooden things"), named("non-wooden things"), seeded(4), at)).toMatchObject({ neg: "b", relation: "con" });
   expect(findPair(ix, "mi", named("non-forms"), named("non-bodies"), seeded(4), at)).toMatchObject({ neg: "ab", relation: "mi" });
-  // a negation beside the learner's own words: the pair is the learner's own, and the negated side has no category (it is not the category it names)
-  expect(findPair(ix, "4", named("non-wooden things"), named("red apples"), seeded(4), at)).toMatchObject({ own: true, a: "non-(wooden things)", catA: null, b: "red apples" });
+  // a negation beside the learner's own words: the pair is the learner's own, and keeps the category of the negated side and which side it is, as a known pair does
+  expect(findPair(ix, "4", named("non-wooden things"), named("red apples"), seeded(4), at)).toMatchObject({ own: true, a: "non-(wooden things)", catA: "wooden", neg: "a", b: "red apples", catB: null });
 });
 
 test("a negation of A alone moves the cells as A's own map, which is its own inverse; with B's it makes both sides", () => {
@@ -1113,6 +1115,11 @@ test("the tutor's line on the relation of a pair: which relation holds, in the l
   expect(read("Relation: three possibilities A in B => no", "mi")).toEqual({ answer: "no", rel: "3ab" });
   expect(read("Relation: Three possibilities, B in A => no", "3ab")).toEqual({ answer: "no", rel: "3ba" });
   expect(read("Relation: Mutually exclusive => no", "3ba")).toEqual({ answer: "no", rel: "con" });
+  // four possibilities without neither (only a pair with a negation) is not four possibilities
+  expect(read("Relation: Four possibilities without neither => yes", "4n")).toEqual({ answer: "yes", rel: "4n" });
+  expect(read("Relation: Four possibilities => no", "4n")).toEqual({ answer: "no", rel: "4" });
+  expect(read("Relation: Four possibilities, without neither => no", "4")).toEqual({ answer: "no", rel: "4n" });
+  expect(read("Relation: Four possibilities => yes", "4n")).toEqual({ answer: "no", rel: "4" });
   expect(read("Relation: none of them => unsure", "4")).toEqual({ answer: "unsure", rel: null });
   expect(read("Relation: => no", "4")).toEqual({ answer: "no", rel: null }); // wrong, but it says not which relation the pair has
   // the relation named wins over the yes or no when the two disagree

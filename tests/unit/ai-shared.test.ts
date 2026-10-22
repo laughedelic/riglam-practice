@@ -503,6 +503,11 @@ test("the card of the learner's own pair holds what the data says of each side, 
   // a side the data knows as a category carries that category's facts, under the learner's words
   const half = tutorCard(ix, own({ a: "Hues" }), find({ rel: "4", cells, res: noRes(["cmp", "open", "bad", "cmp"]) }));
   expect(half).toMatch(/"A":\{"label":"Hues"[^}]*"term":"Color"/);
+  // a side named as a negation: its words, with the facts of what it negates, and the card says which side is the negation
+  const neg = tutorCard(ix, own({ a: "non-hues", catA: "col", neg: "a" }), find({ rel: "4n", cells, res: noRes(["cmp", "open", "bad", "cmp"]) }));
+  expect(neg).toMatch(/"A":\{"label":"non-hues","negation_of":\{"label":"hues"[^}]*"term":"Color"/);
+  expect(neg).toContain('Negation: A ("non-hues") is a negation');
+  expect(neg).toContain("Relation asked for: Four possibilities without neither");
 });
 
 test("the pair-finding explain request: the usual one for a pair the data knows, one that asks for the relation for the learner's own", () => {

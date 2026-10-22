@@ -45,7 +45,7 @@ export const DEBATE_ASK = `Explain this debate. Use these lines, in this order:
 export const FIND_NOTE = `This is the pair-finding mode, the usual exercise the other way round. The learner was given a relation and had to come up with two phenomena A and B that stand in it, then name an example for each combination of A and B that the relation leaves possible (the cells it leaves empty stay empty). The pair is right when it has the asked relation. An example is right when it belongs in its cell for this pair of A and B.`;
 export const FIND_OWN_NOTE = `The page has no reference for this pair (A or B is not in its practice list), so the relation of A and B and the placing of every example are for you to decide, from the course's definitions and rules; the card holds what the term data says about A and B where it has them, and lookup_term gives the rest.`;
 /** The names a tutor writes the relation in on the line the page reads (src/domain/find.ts, parseRelationVerdict). */
-export const FIND_REL_NAMES = ["Mutually inclusive", "Mutually exclusive", "Three possibilities, A in B", "Three possibilities, B in A", "Four possibilities"] as const;
+export const FIND_REL_NAMES = ["Mutually inclusive", "Mutually exclusive", "Three possibilities, A in B", "Three possibilities, B in A", "Four possibilities", "Four possibilities without neither"] as const;
 const TAIL = `- "Common locus:" yes or no, with one example or the reason there is none;
 - "Pervasion:" whether whatever is A is necessarily B, and the reverse;`;
 export const FIND_ASK = `Explain this answer: the learner was given the relation in the card and named the pair A and B. Use these lines, in this order:

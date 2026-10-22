@@ -76,11 +76,11 @@ export function grade(ix: DataIndex, p: PairLike, u: PracticeAnswer): GradeResul
 }
 
 /**
- * What the answers of the debate give: Q1 accepted = no common locus; Q2 and Q3 accepted = pervasion each way. Q4 counts only where the first three
- * leave four possibilities: accepted, nothing is neither (a pair with a negated side, four possibilities without neither). Null when time ran out on
- * one of the first three, "bad" when they contradict each other.
+ * What the answers of the debate give: Q1 accepted = no common locus; Q2 and Q3 accepted = pervasion each way. On a pair with a negated side
+ * (`neg`), Q4 counts where the first three leave four possibilities: accepted, nothing is neither, four possibilities without neither; on a plain
+ * pair something is always neither, and a Q4 accepted is a mistake of its own row. Null when time ran out on one of the first three, "bad" when they contradict each other.
  */
-export function deriveRel(ans: readonly DebateAnswer[]): RelKey | "bad" | null {
+export function deriveRel(ans: readonly DebateAnswer[], neg = false): RelKey | "bad" | null {
   const s = ans.slice(0, 3).map((a) => a.say);
   if (s.some((x) => x !== "accept" && x !== "why")) return null; // time ran out on one of them
   const [x, y, z] = s.map((v) => v === "accept");
@@ -88,7 +88,7 @@ export function deriveRel(ans: readonly DebateAnswer[]): RelKey | "bad" | null {
   if (!x && y && z) return "mi";
   if (!x && y && !z) return "3ab";
   if (!x && !y && z) return "3ba";
-  if (!x && !y && !z) return ans[3]?.say === "accept" ? "4n" : "4";
+  if (!x && !y && !z) return neg && ans[3]?.say === "accept" ? "4n" : "4";
   return "bad"; // accepting no-common-locus together with a pervasion
 }
 
@@ -114,7 +114,7 @@ export function gradeDebate(ix: DataIndex, p: PairLike, u: DebateInput): GradeRe
     } else { v = "bad"; msg = ["Time ran out. ", has ? "For example: " + ref + "." : why]; }
     cells[c] = { v, msg, kind }; dec[c] = dok;
   });
-  return summarize({ relOk: u.rel === p.relation && !u.late, cells, dec, implied: deriveRel(u.ans) });
+  return summarize({ relOk: u.rel === p.relation && !u.late, cells, dec, implied: deriveRel(u.ans, !!p.neg) });
 }
 
 /** Adds the counts and the overall grade to a draft. It changes the object it is given and returns it, so that verdicts that arrive later can be counted in again. */

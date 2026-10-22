@@ -205,9 +205,10 @@ export interface RelationVerdict {
   rel: RelKey | null;
 }
 const REL_LINE = /^relation\s*:\s*(.*?)\s*=>\s*(yes|no|unsure)\W*$/i;
-// the five relations as the tutor is asked to write them (FIND_REL_NAMES in src/ai-shared/prompts.ts), loosely: case, commas and spacing do not matter
+// the relations as the tutor is asked to write them (FIND_REL_NAMES in src/ai-shared/prompts.ts), loosely: case, commas and spacing do not matter
 const REL_NAMES: readonly (readonly [RegExp, RelKey])[] = [
-  [/mutually inclusive/, "mi"], [/mutually exclusive/, "con"], [/three possibilities,? ?a in b/, "3ab"], [/three possibilities,? ?b in a/, "3ba"], [/four possibilities/, "4"],
+  [/mutually inclusive/, "mi"], [/mutually exclusive/, "con"], [/three possibilities,? ?a in b/, "3ab"], [/three possibilities,? ?b in a/, "3ba"],
+  [/four possibilities(?!,? without neither)/, "4"], [/four possibilities,? without neither/, "4n"],
 ];
 /** The first `Relation:` line with a verdict, read against the relation asked for; null when there is none. The relation named wins over the yes or no if the two disagree. */
 export function parseRelationVerdict(text: string | null | undefined, asked: RelKey): RelationVerdict | null {

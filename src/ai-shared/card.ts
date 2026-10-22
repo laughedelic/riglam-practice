@@ -35,7 +35,7 @@ export interface AnswerView {
   /** debate: the four answers */
   ans?: DebateAnswer[];
   res: {
-    /** debate: the relation the first three answers imply, "bad" when they contradict each other */
+    /** debate: the relation the answers imply (the first three, and on a pair with a negated side the fourth), "bad" when they contradict each other */
     implied?: RelKey | "bad" | null;
     /** the page's verdict per cell: "ok", "bad", or "cmp" when it could not classify the example */
     cells: Record<CellId, { v: string }>;
@@ -74,7 +74,8 @@ export function cardBody(ix: DataIndex, p: PairLike, u: AnswerView): string {
   const [ca,cb]=pairCats(ix,p), cls=classNames(ix), [na,nb]=negSides(p);
   // a negated side is its label with the facts of the category it negates
   const side=(cid: string|null, label: string, type: string|undefined, neg: boolean)=>neg?{label, negation_of:cid?catFacts(ix,cid,plainLabel(label)):{label:plainLabel(label),type}}:cid?catFacts(ix,cid,label):{label,type};
-  const card=p.own?{A:sideFacts(ix,p.a), B:sideFacts(ix,p.b)}:{A:side(ca,p.a,p.typeA,na), B:side(cb,p.b,p.typeB,nb)};
+  const ownSide=(label: string, neg: boolean)=>neg?{label, negation_of:sideFacts(ix,plainLabel(label))}:sideFacts(ix,label);
+  const card=p.own?{A:ownSide(p.a,na), B:ownSide(p.b,nb)}:{A:side(ca,p.a,p.typeA,na), B:side(cb,p.b,p.typeB,nb)};
   const refTxt=(c: CellId)=>refOf(p,c)?JSON.stringify(refOf(p,c)):"EMPTY ("+((p.why&&p.why[c])||"no example")+")";
   let mid: string;
   if(u.debate){
@@ -103,7 +104,7 @@ ${lines}`;
     }).join("\n");
     mid=`${FIND_NOTE}
 A = ${JSON.stringify(p.a)}, B = ${JSON.stringify(p.b)}.
-${own?"":negLine(p)}Relation asked for: ${rel.name} (${rel.gloss("A","B")}). ${own?FIND_OWN_NOTE:`Correct relation of this pair: ${REL[p.relation].name}.`}${u.exLate?" Time ran out on the examples: cells the learner had not reached are blank.":""}
+${negLine(p)}Relation asked for: ${rel.name} (${rel.gloss("A","B")}). ${own?FIND_OWN_NOTE:`Correct relation of this pair: ${REL[p.relation].name}.`}${u.exLate?" Time ran out on the examples: cells the learner had not reached are blank.":""}
 ${own?"":`Reference note: ${p.note||"none"}
 `}Cells (verdict cmp = learner wrote something the page could not classify${own?"; for a pair the page cannot judge every example is cmp, and a cell the relation leaves empty is open":""}):
 ${lines}`;

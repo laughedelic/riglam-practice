@@ -74,20 +74,20 @@ export const findId = (rng: Rng = Math.random, now: Clock = Date.now): string =>
  * The pair the learner named, for the relation asked for. A pair of practice categories the data can judge is made as the draw makes its pairs
  * (the relation it really has, an example for each cell that has one, of the stages `on` where the cell has one, the reason for each that has none),
  * under the learner's labels, with the sides they negated negated. Any other pair is the learner's own: it carries the relation asked for only as a
- * placeholder (`own`), and nothing else is known about it (a negated side keeps its words and has no category, as the category is not what it names).
+ * placeholder (`own`), and nothing else is known about it; a side named as a negation keeps its category and is named in `neg`, as on a known pair.
  */
 export function findPair(ix: DataIndex, asked: RelKey, a: Named, b: Named, rng: Rng = Math.random, now: Clock = Date.now, more?: Witnesses, on?: Stages): Pair {
   if (sameThing(a, b)) throw new RangeError("a pair needs two different phenomena");
+  const neg: Neg | undefined = a.neg && b.neg ? "ab" : a.neg ? "a" : b.neg ? "b" : undefined;
   if (a.cat && b.cat && (a.cat === b.cat || judgeable(ix, a.cat, b.cat))) {
-    const neg: Neg | undefined = a.neg && b.neg ? "ab" : a.neg ? "a" : b.neg ? "b" : undefined;
     const p = pairOf(ix, a.cat, b.cat, a.neg ? plainLabel(a.label) : a.label, b.neg ? plainLabel(b.label) : b.label, rng, now, more, on, neg);
     p.id = "f-" + p.id.slice(2);
     delete p.generated;
     return p;
   }
   return {
-    id: findId(rng, now), a: a.label, b: b.label, catA: a.neg ? null : a.cat, catB: b.neg ? null : b.cat,
-    typeA: "", typeB: "", relation: asked, ex: {}, why: {}, own: true,
+    id: findId(rng, now), a: a.label, b: b.label, catA: a.cat, catB: b.cat,
+    typeA: "", typeB: "", relation: asked, ex: {}, why: {}, own: true, ...(neg ? { neg } : {}),
   };
 }
 
