@@ -58,6 +58,7 @@ export const state = {
   syllogismRecent: [],    // the ids of the syllogisms drawn lately, oldest first: the draw of the next one leans away from them (syllogism/flow.js)
   syllogismWording: "take", // how a syllogism is said: "take" (the class's) or "formal" (`rd-syllogism-wording`)
   syllogismGuide: false,    // the structure named under the sentence (S, P, R) and what each reply says in them, for a beginner (`rd-syllogism-guide`)
+  instSuggest: true, // Find an instance offers the things the course knows while one is typed (its practice options, `rd-inst-suggest`); off: a plain field
   findSuggest: true, // Find a pair offers the terms of the course while the pair is typed (the settings of Find a pair, `rd-findsuggest`); off: plain fields
   negBrackets: true,   // a negated name of more than one word is written with brackets, "non-(wooden things)" (`rd-neg-brackets`; off: "non-wooden things")
   negation: "off",   // the negation track of Relations and Pervasions: "one" negates A or B in about a third of the pairs, "both" both sides in half of those (`rd-negation`)
@@ -149,6 +150,7 @@ try{ const v=localStorage.getItem("rd-findrel"); if(FIND_RELS.includes(/** @type
 try{ state.findSuggest=localStorage.getItem("rd-findsuggest")!=="0"; }catch(e){}
 try{ const v=localStorage.getItem("rd-negation"); if(v==="one"||v==="both") state.negation=v; state.negOfferAt=localStorage.getItem("rd-neg-offer")||""; }catch(e){}
 try{ state.negBrackets=localStorage.getItem("rd-neg-brackets")!=="0"; }catch(e){}
+try{ state.instSuggest=localStorage.getItem("rd-inst-suggest")!=="0"; }catch(e){}
 try{ if(localStorage.getItem("rd-cats-ask")==="one") state.catsAsk="one"; }catch(e){}
 try{ state.stageRun=normRun(localStorage.getItem("rd-stage-run")); state.exRuns=normExRuns(localStorage.getItem("rd-ex-runs")); state.guided=normGuided(localStorage.getItem("rd-guided")); }catch(e){}
 // the course terms met at their stops, part of the progression (practice/progress.ts); without a record the terms are met one at a time from the start

@@ -120,6 +120,16 @@ test("drawInstance: on the open data, every set drawn is settled, and some are i
   expect(impossible).toBeGreaterThan(20);
 });
 
+test("drawInstance: on the open data, no one set comes up much more often than the rest", () => {
+  const data = makeIndex(openData as unknown as DrillData), recent: string[] = [], seen = new Map<string, number>(), n = 3000, rng = seeded(11);
+  for (let s = 0; s < n; s++) {
+    const k = instanceKey(drawInstance(data, { rng, avoid: new Set(recent) })!.cats);
+    seen.set(k, (seen.get(k) ?? 0) + 1);
+    recent.push(k); if (recent.length > 16) recent.shift();
+  }
+  expect(Math.max(...seen.values()) / n).toBeLessThan(1 / 30);
+});
+
 test("gradeInstance: a practice item, by the list's categories, with the reason for each", () => {
   const r = gradeInstance(ix(), q(["red", "round"]), { text: "A red ball" });
   expect(r).toMatchObject({ v: "ok", thing: "a red ball", from: "item", example: null });
@@ -170,6 +180,13 @@ test("gradeInstance: a reference example, by its classes", () => {
   const red = gradeInstance(ix(), q(["form", "red"]), { text: "the blue of the sky" }, eix, seeded(5));
   expect(red.v).toBe("open");
   expect(red.rows.find((x) => x.cat === "red")).toMatchObject({ answer: null, reason: "the course data does not say whether it is red" });
+  // a name two examples share is placed only where they agree
+  const two = makeExampleIndex({ format: "x", version: 1, sources: {}, items: [ex("a patch", ["Color"]), ex("a patch", ["Shape"])] });
+  const patch = gradeInstance(ix(), q(["ft", "form"]), { text: "a patch" }, two);
+  expect(patch).toMatchObject({ v: "ok", from: "example" });
+  const col = gradeInstance(ix(), q(["col"]), { text: "a patch" }, two, seeded(7));
+  expect(col.v).toBe("open");
+  expect(col.rows[0].answer).toBeNull();
   const horn = gradeInstance(ix(), q(["ft"]), { text: "the horn of a hare" }, eix, seeded(6));
   expect(horn).toMatchObject({ v: "bad", from: "example" });
   expect(horn.rows[0]).toMatchObject({ answer: false, reason: "it does not exist" });

@@ -7,6 +7,7 @@ import { state } from "../state.js";
 import { NOT } from "../../ai-shared/debate.ts";
 import { setQuorum } from "../ai/quorum.js";
 import { setCategoriesAsk } from "../categories/flow.js";
+import { setInstanceSuggest } from "../instance/flow.ts";
 import { canAsk } from "../core/ask.js";
 import { setTimer } from "../debate/flow.js";
 import { WORDINGS } from "../debate/text.js";
@@ -66,7 +67,9 @@ function List() {
   // the exercise's guided form (practice/guided.ts): on until the exercise has its right answers, then as set
   const guide = GUIDES[tab] ? <Switch lb="Guide" title="Guided" note={GUIDES[tab]!.on} on={guided(tab)} toggle={() => setGuided(tab, !guided(tab))} /> : null;
   const foot = <p class="pnoteline" style={{ padding: "10px 18px 4px calc(var(--m) + 22px)" }}>The Magic Key, your account, data{tutor && state.learns ? ", sharing your examples" : ""} and the version are in <button type="button" class="pbtn" style={{ padding: 0 }} onClick={toSettings}>Settings</button>.</p>;
-  if (tab === "instance") return foot;
+  if (tab === "instance") return <>
+    <Switch lb="Hints" title="Suggest things" note="things the course knows, as you write" on={state.instSuggest} toggle={() => setInstanceSuggest(!state.instSuggest)} />
+    {foot}</>;
   if (cats) return <>
     <Row lb="Ask"><b>How step 1 asks</b><Words label="How step 1 asks" items={[["all", "All at once"], ["one", "One by one"]]} cur={state.catsAsk} on={setCategoriesAsk} /></Row>
     {stages}{foot}</>;

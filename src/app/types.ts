@@ -447,6 +447,8 @@ export interface State {
   relSession: NegResult[];
   /** when the learner last answered the offer of a negation step (a time, `rd-neg-offer`): only answers after it count towards the next offer */
   negOfferAt: string;
+  /** Find an instance offers the things the course knows while one is typed (its practice options, `rd-inst-suggest`) */
+  instSuggest: boolean;
   lastSig: string;
   /** the attempt the last render drew: the tutor's panel closes with a pair that had a conversation */
   lastUi: any;

@@ -51,6 +51,13 @@ export function sayNothing(on = true): void {
   render();
 }
 
+/** Whether the field offers the things the course knows as they are typed; kept on the device. */
+export function setInstanceSuggest(on: boolean): void {
+  state.instSuggest = on;
+  try { localStorage.setItem("rd-inst-suggest", on ? "1" : "0"); } catch { /* storage blocked */ }
+  render();
+}
+
 const docId = () => "instance-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 /** Check: grades what was written, or "nothing is"; the result shows and the answer is kept. */
 export function checkInstance(): void {

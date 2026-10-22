@@ -81,7 +81,7 @@ export function Roadmap() {
         <text class="bn" x="195" y="92" text-anchor="middle">riglam</text>
         <path class="ln" d="M195 102 V124" />
         <path class="ln" d="M195 124 C195 142 74 136 74 156" /><path class="ln" d="M195 124 V156" /><path class="ln" d="M195 124 C195 142 316 136 316 156" />
-        <path class="lnp" d="M195 124 C195 150 258 140 258 172 V404" />
+        <path class="lnp" d="M195 124 C195 150 258 140 258 172 V308 M258 334 V404" />
         <text class="gl" x="74" y="172" text-anchor="middle">TWO TERMS</text><text class="gl" x="196" y="172" text-anchor="middle">THREE TERMS</text><text class="gl" x="316" y="172" text-anchor="middle">ONE EXAMPLE</text>
         <text class="gl" x="258" y="420" text-anchor="middle">DEBATE</text>
         <path class="ln" d="M74 180 V196" /><path class="ln" d="M74 272 V288" /><path class="ln" d="M74 364 V380" />

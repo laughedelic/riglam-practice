@@ -84,7 +84,7 @@ interface Pool {
   one: string[];
   /** pairs with an item in both, and their relation */
   two: { set: string[]; r: string }[];
-  /** pairs that exclude each other, grouped by the reason (the two excluding classes, or the course's own) so that each reason comes up as often */
+  /** pairs that exclude each other, grouped by the reason (the two excluding classes, or the course's own), so that the reasons come up more evenly than the pairs */
   apart: string[][][];
   /** triples with an item in all three, no one of them inside another */
   three: string[][];
@@ -149,8 +149,10 @@ export interface InstanceDraw {
 }
 
 /** How often each size of set is asked, and how often a set of two or three is one where nothing can be. */
-export const SIZES: readonly [number, number][] = [[1, 0.15], [2, 0.5], [3, 0.35]];
+export const SIZES: Readonly<Record<1 | 2 | 3, number>> = { 1: 0.15, 2: 0.5, 3: 0.35 };
 export const APART_SHARE = 0.4;
+/** A kind of set the data has few of is asked less: its weight is at most its number of sets over this, so that each of them comes up about once in this many questions at most (somewhat more often when other kinds are short too). */
+export const SPREAD = 60;
 
 const weighted = <T>(xs: readonly T[], w: (x: T) => number, rng: Rng): T | undefined => {
   if (!xs.length) return undefined;
@@ -176,20 +178,23 @@ export function instanceQuestion(ix: DataIndex, set: readonly string[], rng: Rng
 }
 
 /**
- * The next set to ask: its size by `SIZES`, and for two or three categories, by `APART_SHARE`, one where nothing can be. Sets asked lately
- * (`avoid`) wait while others remain. Null when the data has nothing to ask.
+ * The next set to ask: its size by `SIZES`, and for two or three categories, by `APART_SHARE`, one where nothing can be; a kind with few sets
+ * less often (`SPREAD`). Pairs where nothing can be come by their reason first, a reason with more pairs a little more often. Sets asked
+ * lately (`avoid`) wait while others remain. Null when the data has nothing to ask.
  */
 export function drawInstance(ix: DataIndex, draw: InstanceDraw): InstanceQuestion | null {
   const pool = poolOf(ix), rng = draw.rng, fresh = (s: { set: readonly string[] }) => !draw.avoid?.has(instanceKey(s.set));
   const choose = <T extends { set: string[] }>(sets: readonly T[], w: (s: T) => number = () => 1) => (weighted(sets.filter(fresh), w, rng) ?? weighted(sets, w, rng))?.set;
   const plain = (sets: readonly string[][]) => sets.map((set) => ({ set }));
+  const kinds = [
+    { n: pool.one.length, w: SIZES[1], set: () => choose(plain(pool.one.map((c) => [c]))) },
+    { n: pool.two.length, w: SIZES[2] * (1 - APART_SHARE), set: () => choose(pool.two, (t) => REL_W[t.r] ?? 0) },
+    { n: pool.apart.flat().length, w: SIZES[2] * APART_SHARE, set: () => { const g = weighted(pool.apart, (x) => Math.sqrt(x.length), rng); return g && choose(plain(g)); } },
+    { n: pool.three.length, w: SIZES[3] * (1 - APART_SHARE), set: () => choose(plain(pool.three)) },
+    { n: pool.threeApart.length, w: SIZES[3] * APART_SHARE, set: () => choose(plain(pool.threeApart)) },
+  ];
   for (let tries = 0; tries < 6; tries++) {
-    const size = weighted(SIZES, ([, w]) => w, rng)![0], apart = size > 1 && rng() < APART_SHARE;
-    let set: string[] | undefined;
-    if (size === 1) set = choose(plain(pool.one.map((c) => [c])));
-    else if (size === 2 && apart) { const group = pool.apart.length ? pick(pool.apart, rng) : null; set = group ? choose(plain(group)) : undefined; }
-    else if (size === 2) set = choose(pool.two, (t) => REL_W[t.r] ?? 0);
-    else set = choose(plain(apart ? pool.threeApart : pool.three));
+    const set = weighted(kinds, (k) => Math.min(k.w, k.n / SPREAD), rng)?.set();
     if (!set) continue;
     const q = instanceQuestion(ix, set, rng);
     if (q.possible || q.apart) return q;
@@ -242,12 +247,14 @@ export function itemRows(ix: DataIndex, it: Item, cats: readonly string[], label
 }
 
 /** The rows for a reference example: placed by its classes (`placeByClass`), which can show only a "no" for an everyday category. */
-export function exampleRows(ix: DataIndex, ex: Example, cats: readonly string[], labels: readonly string[]): InstanceRow[] {
+export function exampleRows(ix: DataIndex, exs: readonly Example[], cats: readonly string[], labels: readonly string[]): InstanceRow[] {
+  // a name several examples share is placed only where they all agree, as the references of Relations are (known.ts)
+  const cls = exs.flatMap((ex) => ex.cls ?? []), not = exs.flatMap((ex) => ex.not ?? []), ne = exs.every((ex) => ex.ne);
   return cats.map((c, i) => {
-    const row = { cat: c, label: labels[i] ?? ix.CAT[c].labels[0] }, p = placeByClass(ix, ex, ix.CAT[c]);
+    const row = { cat: c, label: labels[i] ?? ix.CAT[c].labels[0] }, got = new Set(exs.map((ex) => placeByClass(ix, ex, ix.CAT[c]))), p = got.size === 1 ? [...got][0] : null;
     if (!p) return { ...row, answer: null, reason: "the course data does not say whether it is " + catPhrase(ix.CAT[c]), why: "" };
-    const answer = p === "yes", r = reasonOf(ix, ex.cls ?? [], ix.CAT[c], row.label, answer, ex.ne);
-    const said = !answer && !r.why && (ex.not ?? []).find((n) => catChain(ix, ix.CAT[c]).includes(n));
+    const answer = p === "yes", r = reasonOf(ix, cls, ix.CAT[c], row.label, answer, ne);
+    const said = !answer && !r.why && not.find((n) => catChain(ix, ix.CAT[c]).includes(n));
     return { ...row, answer, ...(said ? { reason: "the sources say it is not " + termPhrase(said), why: "" } : r) };
   });
 }
@@ -269,14 +276,14 @@ export interface InstanceResult {
 }
 
 /**
- * The thing the learner's words name: a practice item, or a reference example with classes. A short name of an item ("ball") comes back
- * `loose` where a category is about a feature (a color, a material), since the name does not say which (`itemRows`).
+ * The thing the learner's words name: a practice item, or the reference examples of that name when one has classes. A short name of an item
+ * ("ball") comes back `loose` where a category is about a feature (a color, a material), since the name does not say which (`itemRows`).
  */
-export function nameOf(ix: DataIndex, cats: readonly string[], text: string, ex?: ExampleIndex | null): { item: Item; loose?: boolean } | { ex: Example } | null {
+export function nameOf(ix: DataIndex, cats: readonly string[], text: string, ex?: ExampleIndex | null): { item: Item; loose?: boolean } | { exs: Example[] } | null {
   const item = matchItem(ix, text, true);
   if (item) return { item };
-  const found = ex ? matchExamples(ex, text).find((e) => e.ne || e.cls?.length) : undefined;
-  if (found) return { ex: found };
+  const found = ex ? matchExamples(ex, text) : [];
+  if (found.some((e) => e.ne || e.cls?.length)) return { exs: found };
   const alias = matchItem(ix, text);
   return alias ? { item: alias, loose: cats.some((c) => FEATURE.has(c)) } : null;
 }
@@ -291,8 +298,8 @@ export function gradeInstance(ix: DataIndex, q: InstanceQuestion, ans: InstanceA
   if (ans.none === true) return { v: q.possible ? "bad" : "ok", thing: "", from: null, rows: [], example: sample() };
   const text = ans.text.trim(), named = nameOf(ix, q.cats, text, ex);
   if (!named) return { v: q.possible ? "open" : "bad", thing: text, from: null, rows: [], example: sample() };
-  const rows = "item" in named ? itemRows(ix, named.item, q.cats, q.labels, named.loose ? text : undefined) : exampleRows(ix, named.ex, q.cats, q.labels);
-  const thing = "item" in named ? (named.loose ? text : named.item.n) : named.ex.n, from = "item" in named ? "item" : "example";
+  const rows = "item" in named ? itemRows(ix, named.item, q.cats, q.labels, named.loose ? text : undefined) : exampleRows(ix, named.exs, q.cats, q.labels);
+  const thing = "item" in named ? (named.loose ? text : named.item.n) : named.exs[0].n, from = "item" in named ? "item" : "example";
   const v = !q.possible || rows.some((r) => r.answer === false) ? "bad" : rows.every((r) => r.answer) ? "ok" : "open";
   return { v, thing, from, rows, example: v === "ok" ? null : sample() };
 }

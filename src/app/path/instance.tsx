@@ -36,11 +36,11 @@ function CatStops({ s, sm = false }: { s: InstanceQuestion; sm?: boolean }) {
 }
 
 // the things the data knows whose names hold the words typed so far (two letters at least), for the field's list: the practice items, and the
-// reference examples where this device has them
+// reference examples where this device has them (those it can check: with classes, or that do not exist); none while the suggestions are off
 function suggestions(typed: string): string[] {
   const k = stripDet(spelled(typed));
-  if (k.length < 2) return [];
-  const names = [...(state.DATA ? state.DATA.items.map((it) => it.n) : []), ...(state.EX ? state.EX.items.map((ex) => ex.n) : [])];
+  if (!state.instSuggest || k.length < 2) return [];
+  const names = [...(state.DATA ? state.DATA.items.map((it) => it.n) : []), ...(state.EX ? state.EX.items.filter((ex) => ex.ne || ex.cls?.length).map((ex) => ex.n) : [])];
   const out: string[] = [];
   for (const n of names) if (!out.includes(n) && stripDet(spelled(n)).includes(k) && out.push(n) >= 8) break;
   return out;
@@ -59,11 +59,11 @@ function AskStep({ kb }: { kb: boolean }) {
     ? <St d={<D cls="sub yours" />} cls="sb done"><span class="lab">your answer</span><span class="pans nil">{noneText(n)}</span>
       <p class="help"><button type="button" onClick={() => { sayNothing(false); setTimeout(focusField); }}>write a thing instead</button></p></St>
     : <St d={<D cls="sub now" />} cls="sb now"><p class="qq">{n === 1 ? <>Name {<b class="conn">one of them</b>}.</> : <>Name something that is {<b class="conn">{allOf(n)}</b>}.</>}</p>
-      <div class="fieldrow"><input class="pfield" id="iin" value={u.said} placeholder="write a thing" list="iin-things" autoComplete="off" autoCapitalize="off" spellcheck={false} enterKeyHint="done"
+      <div class="fieldrow"><input class="pfield" id="iin" value={u.said} placeholder="write a thing" list={state.instSuggest ? "iin-things" : undefined} autoComplete="off" autoCapitalize="off" spellcheck={false} enterKeyHint="done"
         aria-label={"Something that is " + allOf(n) + ": " + s.labels.join(", ")}
         onInput={(e) => { writeInstance((e.currentTarget as HTMLInputElement).value); refreshPath(); }}
         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (ready()) check(); } }} /></div>
-      <datalist id="iin-things">{list.map((v) => <option value={v} />)}</datalist>
+      {state.instSuggest ? <datalist id="iin-things">{list.map((v) => <option value={v} />)}</datalist> : null}
       <p class="help"><span class="htx">A thing, in a few words. </span><button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { blur(); sayNothing(true); }}>{noneText(n)}</button></p></St>;
   return <>
     <Scroll>
