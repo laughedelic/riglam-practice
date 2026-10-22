@@ -35,7 +35,10 @@ test("with negations on, a pair can negate a term, offers a sixth answer, and is
   await expect(relOptions(page)).toHaveCount(6);
   await expect(relOptions(page).nth(5)).toContainText("Four possibilities without neither");
   // a favorite of its own, apart from the pair of the same categories without the negation
-  expect(await page.evaluate(() => { const t = window.__t, q = t.cur.p; return t.favKey(q) !== t.favKey({ ...q, neg: undefined }); })).toBe(true);
+  expect(await page.evaluate(() => {
+    const t = window.__t, q = t.cur.p, plain = (s) => s.replace(/^non-\((.*)\)$|^non-(.*)$/, (_, x, y) => x ?? y);
+    return t.favKey(q) !== t.favKey({ ...q, neg: undefined, a: plain(q.a), b: plain(q.b) });
+  })).toBe(true);
   if (!isPhone(testInfo)) {
     await page.keyboard.press("6");
     expect(await page.evaluate(() => window.__t.ui.rel)).toBe("4n");
