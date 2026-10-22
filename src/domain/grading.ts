@@ -6,7 +6,7 @@ import type { DebateAnswer } from "../ai-shared/card";
 import { QCELL } from "../ai-shared/debate";
 import { matchItem, pairCats } from "../ai-shared/lookup";
 import type { DataIndex } from "../ai-shared/lookup";
-import { CELLS, REL, refOf } from "../ai-shared/relations";
+import { CELLS, NEG_CELL, REL, refOf } from "../ai-shared/relations";
 import type { CellId, PairLike, RelKey } from "../ai-shared/relations";
 import type { CellResult, DebateInput, GradeDraft, GradeResult, PracticeAnswer } from "./types";
 import { FEATURE, inUniverse } from "./universe";
@@ -27,7 +27,8 @@ export function termLine(ix: DataIndex, t: string): string {
 /**
  * Where the learner's example `t` belongs for the pair, compared with the cell `c` it was written in. Null when the
  * example is not in the practice list (or not usable for these categories), which the caller shows as "not checked".
- * `cats` are the pair's categories when they are known; otherwise they are looked up from the labels.
+ * `cats` are the pair's categories when they are known; otherwise they are looked up from the labels. With a negated side, the thing's place in
+ * the plain pair moves as NEG_CELL says.
  */
 export function judgeText(ix: DataIndex, p: PairLike, c: CellId, t: string, cats?: readonly (string | null | undefined)[]): Judgement | null {
   const [ca, cb] = cats || pairCats(ix, p);
@@ -36,10 +37,11 @@ export function judgeText(ix: DataIndex, p: PairLike, c: CellId, t: string, cats
   const it = matchItem(ix, t, feat);
   if (!it) return null;
   if (!inUniverse(ix, it, ca, cb)) return null;
-  const x = it.c.includes(ca), y = it.c.includes(cb);
-  const where = x && y ? "both" : x ? "anb" : y ? "bna" : "nei";
+  const x = it.c.includes(ca), y = it.c.includes(cb), plain: CellId = x && y ? "both" : x ? "anb" : y ? "bna" : "nei";
+  const where = p.neg ? NEG_CELL[p.neg][plain] : plain;
   const nm = cap(t.trim().replace(/[.!]+$/, ""));
   if (where === c) {
+    if (it.ne && p.neg) return { v: "ok", msg: ["Right. ", nm + " does not exist, and a “non-” term takes in what does not exist."] };
     if (it.ne) {
       const ref = p.ex && p.ex[c], better = ref && !(matchItem(ix, ref) || { ne: false }).ne;
       return { v: "ok", msg: ["Right. ", nm + " does not exist, and a non-existent counts as neither." + (better ? " An existent such as " + ref + " is the better example when there is one." : "")] };

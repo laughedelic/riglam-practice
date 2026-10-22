@@ -40,7 +40,13 @@ export const Wd=()=>WORDINGS[state.wording];
 export const termSing=x=>singular(x==="A"?state.cur.p.a:state.cur.p.b);
 // the chip and the first word of its term stay on one line
 /** A category label in the singular, with its article ("memories" -> "a memory"). */
-export const singular=lab=>SING[american(lab)]||lab.replace(/^(\w+) things$/,"a $1 thing");
+export const singular=lab=>SING[american(lab)]||negSingular(lab)||lab.replace(/^(\w+) things$/,"a $1 thing");
+// a negated label ("non-products", "non-(wooden things)", the negation track) in the singular: "a non-product", "a non-(wooden thing)", "non-food"
+function negSingular(lab){
+  const m=/^non-\((.+)\)$/.exec(lab)||/^non-(\S+)$/.exec(lab); if(!m) return "";
+  const s=singular(m[1]), a=/^an? /.exec(s), core=a?s.slice(a[0].length):s;
+  return (a?"a ":"")+"non-"+(/^non-\(/.test(lab)?"("+core+")":core);
+}
 export const termNode=(x,p=state.cur.p)=>{ const lab=x==="A"?p.a:p.b, [w,...r]=singular(lab).split(" ");
   return el("span",{class:"qterm"},el("span",{class:"keep"},state.showAB?[L(x)," "]:null,el("span",{class:"t",text:w})),r.length?el("span",{class:"t",text:" "+r.join(" ")}):null); };
 export const qNode=i=>Wd().q[i].map(x=>x==="A"||x==="B"?termNode(x):x===N?el("span",{class:"not",text:"not"}):x);

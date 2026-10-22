@@ -23,8 +23,9 @@ test("the sliders button opens the practice options of the exercise and the X cl
   await expect(sheet).toHaveAttribute("aria-label", "Practice options");
   await expect(sheet.locator(".shh h2")).toHaveText("Practice options");
   await expect(sheet.locator(".shh small")).toHaveCount(0); // the exercise is not a subtitle of the sheet: what only it has is a section
-  expect(await names(page)).toEqual(["notation", "blitz", "a/b markers", "definitions"]);
-  expect(await sections(page)).toEqual([]); // Relations has nothing of its own yet
+  expect(await names(page)).toEqual(["notation", "blitz", "a/b markers", "definitions", "stages"]);
+  expect(await sections(page)).toEqual(["relations", "every exercise"]); // what only Relations has (the negation track), then what every exercise has
+  expect(await rowNames(page)).toEqual(["negations"]);
   await page.locator("#over .oc").click();
   await expect(sheet).toBeHidden();
   await expect(sessBtn(page)).toBeFocused();
@@ -40,12 +41,12 @@ test("each exercise lists what it uses; Review has no practice options", async (
   await ready(page);
   await goTo(page, "Pervasions");
   await sessBtn(page).click();
-  expect(await names(page)).toEqual(["wording of the questions", "full phrases", "notation", "blitz", "a/b markers", "definitions"]);
+  expect(await names(page)).toEqual(["wording of the questions", "full phrases", "notation", "blitz", "a/b markers", "definitions", "stages"]);
   expect(await sections(page)).toEqual(["pervasions", "every exercise"]); // what only Pervasions has, then what every exercise has
   await page.keyboard.press("Escape");
   await goTo(page, "Find a pair");
   await sessBtn(page).click();
-  expect(await names(page)).toEqual(["suggest terms", "notation", "a/b markers", "definitions"]);
+  expect(await names(page)).toEqual(["suggest terms", "notation", "a/b markers", "definitions", "stages"]);
   expect(await sections(page)).toEqual(["find a pair", "every exercise"]);
   await page.keyboard.press("Escape");
   await goTo(page, "Review");

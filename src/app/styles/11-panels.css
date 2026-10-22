@@ -1,5 +1,6 @@
 /* the five relations as chips (wide) */
 .strip{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.strip.six{grid-template-columns:repeat(6,minmax(0,1fr))}
 .chip{display:grid;justify-items:center;align-content:center;gap:3px;min-height:56px;padding:6px 3px;border:0;background:var(--paper);box-shadow:inset 0 0 0 1.5px var(--ink-muted);text-align:center;cursor:pointer}
 .chip .n{font:400 17px/1.1 var(--math)}
 .chip small{font:700 10px/1.25 var(--body);letter-spacing:.04em;text-transform:uppercase;color:var(--ink-muted)}

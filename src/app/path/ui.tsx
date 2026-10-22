@@ -44,9 +44,9 @@ export const Head = ({ d, h, sub, later }: { d: ComponentChildren; h: string; su
   <St d={d} cls="sechead"><span class={"ph" + (later ? " later" : "")}>{h}{sub ? <span>{sub}</span> : null}</span></St>;
 export const Gap = ({ h }: { h: number }) => <div style={{ height: h + "px" }} />;
 
-// the relation figures, vertical: A above, B below (the diagrams transposed); the keys are the app's relations
-const SH: Record<string, [number[], number[]]> = { mi: [[30, 52, 32], [30, 52, 32]], "3ab": [[30, 44, 14], [30, 56, 32]], "3ba": [[30, 48, 32], [30, 60, 14]], "4": [[30, 36, 26], [30, 68, 26]], con: [[30, 24, 20], [30, 80, 20]] };
-const OV: Record<string, number[] | null> = { mi: [30, 52, 23], "3ab": [30, 44, 14], "3ba": [30, 60, 14], "4": [30, 52, 10], con: null };
+// the relation figures, vertical: A above, B below (the diagrams transposed); the keys are the app's relations; "4n" (four possibilities without neither) borrows the figure of "4" until the lab draws one
+const SH: Record<string, [number[], number[]]> = { mi: [[30, 52, 32], [30, 52, 32]], "3ab": [[30, 44, 14], [30, 56, 32]], "3ba": [[30, 48, 32], [30, 60, 14]], "4": [[30, 36, 26], [30, 68, 26]], "4n": [[30, 36, 26], [30, 68, 26]], con: [[30, 24, 20], [30, 80, 20]] };
+const OV: Record<string, number[] | null> = { mi: [30, 52, 23], "3ab": [30, 44, 14], "3ba": [30, 60, 14], "4": [30, 52, 10], "4n": [30, 52, 10], con: null };
 export const dia = (cx: number, cy: number, h: number) => `${cx},${cy - h} ${cx + h},${cy} ${cx},${cy + h} ${cx - h},${cy}`;
 /** The figure of a relation: two diamonds, A above B, and what they share filled. */
 export function Fig({ k, size = "r" }: { k: string; size?: string }) {
@@ -54,13 +54,13 @@ export function Fig({ k, size = "r" }: { k: string; size?: string }) {
   const [a, b] = sh, full = k === "mi" && currentLook().miFig === "full", o = full ? [30, 52, 32] : OV[k];
   const pa = <polygon class="a" vector-effect="non-scaling-stroke" points={dia(a[0], a[1], a[2])} />;
   const pb = <polygon class="b" vector-effect="non-scaling-stroke" points={dia(b[0], b[1], b[2])} />;
-  const big = a[2] >= b[2] && k !== "4" && k !== "con";
+  const big = a[2] >= b[2] && k !== "4" && k !== "4n" && k !== "con";
   return <svg class={"rfig " + size + (k === "mi" && !full ? " mii" : "")} viewBox="-3 1 66 102" aria-hidden="true">
     {big ? [pa, pb] : [pb, pa]}{o ? <polygon class="o" vector-effect="non-scaling-stroke" points={dia(o[0], o[1], o[2])} /> : null}
   </svg>;
 }
 /** The short name of a relation on the pair, as the lab says it. */
-export const SHORT: Record<string, string> = { mi: "The same", "3ab": "A in B", "3ba": "B in A", "4": "They overlap", con: "Apart" };
+export const SHORT: Record<string, string> = { mi: "The same", "3ab": "A in B", "3ba": "B in A", "4": "They overlap", "4n": "Overlap, none outside", con: "Apart" };
 
 /** A verdict's mark: right, wrong, or not settled yet. */
 export const Mark = ({ m }: { m: string }) => <span class={"mark " + m}><Icon n={m === "ok" ? "check" : m === "no" ? "cross" : "q"} /></span>;
