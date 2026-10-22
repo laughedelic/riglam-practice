@@ -71,6 +71,18 @@ test("the knob of the strip opens the earlier steps with one tap, and folds them
   await expect(strip).not.toHaveClass(/\bopen\b/);
 });
 
+test("under Blitz each countdown has a bar of its own on the top bar, so that it starts full", async ({ page }) => {
+  await page.addInitScript(() => { localStorage.setItem("rd-blitz", "1"); });
+  await start(page);
+  const bar = page.locator("#path .ptb .pclock");
+  await expect(bar).toHaveCount(1);   // the relation's countdown
+  await bar.evaluate((b) => { b.dataset.old = "1"; });
+  await choices(page).nth(3).click();
+  await expect(page.locator("#cin")).toBeVisible();
+  await expect(bar).toHaveCount(1);   // the countdown of the examples
+  await expect(page.locator("#path .pclock[data-old]")).toHaveCount(0);
+});
+
 test("the roadmap comes down from the top bar and goes to another exercise", async ({ page }) => {
   await start(page);
   await page.locator(".tstn").click();

@@ -39,6 +39,7 @@ export function TopBar({ title, tools = false, tutor = null, tutorDot = false, m
   };
   const ex = state.mode === "quiz" && isEx(), u = state.ui;
   const timed = ex && state.blitzUse && (state.tab === "practice" || state.tab === "debate" || state.tab === "syllogism");
+  // the countdown bar: a new countdown is a new bar (keyed by its start), so that its animation starts from full
   const tq = u && u.tq, e = tq ? Math.max(0, Math.round(performance.now() - tq.t0)) : 0;
   // holding the stopwatch opens the Blitz page of the practice options; a press switches Blitz
   const bzDown = (ev: PointerEvent) => { if (ev.button) return; held.current = false; clearTimeout(hold.current); hold.current = setTimeout(() => { held.current = true; openBlitzOptions(); }, HOLD_MS); };
@@ -55,7 +56,7 @@ export function TopBar({ title, tools = false, tutor = null, tutorDot = false, m
     {tools && ex ? <button type="button" class="pib" aria-label="Practice options" aria-expanded={state.sessOpen ? "true" : "false"} onClick={() => toggleSess(!state.sessOpen)}><Icon n="opts" /></button> : null}
     {tools && ex && canAsk() && !(u && u.cats) ? <button type="button" class="pib" aria-label={tutorDot ? "The tutor, an answer is waiting" : "The tutor"} aria-disabled={tutor ? "false" : "true"}
       onClick={() => tutor ? tutor() : pathNote("The tutor speaks after the check")}><Icon n="tutor" />{tutorDot ? <span class="dot dt" /> : null}</button> : null}
-    {tq ? <div class={"pclock" + (u.late ? " late" : "")} aria-hidden="true" style={{ "--t": tq.limit + "ms", "--e": e + "ms" }}><i /></div> : null}
+    {tq ? <div key={tq.t0 + "/" + tq.limit} class={"pclock" + (u.late ? " late" : "")} aria-hidden="true" style={{ "--t": tq.limit + "ms", "--e": e + "ms" }}><i /></div> : null}
   </header>;
 }
 
