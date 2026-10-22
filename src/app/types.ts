@@ -304,6 +304,10 @@ export interface State {
   stages: number[];
   /** the pairs left that lean to three possibilities after the highest stage went up (`rd-stage-lean`) */
   stageLean: number;
+  /** the stages came from the settings of a device before the ladder and were not changed since (`rd-stages-kept`): the draw weighs every pair the same, as it did */
+  stagesKept: boolean;
+  /** that device had Syllogisms on everyday things (`rd-syllogism-level` "1"); it holds until the stages are changed */
+  syllogismEveryday: boolean;
   /** sends flags to the app's server (platform.reports), when the place has a server for them and this device has the Magic Key */
   reports: Reports | null;
   /** keeps the removal of a flag for a later start that has `reports` (platform.withdrawReport) */

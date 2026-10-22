@@ -641,6 +641,11 @@ test("the real data: the next pair comes from the stages that are on, about half
   // just after a stage went up, three possibilities come more often
   const threes = (fresh: boolean) => Array.from({ length: 300 }, (_, s) => chooseEntry(rix, realPool, { hist: [], recent: [], rng: seeded(s), stages: on, fresh })).filter((e) => e.r === "3").length;
   expect(threes(true)).toBeGreaterThan(threes(false) * 1.5);
+  // a device that kept its settings from before the ladder (stages 1 to 6) draws every pair alike: the pairs new at stage 6 come about as often as their share
+  const all = [1, 2, 3, 4, 5, 6], at6 = new Set(poolAt(rix, realPool, all).filter((e) => e.st === 6).map(pairKey));
+  const share6 = (even: boolean) => Array.from({ length: 1000 }, (_, s) => chooseEntry(rix, realPool, { hist: [], recent: [], rng: seeded(s), stages: all, even })).filter((e) => at6.has(pairKey(e))).length / 1000;
+  expect(share6(true)).toBeLessThan(0.2);
+  expect(share6(false)).toBeGreaterThan(0.3);
 });
 
 test("the real data: Categories asks about things of the stages that are on, practice items too, and never a category a name leaves open", () => {

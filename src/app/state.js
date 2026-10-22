@@ -24,6 +24,8 @@ export const state = {
   EX: null,      // the course's reference examples this device holds (platform.examples), indexed by name (ai-shared/examples.ts); null when it has none
   stages: [...DEFAULT_STAGES], // the stages of the learning ladder every exercise draws from, any mix, at least one (the practice options, `rd-stages`, "1,2"); a new device starts at stage 1 alone
   stageLean: 0,  // the pairs left that lean to three possibilities, after the highest stage went up (`rd-stage-lean`, shell/stages.js)
+  stagesKept: false, // the stages came from a device's settings before the ladder and were not changed since (`rd-stages-kept`): every pair weighs the same, as before
+  syllogismEveryday: false, // that device had Syllogisms on everyday things (`rd-syllogism-level` "1"), which holds until the stages are changed
   about: null,   // {version, commit, builtAt, latest, branches?}: which build this is (platform.about), shown in Options
   updates: null, // {status, check, apply, subscribe}: updating the installed app in place (platform.updates), shown in Options
   unlock: null,  // {open, tutor}: opens the prompt for the Magic Key (platform.unlock) while this device has none; `tutor` is whether the server has a tutor waiting for it
@@ -137,10 +139,12 @@ try{
   else {
     const old=localStorage.getItem("rd-exlevels");
     const before=old!==null||(localStorage.getItem("rd-ladder")===null&&Object.keys(localStorage).some(k=>k.startsWith("rd-")));
-    if(before){ state.stages=stagesOfLevels(old!==null?normLevels(old):[1]); localStorage.setItem("rd-stages",state.stages.join(",")); }
+    if(before){ state.stages=stagesOfLevels(old!==null?normLevels(old):[1]); localStorage.setItem("rd-stages",state.stages.join(",")); localStorage.setItem("rd-stages-kept","1"); }
   }
   localStorage.setItem("rd-ladder","1");
   state.stageLean=Math.max(0,+(localStorage.getItem("rd-stage-lean")||0)||0);
+  state.stagesKept=localStorage.getItem("rd-stages-kept")==="1";
+  state.syllogismEveryday=localStorage.getItem("rd-syllogism-level")==="1";
 }catch(e){}
 // the structure under a syllogism is on for a beginner (the stages of everyday things) until the device chooses
 try{ if(localStorage.getItem("rd-syllogism-wording")==="formal") state.syllogismWording="formal"; const g=localStorage.getItem("rd-syllogism-guide"); state.syllogismGuide=g!==null?g==="1":topStage(state.stages)<=3; }catch(e){}

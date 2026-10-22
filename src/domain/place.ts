@@ -234,7 +234,9 @@ export function gradePlace(q: PlaceQuestion, picked: readonly string[]): PlaceRe
 
 /** One step of the line from the most specific category up to the top of the "is a" chain: a category the question offered for step 2, or one it left out. */
 export interface PlaceStep {
+  /** the Dudra term; "" for an everyday category, which `cat` names */
   term: string;
+  cat?: string;
   phrase: string;
   option: boolean;
 }
@@ -252,15 +254,21 @@ export interface PlaceNarrow {
 /**
  * Step 2 of the question: the categories the thing is in, from which the learner picks the most specific. Null when there is nothing to narrow:
  * fewer than two categories apply, or they do not lie on one line of the "is a" chain (a thing of two classes can be in a category of each).
+ * An everyday category stands just below the term its kind names ("furniture" below Form, "humans" below Person); when the everyday categories
+ * that apply are not on one line with the rest ("wooden things" and "furniture"), step 2 asks about the course's categories alone, as before them.
  */
 export function placeNarrow(ix: DataIndex, q: PlaceQuestion, rng: () => number): PlaceNarrow | null {
-  const yes = q.rows.filter((r) => r.answer);
-  if (yes.length < 2) return null;
-  const narrowest = yes.reduce((a, b) => (depthOf(ix, b.term) > depthOf(ix, a.term) ? b : a));
-  const line = upChain(ix, narrowest.term);
-  if (!yes.every((r) => line.includes(r.term))) return null;
-  const offered = new Set(yes.map((r) => r.term));
-  return { options: shuffle(yes, rng), cat: narrowest.cat, line: line.map((term) => ({ term, phrase: termPhrase(term), option: offered.has(term) })) };
+  const all = q.rows.filter((r) => r.answer);
+  const key = (r: PlaceRow) => r.term || "@" + r.cat;
+  const chainOf = (r: PlaceRow) => (r.term ? upChain(ix, r.term) : ["@" + r.cat, ...catChain(ix, ix.CAT[r.cat])]);
+  const lowest = (rows: PlaceRow[]) => (rows.length < 2 ? undefined : rows.find((r) => { const up = chainOf(r); return rows.every((o) => up.includes(key(o))); }));
+  let yes = all, narrowest = lowest(yes);
+  if (!narrowest) { yes = all.filter((r) => r.term); narrowest = lowest(yes); }
+  if (!narrowest) return null;
+  const offered = new Set(yes.map(key));
+  const line = chainOf(narrowest).map((k): PlaceStep =>
+    k.startsWith("@") ? { term: "", cat: k.slice(1), phrase: narrowest.phrase, option: true } : { term: k, phrase: termPhrase(k), option: offered.has(k) });
+  return { options: shuffle(yes, rng), cat: narrowest.cat, line };
 }
 
 export interface NarrowGraded {
@@ -276,7 +284,7 @@ export interface NarrowGraded {
 export function gradeNarrow(n: PlaceNarrow, cat: string): NarrowGraded | null {
   const picked = n.options.find((r) => r.cat === cat);
   if (!picked) return null;
-  const at = n.line.findIndex((s) => s.term === picked.term);
+  const at = n.line.findIndex((s) => (picked.term ? s.term === picked.term : s.cat === picked.cat));
   return { picked, ok: cat === n.cat, upTo: n.line.slice(0, at + 1) };
 }
 

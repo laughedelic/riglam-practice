@@ -188,6 +188,8 @@ export interface DrawState {
   stages?: Stages;
   /** the learner has just reached the highest stage that is on: its first pairs lean to three possibilities, with familiar things inside familiar kinds */
   fresh?: boolean;
+  /** every pair the stages can draw weighs the same, none more for being new at the highest stage: a device that kept its settings from before the ladder draws as it did */
+  even?: boolean;
 }
 
 /** How much more likely a three-possibility pair is while the learner has just reached a stage (`fresh`). */
@@ -201,7 +203,7 @@ export function chooseEntry(ix: DataIndex, full: readonly PoolEntry[], st: DrawS
   const { hist, recent } = st, rng = st.rng || Math.random, isHidden = st.isHidden || (() => false);
   // stages whose things cannot fill a single pair (only the upper stages, which the practice list has nothing of) draw from every pair
   const staged = st.stages ? poolAt(ix, full, st.stages) : [], pool: readonly (PoolEntry & Partial<StagedEntry>)[] = staged.length ? staged : full;
-  const top = staged.length ? topStage(st.stages!) : 0;
+  const top = staged.length && !st.even ? topStage(st.stages!) : 0;
   const last = hist.slice(-8).map((x) => (x.key === "3ab" || x.key === "3ba" ? "3" : x.key));
   const seen = new Set(hist.slice(-60).map((x) => [x.catA, x.catB].sort().join("|")).concat(recent));
   const weak: Record<string, number> = Object.create(null);

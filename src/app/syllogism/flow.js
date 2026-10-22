@@ -47,7 +47,7 @@ function expireSyllogism(u){
 
 /** Draws the next syllogism, from what the learner has answered so far and the stages that are on (everyday ones up to stage 3). */
 export function advanceSyllogism(){
-  const c=drawSyllogism(state,{hist:syllogismList().slice(-40),recent:state.syllogismRecent,stages:state.stages});
+  const c=drawSyllogism(state,{hist:syllogismList().slice(-40),recent:state.syllogismRecent,stages:state.stages,...(state.syllogismEveryday?{level:1}:{})});
   state.cur=/** @type {any} */({p:null,syllogism:true,c}); state.ui=freshSyllogismUi(); state.mode="quiz";
   if(state.blitz&&syllogismAsking()) startQ();         // not yet on this screen when the exercise is opened from another: setTab starts it then
 }

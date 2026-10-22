@@ -243,7 +243,8 @@ test("over the real categories and made-up examples: every row agrees with place
     if (n) {
       narrowed++;
       expect(yes.length, q.thing.n).toBeGreaterThanOrEqual(2);
-      expect(n.options.length).toBe(yes.length);
+      // every category that applies, or the course's alone when everyday ones are off their line
+      expect([yes.length, yes.filter((r) => r.term).length]).toContain(n.options.length);
       expect(n.options.some((r) => r.cat === n.cat), q.thing.n).toBe(true);
       expect(gradeNarrow(n, n.cat)!.ok).toBe(true);
     } else if ((q.thing.ex?.cls ?? []).length === 1) {
@@ -264,4 +265,26 @@ test("over the real categories and made-up examples: every row agrees with place
   expect(yesRows).toBeGreaterThan(0);
   expect(noRows).toBeGreaterThan(0);
   expect(performance.now() - t0, "400 draws").toBeLessThan(4000);
+});
+
+test("placeNarrow with everyday categories: one stands below the term of its kind, and when they are off one line step 2 asks about the course's categories", async () => {
+  const { itemRows } = await import("../../src/domain/place");
+  const rix = makeIndex(openData as unknown as DrillData);
+  const item = (n: string) => (openData as unknown as DrillData).items.find((i) => i.n === n)!;
+  const q = (n: string, on: number[]) => ({ thing: { n, st: 1, item: item(n) }, rows: itemRows(rix, item(n), on) });
+  // stage 1: Form and furniture apply to a wooden chair, with wooden things beside furniture: two everyday categories off one line, one course category
+  const chair = q("a wooden chair", [1]);
+  expect(chair.rows.filter((r) => r.answer).map((r) => r.cat).sort()).toEqual(["form", "furn", "wooden"]);
+  expect(placeNarrow(rix, chair, seeded(1))).toBeNull();
+  // a metal key: Form and metal things, metal things the most specific
+  const key = q("a metal key", [1]);
+  const n = placeNarrow(rix, key, seeded(1))!;
+  expect(n.cat).toBe("metal");
+  expect(n.line.slice(0, 2).map((s) => s.phrase)).toEqual([key.rows.find((r) => r.cat === "metal")!.phrase, "a form"]);
+  expect(gradeNarrow(n, "form")).toMatchObject({ ok: false, upTo: [{ cat: "metal" }, { term: "Form" }] });
+  expect(gradeNarrow(n, "metal")).toMatchObject({ ok: true, upTo: [{ cat: "metal" }] });
+  // stage 2: external form joins; wooden things and furniture are still off one line, so step 2 narrows Form and External form
+  const chair2 = placeNarrow(rix, q("a wooden chair", [1, 2]), seeded(1))!;
+  expect(chair2.cat).toBe("extf");
+  expect(chair2.options.map((r) => r.cat).sort()).toEqual(["extf", "form"]);
 });
