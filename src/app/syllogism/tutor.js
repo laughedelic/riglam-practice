@@ -5,6 +5,7 @@ import { isWide } from "../core/viewport.js";
 import { errCopy } from "../ai/tutor.js";
 import { persist } from "../practice/answers.js";
 import { fillTurn, revealTutor } from "../practice/screen.js";
+import { pathOn, refreshPath } from "../path/index.tsx";
 import { render, renderKeepFocus } from "../shell/render.js";
 import { SYLLOGISM_ASK, syllogismBody, syllogismCard, syllogismCats } from "../../ai-shared/syllogism.ts";
 import { tutorTools } from "../../ai-shared/tools.ts";
@@ -36,7 +37,7 @@ export async function askSyllogism(text,kind,byItself){
   U.chatErr=""; const ctl=U.ctl=new AbortController(); draw(); if(U===state.ui&&!byItself) revealTutor();
   const turns=U.chat.filter(t=>!t.pending).map(t=>({role:t.role,content:t.content}));
   const slot=U.chat[U.chat.length-1];
-  const onText=({text})=>{ slot.content=text; if(U===state.ui){ const o=$("ans-live"); if(o){ fillTurn(o,{kind,pending:true,content:text},!o.closest("#chatscroll")); const sc=$("chatscroll"); if(sc) sc.scrollTop=0; } } };
+  const onText=({text})=>{ slot.content=text; if(U===state.ui){ const o=$("ans-live"); if(o){ fillTurn(o,{kind,pending:true,content:text},!o.closest("#chatscroll")); const sc=$("chatscroll"); if(sc) sc.scrollTop=0; } else if(pathOn()) refreshPath(); } };   // the Path draws a result's Why itself (src/app/path)
   const opts={signal:ctl.signal,modelTier:TIER,cache:false,onText};
   if(state.DATA) opts.tools=tutorTools(state);
   try{
