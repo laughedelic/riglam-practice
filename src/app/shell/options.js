@@ -8,8 +8,9 @@ import { $, el } from "../core/dom.js";
 import { asking, startQ, stopTimer } from "../debate/flow.js";
 import { overHead } from "./chat.js";
 import { render } from "./render.js";
-import { settingRow as row, switchOf } from "./rows.js";
+import { segOf, settingRow as row, switchOf } from "./rows.js";
 import { voiceRow } from "./voice.js";
+import { setDesign } from "../path/index.tsx";
 
 /* ---------- Settings: what belongs to the app, the device and the account (how an exercise looks and ticks is in its Practice options, session.js) ---------- */
 // Sharing the learner's examples is here, not in the practice options: it is set once and forgotten (the dialog of ai/share-notice.js asks the first time, and points here).
@@ -51,6 +52,12 @@ function shareRow(){
       +" Turn this off to keep your examples out of it: checks work as before"+(known?", and you still get answers learned from other people\u2019s examples":"")+"."
       +(quorum?" Quorum, in the practice options, is separate: it keeps its own runs, whatever this says.":"")}));
 }
+// The redesign (src/app/path) is tried here: the Path, or the page as it was. A device keeps its choice; without one, a Preview starts on the Path.
+function designRow(){
+  const r=row("Design",segOf("Design",[["path","Path"],["classic","Classic"]],state.design,setDesign),
+    "The Path is the redesign, still being made: Relations is drawn on it, and the other screens are the classic ones inside it for now. Classic is the page as it was.");
+  r.classList.add("design"); return r;
+}
 export function optionsInto(o){
   o.append(overHead("Settings",()=>toggleOpts(false),"Back to the exercise"));
   const box=el("div",{class:"opts",id:"opts"});
@@ -65,6 +72,7 @@ export function optionsInto(o){
         :"This device has the Magic Key, so the definitions and the tutor are open. If the study group changed the key, enter the new one; or forget the key on this device.","key",mkPop()):null,
     canAsk()&&state.learns?shareRow():null,
     state.account&&state.db&&state.account.view().available?row("Account",accountControls(state.account,el,render,state.acct)):null,
+    designRow(),
     voiceRow(),
     state.db?row("Your data",dataTransferControls(state.db,el,render,state.xfer),"Saves everything this device keeps (answers, debates, favorites, skipped pairs and these settings) in one file, as a backup or to move to another device. Importing adds what is missing and never deletes anything."):null,
     state.about?row("Version and updates",aboutNode(state.about)):null,

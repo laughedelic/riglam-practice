@@ -284,6 +284,8 @@ export function voiceBar(){
       tap?el("button",{type:"button",class:"btn ghost vhear",onclick:()=>say(a,a.say,v.held),text:"Hear the question"}):null):null,
     pend);
 }
+/** The Path draws its own microphone (in its top bar) where this says so: the screen asks something and Answer by voice is on. */
+export const micShown=()=>!!asked()&&hearing();
 /** The microphone for the pair bar, or null where the screen asks nothing or Answer by voice is off. */
 export function micButton(){
   const a=asked();
@@ -333,8 +335,10 @@ document.addEventListener("visibilitychange",()=>{ if(document.hidden&&enabled()
 /* ---------- the switch in the top bar: pausing the reading ---------- */
 // Next to the Blitz switch while Voice is on and Read aloud is chosen: pauses the reading and resumes it, without opening the options. It is for this visit
 // only (Read aloud itself is kept in the Practice options). Pausing cuts off what is being read; resuming reads the question on the screen.
+/** The Read aloud switch of the top bar is there: Voice is on, Read aloud is chosen and the device can speak, in Relations or Pervasions. */
+export const readShown=()=>enabled()&&state.voice.read&&canSpeak()&&state.mode==="quiz"&&(state.tab==="practice"||state.tab==="debate");
 export function syncReadBtn(){
-  const b=$("mrd"), ok=enabled()&&state.voice.read&&canSpeak()&&state.mode==="quiz"&&(state.tab==="practice"||state.tab==="debate");
+  const b=$("mrd"), ok=readShown();
   b.hidden=!ok; if(!ok) return;
   const on=!state.voice.muted;
   b.replaceChildren(tbIcon(on?"speak":"speakoff"));

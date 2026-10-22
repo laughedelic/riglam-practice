@@ -10,7 +10,7 @@ import { examplesFor } from "../../domain/reference.ts";
 import { render } from "../shell/render.js";
 
 // Where a category sits: the Dudra term with its higher categories, or, for an everyday category, the Dudra term it falls under.
-function lineageOf(cid){
+export function lineageOf(cid){
   const c=state.CAT[cid]; if(!c||!state.DATA) return null;
   const ch=state.DATA.chains||{};
   if(c.kind==="dudra"&&c.term) return {names:ch[c.term]||[c.term],everyday:false};

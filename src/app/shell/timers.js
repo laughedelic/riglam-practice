@@ -76,7 +76,7 @@ function expireRelD(u){
 // a new start: after a change of the switch or the time, the running countdown begins again with its full time
 export function relReset(){ if(state.ui&&!state.ui.checked&&(!state.ui.debate||state.ui.step>3)) stopTimer(); }
 // the bar of a countdown that is stopped for a spoken answer (debate/flow.js) stands still where it is, and goes on with the clock
-export function freezeBar(on){ for(const i of document.querySelectorAll(".tbar i")) i.style.animationPlayState=on?"paused":""; }
+export function freezeBar(on){ for(const i of document.querySelectorAll(".tbar i, .pclock i")) i.style.animationPlayState=on?"paused":""; }   // the classic bar and the Path's
 /** The countdown bar of the pair on screen, or null while no countdown runs: drawn by the top bar on its lower edge. */
 export function timerBar(){
   if(!state.ui||!state.ui.tq) return null;

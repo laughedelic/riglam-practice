@@ -1,4 +1,5 @@
-// The shape of the page code in src/app: shared state in one object, a leaf `core/`, and no module that the entry cannot reach.
+// The shape of the page code in src/app: shared state in one object, a leaf `core/`, and no module that the entry cannot reach. The page's
+// modules are JavaScript, and TypeScript in the newer parts (the Path, src/app/path); types.ts and the .d.ts files hold types only.
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import ts from "typescript";
@@ -7,7 +8,8 @@ import { expect, test } from "vitest";
 const root = resolve(__dirname, "../../src/app");
 
 function sources(dir = root): string[] {
-  return readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? sources(join(dir, e.name)) : e.name.endsWith(".js") ? [join(dir, e.name)] : []));
+  const code = (n: string) => /\.(js|ts|tsx)$/.test(n) && !n.endsWith(".d.ts") && !(dir === root && n === "types.ts");
+  return readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? sources(join(dir, e.name)) : code(e.name) ? [join(dir, e.name)] : []));
 }
 
 const files = sources();
@@ -28,11 +30,12 @@ test("the page code is split into modules", () => {
   expect(files.length).toBeGreaterThan(10);
   expect(files.map(rel)).toContain("app.js");
   expect(files.map(rel)).toContain("state.js");
+  expect(files.map(rel)).toContain("path/index.tsx");
 });
 
 /** The names declared by `let` and `var` statements at the top level of a module, indented or exported or not; `const` and block-level declarations are not module state. */
-function mutableTopLevel(text: string): string[] {
-  const sf = ts.createSourceFile("module.js", text, ts.ScriptTarget.ES2022, true, ts.ScriptKind.JS);
+function mutableTopLevel(text: string, kind = ts.ScriptKind.JS): string[] {
+  const sf = ts.createSourceFile("module", text, ts.ScriptTarget.ES2022, true, kind);
   const names: string[] = [];
   for (const st of sf.statements) {
     if (!ts.isVariableStatement(st)) continue;
@@ -50,7 +53,8 @@ test("the module-state check sees let and var in every form, and nothing else", 
 
 test("shared state lives in `state`: no module-level let or var outside state.js", () => {
   for (const f of files.filter((f) => rel(f) !== "state.js")) {
-    expect(mutableTopLevel(readFileSync(f, "utf8")), `${rel(f)} declares module-level variables; put them in state.js`).toEqual([]);
+    const kind = f.endsWith(".tsx") ? ts.ScriptKind.TSX : f.endsWith(".ts") ? ts.ScriptKind.TS : ts.ScriptKind.JS;
+    expect(mutableTopLevel(readFileSync(f, "utf8"), kind), `${rel(f)} declares module-level variables; put them in state.js`).toEqual([]);
   }
 });
 

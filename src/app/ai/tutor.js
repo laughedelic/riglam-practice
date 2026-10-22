@@ -13,6 +13,7 @@ import { noteCats } from "../../ai-shared/lookup.ts";
 import { tutorTools } from "../../ai-shared/tools.ts";
 import { askSyllogism } from "../syllogism/tutor.js";
 import { VERDICT_RE, applyRelationVerdict, applyVerdicts, parseFactLine, parseRelationVerdict, parseVerdicts } from "../../domain/verdict.ts";
+import { pathOn, refreshPath } from "../path/index.tsx";
 
 const TIER="default";
 
@@ -90,7 +91,7 @@ export async function ask(text,kind,byItself){
   U.chatErr=""; const ctl=U.ctl=new AbortController(); if(quorum) quorumBegin(U); draw(); if(U===state.ui&&!byItself) revealTutor();
   const turns=U.chat.filter(t=>!t.pending).map(t=>({role:t.role,content:t.content}));
   const slot=U.chat[U.chat.length-1];
-  const onText=({text})=>{slot.content=text; if(U===state.ui){ const o=$("ans-live"); if(o){ fillTurn(o,{kind,pending:true,content:text},!o.closest("#chatscroll")); const sc=$("chatscroll"); if(sc) sc.scrollTop=0; } }};
+  const onText=({text})=>{slot.content=text; if(U===state.ui){ const o=$("ans-live"); if(o){ fillTurn(o,{kind,pending:true,content:text},!o.closest("#chatscroll")); const sc=$("chatscroll"); if(sc) sc.scrollTop=0; } else if(pathOn()) refreshPath(); }};   // the Path draws a result's Why itself (src/app/path)
   const opts={signal:ctl.signal,modelTier:TIER,cache:false,onText};
   if(state.DATA) opts.tools=tutorTools(state,state.EX);
   try{

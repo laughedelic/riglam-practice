@@ -17,12 +17,13 @@ import { enter, leave } from "./motion.js";
 import { ensureRelTimer } from "./timers.js";
 import { renderBar } from "./topbar.js";
 import { voiceAfterRender, voiceBeforeRender } from "./voice.js";
+import { pathOn, pathTop, renderPath } from "../path/index.tsx";
 
 /* ---------- rendering ---------- */
 // One layout for every screen: a top bar over a workspace. Narrow screens show one step at a time (steps) with the menu as a drawer over it;
 // wide screens show the menu beside the workspace (pinned, or from the left edge) and the tutor's panel at its right when it is open.
 export const CELL_FULL={both:"Both A and B", anb:"A, not B", bna:"B, not A", nei:"Neither A nor B"};
-export function top0(){ for(const id of ["stage","coach","over"]){ const n=$(id); if(n) n.scrollTop=0; } }
+export function top0(){ for(const id of ["stage","coach","over"]){ const n=$(id); if(n) n.scrollTop=0; } if(pathOn()) pathTop(); }
 export function ago(iso){
   const m=Math.round((Date.now()-new Date(iso).getTime())/6e4); if(!(m>=0)) return "";
   if(m<1) return "now"; if(m<60) return m+" min";
@@ -84,6 +85,7 @@ export function render(){
 }
 function renderNow(){
   voiceBeforeRender();   // a screen that voice did not speak for lets go of its clock before this render starts the next one
+  if(pathOn()){ renderPathNow(); return; }
   const w=isWide(); if(w&&state.view==="chat") state.view=null;
   const drawerGone=w&&state.menuOpen;
   if(w) state.menuOpen=false; else state.menuPeek=false;
@@ -112,10 +114,22 @@ function renderNow(){
   }
   renderOver(); restoreFocus(f&&f.id!==undefined&&state.skipAsk?null:f); placePops(); dropStaleDef(); voiceAfterRender(); // the question before a skip has the focus, not the field under it
 }
+// The Path draws the whole page itself (src/app/path). The old stage only keeps its status line, which the recovery panel of the installed app reads (index.html);
+// the classic panels are emptied, so that an id in them (a field, the chat) is never found before the Path's own.
+function renderPathNow(){
+  ensureRelTimer();
+  state.lastUi=state.ui;
+  const s=$("stage"), st=state.mode==="loading"?"Loading.":state.mode==="nodata"?"The practice data could not be loaded. Reload the page to try again.":"";
+  if(s.textContent!==st) s.replaceChildren(...(st?[el("p",{class:"status",text:st})]:[]));
+  for(const id of ["over","coach","steps"]){ const n=$(id); if(n.firstChild) n.replaceChildren(); n.hidden=true; }
+  document.documentElement.classList.remove("ov");
+  renderPath(); dropStaleDef(); voiceAfterRender();
+}
 /** After a check the result is shown from its top. A phone puts the focus on the forward button (Next pair); a wide screen on Explain, or on the screen itself when
  *  the answer is explained by itself or already is, so that no key press moves on by mistake (Next pair is the N key). */
 export function focusAfterCheck(){
   top0();
+  if(pathOn()) return;   // the Path puts the focus on its station itself (src/app/path)
   if(!isWide()){ const bs=document.querySelectorAll("#stage .actions .btn"); if(bs.length) bs[bs.length-1].focus({preventScroll:true}); return; }
   const x=state.autoExplain&&canAsk()?null:/** @type {HTMLElement|null} */(document.querySelector("#stage .verdict .xpl"));
   (x||$("stage")).focus({preventScroll:true});

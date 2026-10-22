@@ -198,7 +198,7 @@ describe("a file that is not right", () => {
 describe("the list of settings", () => {
   it("covers every rd- key the page stores", () => {
     const dir = new URL("../../src/app/", import.meta.url);
-    const files = (readdirSync(dir, { recursive: true }) as string[]).filter((f) => f.endsWith(".js"));
+    const files = (readdirSync(dir, { recursive: true }) as string[]).filter((f) => /\.(js|ts|tsx)$/.test(f));
     const used = new Set<string>();
     for (const f of files) for (const m of readFileSync(new URL(f, dir), "utf8").matchAll(/["'](rd-[a-z-]+)["']/g)) used.add(m[1]);
     used.delete("rd-lab"); // the earlier name of rd-quorum: read once and removed (state.js), never stored again

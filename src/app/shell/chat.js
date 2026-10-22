@@ -61,7 +61,7 @@ export function tutorTurns(box,newestFirst,lean){
 }
 // The chat on a narrow screen is a drawer from the right, behind a scrim, the mirror of the menu: the title, and the close button where the chat button was.
 // It keeps the field right under the heading, because the on-screen keyboard covers the lower third of the screen.
-function chatInto(o){
+export function chatInto(o){
   const p=state.cur.p, label="Close the chat", d=el("div",{class:"cdrawer"});
   o.append(el("button",{type:"button",class:"scrim",tabindex:"-1","aria-label":label,onclick:closeChat}),d);
   d.append(el("div",{class:"oh"},el("h2",{text:"Discuss with AI"}),el("button",{type:"button",class:"oc",onclick:closeChat,"aria-label":label,title:label},tbIcon("close"))));

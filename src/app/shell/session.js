@@ -24,24 +24,24 @@ import { voiceListRows, voicePageBody, voiceShown } from "./voice.js";
 // means. Plain switches are rows. Back or Escape goes from a page to the list, and from the list to the exercise.
 
 // what the symbols of each notation mean
-const SYMS={
+export const SYMS={
   codes:["Shorthand","Perdue's course book abbreviates the relations like this.",[["MI","mutually inclusive"],["MX","mutually exclusive"],["3P","three possibilities"],["4P","four possibilities"]]],
   sets:["Sets","Each term stands for the set of things it covers.",[["∩","intersection: what is both"],["∅","the empty set: nothing"],["≠ ∅","not empty"],["⊂","contained in"],["⊃","contains"],["=","the same set"]]],
   logic:["Logic","Each term stands for a statement: it is A, it is B.",[["⇒","follows: A ⇒ B, if A then B"],["⇐","follows from"],["⇔","each follows from the other"],["⇏","does not follow"],["¬","negation: not"]]]
 };
-const PAGES={nota:"Notation",wording:"Questions",times:"Blitz",defs:"Definitions",levels:"Examples",voice:"Voice"};
+export const PAGES={nota:"Notation",wording:"Questions",times:"Blitz",defs:"Definitions",levels:"Examples",voice:"Voice"};
 const store=(key,v)=>{ try{ localStorage.setItem(key,v); }catch(e){} };
-function setNota(k){ state.nota=k; store("rd-notation",k); render(); }
+export function setNota(k){ state.nota=k; store("rd-notation",k); render(); }
 export function setDefLang(k){ state.defLang=k==="enru"?"enru":"en"; store("rd-deflang",state.defLang); render(); }
-function setShow(key,on){ if(key==="ab") state.showAB=on; else state.fullPh=on; store("rd-"+key,on?"1":"0"); render(); }
-function setAutoExplain(on){ state.autoExplain=on; store("rd-autoexplain",on?"1":"0"); render(); }
-function setWording(k){ state.wording=k; store("rd-wording",k); render(); }
-function setFindSuggest(on){ state.findSuggest=on; store("rd-findsuggest",on?"1":"0"); render(); }
-function setSyllogismWording(k){ state.syllogismWording=k; store("rd-syllogism-wording",k); render(); }
-function setSyllogismGuide(on){ state.syllogismGuide=on; store("rd-syllogism-guide",on?"1":"0"); render(); }
-function setSyllogismLevel(n){ state.syllogismLevel=n; store("rd-syllogism-level",String(n)); render(); }
+export function setShow(key,on){ if(key==="ab") state.showAB=on; else state.fullPh=on; store("rd-"+key,on?"1":"0"); render(); }
+export function setAutoExplain(on){ state.autoExplain=on; store("rd-autoexplain",on?"1":"0"); render(); }
+export function setWording(k){ state.wording=k; store("rd-wording",k); render(); }
+export function setFindSuggest(on){ state.findSuggest=on; store("rd-findsuggest",on?"1":"0"); render(); }
+export function setSyllogismWording(k){ state.syllogismWording=k; store("rd-syllogism-wording",k); render(); }
+export function setSyllogismGuide(on){ state.syllogismGuide=on; store("rd-syllogism-guide",on?"1":"0"); render(); }
+export function setSyllogismLevel(n){ state.syllogismLevel=n; store("rd-syllogism-level",String(n)); render(); }
 // Blitz off takes the stopwatch away from the top bar, and a running countdown with it
-function setBlitzUse(on){ state.blitzUse=on; store("rd-blitzuse",on?"1":"0"); if(!on) setBlitz(false); else render(); }
+export function setBlitzUse(on){ state.blitzUse=on; store("rd-blitzuse",on?"1":"0"); if(!on) setBlitz(false); else render(); }
 
 export function toggleSess(on){
   const was=state.sessOpen; state.sessOpen=on===undefined?!was:on;
@@ -52,7 +52,7 @@ export function toggleSess(on){
   if(state.sessOpen){ const b=document.querySelector("#over .oc"); if(b) /** @type {HTMLElement} */(b).focus({preventScroll:true}); }
   else { const b=$("msess"); if(b.offsetParent) b.focus({preventScroll:true}); }
 }
-function openPage(id){ state.sessPage=id; render(); const b=document.querySelector("#over .ob"); if(b) /** @type {HTMLElement} */(b).focus({preventScroll:true}); }
+export function openPage(id){ state.sessPage=id; render(); const b=document.querySelector("#over .ob"); if(b) /** @type {HTMLElement} */(b).focus({preventScroll:true}); }
 /** The Examples page of the practice options: where the levels are switched, and what an offer of another level points to. */
 export function openLevelOptions(){ if(!state.sessOpen) toggleSess(true); openPage("levels"); }
 /** The Blitz page of the practice options: what holding the stopwatch in the top bar opens. */
@@ -93,7 +93,7 @@ function timeBlock(kind,label,note){
   return row(label,el("div",{class:"tset"},segOf(label,[[5,"5 s"],[10,"10 s"],[15,"15 s"],[30,"30 s"]],preset?now:-1,s=>setTimer(s*1000,kind)),inp),note);
 }
 // a page's choices: one pressed, each with a word on what it does
-const picks=(label,items,cur,on)=>el("div",{class:"picks",role:"group","aria-label":label},items.map(([k,name,desc,extra])=>
+export const picks=(label,items,cur,on)=>el("div",{class:"picks",role:"group","aria-label":label},items.map(([k,name,desc,extra])=>
   el("button",{type:"button",class:"pick","aria-pressed":cur===k?"true":"false",onclick:()=>on(k)},
     el("span",{class:"t"},el("b",{text:name}),desc?el("small",{text:desc}):null,extra||null))));
 const symbols=rows=>el("span",{class:"syms"},rows.map(([k,t])=>el("span",{class:"sy"},el("b",{class:"math",text:k}),t)));
@@ -146,15 +146,19 @@ function syllogismBody(){
     el("p",{class:"capl"},"The Magic Key, your account, data and the version are in ",el("button",{type:"button",class:"lnk",onclick:()=>{ toggleSess(false); toggleOpts(true); }},"Settings"),".")
   ];
 }
+// the Quorum row and the Share my examples row (Settings, options.js) each say what the server keeps; each says the other is separate
+/** What the Quorum switch of the practice options says it does. */
+export function quorumNote(){
+  const apart=state.learns?" The words of an example are kept, or not, as \u201cShare my examples\u201d in Settings says, with or without Quorum.":"";
+  return state.quorumOptIn
+    ?"Optional: a deeper check, but slower. When the page could not check an example you wrote, three AI models (Haiku, Sonnet and Opus) each work it out and Opus rules where they differ, so the explanation is more reliable. An answer takes about a minute instead of a few seconds, and it counts against a daily limit of its own; when that is used up, one model answers as usual. The server keeps each such run (the pair with what you wrote, and the answers), so the models can be compared. With Quorum off, one model answers and no run is kept."+apart
+    :"For testing, on this test server only. With Quorum on, the explanation of an answer with an example the page could not check comes from Haiku, Sonnet and Opus, each on its own; where they put an example in different cells, Opus reads their answers and writes the one you see. The Quorum chip under a result shows all of them. The server keeps each run (the pair with what you wrote, and the answers), so the models can be compared. When the page checked every example itself, and with Quorum off, one model answers as in the app and no run is kept."+apart;
+}
 function listBody(){
   if(state.tab==="categories") return categoriesBody();
   if(state.tab==="syllogism") return syllogismBody();
   const perv=state.tab==="debate", find=state.tab==="find", timed=state.tab==="practice"||perv;
-  // the Quorum row and the Share my examples row (Settings, options.js) each say what the server keeps; each says the other is separate
-  const apart=state.learns?" The words of an example are kept, or not, as \u201cShare my examples\u201d in Settings says, with or without Quorum.":"";
-  const quorumNote=state.quorumOptIn
-    ?"Optional: a deeper check, but slower. When the page could not check an example you wrote, three AI models (Haiku, Sonnet and Opus) each work it out and Opus rules where they differ, so the explanation is more reliable. An answer takes about a minute instead of a few seconds, and it counts against a daily limit of its own; when that is used up, one model answers as usual. The server keeps each such run (the pair with what you wrote, and the answers), so the models can be compared. With Quorum off, one model answers and no run is kept."+apart
-    :"For testing, on this test server only. With Quorum on, the explanation of an answer with an example the page could not check comes from Haiku, Sonnet and Opus, each on its own; where they put an example in different cells, Opus reads their answers and writes the one you see. The Quorum chip under a result shows all of them. The server keeps each run (the pair with what you wrote, and the answers), so the models can be compared. When the page checked every example itself, and with Quorum off, one model answers as in the app and no run is kept."+apart;
+  const qNote=quorumNote();
   const tutor=canAsk(), quorum=state.quorumOffered&&state.db;
   // what only this exercise has comes first, under its name; what every exercise has follows
   const own=[
@@ -177,7 +181,7 @@ function listBody(){
     tutor||quorum?group("AI tutor"):null,
     tutor?sw("Check every answer with AI",state.autoExplain?"on":"off",state.autoExplain,()=>setAutoExplain(!state.autoExplain),
       "Right after you check an answer, the AI tutor explains it and checks the examples the page could not. Off, the Explain button waits for you."):null,
-    quorum?sw("Several models explain",state.quorum?"on":"off",state.quorum,()=>setQuorum(!state.quorum),quorumNote):null,
+    quorum?sw("Several models explain",state.quorum?"on":"off",state.quorum,()=>setQuorum(!state.quorum),qNote):null,
     el("p",{class:"capl"},"The Magic Key, your account, data"+(tutor&&state.learns?", sharing your examples":"")+" and the version are in ",el("button",{type:"button",class:"lnk",onclick:()=>{ toggleSess(false); toggleOpts(true); }},"Settings"),".")
   ];
 }

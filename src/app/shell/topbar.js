@@ -10,6 +10,7 @@ import { openBlitzOptions, syncSessBtn, toggleSess } from "./session.js";
 import { setTab } from "./tabs.js";
 import { syncBlitzBtn, timerBar } from "./timers.js";
 import { syncReadBtn, toggleReadAloud } from "./voice.js";
+import { pathOn, refreshPath } from "../path/index.tsx";
 
 /* ---------- the top bar: the mode of practice ---------- */
 // Left, the menu (in Review, the back arrow to the exercise under it); then the name of the screen; at the right what applies to this exercise as a whole:
@@ -17,6 +18,7 @@ import { syncReadBtn, toggleReadAloud } from "./voice.js";
 // pair, so nothing shifts when a result appears. What belongs to this pair (Skip, the star, the forward button) is in the bar below (shell/pbar.js). The Blitz countdown
 // runs along the lower edge of this bar, over its line, so it is at the top of every exercise, in the eye's way, and nothing moves when Blitz is switched.
 export function renderBar(){
+  if(pathOn()) refreshPath();   // the Path draws its own top bar (and its countdown) from the same state
   const rv=state.tab==="review";
   $("mback").hidden=!rv; $("menubtn").hidden=rv&&!isWide();
   $("mttl").textContent=rv?"Review":isEx()?exName(state.tab):"";
