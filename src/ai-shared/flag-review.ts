@@ -159,6 +159,7 @@ function cleanAnswer(a: ReviewAnswer): ReviewAnswer {
     catA: p.catA == null ? p.catA : oneLine(p.catA, 80), catB: p.catB == null ? p.catB : oneLine(p.catB, 80),
     typeA: p.typeA == null ? p.typeA : oneLine(p.typeA, L.type), typeB: p.typeB == null ? p.typeB : oneLine(p.typeB, L.type),
     relation: p.relation, ex: refsOf(p.ex, L.cell), why: refsOf(p.why, L.cell), note: p.note == null ? p.note : oneLine(p.note, L.pairNote),
+    ...(p.neg === "b" || p.neg === "ab" ? { neg: p.neg } : {}),
   };
   const cells = {} as ReviewAnswer["cells"];
   for (const c of CELLS) {

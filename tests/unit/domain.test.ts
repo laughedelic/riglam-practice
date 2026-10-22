@@ -4,7 +4,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { expect, test } from "vitest";
-import { CELLS, REL, cardBody, explainAsk, makeIndex, negLabel, negLine, plainLabel, readReviewAnswer, refOf } from "../../src/ai-shared";
+import { CELLS, REL, cardBody, explainAsk, makeIndex, negLabel, negLine, plainLabel, readReviewAnswer, refOf, reviewRequest } from "../../src/ai-shared";
 import type { CellId, DrillData, RelKey } from "../../src/ai-shared";
 import {
   FEATURE, RECENT_MAX, AUTO_FLAGS, applyVerdicts, autoFlagOf, decideFlag, factNote, fitOf, flagAnswerRef, flagAsked, flagStateText, flaggedPart, noteParts, buildPool, cellsFor, chooseEntry, deriveRel, grade, gradeDebate, gradeOf, inUniverse, isMiss, judgeText, makePair,
@@ -1577,6 +1577,9 @@ test("the tutor's facts on a negated side are read in reverse, and the tutor is 
   expect(explainAsk({ res })).toContain("but in Neither a non-existent");
   // a flag on the pair is reviewed on the server with the negation
   expect(readReviewAnswer({ chosen: "4n", pair: { a: p.a, b: p.b, relation: p.relation, neg: "b" } })?.pair.neg).toBe("b");
+  const req = reviewRequest(rix, { what: "the explanation", shown: "It is four possibilities." } as never, readReviewAnswer({ chosen: "4n", pair: { ...p }, cells: {} })!);
+  expect(req).toContain('Negation: B ("non-(wooden things)")');
+  expect(req).toContain('"negation_of":');
   expect(readReviewAnswer({ chosen: null, pair: { a: p.a, b: p.b, relation: p.relation, neg: "x" } })?.pair.neg).toBeUndefined();
 });
 
