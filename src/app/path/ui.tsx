@@ -22,6 +22,7 @@ const I: Record<string, string> = {
   q: '<path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14"/><path d="M12 17.5v.01"/>',
   speak: '<path d="M11 5L6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/>',
   speakoff: '<path d="M11 5L6 9H2v6h4l5 4z"/><path d="M16 9l6 6M22 9l-6 6"/>',
+  mic: '<rect x="9" y="2.5" width="6" height="11.5" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v3.5"/>',
   refresh: '<path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v4h-4"/>',
 };
 /** A line icon; the favorites mark is drawn in the shape the look names. */

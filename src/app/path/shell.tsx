@@ -10,18 +10,19 @@ import { undoSkip } from "../practice/skips.js";
 import { toggleMenu } from "../shell/menu.js";
 import { isEx } from "../shell/render.js";
 import { openBlitzOptions, toggleSess } from "../shell/session.js";
-import { readShown, toggleReadAloud } from "../shell/voice.js";
+import { micShown, readShown, toggleListen, toggleReadAloud, voiceBar } from "../shell/voice.js";
 import { Pull, SLIDE, buzz } from "./gesture.ts";
 import { refreshPath } from "./index.tsx";
-import { Icon } from "./ui.tsx";
+import { Bridge, Icon } from "./ui.tsx";
 
 export const PullCtx = createContext<Pull>(new Pull());
 
-/** The tutor's button: what it does on the screen in front of it (set by the screen), or null when it waits for a result. */
-export interface TopBarProps { title: string; tools?: boolean; tutor?: (() => void) | null; tutorDot?: boolean }
+/** The tutor's button: what it does on the screen in front of it (set by the screen), or null when it waits for a result. `mic`: the screen is
+ *  drawn on the Path and can be answered by voice (a hosted classic screen has the microphone in its own bar). */
+export interface TopBarProps { title: string; tools?: boolean; tutor?: (() => void) | null; tutorDot?: boolean; mic?: boolean }
 
 const HOLD_MS = 500;
-export function TopBar({ title, tools = false, tutor = null, tutorDot = false }: TopBarProps) {
+export function TopBar({ title, tools = false, tutor = null, tutorDot = false, mic = false }: TopBarProps) {
   const bar = useRef<HTMLElement>(null), drag = useRef<{ y0: number; d: number } | null>(null), hold = useRef<ReturnType<typeof setTimeout> | undefined>(undefined), held = useRef(false);
   const road = () => bar.current && bar.current.closest(".pa")?.querySelector<HTMLElement>(".road");
   // pull the bar down for the roadmap: it follows the finger, and opens past 90 px
@@ -47,6 +48,7 @@ export function TopBar({ title, tools = false, tutor = null, tutorDot = false }:
     <button type="button" class="ptb-t" aria-label={title + ", pull down for the roadmap"} onClick={() => toggleMenu(true)}><span>{title}</span><Icon n="chev" /></button>
     <span class="spc" />
     {tools && readShown() ? <button type="button" class={"pib" + (state.voice.muted ? "" : " on")} role="switch" aria-checked={state.voice.muted ? "false" : "true"} aria-label="Read aloud" onClick={toggleReadAloud}><Icon n={state.voice.muted ? "speakoff" : "speak"} /></button> : null}
+    {tools && mic && micShown() ? <button type="button" id="vmic" class={"pib" + (state.voice.phase === "listening" ? " on" : "")} aria-pressed={state.voice.phase === "listening" ? "true" : "false"} aria-label="Answer by voice" onClick={() => toggleListen()}><Icon n="mic" /></button> : null}
     {tools && timed ? <button type="button" class={"pib" + (state.blitz ? " on" : "")} role="switch" aria-checked={state.blitz ? "true" : "false"} aria-label={state.blitz ? "Blitz on (hold for the Blitz options)" : "Blitz off (hold for the Blitz options)"}
       onPointerDown={bzDown} onPointerUp={bzStop} onPointerLeave={bzStop} onPointerCancel={bzStop} onContextMenu={(ev) => ev.preventDefault()}
       onClick={() => { if (held.current) { held.current = false; return; } setBlitz(!state.blitz); }}><Icon n="blitz" />{state.blitz ? <span class="dot" /> : null}</button> : null}
@@ -56,6 +58,9 @@ export function TopBar({ title, tools = false, tutor = null, tutorDot = false }:
     {tq ? <div class={"pclock" + (u.late ? " late" : "")} aria-hidden="true" style={{ "--t": tq.limit + "ms", "--e": e + "ms" }}><i /></div> : null}
   </header>;
 }
+
+/** What voice heard and what it took it as, with Confirm and Change, above the foot: shell/voice.js draws it and repaints it in place (by its id). */
+export const VoiceBar = () => <Bridge cls="pvoice" fill={() => voiceBar()} />;
 
 /** A note at the foot for a moment ("Skipped; it waits in Review"), with an Undo when there is one. */
 export function pathNote(text: string) {

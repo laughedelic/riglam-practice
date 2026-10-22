@@ -284,6 +284,8 @@ export function voiceBar(){
       tap?el("button",{type:"button",class:"btn ghost vhear",onclick:()=>say(a,a.say,v.held),text:"Hear the question"}):null):null,
     pend);
 }
+/** The Path draws its own microphone (in its top bar) where this says so: the screen asks something and Answer by voice is on. */
+export const micShown=()=>!!asked()&&hearing();
 /** The microphone for the pair bar, or null where the screen asks nothing or Answer by voice is off. */
 export function micButton(){
   const a=asked();

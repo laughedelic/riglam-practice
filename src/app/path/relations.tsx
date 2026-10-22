@@ -21,7 +21,7 @@ import { render } from "../shell/render.js";
 import type { CellId, RelKey } from "../../ai-shared/relations.ts";
 import { VERDICT_RE, parseFactLine } from "../../domain/verdict.ts";
 import { refreshPath } from "./index.tsx";
-import { Foot, HideKeys, KbdStation, PreStation, SideStation, Station, TopBar, pathNote } from "./shell.tsx";
+import { Foot, HideKeys, KbdStation, PreStation, SideStation, Station, TopBar, VoiceBar, pathNote } from "./shell.tsx";
 import { DefCard, OneTerm, TermText } from "./terms.tsx";
 import { Bridge, D, Fig, Gap, Head, Icon, Knob, Mark, SHORT, St, Sx } from "./ui.tsx";
 import { Scroll } from "./scroll.tsx";
@@ -68,8 +68,10 @@ function ClassOf({ label, cat, where }: { label: string; cat?: string | null; wh
 const isa = (s: string) => String(s).split("").flatMap((x, i) => (i ? [" ", <i class="pisa">{/^[aeiou]/i.test(x) ? "is an" : "is a"}</i>, " ", x] : [x]));
 
 /* ---------- 1 the relation ---------- */
+// the choice lights up for a moment before the next step comes; under a running Blitz clock it is taken at once, so that the moment is not counted
 function pick(k: string) {
   const u = u0(); if (u.pk || u.checked || u.late) return;
+  if (u.tq) { u.pall = false; choose(k); return; }
   u.pk = k; refreshPath();
   setTimeout(() => { if (state.ui !== u) return; u.pk = null; u.pall = false; choose(k); }, 420);
 }
@@ -90,6 +92,7 @@ function PickStep({ kb }: { kb: boolean }) {
         })}</div></Sx>
       <Sx cls="ptail" />
     </Scroll>
+    <VoiceBar />
     {kb ? null : <Foot aux={<SideStation kind="skip" act={skipPair} />}>
       {u.rel ? <Station name="Examples" hint="the relation you picked" act={() => { u.open = false; render(); }} /> : <PreStation name="Examples" hint="pick a relation first" />}
     </Foot>}
@@ -130,7 +133,7 @@ function Strip() {
       if (!s.moved && Math.abs(d) > 6) { s.moved = true; try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch { /* gone */ } }
       if (d > 26 && !u.pstrip) { set(true); s.y0 = e.clientY; } else if (d < -26 && u.pstrip) { set(false); s.y0 = e.clientY; }
     }}
-    onPointerUp={() => { const s = g.current; g.current = null; if (s && !s.moved) set(!u.pstrip); }} onPointerCancel={() => { g.current = null; }}>
+    onPointerUp={(e) => { const s = g.current; g.current = null; if (s && !s.moved && !(e.target as Element).closest(".knob")) set(!u.pstrip); }} onPointerCancel={() => { g.current = null; }}>
     <div class="fold2 compact"><div><Sx cls="walked"><PairNode rel={relOf()} right={<Star />} /></Sx></div></div>
     <div class="fold2 full"><div>
       <Sx cls="walked"><Gap h={4} />
@@ -177,6 +180,7 @@ function ExamplesStep({ kb }: { kb: boolean }) {
       <Sx cls="cur first"><div class="ksp" style={{ height: "16px" }} /><Head d={<D cls="sec now" />} h="2 Examples" sub={k.order.length === 1 ? "one case" : "one for each case"} />{rows}<Gap h={6} /></Sx>
       <Sx cls="ptail" />
     </Scroll>
+    <VoiceBar />
     <Foot kbd={kb ? <KbdStation name={kname} tag={ktag} ready={!!k.c && filled(k.c)} act={() => commit(true)} /> : null}
       aux={<>{k.ready ? null : <SideStation kind="skip" act={skipPair} />}{kb ? <HideKeys /> : null}</>}>
       {k.ready ? <Station name="Check" hint={"your relation and " + (k.order.length === 1 ? "one example" : k.order.length + " examples")} act={() => { const a = document.activeElement as HTMLElement | null; if (a && a.blur) a.blur(); check(); }} />
@@ -308,7 +312,7 @@ function ResultStep() {
 export function relationsScreen(kb: boolean): { cls: string; node: ComponentChildren } {
   const u = u0(), step = u.checked ? 3 : !u.rel || u.open ? 1 : 2;
   const waiting = !!u.chat && u.chat.some((t: { role: string; pending?: boolean; content?: string }) => t.role === "assistant" && !t.pending && t.content) && !u.pwhy;
-  const top = <TopBar title="Relations" tools tutor={relTutor()} tutorDot={waiting || !!u.ctl} />;
+  const top = <TopBar title="Relations" tools mic tutor={relTutor()} tutorDot={waiting || !!u.ctl} />;
   if (step === 1) return { cls: "", node: <>{top}<PickStep kb={kb} /></> };
   if (step === 2) return { cls: cursor().ready ? "ready" : "", node: <>{top}<ExamplesStep kb={kb} /></> };
   return { cls: "done", node: <>{top}<ResultStep /></> };

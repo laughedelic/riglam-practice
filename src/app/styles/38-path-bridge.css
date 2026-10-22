@@ -22,3 +22,7 @@
 /* the steps of a classic exercise sit under the Path's top bar; a wide screen hides them on the classic page, not here */
 .pa .pbr .steps{display:flex !important; padding:2px 0 4px}
 .pa .pbr.card{gap:18px}
+/* what voice heard, above the foot: Confirm and Change are the classic buttons for now */
+.pa .pbr.pvoice{flex:none; padding:0 16px 0 calc(var(--m) + 22px)}
+.pa .pbr.pvoice .vtake{border-top:0}
+.pa .pbr.pvoice .vwhat{flex-basis:120px}

@@ -59,6 +59,18 @@ test("a case can say that nothing exists, and a written one opens again with a t
   await expect(page.locator("#cin")).toHaveValue("a red pot");
 });
 
+test("the knob of the strip opens the earlier steps with one tap, and folds them with the next", async ({ page }) => {
+  await start(page);
+  await choices(page).nth(3).click();
+  await page.locator("#cin").blur();   // on a phone the field's keyboard puts the heading in place of the strip
+  const strip = page.locator("#path .pstrip"), knob = strip.locator(".knob");
+  await expect(knob).toBeVisible();
+  await knob.click();
+  await expect(strip).toHaveClass(/\bopen\b/);
+  await knob.click();
+  await expect(strip).not.toHaveClass(/\bopen\b/);
+});
+
 test("the roadmap comes down from the top bar and goes to another exercise", async ({ page }) => {
   await start(page);
   await page.locator(".tstn").click();
