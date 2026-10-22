@@ -3,7 +3,9 @@
   "compilerOptions": {
     "lib": ["ES2022"],
     "types": ["@cloudflare/workers-types", "node"],
-    "noEmit": true
+    "noEmit": true,
+    // the page's JSX is Preact's (../tsconfig.json), whose types bring in the DOM's; the Worker has no JSX, and Hono's runtime keeps them out
+    "jsxImportSource": "hono/jsx"
   },
   "include": ["../worker", "../src/ai", "../src/ai-shared", "../src/account/*.ts", "../tests/worker"],
   "exclude": ["../src/account/idb-outbox.ts", "../src/account/webauthn.ts"]

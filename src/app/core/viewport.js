@@ -1,4 +1,6 @@
-export const wideMq=window.matchMedia("(min-width:1100px)"), isWide=()=>wideMq.matches;
+import { state } from "../state.js";
+// The Path (src/app/path) is one column on every screen for now (its wide layout is still to be designed), so the exercises take the narrow way there.
+export const wideMq=window.matchMedia("(min-width:1100px)"), isWide=()=>wideMq.matches&&state.design!=="path";
 // A phone keyboard covers part of the screen. The app follows the visible area; the tab bar stays and shrinks while a field is in use.
 const vv=window.visualViewport;
 export function syncVv(){

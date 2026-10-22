@@ -7,6 +7,8 @@
     "types": ["vite/client", "node"],
     "strict": true,
     "noEmit": true,
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
     "allowJs": true,
     "checkJs": false,
     "isolatedModules": true,

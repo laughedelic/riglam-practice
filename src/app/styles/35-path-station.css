@@ -1,0 +1,153 @@
+/* The Path: the folded strip under the top bar, the station at the edge and the pull that takes it, the side stations (Skip, the tutor),
+   the pair as one node, and the layout while the keyboard is up. */
+.pa .pstrip{flex:none; position:relative; z-index:7; background-color:var(--paper); border-bottom:1px solid var(--rule); padding:8px 0 14px; animation:p-stripin .35s ease; touch-action:none; cursor:grab; -webkit-user-select:none; user-select:none}
+@keyframes p-stripin{from{transform:translateY(-24px); opacity:0}}
+.pa .pstrip.open{box-shadow:0 1.5px 0 var(--ink); border-bottom-color:transparent; cursor:n-resize}
+.pa .pstrip .sx{padding:3px 0}
+.pa .pstrip .sx::before{top:-16px}
+.pa .pstrip::after{content:""; position:absolute; left:calc(var(--m) - var(--lw) / 2); bottom:0; height:16px; width:var(--lw); background:var(--ink); opacity:.72; pointer-events:none}
+.pa .fold2{display:grid; grid-template-rows:1fr; transition:grid-template-rows .3s ease}
+.pa .fold2 > div{overflow:hidden; min-height:0}
+.pa .pstrip.open .compact{grid-template-rows:0fr}
+.pa .pstrip .full{grid-template-rows:0fr}
+.pa .pstrip.open .full{grid-template-rows:1fr}
+.pa .pstrip .full .relrow{font-size:14.5px}
+/* the pull knobs are helpers, not stops on the path: a quiet chevron at the right, under its hint */
+.pa .knob{position:relative; width:30px; height:16px; background-color:var(--paper); z-index:9; touch-action:none; display:block}
+.pa .knob::before{content:""; position:absolute; inset:-10px -6px}
+.pa .knob .mk{position:absolute; inset:0; display:grid; place-items:center; color:var(--blue)}
+.pa .knob .mk .i{width:16px; height:16px; stroke-width:2.2; transform:rotate(90deg); transition:transform .25s}
+.pa .pstrip.open .knob .mk .i,.pa .knob.up .mk .i{transform:rotate(-90deg)}
+.pa .pullr{position:absolute; right:12px; bottom:-8px; display:flex; flex-direction:column; align-items:center; gap:1px; z-index:9; pointer-events:none}
+.pa .pullr .knob{pointer-events:auto}
+.pa .gtip{font-family:var(--mono); font-size:10.5px; color:var(--blue); line-height:1.1}
+
+/* the pair with its relation as one node: the figure on the path, A on the upper line, B on the lower */
+.pa .pn{display:grid; grid-template-columns:var(--m) minmax(0,1fr) auto; grid-template-rows:auto auto; align-items:center; position:relative}
+.pa .pn > svg.rfig{grid-column:1; grid-row:1 / span 2; justify-self:end; width:30px; height:46px; margin-right:-15px; position:relative; z-index:1}
+.pa .pnl{grid-column:2; padding-left:22px; display:flex; align-items:baseline; gap:9px; min-width:0; white-space:nowrap}
+.pa .pnl.a{grid-row:1} .pa .pnl.b{grid-row:2}
+.pa .pnl i{font-family:var(--mono); font-style:normal; font-size:11px; font-weight:600; color:var(--ink2); flex:none}
+.pa .pnl b{font-size:19px; font-weight:600; line-height:1.2; overflow:hidden; text-overflow:ellipsis; min-width:0}
+.pa .pnr{grid-column:3; grid-row:1; justify-self:end; padding-right:6px; padding-left:10px}
+.pa .pnr .pstar{margin:-10px 0}
+.pa .pnn{grid-column:3; grid-row:2; justify-self:end; padding:0 16px 0 8px; font-size:15px; font-weight:600; color:var(--blue); white-space:nowrap}
+.pa .pnn.no{color:var(--ink3); font-weight:500}
+.pa .pnm{display:none; grid-column:1; justify-self:end; margin-right:24px; font-family:var(--mono); font-style:normal; font-size:11px; font-weight:600; color:var(--ink2)}
+.pa .pnm.a{grid-row:1} .pa .pnm.b{grid-row:2}
+.pa.ab-margin .pnm{display:block}
+.pa.ab-margin .pnl i{display:none}
+.pa .pstrip .pn{padding:2px 0}
+.pa .pn.long .pnl{white-space:normal}
+.pa .pn.long .pnl b{white-space:normal; font-size:16.5px; line-height:1.15}
+.pa .pn.long .pnl.b{margin-top:3px}
+.pa .pnx{font-style:italic; font-size:15.5px; color:var(--ink2); white-space:nowrap}
+
+/* the station at the edge: what comes next, gray until it can be taken; pull it up past the line, or tap it */
+.pa .foot{flex:none; position:relative; z-index:6; background-color:var(--paper); display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; padding:12px 10px 16px 0; border-top:1px solid var(--rule); min-height:78px}
+.pa .foot::before{content:""; position:absolute; left:calc(var(--m) - var(--lw) / 2); top:0; height:26px; width:var(--lw); background:var(--ahead-bg); opacity:.9}
+.pa.edge-fade .foot::before{background:linear-gradient(to top,var(--ink3),transparent)}
+.pa.ready .foot::before{background:var(--gold); width:var(--lh); left:calc(var(--m) - var(--lh) / 2); opacity:1}
+.pa.done .foot::before{background:var(--ink); opacity:.72}
+.pa .foot.nostation::before{display:none}
+.pa .stn{display:grid; grid-template-columns:var(--m) minmax(0,1fr); align-items:center; touch-action:none; user-select:none; -webkit-user-select:none; text-align:left; transition:transform .28s cubic-bezier(.2,.9,.3,1.3); position:relative; z-index:2; min-width:0}
+.pa .stn.dragging{transition:none}
+.pa .go{justify-self:end; margin-right:calc(var(--st) / -2); width:var(--st); height:var(--st); transform:rotate(45deg); background-color:var(--station); position:relative; z-index:1}
+.pa .go .mk{position:absolute; inset:0; transform:rotate(-45deg); display:grid; place-items:center; color:var(--on-station)}
+.pa .go .mk .i{width:calc(var(--st) * 15 / 28); height:calc(var(--st) * 15 / 28); stroke-width:2.6}
+.pa .go.pre{background-color:var(--paper); box-shadow:inset 0 0 0 1.8px var(--ink3); width:var(--stp); height:var(--stp); margin-right:calc(var(--stp) / -2)}
+.pa .go.arrive{animation:p-arrive .5s .2s ease both}
+@keyframes p-arrive{from{transform:rotate(45deg) scale(.5); background-color:var(--paper); box-shadow:inset 0 0 0 1.8px var(--ink3)}}
+.pa .gol{padding-left:calc(var(--st) * 99 / 140 + 6.2px); display:flex; flex-direction:column; align-items:flex-start; min-width:0; position:relative}
+.pa .gol b{font-size:21px; font-weight:600; color:var(--blue); line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%}
+.pa .gol.pre b{color:var(--ink3); font-weight:500; font-size:19px}
+/* a station's hint waits under its name until you pull */
+.pa .gol small{position:absolute; left:calc(var(--st) * 99 / 140 + 6.2px); top:100%; margin-top:1px; white-space:nowrap; opacity:0; transform:translateY(-5px); transition:opacity .18s,transform .18s; pointer-events:none; font-family:var(--mono); font-size:10.5px; color:var(--ink3); max-width:calc(100% - var(--st) * 99 / 140 - 6.2px); overflow:hidden; text-overflow:ellipsis}
+.pa .stn.dragging .gol small,.pa .stn.peek .gol small{opacity:1; transform:none}
+.pa .gol.pre small{color:var(--ink2)}
+.pa .stn.pre{cursor:grab}
+.pa .stn.bump{animation:p-bump .5s ease}
+@keyframes p-bump{35%{transform:translateY(-14px)} 70%{transform:translateY(-3px)}}
+.pa .aux{display:flex; align-items:center}
+.pa .bumpl{position:absolute; left:0; right:0; height:0; border-top:1.5px dashed var(--ink3); z-index:5; opacity:0; transition:opacity .15s; pointer-events:none}
+.pa .bumpl b{position:absolute; right:14px; top:-20px; font-family:var(--mono); font-size:10.5px; font-weight:500; color:var(--ink2)}
+.pa .bumpl.on{opacity:1}
+.pa .bumpl.past{border-top-color:var(--gold)}
+.pa .bumpl.past b{color:var(--gold-t)}
+.pa .riser{position:absolute; left:calc(var(--m) - var(--lh) / 2); width:var(--lh); background:var(--gold); z-index:5; bottom:0; height:0; pointer-events:none}
+.pa .riser.pre{background:repeating-linear-gradient(to bottom,var(--ink3) 0 3px,transparent 3px 7px); width:var(--lw); left:calc(var(--m) - var(--lw) / 2)}
+/* pulling the path past its end: the thread to the station stretches and firms */
+.pa.pulling .sx.ptail::after,.pa.pulling .foot::after{content:""; position:absolute; left:calc(var(--m) - var(--lw) / 2); width:var(--lw); background:var(--ink2); opacity:var(--pull,0); pointer-events:none}
+.pa.pulling .sx.ptail::after{top:0; bottom:0}
+.pa.pulling .foot::after{top:0; height:26px}
+.pa.pulling.ready .sx.ptail::after,.pa.pulling.ready .foot::after{background:var(--gold); width:var(--lh); left:calc(var(--m) - var(--lh) / 2)}
+.pa.pulling.done .sx.ptail::after,.pa.pulling.done .foot::after{background:var(--ink)}
+
+/* a side station: a small station on a dashed line that runs off the right edge; slide it left (or press Enter) to take it */
+.pa .sides{position:relative; width:100px; height:48px; margin-right:-10px; --dx:0px; touch-action:none; user-select:none; -webkit-user-select:none; --skc:var(--skipc)}
+.pa .sides.ws{--skc:var(--tutor)}
+.pa .skl{position:absolute; top:24px; right:0; left:calc(26px + var(--dx)); height:0; border-top:1.6px dashed var(--skc); opacity:.75; -webkit-mask-image:linear-gradient(to right,#000 55%,transparent); mask-image:linear-gradient(to right,#000 55%,transparent); transition:left .28s cubic-bezier(.2,.9,.3,1.3)}
+.pa .skl::before{content:""; position:absolute; right:100%; top:-1.6px; width:26px; border-top:1.6px solid var(--skc); -webkit-mask-image:linear-gradient(to left,#000,transparent); mask-image:linear-gradient(to left,#000,transparent)}
+.pa .skd{position:absolute; top:6px; left:8px; width:36px; height:36px; display:grid; place-items:center; transform:translateX(var(--dx)); transition:transform .28s cubic-bezier(.2,.9,.3,1.3); cursor:grab}
+.pa .sides.dragging .skd,.pa .sides.dragging .skl{transition:none}
+.pa .skd .sd{width:19px; height:19px; transform:rotate(45deg); background-color:var(--paper); box-shadow:inset 0 0 0 1.8px var(--skc); display:grid; place-items:center}
+.pa .skd .sd .i{transform:rotate(-45deg); width:10px; height:10px; stroke-width:2.6; color:var(--skc)}
+.pa .sides.past .skd .sd{background-color:var(--skc)}
+.pa .sides.past .skd .sd .i{color:var(--paper)}
+.pa .skh{position:absolute; left:48px; top:3px; max-width:50px; overflow:hidden; font-size:15px; font-weight:600; color:var(--skc); white-space:nowrap; pointer-events:none}
+.pa .sides.dragging .skh,.pa .sides.nudge .skh{left:auto; right:6px; max-width:none; font-family:var(--mono); font-size:10px; font-weight:500; top:4px}
+.pa .sides.nudge .skd{animation:p-nudge .6s ease}
+@keyframes p-nudge{30%{transform:translateX(-16px)} 60%{transform:translateX(-4px)}}
+.pa .sides[aria-disabled="true"]{opacity:.4; pointer-events:none}
+.pa .main.turning{transition:transform .26s ease-in,opacity .26s ease-in; transform:translateX(-36px); opacity:0}
+.pa .main.arriving{animation:p-arrivein .4s ease-out}
+@keyframes p-arrivein{from{transform:translateX(42px); opacity:0}}
+
+/* typing with the keyboard up: the top bar steps aside, the heading is the pair node, steps done shrink to a line, the station rides on the keyboard */
+.pa .khead,.pa .kst,.pa .hidek{display:none}
+.pa.kbup .ptb{margin-top:-57px}
+.pa.kbup .pstrip{display:none}
+.pa.kbup .khead{display:block; flex:none; position:relative; z-index:7; padding:10px 0; border-bottom:1px solid var(--rule); background-color:var(--paper); animation:p-stripin .25s ease}
+.pa .khead::before{content:""; position:absolute; left:calc(var(--m) - var(--lw) / 2); top:0; bottom:0; width:var(--lw); background:var(--ink); opacity:.7}
+.pa .khead .pn > svg.rfig{width:34px; height:53px; margin-right:-17px}
+.pa .khead .pnl b{font-size:23px; font-weight:500; letter-spacing:-.01em}
+.pa .khead .pn.long .pnl b{font-size:18.5px}
+.pa .khead .pnr{padding-right:16px}
+.pa .khead .pnm{margin-right:26px}
+.pa .khead .kpull{display:none}
+.pa .khead.hasabove{padding-bottom:17px; touch-action:none; cursor:grab}
+.pa .khead.hasabove .kpull{display:flex; bottom:-8px}
+.pa.kbup .pathc .sechead,.pa.kbup .ksp,.pa.kbup .sx.ahead,.pa.kbup .help .htx{display:none}
+/* with the keyboard up the help line keeps only "nothing exists", at the right under the field */
+.pa.kbup .help{text-align:right; margin-top:2px}
+.pa.kbup .help button{padding:6px 0}
+.pa.kbup .sb.done{padding:5px 0}
+.pa.kbup .sb.done > .d{margin-top:6px}
+.pa.kbup .sb.done .ptx{display:flex; align-items:baseline; gap:10px; min-width:0}
+.pa.kbup .sb.done .lab{flex:none}
+.pa.kbup .sb.done .pans{font-size:16.5px; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0}
+.pa.kbup .sb.later{padding:5px 0}
+.pa.kbup .sb.later > .d{margin-top:4px}
+.pa.kbup .sb.later .qq{display:none}
+.pa.kbup .sb.now{padding-top:8px}
+.pa.kbup.ph-small .sb.later{display:none}
+.pa.kbup.ph-small .khead{padding:8px 0}
+.pa.kbup.ph-small .khead .pn > svg.rfig{width:30px; height:46px; margin-right:-15px}
+.pa.kbup.ph-small .khead .pnl b{font-size:20px}
+.pa.kbup .foot{min-height:0; padding:6px 6px 6px 0}
+.pa.kbup .foot::before{display:none}
+.pa.kbup .foot > .stn:not(.kst),.pa.kbup .foot .sides,.pa.kbup .foot .fav{display:none}
+.pa.kbup .kst,.pa.kbup .hidek{display:grid}
+.pa .hidek{color:var(--blue)}
+.pa .hidek .i{transform:rotate(90deg)}
+.pa .kst .gol{flex-direction:row; align-items:baseline; gap:10px; min-width:0}
+.pa .kst .gol b{white-space:nowrap}
+.pa .kst .gol .kc{font-family:var(--mono); font-style:normal; font-size:11px; font-weight:600; color:var(--ink2); letter-spacing:.02em; white-space:nowrap}
+.pa .kst .gol small{position:static; display:none; margin:0; transform:none; overflow:hidden; text-overflow:ellipsis; min-width:0}
+.pa .kst.notyet.peek .gol small{display:block; opacity:1; color:var(--ink2)}
+.pa .kst.notyet.peek .gol .kc{display:none}
+.pa .kst.notyet .go{background-color:var(--paper); box-shadow:inset 0 0 0 1.8px var(--ink3); width:var(--stp); height:var(--stp); margin-right:calc(var(--stp) / -2); background-image:none}
+.pa .kst.notyet .go .mk{display:none}
+.pa .kst.notyet .gol b{color:var(--ink3); font-weight:500; font-size:19px}
+.pa .kst.notyet .gol .kc{color:var(--ink3)}
+.pa .kst .go{transition:background-color .2s,width .2s,height .2s,margin .2s}

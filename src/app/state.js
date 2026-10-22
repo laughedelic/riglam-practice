@@ -113,6 +113,12 @@ export const state = {
   // at the start: the device's choice, else the build's default); `read` and `answer` are in the Practice options, both off until turned on there
   voice: {on:false, muted:false, read:false, answer:"off", confirm:"tap", voiceId:"", rate:1, key:"", phase:"idle", live:"", note:"", bad:false, pend:null,began:false,seen:false,held:false, ask3:false, tries:0, blocked:false, clockUi:null, rhold:false, stop:null, tok:null, hooked:false},
   sylMs: 15000,      // a syllogism has its own time (Syllogisms), stored as `rd-timer-syl`
+  // The redesign (src/app/path): which design draws the page ("classic" or "path"), the device's choice (`rd-design`), else the build's default (app.js: the Path
+  // in a Preview); how the Path looks (src/app/path/look.ts, the lab's settings this device keeps over the defaults, `rd-look`); a short note at the Path's foot
+  design: "classic",
+  look: null,
+  pathNote: null,
+  pathQ: 0,          // the Path's next draw, when one waits for the next frame (path/index.tsx, refreshPath)
 };
 
 try{ const v=localStorage.getItem("rd-ex"); if(v==="debate"||v==="find"||v==="categories"||v==="syllogism") state.tab=state.own=v; }catch(e){}

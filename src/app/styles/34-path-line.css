@@ -1,0 +1,147 @@
+/* The Path: the line, its stops, the pair, the relation figures, the choices on the path and the cases with their fields. */
+.pa.ah-dot{--ahead-bg:repeating-linear-gradient(to bottom,var(--ink3) 0 3px,transparent 3px 8px)}
+.pa.ah-dash{--ahead-bg:repeating-linear-gradient(to bottom,var(--ink3) 0 9px,transparent 9px 15px)}
+.pa.ah-fade{--ahead-bg:linear-gradient(to bottom,var(--ink3),transparent 85%)}
+.pa .sx{position:relative}
+.pa .sx::before{content:""; position:absolute; top:0; bottom:0; left:calc(var(--m) - var(--lw) / 2); width:var(--lw); background:var(--ink); opacity:.72}
+.pa .sx.cur::before{background:var(--gold); opacity:1; width:var(--lh); left:calc(var(--m) - var(--lh) / 2)}
+.pa .sx.gap::before{background:repeating-linear-gradient(to bottom,var(--gold) 0 3px,transparent 3px 8px); opacity:1; width:var(--lh); left:calc(var(--m) - var(--lh) / 2)}
+.pa .sx.ahead::before{background:var(--ahead-bg); opacity:.9}
+.pa .sx.okp::before{background:var(--green); opacity:1}
+.pa .sx.nop::before{background:var(--red); opacity:1}
+.pa .sx.ptp::before{background:var(--partc); opacity:1}
+.pa .sx.first::before{top:24px}
+.pa .sx.ptail{flex:1; min-height:28px}
+.pa .sx.ptail::before{background:var(--ahead-bg); opacity:.9}
+.pa.edge-fade .sx.ptail::before{background:linear-gradient(to bottom,var(--ink3),transparent 65%)}
+.pa.ready .sx.ptail::before{background:var(--gold); opacity:1; width:var(--lh); left:calc(var(--m) - var(--lh) / 2)}
+.pa.done .sx.ptail::before{background:var(--ink); opacity:.72}
+/* a long run down to the station fades out and back in (Review always; elsewhere with Line to the station: fades) */
+.pa.review .sx.ptail.long::before,.pa.edge-fade.ready .sx.ptail.long::before,.pa.edge-fade.done .sx.ptail.long::before{
+  -webkit-mask-image:linear-gradient(to bottom,#000 0,#000 10px,transparent 58px,transparent calc(100% - 52px),#000 100%);
+  mask-image:linear-gradient(to bottom,#000 0,#000 10px,transparent 58px,transparent calc(100% - 52px),#000 100%)}
+.pa .sx.detouring::before{background:var(--ahead-bg)}
+/* the line takes the next color over the first 34 px of the next section instead of cutting to it */
+@supports (color:color-mix(in srgb,red,blue)){
+  .pa .sx{--sc:color-mix(in srgb,var(--ink) 72%,var(--paper)); --smw:34px; --sbg:linear-gradient(to bottom,var(--pv,var(--sc)) 0,var(--sc) var(--smw))}
+  .pa .sx.cur{--sc:var(--gold)}
+  .pa .sx.okp{--sc:var(--green)}
+  .pa .sx.nop{--sc:var(--red)}
+  .pa .sx.ptp{--sc:var(--partc)}
+  .pa .sx.walked:not(.detouring) + .sx{--pv:color-mix(in srgb,var(--ink) 72%,var(--paper))}
+  .pa .sx.cur + .sx{--pv:var(--gold)}
+  .pa .sx.okp + .sx{--pv:var(--green)}
+  .pa .sx.nop + .sx{--pv:var(--red)}
+  .pa .sx.ptp + .sx{--pv:var(--partc)}
+  .pa .sx:is(.walked,.cur,.okp,.nop,.ptp):not(.detouring)::before{background:var(--sbg); opacity:1}
+  .pa.ready .sx.ptail{--sc:var(--gold)}
+  .pa.done .sx.ptail::before,.pa.ready .sx.ptail::before{background:var(--sbg); opacity:1}
+}
+
+/* a stop on the path: the diamond, then the text */
+.pa .st{display:grid; grid-template-columns:var(--m) minmax(0,1fr); align-items:center; position:relative}
+.pa .st > .ptx{padding:0 18px 0 22px; min-width:0}
+.pa .st > .d,.pa .st > .ab,.pa .st > .rfig{justify-self:end}
+.pa .d{display:block; transform:rotate(45deg); background-color:var(--paper); box-shadow:inset 0 0 0 1.6px var(--ink3); flex:none; position:relative; z-index:1}
+.pa .d.sec{width:16px; height:16px; margin-right:-8px}
+.pa .d.sub{width:10px; height:10px; margin-right:-5px}
+.pa .d.big{width:26px; height:26px; margin-right:-13px}
+.pa .d.now{background-color:var(--gold); box-shadow:none}
+.pa .d.done{background-color:var(--ink); box-shadow:none}
+.pa .d.yours{background-color:var(--blue); box-shadow:none}
+.pa .d.pk{box-shadow:inset 0 0 0 1.8px var(--blue)}
+.pa .d.ok{background-color:var(--green); box-shadow:none}
+.pa .d.no{background-color:var(--red); box-shadow:none}
+.pa .d.pt{background-color:var(--partc); box-shadow:none}
+.pa .d.tut{background-color:var(--tutor); box-shadow:none}
+.pa .d.nil{background-color:var(--paper); box-shadow:inset 0 0 0 1.6px var(--ink3)}
+.pa .d .mk{position:absolute; inset:0; transform:rotate(-45deg); display:grid; place-items:center; color:#fff}
+.pa .d .mk .i{width:13px; height:13px; stroke-width:3}
+.pa .d.big .mk .i{width:16px; height:16px}
+.pa.g-verdict .d.big,.pa.g-current .d.sec.now,.pa.g-station .go:not(.pre){background-image:var(--grain); background-size:128px; background-blend-mode:soft-light}
+.pa .d.pthink{background-color:var(--tutor); box-shadow:none; animation:p-pulse 1.1s ease-in-out infinite}
+
+.pa .sechead{padding:16px 0 8px}
+.pa .ph{font-family:var(--mono); font-size:11.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink); display:flex; gap:8px; align-items:baseline; white-space:nowrap; overflow:hidden}
+.pa .ph span{color:var(--ink3); letter-spacing:0; text-transform:none; overflow:hidden; text-overflow:ellipsis}
+.pa .ph.later{color:var(--ink3)}
+.pa .sx.pleave{animation:p-leave .5s ease forwards}
+@keyframes p-leave{to{opacity:0; transform:translateY(46px)}}
+.pa .retry{font-family:var(--mono); font-size:10.5px; color:var(--gold-t); letter-spacing:.04em; text-transform:uppercase; padding:10px 18px 0 calc(var(--m) + 22px)}
+
+/* the pair */
+.pa .ab{font-family:var(--mono); font-size:13px; font-weight:600; padding-right:12px; color:var(--ink)}
+.pa .pairst{padding:2px 0; align-items:baseline}
+.pa .pairst:not(.sm) > .ab{position:relative; top:calc(var(--tn) * -0.3 + 5.25px)}
+.pa .pairst.sm > .ab{position:relative; top:calc(var(--tn) * -0.23 + 5.25px)}
+.pa .tn{font-size:var(--tn); font-weight:500; line-height:1.12; letter-spacing:-.01em; overflow-wrap:anywhere}
+.pa .tn.long{font-size:calc(var(--tn) * 26 / 34)}
+.pa .pairst.sm .tn{font-size:calc(var(--tn) * 26 / 34)}
+.pa .cls{font-style:italic; font-size:15px; color:var(--ink2); margin:-1px 0 4px}
+.pa .pq{font-style:italic; color:var(--ink2); font-size:16.5px}
+.pa .hasstar{position:relative}
+.pa .hasstar > .ptx{padding-right:52px}
+.pa .hasstar .pstar{position:absolute; right:6px; top:-4px}
+.pa .fav{color:var(--ink3)}
+.pa .fav.on{color:var(--gold-t)}
+.pa .fav.on .i{fill:var(--gold)}
+
+/* the relation figures, transposed: A above, B below */
+.pa svg.rfig{overflow:visible; display:block}
+.pa svg.rfig .a,.pa svg.rfig .b{fill:var(--paper); stroke:var(--ink); stroke-width:1.4}
+.pa svg.rfig .o{fill:var(--ink); stroke:var(--ink); stroke-width:1.4}
+.pa.figs-color svg.rfig .a{fill:var(--gold); stroke:none}
+.pa.figs-color svg.rfig .b{fill:var(--blue); stroke:none}
+.pa.figs-color svg.rfig .o{fill:var(--green); stroke:none}
+.pa svg.rfig.mii .o{stroke:none}
+.pa.figs-color svg.rfig.mii .a,.pa.figs-color svg.rfig.mii .b{fill:var(--paper); stroke:var(--green); stroke-width:1.4}
+.pa svg.rfig.xs{width:12px; height:19px}
+.pa svg.rfig.s{width:18px; height:28px}
+.pa svg.rfig.r{width:22px; height:34px}
+.pa svg.rfig.m{width:26px; height:40px}
+.pa svg.rfig.l{width:32px; height:50px}
+.pa .st > svg.rfig{background:var(--paper); padding:2px 0; box-sizing:content-box; position:relative; z-index:1}
+.pa .st > svg.rfig.s{margin-right:-9px} .pa .st > svg.rfig.r{margin-right:-11px}
+.pa .st > svg.rfig.m{margin-right:-13px} .pa .st > svg.rfig.l{margin-right:-16px}
+
+/* choices: the path breaks into a dotted gap, the choices are its stops */
+.pa .gapq{position:absolute; left:calc(var(--m) - 30px); top:4px; font-family:var(--mono); font-size:13px; font-weight:600; color:var(--gold-t); width:18px; text-align:right}
+.pa .chs{padding:6px 0 4px}
+.pa .crow{width:100%; display:grid; grid-template-columns:var(--m) minmax(0,1fr) auto; align-items:center; padding:10px 16px 11px 0; border-top:1px solid var(--rule); position:relative; transition:background-color .2s,opacity .25s}
+.pa .crow:first-child{border-top:0}
+.pa .crow .mc{justify-self:end; display:grid; place-items:center; position:relative; z-index:1}
+.pa .crow .mc .d{margin-right:-5px}
+.pa .crow .mc svg.rfig{margin-right:-11px; background:var(--paper); padding:2px 0; box-sizing:content-box}
+.pa .rsym{font-family:var(--mono); font-size:12px; font-weight:400; color:var(--ink3); margin-left:8px; letter-spacing:0}
+.pa .crow .ct{padding-left:22px; padding-right:8px; min-width:0}
+.pa .crow b{display:block; font-size:19px; font-weight:600; color:var(--blue); line-height:1.2}
+.pa .crow small{display:block; font-size:14px; color:var(--ink2); line-height:1.3; margin-top:1px}
+.pa .crow .kn{font-family:var(--mono); font-size:10.5px; color:var(--ink3); align-self:start; padding-top:4px}
+@media (hover:hover){ .pa .crow:hover b{text-decoration:underline; text-underline-offset:4px; text-decoration-thickness:1px} }
+.pa .crow.picked{background-color:var(--blue-t)}
+.pa .crow.picked .d{background-color:var(--blue); box-shadow:none}
+.pa .chs.fading .crow:not(.picked){opacity:.3}
+.pa .crow .spur{position:absolute; left:calc(var(--m) - 1px); top:-1px; width:34px; height:34px; overflow:visible; pointer-events:none}
+.pa .crow .spur path{fill:none; stroke:var(--gold); stroke-width:1.4}
+.pa .crow .spur polygon{fill:var(--paper); stroke:var(--blue); stroke-width:1.7}
+.pa.ch-branches .crow .ct{padding-left:42px}
+.pa.ch-branches .crow.picked .spur polygon{fill:var(--blue)}
+
+/* cases: one stop for each example */
+.pa .sb{padding:10px 0 12px; align-items:start}
+.pa .sb > .d{margin-top:7px}
+.pa .sb .lab{font-family:var(--mono); font-size:11px; font-weight:600; color:var(--ink); letter-spacing:.02em}
+.pa .sb .qq{font-size:18px; line-height:1.3; margin-top:2px}
+.pa .sb.later .qq,.pa .sb.later .lab{color:var(--ink3)}
+.pa .sb.later .qq{font-size:16px}
+.pa .sb.now{background:linear-gradient(90deg,transparent var(--m),var(--blue-t) var(--m))}
+.pa .sb .pans{display:block; font-family:var(--hand-f); font-style:var(--hand-st); font-weight:var(--hand-w); font-size:var(--hand-sz); color:var(--blue); margin-top:2px; text-align:left; overflow-wrap:anywhere}
+.pa .sb .pans.nil{font-family:var(--mono); font-style:normal; font-weight:400; font-size:12px; color:var(--ink2)}
+.pa button.sbb{width:100%; text-align:left; display:block}
+.pa .fieldrow{display:flex; align-items:flex-end; gap:10px; margin-top:8px}
+.pa .pfield{flex:1; min-width:0; height:32px; border:0; background:transparent; border-bottom:1.5px solid var(--ink2); font-family:var(--hand-f); font-style:var(--hand-st); font-weight:var(--hand-w); font-size:max(16px,var(--hand-sz)); color:var(--blue); padding:0; outline:none; box-shadow:none; border-radius:0; -webkit-appearance:none; appearance:none}
+.pa .pfield:focus{border-bottom:2.5px solid var(--blue)}
+.pa .pfield::placeholder{color:var(--ink3); font-family:var(--main-f); font-style:italic; font-weight:400; font-size:17px}
+.pa .help{font-size:13.5px; font-style:italic; color:var(--ink2); margin-top:6px}
+.pa .help button{font-family:var(--mono); font-size:11.5px; font-style:normal; color:var(--blue); text-decoration:underline; text-underline-offset:3px; margin-left:4px}
+.pa .conn{font-style:normal; font-weight:600}
