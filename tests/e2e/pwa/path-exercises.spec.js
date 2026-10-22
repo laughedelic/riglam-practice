@@ -191,3 +191,18 @@ test("Find an instance: \"nothing is\" where the categories exclude each other, 
   await expect.poll(async () => (await saved(page, "instance")).length).toBe(1);
   expect((await saved(page, "instance"))[0]).toMatchObject({ cats: q.cats, possible: false, said: null, grade: "ok" });
 });
+
+test("Find an instance: Suggest things in the practice options turns the field's list off, and the device keeps it", async ({ page }) => {
+  await open(page, "Find an instance");
+  const field = page.locator("#iin");
+  await expect(field).toHaveAttribute("list", "iin-things");
+  await page.getByRole("button", { name: "Practice options" }).click();
+  const hints = page.getByRole("dialog", { name: "Practice options" }).getByRole("switch", { name: /^Suggest things/ });
+  await expect(hints).toHaveAttribute("aria-checked", "true");
+  await hints.click();
+  await expect(hints).toHaveAttribute("aria-checked", "false");
+  await page.keyboard.press("Escape");
+  await expect(field).not.toHaveAttribute("list", /./);
+  await expect(page.locator("#iin-things")).toHaveCount(0);
+  expect(await page.evaluate(() => localStorage.getItem("rd-inst-suggest"))).toBe("0");
+});

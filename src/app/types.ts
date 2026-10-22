@@ -393,6 +393,8 @@ export interface State {
   findRel: RelKey | null;
   /** Find a pair offers the terms of the course while the pair is typed (Options, `rd-findsuggest`) */
   findSuggest: boolean;
+  /** Find an instance offers the things the course knows while one is typed (its practice options, `rd-inst-suggest`) */
+  instSuggest: boolean;
   lastSig: string;
   /** the attempt the last render drew: the tutor's panel closes with a pair that had a conversation */
   lastUi: any;
