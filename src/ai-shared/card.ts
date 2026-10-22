@@ -130,7 +130,7 @@ Classes (the booklet's "is a" tree, for "class:"): ${cls.join(", ")}.`:""}`;
 export function negLine(p: Pick<PairLike, "a" | "b" | "neg">): string {
   if (!p.neg) return "";
   const names = p.neg === "ab" ? `A (${JSON.stringify(p.a)}) and B (${JSON.stringify(p.b)}) are negations` : `B (${JSON.stringify(p.b)}) is a negation`;
-  return `Negation: ${names} of the category in "negation_of". "non-X" takes in everything that is not an X: other existents, permanent phenomena and what does not exist (the horn of a rabbit). The cells and the relation were worked out with that. ${REL["4n"].name} (Perdue 2014; Perdue 1992 calls it three possibilities without there being something which is neither): something is both, something is each alone, nothing is neither.
+  return `Negation: ${names} of the category in "negation_of". "non-X" takes in everything that is not an X: other existents, permanent phenomena and what does not exist (the horn of a rabbit). The cells and the relation were worked out with that, and on this pair it replaces the rule above that only Neither takes what does not exist: a thing that does not exist is not A or B where they are plain and is the "non-" term, it goes in the cell those answers give, and it can be the only thing that is both (a possibility need not be an existent, Perdue 2014). ${REL["4n"].name} (Perdue 2014; Perdue 1992 calls it three possibilities without there being something which is neither): something is both, something is each alone, nothing is neither.
 `;
 }
 
@@ -153,13 +153,13 @@ export function tutorCard(ix: DataIndex, p: PairLike, u: AnswerView): string {
 }
 
 // Explain also verifies the examples the page could not check: those cell lines end in a machine-readable verdict.
-export function explainAsk(U: Pick<AnswerView, "debate" | "find" | "res"> & { own?: boolean }): string {
+export function explainAsk(U: Pick<AnswerView, "debate" | "find" | "res"> & { own?: boolean }, neg = false): string {
   const dbt=!!U.debate, open=CELLS.filter(c=>U.res.cells[c].v==="cmp");
   const base=dbt?DEBATE_ASK:U.find?(U.own?FIND_ASK_OWN:FIND_ASK):FIRST_ASK;
   if(!open.length) return base;
   const nm=(c: CellId)=>dbt?"Q"+(CELLS.indexOf(c)+1):CELL_NAME[c];
   return base+`
-The page could not check the examples in: ${open.map(nm).join(", ")}. The page reads your "A" and "B" answers on those lines as the check, so make them exact: the example belongs in a cell when its answers are the cell's (Both: A yes, B yes; A not B: A yes, B no; B not A: A no, B yes; Neither: A no, B no; an existent thing, but in Neither a non-existent such as the horn of a rabbit counts too).`+(dbt?`
+The page could not check the examples in: ${open.map(nm).join(", ")}. The page reads your "A" and "B" answers on those lines as the check, so make them exact: the example belongs in a cell when its answers are the cell's (Both: A yes, B yes; A not B: A yes, B no; B not A: A no, B yes; Neither: A no, B no; ${neg?`a non-existent such as the horn of a rabbit counts too, as no for a plain term and yes for a "non-" term`:"an existent thing, but in Neither a non-existent such as the horn of a rabbit counts too"}).`+(dbt?`
 Q1 is the Both cell, Q2 A not B, Q3 B not A, Q4 Neither.`:"")+`
 How to decide: read the example in its ordinary sense (a song is the sound of someone singing or playing; a stone is an ordinary stone at room temperature). Place it under A or B first, then ${U.own?"check it against the relation you decided on, since the page has no reference for this pair":"use the correct relation above: it is computed and right, so if whatever is B is A, a B belongs in Both"}. Use classify_example or lookup_term when a classification is not obvious.
 Answer "unsure" only on a side where the sources disagree on how to classify the thing (see the fine points), where you cannot tell what the example names, or where the example's name does not fix the feature that side is about (the color of "an apple", the shape of "a box"). Then that side's sentence names each reading, in a few words. A word that could also mean something else is not a reason for "unsure": decide on the ordinary reading and mention the other one briefly.`;

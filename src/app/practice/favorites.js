@@ -2,6 +2,7 @@ import { state } from "../state.js";
 import { el } from "../core/dom.js";
 import { tbIcon } from "../core/icons.js";
 import { REL, cellLabel, notaOf, refOf } from "../core/rel.js";
+import { negSides } from "../../ai-shared/relations.ts";
 import { dayOf } from "../core/util.js";
 import { put } from "./answers.js";
 import { advance } from "./queue.js";
@@ -12,10 +13,13 @@ import { switchTo } from "../shell/tabs.js";
 
  const openFavs=new Set(), favQ={};
 /* ---------- favorite pairs ---------- */
-// One favorite per pair of categories, whichever way round and whichever of their labels the pair showed;
-// the pair itself (relation, reference examples, note) is stored with it so it can be looked up and practiced again.
+// One favorite per pair of categories, whichever way round and whichever of their labels the pair showed (a negated side is
+// another category: "non_" before its name); the pair itself (relation, reference examples, note) is stored with it so it can be looked up and practiced again.
 export const favSafe=x=>String(x).replace(/[^A-Za-z0-9]+/g,"_");
-export function favKey(p){ const [a,b]=pairCats(p); return a&&b?"c_"+favSafe([a,b].sort().join("__")):"l_"+favSafe([norm(p.a),norm(p.b)].sort().join("__")); }
+export function favKey(p){
+  const [a,b]=pairCats(p), [na,nb]=negSides(p), non=(c,n)=>(n?"non_":"")+c;
+  return a&&b?"c_"+favSafe([non(a,na),non(b,nb)].sort().join("__")):"l_"+favSafe([norm(p.a),norm(p.b)].sort().join("__"));
+}
 export const isFav=p=>!!p&&!!state.favs[favKey(p)];
 function favWrite(k,fn,undo){
   state.favErr="";

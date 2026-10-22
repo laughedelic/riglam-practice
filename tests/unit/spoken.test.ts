@@ -69,6 +69,16 @@ test("the relation by name, by number like the keys, and three possibilities onl
 const T = { a: "functional things", b: "products" };
 const T2 = { a: "things able to perform a function", b: "impermanent things" };
 
+test("on a pair with a negated term, the sixth answer by name or number, and not on a plain pair", () => {
+  const ORDER6: RelKey[] = [...ORDER, "4n"];
+  for (const s of ["four possibilities without neither", "four possibilities without anything that is neither", "Four possibilities, without there being something which is neither.", "they overlap, neither contains the other, and nothing is neither", "six", "number 6"])
+    expect(spokenRelation([s], ORDER6), s).toBe("4n");
+  expect(spokenRelation(["four possibilities"], ORDER6)).toBe("4");
+  expect(spokenRelation(["they overlap; neither contains the other"], ORDER6)).toBe("4");
+  expect(spokenRelation(["four possibilities without neither"], ORDER)).toBe("4");
+  expect(spokenRelation(["six"], ORDER)).toBeNull();
+});
+
 test("the relation said as what is written under the option, with the pair's own terms", () => {
   // Three possibilities: the term named first is the one inside
   expect(spokenRelation(["All functional things are products, not the reverse"], ORDER, T)).toBe("3ab");
@@ -93,6 +103,10 @@ test("the relation said as what is written under the option, with the pair's own
   expect(spokenRelation(["no product is a functional thing"], ORDER, T)).toBe("con");
   expect(spokenRelation(["They overlap; neither contains the other"], ORDER, T)).toBe("4");
   expect(spokenRelation(["they overlap"], ORDER)).toBe("4");
+  // one term inside the other: the longer is the one said
+  const T3 = { a: "physical things", b: "physical things outside a person's continuum" };
+  expect(spokenRelation(["all physical things outside a person's continuum are physical things, but not the reverse"], ORDER, T3)).toBe("3ba");
+  expect(spokenRelation(["all physical things are physical things outside a person's continuum, but not the reverse"], ORDER, T3)).toBe("3ab");
   // other talk about the terms is no relation
   expect(spokenRelation(["functional things and products"], ORDER, T)).toBeNull();
   expect(spokenRelation(["good morning"], ORDER, T)).toBeNull();

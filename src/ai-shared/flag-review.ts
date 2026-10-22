@@ -108,6 +108,7 @@ export function readReviewAnswer(raw: unknown): ReviewAnswer | null {
     ex: perCell(p.ex, (v) => (typeof v === "string" ? v.slice(0, REVIEW_LIMITS.cell) : undefined)),
     why: perCell(p.why, (v) => (typeof v === "string" ? v.slice(0, REVIEW_LIMITS.cell) : undefined)),
     note: text(p.note, REVIEW_LIMITS.pairNote),
+    ...(p.neg === "b" || p.neg === "ab" ? { neg: p.neg } : {}),
   };
   const cells = {} as ReviewAnswer["cells"];
   for (const c of CELLS) {

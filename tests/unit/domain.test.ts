@@ -4,7 +4,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { expect, test } from "vitest";
-import { CELLS, REL, cardBody, makeIndex, negLabel, negLine, plainLabel, refOf } from "../../src/ai-shared";
+import { CELLS, REL, cardBody, explainAsk, makeIndex, negLabel, negLine, plainLabel, readReviewAnswer, refOf } from "../../src/ai-shared";
 import type { CellId, DrillData, RelKey } from "../../src/ai-shared";
 import {
   FEATURE, RECENT_MAX, AUTO_FLAGS, applyVerdicts, autoFlagOf, decideFlag, factNote, fitOf, flagAnswerRef, flagAsked, flagStateText, flaggedPart, noteParts, buildPool, cellsFor, chooseEntry, deriveRel, grade, gradeDebate, gradeOf, inUniverse, isMiss, judgeText, makePair,
@@ -1570,6 +1570,14 @@ test("the tutor's facts on a negated side are read in reverse, and the tutor is 
   expect(body).toContain("Four possibilities without neither");
   // what is not known of the categories themselves is the tutor's to check, and nothing is asked of the server
   expect(openExamples(p, { cells: { both: { v: "cmp", msg: [], kind: "ex" } } as never }, [{ text: "a pebble", cells: ["both"] }])).toEqual([]);
+  // the general rule that only Neither takes what does not exist is set aside on this pair, in the card and in the question
+  expect(negLine(p)).toContain("replaces the rule above that only Neither takes what does not exist");
+  const res = { cells: { both: { v: "cmp" }, anb: { v: "ok" }, bna: { v: "ok" }, nei: { v: "ok" } } } as never;
+  expect(explainAsk({ res }, true)).toContain('as no for a plain term and yes for a "non-" term');
+  expect(explainAsk({ res })).toContain("but in Neither a non-existent");
+  // a flag on the pair is reviewed on the server with the negation
+  expect(readReviewAnswer({ chosen: "4n", pair: { a: p.a, b: p.b, relation: p.relation, neg: "b" } })?.pair.neg).toBe("b");
+  expect(readReviewAnswer({ chosen: null, pair: { a: p.a, b: p.b, relation: p.relation, neg: "x" } })?.pair.neg).toBeUndefined();
 });
 
 test("the negation track: about a third of the pairs negated, both sides only when asked, and none when off", () => {

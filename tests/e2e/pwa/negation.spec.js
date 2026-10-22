@@ -25,7 +25,7 @@ test("with negations on, a pair can negate a term, offers a sixth answer, and is
   await page.addInitScript(() => { localStorage.setItem("rd-negation", "both"); localStorage.setItem("rd-stages", "1,2,3"); });
   await page.addInitScript(hook);
   await page.goto("/");
-  await ready(page);
+  await expect(page.locator("#stage .head .pair")).toBeVisible(); // the first pair may be negated already, with six answers
   // about a third of the pairs negate a side: skip until one comes
   for (let i = 0; i < 40 && !(await page.evaluate(() => !!window.__t.cur.p.neg)); i++) await page.keyboard.press("s");
   const p = await page.evaluate(() => window.__t.cur.p);
@@ -34,6 +34,8 @@ test("with negations on, a pair can negate a term, offers a sixth answer, and is
   await expect(page.locator("#stage .pair .tb")).toContainText("non-");
   await expect(relOptions(page)).toHaveCount(6);
   await expect(relOptions(page).nth(5)).toContainText("Four possibilities without neither");
+  // a favorite of its own, apart from the pair of the same categories without the negation
+  expect(await page.evaluate(() => { const t = window.__t, q = t.cur.p; return t.favKey(q) !== t.favKey({ ...q, neg: undefined }); })).toBe(true);
   if (!isPhone(testInfo)) {
     await page.keyboard.press("6");
     expect(await page.evaluate(() => window.__t.ui.rel)).toBe("4n");
