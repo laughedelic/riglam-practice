@@ -104,7 +104,7 @@ ${lines}`;
     }).join("\n");
     mid=`${FIND_NOTE}
 A = ${JSON.stringify(p.a)}, B = ${JSON.stringify(p.b)}.
-${negLine(p)}Relation asked for: ${rel.name} (${rel.gloss("A","B")}). ${own?FIND_OWN_NOTE:`Correct relation of this pair: ${REL[p.relation].name}.`}${u.exLate?" Time ran out on the examples: cells the learner had not reached are blank.":""}
+${negLine(p,own)}Relation asked for: ${rel.name} (${rel.gloss("A","B")}). ${own?FIND_OWN_NOTE:`Correct relation of this pair: ${REL[p.relation].name}.`}${u.exLate?" Time ran out on the examples: cells the learner had not reached are blank.":""}
 ${own?"":`Reference note: ${p.note||"none"}
 `}Cells (verdict cmp = learner wrote something the page could not classify${own?"; for a pair the page cannot judge every example is cmp, and a cell the relation leaves empty is open":""}):
 ${lines}`;
@@ -127,11 +127,14 @@ ${mid}${stageLine(u.stage)}${cls.length?`
 Classes (the booklet's "is a" tree, for "class:"): ${cls.join(", ")}.`:""}`;
 }
 
-/** What the tutor is told of a pair with a negated side (the negation track, src/domain/universe.ts): what the negation takes in, and the sixth relation. */
-export function negLine(p: Pick<PairLike, "a" | "b" | "neg">): string {
+/**
+ * What the tutor is told of a pair with a negated side (the negation track, src/domain/universe.ts): what the negation takes in, and the sixth relation.
+ * `own`: a pair of the learner's own in Find a pair, for which the page worked out nothing, so the tutor is asked to judge with it.
+ */
+export function negLine(p: Pick<PairLike, "a" | "b" | "neg">, own = false): string {
   if (!p.neg) return "";
   const names = p.neg === "ab" ? `A (${JSON.stringify(p.a)}) and B (${JSON.stringify(p.b)}) are negations` : p.neg === "a" ? `A (${JSON.stringify(p.a)}) is a negation` : `B (${JSON.stringify(p.b)}) is a negation`;
-  return `Negation: ${names} of the category in "negation_of". "non-X" takes in everything that is not an X: other existents, permanent phenomena and what does not exist (the horn of a rabbit). The cells and the relation were worked out with that, and on this pair it replaces the rule above that only Neither takes what does not exist: a thing that does not exist is not A or B where they are plain and is the "non-" term, it goes in the cell those answers give, and it can be the only thing that is both (a possibility need not be an existent, Perdue 2014). ${REL["4n"].name} (Perdue 2014; Perdue 1992 calls it three possibilities without there being something which is neither): something is both, something is each alone, nothing is neither.
+  return `Negation: ${names} of the category in "negation_of". "non-X" takes in everything that is not an X: other existents, permanent phenomena and what does not exist (the horn of a rabbit). ${own ? "Judge the cells and the relation with that: on this pair it replaces" : "The cells and the relation were worked out with that, and on this pair it replaces"} the rule above that only Neither takes what does not exist: a thing that does not exist is not A or B where they are plain and is the "non-" term, it goes in the cell those answers give, and it can be the only thing that is both (a possibility need not be an existent, Perdue 2014). ${REL["4n"].name} (Perdue 2014; Perdue 1992 calls it three possibilities without there being something which is neither): something is both, something is each alone, nothing is neither.
 `;
 }
 

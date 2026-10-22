@@ -507,6 +507,8 @@ test("the card of the learner's own pair holds what the data says of each side, 
   const neg = tutorCard(ix, own({ a: "non-hues", catA: "col", neg: "a" }), find({ rel: "4n", cells, res: noRes(["cmp", "open", "bad", "cmp"]) }));
   expect(neg).toMatch(/"A":\{"label":"non-hues","negation_of":\{"label":"hues"[^}]*"term":"Color"/);
   expect(neg).toContain('Negation: A ("non-hues") is a negation');
+  expect(neg).toContain("Judge the cells and the relation with that");   // the page worked out nothing for an own pair
+  expect(neg).not.toContain("were worked out with that");
   expect(neg).toContain("Relation asked for: Four possibilities without neither");
 });
 
