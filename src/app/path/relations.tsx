@@ -7,12 +7,14 @@ import { canAsk } from "../core/ask.js";
 import { CELLS, ORDER, REL, notaOf } from "../core/rel.js";
 import { check } from "../practice/grading.js";
 import { next } from "../practice/queue.js";
-import { choose, explainParts, nextFwd } from "../practice/screen.js";
+import { choose, explainParts, learnedThing, nextFwd } from "../practice/screen.js";
 import { skipPair } from "../practice/skips.js";
 import { render } from "../shell/render.js";
+import { CELL_NAME } from "../../ai-shared/prompts.ts";
 import type { CellId, RelKey } from "../../ai-shared/relations.ts";
 import { ExamplesStep, StripPair, examplesReady } from "./examples.tsx";
 import { CASE, Choices, ErrLines, PairResult, PairStops, TermsRow, Thinking, Verdict, WhyRow, askTutor, isa, needsKey, pairOf, pickThen, tutorOnResult, tutorWaiting, u0 } from "./parts.tsx";
+import { FlagBtn, FlagEditor, explainCase } from "./flags.tsx";
 import { Scroll } from "./scroll.tsx";
 import { Foot, PreStation, SideStation, Station, TopBar, VoiceBar } from "./shell.tsx";
 import { DefCard, TermText } from "./terms.tsx";
@@ -73,7 +75,8 @@ export function Row({ c, rel }: { c: CellId; rel: RelKey }) {
   const side = open && !busy && !(u.explained && !r.relOpen) && (canAsk() || needsKey());
   return <St d={<D cls={"sub " + (busy ? "pthink" : m)} />} cls={"sb exr" + (tnote ? " tut" : "")}>
     <span class="lab">{CASE[c]}</span><div class="line1">{ans}{busy ? null : <Mark m={m} />}</div>
-    <p class="xnote">{note}</p>{tnote ? <DefCard where={"pc" + c} /> : null}
+    <p class="xnote">{note}{tnote ? <FlagBtn c={explainCase(tnote, c, CELL_NAME[c], learnedThing(c))} where={"pop:" + c} /> : null}</p>{tnote ? <DefCard where={"pc" + c} /> : null}
+    <FlagEditor where={"pop:" + c} />
     {busy ? <Thinking label="the tutor is checking" /> : null}
     {side ? <button type="button" class="tside" aria-disabled={needsKey() ? "true" : undefined} onClick={() => askTutor(false)}><span class="tsd" /><b>Check and explain</b><span class="tsl" /></button> : null}
   </St>;

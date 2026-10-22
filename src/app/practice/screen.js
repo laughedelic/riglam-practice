@@ -109,6 +109,8 @@ export const noteData=(p=state.cur.p)=>({ix:state,p,terms:{a:singular(p.a),b:sin
 // `ctx` ({p, accepted}) is given where a stored note is shown away from the exercise on screen (Review): its pair and what was accepted, not the live ones
 const partsOf=(f,ctx)=>noteParts(f,ctx?ctx.accepted(f):acceptedQ(f),noteData(ctx?ctx.p:undefined));
 export const factText=f=>partsText(partsOf(f),noteData().terms);
+// the same for a stored note, read against its own pair and answers (`ctx`, review/exercise.js noteContext)
+export const factTextIn=(f,ctx)=>partsText(partsOf(f,ctx),noteData(ctx.p).terms);
 // the terms with their A/B markers and the "not" as the questions show them; why a denied term follows goes on a line under it
 const notW=()=>el("span",{class:"not",text:"not"});
 // `mark(text,key)` is the text with the Dudra terms it names underlined (withTerms), for a note that has a `where` to key them by

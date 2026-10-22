@@ -26,7 +26,7 @@ export function flagsSubscribe(){
 }
 // a case opened from Review carries the id of the flag it edits; a new one gets its id from what it is on
 export const flagId=c=>c.id||"fl_"+favSafe(c.caseKey).slice(0,60)+"_"+hash36([c.caseKey,c.thing||"",c.part,c.model||"",c.n||""].join("|"));
-const flagOf=c=>state.flags[flagId(c)];
+export const flagOf=c=>state.flags[flagId(c)];
 // a render that keeps the chat view where it is scrolled (the overlay is rebuilt and would start at the top again)
 function renderKeep(){ const sc=$("chatscroll"), y=sc?sc.scrollTop:0; render(); const n=$("chatscroll"); if(n&&y) n.scrollTop=y; }
 // a write of one flag, in turn with its others (flagTurn, ai/flag-reports.js); one that fails is undone and says so
@@ -54,7 +54,7 @@ export function saveFlag(){
   }
 }
 function refocusFlag(id){ requestAnimationFrame(()=>{ const b=document.querySelector('[data-fid="'+id+'"]'); if(b) b.focus({preventScroll:true}); }); }
-function cancelFlag(){ const F=state.ui.flagEdit; state.ui.flagEdit=null; renderKeep(); if(F) refocusFlag(flagId(F.c)); }
+export function cancelFlag(){ const F=state.ui.flagEdit; state.ui.flagEdit=null; renderKeep(); if(F) refocusFlag(flagId(F.c)); }
 // A flag the page writes by itself where Quorum is divided about an example (src/domain/quorum.ts): one document per example, `part` "quorum", `auto` "quorum",
 // the cells in `shown`, `runId` the record of the run on the server, and no note. A later run on the same answer rewrites a flag that is still new; one that was reviewed or resolved stays as it is,
 // and a deleted one comes back only if the answer is explained again.

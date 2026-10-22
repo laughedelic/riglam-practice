@@ -9,7 +9,7 @@ import { REL, lcRel } from "../core/rel.js";
 import { backWhy, chooseD, sayQ, submitWhy } from "../debate/flow.js";
 import { QCELL, Wd, singular } from "../debate/text.js";
 import { next } from "../practice/queue.js";
-import { explainParts, nextFwd } from "../practice/screen.js";
+import { explainParts, learnedThing, nextFwd } from "../practice/screen.js";
 import { skipPair } from "../practice/skips.js";
 import { NOT } from "../../ai-shared/debate.ts";
 import type { QToken } from "../../ai-shared/debate.ts";
@@ -17,6 +17,7 @@ import type { CellId, RelKey } from "../../ai-shared/relations.ts";
 import { refreshPath } from "./index.tsx";
 import { Choices, ErrLines, PairResult, PairStops, TermsRow, Thinking, Verdict, WhyRow, askTutor, isa, needsKey, pairOf, pickThen, tutorOnResult, tutorWaiting, u0 } from "./parts.tsx";
 import { relChoices } from "./relations.tsx";
+import { FlagBtn, FlagEditor, explainCase } from "./flags.tsx";
 import { Scroll } from "./scroll.tsx";
 import { Foot, HideKeys, KbdStation, PreStation, SideStation, Station, TopBar, VoiceBar } from "./shell.tsx";
 import { DefCard, TermText } from "./terms.tsx";
@@ -105,7 +106,8 @@ function QRow({ i }: { i: number }) {
   return <St d={<D cls={"sub " + (busy ? "pthink" : m)} />} cls={"sb exr qres" + (tnote ? " tut" : "")}>
     <span class="lab">Question {i + 1}</span><p class="qq"><Statement i={i} /></p>
     <div class="line1"><Said a={a} />{busy ? null : <Mark m={m} />}</div>
-    <p class="xnote">{note}</p>{tnote ? <DefCard where={"pq" + c} /> : null}
+    <p class="xnote">{note}{tnote ? <FlagBtn c={explainCase(tnote, c, "Q" + (i + 1), learnedThing(c))} where={"pop:" + c} /> : null}</p>{tnote ? <DefCard where={"pq" + c} /> : null}
+    <FlagEditor where={"pop:" + c} />
     {busy ? <Thinking label="the tutor is checking" /> : null}
     {side ? <button type="button" class="tside" aria-disabled={needsKey() ? "true" : undefined} onClick={() => askTutor(false)}><span class="tsd" /><b>Check and explain</b><span class="tsl" /></button> : null}
   </St>;

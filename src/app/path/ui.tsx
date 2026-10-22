@@ -24,6 +24,8 @@ const I: Record<string, string> = {
   speakoff: '<path d="M11 5L6 9H2v6h4l5 4z"/><path d="M16 9l6 6M22 9l-6 6"/>',
   mic: '<rect x="9" y="2.5" width="6" height="11.5" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v3.5"/>',
   refresh: '<path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v4h-4"/>',
+  flag: '<path d="M6 21V3.5M6 4h11.5l-2.5 4 2.5 4H6"/>',
+  skipped: '<path d="M5 6l6 6-6 6M12 6l6 6-6 6"/>',
 };
 /** A line icon; the favorites mark is drawn in the shape the look names. */
 export function Icon({ n, cls = "i" }: { n: string; cls?: string }) {

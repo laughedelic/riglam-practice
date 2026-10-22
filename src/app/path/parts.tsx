@@ -16,6 +16,7 @@ import { render } from "../shell/render.js";
 import type { CellId, RelKey } from "../../ai-shared/relations.ts";
 import { VERDICT_RE, parseFactLine } from "../../domain/verdict.ts";
 import { refreshPath } from "./index.tsx";
+import { FlagBtn, FlagEditor, QuorumPanel, explainCase } from "./flags.tsx";
 import { DefCard, OneTerm, TermText } from "./terms.tsx";
 import { Bridge, D, Fig, Icon, Mark, SHORT, St, Sx } from "./ui.tsx";
 
@@ -147,6 +148,7 @@ export function latestExplain() {
 const CELL_LN = /^[-•*\s]*(?:\*\*)?(?:both|a not b|b not a|neither|q[1-4])(?:\*\*)?\s*:/i;
 function WhyText() {
   const t = latestExplain(); if (!t || !t.content) return null;
+  const w = "i" + (u0().chat || []).indexOf(t);
   const seen = new Set<string>(), out: ComponentChildren[] = [];
   String(t.content).split("\n").forEach((ln0: string, i: number) => {
     if (!ln0.trim() || CELL_LN.test(ln0.trim()) || parseFactLine(ln0)) return;
@@ -154,7 +156,8 @@ function WhyText() {
     const m = ln.match(/^([A-Za-z][A-Za-z0-9 ,'’-]{0,28}):\s+(.*)$/), w = "pw" + i;
     out.push(<p class="whyt">{m ? <><b>{m[1]}:</b> <TermText text={m[2]} where={w} seen={seen} /></> : <TermText text={ln} where={w} seen={seen} />}</p>, <DefCard where={w} />);
   });
-  return out.length ? <div class="tsay">{out}</div> : t.pending ? null : <p class="whyt">The tutor's notes are on the rows above.</p>;
+  const flag = t.pending ? null : <><span class="pflgrow"><FlagBtn c={explainCase(t.content)} where={w} word /></span><FlagEditor where={w} /></>;
+  return out.length ? <><div class="tsay">{out}</div>{flag}</> : t.pending ? null : <><p class="whyt">The tutor's notes are on the rows above.</p>{flag}</>;
 }
 /**
  * The row of the tutor under a result: Why, and what it would do (`todo`, else check the `unc` open examples and explain, or explain). Open, the explanation,
@@ -173,7 +176,7 @@ export function WhyRow({ unc = 0, again = false, todo }: { unc?: number; again?:
       {writing && !(t && t.content) ? <Thinking label="the tutor is reading your answer" /> : null}
       <WhyText />
       {u.chatErr ? <p class="terr">{u.chatErr}</p> : null}
-      {q ? <Bridge fill={() => q.body()} /> : null}
+      {q ? <QuorumPanel /> : null}
       <div class="tact">
         {writing ? <button type="button" class="pbtn" onClick={() => u.ctl && u.ctl.abort()}>Stop</button> : null}
         {!writing && canAsk() && u.explained ? <button type="button" class="pbtn" onClick={openChat}>Ask a follow-up</button> : null}

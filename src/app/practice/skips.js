@@ -20,7 +20,7 @@ import { begun, switchTo } from "../shell/tabs.js";
 export const SKIP_DAYS=7;
 const UNDO_MS=6000;                    // how long the note with Undo stays in the pair bar
 const skipQ={};
-const skipActive=s=>!!(s&&s.at&&Date.now()-Date.parse(s.at)<SKIP_DAYS*864e5);
+export const skipActive=s=>!!(s&&s.at&&Date.now()-Date.parse(s.at)<SKIP_DAYS*864e5);
 // the key of a pair of categories, also when both labels belong to one category (minds / consciousnesses): that pair is then one candidate of the pool
 export const catKey=(a,b)=>"c_"+favSafe([a,b].sort().join("__"));
 export const skipCats=p=>[p.catA||catByLabel(p.a), p.catB||catByLabel(p.b)];
@@ -151,14 +151,14 @@ export function skipInto(o){
       el("button",{type:"button",class:"btn ghost",onclick:skipNow,text:"Skip anyway"}))));
 }
 // a pair skipped in Questions is practiced in Questions, one skipped in Relations in Relations, one skipped in Find a pair in Find a pair
-function startSkipped(f){
+export function startSkipped(f){
   const p=f.pair||{a:f.a,b:f.b,relation:f.relation,ex:{},why:{}};
   if(f.from==="find"){ resumeFind(p,f.asked); return; }
   if(f.from==="debate"){ switchTo("debate"); state.cur={p,debate:true}; state.ui=freshDebateUi(); state.mode="quiz"; startQ(); }
   else { switchTo("practice"); state.retryQ=[p]; state.retryTag="Skipped"; advance(); }
   render(); top0();
 }
-function unskipKey(k){
+export function unskipKey(k){
   const had=state.skips[k]; if(!had) return;
   delete state.skips[k]; render();
   if(state.db) skipWrite(k,()=>state.db.collection("skips").doc(k).delete(),()=>{ state.skips[k]=had; });

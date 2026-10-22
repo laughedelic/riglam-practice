@@ -1,7 +1,7 @@
 // The Path's page: one column with the top bar, the screen in front (an exercise, Review, the tutor's conversation, Settings) and the foot,
 // and over it the roadmap, the practice options, the question before a skip and the note at the foot. Which screen shows is the classic
 // page's state (state.js: tab, view, optsOpen, sessOpen, menuOpen, skipAsk), so Back, the keys and the clocks work as they do there.
-// The exercises are drawn on the path; Review and the tutor's conversation are the classic page's, hosted (ui.tsx, Bridge).
+// Everything is drawn on the path; an exercise in a state the Path does not draw would show the classic screen, hosted (ui.tsx, Bridge).
 import type { ComponentChildren } from "preact";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { state } from "../state.js";
@@ -12,23 +12,23 @@ import { renderDebate } from "../debate/screen.js";
 import { renderFind } from "../find/screen.js";
 import { placePops, renderQuiz } from "../practice/screen.js";
 import { closeSkipAsk, skipInto, skipNow } from "../practice/skips.js";
-import { renderReview } from "../review/review.js";
 import { renderSyllogism } from "../syllogism/screen.js";
-import { chatInto, closeChat, openChat } from "../shell/chat.js";
+import { openChat } from "../shell/chat.js";
 import { exName } from "../shell/exercises.js";
 import { fitPair, isEx } from "../shell/render.js";
-import { setTab } from "../shell/tabs.js";
 import { applyLook, currentLook, darkNow, lookClasses } from "./look.ts";
 import { OptionsSheet } from "./options.tsx";
 import { categoriesScreen } from "./categories.tsx";
 import { findScreen } from "./find.tsx";
 import { pervasionsScreen } from "./pervasions.tsx";
 import { relationsScreen } from "./relations.tsx";
+import { ReviewPage } from "./review.tsx";
 import { Roadmap } from "./roadmap.tsx";
 import { aboveSync } from "./scroll.tsx";
 import { SettingsPage } from "./settings.tsx";
 import { syllogismScreen } from "./syllogism.tsx";
-import { Foot, PullCtx, Station, Toast, TopBar } from "./shell.tsx";
+import { TutorPage } from "./tutor.tsx";
+import { PullCtx, Toast, TopBar } from "./shell.tsx";
 import { Pull } from "./gesture.ts";
 import { Bridge, coarse } from "./ui.tsx";
 
@@ -58,27 +58,6 @@ function Hosted() {
   return <>
     <TopBar title={exName(tab)} tools tutor={ai && u && (u.checked || u.chat) ? openChat : null} tutorDot={waitingAnswer()} />
     <Bridge cls="card" fill={fill} after={() => { fitPair(); placePops(); }} />
-  </>;
-}
-function ReviewPage() {
-  return <>
-    <TopBar title="Review" />
-    <Bridge cls="card rv" fill={() => built((s) => renderReview(s))} />
-    <Foot><Station name={"Back to " + exName(state.own)} act={() => setTab(state.own)} /></Foot>
-  </>;
-}
-/** The tutor's conversation: what it is about, the question field (or Stop), the newest exchange first. */
-function TutorPage() {
-  const fill = () => {
-    const box = document.createElement("div"); chatInto(box);
-    const d = box.querySelector(".cdrawer"); if (!d) return [];
-    d.querySelector(".oh")?.remove();
-    return [...d.childNodes];
-  };
-  return <>
-    <TopBar title="The tutor" />
-    <Bridge cls="ptalk" fill={fill} />
-    <Foot><Station name="Back to the result" hint={exName(state.tab)} act={closeChat} /></Foot>
   </>;
 }
 /** The question before an attempt with something in it is set aside; its words are the classic page's (practice/skips.js). */
