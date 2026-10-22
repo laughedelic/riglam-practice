@@ -114,12 +114,15 @@ function renderNow(){
   }
   renderOver(); restoreFocus(f&&f.id!==undefined&&state.skipAsk?null:f); placePops(); dropStaleDef(); voiceAfterRender(); // the question before a skip has the focus, not the field under it
 }
-// The Path draws the whole page itself (src/app/path). The old stage only keeps its status line, which the recovery panel of the installed app reads (index.html).
+// The Path draws the whole page itself (src/app/path). The old stage only keeps its status line, which the recovery panel of the installed app reads (index.html);
+// the classic panels are emptied, so that an id in them (a field, the chat) is never found before the Path's own.
 function renderPathNow(){
   ensureRelTimer();
   state.lastUi=state.ui;
   const s=$("stage"), st=state.mode==="loading"?"Loading.":state.mode==="nodata"?"The practice data could not be loaded. Reload the page to try again.":"";
   if(s.textContent!==st) s.replaceChildren(...(st?[el("p",{class:"status",text:st})]:[]));
+  for(const id of ["over","coach","steps"]){ const n=$(id); if(n.firstChild) n.replaceChildren(); n.hidden=true; }
+  document.documentElement.classList.remove("ov");
   renderPath(); dropStaleDef(); voiceAfterRender();
 }
 /** After a check the result is shown from its top. A phone puts the focus on the forward button (Next pair); a wide screen on Explain, or on the screen itself when
