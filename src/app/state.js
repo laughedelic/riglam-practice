@@ -109,6 +109,9 @@ export const state = {
   bzHold: 0,         // the timer of a hold on the stopwatch in the top bar (shell/topbar.js)
   blitzUse: true,    // the Blitz page of the practice options can take the stopwatch away from the top bar altogether (on by default)
   relMs: undefined,  // the relation has its own time; it starts from the one time of earlier versions
+  // reading the questions aloud and answering by voice, with the browser's own speech (shell/voice.js). `on` is the Voice switch in Settings (app.js sets it
+  // at the start: the device's choice, else the build's default); `read` and `answer` are in the Practice options, both off until turned on there
+  voice: {on:false, muted:false, read:false, answer:"off", confirm:"tap", voiceId:"", rate:1, key:"", phase:"idle", live:"", note:"", bad:false, pend:null,began:false,seen:false,held:false, ask3:false, tries:0, blocked:false, clockUi:null, rhold:false, stop:null, tok:null, hooked:false},
   sylMs: 15000,      // a syllogism has its own time (Syllogisms), stored as `rd-timer-syl`
 };
 
@@ -135,4 +138,10 @@ try{
 }catch(e){}
 state.relMs = state.timerMs;
 try{ const v=+localStorage.getItem("rd-timer-rel"); if(v>=2000&&v<=120000) state.relMs=v; }catch(e){}
+try{
+  const v=state.voice, a=localStorage.getItem("rd-voice-answer"), r=+localStorage.getItem("rd-voice-rate");
+  v.read=localStorage.getItem("rd-voice-read")==="1"; if(a==="tap"||a==="auto") v.answer=a;
+  if(localStorage.getItem("rd-voice-confirm")==="auto") v.confirm="auto";
+  v.voiceId=localStorage.getItem("rd-voice-name")||""; if(r>=0.5&&r<=2) v.rate=r;
+}catch(e){}
 try{ const v=+localStorage.getItem("rd-timer-syl"); if(v>=2000&&v<=120000) state.sylMs=v; }catch(e){}

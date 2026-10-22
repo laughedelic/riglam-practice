@@ -9,17 +9,18 @@ import { isEx } from "./render.js";
 import { openBlitzOptions, syncSessBtn, toggleSess } from "./session.js";
 import { setTab } from "./tabs.js";
 import { syncBlitzBtn, timerBar } from "./timers.js";
+import { syncReadBtn, toggleReadAloud } from "./voice.js";
 
 /* ---------- the top bar: the mode of practice ---------- */
 // Left, the menu (in Review, the back arrow to the exercise under it); then the name of the screen; at the right what applies to this exercise as a whole:
-// the Blitz switch, the practice options, and the tutor's chat as the right-most button, the mirror of the menu. The bar keeps these places whatever the step of the
+// the Read aloud switch (while Voice is on and Read aloud is chosen), the Blitz switch, the practice options, and the tutor's chat as the right-most button, the mirror of the menu. The bar keeps these places whatever the step of the
 // pair, so nothing shifts when a result appears. What belongs to this pair (Skip, the star, the forward button) is in the bar below (shell/pbar.js). The Blitz countdown
 // runs along the lower edge of this bar, over its line, so it is at the top of every exercise, in the eye's way, and nothing moves when Blitz is switched.
 export function renderBar(){
   const rv=state.tab==="review";
   $("mback").hidden=!rv; $("menubtn").hidden=rv&&!isWide();
   $("mttl").textContent=rv?"Review":isEx()?exName(state.tab):"";
-  syncBlitzBtn(); syncSessBtn(); syncChatBtn();
+  syncReadBtn(); syncBlitzBtn(); syncSessBtn(); syncChatBtn();
   const bar=$("mbar"), tb=timerBar(); bar.querySelector(".mbt")?.remove();
   if(tb){ tb.classList.add("mbt"); bar.append(tb); }
 }
@@ -41,5 +42,6 @@ mbz.addEventListener("pointerdown",e=>{ if(e.button) return; clearTimeout(state.
 for(const t of ["pointerup","pointerleave","pointercancel"]) mbz.addEventListener(t,()=>clearTimeout(state.bzHold));
 mbz.addEventListener("contextmenu",e=>e.preventDefault());
 mbz.addEventListener("click",()=>setBlitz(!state.blitz));
+$("mrd").addEventListener("click",toggleReadAloud);
 $("msess").addEventListener("click",()=>toggleSess(true));
 $("mchat").addEventListener("click",()=>{ if(isWide()) toggleCoach(); else openChat(); });

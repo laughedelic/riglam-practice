@@ -26,5 +26,7 @@ export type { KnownLine, OpenExample } from "./known";
 export type { FactRow, FactSource, FactState, Opinion, Ruling, Strength } from "./learned";
 export { DRAWN, cellExample, drawable, examplesFor, levelCounts, placeByClass, toggleLevel, witnessesOf } from "./reference";
 export type { Placement } from "./reference";
+export { lettersDirection, plainWords, spokenConfirm, spokenDirection, spokenDontKnow, spokenExample, spokenRelation, spokenReply } from "./spoken";
+export type { PairTerms, SpokenExample, SpokenReply } from "./spoken";
 export { RELIEF, REPLIES, SITUATIONS, WORDINGS, syllogismOf, syllogismPieces, syllogismText, drawSyllogism, gradeSyllogism, gradeTimeout, gradeExample, pervasionConflicts, widest, withoutPhrases } from "./syllogism";
 export type { Check, Syllogism, SyllogismDraw, SyllogismHistory, SyllogismResult, ExampleVerdict, Pervasion, Piece, Reply, Situation, Wording } from "./syllogism";

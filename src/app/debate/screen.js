@@ -12,6 +12,7 @@ import { defCard, withTerms } from "../practice/terms.js";
 import { exGrid } from "../review/review.js";
 import { pairBar } from "../shell/pbar.js";
 import { fitPair, render, setSteps } from "../shell/render.js";
+import { voiceBar } from "../shell/voice.js";
 
 function pairHead(s,p,o){
   const np=o.rel?notaParts(o.rel):null;
@@ -139,12 +140,15 @@ export function renderDebate(s,c){
       });
       card.append(el("div",{class:"ansrow"},inp,nx),el("button",{type:"button",class:"back",onclick:backWhy,text:"Back"}));
     }
+    // the voice bar (when voice is on) goes with the response
+    const vb=voiceBar(); if(vb) card.append(vb);
     s.append(card);
   }
 
   if(stage==="rel"||stage==="done"){
     if(w) s.append(relStrip(chooseD,stage==="done"),relCap("Pick the relation your answers give (keys 1–5). Picking it checks your answers."));
     else if(stage==="rel"&&u.open) s.append(relList(chooseD,null));
+    const vb=stage==="rel"?voiceBar():null; if(vb) s.append(vb);
   }
   if(stage==="done"){
     // the table first (it is fixed), the verdict under it (its length changes with the chip)

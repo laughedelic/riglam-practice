@@ -36,6 +36,8 @@ const SING={"functional things":"a functional thing","impermanent things":"an im
 "permanent things":"a permanent thing","things that are produced":"a thing that is produced","things that exist":"a thing that exists","things that can be known":"a thing that can be known","things that can be heard":"a thing that can be heard","things that have causes":"a thing that has causes","things with color":"a thing with color","hard things":"a hard thing","cold things":"a cold thing","muscles":"a muscle","people":"a person","monks":"a monk","tables":"a table","bodies":"a body","mental factors":"a mental factor","dogs":"a dog","instruments":"an instrument"};
 try{ const v=localStorage.getItem("rd-wording"); if(WORDINGS[v]) state.wording=v; }catch(e){}
 export const Wd=()=>WORDINGS[state.wording];
+// a term of the pair ("A" or "B") in the singular, with its article: "a functional thing"
+export const termSing=x=>singular(x==="A"?state.cur.p.a:state.cur.p.b);
 // the chip and the first word of its term stay on one line
 /** A category label in the singular, with its article ("memories" -> "a memory"). */
 export const singular=lab=>SING[american(lab)]||lab.replace(/^(\w+) things$/,"a $1 thing");

@@ -192,6 +192,11 @@ export interface Updates {
 export interface Platform {
   /** Which build runs the page. Informational; the page must not branch on it. */
   readonly target: "pwa" | "artifact" | "test";
+  /**
+   * Whether this is a Preview (staging, a pull request build) and not the real app. Features still on trial are on by default in a Preview
+   * and off in the real app; the page only reads it for that default. Absent: not a Preview.
+   */
+  readonly preview?: boolean;
   /** The term data. Rejects when the data cannot be loaded; the page then shows its "no data" screen. */
   loadData(): Promise<DrillData>;
   /** The document store, or null when there is none (the page then runs without saving). */

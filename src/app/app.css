@@ -33,3 +33,4 @@
 @import "./styles/29-share-note.css"; /* the one-time dialog before a device's examples are kept */
 @import "./styles/30-syllogism.css"; /* Syllogisms: the card with the syllogism and its three replies, the counter-example step, the result */
 @import "./styles/31-categories.css"; /* Categories: the thing, the ticks or yes and no, the split check, the most specific, the offer of a level */
+@import "./styles/32-voice.css"; /* voice: the bar with the microphone and what was heard, the Voice row of Settings */

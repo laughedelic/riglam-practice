@@ -21,6 +21,7 @@ import { exGrid } from "../review/review.js";
 import { tutorTurns } from "../shell/chat.js";
 import { pairBar } from "../shell/pbar.js";
 import { CELL_FULL, ago, fitPair, focusCin, render, setSteps } from "../shell/render.js";
+import { voiceBar } from "../shell/voice.js";
 
 /* ---------- practice: one pair ---------- */
 // the heading: A [relation diamond] B, relation name below. On a wide screen the strip under it picks the relation, so the diamond only shows it.
@@ -268,6 +269,7 @@ function quizWide(s,c){
   quizHead(s,true);
   s.append(relStrip(choose,u.checked||u.late));
   s.append(relCap());
+  if(!state.ui.checked){ const vb=voiceBar(); if(vb) s.append(vb); }
   s.append(el("div",{class:"section"}, el("p",{class:"label"},"Examples",el("span",{class:"hint",text:"∅ = nothing exists. Neither also takes a non-existent."})), exGrid(p,quizCell,true)));
   // the result stays in the middle, under the table; the tutor's conversation is in the panel at the right
   if(u.checked){ s.append(quizResult()); if(u.saveErr) s.append(el("p",{class:"status",text:u.saveErr})); }
@@ -316,6 +318,7 @@ export function cellView(s){
     el("div",{class:"cmeta"},map,el("div",{class:"cwho"},el("span",{class:"n",text:"Cell "+(state.ui.ci+1)+" of "+order.length}),el("small",{text:CELL_FULL[c]}))),
     cellPrompt(c),
     el("div",{class:"cin"},inp),
+    voiceBar(),
     el("p",{class:"chint"},
       state.ui.ci>0?el("button",{type:"button",class:"back",onclick:()=>{state.ui.ci--; render(); focusCin();},text:"‹ Back"}):null,
       "Leave it empty if nothing exists here."+(skipTxt?" "+skipTxt:""))),
@@ -353,7 +356,7 @@ function quizNarrow(s){
   const p=state.cur.p, stp=state.ui.checked?2:(!state.ui.rel||state.ui.open)?0:1;
   setSteps(["Relation","Examples","Result"],stp,[(state.ui.checked||state.ui.late)?null:()=>{ state.ui.open=true; render(); },(state.ui.checked||!state.ui.rel)?null:()=>{ state.ui.open=false; render(); focusCin(); },null]);
   quizHead(s,false);
-  if(stp===0) s.append(relList(choose,"Relation"),pairBar(null));
+  if(stp===0){ const vb=voiceBar(); s.append(relList(choose,"Relation"),...(vb?[vb]:[]),pairBar(null)); }
   else if(stp===1) cellView(s);
   else {
     // the table is fixed once filled in, the verdict below it changes length with the chip: the table goes first so it never moves
@@ -380,11 +383,13 @@ export function askRow(id){
   return el("div",{class:"ask"}, inp, el("button",{class:"btn ghost",type:"button",onclick:send,text:"Ask"}));
 }
 
-export function choose(k){
+// `voiced` when the relation was spoken (shell/voice.js): no field takes the focus, so a phone keeps its keyboard down
+export function choose(k,voiced){
   if(state.ui.checked||state.ui.late) return;
   if(!state.ui.rel) stopTimer();
   state.ui.rel=k; state.ui.open=false; state.ui.ci=0; state.ui.seen=0; state.ui.review=false; for(const c of REL[k].empty){ state.ui.cells[c].t=""; state.ui.cells[c].none=false; }
   render();
+  if(voiced) return;
   if(!isWide()){ focusCin(); return; }
   const first=CELLS.find(c=>!REL[k].empty.includes(c));
   const i=first&&$("in-"+first); if(i&&!("ontouchstart" in window)) i.focus();

@@ -419,4 +419,70 @@ export interface State {
   blitz: boolean;
   blitzUse: boolean;
   bzHold: number;
+
+  // reading the questions aloud and answering by voice (shell/voice.js)
+  voice: VoiceState;
+}
+
+/** A spoken answer that waits for its confirmation (shell/voice.js). */
+export interface PendingAnswer {
+  /** the screen it was said for */
+  key: string;
+  /** "Heard “x”, taken as", or just "Heard" when it is the same */
+  said: string;
+  /** what it was taken as */
+  label: string;
+  /** applies it, as the tap or the typed answer it stands for */
+  apply: () => void;
+  /** the pause after which it goes on by itself, when Options says so */
+  auto: { ms: number; t0: number; tid: ReturnType<typeof setTimeout> } | null;
+}
+
+/** Voice settings (kept on the device) and what the voice is doing on the screen now. */
+export interface VoiceState {
+  /** the Voice switch in Settings: until it is on, none of the voice does anything */
+  on: boolean;
+  /** Read aloud is paused with the switch in the top bar, for this visit only */
+  muted: boolean;
+  /** read each question aloud */
+  read: boolean;
+  /** answer by voice: not at all, when the microphone button is tapped, or listening after each question */
+  answer: "off" | "tap" | "auto";
+  /** a heard answer waits for Confirm, or goes on by itself after a pause */
+  confirm: "tap" | "auto";
+  /** the chosen voice, "" for the best one this device has */
+  voiceId: string;
+  rate: number;
+  /** the screen spoken and listened for; a new screen stops what the last one started */
+  key: string;
+  phase: "idle" | "speaking" | "listening";
+  /** what the recognizer hears so far */
+  live: string;
+  /** the last thing to tell: what was heard and taken, or why nothing was */
+  note: string;
+  bad: boolean;
+  /** the answer that was heard and waits to be confirmed; null when none does */
+  pend: PendingAnswer | null;
+  /** "three possibilities" was heard and the page asked which of the two is inside the other */
+  ask3: boolean;
+  /** the person has tapped or pressed a key since the page opened */
+  began: boolean;
+  /** a question was already shown (the first one is held, not read) */
+  seen: boolean;
+  /** the question on the screen is the first one: nothing is read or listened to until the person asks for it (the line under the answer controls, or the microphone) */
+  held: boolean;
+  /** how often this screen was listened to without an answer coming of it */
+  tries: number;
+  /** speaking failed for want of a tap on the page: the line under the answer controls says so, with a button to read the question */
+  blocked: boolean;
+  /** the attempt whose Blitz clock voice holds (a question is being read, or an answer waits), else null */
+  clockUi: Ui | null;
+  /** the clock is held for the reading of the question */
+  rhold: boolean;
+  /** ends the current listening */
+  stop: { stop(): void; abort(): void } | null;
+  /** the speaking or listening under way; a callback of one that was stopped finds another here and does nothing */
+  tok: object | null;
+  /** the Practice options listen for the browser's list of voices (once they have been shown) */
+  hooked: boolean;
 }

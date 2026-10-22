@@ -16,6 +16,7 @@ import { renderMenu } from "./menu.js";
 import { enter, leave } from "./motion.js";
 import { ensureRelTimer } from "./timers.js";
 import { renderBar } from "./topbar.js";
+import { voiceAfterRender, voiceBeforeRender } from "./voice.js";
 
 /* ---------- rendering ---------- */
 // One layout for every screen: a top bar over a workspace. Narrow screens show one step at a time (steps) with the menu as a drawer over it;
@@ -82,6 +83,7 @@ export function render(){
   navSync();
 }
 function renderNow(){
+  voiceBeforeRender();   // a screen that voice did not speak for lets go of its clock before this render starts the next one
   const w=isWide(); if(w&&state.view==="chat") state.view=null;
   const drawerGone=w&&state.menuOpen;
   if(w) state.menuOpen=false; else state.menuPeek=false;
@@ -108,7 +110,7 @@ function renderNow(){
     else if(state.tab==="syllogism"&&state.ui&&state.ui.syllogism) renderSyllogism(s,c);
     else renderQuiz(s,c);
   }
-  renderOver(); restoreFocus(f&&f.id!==undefined&&state.skipAsk?null:f); placePops(); dropStaleDef(); // the question before a skip has the focus, not the field under it
+  renderOver(); restoreFocus(f&&f.id!==undefined&&state.skipAsk?null:f); placePops(); dropStaleDef(); voiceAfterRender(); // the question before a skip has the focus, not the field under it
 }
 /** After a check the result is shown from its top. A phone puts the focus on the forward button (Next pair); a wide screen on Explain, or on the screen itself when
  *  the answer is explained by itself or already is, so that no key press moves on by mistake (Next pair is the N key). */

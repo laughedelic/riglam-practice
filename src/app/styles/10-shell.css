@@ -52,10 +52,16 @@ button:focus-visible{box-shadow:var(--focus-ring)}
 .card>.pbar{display:block;position:sticky;bottom:0;z-index:2;margin-top:auto;margin-inline:calc(-1*var(--bleed));padding:8px var(--bleed) calc(8px + env(safe-area-inset-bottom,0px));background:var(--paper);border-top:1px solid var(--line)}
 .pbar .prow{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .pbar .pl{display:flex;align-items:center;gap:2px;min-width:0}
+/* with the microphone (shell/voice.js) the row is three columns, so that it is in the middle whatever the width of its neighbors; neither neighbor gives up its width */
+.pbar .prow.vm{display:grid;grid-template-columns:minmax(max-content,1fr) auto minmax(max-content,1fr);gap:4px}
+.pbar .vm .pl{grid-column:1}
+.pbar .vm .vmic{grid-column:2}
 .pbar .skipw{height:44px;padding:0 12px}
 .pbar .skipw .tbi{width:18px;height:18px;margin-right:6px}
 .pbar .starb{margin-left:2px}
 .pbar .fwd{height:44px;padding:0 20px;justify-content:center;white-space:nowrap}
+.pbar .vm .fwd{grid-column:3;justify-self:end}
+@media (max-width:340px){.pbar .vm .fwd{padding:0 12px}.pbar .vm .skipw{padding:0 8px}}   /* the narrowest phones: the three still fit between the margins */
 .pbar .pnote{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px;padding:0 2px 2px;font:400 13px/1.4 var(--text-serif);color:var(--ink-muted)}
 .pbar .skipmsg{flex:1}
 .pbar .skipundo{position:relative;flex:none;min-height:44px;padding:0 8px;border:0;background:transparent;font:700 13px/1 var(--body);color:var(--ink);text-decoration:underline;text-underline-offset:2px;cursor:pointer}

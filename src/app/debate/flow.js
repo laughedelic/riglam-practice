@@ -9,7 +9,7 @@ import { freshUi } from "../practice/queue.js";
 import { clearSkip } from "../practice/skips.js";
 import { nextGenerated } from "../practice/universe.js";
 import { focusAfterCheck, render } from "../shell/render.js";
-import { relReset, tkind } from "../shell/timers.js";
+import { ensureRelTimer, freezeBar, relReset, tkind } from "../shell/timers.js";
 import { startSyllogismClock, syllogismAsking } from "../syllogism/flow.js";
 import { gradeDebate } from "../../domain/grading.ts";
 
@@ -24,18 +24,46 @@ export const limitMs=()=>state.blitz?state.timerMs:0;
 /** The clock stands still while something covers the exercise: Settings, the practice options, the question before a skip, the menu on a phone. It starts again, with its full time, when that closes. */
 export const paused=()=>state.optsOpen||state.sessOpen||state.skipAsk||(state.menuOpen&&!isWide());
 export function stopTimer(){ if(state.ui&&state.ui.tid){ clearTimeout(state.ui.tid); state.ui.tid=null; } if(state.ui) state.ui.tq=null; }
-export function startQ(){
+// `spent`: the time of the question already gone (a countdown that goes on after a stop)
+export function startQ(spent=0){
   stopTimer();
   if(syllogismAsking()){ if(!paused()) startSyllogismClock(); return; }       // Syllogisms: the one countdown of the reply
-  if(!state.ui||!state.ui.debate||state.ui.checked||state.ui.step>3||paused()) return;
+  if(!state.ui||!state.ui.debate||state.ui.checked||state.ui.step>3||state.ui.hold||paused()) return;
   const a=state.ui.ans[state.ui.step], lim=limitMs(); a.limit=lim;
-  state.ui.qStart=performance.now();
-  if(lim){ const u=state.ui; u.tq={t0:state.ui.qStart,limit:lim}; u.tid=setTimeout(()=>expireQ(u),lim); }
+  state.ui.qStart=performance.now()-spent;
+  if(lim){ const u=state.ui; u.tq={t0:state.ui.qStart,limit:lim}; u.tid=setTimeout(()=>expireQ(u),Math.max(1,lim-spent)); }
+}
+// The Blitz countdown stands still while a question is read aloud and while a spoken answer waits for its confirmation (shell/voice.js),
+// and that time is not counted in the time of the answer. `u.hold` also keeps the render from starting a countdown of its own.
+const stageOf=u=>u.debate?(u.step<4?"q"+u.step:"rel"):(u.rel?"ex":"pick");
+// the time of the question gone so far; while the clock is held, `qStart` is stale, and the time is what the hold kept
+const sinceStart=u=>u.hold?u.hold.spent:performance.now()-u.qStart;
+export function holdClock(){
+  const u=state.ui; if(!u||u.hold||u.checked) return;
+  const spent=u.debate&&u.step<4?performance.now()-u.qStart:u.tq?performance.now()-u.tq.t0:0;
+  u.hold={spent,run:!!u.tq,stage:stageOf(u)};
+  if(u.tid){ clearTimeout(u.tid); u.tid=null; }
+  u.tq=null; freezeBar(true);
+}
+// `how`: "resume" when the answer was confirmed or taken back (the countdown goes on from where it stopped), "fresh" when the reading
+// ended (the time of the question starts anew), "moved" when the screen went on some other way (the stage that is still the same goes on
+// from where it stopped, a new stage starts its own). `ui` is the attempt that was held: it may have been put aside since, and then
+// only the hold is dropped, as it starts its clocks afresh when it comes back.
+export function releaseClock(how,ui=state.ui){
+  const h=ui&&ui.hold; if(!ui||!h) return;
+  ui.hold=null;
+  if(ui!==state.ui) return;
+  freezeBar(false);
+  if(ui.checked) return;
+  const spent=how==="fresh"||(how==="moved"&&stageOf(ui)!==h.stage)?0:h.spent;
+  if(ui.debate&&ui.step<4){ if(state.tab==="debate") startQ(spent); }   // the screen may have gone to another tab with the hold still on it
+  else if(how!=="resume"||h.run) ensureRelTimer(spent);
 }
 /** Whether a question with a clock is on screen: a Pervasions question, or the reply to a syllogism. */
 export const asking=()=>(state.tab==="debate"&&state.ui&&state.ui.debate&&!state.ui.checked&&state.ui.step<4)||syllogismAsking();
 export function setBlitz(on){
   state.blitz=on; try{ localStorage.setItem("rd-blitz",on?"1":"0"); }catch(e){}
+  if(on&&state.ui&&state.ui.hold){ state.ui.hold.spent=0; state.ui.hold.run=true; }   // switched on while the clock is held: it runs, from the start, when the hold ends
   if(asking()) startQ(); else relReset();
   render();
 }
@@ -55,22 +83,28 @@ function expireQ(u){
   nextQ();
 }
 function nextQ(){
+  state.ui.hold=null;       // answered by hand while voice held the question: its clock is the next question's now
   state.ui.step++; state.ui.pickWhy=false; state.ui.exText=""; state.ui.ro=null;
   if(state.ui.step>3){ stopTimer(); state.ui.open=true; } else startQ();
   render();
 }
-export function sayQ(say){
+// `voiced` when the answer was spoken (shell/voice.js): the example field is not focused, so a phone keeps its keyboard down,
+// and an example said together with Why? is taken at once.
+export function sayQ(say,voiced){
   if(!state.ui||!state.ui.debate||state.ui.checked||state.ui.step>3||state.ui.pickWhy) return;
-  const a=state.ui.ans[state.ui.step]; a.say=say; a.ms=Math.round(performance.now()-state.ui.qStart);
+  const a=state.ui.ans[state.ui.step]; a.say=say; a.ms=Math.round(sinceStart(state.ui));
   if(say==="accept"){ nextQ(); return; }
-  state.ui.pickWhy=true; state.ui.exText=""; render();
+  state.ui.pickWhy=true; state.ui.exText="";
+  if(voiced&&voiced.example){ state.ui.exText=voiced.example; submitWhy(); return; }
+  render();
+  if(voiced) return;
   const i=$("dex"); if(i) i.focus();
 }
 // An empty example is not an answer: Next stays off until something is written (Back returns to Accept / Why?).
 export function submitWhy(){
   if(!state.ui||!state.ui.debate||state.ui.checked||state.ui.step>3||!state.ui.pickWhy) return;
   const t=(state.ui.exText||"").trim(); if(!t) return;
-  const a=state.ui.ans[state.ui.step]; a.text=t; a.msEx=Math.round(performance.now()-state.ui.qStart);
+  const a=state.ui.ans[state.ui.step]; a.text=t; a.msEx=Math.round(sinceStart(state.ui));
   nextQ();
 }
 export function backWhy(){
