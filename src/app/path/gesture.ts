@@ -1,14 +1,19 @@
 // The Path's pulls, as the lab has them. The station at the edge is pulled up past its reach to be taken (a tap takes it too; a bump in the hand says
-// it is past); one that is not ready yet rises a little, says why, and stops. Pulling the path itself on past its end only tightens the thread to the
-// station: it never takes it. A side station (Skip) slides left past its reach. One tension is shared by all of them: each Path draw keeps one Pull,
-// on its root.
+// it is past); one that is not ready yet rises a little, says why, and stops. The thread stays attached to the station and shortens as it comes up
+// (--lift: the foot's stub gets shorter, then the riser hides the thread under the station). Pulling the path itself on past its end lifts the station
+// only a little, as if it resisted, and firms the thread: it never takes the station. A side station (Skip) slides left past its reach. One tension
+// is shared by all of them: each Path draw keeps one Pull, on its root.
 const LINE = 64, STOP = 26;
+/** How hard the station resists the path's pull: the station rises this part of it. */
+const RESIST = 0.5;
+/** The bump: one short knock (a longer pulse, or two of them, is felt as a buzz; the Vibration API has no strength to set). */
+const HIT = 12;
 /** How far the path itself can pull the thread: just short of the station's reach. */
 const TIGHT = LINE - 8;
 export const SLIDE = 96;
 
-/** The hand's feel of crossing the reach: a bump, as of a curb under a wheel (a firm thud, then a lighter one just after), not a buzz. */
-const bump = () => { try { if (navigator.vibrate) navigator.vibrate([26, 55, 14]); } catch { /* no haptics */ } };
+/** The hand's feel of crossing the reach: a bump, as of a curb under a wheel (one short knock, no buzz). */
+const bump = () => { try { if (navigator.vibrate) navigator.vibrate(HIT); } catch { /* no haptics */ } };
 export { bump };
 
 export class Pull {
@@ -30,25 +35,22 @@ export class Pull {
   /** The pull, `raw` pixels up (from the station, or the path past its end when `path`); whether it is past the line. */
   to(raw: number, path = false): boolean {
     const stn = this.q("#stn"), sp = this.q("#stnp"), el = stn || sp; if (!el || !this.root) return false;
-    const foot = el.closest<HTMLElement>(".foot"), riser = this.q(".riser"), pc = this.q(".pscroll");
-    const dy = stn ? (raw < LINE ? raw : LINE + (raw - LINE) * 0.35) : Math.min(STOP, raw < 12 ? raw : 12 + (raw - 12) * 0.3);
+    const foot = el.closest<HTMLElement>(".foot"), riser = this.q(".riser");
+    const dy = path ? raw * RESIST : stn ? (raw < LINE ? raw : LINE + (raw - LINE) * 0.35) : Math.min(STOP, raw < 12 ? raw : 12 + (raw - 12) * 0.3);
     const past = !!stn && raw >= LINE;
     el.classList.add("dragging"); if (sp && raw > 0) { sp.classList.add("peek"); clearTimeout(this.peekT); }
     el.style.transform = `translateY(${-dy}px)`;
-    if (path && pc) { pc.style.transition = "none"; pc.style.transform = `translateY(${-dy}px)`; }
-    const fh = foot ? foot.offsetHeight : 0;
-    if (riser) { riser.style.bottom = fh + "px"; riser.style.height = raw > 0 ? dy + "px" : "0"; riser.classList.toggle("pre", !stn); }
-    this.root.style.setProperty("--pull", Math.min(1, dy / LINE).toFixed(3)); this.root.classList.toggle("pulling", raw > 0);
+    if (riser) riser.style.bottom = (foot ? foot.offsetHeight : 0) + "px";
+    this.root.style.setProperty("--lift", dy.toFixed(1) + "px");
+    this.root.style.setProperty("--pull", Math.min(1, path ? raw / TIGHT : dy / LINE).toFixed(3)); this.root.classList.toggle("pulling", raw > 0);
     if (past !== this.past) { this.past = past; if (past) bump(); }
     return past;
   }
   /** The pull let go: the station goes back, and is taken when `go`. A tap on a station that is not ready bumps it. */
   end(go: boolean, tapped = false) {
-    const stn = this.q("#stn"), sp = this.q("#stnp"), el = stn || sp, riser = this.q(".riser"), pc = this.q(".pscroll");
+    const stn = this.q("#stn"), sp = this.q("#stnp"), el = stn || sp;
     if (el) { el.classList.remove("dragging"); el.style.transform = ""; }
-    if (pc && pc.style.transform) { pc.style.transition = "transform .3s cubic-bezier(.2,.9,.3,1.25)"; pc.style.transform = ""; setTimeout(() => { pc.style.transition = ""; }, 320); }
-    if (riser) riser.style.height = "0";
-    if (this.root) { this.root.classList.remove("pulling"); this.root.style.setProperty("--pull", "0"); }
+    if (this.root) { this.root.classList.remove("pulling"); this.root.style.setProperty("--pull", "0"); this.root.style.setProperty("--lift", "0px"); }
     this.past = false;
     if (sp && !go) this.peek(sp, tapped);
     if (go && this.act) this.act();
