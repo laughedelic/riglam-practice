@@ -1,19 +1,15 @@
 // The Dudra terms in a text of the Path, dot-underlined where this device can read their definition (the classic page's withTerms,
-// practice/terms.js, drawn by the Path): a tap opens the definition under the text, as a note on the path (Def); and the Terms section of a
-// result, the two terms of the pair and where each belongs (TermsPanel). What is said is the classic page's (its data, its wording).
-import type { ComponentChildren, JSX } from "preact";
+// practice/terms.js, drawn by the Path): a tap opens the definition under the text, as a note on the path (Def). What is said is the classic page's
+// (its data, its wording).
+import type { JSX } from "preact";
 import { state } from "../state.js";
 import type { DataIndex } from "../../ai-shared/lookup.ts";
-import { namesTerm, termMentions } from "../../ai-shared/mentions.ts";
-import { REL } from "../core/rel.js";
+import { termMentions } from "../../ai-shared/mentions.ts";
 import { cap } from "../core/util.js";
 import { isA } from "../practice/screen.js";
-import { CONFIRMATION, defParts, hasDef, lineageOf } from "../practice/terms.js";
+import { CONFIRMATION, defParts, hasDef } from "../practice/terms.js";
 import { examplesFor } from "../../domain/reference.ts";
-import { catByLabel } from "../practice/universe.js";
 import { render } from "../shell/render.js";
-import type { RelKey } from "../../ai-shared/relations.ts";
-import { St } from "./ui.tsx";
 
 const markOf = (id: string) => document.querySelector<HTMLElement>('#path .dterm[data-dt="' + CSS.escape(id) + '"]');
 function TermMark({ txt, term, id }: { txt: string; term: string; id: string }) {
@@ -99,33 +95,4 @@ function Def({ term, trail }: { term: string; trail: string[] }) {
     {ruOn && ru.body ? <p class="pdbody pdru" lang="ru">{endp(cap(ru.body))}</p> : null}
     <Examples n={term} />
   </div>;
-}
-
-interface TermsPair { a: string; b: string; relation: RelKey; note?: string; typeA?: string; typeB?: string; catA?: string | null; catB?: string | null }
-/** The Terms section of a result: how the two terms relate, and for each where it belongs (its higher categories); the terms whose definition this device can read are marked. */
-export function TermsPanel({ p }: { p: TermsPair }) {
-  const ca = p.catA || catByLabel(p.a), cb = p.catB || catByLabel(p.b), lis = [ca && lineageOf(ca), cb && lineageOf(cb)];
-  // the pair's own words that name a Dudra term: its label, when it is worded as the term is (not a plainer paraphrase of it)
-  const termOf = (li: { names: string[]; everyday: boolean } | null, label: string) => { const n = (li && !li.everyday && li.names[0]) || ""; return n && namesTerm(state as unknown as DataIndex, n, String(label)) ? n : ""; };
-  const own: Record<string, string> = {};
-  ([[p.a, lis[0]], [p.b, lis[1]]] as [string, { names: string[]; everyday: boolean } | null][]).forEach(([label, li]) => { const n = termOf(li, label); if (n) own[String(label).toLowerCase()] = n; });
-  const chain = (names: string[], w: string): ComponentChildren[] => names.flatMap((n, i) => {
-    const low = n.toLowerCase(), word = hasDef(state.DATA!.terms[n]) ? <TermMark txt={low} term={n} id={w + "/" + i} /> : low;
-    return i ? [" ", <i class="pisa">{isA(low)}</i>, " ", word] : [word];
-  });
-  const rows = [["A", p.a, p.typeA, lis[0]], ["B", p.b, p.typeB, lis[1]]] as [string, string, string | undefined, { names: string[]; everyday: boolean } | null][];
-  return <>
-    <St d={<span />} cls="tmsum"><p class="tmsm"><b>{REL[p.relation].name + ". "}</b><TermText text={p.note || ""} where="tm:s" quoted own={own} /></p><DefCard where="tm:s" /></St>
-    {rows.map(([x, label, type, li]) => {
-      const w = "tm:" + x, term = termOf(li, label);
-      return <St d={<span class="ab">{x}</span>} cls="tmrow">
-        <p class="tmt">{hasDef(state.DATA!.terms[term]) ? <TermMark txt={cap(label)} term={term} id={w + "t/0"} /> : cap(label)}</p><DefCard where={w + "t"} />
-        {li && li.names.length ? <>{li.everyday ? <p class="tmn">An everyday category, not a Dudra term. It falls under:</p> : null}<p class="tmc">{chain(li.names, w + "c")}</p><DefCard where={w + "c"} /></>
-          : <p class="tmc">{type || ""}</p>}
-      </St>;
-    })}
-    {state.unlock && state.DATA && lis.some((li) => li && li.names.some((n: string) => state.DATA!.terms[n]))
-      ? <St d={<span />} cls="tmkey"><p>To read the definitions of the terms here, enter the Magic Key from your study group's link.</p>
-        <button type="button" class="pbtn" onClick={() => state.unlock!.open()}>Unlock definitions</button></St> : null}
-  </>;
 }

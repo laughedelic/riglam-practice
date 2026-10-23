@@ -38,6 +38,7 @@ test("Syllogisms: the syllogism in its three parts, the three replies, and the r
     await station(page).click();
   }
   await expect(verdict(page)).toContainText("Right");
+  await expect(page.locator("#path .plead")).toHaveText(say + ".");   // the reply as it was said, with no "You answered" before it
   await expect(page.locator("#path .chk")).toHaveCount(3);
   await expect.poll(async () => (await saved(page, "syllogism")).length).toBe(1);
   expect((await saved(page, "syllogism"))[0]).toMatchObject({ said: c.answer, answer: c.answer });
