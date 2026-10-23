@@ -56,6 +56,17 @@
 .pa .foot.nostation::before{display:none}
 .pa .stn{display:grid; grid-template-columns:var(--m) minmax(0,1fr); align-items:center; touch-action:none; user-select:none; -webkit-user-select:none; text-align:left; transition:transform .28s cubic-bezier(.2,.9,.3,1.3); position:relative; z-index:2; min-width:0}
 .pa .stn.dragging{transition:none}
+/* the line ends at the foot: while the station can be taken, the end of the line says how (an arrow on the line, and its words beside it) */
+.pa .pup{display:none; position:absolute; left:calc(var(--m) - 9px); bottom:7px; align-items:center; gap:7px; pointer-events:none; z-index:1}
+.pa.ready .sx.ptail .pup,.pa.done .sx.ptail .pup{display:flex}
+.pa.ready .sx.ptail,.pa.done .sx.ptail{min-height:48px}
+.pa .pup .pa-arrow{display:grid; place-items:center; width:18px; height:18px; background-color:var(--paper); color:var(--ink2); animation:p-uphint 1.8s ease-in-out infinite}
+.pa .pup .pa-arrow .i{width:15px; height:15px; stroke-width:2.4}
+.pa .pup .pt{font-family:var(--mono); font-size:11px; color:var(--ink2); background-color:var(--paper); padding:2px 6px 2px 0; white-space:nowrap}
+.pa.ready .pup .pa-arrow{color:var(--gold-t)}
+.pa.pulling .pup,.pa.kbup .pup{display:none}
+@keyframes p-uphint{50%{transform:translateY(-3px)}}
+@media (prefers-reduced-motion:reduce){ .pa .pup .pa-arrow{animation:none} }
 .pa .go{justify-self:end; margin-right:calc(var(--st) / -2); width:var(--st); height:var(--st); transform:rotate(45deg); background-color:var(--station); position:relative; z-index:1}
 .pa .go .mk{position:absolute; inset:0; transform:rotate(-45deg); display:grid; place-items:center; color:var(--on-station)}
 .pa .go .mk .i{width:calc(var(--st) * 15 / 28); height:calc(var(--st) * 15 / 28); stroke-width:2.6}

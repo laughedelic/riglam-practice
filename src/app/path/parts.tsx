@@ -9,16 +9,18 @@ import { canAsk } from "../core/ask.js";
 import { REL } from "../core/rel.js";
 import { singular } from "../debate/text.js";
 import { favTarget, isFav, toggleFav } from "../practice/favorites.js";
+import { explainParts, factParts, noteData } from "../practice/screen.js";
 import { lineageOf } from "../practice/terms.js";
 import { catByLabel } from "../practice/universe.js";
 import { openChat } from "../shell/chat.js";
 import { render } from "../shell/render.js";
 import type { CellId, RelKey } from "../../ai-shared/relations.ts";
 import { VERDICT_RE, parseFactLine } from "../../domain/verdict.ts";
+import type { FactLine, NotePart } from "../../domain/verdict.ts";
 import { refreshPath } from "./index.tsx";
 import { FlagBtn, FlagEditor, QuorumPanel, explainCase } from "./flags.tsx";
 import { Sub } from "./subjects.tsx";
-import { DefCard, OneTerm, TermText, TermsPanel } from "./terms.tsx";
+import { DefCard, OneTerm, TermText } from "./terms.tsx";
 import { D, Fig, Icon, Mark, St, Sx } from "./ui.tsx";
 
 export const u0 = () => state.ui!;
@@ -139,6 +141,34 @@ export function latestExplain() {
   for (let i = chat.length - 1; i >= 0; i--) { const t = chat[i]; if (t.role === "assistant" && t.kind === "explain") return t; }
   return null;
 }
+/** What a tutor's line on an example says, as steps like the classic page drew them: a line for each of the pair's two terms (it follows it is, or is
+ *  not, that term, and why), and the conclusion when the example does not fit. "Take the example" is left out: the row shows it just above. */
+function FactSteps({ f, where }: { f: FactLine; where: string }) {
+  const parts = factParts(f) as NotePart[], t = noteData().terms, seen = new Set<string>();
+  const steps = parts.filter((x) => x.kind === "term" || x.kind === "unsure"), ends = parts.filter((x): x is Extract<NotePart, { kind: "end" }> => x.kind === "end");
+  const txt = (s: string, w: string) => <><TermText text={s} where={w} seen={seen} /></>;
+  return <>
+    <ul class="tsteps">{steps.map((x, k) => {
+      const wr = where + "." + k + "r", ww = where + "." + k + "w";
+      if (x.kind === "unsure") return <li><span class="fl">Whether it is </span><Sub k={x.side === "A" ? "a" : "b"}>{x.side === "A" ? t.a : t.b}</Sub><span class="fl"> is not settled</span>{x.say ? <>: {txt(x.say, wr)}</> : null}.<DefCard where={wr} /></li>;
+      if (x.kind !== "term") return null;
+      return <li><span class="fl">It follows it is </span>{x.not ? <><b class="pnot">not</b> </> : null}<Sub k={x.side === "A" ? "a" : "b"}>{x.side === "A" ? t.a : t.b}</Sub>
+        {x.reason ? <>, because {txt(x.reason, wr)}</> : null}.<DefCard where={wr} />
+        {x.why ? <span class="twhy">{txt(x.why, ww)}</span> : null}{x.why ? <DefCard where={ww} /> : null}</li>;
+    })}</ul>
+    {ends.map((x) => <p class="fend">{x.text}</p>)}
+  </>;
+}
+/**
+ * The tutor's note on one example, set apart from the learner's own answer above it: a small label, then the steps of its line (or its words, for a
+ * line that has no steps), and the flag. `where` keys the terms it names, so that their definitions open under them.
+ */
+export function TutorNote({ c, text, where, flag }: { c: CellId; text: string; where: string; flag?: ComponentChildren }) {
+  const f = (explainParts().facts as Record<string, FactLine | undefined>)[c];
+  return <div class="tnote"><span class="tutn">the tutor</span>
+    {f ? <FactSteps f={f} where={where} /> : <><p class="tt"><TermText text={text} where={where} /></p><DefCard where={where} /></>}
+    {flag}</div>;
+}
 // the tutor's explanation without its lines on the cases (those are on the cases' rows)
 const CELL_LN = /^[-•*\s]*(?:\*\*)?(?:both|a not b|b not a|neither|q[1-4])(?:\*\*)?\s*:/i;
 function WhyText() {
@@ -178,14 +208,5 @@ export function WhyRow({ unc = 0, again = false, todo }: { unc?: number; again?:
         {!writing && canAsk() && u.explained && again ? <button type="button" class="pbtn" onClick={() => askTutor()}>Ask again</button> : null}
       </div>
     </div> : null}
-  </Sx>;
-}
-/** The row that opens the two terms of the pair, and where each belongs. */
-export function TermsRow({ p }: { p: Pair }) {
-  const u = u0(), open = !!u.pterms;
-  return <Sx cls="walked">
-    <button type="button" class={"wrow wterms" + (open ? " open" : "")} aria-expanded={open ? "true" : "false"} onClick={() => { u.pterms = !open; render(); }}><D cls="sub done" />
-      <span class="ct"><b>Terms</b><span>the two terms, and where each belongs</span></span><span class="arr"><Icon n="chev" /></span></button>
-    {open ? <TermsPanel p={p} /> : null}
   </Sx>;
 }

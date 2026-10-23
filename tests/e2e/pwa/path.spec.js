@@ -97,6 +97,7 @@ test("the strip pulls from its heading with a short pull, and its hint is gray",
   await choices(page).nth(3).click();
   await page.locator("#cin").blur();
   const strip = page.locator("#path .pstrip"), name = strip.locator(".pnl.a b");
+  await strip.evaluate((e) => Promise.all(e.getAnimations().map((a) => a.finished)));   // the strip slides in; the pull is aimed at it once it rests
   const color = (sel) => page.locator(sel).first().evaluate((e) => getComputedStyle(e).color);
   expect(await color("#path .pstrip .gtip"), "the hint is not the blue of what can be tapped").not.toBe(await color("#path .pstrip .knob .mk"));
   const b = await name.boundingBox();
@@ -111,6 +112,7 @@ test("the pair has its relation under it, in the course's notation with its name
   await start(page);
   await choices(page).nth(3).click();
   await page.locator("#cin").blur();
+  await page.locator("#path .pstrip").evaluate((e) => Promise.all(e.getAnimations().map((a) => a.finished)));
   const rel = page.locator("#path .pstrip .compact .pnn");
   await expect(rel.locator(".rc")).toHaveText("4P");
   await expect(rel.locator(".rn")).toHaveText("Four possibilities");
@@ -203,6 +205,51 @@ async function tutorServer(page) {
   return asked;
 }
 
+const FACTS = [
+  "Both: a scent of parfume | class: smell | A yes: it is perceived by the nose | B yes: it is a form | => yes",
+  "Neither: a rabbit horn | A no: it does not exist | B no: it is not a sound, because it makes none",
+  "Relation: they overlap."
+].join("\n");
+async function factsServer(page) {
+  await page.route("**/api/health", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, tutor: "on" }) }));
+  await page.route("**/api/tutor", (route) => route.fulfill({ status: 200, contentType: "text/event-stream", body: sse({ type: "delta", text: FACTS }, { type: "done", truncated: false }) }));
+}
+
+withKey("the tutor's note under an example is a list of steps in the tutor's block, with no button of its own beside the examples", async ({ page }) => {
+  await factsServer(page);
+  await start(page);
+  await answer(page);
+  await page.locator("#stn").click();
+  await expect(page.locator(".pvline")).toBeVisible();
+  await expect(page.locator(".exr .tside")).toHaveCount(0);   // the examples have no "Check and explain" thread: Why is the one tutor row
+  await page.locator(".wrow").filter({ hasText: "Why" }).click();
+  const note = page.locator(".exr .tnote").first();
+  await expect(note).toBeVisible();
+  await expect(note.locator(".tutn")).toHaveText("the tutor");
+  await expect(note.locator(".tsteps li").first()).toContainText("It follows it is");
+  await expect(note).not.toContainText("Take ");   // the "take" line repeated the answer above it
+});
+
+withKey("with the tutor on its own, Why is open on the result; the pull-up hint is at the foot once the examples are in", async ({ page }) => {
+  await factsServer(page);
+  await page.addInitScript(() => localStorage.setItem("rd-autoexplain", "1"));
+  await start(page);
+  await choices(page).first().click();
+  const field = page.locator("#cin");
+  await expect(field).toBeVisible();
+  for (let i = 0; i < 4 && (await field.isVisible()); i++) {
+    await field.fill("thing " + (i + 1));
+    await field.press("Enter");
+  }
+  await expect(field).toHaveCount(0);
+  await expect(page.locator(".pa.ready .sx.ptail .pup")).toBeVisible();
+  const [hint, foot] = await page.evaluate(() => [document.querySelector(".pup").getBoundingClientRect().bottom, document.querySelector(".pa .foot").getBoundingClientRect().top]);
+  expect(hint).toBeLessThanOrEqual(foot + 1);
+  await page.locator("#stn").click();
+  await expect(page.locator(".wrow.open")).toBeVisible();
+  await expect(page.locator(".exr .tnote").first()).toBeVisible();
+});
+
 withKey("Why asks the tutor on the result, and Ask a follow-up opens the conversation; the top bar has no tutor button", async ({ page }) => {
   const asked = await tutorServer(page);
   await start(page);
@@ -267,26 +314,13 @@ test("the practice options' A/B markers switch turns the marks of the terms off"
   expect(await a.evaluate((e) => getComputedStyle(e, "::before").content)).not.toBe('"A"');
 });
 
-test("the result's Terms section is drawn on the path: A and B in the margin, no squares, and a term opens its definition under it", async ({ page }) => {
+test("the result has no Terms section: the classes under the two terms are what it shows", async ({ page }) => {
   await start(page);
   await answer(page);
   await page.locator("#stn").click();
-  await page.locator(".wterms").click();
-  const rows = page.locator("#path .tmrow");
-  await expect(rows).toHaveCount(2);
-  await expect(rows.nth(0).locator(".ab")).toHaveText("A");
-  await expect(rows.nth(1).locator(".ab")).toHaveText("B");
-  await expect(page.locator("#path .pbr")).toHaveCount(0);   // nothing of it is hosted from the classic page
-  await expect(page.locator("#path .L")).toHaveCount(0);   // the classic page's red and blue squares
-  const term = page.locator("#path .tmrow .dterm").first();
-  if (await term.count()) {
-    await term.click();
-    const card = page.locator("#path .pdef");
-    await expect(card).toHaveCount(1);
-    await expect(card.locator(".pdh")).not.toBeEmpty();
-    await term.click();
-    await expect(card).toHaveCount(0);
-  }
+  await expect(page.locator(".pvline")).toBeVisible();
+  await expect(page.locator(".wterms")).toHaveCount(0);
+  await expect(page.locator("#path .tmrow")).toHaveCount(0);
 });
 
 test("the text fields of the practice ask the browser for no autofill", async ({ page }) => {
