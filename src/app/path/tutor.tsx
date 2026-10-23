@@ -17,7 +17,7 @@ import { FlagBtn, FlagEditor, TutorText } from "./flags.tsx";
 import { refreshPath } from "./index.tsx";
 import { Thinking, u0 } from "./parts.tsx";
 import { Foot, Station, TopBar } from "./shell.tsx";
-import { D, St, Sx } from "./ui.tsx";
+import { D, St, Sx, NOFILL } from "./ui.tsx";
 
 interface Turn { role: string; content?: string; pending?: boolean; hidden?: boolean; kind?: string }
 /** What the conversation is about: the pair and how the result went, or the syllogism and the reply. */
@@ -35,7 +35,7 @@ function AskRow() {
   const send = () => { const q = (u.q || "").trim(); if (!q) return; u.q = ""; void ask(q); refreshPath(); };
   if (u.ctl) return <St d={<D cls="sub pthink" />} cls="pask"><Thinking label="the tutor is writing" /><button type="button" class="pbtn" onClick={() => u.ctl && u.ctl.abort()}>Stop</button></St>;
   if (!canAsk()) return null;
-  return <St d={<D cls="sub pk" />} cls="pask"><div class="fieldrow"><input ref={ref} type="text" id="ask-in" class="pfield" placeholder="Ask a follow-up question" aria-label="Follow-up question" autoComplete="off" enterKeyHint="send"
+  return <St d={<D cls="sub pk" />} cls="pask"><div class="fieldrow"><input ref={ref} type="text" id="ask-in" class="pfield" placeholder="Ask a follow-up question" aria-label="Follow-up question" {...NOFILL} enterKeyHint="send"
     value={u.q || ""} onInput={(e) => { u.q = (e.currentTarget as HTMLInputElement).value; }} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); send(); } }} /></div>
     <button type="button" class="pbtn" onClick={send}>Ask</button></St>;
 }

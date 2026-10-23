@@ -49,6 +49,8 @@ export interface Look {
   cSa: string;
   cZh: string;
   words: "underline" | "diamond" | "chip";
+  /** how the two terms of the pair stand out where the text names them: none, italic, italic with a small A or B, italic with a small diamond, or each in its own quiet ink */
+  subj: "none" | "italic" | "letters" | "diamonds" | "inks";
   starShape: "star" | "eight" | "bookmark";
   miFig: "inset" | "full";
 }
@@ -75,7 +77,7 @@ export const DEFAULT_LOOK: Look = {
   grain: "verdict,station", grainLevel: "soft", wait: "dots", font: "newsreader", hand: "kalam", tM: 50, tLw: 2, tSt: 28, tTn: 34, tHand: 19,
   choice: "margin", figs: "ink", ahead: "dot", next: "edge", edge: "fade", why: "row", sheet: "top", toggle: "nested", keys: "sim", star: "pair",
   ask: "row", tutorAuto: "off", abPos: "margin", cOn: "on", cSerif: "spectral", cHand: "pangolin", cBo: "notoserifTib", cSa: "notoserifDeva", cZh: "wenkai",
-  words: "underline", starShape: "bookmark", miFig: "inset",
+  words: "underline", subj: "letters", starShape: "bookmark", miFig: "inset",
 };
 
 // what each setting may be; a value outside it keeps the default
@@ -85,7 +87,7 @@ const ONE_OF: Partial<Record<keyof Look, readonly string[]>> = {
   choice: ["margin", "rows", "branches"], figs: ["ink", "color"], ahead: ["dot", "dash", "fade"], next: ["edge", "page"], edge: ["run", "fade"],
   why: ["detour", "row", "side"], sheet: ["top", "bottom", "path"], toggle: ["track", "check", "solid", "stops", "nested"], keys: ["sim", "off"],
   star: ["pair", "bar"], ask: ["detour", "row"], tutorAuto: ["off", "on"], abPos: ["names", "margin"], cOn: ["on", "off"],
-  cSerif: Object.keys(SERIF_COMPANIONS), cHand: Object.keys(HAND_COMPANIONS), words: ["underline", "diamond", "chip"], starShape: ["star", "eight", "bookmark"], miFig: ["inset", "full"],
+  cSerif: Object.keys(SERIF_COMPANIONS), cHand: Object.keys(HAND_COMPANIONS), words: ["underline", "diamond", "chip"], subj: ["none", "italic", "letters", "diamonds", "inks"], starShape: ["star", "eight", "bookmark"], miFig: ["inset", "full"],
 };
 const RANGES: Partial<Record<keyof Look, [number, number]>> = { tM: [40, 72], tLw: [1, 4], tSt: [22, 40], tTn: [26, 42], tHand: [16, 24] };
 const COLORS: (keyof Look)[] = ["blue", "gold", "green", "red", "purple"];
@@ -231,7 +233,7 @@ export function families(look: Look): { main: string; hand: string; handItalic: 
 export const darkNow = (look: Look) => look.mode === "dark" || (look.mode === "system" && typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches);
 /** The switches as classes on the Path's root, the lab's names: ah-dot, edge-fade, figs-ink, words-underline, g-verdict, ab-margin, ... */
 export function lookClasses(look: Look, dark: boolean): string[] {
-  const cls = [`ah-${look.ahead}`, `edge-${look.edge}`, `figs-${look.figs}`, `words-${look.words}`, `ab-${look.abPos}`, `tg-${look.toggle}`, `ch-${look.choice}`, `why-${look.why}`,
+  const cls = [`ah-${look.ahead}`, `edge-${look.edge}`, `figs-${look.figs}`, `words-${look.words}`, `sj-${look.subj}`, `ab-${look.abPos}`, `tg-${look.toggle}`, `ch-${look.choice}`, `why-${look.why}`,
     ...look.grain.split(",").filter(Boolean).map((g) => `g-${g}`)];
   if (dark) cls.push("dark");
   return cls;
@@ -249,6 +251,9 @@ export function applyLook(root: HTMLElement, look: Look): string[] {
   for (const [k, v] of Object.entries(vars)) root.style.setProperty(k, v);
   const html = document.documentElement;
   html.style.setProperty("--path-paper", vars["--paper"]);
+  // the Path's palette and face for the dialogs the classic page opens over it (outside #path, so the root's variables do not reach them; 39-path-bridge.css)
+  for (const [k, v] of Object.entries(palette(look, dark))) html.style.setProperty("--pa-" + k.slice(2), v);
+  html.style.setProperty("--pa-f", fam.main);
   html.style.colorScheme = dark ? "dark" : "light";
   for (const m of document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')) {
     if (m.dataset.classic === undefined) m.dataset.classic = m.content;
@@ -260,5 +265,6 @@ export function applyLook(root: HTMLElement, look: Look): string[] {
 export function restoreClassic(): void {
   const html = document.documentElement;
   html.style.removeProperty("--path-paper"); html.style.colorScheme = "";
+  for (const n of Array.from(html.style)) if (n.startsWith("--pa-")) html.style.removeProperty(n);
   for (const m of document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')) if (m.dataset.classic !== undefined) { m.content = m.dataset.classic; delete m.dataset.classic; }
 }

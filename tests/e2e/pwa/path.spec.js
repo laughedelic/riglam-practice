@@ -172,3 +172,81 @@ withKey("Why asks the tutor on the result, and its button in the top bar opens t
   await page.getByRole("button", { name: /^Back to the result/ }).click();
   await expect(page.locator(".pvline")).toBeVisible();
 });
+
+test("the pair's two terms stand out in the text as the look says, and the A/B markers option turns them off", async ({ page }) => {
+  await start(page);
+  await choices(page).nth(3).click();
+  await expect(page.locator("#cin")).toBeVisible();
+  const root = page.locator("#path .pa"), a = page.locator("#path .sj.a").first(), b = page.locator("#path .sj.b").first();
+  await expect(root).toHaveClass(/\bsj-letters\b/);   // the default: italic, with a small A raised before the first term and a small B lowered before the second
+  await expect(a).toBeVisible();
+  await expect(b).toBeVisible();
+  const mark = (n) => n.evaluate((e) => { const s = getComputedStyle(e), c = getComputedStyle(e, "::before"); return { italic: s.fontStyle, label: c.content, up: c.verticalAlign }; });
+  expect(await mark(a)).toMatchObject({ italic: "italic", label: '"A"' });
+  expect(await mark(b)).toMatchObject({ italic: "italic", label: '"B"' });
+  expect((await mark(a)).up).not.toBe((await mark(b)).up);
+  // Settings has a row to try the other ways on a sample
+  await page.locator("#cin").blur();   // on a phone the field's keyboard hides the top bar
+  await page.locator(".tstn").click();
+  await page.locator(".road .rfoot").getByRole("button", { name: "Settings" }).click();
+  const row = page.locator(".srow", { hasText: "A and B in the text" });
+  await expect(row.locator(".sj")).toHaveCount(2);
+  await row.getByRole("button", { name: "Inks" }).click();
+  await expect(root).toHaveClass(/\bsj-inks\b/);
+  const ink = (n) => n.evaluate((e) => getComputedStyle(e).color);
+  expect(await ink(row.locator(".sj.a"))).not.toBe(await ink(row.locator(".sj.b")));
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("rd-look")).subj)).toBe("inks");
+  await row.getByRole("button", { name: "Letters" }).click();
+  await expect(root).toHaveClass(/\bsj-letters\b/);
+  expect(await page.evaluate(() => (JSON.parse(localStorage.getItem("rd-look") || "{}")).subj)).toBeUndefined();   // the default is not stored
+});
+
+test("the practice options' A/B markers switch turns the marks of the terms off", async ({ page }) => {
+  await start(page);
+  await choices(page).nth(3).click();
+  await expect(page.locator("#cin")).toBeVisible();
+  const root = page.locator("#path .pa"), a = page.locator("#path .sj.a").first();
+  await expect(root).not.toHaveClass(/\bsj-off\b/);
+  await page.locator("#cin").blur();
+  await page.getByRole("button", { name: "Practice options" }).click();
+  await page.getByRole("dialog", { name: "Practice options" }).getByRole("switch", { name: /A\/B markers/ }).click();
+  await expect(root).toHaveClass(/\bsj-off\b/);
+  expect(await a.evaluate((e) => getComputedStyle(e).fontStyle)).toBe("normal");   // plain, as the words around it
+  expect(await a.evaluate((e) => getComputedStyle(e, "::before").content)).not.toBe('"A"');
+});
+
+test("the result's Terms section is drawn on the path: A and B in the margin, no squares, and a term opens its definition under it", async ({ page }) => {
+  await start(page);
+  await answer(page);
+  await page.locator("#stn").click();
+  await page.locator(".wterms").click();
+  const rows = page.locator("#path .tmrow");
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(0).locator(".ab")).toHaveText("A");
+  await expect(rows.nth(1).locator(".ab")).toHaveText("B");
+  await expect(page.locator("#path .pbr")).toHaveCount(0);   // nothing of it is hosted from the classic page
+  await expect(page.locator("#path .L")).toHaveCount(0);   // the classic page's red and blue squares
+  const term = page.locator("#path .tmrow .dterm").first();
+  if (await term.count()) {
+    await term.click();
+    const card = page.locator("#path .pdef");
+    await expect(card).toHaveCount(1);
+    await expect(card.locator(".pdh")).not.toBeEmpty();
+    await term.click();
+    await expect(card).toHaveCount(0);
+  }
+});
+
+test("the text fields of the practice ask the browser for no autofill", async ({ page }) => {
+  await start(page);
+  await choices(page).first().click();
+  const field = page.locator("#cin");
+  await expect(field).toBeVisible();
+  const hints = (loc) => loc.evaluate((e) => ({ ac: e.getAttribute("autocomplete"), cap: e.getAttribute("autocapitalize"), fix: e.getAttribute("autocorrect"), pw: e.dataset.lpignore, one: e.dataset["1pIgnore"] }));
+  expect(await hints(field)).toEqual({ ac: "off", cap: "off", fix: "off", pw: "true", one: "true" });
+  await field.blur();
+  await page.locator(".tstn").click();
+  await page.locator(".road .rfoot").getByRole("button", { name: "Settings" }).click();
+  await page.getByRole("button", { name: "Paste from the lab" }).click();
+  expect(await hints(page.locator("textarea.ptext"))).toEqual({ ac: "off", cap: "off", fix: "off", pw: "true", one: "true" });
+});

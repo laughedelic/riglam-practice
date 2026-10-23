@@ -100,3 +100,36 @@
 /* the definition of a term in a text: dotted under the term, the card under the text */
 .pa .dterm{text-decoration:underline dotted var(--blue); text-decoration-thickness:2px; text-underline-offset:3px; cursor:pointer; color:inherit}
 .pa .dterm.on{text-decoration-style:solid}
+/* the Terms section of a result and a definition, drawn on the path (path/terms.tsx): A and B in the margin as at the pair, the definition a note
+   with a rule beside it */
+.pa .tmsum{padding:6px 0 4px}
+.pa .tmsm{font-size:16px; line-height:1.4; color:var(--ink2)}
+.pa .tmsm b{color:var(--ink); font-weight:600}
+.pa .tmrow{align-items:baseline; padding:8px 0 4px}
+.pa .tmrow > .ab{position:relative; top:-3px}
+.pa .tmt{font-size:21px; font-weight:500; line-height:1.2}
+.pa .tmn{font-size:14px; font-style:italic; color:var(--ink2); margin-top:3px}
+.pa .tmc{font-size:16px; line-height:1.5; margin-top:2px; overflow-wrap:anywhere}
+.pa .tmc .pisa,.pa .pdup .pisa{font-size:.85em; color:var(--ink2)}
+.pa .tmkey{padding:8px 0 10px}
+.pa .tmkey p{font-size:15px; color:var(--ink2); line-height:1.4; margin-bottom:2px}
+.pa .pdef{margin:8px 0 6px; padding:4px 0 4px 12px; border-left:2px solid var(--rule); display:flex; flex-direction:column; gap:5px; align-items:flex-start; scroll-margin-bottom:90px}
+.pa .pdef:focus{outline:0}
+.pa .pdef > p,.pa .pdef > .pdex{align-self:stretch}
+.pa .pdback{font-size:14px; min-height:32px}
+.pa .pdh{font-size:16px; line-height:1.3}
+.pa .pdh b{font-weight:600}
+.pa .pdh small{font-family:var(--mono); font-size:11.5px; color:var(--ink2)}
+.pa .pdup{font-size:14.5px; color:var(--ink2); line-height:1.4}
+.pa .pdsrc{font-size:13.5px; font-style:italic; color:var(--ink2)}
+.pa .pdbody{font-size:15.5px; line-height:1.45}
+.pa .pdru{color:var(--ink2)}
+.pa .pdex{margin-top:4px; padding-top:6px; border-top:1px dotted var(--rule)}
+.pa .pdexh{font-family:var(--mono); font-size:11px; color:var(--ink2); letter-spacing:.04em; text-transform:uppercase; margin-bottom:2px}
+.pa .pdex ul{list-style:none; padding:0; display:flex; flex-direction:column; gap:2px}
+.pa .pdexr{display:flex; flex-wrap:wrap; align-items:baseline; gap:0 8px; width:100%; padding:3px 0; font-size:15px; line-height:1.4; text-align:left}
+.pa .pdexr small{font-family:var(--mono); font-size:11px; color:var(--ink3)}
+.pa .pdexb{min-height:32px}
+.pa .pdexb .pdexn{text-decoration:underline dotted var(--blue); text-decoration-thickness:2px; text-underline-offset:3px}
+.pa .pdexb.on .pdexn{text-decoration-style:solid}
+.pa .pdexw{font-size:14px; line-height:1.4; color:var(--ink2); margin:2px 0 4px}

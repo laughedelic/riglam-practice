@@ -19,6 +19,7 @@ import { CASE, Choices, ErrLines, PairResult, PairStops, TermsRow, Thinking, Ver
 import { FlagBtn, FlagEditor, explainCase } from "./flags.tsx";
 import { Scroll } from "./scroll.tsx";
 import { Foot, PreStation, SideStation, Station, TopBar, VoiceBar } from "./shell.tsx";
+import { Subjects, markNames } from "./subjects.tsx";
 import { DefCard, NewTerms, TermText } from "./terms.tsx";
 import { D, Fig, Gap, Head, Mark, St, Sx } from "./ui.tsx";
 
@@ -29,7 +30,7 @@ const relOf = () => u0().rel as RelKey;
 export function relChoices(p: { a: string; b: string }, cur: string | null) {
   return orderOf(state.cur && state.cur.p).map((k: string, i: number) => {
     const r = REL[k as RelKey];
-    return { k, b: r.name, s: r.gloss(p.a, p.b), fig: k, sym: state.nota !== "codes" ? notaOf(k) : "", key: String(i + 1), pressed: cur === k };
+    return { k, b: r.name, s: <Subjects text={r.gloss(p.a, p.b)} p={p} />, fig: k, sym: state.nota !== "codes" ? notaOf(k) : "", key: String(i + 1), pressed: cur === k };
   });
 }
 
@@ -59,7 +60,7 @@ function Picked() {
     <StripPair q="How do the two terms relate?" />
     <Sx cls="walked"><Gap h={10} />
       <St d={<Fig k={relOf()} size="m" />}><span class="relnm"><b class="yours">{r.name}</b>{state.nota !== "codes" ? <span class="rsym">{notaOf(relOf())}</span> : null}</span>
-        <span class="pq relg">{r.gloss(p.a, p.b)}. {u.late ? "Time ran out: this is the relation." : "Yours, not checked yet."}</span>
+        <span class="pq relg"><Subjects text={r.gloss(p.a, p.b)} p={p} />. {u.late ? "Time ran out: this is the relation." : "Yours, not checked yet."}</span>
         {u.late ? null : <button type="button" class="pbtn" onClick={() => { u.open = true; u.pstrip = false; render(); }}>Pick another</button>}</St><Gap h={6} /></Sx>
   </>;
 }
@@ -74,7 +75,7 @@ export function Row({ c, rel }: { c: CellId; rel: RelKey }) {
   const note = tnote ? <><span class="tutn">the tutor:</span> <TermText text={tnote} where={"pc" + c} /></>
     : out ? <>you left this case out{key ? <>; for example <span class="fix">{key}</span></> : null}</>
     : open ? <>unchecked: the list does not know it yet{key ? <>; the course's example: <span class="fix">{key}</span></> : null}</>
-    : <><b>{cr.msg[0]}</b>{cr.msg[2] ? <i>{cr.msg[2]}</i> : null}{isa(cr.msg[1] || "")}</>;
+    : <><b>{cr.msg[0]}</b>{cr.msg[2] ? <i>{cr.msg[2]}</i> : null}{markNames(isa(cr.msg[1] || ""), p)}</>;
   const side = open && !busy && !(u.explained && !r.relOpen) && (canAsk() || needsKey());
   return <St d={<D cls={"sub " + (busy ? "pthink" : m)} />} cls={"sb exr" + (tnote ? " tut" : "")}>
     <span class="lab">{CASE[c]}</span><div class="line1">{ans}{busy ? null : <Mark m={m} />}</div>

@@ -9,7 +9,7 @@ import { canAsk } from "../core/ask.js";
 import { REL } from "../core/rel.js";
 import { singular } from "../debate/text.js";
 import { favTarget, isFav, toggleFav } from "../practice/favorites.js";
-import { lineageOf, termsNode } from "../practice/terms.js";
+import { lineageOf } from "../practice/terms.js";
 import { catByLabel } from "../practice/universe.js";
 import { openChat } from "../shell/chat.js";
 import { render } from "../shell/render.js";
@@ -18,8 +18,9 @@ import type { CellId, Neg, RelKey } from "../../ai-shared/relations.ts";
 import { VERDICT_RE, parseFactLine } from "../../domain/verdict.ts";
 import { refreshPath } from "./index.tsx";
 import { FlagBtn, FlagEditor, QuorumPanel, explainCase } from "./flags.tsx";
-import { DefCard, OneTerm, TermText } from "./terms.tsx";
-import { Bridge, D, Fig, Icon, Mark, SHORT, St, Sx } from "./ui.tsx";
+import { Sub } from "./subjects.tsx";
+import { DefCard, OneTerm, TermText, TermsPanel } from "./terms.tsx";
+import { D, Fig, Icon, Mark, SHORT, St, Sx } from "./ui.tsx";
 
 export const u0 = () => state.ui!;
 export interface Pair { a: string; b: string; relation: RelKey; catA?: string | null; catB?: string | null; own?: boolean; neg?: Neg; ex?: Partial<Record<CellId, string>> }
@@ -29,7 +30,7 @@ export const pairOf = () => state.cur!.p as Pair;
 export const CASE: Record<string, string> = { both: "both A and B", anb: "A, not B", bna: "B, not A", nei: "neither" };
 /** What to name for a case: "Something that is an effect but not a thought." */
 export function caseQ(c: CellId, p: Pair) {
-  const a = singular(p.a), b = singular(p.b), K = (w: string) => <b class="conn">{w}</b>;
+  const a = <Sub k="a">{singular(p.a)}</Sub>, b = <Sub k="b">{singular(p.b)}</Sub>, K = (w: string) => <b class="conn">{w}</b>;
   return ({
     both: <>Name something that is {K("both")} {a} {K("and")} {b}.</>,
     anb: <>Something that is {a}, {K("but not")} {b}.</>,
@@ -192,6 +193,6 @@ export function TermsRow({ p }: { p: Pair }) {
   return <Sx cls="walked">
     <button type="button" class={"wrow wterms" + (open ? " open" : "")} aria-expanded={open ? "true" : "false"} onClick={() => { u.pterms = !open; render(); }}><D cls="sub done" />
       <span class="ct"><b>Terms</b><span>the two terms, and where each belongs</span></span><span class="arr"><Icon n="chev" /></span></button>
-    {open ? <div class="wtext"><Bridge fill={() => termsNode(p)} /></div> : null}
+    {open ? <TermsPanel p={p} /> : null}
   </Sx>;
 }
