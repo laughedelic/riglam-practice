@@ -12,7 +12,7 @@ import { refreshPath } from "./index.tsx";
 import { CASE, PairNode, Star, caseQ, pairOf, u0 } from "./parts.tsx";
 import { Scroll } from "./scroll.tsx";
 import { Foot, HideKeys, KbdStation, PreStation, SideStation, Station, VoiceBar, pathNote } from "./shell.tsx";
-import { D, Gap, Head, Icon, Knob, St, Sx } from "./ui.tsx";
+import { D, Gap, Head, Icon, Knob, St, Sx, NOFILL } from "./ui.tsx";
 
 const filled = (c: CellId) => { const x = u0().cells[c]; return !!(x.t || "").trim() || !!x.none; };
 /** The open case, the next one after it that is still empty (going round), and whether it is the last to write. */
@@ -84,7 +84,7 @@ export function ExamplesStep({ kb, title, step, rel, full, check }: { kb: boolea
   const rows = k.order.map((c, i) => {
     const x = u.cells[c];
     if (i === k.ci) return <St d={<D cls="sub now" />} cls="sb now"><span class="lab">{CASE[c]}</span><p class="qq">{caseQ(c, p)}</p>
-      <div class="fieldrow"><input class="pfield" id="cin" value={x.t} placeholder="write an example" autoComplete="off" autoCapitalize="off" spellcheck={false} enterKeyHint={k.last ? "done" : "next"} aria-label={cellLabel(c, p)}
+      <div class="fieldrow"><input class="pfield" id="cin" value={x.t} placeholder="write an example" {...NOFILL} enterKeyHint={k.last ? "done" : "next"} aria-label={cellLabel(c, p)}
         onInput={(e) => { x.t = (e.currentTarget as HTMLInputElement).value; if (x.none) x.none = false; refreshPath(); }}
         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commit(null); } }} /></div>
       <p class="help"><span class="htx">{c === first ? "Your own example, in a few words." : "In a few words."} </span><button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => nothing(c)}>nothing exists</button></p></St>;

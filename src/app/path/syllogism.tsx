@@ -12,7 +12,7 @@ import { refreshPath } from "./index.tsx";
 import { Choices, ErrLines, Star, Verdict, WhyRow, pickThen, tutorOnResult, tutorWaiting, u0 } from "./parts.tsx";
 import { Scroll } from "./scroll.tsx";
 import { Foot, HideKeys, KbdStation, PreStation, SideStation, Station, TopBar } from "./shell.tsx";
-import { D, Gap, Head, Mark, St, Sx } from "./ui.tsx";
+import { D, Gap, Head, Mark, St, Sx, NOFILL } from "./ui.tsx";
 
 /** The replies as the choices say them, what each says in a few words, and (with "Show the structure") what each means in S, P and R. */
 const SAY: Record<Reply, string> = { accept: "I accept", reason: "The reason is not established", pervasion: "There is no pervasion" };
@@ -68,7 +68,7 @@ function CounterStep({ kb }: { kb: boolean }) {
         <St d={<D cls="sub yours" />} cls="sylsaid"><span class="said"><b class="yours">{SAY.pervasion}</b><Mark m="ok" /></span><span class="pq">Right. Can you show it?</span></St>
         <St d={<D cls="sub now" />} cls="sb now"><span class="lab">a counter-example</span>
           <p class="qq">Name something that is <b class="conn">{c.reason}</b> and is not <b class="conn">{c.predicate}</b>.</p>
-          <div class="fieldrow"><input class="pfield" id="sylex" value={u.exText} placeholder="a counter-example" autoComplete="off" autoCapitalize="off" spellcheck={false} enterKeyHint="done"
+          <div class="fieldrow"><input class="pfield" id="sylex" value={u.exText} placeholder="a counter-example" {...NOFILL} enterKeyHint="done"
             aria-label={"A counter-example: something that is " + c.reason + " and is not " + c.predicate}
             onInput={(e) => { u.exText = (e.currentTarget as HTMLInputElement).value; if (u.exNote) u.exNote = ""; refreshPath(); }}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); exampleSyllogism(); } }} /></div>

@@ -104,3 +104,13 @@ export function Bridge({ fill, after, cls = "", own = false, id }: { fill: (host
 export const coarse = () => { try { return matchMedia("(pointer: coarse)").matches; } catch { return false; } };
 /** The pair on screen, when there is one. */
 export const pairNow = () => (state.cur && state.cur.p) || null;
+
+/**
+ * The hints for a field of the practice that is not a form for the browser: no saved passwords, cards or addresses offered for it, no spell
+ * checker or capital letters on a learner's example, and the password managers told to leave it alone. A page can only ask: Chrome on Android
+ * keeps a bar of key, card and address icons above the keyboard on every text field whatever `autocomplete` says (Chromium issue 40236405).
+ */
+export const NOFILL = {
+  autoComplete: "off", autoCapitalize: "off", autoCorrect: "off", spellcheck: false,
+  "data-lpignore": "true", "data-1p-ignore": "true", "data-bwignore": "true", "data-form-type": "other",
+} as const;

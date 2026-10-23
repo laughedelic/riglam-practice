@@ -20,8 +20,9 @@ import { relChoices } from "./relations.tsx";
 import { FlagBtn, FlagEditor, explainCase } from "./flags.tsx";
 import { Scroll } from "./scroll.tsx";
 import { Foot, HideKeys, KbdStation, PreStation, SideStation, Station, TopBar, VoiceBar } from "./shell.tsx";
+import { Sub, markNames } from "./subjects.tsx";
 import { DefCard, TermText } from "./terms.tsx";
-import { D, Gap, Head, Mark, St, Sx } from "./ui.tsx";
+import { D, Gap, Head, Mark, St, Sx, NOFILL } from "./ui.tsx";
 
 interface Ans { say: "accept" | "why" | null; text: string; timeout?: boolean }
 
@@ -29,7 +30,7 @@ interface Ans { say: "accept" | "why" | null; text: string; timeout?: boolean }
 function Statement({ i }: { i: number }) {
   const p = pairOf();
   return <>{(Wd().q[i] as QToken[]).map((x) => x === "A" || x === "B"
-    ? <span class="pqt">{state.showAB ? <i class="qab">{x}</i> : null}{singular(x === "A" ? p.a : p.b)}</span>
+    ? <Sub k={x === "A" ? "a" : "b"}>{singular(x === "A" ? p.a : p.b)}</Sub>
     : x === NOT ? <b class="pnot">not</b> : x)}</>;
 }
 /** An answer, short: "Accepted", or "Why?!" and the counter-example posited. */
@@ -61,7 +62,7 @@ function QuestionStep({ kb }: { kb: boolean }) {
         <Answered n={i} />
         <St d={<D cls="sub now" />} cls="sb now qnow"><span class="lab">Question {i + 1}</span>{w.lead ? <span class="qlead">{w.lead}</span> : null}<p class="qst" lang="en"><Statement i={i} /></p>
           {u.pickWhy ? <>
-            <div class="fieldrow"><input class="pfield" id="dex" value={u.exText} placeholder="posit a counter-example" autoComplete="off" autoCapitalize="off" spellcheck={false} enterKeyHint={last ? "done" : "next"} aria-label="Posit a counter-example"
+            <div class="fieldrow"><input class="pfield" id="dex" value={u.exText} placeholder="posit a counter-example" {...NOFILL} enterKeyHint={last ? "done" : "next"} aria-label="Posit a counter-example"
               onInput={(e) => { u.exText = (e.currentTarget as HTMLInputElement).value; refreshPath(); }}
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); submitWhy(); } else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); backWhy(); } }} /></div>
             <p class="help"><span class="htx">Something that shows the statement fails. </span><button type="button" onMouseDown={(e) => e.preventDefault()} onClick={backWhy}>back</button></p>
@@ -97,11 +98,11 @@ function RelationStep() {
 
 /* ---------- 3 the result ---------- */
 function QRow({ i }: { i: number }) {
-  const u = u0(), r = u.res, c = QCELL[i] as CellId, rr = r.cells[c] as { v: string; msg: string[]; uns?: boolean }, a = u.ans![i] as Ans;
+  const u = u0(), p = pairOf(), r = u.res, c = QCELL[i] as CellId, rr = r.cells[c] as { v: string; msg: string[]; uns?: boolean }, a = u.ans![i] as Ans;
   const open = rr.v === "cmp" || rr.v === "open", m = rr.v === "ok" ? "ok" : rr.v === "bad" ? "no" : "pt", busy = open && !!u.ctl;
   const tnote: string | undefined = (explainParts().cells as Record<string, string>)[c];
   const note = tnote ? <><span class="tutn">the tutor:</span> <TermText text={tnote} where={"pq" + c} /></>
-    : <><b>{rr.msg[0]}</b>{rr.msg[2] ? <i>{rr.msg[2]}</i> : null}{isa(rr.msg[1] || "")}</>;
+    : <><b>{rr.msg[0]}</b>{rr.msg[2] ? <i>{rr.msg[2]}</i> : null}{markNames(isa(rr.msg[1] || ""), p)}</>;
   const side = open && !busy && !u.explained && (canAsk() || needsKey());
   return <St d={<D cls={"sub " + (busy ? "pthink" : m)} />} cls={"sb exr qres" + (tnote ? " tut" : "")}>
     <span class="lab">Question {i + 1}</span><p class="qq"><Statement i={i} /></p>
