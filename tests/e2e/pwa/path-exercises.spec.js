@@ -47,8 +47,20 @@ test("Syllogisms: the syllogism in its three parts, the three replies, and the r
 test("Pervasions: four questions answered on the path, a counter-example for Why, then the relation, and the result", async ({ page }) => {
   await open(page, "Pervasions");
   await expect(choices(page)).toHaveCount(2);   // Accept and Why?
+  // a question is numbered in the margin (Q1), its concise form (A → not B) opens its row, and the statement asked ends with a question mark
+  const now = page.locator("#path .sb.now");
+  await expect(now.locator(".qnm")).toHaveText("Q1");
+  await expect(now.locator(".qsym")).toHaveText(/^A\s*not B$/);
+  await expect(now.locator(".qst")).toHaveText(/\?$/);
+  await expect(page.locator("#path .sb.later .qnm")).toHaveText(["Q2", "Q3", "Q4"]);
+  const [num, dia, form] = await Promise.all([now.locator(".qnm").boundingBox(), now.locator(".d").boundingBox(), now.locator(".qsym").boundingBox()]);
+  expect(num.x + num.width).toBeLessThan(dia.x);   // left of the stop, in the margin
+  expect(num.x).toBeGreaterThan(0);
+  expect(Math.abs(num.y + num.height / 2 - (form.y + form.height / 2))).toBeLessThan(6);   // level with the notation
   await choice(page, "Accept").click();
   await expect(page.locator("#path .sb.done")).toHaveCount(1);
+  await expect(page.locator("#path .sb.done .qnm")).toHaveText("Q1");
+  await expect(now.locator(".qsym")).toHaveText(/^A\s*B$/);
   await choice(page, "Why?").click();
   const field = page.locator("#dex");
   await expect(field).toBeVisible();
@@ -62,6 +74,7 @@ test("Pervasions: four questions answered on the path, a counter-example for Why
   await choices(page).first().click();
   await expect(verdict(page)).toBeVisible();
   await expect(page.locator("#path .qres")).toHaveCount(4);
+  await expect(page.locator("#path .qres .qnm")).toHaveText(["Q1", "Q2", "Q3", "Q4"]);
   await expect(page.locator("#path .qres").nth(1)).toContainText("a stone");
   await expect.poll(async () => (await saved(page, "debate", "debates")).length).toBe(1);
 });

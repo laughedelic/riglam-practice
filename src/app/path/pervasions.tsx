@@ -10,7 +10,7 @@ import { QCELL, Wd, singular } from "../debate/text.js";
 import { next } from "../practice/queue.js";
 import { explainParts, learnedThing, nextFwd } from "../practice/screen.js";
 import { skipPair } from "../practice/skips.js";
-import { NOT } from "../../ai-shared/debate.ts";
+import { NOT, qSides } from "../../ai-shared/debate.ts";
 import type { QToken } from "../../ai-shared/debate.ts";
 import type { CellId, RelKey } from "../../ai-shared/relations.ts";
 import { refreshPath } from "./index.tsx";
@@ -20,16 +20,21 @@ import { FlagBtn, FlagEditor, explainCase } from "./flags.tsx";
 import { Scroll } from "./scroll.tsx";
 import { Foot, PreStation, SideStation, Station, TopBar, VoiceBar } from "./shell.tsx";
 import { Sub, markNames } from "./subjects.tsx";
-import { D, Gap, Head, Mark, St, Sx, NOFILL } from "./ui.tsx";
+import { D, Gap, Head, Icon, Mark, St, Sx, NOFILL } from "./ui.tsx";
 
 interface Ans { say: "accept" | "why" | null; text: string; timeout?: boolean }
 
-/** A statement of the challenger, with the pair's terms in the singular and its "not" set apart. */
-function Statement({ i }: { i: number }) {
-  const p = pairOf();
-  return <>{(Wd().q[i] as QToken[]).map((x) => x === "A" || x === "B"
+/** A statement of the challenger, with the pair's terms in the singular and its "not" set apart; `ask` ends it with the question mark that the lead "Do you accept that…" makes of it. */
+function Statement({ i, ask }: { i: number; ask?: boolean }) {
+  const p = pairOf(), q = Wd().q[i] as QToken[];
+  return <>{q.map((x, k) => x === "A" || x === "B"
     ? <Sub k={x === "A" ? "a" : "b"}>{singular(x === "A" ? p.a : p.b)}</Sub>
-    : x === NOT ? <b class="pnot">not</b> : x)}</>;
+    : x === NOT ? <b class="pnot">not</b> : ask && k === q.length - 1 && x === "." ? "?" : x)}</>;
+}
+/** A question's number, in the margin left of its stop (Q1), and its concise form at the right (A → not B), on the first line of the row. */
+function QHead({ i }: { i: number }) {
+  const side = (t: QToken[]) => t.map((x) => x === NOT ? <><b class="pnot">not</b> </> : x), [l, r] = qSides(i);
+  return <span class="qsymrow"><i class="qnm">Q{i + 1}</i><span class="qsym">{side(l)}<Icon n="arrow" cls="ar" />{side(r)}</span></span>;
 }
 /** An answer, short: "Accepted", or "Why?!" and the counter-example posited. */
 function Said({ a }: { a: Ans }) {
@@ -45,7 +50,7 @@ function Answered({ n }: { n: number }) {
     const a = u.ans![i] as Ans, on = u.ro === i;
     return <button type="button" class="sbb" aria-expanded={on ? "true" : "false"} onClick={() => { u.ro = on ? null : i; refreshPath(); }}
       aria-label={"Question " + (i + 1) + ": " + (a.say === "accept" ? Wd().acd : a.say === "why" ? Wd().wyd + " " + a.text : "time ran out") + ". " + (on ? "Hide" : "Show") + " the statement"}>
-      <St d={<D cls="sub yours" />} cls="sb done"><span class="lab">Question {i + 1}</span><Said a={a} />{on ? <p class="qq"><Statement i={i} /></p> : null}</St></button>;
+      <St d={<D cls="sub yours" />} cls="sb done"><QHead i={i} /><Said a={a} />{on ? <p class="qq"><Statement i={i} /></p> : null}</St></button>;
   })}</>;
 }
 
@@ -58,7 +63,7 @@ function QuestionStep({ kb }: { kb: boolean }) {
       {retry ? <p class="retry">{(state.cur!.tag || "Retry") + (state.retryQ.length ? " · " + state.retryQ.length + " more" : "")}</p> : null}
       <Sx cls="cur first tight"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Questions" sub={(i + 1) + " of 4 · " + (w.lead ? "do you accept it?" : "yes or no?")} /><Gap h={4} /><PairStops p={p} sm={i > 0} /><Gap h={4} />
         <Answered n={i} />
-        <St d={<D cls="sub now" />} cls="sb now qnow"><span class="lab">Question {i + 1}</span>{w.lead ? <span class="qlead">{w.lead}</span> : null}<p class="qst" lang="en"><Statement i={i} /></p>
+        <St d={<D cls="sub now" />} cls="sb now qnow"><QHead i={i} />{w.lead ? <span class="qlead">{w.lead}</span> : null}<p class="qst" lang="en"><Statement i={i} ask /></p>
           {u.pickWhy ? <>
             <div class="fieldrow"><input class="pfield" id="dex" value={u.exText} placeholder="posit a counter-example" {...NOFILL} enterKeyHint={last ? "done" : "next"} aria-label="Posit a counter-example"
               onInput={(e) => { u.exText = (e.currentTarget as HTMLInputElement).value; refreshPath(); }}
@@ -67,7 +72,7 @@ function QuestionStep({ kb }: { kb: boolean }) {
           </> : null}</St>
         {u.pickWhy ? <Gap h={6} /> : null}</Sx>
       {u.pickWhy ? null : <Choices label="Your answer" items={items} picked={u.pk} onPick={(k) => pickThen(k, () => sayQ(k))} />}
-      {i < 3 ? <Sx cls="walked later">{[...Array(3 - i).keys()].map((j) => <St d={<D cls="sub" />} cls="sb later"><span class="lab">Question {i + 2 + j}</span></St>)}</Sx> : null}
+      {i < 3 ? <Sx cls="walked later">{[...Array(3 - i).keys()].map((j) => <St d={<D cls="sub" />} cls="sb later qmr"><QHead i={i + 1 + j} /></St>)}</Sx> : null}
       <Sx cls="ptail" />
     </Scroll>
     <VoiceBar />
@@ -100,7 +105,7 @@ function QRow({ i }: { i: number }) {
   const tnote: string | undefined = (explainParts().cells as Record<string, string>)[c];
   const note = <><b>{rr.msg[0]}</b>{rr.msg[2] ? <i>{rr.msg[2]}</i> : null}{markNames(isa(rr.msg[1] || ""), p)}</>;
   return <St d={<D cls={"sub " + (busy ? "pthink" : m)} />} cls={"sb exr qres" + (tnote ? " tut" : "")}>
-    <span class="lab">Question {i + 1}</span><p class="qq"><Statement i={i} /></p>
+    <QHead i={i} /><p class="qq"><Statement i={i} /></p>
     <div class="line1"><Said a={a} />{busy ? null : <Mark m={m} />}</div>
     {tnote ? <TutorNote c={c} text={tnote} where={"pq" + c} flag={<FlagBtn c={explainCase(tnote, c, "Q" + (i + 1), learnedThing(c))} where={"pop:" + c} />} /> : <p class="xnote">{note}</p>}
     <FlagEditor where={"pop:" + c} />
