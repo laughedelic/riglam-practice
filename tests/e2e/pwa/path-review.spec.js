@@ -157,7 +157,7 @@ withKey("the tutor's page: a follow-up question, the answer above it, and a flag
   await page.locator("#stn").click();
   await page.locator(".wrow").filter({ hasText: "Why" }).click();
   await expect(page.locator(".wtext")).toContainText("The first stand-in answer.");
-  await page.getByRole("button", { name: /^The tutor/ }).click();
+  await page.getByRole("button", { name: "Ask a follow-up" }).click();
   const talk = page.locator("#path .ptalk");
   if (!isPhone(testInfo)) await expect(page.locator("#ask-in")).toBeFocused();   // a touch screen keeps the keyboard down
   await page.locator("#ask-in").fill("Is a thought round?");

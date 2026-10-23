@@ -13,7 +13,7 @@ import { render } from "../shell/render.js";
 import type { RelKey } from "../../ai-shared/relations.ts";
 import { ExamplesStep, StripPair, examplesReady } from "./examples.tsx";
 import { refreshPath } from "./index.tsx";
-import { Choices, ErrLines, PairResult, TermsRow, Verdict, WhyRow, needsKey, pairOf, tutorOnResult, tutorWaiting, u0 } from "./parts.tsx";
+import { Choices, ErrLines, PairResult, TermsRow, Verdict, WhyRow, needsKey, pairOf, u0 } from "./parts.tsx";
 import { Row, cases, isOpen, resultRows } from "./relations.tsx";
 import { Scroll } from "./scroll.tsx";
 import { Foot, HideKeys, KbdStation, PreStation, SideStation, Station, TopBar } from "./shell.tsx";
@@ -132,7 +132,7 @@ function ResultStep() {
 /** The screen of Find a pair: its top bar and the step the attempt is at. */
 export function findScreen(kb: boolean): { cls: string; node: ComponentChildren } {
   const u = u0();
-  const top = <TopBar title="Find a pair" tools tutor={tutorOnResult()} tutorDot={tutorWaiting()} />;
+  const top = <TopBar title="Find a pair" tools />;
   if (u.checked) return { cls: "done", node: <>{top}<ResultStep /></> };
   if (u.open) return { cls: "", node: <>{top}<RelStep /></> };
   if (u.step === 0) return { cls: both() ? "ready" : "", node: <>{top}<PairStep kb={kb} /></> };

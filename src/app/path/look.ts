@@ -165,7 +165,7 @@ export function palette(look: Look, dark: boolean): Record<string, string> {
   return {
     "--paper": ground, "--ink": ink, "--ink2": mix(ink, ground, 0.36), "--ink3": mix(ink, ground, 0.58),
     "--rule": rgba(ink, dark ? 0.13 : 0.12), "--mline": rgba(ink, dark ? 0.16 : 0.18),
-    "--blue": blue, "--blue-t": rgba(blue, dark ? 0.12 : 0.07), "--gold": gold, "--gold-t": goldT,
+    "--blue": blue, "--blue-t": rgba(blue, dark ? 0.12 : 0.07), "--blue-tp": mix(ground, blue, dark ? 0.12 : 0.07), "--gold": gold, "--gold-t": goldT,
     "--green": green, "--red": red, "--purple": purple,
     "--station": dark ? mix(look.blue, "#ffffff", 0.12) : look.blue, "--on-station": "#ffffff",
     "--tutor": look.purpleFor === "tutor" ? purple : blue,

@@ -84,11 +84,13 @@
 .pa.pulling.done .sx.ptail::after,.pa.pulling.done .foot::after{background:var(--ink)}
 
 /* a side station: a small station on a dashed line that runs off the right edge; slide it left (or press Enter) to take it */
-.pa .sides{position:relative; width:100px; height:48px; margin-right:-10px; --dx:0px; touch-action:none; user-select:none; -webkit-user-select:none; --skc:var(--skipc)}
+.pa .sides{position:relative; width:100px; height:48px; margin-right:-10px; --dx:0px; touch-action:none; user-select:none; -webkit-user-select:none; cursor:grab; --skc:var(--skipc)}
+/* the whole station takes the slide, and a little around it (the foot's height, and some reach to the left of the diamond) */
+.pa .sides::after{content:""; position:absolute; inset:-14px 0 -14px -18px}
 .pa .sides.ws{--skc:var(--tutor)}
 .pa .skl{position:absolute; top:24px; right:0; left:calc(26px + var(--dx)); height:0; border-top:1.6px dashed var(--skc); opacity:.75; -webkit-mask-image:linear-gradient(to right,#000 55%,transparent); mask-image:linear-gradient(to right,#000 55%,transparent); transition:left .28s cubic-bezier(.2,.9,.3,1.3)}
 .pa .skl::before{content:""; position:absolute; right:100%; top:-1.6px; width:26px; border-top:1.6px solid var(--skc); -webkit-mask-image:linear-gradient(to left,#000,transparent); mask-image:linear-gradient(to left,#000,transparent)}
-.pa .skd{position:absolute; top:6px; left:8px; width:36px; height:36px; display:grid; place-items:center; transform:translateX(var(--dx)); transition:transform .28s cubic-bezier(.2,.9,.3,1.3); cursor:grab}
+.pa .skd{position:absolute; top:6px; left:8px; width:36px; height:36px; display:grid; place-items:center; transform:translateX(var(--dx)); transition:transform .28s cubic-bezier(.2,.9,.3,1.3)}
 .pa .sides.dragging .skd,.pa .sides.dragging .skl{transition:none}
 .pa .skd .sd{width:19px; height:19px; transform:rotate(45deg); background-color:var(--paper); box-shadow:inset 0 0 0 1.8px var(--skc); display:grid; place-items:center}
 .pa .skd .sd .i{transform:rotate(-45deg); width:10px; height:10px; stroke-width:2.6; color:var(--skc)}
