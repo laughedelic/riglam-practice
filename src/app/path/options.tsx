@@ -43,9 +43,9 @@ const stagesLine = () => {
   return (state.stages.length === 1 ? "Stage " : "Stages ") + runs.map(([a, b]) => (a === b ? String(a) : a + "–" + b)).join(", ") + (negates() && NEG_NAME[state.negation] ? " · negations: " + NEG_NAME[state.negation] : "");
 };
 const toSettings = () => { toggleSess(false); toggleOpts(true); };
-/** Whether the Tutor row (and its page) is in the list: where the tutor can be asked, and the Quorum switch is offered. Categories has neither. */
-const quorumShown = () => state.quorumOffered && !!state.db && state.tab !== "syllogism" && state.tab !== "categories";
-const tutorShown = () => state.tab !== "categories" && (canAsk() || quorumShown());
+/** Whether the Tutor row (and its page) is in the list: where the tutor can be asked, and the Quorum switch is offered. Categories and Find an instance have neither. */
+const quorumShown = () => state.quorumOffered && !!state.db && state.tab !== "syllogism" && state.tab !== "categories" && state.tab !== "instance";
+const tutorShown = () => state.tab !== "categories" && state.tab !== "instance" && (canAsk() || quorumShown());
 
 /** Voice in the list: Read aloud, and how an answer is taken (or, where the browser cannot listen, the voice and its speed), with its page. */
 function VoiceRows() {
