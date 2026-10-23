@@ -67,6 +67,38 @@ test("a newer version is found, offered, and started from the toast without clos
   await expect(page.locator("#upd")).toBeHidden();
 });
 
+test("on the Path the toast is the Path's own notice: an ink block in mono under the top bar, its two answers as text buttons", async ({ page }) => {
+  await page.addInitScript(() => { if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path"); });
+  const onPath = () => expect(page.locator("#path .chs .crow")).toHaveCount(5);
+  await page.goto(origin + "/");
+  await onPath();
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.reload();
+  await onPath();
+  await expect.poll(() => controlled(page)).toBe(true);
+  await markOld(page);
+  newVersion = true;
+  await page.evaluate(() => window.__riglam.platform.updates.check());
+  const toast = page.locator("#upd");
+  await expect(toast).toBeVisible();
+  await expect(toast).toContainText("New version ready");
+  const look = await page.evaluate(() => {
+    const t = document.querySelector("#upd"), pa = document.querySelector("#path .pa"), cs = getComputedStyle(t), ground = getComputedStyle(pa);
+    const buttons = [...t.querySelectorAll("button")].map((b) => getComputedStyle(b));
+    return { ink: cs.backgroundColor === ground.color, paper: cs.color === ground.backgroundColor, flat: cs.boxShadow === "none" && cs.borderTopWidth === "0px", mono: /Plex Mono|monospace/.test(cs.fontFamily),
+      quiet: buttons.length === 2 && buttons.every((b) => b.backgroundColor === "rgba(0, 0, 0, 0)" && b.boxShadow === "none" && b.textTransform === "none") };
+  });
+  expect(look).toEqual({ ink: true, paper: true, flat: true, mono: true, quiet: true });
+  if (process.env.DLG_SHOTS) await page.screenshot({ path: process.env.DLG_SHOTS + "update-" + (await page.evaluate(() => (matchMedia("(max-width:700px)").matches ? "phone" : "desktop"))) + ".png" });
+  const [t, bar] = await Promise.all([toast.boundingBox(), page.locator("#path .ptb").boundingBox()]);
+  expect(t.y).toBeGreaterThanOrEqual(bar.y + bar.height);
+  expect(await isOld(page), "the page the reader is using is not reloaded behind their back").toBe(true);
+  await toast.getByRole("button", { name: "Update now" }).click();
+  await expect.poll(() => isOld(page).catch(() => true), { timeout: 15_000 }).toBe(false);
+  await onPath();
+  expect(await which(page)).toBe("v2");
+});
+
 test("the toast goes away by itself after a while, and the menu keeps the way to update", async ({ page }) => {
   await installed(page);
   await page.clock.install(); // the toast's timer is made after this, so the clock can run it
