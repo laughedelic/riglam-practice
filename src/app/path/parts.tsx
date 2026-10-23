@@ -19,7 +19,7 @@ import { refreshPath } from "./index.tsx";
 import { FlagBtn, FlagEditor, QuorumPanel, explainCase } from "./flags.tsx";
 import { Sub } from "./subjects.tsx";
 import { DefCard, OneTerm, TermText, TermsPanel } from "./terms.tsx";
-import { D, Fig, Icon, Mark, SHORT, St, Sx } from "./ui.tsx";
+import { D, Fig, Icon, Mark, St, Sx } from "./ui.tsx";
 
 export const u0 = () => state.ui!;
 export interface Pair { a: string; b: string; relation: RelKey; catA?: string | null; catB?: string | null; own?: boolean; ex?: Partial<Record<CellId, string>> }
@@ -51,12 +51,13 @@ export function PairStops({ p, sm = false }: { p: Pair; sm?: boolean }) {
     <St d={<span class="ab">B</span>} cls={"pairst" + c}><span class={"tn" + (p.b.length > 24 ? " long" : "")}>{p.b}</span></St>
   </>;
 }
-/** The pair with a relation as its node on the path: A on the upper line, B on the lower, like the figure's two diamonds. */
+/** The pair with a relation as its node on the path: A on the upper line, B on the lower, like the figure's two diamonds, and the relation
+ *  under them in the course's notation (MI, 3P, 4P, MX) with its name spelled out. */
 export function PairNode({ rel, right, p = pairOf() }: { rel: RelKey; right?: ComponentChildren; p?: Pair }) {
   const long = Math.max(p.a.length, p.b.length) > 24;
   return <div class={"pn" + (long ? " long" : "")}><i class="pnm a">A</i><i class="pnm b">B</i><Fig k={rel} size="pnode" />
     <span class="pnl a"><i>A</i><b>{p.a}</b></span><span class="pnl b"><i>B</i><b>{p.b}</b></span>
-    {right ? <span class="pnr">{right}</span> : null}<span class="pnn" title={REL[rel].name}>{SHORT[rel]}</span></div>;
+    {right ? <span class="pnr">{right}</span> : null}<span class="pnn" title={REL[rel].gloss(p.a, p.b)}><b class="rc">{REL[rel].code}</b><span class="rn">{REL[rel].name}</span></span></div>;
 }
 /** The class under a term of the pair at the result: "each is a form". */
 function ClassOf({ label, cat, where }: { label: string; cat?: string | null; where: string }) {
@@ -70,15 +71,15 @@ function ClassOf({ label, cat, where }: { label: string; cat?: string | null; wh
  * right one (null while it is not settled), `right` the one it is, `none` what stands for a relation that was never picked.
  */
 export function PairResult({ mine, ok, right, none, classes = true }: { mine: RelKey; ok: boolean | null; right?: RelKey; none?: string; classes?: boolean }) {
-  const p = pairOf(), long = Math.max(p.a.length, p.b.length) > 24, own = long || ok === false;
-  const rv = ok === null ? <span class="rvl"><b class="yours">{SHORT[mine]}</b><Mark m="pt" /></span>
-    : ok ? <span class="rvl"><b class="yours">{SHORT[mine]}</b><Mark m="ok" /></span>
-    : <><span class="rvl"><s class="no">{none || SHORT[mine]}</s><Mark m="no" /></span>{right ? <span class="rvl"><Fig k={right} size="xs" /><span class="fix">{SHORT[right]}</span></span> : null}</>;
+  const p = pairOf(), long = Math.max(p.a.length, p.b.length) > 24, name = (k: string) => REL[k as RelKey].name;
+  const rv = ok === null ? <span class="rvl"><b class="yours">{name(mine)}</b><Mark m="pt" /></span>
+    : ok ? <span class="rvl"><b class="yours">{name(mine)}</b><Mark m="ok" /></span>
+    : <><span class="rvl"><s class="no">{none || name(mine)}</s><Mark m="no" /></span>{right ? <span class="rvl"><Fig k={right} size="xs" /><span class="fix">{name(right)}</span></span> : null}</>;
   return <Sx cls="walked first"><div style={{ height: "14px" }} />
     <div class={"pn res" + (long ? " long" : "") + (state.db && !p.own ? " rstar" : "")}><i class="pnm a">A</i><i class="pnm b">B</i><Fig k={mine} size="pnode" />
       <span class="pnl a"><i>A</i><span class="tw"><b>{p.a}</b>{classes ? <ClassOf label={p.a} cat={p.catA} where="pca" /> : null}</span></span>
       <span class="pnl b"><i>B</i><span class="tw"><b>{p.b}</b>{classes ? <ClassOf label={p.b} cat={p.catB} where="pcb" /> : null}</span></span>
-      {state.db && !p.own ? <span class="pnr"><Star /></span> : null}<span class={"pnn rv" + (own ? " own" : "")}>{rv}</span></div><div style={{ height: "10px" }} /></Sx>;
+      {state.db && !p.own ? <span class="pnr"><Star /></span> : null}<span class="pnn rv">{rv}</span></div><div style={{ height: "10px" }} /></Sx>;
 }
 /** A chain of terms with "is a" between them, small and italic (the grading writes them with a separator). */
 export const isa = (s: string) => String(s).split("\uE000").flatMap((x, i) => (i ? [" ", <i class="pisa">{/^[aeiou]/i.test(x) ? "is an" : "is a"}</i>, " ", x] : [x]));

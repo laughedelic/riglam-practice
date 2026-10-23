@@ -37,12 +37,10 @@ html:not(.design-path) #path{display:none}
 .pa .pib{width:44px; height:44px; display:grid; place-items:center; color:var(--blue); position:relative; border-radius:4px; flex:none}
 .pa .pib:disabled,.pa .pib[aria-disabled="true"]{color:var(--ink3); opacity:.55; cursor:default}
 .pa .pib.on{color:var(--ink)}
-.pa .ptb-t{font-style:italic; font-size:22px; font-weight:500; margin-left:4px; display:inline-flex; align-items:center; gap:4px; min-width:0; white-space:nowrap; overflow:hidden}
+.pa .ptb-t{font-style:italic; font-size:22px; font-weight:500; margin-left:4px; display:inline-flex; align-items:center; min-width:0; white-space:nowrap; overflow:hidden}
 .pa .ptb-t > span{overflow:hidden; text-overflow:ellipsis}
-.pa .ptb-t .i{width:15px; height:15px; color:var(--ink3); transform:rotate(90deg); stroke-width:2}
 .pa .dot{position:absolute; top:9px; right:8px; width:9px; height:9px; background:var(--gold); transform:rotate(45deg)}
 .pa .tstn{flex:none; width:44px; height:56px; margin-left:calc(var(--m) - 26px); position:relative; display:grid; place-items:center}
-.pa .tstn::after{content:""; position:absolute; left:21px; top:40px; bottom:-1px; width:2px; background:var(--ink); opacity:.7}
 .pa .tgo{width:20px; height:20px; transform:rotate(45deg); background-color:var(--station); position:relative}
 .pa .tgo .mk{position:absolute; inset:0; transform:rotate(-45deg); display:grid; place-items:center; color:var(--on-station)}
 .pa .tgo .mk .i{width:12px; height:12px; stroke-width:2.8; transform:rotate(90deg)}

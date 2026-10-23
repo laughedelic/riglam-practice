@@ -50,7 +50,7 @@ export interface Look {
   cZh: string;
   words: "underline" | "diamond" | "chip";
   /** how the two terms of the pair stand out where the text names them: none, italic, italic with a small A or B, italic with a small diamond, or each in its own quiet ink */
-  subj: "none" | "italic" | "letters" | "diamonds" | "inks";
+  subj: "none" | "italic" | "letters" | "diamonds" | "lettered" | "inks";
   starShape: "star" | "eight" | "bookmark";
   miFig: "inset" | "full";
 }
@@ -87,7 +87,7 @@ const ONE_OF: Partial<Record<keyof Look, readonly string[]>> = {
   choice: ["margin", "rows", "branches"], figs: ["ink", "color"], ahead: ["dot", "dash", "fade"], next: ["edge", "page"], edge: ["run", "fade"],
   why: ["detour", "row", "side"], sheet: ["top", "bottom", "path"], toggle: ["track", "check", "solid", "stops", "nested"], keys: ["sim", "off"],
   star: ["pair", "bar"], ask: ["detour", "row"], tutorAuto: ["off", "on"], abPos: ["names", "margin"], cOn: ["on", "off"],
-  cSerif: Object.keys(SERIF_COMPANIONS), cHand: Object.keys(HAND_COMPANIONS), words: ["underline", "diamond", "chip"], subj: ["none", "italic", "letters", "diamonds", "inks"], starShape: ["star", "eight", "bookmark"], miFig: ["inset", "full"],
+  cSerif: Object.keys(SERIF_COMPANIONS), cHand: Object.keys(HAND_COMPANIONS), words: ["underline", "diamond", "chip"], subj: ["none", "italic", "letters", "diamonds", "lettered", "inks"], starShape: ["star", "eight", "bookmark"], miFig: ["inset", "full"],
 };
 const RANGES: Partial<Record<keyof Look, [number, number]>> = { tM: [40, 72], tLw: [1, 4], tSt: [22, 40], tTn: [26, 42], tHand: [16, 24] };
 const COLORS: (keyof Look)[] = ["blue", "gold", "green", "red", "purple"];

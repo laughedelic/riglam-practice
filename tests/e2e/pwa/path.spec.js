@@ -71,6 +71,54 @@ test("the knob of the strip opens the earlier steps with one tap, and folds them
   await expect(strip).not.toHaveClass(/\bopen\b/);
 });
 
+test("the top bar's title has no chevron beside it", async ({ page }) => {
+  await start(page);
+  await expect(page.locator("#path .ptb-t")).toContainText("Relations");
+  await expect(page.locator("#path .ptb-t svg")).toHaveCount(0);
+});
+
+test("why the next station is not ready shows in a note above the foot, not under the finger that is on it", async ({ page }) => {
+  await start(page);
+  const stn = page.locator("#stnp"), hint = page.locator("#stnp .phint");
+  await expect(stn.locator("small")).toHaveCount(0);   // no hint in the station's own label
+  await expect(hint).toHaveCSS("opacity", "0");
+  const b = await stn.boundingBox();
+  await page.mouse.move(b.x + 40, b.y + b.height / 2); await page.mouse.down();
+  await expect(hint).toHaveCSS("opacity", "1");
+  await expect(hint).toHaveText("pick a relation first");
+  const h = await hint.boundingBox(), foot = await page.locator("#path .foot").boundingBox();
+  expect(h.y + h.height, "the note ends above the foot's top edge").toBeLessThanOrEqual(foot.y);
+  expect(h.y + h.height, "and above the station under the finger").toBeLessThanOrEqual(b.y);
+  await page.mouse.up();
+});
+
+test("the strip pulls from its heading with a short pull, and its hint is gray", async ({ page }) => {
+  await start(page);
+  await choices(page).nth(3).click();
+  await page.locator("#cin").blur();
+  const strip = page.locator("#path .pstrip"), name = strip.locator(".pnl.a b");
+  const color = (sel) => page.locator(sel).first().evaluate((e) => getComputedStyle(e).color);
+  expect(await color("#path .pstrip .gtip"), "the hint is not the blue of what can be tapped").not.toBe(await color("#path .pstrip .knob .mk"));
+  const b = await name.boundingBox();
+  await page.mouse.move(b.x + 10, b.y + b.height / 2); await page.mouse.down();
+  await page.mouse.move(b.x + 10, b.y + b.height / 2 + 12, { steps: 3 });
+  await page.mouse.move(b.x + 10, b.y + b.height / 2 + 22, { steps: 3 });
+  await page.mouse.up();
+  await expect(strip).toHaveClass(/\bopen\b/);   // pulled by the pair, not by the knob
+});
+
+test("the pair has its relation under it, in the course's notation with its name spelled out", async ({ page }) => {
+  await start(page);
+  await choices(page).nth(3).click();
+  await page.locator("#cin").blur();
+  const rel = page.locator("#path .pstrip .compact .pnn");
+  await expect(rel.locator(".rc")).toHaveText("4P");
+  await expect(rel.locator(".rn")).toHaveText("Four possibilities");
+  const t = await page.locator("#path .pstrip .compact .pnl.b").boundingBox(), r = await rel.boundingBox();
+  expect(r.y, "under the second term").toBeGreaterThanOrEqual(t.y + t.height - 2);
+  expect(r.x, "in the column of the terms").toBeLessThanOrEqual(t.x + 2);
+});
+
 test("under Blitz each countdown has a bar of its own on the top bar, so that it starts full", async ({ page }) => {
   await page.addInitScript(() => { localStorage.setItem("rd-blitz", "1"); });
   await start(page);
@@ -179,13 +227,13 @@ test("the pair's two terms stand out in the text as the look says, and the A/B m
   await choices(page).nth(3).click();
   await expect(page.locator("#cin")).toBeVisible();
   const root = page.locator("#path .pa"), a = page.locator("#path .sj.a").first(), b = page.locator("#path .sj.b").first();
-  await expect(root).toHaveClass(/\bsj-letters\b/);   // the default: italic, with a small A raised before the first term and a small B lowered before the second
+  await expect(root).toHaveClass(/\bsj-letters\b/);   // the default: italic, with a small A before the first term and a small B before the second, both on the line of the text
   await expect(a).toBeVisible();
   await expect(b).toBeVisible();
-  const mark = (n) => n.evaluate((e) => { const s = getComputedStyle(e), c = getComputedStyle(e, "::before"); return { italic: s.fontStyle, label: c.content, up: c.verticalAlign }; });
-  expect(await mark(a)).toMatchObject({ italic: "italic", label: '"A"' });
-  expect(await mark(b)).toMatchObject({ italic: "italic", label: '"B"' });
-  expect((await mark(a)).up).not.toBe((await mark(b)).up);
+  const mark = (n) => n.evaluate((e) => { const s = getComputedStyle(e), c = getComputedStyle(e, "::before"); return { italic: s.fontStyle, label: c.content, up: c.verticalAlign, size: parseFloat(c.fontSize) / parseFloat(s.fontSize) }; });
+  expect(await mark(a)).toMatchObject({ italic: "italic", label: '"A"', up: "baseline" });
+  expect(await mark(b)).toMatchObject({ italic: "italic", label: '"B"', up: "baseline" });   // on the line: raised and lowered marks read as a misalignment in running text
+  expect((await mark(a)).size).toBeGreaterThanOrEqual(0.7);
   // Settings has a row to try the other ways on a sample
   await page.locator("#cin").blur();   // on a phone the field's keyboard hides the top bar
   await page.locator(".tstn").click();
@@ -197,6 +245,9 @@ test("the pair's two terms stand out in the text as the look says, and the A/B m
   const ink = (n) => n.evaluate((e) => getComputedStyle(e).color);
   expect(await ink(row.locator(".sj.a"))).not.toBe(await ink(row.locator(".sj.b")));
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem("rd-look")).subj)).toBe("inks");
+  await row.getByRole("button", { name: "Lettered diamonds" }).click();
+  await expect(root).toHaveClass(/\bsj-lettered\b/);   // each term has its letter in a small diamond
+  expect(await row.locator(".sj.a").evaluate((e) => { const c = getComputedStyle(e, "::before"); return [c.content, c.display, c.backgroundImage.includes("linear-gradient")]; })).toEqual(['"A"', "inline-flex", true]);
   await row.getByRole("button", { name: "Letters" }).click();
   await expect(root).toHaveClass(/\bsj-letters\b/);
   expect(await page.evaluate(() => (JSON.parse(localStorage.getItem("rd-look") || "{}")).subj)).toBeUndefined();   // the default is not stored
@@ -252,15 +303,14 @@ test("the text fields of the practice ask the browser for no autofill", async ({
   expect(await hints(page.locator("textarea.ptext"))).toEqual({ ac: "off", cap: "off", fix: "off", pw: "true", one: "true" });
 });
 
-test("the path line is not split: the first section's line starts where the top bar's stub ends", async ({ page }) => {
+test("the top bar's diamond has no line of its own, and the first section's line starts at its own diamond", async ({ page }) => {
   await start(page);
-  const gap = await page.evaluate(() => {
-    const bar = document.querySelector("#path .ptb").getBoundingClientRect();
+  const r = await page.evaluate(() => {
     const sx = document.querySelector("#path .sx.first");
-    const top = sx.getBoundingClientRect().top + parseFloat(getComputedStyle(sx, "::before").top);
-    return Math.round(top - bar.bottom);
+    return { stub: getComputedStyle(document.querySelector("#path .tstn"), "::after").content, top: getComputedStyle(sx, "::before").top };
   });
-  expect(gap, "px between the bar's lower edge and the start of the first line").toBeLessThanOrEqual(1);
+  expect(r.stub, "no stub going down from the top bar's diamond").toBe("none");
+  expect(r.top).toBe("24px");
 });
 
 test("the whole Skip station takes the slide, not the diamond alone: from its word, from beside the diamond, and with the mouse", async ({ page }) => {
