@@ -15,7 +15,7 @@ import { NOT } from "../../ai-shared/debate.ts";
 import type { QToken } from "../../ai-shared/debate.ts";
 import type { CellId, RelKey } from "../../ai-shared/relations.ts";
 import { refreshPath } from "./index.tsx";
-import { Choices, ErrLines, PairResult, PairStops, TermsRow, Thinking, Verdict, WhyRow, askTutor, isa, needsKey, pairOf, pickThen, tutorOnResult, tutorWaiting, u0 } from "./parts.tsx";
+import { Choices, ErrLines, PairResult, PairStops, TermsRow, Thinking, Verdict, WhyRow, askTutor, isa, needsKey, pairOf, pickThen, u0 } from "./parts.tsx";
 import { relChoices } from "./relations.tsx";
 import { FlagBtn, FlagEditor, explainCase } from "./flags.tsx";
 import { Scroll } from "./scroll.tsx";
@@ -139,7 +139,7 @@ function ResultStep() {
 /** The screen of Pervasions: its top bar and the step the attempt is at. */
 export function pervasionsScreen(kb: boolean): { cls: string; node: ComponentChildren } {
   const u = u0();
-  const top = <TopBar title="Pervasions" tools mic tutor={tutorOnResult()} tutorDot={tutorWaiting()} />;
+  const top = <TopBar title="Pervasions" tools mic />;
   if (u.checked) return { cls: "done", node: <>{top}<ResultStep /></> };
   if (u.step > 3) return { cls: "", node: <>{top}<RelationStep /></> };
   return { cls: u.pickWhy && (u.exText || "").trim() ? "ready" : "", node: <>{top}<QuestionStep kb={kb} /></> };

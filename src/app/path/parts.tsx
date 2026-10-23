@@ -134,13 +134,6 @@ export function askTutor(open = true) {
   if (canAsk()) { if (open) u.pwhy = true; void ask(null, "explain"); return; }
   if (needsKey()) void Promise.resolve(state.unlock!.open()).then((taken) => { if (taken && state.ui === u && canAsk() && u.checked && !u.explained && !u.ctl) { if (open) u.pwhy = true; void ask(null, "explain"); } });
 }
-/** What the tutor's button in the top bar does on a result: ask for the explanation, or open the conversation. */
-export function tutorOnResult(): (() => void) | null {
-  const u = state.ui; if (!u || !u.checked) return null;
-  return () => { if (!u.explained && !u.ctl) askTutor(); else openChat(); };
-}
-/** Whether an answer of the tutor waits to be read: the dot on its button. */
-export const tutorWaiting = () => { const u = state.ui; return !!u && (!!u.ctl || (!!u.chat && u.chat.some((t: { role: string; pending?: boolean; content?: string }) => t.role === "assistant" && !t.pending && t.content) && !u.pwhy)); };
 export function latestExplain() {
   const chat = u0().chat || [];
   for (let i = chat.length - 1; i >= 0; i--) { const t = chat[i]; if (t.role === "assistant" && t.kind === "explain") return t; }

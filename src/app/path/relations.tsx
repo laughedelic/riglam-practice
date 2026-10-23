@@ -15,7 +15,7 @@ import { render } from "../shell/render.js";
 import { CELL_NAME } from "../../ai-shared/prompts.ts";
 import type { CellId, RelKey } from "../../ai-shared/relations.ts";
 import { ExamplesStep, StripPair, examplesReady } from "./examples.tsx";
-import { CASE, Choices, ErrLines, PairResult, PairStops, TermsRow, Thinking, Verdict, WhyRow, askTutor, isa, needsKey, pairOf, pickThen, tutorOnResult, tutorWaiting, u0 } from "./parts.tsx";
+import { CASE, Choices, ErrLines, PairResult, PairStops, TermsRow, Thinking, Verdict, WhyRow, askTutor, isa, needsKey, pairOf, pickThen, u0 } from "./parts.tsx";
 import { FlagBtn, FlagEditor, explainCase } from "./flags.tsx";
 import { Scroll } from "./scroll.tsx";
 import { Foot, PreStation, SideStation, Station, TopBar, VoiceBar } from "./shell.tsx";
@@ -126,7 +126,7 @@ function ResultStep() {
 /** The screen of Relations: its top bar and the step the attempt is at. */
 export function relationsScreen(kb: boolean): { cls: string; node: ComponentChildren } {
   const u = u0(), step = u.checked ? 3 : !u.rel || u.open ? 1 : 2;
-  const top = <TopBar title="Relations" tools mic tutor={tutorOnResult()} tutorDot={tutorWaiting()} />;
+  const top = <TopBar title="Relations" tools mic />;
   if (step === 1) return { cls: "", node: <>{top}<PickStep kb={kb} /></> };
   if (step === 2) return { cls: examplesReady() ? "ready" : "", node: <>{top}<ExamplesStep kb={kb} title="Relations" step={2} rel={relOf()} full={<><Picked /><NewTerms cats={pairCatIds(pairOf())} /></>} check={check} /></> };
   return { cls: "done", node: <>{top}<ResultStep /></> };

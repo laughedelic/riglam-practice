@@ -9,7 +9,7 @@ import { backSyllogism, exampleSyllogism, keyOfReply, saySyllogism, shownSyllogi
 import { REPLIES, syllogismPieces } from "../../domain/syllogism.ts";
 import type { Reply, Syllogism } from "../../domain/syllogism.ts";
 import { refreshPath } from "./index.tsx";
-import { Choices, ErrLines, Star, Verdict, WhyRow, pickThen, tutorOnResult, tutorWaiting, u0 } from "./parts.tsx";
+import { Choices, ErrLines, Star, Verdict, WhyRow, pickThen, u0 } from "./parts.tsx";
 import { Scroll } from "./scroll.tsx";
 import { Foot, HideKeys, KbdStation, PreStation, SideStation, Station, TopBar } from "./shell.tsx";
 import { D, Gap, Head, Mark, St, Sx, NOFILL } from "./ui.tsx";
@@ -119,7 +119,7 @@ function ResultStep() {
 /** The screen of Syllogisms: its top bar and the step the attempt is at. */
 export function syllogismScreen(kb: boolean): { cls: string; node: ComponentChildren } {
   const u = u0();
-  const top = <TopBar title="Syllogisms" tools tutor={tutorOnResult()} tutorDot={tutorWaiting()} />;
+  const top = <TopBar title="Syllogisms" tools />;
   if (u.checked) return { cls: "done", node: <>{top}<ResultStep /></> };
   if (u.step === 1) return { cls: "ready", node: <>{top}<CounterStep kb={kb} /></> };
   return { cls: "", node: <>{top}<AnswerStep /></> };
