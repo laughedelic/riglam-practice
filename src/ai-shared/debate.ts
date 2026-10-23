@@ -18,5 +18,10 @@ export const QMINE: readonly (readonly QToken[])[] = [
   ["If it is ", "B", ", it follows it is ", "A", "."],
   ["If it is ", NOT, " ", "A", ", it follows it is ", "B", "."],
 ];
+/** Question `i` (0 to 3) in the concise form, "if it is A, it is not B" as A → not B: the tokens before and after the arrow ("A", "not B"). */
+export const qSides = (i: number): [QToken[], QToken[]] => {
+  const t = QMINE[i].filter((x) => x === NOT || x === "A" || x === "B"), at = t.findIndex((x) => x !== NOT);
+  return [t.slice(0, at + 1), t.slice(at + 1)];
+};
 /** Question `i` (0 to 3) as one line of plain text with the letters A and B. */
 export const qPlain = (i: number): string => QMINE[i].map((x) => (x === NOT ? "not" : x)).join("").replace(/\.$/, "?");
