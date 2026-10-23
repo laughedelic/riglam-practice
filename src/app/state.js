@@ -53,7 +53,7 @@ export const state = {
   syllogismWording: "take", // how a syllogism is said: "take" (the class's) or "formal" (`rd-syllogism-wording`)
   syllogismGuide: false,    // the structure named under the sentence (S, P, R) and what each reply says in them, for a beginner (`rd-syllogism-guide`)
   findSuggest: true, // Find a pair offers the terms of the course while the pair is typed (the settings of Find a pair, `rd-findsuggest`); off: plain fields
-  negation: "off",   // the negation track of Relations and Pervasions (and the sixth relation in Find a pair): "one" negates B in about a third of the pairs, "both" also A and B in half of those (`rd-negation`)
+  negation: "off",   // the negation track of Relations and Pervasions (and the sixth relation in Find a pair): "one" negates A or B in about a third of the pairs, "both" both sides in half of those (`rd-negation`)
   relSession: [],    // the Relations answers checked on this page, oldest first: the run towards the offer of a negation step counts them before the database has handed them back (practice/negations.ts)
   negOfferAt: "",    // when the learner last answered the offer of a negation step (`rd-neg-offer`): only the answers after it count towards the next offer
   debates: {},

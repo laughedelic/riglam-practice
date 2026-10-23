@@ -1661,10 +1661,11 @@ test("the tutor's facts on a negated side are read in reverse, and the tutor is 
 test("the negation track: about a third of the pairs negated, both sides only when asked, and none when off", () => {
   const count = (negation?: "one" | "both") => {
     const st = { hist: [] as HistoryEntry[], recent: [] as string[], rng: seeded(7), now: () => 0, stages: [1, 2, 3, 4, 5, 6], ...(negation ? { negation } : {}) };
-    const n: Record<string, number> = { none: 0, b: 0, ab: 0 };
+    const n: Record<string, number> = { none: 0, a: 0, b: 0, ab: 0 };
     for (let i = 0; i < 300; i++) {
       const p = nextPair(rix, realPool, st);
       n[p.neg ?? "none"]++;
+      negSides(p).forEach((on, i) => on && expect(i ? p.b : p.a, p.neg).toMatch(/^non-/));
       // the examples show the relation: a cell has one exactly where the cells of the data are filled (a negated label with its own category,
       // "tastes" and "non-(objects of tongue consciousness)", leaves nothing that is neither, and stays mutually exclusive)
       const shown = Object.fromEntries(CELLS.map((c) => [c, refOf(p, c) ? [c] : []])) as Record<CellId, string[]>;
@@ -1673,12 +1674,15 @@ test("the negation track: about a third of the pairs negated, both sides only wh
     }
     return n;
   };
-  expect(count()).toEqual({ none: 300, b: 0, ab: 0 });
+  expect(count()).toEqual({ none: 300, a: 0, b: 0, ab: 0 });
+  // one side is A or B alike, as the tutors negate either ("non-colors" and "form sources", "tangible objects" and "non-(form sources)")
   const one = count("one");
   expect(one.ab).toBe(0);
-  expect(one.b).toBeGreaterThan(60);
-  expect(one.b).toBeLessThan(140);
+  expect(one.a + one.b).toBeGreaterThan(60);
+  expect(one.a + one.b).toBeLessThan(140);
+  expect(one.a).toBeGreaterThan(25);
+  expect(one.b).toBeGreaterThan(25);
   const both = count("both");
   expect(both.ab).toBeGreaterThan(20);
-  expect(both.b).toBeGreaterThan(20);
+  expect(both.a + both.b).toBeGreaterThan(20);
 });

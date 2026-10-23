@@ -1,4 +1,4 @@
-// The offer of the next step of the negation track on a result of Relations: once the plain pairs go well, pairs with B negated; once those go
+// The offer of the next step of the negation track on a result of Relations: once the plain pairs go well, pairs with one side negated; once those go
 // well, both sides. The rule (what counts, how long the run is) is negationOffer in src/domain/stages.ts; this is the page around it, built like
 // the offer of another stage in Categories (categories/flow.js): it shows on the result, nothing changes without a tap, and an offer passed over or
 // declined needs another run. The classic page draws it with offerNode, the Path with NegOffer (path/relations.tsx).
@@ -38,8 +38,8 @@ const pending = (): { kind: "one" | "both" } | null => { const o = state.ui && s
 export function acceptNegOffer() {
   const o = pending(); if (!o) return;
   spendRun(); state.negation = o.kind; store("rd-negation", o.kind);
-  state.ui!.negOffer = { kind: "done", text: o.kind === "one" ? "Negations are on: from the next pair, about a third of the pairs negate B. Change it in the practice options."
-    : "Both sides now: half of the negated pairs negate A as well. Change it in the practice options." };
+  state.ui!.negOffer = { kind: "done", text: o.kind === "one" ? "Negations are on: from the next pair, about a third of the pairs negate one side. Change it in the practice options."
+    : "Both sides now: half of the negated pairs negate both. Change it in the practice options." };
   render();
 }
 /** "Not now": the track stays as it is, and the next offer needs another run. */
@@ -53,8 +53,8 @@ export function declineNegOffer() {
 /** What the offer says: the question, an example of the step, and the buttons' words. */
 export function negOfferText(kind: "one" | "both") {
   return kind === "one"
-    ? { q: "Plain pairs are going well. Try pairs with a negated side?", ex: "About a third of the pairs then negate B, as in “furniture” and “non-(wooden things)”.", yes: "Negate one side" }
-    : { q: "Pairs with a negated side are going well. Negate both sides too?", ex: "Half of the negated pairs then negate A as well, as in “non-(furniture)” and “non-(wooden things)”.", yes: "Negate both sides" };
+    ? { q: "Plain pairs are going well. Try pairs with a negated side?", ex: "About a third of the pairs then negate one side, as in “furniture” and “non-(wooden things)”.", yes: "Negate one side" }
+    : { q: "Pairs with a negated side are going well. Negate both sides too?", ex: "Half of the negated pairs then negate both, as in “non-(furniture)” and “non-(wooden things)”.", yes: "Negate both sides" };
 }
 export const NEG_NOTE = "Never starts by itself. Change it, or switch negations off, in the practice options.";
 /** The classic page's offer under the result of a pair, or the line that says what the answer to it did. */

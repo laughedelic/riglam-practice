@@ -89,7 +89,8 @@ test("with negations on, Pervasions draws negated pairs too, and accepting all b
   await expect.poll(() => page.evaluate(() => window.__t.tab)).toBe("debate");
   for (let i = 0; i < 60 && !(await page.evaluate(() => window.__t.cur.p.neg && window.__t.cur.p.relation === "4n")); i++) await page.evaluate(() => window.__t.next());
   const p = await page.evaluate(() => window.__t.cur.p);
-  expect([p.neg, p.relation]).toEqual(["b", "4n"]);
+  expect(p.neg).toMatch(/^(a|b)$/);     // one side, either one
+  expect(p.relation).toBe("4n");
   // Why? to Q1 to Q3 with anything, Accept to Q4: nothing is neither
   for (let q = 0; q < 3; q++) {
     await page.keyboard.press("w");

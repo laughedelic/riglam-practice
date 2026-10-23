@@ -29,8 +29,8 @@ test("with negations on, a pair can negate a term, offers a sixth answer, and is
   // about a third of the pairs negate a side: skip until one comes
   for (let i = 0; i < 40 && !(await page.evaluate(() => !!window.__t.cur.p.neg)); i++) await page.keyboard.press("s");
   const p = await page.evaluate(() => window.__t.cur.p);
-  expect(p.neg).toMatch(/^(b|ab)$/);
-  expect(p.b).toMatch(/^non-/);
+  expect(p.neg).toMatch(/^(a|b|ab)$/);
+  expect(p.neg === "a" ? p.a : p.b).toMatch(/^non-/);
   await expect(page.locator("#stage .pair .tb")).toContainText("non-");
   await expect(relOptions(page)).toHaveCount(6);
   await expect(relOptions(page).nth(5)).toContainText("Four possibilities without neither");

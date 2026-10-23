@@ -217,8 +217,8 @@ export interface DrawState {
   /** every pair the stages can draw weighs the same, none more for being new at the highest stage: a device that kept its settings from before the ladder draws as it did */
   even?: boolean;
   /**
-   * the negation track: about a third of the pairs have B negated ("one"), or, with "both", half of those have A and B negated. None: no negation,
-   * and the draw takes the same random numbers as before the track.
+   * the negation track: about a third of the pairs have one side negated, A or B alike ("one", as the tutors negate either), or, with "both", half
+   * of those have A and B negated. None: no negation, and the draw takes the same random numbers as before the track.
    */
   negation?: "one" | "both";
 }
@@ -277,6 +277,6 @@ export function nextPair(ix: DataIndex, pool: readonly PoolEntry[], st: DrawStat
   const c = chooseEntry(ix, pool, st), rng = st.rng || Math.random;
   st.recent.push(pairKey(c));
   if (st.recent.length > RECENT_MAX) st.recent.shift();
-  const neg: Neg | undefined = st.negation && rng() < NEG_SHARE ? (st.negation === "both" && rng() < 0.5 ? "ab" : "b") : undefined;
+  const neg: Neg | undefined = st.negation && rng() < NEG_SHARE ? (st.negation === "both" && rng() < 0.5 ? "ab" : rng() < 0.5 ? "a" : "b") : undefined;
   return makePair(ix, c, rng, st.now || Date.now, st.more, st.stages, neg);
 }
