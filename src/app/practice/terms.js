@@ -6,6 +6,7 @@ import { REL } from "../core/rel.js";
 import { cap } from "../core/util.js";
 import { isA } from "./screen.js";
 import { catByLabel } from "./universe.js";
+import { negSides, plainLabel } from "../../ai-shared/relations.ts";
 import { exampleStage, examplesFor } from "../../domain/reference.ts";
 import { newCategories, topStage } from "../../domain/stages.ts";
 import { render } from "../shell/render.js";
@@ -28,14 +29,16 @@ const isaChain=(names,where)=>names.flatMap((n,i)=>{
 // dot-underlined, every time they occur, and open the definition under the text (see withTerms); without the Magic Key one
 // note says how to read them.
 export function termsNode(p){
-  const box=el("div",{class:"terms"}), ca=p.catA||catByLabel(p.a), cb=p.catB||catByLabel(p.b), lis=[ca&&lineageOf(ca),cb&&lineageOf(cb)];
+  // a negated side ("non-(wooden things)") is not under the lineage of what it negates: it says what it takes in instead
+  const box=el("div",{class:"terms"}), ca=p.catA||catByLabel(p.a), cb=p.catB||catByLabel(p.b), [na,nb]=negSides(p), lis=[!na&&ca&&lineageOf(ca),!nb&&cb&&lineageOf(cb)];
+  const negType=(label,on,type)=>on?"Everything that is not one of the "+plainLabel(String(label))+", including what does not exist.":type;
   // the pair's own words that name a Dudra term: its label, when it is worded as the term is (not a plainer paraphrase of it),
   // which the note quotes and the title shows
   const termOf=(li,label)=>{ const n=li&&!li.everyday&&li.names[0]||""; return n&&namesTerm(state,n,String(label))?n:""; };
   const own={}; [[p.a,lis[0]],[p.b,lis[1]]].forEach(([label,li])=>{ const n=termOf(li,label); if(n) own[String(label).toLowerCase()]=n; });
   box.append(el("p",{class:"tm-sum"},el("b",{text:REL[p.relation].name+". "}),withTerms(p.note||"","tm:s",null,{quoted:true,own})));
   const sumCard=defCard("tm:s"); if(sumCard) box.append(sumCard);
-  box.append(el("div",{class:"tm-rows"},[["A",p.a,p.typeA,lis[0]],["B",p.b,p.typeB,lis[1]]].map(([x,label,type,li])=>{
+  box.append(el("div",{class:"tm-rows"},[["A",p.a,negType(p.a,na,p.typeA),lis[0]],["B",p.b,negType(p.b,nb,p.typeB),lis[1]]].map(([x,label,type,li])=>{
     const w="tm:"+x, term=termOf(li,label);
     return el("div",{class:"tm-row"},L(x),el("div",null,
       el("p",{class:"tm-t"},hasDef(state.DATA&&state.DATA.terms[term])?termMark(cap(label),term,w+"t/0"):cap(label)),defCard(w+"t"),

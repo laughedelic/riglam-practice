@@ -142,7 +142,7 @@ export function buildPool(ix: DataIndex): PoolEntry[] {
  * A pair from a pool entry: a random order and random labels, the relation the data gives, an example per cell where
  * there is one, and the reason where a cell is empty. The random numbers are drawn in a fixed order; the id is made from
  * the clock and one more random number, so with both given the whole pair is reproducible. With `on`, the examples are
- * things of those stages (see pairOf). With `neg`, B (or A and B) is negated, under a label that is not a negation already where the category has one.
+ * things of those stages (see pairOf). With `neg`, A, B or both are negated, under a label that is not a negation already where the category has one.
  */
 export function makePair(ix: DataIndex, cand: PoolEntry, rng: Rng = Math.random, now: Clock = Date.now, more?: Witnesses, on?: Stages, neg?: Neg): Pair {
   let a = cand.a, b = cand.b, la: string, lb: string;

@@ -44,7 +44,7 @@ export interface PairLike {
   neg?: Neg;
 }
 
-/** Which side of a pair is negated: B alone, A and B (the negation track's draw), or A alone (a pair named in Find a pair). */
+/** Which side of a pair is negated: B alone, A and B, or A alone (the negation track draws all three, and Find a pair takes them as named). */
 export type Neg = "b" | "ab" | "a";
 /**
  * Where a thing goes when a side is negated, by the cell it has in the plain pair: with B negated, what is both A and B is A but not non-B, and so on.

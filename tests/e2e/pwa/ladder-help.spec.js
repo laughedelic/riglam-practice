@@ -87,7 +87,8 @@ test("with negations on, Pervasions draws negated pairs too, and accepting all b
   await expect(page.locator("#stage .head .pair")).toBeVisible();     // with negations on the first pair may have six answers
   await goTo(page, "Pervasions");
   await expect.poll(() => page.evaluate(() => window.__t.tab)).toBe("debate");
-  for (let i = 0; i < 60 && !(await page.evaluate(() => window.__t.cur.p.neg && window.__t.cur.p.relation === "4n")); i++) await page.evaluate(() => window.__t.next());
+  // about one draw in twenty is a negated pair with four possibilities without neither: 300 tries all but never miss it
+  for (let i = 0; i < 300 && !(await page.evaluate(() => window.__t.cur.p.neg && window.__t.cur.p.relation === "4n")); i++) await page.evaluate(() => window.__t.next());
   const p = await page.evaluate(() => window.__t.cur.p);
   expect(p.neg).toMatch(/^(a|b)$/);     // one side, either one
   expect(p.relation).toBe("4n");
