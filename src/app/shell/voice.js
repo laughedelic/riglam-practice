@@ -1,6 +1,6 @@
 import { state } from "../state.js";
 import { $, el } from "../core/dom.js";
-import { REL, orderOf } from "../core/rel.js";
+import { ORDER, REL } from "../core/rel.js";
 import { isWide } from "../core/viewport.js";
 import { chooseD, holdClock, releaseClock, sayQ, submitWhy } from "../debate/flow.js";
 import { Wd, termSing } from "../debate/text.js";
@@ -185,7 +185,7 @@ function take(a,alts){
     return offer(a,x.heard,x.text,()=>{ state.ui.exText=x.text; submitWhy(); });
   }
   if(a.kind==="relation"){
-    const t=terms(), order=/** @type {import("../../ai-shared/relations.ts").RelKey[]} */(orderOf(state.cur&&state.cur.p));
+    const t=terms(), order=/** @type {import("../../ai-shared/relations.ts").RelKey[]} */(ORDER);
     const k=(v.ask3&&spokenDirection(alts,t))||spokenRelation(alts,order,t);
     if(k==="3"){ if(v.pend){ dropPend(); letGo("resume"); renderBar(); } v.ask3=true; return again(a,alts[0],"Three possibilities: which is inside the other, "+t.a+" or "+t.b+"?",true); }
     if(!k) return again(a,alts[0],v.ask3?"Say which is inside the other, "+t.a+" or "+t.b+".":"Say the relation, such as “four possibilities”, or what is written under it.");
@@ -193,7 +193,8 @@ function take(a,alts){
     return offer(a,alts[0],REL[k].name,()=>{ if(state.ui.debate) chooseD(k); else choose(k,true); });
   }
   const x=spokenExample(state,alts);
-  if(!x) return again(a,alts[0],"Say an example, or “nothing”.");
+  if(!x) return again(a,alts[0],a.cell==="nei"?"Say an example, or “nothing”.":"Say an example.");
+  if(x.none&&a.cell!=="nei") return again(a,alts[0],"The relation you chose needs an example here: only the neither case can be empty.");
   offer(a,x.heard,x.none?"nothing":x.text,()=>{
     const u=state.ui; u.cells[a.cell].t=x.none?"":x.text;
     const order=fillable(), i=order.indexOf(a.cell);

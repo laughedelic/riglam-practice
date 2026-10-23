@@ -40,9 +40,8 @@ function revOverview(box,all){
       el("span",{class:"dn",text:n?String(n):""}))))));
 
   // by relation
-  // four possibilities without neither only once a pair with a negation has been answered
-  const byRel=["mi","3","4","4n","con"].map(r=>{ const xs=all.filter(a=>(a.key==="3ab"||a.key==="3ba"?"3":a.key)===r); return [r,xs.length,xs.filter(a=>a.correct).length]; }).filter(([r,n])=>r!=="4n"||n);
-  const rname={mi:"Mutually inclusive",con:"Mutually exclusive","3":"Three possibilities","4":"Four possibilities","4n":"Four possibilities without neither"};
+  const byRel=["mi","3","4","con"].map(r=>{ const xs=all.filter(a=>(a.key==="3ab"||a.key==="3ba"?"3":a.key)===r); return [r,xs.length,xs.filter(a=>a.correct).length]; });
+  const rname={mi:"Mutually inclusive",con:"Mutually exclusive","3":"Three possibilities","4":"Four possibilities"};
   box.append(el("div",{class:"section"},el("p",{class:"label"},"By relation",el("span",{class:"hint",text:"relation chosen right"})),
     el("table",{class:"tbl"},el("tbody",null,byRel.map(([r,n,k])=>el("tr",null,el("td",{text:rname[r]}),el("td",{class:"num"},n?k+" / "+n:"–",n?barNode(pct(k,n)):null)))))));
 

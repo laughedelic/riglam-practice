@@ -1,7 +1,6 @@
-// The five relations of two phenomena and the four cells of the grid (both, A not B, B not A, neither), and the sixth that only a pair with a
-// negated side can have: four possibilities without anything that is neither.
+// The five relations of two phenomena and the four cells of the grid (both, A not B, B not A, neither).
 
-export type RelKey = "mi" | "con" | "3ab" | "3ba" | "4" | "4n";
+export type RelKey = "mi" | "con" | "3ab" | "3ba" | "4";
 export type CellId = "both" | "anb" | "bna" | "nei";
 
 export interface Relation {
@@ -20,9 +19,10 @@ export const REL: Record<RelKey, Relation> = {
   con:  {code:"MX", name:"Mutually exclusive", gloss:()=>"Nothing is both", sets:["∩","","= ∅"], logic:["⇒","¬",""], empty:["both"]},
   "3ab":{code:"3P", name:"Three possibilities, A in B", gloss:(a,b)=>"All "+a+" are "+b+", not the reverse", sets:["⊂","",""], logic:["⇒","",""], empty:["anb"]},
   "3ba":{code:"3P", name:"Three possibilities, B in A", gloss:(a,b)=>"All "+b+" are "+a+", not the reverse", sets:["⊃","",""], logic:["⇐","",""], empty:["bna"]},
-  "4":  {code:"4P", name:"Four possibilities", gloss:()=>"They overlap; neither contains the other", sets:["∩","","≠ ∅"], logic:["⇏","¬",""], empty:[]},
-  // Perdue 2014 (after Kensur Yeshi Thupten) calls it so; Perdue 1992 (after Lati Rinpoche) calls the same case "three possibilities without there being something which is neither"
-  "4n": {code:"4PN", name:"Four possibilities without neither", gloss:()=>"They overlap, neither contains the other, and nothing is neither", sets:["∪","","= all"], logic:["∨","",""], empty:["nei"]}
+  // No relation says anything about the neither cell. With a negated side it can be empty (a negation takes in what does not exist), which the learner
+  // says in that cell: Perdue 2014 (after Kensur Yeshi Thupten) calls such a pair "four possibilities without neither", Perdue 1992 (after Lati Rinpoche)
+  // "three possibilities without there being something which is neither".
+  "4":  {code:"4P", name:"Four possibilities", gloss:()=>"They overlap; neither contains the other", sets:["∩","","≠ ∅"], logic:["⇏","¬",""], empty:[]}
 };
 export const CELLS: readonly CellId[] = ["both", "anb", "bna", "nei"];
 
@@ -56,8 +56,12 @@ export const NEG_CELL: Record<Neg, Record<CellId, CellId>> = {
 };
 /** Which of the two sides are negated, A then B. */
 export const negSides = (p: Pick<PairLike, "neg">): readonly [boolean, boolean] => [p.neg === "ab", !!p.neg];
-/** The negation of a label as the course book writes it: "non-products", and in brackets when it has more than one word, "non-(wooden things)". */
-export const negLabel = (label: string): string => "non-" + (/\s/.test(label) ? "(" + label + ")" : label);
+/**
+ * The negation of a label as the course book writes it: "non-products", and in brackets when it has more than one word, "non-(wooden things)". The brackets
+ * say what the "non-" takes in, everything that is not a wooden thing; without them ("non-wooden things", `brackets` false) the words can also be read as
+ * the things that are not wooden, which leaves out what does not exist.
+ */
+export const negLabel = (label: string, brackets = true): string => "non-" + (brackets && /\s/.test(label) ? "(" + label + ")" : label);
 /** The label a negated label was made from. */
 export const plainLabel = (label: string): string => label.replace(/^non-\((.*)\)$|^non-(.*)$/, (_, x, y) => x ?? y);
 

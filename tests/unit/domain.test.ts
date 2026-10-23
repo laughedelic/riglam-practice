@@ -1508,31 +1508,32 @@ test("examplesFor: a term's own examples first, then the plainest, a spread of c
   expect(names("Form", 0)).toEqual([]);
 });
 
-// ---------- the negation track: "non-B" pairs and four possibilities without neither ----------
+// ---------- the negation track: "non-B" pairs, where nothing may be neither ----------
 
 test("a negated side moves the things between the cells, and each move undone by itself", () => {
   const cells = { both: ["x"], anb: ["y"], bna: ["z"], nei: ["w"] };
   expect(negateCells(cells, "b")).toEqual({ both: ["y"], anb: ["x"], bna: ["w"], nei: ["z"] });
   expect(negateCells(cells, "ab")).toEqual({ both: ["w"], anb: ["z"], bna: ["y"], nei: ["x"] });
   for (const n of ["b", "ab"] as const) expect(negateCells(negateCells(cells, n), n)).toEqual(cells);
-  // something both, something in each alone, nothing neither
-  expect(relOfCells({ both: [1], anb: [1], bna: [1], nei: [] })).toBe("4n");
-  expect(REL["4n"].empty).toEqual(["nei"]);
+  // something both and something in each alone is four possibilities, whether or not anything is neither: the neither cell says nothing about the relation
+  expect(relOfCells({ both: [1], anb: [1], bna: [1], nei: [] })).toBe("4");
+  expect(relOfCells({ both: [1], anb: [1], bna: [1], nei: [1] })).toBe("4");
+  expect(Object.keys(REL).sort()).toEqual(["3ab", "3ba", "4", "con", "mi"]);
   expect(negLabel("products")).toBe("non-products");
   expect(negLabel("wooden things")).toBe("non-(wooden things)");
   expect(plainLabel("non-(non-produced phenomena)")).toBe("non-produced phenomena");
   expect(plainLabel("non-food")).toBe("food");
 });
 
-test("no plain pair is four possibilities without neither: what does not exist is neither of any two categories", () => {
-  for (const c of realPool) if (c.a !== c.b) expect(relOfCells(cellsFor(rix, c.a, c.b))).not.toBe("4n");
+test("a plain pair of four possibilities always has something neither: what does not exist is neither of any two categories", () => {
+  for (const c of realPool) if (c.a !== c.b) { const cells = cellsFor(rix, c.a, c.b); if (relOfCells(cells) === "4") expect(cells.nei.length, c.a + " / " + c.b).toBeGreaterThan(0); }
 });
 
 test("a pair with B negated: its label, its cells, its relation and why a cell is empty", () => {
   const at = () => 0;
-  // wooden things are physical: physical things and non-(wooden things) overlap, and nothing is neither
+  // wooden things are physical: physical things and non-(wooden things) overlap, and nothing is neither (nor the horn of a rabbit)
   const p = pairOf(rix, "form", "wooden", "physical things", "wooden things", seeded(1), at, undefined, [1], "b");
-  expect(p).toMatchObject({ a: "physical things", b: "non-(wooden things)", catA: "form", catB: "wooden", neg: "b", relation: "4n" });
+  expect(p).toMatchObject({ a: "physical things", b: "non-(wooden things)", catA: "form", catB: "wooden", neg: "b", relation: "4" });
   expect(p.ex!.nei).toBeNull();
   expect(p.why!.nei).toBe("Whatever falls under “wooden things” also falls under “physical things”.");
   expect(refOf(p, "nei")).toBeNull();                   // the horn of a rabbit is not "neither" here
@@ -1548,10 +1549,23 @@ test("a pair with B negated: its label, its cells, its relation and why a cell i
   expect(pairOf(rix, "form", "wooden", "physical things", "wooden things", seeded(1), at, undefined, [1]).neg).toBeUndefined();
 });
 
-test("a pair with both sides negated: what excludes each other becomes four possibilities without neither", () => {
+test("the brackets of a negated name are a choice, and the cells and the relation do not depend on it", () => {
+  expect(negLabel("wooden things", false)).toBe("non-wooden things");
+  expect(negLabel("products", false)).toBe("non-products");
+  expect(negLabel("wooden things", true)).toBe("non-(wooden things)");
+  expect(plainLabel("non-wooden things")).toBe("wooden things");
+  const make = (brackets: boolean) => pairOf(rix, "form", "wooden", "physical things", "wooden things", seeded(1), () => 0, undefined, [1], "b", brackets);
+  const [without, withBrackets] = [make(false), make(true)];
+  expect(without).toMatchObject({ a: "physical things", b: "non-wooden things", neg: "b", relation: "4" });
+  expect({ ...without, b: withBrackets.b, note: withBrackets.note }).toEqual(withBrackets);          // the note names the label, and says what it takes in either way
+  expect(without.note).toMatch(/^“non-wooden things” takes in everything outside “wooden things”/);
+});
+
+test("a pair with both sides negated: what excludes each other becomes four possibilities, with nothing neither", () => {
   const p = pairOf(rix, "form", "emotion", "forms", "emotions", seeded(2), () => 0, undefined, [1, 2, 3, 4], "ab");
   expect(relOfCells(cellsFor(rix, "form", "emotion"))).toBe("con");
-  expect(p).toMatchObject({ a: "non-forms", b: "non-emotions", neg: "ab", relation: "4n" });
+  expect(p).toMatchObject({ a: "non-forms", b: "non-emotions", neg: "ab", relation: "4" });
+  expect(p.ex!.nei).toBeNull();
   expect(p.why!.nei).toMatch(/Nothing is both\.$/);
   expect(judgeText(rix, p, "both", "the horn of a rabbit")?.v).toBe("ok");
 });
@@ -1565,9 +1579,10 @@ test("the tutor's facts on a negated side are read in reverse, and the tutor is 
   expect(parts.some((x) => x.kind === "end")).toBe(false);
   expect(negLine(p)).toMatch(/^Negation: B \("non-\(wooden things\)"\) is a negation of the category in "negation_of"/);
   expect(negLine({ a: "x", b: "y" })).toBe("");
-  const body = cardBody(rix, p, { rel: "4n", cells: { both: { t: "", none: false }, anb: { t: "", none: false }, bna: { t: "", none: false }, nei: { t: "", none: true } }, res: grade(rix, p, { rel: "4n", cells: { both: {}, anb: {}, bna: {}, nei: { none: true } } }) } as never);
+  const body = cardBody(rix, p, { rel: "4", cells: { both: { t: "", none: false }, anb: { t: "", none: false }, bna: { t: "", none: false }, nei: { t: "", none: true } }, res: grade(rix, p, { rel: "4", cells: { both: {}, anb: {}, bna: {}, nei: { none: true } } }) } as never);
   expect(body).toContain('"negation_of":');
-  expect(body).toContain("Four possibilities without neither");
+  expect(body).toContain("Correct relation: Four possibilities.");
+  expect(body).toContain('an empty Neither ("nothing exists") is then right');
   // what is not known of the categories themselves is the tutor's to check, and nothing is asked of the server
   expect(openExamples(p, { cells: { both: { v: "cmp", msg: [], kind: "ex" } } as never }, [{ text: "a pebble", cells: ["both"] }])).toEqual([]);
   // the general rule that only Neither takes what does not exist is set aside on this pair, in the card and in the question
@@ -1576,8 +1591,8 @@ test("the tutor's facts on a negated side are read in reverse, and the tutor is 
   expect(explainAsk({ res }, true)).toContain('as no for a plain term and yes for a "non-" term');
   expect(explainAsk({ res })).toContain("but in Neither a non-existent");
   // a flag on the pair is reviewed on the server with the negation
-  expect(readReviewAnswer({ chosen: "4n", pair: { a: p.a, b: p.b, relation: p.relation, neg: "b" } })?.pair.neg).toBe("b");
-  const req = reviewRequest(rix, { what: "the explanation", shown: "It is four possibilities." } as never, readReviewAnswer({ chosen: "4n", pair: { ...p }, cells: {} })!);
+  expect(readReviewAnswer({ chosen: "4", pair: { a: p.a, b: p.b, relation: p.relation, neg: "b" } })?.pair.neg).toBe("b");
+  const req = reviewRequest(rix, { what: "the explanation", shown: "It is four possibilities." } as never, readReviewAnswer({ chosen: "4", pair: { ...p }, cells: {} })!);
   expect(req).toContain('Negation: B ("non-(wooden things)")');
   expect(req).toContain('"negation_of":');
   expect(readReviewAnswer({ chosen: null, pair: { a: p.a, b: p.b, relation: p.relation, neg: "x" } })?.pair.neg).toBeUndefined();
