@@ -226,6 +226,9 @@ withKey("the tutor's note under an example is a list of steps in the tutor's blo
   const note = page.locator(".exr .tnote").first();
   await expect(note).toBeVisible();
   await expect(note.locator(".tutn")).toHaveText("the tutor");
+  const [label, flag] = await Promise.all([note.locator(".tutn").boundingBox(), note.locator(".pflg").boundingBox()]);
+  expect(Math.abs((flag.y + flag.height / 2) - (label.y + label.height / 2)), "the flag is on the label's line").toBeLessThan(8);
+  expect(flag.x, "at the right of the block").toBeGreaterThan(label.x + 100);
   await expect(note.locator(".tsteps li").first()).toContainText("It follows it is");
   await expect(note).not.toContainText("Take ");   // the "take" line repeated the answer above it
 });
@@ -337,14 +340,63 @@ test("the text fields of the practice ask the browser for no autofill", async ({
   expect(await hints(page.locator("textarea.ptext"))).toEqual({ ac: "off", cap: "off", fix: "off", pw: "true", one: "true" });
 });
 
-test("the top bar's diamond has no line of its own, and the first section's line starts at its own diamond", async ({ page }) => {
+test("the top bar's diamond has no line of its own, and the first section's line comes up out of nothing from its top", async ({ page }) => {
   await start(page);
   const r = await page.evaluate(() => {
-    const sx = document.querySelector("#path .sx.first");
-    return { stub: getComputedStyle(document.querySelector("#path .tstn"), "::after").content, top: getComputedStyle(sx, "::before").top };
+    const sx = document.querySelector("#path .sx.first"), st = getComputedStyle(sx, "::before");
+    return { stub: getComputedStyle(document.querySelector("#path .tstn"), "::after").content, top: st.top, mask: st.maskImage || st.webkitMaskImage };
   });
   expect(r.stub, "no stub going down from the top bar's diamond").toBe("none");
-  expect(r.top).toBe("24px");
+  expect(r.top, "it starts where the section does, with no gap above it").toBe("0px");
+  expect(r.mask, "and fades in from there").toContain("linear-gradient");
+});
+
+test("a tap or an Enter in a field leaves no focus ring on what takes the focus; the Tab key brings the ring", async ({ page }) => {
+  await start(page);
+  await choices(page).first().click();
+  const field = page.locator("#cin");
+  await expect(field).toBeVisible();
+  await page.locator("#path .pstrip .knob").focus();   // what the focus is on after a field hands it over
+  const ring = () => page.evaluate(() => { const e = document.activeElement; return e ? getComputedStyle(e).outlineStyle : "none"; });
+  expect(await ring()).toBe("none");
+  await page.keyboard.press("Tab");
+  await expect(page.locator("html")).toHaveClass(/\bpa-tab\b/);
+  await page.locator("#path .pstrip .knob").focus();
+  expect(await ring()).toBe("solid");
+  await page.mouse.click(300, 400);
+  await expect(page.locator("html")).not.toHaveClass(/\bpa-tab\b/);
+});
+
+const withDefs = withCourse ? test : test.skip;
+withDefs("a definition opened from a class under a term comes under the whole pair and leaves the relation's figure where it was", async ({ page }) => {
+  await start(page);
+  await answer(page);
+  await page.locator("#stn").click();
+  await expect(page.locator(".pvline")).toBeVisible();
+  const mark = page.locator("#path .pn.res .cls .dterm").first();
+  await expect(mark).toBeVisible();
+  const fig = page.locator("#path .pn.res svg.rfig.pnode"), termA = page.locator("#path .pn.res .pnl.a");
+  const off = async () => (await fig.boundingBox()).y - (await termA.boundingBox()).y;   // against the first term: the page may scroll to the card
+  await page.waitForTimeout(600);   // the result settles first
+  const at = await off();
+  await mark.click();
+  const card = page.locator("#path .pn.res .pndef .pdef");
+  await expect(card).toBeVisible();
+  const [b, c] = await Promise.all([page.locator("#path .pn.res .pnl.b").boundingBox(), card.boundingBox()]);
+  expect(Math.abs((await off()) - at), "the figure has not moved against the terms").toBeLessThan(1.5);
+  expect(c.y, "the card is under the second term").toBeGreaterThan(b.y + b.height - 2);
+});
+
+test("the practice options' knob sits on the sheet's edge, splitting its line", async ({ page }) => {
+  await start(page);
+  await page.getByRole("button", { name: "Practice options" }).click();
+  const knob = page.getByRole("button", { name: "Fold the practice options away" });
+  await expect(knob).toBeVisible();
+  await page.waitForTimeout(500);
+  const [k, sheet] = await Promise.all([knob.boundingBox(), page.locator("#path .psheet.on").boundingBox()]);
+  const edge = sheet.y + sheet.height;
+  expect(k.y, "the knob starts above the edge").toBeLessThan(edge);
+  expect(k.y + k.height, "and ends below it").toBeGreaterThan(edge);
 });
 
 test("the whole Skip station takes the slide, not the diamond alone: from its word, from beside the diamond, and with the mouse", async ({ page }) => {

@@ -15,11 +15,18 @@ function autoExplainDefault(): void {
   let kept: string | null = null; try { kept = localStorage.getItem("rd-autoexplain"); } catch { /* storage blocked */ }
   if (kept === null && pathOn()) state.autoExplain = currentLook().tutorAuto === "on";
 }
+/** The focus ring (styles/33-path-base.css) shows once the Tab key has been pressed and goes at the next touch or click. */
+function ringOnTab(): void {
+  const root = document.documentElement;
+  addEventListener("keydown", (e) => { if (e.key === "Tab") root.classList.add("pa-tab"); }, true);
+  for (const t of ["pointerdown", "touchstart", "mousedown"]) addEventListener(t, () => root.classList.remove("pa-tab"), { capture: true, passive: true });
+}
 /** At the start: the device's choice, else the Path in a Preview and the classic page in the real app. */
 export function startDesign(preview: boolean): void {
   let kept: string | null = null; try { kept = localStorage.getItem(KEY); } catch { /* storage blocked */ }
   state.design = kept === "path" || kept === "classic" ? kept : preview ? "path" : "classic";
   autoExplainDefault();
+  ringOnTab();
   syncDesign();
   try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (pathOn() && currentLook().mode === "system") render(); }); } catch { /* no media queries */ }
 }

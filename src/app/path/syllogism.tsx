@@ -18,8 +18,10 @@ import { D, Gap, Head, Mark, St, Sx, NOFILL } from "./ui.tsx";
 const SAY: Record<Reply, string> = { accept: "I accept", reason: "The reason is not established", pervasion: "There is no pervasion" };
 const GLOSS: Record<Reply, string> = { accept: "the reason holds and it pervades", reason: "the subject is not the reason", pervasion: "the reason does not bring the predicate" };
 const MEANS: Record<Reply, string> = { accept: "S is R, and everything that is R is P", reason: "S is not R", pervasion: "S is R, but not everything that is R is P" };
-/** A reply inside a sentence: "You answered there is no pervasion." */
+/** A reply inside a sentence: "There is no pervasion." */
 const SAID: Record<Reply, string> = { accept: "I accept", reason: "the reason is not established", pervasion: "there is no pervasion" };
+
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 type Part = "subject" | "predicate" | "reason";
 /** The sentence in three lines, one for each part, in the wording picked: the words before a part go with it, a stop right after it too. */
@@ -91,8 +93,8 @@ function ResultStep() {
   const v = g.correct ? (u.overall === "part" ? "pt" : "ok") : "no";
   const word = g.correct ? (u.overall === "part" ? "Partly right" : "Right") : u.timeout ? "Time is up" : "Not quite";
   const sub = u.overall === "part" ? "the counter-example is not one" : u.ex && u.ex.v === "ok" ? "your reply and the counter-example" : undefined;
-  const said: ComponentChildren = g.correct ? <>You answered <b class="yours">{SAID[g.said as Reply]}</b>.</>
-    : g.said ? <>You answered <s class="no">{SAID[g.said as Reply]}</s>; <span class="fix">{SAID[g.expected as Reply]}</span>.</>
+  const said: ComponentChildren = g.correct ? <b class="yours">{cap(SAID[g.said as Reply])}.</b>
+    : g.said ? <><s class="no">{cap(SAID[g.said as Reply])}</s>; <span class="fix">{SAID[g.expected as Reply]}</span>.</>
     : <>No reply in time; it is <span class="fix">{SAID[g.expected as Reply]}</span>.</>;
   return <>
     <Scroll>

@@ -17,13 +17,13 @@
 .pa .sx.okp::before{background:var(--green); opacity:1}
 .pa .sx.nop::before{background:var(--red); opacity:1}
 .pa .sx.ptp::before{background:var(--partc); opacity:1}
-/* the first section's line starts at its diamond; the top bar's diamond has no line of its own */
-.pa .sx.first::before{top:24px}
+/* the first section's line comes up out of nothing from its top (it goes on to the earlier steps above), and the top bar's diamond has no line of its own */
+.pa .sx.first:not(.ptail)::before{-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 30px); mask-image:linear-gradient(to bottom,transparent 0,#000 30px)}
 .pa .sx.ptail{flex:1; min-height:28px}
 .pa .sx.ptail::before{background:var(--ahead-bg); opacity:.9}
 .pa.edge-fade .sx.ptail::before{background:linear-gradient(to bottom,var(--ink3),transparent 65%)}
 /* a fade after a dotted segment goes on dotted, and fades out */
-.pa.edge-fade:not(.ready):not(.done) .sx.gap + .sx.ptail::before{background:repeating-linear-gradient(to bottom,transparent 0 5px,var(--ink3) 5px 8px)}
+.pa.edge-fade:not(.ready):not(.done) .sx.gap + .sx.ptail::before{background:repeating-linear-gradient(to bottom,var(--ink3) 0 3px,transparent 3px 8px)}
 .pa.edge-fade.ah-dot:not(.ready):not(.done) .sx.ahead + .sx.ptail::before,.pa.edge-fade.ah-dash:not(.ready):not(.done) .sx.ahead + .sx.ptail::before{background:var(--ahead-bg)}
 .pa.edge-fade:not(.ready):not(.done) .sx.gap + .sx.ptail::before,.pa.edge-fade.ah-dot:not(.ready):not(.done) .sx.ahead + .sx.ptail::before,.pa.edge-fade.ah-dash:not(.ready):not(.done) .sx.ahead + .sx.ptail::before{
   -webkit-mask-image:linear-gradient(to bottom,#000,transparent 65%); mask-image:linear-gradient(to bottom,#000,transparent 65%)}
