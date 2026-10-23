@@ -13,7 +13,6 @@ import { renderFind } from "../find/screen.js";
 import { placePops, renderQuiz } from "../practice/screen.js";
 import { closeSkipAsk, skipInto, skipNow } from "../practice/skips.js";
 import { renderSyllogism } from "../syllogism/screen.js";
-import { openChat } from "../shell/chat.js";
 import { exName } from "../shell/exercises.js";
 import { fitPair, isEx } from "../shell/render.js";
 import { applyLook, currentLook, darkNow, lookClasses } from "./look.ts";
@@ -38,11 +37,10 @@ function built(make: (box: HTMLElement, side: HTMLElement) => void): Node[] {
   make(box, side);
   return [...box.childNodes];
 }
-const waitingAnswer = () => { const u = state.ui; return !!u && !!u.chat && u.chat.some((t: { role: string; pending?: boolean; content?: string }) => t.role === "assistant" && !t.pending && t.content); };
 
 /** An exercise in a state the Path does not draw (none is expected): the classic screen, with its steps above it and its bar of buttons at its foot. */
 function Hosted() {
-  const u = state.ui, tab = state.tab, ai = canAsk() && !(u && u.cats);
+  const u = state.ui, tab = state.tab;
   const fill = () => {
     const st = $("steps"); st.replaceChildren(); st.hidden = true;
     const nodes = built((s, c) => {
@@ -56,7 +54,7 @@ function Hosted() {
     return [steps, ...nodes];
   };
   return <>
-    <TopBar title={exName(tab)} tools tutor={ai && u && (u.checked || u.chat) ? openChat : null} tutorDot={waitingAnswer()} />
+    <TopBar title={exName(tab)} tools />
     <Bridge cls="card" fill={fill} after={() => { fitPair(); placePops(); }} />
   </>;
 }
@@ -97,7 +95,7 @@ export function App() {
   const [pull] = useState(() => new Pull()), root = useRef<HTMLDivElement>(null), look = currentLook();
   const [kb, setKb] = useState(false), [small, setSmall] = useState(false), wasChecked = useRef(false);
   const s = screen(kb), over = state.menuOpen || (state.sessOpen && isEx() && state.mode === "quiz") || (state.skipAsk && isEx());
-  const cls = ["pa", ...lookClasses(look, darkNow(look)), s.cls, kb ? "kbup" : "", kb && small ? "ph-small" : "", state.ui && state.ui.ctl ? "pthink" : "", state.showAB ? "" : "sj-off"].filter(Boolean).join(" ");
+  const cls = ["pa", ...lookClasses(look, darkNow(look)), s.cls, kb ? "kbup" : "", kb && small ? "ph-small" : "", state.showAB ? "" : "sj-off"].filter(Boolean).join(" ");
   useLayoutEffect(() => {
     const r = root.current; if (!r) return;
     pull.root = r;

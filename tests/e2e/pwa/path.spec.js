@@ -155,7 +155,7 @@ async function tutorServer(page) {
   return asked;
 }
 
-withKey("Why asks the tutor on the result, and its button in the top bar opens the conversation", async ({ page }) => {
+withKey("Why asks the tutor on the result, and Ask a follow-up opens the conversation; the top bar has no tutor button", async ({ page }) => {
   const asked = await tutorServer(page);
   await start(page);
   await answer(page);
@@ -165,7 +165,8 @@ withKey("Why asks the tutor on the result, and its button in the top bar opens t
   await why.click();
   await expect(page.locator(".wtext")).toContainText("this is the stand-in answer.");
   expect(asked).toHaveLength(1);
-  await page.getByRole("button", { name: /^The tutor/ }).click();
+  await expect(page.locator("#path .ptb").getByRole("button", { name: /^The tutor/ })).toHaveCount(0);
+  await page.getByRole("button", { name: "Ask a follow-up" }).click();
   await expect(page.locator(".ptb-t")).toContainText("The tutor");
   await expect(page.locator("#path .ptalk")).toContainText("this is the stand-in answer.");
   await expect(page.locator("#ask-in")).toBeVisible();
@@ -260,4 +261,51 @@ test("the path line is not split: the first section's line starts where the top 
     return Math.round(top - bar.bottom);
   });
   expect(gap, "px between the bar's lower edge and the start of the first line").toBeLessThanOrEqual(1);
+});
+
+test("the whole Skip station takes the slide, not the diamond alone: from its word, from beside the diamond, and with the mouse", async ({ page }) => {
+  await start(page);
+  const sides = page.locator(".foot .sides");
+  await expect(sides).toBeVisible();
+  const slide = async (at, d = 140) => {
+    const b = await sides.boundingBox(), x = b.x + at.x, y = b.y + at.y;
+    await page.mouse.move(x, y); await page.mouse.down();
+    for (let i = 1; i <= 8; i++) await page.mouse.move(x - (d * i) / 8, y);
+    await page.mouse.up();
+  };
+  // from the word (right of the diamond), then from just left of the diamond, then from the line's end
+  for (const at of [{ x: 62, y: 14 }, { x: 4, y: 24 }, { x: 90, y: 24 }]) {
+    const before = await page.locator(".pair .pa-a, #path .pairl, #path .sx.first").first().innerText();
+    await slide(at);
+    await expect(page.locator("#path .ptoast.on")).toContainText("Skipped");
+    await expect(choices(page)).toHaveCount(5);
+    await page.waitForTimeout(2200);   // the note leaves, so that the next slide is seen on its own
+    expect(await page.locator("#path .sx.first").first().innerText(), "a new pair").not.toBe(before);
+  }
+});
+
+test("the line's steps are smooth: a segment after a thicker one narrows into its own width, and the fade after the dotted choices is dotted", async ({ page }) => {
+  await start(page);
+  const line = (sel) => page.locator(sel).first().evaluate((e) => { const c = getComputedStyle(e, "::before"); return { w: c.width, clip: c.clipPath, bg: c.backgroundImage, mask: c.maskImage || c.webkitMaskImage }; });
+  const tail = await line("#path .sx.gap + .sx.ptail");
+  expect(tail.w, "the box is as wide as the thicker of the two segments").toBe("3px");
+  expect(tail.clip, "it narrows to its own width").toContain("polygon");
+  expect(tail.bg, "the fade goes on dotted").toContain("repeating-linear-gradient");
+  expect(tail.mask, "and fades out").toContain("linear-gradient");
+  const first = await line("#path .sx.first");
+  expect(first.clip, "the first segment widens from the top bar's stub").toContain("polygon");
+});
+
+test("a picked relation's figure sits on the row's tint, with no box around it", async ({ page }) => {
+  await start(page);
+  const row = choices(page).nth(1);
+  const fig = row.locator("svg.rfig");
+  await row.evaluate((e) => e.classList.add("picked"));
+  await page.waitForTimeout(300);   // the row's tint and the figure's backing both ease in
+  const [backing, tint] = await Promise.all([
+    fig.evaluate((e) => getComputedStyle(e).backgroundColor),
+    page.evaluate(() => { const p = document.createElement("i"); p.style.backgroundColor = "var(--blue-tp)"; document.querySelector("#path .pa").appendChild(p); const c = getComputedStyle(p).backgroundColor; p.remove(); return c; }),
+  ]);
+  expect(backing).toBe(tint);
+  expect(backing).not.toBe(await page.evaluate(() => { const p = document.createElement("i"); p.style.backgroundColor = "var(--paper)"; document.querySelector("#path .pa").appendChild(p); const c = getComputedStyle(p).backgroundColor; p.remove(); return c; }));
 });

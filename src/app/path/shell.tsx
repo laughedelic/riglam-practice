@@ -4,7 +4,6 @@ import { createContext } from "preact";
 import type { ComponentChildren } from "preact";
 import { useContext, useRef } from "preact/hooks";
 import { state } from "../state.js";
-import { canAsk } from "../core/ask.js";
 import { setBlitz } from "../debate/flow.js";
 import { undoSkip } from "../practice/skips.js";
 import { toggleMenu } from "../shell/menu.js";
@@ -19,10 +18,10 @@ export const PullCtx = createContext<Pull>(new Pull());
 
 /** The tutor's button: what it does on the screen in front of it (set by the screen), or null when it waits for a result. `mic`: the screen is
  *  drawn on the Path and can be answered by voice (a hosted classic screen has the microphone in its own bar). */
-export interface TopBarProps { title: string; tools?: boolean; tutor?: (() => void) | null; tutorDot?: boolean; mic?: boolean }
+export interface TopBarProps { title: string; tools?: boolean; mic?: boolean }
 
 const HOLD_MS = 500;
-export function TopBar({ title, tools = false, tutor = null, tutorDot = false, mic = false }: TopBarProps) {
+export function TopBar({ title, tools = false, mic = false }: TopBarProps) {
   const bar = useRef<HTMLElement>(null), drag = useRef<{ y0: number; d: number } | null>(null), hold = useRef<ReturnType<typeof setTimeout> | undefined>(undefined), held = useRef(false);
   const road = () => bar.current && bar.current.closest(".pa")?.querySelector<HTMLElement>(".road");
   // pull the bar down for the roadmap: it follows the finger, and opens past 90 px
@@ -54,8 +53,6 @@ export function TopBar({ title, tools = false, tutor = null, tutorDot = false, m
       onPointerDown={bzDown} onPointerUp={bzStop} onPointerLeave={bzStop} onPointerCancel={bzStop} onContextMenu={(ev) => ev.preventDefault()}
       onClick={() => { if (held.current) { held.current = false; return; } setBlitz(!state.blitz); }}><Icon n="blitz" />{state.blitz ? <span class="dot" /> : null}</button> : null}
     {tools && ex ? <button type="button" class="pib" aria-label="Practice options" aria-expanded={state.sessOpen ? "true" : "false"} onClick={() => toggleSess(!state.sessOpen)}><Icon n="opts" /></button> : null}
-    {tools && ex && canAsk() && !(u && u.cats) ? <button type="button" class="pib" aria-label={tutorDot ? "The tutor, an answer is waiting" : "The tutor"} aria-disabled={tutor ? "false" : "true"}
-      onClick={() => tutor ? tutor() : pathNote("The tutor speaks after the check")}><Icon n="tutor" />{tutorDot ? <span class="dot dt" /> : null}</button> : null}
     {tq ? <div key={tq.t0 + "/" + tq.limit} class={"pclock" + (u.late ? " late" : "")} aria-hidden="true" style={{ "--t": tq.limit + "ms", "--e": e + "ms" }}><i /></div> : null}
   </header>;
 }
@@ -146,20 +143,21 @@ export function SideStation({ kind, label, act, disabled = false }: { kind: "ski
     if (!s.moved && tutor) { act(); return; }
     if (!s.moved) { b.classList.remove("nudge"); void b.offsetWidth; b.classList.add("nudge"); say("slide it left"); setTimeout(() => { b.classList.remove("nudge"); say(idle); }, 1400); }
   };
-  return <div ref={box} class={"sides" + (tutor ? " ws" : "")} aria-disabled={disabled ? "true" : undefined}>
+  // the whole station takes the slide (the diamond, its word and the dashed line), not the diamond alone
+  return <div ref={box} class={"sides" + (tutor ? " ws" : "")} aria-disabled={disabled ? "true" : undefined}
+    onPointerDown={(e) => { g.current = { x0: e.clientX, moved: false, past: false }; (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); box.current?.classList.add("dragging"); }}
+    onPointerMove={(e) => {
+      const s = g.current; if (!s || !box.current) return;
+      const raw = Math.max(0, s.x0 - e.clientX); if (raw > 4) s.moved = true;
+      set(-(raw < SLIDE ? raw : SLIDE + (raw - SLIDE) * 0.3));
+      const p = raw >= SLIDE;
+      if (p !== s.past) { s.past = p; box.current.classList.toggle("past", p); if (p) buzz(); }
+      say(p ? (tutor ? "let go to open" : "let go to " + idle.toLowerCase()) : "slide left");
+    }}
+    onPointerUp={end}
+    onPointerCancel={() => { g.current = null; set(0); box.current?.classList.remove("dragging", "past"); say(idle); }}>
     <span class="skl" aria-hidden="true" /><span class="skh" aria-hidden="true" ref={hint}>{idle}</span>
     <button type="button" class="skd" aria-label={tutor ? "Why, from the tutor: slide it left, tap it, or press Enter" : (label || "Skip") + ": slide it left, or press Enter"}
-      onPointerDown={(e) => { g.current = { x0: e.clientX, moved: false, past: false }; (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); box.current?.classList.add("dragging"); }}
-      onPointerMove={(e) => {
-        const s = g.current; if (!s || !box.current) return;
-        const raw = Math.max(0, s.x0 - e.clientX); if (raw > 4) s.moved = true;
-        set(-(raw < SLIDE ? raw : SLIDE + (raw - SLIDE) * 0.3));
-        const p = raw >= SLIDE;
-        if (p !== s.past) { s.past = p; box.current.classList.toggle("past", p); if (p) buzz(); }
-        say(p ? (tutor ? "let go to open" : "let go to " + idle.toLowerCase()) : "slide left");
-      }}
-      onPointerUp={end}
-      onPointerCancel={() => { g.current = null; set(0); box.current?.classList.remove("dragging", "past"); say(idle); }}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); act(); } }}>
       <span class="sd"><Icon n={tutor ? "q" : "skip"} /></span>
     </button>

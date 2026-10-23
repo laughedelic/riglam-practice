@@ -2,10 +2,17 @@
 .pa.ah-dot{--ahead-bg:repeating-linear-gradient(to bottom,var(--ink3) 0 3px,transparent 3px 8px)}
 .pa.ah-dash{--ahead-bg:repeating-linear-gradient(to bottom,var(--ink3) 0 9px,transparent 9px 15px)}
 .pa.ah-fade{--ahead-bg:linear-gradient(to bottom,var(--ink3),transparent 85%)}
-.pa .sx{position:relative}
-.pa .sx::before{content:""; position:absolute; top:0; bottom:0; left:calc(var(--m) - var(--lw) / 2); width:var(--lw); background:var(--ink); opacity:.72}
-.pa .sx.cur::before{background:var(--gold); opacity:1; width:var(--lh); left:calc(var(--m) - var(--lh) / 2)}
-.pa .sx.gap::before{background:repeating-linear-gradient(to bottom,var(--gold) 0 3px,transparent 3px 8px); opacity:1; width:var(--lh); left:calc(var(--m) - var(--lh) / 2)}
+.pa .sx{position:relative; --w:var(--lw); --pw:var(--w)}
+/* a segment is --w wide (the current one and the pending choices are a pixel wider); its first 34 px start as wide as the segment before it (--pw) and
+   narrow or widen to their own as the color blends, so that two segments are not glued together at a step */
+.pa .sx.cur,.pa .sx.gap,.pa.ready .sx.ptail{--w:var(--lh)}
+.pa .sx.first{--pw:var(--lw)}
+.pa .sx.cur + .sx,.pa .sx.gap + .sx{--pw:var(--lh)}
+.pa .sx:not(.cur):not(.gap) + .sx{--pw:var(--lw)}
+.pa .sx::before{content:""; position:absolute; top:0; bottom:0; left:calc(var(--m) - max(var(--w),var(--pw)) / 2); width:max(var(--w),var(--pw)); background:var(--ink); opacity:.72;
+  clip-path:polygon(calc(50% - var(--pw) / 2) 0, calc(50% + var(--pw) / 2) 0, calc(50% + var(--w) / 2) min(var(--smw,34px),100%), calc(50% + var(--w) / 2) 100%, calc(50% - var(--w) / 2) 100%, calc(50% - var(--w) / 2) min(var(--smw,34px),100%))}
+.pa .sx.cur::before{background:var(--gold); opacity:1}
+.pa .sx.gap::before{background:repeating-linear-gradient(to bottom,var(--gold) 0 3px,transparent 3px 8px); opacity:1}
 .pa .sx.ahead::before{background:var(--ahead-bg); opacity:.9}
 .pa .sx.okp::before{background:var(--green); opacity:1}
 .pa .sx.nop::before{background:var(--red); opacity:1}
@@ -15,7 +22,12 @@
 .pa .sx.ptail{flex:1; min-height:28px}
 .pa .sx.ptail::before{background:var(--ahead-bg); opacity:.9}
 .pa.edge-fade .sx.ptail::before{background:linear-gradient(to bottom,var(--ink3),transparent 65%)}
-.pa.ready .sx.ptail::before{background:var(--gold); opacity:1; width:var(--lh); left:calc(var(--m) - var(--lh) / 2)}
+/* a fade after a dotted segment goes on dotted, and fades out */
+.pa.edge-fade:not(.ready):not(.done) .sx.gap + .sx.ptail::before{background:repeating-linear-gradient(to bottom,transparent 0 5px,var(--ink3) 5px 8px)}
+.pa.edge-fade.ah-dot:not(.ready):not(.done) .sx.ahead + .sx.ptail::before,.pa.edge-fade.ah-dash:not(.ready):not(.done) .sx.ahead + .sx.ptail::before{background:var(--ahead-bg)}
+.pa.edge-fade:not(.ready):not(.done) .sx.gap + .sx.ptail::before,.pa.edge-fade.ah-dot:not(.ready):not(.done) .sx.ahead + .sx.ptail::before,.pa.edge-fade.ah-dash:not(.ready):not(.done) .sx.ahead + .sx.ptail::before{
+  -webkit-mask-image:linear-gradient(to bottom,#000,transparent 65%); mask-image:linear-gradient(to bottom,#000,transparent 65%)}
+.pa.ready .sx.ptail::before{background:var(--gold); opacity:1}
 .pa.done .sx.ptail::before{background:var(--ink); opacity:.72}
 /* a long run down to the station fades out and back in (Review always; elsewhere with Line to the station: fades) */
 .pa.review .sx.ptail.long::before,.pa.edge-fade.ready .sx.ptail.long::before,.pa.edge-fade.done .sx.ptail.long::before{
@@ -113,7 +125,7 @@
 .pa .crow:first-child{border-top:0}
 .pa .crow .mc{justify-self:end; display:grid; place-items:center; position:relative; z-index:1}
 .pa .crow .mc .d{margin-right:-5px}
-.pa .crow .mc svg.rfig{margin-right:-11px; background:var(--paper); padding:2px 0; box-sizing:content-box}
+.pa .crow .mc svg.rfig{margin-right:-11px; background:var(--paper); padding:2px 0; box-sizing:content-box; transition:background-color .2s}
 .pa .rsym{font-family:var(--mono); font-size:12px; font-weight:400; color:var(--ink3); margin-left:8px; letter-spacing:0}
 .pa .crow .ct{padding-left:22px; padding-right:8px; min-width:0}
 .pa .crow b{display:block; font-size:19px; font-weight:600; color:var(--blue); line-height:1.2}
@@ -121,6 +133,8 @@
 .pa .crow .kn{font-family:var(--mono); font-size:10.5px; color:var(--ink3); align-self:start; padding-top:4px}
 @media (hover:hover){ .pa .crow:hover b{text-decoration:underline; text-underline-offset:4px; text-decoration-thickness:1px} }
 .pa .crow.picked{background-color:var(--blue-t)}
+/* the figure's backing hides the line behind it: on a picked row it is the row's tint as an opaque color, so that no box shows around it */
+.pa .crow.picked .mc svg.rfig{background:var(--blue-tp)}
 .pa .crow.picked .d{background-color:var(--blue); box-shadow:none}
 .pa .chs.fading .crow:not(.picked){opacity:.3}
 .pa .crow .spur{position:absolute; left:calc(var(--m) - 1px); top:-1px; width:34px; height:34px; overflow:visible; pointer-events:none}
