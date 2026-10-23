@@ -57,6 +57,7 @@ function saveExplain(U){ persist(U,U.debate?"Your debate":"Your answer"); }
 // answer, only where the tutor can answer (a device without the Magic Key still gets the grayed button), and it leaves the screen and the focus where they are.
 export function explainByItself(U){
   if(!state.autoExplain||U!==state.ui||!U.checked||U.explained||U.ctl||!canAsk()) return;
+  U.pwhy=true;   // the Path's Why row opens by itself while the explanation is written by itself
   ask(null,"explain",true);
 }
 export async function ask(text,kind,byItself){

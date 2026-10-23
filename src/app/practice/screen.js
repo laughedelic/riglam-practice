@@ -109,6 +109,8 @@ export const noteData=(p=state.cur.p)=>({ix:state,p,terms:{a:singular(p.a),b:sin
 // `ctx` ({p, accepted}) is given where a stored note is shown away from the exercise on screen (Review): its pair and what was accepted, not the live ones
 const partsOf=(f,ctx)=>noteParts(f,ctx?ctx.accepted(f):acceptedQ(f),noteData(ctx?ctx.p:undefined));
 export const factText=f=>partsText(partsOf(f),noteData().terms);
+// the same as the steps a page draws itself (the Path writes them as a list), not as text
+export const factParts=f=>partsOf(f);
 // the same for a stored note, read against its own pair and answers (`ctx`, review/exercise.js noteContext)
 export const factTextIn=(f,ctx)=>partsText(partsOf(f,ctx),noteData(ctx.p).terms);
 // the terms with their A/B markers and the "not" as the questions show them; why a denied term follows goes on a line under it

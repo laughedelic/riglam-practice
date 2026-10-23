@@ -13,7 +13,7 @@ import { render } from "../shell/render.js";
 import type { RelKey } from "../../ai-shared/relations.ts";
 import { ExamplesStep, StripPair, examplesReady } from "./examples.tsx";
 import { refreshPath } from "./index.tsx";
-import { Choices, ErrLines, PairResult, TermsRow, Verdict, WhyRow, needsKey, pairOf, u0 } from "./parts.tsx";
+import { Choices, ErrLines, PairResult, Verdict, WhyRow, needsKey, pairOf, u0 } from "./parts.tsx";
 import { Row, cases, isOpen, resultRows } from "./relations.tsx";
 import { Scroll } from "./scroll.tsx";
 import { Foot, HideKeys, KbdStation, PreStation, SideStation, Station, TopBar } from "./shell.tsx";
@@ -121,7 +121,6 @@ function ResultStep() {
       <Sx cls="walked"><St d={<D cls={"sub " + pm} />} cls="sb exr pairv"><span class="lab">the pair</span><p class="xnote">{pairLine}</p></St></Sx>
       <Sx cls={nbad ? "nop" : "okp"}><Gap h={2} />{(r.relOpen ? CELLS.filter((c) => !REL[rel].empty.includes(c)) : rows).map((c) => <Row c={c} rel={rel} />)}</Sx>
       <WhyRow unc={unc} again={!!r.relOpen} todo={r.relOpen ? "judge your pair and explain" : undefined} />
-      {p.own ? null : <TermsRow p={p} />}
       <ErrLines />
       <Sx cls="ptail" />
     </Scroll>

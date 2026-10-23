@@ -79,7 +79,7 @@ export function Toast() {
   return <div class={"ptoast" + (text ? " on" : "")} role="status">{text}{sk ? <button type="button" onClick={undoSkip}>Undo</button> : null}</div>;
 }
 
-/** The station at the edge, ready: pull it up past the line, tap it, or press Enter. */
+/** The station at the edge, ready: pull it up past the line, tap it, or press Enter (the end of the line says so, ui.tsx Sx). */
 export function Station({ name, hint = "", act, arrive = false }: { name: string; hint?: string; act: () => void; arrive?: boolean }) {
   const pull = useContext(PullCtx); pull.act = act;
   const g = useRef<{ y0: number; moved: boolean; past: boolean } | null>(null);
