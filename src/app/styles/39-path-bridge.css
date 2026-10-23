@@ -25,7 +25,7 @@
 .pa .pbr.pvoice .btn,.pa .pbr.pvoice .btn.ghost,.pa .pbr.pvoice .btn:hover,.pa .pbr.pvoice .btn.ghost:hover{height:auto; min-height:32px; padding:6px 0; background:none; box-shadow:none;
   font-family:var(--mono); font-size:12.5px; font-weight:600; letter-spacing:0; text-transform:none; color:var(--blue); text-decoration:underline; text-underline-offset:4px}
 .pa .pbr.pvoice .btn.ghost,.pa .pbr.pvoice .btn.ghost:hover{color:var(--ink2)}
-.pa .pbr.pvoice .btn:focus-visible{outline:2px solid var(--blue); outline-offset:1px; box-shadow:none}
+html.pa-tab .pa .pbr.pvoice .btn:focus-visible{outline:2px solid var(--blue); outline-offset:1px; box-shadow:none}
 /* the two dialogs the classic page opens over the Path, native dialogs outside #path (the question before a device's examples are kept, ai/share-notice.js; the
    Magic Key, pwa/unlock.ts): the root's variables do not reach them, so applyLook also keeps the palette on the html element as --pa-*, and here they take it, the Path's
    face and its text buttons (the question before a skip, .pdlg, looks the same) */

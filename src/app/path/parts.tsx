@@ -67,7 +67,7 @@ function ClassOf({ label, cat, where }: { label: string; cat?: string | null; wh
   const li = lineageOf(cat || catByLabel(label)); if (!li) return null;
   const name: string | undefined = li.everyday ? li.names[0] : li.names[1]; if (!name) return null;
   const low = name.toLowerCase();
-  return <><small class="cls">each is {/^[aeiou]/.test(low) ? "an" : "a"} <OneTerm txt={low} term={name} where={where} /></small><DefCard where={where} /></>;
+  return <small class="cls">each is {/^[aeiou]/.test(low) ? "an" : "a"} <OneTerm txt={low} term={name} where={where} /></small>;
 }
 /**
  * The pair at the head of a result, with the relation given and its verdict at the right: `mine` the relation named, `ok` whether it is the
@@ -82,7 +82,8 @@ export function PairResult({ mine, ok, right, none, classes = true }: { mine: Re
     <div class={"pn res" + (long ? " long" : "") + (state.db && !p.own ? " rstar" : "")}><i class="pnm a">A</i><i class="pnm b">B</i><Fig k={mine} size="pnode" />
       <span class="pnl a"><i>A</i><span class="tw"><b>{p.a}</b>{classes && !na ? <ClassOf label={p.a} cat={p.catA} where="pca" /> : null}</span></span>
       <span class="pnl b"><i>B</i><span class="tw"><b>{p.b}</b>{classes && !nb ? <ClassOf label={p.b} cat={p.catB} where="pcb" /> : null}</span></span>
-      {state.db && !p.own ? <span class="pnr"><Star /></span> : null}<span class="pnn rv">{rv}</span></div><div style={{ height: "10px" }} /></Sx>;
+      {state.db && !p.own ? <span class="pnr"><Star /></span> : null}<span class="pnn rv">{rv}</span>
+      <div class="pndef"><DefCard where="pca" /><DefCard where="pcb" /></div></div><div style={{ height: "10px" }} /></Sx>;
 }
 /** A chain of terms with "is a" between them, small and italic (the grading writes them with a separator). */
 export const isa = (s: string) => String(s).split("\uE000").flatMap((x, i) => (i ? [" ", <i class="pisa">{/^[aeiou]/i.test(x) ? "is an" : "is a"}</i>, " ", x] : [x]));
@@ -162,13 +163,12 @@ function FactSteps({ f, where }: { f: FactLine; where: string }) {
 }
 /**
  * The tutor's note on one example, set apart from the learner's own answer above it: a small label, then the steps of its line (or its words, for a
- * line that has no steps), and the flag. `where` keys the terms it names, so that their definitions open under them.
+ * line that has no steps); the flag is at the right of the label. `where` keys the terms it names, so that their definitions open under them.
  */
 export function TutorNote({ c, text, where, flag }: { c: CellId; text: string; where: string; flag?: ComponentChildren }) {
   const f = (explainParts().facts as Record<string, FactLine | undefined>)[c];
-  return <div class="tnote"><span class="tutn">the tutor</span>
-    {f ? <FactSteps f={f} where={where} /> : <><p class="tt"><TermText text={text} where={where} /></p><DefCard where={where} /></>}
-    {flag}</div>;
+  return <div class="tnote"><div class="tuth"><span class="tutn">the tutor</span>{flag}</div>
+    {f ? <FactSteps f={f} where={where} /> : <><p class="tt"><TermText text={text} where={where} /></p><DefCard where={where} /></>}</div>;
 }
 // the tutor's explanation without its lines on the cases (those are on the cases' rows)
 const CELL_LN = /^[-•*\s]*(?:\*\*)?(?:both|a not b|b not a|neither|q[1-4])(?:\*\*)?\s*:/i;

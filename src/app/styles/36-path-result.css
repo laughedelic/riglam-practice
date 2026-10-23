@@ -14,6 +14,7 @@
 .pa .exr .ans2.no{color:var(--ink2); text-decoration:line-through; text-decoration-color:var(--red); text-decoration-thickness:2px}
 .pa .exr .ans2.nil{font-family:var(--mono); font-style:normal; font-weight:400; font-size:12px; color:var(--ink3); text-decoration:none}
 .pa .exr .line1{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap}
+.pa .exr .line1 .mark{transform:translateY(3px)}
 .pa .exr .xnote{font-size:14px; color:var(--ink2); line-height:1.35; margin-top:1px}
 .pa .exr .xnote .fix{font-size:15px}
 .pa .exr .xnote .pisa{font-size:13px}
@@ -33,6 +34,9 @@
 .pa .pn.res .pnl.a{grid-column:2 / 4}
 .pa .pn.res.rstar .pnl.a{padding-right:56px}
 .pa .pn.res .pnr{position:absolute; right:0; top:0}
+/* a definition opened from a class under a term comes under the whole pair, so that the relation's figure keeps its place between the two terms */
+.pa .pn.res .pndef{grid-column:2 / 4; align-self:start; padding-right:18px; padding-left:22px}
+.pa .pn.res .pndef:empty{display:none}
 .pa .pn.res .pnn.rv{justify-self:end; align-self:center; align-items:center; gap:14px; padding:4px 16px 0 22px; flex-wrap:wrap; justify-content:flex-end}
 .pa .rvl{display:inline-flex; align-items:center; gap:4px; white-space:nowrap; font-size:15px; font-weight:600}
 .pa .rvl s.no{color:var(--ink2); text-decoration-color:var(--red); text-decoration-thickness:2px; font-weight:500}
@@ -79,9 +83,10 @@
 .pa .tchk .mark{flex:none; transform:translateY(3px)}
 /* the tutor's note on an example: set apart from the learner's own answer above it by a gap and a rule in the tutor's color, its steps as a list */
 .pa .exr .tnote{margin-top:12px; padding:1px 0 1px 12px; border-left:2px solid var(--tutor); font-size:14.5px; line-height:1.4; color:var(--ink)}
-.pa .exr .tnote .tutn{display:block; margin-bottom:5px; letter-spacing:.03em}
+.pa .exr .tnote .tuth{display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:26px; margin-bottom:3px}
+.pa .exr .tnote .tutn{letter-spacing:.03em}
 .pa .exr .tnote .tt{margin:0}
-.pa .exr .tnote .pflg{margin-top:6px}
+.pa .exr .tnote .tuth .pflg{margin:0 -4px 0 0}
 .pa .tsteps{list-style:none; padding:0; margin:0; display:grid; gap:7px}
 .pa .tsteps li{position:relative; padding-left:15px}
 .pa .tsteps li::before{content:""; position:absolute; left:0; top:.5em; width:6px; height:6px; transform:rotate(45deg); background-color:var(--tutor); opacity:.75}
@@ -101,19 +106,8 @@
 /* the definition of a term in a text: dotted under the term, the card under the text */
 .pa .dterm{text-decoration:underline dotted var(--blue); text-decoration-thickness:2px; text-underline-offset:3px; cursor:pointer; color:inherit}
 .pa .dterm.on{text-decoration-style:solid}
-/* the Terms section of a result and a definition, drawn on the path (path/terms.tsx): A and B in the margin as at the pair, the definition a note
-   with a rule beside it */
-.pa .tmsum{padding:6px 0 4px}
-.pa .tmsm{font-size:16px; line-height:1.4; color:var(--ink2)}
-.pa .tmsm b{color:var(--ink); font-weight:600}
-.pa .tmrow{align-items:baseline; padding:8px 0 4px}
-.pa .tmrow > .ab{position:relative; top:-3px}
-.pa .tmt{font-size:21px; font-weight:500; line-height:1.2}
-.pa .tmn{font-size:14px; font-style:italic; color:var(--ink2); margin-top:3px}
-.pa .tmc{font-size:16px; line-height:1.5; margin-top:2px; overflow-wrap:anywhere}
-.pa .tmc .pisa,.pa .pdup .pisa{font-size:.85em; color:var(--ink2)}
-.pa .tmkey{padding:8px 0 10px}
-.pa .tmkey p{font-size:15px; color:var(--ink2); line-height:1.4; margin-bottom:2px}
+/* a definition, drawn on the path (path/terms.tsx): a note under the text with a rule beside it */
+.pa .pdup .pisa{font-size:.85em; color:var(--ink2)}
 .pa .pdef{margin:8px 0 6px; padding:4px 0 4px 12px; border-left:2px solid var(--rule); display:flex; flex-direction:column; gap:5px; align-items:flex-start; scroll-margin-bottom:90px}
 .pa .pdef:focus{outline:0}
 .pa .pdef > p,.pa .pdef > .pdex{align-self:stretch}
