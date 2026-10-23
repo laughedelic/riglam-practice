@@ -38,7 +38,7 @@ function commit(check: (() => void) | null) {
 function openCase(i: number) { const u = u0(); u.ci = i; u.pall = false; render(); focusField(); }
 function nothing(c: CellId) { const x = u0().cells[c]; x.t = ""; x.none = true; commit(null); }
 
-/** The strip under the top bar: the pair with its relation, folded; pull it (or tap it) to look back at `full`, the steps done. */
+/** The strip under the top bar: the pair with its relation, folded; pull it anywhere (or tap it) to look back at `full`, the steps done. */
 function Strip({ rel, full }: { rel: RelKey; full: ComponentChildren }) {
   const u = u0(), g = useRef<{ y0: number; moved: boolean } | null>(null), open = !!u.pstrip;
   const set = (o: boolean) => { u.pstrip = o; refreshPath(); };
@@ -47,7 +47,7 @@ function Strip({ rel, full }: { rel: RelKey; full: ComponentChildren }) {
     onPointerMove={(e) => {
       const s = g.current; if (!s) return; const d = e.clientY - s.y0;
       if (!s.moved && Math.abs(d) > 6) { s.moved = true; try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch { /* gone */ } }
-      if (d > 26 && !u.pstrip) { set(true); s.y0 = e.clientY; } else if (d < -26 && u.pstrip) { set(false); s.y0 = e.clientY; }
+      if (d > 14 && !u.pstrip) { set(true); s.y0 = e.clientY; } else if (d < -14 && u.pstrip) { set(false); s.y0 = e.clientY; }
     }}
     onPointerUp={(e) => { const s = g.current; g.current = null; if (s && !s.moved && !(e.target as Element).closest(".knob")) set(!u.pstrip); }} onPointerCancel={() => { g.current = null; }}>
     <div class="fold2 compact"><div><Sx cls="walked"><PairNode rel={rel} right={<Star />} /></Sx></div></div>

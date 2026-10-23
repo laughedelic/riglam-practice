@@ -17,8 +17,8 @@
 .pa .sx.okp::before{background:var(--green); opacity:1}
 .pa .sx.nop::before{background:var(--red); opacity:1}
 .pa .sx.ptp::before{background:var(--partc); opacity:1}
-/* the first section's line starts at the top bar, where the bar's own stub ends, so that the path is not split */
-.pa .sx.first::before{top:0}
+/* the first section's line starts at its diamond; the top bar's diamond has no line of its own */
+.pa .sx.first::before{top:24px}
 .pa .sx.ptail{flex:1; min-height:28px}
 .pa .sx.ptail::before{background:var(--ahead-bg); opacity:.9}
 .pa.edge-fade .sx.ptail::before{background:linear-gradient(to bottom,var(--ink3),transparent 65%)}
@@ -42,7 +42,6 @@
   .pa .sx.nop{--sc:var(--red)}
   .pa .sx.ptp{--sc:var(--partc)}
   .pa .sx.walked:not(.detouring) + .sx{--pv:color-mix(in srgb,var(--ink) 72%,var(--paper))}
-  .pa .sx.first{--pv:color-mix(in srgb,var(--ink) 72%,var(--paper))}
   .pa .sx.cur + .sx{--pv:var(--gold)}
   .pa .sx.okp + .sx{--pv:var(--green)}
   .pa .sx.nop + .sx{--pv:var(--red)}

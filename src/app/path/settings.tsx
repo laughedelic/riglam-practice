@@ -34,7 +34,7 @@ function LookRows() {
       <div class="below" style={{ padding: "8px 0 0" }}><Words label="Light or dark" items={[["system", "System"], ["light", "Light"], ["dark", "Dark"]]} cur={look.mode} on={(v) => { setLook({ mode: v === DEFAULT_LOOK.mode ? null : v }); render(); }} /></div></span></div>
     <div class="srow wide"><span /><span class="ct"><b>A and B in the text</b><small>How the pair's two terms stand out where a question or a note names them. The practice options switch them off.</small>
       <p class="psamp">Name something that is <b class="conn">both</b> <Sub k="a">a thing that is heard</Sub> <b class="conn">and</b> <Sub k="b">a sound</Sub>.</p>
-      <div class="below" style={{ padding: "6px 0 0" }}><Words label="A and B in the text" items={[["none", "Plain"], ["italic", "Italic"], ["letters", "Letters"], ["diamonds", "Diamonds"], ["inks", "Inks"]]} cur={look.subj}
+      <div class="below" style={{ padding: "6px 0 0" }}><Words label="A and B in the text" items={[["none", "Plain"], ["italic", "Italic"], ["letters", "Letters"], ["diamonds", "Diamonds"], ["lettered", "Lettered diamonds"], ["inks", "Inks"]]} cur={look.subj}
         on={(v) => { setLook({ subj: v === DEFAULT_LOOK.subj ? null : v }); render(); }} /></div></span></div>
     <div class="srow wide"><span /><span class="ct"><b>The lab's settings</b>
       <small>{own ? "This device uses its own: colors, fonts and switches as set in the Path Lab." : "The defaults: the picks made in the Path Lab."}</small>
