@@ -12,8 +12,8 @@ import { render, top0 } from "../shell/render.js";
 import { switchTo } from "../shell/tabs.js";
 
  const openFavs=new Set(), favQ={};
-/** The class of each term of a kept pair, "furniture: external form (...)": a negated side is not in the class of what it negates. */
-export const typesLine=p=>{ const [na,nb]=negSides(p), t=(x,on)=>on&&x?"not "+x:(x||"?"); return p.a+": "+t(p.typeA,na)+" · "+p.b+": "+t(p.typeB,nb); };
+/** The class of each term of a kept pair, "furniture: form": a negated side has none (it is not in the class of what it negates), so it is left out. */
+export const typesLine=p=>{ const [na,nb]=negSides(p); return [[p.a,p.typeA,na],[p.b,p.typeB,nb]].filter(x=>!x[2]).map(([l,t])=>l+": "+(t||"?")).join(" · "); };
 /* ---------- favorite pairs ---------- */
 // One favorite per pair of categories, whichever way round and whichever of their labels the pair showed (a negated side is
 // another category: "non_" before its name); the pair itself (relation, reference examples, note) is stored with it so it can be looked up and practiced again.
@@ -74,7 +74,7 @@ export function favSection(s){
       el("div",{class:"fbody"},
         k?el("p",{class:"note"},k.name+": "+k.gloss(p.a,p.b).toLowerCase()+".",notaOf(p.relation)&&state.nota!=="codes"?[" ",el("span",{class:"nota math",text:notaOf(p.relation)})]:null):null,
         exGrid(p,cell),
-        el("p",{class:"note"},(p.typeA||p.typeB)?el("span",{class:"types",text:typesLine(p)}):null,p.note||""),
+        el("p",{class:"note"},(p.typeA||p.typeB)&&typesLine(p)?el("span",{class:"types",text:typesLine(p)}):null,p.note||""),
         el("div",{class:"actions"},
           el("button",{type:"button",class:"btn ghost",onclick:()=>{ openFavs.delete(f.key); removeFav(f); },text:"Remove"}),
           el("button",{type:"button",class:"btn",onclick:()=>startFav(p),text:"Practice this pair"})))));
