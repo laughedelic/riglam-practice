@@ -49,7 +49,8 @@
 
 /* the station at the edge: what comes next, gray until it can be taken; pull it up past the line, or tap it */
 .pa .foot{flex:none; position:relative; z-index:6; background-color:var(--paper); display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; padding:12px 10px 16px 0; border-top:1px solid var(--rule); min-height:78px}
-.pa .foot::before{content:""; position:absolute; left:calc(var(--m) - var(--lw) / 2); top:0; height:26px; width:var(--lw); background:var(--ahead-bg); opacity:.9}
+.pa .foot::before{content:""; position:absolute; left:calc(var(--m) - var(--lw) / 2); top:0; height:max(0px, calc(26px - var(--lift, 0px))); width:var(--lw); background:var(--ahead-bg); opacity:.9; transition:height .28s cubic-bezier(.2,.9,.3,1.3)}
+.pa.pulling .foot::before{transition:none}
 .pa.edge-fade .foot::before{background:linear-gradient(to top,var(--ink3),transparent)}
 .pa.ready .foot::before{background:var(--gold); width:var(--lh); left:calc(var(--m) - var(--lh) / 2); opacity:1}
 .pa.done .foot::before{background:var(--ink); opacity:.72}
@@ -80,12 +81,12 @@
 .pa .stn.bump{animation:p-bump .5s ease}
 @keyframes p-bump{35%{transform:translateY(-14px)} 70%{transform:translateY(-3px)}}
 .pa .aux{display:flex; align-items:center}
-.pa .riser{position:absolute; left:calc(var(--m) - var(--lh) / 2); width:var(--lh); background:var(--gold); z-index:5; bottom:0; height:0; pointer-events:none}
-.pa .riser.pre{background:repeating-linear-gradient(to bottom,var(--ink3) 0 3px,transparent 3px 7px); width:var(--lw); left:calc(var(--m) - var(--lw) / 2)}
-/* pulling the path past its end: the thread to the station stretches and firms */
+.pa .riser{position:absolute; left:calc(var(--m) - var(--lh) / 2 - 2px); width:calc(var(--lh) + 4px); background:var(--paper); z-index:5; bottom:0; height:max(0px, calc(var(--lift, 0px) - 26px)); pointer-events:none; transition:height .28s cubic-bezier(.2,.9,.3,1.3)}
+.pa.pulling .riser{transition:none}
+/* pulling the station up (or the path past its end) leaves the thread attached to it: the stub in the foot shortens, and the riser (the page's own ground) hides the thread under the station once it is above the foot, so the station never slides over it; the thread firms as the pull grows */
 .pa.pulling .sx.ptail::after,.pa.pulling .foot::after{content:""; position:absolute; left:calc(var(--m) - var(--lw) / 2); width:var(--lw); background:var(--ink2); opacity:var(--pull,0); pointer-events:none}
 .pa.pulling .sx.ptail::after{top:0; bottom:0}
-.pa.pulling .foot::after{top:0; height:26px}
+.pa.pulling .foot::after{top:0; height:max(0px, calc(26px - var(--lift, 0px)))}
 .pa.pulling.ready .sx.ptail::after,.pa.pulling.ready .foot::after{background:var(--gold); width:var(--lh); left:calc(var(--m) - var(--lh) / 2)}
 .pa.pulling.done .sx.ptail::after,.pa.pulling.done .foot::after{background:var(--ink)}
 
