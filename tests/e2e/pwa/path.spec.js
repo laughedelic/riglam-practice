@@ -474,6 +474,28 @@ test("the practice options' knob sits on the sheet's edge, splitting its line", 
   const edge = sheet.y + sheet.height;
   expect(k.y, "the knob starts above the edge").toBeLessThan(edge);
   expect(k.y + k.height, "and ends below it").toBeGreaterThan(edge);
+  // no box of paper under the edge: beside the chevron, just below the line, the page shows as it does elsewhere under the sheet
+  const px = (x, y) => page.screenshot({ clip: { x, y, width: 6, height: 2 } });
+  expect((await px(k.x + 2, edge + 3)).equals(await px(k.x - 80, edge + 3)), "the knob has no box below the sheet's edge").toBe(true);
+});
+
+test("the practice options leave part of the screen to tap out on, and scroll inside; the Tutor has a page of its own", async ({ page }) => {
+  test.skip(!withCourse, "the tutor needs the Magic Key");
+  await factsServer(page);
+  await start(page);
+  await page.getByRole("button", { name: "Practice options" }).click();
+  const sheet = page.getByRole("dialog", { name: "Practice options" });
+  await page.waitForTimeout(500);
+  const [sb, vp] = [await page.locator("#path .psheet.on").boundingBox(), page.viewportSize()];
+  expect(sb.y + sb.height, "the sheet stops short of the bottom of the screen").toBeLessThanOrEqual(vp.height * 0.8);
+  await expect(sheet.getByRole("button", { name: "Tutor: more" })).toBeVisible();
+  await expect(sheet).not.toContainText("Right after you check an answer");   // what needs more words is on the page
+  await sheet.getByRole("button", { name: "Tutor: more" }).click();
+  await expect(sheet.getByRole("switch", { name: /Check every answer with AI/ })).toBeVisible();
+  await expect(sheet).toContainText("Right after you check an answer");
+  await sheet.getByRole("button", { name: "back to the options" }).click();
+  await page.mouse.click(vp.width / 2, vp.height - 20);   // out on what is under the sheet
+  await expect(page.locator("#path .psheet.on")).toHaveCount(0);
 });
 
 test("the whole Skip station takes the slide, not the diamond alone: from its word, from beside the diamond, and with the mouse", async ({ page }) => {
