@@ -123,7 +123,6 @@ export function App() {
       <div class="pcol">
         <div class="main" inert={over}>
           {s.node}
-          <div class="bumpl" aria-hidden="true"><b>pull past the line</b></div>
           <div class="riser" aria-hidden="true" />
         </div>
         <OptionsSheet />

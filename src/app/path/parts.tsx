@@ -54,12 +54,12 @@ export function PairStops({ p, sm = false }: { p: Pair; sm?: boolean }) {
   </>;
 }
 /** The pair with a relation as its node on the path: A on the upper line, B on the lower, like the figure's two diamonds, and the relation
- *  under them in the course's notation (MI, 3P, 4P, MX) with its name spelled out. */
+ *  under them: its name spelled out, with the course's notation (MI, 3P, 4P, MX) in the margin below the A and B marks. */
 export function PairNode({ rel, right, p = pairOf() }: { rel: RelKey; right?: ComponentChildren; p?: Pair }) {
   const long = Math.max(p.a.length, p.b.length) > 24;
   return <div class={"pn" + (long ? " long" : "")}><i class="pnm a">A</i><i class="pnm b">B</i><Fig k={rel} size="pnode" />
     <span class="pnl a"><i>A</i><b>{p.a}</b></span><span class="pnl b"><i>B</i><b>{p.b}</b></span>
-    {right ? <span class="pnr">{right}</span> : null}<span class="pnn" title={REL[rel].gloss(p.a, p.b)}><b class="rc">{REL[rel].code}</b><span class="rn">{REL[rel].name}</span></span></div>;
+    {right ? <span class="pnr">{right}</span> : null}<i class="pnc" title={REL[rel].gloss(p.a, p.b)}>{REL[rel].code}</i><span class="pnn" title={REL[rel].gloss(p.a, p.b)}><span class="rn">{REL[rel].name}</span></span></div>;
 }
 /** The class under a term of the pair at the result: "each is a form". */
 function ClassOf({ label, cat, where }: { label: string; cat?: string | null; where: string }) {

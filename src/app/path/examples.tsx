@@ -1,7 +1,7 @@
 // The examples on the Path, for Relations and Find a pair: one case at a time, the pair and its relation folded into a strip above, and while
 // the keyboard is up a heading with the pair. The cases are the attempt's (`state.ui.cells`), the ones the relation leaves possible.
 import type { ComponentChildren } from "preact";
-import { useRef } from "preact/hooks";
+import { useEffect, useRef } from "preact/hooks";
 import { state } from "../state.js";
 import { cellLabel } from "../core/rel.js";
 import { fillable } from "../practice/screen.js";
@@ -11,10 +11,12 @@ import type { CellId, RelKey } from "../../ai-shared/relations.ts";
 import { refreshPath } from "./index.tsx";
 import { CASE, PairNode, Star, caseQ, pairOf, u0 } from "./parts.tsx";
 import { Scroll } from "./scroll.tsx";
-import { Foot, HideKeys, KbdStation, PreStation, SideStation, Station, VoiceBar, pathNote } from "./shell.tsx";
+import { Foot, PreStation, SideStation, Station, VoiceBar, pathNote } from "./shell.tsx";
 import { D, Gap, Head, Icon, Knob, St, Sx, NOFILL } from "./ui.tsx";
 
-const filled = (c: CellId) => { const x = u0().cells[c]; return !!(x.t || "").trim() || !!x.none; };
+/** Only the "neither" case may say that nothing exists: the other cases are asked because the relation chosen needs them, so their examples justify the choice. */
+const mayBeEmpty = (c: CellId) => c === "nei";
+const filled = (c: CellId) => { const x = u0().cells[c]; return !!(x.t || "").trim() || (mayBeEmpty(c) && !!x.none); };
 /** The open case, the next one after it that is still empty (going round), and whether it is the last to write. */
 function cursor() {
   const u = u0(), order = fillable() as CellId[], ready = order.every(filled);
@@ -30,19 +32,26 @@ const blur = () => { const a = document.activeElement as HTMLElement | null; if 
 function commit(check: (() => void) | null) {
   const u = u0(), k = cursor();
   if (!k.c) return;
-  if (!filled(k.c)) { const s = document.getElementById("kst"); if (s && s.offsetParent) { s.classList.add("peek"); setTimeout(() => s.classList.remove("peek"), 1700); } else pathNote("Write an example first, or say nothing exists"); return; }
+  if (!filled(k.c)) { pathNote(mayBeEmpty(k.c) ? "Write an example first, or say nothing exists" : "Write an example first"); return; }
   if (k.nextC) { u.ci = k.order.indexOf(k.nextC); u.pall = false; render(); focusField(); return; }
   u.pall = true; blur(); render();
   if (check) check();
 }
 function openCase(i: number) { const u = u0(); u.ci = i; u.pall = false; render(); focusField(); }
-function nothing(c: CellId) { const x = u0().cells[c]; x.t = ""; x.none = true; commit(null); }
+function nothing(c: CellId) { if (!mayBeEmpty(c)) return; const x = u0().cells[c]; x.t = ""; x.none = true; commit(null); }
 
-/** The strip under the top bar: the pair with its relation, folded; pull it anywhere (or tap it) to look back at `full`, the steps done. */
+/** The strip under the top bar: the pair with its relation, folded; pull it anywhere (or tap it) to look back at `full`, the steps done. While it is
+ *  unfolded, a touch anywhere outside it folds it again. */
 function Strip({ rel, full }: { rel: RelKey; full: ComponentChildren }) {
-  const u = u0(), g = useRef<{ y0: number; moved: boolean } | null>(null), open = !!u.pstrip;
+  const u = u0(), g = useRef<{ y0: number; moved: boolean } | null>(null), box = useRef<HTMLDivElement>(null), open = !!u.pstrip;
   const set = (o: boolean) => { u.pstrip = o; refreshPath(); };
-  return <div class={"pstrip" + (open ? " open" : "")}
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: PointerEvent) => { if (box.current && !box.current.contains(e.target as Node)) set(false); };
+    document.addEventListener("pointerdown", away, true);
+    return () => document.removeEventListener("pointerdown", away, true);
+  }, [open]);
+  return <div class={"pstrip" + (open ? " open" : "")} ref={box}
     onPointerDown={(e) => { const c = (e.target as Element).closest("button"); if (c && !c.classList.contains("knob")) return; g.current = { y0: e.clientY, moved: false }; }}
     onPointerMove={(e) => {
       const s = g.current; if (!s) return; const d = e.clientY - s.y0;
@@ -87,13 +96,12 @@ export function ExamplesStep({ kb, title, step, rel, full, check }: { kb: boolea
       <div class="fieldrow"><input class="pfield" id="cin" value={x.t} placeholder="write an example" {...NOFILL} enterKeyHint={k.last ? "done" : "next"} aria-label={cellLabel(c, p)}
         onInput={(e) => { x.t = (e.currentTarget as HTMLInputElement).value; if (x.none) x.none = false; refreshPath(); }}
         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commit(null); } }} /></div>
-      <p class="help"><span class="htx">{c === first ? "Your own example, in a few words." : "In a few words."} </span><button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => nothing(c)}>nothing exists</button></p></St>;
+      <p class="help"><span class="htx">{c === first ? "Your own example, in a few words." : "In a few words."} </span>{mayBeEmpty(c) ? <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => nothing(c)}>nothing exists</button> : null}</p></St>;
     // a written case opens again with a tap; the field keeps the focus meanwhile, so the keyboard stays up and nothing moves under the finger
     if (filled(c)) return <button type="button" class="sbb" onMouseDown={(e) => e.preventDefault()} onClick={() => openCase(i)} aria-label={CASE[c] + ": " + (x.none ? "nothing exists" : x.t) + ". Change it"}>
       <St d={<D cls="sub yours" />} cls="sb done"><span class="lab">{CASE[c]}</span><span class={"pans" + (x.none ? " nil" : "")}>{x.none ? "nothing exists" : x.t.trim()}</span></St></button>;
     return <St d={<D cls="sub" />} cls="sb later"><span class="lab">{CASE[c]}</span><p class="qq">{caseQ(c, p)}</p></St>;
   });
-  const kname = k.last ? "Check" : "Next example", ktag = k.last || !k.nextC ? "" : CASE[k.nextC];
   return <>
     <KHead rel={rel} title={title} /><Strip rel={rel} full={full} />
     <Scroll dim={!!u.pstrip}>
@@ -101,10 +109,9 @@ export function ExamplesStep({ kb, title, step, rel, full, check }: { kb: boolea
       <Sx cls="ptail" />
     </Scroll>
     <VoiceBar />
-    <Foot kbd={kb ? <KbdStation name={kname} tag={ktag} ready={!!k.c && filled(k.c)} act={() => commit(check)} /> : null}
-      aux={<>{k.ready ? null : <SideStation kind="skip" act={skipPair} />}{kb ? <HideKeys /> : null}</>}>
+    {kb ? null : <Foot aux={k.ready ? null : <SideStation kind="skip" act={skipPair} />}>
       {k.ready ? <Station name="Check" hint={"your " + (state.ui!.find ? "pair" : "relation") + " and " + (k.order.length === 1 ? "one example" : k.order.length + " examples")} act={() => { blur(); check(); }} />
         : <PreStation name="Result" hint="write each example first" />}
-    </Foot>
+    </Foot>}
   </>;
 }
