@@ -32,9 +32,9 @@ const secs = (kind: string) => Math.round(kindMs(kind) / 1000);
 const timesLine = () => state.tab === "syllogism" ? "Syllogism " + secs("syl") + " s" : "Relation " + secs("rel") + " s · Example " + secs("ex") + " s";
 const levelsLine = () => (state.exLevels.length === 1 ? "Level " : "Levels ") + state.exLevels.join(", ");
 const toSettings = () => { toggleSess(false); toggleOpts(true); };
-/** Whether the Tutor row (and its page) is in the list: where the tutor can be asked, and the Quorum switch is offered. Categories has neither. */
-const quorumShown = () => state.quorumOffered && !!state.db && state.tab !== "syllogism" && state.tab !== "categories";
-const tutorShown = () => state.tab !== "categories" && (canAsk() || quorumShown());
+/** Whether the Tutor row (and its page) is in the list: where the tutor can be asked, and the Quorum switch is offered. Categories and Find an instance have neither. */
+const quorumShown = () => state.quorumOffered && !!state.db && state.tab !== "syllogism" && state.tab !== "categories" && state.tab !== "instance";
+const tutorShown = () => state.tab !== "categories" && state.tab !== "instance" && (canAsk() || quorumShown());
 
 /** Voice in the list: Read aloud, and how an answer is taken (or, where the browser cannot listen, the voice and its speed), with its page. */
 function VoiceRows() {
