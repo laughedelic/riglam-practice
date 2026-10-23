@@ -14,7 +14,9 @@ import { Scroll } from "./scroll.tsx";
 import { Foot, HideKeys, KbdStation, PreStation, SideStation, Station, VoiceBar, pathNote } from "./shell.tsx";
 import { D, Gap, Head, Icon, Knob, St, Sx, NOFILL } from "./ui.tsx";
 
-const filled = (c: CellId) => { const x = u0().cells[c]; return !!(x.t || "").trim() || !!x.none; };
+/** Only the "neither" case may say that nothing exists: the other cases are asked because the relation chosen needs them, so their examples justify the choice. */
+const mayBeEmpty = (c: CellId) => c === "nei";
+const filled = (c: CellId) => { const x = u0().cells[c]; return !!(x.t || "").trim() || (mayBeEmpty(c) && !!x.none); };
 /** The open case, the next one after it that is still empty (going round), and whether it is the last to write. */
 function cursor() {
   const u = u0(), order = fillable() as CellId[], ready = order.every(filled);
@@ -30,13 +32,13 @@ const blur = () => { const a = document.activeElement as HTMLElement | null; if 
 function commit(check: (() => void) | null) {
   const u = u0(), k = cursor();
   if (!k.c) return;
-  if (!filled(k.c)) { const s = document.getElementById("kst"); if (s && s.offsetParent) { s.classList.add("peek"); setTimeout(() => s.classList.remove("peek"), 1700); } else pathNote("Write an example first, or say nothing exists"); return; }
+  if (!filled(k.c)) { const s = document.getElementById("kst"); if (s && s.offsetParent) { s.classList.add("peek"); setTimeout(() => s.classList.remove("peek"), 1700); } else pathNote(mayBeEmpty(k.c) ? "Write an example first, or say nothing exists" : "Write an example first"); return; }
   if (k.nextC) { u.ci = k.order.indexOf(k.nextC); u.pall = false; render(); focusField(); return; }
   u.pall = true; blur(); render();
   if (check) check();
 }
 function openCase(i: number) { const u = u0(); u.ci = i; u.pall = false; render(); focusField(); }
-function nothing(c: CellId) { const x = u0().cells[c]; x.t = ""; x.none = true; commit(null); }
+function nothing(c: CellId) { if (!mayBeEmpty(c)) return; const x = u0().cells[c]; x.t = ""; x.none = true; commit(null); }
 
 /** The strip under the top bar: the pair with its relation, folded; pull it anywhere (or tap it) to look back at `full`, the steps done. */
 function Strip({ rel, full }: { rel: RelKey; full: ComponentChildren }) {
@@ -87,7 +89,7 @@ export function ExamplesStep({ kb, title, step, rel, full, check }: { kb: boolea
       <div class="fieldrow"><input class="pfield" id="cin" value={x.t} placeholder="write an example" {...NOFILL} enterKeyHint={k.last ? "done" : "next"} aria-label={cellLabel(c, p)}
         onInput={(e) => { x.t = (e.currentTarget as HTMLInputElement).value; if (x.none) x.none = false; refreshPath(); }}
         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commit(null); } }} /></div>
-      <p class="help"><span class="htx">{c === first ? "Your own example, in a few words." : "In a few words."} </span><button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => nothing(c)}>nothing exists</button></p></St>;
+      <p class="help"><span class="htx">{c === first ? "Your own example, in a few words." : "In a few words."} </span>{mayBeEmpty(c) ? <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => nothing(c)}>nothing exists</button> : null}</p></St>;
     // a written case opens again with a tap; the field keeps the focus meanwhile, so the keyboard stays up and nothing moves under the finger
     if (filled(c)) return <button type="button" class="sbb" onMouseDown={(e) => e.preventDefault()} onClick={() => openCase(i)} aria-label={CASE[c] + ": " + (x.none ? "nothing exists" : x.t) + ". Change it"}>
       <St d={<D cls="sub yours" />} cls="sb done"><span class="lab">{CASE[c]}</span><span class={"pans" + (x.none ? " nil" : "")}>{x.none ? "nothing exists" : x.t.trim()}</span></St></button>;

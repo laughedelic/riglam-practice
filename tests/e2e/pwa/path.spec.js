@@ -48,15 +48,24 @@ test("Relations on the Path: a relation, the examples, the check, the result, an
   expect(errors).toEqual([]);
 });
 
-test("a case can say that nothing exists, and a written one opens again with a tap", async ({ page }) => {
+test("only the neither case can say that nothing exists, and a written one opens again with a tap", async ({ page }) => {
   await start(page);
   await choices(page).nth(3).click();   // Four possibilities: all four cases
-  await page.locator("#cin").fill("a red pot");
-  await page.locator("#cin").press("Enter");
-  await page.getByRole("button", { name: "nothing exists" }).click();
+  const none = page.getByRole("button", { name: "nothing exists", exact: true });   // not the written row, whose name says "neither: nothing exists. Change it"
+  for (const text of ["a red pot", "a red book", "a green book"]) {
+    await expect(none).toHaveCount(0);   // the cases the relation asks for need an example: the relation was chosen, and they justify it
+    await page.locator("#cin").press("Enter");   // empty: it does not go on
+    await expect(page.locator("#cin")).toBeVisible();
+    await expect(page.locator(".sb.done")).toHaveCount(text === "a red pot" ? 0 : text === "a red book" ? 1 : 2);
+    await page.locator("#cin").fill(text);
+    await page.locator("#cin").press("Enter");
+  }
+  await expect(none).toBeVisible();   // neither: it may well be empty
+  await none.click();
   await expect(page.locator(".sb.done .pans.nil")).toHaveText("nothing exists");
   await page.locator(".sbb").first().click();
   await expect(page.locator("#cin")).toHaveValue("a red pot");
+  await expect(none).toHaveCount(0);
 });
 
 test("the knob of the strip opens the earlier steps with one tap, and folds them with the next", async ({ page }) => {
