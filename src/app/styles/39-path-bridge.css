@@ -27,7 +27,7 @@
 .pa .pbr.pvoice .btn.ghost,.pa .pbr.pvoice .btn.ghost:hover{color:var(--ink2)}
 .pa .pbr.pvoice .btn:focus-visible{outline:2px solid var(--blue); outline-offset:1px; box-shadow:none}
 /* the two dialogs the classic page opens over the Path, native dialogs outside #path (the question before a device's examples are kept, ai/share-notice.js; the
-   Magic Key, pwa/unlock.ts): the root's variables do not reach them, so applyLook also keeps the palette on <html> as --pa-*, and here they take it, the Path's
+   Magic Key, pwa/unlock.ts): the root's variables do not reach them, so applyLook also keeps the palette on the html element as --pa-*, and here they take it, the Path's
    face and its text buttons (the question before a skip, .pdlg, looks the same) */
 html.design-path .sharedlg,html.design-path #unlock{
   --paper:var(--pa-paper); --ink:var(--pa-ink); --ink-muted:var(--pa-ink2); --faint:var(--pa-ink3); --line:var(--pa-rule); --heading:var(--pa-blue);
