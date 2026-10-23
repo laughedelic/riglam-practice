@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { expect, test } from "vitest";
 import {
-  CELL_NAME, DEBATE_ASK, FIND_ASK, FIND_ASK_OWN, FIND_NOTE, FIND_OWN_NOTE, FIND_REL_NAMES, FIRST_ASK, GUIDE, REVIEW_GUIDE, REVIEW_LIMITS, american, cardBody, refOf, parseReview, readReviewAnswer, reviewRequest, storedView, cardNotes, catByLabel, categoryOf, classNames, catFacts, explainAsk, finePoints, makeIndex, matchItem, noteCats, norm, pairCats, qPlain, termFacts, termNamed, tutorCard, tutorTools, upChain,
+  CELL_NAME, DEBATE_ASK, FIND_ASK, FIND_ASK_OWN, FIND_NOTE, FIND_OWN_NOTE, FIND_REL_NAMES, FIRST_ASK, GUIDE, REVIEW_GUIDE, REVIEW_LIMITS, american, cardBody, refOf, parseReview, readReviewAnswer, reviewRequest, storedView, cardNotes, catByLabel, categoryOf, classNames, catFacts, explainAsk, finePoints, makeIndex, matchItem, noteCats, norm, pairCats, qPlain, qSides, termFacts, termNamed, tutorCard, tutorTools, upChain,
 } from "../../src/ai-shared";
 import type { AnswerView, DrillData, PairLike, ReviewAnswer } from "../../src/ai-shared";
 import { state } from "../../src/app/state.js";
@@ -323,6 +323,11 @@ test("the canonical wording of the four questions", () => {
     "If it is B, it follows it is A?",
     "If it is not A, it follows it is B?",
   ]);
+});
+
+test("the four questions in the concise form: what stands before the arrow, and what after", () => {
+  const word = (x: unknown) => (typeof x === "string" ? x : "not");
+  expect([0, 1, 2, 3].map((i) => qSides(i).map((side) => side.map(word).join(" ")).join(" → "))).toEqual(["A → not B", "A → B", "B → A", "not A → B"]);
 });
 
 test("the explain request is the plain one when the page checked every example, and asks for verdicts otherwise", () => {

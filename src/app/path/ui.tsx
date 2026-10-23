@@ -14,6 +14,7 @@ const I: Record<string, string> = {
   eight: '<path stroke-linejoin="miter" d="M12.00 1.80L14.99 4.79L19.21 4.79L19.21 9.01L22.20 12.00L19.21 14.99L19.21 19.21L14.99 19.21L12.00 22.20L9.01 19.21L4.79 19.21L4.79 14.99L1.80 12.00L4.79 9.01L4.79 4.79L9.01 4.79z"/>',
   mark: '<path d="M6.8 3.5h10.4v17l-5.2-3.9-5.2 3.9z"/>',
   chev: '<path d="M9 5l7 7-7 7"/>',
+  arrow: '<path d="M4 12h15M13 6l6 6-6 6"/>',
   up: '<path d="M12 19V5M6 11l6-6 6 6"/>',
   close: '<path d="M6 6l12 12M18 6L6 18"/>',
   key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M16 7l2 2M14 9l2 2"/>',
