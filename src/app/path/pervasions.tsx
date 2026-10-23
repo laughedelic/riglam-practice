@@ -4,7 +4,6 @@
 // classic page's (debate/flow.js), and so is the wording of the questions (debate/text.js, picked in the practice options).
 import type { ComponentChildren } from "preact";
 import { state } from "../state.js";
-import { canAsk } from "../core/ask.js";
 import { REL, lcRel } from "../core/rel.js";
 import { backWhy, chooseD, sayQ, submitWhy } from "../debate/flow.js";
 import { QCELL, Wd, singular } from "../debate/text.js";
@@ -15,13 +14,12 @@ import { NOT } from "../../ai-shared/debate.ts";
 import type { QToken } from "../../ai-shared/debate.ts";
 import type { CellId, RelKey } from "../../ai-shared/relations.ts";
 import { refreshPath } from "./index.tsx";
-import { Choices, ErrLines, PairResult, PairStops, TermsRow, Thinking, Verdict, WhyRow, askTutor, isa, needsKey, pairOf, pickThen, u0 } from "./parts.tsx";
+import { Choices, ErrLines, PairResult, PairStops, Thinking, TutorNote, Verdict, WhyRow, isa, pairOf, pickThen, u0 } from "./parts.tsx";
 import { relChoices } from "./relations.tsx";
 import { FlagBtn, FlagEditor, explainCase } from "./flags.tsx";
 import { Scroll } from "./scroll.tsx";
 import { Foot, HideKeys, KbdStation, PreStation, SideStation, Station, TopBar, VoiceBar } from "./shell.tsx";
 import { Sub, markNames } from "./subjects.tsx";
-import { DefCard, TermText } from "./terms.tsx";
 import { D, Gap, Head, Mark, St, Sx, NOFILL } from "./ui.tsx";
 
 interface Ans { say: "accept" | "why" | null; text: string; timeout?: boolean }
@@ -101,16 +99,13 @@ function QRow({ i }: { i: number }) {
   const u = u0(), p = pairOf(), r = u.res, c = QCELL[i] as CellId, rr = r.cells[c] as { v: string; msg: string[]; uns?: boolean }, a = u.ans![i] as Ans;
   const open = rr.v === "cmp" || rr.v === "open", m = rr.v === "ok" ? "ok" : rr.v === "bad" ? "no" : "pt", busy = open && !!u.ctl;
   const tnote: string | undefined = (explainParts().cells as Record<string, string>)[c];
-  const note = tnote ? <><span class="tutn">the tutor:</span> <TermText text={tnote} where={"pq" + c} /></>
-    : <><b>{rr.msg[0]}</b>{rr.msg[2] ? <i>{rr.msg[2]}</i> : null}{markNames(isa(rr.msg[1] || ""), p)}</>;
-  const side = open && !busy && !u.explained && (canAsk() || needsKey());
+  const note = <><b>{rr.msg[0]}</b>{rr.msg[2] ? <i>{rr.msg[2]}</i> : null}{markNames(isa(rr.msg[1] || ""), p)}</>;
   return <St d={<D cls={"sub " + (busy ? "pthink" : m)} />} cls={"sb exr qres" + (tnote ? " tut" : "")}>
     <span class="lab">Question {i + 1}</span><p class="qq"><Statement i={i} /></p>
     <div class="line1"><Said a={a} />{busy ? null : <Mark m={m} />}</div>
-    <p class="xnote">{note}{tnote ? <FlagBtn c={explainCase(tnote, c, "Q" + (i + 1), learnedThing(c))} where={"pop:" + c} /> : null}</p>{tnote ? <DefCard where={"pq" + c} /> : null}
+    {tnote ? <TutorNote c={c} text={tnote} where={"pq" + c} flag={<FlagBtn c={explainCase(tnote, c, "Q" + (i + 1), learnedThing(c))} where={"pop:" + c} />} /> : <p class="xnote">{note}</p>}
     <FlagEditor where={"pop:" + c} />
     {busy ? <Thinking label="the tutor is checking" /> : null}
-    {side ? <button type="button" class="tside" aria-disabled={needsKey() ? "true" : undefined} onClick={() => askTutor(false)}><span class="tsd" /><b>Check and explain</b><span class="tsl" /></button> : null}
   </St>;
 }
 function ResultStep() {
@@ -128,7 +123,6 @@ function ResultStep() {
       {imp ? <Sx cls="walked"><St d={<D cls={"sub " + (imp === u.rel ? "ok" : "no")} />} cls="sb exr implied"><span class="lab">from your answers</span><p class="xnote">{impTxt[0].toUpperCase() + impTxt.slice(1)}</p></St></Sx> : null}
       <Sx cls={QCELL.some((c) => r.cells[c].v === "bad") ? "nop" : "okp"}><Gap h={2} />{QCELL.map((_c, i) => <QRow i={i} />)}</Sx>
       <WhyRow unc={unc} />
-      <TermsRow p={p} />
       <ErrLines />
       <Sx cls="ptail" />
     </Scroll>
