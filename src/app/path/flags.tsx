@@ -11,7 +11,7 @@ import { CELL_NAME } from "../../ai-shared/prompts.ts";
 import type { CellId } from "../../ai-shared/relations.ts";
 import { VERDICT_RE, parseFactLine } from "../../domain/verdict.ts";
 import { DefCard, TermText } from "./terms.tsx";
-import { Icon } from "./ui.tsx";
+import { Icon, NOFILL } from "./ui.tsx";
 
 /** A case a flag is on (ai/flags.js): what was said, by whom, on which answer. */
 export interface FlagCase { caseKey: string; part: string; partLabel?: string; shown?: string; n?: string | null; asked?: string; thing?: string; model?: string; runId?: string | null; id?: string; pair?: unknown }
@@ -59,9 +59,9 @@ export function FlagEditor({ where }: { where: string }) {
   const esc = (e: KeyboardEvent) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); cancelFlag(); } };
   return <div class="pflag" role="group" aria-label="Flag">
     <p class="pfh"><Icon n="flag" /><b>{had ? "Flagged: " : "Flag: "}</b><span>{nm}</span></p>
-    <textarea id="flag-note" class="pfield parea" rows={2} placeholder="What is wrong, or why it is right" aria-label="Note" value={F.note}
+    <textarea id="flag-note" class="pfield parea" rows={2} placeholder="What is wrong, or why it is right" aria-label="Note" {...NOFILL} value={F.note}
       onInput={(e) => { F.note = (e.currentTarget as HTMLTextAreaElement).value; }} onKeyDown={esc} />
-    <input type="text" id="flag-sug" class="pfield" placeholder="I think it should be … (optional)" aria-label="It should be" autoComplete="off" value={F.suggest}
+    <input type="text" id="flag-sug" class="pfield" placeholder="I think it should be … (optional)" aria-label="It should be" {...NOFILL} value={F.suggest}
       onInput={(e) => { F.suggest = (e.currentTarget as HTMLInputElement).value; }}
       onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); saveFlag(); } else esc(e); }} />
     {state.reports ? <p class="pnoteline">Submit sends this flag and the exercise it is on to the app’s maintainer.</p> : null}

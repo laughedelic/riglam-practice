@@ -148,3 +148,6 @@
 .pa .pnote3{padding:6px 18px 6px calc(var(--m) + 22px)}
 .pa .pvline2{display:flex; align-items:center; gap:14px; margin-top:6px}
 .pa .psel{flex:1; min-width:0; max-width:320px; height:32px; border:0; border-bottom:1.5px solid var(--ink2); border-radius:0; background:transparent; color:var(--ink); font:inherit; font-size:15px}
+
+/* Settings: the sample sentence under the row that sets how the terms of the pair stand out */
+.pa .psamp{font-size:16.5px; line-height:1.4; margin-top:6px}

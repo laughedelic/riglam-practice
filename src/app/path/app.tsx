@@ -97,7 +97,7 @@ export function App() {
   const [pull] = useState(() => new Pull()), root = useRef<HTMLDivElement>(null), look = currentLook();
   const [kb, setKb] = useState(false), [small, setSmall] = useState(false), wasChecked = useRef(false);
   const s = screen(kb), over = state.menuOpen || (state.sessOpen && isEx() && state.mode === "quiz") || (state.skipAsk && isEx());
-  const cls = ["pa", ...lookClasses(look, darkNow(look)), s.cls, kb ? "kbup" : "", kb && small ? "ph-small" : "", state.ui && state.ui.ctl ? "pthink" : ""].filter(Boolean).join(" ");
+  const cls = ["pa", ...lookClasses(look, darkNow(look)), s.cls, kb ? "kbup" : "", kb && small ? "ph-small" : "", state.ui && state.ui.ctl ? "pthink" : "", state.showAB ? "" : "sj-off"].filter(Boolean).join(" ");
   useLayoutEffect(() => {
     const r = root.current; if (!r) return;
     pull.root = r;

@@ -19,7 +19,7 @@ import { kindMs } from "../shell/timers.js";
 import { ANSWERS, ANSWER_PICKS, CONFIRM_PICKS, RATES, READ_NOTE, SAMPLE, VOICE_LEAD, VOICE_SAY, WHERE, hookVoices, setVoice, voiceGroups, voiceShown } from "../shell/voice.js";
 import { levelCounts, toggleLevel } from "../../domain/reference.ts";
 import { canHear, canSpeak, speak, voiceList } from "../../ui/speech";
-import { D, Icon, Knob, Toggle, Words } from "./ui.tsx";
+import { D, Icon, Knob, Toggle, Words, NOFILL } from "./ui.tsx";
 
 // the names in the margin are short, as the lab's are: six letters fit beside the line
 const Row = ({ lb, children }: { lb: string; children?: ComponentChildren }) => <div class="porow"><span class="lb">{lb}</span><div class="ptx">{children}</div></div>;
@@ -65,7 +65,7 @@ function List() {
     {find ? <Switch lb="Hints" title="Suggest terms" note="terms of the course while you name a pair" on={state.findSuggest} toggle={() => setFindSuggest(!state.findSuggest)} /> : null}
     <Row lb="Signs"><b>Notation</b><Words label="Notation" items={Object.entries(SYMS).map(([k, v]) => [k, (v as unknown[])[0] as string] as [string, string])} cur={state.nota} on={setNota} /><More page="nota" /></Row>
     {timed ? blitz : null}
-    <Switch lb="A/B" title="A/B markers" note="before the terms" on={state.showAB} toggle={() => setShow("ab", !state.showAB)} />
+    <Switch lb="A/B" title="A/B markers" note="the pair's terms stand out in the text" on={state.showAB} toggle={() => setShow("ab", !state.showAB)} />
     <Row lb="Terms"><b>Definitions</b><Words label="Languages of the definitions" items={[["en", "English"], ["enru", "English + Russian"]]} cur={state.defLang} on={setDefLang} /><More page="defs" /></Row>
     {(timed || find) ? levels : null}
     {voiceShown() ? <VoiceRows /> : null}
@@ -88,7 +88,7 @@ function Time({ kind, lb, label, note }: { kind: string; lb: string; label: stri
   return <Row lb={lb}><b>{label}</b><small>{note}</small>
     <span style={{ display: "flex", alignItems: "center", gap: "14px", flexWrap: "wrap" }}>
       <Words label={label} items={[[5, "5 s"], [10, "10 s"], [15, "15 s"], [30, "30 s"]]} cur={preset ? now : -1} on={(s) => setTimer(s * 1000, kind)} />
-      <input type="number" min="2" max="120" inputMode="numeric" class="pfield" style={{ flex: "none", width: "64px", height: "28px", fontSize: "16px" }} placeholder="sec" aria-label={"Custom " + label.toLowerCase() + " in seconds"}
+      <input type="number" min="2" max="120" inputMode="numeric" class="pfield" style={{ flex: "none", width: "64px", height: "28px", fontSize: "16px" }} placeholder="sec" {...NOFILL} aria-label={"Custom " + label.toLowerCase() + " in seconds"}
         value={preset ? "" : String(now)} onChange={(e) => { const v = Math.round(+(e.currentTarget as HTMLInputElement).value); if (v >= 2 && v <= 120) setTimer(v * 1000, kind); }}
         onKeyDown={(e) => e.stopPropagation()} />
     </span></Row>;

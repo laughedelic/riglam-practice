@@ -17,7 +17,8 @@ import { setOn as setVoiceOn, voiceAvailable, voiceNote, voiceOn } from "../shel
 import { DEFAULT_LOOK, currentLook, lookLine, pastedLook, setLook, storedLook } from "./look.ts";
 import { setDesign } from "./index.tsx";
 import { Foot, Station, TopBar, pathNote } from "./shell.tsx";
-import { Bridge, Toggle, Words } from "./ui.tsx";
+import { Sub } from "./subjects.tsx";
+import { Bridge, Toggle, Words, NOFILL } from "./ui.tsx";
 
 const keepMode = () => { const m = storedLook().mode; return { mode: m === undefined ? null : m }; };
 function LookRows() {
@@ -31,6 +32,10 @@ function LookRows() {
   return <>
     <div class="srow wide"><span /><span class="ct"><b>Light or dark</b><small>The Path's own; the classic page follows the device.</small>
       <div class="below" style={{ padding: "8px 0 0" }}><Words label="Light or dark" items={[["system", "System"], ["light", "Light"], ["dark", "Dark"]]} cur={look.mode} on={(v) => { setLook({ mode: v === DEFAULT_LOOK.mode ? null : v }); render(); }} /></div></span></div>
+    <div class="srow wide"><span /><span class="ct"><b>A and B in the text</b><small>How the pair's two terms stand out where a question or a note names them. The practice options switch them off.</small>
+      <p class="psamp">Name something that is <b class="conn">both</b> <Sub k="a">a thing that is heard</Sub> <b class="conn">and</b> <Sub k="b">a sound</Sub>.</p>
+      <div class="below" style={{ padding: "6px 0 0" }}><Words label="A and B in the text" items={[["none", "Plain"], ["italic", "Italic"], ["letters", "Letters"], ["diamonds", "Diamonds"], ["inks", "Inks"]]} cur={look.subj}
+        on={(v) => { setLook({ subj: v === DEFAULT_LOOK.subj ? null : v }); render(); }} /></div></span></div>
     <div class="srow wide"><span /><span class="ct"><b>The lab's settings</b>
       <small>{own ? "This device uses its own: colors, fonts and switches as set in the Path Lab." : "The defaults: the picks made in the Path Lab."}</small>
       <div class="below" style={{ padding: "6px 0 0", display: "flex", flexWrap: "wrap", gap: "0 18px" }}>
@@ -39,7 +44,7 @@ function LookRows() {
         {own ? <button type="button" class="pbtn" onClick={copy}>Copy this device's</button> : null}
       </div>
       {open ? <div class="below" style={{ padding: "6px 0 0" }}>
-        <textarea class="ptext" aria-label="The line from the lab's Copy settings" placeholder="Paste the line from Copy settings in the Path Lab" value={text} onInput={(e) => { setText((e.currentTarget as HTMLTextAreaElement).value); setBad(false); }} />
+        <textarea class="ptext" aria-label="The line from the lab's Copy settings" placeholder="Paste the line from Copy settings in the Path Lab" {...NOFILL} value={text} onInput={(e) => { setText((e.currentTarget as HTMLTextAreaElement).value); setBad(false); }} />
         {bad ? <p class="pnoteline bad">That is not a line from the lab's Copy settings.</p> : null}
         <button type="button" class="pbtn" onClick={use}>Use these</button>
       </div> : null}
