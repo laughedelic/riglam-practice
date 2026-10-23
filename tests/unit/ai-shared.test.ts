@@ -307,7 +307,7 @@ test("the debate card lists the four questions and what the learner's answers im
   const card = tutorCard(ix, pair({ relation: "4" }), debate());
   expect(card).toContain("This is the four-questions debate mode.");
   expect(card).toContain('A = "forms", B = "minds".');
-  expect(card).toContain("Correct relation: Four possibilities. The learner's answers give: Three possibilities, A in B. Learner chose: Mutually exclusive.");
+  expect(card).toContain("Correct relation: Four possibilities. The learner's Q1 to Q3 answers give: Three possibilities, A in B. Learner chose: Mutually exclusive.");
   expect(card).toContain(`- Q1 (${qPlain(0)}) counter-example cell: both; learner said ACCEPT; reference EMPTY (Nothing is both.); page verdict ok`);
   expect(card).toContain('learner said WHY with the example "a wooden chair" [in the practice list as: a wooden chair, type Form]');
   expect(card).toContain("learner said WHY without an example");
@@ -504,12 +504,12 @@ test("the card of the learner's own pair holds what the data says of each side, 
   const half = tutorCard(ix, own({ a: "Hues" }), find({ rel: "4", cells, res: noRes(["cmp", "open", "bad", "cmp"]) }));
   expect(half).toMatch(/"A":\{"label":"Hues"[^}]*"term":"Color"/);
   // a side named as a negation: its words, with the facts of what it negates, and the card says which side is the negation
-  const neg = tutorCard(ix, own({ a: "non-hues", catA: "col", neg: "a" }), find({ rel: "4n", cells, res: noRes(["cmp", "open", "bad", "cmp"]) }));
+  const neg = tutorCard(ix, own({ a: "non-hues", catA: "col", neg: "a" }), find({ rel: "4", cells, res: noRes(["cmp", "open", "bad", "cmp"]) }));
   expect(neg).toMatch(/"A":\{"label":"non-hues","negation_of":\{"label":"hues"[^}]*"term":"Color"/);
   expect(neg).toContain('Negation: A ("non-hues") is a negation');
   expect(neg).toContain("Judge the cells and the relation with that");   // the page worked out nothing for an own pair
   expect(neg).not.toContain("were worked out with that");
-  expect(neg).toContain("Relation asked for: Four possibilities without neither");
+  expect(neg).toContain("Relation asked for: Four possibilities");
 });
 
 test("the pair-finding explain request: the usual one for a pair the data knows, one that asks for the relation for the learner's own", () => {

@@ -37,10 +37,8 @@ export function Icon({ n, cls = "i" }: { n: string; cls?: string }) {
 export const D = ({ cls, mark }: { cls: string; mark?: string }) => <span class={"d " + cls}>{mark ? <span class="mk"><Icon n={mark} /></span> : null}</span>;
 /** A stop on the path: its mark in the margin, its text beside the line. */
 export const St = ({ d, cls = "", children }: { d: ComponentChildren; cls?: string; children?: ComponentChildren }) => <div class={"st " + cls}>{d}<div class="ptx">{children}</div></div>;
-/** A section of the path, which draws its own piece of the line (walked, cur, gap, ahead, okp, nop, ptp, ptail). The last one ends the line: while the
- *  station can be taken it says how (an arrow on the line, and its words beside it). */
-export const Sx = ({ cls, children }: { cls: string; children?: ComponentChildren }) => <section class={"sx " + cls}>{children}
-  {/ptail/.test(cls) ? <span class="pup" aria-hidden="true"><span class="pa-arrow"><Icon n="up" /></span><span class="pt">pull up to go on</span></span> : null}</section>;
+/** A section of the path, which draws its own piece of the line (walked, cur, gap, ahead, okp, nop, ptp, ptail). */
+export const Sx = ({ cls, children }: { cls: string; children?: ComponentChildren }) => <section class={"sx " + cls}>{children}</section>;
 /** The heading of a step: "1 Relation", and what it asks in a lighter voice. */
 export const Head = ({ d, h, sub, later }: { d: ComponentChildren; h: string; sub?: string; later?: boolean }) =>
   <St d={d} cls="sechead"><span class={"ph" + (later ? " later" : "")}>{h}{sub ? <span>{sub}</span> : null}</span></St>;

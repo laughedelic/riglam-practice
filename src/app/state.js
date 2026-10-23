@@ -2,7 +2,7 @@
 // imports, so they are properties of one object. The preference reads below fill in what this device saved.
 
 import { normLevels } from "../ai-shared/examples.ts";
-import { FIND_ASKS } from "../domain/find.ts";
+import { FIND_RELS } from "../domain/find.ts";
 import { DEFAULT_STAGES, normStages, stagesOfLevels, topStage } from "../domain/stages.ts";
 
 /** @type {import("./types.ts").State} */
@@ -53,7 +53,8 @@ export const state = {
   syllogismWording: "take", // how a syllogism is said: "take" (the class's) or "formal" (`rd-syllogism-wording`)
   syllogismGuide: false,    // the structure named under the sentence (S, P, R) and what each reply says in them, for a beginner (`rd-syllogism-guide`)
   findSuggest: true, // Find a pair offers the terms of the course while the pair is typed (the settings of Find a pair, `rd-findsuggest`); off: plain fields
-  negation: "off",   // the negation track of Relations and Pervasions (and the sixth relation in Find a pair): "one" negates A or B in about a third of the pairs, "both" both sides in half of those (`rd-negation`)
+  negBrackets: true,   // a negated name of more than one word is written with brackets, "non-(wooden things)" (`rd-neg-brackets`; off: "non-wooden things")
+  negation: "off",   // the negation track of Relations and Pervasions: "one" negates A or B in about a third of the pairs, "both" both sides in half of those (`rd-negation`)
   relSession: [],    // the Relations answers checked on this page, oldest first: the run towards the offer of a negation step counts them before the database has handed them back (practice/negations.ts)
   negOfferAt: "",    // when the learner last answered the offer of a negation step (`rd-neg-offer`): only the answers after it count towards the next offer
   debates: {},
@@ -138,9 +139,10 @@ try{ let q=localStorage.getItem("rd-quorum"); if(q===null){ q=localStorage.getIt
 try{ state.autoExplain=localStorage.getItem("rd-autoexplain")!=="0"; }catch(e){}
 try{ state.shareExamples=localStorage.getItem("rd-share")!=="0"; state.shareTold=localStorage.getItem("rd-share-told")==="1"; }catch(e){}
 try{ state.recentOpen=localStorage.getItem("rd-recent")!=="0"; }catch(e){}
-try{ const v=localStorage.getItem("rd-findrel"); if(FIND_ASKS.includes(/** @type {any} */(v))) state.findRel=/** @type {any} */(v); }catch(e){}
+try{ const v=localStorage.getItem("rd-findrel"); if(FIND_RELS.includes(/** @type {any} */(v))) state.findRel=/** @type {any} */(v); }catch(e){}
 try{ state.findSuggest=localStorage.getItem("rd-findsuggest")!=="0"; }catch(e){}
 try{ const v=localStorage.getItem("rd-negation"); if(v==="one"||v==="both") state.negation=v; state.negOfferAt=localStorage.getItem("rd-neg-offer")||""; }catch(e){}
+try{ state.negBrackets=localStorage.getItem("rd-neg-brackets")!=="0"; }catch(e){}
 try{ if(localStorage.getItem("rd-cats-ask")==="one") state.catsAsk="one"; state.catsOfferAt=localStorage.getItem("rd-cats-offer")||""; }catch(e){}
 // A device used before the ladder keeps what it had: its levels of the reference examples (also ones an import brings), or level 1, their default, become
 // the stages up to that level's (level 1 is stage 6), so its pairs and things stay as they were. `rd-ladder` marks a device that has started with the

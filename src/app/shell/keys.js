@@ -1,5 +1,5 @@
 import { state } from "../state.js";
-import { orderOf } from "../core/rel.js";
+import { ORDER } from "../core/rel.js";
 import { isWide } from "../core/viewport.js";
 import { checkCategories, continueCategories, pickCategory, sayCategory, tickCategory, tickNone } from "../categories/flow.js";
 import { backSyllogism, replyOfKey, saySyllogism } from "../syllogism/flow.js";
@@ -32,7 +32,7 @@ document.addEventListener("keydown",e=>{
   if((e.key==="v"||e.key==="r"||e.key==="Enter"||e.key==="Escape")&&!e.shiftKey&&t!=="INPUT"&&t!=="TEXTAREA"&&t!=="SELECT"&&(t!=="BUTTON"||e.key!=="Enter")&&voiceKey(e.key)){ e.preventDefault(); return; }
   if((e.key==="f"||e.key==="F")&&!e.shiftKey&&t!=="INPUT"&&t!=="TEXTAREA"&&state.db&&favTarget()&&!favTarget().own&&isEx()){ e.preventDefault(); toggleFav(favTarget()); return; }
   if(state.tab==="practice"&&!state.ui.debate){
-    if(!state.ui.checked&&t!=="INPUT"&&/^[1-6]$/.test(e.key)&&+e.key<=orderOf(state.cur.p).length&&(isWide()||!state.ui.rel||state.ui.open)){ e.preventDefault(); choose(orderOf(state.cur.p)[+e.key-1]); }
+    if(!state.ui.checked&&t!=="INPUT"&&/^[1-5]$/.test(e.key)&&(isWide()||!state.ui.rel||state.ui.open)){ e.preventDefault(); choose(ORDER[+e.key-1]); }
     else if(!state.ui.checked&&t!=="INPUT"&&t!=="TEXTAREA"&&(e.key==="s"||e.key==="S")&&!e.shiftKey){ e.preventDefault(); skipPair(); }
     else if(state.ui.checked&&(e.key==="n"||e.key==="N")&&!e.shiftKey&&t!=="INPUT"&&t!=="TEXTAREA"){ e.preventDefault(); next(); }
   } else if(state.tab==="find"&&state.ui.find){
@@ -63,7 +63,7 @@ document.addEventListener("keydown",e=>{
       if(state.ui.pickWhy) return;
       if(k==="a"||k==="y"){ e.preventDefault(); sayQ("accept"); } else if(k==="w"||k==="n"||k==="?"){ e.preventDefault(); sayQ("why"); } else if(k==="s"&&!e.shiftKey){ e.preventDefault(); skipPair(); }
     } else if(!state.ui.checked){
-      if(/^[1-6]$/.test(k)&&+k<=orderOf(state.cur.p).length&&(isWide()||state.ui.open)){ e.preventDefault(); chooseD(orderOf(state.cur.p)[+k-1]); }
+      if(/^[1-5]$/.test(k)&&(isWide()||state.ui.open)){ e.preventDefault(); chooseD(ORDER[+k-1]); }
       else if(k==="enter"&&state.ui.rel&&!state.ui.open&&t!=="BUTTON"){ e.preventDefault(); checkDebate(); }
       else if(k==="s"&&!e.shiftKey){ e.preventDefault(); skipPair(); }
     } else if(k==="n"&&!e.shiftKey){ e.preventDefault(); next(); }

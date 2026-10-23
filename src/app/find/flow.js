@@ -10,7 +10,7 @@ import { freshUi } from "../practice/queue.js";
 import { clearSkip } from "../practice/skips.js";
 import { focusAfterCheck, focusCin, render, top0 } from "../shell/render.js";
 import { switchTo } from "../shell/tabs.js";
-import { FIND_ASKS, FIND_RELS, drawRelation, findId, findPair, gradeFind, nameThing, sameThing } from "../../domain/find.ts";
+import { drawRelation, findId, findPair, gradeFind, nameThing, sameThing } from "../../domain/find.ts";
 
 /* ---------- Find a pair: the usual exercise the other way round ---------- */
 // The learner is given a relation and names two phenomena that stand in it, then writes an example for each cell the relation leaves possible, as in Relations.
@@ -29,15 +29,15 @@ function useRel(u,k){
   u.rel=k; u.ci=0; u.seen=0; u.pop=null;
   for(const c of REL[k].empty){ u.cells[c].t=""; u.cells[c].none=false; }
 }
-/** The next relation to ask for, with no pair named yet: the one the learner picked, else a draw that leaves out `not` (by default the one asked last, so a draw is never the same twice running); with the negation track on, the draw also asks for four possibilities without neither. */
+/** The next relation to ask for, with no pair named yet: the one the learner picked, else a draw that leaves out `not` (by default the one asked last, so a draw is never the same twice running). */
 export function advanceFind(not=state.findAsked[state.findAsked.length-1]){
-  state.cur=/** @type {any} */({p:null,find:true}); state.ui=freshFindUi(asked(state.findRel||drawRelation(state.findAsked,Math.random,not,state.negation!=="off"))); state.mode="quiz";
+  state.cur=/** @type {any} */({p:null,find:true}); state.ui=freshFindUi(asked(state.findRel||drawRelation(state.findAsked,Math.random,not))); state.mode="quiz";
 }
 /** Asks for another, drawn relation instead, while no examples are being written; the words and the examples already written stay (those in a cell the new relation leaves empty go). */
 export function anotherRelation(){
   const u=state.ui; if(!u||!u.find||u.checked||u.step!==0) return;
   u.pairErr="";
-  useRel(u,asked(drawRelation(state.findAsked,Math.random,u.rel,state.negation!=="off")));
+  useRel(u,asked(drawRelation(state.findAsked,Math.random,u.rel)));
   if(state.cur.p&&state.cur.p.own) state.cur.p.relation=u.rel;
   render();
 }
@@ -68,13 +68,13 @@ function focusFirstCell(){
 /** The pair is named: on to the examples. The same words as before keep the examples written; other words start a new pair. */
 export function usePair(){
   const u=state.ui; if(!u||!u.find||u.checked||u.step!==0) return;
-  const a=nameThing(state,u.wordA), b=nameThing(state,u.wordB);
+  const a=nameThing(state,u.wordA,state.negBrackets), b=nameThing(state,u.wordB,state.negBrackets);
   if(!a.label||!b.label){ u.pairErr="Name both phenomena."; render(); focusWord(a.label?"b":"a"); return; }
   if(sameThing(a,b)){ u.pairErr="Name two different phenomena."; render(); focusWord("b"); return; }
   const had=state.cur.p;
   if(had&&had.a===a.label&&had.b===b.label){ if(had.own) had.relation=u.rel; }
   else {
-    state.cur=/** @type {any} */({p:findPair(state,u.rel,a,b,undefined,undefined,moreRefs(),state.stages),find:true});
+    state.cur=/** @type {any} */({p:findPair(state,u.rel,a,b,undefined,undefined,moreRefs(),state.stages,state.negBrackets),find:true});
     Object.assign(u,{cells:freshUi().cells, ci:0, seen:0, pop:null});
   }
   u.own=!!state.cur.p.own; u.pairErr=""; u.step=1;
@@ -103,10 +103,6 @@ export function checkFind(){
   if(u.res.relOpen) u.doc.relOpen=true;
   persist(u,"Your answer");
 }
-/** What the naming step says while four possibilities without neither is asked for: only a pair with a negation has it. */
-export const NEG_HINT="This one needs a negation: name one as “non-(wooden things)”.";
-/** The relations the learner can pick: the five, and four possibilities without neither while the negation track is on (or while it is the one picked). */
-export const findChoices=()=>state.negation!=="off"||state.findRel==="4n"?FIND_ASKS:FIND_RELS;
 /** Opens a pair that was skipped (Review, Skipped) at its examples, for the relation that was asked for then (it counts as asked, so the draw after it leaves it out). The relation the learner has picked is not changed. The attempt has an id of its own, as it is the id of the answer: another relation chosen here leaves the skip on the list, and answering that later must not replace this answer. */
 export function resumeFind(pair,rel){
   switchTo("find");

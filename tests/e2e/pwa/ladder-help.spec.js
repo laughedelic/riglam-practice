@@ -7,7 +7,7 @@ import { KEY_STORE, dataKey, serveCourse, withCourse } from "../../support/data-
 
 const hook = () => { window.__riglamTest = (t) => { window.__t = t; }; };
 const onPath = () => { if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path"); };
-const ORDER = ["mi", "3ab", "3ba", "4", "con", "4n"];
+const ORDER = ["mi", "3ab", "3ba", "4", "con"];
 const fwd = (page) => page.locator("#stage .pbar .fwd");
 const pathChoices = (page) => page.locator("#path .chs .crow");
 const station = (page) => page.locator("#stn");
@@ -80,18 +80,19 @@ test("on the Path the offer shows on the result too; Not now keeps negations off
   await expect(page.locator("#path .offer")).toHaveCount(0);
 });
 
-test("with negations on, Pervasions draws negated pairs too, and accepting all but Q1 to Q3 on one gives the sixth relation", async ({ page }) => {
+test("with negations on, Pervasions draws negated pairs too, and Accept to Q4 on one with nothing neither is right", async ({ page }) => {
   await page.addInitScript(() => { localStorage.setItem("rd-negation", "one"); localStorage.setItem("rd-stages", "1,2,3"); });
   await page.addInitScript(hook);
   await page.goto("/");
-  await expect(page.locator("#stage .head .pair")).toBeVisible();     // with negations on the first pair may have six answers
+  await expect(page.locator("#stage .head .pair")).toBeVisible();
   await goTo(page, "Pervasions");
   await expect.poll(() => page.evaluate(() => window.__t.tab)).toBe("debate");
-  // about one draw in twenty is a negated pair with four possibilities without neither: 300 tries all but never miss it
-  for (let i = 0; i < 300 && !(await page.evaluate(() => window.__t.cur.p.neg && window.__t.cur.p.relation === "4n")); i++) await page.evaluate(() => window.__t.next());
+  // about one draw in twenty is a negated pair with four possibilities and nothing neither: 300 tries all but never miss it
+  const empty = () => page.evaluate(() => { const p = window.__t.cur.p; return !!p.neg && p.relation === "4" && !p.ex.nei; });
+  for (let i = 0; i < 300 && !(await empty()); i++) await page.evaluate(() => window.__t.next());
   const p = await page.evaluate(() => window.__t.cur.p);
   expect(p.neg).toMatch(/^(a|b)$/);     // one side, either one
-  expect(p.relation).toBe("4n");
+  expect(p.relation).toBe("4");
   // Why? to Q1 to Q3 with anything, Accept to Q4: nothing is neither
   for (let q = 0; q < 3; q++) {
     await page.keyboard.press("w");
@@ -100,26 +101,35 @@ test("with negations on, Pervasions draws negated pairs too, and accepting all b
   }
   await page.keyboard.press("a");
   await expect.poll(() => page.evaluate(() => window.__t.ui.step)).toBe(4);
-  await expect(relOptions(page)).toHaveCount(6);
-  await relOptions(page).nth(5).click();
+  await expect(relOptions(page)).toHaveCount(5);
+  await relOptions(page).nth(ORDER.indexOf("4")).click();
   await expect.poll(() => page.evaluate(() => window.__t.ui.checked)).toBe(true);
-  expect(await page.evaluate(() => [window.__t.ui.res.relOk, window.__t.ui.res.implied])).toEqual([true, "4n"]);
+  expect(await page.evaluate(() => [window.__t.ui.res.relOk, window.__t.ui.res.implied, window.__t.ui.res.cells.nei.v])).toEqual([true, "4", "ok"]);
 });
 
-test("Find a pair takes a negation as named, and with negations on it can ask for four possibilities without neither", async ({ page }) => {
-  await page.addInitScript(() => { localStorage.setItem("rd-negation", "one"); localStorage.setItem("rd-findrel", "4n"); });
+test("Find a pair takes a negation as named, with or without the brackets, and has no sixth relation to ask for", async ({ page }) => {
+  await page.addInitScript(() => { localStorage.setItem("rd-negation", "one"); localStorage.setItem("rd-findrel", "4"); });
   await page.addInitScript(hook);
   await page.goto("/");
   await expect(page.locator("#stage .head .pair")).toBeVisible();
   await goTo(page, "Find a pair");
   await expect(page.locator("#fw-a")).toBeVisible();
-  await expect(page.locator(".cap")).toContainText("Four possibilities without neither");
-  await expect(page.locator(".cap")).toContainText("name one as “non-(wooden things)”");
+  await expect(page.locator(".cap")).toContainText("Four possibilities.");
+  await expect(page.locator(".cap")).not.toContainText("without neither");
   await page.fill("#fw-a", "forms");
   await page.fill("#fw-b", "non-wooden things");
   await page.locator("#fw-b").press("Enter");
   await expect.poll(() => page.evaluate(() => window.__t.ui.step)).toBe(1);
-  expect(await page.evaluate(() => { const p = window.__t.cur.p; return [p.a, p.b, p.neg, p.relation, !!p.own]; })).toEqual(["forms", "non-(wooden things)", "b", "4n", false]);
+  expect(await page.evaluate(() => { const p = window.__t.cur.p; return [p.a, p.b, p.neg, p.relation, !!p.own]; })).toEqual(["forms", "non-(wooden things)", "b", "4", false]);
+  // with the brackets off the same words are kept as typed
+  await page.evaluate(() => { localStorage.setItem("rd-neg-brackets", "0"); });
+  await page.reload();
+  await goTo(page, "Find a pair");
+  await page.fill("#fw-a", "forms");
+  await page.fill("#fw-b", "non-wooden things");
+  await page.locator("#fw-b").press("Enter");
+  await expect.poll(() => page.evaluate(() => window.__t.ui.step)).toBe(1);
+  expect(await page.evaluate(() => { const p = window.__t.cur.p; return [p.a, p.b, p.neg, p.relation]; })).toEqual(["forms", "non-wooden things", "b", "4"]);
 });
 
 const course = withCourse ? test : test.skip;

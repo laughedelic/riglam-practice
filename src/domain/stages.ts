@@ -156,7 +156,7 @@ export function newCategories(ix: DataIndex, cats: readonly (string | null | und
   return cats.filter((c, i, all): c is string => !!c && all.indexOf(c) === i && !!ix.CAT[c]?.term && catStage(ix.CAT[c]) === top);
 }
 
-/** The negation track (Relations and Pervasions; Find a pair asks for the sixth relation): off, one side negated in some pairs (A or B), or also both. */
+/** The negation track (Relations and Pervasions): off, one side negated in some pairs (A or B), or also both. */
 export type Negation = "off" | "one" | "both";
 
 /** The right answers in a row after which the next step of the negation track is offered (never taken without a tap). */

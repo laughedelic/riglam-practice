@@ -41,10 +41,11 @@ export const termSing=x=>singular(x==="A"?state.cur.p.a:state.cur.p.b);
 // the chip and the first word of its term stay on one line
 /** A category label in the singular, with its article ("memories" -> "a memory"). */
 export const singular=lab=>SING[american(lab)]||negSingular(lab)||lab.replace(/^(\w+) things$/,"a $1 thing");
-// a negated label ("non-products", "non-(wooden things)", the negation track) in the singular: "a non-product", "a non-(wooden thing)", "non-food"
+// a negated label ("non-products", "non-(wooden things)", "non-wooden things", the negation track) in the singular: "a non-product", "a non-(wooden thing)", "a non-wooden thing", "non-food"
 function negSingular(lab){
-  const m=/^non-\((.+)\)$/.exec(lab)||/^non-(\S+)$/.exec(lab); if(!m) return "";
+  const m=/^non-\((.+)\)$/.exec(lab)||/^non-(.+)$/.exec(lab); if(!m) return "";
   const s=singular(m[1]), a=/^an? /.exec(s), core=a?s.slice(a[0].length):s;
+  if(!a&&/\s/.test(m[1])&&!/^non-\(/.test(lab)) return "";                // a label of the data that starts with "non-" and is not a negation of one
   return (a?"a ":"")+"non-"+(/^non-\(/.test(lab)?"("+core+")":core);
 }
 export const termNode=(x,p=state.cur.p)=>{ const lab=x==="A"?p.a:p.b, [w,...r]=singular(lab).split(" ");
