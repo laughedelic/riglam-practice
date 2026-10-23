@@ -16,7 +16,7 @@ import { refreshPath } from "./index.tsx";
 import { Choices, ErrLines, PairResult, Verdict, WhyRow, needsKey, pairOf, u0 } from "./parts.tsx";
 import { Row, cases, isOpen, resultRows } from "./relations.tsx";
 import { Scroll } from "./scroll.tsx";
-import { Foot, HideKeys, KbdStation, PreStation, SideStation, Station, TopBar } from "./shell.tsx";
+import { Foot, PreStation, SideStation, Station, TopBar } from "./shell.tsx";
 import { D, Fig, Gap, Head, St, Sx, NOFILL } from "./ui.tsx";
 
 const relOf = () => u0().rel as RelKey;
@@ -63,10 +63,9 @@ function PairStep({ kb }: { kb: boolean }) {
         <Gap h={6} /></Sx>
       <Sx cls="ptail" />
     </Scroll>
-    <Foot kbd={kb ? <KbdStation name="Examples" ready={ok} act={() => { if (!u.wordA.trim()) focus("fw-a"); else if (!u.wordB.trim()) focus("fw-b"); else usePair(); }} /> : null}
-      aux={kb ? <HideKeys /> : state.findRel ? null : <SideStation kind="skip" act={skipPair} />}>
+    {kb ? null : <Foot aux={state.findRel ? null : <SideStation kind="skip" act={skipPair} />}>
       {ok ? <Station name="Examples" hint="your pair" act={usePair} /> : <PreStation name="Examples" hint="name both first" />}
-    </Foot>
+    </Foot>}
   </>;
 }
 

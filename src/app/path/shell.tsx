@@ -10,7 +10,7 @@ import { toggleMenu } from "../shell/menu.js";
 import { isEx } from "../shell/render.js";
 import { openBlitzOptions, toggleSess } from "../shell/session.js";
 import { micShown, readShown, toggleListen, toggleReadAloud, voiceBar } from "../shell/voice.js";
-import { Pull, SLIDE, buzz } from "./gesture.ts";
+import { Pull, SLIDE, bump } from "./gesture.ts";
 import { refreshPath } from "./index.tsx";
 import { Bridge, Icon } from "./ui.tsx";
 
@@ -79,7 +79,7 @@ export function Toast() {
   return <div class={"ptoast" + (text ? " on" : "")} role="status">{text}{sk ? <button type="button" onClick={undoSkip}>Undo</button> : null}</div>;
 }
 
-/** The station at the edge, ready: pull it up past the line, tap it, or press Enter (the end of the line says so, ui.tsx Sx). */
+/** The station at the edge, ready: pull it up past its reach, tap it, or press Enter (its arrow hops, as the sign that it can be taken). */
 export function Station({ name, hint = "", act, arrive = false }: { name: string; hint?: string; act: () => void; arrive?: boolean }) {
   const pull = useContext(PullCtx); pull.act = act;
   const g = useRef<{ y0: number; moved: boolean; past: boolean } | null>(null);
@@ -106,17 +106,6 @@ export function PreStation({ name, hint }: { name: string; hint: string }) {
     <span class="go pre" /><span class="gol pre"><b>{name}</b></span><span class="phint" aria-hidden="true">{hint}</span>
   </button>;
 }
-/** On the keyboard: the next step itself (the next example, or Check), gray until this example has words. */
-export function KbdStation({ name, tag, ready, act }: { name: string; tag?: string; ready: boolean; act: () => void }) {
-  return <button type="button" class={"stn kst" + (ready ? "" : " notyet")} id="kst" aria-label={name + (tag ? ": " + tag : "")}
-    onMouseDown={(e) => e.preventDefault()} onClick={act}>
-    <span class="go"><span class="mk"><Icon n="up" /></span></span><span class="gol"><b>{name}</b>{tag ? <i class="kc">{tag}</i> : null}</span><span class="phint" aria-hidden="true">write this one first</span>
-  </button>;
-}
-/** The keyboard's own key to put it away, at the right of its station. */
-export const HideKeys = () => <button type="button" class="pib hidek" aria-label="Put the keyboard away" onMouseDown={(e) => e.preventDefault()}
-  onClick={() => { const a = document.activeElement as HTMLElement | null; if (a && a.blur) a.blur(); }}><Icon n="chev" /></button>;
-
 /**
  * A side station: a small station on a dashed line that runs off the right edge. Slide it left past the line's reach and let go (or press
  * Enter); a tap only nudges it ("slide it left"), except the tutor's, which a tap takes too.
@@ -151,7 +140,7 @@ export function SideStation({ kind, label, act, disabled = false }: { kind: "ski
       const raw = Math.max(0, s.x0 - e.clientX); if (raw > 4) s.moved = true;
       set(-(raw < SLIDE ? raw : SLIDE + (raw - SLIDE) * 0.3));
       const p = raw >= SLIDE;
-      if (p !== s.past) { s.past = p; box.current.classList.toggle("past", p); if (p) buzz(); }
+      if (p !== s.past) { s.past = p; box.current.classList.toggle("past", p); if (p) bump(); }
       say(p ? (tutor ? "let go to open" : "let go to " + idle.toLowerCase()) : "slide left");
     }}
     onPointerUp={end}
@@ -164,7 +153,7 @@ export function SideStation({ kind, label, act, disabled = false }: { kind: "ski
   </div>;
 }
 
-/** The foot: the station, and at its right what goes beside it (a side station, the keyboard's key). */
-export function Foot({ children, aux, kbd, none = false }: { children?: ComponentChildren; aux?: ComponentChildren; kbd?: ComponentChildren; none?: boolean }) {
-  return <footer class={"foot" + (none ? " nostation" : "")}>{kbd}{children || <span />}<span class="aux">{aux}</span></footer>;
+/** The foot: the station, and at its right what goes beside it (a side station). While the keyboard is up there is no foot. */
+export function Foot({ children, aux, none = false }: { children?: ComponentChildren; aux?: ComponentChildren; none?: boolean }) {
+  return <footer class={"foot" + (none ? " nostation" : "")}>{children || <span />}<span class="aux">{aux}</span></footer>;
 }

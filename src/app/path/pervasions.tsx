@@ -18,7 +18,7 @@ import { Choices, ErrLines, PairResult, PairStops, Thinking, TutorNote, Verdict,
 import { relChoices } from "./relations.tsx";
 import { FlagBtn, FlagEditor, explainCase } from "./flags.tsx";
 import { Scroll } from "./scroll.tsx";
-import { Foot, HideKeys, KbdStation, PreStation, SideStation, Station, TopBar, VoiceBar } from "./shell.tsx";
+import { Foot, PreStation, SideStation, Station, TopBar, VoiceBar } from "./shell.tsx";
 import { Sub, markNames } from "./subjects.tsx";
 import { D, Gap, Head, Mark, St, Sx, NOFILL } from "./ui.tsx";
 
@@ -71,11 +71,10 @@ function QuestionStep({ kb }: { kb: boolean }) {
       <Sx cls="ptail" />
     </Scroll>
     <VoiceBar />
-    <Foot kbd={kb ? <KbdStation name={last ? "Relation" : "Next question"} ready={!!(u.exText || "").trim()} act={submitWhy} /> : null}
-      aux={<>{kb ? <HideKeys /> : <SideStation kind="skip" act={skipPair} />}</>}>
+    {kb ? null : <Foot aux={<SideStation kind="skip" act={skipPair} />}>
       {u.pickWhy && (u.exText || "").trim() ? <Station name={last ? "Relation" : "Next question"} hint="your counter-example" act={submitWhy} />
         : <PreStation name={u.pickWhy && !last ? "Next question" : "Relation"} hint={u.pickWhy ? "posit a counter-example first" : last ? "answer this question first" : "answer the four questions first"} />}
-    </Foot>
+    </Foot>}
   </>;
 }
 
