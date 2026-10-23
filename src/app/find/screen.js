@@ -2,7 +2,7 @@ import { state } from "../state.js";
 import { quorumItem } from "../ai/quorum-panel.js";
 import { canAsk } from "../core/ask.js";
 import { L, el } from "../core/dom.js";
-import { CELLS, REL, lcRel, notaOf, notaParts } from "../core/rel.js";
+import { CELLS, ORDER, REL, lcRel, notaOf, notaParts } from "../core/rel.js";
 import { isWide } from "../core/viewport.js";
 import { next } from "../practice/queue.js";
 import { cellView, coachInto, errLines, exLine, quizCell, relPopNode, relWhy, resultBlock, termsItem, tutorItem } from "../practice/screen.js";
@@ -10,14 +10,14 @@ import { subRowNode } from "../practice/skips.js";
 import { exGrid } from "../review/review.js";
 import { pairBar } from "../shell/pbar.js";
 import { fitPair, render, setSteps } from "../shell/render.js";
-import { NEG_HINT, checkFind, chooseRel, editPair, findChoices, findList, usePair } from "./flow.js";
+import { checkFind, chooseRel, editPair, findList, usePair } from "./flow.js";
 
 /* ---------- Find a pair: the screen ---------- */
 // The same parts as Relations (the heading with the diamond, the table of examples, one cell at a time on a phone, the result with its chips), with a first step
 // in which the learner names the pair and a relation that is given, not picked. See flow.js for the steps.
 const nextFwd=()=>({label:"Next relation",hint:"N",onclick:()=>next()});
 // the relation asked for, in the words of the course, with the letters A and B since the pair is the learner's
-const cap=()=>{ const r=REL[state.ui.rel]; return el("p",{class:"cap"},el("b",{text:r.name+". "}),r.gloss("A","B")+".",state.ui.rel==="4n"&&state.ui.step===0?" "+NEG_HINT:null); };
+const cap=()=>{ const r=REL[state.ui.rel]; return el("p",{class:"cap"},el("b",{text:r.name+". "}),r.gloss("A","B")+"."); };
 
 // the diamond shows the relation asked for, with the pair on both sides once it is named; checked, it is lapis when the pair has the relation and vermilion when it has not.
 // Until the result it is a button: it opens the choice of relation (relPicker).
@@ -45,7 +45,7 @@ function relPicker(){
     el("span",null,el("span",{class:"name",text:name}),el("span",{class:"gloss",text:gloss})),
     el("span",{class:"nota math",text:nota}));
   list.append(item(null,"Random",u.step===0?"A different relation each time":"A different relation for the next pairs","any",!state.findRel));
-  for(const k of findChoices()) list.append(item(k,REL[k].name,REL[k].gloss("A","B"),notaOf(k),state.findRel===k));
+  for(const k of ORDER) list.append(item(k,REL[k].name,REL[k].gloss("A","B"),notaOf(k),state.findRel===k));
   return el("div",{class:"section fpick"},
     el("p",{class:"label"},"Relation",el("span",{class:"hint",text:"stays until you pick Random"})),
     el("p",{class:"note faint",text:u.step===0?"Pick the relation to work with. Your words stay.":"Pick another relation for this pair. Your examples stay, except one in a cell the new relation leaves empty."}),

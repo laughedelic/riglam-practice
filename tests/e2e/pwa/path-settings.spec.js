@@ -70,6 +70,25 @@ test("the practice options' Stages page switches the stages on the path, and the
   expect(await page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("2");
 });
 
+test("the Stages page also holds the negations and their brackets, and the Stages row says which are on", async ({ page }) => {
+  await page.addInitScript(() => { if (localStorage.getItem("rd-stages") === null) localStorage.setItem("rd-stages", "1"); });
+  await start(page);
+  await page.getByRole("button", { name: "Practice options" }).click();
+  const sheet = page.getByRole("dialog", { name: "Practice options" });
+  await expect(sheet.getByRole("group", { name: "Negations" })).toHaveCount(0);          // not a row of the list: negations go with the stages
+  await expect(sheet.locator(".porow", { hasText: "Stages" }).first()).not.toContainText("negations");
+  await sheet.getByRole("button", { name: "Stages: more" }).click();
+  const seg = sheet.getByRole("group", { name: "Negations" });
+  await expect(seg.getByRole("button", { name: "Off" })).toHaveAttribute("aria-pressed", "true");
+  await seg.getByRole("button", { name: "One side" }).click();
+  expect(await page.evaluate(() => localStorage.getItem("rd-negation"))).toBe("one");
+  const brackets = sheet.getByRole("switch", { name: /^Brackets/ });
+  await expect(brackets).toHaveAttribute("aria-checked", "true");
+  await brackets.click();
+  await expect(brackets).toHaveAttribute("aria-checked", "false");
+  expect(await page.evaluate(() => localStorage.getItem("rd-neg-brackets"))).toBe("0");
+});
+
 test("the practice options' Voice page is drawn on the path and keeps its choices", async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("rd-voice", "1"));
   await start(page);

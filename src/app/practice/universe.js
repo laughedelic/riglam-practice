@@ -22,5 +22,5 @@ export function answerList(){ return Object.values(state.answers).filter(a=>!isF
 export function nextGenerated(hist,negate){
   const hide=hiddenKeys();                // pairs skipped lately stay out, unless nothing else of the relation is left
   // the pairs and their examples come from the stages that are on; the first pairs after the highest one went up lean to three possibilities
-  return nextPair(state,state.POOL,{hist:hist||answerList(), recent:state.recent, isHidden:c=>hide.has(catKey(c.a,c.b)), more:moreRefs(), stages:state.stages, fresh:spendLean(), even:state.stagesKept, ...(negate&&state.negation!=="off"?{negation:state.negation}:{})});
+  return nextPair(state,state.POOL,{hist:hist||answerList(), recent:state.recent, isHidden:c=>hide.has(catKey(c.a,c.b)), more:moreRefs(), stages:state.stages, fresh:spendLean(), even:state.stagesKept, ...(negate&&state.negation!=="off"?{negation:state.negation,brackets:state.negBrackets}:{})});
 }

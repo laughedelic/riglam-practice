@@ -11,7 +11,7 @@ import type { Reply, Syllogism } from "../../domain/syllogism.ts";
 import { refreshPath } from "./index.tsx";
 import { Choices, ErrLines, Star, Verdict, WhyRow, pickThen, u0 } from "./parts.tsx";
 import { Scroll } from "./scroll.tsx";
-import { Foot, HideKeys, KbdStation, PreStation, SideStation, Station, TopBar } from "./shell.tsx";
+import { Foot, PreStation, SideStation, Station, TopBar } from "./shell.tsx";
 import { D, Gap, Head, Mark, St, Sx, NOFILL } from "./ui.tsx";
 
 /** The replies as the choices say them, what each says in a few words, and (with "Show the structure") what each means in S, P and R. */
@@ -79,9 +79,9 @@ function CounterStep({ kb }: { kb: boolean }) {
         <Gap h={6} /></Sx>
       <Sx cls="ptail" />
     </Scroll>
-    <Foot kbd={kb ? <KbdStation name="Result" ready act={exampleSyllogism} /> : null} aux={kb ? <HideKeys /> : null}>
+    {kb ? null : <Foot>
       <Station name="Result" hint={some ? "your reply and the counter-example" : "your reply, without a counter-example"} act={exampleSyllogism} />
-    </Foot>
+    </Foot>}
   </>;
 }
 

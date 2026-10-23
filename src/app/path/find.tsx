@@ -5,8 +5,8 @@ import type { ComponentChildren } from "preact";
 import { useEffect } from "preact/hooks";
 import { state } from "../state.js";
 import { canAsk } from "../core/ask.js";
-import { CELLS, REL, lcRel, notaOf } from "../core/rel.js";
-import { NEG_HINT, checkFind, chooseRel, editPair, findChoices, usePair } from "../find/flow.js";
+import { CELLS, ORDER, REL, lcRel, notaOf } from "../core/rel.js";
+import { checkFind, chooseRel, editPair, usePair } from "../find/flow.js";
 import { next } from "../practice/queue.js";
 import { skipPair } from "../practice/skips.js";
 import { render } from "../shell/render.js";
@@ -16,7 +16,7 @@ import { refreshPath } from "./index.tsx";
 import { Choices, ErrLines, PairResult, Verdict, WhyRow, needsKey, pairOf, u0 } from "./parts.tsx";
 import { Row, cases, isOpen, resultRows } from "./relations.tsx";
 import { Scroll } from "./scroll.tsx";
-import { Foot, HideKeys, KbdStation, PreStation, SideStation, Station, TopBar } from "./shell.tsx";
+import { Foot, PreStation, SideStation, Station, TopBar } from "./shell.tsx";
 import { D, Fig, Gap, Head, St, Sx, NOFILL } from "./ui.tsx";
 
 const relOf = () => u0().rel as RelKey;
@@ -58,15 +58,14 @@ function PairStep({ kb }: { kb: boolean }) {
         <Word k="a" key2="wordA" what="First" last={false} />
         <Word k="b" key2="wordB" what="Second" last />
         {u.pairErr ? <p class="pnoteline bad perr" role="alert">{u.pairErr}</p> : null}
-        <p class="help fhelp">{state.findSuggest ? "Course terms or your own words." : "Whatever comes to mind."}{relOf() === "4n" ? " " + NEG_HINT : ""}</p>
+        <p class="help fhelp">{state.findSuggest ? "Course terms or your own words." : "Whatever comes to mind."}</p>
         {state.findSuggest ? <datalist id="fw-terms">{(state.DATA ? state.DATA.cats : []).map((c: { labels: string[] }) => <option value={c.labels[0]} />)}</datalist> : null}
         <Gap h={6} /></Sx>
       <Sx cls="ptail" />
     </Scroll>
-    <Foot kbd={kb ? <KbdStation name="Examples" ready={ok} act={() => { if (!u.wordA.trim()) focus("fw-a"); else if (!u.wordB.trim()) focus("fw-b"); else usePair(); }} /> : null}
-      aux={kb ? <HideKeys /> : state.findRel ? null : <SideStation kind="skip" act={skipPair} />}>
+    {kb ? null : <Foot aux={state.findRel ? null : <SideStation kind="skip" act={skipPair} />}>
       {ok ? <Station name="Examples" hint="your pair" act={usePair} /> : <PreStation name="Examples" hint="name both first" />}
-    </Foot>
+    </Foot>}
   </>;
 }
 
@@ -74,7 +73,7 @@ function PairStep({ kb }: { kb: boolean }) {
 function RelStep() {
   const u = u0();
   const items = [{ k: "rand", b: "Random", s: u.step === 0 ? "a different relation each time" : "a different relation for the next pairs", pressed: !state.findRel },
-    ...findChoices().map((k) => ({ k, b: REL[k as RelKey].name, s: REL[k as RelKey].gloss("A", "B"), fig: k, sym: state.nota !== "codes" ? notaOf(k) : "", pressed: state.findRel === k }))];
+    ...ORDER.map((k) => ({ k, b: REL[k as RelKey].name, s: REL[k as RelKey].gloss("A", "B"), fig: k, sym: state.nota !== "codes" ? notaOf(k) : "", pressed: state.findRel === k }))];
   return <>
     <Scroll>
       <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="Relation" sub="it stays until you pick Random" />

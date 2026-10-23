@@ -383,7 +383,9 @@ export interface State {
   findRel: RelKey | null;
   /** Find a pair offers the terms of the course while the pair is typed (Options, `rd-findsuggest`) */
   findSuggest: boolean;
-  /** the negation track of Relations and Pervasions, and the sixth relation in Find a pair (`rd-negation`): off, A or B negated in some pairs ("one"), or also both sides ("both") */
+  /** a negated name of more than one word is written in brackets (`rd-neg-brackets`, on) or without ("non-wooden things") */
+  negBrackets: boolean;
+  /** the negation track of Relations and Pervasions (`rd-negation`): off, A or B negated in some pairs ("one"), or also both sides ("both") */
   negation: "off" | "one" | "both";
   /** the Relations answers checked on this page, oldest first: the run towards the offer of a negation step counts them before the database has handed them back (practice/negations.ts) */
   relSession: NegResult[];

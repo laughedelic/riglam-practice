@@ -13,7 +13,7 @@ import { WORDINGS } from "../debate/text.js";
 import { exName } from "../shell/exercises.js";
 import { setStages } from "../shell/stages.js";
 import { toggleOpts } from "../shell/options.js";
-import { PAGES, SYMS, openPage, quorumNote, sessBack, setAutoExplain, setBlitzUse, setDefLang, setFindSuggest, setNegation, setNota, setShow, setSyllogismGuide, setSyllogismWording, setWording, toggleSess } from "../shell/session.js";
+import { PAGES, SYMS, openPage, quorumNote, sessBack, setAutoExplain, setBlitzUse, setDefLang, setFindSuggest, setNegBrackets, setNegation, setNota, setShow, setSyllogismGuide, setSyllogismWording, setWording, toggleSess } from "../shell/session.js";
 import { kindMs } from "../shell/timers.js";
 import { ANSWERS, ANSWER_PICKS, CONFIRM_PICKS, RATES, READ_NOTE, SAMPLE, VOICE_LEAD, VOICE_SAY, WHERE, hookVoices, setVoice, voiceGroups, voiceShown } from "../shell/voice.js";
 import { stageCounts } from "../../domain/reference.ts";
@@ -29,31 +29,36 @@ const Switch = ({ lb, title, note, on, toggle }: { lb: string; title: string; no
 const More = ({ page, label = "more" }: { page: string; label?: string }) => <button type="button" class="more" aria-label={PAGES[page as keyof typeof PAGES] + ": " + label} onClick={() => openPage(page)}>{label}</button>;
 const secs = (kind: string) => Math.round(kindMs(kind) / 1000);
 const timesLine = () => state.tab === "syllogism" ? "Syllogism " + secs("syl") + " s" : "Relation " + secs("rel") + " s · Example " + secs("ex") + " s";
-// the stages that are on, in a line: runs joined ("Stages 1–3, 5")
+// the exercises that draw negated pairs, and so show the Negations choice with the stages
+const negates = () => state.tab === "practice" || state.tab === "debate";
+const NEG_NAME: Record<string, string> = { one: "one side", both: "both sides" };
+// the stages that are on, in a line: runs joined ("Stages 1–3, 5"), and the negations where they are drawn
 const stagesLine = () => {
   const runs: [number, number][] = [];
   for (const n of state.stages as number[]) { const r = runs[runs.length - 1]; if (r && r[1] === n - 1) r[1] = n; else runs.push([n, n]); }
-  return (state.stages.length === 1 ? "Stage " : "Stages ") + runs.map(([a, b]) => (a === b ? String(a) : a + "–" + b)).join(", ");
+  return (state.stages.length === 1 ? "Stage " : "Stages ") + runs.map(([a, b]) => (a === b ? String(a) : a + "–" + b)).join(", ") + (negates() && NEG_NAME[state.negation] ? " · negations: " + NEG_NAME[state.negation] : "");
 };
 const toSettings = () => { toggleSess(false); toggleOpts(true); };
+/** Whether the Tutor row (and its page) is in the list: where the tutor can be asked, and the Quorum switch is offered. Categories has neither. */
+const quorumShown = () => state.quorumOffered && !!state.db && state.tab !== "syllogism" && state.tab !== "categories";
+const tutorShown = () => state.tab !== "categories" && (canAsk() || quorumShown());
 
 /** Voice in the list: Read aloud, and how an answer is taken (or, where the browser cannot listen, the voice and its speed), with its page. */
 function VoiceRows() {
   const v = state.voice; hookVoices();
   return <>
     {canSpeak() ? <Switch lb="Read" title="Read aloud" note="each question" on={v.read} toggle={() => setVoice("read", !v.read)} /> : null}
-    {canHear() ? <Row lb="Voice"><b>Answer by voice</b><Words label="Answer by voice" items={ANSWERS as [string, string][]} cur={v.answer} on={(k) => setVoice("answer", k)} /><More page="voice" /><small>{WHERE}</small></Row>
+    {canHear() ? <Row lb="Voice"><b>Answer by voice</b><Words label="Answer by voice" items={ANSWERS as [string, string][]} cur={v.answer} on={(k) => setVoice("answer", k)} /><More page="voice" /></Row>
       : <Row lb="Voice"><b>Voice</b><small>Voice and speed</small><More page="voice" /></Row>}
   </>;
 }
 
 function List() {
   const tab = state.tab, perv = tab === "debate", find = tab === "find", syl = tab === "syllogism", cats = tab === "categories", timed = tab === "practice" || perv;
-  const tutor = canAsk(), quorum = state.quorumOffered && !!state.db;
-  const tutorRow = tutor ? <Switch lb="Tutor" title="Check every answer with AI" on={state.autoExplain} toggle={() => setAutoExplain(!state.autoExplain)}
-    note={"Right after you check an answer, the AI tutor explains it" + (syl ? "" : " and checks the examples the page could not") + ". Off, it waits for you to ask."} /> : null;
+  const tutor = canAsk();
+  const tutorRow = tutorShown() ? <Row lb="Tutor"><b>Tutor</b>{canAsk() ? <small>{state.autoExplain ? "explains every answer" : "explains when you ask"}</small> : null}<More page="tutor" /></Row> : null;
   const blitz = <Row lb="Blitz"><button type="button" class="two" role="switch" aria-checked={state.blitzUse ? "true" : "false"} onClick={() => setBlitzUse(!state.blitzUse)}>
-    <span><b>Blitz</b><small>{state.blitzUse ? timesLine() : "off: no stopwatch in the top bar"}</small></span><Toggle on={state.blitzUse} /></button>{state.blitzUse ? <More page="times" label="times" /> : null}</Row>;
+    <span><b>Blitz</b><small>{state.blitzUse ? timesLine() : "off"}</small></span><Toggle on={state.blitzUse} /></button>{state.blitzUse ? <More page="times" label="times" /> : null}</Row>;
   const stages = <Row lb="Stages"><b>Stages</b><small>{stagesLine()}</small><More page="stages" /></Row>;
   const foot = <p class="pnoteline" style={{ padding: "10px 18px 4px calc(var(--m) + 22px)" }}>The Magic Key, your account, data{tutor && state.learns ? ", sharing your examples" : ""} and the version are in <button type="button" class="pbtn" style={{ padding: 0 }} onClick={toSettings}>Settings</button>.</p>;
   if (cats) return <>
@@ -61,23 +66,19 @@ function List() {
     {stages}{foot}</>;
   if (syl) return <>
     <Row lb="Words"><b>Wording of the syllogism</b><Words label="Wording" items={[["take", "Take X"], ["formal", "Formal"]]} cur={state.syllogismWording} on={setSyllogismWording} /></Row>
-    <Switch lb="Guide" title="Show the structure" note="S, P and R named under the sentence, and what each reply says in them" on={state.syllogismGuide} toggle={() => setSyllogismGuide(!state.syllogismGuide)} />
+    <Switch lb="Guide" title="Show the structure" note="S, P and R under the sentence" on={state.syllogismGuide} toggle={() => setSyllogismGuide(!state.syllogismGuide)} />
     {stages}{blitz}{tutorRow}{foot}</>;
   return <>
     {perv ? <Row lb="Words"><b>Wording of the questions</b><Words label="Wording of the questions" items={Object.entries(WORDINGS).map(([k, w]) => [k, (w as { name: string }).name] as [string, string])} cur={state.wording} on={setWording} /><More page="wording" /></Row> : null}
     {perv ? <Switch lb="Why?" title="Full phrases" note="spell out Why? answers" on={state.fullPh} toggle={() => setShow("full", !state.fullPh)} /> : null}
-    {tab === "practice" || perv || find ? <Row lb="Not"><b>Negations</b><Words label="Negations" items={[["off", "Off"], ["one", "One side"], ["both", "Both sides"]]} cur={state.negation} on={setNegation} />
-      <small>{find ? "Some relations asked for are then four possibilities without neither, which needs a negation: name one as “non-(wooden things)”."
-        : "Some pairs negate a term: “non-(wooden things)” takes in everything that is not a wooden thing. A negation can give a sixth answer, four possibilities without neither."}</small></Row> : null}
-    {find ? <Switch lb="Hints" title="Suggest terms" note="terms of the course while you name a pair" on={state.findSuggest} toggle={() => setFindSuggest(!state.findSuggest)} /> : null}
+    {find ? <Switch lb="Hints" title="Suggest terms" note="course terms as you type" on={state.findSuggest} toggle={() => setFindSuggest(!state.findSuggest)} /> : null}
     <Row lb="Signs"><b>Notation</b><Words label="Notation" items={Object.entries(SYMS).map(([k, v]) => [k, (v as unknown[])[0] as string] as [string, string])} cur={state.nota} on={setNota} /><More page="nota" /></Row>
     {timed ? blitz : null}
-    <Switch lb="A/B" title="A/B markers" note="the pair's terms stand out in the text" on={state.showAB} toggle={() => setShow("ab", !state.showAB)} />
+    <Switch lb="A/B" title="A/B markers" note="A and B shown in the text" on={state.showAB} toggle={() => setShow("ab", !state.showAB)} />
     <Row lb="Terms"><b>Definitions</b><Words label="Languages of the definitions" items={[["en", "English"], ["enru", "English + Russian"]]} cur={state.defLang} on={setDefLang} /><More page="defs" /></Row>
     {stages}
     {voiceShown() ? <VoiceRows /> : null}
     {tutorRow}
-    {quorum ? <Switch lb="Quorum" title="Several models explain" note={quorumNote()} on={state.quorum} toggle={() => setQuorum(!state.quorum)} /> : null}
     {foot}</>;
 }
 
@@ -114,6 +115,7 @@ function Page({ id }: { id: string }) {
       : <><Time kind="rel" lb="Pick" label="Relation time" note="for choosing the relation, in Relations and Pervasions" /><Time kind="ex" lb="Write" label="Example time" note="for each example in Relations (three cells get three times this) and each question in Pervasions" /></>}</>;
   if (id === "stages") return <Stages />;
   if (id === "voice") return <VoicePage />;
+  if (id === "tutor") return <TutorPage />;
   return null;
 }
 /** The stages of the ladder: a switch for each, with its name, what it adds and how many things this device has of it; any mix, and the last one on stays on. */
@@ -128,6 +130,12 @@ function Stages() {
         <span><b>{"Stage " + n + " · " + name}</b><small>{count + (count === 1 ? " thing" : " things")}</small></span><Toggle on={on} /></button><small class="plvn">{adds}</small></Row>;
     })}
     {only ? <p class="pnoteline pnote3">At least one stage stays on.</p> : null}
+    {negates() ? <>
+      <p class="psub">Negations are a step of difficulty like the stages: switch them on when the plain pairs come easily. A negation takes in what does not exist, so nothing may be neither: then the Neither case is empty, and you say that nothing exists there.</p>
+      <Row lb="Not"><b>Negations</b><Words label="Negations" items={[["off", "Off"], ["one", "One side"], ["both", "Both sides"]]} cur={state.negation} on={setNegation} />
+        <small>Some pairs negate a term: “furniture” and “non-(wooden things)”, which takes in everything that is not a wooden thing. One side: A or B is negated in about a third of the pairs. Both sides: half of those negate both. Relations and Pervasions share this choice; Find a pair takes a negation you name (“non-(wooden things)”) with it off too.</small></Row>
+      <Switch lb="Brackets" title="Brackets" note="“non-(wooden things)” says that the “non-” takes in everything that is not a wooden thing, what does not exist included. Without them, “non-wooden things” is also read as the things that are not wooden, which leaves out what does not exist. They help while negations are new, and apply from the next pair." on={state.negBrackets} toggle={() => setNegBrackets(!state.negBrackets)} />
+    </> : null}
   </>;
 }
 /** The Voice page: the voice and its speed, how an answer is taken and what happens after it is heard. */
@@ -151,14 +159,27 @@ function VoicePage() {
       {v.answer !== "off" ? <><p class="glab">After an answer is heard</p>
         <Picks label="After an answer is heard" cur={v.confirm} on={(k) => setVoice("confirm", k)} items={CONFIRM_PICKS as [string, string, string][]} /></> : null}
       <p class="psub">{VOICE_SAY}</p>
+      <p class="pnoteline pnote3">{WHERE}</p>
     </> : null}
     <p class="pnoteline pnote3">Voice itself is switched on and off in <button type="button" class="pbtn" style={{ padding: 0 }} onClick={toSettings}>Settings</button>.</p>
   </>;
 }
 
+/** The Tutor page: whether it explains every answer by itself, and Quorum (several models), each with what it does. */
+function TutorPage() {
+  const syl = state.tab === "syllogism";
+  return <>
+    <p class="psub">The AI tutor explains an answer: why it is right or wrong{syl ? "" : ", and whether your examples fit their cases"}.</p>
+    {canAsk() ? <Switch lb="Tutor" title="Check every answer with AI" on={state.autoExplain} toggle={() => setAutoExplain(!state.autoExplain)}
+      note={"Right after you check an answer, the tutor explains it" + (syl ? "" : " and checks the examples the page could not") + ". Off, it waits for you to ask."} /> : null}
+    {quorumShown() ? <Switch lb="Quorum" title="Several models explain" note={quorumNote()} on={state.quorum} toggle={() => setQuorum(!state.quorum)} /> : null}
+    <p class="pnoteline pnote3">The Magic Key{canAsk() && state.learns ? ", sharing your examples" : ""} and your data are in <button type="button" class="pbtn" style={{ padding: 0 }} onClick={toSettings}>Settings</button>.</p>
+  </>;
+}
+
 /** The sheet of the practice options: from the top, under the top bar, over a scrim; the knob at its foot folds it away. */
 export function OptionsSheet() {
-  const on = state.sessOpen && state.mode === "quiz", page = on && state.sessPage && PAGES[state.sessPage as keyof typeof PAGES] && (state.sessPage !== "voice" || voiceShown()) ? state.sessPage : null;
+  const on = state.sessOpen && state.mode === "quiz", page = on && state.sessPage && PAGES[state.sessPage as keyof typeof PAGES] && (state.sessPage !== "voice" || voiceShown()) && (state.sessPage !== "tutor" || tutorShown()) ? state.sessPage : null;
   const box = useRef<HTMLDivElement>(null), was = useRef(on);
   useEffect(() => {
     if (on && !was.current) { const b = box.current && box.current.querySelector<HTMLElement>(".shead button"); if (b) b.focus({ preventScroll: true }); }

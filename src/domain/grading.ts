@@ -75,12 +75,8 @@ export function grade(ix: DataIndex, p: PairLike, u: PracticeAnswer): GradeResul
   return summarize({ relOk: u.rel === p.relation && !u.late, cells });
 }
 
-/**
- * What the answers of the debate give: Q1 accepted = no common locus; Q2 and Q3 accepted = pervasion each way. On a pair with a negated side
- * (`neg`), Q4 counts where the first three leave four possibilities: accepted, nothing is neither, four possibilities without neither; on a plain
- * pair something is always neither, and a Q4 accepted is a mistake of its own row. Null when time ran out on one of the first three, "bad" when they contradict each other.
- */
-export function deriveRel(ans: readonly DebateAnswer[], neg = false): RelKey | "bad" | null {
+/** What three answers of the debate give: Q1 accepted = no common locus; Q2 and Q3 accepted = pervasion each way. Null when time ran out on one of them, "bad" when they contradict each other. */
+export function deriveRel(ans: readonly DebateAnswer[]): RelKey | "bad" | null {
   const s = ans.slice(0, 3).map((a) => a.say);
   if (s.some((x) => x !== "accept" && x !== "why")) return null; // time ran out on one of them
   const [x, y, z] = s.map((v) => v === "accept");
@@ -88,7 +84,7 @@ export function deriveRel(ans: readonly DebateAnswer[], neg = false): RelKey | "
   if (!x && y && z) return "mi";
   if (!x && y && !z) return "3ab";
   if (!x && !y && z) return "3ba";
-  if (!x && !y && !z) return neg && ans[3]?.say === "accept" ? "4n" : "4";
+  if (!x && !y && !z) return "4";
   return "bad"; // accepting no-common-locus together with a pervasion
 }
 
@@ -114,7 +110,7 @@ export function gradeDebate(ix: DataIndex, p: PairLike, u: DebateInput): GradeRe
     } else { v = "bad"; msg = ["Time ran out. ", has ? "For example: " + ref + "." : why]; }
     cells[c] = { v, msg, kind }; dec[c] = dok;
   });
-  return summarize({ relOk: u.rel === p.relation && !u.late, cells, dec, implied: deriveRel(u.ans, !!p.neg) });
+  return summarize({ relOk: u.rel === p.relation && !u.late, cells, dec, implied: deriveRel(u.ans) });
 }
 
 /** Adds the counts and the overall grade to a draft. It changes the object it is given and returns it, so that verdicts that arrive later can be counted in again. */

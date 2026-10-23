@@ -162,10 +162,9 @@ function relationByTerms(w: string, terms: PairTerms): RelKey | null {
 }
 
 /**
- * The relation named. `order` is the page's order of the options (keys 1 to 5, and 6 for four possibilities without
- * neither on a pair with a negated term), so "one", "two", "five" and "six" pick by number like the keys do; "three"
- * alone names three possibilities and "four" four possibilities, as their names start so, and "without neither" or
- * "nothing is neither" names four possibilities without neither where it is an option. "3" means three possibilities with no direction: the page asks which way. "A in B", "B contains A" and
+ * The relation named. `order` is the page's order of the options (keys 1 to 5), so "one", "two" and "five" pick by number like the
+ * keys do; "three" alone names three possibilities and "four" four possibilities, as their names start so. "3" means three possibilities
+ * with no direction: the page asks which way. "A in B", "B contains A" and
  * the like give the direction, with or without "three possibilities" before them. With the pair's `terms` it also
  * takes what is written under each option ("All products are functional things, not the reverse").
  */
@@ -173,15 +172,14 @@ export function spokenRelation(alts: readonly string[], order: readonly RelKey[]
   let vague = false;
   for (const heard of alts) {
     const w = plainWords(heard).replace(/\bbeing a\b/g, "b in a");
-    const num = w.match(/^(?:number |option |key )?(one|two|three|four|five|six|6)$/);
+    const num = w.match(/^(?:number |option |key )?(one|two|three|four|five)$/);
     if (num) {
-      const i = ["one", "two", "three", "four", "five", "six"].indexOf(num[1] === "6" ? "six" : num[1]);
+      const i = ["one", "two", "three", "four", "five"].indexOf(num[1]);
       if (/^(number|option|key) /.test(w) || (i !== 2 && i !== 3)) return order[i] || null;
       if (i === 3) return "4";
       vague = true;
       continue;
     }
-    if (order.includes("4n") && /\bwithout (?:\w+ ){0,5}?neither\b|\bnothing (?:is|are|can be) neither\b/.test(w)) return "4n";
     const byWords = relationByPhrase(w) || (terms ? relationByTerms(w, terms) : null);
     if (byWords) return byWords;
     const inner = w.match(/\b(a|b) (?:is )?(?:in|inside|within|under|included in|contained in|part of) (a|b)\b/);

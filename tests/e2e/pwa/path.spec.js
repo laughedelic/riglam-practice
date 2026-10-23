@@ -48,15 +48,24 @@ test("Relations on the Path: a relation, the examples, the check, the result, an
   expect(errors).toEqual([]);
 });
 
-test("a case can say that nothing exists, and a written one opens again with a tap", async ({ page }) => {
+test("only the neither case can say that nothing exists, and a written one opens again with a tap", async ({ page }) => {
   await start(page);
   await choices(page).nth(3).click();   // Four possibilities: all four cases
-  await page.locator("#cin").fill("a red pot");
-  await page.locator("#cin").press("Enter");
-  await page.getByRole("button", { name: "nothing exists" }).click();
+  const none = page.getByRole("button", { name: "nothing exists", exact: true });   // not the written row, whose name says "neither: nothing exists. Change it"
+  for (const text of ["a red pot", "a red book", "a green book"]) {
+    await expect(none).toHaveCount(0);   // the cases the relation asks for need an example: the relation was chosen, and they justify it
+    await page.locator("#cin").press("Enter");   // empty: it does not go on
+    await expect(page.locator("#cin")).toBeVisible();
+    await expect(page.locator(".sb.done")).toHaveCount(text === "a red pot" ? 0 : text === "a red book" ? 1 : 2);
+    await page.locator("#cin").fill(text);
+    await page.locator("#cin").press("Enter");
+  }
+  await expect(none).toBeVisible();   // neither: it may well be empty
+  await none.click();
   await expect(page.locator(".sb.done .pans.nil")).toHaveText("nothing exists");
   await page.locator(".sbb").first().click();
   await expect(page.locator("#cin")).toHaveValue("a red pot");
+  await expect(none).toHaveCount(0);
 });
 
 test("the knob of the strip opens the earlier steps with one tap, and folds them with the next", async ({ page }) => {
@@ -69,6 +78,40 @@ test("the knob of the strip opens the earlier steps with one tap, and folds them
   await expect(strip).toHaveClass(/\bopen\b/);
   await knob.click();
   await expect(strip).not.toHaveClass(/\bopen\b/);
+});
+
+test("a touch outside the unfolded strip folds it again", async ({ page }) => {
+  await start(page);
+  await choices(page).nth(3).click();
+  await page.locator("#cin").blur();
+  const strip = page.locator("#path .pstrip");
+  await strip.evaluate((e) => Promise.all(e.getAnimations().map((a) => a.finished)));
+  await strip.locator(".knob").click();
+  await expect(strip).toHaveClass(/\bopen\b/);
+  const sc = await page.locator("#path .pscroll").boundingBox();
+  await page.mouse.click(sc.x + sc.width / 2, sc.y + sc.height - 30);   // out on the path below
+  await expect(strip).not.toHaveClass(/\bopen\b/);
+  await strip.locator(".knob").click();
+  await expect(strip).toHaveClass(/\bopen\b/);   // and the knob still opens it
+});
+
+test("with the keyboard up there is no bar above it: Enter goes on, and the foot is back when the field is left", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "pwa-phone", "a touch screen's keyboard");
+  await start(page);
+  await choices(page).nth(3).click();
+  await page.locator("#cin").focus();
+  await expect(page.locator(".pa")).toHaveClass(/\bkbup\b/);
+  await expect(page.locator("#path .foot")).toHaveCount(0);   // no next step above the keyboard, no key to put it away
+  await expect(page.locator(".khead")).toBeVisible();
+  await page.locator("#cin").press("Enter");   // empty: it does not go on
+  await expect(page.locator("#path .ptoast.on")).toHaveText(/Write an example first/);
+  for (const t of ["a red pot", "a red book", "a green book", "a stone"]) {
+    await page.locator("#cin").fill(t);
+    await page.locator("#cin").press("Enter");
+  }
+  await expect(page.locator("#cin")).toHaveCount(0);
+  await expect(page.locator(".pa")).not.toHaveClass(/\bkbup\b/);
+  await expect(page.locator("#path .foot #stn")).toBeVisible();   // the Check station is back
 });
 
 test("the top bar's title has no chevron beside it", async ({ page }) => {
@@ -89,7 +132,34 @@ test("why the next station is not ready shows in a note above the foot, not unde
   const h = await hint.boundingBox(), foot = await page.locator("#path .foot").boundingBox();
   expect(h.y + h.height, "the note ends above the foot's top edge").toBeLessThanOrEqual(foot.y);
   expect(h.y + h.height, "and above the station under the finger").toBeLessThanOrEqual(b.y);
+  const [hb, fb] = await page.evaluate(() => [getComputedStyle(document.querySelector("#stnp .phint")).backgroundColor, getComputedStyle(document.querySelector("#path .foot")).backgroundColor]);
+  expect(hb, "the note is on the page's own ground, not a block of its own").toBe(fb);
   await page.mouse.up();
+});
+
+test("scrolling past the end only tightens the thread; the station is taken by its own pull or a tap, and no line marks the reach", async ({ page }) => {
+  await start(page);
+  await answer(page);
+  const stn = page.locator("#stn");
+  await expect(stn).toBeVisible();
+  await expect(page.locator(".bumpl")).toHaveCount(0);
+  const sc = await page.locator("#path .pscroll").boundingBox();
+  await page.mouse.move(sc.x + sc.width / 2, sc.y + sc.height / 2);
+  for (let i = 0; i < 6; i++) await page.mouse.wheel(0, 300);   // far more than the reach
+  await expect(page.locator(".pa")).toHaveClass(/\bpulling\b/);
+  const rise = await stn.evaluate((e) => -new DOMMatrix(getComputedStyle(e).transform).m42);
+  expect(rise, "the thread comes up a little").toBeGreaterThan(10);
+  expect(rise, "but not as far as the station's reach").toBeLessThan(64);
+  await expect(page.locator(".pa")).not.toHaveClass(/\bpulling\b/);   // let go: it goes back
+  await expect(stn).toBeVisible();
+  await expect(page.locator(".pvline")).toHaveCount(0);   // nothing was checked
+  // the station itself, pulled past its reach, is taken
+  const b = await stn.boundingBox();
+  await page.mouse.move(b.x + 20, b.y + b.height / 2); await page.mouse.down();
+  await page.mouse.move(b.x + 20, b.y + b.height / 2 - 40, { steps: 4 });
+  await page.mouse.move(b.x + 20, b.y + b.height / 2 - 110, { steps: 4 });
+  await page.mouse.up();
+  await expect(page.locator(".pvline")).toBeVisible();
 });
 
 test("the strip pulls from its heading with a short pull, and its hint is gray", async ({ page }) => {
@@ -108,17 +178,24 @@ test("the strip pulls from its heading with a short pull, and its hint is gray",
   await expect(strip).toHaveClass(/\bopen\b/);   // pulled by the pair, not by the knob
 });
 
-test("the pair has its relation under it, in the course's notation with its name spelled out", async ({ page }) => {
+test("the pair has its relation under it: the name beside the terms, the course's notation in the margin under A and B, set as they are", async ({ page }) => {
   await start(page);
   await choices(page).nth(3).click();
   await page.locator("#cin").blur();
   await page.locator("#path .pstrip").evaluate((e) => Promise.all(e.getAnimations().map((a) => a.finished)));
-  const rel = page.locator("#path .pstrip .compact .pnn");
-  await expect(rel.locator(".rc")).toHaveText("4P");
+  const rel = page.locator("#path .pstrip .compact .pnn"), code = page.locator("#path .pstrip .compact .pnc"), mark = page.locator("#path .pstrip .compact .pnm.b");
+  await expect(code).toHaveText("4P");
   await expect(rel.locator(".rn")).toHaveText("Four possibilities");
-  const t = await page.locator("#path .pstrip .compact .pnl.b").boundingBox(), r = await rel.boundingBox();
-  expect(r.y, "under the second term").toBeGreaterThanOrEqual(t.y + t.height - 2);
+  await expect(rel.locator(".rc")).toHaveCount(0);
+  const t = await page.locator("#path .pstrip .compact .pnl.b").boundingBox(), r = await rel.boundingBox(), c = await code.boundingBox(), m = await mark.boundingBox();
+  expect(r.y, "the name is under the second term").toBeGreaterThanOrEqual(t.y + t.height - 2);
   expect(r.x, "in the column of the terms").toBeLessThanOrEqual(t.x + 2);
+  expect(c.x + c.width, "the code is in the margin, left of the text").toBeLessThanOrEqual(t.x);
+  expect(c.y, "under the B mark").toBeGreaterThanOrEqual(m.y + m.height - 2);
+  expect(Math.abs(c.x + c.width - (m.x + m.width)), "its right edge is the marks'").toBeLessThan(2);
+  expect(Math.abs((c.y + c.height / 2) - (r.y + r.height / 2)), "on the line of the name").toBeLessThan(8);
+  const font = (l) => l.evaluate((e) => { const s = getComputedStyle(e); return [s.fontFamily, s.fontSize, s.fontWeight, s.fontStyle, s.color].join("|"); });
+  expect(await font(code), "in the margin's font").toBe(await font(mark));
 });
 
 test("under Blitz each countdown has a bar of its own on the top bar, so that it starts full", async ({ page }) => {
@@ -233,7 +310,7 @@ withKey("the tutor's note under an example is a list of steps in the tutor's blo
   await expect(note).not.toContainText("Take ");   // the "take" line repeated the answer above it
 });
 
-withKey("with the tutor on its own, Why is open on the result; the pull-up hint is at the foot once the examples are in", async ({ page }) => {
+withKey("with the tutor on its own, Why is open on the result; the station's arrow hops once the examples are in", async ({ page }) => {
   await factsServer(page);
   await page.addInitScript(() => localStorage.setItem("rd-autoexplain", "1"));
   await start(page);
@@ -245,9 +322,9 @@ withKey("with the tutor on its own, Why is open on the result; the pull-up hint 
     await field.press("Enter");
   }
   await expect(field).toHaveCount(0);
-  await expect(page.locator(".pa.ready .sx.ptail .pup")).toBeVisible();
-  const [hint, foot] = await page.evaluate(() => [document.querySelector(".pup").getBoundingClientRect().bottom, document.querySelector(".pa .foot").getBoundingClientRect().top]);
-  expect(hint).toBeLessThanOrEqual(foot + 1);
+  await expect(page.locator(".pa.ready #stn")).toBeVisible();
+  await expect(page.locator(".pup")).toHaveCount(0);   // no arrow and words on the thread: the station's own arrow hops
+  await expect.poll(() => page.evaluate(() => getComputedStyle(document.querySelector("#stn .go .mk .i")).animationName)).toBe("p-hop");
   await page.locator("#stn").click();
   await expect(page.locator(".wrow.open")).toBeVisible();
   await expect(page.locator(".exr .tnote").first()).toBeVisible();
@@ -397,6 +474,28 @@ test("the practice options' knob sits on the sheet's edge, splitting its line", 
   const edge = sheet.y + sheet.height;
   expect(k.y, "the knob starts above the edge").toBeLessThan(edge);
   expect(k.y + k.height, "and ends below it").toBeGreaterThan(edge);
+  // no box of paper under the edge: beside the chevron, just below the line, the page shows as it does elsewhere under the sheet
+  const px = (x, y) => page.screenshot({ clip: { x, y, width: 6, height: 2 } });
+  expect((await px(k.x + 2, edge + 3)).equals(await px(k.x - 80, edge + 3)), "the knob has no box below the sheet's edge").toBe(true);
+});
+
+test("the practice options leave part of the screen to tap out on, and scroll inside; the Tutor has a page of its own", async ({ page }) => {
+  test.skip(!withCourse, "the tutor needs the Magic Key");
+  await factsServer(page);
+  await start(page);
+  await page.getByRole("button", { name: "Practice options" }).click();
+  const sheet = page.getByRole("dialog", { name: "Practice options" });
+  await page.waitForTimeout(500);
+  const [sb, vp] = [await page.locator("#path .psheet.on").boundingBox(), page.viewportSize()];
+  expect(sb.y + sb.height, "the sheet stops short of the bottom of the screen").toBeLessThanOrEqual(vp.height * 0.8);
+  await expect(sheet.getByRole("button", { name: "Tutor: more" })).toBeVisible();
+  await expect(sheet).not.toContainText("Right after you check an answer");   // what needs more words is on the page
+  await sheet.getByRole("button", { name: "Tutor: more" }).click();
+  await expect(sheet.getByRole("switch", { name: /Check every answer with AI/ })).toBeVisible();
+  await expect(sheet).toContainText("Right after you check an answer");
+  await sheet.getByRole("button", { name: "back to the options" }).click();
+  await page.mouse.click(vp.width / 2, vp.height - 20);   // out on what is under the sheet
+  await expect(page.locator("#path .psheet.on")).toHaveCount(0);
 });
 
 test("the whole Skip station takes the slide, not the diamond alone: from its word, from beside the diamond, and with the mouse", async ({ page }) => {

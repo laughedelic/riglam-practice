@@ -4,7 +4,7 @@ import { flushFlags } from "./ai/flag-reports.js";
 import { loadKnown } from "./ai/known.js";
 import { quorumThings, setQuorum, setQuorumOffer } from "./ai/quorum.js";
 import { loadExamples } from "./core/examples.js";
-import { refOf } from "./core/rel.js";
+import { fromSixth, refOf } from "./core/rel.js";
 import { favKey } from "./practice/favorites.js";
 import { advance, next } from "./practice/queue.js";
 import { choose, fbNode } from "./practice/screen.js";
@@ -78,15 +78,15 @@ async function bootSteps(platform){
     state.batches=snap.docs.map(d=>Object.assign({id:d.id},d.data())); state.gotB=true; settle();
   },()=>{ state.gotB=true; settle(); });
   state.db.collection("answers").onSnapshot(snap=>{
-    const m={}; snap.docs.forEach(d=>{m[d.id]=d.data();}); state.answers=m; state.gotA=true; settle();
+    const m={}; snap.docs.forEach(d=>{m[d.id]=fromSixth(d.data());}); state.answers=m; state.gotA=true; settle();
   },()=>{ state.gotA=true; settle(); });
   state.db.collection("favorites").onSnapshot(snap=>{
-    const m={}; snap.docs.forEach(d=>{m[d.id]=d.data();});
+    const m={}; snap.docs.forEach(d=>{m[d.id]=fromSixth(d.data());});
     const same=Object.keys(m).sort().join()===Object.keys(state.favs).sort().join(); state.favs=m;
     if(!same&&state.mode!=="loading") render();
   },()=>{});
   state.db.collection("skips").onSnapshot(snap=>{
-    const m={}; snap.docs.forEach(d=>{m[d.id]=d.data();});
+    const m={}; snap.docs.forEach(d=>{m[d.id]=fromSixth(d.data());});
     const same=Object.keys(m).sort().join()===Object.keys(state.skips).sort().join(); state.skips=m; state.gotS=true;
     if(state.mode==="loading") settle(); else if(!same&&state.tab==="review") render();
   },()=>{ state.gotS=true; settle(); });

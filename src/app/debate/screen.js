@@ -2,7 +2,7 @@ import { state } from "../state.js";
 import { aiCase, aiFlag, flagEditorNode } from "../ai/flags.js";
 import { quorumItem } from "../ai/quorum-panel.js";
 import { L, el } from "../core/dom.js";
-import { REL, cellLabel, lcRel, notaOf, notaParts, orderOf } from "../core/rel.js";
+import { REL, cellLabel, lcRel, notaOf, notaParts } from "../core/rel.js";
 import { isWide } from "../core/viewport.js";
 import { backWhy, chooseD, debateList, sayQ, submitWhy } from "./flow.js";
 import { QCELL, Wd, ansNode, qNode } from "./text.js";
@@ -146,7 +146,7 @@ export function renderDebate(s,c){
   }
 
   if(stage==="rel"||stage==="done"){
-    if(w) s.append(relStrip(chooseD,stage==="done"),relCap("Pick the relation your answers give (keys 1–"+orderOf(p).length+"). Picking it checks your answers."));
+    if(w) s.append(relStrip(chooseD,stage==="done"),relCap("Pick the relation your answers give (keys 1–5). Picking it checks your answers."));
     else if(stage==="rel"&&u.open) s.append(relList(chooseD,null));
     const vb=stage==="rel"?voiceBar():null; if(vb) s.append(vb);
   }
@@ -163,5 +163,5 @@ export function renderDebate(s,c){
   if(!w) return;
   // the panel at the right, when it is open
   coachInto(c,debateList().slice(-5).reverse(),a=>a.key,stage==="done"?[["N","next pair"],["F","favorite"]]
-    :stage==="ask"?[[Wd().ak,Wd().acc.toLowerCase()],[Wd().wk,Wd().why.toLowerCase()],["S","skip"],["F","favorite"]]:[["1–"+orderOf(state.cur.p).length,"relation, checks"],["S","skip"],["F","favorite"]]);
+    :stage==="ask"?[[Wd().ak,Wd().acc.toLowerCase()],[Wd().wk,Wd().why.toLowerCase()],["S","skip"],["F","favorite"]]:[["1–5","relation, checks"],["S","skip"],["F","favorite"]]);
 }

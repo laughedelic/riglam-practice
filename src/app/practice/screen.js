@@ -7,7 +7,7 @@ import { canAsk } from "../core/ask.js";
 import { NAME_CELL, VERDICT_RE, noteParts, parseFactLine, partsText } from "../../domain/verdict.ts";
 import { $, L, el } from "../core/dom.js";
 import { lockIcon } from "../core/icons.js";
-import { CELLS, REL, cellLabel, lcRel, notaOf, notaParts, orderOf } from "../core/rel.js";
+import { CELLS, ORDER, REL, cellLabel, lcRel, notaOf, notaParts } from "../core/rel.js";
 import { gradeOf } from "../core/util.js";
 import { isWide } from "../core/viewport.js";
 import { stopTimer } from "../debate/flow.js";
@@ -47,7 +47,7 @@ function quizHead(s,w){
 // the five relations as a list (narrow screens, and the last step of a debate) ...
 export function relList(onPick,heading){
   const p=state.cur.p, list=el("div",{class:"rels",role:"group","aria-label":"Relation"});
-  orderOf(p).forEach((k,i)=>{
+  ORDER.forEach((k,i)=>{
     const r=REL[k];
     list.append(el("button",{type:"button",class:"rel","aria-pressed":state.ui.rel===k?"true":"false",onclick:()=>onPick(k)},
       el("span",null, el("span",{class:"name",text:r.name}), el("span",{class:"gloss",text:r.gloss(p.a,p.b)})),
@@ -57,8 +57,8 @@ export function relList(onPick,heading){
 }
 // ... and as a strip of five chips (wide screens), with the chosen relation explained under it
 export function relStrip(onPick,done){
-  const p=state.cur.p, order=orderOf(p), box=el("div",{class:"strip"+(order.length>5?" six":"")+(done?" done":""),role:"group","aria-label":"Relation"});
-  order.forEach((k,i)=>{
+  const p=state.cur.p, box=el("div",{class:"strip"+(done?" done":""),role:"group","aria-label":"Relation"});
+  ORDER.forEach((k,i)=>{
     const r=REL[k], mine=state.ui.rel===k;
     // once checked: the chosen chip is lapis when right and vermilion when wrong, and the right one is ringed
     const st=done?(state.ui.late?(p.relation===k?" right":""):mine?(state.ui.res&&state.ui.res.relOk?" key":" wrong"):p.relation===k?" right":""):"";
@@ -68,7 +68,7 @@ export function relStrip(onPick,done){
   return box;
 }
 export function relCap(hint){
-  if(!state.ui.rel) return el("p",{class:"cap",text:hint||"Pick the relation (keys 1–"+orderOf(state.cur.p).length+"), then give examples."});
+  if(!state.ui.rel) return el("p",{class:"cap",text:hint||"Pick the relation (keys 1–5), then give examples."});
   const r=REL[state.ui.rel];
   if(state.ui.late) return el("p",{class:"cap"},el("b",{text:"Time ran out. "}),"The relation is "+lcRel(r.name)+": "+r.gloss(state.cur.p.a,state.cur.p.b)+".");
   return el("p",{class:"cap"},el("b",{text:r.name+". "}),r.gloss(state.cur.p.a,state.cur.p.b)+".");
@@ -280,7 +280,7 @@ function quizWide(s,c){
   // the result stays in the middle, under the table; the tutor's conversation is in the panel at the right
   if(u.checked){ s.append(quizResult()); const no=negOfferNode(); if(no) s.append(no); if(u.saveErr) s.append(el("p",{class:"status",text:u.saveErr})); }
   s.append(pairBar(u.checked?nextFwd():u.rel?{label:"Check",onclick:()=>check()}:null));       // before a relation is picked the cells are closed and there is nothing to check
-  coachInto(c,answerList().slice(-5).reverse(),a=>a.key,u.checked?[["N","next pair"],["F","favorite"]]:[["1–"+orderOf(p).length,"relation"],["Enter","next cell"],["S","skip"],["F","favorite"]]);
+  coachInto(c,answerList().slice(-5).reverse(),a=>a.key,u.checked?[["N","next pair"],["F","favorite"]]:[["1–5","relation"],["Enter","next cell"],["S","skip"],["F","favorite"]]);
 }
 /**
  * The panel at the right of a wide screen, when it is open: the tutor's conversation once there is one (a checked pair has its follow-up field from the start),
@@ -327,7 +327,7 @@ export function cellView(s){
     voiceBar(),
     el("p",{class:"chint"},
       state.ui.ci>0?el("button",{type:"button",class:"back",onclick:()=>{state.ui.ci--; render(); focusCin();},text:"‹ Back"}):null,
-      "Leave it empty if nothing exists here."+(skipTxt?" "+skipTxt:""))),
+      [c==="nei"?"Leave it empty if nothing exists here.":"",skipTxt].filter(Boolean).join(" "))),
     pairBar({label:last?"Check":"Next cell",onclick:go}));
 }
 // the explanation on the narrow result screen; follow-up questions go to the chat view
