@@ -25,9 +25,9 @@ import { voiceListRows, voicePageBody, voiceShown } from "./voice.js";
 
 // what the symbols of each notation mean
 export const SYMS={
-  codes:["Shorthand","Perdue's course book abbreviates the relations like this.",[["MI","mutually inclusive"],["MX","mutually exclusive"],["3P","three possibilities"],["4P","four possibilities"],["4PN","four possibilities without neither (with negations)"]]],
-  sets:["Sets","Each term stands for the set of things it covers.",[["∩","intersection: what is both"],["∅","the empty set: nothing"],["≠ ∅","not empty"],["⊂","contained in"],["⊃","contains"],["=","the same set"],["∪ = all","together they take in everything (with negations)"]]],
-  logic:["Logic","Each term stands for a statement: it is A, it is B.",[["⇒","follows: A ⇒ B, if A then B"],["⇐","follows from"],["⇔","each follows from the other"],["⇏","does not follow"],["¬","negation: not"],["∨","or: whatever is not A is B (with negations)"]]]
+  codes:["Shorthand","Perdue's course book abbreviates the relations like this.",[["MI","mutually inclusive"],["MX","mutually exclusive"],["3P","three possibilities"],["4P","four possibilities"]]],
+  sets:["Sets","Each term stands for the set of things it covers.",[["∩","intersection: what is both"],["∅","the empty set: nothing"],["≠ ∅","not empty"],["⊂","contained in"],["⊃","contains"],["=","the same set"]]],
+  logic:["Logic","Each term stands for a statement: it is A, it is B.",[["⇒","follows: A ⇒ B, if A then B"],["⇐","follows from"],["⇔","each follows from the other"],["⇏","does not follow"],["¬","negation: not"]]]
 };
 export const PAGES={nota:"Notation",wording:"Questions",times:"Blitz",defs:"Definitions",stages:"Stages",voice:"Voice"};
 const store=(key,v)=>{ try{ localStorage.setItem(key,v); }catch(e){} };
@@ -38,6 +38,7 @@ export function setAutoExplain(on){ state.autoExplain=on; store("rd-autoexplain"
 export function setWording(k){ state.wording=k; store("rd-wording",k); render(); }
 export function setFindSuggest(on){ state.findSuggest=on; store("rd-findsuggest",on?"1":"0"); render(); }
 export function setNegation(k){ state.negation=k; store("rd-negation",k); render(); }
+export function setNegBrackets(on){ state.negBrackets=on; store("rd-neg-brackets",on?"1":"0"); render(); }
 export function setSyllogismWording(k){ state.syllogismWording=k; store("rd-syllogism-wording",k); render(); }
 export function setSyllogismGuide(on){ state.syllogismGuide=on; store("rd-syllogism-guide",on?"1":"0"); render(); }
 // Blitz off takes the stopwatch away from the top bar, and a running countdown with it
@@ -78,11 +79,19 @@ const group=t=>el("p",{class:"grp",text:t});
 const sw=(label,word,on,toggle,note)=>el("div",{class:"orow"},switchOf(label,word,on,toggle),note?el("p",{class:"onote",text:note}):null);
 const chips=(label,rows,cur,on)=>segOf(label,rows,cur,on);
 const secs=kind=>Math.round(kindMs(kind)/1000);
-// the stages that are on, in a line: runs joined ("Stages 1–3, 5")
+// the exercises that draw negated pairs, and so show the Negations choice with the stages
+const negates=()=>state.tab==="practice";
+const NEG_NAME={one:"one side",both:"both sides"};
+// the stages that are on, in a line: runs joined ("Stages 1–3, 5"), and the negations where they are drawn
 const stagesLine=()=>{
   const runs=[]; for(const n of state.stages){ const r=runs[runs.length-1]; if(r&&r[1]===n-1) r[1]=n; else runs.push([n,n]); }
-  return el("small",{class:"sum1",text:(state.stages.length===1?"Stage ":"Stages ")+runs.map(([a,b])=>a===b?a:a+"–"+b).join(", ")});
+  return el("small",{class:"sum1",text:(state.stages.length===1?"Stage ":"Stages ")+runs.map(([a,b])=>a===b?a:a+"–"+b).join(", ")+(negates()&&NEG_NAME[state.negation]?" · negations: "+NEG_NAME[state.negation]:"")});
 };
+// Negations are a step of difficulty like the stages, so they are chosen on the Stages page: once the plain pairs come easily, and seldom changed
+const negBracketsRow=()=>sw("Brackets",state.negBrackets?"on":"off",state.negBrackets,()=>setNegBrackets(!state.negBrackets),
+  "“non-(wooden things)” says that the “non-” takes in everything that is not a wooden thing, what does not exist included. Without the brackets, “non-wooden things” is also read as the things that are not wooden, which leaves out what does not exist. The course book writes them for more than one word; they help while negations are new. They apply from the next pair.");
+const negationRow=()=>row("Negations",chips("Negations",[["off","Off"],["one","One side"],["both","Both sides"]],state.negation,setNegation),
+  "Some pairs negate a term: “furniture” and “non-(wooden things)”, which takes in everything that is not a wooden thing. One side: B is negated in about a third of the pairs. Both sides: half of those negate A and B. A negation takes in what does not exist, so nothing may be neither: then the Neither case is empty, and you say that nothing exists there. Switch it on when the plain pairs come easily.");
 // the Blitz times in a line (the card says Off instead when Blitz is switched off)
 const timesLine=()=>el("small",{class:"sum1",text:state.tab==="syllogism"?"Syllogism "+secs("syl")+" s":"Relation "+secs("rel")+" s · Example "+secs("ex")+" s"});
 
@@ -117,7 +126,8 @@ function pageBody(id){
       :[timeBlock("rel","Relation time","The Blitz countdown for choosing the relation, in Relations and in Pervasions."),
         timeBlock("ex","Example time","The Blitz countdown for each example in Relations (a table of three cells gets three times this) and for each question in Pervasions.")])];
   if(id==="stages") return [el("p",{class:"capl",text:"Every exercise asks about the stages that are on, in any mix. A category opens at its stage and stays open above it, and the things come from the stages that are on. About half of the pairs are new at the highest stage, the rest review the ones below. Stage 1 is the start: Categories offers the next stage after five right in a row, and you can switch stages on and off here at any time. People and what does not exist meet the physical categories from stage 4. Examples that are relations or negations join from stage 7. A definition card shows examples of every stage, the plainest first."}),
-    stageSwitches()];
+    stageSwitches(),
+    ...(negates()?[group("Negations"),negationRow(),negBracketsRow()]:[])];
   if(id==="voice") return [...voicePageBody(picks),
     el("p",{class:"capl"},"Voice itself is switched on and off in ",el("button",{type:"button",class:"lnk",onclick:()=>{ toggleSess(false); toggleOpts(true); }},"Settings"),".")];
   return [el("p",{class:"capl",text:"Shown when you open a term’s definition, in the Terms panel and in the tutor’s notes."}),
@@ -162,8 +172,6 @@ function listBody(){
   const tutor=canAsk(), quorum=state.quorumOffered&&state.db;
   // what only this exercise has comes first, under its name; what every exercise has follows
   const own=[
-    state.tab==="practice"?row("Negations",chips("Negations",[["off","Off"],["one","One side"],["both","Both sides"]],state.negation,setNegation),
-      "Some pairs negate a term: “furniture” and “non-(wooden things)”, which takes in everything that is not a wooden thing. One side: B is negated in about a third of the pairs. Both sides: half of those negate A and B. A negation can give a sixth answer, four possibilities without neither: something is both, something is each alone, and nothing is neither."):null,
     perv?card("Wording of the questions",chips("Wording of the questions",Object.entries(WORDINGS).map(([k,w])=>[k,w.name]),state.wording,setWording),"wording"):null,
     perv?sw("Full phrases","spell out Why? answers",state.fullPh,()=>setShow("full",!state.fullPh)):null,
     find?sw("Suggest terms",state.findSuggest?"on":"off",state.findSuggest,()=>setFindSuggest(!state.findSuggest),

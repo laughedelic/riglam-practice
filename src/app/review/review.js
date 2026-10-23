@@ -23,14 +23,13 @@ export function barNode(p){ return el("span",{class:"bar"+(p<50?" b-low":p<80?" 
 // what Review counts of the Relations answers: the grades, the relation right, the last 14 days, each relation (the Path draws the same numbers, path/review.tsx)
 /** @type {[string, string][]} */
 export const GRADES=[["ok","Fully right"],["pend","Examples unchecked"],["part","Partly right"],["bad","Wrong"]];
-export const RNAME={mi:"Mutually inclusive",con:"Mutually exclusive","3":"Three possibilities","4":"Four possibilities","4n":"Four possibilities without neither"};
+export const RNAME={mi:"Mutually inclusive",con:"Mutually exclusive","3":"Three possibilities","4":"Four possibilities"};
 /** @returns {{relOk: number, G: Record<string, number>, segs: [string, string][], days: [string, number][], byRel: [string, number, number][]}} */
 export function overview(all){
   const relOk=all.filter(a=>a.correct).length, G={ok:0,pend:0,part:0,bad:0};
   for(const a of all){ const g=gradeOf(a); G[g in G?g:"bad"]++; }
   /** @type {[string, number][]} */ const days=[]; for(let i=13;i>=0;i--){ const d=new Date(Date.now()-i*864e5).toISOString().slice(0,10); days.push([d,all.filter(a=>dayOf(a.at)===d).length]); }
-  // four possibilities without neither only once a pair with a negation has been answered
-  const byRel=["mi","3","4","4n","con"].map(r=>{ const xs=all.filter(a=>(a.key==="3ab"||a.key==="3ba"?"3":a.key)===r); return /** @type {[string, number, number]} */([r,xs.length,xs.filter(a=>a.correct).length]); }).filter(([r,n])=>r!=="4n"||n);
+  const byRel=["mi","3","4","con"].map(r=>{ const xs=all.filter(a=>(a.key==="3ab"||a.key==="3ba"?"3":a.key)===r); return /** @type {[string, number, number]} */([r,xs.length,xs.filter(a=>a.correct).length]); });
   return {relOk,G,segs:GRADES.filter(([g])=>G[g]),days,byRel};
 }
 function revOverview(box,all){

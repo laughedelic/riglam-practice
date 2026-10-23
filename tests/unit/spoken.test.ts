@@ -69,14 +69,10 @@ test("the relation by name, by number like the keys, and three possibilities onl
 const T = { a: "functional things", b: "products" };
 const T2 = { a: "things able to perform a function", b: "impermanent things" };
 
-test("on a pair with a negated term, the sixth answer by name or number, and not on a plain pair", () => {
-  const ORDER6: RelKey[] = [...ORDER, "4n"];
-  for (const s of ["four possibilities without neither", "four possibilities without anything that is neither", "Four possibilities, without there being something which is neither.", "they overlap, neither contains the other, and nothing is neither", "six", "number 6"])
-    expect(spokenRelation([s], ORDER6), s).toBe("4n");
-  expect(spokenRelation(["four possibilities"], ORDER6)).toBe("4");
-  expect(spokenRelation(["they overlap; neither contains the other"], ORDER6)).toBe("4");
-  expect(spokenRelation(["four possibilities without neither"], ORDER)).toBe("4");
+test("four possibilities without neither is four possibilities, and there is no sixth answer to pick by number", () => {
+  for (const s of ["four possibilities without neither", "Four possibilities, without there being something which is neither."]) expect(spokenRelation([s], ORDER), s).toBe("4");
   expect(spokenRelation(["six"], ORDER)).toBeNull();
+  expect(spokenRelation(["number six"], ORDER)).toBeNull();
 });
 
 test("the relation said as what is written under the option, with the pair's own terms", () => {

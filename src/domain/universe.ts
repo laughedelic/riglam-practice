@@ -68,15 +68,14 @@ export function cellsFor(ix: DataIndex, a: string, b: string): Record<CellId, It
 }
 
 /**
- * The relation the filled cells show. Four possibilities without neither needs an empty neither cell, which only a pair with a negated side
- * has: the horn of a rabbit is in no category, so it is neither for every plain pair.
+ * The relation the filled cells show. The neither cell does not enter: a pair with a negated side can have it empty (the horn of a rabbit is in
+ * no category, so it is neither for every plain pair, but a negation takes it in), and the pair is still four possibilities.
  */
 export function relOfCells(c: Record<CellId, readonly unknown[]>): RelKey {
   if (!c.both.length) return "con";
   if (!c.anb.length && !c.bna.length) return "mi";
   if (!c.anb.length) return "3ab";
   if (!c.bna.length) return "3ba";
-  if (!c.nei.length) return "4n";
   return "4";
 }
 
@@ -111,7 +110,6 @@ function noteFor(p: Names & { relation: RelKey }, plain?: Names & { relation: Re
     "3ab": "Whatever falls under “" + p.a + "” also falls under “" + p.b + "”, but not the reverse.",
     "3ba": "Whatever falls under “" + p.b + "” also falls under “" + p.a + "”, but not the reverse.",
     "4": cap(p.a) + " and " + p.b + " overlap without either containing the other.",
-    "4n": cap(p.a) + " and " + p.b + " overlap without either containing the other, and whatever is not one is the other.",
   };
   return t[p.relation];
 }
@@ -131,7 +129,7 @@ export function buildPool(ix: DataIndex): PoolEntry[] {
       const a = ids[i], b = ids[j];
       if (!judgeable(ix, a, b)) continue;
       const r = relOfCells(cellsFor(ix, a, b));
-      out.push({ a, b, r: r === "3ab" || r === "3ba" ? "3" : r === "4n" ? "4" : r }); // a plain pair is never 4n (relOfCells)
+      out.push({ a, b, r: r === "3ab" || r === "3ba" ? "3" : r });
     }
   }
   for (const id of ids) if (ix.CAT[id].labels.length > 1) out.push({ a: id, b: id, r: "mi" });
@@ -144,7 +142,7 @@ export function buildPool(ix: DataIndex): PoolEntry[] {
  * the clock and one more random number, so with both given the whole pair is reproducible. With `on`, the examples are
  * things of those stages (see pairOf). With `neg`, B (or A and B) is negated, under a label that is not a negation already where the category has one.
  */
-export function makePair(ix: DataIndex, cand: PoolEntry, rng: Rng = Math.random, now: Clock = Date.now, more?: Witnesses, on?: Stages, neg?: Neg): Pair {
+export function makePair(ix: DataIndex, cand: PoolEntry, rng: Rng = Math.random, now: Clock = Date.now, more?: Witnesses, on?: Stages, neg?: Neg, brackets = true): Pair {
   let a = cand.a, b = cand.b, la: string, lb: string;
   const [na, nb] = negSides({ neg }), labels = (cid: string, n: boolean) => {
     const all = ix.CAT[cid].labels, plain = all.filter((l) => !l.startsWith("non-"));
@@ -157,7 +155,7 @@ export function makePair(ix: DataIndex, cand: PoolEntry, rng: Rng = Math.random,
     if (rng() < 0.5) [a, b] = [b, a];
     la = pick(labels(a, na), rng); lb = pick(labels(b, nb), rng);
   }
-  return pairOf(ix, a, b, la, lb, rng, now, more, on, neg);
+  return pairOf(ix, a, b, la, lb, rng, now, more, on, neg, brackets);
 }
 
 /**
@@ -165,15 +163,15 @@ export function makePair(ix: DataIndex, cand: PoolEntry, rng: Rng = Math.random,
  * `more` adds references to the cells: the practice list decides the relation and which cells are empty, so a reference only joins a cell the list
  * fills, and one the list does not agree with never makes a cell hold what the relation says it cannot. With `on`, a cell's example from the list
  * is a thing of those stages (`itemOn`) where the cell has one, else one the learner knows from a stage below (`itemKnown`), else any thing of the cell.
- * With `neg`, the labels of the negated sides become their negations ("non-(wooden things)") and the cells move as NEG_CELL says.
+ * With `neg`, the labels of the negated sides become their negations ("non-(wooden things)", or "non-wooden things" without `brackets`) and the cells move as NEG_CELL says.
  */
-export function pairOf(ix: DataIndex, a: string, b: string, la: string, lb: string, rng: Rng = Math.random, now: Clock = Date.now, more?: Witnesses, on?: Stages, neg?: Neg): Pair {
+export function pairOf(ix: DataIndex, a: string, b: string, la: string, lb: string, rng: Rng = Math.random, now: Clock = Date.now, more?: Witnesses, on?: Stages, neg?: Neg, brackets = true): Pair {
   const plainCells = cellsFor(ix, a, b), plainExtra = more ? more(a, b) : null;
   const cells = neg ? negateCells(plainCells, neg) : plainCells, extra = plainExtra && neg ? negateCells(plainExtra, neg) : plainExtra;
   const relation = relOfCells(cells), [na, nb] = negSides({ neg });
   const ex: Partial<Record<CellId, string | null>> = {}, why: Partial<Record<CellId, string>> = {};
   const p: Pair = {
-    id: "g-" + now().toString(36) + rng().toString(36).slice(2, 6), a: na ? negLabel(la) : la, b: nb ? negLabel(lb) : lb, catA: a, catB: b,
+    id: "g-" + now().toString(36) + rng().toString(36).slice(2, 6), a: na ? negLabel(la, brackets) : la, b: nb ? negLabel(lb, brackets) : lb, catA: a, catB: b,
     typeA: typeText(ix, a), typeB: typeText(ix, b), relation, ex, why, generated: true, ...(neg ? { neg } : {}),
   };
   const plain = neg ? { a: la, b: lb, typeA: p.typeA, typeB: p.typeB, relation: relOfCells(plainCells) } : undefined;
@@ -221,6 +219,8 @@ export interface DrawState {
    * and the draw takes the same random numbers as before the track.
    */
   negation?: "one" | "both";
+  /** a negated name of more than one word is written in brackets ("non-(wooden things)"), as the course book does; false: "non-wooden things". Default: with brackets */
+  brackets?: boolean;
 }
 
 /** How many of the pairs have a negated side when the negation track is on. */
@@ -278,5 +278,5 @@ export function nextPair(ix: DataIndex, pool: readonly PoolEntry[], st: DrawStat
   st.recent.push(pairKey(c));
   if (st.recent.length > RECENT_MAX) st.recent.shift();
   const neg: Neg | undefined = st.negation && rng() < NEG_SHARE ? (st.negation === "both" && rng() < 0.5 ? "ab" : "b") : undefined;
-  return makePair(ix, c, rng, st.now || Date.now, st.more, st.stages, neg);
+  return makePair(ix, c, rng, st.now || Date.now, st.more, st.stages, neg, st.brackets);
 }

@@ -3,7 +3,7 @@
 // src/domain): the Path draws the same attempt, `state.ui`, and calls the same steps.
 import type { ComponentChildren } from "preact";
 import { state } from "../state.js";
-import { CELLS, REL, notaOf, orderOf } from "../core/rel.js";
+import { CELLS, ORDER, REL, notaOf } from "../core/rel.js";
 import { check } from "../practice/grading.js";
 import { next } from "../practice/queue.js";
 import { choose, explainParts, learnedThing, nextFwd } from "../practice/screen.js";
@@ -22,9 +22,9 @@ import { D, Fig, Gap, Head, Mark, St, Sx } from "./ui.tsx";
 /** the relation picked (the steps after the first have one) */
 const relOf = () => u0().rel as RelKey;
 
-/** The relations as choices on the path (five, and a sixth on a pair with a negation): their figures in the margin, the sign in the notation picked. */
+/** The relations as choices on the path: their figures in the margin, the sign in the notation picked. */
 export function relChoices(p: { a: string; b: string }, cur: string | null) {
-  return orderOf(state.cur && state.cur.p).map((k: string, i: number) => {
+  return ORDER.map((k: string, i: number) => {
     const r = REL[k as RelKey];
     return { k, b: r.name, s: <Subjects text={r.gloss(p.a, p.b)} p={p} />, fig: k, sym: state.nota !== "codes" ? notaOf(k) : "", key: String(i + 1), pressed: cur === k };
   });

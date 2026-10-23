@@ -126,11 +126,11 @@ ${mid}${stageLine(u.stage)}${cls.length?`
 Classes (the booklet's "is a" tree, for "class:"): ${cls.join(", ")}.`:""}`;
 }
 
-/** What the tutor is told of a pair with a negated side (the negation track, src/domain/universe.ts): what the negation takes in, and the sixth relation. */
+/** What the tutor is told of a pair with a negated side (the negation track, src/domain/universe.ts): what the negation takes in, and that Neither may be empty. */
 export function negLine(p: Pick<PairLike, "a" | "b" | "neg">): string {
   if (!p.neg) return "";
   const names = p.neg === "ab" ? `A (${JSON.stringify(p.a)}) and B (${JSON.stringify(p.b)}) are negations` : `B (${JSON.stringify(p.b)}) is a negation`;
-  return `Negation: ${names} of the category in "negation_of". "non-X" takes in everything that is not an X: other existents, permanent phenomena and what does not exist (the horn of a rabbit). The cells and the relation were worked out with that, and on this pair it replaces the rule above that only Neither takes what does not exist: a thing that does not exist is not A or B where they are plain and is the "non-" term, it goes in the cell those answers give, and it can be the only thing that is both (a possibility need not be an existent, Perdue 2014). ${REL["4n"].name} (Perdue 2014; Perdue 1992 calls it three possibilities without there being something which is neither): something is both, something is each alone, nothing is neither.
+  return `Negation: ${names} of the category in "negation_of". "non-X" takes in everything that is not an X: other existents, permanent phenomena and what does not exist (the horn of a rabbit). The cells and the relation were worked out with that, and on this pair it replaces the rule above that only Neither takes what does not exist: a thing that does not exist is not A or B where they are plain and is the "non-" term, it goes in the cell those answers give, and it can be the only thing that is both (a possibility need not be an existent, Perdue 2014). So Neither can be empty on this pair, and an empty Neither ("nothing exists") is then right; the relation is read from the other three cells, so something that is both, something that is each alone and nothing that is neither is still four possibilities (Perdue 2014 calls it four possibilities without neither; Perdue 1992, after Lati Rinpoche, three possibilities without there being something which is neither).
 `;
 }
 

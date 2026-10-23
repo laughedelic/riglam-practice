@@ -13,7 +13,7 @@ import { WORDINGS } from "../debate/text.js";
 import { exName } from "../shell/exercises.js";
 import { setStages } from "../shell/stages.js";
 import { toggleOpts } from "../shell/options.js";
-import { PAGES, SYMS, openPage, quorumNote, sessBack, setAutoExplain, setBlitzUse, setDefLang, setFindSuggest, setNegation, setNota, setShow, setSyllogismGuide, setSyllogismWording, setWording, toggleSess } from "../shell/session.js";
+import { PAGES, SYMS, openPage, quorumNote, sessBack, setAutoExplain, setBlitzUse, setDefLang, setFindSuggest, setNegBrackets, setNegation, setNota, setShow, setSyllogismGuide, setSyllogismWording, setWording, toggleSess } from "../shell/session.js";
 import { kindMs } from "../shell/timers.js";
 import { ANSWERS, ANSWER_PICKS, CONFIRM_PICKS, RATES, READ_NOTE, SAMPLE, VOICE_LEAD, VOICE_SAY, WHERE, hookVoices, setVoice, voiceGroups, voiceShown } from "../shell/voice.js";
 import { stageCounts } from "../../domain/reference.ts";
@@ -29,11 +29,14 @@ const Switch = ({ lb, title, note, on, toggle }: { lb: string; title: string; no
 const More = ({ page, label = "more" }: { page: string; label?: string }) => <button type="button" class="more" aria-label={PAGES[page as keyof typeof PAGES] + ": " + label} onClick={() => openPage(page)}>{label}</button>;
 const secs = (kind: string) => Math.round(kindMs(kind) / 1000);
 const timesLine = () => state.tab === "syllogism" ? "Syllogism " + secs("syl") + " s" : "Relation " + secs("rel") + " s · Example " + secs("ex") + " s";
-// the stages that are on, in a line: runs joined ("Stages 1–3, 5")
+// the exercises that draw negated pairs, and so show the Negations choice with the stages
+const negates = () => state.tab === "practice";
+const NEG_NAME: Record<string, string> = { one: "one side", both: "both sides" };
+// the stages that are on, in a line: runs joined ("Stages 1–3, 5"), and the negations where they are drawn
 const stagesLine = () => {
   const runs: [number, number][] = [];
   for (const n of state.stages as number[]) { const r = runs[runs.length - 1]; if (r && r[1] === n - 1) r[1] = n; else runs.push([n, n]); }
-  return (state.stages.length === 1 ? "Stage " : "Stages ") + runs.map(([a, b]) => (a === b ? String(a) : a + "–" + b)).join(", ");
+  return (state.stages.length === 1 ? "Stage " : "Stages ") + runs.map(([a, b]) => (a === b ? String(a) : a + "–" + b)).join(", ") + (negates() && NEG_NAME[state.negation] ? " · negations: " + NEG_NAME[state.negation] : "");
 };
 const toSettings = () => { toggleSess(false); toggleOpts(true); };
 
@@ -66,8 +69,6 @@ function List() {
   return <>
     {perv ? <Row lb="Words"><b>Wording of the questions</b><Words label="Wording of the questions" items={Object.entries(WORDINGS).map(([k, w]) => [k, (w as { name: string }).name] as [string, string])} cur={state.wording} on={setWording} /><More page="wording" /></Row> : null}
     {perv ? <Switch lb="Why?" title="Full phrases" note="spell out Why? answers" on={state.fullPh} toggle={() => setShow("full", !state.fullPh)} /> : null}
-    {tab === "practice" ? <Row lb="Not"><b>Negations</b><Words label="Negations" items={[["off", "Off"], ["one", "One side"], ["both", "Both sides"]]} cur={state.negation} on={setNegation} />
-      <small>Some pairs negate a term: “non-(wooden things)” takes in everything that is not a wooden thing. A negation can give a sixth answer, four possibilities without neither.</small></Row> : null}
     {find ? <Switch lb="Hints" title="Suggest terms" note="terms of the course while you name a pair" on={state.findSuggest} toggle={() => setFindSuggest(!state.findSuggest)} /> : null}
     <Row lb="Signs"><b>Notation</b><Words label="Notation" items={Object.entries(SYMS).map(([k, v]) => [k, (v as unknown[])[0] as string] as [string, string])} cur={state.nota} on={setNota} /><More page="nota" /></Row>
     {timed ? blitz : null}
@@ -127,6 +128,12 @@ function Stages() {
         <span><b>{"Stage " + n + " · " + name}</b><small>{count + (count === 1 ? " thing" : " things")}</small></span><Toggle on={on} /></button><small class="plvn">{adds}</small></Row>;
     })}
     {only ? <p class="pnoteline pnote3">At least one stage stays on.</p> : null}
+    {negates() ? <>
+      <p class="psub">Negations are a step of difficulty like the stages: switch them on when the plain pairs come easily. A negation takes in what does not exist, so nothing may be neither: then the Neither case is empty, and you say that nothing exists there.</p>
+      <Row lb="Not"><b>Negations</b><Words label="Negations" items={[["off", "Off"], ["one", "One side"], ["both", "Both sides"]]} cur={state.negation} on={setNegation} />
+        <small>Some pairs negate a term: “furniture” and “non-(wooden things)”, which takes in everything that is not a wooden thing. One side: B is negated in about a third of the pairs. Both sides: half of those negate A and B.</small></Row>
+      <Switch lb="Brackets" title="Brackets" note="“non-(wooden things)” says that the “non-” takes in everything that is not a wooden thing, what does not exist included. Without them, “non-wooden things” is also read as the things that are not wooden, which leaves out what does not exist. They help while negations are new, and apply from the next pair." on={state.negBrackets} toggle={() => setNegBrackets(!state.negBrackets)} />
+    </> : null}
   </>;
 }
 /** The Voice page: the voice and its speed, how an answer is taken and what happens after it is heard. */
