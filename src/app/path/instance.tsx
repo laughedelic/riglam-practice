@@ -13,7 +13,7 @@ import type { InstanceQuestion, InstanceResult, InstanceRow } from "../../domain
 import { refreshPath } from "./index.tsx";
 import { ErrLines, Verdict, u0 } from "./parts.tsx";
 import { Scroll } from "./scroll.tsx";
-import { Foot, HideKeys, KbdStation, PreStation, SideStation, Station, TopBar } from "./shell.tsx";
+import { Foot, PreStation, SideStation, Station, TopBar } from "./shell.tsx";
 import { D, Gap, Head, Mark, NOFILL, St, Sx } from "./ui.tsx";
 
 const q = () => shownSet() as InstanceQuestion;
@@ -71,10 +71,9 @@ function AskStep({ kb }: { kb: boolean }) {
         <CatStops s={s} /><Gap h={4} />{answer}<Gap h={6} /></Sx>
       <Sx cls="ptail" />
     </Scroll>
-    <Foot kbd={kb ? <KbdStation name="Check" ready={ok} act={() => { if (ok) check(); else focusField(); }} /> : null}
-      aux={<><SideStation kind="skip" act={skipPair} />{kb ? <HideKeys /> : null}</>}>
+    {kb ? null : <Foot aux={<SideStation kind="skip" act={skipPair} />}>
       {ok ? <Station name="Check" hint={u.none ? noneText(n) : "“" + said() + "”"} act={check} /> : <PreStation name="Check" hint={"write a thing, or say " + noneText(n)} />}
-    </Foot>
+    </Foot>}
   </>;
 }
 
