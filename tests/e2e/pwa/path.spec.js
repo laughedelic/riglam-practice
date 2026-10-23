@@ -137,6 +137,32 @@ test("why the next station is not ready shows in a note above the foot, not unde
   await page.mouse.up();
 });
 
+/** The thread is attached to the station when it is up: nothing of it below the diamond (the foot's stub is gone, or ends inside it), and what hides it above the foot ends inside the diamond's top. */
+async function expectThreadAttached(page) {
+  const g = await page.evaluate(() => {
+    const go = document.querySelector("#stn .go, #stnp .go").getBoundingClientRect(), foot = document.querySelector("#path .foot").getBoundingClientRect();
+    const rs = document.querySelector("#path .riser").getBoundingClientRect(), stub = parseFloat(getComputedStyle(document.querySelector("#path .foot"), "::before").height);
+    return { goTop: go.top, goBottom: go.bottom, footTop: foot.top, stubEnd: foot.top + (stub || 0), hideTop: rs.height > 0 ? rs.top : foot.top };
+  });
+  const threadEnd = g.hideTop < g.footTop ? g.hideTop : g.stubEnd;
+  expect(threadEnd, "the thread ends inside the diamond").toBeGreaterThan(g.goTop);
+  expect(threadEnd, "and nothing of it runs on below").toBeLessThan(g.goBottom - 10);
+}
+
+test("the station pulled up keeps the thread: it shortens and ends at the diamond, never running under or below the station", async ({ page }) => {
+  await start(page);
+  await answer(page);
+  const stn = page.locator("#stn");
+  await expect(stn).toBeVisible();
+  const b = await stn.boundingBox();
+  await page.mouse.move(b.x + 20, b.y + b.height / 2); await page.mouse.down();
+  for (const d of [12, 30, 50, 70, 100]) {
+    await page.mouse.move(b.x + 20, b.y + b.height / 2 - d, { steps: 3 });
+    await expectThreadAttached(page);
+  }
+  await page.mouse.up();
+});
+
 test("scrolling past the end only tightens the thread; the station is taken by its own pull or a tap, and no line marks the reach", async ({ page }) => {
   await start(page);
   await answer(page);
@@ -148,8 +174,10 @@ test("scrolling past the end only tightens the thread; the station is taken by i
   for (let i = 0; i < 6; i++) await page.mouse.wheel(0, 300);   // far more than the reach
   await expect(page.locator(".pa")).toHaveClass(/\bpulling\b/);
   const rise = await stn.evaluate((e) => -new DOMMatrix(getComputedStyle(e).transform).m42);
-  expect(rise, "the thread comes up a little").toBeGreaterThan(10);
-  expect(rise, "but not as far as the station's reach").toBeLessThan(64);
+  expect(rise, "the station comes up a little").toBeGreaterThan(10);
+  expect(rise, "resisting, and not as far as its reach").toBeLessThan(40);
+  expect(await page.locator("#path .pscroll").evaluate((e) => getComputedStyle(e).transform), "the path itself stays").toBe("none");
+  await expectThreadAttached(page);
   await expect(page.locator(".pa")).not.toHaveClass(/\bpulling\b/);   // let go: it goes back
   await expect(stn).toBeVisible();
   await expect(page.locator(".pvline")).toHaveCount(0);   // nothing was checked
