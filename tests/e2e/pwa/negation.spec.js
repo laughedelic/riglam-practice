@@ -59,6 +59,6 @@ test("with negations on, a pair can negate a term, offers a sixth answer, and is
   // the Terms panel says what a negated side takes in, not the lineage of what it negates
   await page.getByRole("tab", { name: "Terms" }).click();
   const row = page.locator(".terms .tm-row").nth(p.neg === "a" ? 0 : 1);
-  await expect(row.locator(".tm-c")).toContainText("Everything that is not one of the");
+  await expect(row.locator(".tm-c")).toContainText("Everything outside “");
   await expect(row.locator(".tm-c")).not.toContainText(/ is an? /);
 });

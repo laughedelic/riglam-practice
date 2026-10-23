@@ -31,7 +31,7 @@ const isaChain=(names,where)=>names.flatMap((n,i)=>{
 export function termsNode(p){
   // a negated side ("non-(wooden things)") is not under the lineage of what it negates: it says what it takes in instead
   const box=el("div",{class:"terms"}), ca=p.catA||catByLabel(p.a), cb=p.catB||catByLabel(p.b), [na,nb]=negSides(p), lis=[!na&&ca&&lineageOf(ca),!nb&&cb&&lineageOf(cb)];
-  const negType=(label,on,type)=>on?"Everything that is not one of the "+plainLabel(String(label))+", including what does not exist.":type;
+  const negType=(label,on,type)=>on?"Everything outside “"+plainLabel(String(label))+"”, including what does not exist.":type;
   // the pair's own words that name a Dudra term: its label, when it is worded as the term is (not a plainer paraphrase of it),
   // which the note quotes and the title shows
   const termOf=(li,label)=>{ const n=li&&!li.everyday&&li.names[0]||""; return n&&namesTerm(state,n,String(label))?n:""; };

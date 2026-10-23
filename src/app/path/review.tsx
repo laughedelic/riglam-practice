@@ -10,7 +10,7 @@ import { mname } from "../ai/quorum-panel.js";
 import { CELLS, REL, notaOf, refOf } from "../core/rel.js";
 import { dayOf, gradeOf, isMiss, today } from "../core/util.js";
 import { QCELL, qPlain } from "../debate/text.js";
-import { removeFav, startFav } from "../practice/favorites.js";
+import { removeFav, startFav, typesLine } from "../practice/favorites.js";
 import { SKIP_DAYS, debateAgain, skipActive, startSkipped, unskipKey } from "../practice/skips.js";
 import { answerList } from "../practice/universe.js";
 import { debateStats } from "../review/debate-stats.js";
@@ -142,7 +142,7 @@ function Favs() {
         {rel ? <St d={<Fig k={p.relation} size="m" />} cls="srel"><span class="pq"><b>{rel.name}:</b> {rel.gloss(p.a, p.b).toLowerCase()}.{notaOf(p.relation) && state.nota !== "codes" ? <span class="rsym">{notaOf(p.relation)}</span> : null}</span></St> : null}
         {(CELLS as CellId[]).map((c) => { const ref = refOf(p, c); return <St d={<D cls={"sub " + (ref ? "done" : "nil")} />} cls="sb exr"><span class="lab">{CASE[c]}</span>
           <div class="line1">{ref ? <span class="ans2 ref">{ref}</span> : <span class="ans2 nil">nothing goes here</span>}</div>{!ref && p.why && p.why[c] ? <p class="xnote">{p.why[c]}</p> : null}</St>; })}
-        {(p.typeA || p.typeB || p.note) ? <St d={<span />} cls="pnote2"><p class="xnote">{(p.typeA || p.typeB) ? <span class="ptype">{p.a + ": " + (p.typeA || "?") + " · " + p.b + ": " + (p.typeB || "?")}</span> : null} {p.note || ""}</p></St> : null}
+        {(p.typeA || p.typeB || p.note) ? <St d={<span />} cls="pnote2"><p class="xnote">{(p.typeA || p.typeB) ? <span class="ptype">{typesLine(p)}</span> : null} {p.note || ""}</p></St> : null}
         <St d={<span />} cls="pacts"><button type="button" class="pbtn" onClick={() => startFav(p)}>Practice this pair</button><button type="button" class="pbtn quiet" onClick={() => { delete state.pathOpen[k]; removeFav(f); }}>Remove</button></St>
       </div> : null}
     </>;
