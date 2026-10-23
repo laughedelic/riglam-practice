@@ -694,5 +694,5 @@ test("on the Path the microphone is in the top bar, and the answer heard waits a
   await expect(page.locator("#path .pvoice #vbar")).toContainText("Four possibilities");
   await confirm(page);
   await expect(page.locator("#cin")).toBeVisible();   // the relation is taken: the examples come
-  await expect(page.locator("#path .pstrip")).toContainText("They overlap");
+  await expect(page.locator("#path .pstrip")).toContainText("Four possibilities");
 });

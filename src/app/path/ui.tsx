@@ -59,9 +59,6 @@ export function Fig({ k, size = "r" }: { k: string; size?: string }) {
     {big ? [pa, pb] : [pb, pa]}{o ? <polygon class="o" vector-effect="non-scaling-stroke" points={dia(o[0], o[1], o[2])} /> : null}
   </svg>;
 }
-/** The short name of a relation on the pair, as the lab says it. */
-export const SHORT: Record<string, string> = { mi: "The same", "3ab": "A in B", "3ba": "B in A", "4": "They overlap", con: "Apart" };
-
 /** A verdict's mark: right, wrong, or not settled yet. */
 export const Mark = ({ m }: { m: string }) => <span class={"mark " + m}><Icon n={m === "ok" ? "check" : m === "no" ? "cross" : "q"} /></span>;
 /** Four small diamonds for the cases of an answer, or the answers of a day. */

@@ -45,7 +45,7 @@ export function TopBar({ title, tools = false, mic = false }: TopBarProps) {
   const bzStop = () => clearTimeout(hold.current);
   return <header class="ptb" ref={bar} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
     <button type="button" class="tstn" aria-label="The roadmap: tap, or pull the top bar down" onClick={() => toggleMenu(true)}><span class="tgo"><span class="mk"><Icon n="chev" /></span></span></button>
-    <button type="button" class="ptb-t" aria-label={title + ", pull down for the roadmap"} onClick={() => toggleMenu(true)}><span>{title}</span><Icon n="chev" /></button>
+    <button type="button" class="ptb-t" aria-label={title + ", pull down for the roadmap"} onClick={() => toggleMenu(true)}><span>{title}</span></button>
     <span class="spc" />
     {tools && readShown() ? <button type="button" class={"pib" + (state.voice.muted ? "" : " on")} role="switch" aria-checked={state.voice.muted ? "false" : "true"} aria-label="Read aloud" onClick={toggleReadAloud}><Icon n={state.voice.muted ? "speakoff" : "speak"} /></button> : null}
     {tools && mic && micShown() ? <button type="button" id="vmic" class={"pib" + (state.voice.phase === "listening" ? " on" : "")} aria-pressed={state.voice.phase === "listening" ? "true" : "false"} aria-label="Answer by voice" onClick={() => toggleListen()}><Icon n="mic" /></button> : null}
@@ -93,7 +93,7 @@ export function Station({ name, hint = "", act, arrive = false }: { name: string
     <span class={"go" + (arrive ? " arrive" : "")}><span class="mk"><Icon n="up" /></span></span><span class="gol"><b>{name}</b>{hint ? <small>{hint}</small> : null}</span>
   </button>;
 }
-/** The station, not ready yet: gray; it pulls a little, far enough to show why, then stops. */
+/** The station, not ready yet: gray; it pulls a little, far enough to show why (in a note above the foot, clear of the finger), then stops. */
 export function PreStation({ name, hint }: { name: string; hint: string }) {
   const pull = useContext(PullCtx); pull.act = null;
   const g = useRef<{ y0: number; moved: boolean } | null>(null);
@@ -103,14 +103,14 @@ export function PreStation({ name, hint }: { name: string; hint: string }) {
     onPointerUp={() => { const s = g.current; if (!s) return; g.current = null; pull.end(false, !s.moved); }}
     onPointerCancel={() => { g.current = null; pull.end(false); }}
     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pull.peek(e.currentTarget as HTMLElement); } }}>
-    <span class="go pre" /><span class="gol pre"><b>{name}</b><small>{hint}</small></span>
+    <span class="go pre" /><span class="gol pre"><b>{name}</b></span><span class="phint" aria-hidden="true">{hint}</span>
   </button>;
 }
 /** On the keyboard: the next step itself (the next example, or Check), gray until this example has words. */
 export function KbdStation({ name, tag, ready, act }: { name: string; tag?: string; ready: boolean; act: () => void }) {
   return <button type="button" class={"stn kst" + (ready ? "" : " notyet")} id="kst" aria-label={name + (tag ? ": " + tag : "")}
     onMouseDown={(e) => e.preventDefault()} onClick={act}>
-    <span class="go"><span class="mk"><Icon n="up" /></span></span><span class="gol"><b>{name}</b>{tag ? <i class="kc">{tag}</i> : null}<small>write this one first</small></span>
+    <span class="go"><span class="mk"><Icon n="up" /></span></span><span class="gol"><b>{name}</b>{tag ? <i class="kc">{tag}</i> : null}</span><span class="phint" aria-hidden="true">write this one first</span>
   </button>;
 }
 /** The keyboard's own key to put it away, at the right of its station. */

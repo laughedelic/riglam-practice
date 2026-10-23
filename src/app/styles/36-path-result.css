@@ -33,8 +33,7 @@
 .pa .pn.res .pnl.a{grid-column:2 / 4}
 .pa .pn.res.rstar .pnl.a{padding-right:56px}
 .pa .pn.res .pnr{position:absolute; right:0; top:0}
-.pa .pn.res .pnn{display:flex; flex-direction:column; align-items:flex-end; gap:3px; align-self:start; padding-top:6px}
-.pa .pn.res .pnn.own{grid-column:2 / 4; grid-row:3; justify-self:end; align-self:center; flex-direction:row; align-items:center; gap:14px; padding:4px 16px 0 22px; flex-wrap:wrap; justify-content:flex-end}
+.pa .pn.res .pnn.rv{justify-self:end; align-self:center; align-items:center; gap:14px; padding:4px 16px 0 22px; flex-wrap:wrap; justify-content:flex-end}
 .pa .rvl{display:inline-flex; align-items:center; gap:4px; white-space:nowrap; font-size:15px; font-weight:600}
 .pa .rvl s.no{color:var(--ink2); text-decoration-color:var(--red); text-decoration-thickness:2px; font-weight:500}
 .pa .rvl .fix{font-weight:600}
