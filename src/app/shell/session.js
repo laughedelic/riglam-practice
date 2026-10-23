@@ -91,7 +91,7 @@ const stagesLine=()=>{
 const negBracketsRow=()=>sw("Brackets",state.negBrackets?"on":"off",state.negBrackets,()=>setNegBrackets(!state.negBrackets),
   "“non-(wooden things)” says that the “non-” takes in everything that is not a wooden thing, what does not exist included. Without the brackets, “non-wooden things” is also read as the things that are not wooden, which leaves out what does not exist. The course book writes them for more than one word; they help while negations are new. They apply from the next pair.");
 const negationRow=()=>row("Negations",chips("Negations",[["off","Off"],["one","One side"],["both","Both sides"]],state.negation,setNegation),
-  "Some pairs negate a term: “furniture” and “non-(wooden things)”, which takes in everything that is not a wooden thing. One side: B is negated in about a third of the pairs. Both sides: half of those negate A and B. A negation takes in what does not exist, so nothing may be neither: then the Neither case is empty, and you say that nothing exists there. Switch it on when the plain pairs come easily.");
+  "Some pairs negate a term: “furniture” and “non-(wooden things)”, which takes in everything that is not a wooden thing. One side: A or B is negated in about a third of the pairs. Both sides: half of those negate both. A negation takes in what does not exist, so nothing may be neither: then the Neither case is empty, and you say that nothing exists there. Switch it on when the plain pairs come easily.");
 // the Blitz times in a line (the card says Off instead when Blitz is switched off)
 const timesLine=()=>el("small",{class:"sum1",text:state.tab==="syllogism"?"Syllogism "+secs("syl")+" s":"Relation "+secs("rel")+" s · Example "+secs("ex")+" s"});
 
