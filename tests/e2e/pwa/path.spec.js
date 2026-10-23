@@ -250,3 +250,14 @@ test("the text fields of the practice ask the browser for no autofill", async ({
   await page.getByRole("button", { name: "Paste from the lab" }).click();
   expect(await hints(page.locator("textarea.ptext"))).toEqual({ ac: "off", cap: "off", fix: "off", pw: "true", one: "true" });
 });
+
+test("the path line is not split: the first section's line starts where the top bar's stub ends", async ({ page }) => {
+  await start(page);
+  const gap = await page.evaluate(() => {
+    const bar = document.querySelector("#path .ptb").getBoundingClientRect();
+    const sx = document.querySelector("#path .sx.first");
+    const top = sx.getBoundingClientRect().top + parseFloat(getComputedStyle(sx, "::before").top);
+    return Math.round(top - bar.bottom);
+  });
+  expect(gap, "px between the bar's lower edge and the start of the first line").toBeLessThanOrEqual(1);
+});
