@@ -7,7 +7,6 @@ import { CELLS, ORDER, REL, notaOf } from "../core/rel.js";
 import { check } from "../practice/grading.js";
 import { next } from "../practice/queue.js";
 import { choose, explainParts, learnedThing, nextFwd } from "../practice/screen.js";
-import { skipPair } from "../practice/skips.js";
 import { render } from "../shell/render.js";
 import { CELL_NAME } from "../../ai-shared/prompts.ts";
 import type { CellId, RelKey } from "../../ai-shared/relations.ts";
@@ -15,7 +14,7 @@ import { ExamplesStep, StripPair, examplesReady } from "./examples.tsx";
 import { CASE, Choices, ErrLines, PairResult, PairStops, Thinking, TutorNote, Verdict, WhyRow, isa, pairOf, pickThen, u0 } from "./parts.tsx";
 import { FlagBtn, FlagEditor, explainCase } from "./flags.tsx";
 import { Scroll } from "./scroll.tsx";
-import { Foot, PreStation, SideStation, Station, TopBar, VoiceBar } from "./shell.tsx";
+import { Foot, PreStation, SkipSide, Station, TopBar, VoiceBar } from "./shell.tsx";
 import { Subjects, markNames } from "./subjects.tsx";
 import { D, Fig, Gap, Head, Mark, St, Sx } from "./ui.tsx";
 
@@ -42,7 +41,7 @@ function PickStep({ kb }: { kb: boolean }) {
       <Sx cls="ptail" />
     </Scroll>
     <VoiceBar />
-    {kb ? null : <Foot aux={<SideStation kind="skip" act={skipPair} />}>
+    {kb ? null : <Foot aux={<SkipSide />}>
       {u.rel ? <Station name="Examples" hint="the relation you picked" act={() => { u.open = false; render(); }} /> : <PreStation name="Examples" hint="pick a relation first" />}
     </Foot>}
   </>;

@@ -5,14 +5,13 @@ import { useContext, useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { state } from "../state.js";
 import { cellLabel } from "../core/rel.js";
 import { fillable } from "../practice/screen.js";
-import { skipPair } from "../practice/skips.js";
 import { render } from "../shell/render.js";
 import type { CellId, RelKey } from "../../ai-shared/relations.ts";
 import type { Pull } from "./gesture.ts";
 import { refreshPath, renderPath } from "./index.tsx";
-import { CASE, PairNode, Star, caseQ, pairOf, u0 } from "./parts.tsx";
+import { CASE, PairNode, SkipMark, Star, caseQ, pairOf, u0 } from "./parts.tsx";
 import { Scroll } from "./scroll.tsx";
-import { Foot, PreStation, PullCtx, SideStation, Station, VoiceBar, pathNote } from "./shell.tsx";
+import { Foot, PreStation, PullCtx, SkipSide, Station, VoiceBar, pathNote } from "./shell.tsx";
 import { D, Gap, Head, Icon, Knob, St, Sx, nofillInput } from "./ui.tsx";
 
 /** Only the "neither" case may say that nothing exists: the other cases are asked because the relation chosen needs them, so their examples justify the choice. */
@@ -61,7 +60,7 @@ function Strip({ rel, full }: { rel: RelKey; full: ComponentChildren }) {
       if (d > 14 && !u.pstrip) { set(true); s.y0 = e.clientY; } else if (d < -14 && u.pstrip) { set(false); s.y0 = e.clientY; }
     }}
     onPointerUp={(e) => { const s = g.current; g.current = null; if (s && !s.moved && !(e.target as Element).closest(".knob")) set(!u.pstrip); }} onPointerCancel={() => { g.current = null; }}>
-    <div class="fold2 compact"><div><Sx cls="walked"><PairNode rel={rel} right={<Star />} /></Sx></div></div>
+    <div class="fold2 compact"><div><Sx cls="walked"><PairNode rel={rel} right={<><Star /><SkipMark /></>} /></Sx></div></div>
     <div class="fold2 full"><div>{full}</div></div>
     <span class="pullr"><span class="gtip">{open ? "slide up to return" : "pull to look back"}</span><Knob label={open ? "Fold the earlier steps" : "Open the earlier steps"} onClick={() => set(!u.pstrip)} /></span>
   </div>;
@@ -125,7 +124,7 @@ export function ExamplesStep({ kb, title, step, rel, full, check }: { kb: boolea
       <Sx cls="ptail" />
     </Scroll>
     <VoiceBar />
-    {kb ? null : <Foot aux={k.ready ? null : <SideStation kind="skip" act={skipPair} />}>
+    {kb ? null : <Foot aux={k.ready ? null : <SkipSide />}>
       {k.ready ? <Station name="Check" hint={checkHint} act={takeCheck} />
         : <PreStation name="Result" hint="write each example first" />}
     </Foot>}

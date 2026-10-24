@@ -9,6 +9,7 @@ import { canAsk } from "../core/ask.js";
 import { REL } from "../core/rel.js";
 import { singular } from "../debate/text.js";
 import { favTarget, isFav, toggleFav } from "../practice/favorites.js";
+import { skipAsks, skipNow, skipPair } from "../practice/skips.js";
 import { explainParts, factParts, noteData } from "../practice/screen.js";
 import { lineageOf } from "../practice/terms.js";
 import { catByLabel } from "../practice/universe.js";
@@ -21,6 +22,7 @@ import { takeChoice, bindSlide } from "./choose.ts";
 import { refreshPath } from "./index.tsx";
 import { FlagBtn, FlagEditor, QuorumPanel, explainCase } from "./flags.tsx";
 import { currentLook } from "./look.ts";
+import { turnAside } from "./shell.tsx";
 import { Sub } from "./subjects.tsx";
 import { DefCard, OneTerm, TermText } from "./terms.tsx";
 import { D, Fig, Icon, Mark, St, Sx } from "./ui.tsx";
@@ -47,11 +49,22 @@ export function Star() {
   const on = isFav(p);
   return <button type="button" class={"pib fav pstar" + (on ? " on" : "")} aria-pressed={on ? "true" : "false"} aria-label={on ? "In favorites" : "Add to favorites"} onClick={() => toggleFav(p)}><Icon n="star" /></button>;
 }
+/** Whether Skip is drawn as an icon here: the look puts it under the favorites mark, and the attempt on screen is not checked yet. */
+export const skipHere = () => { const u = state.ui; return currentLook().skipAt === "under" && !!u && state.mode === "quiz" && !u.checked && !!state.cur; };
+/** Skip, an action on the pair like saving it: an icon under the favorites mark, no diamond. With nothing entered the page turns to the next one at once; with
+ *  something entered it asks first (practice/skips.js). */
+export function SkipMark() {
+  if (!skipHere()) return null;
+  const u = state.ui!, what = u.syllogism ? "this syllogism" : u.cats ? "this one" : "this pair";
+  return <button type="button" class="pib pskip" aria-label={"Skip " + what} onClick={(e) => { if (skipAsks()) skipPair(); else turnAside((e.currentTarget as HTMLElement).closest(".main"), skipNow); }}><Icon n="skip" /></button>;
+}
+/** The classes of a stop that carries the favorites mark and Skip under it. */
+export const marksCls = (star = true) => (star && state.db ? " hasstar" : "") + (skipHere() ? " hasskip" : "");
 /** The two terms of the pair as the first stops: A and B in the margin, the star beside A; `sm` smaller, once they are not the question. */
 export function PairStops({ p, sm = false }: { p: Pair; sm?: boolean }) {
   const c = sm ? " sm" : "";
   return <>
-    <St d={<span class="ab">A</span>} cls={"pairst" + c + (state.db ? " hasstar" : "")}><Star /><span class={"tn" + (p.a.length > 24 ? " long" : "")}>{p.a}</span></St>
+    <St d={<span class="ab">A</span>} cls={"pairst" + c + marksCls()}><Star /><SkipMark /><span class={"tn" + (p.a.length > 24 ? " long" : "")}>{p.a}</span></St>
     <St d={<span class="ab">B</span>} cls={"pairst" + c}><span class={"tn" + (p.b.length > 24 ? " long" : "")}>{p.b}</span></St>
   </>;
 }

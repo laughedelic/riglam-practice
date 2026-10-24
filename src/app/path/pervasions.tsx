@@ -9,7 +9,6 @@ import { backWhy, chooseD, sayQ, submitWhy } from "../debate/flow.js";
 import { QCELL, Wd, singular } from "../debate/text.js";
 import { next } from "../practice/queue.js";
 import { explainParts, learnedThing, nextFwd } from "../practice/screen.js";
-import { skipPair } from "../practice/skips.js";
 import { NOT, qSides } from "../../ai-shared/debate.ts";
 import type { QToken } from "../../ai-shared/debate.ts";
 import type { CellId, RelKey } from "../../ai-shared/relations.ts";
@@ -18,7 +17,7 @@ import { Choices, ErrLines, PairResult, PairStops, Thinking, TutorNote, Verdict,
 import { relChoices } from "./relations.tsx";
 import { FlagBtn, FlagEditor, explainCase } from "./flags.tsx";
 import { Scroll } from "./scroll.tsx";
-import { Foot, PreStation, SideStation, Station, TopBar, VoiceBar } from "./shell.tsx";
+import { Foot, PreStation, SkipSide, Station, TopBar, VoiceBar } from "./shell.tsx";
 import { Sub, markNames } from "./subjects.tsx";
 import { D, Gap, Head, Icon, Mark, St, Sx, nofillInput } from "./ui.tsx";
 
@@ -76,7 +75,7 @@ function QuestionStep({ kb }: { kb: boolean }) {
       <Sx cls="ptail" />
     </Scroll>
     <VoiceBar />
-    {kb ? null : <Foot aux={<SideStation kind="skip" act={skipPair} />}>
+    {kb ? null : <Foot aux={<SkipSide />}>
       {u.pickWhy && (u.exText || "").trim() ? <Station name={last ? "Relation" : "Next question"} hint="your counter-example" act={submitWhy} />
         : <PreStation name={u.pickWhy && !last ? "Next question" : "Relation"} hint={u.pickWhy ? "posit a counter-example first" : last ? "answer this question first" : "answer the four questions first"} />}
     </Foot>}
@@ -94,7 +93,7 @@ function RelationStep() {
       <Sx cls="ptail" />
     </Scroll>
     <VoiceBar />
-    <Foot aux={<SideStation kind="skip" act={skipPair} />}><PreStation name="Result" hint="pick the relation: that checks your answers" /></Foot>
+    <Foot aux={<SkipSide />}><PreStation name="Result" hint="pick the relation: that checks your answers" /></Foot>
   </>;
 }
 

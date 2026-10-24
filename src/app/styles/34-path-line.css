@@ -96,6 +96,21 @@
 .pa .hasstar > .ptx{padding-right:52px}
 .pa .hasstar .pstar{position:absolute; right:6px; top:-4px}
 .pa .fav{color:var(--ink3)}
+/* Skip, an action on the pair like the favorites mark: an icon under the mark, along the right edge (or in the mark's place, or at the right of a step's heading, where there is none) */
+.pa .pskip{color:var(--ink3)}
+.pa .pskip:active{color:var(--blue)}
+.pa .hasskip{position:relative}
+.pa .hasskip > .ptx{padding-right:52px}
+.pa .hasskip .pskip{position:absolute; right:6px; top:-4px; z-index:2}
+.pa .hasstar.hasskip .pskip{top:40px}
+.pa .pairst.sm.hasstar.hasskip .pskip{top:36px}
+.pa .pairst.hasskip + .pairst > .ptx{padding-right:52px}
+.pa .pairst.hasstar.hasskip + .pairst{min-height:40px}
+.pa .stm.hasstar.hasskip{min-height:88px}
+.pa .pnr{position:relative}
+.pa .pnr .pskip{position:absolute; right:6px; top:calc(100% + 10px); z-index:2}
+.pa .sechead.hasaside > .ptx{padding-right:52px}
+.pa .sechead .pskip{position:absolute; right:6px; top:50%; margin-top:-22px; z-index:2}
 .pa .fav.on{color:var(--gold-t)}
 .pa .fav.on .i{fill:var(--gold)}
 

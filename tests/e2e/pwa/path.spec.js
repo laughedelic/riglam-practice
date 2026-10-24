@@ -334,7 +334,7 @@ test("a skip asks first once something is written, and Keep going returns to it"
   await choices(page).first().click();
   await page.locator("#cin").fill("a thing");
   if (isPhone(testInfo)) await page.locator("#cin").blur();
-  await page.locator(".foot .sides .skd").focus();
+  await page.locator("#path .pstrip .pskip").focus();
   await page.keyboard.press("Enter");
   const ask = page.getByRole("alertdialog");
   await expect(ask).toBeVisible();
@@ -345,17 +345,28 @@ test("a skip asks first once something is written, and Keep going returns to it"
   await expect(page.locator("#cin")).toHaveValue("a thing");
 });
 
-test("sliding Skip with something written asks first and the page stays; only Skip anyway turns it aside, with no note to undo", async ({ page }, testInfo) => {
+test("Skip is an icon under the favorites mark: with nothing written the page turns at once; with something written it asks, and only Skip anyway turns it, with no note to undo", async ({ page }, testInfo) => {
   await start(page);
+  await expect(page.locator("#path .foot .sides"), "no Skip station at the foot").toHaveCount(0);
+  const skip = page.locator("#path .pairst .pskip");
+  await expect(skip).toHaveAccessibleName("Skip this pair");
+  // under the favorites mark, at the edge
+  const [sb, fb] = [await skip.boundingBox(), await page.locator("#path .pairst .pstar").boundingBox()];
+  expect(sb.y, "below the mark").toBeGreaterThan(fb.y + fb.height - 4);
+  expect(Math.abs(sb.x + sb.width - (fb.x + fb.width)), "along the same edge").toBeLessThanOrEqual(2);
+  const before = await page.locator("#path .sx.first").first().innerText();
+  await skip.click();
+  await expect(page.getByRole("alertdialog"), "nothing written: no question").toHaveCount(0);
+  await expect.poll(() => page.locator("#path .sx.first").first().innerText(), "a new pair").not.toBe(before);
+  await expect(choices(page)).toHaveCount(5);
+  await page.waitForTimeout(500);
+  // something written: it asks first, and the page stays under the question
   await choices(page).first().click();
   await page.locator("#cin").fill("a thing");
   if (isPhone(testInfo)) await page.locator("#cin").blur();
   const main = page.locator("#path .main");
   await page.evaluate(() => { window.__turned = []; new MutationObserver(() => { window.__turned.push(document.querySelector("#path .main").className); }).observe(document.querySelector("#path .main"), { attributes: true, attributeFilter: ["class"] }); });
-  const sides = page.locator(".foot .sides"), b = await sides.boundingBox(), x = b.x + 62, y = b.y + 14;
-  await page.mouse.move(x, y); await page.mouse.down();
-  for (let i = 1; i <= 8; i++) await page.mouse.move(x - (140 * i) / 8, y);
-  await page.mouse.up();
+  await page.locator("#path .pstrip .pskip").click();
   const ask = page.getByRole("alertdialog");
   await expect(ask).toBeVisible();
   await page.waitForTimeout(500);
@@ -367,6 +378,14 @@ test("sliding Skip with something written asks first and the page stays; only Sk
   expect(await page.evaluate(() => window.__turned.some((c) => /turning/.test(c))), "it turned aside after the answer").toBe(true);
   await expect(page.locator("#path .ptoast.on")).toHaveCount(0);
   await expect(main).not.toHaveClass(/turning/);
+});
+
+test("a result has no Skip: there is nothing left to skip", async ({ page }) => {
+  await start(page);
+  await answer(page);
+  await page.locator("#stn").click();
+  await expect(page.locator(".pvline")).toBeVisible();
+  await expect(page.locator("#path .pskip")).toHaveCount(0);
 });
 
 test("a case ahead is taken up with a tap, in any order: the field keeps the focus, and Next goes to the next case still empty", async ({ page }) => {
@@ -668,7 +687,9 @@ test("the practice options leave part of the screen to tap out on, and scroll in
 });
 
 test("the whole Skip station takes the slide, not the diamond alone: from its word, from beside the diamond, and with the mouse", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("rd-look", JSON.stringify({ skipAt: "foot" })));   // the side station, on hold behind the look
   await start(page);
+  await expect(page.locator("#path .pskip"), "no icon with the station").toHaveCount(0);
   const sides = page.locator(".foot .sides");
   await expect(sides).toBeVisible();
   const slide = async (at, d = 140) => {

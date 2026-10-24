@@ -8,15 +8,14 @@ import { canAsk } from "../core/ask.js";
 import { CELLS, ORDER, REL, lcRel, notaOf } from "../core/rel.js";
 import { checkFind, chooseRel, editPair, usePair } from "../find/flow.js";
 import { next } from "../practice/queue.js";
-import { skipPair } from "../practice/skips.js";
 import { render } from "../shell/render.js";
 import type { RelKey } from "../../ai-shared/relations.ts";
 import { ExamplesStep, StripPair, examplesReady } from "./examples.tsx";
 import { refreshPath } from "./index.tsx";
-import { Choices, ErrLines, PairResult, Verdict, WhyRow, needsKey, pairOf, u0 } from "./parts.tsx";
+import { Choices, ErrLines, PairResult, SkipMark, Verdict, WhyRow, needsKey, pairOf, u0 } from "./parts.tsx";
 import { Row, cases, isOpen, resultRows } from "./relations.tsx";
 import { Scroll } from "./scroll.tsx";
-import { Foot, PreStation, SideStation, Station, TopBar } from "./shell.tsx";
+import { Foot, PreStation, SkipSide, Station, TopBar } from "./shell.tsx";
 import { D, Fig, Gap, Head, St, Sx, nofillInput } from "./ui.tsx";
 
 const relOf = () => u0().rel as RelKey;
@@ -53,7 +52,7 @@ function PairStep({ kb }: { kb: boolean }) {
   });
   return <>
     <Scroll>
-      <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Pair" sub="two phenomena that relate like this" /><Gap h={6} />
+      <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Pair" sub="two phenomena that relate like this" aside={state.findRel ? null : <SkipMark />} /><Gap h={6} />
         <Asked /><Gap h={6} />
         <Word k="a" key2="wordA" what="First" last={false} />
         <Word k="b" key2="wordB" what="Second" last />
@@ -63,7 +62,7 @@ function PairStep({ kb }: { kb: boolean }) {
         <Gap h={6} /></Sx>
       <Sx cls="ptail" />
     </Scroll>
-    {kb ? null : <Foot aux={state.findRel ? null : <SideStation kind="skip" act={skipPair} />}>
+    {kb ? null : <Foot aux={state.findRel ? null : <SkipSide />}>
       {ok ? <Station name="Examples" hint="your pair" act={usePair} /> : <PreStation name="Examples" hint="name both first" />}
     </Foot>}
   </>;
