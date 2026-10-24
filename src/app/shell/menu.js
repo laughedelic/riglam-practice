@@ -130,4 +130,7 @@ $("menuscrim").addEventListener("click",()=>toggleMenu(false));
 // the strip at the left edge of a wide screen: resting on it shows the menu, a click pins it
 $("menuedge").addEventListener("mouseenter",()=>{ state.menuPeek=true; render(); });
 $("menuedge").addEventListener("click",()=>{ state.menuPin=true; state.menuPeek=false; store("rd-menu","1"); render(); });
-$("menu").addEventListener("mouseleave",()=>{ if(state.menuPeek&&!state.menuPin&&!$("menu").contains(document.activeElement)){ state.menuPeek=false; render(); } });
+const unpeek=()=>{ if(state.menuPeek&&!state.menuPin&&!$("menu").contains(document.activeElement)){ state.menuPeek=false; render(); } };
+$("menu").addEventListener("mouseleave",unpeek);
+// a render that rebuilds the menu under the pointer leaves the browser no node to send "mouseleave" from: the pointer over anything else closes the peek too
+document.addEventListener("mouseover",(e)=>{ if(state.menuPeek&&!$("menu").contains(/** @type {Node} */(e.target))&&e.target!==$("menuedge")) unpeek(); });
