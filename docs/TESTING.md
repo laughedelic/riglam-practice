@@ -16,7 +16,7 @@ Tests that read the definitions need the folder `data-private/` (see [DATA.md](D
 
 ## Browsers
 
-Playwright is pinned to 1.56.1. In the Claude cloud container, Chromium 1194 is preinstalled and matches it (`PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers`), so do not run `playwright install` there. On a laptop and in CI, `npx playwright install --with-deps chromium`.
+Playwright is pinned to 1.56.1. In the Claude cloud container, Chromium 1194 is preinstalled and matches it (`PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers`), so do not run `playwright install` there. On a laptop, `npx playwright install --with-deps chromium` (CI needs only `npx playwright install chromium`).
 
 ## The legacy suite
 
@@ -48,7 +48,7 @@ The title check, `Conventional PR title`, is a workflow of its own (`.github/wor
 
 A push to a pull request cancels that pull request's earlier run. Every commit on `main` keeps its own run, so a merge that follows closely does not cancel the verdict on the one before.
 
-The Chromium install of each browser job (`playwright install --with-deps`, which runs `apt-get`) is cut at 2.5 minutes and tried up to three times, because it has stalled for minutes on a slow package mirror; it takes 15 to 30 seconds otherwise.
+The browser jobs install Chromium without `--with-deps`: the runner image has the libraries it needs, and the `apt-get` that `--with-deps` runs has stalled for minutes on a slow package mirror. Playwright reports a missing library when it starts the browser.
 
 To repeat one job locally: `npm run build`, then the same `npx playwright test` arguments as in the matrix (for example `--project=pwa-phone --shard=2/3`).
 
