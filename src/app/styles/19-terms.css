@@ -35,3 +35,8 @@ button.tm-exb{appearance:none;border:0;background:none;cursor:pointer;min-height
 button.tm-exb .tm-exn{text-decoration:underline dotted;text-underline-offset:3px}
 button.tm-exb.on .tm-exn{text-decoration-style:solid}
 .tm-why{margin:2px 0 4px;padding-left:10px;border-left:2px solid var(--line);font:400 13px/1.5 var(--text-serif);color:var(--ink-muted)}
+/* a newly opened term shown with the question (stages 1 to 3): the question's own words for it lead the card of the course's term */
+.section.newdefs .newdef{display:grid;gap:6px}
+.section.newdefs .newfor{margin:0;font:400 15px/1.45 var(--text-serif)}
+.section.newdefs .newfor .L{margin-right:4px;vertical-align:.1em}
+.tm-lead{font:400 12px/1.4 var(--body);color:var(--ink-muted);font-weight:400}

@@ -1,17 +1,18 @@
 // The examples on the Path, for Relations and Find a pair: one case at a time, the pair and its relation folded into a strip above, and while
 // the keyboard is up a heading with the pair. The cases are the attempt's (`state.ui.cells`), the ones the relation leaves possible.
 import type { ComponentChildren } from "preact";
-import { useEffect, useRef } from "preact/hooks";
+import { useContext, useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { state } from "../state.js";
 import { cellLabel } from "../core/rel.js";
 import { fillable } from "../practice/screen.js";
 import { skipPair } from "../practice/skips.js";
 import { render } from "../shell/render.js";
 import type { CellId, RelKey } from "../../ai-shared/relations.ts";
-import { refreshPath } from "./index.tsx";
+import type { Pull } from "./gesture.ts";
+import { refreshPath, renderPath } from "./index.tsx";
 import { CASE, PairNode, Star, caseQ, pairOf, u0 } from "./parts.tsx";
 import { Scroll } from "./scroll.tsx";
-import { Foot, PreStation, SideStation, Station, VoiceBar, pathNote } from "./shell.tsx";
+import { Foot, PreStation, PullCtx, SideStation, Station, VoiceBar, pathNote } from "./shell.tsx";
 import { D, Gap, Head, Icon, Knob, St, Sx, nofillInput } from "./ui.tsx";
 
 /** Only the "neither" case may say that nothing exists: the other cases are asked because the relation chosen needs them, so their examples justify the choice. */
@@ -28,17 +29,18 @@ function cursor() {
 export const examplesReady = () => cursor().ready;
 const focusField = () => { const i = document.getElementById("cin") as HTMLInputElement | null; if (i) { i.focus({ preventScroll: true }); const n = i.value.length; try { i.setSelectionRange(n, n); } catch { /* not a text field */ } } };
 const blur = () => { const a = document.activeElement as HTMLElement | null; if (a && a.blur) a.blur(); };
-/** Enter on a case: this one is written, the next empty one opens; after the last the keyboard goes away (and, from the keyboard's station, `check`). */
-function commit(check: (() => void) | null) {
+/** Enter on a case: this one is written, the next empty one opens. After the last the Check is the next step and is taken at once: the keyboard goes, and the Check (the node
+ *  under the last example while the keyboard is up, the foot's station otherwise) is pulled up and becomes the result. */
+function commit(pull: Pull) {
   const u = u0(), k = cursor();
   if (!k.c) return;
   if (!filled(k.c)) { pathNote(mayBeEmpty(k.c) ? "Write an example first, or say nothing exists" : "Write an example first"); return; }
   if (k.nextC) { u.ci = k.order.indexOf(k.nextC); u.pall = false; render(); focusField(); return; }
-  u.pall = true; blur(); render();
-  if (check) check();
+  renderPath();     // the last example is written: draw the Check that it makes ready (the draw after an input is queued for the next frame)
+  pull.take(); blur();
 }
 function openCase(i: number) { const u = u0(); u.ci = i; u.pall = false; render(); focusField(); }
-function nothing(c: CellId) { if (!mayBeEmpty(c)) return; const x = u0().cells[c]; x.t = ""; x.none = true; commit(null); }
+function nothing(c: CellId, pull: Pull) { if (!mayBeEmpty(c)) return; const x = u0().cells[c]; x.t = ""; x.none = true; commit(pull); }
 
 /** The strip under the top bar: the pair with its relation, folded; pull it anywhere (or tap it) to look back at `full`, the steps done. While it is
  *  unfolded, a touch anywhere outside it folds it again. */
@@ -89,14 +91,25 @@ function KHead({ rel, title }: { rel: RelKey; title: string }) {
  * unfolded, `check` the check of the answer.
  */
 export function ExamplesStep({ kb, title, step, rel, full, check }: { kb: boolean; title: string; step: number; rel: RelKey; full: ComponentChildren; check: () => void }) {
-  const u = u0(), p = pairOf(), k = cursor(), first = k.order[0];
+  const u = u0(), p = pairOf(), k = cursor(), first = k.order[0], pull = useContext(PullCtx);
+  const checkHint = "your " + (state.ui!.find ? "pair" : "relation") + " and " + (k.order.length === 1 ? "one example" : k.order.length + " examples");
+  const takeCheck = () => { u.pall = true; blur(); check(); };
+  // the last example has words: the Check is the next stop, and the line ahead is solid down to it (under the keyboard there is no foot, so the Check comes up on the page)
+  const node = kb && k.ready;
+  useLayoutEffect(() => {
+    if (!node) return;
+    const n = document.querySelector<HTMLElement>("#path .cnode"), sc = n && n.closest<HTMLElement>(".pscroll"), prev = n && n.previousElementSibling;
+    if (!n || !sc || !prev) return;
+    const over = prev.getBoundingClientRect().bottom + n.offsetHeight - sc.getBoundingClientRect().bottom;
+    if (over > 0) sc.scrollTo({ top: sc.scrollTop + over + 8, behavior: "smooth" });
+  }, [node]);
   const rows = k.order.map((c, i) => {
     const x = u.cells[c];
     if (i === k.ci) return <St d={<D cls="sub now" />} cls="sb now"><span class="lab">{CASE[c]}</span><p class="qq">{caseQ(c, p)}</p>
       <div class="fieldrow"><input class="pfield" id="cin" value={x.t} placeholder="write an example" {...nofillInput()} enterKeyHint={k.last ? "done" : "next"} aria-label={cellLabel(c, p)}
         onInput={(e) => { x.t = (e.currentTarget as HTMLInputElement).value; if (x.none) x.none = false; refreshPath(); }}
-        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commit(null); } }} /></div>
-      <p class="help"><span class="htx">{c === first ? "Your own example, in a few words." : "In a few words."} </span>{mayBeEmpty(c) ? <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => nothing(c)}>nothing exists</button> : null}</p></St>;
+        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commit(pull); } }} /></div>
+      <p class="help"><span class="htx">{c === first ? "Your own example, in a few words." : "In a few words."} </span>{mayBeEmpty(c) ? <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => nothing(c, pull)}>nothing exists</button> : null}</p></St>;
     // a written case opens again with a tap; the field keeps the focus meanwhile, so the keyboard stays up and nothing moves under the finger
     if (filled(c)) return <button type="button" class="sbb" onMouseDown={(e) => e.preventDefault()} onClick={() => openCase(i)} aria-label={CASE[c] + ": " + (x.none ? "nothing exists" : x.t) + ". Change it"}>
       <St d={<D cls="sub yours" />} cls="sb done"><span class="lab">{CASE[c]}</span><span class={"pans" + (x.none ? " nil" : "")}>{x.none ? "nothing exists" : x.t.trim()}</span></St></button>;
@@ -108,11 +121,12 @@ export function ExamplesStep({ kb, title, step, rel, full, check }: { kb: boolea
     <KHead rel={rel} title={title} /><Strip rel={rel} full={full} />
     <Scroll dim={!!u.pstrip}>
       <Sx cls="cur first"><div class="ksp" style={{ height: "16px" }} /><Head d={<D cls="sec now" />} h={step + " Examples"} sub={k.order.length === 1 ? "one case" : "one for each case"} />{rows}<Gap h={6} /></Sx>
+      {node ? <Sx cls="cnode"><Station name="Check" hint={checkHint} act={takeCheck} keep /></Sx> : null}
       <Sx cls="ptail" />
     </Scroll>
     <VoiceBar />
     {kb ? null : <Foot aux={k.ready ? null : <SideStation kind="skip" act={skipPair} />}>
-      {k.ready ? <Station name="Check" hint={"your " + (state.ui!.find ? "pair" : "relation") + " and " + (k.order.length === 1 ? "one example" : k.order.length + " examples")} act={() => { blur(); check(); }} />
+      {k.ready ? <Station name="Check" hint={checkHint} act={takeCheck} />
         : <PreStation name="Result" hint="write each example first" />}
     </Foot>}
   </>;

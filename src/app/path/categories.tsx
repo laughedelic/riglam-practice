@@ -77,7 +77,7 @@ function TickStep() {
   return <>
     <Scroll>
       <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Categories" sub="which of these is it?" /><Gap h={6} /><Thing /><p class="help chelp">Tick everything it is.</p><Gap h={4} /></Sx>
-      <NewTerms cats={t.rows.map((r) => r.cat)} />
+      <NewTerms asked={t.rows.map((r) => ({ cat: r.cat, label: r.phrase }))} />
       <Choices label="Categories the thing is in" multi items={items} onPick={(k) => (k ? tickCategory(k) : tickNone())} />
       <Sx cls="ptail" />
     </Scroll>
@@ -95,7 +95,7 @@ function OneStep() {
           return <St d={<D cls={"sub " + (ok ? "ok" : "no")} />} cls={"sb exr catrow" + (ok ? "" : " wrong")}><div class="line1"><b class="catp">{r.phrase}</b><span class="ctag">{said ? "yes" : "no"}</span><Mark m={ok ? "ok" : "no"} /></div>
             {ok ? null : <p class="xnote">{because(r)}</p>}</St>; })}
         <St d={<D cls="sub now" />} cls="sb now"><p class="qst" id="catq">Is {t.thing.n} {row.phrase}?</p></St><Gap h={4} /></Sx>
-      <NewTerms cats={[row.cat]} />
+      <NewTerms asked={[{ cat: row.cat, label: row.phrase }]} />
       <Choices label={"Is " + t.thing.n + " " + row.phrase + "?"} items={[{ k: "y", b: "Yes", key: "Y" }, { k: "n", b: "No", key: "N" }]} onPick={(k) => sayCategory(k === "y")} />
       {u.i < t.rows.length - 1 ? <Sx cls="walked later"><St d={<D cls="sub" />} cls="sb later"><span class="lab">{t.rows.length - u.i - 1} more</span></St></Sx> : null}
       <Sx cls="ptail" />
