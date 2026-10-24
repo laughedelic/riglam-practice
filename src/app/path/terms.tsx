@@ -7,10 +7,11 @@ import type { DataIndex } from "../../ai-shared/lookup.ts";
 import { termMentions } from "../../ai-shared/mentions.ts";
 import { cap } from "../core/util.js";
 import { isA } from "../practice/screen.js";
-import { CONFIRMATION, defParts, hasDef, newTerms, plainDefCard } from "../practice/terms.js";
+import { CONFIRMATION, NEW_TERM_LEAD, defParts, hasDef, newTermCards, plainDefCard } from "../practice/terms.js";
 import { exampleStage, examplesFor } from "../../domain/reference.ts";
 import { topStage } from "../../domain/stages.ts";
 import { render } from "../shell/render.js";
+import { Sub } from "./subjects.tsx";
 import { Bridge, Sx } from "./ui.tsx";
 
 const markOf = (id: string) => document.querySelector<HTMLElement>('#path .dterm[data-dt="' + CSS.escape(id) + '"]');
@@ -99,11 +100,14 @@ function Def({ term, trail }: { term: string; trail: string[] }) {
   </div>;
 }
 /**
- * A newly opened category's definition with the question, until the stages go past 3 (practice/terms.js, newTerms): `cats` the ids of the
- * question's categories, a pair's two or the ones Categories asks about. The classic card for now.
+ * A newly opened category's definition with the question, until the stages go past 3 (practice/terms.js, newTermCards): `asked` what the question asks
+ * about, a pair's two (with their sides) or the categories Categories asks about, each with the question's own words for it. A card is led by those
+ * words, then the course's term and its definition (the classic card for now).
  */
-export function NewTerms({ cats }: { cats: (string | null | undefined)[] }) {
-  const terms = newTerms(cats) as string[]; if (!terms.length) return null;
-  return <Sx cls="cur newdefs"><p class="pgh"><b>New at stage {topStage(state.stages)}</b><span>what {terms.length > 1 ? "these terms mean" : "this term means"}</span></p>
-    <div class="wtext"><Bridge fill={() => terms.map(plainDefCard)} /></div></Sx>;
+export function NewTerms({ asked }: { asked: { cat: string | null | undefined; label: string; side?: string }[] }) {
+  const cards = newTermCards(asked) as { term: string; asked: typeof asked }[]; if (!cards.length) return null;
+  return <Sx cls="cur newdefs"><p class="pgh"><b>New at stage {topStage(state.stages)}</b><span>what {cards.length > 1 ? "these terms mean" : "this term means"}</span></p>
+    {cards.map((c) => <div class="wtext newdef">
+      <p class="newfor">{c.asked.map((x, i) => <>{i ? " · " : null}{x.side ? <Sub k={x.side === "A" ? "a" : "b"}>{x.label}</Sub> : x.label}</>)}</p>
+      <Bridge fill={() => [plainDefCard(c.term, NEW_TERM_LEAD)]} /></div>)}</Sx>;
 }

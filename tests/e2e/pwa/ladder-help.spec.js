@@ -153,6 +153,11 @@ course("up to stage 3, a newly opened category's definition shows with the quest
   await expect(box).toBeVisible();
   await expect(box).toContainText("New at stage 2");
   await expect(box.locator(".ddef dt").first()).toContainText(term);
+  // it says which words of the question the term is for, and that it is the course's term
+  const firstFor = (x) => (NEW2.includes(x.catA) ? { side: "A", label: x.a } : { side: "B", label: x.b });
+  await expect(box.locator(".newfor").first()).toContainText(firstFor(p).label);
+  await expect(box.locator(".newfor .L").first()).toHaveText(firstFor(p).side);
+  await expect(box.locator(".ddef dt .tm-lead").first()).toContainText("in the course");
   // the Path draws the same, with the question
   await page.evaluate(() => { localStorage.setItem("rd-design", "path"); });
   await page.reload();
@@ -161,6 +166,9 @@ course("up to stage 3, a newly opened category's definition shows with the quest
   expect(q).not.toBeNull();
   await page.evaluate(() => window.__t.render());
   await expect(page.locator("#path .newdefs")).toContainText("New at stage 2");
+  await expect(page.locator("#path .newdefs .newfor").first()).toContainText(firstFor(q).label);
+  await expect(page.locator("#path .newdefs .newfor .sj").first()).toHaveText(firstFor(q).label);
+  await expect(page.locator("#path .newdefs .ddef dt .tm-lead").first()).toContainText("in the course");
   // Categories asks about the categories that are open: those of stage 2 show their definitions while step 1 is asked
   await page.evaluate(() => { localStorage.setItem("rd-design", "classic"); });
   await page.reload();
@@ -169,6 +177,7 @@ course("up to stage 3, a newly opened category's definition shows with the quest
   await expect(page.locator(".catcard")).toBeVisible();
   for (let i = 0; i < 40 && !(await page.evaluate((ids) => window.__t.cur.q.rows.some((r) => ids.includes(r.cat)), NEW2)); i++) await page.evaluate(() => { window.__t.next(); });
   await expect(page.locator(".catcard .newdefs")).toContainText("New at stage 2");
+  await expect(page.locator(".catcard .newdefs .newfor").first()).toBeVisible();
 });
 
 course("from stage 4 on, the definitions are a tap away, not shown with the question", async ({ page }) => {
