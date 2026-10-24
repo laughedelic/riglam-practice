@@ -234,6 +234,6 @@ export function ReviewPage() {
       {seg === "today" ? <Today /> : seg === "overview" ? <Overview /> : seg === "mistakes" ? <Mistakes /> : seg === "favs" ? <Favs /> : seg === "skips" ? <Skips /> : <Flags />}
       <div style={{ height: "30px" }} />
     </div>
-    <Foot><Station name="Continue practice" hint={exName(state.own)} act={() => setTab(state.own)} /></Foot>
+    <Foot><Station back name="Continue practice" hint={exName(state.own)} act={() => setTab(state.own)} /></Foot>
   </>;
 }

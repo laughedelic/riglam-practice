@@ -65,6 +65,6 @@ export function TutorPage() {
         </>)}
         <div style={{ height: "14px" }} /></Sx>
     </div>
-    <Foot><Station name="Back to the result" hint={exName(state.tab)} act={closeChat} /></Foot>
+    <Foot><Station back name="Back to the result" hint={exName(state.tab)} act={closeChat} /></Foot>
   </>;
 }
