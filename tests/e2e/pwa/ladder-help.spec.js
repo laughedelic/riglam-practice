@@ -59,6 +59,7 @@ test("after five right plain pairs in a row, negating one side is offered on the
 });
 
 test("on the Path the offer shows on the result too; Not now keeps negations off, and the next one needs another run", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" }); // six pairs in a row: the choice and the station are taken at once (the project's own option does not reach the page)
   await page.addInitScript(onPath);
   await page.addInitScript(hook);
   await page.goto("/");
@@ -76,6 +77,7 @@ test("on the Path the offer shows on the result too; Not now keeps negations off
   expect(await page.evaluate(() => [localStorage.getItem("rd-negation"), !!localStorage.getItem("rd-neg-offer")])).toEqual([null, true]);
   // one more right pair is not another run of five
   await station(page).click();
+  await expect(pathChoices(page)).toHaveCount(5);
   await rightPath(page);
   await expect(page.locator("#path .offer")).toHaveCount(0);
 });
