@@ -71,7 +71,7 @@ function QuestionStep({ kb }: { kb: boolean }) {
             <p class="help"><span class="htx">Something that shows the statement fails. </span><button type="button" onMouseDown={(e) => e.preventDefault()} onClick={backWhy}>back</button></p>
           </> : null}</St>
         {u.pickWhy ? <Gap h={6} /> : null}</Sx>
-      {u.pickWhy ? null : <Choices label="Your answer" items={items} picked={u.pk} onPick={(k) => pickThen(k, () => sayQ(k))} />}
+      {u.pickWhy ? null : <Choices label="Your answer" slide row items={items} picked={u.pk} onPick={(k) => pickThen(k, () => sayQ(k))} />}
       {i < 3 ? <Sx cls="walked later">{[...Array(3 - i).keys()].map((j) => <St d={<D cls="sub" />} cls="sb later qmr"><QHead i={i + 1 + j} /></St>)}</Sx> : null}
       <Sx cls="ptail" />
     </Scroll>
@@ -90,7 +90,7 @@ function RelationStep() {
     <Scroll>
       <Sx cls="walked first tight"><Gap h={14} /><Head d={<D cls="sec done" />} h="1 Questions" sub="answered" /><Gap h={4} /><PairStops p={p} sm /><Gap h={4} /><Answered n={4} /><Gap h={8} /></Sx>
       <Sx cls="cur"><Head d={<D cls="sec now" />} h="2 Relation" sub="which relation do your answers give?" /><Gap h={4} /></Sx>
-      <Choices label="Relation" items={relChoices(p, u.rel || null)} picked={u.pk} onPick={(k) => pickThen(k, () => chooseD(k))} />
+      <Choices label="Relation" slide items={relChoices(p, u.rel || null)} picked={u.pk} onPick={(k) => pickThen(k, () => chooseD(k))} />
       <Sx cls="ptail" />
     </Scroll>
     <VoiceBar />

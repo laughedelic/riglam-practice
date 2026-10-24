@@ -42,7 +42,7 @@ function PickStep({ kb }: { kb: boolean }) {
       {retry ? <p class="retry">{(state.cur!.tag || "Retry") + (state.retryQ.length ? " · " + state.retryQ.length + " more" : "")}</p> : null}
       <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Relation" sub="how do A and B relate?" /><Gap h={4} /><PairStops p={p} /><Gap h={8} /></Sx>
       <NewTerms cats={pairCatIds(p)} />
-      <Choices label="Relation" items={relChoices(p, u.rel || null)} picked={u.pk} onPick={pick} />
+      <Choices label="Relation" slide items={relChoices(p, u.rel || null)} picked={u.pk} onPick={pick} />
       <Sx cls="ptail" />
     </Scroll>
     <VoiceBar />

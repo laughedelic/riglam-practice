@@ -28,6 +28,8 @@ export interface Look {
   tTn: number;
   tHand: number;
   choice: "margin" | "rows" | "branches";
+  /** how a choice is taken: slid onto the path (the marks stand beside it; a tap does it too), or lit for a moment on the path */
+  take: "slide" | "lit";
   figs: "ink" | "color";
   ahead: "dot" | "dash" | "fade";
   next: "edge" | "page";
@@ -75,7 +77,7 @@ export const GRAIN_PLACES = ["verdict", "station", "current", "band", "top"];
 export const DEFAULT_LOOK: Look = {
   mode: "system", light: "ivory", dark: "slate", blue: "#3155a4", gold: "#faaf3f", green: "#4c8a63", red: "#b83545", purple: "#6f3f8f", purpleFor: "tutor",
   grain: "verdict,station", grainLevel: "soft", wait: "dots", font: "newsreader", hand: "kalam", tM: 50, tLw: 2, tSt: 28, tTn: 34, tHand: 19,
-  choice: "margin", figs: "ink", ahead: "dot", next: "edge", edge: "fade", why: "row", sheet: "top", toggle: "nested", keys: "sim", star: "pair",
+  choice: "margin", take: "slide", figs: "ink", ahead: "dot", next: "edge", edge: "fade", why: "row", sheet: "top", toggle: "nested", keys: "sim", star: "pair",
   ask: "row", tutorAuto: "off", abPos: "margin", cOn: "on", cSerif: "spectral", cHand: "pangolin", cBo: "notoserifTib", cSa: "notoserifDeva", cZh: "wenkai",
   words: "underline", subj: "letters", starShape: "bookmark", miFig: "inset",
 };
@@ -84,7 +86,7 @@ export const DEFAULT_LOOK: Look = {
 const ONE_OF: Partial<Record<keyof Look, readonly string[]>> = {
   mode: ["system", "light", "dark"], light: Object.keys(GROUNDS.light), dark: Object.keys(GROUNDS.dark), purpleFor: ["none", "tutor", "skip", "partly"],
   grainLevel: ["soft", "mid", "strong"], wait: ["dots"], font: Object.keys(MAIN_FONTS), hand: ["newsreader", "main", "mainup", ...Object.keys(HAND_FONTS)],
-  choice: ["margin", "rows", "branches"], figs: ["ink", "color"], ahead: ["dot", "dash", "fade"], next: ["edge", "page"], edge: ["run", "fade"],
+  choice: ["margin", "rows", "branches"], take: ["slide", "lit"], figs: ["ink", "color"], ahead: ["dot", "dash", "fade"], next: ["edge", "page"], edge: ["run", "fade"],
   why: ["detour", "row", "side"], sheet: ["top", "bottom", "path"], toggle: ["track", "check", "solid", "stops", "nested"], keys: ["sim", "off"],
   star: ["pair", "bar"], ask: ["detour", "row"], tutorAuto: ["off", "on"], abPos: ["names", "margin"], cOn: ["on", "off"],
   cSerif: Object.keys(SERIF_COMPANIONS), cHand: Object.keys(HAND_COMPANIONS), words: ["underline", "diamond", "chip"], subj: ["none", "italic", "letters", "diamonds", "lettered", "inks"], starShape: ["star", "eight", "bookmark"], miFig: ["inset", "full"],

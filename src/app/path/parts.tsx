@@ -18,8 +18,10 @@ import { negSides } from "../../ai-shared/relations.ts";
 import type { CellId, Neg, RelKey } from "../../ai-shared/relations.ts";
 import { VERDICT_RE, parseFactLine } from "../../domain/verdict.ts";
 import type { FactLine, NotePart } from "../../domain/verdict.ts";
+import { takeChoice, bindSlide } from "./choose.ts";
 import { refreshPath } from "./index.tsx";
 import { FlagBtn, FlagEditor, QuorumPanel, explainCase } from "./flags.tsx";
+import { currentLook } from "./look.ts";
 import { Sub } from "./subjects.tsx";
 import { DefCard, OneTerm, TermText } from "./terms.tsx";
 import { D, Fig, Icon, Mark, St, Sx } from "./ui.tsx";
@@ -91,22 +93,31 @@ export const isa = (s: string) => String(s).split("\uE000").flatMap((x, i) => (i
 export interface Choice { k: string; b: ComponentChildren; s?: ComponentChildren; fig?: string; sym?: string; key?: string; pressed?: boolean; label?: string }
 /**
  * The choices where the path breaks into a dotted gap: each a row with its mark on the line (a figure, or a small diamond). A tap answers at
- * once; `picked` is the one being taken (it stays lit while the others fade). `multi` rows are pressed and unpressed instead.
+ * once; `picked` is the one being taken (it stays lit while the others fade). `multi` rows are pressed and unpressed instead. With `slide` (and
+ * the "slide" look) the marks stand beside the path and the one taken slides onto it, by a tap or a finger (choose.ts); `row` puts two short
+ * options on one row.
  */
-export function Choices({ label, items, picked = null, onPick, multi = false }: { label: string; items: Choice[]; picked?: string | null; onPick: (k: string) => void; multi?: boolean }) {
+export function Choices({ label, items, picked = null, onPick, multi = false, slide = false, row = false }: { label: string; items: Choice[]; picked?: string | null; onPick: (k: string) => void; multi?: boolean; slide?: boolean; row?: boolean }) {
+  const beside = slide && !multi && currentLook().take === "slide", two = beside && row;
+  const ref = useRef<HTMLDivElement>(null), last = useRef(onPick); last.current = onPick;
+  useEffect(() => (beside && ref.current ? bindSlide(ref.current, (k) => last.current(k)) : undefined), [beside]);
   return <Sx cls="gap"><span class="gapq" aria-hidden="true">?</span>
-    <div class={"chs" + (picked ? " fading" : "") + (multi ? " multi" : "")} role="group" aria-label={label}>{items.map((it) =>
-      <button type="button" class={"crow" + (picked === it.k ? " picked" : "") + (it.pressed ? " on" : "")} aria-pressed={it.pressed ? "true" : "false"} aria-keyshortcuts={it.key} aria-label={it.label} onClick={() => onPick(it.k)}>
+    {beside ? <><i class="thr2" /><i class="thr" /></> : null}
+    <div ref={ref} class={"chs" + (picked ? " fading" : "") + (multi ? " multi" : "") + (beside ? " slide" : "") + (two ? " row2" : "")} role="group" aria-label={label}>{items.map((it) =>
+      <button type="button" data-k={it.k} class={"crow" + (picked === it.k ? " picked" : "") + (it.pressed ? " on" : "")} aria-pressed={it.pressed ? "true" : "false"} aria-keyshortcuts={it.key}
+        aria-label={it.label || (two && typeof it.b === "string" && typeof it.s === "string" ? it.b + ": " + it.s : undefined)} onClick={() => onPick(it.k)}>
         <span class="mc">{it.fig ? <Fig k={it.fig} /> : <D cls={"sub pk" + (it.pressed ? " yours" : "")} />}</span>
-        <span class="ct"><b>{it.b}{it.sym ? <span class="rsym">{it.sym}</span> : null}</b>{it.s ? <small>{it.s}</small> : null}</span>
+        <span class="ct"><b>{it.b}{it.sym ? <span class="rsym">{it.sym}</span> : null}</b>{it.s && !two ? <small>{it.s}</small> : null}</span>
       </button>)}</div></Sx>;
 }
-/** A choice taken: lit for a moment, then `go`. Nothing else is taken meanwhile. */
+/** A choice taken: it slides onto the path where the choices are made so (choose.ts), else it is lit for a moment; then `go`. Nothing else is taken meanwhile. */
 export function pickThen(k: string, go: () => void) {
   const u = u0(); if (u.pk) return;
   if (u.tq) { go(); return; }   // under a running Blitz clock it is taken at once, so that the moment is not counted
-  u.pk = k; refreshPath();
-  setTimeout(() => { if (state.ui !== u) return; u.pk = null; go(); }, 420);
+  u.pk = k;
+  const end = () => { if (state.ui !== u) return; u.pk = null; go(); };
+  if (takeChoice(k, end)) return;
+  refreshPath(); setTimeout(end, 420);
 }
 
 /** The verdict on the path: a large diamond with its mark, the word, and what it is about. */
