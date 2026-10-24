@@ -6,9 +6,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# A newer push to a pull request replaces its run. Every commit on main keeps a run of its own, so a merge that follows closely does not cancel the verdict on the one before.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -39,7 +40,9 @@ jobs:
         run: npx --yes wrangler@${{ env.WRANGLER_VERSION }} deploy --dry-run
 
   # The browser tests, in parallel. Each job builds both outputs itself (about 10 seconds), because the artifact build must not be uploaded.
-  # The legacy suite is the long part (test40q alone takes about two minutes), so it is split with Playwright's --shard; layout and PWA specs share one job.
+  # Playwright's --shard cuts a project's tests into equal runs of consecutive tests (by count, not by time), which is even enough here.
+  # Each job has about 30 seconds of setup. Measured on a run: the slowest legacy slice takes about 3 minutes (test40q alone is about two), the slowest PWA slice
+  # about 3.5, so a fourth slice of each PWA project would save under a minute.
   # When a project or a shard is added here, `npx playwright test --list` must still list every test exactly once across the jobs (docs/TESTING.md).
   browser:
     name: Browser tests (${{ matrix.name }})
@@ -52,7 +55,13 @@ jobs:
           - { name: legacy 1/3, args: "--project=legacy --shard=1/3" }
           - { name: legacy 2/3, args: "--project=legacy --shard=2/3" }
           - { name: legacy 3/3, args: "--project=legacy --shard=3/3" }
-          - { name: layout and PWA, args: "--project=layout --project=pwa-desktop --project=pwa-phone" }
+          - { name: layout, args: "--project=layout" }
+          - { name: PWA desktop 1/3, args: "--project=pwa-desktop --shard=1/3" }
+          - { name: PWA desktop 2/3, args: "--project=pwa-desktop --shard=2/3" }
+          - { name: PWA desktop 3/3, args: "--project=pwa-desktop --shard=3/3" }
+          - { name: PWA phone 1/3, args: "--project=pwa-phone --shard=1/3" }
+          - { name: PWA phone 2/3, args: "--project=pwa-phone --shard=2/3" }
+          - { name: PWA phone 3/3, args: "--project=pwa-phone --shard=3/3" }
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -68,7 +77,9 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-      - run: npx playwright install --with-deps chromium
+      # No --with-deps: the runner image already has every library Chromium needs (it only lacked fonts for scripts the app does not show), and the apt-get that
+      # --with-deps runs has stalled for minutes on a slow package mirror. If the image ever loses a library, Playwright says so when it starts the browser.
+      - run: npx playwright install chromium
       # Nothing from this step is uploaded: the HTML report and the traces record page content and step arguments (URLs, typed text),
       # which can include the course definitions and the data key, and artifacts (unlike logs) are not masked.
       # Read a failure in this job's log, or run the spec locally with `--trace on`.
@@ -89,15 +100,3 @@ jobs:
         run: |
           echo "static: $STATIC, browser: $BROWSER"
           [ "$STATIC" = success ] && [ "$BROWSER" = success ]
-
-  pr-title:
-    name: Conventional PR title
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    permissions:
-      pull-requests: read
-    steps:
-      # Squash merges use the PR title as the commit message, and release-please reads it to pick the next version.
-      - uses: amannn/action-semantic-pull-request@v6
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

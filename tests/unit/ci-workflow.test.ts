@@ -1,6 +1,6 @@
 // The browser tests run as a matrix of CI jobs, each with its own `--project` and `--shard` arguments. A project that no job
 // names would silently stop running, and one named twice would run twice, so this reads the workflow and the Playwright
-// config and checks that every project is covered exactly once. It also checks the one status that branch protection needs.
+// config and checks that every project is covered exactly once. It also checks the two statuses that branch protection needs: `Lint, build, test` here and `Conventional PR title` in its own workflow.
 import { expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import { root } from "../../scripts/lib/course-files.mjs";
@@ -47,4 +47,17 @@ test("one job called `Lint, build, test` needs the others, because branch protec
   expect(job, "no job with the name `Lint, build, test`").toBeDefined();
   expect(job).toMatch(/needs: \[static, browser\]/);
   expect(job, "without this the check would be skipped, and a skipped required check counts as passed, when a part fails").toMatch(/if: \$\{\{ !cancelled\(\) \}\}/);
+});
+
+test("the pull request title check is its own workflow and runs again when the title is edited", () => {
+  const title = read(".github/workflows/pr-title.yml");
+  expect(title, "branch protection requires the name `Conventional PR title`").toMatch(/^ {4}name: Conventional PR title$/m);
+  expect(title, "a title fixed after the first run must be checked again").toMatch(/types: \[[^\]]*\bedited\b[^\]]*\]/);
+  expect(workflow, "an edit of a pull request must not start the browser tests, so ci.yml has no `edited` type").not.toMatch(/\bedited\b/);
+  expect(workflow, "the title check lives in pr-title.yml, not twice").not.toMatch(/Conventional PR title/);
+});
+
+test("a push to a pull request replaces its running CI, but every commit on main keeps its own run", () => {
+  expect(workflow).toMatch(/group: ci-\$\{\{ github\.event_name == 'pull_request' && github\.ref \|\| github\.sha \}\}/);
+  expect(workflow).toMatch(/cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}/);
 });

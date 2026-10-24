@@ -1,0 +1,23 @@
+name: PR title
+
+# Squash merges use the pull request title as the commit message, and release-please reads it to pick the next version (docs/RELEASING.md).
+# This is its own workflow because the check has to run again when the title is edited, and a title edit must not start the browser tests:
+# `edited` is not among the default activity types of ci.yml, so a title fixed there stayed red until the next push.
+# The job's name is what branch protection requires, so it stays the same wherever the job lives.
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  pr-title:
+    name: Conventional PR title
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: amannn/action-semantic-pull-request@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
