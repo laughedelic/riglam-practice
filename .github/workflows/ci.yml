@@ -77,7 +77,14 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-      - run: npx playwright install --with-deps chromium
+      # --with-deps runs apt-get, which sat for 8 minutes in one job of a run (it takes 15 to 30 seconds), so each try is cut at 2.5 minutes, and there are three.
+      - name: Install Chromium
+        run: |
+          for try in 1 2 3; do
+            timeout --kill-after=10 150 npx playwright install --with-deps chromium && exit 0
+            echo "::warning::Chromium install: try $try failed or took more than 2.5 minutes"
+          done
+          exit 1
       # Nothing from this step is uploaded: the HTML report and the traces record page content and step arguments (URLs, typed text),
       # which can include the course definitions and the data key, and artifacts (unlike logs) are not masked.
       # Read a failure in this job's log, or run the spec locally with `--trace on`.
