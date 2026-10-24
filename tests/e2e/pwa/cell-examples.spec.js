@@ -2,7 +2,7 @@
 // that are on. The examples are invented (a plain and a second-level one for every term of the open data, at stages 6 and 7) and served by a stand-in
 // for the server (tests/support/data-key.js). The specs' devices are not new (the fixture stores a setting), so they start with stages 1 to 6.
 import { test, expect } from "../../support/test.js";
-import { ready } from "../../support/page.js";
+import { ready, setStoredStages } from "../../support/page.js";
 import { dataKey, KEY_STORE, serveCourse } from "../../support/data-key.js";
 import { readOpen } from "../../../scripts/lib/course-files.mjs";
 
@@ -70,7 +70,7 @@ test("the practice options have a Stages card with a switch for each stage, what
   await expect(stageSwitch(row, 8)).toHaveAttribute("aria-checked", "true");
   expect(await page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("1,2,3,4,5,6,8");
   expect(await page.evaluate(() => localStorage.getItem("rd-stage-lean")), "the next pairs lean to three possibilities").toBe("5");
-  await page.evaluate(() => localStorage.setItem("rd-stages", "3"));
+  await setStoredStages(page, "3");
   await page.reload();
   await ready(page);
   const one = await openStages(page);

@@ -17,7 +17,7 @@ import { cellsFor, judgeable } from "./universe";
 import type { Rng } from "./universe";
 import { FEATURE, RECENT_MAX, inUniverse } from "./universe";
 import { catOpen, itemOn, normStages, topStage } from "./stages";
-import type { Stages } from "./stages";
+import type { Stages, Unmet } from "./stages";
 import { cap, isMiss } from "./util";
 
 /** What the learner says: accept the syllogism, deny the reason ("the reason is not established"), or deny the pervasion. */
@@ -458,6 +458,8 @@ export interface SyllogismDraw {
    * Stages that can draw nothing draw as if there were none.
    */
   stages?: Stages;
+  /** the Dudra categories whose term the learner has not met yet (intro.ts): a reason or predicate among them waits, unless the situation has nothing else */
+  unmet?: Unmet;
   rng?: Rng;
 }
 
@@ -488,6 +490,10 @@ export function drawSyllogism(ix: DataIndex, st: SyllogismDraw): Syllogism {
     sit = chooseWeighted(SIT_IDS.filter((s) => SITUATIONS[s].answer === answer && usable(s)), (s) => SITUATIONS[s].weight, rng);
     const v = viewOf(ix, sit, top, staged);
     pool = v.linked.length ? v.linked : v.some.length ? v.some : v.all;
+  }
+  if (st.unmet?.size) {
+    const met = pool.filter((g) => !st.unmet!.has(g.pair.r) && !st.unmet!.has(g.pair.p));
+    if (met.length) pool = met;
   }
 
   const weak: Record<string, number> = Object.create(null);

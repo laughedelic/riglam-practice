@@ -27,6 +27,7 @@ const I: Record<string, string> = {
   refresh: '<path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v4h-4"/>',
   flag: '<path d="M6 21V3.5M6 4h11.5l-2.5 4 2.5 4H6"/>',
   skipped: '<path d="M5 6l6 6-6 6M12 6l6 6-6 6"/>',
+  again: '<path d="M12 7.5v4.8l-3.1 1.9"/><path d="M19.9 13.6A8 8 0 1 1 17.7 6.3"/><path d="M20.4 3.9v3.9h-3.9"/>',     // a clock turning forward: it comes again later
 };
 /** A line icon; the favorites mark is drawn in the shape the look names. */
 export function Icon({ n, cls = "i" }: { n: string; cls?: string }) {

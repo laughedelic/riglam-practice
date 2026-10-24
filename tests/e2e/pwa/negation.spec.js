@@ -43,9 +43,9 @@ test("with negations on, a pair can negate a term, has the same five answers, an
   // about a third of the pairs negate a side: skip until one comes
   for (let i = 0; i < 40 && !(await page.evaluate(() => !!window.__t.cur.p.neg)); i++) await page.keyboard.press("s");
   const p = await page.evaluate(() => window.__t.cur.p);
-  expect(p.neg).toMatch(/^(b|ab)$/);
-  expect(p.b).toMatch(/^non-/);
-  await expect(page.locator("#stage .pair .tb")).toContainText("non-");
+  expect(p.neg).toMatch(/^(a|b|ab)$/);
+  expect(p.neg === "a" ? p.a : p.b).toMatch(/^non-/);
+  await expect(page.locator(p.neg === "a" ? "#stage .pair .ta" : "#stage .pair .tb")).toContainText("non-");
   await expect(relOptions(page)).toHaveCount(5);
   // a favorite of its own, apart from the pair of the same categories without the negation
   expect(await page.evaluate(() => {
@@ -69,6 +69,11 @@ test("with negations on, a pair can negate a term, has the same five answers, an
   expect(await page.evaluate(() => window.__t.ui.res.relOk)).toBe(true);
   // the answer keeps the pair with its negation, under the relation's key
   expect(await page.evaluate(() => ({ key: window.__t.ui.doc.key, neg: window.__t.ui.doc.pair.neg, b: window.__t.ui.doc.b }))).toEqual({ key: p.relation, neg: p.neg, b: p.b });
+  // the Terms panel says what a negated side takes in, not the lineage of what it negates
+  await page.getByRole("tab", { name: "Terms" }).click();
+  const row = page.locator(".terms .tm-row").nth(p.neg === "a" ? 0 : 1);
+  await expect(row.locator(".tm-c")).toContainText("Everything outside “");
+  await expect(row.locator(".tm-c")).not.toContainText(/ is an? /);
 });
 
 test("with the brackets off, a negated name is written without them", async ({ page }) => {
@@ -78,7 +83,7 @@ test("with the brackets off, a negated name is written without them", async ({ p
   await expect(page.locator("#stage .head .pair")).toBeVisible();
   for (let i = 0; i < 40 && !(await page.evaluate(() => !!window.__t.cur.p.neg)); i++) await page.keyboard.press("s");
   const p = await page.evaluate(() => window.__t.cur.p);
-  expect(p.neg).toMatch(/^(b|ab)$/);
-  expect(p.b).toMatch(/^non-/);
+  expect(p.neg).toMatch(/^(a|b|ab)$/);
+  expect(p.neg === "a" ? p.a : p.b).toMatch(/^non-/);
   expect(p.a + p.b).not.toContain("(");
 });

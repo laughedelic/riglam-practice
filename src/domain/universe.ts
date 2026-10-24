@@ -7,6 +7,7 @@ import type { DataIndex } from "../ai-shared/lookup";
 import { CELLS, NEG_CELL, negLabel, negSides } from "../ai-shared/relations";
 import type { CellId, Neg, RelKey } from "../ai-shared/relations";
 import { itemKnown, itemOn, poolAt, topStage } from "./stages";
+import type { Unmet } from "./stages";
 import type { StagedEntry, Stages } from "./stages";
 import type { HistoryEntry, Pair, PoolEntry } from "./types";
 import { cap, isMiss, pick } from "./util";
@@ -140,7 +141,7 @@ export function buildPool(ix: DataIndex): PoolEntry[] {
  * A pair from a pool entry: a random order and random labels, the relation the data gives, an example per cell where
  * there is one, and the reason where a cell is empty. The random numbers are drawn in a fixed order; the id is made from
  * the clock and one more random number, so with both given the whole pair is reproducible. With `on`, the examples are
- * things of those stages (see pairOf). With `neg`, B (or A and B) is negated, under a label that is not a negation already where the category has one.
+ * things of those stages (see pairOf). With `neg`, A, B or both are negated, under a label that is not a negation already where the category has one.
  */
 export function makePair(ix: DataIndex, cand: PoolEntry, rng: Rng = Math.random, now: Clock = Date.now, more?: Witnesses, on?: Stages, neg?: Neg, brackets = true): Pair {
   let a = cand.a, b = cand.b, la: string, lb: string;
@@ -210,13 +211,17 @@ export interface DrawState {
    * and the rest from below, with examples of those stages; none, or stages that can draw no pair: every pair, as before the ladder
    */
   stages?: Stages;
+  /** the Dudra categories whose term the learner has not met yet (intro.ts): pairs with one of them wait, unless nothing else can be drawn */
+  unmet?: Unmet;
   /** the learner has just reached the highest stage that is on: its first pairs lean to three possibilities, with familiar things inside familiar kinds */
   fresh?: boolean;
   /** every pair the stages can draw weighs the same, none more for being new at the highest stage: a device that kept its settings from before the ladder draws as it did */
   even?: boolean;
+  /** the share of the pairs new at the highest stage (stages.ts, newShare): a quarter while the exercise is new to the learner; none: half */
+  newShare?: number;
   /**
-   * the negation track: about a third of the pairs have B negated ("one"), or, with "both", half of those have A and B negated. None: no negation,
-   * and the draw takes the same random numbers as before the track.
+   * the negation track: about a third of the pairs have one side negated, A or B alike ("one", as the tutors negate either), or, with "both", half
+   * of those have A and B negated. None: no negation, and the draw takes the same random numbers as before the track.
    */
   negation?: "one" | "both";
   /** a negated name of more than one word is written in brackets ("non-(wooden things)"), as the course book does; false: "non-wooden things". Default: with brackets */
@@ -231,12 +236,15 @@ const FRESH_THREE = 2.5;
 
 /**
  * The pool entry for the next pair: the relation that has been seen least lately, then a pair of categories weighted by what the learner got
- * wrong. With `stages`, from the pairs those stages can draw, half the time one new at the highest stage when there are both kinds.
+ * wrong. With `stages`, from the pairs those stages can draw, half the time (or `newShare`) one new at the highest stage when there are both kinds.
  */
 export function chooseEntry(ix: DataIndex, full: readonly PoolEntry[], st: DrawState): PoolEntry {
   const { hist, recent } = st, rng = st.rng || Math.random, isHidden = st.isHidden || (() => false);
   // stages whose things cannot fill a single pair (only the upper stages, which the practice list has nothing of) draw from every pair
-  const staged = st.stages ? poolAt(ix, full, st.stages) : [], pool: readonly (PoolEntry & Partial<StagedEntry>)[] = staged.length ? staged : full;
+  const staged = st.stages ? poolAt(ix, full, st.stages) : [], drawable: readonly (PoolEntry & Partial<StagedEntry>)[] = staged.length ? staged : full;
+  // a pair waits while one of its categories has a term the learner has not met; if that leaves nothing, the stages' pairs are drawn as they are
+  const met = st.unmet?.size ? drawable.filter((c) => !st.unmet!.has(c.a) && !st.unmet!.has(c.b)) : drawable;
+  const pool = met.length ? met : drawable;
   const top = staged.length && !st.even ? topStage(st.stages!) : 0;
   const last = hist.slice(-8).map((x) => (x.key === "3ab" || x.key === "3ba" ? "3" : x.key));
   const seen = new Set(hist.slice(-60).map((x) => [x.catA, x.catB].sort().join("|")).concat(recent));
@@ -256,9 +264,10 @@ export function chooseEntry(ix: DataIndex, full: readonly PoolEntry[], st: DrawS
   let cands = pool.filter((c) => c.r === R && !isHidden(c));
   if (!cands.length) cands = pool.filter((c) => c.r === R); // everything of this relation is skipped: the skips give way
 
-  // the pairs new at the highest stage weigh as much together as the rest together: about half the questions are new, the rest review
-  const nNew = top ? cands.filter((c) => c.st === top).length : 0, nOld = cands.length - nNew;
-  const newWeight = nNew && nOld ? nOld / nNew : 1;
+  // the pairs new at the highest stage weigh together as their share says against the rest together: about half the questions are new (a quarter
+  // while the exercise is new to the learner), the rest review
+  const nNew = top ? cands.filter((c) => c.st === top).length : 0, nOld = cands.length - nNew, share = st.newShare ?? 0.5;
+  const newWeight = nNew && nOld ? (nOld / nNew) * (share / (1 - share)) : 1;
   const w = cands.map((c) => {
     let v = c.st === top ? newWeight : 1;
     if (seen.has(pairKey(c))) v *= 0.08;
@@ -277,6 +286,6 @@ export function nextPair(ix: DataIndex, pool: readonly PoolEntry[], st: DrawStat
   const c = chooseEntry(ix, pool, st), rng = st.rng || Math.random;
   st.recent.push(pairKey(c));
   if (st.recent.length > RECENT_MAX) st.recent.shift();
-  const neg: Neg | undefined = st.negation && rng() < NEG_SHARE ? (st.negation === "both" && rng() < 0.5 ? "ab" : "b") : undefined;
+  const neg: Neg | undefined = st.negation && rng() < NEG_SHARE ? (st.negation === "both" && rng() < 0.5 ? "ab" : rng() < 0.5 ? "a" : "b") : undefined;
   return makePair(ix, c, rng, st.now || Date.now, st.more, st.stages, neg, st.brackets);
 }

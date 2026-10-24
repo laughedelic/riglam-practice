@@ -136,7 +136,7 @@ What an explain answer says of an example the page could not check can be kept, 
 
 ## Accounts and sync
 
-Using the app needs no account, and everything it keeps stays on the device. A person who wants their answers, debates, favorites and skipped pairs on more than one device can make an account, which keeps a copy of those documents on the server. Export and import (Settings, "Your data") remain the backup in every case.
+Using the app needs no account, and everything it keeps stays on the device. A person who wants their answers, debates, favorites, skipped pairs and progression on more than one device can make an account, which keeps a copy of those documents on the server. Export and import (Settings, "Your data") remain the backup in every case.
 
 **What an account is.** A random id, a name the person chose (the passkey manager shows it) and one or more passkeys: a public key each. There is no email address, no password and nothing else about the person. A passkey is made and used by the browser or the operating system (Face ID, a fingerprint, Windows Hello, a security key); the server only checks signatures. Passkeys that sync (iCloud Keychain, Google Password Manager, a password manager) work on the person's other devices; one that does not (a laptop's own) can be signed in with from a phone, and a second passkey can be added to an account.
 

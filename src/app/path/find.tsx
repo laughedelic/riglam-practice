@@ -7,12 +7,13 @@ import { state } from "../state.js";
 import { canAsk } from "../core/ask.js";
 import { CELLS, ORDER, REL, lcRel, notaOf } from "../core/rel.js";
 import { checkFind, chooseRel, editPair, usePair } from "../find/flow.js";
+import { guided } from "../practice/guided.ts";
 import { next } from "../practice/queue.js";
 import { render } from "../shell/render.js";
 import type { RelKey } from "../../ai-shared/relations.ts";
 import { ExamplesStep, StripPair, examplesReady } from "./examples.tsx";
 import { refreshPath } from "./index.tsx";
-import { Choices, ErrLines, PairResult, SkipMark, Verdict, WhyRow, needsKey, pairOf, u0 } from "./parts.tsx";
+import { Choices, ErrLines, GuideNote, PairResult, SkipMark, StageOffer, Verdict, WhyRow, needsKey, pairOf, u0 } from "./parts.tsx";
 import { Row, cases, isOpen, resultRows } from "./relations.tsx";
 import { Scroll } from "./scroll.tsx";
 import { Foot, PreStation, SkipSide, Station, TopBar } from "./shell.tsx";
@@ -35,7 +36,7 @@ function Asked({ change = true }: { change?: boolean }) {
 function Word({ k, key2, what, last }: { k: "a" | "b"; key2: "wordA" | "wordB"; what: string; last: boolean }) {
   const u = u0();
   return <St d={<span class="ab">{k.toUpperCase()}</span>} cls="pairst pfw">
-    <div class="fieldrow"><input class="pfield" id={"fw-" + k} value={u[key2]} placeholder={what + " phenomenon"} aria-label={what + " phenomenon, " + k.toUpperCase()} {...nofillInput()} list={state.findSuggest ? "fw-terms" : undefined}
+    <div class="fieldrow"><input class="pfield" id={"fw-" + k} value={u[key2]} placeholder={what + " phenomenon"} aria-label={what + " phenomenon, " + k.toUpperCase()} {...nofillInput()} list={guided("find") ? "fw-terms" : undefined}
       autoComplete="off" autoCapitalize="off" spellcheck={false} enterKeyHint={last ? "done" : "next"}
       onInput={(e) => { u[key2] = (e.currentTarget as HTMLInputElement).value; if (u.pairErr) u.pairErr = ""; refreshPath(); }}
       onKeyDown={(e) => { if (e.key !== "Enter") return; e.preventDefault(); if (!last) focus("fw-b"); else usePair(); }} /></div>
@@ -57,8 +58,8 @@ function PairStep({ kb }: { kb: boolean }) {
         <Word k="a" key2="wordA" what="First" last={false} />
         <Word k="b" key2="wordB" what="Second" last />
         {u.pairErr ? <p class="pnoteline bad perr" role="alert">{u.pairErr}</p> : null}
-        <p class="help fhelp">{state.findSuggest ? "Course terms or your own words." : "Whatever comes to mind."}</p>
-        {state.findSuggest ? <datalist id="fw-terms">{(state.DATA ? state.DATA.cats : []).map((c: { labels: string[] }) => <option value={c.labels[0]} />)}</datalist> : null}
+        <p class="help fhelp">{guided("find") ? "Course terms or your own words." : "Whatever comes to mind."}</p>
+        {guided("find") ? <datalist id="fw-terms">{(state.DATA ? state.DATA.cats : []).map((c: { labels: string[] }) => <option value={c.labels[0]} />)}</datalist> : null}
         <Gap h={6} /></Sx>
       <Sx cls="ptail" />
     </Scroll>
@@ -119,6 +120,8 @@ function ResultStep() {
       <Sx cls="walked"><St d={<D cls={"sub " + pm} />} cls="sb exr pairv"><span class="lab">the pair</span><p class="xnote">{pairLine}</p></St></Sx>
       <Sx cls={nbad ? "nop" : "okp"}><Gap h={2} />{(r.relOpen ? CELLS.filter((c) => !REL[rel].empty.includes(c)) : rows).map((c) => <Row c={c} rel={rel} />)}</Sx>
       <WhyRow unc={unc} again={!!r.relOpen} todo={r.relOpen ? "judge your pair and explain" : undefined} />
+      <StageOffer />
+      <GuideNote />
       <ErrLines />
       <Sx cls="ptail" />
     </Scroll>

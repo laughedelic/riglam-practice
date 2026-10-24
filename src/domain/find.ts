@@ -6,8 +6,8 @@
 import { categoryOf, spelled, stemmed, stripDet } from "../ai-shared/lookup";
 import type { DataIndex } from "../ai-shared/lookup";
 import { pluralOf } from "../ai-shared/mentions";
-import { CELLS, REL } from "../ai-shared/relations";
-import type { CellId, RelKey } from "../ai-shared/relations";
+import { CELLS, REL, negLabel, plainLabel } from "../ai-shared/relations";
+import type { CellId, Neg, RelKey } from "../ai-shared/relations";
 import { grade, summarize } from "./grading";
 import type { CellResult, GradeResult, Pair, PracticeAnswer } from "./types";
 import { judgeable, pairOf } from "./universe";
@@ -33,20 +33,28 @@ export function drawRelation(asked: readonly (RelKey | null | undefined)[], rng:
   return keys[keys.length - 1];
 }
 
-/** A phenomenon the learner named: the words as the page shows them, and the practice category they are, when they are one. */
+/** A phenomenon the learner named: the words as the page shows them, and the practice category they are, when they are one; `neg` when they name its negation. */
 export interface Named {
   label: string;
   cat: string | null;
+  neg?: boolean;
 }
+
+// the words of a negation and what they negate: "non-(wooden things)", "non-wooden things", "non wooden things"
+const NEG_WORDS = /^non[-\s]+\(?(.+?)\)?$/i;
 
 /**
  * What the learner's words name. Words that are a label of a practice category (singular or plural, with or without an article) or its Dudra
- * term become that category, shown under the label they matched; anything else is kept as typed.
+ * term become that category, shown under the label they matched; "non-" and such words, its negation, shown as the course book writes it
+ * ("non-(wooden things)", or "non-wooden things" with `brackets` off), unless the words with "non-" are a label of a category themselves; anything else is kept as typed.
  */
-export function nameThing(ix: DataIndex, text: string): Named {
+export function nameThing(ix: DataIndex, text: string, brackets = true): Named {
   const typed = String(text || "").trim().replace(/\s+/g, " ").replace(/[.,;:!?]+$/, "").trim();
   const cat = categoryOf(ix, typed);
-  if (!cat) return { label: typed, cat: null };
+  if (!cat) {
+    const m = NEG_WORDS.exec(typed), of = m ? nameThing(ix, m[1], brackets) : null;
+    return of && of.cat && !of.neg ? { label: negLabel(of.label, brackets), cat: of.cat, neg: true } : { label: typed, cat: null };
+  }
   const k = stripDet(spelled(typed)), want = new Set([k, pluralOf(k), k.replace(/ies$/, "y"), k.replace(/(?:es|s)$/, "")]);
   const labels = ix.CAT[cat].labels;
   return { label: labels.find((l) => want.has(spelled(l))) ?? labels.find((l) => stemmed(spelled(l)) === stemmed(k)) ?? labels[0], cat };
@@ -61,19 +69,21 @@ export const findId = (rng: Rng = Math.random, now: Clock = Date.now): string =>
 /**
  * The pair the learner named, for the relation asked for. A pair of practice categories the data can judge is made as the draw makes its pairs
  * (the relation it really has, an example for each cell that has one, of the stages `on` where the cell has one, the reason for each that has none),
- * under the learner's labels. Any other pair is the learner's own: it carries the relation asked for only as a placeholder (`own`), and nothing else is known about it.
+ * under the learner's labels, with the sides they negated negated. Any other pair is the learner's own: it carries the relation asked for only as a
+ * placeholder (`own`), and nothing else is known about it; a side named as a negation keeps its category and is named in `neg`, as on a known pair.
  */
-export function findPair(ix: DataIndex, asked: RelKey, a: Named, b: Named, rng: Rng = Math.random, now: Clock = Date.now, more?: Witnesses, on?: Stages): Pair {
+export function findPair(ix: DataIndex, asked: RelKey, a: Named, b: Named, rng: Rng = Math.random, now: Clock = Date.now, more?: Witnesses, on?: Stages, brackets = true): Pair {
   if (sameThing(a, b)) throw new RangeError("a pair needs two different phenomena");
+  const neg: Neg | undefined = a.neg && b.neg ? "ab" : a.neg ? "a" : b.neg ? "b" : undefined;
   if (a.cat && b.cat && (a.cat === b.cat || judgeable(ix, a.cat, b.cat))) {
-    const p = pairOf(ix, a.cat, b.cat, a.label, b.label, rng, now, more, on);
+    const p = pairOf(ix, a.cat, b.cat, a.neg ? plainLabel(a.label) : a.label, b.neg ? plainLabel(b.label) : b.label, rng, now, more, on, neg, brackets);
     p.id = "f-" + p.id.slice(2);
     delete p.generated;
     return p;
   }
   return {
     id: findId(rng, now), a: a.label, b: b.label, catA: a.cat, catB: b.cat,
-    typeA: "", typeB: "", relation: asked, ex: {}, why: {}, own: true,
+    typeA: "", typeB: "", relation: asked, ex: {}, why: {}, own: true, ...(neg ? { neg } : {}),
   };
 }
 

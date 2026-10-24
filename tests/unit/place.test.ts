@@ -4,7 +4,7 @@ import { expect, test } from "vitest";
 import { makeIndex } from "../../src/ai-shared";
 import type { DrillData, Example } from "../../src/ai-shared";
 import { buildPool } from "../../src/domain";
-import { drawPlace, gradeNarrow, gradePlace, placeGrade, placeNarrow, placeQuestionRows, placeRows, placeStageDown, placeStageUp } from "../../src/domain/place";
+import { drawPlace, gradeNarrow, gradePlace, placeGrade, placeNarrow, placeQuestionRows, placeRows } from "../../src/domain/place";
 import { placeByClass } from "../../src/domain/reference";
 import openData from "../../src/data/drill-data.json";
 import { madeUpExamples } from "../../scripts/lib/made-up-course.mjs";
@@ -198,32 +198,23 @@ test("placeGrade: right when step 1 is all right and step 2 is right or skipped,
   expect(placeGrade(false, false)).toBe("bad");
 });
 
-const run = (st: number, n: number, ok: boolean) => Array.from({ length: n }, () => ({ st, ok }));
-
-test("placeStageUp: five right answers in a row at the highest stage on, and the stage above it to offer", () => {
-  expect(placeStageUp(run(1, 4, true), [1])).toBeNull();
-  expect(placeStageUp(run(1, 5, true), [1])).toBe(2);
-  expect(placeStageUp([...run(1, 9, true), { st: 1, ok: false }], [1]), "a miss ends the run").toBeNull();
-  expect(placeStageUp([...run(1, 5, true), { st: 1, ok: false }, ...run(1, 4, true)], [1]), "four since the miss").toBeNull();
-  expect(placeStageUp([{ st: 1, ok: false }, ...run(1, 5, true)], [1]), "an earlier miss does not count").toBe(2);
-  expect(placeStageUp([...run(2, 4, true), ...run(1, 3, true), ...run(2, 1, true)], [1, 2]), "a lower stage neither extends nor breaks the run").toBe(3);
-  expect(placeStageUp([...run(2, 4, true), ...run(1, 3, false), ...run(2, 1, true)], [1, 2]), "a miss at a lower stage does not break it either").toBe(3);
-  expect(placeStageUp([...run(1, 6, true), ...run(2, 4, true)], [1, 2]), "five at the highest stage on, not in all").toBeNull();
-  expect(placeStageUp(run(1, 30, true), [1, 2]), "an easier stage does not offer").toBeNull();
-  expect(placeStageUp(run(3, 5, true), [1, 3]), "above the highest on, not the next one that is off").toBe(4);
-  expect(placeStageUp(run(9, 30, true), [9]), "nothing above the top").toBeNull();
-  expect(placeStageUp(run(2, 3, true), [2], 3)).toBe(3);
-});
-
-test("placeStageDown: four wrong answers in a row at the highest stage on suggest taking it off, never at stage 1", () => {
-  expect(placeStageDown(run(2, 3, false), [1, 2])).toBeNull();
-  expect(placeStageDown(run(2, 4, false), [1, 2])).toBe(2);
-  expect(placeStageDown([...run(2, 4, false), { st: 2, ok: true }], [1, 2]), "a right answer ends the run").toBeNull();
-  expect(placeStageDown([...run(2, 3, false), ...run(1, 2, true), ...run(2, 1, false)], [1, 2]), "a lower stage does not break the run").toBe(2);
-  expect(placeStageDown(run(1, 9, false), [1, 2]), "only the highest stage on counts").toBeNull();
-  expect(placeStageDown(run(1, 9, false), [1]), "nothing below stage 1").toBeNull();
-  expect(placeStageDown(run(3, 4, false), [3])).toBe(3);
-  expect(placeStageDown(run(3, 2, false), [3], 2)).toBe(3);
+test("drawPlace with newShare: the highest stage that has things takes that share of the draws, the others share the rest alike", () => {
+  const data = ix(), items = [ex("a blue wall", ["Color"], 1), ex("a hard text", ["Color"], 2), ex("a deep thought", ["Consciousness"], 3)];
+  const count = (stages: number[], newShare?: number) => {
+    const out: Record<string, number> = {};
+    for (let s = 0; s < 1000; s++) { const q = drawPlace(data, items, { stages, rng: seeded(s), newShare }); if (q) out[q.thing.n] = (out[q.thing.n] ?? 0) + 1; }
+    return out;
+  };
+  const quarter = count([6, 7, 8], 0.25);
+  expect(quarter["a deep thought"], "a quarter from stage 8").toBeGreaterThan(190);
+  expect(quarter["a deep thought"]).toBeLessThan(310);
+  expect(quarter["a blue wall"], "the rest split between 6 and 7").toBeGreaterThan(300);
+  expect(quarter["a hard text"]).toBeGreaterThan(300);
+  const half = count([6, 7, 8], 0.5);
+  expect(half["a deep thought"], "half from stage 8").toBeGreaterThan(420);
+  expect(half["a deep thought"]).toBeLessThan(580);
+  expect(count([8], 0.25), "one stage: all of it").toEqual({ "a deep thought": 1000 });
+  expect(count([6, 7, 8]), "no share: each stage alike").toEqual(count([6, 7, 8], undefined));
 });
 
 test("over the real categories and made-up examples: every row agrees with placeByClass and has a reason, and the draw is quick", () => {

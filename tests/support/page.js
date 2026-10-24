@@ -35,3 +35,9 @@ export const openSettings = (page) => goTo(page, "Settings");
 
 export const isPhone = (testInfo) => testInfo.project.name === "pwa-phone";
 export const overflow = (page) => page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+/** Sets the stages the page reads at its next start, as a device would have them before it kept a progress document: in localStorage, with the
+ *  document removed, since the page takes the document's stages over its own (src/app/practice/progress.ts). */
+export const setStoredStages = (page, v) => page.evaluate(async (x) => {
+  localStorage.setItem("rd-stages", x);
+  await (await window.__riglam.platform.db()).collection("progress").doc("learner").delete();
+}, v);

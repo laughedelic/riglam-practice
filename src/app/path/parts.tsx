@@ -11,11 +11,18 @@ import { singular } from "../debate/text.js";
 import { favTarget, isFav, toggleFav } from "../practice/favorites.js";
 import { skipAsks, skipNow, skipPair } from "../practice/skips.js";
 import { explainParts, factParts, noteData } from "../practice/screen.js";
-import { lineageOf } from "../practice/terms.js";
+import { GUIDES } from "../practice/guided.ts";
+import { acceptStageOffer, declineStageOffer } from "../practice/stage-offer.ts";
+import { termTags } from "../practice/stops.ts";
+import { lineageOf, pairAsked } from "../practice/terms.js";
 import { catByLabel } from "../practice/universe.js";
 import { openChat } from "../shell/chat.js";
 import { render } from "../shell/render.js";
-import type { CellId, RelKey } from "../../ai-shared/relations.ts";
+import { openStageOptions, toggleSess } from "../shell/session.js";
+import { stageName } from "../shell/stages.js";
+import { negSides } from "../../ai-shared/relations.ts";
+import type { CellId, Neg, RelKey } from "../../ai-shared/relations.ts";
+import { GUIDE_RIGHT, STAGES } from "../../domain/stages.ts";
 import { VERDICT_RE, parseFactLine } from "../../domain/verdict.ts";
 import type { FactLine, NotePart } from "../../domain/verdict.ts";
 import { takeChoice, bindSlide } from "./choose.ts";
@@ -28,7 +35,7 @@ import { DefCard, OneTerm, TermText } from "./terms.tsx";
 import { D, Fig, Icon, Mark, St, Sx } from "./ui.tsx";
 
 export const u0 = () => state.ui!;
-export interface Pair { a: string; b: string; relation: RelKey; catA?: string | null; catB?: string | null; own?: boolean; ex?: Partial<Record<CellId, string>> }
+export interface Pair { a: string; b: string; relation: RelKey; catA?: string | null; catB?: string | null; own?: boolean; neg?: Neg; ex?: Partial<Record<CellId, string>> }
 export const pairOf = () => state.cur!.p as Pair;
 
 /** The name of each case, as the lab writes it. */
@@ -60,12 +67,17 @@ export function SkipMark() {
 }
 /** The classes of a stop that carries the favorites mark and Skip under it. */
 export const marksCls = (star = true) => (star && state.db ? " hasstar" : "") + (skipHere() ? " hasskip" : "");
-/** The two terms of the pair as the first stops: A and B in the margin, the star beside A; `sm` smaller, once they are not the question. */
-export function PairStops({ p, sm = false }: { p: Pair; sm?: boolean }) {
-  const c = sm ? " sm" : "";
+/**
+ * The two terms of the pair as the first stops: A and B in the margin, the star beside A; `sm` smaller, once they are not the question. With `tags`, a
+ * term whose course term the learner is still meeting has it in a small tag under it, which opens its definition under the pair (practice/stops.ts, termTags).
+ */
+export function PairStops({ p, sm = false, tags = false }: { p: Pair; sm?: boolean; tags?: boolean }) {
+  const c = sm ? " sm" : "", tg = tags ? termTags(pairAsked(p)) : [];
+  const tag = (side: string) => { const t = tg.find((x) => x.side === side); return t ? <span class="ntag"><OneTerm txt={t.term.toLowerCase()} term={t.term} where={"ntag/" + side} /></span> : null; };
   return <>
-    <St d={<span class="ab">A</span>} cls={"pairst" + c + marksCls()}><Star /><SkipMark /><span class={"tn" + (p.a.length > 24 ? " long" : "")}>{p.a}</span></St>
-    <St d={<span class="ab">B</span>} cls={"pairst" + c}><span class={"tn" + (p.b.length > 24 ? " long" : "")}>{p.b}</span></St>
+    <St d={<span class="ab">A</span>} cls={"pairst" + c + marksCls()}><Star /><SkipMark /><span class={"tn" + (p.a.length > 24 ? " long" : "")}>{p.a}</span>{tag("A")}</St>
+    <St d={<span class="ab">B</span>} cls={"pairst" + c}><span class={"tn" + (p.b.length > 24 ? " long" : "")}>{p.b}</span>{tag("B")}</St>
+    {tg.length ? <div class="wtext ntdef"><DefCard where="ntag" /></div> : null}
   </>;
 }
 /** The pair with a relation as its node on the path: A on the upper line, B on the lower, like the figure's two diamonds, and the relation
@@ -88,14 +100,14 @@ function ClassOf({ label, cat, where }: { label: string; cat?: string | null; wh
  * right one (null while it is not settled), `right` the one it is, `none` what stands for a relation that was never picked.
  */
 export function PairResult({ mine, ok, right, none, classes = true }: { mine: RelKey; ok: boolean | null; right?: RelKey; none?: string; classes?: boolean }) {
-  const p = pairOf(), long = Math.max(p.a.length, p.b.length) > 24, name = (k: string) => REL[k as RelKey].name;
+  const p = pairOf(), long = Math.max(p.a.length, p.b.length) > 24, name = (k: string) => REL[k as RelKey].name, [na, nb] = negSides(p);     // a negated side has no class of its own
   const rv = ok === null ? <span class="rvl"><b class="yours">{name(mine)}</b><Mark m="pt" /></span>
     : ok ? <span class="rvl"><b class="yours">{name(mine)}</b><Mark m="ok" /></span>
     : <><span class="rvl"><s class="no">{none || name(mine)}</s><Mark m="no" /></span>{right ? <span class="rvl"><Fig k={right} size="xs" /><span class="fix">{name(right)}</span></span> : null}</>;
   return <Sx cls="walked first"><div style={{ height: "14px" }} />
     <div class={"pn res" + (long ? " long" : "") + (state.db && !p.own ? " rstar" : "")}><i class="pnm a">A</i><i class="pnm b">B</i><Fig k={mine} size="pnode" />
-      <span class="pnl a"><i>A</i><span class="tw"><b>{p.a}</b>{classes ? <ClassOf label={p.a} cat={p.catA} where="pca" /> : null}</span></span>
-      <span class="pnl b"><i>B</i><span class="tw"><b>{p.b}</b>{classes ? <ClassOf label={p.b} cat={p.catB} where="pcb" /> : null}</span></span>
+      <span class="pnl a"><i>A</i><span class="tw"><b>{p.a}</b>{classes && !na ? <ClassOf label={p.a} cat={p.catA} where="pca" /> : null}</span></span>
+      <span class="pnl b"><i>B</i><span class="tw"><b>{p.b}</b>{classes && !nb ? <ClassOf label={p.b} cat={p.catB} where="pcb" /> : null}</span></span>
       {state.db && !p.own ? <span class="pnr"><Star /></span> : null}<span class="pnn rv">{rv}</span>
       <div class="pndef"><DefCard where="pca" /><DefCard where="pcb" /></div></div><div style={{ height: "10px" }} /></Sx>;
 }
@@ -142,6 +154,25 @@ export function Verdict({ v, word, sub, children }: { v: "ok" | "no" | "pt"; wor
 export function ErrLines() {
   const u = state.ui, errs = [u && u.saveErr, state.favErr, state.skipErr].filter(Boolean) as string[];
   return <>{errs.map((e) => <p class="pnoteline bad perr">{e}</p>)}</>;
+}
+
+/** The offer of another stage, under the result of any exercise (practice/stage-offer.ts), or the line that says what the answer to it did. */
+export function StageOffer() {
+  const o = state.ui && state.ui.offer; if (!o) return null;
+  if (o.kind === "done") return <Sx cls="walked"><p class="pnoteline pfnote" role="status">{o.text}</p></Sx>;
+  const up = o.kind === "up", info = STAGES.find((x) => x.n === o.stage);
+  return <Sx cls="walked"><St d={<D cls="sub now" />} cls="offer" ><div role="group" aria-label={up ? "Add a stage" : "Switch a stage off"}>
+    <p class="oq">{up ? "Stage " + (o.stage - 1) + " is going well. Add stage " + o.stage + " to the mix?" : "Stage " + o.stage + " is hard going right now. Switch it off for a while?"}</p>
+    <p class="xnote">Stage {o.stage}, {stageName(o.stage).toLowerCase()}: {info ? info.adds : ""}</p>
+    <span class="pbtns"><button type="button" class="pbtn" onClick={acceptStageOffer}>{up ? "Add stage " + o.stage : "Switch off stage " + o.stage}</button><button type="button" class="pbtn quiet" onClick={declineStageOffer}>Not now</button></span>
+    <p class="xnote">{up ? "Never starts by itself. It applies to every exercise, and the stages you are on stay on; turn any stage off in the practice options." : <>Or adjust the stages yourself in the <button type="button" class="plnk" onClick={openStageOptions}>practice options</button>. Nothing is switched off by itself.</>}</p>
+  </div></St></Sx>;
+}
+
+/** The line under a result when the exercise's guided form turned off by itself with this answer (practice/guided.ts): why, and where to turn it on. */
+export function GuideNote() {
+  const ex = state.ui && state.ui.guideOff, g = ex ? GUIDES[ex] : null; if (!g) return null;
+  return <Sx cls="walked"><p class="pnoteline pfnote" role="status">{GUIDE_RIGHT} right answers in {g.name}: Guided is off from now on, so {g.off}. Turn it on again any time in the <button type="button" class="plnk" onClick={() => toggleSess(true)}>practice options</button>.</p></Sx>;
 }
 
 /* ---------- the tutor ---------- */

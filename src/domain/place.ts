@@ -10,8 +10,8 @@ import { leavesOpen, spelled, stripDet, upChain } from "../ai-shared/lookup";
 import type { DataIndex } from "../ai-shared/lookup";
 import { catChain, rung, termPhrase } from "./ladder";
 import { cellExample, exampleStage, placeByClass } from "./reference";
-import { HOLD_STAGE, MAX_STAGE, catOpen, heldBack, itemStage, normStages, physical, topStage } from "./stages";
-import type { Stages } from "./stages";
+import { HOLD_STAGE, catOpen, heldBack, itemStage, normStages, physical, topStage } from "./stages";
+import type { Stages, Unmet } from "./stages";
 
 /** One category offered for a thing, with its answer and the reason. */
 export interface PlaceRow {
@@ -53,13 +53,11 @@ export interface PlaceDraw {
   avoid?: ReadonlySet<string>;
   /** rows to offer (default 6): one to three "yes", the rest "no" */
   size?: number;
+  /** the Dudra categories whose term the learner has not met yet (intro.ts): not asked about */
+  unmet?: Unmet;
+  /** the share of things from the highest stage on, when lower ones have things too (stages.ts, newShare); none: every stage as often as the others */
+  newShare?: number;
 }
-
-/** The right answers in a row, at the highest stage that is on, after which the next stage is offered (never taken without a tap). */
-export const PLACE_STREAK = 5;
-
-/** The wrong answers in a row, at the highest stage that is on, after which a stage down is suggested. */
-export const PLACE_STUMBLE = 4;
 
 /** A category as a sentence says it: a Dudra term with its article, an everyday category by its phrase ("furniture", "made of wood"). */
 const catPhrase = (cat: Cat): string => (cat.term ? termPhrase(cat.term) : cat.phrases?.[0] ?? cat.labels[0]);
@@ -80,10 +78,10 @@ function explain(ix: DataIndex, ex: Pick<Example, "cls" | "not" | "ne">, cat: Ca
 }
 
 /** Every Dudra category the data settles for the example, with the answer and its reason; none for one it cannot tell. Only categories open at `on`, when given. */
-export function placeRows(ix: DataIndex, ex: Example, on?: Stages): PlaceRow[] {
+export function placeRows(ix: DataIndex, ex: Example, on?: Stages, unmet?: Unmet): PlaceRow[] {
   const rows: PlaceRow[] = [];
   for (const cat of Object.values(ix.CAT)) {
-    if (cat.kind !== "dudra" || !cat.term || (on && !catOpen(cat, on))) continue;
+    if (cat.kind !== "dudra" || !cat.term || (on && !catOpen(cat, on, unmet))) continue;
     const p = placeByClass(ix, ex, cat);
     if (!p) continue;
     const answer = p === "yes";
@@ -97,11 +95,11 @@ export function placeRows(ix: DataIndex, ex: Example, on?: Stages): PlaceRow[] {
  * Left out: a category its name leaves open ("a chair" and wooden things), the sense objects for a whole thing and the body's for a body
  * (as in the pairs), and the physical categories for a person or what does not exist until the hold's stage is reached.
  */
-export function itemRows(ix: DataIndex, it: Item, on: Stages): PlaceRow[] {
-  const rows: PlaceRow[] = [], held = heldBack(ix, it) && topStage(on) < HOLD_STAGE, plain = plainWords(ix, it, on);
+export function itemRows(ix: DataIndex, it: Item, on: Stages, unmet?: Unmet): PlaceRow[] {
+  const rows: PlaceRow[] = [], held = heldBack(ix, it) && topStage(on) < HOLD_STAGE, plain = plainWords(ix, it, on, unmet);
   const mind = upChain(ix, it.t).includes("Consciousness"), body = upChain(ix, it.t).includes("Form");
   for (const cat of Object.values(ix.CAT)) {
-    if (!catOpen(cat, on) || leavesOpen(it, cat.id) || (cat.sense && it.comp) || (it.body && ix.DATA.bodySkip.includes(cat.id))) continue;
+    if (!catOpen(cat, on, unmet) || leavesOpen(it, cat.id) || (cat.sense && it.comp) || (it.body && ix.DATA.bodySkip.includes(cat.id))) continue;
     if (held && physical(ix, cat)) continue;
     const answer = it.c.includes(cat.id), phys = physical(ix, cat);
     let why = plain ? { reason: "", why: "" } : explain(ix, { cls: [it.t], ne: it.ne }, cat, answer);
@@ -120,12 +118,12 @@ export function itemRows(ix: DataIndex, it: Item, on: Stages): PlaceRow[] {
  * Whether the reasons for the item are said in everyday words: at stage 1, where Form is "anything physical", and while the category of the
  * item's own kind is not open (a joy is a consciousness from the established bases on; before that it is a mind).
  */
-function plainWords(ix: DataIndex, it: Item, on: Stages): boolean {
+function plainWords(ix: DataIndex, it: Item, on: Stages, unmet?: Unmet): boolean {
   if (topStage(on) < 2) return true;
   const cats = Object.values(ix.CAT);
   for (const term of upChain(ix, it.t)) {
     const own = cats.find((c) => c.term === term);
-    if (own) return !catOpen(own, on);
+    if (own) return !catOpen(own, on, unmet);
   }
   return false;
 }
@@ -185,11 +183,11 @@ export function placeThings(ix: DataIndex, examples: readonly Example[], on: Sta
 }
 
 /** The rows a thing can be asked about at these stages: its practice item's (`itemRows`) or its reference example's (`placeRows`). */
-export const thingRows = (ix: DataIndex, t: PlaceThing, on: Stages): PlaceRow[] => (t.item ? itemRows(ix, t.item, on) : t.ex ? placeRows(ix, t.ex, on) : []);
+export const thingRows = (ix: DataIndex, t: PlaceThing, on: Stages, unmet?: Unmet): PlaceRow[] => (t.item ? itemRows(ix, t.item, on, unmet) : t.ex ? placeRows(ix, t.ex, on, unmet) : []);
 
 /**
  * The next thing to place, from `placeThings` (the reference examples are optional), for which the data settles enough categories
- * (`placeQuestionRows`). A stage is drawn first, each stage that still has things as likely as the others, then a thing of it; names in
+ * (`placeQuestionRows`). A stage is drawn first, each stage that still has things as likely as the others (or the highest of them `newShare` of the time), then a thing of it; names in
  * `avoid` wait while others remain. Stages outside 1 to 9 count for nothing, and none left means the default. Null when nothing qualifies.
  */
 export function drawPlace(ix: DataIndex, examples: readonly Example[] | null, draw: PlaceDraw): PlaceQuestion | null {
@@ -199,11 +197,12 @@ export function drawPlace(ix: DataIndex, examples: readonly Example[] | null, dr
   for (const pool of fresh.length ? [fresh, usable] : [usable]) {
     let left = pool;
     while (left.length) {
-      const have = on.filter((s) => left.some((t) => t.st === s));
-      const stage = have[Math.floor(draw.rng() * have.length)];
+      const have = on.filter((s) => left.some((t) => t.st === s)), top = have[have.length - 1]!, rest = have.slice(0, -1);
+      const r = draw.rng(), stage = draw.newShare === undefined || !rest.length ? have[Math.floor(r * have.length)]
+        : r < draw.newShare ? top : rest[Math.floor(((r - draw.newShare) / (1 - draw.newShare)) * rest.length)];
       const of = left.filter((t) => t.st === stage);
       const thing = of[Math.floor(draw.rng() * of.length)];
-      const rows = placeQuestionRows(ix, thing, draw.rng, draw.size, thingRows(ix, thing, on), near);
+      const rows = placeQuestionRows(ix, thing, draw.rng, draw.size, thingRows(ix, thing, on, draw.unmet), near);
       if (rows) return { thing, rows };
       left = left.filter((t) => t !== thing);
     }
@@ -293,37 +292,4 @@ export type PlaceGrade = "ok" | "part" | "bad";
 export function placeGrade(s1: boolean, s2: boolean | null): PlaceGrade {
   if (s2 === null) return s1 ? "ok" : "bad";
   return s1 && s2 ? "ok" : s1 || s2 ? "part" : "bad";
-}
-
-type Outcome = { st: number; ok: boolean };
-
-/** How many of the latest results at stage `st` in a row are `ok === want`; results of other stages neither extend nor break the run. `results` are oldest first. */
-function runAt(results: readonly Outcome[], st: number, want: boolean): number {
-  let n = 0;
-  for (let i = results.length - 1; i >= 0; i--) {
-    if (results[i]!.st !== st) continue;
-    if (results[i]!.ok !== want) break;
-    n++;
-  }
-  return n;
-}
-
-/**
- * The stage to offer adding: the one above the highest stage that is on, once the latest `need` results at that stage in a row are right;
- * null before that, and at the top stage. The offer adds the stage and switches nothing off. `results` are oldest first; the caller leaves out
- * those from before the last time the offer was made, so a "not now" is not asked again at once.
- */
-export function placeStageUp(results: readonly Outcome[], on: Stages, need = PLACE_STREAK): number | null {
-  const top = topStage(on);
-  return top < MAX_STAGE && runAt(results, top, true) >= need ? top + 1 : null;
-}
-
-/**
- * The stage to suggest taking off: the highest stage that is on, once the latest `need` results at it in a row are wrong, when a stage
- * is below it; null otherwise (nothing is suggested at stage 1). The screen switches it off, or adds the stage below first when it is the only one on.
- * `results` are oldest first and trimmed as for `placeStageUp`.
- */
-export function placeStageDown(results: readonly Outcome[], on: Stages, need = PLACE_STUMBLE): number | null {
-  const top = topStage(on);
-  return top > 1 && runAt(results, top, false) >= need ? top : null;
 }
