@@ -85,18 +85,21 @@ function Examples({ n }: { n: string }) {
       {on ? <p class="pdexw">{x.gloss + (x.cn ? " (this reading is less certain)" : "")}</p> : null}</li>;
   })}</ul></div>;
 }
-/** The definition of a term, as the card under a mark: where the term sits, the definition in English and, if chosen, Russian, then examples. */
-function Def({ term, trail }: { term: string; trail: string[] }) {
+/**
+ * The definition of a term, as the card under a mark: where the term sits, the definition in English and, if chosen, Russian, then examples. `plain`: the
+ * term's own stop (path/stop.tsx), where the name stands above it, and no examples.
+ */
+export function Def({ term, trail, plain = false }: { term: string; trail: string[]; plain?: boolean }) {
   const t = state.DATA!.terms[term], en = defParts(t.d), ru = defParts(t.d_ru), ruOn = state.defLang === "enru", src = en.src || (ruOn ? ru.src : "");
   const back = trail.length ? trail[trail.length - 1] : "", up = ((state.DATA!.chains || {})[term] || [term]).slice(1);
-  return <div class="pdef" id="ddef" tabIndex={-1}>
+  return <div class={"pdef" + (plain ? " pdplain" : "")} id={plain ? undefined : "ddef"} tabIndex={plain ? undefined : -1}>
     {back ? <button type="button" class="pbtn quiet pdback" aria-label={"Back to " + back} onClick={(e) => { e.stopPropagation(); goBack(); }}>{"\u2190 " + back}</button> : null}
-    <p class="pdh"><b>{t.name}</b>{ruOn && t.ru ? <span lang="ru">{" \u00b7 " + t.ru}</span> : null}{t.ch && en.ref ? <small>{" \u00b7 " + t.ch}</small> : null}</p>
-    {up.length ? <p class="pdup">{up.flatMap((m: string, i: number) => [i ? " " : "", <i class="pisa">{isA(m.toLowerCase())}</i>, " ", hasDef(state.DATA!.terms[m]) ? <ParentMark n={m} /> : m.toLowerCase()])}</p> : null}
+    {plain ? (ruOn && t.ru ? <p class="pdh"><span lang="ru">{t.ru}</span></p> : null) : <p class="pdh"><b>{t.name}</b>{ruOn && t.ru ? <span lang="ru">{" \u00b7 " + t.ru}</span> : null}{t.ch && en.ref ? <small>{" \u00b7 " + t.ch}</small> : null}</p>}
+    {up.length ? <p class="pdup">{up.flatMap((m: string, i: number) => [i ? " " : "", <i class="pisa">{isA(m.toLowerCase())}</i>, " ", !plain && hasDef(state.DATA!.terms[m]) ? <ParentMark n={m} /> : m.toLowerCase()])}</p> : null}
     {src ? <p class="pdsrc">{src + (en.body ? ":" : ".")}</p> : null}
     {en.body ? <p class="pdbody" lang="en">{endp(cap(en.body))}</p> : null}
     {ruOn && ru.body ? <p class="pdbody pdru" lang="ru">{endp(cap(ru.body))}</p> : null}
-    <Examples n={term} />
+    {plain ? null : <Examples n={term} />}
   </div>;
 }
 /**

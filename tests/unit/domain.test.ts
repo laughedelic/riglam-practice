@@ -14,6 +14,7 @@ import {
 import type { DebateInput, GradeDraft, HistoryEntry, Pair, PoolEntry } from "../../src/domain";
 import openData from "../../src/data/drill-data.json";
 import { drawable, examplesFor, placeByClass } from "../../src/domain";
+import { AGAIN_AFTER, FIRST_AFTER, MISS_GAP, SETTLED, SPACING, afterQuestion, freshIntro, introduced, nextStop, normIntro, settle, showAgain, stageMet, stageTerms, stageUp, stopShown, unmet } from "../../src/domain";
 import { DEFAULT_STAGES, DEFINITION_STAGE, HOLD_STAGE, MAX_STAGE, NEG_STREAK, STAGES, catOpen, drawSyllogism, heldBack, itemKnown, itemOn, itemStageFor, levelAt, negationOffer, newCategories, normStages, pairStage, physical, poolAt, stagesOfLevels, toggleStage, topStage } from "../../src/domain";
 import { drawPlace, itemRows, placeThings } from "../../src/domain/place";
 import { normLevels, upTo } from "../../src/ai-shared";
@@ -583,6 +584,123 @@ test("the real data: a newly opened category's definition shows with the questio
   expect(newCategories(rix, ["form", null], [1])).toEqual(["form"]);
   expect(newCategories(rix, ["nope", "form"], [2]), "an unknown id, and Form is not new at stage 2").toEqual([]);
   expect(newCategories(rix, ["form", "col", "shape", "extf", everyday], [1, 2]), "the categories Categories asks about").toEqual(["col", "shape", "extf"]);
+});
+
+test("a term is introduced before it is asked about: everyday questions first, then one stop at a time, a few questions apart", () => {
+  const T0 = "2026-10-24T12:00:00.000Z";
+  expect(stageTerms(rix, 1)).toEqual(["form"]);
+  expect(stageTerms(rix, 2)).toEqual(["extf", "col", "shape", "vis"]);
+  expect(stageTerms(rix, 3)).toEqual(["snd", "odr", "tst", "tng"]);
+  expect(stageTerms(rix, 7), "the upper stages open no categories").toEqual([]);
+  let it = freshIntro();
+  expect([...unmet(rix, it, [1])]).toEqual(["form"]);
+  expect(introduced(it, rix.CAT.form!)).toBe(false);
+  expect(introduced(it, real.cats.find((c) => c.kind === "everyday")!), "an everyday category needs no stop").toBe(true);
+  // a new learner: FIRST_AFTER everyday questions, then Form
+  for (let i = 0; i < FIRST_AFTER; i++) {
+    expect(nextStop(rix, it, [1], T0), "question " + i).toBeNull();
+    it = afterQuestion(it, [], T0);
+  }
+  expect(nextStop(rix, it, [1], T0)).toEqual({ cat: "form", why: "new" });
+  it = stopShown(it, "form", T0);
+  expect(introduced(it, rix.CAT.form!)).toBe(true);
+  expect(unmet(rix, it, [1]).size).toBe(0);
+  expect(nextStop(rix, it, [1], T0), "stage 1 has no other term").toBeNull();
+  // stage 2 switched on: its first term at once, then one every SPACING questions, in the course's order
+  it = stageUp(it);
+  expect([...unmet(rix, it, [1, 2])]).toEqual(["extf", "col", "shape", "vis"]);
+  expect(nextStop(rix, it, [1, 2], T0)).toEqual({ cat: "extf", why: "new" });
+  it = stopShown(it, "extf", T0);
+  for (let i = 0; i < SPACING; i++) { expect(nextStop(rix, it, [1, 2], T0)).toBeNull(); it = afterQuestion(it, [], T0); }
+  expect(nextStop(rix, it, [1, 2], T0)).toEqual({ cat: "col", why: "new" });
+  expect(stageMet(rix, it, 2), "the next stage waits for all four").toBe(false);
+  for (const c of ["col", "shape", "vis"]) it = stopShown(it, c, T0);
+  expect(stageMet(rix, it, 2)).toBe(true);
+  // stages are a set, not a ceiling: with 1 and 3 on, the terms of stage 2 come first, since its categories are open too
+  const gap = stopShown(stageUp(freshIntro()), "form", T0);
+  expect(nextStop(rix, stageUp(gap), [1, 3], T0)).toEqual({ cat: "extf", why: "new" });
+});
+
+test("the questions grade the terms they use: right moves a term up, a mistake brings its stop back right after", () => {
+  const T0 = "2026-10-24T12:00:00.000Z";
+  let it = stopShown(stopShown(freshIntro(), "form", T0), "col", T0);
+  expect(it.terms.form!.box).toBe(1);
+  it = afterQuestion(it, [{ cat: "form", ok: true }, { cat: "everyday-x", ok: true }], T0);
+  expect(it.terms.form!.box).toBe(2);
+  expect(it.terms["everyday-x"], "a category without a stop is not recorded").toBeUndefined();
+  it = afterQuestion(afterQuestion(it, [{ cat: "form", ok: true }], T0), [{ cat: "form", ok: true }], T0);
+  expect(it.terms.form!.box, "box 3 is settled, and stays").toBe(SETTLED);
+  // a mistake: back to box 1, and the stop comes before the next question once the last stop is MISS_GAP questions ago
+  for (let i = 0; i < MISS_GAP; i++) it = afterQuestion(it, [], T0);
+  it = afterQuestion(it, [{ cat: "form", ok: false }], T0);
+  expect(it.terms.form!.box).toBe(1);
+  expect(nextStop(rix, it, [1, 2], T0), "the mistake comes before a new term").toEqual({ cat: "form", why: "miss" });
+  it = stopShown(it, "form", T0);
+  expect(it.terms.form!.due).toBeUndefined();
+  it = afterQuestion(it, [{ cat: "form", ok: false }], T0);
+  expect(it.terms.form!.due, "a second mistake right after its stop does not bring it again").toBeUndefined();
+  // the same category twice in a question (two labels of one term) counts as wrong if either is
+  it = afterQuestion(stopShown(freshIntro(), "col", T0), [{ cat: "col", ok: true }, { cat: "col", ok: false }], T0);
+  expect(it.terms.col!.box).toBe(1);
+  // an exercise whose mistakes are mostly about its form: right answers count, mistakes do not
+  let sy = stopShown(freshIntro(), "ft", T0);
+  sy = afterQuestion(sy, [{ cat: "ft", ok: true }], T0, false);
+  sy = afterQuestion(sy, [{ cat: "ft", ok: false }], T0, false);
+  expect(sy.terms.ft!.box).toBe(2);
+  expect(sy.terms.ft!.due).toBeUndefined();
+  // the learner asks to see it again: after AGAIN_AFTER questions
+  let ag = showAgain(stopShown(freshIntro(), "form", T0), "form");
+  for (let i = 0; i < AGAIN_AFTER - 1; i++) ag = afterQuestion(ag, [], T0);
+  expect(nextStop(rix, ag, [1], T0)).toBeNull();
+  ag = afterQuestion(ag, [], T0);
+  expect(nextStop(rix, ag, [1], T0)).toEqual({ cat: "form", why: "again" });
+  // a settled term not met for GAP_DAYS comes back once, spaced like a new term
+  const old = settle(freshIntro(), ["form"], "2026-10-01T12:00:00.000Z");
+  expect(nextStop(rix, { ...old, n: 9, next: 9 }, [1], "2026-10-10T12:00:00.000Z")).toBeNull();
+  expect(nextStop(rix, { ...old, n: 9, next: 9 }, [1], "2026-10-16T12:00:00.000Z")).toEqual({ cat: "form", why: "gap" });
+  expect(nextStop(rix, { ...old, n: 9, next: 12 }, [1], "2026-10-16T12:00:00.000Z"), "not before the spacing allows").toBeNull();
+  // a device that practiced before the stops: its stages' terms are settled, nothing is waiting
+  const before = settle(freshIntro(), [...unmet(rix, freshIntro(), [1, 2, 3])], T0);
+  expect(unmet(rix, before, [1, 2, 3]).size).toBe(0);
+  expect(nextStop(rix, { ...before, n: 5 }, [1, 2, 3], T0)).toBeNull();
+  // the stored record is read back as it was; a broken one starts fresh
+  expect(normIntro(JSON.stringify(it))).toEqual(it);
+  expect(normIntro("{nope")).toEqual(freshIntro());
+  expect(normIntro({ n: -1, terms: { form: { box: 0 }, col: { box: 9, shows: 2, due: 4, why: "x" } } })).toEqual({ n: 0, next: FIRST_AFTER, terms: { col: { box: SETTLED, shows: 2 } } });
+});
+
+test("the real data: a category waits out of every exercise until its term has been introduced", () => {
+  const T0 = "2026-10-24T12:00:00.000Z";
+  const waiting = unmet(rix, freshIntro(), [1, 2]);
+  expect(catOpen(rix.CAT.col!, [1, 2])).toBe(true);
+  expect(catOpen(rix.CAT.col!, [1, 2], waiting)).toBe(false);
+  // Relations and Pervasions: no pair with a category still waiting
+  const recent: string[] = [];
+  for (let s = 1; s <= 60; s++) {
+    const p = nextPair(rix, realPool, { hist: [], recent, rng: seeded(s), now: () => 1_700_000_000_000, stages: [1, 2], unmet: waiting });
+    expect(waiting.has(p.catA!) || waiting.has(p.catB!), p.a + " / " + p.b).toBe(false);
+  }
+  // with Form and Color met, their pairs come back
+  const met = unmet(rix, stopShown(stopShown(freshIntro(), "form", T0), "col", T0), [1, 2]);
+  const seen = new Set<string>();
+  for (let s = 1; s <= 200; s++) {
+    const p = nextPair(rix, realPool, { hist: [], recent: [], rng: seeded(s), now: () => 1_700_000_000_000, stages: [1, 2], unmet: met });
+    expect(met.has(p.catA!) || met.has(p.catB!)).toBe(false);
+    seen.add(p.catA!); seen.add(p.catB!);
+  }
+  expect(seen.has("form") || seen.has("col"), "the met terms are asked about").toBe(true);
+  // Categories: no row for a waiting category
+  for (let s = 1; s <= 40; s++) {
+    const q = drawPlace(rix, null, { stages: [1, 2], rng: seeded(s), unmet: waiting });
+    if (q) for (const r of q.rows) expect(waiting.has(r.cat), q.thing.n + ": " + r.cat).toBe(false);
+  }
+  // Syllogisms: from the established bases on the course's terms come in, and a waiting one is passed over while others remain
+  const four = unmet(rix, freshIntro(), [1, 2, 3, 4]);
+  const some = new Set([...four].filter((c) => c !== "form" && c !== "ft"));
+  for (let s = 1; s <= 40; s++) {
+    const c = drawSyllogism(rix, { hist: [], recent: [], rng: seeded(s), stages: [1, 2, 3, 4], unmet: some });
+    expect(some.has(c.catR) || some.has(c.catP), c.id).toBe(false);
+  }
 });
 
 test("the negation track is offered step by step: one side after plain pairs in a row, both sides after negated ones", () => {

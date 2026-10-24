@@ -7,6 +7,7 @@ import { freshUi } from "../practice/queue.js";
 import { render, renderKeepFocus, top0 } from "../shell/render.js";
 import { setStages, stageName } from "../shell/stages.js";
 import { drawPlace, gradeNarrow, gradePlace, placeGrade, placeNarrow, placeStageDown, placeStageUp } from "../../domain/place.ts";
+import { gradeTerms, unmetNow } from "../practice/stops.ts";
 import { exampleStage } from "../../domain/reference.ts";
 
 /* ---------- Categories: a thing is shown; tick the categories it is in, then pick the most specific ---------- */
@@ -28,12 +29,12 @@ export const shownThing=()=>state.cur.q;
 /** Draws the next thing: a practice item or a reference example (where the device holds them) of the stages that are on, leaning away from the ones asked lately. */
 export function advanceCategories(){
   const o=state.ui&&state.ui.offer; if(o&&o.kind&&o.kind!=="done") spendRun();     // an offer passed over is Not now: it asks again after another run, not after every result
-  const q=drawPlace(state,state.EX?state.EX.items:null,{stages:state.stages,rng:Math.random,avoid:new Set(state.catsRecent)});
+  const q=drawPlace(state,state.EX?state.EX.items:null,{stages:state.stages,unmet:unmetNow(),rng:Math.random,avoid:new Set(state.catsRecent)});
   if(q) state.catsRecent=[...state.catsRecent,q.thing.n].slice(-RECENT);
   state.cur=/** @type {any} */({p:null,cats:true,q:q||undefined,tried:drawKey()}); state.ui=freshCategoriesUi(); state.mode="quiz";
 }
-/** What the last draw drew from: the stages, and whether the device held the reference examples. A draw that found nothing is tried again once this changes. */
-export const drawKey=()=>state.stages.join(",")+(state.EX?"+ex":"");
+/** What the last draw drew from: the stages, whether the device held the reference examples, and how many course terms were not met yet. A draw that found nothing is tried again once this changes. */
+export const drawKey=()=>state.stages.join(",")+(state.EX?"+ex":"")+"-"+unmetNow().size;
 /** Skip: another thing, with nothing kept (there is no pair to set aside and bring back). */
 export function skipCategories(){ advanceCategories(); render(); top0(); }
 
@@ -106,6 +107,7 @@ function finishThing(s2){
     rows:u.g1.rows.map(r=>({cat:r.cat,yes:r.answer,said:r.picked})),s1,grade:u.grade,ask:u.ask,at:new Date().toISOString()});
   if(u.narrow&&u.g2){ doc.narrow={options:u.narrow.options.map(r=>r.cat),right:u.narrow.cat,picked:u.g2.picked.cat}; doc.s2=s2===true; }
   state.catsSession=[...state.catsSession,doc].slice(-RECENT_RUN);
+  gradeTerms(doc.rows.map(r=>({cat:r.cat,ok:r.yes===r.said})));     // each row grades its category's term (practice/stops.ts)
   u.offer=stageOffer();
   render(); top0(); focusFwd();
   if(!state.db) return;

@@ -8,6 +8,8 @@ import { asking, startQ } from "../debate/flow.js";
 import { renderDebate } from "../debate/screen.js";
 import { renderFind } from "../find/screen.js";
 import { placePops, renderQuiz } from "../practice/screen.js";
+import { next } from "../practice/queue.js";
+import { stopNode } from "../practice/stops.ts";
 import { dropStaleDef } from "../practice/terms.js";
 import { renderReview } from "../review/review.js";
 import { renderOver } from "./chat.js";
@@ -73,7 +75,7 @@ export function renderKeepFocus(){ const f=btnSig(); render(); btnBack(f); }
 export const focusCin=()=>{ const i=$("cin"); if(i) i.focus({preventScroll:true}); };
 function screenSig(){
   const p=state.cur&&state.cur.p;
-  return [state.tab,state.mode,state.view,state.optsOpen?1:0,state.sessOpen?1:0,state.sessPage||"",state.skipAsk?1:0,state.coachOpen?1:0,isWide()?1:0,p?(p.id||p.a+"|"+p.b):state.cur&&state.cur.c?state.cur.c.id:state.cur&&state.cur.q?state.cur.q.thing.n:"",state.ui?[state.ui.checked?1:0,state.ui.step||0,state.ui.ci||0,state.ui.rel?1:0,state.ui.open?1:0,state.ui.debate?1:0,state.ui.find?1:0,state.ui.i||0].join(""):""].join("/");
+  return [state.tab,state.mode,state.view,state.optsOpen?1:0,state.sessOpen?1:0,state.sessPage||"",state.skipAsk?1:0,state.coachOpen?1:0,isWide()?1:0,p?(p.id||p.a+"|"+p.b):state.cur&&state.cur.c?state.cur.c.id:state.cur&&state.cur.q?state.cur.q.thing.n:"",state.ui?[state.ui.stop?"s":"",state.ui.checked?1:0,state.ui.step||0,state.ui.ci||0,state.ui.rel?1:0,state.ui.open?1:0,state.ui.debate?1:0,state.ui.find?1:0,state.ui.i||0].join(""):""].join("/");
 }
 export function render(){
   const sig=screenSig(), keep=sig===state.lastSig?["stage","coach","over","opts"].map(id=>{ const n=$(id); return /** @type {[string, number]} */([id,n?n.scrollTop:0]); }):null;
@@ -95,7 +97,7 @@ function renderNow(){
   // the tutor's panel closes with the pair it was opened for, so a new pair never starts with a chat panel that has only the recent answers in it; where there is no
   // tutor (or in Categories, which the tutor does not know) the panel is the recent answers and the keys, and stays open as long as it is wanted
   if(state.lastUi!==state.ui){ if(state.lastUi&&(state.lastUi.chat||(canAsk()&&!state.lastUi.cats))) state.coachOpen=false; state.lastUi=state.ui; }
-  const app=$("app"), s=$("stage"), c=$("coach"), f=focusKey(), coach=w&&state.mode==="quiz"&&isEx()&&state.coachOpen;
+  const app=$("app"), s=$("stage"), c=$("coach"), f=focusKey(), coach=w&&state.mode==="quiz"&&isEx()&&state.coachOpen&&!(state.ui&&state.ui.stop);
   if(!c.hidden&&!coach) leave(c,true);
   app.dataset.tab=state.tab; app.dataset.wide=w?"1":"0"; app.dataset.coach=coach?"1":"0"; const opened=c.hidden&&coach; c.hidden=!coach; if(opened) enter(c,true,{persistent:true});
   renderBar(); renderMenu();
@@ -106,13 +108,20 @@ function renderNow(){
   if(state.mode==="nodata"){ s.append(el("p",{class:"status",text:"The practice data could not be loaded. Reload the page to try again."})); renderOver(); return; }
   if(state.tab==="review") renderReview(s);
   else if(state.mode==="quiz"){
-    if(state.tab==="debate"&&state.ui&&state.ui.debate) renderDebate(s,c);
+    if(state.ui&&state.ui.stop) renderStop(s);
+    else if(state.tab==="debate"&&state.ui&&state.ui.debate) renderDebate(s,c);
     else if(state.tab==="find"&&state.ui&&state.ui.find) renderFind(s,c);
     else if(state.tab==="categories"&&state.ui&&state.ui.cats) renderCategories(s,c);
     else if(state.tab==="syllogism"&&state.ui&&state.ui.syllogism) renderSyllogism(s,c);
     else renderQuiz(s,c);
   }
   renderOver(); restoreFocus(f&&f.id!==undefined&&state.skipAsk?null:f); placePops(); dropStaleDef(); voiceAfterRender(); // the question before a skip has the focus, not the field under it
+}
+// A course term's stop before the next question (practice/stops.ts): the term and its definition, and Next.
+function renderStop(s){
+  const fwd=el("button",{type:"button",class:"btn fwd",onclick:()=>next()},"Next",isWide()?el("span",{class:"kbd","aria-hidden":"true",text:"N"}):null);
+  s.append(stopNode(state.ui.stop,el("div",{class:"actions pbar"},el("div",{class:"prow"},el("div",{class:"pl"}),fwd))));
+  if(!state.ui.stopFocus){ state.ui.stopFocus=true; requestAnimationFrame(()=>{ if(fwd.isConnected) fwd.focus({preventScroll:true}); }); }     // the first draw of the stop: Next has the focus
 }
 // The Path draws the whole page itself (src/app/path). The old stage only keeps its status line, which the recovery panel of the installed app reads (index.html);
 // the classic panels are emptied, so that an id in them (a field, the chat) is never found before the Path's own.

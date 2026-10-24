@@ -39,4 +39,9 @@ button.tm-exb.on .tm-exn{text-decoration-style:solid}
 .section.newdefs .newdef{display:grid;gap:6px}
 .section.newdefs .newfor{margin:0;font:400 15px/1.45 var(--text-serif)}
 .section.newdefs .newfor .L{margin-right:4px;vertical-align:.1em}
+/* a course term's stop before the next question (practice/stops.ts): the term's card, or without the Magic Key its name and where it sits */
+.termstop{display:grid;gap:14px}
+.termstop .tstop{display:grid;gap:6px}
+.termstop .tstop-n{margin:0;font:600 19px/1.35 var(--text-serif)}
+.termstop .tm-c,.termstop .tm-key{margin:0}
 .tm-lead{font:400 12px/1.4 var(--body);color:var(--ink-muted);font-weight:400}

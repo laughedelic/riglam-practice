@@ -7,6 +7,7 @@ import { persist } from "../practice/answers.js";
 import { explainByItself } from "../ai/tutor.js";
 import { startQ, stopTimer } from "../debate/flow.js";
 import { freshUi } from "../practice/queue.js";
+import { gradeTerms, unmetNow } from "../practice/stops.ts";
 import { render, top0 } from "../shell/render.js";
 import { REPLIES, drawSyllogism, gradeSyllogism, gradeTimeout, gradeExample } from "../../domain/syllogism.ts";
 
@@ -47,7 +48,7 @@ function expireSyllogism(u){
 
 /** Draws the next syllogism, from what the learner has answered so far and the stages that are on (everyday ones up to stage 3). */
 export function advanceSyllogism(){
-  const c=drawSyllogism(state,{hist:syllogismList().slice(-40),recent:state.syllogismRecent,stages:state.stages,...(state.syllogismEveryday?{level:1}:{})});
+  const c=drawSyllogism(state,{hist:syllogismList().slice(-40),recent:state.syllogismRecent,stages:state.stages,unmet:unmetNow(),...(state.syllogismEveryday?{level:1}:{})});
   state.cur=/** @type {any} */({p:null,syllogism:true,c}); state.ui=freshSyllogismUi(); state.mode="quiz";
   if(state.blitz&&syllogismAsking()) startQ();         // not yet on this screen when the exercise is opened from another: setTab starts it then
 }
@@ -85,7 +86,9 @@ function finishSyllogism(){
   const u=state.ui, c=shownSyllogism(), g=u.grade;
   // a right reply with a counter-example that is not one is partly right; a reply with no example, or one the page could not place, stands
   u.overall=g.correct&&u.ex&&u.ex.v==="bad"?"part":g.grade;
-  u.checked=true; u.step=2; render();
+  u.checked=true; u.step=2;
+  gradeTerms([{cat:c.catR,ok:g.correct},{cat:c.catP,ok:g.correct}],false);     // a wrong reply is often about the form: only a right one counts (practice/stops.ts)
+  render();
   top0();
   if(!isWide()){ const bs=document.querySelectorAll("#stage .actions .btn"); if(bs.length) /** @type {HTMLElement} */(bs[bs.length-1]).focus({preventScroll:true}); }
   else { const x=state.autoExplain&&canAsk()?null:/** @type {HTMLElement|null} */(document.querySelector("#stage .verdict .xpl")); (x||$("stage")).focus({preventScroll:true}); }   // as after the other exercises: Explain, unless the answer is explained by itself

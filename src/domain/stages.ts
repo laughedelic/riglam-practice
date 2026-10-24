@@ -72,8 +72,11 @@ export const stagesOfLevels = (levels: readonly number[]): number[] => {
 export const itemStage = (it: Pick<Item, "st">): number => it.st ?? 1;
 /** The stage at which a category opens; none: from the start. */
 export const catStage = (cat: Pick<Cat, "st">): number => cat.st ?? 1;
-/** Whether the category is open for a learner with these stages on: it opens at or below the highest. */
-export const catOpen = (cat: Pick<Cat, "st">, on: Stages): boolean => catStage(cat) <= topStage(on);
+/** The Dudra categories whose term the learner has not been introduced to yet (domain/intro.ts): they wait out of the questions. */
+export type Unmet = ReadonlySet<string>;
+
+/** Whether the category is open for a learner with these stages on: it opens at or below the highest, and its term has been introduced (none in `unmet`). */
+export const catOpen = (cat: Pick<Cat, "st"> & { id?: string }, on: Stages, unmet?: Unmet): boolean => catStage(cat) <= topStage(on) && !(cat.id && unmet?.has(cat.id));
 
 /** Whether the category is about physical things: Form, what is below it, or an everyday category of forms. */
 export const physical = (ix: DataIndex, cat: Cat): boolean => catChain(ix, cat).includes("Form");
