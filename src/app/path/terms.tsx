@@ -8,7 +8,7 @@ import { termMentions } from "../../ai-shared/mentions.ts";
 import { cap } from "../core/util.js";
 import { isA } from "../practice/screen.js";
 import { CONFIRMATION, defParts, hasDef } from "../practice/terms.js";
-import { examplesFor } from "../../domain/reference.ts";
+import { exampleStage, examplesFor } from "../../domain/reference.ts";
 import { render } from "../shell/render.js";
 
 const markOf = (id: string) => document.querySelector<HTMLElement>('#path .dterm[data-dt="' + CSS.escape(id) + '"]');
@@ -68,13 +68,13 @@ function ParentMark({ n }: { n: string }) {
   return <span class="dterm" role="button" tabIndex={0} data-dp={n} onClick={go} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(e); } }}>{n.toLowerCase()}</span>;
 }
 const endp = (s: string) => s.replace(/[.;,\s]+$/, "") + ".";
-/** Examples of the term, under its definition: a few, the plainest first, each with its level and how well it is confirmed; one says why it is a good example. */
+/** Examples of the term, under its definition: a few, the plainest first, each with its stage and how well it is confirmed; one says why it is a good example. */
 function Examples({ n }: { n: string }) {
   if (!state.EX) return null;
   const list = examplesFor(state as unknown as DataIndex, state.EX.items, n); if (!list.length) return null;
   const open = state.ui && state.ui.dex;
   return <div class="pdex"><p class="pdexh">{list.length > 1 ? "Examples" : "Example"}</p><ul>{list.map((x) => {
-    const key = n + "|" + x.n, on = open === key, meta = ["level " + x.lv, (CONFIRMATION as Record<string, string>)[x.cf || ""]].filter(Boolean).join(" \u00b7 ");
+    const key = n + "|" + x.n, on = open === key, meta = ["stage " + exampleStage(x), (CONFIRMATION as Record<string, string>)[x.cf || ""]].filter(Boolean).join(" \u00b7 ");
     const head = <><span class="pdexn">{x.n}</span><small>{meta}</small></>;
     if (!x.gloss) return <li><div class="pdexr">{head}</div></li>;
     const toggle = (e: Event) => { e.stopPropagation(); state.ui!.dex = on ? null : key; render(); };
