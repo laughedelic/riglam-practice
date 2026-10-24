@@ -91,7 +91,7 @@ function KHead({ rel, title }: { rel: RelKey; title: string }) {
  * unfolded, `check` the check of the answer, `scan` what the Check marks as it slides up to the result (scan.tsx; Relations).
  */
 export function ExamplesStep({ kb, title, step, rel, full, check, scan }: { kb: boolean; title: string; step: number; rel: RelKey; full: ComponentChildren; check: () => void; scan?: () => ScanPlan }) {
-  const u = u0(), p = pairOf(), k = cursor(), first = k.order[0], pull = useContext(PullCtx);
+  const u = u0(), p = pairOf(), k = cursor(), pull = useContext(PullCtx);
   const checkHint = "your " + (state.ui!.find ? "pair" : "relation") + " and " + (k.order.length === 1 ? "one example" : k.order.length + " examples");
   const takeCheck = () => { u.pall = true; blur(); check(); };
   // the last example has words: the Check is the next stop, and the line ahead is solid down to it (under the keyboard there is no foot, so the Check comes up on the page)
@@ -109,7 +109,7 @@ export function ExamplesStep({ kb, title, step, rel, full, check, scan }: { kb: 
       <div class="fieldrow"><input class="pfield" id="cin" value={x.t} placeholder="write an example" {...nofillInput()} enterKeyHint={k.last ? "done" : "next"} aria-label={cellLabel(c, p)}
         onInput={(e) => { x.t = (e.currentTarget as HTMLInputElement).value; if (x.none) x.none = false; refreshPath(); }}
         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commit(pull); } }} /></div>
-      {c === first || mayBeEmpty(c) ? <p class="help">{c === first ? <span class="htx">Your own example, in a few words. </span> : null}{mayBeEmpty(c) ? <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => nothing(c, pull)}>nothing exists</button> : null}</p> : null}</St>;
+      {mayBeEmpty(c) ? <p class="help"><button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => nothing(c, pull)}>nothing exists</button></p> : null}</St>;
     // a written case opens again with a tap; the field keeps the focus meanwhile, so the keyboard stays up and nothing moves under the finger
     if (filled(c)) return <button type="button" class="sbb" onMouseDown={(e) => e.preventDefault()} onClick={() => openCase(i)} aria-label={CASE[c] + ": " + (x.none ? "nothing exists" : x.t) + ". Change it"}>
       <St d={<D cls="sub yours" />} cls="sb done"><span class="lab">{CASE[c]}</span><span class={"pans" + (x.none ? " nil" : "")}>{x.none ? "nothing exists" : x.t.trim()}</span></St></button>;
