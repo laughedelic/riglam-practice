@@ -1,0 +1,88 @@
+{
+  "base": "main",
+  "baseSha": "b807921806a168c37f7ebb675e71875d2ceedf59",
+  "inputs": [
+    "125@48fb19131501c45dad875df784c4bec95d90a67a",
+    "126@ac16020fd90339c1d0801d37760290a64dd2bfb2<125",
+    "128@11149a315f895a92930a4fba7e2fdc487b70204e<126",
+    "129@24322df2d6fef2638266a4dbced26adfc403a8c5<128",
+    "131@cafdd0469613aba8e8bde5b0dc95a870b4b9be28<129",
+    "132@ecfbfa824365645967bd2d4fd0a2f34604474472<131",
+    "133@50c00fed8446782306b78b0e97712c276dc6f0f1"
+  ],
+  "branches": [
+    "claude/project-thread-76esap-4"
+  ],
+  "pulls": [
+    {
+      "number": 133,
+      "branch": "claude/project-thread-76esap-4",
+      "sha": "50c00fed8446782306b78b0e97712c276dc6f0f1"
+    }
+  ],
+  "skipped": [
+    {
+      "number": 125,
+      "branch": "claude/project-thread-76esap",
+      "sha": "48fb19131501c45dad875df784c4bec95d90a67a",
+      "reason": "conflict",
+      "files": [
+        "src/app/shell/session.js",
+        "src/store/transfer.ts"
+      ],
+      "parent": null,
+      "withMain": true,
+      "with": []
+    },
+    {
+      "number": 126,
+      "branch": "claude/project-thread-76esap-2",
+      "sha": "ac16020fd90339c1d0801d37760290a64dd2bfb2",
+      "reason": "parent",
+      "files": [],
+      "parent": 125,
+      "withMain": false,
+      "with": []
+    },
+    {
+      "number": 128,
+      "branch": "claude/project-thread-76esap-3",
+      "sha": "11149a315f895a92930a4fba7e2fdc487b70204e",
+      "reason": "parent",
+      "files": [],
+      "parent": 126,
+      "withMain": false,
+      "with": []
+    },
+    {
+      "number": 129,
+      "branch": "claude/project-thread-2hlkty-path",
+      "sha": "24322df2d6fef2638266a4dbced26adfc403a8c5",
+      "reason": "parent",
+      "files": [],
+      "parent": 128,
+      "withMain": false,
+      "with": []
+    },
+    {
+      "number": 131,
+      "branch": "claude/project-thread-2hlkty-next",
+      "sha": "cafdd0469613aba8e8bde5b0dc95a870b4b9be28",
+      "reason": "parent",
+      "files": [],
+      "parent": 129,
+      "withMain": false,
+      "with": []
+    },
+    {
+      "number": 132,
+      "branch": "claude/project-thread-2hlkty-cats",
+      "sha": "ecfbfa824365645967bd2d4fd0a2f34604474472",
+      "reason": "parent",
+      "files": [],
+      "parent": 131,
+      "withMain": false,
+      "with": []
+    }
+  ]
+}
