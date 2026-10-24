@@ -3,6 +3,7 @@ import { el } from "../core/dom.js";
 import { tbIcon } from "../core/icons.js";
 import { dayOf } from "../core/util.js";
 import { skipCategories } from "../categories/flow.js";
+import { skipInstance } from "../instance/flow.ts";
 import { skipSyllogism } from "../syllogism/flow.js";
 import { advanceDebate, asking, freshDebateUi, startQ, stopTimer } from "../debate/flow.js";
 import { advanceFind, anotherRelation, resumeFind } from "../find/flow.js";
@@ -62,6 +63,7 @@ export function skipNow(){
   if(!state.ui||state.mode!=="quiz"||state.ui.checked||!state.cur) return;
   if(state.ui.find) return skipFind();
   if(state.ui.cats) return skipCategories();                           // Categories: another example, nothing kept
+  if(state.ui.inst) return skipInstance();                             // Find an instance: other categories, nothing kept
   if(state.ui.syllogism) return skipSyllogism();                      // Syllogisms: another one, nothing kept
   if(!state.cur.p||(state.tab!=="practice"&&state.tab!=="debate")) return;
   stopTimer(); dropSkipNote();
@@ -133,7 +135,7 @@ export function skipNoteNode(){
 /** The Skip button of the pair bar: dimmed once the pair is checked, and where there is nothing to skip. */
 export function skipBtn(){
   const u=state.ui, fd=!!u.find, none=nothingToSkip();
-  const t=none?"Nothing to skip: you picked this relation":fd&&u.step===0?"Another relation":u.syllogism?"Skip this syllogism":u.cats?"Skip this example":"Skip this pair";
+  const t=none?"Nothing to skip: you picked this relation":fd&&u.step===0?"Another relation":u.syllogism?"Skip this syllogism":u.cats?"Skip this example":u.inst?"Skip these categories":"Skip this pair";
   return el("button",{type:"button",class:"btn ghost skipw",disabled:none||u.checked,title:t+(none||u.checked?"":" (S)"),"aria-label":t,onclick:()=>skipPair()},tbIcon("skip"),el("span",{text:"Skip"}));
 }
 // The line under the diamond: the relation (or what to do).
@@ -145,11 +147,11 @@ export function subRowNode(spec){
 }
 /** The question before a pair with something entered in it is set aside: a dialog over the exercise, "Keep going" first. */
 export function skipInto(o){
-  const fd=!!(state.ui&&state.ui.find), cats=!!(state.ui&&state.ui.cats), syllogism=!!(state.ui&&state.ui.syllogism);
+  const fd=!!(state.ui&&state.ui.find), cats=!!(state.ui&&state.ui.cats), inst=!!(state.ui&&state.ui.inst), syllogism=!!(state.ui&&state.ui.syllogism);
   o.append(el("button",{type:"button",class:"scrim",tabindex:"-1","aria-label":"Keep going",onclick:closeSkipAsk}));
   o.append(el("div",{class:"dlg",role:"alertdialog","aria-labelledby":"skq","aria-describedby":"skd"},
-    el("h2",{id:"skq",text:syllogism?"Skip this syllogism?":cats?"Skip this example?":"Skip this pair?"}),
-    el("p",{id:"skd",text:(syllogism?"Your inputs will be lost, and the syllogism is not kept anywhere. Another one comes up.":cats?"Your inputs will be lost, and the example is not kept anywhere. Another one comes up.":fd?"It stays out of the drill for "+SKIP_DAYS+" days and is kept in Review, under Skipped."+(state.design==="path"?"":" Undo, right after, gives back the screen as it is now.")
+    el("h2",{id:"skq",text:syllogism?"Skip this syllogism?":cats?"Skip this example?":inst?"Skip these categories?":"Skip this pair?"}),
+    el("p",{id:"skd",text:(syllogism?"Your inputs will be lost, and the syllogism is not kept anywhere. Another one comes up.":cats?"Your inputs will be lost, and the example is not kept anywhere. Another one comes up.":inst?"Your inputs will be lost, and nothing is kept. Other categories come up.":fd?"It stays out of the drill for "+SKIP_DAYS+" days and is kept in Review, under Skipped."+(state.design==="path"?"":" Undo, right after, gives back the screen as it is now.")
       :"Your inputs will be lost. It stays out of the drill for "+SKIP_DAYS+" days and waits in Review, under Skipped.")}),
     el("div",{class:"dact"},
       el("button",{type:"button",class:"btn prim",onclick:closeSkipAsk,text:"Keep going"}),

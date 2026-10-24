@@ -32,22 +32,23 @@ import { Foot, Station, TopBar } from "./shell.tsx";
 import { StoredAnswer, isOpen, toggleOpen } from "./stored.tsx";
 import { D, Fig, Gap, Icon, Minis, St, Sx, Words } from "./ui.tsx";
 
-const NAME: Record<string, string> = { practice: "Relations", debate: "Pervasions", find: "Find a pair", syllogism: "Syllogisms", categories: "Categories" };
-// "pend" is right so far with cases still to check, as the result says; "open" is a pair of the learner's own the tutor has not judged yet
-const WORD: Record<string, string> = { ok: "Right", part: "Partly right", bad: "Not quite", pend: "Right so far", open: "Not judged yet" };
-const STOP: Record<string, string> = { ok: "ok", part: "pt", bad: "no", pend: "ok", open: "nil" };
+const NAME: Record<string, string> = { practice: "Relations", debate: "Pervasions", find: "Find a pair", syllogism: "Syllogisms", categories: "Categories", instance: "Find an instance" };
+// "pend" is right so far with cases still to check, as the result says; "open" is a pair of the learner's own the tutor has not judged yet;
+// "unk" a thing named in Find an instance that the course data does not settle
+const WORD: Record<string, string> = { ok: "Right", part: "Partly right", bad: "Not quite", pend: "Right so far", open: "Not judged yet", unk: "Not checked" };
+const STOP: Record<string, string> = { ok: "ok", part: "pt", bad: "no", pend: "ok", open: "nil", unk: "nil" };
 const MINI: Record<string, string> = { ok: "ok", bad: "bad", cmp: "cmp", open: "cmp", part: "part" };
 const hm = (iso: string) => { const d = new Date(iso); return isNaN(d.getTime()) ? "" : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); };
 
 /** An answer of any exercise as a row of a trail: when, which exercise, what it was about, how it went and its cases. */
 interface Entry { key: string; at: string; mode: string; title: string; v: string; minis: string[]; doc: any; sub?: string }
 function entryOf(a: any, debate: boolean): Entry {
-  const mode = debate ? "debate" : a.mode || "practice", v = mode === "find" && a.relOpen ? "open" : gradeOf(a) || "bad";
+  const mode = debate ? "debate" : a.mode || "practice", v = mode === "find" && a.relOpen ? "open" : mode === "instance" && a.grade === "pend" ? "unk" : gradeOf(a) || "bad";
   const pair = mode === "practice" || mode === "debate" || mode === "find";
-  const title = mode === "syllogism" ? syllogismText(a, a.wording) : mode === "categories" ? String(a.thing || "") : a.a + " · " + a.b;
+  const title = mode === "syllogism" ? syllogismText(a, a.wording) : mode === "categories" ? String(a.thing || "") : mode === "instance" ? (a.labels || []).join(" · ") : a.a + " · " + a.b;
   const minis = !pair ? [] : mode === "debate" ? (QCELL as CellId[]).map((c) => { const q = (a.qs || []).find((y: { c: string }) => y.c === c); return q && q.verdict ? MINI[q.verdict] || "" : ""; }).filter(Boolean)
     : (CELLS as CellId[]).map((c) => { const x = a.cells && a.cells[c]; return x && x.verdict ? MINI[x.verdict] || "" : ""; }).filter(Boolean);
-  const sub = mode === "syllogism" ? [sylLine(a), sylExample(a)].filter(Boolean).join(". ") : mode === "categories" ? catLine(a) : mode === "find" ? findLine(a) : undefined;
+  const sub = mode === "syllogism" ? [sylLine(a), sylExample(a)].filter(Boolean).join(". ") : mode === "categories" ? catLine(a) : mode === "instance" ? "your answer: " + (a.said ? "“" + a.said + "”" : "nothing is") : mode === "find" ? findLine(a) : undefined;
   return { key: (debate ? "d|" : "a|") + (a.pairId || "") + "|" + a.at, at: a.at || "", mode, title, v, minis, doc: pair ? a : null, sub };
 }
 function catLine(a: any) {

@@ -13,7 +13,7 @@ import { Icon, Knob, dia } from "./ui.tsx";
 const BRAND = '<polygon points="256,61 371,177 256,292 141,177" fill="#faaf3f"/><polygon points="256,162 400,306 256,451 112,306" fill="#3155a4"/><polygon points="321,227 256,292 191,227 256,162" fill="#4c8a63"/>';
 // where each stop stands on the tree: a stop's name, and "continue" under it, are 54 px tall, and the line to the stop below starts under them
 const PLACES: Record<string, { x: number; y: number }> = {
-  practice: { x: 74, y: 198 }, find: { x: 74, y: 282 }, debate: { x: 74, y: 366 }, syllogism: { x: 196, y: 282 }, categories: { x: 316, y: 198 },
+  practice: { x: 74, y: 198 }, find: { x: 74, y: 282 }, debate: { x: 74, y: 366 }, syllogism: { x: 196, y: 282 }, categories: { x: 316, y: 198 }, instance: { x: 316, y: 282 },
 };
 const PLANNED = { name: "Debate", x: 135, y: 480 };
 const MINI: Record<string, string> = { ok: "ok", part: "part", bad: "bad", pend: "pend" };
@@ -21,7 +21,7 @@ const MINI: Record<string, string> = { ok: "ok", part: "part", bad: "bad", pend:
 /** Today's answers in an exercise, oldest first. */
 function todayOf(k: string): string[] {
   const t = today();
-  const list = k === "debate" ? Object.values(state.debates) : Object.values(state.answers).filter((a) => (k === "practice" ? !a.mode : a.mode === ({ find: "find", syllogism: "syllogism", categories: "categories" } as Record<string, string>)[k]));
+  const list = k === "debate" ? Object.values(state.debates) : Object.values(state.answers).filter((a) => (k === "practice" ? !a.mode : a.mode === ({ find: "find", syllogism: "syllogism", categories: "categories", instance: "instance" } as Record<string, string>)[k]));
   return list.filter((a) => dayOf(a.at) === t).sort((a, b) => (a.at || "").localeCompare(b.at || "")).map((a) => MINI[gradeOf(a)] || "bad");
 }
 function go(k: string) {
@@ -78,7 +78,7 @@ export function Roadmap() {
         <text class="bn" x="195" y="92" text-anchor="middle">riglam</text>
         <path class="ln" d="M195 102 V124" />
         <path class="ln" d="M195 124 C195 142 74 136 74 156 V189" /><path class="ln" d="M195 124 V273" /><path class="ln" d="M195 124 C195 142 316 136 316 156 V189" />
-        <path class="ln" d="M74 252 V273" /><path class="ln" d="M74 336 V357" />
+        <path class="ln" d="M74 252 V273" /><path class="ln" d="M74 336 V357" /><path class="ln" d="M316 252 V273" />
         <path class="lnp" d="M74 420 C74 452 135 440 135 471" /><path class="lnp" d="M196 336 V396 C196 452 135 440 135 471" />
         {EXERCISES.map((e) => <Node k={e.k} name={e.name} />)}
         <Planned {...PLANNED} />

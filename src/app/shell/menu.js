@@ -8,6 +8,7 @@ import { toggleOpts } from "./options.js";
 import { enter, leave } from "./motion.js";
 import { render } from "./render.js";
 import { setTab } from "./tabs.js";
+import { pathOn } from "../path/index.tsx";
 
 /* ---------- the menu ---------- */
 // Where you are and where else you can go: today's line (it opens Review), the exercises (a "continue" tag on one whose attempt waits), Review and Settings,
@@ -31,7 +32,7 @@ function todayLine(){
     el("i",{"aria-hidden":"true"},tbIcon("chev")));
 }
 function rows(){
-  const list=EXERCISES, out=[], multi=new Set(list.map(e=>e.group)).size>1;
+  const list=EXERCISES.filter(e=>!e.path||pathOn()), out=[], multi=new Set(list.map(e=>e.group)).size>1;
   let last=null;
   for(const e of list){
     if(!multi&&last===null) out.push(el("p",{class:"mgrp",text:"Exercises"}));
