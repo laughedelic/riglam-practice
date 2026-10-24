@@ -53,7 +53,7 @@ function PairStep({ kb }: { kb: boolean }) {
   });
   return <>
     <Scroll>
-      <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Pair" sub="two phenomena that relate like this" aside={state.findRel ? null : <SkipMark />} /><Gap h={6} />
+      <Sx cls={(both() ? "cur" : "gap") + " first"}><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Pair" sub="two phenomena that relate like this" aside={state.findRel ? null : <SkipMark />} /><Gap h={6} />
         <Asked /><Gap h={6} />
         <Word k="a" key2="wordA" what="First" last={false} />
         <Word k="b" key2="wordB" what="Second" last />

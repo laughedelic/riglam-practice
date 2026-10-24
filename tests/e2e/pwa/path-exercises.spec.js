@@ -58,6 +58,57 @@ test("Syllogisms: S, P and R sit a line each (no room kept for a star the syllog
   await expect(page.locator("#path .sx.first .d.sec")).toHaveClass(/\bnow\b/);   // the step is still open: yellow, like the headings of the other steps
 });
 
+// The line says whether the way on is open (docs/ARCHITECTURE.md, "The line"): dotted while a choice or an unanswered question blocks it, solid once it is answered.
+// A piece's own line is its `::before`; the dotted ones paint a repeating gradient, the solid ones a plain one.
+const dotted = (page, sel) => page.locator(sel).first().evaluate((e) => getComputedStyle(e, "::before").backgroundImage.includes("repeating-linear-gradient"));
+
+test("the line: Find a pair's fields are dotted while a word is missing and solid once both are named, and so is the trail", async ({ page }) => {
+  await open(page, "Find a pair");
+  expect(await dotted(page, "#path .sx.first"), "the fields, empty").toBe(true);
+  expect(await dotted(page, "#path .sx.ptail"), "the trail").toBe(true);
+  await page.locator("#fw-a").fill("pot");
+  expect(await dotted(page, "#path .sx.first"), "one word").toBe(true);
+  await page.locator("#fw-b").fill("clay things");
+  await expect(page.locator(".pa")).toHaveClass(/\bready\b/);
+  expect(await dotted(page, "#path .sx.first"), "both named").toBe(false);
+  expect(await dotted(page, "#path .sx.ptail"), "the trail, once the way is open").toBe(false);
+});
+
+test("the line: the questions still to come in Pervasions are dotted yellow, and the trail stays dotted until the last one", async ({ page }) => {
+  await open(page, "Pervasions");
+  expect(await dotted(page, "#path .sx.later"), "Q2 to Q4").toBe(true);
+  expect(await dotted(page, "#path .sx.ptail")).toBe(true);
+  await choice(page, "Why?").click();
+  await page.locator("#dex").fill("a stone");
+  await expect(page.locator(".pa")).toHaveClass(/\bready\b/);   // the station is ready, the questions after this one still are not asked
+  expect(await dotted(page, "#path .sx.later")).toBe(true);
+  expect(await dotted(page, "#path .sx.ptail"), "a ready station does not open the way past the questions still to come").toBe(true);
+});
+
+test("the line: Categories' options are dotted until one is ticked, then solid", async ({ page }) => {
+  await open(page, "Categories");
+  const options = "#path .sx:has(.chs)";
+  expect(await dotted(page, options)).toBe(true);
+  expect(await dotted(page, "#path .sx.ptail")).toBe(true);
+  await choices(page).first().click();
+  await expect(page.locator(".pa")).toHaveClass(/\bready\b/);
+  expect(await dotted(page, options)).toBe(false);
+  expect(await dotted(page, "#path .sx.ptail")).toBe(false);
+});
+
+test("the line: Syllogisms' counter-example may stay empty, and its piece of line is dotted until something is written", async ({ page }) => {
+  await open(page, "Syllogisms");
+  expect(await page.evaluate(() => { for (let i = 0; i < 600; i++) { if (window.__t.cur.c.answer === "pervasion") return true; window.__t.next(); } return false; })).toBe(true);
+  await choice(page, "There is no pervasion").click();
+  await expect(page.locator("#sylex")).toBeVisible();
+  expect(await dotted(page, "#path .sx.er"), "the field, empty").toBe(true);
+  expect(await dotted(page, "#path .sx.ptail"), "the trail, although the Result station is ready").toBe(true);
+  expect(await dotted(page, "#path .sx.first"), "what was answered stays solid").toBe(false);
+  await page.locator("#sylex").fill("a stone");
+  expect(await dotted(page, "#path .sx.er"), "written").toBe(false);
+  expect(await dotted(page, "#path .sx.ptail")).toBe(false);
+});
+
 test("Pervasions: four questions answered on the path, a counter-example for Why, then the relation, and the result", async ({ page }) => {
   await open(page, "Pervasions");
   await expect(choices(page)).toHaveCount(2);   // Accept and Why?

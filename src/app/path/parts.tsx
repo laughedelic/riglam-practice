@@ -124,10 +124,10 @@ export interface Choice { k: string; b: ComponentChildren; s?: ComponentChildren
  * options on one row.
  */
 export function Choices({ label, items, picked = null, onPick, multi = false, slide = false, row = false }: { label: string; items: Choice[]; picked?: string | null; onPick: (k: string) => void; multi?: boolean; slide?: boolean; row?: boolean }) {
-  const beside = slide && !multi && currentLook().take === "slide", two = beside && row;
+  const beside = slide && !multi && currentLook().take === "slide", two = beside && row, answered = multi && items.some((it) => it.pressed);      // ticked: the way on is open, the line along the options turns solid
   const ref = useRef<HTMLDivElement>(null), last = useRef(onPick); last.current = onPick;
   useEffect(() => (beside && ref.current ? bindSlide(ref.current, (k) => last.current(k)) : undefined), [beside]);
-  return <Sx cls="gap"><span class="gapq" aria-hidden="true">?</span>
+  return <Sx cls={answered ? "cur" : "gap"}><span class="gapq" aria-hidden="true">?</span>
     {beside ? <><i class="thr2" /><i class="thr" /></> : null}
     <div ref={ref} class={"chs" + (picked ? " fading" : "") + (multi ? " multi" : "") + (beside ? " slide" : "") + (two ? " row2" : "")} role="group" aria-label={label}>{items.map((it) =>
       <button type="button" data-k={it.k} class={"crow" + (picked === it.k ? " picked" : "") + (it.pressed ? " on" : "")} aria-pressed={it.pressed ? "true" : "false"} aria-keyshortcuts={it.key}

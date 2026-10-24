@@ -66,7 +66,7 @@ function AskStep({ kb }: { kb: boolean }) {
       <p class="help"><span class="htx">A thing, in a few words. </span><button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { blur(); sayNothing(true); }}>{noneText(n)}</button></p></St>;
   return <>
     <Scroll>
-      <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Instance" sub={n === 1 ? "something of this kind" : "something that is " + allOf(n)} aside={<SkipMark />} /><Gap h={6} />
+      <Sx cls={(ok ? "cur" : "gap") + " first"}><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Instance" sub={n === 1 ? "something of this kind" : "something that is " + allOf(n)} aside={<SkipMark />} /><Gap h={6} />
         <CatStops s={s} /><Gap h={4} />{answer}<Gap h={6} /></Sx>
       <Sx cls="ptail" />
     </Scroll>

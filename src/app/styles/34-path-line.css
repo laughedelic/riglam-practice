@@ -170,6 +170,9 @@
 .pa .sx.er::before{top:var(--dc); bottom:calc(var(--nd) * -1)}
 .pa .sx.er.last::before{bottom:0}
 .pa.edge-fade:not(.ready):not(.done) .sx.ptail.xtail::before{background:repeating-linear-gradient(to bottom,var(--ink3) 0 3px,transparent 3px 8px); -webkit-mask-image:linear-gradient(to bottom,#000,transparent 65%); mask-image:linear-gradient(to bottom,#000,transparent 65%)}
+/* a trail that still waits on an answer stays dotted although the station is ready: the questions still to come in a step, a counter-example that may stay empty (`dtail`) */
+.pa:not(.done) .sx.ptail.dtail::before{background:var(--ahead-bg); opacity:.9}
+.pa.edge-fade:not(.done) .sx.ptail.dtail::before{background:repeating-linear-gradient(to bottom,var(--ink3) 0 3px,transparent 3px 8px); -webkit-mask-image:linear-gradient(to bottom,#000,transparent 65%); mask-image:linear-gradient(to bottom,#000,transparent 65%)}
 
 /* cases: one stop for each example */
 .pa .sb{padding:10px 0 12px; align-items:start}

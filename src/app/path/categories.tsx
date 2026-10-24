@@ -80,8 +80,8 @@ function OneStep() {
         <St d={<D cls="sub now" />} cls="sb now"><p class="qst" id="catq">Is {t.thing.n} {row.phrase}?</p></St><Gap h={4} /></Sx>
       <TermTags asked={[{ cat: row.cat }]} />
       <Choices label={"Is " + t.thing.n + " " + row.phrase + "?"} items={[{ k: "y", b: "Yes", key: "Y" }, { k: "n", b: "No", key: "N" }]} onPick={(k) => sayCategory(k === "y")} />
-      {u.i < t.rows.length - 1 ? <Sx cls="walked later"><St d={<D cls="sub" />} cls="sb later"><span class="lab">{t.rows.length - u.i - 1} more</span></St></Sx> : null}
-      <Sx cls="ptail" />
+      {u.i < t.rows.length - 1 ? <Sx cls="gap later"><St d={<D cls="sub" />} cls="sb later"><span class="lab">{t.rows.length - u.i - 1} more</span></St></Sx> : null}
+      <Sx cls={"ptail" + (u.i < t.rows.length - 1 ? " dtail" : "")} />
     </Scroll>
     <Foot aux={<SkipSide />}><PreStation name="Check" hint="answer each one" /></Foot>
   </>;

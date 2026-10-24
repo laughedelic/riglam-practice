@@ -66,8 +66,10 @@ function CounterStep({ kb }: { kb: boolean }) {
   const u = u0(), c = shownSyllogism(), some = !!(u.exText || "").trim();
   return <>
     <Scroll>
-      <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Answer" sub="do you accept it?" /><Gap h={6} /><Statement /><Gap h={4} />
-        <St d={<D cls="sub yours" />} cls="sylsaid"><span class="said"><b class="yours">{SAY.pervasion}</b><Mark m="ok" /></span><span class="pq">Right. Can you show it?</span></St>
+      {/* the counter-example may stay empty, and the way on waits for it all the same: its piece of line is dotted until something is written (the pieces are the examples' `eh` and `er`) */}
+      <Sx cls="cur first eh"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Answer" sub="do you accept it?" /><Gap h={6} /><Statement /><Gap h={4} />
+        <St d={<D cls="sub yours" />} cls="sylsaid"><span class="said"><b class="yours">{SAY.pervasion}</b><Mark m="ok" /></span><span class="pq">Right. Can you show it?</span></St></Sx>
+      <Sx cls={(some ? "cur" : "gap") + " er last"}>
         <St d={<D cls="sub now" />} cls="sb now"><span class="lab">a counter-example</span>
           <p class="qq">Name something that is <b class="conn">{c.reason}</b> and is not <b class="conn">{c.predicate}</b>.</p>
           <div class="fieldrow"><input class="pfield" id="sylex" value={u.exText} placeholder="a counter-example" {...nofillInput()} enterKeyHint="done"
@@ -77,7 +79,7 @@ function CounterStep({ kb }: { kb: boolean }) {
           {u.exNote ? <p class="pnoteline" role="status">{u.exNote}</p> : null}
           <p class="help"><span class="htx">Or leave it empty to go on without one. </span><button type="button" onMouseDown={(e) => e.preventDefault()} onClick={backSyllogism}>back to the replies</button></p></St>
         <Gap h={6} /></Sx>
-      <Sx cls="ptail" />
+      <Sx cls={"ptail" + (some ? "" : " dtail")} />
     </Scroll>
     {kb ? null : <Foot>
       <Station name="Result" hint={some ? "your reply and the counter-example" : "your reply, without a counter-example"} act={exampleSyllogism} />

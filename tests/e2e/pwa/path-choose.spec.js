@@ -7,7 +7,7 @@ const onPath = () => {
   window.__vib = []; navigator.vibrate = (v) => { window.__vib.push(v); return true; };
 };
 const choices = (page) => page.locator("#path .chs .crow");
-const gap = (page) => page.locator("#path .sx.gap");
+const gap = (page) => page.locator("#path .sx.gap:has(.chs)");   // the choices' own piece (the questions still to come are a dotted piece too)
 
 test.beforeEach(async ({ page }) => { await page.addInitScript(onPath); });
 

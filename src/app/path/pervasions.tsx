@@ -72,8 +72,8 @@ function QuestionStep({ kb }: { kb: boolean }) {
           </> : null}</St>
         {u.pickWhy ? <Gap h={6} /> : null}</Sx>
       {u.pickWhy ? null : <Choices label="Your answer" slide row items={items} picked={u.pk} onPick={(k) => pickThen(k, () => sayQ(k))} />}
-      {i < 3 ? <Sx cls="walked later">{[...Array(3 - i).keys()].map((j) => <St d={<D cls="sub" />} cls="sb later qmr"><QHead i={i + 1 + j} /></St>)}</Sx> : null}
-      <Sx cls="ptail" />
+      {i < 3 ? <Sx cls="gap later">{[...Array(3 - i).keys()].map((j) => <St d={<D cls="sub" />} cls="sb later qmr"><QHead i={i + 1 + j} /></St>)}</Sx> : null}
+      <Sx cls={"ptail" + (i < 3 ? " dtail" : "")} />
     </Scroll>
     <VoiceBar />
     {kb ? null : <Foot aux={<SkipSide />}>
