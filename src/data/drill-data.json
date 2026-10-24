@@ -1,5 +1,5 @@
 {
-"built":"2026-10-23",
+"built":"2026-10-24",
 "source":"kb/terms.py (Dudra booklet, Book One) and practice/drill/items.py",
 "terms":{
 "Form":{"name":"Form","wylie":"gzugs","ch":"III Divisions of form","skt":"rūpa","ru":"рупа","zh":"色","parent":"Functional thing","mi":["Matter"],"contra":["Consciousness","Non-associated compositional factor"]},
@@ -673,6 +673,10 @@
 {"n":"a dandelion","t":"External form","c":["ft","form","extf","hid","plant","yellow"],"comp":true,"body":false,"st":1},
 {"n":"a round cactus","t":"External form","c":["ft","form","extf","hid","green","round","plant"],"comp":true,"body":false,"st":1},
 {"n":"a pine tree","t":"External form","c":["ft","form","extf","hid","wooden","green","plant","tree"],"comp":true,"body":false,"st":1},
+{"n":"a burnt tree","t":"External form","c":["ft","form","extf","hid","wooden","plant","black","tree"],"comp":true,"body":false,"st":1},
+{"n":"a birch with white bark","t":"External form","c":["ft","form","extf","hid","wooden","white","plant","tree"],"comp":true,"body":false,"st":1},
+{"n":"a tree with red leaves","t":"External form","c":["ft","form","extf","hid","wooden","red","plant","tree"],"comp":true,"body":false,"st":1},
+{"n":"a tree with yellow leaves","t":"External form","c":["ft","form","extf","hid","wooden","plant","yellow","tree"],"comp":true,"body":false,"st":1},
 {"n":"black hair","t":"Form","c":["ft","form","hid","body","black"],"comp":true,"body":true,"st":1},
 {"n":"an ice cube","t":"External form","c":["ft","form","extf","hid","cold"],"comp":true,"body":false,"st":1},
 {"n":"a glass of cold water","t":"External form","c":["ft","form","extf","hid","liquid","drink","cold"],"comp":true,"body":false,"st":1},
@@ -834,6 +838,7 @@
 ["body","round"],
 ["black","fruit"],
 ["blue","plant"],
+["blue","tree"],
 ["dog","swim"],
 ["fish","fly"],
 ["children","teacher"],
