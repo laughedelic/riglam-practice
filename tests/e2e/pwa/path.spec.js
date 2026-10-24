@@ -362,6 +362,29 @@ test("the roadmap has the stops and their names only: no branch labels, and the 
   expect(geo.onLine, "no line runs through the word under a stop").toBe(0);
 });
 
+test("a row of the practice options with a page has a chevron at its right edge, as tall as the row; the sheet fades where there is more to scroll to", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 640 });
+  await start(page);
+  await page.locator(".tstn").click();
+  await page.getByRole("dialog", { name: "Roadmap" }).getByRole("button", { name: /^Pervasions/ }).click();
+  await page.getByRole("button", { name: "Practice options" }).click();
+  const sheet = page.getByRole("dialog", { name: "Practice options" }), body = sheet.locator(".sbody");
+  await expect(sheet.locator(".porow .more")).not.toHaveCount(0);
+  for (const row of await sheet.locator(".porow.pgo").all()) {
+    const [r, m] = [await row.boundingBox(), await row.locator(".more").boundingBox()];
+    expect(m.width, "easy to tap").toBeGreaterThanOrEqual(44);
+    expect(Math.abs(m.x + m.width - (r.x + r.width)), "at the row's right edge").toBeLessThan(1);
+    expect(Math.abs(m.height - r.height), "as tall as the row").toBeLessThan(1.5);
+    expect(await row.locator(".more").textContent(), "no word of its own").toBe("");
+  }
+  const edge = () => body.evaluate((e) => ({ fade: e.hasAttribute("data-fade"), top: e.style.getPropertyValue("--ft"), bottom: e.style.getPropertyValue("--fb") }));
+  expect(await edge(), "more below").toEqual({ fade: true, top: "0px", bottom: "44px" });
+  await body.evaluate((e) => { e.scrollTop = e.scrollHeight; });
+  await expect.poll(edge).toEqual({ fade: true, top: "26px", bottom: "0px" });
+  await page.setViewportSize({ width: 390, height: 1400 });
+  await expect.poll(async () => (await edge()).fade, "nothing to scroll to, no fade").toBe(false);
+});
+
 test("the practice options are a sheet from the top bar, and a choice there is kept", async ({ page }) => {
   await start(page);
   await page.getByRole("button", { name: "Practice options" }).click();
