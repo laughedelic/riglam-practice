@@ -99,6 +99,32 @@ test("an account is made with a passkey and the documents follow the person to a
   await context.close();
 });
 
+test("the progression follows the person: another device signed in takes it, and one made on a device before it signs in gives way to the account's", async ({ page, browser }, testInfo) => {
+  const world = await serverWorld();
+  const { keys } = await start(page, world);
+  await openOptions(page);
+  await acct(page).getByLabel("A name for the account").fill("Test person");
+  await page.getByRole("button", { name: "Create account" }).click();
+  await expect(status(page).first()).toContainText("Up to date", { timeout: 15_000 });
+  // the first device moves on (as its stages and terms would): its copy goes to the server (practice/progress.ts)
+  const ahead = { stages: [1, 2, 3], terms: { n: 9, next: 12, terms: { form: { box: 3, shows: 1 } } }, negation: "one", catsOfferAt: "", negOfferAt: "" };
+  await put(page, "progress", "learner", ahead);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("1,2,3");
+  await expect.poll(() => world.sql("SELECT id FROM docs WHERE col = 'progress'"), { timeout: 15_000 }).toEqual([{ id: "learner" }]);
+
+  // a second device practiced a little before signing in: stage 1, nothing met
+  const { page: other, context } = await otherDevice(browser, testInfo, world, await keys.credentials());
+  await put(other, "progress", "learner", { stages: [1], terms: { n: 2, next: 3, terms: {} }, negation: "off", catsOfferAt: "", negOfferAt: "" });
+  await expect.poll(() => other.evaluate(() => localStorage.getItem("rd-stages"))).toBe("1");
+  await openOptions(other);
+  await other.getByRole("button", { name: "Sign in" }).click();
+  await expect(status(other).first()).toContainText("Up to date", { timeout: 15_000 });
+  // the account's progression wins, and the device takes it
+  await expect.poll(() => other.evaluate(() => [localStorage.getItem("rd-stages"), localStorage.getItem("rd-negation"), JSON.parse(localStorage.getItem("rd-terms")).terms.form?.box ?? null]), { timeout: 15_000 }).toEqual(["1,2,3", "one", 3]);
+  expect(await get(other, "progress", "learner")).toEqual(ahead);
+  await context.close();
+});
+
 test("the account is still there after a reload, and signing out ends it", async ({ page }) => {
   const world = await serverWorld();
   await start(page, world);

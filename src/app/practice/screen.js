@@ -16,7 +16,7 @@ import { check } from "./grading.js";
 import { negOfferNode } from "./negations.ts";
 import { next } from "./queue.js";
 import { subRowNode } from "./skips.js";
-import { defCard, pairAsked, termTagsNode, termsNode, withTerms } from "./terms.js";
+import { defCard, termsNode, withTerms } from "./terms.js";
 import { answerList } from "./universe.js";
 import { exGrid } from "../review/review.js";
 import { tutorTurns } from "../shell/chat.js";
@@ -272,7 +272,6 @@ export function errLines(s){
 function quizWide(s,c){
   const p=state.cur.p, u=state.ui;
   quizHead(s,true);
-  if(!u.checked){ const nd=termTagsNode(pairAsked(p)); if(nd) s.append(nd); }      // the tags of the course terms the learner is still meeting (practice/stops.ts)
   s.append(relStrip(choose,u.checked||u.late));
   s.append(relCap());
   if(!state.ui.checked){ const vb=voiceBar(); if(vb) s.append(vb); }
@@ -362,7 +361,7 @@ function quizNarrow(s){
   const p=state.cur.p, stp=state.ui.checked?2:(!state.ui.rel||state.ui.open)?0:1;
   setSteps(["Relation","Examples","Result"],stp,[(state.ui.checked||state.ui.late)?null:()=>{ state.ui.open=true; render(); },(state.ui.checked||!state.ui.rel)?null:()=>{ state.ui.open=false; render(); focusCin(); },null]);
   quizHead(s,false);
-  if(stp===0){ const vb=voiceBar(), nd=termTagsNode(pairAsked(p)); s.append(...(nd?[nd]:[]),relList(choose,"Relation"),...(vb?[vb]:[]),pairBar(null)); }
+  if(stp===0){ const vb=voiceBar(); s.append(relList(choose,"Relation"),...(vb?[vb]:[]),pairBar(null)); }
   else if(stp===1) cellView(s);
   else {
     // the table is fixed once filled in, the verdict below it changes length with the chip: the table goes first so it never moves

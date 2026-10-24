@@ -2,7 +2,7 @@
 // everyday categories need none. A new learner meets a few everyday questions first, then the terms come one at a time, a few questions apart, from
 // the lowest stage that is on up. The questions answered afterwards grade each term: a box from 1 to 3, up one on a right answer, back to 1 on a
 // mistake, and a mistake brings the term's stop back right after the result. A settled term not met for a long time comes back once. This is the
-// whole schedule: a record per term kept on the device, and pure functions of it and the data.
+// whole schedule: a record per term (part of the learner's progression, practice/progress.ts), and pure functions of it and the data.
 import type { Cat } from "../ai-shared/data";
 import type { DataIndex } from "../ai-shared/lookup";
 import { catStage, topStage } from "./stages";
@@ -134,14 +134,13 @@ export function afterQuestion(intro: Intro, graded: readonly { cat: string | nul
   return { ...intro, n, terms };
 }
 
-/** The terms count as known without their stops (a device that practiced before the stops, or "I know these"): settled, as if met now. */
-export function settle(intro: Intro, cats: readonly string[], now: string): Intro {
-  const terms = { ...intro.terms };
-  for (const c of cats) {
-    const t = terms[c];
-    terms[c] = { box: SETTLED, shows: t?.shows ?? 0, ...(t?.at !== undefined ? { at: t.at } : {}), seen: now };
-  }
-  return { ...intro, terms };
+/**
+ * A pair's question (Relations, Pervasions) graded for its course terms. Right: each of them was right. Wrong: the mistake counts against a term only
+ * when it is the pair's one course term; with two, it may be about either, or about the relation, and neither moves.
+ */
+export function pairGraded(ix: DataIndex, cats: readonly (string | null | undefined)[], ok: boolean): { cat: string; ok: boolean }[] {
+  const course = [...new Set(cats.filter((c): c is string => !!c && !!ix.CAT[c] && needsIntro(ix.CAT[c]!)))];
+  return ok || course.length === 1 ? course.map((cat) => ({ cat, ok })) : [];
 }
 
 /** A stage has just been switched on: its first term comes before the next question, whatever the spacing. */

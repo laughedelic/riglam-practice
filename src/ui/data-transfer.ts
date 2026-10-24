@@ -29,6 +29,7 @@ const WORDS: Record<string, [string, string]> = {
   batches: ["batch", "batches"],
   labruns: ["Quorum run", "Quorum runs"],
   flags: ["flag", "flags"],
+  progress: ["progression", "progressions"],
 };
 const noun = (collection: string, n: number) => `${n} ${WORDS[collection]?.[n === 1 ? 0 : 1] ?? collection}`;
 const list = (counts: Record<string, Counts>, key: keyof Counts) =>

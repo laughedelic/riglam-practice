@@ -27,7 +27,7 @@ export type { FactRow, FactSource, FactState, Opinion, Ruling, Strength } from "
 export { DRAWN, cellExample, drawable, exampleStage, examplesFor, placeByClass, stageCounts, witnessesOf } from "./reference";
 export { DEFAULT_STAGES, DEFINITION_STAGE, HOLD_STAGE, MAX_STAGE, NEG_STREAK, STAGES, catOpen, catStage, heldBack, itemKnown, itemOn, itemStage, itemStageFor, negationOffer, newCategories, normStages, pairStage, physical, poolAt, stagesOfLevels, toggleStage, topStage } from "./stages";
 export type { Negation, NegOutcome, Stage, StagedEntry, Stages, Unmet } from "./stages";
-export { AGAIN_AFTER, FIRST_AFTER, GAP_DAYS, MISS_GAP, SETTLED, SPACING, afterQuestion, freshIntro, introduced, needsIntro, nextStop, normIntro, settle, showAgain, stageMet, stageTerms, stageUp, stopShown, unmet } from "./intro";
+export { AGAIN_AFTER, FIRST_AFTER, GAP_DAYS, MISS_GAP, SETTLED, SPACING, afterQuestion, freshIntro, introduced, needsIntro, nextStop, normIntro, pairGraded, showAgain, stageMet, stageTerms, stageUp, stopShown, unmet } from "./intro";
 export type { Intro, IntroTerm, Stop, StopWhy } from "./intro";
 export type { Placement } from "./reference";
 export { lettersDirection, plainWords, spokenConfirm, spokenDirection, spokenDontKnow, spokenExample, spokenRelation, spokenReply } from "./spoken";

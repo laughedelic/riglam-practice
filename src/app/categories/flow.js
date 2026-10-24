@@ -8,6 +8,7 @@ import { render, renderKeepFocus, top0 } from "../shell/render.js";
 import { setStages, stageName } from "../shell/stages.js";
 import { drawPlace, gradeNarrow, gradePlace, placeGrade, placeNarrow, placeStageDown, placeStageUp } from "../../domain/place.ts";
 import { gradeTerms, unmetNow } from "../practice/stops.ts";
+import { saveProgress } from "../practice/progress.ts";
 import { exampleStage } from "../../domain/reference.ts";
 
 /* ---------- Categories: a thing is shown; tick the categories it is in, then pick the most specific ---------- */
@@ -130,7 +131,7 @@ function stageOffer(){
   return null;
 }
 /** The run that led to an offer is spent: the next one counts from now. */
-function spendRun(){ state.catsOfferAt=new Date().toISOString(); store("rd-cats-offer",state.catsOfferAt); }
+function spendRun(){ state.catsOfferAt=new Date().toISOString(); store("rd-cats-offer",state.catsOfferAt); saveProgress(); }
 function answered(offer){ spendRun(); state.ui.offer=offer; }
 /** "Add stage N" or "Switch off stage N": what the offer on the result says. Nothing is done without this tap. The stage applies to every exercise. */
 export function acceptOffer(){

@@ -12,6 +12,7 @@ import { SKIP_DAYS, hiddenKeys, isSkipped, skipPair, undoSkip } from "./practice
 import { defParts, termsNode } from "./practice/terms.js";
 import { buildPool, indexData, nextGenerated } from "./practice/universe.js";
 import { startStops } from "./practice/stops.ts";
+import { watchProgress } from "./practice/progress.ts";
 import { signature } from "../ui/account";
 import { setDefLang } from "./shell/session.js";
 import { renderMenu } from "./shell/menu.js";
@@ -93,6 +94,7 @@ async function bootSteps(platform){
   },()=>{ state.gotS=true; settle(); });
   setTimeout(()=>{ if(!state.gotS){ state.gotS=true; settle(); } },2500);       // never hold the first pair for the skips
   flagsSubscribe();
+  watchProgress();      // the progression, as another device or tab changes it (practice/progress.ts)
   state.db.collection("debates").onSnapshot(snap=>{
     const m={}; snap.docs.forEach(d=>{m[d.id]=d.data();}); state.debates=m; settle();
   },()=>{});

@@ -1,6 +1,6 @@
 // Help that fades as the stages go up (src/domain/stages.ts): the next step of the negation track offered on a result once the pairs before it go
 // well (practice/negations.ts), and the small tag of a course term the learner is still meeting, which opens its definition (practice/stops.ts,
-// termTags), in the classic design and on the Path. Negations in Pervasions and Find a pair are checked here too.
+// termTags), on the Path. Negations in Pervasions and Find a pair are checked here too.
 import { test, expect } from "../../support/test.js";
 import { goTo, isPhone, ready, relOptions } from "../../support/page.js";
 import { KEY_STORE, dataKey, serveCourse, withCourse } from "../../support/data-key.js";
@@ -143,29 +143,18 @@ const meeting = (box) => {
   localStorage.setItem("rd-stages", "1,2"); localStorage.setItem("rd-terms", JSON.stringify({ n: 10, next: 1000, terms }));
 };
 
-course("a course term the learner is still meeting has a small tag in the question, which opens its definition, in Relations and Categories, classic and on the Path", async ({ page }) => {
+course("a course term the learner is still meeting has a small tag in the question on the Path, which opens its definition, in Relations and Categories", async ({ page }) => {
   await withKey(page);
   await serveCourse(page, dataKey);
+  await page.addInitScript(onPath);
   await page.addInitScript(meeting, 1);
   await page.addInitScript(hook);
   await page.goto("/");
-  await ready(page);
+  await expect(pathChoices(page).first()).toBeVisible();
   await expect.poll(() => page.evaluate(() => !!window.__t.DATA && Object.values(window.__t.DATA.terms).some((t) => t.d))).toBe(true);
   const drawNew = () => page.evaluate((ids) => { for (let i = 0; i < 200; i++) { const p = window.__t.cur.p; if (ids.includes(p.catA) || ids.includes(p.catB)) return p; window.__t.next(); } return null; }, NEW2);
   const termOf = (x) => page.evaluate(([ids, x]) => window.__t.DATA.cats.find((c) => c.id === ([x.catA, x.catB].find((id) => ids.includes(id)))).term, [NEW2, x]);
-  const p = await drawNew();
-  expect(p).not.toBeNull();
-  const term = await termOf(p);
-  const tags = page.locator("#stage .ntags");
-  await expect(tags).toBeVisible();
-  await expect(tags.locator(".ntag").first()).toContainText(term.toLowerCase());
-  await expect(page.locator("#stage .newdefs")).toHaveCount(0);      // no definition card with the question any more
-  await tags.locator(".ntag .dterm").first().click();
-  await expect(tags.locator(".ddef dt")).toContainText(term);
-  // the Path has the tag under the term of the pair
-  await page.evaluate(() => { localStorage.setItem("rd-design", "path"); });
-  await page.reload();
-  await expect(pathChoices(page).first()).toBeVisible();
+  // the tag under the term of the pair
   const q = await drawNew();
   expect(q).not.toBeNull();
   await page.evaluate(() => window.__t.render());
@@ -175,25 +164,25 @@ course("a course term the learner is still meeting has a small tag in the questi
   await tag.locator(".dterm").click();
   await expect(page.locator("#path .ntdef .pdef .pdh")).toContainText(await termOf(q));
   // Categories asks about the categories that are open: those of stage 2 have their tags while step 1 is asked
-  await page.evaluate(() => { localStorage.setItem("rd-design", "classic"); });
+  await page.evaluate(() => { localStorage.setItem("rd-ex", "categories"); });
   await page.reload();
-  await ready(page);
-  await goTo(page, "Categories");
-  await expect(page.locator(".catcard")).toBeVisible();
+  await expect.poll(() => page.evaluate(() => !!(window.__t.cur && window.__t.cur.q))).toBe(true);
   for (let i = 0; i < 40 && !(await page.evaluate((ids) => window.__t.cur.q.rows.some((r) => ids.includes(r.cat)), NEW2)); i++) await page.evaluate(() => { window.__t.next(); });
-  await expect(page.locator(".catcard .ntags .ntag").first()).toBeVisible();
+  await page.evaluate(() => window.__t.render());
+  await expect(page.locator("#path .ntag").first()).toBeVisible();
 });
 
-course("a settled term has no tag: the definitions are a tap away in the Terms panel", async ({ page }) => {
+course("a settled term has no tag: the definitions are a tap away in the terms of the pair", async ({ page }) => {
   await withKey(page);
   await serveCourse(page, dataKey);
+  await page.addInitScript(onPath);
   await page.addInitScript(meeting, 3);
   await page.addInitScript(hook);
   await page.goto("/");
-  await ready(page);
+  await expect(pathChoices(page).first()).toBeVisible();
   await expect.poll(() => page.evaluate(() => !!window.__t.DATA && Object.values(window.__t.DATA.terms).some((t) => t.d))).toBe(true);
   for (let i = 0; i < 8; i++) {
-    await expect(page.locator(".ntags")).toHaveCount(0);
+    await expect(page.locator("#path .ntag")).toHaveCount(0);
     await page.evaluate(() => { window.__t.next(); });
   }
 });

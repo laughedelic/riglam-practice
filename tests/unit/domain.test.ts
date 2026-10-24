@@ -14,7 +14,7 @@ import {
 import type { DebateInput, GradeDraft, HistoryEntry, Pair, PoolEntry } from "../../src/domain";
 import openData from "../../src/data/drill-data.json";
 import { drawable, examplesFor, placeByClass } from "../../src/domain";
-import { AGAIN_AFTER, FIRST_AFTER, MISS_GAP, SETTLED, SPACING, afterQuestion, freshIntro, introduced, nextStop, normIntro, settle, showAgain, stageMet, stageTerms, stageUp, stopShown, unmet } from "../../src/domain";
+import { AGAIN_AFTER, FIRST_AFTER, MISS_GAP, SETTLED, SPACING, afterQuestion, freshIntro, introduced, nextStop, normIntro, pairGraded, showAgain, stageMet, stageTerms, stageUp, stopShown, unmet } from "../../src/domain";
 import { DEFAULT_STAGES, DEFINITION_STAGE, HOLD_STAGE, MAX_STAGE, NEG_STREAK, STAGES, catOpen, drawSyllogism, heldBack, itemKnown, itemOn, itemStageFor, levelAt, negationOffer, newCategories, normStages, pairStage, physical, poolAt, stagesOfLevels, toggleStage, topStage } from "../../src/domain";
 import { drawPlace, itemRows, placeThings } from "../../src/domain/place";
 import { normLevels, upTo } from "../../src/ai-shared";
@@ -655,14 +655,17 @@ test("the questions grade the terms they use: right moves a term up, a mistake b
   ag = afterQuestion(ag, [], T0);
   expect(nextStop(rix, ag, [1], T0)).toEqual({ cat: "form", why: "again" });
   // a settled term not met for GAP_DAYS comes back once, spaced like a new term
-  const old = settle(freshIntro(), ["form"], "2026-10-01T12:00:00.000Z");
+  const old = { ...freshIntro(), terms: { form: { box: SETTLED, shows: 1, seen: "2026-10-01T12:00:00.000Z" } } };
   expect(nextStop(rix, { ...old, n: 9, next: 9 }, [1], "2026-10-10T12:00:00.000Z")).toBeNull();
   expect(nextStop(rix, { ...old, n: 9, next: 9 }, [1], "2026-10-16T12:00:00.000Z")).toEqual({ cat: "form", why: "gap" });
   expect(nextStop(rix, { ...old, n: 9, next: 12 }, [1], "2026-10-16T12:00:00.000Z"), "not before the spacing allows").toBeNull();
-  // a device that practiced before the stops: its stages' terms are settled, nothing is waiting
-  const before = settle(freshIntro(), [...unmet(rix, freshIntro(), [1, 2, 3])], T0);
-  expect(unmet(rix, before, [1, 2, 3]).size).toBe(0);
-  expect(nextStop(rix, { ...before, n: 5 }, [1, 2, 3], T0)).toBeNull();
+  // a pair's question: right counts for both its course terms; a mistake only for the one course term of a pair with an everyday side
+  const everyday = real.cats.find((c) => c.kind === "everyday")!.id;
+  expect(pairGraded(rix, ["form", "col"], true)).toEqual([{ cat: "form", ok: true }, { cat: "col", ok: true }]);
+  expect(pairGraded(rix, ["form", "col"], false), "two course terms: the miss may be about either, or the relation").toEqual([]);
+  expect(pairGraded(rix, ["form", everyday], false)).toEqual([{ cat: "form", ok: false }]);
+  expect(pairGraded(rix, ["form", "form"], false), "one term on both sides").toEqual([{ cat: "form", ok: false }]);
+  expect(pairGraded(rix, [everyday, null], false)).toEqual([]);
   // the stored record is read back as it was; a broken one starts fresh
   expect(normIntro(JSON.stringify(it))).toEqual(it);
   expect(normIntro("{nope")).toEqual(freshIntro());

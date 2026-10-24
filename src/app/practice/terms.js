@@ -8,7 +8,6 @@ import { isA } from "./screen.js";
 import { catByLabel } from "./universe.js";
 import { negSides, plainLabel } from "../../ai-shared/relations.ts";
 import { exampleStage, examplesFor } from "../../domain/reference.ts";
-import { termTags } from "./stops.ts";
 import { render } from "../shell/render.js";
 
 // Where a category sits: the Dudra term with its higher categories, or, for an everyday category, the Dudra term it falls under.
@@ -178,13 +177,6 @@ function cardNode(n,id,trail,live=true){
 }
 /** What a pair asks about, as termTags takes it (practice/stops.ts): also a pair of two labels of one category ("colors" and "hues"), which pairCats leaves out. */
 export const pairAsked=p=>[{cat:p.catA||catByLabel(p.a),label:p.a,side:"A"},{cat:p.catB||catByLabel(p.b),label:p.b,side:"B"}];
-/** The definition card of a term on its own, without its examples: the classic page's stop of a course term (practice/stops.ts). */
-export const plainDefCard=n=>cardNode(n,null,[],false);
-/** The classic page's tags of the course terms the question asks about that the learner is still meeting: a tap on one opens its definition under them. */
-export function termTagsNode(asked){
-  const tags=termTags(asked); if(!tags.length) return null;
-  return el("div",{class:"ntags"},el("p",{class:"ntag-row"},tags.map((t,i)=>el("span",{class:"ntag"},t.side?L(t.side):null,termMark(t.term.toLowerCase(),t.term,"ntag/"+i)))),defCard("ntag"));
-}
 // Pointing at a term with a mouse shows its card while the pointer stays, over the note; it is not kept in the state, so a render drops it.
 function peek(mark,term){
   for(const n of document.querySelectorAll(".ddef.peek")) n.remove();

@@ -1,13 +1,14 @@
-// The stop of a course term (practice/stops.ts, src/domain/intro.ts): a category of the course is asked about only once a stop has shown its term,
-// and the stop comes before the next question, on the classic page and on the Path. A device used before the stops has met the terms of its stages.
+// The stop of a course term (practice/stops.ts, src/domain/intro.ts): on the Path a category of the course is asked about only once a stop has
+// shown its term, and the stop comes before the next question; the classic page asks as before. Reset progression starts the terms again and keeps
+// the answers (practice/progress.ts).
 import { test, expect } from "../../support/test.js";
 import { isPhone, ready, relOptions } from "../../support/page.js";
 import { withCourse } from "../../support/data-key.js";
 
 const hook = () => { window.__riglamTest = (t) => { window.__t = t; }; };
 const onPath = () => { if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path"); };
-// a device at stage 1 that has met no term yet, three questions in: the next pull brings the stop of Form
-const fresh = () => { if (localStorage.getItem("rd-terms") === null) { localStorage.setItem("rd-stages", "1"); localStorage.setItem("rd-terms", JSON.stringify({ n: 3, next: 3, terms: {} })); } };
+// a device at stage 1 that has met no term yet, three questions in: the next pull brings the stop of Form (over the met terms the support test gives)
+const fresh = () => { localStorage.setItem("rd-stages", "1"); localStorage.setItem("rd-terms", JSON.stringify({ n: 3, next: 3, terms: {} })); };
 const ORDER = ["mi", "3ab", "3ba", "4", "con"];
 const fwd = (page) => page.locator("#stage .pbar .fwd");
 const station = (page) => page.locator("#stn");
@@ -27,28 +28,17 @@ async function answerClassic(page, testInfo) {
   await expect.poll(() => page.evaluate(() => window.__t.ui.checked)).toBe(true);
 }
 
-test("a new device meets Form at a stop before any pair asks about it, and Next goes on to the question", async ({ page }, testInfo) => {
+test("the classic page has no stops: the next question follows the result, and the questions are still counted", async ({ page }, testInfo) => {
   await page.addInitScript(fresh);
   await page.addInitScript(hook);
   await page.goto("/");
   await ready(page);
-  expect(await cats(page), "Form waits out of the pairs until its stop").not.toContain("form");
   await answerClassic(page, testInfo);
   expect(await page.evaluate(() => window.__t.intro.n)).toBe(4);
   await page.keyboard.press("n");
-  const stop = page.locator("#stage .termstop");
-  await expect(stop).toBeVisible();
-  await expect(stop).toContainText("New term");
-  await expect(stop).toContainText("stage 1");
-  await expect(stop).toContainText("Form");
-  if (withCourse) await expect(stop.locator(".ddef")).toBeVisible();
-  await expect(page.locator("#stage .head .pair")).toHaveCount(0);
-  expect(await page.evaluate(() => window.__t.intro.terms.form)).toMatchObject({ box: 1, shows: 1, at: 4 });
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("rd-terms")).terms.form.box)).toBe(1);
-  await expect(fwd(page)).toBeFocused();
-  await page.keyboard.press("n");
   await ready(page);
-  await expect(stop).toHaveCount(0);
+  expect(await page.evaluate(() => window.__t.ui.stop)).toBeFalsy();
+  expect(await page.evaluate(() => window.__t.intro.terms)).toEqual({});
 });
 
 test("on the Path the stop is a station of its own, with the term and where it sits, and Next leads on", async ({ page }) => {
@@ -81,14 +71,31 @@ test("on the Path the stop is a station of its own, with the term and where it s
   await expect(stop).toHaveCount(0);
 });
 
-test("a device used before the stops has met the terms of its stages: no stop comes", async ({ page }, testInfo) => {
+test("Reset progression on the Stages page asks first, then starts at stage 1 with no term met, on the device and in its progress document", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript(onPath);
+  await page.addInitScript(() => { if (localStorage.getItem("rd-negation") === null) { localStorage.setItem("rd-stages", "1,2,3"); localStorage.setItem("rd-negation", "one"); } });
   await page.addInitScript(hook);
   await page.goto("/");
-  await ready(page);
-  const intro = await page.evaluate(() => window.__t.intro);
-  expect(intro.terms.form).toMatchObject({ box: 3 });
-  await answerClassic(page, testInfo);
-  await page.keyboard.press("n");
-  await ready(page);
-  await expect(page.locator("#stage .termstop")).toHaveCount(0);
+  await expect(page.locator("#path .chs .crow")).toHaveCount(5);
+  expect(Object.keys(await page.evaluate(() => window.__t.intro.terms)).length).toBeGreaterThan(9);
+  await page.getByRole("button", { name: "Practice options" }).click();
+  const sheet = page.getByRole("dialog", { name: "Practice options" });
+  await sheet.getByRole("button", { name: "Stages: more" }).click();
+  const row = sheet.locator(".porow", { hasText: "Reset progression" });
+  await expect(row).toContainText("Your answers, their statistics and your settings stay.");
+  await row.getByRole("button", { name: "Reset progression" }).click();
+  await row.getByRole("button", { name: "Keep it" }).click();
+  expect(await page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("1,2,3");
+  await row.getByRole("button", { name: "Reset progression" }).click();
+  await row.getByRole("button", { name: "Reset", exact: true }).click();
+  await expect(row).toContainText("Done: stage 1");
+  const stage = (n) => sheet.getByRole("switch", { name: new RegExp("^Stage " + n + " ") });
+  await expect(stage(1)).toHaveAttribute("aria-checked", "true");
+  await expect(stage(2)).toHaveAttribute("aria-checked", "false");
+  expect(await page.evaluate(() => [localStorage.getItem("rd-stages"), localStorage.getItem("rd-negation"), JSON.parse(localStorage.getItem("rd-terms")).terms])).toEqual(["1", "off", {}]);
+  // the question behind the sheet was drawn again from stage 1, without Form, whose stop has not come
+  expect(await cats(page)).not.toContain("form");
+  const doc = await page.evaluate(async () => { const s = await (await window.__riglam.platform.db()).collection("progress").doc("learner").get(); return s.exists ? s.data() : null; });
+  expect(doc).toMatchObject({ stages: [1], negation: "off", terms: { n: 0, terms: {} } });
 });
