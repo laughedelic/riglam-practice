@@ -235,6 +235,21 @@ test("scrolling past the end only tightens the thread; the station is taken by i
   await expect(page.locator(".pvline")).toBeVisible();
 });
 
+test("before a relation is chosen, pulling the path on fills the dotted thread in down to the gray station, which stops below the foot's edge", async ({ page }) => {
+  await start(page);
+  const sc = await page.locator("#path .pscroll").boundingBox();
+  await page.mouse.move(sc.x + sc.width / 2, sc.y + sc.height / 2);
+  for (let i = 0; i < 6; i++) await page.mouse.wheel(0, 300);
+  await expect(page.locator(".pa")).toHaveClass(/\bpullpre\b/);
+  const tail = await page.locator("#path .sx.ptail").evaluate((e) => { const c = getComputedStyle(e, "::after"); return { bg: c.backgroundImage, op: +c.opacity }; });
+  expect(tail.bg, "dotted, not firmed").toContain("repeating-linear-gradient");
+  expect(tail.op).toBeGreaterThan(0.5);
+  expect(await page.locator("#path .foot").evaluate((e) => getComputedStyle(e, "::after").content), "no solid stub in the foot").toBe("none");
+  const [go, foot] = [await page.locator("#stnp .go").boundingBox(), await page.locator("#path .foot").boundingBox()];
+  expect(go.y, "the diamond stays under the foot's top edge").toBeGreaterThan(foot.y + 1);
+  await expect(page.locator(".pa")).not.toHaveClass(/\bpull/);   // let go: it goes back
+});
+
 test("the strip pulls from its heading with a short pull, and its hint is gray", async ({ page }) => {
   await start(page);
   await choices(page).nth(3).click();

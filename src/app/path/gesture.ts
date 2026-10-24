@@ -1,7 +1,7 @@
 // The Path's pulls, as the lab has them. The station at the edge is pulled up past its reach to be taken (a tap takes it too; a bump in the hand says
 // it is past); one that is not ready yet rises a little, says why, and stops. The thread stays attached to the station and shortens as it comes up
 // (--lift: the foot's stub gets shorter, then the riser hides the thread under the station). Pulling the path itself on past its end lifts the station
-// only a little, as if it resisted, and firms the thread: it never takes the station. A side station (Skip) slides left past its reach. One tension
+// only a little, as if it resisted (never past the foot's top edge), and firms the thread (before a choice it stays dotted, its fade filled in): it never takes the station. A side station (Skip) slides left past its reach. One tension
 // is shared by all of them: each Path draw keeps one Pull, on its root. A station that can be taken is pulled over a curb (below), and taking it plays the
 // ride of take.ts.
 import { canTake, foldPage, playTake } from "./take.ts";
@@ -13,6 +13,8 @@ const RESIST = 0.5;
 const HIT = 12;
 /** How far the path itself can pull the thread: just short of the station's reach. */
 const TIGHT = LINE - 8;
+/** A station the hand can not take here (one not ready, or any while the path is pulled) stops this far below the foot's top edge: its diamond does not cross it. */
+const SILL = 4;
 export const SLIDE = 96;
 
 /** The hand's feel of crossing the reach: a bump, as of a curb under a wheel (one short knock, no buzz). */
@@ -89,6 +91,7 @@ export class Pull {
       if (ev) { bump(ev === "over" ? HIT : 6); foldPage(this.root, c.over); }
     } else {
       dy = path ? raw * RESIST : stn ? (raw < LINE ? raw : LINE + (raw - LINE) * 0.35) : Math.min(STOP, raw < 12 ? raw : 12 + (raw - 12) * 0.3);
+      if (path || !stn) dy = Math.min(dy, this.room(el, foot));
       past = !!stn && raw >= LINE;
     }
     this.dy = dy;
@@ -98,8 +101,18 @@ export class Pull {
     if (riser) { riser.style.bottom = (foot ? foot.offsetHeight : 0) + "px"; riser.style.display = foot ? "" : "none"; }
     this.root.style.setProperty("--lift", dy.toFixed(1) + "px");
     this.root.style.setProperty("--pull", Math.min(1, path ? raw / TIGHT : dy / LINE).toFixed(3)); this.root.classList.toggle("pulling", raw > 0);
+    // before the way is chosen (a station not ready) the thread ahead stays dotted: the pull fills its fade in, down to the station, and does not firm it
+    this.root.classList.toggle("pullpre", raw > 0 && !stn);
     if (past !== this.past) { this.past = past; if (past && !curb) bump(); }
     return past;
+  }
+  /** How far the station `el` can rise in its foot before its diamond reaches the foot's top edge (less `SILL`); measured from where it rests, whatever it is lifted now. */
+  private room(el: HTMLElement, foot: HTMLElement | null): number {
+    const go = el.querySelector<HTMLElement>(".go"); if (!foot || !go) return Infinity;
+    let y = 0, n: HTMLElement | null = el;
+    while (n && n !== foot) { y += n.offsetTop; n = n.offsetParent as HTMLElement | null; }
+    if (n !== foot) return Infinity;
+    return Math.max(0, y + go.getBoundingClientRect().top - el.getBoundingClientRect().top - SILL);
   }
   /** The pull let go: the station goes back, and is taken when `go` (the answer: whether it was). A tap on a station that is not ready bumps it. */
   end(go: boolean, tapped = false): boolean {
@@ -115,7 +128,7 @@ export class Pull {
     this.dy = 0;
     if (el) { el.classList.remove("dragging"); el.style.transform = ""; }
     if (riser) riser.style.display = "";
-    if (this.root) { this.root.classList.remove("pulling"); this.root.style.setProperty("--pull", "0"); this.root.style.setProperty("--lift", "0px"); }
+    if (this.root) { this.root.classList.remove("pulling", "pullpre"); this.root.style.setProperty("--pull", "0"); this.root.style.setProperty("--lift", "0px"); }
     this.past = false;
     if (sp && !go) this.peek(sp, tapped);
     if (go && this.act) { this.act(); return true; }

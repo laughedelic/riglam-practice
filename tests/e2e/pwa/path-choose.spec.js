@@ -76,6 +76,24 @@ test("a finger slides a choice to the left: short of half way it goes back, past
   await expect(page.locator("#path [data-fx]")).toHaveCount(0);
 });
 
+test("a choice slid onto the line, back off it and onto it again without letting go knocks each time it snaps", async ({ page }) => {
+  await page.goto("/");
+  await expect(choices(page)).toHaveCount(5);
+  const row = choices(page).nth(1), b = await row.boundingBox(), y = b.y + b.height / 2, x = b.x + b.width - 40;
+  const to = async (d) => { for (let i = 1; i <= 4; i++) await page.mouse.move(x - d, y); };
+  await page.mouse.move(x, y); await page.mouse.down();
+  await page.mouse.move(x - 8, y); await to(30);
+  expect(await page.evaluate(() => window.__vib), "the first snap").toEqual([12]);
+  await to(26);   // a hair off the line: no knock again
+  await to(30);
+  expect(await page.evaluate(() => window.__vib)).toEqual([12]);
+  await to(8);    // back off it, and on again
+  await to(30);
+  expect(await page.evaluate(() => window.__vib), "the second snap").toEqual([12, 12]);
+  await page.mouse.up();
+  await expect(page.locator("#cin")).toBeVisible();
+});
+
 test("Accept and Why? stand on one row; Why? slides to the line over the fading Accept, then its field opens", async ({ page }) => {
   await openPervasions(page);
   await expect(page.locator("#path .chs.row2")).toHaveCount(1);
