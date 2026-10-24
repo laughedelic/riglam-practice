@@ -497,10 +497,12 @@ withKey("the tutor's note under an example is a list of steps in the tutor's blo
   await page.locator(".wrow").filter({ hasText: "Why" }).click();
   const note = page.locator(".exr .tnote").first();
   await expect(note).toBeVisible();
-  await expect(note.locator(".tutn")).toHaveText("the tutor");
-  const [label, flag] = await Promise.all([note.locator(".tutn").boundingBox(), note.locator(".pflg").boundingBox()]);
-  expect(Math.abs((flag.y + flag.height / 2) - (label.y + label.height / 2)), "the flag is on the label's line").toBeLessThan(8);
-  expect(flag.x, "at the right of the block").toBeGreaterThan(label.x + 100);
+  await expect(note).not.toContainText("the tutor");   // no label: the rule says whose note it is, and a label on every case read as if the steps were about the tutor
+  await expect(note).toHaveAccessibleName("The tutor’s note");
+  const [box, flag, step] = await Promise.all([note.boundingBox(), note.locator(".pflg").boundingBox(), note.locator(".tsteps li").first().boundingBox()]);
+  expect(flag.y - box.y, "the flag is at the top of the block").toBeLessThan(14);
+  expect(box.x + box.width - (flag.x + flag.width), "and at its right").toBeLessThan(12);
+  expect(Math.abs(step.y - box.y), "with no row of its own above the first step").toBeLessThan(6);
   await expect(note.locator(".tsteps li").first()).toContainText("It follows it is");
   await expect(note).not.toContainText("Take ");   // the "take" line repeated the answer above it
 });

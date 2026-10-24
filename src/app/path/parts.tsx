@@ -216,12 +216,13 @@ function FactSteps({ f, where }: { f: FactLine; where: string }) {
   </>;
 }
 /**
- * The tutor's note on one example, set apart from the learner's own answer above it: a small label, then the steps of its line (or its words, for a
- * line that has no steps); the flag is at the right of the label. `where` keys the terms it names, so that their definitions open under them.
+ * The tutor's note on one example, set apart from the learner's own answer above it by a rule in the tutor's color (no label: the rule says whose it is, and a
+ * label repeated on every case read as if the steps after it were about the tutor): the steps of its line (or its words, for a line that has no steps), with
+ * the flag at the top right of the block. `where` keys the terms it names, so that their definitions open under them.
  */
 export function TutorNote({ c, text, where, flag }: { c: CellId; text: string; where: string; flag?: ComponentChildren }) {
   const f = (explainParts().facts as Record<string, FactLine | undefined>)[c];
-  return <div class="tnote"><div class="tuth"><span class="tutn">the tutor</span>{flag}</div>
+  return <div class="tnote" role="group" aria-label="The tutor’s note">{flag ? <div class="tuth">{flag}</div> : null}
     {f ? <FactSteps f={f} where={where} /> : <><p class="tt"><TermText text={text} where={where} /></p><DefCard where={where} /></>}</div>;
 }
 // the tutor's explanation without its lines on the cases (those are on the cases' rows)
