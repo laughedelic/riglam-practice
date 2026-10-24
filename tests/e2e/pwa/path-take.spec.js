@@ -98,6 +98,7 @@ test("let go over the curb the lines squeeze up and leave, the station rides up,
 });
 
 test("a tap and Enter take the station with the same ride", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("rd-look", JSON.stringify({ check: "ride" })));   // the Check scans by default (path-scan.spec.js)
   await toResult(page);
   await page.locator("#stn").click();
   await expect(main(page)).toHaveClass(/\btk-run\b/);
