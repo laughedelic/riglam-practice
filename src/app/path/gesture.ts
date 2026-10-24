@@ -128,7 +128,9 @@ export class Pull {
       const go = () => { this.hold = false; act(); if (this.after) this.after(); }, settle = () => { this.busy = false; this.curb = null; this.past = false; this.dy = 0; if (this.hold) { this.hold = false; if (this.after) this.after(); } };
       let plan: ScanPlan | null;
       try { plan = this.scan && currentLook().check === "scan" ? this.scan() : null; } catch { plan = null; }
-      if (plan) playScan(this.root, stn, plan, go, settle); else playTake(this.root, stn, this.dy, go, settle);
+      // with the keyboard's layout up the scan opens the page first: the field is let go and the layout is the page's again at its start
+      const root = this.root, open = plan && root.classList.contains("kbup") ? () => { this.hold = false; const a = document.activeElement; if (a instanceof HTMLElement && a.classList.contains("pfield")) a.blur(); if (this.after) this.after(); } : null;
+      if (plan) playScan(root, stn, plan, go, settle, open); else playTake(root, stn, this.dy, go, settle);
       return true;
     }
     if (this.curb) { if (this.curb.over) foldPage(this.root, false); this.curb = null; }
