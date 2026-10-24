@@ -36,17 +36,21 @@ To cover a new state, add steps to a flow in the spec (or a flow), and a size to
 
 ## CI
 
-`.github/workflows/ci.yml` runs on pull requests and on `main`. The browser tests run in parallel jobs, so a run takes about as long as the slowest of them.
+`.github/workflows/ci.yml` runs on pull requests and on `main`. The browser tests run in parallel jobs, so a run takes about as long as the slowest of them (about 3 minutes).
 
 | Job | What it runs |
 |---|---|
 | `static` ("Lint, build, unit tests") | lint, typecheck, both builds, the unit tests, `wrangler deploy --dry-run` |
-| `browser` ("Browser tests (...)", a matrix) | `npx playwright test <args>` after building both outputs: the legacy suite in three `--shard` slices, and the layout matrix with the PWA specs in one job. CI uploads no HTML report or trace, because both record page content and step arguments, which can include the course definitions and the data key; a failure is read in the job log, or reproduced locally with `--trace on`. |
+| `browser` ("Browser tests (...)", a matrix) | `npx playwright test <args>` after building both outputs: the legacy suite in three `--shard` slices, the layout matrix on its own, and the PWA specs of each project (desktop, phone) in three `--shard` slices. CI uploads no HTML report or trace, because both record page content and step arguments, which can include the course definitions and the data key; a failure is read in the job log, or reproduced locally with `--trace on`. |
 | `check` ("Lint, build, test") | passes when `static` and `browser` have passed. This is the name that branch protection requires ([RELEASING.md](RELEASING.md)), so it stays the same whatever the jobs above are called or however many there are. |
 
-To repeat one job locally: `npm run build`, then the same `npx playwright test` arguments as in the matrix (for example `--project=legacy --shard=2/3`).
+The title check, `Conventional PR title`, is a workflow of its own (`.github/workflows/pr-title.yml`), so that editing a pull request's title runs it again without starting the browser tests.
 
-The legacy suite is the long part, and `test40q` is its longest test (about two minutes, in one browser after another), so more legacy shards would not make a run shorter. A new Playwright project needs an entry in the `browser` matrix; `tests/unit/ci-workflow.test.ts` fails when a project is in no job, in two, or when the shards of a project are not all there.
+A push to a pull request cancels that pull request's earlier run. Every commit on `main` keeps its own run, so a merge that follows closely does not cancel the verdict on the one before.
+
+To repeat one job locally: `npm run build`, then the same `npx playwright test` arguments as in the matrix (for example `--project=pwa-phone --shard=2/3`).
+
+`--shard` cuts a project's tests into equal runs of consecutive tests, by count and not by time; with these specs the slices come out within about 20% of each other. The legacy suite is the floor: `test40q` is its longest test (about two minutes, in one browser after another), so a run cannot get much shorter than that, and more shards of the PWA specs would only add the setup of each job (about 30 seconds). A new Playwright project needs an entry in the `browser` matrix; `tests/unit/ci-workflow.test.ts` fails when a project is in no job, in two, or when the shards of a project are not all there.
 
 ## Adding tests
 
