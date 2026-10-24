@@ -295,13 +295,12 @@ test("Review leaves a counter-example the page could not place out of the row of
   await expect(sec.locator(".sylrow")).toContainText("(not checked)");
 });
 
-test("the practice options hold only what Syllogisms uses: the wording, which is kept, and the things drawn from", async ({ page }) => {
+test("the practice options hold only what Syllogisms uses: the wording, which is kept, and the stages", async ({ page }) => {
   await open(page);
   await page.locator("#msess").click();
   const sheet = page.locator("#opts");
   await expect(sheet).toContainText("Wording");
-  await expect(sheet).toContainText("Things");
-  await expect(sheet).toContainText("With Dudra terms");
+  await expect(sheet.locator(".ocard").filter({ hasText: "Stages" })).toContainText("Stages 1–6");
   await expect(sheet).not.toContainText(/course|textbook/i); // the page does not say "the course" or "textbook"
   await expect(sheet).not.toContainText("Notation");
   await expect(sheet).toContainText("Blitz");
@@ -311,13 +310,13 @@ test("the practice options hold only what Syllogisms uses: the wording, which is
   await expect(page.locator(".sylt b")).toHaveCount(3); // the subject, the predicate and the reason, apart from the words
   await page.reload();
   await expect(page.locator(".sylt")).toContainText(/^It follows that the subject,/);
-  // everyday things only: the syllogisms drawn from then on have no course term in them
-  await page.locator("#msess").click();
-  await page.locator("#opts").getByRole("button", { name: "Everyday", exact: true }).click();
-  await page.keyboard.press("Escape");
+  // up to stage 3, everyday things only: the syllogisms drawn have no course term in them, and the structure is shown until it is switched off
+  await page.evaluate(() => localStorage.setItem("rd-stages", "1,2,3"));
+  await page.reload();
+  await expect(page.locator(".sylt")).toBeVisible();
   const levels = await page.evaluate(() => { const out = []; for (let i = 0; i < 60; i++) { window.__t.next(); out.push(window.__t.cur.c.level); } return out; });
   expect(new Set(levels)).toEqual(new Set([1]));
-  expect(await page.evaluate(() => localStorage.getItem("rd-syllogism-level"))).toBe("1");
+  await expect(page.locator(".sylkey")).toBeVisible();
 });
 
 test("the structure is shown only on request: S, P and R under the sentence, and what each reply says in them; the choice is kept", async ({ page }) => {

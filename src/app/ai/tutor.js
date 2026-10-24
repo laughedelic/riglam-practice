@@ -9,6 +9,7 @@ import { persist } from "../practice/answers.js";
 import { factNode, fillTurn, noteData, revealTutor } from "../practice/screen.js";
 import { render, renderKeepFocus } from "../shell/render.js";
 import { cardBody, explainAsk, tutorCard } from "../../ai-shared/card.ts";
+import { topStage } from "../../domain/stages.ts";
 import { noteCats } from "../../ai-shared/lookup.ts";
 import { tutorTools } from "../../ai-shared/tools.ts";
 import { askSyllogism } from "../syllogism/tutor.js";
@@ -68,12 +69,13 @@ export async function ask(text,kind,byItself){
   if(U.knowing){ await U.knowing; if(U!==state.ui||!canAsk()||U.ctl||(kind==="explain"&&U.explained)) return; }
   const p=C.p, direct=!!state.sample;                  // the host's own model call, or else the app's server
   const quorum=kind==="explain"&&quorumWanted(U);     // the explanation of a checked answer is asked of Quorum, where this server offers it, this device has it on and an example is left to check
-  const body=kind==="explain"?explainAsk(U):text;
+  const body=kind==="explain"?explainAsk(U,!!p.neg):text;
   // The server keeps the examples only with `share`, which a page sends where the server said it keeps learned facts and the learner has been told (share-notice.js). The
   // first question that would name examples waits for the learner's answer to the one-time dialog (the answer, yes or no, is kept on the device); a learner who left the
   // answer meanwhile (the dialog covers the page, but a shortcut or the browser's Back may still move the exercise on) is asked nothing for it, as after the lookup above.
   // Without an answer (a browser that could not open the dialog) no example is named.
-  let examples=!direct&&kind==="explain"&&sharing()?openExamples(U):[];
+  // a pair with a negated side names none: what the server keeps is said of the categories themselves
+  let examples=!direct&&kind==="explain"&&!p.neg&&sharing()?openExamples(U):[];
   if(examples.length&&state.learns&&!state.shareTold){
     await askShare();
     if(U!==state.ui||!canAsk()||U.ctl||(kind==="explain"&&U.explained)) return;
@@ -81,7 +83,7 @@ export async function ask(text,kind,byItself){
   }
   const share=examples.length>0&&state.learns&&state.shareTold;
   // The server holds the standing instructions and the notes itself, so what it gets as the first turn is the card alone.
-  if(!U.chat) U.chat=[{role:"user",content:(direct?tutorCard(state,p,U):cardBody(state,p,U))+"\n\n"+body, hidden:true, asked:kind?undefined:text}];   // `asked`: the question alone, for a flag on its answer
+  if(!U.chat){ U.stage=topStage(state.stages); U.chat=[{role:"user",content:(direct?tutorCard(state,p,U):cardBody(state,p,U))+"\n\n"+body, hidden:true, asked:kind?undefined:text}]; }   // `asked`: the question alone, for a flag on its answer
   else U.chat.push({role:"user",content:body,hidden:!!kind});
   // the answer comes to the panel at the right on a wide screen (it opens), and to the Why chip of the result on a narrow one
   if(kind==="explain"){ U.explained=true; U.rtab="tutor"; }

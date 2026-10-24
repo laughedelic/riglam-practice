@@ -69,6 +69,12 @@ test("the relation by name, by number like the keys, and three possibilities onl
 const T = { a: "functional things", b: "products" };
 const T2 = { a: "things able to perform a function", b: "impermanent things" };
 
+test("four possibilities without neither is four possibilities, and there is no sixth answer to pick by number", () => {
+  for (const s of ["four possibilities without neither", "Four possibilities, without there being something which is neither."]) expect(spokenRelation([s], ORDER), s).toBe("4");
+  expect(spokenRelation(["six"], ORDER)).toBeNull();
+  expect(spokenRelation(["number six"], ORDER)).toBeNull();
+});
+
 test("the relation said as what is written under the option, with the pair's own terms", () => {
   // Three possibilities: the term named first is the one inside
   expect(spokenRelation(["All functional things are products, not the reverse"], ORDER, T)).toBe("3ab");
@@ -93,6 +99,10 @@ test("the relation said as what is written under the option, with the pair's own
   expect(spokenRelation(["no product is a functional thing"], ORDER, T)).toBe("con");
   expect(spokenRelation(["They overlap; neither contains the other"], ORDER, T)).toBe("4");
   expect(spokenRelation(["they overlap"], ORDER)).toBe("4");
+  // one term inside the other: the longer is the one said
+  const T3 = { a: "physical things", b: "physical things outside a person's continuum" };
+  expect(spokenRelation(["all physical things outside a person's continuum are physical things, but not the reverse"], ORDER, T3)).toBe("3ba");
+  expect(spokenRelation(["all physical things are physical things outside a person's continuum, but not the reverse"], ORDER, T3)).toBe("3ab");
   // other talk about the terms is no relation
   expect(spokenRelation(["functional things and products"], ORDER, T)).toBeNull();
   expect(spokenRelation(["good morning"], ORDER, T)).toBeNull();
@@ -129,7 +139,7 @@ test("yes and no to an answer that waits to be confirmed", () => {
 
 test("an example: an item by its name or alias, near words snapped to it, other words kept as heard, and nothing", () => {
   expect(spokenExample(ix, ["A clay pot."])).toMatchObject({ text: "a clay pot", none: false });
-  expect(spokenExample(ix, ["table"])?.item?.n).toBe("a wooden table");
+  expect(spokenExample(ix, ["key"])?.item?.n).toBe("a metal key");
   expect(spokenExample(ix, ["a gold ring because it is both"])).toMatchObject({ text: "a gold ring" });
   expect(spokenExample(ix, ["for example a red ball"])).toMatchObject({ text: "a red ball" });
   expect(spokenExample(ix, ["a medal table"])).toMatchObject({ text: "a metal table", heard: "a medal table" });

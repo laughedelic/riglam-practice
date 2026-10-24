@@ -25,9 +25,9 @@ import { D, Fig, Gap, Head, Mark, St, Sx } from "./ui.tsx";
 /** the relation picked (the steps after the first have one) */
 const relOf = () => u0().rel as RelKey;
 
-/** The five relations as choices on the path: their figures in the margin, the sign in the notation picked. */
+/** The relations as choices on the path: their figures in the margin, the sign in the notation picked. */
 export function relChoices(p: { a: string; b: string }, cur: string | null) {
-  return ORDER.map((k, i) => {
+  return ORDER.map((k: string, i: number) => {
     const r = REL[k as RelKey];
     return { k, b: r.name, s: <Subjects text={r.gloss(p.a, p.b)} p={p} />, fig: k, sym: state.nota !== "codes" ? notaOf(k) : "", key: String(i + 1), pressed: cur === k };
   });

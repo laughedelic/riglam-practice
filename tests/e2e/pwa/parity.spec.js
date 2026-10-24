@@ -15,22 +15,24 @@ async function snapshot(page) {
     // the foot of the menu (the Magic Key button, the version and the update line) is the platform's own, and a wide screen shows the menu from the start
     const app = document.getElementById("app").cloneNode(true);
     app.querySelector("#menu .mfoot")?.remove();
-    // Categories is in the menu only where the device holds reference examples (the artifact carries them, the PWA gets them with the Magic Key), and the exercises are headed in two groups only then
-    app.querySelector('#menu [data-go="categories"]')?.remove();
-    app.querySelectorAll("#menu .mgrp").forEach((n) => n.remove());
     return { html: app.outerHTML, boxes, scrollW: document.documentElement.scrollWidth, innerW: innerWidth };
   });
 }
 
+// the same stages in both (the fixture's stored setting makes the PWA's device one used before, which a new artifact page is not)
+const sameStages = () => { try { localStorage.setItem("rd-stages", "1,2,3"); } catch { /* storage unavailable */ } };
+
 test("same first screen in both builds", async ({ page, browser }, testInfo) => {
   const viewport = page.viewportSize();
   await page.addInitScript(seedRandom);
+  await page.addInitScript(sameStages);
   await page.goto("/");
   const pwa = await snapshot(page);
 
   const ctx = await browser.newContext({ viewport, isMobile: testInfo.project.name === "pwa-phone", hasTouch: testInfo.project.name === "pwa-phone", deviceScaleFactor: 1 });
   const art = await ctx.newPage();
   await art.addInitScript(seedRandom);
+  await art.addInitScript(sameStages);
   await routeArtifact(art);
   await art.goto("http://artifact.test/");
   const artifact = await snapshot(art);

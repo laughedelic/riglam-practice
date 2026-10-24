@@ -1,15 +1,16 @@
 // Categories on the Path: 1 the categories (the thing, and the categories as choices to tick, or one at a time with yes and no; the check
 // splits them into what applies and what does not, each with the reason), 2 the most specific of those that apply (one tap), 3 the line from
-// the most specific up, and the offer of another level when one is due. The tutor has no part here. The steps are the classic page's
+// the most specific up, and the offer of another stage when one is due. The tutor has no part here. The steps are the classic page's
 // (categories/flow.js); the reference examples it draws from come with the Magic Key.
 import type { ComponentChildren } from "preact";
 import { state } from "../state.js";
 import { CONFIRMATION } from "../practice/terms.js";
-import { LEVEL_INFO } from "../core/examples.js";
+import { STAGES } from "../../domain/stages.ts";
 import { acceptOffer, advanceCategories, checkCategories, continueCategories, declineOffer, pickCategory, sayCategory, tickCategory, tickNone } from "../categories/flow.js";
 import { next } from "../practice/queue.js";
 import { toggleOpts } from "../shell/options.js";
-import { openLevelOptions } from "../shell/session.js";
+import { openStageOptions } from "../shell/session.js";
+import { stageName } from "../shell/stages.js";
 import type { PlaceGraded, PlaceNarrow, PlaceQuestion, PlaceRow } from "../../domain/place.ts";
 import { refreshPath } from "./index.tsx";
 import { Choices, ErrLines, SkipMark, Verdict, pickThen, u0 } from "./parts.tsx";
@@ -22,10 +23,10 @@ const cap = (t: string) => t[0].toUpperCase() + t.slice(1);
 /** Why a category is, or is not, one of the thing's: the steps of the data, a sentence. */
 const because = (row: PlaceRow) => [row.reason ? cap(row.reason) + "." : "", row.why].filter(Boolean).join(" ");
 
-/** The thing asked about, as the first stop: its name, its level and how well the example is confirmed. */
+/** The thing asked about, as the first stop: its name, its stage and how well the example is confirmed. */
 function Thing() {
   const t = q().thing;
-  return <St d={<D cls="sub done" />} cls="stm thing"><span class="cs" lang="en">{t.n}</span><small class="pcatm">level {t.lv}{t.cf ? " · " + ((CONFIRMATION as Record<string, string>)[t.cf] || t.cf) : ""}</small></St>;
+  return <St d={<D cls="sub done" />} cls="stm thing"><span class="cs" lang="en">{t.n}</span><small class="pcatm">stage {t.st}{t.cf ? " · " + ((CONFIRMATION as Record<string, string>)[t.cf] || t.cf) : ""}</small></St>;
 }
 /** One category with the answer: its mark, what the learner did, and the reason; a right one folds to its line, a tap opens the reason. */
 function CatRow({ row, one }: { row: PlaceGraded; one: boolean }) {
@@ -54,16 +55,16 @@ function skipNote() {
   if (t.thing.ne) return "It does not exist, so it is in none of these and there is nothing to narrow.";
   return t.rows.filter((r) => r.answer).length < 2 ? "Only one of these applies, so there is nothing to narrow." : "The categories that apply do not lie on one line, so none is the most specific.";
 }
-/** The offer of another level, or the line that says what the answer to it did. */
+/** The offer of another stage, or the line that says what the answer to it did. */
 function Offer() {
   const o = u0().offer; if (!o) return null;
   if (o.kind === "done") return <Sx cls="walked"><p class="pnoteline pfnote" role="status">{o.text}</p></Sx>;
-  const up = o.kind === "up", info = (LEVEL_INFO as Record<number, string[]>)[o.level];
-  return <Sx cls="walked"><St d={<D cls="sub now" />} cls="offer" ><div role="group" aria-label={up ? "Add a level" : "Switch a level off"}>
-    <p class="oq">{up ? "Level " + (o.level - 1) + " is going well. Add level " + o.level + " to the mix?" : "Level " + o.level + " is hard going right now. Switch it off for a while?"}</p>
-    <p class="xnote">Level {o.level}, {info[0].toLowerCase()}: {info[1]}</p>
-    <span class="pbtns"><button type="button" class="pbtn" onClick={acceptOffer}>{up ? "Add level " + o.level : "Switch off level " + o.level}</button><button type="button" class="pbtn quiet" onClick={declineOffer}>Not now</button></span>
-    <p class="xnote">{up ? "Never starts by itself. The level you are on stays on; turn any level off in the practice options." : <>Or adjust the levels yourself in the <button type="button" class="plnk" onClick={openLevelOptions}>practice options</button>. Nothing is switched off by itself.</>}</p>
+  const up = o.kind === "up", info = STAGES.find((x) => x.n === o.stage);
+  return <Sx cls="walked"><St d={<D cls="sub now" />} cls="offer" ><div role="group" aria-label={up ? "Add a stage" : "Switch a stage off"}>
+    <p class="oq">{up ? "Stage " + (o.stage - 1) + " is going well. Add stage " + o.stage + " to the mix?" : "Stage " + o.stage + " is hard going right now. Switch it off for a while?"}</p>
+    <p class="xnote">Stage {o.stage}, {stageName(o.stage).toLowerCase()}: {info ? info.adds : ""}</p>
+    <span class="pbtns"><button type="button" class="pbtn" onClick={acceptOffer}>{up ? "Add stage " + o.stage : "Switch off stage " + o.stage}</button><button type="button" class="pbtn quiet" onClick={declineOffer}>Not now</button></span>
+    <p class="xnote">{up ? "Never starts by itself. It applies to every exercise, and the stages you are on stay on; turn any stage off in the practice options." : <>Or adjust the stages yourself in the <button type="button" class="plnk" onClick={openStageOptions}>practice options</button>. Nothing is switched off by itself.</>}</p>
   </div></St></Sx>;
 }
 

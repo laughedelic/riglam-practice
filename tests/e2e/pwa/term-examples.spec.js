@@ -1,4 +1,4 @@
-// The reference examples under a definition in the Terms panel: a few examples of the term, with their level and how well they are
+// The reference examples under a definition in the Terms panel: a few examples of the term, with their stage and how well they are
 // confirmed, and on a tap the reason they are good examples. The examples are invented (one pair for every term of the open data) and
 // served by a stand-in for the server (tests/support/data-key.js, which also holds the Magic Key of every page); the definitions need the
 // course data of the run.
@@ -11,7 +11,7 @@ const withKey = withCourse ? test : test.skip; // no data-private/: the course d
 
 const hook = () => { window.__riglamTest = (t) => { window.__t = t; }; };
 
-// for every term, a plain example with a reason and a commentary-only one, at levels 1 and 2
+// for every term, a plain example with a reason and a commentary-only one, at levels 1 and 2 (stages 6 and 7)
 const part = () => ({
   version: "e1",
   part: {
@@ -48,8 +48,8 @@ withKey("a definition shows examples of its term, the plainest first, and a tap 
   await expect(ex).toBeVisible();
   const rows = ex.locator("li");
   expect(await rows.count()).toBeLessThanOrEqual(3); // the term's own two, and a subclass's when it has one (the pair is drawn at random)
-  await expect(rows.first()).toContainText("level 1 · in two or more sources");
-  await expect(rows.nth(1)).toContainText("level 2 · from a commentary");
+  await expect(rows.first()).toContainText("stage 6 · in two or more sources");
+  await expect(rows.nth(1)).toContainText("stage 7 · from a commentary");
   await expect(ex.locator(".tm-why")).toHaveCount(0);
 
   const why = rows.first().locator("button");

@@ -4,16 +4,19 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { expect, test } from "vitest";
-import { CELLS, REL, makeIndex, refOf } from "../../src/ai-shared";
+import { CELLS, REL, cardBody, explainAsk, makeIndex, negLabel, negLine, plainLabel, readReviewAnswer, refOf, reviewRequest } from "../../src/ai-shared";
 import type { CellId, DrillData, RelKey } from "../../src/ai-shared";
 import {
   FEATURE, RECENT_MAX, AUTO_FLAGS, applyVerdicts, autoFlagOf, decideFlag, factNote, fitOf, flagAnswerRef, flagAsked, flagStateText, flaggedPart, noteParts, buildPool, cellsFor, chooseEntry, deriveRel, grade, gradeDebate, gradeOf, inUniverse, isMiss, judgeText, makePair,
-  nextPair, pairKey, parseFactLine, parseVerdicts, pick, relOfCells, summarize, termLine, cellFor, cellOfFacts, disputeText, divided, quorumDisputes, quorumRows, readings,
+  negateCells, nextPair, pairKey, parseFactLine, parseVerdicts, pick, relOfCells, summarize, termLine, cellFor, cellOfFacts, disputeText, divided, quorumDisputes, quorumRows, readings,
   FIND_RELS, applyRelationVerdict, drawRelation, findId, findPair, gradeFind, judgeable, nameThing, pairOf, parseRelationVerdict, sameThing,
 } from "../../src/domain";
 import type { DebateInput, GradeDraft, HistoryEntry, Pair, PoolEntry } from "../../src/domain";
 import openData from "../../src/data/drill-data.json";
 import { drawable, examplesFor, placeByClass } from "../../src/domain";
+import { DEFAULT_STAGES, HOLD_STAGE, MAX_STAGE, STAGES, catOpen, drawSyllogism, heldBack, itemKnown, itemOn, itemStageFor, levelAt, normStages, pairStage, physical, poolAt, stagesOfLevels, toggleStage, topStage } from "../../src/domain";
+import { drawPlace, itemRows, placeThings } from "../../src/domain/place";
+import { normLevels, upTo } from "../../src/ai-shared";
 import { FACTS_EPOCH, factKey, learn, opinionOf, ruleSide, servable } from "../../src/domain";
 import type { Answer, FactRow, Opinion, Ruling } from "../../src/domain";
 import { knownLine, openExamples, referenceLines, wholeFirst } from "../../src/domain";
@@ -288,6 +291,20 @@ test("grading needs a relation", () => {
   expect(() => grade(ix, pair(), { rel: null, cells: cellsOf({}) })).toThrow(/no relation/);
 });
 
+test("an item whose name leaves a category open neither shows it nor refuses it, and changes no relation", () => {
+  const d = data();
+  d.items.push({ n: "a chair", t: "Form", c: ["form", "matter", "thing"], may: ["wooden", "gray"] });
+  const mix = makeIndex(d), chair = mix.DATA.items.find((i) => i.n === "a chair")!;
+  expect(inUniverse(mix, chair, "form", "wooden")).toBe(false);
+  expect(inUniverse(mix, chair, "form", "mind")).toBe(true);
+  expect(names(cellsFor(mix, "wooden", "gray").anb)).toEqual(["a wooden chair"]); // not "a chair": it may be wooden
+  expect(names(cellsFor(mix, "wooden", "mind").nei)).not.toContain("a chair"); // nor wooden things' outside: it may be one
+  expect(names(cellsFor(mix, "form", "mind").anb)).toContain("a chair");
+  expect(relOfCells(cellsFor(mix, "wooden", "form"))).toBe(relOfCells(cellsFor(ix, "wooden", "form")));
+  expect(judgeText(mix, pair(), "nei", "a chair")).toBeNull(); // the tutor's to check
+  expect(judgeText(mix, pair({ catA: "form", catB: "mind", a: "forms", b: "minds" }), "anb", "a chair")?.v).toBe("ok");
+});
+
 test("an alias does not settle a feature: wooden, metal, white and the like need the exact name", () => {
   const d = data();
   d.aliases = { chair: "a wooden chair", stone: "a gray stone" };
@@ -510,6 +527,165 @@ test("every category of the real data is in the pool, and the relations of the p
   }
 });
 
+test("the real data: stages from 1 to 9, open qualities only of everyday categories and never also stated, contrasts of listed items", () => {
+  const ids = new Set(real.cats.map((c) => c.id)), everyday = new Set(real.cats.filter((c) => c.kind === "everyday").map((c) => c.id));
+  const stage = (st: unknown) => Number.isInteger(st) && (st as number) >= 1 && (st as number) <= 9;
+  expect(real.cats.filter((c) => !stage(c.st)).map((c) => c.id)).toEqual([]);
+  expect(real.items.filter((i) => !stage(i.st)).map((i) => i.n)).toEqual([]);
+  for (const it of real.items) {
+    expect((it.may ?? []).filter((c) => !everyday.has(c)), it.n).toEqual([]);
+    expect((it.may ?? []).filter((c) => it.c.includes(c)), it.n).toEqual([]);
+    expect(it.c.filter((c) => !ids.has(c)), it.n).toEqual([]);
+  }
+  const listed = new Set(real.items.map((i) => i.n));
+  expect((real.contrasts ?? []).flat().filter((n) => !listed.has(n))).toEqual([]);
+  expect(real.contrasts?.length).toBeGreaterThan(0);
+});
+
+// ---- the learning ladder (src/domain/stages.ts): which stages are on, and what each exercise draws from them ----
+
+const upToStage = (n: number) => Array.from({ length: n }, (_, i) => i + 1);
+
+test("the stages that are on: a stored value, switching one, the highest, and the old levels a device kept", () => {
+  expect(STAGES.map((s) => s.n)).toEqual(upToStage(9));
+  expect(MAX_STAGE).toBe(9);
+  expect(STAGES.every((s) => s.name && s.adds)).toBe(true);
+  expect(DEFAULT_STAGES).toEqual([1]);
+  expect(normStages("1,2")).toEqual([1, 2]);
+  expect(normStages("3, 1,1,12,x")).toEqual([1, 3]);
+  expect(normStages([9, 2])).toEqual([2, 9]);
+  for (const bad of ["", "0", "x,y", null, undefined, 7, []]) expect(normStages(bad), String(bad)).toEqual([1]);
+  expect(topStage([1, 4, 2])).toBe(4);
+  expect(toggleStage([1, 2], 3)).toEqual([1, 2, 3]);
+  expect(toggleStage([1, 2, 3], 2)).toEqual([1, 3]);
+  expect(toggleStage([2], 2), "the last stage on stays on").toEqual([2]);
+  // a device that drew the reference examples by level keeps every stage up to its top level's: level 1 is stage 6
+  expect(stagesOfLevels([1])).toEqual(upToStage(6));
+  expect(stagesOfLevels([1, 3])).toEqual(upToStage(8));
+  expect(stagesOfLevels([4])).toEqual(upToStage(9));
+  expect(stagesOfLevels([]), "nothing kept: a new device").toEqual([1]);
+  expect(stagesOfLevels([0, 7])).toEqual([1]);
+  // the levels themselves stay for the reference examples' own field and the tutor's lookup
+  expect(normLevels("3, 1,1,9,x")).toEqual([1, 3]);
+  expect(upTo(3)).toEqual([1, 2, 3]);
+});
+
+test("the real data: a category opens at its stage and stays open; a person or what does not exist meets the physical categories from stage 4", () => {
+  const C = rix.CAT, item = (n: string) => real.items.find((i) => i.n === n)!;
+  expect(catOpen(C.form, [1])).toBe(true);
+  expect(catOpen(C.extf, [1])).toBe(false);
+  expect(catOpen(C.extf, [2])).toBe(true);
+  expect(catOpen(C.extf, [1, 5]), "open below the highest stage on, whether or not its own stage is on").toBe(true);
+  expect(catOpen(C.cons, [1, 2, 3])).toBe(false);
+  expect(catOpen(C.human, [3])).toBe(false);
+  expect(catOpen(C.human, [4])).toBe(true);
+  expect([C.form, C.col, C.wooden, C.animal].map((c) => physical(rix, c))).toEqual([true, true, true, false]);
+  const dog = item("a dog"), joy = real.items.find((i) => i.t === "Mental factor" && (i.st ?? 1) === 1)!, chair = item("a wooden chair");
+  expect([heldBack(rix, dog), heldBack(rix, joy), heldBack(rix, chair)]).toEqual([true, false, false]);
+  expect(itemStageFor(rix, dog, "form", "animal")).toBe(HOLD_STAGE);
+  expect(itemStageFor(rix, dog, "animal", "emotion"), "against categories that are not physical: its own stage").toBe(1);
+  expect(itemOn(rix, dog, "form", "animal", [1, 2, 3])).toBe(false);
+  expect(itemOn(rix, dog, "form", "animal", [1, 4])).toBe(true);
+  expect(itemOn(rix, dog, "form", "animal", [4]), "its own stage is off").toBe(false);
+  expect(itemKnown(rix, dog, "form", "animal", [4])).toBe(true);
+  expect(itemOn(rix, joy, "form", "emotion", [1])).toBe(true);
+});
+
+test("the real data: a pair is new at the stage where both categories are open and a thing the learner knows fills every cell", () => {
+  // Form against Visible form waits for the sounds of stage 3, which give a form that is not seen; Form against External form for the sense powers of stage 5
+  expect(pairStage(rix, "form", "vis", [1, 2])).toBeNull();
+  expect(pairStage(rix, "form", "vis", [1, 2, 3])).toBe(3);
+  expect(pairStage(rix, "form", "vis", [3]), "the things of a stage below count, on or off").toBe(3);
+  expect(pairStage(rix, "form", "extf", upToStage(4))).toBeNull();
+  expect(pairStage(rix, "form", "extf", upToStage(5))).toBe(5);
+  for (const top of [1, 3, 4, 6]) {
+    const on = upToStage(top), pool = poolAt(rix, realPool, on);
+    expect(pool.length, `stages 1 to ${top}`).toBeGreaterThan(100);
+    expect(new Set(pool.map((e) => e.r)), `every relation comes up at stages 1 to ${top}`).toEqual(new Set(["mi", "con", "3", "4"]));
+    for (const e of pool) {
+      expect(e.st).toBeLessThanOrEqual(top);
+      expect(catOpen(rix.CAT[e.a], on) && catOpen(rix.CAT[e.b], on), pairKey(e)).toBe(true);
+      const cells = cellsFor(rix, e.a, e.b);
+      for (const c of CELLS) if (cells[c].length) expect(cells[c].some((it) => itemKnown(rix, it, e.a, e.b, on)), `${pairKey(e)} ${c}`).toBe(true);
+    }
+  }
+  // a set, not a ceiling: stages 1 and 3 draw the pairs new at either, never one new at stage 2
+  const skip = poolAt(rix, realPool, [1, 3]);
+  expect(skip.some((e) => e.st === 3) && skip.some((e) => e.st === 1) && !skip.some((e) => e.st === 2)).toBe(true);
+  expect(poolAt(rix, realPool, upToStage(6)).length, "by stage 6 every pair is in").toBe(realPool.length);
+  expect(poolAt(rix, realPool, [7]), "a stage the practice list has nothing new at draws no pair of its own").toEqual([]);
+});
+
+test("the real data: the next pair comes from the stages that are on, about half of it new at the highest, with things of those stages", () => {
+  const on = [1, 2, 3], ok = new Set(poolAt(rix, realPool, on).map((e) => [e.a, e.b].sort().join("|")));
+  const newAt3 = new Set(poolAt(rix, realPool, on).filter((e) => e.st === 3).map((e) => [e.a, e.b].sort().join("|")));
+  let fresh = 0, n = 0, staged = 0, cellsSeen = 0;
+  const hist: HistoryEntry[] = [], recent: string[] = [];
+  for (let s = 0; s < 400; s++) {
+    const p = nextPair(rix, realPool, { hist, recent, rng: seeded(s), now: () => 1_700_000_000_000, stages: on });
+    const key = [p.catA, p.catB].sort().join("|");
+    expect(ok.has(key), key).toBe(true);
+    n++; if (newAt3.has(key)) fresh++;
+    for (const c of CELLS) {
+      const ex = p.ex?.[c]; if (!ex) continue;
+      cellsSeen++;
+      if (on.includes(real.items.find((i) => i.n === ex)?.st ?? 0)) staged++;
+    }
+  }
+  expect(fresh / n, "about half new at the highest stage").toBeGreaterThan(0.3);
+  expect(fresh / n).toBeLessThan(0.7);
+  expect(cellsSeen).toBeGreaterThan(400);
+  expect(staged, "the examples are things of the stages that are on").toBe(cellsSeen);
+  // stages that can draw no pair of their own draw from every pair
+  expect(() => nextPair(rix, realPool, { hist: [], recent: [], rng: seeded(1), stages: [8] })).not.toThrow();
+  // just after a stage went up, three possibilities come more often
+  const threes = (fresh: boolean) => Array.from({ length: 300 }, (_, s) => chooseEntry(rix, realPool, { hist: [], recent: [], rng: seeded(s), stages: on, fresh })).filter((e) => e.r === "3").length;
+  expect(threes(true)).toBeGreaterThan(threes(false) * 1.5);
+  // a device that kept its settings from before the ladder (stages 1 to 6) draws every pair alike: the pairs new at stage 6 come about as often as their share
+  const all = [1, 2, 3, 4, 5, 6], at6 = new Set(poolAt(rix, realPool, all).filter((e) => e.st === 6).map(pairKey));
+  const share6 = (even: boolean) => Array.from({ length: 1000 }, (_, s) => chooseEntry(rix, realPool, { hist: [], recent: [], rng: seeded(s), stages: all, even })).filter((e) => at6.has(pairKey(e))).length / 1000;
+  expect(share6(true)).toBeLessThan(0.2);
+  expect(share6(false)).toBeGreaterThan(0.3);
+});
+
+test("the real data: Categories asks about things of the stages that are on, practice items too, and never a category a name leaves open", () => {
+  const things = placeThings(rix, [], [1]);
+  expect(things.length).toBeGreaterThan(200);
+  expect(things.every((t) => t.item && t.st === 1 && !t.item.nosubject)).toBe(true);
+  for (let s = 0; s < 200; s++) {
+    const on = s % 2 ? [1] : [1, 2, 3, 4];
+    const q = drawPlace(rix, null, { stages: on, rng: seeded(s) })!;
+    expect(q, `seed ${s}`).toBeTruthy();
+    const it = q.thing.item!;
+    expect(on).toContain(it.st);
+    for (const r of q.rows) {
+      expect(catOpen(rix.CAT[r.cat], on), `${it.n} ${r.cat}`).toBe(true);
+      expect(it.may?.includes(r.cat) ?? false, `${it.n} leaves ${r.cat} open`).toBe(false);
+      expect(r.answer).toBe(it.c.includes(r.cat));
+      expect(r.reason).toBeTruthy();
+    }
+  }
+  // a person is not asked about the physical categories before stage 4, and at stage 1 a form is "anything physical"
+  const dog = real.items.find((i) => i.n === "a dog")!;
+  expect(itemRows(rix, dog, [1, 2, 3]).some((r) => physical(rix, rix.CAT[r.cat]))).toBe(false);
+  expect(itemRows(rix, dog, [1, 2, 3, 4]).some((r) => r.cat === "form")).toBe(true);
+  const chair = itemRows(rix, real.items.find((i) => i.n === "a wooden chair")!, [1]);
+  expect(chair.find((r) => r.cat === "form")).toMatchObject({ answer: true, reason: "it is physical" });
+});
+
+test("the real data: Syllogisms keep to everyday reasons and predicates up to stage 3, with subjects of the stages that are on", () => {
+  expect([1, 3, 4, 9].map((t) => levelAt([t]))).toEqual([1, 1, 2, 2]);
+  for (const on of [[1], [1, 2, 3], [1, 4]]) {
+    for (let s = 0; s < 40; s++) {
+      const c = drawSyllogism(rix, { hist: [], recent: [], rng: seeded(s), stages: on });
+      const R = rix.CAT[c.catR], P = rix.CAT[c.catP], it = real.items.find((i) => i.n === c.subject)!;
+      expect(catOpen(R, on) && catOpen(P, on), c.id).toBe(true);
+      if (topStage(on) <= 3) expect([R.kind, P.kind], c.id).toEqual(["everyday", "everyday"]);
+      expect(itemOn(rix, it, c.catR, c.catP, on) || itemOn(rix, it, c.catP, c.catR, on), c.id).toBe(true);
+    }
+  }
+});
+
 // A note takes the steps the term data gives: up the "is a" chain to the term, or up to a class the data marks as excluding one
 // the term is in, with why under it. A listed example is placed as the grading places it; elsewhere the tutor's class counts.
 test("a note states the term data's steps: up the chain to the term, or to the class that excludes it", () => {
@@ -558,7 +734,7 @@ test("a note states the term data's steps: up the chain to the term, or to the c
   expect(parseVerdicts(apple, d)).toEqual([{ cell: "anb", answer: "no" }]); // the cell settles as the note reads
   expect(parseVerdicts(apple)).toEqual([{ cell: "anb", answer: "yes" }]); // without the data, the tutor's facts
   // a permanent phenomenon is excluded from a form through functional thing
-  expect(note("wooden things", "wooden", "musical instruments", "instr", 'Q4: "the absence of an elephant in this room" | A no: it is an absence | B no: it is an absence').slice(1, 3)).toEqual([
+  expect(note("wooden things", "wooden", "musical instruments", "instr", 'Q4: "the absence of an elephant in an empty room" | A no: it is an absence | B no: it is an absence').slice(1, 3)).toEqual([
     "It follows it is not a wooden thing, because it is an absence, which is a permanent phenomenon.",
     "A wooden thing is a form, which is a functional thing, and nothing is both a permanent phenomenon and a functional thing.",
   ]);
@@ -1147,13 +1323,15 @@ test("placeByClass: passes over classes the data does not have, and leaves out a
   expect(placed({ cls: ["Color"], not: ["Form"] }).form, "a wrong class in the data shows as no answer, not a wrong one").toBeNull();
 });
 
-test("drawable: confirmed and textbook examples of the levels that are on, never a commentator's", () => {
-  expect(drawable({ cf: "confirmed", lv: 2 }, [1, 2])).toBe(true);
-  expect(drawable({ cf: "textbook", lv: 1 }, [1, 2])).toBe(true);
-  expect(drawable({ cf: "textbook", lv: 3 }, [1, 2])).toBe(false);
-  expect(drawable({ cf: "textbook", lv: 1 }, [2, 3])).toBe(false);
-  expect(drawable({ cf: "commentator", lv: 1 }, [1, 2, 3, 4])).toBe(false);
-  expect(drawable({ lv: 1 }, [1, 2, 3, 4])).toBe(false);
+test("drawable: confirmed and textbook examples of the stages that are on, never a commentator's", () => {
+  // an example without a stage of its own is at its level's: level 1 is stage 6
+  expect(drawable({ cf: "confirmed", lv: 2 }, [6, 7])).toBe(true);
+  expect(drawable({ cf: "textbook", lv: 1 }, [6, 7])).toBe(true);
+  expect(drawable({ cf: "textbook", lv: 3 }, [6, 7])).toBe(false);
+  expect(drawable({ cf: "textbook", lv: 1 }, [7, 8])).toBe(false);
+  expect(drawable({ cf: "textbook", lv: 3, st: 2 }, [1, 2])).toBe(true);
+  expect(drawable({ cf: "commentator", lv: 1 }, [1, 2, 3, 4, 5, 6, 7, 8, 9])).toBe(false);
+  expect(drawable({ lv: 1 }, [1, 2, 3, 4, 5, 6, 7, 8, 9])).toBe(false);
 });
 
 // ---- learned facts: what the analyses said of a learner's example, per category ----
@@ -1328,4 +1506,119 @@ test("examplesFor: a term's own examples first, then the plainest, a spread of c
   expect(names("Permanent")).toEqual([]);
   expect(names("Unheard-of class")).toEqual([]);
   expect(names("Form", 0)).toEqual([]);
+});
+
+// ---------- the negation track: "non-B" pairs, where nothing may be neither ----------
+
+test("a negated side moves the things between the cells, and each move undone by itself", () => {
+  const cells = { both: ["x"], anb: ["y"], bna: ["z"], nei: ["w"] };
+  expect(negateCells(cells, "b")).toEqual({ both: ["y"], anb: ["x"], bna: ["w"], nei: ["z"] });
+  expect(negateCells(cells, "ab")).toEqual({ both: ["w"], anb: ["z"], bna: ["y"], nei: ["x"] });
+  for (const n of ["b", "ab"] as const) expect(negateCells(negateCells(cells, n), n)).toEqual(cells);
+  // something both and something in each alone is four possibilities, whether or not anything is neither: the neither cell says nothing about the relation
+  expect(relOfCells({ both: [1], anb: [1], bna: [1], nei: [] })).toBe("4");
+  expect(relOfCells({ both: [1], anb: [1], bna: [1], nei: [1] })).toBe("4");
+  expect(Object.keys(REL).sort()).toEqual(["3ab", "3ba", "4", "con", "mi"]);
+  expect(negLabel("products")).toBe("non-products");
+  expect(negLabel("wooden things")).toBe("non-(wooden things)");
+  expect(plainLabel("non-(non-produced phenomena)")).toBe("non-produced phenomena");
+  expect(plainLabel("non-food")).toBe("food");
+});
+
+test("a plain pair of four possibilities always has something neither: what does not exist is neither of any two categories", () => {
+  for (const c of realPool) if (c.a !== c.b) { const cells = cellsFor(rix, c.a, c.b); if (relOfCells(cells) === "4") expect(cells.nei.length, c.a + " / " + c.b).toBeGreaterThan(0); }
+});
+
+test("a pair with B negated: its label, its cells, its relation and why a cell is empty", () => {
+  const at = () => 0;
+  // wooden things are physical: physical things and non-(wooden things) overlap, and nothing is neither (nor the horn of a rabbit)
+  const p = pairOf(rix, "form", "wooden", "physical things", "wooden things", seeded(1), at, undefined, [1], "b");
+  expect(p).toMatchObject({ a: "physical things", b: "non-(wooden things)", catA: "form", catB: "wooden", neg: "b", relation: "4" });
+  expect(p.ex!.nei).toBeNull();
+  expect(p.why!.nei).toBe("Whatever falls under “wooden things” also falls under “physical things”.");
+  expect(refOf(p, "nei")).toBeNull();                   // the horn of a rabbit is not "neither" here
+  expect(p.note).toMatch(/^“non-\(wooden things\)” takes in everything outside “wooden things”, what does not exist included\. /);
+  // a wooden table is physical but not a non-(wooden thing); a metal key is both
+  expect(judgeText(rix, p, "anb", "a wooden table")?.v).toBe("ok");
+  expect(judgeText(rix, p, "both", "a metal key")?.v).toBe("ok");
+  expect(judgeText(rix, p, "nei", "a metal key")).toMatchObject({ v: "bad", msg: ["Belongs elsewhere. ", expect.stringMatching(/ is both /)] });
+  // a non-existent is taken in by the negation: here it is non-B but not A
+  expect(judgeText(rix, p, "bna", "the horn of a rabbit")?.v).toBe("ok");
+  // the plain pair is as before
+  expect(pairOf(rix, "form", "wooden", "physical things", "wooden things", seeded(1), at, undefined, [1])).toMatchObject({ b: "wooden things", relation: "3ba" });
+  expect(pairOf(rix, "form", "wooden", "physical things", "wooden things", seeded(1), at, undefined, [1]).neg).toBeUndefined();
+});
+
+test("the brackets of a negated name are a choice, and the cells and the relation do not depend on it", () => {
+  expect(negLabel("wooden things", false)).toBe("non-wooden things");
+  expect(negLabel("products", false)).toBe("non-products");
+  expect(negLabel("wooden things", true)).toBe("non-(wooden things)");
+  expect(plainLabel("non-wooden things")).toBe("wooden things");
+  const make = (brackets: boolean) => pairOf(rix, "form", "wooden", "physical things", "wooden things", seeded(1), () => 0, undefined, [1], "b", brackets);
+  const [without, withBrackets] = [make(false), make(true)];
+  expect(without).toMatchObject({ a: "physical things", b: "non-wooden things", neg: "b", relation: "4" });
+  expect({ ...without, b: withBrackets.b, note: withBrackets.note }).toEqual(withBrackets);          // the note names the label, and says what it takes in either way
+  expect(without.note).toMatch(/^“non-wooden things” takes in everything outside “wooden things”/);
+});
+
+test("a pair with both sides negated: what excludes each other becomes four possibilities, with nothing neither", () => {
+  const p = pairOf(rix, "form", "emotion", "forms", "emotions", seeded(2), () => 0, undefined, [1, 2, 3, 4], "ab");
+  expect(relOfCells(cellsFor(rix, "form", "emotion"))).toBe("con");
+  expect(p).toMatchObject({ a: "non-forms", b: "non-emotions", neg: "ab", relation: "4" });
+  expect(p.ex!.nei).toBeNull();
+  expect(p.why!.nei).toMatch(/Nothing is both\.$/);
+  expect(judgeText(rix, p, "both", "the horn of a rabbit")?.v).toBe("ok");
+});
+
+test("the tutor's facts on a negated side are read in reverse, and the tutor is told what the negation takes in", () => {
+  const p = pairOf(rix, "form", "wooden", "physical things", "wooden things", seeded(1), () => 0, undefined, [1], "b");
+  const f = parseFactLine("both: a metal key | A yes: it is physical | B yes: it is not wooden")!;
+  expect(fitOf(f)).toBe("yes");
+  const parts = noteParts(f, false, { ix: rix, p, terms: { a: "a physical thing", b: "a non-(wooden thing)" } });
+  expect(parts.filter((x) => x.kind === "term").map((x) => x.kind === "term" && x.not)).toEqual([false, false]);
+  expect(parts.some((x) => x.kind === "end")).toBe(false);
+  expect(negLine(p)).toMatch(/^Negation: B \("non-\(wooden things\)"\) is a negation of the category in "negation_of"/);
+  expect(negLine({ a: "x", b: "y" })).toBe("");
+  const body = cardBody(rix, p, { rel: "4", cells: { both: { t: "", none: false }, anb: { t: "", none: false }, bna: { t: "", none: false }, nei: { t: "", none: true } }, res: grade(rix, p, { rel: "4", cells: { both: {}, anb: {}, bna: {}, nei: { none: true } } }) } as never);
+  expect(body).toContain('"negation_of":');
+  expect(body).toContain("Correct relation: Four possibilities.");
+  expect(body).toContain('an empty Neither ("nothing exists") is then right');
+  // what is not known of the categories themselves is the tutor's to check, and nothing is asked of the server
+  expect(openExamples(p, { cells: { both: { v: "cmp", msg: [], kind: "ex" } } as never }, [{ text: "a pebble", cells: ["both"] }])).toEqual([]);
+  // the general rule that only Neither takes what does not exist is set aside on this pair, in the card and in the question
+  expect(negLine(p)).toContain("replaces the rule above that only Neither takes what does not exist");
+  const res = { cells: { both: { v: "cmp" }, anb: { v: "ok" }, bna: { v: "ok" }, nei: { v: "ok" } } } as never;
+  expect(explainAsk({ res }, true)).toContain('as no for a plain term and yes for a "non-" term');
+  expect(explainAsk({ res })).toContain("but in Neither a non-existent");
+  // a flag on the pair is reviewed on the server with the negation
+  expect(readReviewAnswer({ chosen: "4", pair: { a: p.a, b: p.b, relation: p.relation, neg: "b" } })?.pair.neg).toBe("b");
+  const req = reviewRequest(rix, { what: "the explanation", shown: "It is four possibilities." } as never, readReviewAnswer({ chosen: "4", pair: { ...p }, cells: {} })!);
+  expect(req).toContain('Negation: B ("non-(wooden things)")');
+  expect(req).toContain('"negation_of":');
+  expect(readReviewAnswer({ chosen: null, pair: { a: p.a, b: p.b, relation: p.relation, neg: "x" } })?.pair.neg).toBeUndefined();
+});
+
+test("the negation track: about a third of the pairs negated, both sides only when asked, and none when off", () => {
+  const count = (negation?: "one" | "both") => {
+    const st = { hist: [] as HistoryEntry[], recent: [] as string[], rng: seeded(7), now: () => 0, stages: [1, 2, 3, 4, 5, 6], ...(negation ? { negation } : {}) };
+    const n = { none: 0, b: 0, ab: 0 };
+    for (let i = 0; i < 300; i++) {
+      const p = nextPair(rix, realPool, st);
+      n[p.neg ?? "none"]++;
+      // the examples show the relation: a cell has one exactly where the cells of the data are filled (a negated label with its own category,
+      // "tastes" and "non-(objects of tongue consciousness)", leaves nothing that is neither, and stays mutually exclusive)
+      const shown = Object.fromEntries(CELLS.map((c) => [c, refOf(p, c) ? [c] : []])) as Record<CellId, string[]>;
+      expect(relOfCells(shown), p.a + " / " + p.b).toBe(p.relation);
+      if (p.neg) expect(p.relation).toBe(relOfCells(negateCells(cellsFor(rix, p.catA!, p.catB!), p.neg)));
+    }
+    return n;
+  };
+  expect(count()).toEqual({ none: 300, b: 0, ab: 0 });
+  const one = count("one");
+  expect(one.ab).toBe(0);
+  expect(one.b).toBeGreaterThan(60);
+  expect(one.b).toBeLessThan(140);
+  const both = count("both");
+  expect(both.ab).toBeGreaterThan(20);
+  expect(both.b).toBeGreaterThan(20);
 });

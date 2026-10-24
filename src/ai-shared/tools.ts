@@ -43,7 +43,8 @@ export function tutorTools(ix: DataIndex, examples?: ExampleIndex | null): Tutor
      execute:(input)=>{
        const thing=(input as {thing?: unknown}|null|undefined)?.thing;
        const it=matchItem(ix,thing);
-       if(it) return {found:true, item:it.n, existent:!it.ne, dudra_type:it.t, chain:(ix.DATA.chains[it.t]||[it.t]).join(" > "), categories:it.c.map(c=>ix.CAT[c].labels[0])};
+       if(it) return {found:true, item:it.n, existent:!it.ne, dudra_type:it.t, chain:(ix.DATA.chains[it.t]||[it.t]).join(" > "), categories:it.c.map(c=>ix.CAT[c].labels[0]),
+         ...(it.may?.length?{name_leaves_open:it.may.map(c=>ix.CAT[c].labels[0])}:{})};
        const refs=examples?matchExamples(examples,thing):[];
        if(!refs.length) return {found:false};
        if(refs.length===1) return {found:true, source:"reference", ...exampleFacts(ix,refs[0])};

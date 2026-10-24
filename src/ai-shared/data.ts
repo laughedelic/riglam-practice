@@ -40,6 +40,8 @@ export interface Cat {
   phrases?: string[];
   /** ids of the categories that everything in this one is also in, stated where the term hierarchy cannot show it (everyday categories) */
   within?: string[];
+  /** the stage of the learning ladder (1 to 9) at which the category opens; none: from the start */
+  st?: number;
 }
 
 /** An everyday or Dudra example with the categories it belongs to. */
@@ -57,6 +59,10 @@ export interface Item {
   nosubject?: boolean;
   /** a thing only the course's terms name (uncomposed space): the syllogism drill leaves it out of the everyday level */
   dudraOnly?: boolean;
+  /** the stage of the learning ladder (1 to 9) at which a newcomer knows the thing; none: from the start */
+  st?: number;
+  /** ids of the everyday categories its name leaves open ("a chair" may be wooden or red): it is never used to show or to refuse them */
+  may?: string[];
 }
 
 export interface DrillData {
@@ -72,8 +78,10 @@ export interface DrillData {
   nopair?: string[][];
   /** groups of category ids whose things are mistaken for one another (the near misses of the syllogism drill) */
   confusable?: string[][];
-  /** short name -> the item it means ("chair" -> "a wooden chair") */
+  /** short name -> the item it means ("key" -> "a metal key") */
   aliases?: Record<string, string>;
+  /** pairs of items to show side by side: an object and the mind that knows it ("the bark of a dog", "hearing a dog bark") */
+  contrasts?: [string, string][];
   /** category id -> fine points for the tutor (full data only) */
   notes?: Record<string, string[]>;
   [extra: string]: unknown;

@@ -1,6 +1,7 @@
-// Categories: an example is shown; the learner ticks the categories it is in (or answers yes or no for each), then picks the most specific. The examples are invented
-// (a plain and a second-level one for every term of the open data) and served by a stand-in for the server (tests/support/data-key.js); the exercise is in the menu only on
-// a device that holds examples. The page's own state is read through the test hook (tests/e2e/pwa/*.spec.js), so every path can be driven with answers known to be right or wrong.
+// Categories: a thing is shown; the learner ticks the categories it is in (or answers yes or no for each), then picks the most specific. The things are the practice items of
+// the stages that are on and, where the device holds them, reference examples: here invented ones (a plain and a second-level one for every term of the open data, at stages
+// 6 and 7) served by a stand-in for the server (tests/support/data-key.js). The specs' devices are not new (the fixture stores a setting), so they start with stages 1 to 6.
+// The page's own state is read through the test hook (tests/e2e/pwa/*.spec.js), so every path can be driven with answers known to be right or wrong.
 import { test, expect } from "../../support/test.js";
 import { goTo, openMenu, overflow, ready } from "../../support/page.js";
 import { dataKey, KEY_STORE, serveCourse } from "../../support/data-key.js";
@@ -26,6 +27,12 @@ const open = async (page) => {
   await expect.poll(() => page.evaluate(() => !!window.__t.EX)).toBe(true);
   await goTo(page, "Categories");
   await expect(page.locator(".catcard")).toBeVisible();
+};
+// the stages on this device, from a reload on (the page reads them at the start)
+const atStages = async (page, v) => {
+  await page.evaluate((x) => localStorage.setItem("rd-stages", x), v);
+  await page.reload();
+  await expect(page.locator(".catcard")).toBeVisible(); // the app opens on the exercise used last
 };
 const rows = (page) => page.evaluate(() => window.__t.cur.q.rows.map((r) => ({ cat: r.cat, phrase: r.phrase, answer: r.answer })));
 const thing = (page) => page.evaluate(() => window.__t.cur.q.thing.n);
@@ -57,18 +64,21 @@ const finish = async (page, right = true) => {
 
 test.beforeEach(async ({ page }) => { await page.addInitScript(hook); });
 
-test("Categories is in the menu only on a device that holds examples", async ({ page }) => {
+test("Categories is in the menu also on a device without the reference examples, and asks about the practice items", async ({ page }) => {
   await page.goto("/");
   await ready(page);
   await openMenu(page);
-  await expect(page.locator('#menu [data-go="practice"]')).toBeVisible();
-  await expect(page.locator('#menu [data-go="categories"]')).toHaveCount(0);
+  await expect(page.locator('#menu [data-go="categories"]')).toBeVisible();
+  await page.locator('#menu [data-go="categories"]').click();
+  await expect(page.locator(".catcard")).toBeVisible();
+  expect(await page.evaluate(() => !!window.__t.cur.q.thing.item)).toBe(true);
+  await expect(page.locator(".catm")).toContainText(/^stage \d$/);
 });
 
 test("a thing is shown with its categories as buttons; Check waits for a tick or None of these", async ({ page }) => {
   await open(page);
   await expect(page.locator(".catn")).toHaveText(await thing(page));
-  await expect(page.locator(".catm")).toContainText("level 1");
+  await expect(page.locator(".catm")).toContainText(/^stage \d/);
   const rs = await rows(page);
   await expect(page.locator(".catick")).toHaveCount(rs.length + 1);
   await expect(page.locator(".catask")).toHaveText("Which of these is it? Tick everything it is.");
@@ -207,6 +217,7 @@ test("a finished thing is kept as an answer of its own kind, and Skip keeps noth
   expect(doc.mode).toBe("categories");
   expect(doc.thing).toBe(await thing(page));
   expect(doc.level).toBe(1);
+  expect(doc.stage).toBe(await page.evaluate(() => window.__t.cur.q.thing.st));
   expect(doc.grade).toBe("ok");
   expect(doc.rows.length).toBeGreaterThan(2);
 });
@@ -224,30 +235,32 @@ test("Skip asks first once something is ticked, and an example set aside is not 
   expect(await saved(page)).toEqual([]);
 });
 
-test("after five right in a row the next level is offered with a tap, and Not now leaves things as they are", async ({ page }) => {
+test("after five right in a row the next stage is offered with a tap, and Not now leaves things as they are", async ({ page }) => {
   await open(page);
+  await atStages(page, "1");
   const finishThing = async () => { await tickAnswer(page); await finish(page); };
   for (let i = 0; i < 4; i++) { await finishThing(); await expect(page.locator(".catoffer")).toHaveCount(0); await page.keyboard.press("n"); }
   await finishThing();
   await expect(page.locator(".catoffer")).toBeVisible();
-  await expect(page.locator(".catoq")).toContainText("Level 1 is going well. Add level 2");
+  await expect(page.locator(".catoq")).toContainText("Stage 1 is going well. Add stage 2");
   await page.getByRole("button", { name: "Not now" }).click();
   await expect(page.locator(".catoffer")).toHaveCount(0);
   expect(await page.evaluate(() => document.activeElement === document.body), "the focus does not fall to the page").toBe(false);
-  await expect(page.locator('[role="status"].catnote')).toContainText("Level 1 stays as it is");
-  expect(await page.evaluate(() => localStorage.getItem("rd-exlevels"))).toBeNull();
-  // another five, and this time a tap adds the level
+  await expect(page.locator('[role="status"].catnote')).toContainText("Stage 1 stays the highest");
+  expect(await page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("1");
+  // another five, and this time a tap adds the stage, for every exercise
   await page.keyboard.press("n");
   for (let i = 0; i < 4; i++) { await finishThing(); await page.keyboard.press("n"); }
   await finishThing();
-  await page.getByRole("button", { name: "Add level 2" }).click();
-  await expect(page.locator('[role="status"].catnote')).toContainText("Level 2 is on now");
-  expect(await page.evaluate(() => localStorage.getItem("rd-exlevels"))).toBe("1,2");
+  await page.getByRole("button", { name: "Add stage 2" }).click();
+  await expect(page.locator('[role="status"].catnote')).toContainText("Stage 2, what you see, is on now in every exercise");
+  expect(await page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("1,2");
   expect(await page.evaluate(() => document.activeElement === document.body), "the focus does not fall to the page").toBe(false);
 });
 
 test("an offer passed over with Next counts as Not now: it asks again after another five", async ({ page }) => {
   await open(page);
+  await atStages(page, "1");
   const finishThing = async () => { await tickAnswer(page); await finish(page); };
   for (let i = 0; i < 4; i++) { await finishThing(); await page.keyboard.press("n"); }
   await finishThing();
@@ -271,27 +284,25 @@ test("where the tutor is on, the panel of recent answers opened in Categories st
   await expect(page.locator("#coach")).toBeVisible();
 });
 
-test("four wrong in a row at the top level suggest switching it off; the practice options show the levels and the way to ask", async ({ page }) => {
+test("four wrong in a row at the top stage suggest switching it off; the practice options show the stages and the way to ask", async ({ page }) => {
   await open(page);
-  await page.evaluate(() => localStorage.setItem("rd-exlevels", "1,2"));
-  await page.reload();
-  await expect(page.locator(".catcard")).toBeVisible(); // the app opens on the exercise used last
+  await atStages(page, "1,2");
   await page.getByRole("button", { name: "Practice options" }).click();
-  await expect(page.locator(".ocard").filter({ hasText: "Examples" })).toContainText("Levels 1, 2");
+  await expect(page.locator(".ocard").filter({ hasText: "Stages" })).toContainText("Stages 1–2");
   await expect(page.locator(".seg").getByRole("button", { name: "All at once" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator(".ocard").filter({ hasText: "Notation" })).toHaveCount(0); // nothing about pairs
   await page.locator("#over .oc").click();
   let wrong = 0;
   for (let i = 0; i < 80 && !(await page.locator(".catoffer").count()); i++) {
-    const level = await page.evaluate(() => window.__t.cur.q.thing.lv);
+    const stage = await page.evaluate(() => window.__t.cur.q.thing.st);
     await page.locator(".catick.dashed").click(); // "None of these" is wrong for every thing that is in a category
     await fwd(page).click();
     await finish(page, false);
-    if (level === 2) wrong++;
+    if (stage === 2) wrong++;
     if (!(await page.locator(".catoffer").count())) await page.keyboard.press("n");
   }
   expect(wrong).toBeLessThanOrEqual(8);
-  await expect(page.locator(".catoq")).toContainText("Level 2 is hard going right now");
-  await page.getByRole("button", { name: "Switch off level 2" }).click();
-  expect(await page.evaluate(() => localStorage.getItem("rd-exlevels"))).toBe("1");
+  await expect(page.locator(".catoq")).toContainText("Stage 2 is hard going right now");
+  await page.getByRole("button", { name: "Switch off stage 2" }).click();
+  expect(await page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("1");
 });
