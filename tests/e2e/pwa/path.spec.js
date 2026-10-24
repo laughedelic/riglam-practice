@@ -265,11 +265,11 @@ test("the thread runs on through what voice shows above the foot (Hear the quest
   expect(pulled.content, "the pull's thread crosses the bar").not.toBe("none");
   expect(pulled.bg).toContain("repeating-linear-gradient");
   await expect(page.locator(".pa")).not.toHaveClass(/\bpull/);
-  // ready to check: the gold thread runs through it, as it runs into the foot
+  // ready to check: the gray thread runs through it, as it runs into the foot
   await answer(page);
   const ready = await line("::before");
   expect(ready.content).not.toBe("none");
-  expect(ready.bg, "gold, as the foot's stub").toContain(await page.locator("#path .foot").evaluate((e) => getComputedStyle(e, "::before").backgroundColor));
+  expect(ready.bg, "gray, as the foot's stub").toContain(await page.locator("#path .foot").evaluate((e) => getComputedStyle(e, "::before").backgroundColor));
 });
 
 test("the strip pulls from its heading with a short pull, and its hint is gray", async ({ page }) => {
@@ -816,6 +816,25 @@ test("the line's steps are smooth: a segment after a thicker one narrows into it
   expect(tail.mask, "and fades out").toContain("linear-gradient");
   const first = await line("#path .sx.first");
   expect(first.clip, "the first segment widens from the top bar's stub").toContain("polygon");
+});
+
+test("the stub into the station is gray and fades upward from it: dotted while the station is not ready, solid once it is, ink at the result", async ({ page }) => {
+  await start(page);
+  const stub = () => page.locator("#path .foot").evaluate((e) => { const c = getComputedStyle(e, "::before"); return { bg: c.backgroundImage, color: c.backgroundColor, mask: c.maskImage || c.webkitMaskImage }; });
+  const color = (v) => page.locator(".pa").evaluate((e, name) => { const i = document.createElement("i"); i.style.color = "var(" + name + ")"; e.append(i); const c = getComputedStyle(i).color; i.remove(); return c; }, v);
+  const pre = await stub();
+  expect(pre.bg, "dotted").toContain("repeating-linear-gradient");
+  expect(pre.mask, "fading upward from the station: clear at the top, whole at the foot").toMatch(/^linear-gradient\(rgba\(0, 0, 0, 0\)/);
+  await answer(page);
+  const ready = await stub();
+  expect(ready.bg, "solid").toBe("none");
+  expect(ready.color, "gray, no longer gold").toBe(await color("--ink3"));
+  expect(ready.mask, "still fading upward").toMatch(/^linear-gradient\(rgba\(0, 0, 0, 0\)/);
+  await page.locator("#stn").click();
+  await expect(page.locator("#path .pvline")).toBeVisible();
+  const done = await stub();
+  expect(done.color, "ink at the result").toBe(await color("--ink"));
+  expect(done.mask, "no fade").toBe("none");
 });
 
 test("a picked relation's figure sits on the row's tint, with no box around it", async ({ page }) => {

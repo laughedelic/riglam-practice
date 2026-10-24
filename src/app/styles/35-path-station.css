@@ -51,15 +51,16 @@
 .pa .foot{flex:none; position:relative; z-index:6; background-color:var(--paper); display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; padding:12px 10px 16px 0; border-top:1px solid var(--rule); min-height:78px}
 .pa .foot::before{content:""; position:absolute; left:calc(var(--m) - var(--lw) / 2); top:0; height:max(0px, calc(26px - var(--lift, 0px))); width:var(--lw); background:var(--ahead-bg); opacity:.9; transition:height .28s cubic-bezier(.2,.9,.3,1.3)}
 .pa.pulling .foot::before{transition:none}
-.pa.edge-fade .foot::before{background:linear-gradient(to top,var(--ink3),transparent)}
-.pa.ready .foot::before{background:var(--gold); width:var(--lh); left:calc(var(--m) - var(--lh) / 2); opacity:1}
-.pa.done .foot::before{background:var(--ink); opacity:.72}
+/* the stub into the station is the path ahead, gray: dotted while the station is not ready, solid once it is, and fading upward from the station like the trail above fades downward */
+.pa.edge-fade .foot::before{background:repeating-linear-gradient(to bottom,var(--ink3) 0 3px,transparent 3px 8px); -webkit-mask-image:linear-gradient(to top,#000,transparent); mask-image:linear-gradient(to top,#000,transparent)}
+.pa.ready .foot::before{background:var(--ink3); opacity:.9}
+.pa.done .foot::before,.pa.edge-fade.done .foot::before{background:var(--ink); opacity:.72; -webkit-mask-image:none; mask-image:none}
 .pa .foot.nostation::before{display:none}
 /* what voice heard (and Hear the question) sits between the path and the foot: the thread runs on through it, as it is between them */
 .pa .pbr.pvoice{position:relative}
 .pa .pbr.pvoice::before{content:""; position:absolute; top:0; bottom:0; left:calc(var(--m) - var(--lw) / 2); width:var(--lw); background:var(--ahead-bg); opacity:.9; pointer-events:none}
 .pa.edge-fade .pbr.pvoice::before{opacity:0}
-.pa.ready .pbr.pvoice::before{background:var(--gold); width:var(--lh); left:calc(var(--m) - var(--lh) / 2); opacity:1}
+.pa.ready .pbr.pvoice::before{background:var(--ink3); opacity:.9}
 .pa.done .pbr.pvoice::before{background:var(--ink); opacity:.72}
 .pa .stn{display:grid; grid-template-columns:var(--m) minmax(0,1fr); align-items:center; touch-action:none; user-select:none; -webkit-user-select:none; text-align:left; transition:transform .28s cubic-bezier(.2,.9,.3,1.3); position:relative; z-index:2; min-width:0}
 .pa .stn.dragging{transition:none}
@@ -93,7 +94,6 @@
 .pa.pulling .sx.ptail::after,.pa.pulling .pbr.pvoice::after,.pa.pulling .foot::after{content:""; position:absolute; left:calc(var(--m) - var(--lw) / 2); width:var(--lw); background:var(--ink2); opacity:var(--pull,0); pointer-events:none}
 .pa.pulling .sx.ptail::after,.pa.pulling .pbr.pvoice::after{top:0; bottom:0}
 .pa.pulling .foot::after{top:0; height:max(0px, calc(26px - var(--lift, 0px)))}
-.pa.pulling.ready .sx.ptail::after,.pa.pulling.ready .pbr.pvoice::after,.pa.pulling.ready .foot::after{background:var(--gold); width:var(--lh); left:calc(var(--m) - var(--lh) / 2)}
 .pa.pulling.done .sx.ptail::after,.pa.pulling.done .pbr.pvoice::after,.pa.pulling.done .foot::after{background:var(--ink)}
 /* before the way is chosen (a station not ready) the thread ahead stays dotted: the pull fills the dotted fade in, all the way down to the station, its dots
    in step with the stub in the foot (counted from the bottom), and does not firm it */
