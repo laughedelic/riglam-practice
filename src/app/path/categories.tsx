@@ -8,14 +8,13 @@ import { CONFIRMATION } from "../practice/terms.js";
 import { LEVEL_INFO } from "../core/examples.js";
 import { acceptOffer, advanceCategories, checkCategories, continueCategories, declineOffer, pickCategory, sayCategory, tickCategory, tickNone } from "../categories/flow.js";
 import { next } from "../practice/queue.js";
-import { skipPair } from "../practice/skips.js";
 import { toggleOpts } from "../shell/options.js";
 import { openLevelOptions } from "../shell/session.js";
 import type { PlaceGraded, PlaceNarrow, PlaceQuestion, PlaceRow } from "../../domain/place.ts";
 import { refreshPath } from "./index.tsx";
-import { Choices, ErrLines, Verdict, pickThen, u0 } from "./parts.tsx";
+import { Choices, ErrLines, SkipMark, Verdict, pickThen, u0 } from "./parts.tsx";
 import { Scroll } from "./scroll.tsx";
-import { Foot, PreStation, SideStation, Station, TopBar } from "./shell.tsx";
+import { Foot, PreStation, SkipSide, Station, TopBar } from "./shell.tsx";
 import { D, Gap, Head, Mark, St, Sx } from "./ui.tsx";
 
 const q = () => state.cur!.q as PlaceQuestion;
@@ -74,11 +73,11 @@ function TickStep() {
   const items = [...t.rows.map((r, i) => ({ k: r.cat, b: r.phrase, pressed: u.ticked.includes(r.cat), key: String(i + 1) })), { k: "", b: "None of these", s: "it is in none of them", pressed: !!u.none, key: "0" }];
   return <>
     <Scroll>
-      <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Categories" sub="which of these is it?" /><Gap h={6} /><Thing /><p class="help chelp">Tick everything it is.</p><Gap h={4} /></Sx>
+      <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Categories" sub="which of these is it?" aside={<SkipMark />} /><Gap h={6} /><Thing /><p class="help chelp">Tick everything it is.</p><Gap h={4} /></Sx>
       <Choices label="Categories the thing is in" multi items={items} onPick={(k) => (k ? tickCategory(k) : tickNone())} />
       <Sx cls="ptail" />
     </Scroll>
-    <Foot aux={<SideStation kind="skip" act={skipPair} />}>
+    <Foot aux={<SkipSide />}>
       {n || u.none ? <Station name="Check" hint={u.none ? "none of these" : n === 1 ? "one category ticked" : n + " categories ticked"} act={checkCategories} /> : <PreStation name="Check" hint="tick what it is first" />}
     </Foot>
   </>;
@@ -87,7 +86,7 @@ function OneStep() {
   const u = u0(), t = q(), row = t.rows[u.i];
   return <>
     <Scroll>
-      <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Categories" sub={(u.i + 1) + " of " + t.rows.length + " · is it?"} /><Gap h={6} /><Thing />
+      <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Categories" sub={(u.i + 1) + " of " + t.rows.length + " · is it?"} aside={<SkipMark />} /><Gap h={6} /><Thing />
         {t.rows.slice(0, u.i).map((r) => { const said = !!u.said[r.cat], ok = said === r.answer;
           return <St d={<D cls={"sub " + (ok ? "ok" : "no")} />} cls={"sb exr catrow" + (ok ? "" : " wrong")}><div class="line1"><b class="catp">{r.phrase}</b><span class="ctag">{said ? "yes" : "no"}</span><Mark m={ok ? "ok" : "no"} /></div>
             {ok ? null : <p class="xnote">{because(r)}</p>}</St>; })}
@@ -96,7 +95,7 @@ function OneStep() {
       {u.i < t.rows.length - 1 ? <Sx cls="walked later"><St d={<D cls="sub" />} cls="sb later"><span class="lab">{t.rows.length - u.i - 1} more</span></St></Sx> : null}
       <Sx cls="ptail" />
     </Scroll>
-    <Foot aux={<SideStation kind="skip" act={skipPair} />}><PreStation name="Check" hint="answer each one" /></Foot>
+    <Foot aux={<SkipSide />}><PreStation name="Check" hint="answer each one" /></Foot>
   </>;
 }
 /** Step 1 checked: the verdict on it, the two groups, and the way on (step 2, or the next thing when step 2 is not asked). */
@@ -123,11 +122,11 @@ function NarrowStep() {
   return <>
     <Scroll>
       <Sx cls="walked first"><Gap h={14} /><Head d={<D cls="sec done" />} h="1 Categories" sub={g.ok ? "all right" : g.right + " of " + g.rows.length + " right"} /><Gap h={6} /><Thing /><Gap h={8} /></Sx>
-      <Sx cls="cur"><Head d={<D cls="sec now" />} h="2 Most specific" sub="which is the narrowest?" /><Gap h={4} /></Sx>
+      <Sx cls="cur"><Head d={<D cls="sec now" />} h="2 Most specific" sub="which is the narrowest?" aside={<SkipMark />} /><Gap h={4} /></Sx>
       <Choices label="The most specific category" slide items={n.options.map((r, i) => ({ k: r.cat, b: r.phrase, key: String(i + 1) }))} picked={u.pk} onPick={(k) => pickThen(k, () => pickCategory(k))} />
       <Sx cls="ptail" />
     </Scroll>
-    <Foot aux={<SideStation kind="skip" act={skipPair} />}><PreStation name="Result" hint="pick the most specific" /></Foot>
+    <Foot aux={<SkipSide />}><PreStation name="Result" hint="pick the most specific" /></Foot>
   </>;
 }
 

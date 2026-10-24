@@ -4,14 +4,13 @@
 import type { ComponentChildren } from "preact";
 import { state } from "../state.js";
 import { next } from "../practice/queue.js";
-import { skipPair } from "../practice/skips.js";
 import { backSyllogism, exampleSyllogism, keyOfReply, saySyllogism, shownSyllogism } from "../syllogism/flow.js";
 import { REPLIES, syllogismPieces } from "../../domain/syllogism.ts";
 import type { Reply, Syllogism } from "../../domain/syllogism.ts";
 import { refreshPath } from "./index.tsx";
-import { Choices, ErrLines, Star, Verdict, WhyRow, pickThen, u0 } from "./parts.tsx";
+import { Choices, ErrLines, SkipMark, Star, marksCls, Verdict, WhyRow, pickThen, u0 } from "./parts.tsx";
 import { Scroll } from "./scroll.tsx";
-import { Foot, PreStation, SideStation, Station, TopBar } from "./shell.tsx";
+import { Foot, PreStation, SkipSide, Station, TopBar } from "./shell.tsx";
 import { D, Gap, Head, Mark, St, Sx, nofillInput } from "./ui.tsx";
 
 /** The replies as the choices say them, what each says in a few words, and (with "Show the structure") what each means in S, P and R. */
@@ -41,7 +40,7 @@ function lines(c: Syllogism): Record<Part, string> {
 function Statement({ star = true }: { star?: boolean }) {
   const l = lines(shownSyllogism());
   return <>
-    <St d={<span class="ab">S</span>} cls={"stm" + (star && state.db ? " hasstar" : "")}>{star ? <Star /> : null}<span class="cs" lang="en">{l.subject}</span></St>
+    <St d={<span class="ab">S</span>} cls={"stm" + (star ? marksCls() : "")}>{star ? <><Star /><SkipMark /></> : null}<span class="cs" lang="en">{l.subject}</span></St>
     <St d={<span class="ab">P</span>} cls="stm"><span class="cs" lang="en">{l.predicate}</span></St>
     <St d={<span class="ab">R</span>} cls="stm"><span class="cs" lang="en">{l.reason}</span></St>
     <p class="plegend">S subject · P predicate · R reason</p>
@@ -58,7 +57,7 @@ function AnswerStep() {
       <Choices label="Your reply" slide items={items} picked={u.pk} onPick={(k) => pickThen(k, () => saySyllogism(k))} />
       <Sx cls="ptail" />
     </Scroll>
-    <Foot aux={<SideStation kind="skip" act={skipPair} />}><PreStation name="Result" hint="pick an answer first" /></Foot>
+    <Foot aux={<SkipSide />}><PreStation name="Result" hint="pick an answer first" /></Foot>
   </>;
 }
 /** After a right "there is no pervasion": a thing that is the reason and is not the predicate; left empty, the result comes without one. */
