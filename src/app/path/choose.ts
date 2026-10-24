@@ -36,7 +36,13 @@ export function stages(travel: number, rise: number, row: boolean): Stage[] {
 }
 
 const get = (g: HTMLElement, n: string) => parseFloat(g.style.getPropertyValue("--" + n)) || 0;
-const put = (g: HTMLElement, n: string, v: number) => g.style.setProperty("--" + n, v.toFixed(4));
+/** The trail ahead under the choices (the tail section): it goes solid as the trace below the mark does, so it takes that stage as `--tx` (the thread turning solid for two
+ *  options on a row, the rise in a list). */
+const tailOf = (g: HTMLElement) => { const t = g.nextElementSibling; return t instanceof HTMLElement && t.classList.contains("ptail") ? t : null; };
+const put = (g: HTMLElement, n: string, v: number) => {
+  g.style.setProperty("--" + n, v.toFixed(4));
+  if (n === (g.dataset.fx === "row" ? "g" : "r")) { const t = tailOf(g); if (t) t.style.setProperty("--tx", v.toFixed(4)); }
+};
 const frames = new WeakMap<HTMLElement, number>();
 const STAGES = ["s", "f", "g", "n", "r"];
 const reduced = () => { try { return matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; } };
@@ -49,6 +55,7 @@ export function clearChoice(g: HTMLElement | null): void {
   cancelAnimationFrame(frames.get(g) || 0); frames.delete(g);
   delete g.dataset.fx; delete g.dataset.snap; delete g.dataset.run;
   for (const n of [...STAGES, "ox", "ry", "yp"]) g.style.removeProperty("--" + n);
+  tailOf(g)?.style.removeProperty("--tx");
   g.querySelectorAll<HTMLElement>(".crow[data-pk]").forEach((r) => delete r.dataset.pk);
 }
 /** The row is the one being taken: measures how far its mark is from the line (`--ox`), from the first row's mark (`--ry`) and from the top of the section (`--yp`). */

@@ -117,12 +117,18 @@ export function ExamplesStep({ kb, title, step, rel, full, check, scan }: { kb: 
     return <button type="button" class="sbb later" onMouseDown={(e) => e.preventDefault()} onClick={() => openCase(i)} aria-label={CASE[c] + ": not written yet. Write it now"}>
       <St d={<D cls="sub" />} cls="sb later"><span class="lab">{CASE[c]}</span><p class="qq">{caseQ(c, p)}</p></St></button>;
   });
+  // each case draws the piece of line from its own diamond to the next one: yellow and solid where the case is written, yellow and dotted where it is not (the path
+  // ahead is blocked by it); the trail ahead is dotted until every case is written, then solid and gray (34-path-line.css). The classes say what the piece needs:
+  // the case's own state (`kw` written, `ko` open, `kl` later) and the next one's (`nxkw`, `nxko`, `nxkl`), for where the keyboard layout puts the diamonds.
+  const kinds = k.order.map((c, i) => (i === k.ci ? "ko" : filled(c) ? "kw" : "kl")), last = k.order.length - 1;
+  const lined = rows.map((row, i) => <Sx cls={"er " + (filled(k.order[i]) ? "cur " : "gap ") + kinds[i] + (i < last ? " nx" + kinds[i + 1] : " last")}>{row}{i === last ? <Gap h={6} /> : null}</Sx>);
   return <>
     <KHead rel={rel} title={title} /><Strip rel={rel} full={full} />
     <Scroll dim={!!u.pstrip}>
-      <Sx cls="cur first"><div class="ksp" style={{ height: "16px" }} /><Head d={<D cls="sec now" />} h={step + " Examples"} sub={k.order.length === 1 ? "one case" : "one for each case"} />{rows}<Gap h={6} /></Sx>
+      <Sx cls={"cur first eh nx" + kinds[0]}><div class="ksp" style={{ height: "16px" }} /><Head d={<D cls="sec now" />} h={step + " Examples"} sub={k.order.length === 1 ? "one case" : "one for each case"} /></Sx>
+      {lined}
       {node ? <Sx cls="cnode"><Station name="Check" hint={checkHint} act={takeCheck} scan={scan} keep /></Sx> : null}
-      <Sx cls="ptail" />
+      <Sx cls="ptail xtail" />
     </Scroll>
     <VoiceBar />
     {kb ? null : <Foot aux={k.ready ? null : <SkipSide />}>

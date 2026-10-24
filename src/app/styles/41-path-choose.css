@@ -14,14 +14,19 @@
 .pa .chs.row2 .crow .mc .d{margin-right:0}
 .pa .chs.row2 .crow .ct{padding:0 0 0 17px}
 
-/* the thread: solid gold from the top of the gap down to the mark (--yc, where the mark is now), the dotted trace below it in gray */
+/* the thread: solid gold from the top of the gap down to the mark (--yc, where the mark is now), and on through the mark in gray, solid too: the choice is made, so the path
+   goes on (the trail ahead below the section turns solid gray with it: --tx, set on it by choose.ts) */
 .pa .sx.gap .thr,.pa .sx.gap .thr2{display:none; position:absolute; top:0; left:calc(var(--m) - var(--lh) / 2); width:var(--lh); pointer-events:none}
 .pa .sx.gap[data-fx]{--yc:calc(var(--yp) + var(--ry) * var(--r))}
 .pa .sx.gap[data-fx] .thr{display:block; height:calc(var(--yc) * var(--g)); background:var(--gold)}
-.pa .sx.gap[data-fx] .thr2{display:block; bottom:0; background:repeating-linear-gradient(to bottom,var(--ink3) 0 3px,transparent 3px 8px); opacity:calc(.9 * var(--r))}
+.pa .sx.gap[data-fx] .thr2{display:block; top:var(--yc); bottom:0; background:var(--ink3); opacity:calc(.9 * var(--r))}
 .pa .sx.gap[data-fx]::before{opacity:calc(1 - var(--r))}
 .pa .sx.gap[data-fx="row"]::before{opacity:calc(1 - var(--g))}
 .pa .sx.gap[data-fx="row"] .thr2{opacity:calc(.9 * var(--g))}
+.pa .sx.gap[data-fx] + .sx.ptail::before{opacity:calc(.9 * (1 - var(--tx,0)))}
+.pa .sx.gap[data-fx] + .sx.ptail::after{content:""; position:absolute; top:0; bottom:0; left:calc(var(--m) - max(var(--w),var(--pw)) / 2); width:max(var(--w),var(--pw)); background:var(--ink3); opacity:calc(.9 * var(--tx,0)); pointer-events:none;
+  clip-path:polygon(calc(50% - var(--pw) / 2) 0, calc(50% + var(--pw) / 2) 0, calc(50% + var(--w) / 2) min(var(--smw,34px),100%), calc(50% + var(--w) / 2) 100%, calc(50% - var(--w) / 2) 100%, calc(50% - var(--w) / 2) min(var(--smw,34px),100%))}
+.pa.edge-fade .sx.gap[data-fx] + .sx.ptail::after{background:linear-gradient(to bottom,var(--ink3),transparent 65%)}
 
 /* the rows while one is taken: the others fade, the one taken moves (left to the line, then up) with the words */
 .pa .sx.gap[data-fx] .chs .crow{background-color:transparent; opacity:1; transition:none}
