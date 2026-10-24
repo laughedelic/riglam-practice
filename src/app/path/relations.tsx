@@ -6,10 +6,14 @@ import { state } from "../state.js";
 import { CELLS, ORDER, REL, notaOf } from "../core/rel.js";
 import { check } from "../practice/grading.js";
 import { next } from "../practice/queue.js";
-import { choose, explainParts, learnedThing, nextFwd } from "../practice/screen.js";
+import { choose, explainParts, fillable, learnedThing, nextFwd } from "../practice/screen.js";
 import { render } from "../shell/render.js";
 import { CELL_NAME } from "../../ai-shared/prompts.ts";
 import type { CellId, RelKey } from "../../ai-shared/relations.ts";
+import { grade } from "../../domain/grading.ts";
+import type { GradeResult } from "../../domain/types.ts";
+import type { DataIndex } from "../../ai-shared/lookup.ts";
+import type { ScanPlan, Verdict3 } from "./scan.tsx";
 import { ExamplesStep, StripPair, examplesReady } from "./examples.tsx";
 import { CASE, Choices, ErrLines, PairResult, PairStops, Thinking, TutorNote, Verdict, WhyRow, isa, pairOf, pickThen, u0 } from "./parts.tsx";
 import { FlagBtn, FlagEditor, explainCase } from "./flags.tsx";
@@ -80,13 +84,27 @@ export function Row({ c, rel }: { c: CellId; rel: RelKey }) {
 export const resultRows = (rel: RelKey) => CELLS.filter((c) => !REL[rel].empty.includes(c) || u0().res.cells[c].v === "bad") as CellId[];
 export const isOpen = (c: CellId) => { const v = u0().res.cells[c].v; return v === "cmp" || v === "open"; };
 export const cases = (n: number) => (n === 1 ? "one case" : n + " cases");
-function ResultStep() {
-  const u = u0(), p = pairOf(), r = u.res, rel = relOf();
-  const rows = resultRows(rel), unc = rows.filter(isOpen).length, nbad = rows.filter((c) => r.cells[c].v === "bad").length, nex = rows.filter((c) => !REL[rel].empty.includes(c)).length;
+/** The verdict of a result `r` as the result's node says it: its color, its word and the line beside it. */
+function verdictOf(r: Pick<GradeResult, "cells" | "overall">, rel: RelKey): { v: Verdict3; word: string; sub: string; unc: number; nbad: number; rows: CellId[] } {
+  const u = u0(), cell = (c: CellId) => r.cells[c].v;
+  const rows = CELLS.filter((c) => !REL[rel].empty.includes(c) || cell(c as CellId) === "bad") as CellId[];
+  const unc = rows.filter((c) => cell(c) === "cmp" || cell(c) === "open").length, nbad = rows.filter((c) => cell(c) === "bad").length, nex = rows.filter((c) => !REL[rel].empty.includes(c)).length;
   const ov: string = r.overall, v = ov === "bad" ? "no" : ov === "part" ? "pt" : "ok";
   const word = ov === "pend" ? "Right so far" : ({ ok: "Right", part: "Partly right", bad: "Not quite" } as Record<string, string>)[ov] || "Not quite";
-  const vsub = (ov === "pend" ? unc + " unchecked" + (u.ctl ? " · the tutor is on it" : "") : ov === "ok" ? "your relation and " + (nex === 1 ? "one example" : nex + " examples")
+  const sub = (ov === "pend" ? unc + " unchecked" + (u.ctl ? " · the tutor is on it" : "") : ov === "ok" ? "your relation and " + (nex === 1 ? "one example" : nex + " examples")
     : ov === "part" ? cases(nbad) + " to look at" : u.late ? "time ran out on the relation" + (nbad ? "; " + cases(nbad) + " to look at" : "") : "the relation" + (nbad ? " and " + cases(nbad) : "")) + (u.exLate ? " · time ran out on the examples" : "");
+  return { v, word, sub, unc, nbad, rows };
+}
+/** What the scan of the Check marks on its way (scan.tsx): the verdict of each case written, in the order of the page, the relation's, and the result's. Graded as the
+ *  check will grade it (src/domain), before the check itself, which comes when the scan is over. */
+function scanPlan(): ScanPlan {
+  const u = u0(), r = grade(state as unknown as DataIndex, state.cur!.p, u), rel = relOf(), m = (c: CellId) => { const v = r.cells[c].v; return v === "ok" ? "ok" : v === "bad" ? "no" : "pt"; };
+  const { v, word, sub } = verdictOf(r, rel);
+  return { cases: (fillable() as CellId[]).map(m), rel: r.relOpen ? "pt" : r.relOk ? "ok" : "no", v, word, sub };
+}
+function ResultStep() {
+  const u = u0(), p = pairOf(), r = u.res, rel = relOf();
+  const { v, word, sub: vsub, unc, nbad, rows } = verdictOf(r as GradeResult, rel);
   return <>
     <Scroll>
       <PairResult mine={rel} ok={!!r.relOk} right={p.relation} none={u.late ? "no relation" : undefined} />
@@ -105,6 +123,6 @@ export function relationsScreen(kb: boolean): { cls: string; node: ComponentChil
   const u = u0(), step = u.checked ? 3 : !u.rel || u.open ? 1 : 2;
   const top = <TopBar title="Relations" tools mic />;
   if (step === 1) return { cls: "", node: <>{top}<PickStep kb={kb} /></> };
-  if (step === 2) return { cls: examplesReady() ? "ready" : "", node: <>{top}<ExamplesStep kb={kb} title="Relations" step={2} rel={relOf()} full={<Picked />} check={check} /></> };
+  if (step === 2) return { cls: examplesReady() ? "ready" : "", node: <>{top}<ExamplesStep kb={kb} title="Relations" step={2} rel={relOf()} full={<Picked />} check={check} scan={scanPlan} /></> };
   return { cls: "done", node: <>{top}<ResultStep /></> };
 }
