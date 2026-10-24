@@ -7,7 +7,6 @@ import { CELLS, ORDER, REL, notaOf } from "../core/rel.js";
 import { check } from "../practice/grading.js";
 import { NEG_NOTE, acceptNegOffer, declineNegOffer, negOfferText, type NegOffer as Offer } from "../practice/negations.ts";
 import { next } from "../practice/queue.js";
-import { pairAsked } from "../practice/terms.js";
 import { choose, explainParts, fillable, learnedThing, nextFwd } from "../practice/screen.js";
 import { render } from "../shell/render.js";
 import { CELL_NAME } from "../../ai-shared/prompts.ts";
@@ -22,7 +21,6 @@ import { FlagBtn, FlagEditor, explainCase } from "./flags.tsx";
 import { Scroll } from "./scroll.tsx";
 import { Foot, PreStation, SkipSide, Station, TopBar, VoiceBar } from "./shell.tsx";
 import { Subjects, markNames } from "./subjects.tsx";
-import { NewTerms } from "./terms.tsx";
 import { D, Fig, Gap, Head, Mark, St, Sx } from "./ui.tsx";
 
 /** the relation picked (the steps after the first have one) */
@@ -43,8 +41,7 @@ function PickStep({ kb }: { kb: boolean }) {
   return <>
     <Scroll>
       {retry ? <p class="retry">{(state.cur!.tag || "Retry") + (state.retryQ.length ? " · " + state.retryQ.length + " more" : "")}</p> : null}
-      <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Relation" sub="how do A and B relate?" /><Gap h={4} /><PairStops p={p} /><Gap h={8} /></Sx>
-      <NewTerms asked={pairAsked(p)} />
+      <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Relation" sub="how do A and B relate?" /><Gap h={4} /><PairStops p={p} tags /><Gap h={8} /></Sx>
       <Choices label="Relation" slide items={relChoices(p, u.rel || null)} picked={u.pk} onPick={pick} />
       <Sx cls="ptail" />
     </Scroll>
@@ -140,6 +137,6 @@ export function relationsScreen(kb: boolean): { cls: string; node: ComponentChil
   const u = u0(), step = u.checked ? 3 : !u.rel || u.open ? 1 : 2;
   const top = <TopBar title="Relations" tools mic />;
   if (step === 1) return { cls: "", node: <>{top}<PickStep kb={kb} /></> };
-  if (step === 2) return { cls: examplesReady() ? "ready" : "", node: <>{top}<ExamplesStep kb={kb} title="Relations" step={2} rel={relOf()} full={<><Picked /><NewTerms asked={pairAsked(pairOf())} /></>} check={check} scan={scanPlan} /></> };
+  if (step === 2) return { cls: examplesReady() ? "ready" : "", node: <>{top}<ExamplesStep kb={kb} title="Relations" step={2} rel={relOf()} full={<Picked />} check={check} scan={scanPlan} /></> };
   return { cls: "done", node: <>{top}<ResultStep /></> };
 }

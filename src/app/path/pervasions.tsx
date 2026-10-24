@@ -60,7 +60,7 @@ function QuestionStep({ kb }: { kb: boolean }) {
   return <>
     <Scroll>
       {retry ? <p class="retry">{(state.cur!.tag || "Retry") + (state.retryQ.length ? " · " + state.retryQ.length + " more" : "")}</p> : null}
-      <Sx cls="cur first tight"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Questions" sub={(i + 1) + " of 4 · " + (w.lead ? "do you accept it?" : "yes or no?")} /><Gap h={4} /><PairStops p={p} sm={i > 0} /><Gap h={4} />
+      <Sx cls="cur first tight"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Questions" sub={(i + 1) + " of 4 · " + (w.lead ? "do you accept it?" : "yes or no?")} /><Gap h={4} /><PairStops p={p} sm={i > 0} tags /><Gap h={4} />
         <Answered n={i} />
         <St d={<D cls="sub now" />} cls="sb now qnow"><QHead i={i} />{w.lead ? <span class="qlead">{w.lead}</span> : null}<p class="qst" lang="en"><Statement i={i} ask /></p>
           {u.pickWhy ? <>

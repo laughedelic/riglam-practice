@@ -36,12 +36,14 @@ button.tm-exb .tm-exn{text-decoration:underline dotted;text-underline-offset:3px
 button.tm-exb.on .tm-exn{text-decoration-style:solid}
 .tm-why{margin:2px 0 4px;padding-left:10px;border-left:2px solid var(--line);font:400 13px/1.5 var(--text-serif);color:var(--ink-muted)}
 /* a newly opened term shown with the question (stages 1 to 3): the question's own words for it lead the card of the course's term */
-.section.newdefs .newdef{display:grid;gap:6px}
-.section.newdefs .newfor{margin:0;font:400 15px/1.45 var(--text-serif)}
-.section.newdefs .newfor .L{margin-right:4px;vertical-align:.1em}
 /* a course term's stop before the next question (practice/stops.ts): the term's card, or without the Magic Key its name and where it sits */
 .termstop{display:grid;gap:14px}
 .termstop .tstop{display:grid;gap:6px}
 .termstop .tstop-n{margin:0;font:600 19px/1.35 var(--text-serif)}
 .termstop .tm-c,.termstop .tm-key{margin:0}
-.tm-lead{font:400 12px/1.4 var(--body);color:var(--ink-muted);font-weight:400}
+/* the tags of the course terms a question asks about that the learner is still meeting (practice/terms.js, termTagsNode): a tap opens the definition */
+.card .ntags{display:grid;gap:6px;margin:-4px 0 10px}
+.card .ntag-row{display:flex;flex-wrap:wrap;gap:4px 16px;margin:0}
+.card .ntag{display:inline-flex;align-items:baseline;gap:6px;font:600 11px/1.4 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-muted)}
+.card .ntag .L{vertical-align:.1em}
+.card .ntag .dterm{text-underline-offset:4px}
