@@ -122,7 +122,10 @@ export function judgeable(ix: DataIndex, a: string, b: string): boolean {
   return !((A.kind === "everyday" || B.kind === "everyday") && (A.sense || B.sense));
 }
 
-/** Every pair of categories worth drilling, with its relation, and every category that has two labels (a pair of its own labels). */
+/**
+ * Every pair of categories worth drilling, with its relation, and every Dudra category that has two labels (a pair of its own labels: two names
+ * of one term). An everyday category's labels are only other wordings ("kitchen things", "kitchenware"), so they make no pair: nothing is told apart.
+ */
 export function buildPool(ix: DataIndex): PoolEntry[] {
   const ids = Object.keys(ix.CAT), out: PoolEntry[] = [];
   for (let i = 0; i < ids.length; i++) {
@@ -133,7 +136,7 @@ export function buildPool(ix: DataIndex): PoolEntry[] {
       out.push({ a, b, r: r === "3ab" || r === "3ba" ? "3" : r });
     }
   }
-  for (const id of ids) if (ix.CAT[id].labels.length > 1) out.push({ a: id, b: id, r: "mi" });
+  for (const id of ids) if (ix.CAT[id].kind !== "everyday" && ix.CAT[id].labels.length > 1) out.push({ a: id, b: id, r: "mi" });
   return out;
 }
 
@@ -234,6 +237,9 @@ export const NEG_SHARE = 1 / 3;
 /** How much more likely a three-possibility pair is while the learner has just reached a stage (`fresh`). */
 const FRESH_THREE = 2.5;
 
+/** A relation with fewer pairs than this in reach is drawn in proportion to how many it has, so that its one or two pairs do not come back every few questions. */
+const THIN_RELATION = 8;
+
 /**
  * The pool entry for the next pair: the relation that has been seen least lately, then a pair of categories weighted by what the learner got
  * wrong. With `stages`, from the pairs those stages can draw, half the time (or `newShare`) one new at the highest stage when there are both kinds.
@@ -257,7 +263,10 @@ export function chooseEntry(ix: DataIndex, full: readonly PoolEntry[], st: DrawS
   // the relation least seen lately comes first, so the stream stays mixed
   const rw: Record<string, number> = { mi: 1, con: 1, "3": st.fresh ? 1.3 * FRESH_THREE : 1.3, "4": 1 };
   for (const r of last) if (r && Object.hasOwn(rw, r)) rw[r] = Math.max(0.15, rw[r] * 0.45); // an answer without a relation counts for none
-  const rels = Object.keys(rw).filter((r) => pool.some((c) => c.r === r)); // a relation the pool lacks cannot be drawn
+  const depth: Record<string, number> = Object.create(null);
+  for (const c of pool) depth[c.r] = (depth[c.r] || 0) + 1;
+  for (const r of Object.keys(rw)) rw[r] *= Math.min(1, (depth[r] || 0) / THIN_RELATION);
+  const rels = Object.keys(rw).filter((r) => depth[r]); // a relation the pool lacks cannot be drawn
   if (!rels.length) throw new Error("no pair to draw from");
   let tot = rels.reduce((s, r) => s + rw[r], 0), x = rng() * tot, R = rels[0];
   for (const r of rels) { if ((x -= rw[r]) <= 0) { R = r; break; } }
