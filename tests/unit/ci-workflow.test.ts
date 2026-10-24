@@ -1,6 +1,6 @@
 // The browser tests run as a matrix of CI jobs, each with its own `--project` and `--shard` arguments. A project that no job
 // names would silently stop running, and one named twice would run twice, so this reads the workflow and the Playwright
-// config and checks that every project is covered exactly once. It also checks the one status that branch protection needs.
+// config and checks that every project is covered exactly once. It also checks the two statuses that branch protection needs: `Lint, build, test` here and `Conventional PR title` in its own workflow.
 import { expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import { root } from "../../scripts/lib/course-files.mjs";
