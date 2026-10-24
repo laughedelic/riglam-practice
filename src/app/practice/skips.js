@@ -26,9 +26,9 @@ export const catKey=(a,b)=>"c_"+favSafe([a,b].sort().join("__"));
 export const skipCats=p=>[p.catA||catByLabel(p.a), p.catB||catByLabel(p.b)];
 // Find a pair keeps its skips in the same collection under keys of its own. The pair is the learner's words, which may name no category, and the same pair asked for
 // under another relation is another exercise, so the key is the relation asked for and the pair in the order given (A first). A short hash of the words stands for
-// them, because a key keeps only letters, digits and "_" and words in Russian or Tibetan would all become the same "_".
+// them, because a key keeps only letters, digits and "_" and words in Russian or Tibetan would all become the same "_". A negated side is another pair of the same categories.
 const wordHash=s=>{ let h=2166136261; for(const ch of s){ h^=ch.codePointAt(0); h=Math.imul(h,16777619)>>>0; } return h.toString(36); };
-export const findSkipKey=(p,rel)=>{ const [a,b]=skipCats(p), w=a&&b?a+"|"+b:norm(p.a)+"|"+norm(p.b); return "f_"+rel+"_"+wordHash(w)+"_"+favSafe(w).slice(0,40); };
+export const findSkipKey=(p,rel)=>{ const [a,b]=skipCats(p), w=a&&b?a+"|"+b+(p.neg?"|non-"+p.neg:""):norm(p.a)+"|"+norm(p.b); return "f_"+rel+"_"+wordHash(w)+"_"+favSafe(w).slice(0,40); };
 const skipKey=(p,rel)=>{ if(rel) return findSkipKey(p,rel); const [a,b]=skipCats(p); return a&&b?catKey(a,b):favKey(p); };
 export const isSkipped=p=>skipActive(state.skips[skipKey(p)]);
 export const hiddenKeys=()=>new Set(Object.values(state.skips).filter(skipActive).map(s=>s.key));

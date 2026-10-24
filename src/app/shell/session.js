@@ -9,6 +9,7 @@ import { WORDINGS } from "../debate/text.js";
 import { NOT } from "../../ai-shared/debate.ts";
 import { exName } from "./exercises.js";
 import { stageSwitches } from "./stages.js";
+import { saveProgress } from "../practice/progress.ts";
 import { toggleOpts } from "./options.js";
 import { isEx, render } from "./render.js";
 import { segOf, settingRow as row, switchOf } from "./rows.js";
@@ -37,7 +38,7 @@ export function setShow(key,on){ if(key==="ab") state.showAB=on; else state.full
 export function setAutoExplain(on){ state.autoExplain=on; store("rd-autoexplain",on?"1":"0"); render(); }
 export function setWording(k){ state.wording=k; store("rd-wording",k); render(); }
 export function setFindSuggest(on){ state.findSuggest=on; store("rd-findsuggest",on?"1":"0"); render(); }
-export function setNegation(k){ state.negation=k; store("rd-negation",k); render(); }
+export function setNegation(k){ state.negation=k; store("rd-negation",k); saveProgress(); render(); }
 export function setNegBrackets(on){ state.negBrackets=on; store("rd-neg-brackets",on?"1":"0"); render(); }
 export function setSyllogismWording(k){ state.syllogismWording=k; store("rd-syllogism-wording",k); render(); }
 export function setSyllogismGuide(on){ state.syllogismGuide=on; store("rd-syllogism-guide",on?"1":"0"); render(); }
@@ -46,14 +47,14 @@ export function setBlitzUse(on){ state.blitzUse=on; store("rd-blitzuse",on?"1":"
 
 export function toggleSess(on){
   const was=state.sessOpen; state.sessOpen=on===undefined?!was:on;
-  if(!state.sessOpen) state.sessPage=null;
+  if(!state.sessOpen){ state.sessPage=null; state.resetAsk=""; }
   if(state.sessOpen&&!was) stopTimer();
   else if(!state.sessOpen&&was&&state.blitz&&asking()) startQ();
   render();
   if(state.sessOpen){ const b=document.querySelector("#over .oc"); if(b) /** @type {HTMLElement} */(b).focus({preventScroll:true}); }
   else { const b=$("msess"); if(b.offsetParent) b.focus({preventScroll:true}); }
 }
-export function openPage(id){ state.sessPage=id; render(); const b=document.querySelector("#over .ob"); if(b) /** @type {HTMLElement} */(b).focus({preventScroll:true}); }
+export function openPage(id){ state.sessPage=id; state.resetAsk=""; render(); const b=document.querySelector("#over .ob"); if(b) /** @type {HTMLElement} */(b).focus({preventScroll:true}); }
 /** The Stages page of the practice options: where the stages are switched, and what an offer of another stage points to. */
 export function openStageOptions(){ if(!state.sessOpen) toggleSess(true); openPage("stages"); }
 /** The Blitz page of the practice options: what holding the stopwatch in the top bar opens. */
@@ -80,7 +81,7 @@ const sw=(label,word,on,toggle,note)=>el("div",{class:"orow"},switchOf(label,wor
 const chips=(label,rows,cur,on)=>segOf(label,rows,cur,on);
 const secs=kind=>Math.round(kindMs(kind)/1000);
 // the exercises that draw negated pairs, and so show the Negations choice with the stages
-const negates=()=>state.tab==="practice";
+const negates=()=>state.tab==="practice"||state.tab==="debate";
 const NEG_NAME={one:"one side",both:"both sides"};
 // the stages that are on, in a line: runs joined ("Stages 1–3, 5"), and the negations where they are drawn
 const stagesLine=()=>{
@@ -91,7 +92,7 @@ const stagesLine=()=>{
 const negBracketsRow=()=>sw("Brackets",state.negBrackets?"on":"off",state.negBrackets,()=>setNegBrackets(!state.negBrackets),
   "“non-(wooden things)” says that the “non-” takes in everything that is not a wooden thing, what does not exist included. Without the brackets, “non-wooden things” is also read as the things that are not wooden, which leaves out what does not exist. The course book writes them for more than one word; they help while negations are new. They apply from the next pair.");
 const negationRow=()=>row("Negations",chips("Negations",[["off","Off"],["one","One side"],["both","Both sides"]],state.negation,setNegation),
-  "Some pairs negate a term: “furniture” and “non-(wooden things)”, which takes in everything that is not a wooden thing. One side: A or B is negated in about a third of the pairs. Both sides: half of those negate both. A negation takes in what does not exist, so nothing may be neither: then the Neither case is empty, and you say that nothing exists there. Switch it on when the plain pairs come easily.");
+  "Some pairs negate a term: “furniture” and “non-(wooden things)”, which takes in everything that is not a wooden thing. One side: A or B is negated in about a third of the pairs. Both sides: half of those negate both. A negation takes in what does not exist, so nothing may be neither: then the Neither case is empty, and you say that nothing exists there. Relations and Pervasions share this choice; Find a pair takes a negation you name (“non-(wooden things)”) with it off too. Switch it on when the plain pairs come easily.");
 // the Blitz times in a line (the card says Off instead when Blitz is switched off)
 const timesLine=()=>el("small",{class:"sum1",text:state.tab==="syllogism"?"Syllogism "+secs("syl")+" s":"Relation "+secs("rel")+" s · Example "+secs("ex")+" s"});
 

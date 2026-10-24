@@ -40,12 +40,12 @@ export interface PairLike {
   note?: string;
   /** a pair the learner made up in the pair-finding mode that the practice data cannot judge: `relation` is only the one asked for, and `ex` and `why` are empty */
   own?: boolean;
-  /** a pair of the negation track: B (or A and B) is the negation of its category, "non-(wooden things)"; `catA` and `catB` stay the categories themselves */
+  /** a pair with a negated side: B, A or both are the negation of their category, "non-(wooden things)"; `catA` and `catB` stay the categories themselves */
   neg?: Neg;
 }
 
-/** Which side of a pair is negated: B alone, or A and B. */
-export type Neg = "b" | "ab";
+/** Which side of a pair is negated: B alone, A and B, or A alone (the negation track draws all three, and Find a pair takes them as named). */
+export type Neg = "b" | "ab" | "a";
 /**
  * Where a thing goes when a side is negated, by the cell it has in the plain pair: with B negated, what is both A and B is A but not non-B, and so on.
  * Each map is its own inverse, so it also takes a cell of the negated pair back to the plain pair's.
@@ -53,9 +53,12 @@ export type Neg = "b" | "ab";
 export const NEG_CELL: Record<Neg, Record<CellId, CellId>> = {
   b: { both: "anb", anb: "both", bna: "nei", nei: "bna" },
   ab: { both: "nei", anb: "bna", bna: "anb", nei: "both" },
+  a: { both: "bna", anb: "nei", bna: "both", nei: "anb" },
 };
+/** Whether a value is one of the negations a pair can have (a stored or sent pair is checked with it). */
+export const isNeg = (x: unknown): x is Neg => x === "b" || x === "ab" || x === "a";
 /** Which of the two sides are negated, A then B. */
-export const negSides = (p: Pick<PairLike, "neg">): readonly [boolean, boolean] => [p.neg === "ab", !!p.neg];
+export const negSides = (p: Pick<PairLike, "neg">): readonly [boolean, boolean] => [p.neg === "ab" || p.neg === "a", p.neg === "ab" || p.neg === "b"];
 /**
  * The negation of a label as the course book writes it: "non-products", and in brackets when it has more than one word, "non-(wooden things)". The brackets
  * say what the "non-" takes in, everything that is not a wooden thing; without them ("non-wooden things", `brackets` false) the words can also be read as

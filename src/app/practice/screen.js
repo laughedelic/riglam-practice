@@ -13,6 +13,7 @@ import { isWide } from "../core/viewport.js";
 import { stopTimer } from "../debate/flow.js";
 import { QCELL, singular, termNode } from "../debate/text.js";
 import { check } from "./grading.js";
+import { negOfferNode } from "./negations.ts";
 import { next } from "./queue.js";
 import { subRowNode } from "./skips.js";
 import { defCard, termsNode, withTerms } from "./terms.js";
@@ -276,7 +277,7 @@ function quizWide(s,c){
   if(!state.ui.checked){ const vb=voiceBar(); if(vb) s.append(vb); }
   s.append(el("div",{class:"section"}, el("p",{class:"label"},"Examples",el("span",{class:"hint",text:"∅ = nothing exists. Neither also takes a non-existent."})), exGrid(p,quizCell,true)));
   // the result stays in the middle, under the table; the tutor's conversation is in the panel at the right
-  if(u.checked){ s.append(quizResult()); if(u.saveErr) s.append(el("p",{class:"status",text:u.saveErr})); }
+  if(u.checked){ s.append(quizResult()); const no=negOfferNode(); if(no) s.append(no); if(u.saveErr) s.append(el("p",{class:"status",text:u.saveErr})); }
   s.append(pairBar(u.checked?nextFwd():u.rel?{label:"Check",onclick:()=>check()}:null));       // before a relation is picked the cells are closed and there is nothing to check
   coachInto(c,answerList().slice(-5).reverse(),a=>a.key,u.checked?[["N","next pair"],["F","favorite"]]:[["1–5","relation"],["Enter","next cell"],["S","skip"],["F","favorite"]]);
 }
@@ -365,6 +366,7 @@ function quizNarrow(s){
   else {
     // the table is fixed once filled in, the verdict below it changes length with the chip: the table goes first so it never moves
     s.append(el("div",{class:"section"},exGrid(p,quizCell,true)),quizResult());
+    const no=negOfferNode(); if(no) s.append(no);
     if(state.ui.saveErr) s.append(el("p",{class:"status",text:state.ui.saveErr}));
     s.append(pairBar(nextFwd()));
   }

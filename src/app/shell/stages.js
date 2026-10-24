@@ -3,6 +3,8 @@ import { el } from "../core/dom.js";
 import { stageCounts } from "../../domain/reference.ts";
 import { STAGES, itemStage, toggleStage, topStage } from "../../domain/stages.ts";
 import { render } from "./render.js";
+import { stopsStageUp } from "../practice/stops.ts";
+import { saveProgress } from "../practice/progress.ts";
 
 /** How many pairs lean to three possibilities after the highest stage goes up (`fresh` of the draw, practice/universe.js). */
 const LEAN=5;
@@ -16,7 +18,8 @@ export function setStages(stages){
   const up=topStage(stages)>topStage(state.stages);
   state.stages=stages; store("rd-stages",stages.join(","));
   if(state.stagesKept||state.syllogismEveryday){ state.stagesKept=state.syllogismEveryday=false; try{ localStorage.removeItem("rd-stages-kept"); localStorage.removeItem("rd-syllogism-level"); }catch(e){} }
-  if(up){ state.stageLean=LEAN; store("rd-stage-lean",String(LEAN)); }
+  if(up){ state.stageLean=LEAN; store("rd-stage-lean",String(LEAN)); stopsStageUp(); }     // and its first term comes at the next pull (practice/stops.ts)
+  saveProgress();
   render();
 }
 /** One pair of the lean is spent; true while the lean lasts. */

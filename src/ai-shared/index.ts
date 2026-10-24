@@ -10,7 +10,7 @@ export { american, catByLabel, categoryOf, classNames, leavesOpen, makeIndex, ma
 export type { NearItem } from "./lookup";
 export type { DataIndex } from "./lookup";
 export { CELL_NAME, DEBATE_ASK, DEBATE_NOTE, FIND_ASK, FIND_ASK_OWN, FIND_NOTE, FIND_OWN_NOTE, FIND_REL_NAMES, FIRST_ASK, GUIDE, judgeNote } from "./prompts";
-export { CELLS, NEG_CELL, REL, cellLabel, negLabel, negSides, plainLabel, refOf } from "./relations";
+export { CELLS, NEG_CELL, REL, cellLabel, isNeg, negLabel, negSides, plainLabel, refOf } from "./relations";
 export type { CellId, Neg, PairLike, RelKey, Relation } from "./relations";
 export { cardBody, cardNotes, explainAsk, finePoints, negLine, stageLine, tutorCard } from "./card";
 export type { AnswerView, DebateAnswer } from "./card";

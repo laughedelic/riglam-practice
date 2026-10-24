@@ -72,8 +72,11 @@ export const stagesOfLevels = (levels: readonly number[]): number[] => {
 export const itemStage = (it: Pick<Item, "st">): number => it.st ?? 1;
 /** The stage at which a category opens; none: from the start. */
 export const catStage = (cat: Pick<Cat, "st">): number => cat.st ?? 1;
-/** Whether the category is open for a learner with these stages on: it opens at or below the highest. */
-export const catOpen = (cat: Pick<Cat, "st">, on: Stages): boolean => catStage(cat) <= topStage(on);
+/** The Dudra categories whose term the learner has not been introduced to yet (domain/intro.ts): they wait out of the questions. */
+export type Unmet = ReadonlySet<string>;
+
+/** Whether the category is open for a learner with these stages on: it opens at or below the highest, and its term has been introduced (none in `unmet`). */
+export const catOpen = (cat: Pick<Cat, "st"> & { id?: string }, on: Stages, unmet?: Unmet): boolean => catStage(cat) <= topStage(on) && !(cat.id && unmet?.has(cat.id));
 
 /** Whether the category is about physical things: Form, what is below it, or an everyday category of forms. */
 export const physical = (ix: DataIndex, cat: Cat): boolean => catChain(ix, cat).includes("Form");
@@ -139,4 +142,49 @@ export function poolAt(ix: DataIndex, pool: readonly PoolEntry[], on: Stages): S
   }
   byKey.set(key, out);
   return out;
+}
+
+/** The highest stage at which a newly opened category's definition shows with the question by itself; above it the definition is a tap away. */
+export const DEFINITION_STAGE = 3;
+
+/**
+ * The categories of a question (a pair's two, or the ones Categories asks about) whose definition shows with it: those that open at the
+ * highest stage that is on, while that stage is at most DEFINITION_STAGE (help that fades: the words are new at the low stages, and from
+ * the established bases on they are a tap away). Only categories with a Dudra term, since an everyday category has no definition. Ids,
+ * in the order given, each once.
+ */
+export function newCategories(ix: DataIndex, cats: readonly (string | null | undefined)[], on: Stages): string[] {
+  const top = topStage(on);
+  if (top > DEFINITION_STAGE) return [];
+  return cats.filter((c, i, all): c is string => !!c && all.indexOf(c) === i && !!ix.CAT[c]?.term && catStage(ix.CAT[c]) === top);
+}
+
+/** The negation track (Relations and Pervasions): off, one side negated in some pairs (A or B), or also both. */
+export type Negation = "off" | "one" | "both";
+
+/** The right answers in a row after which the next step of the negation track is offered (never taken without a tap). */
+export const NEG_STREAK = 5;
+
+/** A Relations answer as the negation offer reads it: right or not, and whether the pair had a negated side. */
+export interface NegOutcome {
+  ok: boolean;
+  neg: boolean;
+}
+
+/**
+ * The next step of the negation track to offer, as the tutors practice it: plain things first, then one side negated, then both. Offered
+ * once the latest `need` answers of the kind the learner is on are right in a row: plain pairs while negations are off, negated pairs while
+ * one side is; null otherwise, and with both sides on. Answers of the other kind neither extend nor break the run. `results` are oldest
+ * first; the caller leaves out those from before the last time the offer was answered, so a "not now" is not asked again at once.
+ */
+export function negationOffer(results: readonly NegOutcome[], negation: Negation, need = NEG_STREAK): "one" | "both" | null {
+  if (negation === "both") return null;
+  const want = negation === "one";
+  let n = 0;
+  for (let i = results.length - 1; i >= 0 && n < need; i--) {
+    if (results[i]!.neg !== want) continue;
+    if (!results[i]!.ok) break;
+    n++;
+  }
+  return n >= need ? (want ? "both" : "one") : null;
 }

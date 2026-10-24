@@ -4,8 +4,8 @@ const fs=require('fs');
 const path=require('path');
 let page_=fs.readFileSync(path.resolve(__dirname,'../../dist/artifact/index.html'),'utf8');
 const mock=`<script>
-const S={answers:{},debates:{},batches:{},favorites:{},skips:{},labruns:{},flags:{}};window.__S=S;window.__ops=[];window.__fail={set:0,del:0};
-const subs={answers:[],debates:[],batches:[],favorites:[],skips:[],labruns:[],flags:[]};window.__subs=subs;
+const S={answers:{},debates:{},batches:{},favorites:{},skips:{},labruns:{},flags:{},progress:{}};window.__S=S;window.__ops=[];window.__fail={set:0,del:0};
+const subs={answers:[],debates:[],batches:[],favorites:[],skips:[],labruns:[],flags:[],progress:[]};window.__subs=subs;
 function snap(n){const docs=Object.entries(S[n]).map(([id,d])=>({id,exists:true,data:()=>d}));return {docs,size:docs.length,empty:!docs.length};}
 const db={collection(n){const q={orderBy(){return q},limit(){return q},onSnapshot(f){subs[n].push(f);setTimeout(()=>f(snap(n)),10);return()=>{}},
  doc(id){return{
