@@ -20,8 +20,7 @@ async function toResult(page) {
   await choices(page).first().click();
   const field = page.locator("#cin");
   await expect(field).toBeVisible();
-  for (let i = 0; i < 4 && (await field.isVisible()); i++) { await field.fill("thing " + (i + 1)); await field.press("Enter"); }
-  await expect(field).toHaveCount(0);
+  for (let i = 0; i < 4 && (await field.isVisible()); i++) { await field.fill("thing " + (i + 1)); if ((await field.getAttribute("enterkeyhint")) === "done") { await field.blur(); break; } await field.press("Enter"); }   // (the last one is left without Enter, which would take the Check at once)
   await page.locator("#stn").click();
   await expect(page.locator(".pvline")).toBeVisible();
   await expect(page.locator("#stn")).toContainText("Next pair");
@@ -108,7 +107,7 @@ test("a tap and Enter take the station with the same ride", async ({ page }) => 
   await choices(page).first().click();
   const field = page.locator("#cin");
   await expect(field).toBeVisible();
-  for (let i = 0; i < 4 && (await field.isVisible()); i++) { await field.fill("thing " + (i + 1)); await field.press("Enter"); }
+  for (let i = 0; i < 4 && (await field.isVisible()); i++) { await field.fill("thing " + (i + 1)); if ((await field.getAttribute("enterkeyhint")) === "done") { await field.blur(); break; } await field.press("Enter"); }
   await page.locator("#stn").focus();
   await page.keyboard.press("Enter");
   await expect(main(page)).toHaveClass(/\btk-run\b/);
@@ -136,7 +135,7 @@ test("with the look's ride: plain the step is there at once, and the pull is the
   await choices(page).first().click();
   const field = page.locator("#cin");
   await expect(field).toBeVisible();
-  for (let i = 0; i < 4 && (await field.isVisible()); i++) { await field.fill("thing " + (i + 1)); await field.press("Enter"); }
+  for (let i = 0; i < 4 && (await field.isVisible()); i++) { await field.fill("thing " + (i + 1)); if ((await field.getAttribute("enterkeyhint")) === "done") { await field.blur(); break; } await field.press("Enter"); }
   await page.locator("#stn").click();
   await expect(page.locator(".pvline")).toBeVisible();
   expect(await page.locator("#path .main.tk-run").count(), "no ride").toBe(0);
