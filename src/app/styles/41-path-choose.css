@@ -7,8 +7,8 @@
 .pa .chs.slide .crow .mc{transform:translateX(var(--cox))}
 .pa .chs.slide .crow .ct{padding-left:calc(22px + var(--cox))}
 
-/* two short options on one row: the first mark --cox from the line, the second after the first one's word */
-.pa .chs.row2{display:flex; align-items:center; column-gap:22px; padding:10px 16px 8px calc(var(--m) + var(--cox) - 5px)}
+/* two short options on one row: the first mark 12 px farther from the line than the list's (it is a row of its own, not a list the eye follows down), the second after the first one's word */
+.pa .chs.row2{display:flex; align-items:center; column-gap:36px; padding:10px 16px 8px calc(var(--m) + var(--cox) + 7px)}
 .pa .chs.row2 .crow{width:auto; flex:none; display:flex; align-items:center; padding:6px 0; border:0}
 .pa .chs.row2 .crow .mc{transform:none; justify-self:auto}
 .pa .chs.row2 .crow .mc .d{margin-right:0}

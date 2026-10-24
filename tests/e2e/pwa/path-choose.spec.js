@@ -101,8 +101,10 @@ test("Accept and Why? stand on one row; Why? slides to the line over the fading 
   const [ya, yw] = [(await acc.boundingBox()).y, (await why.boundingBox()).y];
   expect(Math.abs(ya - yw), "one row").toBeLessThan(2);
   const line = await lineX(page);
-  expect(Math.abs((await markX(acc)) - line - 22)).toBeLessThan(1.5);
-  expect(await markX(why), "Why? after Accept's word").toBeGreaterThan((await acc.locator(".ct").boundingBox()).x + (await acc.locator(".ct b").evaluate((e) => e.getBoundingClientRect().width)) - 1);
+  expect(Math.abs((await markX(acc)) - line - 34), "Accept's mark stands 34 px from the line, 12 farther than a list's").toBeLessThan(1.5);
+  const word = await acc.locator(".ct b").boundingBox(), wordEnd = word.x + word.width;
+  expect(await markX(why), "Why? after Accept's word").toBeGreaterThan(wordEnd - 1);
+  expect(Math.abs((await markX(why)) - wordEnd - 41), "36 px between Accept's word and Why?'s mark (its centre is 5 px in)").toBeLessThan(2);
   await why.click();
   await expect(gap(page)).toHaveAttribute("data-fx", "row");
   await expect(gap(page)).toHaveAttribute("data-snap", "1");
