@@ -36,7 +36,7 @@ To cover a new state, add steps to a flow in the spec (or a flow), and a size to
 
 ## CI
 
-`.github/workflows/ci.yml` runs on pull requests and on `main`. The browser tests run in parallel jobs, so a run takes about as long as the slowest of them (about 3 minutes).
+`.github/workflows/ci.yml` runs on pull requests and on `main`. The browser tests run in parallel jobs, so a run takes about as long as the slowest of them (about 3.5 minutes).
 
 | Job | What it runs |
 |---|---|
@@ -50,7 +50,7 @@ A push to a pull request cancels that pull request's earlier run. Every commit o
 
 To repeat one job locally: `npm run build`, then the same `npx playwright test` arguments as in the matrix (for example `--project=pwa-phone --shard=2/3`).
 
-`--shard` cuts a project's tests into equal runs of consecutive tests, by count and not by time; with these specs the slices come out within about 20% of each other. The legacy suite is the floor: `test40q` is its longest test (about two minutes, in one browser after another), so a run cannot get much shorter than that (about 3 minutes with its setup); the slowest PWA shard takes about as long, and each added shard repeats the setup of a job (about 30 seconds). A new Playwright project needs an entry in the `browser` matrix; `tests/unit/ci-workflow.test.ts` fails when a project is in no job, in two, or when the shards of a project are not all there.
+`--shard` cuts a project's tests into equal runs of consecutive tests, by count and not by time; with these specs the slices come out within about 20% of each other. The legacy suite is the floor: `test40q` is its longest test (about two minutes, in one browser after another), so a run cannot get much shorter than that (about 3 minutes with its setup). The PWA shards take about 3.5 minutes, and each added shard repeats the setup of a job (about 30 seconds), so a fourth shard of each PWA project would save under a minute. A new Playwright project needs an entry in the `browser` matrix; `tests/unit/ci-workflow.test.ts` fails when a project is in no job, in two, or when the shards of a project are not all there.
 
 ## Adding tests
 
