@@ -124,7 +124,7 @@ function NarrowStep() {
     <Scroll>
       <Sx cls="walked first"><Gap h={14} /><Head d={<D cls="sec done" />} h="1 Categories" sub={g.ok ? "all right" : g.right + " of " + g.rows.length + " right"} /><Gap h={6} /><Thing /><Gap h={8} /></Sx>
       <Sx cls="cur"><Head d={<D cls="sec now" />} h="2 Most specific" sub="which is the narrowest?" /><Gap h={4} /></Sx>
-      <Choices label="The most specific category" items={n.options.map((r, i) => ({ k: r.cat, b: r.phrase, key: String(i + 1) }))} picked={u.pk} onPick={(k) => pickThen(k, () => pickCategory(k))} />
+      <Choices label="The most specific category" slide items={n.options.map((r, i) => ({ k: r.cat, b: r.phrase, key: String(i + 1) }))} picked={u.pk} onPick={(k) => pickThen(k, () => pickCategory(k))} />
       <Sx cls="ptail" />
     </Scroll>
     <Foot aux={<SideStation kind="skip" act={skipPair} />}><PreStation name="Result" hint="pick the most specific" /></Foot>
