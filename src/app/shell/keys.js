@@ -2,6 +2,7 @@ import { state } from "../state.js";
 import { ORDER } from "../core/rel.js";
 import { isWide } from "../core/viewport.js";
 import { checkCategories, continueCategories, pickCategory, sayCategory, tickCategory, tickNone } from "../categories/flow.js";
+import { checkInstance } from "../instance/flow.ts";
 import { backSyllogism, replyOfKey, saySyllogism } from "../syllogism/flow.js";
 import { checkDebate, chooseD, sayQ } from "../debate/flow.js";
 import { favTarget, toggleFav } from "../practice/favorites.js";
@@ -50,6 +51,13 @@ document.addEventListener("keydown",e=>{
     } else if(u.step===0){ if(k==="y"){ e.preventDefault(); sayCategory(true); } else if(k==="n"){ e.preventDefault(); sayCategory(false); } }
     else if(u.step===1){ if(k==="enter"&&t!=="BUTTON"){ e.preventDefault(); continueCategories(); } }
     else if(u.step===2&&/^[1-9]$/.test(k)&&u.narrow.options[+k-1]){ e.preventDefault(); pickCategory(u.narrow.options[+k-1].cat); }
+  } else if(state.tab==="instance"&&state.ui.inst){
+    // the field takes its own Enter (it checks); outside it S skips, Enter checks what is written or "nothing is", N goes on from the result
+    const u=state.ui, k=e.key.toLowerCase();
+    if(t==="INPUT"||t==="TEXTAREA"||e.shiftKey) return;
+    if(u.checked){ if(k==="n"){ e.preventDefault(); next(); } }
+    else if(k==="s"){ e.preventDefault(); skipPair(); }
+    else if(k==="enter"&&t!=="BUTTON"){ e.preventDefault(); checkInstance(); }
   } else if(state.tab==="syllogism"&&state.ui.syllogism){
     if(t==="INPUT"||t==="TEXTAREA"||e.shiftKey) return;
     const k=e.key.toLowerCase();
