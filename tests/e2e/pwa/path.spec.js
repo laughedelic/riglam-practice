@@ -250,6 +250,28 @@ test("before a relation is chosen, pulling the path on fills the dotted thread i
   await expect(page.locator(".pa")).not.toHaveClass(/\bpull/);   // let go: it goes back
 });
 
+test("the thread runs on through what voice shows above the foot (Hear the question), at rest and pulled", async ({ page }) => {
+  await page.addInitScript(() => { localStorage.setItem("rd-voice", "1"); localStorage.setItem("rd-voice-read", "1"); });
+  await start(page);
+  const bar = page.locator("#path .pvoice");
+  test.skip(!(await bar.locator("#vbar").count()) || (await bar.boundingBox()).height < 10, "no voice bar in this browser");
+  const line = (pseudo) => bar.evaluate((e, p) => { const c = getComputedStyle(e, p); return { content: c.content, bg: c.backgroundImage + c.backgroundColor, w: c.width }; }, pseudo);
+  // pulled: the thread (dotted, as nothing is chosen) goes through the bar down to the station
+  const sc = await page.locator("#path .pscroll").boundingBox();
+  await page.mouse.move(sc.x + sc.width / 2, sc.y + sc.height / 2);
+  for (let i = 0; i < 6; i++) await page.mouse.wheel(0, 300);
+  await expect(page.locator(".pa")).toHaveClass(/\bpullpre\b/);
+  const pulled = await line("::after");
+  expect(pulled.content, "the pull's thread crosses the bar").not.toBe("none");
+  expect(pulled.bg).toContain("repeating-linear-gradient");
+  await expect(page.locator(".pa")).not.toHaveClass(/\bpull/);
+  // ready to check: the gold thread runs through it, as it runs into the foot
+  await answer(page);
+  const ready = await line("::before");
+  expect(ready.content).not.toBe("none");
+  expect(ready.bg, "gold, as the foot's stub").toContain(await page.locator("#path .foot").evaluate((e) => getComputedStyle(e, "::before").backgroundColor));
+});
+
 test("the strip pulls from its heading with a short pull, and its hint is gray", async ({ page }) => {
   await start(page);
   await choices(page).nth(3).click();
