@@ -156,6 +156,7 @@
 .pa .fieldrow{display:flex; align-items:flex-end; gap:10px; margin-top:8px}
 .pa .pfield{flex:1; min-width:0; height:32px; border:0; background:transparent; border-bottom:1.5px solid var(--ink2); font-family:var(--hand-f); font-style:var(--hand-st); font-weight:var(--hand-w); font-size:max(16px,var(--hand-sz)); color:var(--blue); padding:0; outline:none; box-shadow:none; border-radius:0; -webkit-appearance:none; appearance:none}
 .pa .pfield:focus{border-bottom:2.5px solid var(--blue)}
+.pa .pfield[type="search"]::-webkit-search-cancel-button,.pa .pfield[type="search"]::-webkit-search-decoration{-webkit-appearance:none; appearance:none; display:none}
 .pa .pfield::placeholder{color:var(--ink3); font-family:var(--main-f); font-style:italic; font-weight:400; font-size:17px}
 .pa .help{font-size:13.5px; font-style:italic; color:var(--ink2); margin-top:6px}
 .pa .help button{font-family:var(--mono); font-size:11.5px; font-style:normal; color:var(--blue); text-decoration:underline; text-underline-offset:3px; margin-left:4px}
