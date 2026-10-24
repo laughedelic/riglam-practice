@@ -14,16 +14,17 @@ async function start(page) {
   await page.goto("/");
   await expect(choices(page)).toHaveCount(5);
 }
-/** Picks a relation and writes an example for each case it asks for, with Enter after each. */
+/** Picks a relation and writes an example for each case it asks for, with Enter after each but the last (Enter there takes the Check at once): the Check is ready. */
 async function answer(page) {
   await choices(page).first().click();
   const field = page.locator("#cin");
   await expect(field).toBeVisible();
   for (let i = 0; i < 4 && (await field.isVisible()); i++) {
     await field.fill("thing " + (i + 1));
+    if ((await field.getAttribute("enterkeyhint")) === "done") { await field.blur(); break; }
     await field.press("Enter");
   }
-  await expect(field).toHaveCount(0);
+  await expect(page.locator("#stn")).toHaveAccessibleName(/^Check/);
 }
 
 test("Relations on the Path: a relation, the examples, the check, the result, and the next pair", async ({ page }) => {
@@ -61,11 +62,13 @@ test("only the neither case can say that nothing exists, and a written one opens
     await page.locator("#cin").press("Enter");
   }
   await expect(none).toBeVisible();   // neither: it may well be empty
-  await none.click();
-  await expect(page.locator(".sb.done .pans.nil")).toHaveText("nothing exists");
   await page.locator(".sbb").first().click();
   await expect(page.locator("#cin")).toHaveValue("a red pot");
   await expect(none).toHaveCount(0);
+  await page.locator("#cin").press("Enter");   // on to the one still empty
+  await none.click();   // the last case answered: the Check is taken at once
+  await expect(page.locator(".pvline")).toBeVisible();
+  await expect(page.locator(".ans2.nil")).toHaveText("nothing exists");
 });
 
 test("the knob of the strip opens the earlier steps with one tap, and folds them with the next", async ({ page }) => {
@@ -95,7 +98,7 @@ test("a touch outside the unfolded strip folds it again", async ({ page }) => {
   await expect(strip).toHaveClass(/\bopen\b/);   // and the knob still opens it
 });
 
-test("with the keyboard up there is no bar above it: Enter goes on, and the foot is back when the field is left", async ({ page }, testInfo) => {
+test("with the keyboard up there is no bar above it: Enter goes on, the Check comes up on the page once the last example has words, and Enter there takes it", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "pwa-phone", "a touch screen's keyboard");
   await start(page);
   await choices(page).nth(3).click();
@@ -105,13 +108,55 @@ test("with the keyboard up there is no bar above it: Enter goes on, and the foot
   await expect(page.locator(".khead")).toBeVisible();
   await page.locator("#cin").press("Enter");   // empty: it does not go on
   await expect(page.locator("#path .ptoast.on")).toHaveText(/Write an example first/);
-  for (const t of ["a red pot", "a red book", "a green book", "a stone"]) {
+  for (const t of ["a red pot", "a red book", "a green book"]) {
     await page.locator("#cin").fill(t);
     await page.locator("#cin").press("Enter");
   }
-  await expect(page.locator("#cin")).toHaveCount(0);
+  const node = page.locator("#path .pscroll .cnode #stn");
+  await expect(node).toHaveCount(0);   // the last case is still empty
+  await page.locator("#cin").fill("a");
+  await expect(node).toHaveAccessibleName(/^Check: your relation and 4 examples/);   // a word in the last field: the Check is the next stop, on the page
+  await expect(page.locator(".pa")).toHaveClass(/\bready\b/);
+  await expect(page.locator("#cin")).toBeFocused();
+  await page.locator("#cin").fill("");
+  await expect(node).toHaveCount(0);   // emptied again: it goes
+  await page.locator("#cin").fill("a stone");
+  await expect(node).toBeVisible();
+  await page.locator("#cin").press("Enter");   // the last one: the keyboard goes and the Check is taken
+  await expect(page.locator(".pvline")).toBeVisible();
   await expect(page.locator(".pa")).not.toHaveClass(/\bkbup\b/);
-  await expect(page.locator("#path .foot #stn")).toBeVisible();   // the Check station is back
+  await expect(page.locator("#path .foot #stn")).toHaveAccessibleName(/Next pair/);
+});
+
+test("with the keyboard up a tap on the Check under the last example takes it, and the field keeps the focus until then", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "pwa-phone", "a touch screen's keyboard");
+  await start(page);
+  await choices(page).first().click();   // Mutually inclusive: two cases
+  const field = page.locator("#cin");
+  await expect(field).toBeVisible();
+  for (let i = 0; i < 4 && (await field.isVisible()); i++) { await field.fill("thing " + (i + 1)); if ((await field.getAttribute("enterkeyhint")) === "done") break; await field.press("Enter"); }
+  await field.focus();
+  const node = page.locator("#path .pscroll .cnode #stn");
+  await expect(node).toBeVisible();
+  const box = await node.boundingBox(), sc = await page.locator("#path .pscroll").boundingBox();
+  expect(box.y + box.height, "the Check is in view above the keyboard").toBeLessThanOrEqual(sc.y + sc.height + 1);
+  await node.tap();
+  await expect(page.locator(".pvline")).toBeVisible();
+  await expect(page.locator("#cin")).toHaveCount(0);
+});
+
+test("where there is no keyboard to put away, Enter on the last example takes the Check from the foot", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === "pwa-phone", "a keyboard of keys");
+  await start(page);
+  await choices(page).first().click();
+  const field = page.locator("#cin");
+  await expect(field).toBeVisible();
+  for (let i = 0; i < 4 && (await field.isVisible()); i++) { await field.fill("thing " + (i + 1)); if ((await field.getAttribute("enterkeyhint")) === "done") break; await field.press("Enter"); }
+  await expect(page.locator("#path .cnode")).toHaveCount(0);
+  await expect(page.locator("#path .foot #stn")).toHaveAccessibleName(/^Check/);
+  await field.press("Enter");
+  await expect(page.locator(".pvline")).toBeVisible();
+  await expect(page.locator("#path .foot #stn")).toHaveAccessibleName(/Next pair/);
 });
 
 test("the top bar's title has no chevron beside it", async ({ page }) => {
@@ -350,9 +395,7 @@ test("a case ahead is taken up with a tap, in any order: the field keeps the foc
   await field.press("Enter");   // empty: stays
   expect(await label()).toBe(third);
   await field.fill("three");
-  await field.press("Enter");
-  await expect(page.locator("#cin")).toHaveCount(0);
-  await expect(page.locator("#stn")).toHaveAccessibleName(/^Check/);
+  await expect(page.locator("#stn")).toHaveAccessibleName(/^Check/);   // the last one has words: Check is next (Enter would take it)
 });
 
 test("the fields ask for no autofill bar: a search field on a touch screen (Chrome keeps its bar off those), a text field elsewhere", async ({ page }, testInfo) => {
@@ -415,9 +458,9 @@ withKey("with the tutor on its own, Why is open on the result; the station's arr
   await expect(field).toBeVisible();
   for (let i = 0; i < 4 && (await field.isVisible()); i++) {
     await field.fill("thing " + (i + 1));
+    if ((await field.getAttribute("enterkeyhint")) === "done") { await field.blur(); break; }
     await field.press("Enter");
   }
-  await expect(field).toHaveCount(0);
   await expect(page.locator(".pa.ready #stn")).toBeVisible();
   await expect(page.locator(".pup")).toHaveCount(0);   // no arrow and words on the thread: the station's own arrow hops
   await expect.poll(() => page.evaluate(() => getComputedStyle(document.querySelector("#stn .go .mk .i")).animationName)).toBe("p-hop");
@@ -556,8 +599,11 @@ test("the station the app focuses after a check has no ring, whatever key was pr
   await expect(page.locator(".pvline")).toBeVisible();
   const stn = page.locator("#stn");
   await expect(stn).toBeFocused();
+  // the ring is an outline on the Path, and a box-shadow from the classic page's rule for every button (styles/10-shell.css): neither is drawn
+  const ring = () => stn.evaluate((e) => { const c = getComputedStyle(e); return c.outlineStyle + " / " + (c.boxShadow === "none" || /^rgba\(0, 0, 0, 0\) 0px 0px 0px 0px$/.test(c.boxShadow) ? "none" : c.boxShadow); });
+  expect(await ring(), "no ring on the station the page handed the focus to").toBe("none / none");
   await page.evaluate(() => document.documentElement.classList.add("pa-tab"));   // a Tab was pressed some time before (or a late one from the keyboard)
-  expect(await stn.evaluate((e) => getComputedStyle(e).outlineStyle), "no ring on the station the page handed the focus to").toBe("none");
+  expect(await ring(), "nor once a Tab was pressed before").toBe("none / none");
   await expect(stn).toHaveAttribute("data-quiet", "1");
   await stn.evaluate((e) => e.blur());
   await expect(stn).not.toHaveAttribute("data-quiet", "1");
