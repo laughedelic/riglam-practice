@@ -8,6 +8,7 @@ import { fillable } from "../practice/screen.js";
 import { render } from "../shell/render.js";
 import type { CellId, RelKey } from "../../ai-shared/relations.ts";
 import type { Pull } from "./gesture.ts";
+import type { ScanPlan } from "./scan.tsx";
 import { refreshPath, renderPath } from "./index.tsx";
 import { CASE, PairNode, SkipMark, Star, caseQ, pairOf, u0 } from "./parts.tsx";
 import { Scroll } from "./scroll.tsx";
@@ -87,9 +88,9 @@ function KHead({ rel, title }: { rel: RelKey; title: string }) {
 
 /**
  * The step of the examples: `title` the exercise, `step` its number, `rel` the relation the cases come from, `full` what the strip shows
- * unfolded, `check` the check of the answer.
+ * unfolded, `check` the check of the answer, `scan` what the Check marks as it slides up to the result (scan.tsx; Relations).
  */
-export function ExamplesStep({ kb, title, step, rel, full, check }: { kb: boolean; title: string; step: number; rel: RelKey; full: ComponentChildren; check: () => void }) {
+export function ExamplesStep({ kb, title, step, rel, full, check, scan }: { kb: boolean; title: string; step: number; rel: RelKey; full: ComponentChildren; check: () => void; scan?: () => ScanPlan }) {
   const u = u0(), p = pairOf(), k = cursor(), first = k.order[0], pull = useContext(PullCtx);
   const checkHint = "your " + (state.ui!.find ? "pair" : "relation") + " and " + (k.order.length === 1 ? "one example" : k.order.length + " examples");
   const takeCheck = () => { u.pall = true; blur(); check(); };
@@ -120,12 +121,12 @@ export function ExamplesStep({ kb, title, step, rel, full, check }: { kb: boolea
     <KHead rel={rel} title={title} /><Strip rel={rel} full={full} />
     <Scroll dim={!!u.pstrip}>
       <Sx cls="cur first"><div class="ksp" style={{ height: "16px" }} /><Head d={<D cls="sec now" />} h={step + " Examples"} sub={k.order.length === 1 ? "one case" : "one for each case"} />{rows}<Gap h={6} /></Sx>
-      {node ? <Sx cls="cnode"><Station name="Check" hint={checkHint} act={takeCheck} keep /></Sx> : null}
+      {node ? <Sx cls="cnode"><Station name="Check" hint={checkHint} act={takeCheck} scan={scan} keep /></Sx> : null}
       <Sx cls="ptail" />
     </Scroll>
     <VoiceBar />
     {kb ? null : <Foot aux={k.ready ? null : <SkipSide />}>
-      {k.ready ? <Station name="Check" hint={checkHint} act={takeCheck} />
+      {k.ready ? <Station name="Check" hint={checkHint} act={takeCheck} scan={scan} />
         : <PreStation name="Result" hint="write each example first" />}
     </Foot>}
   </>;
