@@ -9,7 +9,7 @@ export type { Judgement } from "./grading";
 export type {
   CellResult, DebateInput, GradeDraft, GradeResult, HistoryEntry, Pair, PoolEntry, PoolRel, PracticeAnswer, Verdict,
 } from "./types";
-export { FEATURE, RECENT_MAX, buildPool, cellsFor, chooseEntry, inUniverse, judgeable, makePair, nextPair, pairKey, pairOf, relOfCells } from "./universe";
+export { FEATURE, NEG_SHARE, RECENT_MAX, buildPool, cellsFor, chooseEntry, inUniverse, judgeable, makePair, negateCells, nextPair, pairKey, pairOf, relOfCells } from "./universe";
 export type { Clock, DrawState, Rng, Witnesses } from "./universe";
 export { cap, gradeOf, isMiss, pick } from "./util";
 export { NAME_CELL, VERDICT_RE, applyRelationVerdict, applyVerdicts, factNote, fitOf, noteParts, parseFactLine, parseRelationVerdict, parseVerdicts, partsText, placeFacts } from "./verdict";
@@ -24,9 +24,11 @@ export { FACTS_EPOCH, FACT_LIMITS, factKey, knownLine, learn, opinionOf, ruleSid
 export { failsCell, openExamples, referenceLines, wholeFirst } from "./known";
 export type { KnownLine, OpenExample } from "./known";
 export type { FactRow, FactSource, FactState, Opinion, Ruling, Strength } from "./learned";
-export { DRAWN, cellExample, drawable, examplesFor, levelCounts, placeByClass, toggleLevel, witnessesOf } from "./reference";
+export { DRAWN, cellExample, drawable, exampleStage, examplesFor, placeByClass, stageCounts, witnessesOf } from "./reference";
+export { DEFAULT_STAGES, HOLD_STAGE, MAX_STAGE, STAGES, catOpen, catStage, heldBack, itemKnown, itemOn, itemStage, itemStageFor, normStages, pairStage, physical, poolAt, stagesOfLevels, toggleStage, topStage } from "./stages";
+export type { Stage, StagedEntry, Stages } from "./stages";
 export type { Placement } from "./reference";
 export { lettersDirection, plainWords, spokenConfirm, spokenDirection, spokenDontKnow, spokenExample, spokenRelation, spokenReply } from "./spoken";
 export type { PairTerms, SpokenExample, SpokenReply } from "./spoken";
-export { RELIEF, REPLIES, SITUATIONS, WORDINGS, syllogismOf, syllogismPieces, syllogismText, drawSyllogism, gradeSyllogism, gradeTimeout, gradeExample, pervasionConflicts, widest, withoutPhrases } from "./syllogism";
+export { EVERYDAY_STAGES, RELIEF, REPLIES, SITUATIONS, WORDINGS, levelAt, syllogismOf, syllogismPieces, syllogismText, drawSyllogism, gradeSyllogism, gradeTimeout, gradeExample, pervasionConflicts, widest, withoutPhrases } from "./syllogism";
 export type { Check, Syllogism, SyllogismDraw, SyllogismHistory, SyllogismResult, ExampleVerdict, Pervasion, Piece, Reply, Situation, Wording } from "./syllogism";

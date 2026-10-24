@@ -1,10 +1,10 @@
 // The reference examples as references of a practice pair's cells (src/domain/reference.ts witnessesOf and cellExample, the `more` of
-// pairOf and nextPair): which examples may stand in a cell, at which level, and that the practice list still decides the relation and
-// which cells are empty. Invented data and invented examples only.
+// pairOf and nextPair): which examples may stand in a cell, at which stage, and that the practice list still decides the relation and
+// which cells are empty. Invented data and invented examples only. An example without a stage of its own is at its level's: level 1 is stage 6.
 import { expect, test } from "vitest";
-import { CELLS, makeIndex, normLevels, upTo } from "../../src/ai-shared";
+import { CELLS, makeIndex } from "../../src/ai-shared";
 import type { CellId, DrillData } from "../../src/ai-shared";
-import { buildPool, cellExample, cellsFor, findPair, levelCounts, makePair, nameThing, nextPair, pairOf, placeByClass, toggleLevel, witnessesOf } from "../../src/domain";
+import { buildPool, cellExample, cellsFor, exampleStage, findPair, makePair, nameThing, nextPair, pairOf, placeByClass, stageCounts, witnessesOf } from "../../src/domain";
 import type { Witnesses } from "../../src/domain";
 import openData from "../../src/data/drill-data.json";
 import { madeUpExamples } from "../../scripts/lib/made-up-course.mjs";
@@ -64,56 +64,56 @@ const ITEMS = [
   ex("a wall in a hard text", ["Color"], 2, { bg: "glossed" }),
   ex("a hope of the unknown class", ["Unheard-of class"], 1),
 ];
+/** The stages of the levels (1 to 4) up to `n`: 6 to n + 5. */
+const levelsTo = (n: number) => Array.from({ length: n }, (_, i) => i + 6);
 const names = (w: Witnesses, a: string, b: string) => Object.fromEntries(CELLS.map((c) => [c, w(a, b)[c].map((i) => i.n)])) as Record<CellId, string[]>;
 
-test("cellExample: confirmed and textbook, of a level that is on, of a kind a cell takes, and no expert background", () => {
-  const ok = (e: object, up: number) => cellExample({ cf: "confirmed", lv: 1, ...e }, upTo(up));
-  expect(ok({}, 1)).toBe(true);
-  expect(ok({ lv: 2 }, 1)).toBe(false);
-  expect(ok({ cf: "commentator" }, 4)).toBe(false);
-  for (const k of ["thing", "representation", undefined]) expect(ok({ k }, 1), String(k)).toBe(true);
-  for (const k of ["statement", "combination", "something else"]) expect(ok({ k }, 4), k).toBe(false);
-  for (const k of ["relation", "negation"]) { expect(ok({ k, lv: 2 }, 2), k).toBe(false); expect(ok({ k, lv: 2 }, 3), k).toBe(true); }
-  expect(ok({ bg: "expert" }, 4)).toBe(false);
-  expect(ok({ bg: "glossed" }, 4)).toBe(true);
-  // a set, not a ceiling: only the levels that are on; relations and negations once level 3 or 4 is on
-  const on = (e: object, levels: number[]) => cellExample({ cf: "confirmed", lv: 1, ...e }, levels);
-  expect(on({ lv: 2 }, [1, 3])).toBe(false);
-  expect(on({ lv: 3 }, [3])).toBe(true);
-  expect(on({ lv: 1 }, [3, 4])).toBe(false);
-  expect(on({ k: "negation", lv: 2 }, [2])).toBe(false);
-  expect(on({ k: "negation", lv: 2 }, [2, 4])).toBe(true);
-  expect(on({ k: "relation", lv: 4 }, [4])).toBe(true);
+test("cellExample: confirmed and textbook, of a stage that is on, of a kind a cell takes, and no expert background", () => {
+  const ok = (e: object, on: number[]) => cellExample({ cf: "confirmed", lv: 1, ...e }, on);
+  const ALL = levelsTo(4);
+  expect(ok({}, [6])).toBe(true);
+  expect(ok({}, [1, 2, 3, 4, 5]), "a course example waits for the course's words").toBe(false);
+  expect(ok({ lv: 2 }, [6])).toBe(false);
+  expect(ok({ st: 2 }, [2]), "a stage of its own decides").toBe(true);
+  expect(ok({ st: 2 }, [6])).toBe(false);
+  expect(ok({ cf: "commentator" }, ALL)).toBe(false);
+  for (const k of ["thing", "representation", undefined]) expect(ok({ k }, [6]), String(k)).toBe(true);
+  for (const k of ["statement", "combination", "something else"]) expect(ok({ k }, ALL), k).toBe(false);
+  // relations and negations from stage 7, one step further: a set, not a ceiling
+  for (const k of ["relation", "negation"]) {
+    expect(ok({ k, lv: 2 }, [6]), k).toBe(false);
+    expect(ok({ k, lv: 2 }, [7]), k).toBe(true);
+    expect(ok({ k, st: 6 }, [6]), k).toBe(false);
+    expect(ok({ k, st: 6 }, [6, 7]), k).toBe(true);
+  }
+  expect(ok({ bg: "expert" }, ALL)).toBe(false);
+  expect(ok({ bg: "glossed" }, ALL)).toBe(true);
 });
 
-test("the levels that are on: a stored value, switching one, and how many examples each has", () => {
-  expect(normLevels("1,2")).toEqual([1, 2]);
-  expect(normLevels("3, 1,1,9,x")).toEqual([1, 3]);
-  expect(normLevels([4, 2])).toEqual([2, 4]);
-  for (const bad of ["", "0", "x,y", null, undefined, 7, []]) expect(normLevels(bad), String(bad)).toEqual([1]);
-  expect(upTo(3)).toEqual([1, 2, 3]);
-  expect(toggleLevel([1, 2], 3)).toEqual([1, 2, 3]);
-  expect(toggleLevel([1, 2, 3], 2)).toEqual([1, 3]);
-  expect(toggleLevel([2], 2), "the last level on stays on").toEqual([2]);
-  expect(toggleLevel([1], 4)).toEqual([1, 4]);
-  expect(levelCounts(ITEMS)).toEqual({ 1: 7, 2: 5, 3: 2, 4: 0 });
+test("the stage of a reference example, and how many examples each stage has", () => {
+  expect(exampleStage({ lv: 1 })).toBe(6);
+  expect(exampleStage({ lv: 4 })).toBe(9);
+  expect(exampleStage({ lv: 2, st: 3 })).toBe(3);
+  expect(exampleStage({ lv: 1, st: 12 }), "a stage out of range counts as none").toBe(6);
+  expect(stageCounts(ITEMS)).toEqual({ 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 7, 7: 5, 8: 2, 9: 0 });
 });
 
-test("witnessesOf: the examples whose cell is proved for both categories, by level, never the practice list's own", () => {
+test("witnessesOf: the examples whose cell is proved for both categories, by stage, never the practice list's own", () => {
   const data = ix();
-  const w2 = witnessesOf(data, ITEMS, upTo(2));
-  // Form (a) against External form (b)
+  const w2 = witnessesOf(data, ITEMS, levelsTo(2));
+  // Form (a) against External form (b); the negation is in at stage 7
   expect(names(w2, "form", "extf")).toEqual({
-    both: ["a blue wall", "a wall in a hard text"],
+    both: ["a blue wall", "the absence of a wall", "a wall in a hard text"],
     anb: ["a sense power"],
     bna: [],
     nei: ["an idea", "a hope", "a horn of a hare"],
   });
-  const w3 = names(witnessesOf(data, ITEMS, upTo(3)), "form", "extf");
+  const w3 = names(witnessesOf(data, ITEMS, levelsTo(3)), "form", "extf");
   expect(w3.both).toEqual(["a blue wall", "a green wall", "the absence of a wall", "the cause of a wall", "a wall in a hard text"]);
-  expect(names(witnessesOf(data, ITEMS, upTo(1)), "form", "extf")).toEqual({ both: ["a blue wall"], anb: [], bna: [], nei: ["an idea", "a horn of a hare"] });
-  // levels 1 and 3 without 2: nothing of level 2, and the relation joins because level 3 is on
-  expect(names(witnessesOf(data, ITEMS, [1, 3]), "form", "extf").both).toEqual(["a blue wall", "a green wall", "the cause of a wall"]);
+  expect(names(witnessesOf(data, ITEMS, [6]), "form", "extf")).toEqual({ both: ["a blue wall"], anb: [], bna: [], nei: ["an idea", "a horn of a hare"] });
+  // stages 6 and 8 without 7: nothing of stage 7, and the relation of stage 8 joins
+  expect(names(witnessesOf(data, ITEMS, [6, 8]), "form", "extf").both).toEqual(["a blue wall", "a green wall", "the cause of a wall"]);
+  expect(names(witnessesOf(data, ITEMS, [1, 2, 3]), "form", "extf").both, "the course's examples wait for the course's words").toEqual([]);
   // the other order of the categories swaps the cells; a category the data does not have gives nothing
   expect(names(w2, "extf", "form").bna).toEqual(["a sense power"]);
   expect(names(w2, "form", "nothing")).toEqual({ both: [], anb: [], bna: [], nei: [] });
@@ -121,7 +121,7 @@ test("witnessesOf: the examples whose cell is proved for both categories, by lev
 
 test("pairOf with references: a cell the practice list fills may show one, a cell it leaves empty stays empty", () => {
   const data = ix();
-  const more = witnessesOf(data, ITEMS, upTo(2));
+  const more = witnessesOf(data, ITEMS, levelsTo(2));
   const seen: Record<CellId, Set<string>> = { both: new Set(), anb: new Set(), bna: new Set(), nei: new Set() };
   for (let s = 0; s < 300; s++) {
     const p = pairOf(data, "form", "extf", "forms", "external forms", seeded(s), at, more);
@@ -130,7 +130,7 @@ test("pairOf with references: a cell the practice list fills may show one, a cel
     expect(p.why?.bna).toBeTruthy();
     for (const c of CELLS) if (exOf(p)[c]) seen[c].add(exOf(p)[c] as string);
   }
-  expect([...seen.both].sort()).toEqual(["a blue wall", "a clay pot", "a wall in a hard text"]);
+  expect([...seen.both].sort()).toEqual(["a blue wall", "a clay pot", "a wall in a hard text", "the absence of a wall"]);
   expect([...seen.anb].sort()).toEqual(["a feeling of heat", "a sense power"]);
   expect([...seen.nei].sort(), "the neither cell prefers an existent: no non-existent while one exists").toEqual(["a hope", "a joy", "an idea"]);
 
@@ -151,7 +151,7 @@ test("pairOf without references, or with none that fit, draws as it always did",
 
 test("makePair, nextPair and findPair pass the references on", () => {
   const data = ix();
-  const more = witnessesOf(data, ITEMS, upTo(2));
+  const more = witnessesOf(data, ITEMS, levelsTo(2));
   const drawn = new Set<string>();
   for (let s = 0; s < 200; s++) {
     const p = makePair(data, { a: "form", b: "extf", r: "3" }, seeded(s), at, more);
@@ -178,7 +178,9 @@ test("makePair, nextPair and findPair pass the references on", () => {
 test("over the real pairs and made-up examples: only the cells the list fills are filled, and each reference is proved for its cell", () => {
   const rix = makeIndex(openData as unknown as DrillData);
   const items = (madeUpExamples(openData as never, 400) as unknown as { items: { n: string; cls?: string[]; lv: number }[] }).items;
-  const more = witnessesOf(rix, items as never, upTo(3));
+  // the references of a pair are the same for every draw of it: worked out once per pair (the open data has some 1,500 pairs)
+  const of = witnessesOf(rix, items as never, levelsTo(3)), memo = new Map<string, ReturnType<typeof of>>();
+  const more: typeof of = (a, b) => { const k = `${a}|${b}`; let w = memo.get(k); if (!w) memo.set(k, (w = of(a, b))); return w; };
   const listed = new Set(rix.DATA.items.map((i) => i.n));
   let fromExamples = 0;
   for (const e of buildPool(rix)) {
@@ -198,4 +200,4 @@ test("over the real pairs and made-up examples: only the cells the list fills ar
     }
   }
   expect(fromExamples, "the made-up examples do reach cells").toBeGreaterThan(0);
-});
+}, 15_000); // every pair of the open data, four draws each: a few seconds

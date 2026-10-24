@@ -8,7 +8,7 @@ import { asking, setBlitz, setTimer, startQ, stopTimer } from "../debate/flow.js
 import { WORDINGS } from "../debate/text.js";
 import { NOT } from "../../ai-shared/debate.ts";
 import { exName } from "./exercises.js";
-import { levelSwitches } from "./levels.js";
+import { stageSwitches } from "./stages.js";
 import { toggleOpts } from "./options.js";
 import { isEx, render } from "./render.js";
 import { segOf, settingRow as row, switchOf } from "./rows.js";
@@ -29,7 +29,7 @@ export const SYMS={
   sets:["Sets","Each term stands for the set of things it covers.",[["∩","intersection: what is both"],["∅","the empty set: nothing"],["≠ ∅","not empty"],["⊂","contained in"],["⊃","contains"],["=","the same set"]]],
   logic:["Logic","Each term stands for a statement: it is A, it is B.",[["⇒","follows: A ⇒ B, if A then B"],["⇐","follows from"],["⇔","each follows from the other"],["⇏","does not follow"],["¬","negation: not"]]]
 };
-export const PAGES={nota:"Notation",wording:"Questions",times:"Blitz",defs:"Definitions",levels:"Examples",voice:"Voice"};
+export const PAGES={nota:"Notation",wording:"Questions",times:"Blitz",defs:"Definitions",stages:"Stages",voice:"Voice"};
 const store=(key,v)=>{ try{ localStorage.setItem(key,v); }catch(e){} };
 export function setNota(k){ state.nota=k; store("rd-notation",k); render(); }
 export function setDefLang(k){ state.defLang=k==="enru"?"enru":"en"; store("rd-deflang",state.defLang); render(); }
@@ -37,9 +37,10 @@ export function setShow(key,on){ if(key==="ab") state.showAB=on; else state.full
 export function setAutoExplain(on){ state.autoExplain=on; store("rd-autoexplain",on?"1":"0"); render(); }
 export function setWording(k){ state.wording=k; store("rd-wording",k); render(); }
 export function setFindSuggest(on){ state.findSuggest=on; store("rd-findsuggest",on?"1":"0"); render(); }
+export function setNegation(k){ state.negation=k; store("rd-negation",k); render(); }
+export function setNegBrackets(on){ state.negBrackets=on; store("rd-neg-brackets",on?"1":"0"); render(); }
 export function setSyllogismWording(k){ state.syllogismWording=k; store("rd-syllogism-wording",k); render(); }
 export function setSyllogismGuide(on){ state.syllogismGuide=on; store("rd-syllogism-guide",on?"1":"0"); render(); }
-export function setSyllogismLevel(n){ state.syllogismLevel=n; store("rd-syllogism-level",String(n)); render(); }
 // Blitz off takes the stopwatch away from the top bar, and a running countdown with it
 export function setBlitzUse(on){ state.blitzUse=on; store("rd-blitzuse",on?"1":"0"); if(!on) setBlitz(false); else render(); }
 
@@ -53,8 +54,8 @@ export function toggleSess(on){
   else { const b=$("msess"); if(b.offsetParent) b.focus({preventScroll:true}); }
 }
 export function openPage(id){ state.sessPage=id; render(); const b=document.querySelector("#over .ob"); if(b) /** @type {HTMLElement} */(b).focus({preventScroll:true}); }
-/** The Examples page of the practice options: where the levels are switched, and what an offer of another level points to. */
-export function openLevelOptions(){ if(!state.sessOpen) toggleSess(true); openPage("levels"); }
+/** The Stages page of the practice options: where the stages are switched, and what an offer of another stage points to. */
+export function openStageOptions(){ if(!state.sessOpen) toggleSess(true); openPage("stages"); }
 /** The Blitz page of the practice options: what holding the stopwatch in the top bar opens. */
 export function openBlitzOptions(){ if(!state.sessOpen) toggleSess(true); openPage("times"); }
 /** Back or Escape in the options: from a page to the list, from the list to the exercise. */
@@ -78,8 +79,19 @@ const group=t=>el("p",{class:"grp",text:t});
 const sw=(label,word,on,toggle,note)=>el("div",{class:"orow"},switchOf(label,word,on,toggle),note?el("p",{class:"onote",text:note}):null);
 const chips=(label,rows,cur,on)=>segOf(label,rows,cur,on);
 const secs=kind=>Math.round(kindMs(kind)/1000);
-// the levels of the reference examples that are on, in a line
-const levelsLine=()=>el("small",{class:"sum1",text:(state.exLevels.length===1?"Level ":"Levels ")+state.exLevels.join(", ")});
+// the exercises that draw negated pairs, and so show the Negations choice with the stages
+const negates=()=>state.tab==="practice";
+const NEG_NAME={one:"one side",both:"both sides"};
+// the stages that are on, in a line: runs joined ("Stages 1–3, 5"), and the negations where they are drawn
+const stagesLine=()=>{
+  const runs=[]; for(const n of state.stages){ const r=runs[runs.length-1]; if(r&&r[1]===n-1) r[1]=n; else runs.push([n,n]); }
+  return el("small",{class:"sum1",text:(state.stages.length===1?"Stage ":"Stages ")+runs.map(([a,b])=>a===b?a:a+"–"+b).join(", ")+(negates()&&NEG_NAME[state.negation]?" · negations: "+NEG_NAME[state.negation]:"")});
+};
+// Negations are a step of difficulty like the stages, so they are chosen on the Stages page: once the plain pairs come easily, and seldom changed
+const negBracketsRow=()=>sw("Brackets",state.negBrackets?"on":"off",state.negBrackets,()=>setNegBrackets(!state.negBrackets),
+  "“non-(wooden things)” says that the “non-” takes in everything that is not a wooden thing, what does not exist included. Without the brackets, “non-wooden things” is also read as the things that are not wooden, which leaves out what does not exist. The course book writes them for more than one word; they help while negations are new. They apply from the next pair.");
+const negationRow=()=>row("Negations",chips("Negations",[["off","Off"],["one","One side"],["both","Both sides"]],state.negation,setNegation),
+  "Some pairs negate a term: “furniture” and “non-(wooden things)”, which takes in everything that is not a wooden thing. One side: A or B is negated in about a third of the pairs. Both sides: half of those negate both. A negation takes in what does not exist, so nothing may be neither: then the Neither case is empty, and you say that nothing exists there. Switch it on when the plain pairs come easily.");
 // the Blitz times in a line (the card says Off instead when Blitz is switched off)
 const timesLine=()=>el("small",{class:"sum1",text:state.tab==="syllogism"?"Syllogism "+secs("syl")+" s":"Relation "+secs("rel")+" s · Example "+secs("ex")+" s"});
 
@@ -113,10 +125,9 @@ function pageBody(id){
     ...(!state.blitzUse?[]:state.tab==="syllogism"?[timeBlock("syl","Syllogism time","The Blitz countdown for the reply to each syllogism, in Syllogisms.")]
       :[timeBlock("rel","Relation time","The Blitz countdown for choosing the relation, in Relations and in Pervasions."),
         timeBlock("ex","Example time","The Blitz countdown for each example in Relations (a table of three cells gets three times this) and for each question in Pervasions.")])];
-  if(id==="levels") return [el("p",{class:"capl",text:state.tab==="categories"
-    ?"The things Categories shows come from the levels that are on, in any mix. Each level up takes more steps to reach: level 1 is the start, and another level is offered after five right in a row. Switch levels on and off here at any time."
-    :"The examples shown for the cells of a pair, besides the plain ones the page has always had, come from the levels that are on, in any mix. Each level up takes more steps to reach. Level 1 is the start; switch more on when it comes easily. Relations and negations join when level 3 or 4 is on. Only examples the sources confirm are shown. A definition card shows examples of every level, the plainest first."}),
-    levelSwitches()];
+  if(id==="stages") return [el("p",{class:"capl",text:"Every exercise asks about the stages that are on, in any mix. A category opens at its stage and stays open above it, and the things come from the stages that are on. About half of the pairs are new at the highest stage, the rest review the ones below. Stage 1 is the start: Categories offers the next stage after five right in a row, and you can switch stages on and off here at any time. People and what does not exist meet the physical categories from stage 4. Examples that are relations or negations join from stage 7. A definition card shows examples of every stage, the plainest first."}),
+    stageSwitches(),
+    ...(negates()?[group("Negations"),negationRow(),negBracketsRow()]:[])];
   if(id==="voice") return [...voicePageBody(picks),
     el("p",{class:"capl"},"Voice itself is switched on and off in ",el("button",{type:"button",class:"lnk",onclick:()=>{ toggleSess(false); toggleOpts(true); }},"Settings"),".")];
   return [el("p",{class:"capl",text:"Shown when you open a term’s definition, in the Terms panel and in the tutor’s notes."}),
@@ -127,7 +138,7 @@ function categoriesBody(){
   return [
     row("Ask",chips("How step 1 asks",[["all","All at once"],["one","One by one"]],state.catsAsk,setCategoriesAsk),
       "All at once: the categories come together and you tick the ones the thing is in. One by one: a question for each category, answered with yes or no. It applies at once to a thing you have not started, and from the next one otherwise."),
-    state.EX?card("Examples",levelsLine(),"levels"):null,
+    card("Stages",stagesLine(),"stages"),
     el("p",{class:"capl"},"The Magic Key, your account, data and the version are in ",el("button",{type:"button",class:"lnk",onclick:()=>{ toggleSess(false); toggleOpts(true); }},"Settings"),".")
   ];
 }
@@ -136,8 +147,7 @@ function syllogismBody(){
   return [
     row("Wording",chips("Wording of the syllogism",[["take","Take X"],["formal","Formal"]],state.syllogismWording,setSyllogismWording),
       "Take X: “Take a tomato. It follows it is food because it is red.” Formal: “It follows that the subject, a tomato, is food because of being red.”"),
-    row("Things",chips("Which things the syllogisms are about",[[1,"Everyday"],[2,"With Dudra terms"]],state.syllogismLevel,setSyllogismLevel),
-      "Everyday (a tomato, red, food). With Dudra terms (a form, a sound, impermanent, a consciousness, etc.). The change applies from the next syllogism."),
+    card("Stages",stagesLine(),"stages"),
     sw("Show the structure",state.syllogismGuide?"on":"off",state.syllogismGuide,()=>setSyllogismGuide(!state.syllogismGuide),
       "For when the structure is new: under the sentence, S is the subject, P the predicate and R the reason, and each reply says in them what it means."),
     card("Blitz",state.blitzUse?timesLine():el("small",{class:"sum1",text:"Off"}),"times"),
@@ -175,7 +185,7 @@ function listBody(){
     timed?card("Blitz",state.blitzUse?timesLine():el("small",{class:"sum1",text:"Off"}),"times"):null,
     sw("A/B markers","before the terms",state.showAB,()=>setShow("ab",!state.showAB)),
     card("Definitions",chips("Languages of the definitions",[["en","English"],["enru","English + Russian"]],state.defLang,setDefLang),"defs"),
-    state.EX&&(timed||find)?card("Examples",levelsLine(),"levels"):null,
+    card("Stages",stagesLine(),"stages"),
     voiceShown()?group("Voice"):null,
     ...(voiceShown()?voiceListRows(sw,card,chips):[]),
     tutor||quorum?group("AI tutor"):null,
@@ -188,7 +198,7 @@ function listBody(){
 // the sheet: a scrim that closes it, and the panel
 export function sessionInto(o){
   o.append(el("button",{type:"button",class:"scrim",tabindex:"-1","aria-label":"Close the practice options",onclick:()=>toggleSess(false)}));
-  const page=state.sessPage&&PAGES[state.sessPage]&&(state.sessPage!=="levels"||state.EX)&&(state.sessPage!=="voice"||voiceShown())?state.sessPage:null;
+  const page=state.sessPage&&PAGES[state.sessPage]&&(state.sessPage!=="voice"||voiceShown())?state.sessPage:null;
   const sheet=el("div",{class:"sheet"});
   sheet.append(el("div",{class:"shh"},
     page?el("button",{type:"button",class:"ob",onclick:sessBack,"aria-label":"Back to the options",title:"Back"},tbIcon("back")):null,

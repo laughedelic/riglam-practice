@@ -10,6 +10,7 @@ import { render, renderKeepFocus } from "../shell/render.js";
 import { SYLLOGISM_ASK, syllogismBody, syllogismCard, syllogismCats } from "../../ai-shared/syllogism.ts";
 import { tutorTools } from "../../ai-shared/tools.ts";
 import { syllogismText } from "../../domain/syllogism.ts";
+import { topStage } from "../../domain/stages.ts";
 
 /* ---------- Syllogisms: the tutor's explanation and chat ---------- */
 // The same flow as ai/tutor.js `ask`, for a syllogism: the card (src/ai-shared/syllogism.ts) and the request to explain are built from the term data, the standing
@@ -19,7 +20,7 @@ import { syllogismText } from "../../domain/syllogism.ts";
 const TIER="default";
 
 /** What the card reads of the answer on screen. */
-const answerView=U=>({sentence:syllogismText(state.cur.c,state.syllogismWording), grade:U.grade, ex:U.ex?{text:U.ex.text,v:U.ex.v}:null});
+const answerView=U=>({sentence:syllogismText(state.cur.c,state.syllogismWording), grade:U.grade, ex:U.ex?{text:U.ex.text,v:U.ex.v}:null, stage:topStage(state.stages)});
 
 /** The tutor's turn for the checked syllogism on screen: `kind` "explain" asks for the explanation, anything else is the learner's own question `text`. */
 export async function askSyllogism(text,kind,byItself){
