@@ -81,7 +81,7 @@ function RelStep() {
       <Choices label="Relation to practice" items={items} onPick={(k) => chooseRel(k === "rand" ? null : k)} />
       <Sx cls="ptail" />
     </Scroll>
-    <Foot><Station name={u.step === 0 ? "Back to your pair" : "Back to the examples"} act={() => { u.open = false; render(); }} /></Foot>
+    <Foot><Station back name={u.step === 0 ? "Back to your pair" : "Back to the examples"} act={() => { u.open = false; render(); }} /></Foot>
   </>;
 }
 

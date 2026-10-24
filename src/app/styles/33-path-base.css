@@ -22,7 +22,7 @@ html:not(.design-path) #path{display:none}
 :where(.pa) button:not(.pbr *){font:inherit; color:inherit; background:none; border:0; padding:0; margin:0; text-align:inherit; cursor:pointer; -webkit-tap-highlight-color:transparent}
 /* a ring around what has the focus shows for a keyboard that tabs (html.pa-tab), never after a tap or an Enter in a field that moves the focus on */
 html.design-path:not(.pa-tab) :focus-visible{outline:0}
-html.pa-tab .pa :is(button,[tabindex]):focus-visible:not(.pbr *){outline:2px solid var(--blue); outline-offset:1px; box-shadow:none}
+html.pa-tab .pa :is(button,[tabindex]):not([data-quiet]):focus-visible:not(.pbr *){outline:2px solid var(--blue); outline-offset:1px; box-shadow:none}
 :where(.pa) input:not(.pbr *){font:inherit; color:inherit}
 .pa .i{width:21px; height:21px; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; flex:none}
 .pa .spc{flex:1}

@@ -72,17 +72,18 @@ export function Toast() {
   return <div class={"ptoast" + (n ? " on" : "")} role="status">{n ? n.text : ""}</div>;
 }
 
-/** The station at the edge, ready: pull it up past its reach, tap it, or press Enter (its arrow hops, as the sign that it can be taken). */
-export function Station({ name, hint = "", act, arrive = false }: { name: string; hint?: string; act: () => void; arrive?: boolean }) {
-  const pull = useContext(PullCtx); pull.act = act;
+/** The station at the edge, ready: pull it up over the curb, tap it, or press Enter (its arrow hops, as the sign that it can be taken). Taking it plays the ride
+ *  (take.ts) unless `back`: it goes back to what was there, and the step is simply there. */
+export function Station({ name, hint = "", act, arrive = false, back = false }: { name: string; hint?: string; act: () => void; arrive?: boolean; back?: boolean }) {
+  const pull = useContext(PullCtx); pull.act = act; pull.rides = !back;
   const g = useRef<{ y0: number; moved: boolean; past: boolean } | null>(null);
   return <button type="button" class="stn" id="stn" aria-label={name + (hint ? ": " + hint : "")}
     onPointerDown={(e) => { g.current = { y0: e.clientY, moved: false, past: false }; (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); pull.to(0); }}
     onPointerMove={(e) => { const s = g.current; if (!s) return; const raw = Math.max(0, s.y0 - e.clientY); if (raw > 4) s.moved = true; s.past = pull.to(s.moved ? raw : 0); }}
     onPointerUp={() => { const s = g.current; if (!s) return; g.current = null; pull.end(!s.moved || s.past); }}
     onPointerCancel={() => { g.current = null; pull.end(false); }}
-    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); act(); } }}
-    onClick={(e) => { if (e.detail === 0) act(); }}>
+    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pull.take(); } }}
+    onClick={(e) => { if (e.detail === 0) pull.take(); }}>
     <span class={"go" + (arrive ? " arrive" : "")}><span class="mk"><Icon n="up" /></span></span><span class="gol"><b>{name}</b>{hint ? <small>{hint}</small> : null}</span>
   </button>;
 }
