@@ -6,7 +6,7 @@ import { REL } from "../core/rel.js";
 import { cap } from "../core/util.js";
 import { isA } from "./screen.js";
 import { catByLabel } from "./universe.js";
-import { examplesFor } from "../../domain/reference.ts";
+import { exampleStage, examplesFor } from "../../domain/reference.ts";
 import { render } from "../shell/render.js";
 
 // Where a category sits: the Dudra term with its higher categories, or, for an everyday category, the Dudra term it falls under.
@@ -142,13 +142,13 @@ function upLine(n,live){
 }
 // How well the sources confirm an example (the reference examples, docs/DATA.md), as the card says it. No source is named.
 export const CONFIRMATION={confirmed:"in two or more sources",textbook:"in the course textbook",commentator:"from a commentary"};
-// Examples of the term, under its definition: a few, the plainest first, each with its level and how well it is confirmed; tapping one says why it is a good example.
+// Examples of the term, under its definition: a few, the plainest first, each with its stage and how well it is confirmed; tapping one says why it is a good example.
 function examplesNode(n){
   if(!state.EX) return null;
   const list=examplesFor(state,state.EX.items,n); if(!list.length) return null;
   const open=state.ui&&state.ui.dex;
   return el("dd",{class:"tm-ex"},el("p",{class:"tm-exh",text:list.length>1?"Examples":"Example"}),el("ul",null,list.map(x=>{
-    const key=n+"|"+x.n, on=open===key, meta=["level "+x.lv,CONFIRMATION[x.cf||""]].filter(Boolean).join(" \u00b7 ");
+    const key=n+"|"+x.n, on=open===key, meta=["stage "+exampleStage(x),CONFIRMATION[x.cf||""]].filter(Boolean).join(" \u00b7 ");
     const head=[el("span",{class:"tm-exn",text:x.n}),el("small",{text:meta})];
     if(!x.gloss) return el("li",null,el("div",{class:"tm-exr"},head));
     const toggle=e=>{ e.stopPropagation(); state.ui.dex=on?null:key; render(); const b=document.querySelector('.tm-ex button[data-dex="'+CSS.escape(key)+'"]'); if(b) /** @type {HTMLElement} */(b).focus({preventScroll:true}); };

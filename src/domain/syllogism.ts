@@ -16,6 +16,8 @@ import type { HistoryEntry } from "./types";
 import { cellsFor, judgeable } from "./universe";
 import type { Rng } from "./universe";
 import { FEATURE, RECENT_MAX, inUniverse } from "./universe";
+import { catOpen, itemOn, normStages, topStage } from "./stages";
+import type { Stages } from "./stages";
 import { cap, isMiss } from "./util";
 
 /** What the learner says: accept the syllogism, deny the reason ("the reason is not established"), or deny the pervasion. */
@@ -92,7 +94,7 @@ interface Table {
   near: Map<string, Set<string>>;
   /** category pairs whose pervasion the term data proves but an item contradicts, as "reason>predicate" */
   conflicts: string[];
-  /** the candidates of a situation up to a level, as "situation:level" */
+  /** the candidates of a situation up to a level, for a set of stages, as "situation:level:stages" */
   bySit: Map<string, Cand[]>;
   views: Map<string, View>;
 }
@@ -203,13 +205,13 @@ function spread(items: readonly Item[], at: string, n: number): Item[] {
   return items.filter((item) => (Math.imul(keyOf(item) ^ mix, 2654435761) >>> 0) < limit);
 }
 
-function candidates(ix: DataIndex, sit: Situation, top: 1 | 2): Cand[] {
-  const t = tableOf(ix), key = `${sit}:${top}`, hit = t.bySit.get(key);
+function candidates(ix: DataIndex, sit: Situation, top: 1 | 2, on?: Stages): Cand[] {
+  const t = tableOf(ix), key = `${sit}:${top}:${on ? normStages(on).join(",") : ""}`, hit = t.bySit.get(key);
   if (hit) return hit;
   const rule = SITUATIONS[sit], out: Cand[] = [];
   for (const pair of t.pairs) {
-    if (!matches(rule, pair)) continue;
-    const items = pair.cells[rule.cell].filter((item) => !item.ne && !item.nosubject && levelOf(pair, item) <= top);
+    if (!matches(rule, pair) || (on && !(catOpen(ix.CAT[pair.r], on) && catOpen(ix.CAT[pair.p], on)))) continue;
+    const items = pair.cells[rule.cell].filter((item) => !item.ne && !item.nosubject && levelOf(pair, item) <= top && (!on || itemOn(ix, item, pair.r, pair.p, on)));
     for (const item of spread(items, `${pair.r}|${pair.p}`, SUBJECTS_PER_PAIR)) out.push({ pair, item, links: linksOf(t, pair, item, rule), level: levelOf(pair, item) });
   }
   t.bySit.set(key, out);
@@ -222,10 +224,10 @@ function groupsOf(cands: readonly Cand[]): Group[] {
   for (const c of cands) { const g = by.get(c.pair); if (g) g.push(c); else by.set(c.pair, [c]); }
   return [...by].map(([pair, cs]) => ({ pair, cands: cs, mean: cs.reduce((s, c) => s + weightOf(c.links), 0) / cs.length }));
 }
-function viewOf(ix: DataIndex, sit: Situation, top: 1 | 2): View {
-  const t = tableOf(ix), key = `${sit}:${top}`, hit = t.views.get(key);
+function viewOf(ix: DataIndex, sit: Situation, top: 1 | 2, on?: Stages): View {
+  const t = tableOf(ix), key = `${sit}:${top}:${on ? normStages(on).join(",") : ""}`, hit = t.views.get(key);
   if (hit) return hit;
-  const all = candidates(ix, sit, top);
+  const all = candidates(ix, sit, top, on);
   // at least one link at level 1, two at level 2 (the course's terms are easier to confuse, so they are held to more sense)
   const v: View = {
     all: groupsOf(all), zero: groupsOf(all.filter((c) => c.links === 0)), some: groupsOf(all.filter((c) => c.links > 0)),
@@ -448,20 +450,32 @@ export interface SyllogismDraw {
   hist: readonly SyllogismHistory[];
   /** ids of the syllogisms drawn lately; the draw appends to it and keeps the last RECENT_MAX */
   recent: string[];
-  /** the highest level to draw from: 1 everyday things and properties only, 2 also the terms of the course (the default) */
+  /** the highest level to draw from: 1 everyday things and properties only, 2 also the terms of the course; none: the stages' (`levelAt`), else 2 */
   level?: 1 | 2;
+  /**
+   * the stages the learner draws from (stages.ts): the reason and the predicate are categories open at the highest, and the subject a thing
+   * of a stage that is on (a person or what does not exist with a physical category only from the hold's stage); none: every syllogism.
+   * Stages that can draw nothing draw as if there were none.
+   */
+  stages?: Stages;
   rng?: Rng;
 }
 
 /** The share of syllogisms drawn with nothing linking their parts, as light relief (when the data has such ones). */
 export const RELIEF = 0.1;
 
+/** The stages up to which a syllogism keeps to everyday reasons and predicates: the categories of form are new there, and the course's terms come from the established bases. */
+export const EVERYDAY_STAGES = 3;
+/** The level of the syllogisms for a learner with these stages on: everyday (1) while the highest is at most `EVERYDAY_STAGES`, else with the course's terms (2). */
+export const levelAt = (on: Stages): 1 | 2 => (topStage(on) <= EVERYDAY_STAGES ? 1 : 2);
+
 /** The syllogism to practice next. See the note on the draw: the answer, then the situation, then the triple by its links. */
 export function drawSyllogism(ix: DataIndex, st: SyllogismDraw): Syllogism {
-  const rng = st.rng || Math.random, top = st.level ?? 2, hist = st.hist;
-  const usable = (s: Situation) => viewOf(ix, s, top).all.length > 0;
+  const rng = st.rng || Math.random, top = st.level ?? (st.stages ? levelAt(st.stages) : 2), hist = st.hist;
+  const staged = st.stages && SIT_IDS.some((s) => viewOf(ix, s, top, st.stages).all.length > 0) ? st.stages : undefined;
+  const usable = (s: Situation) => viewOf(ix, s, top, staged).all.length > 0;
   // light relief: now and then a syllogism with nothing linking its parts at all (the reason is not established, and the pervasion fails as well)
-  const zero = rng() < RELIEF ? viewOf(ix, 8, top).zero : [];
+  const zero = rng() < RELIEF ? viewOf(ix, 8, top, staged).zero : [];
   let sit: Situation = 8, pool = zero;
   if (!zero.length) {
     // the answer: all three alike, the one asked lately less, the one missed lately more
@@ -472,7 +486,7 @@ export function drawSyllogism(ix: DataIndex, st: SyllogismDraw): Syllogism {
     if (!replies.length) throw new Error("no syllogism to draw from");
     const answer = chooseWeighted(replies, (a) => aw[a], rng);
     sit = chooseWeighted(SIT_IDS.filter((s) => SITUATIONS[s].answer === answer && usable(s)), (s) => SITUATIONS[s].weight, rng);
-    const v = viewOf(ix, sit, top);
+    const v = viewOf(ix, sit, top, staged);
     pool = v.linked.length ? v.linked : v.some.length ? v.some : v.all;
   }
 

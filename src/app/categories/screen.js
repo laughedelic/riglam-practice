@@ -1,5 +1,4 @@
 import { state } from "../state.js";
-import { LEVEL_INFO } from "../core/examples.js";
 import { el } from "../core/dom.js";
 import { isWide } from "../core/viewport.js";
 import { next } from "../practice/queue.js";
@@ -8,21 +7,23 @@ import { CONFIRMATION } from "../practice/terms.js";
 import { pairBar } from "../shell/pbar.js";
 import { toggleOpts } from "../shell/options.js";
 import { ago } from "../shell/render.js";
-import { openLevelOptions } from "../shell/session.js";
-import { acceptOffer, advanceCategories, categoriesList, checkCategories, continueCategories, declineOffer, pickCategory, sayCategory, tickCategory, tickNone } from "./flow.js";
+import { openStageOptions } from "../shell/session.js";
+import { stageName } from "../shell/stages.js";
+import { STAGES } from "../../domain/stages.ts";
+import { acceptOffer, advanceCategories, categoriesList, drawKey, checkCategories, continueCategories, declineOffer, pickCategory, sayCategory, tickCategory, tickNone } from "./flow.js";
 
 /* ---------- Categories: the screen ---------- */
 // One card holds the thing and what is asked of it. Step 1 asks which categories the thing is in: all at once (tick, then Check) or one at a time (yes or no, the
 // answers collecting under the buttons, newest first, so that the buttons stay where they are). The check splits the categories in two, "What applies" and "What does not
 // apply", each with the reason. Step 2 is asked when at least two categories apply and they lie on one line: from the categories that do apply, one tap picks the most
-// specific, and the result shows the line. The count towards the next level is never shown; only the offer is. See flow.js for the steps.
+// specific, and the result shows the line. The count towards the next stage is never shown; only the offer is. See flow.js for the steps.
 const sentence=t=>t[0].toUpperCase()+t.slice(1);
 /** Why a category is, or is not, one of the thing's: the steps of the data, a sentence. */
 const because=row=>[row.reason?sentence(row.reason)+".":"",row.why].filter(Boolean).join(" ");
 
 const thingCard=q=>el("div",{class:"catthing"},
   el("p",{class:"catn",lang:"en",text:q.thing.n}),
-  el("p",{class:"catm",text:"level "+q.thing.lv+" · "+(CONFIRMATION[q.thing.cf]||q.thing.cf)}));
+  el("p",{class:"catm",text:"stage "+q.thing.st+(q.thing.cf?" · "+(CONFIRMATION[q.thing.cf]||q.thing.cf):"")}));
 const stepLabel=t=>el("p",{class:"catstep",text:t});
 const sumLine=g=>el("p",{class:"catsum",text:"Step 1 · "+(g.ok?"all "+g.right+" right":g.right+" of "+g.rows.length+" right")});
 
@@ -106,20 +107,21 @@ function step2Result(){
   return out;
 }
 
-// the offer of another level, or the line that says what the answer to it did
+// the offer of another stage, or the line that says what the answer to it did
 function offerNode(){
   const o=state.ui.offer; if(!o) return null;
   if(o.kind==="done") return el("p",{class:"catnote",role:"status",text:o.text});
   const up=o.kind==="up";
-  return el("div",{class:"catoffer",role:"group","aria-label":up?"Add a level":"Switch a level off"},
-    el("p",{class:"catoq",text:up?"Level "+(o.level-1)+" is going well. Add level "+o.level+" to the mix?"
-      :"Level "+o.level+" is hard going right now. Switch it off for a while?"}),
-    el("p",{class:"catnote",text:"Level "+o.level+", "+LEVEL_INFO[o.level][0].toLowerCase()+": "+LEVEL_INFO[o.level][1]}),
+  const info=STAGES.find(x=>x.n===o.stage);
+  return el("div",{class:"catoffer",role:"group","aria-label":up?"Add a stage":"Switch a stage off"},
+    el("p",{class:"catoq",text:up?"Stage "+(o.stage-1)+" is going well. Add stage "+o.stage+" to the mix?"
+      :"Stage "+o.stage+" is hard going right now. Switch it off for a while?"}),
+    el("p",{class:"catnote",text:"Stage "+o.stage+", "+stageName(o.stage).toLowerCase()+": "+(info?info.adds:"")}),
     el("div",{class:"actions left"},
-      el("button",{type:"button",class:"btn catyes",onclick:acceptOffer,text:up?"Add level "+o.level:"Switch off level "+o.level}),
+      el("button",{type:"button",class:"btn catyes",onclick:acceptOffer,text:up?"Add stage "+o.stage:"Switch off stage "+o.stage}),
       el("button",{type:"button",class:"btn ghost",onclick:declineOffer,text:"Not now"})),
-    up?el("p",{class:"catnote",text:"Never starts by itself. The level you are on stays on; turn any level off in the practice options."})
-      :el("p",{class:"catnote"},"Or adjust the levels yourself in the ",el("button",{type:"button",class:"lnk",onclick:openLevelOptions},"practice options"),". Nothing is switched off by itself."));
+    up?el("p",{class:"catnote",text:"Never starts by itself. It applies to every exercise, and the stages you are on stay on; turn any stage off in the practice options."})
+      :el("p",{class:"catnote"},"Or adjust the stages yourself in the ",el("button",{type:"button",class:"lnk",onclick:openStageOptions},"practice options"),". Nothing is switched off by itself."));
 }
 
 // the last things, newest first, in the panel at the right of a wide screen
@@ -128,16 +130,18 @@ function recent(box){
   box.append(el("details",{class:"recent",open:state.recentOpen,ontoggle:e=>{ state.recentOpen=e.target.open; try{ localStorage.setItem("rd-recent",state.recentOpen?"1":"0"); }catch(_){} }},
     el("summary",{class:"label"},el("span",{class:"rmk","aria-hidden":"true"}),"Recent",el("span",{class:"hint",text:String(list.length)})),
     el("ul",{class:"hist"},list.map(a=>el("li",null,el("span",{class:"s "+a.grade,text:{ok:"✓",part:"~",bad:"✗"}[a.grade]||"✗"}),
-      el("span",null,a.thing,el("small",{text:"level "+a.level})),el("small",{text:ago(a.at)}))))));
+      el("span",null,a.thing,el("small",{text:a.stage?"stage "+a.stage:"level "+a.level})),el("small",{text:ago(a.at)}))))));
 }
 
 export function renderCategories(s,c){
-  if(!state.cur.q&&state.EX) advanceCategories();      // the examples arrived after the page started: draw the first thing
+  if(!state.cur.q&&state.cur.tried!==drawKey()) advanceCategories();      // the stages changed, or the examples arrived, since nothing could be drawn
   const u=state.ui, q=state.cur.q, w=isWide();
   if(!q){
     s.append(el("div",{class:"qcard catcard"},
-      el("p",{class:"catask",text:"Categories uses the reference examples, which this device does not hold yet."}),
-      el("p",{class:"catnote"},"They come with the Magic Key, in ",el("button",{type:"button",class:"lnk",onclick:()=>toggleOpts(true)},"Settings"),".")));
+      el("p",{class:"catask",text:"The stages that are on have nothing to ask about on this device."}),
+      el("p",{class:"catnote"},"Switch a lower stage on in the ",el("button",{type:"button",class:"lnk",onclick:openStageOptions},"practice options"),
+        state.EX?".":". The things of stages 7 to 9 are the course's reference examples, which come with the Magic Key, in ",
+        state.EX?null:el("button",{type:"button",class:"lnk",onclick:()=>toggleOpts(true)},"Settings"),state.EX?null:".")));
     return;
   }
   const card=el("div",{class:"qcard catcard"});

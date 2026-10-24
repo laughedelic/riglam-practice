@@ -6,6 +6,8 @@ import { leavesOpen } from "../ai-shared/lookup";
 import type { DataIndex } from "../ai-shared/lookup";
 import { CELLS } from "../ai-shared/relations";
 import type { CellId, RelKey } from "../ai-shared/relations";
+import { itemKnown, itemOn, poolAt, topStage } from "./stages";
+import type { StagedEntry, Stages } from "./stages";
 import type { HistoryEntry, Pair, PoolEntry } from "./types";
 import { cap, isMiss, pick } from "./util";
 
@@ -121,9 +123,10 @@ export function buildPool(ix: DataIndex): PoolEntry[] {
 /**
  * A pair from a pool entry: a random order and random labels, the relation the data gives, an example per cell where
  * there is one, and the reason where a cell is empty. The random numbers are drawn in a fixed order; the id is made from
- * the clock and one more random number, so with both given the whole pair is reproducible.
+ * the clock and one more random number, so with both given the whole pair is reproducible. With `on`, the examples are
+ * things of those stages (see pairOf).
  */
-export function makePair(ix: DataIndex, cand: PoolEntry, rng: Rng = Math.random, now: Clock = Date.now, more?: Witnesses): Pair {
+export function makePair(ix: DataIndex, cand: PoolEntry, rng: Rng = Math.random, now: Clock = Date.now, more?: Witnesses, on?: Stages): Pair {
   let a = cand.a, b = cand.b, la: string, lb: string;
   if (a === b) {
     const ls = ix.CAT[a].labels.slice().sort(() => rng() - 0.5);
@@ -132,15 +135,16 @@ export function makePair(ix: DataIndex, cand: PoolEntry, rng: Rng = Math.random,
     if (rng() < 0.5) [a, b] = [b, a];
     la = pick(ix.CAT[a].labels, rng); lb = pick(ix.CAT[b].labels, rng);
   }
-  return pairOf(ix, a, b, la, lb, rng, now, more);
+  return pairOf(ix, a, b, la, lb, rng, now, more, on);
 }
 
 /**
  * The pair for two categories in this order, shown under these labels (the learner's words in the pair-finding mode, a label of the category in a draw).
  * `more` adds references to the cells: the practice list decides the relation and which cells are empty, so a reference only joins a cell the list
- * fills, and one the list does not agree with never makes a cell hold what the relation says it cannot.
+ * fills, and one the list does not agree with never makes a cell hold what the relation says it cannot. With `on`, a cell's example from the list
+ * is a thing of those stages (`itemOn`) where the cell has one, else one the learner knows from a stage below (`itemKnown`), else any thing of the cell.
  */
-export function pairOf(ix: DataIndex, a: string, b: string, la: string, lb: string, rng: Rng = Math.random, now: Clock = Date.now, more?: Witnesses): Pair {
+export function pairOf(ix: DataIndex, a: string, b: string, la: string, lb: string, rng: Rng = Math.random, now: Clock = Date.now, more?: Witnesses, on?: Stages): Pair {
   const cells = cellsFor(ix, a, b), relation = relOfCells(cells), extra = more ? more(a, b) : null;
   const ex: Partial<Record<CellId, string | null>> = {}, why: Partial<Record<CellId, string>> = {};
   const p: Pair = {
@@ -149,7 +153,8 @@ export function pairOf(ix: DataIndex, a: string, b: string, la: string, lb: stri
   };
   for (const c of CELLS) {
     // the neither cell prefers an existent, as in debate; a non-existent only when nothing existent fits
-    const all: readonly { n: string; ne?: boolean }[] = extra && cells[c].length ? [...cells[c], ...extra[c]] : cells[c];
+    const listed = on ? [cells[c].filter((it) => itemOn(ix, it, a, b, on)), cells[c].filter((it) => itemKnown(ix, it, a, b, on))].find((l) => l.length) ?? cells[c] : cells[c];
+    const all: readonly { n: string; ne?: boolean }[] = extra && cells[c].length ? [...listed, ...extra[c]] : listed;
     const pool = c === "nei" && all.some((i) => !i.ne) ? all.filter((i) => !i.ne) : all;
     ex[c] = pool.length ? pick(pool, rng).n : null;
     if (!ex[c]) why[c] = whyEmpty(c, p);
@@ -176,11 +181,29 @@ export interface DrawState {
   now?: Clock;
   /** more references for the cells than the practice list has */
   more?: Witnesses;
+  /**
+   * the stages the learner draws from (stages.ts): only pairs that can be drawn with them, about half of them new at the highest stage
+   * and the rest from below, with examples of those stages; none, or stages that can draw no pair: every pair, as before the ladder
+   */
+  stages?: Stages;
+  /** the learner has just reached the highest stage that is on: its first pairs lean to three possibilities, with familiar things inside familiar kinds */
+  fresh?: boolean;
+  /** every pair the stages can draw weighs the same, none more for being new at the highest stage: a device that kept its settings from before the ladder draws as it did */
+  even?: boolean;
 }
 
-/** The pool entry for the next pair: the relation that has been seen least lately, then a pair of categories weighted by what the learner got wrong. */
-export function chooseEntry(ix: DataIndex, pool: readonly PoolEntry[], st: DrawState): PoolEntry {
+/** How much more likely a three-possibility pair is while the learner has just reached a stage (`fresh`). */
+const FRESH_THREE = 2.5;
+
+/**
+ * The pool entry for the next pair: the relation that has been seen least lately, then a pair of categories weighted by what the learner got
+ * wrong. With `stages`, from the pairs those stages can draw, half the time one new at the highest stage when there are both kinds.
+ */
+export function chooseEntry(ix: DataIndex, full: readonly PoolEntry[], st: DrawState): PoolEntry {
   const { hist, recent } = st, rng = st.rng || Math.random, isHidden = st.isHidden || (() => false);
+  // stages whose things cannot fill a single pair (only the upper stages, which the practice list has nothing of) draw from every pair
+  const staged = st.stages ? poolAt(ix, full, st.stages) : [], pool: readonly (PoolEntry & Partial<StagedEntry>)[] = staged.length ? staged : full;
+  const top = staged.length && !st.even ? topStage(st.stages!) : 0;
   const last = hist.slice(-8).map((x) => (x.key === "3ab" || x.key === "3ba" ? "3" : x.key));
   const seen = new Set(hist.slice(-60).map((x) => [x.catA, x.catB].sort().join("|")).concat(recent));
   const weak: Record<string, number> = Object.create(null);
@@ -190,7 +213,7 @@ export function chooseEntry(ix: DataIndex, pool: readonly PoolEntry[], st: DrawS
     if (x.catB) weak[x.catB] = (weak[x.catB] || 0) + 1;
   }
   // the relation least seen lately comes first, so the stream stays mixed
-  const rw: Record<string, number> = { mi: 1, con: 1, "3": 1.3, "4": 1 };
+  const rw: Record<string, number> = { mi: 1, con: 1, "3": st.fresh ? 1.3 * FRESH_THREE : 1.3, "4": 1 };
   for (const r of last) if (r && Object.hasOwn(rw, r)) rw[r] = Math.max(0.15, rw[r] * 0.45); // an answer without a relation counts for none
   const rels = Object.keys(rw).filter((r) => pool.some((c) => c.r === r)); // a relation the pool lacks cannot be drawn
   if (!rels.length) throw new Error("no pair to draw from");
@@ -199,8 +222,11 @@ export function chooseEntry(ix: DataIndex, pool: readonly PoolEntry[], st: DrawS
   let cands = pool.filter((c) => c.r === R && !isHidden(c));
   if (!cands.length) cands = pool.filter((c) => c.r === R); // everything of this relation is skipped: the skips give way
 
+  // the pairs new at the highest stage weigh as much together as the rest together: about half the questions are new, the rest review
+  const nNew = top ? cands.filter((c) => c.st === top).length : 0, nOld = cands.length - nNew;
+  const newWeight = nNew && nOld ? nOld / nNew : 1;
   const w = cands.map((c) => {
-    let v = 1;
+    let v = c.st === top ? newWeight : 1;
     if (seen.has(pairKey(c))) v *= 0.08;
     v *= 1 + 1.5 * ((weak[c.a] || 0) + (weak[c.b] || 0));
     if (R === "con" && ix.CAT[c.a].kind === "everyday" && ix.CAT[c.b].kind === "everyday") v *= 0.35;
@@ -217,5 +243,5 @@ export function nextPair(ix: DataIndex, pool: readonly PoolEntry[], st: DrawStat
   const c = chooseEntry(ix, pool, st);
   st.recent.push(pairKey(c));
   if (st.recent.length > RECENT_MAX) st.recent.shift();
-  return makePair(ix, c, st.rng || Math.random, st.now || Date.now, st.more);
+  return makePair(ix, c, st.rng || Math.random, st.now || Date.now, st.more, st.stages);
 }

@@ -4,12 +4,14 @@
 // not, or when it does not exist. Anything else the data cannot tell, and the example stays out of that cell: a cell is never
 // filled by guessing that what the data does not say is false.
 import type { Cat } from "../ai-shared/data";
-import { LEVELS, examplesFor } from "../ai-shared/examples";
-import type { Example, Levels } from "../ai-shared/examples";
+import { examplesFor } from "../ai-shared/examples";
+import type { Example } from "../ai-shared/examples";
 import { spelled, stripDet, upChain } from "../ai-shared/lookup";
 import type { DataIndex } from "../ai-shared/lookup";
 import type { CellId } from "../ai-shared/relations";
 import { catChain, excludes } from "./ladder";
+import { MAX_STAGE, normStages, topStage } from "./stages";
+import type { Stages } from "./stages";
 import type { Witnesses } from "./universe";
 
 export type Placement = "yes" | "no" | null;
@@ -32,45 +34,47 @@ export function placeByClass(ix: DataIndex, ex: Pick<Example, "cls" | "not" | "n
 /** The confirmations an example needs to be drawn into a cell; a commentator's example is shown with its term only. */
 export const DRAWN = ["confirmed", "textbook"] as const;
 
-/** Whether an example may be drawn for a learner who draws examples from `levels`. */
-export function drawable(ex: Pick<Example, "cf" | "lv">, levels: Levels): boolean {
-  return (DRAWN as readonly (string | undefined)[]).includes(ex.cf) && levels.includes(ex.lv);
+/**
+ * A reference example's stage: its own (format 3), else its level's: the examples are the course's, so a plain one (level 1) waits for the
+ * course words (stage 6) and each level after it is a stage up.
+ */
+export const exampleStage = (ex: Pick<Example, "lv" | "st">): number =>
+  typeof ex.st === "number" && ex.st >= 1 && ex.st <= MAX_STAGE ? ex.st : Math.min(MAX_STAGE, Math.max(1, ex.lv) + 5);
+
+/** Whether an example may be drawn for a learner with these stages on: confirmed or textbook, of a stage that is on. */
+export function drawable(ex: Pick<Example, "cf" | "lv" | "st">, on: Stages): boolean {
+  return (DRAWN as readonly (string | undefined)[]).includes(ex.cf) && normStages(on).includes(exampleStage(ex));
 }
 
-/** Switches a level on or off. The last level on stays on: examples always come from somewhere. */
-export function toggleLevel(levels: Levels, level: number): number[] {
-  const on = levels.includes(level);
-  if (on && levels.length === 1) return [...levels];
-  return LEVELS.filter((l) => (l === level ? !on : levels.includes(l)));
-}
-
-/** How many examples a learner can be shown at each level (`drawable` by confirmation), for the switches of the levels. */
-export function levelCounts(items: readonly Pick<Example, "cf" | "lv">[]): Record<number, number> {
+/** How many examples a learner can be shown at each stage (`drawable` by confirmation), for the switches of the stages. */
+export function stageCounts(items: readonly Pick<Example, "cf" | "lv" | "st">[]): Record<number, number> {
   const out: Record<number, number> = {};
-  for (const l of LEVELS) out[l] = items.filter((ex) => drawable(ex, [l])).length;
+  for (let s = 1; s <= MAX_STAGE; s++) out[s] = 0;
+  for (const ex of items) if ((DRAWN as readonly (string | undefined)[]).includes(ex.cf)) out[exampleStage(ex)]++;
   return out;
 }
 
-/** The kinds that may stand in a cell. Things and representations always; relations and negations when level 3 or 4 is on; a combination or a statement is another question's ("is X a Y?" would be wrong for it). */
+/** The kinds that may stand in a cell. Things and representations always; relations and negations from the stage that takes one step further; a combination or a statement is another question's ("is X a Y?" would be wrong for it). */
 const PLAIN_KINDS = ["thing", "representation"];
 const LATER_KINDS = ["relation", "negation"];
+const LATER_STAGE = 7;
 
 /**
- * Whether the example may be shown as the reference of a cell of a practice pair for a learner who draws examples from `levels`: confirmed
- * or textbook (`drawable`), a kind a cell takes, and no expert background (one a beginner could not read).
+ * Whether the example may be shown as the reference of a cell of a practice pair for a learner with these stages on: confirmed or textbook
+ * of a stage that is on (`drawable`), a kind a cell takes, and no expert background (one a beginner could not read).
  */
-export function cellExample(ex: Pick<Example, "cf" | "lv" | "k" | "bg">, levels: Levels): boolean {
-  if (!drawable(ex, levels) || ex.bg === "expert") return false;
-  return !ex.k || PLAIN_KINDS.includes(ex.k) || (levels.some((l) => l >= 3) && LATER_KINDS.includes(ex.k));
+export function cellExample(ex: Pick<Example, "cf" | "lv" | "st" | "k" | "bg">, on: Stages): boolean {
+  if (!drawable(ex, on) || ex.bg === "expert") return false;
+  return !ex.k || PLAIN_KINDS.includes(ex.k) || (topStage(on) >= LATER_STAGE && LATER_KINDS.includes(ex.k));
 }
 
 /**
- * The reference examples that can stand in the cells of a pair of categories, from `levels`: those `cellExample` allows whose cell
+ * The reference examples that can stand in the cells of a pair of categories, for these stages: those `cellExample` allows whose cell
  * `placeByClass` proves for both categories (a side it cannot prove leaves the example out), and not those the practice list has under
  * the same name (the list's own classes are the ones the practice grades with). A function of the pair, for `pairOf`.
  */
-export function witnessesOf(ix: DataIndex, items: readonly Example[], levels: Levels): Witnesses {
-  const usable = items.filter((ex) => cellExample(ex, levels));
+export function witnessesOf(ix: DataIndex, items: readonly Example[], on: Stages): Witnesses {
+  const usable = items.filter((ex) => cellExample(ex, on));
   const key = (n: string) => stripDet(spelled(n));
   const listed = new Set(ix.DATA.items.map((i) => key(i.n)));
   return (a, b) => {

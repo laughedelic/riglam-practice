@@ -26,6 +26,8 @@ export interface AnswerView {
   rel?: RelKey | null;
   /** time ran out before the learner chose */
   late?: boolean;
+  /** the highest stage of the learning ladder the learner has on (1 to 9), which sets the words the tutor uses; none: as for the course */
+  stage?: number;
   /** time ran out on the examples */
   exLate?: boolean;
   /** the examples written (or "none") per cell */
@@ -118,8 +120,21 @@ ${lines}`;
   }
   return `CARD (from the course booklet's term data; the relation and reference examples were computed from a list of classified examples):
 ${JSON.stringify(card)}
-${mid}${cls.length?`
+${mid}${stageLine(u.stage)}${cls.length?`
 Classes (the booklet's "is a" tree, for "class:"): ${cls.join(", ")}.`:""}`;
+}
+
+/**
+ * How the tutor speaks to a learner at a stage of the learning ladder (src/domain/stages.ts): in everyday words while the categories are new
+ * (stages 1 to 3), quoting the definitions once the course's terms open (4 and 5), and as for the course from stage 6 on (no line).
+ */
+export function stageLine(stage: number | undefined): string {
+  if (!stage || stage >= 6) return "";
+  const how = stage <= 3
+    ? "a beginner who knows everyday words and has just met the categories of form: explain in everyday words, name a course term once, and leave out the course's further terms"
+    : "a learner who has just met the course's established bases: explain with the definitions, quoted from the card, and keep further terms for when they are asked about";
+  return `
+Learner: at stage ${stage} of 9, ${how}.`;
 }
 
 /** The first message of a tutor chat: the standing instructions, the card, and the fine points. */
