@@ -5,6 +5,7 @@
 import { state } from "../state.js";
 import { el } from "../core/dom.js";
 import { answerList } from "./universe.js";
+import { saveProgress } from "./progress.ts";
 import { render } from "../shell/render.js";
 import { negationOffer, type NegOutcome } from "../../domain/stages.ts";
 import type { PairLike } from "../../ai-shared/relations.ts";
@@ -30,14 +31,14 @@ export function afterRelation(pairId: string, p: PairLike, ok: boolean): NegOffe
   return step ? { kind: step } : null;
 }
 /** The run that led to an offer is spent: the next one counts from now. */
-function spendRun() { state.negOfferAt = new Date().toISOString(); store("rd-neg-offer", state.negOfferAt); }
+function spendRun() { state.negOfferAt = new Date().toISOString(); store("rd-neg-offer", state.negOfferAt); saveProgress(); }
 /** The next pair is drawn: an offer passed over is Not now, so it asks again after another run, not after every result. */
 export function passNegOffer() { const o = state.ui && state.ui.negOffer; if (o && o.kind !== "done") spendRun(); }
 const pending = (): { kind: "one" | "both" } | null => { const o = state.ui && state.ui.negOffer; return o && o.kind !== "done" ? o : null; };
 /** "Negate one side" or "Negate both sides": the negation track takes the step from the next pair on. Nothing changes without this tap. */
 export function acceptNegOffer() {
   const o = pending(); if (!o) return;
-  spendRun(); state.negation = o.kind; store("rd-negation", o.kind);
+  state.negation = o.kind; store("rd-negation", o.kind); spendRun();
   state.ui!.negOffer = { kind: "done", text: o.kind === "one" ? "Negations are on: from the next pair, about a third of the pairs negate one side. Change it in the practice options."
     : "Both sides now: half of the negated pairs negate both. Change it in the practice options." };
   render();

@@ -8,6 +8,7 @@ import { isWide } from "../core/viewport.js";
 import { persist } from "../practice/answers.js";
 import { freshUi } from "../practice/queue.js";
 import { clearSkip } from "../practice/skips.js";
+import { gradeTerms } from "../practice/stops.ts";
 import { focusAfterCheck, focusCin, render, top0 } from "../shell/render.js";
 import { switchTo } from "../shell/tabs.js";
 import { drawRelation, findId, findPair, gradeFind, nameThing, sameThing } from "../../domain/find.ts";
@@ -92,7 +93,9 @@ export function checkFind(){
   const u=state.ui; if(!u||!u.find||u.checked||u.step!==1||!state.cur.p) return;
   const p=state.cur.p;
   clearSkip(p,u.rel);
-  u.res=gradeFind(state,p,u); u.checked=true; u.open=false; render();
+  u.res=gradeFind(state,p,u); u.checked=true; u.open=false;
+  gradeTerms([{cat:p.catA,ok:!!u.res.relOk},{cat:p.catB,ok:!!u.res.relOk}],false);     // the learner's own pair: only a right one counts (practice/stops.ts)
+  render();
   focusAfterCheck();
   afterCheck(u);
   if(!state.db) return;

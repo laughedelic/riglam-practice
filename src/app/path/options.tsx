@@ -12,6 +12,8 @@ import { setTimer } from "../debate/flow.js";
 import { WORDINGS } from "../debate/text.js";
 import { exName } from "../shell/exercises.js";
 import { setStages } from "../shell/stages.js";
+import { render } from "../shell/render.js";
+import { resetProgress } from "../practice/progress.ts";
 import { toggleOpts } from "../shell/options.js";
 import { PAGES, SYMS, openPage, quorumNote, sessBack, setAutoExplain, setBlitzUse, setDefLang, setFindSuggest, setNegBrackets, setNegation, setNota, setShow, setSyllogismGuide, setSyllogismWording, setWording, toggleSess } from "../shell/session.js";
 import { kindMs } from "../shell/timers.js";
@@ -136,6 +138,10 @@ function Stages() {
         <small>Some pairs negate a term: “furniture” and “non-(wooden things)”, which takes in everything that is not a wooden thing. One side: A or B is negated in about a third of the pairs. Both sides: half of those negate both. Relations and Pervasions share this choice; Find a pair takes a negation you name (“non-(wooden things)”) with it off too.</small></Row>
       <Switch lb="Brackets" title="Brackets" note="“non-(wooden things)” says that the “non-” takes in everything that is not a wooden thing, what does not exist included. Without them, “non-wooden things” is also read as the things that are not wooden, which leaves out what does not exist. They help while negations are new, and apply from the next pair." on={state.negBrackets} toggle={() => setNegBrackets(!state.negBrackets)} />
     </> : null}
+    <Row lb="Reset"><b>Reset progression</b>
+      <small>{state.resetAsk === "done" ? "Done: stage 1, and the course terms come one at a time again." : "Back to stage 1 with no course term met and negations off, on every device signed in to your account. Your answers, their statistics and your settings stay."}</small>
+      {state.resetAsk === "ask" ? <span class="pvline2"><button type="button" class="pbtn" onClick={() => { state.resetAsk = "done"; resetProgress(); }}>Reset</button><button type="button" class="pbtn quiet" onClick={() => { state.resetAsk = ""; render(); }}>Keep it</button></span>
+        : state.resetAsk === "" ? <span class="pvline2"><button type="button" class="pbtn quiet" onClick={() => { state.resetAsk = "ask"; render(); }}>Reset progression</button></span> : null}</Row>
   </>;
 }
 /** The Voice page: the voice and its speed, how an answer is taken and what happens after it is heard. */

@@ -7,6 +7,7 @@ import type { DataIndex } from "../ai-shared/lookup";
 import { CELLS, NEG_CELL, negLabel, negSides } from "../ai-shared/relations";
 import type { CellId, Neg, RelKey } from "../ai-shared/relations";
 import { itemKnown, itemOn, poolAt, topStage } from "./stages";
+import type { Unmet } from "./stages";
 import type { StagedEntry, Stages } from "./stages";
 import type { HistoryEntry, Pair, PoolEntry } from "./types";
 import { cap, isMiss, pick } from "./util";
@@ -210,6 +211,8 @@ export interface DrawState {
    * and the rest from below, with examples of those stages; none, or stages that can draw no pair: every pair, as before the ladder
    */
   stages?: Stages;
+  /** the Dudra categories whose term the learner has not met yet (intro.ts): pairs with one of them wait, unless nothing else can be drawn */
+  unmet?: Unmet;
   /** the learner has just reached the highest stage that is on: its first pairs lean to three possibilities, with familiar things inside familiar kinds */
   fresh?: boolean;
   /** every pair the stages can draw weighs the same, none more for being new at the highest stage: a device that kept its settings from before the ladder draws as it did */
@@ -236,7 +239,10 @@ const FRESH_THREE = 2.5;
 export function chooseEntry(ix: DataIndex, full: readonly PoolEntry[], st: DrawState): PoolEntry {
   const { hist, recent } = st, rng = st.rng || Math.random, isHidden = st.isHidden || (() => false);
   // stages whose things cannot fill a single pair (only the upper stages, which the practice list has nothing of) draw from every pair
-  const staged = st.stages ? poolAt(ix, full, st.stages) : [], pool: readonly (PoolEntry & Partial<StagedEntry>)[] = staged.length ? staged : full;
+  const staged = st.stages ? poolAt(ix, full, st.stages) : [], drawable: readonly (PoolEntry & Partial<StagedEntry>)[] = staged.length ? staged : full;
+  // a pair waits while one of its categories has a term the learner has not met; if that leaves nothing, the stages' pairs are drawn as they are
+  const met = st.unmet?.size ? drawable.filter((c) => !st.unmet!.has(c.a) && !st.unmet!.has(c.b)) : drawable;
+  const pool = met.length ? met : drawable;
   const top = staged.length && !st.even ? topStage(st.stages!) : 0;
   const last = hist.slice(-8).map((x) => (x.key === "3ab" || x.key === "3ba" ? "3" : x.key));
   const seen = new Set(hist.slice(-60).map((x) => [x.catA, x.catB].sort().join("|")).concat(recent));

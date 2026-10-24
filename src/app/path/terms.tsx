@@ -7,12 +7,10 @@ import type { DataIndex } from "../../ai-shared/lookup.ts";
 import { termMentions } from "../../ai-shared/mentions.ts";
 import { cap } from "../core/util.js";
 import { isA } from "../practice/screen.js";
-import { CONFIRMATION, NEW_TERM_LEAD, defParts, hasDef, newTermCards, plainDefCard } from "../practice/terms.js";
+import { CONFIRMATION, defParts, hasDef } from "../practice/terms.js";
+import { termTags } from "../practice/stops.ts";
 import { exampleStage, examplesFor } from "../../domain/reference.ts";
-import { topStage } from "../../domain/stages.ts";
 import { render } from "../shell/render.js";
-import { Sub } from "./subjects.tsx";
-import { Bridge, Sx } from "./ui.tsx";
 
 const markOf = (id: string) => document.querySelector<HTMLElement>('#path .dterm[data-dt="' + CSS.escape(id) + '"]');
 function TermMark({ txt, term, id }: { txt: string; term: string; id: string }) {
@@ -85,29 +83,28 @@ function Examples({ n }: { n: string }) {
       {on ? <p class="pdexw">{x.gloss + (x.cn ? " (this reading is less certain)" : "")}</p> : null}</li>;
   })}</ul></div>;
 }
-/** The definition of a term, as the card under a mark: where the term sits, the definition in English and, if chosen, Russian, then examples. */
-function Def({ term, trail }: { term: string; trail: string[] }) {
+/**
+ * The definition of a term, as the card under a mark: where the term sits, the definition in English and, if chosen, Russian, then examples. `plain`: the
+ * term's own stop (path/stop.tsx), where the name stands above it, and no examples.
+ */
+export function Def({ term, trail, plain = false }: { term: string; trail: string[]; plain?: boolean }) {
   const t = state.DATA!.terms[term], en = defParts(t.d), ru = defParts(t.d_ru), ruOn = state.defLang === "enru", src = en.src || (ruOn ? ru.src : "");
   const back = trail.length ? trail[trail.length - 1] : "", up = ((state.DATA!.chains || {})[term] || [term]).slice(1);
-  return <div class="pdef" id="ddef" tabIndex={-1}>
+  return <div class={"pdef" + (plain ? " pdplain" : "")} id={plain ? undefined : "ddef"} tabIndex={plain ? undefined : -1}>
     {back ? <button type="button" class="pbtn quiet pdback" aria-label={"Back to " + back} onClick={(e) => { e.stopPropagation(); goBack(); }}>{"\u2190 " + back}</button> : null}
-    <p class="pdh"><b>{t.name}</b>{ruOn && t.ru ? <span lang="ru">{" \u00b7 " + t.ru}</span> : null}{t.ch && en.ref ? <small>{" \u00b7 " + t.ch}</small> : null}</p>
-    {up.length ? <p class="pdup">{up.flatMap((m: string, i: number) => [i ? " " : "", <i class="pisa">{isA(m.toLowerCase())}</i>, " ", hasDef(state.DATA!.terms[m]) ? <ParentMark n={m} /> : m.toLowerCase()])}</p> : null}
+    {plain ? (ruOn && t.ru ? <p class="pdh"><span lang="ru">{t.ru}</span></p> : null) : <p class="pdh"><b>{t.name}</b>{ruOn && t.ru ? <span lang="ru">{" \u00b7 " + t.ru}</span> : null}{t.ch && en.ref ? <small>{" \u00b7 " + t.ch}</small> : null}</p>}
+    {up.length ? <p class="pdup">{up.flatMap((m: string, i: number) => [i ? " " : "", <i class="pisa">{isA(m.toLowerCase())}</i>, " ", !plain && hasDef(state.DATA!.terms[m]) ? <ParentMark n={m} /> : m.toLowerCase()])}</p> : null}
     {src ? <p class="pdsrc">{src + (en.body ? ":" : ".")}</p> : null}
     {en.body ? <p class="pdbody" lang="en">{endp(cap(en.body))}</p> : null}
     {ruOn && ru.body ? <p class="pdbody pdru" lang="ru">{endp(cap(ru.body))}</p> : null}
-    <Examples n={term} />
+    {plain ? null : <Examples n={term} />}
   </div>;
 }
 /**
- * A newly opened category's definition with the question, until the stages go past 3 (practice/terms.js, newTermCards): `asked` what the question asks
- * about, a pair's two (with their sides) or the categories Categories asks about, each with the question's own words for it. A card is led by those
- * words, then the course's term and its definition (the classic card for now).
+ * The tags of the course terms a question of Categories asks about that the learner is still meeting (practice/stops.ts, termTags), in a row under the
+ * thing: a tap opens the definition under them. A pair has them under its terms instead (path/parts.tsx, PairStops).
  */
-export function NewTerms({ asked }: { asked: { cat: string | null | undefined; label: string; side?: string }[] }) {
-  const cards = newTermCards(asked) as { term: string; asked: typeof asked }[]; if (!cards.length) return null;
-  return <Sx cls="cur newdefs"><p class="pgh"><b>New at stage {topStage(state.stages)}</b><span>what {cards.length > 1 ? "these terms mean" : "this term means"}</span></p>
-    {cards.map((c) => <div class="wtext newdef">
-      <p class="newfor">{c.asked.map((x, i) => <>{i ? " · " : null}{x.side ? <Sub k={x.side === "A" ? "a" : "b"}>{x.label}</Sub> : x.label}</>)}</p>
-      <Bridge fill={() => [plainDefCard(c.term, NEW_TERM_LEAD)]} /></div>)}</Sx>;
+export function TermTags({ asked }: { asked: { cat: string | null | undefined; side?: string }[] }) {
+  const tags = termTags(asked); if (!tags.length) return null;
+  return <div class="wtext ntags"><p class="ntag-row">{tags.map((t, i) => <span class="ntag"><OneTerm txt={t.term.toLowerCase()} term={t.term} where={"ntag/" + i} /></span>)}</p><DefCard where="ntag" /></div>;
 }

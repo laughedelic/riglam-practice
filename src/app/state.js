@@ -3,6 +3,7 @@
 
 import { normLevels } from "../ai-shared/examples.ts";
 import { FIND_RELS } from "../domain/find.ts";
+import { normIntro } from "../domain/intro.ts";
 import { DEFAULT_STAGES, normStages, stagesOfLevels, topStage } from "../domain/stages.ts";
 
 /** @type {import("./types.ts").State} */
@@ -26,6 +27,9 @@ export const state = {
   stageLean: 0,  // the pairs left that lean to three possibilities, after the highest stage went up (`rd-stage-lean`, shell/stages.js)
   stagesKept: false, // the stages came from a device's settings before the ladder and were not changed since (`rd-stages-kept`): every pair weighs the same, as before
   syllogismEveryday: false, // that device had Syllogisms on everyday things (`rd-syllogism-level` "1"), which holds until the stages are changed
+  intro: null,   // the course terms this device has met at their stops (`rd-terms`, practice/stops.ts); null until the term data is in
+  progressSent: [], // the copies of the progression this page wrote lately (practice/progress.ts)
+  resetAsk: "",     // the Reset progression row of the Stages page: "ask" while it asks to confirm, "done" after
   about: null,   // {version, commit, builtAt, latest, branches?}: which build this is (platform.about), shown in Options
   updates: null, // {status, check, apply, subscribe}: updating the installed app in place (platform.updates), shown in Options
   unlock: null,  // {open, tutor}: opens the prompt for the Magic Key (platform.unlock) while this device has none; `tutor` is whether the server has a tutor waiting for it
@@ -144,6 +148,8 @@ try{ state.findSuggest=localStorage.getItem("rd-findsuggest")!=="0"; }catch(e){}
 try{ const v=localStorage.getItem("rd-negation"); if(v==="one"||v==="both") state.negation=v; state.negOfferAt=localStorage.getItem("rd-neg-offer")||""; }catch(e){}
 try{ state.negBrackets=localStorage.getItem("rd-neg-brackets")!=="0"; }catch(e){}
 try{ if(localStorage.getItem("rd-cats-ask")==="one") state.catsAsk="one"; state.catsOfferAt=localStorage.getItem("rd-cats-offer")||""; }catch(e){}
+// the course terms met at their stops, part of the progression (practice/progress.ts); without a record the terms are met one at a time from the start
+try{ const t=localStorage.getItem("rd-terms"); if(t!==null) state.intro=normIntro(t); }catch(e){}
 // A device used before the ladder keeps what it had: its levels of the reference examples (also ones an import brings), or level 1, their default, become
 // the stages up to that level's (level 1 is stage 6), so its pairs and things stay as they were. `rd-ladder` marks a device that has started with the
 // ladder, so that its own settings later do not make it look like an old one; a new device writes no stages until it chooses, and an import can bring them.

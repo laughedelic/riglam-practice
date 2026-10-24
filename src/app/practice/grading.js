@@ -7,6 +7,7 @@ import { stopTimer } from "../debate/flow.js";
 import { persist } from "./answers.js";
 import { afterRelation } from "./negations.ts";
 import { clearSkip } from "./skips.js";
+import { gradePair } from "./stops.ts";
 import { pairCats } from "./universe.js";
 import { focusAfterCheck, render } from "../shell/render.js";
 import { grade } from "../../domain/grading.ts";
@@ -21,6 +22,7 @@ export async function check(){
   stopTimer(); clearSkip(p); state.ui.res=grade(state,p,state.ui); state.ui.checked=true; state.ui.open=false;
   const id=state.cur.legacy?p.id:(state.cur.retry?"r-":"")+(p.generated&&!state.cur.retry?p.id:"r"+Date.now().toString(36));
   state.ui.negOffer=afterRelation(id,p,!!state.ui.res.relOk);      // the run towards the next step of the negation track (practice/negations.ts)
+  gradePair(pairCats(p),!!state.ui.res.relOk);      // the course terms of the pair (practice/stops.ts)
   render();
   focusAfterCheck();
   afterCheck(state.ui);

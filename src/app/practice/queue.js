@@ -6,6 +6,7 @@ import { advanceDebate } from "../debate/flow.js";
 import { advanceFind } from "../find/flow.js";
 import { passNegOffer } from "./negations.ts";
 import { isSkipped } from "./skips.js";
+import { takeStop } from "./stops.ts";
 import { nextGenerated } from "./universe.js";
 import { render, top0 } from "../shell/render.js";
 
@@ -18,4 +19,5 @@ function nextPair(){
   return {p:nextGenerated(undefined,true)};
 }
 export function advance(){ passNegOffer(); state.cur=nextPair(); state.ui=freshUi(); state.mode="quiz"; }
-export function next(){ if(state.ui&&state.ui.ctl) state.ui.ctl.abort(); if(state.ui&&state.ui.debate) advanceDebate(); else if(state.ui&&state.ui.find) advanceFind(); else if(state.ui&&state.ui.cats) advanceCategories(); else if(state.ui&&state.ui.syllogism) advanceSyllogism(); else advance(); render(); top0(); }
+// Next: a course term's stop comes first when one is due (practice/stops.ts); from the stop, Next goes on to the question.
+export function next(){ if(state.ui&&state.ui.ctl) state.ui.ctl.abort(); if(takeStop()){ render(); top0(); return; } if(state.ui&&state.ui.debate) advanceDebate(); else if(state.ui&&state.ui.find) advanceFind(); else if(state.ui&&state.ui.cats) advanceCategories(); else if(state.ui&&state.ui.syllogism) advanceSyllogism(); else advance(); render(); top0(); }

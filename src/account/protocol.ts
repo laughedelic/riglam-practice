@@ -21,7 +21,7 @@ export const ACCOUNT_API = {
 } as const;
 
 /** The collections the page keeps (and the server accepts); the same list as src/store/transfer.ts. */
-export const SYNC_COLLECTIONS = ["batches", "answers", "debates", "favorites", "skips", "labruns", "flags"] as const;
+export const SYNC_COLLECTIONS = ["batches", "answers", "debates", "favorites", "skips", "labruns", "flags", "progress"] as const;
 
 /** A document id as the stores accept it. `__proto__` passes the pattern but the page builds objects keyed by id, so it is refused. */
 export const DOC_ID = /^[A-Za-z0-9_\-.~:@+]{1,200}$/;

@@ -25,6 +25,7 @@ import { ReviewPage } from "./review.tsx";
 import { Roadmap } from "./roadmap.tsx";
 import { aboveSync } from "./scroll.tsx";
 import { SettingsPage } from "./settings.tsx";
+import { stopScreen } from "./stop.tsx";
 import { syllogismScreen } from "./syllogism.tsx";
 import { TutorPage } from "./tutor.tsx";
 import { PullCtx, Toast, TopBar, turnAside } from "./shell.tsx";
@@ -88,6 +89,7 @@ function screen(kb: boolean): { cls: string; node: ComponentChildren } {
   if (state.mode !== "quiz" || !isEx() || !state.ui) return { cls: "", node: <Status text="" /> };
   if (state.view === "chat" && (state.ui.chat || state.ui.checked) && canAsk()) return { cls: "", node: <TutorPage /> };
   const u = state.ui;
+  if (u.stop) return stopScreen(exName(state.tab));     // a course term's stop before the next question (practice/stops.ts)
   if (state.tab === "practice" && !u.debate && !u.find && !u.cats && !u.syllogism && state.cur && state.cur.p) return relationsScreen(kb);
   if (state.tab === "debate" && u.debate && state.cur && state.cur.p) return pervasionsScreen(kb);
   if (state.tab === "find" && u.find) return findScreen(kb);
@@ -98,7 +100,7 @@ function screen(kb: boolean): { cls: string; node: ComponentChildren } {
 
 export function App() {
   const [pull] = useState(() => new Pull()), root = useRef<HTMLDivElement>(null), look = currentLook();
-  const [kb, setKb] = useState(false), [small, setSmall] = useState(false), wasChecked = useRef(false);
+  const [kb, setKb] = useState(false), [small, setSmall] = useState(false), wasChecked = useRef("");
   const s = screen(kb), over = state.menuOpen || (state.sessOpen && isEx() && state.mode === "quiz") || (state.skipAsk && isEx());
   const cls = ["pa", ...lookClasses(look, darkNow(look)), s.cls, kb ? "kbup" : "", kb && small ? "ph-small" : "", state.showAB ? "" : "sj-off"].filter(Boolean).join(" ");
   useLayoutEffect(() => {
@@ -108,9 +110,9 @@ export function App() {
     for (const t of r.querySelectorAll<HTMLElement>(".ptail")) t.classList.toggle("long", t.getBoundingClientRect().height > 130);
     aboveSync(r);
     // after a check the station has the focus, so that Enter goes on (as the forward button has it on the classic page)
-    const checked = !!(state.ui && state.ui.checked);
+    const checked = state.ui && state.ui.checked ? (state.ui.stop ? "stop" : "result") : "";     // a term's stop after the result is a screen of its own (path/stop.tsx)
     // (quiet: the app moved the focus there, not a Tab, so no ring is drawn on it, whatever key was pressed before; it goes at the first blur)
-    if (checked && !wasChecked.current && !over) {
+    if (checked && checked !== wasChecked.current && !over) {
       const st = r.querySelector<HTMLElement>("#stn");
       if (st) { st.dataset.quiet = "1"; st.addEventListener("blur", () => { delete st.dataset.quiet; }, { once: true }); st.focus({ preventScroll: true }); }
     }

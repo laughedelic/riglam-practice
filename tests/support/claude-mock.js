@@ -1,11 +1,11 @@
 // A stand-in for the `window.claude` that the Claude artifact frame provides, for specs that load the artifact build:
 // `db` keeps its documents in memory and answers like a Firestore collection (the five collections the page stores, plus
-// `labruns` from an earlier Quorum, and `flags`), and `sample` is the AI. The reply of `sample` is `window.__reply` when a spec sets
+// `labruns` from an earlier Quorum, `flags`, and `progress`), and `sample` is the AI. The reply of `sample` is `window.__reply` when a spec sets
 // it, else a short fixed answer in the shape the page parses; `window.__sampleDone` counts the finished calls, so a spec
 // can wait for one.
 export const CLAUDE_MOCK = `<script>
 (() => {
-  const NAMES = ["answers", "debates", "batches", "favorites", "skips", "labruns", "flags"];
+  const NAMES = ["answers", "debates", "batches", "favorites", "skips", "labruns", "flags", "progress"];
   const store = Object.fromEntries(NAMES.map((n) => [n, {}]));
   const subs = Object.fromEntries(NAMES.map((n) => [n, []]));
   const snap = (n) => { const docs = Object.entries(store[n]).map(([id, d]) => ({ id, exists: true, data: () => d })); return { docs, size: docs.length, empty: !docs.length }; };

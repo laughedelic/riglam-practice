@@ -11,6 +11,8 @@ import { choose, fbNode } from "./practice/screen.js";
 import { SKIP_DAYS, hiddenKeys, isSkipped, skipPair, undoSkip } from "./practice/skips.js";
 import { defParts, termsNode } from "./practice/terms.js";
 import { buildPool, indexData, nextGenerated } from "./practice/universe.js";
+import { startStops } from "./practice/stops.ts";
+import { watchProgress } from "./practice/progress.ts";
 import { signature } from "../ui/account";
 import { setDefLang } from "./shell/session.js";
 import { renderMenu } from "./shell/menu.js";
@@ -44,7 +46,7 @@ async function boot(platform){
 }
 async function bootSteps(platform){
   waiting("the practice data");
-  try{ state.DATA=await platform.loadData(); indexData(); buildPool(); }
+  try{ state.DATA=await platform.loadData(); indexData(); buildPool(); startStops(); }
   catch(e){ state.mode="nodata"; render(); return; }
   waiting("the storage on this device");
   try{ state.db=await platform.db(); }catch(e){ state.db=null; }
@@ -92,6 +94,7 @@ async function bootSteps(platform){
   },()=>{ state.gotS=true; settle(); });
   setTimeout(()=>{ if(!state.gotS){ state.gotS=true; settle(); } },2500);       // never hold the first pair for the skips
   flagsSubscribe();
+  watchProgress();      // the progression, as another device or tab changes it (practice/progress.ts)
   state.db.collection("debates").onSnapshot(snap=>{
     const m={}; snap.docs.forEach(d=>{m[d.id]=d.data();}); state.debates=m; settle();
   },()=>{});
@@ -118,6 +121,6 @@ function settle(){
 
 /* ---------- test hook (begin): lets the browser tests in tests/ read internals; inert unless a test defines window.__riglamTest ---------- */
 function exposeTestHook(){
-if(typeof window.__riglamTest==="function") window.__riglamTest({get cur(){return state.cur},get ui(){return state.ui},get tab(){return state.tab},get favs(){return state.favs},get mode(){return state.mode},get view(){return state.view},get coachOpen(){return state.coachOpen},set coachOpen(v){state.coachOpen=v},get optsOpen(){return state.optsOpen},favKey,refOf,render,choose,fbNode,defParts,termsNode,setDefLang,get defLang(){return state.defLang},get DATA(){return state.DATA},get EX(){return state.EX},next,advance,get skips(){return state.skips},set skips(v){state.skips=v},skipPair,undoSkip,isSkipped,hiddenKeys,get POOL(){return state.POOL},nextGenerated,SKIP_DAYS,get quorum(){return state.quorum},get quorumOffered(){return state.quorumOffered},get quorumOptIn(){return state.quorumOptIn},setQuorum,quorumThings,get flags(){return state.flags},flagId,openFlag,saveFlag,removeFlag,setFlagState,aiCase,aiFlag,autoFlags,decorateAns});
+if(typeof window.__riglamTest==="function") window.__riglamTest({get cur(){return state.cur},get ui(){return state.ui},get tab(){return state.tab},get favs(){return state.favs},get mode(){return state.mode},get view(){return state.view},get coachOpen(){return state.coachOpen},set coachOpen(v){state.coachOpen=v},get optsOpen(){return state.optsOpen},favKey,refOf,render,choose,fbNode,defParts,termsNode,setDefLang,get defLang(){return state.defLang},get DATA(){return state.DATA},get EX(){return state.EX},get intro(){return state.intro},next,advance,get skips(){return state.skips},set skips(v){state.skips=v},skipPair,undoSkip,isSkipped,hiddenKeys,get POOL(){return state.POOL},nextGenerated,SKIP_DAYS,get quorum(){return state.quorum},get quorumOffered(){return state.quorumOffered},get quorumOptIn(){return state.quorumOptIn},setQuorum,quorumThings,get flags(){return state.flags},flagId,openFlag,saveFlag,removeFlag,setFlagState,aiCase,aiFlag,autoFlags,decorateAns});
 }
 /* ---------- test hook (end) ---------- */

@@ -1,7 +1,7 @@
 // Test harness for the browser tests in this folder (migrated from the practice session, page version 63).
 // It loads the ARTIFACT build (dist/artifact/index.html, made by `npm run build:artifact`), wraps it in the same
 // document skeleton the Claude artifact frame uses, and mocks `window.claude`: `db` (five collections plus
-// `labruns` and `flags`) and `sample` (the AI). Tests reach the page's internals through `window.__t`, which the
+// `labruns`, `flags` and `progress`) and `sample` (the AI). Tests reach the page's internals through `window.__t`, which the
 // page itself exports through its test hook (see the end of src/app/app.js) when the harness defines
 // `window.__riglamTest` before the page runs.
 const {chromium}=require('@playwright/test');
@@ -13,8 +13,8 @@ fs.mkdirSync(SHOTS,{recursive:true});
 function load(){
   const page_=fs.readFileSync(path.join(ROOT,'dist/artifact/index.html'),'utf8');
   const mock=`<script>
-const S={answers:{},debates:{},batches:{},favorites:{},skips:{},labruns:{},flags:{}};window.__S=S;window.__ops=[];
-const subs={answers:[],debates:[],batches:[],favorites:[],skips:[],labruns:[],flags:[]};window.__subs=subs;
+const S={answers:{},debates:{},batches:{},favorites:{},skips:{},labruns:{},flags:{},progress:{}};window.__S=S;window.__ops=[];
+const subs={answers:[],debates:[],batches:[],favorites:[],skips:[],labruns:[],flags:[],progress:[]};window.__subs=subs;
 function snap(n){const docs=Object.entries(S[n]).map(([id,d])=>({id,exists:true,data:()=>d}));return {docs,size:docs.length,empty:!docs.length};}
 const db={collection(n){const q={orderBy(){return q},limit(){return q},onSnapshot(f){subs[n].push(f);setTimeout(()=>f(snap(n)),10);return()=>{}},
  doc(id){return{set:async d=>{ if((window.__failSet||{})[n]) throw {code:'quota_exceeded'}; window.__ops.push(['set',n,id]); S[n][id]=d; setTimeout(()=>subs[n].forEach(f=>f(snap(n))),5); },delete:async()=>{ window.__ops.push(['delete',n,id]); delete S[n][id]; setTimeout(()=>subs[n].forEach(f=>f(snap(n))),5); } }}};return q;}};

@@ -11,7 +11,8 @@ import { singular } from "../debate/text.js";
 import { favTarget, isFav, toggleFav } from "../practice/favorites.js";
 import { skipAsks, skipNow, skipPair } from "../practice/skips.js";
 import { explainParts, factParts, noteData } from "../practice/screen.js";
-import { lineageOf } from "../practice/terms.js";
+import { termTags } from "../practice/stops.ts";
+import { lineageOf, pairAsked } from "../practice/terms.js";
 import { catByLabel } from "../practice/universe.js";
 import { openChat } from "../shell/chat.js";
 import { render } from "../shell/render.js";
@@ -61,12 +62,17 @@ export function SkipMark() {
 }
 /** The classes of a stop that carries the favorites mark and Skip under it. */
 export const marksCls = (star = true) => (star && state.db ? " hasstar" : "") + (skipHere() ? " hasskip" : "");
-/** The two terms of the pair as the first stops: A and B in the margin, the star beside A; `sm` smaller, once they are not the question. */
-export function PairStops({ p, sm = false }: { p: Pair; sm?: boolean }) {
-  const c = sm ? " sm" : "";
+/**
+ * The two terms of the pair as the first stops: A and B in the margin, the star beside A; `sm` smaller, once they are not the question. With `tags`, a
+ * term whose course term the learner is still meeting has it in a small tag under it, which opens its definition under the pair (practice/stops.ts, termTags).
+ */
+export function PairStops({ p, sm = false, tags = false }: { p: Pair; sm?: boolean; tags?: boolean }) {
+  const c = sm ? " sm" : "", tg = tags ? termTags(pairAsked(p)) : [];
+  const tag = (side: string) => { const t = tg.find((x) => x.side === side); return t ? <span class="ntag"><OneTerm txt={t.term.toLowerCase()} term={t.term} where={"ntag/" + side} /></span> : null; };
   return <>
-    <St d={<span class="ab">A</span>} cls={"pairst" + c + marksCls()}><Star /><SkipMark /><span class={"tn" + (p.a.length > 24 ? " long" : "")}>{p.a}</span></St>
-    <St d={<span class="ab">B</span>} cls={"pairst" + c}><span class={"tn" + (p.b.length > 24 ? " long" : "")}>{p.b}</span></St>
+    <St d={<span class="ab">A</span>} cls={"pairst" + c + marksCls()}><Star /><SkipMark /><span class={"tn" + (p.a.length > 24 ? " long" : "")}>{p.a}</span>{tag("A")}</St>
+    <St d={<span class="ab">B</span>} cls={"pairst" + c}><span class={"tn" + (p.b.length > 24 ? " long" : "")}>{p.b}</span>{tag("B")}</St>
+    {tg.length ? <div class="wtext ntdef"><DefCard where="ntag" /></div> : null}
   </>;
 }
 /** The pair with a relation as its node on the path: A on the upper line, B on the lower, like the figure's two diamonds, and the relation

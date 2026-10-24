@@ -7,6 +7,7 @@ import { QCELL } from "./text.js";
 import { persist } from "../practice/answers.js";
 import { freshUi } from "../practice/queue.js";
 import { clearSkip } from "../practice/skips.js";
+import { gradePair } from "../practice/stops.ts";
 import { nextGenerated } from "../practice/universe.js";
 import { focusAfterCheck, render } from "../shell/render.js";
 import { ensureRelTimer, freezeBar, relReset, tkind } from "../shell/timers.js";
@@ -121,7 +122,9 @@ export async function checkDebate(){
   stopTimer();
   const p=state.cur.p;
   QCELL.forEach((c,i)=>{ state.ui.cells[c].t=(state.ui.ans[i].text||"").trim(); state.ui.cells[c].none=state.ui.ans[i].say==="accept"; });
-  clearSkip(p); state.ui.res=gradeDebate(state,p,/** @type {import("../../domain/types.ts").DebateInput} */(state.ui)); state.ui.checked=true; state.ui.open=false; render();
+  clearSkip(p); state.ui.res=gradeDebate(state,p,/** @type {import("../../domain/types.ts").DebateInput} */(state.ui)); state.ui.checked=true; state.ui.open=false;
+  gradePair([p.catA,p.catB],!!state.ui.res.relOk);     // the course terms of the pair (practice/stops.ts)
+  render();
   focusAfterCheck();
   afterCheck(state.ui);
   if(!state.db) return;

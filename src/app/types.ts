@@ -1,5 +1,5 @@
 // The shapes the page works with: the documents it stores (the collections `answers`, `debates`, `batches`,
-// `favorites`, `skips`, `labruns`, `flags`), the pair on screen, and the shared `state`. Stored shapes are part of
+// `favorites`, `skips`, `labruns`, `flags`, `progress`), the pair on screen, and the shared `state`. Stored shapes are part of
 // the data users already have: never rename a collection or change a document without a migration (CLAUDE.md).
 // Fields written by older versions of the page may be missing, so most fields besides the keys are optional.
 import type { Cat, DrillData, Item } from "../ai-shared/data";
@@ -11,6 +11,7 @@ import type { PlaceGrade, PlaceQuestion } from "../domain/place";
 import type { Syllogism, Pervasion, Reply, Situation, Wording } from "../domain/syllogism";
 import type { Pair, PoolEntry, Verdict } from "../domain/types";
 import type { NegOutcome } from "../domain/stages";
+import type { Intro, Stop } from "../domain/intro";
 import type { Account, Db, Known, Reports, Sample, Tutor } from "../platform/types";
 import type { QuorumRecord } from "../ai/protocol";
 import type { AccountSlot } from "../ui/account";
@@ -202,6 +203,19 @@ export interface FlagDoc {
   review?: { state: string; reply?: string; at?: string };
 }
 
+/** collection `progress`, the one document `learner`: how far the learner has come, the same on every device signed in to one account (practice/progress.ts). No `at`, on purpose: see there. */
+export interface ProgressDoc {
+  /** the stages on (`rd-stages`) */
+  stages: number[];
+  /** the course terms met at their stops (`rd-terms`) */
+  terms: Intro;
+  /** the step of the negation track (`rd-negation`) */
+  negation: "off" | "one" | "both";
+  /** when the offer of another stage, and of a negation step, was last answered (`rd-cats-offer`, `rd-neg-offer`; "": never) */
+  catsOfferAt: string;
+  negOfferAt: string;
+}
+
 /** collection `labruns`: one model's answer to one case of the earlier Quorum, run by the page itself, or the judge's. Older versions of the page wrote it under that name, which a stored collection keeps; this one only keeps what is there (export, sync). Loosely typed. */
 export interface QuorumRunDoc {
   kind: string;
@@ -235,6 +249,8 @@ export interface Ui extends AnswerView {
   checked?: boolean;
   /** the document of the checked answer, written to `answers` or `debates` and completed later by the tutor's verdicts */
   doc?: AnswerDoc | DebateDoc;
+  /** the stop of a course term that came after this answer, before the next question (practice/stops.ts): Next goes on from it */
+  stop?: Stop | null;
   [field: string]: any;
 }
 
@@ -316,6 +332,12 @@ export interface State {
   stagesKept: boolean;
   /** that device had Syllogisms on everyday things (`rd-syllogism-level` "1"); it holds until the stages are changed */
   syllogismEveryday: boolean;
+  /** the course terms this device has met at their stops, and when each comes again (`rd-terms`, src/domain/intro.ts); null until the term data is in (practice/stops.ts, startStops) */
+  intro: Intro | null;
+  /** the copies of the progression this page wrote lately (practice/progress.ts): a copy in the store that is none of them came from another device or tab */
+  progressSent: string[];
+  /** the Reset progression row of the Stages page: asking whether to reset ("ask"), or saying it is done */
+  resetAsk: "" | "ask" | "done";
   /** sends flags to the app's server (platform.reports), when the place has a server for them and this device has the Magic Key */
   reports: Reports | null;
   /** keeps the removal of a flag for a later start that has `reports` (platform.withdrawReport) */

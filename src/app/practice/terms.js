@@ -8,7 +8,6 @@ import { isA } from "./screen.js";
 import { catByLabel } from "./universe.js";
 import { negSides, plainLabel } from "../../ai-shared/relations.ts";
 import { exampleStage, examplesFor } from "../../domain/reference.ts";
-import { newCategories, topStage } from "../../domain/stages.ts";
 import { render } from "../shell/render.js";
 
 // Where a category sits: the Dudra term with its higher categories, or, for an everyday category, the Dudra term it falls under.
@@ -162,13 +161,13 @@ function examplesNode(n){
 }
 // The same entry as the Terms panel had: the name and chapter, where the term sits, then the definition, in English and, if chosen, Russian.
 // `trail` holds the terms looked at before this one in the same card, `live` is false for the floating card.
-function cardNode(n,id,trail,live=true,lead=""){
+function cardNode(n,id,trail,live=true){
   const t=state.DATA.terms[n], en=defParts(t.d), ru=defParts(t.d_ru), ruOn=state.defLang==="enru", src=en.src||(ruOn?ru.src:"");
   const back=live&&trail&&trail.length?trail[trail.length-1]:"";
   return el("div",{class:"ddef",id,tabindex:id?"-1":null},
     back?el("button",{type:"button",class:"ddback","aria-label":"Back to "+back,onclick:e=>{ e.stopPropagation(); goBack(); }},"\u2190 "+back):null,
     el("dl",{class:"tm-defs"},el("div",{class:"tm-d"},
-      el("dt",null,lead?el("span",{class:"tm-lead",text:lead}):null,t.name,ruOn&&t.ru?el("span",{class:"tm-ru",lang:"ru",text:" \u00b7 "+t.ru}):null,t.ch&&en.ref?el("small",{text:" \u00b7 "+t.ch}):null),
+      el("dt",null,t.name,ruOn&&t.ru?el("span",{class:"tm-ru",lang:"ru",text:" \u00b7 "+t.ru}):null,t.ch&&en.ref?el("small",{text:" \u00b7 "+t.ch}):null),
       upLine(n,live),
       el("dd",{class:src?"out":""},
         src?el("p",{class:"src",text:src+(en.body?":":".")}):null,
@@ -176,30 +175,8 @@ function cardNode(n,id,trail,live=true,lead=""){
         ruOn&&ru.body?el("p",{class:"ru",lang:"ru",text:endp(cap(ru.body))}):null),
       live?examplesNode(n):null)));
 }
-/**
- * The newly opened terms among the categories a question asks about, each with the wording the question gives it. `asked` are `{cat, label, side}`: the
- * id of a category, the question's own words for it ("physical things outside a person's continuum", not the term "External form") and "A" or "B" in a
- * pair. Of them, those categories that opened at the highest stage that is on, at stages 1 to 3, with a definition this device can read (domain/stages.ts,
- * newCategories). A category asked twice (a pair of two labels of one category: "colors" and "hues") is one card with both wordings.
- */
-export function newTermCards(asked){
-  if(!state.DATA) return [];
-  return newCategories(state,asked.map(x=>x.cat),state.stages).map(c=>({term:state.CAT[c].term,asked:asked.filter(x=>x.cat===c)})).filter(c=>hasDef(state.DATA.terms[c.term]));
-}
-/** What a pair asks about, as newTermCards takes it: also a pair of two labels of one category ("colors" and "hues"), which pairCats leaves out. */
+/** What a pair asks about, as termTags takes it (practice/stops.ts): also a pair of two labels of one category ("colors" and "hues"), which pairCats leaves out. */
 export const pairAsked=p=>[{cat:p.catA||catByLabel(p.a),label:p.a,side:"A"},{cat:p.catB||catByLabel(p.b),label:p.b,side:"B"}];
-/** The heading words of a newly opened term's card: the card is the course's term for what the question says. */
-export const NEW_TERM_LEAD="in the course: ";
-/** The definition card of a term on its own, without its examples: what the question shows of a newly opened category. */
-export const plainDefCard=(n,lead="")=>cardNode(n,null,[],false,lead);
-/** The classic page's definitions with the question: a newly opened category's, until the stages go past 3, when the definitions are a tap away. */
-export function newTermsNode(asked){
-  const cards=newTermCards(asked); if(!cards.length) return null;
-  return el("div",{class:"section newdefs"},el("p",{class:"label"},"New at stage "+topStage(state.stages),el("span",{class:"hint",text:"what "+(cards.length>1?"these terms mean":"this term means")})),
-    cards.map(c=>el("div",{class:"newdef"},
-      el("p",{class:"newfor"},c.asked.flatMap((x,i)=>[i?" \u00b7 ":null,x.side?L(x.side):null,x.side?" ":null,el("span",{class:"t",text:x.label})]).filter(Boolean)),
-      plainDefCard(c.term,NEW_TERM_LEAD))));
-}
 // Pointing at a term with a mouse shows its card while the pointer stays, over the note; it is not kept in the state, so a render drops it.
 function peek(mark,term){
   for(const n of document.querySelectorAll(".ddef.peek")) n.remove();

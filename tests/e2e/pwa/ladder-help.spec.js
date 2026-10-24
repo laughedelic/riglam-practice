@@ -1,6 +1,6 @@
 // Help that fades as the stages go up (src/domain/stages.ts): the next step of the negation track offered on a result once the pairs before it go
-// well (practice/negations.ts), and a newly opened category's definition shown with the question up to stage 3 (practice/terms.js, newTerms),
-// in the classic design and on the Path. Negations in Pervasions and Find a pair are checked here too.
+// well (practice/negations.ts), and the small tag of a course term the learner is still meeting, which opens its definition (practice/stops.ts,
+// termTags), on the Path. Negations in Pervasions and Find a pair are checked here too.
 import { test, expect } from "../../support/test.js";
 import { goTo, isPhone, ready, relOptions } from "../../support/page.js";
 import { KEY_STORE, dataKey, serveCourse, withCourse } from "../../support/data-key.js";
@@ -136,60 +136,53 @@ test("Find a pair takes a negation as named, with or without the brackets, and h
 
 const course = withCourse ? test : test.skip;
 const NEW2 = ["extf", "col", "shape", "vis"];   // the categories with a Dudra term that open at stage 2
+// a device that has met the terms of stage 2 at their stops and is still meeting them (box 1), with Form settled and no stop due (src/domain/intro.ts)
+const meeting = (box) => {
+  const terms = { form: { box: 3, shows: 1 } };
+  for (const id of ["extf", "col", "shape", "vis"]) terms[id] = { box, shows: 1, at: 0 };
+  localStorage.setItem("rd-stages", "1,2"); localStorage.setItem("rd-terms", JSON.stringify({ n: 10, next: 1000, terms }));
+};
 
-course("up to stage 3, a newly opened category's definition shows with the question, in Relations and Categories, classic and on the Path", async ({ page }) => {
+course("a course term the learner is still meeting has a small tag in the question on the Path, which opens its definition, in Relations and Categories", async ({ page }) => {
   await withKey(page);
   await serveCourse(page, dataKey);
-  await page.addInitScript(() => localStorage.setItem("rd-stages", "1,2"));
+  await page.addInitScript(onPath);
+  await page.addInitScript(meeting, 1);
   await page.addInitScript(hook);
   await page.goto("/");
-  await ready(page);
+  await expect(pathChoices(page).first()).toBeVisible();
   await expect.poll(() => page.evaluate(() => !!window.__t.DATA && Object.values(window.__t.DATA.terms).some((t) => t.d))).toBe(true);
   const drawNew = () => page.evaluate((ids) => { for (let i = 0; i < 200; i++) { const p = window.__t.cur.p; if (ids.includes(p.catA) || ids.includes(p.catB)) return p; window.__t.next(); } return null; }, NEW2);
-  const p = await drawNew();
-  expect(p).not.toBeNull();
-  const term = await page.evaluate((x) => window.__t.DATA.cats.find((c) => c.id === ([x.catA, x.catB].find((id) => ["extf", "col", "shape", "vis"].includes(id)))).term, p);
-  const box = page.locator("#stage .newdefs");
-  await expect(box).toBeVisible();
-  await expect(box).toContainText("New at stage 2");
-  await expect(box.locator(".ddef dt").first()).toContainText(term);
-  // it says which words of the question the term is for, and that it is the course's term
-  const firstFor = (x) => (NEW2.includes(x.catA) ? { side: "A", label: x.a } : { side: "B", label: x.b });
-  await expect(box.locator(".newfor").first()).toContainText(firstFor(p).label);
-  await expect(box.locator(".newfor .L").first()).toHaveText(firstFor(p).side);
-  await expect(box.locator(".ddef dt .tm-lead").first()).toContainText("in the course");
-  // the Path draws the same, with the question
-  await page.evaluate(() => { localStorage.setItem("rd-design", "path"); });
-  await page.reload();
-  await expect(pathChoices(page).first()).toBeVisible();
+  const termOf = (x) => page.evaluate(([ids, x]) => window.__t.DATA.cats.find((c) => c.id === ([x.catA, x.catB].find((id) => ids.includes(id)))).term, [NEW2, x]);
+  // the tag under the term of the pair
   const q = await drawNew();
   expect(q).not.toBeNull();
   await page.evaluate(() => window.__t.render());
-  await expect(page.locator("#path .newdefs")).toContainText("New at stage 2");
-  await expect(page.locator("#path .newdefs .newfor").first()).toContainText(firstFor(q).label);
-  await expect(page.locator("#path .newdefs .newfor .sj").first()).toHaveText(firstFor(q).label);
-  await expect(page.locator("#path .newdefs .ddef dt .tm-lead").first()).toContainText("in the course");
-  // Categories asks about the categories that are open: those of stage 2 show their definitions while step 1 is asked
-  await page.evaluate(() => { localStorage.setItem("rd-design", "classic"); });
+  const side = NEW2.includes(q.catA) ? 0 : 1;
+  const tag = page.locator("#path .pairst").nth(side).locator(".ntag");
+  await expect(tag).toContainText((await termOf(q)).toLowerCase());
+  await tag.locator(".dterm").click();
+  await expect(page.locator("#path .ntdef .pdef .pdh")).toContainText(await termOf(q));
+  // Categories asks about the categories that are open: those of stage 2 have their tags while step 1 is asked
+  await page.evaluate(() => { localStorage.setItem("rd-ex", "categories"); });
   await page.reload();
-  await ready(page);
-  await goTo(page, "Categories");
-  await expect(page.locator(".catcard")).toBeVisible();
+  await expect.poll(() => page.evaluate(() => !!(window.__t.cur && window.__t.cur.q))).toBe(true);
   for (let i = 0; i < 40 && !(await page.evaluate((ids) => window.__t.cur.q.rows.some((r) => ids.includes(r.cat)), NEW2)); i++) await page.evaluate(() => { window.__t.next(); });
-  await expect(page.locator(".catcard .newdefs")).toContainText("New at stage 2");
-  await expect(page.locator(".catcard .newdefs .newfor").first()).toBeVisible();
+  await page.evaluate(() => window.__t.render());
+  await expect(page.locator("#path .ntag").first()).toBeVisible();
 });
 
-course("from stage 4 on, the definitions are a tap away, not shown with the question", async ({ page }) => {
+course("a settled term has no tag: the definitions are a tap away in the terms of the pair", async ({ page }) => {
   await withKey(page);
   await serveCourse(page, dataKey);
-  await page.addInitScript(() => localStorage.setItem("rd-stages", "1,2,3,4"));
+  await page.addInitScript(onPath);
+  await page.addInitScript(meeting, 3);
   await page.addInitScript(hook);
   await page.goto("/");
-  await ready(page);
+  await expect(pathChoices(page).first()).toBeVisible();
   await expect.poll(() => page.evaluate(() => !!window.__t.DATA && Object.values(window.__t.DATA.terms).some((t) => t.d))).toBe(true);
   for (let i = 0; i < 8; i++) {
-    await expect(page.locator(".newdefs")).toHaveCount(0);
+    await expect(page.locator("#path .ntag")).toHaveCount(0);
     await page.evaluate(() => { window.__t.next(); });
   }
 });
