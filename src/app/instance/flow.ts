@@ -25,9 +25,9 @@ export function freshInstanceUi(): Ui {
 /** The set on screen, or undefined while the data has none to ask. */
 export const shownSet = (): InstanceQuestion | undefined => (state.cur && state.cur.inst ? state.cur.iq : undefined);
 
-/** Draws the next set, leaning away from the ones asked lately. */
+/** Draws the next set at the stages that are on, leaning away from the ones asked lately. */
 export function advanceInstance(): void {
-  const q = state.DATA ? drawInstance(ix(), { rng: Math.random, avoid: new Set(state.instRecent) }) : null;
+  const q = state.DATA ? drawInstance(ix(), { rng: Math.random, avoid: new Set(state.instRecent), stages: state.stages }) : null;
   if (q) state.instRecent = [...state.instRecent, instanceKey(q.cats)].slice(-RECENT);
   state.cur = { p: null as never, inst: true, iq: q ?? undefined };
   state.ui = freshInstanceUi(); state.mode = "quiz";

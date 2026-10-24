@@ -3,7 +3,8 @@
 import { expect, test } from "vitest";
 import { makeExampleIndex, makeIndex } from "../../src/ai-shared";
 import type { DrillData, Example } from "../../src/ai-shared";
-import { apartOf, drawInstance, gradeInstance, inAll, instanceKey, instanceQuestion } from "../../src/domain/instance";
+import { apartOf, drawInstance, gradeInstance, inAll, instanceKey, instanceQuestion, itemStageIn, setStage } from "../../src/domain/instance";
+import { catStage } from "../../src/domain/stages";
 import openData from "../../src/data/drill-data.json";
 
 const seeded = (seed: number) => () => {
@@ -130,13 +131,74 @@ test("drawInstance: on the open data, no one set comes up much more often than t
   expect(Math.max(...seen.values()) / n).toBeLessThan(1 / 30);
 });
 
+// The same data with the stages of the learning ladder: the course's functional, permanent and conscious things open at stage 4, colors, shapes
+// and odors as qualities at stage 2, and so is the red of a rose; the name "a wooden table" does not say whether it is red.
+const STAGED = {
+  ...DATA,
+  cats: DATA.cats.map((c) => ({ ...c, ...(["ft", "perm", "cons"].includes(c.id) ? { st: 4 } : ["col", "shape", "odor"].includes(c.id) ? { st: 2 } : {}) })),
+  items: DATA.items.map((it) => (it.n === "the red of a rose" ? { ...it, st: 2 } : it.n === "a wooden table" ? { ...it, may: ["red"] } : it)),
+} as DrillData;
+
+test("drawInstance: with stages, only categories open at the highest of them, and things known at them", () => {
+  const data = makeIndex(STAGED), rose = data.DATA.items.find((i) => i.n === "the red of a rose")!;
+  expect(setStage(data, ["col"], [rose])).toBe(2);
+  expect(setStage(data, ["ft", "cons"])).toBe(4);
+  expect(setStage(data, ["form", "red"], data.DATA.items.filter((it) => inAll(data, it, ["form", "red"])))).toBe(1);
+  expect(instanceQuestion(data, ["form", "red"], seeded(1), [1]).known).toEqual(["a red ball", "a red wooden ball"]);
+  expect(instanceQuestion(data, ["form", "red"], seeded(1)).known).toContain("the red of a rose");
+  const late = new Set(["ft", "perm", "cons", "col", "shape", "odor"]), kinds = new Set<boolean>();
+  for (let s = 0; s < 300; s++) {
+    const d = drawInstance(data, { rng: seeded(s), stages: [1] })!;
+    kinds.add(d.possible);
+    expect(d.cats.filter((c) => late.has(c)), d.cats.join()).toEqual([]);
+    expect(d.known).not.toContain("the red of a rose");
+  }
+  expect([...kinds].sort()).toEqual([false, true]);
+  // at stage 2 a color is asked too, with the red of a rose as the thing in it
+  const cols = Array.from({ length: 300 }, (_, s) => drawInstance(data, { rng: seeded(s), stages: [2] })!).filter((d) => d.cats.length === 1 && d.cats[0] === "col");
+  expect(cols.length).toBeGreaterThan(0);
+  expect(cols[0].known).toEqual(["the red of a rose"]);
+});
+
+test("drawInstance: on the open data at stage 1, every category is open, every thing shown is known, and no reason uses the course's words", () => {
+  const data = makeIndex(openData as unknown as DrillData), avoid = new Set<string>();
+  let impossible = 0;
+  for (let s = 0; s < 150; s++) {
+    const d = drawInstance(data, { rng: seeded(s), avoid, stages: [1] })!;
+    avoid.add(instanceKey(d.cats));
+    for (const c of d.cats) expect(catStage(data.CAT[c]), c).toBe(1);
+    for (const n of d.known) expect(itemStageIn(data, data.DATA.items.find((i) => i.n === n)!, d.cats), n).toBe(1);
+    if (d.possible) expect(d.known.length, d.cats.join()).toBeGreaterThan(0);
+    else { impossible++; expect(d.apart!.why).not.toMatch(/a form|consciousness|compositional|functional|permanent|person/); }
+  }
+  expect(impossible).toBeGreaterThan(10);
+});
+
+test("instanceQuestion: at the first stages a reason says physical and a mind, as Categories does; the course's words once they open", () => {
+  const data = makeIndex(STAGED);
+  expect(instanceQuestion(data, ["wooden", "emotion"], seeded(1), [1]).apart!.why).toBe("Whatever is made of wood is physical, whatever is an emotion is a mind, and nothing is both physical and a mind.");
+  expect(instanceQuestion(data, ["wooden", "emotion"], seeded(1), [2]).apart!.why).toBe("Whatever is made of wood is a form, whatever is an emotion is a mind, and nothing is both a form and a mind.");
+  expect(instanceQuestion(data, ["wooden", "emotion"], seeded(1), [4]).apart!.why).toBe("Whatever is made of wood is a form, whatever is an emotion is a consciousness, and nothing is both a form and a consciousness.");
+  // the rows of a thing named follow the stages the question was asked at
+  const anger = gradeInstance(data, instanceQuestion(data, ["wooden", "emotion"], seeded(1), [1]), { text: "anger" });
+  expect(anger.rows.find((x) => x.cat === "wooden")).toMatchObject({ answer: false, reason: "it is a mind, not something physical" });
+});
+
+test("gradeInstance: before the hold's stage a person in a physical category is left for later, as in Categories", () => {
+  const data = makeIndex(openData as unknown as DrillData);
+  const early = gradeInstance(data, instanceQuestion(data, ["round"], seeded(1), [1]), { text: "a dog" });
+  expect(early).toMatchObject({ v: "open", thing: "a dog", from: "item" });
+  expect(early.rows[0]).toMatchObject({ answer: null, reason: "whether it is round is left for a later stage" });
+  expect(gradeInstance(data, instanceQuestion(data, ["round"], seeded(1), [4]), { text: "a dog" }).rows[0].answer).toBe(false);
+});
+
 test("gradeInstance: a practice item, by the list's categories, with the reason for each", () => {
   const r = gradeInstance(ix(), q(["red", "round"]), { text: "A red ball" });
   expect(r).toMatchObject({ v: "ok", thing: "a red ball", from: "item", example: null });
   expect(r.rows.map((x) => x.answer)).toEqual([true, true]);
   const table = gradeInstance(ix(), q(["red", "round"]), { text: "a wooden table" }, null, seeded(2));
   expect(table.v).toBe("bad");
-  expect(table.rows.find((x) => x.cat === "red")).toMatchObject({ answer: false, reason: "the practice list does not count it among the red things" });
+  expect(table.rows.find((x) => x.cat === "red")).toMatchObject({ answer: false, reason: "it is not red" });
   expect(table.example!.thing).toMatch(/^a red (wooden )?ball$/);
   expect(table.example!.rows.every((x) => x.answer)).toBe(true);
   // a Dudra category: the steps up the chain, and the exclusion that makes a no
@@ -155,6 +217,10 @@ test("gradeInstance: what the list leaves open stays open", () => {
   const ball = gradeInstance(ix(), q(["red", "round"]), { text: "ball" });
   expect(ball).toMatchObject({ v: "open", thing: "ball", from: "item" });
   expect(ball.rows[0].reason).toMatch(/^“ball” leaves open whether it is (red|round)$/);
+  // a feature the item's name does not say
+  const staged = makeIndex(STAGED), table = gradeInstance(staged, instanceQuestion(staged, ["wooden", "red"], seeded(1)), { text: "a wooden table" });
+  expect(table).toMatchObject({ v: "open", thing: "a wooden table", from: "item" });
+  expect(table.rows.find((x) => x.cat === "red")).toMatchObject({ answer: null, reason: "“a wooden table” leaves open whether it is red" });
   // a thing the data does not know
   const unknown = gradeInstance(ix(), q(["red", "round"]), { text: "a fire truck" }, null, seeded(3));
   expect(unknown).toMatchObject({ v: "open", thing: "a fire truck", from: null, rows: [] });

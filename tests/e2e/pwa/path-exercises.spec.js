@@ -198,7 +198,8 @@ test("Find an instance: Suggest things in the practice options turns the field's
   const field = page.locator("#iin");
   await expect(field).toHaveAttribute("list", "iin-things");
   await page.getByRole("button", { name: "Practice options" }).click();
-  const hints = page.getByRole("dialog", { name: "Practice options" }).getByRole("switch", { name: /^Suggest things/ });
+  const sheet = page.getByRole("dialog", { name: "Practice options" }), hints = sheet.getByRole("switch", { name: /^Suggest things/ });
+  await expect(sheet.getByRole("button", { name: "Stages: more" })).toBeVisible();   // the sets it asks follow the stages, as every exercise does
   await expect(hints).toHaveAttribute("aria-checked", "true");
   await hints.click();
   await expect(hints).toHaveAttribute("aria-checked", "false");
