@@ -1,6 +1,6 @@
 // The Path (src/app/path), the redesign behind Settings > Design: Relations drawn on the path from the relation to the result, the roadmap
 // from the top bar, the practice options as a sheet, Settings with the switch back to the classic page, and the question before a skip.
-// The other exercises are the classic screens inside the Path for now; that they open is checked here, what they do is their own specs'.
+// The other exercises on the Path are in path-exercises.spec.js; what they do is their own specs'.
 import { test, expect } from "../../support/test.js";
 import { isPhone, openSettings, overflow } from "../../support/page.js";
 import { withCourse } from "../../support/data-key.js";
@@ -92,7 +92,7 @@ test("the roadmap comes down from the top bar and goes to another exercise", asy
   await road.getByRole("button", { name: /^Pervasions/ }).click();
   await expect(road).toBeHidden();
   await expect(page.locator(".ptb-t")).toContainText("Pervasions");
-  await expect(page.locator("#path .pbr.card .qcard")).toBeVisible();   // the classic screen, inside the Path for now
+  await expect(page.locator("#path .qst")).toBeVisible();   // its first question, drawn on the path
   await page.locator(".tstn").click();
   await road.getByRole("button", { name: /^Relations/ }).click();
   await expect(choices(page)).toHaveCount(5);

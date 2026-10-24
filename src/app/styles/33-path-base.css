@@ -16,7 +16,7 @@ html:not(.design-path) #path{display:none}
 /* one column on every screen for now: the wide layout is still to be designed */
 .pa .pcol{position:relative; height:100%; max-width:600px; margin:0 auto; display:flex; flex-direction:column; overflow:hidden; overflow:clip}
 @media (min-width:640px){ .pa .pcol{border-left:1px solid var(--rule); border-right:1px solid var(--rule)} }
-/* the resets leave the classic parts the Path still hosts alone (.pbr, 38-path-bridge.css) */
+/* the resets leave the classic parts the Path still hosts alone (.pbr, 39-path-bridge.css) */
 .pa *,.pa *::before,.pa *::after{box-sizing:border-box}
 :where(.pa) :where(h1,h2,h3,p,ul,ol,li,figure,dl,dd):not(.pbr *){margin:0}
 :where(.pa) button:not(.pbr *){font:inherit; color:inherit; background:none; border:0; padding:0; margin:0; text-align:inherit; cursor:pointer; -webkit-tap-highlight-color:transparent}
