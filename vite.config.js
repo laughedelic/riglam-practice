@@ -61,8 +61,11 @@ export default defineConfig({
         scope: "./",
         display: "standalone",
         orientation: "any",
-        background_color: "#ffffff",
-        theme_color: "#ffffff",
+        // One dark ground, the Path's in dark mode (slate). Chrome on Android (before its installed apps draw edge to edge) paints the installed
+        // app's bottom navigation strip from these two colors, which are fixed and cannot follow the page's light or dark; a white one showed as a white
+        // strip under a dark page. The page sets its own colors for the status bar (the theme-color metas) and for the page itself.
+        background_color: "#161a20",
+        theme_color: "#161a20",
         icons: [
           { src: `${iconDir}/icon-192.png`, sizes: "192x192", type: "image/png" },
           { src: `${iconDir}/icon-512.png`, sizes: "512x512", type: "image/png" },
