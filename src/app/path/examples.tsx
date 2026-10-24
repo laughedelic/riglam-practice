@@ -109,7 +109,7 @@ export function ExamplesStep({ kb, title, step, rel, full, check, scan }: { kb: 
       <div class="fieldrow"><input class="pfield" id="cin" value={x.t} placeholder="write an example" {...nofillInput()} enterKeyHint={k.last ? "done" : "next"} aria-label={cellLabel(c, p)}
         onInput={(e) => { x.t = (e.currentTarget as HTMLInputElement).value; if (x.none) x.none = false; refreshPath(); }}
         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commit(pull); } }} /></div>
-      <p class="help"><span class="htx">{c === first ? "Your own example, in a few words." : "In a few words."} </span>{mayBeEmpty(c) ? <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => nothing(c, pull)}>nothing exists</button> : null}</p></St>;
+      {c === first || mayBeEmpty(c) ? <p class="help">{c === first ? <span class="htx">Your own example, in a few words. </span> : null}{mayBeEmpty(c) ? <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => nothing(c, pull)}>nothing exists</button> : null}</p> : null}</St>;
     // a written case opens again with a tap; the field keeps the focus meanwhile, so the keyboard stays up and nothing moves under the finger
     if (filled(c)) return <button type="button" class="sbb" onMouseDown={(e) => e.preventDefault()} onClick={() => openCase(i)} aria-label={CASE[c] + ": " + (x.none ? "nothing exists" : x.t) + ". Change it"}>
       <St d={<D cls="sub yours" />} cls="sb done"><span class="lab">{CASE[c]}</span><span class={"pans" + (x.none ? " nil" : "")}>{x.none ? "nothing exists" : x.t.trim()}</span></St></button>;
