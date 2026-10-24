@@ -89,6 +89,11 @@
 .pa.pulling .foot::after{top:0; height:max(0px, calc(26px - var(--lift, 0px)))}
 .pa.pulling.ready .sx.ptail::after,.pa.pulling.ready .foot::after{background:var(--gold); width:var(--lh); left:calc(var(--m) - var(--lh) / 2)}
 .pa.pulling.done .sx.ptail::after,.pa.pulling.done .foot::after{background:var(--ink)}
+/* before the way is chosen (a station not ready) the thread ahead stays dotted: the pull fills the dotted fade in, all the way down to the station, its dots
+   in step with the stub in the foot (counted from the bottom), and does not firm it */
+.pa.pullpre .sx.ptail::after{background:var(--ahead-bg); background-position:0 100%; opacity:calc(.9 * var(--pull,0))}
+.pa.pullpre .sx.ptail::before{opacity:calc(.9 * (1 - var(--pull,0)))}
+.pa.pullpre .foot::after{content:none}
 
 /* a side station: a small station on a dashed line that runs off the right edge; slide it left (or press Enter) to take it */
 .pa .sides{position:relative; width:100px; height:48px; margin-right:-10px; --dx:0px; touch-action:none; user-select:none; -webkit-user-select:none; cursor:grab; --skc:var(--skipc)}

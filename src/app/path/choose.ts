@@ -65,10 +65,12 @@ function mark(g: HTMLElement, row: HTMLElement): void {
   for (const n of STAGES) put(g, n, 0);
   row.dataset.pk = "1"; g.dataset.fx = list ? "list" : "row";
 }
-/** The row slid by hand to `p` (0 to 1): its snap, the others' fade and the thread's solidifying go as one. */
+/** The row slid by hand to `p` (0 to 1): its snap, the others' fade and the thread's solidifying go as one. It knocks each time it snaps: slid back off the line
+ *  (below 0.85, so that a finger resting at the line does not knock again and again) and onto it again, it knocks again. */
 function slideTo(g: HTMLElement, p: number): void {
   for (const n of ["s", "f", "g"]) put(g, n, p);
   if (p >= 0.98 && !g.dataset.snap) { g.dataset.snap = "1"; bump(); }
+  else if (p < 0.85 && g.dataset.snap) delete g.dataset.snap;
 }
 /** The stages played from where they are (a slide by hand leaves some of them part way: those go on at once, the later ones move up with them); `done` at the end. */
 function run(g: HTMLElement, done: () => void): void {
