@@ -122,6 +122,12 @@ export function migrationWarnings(files) {
 
 const short = (sha) => sha.slice(0, 7);
 
+/**
+ * How a commit message names a pull request: never as `#12`. GitHub adds a "referenced this pull request" event to that pull request's page for
+ * every commit that says so, and every rebuild pushes new commits that name each pull request on staging, so the pages filled up with them.
+ */
+const prName = (number) => `PR ${number}`;
+
 function identity(cwd) {
   const name = git(cwd, ["config", "user.name"], { allowFail: true }) || "staging script";
   const email = git(cwd, ["config", "user.email"], { allowFail: true }) || "staging@localhost";
@@ -185,7 +191,7 @@ export function rebuild({ cwd, entries, remote = "origin", base = "main", target
         continue;
       }
       try {
-        git(dir, ["merge", "--no-ff", "--no-edit", "-m", `Merge #${entry.number} (${entry.branch}) into ${target}`, entry.sha], { env });
+        git(dir, ["merge", "--no-ff", "--no-edit", "-m", `Merge ${prName(entry.number)} (${entry.branch}) into ${target}`, entry.sha], { env });
       } catch {
         const files = (git(dir, ["diff", "--name-only", "--diff-filter=U"], { allowFail: true }) ?? "").split("\n").filter(Boolean);
         git(dir, ["merge", "--abort"], { allowFail: true });
@@ -215,8 +221,8 @@ export function rebuild({ cwd, entries, remote = "origin", base = "main", target
       `chore(staging): ${base} ${short(baseSha)} and ${count}${skipped.length ? `, ${skipped.length} left out` : ""}`,
       "",
       `${base} ${short(baseSha)}`,
-      ...merged.map((m) => `#${m.number} ${m.branch} ${short(m.sha)}${m.addsNothing ? " (adds nothing)" : ""}`),
-      ...skipped.map((s) => `left out: #${s.number} ${s.branch} ${s.sha ? short(s.sha) : "(no branch)"} (${s.reason}${s.files.length ? `: ${s.files.join(", ")}` : ""})`),
+      ...merged.map((m) => `${prName(m.number)} ${m.branch} ${short(m.sha)}${m.addsNothing ? " (adds nothing)" : ""}`),
+      ...skipped.map((s) => `left out: ${prName(s.number)} ${s.branch} ${s.sha ? short(s.sha) : "(no branch)"} (${s.reason}${s.files.length ? `: ${s.files.join(", ")}` : ""})`),
     ];
     git(dir, ["commit", "--quiet", "-m", lines.join("\n")], { env });
     const sha = git(dir, ["rev-parse", "HEAD"]);
