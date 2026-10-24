@@ -35,7 +35,8 @@ const SING={"functional things":"a functional thing","impermanent things":"an im
 /* labels of older prepared pairs */
 "permanent things":"a permanent thing","things that are produced":"a thing that is produced","things that exist":"a thing that exists","things that can be known":"a thing that can be known","things that can be heard":"a thing that can be heard","things that have causes":"a thing that has causes","things with color":"a thing with color","hard things":"a hard thing","cold things":"a cold thing","muscles":"a muscle","people":"a person","monks":"a monk","tables":"a table","bodies":"a body","mental factors":"a mental factor","dogs":"a dog","instruments":"an instrument",
 /* labels of the everyday categories that are not "<word> things" */
-"things made of fabric":"a thing made of fabric","kitchenware":"kitchenware","electric devices":"an electric device","clothes":"a piece of clothing","fruits":"a fruit","birds":"a bird","fish":"a fish","trees":"a tree","women":"a woman","men":"a man","children":"a child","monks and nuns":"a monk or a nun"};
+"things made of fabric":"a thing made of fabric","kitchenware":"kitchenware","electric devices":"an electric device","clothes":"a piece of clothing","fruits":"a fruit","birds":"a bird","fish":"a fish","trees":"a tree","women":"a woman","men":"a man","children":"a child","monks and nuns":"a monk or a nun",
+"teachers":"a teacher","animals that fly":"an animal that flies","flying animals":"a flying animal","animals that swim":"an animal that swims","swimming animals":"a swimming animal"};
 try{ const v=localStorage.getItem("rd-wording"); if(WORDINGS[v]) state.wording=v; }catch(e){}
 export const Wd=()=>WORDINGS[state.wording];
 // a term of the pair ("A" or "B") in the singular, with its article: "a functional thing"

@@ -21,7 +21,7 @@ export type Clock = () => number;
 // An alias ("key") names the thing without the feature the practice item has ("a metal key"),
 // so it cannot settle color, material, shape, temperature or whether it runs on electricity.
 export const FEATURE: ReadonlySet<string> = new Set([
-  "wooden", "metal", "glass", "plastic", "fabric", "leather", "ceramic", "white", "black", "red", "green", "blue", "yellow", "round", "square", "hot", "electric",
+  "wooden", "metal", "glass", "plastic", "fabric", "leather", "ceramic", "paper", "white", "black", "red", "green", "blue", "yellow", "round", "square", "hot", "cold", "electric",
 ]);
 
 /**
