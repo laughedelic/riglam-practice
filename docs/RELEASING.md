@@ -13,7 +13,7 @@ Use [Conventional Commits](https://www.conventionalcommits.org/): `type(scope): 
 | `feat!:` or a `BREAKING CHANGE:` footer | minor before 1.0.0, major after | Features, with a note |
 | `docs:`, `test:`, `ci:`, `chore:`, `refactor:`, `style:` | none by themselves | hidden |
 
-The repository is squash-merged, so what counts is the **pull request title**: it becomes the commit message on `main`. The `Conventional PR title` check in CI rejects a title that is not in this form. Commits inside a pull request can be written freely.
+The repository is squash-merged, so what counts is the **pull request title**: it becomes the commit message on `main`. The `Conventional PR title` check (`.github/workflows/pr-title.yml`) rejects a title that is not in this form, and runs again when the title is edited. Commits inside a pull request can be written freely.
 
 ## How a release happens
 

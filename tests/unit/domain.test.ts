@@ -104,6 +104,14 @@ test("the pool has one entry per pair of categories, none that are listed as no-
   expect(pool.find((e) => e.a === "matter" && e.b === "matter")).toBeUndefined(); // one label only
 });
 
+test("the labels of an everyday category make no pair of their own, those of a Dudra category do", () => {
+  const d = data();
+  d.cats.find((c) => c.id === "gray")!.labels.push("gray stuff"); // another wording of the same class: nothing to tell apart
+  const withTwo = buildPool(makeIndex(d));
+  expect(withTwo.find((e) => e.a === "gray" && e.b === "gray")).toBeUndefined();
+  expect(withTwo.find((e) => e.a === "form" && e.b === "form")).toEqual({ a: "form", b: "form", r: "mi" }); // two names of one term
+});
+
 test("a pair has the relation of its categories, an example for each cell that has one, and a reason for each that has none", () => {
   const rng = seeded(1);
   for (const cand of buildPool(ix)) {
@@ -150,6 +158,19 @@ test("the draw keeps the relations mixed: one seen eight times in a row comes up
   expect(count.mi).toBeLessThan(count["3"] / 2);
   expect(count["4"]).toBeUndefined(); // the fixture has no pair with four possibilities (the one that would is listed as no-pair)
   expect(count.mi).toBeGreaterThan(0); // the weight has a floor, so no relation disappears
+});
+
+test("a relation with only a pair or two in reach comes up in proportion, not as often as the others", () => {
+  const con: PoolEntry[] = ["wooden", "gray", "snd", "plain", "thing", "matter", "form", "wooden", "gray"].map((b) => ({ a: "mind", b, r: "con" as const }));
+  const share = (mi: number) => {
+    const rng = seeded(11), thin: PoolEntry[] = [...con, ...Array.from({ length: mi }, () => ({ a: "form", b: "form", r: "mi" as const }))];
+    let n = 0;
+    for (let i = 0; i < 1000; i++) if (chooseEntry(ix, thin, { hist: [], recent: [], rng }).r === "mi") n++;
+    return n / 1000;
+  };
+  expect(share(1)).toBeLessThan(0.2); // one pair weighs an eighth of a relation that has many
+  expect(share(8)).toBeGreaterThan(0.4); // eight pairs weigh as much as the relation that has many (here: as much as the four others together)
+  expect(share(1)).toBeGreaterThan(0); // it still comes up
 });
 
 test("a relation that has no pair in the pool is never chosen; an empty pool is an error", () => {

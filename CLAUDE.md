@@ -35,4 +35,4 @@ In Claude's cloud container Chromium is preinstalled and matches the pinned Play
 
 - Pull request titles are conventional commits (`feat:`, `fix:`, `chore:` ...). The repo is squash-merged and release-please reads the titles (`docs/RELEASING.md`).
 - The pull request body follows `.github/pull_request_template.md` (Before / After / How).
-- CI (`.github/workflows/ci.yml`) must pass: lint, build, unit, browser tests, hosting dry run, PR title.
+- CI (`.github/workflows/ci.yml`, and the title check in `pr-title.yml`) must pass: lint, build, unit, browser tests, hosting dry run, PR title.
