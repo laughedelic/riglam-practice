@@ -9,9 +9,9 @@ import { el } from "../core/dom.js";
 // learner wrote, next to the page's own verdict, and the answers themselves. Any value can be flagged (collection "flags").
 const sign=a=>a==="yes"?"✓":a==="no"?"✗":"?";
 export const mname=k=>k==="judge"?"Judge":k?k[0].toUpperCase()+k.slice(1):"";
-const MODELS=3;     // the models of a run (src/ai/protocol.ts, QUORUM.models); the judge is a fourth call, asked only where they differ
+export const MODELS=3;     // the models of a run (src/ai/protocol.ts, QUORUM.models); the judge is a fourth call, asked only where they differ
 
-function statusOf(U){
+export function statusOf(U){
   const q=U.quorum, rec=q&&q.record;
   if(!q) return {ic:"",sum:quorumNeeded(U)?"On: Explain asks three models, and Opus rules where they differ.":"Not needed here: every example has a verdict, so one model explains."};
   if(q.busy){

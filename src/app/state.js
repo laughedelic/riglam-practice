@@ -124,6 +124,8 @@ export const state = {
   look: null,
   pathNote: null,
   pathQ: 0,          // the Path's next draw, when one waits for the next frame (path/index.tsx, refreshPath)
+  pathSeg: "today",  // the section of Review the Path shows (path/review.tsx); the classic page keeps its own in `reviewSeg`
+  pathOpen: {},      // the rows of Review the Path has unfolded, by key
 };
 
 try{ const v=localStorage.getItem("rd-ex"); if(v==="debate"||v==="find"||v==="categories"||v==="syllogism") state.tab=state.own=v; }catch(e){}

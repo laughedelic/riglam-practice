@@ -4,32 +4,36 @@
 // classic page's (debate/flow.js), and so is the wording of the questions (debate/text.js, picked in the practice options).
 import type { ComponentChildren } from "preact";
 import { state } from "../state.js";
-import { canAsk } from "../core/ask.js";
 import { REL, lcRel } from "../core/rel.js";
 import { backWhy, chooseD, sayQ, submitWhy } from "../debate/flow.js";
 import { QCELL, Wd, singular } from "../debate/text.js";
 import { next } from "../practice/queue.js";
-import { explainParts, nextFwd } from "../practice/screen.js";
-import { skipPair } from "../practice/skips.js";
-import { NOT } from "../../ai-shared/debate.ts";
+import { explainParts, learnedThing, nextFwd } from "../practice/screen.js";
+import { NOT, qSides } from "../../ai-shared/debate.ts";
 import type { QToken } from "../../ai-shared/debate.ts";
 import type { CellId, RelKey } from "../../ai-shared/relations.ts";
 import { refreshPath } from "./index.tsx";
-import { Choices, ErrLines, PairResult, PairStops, TermsRow, Thinking, Verdict, WhyRow, askTutor, isa, needsKey, pairOf, pickThen, tutorOnResult, tutorWaiting, u0 } from "./parts.tsx";
+import { Choices, ErrLines, PairResult, PairStops, Thinking, TutorNote, Verdict, WhyRow, isa, pairOf, pickThen, u0 } from "./parts.tsx";
 import { relChoices } from "./relations.tsx";
+import { FlagBtn, FlagEditor, explainCase } from "./flags.tsx";
 import { Scroll } from "./scroll.tsx";
-import { Foot, HideKeys, KbdStation, PreStation, SideStation, Station, TopBar, VoiceBar } from "./shell.tsx";
-import { DefCard, TermText } from "./terms.tsx";
-import { D, Gap, Head, Mark, St, Sx } from "./ui.tsx";
+import { Foot, PreStation, SkipSide, Station, TopBar, VoiceBar } from "./shell.tsx";
+import { Sub, markNames } from "./subjects.tsx";
+import { D, Gap, Head, Icon, Mark, St, Sx, nofillInput } from "./ui.tsx";
 
 interface Ans { say: "accept" | "why" | null; text: string; timeout?: boolean }
 
-/** A statement of the challenger, with the pair's terms in the singular and its "not" set apart. */
-function Statement({ i }: { i: number }) {
-  const p = pairOf();
-  return <>{(Wd().q[i] as QToken[]).map((x) => x === "A" || x === "B"
-    ? <span class="pqt">{state.showAB ? <i class="qab">{x}</i> : null}{singular(x === "A" ? p.a : p.b)}</span>
-    : x === NOT ? <b class="pnot">not</b> : x)}</>;
+/** A statement of the challenger, with the pair's terms in the singular and its "not" set apart; `ask` ends it with the question mark that the lead "Do you accept that…" makes of it. */
+function Statement({ i, ask }: { i: number; ask?: boolean }) {
+  const p = pairOf(), q = Wd().q[i] as QToken[];
+  return <>{q.map((x, k) => x === "A" || x === "B"
+    ? <Sub k={x === "A" ? "a" : "b"}>{singular(x === "A" ? p.a : p.b)}</Sub>
+    : x === NOT ? <b class="pnot">not</b> : ask && k === q.length - 1 && x === "." ? "?" : x)}</>;
+}
+/** A question's number, in the margin left of its stop (Q1), and its concise form at the right (A → not B), on the first line of the row. */
+function QHead({ i }: { i: number }) {
+  const side = (t: QToken[]) => t.map((x) => x === NOT ? <><b class="pnot">not</b> </> : x), [l, r] = qSides(i);
+  return <span class="qsymrow"><i class="qnm">Q{i + 1}</i><span class="qsym">{side(l)}<Icon n="arrow" cls="ar" />{side(r)}</span></span>;
 }
 /** An answer, short: "Accepted", or "Why?!" and the counter-example posited. */
 function Said({ a }: { a: Ans }) {
@@ -45,7 +49,7 @@ function Answered({ n }: { n: number }) {
     const a = u.ans![i] as Ans, on = u.ro === i;
     return <button type="button" class="sbb" aria-expanded={on ? "true" : "false"} onClick={() => { u.ro = on ? null : i; refreshPath(); }}
       aria-label={"Question " + (i + 1) + ": " + (a.say === "accept" ? Wd().acd : a.say === "why" ? Wd().wyd + " " + a.text : "time ran out") + ". " + (on ? "Hide" : "Show") + " the statement"}>
-      <St d={<D cls="sub yours" />} cls="sb done"><span class="lab">Question {i + 1}</span><Said a={a} />{on ? <p class="qq"><Statement i={i} /></p> : null}</St></button>;
+      <St d={<D cls="sub yours" />} cls="sb done"><QHead i={i} /><Said a={a} />{on ? <p class="qq"><Statement i={i} /></p> : null}</St></button>;
   })}</>;
 }
 
@@ -58,24 +62,23 @@ function QuestionStep({ kb }: { kb: boolean }) {
       {retry ? <p class="retry">{(state.cur!.tag || "Retry") + (state.retryQ.length ? " · " + state.retryQ.length + " more" : "")}</p> : null}
       <Sx cls="cur first tight"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Questions" sub={(i + 1) + " of 4 · " + (w.lead ? "do you accept it?" : "yes or no?")} /><Gap h={4} /><PairStops p={p} sm={i > 0} /><Gap h={4} />
         <Answered n={i} />
-        <St d={<D cls="sub now" />} cls="sb now qnow"><span class="lab">Question {i + 1}</span>{w.lead ? <span class="qlead">{w.lead}</span> : null}<p class="qst" lang="en"><Statement i={i} /></p>
+        <St d={<D cls="sub now" />} cls="sb now qnow"><QHead i={i} />{w.lead ? <span class="qlead">{w.lead}</span> : null}<p class="qst" lang="en"><Statement i={i} ask /></p>
           {u.pickWhy ? <>
-            <div class="fieldrow"><input class="pfield" id="dex" value={u.exText} placeholder="posit a counter-example" autoComplete="off" autoCapitalize="off" spellcheck={false} enterKeyHint={last ? "done" : "next"} aria-label="Posit a counter-example"
+            <div class="fieldrow"><input class="pfield" id="dex" value={u.exText} placeholder="posit a counter-example" {...nofillInput()} enterKeyHint={last ? "done" : "next"} aria-label="Posit a counter-example"
               onInput={(e) => { u.exText = (e.currentTarget as HTMLInputElement).value; refreshPath(); }}
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); submitWhy(); } else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); backWhy(); } }} /></div>
             <p class="help"><span class="htx">Something that shows the statement fails. </span><button type="button" onMouseDown={(e) => e.preventDefault()} onClick={backWhy}>back</button></p>
           </> : null}</St>
         {u.pickWhy ? <Gap h={6} /> : null}</Sx>
-      {u.pickWhy ? null : <Choices label="Your answer" items={items} picked={u.pk} onPick={(k) => pickThen(k, () => sayQ(k))} />}
-      {i < 3 ? <Sx cls="walked later">{[...Array(3 - i).keys()].map((j) => <St d={<D cls="sub" />} cls="sb later"><span class="lab">Question {i + 2 + j}</span></St>)}</Sx> : null}
+      {u.pickWhy ? null : <Choices label="Your answer" slide row items={items} picked={u.pk} onPick={(k) => pickThen(k, () => sayQ(k))} />}
+      {i < 3 ? <Sx cls="walked later">{[...Array(3 - i).keys()].map((j) => <St d={<D cls="sub" />} cls="sb later qmr"><QHead i={i + 1 + j} /></St>)}</Sx> : null}
       <Sx cls="ptail" />
     </Scroll>
     <VoiceBar />
-    <Foot kbd={kb ? <KbdStation name={last ? "Relation" : "Next question"} ready={!!(u.exText || "").trim()} act={submitWhy} /> : null}
-      aux={<>{kb ? <HideKeys /> : <SideStation kind="skip" act={skipPair} />}</>}>
+    {kb ? null : <Foot aux={<SkipSide />}>
       {u.pickWhy && (u.exText || "").trim() ? <Station name={last ? "Relation" : "Next question"} hint="your counter-example" act={submitWhy} />
         : <PreStation name={u.pickWhy && !last ? "Next question" : "Relation"} hint={u.pickWhy ? "posit a counter-example first" : last ? "answer this question first" : "answer the four questions first"} />}
-    </Foot>
+    </Foot>}
   </>;
 }
 
@@ -86,28 +89,26 @@ function RelationStep() {
     <Scroll>
       <Sx cls="walked first tight"><Gap h={14} /><Head d={<D cls="sec done" />} h="1 Questions" sub="answered" /><Gap h={4} /><PairStops p={p} sm /><Gap h={4} /><Answered n={4} /><Gap h={8} /></Sx>
       <Sx cls="cur"><Head d={<D cls="sec now" />} h="2 Relation" sub="which relation do your answers give?" /><Gap h={4} /></Sx>
-      <Choices label="Relation" items={relChoices(p, u.rel || null)} picked={u.pk} onPick={(k) => pickThen(k, () => chooseD(k))} />
+      <Choices label="Relation" slide items={relChoices(p, u.rel || null)} picked={u.pk} onPick={(k) => pickThen(k, () => chooseD(k))} />
       <Sx cls="ptail" />
     </Scroll>
     <VoiceBar />
-    <Foot aux={<SideStation kind="skip" act={skipPair} />}><PreStation name="Result" hint="pick the relation: that checks your answers" /></Foot>
+    <Foot aux={<SkipSide />}><PreStation name="Result" hint="pick the relation: that checks your answers" /></Foot>
   </>;
 }
 
 /* ---------- 3 the result ---------- */
 function QRow({ i }: { i: number }) {
-  const u = u0(), r = u.res, c = QCELL[i] as CellId, rr = r.cells[c] as { v: string; msg: string[]; uns?: boolean }, a = u.ans![i] as Ans;
+  const u = u0(), p = pairOf(), r = u.res, c = QCELL[i] as CellId, rr = r.cells[c] as { v: string; msg: string[]; uns?: boolean }, a = u.ans![i] as Ans;
   const open = rr.v === "cmp" || rr.v === "open", m = rr.v === "ok" ? "ok" : rr.v === "bad" ? "no" : "pt", busy = open && !!u.ctl;
   const tnote: string | undefined = (explainParts().cells as Record<string, string>)[c];
-  const note = tnote ? <><span class="tutn">the tutor:</span> <TermText text={tnote} where={"pq" + c} /></>
-    : <><b>{rr.msg[0]}</b>{rr.msg[2] ? <i>{rr.msg[2]}</i> : null}{isa(rr.msg[1] || "")}</>;
-  const side = open && !busy && !u.explained && (canAsk() || needsKey());
+  const note = <><b>{rr.msg[0]}</b>{rr.msg[2] ? <i>{rr.msg[2]}</i> : null}{markNames(isa(rr.msg[1] || ""), p)}</>;
   return <St d={<D cls={"sub " + (busy ? "pthink" : m)} />} cls={"sb exr qres" + (tnote ? " tut" : "")}>
-    <span class="lab">Question {i + 1}</span><p class="qq"><Statement i={i} /></p>
+    <QHead i={i} /><p class="qq"><Statement i={i} /></p>
     <div class="line1"><Said a={a} />{busy ? null : <Mark m={m} />}</div>
-    <p class="xnote">{note}</p>{tnote ? <DefCard where={"pq" + c} /> : null}
+    {tnote ? <TutorNote c={c} text={tnote} where={"pq" + c} flag={<FlagBtn c={explainCase(tnote, c, "Q" + (i + 1), learnedThing(c))} where={"pop:" + c} />} /> : <p class="xnote">{note}</p>}
+    <FlagEditor where={"pop:" + c} />
     {busy ? <Thinking label="the tutor is checking" /> : null}
-    {side ? <button type="button" class="tside" aria-disabled={needsKey() ? "true" : undefined} onClick={() => askTutor(false)}><span class="tsd" /><b>Check and explain</b><span class="tsl" /></button> : null}
   </St>;
 }
 function ResultStep() {
@@ -125,7 +126,6 @@ function ResultStep() {
       {imp ? <Sx cls="walked"><St d={<D cls={"sub " + (imp === u.rel ? "ok" : "no")} />} cls="sb exr implied"><span class="lab">from your answers</span><p class="xnote">{impTxt[0].toUpperCase() + impTxt.slice(1)}</p></St></Sx> : null}
       <Sx cls={QCELL.some((c) => r.cells[c].v === "bad") ? "nop" : "okp"}><Gap h={2} />{QCELL.map((_c, i) => <QRow i={i} />)}</Sx>
       <WhyRow unc={unc} />
-      <TermsRow p={p} />
       <ErrLines />
       <Sx cls="ptail" />
     </Scroll>
@@ -136,7 +136,7 @@ function ResultStep() {
 /** The screen of Pervasions: its top bar and the step the attempt is at. */
 export function pervasionsScreen(kb: boolean): { cls: string; node: ComponentChildren } {
   const u = u0();
-  const top = <TopBar title="Pervasions" tools mic tutor={tutorOnResult()} tutorDot={tutorWaiting()} />;
+  const top = <TopBar title="Pervasions" tools mic />;
   if (u.checked) return { cls: "done", node: <>{top}<ResultStep /></> };
   if (u.step > 3) return { cls: "", node: <>{top}<RelationStep /></> };
   return { cls: u.pickWhy && (u.exText || "").trim() ? "ready" : "", node: <>{top}<QuestionStep kb={kb} /></> };

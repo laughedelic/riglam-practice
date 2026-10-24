@@ -2,7 +2,7 @@
 // (src/app) and by whatever else talks to the model on the learner's behalf, such as the Worker. Nothing here reads
 // the page, the DOM, storage or the network; tests/unit/ai-shared.test.ts keeps it so.
 export type { Cat, DrillData, Item, Term } from "./data";
-export { NOT, QCELL, QMINE, qPlain } from "./debate";
+export { NOT, QCELL, QMINE, qPlain, qSides } from "./debate";
 export type { QToken } from "./debate";
 export { catFacts, termFacts } from "./facts";
 export type { Facts } from "./facts";

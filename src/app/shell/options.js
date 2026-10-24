@@ -27,35 +27,45 @@ export function toggleOpts(on){
 }
 // which build this is, and where the update stands: the commit tells a staging build from the one before it. With `state.updates` the app
 // updates in place (the button reloads it); without, the page only says whether the server has a newer build.
-function aboutNode(a){
+/** The Version row's words and its one step (the Path draws the same row): `act` is "update", "check" or null. */
+export function aboutInfo(a){
   const when=(()=>{ const d=new Date(a.builtAt); return isNaN(d.getTime())?"":d.toLocaleString(undefined,{dateStyle:"medium",timeStyle:"short"}); })();
   const u=state.updates, st=u?u.status():null;
   const status=u?{ready:"A newer version is ready.",downloading:"Downloading a newer version.",checking:"Checking for a newer version.",
       unknown:"Could not check for a newer version (no connection?).",current:"This is the newest version."}[st]
     :a.latest==="newer"?"A newer version is out. Close the app completely and open it again to use it."
     :a.latest==="current"?"This is the newest version.":"Could not check for a newer version (no connection?).";
-  const btn=!u?null:st==="ready"?el("button",{type:"button",class:"btn",onclick:()=>u.apply()},"Update now")
-    :st==="current"||st==="unknown"?el("button",{type:"button",class:"btn ghost",onclick:()=>u.check()},"Check for updates"):null;
+  return {line:"Version "+a.version+" · build "+a.commit+(when?" · "+when:""),from:a.branches?"Built from: "+a.branches.join(", "):"",status,bad:!u&&a.latest==="newer",
+    act:!u?null:st==="ready"?"update":st==="current"||st==="unknown"?"check":null};
+}
+function aboutNode(a){
+  const i=aboutInfo(a), u=state.updates;
+  const btn=i.act==="update"?el("button",{type:"button",class:"btn",onclick:()=>u.apply()},"Update now")
+    :i.act==="check"?el("button",{type:"button",class:"btn ghost",onclick:()=>u.check()},"Check for updates"):null;
   return el("div",{class:"about"},
-    el("p",{class:"onote",text:"Version "+a.version+" · build "+a.commit+(when?" · "+when:"")}),
-    a.branches?el("p",{class:"onote",text:"Built from: "+a.branches.join(", ")}):null,
-    el("p",{class:"onote"+(!u&&a.latest==="newer"?" bad":""),role:"status",text:status}),
+    el("p",{class:"onote",text:i.line}),
+    i.from?el("p",{class:"onote",text:i.from}):null,
+    el("p",{class:"onote"+(i.bad?" bad":""),role:"status",text:i.status}),
     btn);
 }
 // Where the app's server keeps the examples the tutor checked (`state.learns`): the device's say in it. Using the switch counts as having been told.
 function shareRow(){
-  const on=state.shareExamples, known=!!state.known, quorum=!!(state.quorumOffered&&state.db);
-  return el("div",{class:"orow"},switchOf("Share my examples",on?"on":"off",on,()=>{ setShare(!on); render(); }),
-    el("p",{class:"onote",text:"When the AI tutor checks an example the page could not, this app\u2019s server keeps the words of the example (not who wrote it, which pair it was for, or where you put it)"
+  const on=state.shareExamples;
+  return el("div",{class:"orow"},switchOf("Share my examples",on?"on":"off",on,()=>{ setShare(!on); render(); }),el("p",{class:"onote",text:shareNote()}));
+}
+/** What sharing the examples means, for its row here and on the Path. */
+export function shareNote(){
+  const known=!!state.known, quorum=!!(state.quorumOffered&&state.db);
+  return "When the AI tutor checks an example the page could not, this app\u2019s server keeps the words of the example (not who wrote it, which pair it was for, or where you put it)"
       +(known?", so that the same example can be checked later without the AI.":", to build a shared reference of examples with other learners.")
       +(known?" Your checks are answered from what it learned this way, from your examples and from other people\u2019s.":"")
       +" Turn this off to keep your examples out of it: checks work as before"+(known?", and you still get answers learned from other people\u2019s examples":"")+"."
-      +(quorum?" Quorum, in the practice options, is separate: it keeps its own runs, whatever this says.":"")}));
+      +(quorum?" Quorum, in the practice options, is separate: it keeps its own runs, whatever this says.":"");
 }
 // The redesign (src/app/path) is tried here: the Path, or the page as it was. A device keeps its choice; without one, a Preview starts on the Path.
 function designRow(){
   const r=row("Design",segOf("Design",[["path","Path"],["classic","Classic"]],state.design,setDesign),
-    "The Path is the redesign, still being made: Relations is drawn on it, and the other screens are the classic ones inside it for now. Classic is the page as it was.");
+    "The Path is the redesign, still being made. Classic is the page as it was.");
   r.classList.add("design"); return r;
 }
 export function optionsInto(o){
@@ -65,11 +75,8 @@ export function optionsInto(o){
   const mkBtn=()=>el("button",{type:"button",class:"keyname","aria-expanded":state.mkNote?"true":"false",onclick:()=>{ state.mkNote=!state.mkNote; render(); }},"Magic Key");
   const mkPop=()=>state.mkNote?el("div",{class:"pop"},MAGIC_KEY_NOTE.map(t=>el("p",{text:t})),el("button",{type:"button",class:"popx",onclick:()=>{ state.mkNote=false; render(); }},"Hide")):null;
   box.append(...[
-    state.unlock?row(mkBtn(),el("button",{type:"button",class:"btn ghost",onclick:()=>{ toggleOpts(false); state.unlock.open(); }},"Enter the Magic Key"),
-      "The definitions and the tutor (Explain) need the Magic Key from your study group's link. This device has none yet: open the link once on this device, or paste it here.","key",mkPop()):null,
-    state.keyHeld?row(mkBtn(),keyControls(),
-      state.keyAsk?"Forget the Magic Key on this device? The definitions and the tutor close again until a key is entered. Your answers and settings stay. An account that carries the key gives it back when you sign in."
-        :"This device has the Magic Key, so the definitions and the tutor are open. If the study group changed the key, enter the new one; or forget the key on this device.","key",mkPop()):null,
+    state.unlock?row(mkBtn(),el("button",{type:"button",class:"btn ghost",onclick:()=>{ toggleOpts(false); state.unlock.open(); }},"Enter the Magic Key"),keyNote(false),"key",mkPop()):null,
+    state.keyHeld?row(mkBtn(),keyControls(),keyNote(true),"key",mkPop()):null,
     canAsk()&&state.learns?shareRow():null,
     state.account&&state.db&&state.account.view().available?row("Account",accountControls(state.account,el,render,state.acct)):null,
     designRow(),
@@ -80,6 +87,10 @@ export function optionsInto(o){
   o.append(box);
 }
 
+/** The Magic Key row's sentence: the device has none yet (`held` false), has it, or is asked whether to forget it (the Path draws the same row). */
+export const keyNote=held=>!held?"The definitions and the tutor (Explain) need the Magic Key from your study group's link. This device has none yet: open the link once on this device, or paste it here."
+  :state.keyAsk?"Forget the Magic Key on this device? The definitions and the tutor close again until a key is entered. Your answers and settings stay. An account that carries the key gives it back when you sign in."
+  :"This device has the Magic Key, so the definitions and the tutor are open. If the study group changed the key, enter the new one; or forget the key on this device.";
 // The Magic Key row while this device has the key: take another one, or forget it (after a question, since the definitions close with it).
 function keyControls(){
   const k=state.keyHeld;

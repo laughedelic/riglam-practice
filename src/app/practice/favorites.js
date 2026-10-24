@@ -52,7 +52,9 @@ export function favBtn(p){
   const on=isFav(p), t=on?"Remove from favorites":"Add to favorites";
   return el("button",{type:"button",class:"ib starb","aria-pressed":on?"true":"false","aria-label":t,title:t+" (F)",onclick:()=>toggleFav(p)},tbIcon("star"));
 }
-function startFav(p){ switchTo("practice"); state.retryQ=[p]; state.retryTag="Favorite"; advance(); render(); top0(); } // switch first: leaving another tab may draw a pair
+export function startFav(p){ switchTo("practice"); state.retryQ=[p]; state.retryTag="Favorite"; advance(); render(); top0(); } // switch first: leaving another tab may draw a pair
+// a favorite taken out of Review; a removal that fails is undone
+export function removeFav(f){ const q=Object.assign({},f); delete state.favs[f.key]; render(); favWrite(f.key,()=>state.db.collection("favorites").doc(f.key).delete(),()=>{ state.favs[f.key]=q; }); }
 export function favSection(s){
   if(!state.db) return;
   const list=Object.values(state.favs).sort((x,y)=>(y.at||"").localeCompare(x.at||""));
@@ -72,7 +74,7 @@ export function favSection(s){
         exGrid(p,cell),
         el("p",{class:"note"},(p.typeA||p.typeB)?el("span",{class:"types",text:p.a+": "+(p.typeA||"?")+" · "+p.b+": "+(p.typeB||"?")}):null,p.note||""),
         el("div",{class:"actions"},
-          el("button",{type:"button",class:"btn ghost",onclick:()=>{ openFavs.delete(f.key); const q=Object.assign({},f); delete state.favs[f.key]; render(); favWrite(f.key,()=>state.db.collection("favorites").doc(f.key).delete(),()=>{ state.favs[f.key]=q; }); },text:"Remove"}),
+          el("button",{type:"button",class:"btn ghost",onclick:()=>{ openFavs.delete(f.key); removeFav(f); },text:"Remove"}),
           el("button",{type:"button",class:"btn",onclick:()=>startFav(p),text:"Practice this pair"})))));
   })));
   if(state.favErr) sec.append(el("p",{class:"status",text:state.favErr}));

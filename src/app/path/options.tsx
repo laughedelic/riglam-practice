@@ -1,6 +1,6 @@
 // The practice options of the exercise on screen, as the lab draws them: a sheet from the top bar, one row per option with its name in the
 // margin, its choices as words in a row or a toggle, and "more" into the option's own page. The settings themselves are the classic page's
-// (shell/session.js keeps them and stores them on the device); two pages are still drawn by it (the levels of the examples, and voice).
+// (shell/session.js, stages.js and voice.js keep them and store them on the device).
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef } from "preact/hooks";
 import { state } from "../state.js";
@@ -8,18 +8,18 @@ import { NOT } from "../../ai-shared/debate.ts";
 import { setQuorum } from "../ai/quorum.js";
 import { setCategoriesAsk } from "../categories/flow.js";
 import { canAsk } from "../core/ask.js";
-import { el } from "../core/dom.js";
 import { setTimer } from "../debate/flow.js";
 import { WORDINGS } from "../debate/text.js";
 import { exName } from "../shell/exercises.js";
 import { setStages } from "../shell/stages.js";
 import { toggleOpts } from "../shell/options.js";
-import { PAGES, SYMS, openPage, picks, quorumNote, sessBack, setAutoExplain, setBlitzUse, setDefLang, setFindSuggest, setNegBrackets, setNegation, setNota, setShow, setSyllogismGuide, setSyllogismWording, setWording, toggleSess } from "../shell/session.js";
+import { PAGES, SYMS, openPage, quorumNote, sessBack, setAutoExplain, setBlitzUse, setDefLang, setFindSuggest, setNegBrackets, setNegation, setNota, setShow, setSyllogismGuide, setSyllogismWording, setWording, toggleSess } from "../shell/session.js";
 import { kindMs } from "../shell/timers.js";
+import { ANSWERS, ANSWER_PICKS, CONFIRM_PICKS, RATES, READ_NOTE, SAMPLE, VOICE_LEAD, VOICE_SAY, WHERE, hookVoices, setVoice, voiceGroups, voiceShown } from "../shell/voice.js";
 import { stageCounts } from "../../domain/reference.ts";
 import { STAGES, itemStage, toggleStage } from "../../domain/stages.ts";
-import { voiceListRows, voicePageBody, voiceShown } from "../shell/voice.js";
-import { Bridge, D, Icon, Knob, Toggle, Words } from "./ui.tsx";
+import { canHear, canSpeak, speak, voiceList } from "../../ui/speech";
+import { D, Icon, Knob, Toggle, Words, NOFILL } from "./ui.tsx";
 
 // the names in the margin are short, as the lab's are: six letters fit beside the line
 const Row = ({ lb, children }: { lb: string; children?: ComponentChildren }) => <div class="porow"><span class="lb">{lb}</span><div class="ptx">{children}</div></div>;
@@ -39,23 +39,26 @@ const stagesLine = () => {
   return (state.stages.length === 1 ? "Stage " : "Stages ") + runs.map(([a, b]) => (a === b ? String(a) : a + "–" + b)).join(", ") + (negates() && NEG_NAME[state.negation] ? " · negations: " + NEG_NAME[state.negation] : "");
 };
 const toSettings = () => { toggleSess(false); toggleOpts(true); };
+/** Whether the Tutor row (and its page) is in the list: where the tutor can be asked, and the Quorum switch is offered. Categories has neither. */
+const quorumShown = () => state.quorumOffered && !!state.db && state.tab !== "syllogism" && state.tab !== "categories";
+const tutorShown = () => state.tab !== "categories" && (canAsk() || quorumShown());
 
-// the classic list builders, drawing the Path's rows: voice gives its rows through them
-const domSw = (label: string, word: string, on: boolean, toggle: () => void) => el("div", { class: "porow" }, el("span", { class: "lb" }), el("div", { class: "ptx" },
-  el("button", { type: "button", class: "two", role: "switch", "aria-checked": on ? "true" : "false", onclick: toggle }, el("span", null, el("b", { text: label }), el("small", { text: word })),
-    el("span", { class: "tg" + (on ? " on" : ""), "aria-hidden": "true" }, el("i")))));
-const domChips = (label: string, rows: [string, string][], cur: string, on: (k: string) => void) => el("span", { class: "seg2", role: "group", "aria-label": label },
-  rows.map(([k, l]) => el("button", { type: "button", "aria-pressed": cur === k ? "true" : "false", onclick: () => on(k), text: l })));
-const domCard = (title: string, quick: Node, page: string) => el("div", { class: "porow" }, el("span", { class: "lb" }), el("div", { class: "ptx" }, el("b", { text: title }), quick,
-  el("button", { type: "button", class: "more", onclick: () => openPage(page), text: "more" })));
+/** Voice in the list: Read aloud, and how an answer is taken (or, where the browser cannot listen, the voice and its speed), with its page. */
+function VoiceRows() {
+  const v = state.voice; hookVoices();
+  return <>
+    {canSpeak() ? <Switch lb="Read" title="Read aloud" note="each question" on={v.read} toggle={() => setVoice("read", !v.read)} /> : null}
+    {canHear() ? <Row lb="Voice"><b>Answer by voice</b><Words label="Answer by voice" items={ANSWERS as [string, string][]} cur={v.answer} on={(k) => setVoice("answer", k)} /><More page="voice" /></Row>
+      : <Row lb="Voice"><b>Voice</b><small>Voice and speed</small><More page="voice" /></Row>}
+  </>;
+}
 
 function List() {
   const tab = state.tab, perv = tab === "debate", find = tab === "find", syl = tab === "syllogism", cats = tab === "categories", timed = tab === "practice" || perv;
-  const tutor = canAsk(), quorum = state.quorumOffered && !!state.db;
-  const tutorRow = tutor ? <Switch lb="Tutor" title="Check every answer with AI" on={state.autoExplain} toggle={() => setAutoExplain(!state.autoExplain)}
-    note={"Right after you check an answer, the AI tutor explains it" + (syl ? "" : " and checks the examples the page could not") + ". Off, it waits for you to ask."} /> : null;
+  const tutor = canAsk();
+  const tutorRow = tutorShown() ? <Row lb="Tutor"><b>Tutor</b>{canAsk() ? <small>{state.autoExplain ? "explains every answer" : "explains when you ask"}</small> : null}<More page="tutor" /></Row> : null;
   const blitz = <Row lb="Blitz"><button type="button" class="two" role="switch" aria-checked={state.blitzUse ? "true" : "false"} onClick={() => setBlitzUse(!state.blitzUse)}>
-    <span><b>Blitz</b><small>{state.blitzUse ? timesLine() : "off: no stopwatch in the top bar"}</small></span><Toggle on={state.blitzUse} /></button>{state.blitzUse ? <More page="times" label="times" /> : null}</Row>;
+    <span><b>Blitz</b><small>{state.blitzUse ? timesLine() : "off"}</small></span><Toggle on={state.blitzUse} /></button>{state.blitzUse ? <More page="times" label="times" /> : null}</Row>;
   const stages = <Row lb="Stages"><b>Stages</b><small>{stagesLine()}</small><More page="stages" /></Row>;
   const foot = <p class="pnoteline" style={{ padding: "10px 18px 4px calc(var(--m) + 22px)" }}>The Magic Key, your account, data{tutor && state.learns ? ", sharing your examples" : ""} and the version are in <button type="button" class="pbtn" style={{ padding: 0 }} onClick={toSettings}>Settings</button>.</p>;
   if (cats) return <>
@@ -63,20 +66,19 @@ function List() {
     {stages}{foot}</>;
   if (syl) return <>
     <Row lb="Words"><b>Wording of the syllogism</b><Words label="Wording" items={[["take", "Take X"], ["formal", "Formal"]]} cur={state.syllogismWording} on={setSyllogismWording} /></Row>
-    <Switch lb="Guide" title="Show the structure" note="S, P and R named under the sentence, and what each reply says in them" on={state.syllogismGuide} toggle={() => setSyllogismGuide(!state.syllogismGuide)} />
+    <Switch lb="Guide" title="Show the structure" note="S, P and R under the sentence" on={state.syllogismGuide} toggle={() => setSyllogismGuide(!state.syllogismGuide)} />
     {stages}{blitz}{tutorRow}{foot}</>;
   return <>
     {perv ? <Row lb="Words"><b>Wording of the questions</b><Words label="Wording of the questions" items={Object.entries(WORDINGS).map(([k, w]) => [k, (w as { name: string }).name] as [string, string])} cur={state.wording} on={setWording} /><More page="wording" /></Row> : null}
     {perv ? <Switch lb="Why?" title="Full phrases" note="spell out Why? answers" on={state.fullPh} toggle={() => setShow("full", !state.fullPh)} /> : null}
-    {find ? <Switch lb="Hints" title="Suggest terms" note="terms of the course while you name a pair" on={state.findSuggest} toggle={() => setFindSuggest(!state.findSuggest)} /> : null}
+    {find ? <Switch lb="Hints" title="Suggest terms" note="course terms as you type" on={state.findSuggest} toggle={() => setFindSuggest(!state.findSuggest)} /> : null}
     <Row lb="Signs"><b>Notation</b><Words label="Notation" items={Object.entries(SYMS).map(([k, v]) => [k, (v as unknown[])[0] as string] as [string, string])} cur={state.nota} on={setNota} /><More page="nota" /></Row>
     {timed ? blitz : null}
-    <Switch lb="A/B" title="A/B markers" note="before the terms" on={state.showAB} toggle={() => setShow("ab", !state.showAB)} />
+    <Switch lb="A/B" title="A/B markers" note="A and B shown in the text" on={state.showAB} toggle={() => setShow("ab", !state.showAB)} />
     <Row lb="Terms"><b>Definitions</b><Words label="Languages of the definitions" items={[["en", "English"], ["enru", "English + Russian"]]} cur={state.defLang} on={setDefLang} /><More page="defs" /></Row>
     {stages}
-    {voiceShown() ? <Bridge own fill={() => voiceListRows(domSw, domCard, domChips)} /> : null}
+    {voiceShown() ? <VoiceRows /> : null}
     {tutorRow}
-    {quorum ? <Switch lb="Quorum" title="Several models explain" note={quorumNote()} on={state.quorum} toggle={() => setQuorum(!state.quorum)} /> : null}
     {foot}</>;
 }
 
@@ -94,10 +96,27 @@ function Time({ kind, lb, label, note }: { kind: string; lb: string; label: stri
   return <Row lb={lb}><b>{label}</b><small>{note}</small>
     <span style={{ display: "flex", alignItems: "center", gap: "14px", flexWrap: "wrap" }}>
       <Words label={label} items={[[5, "5 s"], [10, "10 s"], [15, "15 s"], [30, "30 s"]]} cur={preset ? now : -1} on={(s) => setTimer(s * 1000, kind)} />
-      <input type="number" min="2" max="120" inputMode="numeric" class="pfield" style={{ flex: "none", width: "64px", height: "28px", fontSize: "16px" }} placeholder="sec" aria-label={"Custom " + label.toLowerCase() + " in seconds"}
+      <input type="number" min="2" max="120" inputMode="numeric" class="pfield" style={{ flex: "none", width: "64px", height: "28px", fontSize: "16px" }} placeholder="sec" {...NOFILL} aria-label={"Custom " + label.toLowerCase() + " in seconds"}
         value={preset ? "" : String(now)} onChange={(e) => { const v = Math.round(+(e.currentTarget as HTMLInputElement).value); if (v >= 2 && v <= 120) setTimer(v * 1000, kind); }}
         onKeyDown={(e) => e.stopPropagation()} />
     </span></Row>;
+}
+function Page({ id }: { id: string }) {
+  if (id === "nota") return <><p class="psub">How the relation between two terms is written, in the statements and in your answers.</p>
+    <Picks label="Notation" cur={state.nota} on={setNota} items={Object.entries(SYMS).map(([k, v]) => { const [name, desc, rows] = v as [string, string, [string, string][]];
+      return [k, name, desc, <small>{rows.map(([s, t]) => <span style={{ display: "block" }}><b class="mono" style={{ display: "inline", fontSize: "13px", color: "var(--ink)" }}>{s}</b> {t}</span>)}</small>] as [string, string, string, ComponentChildren]; })} /></>;
+  if (id === "wording") return <><p class="psub">How the statement of pervasion is worded in Pervasions: the four statements you accept or answer with Why?.</p>
+    <Picks label="Wording of the questions" cur={state.wording} on={setWording} items={Object.entries(WORDINGS).map(([k, w]) => [k, (w as { name: string }).name, sample(w as { lead?: string; q: unknown[][] })] as [string, string, string])} /></>;
+  if (id === "defs") return <><p class="psub">Shown when you open a term's definition, in the Terms and in the tutor's notes.</p>
+    <Picks label="Languages of the definitions" cur={state.defLang} on={setDefLang} items={[["en", "English", "The definition in English."], ["enru", "English + Russian", "Each entry also shows the Russian name of the term and, where there is one, its Russian definition."]]} /></>;
+  if (id === "times") return <><p class="psub">{state.tab === "syllogism" ? "A countdown for the reply to each syllogism, switched on and off with the stopwatch in the top bar; hold the stopwatch to come back here." : "A countdown for each step of a pair, switched on and off with the stopwatch in the top bar; hold the stopwatch to come back here."}</p>
+    <Switch lb="Blitz" title="Use Blitz" note="Off takes the stopwatch out of the top bar; the times stay for when it is on again." on={state.blitzUse} toggle={() => setBlitzUse(!state.blitzUse)} />
+    {!state.blitzUse ? null : state.tab === "syllogism" ? <Time kind="syl" lb="Reply" label="Syllogism time" note="for the reply to each syllogism" />
+      : <><Time kind="rel" lb="Pick" label="Relation time" note="for choosing the relation, in Relations and Pervasions" /><Time kind="ex" lb="Write" label="Example time" note="for each example in Relations (three cells get three times this) and each question in Pervasions" /></>}</>;
+  if (id === "stages") return <Stages />;
+  if (id === "voice") return <VoicePage />;
+  if (id === "tutor") return <TutorPage />;
+  return null;
 }
 /** The stages of the ladder: a switch for each, with its name, what it adds and how many things this device has of it; any mix, and the last one on stays on. */
 function Stages() {
@@ -119,26 +138,48 @@ function Stages() {
     </> : null}
   </>;
 }
-function Page({ id }: { id: string }) {
-  if (id === "nota") return <><p class="psub">How the relation between two terms is written, in the statements and in your answers.</p>
-    <Picks label="Notation" cur={state.nota} on={setNota} items={Object.entries(SYMS).map(([k, v]) => { const [name, desc, rows] = v as [string, string, [string, string][]];
-      return [k, name, desc, <small>{rows.map(([s, t]) => <span style={{ display: "block" }}><b class="mono" style={{ display: "inline", fontSize: "13px", color: "var(--ink)" }}>{s}</b> {t}</span>)}</small>] as [string, string, string, ComponentChildren]; })} /></>;
-  if (id === "wording") return <><p class="psub">How the statement of pervasion is worded in Pervasions: the four statements you accept or answer with Why?.</p>
-    <Picks label="Wording of the questions" cur={state.wording} on={setWording} items={Object.entries(WORDINGS).map(([k, w]) => [k, (w as { name: string }).name, sample(w as { lead?: string; q: unknown[][] })] as [string, string, string])} /></>;
-  if (id === "defs") return <><p class="psub">Shown when you open a term's definition, in the Terms and in the tutor's notes.</p>
-    <Picks label="Languages of the definitions" cur={state.defLang} on={setDefLang} items={[["en", "English", "The definition in English."], ["enru", "English + Russian", "Each entry also shows the Russian name of the term and, where there is one, its Russian definition."]]} /></>;
-  if (id === "times") return <><p class="psub">{state.tab === "syllogism" ? "A countdown for the reply to each syllogism, switched on and off with the stopwatch in the top bar; hold the stopwatch to come back here." : "A countdown for each step of a pair, switched on and off with the stopwatch in the top bar; hold the stopwatch to come back here."}</p>
-    <Switch lb="Blitz" title="Use Blitz" note="Off takes the stopwatch out of the top bar; the times stay for when it is on again." on={state.blitzUse} toggle={() => setBlitzUse(!state.blitzUse)} />
-    {!state.blitzUse ? null : state.tab === "syllogism" ? <Time kind="syl" lb="Reply" label="Syllogism time" note="for the reply to each syllogism" />
-      : <><Time kind="rel" lb="Pick" label="Relation time" note="for choosing the relation, in Relations and Pervasions" /><Time kind="ex" lb="Write" label="Example time" note="for each example in Relations (three cells get three times this) and each question in Pervasions" /></>}</>;
-  if (id === "stages") return <Stages />;
-  if (id === "voice") return <Bridge cls="opts" fill={() => voicePageBody(picks)} />;
-  return null;
+/** The Voice page: the voice and its speed, how an answer is taken and what happens after it is heard. */
+function VoicePage() {
+  const v = state.voice, list = canSpeak() ? voiceList() : []; hookVoices();
+  return <>
+    <p class="psub">{VOICE_LEAD}</p>
+    {canSpeak() ? <>
+      <Switch lb="Read" title="Read aloud" note={"each question. " + READ_NOTE} on={v.read} toggle={() => setVoice("read", !v.read)} />
+      <Row lb="Voice"><b>Voice</b><small>This device’s English voices, by accent.</small>
+        <span class="pvline2"><select class="psel" aria-label="Voice" value={v.voiceId || ""} onChange={(e) => setVoice("voiceId", (e.currentTarget as HTMLSelectElement).value)}>
+          <option value="">{"Best on this device" + (list[0] ? " (" + list[0].name + ")" : "")}</option>
+          {voiceGroups(list).map((g: { accent: string; voices: { id: string; name: string; lang: string; local: boolean }[] }) => <optgroup label={g.accent}>
+            {g.voices.map((x) => <option value={x.id}>{x.name + " · " + x.lang + (x.local ? "" : " · online")}</option>)}</optgroup>)}
+        </select><button type="button" class="pbtn" onClick={() => speak(SAMPLE, { voice: v.voiceId, rate: v.rate })}>Try</button></span></Row>
+      <Row lb="Speed"><b>Speed of reading</b><Words label="Speed of reading" items={RATES as [number, string][]} cur={v.rate} on={(r) => setVoice("rate", r)} /></Row>
+    </> : null}
+    {canHear() ? <>
+      <p class="glab">Answer by voice</p>
+      <Picks label="Answer by voice" cur={v.answer} on={(k) => setVoice("answer", k)} items={ANSWER_PICKS as [string, string, string][]} />
+      {v.answer !== "off" ? <><p class="glab">After an answer is heard</p>
+        <Picks label="After an answer is heard" cur={v.confirm} on={(k) => setVoice("confirm", k)} items={CONFIRM_PICKS as [string, string, string][]} /></> : null}
+      <p class="psub">{VOICE_SAY}</p>
+      <p class="pnoteline pnote3">{WHERE}</p>
+    </> : null}
+    <p class="pnoteline pnote3">Voice itself is switched on and off in <button type="button" class="pbtn" style={{ padding: 0 }} onClick={toSettings}>Settings</button>.</p>
+  </>;
+}
+
+/** The Tutor page: whether it explains every answer by itself, and Quorum (several models), each with what it does. */
+function TutorPage() {
+  const syl = state.tab === "syllogism";
+  return <>
+    <p class="psub">The AI tutor explains an answer: why it is right or wrong{syl ? "" : ", and whether your examples fit their cases"}.</p>
+    {canAsk() ? <Switch lb="Tutor" title="Check every answer with AI" on={state.autoExplain} toggle={() => setAutoExplain(!state.autoExplain)}
+      note={"Right after you check an answer, the tutor explains it" + (syl ? "" : " and checks the examples the page could not") + ". Off, it waits for you to ask."} /> : null}
+    {quorumShown() ? <Switch lb="Quorum" title="Several models explain" note={quorumNote()} on={state.quorum} toggle={() => setQuorum(!state.quorum)} /> : null}
+    <p class="pnoteline pnote3">The Magic Key{canAsk() && state.learns ? ", sharing your examples" : ""} and your data are in <button type="button" class="pbtn" style={{ padding: 0 }} onClick={toSettings}>Settings</button>.</p>
+  </>;
 }
 
 /** The sheet of the practice options: from the top, under the top bar, over a scrim; the knob at its foot folds it away. */
 export function OptionsSheet() {
-  const on = state.sessOpen && state.mode === "quiz", page = on && state.sessPage && PAGES[state.sessPage as keyof typeof PAGES] && (state.sessPage !== "voice" || voiceShown()) ? state.sessPage : null;
+  const on = state.sessOpen && state.mode === "quiz", page = on && state.sessPage && PAGES[state.sessPage as keyof typeof PAGES] && (state.sessPage !== "voice" || voiceShown()) && (state.sessPage !== "tutor" || tutorShown()) ? state.sessPage : null;
   const box = useRef<HTMLDivElement>(null), was = useRef(on);
   useEffect(() => {
     if (on && !was.current) { const b = box.current && box.current.querySelector<HTMLElement>(".shead button"); if (b) b.focus({ preventScroll: true }); }

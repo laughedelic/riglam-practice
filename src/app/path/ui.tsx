@@ -14,6 +14,7 @@ const I: Record<string, string> = {
   eight: '<path stroke-linejoin="miter" d="M12.00 1.80L14.99 4.79L19.21 4.79L19.21 9.01L22.20 12.00L19.21 14.99L19.21 19.21L14.99 19.21L12.00 22.20L9.01 19.21L4.79 19.21L4.79 14.99L1.80 12.00L4.79 9.01L4.79 4.79L9.01 4.79z"/>',
   mark: '<path d="M6.8 3.5h10.4v17l-5.2-3.9-5.2 3.9z"/>',
   chev: '<path d="M9 5l7 7-7 7"/>',
+  arrow: '<path d="M4 12h15M13 6l6 6-6 6"/>',
   up: '<path d="M12 19V5M6 11l6-6 6 6"/>',
   close: '<path d="M6 6l12 12M18 6L6 18"/>',
   key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M16 7l2 2M14 9l2 2"/>',
@@ -24,6 +25,8 @@ const I: Record<string, string> = {
   speakoff: '<path d="M11 5L6 9H2v6h4l5 4z"/><path d="M16 9l6 6M22 9l-6 6"/>',
   mic: '<rect x="9" y="2.5" width="6" height="11.5" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v3.5"/>',
   refresh: '<path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v4h-4"/>',
+  flag: '<path d="M6 21V3.5M6 4h11.5l-2.5 4 2.5 4H6"/>',
+  skipped: '<path d="M5 6l6 6-6 6M12 6l6 6-6 6"/>',
 };
 /** A line icon; the favorites mark is drawn in the shape the look names. */
 export function Icon({ n, cls = "i" }: { n: string; cls?: string }) {
@@ -37,9 +40,9 @@ export const D = ({ cls, mark }: { cls: string; mark?: string }) => <span class=
 export const St = ({ d, cls = "", children }: { d: ComponentChildren; cls?: string; children?: ComponentChildren }) => <div class={"st " + cls}>{d}<div class="ptx">{children}</div></div>;
 /** A section of the path, which draws its own piece of the line (walked, cur, gap, ahead, okp, nop, ptp, ptail). */
 export const Sx = ({ cls, children }: { cls: string; children?: ComponentChildren }) => <section class={"sx " + cls}>{children}</section>;
-/** The heading of a step: "1 Relation", and what it asks in a lighter voice. */
-export const Head = ({ d, h, sub, later }: { d: ComponentChildren; h: string; sub?: string; later?: boolean }) =>
-  <St d={d} cls="sechead"><span class={"ph" + (later ? " later" : "")}>{h}{sub ? <span>{sub}</span> : null}</span></St>;
+/** The heading of a step: "1 Relation", and what it asks in a lighter voice; `aside` at its right (Skip, where the step has no favorites mark). */
+export const Head = ({ d, h, sub, later, aside }: { d: ComponentChildren; h: string; sub?: string; later?: boolean; aside?: ComponentChildren }) =>
+  <St d={d} cls={"sechead" + (aside ? " hasaside" : "")}><span class={"ph" + (later ? " later" : "")}>{h}{sub ? <span>{sub}</span> : null}</span>{aside}</St>;
 export const Gap = ({ h }: { h: number }) => <div style={{ height: h + "px" }} />;
 
 // the relation figures, vertical: A above, B below (the diagrams transposed); the keys are the app's relations
@@ -57,9 +60,6 @@ export function Fig({ k, size = "r" }: { k: string; size?: string }) {
     {big ? [pa, pb] : [pb, pa]}{o ? <polygon class="o" vector-effect="non-scaling-stroke" points={dia(o[0], o[1], o[2])} /> : null}
   </svg>;
 }
-/** The short name of a relation on the pair, as the lab says it. */
-export const SHORT: Record<string, string> = { mi: "The same", "3ab": "A in B", "3ba": "B in A", "4": "They overlap", con: "Apart" };
-
 /** A verdict's mark: right, wrong, or not settled yet. */
 export const Mark = ({ m }: { m: string }) => <span class={"mark " + m}><Icon n={m === "ok" ? "check" : m === "no" ? "cross" : "q"} /></span>;
 /** Four small diamonds for the cases of an answer, or the answers of a day. */
@@ -102,3 +102,19 @@ export function Bridge({ fill, after, cls = "", own = false, id }: { fill: (host
 export const coarse = () => { try { return matchMedia("(pointer: coarse)").matches; } catch { return false; } };
 /** The pair on screen, when there is one. */
 export const pairNow = () => (state.cur && state.cur.p) || null;
+
+/**
+ * The hints for a field of the practice that is not a form for the browser: no saved passwords, cards or addresses offered for it, no spell
+ * checker or capital letters on a learner's example, and the password managers told to leave it alone. A page can only ask: Chrome on Android
+ * keeps a bar of key, card and address icons above the keyboard on every text field whatever `autocomplete` says (Chromium issue 40236405).
+ */
+export const NOFILL = {
+  autoComplete: "off", autoCapitalize: "off", autoCorrect: "off", spellcheck: false,
+  "data-lpignore": "true", "data-1p-ignore": "true", "data-bwignore": "true", "data-form-type": "other",
+} as const;
+/**
+ * The same for an `<input>`, which on a touch screen is a search field: Chrome on Android leaves the bar of saved keys, cards and addresses off the keyboard for one, where the
+ * hints above leave it on a text field (not on the first focus, but on the next one). The role keeps it a text box for a screen reader; the Enter key is the one `enterKeyHint`
+ * names. Elsewhere it stays a text field (a search field clears at Escape).
+ */
+export const nofillInput = () => ({ ...NOFILL, type: coarse() ? "search" : "text", role: "textbox" }) as const;

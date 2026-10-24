@@ -21,7 +21,7 @@ const ticks=b=>b.classList.contains("catick")||!!b.closest("#path .chs.multi");
 // a tap outside a note closes it, and a tap outside a term's definition closes that (a tap on a term stops before this)
 document.addEventListener("click",e=>{
   const u=state.ui, t=/** @type {Element} */(e.target), at=s=>!!(t.closest&&t.closest(s)); if(!u) return;
-  const d=!!u.dterm&&!at(".ddef"), p=!!u.pop&&!at(".pop,.why"); if(d) u.dterm=null; if(p) u.pop=null; if(d||p) render();
+  const d=!!u.dterm&&!at(".ddef,.pdef"), p=!!u.pop&&!at(".pop,.why"); if(d) u.dterm=null; if(p) u.pop=null; if(d||p) render();
 });
 document.addEventListener("keydown",e=>{
   // a native dialog (the Magic Key prompt, the sharing question) takes the keys it needs, and closes itself on Escape except the sharing question, which has to be answered: the menu or Settings under it keep their level

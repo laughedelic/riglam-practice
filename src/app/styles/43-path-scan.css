@@ -1,0 +1,49 @@
+/* Taking the Check of the examples (path/scan.tsx): the Check opens into a hollow diamond, a scanner, that slides up the thread over the page; each case it passes takes
+   its verdict's color and mark, the heading's words go as it is covered, the relation is marked at the strip, and the scanner becomes the result's node. --k is the
+   opening (the Check's filled diamond to the hollow one), --e the scanner becoming the result's node. */
+.pa .main.sc-run{pointer-events:none}
+.pa .stn.scanning .go,.pa .stn.scanning .gol{visibility:hidden}
+.pa .main.sc-run .aux{opacity:0; transition:opacity .2s}
+.pa .pscan{position:absolute; top:0; width:0; height:0; z-index:7; pointer-events:none; --k:0; --e:0; --vc:var(--green)}
+.pa .pscan.no{--vc:var(--red)} .pa .pscan.pt{--vc:var(--partc)}
+.pa .pscd{position:absolute; left:0; top:0; --z:calc(var(--st) - 4px * var(--k) + 2px * var(--e)); width:var(--z); height:var(--z); transform:translate(-50%,-50%) rotate(45deg);
+  background-color:color-mix(in srgb,var(--vc) calc(var(--e) * 100%),color-mix(in srgb,var(--paper) calc(var(--k) * 100%),var(--station)));
+  box-shadow:inset 0 0 0 calc(2.2px * var(--k) * (1 - var(--e))) var(--rim,var(--station)); transition:box-shadow .12s}
+.pa .pscan.f-ok .pscd{--rim:var(--green)} .pa .pscan.f-no .pscd{--rim:var(--red)} .pa .pscan.f-pt .pscd{--rim:var(--partc)}
+.pa .pscw{position:absolute; left:22px; top:0; transform:translateY(-50%); display:flex; align-items:baseline; flex-wrap:wrap; column-gap:10px; width:calc(100vw - var(--m) - 60px); max-width:380px; opacity:var(--e)}
+.pa .pscw b{font-size:24px; font-weight:600; color:var(--vc); white-space:nowrap}
+.pa .pscan.pt .pscw b{color:var(--partc-t)}
+.pa .pscw small{font-family:var(--mono); font-size:11px; color:var(--ink2); letter-spacing:.02em}
+/* the thread the scanner has passed: checked, no longer gold */
+.pa .pscpast{position:absolute; width:var(--lh); margin-left:calc(var(--lh) / -2); background:var(--ink); opacity:.55; z-index:6; pointer-events:none}
+/* a case passed: its diamond takes the verdict's color, its mark comes in after the example */
+.pa .sb.scn > .d{transition:background-color .15s,box-shadow .15s,transform .15s; animation:p-scnd .3s ease-out}
+.pa .sb.scn-ok > .d{background-color:var(--green); box-shadow:none} .pa .sb.scn-no > .d{background-color:var(--red); box-shadow:none} .pa .sb.scn-pt > .d{background-color:var(--partc); box-shadow:none}
+@keyframes p-scnd{40%{transform:rotate(45deg) scale(1.45)}}
+.pa .pscm{display:inline-grid; margin-left:8px; vertical-align:baseline; animation:p-scm .25s cubic-bezier(.3,1.6,.5,1) both}
+.pa .pscm .mark{transform:translateY(3px)}
+@keyframes p-scm{from{opacity:0; transform:scale(.5)}}
+.pa .sb.scn-no .pans{color:var(--ink2); text-decoration:line-through; text-decoration-color:var(--red); text-decoration-thickness:2px}
+/* the heading is covered: the result's node takes its place */
+.pa .sechead.scn-gone > .ptx,.pa .sechead.scn-gone > .d{opacity:0; transition:opacity .18s}
+/* the relation at the strip: struck when it is not the one, or checked */
+.pa .pn.scn-rel .pnn .rn,.pa .pn.scn-rel .pnc{transition:color .2s}
+.pa .pn.scn-no .pnn .rn{color:var(--ink2); text-decoration:line-through; text-decoration-color:var(--red); text-decoration-thickness:2px}
+.pa .pn.scn-no .pnc{color:var(--red)} .pa .pn.scn-ok .pnn .rn,.pa .pn.scn-ok .pnc{color:var(--green)}
+.pa .pn.scn-rel .pnn{animation:p-screl .5s ease-out}
+.pa .pn.scn-rel .pnn .pscm{margin-left:2px}
+@keyframes p-screl{from{transform:translateX(3px); filter:brightness(1.5)}}
+/* the result's page comes in around the node */
+.pa .main.sc-in .pathc > :not(.vband){animation:p-tkin .42s ease-out both}
+.pa .main.sc-in .pvline .ptx{animation:none}
+.pa .main.sc-hand .pvline .d.big,.pa .main.sc-hand .pvline .ptx{visibility:hidden}
+@media (prefers-reduced-motion:reduce){ .pa .sb.scn > .d,.pa .pscm,.pa .pn.scn-rel .pnn{animation:none} }
+/* with the keyboard's layout up the page opens first (path/relayout.ts): the foot comes in; and as the scanner leaves the Check's place at the foot, the station that comes next
+   takes it (the same station, its words changed): its diamond and words come in */
+.pa .main.sc-open .foot{animation:p-scfoot .36s ease-out both}
+@keyframes p-scfoot{from{opacity:0}}
+.pa .stn.scn-next .go{animation:p-scnx .34s cubic-bezier(.2,.9,.3,1.3) both}
+.pa .stn.scn-next .gol{animation:p-scnl .3s ease-out both}
+@keyframes p-scnx{from{opacity:0; scale:.5}}
+@keyframes p-scnl{from{opacity:0; translate:-8px 0}}
+@media (prefers-reduced-motion:reduce){ .pa .stn.scn-next .go,.pa .stn.scn-next .gol,.pa .main.sc-open .foot{animation:none} }
