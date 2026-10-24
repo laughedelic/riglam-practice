@@ -112,3 +112,9 @@ export const NOFILL = {
   autoComplete: "off", autoCapitalize: "off", autoCorrect: "off", spellcheck: false,
   "data-lpignore": "true", "data-1p-ignore": "true", "data-bwignore": "true", "data-form-type": "other",
 } as const;
+/**
+ * The same for an `<input>`, which on a touch screen is a search field: Chrome on Android leaves the bar of saved keys, cards and addresses off the keyboard for one, where the
+ * hints above leave it on a text field (not on the first focus, but on the next one). The role keeps it a text box for a screen reader; the Enter key is the one `enterKeyHint`
+ * names. Elsewhere it stays a text field (a search field clears at Escape).
+ */
+export const nofillInput = () => ({ ...NOFILL, type: coarse() ? "search" : "text", role: "textbox" }) as const;

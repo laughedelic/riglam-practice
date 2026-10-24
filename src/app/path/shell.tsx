@@ -5,7 +5,7 @@ import type { ComponentChildren } from "preact";
 import { useContext, useRef } from "preact/hooks";
 import { state } from "../state.js";
 import { setBlitz } from "../debate/flow.js";
-import { undoSkip } from "../practice/skips.js";
+import { skipAsks } from "../practice/skips.js";
 import { toggleMenu } from "../shell/menu.js";
 import { isEx } from "../shell/render.js";
 import { openBlitzOptions, toggleSess } from "../shell/session.js";
@@ -60,23 +60,16 @@ export function TopBar({ title, tools = false, mic = false }: TopBarProps) {
 /** What voice heard and what it took it as, with Confirm and Change, above the foot: shell/voice.js draws it and repaints it in place (by its id). */
 export const VoiceBar = () => <Bridge cls="pvoice" fill={() => voiceBar()} />;
 
-/** A note at the foot for a moment ("Skipped; it waits in Review"), with an Undo when there is one. */
+/** A note at the foot for a moment ("Write an example first"). */
 export function pathNote(text: string) {
   if (state.pathNote) clearTimeout(state.pathNote.tid);
   state.pathNote = { text, tid: setTimeout(() => { state.pathNote = null; refreshPath(); }, 1900) };
   refreshPath();
 }
 
-/** The skip that can be taken back, while the pair that replaced it is untouched (practice/skips.js keeps it for a while). */
-function liveSkip() {
-  const n = state.skipNote, u = state.ui; if (!n || !u || n.ui !== u || u.checked) return null;
-  if (u.find ? (u.step > 0 || !!u.wordA || !!u.wordB) : u.debate ? u.step > 0 : u.cats ? false : u.syllogism ? u.step > 0 : u.rel) return null;
-  return n;
-}
 export function Toast() {
-  const n = state.pathNote, sk = !n ? liveSkip() : null;
-  const text = n ? n.text : sk ? "Skipped " + sk.p.a + " / " + sk.p.b : "";
-  return <div class={"ptoast" + (text ? " on" : "")} role="status">{text}{sk ? <button type="button" onClick={undoSkip}>Undo</button> : null}</div>;
+  const n = state.pathNote;
+  return <div class={"ptoast" + (n ? " on" : "")} role="status">{n ? n.text : ""}</div>;
 }
 
 /** The station at the edge, ready: pull it up past its reach, tap it, or press Enter (its arrow hops, as the sign that it can be taken). */
@@ -106,6 +99,15 @@ export function PreStation({ name, hint }: { name: string; hint: string }) {
     <span class="go pre" /><span class="gol pre"><b>{name}</b></span><span class="phint" aria-hidden="true">{hint}</span>
   </button>;
 }
+/** The path turns aside to what comes next: the page leaves to the left, `act` takes the step, the next page arrives. */
+export function turnAside(main: Element | null, act: () => void) {
+  if (!main) { act(); return; }
+  main.classList.add("turning");
+  setTimeout(() => {
+    main.classList.remove("turning"); act();
+    main.classList.add("arriving"); setTimeout(() => main.classList.remove("arriving"), 420);
+  }, 260);
+}
 /**
  * A side station: a small station on a dashed line that runs off the right edge. Slide it left past the line's reach and let go (or press
  * Enter); a tap only nudges it ("slide it left"), except the tutor's, which a tap takes too.
@@ -115,16 +117,8 @@ export function SideStation({ kind, label, act, disabled = false }: { kind: "ski
   const box = useRef<HTMLDivElement>(null), hint = useRef<HTMLSpanElement>(null), g = useRef<{ x0: number; moved: boolean; past: boolean } | null>(null);
   const set = (d: number) => box.current && box.current.style.setProperty("--dx", d + "px");
   const say = (t: string) => { if (hint.current) hint.current.textContent = t; };
-  const turn = () => {
-    // the path turns aside to what comes next
-    const main = box.current && box.current.closest(".main");
-    if (!main || tutor) { act(); return; }
-    main.classList.add("turning");
-    setTimeout(() => {
-      main.classList.remove("turning"); act();
-      main.classList.add("arriving"); setTimeout(() => main.classList.remove("arriving"), 420);
-    }, 260);
-  };
+  // the path turns aside to what comes next, unless the step only asks first (a skip with something entered: the page stays as it is under the question)
+  const turn = () => { if (tutor || skipAsks()) act(); else turnAside(box.current && box.current.closest(".main"), act); };
   const end = () => {
     const s = g.current, b = box.current; if (!s || !b) return; g.current = null; b.classList.remove("dragging");
     if (s.past) { set(0); b.classList.remove("past"); say(idle); turn(); return; }

@@ -139,7 +139,7 @@
 .pa.kbup .sb.later > .d{margin-top:4px}
 .pa.kbup .sb.later .qq{display:none}
 .pa.kbup .sb.now{padding-top:8px}
-.pa.kbup.ph-small .sb.later{display:none}
+.pa.kbup.ph-small .sb.later,.pa.kbup.ph-small button.sbb.later{display:none}
 .pa.kbup.ph-small .khead{padding:8px 0}
 .pa.kbup.ph-small .khead .pn > svg.rfig{width:30px; height:46px; margin-right:-15px}
 .pa.kbup.ph-small .khead .pnl b{font-size:20px}
