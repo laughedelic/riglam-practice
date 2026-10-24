@@ -8,16 +8,15 @@ import { canAsk } from "../core/ask.js";
 import { CELLS, ORDER, REL, lcRel, notaOf } from "../core/rel.js";
 import { checkFind, chooseRel, editPair, usePair } from "../find/flow.js";
 import { next } from "../practice/queue.js";
-import { skipPair } from "../practice/skips.js";
 import { render } from "../shell/render.js";
 import type { RelKey } from "../../ai-shared/relations.ts";
 import { ExamplesStep, StripPair, examplesReady } from "./examples.tsx";
 import { refreshPath } from "./index.tsx";
-import { Choices, ErrLines, PairResult, TermsRow, Verdict, WhyRow, needsKey, pairOf, tutorOnResult, tutorWaiting, u0 } from "./parts.tsx";
+import { Choices, ErrLines, PairResult, SkipMark, Verdict, WhyRow, needsKey, pairOf, u0 } from "./parts.tsx";
 import { Row, cases, isOpen, resultRows } from "./relations.tsx";
 import { Scroll } from "./scroll.tsx";
-import { Foot, HideKeys, KbdStation, PreStation, SideStation, Station, TopBar } from "./shell.tsx";
-import { D, Fig, Gap, Head, St, Sx } from "./ui.tsx";
+import { Foot, PreStation, SkipSide, Station, TopBar } from "./shell.tsx";
+import { D, Fig, Gap, Head, St, Sx, nofillInput } from "./ui.tsx";
 
 const relOf = () => u0().rel as RelKey;
 const both = () => { const u = u0(); return !!u.wordA.trim() && !!u.wordB.trim(); };
@@ -36,7 +35,7 @@ function Asked({ change = true }: { change?: boolean }) {
 function Word({ k, key2, what, last }: { k: "a" | "b"; key2: "wordA" | "wordB"; what: string; last: boolean }) {
   const u = u0();
   return <St d={<span class="ab">{k.toUpperCase()}</span>} cls="pairst pfw">
-    <div class="fieldrow"><input class="pfield" id={"fw-" + k} value={u[key2]} placeholder={what + " phenomenon"} aria-label={what + " phenomenon, " + k.toUpperCase()} list={state.findSuggest ? "fw-terms" : undefined}
+    <div class="fieldrow"><input class="pfield" id={"fw-" + k} value={u[key2]} placeholder={what + " phenomenon"} aria-label={what + " phenomenon, " + k.toUpperCase()} {...nofillInput()} list={state.findSuggest ? "fw-terms" : undefined}
       autoComplete="off" autoCapitalize="off" spellcheck={false} enterKeyHint={last ? "done" : "next"}
       onInput={(e) => { u[key2] = (e.currentTarget as HTMLInputElement).value; if (u.pairErr) u.pairErr = ""; refreshPath(); }}
       onKeyDown={(e) => { if (e.key !== "Enter") return; e.preventDefault(); if (!last) focus("fw-b"); else usePair(); }} /></div>
@@ -53,7 +52,7 @@ function PairStep({ kb }: { kb: boolean }) {
   });
   return <>
     <Scroll>
-      <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Pair" sub="two phenomena that relate like this" /><Gap h={6} />
+      <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Pair" sub="two phenomena that relate like this" aside={state.findRel ? null : <SkipMark />} /><Gap h={6} />
         <Asked /><Gap h={6} />
         <Word k="a" key2="wordA" what="First" last={false} />
         <Word k="b" key2="wordB" what="Second" last />
@@ -63,10 +62,9 @@ function PairStep({ kb }: { kb: boolean }) {
         <Gap h={6} /></Sx>
       <Sx cls="ptail" />
     </Scroll>
-    <Foot kbd={kb ? <KbdStation name="Examples" ready={ok} act={() => { if (!u.wordA.trim()) focus("fw-a"); else if (!u.wordB.trim()) focus("fw-b"); else usePair(); }} /> : null}
-      aux={kb ? <HideKeys /> : state.findRel ? null : <SideStation kind="skip" act={skipPair} />}>
+    {kb ? null : <Foot aux={state.findRel ? null : <SkipSide />}>
       {ok ? <Station name="Examples" hint="your pair" act={usePair} /> : <PreStation name="Examples" hint="name both first" />}
-    </Foot>
+    </Foot>}
   </>;
 }
 
@@ -82,7 +80,7 @@ function RelStep() {
       <Choices label="Relation to practice" items={items} onPick={(k) => chooseRel(k === "rand" ? null : k)} />
       <Sx cls="ptail" />
     </Scroll>
-    <Foot><Station name={u.step === 0 ? "Back to your pair" : "Back to the examples"} act={() => { u.open = false; render(); }} /></Foot>
+    <Foot><Station back name={u.step === 0 ? "Back to your pair" : "Back to the examples"} act={() => { u.open = false; render(); }} /></Foot>
   </>;
 }
 
@@ -121,7 +119,6 @@ function ResultStep() {
       <Sx cls="walked"><St d={<D cls={"sub " + pm} />} cls="sb exr pairv"><span class="lab">the pair</span><p class="xnote">{pairLine}</p></St></Sx>
       <Sx cls={nbad ? "nop" : "okp"}><Gap h={2} />{(r.relOpen ? CELLS.filter((c) => !REL[rel].empty.includes(c)) : rows).map((c) => <Row c={c} rel={rel} />)}</Sx>
       <WhyRow unc={unc} again={!!r.relOpen} todo={r.relOpen ? "judge your pair and explain" : undefined} />
-      {p.own ? null : <TermsRow p={p} />}
       <ErrLines />
       <Sx cls="ptail" />
     </Scroll>
@@ -132,7 +129,7 @@ function ResultStep() {
 /** The screen of Find a pair: its top bar and the step the attempt is at. */
 export function findScreen(kb: boolean): { cls: string; node: ComponentChildren } {
   const u = u0();
-  const top = <TopBar title="Find a pair" tools tutor={tutorOnResult()} tutorDot={tutorWaiting()} />;
+  const top = <TopBar title="Find a pair" tools />;
   if (u.checked) return { cls: "done", node: <>{top}<ResultStep /></> };
   if (u.open) return { cls: "", node: <>{top}<RelStep /></> };
   if (u.step === 0) return { cls: both() ? "ready" : "", node: <>{top}<PairStep kb={kb} /></> };

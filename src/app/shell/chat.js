@@ -20,7 +20,8 @@ export function openChat(){
   if(!state.ui||isWide()||!(state.ui.chat||state.ui.checked)||!canAsk()) return;
   const first=!(state.ui.chat||[]).some(t=>t.role==="user"&&!t.hidden);
   state.view="chat"; render();
-  const i=first&&$("ask-in"); if(i) i.focus({preventScroll:true});
+  // the Path keeps a touch screen's keyboard down: it would come up over the answer and the way back
+  const i=first&&!(state.design==="path"&&"ontouchstart" in window)&&$("ask-in"); if(i) i.focus({preventScroll:true});
 }
 export function closeChat(){ state.view=null; render(); const b=$("mchat"); if(b&&!b.hidden) b.focus({preventScroll:true}); }
 export function toggleCoach(on){ state.coachOpen=on===undefined?!state.coachOpen:on; render(); }

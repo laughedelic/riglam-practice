@@ -356,10 +356,10 @@ export function toggleReadAloud(){
 }
 
 /* ---------- the Voice row of Settings, and the choices in the Practice options ---------- */
-const SAMPLE="Do you accept that if it is a product, it follows it is a functional thing?";
-const RATES=[[0.85,"Slow"],[1,"Normal"],[1.25,"Fast"]];
+export const SAMPLE="Do you accept that if it is a product, it follows it is a functional thing?";
+export const RATES=[[0.85,"Slow"],[1,"Normal"],[1.25,"Fast"]];
 const KEYS={read:"rd-voice-read",answer:"rd-voice-answer",confirm:"rd-voice-confirm",voiceId:"rd-voice-name",rate:"rd-voice-rate"};
-function setVoice(k,val){
+export function setVoice(k,val){
   const v=state.voice;
   v[k]=val;
   if(k==="read"&&val) v.muted=false;
@@ -368,7 +368,7 @@ function setVoice(k,val){
   if((k==="read"&&val)||k==="voiceId"||k==="rate") speak(SAMPLE,{voice:v.voiceId,rate:v.rate});
 }
 // The Voice switch is the kill switch of the feature: the choice is kept on the device, whatever the default of the build was
-function setOn(on){
+export function setOn(on){
   const v=state.voice;
   v.on=on; try{ localStorage.setItem("rd-voice",on?"1":"0"); }catch(e){}
   if(!on){ quiet(); dropPend(); letGo("moved"); v.key=""; v.muted=false; }
@@ -380,34 +380,53 @@ export function voiceRow(){
   const on=enabled();
   return el("div",{class:"orow"},
     el("div",{class:"vsw"},switchOf("Voice",on?"on":"off",on,()=>setOn(!on)),el("span",{class:"xchip",text:"Experimental"})),
-    el("p",{class:"onote",text:"Reads the questions aloud and lets you answer by voice, with your browser\u2019s own speech. "+(canHear()?"In Chrome, what you say is sent to Google to be turned into text. ":"")+"Once it is on, its choices are in the Practice options of Relations and Pervasions."}));
+    el("p",{class:"onote",text:voiceNote()}));
 }
-// the voices by accent, American and British first
-function voiceOptions(list,cur){
+/** What the Voice switch of Settings does (the Path draws the same row). */
+export const voiceNote=()=>"Reads the questions aloud and lets you answer by voice, with your browser\u2019s own speech. "+(canHear()?"In Chrome, what you say is sent to Google to be turned into text. ":"")+"Once it is on, its choices are in the Practice options of Relations and Pervasions.";
+/** Whether this browser has any speech, so that Settings has a Voice row; and whether Voice is on. */
+export const voiceAvailable=()=>canSpeak()||canHear();
+export const voiceOn=()=>enabled();
+/** The voices by accent, American and British first. */
+export function voiceGroups(list){
   const groups=[];
   for(const x of list){ let g=groups.find(y=>y.accent===x.accent); if(!g) groups.push(g={accent:x.accent,voices:[]}); g.voices.push(x); }
   const first=g=>g.accent==="American"?0:g.accent==="British"?1:2;
-  groups.sort((x,y)=>first(x)-first(y));
-  return groups.map(g=>el("optgroup",{label:g.accent},g.voices.map(x=>el("option",{value:x.id,text:x.name+" · "+x.lang+(x.local?"":" · online"),selected:x.id===cur}))));
+  return groups.sort((x,y)=>first(x)-first(y));
 }
-const ANSWERS=[["off","Off"],["tap","Tap the mic"],["auto","Hands-free"]];
+function voiceOptions(list,cur){
+  return voiceGroups(list).map(g=>el("optgroup",{label:g.accent},g.voices.map(x=>el("option",{value:x.id,text:x.name+" · "+x.lang+(x.local?"":" · online"),selected:x.id===cur}))));
+}
+export const ANSWERS=[["off","Off"],["tap","Tap the mic"],["auto","Hands-free"]];
 // where what is said goes: the browser's recognizer is not the app's
-const WHERE="In Chrome, what you say is sent to Google to be turned into text (other browsers use their own service). The app records nothing.";
+export const WHERE="In Chrome, what you say is sent to Google to be turned into text (other browsers use their own service). The app records nothing.";
 /** Whether the Practice options have a Voice section: Voice is on, the browser has some speech, and the exercise is one that reads and listens. */
 export const voiceShown=()=>enabled()&&(canSpeak()||canHear())&&(state.tab==="practice"||state.tab==="debate");
 /** The key choices, for the list of the Practice options: Read aloud, and Answer by voice with its details page. `sw`, `card` and `chips` are the list's own rows. */
 export function voiceListRows(sw,card,chips){
   const v=state.voice;
-  if(!v.hooked){ v.hooked=true; onVoices(()=>{ if(state.sessOpen&&state.sessPage==="voice") render(); }); }
+  hookVoices();
   return [
     canSpeak()?sw("Read aloud","each question",v.read,()=>setVoice("read",!v.read)):null,
     canHear()?card("Answer by voice",chips("Answer by voice",ANSWERS,v.answer,k=>setVoice("answer",k)),"voice")
       :card("Voice",el("small",{class:"sum1",text:"Voice and speed"}),"voice"),
     canHear()?el("p",{class:"onote",text:WHERE}):null];
 }
+/** The Voice page draws again when the device's voices arrive (they come late in some browsers). */
+export function hookVoices(){ const v=state.voice; if(!v.hooked){ v.hooked=true; onVoices(()=>{ if(state.sessOpen&&state.sessPage==="voice") render(); }); } }
 /** The Voice page of the Practice options: the voice and its speed, how an answer is taken and what each choice means. `picks` is the page's own list of choices. */
+// the Voice page's words, shared with the Path's own page
+export const VOICE_LEAD="Read aloud says each question when it appears, and Answer by voice puts a microphone in the middle of the bar at the foot of the exercise. Both use your device\u2019s own speech, so the voices, and how well it hears you, depend on the device and the browser.";
+export const READ_NOTE="The switch at the top of the exercise, next to Blitz, pauses and resumes it.";
+export const ANSWER_PICKS=[["off","Off","No microphone."],
+  ["tap","Tap the mic","Tap the microphone (or press V), then say the answer."],
+  ["auto","Hands-free","Listens by itself after each question is read, and again for \u201cyes\u201d or another answer."]];
+export const CONFIRM_PICKS=[["tap","Wait for Confirm","Confirm with the button, Enter or \u201cyes\u201d; Change takes it back (Escape or \u201cno\u201d)."],
+  ["auto","Go on by itself","Goes on after 2 seconds in Blitz and 4 otherwise; Change stops it."]];
+export const VOICE_SAY="Say Accept or Why? (with the example), the relation by name or as it is written under the option, or an example; \u201cnothing\u201d leaves a cell empty. "+
+  "The Blitz clock stops while a question is read and while an answer waits. Chrome sends the audio to Google to turn it into text; the app records nothing and keeps only the answer, as if typed.";
 export function voicePageBody(picks){
-  const v=state.voice, out=[el("p",{class:"capl",text:"Read aloud says each question when it appears, and Answer by voice puts a microphone in the middle of the bar at the foot of the exercise. Both use your device\u2019s own speech, so the voices, and how well it hears you, depend on the device and the browser."})];
+  const v=state.voice, out=[el("p",{class:"capl",text:VOICE_LEAD})];
   const grp=t=>el("p",{class:"grp",text:t});
   if(canSpeak()){
     const list=voiceList(), sel=el("select",{class:"vsel","aria-label":"Voice"},
@@ -415,21 +434,17 @@ export function voicePageBody(picks){
     sel.addEventListener("change",e=>setVoice("voiceId",/** @type {HTMLSelectElement} */(e.target).value));
     out.push(
       el("div",{class:"orow"},switchOf("Read aloud","each question",v.read,()=>setVoice("read",!v.read)),
-        el("p",{class:"onote",text:"The switch at the top of the exercise, next to Blitz, pauses and resumes it."})),
+        el("p",{class:"onote",text:READ_NOTE})),
       settingRow("Voice",el("div",{class:"vline"},sel,el("button",{type:"button",class:"btn ghost vtry",onclick:()=>speak(SAMPLE,{voice:v.voiceId,rate:v.rate}),text:"Try"})),
         "This device\u2019s English voices, by accent."),
       settingRow("Speed of reading",segOf("Speed of reading",RATES,v.rate,r=>setVoice("rate",r))));
   }
   if(canHear()){
     out.push(grp("Answer by voice"),
-      picks("Answer by voice",[["off","Off","No microphone."],
-        ["tap","Tap the mic","Tap the microphone (or press V), then say the answer."],
-        ["auto","Hands-free","Listens by itself after each question is read, and again for \u201cyes\u201d or another answer."]],v.answer,k=>setVoice("answer",k)));
+      picks("Answer by voice",ANSWER_PICKS,v.answer,k=>setVoice("answer",k)));
     if(v.answer!=="off") out.push(grp("After an answer is heard"),
-      picks("After an answer is heard",[["tap","Wait for Confirm","Confirm with the button, Enter or \u201cyes\u201d; Change takes it back (Escape or \u201cno\u201d)."],
-        ["auto","Go on by itself","Goes on after 2 seconds in Blitz and 4 otherwise; Change stops it."]],v.confirm,k=>setVoice("confirm",k)));
-    out.push(el("p",{class:"capl",text:"Say Accept or Why? (with the example), the relation by name or as it is written under the option, or an example; \u201cnothing\u201d leaves a cell empty. "+
-      "The Blitz clock stops while a question is read and while an answer waits. Chrome sends the audio to Google to turn it into text; the app records nothing and keeps only the answer, as if typed."}));
+      picks("After an answer is heard",CONFIRM_PICKS,v.confirm,k=>setVoice("confirm",k)));
+    out.push(el("p",{class:"capl",text:VOICE_SAY}));
   }
   return out;
 }

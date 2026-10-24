@@ -1,5 +1,5 @@
 // The path's own scroll: the one part of a screen that moves under the top bar and over the foot. It is wired to the pulls (pulling on past
-// its end takes the station, gesture.ts), and while the keyboard is up it keeps the heading's count of the examples written above.
+// its end tightens the thread to the station, gesture.ts), and while the keyboard is up it keeps the heading's count of the examples written above.
 import type { ComponentChildren } from "preact";
 import { useContext, useEffect, useRef } from "preact/hooks";
 import { PullCtx } from "./shell.tsx";

@@ -15,7 +15,7 @@ import type { QuorumRecord } from "../ai/protocol";
 import type { AccountSlot } from "../ui/account";
 import type { TransferSlot } from "../ui/data-transfer";
 import type { KeyHeld } from "../platform/types";
-import type { Look } from "./path/look";
+import type { Look } from "./path/look.ts";
 
 export type { Pair, PoolEntry, Verdict };
 
@@ -433,6 +433,10 @@ export interface State {
   pathNote: { text: string; tid: ReturnType<typeof setTimeout> } | null;
   /** the Path's next draw, waiting for the next frame (refreshPath); 0 when none waits */
   pathQ: number;
+  /** the section of Review the Path shows: today, overview, mistakes, favs, skips, flags */
+  pathSeg: string;
+  /** the rows of Review the Path has unfolded, by key */
+  pathOpen: Record<string, boolean>;
 }
 
 /** A spoken answer that waits for its confirmation (shell/voice.js). */

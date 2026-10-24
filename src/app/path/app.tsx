@@ -1,7 +1,7 @@
 // The Path's page: one column with the top bar, the screen in front (an exercise, Review, the tutor's conversation, Settings) and the foot,
 // and over it the roadmap, the practice options, the question before a skip and the note at the foot. Which screen shows is the classic
 // page's state (state.js: tab, view, optsOpen, sessOpen, menuOpen, skipAsk), so Back, the keys and the clocks work as they do there.
-// The exercises are drawn on the path; Review and the tutor's conversation are the classic page's, hosted (ui.tsx, Bridge).
+// Everything is drawn on the path; an exercise in a state the Path does not draw would show the classic screen, hosted (ui.tsx, Bridge).
 import type { ComponentChildren } from "preact";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { state } from "../state.js";
@@ -12,23 +12,22 @@ import { renderDebate } from "../debate/screen.js";
 import { renderFind } from "../find/screen.js";
 import { placePops, renderQuiz } from "../practice/screen.js";
 import { closeSkipAsk, skipInto, skipNow } from "../practice/skips.js";
-import { renderReview } from "../review/review.js";
 import { renderSyllogism } from "../syllogism/screen.js";
-import { chatInto, closeChat, openChat } from "../shell/chat.js";
 import { exName } from "../shell/exercises.js";
-import { fitPair, isEx } from "../shell/render.js";
-import { setTab } from "../shell/tabs.js";
+import { fitPair, isEx, render } from "../shell/render.js";
 import { applyLook, currentLook, darkNow, lookClasses } from "./look.ts";
 import { OptionsSheet } from "./options.tsx";
 import { categoriesScreen } from "./categories.tsx";
 import { findScreen } from "./find.tsx";
 import { pervasionsScreen } from "./pervasions.tsx";
 import { relationsScreen } from "./relations.tsx";
+import { ReviewPage } from "./review.tsx";
 import { Roadmap } from "./roadmap.tsx";
 import { aboveSync } from "./scroll.tsx";
 import { SettingsPage } from "./settings.tsx";
 import { syllogismScreen } from "./syllogism.tsx";
-import { Foot, PullCtx, Station, Toast, TopBar } from "./shell.tsx";
+import { TutorPage } from "./tutor.tsx";
+import { PullCtx, Toast, TopBar, turnAside } from "./shell.tsx";
 import { Pull } from "./gesture.ts";
 import { Bridge, coarse } from "./ui.tsx";
 
@@ -38,11 +37,10 @@ function built(make: (box: HTMLElement, side: HTMLElement) => void): Node[] {
   make(box, side);
   return [...box.childNodes];
 }
-const waitingAnswer = () => { const u = state.ui; return !!u && !!u.chat && u.chat.some((t: { role: string; pending?: boolean; content?: string }) => t.role === "assistant" && !t.pending && t.content); };
 
 /** An exercise in a state the Path does not draw (none is expected): the classic screen, with its steps above it and its bar of buttons at its foot. */
 function Hosted() {
-  const u = state.ui, tab = state.tab, ai = canAsk() && !(u && u.cats);
+  const u = state.ui, tab = state.tab;
   const fill = () => {
     const st = $("steps"); st.replaceChildren(); st.hidden = true;
     const nodes = built((s, c) => {
@@ -56,30 +54,14 @@ function Hosted() {
     return [steps, ...nodes];
   };
   return <>
-    <TopBar title={exName(tab)} tools tutor={ai && u && (u.checked || u.chat) ? openChat : null} tutorDot={waitingAnswer()} />
+    <TopBar title={exName(tab)} tools />
     <Bridge cls="card" fill={fill} after={() => { fitPair(); placePops(); }} />
   </>;
 }
-function ReviewPage() {
-  return <>
-    <TopBar title="Review" />
-    <Bridge cls="card rv" fill={() => built((s) => renderReview(s))} />
-    <Foot><Station name={"Back to " + exName(state.own)} act={() => setTab(state.own)} /></Foot>
-  </>;
-}
-/** The tutor's conversation: what it is about, the question field (or Stop), the newest exchange first. */
-function TutorPage() {
-  const fill = () => {
-    const box = document.createElement("div"); chatInto(box);
-    const d = box.querySelector(".cdrawer"); if (!d) return [];
-    d.querySelector(".oh")?.remove();
-    return [...d.childNodes];
-  };
-  return <>
-    <TopBar title="The tutor" />
-    <Bridge cls="ptalk" fill={fill} />
-    <Foot><Station name="Back to the result" hint={exName(state.tab)} act={closeChat} /></Foot>
-  </>;
+/** "Skip anyway": the question goes, then the page turns aside and the next one arrives (the page was not turned before: it asked first). */
+function skipAnyway() {
+  state.skipAsk = false; render();
+  turnAside(document.querySelector("#path .main"), skipNow);
 }
 /** The question before an attempt with something in it is set aside; its words are the classic page's (practice/skips.js). */
 function SkipAsk() {
@@ -91,7 +73,7 @@ function SkipAsk() {
     <button type="button" class="scrim on" tabIndex={-1} aria-label="Keep going" onClick={closeSkipAsk} />
     <div class="pdlg" role="alertdialog" aria-modal="true" aria-labelledby="pskq" aria-describedby="pskd">
       <h2 id="pskq">{q}</h2><p id="pskd">{d}</p>
-      <div class="acts"><button type="button" class="quiet" onClick={skipNow}>Skip anyway</button><button type="button" ref={keep} onClick={closeSkipAsk}>Keep going</button></div>
+      <div class="acts"><button type="button" class="quiet" onClick={skipAnyway}>Skip anyway</button><button type="button" ref={keep} onClick={closeSkipAsk}>Keep going</button></div>
     </div>
   </>;
 }
@@ -118,7 +100,7 @@ export function App() {
   const [pull] = useState(() => new Pull()), root = useRef<HTMLDivElement>(null), look = currentLook();
   const [kb, setKb] = useState(false), [small, setSmall] = useState(false), wasChecked = useRef(false);
   const s = screen(kb), over = state.menuOpen || (state.sessOpen && isEx() && state.mode === "quiz") || (state.skipAsk && isEx());
-  const cls = ["pa", ...lookClasses(look, darkNow(look)), s.cls, kb ? "kbup" : "", kb && small ? "ph-small" : "", state.ui && state.ui.ctl ? "pthink" : ""].filter(Boolean).join(" ");
+  const cls = ["pa", ...lookClasses(look, darkNow(look)), s.cls, kb ? "kbup" : "", kb && small ? "ph-small" : "", state.showAB ? "" : "sj-off"].filter(Boolean).join(" ");
   useLayoutEffect(() => {
     const r = root.current; if (!r) return;
     pull.root = r;
@@ -127,26 +109,31 @@ export function App() {
     aboveSync(r);
     // after a check the station has the focus, so that Enter goes on (as the forward button has it on the classic page)
     const checked = !!(state.ui && state.ui.checked);
-    if (checked && !wasChecked.current && !over) { const st = r.querySelector<HTMLElement>("#stn"); if (st) st.focus({ preventScroll: true }); }
+    // (quiet: the app moved the focus there, not a Tab, so no ring is drawn on it, whatever key was pressed before; it goes at the first blur)
+    if (checked && !wasChecked.current && !over) {
+      const st = r.querySelector<HTMLElement>("#stn");
+      if (st) { st.dataset.quiet = "1"; st.addEventListener("blur", () => { delete st.dataset.quiet; }, { once: true }); st.focus({ preventScroll: true }); }
+    }
     wasChecked.current = checked;
   });
   useEffect(() => {
     const r = root.current; if (!r) return;
     // the layout with the keyboard up: a field of the path has the focus on a touch screen
     const kbNow = () => { const a = document.activeElement; return !!a && a.classList.contains("pfield") && r.contains(a) && coarse() && currentLook().keys === "sim"; };
-    const sync = () => setKb(kbNow());
+    // (while a station is being taken the layout stays as it is: the keyboard goes at the start of the ride, and the page is not to change under it; `after` sets it right)
+    const sync = () => { if (!pull.hold) setKb(kbNow()); };
+    pull.after = () => setKb(kbNow());
     const fin = () => sync(), fout = () => setTimeout(sync, 0);
     r.addEventListener("focusin", fin); r.addEventListener("focusout", fout);
     const vv = window.visualViewport, size = () => setSmall(!!vv && vv.height < 430);
     if (vv) vv.addEventListener("resize", size); size();
-    return () => { r.removeEventListener("focusin", fin); r.removeEventListener("focusout", fout); if (vv) vv.removeEventListener("resize", size); };
-  }, []);
+    return () => { pull.after = null; r.removeEventListener("focusin", fin); r.removeEventListener("focusout", fout); if (vv) vv.removeEventListener("resize", size); };
+  }, [pull]);
   return <PullCtx.Provider value={pull}>
     <div class={cls} ref={root}>
       <div class="pcol">
         <div class="main" inert={over}>
           {s.node}
-          <div class="bumpl" aria-hidden="true"><b>pull past the line</b></div>
           <div class="riser" aria-hidden="true" />
         </div>
         <OptionsSheet />

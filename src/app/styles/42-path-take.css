@@ -1,0 +1,25 @@
+/* Taking a station (path/take.ts): over the curb the page folds (the detail under its lines goes), and once the station is let go the lines squeeze up into the top bullet,
+   the bullet's words go into it, the bullet leaves through the top, the station rides up the thread (and lands as the next step's bullet), and the new page comes in.
+   The stages are custom properties on .main: b the lines squeezing, h the words going into the bullet, c the bullet leaving, l the landing. */
+.pa .tkd{overflow:hidden; transition:height .3s ease,opacity .22s ease,margin .3s ease,padding .3s ease}
+.pa .tkd.tkf{height:0!important; opacity:0; margin-top:0!important; margin-bottom:0!important; padding-top:0!important; padding-bottom:0!important}
+.pa .main.tk-run{pointer-events:none}
+.pa .main.tk-run .pathc > :not(.cnode){transform-origin:0 0; transform:translateY(calc(var(--sy,0px) * var(--tkb,0))) scaleY(calc(1 - var(--tkb,0))); opacity:calc(1.05 - var(--tkb,0) * 1.25)}
+.pa .main.tk-run .pathc > [data-tk="head"]{transform:translateY(calc(var(--tkc,0) * -124px)); opacity:calc(1 - var(--tkc,0) * var(--tkc,0))}
+.pa .main.tk-run [data-tk="head"] :is(.ptx,.pn > span,.pn > i.pnc,.pn > div){transform:scaleX(calc(1 - var(--tkh,0) * .9)); transform-origin:0 50%; opacity:calc(1 - var(--tkh,0))}
+.pa .main.tk-run [data-tk="head"] .d{transform:rotate(45deg) scale(calc(1 - var(--tkh,0) * .4))}
+.pa .main.tk-run [data-tk="head"] .rfig{transform:scale(calc(1 - var(--tkh,0) * .4))}
+/* the thread from the top to the station: it takes the place of the page's own pieces of the line as they squeeze away, and lets go as the station lands */
+.pa .main.tk-run::after{content:""; position:absolute; left:calc(var(--m) - var(--lw) / 2); top:var(--tkt,0px); height:var(--tkth,0px); width:var(--lw); background:var(--ink); opacity:calc(.72 * var(--tkb,0) * (1 - var(--tkl,0))); -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 46px); mask-image:linear-gradient(to bottom,transparent 0,#000 46px); pointer-events:none; z-index:4}
+/* a Check that stands on the page (examples.tsx) is not squeezed with it: it is the station, riding; its piece of the line goes as the others do */
+.pa .main.tk-run .sx.cnode::before{opacity:calc(1.05 - var(--tkb,0) * 1.25)}
+/* the station lands: it shrinks into the gold bullet of the next step and its words go */
+.pa .main.tk-run #stn .go{--gs:calc(var(--st) - (var(--st) - 16px) * var(--tkl,0)); width:var(--gs); height:var(--gs); margin-right:calc(var(--gs) / -2); background-color:color-mix(in srgb,var(--gold) calc(var(--tkl,0) * 100%),var(--station))}
+.pa .main.tk-run #stn .go .mk{opacity:calc(1 - var(--tkl,0) * 2.2)}
+.pa .main.tk-run #stn .gol{opacity:calc(1 - var(--tkl,0) * 4)}
+.pa .main.tk-run #stn .gol small{opacity:0}
+.pa .main.tk-run .aux{opacity:calc(1 - var(--tkb,0))}
+/* the new page comes in: the first bullet is there (it settles from where the station landed), its words and the rest fade in */
+.pa .main.tk-in .pathc > :not(:first-child){animation:p-tkin .42s ease-out both}
+.pa .main.tk-in .pathc > :first-child :is(.ptx,.pn > span,.pn > i.pnc,.pn > div){animation:p-tkin .42s ease-out both}
+@keyframes p-tkin{from{opacity:0}}

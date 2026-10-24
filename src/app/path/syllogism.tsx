@@ -4,22 +4,23 @@
 import type { ComponentChildren } from "preact";
 import { state } from "../state.js";
 import { next } from "../practice/queue.js";
-import { skipPair } from "../practice/skips.js";
 import { backSyllogism, exampleSyllogism, keyOfReply, saySyllogism, shownSyllogism } from "../syllogism/flow.js";
 import { REPLIES, syllogismPieces } from "../../domain/syllogism.ts";
 import type { Reply, Syllogism } from "../../domain/syllogism.ts";
 import { refreshPath } from "./index.tsx";
-import { Choices, ErrLines, Star, Verdict, WhyRow, pickThen, tutorOnResult, tutorWaiting, u0 } from "./parts.tsx";
+import { Choices, ErrLines, SkipMark, Star, marksCls, Verdict, WhyRow, pickThen, u0 } from "./parts.tsx";
 import { Scroll } from "./scroll.tsx";
-import { Foot, HideKeys, KbdStation, PreStation, SideStation, Station, TopBar } from "./shell.tsx";
-import { D, Gap, Head, Mark, St, Sx } from "./ui.tsx";
+import { Foot, PreStation, SkipSide, Station, TopBar } from "./shell.tsx";
+import { D, Gap, Head, Mark, St, Sx, nofillInput } from "./ui.tsx";
 
 /** The replies as the choices say them, what each says in a few words, and (with "Show the structure") what each means in S, P and R. */
 const SAY: Record<Reply, string> = { accept: "I accept", reason: "The reason is not established", pervasion: "There is no pervasion" };
 const GLOSS: Record<Reply, string> = { accept: "the reason holds and it pervades", reason: "the subject is not the reason", pervasion: "the reason does not bring the predicate" };
 const MEANS: Record<Reply, string> = { accept: "S is R, and everything that is R is P", reason: "S is not R", pervasion: "S is R, but not everything that is R is P" };
-/** A reply inside a sentence: "You answered there is no pervasion." */
+/** A reply inside a sentence: "There is no pervasion." */
 const SAID: Record<Reply, string> = { accept: "I accept", reason: "the reason is not established", pervasion: "there is no pervasion" };
+
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 type Part = "subject" | "predicate" | "reason";
 /** The sentence in three lines, one for each part, in the wording picked: the words before a part go with it, a stop right after it too. */
@@ -39,7 +40,7 @@ function lines(c: Syllogism): Record<Part, string> {
 function Statement({ star = true }: { star?: boolean }) {
   const l = lines(shownSyllogism());
   return <>
-    <St d={<span class="ab">S</span>} cls={"stm" + (star && state.db ? " hasstar" : "")}>{star ? <Star /> : null}<span class="cs" lang="en">{l.subject}</span></St>
+    <St d={<span class="ab">S</span>} cls={"stm" + (star ? marksCls() : "")}>{star ? <><Star /><SkipMark /></> : null}<span class="cs" lang="en">{l.subject}</span></St>
     <St d={<span class="ab">P</span>} cls="stm"><span class="cs" lang="en">{l.predicate}</span></St>
     <St d={<span class="ab">R</span>} cls="stm"><span class="cs" lang="en">{l.reason}</span></St>
     <p class="plegend">S subject · P predicate · R reason</p>
@@ -53,10 +54,10 @@ function AnswerStep() {
   return <>
     <Scroll>
       <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Answer" sub="do you accept it?" /><Gap h={6} /><Statement /><Gap h={10} /></Sx>
-      <Choices label="Your reply" items={items} picked={u.pk} onPick={(k) => pickThen(k, () => saySyllogism(k))} />
+      <Choices label="Your reply" slide items={items} picked={u.pk} onPick={(k) => pickThen(k, () => saySyllogism(k))} />
       <Sx cls="ptail" />
     </Scroll>
-    <Foot aux={<SideStation kind="skip" act={skipPair} />}><PreStation name="Result" hint="pick an answer first" /></Foot>
+    <Foot aux={<SkipSide />}><PreStation name="Result" hint="pick an answer first" /></Foot>
   </>;
 }
 /** After a right "there is no pervasion": a thing that is the reason and is not the predicate; left empty, the result comes without one. */
@@ -68,7 +69,7 @@ function CounterStep({ kb }: { kb: boolean }) {
         <St d={<D cls="sub yours" />} cls="sylsaid"><span class="said"><b class="yours">{SAY.pervasion}</b><Mark m="ok" /></span><span class="pq">Right. Can you show it?</span></St>
         <St d={<D cls="sub now" />} cls="sb now"><span class="lab">a counter-example</span>
           <p class="qq">Name something that is <b class="conn">{c.reason}</b> and is not <b class="conn">{c.predicate}</b>.</p>
-          <div class="fieldrow"><input class="pfield" id="sylex" value={u.exText} placeholder="a counter-example" autoComplete="off" autoCapitalize="off" spellcheck={false} enterKeyHint="done"
+          <div class="fieldrow"><input class="pfield" id="sylex" value={u.exText} placeholder="a counter-example" {...nofillInput()} enterKeyHint="done"
             aria-label={"A counter-example: something that is " + c.reason + " and is not " + c.predicate}
             onInput={(e) => { u.exText = (e.currentTarget as HTMLInputElement).value; if (u.exNote) u.exNote = ""; refreshPath(); }}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); exampleSyllogism(); } }} /></div>
@@ -77,9 +78,9 @@ function CounterStep({ kb }: { kb: boolean }) {
         <Gap h={6} /></Sx>
       <Sx cls="ptail" />
     </Scroll>
-    <Foot kbd={kb ? <KbdStation name="Result" ready act={exampleSyllogism} /> : null} aux={kb ? <HideKeys /> : null}>
+    {kb ? null : <Foot>
       <Station name="Result" hint={some ? "your reply and the counter-example" : "your reply, without a counter-example"} act={exampleSyllogism} />
-    </Foot>
+    </Foot>}
   </>;
 }
 
@@ -91,8 +92,8 @@ function ResultStep() {
   const v = g.correct ? (u.overall === "part" ? "pt" : "ok") : "no";
   const word = g.correct ? (u.overall === "part" ? "Partly right" : "Right") : u.timeout ? "Time is up" : "Not quite";
   const sub = u.overall === "part" ? "the counter-example is not one" : u.ex && u.ex.v === "ok" ? "your reply and the counter-example" : undefined;
-  const said: ComponentChildren = g.correct ? <>You answered <b class="yours">{SAID[g.said as Reply]}</b>.</>
-    : g.said ? <>You answered <s class="no">{SAID[g.said as Reply]}</s>; <span class="fix">{SAID[g.expected as Reply]}</span>.</>
+  const said: ComponentChildren = g.correct ? <b class="yours">{cap(SAID[g.said as Reply])}.</b>
+    : g.said ? <><s class="no">{cap(SAID[g.said as Reply])}</s>; <span class="fix">{SAID[g.expected as Reply]}</span>.</>
     : <>No reply in time; it is <span class="fix">{SAID[g.expected as Reply]}</span>.</>;
   return <>
     <Scroll>
@@ -119,7 +120,7 @@ function ResultStep() {
 /** The screen of Syllogisms: its top bar and the step the attempt is at. */
 export function syllogismScreen(kb: boolean): { cls: string; node: ComponentChildren } {
   const u = u0();
-  const top = <TopBar title="Syllogisms" tools tutor={tutorOnResult()} tutorDot={tutorWaiting()} />;
+  const top = <TopBar title="Syllogisms" tools />;
   if (u.checked) return { cls: "done", node: <>{top}<ResultStep /></> };
   if (u.step === 1) return { cls: "ready", node: <>{top}<CounterStep kb={kb} /></> };
   return { cls: "", node: <>{top}<AnswerStep /></> };

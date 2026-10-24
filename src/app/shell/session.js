@@ -29,7 +29,7 @@ export const SYMS={
   sets:["Sets","Each term stands for the set of things it covers.",[["∩","intersection: what is both"],["∅","the empty set: nothing"],["≠ ∅","not empty"],["⊂","contained in"],["⊃","contains"],["=","the same set"]]],
   logic:["Logic","Each term stands for a statement: it is A, it is B.",[["⇒","follows: A ⇒ B, if A then B"],["⇐","follows from"],["⇔","each follows from the other"],["⇏","does not follow"],["¬","negation: not"]]]
 };
-export const PAGES={nota:"Notation",wording:"Questions",times:"Blitz",defs:"Definitions",levels:"Examples",voice:"Voice"};
+export const PAGES={nota:"Notation",wording:"Questions",times:"Blitz",defs:"Definitions",levels:"Examples",voice:"Voice",tutor:"Tutor"};
 const store=(key,v)=>{ try{ localStorage.setItem(key,v); }catch(e){} };
 export function setNota(k){ state.nota=k; store("rd-notation",k); render(); }
 export function setDefLang(k){ state.defLang=k==="enru"?"enru":"en"; store("rd-deflang",state.defLang); render(); }

@@ -5,6 +5,7 @@ import { state } from "../state.js";
 import { render } from "../shell/render.js";
 import { App } from "./app.tsx";
 import { currentLook, restoreClassic } from "./look.ts";
+import { coarse } from "./ui.tsx";
 
 const KEY = "rd-design";
 /** Whether the Path draws the page now. */
@@ -15,11 +16,19 @@ function autoExplainDefault(): void {
   let kept: string | null = null; try { kept = localStorage.getItem("rd-autoexplain"); } catch { /* storage blocked */ }
   if (kept === null && pathOn()) state.autoExplain = currentLook().tutorAuto === "on";
 }
+/** The focus ring (styles/33-path-base.css) shows once the Tab key has been pressed and goes at the next touch or click. The soft keyboard's Next key sends a Tab to
+ *  the field on a touch screen: that is not a keyboard walking the page, and must not leave a ring on whatever takes the focus next. */
+function ringOnTab(): void {
+  const root = document.documentElement;
+  addEventListener("keydown", (e) => { if (e.key === "Tab" && !(coarse() && (e.target as Element | null)?.classList?.contains("pfield"))) root.classList.add("pa-tab"); }, true);
+  for (const t of ["pointerdown", "touchstart", "mousedown"]) addEventListener(t, () => root.classList.remove("pa-tab"), { capture: true, passive: true });
+}
 /** At the start: the device's choice, else the Path in a Preview and the classic page in the real app. */
 export function startDesign(preview: boolean): void {
   let kept: string | null = null; try { kept = localStorage.getItem(KEY); } catch { /* storage blocked */ }
   state.design = kept === "path" || kept === "classic" ? kept : preview ? "path" : "classic";
   autoExplainDefault();
+  ringOnTab();
   syncDesign();
   try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (pathOn() && currentLook().mode === "system") render(); }); } catch { /* no media queries */ }
 }

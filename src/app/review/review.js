@@ -20,10 +20,20 @@ const openMiss=new Set();
 export function pct(n,d){ return d?Math.round(100*n/d):0; }
 export function barNode(p){ return el("span",{class:"bar"+(p<50?" b-low":p<80?" b-mid":""),style:"width:"+Math.max(4,Math.round(p*.6))+"px"}); }
 // Review in groups: Overview, Mistakes, Favorites (and Skipped, Flags when there are some), one at a time, switched by the tabs at the top; the same on a wide screen.
-function revOverview(box,all){
+// what Review counts of the Relations answers: the grades, the relation right, the last 14 days, each relation (the Path draws the same numbers, path/review.tsx)
+/** @type {[string, string][]} */
+export const GRADES=[["ok","Fully right"],["pend","Examples unchecked"],["part","Partly right"],["bad","Wrong"]];
+export const RNAME={mi:"Mutually inclusive",con:"Mutually exclusive","3":"Three possibilities","4":"Four possibilities"};
+/** @returns {{relOk: number, G: Record<string, number>, segs: [string, string][], days: [string, number][], byRel: [string, number, number][]}} */
+export function overview(all){
   const relOk=all.filter(a=>a.correct).length, G={ok:0,pend:0,part:0,bad:0};
   for(const a of all){ const g=gradeOf(a); G[g in G?g:"bad"]++; }
-  const segs=[["ok","Fully right"],["pend","Examples unchecked"],["part","Partly right"],["bad","Wrong"]].filter(([g])=>G[g]);
+  /** @type {[string, number][]} */ const days=[]; for(let i=13;i>=0;i--){ const d=new Date(Date.now()-i*864e5).toISOString().slice(0,10); days.push([d,all.filter(a=>dayOf(a.at)===d).length]); }
+  const byRel=["mi","3","4","con"].map(r=>{ const xs=all.filter(a=>(a.key==="3ab"||a.key==="3ba"?"3":a.key)===r); return /** @type {[string, number, number]} */([r,xs.length,xs.filter(a=>a.correct).length]); });
+  return {relOk,G,segs:GRADES.filter(([g])=>G[g]),days,byRel};
+}
+function revOverview(box,all){
+  const {relOk,G,segs,days,byRel}=overview(all);
   box.append(el("div",{class:"split"},
     el("div",{class:"big"},el("span",{class:"n",text:String(all.length)}),el("span",{class:"l",text:"pairs answered"})),
     el("div",{class:"sbar",role:"img","aria-label":segs.map(([g,l])=>l+" "+pct(G[g],all.length)+"%").join(", ")},
@@ -32,7 +42,6 @@ function revOverview(box,all){
       el("li",null,"Relation right ",el("b",{text:pct(relOk,all.length)+"%"})))));
 
   // last 14 days
-  const days=[]; for(let i=13;i>=0;i--){ const d=new Date(Date.now()-i*864e5).toISOString().slice(0,10); days.push([d,all.filter(a=>dayOf(a.at)===d).length]); }
   const mx=Math.max(1,...days.map(d=>d[1]));
   box.append(el("div",{class:"section"},el("p",{class:"label"},"Last 14 days",el("span",{class:"hint",text:"pairs per day"})),
     el("div",{class:"days"},days.map(([d,n],i)=>el("div",{class:"day"+(i===13?" today":""),title:d+": "+n},
@@ -40,10 +49,8 @@ function revOverview(box,all){
       el("span",{class:"dn",text:n?String(n):""}))))));
 
   // by relation
-  const byRel=["mi","3","4","con"].map(r=>{ const xs=all.filter(a=>(a.key==="3ab"||a.key==="3ba"?"3":a.key)===r); return [r,xs.length,xs.filter(a=>a.correct).length]; });
-  const rname={mi:"Mutually inclusive",con:"Mutually exclusive","3":"Three possibilities","4":"Four possibilities"};
   box.append(el("div",{class:"section"},el("p",{class:"label"},"By relation",el("span",{class:"hint",text:"relation chosen right"})),
-    el("table",{class:"tbl"},el("tbody",null,byRel.map(([r,n,k])=>el("tr",null,el("td",{text:rname[r]}),el("td",{class:"num"},n?k+" / "+n:"–",n?barNode(pct(k,n)):null)))))));
+    el("table",{class:"tbl"},el("tbody",null,byRel.map(([r,n,k])=>el("tr",null,el("td",{text:RNAME[r]}),el("td",{class:"num"},n?k+" / "+n:"–",n?barNode(pct(k,n)):null)))))));
 
   renderDebateStats(box);
   renderFindStats(box);
@@ -54,9 +61,7 @@ function revMistakes(box,all,miss){
   const sec=el("div",{class:"section"},el("p",{class:"label"},"Mistakes",el("span",{class:"hint",text:miss.length+" in total"})));
   if(!miss.length) sec.append(el("p",{class:"empty-note",text:"None yet."}));
   else sec.append(el("ul",{class:"favs mist"},miss.slice(0,25).map(a=>{
-    const g=gradeOf(a), bad=CELLS.filter(c=>a.cells&&a.cells[c]&&a.cells[c].verdict==="bad"), k=a.pairId+"|"+a.at;
-    const sub=(a.correct?"Relation right ("+lcRel(REL[a.key].name)+"), ":(a.chosen==null?"No pick, time ran out":"Chose "+(REL[a.chosen]?lcRel(REL[a.chosen].name):a.chosen))+"; correct: "+(REL[a.key]?lcRel(REL[a.key].name):a.key)+". ")+
-      (bad.length?"wrong cell"+(bad.length>1?"s":"")+": "+bad.map(c=>({both:"both",anb:"A not B",bna:"B not A",nei:"neither"}[c])).join(", ")+".":"")+(a.timeout==="examples"||a.timeout==="both"?" Time ran out on the examples.":"")+" "+dayOf(a.at);
+    const g=gradeOf(a), k=a.pairId+"|"+a.at, sub=mistakeLine(a)+" "+dayOf(a.at);
     // a mistake opens to show the exercise as it was checked: your examples, the verdicts and Claude's explanation
     const p=pairFromAnswer(a);
     return el("li",null,el("details",{open:openMiss.has(k),ontoggle:e=>{ if(e.target.open) openMiss.add(k); else openMiss.delete(k); }},
@@ -68,11 +73,21 @@ function revMistakes(box,all,miss){
   box.append(sec);
 
   // weak categories
-  const cs={};
-  for(const a of all){ for(const c of [a.catA,a.catB]){ if(!c||!state.CAT[c]) continue; const o=cs[c]||(cs[c]={n:0,bad:0}); o.n++; if(isMiss(a)) o.bad++; } }
-  const weak=Object.entries(cs).filter(([,o])=>o.n>=2&&o.bad).sort((x,y)=>y[1].bad/y[1].n-x[1].bad/x[1].n||y[1].n-x[1].n).slice(0,6);
+  const weak=weakSpots(all);
   if(weak.length) box.append(el("div",{class:"section"},el("p",{class:"label"},"Weak spots",el("span",{class:"hint",text:"categories in pairs you missed"})),
     el("table",{class:"tbl"},el("tbody",null,weak.map(([c,o])=>el("tr",null,el("td",null,state.CAT[c].labels[0],el("span",{class:"types",text:state.CAT[c].type})),el("td",{class:"num",text:o.bad+" of "+o.n+" missed"})))))));
+}
+// what a mistake says under its pair: the relation chosen and the right one, the wrong cells, the time that ran out
+export function mistakeLine(a){
+  const bad=CELLS.filter(c=>a.cells&&a.cells[c]&&a.cells[c].verdict==="bad");
+  return (a.correct?"Relation right ("+lcRel(REL[a.key].name)+"), ":(a.chosen==null?"No pick, time ran out":"Chose "+(REL[a.chosen]?lcRel(REL[a.chosen].name):a.chosen))+"; correct: "+(REL[a.key]?lcRel(REL[a.key].name):a.key)+". ")+
+    (bad.length?(a.correct?"w":"W")+"rong cell"+(bad.length>1?"s":"")+": "+bad.map(c=>({both:"both",anb:"A not B",bna:"B not A",nei:"neither"}[c])).join(", ")+".":"")+(a.timeout==="examples"||a.timeout==="both"?" Time ran out on the examples.":"");
+}
+// the categories of the pairs missed most often, at most six, each in two pairs or more
+export function weakSpots(all){
+  const cs={};
+  for(const a of all){ for(const c of [a.catA,a.catB]){ if(!c||!state.CAT[c]) continue; const o=cs[c]||(cs[c]={n:0,bad:0}); o.n++; if(isMiss(a)) o.bad++; } }
+  return Object.entries(cs).filter(([,o])=>o.n>=2&&o.bad).sort((x,y)=>y[1].bad/y[1].n-x[1].bad/x[1].n||y[1].n-x[1].n).slice(0,6);
 }
 export function renderReview(s){
   const all=answerList(), nsk=Object.keys(state.skips).length, nfl=state.db?flagCount():0;
@@ -101,12 +116,12 @@ export function exGrid(p,cell,pop){
     gridHead("A",p.a,false,"row"), cell("both"), cell("anb"), top?pn:null,
     gridHead("A",p.a,true,"row"), cell("bna"), cell("nei"), top?null:pn);
 }
-function pairFromAnswer(a){
+export function pairFromAnswer(a){
   if(a.pair) return a.pair;
   for(const b of state.batches){ const q=pairsOf(b).find(p=>p.id===a.pairId); if(q) return q; }
   return null;
 }
-function uniqueMistakePairs(miss){
+export function uniqueMistakePairs(miss){
   const seen=new Set(), out=[];
   for(const a of miss){
     if(a.retryOf&&answerList().some(x=>x.retryOf===a.retryOf&&x.at>a.at&&gradeOf(x)==="ok")) continue;
@@ -118,4 +133,4 @@ function uniqueMistakePairs(miss){
   }
   return out;
 }
-function startRetry(ps){ switchTo("practice"); state.retryQ=ps.slice(0,10); state.retryTag="Retry"; advance(); render(); top0(); }
+export function startRetry(ps){ switchTo("practice"); state.retryQ=ps.slice(0,10); state.retryTag="Retry"; advance(); render(); top0(); }

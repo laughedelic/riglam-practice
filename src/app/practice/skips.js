@@ -20,7 +20,7 @@ import { begun, switchTo } from "../shell/tabs.js";
 export const SKIP_DAYS=7;
 const UNDO_MS=6000;                    // how long the note with Undo stays in the pair bar
 const skipQ={};
-const skipActive=s=>!!(s&&s.at&&Date.now()-Date.parse(s.at)<SKIP_DAYS*864e5);
+export const skipActive=s=>!!(s&&s.at&&Date.now()-Date.parse(s.at)<SKIP_DAYS*864e5);
 // the key of a pair of categories, also when both labels belong to one category (minds / consciousnesses): that pair is then one candidate of the pool
 export const catKey=(a,b)=>"c_"+favSafe([a,b].sort().join("__"));
 export const skipCats=p=>[p.catA||catByLabel(p.a), p.catB||catByLabel(p.b)];
@@ -42,8 +42,13 @@ function skipWrite(k,fn,undo){
 // Skip: a pair with something entered in it asks first (the question in `skipAsk`); one that was only drawn is set aside at once, with the note and its Undo in the pair bar.
 export function skipPair(){
   if(!state.ui||state.mode!=="quiz"||state.ui.checked||!state.cur) return;
-  if(state.ui.find?state.ui.step>0:begun(state.ui)){ stopTimer(); state.skipAsk=true; render(); return; }
+  if(skipAsks()){ stopTimer(); state.skipAsk=true; render(); return; }
   skipNow();
+}
+/** Whether Skip asks before it sets the pair on screen aside: something is entered in it (the Path turns its page aside only for a skip that goes through). */
+export function skipAsks(){
+  const u=state.ui; if(!u||state.mode!=="quiz"||u.checked||!state.cur) return false;
+  return !!(u.find?u.step>0:begun(u));
 }
 /** The answer "Keep going" to the question before a skip. */
 export function closeSkipAsk(){
@@ -144,21 +149,23 @@ export function skipInto(o){
   o.append(el("button",{type:"button",class:"scrim",tabindex:"-1","aria-label":"Keep going",onclick:closeSkipAsk}));
   o.append(el("div",{class:"dlg",role:"alertdialog","aria-labelledby":"skq","aria-describedby":"skd"},
     el("h2",{id:"skq",text:syllogism?"Skip this syllogism?":cats?"Skip this example?":"Skip this pair?"}),
-    el("p",{id:"skd",text:(syllogism?"What you entered is lost, and the syllogism is not kept anywhere. Another one comes up.":cats?"What you entered is lost, and the example is not kept anywhere. Another one comes up.":fd?"It stays out of the drill for "+SKIP_DAYS+" days and is kept in Review, under Skipped. Undo, right after, gives back the screen as it is now."
-      :"What you entered for this pair is lost. It stays out of the drill for "+SKIP_DAYS+" days and waits in Review, under Skipped.")}),
+    el("p",{id:"skd",text:(syllogism?"Your inputs will be lost, and the syllogism is not kept anywhere. Another one comes up.":cats?"Your inputs will be lost, and the example is not kept anywhere. Another one comes up.":fd?"It stays out of the drill for "+SKIP_DAYS+" days and is kept in Review, under Skipped."+(state.design==="path"?"":" Undo, right after, gives back the screen as it is now.")
+      :"Your inputs will be lost. It stays out of the drill for "+SKIP_DAYS+" days and waits in Review, under Skipped.")}),
     el("div",{class:"dact"},
       el("button",{type:"button",class:"btn prim",onclick:closeSkipAsk,text:"Keep going"}),
       el("button",{type:"button",class:"btn ghost",onclick:skipNow,text:"Skip anyway"}))));
 }
 // a pair skipped in Questions is practiced in Questions, one skipped in Relations in Relations, one skipped in Find a pair in Find a pair
-function startSkipped(f){
+export function startSkipped(f){
   const p=f.pair||{a:f.a,b:f.b,relation:f.relation,ex:{},why:{}};
   if(f.from==="find"){ resumeFind(p,f.asked); return; }
-  if(f.from==="debate"){ switchTo("debate"); state.cur={p,debate:true}; state.ui=freshDebateUi(); state.mode="quiz"; startQ(); }
-  else { switchTo("practice"); state.retryQ=[p]; state.retryTag="Skipped"; advance(); }
+  if(f.from==="debate"){ debateAgain(p); return; }
+  switchTo("practice"); state.retryQ=[p]; state.retryTag="Skipped"; advance();
   render(); top0();
 }
-function unskipKey(k){
+/** A pair of Pervasions taken again there (a skipped one, or one from Review on the Path). */
+export function debateAgain(p){ switchTo("debate"); state.cur={p,debate:true}; state.ui=freshDebateUi(); state.mode="quiz"; startQ(); render(); top0(); }
+export function unskipKey(k){
   const had=state.skips[k]; if(!had) return;
   delete state.skips[k]; render();
   if(state.db) skipWrite(k,()=>state.db.collection("skips").doc(k).delete(),()=>{ state.skips[k]=had; });

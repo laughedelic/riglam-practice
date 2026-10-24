@@ -28,6 +28,14 @@ export interface Look {
   tTn: number;
   tHand: number;
   choice: "margin" | "rows" | "branches";
+  /** how a choice is taken: slid onto the path (the marks stand beside it; a tap does it too), or lit for a moment on the path */
+  take: "slide" | "lit";
+  /** how a station is taken: the old step folds at the curb and leaves up the path as the station comes (take.ts), or the next step is there at once */
+  ride: "fold" | "plain";
+  /** how the Check of the examples is taken: it slides up through the cases, marking each as it passes, marks the relation at the strip and becomes the result (scan.tsx), or rides as any station */
+  check: "scan" | "ride";
+  /** where Skip is: an icon under the favorites mark (an action on the pair, like saving it), or the side station at the foot (on hold) */
+  skipAt: "under" | "foot";
   figs: "ink" | "color";
   ahead: "dot" | "dash" | "fade";
   next: "edge" | "page";
@@ -49,6 +57,8 @@ export interface Look {
   cSa: string;
   cZh: string;
   words: "underline" | "diamond" | "chip";
+  /** how the two terms of the pair stand out where the text names them: none, italic, italic with a small A or B, italic with a small diamond, or each in its own quiet ink */
+  subj: "none" | "italic" | "letters" | "diamonds" | "lettered" | "inks";
   starShape: "star" | "eight" | "bookmark";
   miFig: "inset" | "full";
 }
@@ -73,19 +83,19 @@ export const GRAIN_PLACES = ["verdict", "station", "current", "band", "top"];
 export const DEFAULT_LOOK: Look = {
   mode: "system", light: "ivory", dark: "slate", blue: "#3155a4", gold: "#faaf3f", green: "#4c8a63", red: "#b83545", purple: "#6f3f8f", purpleFor: "tutor",
   grain: "verdict,station", grainLevel: "soft", wait: "dots", font: "newsreader", hand: "kalam", tM: 50, tLw: 2, tSt: 28, tTn: 34, tHand: 19,
-  choice: "margin", figs: "ink", ahead: "dot", next: "edge", edge: "fade", why: "row", sheet: "top", toggle: "nested", keys: "sim", star: "pair",
+  choice: "margin", take: "slide", ride: "fold", check: "scan", skipAt: "under", figs: "ink", ahead: "dot", next: "edge", edge: "fade", why: "row", sheet: "top", toggle: "nested", keys: "sim", star: "pair",
   ask: "row", tutorAuto: "off", abPos: "margin", cOn: "on", cSerif: "spectral", cHand: "pangolin", cBo: "notoserifTib", cSa: "notoserifDeva", cZh: "wenkai",
-  words: "underline", starShape: "bookmark", miFig: "inset",
+  words: "underline", subj: "letters", starShape: "bookmark", miFig: "inset",
 };
 
 // what each setting may be; a value outside it keeps the default
 const ONE_OF: Partial<Record<keyof Look, readonly string[]>> = {
   mode: ["system", "light", "dark"], light: Object.keys(GROUNDS.light), dark: Object.keys(GROUNDS.dark), purpleFor: ["none", "tutor", "skip", "partly"],
   grainLevel: ["soft", "mid", "strong"], wait: ["dots"], font: Object.keys(MAIN_FONTS), hand: ["newsreader", "main", "mainup", ...Object.keys(HAND_FONTS)],
-  choice: ["margin", "rows", "branches"], figs: ["ink", "color"], ahead: ["dot", "dash", "fade"], next: ["edge", "page"], edge: ["run", "fade"],
+  choice: ["margin", "rows", "branches"], take: ["slide", "lit"], ride: ["fold", "plain"], check: ["scan", "ride"], skipAt: ["under", "foot"], figs: ["ink", "color"], ahead: ["dot", "dash", "fade"], next: ["edge", "page"], edge: ["run", "fade"],
   why: ["detour", "row", "side"], sheet: ["top", "bottom", "path"], toggle: ["track", "check", "solid", "stops", "nested"], keys: ["sim", "off"],
   star: ["pair", "bar"], ask: ["detour", "row"], tutorAuto: ["off", "on"], abPos: ["names", "margin"], cOn: ["on", "off"],
-  cSerif: Object.keys(SERIF_COMPANIONS), cHand: Object.keys(HAND_COMPANIONS), words: ["underline", "diamond", "chip"], starShape: ["star", "eight", "bookmark"], miFig: ["inset", "full"],
+  cSerif: Object.keys(SERIF_COMPANIONS), cHand: Object.keys(HAND_COMPANIONS), words: ["underline", "diamond", "chip"], subj: ["none", "italic", "letters", "diamonds", "lettered", "inks"], starShape: ["star", "eight", "bookmark"], miFig: ["inset", "full"],
 };
 const RANGES: Partial<Record<keyof Look, [number, number]>> = { tM: [40, 72], tLw: [1, 4], tSt: [22, 40], tTn: [26, 42], tHand: [16, 24] };
 const COLORS: (keyof Look)[] = ["blue", "gold", "green", "red", "purple"];
@@ -163,7 +173,7 @@ export function palette(look: Look, dark: boolean): Record<string, string> {
   return {
     "--paper": ground, "--ink": ink, "--ink2": mix(ink, ground, 0.36), "--ink3": mix(ink, ground, 0.58),
     "--rule": rgba(ink, dark ? 0.13 : 0.12), "--mline": rgba(ink, dark ? 0.16 : 0.18),
-    "--blue": blue, "--blue-t": rgba(blue, dark ? 0.12 : 0.07), "--gold": gold, "--gold-t": goldT,
+    "--blue": blue, "--blue-t": rgba(blue, dark ? 0.12 : 0.07), "--blue-tp": mix(ground, blue, dark ? 0.12 : 0.07), "--gold": gold, "--gold-t": goldT,
     "--green": green, "--red": red, "--purple": purple,
     "--station": dark ? mix(look.blue, "#ffffff", 0.12) : look.blue, "--on-station": "#ffffff",
     "--tutor": look.purpleFor === "tutor" ? purple : blue,
@@ -231,7 +241,7 @@ export function families(look: Look): { main: string; hand: string; handItalic: 
 export const darkNow = (look: Look) => look.mode === "dark" || (look.mode === "system" && typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches);
 /** The switches as classes on the Path's root, the lab's names: ah-dot, edge-fade, figs-ink, words-underline, g-verdict, ab-margin, ... */
 export function lookClasses(look: Look, dark: boolean): string[] {
-  const cls = [`ah-${look.ahead}`, `edge-${look.edge}`, `figs-${look.figs}`, `words-${look.words}`, `ab-${look.abPos}`, `tg-${look.toggle}`, `ch-${look.choice}`, `why-${look.why}`,
+  const cls = [`ah-${look.ahead}`, `edge-${look.edge}`, `figs-${look.figs}`, `words-${look.words}`, `sj-${look.subj}`, `ab-${look.abPos}`, `tg-${look.toggle}`, `ch-${look.choice}`, `why-${look.why}`,
     ...look.grain.split(",").filter(Boolean).map((g) => `g-${g}`)];
   if (dark) cls.push("dark");
   return cls;
@@ -249,6 +259,9 @@ export function applyLook(root: HTMLElement, look: Look): string[] {
   for (const [k, v] of Object.entries(vars)) root.style.setProperty(k, v);
   const html = document.documentElement;
   html.style.setProperty("--path-paper", vars["--paper"]);
+  // the Path's palette and face for the dialogs the classic page opens over it (outside #path, so the root's variables do not reach them; 39-path-bridge.css)
+  for (const [k, v] of Object.entries(palette(look, dark))) html.style.setProperty("--pa-" + k.slice(2), v);
+  html.style.setProperty("--pa-f", fam.main);
   html.style.colorScheme = dark ? "dark" : "light";
   for (const m of document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')) {
     if (m.dataset.classic === undefined) m.dataset.classic = m.content;
@@ -260,5 +273,6 @@ export function applyLook(root: HTMLElement, look: Look): string[] {
 export function restoreClassic(): void {
   const html = document.documentElement;
   html.style.removeProperty("--path-paper"); html.style.colorScheme = "";
+  for (const n of Array.from(html.style)) if (n.startsWith("--pa-")) html.style.removeProperty(n);
   for (const m of document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')) if (m.dataset.classic !== undefined) { m.content = m.dataset.classic; delete m.dataset.classic; }
 }
