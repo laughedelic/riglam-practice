@@ -32,7 +32,7 @@ async function rightPath(page) {
   await pathChoices(page).nth(ORDER.indexOf(rel)).click();
   const field = page.locator("#cin");
   await expect(field).toBeVisible();
-  for (let i = 0; i < 4 && (await field.isVisible()); i++) { await field.fill("thing " + (i + 1)); await field.press("Enter"); }
+  for (let i = 0; i < 4 && (await field.isVisible()); i++) { await field.fill("thing " + (i + 1)); if ((await field.getAttribute("enterkeyhint")) === "done") { await field.blur(); break; } await field.press("Enter"); }   // (the last one is left without Enter, which would take the Check at once)
   await expect(station(page)).toHaveAccessibleName(/^Check/);
   await station(page).click();
   await expect.poll(() => page.evaluate(() => window.__t.ui.checked)).toBe(true);
