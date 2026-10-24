@@ -83,10 +83,10 @@ export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, ac
       const u = EASE.io((t - MORPH) / tSlide);
       if (s0) sc.scrollTop = s0 * (1 - u);       // a page scrolled down comes back to its top, under the scanner
       y = y0 + ((top.getBoundingClientRect().bottom - mr().top + 20) - y0) * u;
-      rows.forEach((r, i) => { if (!marked.has(i) && y <= midY(r.querySelector(".d") || r)) markRow(i); });
+      for (let i = rows.length - 1; i >= 0; i--) if (!marked.has(i) && y <= midY(rows[i].querySelector(".d") || rows[i])) markRow(i);   // from the bottom up, also when a slow frame passes several
       if (!headDone && y <= midY(hd) + 8) { headDone = true; head.classList.add("scn-gone"); }
     } else if (t < tBecome) {
-      if (!relDone) { relDone = true; rows.forEach((_, i) => { if (!marked.has(i)) markRow(i); }); if (!headDone) { headDone = true; head.classList.add("scn-gone"); } markRel(); }
+      if (!relDone) { relDone = true; for (let i = rows.length - 1; i >= 0; i--) if (!marked.has(i)) markRow(i); if (!headDone) { headDone = true; head.classList.add("scn-gone"); } markRel(); }
       const u = EASE.out((t - tSettle) / SETTLE), yH = midY(hd);
       y = yTop + (yH - yTop) * u;
     } else {

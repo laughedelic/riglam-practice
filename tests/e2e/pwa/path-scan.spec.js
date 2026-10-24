@@ -24,12 +24,12 @@ async function written(page, { enter = false } = {}) {
   await field.fill("a cloud");
   if (!enter) await field.blur();
   await page.evaluate(() => {
-    window.__scan = [];
-    new MutationObserver((ms) => { for (const m of ms) { const e = m.target; if (!(e instanceof HTMLElement)) continue;
+    window.__scan = []; window.__marks = 0;
+    new MutationObserver((ms) => { window.__marks = Math.max(window.__marks, document.querySelectorAll("#path .sb .pscm").length); for (const m of ms) { const e = m.target; if (!(e instanceof HTMLElement)) continue;
       if (e.matches(".sb.scn") && !e.dataset.seen) { e.dataset.seen = "1"; window.__scan.push("case:" + [...document.querySelectorAll("#path .sx.cur .sb")].indexOf(e)); }
       if (e.matches(".sechead.scn-gone") && !e.dataset.seen) { e.dataset.seen = "1"; window.__scan.push("head"); }
       if (e.matches(".pn.scn-rel") && !e.dataset.seen) { e.dataset.seen = "1"; window.__scan.push("rel"); } } })
-      .observe(document.getElementById("path"), { subtree: true, attributes: true, attributeFilter: ["class"] });
+      .observe(document.getElementById("path"), { subtree: true, attributes: true, attributeFilter: ["class"], childList: true });
   });
 }
 
@@ -42,8 +42,8 @@ test("the Check slides up through the cases marking each from the bottom, then t
   const scn = page.locator("#path .pscan");
   await expect(scn).toHaveCount(1);
   const word = await scn.locator(".pscw b").textContent();
-  await expect(page.locator("#path .sb .pscm")).toHaveCount(4);   // each case has its mark after the example
   await expect(page.locator(".pvline")).toBeVisible();
+  expect(await page.evaluate(() => window.__marks), "each case had its mark after the example").toBe(4);   // (seen by the observer: on a slow machine the marks are on the page only for a moment)
   await expect(scn).toHaveCount(0);
   expect(await page.evaluate(() => window.__scan)).toEqual(["case:3", "case:2", "case:1", "case:0", "head", "rel"]);
   await expect(page.locator(".pvline")).toContainText(word);
