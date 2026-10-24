@@ -3,7 +3,7 @@
 // 6 and 7) served by a stand-in for the server (tests/support/data-key.js). The specs' devices are not new (the fixture stores a setting), so they start with stages 1 to 6.
 // The page's own state is read through the test hook (tests/e2e/pwa/*.spec.js), so every path can be driven with answers known to be right or wrong.
 import { test, expect } from "../../support/test.js";
-import { goTo, openMenu, overflow, ready } from "../../support/page.js";
+import { goTo, openMenu, overflow, ready, setStoredStages } from "../../support/page.js";
 import { dataKey, KEY_STORE, serveCourse } from "../../support/data-key.js";
 import { readOpen } from "../../../scripts/lib/course-files.mjs";
 
@@ -30,7 +30,7 @@ const open = async (page) => {
 };
 // the stages on this device, from a reload on (the page reads them at the start)
 const atStages = async (page, v) => {
-  await page.evaluate((x) => localStorage.setItem("rd-stages", x), v);
+  await setStoredStages(page, v);
   await page.reload();
   await expect(page.locator(".catcard")).toBeVisible(); // the app opens on the exercise used last
 };

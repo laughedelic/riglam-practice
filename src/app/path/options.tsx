@@ -12,8 +12,11 @@ import { setTimer } from "../debate/flow.js";
 import { WORDINGS } from "../debate/text.js";
 import { exName } from "../shell/exercises.js";
 import { setStages } from "../shell/stages.js";
+import { render } from "../shell/render.js";
+import { GUIDES, guided, setGuided } from "../practice/guided.ts";
+import { resetProgress } from "../practice/progress.ts";
 import { toggleOpts } from "../shell/options.js";
-import { PAGES, SYMS, openPage, quorumNote, sessBack, setAutoExplain, setBlitzUse, setDefLang, setFindSuggest, setNegBrackets, setNegation, setNota, setShow, setSyllogismGuide, setSyllogismWording, setWording, toggleSess } from "../shell/session.js";
+import { PAGES, SYMS, openPage, quorumNote, sessBack, setAutoExplain, setBlitzUse, setDefLang, setNegBrackets, setNegation, setNota, setShow, setSyllogismWording, setWording, toggleSess } from "../shell/session.js";
 import { kindMs } from "../shell/timers.js";
 import { ANSWERS, ANSWER_PICKS, CONFIRM_PICKS, RATES, READ_NOTE, SAMPLE, VOICE_LEAD, VOICE_SAY, WHERE, hookVoices, setVoice, voiceGroups, voiceShown } from "../shell/voice.js";
 import { stageCounts } from "../../domain/reference.ts";
@@ -30,7 +33,7 @@ const More = ({ page, label = "more" }: { page: string; label?: string }) => <bu
 const secs = (kind: string) => Math.round(kindMs(kind) / 1000);
 const timesLine = () => state.tab === "syllogism" ? "Syllogism " + secs("syl") + " s" : "Relation " + secs("rel") + " s · Example " + secs("ex") + " s";
 // the exercises that draw negated pairs, and so show the Negations choice with the stages
-const negates = () => state.tab === "practice";
+const negates = () => state.tab === "practice" || state.tab === "debate";
 const NEG_NAME: Record<string, string> = { one: "one side", both: "both sides" };
 // the stages that are on, in a line: runs joined ("Stages 1–3, 5"), and the negations where they are drawn
 const stagesLine = () => {
@@ -54,24 +57,25 @@ function VoiceRows() {
 }
 
 function List() {
-  const tab = state.tab, perv = tab === "debate", find = tab === "find", syl = tab === "syllogism", cats = tab === "categories", timed = tab === "practice" || perv;
+  const tab = state.tab, perv = tab === "debate", syl = tab === "syllogism", cats = tab === "categories", timed = tab === "practice" || perv;
   const tutor = canAsk();
   const tutorRow = tutorShown() ? <Row lb="Tutor"><b>Tutor</b>{canAsk() ? <small>{state.autoExplain ? "explains every answer" : "explains when you ask"}</small> : null}<More page="tutor" /></Row> : null;
   const blitz = <Row lb="Blitz"><button type="button" class="two" role="switch" aria-checked={state.blitzUse ? "true" : "false"} onClick={() => setBlitzUse(!state.blitzUse)}>
     <span><b>Blitz</b><small>{state.blitzUse ? timesLine() : "off"}</small></span><Toggle on={state.blitzUse} /></button>{state.blitzUse ? <More page="times" label="times" /> : null}</Row>;
   const stages = <Row lb="Stages"><b>Stages</b><small>{stagesLine()}</small><More page="stages" /></Row>;
+  // the exercise's guided form (practice/guided.ts): on until the exercise has its right answers, then as set
+  const guide = GUIDES[tab] ? <Switch lb="Guide" title="Guided" note={GUIDES[tab]!.on} on={guided(tab)} toggle={() => setGuided(tab, !guided(tab))} /> : null;
   const foot = <p class="pnoteline" style={{ padding: "10px 18px 4px calc(var(--m) + 22px)" }}>The Magic Key, your account, data{tutor && state.learns ? ", sharing your examples" : ""} and the version are in <button type="button" class="pbtn" style={{ padding: 0 }} onClick={toSettings}>Settings</button>.</p>;
   if (cats) return <>
     <Row lb="Ask"><b>How step 1 asks</b><Words label="How step 1 asks" items={[["all", "All at once"], ["one", "One by one"]]} cur={state.catsAsk} on={setCategoriesAsk} /></Row>
     {stages}{foot}</>;
   if (syl) return <>
     <Row lb="Words"><b>Wording of the syllogism</b><Words label="Wording" items={[["take", "Take X"], ["formal", "Formal"]]} cur={state.syllogismWording} on={setSyllogismWording} /></Row>
-    <Switch lb="Guide" title="Show the structure" note="S, P and R under the sentence" on={state.syllogismGuide} toggle={() => setSyllogismGuide(!state.syllogismGuide)} />
+    {guide}
     {stages}{blitz}{tutorRow}{foot}</>;
   return <>
     {perv ? <Row lb="Words"><b>Wording of the questions</b><Words label="Wording of the questions" items={Object.entries(WORDINGS).map(([k, w]) => [k, (w as { name: string }).name] as [string, string])} cur={state.wording} on={setWording} /><More page="wording" /></Row> : null}
-    {perv ? <Switch lb="Why?" title="Full phrases" note="spell out Why? answers" on={state.fullPh} toggle={() => setShow("full", !state.fullPh)} /> : null}
-    {find ? <Switch lb="Hints" title="Suggest terms" note="course terms as you type" on={state.findSuggest} toggle={() => setFindSuggest(!state.findSuggest)} /> : null}
+    {guide}
     <Row lb="Signs"><b>Notation</b><Words label="Notation" items={Object.entries(SYMS).map(([k, v]) => [k, (v as unknown[])[0] as string] as [string, string])} cur={state.nota} on={setNota} /><More page="nota" /></Row>
     {timed ? blitz : null}
     <Switch lb="A/B" title="A/B markers" note="A and B shown in the text" on={state.showAB} toggle={() => setShow("ab", !state.showAB)} />
@@ -133,9 +137,13 @@ function Stages() {
     {negates() ? <>
       <p class="psub">Negations are a step of difficulty like the stages: switch them on when the plain pairs come easily. A negation takes in what does not exist, so nothing may be neither: then the Neither case is empty, and you say that nothing exists there.</p>
       <Row lb="Not"><b>Negations</b><Words label="Negations" items={[["off", "Off"], ["one", "One side"], ["both", "Both sides"]]} cur={state.negation} on={setNegation} />
-        <small>Some pairs negate a term: “furniture” and “non-(wooden things)”, which takes in everything that is not a wooden thing. One side: A or B is negated in about a third of the pairs. Both sides: half of those negate both.</small></Row>
+        <small>Some pairs negate a term: “furniture” and “non-(wooden things)”, which takes in everything that is not a wooden thing. One side: A or B is negated in about a third of the pairs. Both sides: half of those negate both. Relations and Pervasions share this choice; Find a pair takes a negation you name (“non-(wooden things)”) with it off too.</small></Row>
       <Switch lb="Brackets" title="Brackets" note="“non-(wooden things)” says that the “non-” takes in everything that is not a wooden thing, what does not exist included. Without them, “non-wooden things” is also read as the things that are not wooden, which leaves out what does not exist. They help while negations are new, and apply from the next pair." on={state.negBrackets} toggle={() => setNegBrackets(!state.negBrackets)} />
     </> : null}
+    <Row lb="Reset"><b>Reset progression</b>
+      <small>{state.resetAsk === "done" ? "Done: stage 1, and the course terms come one at a time again." : "Back to stage 1 with no course term met, negations off and every exercise guided again, on every device signed in to your account. Your answers, their statistics and your settings stay."}</small>
+      {state.resetAsk === "ask" ? <span class="pvline2"><button type="button" class="pbtn" onClick={() => { state.resetAsk = "done"; resetProgress(); }}>Reset</button><button type="button" class="pbtn quiet" onClick={() => { state.resetAsk = ""; render(); }}>Keep it</button></span>
+        : state.resetAsk === "" ? <span class="pvline2"><button type="button" class="pbtn quiet" onClick={() => { state.resetAsk = "ask"; render(); }}>Reset progression</button></span> : null}</Row>
   </>;
 }
 /** The Voice page: the voice and its speed, how an answer is taken and what happens after it is heard. */

@@ -74,7 +74,8 @@ export function cardBody(ix: DataIndex, p: PairLike, u: AnswerView): string {
   const [ca,cb]=pairCats(ix,p), cls=classNames(ix), [na,nb]=negSides(p);
   // a negated side is its label with the facts of the category it negates
   const side=(cid: string|null, label: string, type: string|undefined, neg: boolean)=>neg?{label, negation_of:cid?catFacts(ix,cid,plainLabel(label)):{label:plainLabel(label),type}}:cid?catFacts(ix,cid,label):{label,type};
-  const card=p.own?{A:sideFacts(ix,p.a), B:sideFacts(ix,p.b)}:{A:side(ca,p.a,p.typeA,na), B:side(cb,p.b,p.typeB,nb)};
+  const ownSide=(label: string, neg: boolean)=>neg?{label, negation_of:sideFacts(ix,plainLabel(label))}:sideFacts(ix,label);
+  const card=p.own?{A:ownSide(p.a,na), B:ownSide(p.b,nb)}:{A:side(ca,p.a,p.typeA,na), B:side(cb,p.b,p.typeB,nb)};
   const refTxt=(c: CellId)=>refOf(p,c)?JSON.stringify(refOf(p,c)):"EMPTY ("+((p.why&&p.why[c])||"no example")+")";
   let mid: string;
   if(u.debate){
@@ -88,7 +89,7 @@ export function cardBody(ix: DataIndex, p: PairLike, u: AnswerView): string {
     }).join("\n");
     mid=`${DEBATE_NOTE}
 A = ${JSON.stringify(p.a)}, B = ${JSON.stringify(p.b)}.
-Correct relation: ${REL[p.relation].name}. The learner's Q1 to Q3 answers give: ${imp==="bad"?"a self-contradiction":imp?REL[imp].name:"nothing (time ran out)"}. Learner chose: ${u.late?"nothing (time ran out; the page then showed the right relation)":REL[u.rel as RelKey].name}.
+${negLine(p)}Correct relation: ${REL[p.relation].name}. The learner's Q1 to Q3 answers give: ${imp==="bad"?"a self-contradiction":imp?REL[imp].name:"nothing (time ran out)"}. Learner chose: ${u.late?"nothing (time ran out; the page then showed the right relation)":REL[u.rel as RelKey].name}.
 Reference note: ${p.note||"none"}
 Questions (verdict cmp = learner wrote an example the page could not classify):
 ${lines}`;
@@ -103,7 +104,7 @@ ${lines}`;
     }).join("\n");
     mid=`${FIND_NOTE}
 A = ${JSON.stringify(p.a)}, B = ${JSON.stringify(p.b)}.
-Relation asked for: ${rel.name} (${rel.gloss("A","B")}). ${own?FIND_OWN_NOTE:`Correct relation of this pair: ${REL[p.relation].name}.`}${u.exLate?" Time ran out on the examples: cells the learner had not reached are blank.":""}
+${negLine(p,own)}Relation asked for: ${rel.name} (${rel.gloss("A","B")}). ${own?FIND_OWN_NOTE:`Correct relation of this pair: ${REL[p.relation].name}.`}${u.exLate?" Time ran out on the examples: cells the learner had not reached are blank.":""}
 ${own?"":`Reference note: ${p.note||"none"}
 `}Cells (verdict cmp = learner wrote something the page could not classify${own?"; for a pair the page cannot judge every example is cmp, and a cell the relation leaves empty is open":""}):
 ${lines}`;
@@ -126,11 +127,14 @@ ${mid}${stageLine(u.stage)}${cls.length?`
 Classes (the booklet's "is a" tree, for "class:"): ${cls.join(", ")}.`:""}`;
 }
 
-/** What the tutor is told of a pair with a negated side (the negation track, src/domain/universe.ts): what the negation takes in, and that Neither may be empty. */
-export function negLine(p: Pick<PairLike, "a" | "b" | "neg">): string {
+/**
+ * What the tutor is told of a pair with a negated side (the negation track, src/domain/universe.ts): what the negation takes in, and that Neither may be empty.
+ * `own`: a pair of the learner's own in Find a pair, for which the page worked out nothing, so the tutor is asked to judge with it.
+ */
+export function negLine(p: Pick<PairLike, "a" | "b" | "neg">, own = false): string {
   if (!p.neg) return "";
-  const names = p.neg === "ab" ? `A (${JSON.stringify(p.a)}) and B (${JSON.stringify(p.b)}) are negations` : `B (${JSON.stringify(p.b)}) is a negation`;
-  return `Negation: ${names} of the category in "negation_of". "non-X" takes in everything that is not an X: other existents, permanent phenomena and what does not exist (the horn of a rabbit). The cells and the relation were worked out with that, and on this pair it replaces the rule above that only Neither takes what does not exist: a thing that does not exist is not A or B where they are plain and is the "non-" term, it goes in the cell those answers give, and it can be the only thing that is both (a possibility need not be an existent, Perdue 2014). So Neither can be empty on this pair, and an empty Neither ("nothing exists") is then right; the relation is read from the other three cells, so something that is both, something that is each alone and nothing that is neither is still four possibilities (Perdue 2014 calls it four possibilities without neither; Perdue 1992, after Lati Rinpoche, three possibilities without there being something which is neither).
+  const names = p.neg === "ab" ? `A (${JSON.stringify(p.a)}) and B (${JSON.stringify(p.b)}) are negations` : p.neg === "a" ? `A (${JSON.stringify(p.a)}) is a negation` : `B (${JSON.stringify(p.b)}) is a negation`;
+  return `Negation: ${names} of the category in "negation_of". "non-X" takes in everything that is not an X: other existents, permanent phenomena and what does not exist (the horn of a rabbit). ${own ? "Judge the cells and the relation with that: on this pair it replaces" : "The cells and the relation were worked out with that, and on this pair it replaces"} the rule above that only Neither takes what does not exist: a thing that does not exist is not A or B where they are plain and is the "non-" term, it goes in the cell those answers give, and it can be the only thing that is both (a possibility need not be an existent, Perdue 2014). So Neither can be empty on this pair, and an empty Neither ("nothing exists") is then right; the relation is read from the other three cells, so something that is both, something that is each alone and nothing that is neither is still four possibilities (Perdue 2014 calls it four possibilities without neither; Perdue 1992, after Lati Rinpoche, three possibilities without there being something which is neither).
 `;
 }
 

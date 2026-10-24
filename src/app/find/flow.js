@@ -8,6 +8,8 @@ import { isWide } from "../core/viewport.js";
 import { persist } from "../practice/answers.js";
 import { freshUi } from "../practice/queue.js";
 import { clearSkip } from "../practice/skips.js";
+import { pairStageNow, stageStep } from "../practice/stage-offer.ts";
+import { gradeTerms } from "../practice/stops.ts";
 import { focusAfterCheck, focusCin, render, top0 } from "../shell/render.js";
 import { switchTo } from "../shell/tabs.js";
 import { drawRelation, findId, findPair, gradeFind, nameThing, sameThing } from "../../domain/find.ts";
@@ -68,13 +70,13 @@ function focusFirstCell(){
 /** The pair is named: on to the examples. The same words as before keep the examples written; other words start a new pair. */
 export function usePair(){
   const u=state.ui; if(!u||!u.find||u.checked||u.step!==0) return;
-  const a=nameThing(state,u.wordA), b=nameThing(state,u.wordB);
+  const a=nameThing(state,u.wordA,state.negBrackets), b=nameThing(state,u.wordB,state.negBrackets);
   if(!a.label||!b.label){ u.pairErr="Name both phenomena."; render(); focusWord(a.label?"b":"a"); return; }
   if(sameThing(a,b)){ u.pairErr="Name two different phenomena."; render(); focusWord("b"); return; }
   const had=state.cur.p;
   if(had&&had.a===a.label&&had.b===b.label){ if(had.own) had.relation=u.rel; }
   else {
-    state.cur=/** @type {any} */({p:findPair(state,u.rel,a,b,undefined,undefined,moreRefs(),state.stages),find:true});
+    state.cur=/** @type {any} */({p:findPair(state,u.rel,a,b,undefined,undefined,moreRefs(),state.stages,state.negBrackets),find:true});
     Object.assign(u,{cells:freshUi().cells, ci:0, seen:0, pop:null});
   }
   u.own=!!state.cur.p.own; u.pairErr=""; u.step=1;
@@ -92,7 +94,10 @@ export function checkFind(){
   const u=state.ui; if(!u||!u.find||u.checked||u.step!==1||!state.cur.p) return;
   const p=state.cur.p;
   clearSkip(p,u.rel);
-  u.res=gradeFind(state,p,u); u.checked=true; u.open=false; render();
+  u.res=gradeFind(state,p,u); u.checked=true; u.open=false;
+  gradeTerms([{cat:p.catA,ok:!!u.res.relOk},{cat:p.catB,ok:!!u.res.relOk}],false);     // the learner's own pair: only a right one counts (practice/stops.ts)
+  if(!u.res.relOpen) stageStep("find",pairStageNow(p.catA,p.catB),!!u.res.relOk);     // the run towards the next stage; a miss here says little about the words (practice/stage-offer.ts)
+  render();
   focusAfterCheck();
   afterCheck(u);
   if(!state.db) return;

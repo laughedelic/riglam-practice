@@ -10,7 +10,7 @@ import { mname } from "../ai/quorum-panel.js";
 import { CELLS, REL, notaOf, refOf } from "../core/rel.js";
 import { dayOf, gradeOf, isMiss, today } from "../core/util.js";
 import { QCELL, qPlain } from "../debate/text.js";
-import { removeFav, startFav } from "../practice/favorites.js";
+import { removeFav, startFav, typesLine } from "../practice/favorites.js";
 import { SKIP_DAYS, debateAgain, skipActive, startSkipped, unskipKey } from "../practice/skips.js";
 import { answerList } from "../practice/universe.js";
 import { debateStats } from "../review/debate-stats.js";
@@ -22,7 +22,6 @@ import { SAID, SAY, sylExample, sylLine, syllogismStats } from "../review/syllog
 import { exName } from "../shell/exercises.js";
 import { setTab } from "../shell/tabs.js";
 import { flagStateText, flaggedPart } from "../../domain/flags.ts";
-import { FIND_RELS } from "../../domain/find.ts";
 import { syllogismText } from "../../domain/syllogism.ts";
 import type { CellId, RelKey } from "../../ai-shared/relations.ts";
 import type { AnswerDoc, FavDoc, FlagDoc, SkipDoc } from "../types.ts";
@@ -107,7 +106,7 @@ function Overview() {
       {d.med != null ? <Stat name="Median time to answer, blitz" text={(d.med / 1000).toFixed(1) + " s"} /> : null}
       {d.timedN ? <Stat name="Ran out of time (counted as accepted)" text={d.outN + " / " + d.timedN} /> : null}</Sx>);
   if (f) out.push(<Group h="Find a pair" sub={f.all.length + " pairs, the pair right " + pct(f.right, f.judged.length) + "%"} />,
-    <Sx cls="walked">{FIND_RELS.map((r: RelKey, i: number) => <Stat fig={r} name={REL[r].name} k={f.rows[i][2] as number} n={f.rows[i][1] as number} />)}
+    <Sx cls="walked">{(f.rows as [RelKey, number, number][]).map(([r, n, k]) => <Stat fig={r} name={REL[r].name} k={k} n={n} />)}
       {f.own ? <Stat name="Pairs of your own words, judged by the tutor" text={String(f.own)} /> : null}</Sx>,
     <Trail>{f.all.slice().reverse().slice(0, 10).map((a: any) => { const e = entryOf(a, false); return <TrailRow e={e} when={dayOf(a.at)} />; })}</Trail>);
   if (y) out.push(<Group h="Syllogisms" sub={y.all.length + (y.all.length === 1 ? " syllogism" : " syllogisms") + ", the reply right " + pct(y.right, y.all.length) + "%"} />,
@@ -143,7 +142,7 @@ function Favs() {
         {rel ? <St d={<Fig k={p.relation} size="m" />} cls="srel"><span class="pq"><b>{rel.name}:</b> {rel.gloss(p.a, p.b).toLowerCase()}.{notaOf(p.relation) && state.nota !== "codes" ? <span class="rsym">{notaOf(p.relation)}</span> : null}</span></St> : null}
         {(CELLS as CellId[]).map((c) => { const ref = refOf(p, c); return <St d={<D cls={"sub " + (ref ? "done" : "nil")} />} cls="sb exr"><span class="lab">{CASE[c]}</span>
           <div class="line1">{ref ? <span class="ans2 ref">{ref}</span> : <span class="ans2 nil">nothing goes here</span>}</div>{!ref && p.why && p.why[c] ? <p class="xnote">{p.why[c]}</p> : null}</St>; })}
-        {(p.typeA || p.typeB || p.note) ? <St d={<span />} cls="pnote2"><p class="xnote">{(p.typeA || p.typeB) ? <span class="ptype">{p.a + ": " + (p.typeA || "?") + " · " + p.b + ": " + (p.typeB || "?")}</span> : null} {p.note || ""}</p></St> : null}
+        {(p.typeA || p.typeB || p.note) ? <St d={<span />} cls="pnote2"><p class="xnote">{(p.typeA || p.typeB) && typesLine(p) ? <span class="ptype">{typesLine(p)}</span> : null} {p.note || ""}</p></St> : null}
         <St d={<span />} cls="pacts"><button type="button" class="pbtn" onClick={() => startFav(p)}>Practice this pair</button><button type="button" class="pbtn quiet" onClick={() => { delete state.pathOpen[k]; removeFav(f); }}>Remove</button></St>
       </div> : null}
     </>;

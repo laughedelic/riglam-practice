@@ -3,17 +3,18 @@
 // verdict, what was answered, the three checks as stops, the tutor's Why). The steps are the classic page's (syllogism/flow.js).
 import type { ComponentChildren } from "preact";
 import { state } from "../state.js";
+import { guided } from "../practice/guided.ts";
 import { next } from "../practice/queue.js";
 import { backSyllogism, exampleSyllogism, keyOfReply, saySyllogism, shownSyllogism } from "../syllogism/flow.js";
 import { REPLIES, syllogismPieces } from "../../domain/syllogism.ts";
 import type { Reply, Syllogism } from "../../domain/syllogism.ts";
 import { refreshPath } from "./index.tsx";
-import { Choices, ErrLines, SkipMark, Star, marksCls, Verdict, WhyRow, pickThen, u0 } from "./parts.tsx";
+import { Choices, ErrLines, GuideNote, SkipMark, StageOffer, Star, marksCls, Verdict, WhyRow, pickThen, u0 } from "./parts.tsx";
 import { Scroll } from "./scroll.tsx";
 import { Foot, PreStation, SkipSide, Station, TopBar } from "./shell.tsx";
 import { D, Gap, Head, Mark, St, Sx, nofillInput } from "./ui.tsx";
 
-/** The replies as the choices say them, what each says in a few words, and (with "Show the structure") what each means in S, P and R. */
+/** The replies as the choices say them, what each says in a few words, and (in the guided form, practice/guided.ts) what each means in S, P and R. */
 const SAY: Record<Reply, string> = { accept: "I accept", reason: "The reason is not established", pervasion: "There is no pervasion" };
 const GLOSS: Record<Reply, string> = { accept: "the reason holds and it pervades", reason: "the subject is not the reason", pervasion: "the reason does not bring the predicate" };
 const MEANS: Record<Reply, string> = { accept: "S is R, and everything that is R is P", reason: "S is not R", pervasion: "S is R, but not everything that is R is P" };
@@ -49,7 +50,7 @@ function Statement({ star = true }: { star?: boolean }) {
 
 /* ---------- 1 the answer ---------- */
 function AnswerStep() {
-  const u = u0(), guide = !!state.syllogismGuide;
+  const u = u0(), guide = guided("syllogism");
   const items = REPLIES.map((r) => ({ k: r, b: SAY[r], s: guide ? MEANS[r] : GLOSS[r], key: keyOfReply(r) }));
   return <>
     <Scroll>
@@ -110,6 +111,8 @@ function ResultStep() {
         </St>;
       })}</Sx>
       <WhyRow />
+      <StageOffer />
+      <GuideNote />
       <ErrLines />
       <Sx cls="ptail" />
     </Scroll>

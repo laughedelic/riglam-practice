@@ -5,16 +5,14 @@
 import type { ComponentChildren } from "preact";
 import { state } from "../state.js";
 import { CONFIRMATION } from "../practice/terms.js";
-import { STAGES } from "../../domain/stages.ts";
-import { acceptOffer, advanceCategories, checkCategories, continueCategories, declineOffer, pickCategory, sayCategory, tickCategory, tickNone } from "../categories/flow.js";
+import { advanceCategories, checkCategories, continueCategories, pickCategory, sayCategory, tickCategory, tickNone } from "../categories/flow.js";
 import { next } from "../practice/queue.js";
 import { toggleOpts } from "../shell/options.js";
-import { openStageOptions } from "../shell/session.js";
-import { stageName } from "../shell/stages.js";
 import type { PlaceGraded, PlaceNarrow, PlaceQuestion, PlaceRow } from "../../domain/place.ts";
 import { refreshPath } from "./index.tsx";
-import { Choices, ErrLines, SkipMark, Verdict, pickThen, u0 } from "./parts.tsx";
+import { Choices, ErrLines, SkipMark, StageOffer, Verdict, pickThen, u0 } from "./parts.tsx";
 import { Scroll } from "./scroll.tsx";
+import { TermTags } from "./terms.tsx";
 import { Foot, PreStation, SkipSide, Station, TopBar } from "./shell.tsx";
 import { D, Gap, Head, Mark, St, Sx } from "./ui.tsx";
 
@@ -55,19 +53,6 @@ function skipNote() {
   if (t.thing.ne) return "It does not exist, so it is in none of these and there is nothing to narrow.";
   return t.rows.filter((r) => r.answer).length < 2 ? "Only one of these applies, so there is nothing to narrow." : "The categories that apply do not lie on one line, so none is the most specific.";
 }
-/** The offer of another stage, or the line that says what the answer to it did. */
-function Offer() {
-  const o = u0().offer; if (!o) return null;
-  if (o.kind === "done") return <Sx cls="walked"><p class="pnoteline pfnote" role="status">{o.text}</p></Sx>;
-  const up = o.kind === "up", info = STAGES.find((x) => x.n === o.stage);
-  return <Sx cls="walked"><St d={<D cls="sub now" />} cls="offer" ><div role="group" aria-label={up ? "Add a stage" : "Switch a stage off"}>
-    <p class="oq">{up ? "Stage " + (o.stage - 1) + " is going well. Add stage " + o.stage + " to the mix?" : "Stage " + o.stage + " is hard going right now. Switch it off for a while?"}</p>
-    <p class="xnote">Stage {o.stage}, {stageName(o.stage).toLowerCase()}: {info ? info.adds : ""}</p>
-    <span class="pbtns"><button type="button" class="pbtn" onClick={acceptOffer}>{up ? "Add stage " + o.stage : "Switch off stage " + o.stage}</button><button type="button" class="pbtn quiet" onClick={declineOffer}>Not now</button></span>
-    <p class="xnote">{up ? "Never starts by itself. It applies to every exercise, and the stages you are on stay on; turn any stage off in the practice options." : <>Or adjust the stages yourself in the <button type="button" class="plnk" onClick={openStageOptions}>practice options</button>. Nothing is switched off by itself.</>}</p>
-  </div></St></Sx>;
-}
-
 /* ---------- 1 the categories ---------- */
 function TickStep() {
   const u = u0(), t = q(), n = u.ticked.length;
@@ -75,6 +60,7 @@ function TickStep() {
   return <>
     <Scroll>
       <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Categories" sub="which of these is it?" aside={<SkipMark />} /><Gap h={6} /><Thing /><p class="help chelp">Tick everything it is.</p><Gap h={4} /></Sx>
+      <TermTags asked={t.rows.map((r) => ({ cat: r.cat }))} />
       <Choices label="Categories the thing is in" multi items={items} onPick={(k) => (k ? tickCategory(k) : tickNone())} />
       <Sx cls="ptail" />
     </Scroll>
@@ -92,6 +78,7 @@ function OneStep() {
           return <St d={<D cls={"sub " + (ok ? "ok" : "no")} />} cls={"sb exr catrow" + (ok ? "" : " wrong")}><div class="line1"><b class="catp">{r.phrase}</b><span class="ctag">{said ? "yes" : "no"}</span><Mark m={ok ? "ok" : "no"} /></div>
             {ok ? null : <p class="xnote">{because(r)}</p>}</St>; })}
         <St d={<D cls="sub now" />} cls="sb now"><p class="qst" id="catq">Is {t.thing.n} {row.phrase}?</p></St><Gap h={4} /></Sx>
+      <TermTags asked={[{ cat: row.cat }]} />
       <Choices label={"Is " + t.thing.n + " " + row.phrase + "?"} items={[{ k: "y", b: "Yes", key: "Y" }, { k: "n", b: "No", key: "N" }]} onPick={(k) => sayCategory(k === "y")} />
       {u.i < t.rows.length - 1 ? <Sx cls="walked later"><St d={<D cls="sub" />} cls="sb later"><span class="lab">{t.rows.length - u.i - 1} more</span></St></Sx> : null}
       <Sx cls="ptail" />
@@ -109,7 +96,7 @@ function CheckedStep() {
       <Verdict v={v} word={g.ok ? "All right" : g.right + " of " + g.rows.length + " right"} sub={u.checked ? "step 2 is not asked" : "step 1 of 2"} />
       <Split one={one} />
       {u.checked ? <Sx cls="walked"><p class="pnoteline pfnote">{skipNote()}</p></Sx> : !g.ok && n ? <Sx cls="walked"><p class="pnoteline pfnote">Step 2 uses the corrected set: {n.options.map((r) => r.phrase).join(", ")}.</p></Sx> : null}
-      {u.checked ? <Offer /> : null}
+      {u.checked ? <StageOffer /> : null}
       <ErrLines />
       <Sx cls="ptail" />
     </Scroll>
@@ -145,7 +132,7 @@ function ResultStep() {
         {n.line.map((s, i) => { const mine = s.phrase === g.picked.phrase;
           return <St d={<D cls={"sub " + (i === 0 ? "ok" : mine ? "no" : s.option ? "done" : "")} />} cls={"sb pline" + (s.option ? " opt" : "")}>
             <b class="catp">{s.phrase}</b>{mine ? <span class="ctag">{g.ok ? "your pick" : "you picked"}</span> : s.option ? <span class="ctag">an option</span> : null}</St>; })}</Sx>
-      <Offer />
+      <StageOffer />
       <ErrLines />
       <Sx cls="ptail" />
     </Scroll>

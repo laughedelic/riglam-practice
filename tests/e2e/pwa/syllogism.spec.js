@@ -3,7 +3,7 @@
 // result, the answer that is kept, the attempt that waits in the menu, the options and the width. The syllogism is drawn, so a spec asks the page for one of the
 // kind it needs (the test hook's `next` draws until the situation fits) and reads what is right from the syllogism on screen.
 import { test, expect } from "../../support/test.js";
-import { goTo, isPhone, openMenu, ready, overflow } from "../../support/page.js";
+import { goTo, isPhone, openMenu, ready, overflow, setStoredStages } from "../../support/page.js";
 import { withCourse } from "../../support/data-key.js";
 
 const REPLY = { reason: 0, pervasion: 1, accept: 2 }; // in the order of the checks
@@ -311,7 +311,7 @@ test("the practice options hold only what Syllogisms uses: the wording, which is
   await page.reload();
   await expect(page.locator(".sylt")).toContainText(/^It follows that the subject,/);
   // up to stage 3, everyday things only: the syllogisms drawn have no course term in them, and the structure is shown until it is switched off
-  await page.evaluate(() => localStorage.setItem("rd-stages", "1,2,3"));
+  await setStoredStages(page, "1,2,3");
   await page.reload();
   await expect(page.locator(".sylt")).toBeVisible();
   const levels = await page.evaluate(() => { const out = []; for (let i = 0; i < 60; i++) { window.__t.next(); out.push(window.__t.cur.c.level); } return out; });

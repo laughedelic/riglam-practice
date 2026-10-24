@@ -7,13 +7,14 @@ import { state } from "../state.js";
 import { REL, lcRel } from "../core/rel.js";
 import { backWhy, chooseD, sayQ, submitWhy } from "../debate/flow.js";
 import { QCELL, Wd, singular } from "../debate/text.js";
+import { guided } from "../practice/guided.ts";
 import { next } from "../practice/queue.js";
 import { explainParts, learnedThing, nextFwd } from "../practice/screen.js";
 import { NOT, qSides } from "../../ai-shared/debate.ts";
 import type { QToken } from "../../ai-shared/debate.ts";
 import type { CellId, RelKey } from "../../ai-shared/relations.ts";
 import { refreshPath } from "./index.tsx";
-import { Choices, ErrLines, PairResult, PairStops, Thinking, TutorNote, Verdict, WhyRow, isa, pairOf, pickThen, u0 } from "./parts.tsx";
+import { Choices, ErrLines, GuideNote, PairResult, PairStops, StageOffer, Thinking, TutorNote, Verdict, WhyRow, isa, pairOf, pickThen, u0 } from "./parts.tsx";
 import { relChoices } from "./relations.tsx";
 import { FlagBtn, FlagEditor, explainCase } from "./flags.tsx";
 import { Scroll } from "./scroll.tsx";
@@ -55,19 +56,19 @@ function Answered({ n }: { n: number }) {
 
 /* ---------- 1 the questions ---------- */
 function QuestionStep({ kb }: { kb: boolean }) {
-  const u = u0(), p = pairOf(), i: number = u.step, w = Wd(), retry = state.cur!.retry, last = i === 3;
-  const items = [{ k: "accept", b: w.acc, s: "it holds: nothing goes against it", key: w.ak }, { k: "why", b: w.why, s: "it fails: you posit a counter-example", key: w.wk }];
+  const u = u0(), p = pairOf(), i: number = u.step, w = Wd(), retry = state.cur!.retry, last = i === 3, g = guided("debate");      // the guided form says what each answer does (practice/guided.ts)
+  const items = [{ k: "accept", b: w.acc, s: g ? "it holds: nothing goes against it" : undefined, key: w.ak }, { k: "why", b: w.why, s: g ? "it fails: you posit a counter-example" : undefined, key: w.wk }];
   return <>
     <Scroll>
       {retry ? <p class="retry">{(state.cur!.tag || "Retry") + (state.retryQ.length ? " · " + state.retryQ.length + " more" : "")}</p> : null}
-      <Sx cls="cur first tight"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Questions" sub={(i + 1) + " of 4 · " + (w.lead ? "do you accept it?" : "yes or no?")} /><Gap h={4} /><PairStops p={p} sm={i > 0} /><Gap h={4} />
+      <Sx cls="cur first tight"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Questions" sub={(i + 1) + " of 4 · " + (w.lead ? "do you accept it?" : "yes or no?")} /><Gap h={4} /><PairStops p={p} sm={i > 0} tags /><Gap h={4} />
         <Answered n={i} />
         <St d={<D cls="sub now" />} cls="sb now qnow"><QHead i={i} />{w.lead ? <span class="qlead">{w.lead}</span> : null}<p class="qst" lang="en"><Statement i={i} ask /></p>
           {u.pickWhy ? <>
             <div class="fieldrow"><input class="pfield" id="dex" value={u.exText} placeholder="posit a counter-example" {...nofillInput()} enterKeyHint={last ? "done" : "next"} aria-label="Posit a counter-example"
               onInput={(e) => { u.exText = (e.currentTarget as HTMLInputElement).value; refreshPath(); }}
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); submitWhy(); } else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); backWhy(); } }} /></div>
-            <p class="help"><span class="htx">Something that shows the statement fails. </span><button type="button" onMouseDown={(e) => e.preventDefault()} onClick={backWhy}>back</button></p>
+            <p class="help">{g ? <span class="htx">Something that shows the statement fails. </span> : null}<button type="button" onMouseDown={(e) => e.preventDefault()} onClick={backWhy}>back</button></p>
           </> : null}</St>
         {u.pickWhy ? <Gap h={6} /> : null}</Sx>
       {u.pickWhy ? null : <Choices label="Your answer" slide row items={items} picked={u.pk} onPick={(k) => pickThen(k, () => sayQ(k))} />}
@@ -126,6 +127,8 @@ function ResultStep() {
       {imp ? <Sx cls="walked"><St d={<D cls={"sub " + (imp === u.rel ? "ok" : "no")} />} cls="sb exr implied"><span class="lab">from your answers</span><p class="xnote">{impTxt[0].toUpperCase() + impTxt.slice(1)}</p></St></Sx> : null}
       <Sx cls={QCELL.some((c) => r.cells[c].v === "bad") ? "nop" : "okp"}><Gap h={2} />{QCELL.map((_c, i) => <QRow i={i} />)}</Sx>
       <WhyRow unc={unc} />
+      <StageOffer />
+      <GuideNote />
       <ErrLines />
       <Sx cls="ptail" />
     </Scroll>

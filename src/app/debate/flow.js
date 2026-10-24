@@ -7,6 +7,8 @@ import { QCELL } from "./text.js";
 import { persist } from "../practice/answers.js";
 import { freshUi } from "../practice/queue.js";
 import { clearSkip } from "../practice/skips.js";
+import { pairStageNow, stageStep } from "../practice/stage-offer.ts";
+import { gradePair } from "../practice/stops.ts";
 import { nextGenerated } from "../practice/universe.js";
 import { focusAfterCheck, render } from "../shell/render.js";
 import { ensureRelTimer, freezeBar, relReset, tkind } from "../shell/timers.js";
@@ -19,7 +21,7 @@ export function freshDebateUi(){
     pickWhy:false, exText:"", open:true, tq:null, tid:null, qStart:0, col:"debates"});
 }
 export const debateList=()=>Object.values(state.debates).sort((x,y)=>(x.at||"").localeCompare(y.at||""));
-export function advanceDebate(){ state.cur={p:nextGenerated(debateList()), debate:true}; state.ui=freshDebateUi(); state.mode="quiz"; startQ(); }
+export function advanceDebate(){ state.cur={p:nextGenerated(debateList(),true), debate:true}; state.ui=freshDebateUi(); state.mode="quiz"; startQ(); }     // the negation track (Practice options) applies here as in Relations
 export const limitMs=()=>state.blitz?state.timerMs:0;
 /** The clock stands still while something covers the exercise: Settings, the practice options, the question before a skip, the menu on a phone. It starts again, with its full time, when that closes. */
 export const paused=()=>state.optsOpen||state.sessOpen||state.skipAsk||(state.menuOpen&&!isWide());
@@ -121,7 +123,10 @@ export async function checkDebate(){
   stopTimer();
   const p=state.cur.p;
   QCELL.forEach((c,i)=>{ state.ui.cells[c].t=(state.ui.ans[i].text||"").trim(); state.ui.cells[c].none=state.ui.ans[i].say==="accept"; });
-  clearSkip(p); state.ui.res=gradeDebate(state,p,/** @type {import("../../domain/types.ts").DebateInput} */(state.ui)); state.ui.checked=true; state.ui.open=false; render();
+  clearSkip(p); state.ui.res=gradeDebate(state,p,/** @type {import("../../domain/types.ts").DebateInput} */(state.ui)); state.ui.checked=true; state.ui.open=false;
+  stageStep("debate",pairStageNow(p.catA,p.catB),!!state.ui.res.relOk);     // the run towards the next stage (practice/stage-offer.ts)
+  gradePair([p.catA,p.catB],!!state.ui.res.relOk);     // the course terms of the pair (practice/stops.ts)
+  render();
   focusAfterCheck();
   afterCheck(state.ui);
   if(!state.db) return;

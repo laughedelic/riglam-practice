@@ -4,7 +4,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { expect, test } from "vitest";
-import { CELLS, REL, cardBody, explainAsk, makeIndex, negLabel, negLine, plainLabel, readReviewAnswer, refOf, reviewRequest } from "../../src/ai-shared";
+import { CELLS, NEG_CELL, REL, cardBody, explainAsk, isNeg, makeIndex, negLabel, negLine, negSides, plainLabel, readReviewAnswer, refOf, reviewRequest } from "../../src/ai-shared";
 import type { CellId, DrillData, RelKey } from "../../src/ai-shared";
 import {
   FEATURE, RECENT_MAX, AUTO_FLAGS, applyVerdicts, autoFlagOf, decideFlag, factNote, fitOf, flagAnswerRef, flagAsked, flagStateText, flaggedPart, noteParts, buildPool, cellsFor, chooseEntry, deriveRel, grade, gradeDebate, gradeOf, inUniverse, isMiss, judgeText, makePair,
@@ -14,7 +14,10 @@ import {
 import type { DebateInput, GradeDraft, HistoryEntry, Pair, PoolEntry } from "../../src/domain";
 import openData from "../../src/data/drill-data.json";
 import { drawable, examplesFor, placeByClass } from "../../src/domain";
-import { DEFAULT_STAGES, HOLD_STAGE, MAX_STAGE, STAGES, catOpen, drawSyllogism, heldBack, itemKnown, itemOn, itemStageFor, levelAt, normStages, pairStage, physical, poolAt, stagesOfLevels, toggleStage, topStage } from "../../src/domain";
+import { AGAIN_AFTER, FIRST_AFTER, MISS_AFTER, SETTLED, SPACING, afterQuestion, againAsked, freshIntro, introduced, nextStop, normIntro, pairGraded, showAgain, stageMet, stageTerms, stageUp, stopShown, unmet } from "../../src/domain";
+import { DEFAULT_STAGES, DEFINITION_STAGE, HOLD_STAGE, MAX_STAGE, NEG_STREAK, STAGES, START_SHARE, STAGE_STREAK, STAGE_STUMBLE, catOpen, drawSyllogism, heldBack, itemKnown, itemOn, itemStageFor, levelAt, negationOffer, newCategories, normStages, pairStage, physical, poolAt, stagesOfLevels, toggleStage, topStage } from "../../src/domain";
+import { GUIDE_RIGHT, exerciseAfter, freshRun, guideTurnsOff, guidedOn, newShare, normExRuns, normGuided, normRun, runAfter, stageOffer } from "../../src/domain";
+import type { MissKind, StageRun } from "../../src/domain";
 import { drawPlace, itemRows, placeThings } from "../../src/domain/place";
 import { normLevels, upTo } from "../../src/ai-shared";
 import { FACTS_EPOCH, factKey, learn, opinionOf, ruleSide, servable } from "../../src/domain";
@@ -375,6 +378,7 @@ test("what three answers imply", () => {
   expect(deriveRel([A, A, A, W])).toBe("bad");
   expect(deriveRel([A, W, N, W])).toBeNull();
   expect(deriveRel([W, W, W, N])).toBe("4"); // the fourth answer does not enter
+  expect(deriveRel([W, W, W, A]), "nor does an accepted one: nothing neither is still four possibilities").toBe("4");
 });
 
 test("summarize counts the cells and chooses the overall grade, changing the object it is given", () => {
@@ -568,6 +572,234 @@ test("the stages that are on: a stored value, switching one, the highest, and th
   // the levels themselves stay for the reference examples' own field and the tutor's lookup
   expect(normLevels("3, 1,1,9,x")).toEqual([1, 3]);
   expect(upTo(3)).toEqual([1, 2, 3]);
+});
+
+test("the real data: a newly opened category's definition shows with the question up to stage 3, and only for a Dudra term", () => {
+  const everyday = real.cats.find((c) => c.kind === "everyday")!.id;
+  expect(DEFINITION_STAGE).toBe(3);
+  expect(newCategories(rix, ["form", everyday], [1]), "Form opens at stage 1; an everyday category has no definition").toEqual(["form"]);
+  expect(newCategories(rix, ["form", "col"], [1, 2]), "only the one that opens at the highest stage on").toEqual(["col"]);
+  expect(newCategories(rix, ["col", "shape"], [2])).toEqual(["col", "shape"]);
+  expect(newCategories(rix, ["col", "col"], [2]), "once each").toEqual(["col"]);
+  expect(newCategories(rix, ["snd", "form"], [1, 3])).toEqual(["snd"]);
+  expect(newCategories(rix, ["ft", "form"], [1, 2, 3, 4]), "from the established bases on, a tap away").toEqual([]);
+  expect(newCategories(rix, ["form", null], [1])).toEqual(["form"]);
+  expect(newCategories(rix, ["nope", "form"], [2]), "an unknown id, and Form is not new at stage 2").toEqual([]);
+  expect(newCategories(rix, ["form", "col", "shape", "extf", everyday], [1, 2]), "the categories Categories asks about").toEqual(["col", "shape", "extf"]);
+});
+
+test("a term is introduced before it is asked about: everyday questions first, then one stop at a time, a few questions apart", () => {
+  const T0 = "2026-10-24T12:00:00.000Z";
+  expect(stageTerms(rix, 1)).toEqual(["form"]);
+  expect(stageTerms(rix, 2)).toEqual(["extf", "col", "shape", "vis"]);
+  expect(stageTerms(rix, 3)).toEqual(["snd", "odr", "tst", "tng"]);
+  expect(stageTerms(rix, 7), "the upper stages open no categories").toEqual([]);
+  let it = freshIntro();
+  expect([...unmet(rix, it, [1])]).toEqual(["form"]);
+  expect(introduced(it, rix.CAT.form!)).toBe(false);
+  expect(introduced(it, real.cats.find((c) => c.kind === "everyday")!), "an everyday category needs no stop").toBe(true);
+  // a new learner: FIRST_AFTER everyday questions, then Form
+  for (let i = 0; i < FIRST_AFTER; i++) {
+    expect(nextStop(rix, it, [1], T0), "question " + i).toBeNull();
+    it = afterQuestion(it, [], T0);
+  }
+  expect(nextStop(rix, it, [1], T0)).toEqual({ cat: "form", why: "new" });
+  it = stopShown(it, "form", T0);
+  expect(introduced(it, rix.CAT.form!)).toBe(true);
+  expect(unmet(rix, it, [1]).size).toBe(0);
+  expect(nextStop(rix, it, [1], T0), "stage 1 has no other term").toBeNull();
+  // stage 2 switched on: its first term at once, then one every SPACING questions, in the course's order
+  it = stageUp(it);
+  expect([...unmet(rix, it, [1, 2])]).toEqual(["extf", "col", "shape", "vis"]);
+  expect(nextStop(rix, it, [1, 2], T0)).toEqual({ cat: "extf", why: "new" });
+  it = stopShown(it, "extf", T0);
+  for (let i = 0; i < SPACING; i++) { expect(nextStop(rix, it, [1, 2], T0)).toBeNull(); it = afterQuestion(it, [], T0); }
+  expect(nextStop(rix, it, [1, 2], T0)).toEqual({ cat: "col", why: "new" });
+  expect(stageMet(rix, it, 2), "the next stage waits for all four").toBe(false);
+  for (const c of ["col", "shape", "vis"]) it = stopShown(it, c, T0);
+  expect(stageMet(rix, it, 2)).toBe(true);
+  // stages are a set, not a ceiling: with 1 and 3 on, the terms of stage 2 come first, since its categories are open too
+  const gap = stopShown(stageUp(freshIntro()), "form", T0);
+  expect(nextStop(rix, stageUp(gap), [1, 3], T0)).toEqual({ cat: "extf", why: "new" });
+});
+
+test("the questions grade the terms they use: right moves a term up, a mistake brings its stop back a few questions later", () => {
+  const T0 = "2026-10-24T12:00:00.000Z";
+  let it = stopShown(stopShown(freshIntro(), "form", T0), "col", T0);
+  expect(it.terms.form!.box).toBe(1);
+  it = afterQuestion(it, [{ cat: "form", ok: true }, { cat: "everyday-x", ok: true }], T0);
+  expect(it.terms.form!.box).toBe(2);
+  expect(it.terms["everyday-x"], "a category without a stop is not recorded").toBeUndefined();
+  it = afterQuestion(afterQuestion(it, [{ cat: "form", ok: true }], T0), [{ cat: "form", ok: true }], T0);
+  expect(it.terms.form!.box, "box 3 is settled, and stays").toBe(SETTLED);
+  // a mistake: back to box 1, and the stop comes back MISS_AFTER questions later, as a repetition
+  it = afterQuestion(it, [{ cat: "form", ok: false }], T0);
+  expect(it.terms.form!.box).toBe(1);
+  const missed = it.n;
+  for (let i = 1; i < MISS_AFTER; i++) {
+    it = afterQuestion(it, i === 2 ? [{ cat: "form", ok: false }] : [], T0);
+    expect(nextStop(rix, it, [1], T0), "question " + i + " after the mistake").toBeNull();
+  }
+  expect(it.terms.form!.due, "a second mistake while the repetition waits adds none and does not put it off").toBe(missed + MISS_AFTER);
+  it = afterQuestion(it, [], T0);
+  expect(nextStop(rix, it, [1, 2], T0), "the repetition comes before a new term").toEqual({ cat: "form", why: "miss" });
+  it = stopShown(it, "form", T0);
+  expect(it.terms.form!.due).toBeUndefined();
+  expect(nextStop(rix, it, [1], T0)).toBeNull();
+  // the same category twice in a question (two labels of one term) counts as wrong if either is
+  it = afterQuestion(stopShown(freshIntro(), "col", T0), [{ cat: "col", ok: true }, { cat: "col", ok: false }], T0);
+  expect(it.terms.col!.box).toBe(1);
+  // an exercise whose mistakes are mostly about its form: right answers count, mistakes do not
+  let sy = stopShown(freshIntro(), "ft", T0);
+  sy = afterQuestion(sy, [{ cat: "ft", ok: true }], T0, false);
+  sy = afterQuestion(sy, [{ cat: "ft", ok: false }], T0, false);
+  expect(sy.terms.ft!.box).toBe(2);
+  expect(sy.terms.ft!.due).toBeUndefined();
+  // the learner asks to see it again: after AGAIN_AFTER questions
+  let ag = showAgain(stopShown(freshIntro(), "form", T0), "form");
+  for (let i = 0; i < AGAIN_AFTER - 1; i++) ag = afterQuestion(ag, [], T0);
+  expect(nextStop(rix, ag, [1], T0)).toBeNull();
+  ag = afterQuestion(ag, [], T0);
+  expect(nextStop(rix, ag, [1], T0)).toEqual({ cat: "form", why: "again" });
+  // ... and may take the ask back; a mistake while it waits brings it no later than MISS_AFTER, as a repetition of the mistake
+  const asked = showAgain(stopShown(freshIntro(), "form", T0), "form");
+  expect(againAsked(asked, "form")).toBe(true);
+  expect(showAgain(asked, "form", false)).toEqual(stopShown(freshIntro(), "form", T0));
+  expect(againAsked(showAgain(asked, "form", false), "form")).toBe(false);
+  expect(afterQuestion(asked, [{ cat: "form", ok: false }], T0).terms.form).toMatchObject({ due: 1 + MISS_AFTER, why: "miss" });
+  // a settled term not met for GAP_DAYS comes back once, spaced like a new term
+  const old = { ...freshIntro(), terms: { form: { box: SETTLED, shows: 1, seen: "2026-10-01T12:00:00.000Z" } } };
+  expect(nextStop(rix, { ...old, n: 9, next: 9 }, [1], "2026-10-10T12:00:00.000Z")).toBeNull();
+  expect(nextStop(rix, { ...old, n: 9, next: 9 }, [1], "2026-10-16T12:00:00.000Z")).toEqual({ cat: "form", why: "gap" });
+  expect(nextStop(rix, { ...old, n: 9, next: 12 }, [1], "2026-10-16T12:00:00.000Z"), "not before the spacing allows").toBeNull();
+  // a pair's question: right counts for both its course terms; a mistake only for the one course term of a pair with an everyday side
+  const everyday = real.cats.find((c) => c.kind === "everyday")!.id;
+  expect(pairGraded(rix, ["form", "col"], true)).toEqual([{ cat: "form", ok: true }, { cat: "col", ok: true }]);
+  expect(pairGraded(rix, ["form", "col"], false), "two course terms: the miss may be about either, or the relation").toEqual([]);
+  expect(pairGraded(rix, ["form", everyday], false)).toEqual([{ cat: "form", ok: false }]);
+  expect(pairGraded(rix, ["form", "form"], false), "one term on both sides").toEqual([{ cat: "form", ok: false }]);
+  expect(pairGraded(rix, [everyday, null], false)).toEqual([]);
+  // the stored record is read back as it was; a broken one starts fresh
+  expect(normIntro(JSON.stringify(it))).toEqual(it);
+  expect(normIntro("{nope")).toEqual(freshIntro());
+  expect(normIntro({ n: -1, terms: { form: { box: 0 }, col: { box: 9, shows: 2, due: 4, why: "x" } } })).toEqual({ n: 0, next: FIRST_AFTER, terms: { col: { box: SETTLED, shows: 2 } } });
+});
+
+test("the real data: a category waits out of every exercise until its term has been introduced", () => {
+  const T0 = "2026-10-24T12:00:00.000Z";
+  const waiting = unmet(rix, freshIntro(), [1, 2]);
+  expect(catOpen(rix.CAT.col!, [1, 2])).toBe(true);
+  expect(catOpen(rix.CAT.col!, [1, 2], waiting)).toBe(false);
+  // Relations and Pervasions: no pair with a category still waiting
+  const recent: string[] = [];
+  for (let s = 1; s <= 60; s++) {
+    const p = nextPair(rix, realPool, { hist: [], recent, rng: seeded(s), now: () => 1_700_000_000_000, stages: [1, 2], unmet: waiting });
+    expect(waiting.has(p.catA!) || waiting.has(p.catB!), p.a + " / " + p.b).toBe(false);
+  }
+  // with Form and Color met, their pairs come back
+  const met = unmet(rix, stopShown(stopShown(freshIntro(), "form", T0), "col", T0), [1, 2]);
+  const seen = new Set<string>();
+  for (let s = 1; s <= 200; s++) {
+    const p = nextPair(rix, realPool, { hist: [], recent: [], rng: seeded(s), now: () => 1_700_000_000_000, stages: [1, 2], unmet: met });
+    expect(met.has(p.catA!) || met.has(p.catB!)).toBe(false);
+    seen.add(p.catA!); seen.add(p.catB!);
+  }
+  expect(seen.has("form") || seen.has("col"), "the met terms are asked about").toBe(true);
+  // Categories: no row for a waiting category
+  for (let s = 1; s <= 40; s++) {
+    const q = drawPlace(rix, null, { stages: [1, 2], rng: seeded(s), unmet: waiting });
+    if (q) for (const r of q.rows) expect(waiting.has(r.cat), q.thing.n + ": " + r.cat).toBe(false);
+  }
+  // Syllogisms: from the established bases on the course's terms come in, and a waiting one is passed over while others remain
+  const four = unmet(rix, freshIntro(), [1, 2, 3, 4]);
+  const some = new Set([...four].filter((c) => c !== "form" && c !== "ft"));
+  for (let s = 1; s <= 40; s++) {
+    const c = drawSyllogism(rix, { hist: [], recent: [], rng: seeded(s), stages: [1, 2, 3, 4], unmet: some });
+    expect(some.has(c.catR) || some.has(c.catP), c.id).toBe(false);
+  }
+});
+
+test("the negation track is offered step by step: one side after plain pairs in a row, both sides after negated ones", () => {
+  const run = (n: number, ok: boolean, neg = false) => Array.from({ length: n }, () => ({ ok, neg }));
+  expect(NEG_STREAK).toBe(5);
+  expect(negationOffer(run(4, true), "off")).toBeNull();
+  expect(negationOffer(run(5, true), "off")).toBe("one");
+  expect(negationOffer([...run(5, true), ...run(1, false)], "off"), "a miss ends the run").toBeNull();
+  expect(negationOffer([...run(1, false), ...run(5, true)], "off"), "an earlier miss does not count").toBe("one");
+  expect(negationOffer([...run(3, true), ...run(2, false, true), ...run(2, true)], "off"), "a negated pair neither extends nor breaks the plain run").toBe("one");
+  expect(negationOffer(run(9, true), "one"), "on one side, only negated pairs count").toBeNull();
+  expect(negationOffer([...run(4, true, true), ...run(3, false), ...run(1, true, true)], "one")).toBe("both");
+  expect(negationOffer([...run(4, true, true), ...run(1, false, true)], "one")).toBeNull();
+  expect(negationOffer(run(20, true, true), "both"), "nothing after both sides").toBeNull();
+  expect(negationOffer(run(3, true), "off", 3)).toBe("one");
+});
+
+test("the run towards the stages: any exercise moves it up, only questions new at the highest stage on count, and a miss counts as its exercise says", () => {
+  const walk = (on: number[], steps: [number, boolean, MissKind][], run: StageRun = freshRun()) => steps.reduce((r, [st, ok, miss]) => runAfter(r, on, st, ok, miss), run);
+  const right = (n: number, st = 1, miss: MissKind = "words") => Array.from({ length: n }, () => [st, true, miss] as [number, boolean, MissKind]);
+  const wrong = (n: number, st = 1, miss: MissKind = "words") => Array.from({ length: n }, () => [st, false, miss] as [number, boolean, MissKind]);
+  expect(STAGE_STREAK).toBe(5);
+  expect(STAGE_STUMBLE).toBe(4);
+  expect(walk([1], right(5))).toEqual({ up: 5, down: 0 });
+  expect(walk([1, 2], [...right(3, 2), ...right(4, 1), ...wrong(2, 1), ...right(2, 2)]), "a lower stage neither extends nor ends the run").toEqual({ up: 5, down: 0 });
+  expect(walk([1, 2], [...right(2, 2, "words"), ...right(2, 2, "pair"), ...right(1, 2, "form")]), "every exercise moves it up").toEqual({ up: 5, down: 0 });
+  expect(walk([1], [...right(4), ...wrong(1, 1, "form")]), "a wrong syllogism or own pair is about the form: nothing changes").toEqual({ up: 4, down: 0 });
+  expect(walk([1], [...right(4), ...wrong(1, 1, "pair")]), "a wrong pervasion ends the run up").toEqual({ up: 0, down: 0 });
+  expect(walk([1], [...wrong(3), ...wrong(1, 1, "pair")]), "and does not count down").toEqual({ up: 0, down: 3 });
+  expect(walk([1, 2], [...wrong(3, 2), ...right(1, 2, "form")]), "a right answer ends the run down").toEqual({ up: 1, down: 0 });
+  expect(walk([1, 2], wrong(4, 2))).toEqual({ up: 0, down: 4 });
+});
+
+test("the offer of the stages: up after five right when the stage's terms have had their stops, down after four wrong about the words, never below 1", () => {
+  const r = (up: number, down = 0): StageRun => ({ up, down });
+  expect(stageOffer(r(4), [1], true, "words")).toBeNull();
+  expect(stageOffer(r(5), [1], true, "form")).toEqual({ kind: "up", stage: 2 });
+  expect(stageOffer(r(5), [1, 3], true, "pair"), "above the highest on, not the next one that is off").toEqual({ kind: "up", stage: 4 });
+  expect(stageOffer(r(5), [1], false, "words"), "the next stage waits for this stage's terms").toBeNull();
+  expect(stageOffer(r(9), [MAX_STAGE], true, "words"), "nothing above the top").toBeNull();
+  expect(stageOffer(r(0, 4), [1, 2], true, "words")).toEqual({ kind: "down", stage: 2 });
+  expect(stageOffer(r(0, 4), [1, 2], true, "pair"), "down only where a mistake is about the words").toBeNull();
+  expect(stageOffer(r(0, 4), [1, 2], true, "form")).toBeNull();
+  expect(stageOffer(r(0, 3), [1, 2], true, "words")).toBeNull();
+  expect(stageOffer(r(0, 9), [1], true, "words"), "nothing below stage 1").toBeNull();
+  expect(normRun('{"up":3,"down":-2}')).toEqual({ up: 3, down: 0 });
+  expect(normRun("not json")).toEqual(freshRun());
+  expect(normRun(null)).toEqual(freshRun());
+});
+
+test("a new exercise starts with review: a quarter of its questions new at the highest stage until its first run of five right, then half", () => {
+  expect(newShare(undefined)).toBe(START_SHARE);
+  expect(START_SHARE).toBe(0.25);
+  const after = (oks: boolean[]) => oks.reduce((r, ok) => exerciseAfter(r, ok), undefined as ReturnType<typeof exerciseAfter> | undefined);
+  expect(after([true, true, true, true])).toEqual({ run: 4, right: 4 });
+  expect(newShare(after([true, true, true, true, false, true]))).toBe(START_SHARE);
+  const warm = after([true, true, true, true, true]);
+  expect(warm).toEqual({ run: 5, right: 5 });
+  expect(newShare(warm)).toBe(0.5);
+  expect(after([true, true, true, true, true, false, false, true]), "once warmed up, it stays so; every right answer counts").toEqual({ run: 5, right: 6 });
+  expect(normExRuns('{"practice":{"run":9,"right":12},"Bad Key":{"run":1,"right":1},"debate":"x"}')).toEqual({ practice: { run: 5, right: 12 } });
+  expect(normExRuns("[")).toEqual({});
+  // the pair draw follows the share
+  const on = [1, 2, 3], at3 = new Set(poolAt(rix, realPool, on).filter((e) => e.st === 3).map(pairKey));
+  const share3 = (newShare?: number) => Array.from({ length: 1000 }, (_, s) => chooseEntry(rix, realPool, { hist: [], recent: [], rng: seeded(s), stages: on, newShare })).filter((e) => at3.has(pairKey(e))).length / 1000;
+  expect(share3(0.25)).toBeGreaterThan(0.15);
+  expect(share3(0.25)).toBeLessThan(0.35);
+  expect(share3(0.5)).toBeGreaterThan(0.4);
+  expect(share3(0.5)).toBeLessThan(0.6);
+  expect(share3(), "half when no share is given").toBeCloseTo(share3(0.5), 5);
+});
+
+test("an exercise's guided form is on until its twentieth right answer turns it off, once; a choice the learner made stays", () => {
+  expect(GUIDE_RIGHT).toBe(20);
+  expect(guidedOn(undefined)).toBe(true);
+  expect(guidedOn(false)).toBe(false);
+  expect(guideTurnsOff(undefined, { run: 5, right: 19 })).toBe(false);
+  expect(guideTurnsOff(undefined, { run: 5, right: 20 })).toBe(true);
+  expect(guideTurnsOff(undefined, undefined)).toBe(false);
+  expect(guideTurnsOff(true, { run: 5, right: 40 }), "turned on by the learner: it stays on").toBe(false);
+  expect(guideTurnsOff(false, { run: 5, right: 40 }), "already off").toBe(false);
+  expect(normGuided('{"practice":false,"find":true,"Bad":false,"debate":"no"}')).toEqual({ practice: false, find: true });
+  expect(normGuided("nope")).toEqual({});
 });
 
 test("the real data: a category opens at its stage and stays open; a person or what does not exist meets the physical categories from stage 4", () => {
@@ -965,6 +1197,38 @@ test("the relation to ask for is one of the five, never the one turned down, and
   expect(drawRelation([], () => 0.999999999)).toBe("con"); // the last of the list is where a random source at the top ends up
 });
 
+test("the learner can name a negation, and the pair is made with that side negated", () => {
+  const at = () => 1_700_000_000_000;
+  for (const w of ["non-(wooden things)", "non-wooden things", "Non wooden thing.", "non-(a wooden thing)"]) expect(named(w), w).toEqual({ label: "non-(wooden things)", cat: "wooden", neg: true });
+  expect(named("non-forms")).toEqual({ label: "non-forms", cat: "form", neg: true });
+  expect(named("non-apples")).toEqual({ label: "non-apples", cat: null });
+  expect(named("non-(non-forms)"), "a negation of a negation stays as typed").toEqual({ label: "non-(non-forms)", cat: null });
+  // all wooden things are forms: with B negated, nothing is neither (what is not a form is not wooden either), so four possibilities with an empty Neither
+  const b = findPair(ix, "4", named("forms"), named("non-wooden things"), seeded(4), at);
+  expect(b).toMatchObject({ a: "forms", b: "non-(wooden things)", catA: "form", catB: "wooden", neg: "b", relation: "4" });
+  expect(refOf(b, "nei")).toBeNull();
+  // the same with A negated: the pair of the learner's order, not B's
+  const a = findPair(ix, "4", named("non-wooden things"), named("forms"), seeded(4), at);
+  expect(a).toMatchObject({ a: "non-(wooden things)", b: "forms", catA: "wooden", catB: "form", neg: "a", relation: "4" });
+  // with the brackets switched off the learner's words are kept as the course book's plain form: "non-wooden things"
+  const nb = nameThing(ix, "non-(wooden things)", false);
+  expect(nb).toEqual({ label: "non-wooden things", cat: "wooden", neg: true });
+  expect(findPair(ix, "4", named("forms"), nb, seeded(4), at, undefined, undefined, false)).toMatchObject({ b: "non-wooden things", catB: "wooden", neg: "b", relation: "4" });
+  // a thing and its own negation have no common locus, and nothing is neither
+  expect(findPair(ix, "con", named("wooden things"), named("non-wooden things"), seeded(4), at)).toMatchObject({ neg: "b", relation: "con" });
+  expect(findPair(ix, "mi", named("non-forms"), named("non-bodies"), seeded(4), at)).toMatchObject({ neg: "ab", relation: "mi" });
+  // a negation beside the learner's own words: the pair is the learner's own, and keeps the category of the negated side and which side it is, as a known pair does
+  expect(findPair(ix, "4", named("non-wooden things"), named("red apples"), seeded(4), at)).toMatchObject({ own: true, a: "non-(wooden things)", catA: "wooden", neg: "a", b: "red apples", catB: null });
+});
+
+test("a negation of A alone moves the cells as A's own map, which is its own inverse; with B's it makes both sides", () => {
+  for (const neg of ["a", "b", "ab"] as const) for (const c of CELLS) expect(NEG_CELL[neg][NEG_CELL[neg][c]], neg + " " + c).toBe(c);
+  for (const c of CELLS) expect(NEG_CELL.a[NEG_CELL.b[c]]).toBe(NEG_CELL.ab[c]);
+  expect([negSides({ neg: "a" }), negSides({ neg: "b" }), negSides({ neg: "ab" }), negSides({})]).toEqual([[true, false], [false, true], [true, true], [false, false]]);
+  expect([isNeg("a"), isNeg("b"), isNeg("ab"), isNeg("x"), isNeg(undefined)]).toEqual([true, true, true, false, false]);
+  expect(negLine({ a: "non-forms", b: "sounds", neg: "a" })).toContain('Negation: A ("non-forms") is a negation');
+});
+
 test("every attempt at a pair of this mode has an id of its own, in the form of the pair ids", () => {
   expect(findId(seeded(1), () => 1_700_000_000_000)).toMatch(/^f-[0-9a-z]+$/);
   expect(findId(seeded(1), () => 1_700_000_000_000)).not.toBe(findId(seeded(2), () => 1_700_000_000_000));
@@ -1045,6 +1309,8 @@ test("the tutor's line on the relation of a pair: which relation holds, in the l
   expect(read("Relation: three possibilities A in B => no", "mi")).toEqual({ answer: "no", rel: "3ab" });
   expect(read("Relation: Three possibilities, B in A => no", "3ab")).toEqual({ answer: "no", rel: "3ba" });
   expect(read("Relation: Mutually exclusive => no", "3ba")).toEqual({ answer: "no", rel: "con" });
+  // four possibilities without neither (a pair with a negation) is four possibilities
+  expect(read("Relation: Four possibilities without neither => yes", "4")).toEqual({ answer: "yes", rel: "4" });
   expect(read("Relation: none of them => unsure", "4")).toEqual({ answer: "unsure", rel: null });
   expect(read("Relation: => no", "4")).toEqual({ answer: "no", rel: null }); // wrong, but it says not which relation the pair has
   // the relation named wins over the yes or no when the two disagree
@@ -1601,10 +1867,11 @@ test("the tutor's facts on a negated side are read in reverse, and the tutor is 
 test("the negation track: about a third of the pairs negated, both sides only when asked, and none when off", () => {
   const count = (negation?: "one" | "both") => {
     const st = { hist: [] as HistoryEntry[], recent: [] as string[], rng: seeded(7), now: () => 0, stages: [1, 2, 3, 4, 5, 6], ...(negation ? { negation } : {}) };
-    const n = { none: 0, b: 0, ab: 0 };
+    const n: Record<string, number> = { none: 0, a: 0, b: 0, ab: 0 };
     for (let i = 0; i < 300; i++) {
       const p = nextPair(rix, realPool, st);
       n[p.neg ?? "none"]++;
+      negSides(p).forEach((on, i) => on && expect(i ? p.b : p.a, p.neg).toMatch(/^non-/));
       // the examples show the relation: a cell has one exactly where the cells of the data are filled (a negated label with its own category,
       // "tastes" and "non-(objects of tongue consciousness)", leaves nothing that is neither, and stays mutually exclusive)
       const shown = Object.fromEntries(CELLS.map((c) => [c, refOf(p, c) ? [c] : []])) as Record<CellId, string[]>;
@@ -1613,12 +1880,15 @@ test("the negation track: about a third of the pairs negated, both sides only wh
     }
     return n;
   };
-  expect(count()).toEqual({ none: 300, b: 0, ab: 0 });
+  expect(count()).toEqual({ none: 300, a: 0, b: 0, ab: 0 });
+  // one side is A or B alike, as the tutors negate either ("non-colors" and "form sources", "tangible objects" and "non-(form sources)")
   const one = count("one");
   expect(one.ab).toBe(0);
-  expect(one.b).toBeGreaterThan(60);
-  expect(one.b).toBeLessThan(140);
+  expect(one.a + one.b).toBeGreaterThan(60);
+  expect(one.a + one.b).toBeLessThan(140);
+  expect(one.a).toBeGreaterThan(25);
+  expect(one.b).toBeGreaterThan(25);
   const both = count("both");
   expect(both.ab).toBeGreaterThan(20);
-  expect(both.b).toBeGreaterThan(20);
+  expect(both.a + both.b).toBeGreaterThan(20);
 });
