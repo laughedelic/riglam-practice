@@ -24,9 +24,12 @@ export interface OpenExample {
   text: string;
 }
 
-/** The learner's examples still "cmp" in a checked answer, in the order of `things` (the examples with their cells), at most `max`. A pair of the learner's own has none: the data cannot judge it. */
+/**
+ * The learner's examples still "cmp" in a checked answer, in the order of `things` (the examples with their cells), at most `max`. A pair of the learner's own
+ * has none: the data cannot judge it. Nor has a pair with a negated side: what is known is said of the categories, so the tutor checks those examples.
+ */
 export function openExamples(p: PairLike, res: Pick<GradeResult, "cells">, things: readonly { text: string; cells: readonly CellId[] }[], max = 8): OpenExample[] {
-  if (p.own) return [];
+  if (p.own || p.neg) return [];
   return things.flatMap((t) => t.cells.filter((c) => res.cells[c]?.v === "cmp").map((cell) => ({ cell, text: t.text }))).slice(0, max);
 }
 

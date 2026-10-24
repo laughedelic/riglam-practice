@@ -24,7 +24,8 @@ test("the sliders button opens the practice options of the exercise and the X cl
   await expect(sheet.locator(".shh h2")).toHaveText("Practice options");
   await expect(sheet.locator(".shh small")).toHaveCount(0); // the exercise is not a subtitle of the sheet: what only it has is a section
   expect(await names(page)).toEqual(["notation", "blitz", "a/b markers", "definitions", "stages"]);
-  expect(await sections(page)).toEqual([]); // Relations has nothing of its own yet
+  expect(await sections(page)).toEqual([]); // Relations has nothing of its own: the negations are with the stages
+  expect(await rowNames(page)).toEqual([]);
   await page.locator("#over .oc").click();
   await expect(sheet).toBeHidden();
   await expect(sessBtn(page)).toBeFocused();

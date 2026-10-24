@@ -9,7 +9,7 @@ export type { Judgement } from "./grading";
 export type {
   CellResult, DebateInput, GradeDraft, GradeResult, HistoryEntry, Pair, PoolEntry, PoolRel, PracticeAnswer, Verdict,
 } from "./types";
-export { FEATURE, RECENT_MAX, buildPool, cellsFor, chooseEntry, inUniverse, judgeable, makePair, nextPair, pairKey, pairOf, relOfCells } from "./universe";
+export { FEATURE, NEG_SHARE, RECENT_MAX, buildPool, cellsFor, chooseEntry, inUniverse, judgeable, makePair, negateCells, nextPair, pairKey, pairOf, relOfCells } from "./universe";
 export type { Clock, DrawState, Rng, Witnesses } from "./universe";
 export { cap, gradeOf, isMiss, pick } from "./util";
 export { NAME_CELL, VERDICT_RE, applyRelationVerdict, applyVerdicts, factNote, fitOf, noteParts, parseFactLine, parseRelationVerdict, parseVerdicts, partsText, placeFacts } from "./verdict";

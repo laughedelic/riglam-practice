@@ -67,12 +67,13 @@ export async function ask(text,kind,byItself){
   if(U.knowing){ await U.knowing; if(U!==state.ui||!canAsk()||U.ctl||(kind==="explain"&&U.explained)) return; }
   const p=C.p, direct=!!state.sample;                  // the host's own model call, or else the app's server
   const quorum=kind==="explain"&&quorumWanted(U);     // the explanation of a checked answer is asked of Quorum, where this server offers it, this device has it on and an example is left to check
-  const body=kind==="explain"?explainAsk(U):text;
+  const body=kind==="explain"?explainAsk(U,!!p.neg):text;
   // The server keeps the examples only with `share`, which a page sends where the server said it keeps learned facts and the learner has been told (share-notice.js). The
   // first question that would name examples waits for the learner's answer to the one-time dialog (the answer, yes or no, is kept on the device); a learner who left the
   // answer meanwhile (the dialog covers the page, but a shortcut or the browser's Back may still move the exercise on) is asked nothing for it, as after the lookup above.
   // Without an answer (a browser that could not open the dialog) no example is named.
-  let examples=!direct&&kind==="explain"&&sharing()?openExamples(U):[];
+  // a pair with a negated side names none: what the server keeps is said of the categories themselves
+  let examples=!direct&&kind==="explain"&&!p.neg&&sharing()?openExamples(U):[];
   if(examples.length&&state.learns&&!state.shareTold){
     await askShare();
     if(U!==state.ui||!canAsk()||U.ctl||(kind==="explain"&&U.explained)) return;

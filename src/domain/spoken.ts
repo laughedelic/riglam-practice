@@ -94,10 +94,10 @@ function findTerm(heard: string[], term: string[], name: "ta" | "tb"): Span[] {
   }
   return out;
 }
-/** The heard words with the first term said in them as "ta" and the second as "tb"; `found` is how many of the two were said. */
+/** The heard words with the first term said in them as "ta" and the second as "tb"; `found` is how many of the two were said. Where one term holds the other ("physical things" in "physical things outside a person's continuum"), the longer is read first. */
 function mask(w: string, terms: PairTerms): { words: string[]; found: number } {
   const orig = w.split(" ").filter(Boolean), sing = orig.map(singular), ta = termWords(terms.a), tb = termWords(terms.b);
-  const all = [...(ta.length ? findTerm(sing, ta, "ta") : []), ...(tb.length ? findTerm(sing, tb, "tb") : [])].sort((x, y) => y.score - x.score || x.from - y.from);
+  const all = [...(ta.length ? findTerm(sing, ta, "ta") : []), ...(tb.length ? findTerm(sing, tb, "tb") : [])].sort((x, y) => y.score - x.score || y.to - y.from - (x.to - x.from) || x.from - y.from);
   const used = new Array<boolean>(orig.length).fill(false), spans: Span[] = [];
   for (const s of all) {
     if (used.slice(s.from, s.to).some(Boolean)) continue;
@@ -162,9 +162,9 @@ function relationByTerms(w: string, terms: PairTerms): RelKey | null {
 }
 
 /**
- * The relation named. `order` is the page's order of the five (keys 1 to 5), so "one", "two" and "five" pick by
- * number like the keys do; "three" alone names three possibilities and "four" four possibilities, as their names
- * start so. "3" means three possibilities with no direction: the page asks which way. "A in B", "B contains A" and
+ * The relation named. `order` is the page's order of the options (keys 1 to 5), so "one", "two" and "five" pick by number like the
+ * keys do; "three" alone names three possibilities and "four" four possibilities, as their names start so. "3" means three possibilities
+ * with no direction: the page asks which way. "A in B", "B contains A" and
  * the like give the direction, with or without "three possibilities" before them. With the pair's `terms` it also
  * takes what is written under each option ("All products are functional things, not the reverse").
  */
