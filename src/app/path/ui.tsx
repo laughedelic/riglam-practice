@@ -40,9 +40,9 @@ export const D = ({ cls, mark }: { cls: string; mark?: string }) => <span class=
 export const St = ({ d, cls = "", children }: { d: ComponentChildren; cls?: string; children?: ComponentChildren }) => <div class={"st " + cls}>{d}<div class="ptx">{children}</div></div>;
 /** A section of the path, which draws its own piece of the line (walked, cur, gap, ahead, okp, nop, ptp, ptail). */
 export const Sx = ({ cls, children }: { cls: string; children?: ComponentChildren }) => <section class={"sx " + cls}>{children}</section>;
-/** The heading of a step: "1 Relation", and what it asks in a lighter voice. */
-export const Head = ({ d, h, sub, later }: { d: ComponentChildren; h: string; sub?: string; later?: boolean }) =>
-  <St d={d} cls="sechead"><span class={"ph" + (later ? " later" : "")}>{h}{sub ? <span>{sub}</span> : null}</span></St>;
+/** The heading of a step: "1 Relation", and what it asks in a lighter voice; `aside` at its right (Skip, where the step has no favorites mark). */
+export const Head = ({ d, h, sub, later, aside }: { d: ComponentChildren; h: string; sub?: string; later?: boolean; aside?: ComponentChildren }) =>
+  <St d={d} cls={"sechead" + (aside ? " hasaside" : "")}><span class={"ph" + (later ? " later" : "")}>{h}{sub ? <span>{sub}</span> : null}</span>{aside}</St>;
 export const Gap = ({ h }: { h: number }) => <div style={{ height: h + "px" }} />;
 
 // the relation figures, vertical: A above, B below (the diagrams transposed); the keys are the app's relations
