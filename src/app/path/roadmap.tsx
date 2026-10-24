@@ -8,7 +8,6 @@ import { EXERCISES, parked, todayCount } from "../shell/exercises.js";
 import { toggleMenu } from "../shell/menu.js";
 import { toggleOpts } from "../shell/options.js";
 import { setTab } from "../shell/tabs.js";
-import { pathNote } from "./shell.tsx";
 import { Icon, Knob, dia } from "./ui.tsx";
 
 const BRAND = '<polygon points="256,61 371,177 256,292 141,177" fill="#faaf3f"/><polygon points="256,162 400,306 256,451 112,306" fill="#3155a4"/><polygon points="321,227 256,292 191,227 256,162" fill="#4c8a63"/>';
@@ -33,10 +32,10 @@ function go(k: string) {
 function openSettings() { state.menuOpen = false; state.menuPeek = false; state.sessOpen = false; state.sessPage = null; state.skipAsk = false; toggleOpts(true); }
 
 function Node({ k, name }: { k: string; name: string }) {
-  const at = PLACES[k], e = EXERCISES.find((x) => x.k === k), off = !!e && e.needs === "examples" && !state.EX;
-  const cur = state.tab === k && !state.optsOpen, cont = !cur && !off && parked(k), c = cur ? "cur" : off ? "off" : "";
-  const vs = todayOf(k).slice(-4), lines = off ? ["not on this", "device yet"] : at.lines;
-  const act = () => off ? pathNote(name + " needs the course's examples, which this device does not hold yet") : go(k);
+  const at = PLACES[k];
+  const cur = state.tab === k && !state.optsOpen, cont = !cur && parked(k), c = cur ? "cur" : "";
+  const vs = todayOf(k).slice(-4), lines = at.lines;
+  const act = () => go(k);
   return <g role="button" tabIndex={0} aria-label={name + (cur ? ", here" : cont ? ", continue" : "")} aria-current={cur ? "page" : undefined}
     onClick={act} onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); act(); } }}>
     <rect class="hit" x={at.x - 56} y={at.y - 12} width="112" height="70" />

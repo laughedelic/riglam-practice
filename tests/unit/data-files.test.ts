@@ -19,6 +19,20 @@ test("the open file has no definitions, no notes and no group notes", () => {
   expect("notes" in open).toBe(false);
 });
 
+// The questions name the two terms of a pair in the singular ("Name something that is both a metal thing and an electric device").
+// A label the table of singulars lacks stays plural next to its partner, so every label of every category needs a form of its own.
+test("every category label has a singular for the questions, unless it is a mass noun", async () => {
+  const { singular } = await import("../../src/app/debate/text.js");
+  const mass = new Set(["matter", "food", "furniture", "kitchenware"]);
+  for (const c of readOpen().cats) for (const label of c.labels as string[]) {
+    const one = singular(label);
+    if (mass.has(label)) expect(one, `${label} stays as it is`).toBe(label);
+    else expect(one, `${label} has a singular`).toMatch(/^(an? |non-)/);
+  }
+  expect(singular("metal things")).toBe("a metal thing");
+  expect(singular("electric devices")).toBe("an electric device");
+});
+
 test("the course part is not tracked, and no encrypted copy is", () => {
   for (const f of ["definitions.json", "notes.json", "examples.json", "examples-device.json"]) expect(execFileSync("git", ["check-ignore", "-v", `data-private/${f}`], { cwd: root }).toString()).toMatch(/\.gitignore/);
   expect(trackedFiles().filter((f) => f.startsWith("data-private/") || f.endsWith(".enc"))).toEqual([]);

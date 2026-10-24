@@ -33,14 +33,23 @@ const SING={"functional things":"a functional thing","impermanent things":"an im
 "non-associated compositional factors":"a non-associated compositional factor","impermanent things that are neither matter nor mind":"an impermanent thing that is neither matter nor mind","persons":"a person","sentient beings":"a sentient being","hidden phenomena":"a hidden phenomenon","expressive sounds":"an expressive sound","sounds that express a meaning":"a sound that expresses a meaning",
 "wooden things":"a wooden thing","metal things":"a metal thing","white things":"a white thing","red things":"a red thing","green things":"a green thing","round things":"a round thing","square things":"a square thing","liquids":"a liquid","food":"food","things you can eat":"a thing you can eat","drinks":"a drink","hot things":"a hot thing","furniture":"furniture","musical instruments":"a musical instrument","plants":"a plant","bodies and body parts":"a body or a body part","animals":"an animal","humans":"a human","emotions":"an emotion","feelings":"a feeling","memories":"a memory","thoughts":"a thought","dreams":"a dream",
 /* labels of older prepared pairs */
-"permanent things":"a permanent thing","things that are produced":"a thing that is produced","things that exist":"a thing that exists","things that can be known":"a thing that can be known","things that can be heard":"a thing that can be heard","things that have causes":"a thing that has causes","things with color":"a thing with color","hard things":"a hard thing","cold things":"a cold thing","muscles":"a muscle","people":"a person","monks":"a monk","tables":"a table","bodies":"a body","mental factors":"a mental factor","dogs":"a dog","instruments":"an instrument"};
+"permanent things":"a permanent thing","things that are produced":"a thing that is produced","things that exist":"a thing that exists","things that can be known":"a thing that can be known","things that can be heard":"a thing that can be heard","things that have causes":"a thing that has causes","things with color":"a thing with color","hard things":"a hard thing","cold things":"a cold thing","muscles":"a muscle","people":"a person","monks":"a monk","tables":"a table","bodies":"a body","mental factors":"a mental factor","dogs":"a dog","instruments":"an instrument",
+/* labels of the everyday categories that are not "<word> things" */
+"things made of fabric":"a thing made of fabric","kitchenware":"kitchenware","electric devices":"an electric device","clothes":"a piece of clothing","fruits":"a fruit","birds":"a bird","fish":"a fish","trees":"a tree","women":"a woman","men":"a man","children":"a child","monks and nuns":"a monk or a nun"};
 try{ const v=localStorage.getItem("rd-wording"); if(WORDINGS[v]) state.wording=v; }catch(e){}
 export const Wd=()=>WORDINGS[state.wording];
 // a term of the pair ("A" or "B") in the singular, with its article: "a functional thing"
 export const termSing=x=>singular(x==="A"?state.cur.p.a:state.cur.p.b);
 // the chip and the first word of its term stay on one line
 /** A category label in the singular, with its article ("memories" -> "a memory"). */
-export const singular=lab=>SING[american(lab)]||lab.replace(/^(\w+) things$/,"a $1 thing");
+export const singular=lab=>SING[american(lab)]||negSingular(lab)||lab.replace(/^(\w+) things$/,"a $1 thing");
+// a negated label ("non-products", "non-(wooden things)", "non-wooden things", the negation track) in the singular: "a non-product", "a non-(wooden thing)", "a non-wooden thing", "non-food"
+function negSingular(lab){
+  const m=/^non-\((.+)\)$/.exec(lab)||/^non-(.+)$/.exec(lab); if(!m) return "";
+  const s=singular(m[1]), a=/^an? /.exec(s), core=a?s.slice(a[0].length):s;
+  if(!a&&/\s/.test(m[1])&&!/^non-\(/.test(lab)) return "";                // a label of the data that starts with "non-" and is not a negation of one
+  return (a?"a ":"")+"non-"+(/^non-\(/.test(lab)?"("+core+")":core);
+}
 export const termNode=(x,p=state.cur.p)=>{ const lab=x==="A"?p.a:p.b, [w,...r]=singular(lab).split(" ");
   return el("span",{class:"qterm"},el("span",{class:"keep"},state.showAB?[L(x)," "]:null,el("span",{class:"t",text:w})),r.length?el("span",{class:"t",text:" "+r.join(" ")}):null); };
 export const qNode=i=>Wd().q[i].map(x=>x==="A"||x==="B"?termNode(x):x===N?el("span",{class:"not",text:"not"}):x);

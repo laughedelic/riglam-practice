@@ -12,10 +12,12 @@ import { el } from "../core/dom.js";
 import { setTimer } from "../debate/flow.js";
 import { WORDINGS } from "../debate/text.js";
 import { exName } from "../shell/exercises.js";
-import { levelSwitches } from "../shell/levels.js";
+import { setStages } from "../shell/stages.js";
 import { toggleOpts } from "../shell/options.js";
-import { PAGES, SYMS, openPage, picks, quorumNote, sessBack, setAutoExplain, setBlitzUse, setDefLang, setFindSuggest, setNota, setShow, setSyllogismGuide, setSyllogismLevel, setSyllogismWording, setWording, toggleSess } from "../shell/session.js";
+import { PAGES, SYMS, openPage, picks, quorumNote, sessBack, setAutoExplain, setBlitzUse, setDefLang, setFindSuggest, setNegBrackets, setNegation, setNota, setShow, setSyllogismGuide, setSyllogismWording, setWording, toggleSess } from "../shell/session.js";
 import { kindMs } from "../shell/timers.js";
+import { stageCounts } from "../../domain/reference.ts";
+import { STAGES, itemStage, toggleStage } from "../../domain/stages.ts";
 import { voiceListRows, voicePageBody, voiceShown } from "../shell/voice.js";
 import { Bridge, D, Icon, Knob, Toggle, Words } from "./ui.tsx";
 
@@ -27,7 +29,15 @@ const Switch = ({ lb, title, note, on, toggle }: { lb: string; title: string; no
 const More = ({ page, label = "more" }: { page: string; label?: string }) => <button type="button" class="more" aria-label={PAGES[page as keyof typeof PAGES] + ": " + label} onClick={() => openPage(page)}>{label}</button>;
 const secs = (kind: string) => Math.round(kindMs(kind) / 1000);
 const timesLine = () => state.tab === "syllogism" ? "Syllogism " + secs("syl") + " s" : "Relation " + secs("rel") + " s · Example " + secs("ex") + " s";
-const levelsLine = () => (state.exLevels.length === 1 ? "Level " : "Levels ") + state.exLevels.join(", ");
+// the exercises that draw negated pairs, and so show the Negations choice with the stages
+const negates = () => state.tab === "practice";
+const NEG_NAME: Record<string, string> = { one: "one side", both: "both sides" };
+// the stages that are on, in a line: runs joined ("Stages 1–3, 5"), and the negations where they are drawn
+const stagesLine = () => {
+  const runs: [number, number][] = [];
+  for (const n of state.stages as number[]) { const r = runs[runs.length - 1]; if (r && r[1] === n - 1) r[1] = n; else runs.push([n, n]); }
+  return (state.stages.length === 1 ? "Stage " : "Stages ") + runs.map(([a, b]) => (a === b ? String(a) : a + "–" + b)).join(", ") + (negates() && NEG_NAME[state.negation] ? " · negations: " + NEG_NAME[state.negation] : "");
+};
 const toSettings = () => { toggleSess(false); toggleOpts(true); };
 
 // the classic list builders, drawing the Path's rows: voice gives its rows through them
@@ -46,16 +56,15 @@ function List() {
     note={"Right after you check an answer, the AI tutor explains it" + (syl ? "" : " and checks the examples the page could not") + ". Off, it waits for you to ask."} /> : null;
   const blitz = <Row lb="Blitz"><button type="button" class="two" role="switch" aria-checked={state.blitzUse ? "true" : "false"} onClick={() => setBlitzUse(!state.blitzUse)}>
     <span><b>Blitz</b><small>{state.blitzUse ? timesLine() : "off: no stopwatch in the top bar"}</small></span><Toggle on={state.blitzUse} /></button>{state.blitzUse ? <More page="times" label="times" /> : null}</Row>;
-  const levels = state.EX ? <Row lb="Levels"><b>Examples</b><small>{levelsLine()}</small><More page="levels" /></Row> : null;
+  const stages = <Row lb="Stages"><b>Stages</b><small>{stagesLine()}</small><More page="stages" /></Row>;
   const foot = <p class="pnoteline" style={{ padding: "10px 18px 4px calc(var(--m) + 22px)" }}>The Magic Key, your account, data{tutor && state.learns ? ", sharing your examples" : ""} and the version are in <button type="button" class="pbtn" style={{ padding: 0 }} onClick={toSettings}>Settings</button>.</p>;
   if (cats) return <>
     <Row lb="Ask"><b>How step 1 asks</b><Words label="How step 1 asks" items={[["all", "All at once"], ["one", "One by one"]]} cur={state.catsAsk} on={setCategoriesAsk} /></Row>
-    {levels}{foot}</>;
+    {stages}{foot}</>;
   if (syl) return <>
     <Row lb="Words"><b>Wording of the syllogism</b><Words label="Wording" items={[["take", "Take X"], ["formal", "Formal"]]} cur={state.syllogismWording} on={setSyllogismWording} /></Row>
-    <Row lb="Things"><b>Which things</b><Words label="Which things the syllogisms are about" items={[[1, "Everyday"], [2, "With Dudra terms"]]} cur={state.syllogismLevel} on={setSyllogismLevel} /></Row>
     <Switch lb="Guide" title="Show the structure" note="S, P and R named under the sentence, and what each reply says in them" on={state.syllogismGuide} toggle={() => setSyllogismGuide(!state.syllogismGuide)} />
-    {blitz}{tutorRow}{foot}</>;
+    {stages}{blitz}{tutorRow}{foot}</>;
   return <>
     {perv ? <Row lb="Words"><b>Wording of the questions</b><Words label="Wording of the questions" items={Object.entries(WORDINGS).map(([k, w]) => [k, (w as { name: string }).name] as [string, string])} cur={state.wording} on={setWording} /><More page="wording" /></Row> : null}
     {perv ? <Switch lb="Why?" title="Full phrases" note="spell out Why? answers" on={state.fullPh} toggle={() => setShow("full", !state.fullPh)} /> : null}
@@ -64,7 +73,7 @@ function List() {
     {timed ? blitz : null}
     <Switch lb="A/B" title="A/B markers" note="before the terms" on={state.showAB} toggle={() => setShow("ab", !state.showAB)} />
     <Row lb="Terms"><b>Definitions</b><Words label="Languages of the definitions" items={[["en", "English"], ["enru", "English + Russian"]]} cur={state.defLang} on={setDefLang} /><More page="defs" /></Row>
-    {(timed || find) ? levels : null}
+    {stages}
     {voiceShown() ? <Bridge own fill={() => voiceListRows(domSw, domCard, domChips)} /> : null}
     {tutorRow}
     {quorum ? <Switch lb="Quorum" title="Several models explain" note={quorumNote()} on={state.quorum} toggle={() => setQuorum(!state.quorum)} /> : null}
@@ -90,6 +99,26 @@ function Time({ kind, lb, label, note }: { kind: string; lb: string; label: stri
         onKeyDown={(e) => e.stopPropagation()} />
     </span></Row>;
 }
+/** The stages of the ladder: a switch for each, with its name, what it adds and how many things this device has of it; any mix, and the last one on stays on. */
+function Stages() {
+  const ex = state.EX ? stageCounts(state.EX.items) : {}, items: Record<number, number> = {}, only = state.stages.length === 1;
+  for (const it of state.DATA ? state.DATA.items : []) if (!it.nosubject) items[itemStage(it)] = (items[itemStage(it)] || 0) + 1;
+  return <>
+    <p class="psub">Every exercise asks about the stages that are on, in any mix. A category opens at its stage and stays open above it, and the things come from the stages that are on. About half of the pairs are new at the highest stage, the rest review the ones below. Stage 1 is the start: Categories offers the next stage after five right in a row.</p>
+    {STAGES.map(({ n, name, adds }) => {
+      const on = state.stages.includes(n), count = (items[n] || 0) + ((ex as Record<number, number>)[n] || 0);
+      return <Row lb={"St " + n}><button type="button" class="two" role="switch" aria-checked={on ? "true" : "false"} aria-disabled={on && only ? "true" : undefined} onClick={() => setStages(toggleStage(state.stages, n))}>
+        <span><b>{"Stage " + n + " · " + name}</b><small>{count + (count === 1 ? " thing" : " things")}</small></span><Toggle on={on} /></button><small class="plvn">{adds}</small></Row>;
+    })}
+    {only ? <p class="pnoteline pnote3">At least one stage stays on.</p> : null}
+    {negates() ? <>
+      <p class="psub">Negations are a step of difficulty like the stages: switch them on when the plain pairs come easily. A negation takes in what does not exist, so nothing may be neither: then the Neither case is empty, and you say that nothing exists there.</p>
+      <Row lb="Not"><b>Negations</b><Words label="Negations" items={[["off", "Off"], ["one", "One side"], ["both", "Both sides"]]} cur={state.negation} on={setNegation} />
+        <small>Some pairs negate a term: “furniture” and “non-(wooden things)”, which takes in everything that is not a wooden thing. One side: A or B is negated in about a third of the pairs. Both sides: half of those negate both.</small></Row>
+      <Switch lb="Brackets" title="Brackets" note="“non-(wooden things)” says that the “non-” takes in everything that is not a wooden thing, what does not exist included. Without them, “non-wooden things” is also read as the things that are not wooden, which leaves out what does not exist. They help while negations are new, and apply from the next pair." on={state.negBrackets} toggle={() => setNegBrackets(!state.negBrackets)} />
+    </> : null}
+  </>;
+}
 function Page({ id }: { id: string }) {
   if (id === "nota") return <><p class="psub">How the relation between two terms is written, in the statements and in your answers.</p>
     <Picks label="Notation" cur={state.nota} on={setNota} items={Object.entries(SYMS).map(([k, v]) => { const [name, desc, rows] = v as [string, string, [string, string][]];
@@ -102,16 +131,14 @@ function Page({ id }: { id: string }) {
     <Switch lb="Blitz" title="Use Blitz" note="Off takes the stopwatch out of the top bar; the times stay for when it is on again." on={state.blitzUse} toggle={() => setBlitzUse(!state.blitzUse)} />
     {!state.blitzUse ? null : state.tab === "syllogism" ? <Time kind="syl" lb="Reply" label="Syllogism time" note="for the reply to each syllogism" />
       : <><Time kind="rel" lb="Pick" label="Relation time" note="for choosing the relation, in Relations and Pervasions" /><Time kind="ex" lb="Write" label="Example time" note="for each example in Relations (three cells get three times this) and each question in Pervasions" /></>}</>;
-  if (id === "levels") return <Bridge cls="opts" fill={() => [el("p", { class: "capl", text: state.tab === "categories"
-    ? "The things Categories shows come from the levels that are on, in any mix. Level 1 is the start, and another level is offered after five right in a row."
-    : "The examples shown for the cells of a pair come from the levels that are on, in any mix. Level 1 is the start; switch more on when it comes easily. Relations and negations join when level 3 or 4 is on." }), levelSwitches()]} />;
+  if (id === "stages") return <Stages />;
   if (id === "voice") return <Bridge cls="opts" fill={() => voicePageBody(picks)} />;
   return null;
 }
 
 /** The sheet of the practice options: from the top, under the top bar, over a scrim; the knob at its foot folds it away. */
 export function OptionsSheet() {
-  const on = state.sessOpen && state.mode === "quiz", page = on && state.sessPage && PAGES[state.sessPage as keyof typeof PAGES] && (state.sessPage !== "levels" || state.EX) && (state.sessPage !== "voice" || voiceShown()) ? state.sessPage : null;
+  const on = state.sessOpen && state.mode === "quiz", page = on && state.sessPage && PAGES[state.sessPage as keyof typeof PAGES] && (state.sessPage !== "voice" || voiceShown()) ? state.sessPage : null;
   const box = useRef<HTMLDivElement>(null), was = useRef(on);
   useEffect(() => {
     if (on && !was.current) { const b = box.current && box.current.querySelector<HTMLElement>(".shead button"); if (b) b.focus({ preventScroll: true }); }

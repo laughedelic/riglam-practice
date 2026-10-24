@@ -353,7 +353,8 @@ test("a heard answer can be taken back with Change, with \"no\" or by saying ano
 });
 
 test("Relations, hands-free: the relation and each example are heard in turn, each confirmed by \"yes\", and the answer is checked", async ({ page }) => {
-  await voice(page, { settings: { answer: "auto" }, heard: ["mutually exclusive", "yes", "a gold ring", "yes", "nothing", "yes", "the horn of a rabbit", "yes"] });
+  // "nothing" is refused for a case the relation asks for (the second one), and taken for the neither case
+  await voice(page, { settings: { answer: "auto" }, heard: ["mutually exclusive", "yes", "a gold ring", "yes", "nothing", "a red apple", "yes", "nothing", "yes"] });
   await page.goto("/");
   await expect(page.locator("#stage .head .pair")).toBeVisible();   // not ready(): the relation may be heard before the list is looked at
   // the question the app opens on waits for the person: nothing listens until the microphone is tapped
@@ -364,7 +365,7 @@ test("Relations, hands-free: the relation and each example are heard in turn, ea
   await expect.poll(() => docs(page, "answers").then((a) => a.length), { timeout: 10_000 }).toBe(1);
   const [a] = await docs(page, "answers");
   expect(a.chosen).toBe("con");
-  expect([a.cells.anb.text, a.cells.bna.text, a.cells.nei.text]).toEqual(["a gold ring", "", "the horn of a rabbit"]);
+  expect([a.cells.anb.text, a.cells.bna.text, a.cells.nei.text]).toEqual(["a gold ring", "a red apple", ""]);
   // the field never took the focus, so a phone keeps its keyboard down
   expect(await page.evaluate(() => document.activeElement && document.activeElement.tagName)).not.toBe("INPUT");
 });
