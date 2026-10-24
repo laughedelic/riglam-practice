@@ -155,3 +155,10 @@ test.skipIf(!existsSync(join(dist, "index.html")))("the built page and manifest 
   expect(hrefs.length).toBe(2);
   for (const src of [...hrefs, ...manifest.icons.map((i) => i.src)]) expect(existsSync(join(dist, src)), src).toBe(true);
 });
+
+test.skipIf(!existsSync(join(dist, "index.html")))("the manifest's colors are one dark ground: Chrome on Android paints an installed app's bottom strip from them, and they cannot follow the page", () => {
+  const manifest = JSON.parse(readFileSync(join(dist, "manifest.webmanifest"), "utf8")) as { theme_color: string; background_color: string };
+  expect(manifest.theme_color).toBe(manifest.background_color);
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(manifest.theme_color.slice(i, i + 2), 16));
+  expect(0.2126 * r + 0.7152 * g + 0.0722 * b).toBeLessThan(60);
+});
