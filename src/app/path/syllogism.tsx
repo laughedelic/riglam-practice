@@ -66,7 +66,7 @@ function CounterStep({ kb }: { kb: boolean }) {
   const u = u0(), c = shownSyllogism(), some = !!(u.exText || "").trim();
   return <>
     <Scroll>
-      <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec done" />} h="1 Answer" sub="do you accept it?" /><Gap h={6} /><Statement /><Gap h={4} />
+      <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Answer" sub="do you accept it?" /><Gap h={6} /><Statement /><Gap h={4} />
         <St d={<D cls="sub yours" />} cls="sylsaid"><span class="said"><b class="yours">{SAY.pervasion}</b><Mark m="ok" /></span><span class="pq">Right. Can you show it?</span></St>
         <St d={<D cls="sub now" />} cls="sb now"><span class="lab">a counter-example</span>
           <p class="qq">Name something that is <b class="conn">{c.reason}</b> and is not <b class="conn">{c.predicate}</b>.</p>

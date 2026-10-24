@@ -50,9 +50,11 @@ export function caseQ(c: CellId, p: Pair) {
     nei: <>Something that is {K("neither")} {a} {K("nor")} {b}.</>,
   } as Record<string, ComponentChildren>)[c];
 }
-/** The star of the pair (or of the syllogism), beside it: pressed while it is a favorite. */
+/** The pair the star keeps, where one is drawn: there is storage and a pair (a syllogism, or a pair of the learner's own, has none to keep). */
+const starTarget = () => { const p = favTarget(); return state.db && p && !p.own ? p : null; };
+/** The star of the pair, beside it: pressed while it is a favorite. */
 export function Star() {
-  const p = favTarget(); if (!state.db || !p || p.own) return null;
+  const p = starTarget(); if (!p) return null;
   const on = isFav(p);
   return <button type="button" class={"pib fav pstar" + (on ? " on" : "")} aria-pressed={on ? "true" : "false"} aria-label={on ? "In favorites" : "Add to favorites"} onClick={() => toggleFav(p)}><Icon n="star" /></button>;
 }
@@ -66,7 +68,7 @@ export function SkipMark() {
   return <button type="button" class="pib pskip" aria-label={"Skip " + what} onClick={(e) => { if (skipAsks()) skipPair(); else turnAside((e.currentTarget as HTMLElement).closest(".main"), skipNow); }}><Icon n="skip" /></button>;
 }
 /** The classes of a stop that carries the favorites mark and Skip under it. */
-export const marksCls = (star = true) => (star && state.db ? " hasstar" : "") + (skipHere() ? " hasskip" : "");
+export const marksCls = (star = true) => (star && starTarget() ? " hasstar" : "") + (skipHere() ? " hasskip" : "");
 /**
  * The two terms of the pair as the first stops: A and B in the margin, the star beside A; `sm` smaller, once they are not the question. With `tags`, a
  * term whose course term the learner is still meeting has it in a small tag under it, which opens its definition under the pair (practice/stops.ts, termTags).

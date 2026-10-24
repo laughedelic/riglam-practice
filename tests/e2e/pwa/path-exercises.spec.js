@@ -44,6 +44,20 @@ test("Syllogisms: the syllogism in its three parts, the three replies, and the r
   expect((await saved(page, "syllogism"))[0]).toMatchObject({ said: c.answer, answer: c.answer });
 });
 
+test("Syllogisms: S, P and R sit a line each (no room kept for a star the syllogism has none of), and the heading's stop stays yellow while the counter-example is asked", async ({ page }) => {
+  await open(page, "Syllogisms");
+  const rows = page.locator("#path .stm");
+  await expect(rows).toHaveCount(3);
+  await expect(page.locator("#path .pstar")).toHaveCount(0);
+  await expect(page.locator("#path .stm.hasstar")).toHaveCount(0);
+  const h = await rows.evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height));
+  expect(h[0], "S is no taller than a wrapped line of text, not a row kept for a star under Skip").toBeLessThan(70);
+  expect(await page.evaluate(() => window.__t.cur.c.answer === "pervasion" || (() => { for (let i = 0; i < 600; i++) { window.__t.next(); if (window.__t.cur.c.answer === "pervasion") return true; } return false; })())).toBe(true);
+  await choice(page, "There is no pervasion").click();
+  await expect(page.locator("#sylex")).toBeVisible();
+  await expect(page.locator("#path .sx.first .d.sec")).toHaveClass(/\bnow\b/);   // the step is still open: yellow, like the headings of the other steps
+});
+
 test("Pervasions: four questions answered on the path, a counter-example for Why, then the relation, and the result", async ({ page }) => {
   await open(page, "Pervasions");
   await expect(choices(page)).toHaveCount(2);   // Accept and Why?
