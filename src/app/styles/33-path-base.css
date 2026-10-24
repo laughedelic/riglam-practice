@@ -57,7 +57,7 @@ html.pa-tab .pa :is(button,[tabindex]):not([data-quiet]):focus-visible:not(.pbr 
 @keyframes p-drain{from{transform:scaleX(1)} to{transform:scaleX(0)}}
 
 /* the path: each section draws its own piece of the line */
-.pa .pscroll{flex:1; overflow-y:auto; overflow-x:hidden; position:relative; transition:opacity .25s; overscroll-behavior:none; -webkit-overflow-scrolling:touch}
+.pa .pscroll{flex:1; overflow-y:auto; overflow-x:hidden; position:relative; transition:opacity .25s; overscroll-behavior:contain; -webkit-overflow-scrolling:touch}
 .pa .pscroll.dim{opacity:.26; pointer-events:none}
 .pa .pathc{min-height:100%; display:flex; flex-direction:column}
 .pa .pstatus{padding:24px 18px 24px calc(var(--m) + 22px); color:var(--ink2); font-style:italic}
