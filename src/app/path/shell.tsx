@@ -5,13 +5,14 @@ import type { ComponentChildren } from "preact";
 import { useContext, useRef } from "preact/hooks";
 import { state } from "../state.js";
 import { setBlitz } from "../debate/flow.js";
-import { skipAsks } from "../practice/skips.js";
+import { skipAsks, skipPair } from "../practice/skips.js";
 import { toggleMenu } from "../shell/menu.js";
 import { isEx } from "../shell/render.js";
 import { openBlitzOptions, toggleSess } from "../shell/session.js";
 import { micShown, readShown, toggleListen, toggleReadAloud, voiceBar } from "../shell/voice.js";
 import { Pull, SLIDE, bump } from "./gesture.ts";
 import { refreshPath } from "./index.tsx";
+import { currentLook } from "./look.ts";
 import { Bridge, Icon } from "./ui.tsx";
 
 export const PullCtx = createContext<Pull>(new Pull());
@@ -150,6 +151,9 @@ export function SideStation({ kind, label, act, disabled = false }: { kind: "ski
     </button>
   </div>;
 }
+
+/** Skip as a side station at the foot, where the look still puts it there (`skipAt: foot`, on hold); else Skip is the icon under the favorites mark (parts.tsx, SkipMark). */
+export const SkipSide = () => (currentLook().skipAt === "foot" ? <SideStation kind="skip" act={skipPair} /> : null);
 
 /** The foot: the station, and at its right what goes beside it (a side station). While the keyboard is up there is no foot. */
 export function Foot({ children, aux, none = false }: { children?: ComponentChildren; aux?: ComponentChildren; none?: boolean }) {
