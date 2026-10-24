@@ -55,6 +55,12 @@
 .pa.ready .foot::before{background:var(--gold); width:var(--lh); left:calc(var(--m) - var(--lh) / 2); opacity:1}
 .pa.done .foot::before{background:var(--ink); opacity:.72}
 .pa .foot.nostation::before{display:none}
+/* what voice heard (and Hear the question) sits between the path and the foot: the thread runs on through it, as it is between them */
+.pa .pbr.pvoice{position:relative}
+.pa .pbr.pvoice::before{content:""; position:absolute; top:0; bottom:0; left:calc(var(--m) - var(--lw) / 2); width:var(--lw); background:var(--ahead-bg); opacity:.9; pointer-events:none}
+.pa.edge-fade .pbr.pvoice::before{opacity:0}
+.pa.ready .pbr.pvoice::before{background:var(--gold); width:var(--lh); left:calc(var(--m) - var(--lh) / 2); opacity:1}
+.pa.done .pbr.pvoice::before{background:var(--ink); opacity:.72}
 .pa .stn{display:grid; grid-template-columns:var(--m) minmax(0,1fr); align-items:center; touch-action:none; user-select:none; -webkit-user-select:none; text-align:left; transition:transform .28s cubic-bezier(.2,.9,.3,1.3); position:relative; z-index:2; min-width:0}
 .pa .stn.dragging{transition:none}
 /* the station that can be taken: its arrow, inside the diamond, hops now and then (a pull, a tap or Enter takes it) */
@@ -84,14 +90,14 @@
 .pa .riser{position:absolute; left:calc(var(--m) - var(--lh) / 2 - 2px); width:calc(var(--lh) + 4px); background:var(--paper); z-index:5; bottom:0; height:max(0px, calc(var(--lift, 0px) - 26px)); pointer-events:none; transition:height .28s cubic-bezier(.2,.9,.3,1.3)}
 .pa.pulling .riser{transition:none}
 /* pulling the station up (or the path past its end) leaves the thread attached to it: the stub in the foot shortens, and the riser (the page's own ground) hides the thread under the station once it is above the foot, so the station never slides over it; the thread firms as the pull grows */
-.pa.pulling .sx.ptail::after,.pa.pulling .foot::after{content:""; position:absolute; left:calc(var(--m) - var(--lw) / 2); width:var(--lw); background:var(--ink2); opacity:var(--pull,0); pointer-events:none}
-.pa.pulling .sx.ptail::after{top:0; bottom:0}
+.pa.pulling .sx.ptail::after,.pa.pulling .pbr.pvoice::after,.pa.pulling .foot::after{content:""; position:absolute; left:calc(var(--m) - var(--lw) / 2); width:var(--lw); background:var(--ink2); opacity:var(--pull,0); pointer-events:none}
+.pa.pulling .sx.ptail::after,.pa.pulling .pbr.pvoice::after{top:0; bottom:0}
 .pa.pulling .foot::after{top:0; height:max(0px, calc(26px - var(--lift, 0px)))}
-.pa.pulling.ready .sx.ptail::after,.pa.pulling.ready .foot::after{background:var(--gold); width:var(--lh); left:calc(var(--m) - var(--lh) / 2)}
-.pa.pulling.done .sx.ptail::after,.pa.pulling.done .foot::after{background:var(--ink)}
+.pa.pulling.ready .sx.ptail::after,.pa.pulling.ready .pbr.pvoice::after,.pa.pulling.ready .foot::after{background:var(--gold); width:var(--lh); left:calc(var(--m) - var(--lh) / 2)}
+.pa.pulling.done .sx.ptail::after,.pa.pulling.done .pbr.pvoice::after,.pa.pulling.done .foot::after{background:var(--ink)}
 /* before the way is chosen (a station not ready) the thread ahead stays dotted: the pull fills the dotted fade in, all the way down to the station, its dots
    in step with the stub in the foot (counted from the bottom), and does not firm it */
-.pa.pullpre .sx.ptail::after{background:var(--ahead-bg); background-position:0 100%; opacity:calc(.9 * var(--pull,0))}
+.pa.pullpre .sx.ptail::after,.pa.pullpre .pbr.pvoice::after{background:var(--ahead-bg); background-position:0 100%; opacity:calc(.9 * var(--pull,0))}
 .pa.pullpre .sx.ptail::before{opacity:calc(.9 * (1 - var(--pull,0)))}
 .pa.pullpre .foot::after{content:none}
 
