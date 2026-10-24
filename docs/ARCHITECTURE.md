@@ -136,7 +136,7 @@ Collections the page uses: `batches`, `answers`, `favorites`, `skips`, `debates`
 
 ## Data
 
-The term data (the Dudra terms, their classification chains, the everyday-items list and aliases, as exported from the knowledge base) is kept in two places: the open data `src/data/drill-data.json` (68 KB, plain) is in the repository, and the definitions and notes are on the server and in the git-ignored folder `data-private/`. [DATA.md](DATA.md) describes the tiers, the Magic Key, and how to refresh the data (`npm run data:import`, `npm run data:publish`). The repo stores the open snapshot, not the pipeline. The PWA ships the open data and fetches the definitions from the server with the Magic Key; the artifact build merges everything at build time from `data-private/`.
+The term data (the Dudra terms, their classification chains, the everyday-items list and aliases, as exported from the knowledge base) is kept in two places: the open data `src/data/drill-data.json` (about 135 KB, plain) is in the repository, and the definitions and notes are on the server and in the git-ignored folder `data-private/`. [DATA.md](DATA.md) describes the tiers, the Magic Key, and how to refresh the data (`npm run data:import`, `npm run data:publish`). The repo stores the open snapshot, not the pipeline. The PWA ships the open data and fetches the definitions from the server with the Magic Key; the artifact build merges everything at build time from `data-private/`.
 
 ## Voice
 
