@@ -324,6 +324,49 @@ test("sliding Skip with something written asks first and the page stays; only Sk
   await expect(main).not.toHaveClass(/turning/);
 });
 
+test("a case ahead is taken up with a tap, in any order: the field keeps the focus, and Next goes to the next case still empty", async ({ page }) => {
+  await start(page);
+  await choices(page).nth(3).click();   // Four possibilities: four cases
+  const field = page.locator("#cin"), label = () => field.getAttribute("aria-label");
+  await expect(field).toBeVisible();
+  const first = await label();
+  await field.fill("one");
+  await field.press("Enter");
+  const second = await label();
+  expect(second).not.toBe(first);
+  const ahead = page.locator("#path .sbb.later");
+  await expect(ahead).toHaveCount(2);
+  await ahead.nth(1).click();   // the last case, written first
+  await expect(field).toBeFocused();
+  const fourth = await label();
+  expect(fourth).not.toBe(second);
+  await field.fill("four");
+  await field.press("Enter");
+  expect(await label(), "the one skipped, not on to Check").toBe(second);
+  await field.fill("two");
+  await field.press("Enter");
+  const third = await label();
+  expect([first, second, fourth]).not.toContain(third);
+  await field.press("Enter");   // empty: stays
+  expect(await label()).toBe(third);
+  await field.fill("three");
+  await field.press("Enter");
+  await expect(page.locator("#cin")).toHaveCount(0);
+  await expect(page.locator("#stn")).toHaveAccessibleName(/^Check/);
+});
+
+test("the fields ask for no autofill bar: a search field on a touch screen (Chrome keeps its bar off those), a text field elsewhere", async ({ page }, testInfo) => {
+  await start(page);
+  await choices(page).first().click();
+  const field = page.locator("#cin");
+  await expect(field).toBeVisible();
+  await expect(field).toHaveAttribute("type", isPhone(testInfo) ? "search" : "text");
+  await expect(field).toHaveAttribute("role", "textbox");
+  await expect(field).toHaveAttribute("autocomplete", "off");
+  await field.fill("a thing");
+  await expect(field).toHaveValue("a thing");
+});
+
 // the tutor, as in tutor.spec.js: the app's server stands in with routes, and needs the Magic Key (tests/support/test.js)
 const withKey = withCourse ? test : test.skip;
 const sse = (...events) => events.map((e) => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`).join("");

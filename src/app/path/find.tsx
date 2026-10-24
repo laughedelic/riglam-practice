@@ -17,7 +17,7 @@ import { Choices, ErrLines, PairResult, Verdict, WhyRow, needsKey, pairOf, u0 } 
 import { Row, cases, isOpen, resultRows } from "./relations.tsx";
 import { Scroll } from "./scroll.tsx";
 import { Foot, PreStation, SideStation, Station, TopBar } from "./shell.tsx";
-import { D, Fig, Gap, Head, St, Sx, NOFILL } from "./ui.tsx";
+import { D, Fig, Gap, Head, St, Sx, nofillInput } from "./ui.tsx";
 
 const relOf = () => u0().rel as RelKey;
 const both = () => { const u = u0(); return !!u.wordA.trim() && !!u.wordB.trim(); };
@@ -36,7 +36,7 @@ function Asked({ change = true }: { change?: boolean }) {
 function Word({ k, key2, what, last }: { k: "a" | "b"; key2: "wordA" | "wordB"; what: string; last: boolean }) {
   const u = u0();
   return <St d={<span class="ab">{k.toUpperCase()}</span>} cls="pairst pfw">
-    <div class="fieldrow"><input class="pfield" id={"fw-" + k} value={u[key2]} placeholder={what + " phenomenon"} aria-label={what + " phenomenon, " + k.toUpperCase()} {...NOFILL} list={state.findSuggest ? "fw-terms" : undefined}
+    <div class="fieldrow"><input class="pfield" id={"fw-" + k} value={u[key2]} placeholder={what + " phenomenon"} aria-label={what + " phenomenon, " + k.toUpperCase()} {...nofillInput()} list={state.findSuggest ? "fw-terms" : undefined}
       autoComplete="off" autoCapitalize="off" spellcheck={false} enterKeyHint={last ? "done" : "next"}
       onInput={(e) => { u[key2] = (e.currentTarget as HTMLInputElement).value; if (u.pairErr) u.pairErr = ""; refreshPath(); }}
       onKeyDown={(e) => { if (e.key !== "Enter") return; e.preventDefault(); if (!last) focus("fw-b"); else usePair(); }} /></div>

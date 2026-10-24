@@ -20,7 +20,7 @@ import { FlagBtn, FlagEditor, explainCase } from "./flags.tsx";
 import { Scroll } from "./scroll.tsx";
 import { Foot, PreStation, SideStation, Station, TopBar, VoiceBar } from "./shell.tsx";
 import { Sub, markNames } from "./subjects.tsx";
-import { D, Gap, Head, Icon, Mark, St, Sx, NOFILL } from "./ui.tsx";
+import { D, Gap, Head, Icon, Mark, St, Sx, nofillInput } from "./ui.tsx";
 
 interface Ans { say: "accept" | "why" | null; text: string; timeout?: boolean }
 
@@ -65,7 +65,7 @@ function QuestionStep({ kb }: { kb: boolean }) {
         <Answered n={i} />
         <St d={<D cls="sub now" />} cls="sb now qnow"><QHead i={i} />{w.lead ? <span class="qlead">{w.lead}</span> : null}<p class="qst" lang="en"><Statement i={i} ask /></p>
           {u.pickWhy ? <>
-            <div class="fieldrow"><input class="pfield" id="dex" value={u.exText} placeholder="posit a counter-example" {...NOFILL} enterKeyHint={last ? "done" : "next"} aria-label="Posit a counter-example"
+            <div class="fieldrow"><input class="pfield" id="dex" value={u.exText} placeholder="posit a counter-example" {...nofillInput()} enterKeyHint={last ? "done" : "next"} aria-label="Posit a counter-example"
               onInput={(e) => { u.exText = (e.currentTarget as HTMLInputElement).value; refreshPath(); }}
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); submitWhy(); } else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); backWhy(); } }} /></div>
             <p class="help"><span class="htx">Something that shows the statement fails. </span><button type="button" onMouseDown={(e) => e.preventDefault()} onClick={backWhy}>back</button></p>
