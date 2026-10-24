@@ -57,8 +57,6 @@
 /* the knob sits on the sheet's edge, splitting its line: only the part of it up to the line is paper (it breaks the line), the rest is clear, so that no box shows on what is behind the sheet */
 .pa .psheet .knob{position:absolute; right:17px; top:-9px; background:linear-gradient(to bottom,transparent 0 7.5px,var(--paper) 7.5px)}
 .pa .psheet.top .knob{top:auto; bottom:-9px; background:linear-gradient(to bottom,var(--paper) 0 8.5px,transparent 8.5px)}
-.pa .psheet .shead{display:grid; grid-template-columns:var(--m) 1fr auto; align-items:center; padding:0 10px 6px 0}
-.pa .psheet .shead h2{grid-column:2; padding-left:22px; font-size:22px; font-weight:500; font-style:italic}
 .pa .psheet .sbody{overflow-y:auto; position:relative; overscroll-behavior:contain}
 /* more to scroll to: the body fades out at the edge that has more (options.tsx sets --ft and --fb, and data-fade while either is on) */
 .pa .psheet .sbody[data-fade]{-webkit-mask-image:linear-gradient(to bottom,transparent,#000 var(--ft,0px),#000 calc(100% - var(--fb,0px)),transparent); mask-image:linear-gradient(to bottom,transparent,#000 var(--ft,0px),#000 calc(100% - var(--fb,0px)),transparent)}

@@ -102,7 +102,13 @@ export function App() {
   const [pull] = useState(() => new Pull()), root = useRef<HTMLDivElement>(null), look = currentLook();
   const [kb, setKb] = useState(false), [small, setSmall] = useState(false), wasChecked = useRef("");
   const s = screen(kb), over = state.menuOpen || (state.sessOpen && isEx() && state.mode === "quiz") || (state.skipAsk && isEx());
+  // the practice options alone leave the top bar live (it is their heading, and has their close); the rest of the screen is inert behind them
+  const barLive = over && state.sessOpen && !state.menuOpen && !state.skipAsk;
   const cls = ["pa", ...lookClasses(look, darkNow(look)), s.cls, kb ? "kbup" : "", kb && small ? "ph-small" : "", state.showAB ? "" : "sj-off"].filter(Boolean).join(" ");
+  useLayoutEffect(() => {
+    const m = root.current && root.current.querySelector(".main"); if (!m) return;
+    for (const c of m.children) c.toggleAttribute("inert", barLive && !c.classList.contains("ptb"));
+  });
   useLayoutEffect(() => {
     const r = root.current; if (!r) return;
     pull.root = r;
@@ -134,7 +140,7 @@ export function App() {
   return <PullCtx.Provider value={pull}>
     <div class={cls} ref={root}>
       <div class="pcol">
-        <div class="main" inert={over}>
+        <div class="main" inert={over && !barLive}>
           {s.node}
           <div class="riser" aria-hidden="true" />
         </div>

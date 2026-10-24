@@ -187,12 +187,18 @@ function TutorPage() {
   </>;
 }
 
-/** The sheet of the practice options: from the top, under the top bar, over a scrim; the knob at its foot folds it away. */
+const sheetOn = () => state.sessOpen && state.mode === "quiz";
+/** The sheet's own page that is open (one of PAGES), or null for the list. */
+const sheetPage = () => sheetOn() && state.sessPage && PAGES[state.sessPage as keyof typeof PAGES] && (state.sessPage !== "voice" || voiceShown()) && (state.sessPage !== "tutor" || tutorShown()) ? state.sessPage : null;
+/** What the sheet shows, as the heading it gives the screen: the top bar reads it in place of the exercise's name while the sheet is open (null when it is closed). */
+export const sheetTitle = (): string | null => sheetOn() ? (sheetPage() ? PAGES[sheetPage() as keyof typeof PAGES] : "Practice options") : null;
+
+/** The sheet of the practice options: from the top, under the top bar (which is its heading, and has its close), over a scrim; the knob at its foot folds it away. */
 export function OptionsSheet() {
-  const on = state.sessOpen && state.mode === "quiz", page = on && state.sessPage && PAGES[state.sessPage as keyof typeof PAGES] && (state.sessPage !== "voice" || voiceShown()) && (state.sessPage !== "tutor" || tutorShown()) ? state.sessPage : null;
+  const on = sheetOn(), page = sheetPage();
   const box = useRef<HTMLDivElement>(null), body = useRef<HTMLDivElement>(null), was = useRef(on);
   useEffect(() => {
-    if (on && !was.current) { const b = box.current && box.current.querySelector<HTMLElement>(".shead button"); if (b) b.focus({ preventScroll: true }); }
+    if (on && !was.current && box.current) box.current.focus({ preventScroll: true });
     was.current = on;
   }, [on]);
   // the body fades out at an edge that has more to scroll to (37-path-panels.css): measured after every draw, and as it scrolls
@@ -207,9 +213,7 @@ export function OptionsSheet() {
   });
   return <>
     <div class={"scrim below" + (on ? " on" : "")} onClick={() => toggleSess(false)} />
-    <div ref={box} class={"psheet top" + (on ? " on" : "")} role="dialog" aria-label="Practice options" aria-hidden={on ? "false" : "true"} inert={!on}>
-      <div class="shead"><span /><h2>{page ? PAGES[page as keyof typeof PAGES] : "Practice options"}</h2>
-        <button type="button" class="pib" aria-label="Close the practice options" onClick={() => toggleSess(false)}><Icon n="close" /></button></div>
+    <div ref={box} class={"psheet top" + (on ? " on" : "")} role="dialog" aria-label="Practice options" aria-hidden={on ? "false" : "true"} inert={!on} tabIndex={-1} data-quiet>
       <div class="sbody" ref={body}>
         {page ? <button type="button" class="sback" onClick={sessBack}><Icon n="chev" />back to the options</button> : <p class="glab" style={{ paddingTop: "4px" }}>{exName(state.tab)}</p>}
         {on ? (page ? <Page id={page} /> : <List />) : null}

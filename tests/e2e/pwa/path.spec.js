@@ -390,11 +390,19 @@ test("the practice options are a sheet from the top bar, and a choice there is k
   await page.getByRole("button", { name: "Practice options" }).click();
   const sheet = page.getByRole("dialog", { name: "Practice options" });
   await expect(sheet).toBeVisible();
+  // the top bar is the sheet's heading, in place of the exercise's name, and its sliders are the close
+  await expect(page.locator(".ptb-t")).toHaveText("Practice options");
+  await expect(sheet.locator("h2")).toHaveCount(0);
+  await expect(page.locator(".ptb .pib")).toHaveCount(1);                 // the other tools give way
+  await expect(page.locator(".main > :not(.ptb)").first()).toHaveAttribute("inert", "");   // the page behind is inert, the bar is not
   await sheet.getByRole("group", { name: "Notation" }).getByRole("button", { name: "Sets" }).click();
   expect(await page.evaluate(() => localStorage.getItem("rd-notation"))).toBe("sets");
   await expect(choices(page).first().locator(".rsym")).not.toBeEmpty();   // the relation's sign in the notation picked
-  await sheet.getByRole("button", { name: "Close the practice options" }).click();
+  await sheet.getByRole("button", { name: /^Notation: more$/ }).click();
+  await expect(page.locator(".ptb-t")).toHaveText("Notation");           // a page of the options: its name
+  await page.getByRole("button", { name: "Close the practice options" }).click();
   await expect(sheet).toBeHidden();
+  await expect(page.locator(".ptb-t")).toHaveText("Relations");
 });
 
 test("Settings switches to the classic page and back, and the device keeps the choice", async ({ page }) => {
