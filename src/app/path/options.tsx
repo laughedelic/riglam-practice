@@ -7,6 +7,7 @@ import { state } from "../state.js";
 import { NOT } from "../../ai-shared/debate.ts";
 import { setQuorum } from "../ai/quorum.js";
 import { setCategoriesAsk } from "../categories/flow.js";
+import { setInstanceSuggest } from "../instance/flow.ts";
 import { canAsk } from "../core/ask.js";
 import { setTimer } from "../debate/flow.js";
 import { WORDINGS } from "../debate/text.js";
@@ -42,9 +43,9 @@ const stagesLine = () => {
   return (state.stages.length === 1 ? "Stage " : "Stages ") + runs.map(([a, b]) => (a === b ? String(a) : a + "–" + b)).join(", ") + (negates() && NEG_NAME[state.negation] ? " · negations: " + NEG_NAME[state.negation] : "");
 };
 const toSettings = () => { toggleSess(false); toggleOpts(true); };
-/** Whether the Tutor row (and its page) is in the list: where the tutor can be asked, and the Quorum switch is offered. Categories has neither. */
-const quorumShown = () => state.quorumOffered && !!state.db && state.tab !== "syllogism" && state.tab !== "categories";
-const tutorShown = () => state.tab !== "categories" && (canAsk() || quorumShown());
+/** Whether the Tutor row (and its page) is in the list: where the tutor can be asked, and the Quorum switch is offered. Categories and Find an instance have neither. */
+const quorumShown = () => state.quorumOffered && !!state.db && state.tab !== "syllogism" && state.tab !== "categories" && state.tab !== "instance";
+const tutorShown = () => state.tab !== "categories" && state.tab !== "instance" && (canAsk() || quorumShown());
 
 /** Voice in the list: Read aloud, and how an answer is taken (or, where the browser cannot listen, the voice and its speed), with its page. */
 function VoiceRows() {
@@ -66,6 +67,9 @@ function List() {
   // the exercise's guided form (practice/guided.ts): on until the exercise has its right answers, then as set
   const guide = GUIDES[tab] ? <Switch lb="Guide" title="Guided" note={GUIDES[tab]!.on} on={guided(tab)} toggle={() => setGuided(tab, !guided(tab))} /> : null;
   const foot = <p class="pnoteline" style={{ padding: "10px 18px 4px calc(var(--m) + 22px)" }}>The Magic Key, your account, data{tutor && state.learns ? ", sharing your examples" : ""} and the version are in <button type="button" class="pbtn" style={{ padding: 0 }} onClick={toSettings}>Settings</button>.</p>;
+  if (tab === "instance") return <>
+    <Switch lb="Hints" title="Suggest things" note="things the course knows, as you write" on={state.instSuggest} toggle={() => setInstanceSuggest(!state.instSuggest)} />
+    {stages}{foot}</>;
   if (cats) return <>
     <Row lb="Ask"><b>How step 1 asks</b><Words label="How step 1 asks" items={[["all", "All at once"], ["one", "One by one"]]} cur={state.catsAsk} on={setCategoriesAsk} /></Row>
     {stages}{foot}</>;

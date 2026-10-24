@@ -7,6 +7,7 @@ import type { ExampleIndex } from "../ai-shared/examples";
 import type { About, Unlock, Updates } from "../platform/types";
 import type { AnswerView, DebateAnswer } from "../ai-shared/card";
 import type { CellId, RelKey } from "../ai-shared/relations";
+import type { InstanceQuestion } from "../domain/instance";
 import type { PlaceGrade, PlaceQuestion } from "../domain/place";
 import type { Syllogism, Pervasion, Reply, Situation, Wording } from "../domain/syllogism";
 import type { Pair, PoolEntry, Verdict } from "../domain/types";
@@ -49,7 +50,7 @@ export interface AnswerDoc {
   pairId: string;
   batchId?: string | null;
   /** "debate": a Pervasions answer (collection `debates`); "find": a Find a pair answer, kept in `answers` and left out of the Relations lists */
-  mode?: "debate" | "find" | "categories" | "syllogism";
+  mode?: "debate" | "find" | "categories" | "syllogism" | "instance";
   a: string;
   b: string;
   catA?: string | null;
@@ -75,6 +76,25 @@ export interface AnswerDoc {
   verifiedAt?: string;
 }
 export type DebateDoc = AnswerDoc & { mode: "debate"; qs: QuestionDoc[] };
+
+/** collection `answers`, mode "instance": a set of categories and the thing named for it (Find an instance), left out of the Relations lists like Find a pair's. */
+export interface InstanceDoc {
+  /** the id of the document */
+  pairId: string;
+  mode: "instance";
+  /** the categories asked (ids), in the order shown, and the labels they were shown under */
+  cats: string[];
+  labels: string[];
+  /** something is in all of them; false: nothing can be */
+  possible: boolean;
+  /** what the learner wrote; null for "nothing is" */
+  said: string | null;
+  /** the thing as the data names it (a practice item or a reference example); absent when the data does not know it */
+  thing?: string;
+  /** right, wrong, or "pend": a thing the data cannot place in every category */
+  grade: "ok" | "bad" | "pend";
+  at: string;
+}
 
 /** collection `answers`, mode "categories": one thing placed (the Categories exercise), left out of the Relations lists like Find a pair's. */
 export interface CategoriesDoc {
@@ -278,6 +298,9 @@ export interface Current {
   q?: PlaceQuestion;
   /** Categories: what the draw of `q` drew from (categories/flow.js, drawKey); a draw that found nothing is tried again once it changes */
   tried?: string;
+  /** Find an instance (src/app/instance): there is no pair in `p` (it is null), the categories on screen are `iq` (absent while the data has none to ask) */
+  inst?: boolean;
+  iq?: InstanceQuestion;
   /** Syllogisms (src/app/syllogism): there is no pair in `p` (it is null), the syllogism on screen is `c` */
   syllogism?: boolean;
   c?: Syllogism;
@@ -356,7 +379,7 @@ export interface State {
 
   // the stored collections as the page holds them
   batches: BatchDoc[];
-  /** every document of the collection `answers`, also those of Find a pair and, in another shape, of Categories and Syllogisms (`isCategories`, `isSyllogism`, core/util.js); the lists that mean Relations leave those out */
+  /** every document of the collection `answers`, also those of Find a pair and, in another shape, of Categories, Find an instance and Syllogisms (`isCategories`, `isInstance`, `isSyllogism`, core/util.js); the lists that mean Relations leave those out */
   answers: Record<string, AnswerDoc>;
   debates: Record<string, DebateDoc>;
   favs: Record<string, FavDoc>;
@@ -404,6 +427,8 @@ export interface State {
   exRuns: Record<string, ExerciseRun>;
   /** each exercise's guided form on the Path, where it was set (`rd-guided`, practice/guided.ts); none: on */
   guided: Record<string, boolean>;
+  /** keys of the sets of categories Find an instance asked lately, oldest first: the draw passes them over while others remain (instance/flow.ts) */
+  instRecent: string[];
   /** ids of the syllogisms drawn lately, oldest first: the draw leans away from them (syllogism/flow.js) */
   syllogismRecent: string[];
   /** how a syllogism is worded (`rd-syllogism-wording`) */
@@ -422,6 +447,8 @@ export interface State {
   relSession: NegResult[];
   /** when the learner last answered the offer of a negation step (a time, `rd-neg-offer`): only answers after it count towards the next offer */
   negOfferAt: string;
+  /** Find an instance offers the things the course knows while one is typed (its practice options, `rd-inst-suggest`) */
+  instSuggest: boolean;
   lastSig: string;
   /** the attempt the last render drew: the tutor's panel closes with a pair that had a conversation */
   lastUi: any;
