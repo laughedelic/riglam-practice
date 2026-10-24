@@ -114,6 +114,6 @@ export function SettingsPage() {
       <AppRows />
       <div style={{ height: "30px" }} />
     </div>
-    <Foot><Station name="Back to the exercise" hint={exName(state.own)} act={() => toggleOpts(false)} /></Foot>
+    <Foot><Station back name="Back to the exercise" hint={exName(state.own)} act={() => toggleOpts(false)} /></Foot>
   </>;
 }

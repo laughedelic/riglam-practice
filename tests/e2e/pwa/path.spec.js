@@ -549,6 +549,24 @@ test("on a touch screen the soft keyboard's Next key (a Tab in the field) leaves
   else await expect(page.locator("html")).toHaveClass(/\bpa-tab\b/);
 });
 
+test("the station the app focuses after a check has no ring, whatever key was pressed before; the Tab key brings the ring to what it comes to", async ({ page }) => {
+  await start(page);
+  await answer(page);
+  await page.locator("#stn").click();
+  await expect(page.locator(".pvline")).toBeVisible();
+  const stn = page.locator("#stn");
+  await expect(stn).toBeFocused();
+  await page.evaluate(() => document.documentElement.classList.add("pa-tab"));   // a Tab was pressed some time before (or a late one from the keyboard)
+  expect(await stn.evaluate((e) => getComputedStyle(e).outlineStyle), "no ring on the station the page handed the focus to").toBe("none");
+  await expect(stn).toHaveAttribute("data-quiet", "1");
+  await stn.evaluate((e) => e.blur());
+  await expect(stn).not.toHaveAttribute("data-quiet", "1");
+  await page.keyboard.press("Tab");
+  await expect(page.locator("html")).toHaveClass(/\bpa-tab\b/);
+  await page.locator(".tstn").focus();
+  expect(await page.locator(".tstn").evaluate((e) => getComputedStyle(e).outlineStyle), "where the keyboard comes, the ring is there").toBe("solid");
+});
+
 const withDefs = withCourse ? test : test.skip;
 withDefs("a definition opened from a class under a term comes under the whole pair and leaves the relation's figure where it was", async ({ page }) => {
   await start(page);

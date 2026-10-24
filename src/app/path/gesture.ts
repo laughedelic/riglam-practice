@@ -2,7 +2,10 @@
 // it is past); one that is not ready yet rises a little, says why, and stops. The thread stays attached to the station and shortens as it comes up
 // (--lift: the foot's stub gets shorter, then the riser hides the thread under the station). Pulling the path itself on past its end lifts the station
 // only a little, as if it resisted, and firms the thread: it never takes the station. A side station (Skip) slides left past its reach. One tension
-// is shared by all of them: each Path draw keeps one Pull, on its root.
+// is shared by all of them: each Path draw keeps one Pull, on its root. A station that can be taken is pulled over a curb (below), and taking it plays the
+// ride of take.ts.
+import { canTake, foldPage, playTake } from "./take.ts";
+
 const LINE = 64, STOP = 26;
 /** How hard the station resists the path's pull: the station rises this part of it. */
 const RESIST = 0.5;
@@ -13,14 +16,52 @@ const TIGHT = LINE - 8;
 export const SLIDE = 96;
 
 /** The hand's feel of crossing the reach: a bump, as of a curb under a wheel (one short knock, no buzz). */
-const bump = () => { try { if (navigator.vibrate) navigator.vibrate(HIT); } catch { /* no haptics */ } };
+const bump = (ms = HIT) => { try { if (navigator.vibrate) navigator.vibrate(ms); } catch { /* no haptics */ } };
 export { bump };
+
+/**
+ * The curb a station is pulled over, as the lab has it. Under it the finger moves the station less and less, and at it the station sticks; once the finger has pressed on
+ * far enough it goes over with a knock, catches up, and follows freely. Pulled back it is free down to the curb, sticks a little (less than on the way up) and goes back
+ * under with a lighter tick. `raw` is how far the finger is above where it started.
+ */
+const CURB = { T: 42, STALL: 7, P: 22, PB: 10, POP: 14, GAIN: 3.08, FLOOR: 0.1 };
+export interface Curb { y: number; over: boolean; press: number; down: number; boost: number; last: number }
+export const curbNew = (): Curb => ({ y: 0, over: false, press: 0, down: 0, boost: 0, last: 0 });
+/** Moves the station for a finger `raw` px up; says when it went over the curb or back under it. */
+export function curbMove(c: Curb, raw: number): "" | "over" | "back" {
+  const k = CURB, d = raw - c.last; c.last = raw; const was = c.over;
+  if (!c.over) {
+    if (d > 0) {
+      c.y = Math.min(k.T, c.y + d * Math.max(k.FLOOR, 1 - (c.y / k.T) ** k.GAIN));
+      if (c.y > k.T - k.STALL) c.press += d;
+      if (c.press >= k.P) { c.over = true; c.boost = k.POP; c.down = 0; }
+    } else {
+      c.y = Math.max(0, c.y + d * (1 - 0.55 * (c.y / k.T) ** 3));
+      c.press = Math.max(0, c.press + d * 1.5);
+    }
+  } else if (d > 0) {
+    c.y += d * (c.boost > 0 ? 2.2 : 1); c.boost = Math.max(0, c.boost - d); c.down = 0;
+  } else if (c.y > k.T + 3) {
+    c.y = Math.max(k.T + 3, c.y + d);
+  } else {
+    c.y += d * 0.3; c.down -= d;
+    if (c.down >= k.PB) { c.over = false; c.press = k.P * 0.4; c.y = Math.min(c.y, k.T); }
+  }
+  return was === c.over ? "" : c.over ? "over" : "back";
+}
 
 export class Pull {
   root: HTMLElement | null = null;
   /** what taking the station does now (set on every draw) */
   act: (() => void) | null = null;
   past = false;
+  /** the station may play the ride when taken (the ones that go back do not) */
+  rides = true;
+  /** the pull of the station over its curb, and how high it is lifted now */
+  curb: Curb | null = null;
+  dy = 0;
+  /** the ride is playing: nothing else is taken */
+  busy = false;
   peekT: ReturnType<typeof setTimeout> | undefined;
 
   private q<T extends HTMLElement = HTMLElement>(sel: string) { return this.root ? this.root.querySelector<T>(sel) : null; }
@@ -35,29 +76,49 @@ export class Pull {
   /** The pull, `raw` pixels up (from the station, or the path past its end when `path`); whether it is past the line. */
   to(raw: number, path = false): boolean {
     const stn = this.q("#stn"), sp = this.q("#stnp"), el = stn || sp; if (!el || !this.root) return false;
+    if (this.busy) return this.past;
     const foot = el.closest<HTMLElement>(".foot"), riser = this.q(".riser");
-    const dy = path ? raw * RESIST : stn ? (raw < LINE ? raw : LINE + (raw - LINE) * 0.35) : Math.min(STOP, raw < 12 ? raw : 12 + (raw - 12) * 0.3);
-    const past = !!stn && raw >= LINE;
+    const curb = !path && !!stn && this.rides && canTake(this.root);
+    let dy: number, past: boolean;
+    if (curb) {
+      const c = this.curb || (this.curb = curbNew()), ev = curbMove(c, raw);
+      dy = c.y; past = c.over;
+      if (ev) { bump(ev === "over" ? HIT : 6); foldPage(this.root, c.over); }
+    } else {
+      dy = path ? raw * RESIST : stn ? (raw < LINE ? raw : LINE + (raw - LINE) * 0.35) : Math.min(STOP, raw < 12 ? raw : 12 + (raw - 12) * 0.3);
+      past = !!stn && raw >= LINE;
+    }
+    this.dy = dy;
     el.classList.add("dragging"); if (sp && raw > 0) { sp.classList.add("peek"); clearTimeout(this.peekT); }
     el.style.transform = `translateY(${-dy}px)`;
     if (riser) riser.style.bottom = (foot ? foot.offsetHeight : 0) + "px";
     this.root.style.setProperty("--lift", dy.toFixed(1) + "px");
     this.root.style.setProperty("--pull", Math.min(1, path ? raw / TIGHT : dy / LINE).toFixed(3)); this.root.classList.toggle("pulling", raw > 0);
-    if (past !== this.past) { this.past = past; if (past) bump(); }
+    if (past !== this.past) { this.past = past; if (past && !curb) bump(); }
     return past;
   }
   /** The pull let go: the station goes back, and is taken when `go`. A tap on a station that is not ready bumps it. */
   end(go: boolean, tapped = false) {
+    if (this.busy) return;
     const stn = this.q("#stn"), sp = this.q("#stnp"), el = stn || sp;
+    if (go && stn && this.act && this.rides && this.root && canTake(this.root)) {
+      this.busy = true;
+      playTake(this.root, stn, this.dy, this.act, () => { this.busy = false; this.curb = null; this.past = false; this.dy = 0; });
+      return;
+    }
+    if (this.curb) { if (this.curb.over) foldPage(this.root, false); this.curb = null; }
+    this.dy = 0;
     if (el) { el.classList.remove("dragging"); el.style.transform = ""; }
     if (this.root) { this.root.classList.remove("pulling"); this.root.style.setProperty("--pull", "0"); this.root.style.setProperty("--lift", "0px"); }
     this.past = false;
     if (sp && !go) this.peek(sp, tapped);
     if (go && this.act) this.act();
   }
+  /** The station taken without a pull (a tap, Enter): the ride, or the step at once. */
+  take() { if (this.busy || !this.act) return; this.end(true); }
   /** Whether the path may be pulled past its end now: nothing over it, no keyboard, the strip folded, a station there. */
   canPull() {
-    const r = this.root; if (!r) return false;
+    const r = this.root; if (!r || this.busy) return false;
     return !r.querySelector(".psheet.on,.road.on,.pdlg") && !r.classList.contains("kbup") && !r.querySelector(".pstrip.open") && !!r.querySelector("#stn,#stnp");
   }
   /**

@@ -109,7 +109,11 @@ export function App() {
     aboveSync(r);
     // after a check the station has the focus, so that Enter goes on (as the forward button has it on the classic page)
     const checked = !!(state.ui && state.ui.checked);
-    if (checked && !wasChecked.current && !over) { const st = r.querySelector<HTMLElement>("#stn"); if (st) st.focus({ preventScroll: true }); }
+    // (quiet: the app moved the focus there, not a Tab, so no ring is drawn on it, whatever key was pressed before; it goes at the first blur)
+    if (checked && !wasChecked.current && !over) {
+      const st = r.querySelector<HTMLElement>("#stn");
+      if (st) { st.dataset.quiet = "1"; st.addEventListener("blur", () => { delete st.dataset.quiet; }, { once: true }); st.focus({ preventScroll: true }); }
+    }
     wasChecked.current = checked;
   });
   useEffect(() => {
