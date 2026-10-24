@@ -1,6 +1,7 @@
 // The Check of the examples on the Path (src/app/path/scan.tsx): it opens into a scanner that slides up through the cases in one move, marking each as it passes it
 // (from the bottom up), covers the heading, marks the relation at the strip, and becomes the result's node; the result's page comes in around it. The look's
-// check: ride takes it as any station. The rules of the practice are the other specs'.
+// check: ride takes it as any station. With the keyboard up the page opens first and the scan runs over it. At the foot the station that comes next takes the Check's place as the
+// scanner leaves it. The rules of the practice are the other specs'.
 import { test, expect } from "../../support/test.js";
 import { isPhone } from "../../support/page.js";
 
@@ -24,9 +25,11 @@ async function written(page, { enter = false } = {}) {
   await field.fill("a cloud");
   if (!enter) await field.blur();
   await page.evaluate(() => {
-    window.__scan = []; window.__marks = 0;
-    new MutationObserver((ms) => { window.__marks = Math.max(window.__marks, document.querySelectorAll("#path .sb .pscm").length); for (const m of ms) { const e = m.target; if (!(e instanceof HTMLElement)) continue;
-      if (e.matches(".sb.scn") && !e.dataset.seen) { e.dataset.seen = "1"; window.__scan.push("case:" + [...document.querySelectorAll("#path .sx.cur .sb")].indexOf(e)); }
+    window.__scan = []; window.__marks = 0; window.__open = null; window.__next = false;
+    new MutationObserver((ms) => { window.__marks = Math.max(window.__marks, document.querySelectorAll("#path .sb .pscm").length);
+      const nx = document.querySelector("#path #stn.scn-next"); if (nx && document.querySelector("#path .pscan") && nx.textContent.includes("Next pair")) window.__next = true;   // the next station is there while the scanner is still on its way
+      for (const m of ms) { const e = m.target; if (!(e instanceof HTMLElement)) continue;
+      if (e.matches(".sb.scn") && !e.dataset.seen) { e.dataset.seen = "1"; if (window.__open === null) window.__open = !document.querySelector(".pa.kbup") && !!document.querySelector("#path .foot #stn"); window.__scan.push("case:" + [...document.querySelectorAll("#path .sx.cur .sb")].indexOf(e)); }
       if (e.matches(".sechead.scn-gone") && !e.dataset.seen) { e.dataset.seen = "1"; window.__scan.push("head"); }
       if (e.matches(".pn.scn-rel") && !e.dataset.seen) { e.dataset.seen = "1"; window.__scan.push("rel"); } } })
       .observe(document.getElementById("path"), { subtree: true, attributes: true, attributeFilter: ["class"], childList: true });
@@ -49,6 +52,7 @@ test("the Check slides up through the cases marking each from the bottom, then t
   await expect(page.locator(".pvline")).toContainText(word);
   expect(await page.evaluate(() => window.__vib.length), "a knock at the relation").toBeGreaterThan(0);
   await expect(page.locator("#stn")).toContainText("Next pair");
+  expect(await page.evaluate(() => window.__next), "Next pair took the Check's place at the foot while the scanner was still sliding").toBe(true);
   await expect(page.locator("#path .main")).not.toHaveClass(/sc-run/);
   expect(errors).toEqual([]);
 });
@@ -64,14 +68,19 @@ test("the scanner glides into the result's node and the page does not move under
   await expect(page.locator(".pvline .d.big")).toBeVisible();
 });
 
-test("with the keyboard up, Enter on the last example scans from the Check under it", async ({ page }, testInfo) => {
+test("with the keyboard up, Enter on the last example opens the page first, and the scan runs over it from the foot", async ({ page }, testInfo) => {
   test.skip(!isPhone(testInfo), "a touch screen's keyboard");
   await written(page, { enter: true });
   await expect(page.locator("#path .cnode #stn")).toBeVisible();
   await page.locator("#cin").press("Enter");
   await expect(page.locator("#path .pscan")).toHaveCount(1);
+  await expect(page.locator(".pa")).not.toHaveClass(/\bkbup\b/);
+  await expect(page.locator("#path .pstrip")).toBeVisible();
   await expect(page.locator(".pvline")).toBeVisible();
-  expect(await page.evaluate(() => window.__scan.slice(-2))).toEqual(["head", "rel"]);
+  expect(await page.evaluate(() => window.__scan)).toEqual(["case:3", "case:2", "case:1", "case:0", "head", "rel"]);
+  expect(await page.evaluate(() => window.__open), "the page was open (the foot there, the keyboard's layout gone) at the first mark").toBe(true);
+  expect(await page.evaluate(() => window.__next), "Next pair took the Check's place at the foot while the scanner was still sliding").toBe(true);
+  await expect(page.locator("#stn")).toContainText("Next pair");
 });
 
 test("with the look's check: ride the Check rides as any station", async ({ page }) => {
