@@ -14,7 +14,7 @@ import { placePops, renderQuiz } from "../practice/screen.js";
 import { closeSkipAsk, skipInto, skipNow } from "../practice/skips.js";
 import { renderSyllogism } from "../syllogism/screen.js";
 import { exName } from "../shell/exercises.js";
-import { fitPair, isEx } from "../shell/render.js";
+import { fitPair, isEx, render } from "../shell/render.js";
 import { applyLook, currentLook, darkNow, lookClasses } from "./look.ts";
 import { OptionsSheet } from "./options.tsx";
 import { categoriesScreen } from "./categories.tsx";
@@ -27,7 +27,7 @@ import { aboveSync } from "./scroll.tsx";
 import { SettingsPage } from "./settings.tsx";
 import { syllogismScreen } from "./syllogism.tsx";
 import { TutorPage } from "./tutor.tsx";
-import { PullCtx, Toast, TopBar } from "./shell.tsx";
+import { PullCtx, Toast, TopBar, turnAside } from "./shell.tsx";
 import { Pull } from "./gesture.ts";
 import { Bridge, coarse } from "./ui.tsx";
 
@@ -58,6 +58,11 @@ function Hosted() {
     <Bridge cls="card" fill={fill} after={() => { fitPair(); placePops(); }} />
   </>;
 }
+/** "Skip anyway": the question goes, then the page turns aside and the next one arrives (the page was not turned before: it asked first). */
+function skipAnyway() {
+  state.skipAsk = false; render();
+  turnAside(document.querySelector("#path .main"), skipNow);
+}
 /** The question before an attempt with something in it is set aside; its words are the classic page's (practice/skips.js). */
 function SkipAsk() {
   const box = document.createElement("div"); skipInto(box);
@@ -68,7 +73,7 @@ function SkipAsk() {
     <button type="button" class="scrim on" tabIndex={-1} aria-label="Keep going" onClick={closeSkipAsk} />
     <div class="pdlg" role="alertdialog" aria-modal="true" aria-labelledby="pskq" aria-describedby="pskd">
       <h2 id="pskq">{q}</h2><p id="pskd">{d}</p>
-      <div class="acts"><button type="button" class="quiet" onClick={skipNow}>Skip anyway</button><button type="button" ref={keep} onClick={closeSkipAsk}>Keep going</button></div>
+      <div class="acts"><button type="button" class="quiet" onClick={skipAnyway}>Skip anyway</button><button type="button" ref={keep} onClick={closeSkipAsk}>Keep going</button></div>
     </div>
   </>;
 }

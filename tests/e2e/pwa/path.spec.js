@@ -294,9 +294,34 @@ test("a skip asks first once something is written, and Keep going returns to it"
   const ask = page.getByRole("alertdialog");
   await expect(ask).toBeVisible();
   await expect(ask.getByRole("button", { name: "Keep going" })).toBeFocused();
+  await expect(ask).toContainText("Your inputs will be lost.");
   await ask.getByRole("button", { name: "Keep going" }).click();
   await expect(ask).toHaveCount(0);
   await expect(page.locator("#cin")).toHaveValue("a thing");
+});
+
+test("sliding Skip with something written asks first and the page stays; only Skip anyway turns it aside, with no note to undo", async ({ page }, testInfo) => {
+  await start(page);
+  await choices(page).first().click();
+  await page.locator("#cin").fill("a thing");
+  if (isPhone(testInfo)) await page.locator("#cin").blur();
+  const main = page.locator("#path .main");
+  await page.evaluate(() => { window.__turned = []; new MutationObserver(() => { window.__turned.push(document.querySelector("#path .main").className); }).observe(document.querySelector("#path .main"), { attributes: true, attributeFilter: ["class"] }); });
+  const sides = page.locator(".foot .sides"), b = await sides.boundingBox(), x = b.x + 62, y = b.y + 14;
+  await page.mouse.move(x, y); await page.mouse.down();
+  for (let i = 1; i <= 8; i++) await page.mouse.move(x - (140 * i) / 8, y);
+  await page.mouse.up();
+  const ask = page.getByRole("alertdialog");
+  await expect(ask).toBeVisible();
+  await page.waitForTimeout(500);
+  expect(await page.evaluate(() => window.__turned.filter((c) => /turning|arriving/.test(c)).length), "the page did not turn aside under the question").toBe(0);
+  await expect(page.locator("#cin")).toHaveValue("a thing");
+  await ask.getByRole("button", { name: "Skip anyway" }).click();
+  await expect(choices(page)).toHaveCount(5);   // the next pair, from its relation
+  await expect(page.locator("#cin")).toHaveCount(0);
+  expect(await page.evaluate(() => window.__turned.some((c) => /turning/.test(c))), "it turned aside after the answer").toBe(true);
+  await expect(page.locator("#path .ptoast.on")).toHaveCount(0);
+  await expect(main).not.toHaveClass(/turning/);
 });
 
 // the tutor, as in tutor.spec.js: the app's server stands in with routes, and needs the Magic Key (tests/support/test.js)
@@ -458,18 +483,27 @@ test("the top bar's diamond has no line of its own, and the first section's line
 
 test("a tap or an Enter in a field leaves no focus ring on what takes the focus; the Tab key brings the ring", async ({ page }) => {
   await start(page);
-  await choices(page).first().click();
-  const field = page.locator("#cin");
-  await expect(field).toBeVisible();
-  await page.locator("#path .pstrip .knob").focus();   // what the focus is on after a field hands it over
+  const rows = choices(page);
+  await rows.nth(0).focus();   // what the focus is on when a script hands it over
   const ring = () => page.evaluate(() => { const e = document.activeElement; return e ? getComputedStyle(e).outlineStyle : "none"; });
   expect(await ring()).toBe("none");
   await page.keyboard.press("Tab");
   await expect(page.locator("html")).toHaveClass(/\bpa-tab\b/);
-  await page.locator("#path .pstrip .knob").focus();
+  await rows.nth(1).focus();
   expect(await ring()).toBe("solid");
-  await page.mouse.click(300, 400);
+  await page.mouse.click(300, 600);
   await expect(page.locator("html")).not.toHaveClass(/\bpa-tab\b/);
+});
+
+test("on a touch screen the soft keyboard's Next key (a Tab in the field) leaves no ring on the station that comes next", async ({ page }, testInfo) => {
+  await start(page);
+  await choices(page).first().click();
+  await expect(page.locator("#cin")).toBeVisible();
+  await page.locator("#cin").focus();
+  await page.keyboard.press("Tab");
+  // a keyboard on a desktop is walking the page; a touch screen's Tab in a field is the Next key
+  if (isPhone(testInfo)) await expect(page.locator("html")).not.toHaveClass(/\bpa-tab\b/);
+  else await expect(page.locator("html")).toHaveClass(/\bpa-tab\b/);
 });
 
 const withDefs = withCourse ? test : test.skip;
@@ -540,10 +574,10 @@ test("the whole Skip station takes the slide, not the diamond alone: from its wo
   for (const at of [{ x: 62, y: 14 }, { x: 4, y: 24 }, { x: 90, y: 24 }]) {
     const before = await page.locator(".pair .pa-a, #path .pairl, #path .sx.first").first().innerText();
     await slide(at);
-    await expect(page.locator("#path .ptoast.on")).toContainText("Skipped");
+    await expect.poll(() => page.locator("#path .sx.first").first().innerText(), "a new pair").not.toBe(before);
     await expect(choices(page)).toHaveCount(5);
-    await page.waitForTimeout(2200);   // the note leaves, so that the next slide is seen on its own
-    expect(await page.locator("#path .sx.first").first().innerText(), "a new pair").not.toBe(before);
+    await expect(page.locator("#path .ptoast.on"), "no note with an Undo: the pair waits in Review").toHaveCount(0);
+    await page.waitForTimeout(500);   // the next page has arrived, so that the next slide is seen on its own
   }
 });
 
