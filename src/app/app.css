@@ -34,3 +34,9 @@
 @import "./styles/30-syllogism.css"; /* Syllogisms: the card with the syllogism and its three replies, the counter-example step, the result */
 @import "./styles/31-categories.css"; /* Categories: the thing, the ticks or yes and no, the split check, the most specific, the offer of a level */
 @import "./styles/32-voice.css"; /* voice: the bar with the microphone and what was heard, the Voice row of Settings */
+@import "./styles/33-path-base.css"; /* the Path (the redesign, src/app/path): its root, the resets, the top bar, the scroll, the note at the foot */
+@import "./styles/34-path-line.css"; /* the Path: the line, its stops, the pair, the relation figures, the choices, the cases */
+@import "./styles/35-path-station.css"; /* the Path: the strip, the station and its pull, the side stations, the layout with the keyboard up */
+@import "./styles/36-path-result.css"; /* the Path: the result, Why, the tutor at work */
+@import "./styles/37-path-panels.css"; /* the Path: the practice options, the roadmap, the pages, the toggles */
+@import "./styles/38-path-bridge.css"; /* the Path: the classic parts it still hosts */

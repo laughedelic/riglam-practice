@@ -1,0 +1,69 @@
+/* The Path (src/app/path): the redesign, drawn by its own components into #path while Settings > Design says Path. The design reference
+   is the Path Lab (a Claude artifact, Version 21); these rules are its rules, under .pa instead of the lab's .app. The class names are the
+   lab's, except where the classic page already uses a name for itself (a unit test keeps the two apart: tests/unit/styles.test.ts). Colors,
+   sizes, fonts and the switches come from src/app/path/look.ts as custom properties and classes on .pa. */
+html.design-path #app,html.design-path .band{display:none}
+html.design-path,html.design-path body{background:var(--path-paper,#fbf9f2)}
+html:not(.design-path) #path{display:none}
+.pa{
+  --m:var(--t-m,50px); --lw:var(--t-lw,2px); --lh:calc(var(--lw) + 1px); --st:var(--t-st,28px); --stp:calc(var(--st) * 22 / 28); --tn:var(--t-tn,34px);
+  --mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Menlo,monospace;
+  position:fixed; left:0; right:0; top:var(--vvt,0px); height:var(--vvh,100dvh); z-index:1;
+  background:var(--paper); color:var(--ink); font-family:var(--main-f); font-optical-sizing:auto; font-size:16px; line-height:1.4;
+  -webkit-font-smoothing:antialiased; isolation:isolate; overflow:hidden; overflow:clip;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+/* one column on every screen for now: the wide layout is still to be designed */
+.pa .pcol{position:relative; height:100%; max-width:600px; margin:0 auto; display:flex; flex-direction:column; overflow:hidden; overflow:clip}
+@media (min-width:640px){ .pa .pcol{border-left:1px solid var(--rule); border-right:1px solid var(--rule)} }
+/* the resets leave the classic parts the Path still hosts alone (.pbr, 38-path-bridge.css) */
+.pa *,.pa *::before,.pa *::after{box-sizing:border-box}
+:where(.pa) :where(h1,h2,h3,p,ul,ol,li,figure,dl,dd):not(.pbr *){margin:0}
+:where(.pa) button:not(.pbr *){font:inherit; color:inherit; background:none; border:0; padding:0; margin:0; text-align:inherit; cursor:pointer; -webkit-tap-highlight-color:transparent}
+.pa :is(button,[tabindex]):focus-visible:not(.pbr *){outline:2px solid var(--blue); outline-offset:1px; box-shadow:none}
+:where(.pa) input:not(.pbr *){font:inherit; color:inherit}
+.pa .i{width:21px; height:21px; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; flex:none}
+.pa .spc{flex:1}
+.pa .mono{font-family:var(--mono)}
+.pa .yours{color:var(--blue)}
+.pa .fix{color:var(--green); font-style:italic}
+.pa s.no{text-decoration-color:var(--red); text-decoration-thickness:2px; color:var(--ink2)}
+.pa .hand{font-family:var(--hand-f); font-style:var(--hand-st); font-weight:var(--hand-w)}
+.pa .vh{position:absolute!important; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
+.pa .main{flex:1; display:flex; flex-direction:column; min-height:0; position:relative}
+
+/* the top bar: the station where this path leaves the roadmap, the exercise's name (pull down for the roadmap), the tools */
+.pa .ptb{display:flex; align-items:center; height:56px; padding:0 6px 0 4px; flex:none; position:relative; z-index:8; background-color:var(--paper); border-bottom:1px solid var(--rule); touch-action:pan-x; user-select:none; -webkit-user-select:none; transition:margin-top .22s ease}
+.pa .pib{width:44px; height:44px; display:grid; place-items:center; color:var(--blue); position:relative; border-radius:4px; flex:none}
+.pa .pib:disabled,.pa .pib[aria-disabled="true"]{color:var(--ink3); opacity:.55; cursor:default}
+.pa .pib.on{color:var(--ink)}
+.pa .ptb-t{font-style:italic; font-size:22px; font-weight:500; margin-left:4px; display:inline-flex; align-items:center; gap:4px; min-width:0; white-space:nowrap; overflow:hidden}
+.pa .ptb-t > span{overflow:hidden; text-overflow:ellipsis}
+.pa .ptb-t .i{width:15px; height:15px; color:var(--ink3); transform:rotate(90deg); stroke-width:2}
+.pa .dot{position:absolute; top:9px; right:8px; width:9px; height:9px; background:var(--gold); transform:rotate(45deg)}
+.pa .dot.dt{background:var(--tutor)}
+.pa.pthink .dot.dt{animation:p-pulse 1.1s ease-in-out infinite}
+.pa .tstn{flex:none; width:44px; height:56px; margin-left:calc(var(--m) - 26px); position:relative; display:grid; place-items:center}
+.pa .tstn::after{content:""; position:absolute; left:21px; top:40px; bottom:-1px; width:2px; background:var(--ink); opacity:.7}
+.pa .tgo{width:20px; height:20px; transform:rotate(45deg); background-color:var(--station); position:relative}
+.pa .tgo .mk{position:absolute; inset:0; transform:rotate(-45deg); display:grid; place-items:center; color:var(--on-station)}
+.pa .tgo .mk .i{width:12px; height:12px; stroke-width:2.8; transform:rotate(90deg)}
+.pa.g-top .ptb{background-image:var(--grain); background-size:128px; background-blend-mode:soft-light}
+/* a countdown runs on the lower edge of the top bar */
+.pa .pclock{position:absolute; left:0; right:0; bottom:-1px; height:3px; background:var(--rule); overflow:hidden}
+.pa .pclock i{position:absolute; inset:0; background:var(--gold); transform-origin:left; animation:p-drain var(--t) linear both; animation-delay:calc(var(--e) * -1)}
+.pa .pclock.late i{background:var(--red)}
+@keyframes p-drain{from{transform:scaleX(1)} to{transform:scaleX(0)}}
+
+/* the path: each section draws its own piece of the line */
+.pa .pscroll{flex:1; overflow-y:auto; overflow-x:hidden; position:relative; transition:opacity .25s; overscroll-behavior:contain; -webkit-overflow-scrolling:touch}
+.pa .pscroll.dim{opacity:.26; pointer-events:none}
+.pa .pathc{min-height:100%; display:flex; flex-direction:column}
+.pa .pstatus{padding:24px 18px 24px calc(var(--m) + 22px); color:var(--ink2); font-style:italic}
+
+/* a short note at the foot, for a moment */
+.pa .ptoast{position:absolute; left:50%; bottom:96px; transform:translateX(-50%) translateY(8px); background:var(--ink); color:var(--paper); font-family:var(--mono); font-size:11.5px; padding:8px 12px; opacity:0; transition:opacity .2s,transform .2s; z-index:40; pointer-events:none; max-width:88%; text-align:center}
+.pa .ptoast.on{opacity:1; transform:translateX(-50%); pointer-events:auto}
+.pa .ptoast button{color:var(--paper); text-decoration:underline; text-underline-offset:3px; margin-left:10px; font-family:var(--mono); font-size:11.5px}
+@keyframes p-pulse{50%{opacity:.3}}
+@media (prefers-reduced-motion:reduce){ .pa *,.pa *::before,.pa *::after{animation:none!important; transition:none!important} }

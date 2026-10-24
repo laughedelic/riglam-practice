@@ -683,3 +683,17 @@ test("Hands-free: after the nudge for \"I don't know\" the microphone opens agai
   await expect(page.locator("#vbar .vwhat b")).toHaveText("Accept");
   expect(await page.evaluate(() => window.__listens)).toBeGreaterThanOrEqual(2);
 });
+
+test("on the Path the microphone is in the top bar, and the answer heard waits above the foot until it is confirmed", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("rd-design", "path"));
+  await voice(page, { settings: { answer: "tap" } });
+  await page.goto("/");
+  await expect(page.locator("#path .chs .crow")).toHaveCount(5);
+  await expect(mic(page)).toHaveCount(1);
+  await expect(page.locator("#path .ptb #vmic")).toBeVisible();
+  await hear(page, "four possibilities");
+  await expect(page.locator("#path .pvoice #vbar")).toContainText("Four possibilities");
+  await confirm(page);
+  await expect(page.locator("#cin")).toBeVisible();   // the relation is taken: the examples come
+  await expect(page.locator("#path .pstrip")).toContainText("They overlap");
+});

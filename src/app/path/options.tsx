@@ -1,0 +1,159 @@
+// The practice options of the exercise on screen, as the lab draws them: a sheet from the top bar, one row per option with its name in the
+// margin, its choices as words in a row or a toggle, and "more" into the option's own page. The settings themselves are the classic page's
+// (shell/session.js keeps them and stores them on the device); two pages are still drawn by it (the levels of the examples, and voice).
+import type { ComponentChildren } from "preact";
+import { useEffect, useRef } from "preact/hooks";
+import { state } from "../state.js";
+import { NOT } from "../../ai-shared/debate.ts";
+import { setQuorum } from "../ai/quorum.js";
+import { setCategoriesAsk } from "../categories/flow.js";
+import { canAsk } from "../core/ask.js";
+import { el } from "../core/dom.js";
+import { setTimer } from "../debate/flow.js";
+import { WORDINGS } from "../debate/text.js";
+import { exName } from "../shell/exercises.js";
+import { setStages } from "../shell/stages.js";
+import { toggleOpts } from "../shell/options.js";
+import { PAGES, SYMS, openPage, picks, quorumNote, sessBack, setAutoExplain, setBlitzUse, setDefLang, setFindSuggest, setNegBrackets, setNegation, setNota, setShow, setSyllogismGuide, setSyllogismWording, setWording, toggleSess } from "../shell/session.js";
+import { kindMs } from "../shell/timers.js";
+import { stageCounts } from "../../domain/reference.ts";
+import { STAGES, itemStage, toggleStage } from "../../domain/stages.ts";
+import { voiceListRows, voicePageBody, voiceShown } from "../shell/voice.js";
+import { Bridge, D, Icon, Knob, Toggle, Words } from "./ui.tsx";
+
+// the names in the margin are short, as the lab's are: six letters fit beside the line
+const Row = ({ lb, children }: { lb: string; children?: ComponentChildren }) => <div class="porow"><span class="lb">{lb}</span><div class="ptx">{children}</div></div>;
+/** A row that is a switch: its name and what it does, and the toggle. */
+const Switch = ({ lb, title, note, on, toggle }: { lb: string; title: string; note?: string; on: boolean; toggle: () => void }) =>
+  <Row lb={lb}><button type="button" class="two" role="switch" aria-checked={on ? "true" : "false"} onClick={toggle}><span><b>{title}</b>{note ? <small>{note}</small> : null}</span><Toggle on={on} /></button></Row>;
+const More = ({ page, label = "more" }: { page: string; label?: string }) => <button type="button" class="more" aria-label={PAGES[page as keyof typeof PAGES] + ": " + label} onClick={() => openPage(page)}>{label}</button>;
+const secs = (kind: string) => Math.round(kindMs(kind) / 1000);
+const timesLine = () => state.tab === "syllogism" ? "Syllogism " + secs("syl") + " s" : "Relation " + secs("rel") + " s · Example " + secs("ex") + " s";
+// the exercises that draw negated pairs, and so show the Negations choice with the stages
+const negates = () => state.tab === "practice";
+const NEG_NAME: Record<string, string> = { one: "one side", both: "both sides" };
+// the stages that are on, in a line: runs joined ("Stages 1–3, 5"), and the negations where they are drawn
+const stagesLine = () => {
+  const runs: [number, number][] = [];
+  for (const n of state.stages as number[]) { const r = runs[runs.length - 1]; if (r && r[1] === n - 1) r[1] = n; else runs.push([n, n]); }
+  return (state.stages.length === 1 ? "Stage " : "Stages ") + runs.map(([a, b]) => (a === b ? String(a) : a + "–" + b)).join(", ") + (negates() && NEG_NAME[state.negation] ? " · negations: " + NEG_NAME[state.negation] : "");
+};
+const toSettings = () => { toggleSess(false); toggleOpts(true); };
+
+// the classic list builders, drawing the Path's rows: voice gives its rows through them
+const domSw = (label: string, word: string, on: boolean, toggle: () => void) => el("div", { class: "porow" }, el("span", { class: "lb" }), el("div", { class: "ptx" },
+  el("button", { type: "button", class: "two", role: "switch", "aria-checked": on ? "true" : "false", onclick: toggle }, el("span", null, el("b", { text: label }), el("small", { text: word })),
+    el("span", { class: "tg" + (on ? " on" : ""), "aria-hidden": "true" }, el("i")))));
+const domChips = (label: string, rows: [string, string][], cur: string, on: (k: string) => void) => el("span", { class: "seg2", role: "group", "aria-label": label },
+  rows.map(([k, l]) => el("button", { type: "button", "aria-pressed": cur === k ? "true" : "false", onclick: () => on(k), text: l })));
+const domCard = (title: string, quick: Node, page: string) => el("div", { class: "porow" }, el("span", { class: "lb" }), el("div", { class: "ptx" }, el("b", { text: title }), quick,
+  el("button", { type: "button", class: "more", onclick: () => openPage(page), text: "more" })));
+
+function List() {
+  const tab = state.tab, perv = tab === "debate", find = tab === "find", syl = tab === "syllogism", cats = tab === "categories", timed = tab === "practice" || perv;
+  const tutor = canAsk(), quorum = state.quorumOffered && !!state.db;
+  const tutorRow = tutor ? <Switch lb="Tutor" title="Check every answer with AI" on={state.autoExplain} toggle={() => setAutoExplain(!state.autoExplain)}
+    note={"Right after you check an answer, the AI tutor explains it" + (syl ? "" : " and checks the examples the page could not") + ". Off, it waits for you to ask."} /> : null;
+  const blitz = <Row lb="Blitz"><button type="button" class="two" role="switch" aria-checked={state.blitzUse ? "true" : "false"} onClick={() => setBlitzUse(!state.blitzUse)}>
+    <span><b>Blitz</b><small>{state.blitzUse ? timesLine() : "off: no stopwatch in the top bar"}</small></span><Toggle on={state.blitzUse} /></button>{state.blitzUse ? <More page="times" label="times" /> : null}</Row>;
+  const stages = <Row lb="Stages"><b>Stages</b><small>{stagesLine()}</small><More page="stages" /></Row>;
+  const foot = <p class="pnoteline" style={{ padding: "10px 18px 4px calc(var(--m) + 22px)" }}>The Magic Key, your account, data{tutor && state.learns ? ", sharing your examples" : ""} and the version are in <button type="button" class="pbtn" style={{ padding: 0 }} onClick={toSettings}>Settings</button>.</p>;
+  if (cats) return <>
+    <Row lb="Ask"><b>How step 1 asks</b><Words label="How step 1 asks" items={[["all", "All at once"], ["one", "One by one"]]} cur={state.catsAsk} on={setCategoriesAsk} /></Row>
+    {stages}{foot}</>;
+  if (syl) return <>
+    <Row lb="Words"><b>Wording of the syllogism</b><Words label="Wording" items={[["take", "Take X"], ["formal", "Formal"]]} cur={state.syllogismWording} on={setSyllogismWording} /></Row>
+    <Switch lb="Guide" title="Show the structure" note="S, P and R named under the sentence, and what each reply says in them" on={state.syllogismGuide} toggle={() => setSyllogismGuide(!state.syllogismGuide)} />
+    {stages}{blitz}{tutorRow}{foot}</>;
+  return <>
+    {perv ? <Row lb="Words"><b>Wording of the questions</b><Words label="Wording of the questions" items={Object.entries(WORDINGS).map(([k, w]) => [k, (w as { name: string }).name] as [string, string])} cur={state.wording} on={setWording} /><More page="wording" /></Row> : null}
+    {perv ? <Switch lb="Why?" title="Full phrases" note="spell out Why? answers" on={state.fullPh} toggle={() => setShow("full", !state.fullPh)} /> : null}
+    {find ? <Switch lb="Hints" title="Suggest terms" note="terms of the course while you name a pair" on={state.findSuggest} toggle={() => setFindSuggest(!state.findSuggest)} /> : null}
+    <Row lb="Signs"><b>Notation</b><Words label="Notation" items={Object.entries(SYMS).map(([k, v]) => [k, (v as unknown[])[0] as string] as [string, string])} cur={state.nota} on={setNota} /><More page="nota" /></Row>
+    {timed ? blitz : null}
+    <Switch lb="A/B" title="A/B markers" note="before the terms" on={state.showAB} toggle={() => setShow("ab", !state.showAB)} />
+    <Row lb="Terms"><b>Definitions</b><Words label="Languages of the definitions" items={[["en", "English"], ["enru", "English + Russian"]]} cur={state.defLang} on={setDefLang} /><More page="defs" /></Row>
+    {stages}
+    {voiceShown() ? <Bridge own fill={() => voiceListRows(domSw, domCard, domChips)} /> : null}
+    {tutorRow}
+    {quorum ? <Switch lb="Quorum" title="Several models explain" note={quorumNote()} on={state.quorum} toggle={() => setQuorum(!state.quorum)} /> : null}
+    {foot}</>;
+}
+
+/** A page's choices: one pressed, each with a word on what it does (the choices on the path, as the lab draws them). */
+function Picks<T extends string>({ label, items, cur, on }: { label: string; items: [T, string, string, ComponentChildren?][]; cur: T; on: (k: T) => void }) {
+  return <div class="chs" role="group" aria-label={label}>{items.map(([k, name, desc, extra]) =>
+    <button type="button" class={"crow" + (cur === k ? " picked" : "")} aria-pressed={cur === k ? "true" : "false"} onClick={() => on(k)}>
+      <span class="mc"><D cls={"sub " + (cur === k ? "yours" : "pk")} /></span><span class="ct"><b>{name}</b>{desc ? <small>{desc}</small> : null}{extra || null}</span>
+    </button>)}</div>;
+}
+const sample = (w: { lead?: string; q: unknown[][] }) => (w.lead ? w.lead + " " : "") + w.q[1].map((x) => (x === NOT ? "not" : x)).join("");
+/** One Blitz time: the usual ones, and a number of seconds of one's own. */
+function Time({ kind, lb, label, note }: { kind: string; lb: string; label: string; note: string }) {
+  const now = secs(kind), preset = [5, 10, 15, 30].includes(now);
+  return <Row lb={lb}><b>{label}</b><small>{note}</small>
+    <span style={{ display: "flex", alignItems: "center", gap: "14px", flexWrap: "wrap" }}>
+      <Words label={label} items={[[5, "5 s"], [10, "10 s"], [15, "15 s"], [30, "30 s"]]} cur={preset ? now : -1} on={(s) => setTimer(s * 1000, kind)} />
+      <input type="number" min="2" max="120" inputMode="numeric" class="pfield" style={{ flex: "none", width: "64px", height: "28px", fontSize: "16px" }} placeholder="sec" aria-label={"Custom " + label.toLowerCase() + " in seconds"}
+        value={preset ? "" : String(now)} onChange={(e) => { const v = Math.round(+(e.currentTarget as HTMLInputElement).value); if (v >= 2 && v <= 120) setTimer(v * 1000, kind); }}
+        onKeyDown={(e) => e.stopPropagation()} />
+    </span></Row>;
+}
+/** The stages of the ladder: a switch for each, with its name, what it adds and how many things this device has of it; any mix, and the last one on stays on. */
+function Stages() {
+  const ex = state.EX ? stageCounts(state.EX.items) : {}, items: Record<number, number> = {}, only = state.stages.length === 1;
+  for (const it of state.DATA ? state.DATA.items : []) if (!it.nosubject) items[itemStage(it)] = (items[itemStage(it)] || 0) + 1;
+  return <>
+    <p class="psub">Every exercise asks about the stages that are on, in any mix. A category opens at its stage and stays open above it, and the things come from the stages that are on. About half of the pairs are new at the highest stage, the rest review the ones below. Stage 1 is the start: Categories offers the next stage after five right in a row.</p>
+    {STAGES.map(({ n, name, adds }) => {
+      const on = state.stages.includes(n), count = (items[n] || 0) + ((ex as Record<number, number>)[n] || 0);
+      return <Row lb={"St " + n}><button type="button" class="two" role="switch" aria-checked={on ? "true" : "false"} aria-disabled={on && only ? "true" : undefined} onClick={() => setStages(toggleStage(state.stages, n))}>
+        <span><b>{"Stage " + n + " · " + name}</b><small>{count + (count === 1 ? " thing" : " things")}</small></span><Toggle on={on} /></button><small class="plvn">{adds}</small></Row>;
+    })}
+    {only ? <p class="pnoteline pnote3">At least one stage stays on.</p> : null}
+    {negates() ? <>
+      <p class="psub">Negations are a step of difficulty like the stages: switch them on when the plain pairs come easily. A negation takes in what does not exist, so nothing may be neither: then the Neither case is empty, and you say that nothing exists there.</p>
+      <Row lb="Not"><b>Negations</b><Words label="Negations" items={[["off", "Off"], ["one", "One side"], ["both", "Both sides"]]} cur={state.negation} on={setNegation} />
+        <small>Some pairs negate a term: “furniture” and “non-(wooden things)”, which takes in everything that is not a wooden thing. One side: A or B is negated in about a third of the pairs. Both sides: half of those negate both.</small></Row>
+      <Switch lb="Brackets" title="Brackets" note="“non-(wooden things)” says that the “non-” takes in everything that is not a wooden thing, what does not exist included. Without them, “non-wooden things” is also read as the things that are not wooden, which leaves out what does not exist. They help while negations are new, and apply from the next pair." on={state.negBrackets} toggle={() => setNegBrackets(!state.negBrackets)} />
+    </> : null}
+  </>;
+}
+function Page({ id }: { id: string }) {
+  if (id === "nota") return <><p class="psub">How the relation between two terms is written, in the statements and in your answers.</p>
+    <Picks label="Notation" cur={state.nota} on={setNota} items={Object.entries(SYMS).map(([k, v]) => { const [name, desc, rows] = v as [string, string, [string, string][]];
+      return [k, name, desc, <small>{rows.map(([s, t]) => <span style={{ display: "block" }}><b class="mono" style={{ display: "inline", fontSize: "13px", color: "var(--ink)" }}>{s}</b> {t}</span>)}</small>] as [string, string, string, ComponentChildren]; })} /></>;
+  if (id === "wording") return <><p class="psub">How the statement of pervasion is worded in Pervasions: the four statements you accept or answer with Why?.</p>
+    <Picks label="Wording of the questions" cur={state.wording} on={setWording} items={Object.entries(WORDINGS).map(([k, w]) => [k, (w as { name: string }).name, sample(w as { lead?: string; q: unknown[][] })] as [string, string, string])} /></>;
+  if (id === "defs") return <><p class="psub">Shown when you open a term's definition, in the Terms and in the tutor's notes.</p>
+    <Picks label="Languages of the definitions" cur={state.defLang} on={setDefLang} items={[["en", "English", "The definition in English."], ["enru", "English + Russian", "Each entry also shows the Russian name of the term and, where there is one, its Russian definition."]]} /></>;
+  if (id === "times") return <><p class="psub">{state.tab === "syllogism" ? "A countdown for the reply to each syllogism, switched on and off with the stopwatch in the top bar; hold the stopwatch to come back here." : "A countdown for each step of a pair, switched on and off with the stopwatch in the top bar; hold the stopwatch to come back here."}</p>
+    <Switch lb="Blitz" title="Use Blitz" note="Off takes the stopwatch out of the top bar; the times stay for when it is on again." on={state.blitzUse} toggle={() => setBlitzUse(!state.blitzUse)} />
+    {!state.blitzUse ? null : state.tab === "syllogism" ? <Time kind="syl" lb="Reply" label="Syllogism time" note="for the reply to each syllogism" />
+      : <><Time kind="rel" lb="Pick" label="Relation time" note="for choosing the relation, in Relations and Pervasions" /><Time kind="ex" lb="Write" label="Example time" note="for each example in Relations (three cells get three times this) and each question in Pervasions" /></>}</>;
+  if (id === "stages") return <Stages />;
+  if (id === "voice") return <Bridge cls="opts" fill={() => voicePageBody(picks)} />;
+  return null;
+}
+
+/** The sheet of the practice options: from the top, under the top bar, over a scrim; the knob at its foot folds it away. */
+export function OptionsSheet() {
+  const on = state.sessOpen && state.mode === "quiz", page = on && state.sessPage && PAGES[state.sessPage as keyof typeof PAGES] && (state.sessPage !== "voice" || voiceShown()) ? state.sessPage : null;
+  const box = useRef<HTMLDivElement>(null), was = useRef(on);
+  useEffect(() => {
+    if (on && !was.current) { const b = box.current && box.current.querySelector<HTMLElement>(".shead button"); if (b) b.focus({ preventScroll: true }); }
+    was.current = on;
+  }, [on]);
+  return <>
+    <div class={"scrim below" + (on ? " on" : "")} onClick={() => toggleSess(false)} />
+    <div ref={box} class={"psheet top" + (on ? " on" : "")} role="dialog" aria-label="Practice options" aria-hidden={on ? "false" : "true"} inert={!on}>
+      <div class="shead"><span /><h2>{page ? PAGES[page as keyof typeof PAGES] : "Practice options"}</h2>
+        <button type="button" class="pib" aria-label="Close the practice options" onClick={() => toggleSess(false)}><Icon n="close" /></button></div>
+      <div class="sbody">
+        {page ? <button type="button" class="sback" onClick={sessBack}><Icon n="chev" />back to the options</button> : <p class="glab" style={{ paddingTop: "4px" }}>{exName(state.tab)}</p>}
+        {on ? (page ? <Page id={page} /> : <List />) : null}
+      </div>
+      <Knob up label="Fold the practice options away" onClick={() => toggleSess(false)} />
+    </div>
+  </>;
+}

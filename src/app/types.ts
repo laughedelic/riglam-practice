@@ -15,6 +15,7 @@ import type { QuorumRecord } from "../ai/protocol";
 import type { AccountSlot } from "../ui/account";
 import type { TransferSlot } from "../ui/data-transfer";
 import type { KeyHeld } from "../platform/types";
+import type { Look } from "./path/look";
 
 export type { Pair, PoolEntry, Verdict };
 
@@ -434,6 +435,16 @@ export interface State {
 
   // reading the questions aloud and answering by voice (shell/voice.js)
   voice: VoiceState;
+
+  // the redesign (src/app/path)
+  /** which design draws the page: the device's choice (`rd-design`), else the build's default (the Path in a Preview) */
+  design: "classic" | "path";
+  /** how the Path looks: the defaults with the lab's settings this device keeps (`rd-look`); null until the Path first draws */
+  look: Look | null;
+  /** a short note at the Path's foot ("Skipped; it waits in Review"), gone after a moment */
+  pathNote: { text: string; tid: ReturnType<typeof setTimeout> } | null;
+  /** the Path's next draw, waiting for the next frame (refreshPath); 0 when none waits */
+  pathQ: number;
 }
 
 /** A spoken answer that waits for its confirmation (shell/voice.js). */

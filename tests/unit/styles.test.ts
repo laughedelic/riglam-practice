@@ -50,3 +50,20 @@ test("every relative url() in the styles names an existing file", () => {
     }
   }
 });
+
+// The Path (src/app/path) draws into #path with its own rules, 33-path-base.css to 37-path-panels.css (38 styles the classic parts it hosts).
+// A class name it shares with a classic rule that stands alone (`.status{...}`, not `.sum .status`) would bring that rule onto the Path too.
+const path = (f: string) => { const n = Number(f.slice(0, 2)); return n >= 33 && n <= 37; };
+const classic = (f: string) => Number(f.slice(0, 2)) < 33;
+const rules = (f: string) => [...readFileSync(resolve(dir, f), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]+)\{/g)].map((m) => m[1].trim()).filter((s) => !s.startsWith("@"));
+const classesIn = (sel: string) => [...sel.matchAll(/\.([a-zA-Z][\w-]*)/g)].map((m) => m[1]);
+// shared on purpose: the dotted underline of a term with a definition looks the same on both pages
+const SHARED_ON_PURPOSE = new Set(["dterm"]);
+
+test("the Path's class names do not pick up a classic rule that stands alone", () => {
+  const ours = new Set(files.filter(path).flatMap(rules).flatMap((r) => r.split(",")).filter((s) => /\.pa\b/.test(s)).flatMap(classesIn));
+  expect(ours.size).toBeGreaterThan(50);
+  const clashes = files.filter(classic).flatMap((f) => rules(f).flatMap((r) => r.split(",").map((s) => s.trim())).filter((s) => !/[\s>+~]/.test(s.replace(/\([^)]*\)/g, "")))
+    .filter((s) => { const cs = classesIn(s); return cs.length > 0 && cs.every((c) => ours.has(c) && !SHARED_ON_PURPOSE.has(c)); }).map((s) => f + ": " + s));
+  expect(clashes).toEqual([]);
+});

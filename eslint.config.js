@@ -12,7 +12,7 @@ export default defineConfig([
   },
   {
     // TypeScript: the recommended rules; the compiler (npm run typecheck) does the type checking.
-    files: ["**/*.ts"],
+    files: ["**/*.ts", "**/*.tsx"],
     extends: [tseslint.configs.recommended],
     languageOptions: { globals: { ...globals.browser, ...globals.node } },
     rules: {

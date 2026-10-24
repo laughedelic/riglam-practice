@@ -22,6 +22,7 @@ import "./shell/history.js";
 import "./debate/text.js";
 import "./shell/timers.js";
 import { voiceOn } from "../ui/speech";
+import { startDesign } from "./path/index.tsx";
 
 /* ---------- boot ---------- */
 // The page knows its host only through the platform it is started with (src/platform/types.ts): the term data and the
@@ -30,6 +31,7 @@ export function startApp(platform){
   // Voice is on trial: the device's own choice, else on in a Preview and off in the real app
   let kept=null; try{ kept=localStorage.getItem("rd-voice"); }catch(e){}
   state.voice.on=voiceOn(kept,!!platform.preview);
+  startDesign(!!platform.preview);   // the Path (src/app/path) or the classic page: the device's choice, else the Path in a Preview
   render();
   boot(platform);
   exposeTestHook();
