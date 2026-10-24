@@ -151,8 +151,10 @@ test("the staging commit is main with each pull request merged in the given orde
   ]);
   expect(manifest.inputs).toEqual([`2@${git(work, "rev-parse", "origin/feat-a")}`, `5@${git(work, "rev-parse", "origin/feat-b")}`]);
   expect(result.merged.map((m) => m.number)).toEqual([2, 5]);
-  expect(git(work, "log", "-1", "--format=%B", "staging")).toMatch(/#2 feat-a [0-9a-f]{7}\n#5 feat-b [0-9a-f]{7}/);
-  expect(git(work, "log", "--format=%s", "staging")).toContain("Merge #2 (feat-a) into staging");
+  expect(git(work, "log", "-1", "--format=%B", "staging")).toMatch(/PR 2 feat-a [0-9a-f]{7}\nPR 5 feat-b [0-9a-f]{7}/);
+  expect(git(work, "log", "--format=%s", "staging")).toContain("Merge PR 2 (feat-a) into staging");
+  // no `#2`: GitHub would add a "referenced this pull request" event to the pull request for every rebuild
+  expect(git(work, "log", "--format=%B", "origin/main..staging")).not.toMatch(/#\d/);
   // main itself did not move, and the worktree used for the build is gone
   expect(git(work, "rev-parse", "origin/main")).toBe(result.baseSha);
   expect(git(work, "worktree", "list").split("\n")).toHaveLength(1);
@@ -196,7 +198,7 @@ test("a conflict leaves that pull request out, names the files and who else chan
   expect(git(work, "show", "staging:a.txt")).toBe("one\nTWO-x1\nthree");
   expect(git(work, "show", "staging:d.txt")).toBe("d");
   expect(JSON.parse(git(work, "show", `staging:${MANIFEST}`)).skipped).toEqual([expect.objectContaining({ number: 2, reason: "conflict", files: ["a.txt"] })]);
-  expect(git(work, "log", "-1", "--format=%B", "staging")).toMatch(/left out: #2 x2 [0-9a-f]{7} \(conflict: a\.txt\)/);
+  expect(git(work, "log", "-1", "--format=%B", "staging")).toMatch(/left out: PR 2 x2 [0-9a-f]{7} \(conflict: a\.txt\)/);
   expect(git(work, "worktree", "list").split("\n")).toHaveLength(1);
   expect(git(work, "status", "--porcelain", "--untracked-files=no")).toBe("");
 });
