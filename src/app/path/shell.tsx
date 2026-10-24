@@ -73,17 +73,20 @@ export function Toast() {
 }
 
 /** The station at the edge, ready: pull it up over the curb, tap it, or press Enter (its arrow hops, as the sign that it can be taken). Taking it plays the ride
- *  (take.ts) unless `back`: it goes back to what was there, and the step is simply there. */
-export function Station({ name, hint = "", act, arrive = false, back = false }: { name: string; hint?: string; act: () => void; arrive?: boolean; back?: boolean }) {
+ *  (take.ts) unless `back`: it goes back to what was there, and the step is simply there. `keep`: it stands on the page above a keyboard (the Check under the last
+ *  example), so touching it keeps the field's focus until it is taken, and then the keyboard goes. */
+export function Station({ name, hint = "", act, arrive = false, back = false, keep = false }: { name: string; hint?: string; act: () => void; arrive?: boolean; back?: boolean; keep?: boolean }) {
   const pull = useContext(PullCtx); pull.act = act; pull.rides = !back;
   const g = useRef<{ y0: number; moved: boolean; past: boolean } | null>(null);
-  return <button type="button" class="stn" id="stn" aria-label={name + (hint ? ": " + hint : "")}
+  const away = (took: boolean) => { const a = document.activeElement as HTMLElement | null; if (took && keep && a && a.classList.contains("pfield")) a.blur(); };
+  return <button type="button" class={"stn" + (keep ? " inl" : "")} id="stn" aria-label={name + (hint ? ": " + hint : "")}
+    onMouseDown={keep ? (e) => e.preventDefault() : undefined}
     onPointerDown={(e) => { g.current = { y0: e.clientY, moved: false, past: false }; (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); pull.to(0); }}
     onPointerMove={(e) => { const s = g.current; if (!s) return; const raw = Math.max(0, s.y0 - e.clientY); if (raw > 4) s.moved = true; s.past = pull.to(s.moved ? raw : 0); }}
-    onPointerUp={() => { const s = g.current; if (!s) return; g.current = null; pull.end(!s.moved || s.past); }}
+    onPointerUp={() => { const s = g.current; if (!s) return; g.current = null; away(pull.end(!s.moved || s.past)); }}
     onPointerCancel={() => { g.current = null; pull.end(false); }}
-    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pull.take(); } }}
-    onClick={(e) => { if (e.detail === 0) pull.take(); }}>
+    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); away(pull.take()); } }}
+    onClick={(e) => { if (e.detail === 0) away(pull.take()); }}>
     <span class={"go" + (arrive ? " arrive" : "")}><span class="mk"><Icon n="up" /></span></span><span class="gol"><b>{name}</b>{hint ? <small>{hint}</small> : null}</span>
   </button>;
 }

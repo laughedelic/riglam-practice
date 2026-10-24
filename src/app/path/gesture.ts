@@ -62,6 +62,9 @@ export class Pull {
   dy = 0;
   /** the ride is playing: nothing else is taken */
   busy = false;
+  /** the layout of the keyboard stays while the ride plays (the field is let go at its start, the keyboard goes, and the page must not change under the ride); `after` sets it right once the step is taken */
+  hold = false;
+  after: (() => void) | null = null;
   peekT: ReturnType<typeof setTimeout> | undefined;
 
   private q<T extends HTMLElement = HTMLElement>(sel: string) { return this.root ? this.root.querySelector<T>(sel) : null; }
@@ -91,31 +94,35 @@ export class Pull {
     this.dy = dy;
     el.classList.add("dragging"); if (sp && raw > 0) { sp.classList.add("peek"); clearTimeout(this.peekT); }
     el.style.transform = `translateY(${-dy}px)`;
-    if (riser) riser.style.bottom = (foot ? foot.offsetHeight : 0) + "px";
+    // a station on the page itself (the Check under the last example, while the keyboard is up) has no foot under it: nothing of the riser's ground is needed
+    if (riser) { riser.style.bottom = (foot ? foot.offsetHeight : 0) + "px"; riser.style.display = foot ? "" : "none"; }
     this.root.style.setProperty("--lift", dy.toFixed(1) + "px");
     this.root.style.setProperty("--pull", Math.min(1, path ? raw / TIGHT : dy / LINE).toFixed(3)); this.root.classList.toggle("pulling", raw > 0);
     if (past !== this.past) { this.past = past; if (past && !curb) bump(); }
     return past;
   }
-  /** The pull let go: the station goes back, and is taken when `go`. A tap on a station that is not ready bumps it. */
-  end(go: boolean, tapped = false) {
-    if (this.busy) return;
-    const stn = this.q("#stn"), sp = this.q("#stnp"), el = stn || sp;
+  /** The pull let go: the station goes back, and is taken when `go` (the answer: whether it was). A tap on a station that is not ready bumps it. */
+  end(go: boolean, tapped = false): boolean {
+    if (this.busy) return false;
+    const stn = this.q("#stn"), sp = this.q("#stnp"), el = stn || sp, riser = this.q(".riser");
     if (go && stn && this.act && this.rides && this.root && canTake(this.root)) {
-      this.busy = true;
-      playTake(this.root, stn, this.dy, this.act, () => { this.busy = false; this.curb = null; this.past = false; this.dy = 0; });
-      return;
+      const act = this.act;
+      this.busy = true; this.hold = true;
+      playTake(this.root, stn, this.dy, () => { this.hold = false; act(); if (this.after) this.after(); }, () => { this.busy = false; this.curb = null; this.past = false; this.dy = 0; if (this.hold) { this.hold = false; if (this.after) this.after(); } });
+      return true;
     }
     if (this.curb) { if (this.curb.over) foldPage(this.root, false); this.curb = null; }
     this.dy = 0;
     if (el) { el.classList.remove("dragging"); el.style.transform = ""; }
+    if (riser) riser.style.display = "";
     if (this.root) { this.root.classList.remove("pulling"); this.root.style.setProperty("--pull", "0"); this.root.style.setProperty("--lift", "0px"); }
     this.past = false;
     if (sp && !go) this.peek(sp, tapped);
-    if (go && this.act) this.act();
+    if (go && this.act) { this.act(); return true; }
+    return false;
   }
   /** The station taken without a pull (a tap, Enter): the ride, or the step at once. */
-  take() { if (this.busy || !this.act) return; this.end(true); }
+  take(): boolean { if (this.busy || !this.act) return false; return this.end(true); }
   /** Whether the path may be pulled past its end now: nothing over it, no keyboard, the strip folded, a station there. */
   canPull() {
     const r = this.root; if (!r || this.busy) return false;

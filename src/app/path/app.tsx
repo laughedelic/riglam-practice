@@ -120,13 +120,15 @@ export function App() {
     const r = root.current; if (!r) return;
     // the layout with the keyboard up: a field of the path has the focus on a touch screen
     const kbNow = () => { const a = document.activeElement; return !!a && a.classList.contains("pfield") && r.contains(a) && coarse() && currentLook().keys === "sim"; };
-    const sync = () => setKb(kbNow());
+    // (while a station is being taken the layout stays as it is: the keyboard goes at the start of the ride, and the page is not to change under it; `after` sets it right)
+    const sync = () => { if (!pull.hold) setKb(kbNow()); };
+    pull.after = () => setKb(kbNow());
     const fin = () => sync(), fout = () => setTimeout(sync, 0);
     r.addEventListener("focusin", fin); r.addEventListener("focusout", fout);
     const vv = window.visualViewport, size = () => setSmall(!!vv && vv.height < 430);
     if (vv) vv.addEventListener("resize", size); size();
-    return () => { r.removeEventListener("focusin", fin); r.removeEventListener("focusout", fout); if (vv) vv.removeEventListener("resize", size); };
-  }, []);
+    return () => { pull.after = null; r.removeEventListener("focusin", fin); r.removeEventListener("focusout", fout); if (vv) vv.removeEventListener("resize", size); };
+  }, [pull]);
   return <PullCtx.Provider value={pull}>
     <div class={cls} ref={root}>
       <div class="pcol">

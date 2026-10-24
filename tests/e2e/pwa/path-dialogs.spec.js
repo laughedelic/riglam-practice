@@ -29,8 +29,7 @@ withKey("the question before examples are kept takes the Path's look, and still 
   await page.locator("#path .chs .crow").first().click();
   const field = page.locator("#cin");
   await expect(field).toBeVisible();
-  for (let i = 0; i < 4 && (await field.isVisible()); i++) { await field.fill("thing " + (i + 1)); await field.press("Enter"); }
-  await expect(field).toHaveCount(0);
+  for (let i = 0; i < 4 && (await field.isVisible()); i++) { await field.fill("thing " + (i + 1)); if ((await field.getAttribute("enterkeyhint")) === "done") { await field.blur(); break; } await field.press("Enter"); }   // (the last one is left without Enter, which would take the Check at once)
   await page.locator("#stn").click();
   await page.locator(".wrow").filter({ hasText: "Why" }).click();
   const dlg = page.getByRole("dialog", { name: "Share your examples?" });
