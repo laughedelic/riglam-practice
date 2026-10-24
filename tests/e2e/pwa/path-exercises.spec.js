@@ -167,6 +167,7 @@ async function drawInstance(page, possible) {
 test("Find an instance: the categories as stops, a thing written, the check, and a row for each category", async ({ page }) => {
   await open(page, "Find an instance");
   const q = await drawInstance(page, true);
+  await expect(page.locator("#path .pskip")).toHaveAccessibleName("Skip these categories");   // Skip, under the first stop's mark
   await expect(page.locator("#path .icat")).toHaveCount(q.cats.length);
   await expect(page.locator("#path .icat").first()).toHaveText(q.labels[0]);
   const field = page.locator("#iin");

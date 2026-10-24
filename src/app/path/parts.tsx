@@ -62,7 +62,7 @@ export const skipHere = () => { const u = state.ui; return currentLook().skipAt 
  *  something entered it asks first (practice/skips.js). */
 export function SkipMark() {
   if (!skipHere()) return null;
-  const u = state.ui!, what = u.syllogism ? "this syllogism" : u.cats ? "this one" : "this pair";
+  const u = state.ui!, what = u.syllogism ? "this syllogism" : u.cats ? "this one" : u.inst ? "these categories" : "this pair";
   return <button type="button" class="pib pskip" aria-label={"Skip " + what} onClick={(e) => { if (skipAsks()) skipPair(); else turnAside((e.currentTarget as HTMLElement).closest(".main"), skipNow); }}><Icon n="skip" /></button>;
 }
 /** The classes of a stop that carries the favorites mark and Skip under it. */

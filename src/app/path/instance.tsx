@@ -6,14 +6,13 @@ import { useEffect } from "preact/hooks";
 import { state } from "../state.js";
 import { checkInstance, sayNothing, shownSet, writeInstance } from "../instance/flow.ts";
 import { next } from "../practice/queue.js";
-import { skipPair } from "../practice/skips.js";
 import { spelled, stripDet } from "../../ai-shared/lookup.ts";
 import { catPhrase } from "../../domain/instance.ts";
 import type { InstanceQuestion, InstanceResult, InstanceRow } from "../../domain/instance.ts";
 import { refreshPath } from "./index.tsx";
-import { ErrLines, Verdict, u0 } from "./parts.tsx";
+import { ErrLines, SkipMark, Verdict, u0 } from "./parts.tsx";
 import { Scroll } from "./scroll.tsx";
-import { Foot, PreStation, SideStation, Station, TopBar } from "./shell.tsx";
+import { Foot, PreStation, SkipSide, Station, TopBar } from "./shell.tsx";
 import { D, Gap, Head, Mark, St, Sx, nofillInput } from "./ui.tsx";
 
 const q = () => shownSet() as InstanceQuestion;
@@ -67,11 +66,11 @@ function AskStep({ kb }: { kb: boolean }) {
       <p class="help"><span class="htx">A thing, in a few words. </span><button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { blur(); sayNothing(true); }}>{noneText(n)}</button></p></St>;
   return <>
     <Scroll>
-      <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Instance" sub={n === 1 ? "something of this kind" : "something that is " + allOf(n)} /><Gap h={6} />
+      <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Instance" sub={n === 1 ? "something of this kind" : "something that is " + allOf(n)} aside={<SkipMark />} /><Gap h={6} />
         <CatStops s={s} /><Gap h={4} />{answer}<Gap h={6} /></Sx>
       <Sx cls="ptail" />
     </Scroll>
-    {kb ? null : <Foot aux={<SideStation kind="skip" act={skipPair} />}>
+    {kb ? null : <Foot aux={<SkipSide />}>
       {ok ? <Station name="Check" hint={u.none ? noneText(n) : "“" + said() + "”"} act={check} /> : <PreStation name="Check" hint={"write a thing, or say " + noneText(n)} />}
     </Foot>}
   </>;
