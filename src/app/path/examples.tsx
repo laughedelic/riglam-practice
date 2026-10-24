@@ -12,7 +12,7 @@ import { refreshPath } from "./index.tsx";
 import { CASE, PairNode, Star, caseQ, pairOf, u0 } from "./parts.tsx";
 import { Scroll } from "./scroll.tsx";
 import { Foot, PreStation, SideStation, Station, VoiceBar, pathNote } from "./shell.tsx";
-import { D, Gap, Head, Icon, Knob, St, Sx, NOFILL } from "./ui.tsx";
+import { D, Gap, Head, Icon, Knob, St, Sx, nofillInput } from "./ui.tsx";
 
 /** Only the "neither" case may say that nothing exists: the other cases are asked because the relation chosen needs them, so their examples justify the choice. */
 const mayBeEmpty = (c: CellId) => c === "nei";
@@ -93,14 +93,16 @@ export function ExamplesStep({ kb, title, step, rel, full, check }: { kb: boolea
   const rows = k.order.map((c, i) => {
     const x = u.cells[c];
     if (i === k.ci) return <St d={<D cls="sub now" />} cls="sb now"><span class="lab">{CASE[c]}</span><p class="qq">{caseQ(c, p)}</p>
-      <div class="fieldrow"><input class="pfield" id="cin" value={x.t} placeholder="write an example" {...NOFILL} enterKeyHint={k.last ? "done" : "next"} aria-label={cellLabel(c, p)}
+      <div class="fieldrow"><input class="pfield" id="cin" value={x.t} placeholder="write an example" {...nofillInput()} enterKeyHint={k.last ? "done" : "next"} aria-label={cellLabel(c, p)}
         onInput={(e) => { x.t = (e.currentTarget as HTMLInputElement).value; if (x.none) x.none = false; refreshPath(); }}
         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commit(null); } }} /></div>
       <p class="help"><span class="htx">{c === first ? "Your own example, in a few words." : "In a few words."} </span>{mayBeEmpty(c) ? <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => nothing(c)}>nothing exists</button> : null}</p></St>;
     // a written case opens again with a tap; the field keeps the focus meanwhile, so the keyboard stays up and nothing moves under the finger
     if (filled(c)) return <button type="button" class="sbb" onMouseDown={(e) => e.preventDefault()} onClick={() => openCase(i)} aria-label={CASE[c] + ": " + (x.none ? "nothing exists" : x.t) + ". Change it"}>
       <St d={<D cls="sub yours" />} cls="sb done"><span class="lab">{CASE[c]}</span><span class={"pans" + (x.none ? " nil" : "")}>{x.none ? "nothing exists" : x.t.trim()}</span></St></button>;
-    return <St d={<D cls="sub" />} cls="sb later"><span class="lab">{CASE[c]}</span><p class="qq">{caseQ(c, p)}</p></St>;
+    // a case ahead is taken up with a tap too (out of order is fine: Next goes to the next one still empty); with the keyboard up the tap keeps it up, and the field moves
+    return <button type="button" class="sbb later" onMouseDown={(e) => e.preventDefault()} onClick={() => openCase(i)} aria-label={CASE[c] + ": not written yet. Write it now"}>
+      <St d={<D cls="sub" />} cls="sb later"><span class="lab">{CASE[c]}</span><p class="qq">{caseQ(c, p)}</p></St></button>;
   });
   return <>
     <KHead rel={rel} title={title} /><Strip rel={rel} full={full} />
