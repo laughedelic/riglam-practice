@@ -4,6 +4,8 @@
 // only a little, as if it resisted (never past the foot's top edge), and firms the thread (before a choice it stays dotted, its fade filled in): it never takes the station. A side station (Skip) slides left past its reach. One tension
 // is shared by all of them: each Path draw keeps one Pull, on its root. A station that can be taken is pulled over a curb (below), and taking it plays the
 // ride of take.ts.
+import { currentLook } from "./look.ts";
+import { playScan, type ScanPlan } from "./scan.tsx";
 import { canTake, foldPage, playTake } from "./take.ts";
 
 const LINE = 64, STOP = 26;
@@ -67,6 +69,8 @@ export class Pull {
   /** the layout of the keyboard stays while the ride plays (the field is let go at its start, the keyboard goes, and the page must not change under the ride); `after` sets it right once the step is taken */
   hold = false;
   after: (() => void) | null = null;
+  /** the verdicts the Check of the examples marks as it slides up (scan.tsx), set by that station on every draw; null elsewhere */
+  scan: (() => ScanPlan) | null = null;
   peekT: ReturnType<typeof setTimeout> | undefined;
 
   private q<T extends HTMLElement = HTMLElement>(sel: string) { return this.root ? this.root.querySelector<T>(sel) : null; }
@@ -121,7 +125,10 @@ export class Pull {
     if (go && stn && this.act && this.rides && this.root && canTake(this.root)) {
       const act = this.act;
       this.busy = true; this.hold = true;
-      playTake(this.root, stn, this.dy, () => { this.hold = false; act(); if (this.after) this.after(); }, () => { this.busy = false; this.curb = null; this.past = false; this.dy = 0; if (this.hold) { this.hold = false; if (this.after) this.after(); } });
+      const go = () => { this.hold = false; act(); if (this.after) this.after(); }, settle = () => { this.busy = false; this.curb = null; this.past = false; this.dy = 0; if (this.hold) { this.hold = false; if (this.after) this.after(); } };
+      let plan: ScanPlan | null;
+      try { plan = this.scan && currentLook().check === "scan" ? this.scan() : null; } catch { plan = null; }
+      if (plan) playScan(this.root, stn, plan, go, settle); else playTake(this.root, stn, this.dy, go, settle);
       return true;
     }
     if (this.curb) { if (this.curb.over) foldPage(this.root, false); this.curb = null; }
