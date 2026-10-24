@@ -55,7 +55,7 @@ function AnswerStep() {
   return <>
     <Scroll>
       <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Answer" sub="do you accept it?" /><Gap h={6} /><Statement /><Gap h={10} /></Sx>
-      <Choices label="Your reply" items={items} picked={u.pk} onPick={(k) => pickThen(k, () => saySyllogism(k))} />
+      <Choices label="Your reply" slide items={items} picked={u.pk} onPick={(k) => pickThen(k, () => saySyllogism(k))} />
       <Sx cls="ptail" />
     </Scroll>
     <Foot aux={<SideStation kind="skip" act={skipPair} />}><PreStation name="Result" hint="pick an answer first" /></Foot>
