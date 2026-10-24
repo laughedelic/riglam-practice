@@ -72,7 +72,6 @@
 .pa .tree .nd.cur{fill:var(--gold); stroke:none}
 .pa .tree .nd.off{stroke:var(--ink3)}
 .pa .tree .nd.plan{stroke:var(--ink3); stroke-dasharray:3 3}
-.pa .tree .gl{font-family:var(--mono); font-size:9.5px; letter-spacing:.1em; fill:var(--ink3)}
 .pa .tree .en{font-family:var(--main-f); font-size:17px; font-weight:600; fill:var(--blue); cursor:pointer}
 .pa .tree .en.cur{fill:var(--ink)}
 .pa .tree .en.plan,.pa .tree .en.off{fill:var(--ink3); font-weight:500}

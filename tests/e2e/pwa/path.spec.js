@@ -335,6 +335,33 @@ test("the roadmap comes down from the top bar and goes to another exercise", asy
   await expect(choices(page)).toHaveCount(5);
 });
 
+test("the roadmap has the stops and their names only: no branch labels, and the planned Debate is tied to Pervasions and Syllogisms", async ({ page }) => {
+  await start(page);
+  await choices(page).nth(2).click();   // an attempt in Relations, so that it says "continue" once we are elsewhere
+  await expect(page.locator("#cin")).toBeVisible();
+  await page.locator("#cin").blur();   // the keyboard is down, the top bar is back
+  await page.locator(".tstn").click();
+  const road = page.getByRole("dialog", { name: "Roadmap" });
+  await road.getByRole("button", { name: /^Pervasions/ }).click();
+  await page.locator(".tstn").click();
+  const tree = road.locator("svg.tree");
+  await expect(tree).toBeVisible();
+  expect((await tree.locator("text").allTextContents()).sort()).toEqual(["Categories", "Debate", "Find a pair", "Pervasions", "Relations", "Syllogisms", "coming", "continue", "riglam"]);
+  const geo = await tree.evaluate((svg) => {
+    const pt = (p, at) => { const q = p.getPointAtLength(at); return [Math.round(q.x), Math.round(q.y)]; };
+    const dashed = [...svg.querySelectorAll("path.lnp")].map((p) => [pt(p, 0), pt(p, p.getTotalLength())]);
+    const debate = svg.querySelector("polygon.nd.plan").getBBox();
+    const cont = svg.querySelector("text.cont").getBBox();
+    let onLine = 0;
+    for (const p of svg.querySelectorAll("path.ln,path.lnp")) for (let at = 0; at < p.getTotalLength(); at += 1) { const q = p.getPointAtLength(at); if (q.x > cont.x - 3 && q.x < cont.x + cont.width + 3 && q.y > cont.y - 3 && q.y < cont.y + cont.height + 3) onLine++; }
+    return { dashed, top: [Math.round(debate.x + debate.width / 2), Math.round(debate.y)], onLine };
+  });
+  expect(geo.dashed).toHaveLength(2);
+  for (const [, end] of geo.dashed) expect(end, "both ties end at the top of Debate").toEqual(geo.top);
+  expect(geo.dashed.map(([start]) => start[0]).sort((a, b) => a - b), "from Pervasions' column and Syllogisms'").toEqual([74, 196]);
+  expect(geo.onLine, "no line runs through the word under a stop").toBe(0);
+});
+
 test("the practice options are a sheet from the top bar, and a choice there is kept", async ({ page }) => {
   await start(page);
   await page.getByRole("button", { name: "Practice options" }).click();
