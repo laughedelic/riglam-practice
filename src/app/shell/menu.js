@@ -31,7 +31,7 @@ function todayLine(){
     el("i",{"aria-hidden":"true"},tbIcon("chev")));
 }
 function rows(){
-  const list=EXERCISES.filter(e=>e.needs!=="examples"||state.EX), out=[], multi=new Set(list.map(e=>e.group)).size>1;
+  const list=EXERCISES, out=[], multi=new Set(list.map(e=>e.group)).size>1;
   let last=null;
   for(const e of list){
     if(!multi&&last===null) out.push(el("p",{class:"mgrp",text:"Exercises"}));

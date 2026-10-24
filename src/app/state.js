@@ -1,8 +1,9 @@
 // The page's shared state. These were module-level variables of the old single script; an ES module cannot assign to a binding it
 // imports, so they are properties of one object. The preference reads below fill in what this device saved.
 
-import { DEFAULT_LEVELS, normLevels } from "../ai-shared/examples.ts";
+import { normLevels } from "../ai-shared/examples.ts";
 import { FIND_RELS } from "../domain/find.ts";
+import { DEFAULT_STAGES, normStages, stagesOfLevels, topStage } from "../domain/stages.ts";
 
 /** @type {import("./types.ts").State} */
 export const state = {
@@ -21,7 +22,10 @@ export const state = {
   tutor: null,   // a question to the app's own server (platform.tutor), when the place has one; `sample` is used first
   known: null,   // what that server learned of examples from earlier checks (platform.known), asked before the tutor (ai/known.js)
   EX: null,      // the course's reference examples this device holds (platform.examples), indexed by name (ai-shared/examples.ts); null when it has none
-  exLevels: [...DEFAULT_LEVELS], // the levels (1 to 4) the reference examples are drawn from, any mix, at least one (the practice options, `rd-exlevels`, "1,3"); a new device starts with level 1 alone
+  stages: [...DEFAULT_STAGES], // the stages of the learning ladder every exercise draws from, any mix, at least one (the practice options, `rd-stages`, "1,2"); a new device starts at stage 1 alone
+  stageLean: 0,  // the pairs left that lean to three possibilities, after the highest stage went up (`rd-stage-lean`, shell/stages.js)
+  stagesKept: false, // the stages came from a device's settings before the ladder and were not changed since (`rd-stages-kept`): every pair weighs the same, as before
+  syllogismEveryday: false, // that device had Syllogisms on everyday things (`rd-syllogism-level` "1"), which holds until the stages are changed
   about: null,   // {version, commit, builtAt, latest, branches?}: which build this is (platform.about), shown in Options
   updates: null, // {status, check, apply, subscribe}: updating the installed app in place (platform.updates), shown in Options
   unlock: null,  // {open, tutor}: opens the prompt for the Magic Key (platform.unlock) while this device has none; `tutor` is whether the server has a tutor waiting for it
@@ -46,10 +50,11 @@ export const state = {
   catsAsk: "all",  // Categories asks step 1 all at once ("all") or one category at a time ("one"; the practice options of the exercise, `rd-cats-ask`)
   catsOfferAt: "", // when the learner last answered the offer of another level (`rd-cats-offer`): only the answers after it count towards the next offer
   syllogismRecent: [],    // the ids of the syllogisms drawn lately, oldest first: the draw of the next one leans away from them (syllogism/flow.js)
-  syllogismLevel: 2,      // the highest level Syllogisms draws from: 1 everyday things only, 2 also the terms of Dudra (the settings of the exercise, `rd-syllogism-level`)
   syllogismWording: "take", // how a syllogism is said: "take" (the class's) or "formal" (`rd-syllogism-wording`)
   syllogismGuide: false,    // the structure named under the sentence (S, P, R) and what each reply says in them, for a beginner (`rd-syllogism-guide`)
   findSuggest: true, // Find a pair offers the terms of the course while the pair is typed (the settings of Find a pair, `rd-findsuggest`); off: plain fields
+  negBrackets: true,   // a negated name of more than one word is written with brackets, "non-(wooden things)" (`rd-neg-brackets`; off: "non-wooden things")
+  negation: "off",   // the negation track of Relations: "one" negates B in about a third of the pairs, "both" also A and B in half of those (`rd-negation`)
   debates: {},
   own: "practice",
   favs: {},
@@ -134,9 +139,27 @@ try{ state.shareExamples=localStorage.getItem("rd-share")!=="0"; state.shareTold
 try{ state.recentOpen=localStorage.getItem("rd-recent")!=="0"; }catch(e){}
 try{ const v=localStorage.getItem("rd-findrel"); if(FIND_RELS.includes(/** @type {any} */(v))) state.findRel=/** @type {any} */(v); }catch(e){}
 try{ state.findSuggest=localStorage.getItem("rd-findsuggest")!=="0"; }catch(e){}
+try{ const v=localStorage.getItem("rd-negation"); if(v==="one"||v==="both") state.negation=v; }catch(e){}
+try{ state.negBrackets=localStorage.getItem("rd-neg-brackets")!=="0"; }catch(e){}
 try{ if(localStorage.getItem("rd-cats-ask")==="one") state.catsAsk="one"; state.catsOfferAt=localStorage.getItem("rd-cats-offer")||""; }catch(e){}
-try{ const v=localStorage.getItem("rd-exlevels"); if(v!==null) state.exLevels=normLevels(v); }catch(e){}
-try{ if(localStorage.getItem("rd-syllogism-wording")==="formal") state.syllogismWording="formal"; if(localStorage.getItem("rd-syllogism-level")==="1") state.syllogismLevel=1; state.syllogismGuide=localStorage.getItem("rd-syllogism-guide")==="1"; }catch(e){}
+// A device used before the ladder keeps what it had: its levels of the reference examples (also ones an import brings), or level 1, their default, become
+// the stages up to that level's (level 1 is stage 6), so its pairs and things stay as they were. `rd-ladder` marks a device that has started with the
+// ladder, so that its own settings later do not make it look like an old one; a new device writes no stages until it chooses, and an import can bring them.
+try{
+  const v=localStorage.getItem("rd-stages");
+  if(v!==null) state.stages=normStages(v);
+  else {
+    const old=localStorage.getItem("rd-exlevels");
+    const before=old!==null||(localStorage.getItem("rd-ladder")===null&&Object.keys(localStorage).some(k=>k.startsWith("rd-")));
+    if(before){ state.stages=stagesOfLevels(old!==null?normLevels(old):[1]); localStorage.setItem("rd-stages",state.stages.join(",")); localStorage.setItem("rd-stages-kept","1"); }
+  }
+  localStorage.setItem("rd-ladder","1");
+  state.stageLean=Math.max(0,+(localStorage.getItem("rd-stage-lean")||0)||0);
+  state.stagesKept=localStorage.getItem("rd-stages-kept")==="1";
+  state.syllogismEveryday=localStorage.getItem("rd-syllogism-level")==="1";
+}catch(e){}
+// the structure under a syllogism is on for a beginner (the stages of everyday things) until the device chooses
+try{ if(localStorage.getItem("rd-syllogism-wording")==="formal") state.syllogismWording="formal"; const g=localStorage.getItem("rd-syllogism-guide"); state.syllogismGuide=g!==null?g==="1":topStage(state.stages)<=3; }catch(e){}
 try{ if(localStorage.getItem("rd-ab")==="0") state.showAB=false; if(localStorage.getItem("rd-full")==="0") state.fullPh=false; }catch(e){}
 try{
   const v=+localStorage.getItem("rd-timer"); if(v>=2000&&v<=120000) state.timerMs=v;

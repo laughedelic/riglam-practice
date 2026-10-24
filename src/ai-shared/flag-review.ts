@@ -108,6 +108,7 @@ export function readReviewAnswer(raw: unknown): ReviewAnswer | null {
     ex: perCell(p.ex, (v) => (typeof v === "string" ? v.slice(0, REVIEW_LIMITS.cell) : undefined)),
     why: perCell(p.why, (v) => (typeof v === "string" ? v.slice(0, REVIEW_LIMITS.cell) : undefined)),
     note: text(p.note, REVIEW_LIMITS.pairNote),
+    ...(p.neg === "b" || p.neg === "ab" ? { neg: p.neg } : {}),
   };
   const cells = {} as ReviewAnswer["cells"];
   for (const c of CELLS) {
@@ -158,6 +159,7 @@ function cleanAnswer(a: ReviewAnswer): ReviewAnswer {
     catA: p.catA == null ? p.catA : oneLine(p.catA, 80), catB: p.catB == null ? p.catB : oneLine(p.catB, 80),
     typeA: p.typeA == null ? p.typeA : oneLine(p.typeA, L.type), typeB: p.typeB == null ? p.typeB : oneLine(p.typeB, L.type),
     relation: p.relation, ex: refsOf(p.ex, L.cell), why: refsOf(p.why, L.cell), note: p.note == null ? p.note : oneLine(p.note, L.pairNote),
+    ...(p.neg === "b" || p.neg === "ab" ? { neg: p.neg } : {}),
   };
   const cells = {} as ReviewAnswer["cells"];
   for (const c of CELLS) {

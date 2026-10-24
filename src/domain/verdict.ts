@@ -3,7 +3,7 @@
 import { QCELL } from "../ai-shared/debate";
 import { pairCats } from "../ai-shared/lookup";
 import type { DataIndex } from "../ai-shared/lookup";
-import { CELLS, REL, refOf } from "../ai-shared/relations";
+import { CELLS, REL, negSides, refOf } from "../ai-shared/relations";
 import type { CellId, PairLike, RelKey } from "../ai-shared/relations";
 import { summarize } from "./grading";
 import { knownClass, listedItem, rung } from "./ladder";
@@ -94,17 +94,18 @@ export interface NoteData { ix: DataIndex; p: PairLike; terms: Terms }
 /**
  * What the term data says of a fact line: the pair's categories, the example's class (a listed example's type, else the tutor's
  * class when the data has it) and the two answers. A side the data settles for a listed example takes the data's answer, as the
- * grading would: an alias ("an apple" for "a red apple") settles a side such as food, but not one about a feature such as red.
+ * grading would: an alias ("an apple" for "a red apple") settles a side such as food, but not one about a feature such as red. On a negated side
+ * ("non-(wooden things)") the data's answer is the reverse of the category's.
  */
 export function placeFacts(f: FactLine, d?: NoteData): { cats: readonly [string | null, string | null]; cls: string; answers: readonly [Answer, Answer] } {
   // a pair of the learner's own (Find a pair) is one the data cannot judge, so everything about its examples is the tutor's, even when both phenomena are categories
   if (!d || d.p.own) return { cats: [null, null], cls: "", answers: [f.a.answer, f.b.answer] };
-  const cats = pairCats(d.ix, d.p), any = cats[0] ? listedItem(d.ix, d.p, f.example, false) : null;
-  const on = (cid: string | null, s: Side): Answer => {
+  const cats = pairCats(d.ix, d.p), any = cats[0] ? listedItem(d.ix, d.p, f.example, false) : null, neg = negSides(d.p);
+  const on = (cid: string | null, s: Side, not: boolean): Answer => {
     const it = cid && any ? (FEATURE.has(cid) ? listedItem(d.ix, d.p, f.example, true) : any) : null;
-    return it && cid ? (it.c.includes(cid) ? "yes" : "no") : s.answer;
+    return it && cid ? (it.c.includes(cid) !== not ? "yes" : "no") : s.answer;
   };
-  return { cats, cls: any ? any.t : knownClass(d.ix, f.cls), answers: [on(cats[0], f.a), on(cats[1], f.b)] };
+  return { cats, cls: any ? any.t : knownClass(d.ix, f.cls), answers: [on(cats[0], f.a, neg[0]), on(cats[1], f.b, neg[1])] };
 }
 
 /**
@@ -114,14 +115,15 @@ export function placeFacts(f: FactLine, d?: NoteData): { cats: readonly [string 
  * (`rung`: up the chain to the term, or to a class that excludes it) takes those steps instead of the tutor's.
  */
 export function noteParts(f: FactLine, accepted: boolean, d?: NoteData): NotePart[] {
-  const { cats, cls, answers } = placeFacts(f, d);
+  const { cats, cls, answers } = placeFacts(f, d), neg = d ? negSides(d.p) : [false, false];
   const out: NotePart[] = [{ kind: "take", subject: f.example }];
   let said = "";
   for (const [k, side, s] of [[0, "A", f.a], [1, "B", f.b]] as const) {
     const cid = cats[k], cat = d && cid ? d.ix.CAT[cid] : null, answer = answers[k];
     if (answer === "unsure") { out.push({ kind: "unsure", side, say: plain(s.say) }); continue; }
     const r = readSide(s), own = answer === s.answer; // the tutor's reason is kept only for its own answer
-    const g = d && cat && cls ? rung(d.ix, cls, cat, side === "A" ? d.terms.a : d.terms.b, own ? r.reason : "") : null;
+    // the steps of the data lead to the category, not to its negation: a negated side keeps the tutor's reason
+    const g = d && cat && cls && !neg[k] ? rung(d.ix, cls, cat, side === "A" ? d.terms.a : d.terms.b, own ? r.reason : "") : null;
     if (g && g.answer === answer) { out.push({ kind: "term", side, not: answer === "no", reason: g.reason, why: g.why }); continue; }
     // the pervasion of a denied term is said under its statement, and the same one is not said twice
     const why = own && answer === "no" && r.perv && r.reason && !same(r.perv, said) ? r.perv : "";

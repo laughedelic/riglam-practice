@@ -193,7 +193,8 @@ function take(a,alts){
     return offer(a,alts[0],REL[k].name,()=>{ if(state.ui.debate) chooseD(k); else choose(k,true); });
   }
   const x=spokenExample(state,alts);
-  if(!x) return again(a,alts[0],"Say an example, or “nothing”.");
+  if(!x) return again(a,alts[0],a.cell==="nei"?"Say an example, or “nothing”.":"Say an example.");
+  if(x.none&&a.cell!=="nei") return again(a,alts[0],"The relation you chose needs an example here: only the neither case can be empty.");
   offer(a,x.heard,x.none?"nothing":x.text,()=>{
     const u=state.ui; u.cells[a.cell].t=x.none?"":x.text;
     const order=fillable(), i=order.indexOf(a.cell);

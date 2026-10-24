@@ -2,7 +2,7 @@
 // The page settles the three checks, the right reply and what was mixed up from the term data, so the card gives them as facts; the tutor words them, names the
 // counter-example the page keeps for a pervasion that fails, and says what to look at. Pure functions of the term data like the rest of this folder: the
 // types below are the fields of the page's syllogism and answer that the card reads, so this file does not depend on the domain.
-import { finePoints } from "./card";
+import { finePoints, stageLine } from "./card";
 import { catFacts } from "./facts";
 import { matchItem } from "./lookup";
 import type { DataIndex } from "./lookup";
@@ -35,6 +35,8 @@ export interface SyllogismAnswerView {
   grade: { said: Reply | null; correct: boolean; confusion: string };
   /** the counter-example offered after a right "there is no pervasion", and the page's verdict on it ("cmp": the page could not place it) */
   ex?: { text: string; v: "ok" | "bad" | "cmp" } | null;
+  /** the highest stage of the learning ladder the learner has on, for how the tutor speaks (stageLine) */
+  stage?: number;
 }
 
 export const SYLLOGISM_NOTE = `This is the Syllogisms mode. The learner gets a subject S, a predicate P and a reason R as one sentence ("Take S. It follows it is P because it is R.") and replies with one of three: "The reason is not established" (S is not R), "There is no pervasion" (S is R, but not everything that is R is P), or "Accept" (S is R and everything that is R is P).
@@ -84,7 +86,7 @@ ${JSON.stringify(card)}
 Syllogism: ${JSON.stringify(a.sentence)}
 Checks (the page settled them):
 ${checks}
-Right reply: ${JSON.stringify(SAID[c.answer])}. ${replied}${a.grade.confusion ? "\nWhat the page says was mixed up: " + a.grade.confusion : ""}${ex}`;
+Right reply: ${JSON.stringify(SAID[c.answer])}. ${replied}${a.grade.confusion ? "\nWhat the page says was mixed up: " + a.grade.confusion : ""}${ex}${stageLine(a.stage)}`;
 }
 
 /** The categories the tutor's fine points are taken from: the reason's and the predicate's (the same one once). */

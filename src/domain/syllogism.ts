@@ -16,6 +16,8 @@ import type { HistoryEntry } from "./types";
 import { cellsFor, judgeable } from "./universe";
 import type { Rng } from "./universe";
 import { FEATURE, RECENT_MAX, inUniverse } from "./universe";
+import { catOpen, itemOn, normStages, topStage } from "./stages";
+import type { Stages } from "./stages";
 import { cap, isMiss } from "./util";
 
 /** What the learner says: accept the syllogism, deny the reason ("the reason is not established"), or deny the pervasion. */
@@ -92,7 +94,8 @@ interface Table {
   near: Map<string, Set<string>>;
   /** category pairs whose pervasion the term data proves but an item contradicts, as "reason>predicate" */
   conflicts: string[];
-  bySit: Map<Situation, Cand[]>;
+  /** the candidates of a situation up to a level, for a set of stages, as "situation:level:stages" */
+  bySit: Map<string, Cand[]>;
   views: Map<string, View>;
 }
 
@@ -147,10 +150,19 @@ function tableOf(ix: DataIndex): Table {
   const hit = cache.get(ix.DATA);
   if (hit) return hit;
   const ids = Object.keys(ix.CAT).filter((id) => hasPhrases(ix, id)), pairs: PairInfo[] = [], conflicts: string[] = [];
+  const seen = new Map<string, Record<CellId, Item[]>>();
+  // the cells of (p, r) are those of (r, p) with the two one-sided cells swapped
+  const cellsOf = (r: string, p: string) => {
+    const back = seen.get(`${p}|${r}`);
+    if (back) return { both: back.both, anb: back.bna, bna: back.anb, nei: back.nei };
+    const c = cellsFor(ix, r, p);
+    seen.set(`${r}|${p}`, c);
+    return c;
+  };
   for (const r of ids) {
     for (const p of ids) {
       if (r === p ? phrasesOf(ix, r).length < 2 : !judgeable(ix, r, p)) continue;
-      const cells = cellsFor(ix, r, p), level = ix.CAT[r].kind === "everyday" && ix.CAT[p].kind === "everyday" ? 1 : 2;
+      const cells = cellsOf(r, p), level = ix.CAT[r].kind === "everyday" && ix.CAT[p].kind === "everyday" ? 1 : 2;
       const by = holdsBy(ix, r, p), excl = by || r === p ? null : excludingClasses(ix, r, p);
       // the data must agree with itself: a proved pervasion has no counter-example, a proved opposite no common thing
       if ((by && cells.anb.length) || (excl && cells.both.length)) { conflicts.push(`${r}>${p}`); continue; }
@@ -178,28 +190,44 @@ function linksOf(t: Table, pair: PairInfo, item: Item, rule: SituationRule): num
   return (rule.t ? 1 : 0) + (rule.e || nearTo(pair.r) ? 1 : 0) + (pair.related ? 1 : 0) + (rule.t || nearTo(pair.p) ? 1 : 0);
 }
 
-function candidates(ix: DataIndex, sit: Situation): Cand[] {
-  const t = tableOf(ix), hit = t.bySit.get(sit);
+/**
+ * About this many subjects of one pair are kept for a situation. The neither cell of a pair holds hundreds of things, a million
+ * candidates over all pairs, which would cost seconds and megabytes on a phone; a fixed spread of a few dozen per pair keeps the variety.
+ */
+export const SUBJECTS_PER_PAIR = 24;
+const hashOf = (s: string) => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; };
+const itemKeys = new WeakMap<Item, number>();
+const keyOf = (item: Item) => { let k = itemKeys.get(item); if (k === undefined) itemKeys.set(item, (k = hashOf(item.n))); return k; };
+/** About `n` of the items, the same ones for the same pair: those whose key, mixed with the pair's, falls lowest. */
+function spread(items: readonly Item[], at: string, n: number): Item[] {
+  if (items.length <= n) return items.slice();
+  const mix = hashOf(at), limit = (n / items.length) * 2 ** 32;
+  return items.filter((item) => (Math.imul(keyOf(item) ^ mix, 2654435761) >>> 0) < limit);
+}
+
+function candidates(ix: DataIndex, sit: Situation, top: 1 | 2, on?: Stages): Cand[] {
+  const t = tableOf(ix), key = `${sit}:${top}:${on ? normStages(on).join(",") : ""}`, hit = t.bySit.get(key);
   if (hit) return hit;
   const rule = SITUATIONS[sit], out: Cand[] = [];
   for (const pair of t.pairs) {
-    if (!matches(rule, pair)) continue;
-    for (const item of pair.cells[rule.cell]) if (!item.ne && !item.nosubject) out.push({ pair, item, links: linksOf(t, pair, item, rule), level: levelOf(pair, item) });
+    if (!matches(rule, pair) || (on && !(catOpen(ix.CAT[pair.r], on) && catOpen(ix.CAT[pair.p], on)))) continue;
+    const items = pair.cells[rule.cell].filter((item) => !item.ne && !item.nosubject && levelOf(pair, item) <= top && (!on || itemOn(ix, item, pair.r, pair.p, on)));
+    for (const item of spread(items, `${pair.r}|${pair.p}`, SUBJECTS_PER_PAIR)) out.push({ pair, item, links: linksOf(t, pair, item, rule), level: levelOf(pair, item) });
   }
-  t.bySit.set(sit, out);
+  t.bySit.set(key, out);
   return out;
 }
 
 const weightOf = (links: number) => (1 + links) ** 2; // the more links, the likelier: the absurd ones are rare, not gone
 function groupsOf(cands: readonly Cand[]): Group[] {
   const by = new Map<PairInfo, Cand[]>();
-  for (const c of cands) by.set(c.pair, [...(by.get(c.pair) || []), c]);
+  for (const c of cands) { const g = by.get(c.pair); if (g) g.push(c); else by.set(c.pair, [c]); }
   return [...by].map(([pair, cs]) => ({ pair, cands: cs, mean: cs.reduce((s, c) => s + weightOf(c.links), 0) / cs.length }));
 }
-function viewOf(ix: DataIndex, sit: Situation, top: 1 | 2): View {
-  const t = tableOf(ix), key = `${sit}:${top}`, hit = t.views.get(key);
+function viewOf(ix: DataIndex, sit: Situation, top: 1 | 2, on?: Stages): View {
+  const t = tableOf(ix), key = `${sit}:${top}:${on ? normStages(on).join(",") : ""}`, hit = t.views.get(key);
   if (hit) return hit;
-  const all = candidates(ix, sit).filter((c) => c.level <= top);
+  const all = candidates(ix, sit, top, on);
   // at least one link at level 1, two at level 2 (the course's terms are easier to confuse, so they are held to more sense)
   const v: View = {
     all: groupsOf(all), zero: groupsOf(all.filter((c) => c.links === 0)), some: groupsOf(all.filter((c) => c.links > 0)),
@@ -422,20 +450,32 @@ export interface SyllogismDraw {
   hist: readonly SyllogismHistory[];
   /** ids of the syllogisms drawn lately; the draw appends to it and keeps the last RECENT_MAX */
   recent: string[];
-  /** the highest level to draw from: 1 everyday things and properties only, 2 also the terms of the course (the default) */
+  /** the highest level to draw from: 1 everyday things and properties only, 2 also the terms of the course; none: the stages' (`levelAt`), else 2 */
   level?: 1 | 2;
+  /**
+   * the stages the learner draws from (stages.ts): the reason and the predicate are categories open at the highest, and the subject a thing
+   * of a stage that is on (a person or what does not exist with a physical category only from the hold's stage); none: every syllogism.
+   * Stages that can draw nothing draw as if there were none.
+   */
+  stages?: Stages;
   rng?: Rng;
 }
 
 /** The share of syllogisms drawn with nothing linking their parts, as light relief (when the data has such ones). */
 export const RELIEF = 0.1;
 
+/** The stages up to which a syllogism keeps to everyday reasons and predicates: the categories of form are new there, and the course's terms come from the established bases. */
+export const EVERYDAY_STAGES = 3;
+/** The level of the syllogisms for a learner with these stages on: everyday (1) while the highest is at most `EVERYDAY_STAGES`, else with the course's terms (2). */
+export const levelAt = (on: Stages): 1 | 2 => (topStage(on) <= EVERYDAY_STAGES ? 1 : 2);
+
 /** The syllogism to practice next. See the note on the draw: the answer, then the situation, then the triple by its links. */
 export function drawSyllogism(ix: DataIndex, st: SyllogismDraw): Syllogism {
-  const rng = st.rng || Math.random, top = st.level ?? 2, hist = st.hist;
-  const usable = (s: Situation) => viewOf(ix, s, top).all.length > 0;
+  const rng = st.rng || Math.random, top = st.level ?? (st.stages ? levelAt(st.stages) : 2), hist = st.hist;
+  const staged = st.stages && SIT_IDS.some((s) => viewOf(ix, s, top, st.stages).all.length > 0) ? st.stages : undefined;
+  const usable = (s: Situation) => viewOf(ix, s, top, staged).all.length > 0;
   // light relief: now and then a syllogism with nothing linking its parts at all (the reason is not established, and the pervasion fails as well)
-  const zero = rng() < RELIEF ? viewOf(ix, 8, top).zero : [];
+  const zero = rng() < RELIEF ? viewOf(ix, 8, top, staged).zero : [];
   let sit: Situation = 8, pool = zero;
   if (!zero.length) {
     // the answer: all three alike, the one asked lately less, the one missed lately more
@@ -446,7 +486,7 @@ export function drawSyllogism(ix: DataIndex, st: SyllogismDraw): Syllogism {
     if (!replies.length) throw new Error("no syllogism to draw from");
     const answer = chooseWeighted(replies, (a) => aw[a], rng);
     sit = chooseWeighted(SIT_IDS.filter((s) => SITUATIONS[s].answer === answer && usable(s)), (s) => SITUATIONS[s].weight, rng);
-    const v = viewOf(ix, sit, top);
+    const v = viewOf(ix, sit, top, staged);
     pool = v.linked.length ? v.linked : v.some.length ? v.some : v.all;
   }
 
@@ -459,7 +499,8 @@ export function drawSyllogism(ix: DataIndex, st: SyllogismDraw): Syllogism {
   const seen = new Set(st.recent), seenPair = new Set(st.recent.map((id) => id.split("|").slice(0, 2).join("|")));
   // the one just shown is not drawn again, when the pool has another
   const last = st.recent[st.recent.length - 1];
-  const others = last ? pool.map((g) => ({ ...g, cands: g.cands.filter((c) => `${g.pair.r}|${g.pair.p}|${c.item.n}` !== last) })).filter((g) => g.cands.length) : pool;
+  const lastOf = (g: Group) => !!last && last.startsWith(`${g.pair.r}|${g.pair.p}|`);
+  const others = last ? pool.map((g) => (lastOf(g) ? { ...g, cands: g.cands.filter((c) => `${g.pair.r}|${g.pair.p}|${c.item.n}` !== last) } : g)).filter((g) => g.cands.length) : pool;
   // the pair of categories first, then a subject, so that a pair with many subjects does not crowd out the others
   const group = chooseWeighted(others.length ? others : pool, (g) => {
     const { r, p } = g.pair;

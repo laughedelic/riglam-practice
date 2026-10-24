@@ -21,6 +21,8 @@ export interface Example {
   ne?: boolean;
   /** 1 (a plain thing) to 4 */
   lv: number;
+  /** the stage of the learning ladder, 1 to 9 (format 3); format 2 has none, and a level counts as stage level + 5 (src/domain/stages.ts) */
+  st?: number;
   /** the operations applied to its base, which the level is computed from */
   sc?: number;
   /** thing, representation, relation, negation */
@@ -87,7 +89,7 @@ function usable(it: unknown): it is Example {
   return LISTS.every((f) => e[f] === undefined || isTexts(e[f]))
     && TEXTS.every((f) => e[f] === undefined || typeof e[f] === "string")
     && FLAGS.every((f) => e[f] === undefined || typeof e[f] === "boolean")
-    && (e.sc === undefined || typeof e.sc === "number");
+    && (e.sc === undefined || typeof e.sc === "number") && (e.st === undefined || typeof e.st === "number");
 }
 
 /** The usable examples in `value` (a name, a level, and optional fields of their types), or null when it is not the format at all: data from elsewhere costs examples, never an error. */

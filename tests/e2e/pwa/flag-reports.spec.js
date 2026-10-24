@@ -359,7 +359,10 @@ test("a sent mark that arrives with the flag's document alone (another tab, anot
   await expect(li.locator("summary").first()).toContainText("Sent to the maintainer");
 });
 
-/** Holds the first request of `kind` ("send" or "withdraw") to the server about flags until `release()`; `asked` notes every such request, in the order they were made. */
+/**
+ * Holds the first request of `kind` ("send" or "withdraw", none when null) to the server about flags until `release()`; `asked` notes every upload and
+ * removal, in the order they were made. The question how the reviews stand is left out: the start asks it when its uploads are done, at a moment of its own.
+ */
 async function holdFirstUpload(page, kind = "send") {
   const asked = [];
   let release;
@@ -367,8 +370,9 @@ async function holdFirstUpload(page, kind = "send") {
   let held = false;
   await page.route("**/api/flags", async (route) => {
     const body = route.request().postDataJSON();
-    asked.push(body.send ? "send" : body.withdraw ? "withdraw" : "other");
-    if (body[kind] && !held) { held = true; await gate; }
+    if (!body.send && !body.withdraw) return route.fallback();
+    asked.push(body.send ? "send" : "withdraw");
+    if (kind && body[kind] && !held) { held = true; await gate; }
     return route.fallback();
   });
   return { asked, release };
@@ -534,13 +538,12 @@ test("a flag edited on a device whose clock is ahead is marked sent, and is not 
   await giveKey(page);
   const world = await serverWorld({}, { stubCourse: true });
   const ahead = "2099-01-01T00:00:00.000Z";
-  const device = await start(page, world, { ...flag, updatedAt: ahead });
+  await start(page, world, { ...flag, updatedAt: ahead });
   await expect.poll(() => reports(world).length).toBe(1);
   await expect.poll(async () => (await stored(page)).fl_cell.sentAt >= ahead).toBe(true);
-  const uploads = () => device.seen.filter((r) => r.includes("/api/flags")).length;
-  const before = uploads();
+  const later = await holdFirstUpload(page, null);
   await pause(page, 800);
-  expect(uploads()).toBe(before); // marked sent, so nothing goes again
+  expect(later.asked).toEqual([]); // marked sent, so nothing goes again
   expect((await stored(page)).fl_cell.updatedAt).toBe(ahead);
 });
 

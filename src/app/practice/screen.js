@@ -325,7 +325,7 @@ export function cellView(s){
     voiceBar(),
     el("p",{class:"chint"},
       state.ui.ci>0?el("button",{type:"button",class:"back",onclick:()=>{state.ui.ci--; render(); focusCin();},text:"‹ Back"}):null,
-      "Leave it empty if nothing exists here."+(skipTxt?" "+skipTxt:""))),
+      [c==="nei"?"Leave it empty if nothing exists here.":"",skipTxt].filter(Boolean).join(" "))),
     pairBar({label:last?"Check":"Next cell",onclick:go}));
 }
 // the explanation on the narrow result screen; follow-up questions go to the chat view
