@@ -5,6 +5,7 @@
 // is shared by all of them: each Path draw keeps one Pull, on its root. A station that can be taken is pulled over a curb (below), and taking it plays the
 // ride of take.ts.
 import { currentLook } from "./look.ts";
+import { clearPush, holdPush, playPush } from "./push.ts";
 import { playScan, type ScanPlan } from "./scan.tsx";
 import { canTake, foldPage, playTake } from "./take.ts";
 
@@ -74,8 +75,20 @@ export class Pull {
   /** the verdicts the Check of the examples marks as it slides up (scan.tsx), set by that station on every draw; null elsewhere */
   scan: (() => ScanPlan) | null = null;
   peekT: ReturnType<typeof setTimeout> | undefined;
+  /** under the look's `ride: push` the page follows the station over its curb (push.ts): the stop of that following, and whether the page is pushed or folded by it now */
+  private pusher: (() => void) | null = null;
+  private pushed = false;
 
   private q<T extends HTMLElement = HTMLElement>(sel: string) { return this.root ? this.root.querySelector<T>(sel) : null; }
+
+  /** The page follows the station over the curb (`on`) or goes back to its place (the Check of the examples does not push: its scanner passes over the page as it is). */
+  private follow(on: boolean) {
+    if (!this.root || currentLook().ride !== "push" || (this.scan && currentLook().check !== "ride")) return;
+    this.unfollow();
+    if (on) { this.pusher = holdPush(this.root); this.pushed = true; } else if (this.pushed) { this.pushed = false; clearPush(this.root); }
+  }
+  /** The following stops (what it has done stays). */
+  private unfollow() { if (this.pusher) { this.pusher(); this.pusher = null; } }
 
   /** A station that is not ready rises a little and shows why. */
   peek(el: HTMLElement | null, bump = true) {
@@ -94,7 +107,7 @@ export class Pull {
     if (curb) {
       const c = this.curb || (this.curb = curbNew()), ev = curbMove(c, raw);
       dy = c.y; past = c.over;
-      if (ev) { bump(ev === "over" ? HIT : 6); foldPage(this.root, c.over); }
+      if (ev) { bump(ev === "over" ? HIT : 6); foldPage(this.root, c.over); this.follow(c.over); }
     } else {
       dy = path ? raw * RESIST : stn ? (raw < LINE ? raw : LINE + (raw - LINE) * 0.35) : Math.min(STOP, raw < 12 ? raw : 12 + (raw - 12) * 0.3);
       if (path || !stn) dy = Math.min(dy, this.room(el, foot));
@@ -129,13 +142,19 @@ export class Pull {
       this.busy = true; this.hold = true;
       const go = () => { this.hold = false; act(); if (this.after) this.after(); }, settle = () => { this.busy = false; this.curb = null; this.past = false; this.dy = 0; if (this.hold) { this.hold = false; if (this.after) this.after(); } };
       let plan: ScanPlan | null;
-      try { plan = this.scan && currentLook().check === "scan" ? this.scan() : null; } catch { plan = null; }
+      const look = currentLook();
+      try { plan = this.scan && look.check !== "ride" ? this.scan() : null; } catch { plan = null; }
       // with the keyboard's layout up the scan opens the page first: the field is let go and the layout is the page's again at its start
       const root = this.root, open = plan && root.classList.contains("kbup") ? () => { this.hold = false; const a = document.activeElement; if (a instanceof HTMLElement && a.classList.contains("pfield")) a.blur(); if (this.after) this.after(); } : null;
-      if (plan) playScan(root, stn, plan, go, settle, open); else playTake(root, stn, this.dy, go, settle);
+      this.unfollow(); this.pushed = false;
+      if (plan) playScan(root, stn, plan, go, settle, open, look.check === "morph");
+      else if (look.ride === "push") playPush(root, stn, this.dy, go, settle);
+      else playTake(root, stn, this.dy, go, settle);
       return true;
     }
-    if (this.curb) { if (this.curb.over) foldPage(this.root, false); this.curb = null; }
+    this.unfollow();
+    if (this.curb) { if (this.curb.over) { foldPage(this.root, false); if (this.pushed) clearPush(this.root); } this.curb = null; }
+    this.pushed = false;
     this.dy = 0;
     if (el) { el.classList.remove("dragging"); el.style.transform = ""; }
     if (riser) riser.style.display = "";

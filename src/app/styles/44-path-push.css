@@ -1,0 +1,22 @@
+/* Taking a station by pushing (path/push.ts, the look's `ride: push`): the station rises into the page and pushes it up ahead of it; the page is one piece strung on the thread, so it
+   moves as a whole (--push on .pathc), and what the station has passed is cut off under its top edge (--cut on the root). Over the curb the page already follows the station. */
+.pa.pushing .pathc{transform:translateY(calc(var(--push,0px) * -1)); will-change:transform}
+.pa.pushing .pscroll{clip-path:inset(0 0 var(--cut,0px) 0); -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 26px); mask-image:linear-gradient(to bottom,transparent 0,#000 26px)}
+/* the station is let go short of the curb, or pulled back under it: the page slides back down */
+.pa.pushback .pathc{transition:transform .28s cubic-bezier(.2,.9,.3,1)}
+.pa .main.pk-run{pointer-events:none}
+/* the old page has gone and the new one is drawn: it is not seen until it comes in (a statement that stays is already where it was) */
+.pa .main.pk-swap .pathc{visibility:hidden}
+/* a page that keeps its statement: what is under the statement folds into it and the heading above it fades; the station comes to the statement's foot */
+.pa .pathc .pk-gone{opacity:0; transition:opacity .26s ease}
+/* the station lands: it shrinks into the gold bullet of the next step and its words go (as in styles/42-path-take.css) */
+.pa .main.pk-run #stn .go{--gs:calc(var(--st) - (var(--st) - 16px) * var(--tkl,0)); width:var(--gs); height:var(--gs); margin-right:calc(var(--gs) / -2); background-color:color-mix(in srgb,var(--gold) calc(var(--tkl,0) * 100%),var(--station))}
+.pa .main.pk-run #stn .go .mk{opacity:calc(1 - var(--tkl,0) * 2.2)}
+.pa .main.pk-run #stn .gol{opacity:calc(1 - var(--tkl,0) * 4)}
+.pa .main.pk-run #stn .gol small{opacity:0}
+.pa .main.pk-run .aux{opacity:0; transition:opacity .2s}
+/* the new page comes in: its first bullet settles from where the station landed (push.ts); a statement that stayed does not come in again */
+.pa .main.pk-keep.tk-in .pathc > :first-child,.pa .main.pk-keep.tk-in .pathc > :first-child :is(.ptx,.pn > span,.pn > i.pnc,.pn > div){animation:none}
+.pa .main.pk-keep.tk-in .pathc > .vband{animation:none}
+.pa .main.pk-keep.tk-in .pvline .ptx,.pa .main.pk-keep.tk-in .pwhat{animation:p-tkin .42s ease-out both}
+@media (prefers-reduced-motion:reduce){ .pa .pathc .pk-gone,.pa.pushback .pathc{transition:none} }

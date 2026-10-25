@@ -8,6 +8,9 @@
 // With the keyboard up (the folded layout) the page opens first (relayout.ts): the keyboard goes and the page takes its own layout while the scanner, the Check turned into it,
 // glides down to the foot; a beat, and then the scan runs over the opened page exactly as on a screen with no keyboard. At the foot, as the scanner leaves the Check's place, the
 // station that comes next takes it (it is the same station: its words change, and it comes in), so the thread always runs on to a station.
+// Under the look's `check: morph` the step from the examples' page to the result's page is not a swap: the case rows and the pair's node, which the result shows too, move from where
+// they stood to where they are in the result (the rest of the result fades in around them), the result's node and word wait for the scanner from the moment the page is swapped, and
+// the scanner takes its time to glide into the node's place.
 import { render } from "preact";
 import { bump } from "./gesture.ts";
 import { openPage } from "./relayout.ts";
@@ -31,14 +34,16 @@ const EASE = { out: (u: number) => 1 - (1 - u) ** 3, io: (u: number) => (u < 0.5
 const MORPH = 200, SETTLE = 240, BECOME = 360;
 /** the page opening under the keyboard's layout (it starts a moment after the Enter and takes this long), the beat before the slide, and the longest the foot is waited for to be still (the keyboard going takes the screen's height with it) */
 const OPEN = 380, OPEN_AT = 40, BEAT = 60, STILL = 80, WAIT = 700;
+/** the morph: how long what the two pages share takes to move, and the scanner to glide (ms; the glide without it is shorter) */
+const MOVE = { duration: 380, easing: "cubic-bezier(.2,.8,.3,1)" }, GLIDE = 240;
 /** how long the slide lasts for the way it goes (px) */
 const slideMs = (d: number) => Math.max(560, Math.min(1000, 380 + d * 1.25));
 
 /**
  * Plays the scan from the Check `stn` (lifted `lift` px by the hand) with the verdicts of `plan`, then `act` (the check); `settle` once the result's page is in.
- * `open`, when the keyboard's layout is up: lets the field go and the layout be the page's again (the page opens as the scan begins).
+ * `open`, when the keyboard's layout is up: lets the field go and the layout be the page's again (the page opens as the scan begins). `morph`: the result's page moves in from the examples'.
  */
-export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, act: () => void, settle: () => void, open?: (() => void) | null): void {
+export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, act: () => void, settle: () => void, open?: (() => void) | null, morph = false): void {
   const main = root.querySelector<HTMLElement>(".main"), sc = root.querySelector<HTMLElement>(".main .pscroll"), pc = sc && sc.querySelector<HTMLElement>(".pathc");
   const go = stn.querySelector<HTMLElement>(".go"), head = pc && pc.querySelector<HTMLElement>(".sx.cur .sechead");
   // the strip under the top bar (the folded heading, while the keyboard's layout is up) and the pair's node in it: found when needed, as the layout changes
@@ -73,6 +78,7 @@ export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, ac
   const place = () => { scn.style.top = y.toFixed(1) + "px"; past.style.top = y.toFixed(1) + "px"; past.style.height = Math.max(0, y0 - y).toFixed(1) + "px"; };
   const set = (n: string, v: number) => scn.style.setProperty(n, v.toFixed(4));
   const flash = (v: Verdict3) => { scn.classList.remove("f-ok", "f-no", "f-pt"); void scn.offsetWidth; scn.classList.add("f-" + v); };
+  const nameOf = (r: HTMLElement) => { const l = r.querySelector(".lab"); return l ? (l.textContent || "").trim() : ""; };
   const marked = new Set<number>();
   const markRow = (i: number) => {
     const r = rows[i], v = plan.cases[i]; if (!r || !v) return;
@@ -132,21 +138,43 @@ export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, ac
     place();
     raf = requestAnimationFrame(frame);
   };
+  // what the examples' page and the result's page share: the case rows (by their names) and the pair's node, where they stand now
+  const shared = (): Map<string, number> => {
+    const m = new Map<string, number>(), pn = pnEl();
+    for (const r of rows) { const k = nameOf(r); if (k) m.set(k, r.getBoundingClientRect().top); }
+    if (pn) m.set("", pn.getBoundingClientRect().top);
+    return m;
+  };
   const finish = () => {
     if (done) return; done = true; cancelAnimationFrame(raf);
+    const was = morph ? shared() : null;
+    if (morph) main.classList.add("sc-morph", "sc-hand");      // the scanner is the result's node and word until it has glided into place: the page's own are not seen twice
     act();
-    requestAnimationFrame(() => requestAnimationFrame(arrive));
+    requestAnimationFrame(() => requestAnimationFrame(() => arrive(was)));
+  };
+  // the rows and the node the result shares move from where they stood to where they are; the rows it has more of come in
+  const moveIn = (was: Map<string, number>) => {
+    const now = main.querySelector<HTMLElement>(".pathc"); if (!now) return;
+    const flip = (e: HTMLElement, from: number | undefined) => {
+      if (from === undefined) return false;
+      const d = from - e.getBoundingClientRect().top; if (e.animate && Math.abs(d) > 1) e.animate([{ translate: `0 ${d.toFixed(1)}px` }, { translate: "0 0" }], MOVE);
+      return true;
+    };
+    for (const r of Array.from(now.querySelectorAll<HTMLElement>(".sb"))) { const k = nameOf(r); if (k && flip(r, was.get(k))) { const sx = r.closest(".sx"); if (sx) sx.classList.add("morphed"); } else r.classList.add("mnew"); }
+    const pn = now.querySelector<HTMLElement>(".pn.res"); if (pn && flip(pn, was.get(""))) { const sx = pn.closest(".sx"); if (sx) sx.classList.add("morphed"); }
   };
   // the result's page is drawn and comes in where it is; the scanner glides the short way to its node's place and is the node from then on
-  const arrive = () => {
+  const arrive = (was: Map<string, number> | null) => {
     const nd = root.querySelector<HTMLElement>(".main .pvline .d.big");
     main.classList.remove("sc-run", "sc-open"); for (const e of [stn, fst]) if (e) e.classList.remove("scanning", "scn-next"); past.remove();
     const to = nd ? midY(nd) : y, end = () => { scn.remove(); main.classList.remove("sc-hand"); };
-    main.classList.add("sc-in"); setTimeout(() => main.classList.remove("sc-in"), 520);
+    main.classList.add("sc-in");
+    setTimeout(() => { main.classList.remove("sc-in", "sc-morph"); for (const e of Array.from(main.querySelectorAll(".morphed,.mnew"))) e.classList.remove("morphed", "mnew"); }, 520 + (morph ? 200 : 0));
+    if (was) moveIn(was);
     settle();   // the page is the result's now: its station takes a tap during the glide
     if (!nd || Math.abs(to - y) < 1 || !scn.animate) { end(); return; }
     main.classList.add("sc-hand");
-    scn.animate([{ transform: "none" }, { transform: `translateY(${(to - y).toFixed(1)}px)` }], { duration: 240, easing: "cubic-bezier(.2,.8,.3,1)", fill: "forwards" }).finished.then(end, end);
+    scn.animate([{ transform: "none" }, { transform: `translateY(${(to - y).toFixed(1)}px)` }], { duration: morph ? MOVE.duration : GLIDE, easing: MOVE.easing, fill: "forwards" }).finished.then(end, end);
   };
   place();
   raf = requestAnimationFrame(frame);

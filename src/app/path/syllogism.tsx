@@ -37,14 +37,14 @@ function lines(c: Syllogism): Record<Part, string> {
   if (last && lead.trim()) out[last] += " " + lead.trim();
   return out;
 }
-/** The syllogism on the path: S, P and R in the margin, a line each, and what the letters stand for. */
-function Statement({ star = true }: { star?: boolean }) {
+/** The syllogism on the path: S, P and R in the margin, a line each, and what the letters stand for. `keep`: the step that follows shows it again, so the ride (push.ts) leaves it in its place. */
+function Statement({ star = true, keep = false }: { star?: boolean; keep?: boolean }) {
   const l = lines(shownSyllogism());
   return <>
     <St d={<span class="ab">S</span>} cls={"stm" + (star ? marksCls() : "")}>{star ? <><Star /><SkipMark /></> : null}<span class="cs" lang="en">{l.subject}</span></St>
     <St d={<span class="ab">P</span>} cls="stm"><span class="cs" lang="en">{l.predicate}</span></St>
     <St d={<span class="ab">R</span>} cls="stm"><span class="cs" lang="en">{l.reason}</span></St>
-    <p class="plegend">S subject · P predicate · R reason</p>
+    <p class="plegend" data-keep={keep ? "1" : undefined}>S subject · P predicate · R reason</p>
   </>;
 }
 
@@ -67,7 +67,7 @@ function CounterStep({ kb }: { kb: boolean }) {
   return <>
     <Scroll>
       {/* the counter-example may stay empty, and the way on waits for it all the same: its piece of line is dotted until something is written (the pieces are the examples' `eh` and `er`) */}
-      <Sx cls="cur first eh"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Answer" sub="do you accept it?" /><Gap h={6} /><Statement /><Gap h={4} />
+      <Sx cls="cur first eh"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Answer" sub="do you accept it?" /><Gap h={6} /><Statement keep /><Gap h={4} />
         <St d={<D cls="sub yours" />} cls="sylsaid"><span class="said"><b class="yours">{SAY.pervasion}</b><Mark m="ok" /></span><span class="pq">Right. Can you show it?</span></St></Sx>
       <Sx cls={(some ? "cur" : "gap") + " er last"}>
         <St d={<D cls="sub now" />} cls="sb now"><span class="lab">a counter-example</span>

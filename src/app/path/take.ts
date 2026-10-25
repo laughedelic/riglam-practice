@@ -19,9 +19,9 @@ const DETAIL = ".vsub,.xnote,.tnote,.tsay,.wtext,.cls,.pndef,.pnoteline,.crow sm
 const reduced = () => { try { return matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; } };
 const clamp = (v: number) => Math.max(0, Math.min(1, v));
 
-/** Whether a station taken now plays the ride: a page of the Path, not under reduced motion, no clock running on the question. */
+/** Whether a station taken now plays the ride (take.ts, or push.ts under the look's `ride: push`): a page of the Path, not under reduced motion, no clock running on the question. */
 export function canTake(root: HTMLElement | null): boolean {
-  if (!root || currentLook().ride !== "fold" || reduced()) return false;
+  if (!root || currentLook().ride === "plain" || reduced()) return false;
   const u = state.ui; if (u && u.tq) return false;
   return !!root.querySelector(".main .pscroll .pathc") && !!root.querySelector("#stn");
 }

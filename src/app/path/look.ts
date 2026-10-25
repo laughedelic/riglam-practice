@@ -30,10 +30,12 @@ export interface Look {
   choice: "margin" | "rows" | "branches";
   /** how a choice is taken: slid onto the path (the marks stand beside it; a tap does it too), or lit for a moment on the path */
   take: "slide" | "lit";
-  /** how a station is taken: the old step folds at the curb and leaves up the path as the station comes (take.ts), or the next step is there at once */
-  ride: "fold" | "plain";
-  /** how the Check of the examples is taken: it slides up through the cases, marking each as it passes, marks the relation at the strip and becomes the result (scan.tsx), or rides as any station */
-  check: "scan" | "ride";
+  /** how a station is taken: the old step folds at the curb and its lines squeeze up into the top bullet as the station rides up alone (take.ts), or the station pushes the page up ahead of it, or, when
+   *  the page keeps a statement (`data-keep`), folds what is under it and opens the result there (push.ts), or the next step is there at once */
+  ride: "fold" | "push" | "plain";
+  /** how the Check of the examples is taken: it slides up through the cases, marking each as it passes, marks the relation at the strip and becomes the result (scan.tsx), the same with the page
+   *  going on into the result's page instead of being replaced by it (`morph`), or rides as any station */
+  check: "scan" | "morph" | "ride";
   /** where Skip is: an icon under the favorites mark (an action on the pair, like saving it), or the side station at the foot (on hold) */
   skipAt: "under" | "foot";
   figs: "ink" | "color";
@@ -92,7 +94,7 @@ export const DEFAULT_LOOK: Look = {
 const ONE_OF: Partial<Record<keyof Look, readonly string[]>> = {
   mode: ["system", "light", "dark"], light: Object.keys(GROUNDS.light), dark: Object.keys(GROUNDS.dark), purpleFor: ["none", "tutor", "skip", "partly"],
   grainLevel: ["soft", "mid", "strong"], wait: ["dots"], font: Object.keys(MAIN_FONTS), hand: ["newsreader", "main", "mainup", ...Object.keys(HAND_FONTS)],
-  choice: ["margin", "rows", "branches"], take: ["slide", "lit"], ride: ["fold", "plain"], check: ["scan", "ride"], skipAt: ["under", "foot"], figs: ["ink", "color"], ahead: ["dot", "dash", "fade"], next: ["edge", "page"], edge: ["run", "fade"],
+  choice: ["margin", "rows", "branches"], take: ["slide", "lit"], ride: ["fold", "push", "plain"], check: ["scan", "morph", "ride"], skipAt: ["under", "foot"], figs: ["ink", "color"], ahead: ["dot", "dash", "fade"], next: ["edge", "page"], edge: ["run", "fade"],
   why: ["detour", "row", "side"], sheet: ["top", "bottom", "path"], toggle: ["track", "check", "solid", "stops", "nested"], keys: ["sim", "off"],
   star: ["pair", "bar"], ask: ["detour", "row"], tutorAuto: ["off", "on"], abPos: ["names", "margin"], cOn: ["on", "off"],
   cSerif: Object.keys(SERIF_COMPANIONS), cHand: Object.keys(HAND_COMPANIONS), words: ["underline", "diamond", "chip"], subj: ["none", "italic", "letters", "diamonds", "lettered", "inks"], starShape: ["star", "eight", "bookmark"], miFig: ["inset", "full"],
