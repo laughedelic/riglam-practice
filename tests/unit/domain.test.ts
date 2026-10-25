@@ -14,7 +14,7 @@ import {
 import type { DebateInput, GradeDraft, HistoryEntry, Pair, PoolEntry } from "../../src/domain";
 import openData from "../../src/data/drill-data.json";
 import { drawable, examplesFor, placeByClass } from "../../src/domain";
-import { AGAIN_AFTER, FIRST_AFTER, MISS_AFTER, SETTLED, SPACING, afterQuestion, againAsked, freshIntro, introduced, nextStop, normIntro, pairGraded, showAgain, stageMet, stageTerms, stageUp, stopShown, unmet } from "../../src/domain";
+import { AGAIN_AFTER, FIRST_AFTER, MISS_AFTER, SETTLED, SPACING, afterQuestion, againAsked, freshIntro, introduced, nextStop, normIntro, pairGraded, showAgain, stageMet, stageTerms, stageUp, stopShown, termTree, unmet } from "../../src/domain";
 import { DEFAULT_STAGES, DEFINITION_STAGE, HOLD_STAGE, MAX_STAGE, NEG_STREAK, STAGES, START_SHARE, STAGE_STREAK, STAGE_STUMBLE, catOpen, drawSyllogism, heldBack, itemKnown, itemOn, itemStageFor, levelAt, negationOffer, newCategories, normStages, pairStage, physical, poolAt, stagesOfLevels, toggleStage, topStage } from "../../src/domain";
 import { GUIDE_RIGHT, STAGE_LONGER, STAGE_STREAK_MAX, exerciseAfter, freshRun, guideTurnsOff, guidedOn, movedUp, newShare, normExRuns, normGuided, normRun, restartRun, runAfter, runNeed, setManual, stageOffer, stayLonger } from "../../src/domain";
 import type { MissKind, StageRun } from "../../src/domain";
@@ -642,6 +642,31 @@ test("a term is introduced before it is asked about: everyday questions first, t
   // stages are a set, not a ceiling: with 1 and 3 on, the terms of stage 2 come first, since its categories are open too
   const gap = stopShown(stageUp(freshIntro()), "form", T0);
   expect(nextStop(rix, stageUp(gap), [1, 3], T0)).toEqual({ cat: "extf", why: "new" });
+});
+
+test("a stop shows where its term sits: every term above it, those whose own stop has not come yet marked, and only the divisions met, with a sign of more to come", () => {
+  const T0 = "2026-10-24T12:00:00.000Z", id = (term: string) => real.cats.find((c) => c.term === term)!.id;
+  let it = freshIntro();
+  let tree = termTree(rix, it, "Color");
+  expect(tree.up.map((t) => t.name), "the broadest first, down to the term's parent").toEqual(["Existent", "Functional thing", "Form", "External form", "Form source"]);
+  expect(tree.up.map((t) => t.met), "Existent has no stop of its own to wait for; the others have not come yet").toEqual([true, false, false, false, false]);
+  expect(tree.kids, "the divisions of Color are not course terms: nothing to name, nothing to promise").toEqual([]);
+  expect(tree.more).toBe(false);
+  for (const t of ["Form", "External form"]) it = stopShown(it, id(t), T0);
+  expect(termTree(rix, it, "Color").up.map((t) => t.met)).toEqual([true, false, true, true, false]);
+  // Consciousness divides into two course terms: none met, then one, then both
+  tree = termTree(rix, it, "Consciousness");
+  expect(tree.kids).toEqual([]);
+  expect(tree.more, "there are divisions to come").toBe(true);
+  it = stopShown(it, id("Sense consciousness"), T0);
+  tree = termTree(rix, it, "Consciousness");
+  expect(tree.kids).toEqual(["Sense consciousness"]);
+  expect(tree.more).toBe(true);
+  it = stopShown(it, id("Mental consciousness"), T0);
+  tree = termTree(rix, it, "Consciousness");
+  expect(tree.kids).toEqual(["Sense consciousness", "Mental consciousness"]);
+  expect(tree.more, "all met: no ellipsis").toBe(false);
+  expect(termTree(rix, it, "Existent").up, "a term with nothing above it").toEqual([]);
 });
 
 test("the questions grade the terms they use: right moves a term up, a mistake brings its stop back a few questions later", () => {

@@ -69,13 +69,17 @@ function ParentMark({ n }: { n: string }) {
   return <span class="dterm" role="button" tabIndex={0} data-dp={n} onClick={go} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(e); } }}>{n.toLowerCase()}</span>;
 }
 const endp = (s: string) => s.replace(/[.;,\s]+$/, "") + ".";
-/** Examples of the term, under its definition: a few, the plainest first, each with its stage and how well it is confirmed; one says why it is a good example. */
-function Examples({ n }: { n: string }) {
-  if (!state.EX) return null;
-  const list = examplesFor(state as unknown as DataIndex, state.EX.items, n); if (!list.length) return null;
+/**
+ * Examples of the term, under its definition: a few, the plainest first, each with its stage and, in the card, how well it is confirmed; one says why it
+ * is a good example. `stop`: on the term's own stop, under a heading of its own: no caption, and the stage alone (how well an example is confirmed is the
+ * data's bookkeeping, not something to teach).
+ */
+export const termExamples = (n: string) => (state.EX ? examplesFor(state as unknown as DataIndex, state.EX.items, n) : []);
+export function Examples({ n, stop = false }: { n: string; stop?: boolean }) {
+  const list = termExamples(n); if (!list.length) return null;
   const open = state.ui && state.ui.dex;
-  return <div class="pdex"><p class="pdexh">{list.length > 1 ? "Examples" : "Example"}</p><ul>{list.map((x) => {
-    const key = n + "|" + x.n, on = open === key, meta = ["stage " + exampleStage(x), (CONFIRMATION as Record<string, string>)[x.cf || ""]].filter(Boolean).join(" \u00b7 ");
+  return <div class={"pdex" + (stop ? " bare" : "")}>{stop ? null : <p class="pdexh">{list.length > 1 ? "Examples" : "Example"}</p>}<ul>{list.map((x) => {
+    const key = n + "|" + x.n, on = open === key, meta = ["stage " + exampleStage(x), stop ? "" : (CONFIRMATION as Record<string, string>)[x.cf || ""]].filter(Boolean).join(" \u00b7 ");
     const head = <><span class="pdexn">{x.n}</span><small>{meta}</small></>;
     if (!x.gloss) return <li><div class="pdexr">{head}</div></li>;
     const toggle = (e: Event) => { e.stopPropagation(); state.ui!.dex = on ? null : key; render(); };
@@ -83,21 +87,25 @@ function Examples({ n }: { n: string }) {
       {on ? <p class="pdexw">{x.gloss + (x.cn ? " (this reading is less certain)" : "")}</p> : null}</li>;
   })}</ul></div>;
 }
-/**
- * The definition of a term, as the card under a mark: where the term sits, the definition in English and, if chosen, Russian, then examples. `plain`: the
- * term's own stop (path/stop.tsx), where the name stands above it, and no examples.
- */
-export function Def({ term, trail, plain = false }: { term: string; trail: string[]; plain?: boolean }) {
+/** The definition of a term in words: where it comes from, the English text and, if chosen, the Russian. Nothing when this device cannot read one. */
+export function DefText({ term }: { term: string }) {
   const t = state.DATA!.terms[term], en = defParts(t.d), ru = defParts(t.d_ru), ruOn = state.defLang === "enru", src = en.src || (ruOn ? ru.src : "");
-  const back = trail.length ? trail[trail.length - 1] : "", up = ((state.DATA!.chains || {})[term] || [term]).slice(1);
-  return <div class={"pdef" + (plain ? " pdplain" : "")} id={plain ? undefined : "ddef"} tabIndex={plain ? undefined : -1}>
-    {back ? <button type="button" class="pbtn quiet pdback" aria-label={"Back to " + back} onClick={(e) => { e.stopPropagation(); goBack(); }}>{"\u2190 " + back}</button> : null}
-    {plain ? (ruOn && t.ru ? <p class="pdh"><span lang="ru">{t.ru}</span></p> : null) : <p class="pdh"><b>{t.name}</b>{ruOn && t.ru ? <span lang="ru">{" \u00b7 " + t.ru}</span> : null}{t.ch && en.ref ? <small>{" \u00b7 " + t.ch}</small> : null}</p>}
-    {up.length ? <p class="pdup">{up.flatMap((m: string, i: number) => [i ? " " : "", <i class="pisa">{isA(m.toLowerCase())}</i>, " ", !plain && hasDef(state.DATA!.terms[m]) ? <ParentMark n={m} /> : m.toLowerCase()])}</p> : null}
+  return <>
     {src ? <p class="pdsrc">{src + (en.body ? ":" : ".")}</p> : null}
     {en.body ? <p class="pdbody" lang="en">{endp(cap(en.body))}</p> : null}
     {ruOn && ru.body ? <p class="pdbody pdru" lang="ru">{endp(cap(ru.body))}</p> : null}
-    {plain ? null : <Examples n={term} />}
+  </>;
+}
+/** The definition of a term, as the card under a mark: where the term sits, the definition in English and, if chosen, Russian, then examples. */
+export function Def({ term, trail }: { term: string; trail: string[] }) {
+  const t = state.DATA!.terms[term], en = defParts(t.d), ruOn = state.defLang === "enru";
+  const back = trail.length ? trail[trail.length - 1] : "", up = ((state.DATA!.chains || {})[term] || [term]).slice(1);
+  return <div class="pdef" id="ddef" tabIndex={-1}>
+    {back ? <button type="button" class="pbtn quiet pdback" aria-label={"Back to " + back} onClick={(e) => { e.stopPropagation(); goBack(); }}>{"\u2190 " + back}</button> : null}
+    <p class="pdh"><b>{t.name}</b>{ruOn && t.ru ? <span lang="ru">{" \u00b7 " + t.ru}</span> : null}{t.ch && en.ref ? <small>{" \u00b7 " + t.ch}</small> : null}</p>
+    {up.length ? <p class="pdup">{up.flatMap((m: string, i: number) => [i ? " " : "", <i class="pisa">{isA(m.toLowerCase())}</i>, " ", hasDef(state.DATA!.terms[m]) ? <ParentMark n={m} /> : m.toLowerCase()])}</p> : null}
+    <DefText term={term} />
+    <Examples n={term} />
   </div>;
 }
 /**
