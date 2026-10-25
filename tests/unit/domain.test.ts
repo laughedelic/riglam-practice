@@ -1868,6 +1868,15 @@ test("a tree comes in the colors of its bark, leaves and char: only blue trees a
   expect(realPool.some((e) => [e.a, e.b].sort().join("|") === "blue|tree")).toBe(false);
 });
 
+test("a body part has a color or a temperature and a scarf a shape: those pairs are four possibilities, and yellow body parts are not asked", () => {
+  for (const [a, b, item] of [["blue", "body", "blue eyes"], ["green", "body", "green eyes"], ["hot", "body", "a hot forehead"], ["clothes", "square", "a square scarf"]] as const) {
+    const c = cellsFor(rix, a, b);
+    expect(relOfCells(c), a + " and " + b).toBe("4");
+    expect(c.both.map((i) => i.n), a + " and " + b).toContain(item);
+  }
+  expect(realPool.some((e) => [e.a, e.b].sort().join("|") === "body|yellow")).toBe(false);
+});
+
 test("two everyday categories of one kind with nothing in both do not give their kind as the reason", () => {
   const same = pairOf(rix, "red", "green", "red things", "green things", seeded(1), () => 0);
   expect(same.relation).toBe("con");

@@ -1,5 +1,5 @@
 {
-"built":"2026-10-24",
+"built":"2026-10-25",
 "source":"kb/terms.py (Dudra booklet, Book One) and practice/drill/items.py",
 "terms":{
 "Form":{"name":"Form","wylie":"gzugs","ch":"III Divisions of form","skt":"rūpa","ru":"рупа","zh":"色","parent":"Functional thing","mi":["Matter"],"contra":["Consciousness","Non-associated compositional factor"]},
@@ -683,6 +683,10 @@
 {"n":"a bottle of cold milk","t":"External form","c":["ft","form","extf","hid","white","liquid","drink","cold"],"comp":true,"body":false,"st":1},
 {"n":"a chilled watermelon","t":"External form","c":["ft","form","extf","hid","green","food","cold","fruit"],"comp":true,"body":false,"st":1},
 {"n":"cold hands","t":"Form","c":["ft","form","hid","body","cold"],"comp":true,"body":true,"st":1},
+{"n":"blue eyes","t":"Form","c":["ft","form","hid","body","blue"],"comp":true,"body":true,"st":1},
+{"n":"green eyes","t":"Form","c":["ft","form","hid","green","body"],"comp":true,"body":true,"st":1},
+{"n":"a hot forehead","t":"Form","c":["ft","form","hid","hot","body"],"comp":true,"body":true,"st":1},
+{"n":"a square scarf","t":"External form","c":["ft","form","extf","hid","square","fabric","clothes"],"comp":true,"body":false,"st":1,"may":["white","red","green","black","blue","yellow"]},
 {"n":"a horse","t":"Person","c":["ft","nonas","pers","hid","animal"],"comp":false,"body":false,"st":1,"may":["swim"]},
 {"n":"a cow","t":"Person","c":["ft","nonas","pers","hid","animal"],"comp":false,"body":false,"st":1,"may":["swim"]},
 {"n":"a goldfish","t":"Person","c":["ft","nonas","pers","hid","animal","fish","swim"],"comp":false,"body":false,"st":1},
@@ -839,6 +843,7 @@
 ["black","fruit"],
 ["blue","plant"],
 ["blue","tree"],
+["body","yellow"],
 ["dog","swim"],
 ["fish","fly"],
 ["children","teacher"],
