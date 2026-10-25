@@ -50,6 +50,22 @@ test("Settings on the Path: voice, your data and the version are rows of the pat
   await expect(page.locator(".srow", { hasText: "Version and updates" })).toContainText(/Version \d+\.\d+\.\d+ · build /);
 });
 
+test("Settings on the Path: the vibration row counts the knocks sent and tries one, and says when the browser refuses it", async ({ page }) => {
+  await page.addInitScript(() => { window.__vib = []; navigator.vibrate = (v) => { window.__vib.push(v); return window.__vibOk !== false; }; });
+  await start(page);
+  await page.locator("#path .chs .crow").first().click();   // a choice taken knocks once it is on the line
+  await expect.poll(() => page.evaluate(() => window.__vib.length)).toBeGreaterThan(0);
+  await openSettings(page);
+  const row = page.locator(".srow", { hasText: "Vibration" });
+  await expect(row).toContainText(/Sent since the app opened: [1-9]/);
+  await row.getByRole("button", { name: "Try a knock" }).click();
+  await expect(row.getByRole("status")).toContainText("you should feel a knock");
+  expect(await page.evaluate(() => window.__vib[window.__vib.length - 1])).toBe(80);
+  await page.evaluate(() => { window.__vibOk = false; });
+  await row.getByRole("button", { name: "Try a knock" }).click();
+  await expect(row.getByRole("status")).toContainText("refused");
+});
+
 test("the practice options' Stages page switches the stages on the path, and the last one on stays on", async ({ page }) => {
   await page.addInitScript(() => { if (localStorage.getItem("rd-stages") === null) localStorage.setItem("rd-stages", "1"); });
   await start(page);

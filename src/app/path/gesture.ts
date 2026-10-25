@@ -20,7 +20,9 @@ const SILL = 4;
 export const SLIDE = 96;
 
 /** The hand's feel of crossing the reach: a bump, as of a curb under a wheel (one short knock, no buzz). */
-const bump = (ms = HIT) => { try { if (navigator.vibrate) navigator.vibrate(ms); } catch { /* no haptics */ } };
+const bump = (ms = HIT) => { try { if (navigator.vibrate) { knocks.sent++; if (!navigator.vibrate(ms)) knocks.refused++; } } catch { /* no haptics */ } };
+/** What the bump has done since the page opened, for Settings to show: knocks sent, and those the browser refused (it says so by returning false). */
+export const knocks = { sent: 0, refused: 0 };
 export { bump };
 
 /**
