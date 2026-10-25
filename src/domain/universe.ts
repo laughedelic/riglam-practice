@@ -90,12 +90,14 @@ export function negateCells<T>(cells: Record<CellId, T>, neg: Neg): Record<CellI
 const typeText = (ix: DataIndex, cid: string): string => ix.CAT[cid].type.split(":")[0];
 
 type Names = Pick<Pair, "a" | "b" | "typeA" | "typeB">;
+// "black things" and "trees" are both form: that is no reason for them to have nothing in common, so only the list's word is given
+const sameType = (p: Names): boolean => p.typeA === p.typeB;
 // a pair with a negated side says why with the plain pair's reason: "furniture" and "non-(wooden things)" have nothing in both because all furniture is wooden
 function whyEmpty(cell: CellId, p: Names, plain?: Names, neg?: Neg): string {
   if (plain && neg) return whyEmpty(NEG_CELL[neg][cell], plain);
   const A = p.a, B = p.b;
   const q = (x: string) => "“" + x + "”";
-  if (cell === "both") return q(A) + " are " + p.typeA + "; " + q(B) + " are " + p.typeB + ". Nothing is both.";
+  if (cell === "both") return sameType(p) ? "Nothing in the practice list is both " + q(A) + " and " + q(B) + "." : q(A) + " are " + p.typeA + "; " + q(B) + " are " + p.typeB + ". Nothing is both.";
   if (cell === "anb") return "Whatever falls under " + q(A) + " also falls under " + q(B) + ".";
   if (cell === "bna") return "Whatever falls under " + q(B) + " also falls under " + q(A) + ".";
   return "Whatever exists falls under " + q(A) + " or under " + q(B) + "; only a non-existent is neither.";
@@ -107,7 +109,7 @@ function noteFor(p: Names & { relation: RelKey }, plain?: Names & { relation: Re
   }
   const t: Record<RelKey, string> = {
     mi: '"' + p.a + '" and "' + p.b + '" pick out the same class: ' + p.typeA + ".",
-    con: cap(p.a) + " are " + p.typeA + " and " + p.b + " are " + p.typeB + ": no common locus.",
+    con: sameType(p) ? "No common locus: nothing in the practice list is both " + p.a + " and " + p.b + "." : cap(p.a) + " are " + p.typeA + " and " + p.b + " are " + p.typeB + ": no common locus.",
     "3ab": "Whatever falls under “" + p.a + "” also falls under “" + p.b + "”, but not the reverse.",
     "3ba": "Whatever falls under “" + p.b + "” also falls under “" + p.a + "”, but not the reverse.",
     "4": cap(p.a) + " and " + p.b + " overlap without either containing the other.",

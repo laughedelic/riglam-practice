@@ -1857,6 +1857,37 @@ test("a pair with both sides negated: what excludes each other becomes four poss
   expect(judgeText(rix, p, "both", "the horn of a rabbit")?.v).toBe("ok");
 });
 
+test("a tree comes in the colors of its bark, leaves and char: only blue trees are left out of the pool, not told to be exclusive", () => {
+  for (const color of ["black", "white", "red", "yellow"]) {
+    const c = cellsFor(rix, color, "tree");
+    expect(relOfCells(c), color + " things and trees").toBe("4");
+    expect(c.both.length).toBeGreaterThan(0);
+  }
+  expect(cellsFor(rix, "black", "tree").both.map((i) => i.n)).toContain("a burnt tree");
+  expect(relOfCells(cellsFor(rix, "black", "plant"))).toBe("4");
+  expect(realPool.some((e) => [e.a, e.b].sort().join("|") === "blue|tree")).toBe(false);
+});
+
+test("a body part has a color or a temperature and a scarf a shape: those pairs are four possibilities, and yellow body parts are not asked", () => {
+  for (const [a, b, item] of [["blue", "body", "blue eyes"], ["green", "body", "green eyes"], ["hot", "body", "a hot forehead"], ["clothes", "square", "a square scarf"]] as const) {
+    const c = cellsFor(rix, a, b);
+    expect(relOfCells(c), a + " and " + b).toBe("4");
+    expect(c.both.map((i) => i.n), a + " and " + b).toContain(item);
+  }
+  expect(realPool.some((e) => [e.a, e.b].sort().join("|") === "body|yellow")).toBe(false);
+});
+
+test("two everyday categories of one kind with nothing in both do not give their kind as the reason", () => {
+  const same = pairOf(rix, "red", "green", "red things", "green things", seeded(1), () => 0);
+  expect(same.relation).toBe("con");
+  expect(same.why!.both).toBe("Nothing in the practice list is both “red things” and “green things”.");
+  expect(same.note).toBe("No common locus: nothing in the practice list is both red things and green things.");
+  // across kinds the kind is the reason
+  const across = pairOf(rix, "red", "emotion", "red things", "emotions", seeded(1), () => 0);
+  expect(across.why!.both).toBe("“red things” are form; “emotions” are consciousness. Nothing is both.");
+  expect(across.note).toBe("Red things are form and emotions are consciousness: no common locus.");
+});
+
 test("the tutor's facts on a negated side are read in reverse, and the tutor is told what the negation takes in", () => {
   const p = pairOf(rix, "form", "wooden", "physical things", "wooden things", seeded(1), () => 0, undefined, [1], "b");
   const f = parseFactLine("both: a metal key | A yes: it is physical | B yes: it is not wooden")!;
