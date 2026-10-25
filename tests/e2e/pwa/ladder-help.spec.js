@@ -1,5 +1,5 @@
 // Help that fades as the stages go up (src/domain/stages.ts): the next step of the negation track offered on a result once the pairs before it go
-// well (practice/negations.ts), the offer of the next stage from an exercise other than Categories (practice/stage-offer.ts), the guided form of an
+// well (practice/negations.ts), the next stage coming in by itself on the Path, with a station that says so (practice/stage-offer.ts), the guided form of an
 // exercise (practice/guided.ts), and the small tag of a course term the learner is still meeting, which opens its definition (practice/stops.ts,
 // termTags), on the Path. Negations in Pervasions and Find a pair are checked here too.
 import { test, expect } from "../../support/test.js";
@@ -83,27 +83,78 @@ test("on the Path the offer shows on the result too; Not now keeps negations off
   await expect(page.locator("#path .offer")).toHaveCount(0);
 });
 
-test("on the Path five right relations at the highest stage offer the next stage, before the negation offer, and a tap adds it", async ({ page }) => {
+/** Five right relations on the Path from a device at stage 1: the page is on the fifth result. */
+async function fiveRight(page, init = () => {}) {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(onPath);
   await page.addInitScript(() => { if (localStorage.getItem("rd-stages") === null) localStorage.setItem("rd-stages", "1"); });
+  await page.addInitScript(init);
   await page.addInitScript(hook);
   await page.goto("/");
   await expect(pathChoices(page)).toHaveCount(5);
   for (let i = 0; i < 5; i++) {
     if (i) { await station(page).click(); await expect(pathChoices(page)).toHaveCount(5); }
     await rightPath(page);
-    if (i < 4) await expect(page.locator("#path .offer")).toHaveCount(0);
+    if (i < 4) await expect(page.locator("#path .tup")).toHaveCount(0);
   }
-  // every pair at stage 1 is new at the highest stage on: the run is five, and the stage offer goes first (one offer at a time)
-  const offer = page.locator("#path .offer");
-  await expect(offer).toHaveCount(1);
-  await expect(offer).toContainText("Stage 1 is going well. Add stage 2 to the mix?");
-  expect(await page.evaluate(() => [localStorage.getItem("rd-stages"), window.__t.ui.negOffer])).toEqual(["1", null]);     // nothing changes without the tap
-  await offer.getByRole("button", { name: "Add stage 2" }).click();
-  await expect(page.locator("#path [role=status]").filter({ hasText: "Stage 2, " })).toBeVisible();
-  expect(await page.evaluate(() => [localStorage.getItem("rd-stages"), window.__t.stageRun])).toEqual(["1,2", { up: 0, down: 0 }]);
+}
+
+test("on the Path five right relations at the highest stage bring the next stage by themselves: a station says what the stages are, and Next takes it", async ({ page }) => {
+  await fiveRight(page);
+  // no prompt on the result, and nothing changes before the station
+  await expect(page.locator("#path .offer")).toHaveCount(0);
+  await expect(page.locator("#path .tup")).toHaveCount(0);
+  expect(await page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("1");
+  await station(page).click();
+  const up = page.locator("#path .tup");
+  await expect(up).toBeVisible();
+  await expect(page.locator("#path .sechead")).toContainText("Stage 2");
+  await expect(up, "the first one says what the stages are").toContainText("The practice is built in stages.");
+  await expect(up).toContainText("Everything you have practiced stays in the mix");
+  await expect(up.getByRole("button", { name: "Stay on stage 1 a while longer" })).toBeVisible();
+  await expect(up.getByRole("button", { name: "practice options" })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem("rd-stages")), "the stage comes in at Next").toBe("1");
+  await station(page).click();
+  await expect(pathChoices(page)).toHaveCount(5);
+  expect(await page.evaluate(() => [localStorage.getItem("rd-stages"), JSON.parse(localStorage.getItem("rd-stage-run"))])).toEqual(["1,2", { up: 0, down: 0, told: true }]);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem("rd-ex-runs")).practice)).toEqual({ run: 5, right: 5 });
+});
+
+test("on the Path, Stay on stage 1 a while longer keeps the next stage out and asks for ten right answers in a row; the practice options link opens the Stages page", async ({ page }) => {
+  await fiveRight(page);
+  await station(page).click();
+  const up = page.locator("#path .tup");
+  await up.getByRole("button", { name: "Stay on stage 1 a while longer" }).click();
+  await expect(up).toContainText("Stage 2 stays out for now. It comes in after 10 right answers in a row on stage 1.");
+  await expect(up.getByRole("button", { name: /^Stay on stage/ })).toHaveCount(0);
+  await up.getByRole("button", { name: "practice options" }).click();
+  const sheet = page.getByRole("dialog", { name: "Practice options" });
+  await expect(sheet.getByRole("switch", { name: /^Move up by itself/ })).toHaveAttribute("aria-checked", "true");
+  await page.keyboard.press("Escape");     // from the page back to the options, and out of them
+  await page.keyboard.press("Escape");
+  await expect(sheet).toHaveCount(0);
+  await station(page).click();
+  await expect(pathChoices(page)).toHaveCount(5);
+  expect(await page.evaluate(() => [localStorage.getItem("rd-stages"), JSON.parse(localStorage.getItem("rd-stage-run"))])).toEqual(["1", { up: 0, down: 0, told: true, need: 10 }]);
+});
+
+test("on the Path, with Move up by itself off, five right relations bring no stage; the switch is on the Stages page and is kept", async ({ page }) => {
+  await fiveRight(page, () => { if (localStorage.getItem("rd-stage-run") === null) localStorage.setItem("rd-stage-run", JSON.stringify({ up: 0, down: 0, manual: true })); });
+  await expect(page.locator("#path .offer"), "the negation offer, which the stage no longer goes before").toContainText("Try pairs with a negated side?");
+  await station(page).click();
+  await expect(pathChoices(page), "straight on to the next question").toHaveCount(5);
+  await expect(page.locator("#path .tup")).toHaveCount(0);
+  expect(await page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("1");
+  await page.getByRole("button", { name: "Practice options" }).click();
+  const sheet = page.getByRole("dialog", { name: "Practice options" });
+  await sheet.getByRole("button", { name: "Stages: more" }).click();
+  const sw = sheet.getByRole("switch", { name: /^Move up by itself/ });
+  await expect(sw).toHaveAttribute("aria-checked", "false");
+  await sw.click();
+  await expect(sw).toHaveAttribute("aria-checked", "true");
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("rd-stage-run")).manual)).toBeUndefined();
+  await sw.click();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("rd-stage-run")).manual)).toBe(true);
 });
 
 test("on the Path, Relations spells out the relations until its twentieth right answer, then Guided turns off with a line saying why, and the switch brings it back", async ({ page }) => {

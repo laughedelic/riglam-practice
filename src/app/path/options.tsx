@@ -16,6 +16,7 @@ import { setStages } from "../shell/stages.js";
 import { render } from "../shell/render.js";
 import { GUIDES, guided, setGuided } from "../practice/guided.ts";
 import { resetProgress } from "../practice/progress.ts";
+import { movesUp, setMovesUp } from "../practice/stage-offer.ts";
 import { toggleOpts } from "../shell/options.js";
 import { PAGES, SYMS, openPage, quorumNote, sessBack, setAutoExplain, setBlitzUse, setDefLang, setNegBrackets, setNegation, setNota, setShow, setSyllogismWording, setWording, toggleSess } from "../shell/session.js";
 import { kindMs } from "../shell/timers.js";
@@ -131,13 +132,14 @@ function Stages() {
   const ex = state.EX ? stageCounts(state.EX.items) : {}, items: Record<number, number> = {}, only = state.stages.length === 1;
   for (const it of state.DATA ? state.DATA.items : []) if (!it.nosubject) items[itemStage(it)] = (items[itemStage(it)] || 0) + 1;
   return <>
-    <p class="psub">Every exercise asks about the stages that are on, in any mix. A category opens at its stage and stays open above it, and the things come from the stages that are on. About half of the pairs are new at the highest stage, the rest review the ones below. Stage 1 is the start: Categories offers the next stage after five right in a row.</p>
+    <p class="psub">Every exercise asks about the stages that are on, in any mix. A category opens at its stage and stays open above it, and the things come from the stages that are on. About half of the pairs are new at the highest stage, the rest review the ones below. Stage 1 is the start: after five right answers in a row on the newest stage, in any exercise, the next stage comes in.</p>
     {STAGES.map(({ n, name, adds }) => {
       const on = state.stages.includes(n), count = (items[n] || 0) + ((ex as Record<number, number>)[n] || 0);
       return <Row lb={"St " + n}><button type="button" class="two" role="switch" aria-checked={on ? "true" : "false"} aria-disabled={on && only ? "true" : undefined} onClick={() => setStages(toggleStage(state.stages, n))}>
         <span><b>{"Stage " + n + " · " + name}</b><small>{count + (count === 1 ? " thing" : " things")}</small></span><Toggle on={on} /></button><small class="plvn">{adds}</small></Row>;
     })}
     {only ? <p class="pnoteline pnote3">At least one stage stays on.</p> : null}
+    <Switch lb="Move" title="Move up by itself" note="After five right answers in a row on the newest stage, the next one comes in, and a station says so first. Off: no stage comes in by itself, and you switch them here." on={movesUp()} toggle={() => setMovesUp(!movesUp())} />
     {negates() ? <>
       <p class="psub">Negations are a step of difficulty like the stages: switch them on when the plain pairs come easily. A negation takes in what does not exist, so nothing may be neither: then the Neither case is empty, and you say that nothing exists there.</p>
       <Row lb="Not"><b>Negations</b><Words label="Negations" items={[["off", "Off"], ["one", "One side"], ["both", "Both sides"]]} cur={state.negation} on={setNegation} />
