@@ -6,9 +6,10 @@
 .pa .main.sc-run .aux{opacity:0; transition:opacity .2s}
 .pa .pscan{position:absolute; top:0; width:0; height:0; z-index:7; pointer-events:none; --k:0; --e:0; --vc:var(--green)}
 .pa .pscan.no{--vc:var(--red)} .pa .pscan.pt{--vc:var(--partc)}
-.pa .pscd{position:absolute; left:0; top:0; --z:calc(var(--st) - 4px * var(--k) + 2px * var(--e)); width:var(--z); height:var(--z); transform:translate(-50%,-50%) rotate(45deg);
+.pa .pscd{position:absolute; left:0; top:0; --z:calc(var(--s0,var(--st)) + (var(--st) - var(--s0,var(--st))) * var(--e) - 4px * var(--k) + 2px * var(--e)); width:var(--z); height:var(--z); transform:translate(-50%,-50%) rotate(45deg);
   background-color:color-mix(in srgb,var(--vc) calc(var(--e) * 100%),color-mix(in srgb,var(--paper) calc(var(--k) * 100%),var(--station)));
   box-shadow:inset 0 0 0 calc(2.2px * var(--k) * (1 - var(--e))) var(--rim,var(--station)); transition:box-shadow .12s}
+.pa .pscan.pre .pscd{--rim:var(--ink3); --z:calc(var(--stp) + (var(--st) + 2px - var(--stp)) * var(--e))}
 .pa .pscan.f-ok .pscd{--rim:var(--green)} .pa .pscan.f-no .pscd{--rim:var(--red)} .pa .pscan.f-pt .pscd{--rim:var(--partc)}
 .pa .pscw{position:absolute; left:22px; top:0; transform:translateY(-50%); display:flex; align-items:baseline; flex-wrap:wrap; column-gap:10px; width:calc(100vw - var(--m) - 60px); max-width:380px; opacity:var(--e)}
 .pa .pscw b{font-size:24px; font-weight:600; color:var(--vc); white-space:nowrap}
@@ -23,9 +24,13 @@
 .pa .pscm{display:inline-grid; margin-left:8px; vertical-align:baseline; animation:p-scm .25s cubic-bezier(.3,1.6,.5,1) both}
 .pa .pscm .mark{transform:translateY(3px)}
 @keyframes p-scm{from{opacity:0; transform:scale(.5)}}
-.pa .sb.scn-no .pans{color:var(--ink2); text-decoration:line-through; text-decoration-color:var(--red); text-decoration-thickness:2px}
-/* the heading is covered: the result's node takes its place */
-.pa .sechead.scn-gone > .ptx,.pa .sechead.scn-gone > .d{opacity:0; transition:opacity .18s}
+.pa .crow.scn-no .ct b,.pa .sb.scn-no .pans{color:var(--ink2); text-decoration:line-through; text-decoration-color:var(--red); text-decoration-thickness:2px}
+/* the heading is covered (or the reply a syllogism's scan stops at): the result's node takes its place */
+.pa :is(.sechead,.sylsaid).scn-gone > :is(.ptx,.d){opacity:0; transition:opacity .18s}
+/* the reply a syllogism's scan stops at is marked like the relation: checked, or struck when it is not the one */
+.pa .sylsaid .said .pscm{margin-left:0} .pa .sylsaid .said .pscm .mark{transform:none}
+.pa .sylsaid.scn-no .yours{color:var(--ink2); text-decoration:line-through; text-decoration-color:var(--red); text-decoration-thickness:2px; transition:color .2s}
+.pa .sylsaid.scn-ok .yours{color:var(--green); transition:color .2s}
 /* the relation at the strip: struck when it is not the one, or checked */
 .pa .pn.scn-rel .pnn .rn,.pa .pn.scn-rel .pnc{transition:color .2s}
 .pa .pn.scn-no .pnn .rn{color:var(--ink2); text-decoration:line-through; text-decoration-color:var(--red); text-decoration-thickness:2px}
@@ -37,13 +42,21 @@
 .pa .main.sc-in .pathc > :not(.vband){animation:p-tkin .42s ease-out both}
 .pa .main.sc-in .pvline .ptx{animation:none}
 .pa .main.sc-hand .pvline .d.big,.pa .main.sc-hand .pvline .ptx{visibility:hidden}
+/* a statement that stays (a syllogism's, scan.tsx `stop`) does not come in again; what the result says under its node does */
+.pa .main.sc-keep.sc-in .pathc > :first-child{animation:none}
+.pa .main.sc-in .pwhat{animation:p-tkin .42s ease-out both}
+/* the look's `check: morph`: what the result's page shares with the examples' (the case rows, the parts of the pair: its figure, the two terms and the relation given) moves from where it
+   stood (scan.tsx) and is not faded in again; the rows the result has more of, what it adds to the pair (the classes, the relation it should have been) and the thread behind the moved parts
+   come in, and what the strip showed besides fades where it is */
+.pa .main.sc-morph.sc-in .pathc > .sx.morphed{animation:none}
+.pa .main.sc-morph.sc-in .pathc > .sx.morphed::before{animation:p-tkin .42s ease-out both}
+.pa .main.sc-morph.sc-in .mnew,.pa .main.sc-morph.sc-in .pn.res :is(.cls,.pnr,.pndef,.rvl + .rvl){animation:p-tkin .36s ease-out .24s both}
+.pa .sc-ghost{background:none; animation:none; transition:none}
+.pa .sc-ghost *{animation:none!important; transition:none!important}
 @media (prefers-reduced-motion:reduce){ .pa .sb.scn > .d,.pa .pscm,.pa .pn.scn-rel .pnn{animation:none} }
-/* with the keyboard's layout up the page opens first (path/relayout.ts): the foot comes in; and as the scanner leaves the Check's place at the foot, the station that comes next
-   takes it (the same station, its words changed): its diamond and words come in */
+/* with the keyboard's layout up the page opens first (path/relayout.ts): the foot comes in */
 .pa .main.sc-open .foot{animation:p-scfoot .36s ease-out both}
 @keyframes p-scfoot{from{opacity:0}}
-.pa .stn.scn-next .go{animation:p-scnx .34s cubic-bezier(.2,.9,.3,1.3) both}
-.pa .stn.scn-next .gol{animation:p-scnl .3s ease-out both}
 @keyframes p-scnx{from{opacity:0; scale:.5}}
 @keyframes p-scnl{from{opacity:0; translate:-8px 0}}
-@media (prefers-reduced-motion:reduce){ .pa .stn.scn-next .go,.pa .stn.scn-next .gol,.pa .main.sc-open .foot{animation:none} }
+@media (prefers-reduced-motion:reduce){ .pa .main.sc-open .foot{animation:none} }

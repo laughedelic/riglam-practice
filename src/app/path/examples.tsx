@@ -91,7 +91,7 @@ function KHead({ rel, title }: { rel: RelKey; title: string }) {
  * unfolded, `check` the check of the answer, `scan` what the Check marks as it slides up to the result (scan.tsx; Relations).
  */
 export function ExamplesStep({ kb, title, step, rel, full, check, scan }: { kb: boolean; title: string; step: number; rel: RelKey; full: ComponentChildren; check: () => void; scan?: () => ScanPlan }) {
-  const u = u0(), p = pairOf(), k = cursor(), first = k.order[0], pull = useContext(PullCtx);
+  const u = u0(), p = pairOf(), k = cursor(), pull = useContext(PullCtx);
   const checkHint = "your " + (state.ui!.find ? "pair" : "relation") + " and " + (k.order.length === 1 ? "one example" : k.order.length + " examples");
   const takeCheck = () => { u.pall = true; blur(); check(); };
   // the last example has words: the Check is the next stop, and the line ahead is solid down to it (under the keyboard there is no foot, so the Check comes up on the page)
@@ -109,7 +109,7 @@ export function ExamplesStep({ kb, title, step, rel, full, check, scan }: { kb: 
       <div class="fieldrow"><input class="pfield" id="cin" value={x.t} placeholder="write an example" {...nofillInput()} enterKeyHint={k.last ? "done" : "next"} aria-label={cellLabel(c, p)}
         onInput={(e) => { x.t = (e.currentTarget as HTMLInputElement).value; if (x.none) x.none = false; refreshPath(); }}
         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commit(pull); } }} /></div>
-      <p class="help"><span class="htx">{c === first ? "Your own example, in a few words." : "In a few words."} </span>{mayBeEmpty(c) ? <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => nothing(c, pull)}>nothing exists</button> : null}</p></St>;
+      {mayBeEmpty(c) ? <p class="help"><button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => nothing(c, pull)}>nothing exists</button></p> : null}</St>;
     // a written case opens again with a tap; the field keeps the focus meanwhile, so the keyboard stays up and nothing moves under the finger
     if (filled(c)) return <button type="button" class="sbb" onMouseDown={(e) => e.preventDefault()} onClick={() => openCase(i)} aria-label={CASE[c] + ": " + (x.none ? "nothing exists" : x.t) + ". Change it"}>
       <St d={<D cls="sub yours" />} cls="sb done"><span class="lab">{CASE[c]}</span><span class={"pans" + (x.none ? " nil" : "")}>{x.none ? "nothing exists" : x.t.trim()}</span></St></button>;
@@ -117,16 +117,22 @@ export function ExamplesStep({ kb, title, step, rel, full, check, scan }: { kb: 
     return <button type="button" class="sbb later" onMouseDown={(e) => e.preventDefault()} onClick={() => openCase(i)} aria-label={CASE[c] + ": not written yet. Write it now"}>
       <St d={<D cls="sub" />} cls="sb later"><span class="lab">{CASE[c]}</span><p class="qq">{caseQ(c, p)}</p></St></button>;
   });
+  // each case draws the piece of line from its own diamond to the next one: yellow and solid where the case is written, yellow and dotted where it is not (the path
+  // ahead is blocked by it); the trail ahead is dotted until every case is written, then solid and gray (34-path-line.css). The classes say what the piece needs:
+  // the case's own state (`kw` written, `ko` open, `kl` later) and the next one's (`nxkw`, `nxko`, `nxkl`), for where the keyboard layout puts the diamonds.
+  const kinds = k.order.map((c, i) => (i === k.ci ? "ko" : filled(c) ? "kw" : "kl")), last = k.order.length - 1;
+  const lined = rows.map((row, i) => <Sx cls={"er " + (filled(k.order[i]) ? "cur " : "gap ") + kinds[i] + (i < last ? " nx" + kinds[i + 1] : " last")}>{row}{i === last ? <Gap h={6} /> : null}</Sx>);
   return <>
     <KHead rel={rel} title={title} /><Strip rel={rel} full={full} />
     <Scroll dim={!!u.pstrip}>
-      <Sx cls="cur first"><div class="ksp" style={{ height: "16px" }} /><Head d={<D cls="sec now" />} h={step + " Examples"} sub={k.order.length === 1 ? "one case" : "one for each case"} />{rows}<Gap h={6} /></Sx>
-      {node ? <Sx cls="cnode"><Station name="Check" hint={checkHint} act={takeCheck} scan={scan} keep /></Sx> : null}
-      <Sx cls="ptail" />
+      <Sx cls={"cur first eh nx" + kinds[0]}><div class="ksp" style={{ height: "16px" }} /><Head d={<D cls="sec now" />} h={step + " Examples"} sub={k.order.length === 1 ? "one case" : "one for each case"} /></Sx>
+      {lined}
+      {node ? <Sx cls="cnode"><Station kind="chk" name="Check" hint={checkHint} act={takeCheck} scan={scan} keep /></Sx> : null}
+      <Sx cls="ptail xtail" />
     </Scroll>
     <VoiceBar />
     {kb ? null : <Foot aux={k.ready ? null : <SkipSide />}>
-      {k.ready ? <Station name="Check" hint={checkHint} act={takeCheck} scan={scan} />
+      {k.ready ? <Station kind="chk" name="Check" hint={checkHint} act={takeCheck} scan={scan} />
         : <PreStation name="Result" hint="write each example first" />}
     </Foot>}
   </>;

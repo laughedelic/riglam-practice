@@ -45,3 +45,5 @@
 @import "./styles/41-path-choose.css"; /* the Path: choices beside the path that slide onto it, two options on one row */
 @import "./styles/42-path-take.css"; /* the Path: a station taken over its curb, the old step folding and leaving as the station rides up */
 @import "./styles/43-path-scan.css"; /* the Path: the Check of the examples sliding up through the cases and marking each, then becoming the result */
+@import "./styles/44-path-push.css"; /* the Path: the look's push ride, the station pushing the page up ahead of it as it rises */
+@import "./styles/45-path-foot.css"; /* the Path: what is at the foot while a station rides away (the look's foot) */

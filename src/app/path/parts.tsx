@@ -50,9 +50,11 @@ export function caseQ(c: CellId, p: Pair) {
     nei: <>Something that is {K("neither")} {a} {K("nor")} {b}.</>,
   } as Record<string, ComponentChildren>)[c];
 }
-/** The star of the pair (or of the syllogism), beside it: pressed while it is a favorite. */
+/** The pair the star keeps, where one is drawn: there is storage and a pair (a syllogism, or a pair of the learner's own, has none to keep). */
+const starTarget = () => { const p = favTarget(); return state.db && p && !p.own ? p : null; };
+/** The star of the pair, beside it: pressed while it is a favorite. */
 export function Star() {
-  const p = favTarget(); if (!state.db || !p || p.own) return null;
+  const p = starTarget(); if (!p) return null;
   const on = isFav(p);
   return <button type="button" class={"pib fav pstar" + (on ? " on" : "")} aria-pressed={on ? "true" : "false"} aria-label={on ? "In favorites" : "Add to favorites"} onClick={() => toggleFav(p)}><Icon n="star" /></button>;
 }
@@ -66,7 +68,7 @@ export function SkipMark() {
   return <button type="button" class="pib pskip" aria-label={"Skip " + what} onClick={(e) => { if (skipAsks()) skipPair(); else turnAside((e.currentTarget as HTMLElement).closest(".main"), skipNow); }}><Icon n="skip" /></button>;
 }
 /** The classes of a stop that carries the favorites mark and Skip under it. */
-export const marksCls = (star = true) => (star && state.db ? " hasstar" : "") + (skipHere() ? " hasskip" : "");
+export const marksCls = (star = true) => (star && starTarget() ? " hasstar" : "") + (skipHere() ? " hasskip" : "");
 /**
  * The two terms of the pair as the first stops: A and B in the margin, the star beside A; `sm` smaller, once they are not the question. With `tags`, a
  * term whose course term the learner is still meeting has it in a small tag under it, which opens its definition under the pair (practice/stops.ts, termTags).
@@ -122,10 +124,10 @@ export interface Choice { k: string; b: ComponentChildren; s?: ComponentChildren
  * options on one row.
  */
 export function Choices({ label, items, picked = null, onPick, multi = false, slide = false, row = false }: { label: string; items: Choice[]; picked?: string | null; onPick: (k: string) => void; multi?: boolean; slide?: boolean; row?: boolean }) {
-  const beside = slide && !multi && currentLook().take === "slide", two = beside && row;
+  const beside = slide && !multi && currentLook().take === "slide", two = beside && row, answered = multi && items.some((it) => it.pressed);      // ticked: the way on is open, the line along the options turns solid
   const ref = useRef<HTMLDivElement>(null), last = useRef(onPick); last.current = onPick;
   useEffect(() => (beside && ref.current ? bindSlide(ref.current, (k) => last.current(k)) : undefined), [beside]);
-  return <Sx cls="gap"><span class="gapq" aria-hidden="true">?</span>
+  return <Sx cls={answered ? "cur" : "gap"}><span class="gapq" aria-hidden="true">?</span>
     {beside ? <><i class="thr2" /><i class="thr" /></> : null}
     <div ref={ref} class={"chs" + (picked ? " fading" : "") + (multi ? " multi" : "") + (beside ? " slide" : "") + (two ? " row2" : "")} role="group" aria-label={label}>{items.map((it) =>
       <button type="button" data-k={it.k} class={"crow" + (picked === it.k ? " picked" : "") + (it.pressed ? " on" : "")} aria-pressed={it.pressed ? "true" : "false"} aria-keyshortcuts={it.key}
@@ -135,11 +137,16 @@ export function Choices({ label, items, picked = null, onPick, multi = false, sl
       </button>)}</div></Sx>;
 }
 /** A choice taken: it slides onto the path where the choices are made so (choose.ts), else it is lit for a moment; then `go`. Nothing else is taken meanwhile. */
-export function pickThen(k: string, go: () => void) {
+export function pickThen(k: string, go: () => void, scan?: (act: () => void) => boolean) {
   const u = u0(); if (u.pk) return;
   if (u.tq) { go(); return; }   // under a running Blitz clock it is taken at once, so that the moment is not counted
   u.pk = k;
-  const end = () => { if (state.ui !== u) return; u.pk = null; go(); };
+  // `scan`: the step that follows is taken with the scan of the answers (gesture.ts `scanPick`), and the choice stays taken until the page is swapped
+  const end = () => {
+    if (state.ui !== u) return false;
+    if (scan && scan(() => { if (state.ui === u) u.pk = null; go(); })) return true;
+    u.pk = null; go(); return false;
+  };
   if (takeChoice(k, end)) return;
   refreshPath(); setTimeout(end, 420);
 }
@@ -216,12 +223,13 @@ function FactSteps({ f, where }: { f: FactLine; where: string }) {
   </>;
 }
 /**
- * The tutor's note on one example, set apart from the learner's own answer above it: a small label, then the steps of its line (or its words, for a
- * line that has no steps); the flag is at the right of the label. `where` keys the terms it names, so that their definitions open under them.
+ * The tutor's note on one example, set apart from the learner's own answer above it by a rule in the tutor's color (no label: the rule says whose it is, and a
+ * label repeated on every case read as if the steps after it were about the tutor): the steps of its line (or its words, for a line that has no steps), with
+ * the flag at the top right of the block. `where` keys the terms it names, so that their definitions open under them.
  */
 export function TutorNote({ c, text, where, flag }: { c: CellId; text: string; where: string; flag?: ComponentChildren }) {
   const f = (explainParts().facts as Record<string, FactLine | undefined>)[c];
-  return <div class="tnote"><div class="tuth"><span class="tutn">the tutor</span>{flag}</div>
+  return <div class="tnote" role="group" aria-label="The tutor’s note">{flag ? <div class="tuth">{flag}</div> : null}
     {f ? <FactSteps f={f} where={where} /> : <><p class="tt"><TermText text={text} where={where} /></p><DefCard where={where} /></>}</div>;
 }
 // the tutor's explanation without its lines on the cases (those are on the cases' rows)

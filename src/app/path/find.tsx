@@ -16,6 +16,7 @@ import { refreshPath } from "./index.tsx";
 import { Choices, ErrLines, GuideNote, PairResult, SkipMark, StageOffer, Verdict, WhyRow, needsKey, pairOf, u0 } from "./parts.tsx";
 import { Row, cases, isOpen, pendLine, resultRows } from "./relations.tsx";
 import { Scroll } from "./scroll.tsx";
+import { nextName } from "./next.ts";
 import { Foot, PreStation, SkipSide, Station, TopBar } from "./shell.tsx";
 import { D, Fig, Gap, Head, St, Sx, nofillInput } from "./ui.tsx";
 
@@ -53,7 +54,7 @@ function PairStep({ kb }: { kb: boolean }) {
   });
   return <>
     <Scroll>
-      <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Pair" sub="two phenomena that relate like this" aside={state.findRel ? null : <SkipMark />} /><Gap h={6} />
+      <Sx cls={(both() ? "cur" : "gap") + " first"}><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Pair" sub="two phenomena that relate like this" aside={state.findRel ? null : <SkipMark />} /><Gap h={6} />
         <Asked /><Gap h={6} />
         <Word k="a" key2="wordA" what="First" last={false} />
         <Word k="b" key2="wordB" what="Second" last />
@@ -64,7 +65,7 @@ function PairStep({ kb }: { kb: boolean }) {
       <Sx cls="ptail" />
     </Scroll>
     {kb ? null : <Foot aux={state.findRel ? null : <SkipSide />}>
-      {ok ? <Station name="Examples" hint="your pair" act={usePair} /> : <PreStation name="Examples" hint="name both first" />}
+      {ok ? <Station kind="ex" name="Examples" hint="your pair" act={usePair} /> : <PreStation name="Examples" hint="name both first" />}
     </Foot>}
   </>;
 }
@@ -125,7 +126,7 @@ function ResultStep() {
       <ErrLines />
       <Sx cls="ptail" />
     </Scroll>
-    <Foot><Station name="Next relation" act={() => next()} /></Foot>
+    <Foot><Station name={nextName("Next relation")} act={() => next()} /></Foot>
   </>;
 }
 

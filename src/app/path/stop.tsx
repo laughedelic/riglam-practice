@@ -27,6 +27,6 @@ export function stopScreen(title: string): { cls: string; node: ComponentChildre
         <Gap h={6} /></Sx>
       <Sx cls="ptail" />
     </Scroll>
-    <Foot><Station name="Next" hint="on to the question" act={() => next()} /></Foot>
+    <Foot><Station name="Next: question" act={() => next()} /></Foot>
   </> };
 }

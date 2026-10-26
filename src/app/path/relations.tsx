@@ -20,6 +20,7 @@ import { ExamplesStep, StripPair, examplesReady } from "./examples.tsx";
 import { CASE, Choices, ErrLines, GuideNote, PairResult, PairStops, StageOffer, Thinking, TutorNote, Verdict, WhyRow, isa, pairOf, pickThen, u0 } from "./parts.tsx";
 import { FlagBtn, FlagEditor, explainCase } from "./flags.tsx";
 import { Scroll } from "./scroll.tsx";
+import { nextName } from "./next.ts";
 import { Foot, PreStation, SkipSide, Station, TopBar, VoiceBar } from "./shell.tsx";
 import { Subjects, markNames } from "./subjects.tsx";
 import { D, Fig, Gap, Head, Mark, St, Sx } from "./ui.tsx";
@@ -48,7 +49,7 @@ function PickStep({ kb }: { kb: boolean }) {
     </Scroll>
     <VoiceBar />
     {kb ? null : <Foot aux={<SkipSide />}>
-      {u.rel ? <Station name="Examples" hint="the relation you picked" act={() => { u.open = false; render(); }} /> : <PreStation name="Examples" hint="pick a relation first" />}
+      {u.rel ? <Station kind="ex" name="Examples" hint="the relation you picked" act={() => { u.open = false; render(); }} /> : <PreStation name="Examples" hint="pick a relation first" />}
     </Foot>}
   </>;
 }
@@ -119,7 +120,7 @@ function verdictOf(r: Pick<GradeResult, "cells" | "overall">, rel: RelKey): { v:
 function scanPlan(): ScanPlan {
   const u = u0(), r = grade(state as unknown as DataIndex, state.cur!.p, u), rel = relOf(), m = (c: CellId) => { const v = r.cells[c].v; return v === "ok" ? "ok" : v === "bad" ? "no" : "pt"; };
   const { v, word, sub } = verdictOf(r, rel);
-  return { cases: (fillable() as CellId[]).map(m), rel: r.relOpen ? "pt" : r.relOk ? "ok" : "no", v, word, sub, next: nextFwd().label };
+  return { cases: (fillable() as CellId[]).map(m), rel: r.relOpen ? "pt" : r.relOk ? "ok" : "no", v, word, sub };
 }
 function ResultStep() {
   const u = u0(), p = pairOf(), r = u.res, rel = relOf();
@@ -136,7 +137,7 @@ function ResultStep() {
       <ErrLines />
       <Sx cls="ptail" />
     </Scroll>
-    <Foot><Station name={nextFwd().label} act={() => next()} /></Foot>
+    <Foot><Station name={nextName(nextFwd().label)} act={() => next()} /></Foot>
   </>;
 }
 
