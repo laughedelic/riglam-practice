@@ -7,6 +7,7 @@ import { setCategoriesAsk } from "../categories/flow.js";
 import { asking, setBlitz, setTimer, startQ, stopTimer } from "../debate/flow.js";
 import { WORDINGS } from "../debate/text.js";
 import { NOT } from "../../ai-shared/debate.ts";
+import { normLangs } from "../../domain/languages.ts";
 import { exName } from "./exercises.js";
 import { stageSwitches } from "./stages.js";
 import { saveProgress } from "../practice/progress.ts";
@@ -34,6 +35,11 @@ export const PAGES={nota:"Notation",wording:"Questions",times:"Blitz",defs:"Defi
 const store=(key,v)=>{ try{ localStorage.setItem(key,v); }catch(e){} };
 export function setNota(k){ state.nota=k; store("rd-notation",k); render(); }
 export function setDefLang(k){ state.defLang=k==="enru"?"enru":"en"; store("rd-deflang",state.defLang); render(); }
+/** Shows or hides a language beside the terms (Settings > Languages): Russian is the definitions' language, the others are names. */
+export function setLang(id,on){
+  if(id==="ru") return setDefLang(on?"enru":"en");
+  state.langs=normLangs(on?[...state.langs,id]:state.langs.filter(x=>x!==id)); store("rd-langs",JSON.stringify(state.langs)); render();
+}
 export function setShow(key,on){ if(key==="ab") state.showAB=on; else state.fullPh=on; store("rd-"+key,on?"1":"0"); render(); }
 export function setAutoExplain(on){ state.autoExplain=on; store("rd-autoexplain",on?"1":"0"); render(); }
 export function setWording(k){ state.wording=k; store("rd-wording",k); render(); }

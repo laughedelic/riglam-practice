@@ -494,6 +494,8 @@ export interface State {
   // display settings, some kept on the device
   nota: "codes" | "sets" | "logic" | string;
   defLang: "en" | "enru" | string;
+  /** the other languages a term's name is shown in: "bo", "skt", "zh" (domain/languages.ts) */
+  langs: string[];
   wording: "mine" | "cons" | "plain" | string;
   showAB: boolean;
   fullPh: boolean;

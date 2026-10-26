@@ -14,6 +14,7 @@ import {
 import type { DebateInput, GradeDraft, HistoryEntry, Pair, PoolEntry } from "../../src/domain";
 import openData from "../../src/data/drill-data.json";
 import { drawable, examplesFor, placeByClass } from "../../src/domain";
+import { LANGS, normLangs, termNames } from "../../src/domain";
 import { AGAIN_AFTER, FIRST_AFTER, MISS_AFTER, SETTLED, SPACING, afterQuestion, againAsked, freshIntro, introduced, nextStop, normIntro, pairGraded, showAgain, stageMet, stageTerms, stageUp, stopShown, termTree, unmet } from "../../src/domain";
 import { DEFAULT_STAGES, DEFINITION_STAGE, HOLD_STAGE, MAX_STAGE, NEG_STREAK, STAGES, START_SHARE, STAGE_STREAK, STAGE_STUMBLE, catOpen, drawSyllogism, heldBack, itemKnown, itemOn, itemStageFor, levelAt, negationOffer, newCategories, normStages, pairStage, physical, poolAt, stagesOfLevels, toggleStage, topStage } from "../../src/domain";
 import { GUIDE_RIGHT, STAGE_LONGER, STAGE_STREAK_MAX, exerciseAfter, freshRun, guideTurnsOff, guidedOn, movedUp, newShare, normExRuns, normGuided, normRun, restartRun, runAfter, runNeed, setManual, stageOffer, stayLonger } from "../../src/domain";
@@ -2013,4 +2014,28 @@ test("the negation track: about a third of the pairs negated, both sides only wh
   const both = count("both");
   expect(both.ab).toBeGreaterThan(20);
   expect(both.a + both.b).toBeGreaterThan(20);
+});
+
+test("a term's names by language: Tibetan with its Wylie, Chinese in traditional and simplified with pinyin, and only the languages that are on", () => {
+  const t = openData.terms["Sound source" as keyof typeof openData.terms] as Parameters<typeof termNames>[0];
+  expect(termNames(t, [])).toEqual([]);
+  expect(termNames(t, ["bo", "zh"]).map((n) => n.main + n.rest)).toEqual(["སྒྲའི་སྐྱེ་མཆེད (sgra'i skye mched)", "聲處（声处，shēng chù）"]);
+  // always in the order of LANGS, whatever the order they were ticked in; Russian and Sanskrit are plain
+  expect(termNames(t, ["skt", "ru"]).map((n) => n.id + ":" + n.main + n.rest)).toEqual(["ru:база звука", "skt:śabdāyatana"]);
+  // the simplified form is left out where it is the same, and a name a term lacks leaves its language out
+  expect(termNames({ zh: "色", zhs: "色", py: "sè" }, ["zh", "bo", "ru"])).toEqual([{ id: "zh", lang: "zh-Hant", main: "色", rest: "（sè）" }]);
+  expect(termNames({ wylie: "gzugs" }, ["bo"])).toEqual([{ id: "bo", lang: "", main: "gzugs", rest: "" }]);
+  // every term of the course has a name in each language that names it
+  for (const [name, term] of Object.entries(openData.terms)) {
+    const names = termNames(term as Parameters<typeof termNames>[0], ["bo", "zh"]);
+    expect(names.map((n) => n.id), name).toEqual(["bo", "zh"]);
+    expect(names[0]!.rest, name).toBe(` (${term.wylie})`);
+  }
+  expect(LANGS.map((l) => l.id)).toEqual(["ru", "bo", "skt", "zh"]);
+});
+
+test("a stored choice of languages is read as the name-only languages in order, and anything else as none", () => {
+  expect(normLangs('["zh","bo","bo","xx","ru"]')).toEqual(["bo", "zh"]);
+  expect(normLangs(["skt"])).toEqual(["skt"]);
+  for (const bad of [null, undefined, "", "bo", "{", 3, {}]) expect(normLangs(bad)).toEqual([]);
 });

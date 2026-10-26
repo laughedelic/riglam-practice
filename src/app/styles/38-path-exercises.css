@@ -118,7 +118,8 @@
 .pa .tstop .sechead .ph{flex-wrap:wrap; white-space:normal; row-gap:2px}
 .pa .tstop .sechead .ph span{overflow:visible; text-overflow:clip}
 .pa .tstop-names{margin:6px 0 0; font-size:14.5px; line-height:1.35; color:var(--ink2)}
-.pa .tstop-names .sep{color:var(--ink3)}
+.pa .tstop-names .nm{display:block}
+.pa .tstop-names [lang=bo]{font-size:1.25em; line-height:1.2}
 .pa .tstop-def .pdef{border-left:0; padding-left:0}
 .pa .tstop-def .pdbody{font-size:20px; line-height:1.5}
 .pa .tstop-def .pdsrc{font-size:17.5px}

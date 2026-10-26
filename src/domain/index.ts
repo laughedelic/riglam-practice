@@ -29,6 +29,8 @@ export { DEFAULT_STAGES, DEFINITION_STAGE, GUIDE_RIGHT, HOLD_STAGE, MAX_STAGE, N
 export type { ExerciseRun, MissKind, Negation, NegOutcome, Stage, StageRun, StagedEntry, Stages, Unmet } from "./stages";
 export { AGAIN_AFTER, FIRST_AFTER, GAP_DAYS, MISS_AFTER, SETTLED, SPACING, afterQuestion, againAsked, freshIntro, introduced, needsIntro, nextStop, normIntro, pairGraded, showAgain, stageMet, stageTerms, stageUp, stopShown, termTree, unmet } from "./intro";
 export type { Intro, IntroTerm, Stop, StopWhy, TreeTerm } from "./intro";
+export { LANGS, NAME_LANGS, normLangs, termNames } from "./languages";
+export type { LangId, TermName } from "./languages";
 export type { Placement } from "./reference";
 export { lettersDirection, plainWords, spokenConfirm, spokenDirection, spokenDontKnow, spokenExample, spokenRelation, spokenReply } from "./spoken";
 export type { PairTerms, SpokenExample, SpokenReply } from "./spoken";

@@ -8,7 +8,8 @@ import { next } from "../practice/queue.js";
 import { againOn, stopHead, stopTerm, toggleAgain } from "../practice/stops.ts";
 import { AGAIN_AFTER } from "../../domain/intro.ts";
 import { Scroll } from "./scroll.tsx";
-import { FitTerm, Names, StopSections } from "./stop-def.tsx";
+import { FitTerm, StopSections } from "./stop-def.tsx";
+import { Names } from "./terms.tsx";
 import { Foot, Station, TopBar } from "./shell.tsx";
 import { D, Gap, Head, Icon, St, Sx } from "./ui.tsx";
 

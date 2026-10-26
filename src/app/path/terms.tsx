@@ -9,6 +9,7 @@ import { cap } from "../core/util.js";
 import { isA } from "../practice/screen.js";
 import { CONFIRMATION, defParts, hasDef } from "../practice/terms.js";
 import { termTags } from "../practice/stops.ts";
+import { termNames } from "../../domain/languages.ts";
 import { exampleStage, examplesFor } from "../../domain/reference.ts";
 import { render } from "../shell/render.js";
 
@@ -87,6 +88,15 @@ export function Examples({ n, stop = false }: { n: string; stop?: boolean }) {
       {on ? <p class="pdexw">{x.gloss + (x.cn ? " (this reading is less certain)" : "")}</p> : null}</li>;
   })}</ul></div>;
 }
+/** The languages that are on (Settings > Languages), besides English: Russian as the definitions' language, the rest as kept. */
+export const languagesOn = (): string[] => [...(state.defLang === "enru" ? ["ru"] : []), ...state.langs];
+/** The term's names in the languages that are on, one line each, those it has a name in; `skip` leaves some out (a card that names the term in Russian already). */
+export function Names({ term, skip = [] }: { term: string; skip?: string[] }) {
+  const t = state.DATA!.terms[term]; if (!t) return null;
+  const names = termNames(t, languagesOn()).filter((n) => !skip.includes(n.id));
+  return names.length ? <p class="tstop-names">{names.map((n) => <span class="nm"><span lang={n.lang || undefined}>{n.main}</span>{n.rest}</span>)}</p> : null;
+}
+
 /** The definition of a term in words: where it comes from, the English text and, if chosen, the Russian. Nothing when this device cannot read one. */
 export function DefText({ term }: { term: string }) {
   const t = state.DATA!.terms[term], en = defParts(t.d), ru = defParts(t.d_ru), ruOn = state.defLang === "enru", src = en.src || (ruOn ? ru.src : "");
@@ -103,6 +113,7 @@ export function Def({ term, trail }: { term: string; trail: string[] }) {
   return <div class="pdef" id="ddef" tabIndex={-1}>
     {back ? <button type="button" class="pbtn quiet pdback" aria-label={"Back to " + back} onClick={(e) => { e.stopPropagation(); goBack(); }}>{"\u2190 " + back}</button> : null}
     <p class="pdh"><b>{t.name}</b>{ruOn && t.ru ? <span lang="ru">{" \u00b7 " + t.ru}</span> : null}{t.ch && en.ref ? <small>{" \u00b7 " + t.ch}</small> : null}</p>
+    <Names term={term} skip={["ru"]} />
     {up.length ? <p class="pdup">{up.flatMap((m: string, i: number) => [i ? " " : "", <i class="pisa">{isA(m.toLowerCase())}</i>, " ", hasDef(state.DATA!.terms[m]) ? <ParentMark n={m} /> : m.toLowerCase()])}</p> : null}
     <DefText term={term} />
     <Examples n={term} />

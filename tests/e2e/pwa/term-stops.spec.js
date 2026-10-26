@@ -83,7 +83,8 @@ test("on the Path the stop is a station of its own, with the term and where it s
   await expect(stop).toBeVisible();
   await expect(stop).toContainText("New term");
   await expect(stop.locator(".cs")).toHaveText("Form");
-  await expect(stop.locator(".tstop-names")).toContainText("gzugs");
+  // English only until Settings > Languages says more
+  await expect(stop.locator(".tstop-names")).toHaveCount(0);
   await expect(stop.locator(".tstop-sech")).toHaveText(withCourse ? ["Definition", "Categories"] : ["Categories"]);
   if (withCourse) await expect(stop.locator(".pdbody").first()).toBeVisible();
   // one optional mark: the term comes again in a few questions, and a second tap takes that back
@@ -161,6 +162,32 @@ test("a division whose stop has come is named in the tree, and the ellipsis stay
   const tree = stop.locator("ul.ttree li");
   await expect(tree).toHaveText(["Existent", "Functional thing", "Form", "External form", /more divisions come later/]);
   await expect(stop.locator("ul.ttree li.gray")).toHaveCount(1);
+});
+
+test("Settings > Languages decides which names the stop shows: Tibetan with its Wylie, Chinese in both writings with pinyin, Russian and Sanskrit plain", async ({ page }) => {
+  await seed(page, ["form"]);
+  await page.addInitScript(onPath);
+  await page.addInitScript(hook);
+  await page.goto("/");
+  await expect(page.locator("#path .chs .crow")).toHaveCount(5);
+  await page.locator(".tstn").click();
+  await page.locator(".road .rfoot").getByRole("button", { name: "Settings" }).click();
+  await expect(page.locator(".ppage .ptitle")).toHaveText("Settings");
+  const lang = (name) => page.getByRole("switch", { name });
+  await expect(page.locator(".ppage .srow", { hasText: "English" }).first()).toContainText("Always shown");
+  for (const name of ["Russian", "Tibetan", "Sanskrit", "Chinese"]) await expect(lang(name)).toHaveAttribute("aria-checked", "false");
+  await lang("Tibetan").click();
+  await lang("Chinese").click();
+  await expect(lang("Tibetan")).toHaveAttribute("aria-checked", "true");
+  expect(await page.evaluate(() => localStorage.getItem("rd-langs"))).toBe('["bo","zh"]');
+  expect(await page.evaluate(() => localStorage.getItem("rd-deflang"))).toBeNull();
+  await page.getByRole("button", { name: /Back to the exercise/ }).click();
+  await expect(page.locator("#path .chs .crow")).toHaveCount(5);
+  await page.evaluate(() => window.__t.next());
+  const names = page.locator("#path .tstop .tstop-names .nm");
+  await expect(names).toHaveText(["གཟུགས (gzugs)", "色（sè）"]);
+  await expect(names.nth(0).locator("[lang=bo]")).toHaveText("གཟུགས");
+  await expect(names.nth(1).locator("[lang=zh-Hant]")).toHaveText("色");
 });
 
 test("a term whose longest word does not fit its line shrinks as a whole, and no word of it breaks", async ({ page }) => {

@@ -42,14 +42,6 @@ export function FitTerm({ text }: { text: string }) {
   return <span ref={ref} class="cs" lang="en">{text}</span>;
 }
 
-/** The term's names in the course's other languages (Russian, Tibetan in Wylie, Sanskrit, Chinese), those it has. */
-export function Names({ term }: { term: string }) {
-  const t = state.DATA!.terms[term]; if (!t) return null;
-  const parts: [string, string | undefined][] = [["ru", t.ru], ["", t.wylie], ["", t.skt], ["", t.zh]];
-  const shown = parts.filter(([, v]) => v);
-  return shown.length ? <p class="tstop-names">{shown.flatMap(([lang, v], i) => [i ? <span class="sep"> {"·"} </span> : "", <span lang={lang || undefined}>{v}</span>])}</p> : null;
-}
-
 /** A section: its label beside a small node on the line, then its content under the text column. */
 function Section({ label, children }: { label: string; children: ComponentChildren }) {
   return <>

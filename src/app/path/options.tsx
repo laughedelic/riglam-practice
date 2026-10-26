@@ -18,7 +18,7 @@ import { GUIDES, guided, setGuided } from "../practice/guided.ts";
 import { resetProgress } from "../practice/progress.ts";
 import { movesUp, setMovesUp } from "../practice/stage-offer.ts";
 import { toggleOpts } from "../shell/options.js";
-import { PAGES, SYMS, openPage, quorumNote, sessBack, setAutoExplain, setBlitzUse, setDefLang, setNegBrackets, setNegation, setNota, setShow, setSyllogismWording, setWording, toggleSess } from "../shell/session.js";
+import { PAGES, SYMS, openPage, quorumNote, sessBack, setAutoExplain, setBlitzUse, setNegBrackets, setNegation, setNota, setShow, setSyllogismWording, setWording, toggleSess } from "../shell/session.js";
 import { kindMs } from "../shell/timers.js";
 import { ANSWERS, ANSWER_PICKS, CONFIRM_PICKS, RATES, READ_NOTE, SAMPLE, VOICE_LEAD, VOICE_SAY, WHERE, hookVoices, setVoice, voiceGroups, voiceShown } from "../shell/voice.js";
 import { stageCounts } from "../../domain/reference.ts";
@@ -67,7 +67,7 @@ function List() {
   const stages = <Row lb="Stages"><b>Stages</b><small>{stagesLine()}</small><More page="stages" /></Row>;
   // the exercise's guided form (practice/guided.ts): on until the exercise has its right answers, then as set
   const guide = GUIDES[tab] ? <Switch lb="Guide" title="Guided" note={GUIDES[tab]!.on} on={guided(tab)} toggle={() => setGuided(tab, !guided(tab))} /> : null;
-  const foot = <p class="pnoteline" style={{ padding: "10px 18px 4px calc(var(--m) + 22px)" }}>The Magic Key, your account, data{tutor && state.learns ? ", sharing your examples" : ""} and the version are in <button type="button" class="pbtn" style={{ padding: 0 }} onClick={toSettings}>Settings</button>.</p>;
+  const foot = <p class="pnoteline" style={{ padding: "10px 18px 4px calc(var(--m) + 22px)" }}>The languages, the Magic Key, your account, data{tutor && state.learns ? ", sharing your examples" : ""} and the version are in <button type="button" class="pbtn" style={{ padding: 0 }} onClick={toSettings}>Settings</button>.</p>;
   if (tab === "instance") return <>
     <Switch lb="Hints" title="Suggest things" note="things the course knows, as you write" on={state.instSuggest} toggle={() => setInstanceSuggest(!state.instSuggest)} />
     {stages}{foot}</>;
@@ -84,7 +84,6 @@ function List() {
     <Row lb="Signs"><b>Notation</b><Words label="Notation" items={Object.entries(SYMS).map(([k, v]) => [k, (v as unknown[])[0] as string] as [string, string])} cur={state.nota} on={setNota} /><More page="nota" /></Row>
     {timed ? blitz : null}
     <Switch lb="A/B" title="A/B markers" note="A and B shown in the text" on={state.showAB} toggle={() => setShow("ab", !state.showAB)} />
-    <Row lb="Terms"><b>Definitions</b><Words label="Languages of the definitions" items={[["en", "English"], ["enru", "English + Russian"]]} cur={state.defLang} on={setDefLang} /><More page="defs" /></Row>
     {stages}
     {voiceShown() ? <VoiceRows /> : null}
     {tutorRow}
@@ -116,8 +115,6 @@ function Page({ id }: { id: string }) {
       return [k, name, desc, <small>{rows.map(([s, t]) => <span style={{ display: "block" }}><b class="mono" style={{ display: "inline", fontSize: "13px", color: "var(--ink)" }}>{s}</b> {t}</span>)}</small>] as [string, string, string, ComponentChildren]; })} /></>;
   if (id === "wording") return <><p class="psub">How the statement of pervasion is worded in Pervasions: the four statements you accept or answer with Why?.</p>
     <Picks label="Wording of the questions" cur={state.wording} on={setWording} items={Object.entries(WORDINGS).map(([k, w]) => [k, (w as { name: string }).name, sample(w as { lead?: string; q: unknown[][] })] as [string, string, string])} /></>;
-  if (id === "defs") return <><p class="psub">Shown when you open a term's definition, in the Terms and in the tutor's notes.</p>
-    <Picks label="Languages of the definitions" cur={state.defLang} on={setDefLang} items={[["en", "English", "The definition in English."], ["enru", "English + Russian", "Each entry also shows the Russian name of the term and, where there is one, its Russian definition."]]} /></>;
   if (id === "times") return <><p class="psub">{state.tab === "syllogism" ? "A countdown for the reply to each syllogism, switched on and off with the stopwatch in the top bar; hold the stopwatch to come back here." : "A countdown for each step of a pair, switched on and off with the stopwatch in the top bar; hold the stopwatch to come back here."}</p>
     <Switch lb="Blitz" title="Use Blitz" note="Off takes the stopwatch out of the top bar; the times stay for when it is on again." on={state.blitzUse} toggle={() => setBlitzUse(!state.blitzUse)} />
     {!state.blitzUse ? null : state.tab === "syllogism" ? <Time kind="syl" lb="Reply" label="Syllogism time" note="for the reply to each syllogism" />
