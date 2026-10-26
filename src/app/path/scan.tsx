@@ -113,7 +113,11 @@ export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, ac
     box.className = "pscm"; render(<Mark m={v} />, box); if (at) at.append(box);
   };
   const markRel = () => {
-    if (stopD) { flash(plan.rel); bump(plan.rel === "no" ? 14 : 10); return; }      // the answer is the page's own, with its mark already: the scanner's rim says the verdict
+    if (stopD) {      // the answer is the page's own: it is marked, like the pair's relation, and the scanner's rim says the verdict
+      const row = stopD.parentElement, said = row && row.querySelector(".said"), box = document.createElement("span");
+      if (row && said) { row.classList.add("scn-rel", "scn-" + plan.rel); box.className = "pscm"; render(<Mark m={plan.rel} />, box); said.append(box); }
+      flash(plan.rel); bump(plan.rel === "no" ? 14 : 10); return;
+    }
     const pn = pnEl(); if (!pn) return;
     pn.classList.add("scn-rel", "scn-" + plan.rel);
     const nn = pn.querySelector(".pnn"), box = document.createElement("span");
@@ -122,9 +126,10 @@ export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, ac
   };
 
   const gone = stopD && stopD.parentElement ? stopD.parentElement : head;      // what the scanner covers as it arrives: the heading, or the reply's row
-  let raf = 0, done = false;
+  let raf = 0, done = false, headDone = false;
+  const cover = () => { if (!headDone) { headDone = true; gone.classList.add("scn-gone"); } };
   const t0 = performance.now();
-  let yTop = 0, d = 0, tSlide = 0, tSettle = 0, tBecome = 0, relDone = false, headDone = false;
+  let yTop = 0, d = 0, tSlide = 0, tSettle = 0, tBecome = 0, relDone = false;
   // the slide starts once the Check is the scanner (and, when the page opens first, once the scanner is at the foot and the foot is still)
   let slideAt = MORPH, opening = kb, lastF = y0a, lastAt = 0;
   const strip = () => { if (stopD) return midY(stopD); const t = topEl(); return t ? t.getBoundingClientRect().bottom - mr().top + 20 : 0; };
@@ -153,12 +158,13 @@ export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, ac
       if (s0) sc.scrollTop = s0 * (1 - u);       // a page scrolled down comes back to its top, under the scanner
       yTop = strip(); y = y0 + (yTop - y0) * u;       // the strip stands still, the answer's row comes up as the heading folds: the scanner goes to where it is
       for (let i = rows.length - 1; i >= 0; i--) if (!marked.has(i) && y <= midY(rows[i].querySelector(".d") || rows[i])) markRow(i);   // from the bottom up, also when a slow frame passes several
-      if (!headDone && y <= midY(hd) + 8) { headDone = true; gone.classList.add("scn-gone"); }
+      if (!stopD && y <= midY(hd) + 8) cover();
     } else if (t < tBecome) {
-      if (!relDone) { relDone = true; for (let i = rows.length - 1; i >= 0; i--) if (!marked.has(i)) markRow(i); if (!headDone) { headDone = true; gone.classList.add("scn-gone"); } markRel(); }
+      if (!relDone) { relDone = true; for (let i = rows.length - 1; i >= 0; i--) if (!marked.has(i)) markRow(i); if (!stopD) cover(); markRel(); }
       const u = EASE.out((t - tSettle) / SETTLE), yH = midY(hd);
       y = yTop + (yH - yTop) * u;
     } else {
+      cover();      // a reply the scan stops at stays, marked, until the scanner becomes the result's node
       y = midY(hd);
       set("--e", EASE.io(Math.min(1, (t - tBecome) / BECOME)));
       if (t >= tBecome + BECOME) { place(); finish(); return; }

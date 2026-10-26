@@ -1,6 +1,7 @@
 // Syllogisms on the Path, as the lab draws them: 1 the answer (the syllogism set on the path in its three parts, S, P and R in the margin,
-// and the three replies as choices; after a right "there is no pervasion", a counter-example, which may be left out), 2 the result (the
-// verdict, what was answered, the three checks as stops, the tutor's Why). The steps are the classic page's (syllogism/flow.js).
+// and the three replies as choices; after "there is no pervasion", a counter-example, which may be left out), 2 the result (the
+// verdict, what was answered, the three checks as stops, the tutor's Why). The steps are the classic page's (syllogism/flow.js). A "there is no pervasion" holds its verdict:
+// the counter-example is asked for whether the reply is right or not, and the scan of the result marks the reply after the example.
 import type { ComponentChildren } from "preact";
 import { state } from "../state.js";
 import { guided } from "../practice/guided.ts";
@@ -66,14 +67,14 @@ function AnswerStep() {
     <Foot aux={<SkipSide />}><PreStation name="Result" hint="pick an answer first" /></Foot>
   </>;
 }
-/** After a right "there is no pervasion": a thing that is the reason and is not the predicate; left empty, the result comes without one. */
+/** After "there is no pervasion" (right or not, the verdict waits): a thing that is the reason and is not the predicate; left empty, the result comes without one. */
 function CounterStep({ kb }: { kb: boolean }) {
   const u = u0(), c = shownSyllogism(), some = !!(u.exText || "").trim();
   return <>
     <Scroll>
       {/* the counter-example may stay empty, and the way on waits for it all the same: its piece of line is dotted until something is written (the pieces are the examples' `eh` and `er`) */}
       <Sx cls="cur first eh"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Answer" sub="do you accept it?" /><Gap h={6} /><Statement keep /><Gap h={4} />
-        <St d={<D cls="sub yours" />} cls="sylsaid"><span class="said"><b class="yours">{SAY.pervasion}</b><Mark m="ok" /></span><span class="pq">Right. Can you show it?</span></St></Sx>
+        <St d={<D cls="sub yours" />} cls="sylsaid"><span class="said"><b class="yours">{SAY.pervasion}</b></span><span class="pq">Can you show it?</span></St></Sx>
       <Sx cls={(some ? "cur" : "gap") + " er last"}>
         <St d={<D cls="sub now" />} cls="sb now"><span class="lab">a counter-example</span>
           <p class="qq">Name something that is <b class="conn">{c.reason}</b> and is not <b class="conn">{c.predicate}</b>.</p>

@@ -45,6 +45,22 @@ test("Syllogisms: the syllogism in its three parts, the three replies, and the r
   expect((await saved(page, "syllogism"))[0]).toMatchObject({ said: c.answer, answer: c.answer });
 });
 
+test("Syllogisms: a wrong 'there is no pervasion' holds its verdict too, until the counter-example is given or left out, and the result then strikes the reply", async ({ page }) => {
+  await open(page, "Syllogisms");
+  expect(await page.evaluate(() => { for (let i = 0; i < 600; i++) { if (window.__t.cur.c.answer !== "pervasion") return true; window.__t.next(); } return false; })).toBe(true);
+  await choice(page, "There is no pervasion").click();
+  await expect(page.locator("#sylex")).toBeVisible();      // asked whether the reply is right or not: nothing yet says which
+  await expect(verdict(page)).toHaveCount(0);
+  await expect(page.locator("#path .sylsaid")).toContainText("Can you show it?");
+  await expect(page.locator("#path .sylsaid .mark")).toHaveCount(0);
+  await page.locator("#sylex").blur();
+  await station(page).click();
+  await expect(verdict(page)).toContainText("Not quite");
+  await expect(page.locator("#path .plead s.no")).toHaveText("There is no pervasion");
+  await expect.poll(async () => (await saved(page, "syllogism")).length).toBe(1);
+  expect((await saved(page, "syllogism"))[0]).toMatchObject({ said: "pervasion", correct: false });
+});
+
 test("Syllogisms: S, P and R sit a line each (no room kept for a star the syllogism has none of), and the heading's stop stays yellow while the counter-example is asked", async ({ page }) => {
   await open(page, "Syllogisms");
   const rows = page.locator("#path .stm");

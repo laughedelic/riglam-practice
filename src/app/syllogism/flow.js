@@ -58,13 +58,13 @@ export function skipSyllogism(){ advanceSyllogism(); render(); top0(); }
 
 const focusEx=()=>{ const i=$("sylex"); if(i&&!("ontouchstart" in window)) i.focus({preventScroll:true}); };
 const focusReply=()=>{ const b=document.querySelector(".sylask .sylsay"); if(b&&!("ontouchstart" in window)) /** @type {HTMLElement} */(b).focus({preventScroll:true}); };
-/** The learner's reply. A right "there is no pervasion" goes on to the counter-example, unless Blitz is on; every other reply shows the result at once. */
+/** The learner's reply. A right "there is no pervasion" goes on to the counter-example, unless Blitz is on; every other reply shows the result at once. On the Path every "there is no pervasion" does, right or wrong: the verdict waits until the counter-example is given or left out. */
 export function saySyllogism(reply){
   const u=state.ui; if(!u||!u.syllogism||u.checked||u.step!==0||state.mode!=="quiz") return;
   const c=shownSyllogism(), g=gradeSyllogism(c,reply);
   u.ms=u.tq?Math.round(performance.now()-u.tq.t0):null; stopTimer();
   u.said=reply; u.grade=g;
-  if(g.correct&&c.answer==="pervasion"&&!state.blitz){ u.step=1; render(); top0(); focusEx(); return; }
+  if(reply==="pervasion"&&(g.correct||state.design==="path")&&!state.blitz){ u.step=1; render(); top0(); focusEx(); return; }
   finishSyllogism();
 }
 /** The counter-example step is done: with what was typed, or with nothing. */

@@ -343,7 +343,7 @@ test("foot: thread, the Check's scanner walks a thread that runs down to the foo
   expect(errors).toEqual([]);
 });
 
-/** A syllogism whose reply was a right "there is no pervasion", at the counter-example (with `text` written in it), the Result not yet taken. */
+/** A syllogism whose reply was "there is no pervasion" (the reply that holds its verdict), at the counter-example (with `text` written in it), the Result not yet taken. */
 async function toCounter(page, text = "") {
   await page.addInitScript(onPath);
   await page.goto("/");
@@ -360,7 +360,7 @@ async function toCounter(page, text = "") {
 
 /** What a syllogism's scan does, every frame: where the statement is, whether the reply and the counter-example are still on the page, what is marked, and when the page was swapped. */
 const watchScan = (page) => page.evaluate(() => {
-  const w = (window.__sc = { ys: [], swapAt: -1, rowsSeen: 0, marked: "", scan: 0, scanned: 0, gone: false });
+  const w = (window.__sc = { ys: [], swapAt: -1, rowsSeen: 0, marked: "", scan: 0, scanned: 0, gone: false, replyMarked: 0 });
   const tick = () => {
     const m = document.querySelector("#path .main"), stm = document.querySelector("#path .pathc .stm"), said = document.querySelector("#path .pathc .sylsaid"), row = document.querySelector("#path .pathc .sb.now");
     if (stm) w.ys.push(Math.round(stm.getBoundingClientRect().top * 10) / 10);
@@ -368,6 +368,7 @@ const watchScan = (page) => page.evaluate(() => {
     if (document.querySelector("#path .pscan")) { w.scan++; if (w.swapAt < 0 && said && getComputedStyle(said).opacity > 0.5) w.rowsSeen++; }
     if (row && /\bscn-(ok|no|pt)\b/.test(row.className)) w.marked = row.className.match(/scn-(ok|no|pt)/)[0];
     if (said && said.classList.contains("scn-gone")) w.gone = true;
+    else if (said && said.classList.contains("scn-rel") && said.querySelector(".pscm")) w.replyMarked++;
     requestAnimationFrame(tick);
   };
   tick();
@@ -380,6 +381,7 @@ test("check: morph, a syllogism's Result keeps the reply and the counter-example
   await expect(page.locator("#path .pathc .stm")).toHaveCount(3);
   const room = () => page.locator("#path .pathc .stm").first().locator(".ptx").evaluate((e) => getComputedStyle(e).paddingRight);
   const roomBefore = await room();
+  await expect(page.locator("#path .pathc .sylsaid .mark"), "the reply is not marked before the Result: the verdict is held").toHaveCount(0);
   await watchScan(page);
   await page.locator("#stn").click();
   await expect(main(page)).toHaveClass(/\bsc-run\b/);
@@ -390,7 +392,8 @@ test("check: morph, a syllogism's Result keeps the reply and the counter-example
   expect(w.scan, "the scanner was on the page").toBeGreaterThan(10);
   expect(w.rowsSeen, "the reply stayed on the page while the scanner rose").toBeGreaterThan(10);
   expect(w.marked, "the counter-example was marked on the way").toMatch(/^scn-(ok|no|pt)$/);
-  expect(w.gone, "the reply's words went as the scanner reached it").toBe(true);
+  expect(w.replyMarked, "the reply was marked, with its words still on the page, once the example was").toBeGreaterThan(5);
+  expect(w.gone, "the reply's words went as the scanner became the result's node").toBe(true);
   expect(w.swapAt, "the step went on").toBeGreaterThan(0);
   const at = w.ys[w.swapAt], after = w.ys.slice(w.swapAt);
   expect(Math.max(...after.map((y) => Math.abs(y - at))), "the statement does not move when the result opens").toBeLessThan(1.5);
@@ -414,6 +417,7 @@ test("check: morph, a syllogism's Result with no counter-example marks nothing o
   expect(w.scan).toBeGreaterThan(10);
   expect(w.marked, "no case to mark").toBe("");
   expect(w.rowsSeen).toBeGreaterThan(10);
+  expect(w.replyMarked, "the reply is marked all the same").toBeGreaterThan(5);
   await expect(page.locator(".pwhat")).toBeVisible();
   expect(errors).toEqual([]);
 });

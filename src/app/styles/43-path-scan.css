@@ -26,6 +26,10 @@
 .pa .sb.scn-no .pans{color:var(--ink2); text-decoration:line-through; text-decoration-color:var(--red); text-decoration-thickness:2px}
 /* the heading is covered (or the reply a syllogism's scan stops at): the result's node takes its place */
 .pa :is(.sechead,.sylsaid).scn-gone > :is(.ptx,.d){opacity:0; transition:opacity .18s}
+/* the reply a syllogism's scan stops at is marked like the relation: checked, or struck when it is not the one */
+.pa .sylsaid .said .pscm{margin-left:0} .pa .sylsaid .said .pscm .mark{transform:none}
+.pa .sylsaid.scn-no .yours{color:var(--ink2); text-decoration:line-through; text-decoration-color:var(--red); text-decoration-thickness:2px; transition:color .2s}
+.pa .sylsaid.scn-ok .yours{color:var(--green); transition:color .2s}
 /* the relation at the strip: struck when it is not the one, or checked */
 .pa .pn.scn-rel .pnn .rn,.pa .pn.scn-rel .pnc{transition:color .2s}
 .pa .pn.scn-no .pnn .rn{color:var(--ink2); text-decoration:line-through; text-decoration-color:var(--red); text-decoration-thickness:2px}
