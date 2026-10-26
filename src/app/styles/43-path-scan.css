@@ -37,11 +37,14 @@
 .pa .main.sc-in .pathc > :not(.vband){animation:p-tkin .42s ease-out both}
 .pa .main.sc-in .pvline .ptx{animation:none}
 .pa .main.sc-hand .pvline .d.big,.pa .main.sc-hand .pvline .ptx{visibility:hidden}
-/* the look's `check: morph`: what the result's page shares with the examples' (the case rows, the pair's node) moves from where it stood (scan.tsx) and is not faded in again; the rows
-   the result has more of, the relation's verdict and the thread behind the moved parts come in */
+/* the look's `check: morph`: what the result's page shares with the examples' (the case rows, the parts of the pair: its figure, the two terms and the relation given) moves from where it
+   stood (scan.tsx) and is not faded in again; the rows the result has more of, what it adds to the pair (the classes, the relation it should have been) and the thread behind the moved parts
+   come in, and what the strip showed besides fades where it is */
 .pa .main.sc-morph.sc-in .pathc > .sx.morphed{animation:none}
 .pa .main.sc-morph.sc-in .pathc > .sx.morphed::before{animation:p-tkin .42s ease-out both}
-.pa .main.sc-morph.sc-in .sb.mnew,.pa .main.sc-morph.sc-in .pn.res .pnn.rv{animation:p-tkin .36s ease-out .24s both}
+.pa .main.sc-morph.sc-in .mnew,.pa .main.sc-morph.sc-in .pn.res :is(.cls,.pnr,.pndef,.rvl + .rvl){animation:p-tkin .36s ease-out .24s both}
+.pa .sc-ghost{background:none; animation:none; transition:none}
+.pa .sc-ghost *{animation:none!important; transition:none!important}
 @media (prefers-reduced-motion:reduce){ .pa .sb.scn > .d,.pa .pscm,.pa .pn.scn-rel .pnn{animation:none} }
 /* with the keyboard's layout up the page opens first (path/relayout.ts): the foot comes in; and as the scanner leaves the Check's place at the foot, the station that comes next
    takes it (the same station, its words changed): its diamond and words come in */

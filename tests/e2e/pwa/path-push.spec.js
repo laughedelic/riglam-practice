@@ -42,7 +42,7 @@ const pushed = (page) => page.locator("#path .pathc").evaluate((e) => Number(e.d
 async function expectClean(page) {
   await expect(main(page)).not.toHaveClass(/\b(tk-run|tk-in|pk-run|pk-swap|pk-keep|sc-run|sc-in|sc-hand|sc-morph)\b/);
   await expect(page.locator(".pa")).not.toHaveClass(/\b(pulling|pushing|pushback)\b/);
-  await expect(page.locator("#path .tkd, #path .pk-f, #path .pk-gone, #path .morphed, #path .mnew, #path .pscan")).toHaveCount(0);
+  await expect(page.locator("#path .tkd, #path .pk-f, #path .pk-gone, #path .morphed, #path .mnew, #path .pscan, #path .pk-ghost")).toHaveCount(0);
   expect(await page.locator("#path .pathc").evaluate((e) => e.style.getPropertyValue("--push") + (e.dataset.push || "")), "the page is not pushed").toBe("");
   expect(await page.locator("#stn, #stnp").first().evaluate((e) => e.style.transform), "the station is where it belongs").toBe("");
 }
@@ -86,6 +86,47 @@ test("ride: push, let go the page keeps rising and leaves through the top, the s
   expect(errors).toEqual([]);
 });
 
+/** Samples the station's copy (the diamond that comes to rest at the new question) every frame: its centre's y, until it is gone. */
+const watchGhost = (page) => page.evaluate(() => {
+  window.__ghost = { ys: [], bullet: null, still: null, gone: false };
+  const tick = () => {
+    const g = document.querySelector("#path .pk-ghost"), w = window.__ghost;
+    if (g) {
+      const r = g.querySelector(".go").getBoundingClientRect(), y = r.top + r.height / 2; w.ys.push(y);
+      const nb = document.querySelector("#path .pathc .d, #path .pathc .rfig");
+      if (nb && !w.still && g.getAnimations().length && g.getAnimations().every((a) => a.playState === "finished")) { const b = nb.getBoundingClientRect(); w.still = y; w.bullet = b.top + b.height / 2; }
+    } else if (w.ys.length) { w.gone = true; return; }
+    requestAnimationFrame(tick);
+  };
+  tick();
+});
+
+test("ride: push, the station comes to rest as the big diamond exactly where the new question's bullet is, and turns into it", async ({ page }) => {
+  await look(page, { ride: "push", check: "ride" });
+  await toResult(page);
+  await watchGhost(page);
+  await page.locator("#stn").click();
+  await expect.poll(() => page.evaluate(() => window.__ghost.gone), { timeout: 8000 }).toBe(true);
+  const w = await page.evaluate(() => window.__ghost);
+  expect(w.ys.length, "the copy of the station was there").toBeGreaterThan(3);
+  expect(Math.abs(w.still - w.bullet), "it rests at the bullet").toBeLessThan(1.5);
+  expect(w.ys.every((y) => y >= w.bullet - 1.5), "and never goes past it: no recoil").toBe(true);
+  await expect(page.locator("#path .sechead")).toBeVisible();
+  await expectClean(page);
+});
+
+test("ride: push with land: recoil, the station goes a little past the new bullet and comes back to it", async ({ page }) => {
+  await look(page, { ride: "push", land: "recoil", check: "ride" });
+  await toResult(page);
+  await watchGhost(page);
+  await page.locator("#stn").click();
+  await expect.poll(() => page.evaluate(() => window.__ghost.gone), { timeout: 8000 }).toBe(true);
+  const w = await page.evaluate(() => window.__ghost);
+  expect(Math.abs(w.still - w.bullet), "it ends at the bullet").toBeLessThan(1.5);
+  expect(Math.min(...w.ys), "it went past it first").toBeLessThan(w.bullet - 4);
+  await expectClean(page);
+});
+
 test("ride: push, a tap takes the station with the same ride", async ({ page }) => {
   await look(page, { ride: "push", check: "ride" });
   await toResult(page);
@@ -96,7 +137,7 @@ test("ride: push, a tap takes the station with the same ride", async ({ page }) 
   await expectClean(page);
 });
 
-test("ride: push, a syllogism's Result leaves the statement where it is, folds what is under it, and the result opens there", async ({ page }) => {
+test("ride: push, a syllogism's Result folds the heading above the statement and what is under it, and the statement does not move when the result opens", async ({ page }) => {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await look(page, { ride: "push" });
@@ -113,25 +154,48 @@ test("ride: push, a syllogism's Result leaves the statement where it is, folds w
   const stm = page.locator("#path .pathc .stm");
   await expect(stm).toHaveCount(3);
   const top = await stm.first().boundingBox();
+  // the statement's place every frame, and whether the step had gone on (the old page is hidden but the statement)
+  await page.evaluate(() => {
+    const w = (window.__stm = { ys: [], swapped: [], gold: [] });
+    const tick = () => {
+      const e = document.querySelector("#path .pathc .stm"), m = document.querySelector("#path .main");
+      if (e) { w.ys.push(e.getBoundingClientRect().top); w.swapped.push(m.classList.contains("pk-swap") || m.classList.contains("tk-in")); }
+      requestAnimationFrame(tick);
+    };
+    tick();
+  });
   await page.locator("#stn").click();
   await expect(main(page)).toHaveClass(/\bpk-keep\b/);
   await expect.poll(() => page.locator("#path .pathc .pk-gone").count(), "the heading fades").toBeGreaterThan(0);
   await expect.poll(() => page.locator("#path .pathc .pk-f").count(), "what is under the statement folds into it").toBeGreaterThan(0);
-  const mid = await stm.first().boundingBox();
-  expect(Math.abs(mid.y - top.y), "the statement stays where it is").toBeLessThan(2);
-  expect(await stm.first().evaluate((e) => Number(getComputedStyle(e).opacity)), "and is seen").toBeGreaterThan(0.9);
   await expect(page.locator(".pvline")).toBeVisible({ timeout: 5000 });
+  await expect(main(page)).not.toHaveClass(/\b(tk-in|pk-run)\b/);
+  expect(await stm.first().evaluate((e) => Number(getComputedStyle(e).opacity)), "the statement is seen").toBeGreaterThan(0.9);
   await expect(page.locator("#path .pathc .stm"), "the result shows the statement once").toHaveCount(3);
+  const w = await page.evaluate(() => window.__stm), end = w.ys[w.ys.length - 1], first = w.swapped.indexOf(true);
+  expect(first, "the step went on").toBeGreaterThan(0);
+  expect(top.y - end, "the statement came up as the heading folded").toBeGreaterThan(30);
+  expect(Math.max(...w.ys.slice(first).map((y) => Math.abs(y - end))), "and does not move once the step goes on").toBeLessThan(1.5);
   await expect(page.locator("#stn")).toContainText("Next");
   await expectClean(page);
   expect(errors).toEqual([]);
 });
 
-test("check: morph, the result's node and word are not drawn twice, and the result's page is where the examples' was; nothing is left on it", async ({ page }) => {
+test("check: morph, the result's node and word are not drawn twice, the pair moves from the strip into the result's, and the page is never seen whole before it comes in; nothing is left on it", async ({ page }) => {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await look(page, { check: "morph" });
   await toCheck(page);
+  // the first frame the result's pair is there: has the page started to come in, and where are the pair's names
+  await page.evaluate(() => {
+    const w = (window.__sw = { first: null });
+    const tick = () => {
+      const m = document.querySelector("#path .main"), b = document.querySelector("#path .pn.res .pnl.a .tw > b");
+      if (b && !w.first) w.first = { scin: m.classList.contains("sc-in"), from: b.getAnimations().map((a) => String(a.effect.getKeyframes()[0].translate)), scale: b.getAnimations().map((a) => String(a.effect.getKeyframes()[0].scale)) };
+      requestAnimationFrame(tick);
+    };
+    tick();
+  });
   await page.locator("#stn").click();
   await expect(main(page)).toHaveClass(/\bsc-run\b/);
   // the page is swapped for the result's while the scanner is still the node: the page's own node and word wait for it
@@ -139,6 +203,10 @@ test("check: morph, the result's node and word are not drawn twice, and the resu
   expect(await page.locator("#path .pvline .ptx").evaluate((e) => getComputedStyle(e).visibility), "the result's word waits for the scanner").toBe("hidden");
   await expect(page.locator(".pvline .ptx")).toBeVisible({ timeout: 4000 });
   await expect(page.locator("#stn")).toContainText("Next pair");
+  const w = await page.evaluate(() => window.__sw.first);
+  expect(w.scin, "the result's page starts to come in in the frame it is drawn").toBe(true);
+  expect(w.from.length, "its first term moves in from where the strip's was").toBeGreaterThan(0);
+  expect(Number(w.scale[0]), "and smaller, as it was there").toBeLessThan(1);
   await expectClean(page);
   await expect(page.locator("#path .pathc .exr")).not.toHaveCount(0);
   expect(errors).toEqual([]);

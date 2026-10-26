@@ -37,6 +37,8 @@ function lines(c: Syllogism): Record<Part, string> {
   if (last && lead.trim()) out[last] += " " + lead.trim();
   return out;
 }
+/** How far under the top of its section the result puts the statement (px): the ride (push.ts) folds what is above the statement down to this, so that the statement does not move when the result comes. */
+const RESULT_TOP = 12;
 /** The syllogism on the path: S, P and R in the margin, a line each, and what the letters stand for. `keep`: the step that follows shows it again, so the ride (push.ts) leaves it in its place. */
 function Statement({ star = true, keep = false }: { star?: boolean; keep?: boolean }) {
   const l = lines(shownSyllogism());
@@ -44,7 +46,7 @@ function Statement({ star = true, keep = false }: { star?: boolean; keep?: boole
     <St d={<span class="ab">S</span>} cls={"stm" + (star ? marksCls() : "")}>{star ? <><Star /><SkipMark /></> : null}<span class="cs" lang="en">{l.subject}</span></St>
     <St d={<span class="ab">P</span>} cls="stm"><span class="cs" lang="en">{l.predicate}</span></St>
     <St d={<span class="ab">R</span>} cls="stm"><span class="cs" lang="en">{l.reason}</span></St>
-    <p class="plegend" data-keep={keep ? "1" : undefined}>S subject · P predicate · R reason</p>
+    <p class="plegend" data-keep={keep ? String(RESULT_TOP) : undefined}>S subject · P predicate · R reason</p>
   </>;
 }
 
@@ -100,7 +102,7 @@ function ResultStep() {
     : <>No reply in time; it is <span class="fix">{SAID[g.expected as Reply]}</span>.</>;
   return <>
     <Scroll>
-      <Sx cls="walked first"><Gap h={12} /><Statement /><Gap h={6} /></Sx>
+      <Sx cls="walked first"><Gap h={RESULT_TOP} /><Statement /><Gap h={6} /></Sx>
       <Verdict v={v} word={word} sub={sub}>
         <St d={<span />} cls="pwhat"><p class="plead">{said}</p>{!g.correct && g.confusion ? <p class="conf">{g.confusion}</p> : null}</St>
       </Verdict>

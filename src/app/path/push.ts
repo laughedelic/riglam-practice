@@ -1,7 +1,9 @@
 // Taking a station by pushing (the look's `ride: push`; take.ts is the squeeze it replaces). The station is a bead that rises on the thread, and the page above it is strung on the same
 // thread: what the station comes up against is pushed up ahead of it, whole, and leaves through the top; nothing is squeezed or fades away on its own. Held over the curb (gesture.ts) the
 // page already follows the station (`holdPush`), so the thread never runs on under a page that stayed behind; let go, the station keeps rising from where it is (`playPush`), pushing
-// what is left, and lands where the next step's first bullet will be; then the step goes on (`act`) and the new page comes in.
+// what is left, and comes to rest where the next step's first bullet will be, as the station, the big diamond; then the step goes on (`act`), the station (a copy of it, the step takes the
+// station itself away) settles into the exact place of the new first bullet, with a little recoil past it under the look's `land: recoil`, and turns into that bullet: smaller and its
+// color, the page coming in as it turns.
 // A page that keeps a statement across the step (`data-keep` on the last element of it, after its `.stm` lines: a syllogism's S, P and R) is not pushed away: what is under the statement folds into it, the
 // station rises to the statement's foot, and the result opens there, its node coming out of the station and the statement settling into its place in the result's page.
 // The push is a custom property on `.pathc` (`--push`, styles/44-path-push.css); the page is cut under the station's top edge, so what is below it is not seen.
@@ -11,10 +13,12 @@ import { foldPage, playTake } from "./take.ts";
 type Ease = (u: number) => number;
 const EASE: Record<"io" | "out", Ease> = { out: (u) => 1 - (1 - u) ** 3, io: (u) => (u < 0.5 ? 4 * u ** 3 : 1 - (-2 * u + 2) ** 3 / 2) };
 const clamp = (v: number) => Math.max(0, Math.min(1, v));
-/** the air between the page's last part and the station's top edge (px), the station's landing (ms), and how far below the statement's foot it comes to rest (px) */
+/** the air between the page's last part and the station's top edge (px), when the station's words go before it comes to rest (ms), and how far below the statement's foot it comes to rest (px) */
 const GAP = 4, LAND = 300, BELOW = 26;
-/** how the new page's first bullet (or the result's node) settles from where the station landed */
-const SETTLE = { duration: 300, easing: "cubic-bezier(.2,.8,.3,1)" };
+/** where a new page's first bullet is, from the top of the scroll (px): the station comes to rest there; and how far the recoil takes it past (px) */
+const FIRST = 38, RECOIL = 12;
+/** how the statement settles into the result's page (ms), how long the station that has come to rest waits as it is, and how long it takes to turn into the new bullet */
+const SETTLE = { duration: 300, easing: "cubic-bezier(.2,.8,.3,1)" }, HOLD = 70, TURN = 260;
 
 const parts = (root: HTMLElement | null) => {
   const main = root && root.querySelector<HTMLElement>(".main"), sc = main && main.querySelector<HTMLElement>(".pscroll"), pc = sc && sc.querySelector<HTMLElement>(".pathc");
@@ -60,10 +64,25 @@ function unfoldAfter(pc: HTMLElement, soft: boolean): void {
     if (soft) setTimeout(end, 340); else end();
   }
 }
-/** What comes before the statement `keep` ends (its heading, not its lines) fades; it stays in its place until the step goes on. */
-function fadeBefore(keep: HTMLElement, pc: HTMLElement): void {
-  const first = (keep.parentElement && keep.parentElement.querySelector<HTMLElement>(".stm")) || keep;
+/**
+ * What comes before the statement `keep` ends (its heading, not its lines) fades, and what is in the statement's own section above it folds until the statement stands where the result puts it
+ * (`keep.dataset.keep`, px under the section's top), so that the statement comes up with the heading going and does not move when the step goes on. Returns how far the statement comes up.
+ */
+function foldBefore(keep: HTMLElement, pc: HTMLElement): number {
+  const first = (keep.parentElement && keep.parentElement.querySelector<HTMLElement>(".stm")) || keep, sec = first.parentElement;
   for (let n: HTMLElement | null = first; n && n !== pc; n = n.parentElement) for (let s = n.previousElementSibling; s; s = s.previousElementSibling) if (s instanceof HTMLElement) s.classList.add("pk-gone");
+  for (const e of Array.from(pc.querySelectorAll<HTMLElement>(".pskip"))) e.classList.add("pk-gone");
+  if (!sec) return 0;
+  const above = Array.from(sec.children).slice(0, Array.prototype.indexOf.call(sec.children, first)).filter((e): e is HTMLElement => e instanceof HTMLElement), last = above.pop();
+  const keepTop = Number(keep.dataset.keep) || 0, up = first.getBoundingClientRect().top - sec.getBoundingClientRect().top - keepTop;
+  if (!last || up < 1) return 0;
+  // everything folds to nothing but the last piece (the space the result leaves above its statement), which comes to its height
+  for (const e of above) { e.style.height = e.offsetHeight + "px"; e.classList.add("tkd", "pk-fb"); }
+  last.style.height = last.offsetHeight + "px"; last.style.overflow = "hidden"; last.classList.add("pk-fb");
+  void sec.offsetHeight;
+  for (const e of above) e.classList.add("tkf");
+  last.style.height = keepTop + "px";
+  return up;
 }
 
 /**
@@ -83,7 +102,7 @@ export function holdPush(root: HTMLElement): () => void {
 export function clearPush(root: HTMLElement | null, soft = true): void {
   const { pc } = parts(root); if (!root || !pc) return;
   unfoldAfter(pc, soft);
-  for (const s of Array.from(pc.querySelectorAll<HTMLElement>(".pk-gone"))) s.classList.remove("pk-gone");
+  for (const s of Array.from(pc.querySelectorAll<HTMLElement>(".pk-gone"))) { s.classList.remove("pk-gone", "pk-fb", "tkd", "tkf"); s.style.height = s.style.overflow = ""; }
   if (pc.dataset.push || root.classList.contains("pushing")) {
     if (soft) { root.classList.add("pushback"); setTimeout(() => root.classList.remove("pushback"), 340); }
     pc.style.setProperty("--push", "0px"); delete pc.dataset.push;
@@ -92,8 +111,27 @@ export function clearPush(root: HTMLElement | null, soft = true): void {
   }
 }
 
-/** Plays the take of the station `stn` (lifted `lift` px by the hand, the page pushed `dataset.push` already), then `act`; `settle` when the new page is in. */
-export function playPush(root: HTMLElement, stn: HTMLElement, lift: number, act: () => void, settle: () => void): void {
+/** Calls `done` once, when the animation `a` has finished (or, if it does not report that, after `ms`). */
+function after(a: Animation | null, ms: number, done: () => void): void {
+  let on = true; const once = () => { if (on) { on = false; done(); } };
+  if (a) a.finished.then(once, once);
+  setTimeout(once, ms + 120);
+}
+
+/** A copy of the station where it stands now (the step takes the station itself away): it comes to rest at the new first bullet and turns into it. */
+function ghostOf(main: HTMLElement, stn: HTMLElement): HTMLElement {
+  const mr = main.getBoundingClientRect(), r = stn.getBoundingClientRect(), g = stn.cloneNode(true) as HTMLElement;
+  g.removeAttribute("id"); g.removeAttribute("aria-label"); g.setAttribute("aria-hidden", "true"); g.tabIndex = -1; g.className = "stn pk-ghost";
+  g.style.cssText = `position:absolute;left:${(r.left - mr.left).toFixed(1)}px;top:${(r.top - mr.top).toFixed(1)}px;width:${r.width.toFixed(1)}px;height:${r.height.toFixed(1)}px;margin:0;box-sizing:border-box;transform:none;transition:none;pointer-events:none;z-index:7`;
+  main.append(g);
+  return g;
+}
+
+/**
+ * Plays the take of the station `stn` (lifted `lift` px by the hand, the page pushed `dataset.push` already), then `act`; `settle` when the new page is in. `recoil`: the station rises a little
+ * past the new first bullet and comes back to it.
+ */
+export function playPush(root: HTMLElement, stn: HTMLElement, lift: number, act: () => void, settle: () => void, recoil = false): void {
   const { main, sc, pc } = parts(root);
   const go = stn.querySelector<HTMLElement>(".go"), foot = stn.closest<HTMLElement>(".foot"), riser = root.querySelector<HTMLElement>(".riser");
   // a station that stands on the page itself (the Check above the keyboard) has no page to push: it rides as it always did
@@ -101,21 +139,16 @@ export function playPush(root: HTMLElement, stn: HTMLElement, lift: number, act:
   const u = state.ui;
   foldPage(root, true);
   const scr = sc.getBoundingClientRect(), keep = keepOf(pc);
-  // where the station lands: the next step's first bullet (the top of the page), or just under the foot of the statement that stays
-  let ayV: number;
-  if (keep) ayV = keep.getBoundingClientRect().bottom + BELOW;
-  else {
-    const head = Array.from(pc.children).find((k): k is HTMLElement => k instanceof HTMLElement && k.getBoundingClientRect().height > 4 && k.getBoundingClientRect().bottom > scr.top + 6 && !k.classList.contains("ptail"));
-    const bul = head && head.querySelector<HTMLElement>(".d, .rfig"), hr = head && head.getBoundingClientRect(), br = bul && bul.getBoundingClientRect();
-    ayV = Math.max(scr.top + 18, scr.top + 14 + (br && hr ? br.height / 2 : 14));
-  }
+  const up = keep ? foldBefore(keep, pc) : 0;      // the heading above the statement folds away: the statement comes up to where the result puts it
+  // where the station comes to rest: just under the foot of the statement that stays (where it will be), or where a new page's first bullet is
+  const ayV = keep ? keep.getBoundingClientRect().bottom - up + BELOW : scr.top + FIRST;
   const gr = go.getBoundingClientRect(), go0 = gr.top + gr.height / 2 + lift;           // the station's diamond at rest (in the foot)
-  const R = keep ? go0 - ayV : Math.max(lift + 8, go0 - ayV);                              // how far it rises (a station held above the statement comes down to it)
+  const R = (keep ? go0 - ayV : Math.max(lift + 8, go0 - ayV)) + (recoil && !keep ? RECOIL : 0);   // how far it rises (a station held above the statement comes down to it)
   const T = Math.max(520, Math.min(1100, 420 + Math.abs(R - lift) * 0.62)), t0 = performance.now();
   if (riser) riser.style.bottom = foot.offsetHeight + "px";
   root.classList.add("pulling"); stn.classList.add("dragging"); main.classList.add("pk-run"); if (keep) main.classList.add("pk-keep");
-  if (keep) { fadeBefore(keep, pc); foldAfter(keep, pc); }
-  const was = keep ? Array.from(pc.querySelectorAll<HTMLElement>(".stm")).map((e) => e.getBoundingClientRect().top) : [];
+  if (keep) foldAfter(keep, pc);
+  let was: number[] = [];
   let ended = false, raf = 0;
   const draw = (t: number) => {
     const e = EASE.io(clamp(t / T)), dy = lift + (R - lift) * e;
@@ -125,30 +158,58 @@ export function playPush(root: HTMLElement, stn: HTMLElement, lift: number, act:
     if (!keep) pushPage(root, 0.6);
   };
   draw(0);
-  const arrive = () => {
-    const now = parts(root).pc;
-    main.classList.remove("pk-run", "pk-swap"); main.style.removeProperty("--tkl");
-    clearPush(root, false);
-    const s2 = root.querySelector<HTMLElement>("#stn, #stnp"); if (s2) { s2.style.transform = ""; s2.classList.remove("dragging"); }
-    if (riser) riser.style.display = "";
-    root.classList.remove("pulling"); root.style.setProperty("--pull", "0"); root.style.setProperty("--lift", "0px");
-    main.classList.add("tk-in"); setTimeout(() => main.classList.remove("tk-in", "pk-keep"), 520);
-    // the new page's first bullet (the result's node, when the statement stayed) settles from where the station landed; the statement, from where it stood
-    const nb = now && (keep ? now.querySelector<HTMLElement>(".pvline .d.big, .vband .d") : now.querySelector<HTMLElement>(".d, .rfig"));
-    if (nb && nb.animate) {
-      const r = nb.getBoundingClientRect(), d = ayV - (r.top + r.height / 2);
-      if (Math.abs(d) > 1) nb.animate(keep ? [{ translate: `0 ${d}px`, scale: 0.6, opacity: 0.5 }, { translate: "0 0", scale: 1, opacity: 1 }] : [{ translate: `0 ${d}px` }, { translate: "0 0" }], SETTLE);
-    }
-    if (keep && now) Array.from(now.querySelectorAll<HTMLElement>(".stm")).forEach((e, i) => { const d = was[i] - e.getBoundingClientRect().top; if (e.animate && Math.abs(d) > 1) e.animate([{ translate: `0 ${d}px` }, { translate: "0 0" }], SETTLE); });
-    settle();
+
+  // the station has come to rest and the step has gone on, the new page is drawn (hidden): the copy of the station settles into the place of the new bullet, waits a moment as the big
+  // diamond, and turns into the bullet while the page comes in
+  const land = (g: HTMLElement) => {
+    const now = parts(root).pc, gg = g.querySelector<HTMLElement>(".go");
+    const nb = now && gg ? (keep ? now.querySelector<HTMLElement>(".pvline .d.big, .vband .d") : now.querySelector<HTMLElement>(".d, .rfig")) : null;
+    const over = () => { main.classList.remove("pk-swap", "pk-run"); if (nb) nb.style.visibility = ""; g.remove(); };
+    const reveal = () => { main.classList.remove("pk-swap"); main.classList.add("tk-in"); setTimeout(() => main.classList.remove("tk-in", "pk-keep"), 520); };
+    if (!gg || !nb) { reveal(); g.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 180, fill: "forwards" }); setTimeout(() => { over(); settle(); }, 200); return; }
+    const a = gg.getBoundingClientRect(), r = nb.getBoundingClientRect(), dx = r.left + r.width / 2 - (a.left + a.width / 2), dy = r.top + r.height / 2 - (a.top + a.height / 2);
+    nb.style.visibility = "hidden";
+    // the statement settles into its place in the result as the station comes to rest at the node
+    if (keep) Array.from(now!.querySelectorAll<HTMLElement>(".stm")).forEach((e, i) => { const d = was[i] - e.getBoundingClientRect().top; if (e.animate && Math.abs(d) > 1) e.animate([{ translate: `0 ${d}px` }, { translate: "0 0" }], SETTLE); });
+    const far = Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5, ms = keep ? SETTLE.duration : recoil ? 380 : 240;
+    const glide = far && g.animate ? g.animate([{ translate: "0 0" }, { translate: `${dx.toFixed(1)}px ${dy.toFixed(1)}px` }], { duration: ms, easing: recoil ? "cubic-bezier(.3,1.45,.5,1)" : SETTLE.easing, fill: "forwards" }) : null;
+    // then the big diamond turns into the new bullet: its size and color, its arrow going, the page coming in around it
+    const turn = () => {
+      reveal(); settle();
+      const bg = getComputedStyle(nb).backgroundColor, k = nb.offsetWidth && gg.offsetWidth ? nb.offsetWidth / gg.offsetWidth : 1, mk = gg.querySelector<HTMLElement>(".mk");
+      if (mk && mk.animate) mk.animate([{ opacity: 1 }, { opacity: 0 }], { duration: TURN * 0.55, fill: "forwards" });
+      const turned = gg.animate ? gg.animate([{ scale: 1, backgroundColor: getComputedStyle(gg).backgroundColor }, { scale: k, backgroundColor: bg }], { duration: TURN, easing: SETTLE.easing, fill: "forwards" }) : null;
+      after(turned, TURN, () => {
+        over();
+        const nm = nb.querySelector<HTMLElement>(".mk"); if (keep && nm && nm.animate) nm.animate([{ opacity: 0, scale: 0.5 }, { opacity: 1, scale: 1 }], { duration: 180, easing: SETTLE.easing });
+      });
+    };
+    const wait = () => setTimeout(turn, HOLD);
+    if (glide) after(glide, ms, wait); else wait();
   };
   // the step is taken; the path draws the new page in the next frame (refreshPath), before this frame's next callback: the page that keeps a statement says so by its verdict, at the latest a few frames later
-  const drawn = () => { let n = 0; const step = () => { const p = parts(root).pc; if (keep ? (p && p.querySelector(".pvline")) || ++n > 4 : ++n > 1) arrive(); else requestAnimationFrame(step); }; step(); };
+  const drawn = (g: HTMLElement) => {
+    let n = 0;
+    const step = () => {
+      const p = parts(root).pc;
+      if (!(keep ? (p && p.querySelector(".pvline")) || ++n > 4 : ++n > 1)) { requestAnimationFrame(step); return; }
+      clearPush(root, false);                       // the old page is gone: the new one is where it is, not pushed
+      main.style.removeProperty("--tkl");           // and the station of the new page has its words
+      const s2 = root.querySelector<HTMLElement>("#stn, #stnp"); if (s2) { s2.style.transform = ""; s2.style.visibility = ""; s2.classList.remove("dragging"); }
+      if (riser) riser.style.display = "";
+      root.classList.remove("pulling"); root.style.setProperty("--pull", "0"); root.style.setProperty("--lift", "0px");
+      land(g);
+    };
+    step();
+  };
   const finish = () => {
     if (ended) return; ended = true; cancelAnimationFrame(raf);
-    if (state.ui === u) act();       // else the page has changed meanwhile (a menu, another exercise): nothing to take
-    if (!keep) main.classList.add("pk-swap");
-    drawn();
+    if (keep) was = Array.from(pc.querySelectorAll<HTMLElement>(".stm")).map((e) => e.getBoundingClientRect().top);      // where the statement stands as the step goes on
+    const g = ghostOf(main, stn);                   // the step takes the station away: a copy of it goes on
+    stn.style.visibility = "hidden";
+    main.classList.add("pk-swap");                  // the old page is not seen (what stays, the statement, is) until the new one is drawn
+    if (state.ui === u) act();                      // else the page has changed meanwhile (a menu, another exercise): nothing to take
+    drawn(g);
   };
   const frame = (now: number) => { const t = now - t0; draw(Math.min(t, T)); if (t >= T) finish(); else raf = requestAnimationFrame(frame); };
   raf = requestAnimationFrame(frame);

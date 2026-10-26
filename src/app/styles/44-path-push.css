@@ -5,18 +5,23 @@
 /* the station is let go short of the curb, or pulled back under it: the page slides back down */
 .pa.pushback .pathc{transition:transform .28s cubic-bezier(.2,.9,.3,1)}
 .pa .main.pk-run{pointer-events:none}
-/* the old page has gone and the new one is drawn: it is not seen until it comes in (a statement that stays is already where it was) */
-.pa .main.pk-swap .pathc{visibility:hidden}
-/* a page that keeps its statement: what is under the statement folds into it and the heading above it fades; the station comes to the statement's foot */
+/* the step has been taken and the new page is drawn but not seen yet (the station, a copy of it, is on its way to the new first bullet); a statement that stays is seen */
+.pa .main.pk-swap:not(.pk-keep) .pathc{visibility:hidden}
+.pa .main.pk-swap.pk-keep .pathc > :not(:first-child){visibility:hidden}
+/* what comes before a kept statement fades, and the room it took above the statement folds, so that the statement is where the result puts it when the step goes on */
 .pa .pathc .pk-gone{opacity:0; transition:opacity .26s ease}
-/* the station lands: it shrinks into the gold bullet of the next step and its words go (as in styles/42-path-take.css) */
-.pa .main.pk-run #stn .go{--gs:calc(var(--st) - (var(--st) - 16px) * var(--tkl,0)); width:var(--gs); height:var(--gs); margin-right:calc(var(--gs) / -2); background-color:color-mix(in srgb,var(--gold) calc(var(--tkl,0) * 100%),var(--station))}
-.pa .main.pk-run #stn .go .mk{opacity:calc(1 - var(--tkl,0) * 2.2)}
+.pa .pathc .pk-gone.pk-fb{transition:opacity .26s ease,height .4s cubic-bezier(.4,0,.2,1),margin .4s cubic-bezier(.4,0,.2,1),padding .4s cubic-bezier(.4,0,.2,1)}
+/* the station rises as the big diamond; its words go as it comes to rest (the copy of it that settles into the new bullet has none) */
 .pa .main.pk-run #stn .gol{opacity:calc(1 - var(--tkl,0) * 4)}
 .pa .main.pk-run #stn .gol small{opacity:0}
 .pa .main.pk-run .aux{opacity:0; transition:opacity .2s}
-/* the new page comes in: its first bullet settles from where the station landed (push.ts); a statement that stayed does not come in again */
+.pa .pk-ghost .gol{opacity:0}
+.pa .pk-ghost .go .mk .i{animation:none!important}
+/* the new page comes in as the station, come to rest, turns into its first bullet (push.ts); a statement that stayed does not come in again */
 .pa .main.pk-keep.tk-in .pathc > :first-child,.pa .main.pk-keep.tk-in .pathc > :first-child :is(.ptx,.pn > span,.pn > i.pnc,.pn > div){animation:none}
 .pa .main.pk-keep.tk-in .pathc > .vband{animation:none}
 .pa .main.pk-keep.tk-in .pvline .ptx,.pa .main.pk-keep.tk-in .pwhat{animation:p-tkin .42s ease-out both}
-@media (prefers-reduced-motion:reduce){ .pa .pathc .pk-gone,.pa.pushback .pathc{transition:none} }
+/* the line along the statement was the gold of the question: from the moment the step goes on it goes to the walked line's ink (on the page that is still the question's it stays gold) */
+.pa .main.pk-keep .pathc > :first-child::before{animation:p-pkthread .5s ease-out both}
+@keyframes p-pkthread{from{background:var(--gold); opacity:1}}
+@media (prefers-reduced-motion:reduce){ .pa .pathc .pk-gone,.pa .pathc .pk-gone.pk-fb,.pa.pushback .pathc{transition:none} .pa .main.pk-keep .pathc > :first-child::before{animation:none} }

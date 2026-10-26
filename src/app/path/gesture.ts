@@ -148,7 +148,7 @@ export class Pull {
       const root = this.root, open = plan && root.classList.contains("kbup") ? () => { this.hold = false; const a = document.activeElement; if (a instanceof HTMLElement && a.classList.contains("pfield")) a.blur(); if (this.after) this.after(); } : null;
       this.unfollow(); this.pushed = false;
       if (plan) playScan(root, stn, plan, go, settle, open, look.check === "morph");
-      else if (look.ride === "push") playPush(root, stn, this.dy, go, settle);
+      else if (look.ride === "push") playPush(root, stn, this.dy, go, settle, look.land === "recoil");
       else playTake(root, stn, this.dy, go, settle);
       return true;
     }
