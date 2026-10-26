@@ -99,6 +99,14 @@ function RelationStep() {
 }
 
 /* ---------- 3 the result ---------- */
+// A question whose example's name leaves the cell's quality open (src/domain/vague.ts) is not unchecked: the page has asked for the word, and no one checks it. The
+// result's line, which counts it among the unchecked ones, says it apart.
+const leftN = (r: { cells: Record<string, { vague?: readonly string[] }> }) => QCELL.filter((c) => r.cells[c].vague).length;
+function leftSub(sub: string, unc: number, n: number, ctl: boolean): string {
+  if (!n) return sub;
+  const head = sub.slice(0, sub.lastIndexOf(" · " + unc + " unchecked")), rest = unc - n;
+  return head + (rest ? " · " + rest + " unchecked" + (ctl ? ", the tutor is on it" : "") : "") + " · " + leftOpen(n);
+}
 function QRow({ i }: { i: number }) {
   const u = u0(), p = pairOf(), r = u.res, c = QCELL[i] as CellId, rr = r.cells[c] as { v: string; msg: string[]; uns?: boolean; vague?: string[] }, a = u.ans![i] as Ans;
   const open = (rr.v === "cmp" && !rr.vague) || rr.v === "open", m = rr.v === "ok" ? "ok" : rr.v === "bad" ? "no" : "pt", busy = open && !!u.ctl;
@@ -114,20 +122,19 @@ function QRow({ i }: { i: number }) {
 }
 function ResultStep() {
   const u = u0(), p = pairOf(), r = u.res, imp: RelKey | "bad" | null = r.implied || null;
-  const decOk = QCELL.filter((c) => r.dec[c]).length, unc = QCELL.filter((c) => (r.cells[c].v === "cmp" && !r.cells[c].vague) || r.cells[c].v === "open").length;
-  const left = QCELL.filter((c) => r.cells[c].vague).length;
+  const decOk = QCELL.filter((c) => r.dec[c]).length, unc = QCELL.filter((c) => r.cells[c].v === "cmp" || r.cells[c].v === "open").length;
   const ov: string = r.overall, v = ov === "bad" ? "no" : ov === "part" ? "pt" : "ok";
   const word = ov === "pend" ? "Right so far" : ({ ok: "Right", part: "Partly right", bad: "Not quite" } as Record<string, string>)[ov] || "Not quite";
-  const sub = (u.late ? "time ran out on the relation" : "the relation " + (r.relOk ? "right" : "wrong")) + " · questions " + decOk + "/4" + (unc ? " · " + unc + " unchecked" + (u.ctl ? ", the tutor is on it" : "") : "") + (left ? " · " + leftOpen(left) : "");
+  const sub = (u.late ? "time ran out on the relation" : "the relation " + (r.relOk ? "right" : "wrong")) + " · questions " + decOk + "/4" + (unc ? " · " + unc + " unchecked" + (u.ctl ? ", the tutor is on it" : "") : "");
   const impTxt = imp === "bad" ? "your answers contradict each other. If no A is B, A cannot also be inside B (or B inside A), because that leaves one of them with no instances."
     : imp ? "your answers give " + lcRel(REL[imp].name) + (u.late ? ", and time ran out before you chose." : imp === u.rel ? "." : ", but you chose " + lcRel(REL[u.rel as RelKey].name) + ".") : "";
   return <>
     <Scroll>
       <PairResult mine={(u.rel || p.relation) as RelKey} ok={!!r.relOk} right={p.relation} none={u.late ? "no relation" : undefined} />
-      <Verdict v={v} word={word} sub={sub} />
+      <Verdict v={v} word={word} sub={leftSub(sub, unc, leftN(r), !!u.ctl)} />
       {imp ? <Sx cls="walked"><St d={<D cls={"sub " + (imp === u.rel ? "ok" : "no")} />} cls="sb exr implied"><span class="lab">from your answers</span><p class="xnote">{impTxt[0].toUpperCase() + impTxt.slice(1)}</p></St></Sx> : null}
       <Sx cls={QCELL.some((c) => r.cells[c].v === "bad") ? "nop" : "okp"}><Gap h={2} />{QCELL.map((_c, i) => <QRow i={i} />)}</Sx>
-      <WhyRow unc={unc} />
+      <WhyRow unc={unc - leftN(r)} />
       <StageOffer />
       <GuideNote />
       <ErrLines />
