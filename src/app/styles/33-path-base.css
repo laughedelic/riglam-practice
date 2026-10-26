@@ -37,7 +37,7 @@ html.pa-tab .pa :is(button,[tabindex]):not([data-quiet]):focus-visible:not(.pbr 
 .pa .vh{position:absolute!important; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
 .pa .main{flex:1; display:flex; flex-direction:column; min-height:0; position:relative}
 
-/* the top bar: the station where this path leaves the roadmap, the exercise's name (pull down for the roadmap), the tools */
+/* the top bar: the way back to the roadmap, the exercise's name and the progression ring after it, the tools */
 .pa .ptb{display:flex; align-items:center; height:56px; padding:0 6px 0 4px; flex:none; position:relative; z-index:8; background-color:var(--paper); border-bottom:1px solid var(--rule); touch-action:pan-x; user-select:none; -webkit-user-select:none; transition:margin-top .22s ease}
 .pa .pib{width:44px; height:44px; display:grid; place-items:center; color:var(--blue); position:relative; border-radius:4px; flex:none}
 .pa .pib:disabled,.pa .pib[aria-disabled="true"]{color:var(--ink3); opacity:.55; cursor:default}
@@ -45,10 +45,18 @@ html.pa-tab .pa :is(button,[tabindex]):not([data-quiet]):focus-visible:not(.pbr 
 .pa .ptb-t{font-style:italic; font-size:22px; font-weight:500; margin-left:4px; display:inline-flex; align-items:center; min-width:0; white-space:nowrap; overflow:hidden}
 .pa .ptb-t > span{overflow:hidden; text-overflow:ellipsis}
 .pa .dot{position:absolute; top:9px; right:8px; width:9px; height:9px; background:var(--gold); transform:rotate(45deg)}
-.pa .tstn{flex:none; width:44px; height:56px; margin-left:calc(var(--m) - 26px); position:relative; display:grid; place-items:center}
-.pa .tgo{width:20px; height:20px; transform:rotate(45deg); background-color:var(--station); position:relative}
-.pa .tgo .mk{position:absolute; inset:0; transform:rotate(-45deg); display:grid; place-items:center; color:var(--on-station)}
-.pa .tgo .mk .i{width:12px; height:12px; stroke-width:2.8; transform:rotate(90deg)}
+.pa .tstn{flex:none; width:44px; height:56px; position:relative; display:grid; place-items:center; color:var(--blue)}
+.pa .tstn .i{width:20px; height:20px; transform:rotate(180deg)}
+.pa .pring{width:auto; min-width:36px; padding:0 2px; margin-left:8px}
+.pa .pring svg{width:30px; height:30px; display:block; overflow:visible}
+.pa .pring circle{fill:none; stroke-width:3}
+.pa .pring .track{stroke:var(--ink2); stroke-opacity:.28}
+.pa .pring .arc{stroke:var(--green); stroke-linecap:butt; transition:stroke-dashoffset .5s ease}
+.pa .pring .disc{stroke:none; fill:transparent; transition:fill .3s ease}
+.pa .pring.full .disc{fill:var(--green)}
+.pa .pring text{font:600 11px var(--mono); fill:var(--ink); text-anchor:middle; dominant-baseline:central}
+.pa .pring.full text{fill:var(--paper)}
+@media (prefers-reduced-motion:reduce){.pa .pring .arc,.pa .pring .disc{transition:none}}
 .pa.g-top .ptb{background-image:var(--grain); background-size:128px; background-blend-mode:soft-light}
 /* a countdown runs on the lower edge of the top bar */
 .pa .pclock{position:absolute; left:0; right:0; bottom:-1px; height:3px; background:var(--rule); overflow:hidden}

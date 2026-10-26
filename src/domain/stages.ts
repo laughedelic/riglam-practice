@@ -255,6 +255,25 @@ export function stageOffer(run: StageRun, on: Stages, met: boolean, miss: MissKi
   return null;
 }
 
+/** How far the run is towards the stage after the highest one on (what the heading's ring shows). */
+export interface StageProgress {
+  /** the highest stage on: the one the learner is climbing */
+  top: number;
+  /** the stage that comes in next; none when the learner moves the stages themselves or the last one is on */
+  next: number | null;
+  /** the right answers in a row it waits for (in halves: LOWER_CREDIT) */
+  need: number;
+  /** the part of the run that is filled, 0 to 1 (0 when no stage comes by itself) */
+  frac: number;
+  /** the run is as long as it needs to be */
+  full: boolean;
+}
+export function stageProgress(run: StageRun, on: Stages): StageProgress {
+  const top = topStage(on), need = runNeed(run), next = run.manual || top >= MAX_STAGE ? null : top + 1;
+  const frac = next === null ? 0 : Math.min(1, run.up / need);
+  return { top, next, need, frac, full: next !== null && frac >= 1 };
+}
+
 /** A stored run, each part checked; a fresh one when it cannot be read. */
 export function normRun(raw: unknown): StageRun {
   let v: unknown = raw;

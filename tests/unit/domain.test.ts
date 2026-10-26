@@ -17,7 +17,7 @@ import { catStage, drawable, examplesFor, placeByClass } from "../../src/domain"
 import { LANGS, normLangs, termNames } from "../../src/domain";
 import { AGAIN_AFTER, FIRST_AFTER, MISS_AFTER, SETTLED, SPACING, afterQuestion, againAsked, freshIntro, introduced, metTerms, nextStop, normIntro, pairGraded, showAgain, stageMet, stageTerms, stageUp, stopShown, termTree, unmet } from "../../src/domain";
 import { DEFAULT_STAGES, DEFINITION_STAGE, HOLD_STAGE, MAX_STAGE, NEG_STREAK, STAGES, START_SHARE, STAGE_STREAK, STAGE_STUMBLE, catOpen, drawSyllogism, heldBack, itemKnown, itemOn, itemStageFor, levelAt, negationOffer, newCategories, normStages, pairStage, physical, poolAt, stagesOfLevels, toggleStage, topStage } from "../../src/domain";
-import { GUIDE_RIGHT, LOWER_CREDIT, STAGE_LONGER, STAGE_STREAK_MAX, exerciseAfter, freshRun, guideTurnsOff, guidedOn, movedUp, newShare, normExRuns, normGuided, normRun, restartRun, runAfter, runNeed, setManual, stageOffer, stayLonger } from "../../src/domain";
+import { GUIDE_RIGHT, LOWER_CREDIT, STAGE_LONGER, STAGE_STREAK_MAX, exerciseAfter, freshRun, guideTurnsOff, guidedOn, movedUp, newShare, normExRuns, normGuided, normRun, restartRun, runAfter, runNeed, setManual, stageOffer, stageProgress, stayLonger } from "../../src/domain";
 import type { MissKind, StageRun } from "../../src/domain";
 import { drawPlace, itemRows, placeThings } from "../../src/domain/place";
 import { normLevels, upTo } from "../../src/ai-shared";
@@ -791,6 +791,16 @@ test("the negation track is offered step by step: one side after plain pairs in 
   expect(negationOffer([...run(4, true, true), ...run(1, false, true)], "one")).toBeNull();
   expect(negationOffer(run(20, true, true), "both"), "nothing after both sides").toBeNull();
   expect(negationOffer(run(3, true), "off", 3)).toBe("one");
+});
+
+test("the heading's ring: the part of the run towards the next stage, none where no stage comes by itself", () => {
+  const r = (up: number, extra: Partial<StageRun> = {}): StageRun => ({ up, down: 0, ...extra });
+  expect(stageProgress(freshRun(), [1])).toEqual({ top: 1, next: 2, need: STAGE_STREAK, frac: 0, full: false });
+  expect(stageProgress(r(3.5), [1, 2, 3])).toEqual({ top: 3, next: 4, need: STAGE_STREAK, frac: 0.7, full: false });
+  expect(stageProgress(r(7), [1, 2]), "longer than needed stays full").toMatchObject({ frac: 1, full: true });
+  expect(stageProgress(r(5, { need: 10 }), [1]), "after staying longer").toMatchObject({ need: 10, frac: 0.5, full: false });
+  expect(stageProgress(r(3, { manual: true }), [1]), "the learner moves the stages").toEqual({ top: 1, next: null, need: STAGE_STREAK, frac: 0, full: false });
+  expect(stageProgress(r(9), [MAX_STAGE]), "nothing above the top").toMatchObject({ top: MAX_STAGE, next: null, frac: 0, full: false });
 });
 
 test("the run towards the stages: any exercise moves it up, only questions new at the highest stage on count, and a miss counts as its exercise says", () => {
