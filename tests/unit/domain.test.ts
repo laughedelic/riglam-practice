@@ -17,7 +17,7 @@ import { catStage, drawable, examplesFor, placeByClass } from "../../src/domain"
 import { LANGS, normLangs, termNames } from "../../src/domain";
 import { AGAIN_AFTER, FIRST_AFTER, MISS_AFTER, SETTLED, SPACING, afterQuestion, againAsked, freshIntro, introduced, metTerms, nextStop, normIntro, pairGraded, showAgain, stageMet, stageTerms, stageUp, stopShown, termTree, unmet } from "../../src/domain";
 import { DEFAULT_STAGES, DEFINITION_STAGE, HOLD_STAGE, MAX_STAGE, NEG_STREAK, STAGES, START_SHARE, STAGE_STREAK, STAGE_STUMBLE, catOpen, drawSyllogism, heldBack, itemKnown, itemOn, itemStageFor, levelAt, negationOffer, newCategories, normStages, pairStage, physical, poolAt, stagesOfLevels, toggleStage, topStage } from "../../src/domain";
-import { GUIDE_RIGHT, STAGE_LONGER, STAGE_STREAK_MAX, exerciseAfter, freshRun, guideTurnsOff, guidedOn, movedUp, newShare, normExRuns, normGuided, normRun, restartRun, runAfter, runNeed, setManual, stageOffer, stayLonger } from "../../src/domain";
+import { GUIDE_RIGHT, LOWER_CREDIT, STAGE_LONGER, STAGE_STREAK_MAX, exerciseAfter, freshRun, guideTurnsOff, guidedOn, movedUp, newShare, normExRuns, normGuided, normRun, restartRun, runAfter, runNeed, setManual, stageOffer, stayLonger } from "../../src/domain";
 import type { MissKind, StageRun } from "../../src/domain";
 import { drawPlace, itemRows, placeThings } from "../../src/domain/place";
 import { normLevels, upTo } from "../../src/ai-shared";
@@ -800,7 +800,11 @@ test("the run towards the stages: any exercise moves it up, only questions new a
   expect(STAGE_STREAK).toBe(5);
   expect(STAGE_STUMBLE).toBe(4);
   expect(walk([1], right(5))).toEqual({ up: 5, down: 0 });
-  expect(walk([1, 2], [...right(3, 2), ...right(4, 1), ...wrong(2, 1), ...right(2, 2)]), "a lower stage neither extends nor ends the run").toEqual({ up: 5, down: 0 });
+  expect(LOWER_CREDIT).toBe(0.5);
+  expect(walk([1, 2], [...right(3, 2), ...right(4, 1), ...wrong(2, 1), ...right(2, 2)]), "a right answer from a stage below counts half; a wrong one neither extends nor ends the run").toEqual({ up: 7, down: 0 });
+  expect(walk([1, 2], [...right(2, 1), ...right(1, 1, "pair")]), "in halves").toEqual({ up: 1.5, down: 0 });
+  expect(walk([1, 2, 3], [...right(1, 3), ...right(1, 2), ...wrong(1, 1, "pair"), ...wrong(1, 2, "words")]), "wrong answers from below leave the run and the count down alone").toEqual({ up: 1.5, down: 0 });
+  expect(walk([1, 2], [...right(1, 0), ...right(1, 3)]), "a question of no stage, or of one above the highest, counts for nothing").toEqual({ up: 0, down: 0 });
   expect(walk([1, 2], [...right(2, 2, "words"), ...right(2, 2, "pair"), ...right(1, 2, "form")]), "every exercise moves it up").toEqual({ up: 5, down: 0 });
   expect(walk([1], [...right(4), ...wrong(1, 1, "form")]), "a wrong syllogism or own pair is about the form: nothing changes").toEqual({ up: 4, down: 0 });
   expect(walk([1], [...right(4), ...wrong(1, 1, "pair")]), "a wrong pervasion ends the run up").toEqual({ up: 0, down: 0 });
@@ -822,6 +826,10 @@ test("the offer of the stages: up after five right when the stage's terms have h
   expect(stageOffer(r(0, 3), [1, 2], true, "words")).toBeNull();
   expect(stageOffer(r(0, 9), [1], true, "words"), "nothing below stage 1").toBeNull();
   expect(normRun('{"up":3,"down":-2}')).toEqual({ up: 3, down: 0 });
+  expect(normRun('{"up":2.5,"down":1.5}'), "the run up is kept in halves").toEqual({ up: 2.5, down: 1 });
+  expect(normRun('{"up":2.8}')).toEqual({ up: 2.5, down: 0 });
+  expect(stageOffer(r(4.5), [1, 2], true, "words"), "four and a half is not five").toBeNull();
+  expect(stageOffer(r(5), [1, 2], true, "words")).toEqual({ kind: "up", stage: 3 });
   expect(normRun("not json")).toEqual(freshRun());
   expect(normRun(null)).toEqual(freshRun());
 });
@@ -868,6 +876,39 @@ test("a new exercise starts with review: a quarter of its questions new at the h
   expect(share3(0.5)).toBeGreaterThan(0.4);
   expect(share3(0.5)).toBeLessThan(0.6);
   expect(share3(), "half when no share is given").toBeCloseTo(share3(0.5), 5);
+});
+
+test("the pair draw shares the review among the stages below the highest, not among the pairs, and puts few pairs of two everyday categories in front of a learner with course terms", () => {
+  const everyday = (e: { a: string; b: string }) => rix.CAT[e.a].kind === "everyday" && rix.CAT[e.b].kind === "everyday";
+  const mix = (on: number[], newShare?: number) => {
+    const stageOf = new Map(poolAt(rix, realPool, on).map((e) => [pairKey(e), e.st]));
+    const by: Record<number, number> = {}; let plain = 0;
+    const N = 2000;
+    for (let s = 0; s < N; s++) {
+      const e = chooseEntry(rix, realPool, { hist: [], recent: [], rng: seeded(s), stages: on, newShare });
+      const st = stageOf.get(pairKey(e))!;
+      by[st] = (by[st] || 0) + 1;
+      if (everyday(e)) plain++;
+    }
+    return { by: (st: number) => (by[st] || 0) / N, plain: plain / N };
+  };
+  const six = mix([1, 2, 3, 4, 5, 6]);
+  // stage 1 holds a third of the pairs, nearly all of two everyday categories; it used to be 28% of the draw, and all such pairs 27%
+  expect(six.by(6)).toBeGreaterThan(0.45);
+  expect(six.by(6)).toBeLessThan(0.55);
+  expect(six.by(1), "stage 1 is a small part of the review").toBeLessThan(0.1);
+  for (const s of [2, 3, 5]) expect(six.by(s), "stage " + s).toBeGreaterThan(0.08);
+  expect(six.plain).toBeLessThan(0.12);
+  // a quarter new while the exercise is new, the rest by stage as well
+  expect(mix([1, 2, 3, 4, 5, 6], 0.25).by(6)).toBeGreaterThan(0.2);
+  expect(mix([1, 2, 3, 4, 5, 6], 0.25).by(6)).toBeLessThan(0.3);
+  // stage 1 alone and stages 1 to 2 keep what they had: the new stage half the time, the pairs of stage 1 the rest
+  expect(mix([1, 2]).by(2)).toBeGreaterThan(0.45);
+  expect(mix([1]).by(1)).toBe(1);
+  // the stages that are on need not be in a row
+  const gap = mix([1, 4]);
+  expect(gap.by(4) + gap.by(1)).toBe(1);
+  expect(gap.by(4)).toBeGreaterThan(0.45);
 });
 
 test("an exercise's guided form is on until its twentieth right answer turns it off, once; a choice the learner made stays", () => {

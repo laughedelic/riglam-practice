@@ -239,12 +239,20 @@ export const NEG_SHARE = 1 / 3;
 /** How much more likely a three-possibility pair is while the learner has just reached a stage (`fresh`). */
 const FRESH_THREE = 2.5;
 
+/** The weight of a pair of two everyday categories from stage 2 on, against 1 for a pair with a course category (stage 1 is mostly such pairs, and so is a third of stage 4). */
+export const EVERYDAY_ONLY = 0.35;
+
+/** Whether the pair is of two everyday categories, with no course term in it. */
+const everydayOnly = (ix: DataIndex, c: PoolEntry): boolean => ix.CAT[c.a].kind === "everyday" && ix.CAT[c.b].kind === "everyday";
+
 /** A relation with fewer pairs than this in reach is drawn in proportion to how many it has, so that its one or two pairs do not come back every few questions. */
 const THIN_RELATION = 8;
 
 /**
  * The pool entry for the next pair: the relation that has been seen least lately, then a pair of categories weighted by what the learner got
- * wrong. With `stages`, from the pairs those stages can draw, half the time (or `newShare`) one new at the highest stage when there are both kinds.
+ * wrong. With `stages`, from the pairs those stages can draw, the stage comes first: half the time (or `newShare`) the highest, else one of the
+ * stages below, each as likely as the others (not each pair: stage 1 has a third of all the pairs), a stage made of pairs of two everyday
+ * categories counting for less (EVERYDAY_ONLY) once a course term is in play.
  */
 export function chooseEntry(ix: DataIndex, full: readonly PoolEntry[], st: DrawState): PoolEntry {
   const { hist, recent } = st, rng = st.rng || Math.random, isHidden = st.isHidden || (() => false);
@@ -252,8 +260,23 @@ export function chooseEntry(ix: DataIndex, full: readonly PoolEntry[], st: DrawS
   const staged = st.stages ? poolAt(ix, full, st.stages) : [], drawable: readonly (PoolEntry & Partial<StagedEntry>)[] = staged.length ? staged : full;
   // a pair waits while one of its categories has a term the learner has not met; if that leaves nothing, the stages' pairs are drawn as they are
   const met = st.unmet?.size ? drawable.filter((c) => !st.unmet!.has(c.a) && !st.unmet!.has(c.b)) : drawable;
-  const pool = met.length ? met : drawable;
   const top = staged.length && !st.even ? topStage(st.stages!) : 0;
+  const all = met.length ? met : drawable;
+  // the stage first: the highest `newShare` of the time (a quarter while the exercise is new to the learner), else one below it, in proportion to what it teaches
+  let pool = all;
+  if (top) {
+    const size = new Map<number, number>(), plain = new Map<number, number>();
+    for (const c of all) { size.set(c.st!, (size.get(c.st!) || 0) + 1); if (everydayOnly(ix, c)) plain.set(c.st!, (plain.get(c.st!) || 0) + 1); }
+    const below = [...size.keys()].filter((s) => s !== top).sort((a, b) => a - b);
+    const weight = (s: number) => (top > 1 ? 1 - (1 - EVERYDAY_ONLY) * ((plain.get(s) || 0) / size.get(s)!) : 1);
+    let stage = top;
+    if (below.length && (!size.has(top) || rng() >= (st.newShare ?? 0.5))) {
+      let x = rng() * below.reduce((sum, s) => sum + weight(s), 0);
+      stage = below[below.length - 1];
+      for (const s of below) { if ((x -= weight(s)) <= 0) { stage = s; break; } }
+    }
+    pool = all.filter((c) => c.st === stage);
+  }
   const last = hist.slice(-8).map((x) => (x.key === "3ab" || x.key === "3ba" ? "3" : x.key));
   const seen = new Set(hist.slice(-60).map((x) => [x.catA, x.catB].sort().join("|")).concat(recent));
   const weak: Record<string, number> = Object.create(null);
@@ -275,15 +298,12 @@ export function chooseEntry(ix: DataIndex, full: readonly PoolEntry[], st: DrawS
   let cands = pool.filter((c) => c.r === R && !isHidden(c));
   if (!cands.length) cands = pool.filter((c) => c.r === R); // everything of this relation is skipped: the skips give way
 
-  // the pairs new at the highest stage weigh together as their share says against the rest together: about half the questions are new (a quarter
-  // while the exercise is new to the learner), the rest review
-  const nNew = top ? cands.filter((c) => c.st === top).length : 0, nOld = cands.length - nNew, share = st.newShare ?? 0.5;
-  const newWeight = nNew && nOld ? (nOld / nNew) * (share / (1 - share)) : 1;
   const w = cands.map((c) => {
-    let v = c.st === top ? newWeight : 1;
+    let v = 1;
     if (seen.has(pairKey(c))) v *= 0.08;
     v *= 1 + 1.5 * ((weak[c.a] || 0) + (weak[c.b] || 0));
-    if (R === "con" && ix.CAT[c.a].kind === "everyday" && ix.CAT[c.b].kind === "everyday") v *= 0.35;
+    // two everyday categories teach little once a course term is in play: at stage 1 only the exclusive pairs (white things, black things) are damped, from stage 2 on all of them
+    if (everydayOnly(ix, c)) v *= top > 1 ? EVERYDAY_ONLY : R === "con" ? 0.35 : 1;
     return v;
   });
   tot = w.reduce((s, v) => s + v, 0); x = rng() * tot;
