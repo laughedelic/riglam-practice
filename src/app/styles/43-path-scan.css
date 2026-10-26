@@ -6,7 +6,7 @@
 .pa .main.sc-run .aux{opacity:0; transition:opacity .2s}
 .pa .pscan{position:absolute; top:0; width:0; height:0; z-index:7; pointer-events:none; --k:0; --e:0; --vc:var(--green)}
 .pa .pscan.no{--vc:var(--red)} .pa .pscan.pt{--vc:var(--partc)}
-.pa .pscd{position:absolute; left:0; top:0; --z:calc(var(--st) - 4px * var(--k) + 2px * var(--e)); width:var(--z); height:var(--z); transform:translate(-50%,-50%) rotate(45deg);
+.pa .pscd{position:absolute; left:0; top:0; --z:calc(var(--s0,var(--st)) + (var(--st) - var(--s0,var(--st))) * var(--e) - 4px * var(--k) + 2px * var(--e)); width:var(--z); height:var(--z); transform:translate(-50%,-50%) rotate(45deg);
   background-color:color-mix(in srgb,var(--vc) calc(var(--e) * 100%),color-mix(in srgb,var(--paper) calc(var(--k) * 100%),var(--station)));
   box-shadow:inset 0 0 0 calc(2.2px * var(--k) * (1 - var(--e))) var(--rim,var(--station)); transition:box-shadow .12s}
 .pa .pscan.pre .pscd{--rim:var(--ink3); --z:calc(var(--stp) + (var(--st) + 2px - var(--stp)) * var(--e))}

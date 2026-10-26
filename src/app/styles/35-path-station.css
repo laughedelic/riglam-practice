@@ -78,6 +78,14 @@
 .pa .gol{padding-left:calc(var(--st) * 99 / 140 + 6.2px); display:flex; flex-direction:column; align-items:flex-start; min-width:0; position:relative}
 .pa .gol b{font-size:21px; font-weight:600; color:var(--blue); line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%}
 .pa .gol.pre b{color:var(--ink3); font-weight:500; font-size:19px}
+/* a station by what it says (shell.tsx `kind`): a step inside an exercise is medium, the size the gray stations that wait for it have; one that leads to a question is gold, one that checks or shows the verdict is ink;
+   the station that goes on to the next exercise stays the big blue one */
+.pa .stn.stk{--st:var(--stp)}
+.pa .stn.stk .gol b{font-size:19px}
+.pa .stn.stk-ex{--station:var(--gold)}
+.pa .stn.stk-ex .gol b{color:var(--gold-t)}
+.pa .stn.stk-chk{--station:var(--ink); --on-station:var(--paper)}
+.pa .stn.stk-chk .gol b{color:var(--ink)}
 /* a station's hint waits under its name until you pull */
 .pa .gol small{position:absolute; left:calc(var(--st) * 99 / 140 + 6.2px); top:100%; margin-top:1px; white-space:nowrap; opacity:0; transform:translateY(-5px); transition:opacity .18s,transform .18s; pointer-events:none; font-family:var(--mono); font-size:10.5px; color:var(--ink3); max-width:calc(100% - var(--st) * 99 / 140 - 6.2px); overflow:hidden; text-overflow:ellipsis}
 .pa .stn.dragging .gol small,.pa .stn.peek .gol small{opacity:1; transform:none}

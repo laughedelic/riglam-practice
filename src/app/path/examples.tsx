@@ -127,12 +127,12 @@ export function ExamplesStep({ kb, title, step, rel, full, check, scan }: { kb: 
     <Scroll dim={!!u.pstrip}>
       <Sx cls={"cur first eh nx" + kinds[0]}><div class="ksp" style={{ height: "16px" }} /><Head d={<D cls="sec now" />} h={step + " Examples"} sub={k.order.length === 1 ? "one case" : "one for each case"} /></Sx>
       {lined}
-      {node ? <Sx cls="cnode"><Station name="Check" hint={checkHint} act={takeCheck} scan={scan} keep /></Sx> : null}
+      {node ? <Sx cls="cnode"><Station kind="chk" name="Check" hint={checkHint} act={takeCheck} scan={scan} keep /></Sx> : null}
       <Sx cls="ptail xtail" />
     </Scroll>
     <VoiceBar />
     {kb ? null : <Foot aux={k.ready ? null : <SkipSide />}>
-      {k.ready ? <Station name="Check" hint={checkHint} act={takeCheck} scan={scan} />
+      {k.ready ? <Station kind="chk" name="Check" hint={checkHint} act={takeCheck} scan={scan} />
         : <PreStation name="Result" hint="write each example first" />}
     </Foot>}
   </>;

@@ -49,7 +49,7 @@ function PickStep({ kb }: { kb: boolean }) {
     </Scroll>
     <VoiceBar />
     {kb ? null : <Foot aux={<SkipSide />}>
-      {u.rel ? <Station name="Examples" hint="the relation you picked" act={() => { u.open = false; render(); }} /> : <PreStation name="Examples" hint="pick a relation first" />}
+      {u.rel ? <Station kind="ex" name="Examples" hint="the relation you picked" act={() => { u.open = false; render(); }} /> : <PreStation name="Examples" hint="pick a relation first" />}
     </Foot>}
   </>;
 }

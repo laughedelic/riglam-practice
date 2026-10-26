@@ -131,7 +131,7 @@ function after(a: Animation | null, ms: number, done: () => void): void {
 /** A copy of the station where it stands now (the step takes the station itself away): it comes to rest at the new first bullet and turns into it. */
 function ghostOf(main: HTMLElement, stn: HTMLElement): HTMLElement {
   const mr = main.getBoundingClientRect(), r = stn.getBoundingClientRect(), g = stn.cloneNode(true) as HTMLElement;
-  g.removeAttribute("id"); g.removeAttribute("aria-label"); g.setAttribute("aria-hidden", "true"); g.tabIndex = -1; g.className = "stn pk-ghost";
+  g.removeAttribute("id"); g.removeAttribute("aria-label"); g.setAttribute("aria-hidden", "true"); g.tabIndex = -1; g.className = "stn pk-ghost" + Array.from(stn.classList).filter((c) => c.startsWith("stk")).map((c) => " " + c).join("");      // it keeps what the station says: its size and color
   g.style.cssText = `position:absolute;left:${(r.left - mr.left).toFixed(1)}px;top:${(r.top - mr.top).toFixed(1)}px;width:${r.width.toFixed(1)}px;height:${r.height.toFixed(1)}px;margin:0;box-sizing:border-box;transform:none;transition:none;pointer-events:none;z-index:7`;
   main.append(g);
   return g;

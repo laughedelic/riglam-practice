@@ -82,7 +82,7 @@ function QuestionStep({ kb }: { kb: boolean }) {
     </Scroll>
     <VoiceBar />
     {kb ? null : <Foot aux={<SkipSide />}>
-      {u.pickWhy && (u.exText || "").trim() ? <Station name={last ? "Relation" : "Next question"} hint="your counter-example" act={submitWhy} />
+      {u.pickWhy && (u.exText || "").trim() ? <Station kind="ex" name={last ? "Relation" : "Next question"} hint="your counter-example" act={submitWhy} />
         : <PreStation name={u.pickWhy && !last ? "Next question" : "Relation"} hint={u.pickWhy ? "posit a counter-example first" : last ? "answer this question first" : "answer the four questions first"} />}
     </Foot>}
   </>;

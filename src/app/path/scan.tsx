@@ -88,6 +88,7 @@ export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, ac
   scn.innerHTML = '<i class="pscd"></i><span class="pscw"><b></b><small></small></span>';
   (scn.querySelector(".pscw b") as HTMLElement).textContent = plan.word; (scn.querySelector(".pscw small") as HTMLElement).textContent = plan.sub;
   scn.style.left = x.toFixed(1) + "px";
+  if (!pre) { const cs = getComputedStyle(stn); scn.style.setProperty("--s0", cs.getPropertyValue("--st").trim()); scn.style.setProperty("--station", cs.getPropertyValue("--station").trim()); }      // the scanner is the station's size and color as it opens
   const past = document.createElement("div"); past.className = "pscpast"; past.style.left = x.toFixed(1) + "px";
   main.append(past, scn);
   stn.style.transform = ""; stn.classList.remove("dragging"); stn.classList.add("scanning");

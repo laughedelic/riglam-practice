@@ -65,7 +65,7 @@ function PairStep({ kb }: { kb: boolean }) {
       <Sx cls="ptail" />
     </Scroll>
     {kb ? null : <Foot aux={state.findRel ? null : <SkipSide />}>
-      {ok ? <Station name="Examples" hint="your pair" act={usePair} /> : <PreStation name="Examples" hint="name both first" />}
+      {ok ? <Station kind="ex" name="Examples" hint="your pair" act={usePair} /> : <PreStation name="Examples" hint="name both first" />}
     </Foot>}
   </>;
 }

@@ -376,3 +376,36 @@ test("check: morph, a syllogism's Result with no counter-example marks nothing o
   await expect(page.locator(".pwhat")).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+/** What a station looks like: the diamond's size and color, the label's size and color. */
+const facts = (page, sel) => page.locator(sel).evaluate((e) => { const go = e.querySelector(".go"), b = e.querySelector(".gol b"); return { cls: e.className, size: go.offsetWidth, bg: getComputedStyle(go).backgroundColor, label: getComputedStyle(b).color, font: getComputedStyle(b).fontSize }; });
+const tokenColor = (page, name) => page.locator(".pa").evaluate((e, n) => { const i = document.createElement("i"); i.style.color = "var(" + n + ")"; e.append(i); const c = getComputedStyle(i).color; i.remove(); return c; }, name);
+
+test("stations say what they are by their look: Examples is gold and medium, Check and Result are ink and medium, the Next stations are the big blue ones", async ({ page }) => {
+  await toCheck(page);
+  const [ink, gold, goldT, blue] = await Promise.all(["--ink", "--gold", "--gold-t", "--station"].map((n) => tokenColor(page, n)));
+  const check = await facts(page, "#stn");
+  expect(check.cls).toContain("stk-chk");
+  expect(check, "the Check: medium and ink").toMatchObject({ size: 22, bg: ink, label: ink, font: "19px" });
+  // Examples: the step back from the examples' page to the relation, whose foot leads on to them again
+  await page.evaluate(() => { window.__t.ui.open = true; window.__t.render(); });
+  await expect(page.locator("#stn")).toHaveAccessibleName(/^Examples/);
+  const ex = await facts(page, "#stn");
+  expect(ex.cls).toContain("stk-ex");
+  expect(ex, "Examples: medium and gold").toMatchObject({ size: 22, bg: gold, label: goldT, font: "19px" });
+  await page.evaluate(() => { window.__t.ui.open = false; window.__t.render(); });
+  await expect(page.locator("#stn")).toHaveAccessibleName(/^Check/);
+  // the scanner opens as the Check is: its size and color
+  await page.locator("#stn").click();
+  const scan = page.locator("#path .pscan");
+  await expect(scan).toHaveCount(1);
+  const inkRaw = await page.locator(".pa").evaluate((e) => getComputedStyle(e).getPropertyValue("--ink").trim());
+  expect(await scan.evaluate((e) => e.style.getPropertyValue("--station")), "the scanner is ink as it opens").toBe(inkRaw);
+  expect(await scan.evaluate((e) => e.style.getPropertyValue("--s0")), "and the Check's size").not.toBe("");
+  await expect(page.locator(".pvline")).toBeVisible();
+  await expect(page.locator("#stn")).toContainText("Next pair");
+  await expect(main(page)).not.toHaveClass(/\b(tk-in|pk-run|sc-in|sc-run|fw-wait)\b/);
+  const next = await facts(page, "#stn");
+  expect(next.cls, "the next exercise's station has no kind").not.toContain("stk");
+  expect(next, "Next pair: big and blue").toMatchObject({ size: 28, bg: blue, label: blue, font: "21px" });
+});
