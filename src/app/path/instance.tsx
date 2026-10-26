@@ -58,7 +58,7 @@ function AskStep({ kb }: { kb: boolean }) {
     ? <St d={<D cls="sub yours" />} cls="sb done"><span class="lab">your answer</span><span class="pans nil">{noneText(n)}</span>
       <p class="help"><button type="button" onClick={() => { sayNothing(false); setTimeout(focusField); }}>write a thing instead</button></p></St>
     : <St d={<D cls="sub now" />} cls="sb now"><p class="qq">{n === 1 ? <>Name {<b class="conn">one of them</b>}.</> : <>Name something that is {<b class="conn">{allOf(n)}</b>}.</>}</p>
-      <div class="fieldrow"><input class="pfield" id="iin" value={u.said} placeholder="write a thing" {...nofillInput()} list={state.instSuggest ? "iin-things" : undefined} enterKeyHint="done"
+      <div class="fieldrow"><input class="pfield" id="iin" value={u.said} placeholder="write a thing" {...nofillInput(state.instSuggest ? "iin-things" : undefined)} enterKeyHint="done"
         aria-label={"Something that is " + allOf(n) + ": " + s.labels.join(", ")}
         onInput={(e) => { writeInstance((e.currentTarget as HTMLInputElement).value); refreshPath(); }}
         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (ready()) check(); } }} /></div>

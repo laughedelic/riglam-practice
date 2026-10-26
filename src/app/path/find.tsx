@@ -36,7 +36,7 @@ function Asked({ change = true }: { change?: boolean }) {
 function Word({ k, key2, what, last }: { k: "a" | "b"; key2: "wordA" | "wordB"; what: string; last: boolean }) {
   const u = u0();
   return <St d={<span class="ab">{k.toUpperCase()}</span>} cls="pairst pfw">
-    <div class="fieldrow"><input class="pfield" id={"fw-" + k} value={u[key2]} placeholder={what + " phenomenon"} aria-label={what + " phenomenon, " + k.toUpperCase()} {...nofillInput()} list={guided("find") ? "fw-terms" : undefined}
+    <div class="fieldrow"><input class="pfield" id={"fw-" + k} value={u[key2]} placeholder={what + " phenomenon"} aria-label={what + " phenomenon, " + k.toUpperCase()} {...nofillInput(guided("find") ? "fw-terms" : undefined)}
       autoComplete="off" autoCapitalize="off" spellcheck={false} enterKeyHint={last ? "done" : "next"}
       onInput={(e) => { u[key2] = (e.currentTarget as HTMLInputElement).value; if (u.pairErr) u.pairErr = ""; refreshPath(); }}
       onKeyDown={(e) => { if (e.key !== "Enter") return; e.preventDefault(); if (!last) focus("fw-b"); else usePair(); }} /></div>
