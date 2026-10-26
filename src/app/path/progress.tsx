@@ -9,7 +9,6 @@ import { openPage, openProgress } from "../shell/session.js";
 import { STAGES } from "../../domain/stages.ts";
 
 const R = 11.5, C = 2 * Math.PI * R;
-const here = () => state.sessOpen && state.sessPage === "progress";
 
 /** The ring: filled clockwise from the top by the run; once the run is full the disc turns green (the next stage comes in with the next right answer on what is new). */
 export function ProgressRing() {
@@ -20,7 +19,7 @@ export function ProgressRing() {
     was.current = up;
   }, [up]);
   const full = p.full && !p.waiting;
-  return <button type="button" ref={ref} class={"pib pring" + (full ? " full" : "")} aria-expanded={here() ? "true" : "false"}
+  return <button type="button" ref={ref} class={"pib pring" + (full ? " full" : "")}
     aria-label={"Progression: stage " + p.top + (p.next ? ", " + Math.round(p.frac * 100) + " percent of the way to stage " + p.next : "") + ". How it works"}
     onClick={openProgress}>
     <svg viewBox="0 0 30 30" aria-hidden="true"><circle class="disc" cx="15" cy="15" r={R} /><circle class="track" cx="15" cy="15" r={R} />

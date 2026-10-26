@@ -1,6 +1,6 @@
 // The progression in the Path's top bar: a back chevron where the station diamond was, and after the exercise's name a ring that fills with the run
 // of right answers towards the next stage, with the stage in it. A tap on the ring opens the Progression sheet (a page of the practice options);
-// Back, the cross and the options button close it or swap it for the options (src/app/path/progress.tsx).
+// the top bar names it while it is open (and its ring gives way to the close); Back and the close shut it (src/app/path/progress.tsx).
 import { test, expect } from "../../support/test.js";
 
 const setup = () => {
@@ -56,13 +56,14 @@ test("the stage the ring shows is the highest one on, and it has no fill where t
   expect(Number(await page.locator("#path .pring .arc").getAttribute("stroke-dashoffset"))).toBeCloseTo(Number(await page.locator("#path .pring .arc").getAttribute("stroke-dasharray")), 3);
 });
 
-test("a tap on the ring opens the Progression sheet with its short lines; the cross and Back close it, its link goes to the practice options", async ({ page }) => {
+test("a tap on the ring opens the Progression sheet with its short lines; the close and Back shut it, its link goes to the practice options", async ({ page }) => {
   await start(page);
   await run(page, { up: 0, need: undefined, manual: undefined });
   await ring(page).click();
   await expect(sheet(page)).toHaveCount(1);
-  await expect(sheet(page).getByRole("heading", { name: "Progression" })).toBeVisible();
-  await expect(ring(page)).toHaveAttribute("aria-expanded", "true");
+  // the top bar is the sheet's heading, and the ring gives way to the close
+  await expect(page.locator("#path .ptb-t")).toHaveText("Progression");
+  await expect(ring(page)).toHaveCount(0);
   const lines = sheet(page).locator(".tup-bul li");
   await expect(lines.first()).toContainText(/^Stage \d adds /);
   await expect(sheet(page)).toContainText("is reached after five right answers in a row on what is new.");
@@ -70,9 +71,10 @@ test("a tap on the ring opens the Progression sheet with its short lines; the cr
   await expect(sheet(page)).toContainText("Review answers count too, but as smaller steps.");
   await expect(sheet(page)).toContainText("A wrong answer on the new terms resets the stage progress.");
   await expect(sheet(page).locator(".sback"), "no list under it to go back to").toHaveCount(0);
-  // the cross closes it
-  await sheet(page).getByRole("button", { name: /^Close/ }).click();
+  // the close shuts it
+  await page.getByRole("button", { name: "Close the practice options" }).click();
   await expect(sheet(page)).toHaveCount(0);
+  await expect(ring(page)).toBeVisible();
   // the system Back closes it in one step (the exercise stays)
   await ring(page).click();
   await expect(sheet(page)).toHaveCount(1);
@@ -82,7 +84,7 @@ test("a tap on the ring opens the Progression sheet with its short lines; the cr
   // its own link goes to the practice options
   await ring(page).click();
   await sheet(page).locator(".plnk").click();
-  await expect(sheet(page).getByRole("heading", { name: "Practice options" })).toBeVisible();
+  await expect(page.locator("#path .ptb-t")).toHaveText("Practice options");
 });
 
 test("the sheet says so where no stage comes by itself", async ({ page }) => {

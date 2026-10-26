@@ -1,0 +1,26 @@
+/* Taking a station by pushing (path/push.ts, the look's `ride: push`): the station rises into the page and pushes it up ahead of it; the page is one piece strung on the thread, so it
+   moves as a whole (--push on .pathc), and what the station has passed is cut off under its top edge (--cut on the root). Over the curb the page already follows the station. */
+.pa.pushing .pathc{transform:translateY(calc(var(--push,0px) * -1)); will-change:transform}
+.pa.pushing .pscroll{clip-path:inset(0 0 var(--cut,0px) 0); -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 26px); mask-image:linear-gradient(to bottom,transparent 0,#000 26px)}
+/* the station is let go short of the curb, or pulled back under it: the page slides back down */
+.pa.pushback .pathc{transition:transform .28s cubic-bezier(.2,.9,.3,1)}
+.pa .main.pk-run{pointer-events:none}
+/* the step has been taken and the new page is drawn but not seen yet (the station, a copy of it, is on its way to the new first bullet); a statement that stays is seen */
+.pa .main.pk-swap:not(.pk-keep) .pathc{visibility:hidden}
+.pa .main.pk-swap.pk-keep .pathc > :not(:first-child){visibility:hidden}
+/* what comes before a kept statement fades, and the room it took above the statement folds, so that the statement is where the result puts it when the step goes on */
+.pa .pathc .pk-gone{opacity:0; transition:opacity .26s ease}
+.pa .pathc .pk-gone.pk-fb{transition:opacity .26s ease,height .4s cubic-bezier(.4,0,.2,1),margin .4s cubic-bezier(.4,0,.2,1),padding .4s cubic-bezier(.4,0,.2,1)}
+/* the station rises as the big diamond; its words go as it comes to rest (the copy of it that settles into the new bullet has none) */
+.pa .main.pk-run #stn .gol{opacity:calc(1 - var(--tkl,0) * 4)}
+.pa .main.pk-run #stn .gol small{opacity:0}
+.pa .main.pk-run .aux{opacity:0; transition:opacity .2s}
+.pa .pk-ghost .gol{opacity:0}
+.pa .pk-ghost .go .mk .i{animation:none!important}
+/* the new page comes in as the station, come to rest, turns into its first bullet (push.ts); a statement that stayed does not come in again */
+.pa .main.pk-keep.tk-in .pathc > :first-child,.pa .main.pk-keep.tk-in .pathc > :first-child :is(.ptx,.pn > span,.pn > i.pnc,.pn > div){animation:none}
+.pa .main.pk-keep.tk-in .pathc > .vband{animation:none}
+.pa .main.pk-keep.tk-in .pvline .ptx,.pa .main.pk-keep.tk-in .pwhat{animation:p-tkin .42s ease-out both}
+/* the line along the statement was the gold of the question: it goes to the walked line's ink as the station starts to rise, when the step is taken */
+.pa .main:is(.pk-run,.sc-run) .pathc > .sx.pk-walked{--sc:color-mix(in srgb,var(--ink) 72%,var(--paper)); transition:--sc .35s ease}
+@media (prefers-reduced-motion:reduce){ .pa .pathc .pk-gone,.pa .pathc .pk-gone.pk-fb,.pa.pushback .pathc{transition:none} .pa .main:is(.pk-run,.sc-run) .pathc > .sx.pk-walked{transition:none} }
