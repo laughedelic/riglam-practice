@@ -56,18 +56,20 @@ function suggestion(it: Item, cats: readonly [string, string], open: readonly [b
  * The verdict on an example whose name leaves open a quality of the pair (`openSides`), written in cell `c` of a pair with the plain categories
  * `a` and `b` (negated as `neg` says): null when it is not such an example. A side the name does say that already goes against the cell makes
  * the example wrong ("bad"), whatever the open quality; otherwise it is open ("cmp" with `open`), with the words that would settle it. `say` is
- * that request as the tutor's note says it on each open side.
+ * that request as the tutor's note says it on each open side. `words` says the two categories as the question on screen does (a syllogism's reason and
+ * predicate); without it, each category's plain phrase.
  */
-export function vagueVerdict(ix: DataIndex, it: Item, typed: string, cats: readonly [string, string], c: CellId, neg?: Neg | null): { v: "bad" | "cmp"; msg: string[]; open: readonly [boolean, boolean]; say: string } | null {
+export function vagueVerdict(ix: DataIndex, it: Item, typed: string, cats: readonly [string, string], c: CellId, neg?: Neg | null, words?: readonly [string, string]): { v: "bad" | "cmp"; msg: string[]; open: readonly [boolean, boolean]; say: string } | null {
   const open = openSides(ix, it, cats[0], cats[1]);
   if (!open[0] && !open[1]) return null;
+  const word = (k: 0 | 1) => words?.[k] ?? catPhrase(ix.CAT[cats[k]]);
   const want = WANT[neg ? NEG_CELL[neg][c] : c], raw = typed.trim().replace(/[.!]+$/, ""), nm = cap(raw), named = suggestion(it, cats, open, want);
   const say = `the name “${raw}” does not say it` + (named ? `; name it, as in “${named}”` : "");
   for (const k of [0, 1] as const) {
     if (open[k]) continue;
     const is = it.c.includes(cats[k]);
-    if (is !== want[k]) return { v: "bad", msg: ["Belongs elsewhere. ", `${nm} is ${is ? "" : "not "}${catPhrase(ix.CAT[cats[k]])}, whatever the rest of it is.`], open, say };
+    if (is !== want[k]) return { v: "bad", msg: ["Belongs elsewhere. ", `${nm} is ${is ? "" : "not "}${word(k)}, whatever the rest of it is.`], open, say };
   }
-  const what = ([0, 1] as const).filter((k) => open[k]).map((k) => "whether it is " + catPhrase(ix.CAT[cats[k]])).join(" and ");
+  const what = ([0, 1] as const).filter((k) => open[k]).map((k) => "whether it is " + word(k)).join(" and ");
   return { v: "cmp", msg: ["Say which. ", `“${nm}” leaves open ${what}: name it${named ? `, as in “${named}”` : ""}.`], open, say };
 }

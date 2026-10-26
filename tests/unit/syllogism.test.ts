@@ -182,7 +182,7 @@ test("a counter-example whose name leaves the reason open is asked to say it; on
     { n: "an apple", t: "External form", c: ["ft", "form", "extf", "food"], may: ["red"] },
   ]));
   const c = syllogismOf(vix, "a tomato", "red", "food") as Syllogism; // whatever is red is food: no
-  expect(gradeExample(vix, c, "a ball")).toEqual({ v: "cmp", line: "“A ball” leaves open whether it is red: name it, as in “a red ball”." });
+  expect(gradeExample(vix, c, "a ball")).toEqual({ v: "cmp", line: `“A ball” leaves open whether it is ${c.reason}: name it, as in “a red ball”.` });
   expect(gradeExample(vix, c, "an apple")).toEqual({ v: "bad", line: `An apple is ${c.predicate}, whatever the rest of it is.` });
   expect(gradeExample(vix, c, "a red ball").v).toBe("ok");
 });
