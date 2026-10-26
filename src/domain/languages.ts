@@ -7,7 +7,7 @@ export type LangId = "ru" | "bo" | "skt" | "zh";
 export const LANGS: readonly { id: LangId; name: string; note: string }[] = [
   { id: "ru", name: "Russian", note: "the name of each term and, where there is one, its definition" },
   { id: "bo", name: "Tibetan", note: "the name in Tibetan script, with its Wylie transliteration" },
-  { id: "skt", name: "Sanskrit", note: "the name in transliteration" },
+  { id: "skt", name: "Sanskrit", note: "the name in Devanagari, with its transliteration" },
   { id: "zh", name: "Chinese", note: "the name in traditional and simplified characters, with its pinyin" },
 ];
 /** The languages that are only names (Russian is the definitions' language, kept apart). */
@@ -25,14 +25,14 @@ export interface TermName { id: LangId; lang: string; main: string; rest: string
 
 /**
  * The names of a term in the languages that are on, in the order of LANGS; a language the term has no name in is left out.
- * Tibetan is `བོད (wylie)`; Chinese `traditional（simplified，pinyin）`, the simplified only where it differs.
+ * Tibetan is `བོད (wylie)` and Sanskrit `देवनागरी (transliteration)`; Chinese `traditional（simplified，pinyin）`, the simplified only where it differs.
  */
-export function termNames(t: Pick<Term, "ru" | "wylie" | "bo" | "skt" | "zh" | "zhs" | "py">, on: readonly string[]): TermName[] {
+export function termNames(t: Pick<Term, "ru" | "wylie" | "bo" | "dev" | "skt" | "zh" | "zhs" | "py">, on: readonly string[]): TermName[] {
   const out: TermName[] = [];
   for (const { id } of LANGS) {
     if (!on.includes(id)) continue;
     if (id === "ru" && t.ru) out.push({ id, lang: "ru", main: t.ru, rest: "" });
-    else if (id === "skt" && t.skt) out.push({ id, lang: "sa-Latn", main: t.skt, rest: "" });
+    else if (id === "skt" && (t.dev || t.skt)) out.push({ id, lang: t.dev ? "sa-Deva" : "", main: t.dev || t.skt!, rest: t.dev && t.skt ? ` (${t.skt})` : "" });
     else if (id === "bo" && (t.bo || t.wylie)) out.push({ id, lang: t.bo ? "bo" : "", main: t.bo || t.wylie!, rest: t.bo && t.wylie ? ` (${t.wylie})` : "" });
     else if (id === "zh" && (t.zh || t.zhs)) {
       const inner = [t.zhs && t.zhs !== t.zh ? t.zhs : "", t.py].filter(Boolean).join("，");

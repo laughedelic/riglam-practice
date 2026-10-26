@@ -94,7 +94,7 @@ export const languagesOn = (): string[] => [...(state.defLang === "enru" ? ["ru"
 export function Names({ term, skip = [] }: { term: string; skip?: string[] }) {
   const t = state.DATA!.terms[term]; if (!t) return null;
   const names = termNames(t, languagesOn()).filter((n) => !skip.includes(n.id));
-  return names.length ? <p class="tstop-names">{names.map((n) => <span class="nm"><span lang={n.lang || undefined}>{n.main}</span>{n.rest}</span>)}</p> : null;
+  return names.length ? <p class="tstop-names">{names.map((n) => <span class="nm" data-lang={n.id}><span lang={n.lang || undefined}>{n.main}</span>{n.rest}</span>)}</p> : null;
 }
 
 /** The definition of a term in words: where it comes from, the English text and, if chosen, the Russian. Nothing when this device cannot read one. */

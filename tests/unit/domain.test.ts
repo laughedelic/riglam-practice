@@ -2021,15 +2021,18 @@ test("a term's names by language: Tibetan with its Wylie, Chinese in traditional
   expect(termNames(t, [])).toEqual([]);
   expect(termNames(t, ["bo", "zh"]).map((n) => n.main + n.rest)).toEqual(["སྒྲའི་སྐྱེ་མཆེད (sgra'i skye mched)", "聲處（声处，shēng chù）"]);
   // always in the order of LANGS, whatever the order they were ticked in; Russian and Sanskrit are plain
-  expect(termNames(t, ["skt", "ru"]).map((n) => n.id + ":" + n.main + n.rest)).toEqual(["ru:база звука", "skt:śabdāyatana"]);
+  expect(termNames(t, ["skt", "ru"]).map((n) => n.id + ":" + n.main + n.rest)).toEqual(["ru:база звука", "skt:शब्दायतन (śabdāyatana)"]);
   // the simplified form is left out where it is the same, and a name a term lacks leaves its language out
   expect(termNames({ zh: "色", zhs: "色", py: "sè" }, ["zh", "bo", "ru"])).toEqual([{ id: "zh", lang: "zh-Hant", main: "色", rest: "（sè）" }]);
   expect(termNames({ wylie: "gzugs" }, ["bo"])).toEqual([{ id: "bo", lang: "", main: "gzugs", rest: "" }]);
-  // every term of the course has a name in each language that names it
+  // a Sanskrit name without its script stays in transliteration
+  expect(termNames({ skt: "rūpa" }, ["skt"])).toEqual([{ id: "skt", lang: "", main: "rūpa", rest: "" }]);
+  // every term of the course has a name in each language that names it, and every Sanskrit one its Devanagari
   for (const [name, term] of Object.entries(openData.terms)) {
     const names = termNames(term as Parameters<typeof termNames>[0], ["bo", "zh"]);
     expect(names.map((n) => n.id), name).toEqual(["bo", "zh"]);
     expect(names[0]!.rest, name).toBe(` (${term.wylie})`);
+    expect(!!(term as { dev?: string }).dev, name).toBe(!!(term as { skt?: string }).skt);
   }
   expect(LANGS.map((l) => l.id)).toEqual(["ru", "bo", "skt", "zh"]);
 });
