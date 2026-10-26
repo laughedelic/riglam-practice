@@ -129,11 +129,14 @@ test("the line: Syllogisms' counter-example may stay empty, and its piece of lin
 test("Pervasions: four questions answered on the path, a counter-example for Why, then the relation, and the result", async ({ page }) => {
   await open(page, "Pervasions");
   await expect(choices(page)).toHaveCount(2);   // Accept and Why?
-  // a question is numbered in the margin (Q1), its concise form (A → not B) opens its row, and the statement asked ends with a question mark
+  // a question is numbered in the margin (Q1), its concise form (A → not B) opens its row, and the statement asked ends with no punctuation: the lead above the stop asks
   const now = page.locator("#path .sb.now");
   await expect(now.locator(".qnm")).toHaveText("Q1");
   await expect(now.locator(".qsym")).toHaveText(/^A\s*not B$/);
-  await expect(now.locator(".qst")).toHaveText(/\?$/);
+  await expect(now.locator(".qst")).not.toHaveText(/[.?!]$/);
+  const lead = await page.locator("#path .qlead.above").boundingBox(), sym0 = await now.locator(".qsym").boundingBox(), dia0 = await now.locator(".d").boundingBox();
+  expect(lead.y + lead.height, "the lead stands above the question's row").toBeLessThanOrEqual(sym0.y + 2);
+  expect(Math.abs(dia0.y + dia0.height / 2 - (sym0.y + sym0.height / 2)), "the diamond stays level with the question's short form").toBeLessThan(10);
   await expect(page.locator("#path .sb.later .qnm")).toHaveText(["Q2", "Q3", "Q4"]);
   const [num, dia, form] = await Promise.all([now.locator(".qnm").boundingBox(), now.locator(".d").boundingBox(), now.locator(".qsym").boundingBox()]);
   expect(num.x + num.width).toBeLessThan(dia.x);   // left of the stop, in the margin
