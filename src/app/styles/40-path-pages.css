@@ -77,6 +77,9 @@
 .pa .pflg .i{width:14px; height:14px}
 .pa .pflg.on{color:var(--red)}
 .pa .pflg.active{color:var(--ink)}
+/* the mark is 14px: a tap target of 40px around it, which the look does not show (a finger could not hit the 14 by 24 it had); above what follows it, which would cut the area short */
+.pa .pflg{position:relative; z-index:1}
+.pa .pflg::after{content:""; position:absolute; inset:-8px -13px}
 .pa .pflgrow{display:flex; justify-content:flex-end; margin-top:2px}
 .pa .pflgrow .pflg{margin-left:0}
 @media (hover:hover){ .pa .pflg:hover{color:var(--ink)} .pa .pflg.on:hover{color:var(--red)} }

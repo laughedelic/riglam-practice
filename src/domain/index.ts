@@ -18,7 +18,7 @@ export { FIND_RELS, drawRelation, findId, findPair, gradeFind, nameThing, sameTh
 export type { Named } from "./find";
 export { cellFor, cellOfFacts, disputeText, divided, quorumDisputes, quorumRows, readings } from "./quorum";
 export type { Dispute, QuorumAnswer, QuorumRow, QuorumThing, Reading } from "./quorum";
-export { catChain, knownClass, listedItem, rung, termPhrase } from "./ladder";
+export { catChain, classSays, knownClass, listedItem, rung, termPhrase } from "./ladder";
 export type { Rung } from "./ladder";
 export { FACTS_EPOCH, FACT_LIMITS, factKey, knownLine, learn, opinionOf, ruleSide, servable } from "./learned";
 export { failsCell, openExamples, referenceLines, wholeFirst } from "./known";

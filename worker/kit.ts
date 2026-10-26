@@ -5,7 +5,7 @@
 import { GUIDE, REVIEW_GUIDE, finePoints, makeExampleIndex, makeIndex, readExamples, reviewRequest, tutorTools } from "../src/ai-shared";
 import type { DrillData, ExampleIndex, ReviewAnswer, ReviewFlag } from "../src/ai-shared";
 import { merge } from "../src/data/course.js";
-import { knownClass } from "../src/domain/ladder";
+import { classSays, knownClass } from "../src/domain/ladder";
 import { readCourseRow, readCourseRows, type CourseRows } from "./course";
 import type { Env } from "./env";
 
@@ -27,6 +27,8 @@ export interface Kit {
   isCat(id: string): boolean;
   /** the term the data has under this name (the case and an article do not matter), or "" */
   knownClass(name: string): string;
+  /** what the data's steps say of an example of this class and this category (its id): yes, no, or null when they say nothing */
+  settles(cls: string, cat: string): "yes" | "no" | null;
   /** the system prompt of a reviewer of flags (the tools are the tutor's) */
   reviewGuide: string;
   /** the first message of a review: the card for the pair, what the tutor said and the flag; the pair of the answer must be one the data knows */
@@ -64,6 +66,7 @@ export async function kitFrom(openData: object, course: Pick<CourseRows, "defini
     finePoints: (cats) => finePoints(ix, cats),
     isCat: (id) => Object.hasOwn(ix.CAT, id),
     knownClass: (name) => knownClass(ix, name),
+    settles: (cls, cat) => (Object.hasOwn(ix.CAT, cat) ? classSays(ix, cls, ix.CAT[cat]) : null),
     reviewGuide: REVIEW_GUIDE,
     reviewRequest: (flag, answer) => reviewRequest(ix, flag, answer),
   };

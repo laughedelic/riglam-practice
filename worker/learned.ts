@@ -5,7 +5,7 @@ import type { ExplainExample, KnownFact } from "../src/ai/protocol";
 import { CELL_NAME } from "../src/ai-shared/prompts";
 import { failsCell, wholeFirst } from "../src/domain/known";
 import { FACTS_EPOCH, FACT_LIMITS, factKey, knownLine, learn, opinionOf, ruleSide, servable, type FactRow, type FactSource, type Opinion } from "../src/domain/learned";
-import type { Answer } from "../src/domain/verdict";
+import type { Answer, Side } from "../src/domain/verdict";
 import type { Kit } from "./kit";
 
 /** One answer to the explain question: a model's (the tutor's, or one of Quorum's), or the judge's. */
@@ -55,7 +55,7 @@ function writeRow(db: D1Database, thing: string, cat: string, row: FactRow, isNe
  */
 export async function keepFacts(
   db: D1Database,
-  p: { kit: Pick<Kit, "isCat" | "knownClass">; cats: readonly string[]; examples: readonly ExplainExample[]; analyses: readonly Analysis[]; quorum: boolean; day: string; maxRows: number },
+  p: { kit: Pick<Kit, "isCat" | "knownClass" | "settles">; cats: readonly string[]; examples: readonly ExplainExample[]; analyses: readonly Analysis[]; quorum: boolean; day: string; maxRows: number },
 ): Promise<number> {
   const [catA, catB] = p.cats;
   if (p.cats.length !== 2 || !catA || !catB || catA === catB || !p.kit.isCat(catA) || !p.kit.isCat(catB)) return 0;
@@ -69,7 +69,14 @@ export async function keepFacts(
   for (const [thing, text] of things) {
     const said = (a: Analysis): Opinion | null => {
       const o = opinionOf(a.text, text);
-      return o ? { ...o, cls: p.kit.knownClass(o.cls), name: a.name, model: a.model, judge: !!a.judge } : null;
+      if (!o) return null;
+      const cls = p.kit.knownClass(o.cls);
+      // an answer that goes against what the data says of the class the same line names contradicts itself (a slip in one of the two), so it votes "unsure" on that side
+      const sides = o.sides.map((s, i) => {
+        const says = cls && s.answer !== "unsure" ? p.kit.settles(cls, p.cats[i]!) : null;
+        return says && says !== s.answer ? { answer: "unsure" as Answer, say: "" } : s;
+      }) as [Side, Side];
+      return { ...o, sides, cls, name: a.name, model: a.model, judge: !!a.judge };
     };
     // a model whose answer leaves the example out has not confirmed it: it votes "unsure" where another model named it, so two others agreeing are not unanimous
     const heard = p.analyses.filter((a) => !a.judge).map((a) => ({ a, o: said(a) }));

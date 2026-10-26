@@ -18,9 +18,9 @@ const line = (cell: string, example: string, a: string, b: string) => `${cell}: 
 const text = (...lines: string[]): Round => ({ text: [lines.join("\n")], usage: { input: 1000, output: 200 } });
 const TABLE = [{ cell: "both", text: "A table" }];
 
-async function explain(s: Setup, rounds: Record<string, Round[]>, over: Record<string, unknown> = {}, env: Partial<Env> = {}) {
+async function explain(s: Setup, rounds: Record<string, Round[]>, over: Record<string, unknown> = {}, env: Partial<Env> = {}, kit = fakeKit().kit) {
   const models = fakeModels(rounds);
-  const app = createApp({ kit: async () => fakeKit().kit, fetch: models.fetch, now: () => NOW, retries: 0 });
+  const app = createApp({ kit: async () => kit, fetch: models.fetch, now: () => NOW, retries: 0 });
   const res = await app.request("/api/tutor", { method: "POST", headers: s.headers(), body: ask({ examples: TABLE, share: true, ...over }) }, { EXAMPLE_FACTS: "record", ...s.env, ...env } as Env);
   return { res, got: await events(res), models };
 }
@@ -45,6 +45,15 @@ describe("learned facts", () => {
     const s = await setup();
     await explain(s, { [SONNET]: [{ text: [line("Both", "a table", "no", "no")], tool: { id: "t1", name: "lookup_term", input: { name: "Form" } } }, text(line("Both", "a table", "yes", "yes"))] });
     expect(facts(s).map((r) => r.answer)).toEqual(["yes", "yes"]);
+  });
+
+  it("count an answer that goes against what the data says of its own class as unsure on that side: a slip is not kept as a fact", async () => {
+    const s = await setup();
+    const kit = fakeKit({ settles: (cls, cat) => (cls === "Table" && cat === "c_form" ? "yes" : null) }).kit;
+    await explain(s, { [SONNET]: [text(line("Both", "a table", "no", "no"))] }, {}, {}, kit);
+    expect(facts(s).map((r) => [r.cat, r.answer, r.state])).toEqual([["c_form", "unsure", "candidate"], ["c_round", "no", "candidate"]]);
+    await explain(s, { [SONNET]: [text(line("Both", "a table", "yes", "no"))] }, {}, {}, kit);
+    expect(facts(s).map((r) => [r.cat, r.answer, r.state])).toEqual([["c_form", "yes", "candidate"], ["c_round", "no", "checked"]]);
   });
 
   it("a second answer that agrees makes a fact checked, one that does not makes it disputed", async () => {
