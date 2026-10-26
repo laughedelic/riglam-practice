@@ -18,6 +18,7 @@ import { Choices, ErrLines, GuideNote, PairResult, PairStops, StageOffer, Thinki
 import { relChoices } from "./relations.tsx";
 import { FlagBtn, FlagEditor, explainCase } from "./flags.tsx";
 import { Scroll } from "./scroll.tsx";
+import { nextName } from "./next.ts";
 import { Foot, PreStation, SkipSide, Station, TopBar, VoiceBar } from "./shell.tsx";
 import { Sub, markNames } from "./subjects.tsx";
 import { D, Gap, Head, Icon, Mark, St, Sx, nofillInput } from "./ui.tsx";
@@ -132,7 +133,7 @@ function ResultStep() {
       <ErrLines />
       <Sx cls="ptail" />
     </Scroll>
-    <Foot><Station name={nextFwd().label} act={() => next()} /></Foot>
+    <Foot><Station name={nextName(nextFwd().label)} act={() => next()} /></Foot>
   </>;
 }
 

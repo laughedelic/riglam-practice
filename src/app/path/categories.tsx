@@ -13,6 +13,7 @@ import { refreshPath } from "./index.tsx";
 import { Choices, ErrLines, SkipMark, StageOffer, Verdict, pickThen, u0 } from "./parts.tsx";
 import { Scroll } from "./scroll.tsx";
 import { TermTags } from "./terms.tsx";
+import { nextName } from "./next.ts";
 import { Foot, PreStation, SkipSide, Station, TopBar } from "./shell.tsx";
 import { D, Gap, Head, Mark, St, Sx } from "./ui.tsx";
 
@@ -100,7 +101,7 @@ function CheckedStep() {
       <ErrLines />
       <Sx cls="ptail" />
     </Scroll>
-    <Foot>{u.checked ? <Station name="Next" hint="another thing" act={() => next()} /> : <Station name="Continue" hint="the most specific" act={continueCategories} />}</Foot>
+    <Foot>{u.checked ? <Station name={nextName("Next thing")} act={() => next()} /> : <Station name="Continue" hint="the most specific" act={continueCategories} />}</Foot>
   </>;
 }
 
@@ -136,7 +137,7 @@ function ResultStep() {
       <ErrLines />
       <Sx cls="ptail" />
     </Scroll>
-    <Foot><Station name="Next" hint="another thing" act={() => next()} /></Foot>
+    <Foot><Station name={nextName("Next thing")} act={() => next()} /></Foot>
   </>;
 }
 

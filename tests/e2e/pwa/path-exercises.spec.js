@@ -39,6 +39,7 @@ test("Syllogisms: the syllogism in its three parts, the three replies, and the r
   }
   await expect(verdict(page)).toContainText("Right");
   await expect(page.locator("#path .plead")).toHaveText(say + ".");   // the reply as it was said, with no "You answered" before it
+  await expect(station(page), "the next station says what comes next").toHaveAccessibleName(/^Next syllogism/);
   await expect(page.locator("#path .chk")).toHaveCount(3);
   await expect.poll(async () => (await saved(page, "syllogism")).length).toBe(1);
   expect((await saved(page, "syllogism"))[0]).toMatchObject({ said: c.answer, answer: c.answer });
@@ -216,6 +217,7 @@ test("Categories: the categories ticked on the path, the check, the most specifi
     await expect(verdict(page)).toContainText("Right");
     await expect(page.locator("#path .pline")).not.toHaveCount(0);   // the line from the most specific up
   }
+  await expect(station(page)).toHaveAccessibleName(/^Next thing/);
   await expect.poll(async () => (await saved(page, "categories")).length).toBe(1);
 });
 
@@ -242,6 +244,7 @@ test("Find an instance: the categories as stops, a thing written, the check, and
   await field.press("Enter");
   await expect(verdict(page)).toContainText("Right");
   await expect(page.locator("#path .catrow")).toHaveCount(q.cats.length);
+  await expect(station(page)).toHaveAccessibleName(/^Next set/);
   await expect.poll(async () => (await saved(page, "instance")).length).toBe(1);
   expect((await saved(page, "instance"))[0]).toMatchObject({ cats: q.cats, possible: true, said: q.known[0], thing: q.known[0], grade: "ok" });
 });
