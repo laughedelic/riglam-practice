@@ -1206,6 +1206,30 @@ test("the real data: Syllogisms keep to everyday reasons and predicates up to st
   }
 });
 
+test("the real data: Syllogisms ask a share of the stage's open terms, with the course's terms even where the rest is everyday", () => {
+  const on = [1, 2, 3], open = new Set(["col", "shape"]);
+  const draws = (share: number | undefined, o: ReadonlySet<string> | undefined, level?: 1 | 2) =>
+    Array.from({ length: 300 }, (_, s) => drawSyllogism(rix, { hist: [], recent: [], rng: seeded(s), stages: on, open: o, newShare: share, level }));
+  const asks = (c: { catR: string; catP: string }) => open.has(c.catR) || open.has(c.catP);
+  // the whole share: every syllogism has an open term as its reason or predicate, a color or a shape at stage 2 where Syllogisms are everyday otherwise
+  for (const c of draws(1, open)) expect(asks(c), c.id).toBe(true);
+  // none of it, no open terms, or the everyday level asked for: the plain draw
+  for (const c of draws(0, open)) expect([rix.CAT[c.catR].kind, rix.CAT[c.catP].kind], c.id).toEqual(["everyday", "everyday"]);
+  for (const c of draws(1, undefined)) expect([rix.CAT[c.catR].kind, rix.CAT[c.catP].kind], c.id).toEqual(["everyday", "everyday"]);
+  for (const c of draws(1, open, 1)) expect([rix.CAT[c.catR].kind, rix.CAT[c.catP].kind], c.id).toEqual(["everyday", "everyday"]);
+  // half of it: some, not all
+  const half = draws(0.5, open).filter(asks).length;
+  expect(half).toBeGreaterThan(90);
+  expect(half).toBeLessThan(210);
+  // every situation the data can make with an open term is reached, and the subjects are things of the stages that are on
+  const sits = new Set(draws(1, open).map((c) => c.situation));
+  expect(sits.size).toBeGreaterThan(4);
+  for (const c of draws(1, open)) {
+    const it = real.items.find((i) => i.n === c.subject)!;
+    expect(itemOn(rix, it, c.catR, c.catP, on) || itemOn(rix, it, c.catP, c.catR, on), c.id).toBe(true);
+  }
+});
+
 // A note takes the steps the term data gives: up the "is a" chain to the term, or up to a class the data marks as excluding one
 // the term is in, with why under it. A listed example is placed as the grading places it; elsewhere the tutor's class counts.
 test("a note states the term data's steps: up the chain to the term, or to the class that excludes it", () => {

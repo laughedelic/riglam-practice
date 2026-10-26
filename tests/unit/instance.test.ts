@@ -3,7 +3,7 @@
 import { expect, test } from "vitest";
 import { makeExampleIndex, makeIndex } from "../../src/ai-shared";
 import type { DrillData, Example } from "../../src/ai-shared";
-import { apartOf, drawInstance, gradeInstance, inAll, instanceKey, instanceQuestion, itemStageIn, setStage } from "../../src/domain/instance";
+import { apartOf, drawInstance, gradeInstance, inAll, instanceGraded, instanceKey, instanceQuestion, itemStageIn, setStage } from "../../src/domain/instance";
 import { catStage } from "../../src/domain/stages";
 import openData from "../../src/data/drill-data.json";
 
@@ -256,4 +256,38 @@ test("gradeInstance: a reference example, by its classes", () => {
   const horn = gradeInstance(ix(), q(["ft"]), { text: "the horn of a hare" }, eix, seeded(6));
   expect(horn).toMatchObject({ v: "bad", from: "example" });
   expect(horn.rows[0]).toMatchObject({ answer: false, reason: "it does not exist" });
+});
+
+test("drawInstance: a set with a term not met yet waits, and a share of the sets have one of the stage's open terms", () => {
+  const data = makeIndex(openData as unknown as DrillData), on = [1, 2, 3];
+  const vis = Object.values(data.CAT).filter((c) => c.kind === "dudra" && catStage(c) === 2).map((c) => c.id), open = new Set(vis);
+  // the terms of stage 3 are not met: no set has one, though stage 3 is on
+  const waiting = new Set(Object.values(data.CAT).filter((c) => catStage(c) === 3).map((c) => c.id));
+  for (let s = 0; s < 200; s++) for (const c of drawInstance(data, { rng: seeded(s), stages: on, unmet: waiting })!.cats) expect(waiting.has(c), c).toBe(false);
+  // open terms: every set when the whole share is theirs, a share of them by default, and none of them is no lean
+  const asks = (share: number | undefined) => Array.from({ length: 300 }, (_, s) => drawInstance(data, { rng: seeded(s), stages: on, unmet: waiting, open, newShare: share })!).filter((d) => d.cats.some((c) => open.has(c))).length;
+  expect(asks(1)).toBe(300);
+  expect(asks(0.5)).toBeGreaterThan(asks(0));
+  expect(asks(0.5)).toBeLessThan(300);
+});
+
+test("instanceGraded: a right thing ticks each category of the set, a right \"nothing is\" the two that exclude each other, a wrong answer none", () => {
+  const data = makeIndex(openData as unknown as DrillData);
+  // a color that is a form source: the red of a rose is both
+  const q = instanceQuestion(data, ["col", "vis"], seeded(3), [1, 2, 3]);
+  expect(q.possible, "a color is a form source").toBe(true);
+  const said = gradeInstance(data, q, { text: "the red of a rose" });
+  expect(said.v).toBe("ok");
+  expect(instanceGraded(q, said, false)).toEqual(q.cats.map((cat) => ({ cat, ok: true })));
+  expect(instanceGraded(q, gradeInstance(data, q, { none: true }), true)).toEqual([]);
+  expect(instanceGraded(q, gradeInstance(data, q, { text: "a cloud of nothing in particular" }), false)).toEqual([]);
+  // a set where nothing can be: "nothing is" is right and proves the two categories that exclude each other
+  for (let s = 0; s < 80; s++) {
+    const a = drawInstance(data, { rng: seeded(s), stages: [1, 2, 3, 4] })!;
+    if (!a.apart) continue;
+    const none = gradeInstance(data, a, { none: true });
+    expect(none.v).toBe("ok");
+    expect(instanceGraded(a, none, true).map((g) => g.cat).sort()).toEqual([a.apart.a, a.apart.b].sort());
+    expect(instanceGraded(a, none, true).every((g) => g.ok)).toBe(true);
+  }
 });

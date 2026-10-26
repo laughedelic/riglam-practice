@@ -7,8 +7,8 @@ import { persist } from "../practice/answers.js";
 import { explainByItself } from "../ai/tutor.js";
 import { startQ, stopTimer } from "../debate/flow.js";
 import { freshUi } from "../practice/queue.js";
-import { catsStageNow, stageStep } from "../practice/stage-offer.ts";
-import { gradeTerms, unmetNow } from "../practice/stops.ts";
+import { catsStageNow, shareNow, stageStep } from "../practice/stage-offer.ts";
+import { gradeTerms, openNow, unmetNow } from "../practice/stops.ts";
 import { render, top0 } from "../shell/render.js";
 import { REPLIES, drawSyllogism, gradeSyllogism, gradeTimeout, gradeExample } from "../../domain/syllogism.ts";
 
@@ -47,9 +47,9 @@ function expireSyllogism(u){
   finishSyllogism();
 }
 
-/** Draws the next syllogism, from what the learner has answered so far and the stages that are on (everyday ones up to stage 3). */
+/** Draws the next syllogism, from what the learner has answered so far and the stages that are on (everyday ones up to stage 3, except for the terms of the stage that are not right yet). */
 export function advanceSyllogism(){
-  const c=drawSyllogism(state,{hist:syllogismList().slice(-40),recent:state.syllogismRecent,stages:state.stages,unmet:unmetNow(),...(state.syllogismEveryday?{level:1}:{})});
+  const c=drawSyllogism(state,{hist:syllogismList().slice(-40),recent:state.syllogismRecent,stages:state.stages,unmet:unmetNow(),open:openNow(),newShare:shareNow(),...(state.syllogismEveryday?{level:1}:{})});
   state.cur=/** @type {any} */({p:null,syllogism:true,c}); state.ui=freshSyllogismUi(); state.mode="quiz";
   if(state.blitz&&syllogismAsking()) startQ();         // not yet on this screen when the exercise is opened from another: setTab starts it then
 }

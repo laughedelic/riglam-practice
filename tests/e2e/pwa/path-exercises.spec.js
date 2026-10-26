@@ -268,6 +268,33 @@ test("Find an instance: the categories as stops, a thing written, the check, and
   expect((await saved(page, "instance"))[0]).toMatchObject({ cats: q.cats, possible: true, said: q.known[0], thing: q.known[0], grade: "ok" });
 });
 
+// A device that has met the terms of stage 2 at their stops and is still meeting them (box 1): the terms are open, and the exercises that cannot grade them
+// by their own question still ask them (src/domain/syllogism.ts, instance.ts) and count a right answer for each
+const OPEN2 = ["extf", "col", "shape", "vis"];
+const meeting = () => {
+  const terms = { form: { box: 3, shows: 1 } };
+  for (const id of ["extf", "col", "shape", "vis"]) terms[id] = { box: 1, shows: 1, at: 0 };
+  localStorage.setItem("rd-stages", "1,2"); localStorage.setItem("rd-terms", JSON.stringify({ n: 10, next: 1000, terms }));
+};
+
+test("Syllogisms at stage 2 ask the terms of the stage that are not right yet, with the course's words", async ({ page }) => {
+  await page.addInitScript(meeting);
+  await open(page, "Syllogisms");
+  expect(await page.evaluate((ids) => { for (let i = 0; i < 80; i++) { const c = window.__t.cur.c; if (ids.includes(c.catR) || ids.includes(c.catP)) return true; window.__t.next(); } return false; }, OPEN2)).toBe(true);
+});
+
+test("Find an instance at stage 2 asks the open terms, and a right thing counts for each category of its set", async ({ page }) => {
+  await page.addInitScript(meeting);
+  await open(page, "Find an instance");
+  const q = await page.evaluate((ids) => { for (let i = 0; i < 80; i++) { const q = window.__t.cur.iq; if (q.possible && q.cats.some((c) => ids.includes(c))) return q; window.__t.skipPair(); } return null; }, OPEN2);
+  expect(q, "a set with an open term").not.toBeNull();
+  await page.locator("#iin").fill(q.known[0]);
+  await page.locator("#iin").press("Enter");
+  await expect(verdict(page)).toContainText("Right");
+  const boxes = await page.evaluate(([cats]) => cats.map((c) => [c, window.__t.intro.terms[c]?.box]), [q.cats]);
+  for (const [c, box] of boxes) if (OPEN2.includes(c)) expect(box, c).toBe(2);
+});
+
 test("Find an instance: \"nothing is\" where the categories exclude each other, and why", async ({ page }) => {
   await open(page, "Find an instance");
   const q = await drawInstance(page, false);

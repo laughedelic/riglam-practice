@@ -17,7 +17,7 @@ import { NO_TERMS, catStage, exerciseAfter, movedUp, newShare, pairStage, restar
 
 const ix = () => state as unknown as DataIndex;
 /** What a mistake in each exercise says about the words (src/domain/stages.ts, MissKind). */
-const MISS: Record<string, MissKind> = { practice: "words", categories: "words", debate: "pair", find: "form", syllogism: "form" };
+const MISS: Record<string, MissKind> = { practice: "words", categories: "words", debate: "pair", find: "form", syllogism: "form", instance: "form" };
 const shows = (ex: string) => state.design === "path" || ex === "categories";
 
 /** The stage a pair is new at: its categories' and the things that fill its cells (pairStage); for a pair the stages cannot draw, its categories'. */
