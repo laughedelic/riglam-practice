@@ -1,13 +1,14 @@
 // Claude's verdicts on examples the page could not classify. The tutor answers an "explain" request with one line per
 // cell, ending in "=> yes", "=> no" or "=> unsure"; the lines are read here and settle the cells still marked "cmp".
 import { QCELL } from "../ai-shared/debate";
-import { pairCats } from "../ai-shared/lookup";
+import { matchItem, pairCats } from "../ai-shared/lookup";
 import type { DataIndex } from "../ai-shared/lookup";
 import { CELLS, REL, negSides, refOf } from "../ai-shared/relations";
 import type { CellId, PairLike, RelKey } from "../ai-shared/relations";
 import { summarize } from "./grading";
 import { classSays, knownClass, listedItem, rung, termPhrase } from "./ladder";
 import { FEATURE } from "./universe";
+import { vagueVerdict } from "./vague";
 import type { GradeResult } from "./types";
 
 /** The end of a verdict line, which the page hides when it shows the tutor's answer. */
@@ -97,12 +98,20 @@ export interface NoteData { ix: DataIndex; p: PairLike; terms: Terms }
  * grading would: an alias ("an apple" for "a red apple") settles a side such as food, but not one about a feature such as red. On a negated side
  * ("non-(wooden things)") the data's answer is the reverse of the category's. An answer of the tutor's that goes against what the data's steps
  * say of its own class ("External form", yet "no" to a form) is a line that contradicts itself: nothing says which of the two is the slip, so
- * the side is unsure (`clash`).
+ * the side is unsure (`clash`). A listed item whose name leaves a side's quality open ("a car" for black things) is unsure there, whatever the
+ * tutor wrote, as the grading leaves it (vague.ts); `open` is what the note then asks for on that side.
  */
-export function placeFacts(f: FactLine, d?: NoteData): { cats: readonly [string | null, string | null]; cls: string; answers: readonly [Answer, Answer]; clash: readonly [boolean, boolean] } {
+export function placeFacts(f: FactLine, d?: NoteData): { cats: readonly [string | null, string | null]; cls: string; answers: readonly [Answer, Answer]; clash: readonly [boolean, boolean]; open: readonly [string, string] } {
   // a pair of the learner's own (Find a pair) is one the data cannot judge, so everything about its examples is the tutor's, even when both phenomena are categories
-  if (!d || d.p.own) return { cats: [null, null], cls: "", answers: [f.a.answer, f.b.answer], clash: [false, false] };
-  const cats = pairCats(d.ix, d.p), any = cats[0] ? listedItem(d.ix, d.p, f.example, false) : null, neg = negSides(d.p);
+  if (!d || d.p.own) return { cats: [null, null], cls: "", answers: [f.a.answer, f.b.answer], clash: [false, false], open: ["", ""] };
+  const cats = pairCats(d.ix, d.p), neg = negSides(d.p);
+  const named = cats[0] && cats[1] ? matchItem(d.ix, f.example, FEATURE.has(cats[0]) || FEATURE.has(cats[1])) : null;
+  const vg = named && cats[0] && cats[1] ? vagueVerdict(d.ix, named, f.example, [cats[0], cats[1]], f.cell, d.p.neg) : null;
+  if (named && vg) {
+    const side = (k: 0 | 1): Answer => (vg.open[k] ? "unsure" : named.c.includes(cats[k]!) !== neg[k] ? "yes" : "no");
+    return { cats, cls: named.t, answers: [side(0), side(1)], clash: [false, false], open: [vg.open[0] ? vg.say : "", vg.open[1] ? vg.say : ""] };
+  }
+  const any = cats[0] ? listedItem(d.ix, d.p, f.example, false) : null;
   const cls = any ? any.t : knownClass(d.ix, f.cls);
   const on = (cid: string | null, s: Side, not: boolean): { answer: Answer; clash: boolean } => {
     const it = cid && any ? (FEATURE.has(cid) ? listedItem(d.ix, d.p, f.example, true) : any) : null;
@@ -111,7 +120,7 @@ export function placeFacts(f: FactLine, d?: NoteData): { cats: readonly [string 
     return says && s.answer !== ((says === "yes") !== not ? "yes" : "no") ? { answer: "unsure", clash: true } : { answer: s.answer, clash: false };
   };
   const a = on(cats[0], f.a, neg[0]), b = on(cats[1], f.b, neg[1]);
-  return { cats, cls, answers: [a.answer, b.answer], clash: [a.clash, b.clash] };
+  return { cats, cls, answers: [a.answer, b.answer], clash: [a.clash, b.clash], open: ["", ""] };
 }
 
 /**
@@ -121,12 +130,12 @@ export function placeFacts(f: FactLine, d?: NoteData): { cats: readonly [string 
  * (`rung`: up the chain to the term, or to a class that excludes it) takes those steps instead of the tutor's.
  */
 export function noteParts(f: FactLine, accepted: boolean, d?: NoteData): NotePart[] {
-  const { cats, cls, answers, clash } = placeFacts(f, d), neg = d ? negSides(d.p) : [false, false];
+  const { cats, cls, answers, clash, open } = placeFacts(f, d), neg = d ? negSides(d.p) : [false, false];
   const out: NotePart[] = [{ kind: "take", subject: f.example }];
   let said = "";
   for (const [k, side, s] of [[0, "A", f.a], [1, "B", f.b]] as const) {
     const cid = cats[k], cat = d && cid ? d.ix.CAT[cid] : null, answer = answers[k];
-    if (answer === "unsure") { out.push({ kind: "unsure", side, say: clash[k] ? `Claude's class for it (${termPhrase(cls).replace(/^an? /, "")}) and its answer disagree` : plain(s.say) }); continue; }
+    if (answer === "unsure") { out.push({ kind: "unsure", side, say: open[k] || (clash[k] ? `Claude's class for it (${termPhrase(cls).replace(/^an? /, "")}) and its answer disagree` : plain(s.say)) }); continue; }
     const r = readSide(s), own = answer === s.answer; // the tutor's reason is kept only for its own answer
     // the steps of the data lead to the category, not to its negation: a negated side keeps the tutor's reason
     const g = d && cat && cls && !neg[k] ? rung(d.ix, cls, cat, side === "A" ? d.terms.a : d.terms.b, own ? r.reason : "") : null;
@@ -139,7 +148,9 @@ export function noteParts(f: FactLine, accepted: boolean, d?: NoteData): NotePar
   const fit = fitOf({ cell: f.cell, a: { answer: answers[0], say: "" }, b: { answer: answers[1], say: "" } });
   const q = "Q" + (QCELL.indexOf(f.cell) + 1);
   if (fit === "no") out.push({ kind: "end", text: accepted ? `So it does not fit the cell of ${q} and is not a counter-example.` : "So it does not fit." });
-  if (fit === "unsure") out.push({ kind: "end", text: accepted ? "Claude is unsure whether it is a counter-example." : "Claude is unsure whether it fits." });
+  // an example whose name leaves a side open is not Claude's doubt: the page asks for the word
+  if (fit === "unsure" && (open[0] || open[1])) out.push({ kind: "end", text: accepted ? "So it is a counter-example only once its name says which." : "So it fits only once its name says which." });
+  else if (fit === "unsure") out.push({ kind: "end", text: accepted ? "Claude is unsure whether it is a counter-example." : "Claude is unsure whether it fits." });
   return out;
 }
 /** The note as plain text, a line per part, for where the page has no markers to show (a flag on the note keeps this text). */
@@ -157,21 +168,26 @@ export function partsText(parts: readonly NotePart[], terms: Terms): string {
 }
 export const factNote = (f: FactLine, accepted: boolean, terms: Terms, d?: NoteData): string => partsText(noteParts(f, accepted, d), terms);
 
-/** The verdicts in the tutor's text, in order. A line with the two facts gives the verdict its facts give (with the term data, as `placeFacts` settles them); otherwise a line of the form `<cell>: <example> => yes|no|unsure` does. Other lines are ignored, also when bulleted or in bold. */
+/**
+ * The verdicts in the tutor's text, one per cell, in the order the cells first appear. A line with the two facts gives the verdict its facts give (with the term data, as `placeFacts` settles them);
+ * otherwise a line of the form `<cell>: <example> => yes|no|unsure` does. A cell the text has more than one line for (the tutor wrote a line and then corrected it)
+ * takes the last, which is the one the note shows. Other lines are ignored, also when bulleted or in bold.
+ */
 export function parseVerdicts(text: string | null | undefined, d?: NoteData): CellVerdict[] {
-  const out: CellVerdict[] = [];
+  const out = new Map<CellId, CellVerdict>();
   for (const ln of (text || "").split("\n")) {
     const f = parseFactLine(ln);
     if (f) {
       const [a, b] = placeFacts(f, d).answers; // with the term data, the answers the note shows
-      out.push({ cell: f.cell, answer: fitOf({ cell: f.cell, a: { answer: a, say: "" }, b: { answer: b, say: "" } }) });
+      out.set(f.cell, { cell: f.cell, answer: fitOf({ cell: f.cell, a: { answer: a, say: "" }, b: { answer: b, say: "" } }) });
       continue;
     }
     const m = ln.replace(/^[-•*\s]+/, "").replace(/\*\*/g, "").match(/^(both|a not b|b not a|neither|q[1-4])\s*:\s*(.*?)\s*=>\s*(yes|no|unsure)\W*$/i);
     if (!m) continue;
-    out.push({ cell: NAME_CELL[m[1].toLowerCase()], answer: m[3].toLowerCase() as Answer });
+    const cell = NAME_CELL[m[1].toLowerCase()];
+    out.set(cell, { cell, answer: m[3].toLowerCase() as Answer });
   }
-  return out;
+  return [...out.values()];
 }
 
 /**
@@ -191,7 +207,7 @@ export function applyVerdicts(p: PairLike, res: GradeResult, verdicts: readonly 
   let n = 0;
   for (const { cell: c, answer: ok } of verdicts) {
     const r = res.cells[c];
-    if (!r || (r.v !== "cmp" && !(again && r.by === "claude"))) continue;
+    if (!r || r.vague || (r.v !== "cmp" && !(again && r.by === "claude"))) continue; // a cell left open by the example's name is not Claude's to settle
     if (from !== "claude" && ok === "unsure") continue; // only the question asked now can leave a cell unsure
     const ref = refOf(p, c), tag = TAG[from];
     r.v = ok === "yes" ? "ok" : ok === "no" ? "bad" : "cmp"; r.uns = ok === "unsure"; r.by = from === "course" ? "course" : "claude"; n++;

@@ -19,7 +19,7 @@ import type { DataIndex } from "../../ai-shared/lookup.ts";
 import type { ScanPlan } from "./scan.tsx";
 import { refreshPath } from "./index.tsx";
 import { Choices, ErrLines, GuideNote, PairResult, PairStops, StageOffer, Thinking, TutorNote, Verdict, WhyRow, isa, pairOf, pickThen, u0 } from "./parts.tsx";
-import { relChoices } from "./relations.tsx";
+import { leftOpen, relChoices } from "./relations.tsx";
 import { FlagBtn, FlagEditor, explainCase } from "./flags.tsx";
 import { Scroll } from "./scroll.tsx";
 import { nextName } from "./next.ts";
@@ -106,9 +106,17 @@ function RelationStep() {
 }
 
 /* ---------- 3 the result ---------- */
+// A question whose example's name leaves the cell's quality open (src/domain/vague.ts) is not unchecked: the page has asked for the word, and no one checks it. The
+// result's line, which counts it among the unchecked ones, says it apart.
+const leftN = (r: { cells: Record<string, { vague?: readonly string[] }> }) => QCELL.filter((c) => r.cells[c].vague).length;
+function leftSub(sub: string, unc: number, n: number, ctl: boolean): string {
+  if (!n) return sub;
+  const head = sub.slice(0, sub.lastIndexOf(" · " + unc + " unchecked")), rest = unc - n;
+  return head + (rest ? " · " + rest + " unchecked" + (ctl ? ", the tutor is on it" : "") : "") + " · " + leftOpen(n);
+}
 function QRow({ i }: { i: number }) {
-  const u = u0(), p = pairOf(), r = u.res, c = QCELL[i] as CellId, rr = r.cells[c] as { v: string; msg: string[]; uns?: boolean }, a = u.ans![i] as Ans;
-  const open = rr.v === "cmp" || rr.v === "open", m = rr.v === "ok" ? "ok" : rr.v === "bad" ? "no" : "pt", busy = open && !!u.ctl;
+  const u = u0(), p = pairOf(), r = u.res, c = QCELL[i] as CellId, rr = r.cells[c] as { v: string; msg: string[]; uns?: boolean; vague?: string[] }, a = u.ans![i] as Ans;
+  const open = (rr.v === "cmp" && !rr.vague) || rr.v === "open", m = rr.v === "ok" ? "ok" : rr.v === "bad" ? "no" : "pt", busy = open && !!u.ctl;
   const tnote: string | undefined = (explainParts().cells as Record<string, string>)[c];
   const note = <><b>{rr.msg[0]}</b>{rr.msg[2] ? <i>{rr.msg[2]}</i> : null}{markNames(isa(rr.msg[1] || ""), p)}</>;
   return <St d={<D cls={"sub " + (busy ? "pthink" : m)} />} cls={"sb exr qres" + (tnote ? " tut" : "")}>
@@ -142,10 +150,10 @@ function ResultStep() {
   return <>
     <Scroll>
       <PairResult mine={(u.rel || p.relation) as RelKey} ok={!!r.relOk} right={p.relation} none={u.late ? "no relation" : undefined} />
-      <Verdict v={v} word={word} sub={sub} />
+      <Verdict v={v} word={word} sub={leftSub(sub, unc, leftN(r), !!u.ctl)} />
       {imp ? <Sx cls="walked"><St d={<D cls={"sub " + (imp === u.rel ? "ok" : "no")} />} cls="sb exr implied"><span class="lab">from your answers</span><p class="xnote">{impTxt[0].toUpperCase() + impTxt.slice(1)}</p></St></Sx> : null}
       <Sx cls={QCELL.some((c) => r.cells[c].v === "bad") ? "nop" : "okp"}><Gap h={2} />{QCELL.map((_c, i) => <QRow i={i} />)}</Sx>
-      <WhyRow unc={unc} />
+      <WhyRow unc={unc - leftN(r)} />
       <StageOffer />
       <GuideNote />
       <ErrLines />

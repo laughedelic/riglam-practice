@@ -69,8 +69,9 @@ function Picked() {
 /* ---------- 3 the result ---------- */
 /** A case at the result: the example, its mark, and what the check (or the tutor) says of it; an open one can be sent to the tutor. */
 export function Row({ c, rel }: { c: CellId; rel: RelKey }) {
-  const u = u0(), r = u.res, cr = r.cells[c] as { v: string; msg: string[] }, p = pairOf(), out = REL[rel].empty.includes(c), x = u.cells[c], t = (x.t || "").trim();
-  const open = cr.v === "cmp" || cr.v === "open", m = cr.v === "ok" ? "ok" : cr.v === "bad" ? "no" : "pt", busy = open && !!u.ctl;
+  const u = u0(), r = u.res, cr = r.cells[c] as { v: string; msg: string[]; vague?: string[] }, p = pairOf(), out = REL[rel].empty.includes(c), x = u.cells[c], t = (x.t || "").trim();
+  // an example whose name leaves the quality open is not waiting for anyone: its message asks for the word
+  const open = (cr.v === "cmp" && !cr.vague) || cr.v === "open", m = cr.v === "ok" ? "ok" : cr.v === "bad" ? "no" : "pt", busy = open && !!u.ctl;
   const tnote: string | undefined = (explainParts().cells as Record<string, string>)[c], key = (p.ex && p.ex[c]) || "";
   const ans = out ? <span class="ans2 nil">not asked by {u.find ? "the relation" : "your relation"}</span> : t ? <span class={"ans2" + (m === "no" ? " no" : "")}>{t}</span> : <span class="ans2 nil">{x.none ? "nothing exists" : "left empty"}</span>;
   const note = out ? <>you left this case out{key ? <>; for example <span class="fix">{key}</span></> : null}</>
@@ -85,7 +86,11 @@ export function Row({ c, rel }: { c: CellId; rel: RelKey }) {
 }
 /** The rows of a result: the cases the relation asked for, and a case it left out that was wrongly filled. */
 export const resultRows = (rel: RelKey) => CELLS.filter((c) => !REL[rel].empty.includes(c) || u0().res.cells[c].v === "bad") as CellId[];
-export const isOpen = (c: CellId) => { const v = u0().res.cells[c].v; return v === "cmp" || v === "open"; };
+export const isOpen = (c: CellId) => { const r = u0().res.cells[c]; return (r.v === "cmp" && !r.vague) || r.v === "open"; };
+/** The examples whose names leave their quality open, as the result's line says them; "" for none. */
+export const leftOpen = (n: number) => (n ? n + " left open by " + (n === 1 ? "its name" : "their names") : "");
+/** The line of a result that is right so far: what is still unchecked, and what the names leave open. */
+export const pendLine = (unc: number, left: number, ctl: boolean) => [unc ? unc + " unchecked" + (ctl ? " · the tutor is on it" : "") : "", leftOpen(left)].filter(Boolean).join(" · ");
 export const cases = (n: number) => (n === 1 ? "one case" : n + " cases");
 /** The offer of the next step of the negation track, once the pairs before it go well, or the line that says what the answer to it did. */
 function NegOffer() {
@@ -103,10 +108,10 @@ function NegOffer() {
 function verdictOf(r: Pick<GradeResult, "cells" | "overall">, rel: RelKey): { v: Verdict3; word: string; sub: string; unc: number; nbad: number; rows: CellId[] } {
   const u = u0(), cell = (c: CellId) => r.cells[c].v;
   const rows = CELLS.filter((c) => !REL[rel].empty.includes(c) || cell(c as CellId) === "bad") as CellId[];
-  const unc = rows.filter((c) => cell(c) === "cmp" || cell(c) === "open").length, nbad = rows.filter((c) => cell(c) === "bad").length, nex = rows.filter((c) => !REL[rel].empty.includes(c)).length;
+  const unc = rows.filter((c) => (cell(c) === "cmp" && !r.cells[c].vague) || cell(c) === "open").length, left = rows.filter((c) => r.cells[c].vague).length, nbad = rows.filter((c) => cell(c) === "bad").length, nex = rows.filter((c) => !REL[rel].empty.includes(c)).length;
   const ov: string = r.overall, v = ov === "bad" ? "no" : ov === "part" ? "pt" : "ok";
   const word = ov === "pend" ? "Right so far" : ({ ok: "Right", part: "Partly right", bad: "Not quite" } as Record<string, string>)[ov] || "Not quite";
-  const sub = (ov === "pend" ? unc + " unchecked" + (u.ctl ? " · the tutor is on it" : "") : ov === "ok" ? "your relation and " + (nex === 1 ? "one example" : nex + " examples")
+  const sub = (ov === "pend" ? pendLine(unc, left, !!u.ctl) : ov === "ok" ? "your relation and " + (nex === 1 ? "one example" : nex + " examples")
     : ov === "part" ? cases(nbad) + " to look at" : u.late ? "time ran out on the relation" + (nbad ? "; " + cases(nbad) + " to look at" : "") : "the relation" + (nbad ? " and " + cases(nbad) : "")) + (u.exLate ? " · time ran out on the examples" : "");
   return { v, word, sub, unc, nbad, rows };
 }

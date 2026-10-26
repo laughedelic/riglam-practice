@@ -14,7 +14,7 @@ import type { RelKey } from "../../ai-shared/relations.ts";
 import { ExamplesStep, StripPair, examplesReady } from "./examples.tsx";
 import { refreshPath } from "./index.tsx";
 import { Choices, ErrLines, GuideNote, PairResult, SkipMark, StageOffer, Verdict, WhyRow, needsKey, pairOf, u0 } from "./parts.tsx";
-import { Row, cases, isOpen, resultRows } from "./relations.tsx";
+import { Row, cases, isOpen, pendLine, resultRows } from "./relations.tsx";
 import { Scroll } from "./scroll.tsx";
 import { nextName } from "./next.ts";
 import { Foot, PreStation, SkipSide, Station, TopBar } from "./shell.tsx";
@@ -99,13 +99,13 @@ function Named() {
 function ResultStep() {
   const u = u0(), p = pairOf(), r = u.res, rel = relOf(), asked = REL[rel];
   const named = !p.own || p.relation !== rel, gl = (k: RelKey) => (p.own ? REL[k].gloss("A", "B") : REL[k].gloss(p.a, p.b));
-  const rows = resultRows(rel), unc = rows.filter(isOpen).length, nbad = rows.filter((c) => r.cells[c].v === "bad").length;
+  const rows = resultRows(rel), unc = rows.filter(isOpen).length, left = rows.filter((c) => r.cells[c].vague).length, nbad = rows.filter((c) => r.cells[c].v === "bad").length;
   const ov: string = r.overall;
   const v = r.relOpen ? "pt" : !r.relOk || ov === "bad" ? "no" : ov === "part" ? "pt" : "ok";
   const word = r.relUns ? "Not settled" : r.relOpen ? (u.ctl ? "The tutor is judging" : canAsk() || needsKey() ? "Waiting for the tutor" : "Not checked") : !r.relOk ? "Not quite"
     : ov === "pend" ? "Right so far" : ({ ok: "Right", part: "Partly right" } as Record<string, string>)[ov] || "Not quite";
   const sub = r.relOpen ? "your own pair: the course data does not cover it" : !r.relOk ? "that pair is not " + lcRel(asked.name)
-    : ov === "pend" ? unc + " unchecked" + (u.ctl ? " · the tutor is on it" : "") : ov === "part" ? cases(nbad) + " to look at" : "the pair and " + (rows.length === 1 ? "one example" : rows.length + " examples");
+    : ov === "pend" ? pendLine(unc, left, !!u.ctl) : ov === "part" ? cases(nbad) + " to look at" : "the pair and " + (rows.length === 1 ? "one example" : rows.length + " examples");
   const pm = r.relOpen ? "pt" : r.relOk ? "ok" : "no";
   const pairLine = r.relOpen
     ? (r.relUns ? "Whether " + p.a + " and " + p.b + " are " + lcRel(asked.name) + " is not settled. Ask again, or try another pair."
