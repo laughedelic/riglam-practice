@@ -93,8 +93,16 @@ test("on the Path the stop is a station of its own, with the term and where it s
   await expect(again).toHaveAttribute("aria-pressed", "false");
   await again.click();
   await expect(again).toHaveAttribute("aria-pressed", "true");
-  await expect(stop.getByRole("status")).toContainText("It comes again in about 10 questions");
+  // a short hint under the clock, which goes by itself after a few seconds
+  await expect(stop.getByRole("status")).toHaveText("Will be shown again");
   expect(await due()).toBe(10);
+  await expect(stop.getByRole("status")).toHaveCount(0, { timeout: 6000 });
+  await again.click();
+  await expect(again).toHaveAttribute("aria-pressed", "false");
+  expect(await due()).toBeNull();
+  // taken back at once: no hint
+  await again.click();
+  await expect(stop.getByRole("status")).toHaveText("Will be shown again");
   await again.click();
   await expect(again).toHaveAttribute("aria-pressed", "false");
   await expect(stop.getByRole("status")).toHaveCount(0);

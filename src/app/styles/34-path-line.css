@@ -95,6 +95,7 @@
 .pa .hasstar{position:relative}
 .pa .hasstar > .ptx{padding-right:52px}
 .pa .hasstar .pstar{position:absolute; right:6px; top:-4px}
+.pa .hasstar .tagain-hint{position:absolute; right:8px; top:38px; font:500 10.5px var(--mono); letter-spacing:.03em; color:var(--ink2); background:var(--paper); padding:1px 0 1px 6px}   /* under the clock, for a moment */
 .pa .fav{color:var(--ink3)}
 /* Skip, an action on the pair like the favorites mark: an icon under the mark, along the right edge (or in the mark's place, or at the right of a step's heading, where there is none) */
 .pa .pskip{color:var(--ink3)}
