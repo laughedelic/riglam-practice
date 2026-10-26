@@ -90,7 +90,12 @@ export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, ac
   if (kb) { main.classList.add("sc-open"); openPage(root, main, () => { root.classList.remove("kbup"); open!(); }, OPEN, OPEN_AT); }
 
   let y = y0;
-  const place = () => { scn.style.top = y.toFixed(1) + "px"; past.style.top = y.toFixed(1) + "px"; past.style.height = Math.max(0, y0 - y).toFixed(1) + "px"; };
+  // the thread the scanner has passed runs down to the foot (`thread`); with `after` the foot is empty and the thread ends at the last case's diamond, so nothing is left behind the scanner down there
+  const lastD = fw === "after" && rows.length ? rows[rows.length - 1] : null;
+  const place = () => {
+    const end = lastD ? Math.min(y0, midY(lastD.querySelector(".d") || lastD)) : y0;
+    scn.style.top = y.toFixed(1) + "px"; past.style.top = y.toFixed(1) + "px"; past.style.height = Math.max(0, end - y).toFixed(1) + "px";
+  };
   const set = (n: string, v: number) => scn.style.setProperty(n, v.toFixed(4));
   const flash = (v: Verdict3) => { scn.classList.remove("f-ok", "f-no", "f-pt"); void scn.offsetWidth; scn.classList.add("f-" + v); };
   const nameOf = (r: HTMLElement) => { const l = r.querySelector(".lab"); return l ? (l.textContent || "").trim() : ""; };
@@ -134,7 +139,7 @@ export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, ac
       place(); raf = requestAnimationFrame(frame); return;
     }
     if (t < slideAt) { place(); raf = requestAnimationFrame(frame); return; }
-    if (!d) { yTop = strip(); d = Math.max(1, y0 - yTop); tSlide = slideMs(d); tSettle = slideAt + tSlide; tBecome = tSettle + SETTLE; if (fw === "thread") becomeNext(); }
+    if (!d) { yTop = strip(); d = Math.max(1, y0 - yTop); tSlide = slideMs(d); tSettle = slideAt + tSlide; tBecome = tSettle + SETTLE; if (fw === "thread") becomeNext(); else wait(main); }
     if (t < tSettle) {
       const u = EASE.io((t - slideAt) / tSlide);
       if (s0) sc.scrollTop = s0 * (1 - u);       // a page scrolled down comes back to its top, under the scanner

@@ -213,9 +213,9 @@ test("check: morph, the result's node and word are not drawn twice, the pair mov
   expect(errors).toEqual([]);
 });
 
-/** What is at the foot, every frame of a ride: the copy of the next station and the thread to it, the foot's real station, and whether the scanner or the ghost is on the page. */
+/** What is at the foot, every frame of a ride: the copy of the next station and the thread to it, the foot's real station, whether the scanner or the ghost is on the page, and how far the thread the scanner has passed reaches below the last case's diamond. */
 const watchFoot = (page) => page.evaluate(() => {
-  const w = (window.__fw = { sd: 0, th: 0, thH: 0, pre: false, words: "", wait: 0, hidden: 0, real: 0, scan: 0, scanReal: 0, ghost: 0 });
+  const w = (window.__fw = { sd: 0, th: 0, thH: 0, pre: false, words: "", wait: 0, hidden: 0, real: 0, scan: 0, scanReal: 0, ghost: 0, pastBelow: -999, pastLen: 0, stub: 0 });
   const tick = () => {
     const sd = document.querySelector("#path .fw-sd"), th = document.querySelector("#path .fw-th"), m = document.querySelector("#path .main"), real = document.querySelector("#path .foot .stn");
     if (sd) { w.sd++; w.pre = !!sd.querySelector(".go.pre"); w.words = w.words || (sd.querySelector(".gol b") || {}).textContent || ""; }
@@ -224,6 +224,13 @@ const watchFoot = (page) => page.evaluate(() => {
     if (real && getComputedStyle(real).visibility !== "hidden" && !real.classList.contains("scanning") && /Next/.test(real.textContent)) { w.real++; if (document.querySelector("#path .pscan")) w.scanReal++; }
     if (document.querySelector("#path .pscan")) w.scan++;
     if (document.querySelector("#path .pk-ghost")) w.ghost++;
+    const scn = document.querySelector("#path .pscan"), foot = document.querySelector("#path .foot");
+    if (scn && foot && scn.getBoundingClientRect().bottom < foot.getBoundingClientRect().top - 40 && getComputedStyle(foot, "::before").visibility !== "hidden") w.stub++;
+    const past = document.querySelector("#path .pscpast"), rows = document.querySelectorAll("#path .pathc .sx.cur .sb");
+    if (past && rows.length && past.getBoundingClientRect().height > 0.5) {
+      const pr = past.getBoundingClientRect(), d = rows[rows.length - 1].querySelector(".d") || rows[rows.length - 1], dr = d.getBoundingClientRect();
+      w.pastLen = Math.max(w.pastLen, pr.height); w.pastBelow = Math.max(w.pastBelow, pr.bottom - (dr.top + dr.height / 2));
+    }
     requestAnimationFrame(tick);
   };
   tick();
@@ -314,5 +321,23 @@ test("foot: after, the Check's scanner leaves an empty foot, and Next pair comes
   expect(w.scan, "the scanner was on the page").toBeGreaterThan(10);
   expect(w.scanReal, "and Next pair was not at the foot while it was").toBe(0);
   expect(w.real, "it came in after").toBeGreaterThan(3);
+  expect(w.pastLen, "the scanner left a thread behind it through the cases").toBeGreaterThan(20);
+  expect(w.pastBelow, "but none below the last case, over the empty ground to the foot").toBeLessThanOrEqual(1);
+  expect(w.stub, "and the foot's own stub of thread is gone once the scanner is away from it").toBe(0);
+  expect(errors).toEqual([]);
+});
+
+test("foot: thread, the Check's scanner walks a thread that runs down to the foot", async ({ page }) => {
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await look(page, { foot: "thread" });
+  await toCheck(page);
+  await watchFoot(page);
+  await page.locator("#stn").click();
+  await expect(main(page)).toHaveClass(/\bsc-run\b/);
+  await expect(page.locator(".pvline .ptx")).toBeVisible({ timeout: 8000 });
+  await expectClean(page);
+  const w = await page.evaluate(() => window.__fw);
+  expect(w.pastBelow, "the thread the scanner has passed reaches below the last case, to the foot").toBeGreaterThan(40);
   expect(errors).toEqual([]);
 });
