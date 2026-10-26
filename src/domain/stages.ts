@@ -21,14 +21,14 @@ export interface Stage {
 
 export const STAGES: readonly Stage[] = [
   { n: 1, name: "Things around you", adds: "Everyday things, what they are made of, their colors and shapes; food, plants, animals, feelings and thoughts. Form is anything physical." },
-  { n: 2, name: "What you see", adds: "Colors and shapes as qualities of things: the red of an apple, not the apple." },
-  { n: 3, name: "What you hear, smell, taste and touch", adds: "Sounds, smells, tastes, and what is felt by touch, in plain words." },
-  { n: 4, name: "Established bases", adds: "Functional and permanent things, consciousness and persons; people; what does not exist, absences, and the textbook's own things." },
-  { n: 5, name: "The inner side", adds: "The sense powers, and the minds that see, hear, smell, taste, feel, remember and imagine." },
-  { n: 6, name: "Course words", adds: "Things named by the course's own words: generic images, selflessness, impermanence, the elements." },
-  { n: 7, name: "One step further", adds: "One step on a familiar thing: its absence, its cause, a mind that knows it." },
-  { n: 8, name: "Two steps", adds: "Two steps in a row, such as the absence of the effect of a pot." },
-  { n: 9, name: "Deep layers and statements", adds: "Three steps or more, and statements." },
+  { n: 2, name: "Colors and shapes", adds: "Colors and shapes as qualities of things: the red of an apple, not the apple." },
+  { n: 3, name: "The other senses", adds: "Sounds, smells, tastes, and what is felt by touch, in plain words." },
+  { n: 4, name: "What exists", adds: "Functional and permanent things, consciousness and persons; people; what does not exist, and absences." },
+  { n: 5, name: "Senses and minds", adds: "The sense powers, and the minds that see, hear, smell, taste, feel, remember and imagine." },
+  { n: 6, name: "Abstract ideas", adds: "Things named by abstract words: generic images, selflessness, impermanence, the elements." },
+  { n: 7, name: "One-step chains", adds: "One step on a familiar thing: its absence, its cause, a mind that knows it." },
+  { n: 8, name: "Two-step chains", adds: "Two steps in a row, such as the absence of the effect of a pot." },
+  { n: 9, name: "Longer chains and statements", adds: "Three steps or more, and statements." },
 ];
 export const MAX_STAGE = STAGES.length;
 

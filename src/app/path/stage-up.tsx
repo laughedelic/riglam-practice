@@ -23,9 +23,9 @@ export function stageUpScreen(title: string): { cls: string; node: ComponentChil
       <Sx cls="cur first tstop"><Gap h={14} /><Head d={<D cls="sec tsd" />} h={"Stage " + n} sub={name} /><Gap h={4} />
         <div class="wtext tup">
           {up.first ? <>
-            <p>The practice is built in stages. Each one adds a new kind of thing to ask about, from everyday things toward the words of the course, and they are the same in every exercise.</p>
+            <p>The practice is built in stages. Each one adds a new kind of thing to ask about, from everyday things toward abstract ideas, and they are the same in every exercise.</p>
             <p>You have been on stage {from}, {fromName}. Stage {n}, {name}, comes in now. {info ? info.adds : ""}</p>
-            <p>Everything you have practiced stays in the mix, and each new word comes with its definition before it is asked.</p>
+            <p>Everything you have practiced stays in the mix, and each new term comes with its definition before it is asked.</p>
           </> : <p>Stage {n}, {name}, comes in now. {info ? info.adds : ""} The earlier stages stay in the mix.</p>}
           {up.stayed
             ? <p class="tup-note" role="status">Stage {n} stays out for now. It comes in after {runNeed(state.stageRun)} right answers in a row on stage {from}.</p>
