@@ -9,6 +9,7 @@ test.use({ reducedMotion: "no-preference" });
 
 const onPath = () => {
   if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path");
+  if (localStorage.getItem("rd-look") === null) localStorage.setItem("rd-look", JSON.stringify({ check: "scan" }));   // the replaced result page, which this spec is about (the page that goes on is the default: path-push.spec.js)
   window.__vib = []; navigator.vibrate = (v) => { window.__vib.push(v); return true; };
 };
 const choices = (page) => page.locator("#path .chs .crow");
@@ -84,7 +85,7 @@ test("with the keyboard up, Enter on the last example opens the page first, and 
 });
 
 test("with the look's check: ride the Check rides as any station", async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem("rd-look", JSON.stringify({ check: "ride" })));
+  await page.addInitScript(() => localStorage.setItem("rd-look", JSON.stringify({ ride: "fold", check: "ride" })));
   await written(page);
   await page.evaluate(() => { window.__ran = false; new MutationObserver(() => { if (document.querySelector("#path .main.tk-run")) window.__ran = true; }).observe(document.querySelector("#path .main"), { attributes: true }); });
   await page.locator("#stn").click();

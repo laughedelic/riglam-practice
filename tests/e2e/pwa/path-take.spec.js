@@ -7,6 +7,7 @@ test.use({ reducedMotion: "no-preference" });
 
 const onPath = () => {
   if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path");
+  if (localStorage.getItem("rd-look") === null) localStorage.setItem("rd-look", JSON.stringify({ ride: "fold" }));   // the squeeze ride, which this spec is about (the push is the default: path-push.spec.js)
   window.__vib = []; navigator.vibrate = (v) => { window.__vib.push(v); return true; };
 };
 const choices = (page) => page.locator("#path .chs .crow");
@@ -98,7 +99,7 @@ test("let go over the curb the lines squeeze up and leave, the station rides up,
 });
 
 test("a tap and Enter take the station with the same ride", async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem("rd-look", JSON.stringify({ check: "ride" })));   // the Check scans by default (path-scan.spec.js)
+  await page.addInitScript(() => localStorage.setItem("rd-look", JSON.stringify({ ride: "fold", check: "ride" })));   // the Check moves in by default (path-push.spec.js)
   await toResult(page);
   await page.locator("#stn").click();
   await expect(main(page)).toHaveClass(/\btk-run\b/);
