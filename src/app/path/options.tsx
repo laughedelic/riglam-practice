@@ -198,8 +198,10 @@ function TutorPage() {
 const sheetOn = () => state.sessOpen && state.mode === "quiz";
 /** The sheet's own page that is open (one of PAGES), or null for the list. */
 const sheetPage = () => sheetOn() && state.sessPage && PAGES[state.sessPage as keyof typeof PAGES] && (state.sessPage !== "voice" || voiceShown()) && (state.sessPage !== "tutor" || tutorShown()) ? state.sessPage : null;
-/** What the sheet shows, as the heading it gives the screen: the top bar reads it in place of the exercise's name while the sheet is open (null when it is closed). */
-export const sheetTitle = (): string | null => sheetOn() ? (sheetPage() ? PAGES[sheetPage() as keyof typeof PAGES] : "Practice options") : null;
+/** The Progression page is open (the ring in the top bar opened it): the bar keeps the exercise's name and the ring, pressed, and the page hangs under it. */
+export const progressOn = (): boolean => sheetPage() === "progress";
+/** What the sheet shows, as the heading it gives the screen: the top bar reads it in place of the exercise's name while the sheet is open (null when it is closed, or is the Progression page). */
+export const sheetTitle = (): string | null => sheetOn() && !progressOn() ? (sheetPage() ? PAGES[sheetPage() as keyof typeof PAGES] : "Practice options") : null;
 
 /** The sheet of the practice options: from the top, under the top bar (which is its heading, and has its close), over a scrim; the knob at its foot folds it away. */
 export function OptionsSheet() {
@@ -221,7 +223,7 @@ export function OptionsSheet() {
   });
   return <>
     <div class={"scrim below" + (on ? " on" : "")} onClick={() => toggleSess(false)} />
-    <div ref={box} class={"psheet top" + (on ? " on" : "")} role="dialog" aria-label="Practice options" aria-hidden={on ? "false" : "true"} inert={!on} tabIndex={-1} data-quiet>
+    <div ref={box} class={"psheet top" + (on ? " on" : "")} role="dialog" aria-label={page === "progress" ? "Progression" : "Practice options"} aria-hidden={on ? "false" : "true"} inert={!on} tabIndex={-1} data-quiet>
       <div class="sbody" ref={body}>
         {page && page !== "progress" ? <button type="button" class="sback" onClick={sessBack}><Icon n="chev" />back to the options</button> : <p class="glab" style={{ paddingTop: "4px" }}>{page === "progress" ? "Stage " + progressNow().top + " of " + MAX_STAGE : exName(state.tab)}</p>}
         {on ? (page ? <Page id={page} /> : <List />) : null}

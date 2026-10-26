@@ -65,8 +65,8 @@ export function openPage(id){ state.sessPage=id; state.resetAsk=""; render(); co
 export function openStageOptions(){ if(!state.sessOpen) toggleSess(true); openPage("stages"); }
 /** The Blitz page of the practice options: what holding the stopwatch in the top bar opens. */
 export function openBlitzOptions(){ if(!state.sessOpen) toggleSess(true); openPage("times"); }
-/** The Progression page, which the ring in the top bar opens: a sheet of its own, with no list under it. */
-export function openProgress(){ if(!state.sessOpen) toggleSess(true); openPage("progress"); }
+/** The Progression page, which the ring in the top bar opens (and closes, while it is open): a sheet of its own, with no list under it. */
+export function openProgress(){ if(state.sessOpen&&state.sessPage==="progress"){ toggleSess(false); return; } if(!state.sessOpen) toggleSess(true); openPage("progress"); }
 /** Back or Escape in the options: from a page to the list, from the list to the exercise; the Progression page has no list under it, it closes the sheet. */
 export function sessBack(){
   if(state.sessPage==="progress") toggleSess(false);

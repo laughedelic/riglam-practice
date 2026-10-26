@@ -53,8 +53,9 @@ html.pa-tab .pa :is(button,[tabindex]):not([data-quiet]):focus-visible:not(.pbr 
 .pa .pring .track{stroke:var(--ink2); stroke-opacity:.28}
 .pa .pring .arc{stroke:var(--green); stroke-linecap:butt; transition:stroke-dashoffset .5s ease}
 .pa .pring .disc{stroke:none; fill:transparent; transition:fill .3s ease}
-.pa .pring.full .disc{fill:var(--green)}
-.pa .pring text{font:600 11px var(--mono); fill:var(--ink); text-anchor:middle; dominant-baseline:central}
+.pa .pring.on .disc{fill:var(--ink); fill-opacity:.08}
+.pa .pring.full .disc{fill:var(--green); fill-opacity:1}
+.pa .pring text{font:600 11px var(--mono); fill:var(--ink); text-anchor:middle; dominant-baseline:alphabetic}
 .pa .pring.full text{fill:var(--paper)}
 @media (prefers-reduced-motion:reduce){.pa .pring .arc,.pa .pring .disc{transition:none}}
 .pa.g-top .ptb{background-image:var(--grain); background-size:128px; background-blend-mode:soft-light}

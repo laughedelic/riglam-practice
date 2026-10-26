@@ -14,7 +14,7 @@ import { Pull, SLIDE, bump } from "./gesture.ts";
 import type { ScanPlan } from "./scan.tsx";
 import { refreshPath } from "./index.tsx";
 import { currentLook } from "./look.ts";
-import { sheetTitle } from "./options.tsx";
+import { progressOn, sheetTitle } from "./options.tsx";
 import { ProgressRing } from "./progress.tsx";
 import { Bridge, Icon } from "./ui.tsx";
 
@@ -28,6 +28,8 @@ const HOLD_MS = 500;
 export function TopBar({ title, tools = false, mic = false }: TopBarProps) {
   // while the practice options are open the bar is theirs: it names them in place of the exercise, its tools give way and the options button becomes the close
   const shown = (state.mode === "quiz" && isEx() && sheetTitle()) || "", heading = shown || title;
+  // the Progression page hangs under the ring: the bar keeps the name and the ring (pressed), the other tools give way, and the options button is the close
+  const prog = state.mode === "quiz" && isEx() && progressOn(), away = !!shown || prog;
   const hold = useRef<ReturnType<typeof setTimeout> | undefined>(undefined), held = useRef(false);
   const ex = state.mode === "quiz" && isEx(), u = state.ui;
   const roadmap = () => { if (state.sessOpen) toggleSess(false); toggleMenu(true); };
@@ -42,12 +44,12 @@ export function TopBar({ title, tools = false, mic = false }: TopBarProps) {
     <button type="button" class="ptb-t" aria-label={heading + (shown ? "" : ", the roadmap")} onClick={roadmap}><span>{heading}</span></button>
     {tools && !shown && ex ? <ProgressRing /> : null}
     <span class="spc" />
-    {tools && !shown && readShown() ? <button type="button" class={"pib" + (state.voice.muted ? "" : " on")} role="switch" aria-checked={state.voice.muted ? "false" : "true"} aria-label="Read aloud" onClick={toggleReadAloud}><Icon n={state.voice.muted ? "speakoff" : "speak"} /></button> : null}
-    {tools && !shown && mic && micShown() ? <button type="button" id="vmic" class={"pib" + (state.voice.phase === "listening" ? " on" : "")} aria-pressed={state.voice.phase === "listening" ? "true" : "false"} aria-label="Answer by voice" onClick={() => toggleListen()}><Icon n="mic" /></button> : null}
-    {tools && !shown && timed ? <button type="button" class={"pib" + (state.blitz ? " on" : "")} role="switch" aria-checked={state.blitz ? "true" : "false"} aria-label={state.blitz ? "Blitz on (hold for the Blitz options)" : "Blitz off (hold for the Blitz options)"}
+    {tools && !away && readShown() ? <button type="button" class={"pib" + (state.voice.muted ? "" : " on")} role="switch" aria-checked={state.voice.muted ? "false" : "true"} aria-label="Read aloud" onClick={toggleReadAloud}><Icon n={state.voice.muted ? "speakoff" : "speak"} /></button> : null}
+    {tools && !away && mic && micShown() ? <button type="button" id="vmic" class={"pib" + (state.voice.phase === "listening" ? " on" : "")} aria-pressed={state.voice.phase === "listening" ? "true" : "false"} aria-label="Answer by voice" onClick={() => toggleListen()}><Icon n="mic" /></button> : null}
+    {tools && !away && timed ? <button type="button" class={"pib" + (state.blitz ? " on" : "")} role="switch" aria-checked={state.blitz ? "true" : "false"} aria-label={state.blitz ? "Blitz on (hold for the Blitz options)" : "Blitz off (hold for the Blitz options)"}
       onPointerDown={bzDown} onPointerUp={bzStop} onPointerLeave={bzStop} onPointerCancel={bzStop} onContextMenu={(ev) => ev.preventDefault()}
       onClick={() => { if (held.current) { held.current = false; return; } setBlitz(!state.blitz); }}><Icon n="blitz" />{state.blitz ? <span class="dot" /> : null}</button> : null}
-    {tools && ex ? <button type="button" class="pib" aria-label={shown ? "Close the practice options" : "Practice options"} aria-expanded={state.sessOpen ? "true" : "false"} onClick={() => toggleSess(!state.sessOpen)}><Icon n={shown ? "close" : "opts"} /></button> : null}
+    {tools && ex ? <button type="button" class="pib" aria-label={prog ? "Close the progression" : shown ? "Close the practice options" : "Practice options"} aria-expanded={state.sessOpen ? "true" : "false"} onClick={() => toggleSess(!state.sessOpen)}><Icon n={away ? "close" : "opts"} /></button> : null}
     {tq ? <div key={tq.t0 + "/" + tq.limit} class={"pclock" + (u.late ? " late" : "")} aria-hidden="true" style={{ "--t": tq.limit + "ms", "--e": e + "ms" }}><i /></div> : null}
   </header>;
 }

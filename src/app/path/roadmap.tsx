@@ -1,4 +1,4 @@
-// The roadmap: every exercise as a stop on a tree, pulled down from the top bar (the Path's menu). Each exercise shows today's last answers as
+// The roadmap: every exercise as a stop on a tree, slid in from the left by the back chevron in the top bar or the system Back (the Path's menu). Each exercise shows today's last answers as
 // small diamonds, "continue" when an attempt waits in it, and the planned one (Debate, which Pervasions and Syllogisms lead to) is dashed. Its foot goes to Review and
 // Settings, the Magic Key while this device has none, and the version with the way to update.
 import { useEffect, useRef } from "preact/hooks";
@@ -89,7 +89,7 @@ export function Roadmap() {
       <button type="button" class="lk" onClick={openSettings}>Settings</button>
       {state.unlock ? <button type="button" class="lk" onClick={() => state.unlock!.open()}><Icon n="key" />Magic Key</button> : null}
       <Version />
-      <Knob up label="Slide the roadmap up" onClick={() => toggleMenu(false)} />
+      <Knob cls="lt" label="Slide the roadmap away to the left" onClick={() => toggleMenu(false)} />
     </div>
   </div>;
 }

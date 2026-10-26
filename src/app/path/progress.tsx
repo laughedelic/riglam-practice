@@ -18,12 +18,12 @@ export function ProgressRing() {
     if (up > was.current && !matchMedia("(prefers-reduced-motion: reduce)").matches) ref.current?.animate?.([{ transform: "scale(1)" }, { transform: "scale(1.18)" }, { transform: "scale(1)" }], { duration: 450, easing: "ease" });
     was.current = up;
   }, [up]);
-  const full = p.full && !p.waiting;
-  return <button type="button" ref={ref} class={"pib pring" + (full ? " full" : "")}
+  const full = p.full && !p.waiting, open = state.sessOpen && state.sessPage === "progress";
+  return <button type="button" ref={ref} class={"pib pring" + (full ? " full" : "") + (open ? " on" : "")} aria-expanded={open ? "true" : "false"}
     aria-label={"Progression: stage " + p.top + (p.next ? ", " + Math.round(p.frac * 100) + " percent of the way to stage " + p.next : "") + ". How it works"}
     onClick={openProgress}>
     <svg viewBox="0 0 30 30" aria-hidden="true"><circle class="disc" cx="15" cy="15" r={R} /><circle class="track" cx="15" cy="15" r={R} />
-      <circle class="arc" cx="15" cy="15" r={R} stroke-dasharray={C} stroke-dashoffset={C * (1 - p.frac)} transform="rotate(-90 15 15)" /><text x="15" y="16">{p.top}</text></svg>
+      <circle class="arc" cx="15" cy="15" r={R} stroke-dasharray={C} stroke-dashoffset={C * (1 - p.frac)} transform="rotate(-90 15 15)" /><text x="15" y="18.8">{p.top}</text></svg>
   </button>;
 }
 

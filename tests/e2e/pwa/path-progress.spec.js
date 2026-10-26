@@ -56,14 +56,17 @@ test("the stage the ring shows is the highest one on, and it has no fill where t
   expect(Number(await page.locator("#path .pring .arc").getAttribute("stroke-dashoffset"))).toBeCloseTo(Number(await page.locator("#path .pring .arc").getAttribute("stroke-dasharray")), 3);
 });
 
-test("a tap on the ring opens the Progression sheet with its short lines; the close and Back shut it, its link goes to the practice options", async ({ page }) => {
+test("a tap on the ring opens the Progression sheet under it, the ring stays and is pressed; the ring, the close and Back shut it, its link goes to the practice options", async ({ page }) => {
   await start(page);
   await run(page, { up: 0, need: undefined, manual: undefined });
   await ring(page).click();
   await expect(sheet(page)).toHaveCount(1);
-  // the top bar is the sheet's heading, and the ring gives way to the close
-  await expect(page.locator("#path .ptb-t")).toHaveText("Progression");
-  await expect(ring(page)).toHaveCount(0);
+  // the bar keeps the exercise's name and the ring, pressed: the page hangs under what opened it; the other tools give way and the options button is the close
+  await expect(page.locator("#path .ptb-t")).toHaveText("Relations");
+  await expect(ring(page)).toBeVisible();
+  await expect(ring(page)).toHaveClass(/\bon\b/);
+  await expect(ring(page)).toHaveAttribute("aria-expanded", "true");
+  await expect(page.locator("#path .ptb .pib")).toHaveCount(2);
   const lines = sheet(page).locator(".tup-bul li");
   await expect(lines.first()).toContainText(/^Stage \d adds /);
   await expect(sheet(page)).toContainText("is reached after five right answers in a row on what is new.");
@@ -71,20 +74,53 @@ test("a tap on the ring opens the Progression sheet with its short lines; the cl
   await expect(sheet(page)).toContainText("Review answers count too, but as smaller steps.");
   await expect(sheet(page)).toContainText("A wrong answer on the new terms resets the stage progress.");
   await expect(sheet(page).locator(".sback"), "no list under it to go back to").toHaveCount(0);
-  // the close shuts it
-  await page.getByRole("button", { name: "Close the practice options" }).click();
+  // the ring shuts it again
+  await ring(page).click();
   await expect(sheet(page)).toHaveCount(0);
-  await expect(ring(page)).toBeVisible();
+  await expect(ring(page)).toHaveAttribute("aria-expanded", "false");
+  // the close shuts it
+  await ring(page).click();
+  await page.getByRole("button", { name: "Close the progression" }).click();
+  await expect(sheet(page)).toHaveCount(0);
   // the system Back closes it in one step (the exercise stays)
   await ring(page).click();
   await expect(sheet(page)).toHaveCount(1);
   await page.goBack();
   await expect(sheet(page)).toHaveCount(0);
   await expect(page.locator("#path .ptb-t")).toContainText("Relations");
-  // its own link goes to the practice options
+  // its own link goes to the practice options, which name themselves in the bar
   await ring(page).click();
   await sheet(page).locator(".plnk").click();
   await expect(page.locator("#path .ptb-t")).toHaveText("Practice options");
+  await expect(ring(page)).toHaveCount(0);
+});
+
+test.describe("the number in the ring", () => {
+  test.use({ deviceScaleFactor: 4 });
+  test("the ink of the stage number is centered in the ring", async ({ page }) => {
+    await start(page);
+    for (const up of [0, 3]) {
+      await run(page, { up });
+      await page.evaluate(() => document.fonts.ready);
+      const shot = await page.locator("#path .pring svg").screenshot({ animations: "disabled" });
+      // the digits are dark on the paper (the arc and the track are green and gray): the box of the ink inside the ring's inner radius
+      const box = await page.evaluate(async (b64) => {
+        const bmp = await createImageBitmap(await (await fetch("data:image/png;base64," + b64)).blob());
+        const cv = new OffscreenCanvas(bmp.width, bmp.height), cx = cv.getContext("2d"); cx.drawImage(bmp, 0, 0);
+        const { data, width, height } = cx.getImageData(0, 0, bmp.width, bmp.height), mid = width / 2, rin = width * (11.5 - 3) / 30;
+        let y0 = Infinity, y1 = -1, x0 = Infinity, x1 = -1;
+        for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+          if (Math.hypot(x - mid, y - height / 2) > rin) continue;
+          const i = (y * width + x) * 4; if (data[i + 3] > 200 && data[i] + data[i + 1] + data[i + 2] < 300) { y0 = Math.min(y0, y); y1 = Math.max(y1, y); x0 = Math.min(x0, x); x1 = Math.max(x1, x); }
+        }
+        return { w: width, h: height, cy: (y0 + y1 + 1) / 2, cx: (x0 + x1 + 1) / 2, found: y1 >= 0 };
+      }, shot.toString("base64"));
+      expect(box.found, "the number is drawn").toBe(true);
+      const px = box.w / 30;   // device pixels per svg unit
+      expect(Math.abs(box.cy - box.h / 2) / px, "vertical off-centre, in px: " + JSON.stringify(box)).toBeLessThan(0.45);
+      expect(Math.abs(box.cx - box.w / 2) / px, "horizontal off-centre, in px").toBeLessThan(0.6);
+    }
+  });
 });
 
 test("the sheet says so where no stage comes by itself", async ({ page }) => {
