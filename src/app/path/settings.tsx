@@ -62,6 +62,14 @@ const SwitchRow = ({ title, note, on, toggle, tag }: { title: string; note: stri
   <div class="srow wide"><span /><span class="ct"><button type="button" class="two" role="switch" aria-checked={on ? "true" : "false"} onClick={toggle}>
     <span><b>{title}{tag ? <span class="ptag">{tag}</span> : null}</b></span><Toggle on={on} /></button><small>{note}</small></span></div>;
 
+/** The languages a term is shown in beside English: a switch for each. English is always shown; Russian also gives the definitions in Russian, where there are some. */
+function LanguageRows() {
+  const on = languagesOn();
+  return <>
+    <div class="srow wide"><span /><span class="ct"><b>English</b><small>The terms and their definitions. Always shown.</small></span></div>
+    {LANGS.map(({ id, name, note }) => <SwitchRow title={name} note={note[0]!.toUpperCase() + note.slice(1) + "."} on={on.includes(id)} toggle={() => setLang(id, !on.includes(id))} />)}
+  </>;
+}
 // the shared rows of src/ui (the account, your data) build their nodes with the classic page's classes; the Path's are put in their place
 const PCLS: Record<string, string> = { btn: "pbtn", "btn ghost": "pbtn", onote: "pnoteline", "onote bad": "pnoteline bad", xfer: "pxfer", xferbox: "pxbox", xsum: "pxsum", acct: "pacct", acwho: "pacwho", acname: "pacname" };
 const pel = (tag: string, props?: Record<string, any> | null, ...kids: any[]) => {
@@ -91,14 +99,6 @@ function VersionRow() {
     <div class="pver">{i.from ? <p class="pnoteline">{i.from}</p> : null}<p class={"pnoteline" + (i.bad ? " bad" : "")} role="status">{i.status}</p></div>
     {i.act === "update" ? <button type="button" class="pbtn" onClick={() => u.apply()}>Update now</button> : i.act === "check" ? <button type="button" class="pbtn" onClick={() => u.check()}>Check for updates</button> : null}
   </Row>;
-}
-/** The languages a term is shown in beside English: a switch for each. English is always shown; Russian also gives the definitions in Russian, where there are some. */
-function LanguageRows() {
-  const on = languagesOn();
-  return <>
-    <div class="srow wide"><span /><span class="ct"><b>English</b><small>The terms and their definitions. Always shown.</small></span></div>
-    {LANGS.map(({ id, name, note }) => <SwitchRow title={name} note={note[0]!.toUpperCase() + note.slice(1) + "."} on={on.includes(id)} toggle={() => setLang(id, !on.includes(id))} />)}
-  </>;
 }
 function AppRows() {
   const acct = state.account && state.db && state.account.view().available;
