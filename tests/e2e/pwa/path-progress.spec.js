@@ -69,7 +69,7 @@ test("a tap on the ring opens the Progression sheet under it, the ring stays and
   await expect(ring(page)).toHaveAttribute("aria-expanded", "true");
   await expect(page.locator("#path .ptb .pib")).toHaveCount(2);
   const lines = sheet(page).locator(".tup-bul li");
-  await expect(lines.first()).toContainText(/^Stage \d adds /);
+  await expect(lines.first()).toContainText(/^Stage \d introduces /);
   await expect(sheet(page)).toContainText("is reached after five right answers in a row on what is new.");
   await expect(sheet(page)).toContainText("Progression works across all exercises.");
   await expect(sheet(page)).toContainText("Review answers count too, but as smaller steps.");
@@ -146,12 +146,15 @@ test("on a stage with new terms the ring has a segment for each, in the order th
   await expect(ring(page)).not.toHaveClass(/\bfull\b/);
   await expect(ring(page).locator("text")).toHaveText("2");
   await ring(page).click();
-  await expect(sheet(page)).toContainText("Stage 3 is reached once your last answer on each of the four new terms of stage 2 is right:");
-  const terms = sheet(page).locator(".tterms li");
-  await expect(terms.locator(".ttn")).toHaveText(["External form", "Shape", "Color", "Form source"]);
-  await expect(terms.locator("small")).toHaveText(["missed: answer it again", "not right yet", "comes later"]);
-  await expect(terms.locator(".tmk")).toHaveCount(4);
-  expect(await sheet(page).locator(".tup-bul > li.tlist").evaluate((li) => getComputedStyle(li).listStyleType), "the list of terms has no bullet of its own").toBe("none");
+  // the terms follow what the stage introduces, each with its mark and nothing else
+  const lines = sheet(page).locator(".tup-bul > li");
+  await expect(lines.nth(0)).toHaveText("Stage 2 introduces colors and shapes as qualities of things: the red of an apple, not the apple.");
+  await expect(lines.nth(1)).toHaveClass("tlist");
+  const terms = lines.nth(1).locator(".tterms li");
+  await expect(terms).toHaveText(["External form", "Shape", "Color", "Form source"]);
+  expect(await terms.locator(".tmk").evaluateAll((a) => a.map((x) => x.getAttribute("class")))).toEqual(["tmk ok", "tmk slip", "tmk miss", "tmk wait"]);
+  expect(await lines.nth(1).evaluate((li) => getComputedStyle(li).listStyleType), "the list of terms has no bullet of its own").toBe("none");
+  await expect(lines.nth(2)).toHaveText("Stage 3 is reached once your last answer on each of these terms is right.");
   await expect(sheet(page)).toContainText("A wrong answer takes back only that term’s mark.");
   await expect(sheet(page)).not.toContainText("in a row");
 });
@@ -166,7 +169,8 @@ test("a single new term is a whole ring, and with every new term right the ring 
   await expect(ring(page).locator("path.tseg")).toHaveCount(0);
   await expect(ring(page)).toHaveAccessibleName("Progression: stage 1, 0 of 1 new terms answered right. How it works");
   await ring(page).click();
-  await expect(sheet(page)).toContainText("Stage 2 is reached once your last answer on the new term of stage 1 is right:");
+  await expect(sheet(page).locator(".tterms li")).toHaveText(["Form"]);
+  await expect(sheet(page)).toContainText("Stage 2 is reached once your last answer on this term is right.");
 });
 
 test("the sheet says so where no stage comes by itself", async ({ page }) => {

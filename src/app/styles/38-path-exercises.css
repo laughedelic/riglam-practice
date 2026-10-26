@@ -122,7 +122,6 @@
 .pa .tterms{list-style:none; margin:4px 0 2px; padding:0}
 .pa .tterms li{display:flex; align-items:baseline; gap:4px 9px; flex-wrap:wrap; padding:2px 0}
 .pa .tterms .ttn{font-weight:500}
-.pa .tterms small{color:var(--ink2); font-size:.8em}
 .pa .tmk{flex:none; width:9px; height:9px; transform:rotate(45deg) translateY(-1px); box-sizing:border-box; border:1.4px solid var(--ink2); opacity:.7}
 .pa .tmk.wait{opacity:.4}
 .pa .tmk.ok{background:var(--green); border-color:var(--green); opacity:1}
