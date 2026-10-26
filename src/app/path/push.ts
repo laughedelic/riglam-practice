@@ -73,6 +73,7 @@ function foldBefore(keep: HTMLElement, pc: HTMLElement): number {
   for (let n: HTMLElement | null = first; n && n !== pc; n = n.parentElement) for (let s = n.previousElementSibling; s; s = s.previousElementSibling) if (s instanceof HTMLElement) s.classList.add("pk-gone");
   for (const e of Array.from(pc.querySelectorAll<HTMLElement>(".pskip"))) e.classList.add("pk-gone");
   if (!sec) return 0;
+  sec.classList.add("pk-walked");      // the statement's line goes from the question's gold to ink as the step is taken
   const above = Array.from(sec.children).slice(0, Array.prototype.indexOf.call(sec.children, first)).filter((e): e is HTMLElement => e instanceof HTMLElement), last = above.pop();
   const keepTop = Number(keep.dataset.keep) || 0, up = first.getBoundingClientRect().top - sec.getBoundingClientRect().top - keepTop;
   if (!last || up < 1) return 0;

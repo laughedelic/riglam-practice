@@ -36,6 +36,8 @@
   -webkit-mask-image:linear-gradient(to bottom,#000 0,#000 10px,transparent 58px,transparent calc(100% - 52px),#000 100%);
   mask-image:linear-gradient(to bottom,#000 0,#000 10px,transparent 58px,transparent calc(100% - 52px),#000 100%)}
 .pa .sx.detouring::before{background:var(--ahead-bg)}
+/* the line's color can be eased from one to another (a statement's line goes from the question's gold to the walked ink as the ride takes the step, push.ts) */
+@property --sc{syntax:"<color>"; inherits:true; initial-value:transparent}
 /* the line takes the next color over the first 34 px of the next section instead of cutting to it */
 @supports (color:color-mix(in srgb,red,blue)){
   .pa .sx{--sc:color-mix(in srgb,var(--ink) 72%,var(--paper)); --smw:34px; --sbg:linear-gradient(to bottom,var(--pv,var(--sc)) 0,var(--sc) var(--smw))}
