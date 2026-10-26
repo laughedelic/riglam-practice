@@ -41,11 +41,11 @@ function lines(c: Syllogism): Record<Part, string> {
 }
 /** How far under the top of its section the result puts the statement (px): the ride (push.ts) folds what is above the statement down to this, so that the statement does not move when the result comes. */
 const RESULT_TOP = 12;
-/** The syllogism on the path: S, P and R in the margin, a line each, and what the letters stand for. `keep`: the step that follows shows it again, so the ride (push.ts) leaves it in its place. */
+/** The syllogism on the path: S, P and R in the margin, a line each, and what the letters stand for. Its first line keeps the room of the Skip mark (`hasroom`) in every step, so that the lines break the same way once Skip is gone (the result). `keep`: the step that follows shows it again, so the ride (push.ts) leaves it in its place. */
 function Statement({ star = true, keep = false }: { star?: boolean; keep?: boolean }) {
   const l = lines(shownSyllogism());
   return <>
-    <St d={<span class="ab">S</span>} cls={"stm" + (star ? marksCls() : "")}>{star ? <><Star /><SkipMark /></> : null}<span class="cs" lang="en">{l.subject}</span></St>
+    <St d={<span class="ab">S</span>} cls={"stm hasroom" + (star ? marksCls() : "")}>{star ? <><Star /><SkipMark /></> : null}<span class="cs" lang="en">{l.subject}</span></St>
     <St d={<span class="ab">P</span>} cls="stm"><span class="cs" lang="en">{l.predicate}</span></St>
     <St d={<span class="ab">R</span>} cls="stm"><span class="cs" lang="en">{l.reason}</span></St>
     <p class="plegend" data-keep={keep ? String(RESULT_TOP) : undefined}>S subject · P predicate · R reason</p>

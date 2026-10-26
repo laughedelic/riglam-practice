@@ -378,6 +378,8 @@ test("check: morph, a syllogism's Result keeps the reply and the counter-example
   page.on("pageerror", (e) => errors.push(e.message));
   await toCounter(page, "salmon");
   await expect(page.locator("#path .pathc .stm")).toHaveCount(3);
+  const room = () => page.locator("#path .pathc .stm").first().locator(".ptx").evaluate((e) => getComputedStyle(e).paddingRight);
+  const roomBefore = await room();
   await watchScan(page);
   await page.locator("#stn").click();
   await expect(main(page)).toHaveClass(/\bsc-run\b/);
@@ -394,6 +396,7 @@ test("check: morph, a syllogism's Result keeps the reply and the counter-example
   expect(Math.max(...after.map((y) => Math.abs(y - at))), "the statement does not move when the result opens").toBeLessThan(1.5);
   expect(w.ys[0] - at, "it came up as the heading above it folded").toBeGreaterThan(10);
   await expect(page.locator("#path .pathc .stm")).toHaveCount(3);
+  expect(await room(), "the statement keeps the room of the Skip mark once it is gone, so its lines break as they did").toBe(roomBefore);
   await expect(page.locator(".pwhat")).toBeVisible();
   expect(errors).toEqual([]);
 });

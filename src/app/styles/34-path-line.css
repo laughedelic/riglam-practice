@@ -104,6 +104,8 @@
 .pa .pskip:active{color:var(--blue)}
 .pa .hasskip{position:relative}
 .pa .hasskip > .ptx{padding-right:52px}
+/* the room of the Skip mark kept where the mark is gone (a syllogism's statement in the result), so that its lines do not break differently */
+.pa .hasroom > .ptx{padding-right:52px}
 .pa .hasskip .pskip{position:absolute; right:6px; top:-4px; z-index:2}
 .pa .hasstar.hasskip .pskip{top:40px}
 .pa .pairst.sm.hasstar.hasskip .pskip{top:36px}

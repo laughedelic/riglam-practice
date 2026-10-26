@@ -105,8 +105,8 @@ test("the line: Syllogisms' counter-example may stay empty, and its piece of lin
   expect(await dotted(page, "#path .sx.ptail"), "the trail, although the Result station is ready").toBe(true);
   expect(await dotted(page, "#path .sx.first"), "what was answered stays solid").toBe(false);
   await page.locator("#sylex").fill("a stone");
-  expect(await dotted(page, "#path .sx.er"), "written").toBe(false);
-  expect(await dotted(page, "#path .sx.ptail")).toBe(false);
+  await expect.poll(() => dotted(page, "#path .sx.er"), { message: "written" }).toBe(false);      // the path redraws on the next frame
+  await expect.poll(() => dotted(page, "#path .sx.ptail")).toBe(false);
 });
 
 test("Pervasions: four questions answered on the path, a counter-example for Why, then the relation, and the result", async ({ page }) => {
