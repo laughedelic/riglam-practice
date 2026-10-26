@@ -39,9 +39,6 @@ export interface Look {
   /** how the Check of the examples is taken: it slides up through the cases, marking each as it passes, marks the relation at the strip and becomes the result (scan.tsx), the same with the page
    *  going on into the result's page instead of being replaced by it (`morph`), or rides as any station */
   check: "scan" | "morph" | "ride";
-  /** what is at the foot while a station that pushes or slides away (`ride: push`, the Check) is away from it: the station that comes next, there from the moment the old one leaves, the thread
-   *  whole between them (`thread`), or nothing until the step has landed, when the next station comes in and the thread joins it (`after`) */
-  foot: "thread" | "after";
   /** where Skip is: an icon under the favorites mark (an action on the pair, like saving it), or the side station at the foot (on hold) */
   skipAt: "under" | "foot";
   figs: "ink" | "color";
@@ -91,7 +88,7 @@ export const GRAIN_PLACES = ["verdict", "station", "current", "band", "top"];
 export const DEFAULT_LOOK: Look = {
   mode: "system", light: "ivory", dark: "slate", blue: "#3155a4", gold: "#faaf3f", green: "#4c8a63", red: "#b83545", purple: "#6f3f8f", purpleFor: "tutor",
   grain: "verdict,station", grainLevel: "soft", wait: "dots", font: "newsreader", hand: "kalam", tM: 50, tLw: 2, tSt: 28, tTn: 34, tHand: 19,
-  choice: "margin", take: "slide", ride: "push", land: "set", check: "morph", foot: "thread", skipAt: "under", figs: "ink", ahead: "dot", next: "edge", edge: "fade", why: "row", sheet: "top", toggle: "nested", keys: "sim", star: "pair",
+  choice: "margin", take: "slide", ride: "push", land: "set", check: "morph", skipAt: "under", figs: "ink", ahead: "dot", next: "edge", edge: "fade", why: "row", sheet: "top", toggle: "nested", keys: "sim", star: "pair",
   ask: "row", tutorAuto: "off", abPos: "margin", cOn: "on", cSerif: "spectral", cHand: "pangolin", cBo: "notoserifTib", cSa: "notoserifDeva", cZh: "wenkai",
   words: "underline", subj: "letters", starShape: "bookmark", miFig: "inset",
 };
@@ -100,7 +97,7 @@ export const DEFAULT_LOOK: Look = {
 const ONE_OF: Partial<Record<keyof Look, readonly string[]>> = {
   mode: ["system", "light", "dark"], light: Object.keys(GROUNDS.light), dark: Object.keys(GROUNDS.dark), purpleFor: ["none", "tutor", "skip", "partly"],
   grainLevel: ["soft", "mid", "strong"], wait: ["dots"], font: Object.keys(MAIN_FONTS), hand: ["newsreader", "main", "mainup", ...Object.keys(HAND_FONTS)],
-  choice: ["margin", "rows", "branches"], take: ["slide", "lit"], ride: ["fold", "push", "plain"], land: ["set", "recoil"], check: ["scan", "morph", "ride"], foot: ["thread", "after"], skipAt: ["under", "foot"], figs: ["ink", "color"], ahead: ["dot", "dash", "fade"], next: ["edge", "page"], edge: ["run", "fade"],
+  choice: ["margin", "rows", "branches"], take: ["slide", "lit"], ride: ["fold", "push", "plain"], land: ["set", "recoil"], check: ["scan", "morph", "ride"], skipAt: ["under", "foot"], figs: ["ink", "color"], ahead: ["dot", "dash", "fade"], next: ["edge", "page"], edge: ["run", "fade"],
   why: ["detour", "row", "side"], sheet: ["top", "bottom", "path"], toggle: ["track", "check", "solid", "stops", "nested"], keys: ["sim", "off"],
   star: ["pair", "bar"], ask: ["detour", "row"], tutorAuto: ["off", "on"], abPos: ["names", "margin"], cOn: ["on", "off"],
   cSerif: Object.keys(SERIF_COMPANIONS), cHand: Object.keys(HAND_COMPANIONS), words: ["underline", "diamond", "chip"], subj: ["none", "italic", "letters", "diamonds", "lettered", "inks"], starShape: ["star", "eight", "bookmark"], miFig: ["inset", "full"],

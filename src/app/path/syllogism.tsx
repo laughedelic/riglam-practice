@@ -88,7 +88,7 @@ function CounterStep({ kb }: { kb: boolean }) {
       <Sx cls={"ptail" + (some ? "" : " dtail")} />
     </Scroll>
     {kb ? null : <Foot>
-      <Station name="Result" hint={some ? "your reply and the counter-example" : "your reply, without a counter-example"} act={exampleSyllogism} next="Next" scan={scanPlan} />
+      <Station name="Result" hint={some ? "your reply and the counter-example" : "your reply, without a counter-example"} act={exampleSyllogism} scan={scanPlan} />
     </Foot>}
   </>;
 }
@@ -110,7 +110,7 @@ function scanPlan(): ScanPlan | null {
   const u = u0(), g = u.grade, t = counterText(u), x = t ? gradeExample(state as unknown as DataIndex, shownSyllogism(), t) : null;
   if (!g || (x && x.v === "self")) return null;
   const overall = g.correct && x && x.v === "bad" ? "part" : g.grade, { v, word, sub } = verdictOf(g, overall, !!u.timeout, x ? x.v : null);
-  return { cases: x ? [x.v === "ok" ? "ok" : x.v === "bad" ? "no" : "pt"] : [], rel: g.correct ? "ok" : "no", v, word, sub: sub || "", next: "Next", stop: ".sylsaid" };
+  return { cases: x ? [x.v === "ok" ? "ok" : x.v === "bad" ? "no" : "pt"] : [], rel: g.correct ? "ok" : "no", v, word, sub: sub || "", stop: ".sylsaid" };
 }
 function ResultStep() {
   const u = u0(), c = shownSyllogism(), g = u.grade, first = (CHECKS.find(([k]) => !c.checks[k].ok) || [])[0];

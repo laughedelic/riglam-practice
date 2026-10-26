@@ -8,7 +8,7 @@
 // station rises to the statement's foot, and the result opens there, its node coming out of the station and the statement settling into its place in the result's page.
 // The push is a custom property on `.pathc` (`--push`, styles/44-path-push.css); the page is cut under the station's top edge, so what is below it is not seen.
 import { state } from "../state.js";
-import { come, dropHand, endHand, handOf, wait } from "./foot.ts";
+import { dropHold, holdOf, wait } from "./foot.ts";
 import { foldPage, playTake } from "./take.ts";
 
 type Ease = (u: number) => number;
@@ -91,27 +91,26 @@ export function foldBefore(keep: HTMLElement, pc: HTMLElement): number {
  * The page follows the station while it is held over its curb: it is pushed up as the station rises into it. A page that keeps a statement is not pushed: what is under the statement
  * folds into it. Returns the stop of the following (what it has done stays; `clearPush` takes it back).
  */
-export function holdPush(root: HTMLElement, thread = false, next: string | null = null): () => void {
+export function holdPush(root: HTMLElement): () => void {
   const { main, pc } = parts(root), keep = keepOf(pc), stn = root.querySelector<HTMLElement>(".main .foot #stn");
   if (pc && keep) foldAfter(keep, pc);
-  // under the look's `foot: thread` the station that comes next is born at the foot once this one has cleared it, and the thread runs between them
-  const hand = thread && main && stn ? handOf(root, main, stn, next) : null;
-  if (!hand && pc && keep) return () => {};
+  // the placeholder of the station that comes next is born at the foot once this one has cleared it (foot.ts)
+  const hold = main && stn ? holdOf(root, main, stn) : null;
   let raf = 0, on = true;
   const tick = () => {
     if (!on) return;
     if (!keep) pushPage(root, 0.4);
-    if (hand) hand.to(parseFloat(root.style.getPropertyValue("--lift")) || 0);
+    if (hold) hold.to(parseFloat(root.style.getPropertyValue("--lift")) || 0);
     raf = requestAnimationFrame(tick);
   };
   tick();
   return () => { on = false; cancelAnimationFrame(raf); };
 }
 
-/** The page goes back to where it was (the station was pulled back under the curb, or let go short of it). `soft`: it slides back rather than at once. `ride`: the ride goes on (the hand at the foot stays). */
+/** The page goes back to where it was (the station was pulled back under the curb, or let go short of it). `soft`: it slides back rather than at once. `ride`: the ride goes on (the placeholder at the foot stays). */
 export function clearPush(root: HTMLElement | null, soft = true, ride = false): void {
   const { pc } = parts(root); if (!root || !pc) return;
-  if (!ride) dropHand(root, soft);
+  if (!ride) dropHold(root, soft);
   unfoldAfter(pc, soft);
   for (const s of Array.from(pc.querySelectorAll<HTMLElement>(".pk-gone"))) { s.classList.remove("pk-gone", "pk-fb", "tkd", "tkf"); s.style.height = s.style.overflow = ""; }
   if (pc.dataset.push || root.classList.contains("pushing")) {
@@ -140,16 +139,15 @@ function ghostOf(main: HTMLElement, stn: HTMLElement): HTMLElement {
 
 /**
  * Plays the take of the station `stn` (lifted `lift` px by the hand, the page pushed `dataset.push` already), then `act`; `settle` when the new page is in. `how.recoil`: the station rises a little
- * past the new first bullet and comes back to it. `how.thread`: the look's `foot: thread` (the next station, `how.next` by name where it is known, is at the foot as this one rises, and the thread
- * is whole between them), else the foot is empty until the step has landed (`foot: after`).
+ * past the new first bullet and comes back to it. The next station is a placeholder at the foot while this one rises (foot.ts), and the real one comes in once the step has landed.
  */
-export function playPush(root: HTMLElement, stn: HTMLElement, lift: number, act: () => void, settle: () => void, how: { recoil?: boolean; thread?: boolean; next?: string | null } = {}): void {
+export function playPush(root: HTMLElement, stn: HTMLElement, lift: number, act: () => void, settle: () => void, how: { recoil?: boolean } = {}): void {
   const recoil = !!how.recoil;
   const { main, sc, pc } = parts(root);
   const go = stn.querySelector<HTMLElement>(".go"), foot = stn.closest<HTMLElement>(".foot"), riser = root.querySelector<HTMLElement>(".riser");
   // a station that stands on the page itself (the Check above the keyboard) has no page to push: it rides as it always did
   if (!main || !sc || !pc || !go || !foot) { playTake(root, stn, lift, act, settle); return; }
-  const u = state.ui, hand = how.thread ? handOf(root, main, stn, how.next || null) : null;
+  const u = state.ui, hold = holdOf(root, main, stn);
   foldPage(root, true);
   const scr = sc.getBoundingClientRect(), keep = keepOf(pc);
   const up = keep ? foldBefore(keep, pc) : 0;      // the heading above the statement folds away: the statement comes up to where the result puts it
@@ -162,12 +160,11 @@ export function playPush(root: HTMLElement, stn: HTMLElement, lift: number, act:
   root.classList.add("pulling"); stn.classList.add("dragging"); main.classList.add("pk-run"); if (keep) main.classList.add("pk-keep");
   if (keep) foldAfter(keep, pc);
   let was: number[] = [];
-  let ended = false, raf = 0, rose = lift;
+  let ended = false, raf = 0;
   const draw = (t: number) => {
     const e = EASE.io(clamp(t / T)), dy = lift + (R - lift) * e;
-    rose = dy;
     stn.style.transform = `translateY(${-dy}px)`;
-    if (hand) hand.to(dy);
+    hold.to(dy);
     root.style.setProperty("--lift", dy.toFixed(1) + "px"); root.style.setProperty("--pull", "1");
     main.style.setProperty("--tkl", EASE.out(clamp((t - (T - LAND)) / LAND)).toFixed(3));
     if (!keep) pushPage(root, 0.6);
@@ -179,8 +176,8 @@ export function playPush(root: HTMLElement, stn: HTMLElement, lift: number, act:
   const land = (g: HTMLElement) => {
     const now = parts(root).pc, gg = g.querySelector<HTMLElement>(".go");
     const nb = now && gg ? (keep ? now.querySelector<HTMLElement>(".pvline .d.big, .vband .d") : now.querySelector<HTMLElement>(".d, .rfig")) : null;
-    const over = () => { main.classList.remove("pk-swap", "pk-run"); if (nb) nb.style.visibility = ""; g.remove(); if (!hand) come(main); };
-    const reveal = () => { main.classList.remove("pk-swap"); main.classList.add("tk-in"); setTimeout(() => main.classList.remove("tk-in", "pk-keep"), 520); endHand(root); };
+    const over = () => { main.classList.remove("pk-swap", "pk-run"); if (nb) nb.style.visibility = ""; g.remove(); hold.activate(); dropHold(root); };
+    const reveal = () => { main.classList.remove("pk-swap"); main.classList.add("tk-in"); setTimeout(() => main.classList.remove("tk-in", "pk-keep"), 520); };
     if (!gg || !nb) { reveal(); g.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 180, fill: "forwards" }); setTimeout(() => { over(); settle(); }, 200); return; }
     const a = gg.getBoundingClientRect(), r = nb.getBoundingClientRect(), dx = r.left + r.width / 2 - (a.left + a.width / 2), dy = r.top + r.height / 2 - (a.top + a.height / 2);
     nb.style.visibility = "hidden";
@@ -208,12 +205,11 @@ export function playPush(root: HTMLElement, stn: HTMLElement, lift: number, act:
     const step = () => {
       const p = parts(root).pc;
       if (!(keep ? (p && p.querySelector(".pvline")) || ++n > 4 : ++n > 1)) { requestAnimationFrame(step); return; }
-      clearPush(root, false, true);                 // the old page is gone: the new one is where it is, not pushed (the hand at the foot goes on)
+      clearPush(root, false, true);                 // the old page is gone: the new one is where it is, not pushed (the placeholder at the foot stays)
       main.style.removeProperty("--tkl");           // and the station of the new page has its words
       const s2 = root.querySelector<HTMLElement>("#stn, #stnp"); if (s2) { s2.style.transform = ""; s2.style.visibility = ""; s2.classList.remove("dragging"); }
       if (riser) riser.style.display = "";
       root.classList.remove("pulling"); root.style.setProperty("--pull", "0"); root.style.setProperty("--lift", "0px");
-      if (hand) hand.swap();                        // the real station of the new page is at the foot: the copy goes, its words come in
       land(g);
     };
     step();
@@ -223,7 +219,7 @@ export function playPush(root: HTMLElement, stn: HTMLElement, lift: number, act:
     if (keep) was = Array.from(pc.querySelectorAll<HTMLElement>(".stm")).map((e) => e.getBoundingClientRect().top);      // where the statement stands as the step goes on
     const g = ghostOf(main, stn);                   // the step takes the station away: a copy of it goes on
     stn.style.visibility = "hidden";
-    if (hand) hand.to(rose, true); else wait(main); // the thread reaches the copy; or the foot shows nothing until the step has landed
+    hold.born(); wait(main);                        // the placeholder is there (a short ride has not cleared the foot), and the foot shows no real station until the step has landed
     main.classList.add("pk-swap");                  // the old page is not seen (what stays, the statement, is) until the new one is drawn
     if (state.ui === u) act();                      // else the page has changed meanwhile (a menu, another exercise): nothing to take
     drawn(g);

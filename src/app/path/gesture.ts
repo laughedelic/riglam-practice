@@ -74,8 +74,6 @@ export class Pull {
   after: (() => void) | null = null;
   /** the verdicts the Check of the examples marks as it slides up (scan.tsx), set by that station on every draw; null elsewhere */
   scan: (() => ScanPlan | null) | null = null;
-  /** the name of the station that comes after this one when it is known (a Check or a Result leads to Next), set by that station on every draw: it is at the foot as the station rides away (the look's `foot: thread`) */
-  next: string | null = null;
   peekT: ReturnType<typeof setTimeout> | undefined;
   /** under the look's `ride: push` the page follows the station over its curb (push.ts): the stop of that following, and whether the page is pushed or folded by it now */
   private pusher: (() => void) | null = null;
@@ -87,7 +85,7 @@ export class Pull {
   private follow(on: boolean) {
     if (!this.root || currentLook().ride !== "push" || (this.scan && currentLook().check !== "ride")) return;
     this.unfollow();
-    if (on) { this.pusher = holdPush(this.root, currentLook().foot === "thread", this.next); this.pushed = true; } else if (this.pushed) { this.pushed = false; clearPush(this.root); }
+    if (on) { this.pusher = holdPush(this.root); this.pushed = true; } else if (this.pushed) { this.pushed = false; clearPush(this.root); }
   }
   /** The following stops (what it has done stays). */
   private unfollow() { if (this.pusher) { this.pusher(); this.pusher = null; } }
@@ -149,8 +147,8 @@ export class Pull {
       // with the keyboard's layout up the scan opens the page first: the field is let go and the layout is the page's again at its start
       const root = this.root, open = plan && root.classList.contains("kbup") ? () => { this.hold = false; const a = document.activeElement; if (a instanceof HTMLElement && a.classList.contains("pfield")) a.blur(); if (this.after) this.after(); } : null;
       this.unfollow(); this.pushed = false;
-      if (plan) playScan(root, stn, plan, go, settle, open, look.check === "morph", look.foot);
-      else if (look.ride === "push") playPush(root, stn, this.dy, go, settle, { recoil: look.land === "recoil", thread: look.foot === "thread", next: this.next });
+      if (plan) playScan(root, stn, plan, go, settle, open, look.check === "morph");
+      else if (look.ride === "push") playPush(root, stn, this.dy, go, settle, { recoil: look.land === "recoil" });
       else playTake(root, stn, this.dy, go, settle);
       return true;
     }

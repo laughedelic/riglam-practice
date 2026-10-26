@@ -832,6 +832,7 @@ test("the stub into the station is gray and fades upward from it: dotted while t
   expect(ready.mask, "still fading upward").toMatch(/^linear-gradient\(rgba\(0, 0, 0, 0\)/);
   await page.locator("#stn").click();
   await expect(page.locator("#path .pvline")).toBeVisible();
+  await expect(page.locator("#path .main")).not.toHaveClass(/\bfw-ph\b/);      // the placeholder's own stub is the Check's scan's, until the step has landed
   const done = await stub();
   expect(done.color, "ink at the result").toBe(await color("--ink"));
   expect(done.mask, "no fade").toBe("none");

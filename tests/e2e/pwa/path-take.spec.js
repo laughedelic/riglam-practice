@@ -25,7 +25,7 @@ async function toResult(page) {
   await page.locator("#stn").click();
   await expect(page.locator(".pvline")).toBeVisible();
   await expect(page.locator("#stn")).toContainText("Next pair");
-  await expect(main(page)).not.toHaveClass(/\btk-in\b/);
+  await expect(main(page)).not.toHaveClass(/\b(tk-in|sc-in|sc-hand|fw-wait)\b/);      // the Next station comes in once the scan has landed
   await page.evaluate(() => { window.__vib = []; });   // (the choice taken on the way here knocked)
 }
 /** The station's mouse pull: down on it, then up by each of `ds` (px above where it started). */

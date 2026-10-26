@@ -1,6 +1,6 @@
 // The ways of taking a station on the Path that are the default (src/app/path/push.ts, scan.tsx, foot.ts): `ride: push`, where the page rises with the station while it is held over its
 // curb and, let go, keeps rising and leaves through the top ahead of it (a syllogism keeps its statement and the result opens under it), `check: morph`, where the examples' page moves
-// into the result's instead of being swapped for it (a syllogism's Result takes that scan too, over its reply and counter-example), and the look's `foot`: what is at the foot while the station is away.
+// into the result's instead of being swapped for it (a syllogism's Result takes that scan too, over its reply and counter-example), and what is at the foot while the station is away (a placeholder for the next station, foot.ts).
 // The squeeze and the scan are path-take.spec.js and path-scan.spec.js.
 import { test, expect } from "../../support/test.js";
 
@@ -43,8 +43,8 @@ const pushed = (page) => page.locator("#path .pathc").evaluate((e) => Number(e.d
 async function expectClean(page) {
   await expect(main(page)).not.toHaveClass(/\b(tk-run|tk-in|pk-run|pk-swap|pk-keep|sc-run|sc-in|sc-hand|sc-morph)\b/);
   await expect(page.locator(".pa")).not.toHaveClass(/\b(pulling|pushing|pushback)\b/);
-  await expect(page.locator("#path .tkd, #path .pk-f, #path .pk-gone, #path .morphed, #path .mnew, #path .pscan, #path .pk-ghost, #path .fw-sd, #path .fw-th")).toHaveCount(0);
-  await expect(main(page)).not.toHaveClass(/\bfw-wait\b/);
+  await expect(page.locator("#path .tkd, #path .pk-f, #path .pk-gone, #path .morphed, #path .mnew, #path .pscan, #path .pk-ghost, #path .fw-sd")).toHaveCount(0);
+  await expect(main(page)).not.toHaveClass(/\b(fw-wait|fw-ph)\b/);
   expect(await page.locator("#path .pathc").evaluate((e) => e.style.getPropertyValue("--push") + (e.dataset.push || "")), "the page is not pushed").toBe("");
   expect(await page.locator("#stn, #stnp").first().evaluate((e) => e.style.transform), "the station is where it belongs").toBe("");
 }
@@ -214,15 +214,16 @@ test("check: morph, the result's node and word are not drawn twice, the pair mov
   expect(errors).toEqual([]);
 });
 
-/** What is at the foot, every frame of a ride: the copy of the next station and the thread to it, the foot's real station, whether the scanner or the ghost is on the page, and how far the thread the scanner has passed reaches below the last case's diamond. */
+/** What is at the foot, every frame of a ride: the placeholder of the next station, the foot's real station (hidden while the foot waits), whether the scanner or the ghost is on the page, the foot's stub, and how far the thread the scanner has passed reaches below the last case's diamond. */
 const watchFoot = (page) => page.evaluate(() => {
-  const w = (window.__fw = { sd: 0, th: 0, thH: 0, pre: false, words: "", wait: 0, hidden: 0, real: 0, scan: 0, scanReal: 0, ghost: 0, pastBelow: -999, pastLen: 0, stub: 0 });
+  const w = (window.__fw = { sd: 0, pre: false, words: "", wait: 0, hidden: 0, real: 0, scan: 0, scanReal: 0, ghost: 0, pastBelow: -999, pastLen: 0, stub: 0, act: 0 });
   const tick = () => {
-    const sd = document.querySelector("#path .fw-sd"), th = document.querySelector("#path .fw-th"), m = document.querySelector("#path .main"), real = document.querySelector("#path .foot .stn");
+    const sd = document.querySelector("#path .fw-sd"), m = document.querySelector("#path .main"), real = document.querySelector("#path .foot .stn");
     if (sd) { w.sd++; w.pre = !!sd.querySelector(".go.pre"); w.words = w.words || (sd.querySelector(".gol b") || {}).textContent || ""; }
-    if (th) { w.th++; w.thH = Math.max(w.thH, th.getBoundingClientRect().height); }
-    if (m.classList.contains("fw-wait")) { w.wait++; if (real && getComputedStyle(real).visibility === "hidden") w.hidden++; }
-    if (real && getComputedStyle(real).visibility !== "hidden" && !real.classList.contains("scanning") && /Next/.test(real.textContent)) { w.real++; if (document.querySelector("#path .pscan")) w.scanReal++; }
+    if (m.classList.contains("fw-wait")) { w.wait++; if (real && getComputedStyle(real).opacity === "0") w.hidden++; }
+    const shown = real && getComputedStyle(real).visibility !== "hidden" && getComputedStyle(real).opacity !== "0" && !real.classList.contains("scanning");
+    if (shown && /Next/.test(real.textContent)) { w.real++; if (document.querySelector("#path .pscan")) w.scanReal++; }
+    if (real && real.classList.contains("fw-act")) w.act++;
     if (document.querySelector("#path .pscan")) w.scan++;
     if (document.querySelector("#path .pk-ghost")) w.ghost++;
     const scn = document.querySelector("#path .pscan"), foot = document.querySelector("#path .foot");
@@ -237,79 +238,46 @@ const watchFoot = (page) => page.evaluate(() => {
   tick();
 });
 
-test("foot: thread, the next station is born at the foot as the station rises, the thread is whole between them, and the next page's own takes the copy's place", async ({ page }) => {
+test("foot: a placeholder for the next station, gray and empty, is born at the foot as the station rises; the real one comes in only once the step has landed", async ({ page }) => {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await look(page, { foot: "thread", check: "ride" });
+  await look(page, { check: "ride" });
   await toResult(page);
   await watchFoot(page);
   await page.locator("#stn").click();
   await expect(main(page)).toHaveClass(/\bpk-run\b/);
-  await expect(page.locator("#path .fw-sd"), "the next station is at the foot").toHaveCount(1, { timeout: 3000 });
+  await expect(page.locator("#path .fw-sd"), "the placeholder is at the foot").toHaveCount(1, { timeout: 3000 });
   await expect(page.locator("#path .sechead")).toBeVisible({ timeout: 5000 });
+  await expect(page.locator("#path .foot .stn")).toBeVisible();
   await expect(main(page)).not.toHaveClass(/\bpk-run\b/);
   await expectClean(page);
   const w = await page.evaluate(() => window.__fw);
-  expect(w.sd, "the copy was there for frames").toBeGreaterThan(5);
-  expect(w.pre, "a question's station is the gray one").toBe(true);
-  expect(w.words, "and has no words yet").toBe("");
-  expect(w.thH, "the thread reached up from it to the station").toBeGreaterThan(150);
-  expect(w.wait, "the foot was never left empty").toBe(0);
-  await expect(page.locator("#path .foot .stn")).toBeVisible();
+  expect(w.sd, "the placeholder was there for frames").toBeGreaterThan(5);
+  expect(w.pre, "it is the gray station of a question that is not ready").toBe(true);
+  expect(w.words, "and has no words").toBe("");
+  expect(w.wait, "the foot's real station waited for the step").toBeGreaterThan(5);
+  expect(w.hidden, "and was not shown while it did").toBe(w.wait);
+  expect(w.act, "it came in as itself").toBeGreaterThan(3);
   expect(errors).toEqual([]);
 });
 
-test("foot: thread, a syllogism's Result has the next station, by name, at the foot while the result's node comes out of it", async ({ page }) => {
+test("foot: pulled back under the curb, the placeholder goes with the station and nothing of it is left", async ({ page }) => {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await look(page, { foot: "thread", check: "ride" });
-  await page.addInitScript(onPath);
-  await page.goto("/");
-  await expect(choices(page)).toHaveCount(5);
-  await page.locator(".tstn").click();
-  await page.getByRole("dialog", { name: "Roadmap" }).getByRole("button", { name: /^Syllogisms/ }).click();
-  await expect(page.locator(".ptb-t")).toContainText("Syllogisms");
-  expect(await page.evaluate(() => { for (let i = 0; i < 600; i++) { if (window.__t.cur.c.answer === "pervasion") return true; window.__t.next(); } return false; })).toBe(true);
-  await choices(page).filter({ hasText: "There is no pervasion" }).first().click();
-  await expect(page.locator("#sylex")).toBeVisible();
-  await page.locator("#sylex").blur();
-  await watchFoot(page);
-  await page.locator("#stn").click();
-  await expect(page.locator(".pvline")).toBeVisible({ timeout: 5000 });
-  await expect(main(page)).not.toHaveClass(/\b(tk-in|pk-run)\b/);
-  await expectClean(page);
-  const w = await page.evaluate(() => window.__fw);
-  expect(w.sd).toBeGreaterThan(5);
-  expect(w.pre, "the next station is a station, not the gray one").toBe(false);
-  expect(w.words, "its name is known").toBe("Next");
-  expect(w.thH).toBeGreaterThan(100);
-  await expect(page.locator("#stn")).toContainText("Next");
-  expect(errors).toEqual([]);
-});
-
-test("foot: after, the foot shows nothing while the station is away, and the next station comes in once the step has landed", async ({ page }) => {
-  const errors = [];
-  page.on("pageerror", (e) => errors.push(e.message));
-  await look(page, { foot: "after", check: "ride" });
+  await look(page, { check: "ride" });
   await toResult(page);
-  await watchFoot(page);
-  await page.locator("#stn").click();
-  await expect(main(page)).toHaveClass(/\bpk-run\b/);
-  await expect(page.locator("#path .sechead")).toBeVisible({ timeout: 5000 });
-  await expect(main(page)).not.toHaveClass(/\bpk-run\b/);
+  const { x, y } = await pull(page, [30, 45, 70, 110, 200, 300, 400, 480]);
+  await expect(page.locator("#path .fw-sd"), "the placeholder is born while the station is held over the curb").toHaveCount(1);
+  await page.mouse.move(x, y, { steps: 14 });
+  await page.mouse.up();
+  await expect(page.locator("#path .fw-sd")).toHaveCount(0, { timeout: 2000 });
   await expectClean(page);
-  const w = await page.evaluate(() => window.__fw);
-  expect(w.sd + w.th, "no copy of the next station and no thread to it").toBe(0);
-  expect(w.wait, "the foot waited for the step").toBeGreaterThan(5);
-  expect(w.hidden, "and showed no station while it did").toBe(w.wait);
-  await expect(page.locator("#path .foot .stn")).toBeVisible();
   expect(errors).toEqual([]);
 });
 
-test("foot: after, the Check's scanner leaves an empty foot, and Next pair comes in once it is the result's node", async ({ page }) => {
+test("foot: the Check's scanner leaves a placeholder at the foot, with the foot's stub above it, and Next pair comes in once the scanner is the result's node", async ({ page }) => {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await look(page, { foot: "after" });
   await toCheck(page);
   await watchFoot(page);
   await page.locator("#stn").click();
@@ -320,26 +288,13 @@ test("foot: after, the Check's scanner leaves an empty foot, and Next pair comes
   await expectClean(page);
   const w = await page.evaluate(() => window.__fw);
   expect(w.scan, "the scanner was on the page").toBeGreaterThan(10);
-  expect(w.scanReal, "and Next pair was not at the foot while it was").toBe(0);
+  expect(w.sd, "the placeholder stood at the foot").toBeGreaterThan(10);
+  expect(w.pre, "gray and empty").toBe(true);
+  expect(w.scanReal, "Next pair was not at the foot while the scanner was").toBe(0);
   expect(w.real, "it came in after").toBeGreaterThan(3);
   expect(w.pastLen, "the scanner left a thread behind it through the cases").toBeGreaterThan(20);
   expect(w.pastBelow, "but none below the last case, over the empty ground to the foot").toBeLessThanOrEqual(1);
-  expect(w.stub, "and the foot's own stub of thread is gone once the scanner is away from it").toBe(0);
-  expect(errors).toEqual([]);
-});
-
-test("foot: thread, the Check's scanner walks a thread that runs down to the foot", async ({ page }) => {
-  const errors = [];
-  page.on("pageerror", (e) => errors.push(e.message));
-  await look(page, { foot: "thread" });
-  await toCheck(page);
-  await watchFoot(page);
-  await page.locator("#stn").click();
-  await expect(main(page)).toHaveClass(/\bsc-run\b/);
-  await expect(page.locator(".pvline .ptx")).toBeVisible({ timeout: 8000 });
-  await expectClean(page);
-  const w = await page.evaluate(() => window.__fw);
-  expect(w.pastBelow, "the thread the scanner has passed reaches below the last case, to the foot").toBeGreaterThan(40);
+  expect(w.stub, "and the foot's own stub of thread stays above the placeholder").toBeGreaterThan(10);
   expect(errors).toEqual([]);
 });
 

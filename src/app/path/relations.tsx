@@ -115,7 +115,7 @@ function verdictOf(r: Pick<GradeResult, "cells" | "overall">, rel: RelKey): { v:
 function scanPlan(): ScanPlan {
   const u = u0(), r = grade(state as unknown as DataIndex, state.cur!.p, u), rel = relOf(), m = (c: CellId) => { const v = r.cells[c].v; return v === "ok" ? "ok" : v === "bad" ? "no" : "pt"; };
   const { v, word, sub } = verdictOf(r, rel);
-  return { cases: (fillable() as CellId[]).map(m), rel: r.relOpen ? "pt" : r.relOk ? "ok" : "no", v, word, sub, next: nextFwd().label };
+  return { cases: (fillable() as CellId[]).map(m), rel: r.relOpen ? "pt" : r.relOk ? "ok" : "no", v, word, sub };
 }
 function ResultStep() {
   const u = u0(), p = pairOf(), r = u.res, rel = relOf();

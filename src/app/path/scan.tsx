@@ -16,7 +16,7 @@
 // written (the counter-example), marks the answer at its row, and becomes the result's node there, while the heading above the statement that stays folds away (push.ts `foldBefore`).
 import { render } from "preact";
 import { state } from "../state.js";
-import { come, wait } from "./foot.ts";
+import { dropHold, holdOf, wait } from "./foot.ts";
 import { bump } from "./gesture.ts";
 import { clearPush, foldBefore, keepOf } from "./push.ts";
 import { openPage } from "./relayout.ts";
@@ -31,8 +31,6 @@ export interface ScanPlan {
   v: Verdict3;
   word: string;
   sub: string;
-  /** the name of the station that comes next, which takes the Check's place at the foot as the scanner leaves it */
-  next?: string;
   /** the row of the page whose diamond is the answer the scanner marks last, and where it becomes the result's node (a page with no strip: a syllogism's reply, `.sylsaid`) */
   stop?: string;
 }
@@ -61,9 +59,9 @@ const slideMs = (d: number) => Math.max(560, Math.min(1000, 380 + d * 1.25));
 /**
  * Plays the scan from the Check `stn` (lifted `lift` px by the hand) with the verdicts of `plan`, then `act` (the check); `settle` once the result's page is in.
  * `open`, when the keyboard's layout is up: lets the field go and the layout be the page's again (the page opens as the scan begins). `morph`: the result's page moves in from the examples'.
- * `fw`: the look's `foot`: with `thread` the station that comes next takes the Check's place at the foot as the scanner leaves it, with `after` the foot is empty until the scanner is the result's node.
+ * As the scanner leaves the Check's place at the foot, a placeholder for the station that comes next stands there (foot.ts), and the real one comes in once the scanner is the result's node.
  */
-export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, act: () => void, settle: () => void, open?: (() => void) | null, morph = false, fw: "thread" | "after" = "thread"): void {
+export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, act: () => void, settle: () => void, open?: (() => void) | null, morph = false): void {
   const main = root.querySelector<HTMLElement>(".main"), sc = root.querySelector<HTMLElement>(".main .pscroll"), pc = sc && sc.querySelector<HTMLElement>(".pathc");
   const go = stn.querySelector<HTMLElement>(".go"), head = pc && pc.querySelector<HTMLElement>(".sx.cur .sechead");
   const stopD = plan.stop && pc ? pc.querySelector<HTMLElement>(plan.stop + " > .d") : null, keep = stopD ? keepOf(pc) : null;
@@ -97,7 +95,7 @@ export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, ac
 
   let y = y0;
   // the thread the scanner has passed runs down to the foot (`thread`); with `after` the foot is empty and the thread ends at the last case's diamond, so nothing is left behind the scanner down there
-  const lastD = fw === "after" ? (rows.length ? rows[rows.length - 1] : stopD) : null;
+  const lastD = rows.length ? rows[rows.length - 1] : stopD;      // the thread the scanner has passed ends at the last case: nothing joins it to the foot
   const place = () => {
     const end = lastD ? Math.min(y0, midY(lastD.querySelector(".d") || lastD)) : y0;
     scn.style.top = y.toFixed(1) + "px"; past.style.top = y.toFixed(1) + "px"; past.style.height = Math.max(0, end - y).toFixed(1) + "px";
@@ -126,20 +124,13 @@ export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, ac
   };
 
   const gone = stopD && stopD.parentElement ? stopD.parentElement : head;      // what the scanner covers as it arrives: the heading, or the reply's row
-  let raf = 0, done = false, headDone = false;
+  let raf = 0, done = false, headDone = false, hold: ReturnType<typeof holdOf> | null = null;
   const cover = () => { if (!headDone) { headDone = true; gone.classList.add("scn-gone"); } };
   const t0 = performance.now();
   let yTop = 0, d = 0, tSlide = 0, tSettle = 0, tBecome = 0, relDone = false;
   // the slide starts once the Check is the scanner (and, when the page opens first, once the scanner is at the foot and the foot is still)
   let slideAt = MORPH, opening = kb, lastF = y0a, lastAt = 0;
   const strip = () => { if (stopD) return midY(stopD); const t = topEl(); return t ? t.getBoundingClientRect().bottom - mr().top + 20 : 0; };
-  // the station that comes next takes the Check's place at the foot as the scanner leaves it
-  const becomeNext = () => {
-    const f = fst && fst.isConnected && fst.closest(".foot") ? fst : null; if (!f || !plan.next) return;
-    const b = f.querySelector(".gol b"), tx = b && b.firstChild;
-    if (tx && tx.nodeType === 3) (tx as Text).data = plan.next;
-    f.setAttribute("aria-label", plan.next); f.classList.remove("scanning"); f.classList.add("scn-next");
-  };
   const frame = (now: number) => {
     const t = now - t0;
     set("--k", EASE.io(Math.min(1, t / MORPH)));
@@ -152,7 +143,7 @@ export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, ac
       place(); raf = requestAnimationFrame(frame); return;
     }
     if (t < slideAt) { place(); raf = requestAnimationFrame(frame); return; }
-    if (!d) { yTop = strip(); d = Math.max(1, y0 - yTop); tSlide = slideMs(d); tSettle = slideAt + tSlide; tBecome = tSettle + SETTLE; if (fw === "thread") becomeNext(); else wait(main); if (keep) foldBefore(keep, pc); }
+    if (!d) { yTop = strip(); d = Math.max(1, y0 - yTop); tSlide = slideMs(d); tSettle = slideAt + tSlide; tBecome = tSettle + SETTLE; hold = holdOf(root, main, fst && fst.isConnected ? fst : stn); hold.born(); wait(main); if (keep) foldBefore(keep, pc); }      // the foot's station is away: its placeholder is there
     if (t < tSettle) {
       const u = EASE.io((t - slideAt) / tSlide);
       if (s0) sc.scrollTop = s0 * (1 - u);       // a page scrolled down comes back to its top, under the scanner
@@ -201,7 +192,7 @@ export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, ac
     if (done) return; done = true; cancelAnimationFrame(raf);
     const was = morph ? shared() : null, parts = morph ? stood() : null, ghost = morph ? ghostOf() : null;
     if (morph) main.classList.add("sc-morph", "sc-hand");      // the scanner is the result's node and word until it has glided into place: the page's own are not seen twice
-    if (fw === "after") wait(main);                          // the foot shows no station until the scanner has landed
+    wait(main);                                              // the foot shows no real station until the scanner has landed
     act();
     drawn(() => arrive(was, parts, ghost));
   };
@@ -233,10 +224,10 @@ export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, ac
   // the result's page is drawn and comes in where it is; the scanner glides the short way to its node's place and is the node from then on
   const arrive = (was: Map<string, number> | null, parts: Map<string, Stood> | null, ghost: HTMLElement | null) => {
     const nd = root.querySelector<HTMLElement>(".main .pvline .d.big");
-    main.classList.remove("sc-run", "sc-open"); for (const e of [stn, fst]) if (e) e.classList.remove("scanning", "scn-next"); past.remove();
+    main.classList.remove("sc-run", "sc-open"); for (const e of [stn, fst]) if (e) e.classList.remove("scanning"); past.remove();
     // the scanner is the node until it is in its place; the page's own, with its mark, takes over: the mark comes in rather than appears
     const to = nd ? midY(nd) : y, end = () => {
-      scn.remove(); main.classList.remove("sc-hand"); if (fw === "after") come(main);
+      scn.remove(); main.classList.remove("sc-hand"); if (hold) hold.activate(); dropHold(root);
       const mk = nd && nd.querySelector<HTMLElement>(".mk"); if (mk && mk.animate) mk.animate([{ opacity: 0, scale: 0.5 }, { opacity: 1, scale: 1 }], { duration: 180, easing: MOVE.easing });
     };
     if (keep) clearPush(root, false, true);      // what folded above the statement is the old page's, which is gone: nothing of it stays if the page did not change

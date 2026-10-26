@@ -81,8 +81,8 @@ export function Toast() {
 /** The station at the edge, ready: pull it up over the curb, tap it, or press Enter (its arrow hops, as the sign that it can be taken). Taking it plays the ride
  *  (take.ts) unless `back`: it goes back to what was there, and the step is simply there. `keep`: it stands on the page above a keyboard (the Check under the last
  *  example), so touching it keeps the field's focus until it is taken, and then the keyboard goes. */
-export function Station({ name, hint = "", act, arrive = false, back = false, keep = false, scan, next }: { name: string; hint?: string; act: () => void; arrive?: boolean; back?: boolean; keep?: boolean; scan?: () => ScanPlan | null; next?: string }) {
-  const pull = useContext(PullCtx); pull.act = act; pull.rides = !back; pull.scan = scan || null; pull.next = next || null;
+export function Station({ name, hint = "", act, arrive = false, back = false, keep = false, scan }: { name: string; hint?: string; act: () => void; arrive?: boolean; back?: boolean; keep?: boolean; scan?: () => ScanPlan | null }) {
+  const pull = useContext(PullCtx); pull.act = act; pull.rides = !back; pull.scan = scan || null;
   const g = useRef<{ y0: number; moved: boolean; past: boolean } | null>(null);
   const away = (took: boolean) => { const a = document.activeElement as HTMLElement | null; if (took && keep && a && a.classList.contains("pfield")) a.blur(); };
   return <button type="button" class={"stn" + (keep ? " inl" : "")} id="stn" aria-label={name + (hint ? ": " + hint : "")}

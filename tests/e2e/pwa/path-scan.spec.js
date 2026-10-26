@@ -26,9 +26,12 @@ async function written(page, { enter = false } = {}) {
   await field.fill("a cloud");
   if (!enter) await field.blur();
   await page.evaluate(() => {
-    window.__scan = []; window.__marks = 0; window.__open = null; window.__next = false;
+    window.__scan = []; window.__marks = 0; window.__open = null; window.__next = false; window.__early = false;
     new MutationObserver((ms) => { window.__marks = Math.max(window.__marks, document.querySelectorAll("#path .sb .pscm").length);
-      const nx = document.querySelector("#path #stn.scn-next"); if (nx && document.querySelector("#path .pscan") && nx.textContent.includes("Next pair")) window.__next = true;   // the next station is there while the scanner is still on its way
+      if (document.querySelector("#path .pscan")) {      // while the scanner is on its way: the placeholder of the next station is at the foot, and the real one is not
+        if (document.querySelector("#path .fw-sd")) window.__next = true;
+        const rs = document.querySelector("#path .foot #stn"); if (rs && rs.textContent.includes("Next pair") && getComputedStyle(rs).opacity !== "0") window.__early = true;
+      }
       for (const m of ms) { const e = m.target; if (!(e instanceof HTMLElement)) continue;
       if (e.matches(".sb.scn") && !e.dataset.seen) { e.dataset.seen = "1"; if (window.__open === null) window.__open = !document.querySelector(".pa.kbup") && !!document.querySelector("#path .foot #stn"); window.__scan.push("case:" + [...document.querySelectorAll("#path .sx.cur .sb")].indexOf(e)); }
       if (e.matches(".sechead.scn-gone") && !e.dataset.seen) { e.dataset.seen = "1"; window.__scan.push("head"); }
@@ -53,7 +56,8 @@ test("the Check slides up through the cases marking each from the bottom, then t
   await expect(page.locator(".pvline")).toContainText(word);
   expect(await page.evaluate(() => window.__vib.length), "a knock at the relation").toBeGreaterThan(0);
   await expect(page.locator("#stn")).toContainText("Next pair");
-  expect(await page.evaluate(() => window.__next), "Next pair took the Check's place at the foot while the scanner was still sliding").toBe(true);
+  expect(await page.evaluate(() => window.__next), "a placeholder for the next station stood at the foot while the scanner was sliding").toBe(true);
+  expect(await page.evaluate(() => window.__early), "and Next pair was not shown before the scanner was the result's node").toBe(false);
   await expect(page.locator("#path .main")).not.toHaveClass(/sc-run/);
   expect(errors).toEqual([]);
 });
@@ -80,7 +84,8 @@ test("with the keyboard up, Enter on the last example opens the page first, and 
   await expect(page.locator(".pvline")).toBeVisible();
   expect(await page.evaluate(() => window.__scan)).toEqual(["case:3", "case:2", "case:1", "case:0", "head", "rel"]);
   expect(await page.evaluate(() => window.__open), "the page was open (the foot there, the keyboard's layout gone) at the first mark").toBe(true);
-  expect(await page.evaluate(() => window.__next), "Next pair took the Check's place at the foot while the scanner was still sliding").toBe(true);
+  expect(await page.evaluate(() => window.__next), "a placeholder for the next station stood at the foot while the scanner was sliding").toBe(true);
+  expect(await page.evaluate(() => window.__early), "and Next pair was not shown before the scanner was the result's node").toBe(false);
   await expect(page.locator("#stn")).toContainText("Next pair");
 });
 

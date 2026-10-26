@@ -72,7 +72,7 @@ function AskStep({ kb }: { kb: boolean }) {
       <Sx cls="ptail" />
     </Scroll>
     {kb ? null : <Foot aux={<SkipSide />}>
-      {ok ? <Station name="Check" hint={u.none ? noneText(n) : "“" + said() + "”"} act={check} next="Next" /> : <PreStation name="Check" hint={"write a thing, or say " + noneText(n)} />}
+      {ok ? <Station name="Check" hint={u.none ? noneText(n) : "“" + said() + "”"} act={check} /> : <PreStation name="Check" hint={"write a thing, or say " + noneText(n)} />}
     </Foot>}
   </>;
 }
