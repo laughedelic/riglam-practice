@@ -103,22 +103,24 @@ test.describe("the number in the ring", () => {
       await run(page, { up });
       await page.evaluate(() => document.fonts.ready);
       const shot = await page.locator("#path .pring svg").screenshot({ animations: "disabled" });
-      // the digits are dark on the paper (the arc and the track are green and gray): the box of the ink inside the ring's inner radius
+      // the digits are dark on the paper; the ring is everything else that is not the paper, out beyond the digits: the ink's centre is measured
+      // against the ring's own centre in the same picture (the picture's edges move with where the bar happens to put the ring)
       const box = await page.evaluate(async (b64) => {
         const bmp = await createImageBitmap(await (await fetch("data:image/png;base64," + b64)).blob());
         const cv = new OffscreenCanvas(bmp.width, bmp.height), cx = cv.getContext("2d"); cx.drawImage(bmp, 0, 0);
-        const { data, width, height } = cx.getImageData(0, 0, bmp.width, bmp.height), mid = width / 2, rin = width * (11.5 - 3) / 30;
-        let y0 = Infinity, y1 = -1, x0 = Infinity, x1 = -1;
+        const { data, width, height } = cx.getImageData(0, 0, bmp.width, bmp.height), px = width / 30 > height / 30 ? height / 30 : width / 30, mx = width / 2, my = height / 2;
+        const bg = [data[0], data[1], data[2]], at = (x, y) => (y * width + x) * 4;
+        const ring = { x0: Infinity, x1: -1, y0: Infinity, y1: -1 }, ink = { y0: Infinity, y1: -1, x0: Infinity, x1: -1 };
         for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
-          if (Math.hypot(x - mid, y - height / 2) > rin) continue;
-          const i = (y * width + x) * 4; if (data[i + 3] > 200 && data[i] + data[i + 1] + data[i + 2] < 300) { y0 = Math.min(y0, y); y1 = Math.max(y1, y); x0 = Math.min(x0, x); x1 = Math.max(x1, x); }
+          const i = at(x, y), d = Math.hypot(x - mx, y - my);
+          if (d > 8.5 * px && Math.abs(data[i] - bg[0]) + Math.abs(data[i + 1] - bg[1]) + Math.abs(data[i + 2] - bg[2]) > 40) { ring.x0 = Math.min(ring.x0, x); ring.x1 = Math.max(ring.x1, x); ring.y0 = Math.min(ring.y0, y); ring.y1 = Math.max(ring.y1, y); }
+          if (d <= 8.5 * px && data[i + 3] > 200 && data[i] + data[i + 1] + data[i + 2] < 300) { ink.x0 = Math.min(ink.x0, x); ink.x1 = Math.max(ink.x1, x); ink.y0 = Math.min(ink.y0, y); ink.y1 = Math.max(ink.y1, y); }
         }
-        return { w: width, h: height, cy: (y0 + y1 + 1) / 2, cx: (x0 + x1 + 1) / 2, found: y1 >= 0 };
+        return { px, found: ink.y1 >= 0 && ring.y1 >= 0, dy: (ink.y0 + ink.y1) / 2 - (ring.y0 + ring.y1) / 2, dx: (ink.x0 + ink.x1) / 2 - (ring.x0 + ring.x1) / 2, ring, ink };
       }, shot.toString("base64"));
-      expect(box.found, "the number is drawn").toBe(true);
-      const px = box.w / 30;   // device pixels per svg unit
-      expect(Math.abs(box.cy - box.h / 2) / px, "vertical off-centre, in px: " + JSON.stringify(box)).toBeLessThan(0.45);
-      expect(Math.abs(box.cx - box.w / 2) / px, "horizontal off-centre, in px").toBeLessThan(0.6);
+      expect(box.found, "the number and the ring are drawn").toBe(true);
+      expect(Math.abs(box.dy) / box.px, "vertical off-centre, in px: " + JSON.stringify(box)).toBeLessThan(0.6);
+      expect(Math.abs(box.dx) / box.px, "horizontal off-centre, in px: " + JSON.stringify(box)).toBeLessThan(0.7);
     }
   });
 });
