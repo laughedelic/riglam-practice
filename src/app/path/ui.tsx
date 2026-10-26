@@ -1,6 +1,6 @@
 // The Path's small parts, as the Path Lab draws them: the line icons, the diamonds, a stop on the path, a section of the line, a section's
 // heading, the relation figures, the marks of a verdict, the toggles, the words in a row, and the host of a part still drawn by the classic page.
-import type { ComponentChildren } from "preact";
+import type { AccessibleInputHTMLAttributes, ComponentChildren } from "preact";
 import { useLayoutEffect, useRef } from "preact/hooks";
 import { state } from "../state.js";
 import { currentLook } from "./look.ts";
@@ -116,6 +116,7 @@ export const NOFILL = {
 /**
  * The same for an `<input>`, which on a touch screen is a search field: Chrome on Android leaves the bar of saved keys, cards and addresses off the keyboard for one, where the
  * hints above leave it on a text field (not on the first focus, but on the next one). The role keeps it a text box for a screen reader; the Enter key is the one `enterKeyHint`
- * names. Elsewhere it stays a text field (a search field clears at Escape).
+ * names. Elsewhere it stays a text field (a search field clears at Escape). `list` is the id of a datalist of suggestions, when there is one.
+ * Preact's input types follow ARIA in HTML, which has no text box role on a search field or on a field with a list: this is a deliberate exception, so the type is set by hand.
  */
-export const nofillInput = () => ({ ...NOFILL, type: coarse() ? "search" : "text", role: "textbox" }) as const;
+export const nofillInput = (list?: string) => ({ ...NOFILL, type: coarse() ? "search" : "text", role: "textbox", ...(list ? { list } : {}) }) as unknown as AccessibleInputHTMLAttributes<HTMLInputElement>;
