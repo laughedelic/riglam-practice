@@ -1,0 +1,13 @@
+/* What is at the foot while a station rides away (path/foot.ts, the look's `foot`). `thread`: the next station is there at once (a copy of the station, `.fw-sd`) and the thread is whole
+   between it and the station on its way (`.fw-th`, the same ink as the thread the Check's scanner has passed); the real station of the new page takes the copy's place and its words come in.
+   `after`: the foot shows no station until the step has landed (`.fw-wait` on the main), and then it comes in as the one the Check's scanner leaves does (`.scn-next`, 43-path-scan.css). */
+.pa .fw-th{position:absolute; width:var(--lh); margin-left:calc(var(--lh) / -2); background:var(--ink); opacity:.72; z-index:7; pointer-events:none; animation:p-fwth .2s ease-out both}
+@keyframes p-fwth{from{opacity:0}}
+.pa .fw-sd .go{animation:p-scnx .34s cubic-bezier(.2,.9,.3,1.3) both}
+.pa .fw-sd .gol{animation:p-scnl .3s ease-out both}
+.pa .stn.fw-in .gol{animation:p-scnl .3s ease-out both}
+.pa .stn.fw-in .go .mk{animation:p-fwmk .3s ease-out both}
+@keyframes p-fwmk{from{opacity:0}}
+.pa .main.fw-wait .foot .stn{visibility:hidden}
+.pa .main.fw-wait .foot::before{visibility:hidden}
+@media (prefers-reduced-motion:reduce){ .pa .fw-th,.pa .fw-sd .go,.pa .fw-sd .gol,.pa .stn.fw-in .gol,.pa .stn.fw-in .go .mk{animation:none} }

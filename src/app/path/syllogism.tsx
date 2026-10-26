@@ -84,7 +84,7 @@ function CounterStep({ kb }: { kb: boolean }) {
       <Sx cls={"ptail" + (some ? "" : " dtail")} />
     </Scroll>
     {kb ? null : <Foot>
-      <Station name="Result" hint={some ? "your reply and the counter-example" : "your reply, without a counter-example"} act={exampleSyllogism} />
+      <Station name="Result" hint={some ? "your reply and the counter-example" : "your reply, without a counter-example"} act={exampleSyllogism} next="Next" />
     </Foot>}
   </>;
 }

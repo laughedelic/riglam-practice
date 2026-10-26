@@ -14,6 +14,7 @@
 // The result's page is drawn and starts to come in within one frame, so that it is never seen whole for a frame before it fades in.
 import { render } from "preact";
 import { state } from "../state.js";
+import { come, wait } from "./foot.ts";
 import { bump } from "./gesture.ts";
 import { openPage } from "./relayout.ts";
 import { Mark } from "./ui.tsx";
@@ -55,8 +56,9 @@ const slideMs = (d: number) => Math.max(560, Math.min(1000, 380 + d * 1.25));
 /**
  * Plays the scan from the Check `stn` (lifted `lift` px by the hand) with the verdicts of `plan`, then `act` (the check); `settle` once the result's page is in.
  * `open`, when the keyboard's layout is up: lets the field go and the layout be the page's again (the page opens as the scan begins). `morph`: the result's page moves in from the examples'.
+ * `fw`: the look's `foot`: with `thread` the station that comes next takes the Check's place at the foot as the scanner leaves it, with `after` the foot is empty until the scanner is the result's node.
  */
-export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, act: () => void, settle: () => void, open?: (() => void) | null, morph = false): void {
+export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, act: () => void, settle: () => void, open?: (() => void) | null, morph = false, fw: "thread" | "after" = "thread"): void {
   const main = root.querySelector<HTMLElement>(".main"), sc = root.querySelector<HTMLElement>(".main .pscroll"), pc = sc && sc.querySelector<HTMLElement>(".pathc");
   const go = stn.querySelector<HTMLElement>(".go"), head = pc && pc.querySelector<HTMLElement>(".sx.cur .sechead");
   // the strip under the top bar (the folded heading, while the keyboard's layout is up) and the pair's node in it: found when needed, as the layout changes
@@ -132,7 +134,7 @@ export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, ac
       place(); raf = requestAnimationFrame(frame); return;
     }
     if (t < slideAt) { place(); raf = requestAnimationFrame(frame); return; }
-    if (!d) { yTop = strip(); d = Math.max(1, y0 - yTop); tSlide = slideMs(d); tSettle = slideAt + tSlide; tBecome = tSettle + SETTLE; becomeNext(); }
+    if (!d) { yTop = strip(); d = Math.max(1, y0 - yTop); tSlide = slideMs(d); tSettle = slideAt + tSlide; tBecome = tSettle + SETTLE; if (fw === "thread") becomeNext(); }
     if (t < tSettle) {
       const u = EASE.io((t - slideAt) / tSlide);
       if (s0) sc.scrollTop = s0 * (1 - u);       // a page scrolled down comes back to its top, under the scanner
@@ -180,6 +182,7 @@ export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, ac
     if (done) return; done = true; cancelAnimationFrame(raf);
     const was = morph ? shared() : null, parts = morph ? stood() : null, ghost = morph ? ghostOf() : null;
     if (morph) main.classList.add("sc-morph", "sc-hand");      // the scanner is the result's node and word until it has glided into place: the page's own are not seen twice
+    if (fw === "after") wait(main);                          // the foot shows no station until the scanner has landed
     act();
     drawn(() => arrive(was, parts, ghost));
   };
@@ -214,7 +217,7 @@ export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, ac
     main.classList.remove("sc-run", "sc-open"); for (const e of [stn, fst]) if (e) e.classList.remove("scanning", "scn-next"); past.remove();
     // the scanner is the node until it is in its place; the page's own, with its mark, takes over: the mark comes in rather than appears
     const to = nd ? midY(nd) : y, end = () => {
-      scn.remove(); main.classList.remove("sc-hand");
+      scn.remove(); main.classList.remove("sc-hand"); if (fw === "after") come(main);
       const mk = nd && nd.querySelector<HTMLElement>(".mk"); if (mk && mk.animate) mk.animate([{ opacity: 0, scale: 0.5 }, { opacity: 1, scale: 1 }], { duration: 180, easing: MOVE.easing });
     };
     main.classList.add("sc-in");

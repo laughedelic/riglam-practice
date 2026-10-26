@@ -65,7 +65,7 @@ function TickStep() {
       <Sx cls="ptail" />
     </Scroll>
     <Foot aux={<SkipSide />}>
-      {n || u.none ? <Station name="Check" hint={u.none ? "none of these" : n === 1 ? "one category ticked" : n + " categories ticked"} act={checkCategories} /> : <PreStation name="Check" hint="tick what it is first" />}
+      {n || u.none ? <Station name="Check" hint={u.none ? "none of these" : n === 1 ? "one category ticked" : n + " categories ticked"} act={checkCategories} next="Next" /> : <PreStation name="Check" hint="tick what it is first" />}
     </Foot>
   </>;
 }
