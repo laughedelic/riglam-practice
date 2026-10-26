@@ -187,8 +187,8 @@ export const thingRows = (ix: DataIndex, t: PlaceThing, on: Stages, unmet?: Unme
 
 /**
  * The next thing to place, from `placeThings` (the reference examples are optional), for which the data settles enough categories
- * (`placeQuestionRows`). A stage is drawn first, each stage that still has things as likely as the others (or the highest of them `newShare` of the time), then a thing of it; names in
- * `avoid` wait while others remain. Stages outside 1 to 9 count for nothing, and none left means the default. Null when nothing qualifies.
+ * (`placeQuestionRows`). A stage is drawn first, each stage that still has things as likely as the others (or the highest of them `newShare` of the time), then a thing of it
+ * that can be asked (those that cannot are passed over without changing the stage); names in `avoid` wait while others remain. Stages outside 1 to 9 count for nothing, and none left means the default. Null when nothing qualifies.
  */
 export function drawPlace(ix: DataIndex, examples: readonly Example[] | null, draw: PlaceDraw): PlaceQuestion | null {
   const on = normStages(draw.stages), near = nearShare(topStage(on));
@@ -200,11 +200,16 @@ export function drawPlace(ix: DataIndex, examples: readonly Example[] | null, dr
       const have = on.filter((s) => left.some((t) => t.st === s)), top = have[have.length - 1]!, rest = have.slice(0, -1);
       const r = draw.rng(), stage = draw.newShare === undefined || !rest.length ? have[Math.floor(r * have.length)]
         : r < draw.newShare ? top : rest[Math.floor(((r - draw.newShare) / (1 - draw.newShare)) * rest.length)];
-      const of = left.filter((t) => t.st === stage);
-      const thing = of[Math.floor(draw.rng() * of.length)];
-      const rows = placeQuestionRows(ix, thing, draw.rng, draw.size, thingRows(ix, thing, on, draw.unmet), near);
-      if (rows) return { thing, rows };
-      left = left.filter((t) => t !== thing);
+      // a thing the data settles too little for is passed over within its stage, so that the stage keeps its share (a stage whose reference
+      // examples cannot be asked would otherwise lose its draws to the stage below); a stage with nothing to ask is left out
+      let of = left.filter((t) => t.st === stage);
+      while (of.length) {
+        const thing = of[Math.floor(draw.rng() * of.length)];
+        const rows = placeQuestionRows(ix, thing, draw.rng, draw.size, thingRows(ix, thing, on, draw.unmet), near);
+        if (rows) return { thing, rows };
+        of = of.filter((t) => t !== thing);
+      }
+      left = left.filter((t) => t.st !== stage);
     }
   }
   return null;
