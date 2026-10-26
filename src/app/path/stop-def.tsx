@@ -4,7 +4,6 @@
 // no division in the course) is left out.
 import type { ComponentChildren } from "preact";
 import { useLayoutEffect, useRef } from "preact/hooks";
-import { state } from "../state.js";
 import { stopTree } from "../practice/stops.ts";
 import type { Stop } from "../../domain/intro.ts";
 import { DefText, Examples, termExamples } from "./terms.tsx";
@@ -70,6 +69,6 @@ export function StopSections({ s, name, def }: { s: Stop; name: string; def: boo
   return <>
     {def ? <Section label="Definition"><DefText term={name} /></Section> : null}
     <Tree s={s} name={name} />
-    {termExamples(name).length ? <Section label="Examples"><Examples n={name} stop /></Section> : null}
+    {termExamples(name).length ? <Section label="Examples"><Examples n={name} /></Section> : null}
   </>;
 }

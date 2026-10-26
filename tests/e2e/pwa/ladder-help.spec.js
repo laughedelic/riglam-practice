@@ -5,6 +5,7 @@
 import { test, expect } from "../../support/test.js";
 import { goTo, isPhone, ready, relOptions } from "../../support/page.js";
 import { KEY_STORE, dataKey, serveCourse, withCourse } from "../../support/data-key.js";
+import { readOpen } from "../../../scripts/lib/course-files.mjs";
 
 const hook = () => { window.__riglamTest = (t) => { window.__t = t; }; };
 const onPath = () => { if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path"); };
@@ -237,6 +238,11 @@ test("Find a pair takes a negation as named, with or without the brackets, and h
 const course = withCourse ? test : test.skip;
 const NEW2 = ["extf", "col", "shape", "vis"];   // the categories with a Dudra term that open at stage 2
 // a device that has met the terms of stage 2 at their stops and is still meeting them (box 1), with Form settled and no stop due (src/domain/intro.ts)
+// an example for every term of the open data: the stop of a term lists them, the definition under a question does not
+const examples = () => ({
+  version: "e1",
+  part: { format: "riglam-examples-device", version: 2, sources: {}, items: Object.keys(readOpen().terms).map((term) => ({ n: `a ${term.toLowerCase()} sample`, cls: [term], lv: 1, k: "thing", cf: "confirmed", s: [] })) },
+});
 const meeting = (box) => {
   const terms = { form: { box: 3, shows: 1 } };
   for (const id of ["extf", "col", "shape", "vis"]) terms[id] = { box, shows: 1, at: 0 };
@@ -245,7 +251,7 @@ const meeting = (box) => {
 
 course("a course term the learner is still meeting has a small tag in the question on the Path, which opens its definition, in Relations and Categories", async ({ page }) => {
   await withKey(page);
-  await serveCourse(page, dataKey);
+  await serveCourse(page, dataKey, { examples: examples() });
   await page.addInitScript(onPath);
   await page.addInitScript(meeting, 1);
   await page.addInitScript(hook);
@@ -263,6 +269,8 @@ course("a course term the learner is still meeting has a small tag in the questi
   await expect(tag).toContainText((await termOf(q)).toLowerCase());
   await tag.locator(".dterm").click();
   await expect(page.locator("#path .ntdef .pdef .pdh")).toContainText(await termOf(q));
+  await expect.poll(() => page.evaluate(() => !!window.__t.EX)).toBe(true);
+  await expect(page.locator("#path .ntdef .pdef .pdex"), "the examples are left to the term's stop").toHaveCount(0);
   // Categories asks about the categories that are open: those of stage 2 have their tags while step 1 is asked
   await page.evaluate(() => { localStorage.setItem("rd-ex", "categories"); });
   await page.reload();

@@ -13,9 +13,9 @@ import {
 } from "../../src/domain";
 import type { DebateInput, GradeDraft, HistoryEntry, Pair, PoolEntry } from "../../src/domain";
 import openData from "../../src/data/drill-data.json";
-import { drawable, examplesFor, placeByClass } from "../../src/domain";
+import { catStage, drawable, examplesFor, placeByClass } from "../../src/domain";
 import { LANGS, normLangs, termNames } from "../../src/domain";
-import { AGAIN_AFTER, FIRST_AFTER, MISS_AFTER, SETTLED, SPACING, afterQuestion, againAsked, freshIntro, introduced, nextStop, normIntro, pairGraded, showAgain, stageMet, stageTerms, stageUp, stopShown, termTree, unmet } from "../../src/domain";
+import { AGAIN_AFTER, FIRST_AFTER, MISS_AFTER, SETTLED, SPACING, afterQuestion, againAsked, freshIntro, introduced, metTerms, nextStop, normIntro, pairGraded, showAgain, stageMet, stageTerms, stageUp, stopShown, termTree, unmet } from "../../src/domain";
 import { DEFAULT_STAGES, DEFINITION_STAGE, HOLD_STAGE, MAX_STAGE, NEG_STREAK, STAGES, START_SHARE, STAGE_STREAK, STAGE_STUMBLE, catOpen, drawSyllogism, heldBack, itemKnown, itemOn, itemStageFor, levelAt, negationOffer, newCategories, normStages, pairStage, physical, poolAt, stagesOfLevels, toggleStage, topStage } from "../../src/domain";
 import { GUIDE_RIGHT, STAGE_LONGER, STAGE_STREAK_MAX, exerciseAfter, freshRun, guideTurnsOff, guidedOn, movedUp, newShare, normExRuns, normGuided, normRun, restartRun, runAfter, runNeed, setManual, stageOffer, stayLonger } from "../../src/domain";
 import type { MissKind, StageRun } from "../../src/domain";
@@ -643,6 +643,18 @@ test("a term is introduced before it is asked about: everyday questions first, t
   // stages are a set, not a ceiling: with 1 and 3 on, the terms of stage 2 come first, since its categories are open too
   const gap = stopShown(stageUp(freshIntro()), "form", T0);
   expect(nextStop(rix, stageUp(gap), [1, 3], T0)).toEqual({ cat: "extf", why: "new" });
+});
+
+test("the terms met so far are the ones whose stop has come, the lowest stage first and in the data's order within a stage", () => {
+  const T0 = "2026-10-24T12:00:00.000Z", id = (term: string) => real.cats.find((c) => c.term === term)!.id;
+  let it = freshIntro();
+  expect(metTerms(rix, it), "none before the first stop").toEqual([]);
+  for (const t of ["Color", "External form", "Form"]) it = stopShown(it, id(t), T0);
+  const names = metTerms(rix, it).map((c) => c.term);
+  expect(names.slice().sort(), "just those three").toEqual(["Color", "External form", "Form"]);
+  expect(names.indexOf("Form"), "Form (stage 1) before External form (stage 2)").toBeLessThan(names.indexOf("External form"));
+  expect(metTerms(rix, it).every((c, i, all) => !i || catStage(all[i - 1]!) <= catStage(c)), "by stage").toBe(true);
+  expect(metTerms(rix, { ...it, terms: { ...it.terms, [id("Shape")]: { box: 0, shows: 0 } } }).map((c) => c.term), "a term at box 0 is not met").not.toContain("Shape");
 });
 
 test("a stop shows where its term sits: every term above it, those whose own stop has not come yet marked, and only the divisions met, with a sign of more to come", () => {

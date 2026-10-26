@@ -12,6 +12,7 @@ import { dayOf, gradeOf, isMiss, today } from "../core/util.js";
 import { QCELL, qPlain } from "../debate/text.js";
 import { removeFav, startFav, typesLine } from "../practice/favorites.js";
 import { SKIP_DAYS, debateAgain, skipActive, startSkipped, unskipKey } from "../practice/skips.js";
+import { hasDef } from "../practice/terms.js";
 import { answerList } from "../practice/universe.js";
 import { debateStats } from "../review/debate-stats.js";
 import { noteContext, practiceAgain } from "../review/exercise.js";
@@ -22,7 +23,11 @@ import { SAID, SAY, sylExample, sylLine, syllogismStats } from "../review/syllog
 import { exName } from "../shell/exercises.js";
 import { setTab } from "../shell/tabs.js";
 import { flagStateText, flaggedPart } from "../../domain/flags.ts";
+import { metTerms } from "../../domain/intro.ts";
+import { catStage } from "../../domain/stages.ts";
 import { syllogismText } from "../../domain/syllogism.ts";
+import type { Cat } from "../../ai-shared/data.ts";
+import type { DataIndex } from "../../ai-shared/lookup.ts";
 import type { CellId, RelKey } from "../../ai-shared/relations.ts";
 import type { AnswerDoc, FavDoc, FlagDoc, SkipDoc } from "../types.ts";
 import { FlagEditor, TutorText } from "./flags.tsx";
@@ -30,6 +35,8 @@ import { refreshPath } from "./index.tsx";
 import { CASE } from "./parts.tsx";
 import { Foot, Station, TopBar } from "./shell.tsx";
 import { StoredAnswer, isOpen, toggleOpen } from "./stored.tsx";
+import { StopSections } from "./stop-def.tsx";
+import { Names } from "./terms.tsx";
 import { D, Fig, Gap, Icon, Minis, St, Sx, Words } from "./ui.tsx";
 
 const NAME: Record<string, string> = { practice: "Relations", debate: "Pervasions", find: "Find a pair", syllogism: "Syllogisms", categories: "Categories", instance: "Find an instance" };
@@ -204,11 +211,38 @@ function Flags() {
   return <><Trail>{list.map((f) => <FlagRow f={f} />)}</Trail>{state.flagErr ? <p class="pnoteline bad perr">{state.flagErr}</p> : null}</>;
 }
 
+/* ---------- the terms met ---------- */
+/** The course terms whose stop has come, in the order of the course. */
+const metList = (): Cat[] => (state.intro && state.DATA ? metTerms(state as unknown as DataIndex, state.intro) : []);
+/** A term met: its row unfolds into what its stop showed, the names, the definition, where it sits and the examples (stop-def.tsx). */
+function TermRow({ c }: { c: Cat }) {
+  const name = c.term!, t = state.DATA!.terms[name], k = "t:" + c.id, open = isOpen(k), def = hasDef(t);
+  return <>
+    <St d={<D cls="sub done" />} cls={"trow can" + (open ? " open" : "")}><button type="button" class="trb" aria-expanded={open ? "true" : "false"} onClick={() => toggleOpen(k)}>
+      <b lang="en">{name}</b><span class="arr"><Icon n="chev" /></span></button></St>
+    {open ? <div class="pfold">
+      <div class="wtext tstop-def"><Names term={name} /></div>
+      <StopSections s={{ cat: c.id, why: "again" }} name={name} def={def} />
+      {!def && state.unlock ? <p class="tstop-key">Its definition comes with the Magic Key from your study group’s link.</p> : null}
+    </div> : null}
+  </>;
+}
+function Terms() {
+  const list = metList();
+  if (!list.length) return <Empty>Each new term joins this list when its stop comes in an exercise, and keeps its definition here.</Empty>;
+  const stages = [...new Set(list.map(catStage))];
+  return <>{stages.map((st) => <>
+    <Group h={"Stage " + st} />
+    <Trail>{list.filter((c) => catStage(c) === st).map((c) => <TermRow c={c} />)}</Trail>
+  </>)}</>;
+}
+
 /** The sections of Review, each with how many it holds: today, the totals and the mistakes always; the rest where there is something. */
 function sections(): [string, string, string][] {
   const t = today(), nToday = allEntries().filter((e) => dayOf(e.at) === t).length, nMiss = answerList().filter(isMiss).length;
   const nf = Object.keys(state.favs).length, ns = Object.keys(state.skips).length, nfl = state.db ? Object.keys(state.flags).length : 0;
-  const out: [string, string, string][] = [["today", "Today", nToday ? String(nToday) : ""], ["overview", "Totals", ""], ["mistakes", "Mistakes", nMiss ? String(nMiss) : ""]];
+  const nTerms = metList().length;
+  const out: [string, string, string][] = [["today", "Today", nToday ? String(nToday) : ""], ["overview", "Totals", ""], ["mistakes", "Mistakes", nMiss ? String(nMiss) : ""], ["terms", "Terms", nTerms ? String(nTerms) : ""]];
   if (state.db) out.push(["favs", "Favorites", nf ? String(nf) : ""]);
   if (ns) out.push(["skips", "Skipped", String(ns)]);
   if (nfl) out.push(["flags", "Flags", String(nfl)]);
@@ -218,6 +252,7 @@ const SUB: Record<string, (n: string) => string> = {
   today: (n) => n ? n + (n === "1" ? " answer" : " answers") + " today, the newest at the bottom" : "your answers of today",
   overview: () => "how your answers went, exercise by exercise",
   mistakes: (n) => n ? "the pairs you missed, the newest first" : "the pairs you missed",
+  terms: (n) => n ? n + (n === "1" ? " term" : " terms") + " met so far, by stage" : "the terms you have met",
   favs: () => "the pairs you starred",
   skips: () => "the pairs set aside for a while",
   flags: () => "what you flagged in what the tutor wrote",
@@ -232,7 +267,7 @@ export function ReviewPage() {
     <div class="ppage prv">
       <p class="ptitle">Review</p><p class="psub">{SUB[seg](n)}</p>
       <div class="prseg"><Words label="Review sections" items={parts.map(([k, l, c]) => [k, l + (c ? " " + c : "")] as [string, string])} cur={seg} on={go} /></div>
-      {seg === "today" ? <Today /> : seg === "overview" ? <Overview /> : seg === "mistakes" ? <Mistakes /> : seg === "favs" ? <Favs /> : seg === "skips" ? <Skips /> : <Flags />}
+      {seg === "today" ? <Today /> : seg === "overview" ? <Overview /> : seg === "mistakes" ? <Mistakes /> : seg === "terms" ? <Terms /> : seg === "favs" ? <Favs /> : seg === "skips" ? <Skips /> : <Flags />}
       <div style={{ height: "30px" }} />
     </div>
     <Foot><Station back name="Continue practice" hint={exName(state.own)} act={() => setTab(state.own)} /></Foot>

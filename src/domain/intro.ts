@@ -62,6 +62,9 @@ export const introduced = (intro: Intro, cat: Pick<Cat, "id" | "kind" | "term">)
 /** The categories whose term opens at the stage, in the course's order (the data's). */
 export const stageTerms = (ix: DataIndex, stage: number): string[] => Object.values(ix.CAT).filter((c) => needsIntro(c) && catStage(c) === stage).map((c) => c.id);
 
+/** The course terms whose stop has come, as their categories, in the course's order: the lowest stage first, then the data's. */
+export const metTerms = (ix: DataIndex, intro: Intro): Cat[] => Object.values(ix.CAT).filter((c) => needsIntro(c) && introduced(intro, c)).sort((a, b) => catStage(a) - catStage(b));
+
 /** The Dudra categories open at these stages whose stop has not come yet: they wait out of the questions (domain/stages.ts, catOpen). */
 export function unmet(ix: DataIndex, intro: Intro, on: Stages): Set<string> {
   const top = topStage(on), out = new Set<string>();
