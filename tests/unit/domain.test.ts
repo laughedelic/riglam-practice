@@ -1016,6 +1016,21 @@ test("a note states the term data's steps: up the chain to the term, or to the c
   ]);
 });
 
+// The second case: the tutor wrote a line for "a black car" with "B no: wait", and then the line again with "B yes". The note showed the last one, but the
+// cell was settled by the first and ruled wrong.
+test("a cell the tutor wrote two lines for takes the last, which is the one the note shows", () => {
+  const p = { a: "physical things outside a person's continuum", b: "black things", catA: "extf", catB: "black", relation: "3ba" as const }, terms = { a: "an external form", b: "a black thing" };
+  const d = { ix: rix, p, terms };
+  const first = 'Q1: "a black car" | class: External form | A yes: it is a car | B no: wait';
+  const second = 'Q1: "a black car" | class: External form | A yes: it is a car | B yes: its color is black';
+  expect(parseVerdicts(first, d)).toEqual([{ cell: "both", answer: "no" }]);
+  expect(parseVerdicts([first, second].join("\n"), d)).toEqual([{ cell: "both", answer: "yes" }]);
+  expect(parseVerdicts([second, first].join("\n"), d), "the last, whichever it is").toEqual([{ cell: "both", answer: "no" }]);
+  // other cells keep their lines, in the order they first appear
+  expect(parseVerdicts([first, 'Q4: "a rabbit horn" | A no: it does not exist | B no: it is not black', second].join("\n"), d)).toEqual([{ cell: "both", answer: "yes" }, { cell: "nei", answer: "yes" }]);
+  expect(parseVerdicts("Both: x => no\nBoth: y => yes")).toEqual([{ cell: "both", answer: "yes" }]);
+});
+
 // The case that was flagged: "leather boots" for the first question of leather things / things made of atoms (A leather, B form). The tutor's line
 // named the class External form and then answered "B no" with a reason that makes them physical, and the page took the "no": "Does not fit".
 test("a tutor line that contradicts its own class settles nothing on that side, so a slip is not a wrong verdict", () => {
@@ -1192,6 +1207,8 @@ test("an answer's fact lines give the cell each example belongs in, from its two
   expect(cellFor(rs, "A Song!")).toBe("anb");
   expect(cellFor(rs, "an apple")).toBeNull();
   expect(cellFor(rs, "a stone")).toBeNull();
+  // an example the answer has two lines for (the second corrects the first) is where the last puts it
+  expect(cellFor(readings([fact("Both", "a car", "yes", "no"), fact("Both", "a car", "yes", "yes")].join("\n")), "a car")).toBe("both");
 });
 
 test("the examples of several answers are gathered, with the cell each answer gave; they are divided by two different cells only", () => {
@@ -1656,11 +1673,14 @@ test("an example is kept by its words as the lookup compares them, and not at al
   expect(factKey("x".repeat(80))).toBe("x".repeat(80));
 });
 
-test("an answer's opinion of an example is its first line about it that is sure of something", () => {
+test("an answer's opinion of an example is its last line about it that is sure of something, else its first", () => {
   const text = [fact("Both", "A table", "unsure", "unsure"), "Common locus: a table.", fact("A not B", "a table", "yes", "no"), fact("Both", "a stone", "no", "no")].join("\n");
   expect(opinionOf(text, "the table")).toEqual({ cls: "Table", sides: [{ answer: "yes", say: "it is a table" }, { answer: "no", say: "because it is wood" }] });
   expect(opinionOf(fact("Both", "a table", "unsure", "unsure"), "table")?.sides.map((s) => s.answer)).toEqual(["unsure", "unsure"]);
   expect(opinionOf(text, "a song")).toBeNull();
+  // a line written again to correct the first (the page's note shows it) is the opinion
+  const again = [fact("Q1", "a black car", "yes", "no"), fact("Q1", "a black car", "yes", "yes")].join("\n");
+  expect(opinionOf(again, "a black car")?.sides.map((s) => s.answer)).toEqual(["yes", "yes"]);
 });
 
 test("one explain question settles a side of an example by how far its answers agree", () => {

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../../worker/app";
 import { EXAMPLES_ADMIN_API } from "../../worker/examples-admin";
 import { makeProof } from "../../src/ai/proof";
+import { FACTS_EPOCH } from "../../src/domain/learned";
 import { HEADER } from "../../src/ai/protocol";
 import { REPORT_API, type FlagReport } from "../../src/report/protocol";
 import type { Env } from "../../worker/env";
@@ -18,7 +19,7 @@ const app = createApp({ kit: async () => fakeKit().kit, now: () => NOW });
 beforeEach(() => void vi.spyOn(console, "error").mockImplementation(() => {}));
 
 const put = (s: Setup, thing: string, cat: string, over: Record<string, string | number> = {}) => {
-  const row = { answer: "yes", cls: "Table", reason: "it is a form", state: "checked", agree: 3, against: 0, src: "quorum", models: "[]", epoch: 1, text: thing, seen: 3, first_day: "2026-10-19", last_day: "2026-10-20", ...over };
+  const row = { answer: "yes", cls: "Table", reason: "it is a form", state: "checked", agree: 3, against: 0, src: "quorum", models: "[]", epoch: FACTS_EPOCH, text: thing, seen: 3, first_day: "2026-10-19", last_day: "2026-10-20", ...over };
   s.db.sql(`INSERT INTO example_facts (thing, cat, ${Object.keys(row).join(", ")}) VALUES (?, ?, ${Object.keys(row).map(() => "?").join(", ")})`, thing, cat, ...(Object.values(row) as (string | number)[]));
 };
 const rows = (s: Setup) => s.db.sql<{ thing: string; cat: string; state: string; flagged: number; answer: string; src: string }>("SELECT thing, cat, state, flagged, answer, src FROM example_facts ORDER BY thing, cat");
@@ -176,7 +177,7 @@ describe("the maintainer's view of the learned facts", () => {
     const res = await as(s, "/decide", { body: { thing: "table", cat: "c_form", answer: "yes", reason: "it is made of wood \u0000 and shaped" } });
     expect(await json(res)).toEqual({ ok: true, thing: "table", cat: "c_form", state: "reviewed", answer: "yes" });
     expect(s.db.sql("SELECT answer, state, src, epoch, reason, flagged FROM example_facts WHERE cat = 'c_form'")).toEqual([
-      { answer: "yes", state: "reviewed", src: "maintainer", epoch: 1, reason: "it is made of wood   and shaped", flagged: 2 },
+      { answer: "yes", state: "reviewed", src: "maintainer", epoch: FACTS_EPOCH, reason: "it is made of wood   and shaped", flagged: 2 },
     ]);
     const served = await known(s, "anb");
     expect(served).toHaveLength(1);

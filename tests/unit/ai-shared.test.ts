@@ -348,8 +348,8 @@ test("the explain request is the plain one when the page checked every example, 
 // The tutor states two facts about an example (is it A, is it B) and the reason for each; the page writes the consequences and draws
 // the conclusion (src/domain/verdict.ts), so the requests ask for the reason only.
 test("the explain requests ask for the two facts about an example and the reason for each, in one form, and for no conclusion", () => {
-  expect(FIRST_ASK).toContain('Both: "the example" | class: Taste source | A yes: it is ... | B no: it is ...');
-  expect(DEBATE_ASK).toContain('Q2: "the example" | class: Taste source | A yes: it is ... | B no: it is ...');
+  expect(FIRST_ASK).toContain('Both: "the example" | class: Taste source | A <yes, no or unsure>: it is ... | B <yes, no or unsure>: it is ...');
+  expect(DEBATE_ASK).toContain('Q2: "the example" | class: Taste source | A <yes, no or unsure>: it is ... | B <yes, no or unsure>: it is ...');
   for (const ask of [FIRST_ASK, DEBATE_ASK]) {
     expect(ask).toContain('the words after "because" in "Take the example: it follows it is (not) A, because ..."');
     expect(ask).toContain("write no conclusion, do not name the term again and do not add its definition");

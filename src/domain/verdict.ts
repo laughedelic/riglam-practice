@@ -157,21 +157,26 @@ export function partsText(parts: readonly NotePart[], terms: Terms): string {
 }
 export const factNote = (f: FactLine, accepted: boolean, terms: Terms, d?: NoteData): string => partsText(noteParts(f, accepted, d), terms);
 
-/** The verdicts in the tutor's text, in order. A line with the two facts gives the verdict its facts give (with the term data, as `placeFacts` settles them); otherwise a line of the form `<cell>: <example> => yes|no|unsure` does. Other lines are ignored, also when bulleted or in bold. */
+/**
+ * The verdicts in the tutor's text, one per cell, in the order the cells first appear. A line with the two facts gives the verdict its facts give (with the term data, as `placeFacts` settles them);
+ * otherwise a line of the form `<cell>: <example> => yes|no|unsure` does. A cell the text has more than one line for (the tutor wrote a line and then corrected it)
+ * takes the last, which is the one the note shows. Other lines are ignored, also when bulleted or in bold.
+ */
 export function parseVerdicts(text: string | null | undefined, d?: NoteData): CellVerdict[] {
-  const out: CellVerdict[] = [];
+  const out = new Map<CellId, CellVerdict>();
   for (const ln of (text || "").split("\n")) {
     const f = parseFactLine(ln);
     if (f) {
       const [a, b] = placeFacts(f, d).answers; // with the term data, the answers the note shows
-      out.push({ cell: f.cell, answer: fitOf({ cell: f.cell, a: { answer: a, say: "" }, b: { answer: b, say: "" } }) });
+      out.set(f.cell, { cell: f.cell, answer: fitOf({ cell: f.cell, a: { answer: a, say: "" }, b: { answer: b, say: "" } }) });
       continue;
     }
     const m = ln.replace(/^[-•*\s]+/, "").replace(/\*\*/g, "").match(/^(both|a not b|b not a|neither|q[1-4])\s*:\s*(.*?)\s*=>\s*(yes|no|unsure)\W*$/i);
     if (!m) continue;
-    out.push({ cell: NAME_CELL[m[1].toLowerCase()], answer: m[3].toLowerCase() as Answer });
+    const cell = NAME_CELL[m[1].toLowerCase()];
+    out.set(cell, { cell, answer: m[3].toLowerCase() as Answer });
   }
-  return out;
+  return [...out.values()];
 }
 
 /**
