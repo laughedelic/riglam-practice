@@ -253,7 +253,7 @@ test("after five right in a row the next stage is offered with a tap, and Not no
   for (let i = 0; i < 4; i++) { await finishThing(); await page.keyboard.press("n"); }
   await finishThing();
   await page.getByRole("button", { name: "Add stage 2" }).click();
-  await expect(page.locator('[role="status"].catnote')).toContainText("Stage 2, what you see, is on now in every exercise");
+  await expect(page.locator('[role="status"].catnote')).toContainText("Stage 2, colors and shapes, is on now in every exercise");
   expect(await page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("1,2");
   expect(await page.evaluate(() => document.activeElement === document.body), "the focus does not fall to the page").toBe(false);
 });
