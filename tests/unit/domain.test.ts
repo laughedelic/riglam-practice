@@ -647,6 +647,17 @@ test("the real data: stages from 1 to 9, open qualities only of everyday categor
 
 const upToStage = (n: number) => Array.from({ length: n }, (_, i) => i + 1);
 
+// The knowledge base's build checks that every visible thing says its color or leaves it open, every made thing its material, and that a thing
+// often heated in use leaves "hot" open (docs/DATA.md); a few of the cases Alexey and the tutor's lines raised, against the real data.
+test("the real data: a thing whose name leaves the cell's quality open is asked to name it", () => {
+  const rp = (catA: string, catB: string): Pair => pair({ a: rix.CAT[catA].labels[0], b: rix.CAT[catB].labels[0], catA, catB });
+  expect(judgeText(rix, rp("extf", "black"), "both", "a car")).toMatchObject({ v: "cmp", open: ["black"], msg: [expect.anything(), expect.stringContaining("as in “a black car”")] });
+  expect(judgeText(rix, rp("hot", "kitchen"), "both", "a frying pan")).toMatchObject({ v: "cmp", open: ["hot"], msg: [expect.anything(), expect.stringContaining("as in “a hot frying pan”")] });
+  expect(judgeText(rix, rp("hot", "kitchen"), "both", "a hot black frying pan")?.v).toBe("ok");
+  expect(judgeText(rix, rp("metal", "glass"), "both", "a smartphone")?.v).toBe("cmp");
+  expect(judgeText(rix, rp("black", "kitchen"), "both", "a metal spoon")?.v).toBe("bad"); // its color is none of the six: no word needed
+});
+
 test("the stages that are on: a stored value, switching one, the highest, and the old levels a device kept", () => {
   expect(STAGES.map((s) => s.n)).toEqual(upToStage(9));
   expect(MAX_STAGE).toBe(9);
