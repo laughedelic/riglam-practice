@@ -16,6 +16,7 @@ import type { HistoryEntry } from "./types";
 import { cellsFor, judgeable } from "./universe";
 import type { Rng } from "./universe";
 import { FEATURE, RECENT_MAX, inUniverse } from "./universe";
+import { vagueVerdict } from "./vague";
 import { catOpen, itemOn, normStages, topStage } from "./stages";
 import type { Stages, Unmet } from "./stages";
 import { cap, isMiss } from "./util";
@@ -430,6 +431,9 @@ export function gradeExample(ix: DataIndex, c: Syllogism, text: string): Example
   const t = text.trim().replace(/[.!]+$/, "");
   const it = t ? matchItem(ix, t, FEATURE.has(c.catR) || FEATURE.has(c.catP)) : null;
   if (it && it.n === c.subject) return { v: "self", line: `That is the subject itself. Name another thing that is ${c.reason} and is not ${c.predicate}.` };
+  // a thing whose name leaves the reason or the predicate open ("a car" for black things) is asked to be named, as in the pairs (vague.ts): the reason yes, the predicate no
+  const vague = it ? vagueVerdict(ix, it, t, [c.catR, c.catP], "anb", null, [c.reason, c.predicate]) : null;
+  if (vague) return { v: vague.v, line: vague.msg[1] };
   if (!it || !inUniverse(ix, it, c.catR, c.catP)) return { v: "cmp", line: `Not checked: the page does not know ${t || "that"} well enough to say.` };
   // the thing as the data names it, not as it was typed ("red balls" is "a red ball"); the one thing said in the second person ("you") takes "are"
   const name = cap(it.n), be = it.nosubject ? "are" : "is", it_ = it.nosubject ? "you" : "it", r = it.c.includes(c.catR), p = it.c.includes(c.catP);

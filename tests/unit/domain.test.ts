@@ -8,7 +8,7 @@ import { CELLS, NEG_CELL, REL, cardBody, explainAsk, isNeg, makeIndex, negLabel,
 import type { CellId, DrillData, RelKey } from "../../src/ai-shared";
 import {
   FEATURE, RECENT_MAX, AUTO_FLAGS, applyVerdicts, autoFlagOf, decideFlag, factNote, fitOf, flagAnswerRef, flagAsked, flagStateText, flaggedPart, noteParts, buildPool, cellsFor, chooseEntry, deriveRel, grade, gradeDebate, gradeOf, inUniverse, isMiss, judgeText, makePair,
-  negateCells, nextPair, pairKey, parseFactLine, parseVerdicts, pick, relOfCells, summarize, termLine, cellFor, cellOfFacts, disputeText, divided, quorumDisputes, quorumRows, readings,
+  negateCells, nextPair, pairKey, parseFactLine, parseVerdicts, pick, placeFacts, relOfCells, summarize, termLine, cellFor, cellOfFacts, disputeText, divided, quorumDisputes, quorumRows, readings,
   FIND_RELS, applyRelationVerdict, drawRelation, findId, findPair, gradeFind, judgeable, nameThing, pairOf, parseRelationVerdict, sameThing,
 } from "../../src/domain";
 import type { DebateInput, GradeDraft, HistoryEntry, Pair, PoolEntry } from "../../src/domain";
@@ -253,7 +253,7 @@ test("a right relation and right examples are ok in every cell", () => {
   expect(r.cells.both.msg[0]).toBe("Right. ");
   expect(r.cells.both.msg[1]).toBe("A gray wooden table: formimpermanentexistent.");
   expect([r.occBad, r.exBad, r.exOpen, r.exN]).toEqual([0, 0, 0, 4]);
-  expect(Object.keys(r)).toEqual(["relOk", "cells", "occBad", "exBad", "exOpen", "exN", "overall"]);
+  expect(Object.keys(r)).toEqual(["relOk", "cells", "occBad", "exBad", "exOpen", "exVague", "exN", "overall"]);
 });
 
 test("the answer is case-insensitive, ignores an article and a closing mark", () => {
@@ -325,8 +325,84 @@ test("an item whose name leaves a category open neither shows it nor refuses it,
   expect(names(cellsFor(mix, "wooden", "mind").nei)).not.toContain("a chair"); // nor wooden things' outside: it may be one
   expect(names(cellsFor(mix, "form", "mind").anb)).toContain("a chair");
   expect(relOfCells(cellsFor(mix, "wooden", "form"))).toBe(relOfCells(cellsFor(ix, "wooden", "form")));
-  expect(judgeText(mix, pair(), "nei", "a chair")).toBeNull(); // the tutor's to check
+  expect(judgeText(mix, pair(), "nei", "a chair")).toMatchObject({ v: "cmp", open: ["wooden", "gray"] }); // neither right nor wrong: its name has to say which
   expect(judgeText(mix, pair({ catA: "form", catB: "mind", a: "forms", b: "minds" }), "anb", "a chair")?.v).toBe("ok");
+});
+
+// ---- an example whose name leaves the cell's quality open (src/domain/vague.ts) ----
+//   "a car" may be black or red, "a frying pan" hot or not, "a table" wooden, metal or black: the name has to say which, the same every time.
+const vix = makeIndex({
+  terms: {}, chains: { Form: ["Form", "Thing"], Mind: ["Mind", "Thing"] },
+  cats: [
+    { id: "form", kind: "dudra", term: "Form", labels: ["forms"], type: "form" },
+    { id: "black", kind: "everyday", labels: ["black things"], type: "form", phrases: ["black"] },
+    { id: "red", kind: "everyday", labels: ["red things"], type: "form", phrases: ["red"] },
+    { id: "wooden", kind: "everyday", labels: ["wooden things"], type: "form", phrases: ["made of wood"] },
+    { id: "metal", kind: "everyday", labels: ["metal things"], type: "form", phrases: ["made of metal"] },
+    { id: "hot", kind: "everyday", labels: ["hot things"], type: "form", phrases: ["hot"] },
+  ],
+  items: [
+    { n: "a car", t: "Form", c: ["form", "metal"], may: ["black", "red"] },
+    { n: "a black car", t: "Form", c: ["form", "metal", "black"] },
+    { n: "a frying pan", t: "Form", c: ["form", "metal"], may: ["hot"] },
+    { n: "a table", t: "Form", c: ["form"], may: ["wooden", "metal", "black"] },
+    { n: "a thought", t: "Mind", c: [] },
+  ],
+  bodySkip: [], aliases: {},
+});
+const vpair = (catA: string, catB: string, extra: Partial<Pair> = {}) =>
+  pair({ a: vix.CAT[catA].labels[0], b: vix.CAT[catB].labels[0], catA, catB, relation: "3ba", ex: { both: "a black car", anb: "a frying pan", bna: null, nei: "a thought" }, ...extra });
+
+test("an example whose name leaves the cell's quality open is asked to say it, with a name that would fit the cell", () => {
+  const p = vpair("metal", "black");
+  expect(judgeText(vix, p, "both", "a car")).toEqual({ v: "cmp", msg: ["Say which. ", "“A car” leaves open whether it is black: name it, as in “a black car”."], open: ["black"] });
+  expect(judgeText(vix, p, "anb", "a car")?.msg[1]).toBe("“A car” leaves open whether it is black: name it, as in “a red car”."); // another color its name leaves open
+  expect(judgeText(vix, p, "bna", "a car.")).toEqual({ v: "bad", msg: ["Belongs elsewhere. ", "A car is made of metal, whatever the rest of it is."] }); // a side its name does say decides
+  expect(judgeText(vix, p, "both", "a black car")?.v).toBe("ok");
+  // temperature: the other one names a thing that is not hot
+  const hot = vpair("hot", "metal");
+  expect(judgeText(vix, hot, "both", "a frying pan")?.msg[1]).toBe("“A frying pan” leaves open whether it is hot: name it, as in “a hot frying pan”.");
+  expect(judgeText(vix, hot, "bna", "a frying pan")?.msg[1]).toBe("“A frying pan” leaves open whether it is hot: name it, as in “a cold frying pan”.");
+  expect(judgeText(vix, hot, "anb", "a frying pan")?.v).toBe("bad");
+  // two open sides: the words go from the noun outwards, and with no word for a side there is no suggestion
+  const two = vpair("wooden", "black");
+  expect(judgeText(vix, two, "both", "a table")).toMatchObject({ v: "cmp", open: ["wooden", "black"], msg: ["Say which. ", "“A table” leaves open whether it is made of wood and whether it is black: name it, as in “a black wooden table”."] });
+  expect(judgeText(vix, two, "nei", "a table")?.msg[1]).toBe("“A table” leaves open whether it is made of wood and whether it is black: name it.");
+  // a negated side: the cell on screen asks the reverse of the plain category
+  const neg = vpair("metal", "black", { b: "non-(black things)", neg: "b" });
+  expect(judgeText(vix, neg, "both", "a car")?.msg[1]).toBe("“A car” leaves open whether it is black: name it, as in “a red car”.");
+  expect(judgeText(vix, neg, "bna", "a car")?.v).toBe("bad");
+  // a pair the name says nothing open about is judged as before
+  expect(judgeText(vix, vpair("form", "metal"), "both", "a car")?.v).toBe("ok");
+});
+
+test("a cell left open by the example's name keeps the answer pending, and no verdict of Claude's settles it", () => {
+  const p = vpair("metal", "black");
+  const res = grade(vix, p, { rel: "3ba", cells: cellsOf({ both: "a car", anb: "a black car", nei: "a thought" }) });
+  expect(res.cells.both).toMatchObject({ v: "cmp", kind: "ex", uns: true, vague: ["black"] });
+  expect([res.exOpen, res.exVague, res.exBad, res.overall]).toEqual([0, 1, 1, "part"]); // a wrong cell outranks it
+  const left = grade(vix, p, { rel: "3ba", cells: cellsOf({ both: "a car", anb: "a frying pan", nei: "a thought" }) });
+  expect([left.exOpen, left.exVague, left.overall]).toEqual([0, 1, "pend"]);
+  expect(applyVerdicts(p, left, [{ cell: "both", answer: "yes" }])).toBe(0);
+  expect(left.cells.both.v).toBe("cmp");
+  const debate = gradeDebate(vix, p, { rel: "3ba", ans: dAns({ say: "why", text: "a car" }, { say: "why", text: "a frying pan" }, { say: "accept" }, { say: "why", text: "a thought" }) });
+  expect(debate.cells.both).toMatchObject({ v: "cmp", vague: ["black"] });
+  expect(debate.exVague).toBe(1);
+});
+
+test("the tutor's line on an example whose name leaves a side open is unsure on that side, and the note asks for the word", () => {
+  const p = vpair("metal", "black"), d = { ix: vix, p, terms: { a: "a metal thing", b: "a black thing" } };
+  const f = parseFactLine('Both: "a car" | class: Form | A yes: it is made of steel | B yes: cars are usually black')!;
+  expect(placeFacts(f, d)).toMatchObject({ answers: ["yes", "unsure"], open: ["", "the name “a car” does not say it; name it, as in “a black car”"] });
+  expect(parseVerdicts(f.label + ': "a car" | class: Form | A yes: x | B yes: y', d)).toEqual([{ cell: "both", answer: "unsure" }]);
+  expect(factNote(f, false, d.terms, d).split("\n").slice(-2)).toEqual([
+    "Whether it is a black thing is not settled: the name “a car” does not say it; name it, as in “a black car”.",
+    "So it fits only once its name says which.",
+  ]);
+  // a side its name does say is the data's, whatever the line says, and then the example does not fit
+  const off = parseFactLine('B not A: "a car" | class: Form | A no: x | B yes: y')!;
+  expect(placeFacts(off, d).answers).toEqual(["yes", "unsure"]);
+  expect(factNote(off, false, d.terms, d).split("\n").at(-1)).toBe("So it does not fit.");
 });
 
 test("an alias does not settle a feature: wooden, metal, white and the like need the exact name", () => {
@@ -570,6 +646,17 @@ test("the real data: stages from 1 to 9, open qualities only of everyday categor
 // ---- the learning ladder (src/domain/stages.ts): which stages are on, and what each exercise draws from them ----
 
 const upToStage = (n: number) => Array.from({ length: n }, (_, i) => i + 1);
+
+// The knowledge base's build checks that every visible thing says its color or leaves it open, every made thing its material, and that a thing
+// often heated in use leaves "hot" open (docs/DATA.md); a few of the cases Alexey and the tutor's lines raised, against the real data.
+test("the real data: a thing whose name leaves the cell's quality open is asked to name it", () => {
+  const rp = (catA: string, catB: string): Pair => pair({ a: rix.CAT[catA].labels[0], b: rix.CAT[catB].labels[0], catA, catB });
+  expect(judgeText(rix, rp("extf", "black"), "both", "a car")).toMatchObject({ v: "cmp", open: ["black"], msg: [expect.anything(), expect.stringContaining("as in “a black car”")] });
+  expect(judgeText(rix, rp("hot", "kitchen"), "both", "a frying pan")).toMatchObject({ v: "cmp", open: ["hot"], msg: [expect.anything(), expect.stringContaining("as in “a hot frying pan”")] });
+  expect(judgeText(rix, rp("hot", "kitchen"), "both", "a hot black frying pan")?.v).toBe("ok");
+  expect(judgeText(rix, rp("metal", "glass"), "both", "a smartphone")?.v).toBe("cmp");
+  expect(judgeText(rix, rp("black", "kitchen"), "both", "a metal spoon")?.v).toBe("bad"); // its color is none of the six: no word needed
+});
 
 test("the stages that are on: a stored value, switching one, the highest, and the old levels a device kept", () => {
   expect(STAGES.map((s) => s.n)).toEqual(upToStage(9));
@@ -1016,6 +1103,21 @@ test("a note states the term data's steps: up the chain to the term, or to the c
   ]);
 });
 
+// The second case: the tutor wrote a line for "a black car" with "B no: wait", and then the line again with "B yes". The note showed the last one, but the
+// cell was settled by the first and ruled wrong.
+test("a cell the tutor wrote two lines for takes the last, which is the one the note shows", () => {
+  const p = { a: "physical things outside a person's continuum", b: "black things", catA: "extf", catB: "black", relation: "3ba" as const }, terms = { a: "an external form", b: "a black thing" };
+  const d = { ix: rix, p, terms };
+  const first = 'Q1: "a black car" | class: External form | A yes: it is a car | B no: wait';
+  const second = 'Q1: "a black car" | class: External form | A yes: it is a car | B yes: its color is black';
+  expect(parseVerdicts(first, d)).toEqual([{ cell: "both", answer: "no" }]);
+  expect(parseVerdicts([first, second].join("\n"), d)).toEqual([{ cell: "both", answer: "yes" }]);
+  expect(parseVerdicts([second, first].join("\n"), d), "the last, whichever it is").toEqual([{ cell: "both", answer: "no" }]);
+  // other cells keep their lines, in the order they first appear
+  expect(parseVerdicts([first, 'Q4: "a rabbit horn" | A no: it does not exist | B no: it is not black', second].join("\n"), d)).toEqual([{ cell: "both", answer: "yes" }, { cell: "nei", answer: "yes" }]);
+  expect(parseVerdicts("Both: x => no\nBoth: y => yes")).toEqual([{ cell: "both", answer: "yes" }]);
+});
+
 // The case that was flagged: "leather boots" for the first question of leather things / things made of atoms (A leather, B form). The tutor's line
 // named the class External form and then answered "B no" with a reason that makes them physical, and the page took the "no": "Does not fit".
 test("a tutor line that contradicts its own class settles nothing on that side, so a slip is not a wrong verdict", () => {
@@ -1192,6 +1294,8 @@ test("an answer's fact lines give the cell each example belongs in, from its two
   expect(cellFor(rs, "A Song!")).toBe("anb");
   expect(cellFor(rs, "an apple")).toBeNull();
   expect(cellFor(rs, "a stone")).toBeNull();
+  // an example the answer has two lines for (the second corrects the first) is where the last puts it
+  expect(cellFor(readings([fact("Both", "a car", "yes", "no"), fact("Both", "a car", "yes", "yes")].join("\n")), "a car")).toBe("both");
 });
 
 test("the examples of several answers are gathered, with the cell each answer gave; they are divided by two different cells only", () => {
@@ -1656,11 +1760,14 @@ test("an example is kept by its words as the lookup compares them, and not at al
   expect(factKey("x".repeat(80))).toBe("x".repeat(80));
 });
 
-test("an answer's opinion of an example is its first line about it that is sure of something", () => {
+test("an answer's opinion of an example is its last line about it that is sure of something, else its first", () => {
   const text = [fact("Both", "A table", "unsure", "unsure"), "Common locus: a table.", fact("A not B", "a table", "yes", "no"), fact("Both", "a stone", "no", "no")].join("\n");
   expect(opinionOf(text, "the table")).toEqual({ cls: "Table", sides: [{ answer: "yes", say: "it is a table" }, { answer: "no", say: "because it is wood" }] });
   expect(opinionOf(fact("Both", "a table", "unsure", "unsure"), "table")?.sides.map((s) => s.answer)).toEqual(["unsure", "unsure"]);
   expect(opinionOf(text, "a song")).toBeNull();
+  // a line written again to correct the first (the page's note shows it) is the opinion
+  const again = [fact("Q1", "a black car", "yes", "no"), fact("Q1", "a black car", "yes", "yes")].join("\n");
+  expect(opinionOf(again, "a black car")?.sides.map((s) => s.answer)).toEqual(["yes", "yes"]);
 });
 
 test("one explain question settles a side of an example by how far its answers agree", () => {

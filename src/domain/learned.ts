@@ -10,7 +10,7 @@ import type { Answer, Side } from "./verdict";
  * The version of the prompts and the term data the analyses were made with. Raise it when a change could change the answers (the instructions,
  * the explain request, the term data's chains): a row of an older version is then not served, and the next analysis starts it again.
  */
-export const FACTS_EPOCH = 1;
+export const FACTS_EPOCH = 2;
 
 export const FACT_LIMITS = {
   /** an example longer than this is not kept (it is more likely a sentence with personal words than a thing) */
@@ -47,21 +47,22 @@ export interface Opinion {
 }
 
 /**
- * What an answer's text says of an example: its first fact line about the example that gives a definite answer on either side, else its first
- * line about it; null when no line names it. The example is matched by its key, so case, the article and punctuation do not matter.
+ * What an answer's text says of an example: its last fact line about the example that gives a definite answer on either side (a line the tutor wrote
+ * again to correct the first is the one the page's note shows), else its first line about it; null when no line names it. The example is matched by
+ * its key, so case, the article and punctuation do not matter.
  */
 export function opinionOf(text: string, example: string): Pick<Opinion, "cls" | "sides"> | null {
   const k = factKey(example);
   if (!k) return null;
-  let first: Pick<Opinion, "cls" | "sides"> | null = null;
+  let first: Pick<Opinion, "cls" | "sides"> | null = null, sure: Pick<Opinion, "cls" | "sides"> | null = null;
   for (const ln of (text || "").split("\n")) {
     const f = parseFactLine(ln);
     if (!f || factKey(f.example) !== k) continue;
     const o = { cls: f.cls, sides: [f.a, f.b] as const };
-    if (f.a.answer !== "unsure" || f.b.answer !== "unsure") return o;
-    first ??= o;
+    if (f.a.answer !== "unsure" || f.b.answer !== "unsure") sure = o;
+    else first ??= o;
   }
-  return first;
+  return sure ?? first;
 }
 
 /**

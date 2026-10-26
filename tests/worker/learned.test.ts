@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../../worker/app";
 import { parseRequest } from "../../worker/tutor";
+import { FACTS_EPOCH } from "../../src/domain/learned";
 import { NOW, ask, events, fakeKit, fakeModels, json, setup, type Round } from "./support";
 import type { Env } from "../../worker/env";
 
@@ -36,8 +37,8 @@ describe("learned facts", () => {
     const { got } = await explain(s, { [SONNET]: [text(line("Both", "a table", "yes", "no"), line("Neither", "a stone", "no", "no"), "Common locus: yes.")] });
     expect(got.map((e) => e.type)).toEqual(["delta", "done"]); // the learner's answer is as ever
     expect(facts(s)).toEqual([
-      { thing: "table", cat: "c_form", answer: "yes", cls: "Table", reason: "it is a form", state: "candidate", agree: 1, against: 0, src: "explain", models: JSON.stringify([{ model: SONNET, answer: "yes" }]), epoch: 1, text: "A table", seen: 1, first_day: "2026-10-13", last_day: "2026-10-13" },
-      { thing: "table", cat: "c_round", answer: "no", cls: "Table", reason: "it is round", state: "candidate", agree: 1, against: 0, src: "explain", models: JSON.stringify([{ model: SONNET, answer: "no" }]), epoch: 1, text: "A table", seen: 1, first_day: "2026-10-13", last_day: "2026-10-13" },
+      { thing: "table", cat: "c_form", answer: "yes", cls: "Table", reason: "it is a form", state: "candidate", agree: 1, against: 0, src: "explain", models: JSON.stringify([{ model: SONNET, answer: "yes" }]), epoch: FACTS_EPOCH, text: "A table", seen: 1, first_day: "2026-10-13", last_day: "2026-10-13" },
+      { thing: "table", cat: "c_round", answer: "no", cls: "Table", reason: "it is round", state: "candidate", agree: 1, against: 0, src: "explain", models: JSON.stringify([{ model: SONNET, answer: "no" }]), epoch: FACTS_EPOCH, text: "A table", seen: 1, first_day: "2026-10-13", last_day: "2026-10-13" },
     ]);
   });
 
@@ -257,7 +258,7 @@ describe("known facts", () => {
     expect((await json(await known(s, ask))).known, "an older epoch").toEqual([]);
     s.db.sql("UPDATE example_facts SET state = 'reviewed'");
     expect((await json(await known(s, ask))).known[0].by).toBe("reviewed");
-    s.db.sql("UPDATE example_facts SET state = 'disputed', epoch = 1 WHERE cat = 'c_round'");
+    s.db.sql(`UPDATE example_facts SET state = 'disputed', epoch = ${FACTS_EPOCH} WHERE cat = 'c_round'`);
     expect((await json(await known(s, ask))).known, "one side disputed").toEqual([]);
   });
 

@@ -30,7 +30,7 @@ export interface OpenExample {
  */
 export function openExamples(p: PairLike, res: Pick<GradeResult, "cells">, things: readonly { text: string; cells: readonly CellId[] }[], max = 8): OpenExample[] {
   if (p.own || p.neg) return [];
-  return things.flatMap((t) => t.cells.filter((c) => res.cells[c]?.v === "cmp").map((cell) => ({ cell, text: t.text }))).slice(0, max);
+  return things.flatMap((t) => t.cells.filter((c) => res.cells[c]?.v === "cmp" && !res.cells[c]?.vague).map((cell) => ({ cell, text: t.text }))).slice(0, max);
 }
 
 /** A line the page can read as the tutor's, for the example `text` in `cell`; `half` when only one of its two sides is in it (the other is "unsure"). */
