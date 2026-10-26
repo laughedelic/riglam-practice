@@ -1008,11 +1008,34 @@ test("a note states the term data's steps: up the chain to the term, or to the c
   // an alias names the step only as a class ("a taste"), not inside the example's own phrase ("the taste of salt")
   expect(note("external forms", "extf", "smells", "odr", 'Q2: "the taste of salt" | class: Taste source | A yes: it is a taste | B no: it is a taste')[1])
     .toBe("It follows it is an external form, because it is a taste, which is an external form.");
-  // the tutor's class does not overrule its own answer when they disagree
+  // the tutor's class does not overrule its own answer, nor the answer the class: where the data's steps from the class go against the answer, the line
+  // contradicts itself and the side is not settled; a side the steps say nothing of (external and internal form overlap) keeps the tutor's answer and reason
   expect(note("thoughts", "thought", "sense powers", "sp", 'Q2: "a hunch" | class: External form | A yes: it is a mind | B no: it is a hunch').slice(1, 3)).toEqual([
-    "It follows it is a thought, because it is a mind.",
+    "Whether it is a thought is not settled: Claude's class for it (external form) and its answer disagree.",
     "It follows it is not a sense power, because it is a hunch.",
   ]);
+});
+
+// The case that was flagged: "leather boots" for the first question of leather things / things made of atoms (A leather, B form). The tutor's line
+// named the class External form and then answered "B no" with a reason that makes them physical, and the page took the "no": "Does not fit".
+test("a tutor line that contradicts its own class settles nothing on that side, so a slip is not a wrong verdict", () => {
+  const p = { a: "leather things", b: "things made of atoms", catA: "leather", catB: "form", relation: "3ab" as const }, terms = { a: "a leather thing", b: "a thing made of atoms" };
+  const d = { ix: rix, p, terms };
+  const slip = 'Q1: "leather boots" | class: External form | A yes: they are boots made of leather | B no: it is a solid object with a shape and color';
+  expect(parseVerdicts(slip, d)).toEqual([{ cell: "both", answer: "unsure" }]);
+  expect(factNote(parseFactLine(slip)!, true, terms, d).split("\n")).toEqual([
+    "Take leather boots:",
+    "It follows it is a leather thing, because they are boots made of leather.",
+    "Whether it is a thing made of atoms is not settled: Claude's class for it (external form) and its answer disagree.",
+    "Claude is unsure whether it is a counter-example.",
+  ]);
+  // the same line without the slip settles the cell, and the note shows the steps
+  const right = slip.replace("B no", "B yes");
+  expect(parseVerdicts(right, d)).toEqual([{ cell: "both", answer: "yes" }]);
+  expect(factNote(parseFactLine(right)!, true, terms, d).split("\n").slice(2)).toEqual(["It follows it is a thing made of atoms, because it is a solid object with a shape and color, which is an external form, which is a form."]);
+  // a class the data does not have, or a side the class says nothing of, leaves the tutor's answers as they are; without the data they are the tutor's
+  expect(parseVerdicts(slip.replace("External form", "Leather boot"), d)).toEqual([{ cell: "both", answer: "no" }]);
+  expect(parseVerdicts(slip)).toEqual([{ cell: "both", answer: "no" }]);
 });
 
 test("for every pair the page can draw, the right answer is ok in practice and in the debate", () => {

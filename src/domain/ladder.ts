@@ -91,6 +91,11 @@ export function rung(ix: DataIndex, cls: string, cat: Cat, subject: string, said
   return null;
 }
 
+/** What the data's steps say of an example of the class `cls` and the category: yes, no, or null when they say nothing (`rung` without the words). */
+export function classSays(ix: DataIndex, cls: string, cat: Cat): "yes" | "no" | null {
+  return rung(ix, cls, cat, cat.term ? termPhrase(cat.term) : cat.labels[0], "")?.answer ?? null;
+}
+
 /**
  * The example as a listed practice item for the pair, or null. By default as the grading finds it (`judgeText`): an alias ("apple"
  * for "a red apple") does not count when either category is about a feature such as a color; `exactOnly` decides it instead.
