@@ -128,6 +128,38 @@ test("on the Path five right relations at the highest stage bring the next stage
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem("rd-ex-runs")).practice)).toEqual({ run: 5, right: 5 });
 });
 
+test("on the Path a stage with new terms comes with the answer that makes the last answer on each of them right, without a run of five", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript(onPath);
+  await page.addInitScript(() => {
+    localStorage.setItem("rd-stages", "1,2");
+    const right = (first) => ({ box: 2, shows: 1, first, won: first });
+    localStorage.setItem("rd-terms", JSON.stringify({ n: 12, next: 99, terms: { form: { box: 3, shows: 1 }, extf: right(1), col: right(2), shape: right(3), vis: { box: 1, shows: 1 } } }));
+  });
+  await page.addInitScript(hook);
+  await page.goto("/");
+  await expect(pathChoices(page)).toHaveCount(5);
+  const ring = page.locator("#path .ptb .pring");
+  await expect(ring).toHaveAccessibleName(/^Progression: stage 2, 3 of 4 new terms answered right/);
+  // a pair with Form source, the one term left (the new pairs lean to it; a review pair of stage 1 may come first)
+  const vis = () => page.evaluate(() => [window.__t.cur.p.catA, window.__t.cur.p.catB].includes("vis"));
+  for (let i = 0; i < 40 && !(await vis()); i++) await page.evaluate(() => window.__t.next());
+  expect(await vis(), "a pair with Form source").toBe(true);
+  await expect(pathChoices(page)).toHaveCount(5);
+  await rightPath(page);
+  await expect(ring).toHaveAccessibleName(/^Progression: stage 2, 4 of 4 new terms answered right/);
+  await expect(ring).toHaveClass(/\bfull\b/);
+  expect(await page.evaluate(() => window.__t.stageRun.up), "one right answer, not a run of five").toBe(1);
+  await station(page).click();
+  await expect(page.locator("#path .tstage .cs")).toHaveText("Stage 3 reached");
+  await station(page).click();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("1,2,3");
+  await expect(page.locator("#path .tstop .cs"), "the first term of stage 3 comes at once").toHaveText("Sound source");
+  await station(page).click();
+  await expect(pathChoices(page)).toHaveCount(5);
+  expect(await ring.locator(".tseg").evaluateAll((a) => a.map((x) => x.getAttribute("class"))), "its ring: that term met, the others to come").toEqual(["tseg met", "tseg wait", "tseg wait", "tseg wait"]);
+});
+
 test("on the Path, Stay on stage 1 a while longer keeps the next stage out and asks for ten right answers in a row; the practice options link opens the Stages page", async ({ page }) => {
   await fiveRight(page);
   await station(page).click();

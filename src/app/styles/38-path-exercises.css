@@ -118,6 +118,15 @@
 .pa .tup .tup-lead{font-size:20px; color:var(--ink); line-height:1.4}
 .pa .tup .tup-bul{margin:8px 0 10px; padding:0 0 0 18px; font-size:18px; line-height:1.4}
 .pa .tup .tup-bul li{padding:2px 0}
+.pa .tup .tup-bul li.tlist{list-style:none}
+.pa .tterms{list-style:none; margin:4px 0 2px; padding:0}
+.pa .tterms li{display:flex; align-items:baseline; gap:4px 9px; flex-wrap:wrap; padding:2px 0}
+.pa .tterms .ttn{font-weight:500}
+.pa .tterms small{color:var(--ink2); font-size:.8em}
+.pa .tmk{flex:none; width:9px; height:9px; transform:rotate(45deg) translateY(-1px); box-sizing:border-box; border:1.4px solid var(--ink2); opacity:.7}
+.pa .tmk.wait{opacity:.4}
+.pa .tmk.ok{background:var(--green); border-color:var(--green); opacity:1}
+.pa .tmk.miss,.pa .tmk.slip{background:var(--red); border-color:var(--red); opacity:1}
 .pa .tup-lad{display:flex; align-items:flex-start; gap:3px; margin:14px 0 12px}
 .pa .tup-ld{flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; gap:7px; font:500 10px var(--mono); color:var(--ink3)}
 .pa .tup-ld i{display:block; width:100%; height:24px; position:relative}

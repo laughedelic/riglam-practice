@@ -6,7 +6,7 @@ import { buildPool as poolOf, nextPair } from "../../domain/universe.ts";
 import { moreRefs } from "../core/examples.js";
 import { spendLean } from "../shell/stages.js";
 import { shareNow } from "./stage-offer.ts";
-import { unmetNow } from "./stops.ts";
+import { openNow, unmetNow } from "./stops.ts";
 
 /* ---------- the practice universe ---------- */
 // The lookup tables and the matching of words to items and categories are in src/ai-shared, where the tutor code
@@ -23,6 +23,6 @@ export function answerList(){ return Object.values(state.answers).filter(a=>!isF
 /** The next pair; `negate`: Relations and Pervasions, where the negation track (Practice options) may negate a side. @returns {import("../types.ts").Pair} */
 export function nextGenerated(hist,negate){
   const hide=hiddenKeys();                // pairs skipped lately stay out, unless nothing else of the relation is left
-  // the pairs and their examples come from the stages that are on (a quarter of them new at the highest one while the exercise is new to the learner, practice/stage-offer.ts), without the course terms not met yet (practice/stops.ts); the first pairs after the highest one went up lean to three possibilities
-  return nextPair(state,state.POOL,{hist:hist||answerList(), recent:state.recent, isHidden:c=>hide.has(catKey(c.a,c.b)), more:moreRefs(), stages:state.stages, unmet:unmetNow(), fresh:spendLean(), even:state.stagesKept, newShare:shareNow(), ...(negate&&state.negation!=="off"?{negation:state.negation,brackets:state.negBrackets}:{})});
+  // the pairs and their examples come from the stages that are on (a quarter of them new at the highest one while the exercise is new to the learner, practice/stage-offer.ts), without the course terms not met yet and leaning to the new ones not right yet (practice/stops.ts); the first pairs after the highest one went up lean to three possibilities
+  return nextPair(state,state.POOL,{hist:hist||answerList(), recent:state.recent, isHidden:c=>hide.has(catKey(c.a,c.b)), more:moreRefs(), stages:state.stages, unmet:unmetNow(), open:openNow(), fresh:spendLean(), even:state.stagesKept, newShare:shareNow(), ...(negate&&state.negation!=="off"?{negation:state.negation,brackets:state.negBrackets}:{})});
 }

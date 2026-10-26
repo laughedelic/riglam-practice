@@ -34,6 +34,10 @@ export interface IntroTerm {
   /** the question count from which its stop comes again, and why */
   due?: number;
   why?: "miss" | "again";
+  /** the question count of the first answer that graded it: the stage's ring puts its terms in this order */
+  first?: number;
+  /** the question count of the answer that last made its last answer right (box 1 to 2): the next stage comes with the one that completes the stage */
+  won?: number;
 }
 
 /** The device's record: how many questions it has answered since the record began, when the next new term may come, and each term met (by category id). */
@@ -72,8 +76,32 @@ export function unmet(ix: DataIndex, intro: Intro, on: Stages): Set<string> {
   return out;
 }
 
-/** Whether every term of the stage has had its stop: the next stage is offered only then. */
+/** Whether every term of the stage has had its stop. */
 export const stageMet = (ix: DataIndex, intro: Intro, stage: number): boolean => stageTerms(ix, stage).every((id) => introduced(intro, ix.CAT[id]!));
+
+/**
+ * Where a term stands for its stage: before its stop (`wait`), met and not answered yet (`met`), its last answer right (`ok`, box 2 or more), or its
+ * last answer wrong, never right yet (`miss`) or right before (`slip`). The next stage comes once each new term of the stage is `ok` (stages.ts, stageOffer).
+ */
+export type TermMark = "wait" | "met" | "ok" | "miss" | "slip";
+export function termMark(intro: Intro, id: string): TermMark {
+  const t = intro.terms[id];
+  if (!t || t.box < 1) return "wait";
+  if (t.box >= 2) return "ok";
+  return t.first === undefined ? "met" : t.won !== undefined ? "slip" : "miss";
+}
+/** A new term of a stage with its mark; `now`: the latest answer made it right. */
+export interface StageMark { id: string; mark: TermMark; now?: true }
+/** The new terms of the stage with their marks, in the order the learner first answered them; then the ones met, then the ones still to come, in the course's order. */
+export function stageMarks(ix: DataIndex, intro: Intro, stage: number): StageMark[] {
+  const at = (id: string) => intro.terms[id]?.first ?? Infinity, wait = (id: string) => (termMark(intro, id) === "wait" ? 1 : 0);
+  return stageTerms(ix, stage).map((id, i) => ({ id, i })).sort((a, b) => at(a.id) - at(b.id) || wait(a.id) - wait(b.id) || a.i - b.i).map(({ id }) => {
+    const mark = termMark(intro, id);
+    return mark === "ok" && intro.terms[id]!.won === intro.n ? { id, mark, now: true as const } : { id, mark };
+  });
+}
+/** The new terms of the highest stage on that have had their stop and whose last answer is not right yet: the new questions lean to them (universe.ts, place.ts). */
+export const openTerms = (ix: DataIndex, intro: Intro, on: Stages): Set<string> => new Set(stageTerms(ix, topStage(on)).filter((id) => { const m = termMark(intro, id); return m !== "wait" && m !== "ok"; }));
 
 /** A term in the tree a stop draws: `met` unless it is a course term whose own stop has not come yet (a term the course never stops at has nothing to wait for). */
 export interface TreeTerm { name: string; met: boolean }
@@ -143,6 +171,7 @@ export const againAsked = (intro: Intro, cat: string): boolean => intro.terms[ca
  * A question has been answered: the count goes up, and each introduced term it used is graded. `graded` are the categories with whether the learner
  * was right about each (a category listed twice counts as wrong if either is). Right: one box up. Wrong, unless `misses` is false (an exercise where a
  * mistake is mostly about its form): back to box 1, and its stop comes back MISS_AFTER questions later, or sooner when it was due sooner already.
+ * The first answer that grades a term is kept (`first`, the ring's order), and the one that made its last answer right (`won`).
  */
 export function afterQuestion(intro: Intro, graded: readonly { cat: string | null | undefined; ok: boolean }[], now: string, misses = true): Intro {
   const n = intro.n + 1, terms = { ...intro.terms }, ok = new Map<string, boolean>();
@@ -150,9 +179,10 @@ export function afterQuestion(intro: Intro, graded: readonly { cat: string | nul
   for (const [cat, right] of ok) {
     const t = terms[cat];
     if (!t || t.box < 1) continue;
-    if (right) terms[cat] = { ...t, box: Math.min(SETTLED, t.box + 1), seen: now };
+    const first = right || misses ? { first: t.first ?? n } : {};
+    if (right) terms[cat] = { ...t, ...first, box: Math.min(SETTLED, t.box + 1), seen: now, ...(t.box === 1 ? { won: n } : {}) };
     else if (misses) {
-      terms[cat] = { ...t, box: 1, seen: now, due: Math.min(t.due ?? Infinity, n + MISS_AFTER), why: "miss" };
+      terms[cat] = { ...t, ...first, box: 1, seen: now, due: Math.min(t.due ?? Infinity, n + MISS_AFTER), why: "miss" };
     } else terms[cat] = { ...t, seen: now };
   }
   return { ...intro, n, terms };
@@ -185,6 +215,8 @@ export function normIntro(raw: unknown): Intro {
     if (typeof (t as IntroTerm).at === "number") r.at = (t as IntroTerm).at;
     if (typeof (t as IntroTerm).seen === "string") r.seen = (t as IntroTerm).seen;
     if (typeof (t as IntroTerm).due === "number" && ((t as IntroTerm).why === "miss" || (t as IntroTerm).why === "again")) { r.due = (t as IntroTerm).due; r.why = (t as IntroTerm).why; }
+    if (typeof (t as IntroTerm).first === "number" && (t as IntroTerm).first! >= 0) r.first = (t as IntroTerm).first;
+    if (typeof (t as IntroTerm).won === "number" && (t as IntroTerm).won! >= 0) r.won = (t as IntroTerm).won;
     terms[id] = r;
   }
   return { n: num(o.n, 0), next: num(o.next, FIRST_AFTER), terms };

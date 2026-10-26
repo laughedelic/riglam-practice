@@ -1,18 +1,19 @@
-// The offer of the stages, from the result of any exercise (src/domain/stages.ts, runAfter and stageOffer). Every checked answer moves the run at
-// the highest stage that is on, and the exercise's own record: whether it has warmed up, which sets how many of its questions are new, and its right
-// answers, after which its guided form turns off (practice/guided.ts). On the Path the next stage comes by itself: when its run is long enough, Next on
-// the result goes to a station of its own that says which stage comes in (and, the first time, what the stages are), `ui.up`; Next from it takes the
-// stage, and the learner may stay on the stage they are on a while longer (the run is then longer) or move the stages themselves (the Stages page). Taking
-// a stage off is still an offer on the result (`ui.offer`), as it is on the classic page, which shows both in Categories only; nothing changes there
-// without a tap, and Next past it counts as Not now. The runs are part of the progression (practice/progress.ts).
+// The offer of the stages, from the result of any exercise (src/domain/stages.ts, runAfter and stageOffer). On the Path a stage with new terms is done
+// once the last answer on each of them is right (src/domain/intro.ts, termMark); a stage without, and the classic page, wait for a run of right answers.
+// Every checked answer moves the run at the highest stage that is on, and the exercise's own record: whether it has warmed up, which sets how many of its
+// questions are new, and its right answers, after which its guided form turns off (practice/guided.ts). On the Path the next stage comes by itself: when
+// it is due, Next on the result goes to a station of its own that says which stage comes in (and, the first time, what the stages are), `ui.up`; Next from
+// it takes the stage, and the learner may stay on the stage they are on a while longer (a run of right answers then comes after the terms) or move the
+// stages themselves (the Stages page). Taking a stage off is still an offer on the result (`ui.offer`), as it is on the classic page, which shows both in
+// Categories only; nothing changes there without a tap, and Next past it counts as Not now. The runs are part of the progression (practice/progress.ts).
 import { state } from "../state.js";
 import { guideStep } from "./guided.ts";
 import { saveProgress } from "./progress.ts";
 import { render } from "../shell/render.js";
 import { setStages, stageName } from "../shell/stages.js";
 import type { DataIndex } from "../../ai-shared/lookup.ts";
-import { stageMet } from "../../domain/intro.ts";
-import { catStage, exerciseAfter, movedUp, newShare, pairStage, restartRun, runAfter, setManual, stageOffer, stageProgress, stayLonger, topStage, type MissKind, type StageProgress } from "../../domain/stages.ts";
+import { stageMarks } from "../../domain/intro.ts";
+import { NO_TERMS, catStage, exerciseAfter, movedUp, newShare, pairStage, restartRun, runAfter, setManual, stageOffer, stageProgress, stayLonger, termsOf, topStage, type MissKind, type StageProgress } from "../../domain/stages.ts";
 
 const ix = () => state as unknown as DataIndex;
 /** What a mistake in each exercise says about the words (src/domain/stages.ts, MissKind). */
@@ -31,29 +32,28 @@ export const catsStageNow = (cats: (string | null | undefined)[]): number => Mat
 /** The share of new questions for the exercise on screen: a quarter until its first run of right answers, then half (src/domain/stages.ts). */
 export const shareNow = (): number => newShare(state.exRuns[state.own || state.tab]);
 
+/** The new terms of the highest stage on with their marks (src/domain/intro.ts, stageMarks): on the Path, which has the term stops; none on the classic page, where the run alone moves the stages. */
+const marksNow = () => (state.design === "path" && state.intro && state.DATA ? stageMarks(ix(), state.intro, topStage(state.stages)) : []);
+
 /**
- * An answer in exercise `ex` was checked, on a question new at stage `st`: the runs move, and what is due, if anything, is kept for Next: the next stage
- * on the Path (`ui.up`, a station), an offer on the result elsewhere (`ui.offer`). Whether something was due (the negation offer then waits, one at a time).
- * The next stage waits until every course term of this one has had its stop.
+ * An answer in exercise `ex` was checked, on a question new at stage `st`, after its terms were graded (practice/stops.ts): the runs move, and what is
+ * due, if anything, is kept for Next: the next stage on the Path (`ui.up`, a station), an offer on the result elsewhere (`ui.offer`). Whether something
+ * was due (the negation offer then waits, one at a time). On the Path the next stage comes once the last answer on each new term of this one is right.
  */
 export function stageStep(ex: string, st: number, ok: boolean): boolean {
   const miss = MISS[ex] ?? "form";
   state.stageRun = runAfter(state.stageRun, state.stages, st, ok, miss);
   state.exRuns = { ...state.exRuns, [ex]: exerciseAfter(state.exRuns[ex], ok) };
   guideStep(ex);
-  const met = state.design !== "path" || !state.intro || !state.DATA || stageMet(ix(), state.intro, topStage(state.stages));
-  const o = shows(ex) ? stageOffer(state.stageRun, state.stages, met, miss) : null;
+  const marks = marksNow(), terms = marks.length ? termsOf(marks) : NO_TERMS;
+  const o = shows(ex) ? stageOffer(state.stageRun, state.stages, terms, miss) : null;
   if (o && state.ui) { if (o.kind === "up" && state.design === "path") state.ui.up = { stage: o.stage }; else state.ui.offer = o; }
   saveProgress();
   return !!o;
 }
 
-/** The run towards the next stage, for the ring in the top bar (src/domain/stages.ts, stageProgress), and whether it is full but the stage waits for the terms of this one to have their stops (`stageStep`). */
-export function progressNow(): StageProgress & { waiting: boolean } {
-  const p = stageProgress(state.stageRun, state.stages);
-  const waiting = p.full && state.design === "path" && !!state.intro && !!state.DATA && !stageMet(ix(), state.intro, p.top);
-  return { ...p, waiting };
-}
+/** How far the highest stage is towards the next one, for the ring in the top bar (src/domain/stages.ts, stageProgress): its new terms with their marks, or the run. */
+export const progressNow = (): StageProgress => stageProgress(state.stageRun, state.stages, marksNow());
 
 const pending = () => { const o = state.ui && state.ui.offer; return o && o.kind !== "done" ? (o as { kind: "up" | "down"; stage: number }) : null; };
 /** The run that led to an offer is spent: the next one counts from now. */

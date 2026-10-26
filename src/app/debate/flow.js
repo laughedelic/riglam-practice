@@ -124,8 +124,8 @@ export async function checkDebate(){
   const p=state.cur.p;
   QCELL.forEach((c,i)=>{ state.ui.cells[c].t=(state.ui.ans[i].text||"").trim(); state.ui.cells[c].none=state.ui.ans[i].say==="accept"; });
   clearSkip(p); state.ui.res=gradeDebate(state,p,/** @type {import("../../domain/types.ts").DebateInput} */(state.ui)); state.ui.checked=true; state.ui.open=false;
+  gradePair([p.catA,p.catB],!!state.ui.res.relOk);     // the course terms of the pair (practice/stops.ts), before the stage: its new terms count
   stageStep("debate",pairStageNow(p.catA,p.catB),!!state.ui.res.relOk);     // the run towards the next stage (practice/stage-offer.ts)
-  gradePair([p.catA,p.catB],!!state.ui.res.relOk);     // the course terms of the pair (practice/stops.ts)
   render();
   focusAfterCheck();
   afterCheck(state.ui);

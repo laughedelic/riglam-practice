@@ -15,9 +15,9 @@ import type { DebateInput, GradeDraft, HistoryEntry, Pair, PoolEntry } from "../
 import openData from "../../src/data/drill-data.json";
 import { catStage, drawable, examplesFor, placeByClass } from "../../src/domain";
 import { LANGS, normLangs, termNames } from "../../src/domain";
-import { AGAIN_AFTER, FIRST_AFTER, MISS_AFTER, SETTLED, SPACING, afterQuestion, againAsked, freshIntro, introduced, metTerms, nextStop, normIntro, pairGraded, showAgain, stageMet, stageTerms, stageUp, stopShown, termTree, unmet } from "../../src/domain";
+import { AGAIN_AFTER, FIRST_AFTER, MISS_AFTER, SETTLED, SPACING, afterQuestion, againAsked, freshIntro, introduced, metTerms, nextStop, normIntro, openTerms, pairGraded, showAgain, stageMarks, stageMet, stageTerms, stageUp, stopShown, termMark, termTree, unmet } from "../../src/domain";
 import { DEFAULT_STAGES, DEFINITION_STAGE, HOLD_STAGE, MAX_STAGE, NEG_STREAK, STAGES, START_SHARE, STAGE_STREAK, STAGE_STUMBLE, catOpen, drawSyllogism, heldBack, itemKnown, itemOn, itemStageFor, levelAt, negationOffer, newCategories, normStages, pairStage, physical, poolAt, stagesOfLevels, toggleStage, topStage } from "../../src/domain";
-import { GUIDE_RIGHT, LOWER_CREDIT, STAGE_LONGER, STAGE_STREAK_MAX, exerciseAfter, freshRun, guideTurnsOff, guidedOn, movedUp, newShare, normExRuns, normGuided, normRun, restartRun, runAfter, runNeed, setManual, stageOffer, stageProgress, stayLonger } from "../../src/domain";
+import { GUIDE_RIGHT, LOWER_CREDIT, NO_TERMS, STAGE_LONGER, STAGE_STREAK_MAX, exerciseAfter, freshRun, guideTurnsOff, guidedOn, movedUp, newShare, normExRuns, normGuided, normRun, restartRun, runAfter, runNeed, runWanted, setManual, stageOffer, stageProgress, stayLonger, termsOf } from "../../src/domain";
 import type { MissKind, StageRun } from "../../src/domain";
 import { drawPlace, itemRows, placeThings } from "../../src/domain/place";
 import { normLevels, upTo } from "../../src/ai-shared";
@@ -880,13 +880,14 @@ test("the negation track is offered step by step: one side after plain pairs in 
   expect(negationOffer(run(3, true), "off", 3)).toBe("one");
 });
 
-test("the heading's ring: the part of the run towards the next stage, none where no stage comes by itself", () => {
+test("the heading's ring on a stage without new terms: the part of the run towards the next stage, none where no stage comes by itself", () => {
   const r = (up: number, extra: Partial<StageRun> = {}): StageRun => ({ up, down: 0, ...extra });
-  expect(stageProgress(freshRun(), [1])).toEqual({ top: 1, next: 2, need: STAGE_STREAK, frac: 0, full: false });
-  expect(stageProgress(r(3.5), [1, 2, 3])).toEqual({ top: 3, next: 4, need: STAGE_STREAK, frac: 0.7, full: false });
+  const run = { terms: [], shows: "run" };
+  expect(stageProgress(freshRun(), [1])).toEqual({ top: 1, next: 2, ...run, need: STAGE_STREAK, frac: 0, full: false });
+  expect(stageProgress(r(3.5), [1, 2, 3])).toEqual({ top: 3, next: 4, ...run, need: STAGE_STREAK, frac: 0.7, full: false });
   expect(stageProgress(r(7), [1, 2]), "longer than needed stays full").toMatchObject({ frac: 1, full: true });
   expect(stageProgress(r(5, { need: 10 }), [1]), "after staying longer").toMatchObject({ need: 10, frac: 0.5, full: false });
-  expect(stageProgress(r(3, { manual: true }), [1]), "the learner moves the stages").toEqual({ top: 1, next: null, need: STAGE_STREAK, frac: 0, full: false });
+  expect(stageProgress(r(3, { manual: true }), [1]), "the learner moves the stages").toEqual({ top: 1, next: null, ...run, need: STAGE_STREAK, frac: 0, full: false });
   expect(stageProgress(r(9), [MAX_STAGE]), "nothing above the top").toMatchObject({ top: MAX_STAGE, next: null, frac: 0, full: false });
 });
 
@@ -910,23 +911,23 @@ test("the run towards the stages: any exercise moves it up, only questions new a
   expect(walk([1, 2], wrong(4, 2))).toEqual({ up: 0, down: 4 });
 });
 
-test("the offer of the stages: up after five right when the stage's terms have had their stops, down after four wrong about the words, never below 1", () => {
+test("the offer of the stages without new terms: up after five right, down after four wrong about the words, never below 1", () => {
   const r = (up: number, down = 0): StageRun => ({ up, down });
-  expect(stageOffer(r(4), [1], true, "words")).toBeNull();
-  expect(stageOffer(r(5), [1], true, "form")).toEqual({ kind: "up", stage: 2 });
-  expect(stageOffer(r(5), [1, 3], true, "pair"), "above the highest on, not the next one that is off").toEqual({ kind: "up", stage: 4 });
-  expect(stageOffer(r(5), [1], false, "words"), "the next stage waits for this stage's terms").toBeNull();
-  expect(stageOffer(r(9), [MAX_STAGE], true, "words"), "nothing above the top").toBeNull();
-  expect(stageOffer(r(0, 4), [1, 2], true, "words")).toEqual({ kind: "down", stage: 2 });
-  expect(stageOffer(r(0, 4), [1, 2], true, "pair"), "down only where a mistake is about the words").toBeNull();
-  expect(stageOffer(r(0, 4), [1, 2], true, "form")).toBeNull();
-  expect(stageOffer(r(0, 3), [1, 2], true, "words")).toBeNull();
-  expect(stageOffer(r(0, 9), [1], true, "words"), "nothing below stage 1").toBeNull();
+  expect(stageOffer(r(4), [1], NO_TERMS, "words")).toBeNull();
+  expect(stageOffer(r(5), [1], NO_TERMS, "form")).toEqual({ kind: "up", stage: 2 });
+  expect(stageOffer(r(5), [1, 3], NO_TERMS, "pair"), "above the highest on, not the next one that is off").toEqual({ kind: "up", stage: 4 });
+  expect(stageOffer(r(5), [1], { n: 4, right: false, just: false }, "words"), "a stage with new terms waits for them, not for the run").toBeNull();
+  expect(stageOffer(r(9), [MAX_STAGE], NO_TERMS, "words"), "nothing above the top").toBeNull();
+  expect(stageOffer(r(0, 4), [1, 2], NO_TERMS, "words")).toEqual({ kind: "down", stage: 2 });
+  expect(stageOffer(r(0, 4), [1, 2], NO_TERMS, "pair"), "down only where a mistake is about the words").toBeNull();
+  expect(stageOffer(r(0, 4), [1, 2], NO_TERMS, "form")).toBeNull();
+  expect(stageOffer(r(0, 3), [1, 2], NO_TERMS, "words")).toBeNull();
+  expect(stageOffer(r(0, 9), [1], NO_TERMS, "words"), "nothing below stage 1").toBeNull();
   expect(normRun('{"up":3,"down":-2}')).toEqual({ up: 3, down: 0 });
   expect(normRun('{"up":2.5,"down":1.5}'), "the run up is kept in halves").toEqual({ up: 2.5, down: 1 });
   expect(normRun('{"up":2.8}')).toEqual({ up: 2.5, down: 0 });
-  expect(stageOffer(r(4.5), [1, 2], true, "words"), "four and a half is not five").toBeNull();
-  expect(stageOffer(r(5), [1, 2], true, "words")).toEqual({ kind: "up", stage: 3 });
+  expect(stageOffer(r(4.5), [1, 2], NO_TERMS, "words"), "four and a half is not five").toBeNull();
+  expect(stageOffer(r(5), [1, 2], NO_TERMS, "words")).toEqual({ kind: "up", stage: 3 });
   expect(normRun("not json")).toEqual(freshRun());
   expect(normRun(null)).toEqual(freshRun());
 });
@@ -936,21 +937,89 @@ test("staying on a stage longer asks for more right answers; the learner's own m
   expect(runNeed(freshRun())).toBe(STAGE_STREAK);
   const once = stayLonger(r());
   expect(once, "the station was seen, so the next one is told shortly").toEqual({ up: 0, down: 0, told: true, need: STAGE_STREAK + STAGE_LONGER });
-  expect(stageOffer({ ...once, up: 9 }, [1], true, "words"), "ten are needed now").toBeNull();
-  expect(stageOffer({ ...once, up: 10 }, [1], true, "words")).toEqual({ kind: "up", stage: 2 });
+  expect(stageOffer({ ...once, up: 9 }, [1], NO_TERMS, "words"), "ten are needed now").toBeNull();
+  expect(stageOffer({ ...once, up: 10 }, [1], NO_TERMS, "words")).toEqual({ kind: "up", stage: 2 });
   expect(runNeed(stayLonger(stayLonger(once)))).toBe(STAGE_STREAK + 3 * STAGE_LONGER);
   expect(runNeed(Array.from({ length: 20 }).reduce<StageRun>((x) => stayLonger(x), freshRun())), "up to a limit").toBe(STAGE_STREAK_MAX);
   expect(movedUp(once), "a stage came in: the usual length again, and the station has been seen").toEqual({ up: 0, down: 0, told: true });
   expect(restartRun({ up: 3, down: 2, need: 10, told: true, manual: true }), "an offer answered keeps what the learner told").toEqual({ up: 0, down: 0, told: true, manual: true });
   const own = setManual(r(), true);
-  expect(stageOffer(own, [1], true, "words"), "moving the stages themselves: no stage comes").toBeNull();
-  expect(stageOffer({ ...own, up: 0, down: 4 }, [1, 2], true, "words"), "taking one off is still suggested").toEqual({ kind: "down", stage: 2 });
+  expect(stageOffer(own, [1], NO_TERMS, "words"), "moving the stages themselves: no stage comes").toBeNull();
+  expect(stageOffer({ ...own, up: 0, down: 4 }, [1, 2], NO_TERMS, "words"), "taking one off is still suggested").toEqual({ kind: "down", stage: 2 });
   expect(setManual(own, false)).toEqual({ up: 5, down: 0 });
   expect(runAfter({ up: 2, down: 0, need: 10, told: true, manual: true }, [1], 1, true, "words"), "the answers move the run, what the learner told stays").toEqual({ up: 3, down: 0, need: 10, told: true, manual: true });
   expect(runAfter({ up: 2, down: 0, need: 10, told: true }, [1], 1, false, "pair")).toEqual({ up: 0, down: 0, need: 10, told: true });
   expect(normRun(JSON.stringify({ up: 1, down: 0, need: 10, told: true, manual: true }))).toEqual({ up: 1, down: 0, need: 10, told: true, manual: true });
   expect(normRun('{"up":1,"down":0,"need":3,"told":"yes","manual":1}'), "a need below the usual one and loose flags are dropped").toEqual({ up: 1, down: 0 });
   expect(runNeed(normRun('{"need":9999}'))).toBe(STAGE_STREAK_MAX);
+});
+
+test("a stage with new terms is reached with the answer that makes the last answer on each of them right: a miss takes back only that term's mark", () => {
+  const T0 = "2026-10-24T12:00:00.000Z", on = [1, 2];
+  type It = ReturnType<typeof freshIntro>;
+  const marks = (it: It) => stageMarks(rix, it, 2).map((t) => t.id + ":" + t.mark + (t.now ? "!" : ""));
+  const terms = (it: It) => termsOf(stageMarks(rix, it, 2));
+  const offer = (it: It, run = freshRun()) => stageOffer(run, on, terms(it), "words");
+  let it = stageUp(stopShown(freshIntro(), "form", T0));
+  expect(marks(it), "before their stops, in the course's order").toEqual(["extf:wait", "col:wait", "shape:wait", "vis:wait"]);
+  it = stopShown(stopShown(it, "shape", T0), "col", T0);
+  expect(marks(it), "the ones met before the ones to come").toEqual(["col:met", "shape:met", "extf:wait", "vis:wait"]);
+  expect([...openTerms(rix, it, on)], "the draw leans to the terms met and not right yet").toEqual(["col", "shape"]);
+  it = afterQuestion(it, [{ cat: "shape", ok: false }], T0);
+  it = afterQuestion(it, [{ cat: "col", ok: true }], T0);
+  expect(marks(it), "the ring's order is the order of the first answers").toEqual(["shape:miss", "col:ok!", "extf:wait", "vis:wait"]);
+  expect([...openTerms(rix, it, on)]).toEqual(["shape"]);
+  it = afterQuestion(it, [{ cat: "col", ok: false }], T0);
+  expect(termMark(it, "col"), "a miss after a right answer takes the mark back").toBe("slip");
+  expect(termMark(afterQuestion(stopShown(it, "vis", T0), [{ cat: "vis", ok: false }], T0, false), "vis"), "a miss where misses are about the form (Syllogisms) leaves a term not asked").toBe("met");
+  it = stopShown(stopShown(it, "extf", T0), "vis", T0);
+  it = afterQuestion(it, [{ cat: "extf", ok: true }, { cat: "vis", ok: true }, { cat: "shape", ok: true }], T0);
+  expect(marks(it)).toEqual(["shape:ok!", "col:slip", "extf:ok!", "vis:ok!"]);
+  expect(offer(it, { up: 9, down: 0 }), "however long the run").toBeNull();
+  it = afterQuestion(it, [{ cat: "col", ok: true }], T0);
+  expect(terms(it)).toEqual({ n: 4, right: true, just: true });
+  expect(offer(it), "the answer that completes the stage brings the next one, with no run on top").toEqual({ kind: "up", stage: 3 });
+  expect(openTerms(rix, it, on).size).toBe(0);
+  expect(stageMarks(rix, it, 7), "stages 7 to 9 add no terms: the run moves them").toEqual([]);
+  // a stage whose terms were right before (the learner stayed longer, or came back down to it): a run of right answers, as on a stage without
+  const later = afterQuestion(it, [{ cat: "form", ok: true }], T0);
+  expect(terms(later)).toEqual({ n: 4, right: true, just: false });
+  expect(runWanted(freshRun(), terms(later))).toBe(STAGE_STREAK);
+  expect(offer(later, { up: STAGE_STREAK - 1, down: 0 })).toBeNull();
+  expect(offer(later, { up: STAGE_STREAK, down: 0 })).toEqual({ kind: "up", stage: 3 });
+  const longer = stayLonger({ up: 0, down: 0 });
+  expect(runWanted(longer, terms(it)), "after staying longer, the longer run even when the terms come right again").toBe(STAGE_STREAK + STAGE_LONGER);
+  expect(runWanted(longer, NO_TERMS)).toBe(STAGE_STREAK + STAGE_LONGER);
+  expect(stageOffer({ up: 0, down: 0, manual: true }, on, terms(it), "words"), "the learner moves the stages").toBeNull();
+  // the ring: a segment per term, full when this answer completed them; the run once the terms were right before
+  const half = afterQuestion(it, [{ cat: "col", ok: false }, { cat: "vis", ok: false }], T0);
+  expect(stageProgress(freshRun(), on, stageMarks(rix, half, 2))).toMatchObject({ top: 2, next: 3, shows: "terms", frac: 0.5, full: false });
+  expect(stageProgress(freshRun(), on, stageMarks(rix, it, 2))).toMatchObject({ shows: "terms", need: 0, frac: 1, full: true });
+  expect(stageProgress({ up: 2, down: 0 }, on, stageMarks(rix, later, 2))).toMatchObject({ shows: "run", need: STAGE_STREAK, frac: 0.4, full: false });
+  expect(stageProgress({ ...longer, up: 2 }, on, stageMarks(rix, half, 2)), "a miss: the terms again").toMatchObject({ shows: "terms", frac: 0.5, full: false });
+  // the record keeps the order and the answer that made each right
+  expect(normIntro(JSON.stringify(it))).toEqual(it);
+  expect(normIntro({ n: 3, terms: { col: { box: 1, shows: 1, first: -1, won: "2" } } }).terms.col).toEqual({ box: 1, shows: 1 });
+});
+
+test("the draws lean to the open terms of the highest stage: its pairs and things ask about one of them while one can be asked", () => {
+  const on = [1, 2, 3], open = new Set(["odr"]), at3 = new Set(poolAt(rix, realPool, on).filter((e) => e.st === 3).map(pairKey));
+  let top = 0, lean = 0;
+  for (let s = 0; s < 400; s++) {
+    const e = chooseEntry(rix, realPool, { hist: [], recent: [], rng: seeded(s), stages: on, open });
+    if (!at3.has(pairKey(e))) continue;
+    top++; if (e.a === "odr" || e.b === "odr") lean++;
+  }
+  expect(top).toBeGreaterThan(100);
+  expect(lean, "every pair of the highest stage has the open term").toBe(top);
+  let asked = 0, high = 0;
+  for (let s = 0; s < 200; s++) {
+    const q = drawPlace(rix, null, { stages: on, rng: seeded(s), open })!;
+    if (q.thing.st !== 3) continue;
+    high++; if (q.rows.some((r) => r.cat === "odr")) asked++;
+  }
+  expect(high).toBeGreaterThan(30);
+  expect(asked / high, "Categories: nearly every thing of the highest stage has a row on it").toBeGreaterThan(0.9);
 });
 
 test("a new exercise starts with review: a quarter of its questions new at the highest stage until its first run of five right, then half", () => {
