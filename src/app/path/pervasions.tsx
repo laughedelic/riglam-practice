@@ -15,7 +15,7 @@ import type { QToken } from "../../ai-shared/debate.ts";
 import type { CellId, RelKey } from "../../ai-shared/relations.ts";
 import { refreshPath } from "./index.tsx";
 import { Choices, ErrLines, GuideNote, PairResult, PairStops, StageOffer, Thinking, TutorNote, Verdict, WhyRow, isa, pairOf, pickThen, u0 } from "./parts.tsx";
-import { relChoices } from "./relations.tsx";
+import { leftOpen, relChoices } from "./relations.tsx";
 import { FlagBtn, FlagEditor, explainCase } from "./flags.tsx";
 import { Scroll } from "./scroll.tsx";
 import { Foot, PreStation, SkipSide, Station, TopBar, VoiceBar } from "./shell.tsx";
@@ -100,8 +100,8 @@ function RelationStep() {
 
 /* ---------- 3 the result ---------- */
 function QRow({ i }: { i: number }) {
-  const u = u0(), p = pairOf(), r = u.res, c = QCELL[i] as CellId, rr = r.cells[c] as { v: string; msg: string[]; uns?: boolean }, a = u.ans![i] as Ans;
-  const open = rr.v === "cmp" || rr.v === "open", m = rr.v === "ok" ? "ok" : rr.v === "bad" ? "no" : "pt", busy = open && !!u.ctl;
+  const u = u0(), p = pairOf(), r = u.res, c = QCELL[i] as CellId, rr = r.cells[c] as { v: string; msg: string[]; uns?: boolean; vague?: string[] }, a = u.ans![i] as Ans;
+  const open = (rr.v === "cmp" && !rr.vague) || rr.v === "open", m = rr.v === "ok" ? "ok" : rr.v === "bad" ? "no" : "pt", busy = open && !!u.ctl;
   const tnote: string | undefined = (explainParts().cells as Record<string, string>)[c];
   const note = <><b>{rr.msg[0]}</b>{rr.msg[2] ? <i>{rr.msg[2]}</i> : null}{markNames(isa(rr.msg[1] || ""), p)}</>;
   return <St d={<D cls={"sub " + (busy ? "pthink" : m)} />} cls={"sb exr qres" + (tnote ? " tut" : "")}>
@@ -114,10 +114,11 @@ function QRow({ i }: { i: number }) {
 }
 function ResultStep() {
   const u = u0(), p = pairOf(), r = u.res, imp: RelKey | "bad" | null = r.implied || null;
-  const decOk = QCELL.filter((c) => r.dec[c]).length, unc = QCELL.filter((c) => r.cells[c].v === "cmp" || r.cells[c].v === "open").length;
+  const decOk = QCELL.filter((c) => r.dec[c]).length, unc = QCELL.filter((c) => (r.cells[c].v === "cmp" && !r.cells[c].vague) || r.cells[c].v === "open").length;
+  const left = QCELL.filter((c) => r.cells[c].vague).length;
   const ov: string = r.overall, v = ov === "bad" ? "no" : ov === "part" ? "pt" : "ok";
   const word = ov === "pend" ? "Right so far" : ({ ok: "Right", part: "Partly right", bad: "Not quite" } as Record<string, string>)[ov] || "Not quite";
-  const sub = (u.late ? "time ran out on the relation" : "the relation " + (r.relOk ? "right" : "wrong")) + " · questions " + decOk + "/4" + (unc ? " · " + unc + " unchecked" + (u.ctl ? ", the tutor is on it" : "") : "");
+  const sub = (u.late ? "time ran out on the relation" : "the relation " + (r.relOk ? "right" : "wrong")) + " · questions " + decOk + "/4" + (unc ? " · " + unc + " unchecked" + (u.ctl ? ", the tutor is on it" : "") : "") + (left ? " · " + leftOpen(left) : "");
   const impTxt = imp === "bad" ? "your answers contradict each other. If no A is B, A cannot also be inside B (or B inside A), because that leaves one of them with no instances."
     : imp ? "your answers give " + lcRel(REL[imp].name) + (u.late ? ", and time ran out before you chose." : imp === u.rel ? "." : ", but you chose " + lcRel(REL[u.rel as RelKey].name) + ".") : "";
   return <>

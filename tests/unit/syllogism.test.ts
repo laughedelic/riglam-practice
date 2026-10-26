@@ -176,6 +176,17 @@ test("a counter-example has to be the reason without being the predicate; a thin
   expect(gradeExample(ix, c, "   ").v).toBe("cmp");
 });
 
+test("a counter-example whose name leaves the reason open is asked to say it; one that is the predicate is no counter-example, whatever the rest of it is", () => {
+  const vix = makeIndex(data([
+    { n: "a ball", t: "External form", c: ["ft", "form", "extf"], may: ["red"] },
+    { n: "an apple", t: "External form", c: ["ft", "form", "extf", "food"], may: ["red"] },
+  ]));
+  const c = syllogismOf(vix, "a tomato", "red", "food") as Syllogism; // whatever is red is food: no
+  expect(gradeExample(vix, c, "a ball")).toEqual({ v: "cmp", line: "“A ball” leaves open whether it is red: name it, as in “a red ball”." });
+  expect(gradeExample(vix, c, "an apple")).toEqual({ v: "bad", line: `An apple is ${c.predicate}, whatever the rest of it is.` });
+  expect(gradeExample(vix, c, "a red ball").v).toBe("ok");
+});
+
 test("the line on a counter-example names the thing as the data does, not as it was typed, and the one thing said as \"you\" takes \"are\"", () => {
   const c = syllogismOf(ix, "a tomato", "red", "food") as Syllogism;
   expect(gradeExample(ix, c, "RED  balls").line).toBe(`A red ball is red and is not ${c.predicate}, so there is no pervasion.`);

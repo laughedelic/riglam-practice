@@ -141,6 +141,9 @@ test("the practice card names the cells, what the learner wrote, the reference a
   expect(card).toContain("- neither: learner wrote (blank); reference \"the horn of a rabbit\"; page verdict bad"); // the neither cell always has a reference
   expect(card).toContain("Fine points (from the sources; apply them):\n- A fine point about forms.");
   expect(card).not.toContain("Another fine point."); // only the notes of the two categories of the pair
+  // an example whose name leaves the cell's quality open is "open" on the card, with the category it leaves open
+  const left = tutorCard(ix, pair(), practice({ res: { cells: { ...noRes(["ok", "ok", "cmp", "bad"]).cells, bna: { v: "cmp", vague: ["wood"] } } } }));
+  expect(left).toContain('- minds, not forms: learner wrote "a dragon"; reference "the horn of a rabbit"; page verdict open (the example\'s name does not say whether it is one of the wooden things; the page has asked the learner to name it)');
 });
 
 test("the card is the instructions, the body and the fine points, which a server can take apart", () => {
@@ -341,8 +344,15 @@ test("the explain request is the plain one when the page checked every example, 
   expect(dbt.startsWith(DEBATE_ASK)).toBe(true);
   expect(dbt).toContain("The page could not check the examples in: Q2, Q3.");
   expect(dbt).toContain("Q1 is the Both cell, Q2 A not B, Q3 B not A, Q4 Neither.");
-  // the unsure rule on open examples includes a feature the example's name does not fix, as the reason text says
-  expect(open).toContain('where the example\'s name does not fix the feature that side is about (the color of "an apple", the shape of "a box")');
+  // the unsure rule on open examples includes a quality the example's name does not say, as the reason text says
+  expect(open).toContain('where the example\'s name does not say the quality that side is about (the color of "an apple", the shape of "a box", whether "a frying pan" is hot)');
+  expect(open).toContain('do not fill in a quality its name does not say (the color of "a car", what "a table" is made of)');
+  expect(open).not.toContain("do not say the quality their cell is about");
+  // an example whose name leaves the cell's quality open is the page's: the card says so, and the tutor is told to answer unsure there, not to check it
+  const left = explainAsk(practice({ res: { cells: { both: { v: "cmp", vague: ["col"] }, anb: { v: "ok" }, bna: { v: "ok" }, nei: { v: "ok" } } } }));
+  expect(left).toContain("The examples in Both do not say the quality their cell is about");
+  expect(left).toContain("On those lines answer unsure on that side and say which words would settle it.");
+  expect(left).not.toContain("The page could not check");
 });
 
 // The tutor states two facts about an example (is it A, is it B) and the reason for each; the page writes the consequences and draws
@@ -365,7 +375,8 @@ test("the explain requests ask for the two facts about an example and the reason
     expect(ask).toContain("Start from the term and say what class it is in");
     expect(ask).toContain('do not write "only"');
     expect(ask).toContain("never answer against your own reason");
-    expect(ask).toContain('A feature the example\'s name does not fix, such as the color of "an apple"');
+    expect(ask).toContain('An example has to name the quality its side is about: a feature the example\'s name does not say, such as the color of "a car"');
+    expect(ask).toContain("a thing is at room temperature unless its name says otherwise, or it is often heated in use");
     expect(ask).not.toContain("so it fits");
     expect(ask).not.toContain("=> yes");
   }
