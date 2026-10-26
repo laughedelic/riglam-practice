@@ -164,6 +164,19 @@ export class Pull {
     if (go && this.act) { this.act(); return true; }
     return false;
   }
+  /**
+   * A step that a choice takes, not a station (Pervasions' relation: the answers are checked as it is picked), taken with the scan: the scanner leaves the foot's station, marks what was
+   * answered on its way up (`plan`), and becomes the result's node, and `act` takes the step. False when there is no scan to play (the caller takes the step itself).
+   */
+  scanPick(plan: () => ScanPlan | null, act: () => void): boolean {
+    const root = this.root, stn = this.q("#stnp, #stn"), look = currentLook();
+    if (this.busy || !root || !stn || look.check === "ride" || !canTake(root)) return false;
+    let p: ScanPlan | null; try { p = plan(); } catch { p = null; }
+    if (!p) return false;
+    this.busy = true; this.unfollow(); this.pushed = false;
+    playScan(root, stn, p, act, () => { this.busy = false; this.curb = null; this.past = false; this.dy = 0; }, null, look.check === "morph");
+    return true;
+  }
   /** The station taken without a pull (a tap, Enter): the ride, or the step at once. */
   take(): boolean { if (this.busy || !this.act) return false; return this.end(true); }
   /** Whether the path may be pulled past its end now: nothing over it, no keyboard, the strip folded, a station there. */

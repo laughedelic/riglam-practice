@@ -23,7 +23,7 @@ const clamp = (v: number) => Math.max(0, Math.min(1, v));
 export function canTake(root: HTMLElement | null): boolean {
   if (!root || currentLook().ride === "plain" || reduced()) return false;
   const u = state.ui; if (u && u.tq) return false;
-  return !!root.querySelector(".main .pscroll .pathc") && !!root.querySelector("#stn");
+  return !!root.querySelector(".main .pscroll .pathc") && !!root.querySelector("#stn, #stnp");
 }
 
 /** The page folds (over the curb) or unfolds (back under it): the detail goes in 0.3 s, the lines stay. */

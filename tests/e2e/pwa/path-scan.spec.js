@@ -98,3 +98,41 @@ test("with the look's check: ride the Check rides as any station", async ({ page
   expect(await page.evaluate(() => window.__ran)).toBe(true);
   expect(await page.evaluate(() => window.__scan)).toEqual([]);
 });
+
+test("Pervasions: the relation picked is taken with the scan: it rises from the foot, marks the relation and the four answers, and becomes the result's node", async ({ page }) => {
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.addInitScript(onPath);
+  await page.goto("/");
+  await expect(choices(page)).toHaveCount(5);
+  await page.locator(".tstn").click();
+  await page.getByRole("dialog", { name: "Roadmap" }).getByRole("button", { name: /^Pervasions/ }).click();
+  await expect(page.locator(".ptb-t")).toContainText("Pervasions");
+  for (let i = 0; i < 4; i++) { await choices(page).first().click(); await expect(page.locator("#path .sb.done")).toHaveCount(i + 1); }
+  await expect(page.getByRole("group", { name: "Relation" })).toBeVisible();
+  await page.evaluate(() => {
+    const w = (window.__pv = { marks: 0, scan: 0, pre: false, sd: 0, early: false, struck: 0 });
+    const tick = () => {
+      w.marks = Math.max(w.marks, document.querySelectorAll("#path .pscm").length);
+      w.struck = Math.max(w.struck, document.querySelectorAll("#path .crow.scn-no, #path .crow.scn-ok").length);
+      if (document.querySelector("#path .pscan")) { w.scan++; if (document.querySelector("#path .pscan.pre")) w.pre = true; if (document.querySelector("#path .fw-sd")) w.sd++; const rs = document.querySelector("#path .foot .stn"); if (rs && /Next pair/.test(rs.textContent) && getComputedStyle(rs).opacity !== "0") w.early = true; }
+      requestAnimationFrame(tick);
+    };
+    tick();
+  });
+  await choices(page).nth(3).click();
+  await expect(page.locator("#path .pscan")).toHaveCount(1, { timeout: 6000 });
+  await expect(page.locator("#path .chs")).toBeVisible();      // the page is still the relation's while the scanner rises: nothing has jumped
+  await expect(page.locator(".pvline")).toBeVisible({ timeout: 12000 });
+  await expect(page.locator("#stn")).toContainText("Next pair");
+  await expect(page.locator("#path .pscan")).toHaveCount(0);
+  const w = await page.evaluate(() => window.__pv);
+  expect(w.scan, "the scanner was on the page").toBeGreaterThan(10);
+  expect(w.pre, "gray, as the station it left").toBe(true);
+  expect(w.marks, "the four answers and the relation were marked on the way").toBe(5);
+  expect(w.struck, "the relation among them").toBe(1);
+  expect(w.sd, "a placeholder stood at the foot meanwhile").toBeGreaterThan(5);
+  expect(w.early, "and Next pair was not shown before the scanner was the result's node").toBe(false);
+  await expect(page.locator("#path .main")).not.toHaveClass(/\b(sc-run|sc-in|sc-hand|fw-wait|fw-ph)\b/);
+  expect(errors).toEqual([]);
+});

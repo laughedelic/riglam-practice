@@ -137,11 +137,16 @@ export function Choices({ label, items, picked = null, onPick, multi = false, sl
       </button>)}</div></Sx>;
 }
 /** A choice taken: it slides onto the path where the choices are made so (choose.ts), else it is lit for a moment; then `go`. Nothing else is taken meanwhile. */
-export function pickThen(k: string, go: () => void) {
+export function pickThen(k: string, go: () => void, scan?: (act: () => void) => boolean) {
   const u = u0(); if (u.pk) return;
   if (u.tq) { go(); return; }   // under a running Blitz clock it is taken at once, so that the moment is not counted
   u.pk = k;
-  const end = () => { if (state.ui !== u) return; u.pk = null; go(); };
+  // `scan`: the step that follows is taken with the scan of the answers (gesture.ts `scanPick`), and the choice stays taken until the page is swapped
+  const end = () => {
+    if (state.ui !== u) return false;
+    if (scan && scan(() => { if (state.ui === u) u.pk = null; go(); })) return true;
+    u.pk = null; go(); return false;
+  };
   if (takeChoice(k, end)) return;
   refreshPath(); setTimeout(end, 420);
 }

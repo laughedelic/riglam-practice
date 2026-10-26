@@ -110,8 +110,8 @@ function slideBack(g: HTMLElement): void {
   cancelAnimationFrame(frames.get(g) || 0); frames.set(g, requestAnimationFrame(f));
 }
 
-/** Takes the choice `k` with the animation, then `done`: false when there is none to play (no sliding choices on the page, reduced motion), and the caller goes on its own. */
-export function takeChoice(k: string, done: () => void): boolean {
+/** Takes the choice `k` with the animation, then `done` (which answers true when the step is not taken yet: the choice is then left as it is): false when there is none to play (no sliding choices on the page, reduced motion), and the caller goes on its own. */
+export function takeChoice(k: string, done: () => boolean | void): boolean {
   if (reduced()) return false;
   const chs = document.querySelector<HTMLElement>("#path .chs.slide"), g = chs && gapOf(chs); if (!chs || !g) return false;
   const row = Array.from(chs.querySelectorAll<HTMLElement>(".crow")).find((r) => r.dataset.k === k); if (!row) return false;
@@ -119,7 +119,7 @@ export function takeChoice(k: string, done: () => void): boolean {
   if (!g.dataset.fx || !row.dataset.pk) mark(g, row);
   if (!g.dataset.fx) return false;
   // the step goes on (its draw is at once, or at the next frame: then the choice is cleared after it, so that no frame shows the choices back as they were)
-  run(g, () => { done(); if (state.pathQ) requestAnimationFrame(() => clearChoice(g)); else clearChoice(g); });
+  run(g, () => { if (done() === true) return; if (state.pathQ) requestAnimationFrame(() => clearChoice(g)); else clearChoice(g); });      // `true`: the step goes on later (a scan), the choice stays as it is until the page is swapped
   return true;
 }
 

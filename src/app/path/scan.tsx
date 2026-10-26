@@ -31,8 +31,10 @@ export interface ScanPlan {
   v: Verdict3;
   word: string;
   sub: string;
-  /** the row of the page whose diamond is the answer the scanner marks last, and where it becomes the result's node (a page with no strip: a syllogism's reply, `.sylsaid`) */
+  /** the row of the page whose diamond is the answer the scanner marks last, and where it becomes the result's node (a page with no strip: a syllogism's reply, `.sylsaid`; Pervasions' first heading) */
   stop?: string;
+  /** the rows the cases are marked on, in the page's order (default: the rows of the step, `.sx.cur .sb`); Pervasions': the four answered questions, then the relation picked */
+  rows?: string;
 }
 
 const EASE = { out: (u: number) => 1 - (1 - u) ** 3, io: (u: number) => (u < 0.5 ? 4 * u ** 3 : 1 - (-2 * u + 2) ** 3 / 2) };
@@ -70,7 +72,8 @@ export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, ac
   const pnEl = () => { const t = topEl(); return t && t.querySelector<HTMLElement>(root.classList.contains("kbup") ? ".pn" : ".compact .pn"); };
   if (!main || !sc || !pc || !go || !head || !(stopD || topEl())) { act(); settle(); return; }
   const kb = !!open && root.classList.contains("kbup");
-  const rows = Array.from(pc.querySelectorAll<HTMLElement>(".sx.cur .sb"));
+  const rows = Array.from(pc.querySelectorAll<HTMLElement>(plan.rows || ".sx.cur .sb"));
+  const pre = stn.classList.contains("pre");      // a station that is not ready (Pervasions' Result: the relation picked checks) is gray: so is the scanner that leaves it
   const mr = () => main.getBoundingClientRect();
   const midY = (e: Element) => { const r = e.getBoundingClientRect(); return r.top + r.height / 2 - mr().top; };
   const hd = stopD || head.querySelector<HTMLElement>(".d") || head;
@@ -81,7 +84,7 @@ export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, ac
 
   // the scanner over the page, where the Check's diamond is; the Check itself goes (its diamond is the scanner now)
   const scn = document.createElement("div");
-  scn.className = "pscan " + plan.v; scn.setAttribute("aria-hidden", "true");
+  scn.className = "pscan " + plan.v + (pre ? " pre" : ""); scn.setAttribute("aria-hidden", "true");
   scn.innerHTML = '<i class="pscd"></i><span class="pscw"><b></b><small></small></span>';
   (scn.querySelector(".pscw b") as HTMLElement).textContent = plan.word; (scn.querySelector(".pscw small") as HTMLElement).textContent = plan.sub;
   scn.style.left = x.toFixed(1) + "px";
@@ -97,7 +100,7 @@ export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, ac
   // the thread the scanner has passed runs down to the foot (`thread`); with `after` the foot is empty and the thread ends at the last case's diamond, so nothing is left behind the scanner down there
   const lastD = rows.length ? rows[rows.length - 1] : stopD;      // the thread the scanner has passed ends at the last case: nothing joins it to the foot
   const place = () => {
-    const end = lastD ? Math.min(y0, midY(lastD.querySelector(".d") || lastD)) : y0;
+    const end = lastD ? Math.min(y0, midY(lastD.querySelector(".d, .mc") || lastD)) : y0;
     scn.style.top = y.toFixed(1) + "px"; past.style.top = y.toFixed(1) + "px"; past.style.height = Math.max(0, end - y).toFixed(1) + "px";
   };
   const set = (n: string, v: number) => scn.style.setProperty(n, v.toFixed(4));
@@ -107,7 +110,7 @@ export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, ac
   const markRow = (i: number) => {
     const r = rows[i], v = plan.cases[i]; if (!r || !v) return;
     marked.add(i); r.classList.add("scn", "scn-" + v); flash(v);
-    const at = r.querySelector(".pans") || r.querySelector(".fieldrow") || r.querySelector(".ptx"), box = document.createElement("span");
+    const at = r.querySelector(".pans") || r.querySelector(".fieldrow") || r.querySelector(".ct b") || r.querySelector(".ptx"), box = document.createElement("span");
     box.className = "pscm"; render(<Mark m={v} />, box); if (at) at.append(box);
   };
   const markRel = () => {
@@ -129,11 +132,11 @@ export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, ac
   const t0 = performance.now();
   let yTop = 0, d = 0, tSlide = 0, tSettle = 0, tBecome = 0, relDone = false;
   // the slide starts once the Check is the scanner (and, when the page opens first, once the scanner is at the foot and the foot is still)
-  let slideAt = MORPH, opening = kb, lastF = y0a, lastAt = 0;
+  let slideAt = pre ? BEAT : MORPH, opening = kb, lastF = y0a, lastAt = 0;
   const strip = () => { if (stopD) return midY(stopD); const t = topEl(); return t ? t.getBoundingClientRect().bottom - mr().top + 20 : 0; };
   const frame = (now: number) => {
     const t = now - t0;
-    set("--k", EASE.io(Math.min(1, t / MORPH)));
+    set("--k", pre ? 1 : EASE.io(Math.min(1, t / MORPH)));
     if (opening) {
       const g = foot(), f = g ? midY(g) : null, u = Math.max(0, Math.min(1, (t - OPEN_AT) / OPEN));
       y = y0a + ((f === null ? y0a : f) - y0a) * EASE.io(u);
@@ -148,7 +151,7 @@ export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, ac
       const u = EASE.io((t - slideAt) / tSlide);
       if (s0) sc.scrollTop = s0 * (1 - u);       // a page scrolled down comes back to its top, under the scanner
       yTop = strip(); y = y0 + (yTop - y0) * u;       // the strip stands still, the answer's row comes up as the heading folds: the scanner goes to where it is
-      for (let i = rows.length - 1; i >= 0; i--) if (!marked.has(i) && y <= midY(rows[i].querySelector(".d") || rows[i])) markRow(i);   // from the bottom up, also when a slow frame passes several
+      for (let i = rows.length - 1; i >= 0; i--) if (!marked.has(i) && y <= midY(rows[i].querySelector(".d, .mc") || rows[i])) markRow(i);   // from the bottom up, also when a slow frame passes several
       if (!stopD && y <= midY(hd) + 8) cover();
     } else if (t < tBecome) {
       if (!relDone) { relDone = true; for (let i = rows.length - 1; i >= 0; i--) if (!marked.has(i)) markRow(i); if (!stopD) cover(); markRel(); }
