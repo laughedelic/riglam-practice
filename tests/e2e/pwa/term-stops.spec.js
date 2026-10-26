@@ -198,6 +198,12 @@ test("Settings > Languages decides which names the stop shows: Tibetan with its 
   await expect(names.nth(0).locator("[lang=bo]")).toHaveText("གཟུགས");
   await expect(names.nth(1).locator("[lang=sa-Deva]")).toHaveText("रूप");
   await expect(names.nth(2).locator("[lang=zh-Hant]")).toHaveText("色");
+  // two columns: the second name sits beside the first, the third under the first
+  const boxes = await names.evaluateAll((els) => els.map((el) => { const b = el.getBoundingClientRect(); return { left: Math.round(b.left), top: Math.round(b.top) }; }));
+  expect(Math.abs(boxes[1].top - boxes[0].top)).toBeLessThanOrEqual(1);
+  expect(boxes[1].left).toBeGreaterThan(boxes[0].left + 40);
+  expect(boxes[2].top).toBeGreaterThan(boxes[0].top);
+  expect(boxes[2].left).toBe(boxes[0].left);
 });
 
 test("a term whose longest word does not fit its line shrinks as a whole, and no word of it breaks", async ({ page }) => {

@@ -135,9 +135,8 @@
 .pa .tstage .stm .cs{font-size:var(--tn)}
 .pa .tstop .sechead .ph{flex-wrap:wrap; white-space:normal; row-gap:2px}
 .pa .tstop .sechead .ph span{overflow:visible; text-overflow:clip}
-.pa .tstop-names{margin:8px 0 0; font-size:14.5px; line-height:1.4; color:var(--ink2)}
-.pa .tstop-names .nm{display:block}
-.pa .tstop-names .nm + .nm{margin-top:7px}
+.pa .tstop-names{margin:8px 0 0; font-size:14.5px; line-height:1.4; color:var(--ink2); display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px 14px}
+.pa .tstop-names .nm{display:block; min-width:0; overflow-wrap:anywhere}
 .pa .tstop-names [lang=bo]{font:inherit; font-family:'Noto Serif Tibetan',var(--main-f),serif; font-size:1.25em; line-height:1.2}
 .pa .tstop-names [lang=sa-Deva]{font:inherit; font-family:'Noto Serif Devanagari',var(--main-f),serif; font-size:1.1em}
 .pa .tstop-names .nm[data-lang=zh]{font-family:'Noto Serif SC',var(--main-f),serif}
