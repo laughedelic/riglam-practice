@@ -129,8 +129,8 @@
 .pa .tstop-def .pdexr{font-size:19px}
 .pa .ttree{list-style:none; margin:2px 0 6px; padding:0; line-height:1.3; color:var(--ink2); font-size:18.5px; align-self:stretch}
 .pa .ttree li{position:relative; padding:4px 0 4px calc(var(--lv,0) * 15px + 16px)}
-.pa .ttree li::before{content:""; position:absolute; left:calc(var(--lv,0) * 15px - 9px); top:0; height:calc(.65em + 4px); border-left:1.5px solid var(--rule)}
-.pa .ttree li::after{content:""; position:absolute; left:calc(var(--lv,0) * 15px - 9px); top:calc(.65em + 4px); width:10px; border-top:1.5px solid var(--rule)}
+.pa .ttree li::before{content:""; position:absolute; left:calc(var(--lv,0) * 15px + 3px); top:0; height:calc(.65em + 4px); border-left:1.5px solid var(--rule)}
+.pa .ttree li::after{content:""; position:absolute; left:calc(var(--lv,0) * 15px + 3px); top:calc(.65em + 4px); width:10px; border-top:1.5px solid var(--rule)}
 .pa .ttree li:first-child::before,.pa .ttree li:first-child::after{display:none}
 .pa .ttree li.kid:not(:last-child)::before{height:100%}
 .pa .ttree li.me{color:var(--ink); font-weight:600}
