@@ -126,13 +126,15 @@
 .pa .tmk.wait{opacity:.4}
 .pa .tmk.ok{background:var(--green); border-color:var(--green); opacity:1}
 .pa .tmk.miss,.pa .tmk.slip{background:var(--red); border-color:var(--red); opacity:1}
-.pa .tup-lad{display:flex; align-items:flex-start; gap:3px; margin:14px 0 12px}
-.pa .tup-ld{flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; gap:7px; font:500 10px var(--mono); color:var(--ink3)}
-.pa .tup-ld i{display:block; width:100%; height:24px; position:relative}
-.pa .tup-ld i::before{content:""; position:absolute; left:0; right:0; top:50%; height:5px; margin-top:-2.5px; border-radius:3px; background:var(--rule)}
-.pa .tup-ld.done i::before{background:var(--ink)}
-.pa .tup-ld.now i::before{height:10px; margin-top:-5px; background:var(--blue)}
-.pa .tup-ld.now b{color:var(--blue)}
+.pa .tup-rings{display:grid; grid-template-columns:repeat(9,minmax(0,1fr)); gap:1px; margin:10px 0 4px}
+.pa .tup-rg{display:grid; place-items:center; min-height:44px; min-width:0; padding:0 1px; border-radius:4px}
+.pa .tup-rg svg{width:100%; max-width:34px; aspect-ratio:1; display:block; overflow:visible}
+.pa .tup-rg.now text{fill:var(--blue)}
+.pa .tup-rg.ahead text{fill:var(--ink3)}
+.pa .tup-rg.now .disc{fill:var(--blue); fill-opacity:.12}
+.pa .tup-rg.on .disc{fill:var(--ink); fill-opacity:.1}
+.pa .tup-rgp{margin:2px 0 8px}
+.pa .tup .tup-rgl{margin:0; font:500 10.5px var(--mono); letter-spacing:.08em; text-transform:uppercase; color:var(--ink3)}
 .pa .tup-fold{margin:6px 0 4px}
 .pa .tup-foldb{display:inline-flex; align-items:center; gap:8px; background:none; border:0; padding:4px 0; font:inherit; font-size:16px; color:var(--ink2); cursor:pointer}
 .pa .tup-foldb::before{content:""; width:7px; height:7px; border-right:1.6px solid currentColor; border-bottom:1.6px solid currentColor; transform:rotate(-45deg); transition:transform .15s}

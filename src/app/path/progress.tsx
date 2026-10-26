@@ -9,13 +9,9 @@ import { state } from "../state.js";
 import { progressNow } from "../practice/stage-offer.ts";
 import { openPage, openProgress } from "../shell/session.js";
 import { STAGES } from "../../domain/stages.ts";
-import type { TermMark } from "../../domain/intro.ts";
+import { Segs, TermList, rightOf } from "./rings.tsx";
 
-const R = 11.5, C = 2 * Math.PI * R, GAP = 12;
-const point = (a: number) => { const t = ((a - 90) * Math.PI) / 180; return (15 + R * Math.cos(t)).toFixed(2) + " " + (15 + R * Math.sin(t)).toFixed(2); };
-/** The arc of the ring from angle `a0` to `a1`, in degrees clockwise from the top. */
-const arc = (a0: number, a1: number) => "M" + point(a0) + "A" + R + " " + R + " 0 " + (a1 - a0 > 180 ? 1 : 0) + " 1 " + point(a1);
-const right = (ts: readonly { mark: TermMark }[]) => ts.filter((t) => t.mark === "ok").length;
+const R = 11.5, C = 2 * Math.PI * R;
 
 /**
  * The ring. A stage with new terms: one segment per term, its class the term's mark (`ok` green, a miss red, `wait` fainter: the path CSS), one whole
@@ -23,21 +19,19 @@ const right = (ts: readonly { mark: TermMark }[]) => ts.filter((t) => t.mark ===
  * the disc turns green (it comes in at Next).
  */
 export function ProgressRing() {
-  const p = progressNow(), terms = p.shows === "terms" ? p.terms : null, done = terms ? right(terms) : state.stageRun.up;
+  const p = progressNow(), terms = p.shows === "terms" ? p.terms : null, done = terms ? rightOf(terms) : state.stageRun.up;
   const ref = useRef<HTMLButtonElement>(null), was = useRef(done);
   // an answer that counts moves the ring (the fill follows with a transition), and the ring gives a small bump
   useEffect(() => {
     if (done > was.current && !matchMedia("(prefers-reduced-motion: reduce)").matches) ref.current?.animate?.([{ transform: "scale(1)" }, { transform: "scale(1.18)" }, { transform: "scale(1)" }], { duration: 450, easing: "ease" });
     was.current = done;
   }, [done]);
-  const open = state.sessOpen && state.sessPage === "progress", sp = terms ? 360 / terms.length : 0;
+  const open = state.sessOpen && state.sessPage === "progress";
   const where = terms ? ", " + done + " of " + terms.length + " new terms answered right" : p.next ? ", " + Math.round(p.frac * 100) + " percent of the way to stage " + p.next : "";
   return <button type="button" ref={ref} class={"pib pring" + (p.full ? " full" : "") + (open ? " on" : "")} aria-expanded={open ? "true" : "false"}
     aria-label={"Progression: stage " + p.top + where + ". How it works"} onClick={openProgress}>
-    <svg viewBox="0 0 30 30" aria-hidden="true"><circle class="disc" cx="15" cy="15" r={R} />
-      {!terms ? <><circle class="track" cx="15" cy="15" r={R} /><circle class="arc" cx="15" cy="15" r={R} stroke-dasharray={C} stroke-dashoffset={C * (1 - p.frac)} transform="rotate(-90 15 15)" /></>
-        : terms.length === 1 || p.full ? <circle class={"tseg " + terms[0]!.mark} cx="15" cy="15" r={R} />
-        : terms.map((t, i) => <path class={"tseg " + t.mark} d={arc(i * sp + GAP / 2, (i + 1) * sp - GAP / 2)} />)}
+    <svg class="rgs" viewBox="0 0 30 30" aria-hidden="true"><circle class="disc" cx="15" cy="15" r={R} />
+      {terms ? <Segs marks={terms} /> : <><circle class="track" cx="15" cy="15" r={R} /><circle class="arc" cx="15" cy="15" r={R} stroke-dasharray={C} stroke-dashoffset={C * (1 - p.frac)} transform="rotate(-90 15 15)" /></>}
       <text x="15" y="18.8">{p.top}</text></svg>
   </button>;
 }
@@ -50,7 +44,7 @@ export function ProgressPage() {
   const p = progressNow(), info = STAGES.find((s) => s.n === p.top), n = p.terms.length;
   const add = info ? info.adds.charAt(0).toLowerCase() + info.adds.slice(1).replace(/\.$/, "") : "";
   const items: ComponentChildren[] = [];
-  const list = <ul class="tterms">{p.terms.map((t) => <li class={t.mark}><i class={"tmk " + t.mark} aria-hidden="true" /><span class="ttn">{state.CAT[t.id]?.term || t.id}</span></li>)}</ul>;
+  const list = <TermList marks={p.terms} />;
   if (add) items.push("Stage " + p.top + " introduces " + add + ".");
   if (n) items.push(list);
   if (p.next && p.shows === "terms") {

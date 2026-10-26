@@ -71,6 +71,11 @@ export function takeStageUp(): boolean {
   u.up = { ...up, shown: true, first: !state.stageRun.told }; u.dterm = null; u.pop = null;
   return true;
 }
+/** Whether Next on the answer on screen goes to the station of the stage coming in (what `takeStageUp` would do), for the name and look of the Next station. */
+export function stageUpDue(): boolean {
+  const u = state.ui, up = u && u.up;
+  return !!up && !up.shown && up.stage === topStage(state.stages) + 1 && !state.stageRun.manual;
+}
 /** Next on the station: the stage comes in next to the ones that were on, and the run starts again; unless the learner chose to stay, or took the stages into their own hands meanwhile. */
 export function closeStageUp() {
   const u = state.ui, up = u && u.up; if (!u || !up || !up.shown) return;

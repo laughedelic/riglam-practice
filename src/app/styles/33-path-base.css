@@ -49,19 +49,19 @@ html.pa-tab .pa :is(button,[tabindex]):not([data-quiet]):focus-visible:not(.pbr 
 .pa .tstn .i{width:20px; height:20px; transform:rotate(180deg)}
 .pa .pring{width:auto; min-width:36px; padding:0 2px; margin-left:8px}
 .pa .pring svg{width:30px; height:30px; display:block; overflow:visible}
-.pa .pring circle,.pa .pring path{fill:none; stroke-width:3}
-.pa .pring .track{stroke:var(--ink2); stroke-opacity:.28}
-.pa .pring .arc{stroke:var(--green); stroke-linecap:butt; transition:stroke-dashoffset .5s ease}
-.pa .pring .tseg{stroke:var(--ink2); stroke-opacity:.28; transition:stroke .3s ease, stroke-opacity .3s ease}
-.pa .pring .tseg.wait{stroke-opacity:.12}
-.pa .pring .tseg.ok{stroke:var(--green); stroke-opacity:1}
-.pa .pring .tseg.miss,.pa .pring .tseg.slip{stroke:var(--red); stroke-opacity:1}
-.pa .pring .disc{stroke:none; fill:transparent; transition:fill .3s ease}
+.pa .rgs circle,.pa .rgs path{fill:none; stroke-width:3}
+.pa .rgs .track{stroke:var(--ink2); stroke-opacity:.28}
+.pa .rgs .arc{stroke:var(--green); stroke-linecap:butt; transition:stroke-dashoffset .5s ease}
+.pa .rgs .tseg{stroke:var(--ink2); stroke-opacity:.28; transition:stroke .3s ease, stroke-opacity .3s ease}
+.pa .rgs .tseg.wait{stroke-opacity:.12}
+.pa .rgs .tseg.ok{stroke:var(--green); stroke-opacity:1}
+.pa .rgs .tseg.miss,.pa .rgs .tseg.slip{stroke:var(--red); stroke-opacity:1}
+.pa .rgs .disc{stroke:none; fill:transparent; transition:fill .3s ease}
 .pa .pring.on .disc{fill:var(--ink); fill-opacity:.08}
 .pa .pring.full .disc{fill:var(--green); fill-opacity:1}
-.pa .pring text{font:600 11px var(--mono); fill:var(--ink); text-anchor:middle; dominant-baseline:alphabetic}
+.pa .rgs text{font:600 11px var(--mono); fill:var(--ink); text-anchor:middle; dominant-baseline:alphabetic}
 .pa .pring.full text{fill:var(--paper)}
-@media (prefers-reduced-motion:reduce){.pa .pring .arc,.pa .pring .tseg,.pa .pring .disc{transition:none}}
+@media (prefers-reduced-motion:reduce){.pa .rgs .arc,.pa .rgs .tseg,.pa .rgs .disc{transition:none}}
 .pa.g-top .ptb{background-image:var(--grain); background-size:128px; background-blend-mode:soft-light}
 /* a countdown runs on the lower edge of the top bar */
 .pa .pclock{position:absolute; left:0; right:0; bottom:-1px; height:3px; background:var(--rule); overflow:hidden}

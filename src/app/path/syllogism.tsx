@@ -14,7 +14,7 @@ import type { DataIndex } from "../../ai-shared/lookup.ts";
 import type { ScanPlan } from "./scan.tsx";
 import { Choices, ErrLines, GuideNote, SkipMark, StageOffer, Star, marksCls, Verdict, WhyRow, pickThen, u0 } from "./parts.tsx";
 import { Scroll } from "./scroll.tsx";
-import { nextName } from "./next.ts";
+import { nextKind, nextName } from "./next.ts";
 import { Foot, PreStation, SkipSide, Station, TopBar } from "./shell.tsx";
 import { D, Gap, Head, Mark, St, Sx, nofillInput } from "./ui.tsx";
 
@@ -138,7 +138,7 @@ function ResultStep() {
       <ErrLines />
       <Sx cls="ptail" />
     </Scroll>
-    <Foot><Station name={nextName("Next syllogism")} act={() => next()} /></Foot>
+    <Foot><Station name={nextName("Next syllogism")} kind={nextKind()} act={() => next()} /></Foot>
   </>;
 }
 
