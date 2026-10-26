@@ -47,7 +47,7 @@ export function stageUpScreen(title: string): { cls: string; node: ComponentChil
           : <><p>{mix}</p><Fold label="How the stages work"><ul class="tup-bul">{kind}{term}</ul>{opts}</Fold></>}</Part>
         <div class="wtext tup">{up.stayed
           ? <p class="tup-note" role="status">Stage {n} stays out for now. It comes in after {runNeed(state.stageRun)} right answers in a row on stage {from}. <button type="button" class="plnk" onClick={undoStay}>Undo</button></p>
-          : <p class="tup-note">Not sure yet? <button type="button" class="plnk" onClick={stayOnStage}>Stay on stage {from} a while longer</button>.</p>}</div>
+          : <p class="tup-note">Not sure yet? <span class="nw"><button type="button" class="plnk" onClick={stayOnStage}>Stay on stage {from} a while longer</button>.</span></p>}</div>
         <Gap h={6} /></Sx>
       <Sx cls="ptail" />
     </Scroll>

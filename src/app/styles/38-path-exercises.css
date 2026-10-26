@@ -112,6 +112,7 @@
 .pa .tup{padding-right:18px}
 .pa .tup p{margin:0 0 9px; font-size:18px; line-height:1.4}
 .pa .tup p.tup-note{font-size:15.5px; color:var(--ink2)}
+.pa .tup .nw{white-space:nowrap}   /* the full stop stays with the link, never alone on a line */
 .pa .tup .tup-lead{font-size:20px; color:var(--ink); line-height:1.4}
 .pa .tup .tup-bul{margin:8px 0 10px; padding:0 0 0 18px; font-size:18px; line-height:1.4}
 .pa .tup .tup-bul li{padding:2px 0}
@@ -134,8 +135,9 @@
 .pa .tstage .stm .cs{font-size:var(--tn)}
 .pa .tstop .sechead .ph{flex-wrap:wrap; white-space:normal; row-gap:2px}
 .pa .tstop .sechead .ph span{overflow:visible; text-overflow:clip}
-.pa .tstop-names{margin:6px 0 0; font-size:14.5px; line-height:1.35; color:var(--ink2)}
+.pa .tstop-names{margin:8px 0 0; font-size:14.5px; line-height:1.4; color:var(--ink2)}
 .pa .tstop-names .nm{display:block}
+.pa .tstop-names .nm + .nm{margin-top:7px}
 .pa .tstop-names [lang=bo]{font:inherit; font-family:'Noto Serif Tibetan',var(--main-f),serif; font-size:1.25em; line-height:1.2}
 .pa .tstop-names [lang=sa-Deva]{font:inherit; font-family:'Noto Serif Devanagari',var(--main-f),serif; font-size:1.1em}
 .pa .tstop-names .nm[data-lang=zh]{font-family:'Noto Serif SC',var(--main-f),serif}
