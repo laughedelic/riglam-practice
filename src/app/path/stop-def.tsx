@@ -14,9 +14,9 @@ const SMALLEST = 0.5;
 /**
  * The term at the size of the style sheet, made smaller when a word of it would not fit on a line, so that no word breaks: the whole term shrinks, not
  * the longest word. A word's width is measured at 100px and scaled, so one measure is enough; it is taken again when the box or the fonts change.
- * Below SMALLEST of the size a word breaks, as before.
+ * Below SMALLEST of the size a word breaks, as before. `whole`: until the whole text is on one line (the title of a stage station).
  */
-export function FitTerm({ text }: { text: string }) {
+export function FitTerm({ text, whole = false }: { text: string; whole?: boolean }) {
   const ref = useRef<HTMLSpanElement>(null);
   const fit = () => {
     const el = ref.current, host = el && el.parentElement; if (!el || !host) return;
@@ -27,7 +27,7 @@ export function FitTerm({ text }: { text: string }) {
       s.style.cssText = `position:absolute;left:-9999px;top:0;visibility:hidden;white-space:nowrap;font-family:${cs.fontFamily};font-weight:${cs.fontWeight};font-style:${cs.fontStyle};letter-spacing:${cs.letterSpacing};font-size:100px`;
       host.appendChild(s); const w = s.getBoundingClientRect().width; s.remove(); return w;
     };
-    const best = Math.floor(avail * 100 / Math.max(...text.split(/\s+/).map(wide)) * 2) / 2, size = Math.min(max, Math.max(max * SMALLEST, best));
+    const best = Math.floor(avail * 100 / Math.max(...(whole ? [text] : text.split(/\s+/)).map(wide)) * 2) / 2, size = Math.min(max, Math.max(max * SMALLEST, best));
     if (size < max) el.style.fontSize = size + "px";
     if (best < max * SMALLEST) el.classList.add("tight");
   };
