@@ -68,9 +68,11 @@ export function saySyllogism(reply){
   finishSyllogism();
 }
 /** The counter-example step is done: with what was typed, or with nothing. */
+/** The counter-example as the check reads it: what is written, without the closing stops ("" when there is none). */
+export const counterText=u=>(u.exText||"").trim().replace(/[\s.!?,;:]+$/,"");
 export function exampleSyllogism(){
   const u=state.ui; if(!u||!u.syllogism||u.checked||u.step!==1) return;
-  const t=(u.exText||"").trim().replace(/[\s.!?,;:]+$/,""), g=t?gradeExample(state,shownSyllogism(),t):null;
+  const t=counterText(u), g=t?gradeExample(state,shownSyllogism(),t):null;
   if(g&&g.v==="self"){ u.exNote=g.line; render(); focusEx(); return; }      // the subject itself is no answer: ask again, nothing is graded
   u.ex=g?Object.assign({text:t},g):null;
   finishSyllogism();

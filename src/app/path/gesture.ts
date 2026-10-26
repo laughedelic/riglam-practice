@@ -73,7 +73,7 @@ export class Pull {
   hold = false;
   after: (() => void) | null = null;
   /** the verdicts the Check of the examples marks as it slides up (scan.tsx), set by that station on every draw; null elsewhere */
-  scan: (() => ScanPlan) | null = null;
+  scan: (() => ScanPlan | null) | null = null;
   /** the name of the station that comes after this one when it is known (a Check or a Result leads to Next), set by that station on every draw: it is at the foot as the station rides away (the look's `foot: thread`) */
   next: string | null = null;
   peekT: ReturnType<typeof setTimeout> | undefined;

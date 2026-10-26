@@ -1,6 +1,7 @@
 // The ways of taking a station on the Path that are the default (src/app/path/push.ts, scan.tsx, foot.ts): `ride: push`, where the page rises with the station while it is held over its
 // curb and, let go, keeps rising and leaves through the top ahead of it (a syllogism keeps its statement and the result opens under it), `check: morph`, where the examples' page moves
-// into the result's instead of being swapped for it, and the look's `foot`: what is at the foot while the station is away. The squeeze and the scan are path-take.spec.js and path-scan.spec.js.
+// into the result's instead of being swapped for it (a syllogism's Result takes that scan too, over its reply and counter-example), and the look's `foot`: what is at the foot while the station is away.
+// The squeeze and the scan are path-take.spec.js and path-scan.spec.js.
 import { test, expect } from "../../support/test.js";
 
 test.use({ reducedMotion: "no-preference" });
@@ -141,7 +142,7 @@ test("ride: push, a tap takes the station with the same ride", async ({ page }) 
 test("ride: push, a syllogism's Result folds the heading above the statement and what is under it, and the statement does not move when the result opens", async ({ page }) => {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await look(page, { ride: "push" });
+  await look(page, { ride: "push", check: "ride" });
   await page.addInitScript(onPath);
   await page.goto("/");
   await expect(choices(page)).toHaveCount(5);
@@ -261,7 +262,7 @@ test("foot: thread, the next station is born at the foot as the station rises, t
 test("foot: thread, a syllogism's Result has the next station, by name, at the foot while the result's node comes out of it", async ({ page }) => {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await look(page, { foot: "thread" });
+  await look(page, { foot: "thread", check: "ride" });
   await page.addInitScript(onPath);
   await page.goto("/");
   await expect(choices(page)).toHaveCount(5);
@@ -339,5 +340,77 @@ test("foot: thread, the Check's scanner walks a thread that runs down to the foo
   await expectClean(page);
   const w = await page.evaluate(() => window.__fw);
   expect(w.pastBelow, "the thread the scanner has passed reaches below the last case, to the foot").toBeGreaterThan(40);
+  expect(errors).toEqual([]);
+});
+
+/** A syllogism whose reply was a right "there is no pervasion", at the counter-example (with `text` written in it), the Result not yet taken. */
+async function toCounter(page, text = "") {
+  await page.addInitScript(onPath);
+  await page.goto("/");
+  await expect(choices(page)).toHaveCount(5);
+  await page.locator(".tstn").click();
+  await page.getByRole("dialog", { name: "Roadmap" }).getByRole("button", { name: /^Syllogisms/ }).click();
+  await expect(page.locator(".ptb-t")).toContainText("Syllogisms");
+  expect(await page.evaluate(() => { for (let i = 0; i < 600; i++) { if (window.__t.cur.c.answer === "pervasion") return true; window.__t.next(); } return false; })).toBe(true);
+  await choices(page).filter({ hasText: "There is no pervasion" }).first().click();
+  await expect(page.locator("#sylex")).toBeVisible();
+  if (text) await page.locator("#sylex").fill(text);
+  await page.locator("#sylex").blur();
+}
+
+/** What a syllogism's scan does, every frame: where the statement is, whether the reply and the counter-example are still on the page, what is marked, and when the page was swapped. */
+const watchScan = (page) => page.evaluate(() => {
+  const w = (window.__sc = { ys: [], swapAt: -1, rowsSeen: 0, marked: "", scan: 0, scanned: 0, gone: false });
+  const tick = () => {
+    const m = document.querySelector("#path .main"), stm = document.querySelector("#path .pathc .stm"), said = document.querySelector("#path .pathc .sylsaid"), row = document.querySelector("#path .pathc .sb.now");
+    if (stm) w.ys.push(Math.round(stm.getBoundingClientRect().top * 10) / 10);
+    if (w.swapAt < 0 && m.classList.contains("sc-morph")) w.swapAt = w.ys.length - 1;
+    if (document.querySelector("#path .pscan")) { w.scan++; if (w.swapAt < 0 && said && getComputedStyle(said).opacity > 0.5) w.rowsSeen++; }
+    if (row && /\bscn-(ok|no|pt)\b/.test(row.className)) w.marked = row.className.match(/scn-(ok|no|pt)/)[0];
+    if (said && said.classList.contains("scn-gone")) w.gone = true;
+    requestAnimationFrame(tick);
+  };
+  tick();
+});
+
+test("check: morph, a syllogism's Result keeps the reply and the counter-example on the page while the scanner marks them, then the result opens under the statement, which does not move", async ({ page }) => {
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await toCounter(page, "salmon");
+  await expect(page.locator("#path .pathc .stm")).toHaveCount(3);
+  await watchScan(page);
+  await page.locator("#stn").click();
+  await expect(main(page)).toHaveClass(/\bsc-run\b/);
+  await expect(page.locator(".pvline .ptx")).toBeVisible({ timeout: 8000 });
+  await expect(page.locator("#stn")).toContainText("Next");
+  await expectClean(page);
+  const w = await page.evaluate(() => window.__sc);
+  expect(w.scan, "the scanner was on the page").toBeGreaterThan(10);
+  expect(w.rowsSeen, "the reply stayed on the page while the scanner rose").toBeGreaterThan(10);
+  expect(w.marked, "the counter-example was marked on the way").toMatch(/^scn-(ok|no|pt)$/);
+  expect(w.gone, "the reply's words went as the scanner reached it").toBe(true);
+  expect(w.swapAt, "the step went on").toBeGreaterThan(0);
+  const at = w.ys[w.swapAt], after = w.ys.slice(w.swapAt);
+  expect(Math.max(...after.map((y) => Math.abs(y - at))), "the statement does not move when the result opens").toBeLessThan(1.5);
+  expect(w.ys[0] - at, "it came up as the heading above it folded").toBeGreaterThan(10);
+  await expect(page.locator("#path .pathc .stm")).toHaveCount(3);
+  await expect(page.locator(".pwhat")).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test("check: morph, a syllogism's Result with no counter-example marks nothing on the way: the scanner goes to the reply and becomes the result's node there", async ({ page }) => {
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await toCounter(page);
+  await watchScan(page);
+  await page.locator("#stn").click();
+  await expect(main(page)).toHaveClass(/\bsc-run\b/);
+  await expect(page.locator(".pvline .ptx")).toBeVisible({ timeout: 8000 });
+  await expectClean(page);
+  const w = await page.evaluate(() => window.__sc);
+  expect(w.scan).toBeGreaterThan(10);
+  expect(w.marked, "no case to mark").toBe("");
+  expect(w.rowsSeen).toBeGreaterThan(10);
+  await expect(page.locator(".pwhat")).toBeVisible();
   expect(errors).toEqual([]);
 });

@@ -22,5 +22,5 @@
 .pa .main.pk-keep.tk-in .pathc > .vband{animation:none}
 .pa .main.pk-keep.tk-in .pvline .ptx,.pa .main.pk-keep.tk-in .pwhat{animation:p-tkin .42s ease-out both}
 /* the line along the statement was the gold of the question: it goes to the walked line's ink as the station starts to rise, when the step is taken */
-.pa .main.pk-run .pathc > .sx.pk-walked{--sc:color-mix(in srgb,var(--ink) 72%,var(--paper)); transition:--sc .35s ease}
-@media (prefers-reduced-motion:reduce){ .pa .pathc .pk-gone,.pa .pathc .pk-gone.pk-fb,.pa.pushback .pathc{transition:none} .pa .main.pk-run .pathc > .sx.pk-walked{transition:none} }
+.pa .main:is(.pk-run,.sc-run) .pathc > .sx.pk-walked{--sc:color-mix(in srgb,var(--ink) 72%,var(--paper)); transition:--sc .35s ease}
+@media (prefers-reduced-motion:reduce){ .pa .pathc .pk-gone,.pa .pathc .pk-gone.pk-fb,.pa.pushback .pathc{transition:none} .pa .main:is(.pk-run,.sc-run) .pathc > .sx.pk-walked{transition:none} }

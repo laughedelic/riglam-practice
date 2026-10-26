@@ -5,10 +5,12 @@ import type { ComponentChildren } from "preact";
 import { state } from "../state.js";
 import { guided } from "../practice/guided.ts";
 import { next } from "../practice/queue.js";
-import { backSyllogism, exampleSyllogism, keyOfReply, saySyllogism, shownSyllogism } from "../syllogism/flow.js";
-import { REPLIES, syllogismPieces } from "../../domain/syllogism.ts";
+import { backSyllogism, counterText, exampleSyllogism, keyOfReply, saySyllogism, shownSyllogism } from "../syllogism/flow.js";
+import { REPLIES, gradeExample, syllogismPieces } from "../../domain/syllogism.ts";
 import type { Reply, Syllogism } from "../../domain/syllogism.ts";
 import { refreshPath } from "./index.tsx";
+import type { DataIndex } from "../../ai-shared/lookup.ts";
+import type { ScanPlan } from "./scan.tsx";
 import { Choices, ErrLines, GuideNote, SkipMark, StageOffer, Star, marksCls, Verdict, WhyRow, pickThen, u0 } from "./parts.tsx";
 import { Scroll } from "./scroll.tsx";
 import { Foot, PreStation, SkipSide, Station, TopBar } from "./shell.tsx";
@@ -84,7 +86,7 @@ function CounterStep({ kb }: { kb: boolean }) {
       <Sx cls={"ptail" + (some ? "" : " dtail")} />
     </Scroll>
     {kb ? null : <Foot>
-      <Station name="Result" hint={some ? "your reply and the counter-example" : "your reply, without a counter-example"} act={exampleSyllogism} next="Next" />
+      <Station name="Result" hint={some ? "your reply and the counter-example" : "your reply, without a counter-example"} act={exampleSyllogism} next="Next" scan={scanPlan} />
     </Foot>}
   </>;
 }
@@ -92,11 +94,25 @@ function CounterStep({ kb }: { kb: boolean }) {
 /* ---------- 2 the result ---------- */
 // what a check is called, and what it comes to when it holds and when it does not (a check that does not hold is the fault to find, not a wrong answer)
 const CHECKS: [k: "e" | "v" | "t", label: string, yes: string, no: string][] = [["e", "Reason", "established", "not established"], ["v", "Pervasion", "holds", "fails"], ["t", "Thesis", "true", "false"]];
+/** The verdict as the result's node says it: its color, its word and the line beside it, for the reply graded `g`, the overall grade and the counter-example's verdict `ex` (if one was given). */
+function verdictOf(g: { correct: boolean }, overall: string, timeout: boolean, ex: string | null): { v: "ok" | "no" | "pt"; word: string; sub?: string } {
+  return {
+    v: g.correct ? (overall === "part" ? "pt" : "ok") : "no",
+    word: g.correct ? (overall === "part" ? "Partly right" : "Right") : timeout ? "Time is up" : "Not quite",
+    sub: overall === "part" ? "the counter-example is not one" : ex === "ok" ? "your reply and the counter-example" : undefined,
+  };
+}
+/** What the scan of the Result marks on its way up (scan.tsx): the counter-example, if one is written, then the reply, which the scanner stops at and becomes the result's node on. Graded as the
+ *  check will grade them (src/domain), before the check itself, which comes when the scan is over. None when the check will not go on (the subject itself is no counter-example). */
+function scanPlan(): ScanPlan | null {
+  const u = u0(), g = u.grade, t = counterText(u), x = t ? gradeExample(state as unknown as DataIndex, shownSyllogism(), t) : null;
+  if (!g || (x && x.v === "self")) return null;
+  const overall = g.correct && x && x.v === "bad" ? "part" : g.grade, { v, word, sub } = verdictOf(g, overall, !!u.timeout, x ? x.v : null);
+  return { cases: x ? [x.v === "ok" ? "ok" : x.v === "bad" ? "no" : "pt"] : [], rel: g.correct ? "ok" : "no", v, word, sub: sub || "", next: "Next", stop: ".sylsaid" };
+}
 function ResultStep() {
   const u = u0(), c = shownSyllogism(), g = u.grade, first = (CHECKS.find(([k]) => !c.checks[k].ok) || [])[0];
-  const v = g.correct ? (u.overall === "part" ? "pt" : "ok") : "no";
-  const word = g.correct ? (u.overall === "part" ? "Partly right" : "Right") : u.timeout ? "Time is up" : "Not quite";
-  const sub = u.overall === "part" ? "the counter-example is not one" : u.ex && u.ex.v === "ok" ? "your reply and the counter-example" : undefined;
+  const { v, word, sub } = verdictOf(g, u.overall, !!u.timeout, u.ex ? u.ex.v : null);
   const said: ComponentChildren = g.correct ? <b class="yours">{cap(SAID[g.said as Reply])}.</b>
     : g.said ? <><s class="no">{cap(SAID[g.said as Reply])}</s>; <span class="fix">{SAID[g.expected as Reply]}</span>.</>
     : <>No reply in time; it is <span class="fix">{SAID[g.expected as Reply]}</span>.</>;

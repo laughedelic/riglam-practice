@@ -25,7 +25,7 @@ const parts = (root: HTMLElement | null) => {
   const main = root && root.querySelector<HTMLElement>(".main"), sc = main && main.querySelector<HTMLElement>(".pscroll"), pc = sc && sc.querySelector<HTMLElement>(".pathc");
   return { main, sc, pc };
 };
-const keepOf = (pc: HTMLElement | null) => pc && pc.querySelector<HTMLElement>("[data-keep]");
+export const keepOf = (pc: HTMLElement | null) => pc && pc.querySelector<HTMLElement>("[data-keep]");
 
 /**
  * Pushes the page up as far as the station has come into it: the page's last part (not the thread's tail under it) stops `GAP` px above the station's top edge. `k` is how much of the
@@ -69,7 +69,7 @@ function unfoldAfter(pc: HTMLElement, soft: boolean): void {
  * What comes before the statement `keep` ends (its heading, not its lines) fades, and what is in the statement's own section above it folds until the statement stands where the result puts it
  * (`keep.dataset.keep`, px under the section's top), so that the statement comes up with the heading going and does not move when the step goes on. Returns how far the statement comes up.
  */
-function foldBefore(keep: HTMLElement, pc: HTMLElement): number {
+export function foldBefore(keep: HTMLElement, pc: HTMLElement): number {
   const first = (keep.parentElement && keep.parentElement.querySelector<HTMLElement>(".stm")) || keep, sec = first.parentElement;
   for (let n: HTMLElement | null = first; n && n !== pc; n = n.parentElement) for (let s = n.previousElementSibling; s; s = s.previousElementSibling) if (s instanceof HTMLElement) s.classList.add("pk-gone");
   for (const e of Array.from(pc.querySelectorAll<HTMLElement>(".pskip"))) e.classList.add("pk-gone");

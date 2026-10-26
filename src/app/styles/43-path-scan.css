@@ -24,8 +24,8 @@
 .pa .pscm .mark{transform:translateY(3px)}
 @keyframes p-scm{from{opacity:0; transform:scale(.5)}}
 .pa .sb.scn-no .pans{color:var(--ink2); text-decoration:line-through; text-decoration-color:var(--red); text-decoration-thickness:2px}
-/* the heading is covered: the result's node takes its place */
-.pa .sechead.scn-gone > .ptx,.pa .sechead.scn-gone > .d{opacity:0; transition:opacity .18s}
+/* the heading is covered (or the reply a syllogism's scan stops at): the result's node takes its place */
+.pa :is(.sechead,.sylsaid).scn-gone > :is(.ptx,.d){opacity:0; transition:opacity .18s}
 /* the relation at the strip: struck when it is not the one, or checked */
 .pa .pn.scn-rel .pnn .rn,.pa .pn.scn-rel .pnc{transition:color .2s}
 .pa .pn.scn-no .pnn .rn{color:var(--ink2); text-decoration:line-through; text-decoration-color:var(--red); text-decoration-thickness:2px}
@@ -37,6 +37,9 @@
 .pa .main.sc-in .pathc > :not(.vband){animation:p-tkin .42s ease-out both}
 .pa .main.sc-in .pvline .ptx{animation:none}
 .pa .main.sc-hand .pvline .d.big,.pa .main.sc-hand .pvline .ptx{visibility:hidden}
+/* a statement that stays (a syllogism's, scan.tsx `stop`) does not come in again; what the result says under its node does */
+.pa .main.sc-keep.sc-in .pathc > :first-child{animation:none}
+.pa .main.sc-in .pwhat{animation:p-tkin .42s ease-out both}
 /* the look's `check: morph`: what the result's page shares with the examples' (the case rows, the parts of the pair: its figure, the two terms and the relation given) moves from where it
    stood (scan.tsx) and is not faded in again; the rows the result has more of, what it adds to the pair (the classes, the relation it should have been) and the thread behind the moved parts
    come in, and what the strip showed besides fades where it is */
