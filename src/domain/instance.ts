@@ -16,10 +16,11 @@ import type { DataIndex } from "../ai-shared/lookup";
 import { catChain, excludes, rung, termPhrase } from "./ladder";
 import { itemRows as placeItemRows } from "./place";
 import { placeByClass } from "./reference";
+import { askedKey, termCats, wordsFor } from "./intro";
 import { HOLD_STAGE, MAX_STAGE, catOpen, catStage, heldBack, itemStage, physical, topStage } from "./stages";
 import type { Stages, Unmet } from "./stages";
 import { FEATURE, cellsFor, inUniverse, judgeable, relOfCells } from "./universe";
-import type { Rng } from "./universe";
+import type { PairWords, Rng } from "./universe";
 import { cap, pick } from "./util";
 
 /** Why nothing is in all the categories: two of them that exclude each other, and the sentence that says so. */
@@ -224,10 +225,11 @@ const REL_W: Record<string, number> = { "4": 1, "3ab": 0.35, "3ba": 0.35, mi: 0.
 
 /**
  * The question for a set of categories: in a random order, each under a random label, with what is in all of them or why nothing is. With
- * `on`, the things in all of them are those the learner knows at these stages.
+ * `on`, the things in all of them are those the learner knows at these stages. With `words`, a label that names a term the learner has not met
+ * waits, and an open one is said (intro.ts, wordsFor).
  */
-export function instanceQuestion(ix: DataIndex, set: readonly string[], rng: Rng, on?: Stages): InstanceQuestion {
-  const cats = shuffle(set, rng), labels = cats.map((c) => pick(ix.CAT[c].labels, rng));
+export function instanceQuestion(ix: DataIndex, set: readonly string[], rng: Rng, on?: Stages, words?: PairWords): InstanceQuestion {
+  const cats = shuffle(set, rng), labels = cats.map((c) => pick(wordsFor(ix, c, ix.CAT[c].labels, words?.unmet, words?.open), rng));
   const known = ix.DATA.items.filter((it) => inAll(ix, it, cats) && knownAt(ix, it, cats, on)).map((it) => it.n);
   let apart: Apart | null = null;
   for (let i = 0; i < cats.length && !apart; i++) for (let j = i + 1; j < cats.length && !apart; j++) apart = apartOf(ix, cats[i], cats[j], on);
@@ -253,7 +255,8 @@ export function drawInstance(ix: DataIndex, draw: InstanceDraw): InstanceQuestio
 function askSet(ix: DataIndex, draw: InstanceDraw, unmet?: Unmet, open?: ReadonlySet<string>): InstanceQuestion | null {
   const pool = poolOf(ix), rng = draw.rng, fresh = (s: { set: readonly string[] }) => !draw.avoid?.has(instanceKey(s.set));
   const top = draw.stages ? topStage(draw.stages) : Infinity;
-  const at = <T extends Staged>(sets: readonly T[]) => sets.filter((s) => s.st <= top && !(unmet?.size && s.set.some((c) => unmet.has(c))) && (!open || s.set.some((c) => open.has(c))));
+  const lean = open && termCats(open);
+  const at = <T extends Staged>(sets: readonly T[]) => sets.filter((s) => s.st <= top && !(unmet?.size && s.set.some((c) => unmet.has(c))) && (!lean || s.set.some((c) => lean.has(c))));
   const choose = <T extends Staged>(sets: readonly T[], w: (s: T) => number = () => 1) => (weighted(sets.filter(fresh), w, rng) ?? weighted(sets, w, rng))?.set;
   const one = at(pool.one), two = at(pool.two), apart = pool.apart.map(at).filter((g) => g.length), three = at(pool.three), threeApart = at(pool.threeApart);
   const kinds = [
@@ -266,7 +269,7 @@ function askSet(ix: DataIndex, draw: InstanceDraw, unmet?: Unmet, open?: Readonl
   for (let tries = 0; tries < 6; tries++) {
     const set = weighted(kinds, (k) => Math.min(k.w, k.n / SPREAD), rng)?.set();
     if (!set) continue;
-    const q = instanceQuestion(ix, set, rng, draw.stages);
+    const q = instanceQuestion(ix, set, rng, draw.stages, { unmet: draw.unmet, open: draw.open });
     if (q.possible || q.apart) return q;
   }
   return null;
@@ -380,9 +383,11 @@ export function gradeInstance(ix: DataIndex, q: InstanceQuestion, ans: InstanceA
 /**
  * The course terms a checked answer grades (intro.ts, afterQuestion): a right thing is in every category of the set, so each of them was right; a right
  * "nothing is" shows that the two categories that exclude each other do. A wrong or open answer grades nothing: here a mistake is mostly about
- * knowing the thing, as in Syllogisms and Find a pair, which count only right answers as well.
+ * knowing the thing, as in Syllogisms and Find a pair, which count only right answers as well. With the data, a category said under the label of a
+ * named term grades that term ("matter": matter, not form; intro.ts, askedKey).
  */
-export function instanceGraded(q: InstanceQuestion, res: Pick<InstanceResult, "v">, none: boolean): { cat: string; ok: boolean }[] {
+export function instanceGraded(q: InstanceQuestion, res: Pick<InstanceResult, "v">, none: boolean, ix?: DataIndex): { cat: string; ok: boolean }[] {
   if (res.v !== "ok") return [];
-  return (none && q.apart ? [q.apart.a, q.apart.b] : q.cats).map((cat) => ({ cat, ok: true }));
+  const key = (cat: string) => (ix ? askedKey(ix, cat, q.labels[q.cats.indexOf(cat)]) : cat);
+  return (none && q.apart ? [q.apart.a, q.apart.b] : q.cats).map((cat) => ({ cat: key(cat), ok: true }));
 }

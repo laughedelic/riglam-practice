@@ -2,7 +2,7 @@
 // segments of a ring, one each, in the order the learner first answered them (src/domain/intro.ts, stageMarks) and colored by the last answer on it, and the
 // same terms as a list with the same marks. The colors are in the path CSS, by the term's mark (`tseg ok`, `tseg miss`, `tmk wait` ...).
 import { state } from "../state.js";
-import { stageMarks } from "../../domain/intro.ts";
+import { stageMarks, stopCat } from "../../domain/intro.ts";
 import type { StageMark } from "../../domain/intro.ts";
 import type { DataIndex } from "../../ai-shared/lookup.ts";
 
@@ -28,4 +28,4 @@ export function Segs({ marks, split = false }: { marks: readonly StageMark[]; sp
 
 /** The list of a stage's new terms, each with the mark of its segment. */
 export const TermList = ({ marks }: { marks: readonly StageMark[] }) => <ul class="tterms">{marks.map((t) =>
-  <li class={t.mark}><i class={"tmk " + t.mark} aria-hidden="true" /><span class="ttn">{state.CAT[t.id]?.term || t.id}</span></li>)}</ul>;
+  <li class={t.mark}><i class={"tmk " + t.mark} aria-hidden="true" /><span class="ttn">{(state.DATA && stopCat(state as unknown as DataIndex, t.id)?.term) || t.id}</span></li>)}</ul>;

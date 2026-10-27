@@ -67,7 +67,7 @@ export function checkInstance(): void {
   if (!u || !q || (!u.none && !said)) return;
   const ir = gradeInstance(ix(), q, u.none ? { none: true } : { text: said }, state.EX);
   u.ir = ir; u.checked = true;
-  gradeTerms(instanceGraded(q, ir, !!u.none), false);     // a right answer proves each course term of the set; a mistake is mostly about knowing the thing, so it counts for none (practice/stops.ts)
+  gradeTerms(instanceGraded(q, ir, !!u.none, ix()), false);     // a right answer proves each course term of the set; a mistake is mostly about knowing the thing, so it counts for none (practice/stops.ts)
   if (ir.v !== "open") stageStep("instance", catsStageNow(q.cats), ir.v === "ok");     // the run towards the next stage (practice/stage-offer.ts)
   const doc: InstanceDoc = {
     pairId: docId(), mode: "instance", cats: q.cats, labels: q.labels, possible: q.possible, said: u.none ? null : said,

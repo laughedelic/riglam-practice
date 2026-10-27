@@ -255,6 +255,23 @@ test("the stop of form says that matter and the form aggregate are the same", as
   await expect(stop.locator("ul.ttree li")).toHaveCount(4);
 });
 
+test("matter has a stop of its own after form's, with its divisions and form's examples, and a pair that says matter is tagged with it", async ({ page }) => {
+  await seed(page, ["form:Matter"]);
+  const stop = await toStop(page);
+  await expect(stop.locator(".cs")).toHaveText("Matter");
+  await expect(stop.locator(".tstop-mi")).toHaveText("Mutually inclusive with form.");
+  await expect(stop.locator("ul.ttree li")).toHaveText(["Existent", "Functional thing", "Matter", "External matter", "Internal matter"]);
+  await expect(stop.locator(".pdex.bare .pdexn"), "the same things as form").toHaveText(["blood", "a wooden chair", "your hand"]);
+  expect(await page.evaluate(() => window.__t.intro.terms["form:Matter"].box)).toBe(1);
+  // still meeting it: a pair that says "matter" has its tag, and an answer on it grades matter
+  await station(page).click();
+  const p = await page.evaluate(() => { for (let i = 0; i < 200; i++) { const p = window.__t.cur.p; if (p && [p.a, p.b].includes("matter")) return p; window.__t.next(); } return null; });
+  expect(p, "a pair that says matter").not.toBeNull();
+  await page.evaluate(() => window.__t.render());
+  // the tag opens a definition: only where the device has the course's
+  if (withCourse) await expect(page.locator("#path .pairst").nth(p.a === "matter" ? 0 : 1).locator(".ntag")).toHaveText("matter");
+});
+
 test("a stop shows examples from the practice list on a device that has none of the course's examples", async ({ page }) => {
   await page.addInitScript(fresh);
   const stop = await toStop(page);

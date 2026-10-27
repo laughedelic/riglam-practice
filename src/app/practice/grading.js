@@ -24,7 +24,7 @@ export async function check(){
   const id=state.cur.legacy?p.id:(state.cur.retry?"r-":"")+(p.generated&&!state.cur.retry?p.id:"r"+Date.now().toString(36));
   state.ui.negOffer=afterRelation(id,p,!!state.ui.res.relOk);      // the run towards the next step of the negation track (practice/negations.ts)
   const [ca,cb]=pairCats(p), cats=[p.catA||ca,p.catB||cb];      // (pairCats leaves out a pair of two labels of one category, which still asks about it)
-  gradePair(cats,!!state.ui.res.relOk);      // the course terms of the pair (practice/stops.ts), before the stage: its new terms count
+  gradePair(cats,!!state.ui.res.relOk,[p.a,p.b]);      // the course terms of the pair (practice/stops.ts), before the stage: its new terms count
   if(stageStep("practice",pairStageNow(cats[0],cats[1]),!!state.ui.res.relOk)) state.ui.negOffer=null;      // one offer at a time, the stages first (practice/stage-offer.ts)
   render();
   focusAfterCheck();

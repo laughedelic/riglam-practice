@@ -17,6 +17,8 @@ import { cellsFor, judgeable } from "./universe";
 import type { Rng } from "./universe";
 import { FEATURE, RECENT_MAX, inUniverse } from "./universe";
 import { vagueVerdict } from "./vague";
+import { termCats, wordsFor } from "./intro";
+import type { PairWords } from "./universe";
 import { catOpen, itemOn, normStages, topStage } from "./stages";
 import type { Stages, Unmet } from "./stages";
 import { cap, isMiss } from "./util";
@@ -300,20 +302,27 @@ function proofOfV(ix: DataIndex, pair: PairInfo, reason: string, predicate: stri
   return `Just because it is ${reason}, doesn't necessarily mean that it is ${predicate}.`;
 }
 
-function phrasesFor(ix: DataIndex, pair: PairInfo, rng: Rng): [string, string] {
-  const rs = phrasesOf(ix, pair.r), ps = phrasesOf(ix, pair.p);
+/** The phrases of a category a syllogism may say (intro.ts, wordsFor): not a named term's before its stop; while one is open (and `lean`), its phrase. */
+const phrasesNow = (ix: DataIndex, id: string, words?: PairWords, lean = true): readonly string[] => wordsFor(ix, id, phrasesOf(ix, id), words?.unmet, lean ? words?.open : undefined);
+
+function phrasesFor(ix: DataIndex, pair: PairInfo, rng: Rng, words?: PairWords): [string, string] {
+  const rs = phrasesNow(ix, pair.r, words), ps = phrasesNow(ix, pair.p, words);
   if (pair.r === pair.p) {
-    const i = Math.floor(rng() * rs.length);
-    let j = Math.floor(rng() * (rs.length - 1));
+    // two phrases of the class, the open term's among them; all of them when the ones shown are fewer than two
+    const shown = phrasesNow(ix, pair.r, words, false), all = shown.length > 1 ? shown : phrasesOf(ix, pair.r);
+    const i = Math.floor(rng() * all.length);
+    let j = Math.floor(rng() * (all.length - 1));
     if (j >= i) j++;
-    return [rs[i], rs[j]]; // the reason may not be the predicate (the same label twice is never drawn)
+    const pr: [string, string] = [all[i], all[j]]; // the reason may not be the predicate (the same label twice is never drawn)
+    if (rs.length < all.length && !pr.some((x) => rs.includes(x))) pr[i < j ? 1 : 0] = rs[0];
+    return pr;
   }
   return [rs[Math.floor(rng() * rs.length)], ps[Math.floor(rng() * ps.length)]];
 }
 
-function make(ix: DataIndex, c: Cand, sit: Situation, rng: Rng): Syllogism {
+function make(ix: DataIndex, c: Cand, sit: Situation, rng: Rng, words?: PairWords): Syllogism {
   const { pair, item } = c, rule = SITUATIONS[sit];
-  const [reason, first] = phrasesFor(ix, pair, rng);
+  const [reason, first] = phrasesFor(ix, pair, rng, words);
   // two categories that share a phrase would give "it is X because it is X"
   const predicate = reason === first && pair.r !== pair.p ? phrasesOf(ix, pair.p).find((x) => x !== reason) || first : first;
   const others = pair.holds ? [] : pair.cells.anb.filter((i) => !i.ne && i !== item);
@@ -457,7 +466,7 @@ export interface SyllogismDraw {
    * Stages that can draw nothing draw as if there were none.
    */
   stages?: Stages;
-  /** the Dudra categories whose term the learner has not met yet (intro.ts): a reason or predicate among them waits, unless the situation has nothing else */
+  /** the course terms the learner has not met yet (intro.ts): a reason or predicate among them waits, unless the situation has nothing else, and so does a named term's phrase */
   unmet?: Unmet;
   /**
    * the new terms of the highest stage whose last answer is not right yet (intro.ts, openTerms): `newShare` of the syllogisms (half when absent) have one of
@@ -483,7 +492,7 @@ export function drawSyllogism(ix: DataIndex, st: SyllogismDraw): Syllogism {
   const plan = (open?: ReadonlySet<string>) => {
     const top = open ? 2 : st.level ?? (st.stages ? levelAt(st.stages) : 2);
     const staged = st.stages && SIT_IDS.some((s) => viewOf(ix, s, top, st.stages).all.length > 0) ? st.stages : undefined;
-    const asks = (g: Group) => !open || open.has(g.pair.r) || open.has(g.pair.p);
+    const cats = open && termCats(open), asks = (g: Group) => !cats || cats.has(g.pair.r) || cats.has(g.pair.p);
     return { top, staged, asks, usable: (s: Situation) => viewOf(ix, s, top, staged).all.some(asks) };
   };
   const wants = st.open?.size && st.level !== 1 && rng() < (st.newShare ?? 0.5) ? st.open : undefined;
@@ -506,7 +515,7 @@ export function drawSyllogism(ix: DataIndex, st: SyllogismDraw): Syllogism {
     pool = linked.length ? linked : some.length ? some : v.all.filter(asks);
   }
   if (st.unmet?.size) {
-    const met = pool.filter((g) => !st.unmet!.has(g.pair.r) && !st.unmet!.has(g.pair.p));
+    const met = pool.filter((g) => !st.unmet!.has(g.pair.r) && !st.unmet!.has(g.pair.p) && (g.pair.r !== g.pair.p || phrasesNow(ix, g.pair.r, st, false).length > 1));
     if (met.length) pool = met;
   }
 
@@ -527,7 +536,7 @@ export function drawSyllogism(ix: DataIndex, st: SyllogismDraw): Syllogism {
     return g.mean * (seenPair.has(`${r}|${p}`) ? 0.4 : 1) * (1 + 1.5 * ((weak[r] || 0) + (weak[p] || 0)));
   }, rng);
   const cand = chooseWeighted(group.cands, (c) => weightOf(c.links) * (seen.has(`${group.pair.r}|${group.pair.p}|${c.item.n}`) ? 0.05 : 1), rng);
-  const c = make(ix, cand, sit, rng);
+  const c = make(ix, cand, sit, rng, st);
   st.recent.push(c.id);
   if (st.recent.length > RECENT_MAX) st.recent.shift();
   return c;

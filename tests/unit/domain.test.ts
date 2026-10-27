@@ -15,7 +15,8 @@ import type { DebateInput, GradeDraft, HistoryEntry, Pair, PoolEntry } from "../
 import openData from "../../src/data/drill-data.json";
 import { catStage, drawable, examplesFor, placeByClass } from "../../src/domain";
 import { LANGS, normLangs, termNames } from "../../src/domain";
-import { AGAIN_AFTER, FIRST_AFTER, MISS_AFTER, SETTLED, SPACING, afterQuestion, againAsked, freshIntro, introduced, metTerms, nextStop, normIntro, openTerms, pairGraded, showAgain, stageMarks, stageMet, stageTerms, stageUp, stopShown, termMark, termTree, unmet } from "../../src/domain";
+import { AGAIN_AFTER, FIRST_AFTER, MISS_AFTER, SETTLED, SPACING, afterQuestion, againAsked, askedKey, freshIntro, introduced, metTerms, nextStop, normIntro, openTerms, pairGraded, showAgain, stageMarks, stageMet, stageTerms, stageUp, stopCat, stopShown, termMark, termTree, unmet, wordsFor } from "../../src/domain";
+import { instanceGraded, instanceQuestion } from "../../src/domain/instance";
 import { DEFAULT_STAGES, DEFINITION_STAGE, HOLD_STAGE, MAX_STAGE, NEG_STREAK, STAGES, START_SHARE, STAGE_STREAK, STAGE_STUMBLE, catOpen, drawSyllogism, heldBack, itemKnown, itemOn, itemStageFor, levelAt, negationOffer, newCategories, normStages, pairStage, physical, poolAt, stagesOfLevels, toggleStage, topStage } from "../../src/domain";
 import { GUIDE_RIGHT, LOWER_CREDIT, NO_TERMS, STAGE_LONGER, STAGE_STREAK_MAX, exerciseAfter, freshRun, guideTurnsOff, guidedOn, movedUp, newShare, normExRuns, normGuided, normRun, restartRun, runAfter, runNeed, runWanted, setManual, stageOffer, stageProgress, stayLonger, termsOf } from "../../src/domain";
 import type { MissKind, StageRun } from "../../src/domain";
@@ -709,12 +710,12 @@ test("the real data: a newly opened category's definition shows with the questio
 
 test("a term is introduced before it is asked about: everyday questions first, then one stop at a time, a few questions apart", () => {
   const T0 = "2026-10-24T12:00:00.000Z";
-  expect(stageTerms(rix, 1)).toEqual(["form"]);
-  expect(stageTerms(rix, 2)).toEqual(["extf", "col", "shape", "vis"]);
+  expect(stageTerms(rix, 1), "each category's term, then the terms its labels name (matter)").toEqual(["form", "form:Matter"]);
+  expect(stageTerms(rix, 2)).toEqual(["extf", "extf:External matter", "col", "shape", "vis"]);
   expect(stageTerms(rix, 3)).toEqual(["snd", "odr", "tst", "tng"]);
   expect(stageTerms(rix, 7), "the upper stages open no categories").toEqual([]);
   let it = freshIntro();
-  expect([...unmet(rix, it, [1])]).toEqual(["form"]);
+  expect([...unmet(rix, it, [1])]).toEqual(["form", "form:Matter"]);
   expect(introduced(it, rix.CAT.form!)).toBe(false);
   expect(introduced(it, real.cats.find((c) => c.kind === "everyday")!), "an everyday category needs no stop").toBe(true);
   // a new learner: FIRST_AFTER everyday questions, then Form
@@ -725,20 +726,27 @@ test("a term is introduced before it is asked about: everyday questions first, t
   expect(nextStop(rix, it, [1], T0)).toEqual({ cat: "form", why: "new" });
   it = stopShown(it, "form", T0);
   expect(introduced(it, rix.CAT.form!)).toBe(true);
+  expect([...unmet(rix, it, [1])], "matter's labels wait for its own stop").toEqual(["form:Matter"]);
+  for (let i = 0; i < SPACING; i++) { expect(nextStop(rix, it, [1], T0)).toBeNull(); it = afterQuestion(it, [], T0); }
+  expect(nextStop(rix, it, [1], T0), "then matter, the same things by another definition").toEqual({ cat: "form:Matter", why: "new" });
+  it = stopShown(it, "form:Matter", T0);
   expect(unmet(rix, it, [1]).size).toBe(0);
   expect(nextStop(rix, it, [1], T0), "stage 1 has no other term").toBeNull();
   // stage 2 switched on: its first term at once, then one every SPACING questions, in the course's order
   it = stageUp(it);
-  expect([...unmet(rix, it, [1, 2])]).toEqual(["extf", "col", "shape", "vis"]);
+  expect([...unmet(rix, it, [1, 2])]).toEqual(["extf", "extf:External matter", "col", "shape", "vis"]);
   expect(nextStop(rix, it, [1, 2], T0)).toEqual({ cat: "extf", why: "new" });
   it = stopShown(it, "extf", T0);
   for (let i = 0; i < SPACING; i++) { expect(nextStop(rix, it, [1, 2], T0)).toBeNull(); it = afterQuestion(it, [], T0); }
+  expect(nextStop(rix, it, [1, 2], T0)).toEqual({ cat: "extf:External matter", why: "new" });
+  it = stopShown(it, "extf:External matter", T0);
+  for (let i = 0; i < SPACING; i++) it = afterQuestion(it, [], T0);
   expect(nextStop(rix, it, [1, 2], T0)).toEqual({ cat: "col", why: "new" });
-  expect(stageMet(rix, it, 2), "the next stage waits for all four").toBe(false);
+  expect(stageMet(rix, it, 2), "the next stage waits for all five").toBe(false);
   for (const c of ["col", "shape", "vis"]) it = stopShown(it, c, T0);
   expect(stageMet(rix, it, 2)).toBe(true);
   // stages are a set, not a ceiling: with 1 and 3 on, the terms of stage 2 come first, since its categories are open too
-  const gap = stopShown(stageUp(freshIntro()), "form", T0);
+  const gap = stopShown(stopShown(stageUp(freshIntro()), "form", T0), "form:Matter", T0);
   expect(nextStop(rix, stageUp(gap), [1, 3], T0)).toEqual({ cat: "extf", why: "new" });
 });
 
@@ -781,7 +789,8 @@ test("a stop shows where its term sits: every term above it, those whose own sto
 
 test("the questions grade the terms they use: right moves a term up, a mistake brings its stop back a few questions later", () => {
   const T0 = "2026-10-24T12:00:00.000Z";
-  let it = stopShown(stopShown(freshIntro(), "form", T0), "col", T0);
+  const withMatter = (x: ReturnType<typeof freshIntro>) => stopShown(x, "form:Matter", T0);
+  let it = stopShown(withMatter(stopShown(freshIntro(), "form", T0)), "col", T0);
   expect(it.terms.form!.box).toBe(1);
   it = afterQuestion(it, [{ cat: "form", ok: true }, { cat: "everyday-x", ok: true }], T0);
   expect(it.terms.form!.box).toBe(2);
@@ -812,7 +821,7 @@ test("the questions grade the terms they use: right moves a term up, a mistake b
   expect(sy.terms.ft!.box).toBe(2);
   expect(sy.terms.ft!.due).toBeUndefined();
   // the learner asks to see it again: after AGAIN_AFTER questions
-  let ag = showAgain(stopShown(freshIntro(), "form", T0), "form");
+  let ag = showAgain(withMatter(stopShown(freshIntro(), "form", T0)), "form");
   for (let i = 0; i < AGAIN_AFTER - 1; i++) ag = afterQuestion(ag, [], T0);
   expect(nextStop(rix, ag, [1], T0)).toBeNull();
   ag = afterQuestion(ag, [], T0);
@@ -824,7 +833,7 @@ test("the questions grade the terms they use: right moves a term up, a mistake b
   expect(againAsked(showAgain(asked, "form", false), "form")).toBe(false);
   expect(afterQuestion(asked, [{ cat: "form", ok: false }], T0).terms.form).toMatchObject({ due: 1 + MISS_AFTER, why: "miss" });
   // a settled term not met for GAP_DAYS comes back once, spaced like a new term
-  const old = { ...freshIntro(), terms: { form: { box: SETTLED, shows: 1, seen: "2026-10-01T12:00:00.000Z" } } };
+  const old = { ...freshIntro(), terms: { form: { box: SETTLED, shows: 1, seen: "2026-10-01T12:00:00.000Z" }, "form:Matter": { box: SETTLED, shows: 1, seen: "2026-10-15T12:00:00.000Z" } } };
   expect(nextStop(rix, { ...old, n: 9, next: 9 }, [1], "2026-10-10T12:00:00.000Z")).toBeNull();
   expect(nextStop(rix, { ...old, n: 9, next: 9 }, [1], "2026-10-16T12:00:00.000Z")).toEqual({ cat: "form", why: "gap" });
   expect(nextStop(rix, { ...old, n: 9, next: 12 }, [1], "2026-10-16T12:00:00.000Z"), "not before the spacing allows").toBeNull();
@@ -873,6 +882,76 @@ test("the real data: a category waits out of every exercise until its term has b
     const c = drawSyllogism(rix, { hist: [], recent: [], rng: seeded(s), stages: [1, 2, 3, 4], unmet: some });
     expect(some.has(c.catR) || some.has(c.catP), c.id).toBe(false);
   }
+});
+
+test("matter, external matter and internal matter: a stop and a segment each, after their form's, and a question that says their name grades them", () => {
+  const T0 = "2026-10-24T12:00:00.000Z";
+  // the data: each named term is mutually inclusive with its category's term, and said by the category's own words
+  const named = real.cats.flatMap((c) => (c.named ?? []).map((n) => ({ c, n })));
+  expect(named.map(({ c, n }) => c.id + ":" + n.term)).toEqual(["form:Matter", "extf:External matter", "intf:Internal matter"]);
+  for (const { c, n } of named) {
+    expect(real.terms[c.term!]!.mi, n.term).toContain(n.term);
+    for (const w of n.words) expect([...c.labels, ...(c.phrases ?? [])], n.term).toContain(w);
+  }
+  expect(stopCat(rix, "form:Matter")).toMatchObject({ id: "form:Matter", kind: "dudra", term: "Matter", labels: ["matter"], phrases: ["matter"], st: 1 });
+  expect(stopCat(rix, "intf:Internal matter")).toMatchObject({ term: "Internal matter", st: 5 });
+  expect(stopCat(rix, "form:Nothing"), "no such named term").toBeNull();
+  expect(stopCat(rix, "form"), "a category is its own").toBe(rix.CAT.form);
+  expect(stageTerms(rix, 5)).toEqual(["intf", "intf:Internal matter", "sp", "sense", "eye", "ment"]);
+  // the word a question says decides which of the two it grades, a negated one too
+  expect(["matter", "Matter", "non-(matter)", "non-matter", "forms", "physical things", null].map((w) => askedKey(rix, "form", w))).toEqual(["form:Matter", "form:Matter", "form:Matter", "form:Matter", "form", "form", "form"]);
+  expect(askedKey(rix, "extf", "external matter")).toBe("extf:External matter");
+  expect(askedKey(rix, "col", "colors")).toBe("col");
+  const everyday = real.cats.find((c) => c.kind === "everyday")!.id;
+  expect(pairGraded(rix, ["form", everyday], false, ["matter", "x"]), "a pair that says matter grades matter").toEqual([{ cat: "form:Matter", ok: false }]);
+  expect(pairGraded(rix, ["form", "form"], true, ["forms", "matter"]), "forms and matter: both, when right").toEqual([{ cat: "form", ok: true }, { cat: "form:Matter", ok: true }]);
+  expect(pairGraded(rix, ["form", "form"], false, ["forms", "matter"]), "two terms: a miss may be about either").toEqual([]);
+  // the words: matter waits for its stop, then while the stage waits for it the questions say it
+  const labels = rix.CAT.form!.labels;
+  expect(wordsFor(rix, "form", labels, new Set(["form:Matter"]))).toEqual(["forms", "physical things", "things made of atoms"]);
+  expect(wordsFor(rix, "form", labels, new Set(), new Set(["form:Matter"]))).toEqual(["matter"]);
+  expect(wordsFor(rix, "form", labels, new Set(), new Set(["form"])), "form open: its own words").toEqual(["forms", "physical things", "things made of atoms"]);
+  expect(wordsFor(rix, "form", labels, new Set(), new Set(["form", "form:Matter"]))).toEqual(labels);
+  expect(wordsFor(rix, "col", rix.CAT.col!.labels, new Set(["form:Matter"]), new Set(["col"])), "a category without named terms").toEqual(rix.CAT.col!.labels);
+  // Relations: no "matter" before its stop, and only "matter" for a form while matter is open and form is right
+  const formMet = stopShown(freshIntro(), "form", T0), before = unmet(rix, formMet, [1]);
+  for (let s = 1; s <= 120; s++) {
+    const p = nextPair(rix, realPool, { hist: [], recent: [], rng: seeded(s), now: () => 1_700_000_000_000, stages: [1], unmet: before });
+    expect([p.a, p.b], p.a + " / " + p.b).not.toContain("matter");
+  }
+  let said = 0, forms = 0;
+  for (let s = 1; s <= 120; s++) {
+    const p = nextPair(rix, realPool, { hist: [], recent: [], rng: seeded(s), now: () => 1_700_000_000_000, stages: [1], unmet: new Set(), open: new Set(["form:Matter"]) });
+    if (p.catA !== "form" && p.catB !== "form") continue;
+    forms++; if (p.a === "matter" || p.b === "matter") said++;
+    if (p.catA === "form" && p.catB === "form") expect([p.a, p.b].sort()[0], "forms and matter, never matter twice").not.toBe([p.a, p.b].sort()[1]);
+  }
+  expect(forms, "the stage leans to form's pairs").toBe(120);
+  expect(said).toBe(forms);
+  // internal forms and internal matter, a pair of two names, waits while one of them has not come
+  const inner = new Set(["intf:Internal matter"]);
+  for (let s = 1; s <= 200; s++) {
+    const p = nextPair(rix, realPool, { hist: [], recent: [], rng: seeded(s), now: () => 1_700_000_000_000, stages: [1, 2, 3, 4, 5], unmet: inner });
+    expect(p.catA === "intf" && p.catB === "intf", p.a + " / " + p.b).toBe(false);
+    expect([p.a, p.b]).not.toContain("internal matter");
+  }
+  // Syllogisms and Find an instance: no "matter" before its stop
+  for (let s = 1; s <= 60; s++) {
+    const c = drawSyllogism(rix, { hist: [], recent: [], rng: seeded(s), stages: [1, 2, 3, 4], unmet: new Set(["form:Matter", "extf:External matter"]) });
+    expect([c.reason, c.predicate], c.id).not.toContain("matter");
+    expect([c.reason, c.predicate], c.id).not.toContain("external matter");
+  }
+  for (let s = 1; s <= 40; s++) expect(instanceQuestion(rix, ["form", "red"], seeded(s), [1], { unmet: new Set(["form:Matter"]) }).labels).not.toContain("matter");
+  const q = instanceQuestion(rix, ["form", "red"], seeded(1), [1], { open: new Set(["form:Matter"]) });
+  expect(q.labels[q.cats.indexOf("form")]).toBe("matter");
+  expect(instanceGraded(q, { v: "ok" }, false, rix).map((g) => g.cat).sort(), "Find an instance grades matter").toEqual(["form:Matter", "red"]);
+  // the stop: matter under functional thing, its divisions as they come; the list of terms met has it after form
+  let it = stopShown(stopShown(freshIntro(), "form", T0), "form:Matter", T0);
+  expect(termTree(rix, it, "Matter")).toEqual({ up: [{ name: "Existent", met: true }, { name: "Functional thing", met: false }], kids: [], more: true });
+  it = stopShown(it, "extf:External matter", T0);
+  expect(termTree(rix, it, "Matter")).toMatchObject({ kids: ["External matter"], more: true });
+  expect(termTree(rix, it, "Form").kids, "form's own divisions").toEqual([]);
+  expect(metTerms(rix, it).map((c) => c.term)).toEqual(["Form", "Matter", "External matter"]);
 });
 
 test("the negation track is offered step by step: one side after plain pairs in a row, both sides after negated ones", () => {
@@ -971,29 +1050,29 @@ test("a stage with new terms is reached with the answer that makes the last answ
   const terms = (it: It) => termsOf(stageMarks(rix, it, 2));
   const offer = (it: It, run = freshRun()) => stageOffer(run, on, terms(it), "words");
   let it = stageUp(stopShown(freshIntro(), "form", T0));
-  expect(marks(it), "before their stops, in the course's order").toEqual(["extf:wait", "col:wait", "shape:wait", "vis:wait"]);
+  expect(marks(it), "before their stops, in the course's order").toEqual(["extf:wait", "extf:External matter:wait", "col:wait", "shape:wait", "vis:wait"]);
   it = stopShown(stopShown(it, "shape", T0), "col", T0);
-  expect(marks(it), "the ones met before the ones to come").toEqual(["col:met", "shape:met", "extf:wait", "vis:wait"]);
+  expect(marks(it), "the ones met before the ones to come").toEqual(["col:met", "shape:met", "extf:wait", "extf:External matter:wait", "vis:wait"]);
   expect([...openTerms(rix, it, on)], "the draw leans to the terms met and not right yet").toEqual(["col", "shape"]);
   it = afterQuestion(it, [{ cat: "shape", ok: false }], T0);
   it = afterQuestion(it, [{ cat: "col", ok: true }], T0);
-  expect(marks(it), "the ring's order is the order of the first answers").toEqual(["shape:miss", "col:ok!", "extf:wait", "vis:wait"]);
+  expect(marks(it), "the ring's order is the order of the first answers").toEqual(["shape:miss", "col:ok!", "extf:wait", "extf:External matter:wait", "vis:wait"]);
   expect([...openTerms(rix, it, on)]).toEqual(["shape"]);
   it = afterQuestion(it, [{ cat: "col", ok: false }], T0);
   expect(termMark(it, "col"), "a miss after a right answer takes the mark back").toBe("slip");
   expect(termMark(afterQuestion(stopShown(it, "vis", T0), [{ cat: "vis", ok: false }], T0, false), "vis"), "a miss where misses are about the form (Syllogisms) leaves a term not asked").toBe("met");
-  it = stopShown(stopShown(it, "extf", T0), "vis", T0);
-  it = afterQuestion(it, [{ cat: "extf", ok: true }, { cat: "vis", ok: true }, { cat: "shape", ok: true }], T0);
-  expect(marks(it)).toEqual(["shape:ok!", "col:slip", "extf:ok!", "vis:ok!"]);
+  it = stopShown(stopShown(stopShown(it, "extf", T0), "extf:External matter", T0), "vis", T0);
+  it = afterQuestion(it, [{ cat: "extf", ok: true }, { cat: "extf:External matter", ok: true }, { cat: "vis", ok: true }, { cat: "shape", ok: true }], T0);
+  expect(marks(it)).toEqual(["shape:ok!", "col:slip", "extf:ok!", "extf:External matter:ok!", "vis:ok!"]);
   expect(offer(it, { up: 9, down: 0 }), "however long the run").toBeNull();
   it = afterQuestion(it, [{ cat: "col", ok: true }], T0);
-  expect(terms(it)).toEqual({ n: 4, right: true, just: true });
+  expect(terms(it)).toEqual({ n: 5, right: true, just: true });
   expect(offer(it), "the answer that completes the stage brings the next one, with no run on top").toEqual({ kind: "up", stage: 3 });
   expect(openTerms(rix, it, on).size).toBe(0);
   expect(stageMarks(rix, it, 7), "stages 7 to 9 add no terms: the run moves them").toEqual([]);
   // a stage whose terms were right before (the learner stayed longer, or came back down to it): a run of right answers, as on a stage without
   const later = afterQuestion(it, [{ cat: "form", ok: true }], T0);
-  expect(terms(later)).toEqual({ n: 4, right: true, just: false });
+  expect(terms(later)).toEqual({ n: 5, right: true, just: false });
   expect(runWanted(freshRun(), terms(later))).toBe(STAGE_STREAK);
   expect(offer(later, { up: STAGE_STREAK - 1, down: 0 })).toBeNull();
   expect(offer(later, { up: STAGE_STREAK, down: 0 })).toEqual({ kind: "up", stage: 3 });
@@ -1003,10 +1082,10 @@ test("a stage with new terms is reached with the answer that makes the last answ
   expect(stageOffer({ up: 0, down: 0, manual: true }, on, terms(it), "words"), "the learner moves the stages").toBeNull();
   // the ring: a segment per term, full when this answer completed them; the run once the terms were right before
   const half = afterQuestion(it, [{ cat: "col", ok: false }, { cat: "vis", ok: false }], T0);
-  expect(stageProgress(freshRun(), on, stageMarks(rix, half, 2))).toMatchObject({ top: 2, next: 3, shows: "terms", frac: 0.5, full: false });
+  expect(stageProgress(freshRun(), on, stageMarks(rix, half, 2))).toMatchObject({ top: 2, next: 3, shows: "terms", frac: 0.6, full: false });
   expect(stageProgress(freshRun(), on, stageMarks(rix, it, 2))).toMatchObject({ shows: "terms", need: 0, frac: 1, full: true });
   expect(stageProgress({ up: 2, down: 0 }, on, stageMarks(rix, later, 2))).toMatchObject({ shows: "run", need: STAGE_STREAK, frac: 0.4, full: false });
-  expect(stageProgress({ ...longer, up: 2 }, on, stageMarks(rix, half, 2)), "a miss: the terms again").toMatchObject({ shows: "terms", frac: 0.5, full: false });
+  expect(stageProgress({ ...longer, up: 2 }, on, stageMarks(rix, half, 2)), "a miss: the terms again").toMatchObject({ shows: "terms", frac: 0.6, full: false });
   // the record keeps the order and the answer that made each right
   expect(normIntro(JSON.stringify(it))).toEqual(it);
   expect(normIntro({ n: 3, terms: { col: { box: 1, shows: 1, first: -1, won: "2" } } }).terms.col).toEqual({ box: 1, shows: 1 });
