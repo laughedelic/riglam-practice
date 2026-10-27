@@ -86,7 +86,7 @@ test("on the Path the stop is a station of its own, with the term and where it s
   await expect(stop.locator(".cs")).toHaveText("Form");
   // English only until Settings > Languages says more
   await expect(stop.locator(".tstop-names")).toHaveCount(0);
-  await expect(stop.locator(".tstop-sech")).toHaveText(withCourse ? ["Definition", "Categories"] : ["Categories"]);
+  await expect(stop.locator(".tstop-sech")).toHaveText(withCourse ? ["Definition", "Categories", "Examples"] : ["Categories", "Examples"]); // the examples are the practice list's: no course data needed
   if (withCourse) await expect(stop.locator(".pdbody").first()).toBeVisible();
   // one optional mark: the term comes again in a few questions, and a second tap takes that back
   const again = stop.getByRole("button", { name: "Show it again later" });
@@ -223,16 +223,27 @@ test("a term whose longest word does not fit its line shrinks as a whole, and no
   await expect(term).toHaveAttribute("style", /font-size/);
 });
 
-test("the examples on a stop list the thing and its stage, without the status of the example", async ({ page }) => {
+test("the examples on a stop are everyday things of the practice list, with their stage and without the status of an example", async ({ page }) => {
   await page.addInitScript(fresh);
   const items = [{ n: "a vemo mountain", cls: ["Form"], lv: 1, st: 1, cf: "confirmed", s: [] }, { n: "a kipa lake", cls: ["Form"], lv: 1, st: 2, cf: "textbook", s: [] }];
   await serveCourse(page, dataKey, { stub: true, examples: { version: "e1", part: { format: "riglam-examples-device", version: 2, sources: {}, items } } });
   const stop = await toStop(page, true);
   await expect(stop.locator(".tstop-sech")).toHaveText(withCourse ? ["Definition", "Categories", "Examples"] : ["Categories", "Examples"]);
   const rows = stop.locator(".pdex.bare .pdexr");
-  await expect(rows).toHaveCount(2);
-  await expect(rows.nth(0)).toContainText("a vemo mountain");
-  await expect(rows.nth(0)).toContainText("stage 1");
-  await expect(rows.nth(1)).toContainText("stage 2");
-  await expect(stop).not.toContainText(/confirmed|textbook/i);
+  // the list has three plain things of Form, so the reference examples (which only fill what the list lacks) are not shown
+  await expect(rows).toHaveCount(3);
+  await expect(rows.nth(0)).toContainText("blood");
+  await expect(rows.nth(1)).toContainText("a wooden chair");
+  await expect(rows.nth(2)).toContainText("your hand");
+  for (let i = 0; i < 3; i++) await expect(rows.nth(i)).toContainText("stage 1");
+  await expect(stop).not.toContainText(/vemo|kipa|confirmed|textbook/i);
+});
+
+test("a stop shows examples from the practice list on a device that has none of the course's examples", async ({ page }) => {
+  await page.addInitScript(fresh);
+  const stop = await toStop(page);
+  const rows = stop.locator(".pdex.bare .pdexr");
+  await expect(rows).toHaveCount(3);
+  await expect(rows.first()).toContainText("blood");
+  await expect(rows.locator("button")).toHaveCount(0); // a list example has no reason to tap
 });

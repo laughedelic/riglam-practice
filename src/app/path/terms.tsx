@@ -10,7 +10,8 @@ import { isA } from "../practice/screen.js";
 import { defParts, hasDef } from "../practice/terms.js";
 import { termTags } from "../practice/stops.ts";
 import { termNames } from "../../domain/languages.ts";
-import { exampleStage, examplesFor } from "../../domain/reference.ts";
+import { cardExamples } from "../../domain/card-examples.ts";
+import type { CardExample } from "../../domain/card-examples.ts";
 import { render } from "../shell/render.js";
 
 const markOf = (id: string) => document.querySelector<HTMLElement>('#path .dterm[data-dt="' + CSS.escape(id) + '"]');
@@ -71,16 +72,17 @@ function ParentMark({ n }: { n: string }) {
 }
 const endp = (s: string) => s.replace(/[.;,\s]+$/, "") + ".";
 /**
- * Examples of the term, on its own stop under a heading of its own: a few, the plainest first, each with its stage; one says why it is a good example.
+ * Examples of the term, on its own stop under a heading of its own: a few, each with its stage; a reference example says why it is a good one.
+ * They are everyday things of the practice list where it has them (`cardExamples`), so a device without the course's examples has them too.
  * The card under a question (Def) has none: they are for the stop. How well an example is confirmed is the data's bookkeeping, not something to teach.
  */
-export const termExamples = (n: string) => (state.EX ? examplesFor(state as unknown as DataIndex, state.EX.items, n) : []);
+export const termExamples = (n: string): CardExample[] => cardExamples(state as unknown as DataIndex, state.EX ? state.EX.items : null, n);
 export function Examples({ n }: { n: string }) {
   const list = termExamples(n); if (!list.length) return null;
   const open = state.ui && state.ui.dex;
   return <div class="pdex bare"><ul>{list.map((x) => {
     const key = n + "|" + x.n, on = open === key;
-    const head = <><span class="pdexn">{x.n}</span><small>{"stage " + exampleStage(x)}</small></>;
+    const head = <><span class="pdexn">{x.n}</span><small>{"stage " + x.st}</small></>;
     if (!x.gloss) return <li><div class="pdexr">{head}</div></li>;
     const toggle = (e: Event) => { e.stopPropagation(); state.ui!.dex = on ? null : key; render(); };
     return <li><button type="button" class={"pdexr pdexb" + (on ? " on" : "")} aria-expanded={on ? "true" : "false"} onClick={toggle}>{head}</button>
