@@ -101,6 +101,9 @@ export function inAll(ix: DataIndex, it: Item, cats: readonly string[]): boolean
 
 /** The key of a set of categories, the same in any order. */
 export const instanceKey = (cats: readonly string[]): string => [...cats].sort().join("|");
+// the key of each set of the pool, made once: a draw looks at every set of a kind
+const keys = new WeakMap<readonly string[], string>();
+const keyOf = (set: readonly string[]) => { let k = keys.get(set); if (k === undefined) keys.set(set, (k = instanceKey(set))); return k; };
 
 /** The stage at which the learner knows the item as a thing in the set: its own, or the hold's for a person or a permanent thing when one of them is physical, as in the pairs (`itemStageFor`). */
 export function itemStageIn(ix: DataIndex, it: Item, set: readonly string[]): number {
@@ -253,7 +256,7 @@ export function drawInstance(ix: DataIndex, draw: InstanceDraw): InstanceQuestio
 }
 
 function askSet(ix: DataIndex, draw: InstanceDraw, unmet?: Unmet, open?: ReadonlySet<string>): InstanceQuestion | null {
-  const pool = poolOf(ix), rng = draw.rng, fresh = (s: { set: readonly string[] }) => !draw.avoid?.has(instanceKey(s.set));
+  const pool = poolOf(ix), rng = draw.rng, fresh = (s: { set: readonly string[] }) => !draw.avoid?.has(keyOf(s.set));
   const top = draw.stages ? topStage(draw.stages) : Infinity;
   const lean = open && termCats(open);
   const at = <T extends Staged>(sets: readonly T[]) => sets.filter((s) => s.st <= top && !(unmet?.size && s.set.some((c) => unmet.has(c))) && (!lean || s.set.some((c) => lean.has(c))));
