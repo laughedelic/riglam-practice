@@ -87,12 +87,8 @@
 .pa .tree .ed{font-family:var(--main-f); font-size:12.5px; fill:var(--ink2)}
 .pa .tree .ed.pl{font-family:var(--mono); font-size:10px; letter-spacing:.06em; fill:var(--ink3)}
 .pa .tree .ed.cont{font-family:var(--mono); font-size:10px; fill:var(--gold-t)}
-.pa .tree .bn{font-family:var(--main-f); font-size:24px; font-weight:600; fill:var(--ink)}
-.pa .tree .bn.big{font-size:28px}
-.pa .tree .bn.caps{font-size:21px; font-weight:600; letter-spacing:.12em}
-.pa .tree .bn.big.caps{font-size:21.5px; letter-spacing:0}
-.pa .tree .bp{font-family:var(--main-f); font-style:italic; font-weight:400; font-size:22px; fill:var(--ink2); letter-spacing:0}
-.pa .tree .bp.small{font-size:21px}
+.pa .tree .bn{font-family:var(--main-f); font-size:28px; font-weight:600; fill:var(--ink)}
+.pa .tree .bp{font-family:var(--main-f); font-style:italic; font-weight:400; font-size:21px; fill:var(--ink2)}
 .pa .tree .hit{fill:transparent; cursor:pointer}
 .pa .tree a:focus-visible .nd,.pa .tree [tabindex]:focus-visible .nd{stroke:var(--ink); stroke-width:2.6}
 .pa .tree a:focus{outline:none}
