@@ -171,11 +171,19 @@ export function placeQuestionRows(ix: DataIndex, ex: Pick<Example, "ne"> & Parti
   return shuffle([...picked, ...chosen], rng);
 }
 
+/** The rows with one "no" row, not on an open term, replaced by a "no" row on an open term from `all`; as they are when either is missing. */
+function withOpenRow(rows: readonly PlaceRow[], all: readonly PlaceRow[], open: ReadonlySet<string>, rng: () => number): PlaceRow[] {
+  const add = all.filter((r) => !r.answer && open.has(r.cat)), out = rows.flatMap((r, i) => (!r.answer && !open.has(r.cat) ? [i] : []));
+  if (!add.length || !out.length) return [...rows];
+  const at = out[Math.floor(rng() * out.length)]!, row = add[Math.floor(rng() * add.length)]!;
+  return rows.map((r, i) => (i === at ? row : r));
+}
+
 /** The most rows of a question that are everyday categories ("wooden things"): any while the course categories are few (stage 1), from stage 2 on a third, since the rows then teach the terms. */
 export const plainRows = (top: number, size = 6): number => (top >= 2 ? Math.floor(size / 3) : size);
 
-/** The share of the "no" rows that are near misses: few while the categories are new (up to stage 3), half from the established bases on. */
-export const nearShare = (top: number): number => (top <= 3 ? 0.25 : 0.5);
+/** The share of the "no" rows that are near misses: few while the categories are new (up to stage 4), half from the established bases on. */
+export const nearShare = (top: number): number => (top <= 4 ? 0.25 : 0.5);
 
 const key = (n: string) => stripDet(spelled(n));
 
@@ -199,7 +207,7 @@ export const thingRows = (ix: DataIndex, t: PlaceThing, on: Stages, unmet?: Unme
 /**
  * The next thing to place, from `placeThings` (the reference examples are optional), for which the data settles enough categories
  * (`placeQuestionRows`). A stage is drawn first, each stage that still has things as likely as the others (or the highest of them `newShare` of the time), then a thing of it
- * that can be asked (those that cannot are passed over without changing the stage); names in `avoid` wait while others remain. Stages outside 1 to 9 count for nothing, and none left means the default. Null when nothing qualifies.
+ * that can be asked (those that cannot are passed over without changing the stage); names in `avoid` wait while others remain. Stages outside 1 to 11 count for nothing, and none left means the default. Null when nothing qualifies.
  */
 export function drawPlace(ix: DataIndex, examples: readonly Example[] | null, draw: PlaceDraw): PlaceQuestion | null {
   const on = normStages(draw.stages), near = nearShare(topStage(on)), high = topStage(on);
@@ -215,7 +223,8 @@ export function drawPlace(ix: DataIndex, examples: readonly Example[] | null, dr
       // examples cannot be asked would otherwise lose its draws to the stage below); a stage with nothing to ask is left out
       let of = left.filter((t) => t.st === stage);
       // the highest stage waits for the last answer on each of its new terms to be right: its things are those that can be asked about one that is not yet
-      const open = stage === high && draw.open?.size ? draw.open : null, asks = (rows: readonly PlaceRow[]) => rows.some((r) => open!.has(r.cat));
+      // (the things of the highest stage that has any: the elements bring terms and no things, so the things of the senses are asked about them)
+      const open = stage === top && draw.open?.size ? draw.open : null, asks = (rows: readonly PlaceRow[]) => rows.some((r) => open!.has(r.cat));
       if (open) { const lean = of.filter((t) => asks(thingRows(ix, t, on, draw.unmet))); if (lean.length) of = lean; }
       while (of.length) {
         const thing = of[Math.floor(draw.rng() * of.length)], all = thingRows(ix, thing, on, draw.unmet);
@@ -223,6 +232,8 @@ export function drawPlace(ix: DataIndex, examples: readonly Example[] | null, dr
         let rows = pick();
         // the rows are a sample of the thing's: a few more tries for one with an open term in it
         for (let k = 0; open && rows && !asks(rows) && asks(all) && k < 6; k++) rows = pick() ?? rows;
+        // still none (a stage with many terms leaves each a small share of the rows): a "no" row gives way to one on an open term
+        if (open && rows && !asks(rows)) rows = withOpenRow(rows, all, open, draw.rng);
         if (rows) return { thing, rows };
         of = of.filter((t) => t !== thing);
       }

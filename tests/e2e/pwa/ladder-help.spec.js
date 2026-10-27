@@ -116,13 +116,13 @@ test("on the Path five right relations at the highest stage bring the next stage
   await expect(page.locator("#path .sechead")).toContainText("New stage");
   await expect(page.locator("#path .sechead")).toContainText("1 \u2192 2");
   await expect(up.locator(".cs"), "the stage, by its number").toHaveText("Stage 2 reached");
-  const rings = up.getByRole("group", { name: "Stage 2 of 9" });
-  await expect(rings.locator(".tup-rg"), "the nine stages as rings").toHaveCount(9);
+  const rings = up.getByRole("group", { name: "Stage 2 of 11" });
+  await expect(rings.locator(".tup-rg"), "the eleven stages as rings").toHaveCount(11);
   await expect(rings.locator(".tup-rg.now")).toHaveText("2");
   await expect(rings.locator(".tup-rg.done")).toHaveCount(1);
-  // every term is settled on a test device: a stage passed keeps a green segment for each of its terms (stage 1: form and matter); stages 7 to 9 have none
+  // every term is settled on a test device: a stage passed keeps a green segment for each of its terms (stage 1: form and matter); stages 9 to 11 have none
   expect(await rings.locator(".tup-rg").evaluateAll((a) => a.map((r) => [...r.querySelectorAll(".tseg")].map((x) => x.getAttribute("class")).join()))).toEqual([
-    ...[2, 5, 4, 4, 6, 3].map((n) => Array(n).fill("tseg ok").join()), ...Array(3).fill("tseg wait")]);
+    ...[2, 5, 4, 6, 4, 3, 7, 3].map((n) => Array(n).fill("tseg ok").join()), ...Array(3).fill("tseg wait")]);
   // the new stage has a halo of its own, and no other has
   await expect(rings.locator(".tup-rg.now .halo")).toHaveCount(1);
   await expect(rings.locator(".tup-rg:not(.now) .halo")).toHaveCount(0);
@@ -132,15 +132,15 @@ test("on the Path five right relations at the highest stage bring the next stage
   await expect(up.locator(".tup-lead")).toContainText("Colors and shapes as qualities of things");
   // a tap on a ring shows its terms in a tooltip over the page, which stays where it is; a second tap on the ring, a tap elsewhere or Escape closes it
   const lead = await up.locator(".tup-lead").boundingBox();
-  await rings.locator(".tup-rg").nth(4).click();
-  await expect(up.locator(".tup-rgp .tterms li .ttn")).toHaveText(["Internal form", "Internal matter", "Sense power", "Sense consciousness", "Eye consciousness", "Mental consciousness"]);
+  await rings.locator(".tup-rg").nth(6).click();
+  await expect(up.locator(".tup-rgp .tterms li .ttn")).toHaveText(["Sense consciousness", "Eye consciousness", "Ear consciousness", "Nose consciousness", "Tongue consciousness", "Body consciousness", "Mental consciousness"]);
   expect(await up.locator(".tup-rgp").evaluate((e) => getComputedStyle(e).position), "over the page, not in it").toBe("absolute");
   expect((await up.locator(".tup-lead").boundingBox()).y, "the text under the row does not move").toBe(lead.y);
-  await expect(rings.locator(".tup-rg").nth(4)).toHaveAttribute("aria-expanded", "true");
-  await rings.locator(".tup-rg").nth(7).click();
-  await expect(up.locator(".tup-rgp")).toContainText("Stage 8");
+  await expect(rings.locator(".tup-rg").nth(6)).toHaveAttribute("aria-expanded", "true");
+  await rings.locator(".tup-rg").nth(9).click();
+  await expect(up.locator(".tup-rgp")).toContainText("Stage 10");
   await expect(up.locator(".tup-rgp")).toContainText("It introduces no new terms.");
-  await rings.locator(".tup-rg").nth(7).click();
+  await rings.locator(".tup-rg").nth(9).click();
   await expect(up.locator(".tup-rgp")).toHaveCount(0);
   await rings.locator(".tup-rg").nth(2).click();
   await expect(up.locator(".tup-rgp")).toHaveCount(1);
@@ -201,15 +201,15 @@ test("on the Path the stage station shows a ring for each stage with a segment f
   await fiveRight(page, () => localStorage.setItem("rd-terms", JSON.stringify({ n: 12, next: 99, terms: {
     form: { box: 3, shows: 1 }, "form:Matter": { box: 3, shows: 1 }, odr: { box: 2, shows: 1, first: 1, won: 1 }, snd: { box: 1, shows: 2, first: 2 } } })));
   await station(page).click();
-  const rings = page.locator("#path .tstage").getByRole("group", { name: "Stage 2 of 9" }).locator(".tup-rg");
+  const rings = page.locator("#path .tstage").getByRole("group", { name: "Stage 2 of 11" }).locator(".tup-rg");
   const cls = (i) => rings.nth(i).locator(".tseg").evaluateAll((a) => a.map((x) => x.getAttribute("class").replace("tseg ", "")));
   expect(await cls(0), "Form and Matter: right").toEqual(["ok", "ok"]);
   expect(await cls(1), "stage 2, the one coming in: its five terms still to come").toEqual(["wait", "wait", "wait", "wait", "wait"]);
   expect(await cls(2), "stage 3").toEqual(["ok", "miss", "wait", "wait"]);
   expect(await cls(5), "stage 6: three terms").toEqual(["wait", "wait", "wait"]);
-  expect(await cls(8), "stages 7 to 9 have no terms: one plain circle").toEqual(["wait"]);
+  expect(await cls(8), "stages 9 to 11 have no terms: one plain circle").toEqual(["wait"]);
   await expect(rings.nth(2)).toHaveAccessibleName("Stage 3, 1 of 4 new terms answered right");
-  await expect(rings.nth(7)).toHaveAccessibleName("Stage 8, no new terms");
+  await expect(rings.nth(9)).toHaveAccessibleName("Stage 10, no new terms");
   await rings.nth(2).click();
   await expect(page.locator("#path .tup-rgp .tterms li .ttn")).toHaveText(["Odor source", "Sound source", "Taste source", "Tangible object source"]);
   expect(await page.locator("#path .tup-rgp .tmk").evaluateAll((a) => a.map((x) => x.getAttribute("class")))).toEqual(["tmk ok", "tmk miss", "tmk wait", "tmk wait"]);

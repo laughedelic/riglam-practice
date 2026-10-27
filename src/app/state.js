@@ -5,6 +5,7 @@ import { normLevels } from "../ai-shared/examples.ts";
 import { FIND_RELS } from "../domain/find.ts";
 import { normIntro } from "../domain/intro.ts";
 import { normLangs } from "../domain/languages.ts";
+import { EVERYDAY_STAGES } from "../domain/syllogism.ts";
 import { DEFAULT_STAGES, freshRun, normExRuns, normGuided, normRun, normStages, stagesOfLevels, topStage } from "../domain/stages.ts";
 
 /** @type {import("./types.ts").State} */
@@ -159,7 +160,7 @@ try{ state.stageRun=normRun(localStorage.getItem("rd-stage-run")); state.exRuns=
 // the course terms met at their stops, part of the progression (practice/progress.ts); without a record the terms are met one at a time from the start
 try{ const t=localStorage.getItem("rd-terms"); if(t!==null) state.intro=normIntro(t); }catch(e){}
 // A device used before the ladder keeps what it had: its levels of the reference examples (also ones an import brings), or level 1, their default, become
-// the stages up to that level's (level 1 is stage 6), so its pairs and things stay as they were. `rd-ladder` marks a device that has started with the
+// the stages up to that level's (level 1 is stage 8), so its pairs and things stay as they were. `rd-ladder` marks a device that has started with the
 // ladder, so that its own settings later do not make it look like an old one; a new device writes no stages until it chooses, and an import can bring them.
 try{
   const v=localStorage.getItem("rd-stages");
@@ -175,7 +176,7 @@ try{
   state.syllogismEveryday=localStorage.getItem("rd-syllogism-level")==="1";
 }catch(e){}
 // the structure under a syllogism is on for a beginner (the stages of everyday things) until the device chooses
-try{ if(localStorage.getItem("rd-syllogism-wording")==="formal") state.syllogismWording="formal"; const g=localStorage.getItem("rd-syllogism-guide"); state.syllogismGuide=g!==null?g==="1":topStage(state.stages)<=3; }catch(e){}
+try{ if(localStorage.getItem("rd-syllogism-wording")==="formal") state.syllogismWording="formal"; const g=localStorage.getItem("rd-syllogism-guide"); state.syllogismGuide=g!==null?g==="1":topStage(state.stages)<=EVERYDAY_STAGES; }catch(e){}
 try{ if(localStorage.getItem("rd-ab")==="0") state.showAB=false; if(localStorage.getItem("rd-full")==="0") state.fullPh=false; }catch(e){}
 try{
   const v=+localStorage.getItem("rd-timer"); if(v>=2000&&v<=120000) state.timerMs=v;

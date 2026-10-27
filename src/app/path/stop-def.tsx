@@ -1,10 +1,12 @@
 // What a course term's stop shows under its heading (path/stop.tsx): the term, sized to fit its line, with its names in the course's languages, then
 // the sections the learner reads one after another, each a small stop on the line: the definition, where the term sits (a tree of the terms above it
-// and the divisions met so far, with a sign of those to come), and examples. A section whose content is missing (no definition without the Magic Key,
+// and the divisions met so far, with a sign of those to come, and the divisions that have no stop of their own, each with its definition folded), and examples. A section whose content is missing (no definition without the Magic Key,
 // no division in the course) is left out.
 import type { ComponentChildren } from "preact";
-import { useLayoutEffect, useRef } from "preact/hooks";
+import { useLayoutEffect, useRef, useState } from "preact/hooks";
+import { state } from "../state.js";
 import { stopTree } from "../practice/stops.ts";
+import { hasDef } from "../practice/terms.js";
 import type { Stop } from "../../domain/intro.ts";
 import { DefText, Examples, sameAsText, termExamples } from "./terms.tsx";
 import { D, St } from "./ui.tsx";
@@ -49,12 +51,22 @@ function Section({ label, children }: { label: string; children: ComponentChildr
   </>;
 }
 
+/** A division of the term that has no stop of its own (primary color under color): its name, and a tap shows its definition under it, where this device can read one. */
+function Part({ n, lv, def }: { n: string; lv: number; def: boolean }) {
+  const [open, setOpen] = useState(false), can = def && !!state.DATA && hasDef(state.DATA.terms[n]);
+  return <li class="kid part" style={{ "--lv": lv } as never}>
+    {can ? <button type="button" class="tpartb" aria-expanded={open ? "true" : "false"} onClick={() => setOpen(!open)}>{n}</button> : n}
+    {can && open ? <div class="tpartd"><DefText term={n} /></div> : null}
+  </li>;
+}
+
 /**
  * Where the term sits: the terms mutually inclusive with it (hidden phenomenon is existent, which has no place of its own in the tree), then the terms
- * above it, the broadest first, down to the term and the divisions of it that have come; those whose stop has not come are gray.
+ * above it, the broadest first, down to the term and the divisions of it that have come; those whose stop has not come are gray. The divisions without
+ * a stop follow, named from the start.
  */
-function Tree({ s, name }: { s: Stop; name: string }) {
-  const { up, kids, more } = stopTree(s), same = sameAsText(name), tree = up.length > 0 || kids.length > 0 || more;
+function Tree({ s, name, def }: { s: Stop; name: string; def: boolean }) {
+  const { up, kids, more, parts } = stopTree(s), same = sameAsText(name), tree = up.length > 0 || kids.length > 0 || more || parts.length > 0;
   if (!tree && !same) return null;
   const lv = (n: number) => ({ "--lv": n }) as never;
   return <Section label="Categories">
@@ -63,6 +75,7 @@ function Tree({ s, name }: { s: Stop; name: string }) {
       {up.map((t, i) => <li class={t.met ? "" : "gray"} style={lv(i)}>{t.name}{t.met ? null : <em>later</em>}</li>)}
       <li class="me" aria-current="true" style={lv(up.length)}>{name}</li>
       {kids.map((n) => <li class="kid" style={lv(up.length + 1)}>{n}</li>)}
+      {parts.map((n) => <Part n={n} lv={up.length + 1} def={def} />)}
       {more ? <li class="kid gray" style={lv(up.length + 1)}><span aria-hidden="true">{"…"}</span><span class="vh">more divisions come later</span><em>later</em></li> : null}
     </ul> : null}
   </Section>;
@@ -72,7 +85,7 @@ function Tree({ s, name }: { s: Stop; name: string }) {
 export function StopSections({ s, name, def }: { s: Stop; name: string; def: boolean }) {
   return <>
     {def ? <Section label="Definition"><DefText term={name} /></Section> : null}
-    <Tree s={s} name={name} />
+    <Tree s={s} name={name} def={def} />
     {termExamples(name).length ? <Section label="Examples"><Examples n={name} /></Section> : null}
   </>;
 }

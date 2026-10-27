@@ -14,7 +14,7 @@ const seed = (page, left, met = []) => page.addInitScript(([settled, left, met])
   const terms = JSON.parse(settled).terms;
   for (const id of left) delete terms[id];
   for (const id of met) terms[id] = { box: 1, shows: 1, at: 1e6 };
-  localStorage.setItem("rd-stages", "1,2,3,4,5,6,7,8,9"); localStorage.setItem("rd-terms", JSON.stringify({ n: 3, next: 3, terms }));
+  localStorage.setItem("rd-stages", "1,2,3,4,5,6,7,8,9,10,11"); localStorage.setItem("rd-terms", JSON.stringify({ n: 3, next: 3, terms }));
 }, [SETTLED_TERMS, left, met]);
 /** Pulls the next screen, which is the stop that is due (`examples`: after the examples the stand-in server gives have been read). */
 async function toStop(page, examples = false) {
@@ -253,6 +253,24 @@ test("the stop of form says that matter and the form aggregate are the same", as
   const stop = await toStop(page);
   await expect(stop.locator(".tstop-mi")).toHaveText("Mutually inclusive with matter and form aggregate.");
   await expect(stop.locator("ul.ttree li")).toHaveCount(4);
+});
+
+test("the stop of color names its divisions that have no stop of their own, primary and secondary color, and a tap on one shows its definition", async ({ page }) => {
+  await seed(page, ["col"]);
+  const stop = await toStop(page);
+  await expect(stop.locator(".cs")).toHaveText("Color");
+  await expect(stop.locator("ul.ttree li")).toHaveText(["Existent", "Functional thing", "Form", "External form", "Form source", "Color", "Primary color", "Secondary color"]);
+  await expect(stop.locator("ul.ttree li.part")).toHaveCount(2);
+  if (!withCourse) return;
+  const part = stop.getByRole("button", { name: "Primary color" });
+  await expect(part).toHaveAttribute("aria-expanded", "false");
+  await expect(stop.locator(".tpartd")).toHaveCount(0);
+  await part.click();
+  await expect(part).toHaveAttribute("aria-expanded", "true");
+  await expect(stop.locator(".tpartd .pdbody")).toBeVisible();
+  await part.click();
+  await expect(stop.locator(".tpartd"), "folded again").toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
 });
 
 test("matter has a stop of its own after form's, with its divisions and form's examples, and a pair that says matter is tagged with it", async ({ page }) => {

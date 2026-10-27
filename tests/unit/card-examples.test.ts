@@ -49,7 +49,7 @@ test("the term's own examples come first, what the course's words alone name las
   expect(nacf.slice(1).map((n) => listed(n).t)).toEqual(["Person", "Person"]);
   const perm = names("Permanent");
   expect(perm.map((n) => !!listed(n).dudraOnly), "there are others to show").toEqual([false, false, false]);
-  expect(listed(perm[0]!).st, "the plainest first").toBe(4);
+  expect(listed(perm[0]!).st, "the plainest first").toBe(5);
   expect(names("Sense power"), "only the course's words name the sense powers: then those are shown").toEqual(["the eye sense power", "the ear sense power", "the nose sense power"]);
 });
 
@@ -73,8 +73,8 @@ test("a hidden phenomenon, the same as an existent, is shown by a form, a perman
 
 test("the reference examples fill what the list lacks, once, and never repeat a name", () => {
   const ref = [sample("an eye of a person", "Eye sense power"), sample("the eye sense power", "Eye sense power"), sample("a mental sample", "Mental sense power", { lv: 2, cn: "low" })];
-  expect(cardExamples(ix, ref, "Eye sense power")).toEqual([{ n: "the eye sense power", st: 5 }, { n: "an eye of a person", st: 6, gloss: "Why an eye of a person is a good one." }]);
-  expect(cardExamples(ix, ref, "Mental sense power"), "the list has no thing of it").toEqual([{ n: "a mental sample", st: 7, gloss: "Why a mental sample is a good one.", cn: "low" }]);
+  expect(cardExamples(ix, ref, "Eye sense power")).toEqual([{ n: "the eye sense power", st: 6 }, { n: "an eye of a person", st: 8, gloss: "Why an eye of a person is a good one." }]);
+  expect(cardExamples(ix, ref, "Mental sense power"), "the list has no thing of it").toEqual([{ n: "a mental sample", st: 9, gloss: "Why a mental sample is a good one.", cn: "low" }]);
   expect(cardExamples(ix, ref, "Person").map((x) => x.n), "three things of the list leave no room").toEqual(names("Person"));
   expect(cardExamples(ix, [], "Mental sense power")).toEqual([]);
   expect(cardExamples(ix, ref, "Not a term")).toEqual([]);

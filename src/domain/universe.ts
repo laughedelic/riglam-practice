@@ -249,7 +249,7 @@ export const NEG_SHARE = 1 / 3;
 /** How much more likely a three-possibility pair is while the learner has just reached a stage (`fresh`). */
 const FRESH_THREE = 2.5;
 
-/** The weight of a pair of two everyday categories from stage 2 on, against 1 for a pair with a course category (stage 1 is mostly such pairs, and so is a third of stage 4). */
+/** The weight of a pair of two everyday categories from stage 2 on, against 1 for a pair with a course category (stage 1 is mostly such pairs, and so is a third of stage 5). */
 export const EVERYDAY_ONLY = 0.35;
 
 /** Whether the pair is of two everyday categories, with no course term in it. */

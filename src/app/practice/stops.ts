@@ -104,5 +104,5 @@ export function stopTerm(s: Stop): { name: string; def: boolean } {
 /** Where the term of the stop sits: the terms above it, and the divisions of it that the learner has met (src/domain/intro.ts, termTree). */
 export function stopTree(s: Stop) {
   const c = state.DATA ? stopCat(ix(), s.cat) : null, term = (c && c.term) || "";
-  return state.intro && state.DATA ? termTree(ix(), state.intro, term) : { up: [], kids: [], more: false };
+  return state.intro && state.DATA ? termTree(ix(), state.intro, term) : { up: [], kids: [], more: false, parts: [] };
 }

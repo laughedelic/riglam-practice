@@ -36,10 +36,10 @@ export const DRAWN = ["confirmed", "textbook"] as const;
 
 /**
  * A reference example's stage: its own (format 3), else its level's: the examples are the course's, so a plain one (level 1) waits for the
- * course words (stage 6) and each level after it is a stage up.
+ * course words (stage 8) and each level after it is a stage up.
  */
 export const exampleStage = (ex: Pick<Example, "lv" | "st">): number =>
-  typeof ex.st === "number" && ex.st >= 1 && ex.st <= MAX_STAGE ? ex.st : Math.min(MAX_STAGE, Math.max(1, ex.lv) + 5);
+  typeof ex.st === "number" && ex.st >= 1 && ex.st <= MAX_STAGE ? ex.st : Math.min(MAX_STAGE, Math.max(1, ex.lv) + 7);
 
 /** Whether an example may be drawn for a learner with these stages on: confirmed or textbook, of a stage that is on. */
 export function drawable(ex: Pick<Example, "cf" | "lv" | "st">, on: Stages): boolean {
@@ -57,7 +57,7 @@ export function stageCounts(items: readonly Pick<Example, "cf" | "lv" | "st">[])
 /** The kinds that may stand in a cell. Things and representations always; relations and negations from the stage that takes one step further; a combination or a statement is another question's ("is X a Y?" would be wrong for it). */
 const PLAIN_KINDS = ["thing", "representation"];
 const LATER_KINDS = ["relation", "negation"];
-const LATER_STAGE = 7;
+const LATER_STAGE = 9;
 
 /**
  * Whether the example may be shown as the reference of a cell of a practice pair for a learner with these stages on: confirmed or textbook
