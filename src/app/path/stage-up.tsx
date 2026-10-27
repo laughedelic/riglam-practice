@@ -6,7 +6,7 @@
 // take that back), or choose the stages themselves in the practice options. The stages carry no names here, only numbers. Drawn like the stop of a course term
 // (path/stop.tsx): paper and ink, not a question's gold.
 import type { ComponentChildren } from "preact";
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { state } from "../state.js";
 import { next } from "../practice/queue.js";
 import { stayOnStage, undoStay } from "../practice/stage-offer.ts";
@@ -33,7 +33,7 @@ function Fold({ label, children }: { label: string; children: ComponentChildren 
 function Rings({ n }: { n: number }) {
   const [tip, setTip] = useState<{ n: number; pin: boolean } | null>(null), box = useRef<HTMLDivElement>(null);
   const at = tip ? tip.n : 0, marks = at ? marksOf(at) : [], pinned = !!tip && tip.pin;
-  useEffect(() => {
+  useLayoutEffect(() => {      // not after the paint: Escape or a tap elsewhere right after the tap on a ring must already close it
     if (!pinned) return;
     const away = (e: Event) => { if (!box.current || !box.current.contains(e.target as Node)) setTip(null); };
     const esc = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); setTip(null); } };
