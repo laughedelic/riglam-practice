@@ -22,6 +22,14 @@ export interface CardExample {
 const kindOf = (n: string): string => { const i = n.indexOf(" of "); return i > 0 ? n.slice(0, i) : n; };
 
 /**
+ * Cards drawn by hand where the rule cannot tell a better example from a plain one: the list calls a cat and an ant alike "an animal", and the card is
+ * wider with the ant. The names are the term's first examples, in this order, if the list still has them; the rule fills the rest.
+ */
+const HAND_PICKED: Readonly<Record<string, readonly string[]>> = {
+  Person: ["a dog", "your neighbor", "an ant"],
+};
+
+/**
  * Up to `max` examples of the term, for a learner who has not met it yet. From the practice list, the things that are instances of the term (their
  * type is the term or below it), the plainest stage first and in the list's own order, which puts the plainest case of a kind first; those only the
  * course's words name (`dudraOnly`) last. A spread: one of each branch below the term, then of each kind of thing (a dog, and a neighbor; a memory, a
@@ -39,6 +47,10 @@ export function cardExamples(ix: DataIndex, reference: readonly Example[] | null
   const out: Item[] = [], branches = new Set<string>(), groups = new Set<string>(), kinds = new Set<string>();
   const take = (it: Item) => { out.push(it); branches.add(branch(it)); groups.add(group(it)); kinds.add(kindOf(it.n)); };
   const pass = (fresh: (it: Item) => boolean) => { for (const it of ranked) if (out.length < max && !out.includes(it) && !kinds.has(kindOf(it.n)) && fresh(it)) take(it); };
+  for (const n of HAND_PICKED[term] ?? []) {
+    const it = ix.ITEMIDX[stripDet(spelled(n))];
+    if (it && out.length < max && ranked.includes(it)) take(it);
+  }
   pass((it) => !branches.has(branch(it)));
   pass((it) => !groups.has(group(it)));
   pass(() => true);

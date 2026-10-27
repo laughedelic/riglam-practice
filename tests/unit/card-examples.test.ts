@@ -19,6 +19,14 @@ test("a person is shown by a simple animal first, and a neighbor beside it, neve
   expect(got, "'you' is said to the learner, not shown as a person").not.toContain("you");
 });
 
+test("the card of a person is drawn by hand: a dog, a neighbor and an ant, which are all persons in the list", () => {
+  expect(names("Person"), "if the list loses one of them, the card in card-examples.ts needs a new pick").toEqual(["a dog", "your neighbor", "an ant"]);
+  expect(listed("an ant").t).toBe("Person");
+  expect(cardExamples(ix, null, "Person", 2).map((x) => x.n)).toEqual(["a dog", "your neighbor"]);
+  expect(cardExamples(ix, null, "Person", 4).map((x) => x.n).slice(0, 3), "the rule fills what is asked beyond the picks").toEqual(["a dog", "your neighbor", "an ant"]);
+  expect(names("Non-associated compositional factor").slice(1), "the picks are for the term itself").not.toContain("an ant");
+});
+
 test("a quality is shown by three different qualities of everyday things, not three of one", () => {
   for (const term of ["Shape", "Taste source", "Sound source"]) {
     const got = names(term);
