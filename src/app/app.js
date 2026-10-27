@@ -24,7 +24,7 @@ import "./shell/history.js";
 import "./debate/text.js";
 import "./shell/timers.js";
 import { voiceOn } from "../ui/speech";
-import { startDesign } from "./path/index.tsx";
+import { pathOn, refreshPath, startDesign } from "./path/index.tsx";
 
 /* ---------- boot ---------- */
 // The page knows its host only through the platform it is started with (src/platform/types.ts): the term data and the
@@ -67,10 +67,10 @@ async function bootSteps(platform){
   try{ setQuorumOffer(state.tutor&&platform.quorum?await platform.quorum():false); }catch(e){ setQuorumOffer(false); }
   try{ state.account=platform.account?await platform.account():null; }catch(e){ state.account=null; }
   // which build this is: asked in the background (it looks at the server), shown in the menu and in Settings when it arrives
-  if(platform.about) platform.about().then(a=>{ state.about=a; if(state.optsOpen) render(); else renderMenu(); },()=>{});
+  if(platform.about) platform.about().then(a=>{ state.about=a; if(state.optsOpen) render(); else if(pathOn()) refreshPath(); else renderMenu(); },()=>{});
   // updating in place: the platform tells when a newer version is ready; the menu and Settings show where it stands
   state.updates=platform.updates||null;
-  if(state.updates) state.updates.subscribe(()=>{ if(state.optsOpen) render(); else renderMenu(); });
+  if(state.updates) state.updates.subscribe(()=>{ if(state.optsOpen) render(); else if(pathOn()) refreshPath(); else renderMenu(); });   // (the Path's roadmap shows where the look for a newer version stands)
   // A Magic Key entered in the prompt is taken in place (no reload), so the pair on the screen and the answer being given stay.
   if(platform.onKey) platform.onKey(()=>rekey(platform));
   if(state.account){ let seen=signature(state.account.view()); state.account.subscribe(v=>{ const now=signature(v); if(now!==seen){ seen=now; if(state.optsOpen) render(); } }); }
