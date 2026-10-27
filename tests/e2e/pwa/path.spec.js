@@ -2,7 +2,7 @@
 // from the top bar, the practice options as a sheet, Settings with the switch back to the classic page, and the question before a skip.
 // The other exercises on the Path are in path-exercises.spec.js; what they do is their own specs'.
 import { test, expect } from "../../support/test.js";
-import { isPhone, openSettings, overflow } from "../../support/page.js";
+import { exerciseAtRest, isPhone, openSettings, overflow } from "../../support/page.js";
 import { withCourse } from "../../support/data-key.js";
 
 const onPath = () => { if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path"); };
@@ -368,6 +368,7 @@ test("a row of the practice options with a page has a chevron at its right edge,
   await start(page);
   await page.locator(".tstn").click();
   await page.getByRole("dialog", { name: "Roadmap" }).getByRole("button", { name: /^Pervasions/ }).click();
+  await exerciseAtRest(page);
   await page.getByRole("button", { name: "Practice options" }).click();
   const sheet = page.getByRole("dialog", { name: "Practice options" }), body = sheet.locator(".sbody");
   await expect(sheet.locator(".porow .more")).not.toHaveCount(0);

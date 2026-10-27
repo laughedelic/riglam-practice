@@ -2,6 +2,7 @@
 // its result. The rules and what is stored are the classic flows' and have their own specs; these check that the Path draws each step, takes
 // the answers through the same steps and stores the answer as the classic page does. The page's state is read through the test hook.
 import { test, expect } from "../../support/test.js";
+import { exerciseAtRest } from "../../support/page.js";
 import { dataKey, KEY_STORE, serveCourse } from "../../support/data-key.js";
 import { readOpen } from "../../../scripts/lib/course-files.mjs";
 
@@ -21,6 +22,7 @@ async function open(page, name) {
   await page.locator(".tstn").click();
   await page.getByRole("dialog", { name: "Roadmap" }).getByRole("button", { name: new RegExp("^" + name) }).click();
   await expect(page.locator(".ptb-t")).toContainText(name);
+  await exerciseAtRest(page);
 }
 
 test.beforeEach(async ({ page }) => { await page.addInitScript(onPath); });
@@ -222,6 +224,7 @@ test("Categories: the categories ticked on the path, the check, the most specifi
   await page.locator(".tstn").click();
   await page.getByRole("dialog", { name: "Roadmap" }).getByRole("button", { name: /^Categories/ }).click();
   await expect(page.locator(".ptb-t")).toContainText("Categories");
+  await exerciseAtRest(page);
   const rows = await page.evaluate(() => window.__t.cur.q.rows.map((r) => ({ phrase: r.phrase, answer: r.answer })));
   await expect(choices(page)).toHaveCount(rows.length + 1);   // and None of these
   const right = rows.filter((r) => r.answer);

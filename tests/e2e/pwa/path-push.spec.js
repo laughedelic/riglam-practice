@@ -3,6 +3,7 @@
 // into the result's instead of being swapped for it (a syllogism's Result takes that scan too, over its reply and counter-example), and what is at the foot while the station is away (a placeholder for the next station, foot.ts).
 // The squeeze and the scan are path-take.spec.js and path-scan.spec.js.
 import { test, expect } from "../../support/test.js";
+import { exerciseAtRest } from "../../support/page.js";
 
 test.use({ reducedMotion: "no-preference" });
 
@@ -149,6 +150,7 @@ test("ride: push, a syllogism's Result folds the heading above the statement and
   await page.locator(".tstn").click();
   await page.getByRole("dialog", { name: "Roadmap" }).getByRole("button", { name: /^Syllogisms/ }).click();
   await expect(page.locator(".ptb-t")).toContainText("Syllogisms");
+  await exerciseAtRest(page);
   expect(await page.evaluate(() => { for (let i = 0; i < 600; i++) { if (window.__t.cur.c.answer === "pervasion") return true; window.__t.next(); } return false; })).toBe(true);
   await choices(page).filter({ hasText: "There is no pervasion" }).first().click();
   await expect(page.locator("#sylex")).toBeVisible();
@@ -306,6 +308,7 @@ async function toCounter(page, text = "") {
   await page.locator(".tstn").click();
   await page.getByRole("dialog", { name: "Roadmap" }).getByRole("button", { name: /^Syllogisms/ }).click();
   await expect(page.locator(".ptb-t")).toContainText("Syllogisms");
+  await exerciseAtRest(page);
   expect(await page.evaluate(() => { for (let i = 0; i < 600; i++) { if (window.__t.cur.c.answer === "pervasion") return true; window.__t.next(); } return false; })).toBe(true);
   await choices(page).filter({ hasText: "There is no pervasion" }).first().click();
   await expect(page.locator("#sylex")).toBeVisible();

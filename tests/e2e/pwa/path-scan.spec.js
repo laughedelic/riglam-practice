@@ -3,7 +3,7 @@
 // check: ride takes it as any station. With the keyboard up the page opens first and the scan runs over it. At the foot the station that comes next takes the Check's place as the
 // scanner leaves it. The rules of the practice are the other specs'.
 import { test, expect } from "../../support/test.js";
-import { isPhone } from "../../support/page.js";
+import { exerciseAtRest, isPhone } from "../../support/page.js";
 
 test.use({ reducedMotion: "no-preference" });
 
@@ -108,6 +108,7 @@ test("Pervasions: the relation picked is taken with the scan: it rises from the 
   await page.locator(".tstn").click();
   await page.getByRole("dialog", { name: "Roadmap" }).getByRole("button", { name: /^Pervasions/ }).click();
   await expect(page.locator(".ptb-t")).toContainText("Pervasions");
+  await exerciseAtRest(page);
   for (let i = 0; i < 4; i++) { await choices(page).first().click(); await expect(page.locator("#path .sb.done")).toHaveCount(i + 1); }
   await expect(page.getByRole("group", { name: "Relation" })).toBeVisible();
   await page.evaluate(() => {
