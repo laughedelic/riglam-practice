@@ -320,17 +320,12 @@ test("under Blitz each countdown has a bar of its own on the top bar, so that it
   await expect(page.locator("#path .pclock[data-old]")).toHaveCount(0);
 });
 
-test("the roadmap slides in from the left on the back chevron and goes to another exercise", async ({ page }) => {
+test("the back chevron shows the roadmap under the exercise, and a stop on it goes to that exercise", async ({ page }) => {
   await start(page);
-  const box = () => page.locator("#path .road").boundingBox();
-  const closed = await box();
   await page.locator(".tstn").click();
   const road = page.getByRole("dialog", { name: "Roadmap" });
   await expect(road).toBeVisible();
-  await expect.poll(async () => (await box()).x, "it comes to rest").toBeGreaterThan(closed.x + closed.width - 1);
-  const open = await box();
-  expect(closed.x + closed.width, "it came in from the left: closed, it waited beside its place").toBeLessThanOrEqual(open.x + 0.5);
-  expect(closed.y, "level with its place, not above it").toBeCloseTo(open.y, 0);
+  await expect.poll(() => page.locator("#path .road").evaluate((n) => Math.round(n.getBoundingClientRect().x - n.parentElement.getBoundingClientRect().x - n.parentElement.clientLeft)), "it comes to rest in its place").toBe(0);
   await expect(road.locator("[aria-current=page]")).toHaveAccessibleName(/Relations, here/);
   await road.getByRole("button", { name: /^Pervasions/ }).click();
   await expect(road).toBeHidden();
@@ -341,7 +336,7 @@ test("the roadmap slides in from the left on the back chevron and goes to anothe
   await expect(choices(page)).toHaveCount(5);
 });
 
-test("the roadmap has the stops and their names only: no branch labels, and the planned Debate is tied to Pervasions and Syllogisms", async ({ page }) => {
+test("the roadmap has the stops and their names only: no branch labels, and the planned Debate is tied to the three branches", async ({ page }) => {
   await start(page);
   await choices(page).nth(2).click();   // an attempt in Relations, so that it says "continue" once we are elsewhere
   await expect(page.locator("#cin")).toBeVisible();
@@ -355,16 +350,16 @@ test("the roadmap has the stops and their names only: no branch labels, and the 
   expect((await tree.locator("text").allTextContents()).sort()).toEqual(["Categories", "Debate", "Find a pair", "Find an instance", "Pervasions", "Relations", "Syllogisms", "coming", "continue", "riglam"]);
   const geo = await tree.evaluate((svg) => {
     const pt = (p, at) => { const q = p.getPointAtLength(at); return [Math.round(q.x), Math.round(q.y)]; };
-    const dashed = [...svg.querySelectorAll("path.lnp")].map((p) => [pt(p, 0), pt(p, p.getTotalLength())]);
+    const dashed = [...svg.querySelectorAll("path.lnp:not(.fade)")].map((p) => [pt(p, 0), pt(p, p.getTotalLength())]);
     const debate = svg.querySelector("polygon.nd.plan").getBBox();
     const cont = svg.querySelector("text.cont").getBBox();
     let onLine = 0;
     for (const p of svg.querySelectorAll("path.ln,path.lnp")) for (let at = 0; at < p.getTotalLength(); at += 1) { const q = p.getPointAtLength(at); if (q.x > cont.x - 3 && q.x < cont.x + cont.width + 3 && q.y > cont.y - 3 && q.y < cont.y + cont.height + 3) onLine++; }
     return { dashed, top: [Math.round(debate.x + debate.width / 2), Math.round(debate.y)], onLine };
   });
-  expect(geo.dashed).toHaveLength(2);
-  for (const [, end] of geo.dashed) expect(end, "both ties end at the top of Debate").toEqual(geo.top);
-  expect(geo.dashed.map(([start]) => start[0]).sort((a, b) => a - b), "from Pervasions' column and Syllogisms'").toEqual([74, 196]);
+  expect(geo.dashed).toHaveLength(3);
+  for (const [, end] of geo.dashed) expect(end, "all the ties end at the top of Debate").toEqual(geo.top);
+  expect(geo.dashed.map(([start]) => start[0]).sort((a, b) => a - b), "from the columns of Pervasions, Syllogisms and Find an instance").toEqual([74, 195, 316]);
   expect(geo.onLine, "no line runs through the word under a stop").toBe(0);
 });
 
