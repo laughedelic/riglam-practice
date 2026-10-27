@@ -10,6 +10,8 @@ const onPath = () => {
   if (localStorage.getItem("rd-start") === null) localStorage.setItem("rd-start", "exercise");
   if (localStorage.getItem("rd-look") === null) localStorage.setItem("rd-look", JSON.stringify({ ride: "fold" }));   // the squeeze ride, which this spec is about (the push is the default: path-push.spec.js)
   window.__vib = []; navigator.vibrate = (v) => { window.__vib.push(v); return true; };
+  // the page tells a finger from a mouse (state.hand: its knocks are for a finger); Playwright's mouse is made to read as a finger here, `window.__pointer = "mouse"` as a mouse again
+  Object.defineProperty(PointerEvent.prototype, "pointerType", { get: () => window.__pointer || "touch", configurable: true });
 };
 const choices = (page) => page.locator("#path .chs .crow");
 const main = (page) => page.locator("#path .main");
@@ -126,6 +128,25 @@ test("nothing else is taken while the ride plays, and a second tap does not play
   await expect(page.locator("#path .sechead")).toBeVisible({ timeout: 4000 });
   await expect(choices(page)).toHaveCount(5);   // one step on, not two (a second take would have gone on to the examples)
   await expectClean(page);
+});
+
+test("a tap on the station knocks once as it is taken, the commitment a pull feels at the curb; a click of a mouse knocks not at all", async ({ page }) => {
+  await toResult(page);
+  await page.locator("#stn").click();   // Next pair, tapped (a finger: toResult's init script)
+  await expect(choices(page)).toHaveCount(5);
+  expect(await page.evaluate(() => window.__vib), "one knock for the tap").toEqual([12]);
+  await page.evaluate(() => { window.__pointer = "mouse"; window.__vib = []; });
+  await choices(page).first().click();   // a mouse takes a choice (no knock) ...
+  const field = page.locator("#cin");
+  await expect(field).toBeVisible();
+  for (let i = 0; i < 4 && (await field.isVisible()); i++) { await field.fill("thing " + (i + 1)); if ((await field.getAttribute("enterkeyhint")) === "done") { await field.blur(); break; } await field.press("Enter"); }
+  await page.locator("#stn").click();   // ... and the Check
+  await expect(page.locator(".pvline")).toBeVisible();
+  await expect(page.locator("#stn")).toContainText("Next pair");
+  await expect(main(page)).not.toHaveClass(/\b(tk-in|sc-in|sc-hand|fw-wait)\b/);
+  await page.locator("#stn").click();   // ... and Next pair
+  await expect(choices(page)).toHaveCount(5);
+  expect(await page.evaluate(() => window.__vib), "a mouse has its own click: no knock").toEqual([]);
 });
 
 test("with the look's ride: plain the step is there at once, and the pull is the old one", async ({ browser }, info) => {

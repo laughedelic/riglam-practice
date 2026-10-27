@@ -11,6 +11,8 @@ const onPath = () => {
   if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path");
   if (localStorage.getItem("rd-look") === null) localStorage.setItem("rd-look", JSON.stringify({ check: "scan" }));   // the replaced result page, which this spec is about (the page that goes on is the default: path-push.spec.js)
   window.__vib = []; navigator.vibrate = (v) => { window.__vib.push(v); return true; };
+  // the page tells a finger from a mouse (state.hand: its knocks are for a finger); Playwright's mouse is made to read as a finger here, `window.__pointer = "mouse"` as a mouse again
+  Object.defineProperty(PointerEvent.prototype, "pointerType", { get: () => window.__pointer || "touch", configurable: true });
 };
 const choices = (page) => page.locator("#path .chs .crow");
 

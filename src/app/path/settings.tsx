@@ -19,7 +19,6 @@ import { languagesOn } from "./terms.tsx";
 import { setOn as setVoiceOn, voiceAvailable, voiceNote, voiceOn } from "../shell/voice.js";
 import { DEFAULT_LOOK, currentLook, lookLine, pastedLook, setLook, storedLook } from "./look.ts";
 import { setDesign } from "./index.tsx";
-import { knocks } from "./gesture.ts";
 import { Foot, Station, TopBar, pathNote } from "./shell.tsx";
 import { Sub } from "./subjects.tsx";
 import { Bridge, Toggle, Words, NOFILL } from "./ui.tsx";
@@ -101,17 +100,6 @@ function VersionRow() {
     {i.act === "update" ? <button type="button" class="pbtn" onClick={() => u.apply()}>Update now</button> : i.act === "check" ? <button type="button" class="pbtn" onClick={() => u.check()}>Check for updates</button> : null}
   </Row>;
 }
-/** Vibration: whether this device can knock, what the app has sent since it opened and what the browser did with it, and a knock to feel now. */
-function VibrationRow() {
-  const [tried, setTried] = useState("");
-  const can = typeof navigator.vibrate === "function", still = (() => { try { return matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; } })();
-  if (!can) return <Row title={<b>Vibration</b>} note="This browser has no vibration, so the knocks of the Path are not felt." />;
-  const knock = () => { let ok = false; try { ok = navigator.vibrate(80); } catch { /* none */ } setTried(ok ? "Sent: you should feel a knock now. If you do not, the phone is holding it back (silent mode, battery saver, touch feedback off in its settings)." : "The browser refused it."); };
-  return <Row title={<b>Vibration</b>} note={"The Path knocks when something snaps onto the line or a station crosses the curb. Sent since the app opened: " + knocks.sent + (knocks.refused ? ", refused by the browser: " + knocks.refused : "") + "." + (still ? " This device asks for reduced motion, so a choice is taken without its slide, and its knock." : "")}>
-    <button type="button" class="pbtn" onClick={knock}>Try a knock</button>
-    {tried ? <p class="pnoteline" role="status">{tried}</p> : null}
-  </Row>;
-}
 function AppRows() {
   const acct = state.account && state.db && state.account.view().available;
   return <>
@@ -121,7 +109,6 @@ function AppRows() {
     {voiceAvailable() ? <SwitchRow title="Voice" tag="Experimental" note={voiceNote()} on={voiceOn()} toggle={() => setVoiceOn(!voiceOn())} /> : null}
     {state.db ? <Row title={<b>Your data</b>} note="Saves everything this device keeps (answers, debates, favorites, skipped pairs and these settings) in one file, as a backup or to move to another device. Importing adds what is missing and never deletes anything.">
       <Bridge own cls="phost" fill={() => dataTransferControls(state.db!, pel, render, state.xfer)} /></Row> : null}
-    <VibrationRow />
     <VersionRow />
   </>;
 }

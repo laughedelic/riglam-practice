@@ -406,6 +406,8 @@ export interface State {
   sessPage: string | null;
   skipAsk: boolean;
   menuOpen: boolean;
+  /** what touched the page last: a finger or a pen, or a mouse; empty before anything has (the Path's knocks are for a finger, path/gesture.ts) */
+  hand: "" | "touch" | "mouse";
   menuPin: boolean;
   menuPeek: boolean;
   coachOpen: boolean;

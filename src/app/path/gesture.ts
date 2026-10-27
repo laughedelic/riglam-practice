@@ -4,6 +4,7 @@
 // only a little, as if it resisted (never past the foot's top edge), and firms the thread (before a choice it stays dotted, its fade filled in): it never takes the station. A side station (Skip) slides left past its reach. One tension
 // is shared by all of them: each Path draw keeps one Pull, on its root. A station that can be taken is pulled over a curb (below), and taking it plays the
 // ride of take.ts.
+import { state } from "../state.js";
 import { currentLook } from "./look.ts";
 import { clearPush, holdPush, playPush } from "./push.ts";
 import { playScan, type ScanPlan } from "./scan.tsx";
@@ -20,10 +21,13 @@ const TIGHT = LINE - 8;
 const SILL = 4;
 export const SLIDE = 96;
 
+/**
+ * Whether a knock is the feedback of a finger: what touched the page last was a finger or a pen (`state.hand`, set in index.tsx). A mouse or a trackpad has its own click under the hand, so the
+ * Path adds nothing to it. Before anything has touched the page the device's main pointer says (a phone or tablet has a coarse one).
+ */
+const touching = () => { if (state.hand) return state.hand === "touch"; try { return matchMedia("(pointer: coarse)").matches; } catch { return false; } };
 /** The hand's feel of crossing the reach: a bump, as of a curb under a wheel (one short knock, no buzz). */
-const bump = (ms = HIT) => { try { if (navigator.vibrate) { knocks.sent++; if (!navigator.vibrate(ms)) knocks.refused++; } } catch { /* no haptics */ } };
-/** What the bump has done since the page opened, for Settings to show: knocks sent, and those the browser refused (it says so by returning false). */
-export const knocks = { sent: 0, refused: 0 };
+const bump = (ms = HIT) => { try { if (navigator.vibrate && touching()) navigator.vibrate(ms); } catch { /* no haptics */ } };
 export { bump };
 
 /**
@@ -133,9 +137,13 @@ export class Pull {
     if (n !== foot) return Infinity;
     return Math.max(0, y + go.getBoundingClientRect().top - el.getBoundingClientRect().top - SILL);
   }
-  /** The pull let go: the station goes back, and is taken when `go` (the answer: whether it was). A tap on a station that is not ready bumps it. */
+  /**
+   * The pull let go: the station goes back, and is taken when `go` (the answer: whether it was). A tap on a station that is not ready bumps it. A station taken without the pull over the curb
+   * (a tap, Enter) knocks as it is taken, the commitment a pull has already felt as it crossed the curb.
+   */
   end(go: boolean, tapped = false): boolean {
     if (this.busy) return false;
+    if (go && this.act && !this.past) bump();
     const stn = this.q("#stn"), sp = this.q("#stnp"), el = stn || sp, riser = this.q(".riser");
     if (go && stn && this.act && this.rides && this.root && canTake(this.root)) {
       const act = this.act;

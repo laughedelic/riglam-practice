@@ -11,6 +11,8 @@ const onPath = () => {
   if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path");
   window.__riglamTest = (t) => { window.__t = t; };
   window.__vib = []; navigator.vibrate = (v) => { window.__vib.push(v); return true; };
+  // the page tells a finger from a mouse (state.hand: its knocks are for a finger); Playwright's mouse is made to read as a finger here, `window.__pointer = "mouse"` as a mouse again
+  Object.defineProperty(PointerEvent.prototype, "pointerType", { get: () => window.__pointer || "touch", configurable: true });
 };
 const choices = (page) => page.locator("#path .chs .crow");
 const main = (page) => page.locator("#path .main");
@@ -410,5 +412,5 @@ test("stations say what they are by their look: Examples is gold and medium, Che
   await expect(main(page)).not.toHaveClass(/\b(tk-in|pk-run|sc-in|sc-run|fw-wait)\b/);
   const next = await facts(page, "#stn");
   expect(next.cls, "the next exercise's station has no kind").not.toContain("stk");
-  expect(next, "Next pair: big and blue").toMatchObject({ size: 28, bg: blue, label: blue, font: "21px" });
+  await expect.poll(() => facts(page, "#stn"), { message: "Next pair: big and blue (its colors are a transition that may still be running)" }).toMatchObject({ size: 28, bg: blue, label: blue, font: "21px" });
 });
