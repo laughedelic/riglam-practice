@@ -42,7 +42,8 @@ async function installed(page) {
   await page.reload();
   await ready(page);
   await expect.poll(() => controlled(page)).toBe(true);
-  await page.evaluate(() => window.__riglam.platform.updates.check()); // the look the app makes as it opens is over (a check asked for during one joins it)
+  // the look the app makes as it opens (the registration answers a moment after the page is up) is over: a later change on the server is then found only by a look the test asks for
+  await expect.poll(() => page.evaluate(() => window.__riglam.platform.updates.status())).toBe("current");
 }
 
 test("a newer version is found, offered, and started from the toast without closing the app", async ({ page }) => {
