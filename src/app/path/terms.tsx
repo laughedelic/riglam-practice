@@ -3,6 +3,7 @@
 // (its data, its wording).
 import type { JSX } from "preact";
 import { state } from "../state.js";
+import { sameNames } from "../../ai-shared/lookup.ts";
 import type { DataIndex } from "../../ai-shared/lookup.ts";
 import { termMentions } from "../../ai-shared/mentions.ts";
 import { cap } from "../core/util.js";
@@ -98,6 +99,11 @@ export function Names({ term, skip = [] }: { term: string; skip?: string[] }) {
   return names.length ? <p class="tstop-names">{names.map((n) => <span class="nm" data-lang={n.id}><span lang={n.lang || undefined}>{n.main}</span>{n.rest}</span>)}</p> : null;
 }
 
+/** The terms mutually inclusive with a term, lower-cased, as a phrase ("existent, established base and object"), or "" when it has none. */
+export function sameAsText(term: string): string {
+  const n = [...sameNames(state as unknown as DataIndex, term)].filter((x) => x !== term).map((x) => x.toLowerCase());
+  return n.length > 1 ? n.slice(0, -1).join(", ") + " and " + n[n.length - 1] : n[0] || "";
+}
 /** The definition of a term in words: where it comes from, the English text and, if chosen, the Russian. Nothing when this device cannot read one. */
 export function DefText({ term }: { term: string }) {
   const t = state.DATA!.terms[term], en = defParts(t.d), ru = defParts(t.d_ru), ruOn = state.defLang === "enru", src = en.src || (ruOn ? ru.src : "");
@@ -110,12 +116,13 @@ export function DefText({ term }: { term: string }) {
 /** The definition of a term, as the card under a mark: where the term sits, the definition in English and, if chosen, Russian. */
 export function Def({ term, trail }: { term: string; trail: string[] }) {
   const t = state.DATA!.terms[term], en = defParts(t.d), ruOn = state.defLang === "enru";
-  const back = trail.length ? trail[trail.length - 1] : "", up = ((state.DATA!.chains || {})[term] || [term]).slice(1);
+  const back = trail.length ? trail[trail.length - 1] : "", up = ((state.DATA!.chains || {})[term] || [term]).slice(1), same = sameAsText(term);
   return <div class="pdef" id="ddef" tabIndex={-1}>
     {back ? <button type="button" class="pbtn quiet pdback" aria-label={"Back to " + back} onClick={(e) => { e.stopPropagation(); goBack(); }}>{"\u2190 " + back}</button> : null}
     <p class="pdh"><b>{t.name}</b>{ruOn && t.ru ? <span lang="ru">{" \u00b7 " + t.ru}</span> : null}{t.ch && en.ref ? <small>{" \u00b7 " + t.ch}</small> : null}</p>
     <Names term={term} skip={["ru"]} />
     {up.length ? <p class="pdup">{up.flatMap((m: string, i: number) => [i ? " " : "", <i class="pisa">{isA(m.toLowerCase())}</i>, " ", hasDef(state.DATA!.terms[m]) ? <ParentMark n={m} /> : m.toLowerCase()])}</p> : null}
+    {same ? <p class="pdup"><i class="pisa">mutually inclusive with</i>{" " + same}</p> : null}
     <DefText term={term} />
   </div>;
 }

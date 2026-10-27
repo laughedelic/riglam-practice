@@ -1,7 +1,7 @@
 // The examples on a term's definition (src/domain/card-examples.ts), on the real open data: everyday things of the practice list come first,
 // a spread of kinds, and the reference examples fill only what the list lacks. The reference examples here are invented.
 import { expect, test } from "vitest";
-import { makeIndex, spelled, stripDet, upChain } from "../../src/ai-shared";
+import { makeIndex, sameNames, spelled, stripDet, upChain } from "../../src/ai-shared";
 import type { DrillData, Example } from "../../src/ai-shared";
 import { cardExamples } from "../../src/domain";
 import openData from "../../src/data/drill-data.json";
@@ -53,23 +53,30 @@ test("the term's own examples come first, what the course's words alone name las
   expect(names("Sense power"), "only the course's words name the sense powers: then those are shown").toEqual(["the eye sense power", "the ear sense power", "the nose sense power"]);
 });
 
-test("every course term the list has things for has some, and each is of the term", () => {
+test("every course term has examples, and each is of the term or of a term mutually inclusive with it", () => {
   const empty: string[] = [];
   for (const cat of ix.DATA.cats) {
     if (cat.kind !== "dudra" || !cat.term) continue;
-    const got = cardExamples(ix, null, cat.term);
+    const got = cardExamples(ix, null, cat.term), same = sameNames(ix, cat.term);
     if (!got.length) empty.push(cat.term);
-    for (const x of got) expect(upChain(ix, listed(x.n).t), cat.term + ": " + x.n).toContain(cat.term);
+    for (const x of got) expect(upChain(ix, listed(x.n).t).some((n) => same.has(n)), cat.term + ": " + x.n).toBe(true);
   }
-  expect(empty, "the terms the list has nothing for wait for the reference examples").toEqual(["Hidden phenomenon"]);
+  expect(empty).toEqual([]);
+});
+
+test("a hidden phenomenon, the same as an existent, is shown by a form, a permanent thing and a mind", () => {
+  const top = (n: string) => upChain(ix, listed(n).t).at(-2);
+  const got = names("Hidden phenomenon");
+  expect(got.map(top), got.join(", ")).toEqual(["Functional thing", "Permanent", "Functional thing"]);
+  expect(got.map((n) => upChain(ix, listed(n).t).at(-3) ?? "")).toEqual(["Form", "", "Consciousness"]);
 });
 
 test("the reference examples fill what the list lacks, once, and never repeat a name", () => {
-  const ref = [sample("an eye of a person", "Eye sense power"), sample("the eye sense power", "Eye sense power"), sample("a hidden sample", "Hidden phenomenon", { lv: 2, cn: "low" })];
+  const ref = [sample("an eye of a person", "Eye sense power"), sample("the eye sense power", "Eye sense power"), sample("a mental sample", "Mental sense power", { lv: 2, cn: "low" })];
   expect(cardExamples(ix, ref, "Eye sense power")).toEqual([{ n: "the eye sense power", st: 5 }, { n: "an eye of a person", st: 6, gloss: "Why an eye of a person is a good one." }]);
-  expect(cardExamples(ix, ref, "Hidden phenomenon")).toEqual([{ n: "a hidden sample", st: 7, gloss: "Why a hidden sample is a good one.", cn: "low" }]);
+  expect(cardExamples(ix, ref, "Mental sense power"), "the list has no thing of it").toEqual([{ n: "a mental sample", st: 7, gloss: "Why a mental sample is a good one.", cn: "low" }]);
   expect(cardExamples(ix, ref, "Person").map((x) => x.n), "three things of the list leave no room").toEqual(names("Person"));
-  expect(cardExamples(ix, [], "Hidden phenomenon")).toEqual([]);
+  expect(cardExamples(ix, [], "Mental sense power")).toEqual([]);
   expect(cardExamples(ix, ref, "Not a term")).toEqual([]);
 });
 

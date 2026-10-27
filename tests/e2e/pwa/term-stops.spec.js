@@ -239,6 +239,22 @@ test("the examples on a stop are everyday things of the practice list, with thei
   await expect(stop).not.toContainText(/vemo|kipa|confirmed|textbook/i);
 });
 
+test("a stop names the terms mutually inclusive with its term; hidden phenomenon, which is existent, has examples of every kind", async ({ page }) => {
+  await seed(page, ["hid"]);
+  const stop = await toStop(page);
+  await expect(stop.locator(".cs")).toHaveText("Hidden phenomenon");
+  await expect(stop.locator(".tstop-mi")).toHaveText("Mutually inclusive with existent, established base, object of knowledge, phenomenon, object of comprehension and object.");
+  await expect(stop.locator("ul.ttree"), "it has no place of its own in the tree").toHaveCount(0);
+  await expect(stop.locator(".pdex.bare .pdexn")).toHaveText(["a wooden chair", "the absence of milk in an empty glass", "a feeling of joy"]);
+});
+
+test("the stop of form says that matter and the form aggregate are the same", async ({ page }) => {
+  await page.addInitScript(fresh);
+  const stop = await toStop(page);
+  await expect(stop.locator(".tstop-mi")).toHaveText("Mutually inclusive with matter and form aggregate.");
+  await expect(stop.locator("ul.ttree li")).toHaveCount(4);
+});
+
 test("a stop shows examples from the practice list on a device that has none of the course's examples", async ({ page }) => {
   await page.addInitScript(fresh);
   const stop = await toStop(page);

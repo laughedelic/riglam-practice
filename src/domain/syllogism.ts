@@ -8,7 +8,7 @@
 // (and the few pervasions stated by hand below) prove that a pervasion holds or is opposite; the items only disprove one, with a thing
 // that is the reason and is not the predicate. Pairs that neither can settle are never drawn.
 import type { DrillData, Item } from "../ai-shared/data";
-import { matchItem, upChain } from "../ai-shared/lookup";
+import { matchItem, sameNames, upChain } from "../ai-shared/lookup";
 import type { DataIndex } from "../ai-shared/lookup";
 import type { CellId } from "../ai-shared/relations";
 import { catChain, termPhrase } from "./ladder";
@@ -101,11 +101,6 @@ interface Table {
 }
 
 const terms = (ix: DataIndex) => ix.DATA.terms;
-function sameClass(ix: DataIndex, t: string): Set<string> {
-  const T = terms(ix), out = new Set([t, ...(T[t]?.mi || [])]);
-  for (const [k, v] of Object.entries(T)) if ((v.mi || []).includes(t)) out.add(k);
-  return out;
-}
 const excludes = (ix: DataIndex, x: string, y: string) => (terms(ix)[x]?.contra || []).includes(y) || (terms(ix)[y]?.contra || []).includes(x);
 function excludingClasses(ix: DataIndex, r: string, p: string): [string, string] | null {
   const cr = catChain(ix, ix.CAT[r]), cp = catChain(ix, ix.CAT[p]);
@@ -117,7 +112,7 @@ function holdsBy(ix: DataIndex, r: string, p: string): Holds | null {
   if (ix.CAT[r]?.within?.includes(p)) return { how: "stated" };
   const P = ix.CAT[p];
   if (P.kind !== "dudra" || !P.term) return null;
-  const want = sameClass(ix, P.term), chain = catChain(ix, ix.CAT[r]), i = chain.findIndex((t) => want.has(t));
+  const want = sameNames(ix, P.term), chain = catChain(ix, ix.CAT[r]), i = chain.findIndex((t) => want.has(t));
   return i < 0 ? null : { how: "chain", steps: chain.slice(0, i + 1) };
 }
 

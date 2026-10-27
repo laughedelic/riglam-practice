@@ -428,6 +428,16 @@ test("the chain of a type is shortened to three terms, lower case, or the type i
   expect(termLine(ix, "Nothing Known")).toBe("nothing known");
 });
 
+test("the chain goes on up to the pair's terms, and names one it reaches only by a term the same as it", () => {
+  const line = (t: string, to: string[]) => termLine(rix, t, to).split("\uE000");
+  expect(line("Non-associated compositional factor", ["Hidden phenomenon", "Form"]), "the chains end at existent, which hidden phenomenon is the same as")
+    .toEqual(["non-associated compositional factor", "functional thing", "existent", "hidden phenomenon"]);
+  expect(line("Color", ["Form", "Color"])).toEqual(["color", "form source", "external form", "form"]);
+  expect(line("Color", ["External form"]), "a pair's term within the three changes nothing").toEqual(["color", "form source", "external form"]);
+  const p = { a: "hidden phenomena", b: "matter", catA: "hid", catB: "form", relation: "3ba" as const };
+  expect(judgeText(rix, p, "anb", "the impermanence of a flower")).toEqual({ v: "ok", msg: ["Right. ", "The impermanence of a flower: " + ["non-associated compositional factor", "functional thing", "existent", "hidden phenomenon"].join("\uE000") + "."] });
+});
+
 const dAns = (...a: ({ say: "accept" | "why" | null; text?: string; timeout?: boolean })[]) => a;
 
 test("the debate: accepting a question with no counter-example, or giving the example, is right", () => {

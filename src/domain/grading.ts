@@ -4,7 +4,7 @@
 // verifies them, see verdict.ts; an item whose name leaves the cell's quality open is "cmp" for good, vague.ts).
 import type { DebateAnswer } from "../ai-shared/card";
 import { QCELL } from "../ai-shared/debate";
-import { matchItem, pairCats } from "../ai-shared/lookup";
+import { matchItem, pairCats, sameNames } from "../ai-shared/lookup";
 import type { DataIndex } from "../ai-shared/lookup";
 import { CELLS, NEG_CELL, REL, refOf } from "../ai-shared/relations";
 import type { CellId, PairLike, RelKey } from "../ai-shared/relations";
@@ -23,10 +23,23 @@ export interface Judgement {
   open?: string[];
 }
 
-/** The chain of terms from a type up to Existent, shortened to three, lower-cased; the page turns the separator into arrows. */
-export function termLine(ix: DataIndex, t: string): string {
+/**
+ * The chain of terms from a type up to Existent, shortened to three, lower-cased; the page turns the separator into "is a". It goes on up to the
+ * terms `to` (the pair's) when they are on it, and names one the chain reaches only by a term mutually inclusive with it right after that term:
+ * "... functional thing, existent, hidden phenomenon", since the chains end at existent, which hidden phenomenon is the same as.
+ */
+export function termLine(ix: DataIndex, t: string, to: readonly string[] = []): string {
   const ch = (ix.DATA.chains && ix.DATA.chains[t]) || null;
-  return ch ? ch.slice(0, 3).join("").toLowerCase() : (t || "").toLowerCase();
+  if (!ch) return (t || "").toLowerCase();
+  let end = Math.min(ch.length, 3);
+  const after = new Map<number, string>();
+  for (const term of to) {
+    const i = ch.indexOf(term), j = i >= 0 ? i : ch.findIndex((n) => sameNames(ix, term).has(n));
+    if (j < 0) continue;
+    end = Math.max(end, j + 1);
+    if (i < 0) after.set(j, term);
+  }
+  return ch.slice(0, end).flatMap((n, k) => (after.has(k) ? [n, after.get(k)!] : [n])).join("\uE000").toLowerCase();
 }
 
 /**
@@ -45,6 +58,7 @@ export function judgeText(ix: DataIndex, p: PairLike, c: CellId, t: string, cats
   if (vague) return vague.v === "cmp" ? { v: "cmp", msg: vague.msg, open: [ca, cb].filter((_, k) => vague.open[k]) } : { v: "bad", msg: vague.msg };
   if (!inUniverse(ix, it, ca, cb)) return null;
   const x = it.c.includes(ca), y = it.c.includes(cb), plain: CellId = x && y ? "both" : x ? "anb" : y ? "bna" : "nei";
+  const to = [ca, cb].flatMap((id) => ix.CAT[id]?.term ?? []);           // the line goes on up to the pair's terms
   const where = p.neg ? NEG_CELL[p.neg][plain] : plain;
   const nm = cap(t.trim().replace(/[.!]+$/, ""));
   if (where === c) {
@@ -53,9 +67,9 @@ export function judgeText(ix: DataIndex, p: PairLike, c: CellId, t: string, cats
       const ref = p.ex && p.ex[c], better = ref && !(matchItem(ix, ref) || { ne: false }).ne;
       return { v: "ok", msg: ["Right. ", nm + " does not exist, and a non-existent counts as neither." + (better ? " An existent such as " + ref + " is the better example when there is one." : "")] };
     }
-    return { v: "ok", msg: ["Right. ", nm + ": " + termLine(ix, it.t) + "."] };
+    return { v: "ok", msg: ["Right. ", nm + ": " + termLine(ix, it.t, to) + "."] };
   }
-  return { v: "bad", msg: ["Belongs elsewhere. ", nm + " is " + { both: "both", anb: "A but not B", bna: "B but not A", nei: "neither" }[where] + " (" + termLine(ix, it.t) + ")."] };
+  return { v: "bad", msg: ["Belongs elsewhere. ", nm + " is " + { both: "both", anb: "A but not B", bna: "B but not A", nei: "neither" }[where] + " (" + termLine(ix, it.t, to) + ")."] };
 }
 
 /** Checks a practice answer: the relation chosen, then each cell (emptiness, or the example written in it). */

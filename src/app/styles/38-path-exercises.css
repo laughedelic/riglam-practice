@@ -163,6 +163,7 @@
 .pa .tstop-sech{font:500 11px var(--mono); letter-spacing:.09em; text-transform:uppercase; color:var(--ink2)}
 .pa .tstop-def .pdex.bare{border-top:0; padding-top:0; margin-top:0}
 .pa .tstop-def .pdexr{font-size:19px}
+.pa .tstop-mi{margin:2px 0 6px; line-height:1.35; color:var(--ink2); font-size:18.5px}
 .pa .ttree{list-style:none; margin:2px 0 6px; padding:0; line-height:1.3; color:var(--ink2); font-size:18.5px; align-self:stretch}
 .pa .ttree li{position:relative; padding:4px 0 4px calc(var(--lv,0) * 15px)}
 .pa .ttree li::before{content:""; position:absolute; left:calc(var(--lv,0) * 15px - 13px); top:0; height:calc(.65em + 4px); border-left:1.5px solid var(--rule)}
