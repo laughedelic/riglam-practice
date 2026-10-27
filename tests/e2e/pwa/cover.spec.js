@@ -5,9 +5,17 @@ import { test, expect } from "../../support/test.js";
 import { ready } from "../../support/page.js";
 
 const welcomed = () => Object.defineProperty(navigator, "webdriver", { get: () => false });
+/** Holds the page's data back, so that the app stays on its "Loading." screen (and the cover on it) for as long as the test looks; returns what lets the data go. */
+async function hold(page) {
+  let release;
+  const held = new Promise((done) => { release = done; });
+  await page.route("**/drill-data*.json", async (route) => { await held; await route.continue().catch(() => {}); });
+  return release;
+}
 
 test("the cover shows the figure and the name from the first paint, and leaves when the app is ready", async ({ page }) => {
   await page.addInitScript(welcomed);
+  const release = await hold(page);
   await page.goto("/", { waitUntil: "commit" });
   const cover = page.locator("#cover");
   await expect(cover).toBeVisible();
@@ -16,12 +24,14 @@ test("the cover shows the figure and the name from the first paint, and leaves w
   expect(await cover.locator("svg.cv-fig polygon").count(), "the three diamonds").toBe(3);
   const box = await cover.boundingBox(), vp = page.viewportSize();
   expect([box.x, box.y, box.width, box.height], "it covers the whole screen").toEqual([0, 0, vp.width, vp.height]);
+  release();
   await ready(page);
   await expect(cover, "it goes once the first screen is there").toHaveCount(0, { timeout: 8000 });
 });
 
 test("the cover takes the ground of the theme, light or dark, and of the look the device saved", async ({ page }) => {
   await page.addInitScript(welcomed);
+  await hold(page);
   const ground = async () => {
     await page.goto("/", { waitUntil: "commit" });
     await expect(page.locator("#cover")).toBeVisible();
@@ -32,7 +42,9 @@ test("the cover takes the ground of the theme, light or dark, and of the look th
   await page.emulateMedia({ colorScheme: "dark" });
   expect(await ground()).toBe("rgb(22, 26, 32)");
   await page.addInitScript(() => localStorage.setItem("rd-look", JSON.stringify({ mode: "light" })));
-  expect(await ground(), "the look says light whatever the device does").toBe("rgb(251, 249, 242)");
+  await ground();
+  // the page's own small script reads the look a moment after the cover is drawn
+  await expect.poll(() => page.locator("#cover").evaluate((n) => getComputedStyle(n).backgroundColor), "the look says light whatever the device does").toBe("rgb(251, 249, 242)");
 });
 
 test("without anyone to welcome (a driven browser) the cover is gone as soon as the app is ready", async ({ page }) => {
