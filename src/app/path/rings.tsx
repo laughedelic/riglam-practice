@@ -16,9 +16,12 @@ export const marksOf = (stage: number): StageMark[] => (state.design === "path" 
 /** How many of the terms have their last answer right. */
 export const rightOf = (marks: readonly StageMark[]): number => marks.filter((t) => t.mark === "ok").length;
 
-/** The segments inside a 30 by 30 ring: one whole circle for a single term or when every term is right, else an arc for each with a gap between. */
-export function Segs({ marks }: { marks: readonly StageMark[] }) {
-  if (marks.length === 1 || marks.every((t) => t.mark === "ok")) return <circle class={"tseg " + marks[0]!.mark} cx="15" cy="15" r={R} />;
+/**
+ * The segments inside a 30 by 30 ring: one whole circle for a single term or, in the top bar, when every term is right (the ring is complete); else an arc
+ * for each with a gap between. `split`: an arc for each even when they are all right, as in the row of stages, where a stage passed keeps its segments.
+ */
+export function Segs({ marks, split = false }: { marks: readonly StageMark[]; split?: boolean }) {
+  if (marks.length === 1 || (!split && marks.every((t) => t.mark === "ok"))) return <circle class={"tseg " + marks[0]!.mark} cx="15" cy="15" r={R} />;
   const sp = 360 / marks.length;
   return <>{marks.map((t, i) => <path class={"tseg " + t.mark} d={arc(i * sp + GAP / 2, (i + 1) * sp - GAP / 2)} />)}</>;
 }

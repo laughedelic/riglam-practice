@@ -120,20 +120,35 @@ test("on the Path five right relations at the highest stage bring the next stage
   await expect(rings.locator(".tup-rg"), "the nine stages as rings").toHaveCount(9);
   await expect(rings.locator(".tup-rg.now")).toHaveText("2");
   await expect(rings.locator(".tup-rg.done")).toHaveCount(1);
-  // every term is settled on a test device: a whole green circle for each stage with terms; stages 7 to 9 have none (the segments are in the next test)
-  expect(await rings.locator(".tup-rg").evaluateAll((a) => a.map((r) => [...r.querySelectorAll(".tseg")].map((x) => x.getAttribute("class")).join()))).toEqual([...Array(6).fill("tseg ok"), ...Array(3).fill("tseg wait")]);
+  // every term is settled on a test device: a stage passed keeps a green segment for each of its terms (Form alone is a whole circle); stages 7 to 9 have none
+  expect(await rings.locator(".tup-rg").evaluateAll((a) => a.map((r) => [...r.querySelectorAll(".tseg")].map((x) => x.getAttribute("class")).join()))).toEqual([
+    "tseg ok", ...[4, 4, 4, 5, 3].map((n) => Array(n).fill("tseg ok").join()), ...Array(3).fill("tseg wait")]);
+  // the new stage has a halo of its own, and no other has
+  await expect(rings.locator(".tup-rg.now .halo")).toHaveCount(1);
+  await expect(rings.locator(".tup-rg:not(.now) .halo")).toHaveCount(0);
   // the stage's own terms are listed under what it introduces
   await expect(up.locator(".tstop-sec + .tup .tterms li .ttn").first()).toHaveText("External form");
   await expect(up.locator(".tterms li")).toHaveCount(4);
   await expect(up.locator(".tup-lead")).toContainText("Colors and shapes as qualities of things");
-  // a tap on a ring lists its terms under the row, a second tap closes it
+  // a tap on a ring shows its terms in a tooltip over the page, which stays where it is; a second tap on the ring, a tap elsewhere or Escape closes it
+  const lead = await up.locator(".tup-lead").boundingBox();
   await rings.locator(".tup-rg").nth(4).click();
   await expect(up.locator(".tup-rgp .tterms li .ttn")).toHaveText(["Internal form", "Sense power", "Sense consciousness", "Eye consciousness", "Mental consciousness"]);
+  expect(await up.locator(".tup-rgp").evaluate((e) => getComputedStyle(e).position), "over the page, not in it").toBe("absolute");
+  expect((await up.locator(".tup-lead").boundingBox()).y, "the text under the row does not move").toBe(lead.y);
+  await expect(rings.locator(".tup-rg").nth(4)).toHaveAttribute("aria-expanded", "true");
   await rings.locator(".tup-rg").nth(7).click();
   await expect(up.locator(".tup-rgp")).toContainText("Stage 8");
   await expect(up.locator(".tup-rgp")).toContainText("It introduces no new terms.");
   await rings.locator(".tup-rg").nth(7).click();
   await expect(up.locator(".tup-rgp")).toHaveCount(0);
+  await rings.locator(".tup-rg").nth(2).click();
+  await expect(up.locator(".tup-rgp")).toHaveCount(1);
+  await page.keyboard.press("Escape");
+  await expect(up.locator(".tup-rgp")).toHaveCount(0);
+  await rings.locator(".tup-rg").nth(2).click();
+  await up.locator(".cs").click();
+  await expect(up.locator(".tup-rgp"), "a tap elsewhere closes it").toHaveCount(0);
   await expect(up.locator(".tstop-sech"), "what it adds, and what the stages are").toHaveText(["Topics", "Progression"]);
   await expect(up, "the first one says what the stages are").toContainText("Each stage adds a new kind of thing to ask about");
   await expect(up).toContainText("The earlier stages stay in the mix.");
@@ -172,6 +187,7 @@ test("on the Path a stage with new terms comes with the answer that makes the la
   expect(await page.evaluate(() => window.__t.stageRun.up), "one right answer, not a run of five").toBe(1);
   await station(page).click();
   await expect(page.locator("#path .tstage .cs")).toHaveText("Stage 3 reached");
+  await expect(station(page), "the first term of the stage comes at once: the station says so").toHaveAccessibleName(/^Next: new definition/);
   await station(page).click();
   await expect.poll(() => page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("1,2,3");
   await expect(page.locator("#path .tstop .cs"), "the first term of stage 3 comes at once").toHaveText("Sound source");
