@@ -25,6 +25,7 @@ What differs between the builds is kept out of `src/app`:
 | Felt tiles | files in `dist/pwa/assets` | data URIs in the page's CSS |
 | Document | `index.html` with a viewport meta, theme colour, manifest, icons | an HTML fragment (`<title>`, font links, `<style>`, markup, `<script>`); the Artifact tool adds the document skeleton |
 | Ground rules of the frame | copied in `src/pwa/shell.css` (safe-area padding, `[hidden]`) | supplied by the frame |
+| The first screen while the page starts | `src/pwa/cover.html` (a cover with the figure and the name, drawn from the first paint with its own style; `src/pwa/cover.ts` removes it once the page has left its "Loading." screen, after a moment at least) | the frame's own |
 | Service worker, install | yes | no (the frame forbids service workers) |
 
 ## The page code

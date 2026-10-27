@@ -1,11 +1,13 @@
 // Entry of the PWA build: the page runs as an installed app. The platform stands in for the artifact frame.
 import "./pwa/fonts.css";
 import "./pwa/shell.css";
+import { mountCover } from "./pwa/cover";
 import { mountUpdateToast } from "./pwa/update-toast";
 import { pwaPlatform } from "./pwa/platform"; // before the page: it takes a key out of the address first of all
 import "./app/app.css";
 import { startApp } from "./app/app.js";
 
+mountCover();
 startApp(pwaPlatform);
 mountUpdateToast(pwaPlatform.updates!);
 

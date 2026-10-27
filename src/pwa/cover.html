@@ -1,0 +1,31 @@
+<!-- The cover of the installed app: what the page shows from its first paint, while the scripts and the data arrive, and what leaves (src/pwa/cover.ts) once the first screen is drawn.
+     Its style and its markup are in this file alone, so it stands before any stylesheet or script has loaded. The name under the figure is the roadmap's lockup (src/app/path/brand.tsx, stacked, lower case):
+     when the form changes there, change it here. -->
+<style>
+.cover{--cv-paper:#fbf9f2;--cv-ink:#14151c;--cv-ink2:#6a6a6c;--cv-blue:#3155a4;position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;box-sizing:border-box;padding:24px 24px calc(96px + env(safe-area-inset-bottom,0px));background:var(--cv-paper);color:var(--cv-ink);transition:opacity .38s ease}
+@media (prefers-color-scheme:dark){.cover{--cv-paper:#161a20;--cv-ink:#ece7dc;--cv-ink2:#a39f96;--cv-blue:#7f98d4}}
+.cover[data-mode="light"]{--cv-paper:#fbf9f2;--cv-ink:#14151c;--cv-ink2:#6a6a6c;--cv-blue:#3155a4}
+.cover[data-mode="dark"]{--cv-paper:#161a20;--cv-ink:#ece7dc;--cv-ink2:#a39f96;--cv-blue:#7f98d4}
+.cover.gone{opacity:0;pointer-events:none}
+.cover .cv-fig{width:84px;height:auto;overflow:visible}
+.cover .cv-fig polygon{transform-box:fill-box;transform-origin:50% 50%;animation:cv-in .7s cubic-bezier(.2,.8,.2,1) both}
+.cover .cv-fig .d2{animation-delay:.14s}
+.cover .cv-fig .d3{animation-delay:.28s}
+.cover .cv-name{width:162px;height:auto;overflow:visible;animation:cv-fade .7s .5s ease both}
+.cover .cv-name text{font-family:Newsreader,'Iowan Old Style','Palatino Linotype',Georgia,serif}
+.cover .cv-name .n{font-size:28px;font-weight:600;fill:var(--cv-ink)}
+.cover .cv-name .p{font-size:21px;font-style:italic;font-weight:400;fill:var(--cv-ink2)}
+.cover .cv-way{position:absolute;left:50%;bottom:calc(30px + env(safe-area-inset-bottom,0px));width:12px;height:72px;margin-left:-6px;-webkit-mask-image:linear-gradient(to bottom,#000 20%,transparent);mask-image:linear-gradient(to bottom,#000 20%,transparent)}
+.cover .cv-way::before{content:"";position:absolute;left:5px;top:0;bottom:0;width:0;border-left:1.5px dotted var(--cv-ink2);opacity:.6}
+.cover .cv-way i{position:absolute;left:2px;top:0;width:8px;height:8px;background:var(--cv-blue);transform:rotate(45deg);animation:cv-go 2.4s 1s ease-in-out infinite both}
+@keyframes cv-in{from{opacity:0;transform:translateY(10px) scale(.94)}}
+@keyframes cv-fade{from{opacity:0;transform:translateY(6px)}}
+@keyframes cv-go{0%{top:0;opacity:0}15%{opacity:1}70%{top:62px;opacity:1}100%{top:62px;opacity:0}}
+@media (prefers-reduced-motion:reduce){.cover,.cover *{animation:none!important;transition:none!important}}
+</style>
+<div class="cover" id="cover" role="status" aria-label="Riglam practice is starting">
+  <svg class="cv-fig" viewBox="100 50 312 412" aria-hidden="true"><polygon class="d1" fill="#faaf3f" points="256,61 371,177 256,292 141,177"/><polygon class="d2" fill="#3155a4" points="256,162 400,306 256,451 112,306"/><polygon class="d3" fill="#4c8a63" points="321,227 256,292 191,227 256,162"/></svg>
+  <svg class="cv-name" viewBox="0 0 90 52" role="img" aria-label="Riglam practice"><text class="n" x="45" y="26" text-anchor="middle" textLength="90" lengthAdjust="spacing">riglam</text><text class="p" x="45" y="45" text-anchor="middle" textLength="90" lengthAdjust="spacing">practice</text></svg>
+  <span class="cv-way" aria-hidden="true"><i></i></span>
+</div>
+<script>try{var m=JSON.parse(localStorage.getItem("rd-look")||"null");if(m&&(m.mode==="light"||m.mode==="dark"))document.getElementById("cover").setAttribute("data-mode",m.mode)}catch(e){}</script>
