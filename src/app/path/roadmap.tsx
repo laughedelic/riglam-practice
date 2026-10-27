@@ -94,7 +94,7 @@ export function Roadmap() {
     <div class="rbody">
       <svg class="tree" viewBox="0 0 390 590" role="group" aria-label="The exercises">
         <defs><linearGradient id="rdfade" gradientUnits="userSpaceOnUse" x1="0" y1="526" x2="0" y2="584"><stop offset="0" style="stop-color:var(--ink3)" /><stop offset="1" style="stop-color:var(--ink3);stop-opacity:0" /></linearGradient></defs>
-        <svg x="177" y="6" width="36" height="48" viewBox="100 50 312 412" aria-hidden="true" dangerouslySetInnerHTML={{ __html: BRAND }} />
+        <svg class="rhead rfig" x="177" y="6" width="36" height="48" viewBox="100 50 312 412" aria-hidden="true" dangerouslySetInnerHTML={{ __html: BRAND }} />
         <Lockup x={195} y={NAME_Y} />
         <path class="ln" d={"M195 " + (NAME_Y + NAME_BOTTOM + 5) + " V124"} />
         <path class="ln" d="M195 124 C195 142 74 136 74 156 V189" /><path class="ln" d="M195 124 V231" /><path class="ln" d="M195 124 C195 142 316 136 316 156 V189" />

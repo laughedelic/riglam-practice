@@ -347,7 +347,7 @@ test("the roadmap has the stops and their names only: no branch labels, and the 
   await page.locator(".tstn").click();
   const tree = road.locator("svg.tree");
   await expect(tree).toBeVisible();
-  expect((await tree.locator("text").allTextContents()).sort()).toEqual(["Categories", "Debate", "Find a pair", "Find an instance", "Pervasions", "Relations", "Syllogisms", "coming", "continue", "practice", "riglam"]);
+  expect((await tree.locator("text").allTextContents()).sort()).toEqual(["Categories", "Debate", "Find a pair", "Find an instance", "Pervasions", "RIGLAM", "Relations", "Syllogisms", "coming", "continue", "practice"]);
   const geo = await tree.evaluate((svg) => {
     const pt = (p, at) => { const q = p.getPointAtLength(at); return [Math.round(q.x), Math.round(q.y)]; };
     const dashed = [...svg.querySelectorAll("path.lnp:not(.fade)")].map((p) => [pt(p, 0), pt(p, p.getTotalLength())]);

@@ -7,6 +7,7 @@ test.use({ reducedMotion: "no-preference" });
 
 const onPath = () => {
   if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path");
+  if (localStorage.getItem("rd-start") === null) localStorage.setItem("rd-start", "exercise");
   if (localStorage.getItem("rd-look") === null) localStorage.setItem("rd-look", JSON.stringify({ ride: "fold" }));   // the squeeze ride, which this spec is about (the push is the default: path-push.spec.js)
   window.__vib = []; navigator.vibrate = (v) => { window.__vib.push(v); return true; };
 };
