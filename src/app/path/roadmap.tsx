@@ -10,13 +10,15 @@ import { toggleMenu } from "../shell/menu.js";
 import { toggleOpts } from "../shell/options.js";
 import { setTab } from "../shell/tabs.js";
 import { isEx } from "../shell/render.js";
+import { BRAND, LOCKUP_FORM, Lockup, lockupBottom } from "./brand.tsx";
 import { Icon, dia } from "./ui.tsx";
 
-const BRAND = '<polygon points="256,61 371,177 256,292 141,177" fill="#faaf3f"/><polygon points="256,162 400,306 256,451 112,306" fill="#3155a4"/><polygon points="321,227 256,292 191,227 256,162" fill="#4c8a63"/>';
 // where each stop stands on the tree: a stop's name, and "continue" under it, are 54 px tall, and the line to the stop below starts under them
 const PLACES: Record<string, { x: number; y: number }> = {
   practice: { x: 74, y: 198 }, find: { x: 74, y: 282 }, debate: { x: 74, y: 366 }, syllogism: { x: 195, y: 240 }, categories: { x: 316, y: 198 }, instance: { x: 316, y: 282 },
 };
+// the name under the figure: the first baseline (the connector to the branches starts under it)
+const NAME_Y = LOCKUP_FORM.startsWith("line") ? 90 : 82;
 const PLANNED = { name: "Debate", x: 195, y: 470 };
 const MINI: Record<string, string> = { ok: "ok", part: "part", bad: "bad", pend: "pend" };
 
@@ -94,9 +96,9 @@ export function Roadmap() {
     <div class="rbody">
       <svg class="tree" viewBox="0 0 390 590" role="group" aria-label="The exercises">
         <defs><linearGradient id="rdfade" gradientUnits="userSpaceOnUse" x1="0" y1="526" x2="0" y2="584"><stop offset="0" style="stop-color:var(--ink3)" /><stop offset="1" style="stop-color:var(--ink3);stop-opacity:0" /></linearGradient></defs>
-        <svg x="176" y="10" width="38" height="50" viewBox="100 50 312 412" aria-hidden="true" dangerouslySetInnerHTML={{ __html: BRAND }} />
-        <text class="bn" x="195" y="92" text-anchor="middle">riglam</text>
-        <path class="ln" d="M195 102 V124" />
+        <svg x="177" y="6" width="36" height="48" viewBox="100 50 312 412" aria-hidden="true" dangerouslySetInnerHTML={{ __html: BRAND }} />
+        <Lockup x={195} y={NAME_Y} />
+        <path class="ln" d={"M195 " + (NAME_Y + lockupBottom() + 5) + " V124"} />
         <path class="ln" d="M195 124 C195 142 74 136 74 156 V189" /><path class="ln" d="M195 124 V231" /><path class="ln" d="M195 124 C195 142 316 136 316 156 V189" />
         <path class="ln" d="M74 252 V273" /><path class="ln" d="M74 336 V357" /><path class="ln" d="M316 252 V273" />
         <path class="lnp" d="M74 420 C74 444 195 436 195 461" /><path class="lnp" d="M195 294 V461" /><path class="lnp" d="M316 336 V420 C316 444 195 436 195 461" />
