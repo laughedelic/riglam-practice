@@ -56,8 +56,10 @@ html.pa-tab .pa :is(button,[tabindex]):not([data-quiet]):focus-visible:not(.pbr 
 .pa .rgs .tseg.wait{stroke-opacity:.12}
 .pa .rgs .tseg.ok{stroke:var(--green); stroke-opacity:1}
 .pa .rgs .tseg.miss,.pa .rgs .tseg.slip{stroke:var(--red); stroke-opacity:1}
-.pa .rgs .disc{stroke:none; fill:transparent; transition:fill .3s ease}
-.pa .pring.on .disc{fill:var(--ink); fill-opacity:.08}
+/* the disc's color stays, only its opacity moves: a fill that fades to transparent while its opacity jumps to 1 flashes in the ink's color (white in the dark theme) */
+.pa .rgs .disc{stroke:none; fill:var(--ink); fill-opacity:0; transition:fill .3s ease, fill-opacity .3s ease}
+.pa .rgs .halo{stroke:var(--blue); stroke-width:1.2}
+.pa .pring.on .disc{fill-opacity:.08}
 .pa .pring.full .disc{fill:var(--green); fill-opacity:1}
 .pa .rgs text{font:600 11px var(--mono); fill:var(--ink); text-anchor:middle; dominant-baseline:alphabetic}
 .pa .pring.full text{fill:var(--paper)}

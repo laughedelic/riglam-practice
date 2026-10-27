@@ -133,7 +133,10 @@
 .pa .tup-rg.ahead text{fill:var(--ink3)}
 .pa .tup-rg.now .disc{fill:var(--blue); fill-opacity:.12}
 .pa .tup-rg.on .disc{fill:var(--ink); fill-opacity:.1}
-.pa .tup-rgp{margin:2px 0 8px}
+.pa .tup-rw{position:relative}
+.pa .tup-rgp{position:absolute; z-index:6; left:0; right:0; top:calc(100% - 2px); padding:9px 14px 8px; background:var(--paper); border:1px solid var(--rule); border-radius:6px; box-shadow:0 6px 18px rgba(0,0,0,.16)}
+.pa .tup-rgp::before{content:""; position:absolute; top:-6px; left:calc(var(--c) * 100%); width:10px; height:10px; margin-left:-5px; transform:rotate(45deg); background:var(--paper); border-left:1px solid var(--rule); border-top:1px solid var(--rule)}
+.pa .tup-rgp .tterms{margin:4px 0 0}
 .pa .tup .tup-rgl{margin:0; font:500 10.5px var(--mono); letter-spacing:.08em; text-transform:uppercase; color:var(--ink3)}
 .pa .tup-fold{margin:6px 0 4px}
 .pa .tup-foldb{display:inline-flex; align-items:center; gap:8px; background:none; border:0; padding:4px 0; font:inherit; font-size:16px; color:var(--ink2); cursor:pointer}

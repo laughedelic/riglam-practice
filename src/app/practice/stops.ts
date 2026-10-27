@@ -41,6 +41,15 @@ export function dueStop(): Stop | null {
   const u = state.ui; if (!onPath() || !state.intro || !state.DATA || !u || u.stop) return null;
   return nextStop(ix(), state.intro, state.stages, now());
 }
+/**
+ * The stop that Next on the station of a stage coming in would lead to: the stage comes in and its first term is due at once (`stopsStageUp`); when the learner
+ * stays on the stage, the stop due now, if any. Null off the station.
+ */
+export function stopAfterStage(): Stop | null {
+  const up = state.ui && state.ui.up; if (!onPath() || !state.intro || !state.DATA || !up || !up.shown) return null;
+  const comes = !up.stayed && !state.stageRun.manual && !state.stages.includes(up.stage);
+  return nextStop(ix(), comes ? stageUp(state.intro) : state.intro, comes ? [...state.stages, up.stage].sort((a: number, b: number) => a - b) : state.stages, now());
+}
 /** Before the next question: the stop that is due, if any, goes on the answer on screen and counts as shown. Whether one did. */
 export function takeStop(): boolean {
   const u = state.ui; if (!onPath() || !state.intro || !state.DATA || !u || u.stop) return false;
