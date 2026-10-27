@@ -283,8 +283,8 @@
 {"id":"monastic","kind":"everyday","labels":["monks and nuns"],"type":"person: monks and nuns","sense":false,"st":4,"phrases":["a monk or a nun"],"within":["human","pers","ft"]},
 {"id":"teacher","kind":"everyday","labels":["teachers"],"type":"person: people who teach","sense":false,"st":4,"phrases":["a teacher"],"within":["human","pers","ft"]},
 {"id":"dog","kind":"everyday","labels":["dogs"],"type":"person: dogs","sense":false,"st":1,"phrases":["a dog"],"within":["animal","pers","ft"]},
-{"id":"fly","kind":"everyday","labels":["animals that fly","flying animals"],"type":"person: animals that fly","sense":false,"st":1,"phrases":["able to fly","a flying animal"],"within":["animal","pers","ft"]},
-{"id":"swim","kind":"everyday","labels":["animals that swim","swimming animals"],"type":"person: animals that swim","sense":false,"st":1,"phrases":["able to swim","a swimming animal"],"within":["animal","pers","ft"]}
+{"id":"fly","kind":"everyday","labels":["animals that fly","flying animals"],"type":"person: animals that fly","sense":false,"st":1,"phrases":["an animal that can fly","a flying animal"],"within":["animal","pers","ft"]},
+{"id":"swim","kind":"everyday","labels":["animals that swim","swimming animals"],"type":"person: animals that swim","sense":false,"st":1,"phrases":["an animal that can swim","a swimming animal"],"within":["animal","pers","ft"]}
 ],
 "items":[
 {"n":"a wooden chair","t":"External form","c":["ft","form","extf","hid","wooden","furn"],"comp":true,"body":false,"st":1,"may":["white","red","green","black","blue","yellow"]},
@@ -381,7 +381,7 @@
 {"n":"a child","t":"Person","c":["ft","nonas","pers","hid","human","children"],"comp":false,"body":false,"st":4},
 {"n":"a dog","t":"Person","c":["ft","nonas","pers","hid","animal","dog"],"comp":false,"body":false,"st":1,"may":["swim"]},
 {"n":"a cat","t":"Person","c":["ft","nonas","pers","hid","animal"],"comp":false,"body":false,"st":1,"may":["swim"]},
-{"n":"a sparrow","t":"Person","c":["ft","nonas","pers","hid","animal","bird"],"comp":false,"body":false,"st":1},
+{"n":"a sparrow","t":"Person","c":["ft","nonas","pers","hid","animal","bird","fly"],"comp":false,"body":false,"st":1},
 {"n":"the impermanence of a cup","t":"Non-associated compositional factor","c":["ft","nonas","hid"],"comp":false,"body":false,"st":6,"dudraOnly":true},
 {"n":"the aging of a body","t":"Non-associated compositional factor","c":["ft","nonas","hid"],"comp":false,"body":false,"st":6,"dudraOnly":true},
 {"n":"uncomposed space","t":"Permanent","c":["perm","hid"],"comp":false,"body":false,"st":6,"dudraOnly":true},
@@ -692,8 +692,8 @@
 {"n":"a goldfish","t":"Person","c":["ft","nonas","pers","hid","animal","fish","swim"],"comp":false,"body":false,"st":1},
 {"n":"a shark","t":"Person","c":["ft","nonas","pers","hid","animal","fish","swim"],"comp":false,"body":false,"st":1},
 {"n":"an ant","t":"Person","c":["ft","nonas","pers","hid","animal"],"comp":false,"body":false,"st":1,"may":["fly","swim"]},
-{"n":"a parrot","t":"Person","c":["ft","nonas","pers","hid","animal","bird"],"comp":false,"body":false,"st":1},
-{"n":"a pigeon","t":"Person","c":["ft","nonas","pers","hid","animal","bird"],"comp":false,"body":false,"st":1},
+{"n":"a parrot","t":"Person","c":["ft","nonas","pers","hid","animal","bird","fly"],"comp":false,"body":false,"st":1},
+{"n":"a pigeon","t":"Person","c":["ft","nonas","pers","hid","animal","bird","fly"],"comp":false,"body":false,"st":1},
 {"n":"a puppy","t":"Person","c":["ft","nonas","pers","hid","animal","dog"],"comp":false,"body":false,"st":1,"may":["swim"]},
 {"n":"a poodle","t":"Person","c":["ft","nonas","pers","hid","animal","dog"],"comp":false,"body":false,"st":1,"may":["swim"]},
 {"n":"a duck","t":"Person","c":["ft","nonas","pers","hid","animal","bird","fly","swim"],"comp":false,"body":false,"st":1},
