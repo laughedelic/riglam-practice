@@ -1,6 +1,6 @@
 // The offer of the stages, from the result of any exercise (src/domain/stages.ts, runAfter and stageOffer). On the Path the stages are chapters of one
 // list of terms: a stage that brings new terms comes with the first of them, once the stage below has brought all of its own and few enough terms are
-// open (src/domain/intro.ts, nextStageDue). The ladder ends at stage 8: the stages after it are the steps of depth, which the Path offers on a result like
+// open (src/domain/intro.ts, nextStageDue). The ladder ends at stage 8: the stages after it are the layers of depth, which the Path offers on a result like
 // any offer (the first once the last answer on each term of stage 8 is right, the others after a run) and the Difficulty page sets; on the classic page
 // every stage waits for a run of right answers.
 // Every checked answer moves the run at the highest stage that is on, and the exercise's own record: whether it has warmed up, which sets how many of its
@@ -67,7 +67,7 @@ export const progressNow = (): StageProgress => state.design === "path"
   ? stageProgress(state.stageRun, ladderOf(state.stages), marksAt(ladderTop(state.stages)), nextNow(), LADDER_TOP)
   : stageProgress(state.stageRun, state.stages, marksNow(), nextNow());
 
-/** Whether an offer is of a step of depth (on the Path: src/domain/stages.ts, LADDER_TOP), not of a stage. */
+/** Whether an offer is of a layer of depth (on the Path: src/domain/stages.ts, LADDER_TOP), not of a stage. */
 const deep = (stage: number) => state.design === "path" && isDepth(stage);
 const pending = () => { const o = state.ui && state.ui.offer; return o && o.kind !== "done" ? (o as { kind: "up" | "down"; stage: number }) : null; };
 /** The run that led to an offer is spent: the next one counts from now. */
@@ -117,7 +117,7 @@ export function setMovesUp(on: boolean) { state.stageRun = setManual(state.stage
 export function acceptStageOffer() {
   const o = pending(); if (!o || !state.ui) return;
   if (o.kind === "up") spend(); else { state.stageRun = cameDown(state.stageRun); saveProgress(); }     // a stage taken off comes back after a run, not at the next answer
-  if (deep(o.stage)) {      // on the Path, a step of depth: what it is named on the Difficulty page
+  if (deep(o.stage)) {      // on the Path, a layer of depth: what it is named on the Difficulty page
     const d = o.stage - LADDER_TOP - (o.kind === "up" ? 0 : 1);
     state.ui.offer = { kind: "done", text: o.kind === "up" ? "Depth: " + DEPTH_NAME[d] + ", from the next question, in every exercise. Change it on the Difficulty page."
       : (d ? "Depth: " + DEPTH_NAME[d] + " for now." : "No chains for now.") + " Change it on the Difficulty page." };
@@ -138,7 +138,7 @@ export function declineStageOffer() {
   const o = pending(); if (!o || !state.ui) return;
   spend();
   if (deep(o.stage)) {
-    state.ui.offer = { kind: "done", text: o.kind === "up" ? (o.stage === LADDER_TOP + 1 ? "No chains for now." : "No longer chains for now.") + " It asks again after another five right in a row."
+    state.ui.offer = { kind: "done", text: o.kind === "up" ? (o.stage === LADDER_TOP + 1 ? "No chains for now." : "No deeper layer for now.") + " It asks again after another five right in a row."
       : "The chains stay. It asks again after another four wrong in a row." };
     render();
     return;

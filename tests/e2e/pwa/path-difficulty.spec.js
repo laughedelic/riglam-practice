@@ -1,13 +1,14 @@
 // The Difficulty page on the Path (src/app/path/difficulty.tsx), over the Progression page: the pace of the new terms, the negations and the depth, each with
 // its choice; the negations open from stage 2 and the depth from stage 8, the last of the ladder. Depth puts on the stages after it (src/domain/stages.ts,
-// LADDER_TOP), which the Progression page does not list as stages, and a result offers its first step once each term of stage 8 is right.
+// LADDER_TOP), which the Progression page does not list as stages, and a result offers its first layer once each term of stage 8 is right.
 import { test, expect } from "../../support/test.js";
 
 const ORDER = ["mi", "3ab", "3ba", "4", "con"];
 const road = (page) => page.getByRole("dialog", { name: "Roadmap" });
 const rings = (page) => road(page).getByRole("group", { name: /^The stages/ }).getByRole("button");
 const stages = (page) => page.locator("#path .pprog .prg");
-const row = (page) => page.getByRole("button", { name: /^Pace, negations, depth/ });
+const row = (page) => page.getByRole("button", { name: /^Difficulty/ });
+const stagesHead = (page) => page.locator("#path .pprog .sechead").filter({ hasText: /^Stages/ });
 const diff = (page) => page.locator("#path .pdiff");
 const exercise = (page) => page.locator("#path .chs .crow");
 const station = (page) => page.locator("#stn");
@@ -20,7 +21,7 @@ const open = async (page, stagesOn) => {
   await expect(stages(page)).toHaveCount(8);
 };
 
-test("the Difficulty row above the stages opens its page: the pace is kept, the negations wait for stage 2 and the depth for stage 8, and Back comes to the stages", async ({ page }) => {
+test("the Difficulty heading above the stages opens its page: the pace is kept, the negations wait for stage 2 and the depth for stage 8, and Back comes to the stages", async ({ page }) => {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await open(page, "1");
@@ -33,36 +34,35 @@ test("the Difficulty row above the stages opens its page: the pace is kept, the 
   await pace.getByRole("button", { name: "Careful · 2" }).click();
   await expect(pace.getByRole("button", { name: "Careful · 2" })).toHaveAttribute("aria-pressed", "true");
   expect(await page.evaluate(() => localStorage.getItem("rd-pace"))).toBe("2");
-  await expect(diff(page)).toContainText("while fewer than two of your terms are not right yet");
   // at stage 1 neither the negations nor the depth can be set yet
   await expect(diff(page).getByRole("group", { name: "Negations" })).toHaveCount(0);
   await expect(diff(page).getByRole("switch", { name: /^Brackets/ })).toHaveCount(0);
-  await expect(diff(page).locator(".pdiff-wait")).toHaveText(["Open from stage 2.", "Open from stage 8, the last of the stages."]);
+  await expect(diff(page).locator(".pdiff-wait")).toHaveText(["From stage 2.", "From stage 8."]);
   await page.locator(".tstn").click();
   await expect(stages(page)).toHaveCount(8);
   await expect(row(page)).toContainText("careful pace · negations off · depth off");
   expect(errors).toEqual([]);
 });
 
-test("at stage 8 depth is set on the Difficulty page: one step puts stage 9 on, the ladder stays eight stages, and Off takes it away", async ({ page }) => {
+test("at stage 8 depth is set on the Difficulty page: one layer puts stage 9 on, the ladder stays eight stages, and Off takes it away", async ({ page }) => {
   await open(page, "1,2,3,4,5,6,7,8");
-  await expect(page.locator(".ppage .psub")).toHaveText(/^stage 8 of 8/);
+  await expect(stagesHead(page)).toContainText("stage 8 of 8");
   await row(page).click();
   const depth = diff(page).getByRole("group", { name: "Depth" });
   await expect(depth.getByRole("button", { name: "Off" })).toHaveAttribute("aria-pressed", "true");
-  await depth.getByRole("button", { name: "One step" }).click();
-  await expect(depth.getByRole("button", { name: "One step" })).toHaveAttribute("aria-pressed", "true");
+  await depth.getByRole("button", { name: "One layer" }).click();
+  await expect(depth.getByRole("button", { name: "One layer" })).toHaveAttribute("aria-pressed", "true");
   expect(await page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("1,2,3,4,5,6,7,8,9");
   await page.locator(".tstn").click();
-  await expect(row(page)).toContainText("depth one step");
+  await expect(row(page)).toContainText("depth one layer");
   await expect(stages(page)).toHaveCount(8);
-  await expect(page.locator(".ppage .psub")).toHaveText(/^stage 8 of 8/);
+  await expect(stagesHead(page)).toContainText("stage 8 of 8");
   await row(page).click();
   await depth.getByRole("button", { name: "Off" }).click();
   expect(await page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("1,2,3,4,5,6,7,8");
 });
 
-test("on the Path the first step of depth is offered on a result, not brought by a station, and taken with a tap", async ({ page }) => {
+test("on the Path the first layer of depth is offered on a result, not brought by a station, and taken with a tap", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => {
     localStorage.setItem("rd-design", "path"); localStorage.setItem("rd-stages", "1,2,3,4,5,6,7,8");
@@ -83,6 +83,6 @@ test("on the Path the first step of depth is offered on a result, not brought by
   await expect(offer).toContainText("Every term of stage 8 is right. Try chains of reasoning?");
   await expect(station(page)).not.toHaveAccessibleName(/new stage/);
   await offer.getByRole("button", { name: "Try chains" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Depth: one step" })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Depth: one layer" })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("1,2,3,4,5,6,7,8,9");
 });

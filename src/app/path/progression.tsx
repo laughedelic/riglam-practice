@@ -1,8 +1,8 @@
 // The Progression page: the stages of the ladder (src/domain/stages.ts) as stops on one line, each stage's ring the node (path/rings.tsx), with where it
 // stands under its name. A tap on a stage unfolds what it introduces and its new terms, each with its mark; a term the learner has met opens its card on a
 // page of its own, as its stop showed it (the names, the definition, where it sits, the examples), and Back comes to the stages again where they were. A
-// fold at the top says how the stages work. Above them, Difficulty says how the pace, the negations and the depth stand, and opens their page
-// (path/difficulty.tsx). The roadmap's foot shows the same rings in a row (`StageRings`): a tap on one opens the page with that stage unfolded, and the link under the top bar's ring does so with the stage the learner is on.
+// fold at the top says how the stages work. Above them, Difficulty, a heading as Stages is, says how the pace, the negations and the depth stand, and
+// opens their page (path/difficulty.tsx). The roadmap's foot shows the same rings in a row (`StageRings`): a tap on one opens the page with that stage unfolded, and the link under the top bar's ring does so with the stage the learner is on.
 // The page stands in for Review (state.pathProg; setTab closes it), and Back from it goes where it was opened from: the roadmap or the exercise.
 import { useLayoutEffect } from "preact/hooks";
 import { state } from "../state.js";
@@ -29,7 +29,7 @@ import { D, Gap, Head, Icon, St, Sx } from "./ui.tsx";
 
 /** The roadmap's slide (37-path-panels.css), and a little more: the page is out of sight by then. */
 const SLIDE_MS = 420;
-/** The stages of the ladder: those after its last are the steps of depth, on the Difficulty page (src/domain/stages.ts, LADDER_TOP). */
+/** The stages of the ladder: those after its last are the layers of depth, on the Difficulty page (src/domain/stages.ts, LADDER_TOP). */
 const LADDER = STAGES.filter((s) => s.n <= LADDER_TOP);
 
 /** Opens the page in place of Review, with a stage unfolded and in view when one is named. `from`: the roadmap's rings or the link on the top bar's ring sheet. */
@@ -132,14 +132,11 @@ function How() {
   </>;
 }
 
-/** The difficulty besides the stages, above them: how each of the three stands, and the way to its page. */
-const Difficulty = () => <>
-  <p class="pgh"><b>Difficulty</b></p>
-  <Sx cls="walked first ptrail"><Gap h={6} />
-    <St d={<D cls="sub" />} cls="trow prg-dif can">
-      <button type="button" class="trb" onClick={() => openDifficulty(true)}><b>Pace, negations, depth</b><small class="prg-s">{difficultyLine()}</small><span class="arr"><Icon n="chev" /></span></button></St>
-    <Gap h={6} /></Sx>
-</>;
+/** The difficulty besides the stages, a heading of its own above them: how each of the three stands, and the way to its page. */
+const Difficulty = () => <Sx cls="walked first ptrail"><Gap h={6} />
+  <St d={<D cls="sec tsd" />} cls="sechead trow prg-h can">
+    <button type="button" class="trb" aria-label={"Difficulty: " + difficultyLine()} onClick={() => openDifficulty(true)}><span class="ph">Difficulty<span>{difficultyLine()}</span></span><span class="arr"><Icon n="chev" /></span></button></St>
+</Sx>;
 
 /** The stages. Opened at a stage, its unfolded row comes into view, once; back from a term's card, the page is where it was. */
 function Stages({ p }: { p: ProgressionAt }) {
@@ -157,10 +154,9 @@ function Stages({ p }: { p: ProgressionAt }) {
   return <>
     <TopBar title="Progression" back={{ label: p.from === "road" ? "Back to the roadmap" : "Back to " + exName(p.tab), act: progBack }} />
     <div key="stages" class="ppage prv pprog">
-      <p class="psub">{"stage " + top + " of " + LADDER_TOP + (all.length ? " · " + rightOf(all) + " of " + all.length + " terms right" : "")}</p>
       <Difficulty />
-      <p class="pgh"><b>Stages</b></p>
-      <Sx cls="walked first ptrail"><Gap h={6} />
+      <Sx cls="walked ptrail">
+        <Head d={<D cls="sec tsd" />} h="Stages" sub={"stage " + top + " of " + LADDER_TOP + (all.length ? " · " + rightOf(all) + " of " + all.length + " terms right" : "")} />
         <How />
         {LADDER.map((s) => <StageRow n={s.n} name={s.name} adds={s.adds} top={top} />)}
         <Gap h={6} /></Sx>

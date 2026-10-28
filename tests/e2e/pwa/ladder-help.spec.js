@@ -202,7 +202,7 @@ test("on the Path the stage station shows a ring for each stage with a segment f
   expect(await cls(1), "stage 2, the one coming in: its five terms still to come").toEqual(["wait", "wait", "wait", "wait", "wait"]);
   expect(await cls(2), "stage 3").toEqual(["ok", "miss", "wait", "wait"]);
   expect(await cls(5), "stage 6: three terms").toEqual(["wait", "wait", "wait"]);
-  await expect(rings, "the ladder: its steps of depth are not stages here").toHaveCount(8);
+  await expect(rings, "the ladder: its layers of depth are not stages here").toHaveCount(8);
   await expect(rings.nth(2)).toHaveAccessibleName("Stage 3, 1 of 4 new terms answered right");
   await rings.nth(2).click();
   await expect(page.locator("#path .tup-rgp .tterms li .ttn")).toHaveText(["Odor source", "Sound source", "Taste source", "Tangible object source"]);

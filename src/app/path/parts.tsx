@@ -179,13 +179,13 @@ export function StageOffer() {
   </div></St></Sx>;
 }
 
-/** The offer of a step of depth (the stages after the ladder's last: src/domain/stages.ts, LADDER_TOP): one step deeper, or one less. */
+/** The offer of a layer of depth (the stages after the ladder's last: src/domain/stages.ts, LADDER_TOP): one layer deeper, or one less. */
 function DepthOffer({ up, stage }: { up: boolean; stage: number }) {
   const d = stage - LADDER_TOP;
   return <Sx cls="walked"><St d={<D cls="sub now" />} cls="offer"><div role="group" aria-label="Depth">
-    <p class="oq">{up ? (d === 1 ? "Every term of stage " + LADDER_TOP + " is right. Try chains of reasoning?" : "The chains are going well. One step deeper?") : "The chains are hard going right now. One step less for a while?"}</p>
+    <p class="oq">{up ? (d === 1 ? "Every term of stage " + LADDER_TOP + " is right. Try chains of reasoning?" : "The chains are going well. One layer deeper?") : "The chains are hard going right now. One layer less for a while?"}</p>
     {up ? <p class="xnote">{"Depth, " + DEPTH_NAME[d] + ": " + DEPTH_ASKS[d]}</p> : null}
-    <span class="pbtns"><button type="button" class="pbtn" onClick={acceptStageOffer}>{up ? (d === 1 ? "Try chains" : "One step deeper") : "One step less"}</button><button type="button" class="pbtn quiet" onClick={declineStageOffer}>Not now</button></span>
+    <span class="pbtns"><button type="button" class="pbtn" onClick={acceptStageOffer}>{up ? (d === 1 ? "Try chains" : "One layer deeper") : "One layer less"}</button><button type="button" class="pbtn quiet" onClick={declineStageOffer}>Not now</button></span>
     <p class="xnote">Never changes by itself. Set it yourself on the <button type="button" class="plnk" onClick={() => openDifficulty()}>Difficulty page</button>.</p>
   </div></St></Sx>;
 }

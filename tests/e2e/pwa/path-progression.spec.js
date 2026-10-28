@@ -1,6 +1,6 @@
 // The Progression page on the Path (src/app/path/progression.tsx): the roadmap's foot shows the stages as a row of rings, and a tap on one opens the page
 // with that stage unfolded; the page has each stage as a stop with its ring as the node, folded, under a fold that says how the stages work; a stage unfolds
-// into what it introduces and its new terms with their marks, and a term met opens its card on a page of its own. Difficulty above them (path-difficulty.spec.js). The sheet of the top
+// into what it introduces and its new terms with their marks, and a term met opens its card on a page of its own. Difficulty, a heading above them as Stages is (path-difficulty.spec.js). The sheet of the top
 // bar's ring opens the page too. Back, the chevron or the system's, goes where the page was opened from: the roadmap or the exercise, and from a term's
 // card to the stages as they were.
 import { test, expect } from "../../support/test.js";
@@ -35,7 +35,8 @@ test("the roadmap's rings open the Progression page with that stage unfolded; a 
   await rings(page).nth(1).click();
   await expect(page.locator("#path .ptb-t")).toHaveText("Progression");
   await expect(page.locator(".ppage .ptitle")).toHaveCount(0);
-  await expect(page.locator(".ppage .psub")).toHaveText(/^stage 2 of 8 · 1 of \d+ terms right$/);
+  await expect(page.locator(".ppage .psub")).toHaveCount(0);
+  await expect(page.locator("#path .pprog .sechead .ph")).toHaveText([/^Difficulty/, /^Stages\s*stage 2 of 8 · 1 of \d+ terms right$/]);
   await expect(page.locator(".tstn")).toHaveAccessibleName("Back to the roadmap");
   await expect(page.getByRole("button", { name: /^Continue practice/ })).toHaveCount(0);
   // the stages, folded but the one tapped; how they work folded above them
@@ -56,7 +57,7 @@ test("the roadmap's rings open the Progression page with that stage unfolded; a 
   await expect(term(page, "Color").getByRole("button")).toHaveAccessibleName("Color, last answer right. Its card");
   await expect(term(page, "Shape")).toHaveClass(/\bwait\b/);
   await expect(term(page, "Shape").getByRole("button")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: /^Pace, negations, depth/ })).toContainText("steady pace · negations off · depth off");
+  await expect(page.getByRole("button", { name: /^Difficulty/ })).toContainText("steady pace · negations off · depth off");
   // stage 1 unfolds with Form, met and not asked yet, and Matter, still to come
   await stages(page).nth(0).locator(".trb").click();
   await expect(term(page, "Form").getByRole("button")).toHaveAccessibleName("Form, not asked yet. Its card");
