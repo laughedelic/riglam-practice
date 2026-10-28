@@ -2,7 +2,8 @@
 // and a stand-in server that accepts it (tests/support/data-key.js). unlock.spec.js uses the plain test. The tutor does not explain a checked
 // answer by itself here (Options, `rd-autoexplain`): the specs click Explain, and the ones for the setting turn it on. Every course term has
 // been met and is settled (`rd-terms`, src/domain/intro.ts), so the Path asks about any category as the specs expect; term-stops.spec.js
-// starts from none.
+// starts from none. The app opens on its roadmap (`rd-start`, src/app/app.js, firstScreen); the specs expect the exercise, so they start with "exercise", and the ones for the roadmap as the first
+// screen set it to "road".
 import { readFileSync } from "node:fs";
 import { test as base, expect } from "@playwright/test";
 import { dataKey, serveCourse, KEY_STORE, withCourse } from "./data-key.js";
@@ -19,6 +20,7 @@ export const test = base.extend({
         if (key) localStorage.setItem(store, key);
         if (localStorage.getItem("rd-autoexplain") === null) localStorage.setItem("rd-autoexplain", "0");
         if (localStorage.getItem("rd-terms") === null) localStorage.setItem("rd-terms", terms);
+        if (localStorage.getItem("rd-start") === null) localStorage.setItem("rd-start", "exercise");
       } catch { /* storage unavailable */ }
     }, [KEY_STORE, withCourse ? dataKey : null, SETTLED_TERMS]);
     await serveCourse(page);

@@ -38,6 +38,7 @@ export default defineConfig({
     buildInfo(),
     iconLinks(),
     includeMarkup(fileURLToPath(new URL("./src/app/markup.html", import.meta.url))),
+    includeMarkup(fileURLToPath(new URL("./src/pwa/cover.html", import.meta.url)), "cover"),
     VitePWA({
       registerType: "prompt", // the page asks the reader before it reloads onto a new version (src/pwa/updates.ts); the worker itself does not wait
       injectRegister: false,

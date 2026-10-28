@@ -12,7 +12,7 @@ const DIST = join(process.cwd(), "dist/pwa");
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".json": "application/json", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png", ".woff2": "font/woff2", ".webmanifest": "application/manifest+json" };
 const V2 = "\nself.addEventListener('fetch',(e)=>{ if(new URL(e.request.url).pathname.endsWith('/__which')) e.respondWith(new Response('v2')); });\n";
 
-let server, origin, newVersion, down;
+let server, origin, newVersion, newBuild, down;
 test.beforeAll(async () => {
   server = createServer((req, res) => {
     const path = decodeURIComponent(new URL(req.url, "http://x").pathname);
@@ -21,6 +21,7 @@ test.beforeAll(async () => {
     if (down && path === "/sw.js") { res.writeHead(503); return res.end(); }
     let body = readFileSync(file);
     if (path === "/sw.js" && newVersion) body = Buffer.concat([body, Buffer.from(V2)]);
+    if (path === "/build.json" && newBuild) body = Buffer.from(JSON.stringify({ version: "9.9.9", commit: "b1ee7d5", builtAt: "2030-01-01T00:00:00Z" }));   // the server's build is another one (its commit and version are named in the notice)
     res.writeHead(200, { "content-type": TYPES[extname(file)] ?? "application/octet-stream", "cache-control": "no-cache" });
     res.end(body);
   });
@@ -28,7 +29,7 @@ test.beforeAll(async () => {
   origin = `http://localhost:${server.address().port}`;
 });
 test.afterAll(() => server.close());
-test.beforeEach(() => { newVersion = false; down = false; });
+test.beforeEach(() => { newVersion = false; newBuild = false; down = false; });
 
 const markOld = (page) => page.evaluate(() => { window.__old = true; });
 const isOld = (page) => page.evaluate(() => window.__old === true);
@@ -41,6 +42,8 @@ async function installed(page) {
   await page.reload();
   await ready(page);
   await expect.poll(() => controlled(page)).toBe(true);
+  // the look the app makes as it opens (the registration answers a moment after the page is up) is over: a later change on the server is then found only by a look the test asks for
+  await expect.poll(() => page.evaluate(() => window.__riglam.platform.updates.status())).toBe("current");
 }
 
 test("a newer version is found, offered, and started from the toast without closing the app", async ({ page }) => {
@@ -94,6 +97,47 @@ test("on the Path the toast is the Path's own notice: an ink block in mono under
   expect(t.y).toBeGreaterThanOrEqual(bar.y + bar.height);
   expect(await isOld(page), "the page the reader is using is not reloaded behind their back").toBe(true);
   await toast.getByRole("button", { name: "Update now" }).click();
+  await expect.poll(() => isOld(page).catch(() => true), { timeout: 15_000 }).toBe(false);
+  await onPath();
+  expect(await which(page)).toBe("v2");
+});
+
+test("the Path's roadmap looks for a newer version each time it opens, says that it is looking, and offers a newer one at its foot", async ({ page }) => {
+  await page.addInitScript(() => { if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path"); });
+  const onPath = () => expect(page.locator("#path .chs .crow")).toHaveCount(5);
+  await page.goto(origin + "/");
+  await onPath();
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.reload();
+  await onPath();
+  await expect.poll(() => controlled(page)).toBe(true);
+  await page.evaluate(() => window.__riglam.platform.updates.check());
+  await markOld(page);
+  await page.clock.install(); // a look from the last few seconds stands: let the time pass
+  await page.clock.fastForward(10_000);
+  await page.locator(".tstn").click();
+  const road = page.getByRole("dialog", { name: "Roadmap" }), row = road.locator(".rver");
+  await expect(row).toContainText("Checking for updates");
+  await expect(row).toContainText("Up to date");
+  const again = row.getByRole("button", { name: "Check again" });
+  expect((await again.boundingBox()).height, "a link of a full touch height").toBeGreaterThanOrEqual(40);
+
+  newVersion = true;
+  newBuild = true;
+  await again.click();
+  await expect(row).toContainText(/Checking for updates|Downloading the update|Update ready/);
+  const note = road.locator(".rnote");
+  await expect(note).toBeVisible();
+  await expect(note).toContainText("New version ready");
+  await expect(note, "it names what is ready and what updating does").toContainText("New version ready (9.9.9). Updating reloads the app; your answers stay.");
+  await expect(row).toContainText("Update ready");
+  await expect(page.locator("#upd"), "the notice under the top bar gives way: the roadmap has its own").toBeHidden();
+  // at the bottom, above the panel, clear of the logo
+  const [n, foot, tree] = await Promise.all([note.boundingBox(), page.locator("#path .rfoot").boundingBox(), road.locator("svg.tree").boundingBox()]);
+  expect(n.y + n.height, "above the foot").toBeLessThanOrEqual(foot.y);
+  expect(n.y, "below the top of the roadmap, not across the logo").toBeGreaterThan(tree.y + tree.height * 0.5);
+  expect(await isOld(page), "the page the reader is using is not reloaded behind their back").toBe(true);
+  await note.getByRole("button", { name: "Update now" }).click();
   await expect.poll(() => isOld(page).catch(() => true), { timeout: 15_000 }).toBe(false);
   await onPath();
   expect(await which(page)).toBe("v2");

@@ -148,7 +148,7 @@ export function renderCategories(s,c){
   let fwd=null;
   if(u.step===0){
     card.append(stepLabel(u.ask==="one"?"Step 1 of 2 · "+(u.i+1)+" of "+q.rows.length:"Step 1 of 2"),thingCard(q),...(u.ask==="one"?oneByOne(q):ticks(q)));
-    if(u.ask==="all") fwd={label:"Check",hint:"Enter",disabled:!u.ticked.length&&!u.none,onclick:checkCategories};
+    if(u.ask==="all") fwd={label:"Check",hint:"Enter",disabled:!u.ticked.length&&!u.none,onclick:()=>checkCategories()};
   } else if(u.step===1){
     const g=u.g1;
     card.append(stepLabel("Step 1 of 2 · checked"),thingCard(q),sumLine(g),splitResult(g,u.ask==="all"?"all":"onesplit"));

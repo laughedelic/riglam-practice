@@ -1,6 +1,7 @@
-// The roadmap: every exercise as a stop on a tree, slid in from the left by the back chevron in the top bar or the system Back (the Path's menu). Each exercise shows today's last answers as
-// small diamonds, "continue" when an attempt waits in it, and the planned one (Debate, which Pervasions and Syllogisms lead to) is dashed. Its foot goes to Review and
-// Settings, the Magic Key while this device has none, and the version with the way to update.
+// The roadmap: every exercise as a stop on a tree, under the exercise. The back chevron in the top bar or the system Back slides the exercise away to the right and shows it; "Continue" slides the exercise
+// back in from the right. Each exercise shows today's last answers as small diamonds, "continue" when an attempt waits in it, and the planned one (Debate, which the three branches lead to, and
+// the path goes on from it) is dashed. Above its foot a notice says when a newer version is ready; the foot goes to Review and Settings, the Magic Key while this device has none, and the
+// version with the way to update. The roadmap looks for a newer version every time it opens.
 import { useEffect, useRef } from "preact/hooks";
 import { state } from "../state.js";
 import { dayOf, gradeOf, today } from "../core/util.js";
@@ -8,14 +9,15 @@ import { EXERCISES, parked, todayCount } from "../shell/exercises.js";
 import { toggleMenu } from "../shell/menu.js";
 import { toggleOpts } from "../shell/options.js";
 import { setTab } from "../shell/tabs.js";
-import { Icon, Knob, dia } from "./ui.tsx";
+import { isEx } from "../shell/render.js";
+import { BRAND, Lockup, NAME_BOTTOM, NAME_Y } from "./brand.tsx";
+import { Icon, dia } from "./ui.tsx";
 
-const BRAND = '<polygon points="256,61 371,177 256,292 141,177" fill="#faaf3f"/><polygon points="256,162 400,306 256,451 112,306" fill="#3155a4"/><polygon points="321,227 256,292 191,227 256,162" fill="#4c8a63"/>';
 // where each stop stands on the tree: a stop's name, and "continue" under it, are 54 px tall, and the line to the stop below starts under them
 const PLACES: Record<string, { x: number; y: number }> = {
-  practice: { x: 74, y: 198 }, find: { x: 74, y: 282 }, debate: { x: 74, y: 366 }, syllogism: { x: 196, y: 282 }, categories: { x: 316, y: 198 }, instance: { x: 316, y: 282 },
+  practice: { x: 74, y: 198 }, find: { x: 74, y: 282 }, debate: { x: 74, y: 366 }, syllogism: { x: 195, y: 240 }, categories: { x: 316, y: 198 }, instance: { x: 316, y: 282 },
 };
-const PLANNED = { name: "Debate", x: 135, y: 480 };
+const PLANNED = { name: "Debate", x: 195, y: 470 };
 const MINI: Record<string, string> = { ok: "ok", part: "part", bad: "bad", pend: "pend" };
 
 /** Today's answers in an exercise, oldest first. */
@@ -28,7 +30,8 @@ function go(k: string) {
   if (state.mode !== "quiz") return;
   setTab(k);
 }
-function openSettings() { state.menuOpen = false; state.menuPeek = false; state.sessOpen = false; state.sessPage = null; state.skipAsk = false; toggleOpts(true); }
+// Settings from the roadmap stands over it: Back and its own way back go to the roadmap (shell/history.js)
+function openSettings() { state.fromRoad = true; state.menuOpen = false; state.menuPeek = false; state.sessOpen = false; state.sessPage = null; state.skipAsk = false; toggleOpts(true); }
 
 function Node({ k, name }: { k: string; name: string }) {
   const at = PLACES[k];
@@ -51,45 +54,65 @@ function Planned({ name, x, y }: { name: string; x: number; y: number }) {
     <text class="ed pl" x={x} y={y + 44} text-anchor="middle">coming</text>
   </g>;
 }
-// the version, and where the look for a newer one stands (platform.about, platform.updates)
+/** The notice that a newer version is ready, above the foot: the same words and the same ink block as the notice the rest of the app shows under the top bar (pwa/update-toast.ts), which gives way while the roadmap is open. */
+function Notice() {
+  const u = state.updates; if (!u || u.status() !== "ready") return null;
+  return <div class="rnote" role="status"><span>{u.readyText ? u.readyText() : "New version ready."}</span><button type="button" onClick={() => u.apply()}>Update now</button></div>;
+}
+// the version, and where the look for a newer one stands (platform.about, platform.updates): each state says what it is, and the way on is a button of a full touch height
 function Version() {
   const a = state.about, u = state.updates; if (!a) return null;
   const st = u ? u.status() : null, v = "v" + a.version;
-  if (st === "ready") return <p class="rver" role="status">{v} · update available · <button type="button" onClick={() => u!.apply()}>install</button></p>;
-  if (st === "downloading") return <p class="rver" role="status">{v} · downloading an update</p>;
-  if (st === "checking") return <p class="rver" role="status">{v} · checking for an update</p>;
-  if (st === "unknown") return <p class="rver" role="status">{v} · could not check · <button type="button" onClick={() => u!.check()}>check again</button></p>;
-  if (st === "current") return <p class="rver" role="status">{v} · up to date · <button type="button" onClick={() => u!.check()}>check</button></p>;
-  return <p class="rver" role="status">{v + (a.latest === "newer" ? " · a newer version is out" : "")}</p>;
+  const row = (kind: string, text: string, act?: { label: string; on: () => void }, busy = false) =>
+    <div class={"rver " + kind} role="status" aria-busy={busy ? "true" : undefined}>
+      <span class="rvn">{v}</span>
+      <span class="rvs">{busy ? <Icon n="refresh" cls="i spin" /> : null}{text}</span>
+      {act ? <button type="button" class="lk" onClick={act.on}>{act.label}</button> : null}
+    </div>;
+  if (st === "ready") return row("hot", "Update ready", { label: "Update now", on: () => u!.apply() });
+  if (st === "downloading") return row("busy", "Downloading the update…", undefined, true);
+  if (st === "checking") return row("busy", "Checking for updates…", undefined, true);
+  if (st === "unknown") return row("", "Could not check", { label: "Try again", on: () => void u!.check() });
+  if (st === "current") return row("ok", "Up to date", { label: "Check again", on: () => void u!.check() });
+  return <div class="rver" role="status"><span class="rvn">{v}</span>{a.latest === "newer" ? <span class="rvs">a newer version is out</span> : null}</div>;
 }
 
 export function Roadmap() {
   const on = state.menuOpen, box = useRef<HTMLDivElement>(null), was = useRef(on);
   useEffect(() => {
-    if (on && !was.current) { const n = box.current && box.current.querySelector<SVGElement>("[aria-current=page]"); if (n) n.focus({ preventScroll: true }); }
+    if (on && !was.current) {
+      const n = box.current && box.current.querySelector<SVGElement>("[aria-current=page]"); if (n) n.focus({ preventScroll: true });
+      // every time the roadmap opens it looks for a newer version, unless the device is offline (a look from the last few seconds stands)
+      if (navigator.onLine !== false && state.updates) void state.updates.check(8000);
+    }
     else if (!on && was.current) { const b = box.current && box.current.closest(".pa")?.querySelector<HTMLElement>(".tstn"); if (b) b.focus({ preventScroll: true }); }
     was.current = on;
   }, [on]);
-  const n = todayCount().n;
+  // the notice under the top bar (pwa/update-toast.ts) gives way while the roadmap is open: it has its own notice at the bottom
+  useEffect(() => { document.documentElement.classList.toggle("road-open", on); return () => document.documentElement.classList.remove("road-open"); }, [on]);
+  const n = todayCount().n, back = state.mode === "quiz" && isEx();
   return <div ref={box} class={"road" + (on ? " on" : "")} role="dialog" aria-modal="true" aria-label="Roadmap" aria-hidden={on ? "false" : "true"} inert={!on}>
     <div class="rbody">
-      <svg class="tree" viewBox="0 0 390 530" role="group" aria-label="The exercises">
-        <svg x="176" y="10" width="38" height="50" viewBox="100 50 312 412" aria-hidden="true" dangerouslySetInnerHTML={{ __html: BRAND }} />
-        <text class="bn" x="195" y="92" text-anchor="middle">riglam</text>
-        <path class="ln" d="M195 102 V124" />
-        <path class="ln" d="M195 124 C195 142 74 136 74 156 V189" /><path class="ln" d="M195 124 V273" /><path class="ln" d="M195 124 C195 142 316 136 316 156 V189" />
+      <svg class="tree" viewBox="0 0 390 590" role="group" aria-label="The exercises">
+        <defs><linearGradient id="rdfade" gradientUnits="userSpaceOnUse" x1="0" y1="526" x2="0" y2="584"><stop offset="0" style="stop-color:var(--ink3)" /><stop offset="1" style="stop-color:var(--ink3);stop-opacity:0" /></linearGradient></defs>
+        <svg class="rhead rfig" x="177" y="6" width="36" height="48" viewBox="100 50 312 412" aria-hidden="true" dangerouslySetInnerHTML={{ __html: BRAND }} />
+        <Lockup x={195} y={NAME_Y} />
+        <path class="ln" d={"M195 " + (NAME_Y + NAME_BOTTOM + 5) + " V124"} />
+        <path class="ln" d="M195 124 C195 142 74 136 74 156 V189" /><path class="ln" d="M195 124 V231" /><path class="ln" d="M195 124 C195 142 316 136 316 156 V189" />
         <path class="ln" d="M74 252 V273" /><path class="ln" d="M74 336 V357" /><path class="ln" d="M316 252 V273" />
-        <path class="lnp" d="M74 420 C74 452 135 440 135 471" /><path class="lnp" d="M196 336 V396 C196 452 135 440 135 471" />
+        <path class="lnp" d="M74 420 C74 444 195 436 195 461" /><path class="lnp" d="M195 294 V461" /><path class="lnp" d="M316 336 V420 C316 444 195 436 195 461" />
+        <path class="lnp fade" d="M195 526 V584" style={{ stroke: "url(#rdfade)" }} />
         {EXERCISES.map((e) => <Node k={e.k} name={e.name} />)}
         <Planned {...PLANNED} />
       </svg>
     </div>
+    <Notice />
+    {back ? <div class="rgo"><button type="button" class="lk rcont" onClick={() => toggleMenu(false)}>Continue<Icon n="chev" /></button></div> : null}
     <div class="rfoot">
       <button type="button" class="lk" onClick={() => setTab("review")}>Review · {n} today</button>
       <button type="button" class="lk" onClick={openSettings}>Settings</button>
       {state.unlock ? <button type="button" class="lk" onClick={() => state.unlock!.open()}><Icon n="key" />Magic Key</button> : null}
       <Version />
-      <Knob cls="lt" label="Slide the roadmap away to the left" onClick={() => toggleMenu(false)} />
     </div>
   </div>;
 }
