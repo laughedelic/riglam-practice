@@ -20,7 +20,7 @@ function measure(box: HTMLElement | null): { at: Where; focus: string | null } {
   return { at, focus: f && box?.contains(f) && f.dataset.k != null ? f.dataset.k : null };
 }
 
-export function Threshold({ label, items, picked, onPick, onReset, above = "is", below = "is not" }: { label: string; items: Pick[]; picked: string[]; onPick: (k: string) => void; onReset: () => void; above?: string; below?: string }) {
+export function Threshold({ label, items, picked, onPick, onReset, above = "is", below = "not" }: { label: string; items: Pick[]; picked: string[]; onPick: (k: string) => void; onReset: () => void; above?: string; below?: string }) {
   const box = useRef<HTMLDivElement>(null), before = useRef<ReturnType<typeof measure> | null>(null);
   const take = (go: () => void) => { before.current = measure(box.current); go(); };
   useLayoutEffect(() => {

@@ -256,7 +256,7 @@ test("Categories: a tap lifts a category over the rule and back, reset drops the
   const phrases = await page.evaluate(() => window.__t.cur.q.rows.map((r) => r.phrase));
   const up = page.locator("#path .thold .chs.up .crow"), down = page.locator("#path .thold .chs.down .crow"), reset = page.locator("#path .threset");
   await expect(reset).toHaveCount(0);   // nothing to reset yet
-  await expect(page.locator("#path .thold .thh")).toHaveText(["is", "is not"]);
+  await expect(page.locator("#path .thold .thh")).toHaveText(["is", "not"]);
   await expect(station(page)).toHaveAccessibleName(/^Check.*none of these/);
   await down.filter({ hasText: new RegExp("^" + phrases[1] + "$") }).click();
   await down.filter({ hasText: new RegExp("^" + phrases[0] + "$") }).click();
