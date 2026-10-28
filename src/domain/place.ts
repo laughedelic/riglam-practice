@@ -57,7 +57,7 @@ export interface PlaceDraw {
   unmet?: Unmet;
   /** the share of things from the highest stage on, when lower ones have things too (stages.ts, newShare); none: every stage as often as the others */
   newShare?: number;
-  /** the new terms of the highest stage whose last answer is not right yet (intro.ts, openTerms): its questions ask about one of them while one can be asked */
+  /** the terms met whose last answer is not right yet, at any stage (intro.ts, openTerms): the highest stage's questions ask about one of them while one can be asked */
   open?: ReadonlySet<string>;
 }
 
@@ -222,10 +222,12 @@ export function drawPlace(ix: DataIndex, examples: readonly Example[] | null, dr
       // a thing the data settles too little for is passed over within its stage, so that the stage keeps its share (a stage whose reference
       // examples cannot be asked would otherwise lose its draws to the stage below); a stage with nothing to ask is left out
       let of = left.filter((t) => t.st === stage);
-      // the highest stage waits for the last answer on each of its new terms to be right: its things are those that can be asked about one that is not yet
-      // (the things of the highest stage that has any: the elements bring terms and no things, so the things of the senses are asked about them)
+      // the highest stage's share goes to the terms met whose last answer is not right yet: its things are those that can be asked about one (the things
+      // of the highest stage that has any: the elements bring terms and no things, so the things of the senses are asked about them), or, when none of
+      // them can be (an open term of a stage below), the things of any stage that can
       const open = stage === top && draw.open?.size ? draw.open : null, asks = (rows: readonly PlaceRow[]) => rows.some((r) => open!.has(r.cat));
-      if (open) { const lean = of.filter((t) => asks(thingRows(ix, t, on, draw.unmet))); if (lean.length) of = lean; }
+      const can = (t: PlaceThing) => asks(thingRows(ix, t, on, draw.unmet));
+      if (open) { const lean = of.filter(can); if (lean.length) of = lean; else { const any = left.filter((t) => t.st !== stage && can(t)); if (any.length) of = any; } }
       while (of.length) {
         const thing = of[Math.floor(draw.rng() * of.length)], all = thingRows(ix, thing, on, draw.unmet);
         const pick = () => placeQuestionRows(ix, thing, draw.rng, draw.size, all, near, plainRows(high, draw.size));

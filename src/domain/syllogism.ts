@@ -482,7 +482,7 @@ export interface SyllogismDraw {
   /** the course terms the learner has not met yet (intro.ts): a reason or predicate among them waits, unless the situation has nothing else, and so does a named term's phrase */
   unmet?: Unmet;
   /**
-   * the new terms of the highest stage whose last answer is not right yet (intro.ts, openTerms): `newShare` of the syllogisms (half when absent) have one of
+   * the terms met whose last answer is not right yet, at any stage (intro.ts, openTerms): `newShare` of the syllogisms (half when absent) have one of
    * them as the reason or the predicate, with the course's terms even where the rest is everyday (`levelAt`), while any can be drawn. Not with `level` 1.
    */
   open?: ReadonlySet<string>;

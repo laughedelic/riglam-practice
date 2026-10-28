@@ -154,7 +154,8 @@ test("on a stage with new terms the ring has a segment for each, in the order th
   await expect(terms).toHaveText(["External form", "Shape", "Color", "External matter", "Form source"]);
   expect(await terms.locator(".tmk").evaluateAll((a) => a.map((x) => x.getAttribute("class")))).toEqual(["tmk ok", "tmk slip", "tmk miss", "tmk wait", "tmk wait"]);
   expect(await lines.nth(1).evaluate((li) => getComputedStyle(li).listStyleType), "the list of terms has no bullet of its own").toBe("none");
-  await expect(lines.nth(2)).toHaveText("Stage 3 is reached once your last answer on each of these terms is right.");
+  await expect(lines.nth(2)).toHaveText("New terms come one at a time, a few questions apart, while fewer than three of your terms are not right yet. With three, the questions stay on those until one of them is.");
+  await expect(lines.nth(3)).toHaveText("Stage 3 begins with its first new term, after the last of these.");
   await expect(sheet(page)).toContainText("A wrong answer takes back only that term’s mark.");
   await expect(sheet(page)).not.toContainText("in a row");
 });
@@ -169,7 +170,7 @@ test("stage 1 has two new terms, form and matter, the same things under two defi
   await expect(ring(page)).toHaveAccessibleName("Progression: stage 1, 0 of 2 new terms answered right. How it works");
   await ring(page).click();
   await expect(sheet(page).locator(".tterms li")).toHaveText(["Form", "Matter"]);
-  await expect(sheet(page)).toContainText("Stage 2 is reached once your last answer on each of these terms is right.");
+  await expect(sheet(page)).toContainText("Stage 2 begins with its first new term, after the last of these.");
 });
 
 test("the sheet says so where no stage comes by itself", async ({ page }) => {

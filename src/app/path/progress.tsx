@@ -8,6 +8,7 @@ import { useEffect, useRef } from "preact/hooks";
 import { state } from "../state.js";
 import { progressNow } from "../practice/stage-offer.ts";
 import { openPage, openProgress } from "../shell/session.js";
+import { OPEN_CAP } from "../../domain/intro.ts";
 import { STAGES } from "../../domain/stages.ts";
 import { openProgression } from "./progression.tsx";
 import { Segs, TermList, rightOf } from "./rings.tsx";
@@ -37,9 +38,12 @@ export function ProgressRing() {
   </button>;
 }
 
-const WORD: Record<number, string> = { 5: "five", 10: "ten", 15: "fifteen", 20: "twenty", 25: "twenty-five", 30: "thirty" };
-/** A count of right answers in words, as the lines here say it ("five right answers in a row"). */
+const WORD: Record<number, string> = { 2: "two", 3: "three", 4: "four", 5: "five", 10: "ten", 15: "fifteen", 20: "twenty", 25: "twenty-five", 30: "thirty" };
+/** A count in words, as the lines here say it ("five right answers in a row", "three of your terms"). */
 export const num = (n: number) => WORD[n] || String(n);
+
+/** How new terms come, here and on the Progression page (src/domain/intro.ts, OPEN_CAP). */
+export const FLOW = "New terms come one at a time, a few questions apart, while fewer than " + num(OPEN_CAP) + " of your terms are not right yet. With " + num(OPEN_CAP) + ", the questions stay on those until one of them is.";
 
 /**
  * The page: the lines are short, and the words are the stage station's where it has them ("reached", "The stages follow your answers"). The new terms of the
@@ -52,7 +56,11 @@ export function ProgressPage() {
   const list = <TermList marks={p.terms} />;
   if (add) items.push("Stage " + p.top + " introduces " + add + ".");
   if (n) items.push(list);
-  if (p.next && p.shows === "terms") {
+  if (p.next && p.flow) {
+    items.push(FLOW, p.need ? "Stage " + p.next + " comes in after " + num(p.need) + " right answers in a row, with its first new term."
+      : "Stage " + p.next + " begins with its first new term, after " + (n === 1 ? "this one" : "the last of these") + ".");
+    items.push("A wrong answer takes back only that term’s mark.", "Progression works across all exercises.", "Review keeps the earlier stages fresh; it does not move the ring.");
+  } else if (p.next && p.shows === "terms") {
     items.push("Stage " + p.next + " is reached once your last answer on " + (n === 1 ? "this term" : "each of these terms") + " is right.");
     items.push("A wrong answer takes back only that term’s mark.", "Progression works across all exercises.", "Review keeps the earlier stages fresh; it does not move the ring.");
   } else if (p.next) {
