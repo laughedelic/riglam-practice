@@ -137,7 +137,7 @@ function Stages() {
   const ex = state.EX ? stageCounts(state.EX.items) : {}, items: Record<number, number> = {}, only = state.stages.length === 1;
   for (const it of state.DATA ? state.DATA.items : []) if (!it.nosubject) items[itemStage(it)] = (items[itemStage(it)] || 0) + 1;
   return <>
-    <p class="psub">Every exercise asks about the stages that are on, in any mix. A category opens at its stage and stays open above it, and the things come from the stages that are on. About half of the questions are new at the highest stage, the rest review the stages below, each about as often as the others. Stage 1 is the start: after five right answers in a row on the newest stage, in any exercise, the next stage comes in; a right answer on an older stage counts for half.</p>
+    <p class="psub">Every exercise asks about the stages that are on, in any mix. A category opens at its stage and stays open above it, and the things come from the stages that are on. About half of the questions are new at the highest stage, the rest review the stages below, each about as often as the others. Stage 0, everyday things alone, is the start: after five right answers in a row on the newest stage, in any exercise, the next stage comes in; a right answer on an older stage counts for half.</p>
     {STAGES.map(({ n, name, adds }) => {
       const on = state.stages.includes(n), count = (items[n] || 0) + ((ex as Record<number, number>)[n] || 0);
       return <Row lb={"St " + n}><button type="button" class="two" role="switch" aria-checked={on ? "true" : "false"} aria-disabled={on && only ? "true" : undefined} onClick={() => setStages(toggleStage(state.stages, n))}>
@@ -148,7 +148,7 @@ function Stages() {
     <Row lb="Harder"><b>Pace, negations, depth</b><small>How many terms may be not right yet at a time, pairs with a negated side, and chains of reasoning after stage {LADDER_TOP}: their own page, the Difficulty page.</small>
       <span class="pvline2"><button type="button" class="pbtn quiet" onClick={() => openDifficulty()}>Difficulty</button></span></Row>
     <Row lb="Reset"><b>Reset progression</b>
-      <small>{state.resetAsk === "done" ? "Done: stage 1, and the course terms come one at a time again." : "Back to stage 1 with no course term met, negations off and every exercise guided again, on every device signed in to your account. Your answers, their statistics and your settings stay."}</small>
+      <small>{state.resetAsk === "done" ? "Done: stage 0, and the course terms come one at a time again." : "Back to stage 0 with no course term met, negations off and every exercise guided again, on every device signed in to your account. Your answers, their statistics and your settings stay."}</small>
       {state.resetAsk === "ask" ? <span class="pvline2"><button type="button" class="pbtn" onClick={() => { state.resetAsk = "done"; resetProgress(); }}>Reset</button><button type="button" class="pbtn quiet" onClick={() => { state.resetAsk = ""; render(); }}>Keep it</button></span>
         : state.resetAsk === "" ? <span class="pvline2"><button type="button" class="pbtn quiet" onClick={() => { state.resetAsk = "ask"; render(); }}>Reset progression</button></span> : null}</Row>
   </>;

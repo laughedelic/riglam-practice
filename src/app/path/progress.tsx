@@ -9,6 +9,7 @@ import { state } from "../state.js";
 import { DEPTH_NAME, depthNow } from "../practice/difficulty.ts";
 import { progressNow } from "../practice/stage-offer.ts";
 import { openPage, openProgress } from "../shell/session.js";
+import { paceSpacing } from "../../domain/intro.ts";
 import { STAGES } from "../../domain/stages.ts";
 import { openDifficulty, openProgression } from "./progression.tsx";
 import { Segs, TermList, rightOf } from "./rings.tsx";
@@ -42,8 +43,8 @@ const WORD: Record<number, string> = { 2: "two", 3: "three", 4: "four", 5: "five
 /** A count in words, as the lines here say it ("five right answers in a row", "three of your terms"). */
 export const num = (n: number) => WORD[n] || String(n);
 
-/** How new terms come at a pace of `n` (src/domain/intro.ts, PACES), here, on the Progression page and on the Difficulty page. */
-export const flow = (n: number): string => "New terms come one at a time, a few questions apart, while fewer than " + num(n) + " of your terms are not right yet. With " + num(n) + ", the questions stay on those until one of them is.";
+/** How new terms come at a pace of `n` (src/domain/intro.ts, PACES and paceSpacing), here and on the Progression page. */
+export const flow = (n: number): string => "New terms come one at a time, at most one every " + num(paceSpacing(n)) + " questions, while fewer than " + num(n) + " of your terms are not right yet. With " + num(n) + ", the questions stay on those until one of them is.";
 
 /**
  * The page: the lines are short, and the words are the stage station's where it has them ("reached", "The stages follow your answers"). The new terms of the

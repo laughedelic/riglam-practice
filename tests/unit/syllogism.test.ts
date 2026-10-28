@@ -326,7 +326,7 @@ test("the draw asks the answer asked lately less, and brings back the categories
 
 test("every category of the open data has the words a syllogism needs, or is named as left out", () => {
   // a category without words would silently never be drawn: a change of the data that adds one must add its words (items.py in the knowledge base)
-  expect(withoutPhrases(real)).toEqual(["hid"]); // the existent in the data: it would make every syllogism trivial
+  expect(withoutPhrases(real)).toEqual(["exist", "hid"]); // the existent, and hidden phenomenon, mutually inclusive with it: either would make every syllogism trivial
   const sample = Object.keys(real.CAT).filter((id) => !withoutPhrases(real).includes(id));
   const drawn = new Set<string>();
   const st = { hist: [] as SyllogismHistory[], recent: [] as string[], rng: seeded(21) };

@@ -17,7 +17,7 @@ import { catChain, excludes, rung, termPhrase } from "./ladder";
 import { itemRows as placeItemRows } from "./place";
 import { placeByClass } from "./reference";
 import { askedKey, termCats, wordsFor } from "./intro";
-import { HOLD_STAGE, MAX_STAGE, catOpen, catStage, heldBack, itemStage, physical, topStage } from "./stages";
+import { HOLD_STAGE, STAGES, catOpen, catStage, heldBack, itemStage, physical, topStage } from "./stages";
 import type { Stages, Unmet } from "./stages";
 import { FEATURE, cellsFor, inUniverse, judgeable, relOfCells } from "./universe";
 import type { PairWords, Rng } from "./universe";
@@ -51,10 +51,10 @@ export function catPhrase(cat: Cat): string {
 /** The class of the category's own term, the first of its chain, which a sentence need not repeat. */
 const own = (cat: Cat, cls: string) => cat.kind === "dudra" && cat.term === cls;
 /** Every stage on: a question asked without stages is told as at the last one. */
-const ALL: Stages = Array.from({ length: MAX_STAGE }, (_, i) => i + 1);
+const ALL: Stages = STAGES.map((s) => s.n);
 /** The Dudra category of a class, if the data has one. */
 const catOfTerm = (ix: DataIndex, term: string) => ix.DATA.cats.find((c) => c.kind === "dudra" && c.term === term);
-/** The two classes a beginner meets before their names, in the words Categories says them in (place.ts): Form is anything physical at stage 1, a consciousness is a mind until the established bases. */
+/** The two classes a beginner meets before their names, in the words Categories says them in (place.ts): Form is anything physical up to stage 1, a consciousness is a mind until the established bases. */
 const PLAIN: Readonly<Record<string, string>> = { Form: "physical", Consciousness: "a mind" };
 /** Whether the class is said in plain words at these stages. */
 function plainAt(ix: DataIndex, term: string, on?: Stages): boolean {

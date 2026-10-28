@@ -1,13 +1,13 @@
 // The progression in the Path's top bar: a back chevron where the station diamond was, and after the exercise's name a ring with the stage in it: a
 // segment for each new term of the stage, or, on a stage without (and here, where the test devices have every term settled: tests/support/test.js), the
-// run of right answers towards the next stage (below stage 8, the ladder's last, which shows its terms). A tap on the ring opens the Progression sheet (a page of the practice options); the top bar names it while
+// run of right answers towards the next stage (below stage 9, the ladder's last, which shows its terms). A tap on the ring opens the Progression sheet (a page of the practice options); the top bar names it while
 // it is open (and its ring gives way to the close); Back and the close shut it (src/app/path/progress.tsx).
 import { test, expect } from "../../support/test.js";
 
 const setup = () => {
   window.__riglamTest = (t) => { window.__t = t; };
   if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path");
-  if (localStorage.getItem("rd-stages") === null) localStorage.setItem("rd-stages", "1,2,3,4,5,6,7");     // below the ladder's last stage, where the ring shows its terms
+  if (localStorage.getItem("rd-stages") === null) localStorage.setItem("rd-stages", "0,1,2,3,4,5,6,7,8");     // below the ladder's last stage, where the ring shows its terms
 };
 const ring = (page) => page.locator("#path .ptb .pring");
 const sheet = (page) => page.locator("#path .psheet.on");
@@ -127,51 +127,48 @@ test.describe("the number in the ring", () => {
   });
 });
 
-/** A device on stages 1 and 2 whose record has the new terms of stage 2 as given (src/domain/intro.ts, IntroTerm), Form settled, and no stop due. */
-const stage2 = (page, terms) => page.addInitScript((t) => {
-  localStorage.setItem("rd-stages", "1,2");
-  localStorage.setItem("rd-terms", JSON.stringify({ n: 12, next: 99, terms: { form: { box: 3, shows: 1 }, ...t } }));
-}, terms);
+/** A device on stages 0 to 2 whose record has the new terms of stages 1 and 2 as given (src/domain/intro.ts, IntroTerm), and no stop due. */
+const onStage = (page, stages, terms) => page.addInitScript(([s, t]) => {
+  localStorage.setItem("rd-stages", s);
+  localStorage.setItem("rd-terms", JSON.stringify({ n: 12, next: 99, terms: t }));
+}, [stages, terms]);
 
 test("on a stage with new terms the ring has a segment for each, in the order they were first answered, colored by the last answer on each; the sheet lists them", async ({ page }) => {
-  // External form right; Shape right, then missed; Color missed, never right yet; External matter and Form source still to come
-  await stage2(page, { extf: { box: 2, shows: 1, first: 1, won: 1 }, shape: { box: 1, shows: 2, first: 2, won: 2 }, col: { box: 1, shows: 2, first: 3 } });
+  // External form right; Form right, then missed; Matter missed, never right yet; External matter still to come
+  await onStage(page, "0,1", { extf: { box: 2, shows: 1, first: 1, won: 1 }, form: { box: 1, shows: 2, first: 2, won: 2 }, "form:Matter": { box: 1, shows: 2, first: 3 } });
   await start(page);
   const segs = ring(page).locator(".tseg");
-  await expect(segs).toHaveCount(5);
-  expect(await segs.evaluateAll((a) => a.map((x) => x.getAttribute("class")))).toEqual(["tseg ok", "tseg slip", "tseg miss", "tseg wait", "tseg wait"]);
+  await expect(segs).toHaveCount(4);
+  expect(await segs.evaluateAll((a) => a.map((x) => x.getAttribute("class")))).toEqual(["tseg ok", "tseg slip", "tseg miss", "tseg wait"]);
   const strokes = await segs.evaluateAll((a) => a.map((x) => getComputedStyle(x).stroke));
   expect(strokes[1], "a miss is a miss, whether the term was right before or not").toBe(strokes[2]);
   expect(new Set(strokes).size, "right, missed, and to come look different").toBe(3);
-  await expect(ring(page)).toHaveAccessibleName("Progression: stage 2, 1 of 5 new terms answered right. How it works");
+  await expect(ring(page)).toHaveAccessibleName("Progression: stage 1, 1 of 4 new terms answered right. How it works");
   await expect(ring(page)).not.toHaveClass(/\bfull\b/);
-  await expect(ring(page).locator("text")).toHaveText("2");
+  await expect(ring(page).locator("text")).toHaveText("1");
   await ring(page).click();
   // the terms follow what the stage introduces, each with its mark and nothing else
   const lines = sheet(page).locator(".tup-bul > li");
-  await expect(lines.nth(0)).toHaveText("Stage 2 introduces colors and shapes as qualities of things: the red of an apple, not the apple.");
+  await expect(lines.nth(0)).toHaveText("Stage 1 introduces form and matter, two names for anything physical, and their first division: external form and external matter.");
   await expect(lines.nth(1)).toHaveClass("tlist");
   const terms = lines.nth(1).locator(".tterms li");
-  await expect(terms).toHaveText(["External form", "Shape", "Color", "External matter", "Form source"]);
-  expect(await terms.locator(".tmk").evaluateAll((a) => a.map((x) => x.getAttribute("class")))).toEqual(["tmk ok", "tmk slip", "tmk miss", "tmk wait", "tmk wait"]);
+  await expect(terms).toHaveText(["External form", "Form", "Matter", "External matter"]);
+  expect(await terms.locator(".tmk").evaluateAll((a) => a.map((x) => x.getAttribute("class")))).toEqual(["tmk ok", "tmk slip", "tmk miss", "tmk wait"]);
   expect(await lines.nth(1).evaluate((li) => getComputedStyle(li).listStyleType), "the list of terms has no bullet of its own").toBe("none");
-  await expect(lines.nth(2)).toHaveText("New terms come one at a time, a few questions apart, while fewer than three of your terms are not right yet. With three, the questions stay on those until one of them is.");
-  await expect(lines.nth(3)).toHaveText("Stage 3 begins with its first new term, after the last of these.");
+  await expect(lines.nth(2)).toHaveText("New terms come one at a time, at most one every three questions, while fewer than three of your terms are not right yet. With three, the questions stay on those until one of them is.");
+  await expect(lines.nth(3)).toHaveText("Stage 2 begins with its first new term, after the last of these.");
   await expect(sheet(page)).toContainText("A wrong answer takes back only that term’s mark.");
   await expect(sheet(page)).not.toContainText("in a row");
 });
 
-test("stage 1 has two new terms, form and matter, the same things under two definitions: a segment for each", async ({ page }) => {
-  await page.addInitScript(() => {
-    localStorage.setItem("rd-stages", "1");
-    localStorage.setItem("rd-terms", JSON.stringify({ n: 6, next: 99, terms: { form: { box: 1, shows: 1, first: 5 }, "form:Matter": { box: 1, shows: 1 } } }));
-  });
+test("stage 2 has three new terms, color, shape and form source: a segment for each, the ones not answered yet in the course's order", async ({ page }) => {
+  await onStage(page, "0,1,2", { form: { box: 3, shows: 1 }, "form:Matter": { box: 3, shows: 1 }, extf: { box: 3, shows: 1 }, "extf:External matter": { box: 3, shows: 1 }, shape: { box: 1, shows: 1, first: 5 }, col: { box: 1, shows: 1 } });
   await start(page);
-  expect(await ring(page).locator("path.tseg").evaluateAll((a) => a.map((x) => x.getAttribute("class")))).toEqual(["tseg miss", "tseg met"]);
-  await expect(ring(page)).toHaveAccessibleName("Progression: stage 1, 0 of 2 new terms answered right. How it works");
+  expect(await ring(page).locator("path.tseg").evaluateAll((a) => a.map((x) => x.getAttribute("class")))).toEqual(["tseg miss", "tseg met", "tseg wait"]);
+  await expect(ring(page)).toHaveAccessibleName("Progression: stage 2, 0 of 3 new terms answered right. How it works");
   await ring(page).click();
-  await expect(sheet(page).locator(".tterms li")).toHaveText(["Form", "Matter"]);
-  await expect(sheet(page)).toContainText("Stage 2 begins with its first new term, after the last of these.");
+  await expect(sheet(page).locator(".tterms li")).toHaveText(["Shape", "Color", "Form source"]);
+  await expect(sheet(page)).toContainText("Stage 3 begins with its first new term, after the last of these.");
 });
 
 test("the sheet says so where no stage comes by itself", async ({ page }) => {

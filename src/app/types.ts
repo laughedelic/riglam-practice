@@ -336,7 +336,7 @@ export interface ProgressionAt {
   from: "road" | "sheet";
   /** the screen under it when it opened: the exercise, or Review; Back returns to it */
   tab: string;
-  /** the stage whose row it brings to the top when it next draws; 0 when none */
+  /** the stage whose row it brings to the top when it next draws; -1 when none */
   at: number;
   /** the term whose card is open over it (a category id of the data), or "" */
   term: string;

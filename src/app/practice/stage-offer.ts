@@ -1,7 +1,7 @@
 // The offer of the stages, from the result of any exercise (src/domain/stages.ts, runAfter and stageOffer). On the Path the stages are chapters of one
 // list of terms: a stage that brings new terms comes with the first of them, once the stage below has brought all of its own and few enough terms are
-// open (src/domain/intro.ts, nextStageDue). The ladder ends at stage 8: the stages after it are the layers of depth, which the Path offers on a result like
-// any offer (the first once the last answer on each term of stage 8 is right, the others after a run) and the Difficulty page sets; on the classic page
+// open (src/domain/intro.ts, nextStageDue). The ladder ends at stage 9: the stages after it are the layers of depth, which the Path offers on a result like
+// any offer (the first once the last answer on each term of stage 9 is right, the others after a run) and the Difficulty page sets; on the classic page
 // every stage waits for a run of right answers.
 // Every checked answer moves the run at the highest stage that is on, and the exercise's own record: whether it has warmed up, which sets how many of its
 // questions are new, and its right answers, after which its guided form turns off (practice/guided.ts). On the Path the next stage comes by itself: when
@@ -61,7 +61,7 @@ export function stageStep(ex: string, st: number, ok: boolean): boolean {
 
 /**
  * How far the highest stage is towards the next one, for the ring in the top bar (src/domain/stages.ts, stageProgress): its new terms with their marks, or the run.
- * On the Path the ring is the ladder's: depth is a difficulty of its own (the Difficulty page), so from stage 8 on it shows stage 8's terms.
+ * On the Path the ring is the ladder's: depth is a difficulty of its own (the Difficulty page), so from stage 9 on it shows stage 9's terms.
  */
 export const progressNow = (): StageProgress => state.design === "path"
   ? stageProgress(state.stageRun, ladderOf(state.stages), marksAt(ladderTop(state.stages)), nextNow(), LADDER_TOP)

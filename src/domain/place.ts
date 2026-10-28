@@ -117,7 +117,7 @@ export function itemRows(ix: DataIndex, it: Item, on: Stages, unmet?: Unmet): Pl
 }
 
 /**
- * Whether the reasons for the item are said in everyday words: at stage 1, where Form is "anything physical", and while the category of the
+ * Whether the reasons for the item are said in everyday words: up to stage 1, where Form is "anything physical", and while the category of the
  * item's own kind is not open (a joy is a consciousness from the established bases on; before that it is a mind).
  */
 function plainWords(ix: DataIndex, it: Item, on: Stages, unmet?: Unmet): boolean {
@@ -179,7 +179,7 @@ function withOpenRow(rows: readonly PlaceRow[], all: readonly PlaceRow[], open: 
   return rows.map((r, i) => (i === at ? row : r));
 }
 
-/** The most rows of a question that are everyday categories ("wooden things"): any while the course categories are few (stage 1), from stage 2 on a third, since the rows then teach the terms. */
+/** The most rows of a question that are everyday categories ("wooden things"): any while the course categories are few (stages 0 and 1), from stage 2 on a third, since the rows then teach the terms. */
 export const plainRows = (top: number, size = 6): number => (top >= 2 ? Math.floor(size / 3) : size);
 
 /** The share of the "no" rows that are near misses: few while the categories are new (up to stage 4), half from the established bases on. */
@@ -207,7 +207,7 @@ export const thingRows = (ix: DataIndex, t: PlaceThing, on: Stages, unmet?: Unme
 /**
  * The next thing to place, from `placeThings` (the reference examples are optional), for which the data settles enough categories
  * (`placeQuestionRows`). A stage is drawn first, each stage that still has things as likely as the others (or the highest of them `newShare` of the time), then a thing of it
- * that can be asked (those that cannot are passed over without changing the stage); names in `avoid` wait while others remain. Stages outside 1 to 11 count for nothing, and none left means the default. Null when nothing qualifies.
+ * that can be asked (those that cannot are passed over without changing the stage); names in `avoid` wait while others remain. Stages outside 0 to 12 count for nothing, and none left means the default. Null when nothing qualifies.
  */
 export function drawPlace(ix: DataIndex, examples: readonly Example[] | null, draw: PlaceDraw): PlaceQuestion | null {
   const on = normStages(draw.stages), near = nearShare(topStage(on)), high = topStage(on);

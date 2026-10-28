@@ -1,5 +1,5 @@
 // A stage coming in, as a station of its own between a result and the next question (practice/stage-offer.ts, takeStageUp): which stage it is and what
-// it introduces. "New stage" with the stage it comes from, then the stage as the title ("Stage 3 reached"), the eight stages of the ladder as a row of rings (the progression
+// it introduces. "New stage" with the stage it comes from, then the stage as the title ("Stage 3 reached"), the nine stages of course terms as a row of rings (the progression
 // ring of each stage: a segment for each of its new terms, colored by the last answer on it; a tap on a ring shows its terms in a tooltip), and two parts, each a small stop
 // on the line: Topics, what the stage introduces with the new terms it brings, and Progression, what the stages are. The first time that is said in three short
 // lines; in a later upgrade it is one line, with the rest folded under "How the stages work". The learner may stay on the stage they are on a while longer (and
@@ -12,7 +12,7 @@ import { next } from "../practice/queue.js";
 import { stayOnStage, undoStay } from "../practice/stage-offer.ts";
 import { stopAfterStage } from "../practice/stops.ts";
 import { openStageOptions } from "../shell/session.js";
-import { LADDER_TOP, STAGES, runNeed } from "../../domain/stages.ts";
+import { RING_STAGES, STAGES, runNeed } from "../../domain/stages.ts";
 import { stopName } from "./next.ts";
 import { StageRing, TermList, marksOf, ringLabel, stageWhere } from "./rings.tsx";
 import { Scroll } from "./scroll.tsx";
@@ -20,8 +20,6 @@ import { FitTerm } from "./stop-def.tsx";
 import { Foot, Station, TopBar } from "./shell.tsx";
 import { D, Gap, Head, St, Sx } from "./ui.tsx";
 
-/** The stages of the ladder: the steps of depth after its last are offered on a result, not at a station (practice/stage-offer.ts). */
-const LADDER = STAGES.filter((s) => s.n <= LADDER_TOP);
 
 /** A part that is folded away and can be opened again: what the stages are, in an upgrade after the first. */
 function Fold({ label, children }: { label: string; children: ComponentChildren }) {
@@ -29,7 +27,8 @@ function Fold({ label, children }: { label: string; children: ComponentChildren 
   return <div class="tup-fold"><button type="button" class="tup-foldb" aria-expanded={open ? "true" : "false"} onClick={() => setOpen(!open)}>{label}</button>{open ? <div class="tup-foldc">{children}</div> : null}</div>;
 }
 /**
- * The stages of the ladder as a row of rings, each as the progression ring of its stage (path/rings.tsx): the stages passed with the marks their terms have now and their
+ * The stages of course terms as a row of rings (stage 0, everyday things alone, is not among them; the steps of depth are offered on a result, not at a
+ * station: practice/stage-offer.ts), each as the progression ring of its stage (path/rings.tsx): the stages passed with the marks their terms have now and their
  * segments kept, the new one with a halo, those ahead fainter. A ring shows its terms with their marks in a tooltip under the row: a mouse over it, or a tap, which
  * pins it until a tap elsewhere, Escape, or a second tap on the ring.
  */
@@ -44,8 +43,8 @@ function Rings({ n }: { n: number }) {
     return () => { document.removeEventListener("pointerdown", away); document.removeEventListener("keydown", esc, true); };
   }, [pinned]);
   return <div class="tup-rw" ref={box}>
-    <div class="tup-rings" style={"--n:" + LADDER_TOP} role="group" aria-label={"Stage " + n + " of " + LADDER_TOP}>
-      {LADDER.map((s) => {
+    <div class="tup-rings" style={"--n:" + RING_STAGES.length} role="group" aria-label={"Stage " + n + " of " + RING_STAGES.length}>
+      {RING_STAGES.map((s) => {
         const m = marksOf(s.n);
         return <button type="button" class={"tup-rg " + stageWhere(s.n, n) + (at === s.n ? " on" : "")} aria-expanded={at === s.n ? "true" : "false"} aria-label={ringLabel(s.n, m)}
           onClick={() => setTip(pinned && at === s.n ? null : { n: s.n, pin: true })}
@@ -54,7 +53,7 @@ function Rings({ n }: { n: number }) {
           <StageRing n={s.n} top={n} /></button>;
       })}
     </div>
-    {at ? <div class="tup-rgp" style={"--c:" + (at - 0.5) / LADDER_TOP} role="region" aria-label={"Stage " + at + ", its new terms"}>
+    {at ? <div class="tup-rgp" style={"--c:" + (at - 0.5) / RING_STAGES.length} role="region" aria-label={"Stage " + at + ", its new terms"}>
       <p class="tup-rgl">Stage {at}</p>{marks.length ? <TermList marks={marks} /> : <p class="tup-note">It introduces no new terms.</p>}</div> : null}
   </div>;
 }

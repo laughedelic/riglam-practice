@@ -160,14 +160,14 @@ test("drawInstance: with stages, only categories open at the highest of them, an
   expect(cols[0].known).toEqual(["the red of a rose"]);
 });
 
-test("drawInstance: on the open data at stage 1, every category is open, every thing shown is known, and no reason uses the course's words", () => {
+test("drawInstance: on the open data at stages 0 and 1, every category is open, every thing shown is known, and no reason uses the course's words", () => {
   const data = makeIndex(openData as unknown as DrillData), avoid = new Set<string>();
   let impossible = 0;
   for (let s = 0; s < 150; s++) {
-    const d = drawInstance(data, { rng: seeded(s), avoid, stages: [1] })!;
+    const d = drawInstance(data, { rng: seeded(s), avoid, stages: [0, 1] })!;
     avoid.add(instanceKey(d.cats));
-    for (const c of d.cats) expect(catStage(data.CAT[c]), c).toBe(1);
-    for (const n of d.known) expect(itemStageIn(data, data.DATA.items.find((i) => i.n === n)!, d.cats), n).toBe(1);
+    for (const c of d.cats) expect(catStage(data.CAT[c]), c).toBeLessThanOrEqual(1);
+    for (const n of d.known) expect(itemStageIn(data, data.DATA.items.find((i) => i.n === n)!, d.cats), n).toBe(0);
     if (d.possible) expect(d.known.length, d.cats.join()).toBeGreaterThan(0);
     else { impossible++; expect(d.apart!.why).not.toMatch(/a form|consciousness|compositional|functional|permanent|person/); }
   }

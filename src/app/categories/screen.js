@@ -140,7 +140,7 @@ export function renderCategories(s,c){
     s.append(el("div",{class:"qcard catcard"},
       el("p",{class:"catask",text:"The stages that are on have nothing to ask about on this device."}),
       el("p",{class:"catnote"},"Switch a lower stage on in the ",el("button",{type:"button",class:"lnk",onclick:openStageOptions},"practice options"),
-        state.EX?".":". The things of stages 9 to 11 are the course's reference examples, which come with the Magic Key, in ",
+        state.EX?".":". The things of stages 10 to 12 are the course's reference examples, which come with the Magic Key, in ",
         state.EX?null:el("button",{type:"button",class:"lnk",onclick:()=>toggleOpts(true)},"Settings"),state.EX?null:".")));
     return;
   }

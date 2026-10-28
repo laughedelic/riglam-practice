@@ -66,7 +66,7 @@ export function watchProgress() {
 }
 
 /**
- * Reset progression: stage 1 alone, no course term met, negations off, every exercise new again and guided, and the offers count from now, so the answers given
+ * Reset progression: stage 0 alone, no course term met, negations off, every exercise new again and guided, and the offers count from now, so the answers given
  * before do not bring one at once. The answers, their statistics and the settings stay. The question on screen gives way to one drawn from the
  * progression as it is now.
  */

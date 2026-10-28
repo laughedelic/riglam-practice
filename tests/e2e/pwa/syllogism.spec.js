@@ -300,7 +300,7 @@ test("the practice options hold only what Syllogisms uses: the wording, which is
   await page.locator("#msess").click();
   const sheet = page.locator("#opts");
   await expect(sheet).toContainText("Wording");
-  await expect(sheet.locator(".ocard").filter({ hasText: "Stages" })).toContainText("Stages 1–8");
+  await expect(sheet.locator(".ocard").filter({ hasText: "Stages" })).toContainText("Stages 0–9");
   await expect(sheet).not.toContainText(/course|textbook/i); // the page does not say "the course" or "textbook"
   await expect(sheet).not.toContainText("Notation");
   await expect(sheet).toContainText("Blitz");

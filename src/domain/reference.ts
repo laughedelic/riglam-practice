@@ -10,7 +10,7 @@ import { spelled, stripDet, upChain } from "../ai-shared/lookup";
 import type { DataIndex } from "../ai-shared/lookup";
 import type { CellId } from "../ai-shared/relations";
 import { catChain, excludes } from "./ladder";
-import { MAX_STAGE, normStages, topStage } from "./stages";
+import { LADDER_TOP, MAX_STAGE, STAGES, normStages, topStage } from "./stages";
 import type { Stages } from "./stages";
 import type { Witnesses } from "./universe";
 
@@ -36,10 +36,11 @@ export const DRAWN = ["confirmed", "textbook"] as const;
 
 /**
  * A reference example's stage: its own (format 3), else its level's: the examples are the course's, so a plain one (level 1) waits for the
- * course words (stage 8) and each level after it is a stage up.
+ * course words (stage 8) and each level after it is a step of depth. Format 3 counts the steps of depth from 9, as the ladder did before it had
+ * a stage 9 of its own (2026-10-28): its 9 to 11 are 10 to 12 here, and its 1 to 8 stay as they are.
  */
 export const exampleStage = (ex: Pick<Example, "lv" | "st">): number =>
-  typeof ex.st === "number" && ex.st >= 1 && ex.st <= MAX_STAGE ? ex.st : Math.min(MAX_STAGE, Math.max(1, ex.lv) + 7);
+  typeof ex.st === "number" && ex.st >= 1 && ex.st <= MAX_STAGE - 1 ? (ex.st <= 8 ? ex.st : ex.st + 1) : ex.lv <= 1 ? 8 : Math.min(MAX_STAGE, ex.lv + LADDER_TOP - 1);
 
 /** Whether an example may be drawn for a learner with these stages on: confirmed or textbook, of a stage that is on. */
 export function drawable(ex: Pick<Example, "cf" | "lv" | "st">, on: Stages): boolean {
@@ -49,7 +50,7 @@ export function drawable(ex: Pick<Example, "cf" | "lv" | "st">, on: Stages): boo
 /** How many examples a learner can be shown at each stage (`drawable` by confirmation), for the switches of the stages. */
 export function stageCounts(items: readonly Pick<Example, "cf" | "lv" | "st">[]): Record<number, number> {
   const out: Record<number, number> = {};
-  for (let s = 1; s <= MAX_STAGE; s++) out[s] = 0;
+  for (const s of STAGES) out[s.n] = 0;
   for (const ex of items) if ((DRAWN as readonly (string | undefined)[]).includes(ex.cf)) out[exampleStage(ex)]++;
   return out;
 }
@@ -57,7 +58,7 @@ export function stageCounts(items: readonly Pick<Example, "cf" | "lv" | "st">[])
 /** The kinds that may stand in a cell. Things and representations always; relations and negations from the stage that takes one step further; a combination or a statement is another question's ("is X a Y?" would be wrong for it). */
 const PLAIN_KINDS = ["thing", "representation"];
 const LATER_KINDS = ["relation", "negation"];
-const LATER_STAGE = 9;
+const LATER_STAGE = LADDER_TOP + 1;
 
 /**
  * Whether the example may be shown as the reference of a cell of a practice pair for a learner with these stages on: confirmed or textbook

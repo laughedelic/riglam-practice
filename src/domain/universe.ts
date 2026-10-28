@@ -249,7 +249,7 @@ export const NEG_SHARE = 1 / 3;
 /** How much more likely a three-possibility pair is while the learner has just reached a stage (`fresh`). */
 const FRESH_THREE = 2.5;
 
-/** The weight of a pair of two everyday categories from stage 2 on, against 1 for a pair with a course category (stage 1 is mostly such pairs, and so is a third of stage 5). */
+/** The weight of a pair of two everyday categories from stage 1 on, against 1 for a pair with a course category (stage 0 is only such pairs, and a third of stage 5 is). */
 export const EVERYDAY_ONLY = 0.35;
 
 /** Whether the pair is of two everyday categories, with no course term in it. */
@@ -261,9 +261,10 @@ const THIN_RELATION = 8;
 /**
  * The pool entry for the next pair: the relation that has been seen least lately, then a pair of categories weighted by what the learner got
  * wrong. With `stages`, from the pairs those stages can draw, the stage comes first: half the time (or `newShare`) the highest, else one of the
- * stages below, each as likely as the others (not each pair: stage 1 has a third of all the pairs), a stage made of pairs of two everyday
+ * stages below, each as likely as the others (not each pair: stage 0 has a third of all the pairs), a stage made of pairs of two everyday
  * categories counting for less (EVERYDAY_ONLY) once a course term is in play; the highest stage's share goes to the pairs with an `open` term, at
- * whatever stage, while one can be drawn.
+ * whatever stage, while one can be drawn (a named term of the highest stage shares its category's pairs: the two truths of stage 9 are said on those
+ * of functional and permanent things).
  */
 export function chooseEntry(ix: DataIndex, full: readonly PoolEntry[], st: DrawState): PoolEntry {
   const { hist, recent } = st, rng = st.rng || Math.random, isHidden = st.isHidden || (() => false);
@@ -273,22 +274,24 @@ export function chooseEntry(ix: DataIndex, full: readonly PoolEntry[], st: DrawS
   // and a pair of one category's own two labels while it has one label to show (the other names a term not met yet: "internal matter")
   const two = (c: PoolEntry) => c.a !== c.b || wordsFor(ix, c.a, ix.CAT[c.a].labels, st.unmet).length > 1;
   const met = st.unmet?.size ? drawable.filter((c) => !st.unmet!.has(c.a) && !st.unmet!.has(c.b) && two(c)) : drawable;
-  const top = staged.length && !st.even ? topStage(st.stages!) : 0;
+  const top = staged.length && !st.even ? topStage(st.stages!) : null;
   const all = met.length ? met : drawable;
   // the stage first: the highest `newShare` of the time (a quarter while the exercise is new to the learner), else one below it, in proportion to what it teaches
   let pool = all;
-  if (top) {
+  if (top !== null) {
     const size = new Map<number, number>(), plain = new Map<number, number>();
     for (const c of all) { size.set(c.st!, (size.get(c.st!) || 0) + 1); if (everydayOnly(ix, c)) plain.set(c.st!, (plain.get(c.st!) || 0) + 1); }
     const below = [...size.keys()].filter((s) => s !== top).sort((a, b) => a - b);
-    const weight = (s: number) => (top > 1 ? 1 - (1 - EVERYDAY_ONLY) * ((plain.get(s) || 0) / size.get(s)!) : 1);
+    const weight = (s: number) => (top >= 1 ? 1 - (1 - EVERYDAY_ONLY) * ((plain.get(s) || 0) / size.get(s)!) : 1);
+    // the highest stage's pairs, and those of the categories of the open terms: a named term opens in a later stage than its category (intro.ts, stopCat)
+    const oc = st.open?.size ? termCats(st.open) : null, ofTop = (c: (typeof all)[number]) => c.st === top || (!!oc && (oc.has(c.a) || oc.has(c.b)));
     let stage = top;
-    if (below.length && (!size.has(top) || rng() >= (st.newShare ?? 0.5))) {
+    if (below.length && (!all.some(ofTop) || rng() >= (st.newShare ?? 0.5))) {
       let x = rng() * below.reduce((sum, s) => sum + weight(s), 0);
       stage = below[below.length - 1];
       for (const s of below) { if ((x -= weight(s)) <= 0) { stage = s; break; } }
     }
-    pool = all.filter((c) => c.st === stage);
+    pool = all.filter((c) => (stage === top ? ofTop(c) : c.st === stage));
     // the new questions go to the terms met whose last answer is not right yet, wherever they are: a new term waits while too many are
     if (stage === top && st.open?.size) {
       const cats = termCats(st.open), lean = all.filter((c) => cats.has(c.a) || cats.has(c.b));
@@ -320,8 +323,8 @@ export function chooseEntry(ix: DataIndex, full: readonly PoolEntry[], st: DrawS
     let v = 1;
     if (seen.has(pairKey(c))) v *= 0.08;
     v *= 1 + 1.5 * ((weak[c.a] || 0) + (weak[c.b] || 0));
-    // two everyday categories teach little once a course term is in play: at stage 1 only the exclusive pairs (white things, black things) are damped, from stage 2 on all of them
-    if (everydayOnly(ix, c)) v *= top > 1 ? EVERYDAY_ONLY : R === "con" ? 0.35 : 1;
+    // two everyday categories teach little once a course term is in play: at stage 0 only the exclusive pairs (white things, black things) are damped, from stage 1 on all of them
+    if (everydayOnly(ix, c)) v *= top !== null && top >= 1 ? EVERYDAY_ONLY : R === "con" ? 0.35 : 1;
     return v;
   });
   tot = w.reduce((s, v) => s + v, 0); x = rng() * tot;

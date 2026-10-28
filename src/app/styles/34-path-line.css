@@ -199,3 +199,7 @@
 .pa .help button{font-family:var(--mono); font-size:11.5px; font-style:normal; color:var(--blue); text-decoration:underline; text-underline-offset:3px; margin-left:4px}
 .pa .help button:first-child{margin-left:0}
 .pa .conn{font-style:normal; font-weight:600}
+/* "Show it again later" pressed: the clock inverted in a disc of the accent, plain to see on paper and on a dark ground */
+.pa .tagain .i{position:relative}
+.pa .tagain.on{color:var(--paper)}
+.pa .tagain.on::before{content:""; position:absolute; inset:6px; border-radius:50%; background:var(--blue)}

@@ -2,7 +2,7 @@
 // stands under its name. A tap on a stage unfolds what it introduces and its new terms, each with its mark; a term the learner has met opens its card on a
 // page of its own, as its stop showed it (the names, the definition, where it sits, the examples), and Back comes to the stages again where they were. A
 // fold at the top says how the stages work. Above them, Difficulty, a heading as Stages is, says how the pace, the negations and the depth stand, and
-// opens their page (path/difficulty.tsx). The roadmap's foot shows the same rings in a row (`StageRings`): a tap on one opens the page with that stage unfolded, and the link under the top bar's ring does so with the stage the learner is on.
+// opens their page (path/difficulty.tsx). The first stage of each group of three carries the group's name. The roadmap's foot shows the same rings in a row, stages 1 to 9 without stage 0 of everyday things (`StageRings`): a tap on one opens the page with that stage unfolded, and the link under the top bar's ring does so with the stage the learner is on.
 // The page stands in for Review (state.pathProg; setTab closes it), and Back from it goes where it was opened from: the roadmap or the exercise.
 import { useLayoutEffect } from "preact/hooks";
 import { state } from "../state.js";
@@ -15,7 +15,7 @@ import { render } from "../shell/render.js";
 import { setTab, switchTo } from "../shell/tabs.js";
 import { stopCat } from "../../domain/intro.ts";
 import type { StageMark, TermMark } from "../../domain/intro.ts";
-import { LADDER_TOP, STAGES, ladderTop } from "../../domain/stages.ts";
+import { LADDER_TOP, RING_STAGES, STAGES, ladderTop } from "../../domain/stages.ts";
 import type { DataIndex } from "../../ai-shared/lookup.ts";
 import type { ProgressionAt } from "../types.ts";
 import { DifficultyPage, difficultyLine } from "./difficulty.tsx";
@@ -29,15 +29,15 @@ import { D, Gap, Head, Icon, St, Sx } from "./ui.tsx";
 
 /** The roadmap's slide (37-path-panels.css), and a little more: the page is out of sight by then. */
 const SLIDE_MS = 420;
-/** The stages of the ladder: those after its last are the layers of depth, on the Difficulty page (src/domain/stages.ts, LADDER_TOP). */
+/** The stages of the ladder, stage 0 of everyday things first: those after its last are the layers of depth, on the Difficulty page (src/domain/stages.ts, LADDER_TOP). */
 const LADDER = STAGES.filter((s) => s.n <= LADDER_TOP);
 
-/** Opens the page in place of Review, with a stage unfolded and in view when one is named. `from`: the roadmap's rings or the link on the top bar's ring sheet. */
+/** Opens the page in place of Review, with a stage unfolded and in view when one is named (-1: none). `from`: the roadmap's rings or the link on the top bar's ring sheet. */
 export function openProgression(stage: number, from: ProgressionAt["from"]) {
   const p = state.pathProg, tab = state.tab === "review" && p ? p.tab : state.tab;   // (opened again while the page is on its way back under the roadmap: what is under it stays)
   setTab("review");
   state.pathProg = { from, tab, at: stage, term: "", y: -1 };
-  if (stage) state.pathOpen["pg:" + stage] = true;
+  if (stage >= 0) state.pathOpen["pg:" + stage] = true;
   render();
 }
 /**
@@ -69,15 +69,15 @@ function openTerm(id: string) {
  */
 export function openDifficulty(over = false) {
   if (over) { const p = state.pathProg, pg = document.querySelector<HTMLElement>("#path .pprog"); if (!p) return; p.y = pg ? pg.scrollTop : 0; p.diff = "over"; render(); return; }
-  openProgression(0, "sheet");
+  openProgression(-1, "sheet");
   if (state.pathProg) { state.pathProg.diff = "alone"; render(); }
 }
 
-/** The stages as a row of rings in the roadmap's foot, the one the learner is on with a halo; a tap on a ring opens the Progression page with that stage unfolded. */
+/** The stages of course terms as a row of rings in the roadmap's foot, the one the learner is on with a halo; a tap on a ring opens the Progression page with that stage unfolded. */
 export function StageRings() {
   const top = ladderTop(state.stages);
   return <div class="rstages" role="group" aria-label={"The stages: stage " + top + " of " + LADDER_TOP}>
-    <div class="tup-rings" style={"--n:" + LADDER_TOP}>{LADDER.map((s) =>
+    <div class="tup-rings" style={"--n:" + RING_STAGES.length}>{RING_STAGES.map((s) =>
       <button type="button" class={"tup-rg " + stageWhere(s.n, top)} aria-label={ringLabel(s.n, marksOf(s.n)) + ". Progression"} onClick={() => openProgression(s.n, "road")}>
         <StageRing n={s.n} top={top} /></button>)}</div>
   </div>;
@@ -103,13 +103,15 @@ function standing(n: number, top: number): string {
   if (where === "ahead") return m.length + (m.length === 1 ? " new term" : " new terms");
   return (where === "now" ? "now · " : "") + rightOf(m) + " of " + m.length + " right";
 }
-/** A stage as a stop on the line, its ring the node: a tap unfolds what it introduces and its new terms. */
-function StageRow({ n, name, adds, top }: { n: number; name: string; adds: string; top: number }) {
+/** The groups of three stages, by the first stage of each: its numeral. */
+const GROUPS = ["I", "II", "III"], groupNo = (n: number) => GROUPS[STAGES.filter((s) => s.group && s.n <= n).length - 1];
+/** A stage as a stop on the line, its ring the node: a tap unfolds what it introduces and its new terms. The first stage of a group says the group's name above its own. */
+function StageRow({ n, name, adds, group, top }: { n: number; name: string; adds: string; group?: string; top: number }) {
   const k = "pg:" + n, open = isOpen(k), m = marksOf(n);
   return <>
     <St d={<span class="prgd"><StageRing n={n} top={top} /></span>} cls={"trow prg can " + stageWhere(n, top) + (open ? " open" : "")}>
       <button type="button" class="trb" data-stage={n} aria-expanded={open ? "true" : "false"} onClick={() => toggleOpen(k)}>
-        <b>{"Stage " + n + " · " + name}</b><small class="prg-s">{standing(n, top)}</small><span class="arr"><Icon n="chev" /></span></button></St>
+        {group ? <small class="ptype prg-g">{groupNo(n) + " · " + group}</small> : null}<b>{"Stage " + n + " · " + name}</b><small class="prg-s">{standing(n, top)}</small><span class="arr"><Icon n="chev" /></span></button></St>
     {open ? <div class="pfold" data-fold={n}><div class="wtext tup prg-p"><p>{adds}</p>{m.length ? <Terms marks={m} /> : null}</div></div> : null}
   </>;
 }
@@ -121,6 +123,7 @@ function How() {
       <button type="button" class="trb" aria-expanded={open ? "true" : "false"} onClick={() => toggleOpen(k)}><b>How the stages work</b><span class="arr"><Icon n="chev" /></span></button></St>
     {open ? <div class="pfold"><div class="wtext tup prg-p"><ul class="tup-bul">
       <li>Each stage adds a new kind of thing to ask about, from everyday things toward abstract ideas.</li>
+      <li>Stage 0 is everyday things only. The course terms start at stage 1, in three groups of three stages.</li>
       <li>The earlier stages stay in the mix, and Review keeps them fresh.</li>
       <li>Each new term comes with its definition first.</li>
       <li>{flow(state.pace)}</li>
@@ -144,8 +147,8 @@ function Stages({ p }: { p: ProgressionAt }) {
   useLayoutEffect(() => {
     const pg = document.querySelector<HTMLElement>("#path .pprog"); if (!pg) return;
     if (p.y >= 0) { pg.scrollTop = p.y; p.y = -1; return; }
-    const at = p.at; if (!at) return;
-    p.at = 0;
+    const at = p.at; if (at < 0) return;
+    p.at = -1;
     const row = pg.querySelector<HTMLElement>('[data-stage="' + at + '"]')?.closest<HTMLElement>(".st"), end = pg.querySelector<HTMLElement>('[data-fold="' + at + '"]') || row;
     if (!row || !end) return;
     const box = pg.getBoundingClientRect(), over = end.getBoundingClientRect().bottom + 16 - box.bottom;
@@ -158,7 +161,7 @@ function Stages({ p }: { p: ProgressionAt }) {
       <Sx cls="walked ptrail">
         <Head d={<D cls="sec tsd" />} h="Stages" sub={"stage " + top + " of " + LADDER_TOP + (all.length ? " · " + rightOf(all) + " of " + all.length + " terms right" : "")} />
         <How />
-        {LADDER.map((s) => <StageRow n={s.n} name={s.name} adds={s.adds} top={top} />)}
+        {LADDER.map((s) => <StageRow n={s.n} name={s.name} adds={s.adds} group={s.group} top={top} />)}
         <Gap h={6} /></Sx>
       <div style={{ height: "30px" }} />
     </div>

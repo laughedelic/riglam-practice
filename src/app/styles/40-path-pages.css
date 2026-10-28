@@ -163,6 +163,7 @@
 .pa .prgd svg{width:30px; height:30px; display:block; overflow:visible}
 .pa .ptrail .trow.prg{padding:10px 0}
 .pa .prg-s{display:block; font:400 11.5px var(--mono); color:var(--ink3); margin-top:3px}
+.pa .prg-g{margin-bottom:4px; font-size:10px; letter-spacing:.06em; text-transform:uppercase}   /* the name of a group of three stages, over its first */
 .pa .prg.now .prg-s{color:var(--blue)}
 .pa .prg.ahead b{color:var(--ink3); font-weight:500}
 .pa .prg.now .rgs text{fill:var(--blue)}
