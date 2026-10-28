@@ -191,7 +191,8 @@ test("Settings > Languages decides which names the stop shows: Tibetan with its 
   await expect(lang("Tibetan")).toHaveAttribute("aria-checked", "true");
   expect(await page.evaluate(() => localStorage.getItem("rd-langs"))).toBe('["bo","skt","zh"]');
   expect(await page.evaluate(() => localStorage.getItem("rd-deflang"))).toBeNull();
-  await page.getByRole("button", { name: /Back to the exercise/ }).click();
+  await page.locator("#stn").click();   // Back to the roadmap, which Settings was opened from
+  await page.getByRole("dialog", { name: "Roadmap" }).getByRole("button", { name: "Continue" }).click();
   await expect(page.locator("#path .chs .crow")).toHaveCount(5);
   await page.evaluate(() => window.__t.next());
   const names = page.locator("#path .tstop .tstop-names .nm");

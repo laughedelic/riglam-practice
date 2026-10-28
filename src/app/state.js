@@ -76,12 +76,16 @@ export const state = {
   sessPage: null,    // the option whose own page is open in the Practice options (shell/session.js), or null for the list
   skipAsk: false,    // the dialog that asks before a pair with answers in it is skipped
   menuOpen: false,   // narrow screens: the menu slides over the exercise
+  fromRoad: false,   // the Path: Review or Settings was opened from the roadmap, so Back and its own way back go to the roadmap, not to the exercise under it
   menuPin: true,     // wide screens: the menu is pinned open beside the exercise (`rd-menu`, pinned until it is unpinned); otherwise it only peeks from the left edge
   menuPeek: false,   // wide screens: the pointer is on the left edge, the menu shows while it stays there
   coachOpen: false,  // wide screens: the panel at the right (recent answers and keys before the result, the tutor after it) is open
   navDepth: 0,    // history entries held above the first screen (shell/history.js): the exercise itself on a narrow screen, Review, the chat view, Settings, the options and their pages, the skip question
   navSkip: 0,     // steps back the page took itself, whose popstate is to be ignored
   navQ: false,    // a check of the entries against the state is due after this render
+  navBare: false, // the first entry above the first screen was added before anything had touched the page: Chrome skips the first screen's entry on Back then, so a close watcher takes the Back
+  navGuard: null, // that close watcher, while it is armed (shell/history.js)
+  navEsc: 0,      // when Escape was last pressed: a close watcher hears it too, and the keys have already closed a level for it
   navBack: false, // the system's Back is closing levels, and the browser has animated the screen away itself (a swipe from the edge): the panels do not move as well (shell/history.js, shell/motion.js)
   motion: false,  // the first screen has been drawn: panels that open or close after it slide (shell/motion.js)
   view: null,
