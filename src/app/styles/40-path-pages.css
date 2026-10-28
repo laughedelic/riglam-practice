@@ -168,7 +168,9 @@
 .pa .prg.now .rgs text{fill:var(--blue)}
 .pa .prg.ahead .rgs text{fill:var(--ink3)}
 .pa .prg.now .rgs .disc{fill:var(--blue); fill-opacity:.12}
-.pa .pprog > .psub{padding-top:16px}   /* the top bar names the page */
+.pa .pprog > .psub,.pa .pdiff > .psub{padding-top:16px}   /* the top bar names the page */
+.pa .pdiff .pdiff-wait{font-style:italic; color:var(--ink3)}
+.pa .pdiff .pdiff-step b{font-weight:600; color:var(--ink)}
 .pa .prg-p{margin-left:calc(var(--m) / 2)}
 .pa .prg-how b{font-weight:500; color:var(--ink2)}
 .pa .prg-tl li{padding:0}

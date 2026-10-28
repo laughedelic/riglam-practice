@@ -3,7 +3,7 @@
 
 import { normLevels } from "../ai-shared/examples.ts";
 import { FIND_RELS } from "../domain/find.ts";
-import { normIntro } from "../domain/intro.ts";
+import { OPEN_CAP, normIntro, normPace } from "../domain/intro.ts";
 import { normLangs } from "../domain/languages.ts";
 import { EVERYDAY_STAGES } from "../domain/syllogism.ts";
 import { DEFAULT_STAGES, freshRun, normExRuns, normGuided, normRun, normStages, stagesOfLevels, topStage } from "../domain/stages.ts";
@@ -66,6 +66,7 @@ export const state = {
   negation: "off",   // the negation track of Relations and Pervasions: "one" negates A or B in about a third of the pairs, "both" both sides in half of those (`rd-negation`)
   relSession: [],    // the Relations answers checked on this page, oldest first: the run towards the offer of a negation step counts them before the database has handed them back (practice/negations.ts)
   negOfferAt: "",    // when the learner last answered the offer of a negation step (`rd-neg-offer`): only the answers after it count towards the next offer
+  pace: OPEN_CAP,    // the most course terms open at once before a new one waits (the Difficulty page, `rd-pace`; src/domain/intro.ts, PACES)
   debates: {},
   own: "practice",
   favs: {},
@@ -156,6 +157,7 @@ try{ const v=localStorage.getItem("rd-findrel"); if(FIND_RELS.includes(/** @type
 try{ state.findSuggest=localStorage.getItem("rd-findsuggest")!=="0"; }catch(e){}
 try{ const v=localStorage.getItem("rd-negation"); if(v==="one"||v==="both") state.negation=v; state.negOfferAt=localStorage.getItem("rd-neg-offer")||""; }catch(e){}
 try{ state.negBrackets=localStorage.getItem("rd-neg-brackets")!=="0"; }catch(e){}
+try{ state.pace=normPace(localStorage.getItem("rd-pace")); }catch(e){}
 try{ state.instSuggest=localStorage.getItem("rd-inst-suggest")!=="0"; }catch(e){}
 try{ if(localStorage.getItem("rd-cats-ask")==="one") state.catsAsk="one"; }catch(e){}
 try{ state.stageRun=normRun(localStorage.getItem("rd-stage-run")); state.exRuns=normExRuns(localStorage.getItem("rd-ex-runs")); state.guided=normGuided(localStorage.getItem("rd-guided")); }catch(e){}

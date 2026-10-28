@@ -18,20 +18,21 @@ import { GUIDES, guided, setGuided } from "../practice/guided.ts";
 import { resetProgress } from "../practice/progress.ts";
 import { movesUp, progressNow, setMovesUp } from "../practice/stage-offer.ts";
 import { toggleOpts } from "../shell/options.js";
-import { PAGES, SYMS, openPage, quorumNote, sessBack, setAutoExplain, setBlitzUse, setDefLang, setNegBrackets, setNegation, setNota, setShow, setSyllogismWording, setWording, toggleSess } from "../shell/session.js";
+import { PAGES, SYMS, openPage, quorumNote, sessBack, setAutoExplain, setBlitzUse, setDefLang, setNota, setShow, setSyllogismWording, setWording, toggleSess } from "../shell/session.js";
 import { kindMs } from "../shell/timers.js";
 import { ANSWERS, ANSWER_PICKS, CONFIRM_PICKS, RATES, READ_NOTE, SAMPLE, VOICE_LEAD, VOICE_SAY, WHERE, hookVoices, setVoice, voiceGroups, voiceShown } from "../shell/voice.js";
 import { stageCounts } from "../../domain/reference.ts";
-import { MAX_STAGE, STAGES, itemStage, toggleStage } from "../../domain/stages.ts";
+import { LADDER_TOP, STAGES, itemStage, toggleStage } from "../../domain/stages.ts";
 import { canHear, canSpeak, speak, voiceList } from "../../ui/speech";
 import { ProgressPage } from "./progress.tsx";
+import { openDifficulty } from "./progression.tsx";
 import { D, Icon, Knob, Toggle, Words, NOFILL } from "./ui.tsx";
 
 // the names in the margin are short, as the lab's are: six letters fit beside the line
-const Row = ({ lb, children, go }: { lb: string; children?: ComponentChildren; go?: { page: string; label?: string } }) =>
+export const Row = ({ lb, children, go }: { lb: string; children?: ComponentChildren; go?: { page: string; label?: string } }) =>
   <div class={"porow" + (go ? " pgo" : "")}><span class="lb">{lb}</span><div class="ptx">{children}</div>{go ? <More {...go} /> : null}</div>;
 /** A row that is a switch: its name and what it does, and the toggle. */
-const Switch = ({ lb, title, note, on, toggle }: { lb: string; title: string; note?: string; on: boolean; toggle: () => void }) =>
+export const Switch = ({ lb, title, note, on, toggle }: { lb: string; title: string; note?: string; on: boolean; toggle: () => void }) =>
   <Row lb={lb}><button type="button" class="two" role="switch" aria-checked={on ? "true" : "false"} onClick={toggle}><span><b>{title}</b>{note ? <small>{note}</small> : null}</span><Toggle on={on} /></button></Row>;
 /** The way into a row's own page: a control at the row's right edge, as tall as the row, so that it takes no line of the row and is easy to tap. */
 const More = ({ page, label = "more" }: { page: string; label?: string }) => <button type="button" class="more" aria-label={PAGES[page as keyof typeof PAGES] + ": " + label} onClick={() => openPage(page)}><Icon n="chev" /></button>;
@@ -144,12 +145,8 @@ function Stages() {
     })}
     {only ? <p class="pnoteline pnote3">At least one stage stays on.</p> : null}
     <Switch lb="Move" title="Move up by itself" note="After five right answers in a row on the newest stage, the next one comes in, and a station says so first. Off: no stage comes in by itself, and you switch them here." on={movesUp()} toggle={() => setMovesUp(!movesUp())} />
-    {negates() ? <>
-      <p class="psub">Negations are a step of difficulty like the stages: switch them on when the plain pairs come easily. A negation takes in what does not exist, so nothing may be neither: then the Neither case is empty, and you say that nothing exists there.</p>
-      <Row lb="Not"><b>Negations</b><Words label="Negations" items={[["off", "Off"], ["one", "One side"], ["both", "Both sides"]]} cur={state.negation} on={setNegation} />
-        <small>Some pairs negate a term: “furniture” and “non-(wooden things)”, which takes in everything that is not a wooden thing. One side: A or B is negated in about a third of the pairs. Both sides: half of those negate both. Relations and Pervasions share this choice; Find a pair takes a negation you name (“non-(wooden things)”) with it off too.</small></Row>
-      <Switch lb="Brackets" title="Brackets" note="“non-(wooden things)” says that the “non-” takes in everything that is not a wooden thing, what does not exist included. Without them, “non-wooden things” is also read as the things that are not wooden, which leaves out what does not exist. They help while negations are new, and apply from the next pair." on={state.negBrackets} toggle={() => setNegBrackets(!state.negBrackets)} />
-    </> : null}
+    <Row lb="Harder"><b>Pace, negations, depth</b><small>How many terms may be not right yet at a time, pairs with a negated side, and chains of reasoning after stage {LADDER_TOP}: their own page, the Difficulty page.</small>
+      <span class="pvline2"><button type="button" class="pbtn quiet" onClick={() => openDifficulty()}>Difficulty</button></span></Row>
     <Row lb="Reset"><b>Reset progression</b>
       <small>{state.resetAsk === "done" ? "Done: stage 1, and the course terms come one at a time again." : "Back to stage 1 with no course term met, negations off and every exercise guided again, on every device signed in to your account. Your answers, their statistics and your settings stay."}</small>
       {state.resetAsk === "ask" ? <span class="pvline2"><button type="button" class="pbtn" onClick={() => { state.resetAsk = "done"; resetProgress(); }}>Reset</button><button type="button" class="pbtn quiet" onClick={() => { state.resetAsk = ""; render(); }}>Keep it</button></span>
@@ -225,7 +222,7 @@ export function OptionsSheet() {
     <div class={"scrim below" + (on ? " on" : "")} onClick={() => toggleSess(false)} />
     <div ref={box} class={"psheet top" + (on ? " on" : "")} role="dialog" aria-label={page === "progress" ? "Progression" : "Practice options"} aria-hidden={on ? "false" : "true"} inert={!on} tabIndex={-1} data-quiet>
       <div class="sbody" ref={body}>
-        {page && page !== "progress" ? <button type="button" class="sback" onClick={sessBack}><Icon n="chev" />back to the options</button> : <p class="glab" style={{ paddingTop: "4px" }}>{page === "progress" ? "Stage " + progressNow().top + " of " + MAX_STAGE : exName(state.tab)}</p>}
+        {page && page !== "progress" ? <button type="button" class="sback" onClick={sessBack}><Icon n="chev" />back to the options</button> : <p class="glab" style={{ paddingTop: "4px" }}>{page === "progress" ? "Stage " + progressNow().top + " of " + LADDER_TOP : exName(state.tab)}</p>}
         {on ? (page ? <Page id={page} /> : <List />) : null}
       </div>
       <Knob up label="Fold the practice options away" onClick={() => toggleSess(false)} />

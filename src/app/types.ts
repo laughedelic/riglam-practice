@@ -239,6 +239,8 @@ export interface ProgressDoc {
   guided: Record<string, boolean>;
   /** when the offer of a negation step was last answered (`rd-neg-offer`; "": never) */
   negOfferAt: string;
+  /** the most course terms open at once before a new one waits (`rd-pace`; none: src/domain/intro.ts, OPEN_CAP) */
+  pace?: number;
 }
 
 /** collection `labruns`: one model's answer to one case of the earlier Quorum, run by the page itself, or the judge's. Older versions of the page wrote it under that name, which a stored collection keeps; this one only keeps what is there (export, sync). Loosely typed. */
@@ -340,6 +342,8 @@ export interface ProgressionAt {
   term: string;
   /** how far the page was scrolled when a term's card opened over it, to be set again when the card closes; -1 when nothing waits */
   y: number;
+  /** the Difficulty page (path/difficulty.tsx) is open: over the stages ("over": Back comes to them), or by itself ("alone": opened from a result or the practice options) */
+  diff?: "over" | "alone";
 }
 
 /** The page's shared state: every variable that used to be module-level (see state.js). */
@@ -468,6 +472,8 @@ export interface State {
   relSession: NegResult[];
   /** when the learner last answered the offer of a negation step (a time, `rd-neg-offer`): only answers after it count towards the next offer */
   negOfferAt: string;
+  /** the most course terms open at once before a new one waits (the Difficulty page, `rd-pace`; src/domain/intro.ts, PACES) */
+  pace: number;
   /** Find an instance offers the things the course knows while one is typed (its practice options, `rd-inst-suggest`) */
   instSuggest: boolean;
   lastSig: string;

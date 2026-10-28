@@ -1,12 +1,13 @@
 // The progression in the Path's top bar: a back chevron where the station diamond was, and after the exercise's name a ring with the stage in it: a
 // segment for each new term of the stage, or, on a stage without (and here, where the test devices have every term settled: tests/support/test.js), the
-// run of right answers towards the next stage. A tap on the ring opens the Progression sheet (a page of the practice options); the top bar names it while
+// run of right answers towards the next stage (below stage 8, the ladder's last, which shows its terms). A tap on the ring opens the Progression sheet (a page of the practice options); the top bar names it while
 // it is open (and its ring gives way to the close); Back and the close shut it (src/app/path/progress.tsx).
 import { test, expect } from "../../support/test.js";
 
 const setup = () => {
   window.__riglamTest = (t) => { window.__t = t; };
   if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path");
+  if (localStorage.getItem("rd-stages") === null) localStorage.setItem("rd-stages", "1,2,3,4,5,6,7");     // below the ladder's last stage, where the ring shows its terms
 };
 const ring = (page) => page.locator("#path .ptb .pring");
 const sheet = (page) => page.locator("#path .psheet.on");

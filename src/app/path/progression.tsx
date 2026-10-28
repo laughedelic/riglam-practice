@@ -1,8 +1,8 @@
 // The Progression page: the stages of the ladder (src/domain/stages.ts) as stops on one line, each stage's ring the node (path/rings.tsx), with where it
 // stands under its name. A tap on a stage unfolds what it introduces and its new terms, each with its mark; a term the learner has met opens its card on a
 // page of its own, as its stop showed it (the names, the definition, where it sits, the examples), and Back comes to the stages again where they were. A
-// fold at the top says how the stages work, and the negations follow: whether they are on and how they come. The roadmap's foot shows the same rings in a
-// row (`StageRings`): a tap on one opens the page with that stage unfolded, and the link under the top bar's ring does so with the stage the learner is on.
+// fold at the top says how the stages work. Above them, Difficulty says how the pace, the negations and the depth stand, and opens their page
+// (path/difficulty.tsx). The roadmap's foot shows the same rings in a row (`StageRings`): a tap on one opens the page with that stage unfolded, and the link under the top bar's ring does so with the stage the learner is on.
 // The page stands in for Review (state.pathProg; setTab closes it), and Back from it goes where it was opened from: the roadmap or the exercise.
 import { useLayoutEffect } from "preact/hooks";
 import { state } from "../state.js";
@@ -12,14 +12,14 @@ import { exName } from "../shell/exercises.js";
 import { toggleMenu } from "../shell/menu.js";
 import { moves } from "../shell/motion.js";
 import { render } from "../shell/render.js";
-import { openStageOptions } from "../shell/session.js";
 import { setTab, switchTo } from "../shell/tabs.js";
 import { stopCat } from "../../domain/intro.ts";
 import type { StageMark, TermMark } from "../../domain/intro.ts";
-import { MAX_STAGE, STAGES, runNeed, topStage } from "../../domain/stages.ts";
+import { LADDER_TOP, STAGES, ladderTop } from "../../domain/stages.ts";
 import type { DataIndex } from "../../ai-shared/lookup.ts";
 import type { ProgressionAt } from "../types.ts";
-import { FLOW, num } from "./progress.tsx";
+import { DifficultyPage, difficultyLine } from "./difficulty.tsx";
+import { flow } from "./progress.tsx";
 import { StageRing, marksOf, rightOf, ringLabel, stageWhere } from "./rings.tsx";
 import { TopBar } from "./shell.tsx";
 import { FitTerm, StopSections } from "./stop-def.tsx";
@@ -29,6 +29,8 @@ import { D, Gap, Head, Icon, St, Sx } from "./ui.tsx";
 
 /** The roadmap's slide (37-path-panels.css), and a little more: the page is out of sight by then. */
 const SLIDE_MS = 420;
+/** The stages of the ladder: those after its last are the steps of depth, on the Difficulty page (src/domain/stages.ts, LADDER_TOP). */
+const LADDER = STAGES.filter((s) => s.n <= LADDER_TOP);
 
 /** Opens the page in place of Review, with a stage unfolded and in view when one is named. `from`: the roadmap's rings or the link on the top bar's ring sheet. */
 export function openProgression(stage: number, from: ProgressionAt["from"]) {
@@ -45,7 +47,7 @@ export function openProgression(stage: number, from: ProgressionAt["from"]) {
  */
 export function progBack() {
   const p = state.pathProg; if (!p) return;
-  if (p.term) { p.term = ""; render(); return; }
+  if (p.term || p.diff === "over") { p.term = ""; delete p.diff; render(); return; }
   if (p.from === "sheet") { setTab(p.tab); if (state.pathProg === p) { state.pathProg = null; render(); } return; }
   toggleMenu(true);
   const under = () => {
@@ -61,12 +63,21 @@ function openTerm(id: string) {
   const p = state.pathProg, pg = document.querySelector<HTMLElement>("#path .pprog"); if (!p) return;
   p.y = pg ? pg.scrollTop : 0; p.term = id; render();
 }
+/**
+ * Opens the Difficulty page: over the stages from their page (Back comes to them), or by itself from a result or the practice options, in place of Review
+ * as the stages would be (Back goes to the exercise).
+ */
+export function openDifficulty(over = false) {
+  if (over) { const p = state.pathProg, pg = document.querySelector<HTMLElement>("#path .pprog"); if (!p) return; p.y = pg ? pg.scrollTop : 0; p.diff = "over"; render(); return; }
+  openProgression(0, "sheet");
+  if (state.pathProg) { state.pathProg.diff = "alone"; render(); }
+}
 
 /** The stages as a row of rings in the roadmap's foot, the one the learner is on with a halo; a tap on a ring opens the Progression page with that stage unfolded. */
 export function StageRings() {
-  const top = topStage(state.stages);
-  return <div class="rstages" role="group" aria-label={"The stages: stage " + top + " of " + MAX_STAGE}>
-    <div class="tup-rings" style={"--n:" + MAX_STAGE}>{STAGES.map((s) =>
+  const top = ladderTop(state.stages);
+  return <div class="rstages" role="group" aria-label={"The stages: stage " + top + " of " + LADDER_TOP}>
+    <div class="tup-rings" style={"--n:" + LADDER_TOP}>{LADDER.map((s) =>
       <button type="button" class={"tup-rg " + stageWhere(s.n, top)} aria-label={ringLabel(s.n, marksOf(s.n)) + ". Progression"} onClick={() => openProgression(s.n, "road")}>
         <StageRing n={s.n} top={top} /></button>)}</div>
   </div>;
@@ -104,40 +115,35 @@ function StageRow({ n, name, adds, top }: { n: number; name: string; adds: strin
 }
 /** What the stages are and how they move, folded at the top of the list: the stage station's and the ring sheet's words. */
 function How() {
-  const k = "pg:how", open = isOpen(k), run = runNeed(state.stageRun), last = STAGES.reduce((m, s) => (marksOf(s.n).length ? s.n : m), 0);
+  const k = "pg:how", open = isOpen(k);
   return <>
     <St d={<D cls="sub" />} cls={"trow prg-how can" + (open ? " open" : "")}>
       <button type="button" class="trb" aria-expanded={open ? "true" : "false"} onClick={() => toggleOpen(k)}><b>How the stages work</b><span class="arr"><Icon n="chev" /></span></button></St>
     {open ? <div class="pfold"><div class="wtext tup prg-p"><ul class="tup-bul">
-      <li>Each stage adds a new kind of thing to ask about, from everyday things toward abstract ideas, and then longer chains of reasoning.</li>
+      <li>Each stage adds a new kind of thing to ask about, from everyday things toward abstract ideas.</li>
       <li>The earlier stages stay in the mix, and Review keeps them fresh.</li>
       <li>Each new term comes with its definition first.</li>
-      <li>{FLOW}</li>
+      <li>{flow(state.pace)}</li>
       <li>A stage begins with its first new term, once the stage before has brought all of its own. A wrong answer takes back only that term’s mark.</li>
-      {last && last < MAX_STAGE ? <li>{"Stage " + (last + 1) + " comes once your last answer on each term of stage " + last + " is right. The stages after it bring no new terms and come after " + num(run) + " right answers in a row on what is new."}</li> : null}
+      <li>{"Stage " + LADDER_TOP + " is the last. Chains of reasoning come after it as a difficulty of their own, like the negations: see Difficulty, above."}</li>
       <li>Progression works across all exercises.</li>
       <li>A stage’s ring has a segment for each of its new terms, and each term a diamond: green when your last answer on it was right, red when it was wrong, open while it is not asked yet.</li>
     </ul></div></div> : null}
   </>;
 }
 
-const NEG: Record<string, [string, string]> = {
-  off: ["off", "After five right answers in a row on plain pairs in Relations, a result offers pairs with one side negated. Nothing changes without your tap."],
-  one: ["one side", "A or B is negated in about a third of the pairs of Relations and Pervasions. After five right in a row on negated pairs, a result offers both sides."],
-  both: ["both sides", "Half of the negated pairs of Relations and Pervasions negate both sides."],
-};
-function Negations() {
-  const [now, how] = NEG[state.negation] || NEG.off!;
-  return <>
-    <p class="pgh"><b>Negations</b><span>{now}</span></p>
-    <div class="wtext tup prg-p"><p>{how}</p>
-      <p class="tup-note">The stages and the negations follow your answers. To choose them yourself, use the <button type="button" class="plnk" onClick={() => { setTab(state.own); openStageOptions(); }}>practice options</button>.</p></div>
-  </>;
-}
+/** The difficulty besides the stages, above them: how each of the three stands, and the way to its page. */
+const Difficulty = () => <>
+  <p class="pgh"><b>Difficulty</b></p>
+  <Sx cls="walked first ptrail"><Gap h={6} />
+    <St d={<D cls="sub" />} cls="trow prg-dif can">
+      <button type="button" class="trb" onClick={() => openDifficulty(true)}><b>Pace, negations, depth</b><small class="prg-s">{difficultyLine()}</small><span class="arr"><Icon n="chev" /></span></button></St>
+    <Gap h={6} /></Sx>
+</>;
 
 /** The stages. Opened at a stage, its unfolded row comes into view, once; back from a term's card, the page is where it was. */
 function Stages({ p }: { p: ProgressionAt }) {
-  const top = topStage(state.stages), all = STAGES.flatMap((s) => marksOf(s.n));
+  const top = ladderTop(state.stages), all = LADDER.flatMap((s) => marksOf(s.n));
   useLayoutEffect(() => {
     const pg = document.querySelector<HTMLElement>("#path .pprog"); if (!pg) return;
     if (p.y >= 0) { pg.scrollTop = p.y; p.y = -1; return; }
@@ -151,13 +157,13 @@ function Stages({ p }: { p: ProgressionAt }) {
   return <>
     <TopBar title="Progression" back={{ label: p.from === "road" ? "Back to the roadmap" : "Back to " + exName(p.tab), act: progBack }} />
     <div key="stages" class="ppage prv pprog">
-      <p class="psub">{"stage " + top + " of " + MAX_STAGE + (all.length ? " · " + rightOf(all) + " of " + all.length + " terms right" : "")}</p>
+      <p class="psub">{"stage " + top + " of " + LADDER_TOP + (all.length ? " · " + rightOf(all) + " of " + all.length + " terms right" : "")}</p>
+      <Difficulty />
       <p class="pgh"><b>Stages</b></p>
       <Sx cls="walked first ptrail"><Gap h={6} />
         <How />
-        {STAGES.map((s) => <StageRow n={s.n} name={s.name} adds={s.adds} top={top} />)}
+        {LADDER.map((s) => <StageRow n={s.n} name={s.name} adds={s.adds} top={top} />)}
         <Gap h={6} /></Sx>
-      <Negations />
       <div style={{ height: "30px" }} />
     </div>
   </>;
@@ -181,5 +187,7 @@ function TermCard({ id }: { id: string }) {
 
 export function ProgressionPage() {
   const p = state.pathProg!;
-  return p.term ? <TermCard id={p.term} /> : <Stages p={p} />;
+  if (p.term) return <TermCard id={p.term} />;
+  if (p.diff) return <DifficultyPage back={p.diff === "over" ? { label: "Back to Progression", act: progBack } : { label: p.from === "road" ? "Back to the roadmap" : "Back to " + exName(p.tab), act: progBack }} />;
+  return <Stages p={p} />;
 }

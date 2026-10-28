@@ -1,19 +1,19 @@
 // The Progression page on the Path (src/app/path/progression.tsx): the roadmap's foot shows the stages as a row of rings, and a tap on one opens the page
 // with that stage unfolded; the page has each stage as a stop with its ring as the node, folded, under a fold that says how the stages work; a stage unfolds
-// into what it introduces and its new terms with their marks, and a term met opens its card on a page of its own. Then the negations. The sheet of the top
+// into what it introduces and its new terms with their marks, and a term met opens its card on a page of its own. Difficulty above them (path-difficulty.spec.js). The sheet of the top
 // bar's ring opens the page too. Back, the chevron or the system's, goes where the page was opened from: the roadmap or the exercise, and from a term's
 // card to the stages as they were.
 import { test, expect } from "../../support/test.js";
 import { withCourse } from "../../support/data-key.js";
 
-// stage 2 of 11: Form met and not answered yet, Color right; the other new terms of stages 1 and 2 still to come
+// stage 2 of 8: Form met and not answered yet, Color right; the other new terms of stages 1 and 2 still to come
 const seed = () => {
   if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path");
   localStorage.setItem("rd-stages", "1,2");
   localStorage.setItem("rd-terms", JSON.stringify({ n: 9, next: 99, terms: { form: { box: 1, shows: 1, at: 1 }, col: { box: 3, shows: 1, at: 1, first: 2, won: 4 } } }));
 };
 const road = (page) => page.getByRole("dialog", { name: "Roadmap" });
-const rings = (page) => road(page).getByRole("group", { name: "The stages: stage 2 of 11" }).getByRole("button");
+const rings = (page) => road(page).getByRole("group", { name: "The stages: stage 2 of 8" }).getByRole("button");
 const stages = (page) => page.locator("#path .pprog .prg");
 const terms = (page) => page.locator("#path .pprog .prg-tl li");
 const term = (page, name) => terms(page).filter({ has: page.locator(".ttn", { hasText: new RegExp("^" + name + "$") }) });
@@ -29,17 +29,17 @@ test("the roadmap's rings open the Progression page with that stage unfolded; a 
   page.on("pageerror", (e) => errors.push(e.message));
   await open(page);
   await page.locator(".tstn").click();
-  await expect(rings(page)).toHaveCount(11);
+  await expect(rings(page)).toHaveCount(8);
   await expect(rings(page).nth(1)).toHaveAccessibleName("Stage 2, 1 of 5 new terms answered right. Progression");
   await expect(rings(page).nth(1).locator(".halo")).toHaveCount(1);
   await rings(page).nth(1).click();
   await expect(page.locator("#path .ptb-t")).toHaveText("Progression");
   await expect(page.locator(".ppage .ptitle")).toHaveCount(0);
-  await expect(page.locator(".ppage .psub")).toHaveText(/^stage 2 of 11 · 1 of \d+ terms right$/);
+  await expect(page.locator(".ppage .psub")).toHaveText(/^stage 2 of 8 · 1 of \d+ terms right$/);
   await expect(page.locator(".tstn")).toHaveAccessibleName("Back to the roadmap");
   await expect(page.getByRole("button", { name: /^Continue practice/ })).toHaveCount(0);
   // the stages, folded but the one tapped; how they work folded above them
-  await expect(stages(page)).toHaveCount(11);
+  await expect(stages(page)).toHaveCount(8);
   await expect(stages(page).nth(0).locator("b")).toHaveText("Stage 1 · Things around you");
   await expect(stages(page).nth(1).locator(".prg-s")).toHaveText("now · 1 of 5 right");
   await expect(stages(page).nth(5).locator(".prg-s")).toHaveText(/^\d+ new terms?$/);
@@ -56,7 +56,7 @@ test("the roadmap's rings open the Progression page with that stage unfolded; a 
   await expect(term(page, "Color").getByRole("button")).toHaveAccessibleName("Color, last answer right. Its card");
   await expect(term(page, "Shape")).toHaveClass(/\bwait\b/);
   await expect(term(page, "Shape").getByRole("button")).toHaveCount(0);
-  await expect(page.locator("#path .pprog .pgh").filter({ hasText: "Negations" })).toHaveText(/^Negations\s*off$/);
+  await expect(page.getByRole("button", { name: /^Pace, negations, depth/ })).toContainText("steady pace · negations off · depth off");
   // stage 1 unfolds with Form, met and not asked yet, and Matter, still to come
   await stages(page).nth(0).locator(".trb").click();
   await expect(term(page, "Form").getByRole("button")).toHaveAccessibleName("Form, not asked yet. Its card");
@@ -71,7 +71,7 @@ test("the roadmap's rings open the Progression page with that stage unfolded; a 
   await expect(page.locator(".tstn")).toHaveAccessibleName("Back to Progression");
   // Back: the stages as they were, then the roadmap, with the exercise under it
   await page.locator(".tstn").click();
-  await expect(stages(page)).toHaveCount(11);
+  await expect(stages(page)).toHaveCount(8);
   await expect(stages(page).nth(0).locator(".trb")).toHaveAttribute("aria-expanded", "true");
   await expect(stages(page).nth(1).locator(".trb")).toHaveAttribute("aria-expanded", "true");
   await page.locator(".tstn").click();
@@ -90,7 +90,7 @@ test("the system Back from a term's card goes to the stages, and from the stages
   await term(page, "Color").getByRole("button").click();
   await expect(page.locator("#path .ttree li.me")).toHaveText("Color");
   await page.goBack();
-  await expect(stages(page)).toHaveCount(11);
+  await expect(stages(page)).toHaveCount(8);
   await expect(page.locator("#path .ptb-t")).toHaveText("Progression");
   await page.goBack();
   await expect(road(page)).toBeVisible();

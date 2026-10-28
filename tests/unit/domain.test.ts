@@ -15,9 +15,9 @@ import type { DebateInput, GradeDraft, HistoryEntry, Pair, PoolEntry } from "../
 import openData from "../../src/data/drill-data.json";
 import { catStage, drawable, examplesFor, placeByClass } from "../../src/domain";
 import { LANGS, normLangs, termNames } from "../../src/domain";
-import { AGAIN_AFTER, FIRST_AFTER, MISS_AFTER, OPEN_CAP, SETTLED, SPACING, afterQuestion, againAsked, askedKey, freshIntro, introduced, metTerms, newTermDue, nextStageDue, nextStop, normIntro, openTerms, pairGraded, showAgain, stageMarks, stageMet, stageTerms, stageUp, stopCat, stopShown, termMark, termTree, unmet, wordsFor } from "../../src/domain";
+import { AGAIN_AFTER, FIRST_AFTER, MISS_AFTER, OPEN_CAP, PACES, SETTLED, SPACING, afterQuestion, againAsked, askedKey, freshIntro, introduced, metTerms, newTermDue, nextStageDue, nextStop, normIntro, normPace, openTerms, pairGraded, showAgain, stageMarks, stageMet, stageTerms, stageUp, stopCat, stopShown, termMark, termTree, unmet, wordsFor } from "../../src/domain";
 import { instanceGraded, instanceQuestion } from "../../src/domain/instance";
-import { DEFAULT_STAGES, DEFINITION_STAGE, HOLD_STAGE, MAX_STAGE, NEG_STREAK, STAGES, START_SHARE, STAGE_STREAK, STAGE_STUMBLE, catOpen, drawSyllogism, heldBack, itemKnown, itemOn, itemStageFor, levelAt, negationOffer, newCategories, normStages, pairStage, physical, poolAt, stagesOfLevels, toggleStage, topStage } from "../../src/domain";
+import { DEFAULT_STAGES, DEFINITION_STAGE, HOLD_STAGE, LADDER_TOP, MAX_STAGE, NEG_OPEN, NEG_STREAK, NEG_SUGGEST, STAGES, START_SHARE, STAGE_STREAK, STAGE_STUMBLE, catOpen, depthOf, depthOpen, drawSyllogism, ladderOf, ladderTop, negationSuggested, withDepth, heldBack, itemKnown, itemOn, itemStageFor, levelAt, negationOffer, newCategories, normStages, pairStage, physical, poolAt, stagesOfLevels, toggleStage, topStage } from "../../src/domain";
 import { GUIDE_RIGHT, LOWER_CREDIT, NO_TERMS, STAGE_LONGER, STAGE_STREAK_MAX, cameDown, exerciseAfter, freshRun, guideTurnsOff, guidedOn, movedUp, newShare, normExRuns, normGuided, normRun, restartRun, runAfter, runNeed, runWanted, setManual, stageOffer, stageProgress, stayLonger, termsOf } from "../../src/domain";
 import type { MissKind, StageRun } from "../../src/domain";
 import { drawPlace, itemRows, placeThings } from "../../src/domain/place";
@@ -1107,6 +1107,55 @@ test("the stages are chapters of one list of terms: a new term comes while fewer
   const all = ["snd", "odr", "tst", "tng"].reduce((x, c) => stopShown(x, c, T0), it);
   expect(nextStageDue(rix, all, [1, 2]), "nor where the next stage's terms came before: the learner moved the stages, or came back down").toBeUndefined();
   expect(stageProgress(freshRun(), [1, 2], stageMarks(rix, it, 2))).toMatchObject({ flow: false });
+});
+
+test("the pace sets how many terms may be open before a new one waits: careful two, steady three, brisk five", () => {
+  const T0 = "2026-10-24T12:00:00.000Z";
+  type It = ReturnType<typeof freshIntro>;
+  const ask = (it: It, n = SPACING) => { for (let i = 0; i < n; i++) it = afterQuestion(it, [], T0); return it; };
+  expect(PACES).toEqual([2, OPEN_CAP, 5]);
+  expect([normPace(2), normPace("5"), normPace(4), normPace(null), normPace(""), normPace("x")]).toEqual([2, 5, OPEN_CAP, OPEN_CAP, OPEN_CAP, OPEN_CAP]);
+  // two open (form and matter, not answered yet), the spacing passed
+  const it = ask(stopShown(ask(stopShown(ask(freshIntro(), FIRST_AFTER), "form", T0)), "form:Matter", T0));
+  expect(openTerms(rix, it, [1, 2]).size).toBe(2);
+  expect(newTermDue(rix, it, [1, 2], 2), "careful: two open, the questions stay on them").toBe(false);
+  expect(nextStop(rix, it, [1, 2], T0, 2)).toBeNull();
+  expect(newTermDue(rix, it, [1, 2]), "steady, the default").toBe(true);
+  expect(nextStop(rix, it, [1, 2], T0, 5)).toEqual({ cat: "extf", why: "new" });
+  expect(nextStageDue(rix, it, [1], 2), "nor does the next stage come with its first term").toBe(false);
+  expect(nextStageDue(rix, it, [1], 3)).toBe(true);
+});
+
+test("the ladder ends at stage 8: the stages after it are the steps of depth, set apart from the ladder", () => {
+  const all = upToStage(MAX_STAGE);
+  expect(LADDER_TOP).toBe(8);
+  expect(STAGES.filter((s) => s.n > LADDER_TOP).map((s) => s.n)).toEqual([9, 10, 11]);
+  expect([depthOf([1, 2]), depthOf(upToStage(8)), depthOf(upToStage(9)), depthOf(all)]).toEqual([0, 0, 1, 3]);
+  expect([ladderTop([1, 2, 3]), ladderTop(all), ladderTop([10])]).toEqual([3, 8, 8]);
+  expect(ladderOf(all)).toEqual(upToStage(8));
+  expect(ladderOf([10]), "only steps of depth on: the ladder's top").toEqual([8]);
+  expect([depthOpen(upToStage(7)), depthOpen(upToStage(8)), depthOpen([3, 9])]).toEqual([false, true, true]);
+  expect(withDepth(upToStage(8), 2)).toEqual(upToStage(10));
+  expect(withDepth(all, 0)).toEqual(upToStage(8));
+  expect(withDepth([2, 5, 8], 1), "the ladder's stages as they were").toEqual([2, 5, 8, 9]);
+  expect(withDepth(upToStage(8), 9)).toEqual(all);
+  expect(withDepth(upToStage(5), 2), "not before stage 8").toEqual(upToStage(5));
+  // the ring of the ladder: on its last stage it shows the terms, and no stage comes after it
+  const marks = [{ id: "nonas", mark: "ok" as const }, { id: "hid", mark: "ok" as const }];
+  expect(stageProgress(freshRun(), upToStage(8), marks, undefined, LADDER_TOP)).toMatchObject({ top: 8, next: null, shows: "terms", frac: 0, full: false });
+  expect(stageProgress(freshRun(), upToStage(8), marks), "the classic page: stage 9 after a run").toMatchObject({ next: 9, shows: "run" });
+  // the offer of the first step: the rule of stage 8's terms, as for a stage
+  expect(stageOffer({ up: STAGE_STREAK, down: 0 }, upToStage(8), { n: 2, right: true, just: false }, "words")).toEqual({ kind: "up", stage: 9 });
+});
+
+test("negations open from stage 2, and a result suggests them from stage 3 while fewer terms are open than the pace allows", () => {
+  expect([NEG_OPEN, NEG_SUGGEST]).toEqual([2, 3]);
+  expect(negationSuggested([1, 2], 0, OPEN_CAP), "not before stage 3").toBe(false);
+  expect(negationSuggested(upToStage(3), 0, OPEN_CAP)).toBe(true);
+  expect(negationSuggested(upToStage(3), 2, OPEN_CAP)).toBe(true);
+  expect(negationSuggested(upToStage(3), OPEN_CAP, OPEN_CAP), "not while the terms are at the pace's limit").toBe(false);
+  expect(negationSuggested(upToStage(5), 2, 2), "a careful pace: later").toBe(false);
+  expect(negationSuggested(upToStage(5), 4, 5), "a brisk one: sooner").toBe(true);
 });
 
 test("a stage with new terms is reached with the answer that makes the last answer on each of them right, where the stage after it brings none: a miss takes back only that term's mark", () => {

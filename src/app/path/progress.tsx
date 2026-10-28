@@ -6,11 +6,11 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef } from "preact/hooks";
 import { state } from "../state.js";
+import { DEPTH_NAME, depthNow } from "../practice/difficulty.ts";
 import { progressNow } from "../practice/stage-offer.ts";
 import { openPage, openProgress } from "../shell/session.js";
-import { OPEN_CAP } from "../../domain/intro.ts";
 import { STAGES } from "../../domain/stages.ts";
-import { openProgression } from "./progression.tsx";
+import { openDifficulty, openProgression } from "./progression.tsx";
 import { Segs, TermList, rightOf } from "./rings.tsx";
 
 const R = 11.5, C = 2 * Math.PI * R;
@@ -42,8 +42,8 @@ const WORD: Record<number, string> = { 2: "two", 3: "three", 4: "four", 5: "five
 /** A count in words, as the lines here say it ("five right answers in a row", "three of your terms"). */
 export const num = (n: number) => WORD[n] || String(n);
 
-/** How new terms come, here and on the Progression page (src/domain/intro.ts, OPEN_CAP). */
-export const FLOW = "New terms come one at a time, a few questions apart, while fewer than " + num(OPEN_CAP) + " of your terms are not right yet. With " + num(OPEN_CAP) + ", the questions stay on those until one of them is.";
+/** How new terms come at a pace of `n` (src/domain/intro.ts, PACES), here, on the Progression page and on the Difficulty page. */
+export const flow = (n: number): string => "New terms come one at a time, a few questions apart, while fewer than " + num(n) + " of your terms are not right yet. With " + num(n) + ", the questions stay on those until one of them is.";
 
 /**
  * The page: the lines are short, and the words are the stage station's where it has them ("reached", "The stages follow your answers"). The new terms of the
@@ -57,7 +57,7 @@ export function ProgressPage() {
   if (add) items.push("Stage " + p.top + " introduces " + add + ".");
   if (n) items.push(list);
   if (p.next && p.flow) {
-    items.push(FLOW, p.need ? "Stage " + p.next + " comes in after " + num(p.need) + " right answers in a row, with its first new term."
+    items.push(flow(state.pace), p.need ? "Stage " + p.next + " comes in after " + num(p.need) + " right answers in a row, with its first new term."
       : "Stage " + p.next + " begins with its first new term, after " + (n === 1 ? "this one" : "the last of these") + ".");
     items.push("A wrong answer takes back only that term’s mark.", "Progression works across all exercises.", "Review keeps the earlier stages fresh; it does not move the ring.");
   } else if (p.next && p.shows === "terms") {
@@ -66,7 +66,11 @@ export function ProgressPage() {
   } else if (p.next) {
     items.push("Stage " + p.next + " is reached after " + num(p.need) + " right answers in a row on what is new.");
     items.push("Progression works across all exercises.", "Review answers count too, but as smaller steps.", "A wrong answer on the new terms resets the stage progress.");
-  } else items.push(state.stageRun.manual ? "The stages move when you move them." : "This is the last stage.");
+  } else if (state.stageRun.manual) items.push("The stages move when you move them.");
+  else {
+    const d = depthNow();
+    items.push("This is the last stage.", <>Chains of reasoning come after it, as a difficulty of their own: {d ? "depth is at " + DEPTH_NAME[d] + " now" : "a result suggests them once your last answer on each of these terms is right"}. Set it on the <button type="button" class="plnk" onClick={() => openDifficulty()}>Difficulty page</button>.</>);
+  }
   items.push(<>The stages follow your answers. To choose them yourself, or to stop them from moving up, use the <button type="button" class="plnk" onClick={() => openPage(null)}>practice options</button>.</>);
   return <div class="wtext tup"><ul class="tup-bul">{items.map((t) => <li class={t === list ? "tlist" : undefined}>{t}</li>)}</ul>
     <p class="tup-note"><button type="button" class="plnk" onClick={() => openProgression(p.top, "sheet")}>All stages and their terms</button></p></div>;
