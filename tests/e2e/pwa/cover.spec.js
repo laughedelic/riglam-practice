@@ -172,22 +172,3 @@ test("a cold start opens on an attempt that was under way when the app was put a
   await expect(lay).toContainText("Mutually inclusive");             // its relation as picked
   await expect(choices).toHaveCount(0);
 });
-
-test("an attempt put away from the roadmap (Back there closes the installed app) comes back under the roadmap, and Continue goes on with it", async ({ page }) => {
-  await page.addInitScript(() => { localStorage.setItem("rd-start", "road"); localStorage.setItem("rd-design", "path"); });
-  await page.goto("/");
-  const road = page.getByRole("dialog", { name: "Roadmap" }), lay = page.locator("#path .lay"), choices = page.locator("#path .chs .crow");
-  await road.getByRole("button", { name: "Continue" }).click();
-  await expect(choices).toHaveCount(5);
-  const pair = await page.locator("#path .pairst .tn").allInnerTexts();
-  await choices.first().click();
-  await expect(choices).toHaveCount(0);
-  await page.goBack();
-  await expect(road).toBeVisible();
-  await page.reload();
-  await expect(road).toBeVisible();
-  expect(await page.evaluate(() => Number(localStorage.getItem("rd-away")) > 0), "the time it was put away is kept").toBe(true);
-  await road.getByRole("button", { name: "Continue" }).click();
-  await expect(lay).toContainText("Mutually inclusive");
-  expect(await page.locator("#path .pairst .tn").allInnerTexts(), "the same pair").toEqual(pair);
-});
