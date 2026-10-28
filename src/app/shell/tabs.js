@@ -77,6 +77,7 @@ export function setTab(k){
   if(state.optsOpen) toggleOpts(false);
   if(state.sessOpen) toggleSess(false);
   if(state.view==="chat") closeChat();
+  state.fromRoad=state.design==="path"&&!isEx(k)&&(state.menuOpen||state.fromRoad);   // Review from the roadmap goes back there (shell/history.js)
   state.skipAsk=false; state.menuOpen=false; state.menuPeek=false;
   if(state.tab!==k) switchTo(k);
   if(state.blitz&&asking()&&!state.ui.tq) startQ();       // the question's clock stood still behind the menu

@@ -41,3 +41,19 @@
 /* the ring where it lands */
 .pa .sx.gap[data-snap] .crow[data-pk] .mc::after{content:""; position:absolute; left:100%; top:50%; width:18px; height:18px; margin:-9px 0 0 -9px; border:1.6px solid var(--blue); transform:rotate(45deg); opacity:0; pointer-events:none; animation:p-ring .6s ease-out}
 @keyframes p-ring{from{transform:rotate(45deg) scale(.7); opacity:.9} to{transform:rotate(45deg) scale(2.3); opacity:0}}
+
+/* several choices (threshold.tsx): the chosen ones above a rule across the path, on the line in solid gold; the rest under it, beside the dotted line as a single
+   choice's are; "reset" on the rule; the margin says "is" and "not" as A and B and the "?" do: the same face, size and place (ink on the solid line, the gap's gold beside the dotted one). A row moves between the two by its own animation. */
+.pa .thold .chs .crow{border-top-color:transparent; background-color:transparent}
+.pa .thold .chs.up{padding:2px 0}
+.pa .thold .chs.up .crow b{color:var(--ink)}
+.pa .thold .chs.down .crow{touch-action:pan-y}
+.pa .thold .chs.down .crow .mc{transform:translateX(var(--cox))}
+.pa .thold .chs.down .crow .ct{padding-left:calc(22px + var(--cox))}
+.pa .thold .sx.thempty{height:30px}
+.pa .thold .thh{position:absolute; right:calc(100% - var(--m) + 12px); top:13px; font-family:var(--mono); font-size:13px; font-weight:600; line-height:1.2; white-space:nowrap; color:var(--ink)}
+.pa .thold .sx.gap .thh{color:var(--gold-t)}
+.pa .thold .chs.up .crow:first-child{margin-top:0}
+.pa .thold .sx.thx{height:30px}
+.pa .thold .thl{position:absolute; left:calc(var(--m) - 18px); right:16px; top:14px; height:1px; background:var(--ink3); opacity:.8}
+.pa .thold .threset{position:absolute; right:10px; top:14px; transform:translateY(-50%); min-height:32px; padding:0 8px; background:var(--paper); font-family:var(--mono); font-size:12px; letter-spacing:.02em; color:var(--blue)}

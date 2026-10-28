@@ -4,6 +4,12 @@ import { expect } from "@playwright/test";
 
 export const relOptions = (page) => page.locator(".rels .rel, .strip .chip").filter({ visible: true });
 
+/** The Path's exercise is in its place: it slides in from the right when the roadmap lets go of it, so a spec that measures where things stand waits for this first. */
+export const exerciseAtRest = (page) => expect.poll(
+  () => page.locator("#path .lay").evaluate((n) => Math.round(n.getBoundingClientRect().x - n.parentElement.getBoundingClientRect().x - n.parentElement.clientLeft)),
+  { message: "the exercise has come in over the roadmap" },
+).toBe(0);
+
 /** The app has booted when the data is loaded and a pair is on screen: it opens on the exercise (Relations, or the one used last). */
 export async function ready(page) {
   const pair = page.locator("#stage .head .pair");

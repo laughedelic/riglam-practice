@@ -2,6 +2,7 @@
 // its result. The rules and what is stored are the classic flows' and have their own specs; these check that the Path draws each step, takes
 // the answers through the same steps and stores the answer as the classic page does. The page's state is read through the test hook.
 import { test, expect } from "../../support/test.js";
+import { exerciseAtRest } from "../../support/page.js";
 import { dataKey, KEY_STORE, serveCourse } from "../../support/data-key.js";
 import { readOpen } from "../../../scripts/lib/course-files.mjs";
 
@@ -21,6 +22,7 @@ async function open(page, name) {
   await page.locator(".tstn").click();
   await page.getByRole("dialog", { name: "Roadmap" }).getByRole("button", { name: new RegExp("^" + name) }).click();
   await expect(page.locator(".ptb-t")).toContainText(name);
+  await exerciseAtRest(page);
 }
 
 test.beforeEach(async ({ page }) => { await page.addInitScript(onPath); });
@@ -102,15 +104,15 @@ test("the line: the questions still to come in Pervasions are dotted yellow, and
   expect(await dotted(page, "#path .sx.ptail"), "a ready station does not open the way past the questions still to come").toBe(true);
 });
 
-test("the line: Categories' options are dotted until one is ticked, then solid", async ({ page }) => {
+test("the line: Categories' options under the rule are dotted, the ones lifted over it sit on the solid line, and Check is ready from the start", async ({ page }) => {
   await open(page, "Categories");
-  const options = "#path .sx:has(.chs)";
-  expect(await dotted(page, options)).toBe(true);
-  expect(await dotted(page, "#path .sx.ptail")).toBe(true);
+  const below = "#path .sx:has(.chs.down)", above = "#path .sx:has(.chs.up)";
+  await expect(page.locator(".pa")).toHaveClass(/\bready\b/);   // nothing lifted answers "none of these"
+  expect(await dotted(page, below)).toBe(true);
   await choices(page).first().click();
-  await expect(page.locator(".pa")).toHaveClass(/\bready\b/);
-  expect(await dotted(page, options)).toBe(false);
-  expect(await dotted(page, "#path .sx.ptail")).toBe(false);
+  await expect(page.locator(above)).toHaveCount(1);
+  expect(await dotted(page, above)).toBe(false);
+  expect(await dotted(page, below)).toBe(true);
 });
 
 test("the line: Syllogisms' counter-example may stay empty, and its piece of line is dotted until something is written", async ({ page }) => {
@@ -224,12 +226,15 @@ test("Categories: the categories ticked on the path, the check, the most specifi
   await page.locator(".tstn").click();
   await page.getByRole("dialog", { name: "Roadmap" }).getByRole("button", { name: /^Categories/ }).click();
   await expect(page.locator(".ptb-t")).toContainText("Categories");
+  await exerciseAtRest(page);
   const rows = await page.evaluate(() => window.__t.cur.q.rows.map((r) => ({ phrase: r.phrase, answer: r.answer })));
-  await expect(choices(page)).toHaveCount(rows.length + 1);   // and None of these
+  await expect(choices(page)).toHaveCount(rows.length);   // no "None of these": nothing over the rule is that answer
+  await expect(page.locator("#path .stm.thing small")).toHaveCount(0);   // the thing alone, without its stage
   const right = rows.filter((r) => r.answer);
   for (const r of right) await choices(page).filter({ hasText: new RegExp("^" + r.phrase + "$") }).click();
-  if (!right.length) await choice(page, "None of these").click();
-  await page.keyboard.press("Enter");   // the last one ticked keeps the focus, and Enter there checks (it does not untick it)
+  await expect(page.locator("#path .thold .chs.up .crow")).toHaveText(right.map((r) => r.phrase));   // lifted over the rule, in the list's order
+  if (right.length) await page.keyboard.press("Enter");   // the last one lifted keeps the focus where it lands, and Enter there checks (it does not drop it)
+  else await station(page).click();   // Check is ready with nothing lifted
   await expect(verdict(page)).toContainText("All right");
   if (await page.evaluate(() => !!window.__t.ui.narrow)) {
     await station(page).click();   // Continue
@@ -240,6 +245,35 @@ test("Categories: the categories ticked on the path, the check, the most specifi
   }
   await expect(station(page)).toHaveAccessibleName(/^Next thing/);
   await expect.poll(async () => (await saved(page, "categories")).length).toBe(1);
+});
+
+test("Categories: a tap lifts a category over the rule and back, reset drops them all, and Check with none lifted answers none of these", async ({ page }) => {
+  await page.addInitScript(([store, key]) => { try { localStorage.setItem(store, key); } catch { /* storage unavailable */ } }, [KEY_STORE, dataKey]);
+  await serveCourse(page, dataKey, { stub: true, examples: examples() });
+  await page.goto("/");
+  await expect.poll(() => page.evaluate(() => !!window.__t.EX)).toBe(true);
+  await page.locator(".tstn").click();
+  await page.getByRole("dialog", { name: "Roadmap" }).getByRole("button", { name: /^Categories/ }).click();
+  await exerciseAtRest(page);
+  const phrases = await page.evaluate(() => window.__t.cur.q.rows.map((r) => r.phrase));
+  const up = page.locator("#path .thold .chs.up .crow"), down = page.locator("#path .thold .chs.down .crow"), reset = page.locator("#path .threset");
+  await expect(reset).toHaveCount(0);   // nothing to reset yet
+  await expect(page.locator("#path .thold .thh")).toHaveText(["is", "not"]);
+  await expect(station(page)).toHaveAccessibleName(/^Check.*none of these/);
+  await down.filter({ hasText: new RegExp("^" + phrases[1] + "$") }).click();
+  await down.filter({ hasText: new RegExp("^" + phrases[0] + "$") }).click();
+  await expect(up).toHaveText([phrases[0], phrases[1]]);   // in the list's order, not the order of the taps
+  await expect(up.first()).toHaveAttribute("aria-pressed", "true");
+  await expect(down).toHaveCount(phrases.length - 2);
+  await expect(station(page)).toHaveAccessibleName(/^Check.*2 categories/);
+  await up.filter({ hasText: new RegExp("^" + phrases[1] + "$") }).click();   // dropped back
+  await expect(up).toHaveText([phrases[0]]);
+  await reset.click();
+  await expect(up).toHaveCount(0);
+  await expect(down).toHaveCount(phrases.length);
+  await station(page).click();
+  await expect(page.locator("#path .pgh").last()).toContainText("you left all of these unticked");
+  expect(await page.evaluate(() => window.__t.ui.g1.rows.filter((r) => r.picked).length)).toBe(0);
 });
 
 // Find an instance draws its categories at random: another set (a skip, nothing entered yet) until one of the kind the test needs is on screen
