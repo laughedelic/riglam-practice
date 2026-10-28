@@ -12,6 +12,7 @@ import { setTab } from "../shell/tabs.js";
 import { isEx } from "../shell/render.js";
 import { BRAND, Lockup, NAME_BOTTOM, NAME_Y } from "./brand.tsx";
 import { Icon, dia } from "./ui.tsx";
+import { StageRings } from "./progression.tsx";
 
 // where each stop stands on the tree: a stop's name, and "continue" under it, are 54 px tall, and the line to the stop below starts under them
 const PLACES: Record<string, { x: number; y: number }> = {
@@ -108,6 +109,7 @@ export function Roadmap() {
     <Notice />
     {back ? <div class="rgo"><button type="button" class="lk rcont" onClick={() => toggleMenu(false)}>Continue<Icon n="chev" /></button></div> : null}
     <div class="rfoot">
+      <StageRings />
       <button type="button" class="lk" onClick={() => setTab("review")}>Review · {n} today</button>
       <button type="button" class="lk" onClick={openSettings}>Settings</button>
       {state.unlock ? <button type="button" class="lk" onClick={() => state.unlock!.open()}><Icon n="key" />Magic Key</button> : null}

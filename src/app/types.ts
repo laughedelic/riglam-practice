@@ -525,6 +525,10 @@ export interface State {
   pathQ: number;
   /** the section of Review the Path shows: today, overview, mistakes, favs, skips, flags */
   pathSeg: string;
+  /** the Progression page in place of Review (path/progression.tsx); any setTab closes it */
+  pathProg: boolean;
+  /** the stage whose row the Progression page brings to the top when it next draws; 0 when none */
+  pathProgAt: number;
   /** the rows of Review the Path has unfolded, by key */
   pathOpen: Record<string, boolean>;
 }

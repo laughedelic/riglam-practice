@@ -154,3 +154,18 @@
 
 /* Settings: the sample sentence under the row that sets how the terms of the pair stand out */
 .pa .psamp{font-size:16.5px; line-height:1.4; margin-top:6px}
+
+/* the Progression page (path/progression.tsx): each stage a stop on the line with its ring as the node, its new terms under it; and the same rings in a row in the roadmap's foot */
+.pa .road .rfoot .rstages{flex:0 0 calc(100% + var(--m)); margin:-6px 0 4px calc(-1 * var(--m))}
+.pa .road .rstages .tup-rings{margin:0}
+.pa .road .rstages .tup-rg{min-height:40px}
+.pa .prg > .prgd{justify-self:end; margin-right:-15px; width:30px; height:30px; border-radius:50%; background:var(--paper); position:relative; z-index:1}
+.pa .prgd svg{width:30px; height:30px; display:block; overflow:visible}
+.pa .ptrail .trow.prg{padding:10px 0}
+.pa .prg-s{display:block; font:400 11.5px var(--mono); color:var(--ink3); margin-top:3px}
+.pa .prg.now .prg-s{color:var(--blue)}
+.pa .prg.ahead b,.pa .prg-t.wait b{color:var(--ink3); font-weight:500}
+.pa .prg.now .rgs text{fill:var(--blue)}
+.pa .prg.ahead .rgs text{fill:var(--ink3)}
+.pa .prg.now .rgs .disc{fill:var(--blue); fill-opacity:.12}
+.pa .prg-p{margin-left:var(--m)}

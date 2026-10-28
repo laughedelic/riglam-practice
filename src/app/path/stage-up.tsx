@@ -14,7 +14,7 @@ import { stopAfterStage } from "../practice/stops.ts";
 import { openStageOptions } from "../shell/session.js";
 import { MAX_STAGE, STAGES, runNeed } from "../../domain/stages.ts";
 import { stopName } from "./next.ts";
-import { Segs, TermList, marksOf, rightOf } from "./rings.tsx";
+import { StageRing, TermList, marksOf, ringLabel, stageWhere } from "./rings.tsx";
 import { Scroll } from "./scroll.tsx";
 import { FitTerm } from "./stop-def.tsx";
 import { Foot, Station, TopBar } from "./shell.tsx";
@@ -44,15 +44,11 @@ function Rings({ n }: { n: number }) {
     <div class="tup-rings" style={"--n:" + MAX_STAGE} role="group" aria-label={"Stage " + n + " of " + MAX_STAGE}>
       {STAGES.map((s) => {
         const m = marksOf(s.n);
-        return <button type="button" class={"tup-rg " + (s.n < n ? "done" : s.n === n ? "now" : "ahead") + (at === s.n ? " on" : "")} aria-expanded={at === s.n ? "true" : "false"}
-          aria-label={"Stage " + s.n + (m.length ? ", " + rightOf(m) + " of " + m.length + " new terms answered right" : ", no new terms")}
+        return <button type="button" class={"tup-rg " + stageWhere(s.n, n) + (at === s.n ? " on" : "")} aria-expanded={at === s.n ? "true" : "false"} aria-label={ringLabel(s.n, m)}
           onClick={() => setTip(pinned && at === s.n ? null : { n: s.n, pin: true })}
           onPointerEnter={(e) => { if (e.pointerType === "mouse" && !pinned) setTip({ n: s.n, pin: false }); }}
           onPointerLeave={(e) => { if (e.pointerType === "mouse") setTip((t) => (t && !t.pin ? null : t)); }}>
-          <svg class="rgs" viewBox="0 0 30 30" aria-hidden="true"><circle class="disc" cx="15" cy="15" r="11.5" />
-            {m.length ? <Segs marks={m} split /> : <circle class={"tseg " + (s.n < n ? "ok" : "wait")} cx="15" cy="15" r="11.5" />}
-            {s.n === n ? <circle class="halo" cx="15" cy="15" r="14.8" /> : null}
-            <text x="15" y="18.8">{s.n}</text></svg></button>;
+          <StageRing n={s.n} top={n} /></button>;
       })}
     </div>
     {at ? <div class="tup-rgp" style={"--c:" + (at - 0.5) / MAX_STAGE} role="region" aria-label={"Stage " + at + ", its new terms"}>

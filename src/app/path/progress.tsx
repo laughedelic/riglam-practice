@@ -9,6 +9,7 @@ import { state } from "../state.js";
 import { progressNow } from "../practice/stage-offer.ts";
 import { openPage, openProgress } from "../shell/session.js";
 import { STAGES } from "../../domain/stages.ts";
+import { openProgression } from "./progression.tsx";
 import { Segs, TermList, rightOf } from "./rings.tsx";
 
 const R = 11.5, C = 2 * Math.PI * R;
@@ -39,7 +40,10 @@ export function ProgressRing() {
 const WORD: Record<number, string> = { 5: "five", 10: "ten", 15: "fifteen", 20: "twenty", 25: "twenty-five", 30: "thirty" };
 const num = (n: number) => WORD[n] || String(n);
 
-/** The page: the lines are short, and the words are the stage station's where it has them ("reached", "The stages follow your answers"). The new terms of the stage follow what it introduces, each with its mark. */
+/**
+ * The page: the lines are short, and the words are the stage station's where it has them ("reached", "The stages follow your answers"). The new terms of the
+ * stage follow what it introduces, each with its mark; a link at the foot opens the Progression page with every stage (path/progression.tsx).
+ */
 export function ProgressPage() {
   const p = progressNow(), info = STAGES.find((s) => s.n === p.top), n = p.terms.length;
   const add = info ? info.adds.charAt(0).toLowerCase() + info.adds.slice(1).replace(/\.$/, "") : "";
@@ -55,5 +59,6 @@ export function ProgressPage() {
     items.push("Progression works across all exercises.", "Review answers count too, but as smaller steps.", "A wrong answer on the new terms resets the stage progress.");
   } else items.push(state.stageRun.manual ? "The stages move when you move them." : "This is the last stage.");
   items.push(<>The stages follow your answers. To choose them yourself, or to stop them from moving up, use the <button type="button" class="plnk" onClick={() => openPage(null)}>practice options</button>.</>);
-  return <div class="wtext tup"><ul class="tup-bul">{items.map((t) => <li class={t === list ? "tlist" : undefined}>{t}</li>)}</ul></div>;
+  return <div class="wtext tup"><ul class="tup-bul">{items.map((t) => <li class={t === list ? "tlist" : undefined}>{t}</li>)}</ul>
+    <p class="tup-note"><button type="button" class="plnk" onClick={() => openProgression(p.top)}>All stages and their terms</button></p></div>;
 }

@@ -91,7 +91,7 @@ test("a tap on the ring opens the Progression sheet under it, the ring stays and
   await expect(page.locator("#path .ptb-t")).toContainText("Relations");
   // its own link goes to the practice options, which name themselves in the bar
   await ring(page).click();
-  await sheet(page).locator(".plnk").click();
+  await sheet(page).getByRole("button", { name: "practice options", exact: true }).click();
   await expect(page.locator("#path .ptb-t")).toHaveText("Practice options");
   await expect(ring(page)).toHaveCount(0);
 });
