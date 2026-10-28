@@ -128,6 +128,6 @@ export function SettingsPage() {
       <AppRows />
       <div style={{ height: "30px" }} />
     </div>
-    <Foot><Station back name="Back to the exercise" hint={exName(state.own)} act={() => toggleOpts(false)} /></Foot>
+    <Foot>{state.fromRoad ? <Station back name="Back to the roadmap" act={() => toggleOpts(false)} /> : <Station back name="Back to the exercise" hint={exName(state.own)} act={() => toggleOpts(false)} />}</Foot>
   </>;
 }

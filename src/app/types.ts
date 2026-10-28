@@ -424,6 +424,7 @@ export interface State {
   sessPage: string | null;
   skipAsk: boolean;
   menuOpen: boolean;
+  fromRoad: boolean;
   /** what touched the page last: a finger or a pen, or a mouse; empty before anything has (the Path's knocks are for a finger, path/gesture.ts) */
   hand: "" | "touch" | "mouse";
   menuPin: boolean;
@@ -432,6 +433,9 @@ export interface State {
   navDepth: number;
   navSkip: number;
   navQ: boolean;
+  navBare: boolean;
+  navGuard: { destroy(): void; requestClose(): void } | null;
+  navEsc: number;
   navBack: boolean;
   motion: boolean;
   reviewSeg: string;

@@ -149,3 +149,26 @@ test("an app that was set to start on the exercise opens on it, and the cover on
   await expect(page.locator("#cover")).toHaveCount(0, { timeout: 8000 });
   expect(await page.evaluate(() => document.documentElement.classList.contains("cv-zoom"))).toBe(false);
 });
+
+test("a cold start opens on an attempt that was under way when the app was put away, as it was; one only drawn leaves the roadmap first", async ({ page }) => {
+  await page.addInitScript(() => { localStorage.setItem("rd-start", "road"); localStorage.setItem("rd-design", "path"); });
+  await page.goto("/");
+  const road = page.getByRole("dialog", { name: "Roadmap" }), lay = page.locator("#path .lay"), choices = page.locator("#path .chs .crow");
+  const terms = () => page.locator("#path .pairst .tn").allInnerTexts();     // the pair's two terms
+  await road.getByRole("button", { name: "Continue" }).click();
+  await expect(choices).toHaveCount(5);
+  // drawn, not begun: the page keeps nothing, and a cold start opens on the roadmap
+  await page.reload();
+  await expect(road).toBeVisible();
+  await road.getByRole("button", { name: "Continue" }).click();
+  await expect(choices).toHaveCount(5);
+  const pair = await terms();
+  await choices.first().click();                                   // a relation picked: the attempt has begun
+  await expect(choices).toHaveCount(0);                             // taken: the choices are gone and the examples are asked
+  await page.reload();                                              // put away (pagehide) and started cold
+  await expect(lay).toBeVisible();
+  await expect(road).toBeHidden();
+  expect(await terms(), "the same pair").toEqual(pair);
+  await expect(lay).toContainText("Mutually inclusive");             // its relation as picked
+  await expect(choices).toHaveCount(0);
+});

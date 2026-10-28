@@ -121,17 +121,17 @@ export const isa = (s: string) => String(s).split("\uE000").flatMap((x, i) => (i
 export interface Choice { k: string; b: ComponentChildren; s?: ComponentChildren; fig?: string; sym?: string; key?: string; pressed?: boolean; label?: string }
 /**
  * The choices where the path breaks into a dotted gap: each a row with its mark on the line (a figure, or a small diamond). A tap answers at
- * once; `picked` is the one being taken (it stays lit while the others fade). `multi` rows are pressed and unpressed instead. With `slide` (and
+ * once; `picked` is the one being taken (it stays lit while the others fade); several are chosen with the Threshold (threshold.tsx). With `slide` (and
  * the "slide" look) the marks stand beside the path and the one taken slides onto it, by a tap or a finger (choose.ts); `row` puts two short
  * options on one row.
  */
-export function Choices({ label, items, picked = null, onPick, multi = false, slide = false, row = false }: { label: string; items: Choice[]; picked?: string | null; onPick: (k: string) => void; multi?: boolean; slide?: boolean; row?: boolean }) {
-  const beside = slide && !multi && currentLook().take === "slide", two = beside && row, answered = multi && items.some((it) => it.pressed);      // ticked: the way on is open, the line along the options turns solid
+export function Choices({ label, items, picked = null, onPick, slide = false, row = false }: { label: string; items: Choice[]; picked?: string | null; onPick: (k: string) => void; slide?: boolean; row?: boolean }) {
+  const beside = slide && currentLook().take === "slide", two = beside && row;
   const ref = useRef<HTMLDivElement>(null), last = useRef(onPick); last.current = onPick;
   useEffect(() => (beside && ref.current ? bindSlide(ref.current, (k) => last.current(k)) : undefined), [beside]);
-  return <Sx cls={answered ? "cur" : "gap"}><span class="gapq" aria-hidden="true">?</span>
+  return <Sx cls="gap"><span class="gapq" aria-hidden="true">?</span>
     {beside ? <><i class="thr2" /><i class="thr" /></> : null}
-    <div ref={ref} class={"chs" + (picked ? " fading" : "") + (multi ? " multi" : "") + (beside ? " slide" : "") + (two ? " row2" : "")} role="group" aria-label={label}>{items.map((it) =>
+    <div ref={ref} class={"chs" + (picked ? " fading" : "") + (beside ? " slide" : "") + (two ? " row2" : "")} role="group" aria-label={label}>{items.map((it) =>
       <button type="button" data-k={it.k} class={"crow" + (picked === it.k ? " picked" : "") + (it.pressed ? " on" : "")} aria-pressed={it.pressed ? "true" : "false"} aria-keyshortcuts={it.key}
         aria-label={it.label || (two && typeof it.b === "string" && typeof it.s === "string" ? it.b + ": " + it.s : undefined)} onClick={() => onPick(it.k)}>
         <span class="mc">{it.fig ? <Fig k={it.fig} /> : <D cls={"sub pk" + (it.pressed ? " yours" : "")} />}</span>
