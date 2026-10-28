@@ -150,7 +150,7 @@ function Stages({ p }: { p: ProgressionAt }) {
   return <>
     <TopBar title="Progression" back={{ label: p.from === "road" ? "Back to the roadmap" : "Back to " + exName(p.tab), act: progBack }} />
     <div key="stages" class="ppage prv pprog">
-      <p class="ptitle">Progression</p><p class="psub">{"stage " + top + " of " + MAX_STAGE + (all.length ? " · " + rightOf(all) + " of " + all.length + " terms right" : "")}</p>
+      <p class="psub">{"stage " + top + " of " + MAX_STAGE + (all.length ? " · " + rightOf(all) + " of " + all.length + " terms right" : "")}</p>
       <p class="pgh"><b>Stages</b></p>
       <Sx cls="walked first ptrail"><Gap h={6} />
         <How />

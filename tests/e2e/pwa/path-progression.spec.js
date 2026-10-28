@@ -33,7 +33,8 @@ test("the roadmap's rings open the Progression page with that stage unfolded; a 
   await expect(rings(page).nth(1)).toHaveAccessibleName("Stage 2, 1 of 5 new terms answered right. Progression");
   await expect(rings(page).nth(1).locator(".halo")).toHaveCount(1);
   await rings(page).nth(1).click();
-  await expect(page.locator(".ppage .ptitle")).toHaveText("Progression");
+  await expect(page.locator("#path .ptb-t")).toHaveText("Progression");
+  await expect(page.locator(".ppage .ptitle")).toHaveCount(0);
   await expect(page.locator(".ppage .psub")).toHaveText(/^stage 2 of 11 · 1 of \d+ terms right$/);
   await expect(page.locator(".tstn")).toHaveAccessibleName("Back to the roadmap");
   await expect(page.getByRole("button", { name: /^Continue practice/ })).toHaveCount(0);
@@ -90,7 +91,7 @@ test("the system Back from a term's card goes to the stages, and from the stages
   await expect(page.locator("#path .ttree li.me")).toHaveText("Color");
   await page.goBack();
   await expect(stages(page)).toHaveCount(11);
-  await expect(page.locator(".ppage .ptitle")).toHaveText("Progression");
+  await expect(page.locator("#path .ptb-t")).toHaveText("Progression");
   await page.goBack();
   await expect(road(page)).toBeVisible();
   await expect(road(page).getByRole("button", { name: /^Continue/ })).toBeVisible();
@@ -103,7 +104,7 @@ test("the sheet of the top bar's ring opens the page at the stage the learner is
   const fromSheet = async () => {
     await page.getByRole("button", { name: /^Progression: stage 2/ }).click();
     await page.getByRole("button", { name: "All stages and their terms" }).click();
-    await expect(page.locator(".ppage .ptitle")).toHaveText("Progression");
+    await expect(page.locator("#path .ptb-t")).toHaveText("Progression");
     await expect(stages(page).nth(1).locator(".trb")).toHaveAttribute("aria-expanded", "true");
     await expect(stages(page).nth(1)).toBeInViewport();
   };
