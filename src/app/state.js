@@ -85,7 +85,8 @@ export const state = {
   navQ: false,    // a check of the entries against the state is due after this render
   navBare: false, // the first entry above the first screen was added before anything had touched the page: Chrome skips the first screen's entry on Back then, so a close watcher takes the Back
   navGuard: null, // that close watcher, while it is armed (shell/history.js)
-  navEsc: 0,      // when Escape was last pressed: a close watcher hears it too, and the keys have already closed a level for it
+  navEsc: 0,
+  leaveAsk: false, // the installed app on the Path: Back on the roadmap has said "Back again to close", and a second Back while it says so leaves the app      // when Escape was last pressed: a close watcher hears it too, and the keys have already closed a level for it
   navBack: false, // the system's Back is closing levels, and the browser has animated the screen away itself (a swipe from the edge): the panels do not move as well (shell/history.js, shell/motion.js)
   motion: false,  // the first screen has been drawn: panels that open or close after it slide (shell/motion.js)
   view: null,

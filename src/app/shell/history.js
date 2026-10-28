@@ -4,6 +4,7 @@ import { closeSkipAsk } from "../practice/skips.js";
 import { closeChat } from "./chat.js";
 import { toRoad, toggleMenu } from "./menu.js";
 import { toggleOpts } from "./options.js";
+import { render } from "./render.js";
 import { sessBack } from "./session.js";
 import { setTab } from "./tabs.js";
 
@@ -20,7 +21,8 @@ import { setTab } from "./tabs.js";
 // the roadmap stand right over it (`state.fromRoad`) and Back takes them back there; opened from an exercise (Settings from its practice options) they go back to it.
 // Chrome skips, on Back, an entry that was the page's own when the page added the next one before anything had touched it (its history manipulation intervention):
 // a start on an exercise adds its entry at once, so Back from it would skip the roadmap's and close the app. Then a close watcher, which Back on Android asks first,
-// takes the Back for as long as there is a level to close (`guard`).
+// takes the Back for as long as there is a level to close (`guard`). In the installed app the same watcher waits on the roadmap: Back there first says "Back again
+// to close" (`leaveAsk`), and only a second Back while it says so leaves, so that the app is not closed by accident.
 const MARK="riglamNav";
 const canPush=()=>{ try{ return window.parent===window; }catch(e){ return false; } };
 // how many levels are open, from the state alone
@@ -41,18 +43,28 @@ function sync(){
 }
 // The close watcher that takes the Back while the first screen's entry may be skipped. It closes the top level as a Back would (the entries follow, as after any close),
 // and a new one is armed while there is still a level open. Escape asks it too, but the keys have closed a level for it already (shell/keys.js).
+const LEAVE_MS=2500;
+const installed=()=>{ try{ return matchMedia("(display-mode: standalone)").matches||/** @type {any} */(navigator).standalone===true; }catch(e){ return false; } };
+const onRoad=()=>state.design==="path"&&state.menuOpen&&state.navDepth===0;
 function guard(){
-  const CW=/** @type {any} */(window).CloseWatcher, on=state.navBare&&state.navDepth>0&&typeof CW==="function";
+  const CW=/** @type {any} */(window).CloseWatcher;
+  const on=typeof CW==="function"&&(state.navBare&&state.navDepth>0||onRoad()&&installed()&&!state.leaveAsk);
   if(on&&!state.navGuard){
     try{
       const w=new CW();
       // (after its close is over: a watcher made while one closes would go with it)
-      w.onclose=()=>{ if(state.navGuard!==w) return; state.navGuard=null; const esc=performance.now()-state.navEsc<200; setTimeout(()=>{ if(esc) guard(); else closeTop(); },0); };
+      w.onclose=()=>{ if(state.navGuard!==w) return; state.navGuard=null; const esc=performance.now()-state.navEsc<200; setTimeout(()=>{ if(esc) guard(); else if(state.navDepth===0) askLeave(); else closeTop(); },0); };
       state.navGuard=w;
     }catch(e){ state.navGuard=null; }
   } else if(!on&&state.navGuard){ const w=state.navGuard; state.navGuard=null; w.destroy(); }
 }
 addEventListener("keydown",e=>{ if(e.key==="Escape") state.navEsc=performance.now(); },true);
+// Back on the roadmap: it says so for a moment, with no watcher, so that a second Back leaves the app; then the watcher waits again.
+function askLeave(){
+  if(!onRoad()){ guard(); return; }
+  state.leaveAsk=true; render();
+  setTimeout(()=>{ state.leaveAsk=false; render(); guard(); },LEAVE_MS);
+}
 // Called after each render. Several renders of one action (close Settings, open an exercise) are settled together, once.
 export function navSync(){ if(!state.navQ){ state.navQ=true; queueMicrotask(sync); } }
 // Back closes the top level, each close taking exactly one level off: the question before a skip, a page of the options or the sheet, Settings, the chat view, Review
