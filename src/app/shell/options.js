@@ -18,8 +18,10 @@ import { setDesign } from "../path/index.tsx";
 // The Blitz clock does not run behind the panel: it stops when Settings opens and starts again, with its full time, when it closes (as when you come back to an exercise).
 export function toggleOpts(on){
   const was=state.optsOpen; state.optsOpen=on===undefined?!state.optsOpen:on;
+  // opened from the Path's roadmap, Settings goes back to it, not to the exercise under it (shell/history.js)
+  const road=!state.optsOpen&&was&&state.fromRoad; if(road){ state.fromRoad=false; state.menuOpen=true; }
   if(state.optsOpen&&!was) stopTimer();
-  else if(!state.optsOpen&&was&&state.blitz&&asking()) startQ();
+  else if(!state.optsOpen&&was&&!road&&state.blitz&&asking()) startQ();
   render();
   if(state.optsOpen&&state.updates) state.updates.check(60000); // the Version row is about to be read: look for a newer one unless a look is younger than a minute
   if(state.optsOpen){ const b=document.querySelector("#over .oc"); if(b) b.focus({preventScroll:true}); }

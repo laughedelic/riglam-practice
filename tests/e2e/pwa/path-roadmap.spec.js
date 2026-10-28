@@ -135,3 +135,52 @@ test("the roadmap graph: Syllogisms between the two rows, Debate tied to all thr
   expect(geo.fade.stroke, "it fades out").toMatch(/url\(/);
   expect(geo.onText, "no line runs through a name").toBe(0);
 });
+
+const heading = (page) => page.locator("#path .lay .ptb-t");
+test("Settings and Review opened from the roadmap go back to it, by the system Back and by their own way back; Settings from the exercise's options goes back to the exercise", async ({ page }) => {
+  await start(page);
+  await page.locator(".tstn").click();
+  await expect(road(page)).toBeVisible();
+  await expect.poll(() => level(page)).toBe(0);
+  await road(page).getByRole("button", { name: "Settings" }).click();
+  await expect(heading(page)).toHaveText("Settings");
+  await expect.poll(() => level(page), "Settings stands right over the roadmap").toBe(1);
+  await page.goBack();
+  await expect(road(page)).toBeVisible();
+  await expect.poll(() => level(page)).toBe(0);
+  await road(page).getByRole("button", { name: "Settings" }).click();
+  await expect(page.locator("#stn")).toHaveAttribute("aria-label", "Back to the roadmap");
+  await page.locator("#stn").click();
+  await expect(road(page)).toBeVisible();
+  await expect.poll(() => level(page)).toBe(0);
+  await road(page).getByRole("button", { name: /^Review/ }).click();
+  await expect(heading(page)).toHaveText("Review");
+  await expect.poll(() => level(page)).toBe(1);
+  await page.goBack();
+  await expect(road(page)).toBeVisible();
+  await expect.poll(() => level(page)).toBe(0);
+  await road(page).getByRole("button", { name: "Continue" }).click();
+  await expect(choices(page)).toHaveCount(5);
+  await page.getByRole("button", { name: "Practice options" }).click();
+  await page.locator("#path .pnoteline .pbtn", { hasText: "Settings" }).first().click();
+  await expect(heading(page)).toHaveText("Settings");
+  await page.goBack();
+  await expect(choices(page), "back to the exercise it was opened from").toHaveCount(5);
+  await expect(road(page)).toBeHidden();
+  await page.goBack();
+  await expect(road(page)).toBeVisible();
+});
+
+test("a start on an exercise before anything has touched the page keeps a close watcher for the system Back, which goes to the roadmap", async ({ page }) => {
+  await start(page);
+  await expect.poll(() => page.evaluate(() => !!window.__t.navGuard), "Chrome would skip the roadmap's entry: the watcher takes the Back").toBe(true);
+  // Escape is heard by the watcher too, and by the keys, which have nothing to close on an exercise: the exercise stays, and the watcher with it
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(300);
+  await expect(road(page)).toBeHidden();
+  await expect.poll(() => page.evaluate(() => !!window.__t.navGuard)).toBe(true);
+  await page.evaluate(() => window.__t.navGuard.requestClose());
+  await expect(road(page)).toBeVisible();
+  await expect.poll(() => level(page)).toBe(0);
+  await expect.poll(() => page.evaluate(() => !!window.__t.navGuard), "nothing left to close: the next Back leaves the app").toBe(false);
+});

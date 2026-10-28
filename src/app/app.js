@@ -18,6 +18,7 @@ import { setDefLang } from "./shell/session.js";
 import { renderMenu } from "./shell/menu.js";
 import { render } from "./shell/render.js";
 import { startFirst } from "./shell/tabs.js";
+import { takeAttempt } from "./shell/keep.ts";
 import "./core/viewport.js";
 import "./shell/keys.js";
 import "./shell/history.js";
@@ -117,10 +118,12 @@ async function rekey(platform){
  * The first screen after a cold start: on the Path the roadmap, so that the learner chooses where to go (the cover of the installed app flies into it: pwa/cover.ts). `rd-start` set to "exercise"
  * keeps the exercise the app was last in instead (the browser tests set it). It is drawn without the slide: the roadmap is there from the first draw, and the cover measures where its figure goes.
  */
+// The first screen of a cold start: on the Path the roadmap, unless an attempt was under way when the app was put away (shell/keep.ts): then its exercise, as it was.
 function firstScreen(){
-  startFirst();
+  const back=takeAttempt();
+  if(!back) startFirst();
   let start=""; try{ start=localStorage.getItem("rd-start")||""; }catch(e){}
-  if(pathOn()&&start!=="exercise"&&state.tab!=="review"&&!state.optsOpen){ state.menuOpen=true; state.motion=false; }
+  if(pathOn()&&!back&&start!=="exercise"&&state.tab!=="review"&&!state.optsOpen){ state.menuOpen=true; state.motion=false; }
   render();
 }
 function settle(){
@@ -131,6 +134,6 @@ function settle(){
 
 /* ---------- test hook (begin): lets the browser tests in tests/ read internals; inert unless a test defines window.__riglamTest ---------- */
 function exposeTestHook(){
-if(typeof window.__riglamTest==="function") window.__riglamTest({get cur(){return state.cur},get ui(){return state.ui},get tab(){return state.tab},get favs(){return state.favs},get mode(){return state.mode},get view(){return state.view},get coachOpen(){return state.coachOpen},set coachOpen(v){state.coachOpen=v},get optsOpen(){return state.optsOpen},favKey,refOf,render,choose,fbNode,defParts,termsNode,setDefLang,get defLang(){return state.defLang},get langs(){return state.langs},get DATA(){return state.DATA},get EX(){return state.EX},get intro(){return state.intro},get stageRun(){return state.stageRun},get exRuns(){return state.exRuns},get stages(){return state.stages},next,advance,get skips(){return state.skips},set skips(v){state.skips=v},skipPair,undoSkip,isSkipped,hiddenKeys,get POOL(){return state.POOL},nextGenerated,SKIP_DAYS,get quorum(){return state.quorum},get quorumOffered(){return state.quorumOffered},get quorumOptIn(){return state.quorumOptIn},setQuorum,quorumThings,get flags(){return state.flags},flagId,openFlag,saveFlag,removeFlag,setFlagState,aiCase,aiFlag,autoFlags,decorateAns});
+if(typeof window.__riglamTest==="function") window.__riglamTest({get cur(){return state.cur},get ui(){return state.ui},get tab(){return state.tab},get favs(){return state.favs},get mode(){return state.mode},get view(){return state.view},get coachOpen(){return state.coachOpen},set coachOpen(v){state.coachOpen=v},get optsOpen(){return state.optsOpen},get navGuard(){return state.navGuard},favKey,refOf,render,choose,fbNode,defParts,termsNode,setDefLang,get defLang(){return state.defLang},get langs(){return state.langs},get DATA(){return state.DATA},get EX(){return state.EX},get intro(){return state.intro},get stageRun(){return state.stageRun},get exRuns(){return state.exRuns},get stages(){return state.stages},next,advance,get skips(){return state.skips},set skips(v){state.skips=v},skipPair,undoSkip,isSkipped,hiddenKeys,get POOL(){return state.POOL},nextGenerated,SKIP_DAYS,get quorum(){return state.quorum},get quorumOffered(){return state.quorumOffered},get quorumOptIn(){return state.quorumOptIn},setQuorum,quorumThings,get flags(){return state.flags},flagId,openFlag,saveFlag,removeFlag,setFlagState,aiCase,aiFlag,autoFlags,decorateAns});
 }
 /* ---------- test hook (end) ---------- */

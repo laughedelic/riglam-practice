@@ -59,9 +59,15 @@ export function tickNone(){
   u.none=!u.none; if(u.none) u.ticked=[];
   renderKeepFocus();
 }
-/** Check: grades what was ticked. Needs a tick or "None of these". */
-export function checkCategories(){
-  const u=state.ui; if(!u||!u.cats||u.step!==0||u.checked||u.ask!=="all"||(!u.ticked.length&&!u.none)||!state.cur.q) return;
+/** Unticks everything (the Path's "reset"): what is left is the answer "none of these". */
+export function resetCategories(){
+  const u=state.ui; if(!u||!u.cats||u.step!==0||u.checked||u.ask!=="all") return;
+  u.ticked=[]; u.none=false;
+  renderKeepFocus();
+}
+/** Check: grades what was ticked. Needs a tick or "None of these", unless `emptyIsNone` (the Path, which has no "None of these": nothing ticked is that answer). */
+export function checkCategories(emptyIsNone=false){
+  const u=state.ui; if(!u||!u.cats||u.step!==0||u.checked||u.ask!=="all"||(!u.ticked.length&&!u.none&&!emptyIsNone)||!state.cur.q) return;
   finishStep1(u.ticked);
 }
 // ---- step 1, one at a time: yes or no for each category

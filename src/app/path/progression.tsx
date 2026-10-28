@@ -49,6 +49,7 @@ export function progBack() {
   const p = state.pathProg; if (!p) return;
   if (p.term || p.diff === "over") { p.term = ""; delete p.diff; render(); return; }
   if (p.from === "sheet") { setTab(p.tab); if (state.pathProg === p) { state.pathProg = null; render(); } return; }
+  state.fromRoad = false;     // back on the roadmap: the screen under it is an exercise again (shell/history.js)
   toggleMenu(true);
   const under = () => {
     if (state.pathProg !== p || !state.menuOpen) return;    // the roadmap was left, or the page opened again, in the meantime
