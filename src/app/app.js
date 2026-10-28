@@ -18,6 +18,7 @@ import { setDefLang } from "./shell/session.js";
 import { renderMenu } from "./shell/menu.js";
 import { render } from "./shell/render.js";
 import { startFirst } from "./shell/tabs.js";
+import { takeAttempt } from "./shell/keep.ts";
 import "./core/viewport.js";
 import "./shell/keys.js";
 import "./shell/history.js";
@@ -117,10 +118,12 @@ async function rekey(platform){
  * The first screen after a cold start: on the Path the roadmap, so that the learner chooses where to go (the cover of the installed app flies into it: pwa/cover.ts). `rd-start` set to "exercise"
  * keeps the exercise the app was last in instead (the browser tests set it). It is drawn without the slide: the roadmap is there from the first draw, and the cover measures where its figure goes.
  */
+// The first screen of a cold start: on the Path the roadmap, unless an attempt was under way when the app was put away (shell/keep.ts): then its exercise, as it was.
 function firstScreen(){
-  startFirst();
+  const back=takeAttempt();
+  if(!back) startFirst();
   let start=""; try{ start=localStorage.getItem("rd-start")||""; }catch(e){}
-  if(pathOn()&&start!=="exercise"&&state.tab!=="review"&&!state.optsOpen){ state.menuOpen=true; state.motion=false; }
+  if(pathOn()&&!back&&start!=="exercise"&&state.tab!=="review"&&!state.optsOpen){ state.menuOpen=true; state.motion=false; }
   render();
 }
 function settle(){
