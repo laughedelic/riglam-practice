@@ -1,17 +1,17 @@
-// Categories on the Path: 1 the categories (the thing, and the categories as choices to tick, or one at a time with yes and no; the check
+// Categories on the Path: 1 the categories (the thing, and the categories lifted over a rule onto the path (threshold.tsx), or one at a time with yes and no; the check
 // splits them into what applies and what does not, each with the reason), 2 the most specific of those that apply (one tap), 3 the line from
 // the most specific up, and the offer of another stage when one is due. The tutor has no part here. The steps are the classic page's
 // (categories/flow.js); the reference examples it draws from come with the Magic Key.
 import type { ComponentChildren } from "preact";
 import { state } from "../state.js";
-import { CONFIRMATION } from "../practice/terms.js";
-import { advanceCategories, checkCategories, continueCategories, pickCategory, sayCategory, tickCategory, tickNone } from "../categories/flow.js";
+import { advanceCategories, checkCategories, continueCategories, pickCategory, resetCategories, sayCategory, tickCategory } from "../categories/flow.js";
 import { next } from "../practice/queue.js";
 import { toggleOpts } from "../shell/options.js";
 import type { PlaceGraded, PlaceNarrow, PlaceQuestion, PlaceRow } from "../../domain/place.ts";
 import { refreshPath } from "./index.tsx";
 import { Choices, ErrLines, SkipMark, StageOffer, Verdict, pickThen, u0 } from "./parts.tsx";
 import { Scroll } from "./scroll.tsx";
+import { Threshold } from "./threshold.tsx";
 import { TermTags } from "./terms.tsx";
 import { nextKind, nextName } from "./next.ts";
 import { Foot, PreStation, SkipSide, Station, TopBar } from "./shell.tsx";
@@ -22,10 +22,9 @@ const cap = (t: string) => t[0].toUpperCase() + t.slice(1);
 /** Why a category is, or is not, one of the thing's: the steps of the data, a sentence. */
 const because = (row: PlaceRow) => [row.reason ? cap(row.reason) + "." : "", row.why].filter(Boolean).join(" ");
 
-/** The thing asked about, as the first stop: its name, its stage and how well the example is confirmed. */
+/** The thing asked about, as the first stop: its name alone (no exercise names the stage of what it asks). */
 function Thing() {
-  const t = q().thing;
-  return <St d={<D cls="sub done" />} cls="stm thing"><span class="cs" lang="en">{t.n}</span><small class="pcatm">stage {t.st}{t.cf ? " · " + ((CONFIRMATION as Record<string, string>)[t.cf] || t.cf) : ""}</small></St>;
+  return <St d={<D cls="sub done" />} cls="stm thing"><span class="cs" lang="en">{q().thing.n}</span></St>;
 }
 /** One category with the answer: its mark, what the learner did, and the reason; a right one folds to its line, a tap opens the reason. */
 function CatRow({ row, one }: { row: PlaceGraded; one: boolean }) {
@@ -57,16 +56,15 @@ function skipNote() {
 /* ---------- 1 the categories ---------- */
 function TickStep() {
   const u = u0(), t = q(), n = u.ticked.length;
-  const items = [...t.rows.map((r, i) => ({ k: r.cat, b: r.phrase, pressed: u.ticked.includes(r.cat), key: String(i + 1) })), { k: "", b: "None of these", s: "it is in none of them", pressed: !!u.none, key: "0" }];
   return <>
     <Scroll>
-      <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Categories" sub="which of these is it?" aside={<SkipMark />} /><Gap h={6} /><Thing /><p class="help chelp">Tick everything it is.</p><Gap h={4} /></Sx>
+      <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Categories" sub="which of these is it?" aside={<SkipMark />} /><Gap h={6} /><Thing /><Gap h={4} /></Sx>
       <TermTags asked={t.rows.map((r) => ({ cat: r.cat }))} />
-      <Choices label="Categories the thing is in" multi items={items} onPick={(k) => (k ? tickCategory(k) : tickNone())} />
+      <Threshold label="Categories the thing is in" items={t.rows.map((r, i) => ({ k: r.cat, b: r.phrase, key: String(i + 1) }))} picked={u.ticked} onPick={tickCategory} onReset={resetCategories} />
       <Sx cls="ptail" />
     </Scroll>
     <Foot aux={<SkipSide />}>
-      {n || u.none ? <Station kind="chk" name="Check" hint={u.none ? "none of these" : n === 1 ? "one category ticked" : n + " categories ticked"} act={checkCategories} /> : <PreStation name="Check" hint="tick what it is first" />}
+      <Station kind="chk" name="Check" hint={!n ? "none of these" : n === 1 ? "one category" : n + " categories"} act={() => checkCategories(true)} />
     </Foot>
   </>;
 }
@@ -147,7 +145,7 @@ export function categoriesScreen(): { cls: string; node: ComponentChildren } {
   const u = u0(), top = <TopBar title="Categories" tools />;
   if (!state.cur!.q) return { cls: "", node: <>{top}<div class="pstatus"><p>Categories uses the reference examples, which this device does not hold yet.</p>
     <p>They come with the Magic Key, in <button type="button" class="plnk" onClick={() => toggleOpts(true)}>Settings</button>.</p></div></> };
-  if (u.step === 0) return { cls: u.ticked.length || u.none ? "ready" : "", node: <>{top}{u.ask === "one" ? <OneStep /> : <TickStep />}</> };
+  if (u.step === 0) return { cls: u.ask === "one" ? "" : "ready", node: <>{top}{u.ask === "one" ? <OneStep /> : <TickStep />}</> };
   if (u.step === 1) return { cls: u.checked ? "done" : "ready", node: <>{top}<CheckedStep /></> };
   if (u.step === 2) return { cls: "", node: <>{top}<NarrowStep /></> };
   return { cls: "done", node: <>{top}<ResultStep /></> };

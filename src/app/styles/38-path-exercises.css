@@ -9,11 +9,6 @@
 .pa .pbtns{display:flex; gap:18px; flex-wrap:wrap}
 .pa .plnk{color:var(--blue); text-decoration:underline; text-underline-offset:3px; font:inherit}
 
-/* choices that are ticked rather than taken: the diamond fills, the words turn to ink */
-.pa .chs.multi .crow.on{background-color:var(--blue-t)}
-.pa .chs.multi .crow.on b{color:var(--ink)}
-.pa .chs.multi .crow .d.yours{background-color:var(--blue)}
-
 /* a statement on the path: a line of large text beside its letter (S, P, R) or its diamond */
 .pa .stm{padding:2px 0; align-items:baseline}
 .pa .stm > .ab{position:relative; top:-2px}
