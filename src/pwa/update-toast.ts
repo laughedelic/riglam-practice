@@ -1,4 +1,4 @@
-// The notice that appears when a newer version is on the device: a small card under the top bar. "Update now" reloads the app on the new version; "Later",
+// The notice that appears when a newer version is on the device: a small card under the top bar (on the Path's roadmap the roadmap shows its own at its foot). "Update now" reloads the app on the new version; "Later",
 // or leaving it alone for a while, hides it until the app is opened again (the version line of the menu and Settings keep the way to update). It rests on
 // nothing but the top bar's edge, so it never covers a question, the pair bar or the keyboard, and it stays while the pointer or the focus is on it.
 import type { Updates } from "../platform/types";
@@ -18,7 +18,8 @@ export function mountUpdateToast(updates: Updates): void {
     toast.hidden = true;
   };
   const text = document.createElement("span");
-  text.textContent = "New version ready.";
+  const words = () => (text.textContent = updates.readyText ? updates.readyText() : "New version ready.");
+  words();
   const now = document.createElement("button");
   now.type = "button";
   now.className = "btn";
@@ -47,6 +48,7 @@ export function mountUpdateToast(updates: Updates): void {
   toast.addEventListener("focusin", settle);
   toast.addEventListener("focusout", () => setTimeout(settle, 0)); // the focus has moved on (or out) only after this event
   const show = () => {
+    words();
     const was = toast.hidden;
     toast.hidden = dismissed || updates.status() !== "ready";
     if (was && !toast.hidden) wait();

@@ -5,7 +5,7 @@ import { test as plain, expect as plainExpect } from "@playwright/test";
 import { test, expect } from "../../support/test.js";
 import { dataKey, serveCourse, withCourse } from "../../support/data-key.js";
 
-const onPath = () => { if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path"); };
+const onPath = () => { if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path"); if (localStorage.getItem("rd-start") === null) localStorage.setItem("rd-start", "exercise"); };
 const withKey = withCourse ? test : test.skip;
 const sse = (...events) => events.map((e) => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`).join("");
 const shot = (page, name) => (process.env.DLG_SHOTS ? page.screenshot({ path: process.env.DLG_SHOTS + name + ".png" }) : null);

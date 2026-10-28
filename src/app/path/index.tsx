@@ -23,12 +23,17 @@ function ringOnTab(): void {
   addEventListener("keydown", (e) => { if (e.key === "Tab" && !(coarse() && (e.target as Element | null)?.classList?.contains("pfield"))) root.classList.add("pa-tab"); }, true);
   for (const t of ["pointerdown", "touchstart", "mousedown"]) addEventListener(t, () => root.classList.remove("pa-tab"), { capture: true, passive: true });
 }
+/** What touched the page last, a finger (or a pen) or a mouse: the Path's knocks go with a finger and not a click (gesture.ts). */
+function watchHand(): void {
+  addEventListener("pointerdown", (e) => { state.hand = e.pointerType === "mouse" ? "mouse" : "touch"; }, { capture: true, passive: true });
+}
 /** At the start: the device's choice, else the Path in a Preview and the classic page in the real app. */
 export function startDesign(preview: boolean): void {
   let kept: string | null = null; try { kept = localStorage.getItem(KEY); } catch { /* storage blocked */ }
   state.design = kept === "path" || kept === "classic" ? kept : preview ? "path" : "classic";
   autoExplainDefault();
   ringOnTab();
+  watchHand();
   syncDesign();
   try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (pathOn() && currentLook().mode === "system") render(); }); } catch { /* no media queries */ }
 }

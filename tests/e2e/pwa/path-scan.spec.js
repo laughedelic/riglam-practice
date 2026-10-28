@@ -3,7 +3,7 @@
 // check: ride takes it as any station. With the keyboard up the page opens first and the scan runs over it. At the foot the station that comes next takes the Check's place as the
 // scanner leaves it. The rules of the practice are the other specs'.
 import { test, expect } from "../../support/test.js";
-import { isPhone } from "../../support/page.js";
+import { exerciseAtRest, isPhone } from "../../support/page.js";
 
 test.use({ reducedMotion: "no-preference" });
 
@@ -11,6 +11,8 @@ const onPath = () => {
   if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path");
   if (localStorage.getItem("rd-look") === null) localStorage.setItem("rd-look", JSON.stringify({ check: "scan" }));   // the replaced result page, which this spec is about (the page that goes on is the default: path-push.spec.js)
   window.__vib = []; navigator.vibrate = (v) => { window.__vib.push(v); return true; };
+  // the page tells a finger from a mouse (state.hand: its knocks are for a finger); Playwright's mouse is made to read as a finger here, `window.__pointer = "mouse"` as a mouse again
+  Object.defineProperty(PointerEvent.prototype, "pointerType", { get: () => window.__pointer || "touch", configurable: true });
 };
 const choices = (page) => page.locator("#path .chs .crow");
 
@@ -108,6 +110,7 @@ test("Pervasions: the relation picked is taken with the scan: it rises from the 
   await page.locator(".tstn").click();
   await page.getByRole("dialog", { name: "Roadmap" }).getByRole("button", { name: /^Pervasions/ }).click();
   await expect(page.locator(".ptb-t")).toContainText("Pervasions");
+  await exerciseAtRest(page);
   for (let i = 0; i < 4; i++) { await choices(page).first().click(); await expect(page.locator("#path .sb.done")).toHaveCount(i + 1); }
   await expect(page.getByRole("group", { name: "Relation" })).toBeVisible();
   await page.evaluate(() => {

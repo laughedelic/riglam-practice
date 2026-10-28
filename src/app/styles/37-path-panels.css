@@ -64,8 +64,15 @@
 .pa .psheet .sbody,.pa .ppage{background-image:linear-gradient(var(--mline),var(--mline)); background-repeat:repeat-y; background-size:1px 1px; background-position:var(--m) 0; background-attachment:local}
 .pa .psheet .sback{display:flex; align-items:center; gap:6px; padding:6px 18px 4px calc(var(--m) + 18px); font-family:var(--mono); font-size:11.5px; color:var(--blue)}
 .pa .psheet .sback .i{width:14px; height:14px; transform:rotate(180deg)}
-.pa .road{position:absolute; inset:0; z-index:22; background-color:var(--paper); transform:translateX(-102%); transition:transform .38s cubic-bezier(.2,.8,.2,1),visibility 0s .38s; display:flex; flex-direction:column; visibility:hidden}
+/* The roadmap lies under the exercise: going to it slides the exercise away to the right (the back chevron, or the system Back when the browser has not animated it itself), and going on to an exercise slides that one in from
+   the right. The roadmap waits a little to the left and comes to its place with it, under a faint shade that clears. `.still` (app.tsx): the same change without the slide. */
+.pa .lay{position:absolute; inset:0; z-index:2; display:flex; flex-direction:column; background-color:var(--paper); box-shadow:-10px 0 22px -10px rgba(10,10,14,.28); transition:transform .38s cubic-bezier(.2,.8,.2,1)}
+.pa .lay.away{transform:translateX(100%); visibility:hidden; transition:transform .38s cubic-bezier(.2,.8,.2,1),visibility 0s .38s}
+.pa .road{position:absolute; inset:0; z-index:1; background-color:var(--paper); transform:translateX(-24%); transition:transform .38s cubic-bezier(.2,.8,.2,1),visibility 0s .38s; display:flex; flex-direction:column; visibility:hidden}
 .pa .road.on{transform:none; visibility:visible; transition:transform .38s cubic-bezier(.2,.8,.2,1)}
+.pa .road::after{content:""; position:absolute; inset:0; z-index:9; background:rgba(10,10,14,.12); opacity:1; pointer-events:none; transition:opacity .38s}
+.pa .road.on::after{opacity:0}
+.pa.still .lay,.pa.still .road,.pa.still .road::after{transition:none!important}
 .pa .road .rbody{flex:1; overflow-y:auto; position:relative}
 .pa .road svg.tree{display:block; width:100%; height:auto; max-width:480px; margin:0 auto}
 .pa .tree .ln{fill:none; stroke:var(--ink); stroke-width:1.6; opacity:.7}
@@ -80,16 +87,32 @@
 .pa .tree .ed{font-family:var(--main-f); font-size:12.5px; fill:var(--ink2)}
 .pa .tree .ed.pl{font-family:var(--mono); font-size:10px; letter-spacing:.06em; fill:var(--ink3)}
 .pa .tree .ed.cont{font-family:var(--mono); font-size:10px; fill:var(--gold-t)}
-.pa .tree .bn{font-family:var(--main-f); font-size:24px; font-weight:600; fill:var(--ink)}
+.pa .tree .bn,.pa .tree .bp{font-family:'Sorts Mill Goudy','EB Garamond',Georgia,serif; font-weight:400}
+.pa .tree .bn{font-size:20.5px; letter-spacing:.08em; fill:var(--ink)}
+.pa .tree .bp{font-style:italic; font-size:23.83px; letter-spacing:.1em; fill:var(--ink2)}
+.pa .tree .bl{letter-spacing:0}
+html.cv-zoom .pa .road .rhead{opacity:0}   /* the cover is flying its own figure and name in (pwa/cover.ts); these appear when it lands */
 .pa .tree .hit{fill:transparent; cursor:pointer}
 .pa .tree a:focus-visible .nd,.pa .tree [tabindex]:focus-visible .nd{stroke:var(--ink); stroke-width:2.6}
 .pa .tree a:focus{outline:none}
 .pa .tree .rm.ok{fill:var(--green)} .pa .tree .rm.bad{fill:var(--red)} .pa .tree .rm.part{fill:var(--partc)} .pa .tree .rm.pend{fill:none; stroke:var(--ink3); stroke-width:1.2}
 .pa .road .rfoot{flex:none; border-top:1px solid var(--rule); display:flex; align-items:center; flex-wrap:wrap; gap:6px; padding:14px 12px 22px calc(var(--m) + 10px); position:relative}
-.pa .road .rfoot .knob{position:absolute; right:17px; top:-8px}
-.pa .road .rfoot .knob.lt .mk .i{transform:rotate(180deg)}
-.pa .road .rver{flex-basis:100%; font-family:var(--mono); font-size:10.5px; color:var(--ink3); padding:0 8px}
-.pa .road .rver button{color:var(--blue); text-decoration:underline; text-underline-offset:3px; font-family:var(--mono); font-size:10.5px}
+.pa .road .rgo{flex:none; display:flex; justify-content:flex-end; padding:0 12px 2px}
+.pa .road .rcont{min-height:44px; padding:0 4px 0 14px; font-size:14px; font-weight:600; gap:4px}
+.pa .road .rcont .i{width:18px; height:18px}
+.pa .road .rnote{flex:none; margin:0 12px 8px; display:flex; align-items:center; gap:2px 14px; padding:6px 6px 6px 14px; background:var(--ink); color:var(--paper); font-family:var(--mono); font-size:12.5px; line-height:1.4; animation:rnin .22s ease-out}
+.pa .road .rnote span{flex:1 1 auto; min-width:0}
+.pa .road .rnote button{flex:none; min-height:44px; padding:0 8px; font-weight:600; text-decoration:underline; text-underline-offset:3px}
+@keyframes rnin{from{opacity:0; transform:translateY(8px)}}
+.pa .road .rver{flex-basis:100%; display:flex; align-items:center; flex-wrap:wrap; gap:0 10px; min-height:40px; padding:0 0 0 8px; font-family:var(--mono); font-size:11.5px; color:var(--ink3)}
+.pa .road .rver .rvn{color:var(--ink2)}
+.pa .road .rver .rvs{display:inline-flex; align-items:center; gap:6px}
+.pa .road .rver .rvs .i{width:14px; height:14px}
+.pa .road .rver .spin{animation:rspin 1.1s linear infinite}
+@keyframes rspin{to{transform:rotate(360deg)}}
+.pa .road .rver.ok .rvs{color:var(--green)}
+.pa .road .rver.hot .rvs{color:var(--gold-t); font-weight:600}
+.pa .road .rver .lk{margin-left:auto}
 .pa .lk{font-family:var(--mono); font-size:13px; font-weight:500; color:var(--blue); display:inline-flex; align-items:center; gap:6px; min-height:40px; padding:0 8px; text-decoration:underline; text-underline-offset:4px; text-decoration-thickness:1px}
 .pa .lk .i{width:16px; height:16px}
 

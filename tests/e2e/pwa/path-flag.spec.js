@@ -13,7 +13,7 @@ test("the flag on the tutor's note can be tapped within a 40 by 40 pixel area", 
   await giveKey(page);
   await page.route("**/api/health", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, tutor: "on" }) }));
   await page.route("**/api/tutor", (route) => route.fulfill({ status: 200, contentType: "text/event-stream", body: sse({ type: "delta", text: FACTS }, { type: "done", truncated: false }) }));
-  await page.addInitScript(() => { localStorage.setItem("rd-design", "path"); localStorage.setItem("rd-autoexplain", "0"); });
+  await page.addInitScript(() => { localStorage.setItem("rd-design", "path"); localStorage.setItem("rd-start", "exercise"); localStorage.setItem("rd-autoexplain", "0"); });
   await page.goto("/");
   const choices = page.locator("#path .chs .crow");
   await expect(choices).toHaveCount(5);

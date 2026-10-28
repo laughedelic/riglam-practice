@@ -18,10 +18,15 @@ async function getJson(url: string, doFetch: typeof fetch, waitMs: number): Prom
   }
 }
 
+/** The build the server has now (its commit, and its version when it says one), or null when it could not be asked. */
+export async function latestBuild(doFetch: typeof fetch = (...a) => fetch(...a), waitMs = 4000): Promise<{ commit: string; version: string | null } | null> {
+  const latest = await getJson("build.json", doFetch, waitMs);
+  return typeof latest?.commit === "string" ? { commit: latest.commit, version: typeof latest.version === "string" ? latest.version : null } : null;
+}
+
 /** The commit of the build the server has now, or null when it could not be asked. */
 export async function latestCommit(doFetch: typeof fetch = (...a) => fetch(...a), waitMs = 4000): Promise<string | null> {
-  const latest = await getJson("build.json", doFetch, waitMs);
-  return typeof latest?.commit === "string" ? latest.commit : null;
+  return (await latestBuild(doFetch, waitMs))?.commit ?? null;
 }
 
 export async function aboutThisBuild(build: { version: string; commit: string; builtAt: string } = __BUILD__, doFetch: typeof fetch = (...a) => fetch(...a), waitMs = 4000): Promise<About> {

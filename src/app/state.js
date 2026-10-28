@@ -133,6 +133,7 @@ export const state = {
   // The redesign (src/app/path): which design draws the page ("classic" or "path"), the device's choice (`rd-design`), else the build's default (app.js: the Path
   // in a Preview); how the Path looks (src/app/path/look.ts, the lab's settings this device keeps over the defaults, `rd-look`); a short note at the Path's foot
   design: "classic",
+  hand: "",         // what touched the page last: "touch" (a finger or a pen) or "mouse"; empty before anything has (path/gesture.ts: a knock is for a finger only)
   look: null,
   pathNote: null,
   pathQ: 0,          // the Path's next draw, when one waits for the next frame (path/index.tsx, refreshPath)

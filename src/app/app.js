@@ -24,7 +24,7 @@ import "./shell/history.js";
 import "./debate/text.js";
 import "./shell/timers.js";
 import { voiceOn } from "../ui/speech";
-import { startDesign } from "./path/index.tsx";
+import { pathOn, refreshPath, startDesign } from "./path/index.tsx";
 
 /* ---------- boot ---------- */
 // The page knows its host only through the platform it is started with (src/platform/types.ts): the term data and the
@@ -67,14 +67,14 @@ async function bootSteps(platform){
   try{ setQuorumOffer(state.tutor&&platform.quorum?await platform.quorum():false); }catch(e){ setQuorumOffer(false); }
   try{ state.account=platform.account?await platform.account():null; }catch(e){ state.account=null; }
   // which build this is: asked in the background (it looks at the server), shown in the menu and in Settings when it arrives
-  if(platform.about) platform.about().then(a=>{ state.about=a; if(state.optsOpen) render(); else renderMenu(); },()=>{});
+  if(platform.about) platform.about().then(a=>{ state.about=a; if(state.optsOpen) render(); else if(pathOn()) refreshPath(); else renderMenu(); },()=>{});
   // updating in place: the platform tells when a newer version is ready; the menu and Settings show where it stands
   state.updates=platform.updates||null;
-  if(state.updates) state.updates.subscribe(()=>{ if(state.optsOpen) render(); else renderMenu(); });
+  if(state.updates) state.updates.subscribe(()=>{ if(state.optsOpen) render(); else if(pathOn()) refreshPath(); else renderMenu(); });   // (the Path's roadmap shows where the look for a newer version stands)
   // A Magic Key entered in the prompt is taken in place (no reload), so the pair on the screen and the answer being given stay.
   if(platform.onKey) platform.onKey(()=>rekey(platform));
   if(state.account){ let seen=signature(state.account.view()); state.account.subscribe(v=>{ const now=signature(v); if(now!==seen){ seen=now; if(state.optsOpen) render(); } }); }
-  if(!state.db){ state.gotA=state.gotB=state.gotS=true; startFirst(); render(); return; }
+  if(!state.db){ state.gotA=state.gotB=state.gotS=true; firstScreen(); return; }
   waiting(()=>"the saved "+[!state.gotB&&"batches",!state.gotA&&"answers",!state.gotS&&"skipped pairs"].filter(Boolean).join(", ")+" on this device");
   state.db.collection("batches").orderBy("order","asc").onSnapshot(snap=>{
     state.batches=snap.docs.map(d=>Object.assign({id:d.id},d.data())); state.gotB=true; settle();
@@ -113,9 +113,19 @@ async function rekey(platform){
   flushFlags();                   // flags that were waiting for a key go now
   if(state.mode!=="loading") render();
 }
+/**
+ * The first screen after a cold start: on the Path the roadmap, so that the learner chooses where to go (the cover of the installed app flies into it: pwa/cover.ts). `rd-start` set to "exercise"
+ * keeps the exercise the app was last in instead (the browser tests set it). It is drawn without the slide: the roadmap is there from the first draw, and the cover measures where its figure goes.
+ */
+function firstScreen(){
+  startFirst();
+  let start=""; try{ start=localStorage.getItem("rd-start")||""; }catch(e){}
+  if(pathOn()&&start!=="exercise"&&state.tab!=="review"&&!state.optsOpen){ state.menuOpen=true; state.motion=false; }
+  render();
+}
 function settle(){
   if(!state.gotB||!state.gotA||!state.gotS) return;
-  if(state.mode==="loading"){ startFirst(); render(); return; }
+  if(state.mode==="loading"){ firstScreen(); return; }
   if(state.tab==="review") render(); else renderMenu();   // the menu shows today's numbers
 }
 

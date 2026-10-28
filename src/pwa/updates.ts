@@ -6,19 +6,42 @@
 // the reload in a toast (./update-toast.ts), in the menu and in Settings.
 import { registerSW } from "virtual:pwa-register";
 import type { UpdateStatus, Updates } from "../platform/types";
-import { latestCommit } from "./about";
+import { latestBuild } from "./about";
 
 const LOOK_EVERY_MS = 15 * 60_000; // how long the app may stay in view before it looks again
 let status: UpdateStatus = "unknown"; // until a look has succeeded: offline, a registration that exists says nothing
 let registration: ServiceWorkerRegistration | undefined;
 let lastLook = 0;
 let pending: Promise<void> | null = null;
+let coming: { commit: string; version: string | null } | null = null; // what the server has now, once an update is on its way (named in the notice)
 const listeners = new Set<() => void>();
+const MIN_LOOK_MS = 700; // a look that answers faster shows "checking" for this long: a status that flashes by says nothing
+
+function tell(): void {
+  for (const fn of [...listeners]) fn();
+}
 
 function set(next: UpdateStatus): void {
   if (next === status) return;
   status = next;
-  for (const fn of [...listeners]) fn();
+  if (next === "current") coming = null;
+  tell();
+  if (next === "ready" || next === "downloading") void learnComing();
+}
+
+/** Which version is on its way (build.json names it); the notice says so once it is known. */
+async function learnComing(): Promise<void> {
+  if (coming) return;
+  const got = await latestBuild();
+  if (got && got.commit !== __BUILD__.commit && !coming && (status === "ready" || status === "downloading")) {
+    coming = got;
+    tell();
+  }
+}
+
+function readyText(): string {
+  const what = !coming ? "" : coming.version && coming.version !== __BUILD__.version ? ` (${coming.version})` : ` (build ${coming.commit})`;
+  return `New version ready${what}. Updating reloads the app; your answers stay.`;
 }
 
 function apply(): void {
@@ -63,18 +86,25 @@ function check(maxAgeMs = 0): Promise<void> {
   pending = (async () => {
     if (!registration) return set("unknown");
     set("checking");
+    const began = Date.now();
+    const ended = async (to: UpdateStatus) => {
+      await new Promise((done) => setTimeout(done, Math.max(0, MIN_LOOK_MS - (Date.now() - began))));
+      if (status === "checking") set(to);
+    };
     try {
       await registration.update();
     } catch {
-      return set("unknown"); // offline, or the server did not answer
+      return ended("unknown"); // offline, or the server did not answer
     }
     // `updatefound` and "controllerchange" may already have said more than this.
     if (status !== "checking") return;
     if (registration.installing) return set("downloading");
     // Nothing is being installed. If the server's build is not the one this page runs, a worker that took over before this page started
     // (so that no "controllerchange" was seen) already has the newer files: reloading brings them.
-    const there = await latestCommit();
-    if (status === "checking") set(there !== null && there !== __BUILD__.commit ? "ready" : "current");
+    const there = await latestBuild();
+    if (status !== "checking") return;
+    if (there !== null && there.commit !== __BUILD__.commit) { coming = there; return set("ready"); }
+    return ended("current");
   })().finally(() => {
     pending = null;
   });
@@ -95,6 +125,7 @@ export const updates: Updates = {
   status: () => status,
   check,
   apply,
+  readyText,
   subscribe(fn) {
     listeners.add(fn);
     return () => listeners.delete(fn);
