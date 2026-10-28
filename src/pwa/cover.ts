@@ -1,8 +1,10 @@
 // The cover of the installed app (cover.html, drawn from the page's first paint): it stays until the app has left its "Loading." screen, but at least until its entrance is over, so that it
 // reads as a welcome and not as a flash. Then, when the app has opened on its roadmap, the cover flies its figure and its name into their places at the head of the roadmap while its ground
-// fades away (the zoom-out); when the app opened on an exercise instead, the cover just fades. The page marks the "Loading." screen with a status line in #stage (index.html's recovery panel
+// fades away (the zoom-out); when the app opened on an exercise instead, the cover just fades. A start soon after the app was put away is a return: the cover only
+// hides the loading and fades. The page marks the "Loading." screen with a status line in #stage (index.html's recovery panel
 // reads the same), and the cover goes for the data's "could not be loaded" message, too: that one has its own text. The recovery panel and the other notices of the shell lie above the cover.
 const HOLD_MS = 2300; // counted from the cover's own start: its entrance is over by then, with a moment to look at it
+const RETURN_MS = 30 * 60 * 1000; // a start this soon after the app was put away (`rd-away`, app/shell/keep.ts) is a return: the cover only hides the loading
 const FADE_MS = 400;
 const ZOOM_MS = 950;
 const EASE = "cubic-bezier(.5,0,.15,1)";
@@ -60,6 +62,10 @@ export function mountCover(): void {
   if (!cover) return;
   // A browser driven by a test has no one to welcome: the cover goes at once.
   const quick = navigator.webdriver === true || matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // A return (Back from the roadmap closes the installed app, and a phone closes a page it keeps in the background): the cover stays only while the app loads,
+  // and fades, with no welcome and no flight, as a page that was kept would just be there.
+  let back = false;
+  try { const away = Number(localStorage.getItem("rd-away")); back = away > 0 && Date.now() - away < RETURN_MS; } catch { /* a start like any other */ }
   const loading = () => {
     const s = document.querySelector("#stage .status");
     return !!s && (s.textContent || "").startsWith("Loading.");
@@ -70,9 +76,9 @@ export function mountCover(): void {
     going = true;
     watcher.disconnect();
     const since = (window as unknown as { __riglamCoverAt?: number }).__riglamCoverAt ?? 0;
-    const wait = quick ? 0 : Math.max(0, HOLD_MS - (performance.now() - since));
+    const wait = quick || back ? 0 : Math.max(0, HOLD_MS - (performance.now() - since));
     setTimeout(() => {
-      if (!quick && zoom(cover)) return;
+      if (!quick && !back && zoom(cover)) return;
       cover.classList.add("gone");
       setTimeout(() => cover.remove(), quick ? 0 : FADE_MS);
     }, wait);
