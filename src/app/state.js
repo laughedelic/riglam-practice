@@ -138,8 +138,7 @@ export const state = {
   pathNote: null,
   pathQ: 0,          // the Path's next draw, when one waits for the next frame (path/index.tsx, refreshPath)
   pathSeg: "today",  // the section of Review the Path shows (path/review.tsx); the classic page keeps its own in `reviewSeg`
-  pathProg: false,   // the Progression page in place of Review (path/progression.tsx): opened from the rings of the roadmap or the top bar's, closed by any setTab
-  pathProgAt: 0,     // the stage whose row the Progression page brings to the top when it next draws (0: none)
+  pathProg: null,    // the Progression page in place of Review (path/progression.tsx): where it was opened from, the term card over it; closed by any setTab
   pathOpen: {},      // the rows of Review the Path has unfolded, by key
 };
 

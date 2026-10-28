@@ -22,17 +22,18 @@ export const PullCtx = createContext<Pull>(new Pull());
 
 /** The tutor's button: what it does on the screen in front of it (set by the screen), or null when it waits for a result. `mic`: the screen is
  *  drawn on the Path and can be answered by voice (a hosted classic screen has the microphone in its own bar). */
-export interface TopBarProps { title: string; tools?: boolean; mic?: boolean }
+/** `back`: where the chevron and the title go in place of the roadmap, and what the chevron says (a page that returns to the screen it was opened from). */
+export interface TopBarProps { title: string; tools?: boolean; mic?: boolean; back?: { label: string; act: () => void } }
 
 const HOLD_MS = 500;
-export function TopBar({ title, tools = false, mic = false }: TopBarProps) {
+export function TopBar({ title, tools = false, mic = false, back }: TopBarProps) {
   // while the practice options are open the bar is theirs: it names them in place of the exercise, its tools give way and the options button becomes the close
   const shown = (state.mode === "quiz" && isEx() && sheetTitle()) || "", heading = shown || title;
   // the Progression page hangs under the ring: the bar keeps the name and the ring (pressed), the other tools give way, and the options button is the close
   const prog = state.mode === "quiz" && isEx() && progressOn(), away = !!shown || prog;
   const hold = useRef<ReturnType<typeof setTimeout> | undefined>(undefined), held = useRef(false);
   const ex = state.mode === "quiz" && isEx(), u = state.ui;
-  const roadmap = () => { if (state.sessOpen) toggleSess(false); toggleMenu(true); };
+  const roadmap = back ? back.act : () => { if (state.sessOpen) toggleSess(false); toggleMenu(true); };
   const timed = ex && state.blitzUse && (state.tab === "practice" || state.tab === "debate" || state.tab === "syllogism");
   // the countdown bar: a new countdown is a new bar (keyed by its start), so that its animation starts from full
   const tq = u && u.tq, e = tq ? Math.max(0, Math.round(performance.now() - tq.t0)) : 0;
@@ -40,8 +41,8 @@ export function TopBar({ title, tools = false, mic = false }: TopBarProps) {
   const bzDown = (ev: PointerEvent) => { if (ev.button) return; held.current = false; clearTimeout(hold.current); hold.current = setTimeout(() => { held.current = true; openBlitzOptions(); }, HOLD_MS); };
   const bzStop = () => clearTimeout(hold.current);
   return <header class="ptb">
-    <button type="button" class="tstn" aria-label="Back to the roadmap" onClick={roadmap}><Icon n="chev" /></button>
-    <button type="button" class="ptb-t" aria-label={heading + (shown ? "" : ", the roadmap")} onClick={roadmap}><span>{heading}</span></button>
+    <button type="button" class="tstn" aria-label={back ? back.label : "Back to the roadmap"} onClick={roadmap}><Icon n="chev" /></button>
+    <button type="button" class="ptb-t" aria-label={heading + (shown ? "" : back ? ", " + back.label.toLowerCase() : ", the roadmap")} onClick={roadmap}><span>{heading}</span></button>
     {tools && !shown && ex ? <ProgressRing /> : null}
     <span class="spc" />
     {tools && !away && readShown() ? <button type="button" class={"pib" + (state.voice.muted ? "" : " on")} role="switch" aria-checked={state.voice.muted ? "false" : "true"} aria-label="Read aloud" onClick={toggleReadAloud}><Icon n={state.voice.muted ? "speakoff" : "speak"} /></button> : null}

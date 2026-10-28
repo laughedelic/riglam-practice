@@ -328,6 +328,20 @@ export interface SkipNote {
   tid: number;
 }
 
+/** Where the Progression page of the Path stands (path/progression.tsx): where it was opened from, so that Back goes there again, and the term card open over it. */
+export interface ProgressionAt {
+  /** opened from the roadmap's rings (Back shows the roadmap again) or from the link on the top bar's ring sheet (Back goes to the exercise) */
+  from: "road" | "sheet";
+  /** the screen under it when it opened: the exercise, or Review; Back returns to it */
+  tab: string;
+  /** the stage whose row it brings to the top when it next draws; 0 when none */
+  at: number;
+  /** the term whose card is open over it (a category id of the data), or "" */
+  term: string;
+  /** how far the page was scrolled when a term's card opened over it, to be set again when the card closes; -1 when nothing waits */
+  y: number;
+}
+
 /** The page's shared state: every variable that used to be module-level (see state.js). */
 export interface State {
   // the term data and its lookup tables; the same five fields as DataIndex, so this object can be passed as one
@@ -525,10 +539,8 @@ export interface State {
   pathQ: number;
   /** the section of Review the Path shows: today, overview, mistakes, favs, skips, flags */
   pathSeg: string;
-  /** the Progression page in place of Review (path/progression.tsx); any setTab closes it */
-  pathProg: boolean;
-  /** the stage whose row the Progression page brings to the top when it next draws; 0 when none */
-  pathProgAt: number;
+  /** the Progression page in place of Review (path/progression.tsx), or null; any setTab closes it */
+  pathProg: ProgressionAt | null;
   /** the rows of Review the Path has unfolded, by key */
   pathOpen: Record<string, boolean>;
 }

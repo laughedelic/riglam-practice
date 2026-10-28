@@ -164,8 +164,12 @@
 .pa .ptrail .trow.prg{padding:10px 0}
 .pa .prg-s{display:block; font:400 11.5px var(--mono); color:var(--ink3); margin-top:3px}
 .pa .prg.now .prg-s{color:var(--blue)}
-.pa .prg.ahead b,.pa .prg-t.wait b{color:var(--ink3); font-weight:500}
+.pa .prg.ahead b{color:var(--ink3); font-weight:500}
 .pa .prg.now .rgs text{fill:var(--blue)}
 .pa .prg.ahead .rgs text{fill:var(--ink3)}
 .pa .prg.now .rgs .disc{fill:var(--blue); fill-opacity:.12}
 .pa .prg-p{margin-left:var(--m)}
+.pa .prg-how b{font-weight:500; color:var(--ink2)}
+.pa .prg-tl li{padding:0}
+.pa .prg-tb{display:inline-flex; align-items:center; gap:2px; min-height:32px; padding:0; text-align:left; color:inherit; font:inherit; font-weight:500; text-decoration:underline dotted var(--ink3); text-decoration-thickness:1px; text-underline-offset:4px}
+.pa .prg-tb .i{width:13px; height:13px; color:var(--ink3); flex:none}

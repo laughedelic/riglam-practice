@@ -38,7 +38,8 @@ export function ProgressRing() {
 }
 
 const WORD: Record<number, string> = { 5: "five", 10: "ten", 15: "fifteen", 20: "twenty", 25: "twenty-five", 30: "thirty" };
-const num = (n: number) => WORD[n] || String(n);
+/** A count of right answers in words, as the lines here say it ("five right answers in a row"). */
+export const num = (n: number) => WORD[n] || String(n);
 
 /**
  * The page: the lines are short, and the words are the stage station's where it has them ("reached", "The stages follow your answers"). The new terms of the
@@ -60,5 +61,5 @@ export function ProgressPage() {
   } else items.push(state.stageRun.manual ? "The stages move when you move them." : "This is the last stage.");
   items.push(<>The stages follow your answers. To choose them yourself, or to stop them from moving up, use the <button type="button" class="plnk" onClick={() => openPage(null)}>practice options</button>.</>);
   return <div class="wtext tup"><ul class="tup-bul">{items.map((t) => <li class={t === list ? "tlist" : undefined}>{t}</li>)}</ul>
-    <p class="tup-note"><button type="button" class="plnk" onClick={() => openProgression(p.top)}>All stages and their terms</button></p></div>;
+    <p class="tup-note"><button type="button" class="plnk" onClick={() => openProgression(p.top, "sheet")}>All stages and their terms</button></p></div>;
 }

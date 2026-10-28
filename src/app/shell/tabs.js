@@ -77,7 +77,7 @@ export function setTab(k){
   if(state.optsOpen) toggleOpts(false);
   if(state.sessOpen) toggleSess(false);
   if(state.view==="chat") closeChat();
-  state.skipAsk=false; state.menuOpen=false; state.menuPeek=false; state.pathProg=false;   // Review, not the Progression page that stands in for it (path/progression.tsx)
+  state.skipAsk=false; state.menuOpen=false; state.menuPeek=false; state.pathProg=null;   // Review, not the Progression page that stands in for it (path/progression.tsx)
   if(state.tab!==k) switchTo(k);
   if(state.blitz&&asking()&&!state.ui.tq) startQ();       // the question's clock stood still behind the menu
   render(); top0(); focusStage();
