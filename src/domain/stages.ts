@@ -194,9 +194,11 @@ export function negationOffer(results: readonly NegOutcome[], negation: Negation
 
 /**
  * The right answers in a row, on questions new at the highest stage that is on (those from a stage below count half, LOWER_CREDIT), after which the next
- * stage comes in: by itself on the Path, with a station that says so first; offered with a tap on the classic page. On the Path a stage with new terms
- * comes sooner, with the answer that makes the last answer on each of them right (runWanted); the run is for a stage without (stages 9 to 11, and every
- * stage on the classic page, which has no term stops) and for one whose terms were all right before.
+ * stage comes in: by itself on the Path, with a station that says so first; offered with a tap on the classic page. On the Path the stages are chapters
+ * of one list of terms: a stage that brings new terms comes with the first of them, once the stage below has brought all of its own and fewer than
+ * OPEN_CAP terms are open (intro.ts, nextStageDue), and the first stage without (stage 9) once the last answer on each new term of stage 8 is right
+ * (runWanted). The run is for the stages after it, for every stage on the classic page, which has no term stops, and for a stage the learner stayed on
+ * a while longer or came back down to.
  */
 export const STAGE_STREAK = 5;
 /** Staying on a stage a while longer asks this many more right answers in a row before the next one comes, up to STAGE_STREAK_MAX. */
@@ -222,6 +224,8 @@ export const runNeed = (run: StageRun): number => run.need ?? STAGE_STREAK;
 export const restartRun = (run: StageRun): StageRun => ({ up: 0, down: 0, ...(run.told ? { told: true as const } : {}), ...(run.manual ? { manual: true as const } : {}) });
 /** The run once a stage came in: it starts again, and the station has been seen. */
 export const movedUp = (run: StageRun): StageRun => ({ ...restartRun(run), told: true });
+/** The run once the learner took the highest stage off: it starts again, and the stage comes back after a run of right answers, not at the next answer. */
+export const cameDown = (run: StageRun): StageRun => ({ ...restartRun(run), need: runNeed(run) });
 /** The run once the learner chose to stay on the stage a while longer (the station was seen): it starts again, and the next stage waits for more right answers. */
 export const stayLonger = (run: StageRun): StageRun => ({ ...restartRun(run), told: true, need: Math.min(STAGE_STREAK_MAX, runNeed(run) + STAGE_LONGER) });
 /** The run with the stages moved up by the learner (`manual`) or by the page (the default). */
@@ -252,12 +256,14 @@ export function runAfter(run: StageRun, on: Stages, st: number, ok: boolean, mis
 
 /**
  * The new terms of the highest stage on, for its move: how many it has, whether the last answer on each of them is right (intro.ts, termMark), and whether
- * the latest answer is the one that made them all right (`just`).
+ * the latest answer is the one that made them all right (`just`); and when the next stage brings new terms, whether its first is due now (`next`,
+ * intro.ts, nextStageDue): the next stage then comes with it, whatever the marks.
  */
 export interface StageTerms {
   n: number;
   right: boolean;
   just: boolean;
+  next?: boolean;
 }
 /** A stage without new terms (stages 9 to 11), or a page without term stops (the classic one): the run alone moves the stages. */
 export const NO_TERMS: StageTerms = { n: 0, right: true, just: false };
@@ -268,21 +274,23 @@ export function termsOf(marks: readonly StageMark[]): StageTerms {
 }
 
 /**
- * The right answers in a row the next stage waits for: none when the latest answer made the last new term of the stage right (unless the learner chose to
- * stay longer); else `need`, STAGE_STREAK unless the learner chose to stay longer: on a stage without new terms, and on one whose terms were all right
- * before (the learner stayed longer, or came back down to it).
+ * The right answers in a row the next stage waits for. When it brings new terms (`next`), none, unless the learner stayed longer or came back down
+ * (`need`). Else none when the latest answer made the last new term of the stage right (unless `need` is set), and STAGE_STREAK or `need` otherwise: on
+ * a stage without new terms, and on one whose terms were all right before.
  */
-export const runWanted = (run: StageRun, terms: StageTerms): number => (terms.just && run.need === undefined ? 0 : runNeed(run));
+export const runWanted = (run: StageRun, terms: StageTerms): number => (terms.next !== undefined ? run.need ?? 0 : terms.just && run.need === undefined ? 0 : runNeed(run));
+/** Whether the next stage is due by the terms and the run (`stageOffer`, `stageProgress`): its first term with a long enough run, or, when it brings none, the terms of this one right. */
+const upDue = (run: StageRun, terms: StageTerms): boolean => (terms.next ?? terms.right) && run.up >= runWanted(run, terms);
 
 /**
- * The stage move that is due, if any: the next stage once the last answer on each new term of the highest stage on is right (`terms`) and the run up is as
- * long as it has to be (`runWanted`: none when this answer completed the terms), unless the learner moves the stages themselves (`manual`); taking the
- * highest stage off after a run of mistakes, only where a mistake is about the words, and never at stage 1. The caller starts the run again once a move
- * is answered, so a "not now" is not asked again at once.
+ * The stage move that is due, if any: the next stage once its first new term is due (`terms.next`), or, when it brings none, once the last answer on each
+ * new term of the highest stage on is right, and the run up is as long as it has to be (`runWanted`), unless the learner moves the stages themselves
+ * (`manual`); taking the highest stage off after a run of mistakes, only where a mistake is about the words, and never at stage 1. The caller starts the
+ * run again once a move is answered, so a "not now" is not asked again at once.
  */
 export function stageOffer(run: StageRun, on: Stages, terms: StageTerms, miss: MissKind): { kind: "up" | "down"; stage: number } | null {
   const top = topStage(on);
-  if (!run.manual && terms.right && run.up >= runWanted(run, terms) && top < MAX_STAGE) return { kind: "up", stage: top + 1 };
+  if (!run.manual && upDue(run, terms) && top < MAX_STAGE) return { kind: "up", stage: top + 1 };
   if (miss === "words" && run.down >= STAGE_STUMBLE && top > 1) return { kind: "down", stage: top };
   return null;
 }
@@ -303,12 +311,15 @@ export interface StageProgress {
   frac: number;
   /** the next stage is due */
   full: boolean;
+  /** the next stage brings new terms: it comes with the first of them, whatever the marks of these (`StageTerms.next`) */
+  flow: boolean;
 }
-export function stageProgress(run: StageRun, on: Stages, marks: readonly StageMark[] = []): StageProgress {
-  const top = topStage(on), next = run.manual || top >= MAX_STAGE ? null : top + 1, terms = termsOf(marks), need = runWanted(run, terms);
+/** `next`: whether the next stage's first new term is due (intro.ts, nextStageDue); undefined when it brings none, or on a page without term stops. */
+export function stageProgress(run: StageRun, on: Stages, marks: readonly StageMark[] = [], next?: boolean): StageProgress {
+  const top = topStage(on), up = run.manual || top >= MAX_STAGE ? null : top + 1, terms = { ...termsOf(marks), ...(next === undefined ? {} : { next }) }, need = runWanted(run, terms);
   const shows = terms.n && (!terms.right || need === 0) ? "terms" : "run";
-  const frac = next === null ? 0 : shows === "terms" ? marks.filter((t) => t.mark === "ok").length / terms.n : Math.min(1, run.up / need);
-  return { top, next, terms: marks, shows, need, frac, full: next !== null && terms.right && run.up >= need };
+  const frac = up === null ? 0 : shows === "terms" ? marks.filter((t) => t.mark === "ok").length / terms.n : Math.min(1, run.up / need);
+  return { top, next: up, terms: marks, shows, need, frac, full: up !== null && upDue(run, terms), flow: next !== undefined };
 }
 
 /** A stored run, each part checked; a fresh one when it cannot be read. */
@@ -317,7 +328,7 @@ export function normRun(raw: unknown): StageRun {
   if (typeof raw === "string") { try { v = JSON.parse(raw); } catch { return freshRun(); } }
   const o = (v && typeof v === "object" ? v : {}) as Partial<StageRun>, n = (x: unknown) => (typeof x === "number" && Number.isFinite(x) && x >= 0 ? Math.floor(x) : 0);
   const need = n(o.need), half = (x: unknown) => (typeof x === "number" && Number.isFinite(x) && x >= 0 ? Math.floor(x * 2) / 2 : 0);
-  return { up: half(o.up), down: n(o.down), ...(need > STAGE_STREAK ? { need: Math.min(STAGE_STREAK_MAX, need) } : {}), ...(o.told === true ? { told: true as const } : {}), ...(o.manual === true ? { manual: true as const } : {}) };
+  return { up: half(o.up), down: n(o.down), ...(need >= STAGE_STREAK ? { need: Math.min(STAGE_STREAK_MAX, need) } : {}), ...(o.told === true ? { told: true as const } : {}), ...(o.manual === true ? { manual: true as const } : {}) };
 }
 
 /** Until an exercise has had a run of STAGE_STREAK right answers, about this share of its questions are new at the highest stage, instead of half: a new exercise starts with review. */

@@ -24,7 +24,7 @@ export function startStops() {
 }
 /** The course terms of the stages on whose stop has not come yet: the draws leave out their categories, and the labels of a named term (matter). */
 export const unmetNow = (): Set<string> => (onPath() && state.intro && state.DATA ? unmet(ix(), state.intro, state.stages) : new Set());
-/** The new terms of the highest stage whose last answer is not right yet: the new questions lean to them (the next stage waits for them). */
+/** The terms met whose last answer is not right yet, at any stage: the new questions lean to them (a new term waits while too many are). */
 export const openNow = (): Set<string> => (onPath() && state.intro && state.DATA ? openTerms(ix(), state.intro, state.stages) : new Set());
 /**
  * An answer was checked: each course term it used goes up a box when the learner was right about it, and back to the first when not, which brings

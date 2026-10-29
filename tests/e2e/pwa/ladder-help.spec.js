@@ -159,28 +159,24 @@ test("on the Path five right relations at the highest stage bring the next stage
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem("rd-ex-runs")).practice)).toEqual({ run: 5, right: 5 });
 });
 
-test("on the Path a stage with new terms comes with the answer that makes the last answer on each of them right, without a run of five", async ({ page }) => {
+test("on the Path the next stage comes with its first term, once the stage below has brought all of its own and fewer than three terms are not right yet, whatever their marks", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(onPath);
   await page.addInitScript(() => {
     localStorage.setItem("rd-stages", "1,2");
     const right = (first) => ({ box: 2, shows: 1, first, won: first });
-    localStorage.setItem("rd-terms", JSON.stringify({ n: 12, next: 99, terms: { form: { box: 3, shows: 1 }, "form:Matter": { box: 3, shows: 1 }, extf: right(1), col: right(2), shape: right(3), "extf:External matter": right(4), vis: { box: 1, shows: 1 } } }));
+    // every term of stage 2 met, Shape and Form source not right yet; the next term may come after one more answer
+    localStorage.setItem("rd-terms", JSON.stringify({ n: 12, next: 13, terms: { form: { box: 3, shows: 1 }, "form:Matter": { box: 3, shows: 1 }, extf: right(1), col: right(2), shape: { box: 1, shows: 2, first: 3 }, "extf:External matter": right(4), vis: { box: 1, shows: 1 } } }));
   });
   await page.addInitScript(hook);
   await page.goto("/");
   await expect(pathChoices(page)).toHaveCount(5);
   const ring = page.locator("#path .ptb .pring");
-  await expect(ring).toHaveAccessibleName(/^Progression: stage 2, 4 of 5 new terms answered right/);
-  // a pair with Form source, the one term left (the new pairs lean to it; a review pair of stage 1 may come first)
-  const vis = () => page.evaluate(() => [window.__t.cur.p.catA, window.__t.cur.p.catB].includes("vis"));
-  for (let i = 0; i < 40 && !(await vis()); i++) await page.evaluate(() => window.__t.next());
-  expect(await vis(), "a pair with Form source").toBe(true);
-  await expect(pathChoices(page)).toHaveCount(5);
+  await expect(ring).toHaveAccessibleName(/^Progression: stage 2, 3 of 5 new terms answered right/);
+  await expect(ring).not.toHaveClass(/\bfull\b/);
   await rightPath(page);
-  await expect(ring).toHaveAccessibleName(/^Progression: stage 2, 5 of 5 new terms answered right/);
   await expect(ring).toHaveClass(/\bfull\b/);
-  expect(await page.evaluate(() => window.__t.stageRun.up), "one right answer, not a run of five").toBe(1);
+  expect(await page.evaluate(() => window.__t.stageRun.up), "one answer, not a run of five").toBeLessThanOrEqual(1);
   await station(page).click();
   await expect(page.locator("#path .tstage .cs")).toHaveText("Stage 3 reached");
   await expect(station(page), "the first term of the stage comes at once: the station says so").toHaveAccessibleName(/^Next: new definition/);
@@ -193,8 +189,8 @@ test("on the Path a stage with new terms comes with the answer that makes the la
 });
 
 test("on the Path the stage station shows a ring for each stage with a segment for each of its new terms, in the order they were first answered, colored by the last answer", async ({ page }) => {
-  // Form settled; at stage 3, still ahead: Odor source answered right first, then Sound source missed, the other two to come
-  await fiveRight(page, () => localStorage.setItem("rd-terms", JSON.stringify({ n: 12, next: 99, terms: {
+  // Form settled; at stage 3, still ahead: Odor source answered right first, then Sound source missed, the other two to come; stage 2's first term may come with the fifth answer
+  await fiveRight(page, () => localStorage.setItem("rd-terms", JSON.stringify({ n: 12, next: 17, terms: {
     form: { box: 3, shows: 1 }, "form:Matter": { box: 3, shows: 1 }, odr: { box: 2, shows: 1, first: 1, won: 1 }, snd: { box: 1, shows: 2, first: 2 } } })));
   await station(page).click();
   const rings = page.locator("#path .tstage").getByRole("group", { name: "Stage 2 of 11" }).locator(".tup-rg");

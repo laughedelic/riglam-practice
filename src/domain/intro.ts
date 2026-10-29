@@ -1,8 +1,8 @@
 // Introducing the course's terms (notes: the definition stop). A Dudra category is asked about only after a stop has shown its term and definition;
 // everyday categories need none. A new learner meets a few everyday questions first, then the terms come one at a time, a few questions apart, from
-// the lowest stage that is on up. The questions answered afterwards grade each term: a box from 1 to 3, up one on a right answer, back to 1 on a
-// mistake, and a mistake brings the term's stop back a few questions later, as a repetition (the result names the term at once, underlined). The learner
-// may ask for one too. A settled term not met for a long time comes back once. This is the
+// the lowest stage that is on up, and none while OPEN_CAP terms are still not right. The questions answered afterwards grade each term: a box from 1
+// to 3, up one on a right answer, back to 1 on a mistake, and a mistake brings the term's stop back a few questions later, as a repetition (the result
+// names the term at once, underlined). The learner may ask for one too. A settled term not met for a long time comes back once. This is the
 // whole schedule: a record per term (part of the learner's progression, practice/progress.ts), and pure functions of it and the data.
 import type { Cat } from "../ai-shared/data";
 import { spelled, upChain } from "../ai-shared/lookup";
@@ -22,6 +22,8 @@ export const MISS_AFTER = 5;
 export const SETTLED = 3;
 /** A settled term not met in any question for this many days comes back once. */
 export const GAP_DAYS = 14;
+/** The most terms that are open at once (met at their stop, the last answer on them not right yet): while this many are, no new term comes. */
+export const OPEN_CAP = 3;
 
 /** What the device keeps of one term: its box (1 to 3; absent: not introduced), how often its stop came, and when. */
 export interface IntroTerm {
@@ -85,7 +87,7 @@ export function askedKey(ix: DataIndex, cat: string, word: string | null | undef
 }
 /**
  * The words (labels or phrases) a question may say the category with: none of a named term whose stop has not come (`unmet`), unless nothing
- * else is left; and while some of its terms are `open` (the stage waits for their last answer), the words of those only.
+ * else is left; and while some of its terms are `open` (their last answer is not right yet), the words of those only.
  */
 export function wordsFor(ix: DataIndex, cat: string, words: readonly string[], unmet?: ReadonlySet<string>, open?: ReadonlySet<string>): readonly string[] {
   if (!ix.CAT[cat]?.named?.length) return words;
@@ -129,7 +131,7 @@ export const stageMet = (ix: DataIndex, intro: Intro, stage: number): boolean =>
 
 /**
  * Where a term stands for its stage: before its stop (`wait`), met and not answered yet (`met`), its last answer right (`ok`, box 2 or more), or its
- * last answer wrong, never right yet (`miss`) or right before (`slip`). The next stage comes once each new term of the stage is `ok` (stages.ts, stageOffer).
+ * last answer wrong, never right yet (`miss`) or right before (`slip`). A term met and not `ok` is open (`openTerms`).
  */
 export type TermMark = "wait" | "met" | "ok" | "miss" | "slip";
 export function termMark(intro: Intro, id: string): TermMark {
@@ -148,8 +150,27 @@ export function stageMarks(ix: DataIndex, intro: Intro, stage: number): StageMar
     return mark === "ok" && intro.terms[id]!.won === intro.n ? { id, mark, now: true as const } : { id, mark };
   });
 }
-/** The new terms of the highest stage on that have had their stop and whose last answer is not right yet: the new questions lean to them (universe.ts, place.ts). */
-export const openTerms = (ix: DataIndex, intro: Intro, on: Stages): Set<string> => new Set(stageTerms(ix, topStage(on)).filter((id) => { const m = termMark(intro, id); return m !== "wait" && m !== "ok"; }));
+/**
+ * The course terms open at these stages that have had their stop and whose last answer is not right yet, whatever their stage: the new questions lean
+ * to them (universe.ts, place.ts), and while OPEN_CAP of them are, no new term comes (`newTermDue`).
+ */
+export function openTerms(ix: DataIndex, intro: Intro, on: Stages): Set<string> {
+  const top = topStage(on), out = new Set<string>();
+  for (const c of courseTerms(ix)) { const m = catStage(c) <= top ? termMark(intro, c.id) : "wait"; if (m !== "wait" && m !== "ok") out.add(c.id); }
+  return out;
+}
+/** Whether a new term may come before the next question: the spacing since the last stop has passed, and fewer than OPEN_CAP terms are open. */
+export const newTermDue = (ix: DataIndex, intro: Intro, on: Stages): boolean => intro.n >= intro.next && openTerms(ix, intro, on).size < OPEN_CAP;
+/**
+ * Whether the next stage comes in now: every new term of the highest stage on has had its stop, and a new term may come (`newTermDue`), which is the next
+ * stage's first (stages.ts, stageOffer: the stages are chapters of one list of terms). Undefined when the next stage brings no term the learner has not
+ * met: stages 9 to 11, which bring none, and one whose terms came before (the learner moved the stages, or came back down).
+ */
+export function nextStageDue(ix: DataIndex, intro: Intro, on: Stages): boolean | undefined {
+  const top = topStage(on);
+  if (!stageTerms(ix, top + 1).some((id) => !introduced(intro, stopCat(ix, id)!))) return undefined;
+  return stageMet(ix, intro, top) && newTermDue(ix, intro, on);
+}
 
 /** A term in the tree a stop draws: `met` unless it is a course term whose own stop has not come yet (a term the course never stops at has nothing to wait for). */
 export interface TreeTerm { name: string; met: boolean }
@@ -175,7 +196,8 @@ const DAY = 864e5;
 
 /**
  * The stop that comes before the next question, or null. First a term due again (a mistake before an ask), then the next new term once the spacing
- * allows (the lowest stage first, in the course's order), then a settled term not met for GAP_DAYS. Only terms open at these stages.
+ * allows and fewer than OPEN_CAP terms are open (the lowest stage first, in the course's order), then a settled term not met for GAP_DAYS. Only terms
+ * open at these stages.
  */
 export function nextStop(ix: DataIndex, intro: Intro, on: Stages, now: string): Stop | null {
   const top = topStage(on), open = (id: string) => { const c = stopCat(ix, id); return !!c && catStage(c) <= top; };
@@ -186,7 +208,7 @@ export function nextStop(ix: DataIndex, intro: Intro, on: Stages, now: string): 
     if (!best || rank(t) < rank(best.t)) best = { id, t };
   }
   if (best) return { cat: best.id, why: best.t.why === "again" ? "again" : "miss" };
-  if (intro.n >= intro.next) {
+  if (newTermDue(ix, intro, on)) {
     for (let s = 1; s <= top; s++) {
       const id = stageTerms(ix, s).find((c) => !introduced(intro, stopCat(ix, c)!));
       if (id) return { cat: id, why: "new" };

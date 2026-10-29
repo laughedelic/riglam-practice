@@ -201,7 +201,7 @@ export interface InstanceDraw {
   stages?: Stages;
   /** the Dudra categories whose term the learner has not met yet (intro.ts): a set with one of them waits, unless nothing else can be asked */
   unmet?: Unmet;
-  /** the new terms of the highest stage whose last answer is not right yet (intro.ts, openTerms): `newShare` of the sets (half when absent) have one of them, while any can be asked */
+  /** the terms met whose last answer is not right yet, at any stage (intro.ts, openTerms): `newShare` of the sets (half when absent) have one of them, while any can be asked */
   open?: ReadonlySet<string>;
   newShare?: number;
 }

@@ -19,7 +19,7 @@ import type { StageMark, TermMark } from "../../domain/intro.ts";
 import { MAX_STAGE, STAGES, runNeed, topStage } from "../../domain/stages.ts";
 import type { DataIndex } from "../../ai-shared/lookup.ts";
 import type { ProgressionAt } from "../types.ts";
-import { num } from "./progress.tsx";
+import { FLOW, num } from "./progress.tsx";
 import { StageRing, marksOf, rightOf, ringLabel, stageWhere } from "./rings.tsx";
 import { TopBar } from "./shell.tsx";
 import { FitTerm, StopSections } from "./stop-def.tsx";
@@ -105,7 +105,7 @@ function StageRow({ n, name, adds, top }: { n: number; name: string; adds: strin
 }
 /** What the stages are and how they move, folded at the top of the list: the stage station's and the ring sheet's words. */
 function How() {
-  const k = "pg:how", open = isOpen(k), run = runNeed(state.stageRun);
+  const k = "pg:how", open = isOpen(k), run = runNeed(state.stageRun), last = STAGES.reduce((m, s) => (marksOf(s.n).length ? s.n : m), 0);
   return <>
     <St d={<D cls="sub" />} cls={"trow prg-how can" + (open ? " open" : "")}>
       <button type="button" class="trb" aria-expanded={open ? "true" : "false"} onClick={() => toggleOpen(k)}><b>How the stages work</b><span class="arr"><Icon n="chev" /></span></button></St>
@@ -113,8 +113,9 @@ function How() {
       <li>Each stage adds a new kind of thing to ask about, from everyday things toward abstract ideas, and then longer chains of reasoning.</li>
       <li>The earlier stages stay in the mix, and Review keeps them fresh.</li>
       <li>Each new term comes with its definition first.</li>
-      <li>A stage with new terms is passed once your last answer on each of them is right. A wrong answer takes back only that term’s mark.</li>
-      <li>{"A stage with no new terms is passed after " + num(run) + " right answers in a row on what is new."}</li>
+      <li>{FLOW}</li>
+      <li>A stage begins with its first new term, once the stage before has brought all of its own. A wrong answer takes back only that term’s mark.</li>
+      {last && last < MAX_STAGE ? <li>{"Stage " + (last + 1) + " comes once your last answer on each term of stage " + last + " is right. The stages after it bring no new terms and come after " + num(run) + " right answers in a row on what is new."}</li> : null}
       <li>Progression works across all exercises.</li>
       <li>A stage’s ring has a segment for each of its new terms, and each term a diamond: green when your last answer on it was right, red when it was wrong, open while it is not asked yet.</li>
     </ul></div></div> : null}

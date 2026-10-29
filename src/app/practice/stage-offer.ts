@@ -1,5 +1,7 @@
-// The offer of the stages, from the result of any exercise (src/domain/stages.ts, runAfter and stageOffer). On the Path a stage with new terms is done
-// once the last answer on each of them is right (src/domain/intro.ts, termMark); a stage without, and the classic page, wait for a run of right answers.
+// The offer of the stages, from the result of any exercise (src/domain/stages.ts, runAfter and stageOffer). On the Path the stages are chapters of one
+// list of terms: a stage that brings new terms comes with the first of them, once the stage below has brought all of its own and few enough terms are
+// open (src/domain/intro.ts, nextStageDue); stage 9 once the last answer on each term of stage 8 is right; the stages after it, and the classic page, wait
+// for a run of right answers.
 // Every checked answer moves the run at the highest stage that is on, and the exercise's own record: whether it has warmed up, which sets how many of its
 // questions are new, and its right answers, after which its guided form turns off (practice/guided.ts). On the Path the next stage comes by itself: when
 // it is due, Next on the result goes to a station of its own that says which stage comes in (and, the first time, what the stages are), `ui.up`; Next from
@@ -12,8 +14,8 @@ import { saveProgress } from "./progress.ts";
 import { render } from "../shell/render.js";
 import { setStages, stageName } from "../shell/stages.js";
 import type { DataIndex } from "../../ai-shared/lookup.ts";
-import { stageMarks } from "../../domain/intro.ts";
-import { NO_TERMS, catStage, exerciseAfter, movedUp, newShare, pairStage, restartRun, runAfter, setManual, stageOffer, stageProgress, stayLonger, termsOf, topStage, type MissKind, type StageProgress } from "../../domain/stages.ts";
+import { nextStageDue, stageMarks } from "../../domain/intro.ts";
+import { NO_TERMS, cameDown, catStage, exerciseAfter, movedUp, newShare, pairStage, restartRun, runAfter, setManual, stageOffer, stageProgress, stayLonger, termsOf, topStage, type MissKind, type StageProgress } from "../../domain/stages.ts";
 
 const ix = () => state as unknown as DataIndex;
 /** What a mistake in each exercise says about the words (src/domain/stages.ts, MissKind). */
@@ -34,18 +36,20 @@ export const shareNow = (): number => newShare(state.exRuns[state.own || state.t
 
 /** The new terms of the highest stage on with their marks (src/domain/intro.ts, stageMarks): on the Path, which has the term stops; none on the classic page, where the run alone moves the stages. */
 const marksNow = () => (state.design === "path" && state.intro && state.DATA ? stageMarks(ix(), state.intro, topStage(state.stages)) : []);
+/** Whether the next stage's first term is due (src/domain/intro.ts, nextStageDue): on the Path, when the next stage brings new terms; undefined otherwise. */
+const nextNow = () => (state.design === "path" && state.intro && state.DATA ? nextStageDue(ix(), state.intro, state.stages) : undefined);
 
 /**
  * An answer in exercise `ex` was checked, on a question new at stage `st`, after its terms were graded (practice/stops.ts): the runs move, and what is
  * due, if anything, is kept for Next: the next stage on the Path (`ui.up`, a station), an offer on the result elsewhere (`ui.offer`). Whether something
- * was due (the negation offer then waits, one at a time). On the Path the next stage comes once the last answer on each new term of this one is right.
+ * was due (the negation offer then waits, one at a time). On the Path the next stage comes with its first term (`nextNow`).
  */
 export function stageStep(ex: string, st: number, ok: boolean): boolean {
   const miss = MISS[ex] ?? "form";
   state.stageRun = runAfter(state.stageRun, state.stages, st, ok, miss);
   state.exRuns = { ...state.exRuns, [ex]: exerciseAfter(state.exRuns[ex], ok) };
   guideStep(ex);
-  const marks = marksNow(), terms = marks.length ? termsOf(marks) : NO_TERMS;
+  const marks = marksNow(), terms = marks.length ? { ...termsOf(marks), next: nextNow() } : NO_TERMS;
   const o = shows(ex) ? stageOffer(state.stageRun, state.stages, terms, miss) : null;
   if (o && state.ui) { if (o.kind === "up" && state.design === "path") state.ui.up = { stage: o.stage }; else state.ui.offer = o; }
   saveProgress();
@@ -53,7 +57,7 @@ export function stageStep(ex: string, st: number, ok: boolean): boolean {
 }
 
 /** How far the highest stage is towards the next one, for the ring in the top bar (src/domain/stages.ts, stageProgress): its new terms with their marks, or the run. */
-export const progressNow = (): StageProgress => stageProgress(state.stageRun, state.stages, marksNow());
+export const progressNow = (): StageProgress => stageProgress(state.stageRun, state.stages, marksNow(), nextNow());
 
 const pending = () => { const o = state.ui && state.ui.offer; return o && o.kind !== "done" ? (o as { kind: "up" | "down"; stage: number }) : null; };
 /** The run that led to an offer is spent: the next one counts from now. */
@@ -102,7 +106,7 @@ export function setMovesUp(on: boolean) { state.stageRun = setManual(state.stage
 /** "Add stage N" or "Switch off stage N": what the offer on the result says. Nothing is done without this tap. The stage applies to every exercise. */
 export function acceptStageOffer() {
   const o = pending(); if (!o || !state.ui) return;
-  spend();
+  if (o.kind === "up") spend(); else { state.stageRun = cameDown(state.stageRun); saveProgress(); }     // a stage taken off comes back after a run, not at the next answer
   if (o.kind === "up") {
     state.ui.offer = { kind: "done", text: "Stage " + o.stage + ", " + stageName(o.stage).toLowerCase() + ", is on now in every exercise, next to the stages you had. Switch any of them off in the practice options." };
     setStages([...state.stages, o.stage].sort((a, b) => a - b));

@@ -169,7 +169,7 @@ export function makePair(ix: DataIndex, cand: PoolEntry, rng: Rng = Math.random,
   return pairOf(ix, a, b, la, lb, rng, now, more, on, neg, brackets);
 }
 
-/** What a draw knows of the learner's terms for the labels of a pair: those not met (`unmet`) and those the stage waits for (`open`), as intro.ts has them. */
+/** What a draw knows of the learner's terms for the labels of a pair: those not met (`unmet`) and those met and not right yet (`open`), as intro.ts has them. */
 export interface PairWords { unmet?: Unmet; open?: ReadonlySet<string> }
 
 /**
@@ -232,7 +232,7 @@ export interface DrawState {
   even?: boolean;
   /** the share of the pairs new at the highest stage (stages.ts, newShare): a quarter while the exercise is new to the learner; none: half */
   newShare?: number;
-  /** the new terms of the highest stage whose last answer is not right yet (intro.ts, openTerms): its pairs are drawn among theirs while any can be, and say a named term's label */
+  /** the terms met whose last answer is not right yet, at any stage (intro.ts, openTerms): the share of new pairs goes to theirs while any can be drawn, and they say a named term's label */
   open?: ReadonlySet<string>;
   /**
    * the negation track: about a third of the pairs have one side negated, A or B alike ("one", as the tutors negate either), or, with "both", half
@@ -262,7 +262,8 @@ const THIN_RELATION = 8;
  * The pool entry for the next pair: the relation that has been seen least lately, then a pair of categories weighted by what the learner got
  * wrong. With `stages`, from the pairs those stages can draw, the stage comes first: half the time (or `newShare`) the highest, else one of the
  * stages below, each as likely as the others (not each pair: stage 1 has a third of all the pairs), a stage made of pairs of two everyday
- * categories counting for less (EVERYDAY_ONLY) once a course term is in play; a pair of the highest stage has one of its `open` terms while one can.
+ * categories counting for less (EVERYDAY_ONLY) once a course term is in play; the highest stage's share goes to the pairs with an `open` term, at
+ * whatever stage, while one can be drawn.
  */
 export function chooseEntry(ix: DataIndex, full: readonly PoolEntry[], st: DrawState): PoolEntry {
   const { hist, recent } = st, rng = st.rng || Math.random, isHidden = st.isHidden || (() => false);
@@ -288,9 +289,9 @@ export function chooseEntry(ix: DataIndex, full: readonly PoolEntry[], st: DrawS
       for (const s of below) { if ((x -= weight(s)) <= 0) { stage = s; break; } }
     }
     pool = all.filter((c) => c.st === stage);
-    // the stage waits for the last answer on each of its new terms to be right: its questions go to the terms that are not yet
+    // the new questions go to the terms met whose last answer is not right yet, wherever they are: a new term waits while too many are
     if (stage === top && st.open?.size) {
-      const cats = termCats(st.open), lean = pool.filter((c) => cats.has(c.a) || cats.has(c.b));
+      const cats = termCats(st.open), lean = all.filter((c) => cats.has(c.a) || cats.has(c.b));
       if (lean.length) pool = lean;
     }
   }
