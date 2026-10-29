@@ -8,7 +8,7 @@ const blitz = () => { localStorage.setItem("rd-blitz", "1"); localStorage.setIte
 const sessBtn = (page) => page.locator("#msess");
 const AI = ["check every answer with claude", "several models explain"]; // there when the tutor can answer
 const names = (page) => page.locator("#over .ocard .om > b, #over .sw .swl").allInnerTexts().then((t) => t.map((s) => s.trim().toLowerCase()).filter((s) => !AI.includes(s)));
-const sections = (page) => page.locator("#over .grp").allInnerTexts().then((t) => t.map((s) => s.trim().toLowerCase()).filter((s) => s !== "ai tutor"));
+const sections = (page) => page.locator("#over .grp").allInnerTexts().then((t) => t.map((s) => s.trim().toLowerCase()).filter((s) => s !== "claude"));
 const rowNames = (page) => page.locator("#over .orow .tl").allInnerTexts().then((t) => t.map((s) => s.trim().toLowerCase()));
 const level = (page) => page.evaluate(() => (history.state && history.state.riglamNav) || 0);
 const base = (testInfo) => (isPhone(testInfo) ? 1 : 0); // a phone has the menu under the exercise
@@ -97,7 +97,7 @@ test("Settings keeps the device and the account, not the practice options", asyn
   await expect(page.locator("#over")).toHaveAttribute("aria-label", "Settings");
   await expect(page.locator("#over .oh h2")).toHaveText("Settings");
   const rows = await rowNames(page);
-  for (const gone of ["notation", "questions", "definitions", "show", "relation time", "example time", "ai tutor"]) expect(rows).not.toContain(gone);
+  for (const gone of ["notation", "questions", "definitions", "show", "relation time", "example time", "claude"]) expect(rows).not.toContain(gone);
   await expect(page.locator("#over")).toContainText(/Practice options/);
   // the back arrow returns to the exercise
   await page.locator("#over .oc").click();
