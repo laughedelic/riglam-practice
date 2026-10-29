@@ -1,7 +1,7 @@
 // Runs the tutor eval: every case, on every model and effort asked for, a number of times, straight through the Anthropic API with the
 // tutor's own code (worker/tutor.ts runTutor, the kit of worker/kit.ts), and grades each answer with grade.ts. One JSON line per answer.
 //
-//   ANTHROPIC_API_KEY=... node .cache/eval/run.mjs --configs claude-sonnet-5-5:medium,claude-haiku-5-5:medium --repeats 3 --out data-private/eval/runs/base.jsonl
+//   RIGLAM_EVAL_API_KEY=... (or ANTHROPIC_API_KEY=...) node .cache/eval/run.mjs --configs claude-sonnet-5-5:medium,claude-haiku-5-5:medium --repeats 3 --out data-private/eval/runs/base.jsonl
 //
 //   --configs <model:effort,...>  (default: the tutor's own, claude-sonnet-5-5:medium)    --repeats <n> (default 1)
 //   --cases <id,...|prefix>       only these cases                                     --budget <USD> stop starting new calls past this (default 30)
@@ -34,14 +34,16 @@ async function main() {
   const n = cases.reduce((s, c) => s + c.examples.length, 0);
   console.error(`${cases.length} cases, ${n} examples (${cases.reduce((s, c) => s + c.examples.filter((e) => e.want).length, 0)} labelled); ${configs.length} configs x ${repeats} repeats = ${cases.length * configs.length * repeats} calls`);
   if (has("--dry")) { console.error(cases[0].request.turns[0].content); return; }
-  if (!process.env.ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY is not set");
+  // A cloud session does not pass ANTHROPIC_API_KEY through to its shell, so the eval key may come as RIGLAM_EVAL_API_KEY.
+  const apiKey = process.env.RIGLAM_EVAL_API_KEY || process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) throw new Error("neither RIGLAM_EVAL_API_KEY nor ANTHROPIC_API_KEY is set");
 
   const kit = await kitFrom(DATA, {
     definitions: readFileSync("data-private/definitions.json", "utf8"),
     notes: readFileSync("data-private/notes.json", "utf8"),
     examples: existsSync("data-private/examples-device.json") ? readFileSync("data-private/examples-device.json", "utf8") : null,
   });
-  const client = new Anthropic({ maxRetries: 4 });
+  const client = new Anthropic({ apiKey, baseURL: "https://api.anthropic.com", maxRetries: 4 });
   const base: Config = { model: "claude-sonnet-5-5", effort: "medium", maxTokens: 6000, maxRounds: 4, deviceDailyMicro: 0, globalDailyMicro: 0, reserveMicro: 0 };
   const done = new Set(existsSync(out) ? readFileSync(out, "utf8").split("\n").filter(Boolean).map((l) => { const j = JSON.parse(l); return `${j.case}|${j.config}|${j.rep}`; }) : []);
   const todo = configs.flatMap((cfg) => Array.from({ length: repeats }, (_, rep) => cases.map((c) => ({ c, cfg, rep })))).flat().filter((t) => !done.has(`${t.c.id}|${t.cfg.name}|${t.rep}`));
