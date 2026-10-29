@@ -507,7 +507,9 @@ test("a case ahead is taken up with a tap, in any order: the field keeps the foc
   await field.press("Enter");   // empty: stays
   expect(await label()).toBe(third);
   await field.fill("three");
-  await expect(page.locator("#stn")).toHaveAccessibleName(/^Check/);   // the last one has words: Check is next (Enter would take it)
+  // the last one has words: Check is next (Enter would take it); under a touch screen's keyboard no station stands there, the line runs solid instead
+  if (await page.locator(".pa").evaluate((e) => e.classList.contains("kbup"))) await expect(page.locator(".pa")).toHaveClass(/\bready\b/);
+  else await expect(page.locator("#stn")).toHaveAccessibleName(/^Check/);
 });
 
 test("the fields ask for no autofill bar: a search field on a touch screen (Chrome keeps its bar off those), a text field elsewhere", async ({ page }, testInfo) => {
