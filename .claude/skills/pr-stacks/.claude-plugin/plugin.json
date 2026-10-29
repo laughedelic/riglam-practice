@@ -1,0 +1,27 @@
+{
+  "name": "pr-stacks",
+  "version": "0.1.0",
+  "description": "A pane that shows the open pull requests of a repository as stacks: base branches, CI and merge status, conflicts, the thread that owns each, and what is ready to merge.",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "repo": {
+      "type": "string",
+      "title": "Repository",
+      "description": "owner/name of the repository to watch",
+      "default": "laughedelic/riglam-practice"
+    },
+    "refreshMinutes": {
+      "type": "number",
+      "title": "Refresh every (minutes)",
+      "description": "How often the pane reloads by itself; 0 turns it off",
+      "default": 10
+    },
+    "ownersFile": {
+      "type": "string",
+      "title": "Owners file",
+      "description": "A JSON object that names the threads: branch token or thread id -> name",
+      "default": "/mnt/project-files/tools/pr-stacks/owners.json"
+    }
+  },
+  "license": "AGPL-3.0-only"
+}
