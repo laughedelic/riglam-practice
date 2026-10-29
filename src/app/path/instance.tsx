@@ -10,7 +10,7 @@ import { spelled, stripDet } from "../../ai-shared/lookup.ts";
 import { catPhrase } from "../../domain/instance.ts";
 import type { InstanceQuestion, InstanceResult, InstanceRow } from "../../domain/instance.ts";
 import { refreshPath } from "./index.tsx";
-import { ErrLines, SkipMark, Verdict, u0 } from "./parts.tsx";
+import { ErrLines, SkipMark, StageOffer, Verdict, u0 } from "./parts.tsx";
 import { Scroll } from "./scroll.tsx";
 import { nextKind, nextName } from "./next.ts";
 import { Foot, PreStation, SkipSide, Station, TopBar } from "./shell.tsx";
@@ -107,6 +107,7 @@ function ResultStep() {
       {ir.rows.length ? <Sx cls={ir.rows.some((r) => r.answer === false) ? "nop" : "okp"}><p class="pgh"><b>{ir.thing}</b><span>in each category</span></p>{ir.rows.map((r) => <Row r={r} />)}</Sx> : null}
       {s.apart ? <Sx cls="walked"><p class="pgh"><b>Why nothing is</b></p><St d={<D cls="sub done" />} cls="sb exr"><p class="xnote">{s.apart.why}</p></St></Sx> : null}
       {ir.example ? <Sx cls="walked"><p class="pgh"><b>For example</b><span>{ir.example.thing}</span></p>{ir.example.rows.map((r) => <Row r={r} />)}</Sx> : null}
+      <StageOffer />
       <ErrLines />
       <Sx cls="ptail" />
     </Scroll>

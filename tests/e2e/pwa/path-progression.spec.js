@@ -75,9 +75,11 @@ test("the roadmap's rings open the Progression page with that stage unfolded; a 
   await expect(page.locator("#path .tstop-sech")).toHaveText(withCourse ? ["Definition", "Categories", "Examples"] : ["Categories", "Examples"]);
   await expect(page.locator("#path .ttree li.me")).toHaveText("Color");
   await expect(page.locator(".tstn")).toHaveAccessibleName("Back to Progression");
+  await expect(page.locator(".tstn"), "the card's Back has the focus, as on any page that comes in").toBeFocused();
   // Back: the stages as they were, then the roadmap, with the exercise under it
   await page.locator(".tstn").click();
   await expect(stages(page)).toHaveCount(10);
+  await expect(term(page, "Color").getByRole("button"), "focus back on the term that opened the card").toBeFocused();
   await expect(stages(page).nth(1).locator(".trb")).toHaveAttribute("aria-expanded", "true");
   await expect(stages(page).nth(2).locator(".trb")).toHaveAttribute("aria-expanded", "true");
   await page.locator(".tstn").click();

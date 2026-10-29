@@ -222,6 +222,14 @@ test("hidden pairs are not drawn, unless every pair of the chosen relation is hi
   expect(drawn.has("con")).toBe(true); // the skips give way when nothing else of that relation is left
 });
 
+test("the open terms' pairs all skipped: the stages' other pairs come before a skipped one", () => {
+  const skipped = (c: PoolEntry) => c.a === "form" || c.b === "form";
+  for (let s = 1; s <= 60; s++) {
+    const c = chooseEntry(rix, realPool, { hist: [], recent: [], rng: seeded(s), stages: [1], unmet: new Set(), open: new Set(["form:Matter"]), isHidden: skipped });
+    expect(skipped(c), pairKey(c)).toBe(false);
+  }
+});
+
 test("the next pair is remembered, and only the last RECENT_MAX are kept", () => {
   const recent: string[] = [], rng = seeded(14);
   for (let i = 0; i < RECENT_MAX + 5; i++) {
@@ -2555,4 +2563,24 @@ test("a stored choice of languages is read as the name-only languages in order, 
   expect(normLangs('["zh","bo","bo","xx","ru"]')).toEqual(["bo", "zh"]);
   expect(normLangs(["skt"])).toEqual(["skt"]);
   for (const bad of [null, undefined, "", "bo", "{", 3, {}]) expect(normLangs(bad)).toEqual([]);
+});
+
+test("a term's stop shown again keeps its mark and its place in the ring: a miss stays red, a slip stays a slip", () => {
+  const T0 = "2026-10-24T12:00:00.000Z";
+  let it = stopShown(freshIntro(), "form", T0);
+  it = afterQuestion(it, [{ cat: "form", ok: false }], T0);
+  expect(termMark(it, "form")).toBe("miss");
+  const first = it.terms.form.first;
+  it = stopShown(showAgain(it, "form"), "form", T0);
+  expect(termMark(it, "form"), "the repetition does not make it unanswered").toBe("miss");
+  expect(it.terms.form.first).toBe(first);
+  it = afterQuestion(it, [{ cat: "form", ok: true }], T0);
+  it = afterQuestion(it, [{ cat: "form", ok: false }], T0);
+  it = stopShown(showAgain(it, "form"), "form", T0);
+  expect(termMark(it, "form")).toBe("slip");
+});
+
+test("stageProgress: a ring that waits for no run reads full, never NaN", () => {
+  const p = stageProgress(freshRun(), [0], [], true);
+  expect(Number.isFinite(p.frac)).toBe(true);
 });

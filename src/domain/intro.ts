@@ -227,7 +227,8 @@ export function nextStop(ix: DataIndex, intro: Intro, on: Stages, cap = OPEN_CAP
 /** The stop for `cat` has been shown: the term is introduced (box 1 at least), its return is spent, and the next new term waits `spacing` questions (the pace's, `paceSpacing`). */
 export function stopShown(intro: Intro, cat: string, now: string, spacing = SPACING): Intro {
   const t = intro.terms[cat];
-  const rec: IntroTerm = { box: Math.max(1, t?.box ?? 0), shows: (t?.shows ?? 0) + 1, at: intro.n, seen: now };
+  const rec: IntroTerm = { box: Math.max(1, t?.box ?? 0), shows: (t?.shows ?? 0) + 1, at: intro.n, seen: now,
+    ...(t?.first !== undefined ? { first: t.first } : {}), ...(t?.won !== undefined ? { won: t.won } : {}) };     // a repetition keeps the term's mark and its place in the ring
   return { ...intro, next: intro.n + spacing, terms: { ...intro.terms, [cat]: rec } };
 }
 

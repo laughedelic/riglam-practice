@@ -298,6 +298,8 @@ export function chooseEntry(ix: DataIndex, full: readonly PoolEntry[], st: DrawS
       if (lean.length) pool = lean;
     }
   }
+  // a stage or the open terms' pairs that are all skipped give way to the stages' other pairs before the skips do
+  if (pool !== all && !pool.some((c) => !isHidden(c)) && all.some((c) => !isHidden(c))) pool = all;
   const last = hist.slice(-8).map((x) => (x.key === "3ab" || x.key === "3ba" ? "3" : x.key));
   const seen = new Set(hist.slice(-60).map((x) => [x.catA, x.catB].sort().join("|")).concat(recent));
   const weak: Record<string, number> = Object.create(null);

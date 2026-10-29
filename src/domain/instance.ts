@@ -63,7 +63,7 @@ function plainAt(ix: DataIndex, term: string, on?: Stages): boolean {
   return term === "Form" ? topStage(on) < 2 : !cat || !catOpen(cat, on);
 }
 /** The stage from which a class can be said in a reason: from the start in plain words, else when its category opens (never, without one). */
-const wordsStage = (ix: DataIndex, term: string) => (term in PLAIN ? 1 : catStage(catOfTerm(ix, term) ?? { st: Infinity }));
+const wordsStage = (ix: DataIndex, term: string) => (term in PLAIN ? 0 : catStage(catOfTerm(ix, term) ?? { st: Infinity }));
 
 /**
  * Why nothing is in both categories, or null when the data cannot show it: an exclusion up their chains ("Whatever is made of wood is a
@@ -117,7 +117,7 @@ const knownAt = (ix: DataIndex, it: Item, set: readonly string[], on?: Stages) =
  * at which a thing in all of them is known (`items`, the items in all of them), and for a set where nothing can be, the stage from which its
  * reason can be said (`said`: "nothing is both a form and a non-associated compositional factor" waits for the course's words).
  */
-export function setStage(ix: DataIndex, set: readonly string[], items: readonly Item[] = [], said = 1): number {
+export function setStage(ix: DataIndex, set: readonly string[], items: readonly Item[] = [], said = 0): number {
   const cats = Math.max(said, ...set.map((c) => catStage(ix.CAT[c])));
   return items.length ? Math.max(cats, Math.min(...items.map((it) => itemStageIn(ix, it, set)))) : cats;
 }

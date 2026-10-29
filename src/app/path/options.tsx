@@ -137,14 +137,14 @@ function Stages() {
   const ex = state.EX ? stageCounts(state.EX.items) : {}, items: Record<number, number> = {}, only = state.stages.length === 1;
   for (const it of state.DATA ? state.DATA.items : []) if (!it.nosubject) items[itemStage(it)] = (items[itemStage(it)] || 0) + 1;
   return <>
-    <p class="psub">Every exercise asks about the stages that are on, in any mix. A category opens at its stage and stays open above it, and the things come from the stages that are on. About half of the questions are new at the highest stage, the rest review the stages below, each about as often as the others. Stage 0, everyday things alone, is the start: after five right answers in a row on the newest stage, in any exercise, the next stage comes in; a right answer on an older stage counts for half.</p>
+    <p class="psub">Every exercise asks about the stages that are on, in any mix. A category opens at its stage and stays open above it, and the things come from the stages that are on. About half of the questions are new at the highest stage, the rest review the stages below, each about as often as the others. Stage 0, everyday things alone, is the start: after five right answers in a row, in any exercise, stage 1 comes in. From then on a stage comes with its first new term, once the stage below has brought all of its own and fewer terms are not right yet than your pace allows.</p>
     {STAGES.map(({ n, name, adds }) => {
       const on = state.stages.includes(n), count = (items[n] || 0) + ((ex as Record<number, number>)[n] || 0);
       return <Row lb={"St " + n}><button type="button" class="two" role="switch" aria-checked={on ? "true" : "false"} aria-disabled={on && only ? "true" : undefined} onClick={() => setStages(toggleStage(state.stages, n))}>
         <span><b>{"Stage " + n + " · " + name}</b><small>{count + (count === 1 ? " thing" : " things")}</small></span><Toggle on={on} /></button><small class="plvn">{adds}</small></Row>;
     })}
     {only ? <p class="pnoteline pnote3">At least one stage stays on.</p> : null}
-    <Switch lb="Move" title="Move up by itself" note="After five right answers in a row on the newest stage, the next one comes in, and a station says so first. Off: no stage comes in by itself, and you switch them here." on={movesUp()} toggle={() => setMovesUp(!movesUp())} />
+    <Switch lb="Move" title="Move up by itself" note="The next stage comes in with its first new term (from stage 0, after five right answers in a row), and a station says so first. Off: no stage comes in by itself, and you switch them here." on={movesUp()} toggle={() => setMovesUp(!movesUp())} />
     <Row lb="Harder"><b>Pace, negations, depth</b><small>How many terms may be not right yet at a time, pairs with a negated side, and chains of reasoning after stage {LADDER_TOP}: their own page, the Difficulty page.</small>
       <span class="pvline2"><button type="button" class="pbtn quiet" onClick={() => openDifficulty()}>Difficulty</button></span></Row>
     <Row lb="Reset"><b>Reset progression</b>

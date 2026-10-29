@@ -1,7 +1,7 @@
 // The progression in the Path's top bar: a back chevron where the station diamond was, and after the exercise's name a ring with the stage in it: a
 // segment for each new term of the stage, or, on a stage without (and here, where the test devices have every term settled: tests/support/test.js), the
-// run of right answers towards the next stage (below stage 9, the ladder's last, which shows its terms). A tap on the ring opens the Progression sheet (a page of the practice options); the top bar names it while
-// it is open (and its ring gives way to the close); Back and the close shut it (src/app/path/progress.tsx).
+// run of right answers towards the next stage (below stage 9, the ladder's last, which shows its terms). A tap on the ring opens the Progression sheet (a page of the practice options); while
+// it is open the top bar keeps the name and the ring, pressed, and the options button is the close; Back and the close shut it (src/app/path/progress.tsx).
 import { test, expect } from "../../support/test.js";
 
 const setup = () => {

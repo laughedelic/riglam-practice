@@ -359,7 +359,7 @@ export interface StageProgress {
 export function stageProgress(run: StageRun, on: Stages, marks: readonly StageMark[] = [], next?: boolean, end = MAX_STAGE): StageProgress {
   const top = topStage(on), up = run.manual || top >= end ? null : top + 1, terms = { ...termsOf(marks), ...(next === undefined ? {} : { next }) }, need = runWanted(run, terms);
   const shows = terms.n && (!terms.right || need === 0 || top >= end) ? "terms" : "run";
-  const frac = up === null ? 0 : shows === "terms" ? marks.filter((t) => t.mark === "ok").length / terms.n : Math.min(1, run.up / need);
+  const frac = up === null ? 0 : shows === "terms" ? marks.filter((t) => t.mark === "ok").length / terms.n : need ? Math.min(1, run.up / need) : 1;
   return { top, next: up, terms: marks, shows, need, frac, full: up !== null && upDue(run, terms), flow: next !== undefined };
 }
 

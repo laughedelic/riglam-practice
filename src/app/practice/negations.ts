@@ -42,9 +42,10 @@ const pending = (): { kind: "one" | "both" } | null => { const o = state.ui && s
 /** "Negate one side" or "Negate both sides": the negation track takes the step from the next pair on. Nothing changes without this tap. */
 export function acceptNegOffer() {
   const o = pending(); if (!o) return;
-  state.negation = o.kind; store("rd-negation", o.kind); spendRun();
+  const kind = state.negation === "both" ? "both" : o.kind;     // both sides set meanwhile (the Difficulty page): the tap never takes a step back
+  state.negation = kind; store("rd-negation", kind); spendRun();
   const where = state.design === "path" ? "on the Difficulty page" : "in the practice options";
-  state.ui!.negOffer = { kind: "done", text: o.kind === "one" ? "Negations are on: from the next pair, about a third of the pairs negate one side. Change it " + where + "."
+  state.ui!.negOffer = { kind: "done", text: kind === "one" ? "Negations are on: from the next pair, about a third of the pairs negate one side. Change it " + where + "."
     : "Both sides now: half of the negated pairs negate both. Change it " + where + "." };
   render();
 }

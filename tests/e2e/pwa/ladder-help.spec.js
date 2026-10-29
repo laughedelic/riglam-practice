@@ -106,7 +106,12 @@ test("on the Path five right relations at the highest stage bring the next stage
   // the Next station says what comes: the stage, in a color of its own (green, like the full ring), not the next question's name
   await expect(station(page)).toHaveAccessibleName(/^Next: new stage/);
   await expect(station(page)).toHaveClass(/\bstk-up\b/);
-  expect(await station(page).evaluate((b) => getComputedStyle(b.querySelector(".go")).backgroundColor)).not.toBe(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--blue")));
+  const [go, blue] = await station(page).evaluate((b) => {     // the page's blue, resolved where the station is (the colors are the Path's own)
+    const probe = b.appendChild(document.createElement("i")); probe.style.color = "var(--blue)";
+    const out = [getComputedStyle(b.querySelector(".go")).backgroundColor, getComputedStyle(probe).color]; probe.remove(); return out;
+  });
+  expect(blue).toMatch(/^rgb/);
+  expect(go, "not the blue of a plain Next").not.toBe(blue);
   await station(page).click();
   const up = page.locator("#path .tstage");
   await expect(up).toBeVisible();

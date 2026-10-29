@@ -1,6 +1,6 @@
 // The difficulty besides the stages, on the Path's Difficulty page (path/difficulty.tsx): the pace (how many course terms may be open at once before a new
 // one waits, and how many questions apart new terms come, src/domain/intro.ts, PACES and paceSpacing), the negations (src/domain/stages.ts, NEG_OPEN) and the depth (layers of chains: the stages after the ladder's last, LADDER_TOP).
-// Each starts at its easiest and is part of the progression (practice/progress.ts); a result suggests the next step of the negations and the next layer of depth
+// The pace starts steady, the negations and the depth off; all are part of the progression (practice/progress.ts). A result suggests the next step of the negations and the next layer of depth
 // (practice/negations.ts, practice/stage-offer.ts), and the page sets them.
 import { state } from "../state.js";
 import { render } from "../shell/render.js";

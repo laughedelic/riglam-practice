@@ -47,7 +47,12 @@ export function openProgression(stage: number, from: ProgressionAt["from"]) {
  */
 export function progBack() {
   const p = state.pathProg; if (!p) return;
-  if (p.term || p.diff === "over") { p.term = ""; delete p.diff; render(); return; }
+  if (p.term || p.diff === "over") {     // focus goes back to what opened the card or the page
+    const from = p.term ? '[data-term="' + p.term + '"]' : ".prg-h .trb";
+    p.term = ""; delete p.diff; render();
+    document.querySelector<HTMLElement>("#path .pprog " + from)?.focus({ preventScroll: true });
+    return;
+  }
   if (p.from === "sheet") { setTab(p.tab); if (state.pathProg === p) { state.pathProg = null; render(); } return; }
   state.fromRoad = false;     // back on the roadmap: the screen under it is an exercise again (shell/history.js)
   toggleMenu(true);
@@ -60,16 +65,18 @@ export function progBack() {
   };
   if (moves()) setTimeout(under, SLIDE_MS); else under();
 }
+/** Focus on the Back of the page that came in over the stages (a term's card, the Difficulty page), as on any page that comes in. */
+const focusBack = (page: string) => document.querySelector<HTMLElement>("#path ." + page)?.previousElementSibling?.querySelector<HTMLElement>(".tstn")?.focus({ preventScroll: true });
 function openTerm(id: string) {
   const p = state.pathProg, pg = document.querySelector<HTMLElement>("#path .pprog"); if (!p) return;
-  p.y = pg ? pg.scrollTop : 0; p.term = id; render();
+  p.y = pg ? pg.scrollTop : 0; p.term = id; render(); focusBack("pprog-t");
 }
 /**
  * Opens the Difficulty page: over the stages from their page (Back comes to them), or by itself from a result or the practice options, in place of Review
  * as the stages would be (Back goes to the exercise).
  */
 export function openDifficulty(over = false) {
-  if (over) { const p = state.pathProg, pg = document.querySelector<HTMLElement>("#path .pprog"); if (!p) return; p.y = pg ? pg.scrollTop : 0; p.diff = "over"; render(); return; }
+  if (over) { const p = state.pathProg, pg = document.querySelector<HTMLElement>("#path .pprog"); if (!p) return; p.y = pg ? pg.scrollTop : 0; p.diff = "over"; render(); focusBack("pdiff"); return; }
   openProgression(-1, "sheet");
   if (state.pathProg) { state.pathProg.diff = "alone"; render(); }
 }
@@ -94,7 +101,7 @@ const Terms = ({ marks }: { marks: readonly StageMark[] }) => <ul class="tterms 
   const name = termOf(t.id)?.term || t.id;
   return <li class={t.mark}><i class={"tmk " + t.mark} aria-hidden="true" />
     {t.mark === "wait" ? <span class="ttn">{name}</span>
-      : <button type="button" class="ttn prg-tb" aria-label={name + ", " + SAYS[t.mark] + ". Its card"} onClick={() => openTerm(t.id)}><span lang="en">{name}</span><Icon n="chev" /></button>}</li>;
+      : <button type="button" class="ttn prg-tb" data-term={t.id} aria-label={name + ", " + SAYS[t.mark] + ". Its card"} onClick={() => openTerm(t.id)}><span lang="en">{name}</span><Icon n="chev" /></button>}</li>;
 })}</ul>;
 
 /** How a stage stands: its new terms answered right, or how many it brings while it is ahead. */

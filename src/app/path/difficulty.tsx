@@ -2,8 +2,8 @@
 // and the choice. The pace: how many course terms may be not right yet before a new one waits, and how many questions apart new terms come (src/domain/intro.ts,
 // PACES, paceSpacing), said in one line for the pace chosen. The negations: a negated side
 // in the pairs of Relations and Pervasions, open from stage NEG_OPEN (src/domain/stages.ts). The depth: chains of reasoning, layer by layer, the stages
-// after the ladder's last (LADDER_TOP), open once it is on. Each starts at its easiest, and a result suggests the next step; the rules are in
-// practice/difficulty.ts and the domain, the words here, kept short.
+// after the ladder's last (LADDER_TOP), open once it is on. The pace starts steady, the negations and the depth off, and a result suggests their next
+// step; a negation step taken stays on the page below its stage, so it can be switched off. The rules are in practice/difficulty.ts and the domain, the words here, kept short.
 import { state } from "../state.js";
 import { DEPTH_NAME, DEPTH_PICK, PACE_NAME, depthCanSet, depthNow, negationsOpen, setDepth, setPace } from "../practice/difficulty.ts";
 import { setNegBrackets, setNegation } from "../shell/session.js";
@@ -24,11 +24,11 @@ export const difficultyLine = (): string => PACE_NAME[state.pace] + " pace · ne
 
 
 export function DifficultyPage({ back }: { back: { label: string; act: () => void } }) {
-  const negOpen = negationsOpen(), deepOpen = depthCanSet();
+  const negOpen = negationsOpen() || state.negation !== "off", deepOpen = depthCanSet();     // negations on below their stage (the stages moved down) can still be switched off
   return <>
     <TopBar title="Difficulty" back={back} />
     <div key="diff" class="ppage prv pdiff">
-      <p class="psub">Each starts at its easiest. A result suggests the next step when your answers show you are ready.</p>
+      <p class="psub">The pace starts steady, negations and depth off. A result suggests the next step of these two when your answers show you are ready.</p>
       <Row lb="Pace"><b>Pace</b><small>{paceLine(state.pace)}</small>
         <Words label="Pace" items={PACES.map((n) => [n, cap(PACE_NAME[n] || String(n))] as [number, string])} cur={state.pace} on={setPace} /></Row>
       <Row lb="Not"><b>Negations</b><small>Pairs with “non-”, such as non-(wooden things).</small>

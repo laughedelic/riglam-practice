@@ -143,7 +143,7 @@ test("drawInstance: with stages, only categories open at the highest of them, an
   const data = makeIndex(STAGED), rose = data.DATA.items.find((i) => i.n === "the red of a rose")!;
   expect(setStage(data, ["col"], [rose])).toBe(2);
   expect(setStage(data, ["ft", "cons"])).toBe(4);
-  expect(setStage(data, ["form", "red"], data.DATA.items.filter((it) => inAll(data, it, ["form", "red"])))).toBe(1);
+  expect(setStage(data, ["form", "red"], data.DATA.items.filter((it) => inAll(data, it, ["form", "red"])))).toBe(0);
   expect(instanceQuestion(data, ["form", "red"], seeded(1), [1]).known).toEqual(["a red ball", "a red wooden ball"]);
   expect(instanceQuestion(data, ["form", "red"], seeded(1)).known).toContain("the red of a rose");
   const late = new Set(["ft", "perm", "cons", "col", "shape", "odor"]), kinds = new Set<boolean>();
@@ -172,6 +172,15 @@ test("drawInstance: on the open data at stages 0 and 1, every category is open, 
     else { impossible++; expect(d.apart!.why).not.toMatch(/a form|consciousness|compositional|functional|permanent|person/); }
   }
   expect(impossible).toBeGreaterThan(10);
+});
+
+test("drawInstance: stage 0 alone, where every learner starts, has sets of everyday categories to ask", () => {
+  const data = makeIndex(openData as unknown as DrillData);
+  for (let s = 0; s < 50; s++) {
+    const d = drawInstance(data, { rng: seeded(s), stages: [0] });
+    expect(d, "a set at stage 0").not.toBeNull();
+    for (const c of d!.cats) expect(catStage(data.CAT[c]), c).toBe(0);
+  }
 });
 
 test("instanceQuestion: at the first stages a reason says physical and a mind, as Categories does; the course's words once they open", () => {

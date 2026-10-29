@@ -17,7 +17,7 @@ import { render } from "../shell/render.js";
 import { setStages, stageName } from "../shell/stages.js";
 import type { DataIndex } from "../../ai-shared/lookup.ts";
 import { nextStageDue, stageMarks } from "../../domain/intro.ts";
-import { LADDER_TOP, NO_TERMS, cameDown, catStage, exerciseAfter, ladderOf, ladderTop, movedUp, newShare, pairStage, restartRun, runAfter, setManual, stageOffer, stageProgress, stayLonger, termsOf, topStage, withDepth, type MissKind, type StageProgress } from "../../domain/stages.ts";
+import { LADDER_TOP, NO_TERMS, cameDown, catStage, depthOf, exerciseAfter, ladderOf, ladderTop, movedUp, newShare, pairStage, restartRun, runAfter, setManual, stageOffer, stageProgress, stayLonger, termsOf, topStage, withDepth, type MissKind, type StageProgress } from "../../domain/stages.ts";
 
 const ix = () => state as unknown as DataIndex;
 /** What a mistake in each exercise says about the words (src/domain/stages.ts, MissKind). */
@@ -63,9 +63,10 @@ export function stageStep(ex: string, st: number, ok: boolean): boolean {
  * How far the highest stage is towards the next one, for the ring in the top bar (src/domain/stages.ts, stageProgress): its new terms with their marks, or the run.
  * On the Path the ring is the ladder's: depth is a difficulty of its own (the Difficulty page), so from stage 9 on it shows stage 9's terms.
  */
-export const progressNow = (): StageProgress => state.design === "path"
-  ? stageProgress(state.stageRun, ladderOf(state.stages), marksAt(ladderTop(state.stages)), nextNow(), LADDER_TOP)
-  : stageProgress(state.stageRun, state.stages, marksNow(), nextNow());
+export function progressNow(): StageProgress {
+  const path = state.design === "path", marks = path ? marksAt(ladderTop(state.stages)) : marksNow(), next = marks.length ? nextNow() : undefined;     // as stageStep: a stage without new terms (stage 0) waits for a run
+  return path ? stageProgress(state.stageRun, ladderOf(state.stages), marks, next, LADDER_TOP) : stageProgress(state.stageRun, state.stages, marks, next);
+}
 
 /** Whether an offer is of a layer of depth (on the Path: src/domain/stages.ts, LADDER_TOP), not of a stage. */
 const deep = (stage: number) => state.design === "path" && isDepth(stage);
@@ -117,8 +118,8 @@ export function setMovesUp(on: boolean) { state.stageRun = setManual(state.stage
 export function acceptStageOffer() {
   const o = pending(); if (!o || !state.ui) return;
   if (o.kind === "up") spend(); else { state.stageRun = cameDown(state.stageRun); saveProgress(); }     // a stage taken off comes back after a run, not at the next answer
-  if (deep(o.stage)) {      // on the Path, a layer of depth: what it is named on the Difficulty page
-    const d = o.stage - LADDER_TOP - (o.kind === "up" ? 0 : 1);
+  if (deep(o.stage)) {      // on the Path, a layer of depth: what it is named on the Difficulty page; a depth set there meanwhile is never undone by the tap
+    const cur = depthOf(state.stages), want = o.stage - LADDER_TOP - (o.kind === "up" ? 0 : 1), d = o.kind === "up" ? Math.max(cur, want) : Math.min(cur, want);
     state.ui.offer = { kind: "done", text: o.kind === "up" ? "Depth: " + DEPTH_NAME[d] + ", from the next question, in every exercise. Change it on the Difficulty page."
       : (d ? "Depth: " + DEPTH_NAME[d] + " for now." : "No chains for now.") + " Change it on the Difficulty page." };
     setStages(withDepth(state.stages, d));
