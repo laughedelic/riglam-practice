@@ -16,6 +16,15 @@ async function openSettings(page) {
   await expect(page.locator(".ppage .ptitle")).toHaveText("Settings");
 }
 const withKey = withCourse ? test : test.skip;
+/** The box of `loc` once it stands still (a page slides in). */
+async function steady(loc) {
+  let was = null;
+  for (;;) {
+    const box = await loc.boundingBox();
+    if (was && box && Math.abs(box.x - was.x) < 0.5 && Math.abs(box.y - was.y) < 0.5) return box;
+    was = box; await loc.page().waitForTimeout(60);
+  }
+}
 
 withKey("Settings on the Path: the Magic Key has its own page, which says what it is and asks before it is forgotten", async ({ page }) => {
   await start(page);
@@ -52,7 +61,7 @@ test("Settings on the Path: sections of lines, export and import and the version
 withKey("in the released app, holding Version with the Magic Key shows Experiments: the design, voice and the lab's settings, kept on the device", async ({ page }) => {
   await start(page);
   await openSettings(page);
-  const ver = page.locator(".ppage .ol", { hasText: "Version and updates" }), box = await ver.boundingBox();
+  const ver = page.locator(".ppage .ol", { hasText: "Version and updates" }), box = await steady(ver);   // where it stands once Settings has slid in
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
   await page.waitForTimeout(1700);
