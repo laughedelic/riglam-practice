@@ -129,6 +129,11 @@ test("category facts: a Dudra category carries its term's facts, an everyday one
   expect(catFacts(ix, "nope", "x")).toBeNull();
 });
 
+test("the card tells which qualities of the pair a listed example's name leaves open, also on a cell already marked wrong", () => {
+  const card = tutorCard(makeIndex(openData as unknown as DrillData), pair({ a: "black things", b: "minds", catA: "black", catB: "mind", relation: "mi" }), practice({ cells: { both: { t: "", none: true }, anb: { t: "a wooden chair" }, bna: { t: "a dragon" }, nei: { t: "" } }, res: noRes(["ok", "bad", "cmp", "ok"]) }));
+  expect(card).toContain("[in the practice list as: a wooden chair, type External form; its name leaves open whether it is black]");
+});
+
 test("the practice card names the cells, what the learner wrote, the reference and the page's verdict", () => {
   const card = tutorCard(ix, pair(), practice());
   expect(card.startsWith(GUIDE)).toBe(true);
@@ -376,7 +381,7 @@ test("the explain requests ask for the two facts about an example and the reason
     expect(ask).toContain("Start from the term and say what class it is in");
     expect(ask).toContain('do not write "only"');
     expect(ask).toContain("never answer against your own reason");
-    expect(ask).toContain('where the card does not say open, the list settles it, so answer by the ordinary reading of the thing and never open');
+    expect(ask).toContain('otherwise the list settles it, so answer by the ordinary reading of the thing and never open');
     expect(ask).toContain('For any other example, answer open on a side whose quality the example\'s name does not say: a feature such as the color of "a car"');
     expect(ask).toContain("Answer unsure only when the classification itself is in doubt");
     expect(ask).toContain("a thing is at room temperature unless its name says otherwise, or it is often heated in use");

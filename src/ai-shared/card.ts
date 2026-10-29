@@ -3,7 +3,7 @@
 import { qPlain, QCELL } from "./debate";
 import { catFacts, termFacts } from "./facts";
 import type { Facts } from "./facts";
-import { categoryOf, classNames, matchItem, noteCats, pairCats } from "./lookup";
+import { categoryOf, classNames, leavesOpen, matchItem, noteCats, pairCats } from "./lookup";
 import type { DataIndex } from "./lookup";
 import { termNamed } from "./mentions";
 import { CELLS, REL, cellLabel, negSides, plainLabel, refOf } from "./relations";
@@ -56,6 +56,12 @@ export function finePoints(ix: DataIndex, catIds: readonly (string | null | unde
 const verdictOf=(ix: DataIndex, r: { v: string; vague?: readonly string[] }): string =>
   r.vague?.length?"open (the example's name does not say whether it is "+r.vague.map(c=>ix.CAT[c]?.phrases?.[0]??"one of the "+(ix.CAT[c]?.labels[0]??c)).join(" or whether it is ")+"; the page has asked the learner to name it)":r.v;
 
+/** The practice-list tag of an example the learner wrote: its name and type, and the qualities of the pair its name leaves open, whatever the page's verdict on the cell (a cell already marked wrong has none). */
+const listedAs=(ix: DataIndex, it: NonNullable<ReturnType<typeof matchItem>>, p: PairLike): string => {
+  const cats=pairCats(ix,p), open=cats.filter(c=>c&&leavesOpen(it,c)) as string[];
+  return " [in the practice list as: "+it.n+", type "+it.t+(open.length&&!p.own?"; its name leaves open whether it is "+open.map(c=>ix.CAT[c]?.phrases?.[0]??"one of the "+(ix.CAT[c]?.labels[0]??c)).join(" or whether it is "):"")+"]";
+};
+
 /** The fine points of the pair's two categories as the tail of the card; empty when there are none. */
 export function cardNotes(ix: DataIndex, p: PairLike): string {
   const notes=finePoints(ix,noteCats(ix,p));
@@ -89,7 +95,7 @@ export function cardBody(ix: DataIndex, p: PairLike, u: AnswerView): string {
       const said=a.say==="accept"?"ACCEPT"+(a.timeout?" (time ran out, which counts as accepting)":""):a.say==="why"?"WHY"+(a.text?" with the example "+JSON.stringify(a.text):" without an example"):"nothing (time ran out)";
       const it=a.text?matchItem(ix,a.text):null;
       return "- Q"+(i+1)+" ("+qPlain(i)+") counter-example cell: "+cellLabel(c,p)+"; learner said "+said+
-        (it?" [in the practice list as: "+it.n+", type "+it.t+"]":"")+"; reference "+refTxt(c)+"; page verdict "+verdictOf(ix,r);
+        (it?listedAs(ix,it,p):"")+"; reference "+refTxt(c)+"; page verdict "+verdictOf(ix,r);
     }).join("\n");
     mid=`${DEBATE_NOTE}
 A = ${JSON.stringify(p.a)}, B = ${JSON.stringify(p.b)}.
@@ -103,7 +109,7 @@ ${lines}`;
       const none=rel.empty.includes(c)||u.cells[c].none, t=u.cells[c].t.trim(), r=u.res.cells[c];
       const it=t?matchItem(ix,t):null;
       return "- "+cellLabel(c,p)+": learner wrote "+(none?"NONE":(t?JSON.stringify(t):"(blank)"))+
-        (it?" [in the practice list as: "+it.n+", type "+it.t+"]":"")+
+        (it?listedAs(ix,it,p):"")+
         "; reference "+(own?"none, for you to decide":refTxt(c))+"; page verdict "+verdictOf(ix,r);
     }).join("\n");
     mid=`${FIND_NOTE}
@@ -117,7 +123,7 @@ ${lines}`;
       const none=REL[u.rel as RelKey].empty.includes(c)||u.cells[c].none, t=u.cells[c].t.trim(), r=u.res.cells[c];
       const it=t?matchItem(ix,t):null;
       return "- "+cellLabel(c,p)+": learner wrote "+(none?"NONE":(t?JSON.stringify(t):"(blank)"))+
-        (it?" [in the practice list as: "+it.n+", type "+it.t+"]":"")+
+        (it?listedAs(ix,it,p):"")+
         "; reference "+refTxt(c)+"; page verdict "+verdictOf(ix,r);
     }).join("\n");
     mid=`${negLine(p)}Correct relation: ${REL[p.relation].name}. Learner chose: ${u.late?"nothing (time ran out; the page then showed the right relation)":REL[u.rel as RelKey].name}.${u.exLate?" Time ran out on the examples: cells the learner had not reached are blank.":""}
