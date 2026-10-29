@@ -7,6 +7,7 @@ import { OPEN_CAP, normIntro, normPace } from "../domain/intro.ts";
 import { normLangs } from "../domain/languages.ts";
 import { EVERYDAY_STAGES } from "../domain/syllogism.ts";
 import { DEFAULT_STAGES, freshRun, normExRuns, normGuided, normRun, normStages, stagesOfLevels, topStage } from "../domain/stages.ts";
+import { normPerEx } from "../domain/per-exercise.ts";
 
 /** @type {import("./types.ts").State} */
 export const state = {
@@ -74,6 +75,11 @@ export const state = {
   retryTag: "Retry",
   nota: "codes",
   optsOpen: false,   // Settings (the device and the account) covers the exercise
+  optsPage: null,    // the Path's Settings: the line whose own page is open (path/settings.tsx), or null for the sections
+  preview: false,    // this is a Preview (staging, a pull request build), not the real app (platform.preview): the Path's Settings show Experiments
+  perEx: {},         // Blitz, the tutor and voice: each exercise's own values (practice/per-exercise.ts, `rd-per-ex`)
+  perBase: null,     // and the shared ones, for an exercise that has none of its own yet
+  expShown: false,   // the real app on a device with the Magic Key: Experiments shown in the Path's Settings after a hold on Version (`rd-exp`, device only)
   sessOpen: false,   // the Practice options of the exercise on screen: a sheet on a phone, a popover on a wide screen
   sessPage: null,    // the option whose own page is open in the Practice options (shell/session.js), or null for the list
   skipAsk: false,    // the dialog that asks before a pair with answers in it is skipped
@@ -157,6 +163,8 @@ try{ state.langs=normLangs(localStorage.getItem("rd-langs")); }catch(e){}
 try{ let q=localStorage.getItem("rd-quorum"); if(q===null){ q=localStorage.getItem("rd-lab"); if(q!==null){ localStorage.setItem("rd-quorum",q); localStorage.removeItem("rd-lab"); } } state.quorumChoice=q===null?null:q!=="0"; }catch(e){}
 try{ state.autoExplain=localStorage.getItem("rd-autoexplain")!=="0"; }catch(e){}
 try{ state.shareExamples=localStorage.getItem("rd-share")!=="0"; state.shareTold=localStorage.getItem("rd-share-told")==="1"; }catch(e){}
+try{ state.perEx=normPerEx(localStorage.getItem("rd-per-ex")); }catch(e){}
+try{ state.expShown=localStorage.getItem("rd-exp")==="1"; }catch(e){}
 try{ state.recentOpen=localStorage.getItem("rd-recent")!=="0"; }catch(e){}
 try{ const v=localStorage.getItem("rd-findrel"); if(FIND_RELS.includes(/** @type {any} */(v))) state.findRel=/** @type {any} */(v); }catch(e){}
 try{ state.findSuggest=localStorage.getItem("rd-findsuggest")!=="0"; }catch(e){}

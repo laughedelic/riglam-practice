@@ -6,6 +6,7 @@ import { render } from "../shell/render.js";
 import { App } from "./app.tsx";
 import { currentLook, restoreClassic } from "./look.ts";
 import { coarse } from "./ui.tsx";
+import { setBase } from "../practice/per-exercise.ts";
 
 const KEY = "rd-design";
 /** Whether the Path draws the page now. */
@@ -50,7 +51,7 @@ export function setDesign(d: "path" | "classic"): void {
   state.design = d;
   try { localStorage.setItem(KEY, d); } catch { /* the choice holds for this visit */ }
   let kept: string | null = null; try { kept = localStorage.getItem("rd-autoexplain"); } catch { /* storage blocked */ }
-  if (kept === null) state.autoExplain = d === "path" ? currentLook().tutorAuto === "on" : true;
+  if (kept === null) { state.autoExplain = d === "path" ? currentLook().tutorAuto === "on" : true; setBase("autoExplain", state.autoExplain); }
   syncDesign();
   render();
 }

@@ -6,6 +6,7 @@
 import { state } from "../state.js";
 import { startQ } from "../debate/flow.js";
 import { begun } from "./tabs.js";
+import { usePerExercise } from "../practice/per-exercise.ts";
 
 const KEY = "rd-attempt";
 const EXERCISES = ["practice", "debate", "find", "syllogism", "categories", "instance"];
@@ -39,7 +40,7 @@ export function takeAttempt(): boolean {
     if (!kept || kept.v !== 1 || !EXERCISES.includes(kept.tab) || !kept.cur || !kept.ui || typeof kept.ui !== "object") return false;
     const ui: Record<string, unknown> = { ...kept.ui, tid: null, tq: null, tph: null, chat: null, chatErr: "", pop: null, dterm: null, late: false, exLate: false };
     if (!begun(ui)) return false;
-    state.tab = state.own = kept.tab; state.cur = kept.cur as typeof state.cur; state.ui = ui as typeof state.ui; state.mode = "quiz";
+    state.tab = state.own = kept.tab; usePerExercise(kept.tab); state.cur = kept.cur as typeof state.cur; state.ui = ui as typeof state.ui; state.mode = "quiz";
     try { localStorage.setItem("rd-ex", kept.tab); } catch { /* the exercise is still the one on screen */ }
     if (kept.tab === "debate" && (ui.step as number) < 4) startQ();        // the question asked starts its clock again
     return true;
