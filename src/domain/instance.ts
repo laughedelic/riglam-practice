@@ -17,7 +17,7 @@ import { catChain, excludes, rung, termPhrase } from "./ladder";
 import { itemRows as placeItemRows } from "./place";
 import { placeByClass } from "./reference";
 import { HOLD_STAGE, MAX_STAGE, catOpen, catStage, heldBack, itemStage, physical, topStage } from "./stages";
-import type { Stages } from "./stages";
+import type { Stages, Unmet } from "./stages";
 import { FEATURE, cellsFor, inUniverse, judgeable, relOfCells } from "./universe";
 import type { Rng } from "./universe";
 import { cap, pick } from "./util";
@@ -195,6 +195,11 @@ export interface InstanceDraw {
   avoid?: ReadonlySet<string>;
   /** the stages that are on (the learner's switches): only sets asked from the highest of them or below (`setStage`); every set when absent */
   stages?: Stages;
+  /** the Dudra categories whose term the learner has not met yet (intro.ts): a set with one of them waits, unless nothing else can be asked */
+  unmet?: Unmet;
+  /** the new terms of the highest stage whose last answer is not right yet (intro.ts, openTerms): `newShare` of the sets (half when absent) have one of them, while any can be asked */
+  open?: ReadonlySet<string>;
+  newShare?: number;
 }
 
 /** How often each size of set is asked, and how often a set of two or three is one where nothing can be. */
@@ -232,11 +237,23 @@ export function instanceQuestion(ix: DataIndex, set: readonly string[], rng: Rng
 /**
  * The next set to ask: its size by `SIZES`, and for two or three categories, by `APART_SHARE`, one where nothing can be; a kind with few sets
  * less often (`SPREAD`). Pairs where nothing can be come by their reason first, a reason with more pairs a little more often. Sets asked
- * lately (`avoid`) wait while others remain; with `stages`, only the sets asked at them. Null when the data has nothing to ask.
+ * lately (`avoid`) wait while others remain; with `stages`, only the sets asked at them; a set with a term not met yet (`unmet`) waits, and `newShare`
+ * of the sets have one of the stage's `open` terms. Null when the data has nothing to ask.
  */
 export function drawInstance(ix: DataIndex, draw: InstanceDraw): InstanceQuestion | null {
+  // the sets with an open term for a share of the questions; if there are none, or none to ask, the set of any open category, and last the sets with a term not met yet
+  const open = draw.open?.size && draw.rng() < (draw.newShare ?? 0.5) ? draw.open : undefined;
+  const plans: [Unmet | undefined, ReadonlySet<string> | undefined][] = [[draw.unmet, open]];
+  if (open) plans.push([draw.unmet, undefined]);
+  if (draw.unmet?.size) plans.push([undefined, undefined]);
+  for (const [unmet, lean] of plans) { const q = askSet(ix, draw, unmet, lean); if (q) return q; }
+  return null;
+}
+
+function askSet(ix: DataIndex, draw: InstanceDraw, unmet?: Unmet, open?: ReadonlySet<string>): InstanceQuestion | null {
   const pool = poolOf(ix), rng = draw.rng, fresh = (s: { set: readonly string[] }) => !draw.avoid?.has(instanceKey(s.set));
-  const top = draw.stages ? topStage(draw.stages) : Infinity, at = <T extends Staged>(sets: readonly T[]) => sets.filter((s) => s.st <= top);
+  const top = draw.stages ? topStage(draw.stages) : Infinity;
+  const at = <T extends Staged>(sets: readonly T[]) => sets.filter((s) => s.st <= top && !(unmet?.size && s.set.some((c) => unmet.has(c))) && (!open || s.set.some((c) => open.has(c))));
   const choose = <T extends Staged>(sets: readonly T[], w: (s: T) => number = () => 1) => (weighted(sets.filter(fresh), w, rng) ?? weighted(sets, w, rng))?.set;
   const one = at(pool.one), two = at(pool.two), apart = pool.apart.map(at).filter((g) => g.length), three = at(pool.three), threeApart = at(pool.threeApart);
   const kinds = [
@@ -358,4 +375,14 @@ export function gradeInstance(ix: DataIndex, q: InstanceQuestion, ans: InstanceA
   const thing = "item" in named ? (named.loose ? text : named.item.n) : named.exs[0].n, from = "item" in named ? "item" : "example";
   const v = !q.possible || rows.some((r) => r.answer === false) ? "bad" : rows.every((r) => r.answer) ? "ok" : "open";
   return { v, thing, from, rows, example: v === "ok" ? null : sample() };
+}
+
+/**
+ * The course terms a checked answer grades (intro.ts, afterQuestion): a right thing is in every category of the set, so each of them was right; a right
+ * "nothing is" shows that the two categories that exclude each other do. A wrong or open answer grades nothing: here a mistake is mostly about
+ * knowing the thing, as in Syllogisms and Find a pair, which count only right answers as well.
+ */
+export function instanceGraded(q: InstanceQuestion, res: Pick<InstanceResult, "v">, none: boolean): { cat: string; ok: boolean }[] {
+  if (res.v !== "ok") return [];
+  return (none && q.apart ? [q.apart.a, q.apart.b] : q.cats).map((cat) => ({ cat, ok: true }));
 }

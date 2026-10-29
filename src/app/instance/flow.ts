@@ -6,8 +6,10 @@
 import { state } from "../state.js";
 import { persist } from "../practice/answers.js";
 import { freshUi } from "../practice/queue.js";
+import { catsStageNow, shareNow, stageStep } from "../practice/stage-offer.ts";
+import { gradeTerms, openNow, unmetNow } from "../practice/stops.ts";
 import { render, top0 } from "../shell/render.js";
-import { drawInstance, gradeInstance, instanceKey } from "../../domain/instance.ts";
+import { drawInstance, gradeInstance, instanceGraded, instanceKey } from "../../domain/instance.ts";
 import type { InstanceQuestion, InstanceResult } from "../../domain/instance.ts";
 import type { DataIndex } from "../../ai-shared/lookup.ts";
 import type { InstanceDoc, Ui } from "../types.ts";
@@ -25,9 +27,9 @@ export function freshInstanceUi(): Ui {
 /** The set on screen, or undefined while the data has none to ask. */
 export const shownSet = (): InstanceQuestion | undefined => (state.cur && state.cur.inst ? state.cur.iq : undefined);
 
-/** Draws the next set at the stages that are on, leaning away from the ones asked lately. */
+/** Draws the next set at the stages that are on, leaning away from the ones asked lately and towards the terms of the stage that are not right yet (practice/stops.ts). */
 export function advanceInstance(): void {
-  const q = state.DATA ? drawInstance(ix(), { rng: Math.random, avoid: new Set(state.instRecent), stages: state.stages }) : null;
+  const q = state.DATA ? drawInstance(ix(), { rng: Math.random, avoid: new Set(state.instRecent), stages: state.stages, unmet: unmetNow(), open: openNow(), newShare: shareNow() }) : null;
   if (q) state.instRecent = [...state.instRecent, instanceKey(q.cats)].slice(-RECENT);
   state.cur = { p: null as never, inst: true, iq: q ?? undefined };
   state.ui = freshInstanceUi(); state.mode = "quiz";
@@ -65,6 +67,8 @@ export function checkInstance(): void {
   if (!u || !q || (!u.none && !said)) return;
   const ir = gradeInstance(ix(), q, u.none ? { none: true } : { text: said }, state.EX);
   u.ir = ir; u.checked = true;
+  gradeTerms(instanceGraded(q, ir, !!u.none), false);     // a right answer proves each course term of the set; a mistake is mostly about knowing the thing, so it counts for none (practice/stops.ts)
+  if (ir.v !== "open") stageStep("instance", catsStageNow(q.cats), ir.v === "ok");     // the run towards the next stage (practice/stage-offer.ts)
   const doc: InstanceDoc = {
     pairId: docId(), mode: "instance", cats: q.cats, labels: q.labels, possible: q.possible, said: u.none ? null : said,
     ...(ir.from ? { thing: ir.thing } : {}), grade: GRADE[ir.v], at: new Date().toISOString(),

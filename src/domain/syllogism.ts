@@ -477,6 +477,12 @@ export interface SyllogismDraw {
   stages?: Stages;
   /** the Dudra categories whose term the learner has not met yet (intro.ts): a reason or predicate among them waits, unless the situation has nothing else */
   unmet?: Unmet;
+  /**
+   * the new terms of the highest stage whose last answer is not right yet (intro.ts, openTerms): `newShare` of the syllogisms (half when absent) have one of
+   * them as the reason or the predicate, with the course's terms even where the rest is everyday (`levelAt`), while any can be drawn. Not with `level` 1.
+   */
+  open?: ReadonlySet<string>;
+  newShare?: number;
   rng?: Rng;
 }
 
@@ -490,11 +496,20 @@ export const levelAt = (on: Stages): 1 | 2 => (topStage(on) <= EVERYDAY_STAGES ?
 
 /** The syllogism to practice next. See the note on the draw: the answer, then the situation, then the triple by its links. */
 export function drawSyllogism(ix: DataIndex, st: SyllogismDraw): Syllogism {
-  const rng = st.rng || Math.random, top = st.level ?? (st.stages ? levelAt(st.stages) : 2), hist = st.hist;
-  const staged = st.stages && SIT_IDS.some((s) => viewOf(ix, s, top, st.stages).all.length > 0) ? st.stages : undefined;
-  const usable = (s: Situation) => viewOf(ix, s, top, staged).all.length > 0;
+  const rng = st.rng || Math.random, hist = st.hist;
+  // a share of the questions asks one of the stage's open terms, which needs the course's terms where the stage is still everyday; if no syllogism has one, the draw is the plain one
+  const plan = (open?: ReadonlySet<string>) => {
+    const top = open ? 2 : st.level ?? (st.stages ? levelAt(st.stages) : 2);
+    const staged = st.stages && SIT_IDS.some((s) => viewOf(ix, s, top, st.stages).all.length > 0) ? st.stages : undefined;
+    const asks = (g: Group) => !open || open.has(g.pair.r) || open.has(g.pair.p);
+    return { top, staged, asks, usable: (s: Situation) => viewOf(ix, s, top, staged).all.some(asks) };
+  };
+  const wants = st.open?.size && st.level !== 1 && rng() < (st.newShare ?? 0.5) ? st.open : undefined;
+  let p = plan(wants);
+  if (wants && !SIT_IDS.some(p.usable)) p = plan();
+  const { top, staged, asks, usable } = p;
   // light relief: now and then a syllogism with nothing linking its parts at all (the reason is not established, and the pervasion fails as well)
-  const zero = rng() < RELIEF ? viewOf(ix, 8, top, staged).zero : [];
+  const zero = rng() < RELIEF ? viewOf(ix, 8, top, staged).zero.filter(asks) : [];
   let sit: Situation = 8, pool = zero;
   if (!zero.length) {
     // the answer: all three alike, the one asked lately less, the one missed lately more
@@ -505,8 +520,8 @@ export function drawSyllogism(ix: DataIndex, st: SyllogismDraw): Syllogism {
     if (!replies.length) throw new Error("no syllogism to draw from");
     const answer = chooseWeighted(replies, (a) => aw[a], rng);
     sit = chooseWeighted(SIT_IDS.filter((s) => SITUATIONS[s].answer === answer && usable(s)), (s) => SITUATIONS[s].weight, rng);
-    const v = viewOf(ix, sit, top, staged);
-    pool = v.linked.length ? v.linked : v.some.length ? v.some : v.all;
+    const v = viewOf(ix, sit, top, staged), linked = v.linked.filter(asks), some = v.some.filter(asks);
+    pool = linked.length ? linked : some.length ? some : v.all.filter(asks);
   }
   if (st.unmet?.size) {
     const met = pool.filter((g) => !st.unmet!.has(g.pair.r) && !st.unmet!.has(g.pair.p));

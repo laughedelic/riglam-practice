@@ -224,6 +224,8 @@ export interface DrawState {
   even?: boolean;
   /** the share of the pairs new at the highest stage (stages.ts, newShare): a quarter while the exercise is new to the learner; none: half */
   newShare?: number;
+  /** the new terms of the highest stage whose last answer is not right yet (intro.ts, openTerms): its pairs are drawn among theirs while any can be */
+  open?: ReadonlySet<string>;
   /**
    * the negation track: about a third of the pairs have one side negated, A or B alike ("one", as the tutors negate either), or, with "both", half
    * of those have A and B negated. None: no negation, and the draw takes the same random numbers as before the track.
@@ -252,7 +254,7 @@ const THIN_RELATION = 8;
  * The pool entry for the next pair: the relation that has been seen least lately, then a pair of categories weighted by what the learner got
  * wrong. With `stages`, from the pairs those stages can draw, the stage comes first: half the time (or `newShare`) the highest, else one of the
  * stages below, each as likely as the others (not each pair: stage 1 has a third of all the pairs), a stage made of pairs of two everyday
- * categories counting for less (EVERYDAY_ONLY) once a course term is in play.
+ * categories counting for less (EVERYDAY_ONLY) once a course term is in play; a pair of the highest stage has one of its `open` terms while one can.
  */
 export function chooseEntry(ix: DataIndex, full: readonly PoolEntry[], st: DrawState): PoolEntry {
   const { hist, recent } = st, rng = st.rng || Math.random, isHidden = st.isHidden || (() => false);
@@ -276,6 +278,11 @@ export function chooseEntry(ix: DataIndex, full: readonly PoolEntry[], st: DrawS
       for (const s of below) { if ((x -= weight(s)) <= 0) { stage = s; break; } }
     }
     pool = all.filter((c) => c.st === stage);
+    // the stage waits for the last answer on each of its new terms to be right: its questions go to the terms that are not yet
+    if (stage === top && st.open?.size) {
+      const lean = pool.filter((c) => st.open!.has(c.a) || st.open!.has(c.b));
+      if (lean.length) pool = lean;
+    }
   }
   const last = hist.slice(-8).map((x) => (x.key === "3ab" || x.key === "3ba" ? "3" : x.key));
   const seen = new Set(hist.slice(-60).map((x) => [x.catA, x.catB].sort().join("|")).concat(recent));

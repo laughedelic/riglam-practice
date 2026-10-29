@@ -6,7 +6,7 @@ import { persist } from "../practice/answers.js";
 import { freshUi } from "../practice/queue.js";
 import { render, renderKeepFocus, top0 } from "../shell/render.js";
 import { drawPlace, gradeNarrow, gradePlace, placeGrade, placeNarrow } from "../../domain/place.ts";
-import { gradeTerms, unmetNow } from "../practice/stops.ts";
+import { gradeTerms, openNow, unmetNow } from "../practice/stops.ts";
 import { acceptStageOffer, declineStageOffer, shareNow, stageStep } from "../practice/stage-offer.ts";
 
 /* ---------- Categories: a thing is shown; tick the categories it is in, then pick the most specific ---------- */
@@ -26,7 +26,7 @@ export const shownThing=()=>state.cur.q;
 
 /** Draws the next thing: a practice item or a reference example (where the device holds them) of the stages that are on, leaning away from the ones asked lately. */
 export function advanceCategories(){
-  const q=drawPlace(state,state.EX?state.EX.items:null,{stages:state.stages,unmet:unmetNow(),rng:Math.random,avoid:new Set(state.catsRecent),newShare:shareNow()});
+  const q=drawPlace(state,state.EX?state.EX.items:null,{stages:state.stages,unmet:unmetNow(),open:openNow(),rng:Math.random,avoid:new Set(state.catsRecent),newShare:shareNow()});
   if(q) state.catsRecent=[...state.catsRecent,q.thing.n].slice(-RECENT);
   state.cur=/** @type {any} */({p:null,cats:true,q:q||undefined,tried:drawKey()}); state.ui=freshCategoriesUi(); state.mode="quiz";
 }

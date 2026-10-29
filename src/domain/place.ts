@@ -57,6 +57,8 @@ export interface PlaceDraw {
   unmet?: Unmet;
   /** the share of things from the highest stage on, when lower ones have things too (stages.ts, newShare); none: every stage as often as the others */
   newShare?: number;
+  /** the new terms of the highest stage whose last answer is not right yet (intro.ts, openTerms): its questions ask about one of them while one can be asked */
+  open?: ReadonlySet<string>;
 }
 
 /** A category as a sentence says it: a Dudra term with its article, an everyday category by its phrase ("furniture", "made of wood"). */
@@ -200,7 +202,7 @@ export const thingRows = (ix: DataIndex, t: PlaceThing, on: Stages, unmet?: Unme
  * that can be asked (those that cannot are passed over without changing the stage); names in `avoid` wait while others remain. Stages outside 1 to 9 count for nothing, and none left means the default. Null when nothing qualifies.
  */
 export function drawPlace(ix: DataIndex, examples: readonly Example[] | null, draw: PlaceDraw): PlaceQuestion | null {
-  const on = normStages(draw.stages), near = nearShare(topStage(on));
+  const on = normStages(draw.stages), near = nearShare(topStage(on)), high = topStage(on);
   const usable = placeThings(ix, examples ?? [], on);
   const fresh = usable.filter((t) => !draw.avoid?.has(t.n));
   for (const pool of fresh.length ? [fresh, usable] : [usable]) {
@@ -212,9 +214,15 @@ export function drawPlace(ix: DataIndex, examples: readonly Example[] | null, dr
       // a thing the data settles too little for is passed over within its stage, so that the stage keeps its share (a stage whose reference
       // examples cannot be asked would otherwise lose its draws to the stage below); a stage with nothing to ask is left out
       let of = left.filter((t) => t.st === stage);
+      // the highest stage waits for the last answer on each of its new terms to be right: its things are those that can be asked about one that is not yet
+      const open = stage === high && draw.open?.size ? draw.open : null, asks = (rows: readonly PlaceRow[]) => rows.some((r) => open!.has(r.cat));
+      if (open) { const lean = of.filter((t) => asks(thingRows(ix, t, on, draw.unmet))); if (lean.length) of = lean; }
       while (of.length) {
-        const thing = of[Math.floor(draw.rng() * of.length)];
-        const rows = placeQuestionRows(ix, thing, draw.rng, draw.size, thingRows(ix, thing, on, draw.unmet), near, plainRows(topStage(on), draw.size));
+        const thing = of[Math.floor(draw.rng() * of.length)], all = thingRows(ix, thing, on, draw.unmet);
+        const pick = () => placeQuestionRows(ix, thing, draw.rng, draw.size, all, near, plainRows(high, draw.size));
+        let rows = pick();
+        // the rows are a sample of the thing's: a few more tries for one with an open term in it
+        for (let k = 0; open && rows && !asks(rows) && asks(all) && k < 6; k++) rows = pick() ?? rows;
         if (rows) return { thing, rows };
         of = of.filter((t) => t !== thing);
       }

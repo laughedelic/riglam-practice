@@ -10,7 +10,7 @@ import { hasDef } from "./terms.js";
 import { saveProgress } from "./progress.ts";
 import { render } from "../shell/render.js";
 import type { DataIndex } from "../../ai-shared/lookup.ts";
-import { SETTLED, afterQuestion, againAsked, freshIntro, needsIntro, nextStop, pairGraded, showAgain, stageUp, stopShown, termTree, unmet, type Stop } from "../../domain/intro.ts";
+import { SETTLED, afterQuestion, againAsked, freshIntro, needsIntro, nextStop, openTerms, pairGraded, showAgain, stageUp, stopShown, termTree, unmet, type Stop } from "../../domain/intro.ts";
 import { catStage } from "../../domain/stages.ts";
 
 const save = () => { if (state.intro) saveProgress(); };
@@ -24,6 +24,8 @@ export function startStops() {
 }
 /** The categories of the stages on whose stop has not come yet: the draws leave them out. */
 export const unmetNow = (): Set<string> => (onPath() && state.intro && state.DATA ? unmet(ix(), state.intro, state.stages) : new Set());
+/** The new terms of the highest stage whose last answer is not right yet: the new questions lean to them (the next stage waits for them). */
+export const openNow = (): Set<string> => (onPath() && state.intro && state.DATA ? openTerms(ix(), state.intro, state.stages) : new Set());
 /**
  * An answer was checked: each course term it used goes up a box when the learner was right about it, and back to the first when not, which brings
  * its stop back a few questions later. `misses` false: an exercise where a mistake is mostly about its form (Syllogisms, Find a pair) counts only right answers.
@@ -38,6 +40,15 @@ export const gradePair = (cats: (string | null | undefined)[], ok: boolean) => g
 export function dueStop(): Stop | null {
   const u = state.ui; if (!onPath() || !state.intro || !state.DATA || !u || u.stop) return null;
   return nextStop(ix(), state.intro, state.stages, now());
+}
+/**
+ * The stop that Next on the station of a stage coming in would lead to: the stage comes in and its first term is due at once (`stopsStageUp`); when the learner
+ * stays on the stage, the stop due now, if any. Null off the station.
+ */
+export function stopAfterStage(): Stop | null {
+  const up = state.ui && state.ui.up; if (!onPath() || !state.intro || !state.DATA || !up || !up.shown) return null;
+  const comes = !up.stayed && !state.stageRun.manual && !state.stages.includes(up.stage);
+  return nextStop(ix(), comes ? stageUp(state.intro) : state.intro, comes ? [...state.stages, up.stage].sort((a: number, b: number) => a - b) : state.stages, now());
 }
 /** Before the next question: the stop that is due, if any, goes on the answer on screen and counts as shown. Whether one did. */
 export function takeStop(): boolean {
