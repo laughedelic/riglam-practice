@@ -1,0 +1,49 @@
+/* The Path's practice options and Settings as lines (path/lines.tsx; the Design Lab's "Settings and options", round 3): the page full width in groups under small
+   headings; a line is [the switch] [the name, with its value or a quick choice under it] [the chevron into its page]; the whole line is the way in (.olhit under the
+   rest), and only the switch and the quick choice keep their own taps. */
+.pa .sgrp{padding-top:10px}
+.pa .sgh{font-family:var(--mono); font-size:10.5px; font-weight:400; letter-spacing:.1em; text-transform:uppercase; color:var(--ink3); padding:8px 16px 6px; margin:0}
+.pa .sgnote{font-size:13px; color:var(--ink3); padding:0 16px 6px; margin:0}
+.pa .sintro{font-size:13.5px; color:var(--ink2); padding:14px 16px 6px; line-height:1.4; margin:0}
+.pa .ol{position:relative; display:grid; grid-template-columns:52px minmax(0,1fr) 40px; align-items:center; min-height:56px; border-top:1px solid var(--rule); padding:8px 6px 8px 4px}
+.pa .sgh + .ol,.pa .sgnote + .ol{border-top-color:transparent}
+.pa .olhit{position:absolute; inset:0; z-index:0; background:transparent; transition:background-color .15s}
+.pa .olhit:active{background-color:var(--blue-t)}
+.pa .olsw{position:relative; z-index:1; display:grid; place-items:center; width:48px; height:44px}
+.pa .oltx{position:relative; z-index:0; pointer-events:none; display:flex; flex-direction:column; gap:2px; min-width:0; padding:0 4px}
+.pa .oltx b{font-size:17px; font-weight:600; line-height:1.25}
+.pa .oltx b.olpb{font-size:15.5px; font-weight:500}
+.pa .oltx small{font-size:13.5px; color:var(--ink2); line-height:1.3}
+.pa .ol.off .oltx small{color:var(--ink3)}
+.pa .olq{pointer-events:auto; position:relative; z-index:1; padding-top:4px; align-self:flex-start}
+.pa .olbody{pointer-events:auto; position:relative; z-index:1; padding-top:6px; display:flex; flex-direction:column; gap:6px}
+.pa .olchev{position:relative; z-index:0; pointer-events:none; display:grid; place-items:center; color:var(--blue)}
+.pa .olchev .i{width:18px; height:18px}
+.pa .oltag{font-family:var(--mono); font-size:10px; font-weight:400; font-style:normal; letter-spacing:.06em; text-transform:uppercase; color:var(--ink3); margin-left:8px; vertical-align:2px; white-space:nowrap}
+.pa .oltag.exp{color:var(--gold-t)}
+.pa .sgh .oltag{margin-left:10px}
+.pa .sgend .ol{margin-top:14px}
+.pa .olact{color:var(--blue)}
+.pa .olact .i{width:19px; height:19px}
+.pa .olact.busy .i{animation:rspin .8s linear infinite}
+/* the two-diamond switch (ui.tsx Toggle, the look's `both`): off, the hollow diamond and the small filled one beside it, the pair centered; on, the small one inside */
+.pa .dtg{width:40px; height:22px; overflow:visible; display:block; flex:none}
+.pa .dtg polygon{stroke-width:1.7; stroke-linejoin:miter; vector-effect:non-scaling-stroke; transition:transform .32s cubic-bezier(.3,.8,.25,1),fill .2s,stroke .2s}
+.pa .dtg .dtb{fill:var(--paper); stroke:var(--ink3); transform:translateX(-5.25px)}
+.pa .dtg .dts{fill:var(--ink3); stroke:none; transform:translateX(9.75px); transition:transform .32s cubic-bezier(.3,.8,.25,1),fill .2s .12s}
+.pa .dtg.on .dtb{stroke:var(--blue); transform:none}
+.pa .dtg.on .dts{fill:var(--blue); transform:none}
+@media (prefers-reduced-motion:reduce){ .pa .dtg polygon{transition:fill .2s,stroke .2s} }
+.pa .olsamp{display:block; font-size:14px; color:var(--ink2); line-height:1.4}
+.pa .olsym{display:block}
+.pa .olsym b{font-size:13px; color:var(--ink)}
+.pa .olctl{display:flex; flex-wrap:wrap; align-items:center; gap:0 18px}
+.pa .olctl > .pdom,.pa .olctl > .pver,.pa .olctl > .pkeynote,.pa .olctl > .phost{flex-basis:100%}
+/* a page of lines is full width, without the margin's rule; the way back sits at its edge */
+.pa .ppage.sfull,.pa .psheet .sbody.sfull{background-image:none}
+.pa .ppage .sback{display:flex; align-items:center; gap:6px; font-family:var(--mono); font-size:11.5px; color:var(--blue)}
+.pa .ppage .sback .i{width:14px; height:14px; transform:rotate(180deg)}
+.pa .sfull .sback{padding:10px 16px 4px}
+.pa .sfull .ptitle{padding-left:16px; padding-right:16px}
+.pa .sgh + div > .ol{border-top-color:transparent}
+.pa span.olsw{pointer-events:none}   /* the empty column of a line with no switch: a tap there is the line's */
