@@ -14,6 +14,7 @@ import { Pull, SLIDE, bump } from "./gesture.ts";
 import type { ScanPlan } from "./scan.tsx";
 import { refreshPath } from "./index.tsx";
 import { currentLook } from "./look.ts";
+import { sheetTitle } from "./options.tsx";
 import { Bridge, Icon } from "./ui.tsx";
 
 export const PullCtx = createContext<Pull>(new Pull());
@@ -24,10 +25,12 @@ export interface TopBarProps { title: string; tools?: boolean; mic?: boolean }
 
 const HOLD_MS = 500;
 export function TopBar({ title, tools = false, mic = false }: TopBarProps) {
+  // while the practice options are open the bar is theirs: it names them in place of the exercise, its tools give way and the sliders become the close
+  const shown = (state.mode === "quiz" && isEx() && sheetTitle()) || "", heading = shown || title;
   const bar = useRef<HTMLElement>(null), drag = useRef<{ y0: number; d: number } | null>(null), hold = useRef<ReturnType<typeof setTimeout> | undefined>(undefined), held = useRef(false);
   const road = () => bar.current && bar.current.closest(".pa")?.querySelector<HTMLElement>(".road");
   // pull the bar down for the roadmap: it follows the finger, and opens past 90 px
-  const down = (e: PointerEvent) => { if ((e.target as Element).closest(".pib,.tstn")) return; drag.current = { y0: e.clientY, d: 0 }; };
+  const down = (e: PointerEvent) => { if (shown || (e.target as Element).closest(".pib,.tstn")) return; drag.current = { y0: e.clientY, d: 0 }; };
   const move = (e: PointerEvent) => {
     const g = drag.current, r = road(); if (!g || !r || !bar.current) return;
     g.d = Math.max(0, e.clientY - g.y0);
@@ -39,6 +42,7 @@ export function TopBar({ title, tools = false, mic = false }: TopBarProps) {
     if (g.d > 90) toggleMenu(true);
   };
   const ex = state.mode === "quiz" && isEx(), u = state.ui;
+  const roadmap = () => { if (state.sessOpen) toggleSess(false); toggleMenu(true); };
   const timed = ex && state.blitzUse && (state.tab === "practice" || state.tab === "debate" || state.tab === "syllogism");
   // the countdown bar: a new countdown is a new bar (keyed by its start), so that its animation starts from full
   const tq = u && u.tq, e = tq ? Math.max(0, Math.round(performance.now() - tq.t0)) : 0;
@@ -46,15 +50,15 @@ export function TopBar({ title, tools = false, mic = false }: TopBarProps) {
   const bzDown = (ev: PointerEvent) => { if (ev.button) return; held.current = false; clearTimeout(hold.current); hold.current = setTimeout(() => { held.current = true; openBlitzOptions(); }, HOLD_MS); };
   const bzStop = () => clearTimeout(hold.current);
   return <header class="ptb" ref={bar} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
-    <button type="button" class="tstn" aria-label="The roadmap: tap, or pull the top bar down" onClick={() => toggleMenu(true)}><span class="tgo"><span class="mk"><Icon n="chev" /></span></span></button>
-    <button type="button" class="ptb-t" aria-label={title + ", pull down for the roadmap"} onClick={() => toggleMenu(true)}><span>{title}</span></button>
+    <button type="button" class="tstn" aria-label="The roadmap: tap, or pull the top bar down" onClick={roadmap}><span class="tgo"><span class="mk"><Icon n="chev" /></span></span></button>
+    <button type="button" class="ptb-t" aria-label={heading + ", pull down for the roadmap"} onClick={roadmap}><span>{heading}</span></button>
     <span class="spc" />
-    {tools && readShown() ? <button type="button" class={"pib" + (state.voice.muted ? "" : " on")} role="switch" aria-checked={state.voice.muted ? "false" : "true"} aria-label="Read aloud" onClick={toggleReadAloud}><Icon n={state.voice.muted ? "speakoff" : "speak"} /></button> : null}
-    {tools && mic && micShown() ? <button type="button" id="vmic" class={"pib" + (state.voice.phase === "listening" ? " on" : "")} aria-pressed={state.voice.phase === "listening" ? "true" : "false"} aria-label="Answer by voice" onClick={() => toggleListen()}><Icon n="mic" /></button> : null}
-    {tools && timed ? <button type="button" class={"pib" + (state.blitz ? " on" : "")} role="switch" aria-checked={state.blitz ? "true" : "false"} aria-label={state.blitz ? "Blitz on (hold for the Blitz options)" : "Blitz off (hold for the Blitz options)"}
+    {tools && !shown && readShown() ? <button type="button" class={"pib" + (state.voice.muted ? "" : " on")} role="switch" aria-checked={state.voice.muted ? "false" : "true"} aria-label="Read aloud" onClick={toggleReadAloud}><Icon n={state.voice.muted ? "speakoff" : "speak"} /></button> : null}
+    {tools && !shown && mic && micShown() ? <button type="button" id="vmic" class={"pib" + (state.voice.phase === "listening" ? " on" : "")} aria-pressed={state.voice.phase === "listening" ? "true" : "false"} aria-label="Answer by voice" onClick={() => toggleListen()}><Icon n="mic" /></button> : null}
+    {tools && !shown && timed ? <button type="button" class={"pib" + (state.blitz ? " on" : "")} role="switch" aria-checked={state.blitz ? "true" : "false"} aria-label={state.blitz ? "Blitz on (hold for the Blitz options)" : "Blitz off (hold for the Blitz options)"}
       onPointerDown={bzDown} onPointerUp={bzStop} onPointerLeave={bzStop} onPointerCancel={bzStop} onContextMenu={(ev) => ev.preventDefault()}
       onClick={() => { if (held.current) { held.current = false; return; } setBlitz(!state.blitz); }}><Icon n="blitz" />{state.blitz ? <span class="dot" /> : null}</button> : null}
-    {tools && ex ? <button type="button" class="pib" aria-label="Practice options" aria-expanded={state.sessOpen ? "true" : "false"} onClick={() => toggleSess(!state.sessOpen)}><Icon n="opts" /></button> : null}
+    {tools && ex ? <button type="button" class="pib" aria-label={shown ? "Close the practice options" : "Practice options"} aria-expanded={state.sessOpen ? "true" : "false"} onClick={() => toggleSess(!state.sessOpen)}><Icon n={shown ? "close" : "opts"} /></button> : null}
     {tq ? <div key={tq.t0 + "/" + tq.limit} class={"pclock" + (u.late ? " late" : "")} aria-hidden="true" style={{ "--t": tq.limit + "ms", "--e": e + "ms" }}><i /></div> : null}
   </header>;
 }
@@ -74,14 +78,17 @@ export function Toast() {
   return <div class={"ptoast" + (n ? " on" : "")} role="status">{n ? n.text : ""}</div>;
 }
 
+/** What a station says, by its look: a step inside an exercise is medium (the size of the gray stations that wait for it); `ex` leads to a question (gold, like the question steps),
+ *  `chk` checks or shows the verdict (ink, the finished). The station that goes on to the next exercise has none: it is the big blue one. */
+export type StationKind = "ex" | "chk";
 /** The station at the edge, ready: pull it up over the curb, tap it, or press Enter (its arrow hops, as the sign that it can be taken). Taking it plays the ride
  *  (take.ts) unless `back`: it goes back to what was there, and the step is simply there. `keep`: it stands on the page above a keyboard (the Check under the last
- *  example), so touching it keeps the field's focus until it is taken, and then the keyboard goes. */
-export function Station({ name, hint = "", act, arrive = false, back = false, keep = false, scan }: { name: string; hint?: string; act: () => void; arrive?: boolean; back?: boolean; keep?: boolean; scan?: () => ScanPlan }) {
+ *  example), so touching it keeps the field's focus until it is taken, and then the keyboard goes. `kind`: what it says (above). */
+export function Station({ name, hint = "", act, arrive = false, back = false, keep = false, scan, kind }: { name: string; hint?: string; act: () => void; arrive?: boolean; back?: boolean; keep?: boolean; scan?: () => ScanPlan | null; kind?: StationKind }) {
   const pull = useContext(PullCtx); pull.act = act; pull.rides = !back; pull.scan = scan || null;
   const g = useRef<{ y0: number; moved: boolean; past: boolean } | null>(null);
   const away = (took: boolean) => { const a = document.activeElement as HTMLElement | null; if (took && keep && a && a.classList.contains("pfield")) a.blur(); };
-  return <button type="button" class={"stn" + (keep ? " inl" : "")} id="stn" aria-label={name + (hint ? ": " + hint : "")}
+  return <button type="button" class={"stn" + (keep ? " inl" : "") + (kind ? " stk stk-" + kind : "")} id="stn" aria-label={name + (hint ? ": " + hint : "")}
     onMouseDown={keep ? (e) => e.preventDefault() : undefined}
     onPointerDown={(e) => { g.current = { y0: e.clientY, moved: false, past: false }; (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); pull.to(0); }}
     onPointerMove={(e) => { const s = g.current; if (!s) return; const raw = Math.max(0, s.y0 - e.clientY); if (raw > 4) s.moved = true; s.past = pull.to(s.moved ? raw : 0); }}

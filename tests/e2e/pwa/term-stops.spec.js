@@ -58,6 +58,7 @@ test("on the Path the stop is a station of its own, with the term and where it s
   await expect(station(page)).toHaveAccessibleName(/^Check/);
   await station(page).click();
   await expect.poll(() => page.evaluate(() => window.__t.ui.checked)).toBe(true);
+  await expect(station(page), "the station says that a new definition is next").toHaveAccessibleName(/^Next: new definition/);
   await station(page).click();
   const stop = page.locator("#path .tstop");
   await expect(stop).toBeVisible();
@@ -77,7 +78,7 @@ test("on the Path the stop is a station of its own, with the term and where it s
   await expect(again).toHaveAttribute("aria-pressed", "false");
   await expect(stop.getByRole("status")).toHaveCount(0);
   expect(await due()).toBeNull();
-  await expect(station(page)).toHaveAccessibleName(/^Next/);
+  await expect(station(page), "and the stop's goes on to the question").toHaveAccessibleName(/^Next: question/);
   await station(page).click();
   await expect(choices).toHaveCount(5);
   await expect(stop).toHaveCount(0);

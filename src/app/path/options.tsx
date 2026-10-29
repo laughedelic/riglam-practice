@@ -27,11 +27,13 @@ import { canHear, canSpeak, speak, voiceList } from "../../ui/speech";
 import { D, Icon, Knob, Toggle, Words, NOFILL } from "./ui.tsx";
 
 // the names in the margin are short, as the lab's are: six letters fit beside the line
-const Row = ({ lb, children }: { lb: string; children?: ComponentChildren }) => <div class="porow"><span class="lb">{lb}</span><div class="ptx">{children}</div></div>;
+const Row = ({ lb, children, go }: { lb: string; children?: ComponentChildren; go?: { page: string; label?: string } }) =>
+  <div class={"porow" + (go ? " pgo" : "")}><span class="lb">{lb}</span><div class="ptx">{children}</div>{go ? <More {...go} /> : null}</div>;
 /** A row that is a switch: its name and what it does, and the toggle. */
 const Switch = ({ lb, title, note, on, toggle }: { lb: string; title: string; note?: string; on: boolean; toggle: () => void }) =>
   <Row lb={lb}><button type="button" class="two" role="switch" aria-checked={on ? "true" : "false"} onClick={toggle}><span><b>{title}</b>{note ? <small>{note}</small> : null}</span><Toggle on={on} /></button></Row>;
-const More = ({ page, label = "more" }: { page: string; label?: string }) => <button type="button" class="more" aria-label={PAGES[page as keyof typeof PAGES] + ": " + label} onClick={() => openPage(page)}>{label}</button>;
+/** The way into a row's own page: a control at the row's right edge, as tall as the row, so that it takes no line of the row and is easy to tap. */
+const More = ({ page, label = "more" }: { page: string; label?: string }) => <button type="button" class="more" aria-label={PAGES[page as keyof typeof PAGES] + ": " + label} onClick={() => openPage(page)}><Icon n="chev" /></button>;
 const secs = (kind: string) => Math.round(kindMs(kind) / 1000);
 const timesLine = () => state.tab === "syllogism" ? "Syllogism " + secs("syl") + " s" : "Relation " + secs("rel") + " s · Example " + secs("ex") + " s";
 // the exercises that draw negated pairs, and so show the Negations choice with the stages
@@ -53,18 +55,18 @@ function VoiceRows() {
   const v = state.voice; hookVoices();
   return <>
     {canSpeak() ? <Switch lb="Read" title="Read aloud" note="each question" on={v.read} toggle={() => setVoice("read", !v.read)} /> : null}
-    {canHear() ? <Row lb="Voice"><b>Answer by voice</b><Words label="Answer by voice" items={ANSWERS as [string, string][]} cur={v.answer} on={(k) => setVoice("answer", k)} /><More page="voice" /></Row>
-      : <Row lb="Voice"><b>Voice</b><small>Voice and speed</small><More page="voice" /></Row>}
+    {canHear() ? <Row lb="Voice" go={{ page: "voice" }}><b>Answer by voice</b><Words label="Answer by voice" items={ANSWERS as [string, string][]} cur={v.answer} on={(k) => setVoice("answer", k)} /></Row>
+      : <Row lb="Voice" go={{ page: "voice" }}><b>Voice</b><small>Voice and speed</small></Row>}
   </>;
 }
 
 function List() {
   const tab = state.tab, perv = tab === "debate", syl = tab === "syllogism", cats = tab === "categories", timed = tab === "practice" || perv;
   const tutor = canAsk();
-  const tutorRow = tutorShown() ? <Row lb="Tutor"><b>Tutor</b>{canAsk() ? <small>{state.autoExplain ? "explains every answer" : "explains when you ask"}</small> : null}<More page="tutor" /></Row> : null;
-  const blitz = <Row lb="Blitz"><button type="button" class="two" role="switch" aria-checked={state.blitzUse ? "true" : "false"} onClick={() => setBlitzUse(!state.blitzUse)}>
-    <span><b>Blitz</b><small>{state.blitzUse ? timesLine() : "off"}</small></span><Toggle on={state.blitzUse} /></button>{state.blitzUse ? <More page="times" label="times" /> : null}</Row>;
-  const stages = <Row lb="Stages"><b>Stages</b><small>{stagesLine()}</small><More page="stages" /></Row>;
+  const tutorRow = tutorShown() ? <Row lb="Tutor" go={{ page: "tutor" }}><b>Tutor</b>{canAsk() ? <small>{state.autoExplain ? "explains every answer" : "explains when you ask"}</small> : null}</Row> : null;
+  const blitz = <Row lb="Blitz" go={state.blitzUse ? { page: "times", label: "times" } : undefined}><button type="button" class="two" role="switch" aria-checked={state.blitzUse ? "true" : "false"} onClick={() => setBlitzUse(!state.blitzUse)}>
+    <span><b>Blitz</b><small>{state.blitzUse ? timesLine() : "off"}</small></span><Toggle on={state.blitzUse} /></button></Row>;
+  const stages = <Row lb="Stages" go={{ page: "stages" }}><b>Stages</b><small>{stagesLine()}</small></Row>;
   // the exercise's guided form (practice/guided.ts): on until the exercise has its right answers, then as set
   const guide = GUIDES[tab] ? <Switch lb="Guide" title="Guided" note={GUIDES[tab]!.on} on={guided(tab)} toggle={() => setGuided(tab, !guided(tab))} /> : null;
   const foot = <p class="pnoteline" style={{ padding: "10px 18px 4px calc(var(--m) + 22px)" }}>The Magic Key, your account, data{tutor && state.learns ? ", sharing your examples" : ""} and the version are in <button type="button" class="pbtn" style={{ padding: 0 }} onClick={toSettings}>Settings</button>.</p>;
@@ -79,12 +81,12 @@ function List() {
     {guide}
     {stages}{blitz}{tutorRow}{foot}</>;
   return <>
-    {perv ? <Row lb="Words"><b>Wording of the questions</b><Words label="Wording of the questions" items={Object.entries(WORDINGS).map(([k, w]) => [k, (w as { name: string }).name] as [string, string])} cur={state.wording} on={setWording} /><More page="wording" /></Row> : null}
+    {perv ? <Row lb="Words" go={{ page: "wording" }}><b>Wording of the questions</b><Words label="Wording of the questions" items={Object.entries(WORDINGS).map(([k, w]) => [k, (w as { name: string }).name] as [string, string])} cur={state.wording} on={setWording} /></Row> : null}
     {guide}
-    <Row lb="Signs"><b>Notation</b><Words label="Notation" items={Object.entries(SYMS).map(([k, v]) => [k, (v as unknown[])[0] as string] as [string, string])} cur={state.nota} on={setNota} /><More page="nota" /></Row>
+    <Row lb="Signs" go={{ page: "nota" }}><b>Notation</b><Words label="Notation" items={Object.entries(SYMS).map(([k, v]) => [k, (v as unknown[])[0] as string] as [string, string])} cur={state.nota} on={setNota} /></Row>
     {timed ? blitz : null}
     <Switch lb="A/B" title="A/B markers" note="A and B shown in the text" on={state.showAB} toggle={() => setShow("ab", !state.showAB)} />
-    <Row lb="Terms"><b>Definitions</b><Words label="Languages of the definitions" items={[["en", "English"], ["enru", "English + Russian"]]} cur={state.defLang} on={setDefLang} /><More page="defs" /></Row>
+    <Row lb="Terms" go={{ page: "defs" }}><b>Definitions</b><Words label="Languages of the definitions" items={[["en", "English"], ["enru", "English + Russian"]]} cur={state.defLang} on={setDefLang} /></Row>
     {stages}
     {voiceShown() ? <VoiceRows /> : null}
     {tutorRow}
@@ -191,20 +193,34 @@ function TutorPage() {
   </>;
 }
 
-/** The sheet of the practice options: from the top, under the top bar, over a scrim; the knob at its foot folds it away. */
+const sheetOn = () => state.sessOpen && state.mode === "quiz";
+/** The sheet's own page that is open (one of PAGES), or null for the list. */
+const sheetPage = () => sheetOn() && state.sessPage && PAGES[state.sessPage as keyof typeof PAGES] && (state.sessPage !== "voice" || voiceShown()) && (state.sessPage !== "tutor" || tutorShown()) ? state.sessPage : null;
+/** What the sheet shows, as the heading it gives the screen: the top bar reads it in place of the exercise's name while the sheet is open (null when it is closed). */
+export const sheetTitle = (): string | null => sheetOn() ? (sheetPage() ? PAGES[sheetPage() as keyof typeof PAGES] : "Practice options") : null;
+
+/** The sheet of the practice options: from the top, under the top bar (which is its heading, and has its close), over a scrim; the knob at its foot folds it away. */
 export function OptionsSheet() {
-  const on = state.sessOpen && state.mode === "quiz", page = on && state.sessPage && PAGES[state.sessPage as keyof typeof PAGES] && (state.sessPage !== "voice" || voiceShown()) && (state.sessPage !== "tutor" || tutorShown()) ? state.sessPage : null;
-  const box = useRef<HTMLDivElement>(null), was = useRef(on);
+  const on = sheetOn(), page = sheetPage();
+  const box = useRef<HTMLDivElement>(null), body = useRef<HTMLDivElement>(null), was = useRef(on);
   useEffect(() => {
-    if (on && !was.current) { const b = box.current && box.current.querySelector<HTMLElement>(".shead button"); if (b) b.focus({ preventScroll: true }); }
+    if (on && !was.current && box.current) box.current.focus({ preventScroll: true });
     was.current = on;
   }, [on]);
+  // the body fades out at an edge that has more to scroll to (37-path-panels.css): measured after every draw, and as it scrolls
+  useEffect(() => {
+    const el = body.current; if (!el) return;
+    const fade = () => {
+      const up = el.scrollTop > 2, down = el.scrollHeight - el.scrollTop - el.clientHeight > 2;
+      el.style.setProperty("--ft", up ? "26px" : "0px"); el.style.setProperty("--fb", down ? "44px" : "0px"); el.toggleAttribute("data-fade", up || down);
+    };
+    fade(); el.addEventListener("scroll", fade, { passive: true });
+    return () => el.removeEventListener("scroll", fade);
+  });
   return <>
     <div class={"scrim below" + (on ? " on" : "")} onClick={() => toggleSess(false)} />
-    <div ref={box} class={"psheet top" + (on ? " on" : "")} role="dialog" aria-label="Practice options" aria-hidden={on ? "false" : "true"} inert={!on}>
-      <div class="shead"><span /><h2>{page ? PAGES[page as keyof typeof PAGES] : "Practice options"}</h2>
-        <button type="button" class="pib" aria-label="Close the practice options" onClick={() => toggleSess(false)}><Icon n="close" /></button></div>
-      <div class="sbody">
+    <div ref={box} class={"psheet top" + (on ? " on" : "")} role="dialog" aria-label="Practice options" aria-hidden={on ? "false" : "true"} inert={!on} tabIndex={-1} data-quiet>
+      <div class="sbody" ref={body}>
         {page ? <button type="button" class="sback" onClick={sessBack}><Icon n="chev" />back to the options</button> : <p class="glab" style={{ paddingTop: "4px" }}>{exName(state.tab)}</p>}
         {on ? (page ? <Page id={page} /> : <List />) : null}
       </div>

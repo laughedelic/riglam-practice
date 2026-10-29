@@ -409,8 +409,10 @@ export function exLine(r,keys){
   if(!r.exN) return "none to check.";
   // while Claude works on the open ones, a line says so (asking is done by the Check and explain button in the action row)
   const cl=r.exOpen&&state.ui.ctl?el("span",{class:"exl",text:"Claude is checking."}):null;
-  if(r.exBad) return [r.exBad+" of "+r.exN+" wrong"+(r.exOpen?", "+r.exOpen+" not checked yet":"")+".",cl];
-  if(r.exOpen) return [r.exOpen+" of "+r.exN+" not checked yet.",cl];
+  const left=r.exVague?", "+r.exVague+" left open by "+(r.exVague===1?"its name":"their names"):"";   // the cell says which word would settle it
+  if(r.exBad) return [r.exBad+" of "+r.exN+" wrong"+(r.exOpen?", "+r.exOpen+" not checked yet":"")+left+".",cl];
+  if(r.exOpen) return [r.exOpen+" of "+r.exN+" not checked yet"+left+".",cl];
+  if(r.exVague) return r.exVague+" of "+r.exN+" left open by "+(r.exVague===1?"its name":"their names")+": the cell says which word would settle it.";
   const by=b=>keys.some(c=>r.cells[c].by===b);
   return "all "+r.exN+" fit"+(by("claude")?" (checked with Claude).":by("course")?" (checked by the course examples).":".");
 }

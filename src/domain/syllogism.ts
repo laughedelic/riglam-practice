@@ -16,6 +16,7 @@ import type { HistoryEntry } from "./types";
 import { cellsFor, judgeable } from "./universe";
 import type { Rng } from "./universe";
 import { FEATURE, RECENT_MAX, inUniverse } from "./universe";
+import { vagueVerdict } from "./vague";
 import { catOpen, itemOn, normStages, topStage } from "./stages";
 import type { Stages, Unmet } from "./stages";
 import { cap, isMiss } from "./util";
@@ -65,6 +66,16 @@ const SIT_IDS = Object.keys(SITUATIONS).map(Number) as Situation[];
 // The rules themselves, and the wording of the sentences, are here.
 const phrasesOf = (ix: DataIndex, id: string): readonly string[] => ix.CAT[id]?.phrases ?? [];
 const hasPhrases = (ix: DataIndex, id: string) => phrasesOf(ix, id).length > 0;
+/**
+ * Whether a wording gives the pervasion away: an everyday reason that says the predicate's own word ("an animal because it is a flying
+ * animal") is weak, like two wordings of one class. The course's terms keep their names ("a form because it is an
+ * external form"): that is how the course says them.
+ */
+const givesAway = (ix: DataIndex, r: string, p: string, reason: string, predicate: string) =>
+  r !== p && ix.CAT[r].kind === "everyday" && ix.CAT[p].kind === "everyday" && ` ${reason} `.includes(` ${predicate.replace(/^(a|an|the) /, "")} `);
+/** The (reason, predicate) wordings a pair of two categories may be drawn with: none, and the pair is not drawn. */
+const wordings = (ix: DataIndex, r: string, p: string): [string, string][] =>
+  phrasesOf(ix, r).flatMap((x) => phrasesOf(ix, p).filter((y) => !givesAway(ix, r, p, x, y)).map((y): [string, string] => [x, y]));
 /** The categories the data gives no phrase: the drill leaves them out. */
 export const withoutPhrases = (ix: DataIndex): string[] => Object.keys(ix.CAT).filter((id) => !hasPhrases(ix, id));
 
@@ -161,7 +172,7 @@ function tableOf(ix: DataIndex): Table {
   };
   for (const r of ids) {
     for (const p of ids) {
-      if (r === p ? phrasesOf(ix, r).length < 2 : !judgeable(ix, r, p)) continue;
+      if (r === p ? phrasesOf(ix, r).length < 2 : !judgeable(ix, r, p) || !wordings(ix, r, p).length) continue;
       const cells = cellsOf(r, p), level = ix.CAT[r].kind === "everyday" && ix.CAT[p].kind === "everyday" ? 1 : 2;
       const by = holdsBy(ix, r, p), excl = by || r === p ? null : excludingClasses(ix, r, p);
       // the data must agree with itself: a proved pervasion has no counter-example, a proved opposite no common thing
@@ -312,7 +323,10 @@ function phrasesFor(ix: DataIndex, pair: PairInfo, rng: Rng): [string, string] {
     if (j >= i) j++;
     return [rs[i], rs[j]]; // the reason may not be the predicate (the same label twice is never drawn)
   }
-  return [rs[Math.floor(rng() * rs.length)], ps[Math.floor(rng() * ps.length)]];
+  const pick: [string, string] = [rs[Math.floor(rng() * rs.length)], ps[Math.floor(rng() * ps.length)]];
+  if (!givesAway(ix, pair.r, pair.p, ...pick)) return pick;
+  const ok = wordings(ix, pair.r, pair.p);
+  return ok[Math.floor(rng() * ok.length)];
 }
 
 function make(ix: DataIndex, c: Cand, sit: Situation, rng: Rng): Syllogism {
@@ -430,6 +444,9 @@ export function gradeExample(ix: DataIndex, c: Syllogism, text: string): Example
   const t = text.trim().replace(/[.!]+$/, "");
   const it = t ? matchItem(ix, t, FEATURE.has(c.catR) || FEATURE.has(c.catP)) : null;
   if (it && it.n === c.subject) return { v: "self", line: `That is the subject itself. Name another thing that is ${c.reason} and is not ${c.predicate}.` };
+  // a thing whose name leaves the reason or the predicate open ("a car" for black things) is asked to be named, as in the pairs (vague.ts): the reason yes, the predicate no
+  const vague = it ? vagueVerdict(ix, it, t, [c.catR, c.catP], "anb", null, [c.reason, c.predicate]) : null;
+  if (vague) return { v: vague.v, line: vague.msg[1] };
   if (!it || !inUniverse(ix, it, c.catR, c.catP)) return { v: "cmp", line: `Not checked: the page does not know ${t || "that"} well enough to say.` };
   // the thing as the data names it, not as it was typed ("red balls" is "a red ball"); the one thing said in the second person ("you") takes "are"
   const name = cap(it.n), be = it.nosubject ? "are" : "is", it_ = it.nosubject ? "you" : "it", r = it.c.includes(c.catR), p = it.c.includes(c.catP);

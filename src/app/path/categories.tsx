@@ -13,6 +13,7 @@ import { refreshPath } from "./index.tsx";
 import { Choices, ErrLines, SkipMark, StageOffer, Verdict, pickThen, u0 } from "./parts.tsx";
 import { Scroll } from "./scroll.tsx";
 import { TermTags } from "./terms.tsx";
+import { nextName } from "./next.ts";
 import { Foot, PreStation, SkipSide, Station, TopBar } from "./shell.tsx";
 import { D, Gap, Head, Mark, St, Sx } from "./ui.tsx";
 
@@ -65,7 +66,7 @@ function TickStep() {
       <Sx cls="ptail" />
     </Scroll>
     <Foot aux={<SkipSide />}>
-      {n || u.none ? <Station name="Check" hint={u.none ? "none of these" : n === 1 ? "one category ticked" : n + " categories ticked"} act={checkCategories} /> : <PreStation name="Check" hint="tick what it is first" />}
+      {n || u.none ? <Station kind="chk" name="Check" hint={u.none ? "none of these" : n === 1 ? "one category ticked" : n + " categories ticked"} act={checkCategories} /> : <PreStation name="Check" hint="tick what it is first" />}
     </Foot>
   </>;
 }
@@ -80,8 +81,8 @@ function OneStep() {
         <St d={<D cls="sub now" />} cls="sb now"><p class="qst" id="catq">Is {t.thing.n} {row.phrase}?</p></St><Gap h={4} /></Sx>
       <TermTags asked={[{ cat: row.cat }]} />
       <Choices label={"Is " + t.thing.n + " " + row.phrase + "?"} items={[{ k: "y", b: "Yes", key: "Y" }, { k: "n", b: "No", key: "N" }]} onPick={(k) => sayCategory(k === "y")} />
-      {u.i < t.rows.length - 1 ? <Sx cls="walked later"><St d={<D cls="sub" />} cls="sb later"><span class="lab">{t.rows.length - u.i - 1} more</span></St></Sx> : null}
-      <Sx cls="ptail" />
+      {u.i < t.rows.length - 1 ? <Sx cls="gap later"><St d={<D cls="sub" />} cls="sb later"><span class="lab">{t.rows.length - u.i - 1} more</span></St></Sx> : null}
+      <Sx cls={"ptail" + (u.i < t.rows.length - 1 ? " dtail" : "")} />
     </Scroll>
     <Foot aux={<SkipSide />}><PreStation name="Check" hint="answer each one" /></Foot>
   </>;
@@ -100,7 +101,7 @@ function CheckedStep() {
       <ErrLines />
       <Sx cls="ptail" />
     </Scroll>
-    <Foot>{u.checked ? <Station name="Next" hint="another thing" act={() => next()} /> : <Station name="Continue" hint="the most specific" act={continueCategories} />}</Foot>
+    <Foot>{u.checked ? <Station name={nextName("Next thing")} act={() => next()} /> : <Station kind="ex" name="Continue" hint="the most specific" act={continueCategories} />}</Foot>
   </>;
 }
 
@@ -136,7 +137,7 @@ function ResultStep() {
       <ErrLines />
       <Sx cls="ptail" />
     </Scroll>
-    <Foot><Station name="Next" hint="another thing" act={() => next()} /></Foot>
+    <Foot><Station name={nextName("Next thing")} act={() => next()} /></Foot>
   </>;
 }
 

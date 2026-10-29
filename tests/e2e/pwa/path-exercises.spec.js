@@ -39,19 +39,104 @@ test("Syllogisms: the syllogism in its three parts, the three replies, and the r
   }
   await expect(verdict(page)).toContainText("Right");
   await expect(page.locator("#path .plead")).toHaveText(say + ".");   // the reply as it was said, with no "You answered" before it
+  await expect(station(page), "the next station says what comes next").toHaveAccessibleName(/^Next syllogism/);
   await expect(page.locator("#path .chk")).toHaveCount(3);
   await expect.poll(async () => (await saved(page, "syllogism")).length).toBe(1);
   expect((await saved(page, "syllogism"))[0]).toMatchObject({ said: c.answer, answer: c.answer });
 });
 
+test("Syllogisms: a wrong 'there is no pervasion' holds its verdict too, until the counter-example is given or left out, and the result then strikes the reply", async ({ page }) => {
+  await open(page, "Syllogisms");
+  expect(await page.evaluate(() => { for (let i = 0; i < 600; i++) { if (window.__t.cur.c.answer !== "pervasion") return true; window.__t.next(); } return false; })).toBe(true);
+  await choice(page, "There is no pervasion").click();
+  await expect(page.locator("#sylex")).toBeVisible();      // asked whether the reply is right or not: nothing yet says which
+  await expect(verdict(page)).toHaveCount(0);
+  await expect(page.locator("#path .sylsaid")).toContainText("Can you show it?");
+  await expect(page.locator("#path .sylsaid .mark")).toHaveCount(0);
+  await page.locator("#sylex").blur();
+  await station(page).click();
+  await expect(verdict(page)).toContainText("Not quite");
+  await expect(page.locator("#path .plead s.no")).toHaveText("There is no pervasion");
+  await expect.poll(async () => (await saved(page, "syllogism")).length).toBe(1);
+  expect((await saved(page, "syllogism"))[0]).toMatchObject({ said: "pervasion", correct: false });
+});
+
+test("Syllogisms: S, P and R sit a line each (no room kept for a star the syllogism has none of), and the heading's stop stays yellow while the counter-example is asked", async ({ page }) => {
+  await open(page, "Syllogisms");
+  const rows = page.locator("#path .stm");
+  await expect(rows).toHaveCount(3);
+  await expect(page.locator("#path .pstar")).toHaveCount(0);
+  await expect(page.locator("#path .stm.hasstar")).toHaveCount(0);
+  const h = await rows.evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height));
+  expect(h[0], "S is no taller than a wrapped line of text, not a row kept for a star under Skip").toBeLessThan(70);
+  expect(await page.evaluate(() => window.__t.cur.c.answer === "pervasion" || (() => { for (let i = 0; i < 600; i++) { window.__t.next(); if (window.__t.cur.c.answer === "pervasion") return true; } return false; })())).toBe(true);
+  await choice(page, "There is no pervasion").click();
+  await expect(page.locator("#sylex")).toBeVisible();
+  await expect(page.locator("#path .sx.first .d.sec")).toHaveClass(/\bnow\b/);   // the step is still open: yellow, like the headings of the other steps
+});
+
+// The line says whether the way on is open (docs/ARCHITECTURE.md, "The line"): dotted while a choice or an unanswered question blocks it, solid once it is answered.
+// A piece's own line is its `::before`; the dotted ones paint a repeating gradient, the solid ones a plain one.
+const dotted = (page, sel) => page.locator(sel).first().evaluate((e) => getComputedStyle(e, "::before").backgroundImage.includes("repeating-linear-gradient"));
+
+test("the line: Find a pair's fields are dotted while a word is missing and solid once both are named, and so is the trail", async ({ page }) => {
+  await open(page, "Find a pair");
+  expect(await dotted(page, "#path .sx.first"), "the fields, empty").toBe(true);
+  expect(await dotted(page, "#path .sx.ptail"), "the trail").toBe(true);
+  await page.locator("#fw-a").fill("pot");
+  expect(await dotted(page, "#path .sx.first"), "one word").toBe(true);
+  await page.locator("#fw-b").fill("clay things");
+  await expect(page.locator(".pa")).toHaveClass(/\bready\b/);
+  expect(await dotted(page, "#path .sx.first"), "both named").toBe(false);
+  expect(await dotted(page, "#path .sx.ptail"), "the trail, once the way is open").toBe(false);
+});
+
+test("the line: the questions still to come in Pervasions are dotted yellow, and the trail stays dotted until the last one", async ({ page }) => {
+  await open(page, "Pervasions");
+  expect(await dotted(page, "#path .sx.later"), "Q2 to Q4").toBe(true);
+  expect(await dotted(page, "#path .sx.ptail")).toBe(true);
+  await choice(page, "Why?").click();
+  await page.locator("#dex").fill("a stone");
+  await expect(page.locator(".pa")).toHaveClass(/\bready\b/);   // the station is ready, the questions after this one still are not asked
+  expect(await dotted(page, "#path .sx.later")).toBe(true);
+  expect(await dotted(page, "#path .sx.ptail"), "a ready station does not open the way past the questions still to come").toBe(true);
+});
+
+test("the line: Categories' options are dotted until one is ticked, then solid", async ({ page }) => {
+  await open(page, "Categories");
+  const options = "#path .sx:has(.chs)";
+  expect(await dotted(page, options)).toBe(true);
+  expect(await dotted(page, "#path .sx.ptail")).toBe(true);
+  await choices(page).first().click();
+  await expect(page.locator(".pa")).toHaveClass(/\bready\b/);
+  expect(await dotted(page, options)).toBe(false);
+  expect(await dotted(page, "#path .sx.ptail")).toBe(false);
+});
+
+test("the line: Syllogisms' counter-example may stay empty, and its piece of line is dotted until something is written", async ({ page }) => {
+  await open(page, "Syllogisms");
+  expect(await page.evaluate(() => { for (let i = 0; i < 600; i++) { if (window.__t.cur.c.answer === "pervasion") return true; window.__t.next(); } return false; })).toBe(true);
+  await choice(page, "There is no pervasion").click();
+  await expect(page.locator("#sylex")).toBeVisible();
+  expect(await dotted(page, "#path .sx.er"), "the field, empty").toBe(true);
+  expect(await dotted(page, "#path .sx.ptail"), "the trail, although the Result station is ready").toBe(true);
+  expect(await dotted(page, "#path .sx.first"), "what was answered stays solid").toBe(false);
+  await page.locator("#sylex").fill("a stone");
+  await expect.poll(() => dotted(page, "#path .sx.er"), { message: "written" }).toBe(false);      // the path redraws on the next frame
+  await expect.poll(() => dotted(page, "#path .sx.ptail")).toBe(false);
+});
+
 test("Pervasions: four questions answered on the path, a counter-example for Why, then the relation, and the result", async ({ page }) => {
   await open(page, "Pervasions");
   await expect(choices(page)).toHaveCount(2);   // Accept and Why?
-  // a question is numbered in the margin (Q1), its concise form (A → not B) opens its row, and the statement asked ends with a question mark
+  // a question is numbered in the margin (Q1), its concise form (A → not B) opens its row, and the statement asked ends with no punctuation: the lead above the stop asks
   const now = page.locator("#path .sb.now");
   await expect(now.locator(".qnm")).toHaveText("Q1");
   await expect(now.locator(".qsym")).toHaveText(/^A\s*not B$/);
-  await expect(now.locator(".qst")).toHaveText(/\?$/);
+  await expect(now.locator(".qst")).not.toHaveText(/[.?!]$/);
+  const lead = await page.locator("#path .qlead.above").boundingBox(), sym0 = await now.locator(".qsym").boundingBox(), dia0 = await now.locator(".d").boundingBox();
+  expect(lead.y + lead.height, "the lead stands above the question's row").toBeLessThanOrEqual(sym0.y + 2);
+  expect(Math.abs(dia0.y + dia0.height / 2 - (sym0.y + sym0.height / 2)), "the diamond stays level with the question's short form").toBeLessThan(10);
   await expect(page.locator("#path .sb.later .qnm")).toHaveText(["Q2", "Q3", "Q4"]);
   const [num, dia, form] = await Promise.all([now.locator(".qnm").boundingBox(), now.locator(".d").boundingBox(), now.locator(".qsym").boundingBox()]);
   expect(num.x + num.width).toBeLessThan(dia.x);   // left of the stop, in the margin
@@ -151,6 +236,7 @@ test("Categories: the categories ticked on the path, the check, the most specifi
     await expect(verdict(page)).toContainText("Right");
     await expect(page.locator("#path .pline")).not.toHaveCount(0);   // the line from the most specific up
   }
+  await expect(station(page)).toHaveAccessibleName(/^Next thing/);
   await expect.poll(async () => (await saved(page, "categories")).length).toBe(1);
 });
 
@@ -177,6 +263,7 @@ test("Find an instance: the categories as stops, a thing written, the check, and
   await field.press("Enter");
   await expect(verdict(page)).toContainText("Right");
   await expect(page.locator("#path .catrow")).toHaveCount(q.cats.length);
+  await expect(station(page)).toHaveAccessibleName(/^Next set/);
   await expect.poll(async () => (await saved(page, "instance")).length).toBe(1);
   expect((await saved(page, "instance"))[0]).toMatchObject({ cats: q.cats, possible: true, said: q.known[0], thing: q.known[0], grade: "ok" });
 });

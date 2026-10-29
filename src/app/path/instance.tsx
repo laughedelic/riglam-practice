@@ -12,6 +12,7 @@ import type { InstanceQuestion, InstanceResult, InstanceRow } from "../../domain
 import { refreshPath } from "./index.tsx";
 import { ErrLines, SkipMark, Verdict, u0 } from "./parts.tsx";
 import { Scroll } from "./scroll.tsx";
+import { nextName } from "./next.ts";
 import { Foot, PreStation, SkipSide, Station, TopBar } from "./shell.tsx";
 import { D, Gap, Head, Mark, St, Sx, nofillInput } from "./ui.tsx";
 
@@ -66,12 +67,12 @@ function AskStep({ kb }: { kb: boolean }) {
       <p class="help"><span class="htx">A thing, in a few words. </span><button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { blur(); sayNothing(true); }}>{noneText(n)}</button></p></St>;
   return <>
     <Scroll>
-      <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Instance" sub={n === 1 ? "something of this kind" : "something that is " + allOf(n)} aside={<SkipMark />} /><Gap h={6} />
+      <Sx cls={(ok ? "cur" : "gap") + " first"}><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Instance" sub={n === 1 ? "something of this kind" : "something that is " + allOf(n)} aside={<SkipMark />} /><Gap h={6} />
         <CatStops s={s} /><Gap h={4} />{answer}<Gap h={6} /></Sx>
       <Sx cls="ptail" />
     </Scroll>
     {kb ? null : <Foot aux={<SkipSide />}>
-      {ok ? <Station name="Check" hint={u.none ? noneText(n) : "“" + said() + "”"} act={check} /> : <PreStation name="Check" hint={"write a thing, or say " + noneText(n)} />}
+      {ok ? <Station kind="chk" name="Check" hint={u.none ? noneText(n) : "“" + said() + "”"} act={check} /> : <PreStation name="Check" hint={"write a thing, or say " + noneText(n)} />}
     </Foot>}
   </>;
 }
@@ -109,7 +110,7 @@ function ResultStep() {
       <ErrLines />
       <Sx cls="ptail" />
     </Scroll>
-    <Foot><Station name="Next" hint="other categories" act={() => next()} /></Foot>
+    <Foot><Station name={nextName("Next set")} act={() => next()} /></Foot>
   </>;
 }
 

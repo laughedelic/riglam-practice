@@ -40,9 +40,9 @@ builtWithCourse("the data is the full data: every definition is in the page (a l
   expect(page.includes("Locked: open your study group")).toBe(false);
 });
 
-// The budget is 1.5 MiB while the redesign (src/app/path) is carried next to the classic page; it goes back to 1 MiB when one of them goes.
+// The budget is 1.6 MiB while the redesign (src/app/path) is carried next to the classic page (1.5 MiB until the Path's rides were made the default, with the look settings of both ways of following a station); it goes back to 1 MiB when one of them goes.
 built("within the page size limit, and within our own budget", () => {
   const bytes = Buffer.byteLength(page);
   expect(bytes, `${bytes} bytes`).toBeLessThan(16 * 1024 * 1024);
-  expect(bytes, `the page is ${(bytes / 1024).toFixed(0)} KiB; the budget is 1.5 MiB`).toBeLessThan(1.5 * 1024 * 1024);
+  expect(bytes, `the page is ${(bytes / 1024).toFixed(0)} KiB; the budget is 1.6 MiB`).toBeLessThan(1.6 * 1024 * 1024);
 });
