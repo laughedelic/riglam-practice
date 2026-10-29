@@ -16,7 +16,7 @@ import openData from "../../src/data/drill-data.json";
 import { drawable, examplesFor, placeByClass } from "../../src/domain";
 import { AGAIN_AFTER, FIRST_AFTER, MISS_AFTER, SETTLED, SPACING, afterQuestion, againAsked, freshIntro, introduced, nextStop, normIntro, pairGraded, showAgain, stageMet, stageTerms, stageUp, stopShown, unmet } from "../../src/domain";
 import { DEFAULT_STAGES, DEFINITION_STAGE, HOLD_STAGE, MAX_STAGE, NEG_STREAK, STAGES, START_SHARE, STAGE_STREAK, STAGE_STUMBLE, catOpen, drawSyllogism, heldBack, itemKnown, itemOn, itemStageFor, levelAt, negationOffer, newCategories, normStages, pairStage, physical, poolAt, stagesOfLevels, toggleStage, topStage } from "../../src/domain";
-import { GUIDE_RIGHT, exerciseAfter, freshRun, guideTurnsOff, guidedOn, newShare, normExRuns, normGuided, normRun, runAfter, stageOffer } from "../../src/domain";
+import { GUIDE_RIGHT, STAGE_LONGER, STAGE_STREAK_MAX, exerciseAfter, freshRun, guideTurnsOff, guidedOn, movedUp, newShare, normExRuns, normGuided, normRun, restartRun, runAfter, runNeed, setManual, stageOffer, stayLonger } from "../../src/domain";
 import type { MissKind, StageRun } from "../../src/domain";
 import { drawPlace, itemRows, placeThings } from "../../src/domain/place";
 import { normLevels, upTo } from "../../src/ai-shared";
@@ -873,6 +873,28 @@ test("the offer of the stages: up after five right when the stage's terms have h
   expect(normRun('{"up":3,"down":-2}')).toEqual({ up: 3, down: 0 });
   expect(normRun("not json")).toEqual(freshRun());
   expect(normRun(null)).toEqual(freshRun());
+});
+
+test("staying on a stage longer asks for more right answers; the learner's own moves stop the stages coming by themselves; what they told the page survives a restart of the run", () => {
+  const r = (extra: Partial<StageRun> = {}): StageRun => ({ up: 5, down: 0, ...extra });
+  expect(runNeed(freshRun())).toBe(STAGE_STREAK);
+  const once = stayLonger(r());
+  expect(once, "the station was seen, so the next one is told shortly").toEqual({ up: 0, down: 0, told: true, need: STAGE_STREAK + STAGE_LONGER });
+  expect(stageOffer({ ...once, up: 9 }, [1], true, "words"), "ten are needed now").toBeNull();
+  expect(stageOffer({ ...once, up: 10 }, [1], true, "words")).toEqual({ kind: "up", stage: 2 });
+  expect(runNeed(stayLonger(stayLonger(once)))).toBe(STAGE_STREAK + 3 * STAGE_LONGER);
+  expect(runNeed(Array.from({ length: 20 }).reduce<StageRun>((x) => stayLonger(x), freshRun())), "up to a limit").toBe(STAGE_STREAK_MAX);
+  expect(movedUp(once), "a stage came in: the usual length again, and the station has been seen").toEqual({ up: 0, down: 0, told: true });
+  expect(restartRun({ up: 3, down: 2, need: 10, told: true, manual: true }), "an offer answered keeps what the learner told").toEqual({ up: 0, down: 0, told: true, manual: true });
+  const own = setManual(r(), true);
+  expect(stageOffer(own, [1], true, "words"), "moving the stages themselves: no stage comes").toBeNull();
+  expect(stageOffer({ ...own, up: 0, down: 4 }, [1, 2], true, "words"), "taking one off is still suggested").toEqual({ kind: "down", stage: 2 });
+  expect(setManual(own, false)).toEqual({ up: 5, down: 0 });
+  expect(runAfter({ up: 2, down: 0, need: 10, told: true, manual: true }, [1], 1, true, "words"), "the answers move the run, what the learner told stays").toEqual({ up: 3, down: 0, need: 10, told: true, manual: true });
+  expect(runAfter({ up: 2, down: 0, need: 10, told: true }, [1], 1, false, "pair")).toEqual({ up: 0, down: 0, need: 10, told: true });
+  expect(normRun(JSON.stringify({ up: 1, down: 0, need: 10, told: true, manual: true }))).toEqual({ up: 1, down: 0, need: 10, told: true, manual: true });
+  expect(normRun('{"up":1,"down":0,"need":3,"told":"yes","manual":1}'), "a need below the usual one and loose flags are dropped").toEqual({ up: 1, down: 0 });
+  expect(runNeed(normRun('{"need":9999}'))).toBe(STAGE_STREAK_MAX);
 });
 
 test("a new exercise starts with review: a quarter of its questions new at the highest stage until its first run of five right, then half", () => {

@@ -130,6 +130,21 @@ test("drawPlace: only examples a cell takes, of the stages that are on, each sta
   expect(drawPlace(data, items, { stages: [], rng: seeded(5) })).toEqual(drawPlace(data, items, { stages: [1], rng: seeded(5) }));
 });
 
+test("drawPlace: a thing that cannot be asked is passed over within its stage, so the highest stage keeps its share", () => {
+  const data = ix();
+  const unknown = Array.from({ length: 12 }, (_, i) => ex("the hope of the unknown " + (i + 1), ["Unheard-of class"], 2));
+  const items = [ex("a blue wall", ["Color"], 1), ex("a round plate", ["Shape"], 1), ex("a hard text", ["Color"], 2), ...unknown];
+  let top = 0, n = 0;
+  for (let s = 0; s < 600; s++) {
+    const q = drawPlace(data, items, { stages: [6, 7], rng: seeded(s), newShare: 0.5 })!;
+    expect(q.thing.n.startsWith("the hope"), "only things the data settles are asked").toBe(false);
+    n++; if (q.thing.st === 7) top++;
+  }
+  expect(top / n, "half of the draws are of stage 7, though twelve of its thirteen examples cannot be asked").toBeGreaterThan(0.42);
+  expect(top / n).toBeLessThan(0.58);
+  expect(drawPlace(data, unknown, { stages: [7], rng: seeded(1) }), "a stage with nothing to ask is left out, and with nothing left there is no question").toBeNull();
+});
+
 test("gradePlace: a row is right when ticked exactly if the thing is in the category", () => {
   const q = { thing: wall, rows: placeQuestionRows(ix(), wall, seeded(3))! };
   const yes = q.rows.filter((r) => r.answer).map((r) => r.cat);

@@ -1,8 +1,10 @@
 // The offer of the stages, from the result of any exercise (src/domain/stages.ts, runAfter and stageOffer). Every checked answer moves the run at
 // the highest stage that is on, and the exercise's own record: whether it has warmed up, which sets how many of its questions are new, and its right
-// answers, after which its guided form turns off (practice/guided.ts). When an offer is due it goes on the result (`ui.offer`); nothing changes
-// without a tap, and Next past it counts as Not now. The runs are part of the progression (practice/progress.ts). On the Path every exercise shows
-// the offer; the classic page shows it in Categories only, and elsewhere it waits for the next Categories result.
+// answers, after which its guided form turns off (practice/guided.ts). On the Path the next stage comes by itself: when its run is long enough, Next on
+// the result goes to a station of its own that says which stage comes in (and, the first time, what the stages are), `ui.up`; Next from it takes the
+// stage, and the learner may stay on the stage they are on a while longer (the run is then longer) or move the stages themselves (the Stages page). Taking
+// a stage off is still an offer on the result (`ui.offer`), as it is on the classic page, which shows both in Categories only; nothing changes there
+// without a tap, and Next past it counts as Not now. The runs are part of the progression (practice/progress.ts).
 import { state } from "../state.js";
 import { guideStep } from "./guided.ts";
 import { saveProgress } from "./progress.ts";
@@ -10,7 +12,7 @@ import { render } from "../shell/render.js";
 import { setStages, stageName } from "../shell/stages.js";
 import type { DataIndex } from "../../ai-shared/lookup.ts";
 import { stageMet } from "../../domain/intro.ts";
-import { catStage, exerciseAfter, freshRun, newShare, pairStage, runAfter, stageOffer, topStage, type MissKind } from "../../domain/stages.ts";
+import { catStage, exerciseAfter, movedUp, newShare, pairStage, restartRun, runAfter, setManual, stageOffer, stayLonger, topStage, type MissKind } from "../../domain/stages.ts";
 
 const ix = () => state as unknown as DataIndex;
 /** What a mistake in each exercise says about the words (src/domain/stages.ts, MissKind). */
@@ -30,8 +32,9 @@ export const catsStageNow = (cats: (string | null | undefined)[]): number => Mat
 export const shareNow = (): number => newShare(state.exRuns[state.own || state.tab]);
 
 /**
- * An answer in exercise `ex` was checked, on a question new at stage `st`: the runs move, and the offer that is due, if any, goes on the result.
- * Whether one did (the negation offer then waits, one offer at a time). On the Path the next stage waits until every course term of this one has had its stop.
+ * An answer in exercise `ex` was checked, on a question new at stage `st`: the runs move, and what is due, if anything, is kept for Next: the next stage
+ * on the Path (`ui.up`, a station), an offer on the result elsewhere (`ui.offer`). Whether something was due (the negation offer then waits, one at a time).
+ * The next stage waits until every course term of this one has had its stop.
  */
 export function stageStep(ex: string, st: number, ok: boolean): boolean {
   const miss = MISS[ex] ?? "form";
@@ -40,16 +43,44 @@ export function stageStep(ex: string, st: number, ok: boolean): boolean {
   guideStep(ex);
   const met = state.design !== "path" || !state.intro || !state.DATA || stageMet(ix(), state.intro, topStage(state.stages));
   const o = shows(ex) ? stageOffer(state.stageRun, state.stages, met, miss) : null;
-  if (o && state.ui) state.ui.offer = o;
+  if (o && state.ui) { if (o.kind === "up" && state.design === "path") state.ui.up = { stage: o.stage }; else state.ui.offer = o; }
   saveProgress();
   return !!o;
 }
 
 const pending = () => { const o = state.ui && state.ui.offer; return o && o.kind !== "done" ? (o as { kind: "up" | "down"; stage: number }) : null; };
 /** The run that led to an offer is spent: the next one counts from now. */
-function spend() { state.stageRun = freshRun(); saveProgress(); }
+function spend() { state.stageRun = restartRun(state.stageRun); saveProgress(); }
 /** The next question is drawn: an offer passed over is Not now, so it asks again after another run, not after every result. */
 export function passStageOffer() { if (pending()) spend(); }
+
+/**
+ * Before the next question: the stage that came due with this answer goes on it as a station of its own, which says which stage comes in. Whether it did.
+ * A stage that is not the next one any more (the learner changed the stages meanwhile), or the learner moving the stages themselves, drops it.
+ */
+export function takeStageUp(): boolean {
+  const u = state.ui, up = u && u.up; if (!u || !up || up.shown) return false;
+  if (up.stage !== topStage(state.stages) + 1 || state.stageRun.manual) { u.up = null; return false; }
+  u.up = { ...up, shown: true, first: !state.stageRun.told }; u.dterm = null; u.pop = null;
+  return true;
+}
+/** Next on the station: the stage comes in next to the ones that were on, and the run starts again; unless the learner chose to stay, or took the stages into their own hands meanwhile. */
+export function closeStageUp() {
+  const u = state.ui, up = u && u.up; if (!u || !up || !up.shown) return;
+  u.up = null;
+  if (up.stayed || state.stageRun.manual) return;
+  state.stageRun = movedUp(state.stageRun);
+  if (state.stages.includes(up.stage)) saveProgress();
+  else setStages([...state.stages, up.stage].sort((a: number, b: number) => a - b));     // saves the progression, and its first term comes at the next pull
+}
+/** "Stay on stage N a while longer": the stage does not come in now, and comes after a longer run of right answers. */
+export function stayOnStage() {
+  const u = state.ui, up = u && u.up; if (!u || !up || !up.shown || up.stayed) return;
+  state.stageRun = stayLonger(state.stageRun); u.up = { ...up, stayed: true }; saveProgress(); render();
+}
+/** Whether the stages move up by themselves (the default), or the learner moves them (the Stages page). */
+export const movesUp = (): boolean => !state.stageRun.manual;
+export function setMovesUp(on: boolean) { state.stageRun = setManual(state.stageRun, !on); saveProgress(); render(); }
 
 /** "Add stage N" or "Switch off stage N": what the offer on the result says. Nothing is done without this tap. The stage applies to every exercise. */
 export function acceptStageOffer() {

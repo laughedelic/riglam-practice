@@ -21,14 +21,14 @@ export interface Stage {
 
 export const STAGES: readonly Stage[] = [
   { n: 1, name: "Things around you", adds: "Everyday things, what they are made of, their colors and shapes; food, plants, animals, feelings and thoughts. Form is anything physical." },
-  { n: 2, name: "What you see", adds: "Colors and shapes as qualities of things: the red of an apple, not the apple." },
-  { n: 3, name: "What you hear, smell, taste and touch", adds: "Sounds, smells, tastes, and what is felt by touch, in plain words." },
-  { n: 4, name: "Established bases", adds: "Functional and permanent things, consciousness and persons; people; what does not exist, absences, and the textbook's own things." },
-  { n: 5, name: "The inner side", adds: "The sense powers, and the minds that see, hear, smell, taste, feel, remember and imagine." },
-  { n: 6, name: "Course words", adds: "Things named by the course's own words: generic images, selflessness, impermanence, the elements." },
-  { n: 7, name: "One step further", adds: "One step on a familiar thing: its absence, its cause, a mind that knows it." },
-  { n: 8, name: "Two steps", adds: "Two steps in a row, such as the absence of the effect of a pot." },
-  { n: 9, name: "Deep layers and statements", adds: "Three steps or more, and statements." },
+  { n: 2, name: "Colors and shapes", adds: "Colors and shapes as qualities of things: the red of an apple, not the apple." },
+  { n: 3, name: "The other senses", adds: "Sounds, smells, tastes, and what is felt by touch, in plain words." },
+  { n: 4, name: "What exists", adds: "Functional and permanent things, consciousness and persons; people; what does not exist, and absences." },
+  { n: 5, name: "Senses and minds", adds: "The sense powers, and the minds that see, hear, smell, taste, feel, remember and imagine." },
+  { n: 6, name: "Abstract ideas", adds: "Things named by abstract words: generic images, selflessness, impermanence, the elements." },
+  { n: 7, name: "One-step chains", adds: "One step on a familiar thing: its absence, its cause, a mind that knows it." },
+  { n: 8, name: "Two-step chains", adds: "Two steps in a row, such as the absence of the effect of a pot." },
+  { n: 9, name: "Longer chains and statements", adds: "Three steps or more, and statements." },
 ];
 export const MAX_STAGE = STAGES.length;
 
@@ -189,8 +189,11 @@ export function negationOffer(results: readonly NegOutcome[], negation: Negation
   return n >= need ? (want ? "both" : "one") : null;
 }
 
-/** The right answers in a row, on questions new at the highest stage that is on, after which the next stage is offered (never taken without a tap). */
+/** The right answers in a row, on questions new at the highest stage that is on, after which the next stage comes in: by itself on the Path, with a station that says so first; offered with a tap on the classic page. */
 export const STAGE_STREAK = 5;
+/** Staying on a stage a while longer asks this many more right answers in a row before the next one comes, up to STAGE_STREAK_MAX. */
+export const STAGE_LONGER = 5;
+export const STAGE_STREAK_MAX = 30;
 /** The wrong answers in a row, on questions new at the highest stage that is on, after which taking it off is suggested. */
 export const STAGE_STUMBLE = 4;
 
@@ -198,8 +201,23 @@ export const STAGE_STUMBLE = 4;
 export interface StageRun {
   up: number;
   down: number;
+  /** the right answers in a row the next stage waits for, once the learner chose to stay longer (none: STAGE_STREAK) */
+  need?: number;
+  /** the stages have been explained at a station: the later ones come with a short line */
+  told?: true;
+  /** the learner moves the stages up themselves (the Stages page): no stage comes in by itself or is offered */
+  manual?: true;
 }
 export const freshRun = (): StageRun => ({ up: 0, down: 0 });
+export const runNeed = (run: StageRun): number => run.need ?? STAGE_STREAK;
+/** The run starts again, with what the learner has told the page (the station was seen, the stages are theirs to move) kept. */
+export const restartRun = (run: StageRun): StageRun => ({ up: 0, down: 0, ...(run.told ? { told: true as const } : {}), ...(run.manual ? { manual: true as const } : {}) });
+/** The run once a stage came in: it starts again, and the station has been seen. */
+export const movedUp = (run: StageRun): StageRun => ({ ...restartRun(run), told: true });
+/** The run once the learner chose to stay on the stage a while longer (the station was seen): it starts again, and the next stage waits for more right answers. */
+export const stayLonger = (run: StageRun): StageRun => ({ ...restartRun(run), told: true, need: Math.min(STAGE_STREAK_MAX, runNeed(run) + STAGE_LONGER) });
+/** The run with the stages moved up by the learner (`manual`) or by the page (the default). */
+export const setManual = (run: StageRun, manual: boolean): StageRun => { const r = { ...run }; delete r.manual; return manual ? { ...r, manual: true } : r; };
 
 /**
  * What a mistake in an exercise says: "words" (Categories, Relations: about the categories, so it also counts towards taking the stage off), "pair"
@@ -214,19 +232,20 @@ export type MissKind = "words" | "pair" | "form";
  */
 export function runAfter(run: StageRun, on: Stages, st: number, ok: boolean, miss: MissKind): StageRun {
   if (st !== topStage(on)) return run;
-  if (ok) return { up: run.up + 1, down: 0 };
+  if (ok) return { ...run, up: run.up + 1, down: 0 };
   if (miss === "form") return run;
-  return { up: 0, down: miss === "words" ? run.down + 1 : run.down };
+  return { ...run, up: 0, down: miss === "words" ? run.down + 1 : run.down };
 }
 
 /**
- * The offer of the stages that is due, if any: the next stage once the run up is long enough and every course term of the highest stage on has
- * had its stop (`met`; intro.ts, stageMet); taking the highest stage off after a run of mistakes, only where a mistake is about the words, and never
- * at stage 1. The caller starts a fresh run once an offer is answered, so a "not now" is not asked again at once.
+ * The stage move that is due, if any: the next stage once the run up is long enough (`need`, five unless the learner chose to stay longer) and every
+ * course term of the highest stage on has had its stop (`met`; intro.ts, stageMet), unless the learner moves the stages themselves (`manual`);
+ * taking the highest stage off after a run of mistakes, only where a mistake is about the words, and never at stage 1. The caller starts the run
+ * again once a move is answered, so a "not now" is not asked again at once.
  */
 export function stageOffer(run: StageRun, on: Stages, met: boolean, miss: MissKind): { kind: "up" | "down"; stage: number } | null {
   const top = topStage(on);
-  if (run.up >= STAGE_STREAK && met && top < MAX_STAGE) return { kind: "up", stage: top + 1 };
+  if (!run.manual && run.up >= runNeed(run) && met && top < MAX_STAGE) return { kind: "up", stage: top + 1 };
   if (miss === "words" && run.down >= STAGE_STUMBLE && top > 1) return { kind: "down", stage: top };
   return null;
 }
@@ -236,7 +255,8 @@ export function normRun(raw: unknown): StageRun {
   let v: unknown = raw;
   if (typeof raw === "string") { try { v = JSON.parse(raw); } catch { return freshRun(); } }
   const o = (v && typeof v === "object" ? v : {}) as Partial<StageRun>, n = (x: unknown) => (typeof x === "number" && Number.isFinite(x) && x >= 0 ? Math.floor(x) : 0);
-  return { up: n(o.up), down: n(o.down) };
+  const need = n(o.need);
+  return { up: n(o.up), down: n(o.down), ...(need > STAGE_STREAK ? { need: Math.min(STAGE_STREAK_MAX, need) } : {}), ...(o.told === true ? { told: true as const } : {}), ...(o.manual === true ? { manual: true as const } : {}) };
 }
 
 /** Until an exercise has had a run of STAGE_STREAK right answers, about this share of its questions are new at the highest stage, instead of half: a new exercise starts with review. */

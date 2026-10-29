@@ -276,10 +276,15 @@ export interface Ui extends AnswerView {
   doc?: AnswerDoc | DebateDoc;
   /** the stop of a course term that came after this answer, before the next question (practice/stops.ts): Next goes on from it */
   stop?: Stop | null;
+  /** the next stage on its way in after this answer (practice/stage-offer.ts): due, then a station of its own before the next question, then taken at Next */
+  up?: StageUp | null;
   /** the exercise whose guided form turned off by itself with this answer (practice/guided.ts): the result says so */
   guideOff?: string | null;
   [field: string]: any;
 }
+
+/** The next stage on the Path (practice/stage-offer.ts): `shown` once its station is on screen, `first` when it is the learner's first (the stages are explained), `stayed` when they chose to stay on the stage they are on. */
+export interface StageUp { stage: number; shown?: true; first?: boolean; stayed?: true }
 
 /** A Relations answer as the run towards a negation step counts it (practice/negations.ts): when it was given, whether the relation was right, and whether a side was negated. */
 export interface NegResult extends NegOutcome {

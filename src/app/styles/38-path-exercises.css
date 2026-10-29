@@ -109,6 +109,10 @@
 @supports (color:color-mix(in srgb,red,blue)){ .pa .sx.cur.tstop + .sx{--pv:color-mix(in srgb,var(--ink) 72%,var(--paper))} }
 .pa .tstop-def{padding-top:2px}
 .pa .tstop-def .pdef{margin-top:4px}
+/* a stage coming in (path/stage-up.tsx): a few short paragraphs under its heading, the stay option in the quiet button */
+.pa .tup p{margin:0 0 9px; font-size:16px; line-height:1.4}
+.pa .tup p.tup-note{font-size:14px; color:var(--ink2)}
+.pa .tup .pbtn{padding:2px 0}
 .pa .tstop-key{margin:0; padding:0 18px 4px calc(var(--m) + 22px); font-size:15px; font-style:italic; color:var(--ink2)}
 /* the tag of a course term the learner is still meeting, under the term of the pair or in a row under the thing (path/parts.tsx, path/terms.tsx) */
 .pa .ntag{display:block; margin-top:4px; font:600 10.5px/1.2 var(--mono); letter-spacing:.08em; text-transform:uppercase; color:var(--ink2)}
