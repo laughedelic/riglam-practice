@@ -111,9 +111,11 @@ export function buildCase(row: Row, n: number, labels: Record<string, Label & { 
   }
   const own = !!p.own;
   const examples: Example[] = [];
+  // a cell the chosen relation leaves empty is closed on the page: the card says NONE there, so a text in it is no example
+  const closed = mode === "debate" || !chosen ? [] : REL[chosen as RelKey].empty;
   for (const c of CELLS) {
     const t = cells[c].t.trim(), rc = res.cells[c];
-    if (!t || cells[c].none) continue;   // an example in a cell that must be empty is asked of the tutor too
+    if (!t || cells[c].none || closed.includes(c)) continue;   // an example in a cell that must be empty is asked of the tutor too
     const page = rc.v === "cmp" ? (rc.vague?.length ? "open" : "cmp") : rc.v === "ok" ? "ok" : "bad";
     const d = own || rc.vague?.length ? null : dataLabel(p, t);
     const l = labels[labelKey(p, t)];

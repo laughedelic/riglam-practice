@@ -31,7 +31,7 @@ Each example in the answer carries a label for side A and for side B:
 - **wrong:** yes where the label says no, or no for yes (the error that misleads a learner);
 - **hedged:** unsure where the label is definite;
 - **over-sure:** definite where only open or unsure is right (a feature the example's name does not say);
-- **missing:** no line for the example.
+- **missing:** no line for the example, or the cell's line is about another thing (the report counts those apart). A text in a cell the chosen relation leaves empty is no example: the page closes that cell and the card says NONE.
 
 It also checks the form rules that code can check: a cell written twice, "wait" or "actually", Markdown, an example's own name as its reason, "only" in a pervasion, and the Common locus, Pervasion and Relation lines. The quality of a reason needs a reader and is not graded here.
 

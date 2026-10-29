@@ -55,10 +55,15 @@ for (const cfg of configs) {
   const marks = all.filter((m) => m !== "debated");
   const cnt = (m: string) => marks.filter((x) => x === m).length;
   const fits = ls.flatMap((l) => l.grade.examples.map((e) => e.fitRight)).filter((x) => x !== null);
-  const form = ls.filter((l) => { const f = l.grade.form; return f.doubled.length || f.reversal || f.markdown || f.ownName || f.onlyInPervasion || f.noLocus || f.noPervasion || f.noRelation; }).length;
+  const form = ls.filter((l) => { const f = l.grade.form; return f.doubled.length || f.reversal || f.markdown || f.ownName || f.swapped || f.onlyInPervasion || f.noLocus || f.noPervasion || f.noRelation; }).length;
   const [lo, hi] = ci(perCase(ls));
   const failed = ls.filter((l) => l.outcome !== "answered").length;
   say(`| ${cfg} | ${ls.length}${failed ? ` (${failed} failed)` : ""} | ${pct(cnt("right") / marks.length)} (${pct(lo)} to ${pct(hi)}) | ${cnt("wrong")} | ${cnt("hedged")} | ${cnt("overconfident")} | ${cnt("missing")} | ${all.length - marks.length} | ${pct(fits.filter(Boolean).length / Math.max(1, fits.length))} | ${form} | ${(ls.reduce((s, l) => s + l.micro, 0) / ls.length / 1e6).toFixed(4)} USD | ${(q(ls.map((l) => l.ms), 0.5) / 1000).toFixed(0)} / ${(q(ls.map((l) => l.ms), 0.9) / 1000).toFixed(0)} s |`);
+}
+say();
+for (const cfg of configs) {
+  const n = lines.filter((l) => l.config === cfg).reduce((s, l) => s + (l.grade.form.swapped ?? 0), 0);
+  if (n) say(`- **${cfg}:** ${n} line${n > 1 ? "s" : ""} about another example than the learner's (counted as missing)`);
 }
 say();
 say("## Wrong facts (yes for no or no for yes), by example");
