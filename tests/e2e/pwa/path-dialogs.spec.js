@@ -56,6 +56,7 @@ plain("the Magic Key prompt takes the Path's look, light and dark, and the class
     // (Settings opened from the roadmap goes back to it, so the second time the roadmap is already there)
     if (!(await page.locator(".road.on").count())) await page.locator(".tstn").click();
     await page.locator(".road .rfoot").getByRole("button", { name: "Settings" }).click();
+    await page.getByRole("button", { name: "Magic Key: more" }).click();   // the key has a page of its own in Settings
     await page.getByRole("button", { name: "Enter the Magic Key" }).click();
     await plainExpect(page.locator("#unlock")).toBeVisible();
     plainExpect(await looks(page, "#unlock")).toEqual({ paper: true, ink: true, face: true, flat: true, quiet: true });
