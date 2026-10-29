@@ -13,7 +13,6 @@ import { Choices, ErrLines, SkipMark, StageOffer, Verdict, pickThen, u0 } from "
 import type { ScanPlan } from "./scan.tsx";
 import { Scroll } from "./scroll.tsx";
 import { Threshold } from "./threshold.tsx";
-import { TermTags } from "./terms.tsx";
 import { nextKind, nextName } from "./next.ts";
 import { Foot, PreStation, SkipSide, Station, TopBar } from "./shell.tsx";
 import { D, Gap, Head, Mark, St, Sx } from "./ui.tsx";
@@ -95,7 +94,6 @@ function TickStep() {
     <Scroll>
       <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Categories" sub="which of these is it?" aside={<SkipMark />} /><Gap h={6} /><Thing />
         <div class="cstop" data-keep={String(RESULT_TOP)} aria-hidden="true"><i class="d" /></div></Sx>
-      <TermTags asked={t.rows.map((r) => ({ cat: r.cat }))} />
       <Threshold label="Categories the thing is in" items={t.rows.map((r, i) => ({ k: r.cat, b: r.phrase, key: String(i + 1) }))} picked={u.ticked} onPick={tickCategory} onReset={resetCategories} />
       <Sx cls="ptail" />
     </Scroll>
@@ -113,7 +111,6 @@ function OneStep() {
           return <St d={<D cls={"sub " + (ok ? "ok" : "no")} />} cls={"sb exr catrow" + (ok ? "" : " wrong")}><div class="line1"><b class="catp">{r.phrase}</b><span class="ctag">{said ? "yes" : "no"}</span><Mark m={ok ? "ok" : "no"} /></div>
             {ok ? null : <p class="xnote">{because(r)}</p>}</St>; })}
         <St d={<D cls="sub now" />} cls="sb now"><p class="qst" id="catq">Is {t.thing.n} {row.phrase}?</p></St><Gap h={4} /></Sx>
-      <TermTags asked={[{ cat: row.cat }]} />
       <Choices label={"Is " + t.thing.n + " " + row.phrase + "?"} items={[{ k: "y", b: "Yes", key: "Y" }, { k: "n", b: "No", key: "N" }]} onPick={(k) => sayCategory(k === "y")} />
       {u.i < t.rows.length - 1 ? <Sx cls="gap later"><St d={<D cls="sub" />} cls="sb later"><span class="lab">{t.rows.length - u.i - 1} more</span></St></Sx> : null}
       <Sx cls={"ptail" + (u.i < t.rows.length - 1 ? " dtail" : "")} />

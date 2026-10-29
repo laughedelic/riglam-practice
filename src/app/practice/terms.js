@@ -175,8 +175,6 @@ function cardNode(n,id,trail,live=true){
         ruOn&&ru.body?el("p",{class:"ru",lang:"ru",text:endp(cap(ru.body))}):null),
       live?examplesNode(n):null)));
 }
-/** What a pair asks about, as termTags takes it (practice/stops.ts): also a pair of two labels of one category ("colors" and "hues"), which pairCats leaves out. */
-export const pairAsked=p=>[{cat:p.catA||catByLabel(p.a),label:p.a,side:"A"},{cat:p.catB||catByLabel(p.b),label:p.b,side:"B"}];
 // Pointing at a term with a mouse shows its card while the pointer stays, over the note; it is not kept in the state, so a render drops it.
 function peek(mark,term){
   for(const n of document.querySelectorAll(".ddef.peek")) n.remove();

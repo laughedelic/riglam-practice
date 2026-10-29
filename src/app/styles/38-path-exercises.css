@@ -168,12 +168,6 @@
 .pa .ttree li.gray{color:var(--ink3)}
 .pa .ttree em{font:500 9.5px var(--mono); font-style:normal; letter-spacing:.07em; text-transform:uppercase; color:var(--ink3); margin-left:8px}
 .pa .tstop-key{margin:0; padding:0 18px 4px calc(var(--m) + 22px); font-size:15px; font-style:italic; color:var(--ink2)}
-/* the tag of a course term the learner is still meeting, under the term of the pair or in a row under the thing (path/parts.tsx, path/terms.tsx) */
-.pa .ntag{display:block; margin-top:4px; font:600 10.5px/1.2 var(--mono); letter-spacing:.08em; text-transform:uppercase; color:var(--ink2)}
-.pa .ntag .dterm{text-underline-offset:4px}
-.pa .ntag-row{display:flex; flex-wrap:wrap; gap:4px 16px; margin:0}
-.pa .ntag-row .ntag{margin-top:0}
-.pa .ntdef:empty{display:none}
 .pa .catrow{padding:7px 0 8px}
 .pa .catrow .line1{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap}
 .pa .catp{font-size:17px; font-weight:600}
