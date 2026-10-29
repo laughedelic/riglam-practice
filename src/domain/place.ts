@@ -144,10 +144,11 @@ function shuffle<T>(xs: readonly T[], rng: () => number): T[] {
 
 /**
  * The rows of a question for the thing: the narrowest "yes" and up to two more, and "no" rows, `near` of them (half by default) from the
- * family of the narrowest "yes" (the hard ones: a color is not a shape) and the rest from the others. Null when the data settles too little to
- * ask: nothing to pick for a thing that is in no category, or nothing to refuse. `all` are the rows to choose from (`placeRows` by default).
+ * family of the narrowest "yes" (the hard ones: a color is not a shape) and the rest from the others. At most `plain` of the rows are everyday
+ * categories (none beyond them while other rows serve). Null when the data settles too little to ask: nothing to pick for a thing that is in no
+ * category, or nothing to refuse. `all` are the rows to choose from (`placeRows` by default).
  */
-export function placeQuestionRows(ix: DataIndex, ex: Pick<Example, "ne"> & Partial<Example>, rng: () => number, size = 6, all: PlaceRow[] = placeRows(ix, ex as Example), near = 0.5): PlaceRow[] | null {
+export function placeQuestionRows(ix: DataIndex, ex: Pick<Example, "ne"> & Partial<Example>, rng: () => number, size = 6, all: PlaceRow[] = placeRows(ix, ex as Example), near = 0.5, plain = size): PlaceRow[] | null {
   const yes = all.filter((r) => r.answer).sort((a, b) => depthOf(ix, b.term) - depthOf(ix, a.term) || a.cat.localeCompare(b.cat));
   const no = all.filter((r) => !r.answer);
   if ((!yes.length && !ex.ne) || no.length < 2) return null;
@@ -158,10 +159,18 @@ export function placeQuestionRows(ix: DataIndex, ex: Pick<Example, "ne"> & Parti
   const far = shuffle(no.filter((r) => familyOf(ix, r.cat) !== fam), rng);
   const nNo = Math.min(no.length, size - picked.length);
   const first = Math.min(close.length, Math.ceil(nNo * near));
-  const chosen = [...close.slice(0, first), ...far.slice(0, nNo - first)];
-  for (const r of close.slice(first)) if (chosen.length < nNo) chosen.push(r);
+  let room = plain - picked.filter((r) => !r.term).length;
+  const chosen: PlaceRow[] = [], over: PlaceRow[] = [];
+  for (const r of [...close.slice(0, first), ...far.slice(0, nNo - first), ...close.slice(first), ...far.slice(nNo - first)]) {
+    if (chosen.length >= nNo) break;
+    if (r.term || room-- > 0) chosen.push(r); else over.push(r);
+  }
+  for (const r of over) if (chosen.length < nNo) chosen.push(r);
   return shuffle([...picked, ...chosen], rng);
 }
+
+/** The most rows of a question that are everyday categories ("wooden things"): any while the course categories are few (stage 1), from stage 2 on a third, since the rows then teach the terms. */
+export const plainRows = (top: number, size = 6): number => (top >= 2 ? Math.floor(size / 3) : size);
 
 /** The share of the "no" rows that are near misses: few while the categories are new (up to stage 3), half from the established bases on. */
 export const nearShare = (top: number): number => (top <= 3 ? 0.25 : 0.5);
@@ -205,7 +214,7 @@ export function drawPlace(ix: DataIndex, examples: readonly Example[] | null, dr
       let of = left.filter((t) => t.st === stage);
       while (of.length) {
         const thing = of[Math.floor(draw.rng() * of.length)];
-        const rows = placeQuestionRows(ix, thing, draw.rng, draw.size, thingRows(ix, thing, on, draw.unmet), near);
+        const rows = placeQuestionRows(ix, thing, draw.rng, draw.size, thingRows(ix, thing, on, draw.unmet), near, plainRows(topStage(on), draw.size));
         if (rows) return { thing, rows };
         of = of.filter((t) => t !== thing);
       }

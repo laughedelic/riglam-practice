@@ -189,7 +189,7 @@ export function negationOffer(results: readonly NegOutcome[], negation: Negation
   return n >= need ? (want ? "both" : "one") : null;
 }
 
-/** The right answers in a row, on questions new at the highest stage that is on, after which the next stage comes in: by itself on the Path, with a station that says so first; offered with a tap on the classic page. */
+/** The right answers in a row, on questions new at the highest stage that is on (those from a stage below count half, LOWER_CREDIT), after which the next stage comes in: by itself on the Path, with a station that says so first; offered with a tap on the classic page. */
 export const STAGE_STREAK = 5;
 /** Staying on a stage a while longer asks this many more right answers in a row before the next one comes, up to STAGE_STREAK_MAX. */
 export const STAGE_LONGER = 5;
@@ -197,7 +197,7 @@ export const STAGE_STREAK_MAX = 30;
 /** The wrong answers in a row, on questions new at the highest stage that is on, after which taking it off is suggested. */
 export const STAGE_STUMBLE = 4;
 
-/** The run towards an offer of the stages, part of the learner's progression: right answers in a row at the highest stage on (`up`), wrong ones (`down`). */
+/** The run towards an offer of the stages, part of the learner's progression: right answers in a row at the highest stage on (`up`, in halves: LOWER_CREDIT), wrong ones (`down`). */
 export interface StageRun {
   up: number;
   down: number;
@@ -225,13 +225,18 @@ export const setManual = (run: StageRun, manual: boolean): StageRun => { const r
  */
 export type MissKind = "words" | "pair" | "form";
 
+/** What a right answer to a question from a stage below the highest adds to the run: half, since review counts, but the stage the learner is climbing counts more. */
+export const LOWER_CREDIT = 0.5;
+
 /**
  * The run after an answer to a question new at stage `st` (the highest stage of what it used: its categories, its thing, the things that fill its
- * cells). Any exercise counts: the stages are the same in all of them. Only a question new at the highest stage that is on counts; the others
- * neither extend nor end the run.
+ * cells). Any exercise counts: the stages are the same in all of them. A question new at the highest stage that is on counts whole; a right
+ * answer to one from a stage below counts LOWER_CREDIT, and a wrong one neither extends nor ends the run.
  */
 export function runAfter(run: StageRun, on: Stages, st: number, ok: boolean, miss: MissKind): StageRun {
-  if (st !== topStage(on)) return run;
+  const top = topStage(on);
+  if (st >= 1 && st < top) return ok ? { ...run, up: run.up + LOWER_CREDIT } : run;
+  if (st !== top) return run;
   if (ok) return { ...run, up: run.up + 1, down: 0 };
   if (miss === "form") return run;
   return { ...run, up: 0, down: miss === "words" ? run.down + 1 : run.down };
@@ -255,8 +260,8 @@ export function normRun(raw: unknown): StageRun {
   let v: unknown = raw;
   if (typeof raw === "string") { try { v = JSON.parse(raw); } catch { return freshRun(); } }
   const o = (v && typeof v === "object" ? v : {}) as Partial<StageRun>, n = (x: unknown) => (typeof x === "number" && Number.isFinite(x) && x >= 0 ? Math.floor(x) : 0);
-  const need = n(o.need);
-  return { up: n(o.up), down: n(o.down), ...(need > STAGE_STREAK ? { need: Math.min(STAGE_STREAK_MAX, need) } : {}), ...(o.told === true ? { told: true as const } : {}), ...(o.manual === true ? { manual: true as const } : {}) };
+  const need = n(o.need), half = (x: unknown) => (typeof x === "number" && Number.isFinite(x) && x >= 0 ? Math.floor(x * 2) / 2 : 0);
+  return { up: half(o.up), down: n(o.down), ...(need > STAGE_STREAK ? { need: Math.min(STAGE_STREAK_MAX, need) } : {}), ...(o.told === true ? { told: true as const } : {}), ...(o.manual === true ? { manual: true as const } : {}) };
 }
 
 /** Until an exercise has had a run of STAGE_STREAK right answers, about this share of its questions are new at the highest stage, instead of half: a new exercise starts with review. */

@@ -4,7 +4,7 @@ import { expect, test } from "vitest";
 import { makeIndex } from "../../src/ai-shared";
 import type { DrillData, Example } from "../../src/ai-shared";
 import { buildPool } from "../../src/domain";
-import { drawPlace, gradeNarrow, gradePlace, placeGrade, placeNarrow, placeQuestionRows, placeRows } from "../../src/domain/place";
+import { drawPlace, gradeNarrow, gradePlace, placeGrade, placeNarrow, plainRows, placeQuestionRows, placeRows } from "../../src/domain/place";
 import { placeByClass } from "../../src/domain/reference";
 import openData from "../../src/data/drill-data.json";
 import { madeUpExamples } from "../../scripts/lib/made-up-course.mjs";
@@ -143,6 +143,34 @@ test("drawPlace: a thing that cannot be asked is passed over within its stage, s
   expect(top / n, "half of the draws are of stage 7, though twelve of its thirteen examples cannot be asked").toBeGreaterThan(0.42);
   expect(top / n).toBeLessThan(0.58);
   expect(drawPlace(data, unknown, { stages: [7], rng: seeded(1) }), "a stage with nothing to ask is left out, and with nothing left there is no question").toBeNull();
+});
+
+test("placeQuestionRows with plain: from stage 2 at most a third of the rows are everyday categories, more only when the course categories are too few", () => {
+  const data = ix();
+  const row = (c: string, term: string, answer: boolean) => ({ cat: c, term, phrase: c, answer, reason: "", why: "" });
+  const all = [row("col", "Color", true), row("extf", "External form", true), row("wood", "", true), row("shape", "Shape", false), row("intf", "Internal form", false), row("cons", "Consciousness", false), row("perm", "Permanent", false),
+    ...["a", "b", "c", "d", "e"].map((c) => row(c, "", false))];
+  const plain = (rows: { term: string }[]) => rows.filter((r) => !r.term).length;
+  let most = 0, most6 = 0;
+  for (let s = 0; s < 300; s++) {
+    const rows = placeQuestionRows(data, wall, seeded(s), 6, all, 0.5, plainRows(2))!;
+    expect(rows.length).toBe(6);
+    most = Math.max(most, plain(rows));
+    most6 = Math.max(most6, plain(placeQuestionRows(data, wall, seeded(s), 6, all, 0.5, plainRows(1))!));
+  }
+  expect(most, "the yes rows may hold one, and the refusals none beyond the second").toBeLessThanOrEqual(2);
+  expect(most6, "stage 1 has no limit").toBeGreaterThan(2);
+  // too few course rows to fill the question: everyday ones make it up
+  const few = placeQuestionRows(data, wall, seeded(1), 6, [row("col", "Color", true), row("shape", "Shape", false), ...["a", "b", "c", "d", "e"].map((c) => row(c, "", false))], 0.5, 2)!;
+  expect(few.length).toBe(6);
+  expect(plainRows(1)).toBe(6);
+  expect(plainRows(3)).toBe(2);
+  expect(plainRows(2, 9)).toBe(3);
+  // the draw over the real categories: most rows are about the course's categories by stage 4, where everyday ones were two of three
+  const real = makeIndex(openData as unknown as DrillData);
+  let rows = 0, everyday = 0;
+  for (let s = 0; s < 150; s++) for (const r of drawPlace(real, null, { stages: [1, 2, 3, 4], rng: seeded(s), newShare: 0.5 })!.rows) { rows++; if (!r.term) everyday++; }
+  expect(everyday / rows).toBeLessThan(0.45);
 });
 
 test("gradePlace: a row is right when ticked exactly if the thing is in the category", () => {
