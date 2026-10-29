@@ -10,7 +10,6 @@ import { MAGIC_KEY_NOTE } from "../../ui/magic-key-note.ts";
 import { setShare } from "../ai/share-notice.js";
 import { canAsk } from "../core/ask.js";
 import { el } from "../core/dom.js";
-import { exName } from "../shell/exercises.js";
 import { aboutInfo, keyNote, shareNote, toggleOpts } from "../shell/options.js";
 import { render } from "../shell/render.js";
 import { setLang } from "../shell/session.js";
@@ -19,13 +18,13 @@ import { languagesOn } from "./terms.tsx";
 import { setOn as setVoiceOn, voiceAvailable, voiceNote, voiceOn } from "../shell/voice.js";
 import { DEFAULT_LOOK, currentLook, lookLine, pastedLook, setLook, storedLook } from "./look.ts";
 import { setDesign } from "./index.tsx";
-import { Foot, Station, TopBar, pathNote } from "./shell.tsx";
+import { TopBar, pathNote } from "./shell.tsx";
 import { Group, Intro, Line } from "./lines.tsx";
-import { Bridge, Icon, Words, NOFILL } from "./ui.tsx";
+import { Bridge, Words, NOFILL } from "./ui.tsx";
 
 /** The pages of Settings, by the names of their lines. */
-const TITLES: Record<string, string> = { langs: "Languages", key: "Magic Key", acct: "Account", share: "Share my examples", xfer: "Export and import", lab: "The lab's settings", ver: "Version and updates" };
-const open = (id: string) => { state.optsPage = id; render(); const b = document.querySelector<HTMLElement>("#path .ppage .sback"); if (b) b.focus({ preventScroll: true }); };
+const TITLES: Record<string, string> = { langs: "Languages", key: "Magic Key", acct: "Account", share: "Sharing examples", xfer: "Export and import", lab: "The lab's settings", ver: "Version and updates" };
+const open = (id: string) => { state.optsPage = id; render(); const b = document.querySelector<HTMLElement>("#path .ptb .tstn"); if (b) b.focus({ preventScroll: true }); };
 const back = () => { state.optsPage = null; render(); };
 // how long Version is held to show Experiments
 const HOLD_MS = 1500;
@@ -55,16 +54,34 @@ function LanguagesPage() {
       sw={{ on: on.includes(id), toggle: () => setLang(id, !on.includes(id)) }} />)}
   </>;
 }
-/** The Magic Key: a note on what it is, then enter it, or another one, or forget it after a question. */
+/** The field the Magic Key is typed in, on its page (the prompt's own words and checks, platform `enter`): Unlock takes it, and the page then says the device has it. */
+function KeyForm({ enter, label, cancel }: { enter: (text: string) => Promise<string | null>; label: string; cancel?: () => void }) {
+  const [text, setText] = useState(""), [why, setWhy] = useState(""), [busy, setBusy] = useState(false);
+  const go = async (e: Event) => {
+    e.preventDefault(); if (busy) return;
+    setBusy(true); setWhy("");
+    const no = await enter(text);
+    setBusy(false); if (no) setWhy(no); else setText("");
+  };
+  return <form class="pkeyform" onSubmit={(e) => void go(e)}>
+    <input class="pfield" type="text" aria-label={label} placeholder="four words or the special link" {...NOFILL} value={text} onInput={(e) => { setText((e.currentTarget as HTMLInputElement).value); setWhy(""); }} />
+    <span class="olctl"><button type="submit" class="pbtn" disabled={busy}>{busy ? "Checking…" : "Unlock"}</button>{cancel ? <button type="button" class="pbtn quiet" onClick={cancel}>Cancel</button> : null}</span>
+    {why ? <p class="pnoteline bad" role="alert">{why}</p> : null}
+  </form>;
+}
+/** The Magic Key: a note on what it is, then the field to enter it (or another one), or forget it after a question. A place that cannot take the key on the page opens its prompt over it. */
 function KeyPage() {
-  const held = !!state.keyHeld, k = state.keyHeld!;
+  const held = !!state.keyHeld, k = state.keyHeld!, [another, setAnother] = useState(false);
+  const enter = held ? k.enter : state.unlock && state.unlock.enter;
+  const field = enter ? <KeyForm enter={async (t) => { const no = await enter(t); if (!no) setAnother(false); return no; }} label={held ? "Another Magic Key or link" : "Magic Key or link"} cancel={held ? () => setAnother(false) : undefined} /> : null;
   return <>
     <Intro>{keyNote(held)}</Intro>
     <div class="ol"><span class="olsw" /><span class="oltx"><span class="olbody">
       <span class="pkeynote">{MAGIC_KEY_NOTE.map((t: string) => <p>{t}</p>)}</span>
-      <span class="olctl">{!held ? <button type="button" class="pbtn" onClick={() => { toggleOpts(false); state.unlock!.open(); }}>Enter the Magic Key</button>
-        : state.keyAsk ? <><button type="button" class="pbtn" onClick={() => k.forget()}>Forget the key</button><button type="button" class="pbtn quiet" onClick={() => { state.keyAsk = false; render(); }}>Keep it</button></>
-        : <><button type="button" class="pbtn" onClick={() => { toggleOpts(false); k.change(); }}>Enter another key</button><button type="button" class="pbtn quiet" onClick={() => { state.keyAsk = true; render(); }}>Forget the key</button></>}</span>
+      {!held ? field || <span class="olctl"><button type="button" class="pbtn" onClick={() => state.unlock!.open()}>Enter the Magic Key</button></span>
+        : another && field ? field
+        : <span class="olctl">{state.keyAsk ? <><button type="button" class="pbtn" onClick={() => k.forget()}>Forget the key</button><button type="button" class="pbtn quiet" onClick={() => { state.keyAsk = false; render(); }}>Keep it</button></>
+          : <><button type="button" class="pbtn" onClick={() => { if (field) setAnother(true); else void k.change(); }}>Enter another key</button><button type="button" class="pbtn quiet" onClick={() => { state.keyAsk = true; render(); }}>Forget the key</button></>}</span>}
     </span></span><span /></div>
   </>;
 }
@@ -114,7 +131,7 @@ function Page({ id }: { id: string }) {
   if (id === "key") return <KeyPage />;
   if (id === "acct") return <Holder><Bridge own cls="phost" fill={() => accountControls(state.account!, pel, render, state.acct)} /></Holder>;
   if (id === "share") return <><Intro>{shareNote()}</Intro>
-    <Line title="Share my examples" sw={{ on: state.shareExamples, toggle: () => { setShare(!state.shareExamples); render(); } }} sub={state.shareExamples ? "on" : "off"} /></>;
+    <Line title="Sharing examples" sw={{ on: state.shareExamples, toggle: () => { setShare(!state.shareExamples); render(); } }} sub={state.shareExamples ? "on" : "off"} /></>;
   if (id === "xfer") return <Holder intro="Saves everything this device keeps (answers, debates, favorites, skipped pairs and these settings) in one file, as a backup or to move to another device. Importing adds what is missing and never deletes anything.">
     <Bridge own cls="phost" fill={() => dataTransferControls(state.db!, pel, render, state.xfer)} /></Holder>;
   if (id === "lab") return <LabPage />;
@@ -153,15 +170,15 @@ function Sections() {
       <Line title="Theme"><Words label="Theme" items={[["system", "System"], ["light", "Light"], ["dark", "Dark"]]} cur={look.mode} on={(v) => { setLook({ mode: v === DEFAULT_LOOK.mode ? null : v }); render(); }} /></Line>
     </Group>
     {keyShown() || acct || shareShown() || state.db ? <Group name="Data">
-      {keyShown() ? <Line title="Magic Key" sub={state.keyHeld ? "entered on this device" : "not on this device yet"} go={() => open("key")} /> : null}
+      {keyShown() ? <Line title="Magic Key" icon={state.keyHeld ? "unlocked" : "locked"} sub={state.keyHeld ? "entered on this device" : "not on this device yet"} go={() => open("key")} /> : null}
       {acct ? <Line title="Account" sub={acctLine(acct)} go={() => open("acct")}
         act={acct.person ? { label: "Sync now", busy: acct.busy === "sync", run: () => { void state.account!.syncNow(); } } : undefined} /> : null}
-      {shareShown() ? <Line title="Share my examples" sub="the words of examples the tutor checks" sw={{ on: state.shareExamples, toggle: () => { setShare(!state.shareExamples); render(); } }} go={() => open("share")} /> : null}
+      {shareShown() ? <Line title={"Sharing examples: " + (state.shareExamples ? "on" : "off")} sub="Your examples will help other learners" go={() => open("share")} /> : null}
       {state.db ? <Line title="Export and import" sub="everything this device keeps, in one file" go={() => open("xfer")} /> : null}
     </Group> : null}
     {expOn() ? <Group name="Experiments" tag={state.preview ? "only in previews" : "shown on this device"} note="Not settled yet; not shown in the released app.">
       <Line title="Design" sub="The Path is the redesign, still being made. Classic is the page as it was."><Words label="Design" items={[["path", "Path"], ["classic", "Classic"]]} cur={state.design} on={setDesign} /></Line>
-      {voiceAvailable() ? <Line title="Voice" sub={voiceNote()} sw={{ on: voiceOn(), toggle: () => setVoiceOn(!voiceOn()) }} /> : null}
+      {voiceAvailable() ? <Line title="Voice features" sub={voiceNote()} sw={{ on: voiceOn(), toggle: () => setVoiceOn(!voiceOn()) }} /> : null}
       <Line title="The lab's settings" sub={labOwn() ? "this device's own" : "the defaults"} go={() => open("lab")} />
     </Group> : null}
     {state.about ? <Group name="About">
@@ -172,13 +189,14 @@ function Sections() {
 }
 export function SettingsPage() {
   const page = state.optsPage && TITLES[state.optsPage] ? state.optsPage : null;
+  // the top bar's chevron is the way back: from a page to Settings, from Settings to where it was opened from
+  const up = page ? { label: "Back to Settings", go: back } : { label: state.fromRoad ? "Back to the roadmap" : "Back to the exercise", go: () => toggleOpts(false) };
   return <>
-    <TopBar title={page ? TITLES[page]! : "Settings"} />
+    <TopBar title={page ? TITLES[page]! : "Settings"} back={up} />
     <div class="ppage sfull">
-      {page ? <><button type="button" class="sback" onClick={back}><Icon n="chev" />back to Settings</button><Page id={page} /></>
+      {page ? <Page id={page} />
         : <><p class="ptitle">Settings</p><Intro>For the app, on this device. How an exercise looks and ticks is in its practice options.</Intro><Sections /></>}
       <div style={{ height: "30px" }} />
     </div>
-    <Foot>{state.fromRoad ? <Station back name="Back to the roadmap" act={() => toggleOpts(false)} /> : <Station back name="Back to the exercise" hint={exName(state.own)} act={() => toggleOpts(false)} />}</Foot>
   </>;
 }

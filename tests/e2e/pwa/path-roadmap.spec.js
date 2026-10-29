@@ -149,8 +149,7 @@ test("Settings and Review opened from the roadmap go back to it, by the system B
   await expect(road(page)).toBeVisible();
   await expect.poll(() => level(page)).toBe(0);
   await road(page).getByRole("button", { name: "Settings" }).click();
-  await expect(page.locator("#stn")).toHaveAttribute("aria-label", "Back to the roadmap");
-  await page.locator("#stn").click();
+  await page.getByRole("button", { name: "Back to the roadmap", exact: true }).click();   // the top bar's chevron
   await expect(road(page)).toBeVisible();
   await expect.poll(() => level(page)).toBe(0);
   await road(page).getByRole("button", { name: /^Review/ }).click();
