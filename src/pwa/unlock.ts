@@ -2,7 +2,7 @@
 // the "#" (https://.../#k=lotus-river-candle-stone). Browsers never send that part to a server. The key is kept
 // on this device, so the app unlocks again without the link; the definitions it unlocks come from the server (./course.ts).
 import { parseMagicKey } from "../ai/magic-key";
-import { MAGIC_KEY_NOTE } from "../ui/magic-key-note";
+import { MAGIC_KEY_ABOUT, MAGIC_KEY_NOTE } from "../ui/magic-key-note";
 
 const KEY = "riglam.magicKey";
 const OLD_KEY = "riglam.dataKey"; // the key of the first design, a random string: it fits nothing now
@@ -90,8 +90,8 @@ export function showUnlock({ problem = null, verify, apply }: { problem?: string
     dlg.innerHTML = `<form method="dialog">
       <h2 id="unlock-h"><svg class="ico" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="8" cy="15" r="4.5"/><path d="M11.2 11.8 20 3m-4 4 3 3m-5.5-.5 2 2"/></svg>Enter the <button type="button" class="keyname" id="unlock-mk-btn" aria-expanded="false" aria-controls="unlock-mk">Magic Key</button></h2>
       <div class="pop" id="unlock-mk" hidden>${MAGIC_KEY_NOTE.map((t) => `<p>${t}</p>`).join("")}<button type="button" class="popx" id="unlock-mk-hide">Hide</button></div>
-      <p>The Magic Key is four words that come with the course. Entered once, it unlocks the course’s definitions and notes on this device, so terms show what they mean, and the explanations of the AI tutor, which use them.</p>
-      <p class="hint">Without it you can still practice. Ask your teacher or whoever shared the app with you.</p>
+      <p>${MAGIC_KEY_ABOUT[0]}</p>
+      <p class="hint">${MAGIC_KEY_ABOUT[1]}</p>
       <p id="unlock-err" class="err" role="alert" hidden></p>
       <input id="unlock-key" type="text" autofocus aria-label="Magic Key or link" placeholder="four words or the special link" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="text">
       <div class="row"><button type="submit" class="btn"><svg class="ico" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-1.9"/></svg>Unlock</button><button type="button" class="btn ghost" id="unlock-skip">Close</button></div>
