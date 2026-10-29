@@ -21,7 +21,6 @@
 .pa .exr.tut .xnote{color:var(--ink)}
 .pa .whyt{font-size:15.5px; line-height:1.45}
 .pa .whyt + .whyt{margin-top:8px}
-.pa .tutn{font-family:var(--mono); font-size:11px; color:var(--tutor)}
 
 /* the result's pair: the names and their classes, your relation as the node and, on the right, its name marked */
 .pa .pn.res{row-gap:6px}
@@ -82,11 +81,11 @@
 .pa .tchk{display:flex; gap:8px; align-items:baseline; font-size:15px; line-height:1.4; margin-bottom:8px}
 .pa .tchk .mark{flex:none; transform:translateY(3px)}
 /* the tutor's note on an example: set apart from the learner's own answer above it by a gap and a rule in the tutor's color, its steps as a list */
-.pa .exr .tnote{margin-top:12px; padding:1px 0 1px 12px; border-left:2px solid var(--tutor); font-size:14.5px; line-height:1.4; color:var(--ink)}
-.pa .exr .tnote .tuth{display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:26px; margin-bottom:3px}
-.pa .exr .tnote .tutn{letter-spacing:.03em}
+.pa .exr .tnote{position:relative; margin-top:12px; padding:1px 0 1px 12px; border-left:2px solid var(--tutor); font-size:14.5px; line-height:1.4; color:var(--ink)}
+.pa .exr .tnote .tuth{position:absolute; top:-2px; right:-4px}
 .pa .exr .tnote .tt{margin:0}
-.pa .exr .tnote .tuth .pflg{margin:0 -4px 0 0}
+.pa .exr .tnote .tuth .pflg{margin:0}
+.pa .exr .tnote .tt,.pa .exr .tnote .tsteps li:first-child{padding-right:26px}   /* the first line stops short of the flag */
 .pa .tsteps{list-style:none; padding:0; margin:0; display:grid; gap:7px}
 .pa .tsteps li{position:relative; padding-left:15px}
 .pa .tsteps li::before{content:""; position:absolute; left:0; top:.5em; width:6px; height:6px; transform:rotate(45deg); background-color:var(--tutor); opacity:.75}

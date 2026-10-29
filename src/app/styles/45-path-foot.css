@@ -1,0 +1,12 @@
+/* What is at the foot while a station rides away (path/foot.ts). A placeholder for the station that comes next (`.fw-sd`, the gray empty diamond of a station that is not ready, without words) is
+   born at the foot once the station has cleared it, with the foot's stub of thread above it, whole again, gray and fading (`.fw-ph` on the main); the foot's real station is not seen until the step has landed (`.fw-wait` on the main). Then the
+   real station of the new page is activated (`.fw-act`): its diamond comes in from the placeholder's look to its own, its mark and its words after it. */
+.pa .main.fw-ph .foot::before{height:26px; background:repeating-linear-gradient(to bottom,var(--ink3) 0 3px,transparent 3px 8px); -webkit-mask-image:linear-gradient(to top,#000,transparent); mask-image:linear-gradient(to top,#000,transparent); opacity:.9; transition:none}
+.pa .fw-sd .go{animation:p-scnx .34s cubic-bezier(.2,.9,.3,1.3) both}
+.pa .main.fw-wait .foot .stn{opacity:0; pointer-events:none}      /* not seen, and not touched, but there: it may take the focus, so that Enter goes on as soon as the step has landed */
+.pa .stn.fw-act .go{animation:p-fwgo .4s cubic-bezier(.2,.9,.3,1.15) both}
+.pa .stn.fw-act .go .mk{animation:p-fwmk .3s .12s ease-out both}
+.pa .stn.fw-act .gol{animation:p-scnl .32s .1s ease-out both}
+@keyframes p-fwgo{from{background-color:var(--paper); box-shadow:inset 0 0 0 1.8px var(--ink3); width:var(--stp); height:var(--stp); margin-right:calc(var(--stp) / -2)}}
+@keyframes p-fwmk{from{opacity:0}}
+@media (prefers-reduced-motion:reduce){ .pa .fw-sd .go,.pa .stn.fw-act .go,.pa .stn.fw-act .go .mk,.pa .stn.fw-act .gol{animation:none} }

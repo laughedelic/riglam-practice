@@ -125,6 +125,31 @@ test("a reason that is the same class as the predicate gives the textbook's vali
   expect(syllogismOf(ix, "a tomato", "red", "red")).toBeNull(); // red has one label: no pair of its own words
 });
 
+test("an everyday reason that says the predicate's own word is never drawn: it gives the pervasion away", () => {
+  const fly = { id: "fly", kind: "everyday", labels: ["flying foods"], type: "form", phrases: ["a flying food", "food that flies"], within: ["food"] };
+  const dark = { id: "dark", kind: "everyday", labels: ["dark red things"], type: "form", phrases: ["dark red"], within: ["red"] };
+  const banana = { n: "a flying banana", t: "External form", c: ["ft", "form", "extf", "food", "fly"] };
+  const cherry = { n: "a cherry", t: "External form", c: ["ft", "form", "extf", "food", "red", "dark"] };
+  const more = makeIndex({ ...data([banana, cherry]), cats: [...data().cats, fly, dark] } as DrillData);
+  expect(syllogismOf(more, "a cherry", "dark", "red"), "its one wording says \"red\" twice").toBeNull();
+  for (let seed = 1; seed < 20; seed++) {
+    const c = syllogismOf(more, "a flying banana", "fly", "food", seeded(seed));
+    expect(c?.situation).toBe(1);
+    expect(c?.predicate, "food is said in the words that do not repeat it").toBe("something you can eat");
+  }
+  expect(syllogismOf(more, "a cherry", "dark", "form")?.situation, "the reason still proves what its words do not say").toBe(1);
+  expect(syllogismOf(more, "a cherry", "red", "dark")?.reason, "the other way it is no give-away").toBe("red");
+  // the course's terms keep their names: "a form because it is an external form"
+  expect(syllogismOf(ix, "a stone", "extf", "form", () => 0)?.reason).toBe("an external form");
+  // the open data: "an animal because it is an animal that can fly" is never drawn
+  const st = { hist: [] as SyllogismHistory[], recent: [] as string[], rng: seeded(41) };
+  for (let i = 0; i < 1500; i++) {
+    const c = drawSyllogism(real, st);
+    if (real.CAT[c.catR].kind !== "everyday" || real.CAT[c.catP].kind !== "everyday" || c.catR === c.catP) continue;
+    expect(` ${c.reason} `, c.id).not.toContain(` ${c.predicate.replace(/^(a|an|the) /, "")} `);
+  }
+});
+
 test("the data must agree with itself: a pervasion the chain proves and an item contradicts is reported and never drawn", () => {
   expect(pervasionConflicts(ix)).toEqual([]);
   const bad = makeIndex(data([{ n: "a hum", t: "Sound source", c: ["ft", "snd"] }])); // a sound that is not an external form
@@ -174,6 +199,17 @@ test("a counter-example has to be the reason without being the predicate; a thin
   expect(gradeExample(ix, c, "a banana")).toMatchObject({ v: "bad", line: expect.stringContaining("A banana is not red") });
   expect(gradeExample(ix, c, "a thing the course knows nothing of").v).toBe("cmp");
   expect(gradeExample(ix, c, "   ").v).toBe("cmp");
+});
+
+test("a counter-example whose name leaves the reason open is asked to say it; one that is the predicate is no counter-example, whatever the rest of it is", () => {
+  const vix = makeIndex(data([
+    { n: "a ball", t: "External form", c: ["ft", "form", "extf"], may: ["red"] },
+    { n: "an apple", t: "External form", c: ["ft", "form", "extf", "food"], may: ["red"] },
+  ]));
+  const c = syllogismOf(vix, "a tomato", "red", "food") as Syllogism; // whatever is red is food: no
+  expect(gradeExample(vix, c, "a ball")).toEqual({ v: "cmp", line: `“A ball” leaves open whether it is ${c.reason}: name it, as in “a red ball”.` });
+  expect(gradeExample(vix, c, "an apple")).toEqual({ v: "bad", line: `An apple is ${c.predicate}, whatever the rest of it is.` });
+  expect(gradeExample(vix, c, "a red ball").v).toBe("ok");
 });
 
 test("the line on a counter-example names the thing as the data does, not as it was typed, and the one thing said as \"you\" takes \"are\"", () => {

@@ -17,12 +17,14 @@ export interface CellResult {
   v: Verdict;
   msg: string[];
   kind: "occ" | "ex";
-  /** Claude could not settle the example */
+  /** Claude could not settle the example, or its name leaves the cell's quality open (`vague`) */
   uns?: boolean;
   /** "claude" when Claude's check settled the verdict */
   by?: string;
   /** settled as not fitting by one known side of the example; the other side is still the tutor's to say */
   half?: boolean;
+  /** the example's name leaves these categories open ("a car" for black things): the cell stays open, with the words that would settle it (vague.ts); nothing settles it later */
+  vague?: string[];
   /** settled from a fact the app's server learned of an earlier check (the tag "from an earlier check"): a flag on the cell's note names the example, so that the server disputes the fact */
   learned?: boolean;
 }
@@ -41,11 +43,14 @@ export interface GradeDraft {
   relUns?: boolean;
 }
 
-/** The result of checking an answer. `overall`: ok, part (something wrong besides the relation), pend (examples unchecked), bad (wrong relation). */
+/** The result of checking an answer. `overall`: ok, part (something wrong besides the relation), pend (examples unchecked or left open by their names), bad (wrong relation). */
 export interface GradeResult extends GradeDraft {
   occBad: number;
   exBad: number;
+  /** examples still to check (by the tutor, the course examples or what the server learned) */
   exOpen: number;
+  /** examples whose names leave the cell's quality open (`vague`): not counted in `exOpen`, since no check settles them */
+  exVague: number;
   exN: number;
   overall: "ok" | "part" | "pend" | "bad";
 }

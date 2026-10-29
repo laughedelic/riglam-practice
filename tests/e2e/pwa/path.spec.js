@@ -265,11 +265,11 @@ test("the thread runs on through what voice shows above the foot (Hear the quest
   expect(pulled.content, "the pull's thread crosses the bar").not.toBe("none");
   expect(pulled.bg).toContain("repeating-linear-gradient");
   await expect(page.locator(".pa")).not.toHaveClass(/\bpull/);
-  // ready to check: the gold thread runs through it, as it runs into the foot
+  // ready to check: the gray thread runs through it, as it runs into the foot
   await answer(page);
   const ready = await line("::before");
   expect(ready.content).not.toBe("none");
-  expect(ready.bg, "gold, as the foot's stub").toContain(await page.locator("#path .foot").evaluate((e) => getComputedStyle(e, "::before").backgroundColor));
+  expect(ready.bg, "gray, as the foot's stub").toContain(await page.locator("#path .foot").evaluate((e) => getComputedStyle(e, "::before").backgroundColor));
 });
 
 test("the strip pulls from its heading with a short pull, and its hint is gray", async ({ page }) => {
@@ -335,16 +335,74 @@ test("the roadmap comes down from the top bar and goes to another exercise", asy
   await expect(choices(page)).toHaveCount(5);
 });
 
+test("the roadmap has the stops and their names only: no branch labels, and the planned Debate is tied to Pervasions and Syllogisms", async ({ page }) => {
+  await start(page);
+  await choices(page).nth(2).click();   // an attempt in Relations, so that it says "continue" once we are elsewhere
+  await expect(page.locator("#cin")).toBeVisible();
+  await page.locator("#cin").blur();   // the keyboard is down, the top bar is back
+  await page.locator(".tstn").click();
+  const road = page.getByRole("dialog", { name: "Roadmap" });
+  await road.getByRole("button", { name: /^Pervasions/ }).click();
+  await page.locator(".tstn").click();
+  const tree = road.locator("svg.tree");
+  await expect(tree).toBeVisible();
+  expect((await tree.locator("text").allTextContents()).sort()).toEqual(["Categories", "Debate", "Find a pair", "Find an instance", "Pervasions", "Relations", "Syllogisms", "coming", "continue", "riglam"]);
+  const geo = await tree.evaluate((svg) => {
+    const pt = (p, at) => { const q = p.getPointAtLength(at); return [Math.round(q.x), Math.round(q.y)]; };
+    const dashed = [...svg.querySelectorAll("path.lnp")].map((p) => [pt(p, 0), pt(p, p.getTotalLength())]);
+    const debate = svg.querySelector("polygon.nd.plan").getBBox();
+    const cont = svg.querySelector("text.cont").getBBox();
+    let onLine = 0;
+    for (const p of svg.querySelectorAll("path.ln,path.lnp")) for (let at = 0; at < p.getTotalLength(); at += 1) { const q = p.getPointAtLength(at); if (q.x > cont.x - 3 && q.x < cont.x + cont.width + 3 && q.y > cont.y - 3 && q.y < cont.y + cont.height + 3) onLine++; }
+    return { dashed, top: [Math.round(debate.x + debate.width / 2), Math.round(debate.y)], onLine };
+  });
+  expect(geo.dashed).toHaveLength(2);
+  for (const [, end] of geo.dashed) expect(end, "both ties end at the top of Debate").toEqual(geo.top);
+  expect(geo.dashed.map(([start]) => start[0]).sort((a, b) => a - b), "from Pervasions' column and Syllogisms'").toEqual([74, 196]);
+  expect(geo.onLine, "no line runs through the word under a stop").toBe(0);
+});
+
+test("a row of the practice options with a page has a chevron at its right edge, as tall as the row; the sheet fades where there is more to scroll to", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 640 });
+  await start(page);
+  await page.locator(".tstn").click();
+  await page.getByRole("dialog", { name: "Roadmap" }).getByRole("button", { name: /^Pervasions/ }).click();
+  await page.getByRole("button", { name: "Practice options" }).click();
+  const sheet = page.getByRole("dialog", { name: "Practice options" }), body = sheet.locator(".sbody");
+  await expect(sheet.locator(".porow .more")).not.toHaveCount(0);
+  for (const row of await sheet.locator(".porow.pgo").all()) {
+    const [r, m] = [await row.boundingBox(), await row.locator(".more").boundingBox()];
+    expect(m.width, "easy to tap").toBeGreaterThanOrEqual(44);
+    expect(Math.abs(m.x + m.width - (r.x + r.width)), "at the row's right edge").toBeLessThan(1);
+    expect(Math.abs(m.height - r.height), "as tall as the row").toBeLessThan(1.5);
+    expect(await row.locator(".more").textContent(), "no word of its own").toBe("");
+  }
+  const edge = () => body.evaluate((e) => ({ fade: e.hasAttribute("data-fade"), top: e.style.getPropertyValue("--ft"), bottom: e.style.getPropertyValue("--fb") }));
+  expect(await edge(), "more below").toEqual({ fade: true, top: "0px", bottom: "44px" });
+  await body.evaluate((e) => { e.scrollTop = e.scrollHeight; });
+  await expect.poll(edge).toEqual({ fade: true, top: "26px", bottom: "0px" });
+  await page.setViewportSize({ width: 390, height: 1400 });
+  await expect.poll(async () => (await edge()).fade, "nothing to scroll to, no fade").toBe(false);
+});
+
 test("the practice options are a sheet from the top bar, and a choice there is kept", async ({ page }) => {
   await start(page);
   await page.getByRole("button", { name: "Practice options" }).click();
   const sheet = page.getByRole("dialog", { name: "Practice options" });
   await expect(sheet).toBeVisible();
+  // the top bar is the sheet's heading, in place of the exercise's name, and its sliders are the close
+  await expect(page.locator(".ptb-t")).toHaveText("Practice options");
+  await expect(sheet.locator("h2")).toHaveCount(0);
+  await expect(page.locator(".ptb .pib")).toHaveCount(1);                 // the other tools give way
+  await expect(page.locator(".main > :not(.ptb)").first()).toHaveAttribute("inert", "");   // the page behind is inert, the bar is not
   await sheet.getByRole("group", { name: "Notation" }).getByRole("button", { name: "Sets" }).click();
   expect(await page.evaluate(() => localStorage.getItem("rd-notation"))).toBe("sets");
   await expect(choices(page).first().locator(".rsym")).not.toBeEmpty();   // the relation's sign in the notation picked
-  await sheet.getByRole("button", { name: "Close the practice options" }).click();
+  await sheet.getByRole("button", { name: /^Notation: more$/ }).click();
+  await expect(page.locator(".ptb-t")).toHaveText("Notation");           // a page of the options: its name
+  await page.getByRole("button", { name: "Close the practice options" }).click();
   await expect(sheet).toBeHidden();
+  await expect(page.locator(".ptb-t")).toHaveText("Relations");
 });
 
 test("Settings switches to the classic page and back, and the device keeps the choice", async ({ page }) => {
@@ -497,10 +555,12 @@ withKey("the tutor's note under an example is a list of steps in the tutor's blo
   await page.locator(".wrow").filter({ hasText: "Why" }).click();
   const note = page.locator(".exr .tnote").first();
   await expect(note).toBeVisible();
-  await expect(note.locator(".tutn")).toHaveText("the tutor");
-  const [label, flag] = await Promise.all([note.locator(".tutn").boundingBox(), note.locator(".pflg").boundingBox()]);
-  expect(Math.abs((flag.y + flag.height / 2) - (label.y + label.height / 2)), "the flag is on the label's line").toBeLessThan(8);
-  expect(flag.x, "at the right of the block").toBeGreaterThan(label.x + 100);
+  await expect(note).not.toContainText("the tutor");   // no label: the rule says whose note it is, and a label on every case read as if the steps were about the tutor
+  await expect(note).toHaveAccessibleName("The tutor’s note");
+  const [box, flag, step] = await Promise.all([note.boundingBox(), note.locator(".pflg").boundingBox(), note.locator(".tsteps li").first().boundingBox()]);
+  expect(flag.y - box.y, "the flag is at the top of the block").toBeLessThan(14);
+  expect(box.x + box.width - (flag.x + flag.width), "and at its right").toBeLessThan(12);
+  expect(Math.abs(step.y - box.y), "with no row of its own above the first step").toBeLessThan(6);
   await expect(note.locator(".tsteps li").first()).toContainText("It follows it is");
   await expect(note).not.toContainText("Take ");   // the "take" line repeated the answer above it
 });
@@ -756,6 +816,26 @@ test("the line's steps are smooth: a segment after a thicker one narrows into it
   expect(tail.mask, "and fades out").toContain("linear-gradient");
   const first = await line("#path .sx.first");
   expect(first.clip, "the first segment widens from the top bar's stub").toContain("polygon");
+});
+
+test("the stub into the station is gray and fades upward from it: dotted while the station is not ready, solid once it is, ink at the result", async ({ page }) => {
+  await start(page);
+  const stub = () => page.locator("#path .foot").evaluate((e) => { const c = getComputedStyle(e, "::before"); return { bg: c.backgroundImage, color: c.backgroundColor, mask: c.maskImage || c.webkitMaskImage }; });
+  const color = (v) => page.locator(".pa").evaluate((e, name) => { const i = document.createElement("i"); i.style.color = "var(" + name + ")"; e.append(i); const c = getComputedStyle(i).color; i.remove(); return c; }, v);
+  const pre = await stub();
+  expect(pre.bg, "dotted").toContain("repeating-linear-gradient");
+  expect(pre.mask, "fading upward from the station: clear at the top, whole at the foot").toMatch(/^linear-gradient\(rgba\(0, 0, 0, 0\)/);
+  await answer(page);
+  const ready = await stub();
+  expect(ready.bg, "solid").toBe("none");
+  expect(ready.color, "gray, no longer gold").toBe(await color("--ink3"));
+  expect(ready.mask, "still fading upward").toMatch(/^linear-gradient\(rgba\(0, 0, 0, 0\)/);
+  await page.locator("#stn").click();
+  await expect(page.locator("#path .pvline")).toBeVisible();
+  await expect(page.locator("#path .main")).not.toHaveClass(/\bfw-ph\b/);      // the placeholder's own stub is the Check's scan's, until the step has landed
+  const done = await stub();
+  expect(done.color, "ink at the result").toBe(await color("--ink"));
+  expect(done.mask, "no fade").toBe("none");
 });
 
 test("a picked relation's figure sits on the row's tint, with no box around it", async ({ page }) => {

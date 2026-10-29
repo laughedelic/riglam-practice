@@ -5,7 +5,7 @@
 .pa .sx{position:relative; --w:var(--lw); --pw:var(--w)}
 /* a segment is --w wide (the current one and the pending choices are a pixel wider); its first 34 px start as wide as the segment before it (--pw) and
    narrow or widen to their own as the color blends, so that two segments are not glued together at a step */
-.pa .sx.cur,.pa .sx.gap,.pa.ready .sx.ptail{--w:var(--lh)}
+.pa .sx.cur,.pa .sx.gap{--w:var(--lh)}
 .pa .sx.first{--pw:var(--lw)}
 .pa .sx.cur + .sx,.pa .sx.gap + .sx{--pw:var(--lh)}
 .pa .sx:not(.cur):not(.gap) + .sx{--pw:var(--lw)}
@@ -27,13 +27,17 @@
 .pa.edge-fade.ah-dot:not(.ready):not(.done) .sx.ahead + .sx.ptail::before,.pa.edge-fade.ah-dash:not(.ready):not(.done) .sx.ahead + .sx.ptail::before{background:var(--ahead-bg)}
 .pa.edge-fade:not(.ready):not(.done) .sx.gap + .sx.ptail::before,.pa.edge-fade.ah-dot:not(.ready):not(.done) .sx.ahead + .sx.ptail::before,.pa.edge-fade.ah-dash:not(.ready):not(.done) .sx.ahead + .sx.ptail::before{
   -webkit-mask-image:linear-gradient(to bottom,#000,transparent 65%); mask-image:linear-gradient(to bottom,#000,transparent 65%)}
-.pa.ready .sx.ptail::before{background:var(--gold); opacity:1}
+/* the path ahead is gray: dotted while a choice or an unanswered question blocks it, solid (and fading, with the fade look) once they are answered; yellow is for the questions themselves */
+.pa.ready .sx.ptail::before{background:var(--ink3); opacity:.9}
+.pa.edge-fade.ready .sx.ptail::before{background:linear-gradient(to bottom,var(--ink3),transparent 65%)}
 .pa.done .sx.ptail::before{background:var(--ink); opacity:.72}
 /* a long run down to the station fades out and back in (Review always; elsewhere with Line to the station: fades) */
 .pa.review .sx.ptail.long::before,.pa.edge-fade.ready .sx.ptail.long::before,.pa.edge-fade.done .sx.ptail.long::before{
   -webkit-mask-image:linear-gradient(to bottom,#000 0,#000 10px,transparent 58px,transparent calc(100% - 52px),#000 100%);
   mask-image:linear-gradient(to bottom,#000 0,#000 10px,transparent 58px,transparent calc(100% - 52px),#000 100%)}
 .pa .sx.detouring::before{background:var(--ahead-bg)}
+/* the line's color can be eased from one to another (a statement's line goes from the question's gold to the walked ink as the ride takes the step, push.ts) */
+@property --sc{syntax:"<color>"; inherits:true; initial-value:transparent}
 /* the line takes the next color over the first 34 px of the next section instead of cutting to it */
 @supports (color:color-mix(in srgb,red,blue)){
   .pa .sx{--sc:color-mix(in srgb,var(--ink) 72%,var(--paper)); --smw:34px; --sbg:linear-gradient(to bottom,var(--pv,var(--sc)) 0,var(--sc) var(--smw))}
@@ -47,8 +51,7 @@
   .pa .sx.nop + .sx{--pv:var(--red)}
   .pa .sx.ptp + .sx{--pv:var(--partc)}
   .pa .sx:is(.walked,.cur,.okp,.nop,.ptp):not(.detouring)::before{background:var(--sbg); opacity:1}
-  .pa.ready .sx.ptail{--sc:var(--gold)}
-  .pa.done .sx.ptail::before,.pa.ready .sx.ptail::before{background:var(--sbg); opacity:1}
+  .pa.done .sx.ptail::before{background:var(--sbg); opacity:1}
 }
 
 /* a stop on the path: the diamond, then the text */
@@ -102,6 +105,8 @@
 .pa .pskip:active{color:var(--blue)}
 .pa .hasskip{position:relative}
 .pa .hasskip > .ptx{padding-right:52px}
+/* the room of the Skip mark kept where the mark is gone (a syllogism's statement in the result), so that its lines do not break differently */
+.pa .hasroom > .ptx{padding-right:52px}
 .pa .hasskip .pskip{position:absolute; right:6px; top:-4px; z-index:2}
 .pa .hasstar.hasskip .pskip{top:40px}
 .pa .pairst.sm.hasstar.hasskip .pskip{top:36px}
@@ -158,6 +163,22 @@
 .pa.ch-branches .crow .ct{padding-left:42px}
 .pa.ch-branches .crow.picked .spur polygon{fill:var(--blue)}
 
+/* the examples' line: each case draws the piece from its own diamond to the next one's (the head's piece goes down to the first case's): solid yellow where the case is
+   written, dotted yellow where it is not, and the trail ahead is dotted gray until every case is written, then solid gray. The diamonds sit 22 px under a case's top, and
+   16 (written) or 14 (later) with the keyboard up; the classes say which (examples.tsx). */
+.pa .sx.er,.pa .sx.eh{--dc:22px; --nd:22px}
+.pa.kbup .sx.er.kw{--dc:16px}
+.pa.kbup .sx.er.kl{--dc:14px}
+.pa.kbup .sx.nxkw{--nd:16px}
+.pa.kbup .sx.nxkl{--nd:14px}
+.pa .sx.eh::before{bottom:calc(var(--nd) * -1)}
+.pa .sx.er::before{top:var(--dc); bottom:calc(var(--nd) * -1)}
+.pa .sx.er.last::before{bottom:0}
+.pa.edge-fade:not(.ready):not(.done) .sx.ptail.xtail::before{background:repeating-linear-gradient(to bottom,var(--ink3) 0 3px,transparent 3px 8px); -webkit-mask-image:linear-gradient(to bottom,#000,transparent 65%); mask-image:linear-gradient(to bottom,#000,transparent 65%)}
+/* a trail that still waits on an answer stays dotted although the station is ready: the questions still to come in a step, a counter-example that may stay empty (`dtail`) */
+.pa:not(.done) .sx.ptail.dtail::before{background:var(--ahead-bg); opacity:.9}
+.pa.edge-fade:not(.done) .sx.ptail.dtail::before{background:repeating-linear-gradient(to bottom,var(--ink3) 0 3px,transparent 3px 8px); -webkit-mask-image:linear-gradient(to bottom,#000,transparent 65%); mask-image:linear-gradient(to bottom,#000,transparent 65%)}
+
 /* cases: one stop for each example */
 .pa .sb{padding:10px 0 12px; align-items:start}
 .pa .sb > .d{margin-top:7px}
@@ -176,4 +197,5 @@
 .pa .pfield::placeholder{color:var(--ink3); font-family:var(--main-f); font-style:italic; font-weight:400; font-size:17px}
 .pa .help{font-size:13.5px; font-style:italic; color:var(--ink2); margin-top:6px}
 .pa .help button{font-family:var(--mono); font-size:11.5px; font-style:normal; color:var(--blue); text-decoration:underline; text-underline-offset:3px; margin-left:4px}
+.pa .help button:first-child{margin-left:0}
 .pa .conn{font-style:normal; font-weight:600}

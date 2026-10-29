@@ -40,10 +40,11 @@ export function saveVerdicts(U,C){
 }
 // The learner's examples the page could not check (verdict "cmp"), each with its cell: the server keeps what the explanation says of them where it is
 // set to (docs/SERVER.md, "Learned facts"). Read before the verdicts arrive, so these are the examples the explanation is the check of. An example that
-// one known side already failed (`half`, known.js) is named too: the explanation says its other side, which the server keeps.
+// one known side already failed (`half`, known.js) is named too: the explanation says its other side, which the server keeps. One whose name leaves the cell's
+// quality open (`vague`, src/domain/vague.ts) is not: the page settles it, and the server has nothing to learn of "a car" being black.
 function openExamples(U){
   if(!U||!U.res) return [];
-  return quorumThings(U).filter(t=>t.text.length<=200).flatMap(t=>t.cells.filter(c=>U.res.cells[c]&&(U.res.cells[c].v==="cmp"||U.res.cells[c].half)).map(c=>({cell:c,text:t.text}))).slice(0,8);
+  return quorumThings(U).filter(t=>t.text.length<=200).flatMap(t=>t.cells.filter(c=>{ const r=U.res.cells[c]; return r&&((r.v==="cmp"&&!r.vague)||r.half); }).map(c=>({cell:c,text:t.text}))).slice(0,8);
 }
 // Whether this device shares its examples with the server, read where they are sent: another tab may have turned the switch off since this page started (`rd-share`),
 // and the opt-out wins; it stays in memory too, in case the storage cannot be read again. The same for having been told (another tab may have asked).

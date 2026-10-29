@@ -9,6 +9,7 @@ test.use({ reducedMotion: "no-preference" });
 
 const onPath = () => {
   if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path");
+  if (localStorage.getItem("rd-look") === null) localStorage.setItem("rd-look", JSON.stringify({ check: "scan" }));   // the replaced result page, which this spec is about (the page that goes on is the default: path-push.spec.js)
   window.__vib = []; navigator.vibrate = (v) => { window.__vib.push(v); return true; };
 };
 const choices = (page) => page.locator("#path .chs .crow");
@@ -25,9 +26,12 @@ async function written(page, { enter = false } = {}) {
   await field.fill("a cloud");
   if (!enter) await field.blur();
   await page.evaluate(() => {
-    window.__scan = []; window.__marks = 0; window.__open = null; window.__next = false;
+    window.__scan = []; window.__marks = 0; window.__open = null; window.__next = false; window.__early = false;
     new MutationObserver((ms) => { window.__marks = Math.max(window.__marks, document.querySelectorAll("#path .sb .pscm").length);
-      const nx = document.querySelector("#path #stn.scn-next"); if (nx && document.querySelector("#path .pscan") && nx.textContent.includes("Next pair")) window.__next = true;   // the next station is there while the scanner is still on its way
+      if (document.querySelector("#path .pscan")) {      // while the scanner is on its way: the placeholder of the next station is at the foot, and the real one is not
+        if (document.querySelector("#path .fw-sd")) window.__next = true;
+        const rs = document.querySelector("#path .foot #stn"); if (rs && rs.textContent.includes("Next pair") && getComputedStyle(rs).opacity !== "0") window.__early = true;
+      }
       for (const m of ms) { const e = m.target; if (!(e instanceof HTMLElement)) continue;
       if (e.matches(".sb.scn") && !e.dataset.seen) { e.dataset.seen = "1"; if (window.__open === null) window.__open = !document.querySelector(".pa.kbup") && !!document.querySelector("#path .foot #stn"); window.__scan.push("case:" + [...document.querySelectorAll("#path .sx.cur .sb")].indexOf(e)); }
       if (e.matches(".sechead.scn-gone") && !e.dataset.seen) { e.dataset.seen = "1"; window.__scan.push("head"); }
@@ -52,7 +56,8 @@ test("the Check slides up through the cases marking each from the bottom, then t
   await expect(page.locator(".pvline")).toContainText(word);
   expect(await page.evaluate(() => window.__vib.length), "a knock at the relation").toBeGreaterThan(0);
   await expect(page.locator("#stn")).toContainText("Next pair");
-  expect(await page.evaluate(() => window.__next), "Next pair took the Check's place at the foot while the scanner was still sliding").toBe(true);
+  expect(await page.evaluate(() => window.__next), "a placeholder for the next station stood at the foot while the scanner was sliding").toBe(true);
+  expect(await page.evaluate(() => window.__early), "and Next pair was not shown before the scanner was the result's node").toBe(false);
   await expect(page.locator("#path .main")).not.toHaveClass(/sc-run/);
   expect(errors).toEqual([]);
 });
@@ -79,16 +84,55 @@ test("with the keyboard up, Enter on the last example opens the page first, and 
   await expect(page.locator(".pvline")).toBeVisible();
   expect(await page.evaluate(() => window.__scan)).toEqual(["case:3", "case:2", "case:1", "case:0", "head", "rel"]);
   expect(await page.evaluate(() => window.__open), "the page was open (the foot there, the keyboard's layout gone) at the first mark").toBe(true);
-  expect(await page.evaluate(() => window.__next), "Next pair took the Check's place at the foot while the scanner was still sliding").toBe(true);
+  expect(await page.evaluate(() => window.__next), "a placeholder for the next station stood at the foot while the scanner was sliding").toBe(true);
+  expect(await page.evaluate(() => window.__early), "and Next pair was not shown before the scanner was the result's node").toBe(false);
   await expect(page.locator("#stn")).toContainText("Next pair");
 });
 
 test("with the look's check: ride the Check rides as any station", async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem("rd-look", JSON.stringify({ check: "ride" })));
+  await page.addInitScript(() => localStorage.setItem("rd-look", JSON.stringify({ ride: "fold", check: "ride" })));
   await written(page);
   await page.evaluate(() => { window.__ran = false; new MutationObserver(() => { if (document.querySelector("#path .main.tk-run")) window.__ran = true; }).observe(document.querySelector("#path .main"), { attributes: true }); });
   await page.locator("#stn").click();
   await expect(page.locator(".pvline")).toBeVisible();
   expect(await page.evaluate(() => window.__ran)).toBe(true);
   expect(await page.evaluate(() => window.__scan)).toEqual([]);
+});
+
+test("Pervasions: the relation picked is taken with the scan: it rises from the foot, marks the relation and the four answers, and becomes the result's node", async ({ page }) => {
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.addInitScript(onPath);
+  await page.goto("/");
+  await expect(choices(page)).toHaveCount(5);
+  await page.locator(".tstn").click();
+  await page.getByRole("dialog", { name: "Roadmap" }).getByRole("button", { name: /^Pervasions/ }).click();
+  await expect(page.locator(".ptb-t")).toContainText("Pervasions");
+  for (let i = 0; i < 4; i++) { await choices(page).first().click(); await expect(page.locator("#path .sb.done")).toHaveCount(i + 1); }
+  await expect(page.getByRole("group", { name: "Relation" })).toBeVisible();
+  await page.evaluate(() => {
+    const w = (window.__pv = { marks: 0, scan: 0, pre: false, sd: 0, early: false, struck: 0 });
+    const tick = () => {
+      w.marks = Math.max(w.marks, document.querySelectorAll("#path .pscm").length);
+      w.struck = Math.max(w.struck, document.querySelectorAll("#path .crow.scn-no, #path .crow.scn-ok").length);
+      if (document.querySelector("#path .pscan")) { w.scan++; if (document.querySelector("#path .pscan.pre")) w.pre = true; if (document.querySelector("#path .fw-sd")) w.sd++; const rs = document.querySelector("#path .foot .stn"); if (rs && /Next pair/.test(rs.textContent) && getComputedStyle(rs).opacity !== "0") w.early = true; }
+      requestAnimationFrame(tick);
+    };
+    tick();
+  });
+  await choices(page).nth(3).click();
+  await expect(page.locator("#path .pscan")).toHaveCount(1, { timeout: 6000 });
+  await expect(page.locator("#path .chs")).toBeVisible();      // the page is still the relation's while the scanner rises: nothing has jumped
+  await expect(page.locator(".pvline")).toBeVisible({ timeout: 12000 });
+  await expect(page.locator("#stn")).toContainText("Next pair");
+  await expect(page.locator("#path .pscan")).toHaveCount(0);
+  const w = await page.evaluate(() => window.__pv);
+  expect(w.scan, "the scanner was on the page").toBeGreaterThan(10);
+  expect(w.pre, "gray, as the station it left").toBe(true);
+  expect(w.marks, "the four answers and the relation were marked on the way").toBe(5);
+  expect(w.struck, "the relation among them").toBe(1);
+  expect(w.sd, "a placeholder stood at the foot meanwhile").toBeGreaterThan(5);
+  expect(w.early, "and Next pair was not shown before the scanner was the result's node").toBe(false);
+  await expect(page.locator("#path .main")).not.toHaveClass(/\b(sc-run|sc-in|sc-hand|fw-wait|fw-ph)\b/);
+  expect(errors).toEqual([]);
 });
