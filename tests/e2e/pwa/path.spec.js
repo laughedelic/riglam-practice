@@ -98,7 +98,7 @@ test("a touch outside the unfolded strip folds it again", async ({ page }) => {
   await expect(strip).toHaveClass(/\bopen\b/);   // and the knob still opens it
 });
 
-test("with the keyboard up there is no bar above it: Enter goes on, the Check comes up on the page once the last example has words, and Enter there takes it", async ({ page }, testInfo) => {
+test("with the keyboard up there is no bar above it: Enter goes on, the line runs solid once the last example has words, and Enter there opens the page and takes the Check from the foot", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "pwa-phone", "a touch screen's keyboard");
   await start(page);
   await choices(page).nth(3).click();
@@ -112,35 +112,31 @@ test("with the keyboard up there is no bar above it: Enter goes on, the Check co
     await page.locator("#cin").fill(t);
     await page.locator("#cin").press("Enter");
   }
-  const node = page.locator("#path .pscroll .cnode #stn");
-  await expect(node).toHaveCount(0);   // the last case is still empty
+  await expect(page.locator(".pa")).not.toHaveClass(/\bready\b/);   // the last case is still empty
   await page.locator("#cin").fill("a");
-  await expect(node).toHaveAccessibleName(/^Check: your relation and 4 examples/);   // a word in the last field: the Check is the next stop, on the page
-  await expect(page.locator(".pa")).toHaveClass(/\bready\b/);
+  await expect(page.locator(".pa")).toHaveClass(/\bready\b/);   // a word in the last field: the line ahead is solid, down to where the foot will be
+  await expect(page.locator("#path #stn")).toHaveCount(0);   // and no station stands on the page meanwhile
   await expect(page.locator("#cin")).toBeFocused();
   await page.locator("#cin").fill("");
-  await expect(node).toHaveCount(0);   // emptied again: it goes
+  await expect(page.locator(".pa")).not.toHaveClass(/\bready\b/);   // emptied again
   await page.locator("#cin").fill("a stone");
-  await expect(node).toBeVisible();
-  await page.locator("#cin").press("Enter");   // the last one: the keyboard goes and the Check is taken
+  await page.locator("#cin").press("Enter");   // the last one: the keyboard goes, the page opens with the Check at its foot, and the Check is taken there
   await expect(page.locator(".pvline")).toBeVisible();
   await expect(page.locator(".pa")).not.toHaveClass(/\bkbup\b/);
   await expect(page.locator("#path .foot #stn")).toHaveAccessibleName(/Next pair/);
 });
 
-test("with the keyboard up a tap on the Check under the last example takes it, and the field keeps the focus until then", async ({ page }, testInfo) => {
+test("with the keyboard up, letting the last field go shows the Check at the foot, and a tap takes it", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "pwa-phone", "a touch screen's keyboard");
   await start(page);
   await choices(page).first().click();   // Mutually inclusive: two cases
   const field = page.locator("#cin");
   await expect(field).toBeVisible();
   for (let i = 0; i < 4 && (await field.isVisible()); i++) { await field.fill("thing " + (i + 1)); if ((await field.getAttribute("enterkeyhint")) === "done") break; await field.press("Enter"); }
-  await field.focus();
-  const node = page.locator("#path .pscroll .cnode #stn");
-  await expect(node).toBeVisible();
-  const box = await node.boundingBox(), sc = await page.locator("#path .pscroll").boundingBox();
-  expect(box.y + box.height, "the Check is in view above the keyboard").toBeLessThanOrEqual(sc.y + sc.height + 1);
-  await node.tap();
+  await field.blur();
+  const stn = page.locator("#path .foot #stn");
+  await expect(stn).toHaveAccessibleName(/^Check: your relation and 2 examples/);
+  await stn.tap();
   await expect(page.locator(".pvline")).toBeVisible();
   await expect(page.locator("#cin")).toHaveCount(0);
 });
