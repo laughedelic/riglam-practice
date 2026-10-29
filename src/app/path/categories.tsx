@@ -19,8 +19,12 @@ import { D, Gap, Head, Mark, St, Sx } from "./ui.tsx";
 
 const q = () => state.cur!.q as PlaceQuestion;
 const cap = (t: string) => t[0].toUpperCase() + t.slice(1);
-/** Why a category is, or is not, one of the thing's: the steps of the data, a sentence. */
-const because = (row: PlaceRow) => [row.reason ? cap(row.reason) + "." : "", row.why].filter(Boolean).join(" ");
+/** Why a category is, or is not, one of the thing's: the steps of the data, a sentence. A reason that only says the category again ("it is not furniture", where the data has
+ *  no steps for it) is left out: it tells nothing the row does not. */
+const because = (row: PlaceRow) => {
+  const echo = row.reason === "it is " + row.phrase || row.reason === "it is not " + row.phrase;
+  return [row.reason && !echo ? cap(row.reason) + "." : "", row.why].filter(Boolean).join(" ");
+};
 
 /** The thing asked about, as the first stop: its name alone (no exercise names the stage of what it asks). */
 function Thing() {
@@ -47,9 +51,12 @@ function Split({ one }: { one: boolean }) {
       {rows.slice().sort((a, b) => Number(a.ok) - Number(b.ok)).map((r) => <CatRow row={r} one={one} />)}</Sx>;
   })}</>;
 }
-/** The verdict of step 1 as the result's node says it. */
-function verdictOf(g: PlaceResult): { v: "ok" | "no" | "pt"; word: string } {
-  return { v: g.ok ? "ok" : g.right ? "pt" : "no", word: g.ok ? "All right" : g.right + " of " + g.rows.length + " right" };
+/** The verdict of step 1 as the result's node says it: right only when every category is where it belongs (as the progression counts it, categories/flow.js),
+ *  else not quite, with what went wrong each way. */
+function verdictOf(g: PlaceResult): { v: "ok" | "no"; word: string; sub: string } {
+  if (g.ok) return { v: "ok", word: "Right", sub: "" };
+  const up = g.rows.filter((r) => r.picked && !r.answer).length, down = g.rows.filter((r) => !r.picked && r.answer).length;
+  return { v: "no", word: "Not quite", sub: [up ? up + " lifted that " + (up === 1 ? "does" : "do") + " not apply" : "", down ? down + " left under that " + (down === 1 ? "applies" : "apply") : ""].filter(Boolean).join(" · ") };
 }
 /** How far under the top the thing stands on the result's page; the scan folds the heading away until it stands there (push.ts `foldBefore`). */
 const RESULT_TOP = 12;
@@ -64,7 +71,7 @@ function scanPlan(): ScanPlan {
 /** One category of the result in the threshold's form: on the line when it is over the rule, beside it under the rule, with its mark, what the learner did and the reason. */
 function ResRow({ row, on }: { row: PlaceGraded; on: boolean }) {
   const u = u0(), ok = row.ok, why = because(row), open = !ok || !!(u.pcat && u.pcat[row.cat]);
-  const tag = row.picked && !row.answer ? "you lifted it" : !row.picked && row.answer ? "you left it under" : "";
+  const tag = !row.picked && row.answer ? "you left it under" : "";
   const cls = "crow cres" + (on ? " on" : "") + (ok ? "" : " wrong");
   const inner = <><span class="mc"><D cls={"sub " + (ok ? "ok" : "no")} /></span><span class="ct"><span class="line1"><b>{row.phrase}</b><Mark m={ok ? "ok" : "no"} />{tag ? <span class="ctag">{tag}</span> : null}</span>
     {why && open ? <span class="xnote">{why}</span> : null}</span></>;
@@ -121,11 +128,11 @@ function OneStep() {
 /** Step 1 checked: the verdict on it, the two groups, and the way on (step 2, or the next thing when step 2 is not asked). */
 function CheckedStep() {
   const u = u0(), g = u.g1, n: PlaceNarrow | null = u.narrow, one = u.ask !== "all";
-  const { v, word } = verdictOf(g);
+  const { v, word, sub } = verdictOf(g);
   return <>
     <Scroll>
       <Sx cls="walked first"><Gap h={RESULT_TOP} /><Thing /><Gap h={6} /></Sx>
-      <Verdict v={v} word={word} sub={u.checked ? "step 2 is not asked" : "step 1 of 2"} />
+      <Verdict v={v} word={word} sub={[sub, u.checked ? "step 2 is not asked" : "step 1 of 2"].filter(Boolean).join(" · ")} />
       {one ? <Split one /> : <Settled />}
       {u.checked ? <Sx cls="walked"><p class="pnoteline pfnote">{skipNote()}</p></Sx> : !g.ok && n ? <Sx cls="walked"><p class="pnoteline pfnote">Step 2 uses the corrected set: {n.options.map((r) => r.phrase).join(", ")}.</p></Sx> : null}
       {u.checked ? <StageOffer /> : null}

@@ -66,3 +66,8 @@
 .pa .thold.tres .crow .mark .i{width:16px; height:16px}
 .pa .thold.tres .crow .xnote{display:block; font-size:14px; color:var(--ink2); line-height:1.35; margin-top:2px}
 @media (hover:hover){ .pa .thold.tres .crow:hover b{text-decoration:none} }
+/* the marks in line with the name; a category lifted by mistake struck, as the scan struck it; under the rule the diamonds hollow, in the mark's color */
+.pa .thold.tres .crow .line1 .mark{transform:translateY(3px)}
+.pa .thold.tres .chs.up .crow.wrong b{color:var(--ink2); text-decoration:line-through; text-decoration-color:var(--red); text-decoration-thickness:2px}
+.pa .thold.tres .chs.down .crow .mc .d.ok,.pa .thold .chs.down .crow.scn-ok .mc .d{background-color:var(--paper); box-shadow:inset 0 0 0 1.8px var(--green)}
+.pa .thold.tres .chs.down .crow .mc .d.no,.pa .thold .chs.down .crow.scn-no .mc .d{background-color:var(--paper); box-shadow:inset 0 0 0 1.8px var(--red)}
