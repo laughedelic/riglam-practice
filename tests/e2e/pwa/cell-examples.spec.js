@@ -1,6 +1,6 @@
 // The stages of the learning ladder in the practice options ("Stages"), and the reference examples as references of a pair's cells, from the stages
-// that are on. The examples are invented (a plain and a second-level one for every term of the open data, at stages 6 and 7) and served by a stand-in
-// for the server (tests/support/data-key.js). The specs' devices are not new (the fixture stores a setting), so they start with stages 1 to 6.
+// that are on. The examples are invented (a plain and a second-level one for every term of the open data, at stages 8 and 10) and served by a stand-in
+// for the server (tests/support/data-key.js). The specs' devices are not new (the fixture stores a setting), so they start with stages 0 to 9.
 import { test, expect } from "../../support/test.js";
 import { ready, setStoredStages } from "../../support/page.js";
 import { dataKey, KEY_STORE, serveCourse } from "../../support/data-key.js";
@@ -34,7 +34,7 @@ const stageSwitch = (row, n) => row.getByRole("switch", { name: new RegExp(`^Sta
 const stagesOn = async (page, wanted) => {
   const row = await openStages(page);
   for (const off of [false, true]) {
-    for (let n = 1; n <= 9; n++) {
+    for (let n = 0; n <= 12; n++) {
       if (wanted.includes(n) === off) continue;
       const sw = stageSwitch(row, n);
       if ((await sw.getAttribute("aria-checked")) === String(!off)) continue;
@@ -59,16 +59,16 @@ test("the practice options have a Stages card with a switch for each stage, what
   await ready(page);
   await expect.poll(() => page.evaluate(() => !!window.__t.EX)).toBe(true);
   await openOptions(page);
-  await expect(stagesCard(page), "the card says which stages are on: a device used before the stages keeps what it had").toContainText("Stages 1–6");
+  await expect(stagesCard(page), "the card says which stages are on: a device used before the stages keeps what it had").toContainText("Stages 0–9");
   const row = await intoStages(page);
-  await expect(row.getByRole("switch")).toHaveCount(9);
+  await expect(row.getByRole("switch")).toHaveCount(13);
   await expect(row.locator(".lvl").first()).toContainText("Things around you");
   await expect(stageSwitch(row, 1)).toContainText("things"); // how many it has
-  await expect(stageSwitch(row, 6)).toHaveAttribute("aria-checked", "true");
-  await expect(stageSwitch(row, 7)).toHaveAttribute("aria-checked", "false");
-  await stageSwitch(row, 8).click();
-  await expect(stageSwitch(row, 8)).toHaveAttribute("aria-checked", "true");
-  expect(await page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("1,2,3,4,5,6,8");
+  await expect(stageSwitch(row, 9)).toHaveAttribute("aria-checked", "true");
+  await expect(stageSwitch(row, 10)).toHaveAttribute("aria-checked", "false");
+  await stageSwitch(row, 11).click();
+  await expect(stageSwitch(row, 11)).toHaveAttribute("aria-checked", "true");
+  expect(await page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("0,1,2,3,4,5,6,7,8,9,11");
   expect(await page.evaluate(() => localStorage.getItem("rd-stage-lean")), "the next pairs lean to three possibilities").toBe("5");
   await setStoredStages(page, "3");
   await page.reload();
@@ -81,22 +81,22 @@ test("the practice options have a Stages card with a switch for each stage, what
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
 });
 
-test("a new device starts at stage 1, and the card is there without the reference examples too", async ({ browser }) => {
+test("a new device starts at stage 0, and the card is there without the reference examples too", async ({ browser }) => {
   const page = await browser.newPage(); // without the fixture's stored setting: a device opened for the first time
   await page.addInitScript(hook);
   await page.goto("/");
   await ready(page);
   await openOptions(page);
-  await expect(stagesCard(page)).toContainText("Stage 1");
+  await expect(stagesCard(page)).toContainText("Stage 0");
   const row = await intoStages(page);
-  await expect(stageSwitch(row, 7)).toContainText("0 things");
+  await expect(stageSwitch(row, 9)).toContainText("0 things");
   expect(await page.evaluate(() => localStorage.getItem("rd-stages")), "nothing chosen yet: an import may still bring the stages").toBeNull();
   // the settings it stores from now on do not make it look like a device from before the stages
   await page.evaluate(() => localStorage.setItem("rd-notation", "sets"));
   await page.reload();
   await ready(page);
   await openOptions(page);
-  await expect(stagesCard(page)).toContainText("Stage 1");
+  await expect(stagesCard(page)).toContainText("Stage 0");
   await page.close();
 });
 
@@ -104,7 +104,7 @@ test("a device that drew the reference examples by level gets the stages up to t
   await page.addInitScript(() => { if (localStorage.getItem("rd-stages") === null) localStorage.setItem("rd-exlevels", "1,3"); });
   await page.goto("/");
   await ready(page);
-  expect(await page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("1,2,3,4,5,6,7,8");
+  expect(await page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("0,1,2,3,4,5,6,7,8,9,10,11");
 });
 
 test("the stages that are on decide which reference examples are drawn into the cells, and they are kept", async ({ page }) => {
@@ -114,22 +114,22 @@ test("the stages that are on decide which reference examples are drawn into the 
   await ready(page);
   await expect.poll(() => page.evaluate(() => !!window.__t.EX)).toBe(true);
 
-  await stagesOn(page, [6]);
+  await stagesOn(page, [8]);
   const one = await drawn(page);
-  expect(one.some((n) => /sample$/.test(n) && !/second/.test(n)), "the examples of stage 6 reach the cells").toBe(true);
-  expect(one.filter((n) => /second sample$/.test(n)), "nothing of stage 7").toEqual([]);
+  expect(one.some((n) => /sample$/.test(n) && !/second/.test(n)), "the examples of stage 8 reach the cells").toBe(true);
+  expect(one.filter((n) => /second sample$/.test(n)), "nothing of stage 10").toEqual([]);
 
-  await stagesOn(page, [6, 7]);
-  expect((await drawn(page)).some((n) => /second sample$/.test(n)), "the examples of stage 7 join").toBe(true);
+  await stagesOn(page, [8, 10]);
+  expect((await drawn(page)).some((n) => /second sample$/.test(n)), "the examples of stage 10 join").toBe(true);
 
-  await stagesOn(page, [7]); // a set, not a ceiling: stage 6 can be left out
+  await stagesOn(page, [10]); // a set, not a ceiling: stage 8 can be left out
   const two = await drawn(page);
-  expect(two.some((n) => /second sample$/.test(n)), "the examples of stage 7 are drawn").toBe(true);
-  expect(two.filter((n) => /sample$/.test(n) && !/second/.test(n)), "nothing of stage 6").toEqual([]);
+  expect(two.some((n) => /second sample$/.test(n)), "the examples of stage 10 are drawn").toBe(true);
+  expect(two.filter((n) => /sample$/.test(n) && !/second/.test(n)), "nothing of stage 8").toEqual([]);
 
   await page.reload();
   await ready(page);
   await expect.poll(() => page.evaluate(() => !!window.__t.EX)).toBe(true);
-  expect(await page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("7");
+  expect(await page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("10");
   expect((await drawn(page)).filter((n) => /sample$/.test(n) && !/second/.test(n)), "the stages are read back at the start").toEqual([]);
 });

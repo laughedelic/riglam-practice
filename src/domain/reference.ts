@@ -10,7 +10,7 @@ import { spelled, stripDet, upChain } from "../ai-shared/lookup";
 import type { DataIndex } from "../ai-shared/lookup";
 import type { CellId } from "../ai-shared/relations";
 import { catChain, excludes } from "./ladder";
-import { MAX_STAGE, normStages, topStage } from "./stages";
+import { LADDER_TOP, MAX_STAGE, STAGES, normStages, topStage } from "./stages";
 import type { Stages } from "./stages";
 import type { Witnesses } from "./universe";
 
@@ -35,11 +35,19 @@ export function placeByClass(ix: DataIndex, ex: Pick<Example, "cls" | "not" | "n
 export const DRAWN = ["confirmed", "textbook"] as const;
 
 /**
- * A reference example's stage: its own (format 3), else its level's: the examples are the course's, so a plain one (level 1) waits for the
- * course words (stage 6) and each level after it is a stage up.
+ * Where the export's stages fall on this ladder. The exporter numbers them by the ladder of nine stages it was written for: 1 everyday things,
+ * 2 what is seen, 3 what is heard, smelled, tasted or touched, 4 the textbook's own things, what does not exist and minds, 5 a sense or mental
+ * consciousness, 6 the course's words (things named or glossed by them), 7 one step, 8 two steps, 9 more. Each goes to the stage that opens
+ * what it needs, never an earlier one.
+ */
+const EXPORT_STAGE: Readonly<Record<number, number>> = { 1: 0, 2: 2, 3: 3, 4: 5, 5: 6, 6: 8, 7: 10, 8: 11, 9: 12 };
+
+/**
+ * A reference example's stage: its own (format 3, `EXPORT_STAGE`), else its level's: the examples are the course's, so a plain one (level 1)
+ * waits for the course words (stage 8) and each level after it is a step of depth.
  */
 export const exampleStage = (ex: Pick<Example, "lv" | "st">): number =>
-  typeof ex.st === "number" && ex.st >= 1 && ex.st <= MAX_STAGE ? ex.st : Math.min(MAX_STAGE, Math.max(1, ex.lv) + 5);
+  typeof ex.st === "number" && EXPORT_STAGE[ex.st] !== undefined ? EXPORT_STAGE[ex.st] : ex.lv <= 1 ? 8 : Math.min(MAX_STAGE, ex.lv + LADDER_TOP - 1);
 
 /** Whether an example may be drawn for a learner with these stages on: confirmed or textbook, of a stage that is on. */
 export function drawable(ex: Pick<Example, "cf" | "lv" | "st">, on: Stages): boolean {
@@ -49,7 +57,7 @@ export function drawable(ex: Pick<Example, "cf" | "lv" | "st">, on: Stages): boo
 /** How many examples a learner can be shown at each stage (`drawable` by confirmation), for the switches of the stages. */
 export function stageCounts(items: readonly Pick<Example, "cf" | "lv" | "st">[]): Record<number, number> {
   const out: Record<number, number> = {};
-  for (let s = 1; s <= MAX_STAGE; s++) out[s] = 0;
+  for (const s of STAGES) out[s.n] = 0;
   for (const ex of items) if ((DRAWN as readonly (string | undefined)[]).includes(ex.cf)) out[exampleStage(ex)]++;
   return out;
 }
@@ -57,7 +65,7 @@ export function stageCounts(items: readonly Pick<Example, "cf" | "lv" | "st">[])
 /** The kinds that may stand in a cell. Things and representations always; relations and negations from the stage that takes one step further; a combination or a statement is another question's ("is X a Y?" would be wrong for it). */
 const PLAIN_KINDS = ["thing", "representation"];
 const LATER_KINDS = ["relation", "negation"];
-const LATER_STAGE = 7;
+const LATER_STAGE = LADDER_TOP + 1;
 
 /**
  * Whether the example may be shown as the reference of a cell of a practice pair for a learner with these stages on: confirmed or textbook

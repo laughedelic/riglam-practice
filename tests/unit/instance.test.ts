@@ -4,7 +4,7 @@ import { expect, test } from "vitest";
 import { makeExampleIndex, makeIndex } from "../../src/ai-shared";
 import type { DrillData, Example } from "../../src/ai-shared";
 import { apartOf, drawInstance, gradeInstance, inAll, instanceGraded, instanceKey, instanceQuestion, itemStageIn, setStage } from "../../src/domain/instance";
-import { catStage } from "../../src/domain/stages";
+import { HOLD_STAGE, catStage } from "../../src/domain/stages";
 import openData from "../../src/data/drill-data.json";
 
 const seeded = (seed: number) => () => {
@@ -143,7 +143,7 @@ test("drawInstance: with stages, only categories open at the highest of them, an
   const data = makeIndex(STAGED), rose = data.DATA.items.find((i) => i.n === "the red of a rose")!;
   expect(setStage(data, ["col"], [rose])).toBe(2);
   expect(setStage(data, ["ft", "cons"])).toBe(4);
-  expect(setStage(data, ["form", "red"], data.DATA.items.filter((it) => inAll(data, it, ["form", "red"])))).toBe(1);
+  expect(setStage(data, ["form", "red"], data.DATA.items.filter((it) => inAll(data, it, ["form", "red"])))).toBe(0);
   expect(instanceQuestion(data, ["form", "red"], seeded(1), [1]).known).toEqual(["a red ball", "a red wooden ball"]);
   expect(instanceQuestion(data, ["form", "red"], seeded(1)).known).toContain("the red of a rose");
   const late = new Set(["ft", "perm", "cons", "col", "shape", "odor"]), kinds = new Set<boolean>();
@@ -160,18 +160,27 @@ test("drawInstance: with stages, only categories open at the highest of them, an
   expect(cols[0].known).toEqual(["the red of a rose"]);
 });
 
-test("drawInstance: on the open data at stage 1, every category is open, every thing shown is known, and no reason uses the course's words", () => {
+test("drawInstance: on the open data at stages 0 and 1, every category is open, every thing shown is known, and no reason uses the course's words", () => {
   const data = makeIndex(openData as unknown as DrillData), avoid = new Set<string>();
   let impossible = 0;
   for (let s = 0; s < 150; s++) {
-    const d = drawInstance(data, { rng: seeded(s), avoid, stages: [1] })!;
+    const d = drawInstance(data, { rng: seeded(s), avoid, stages: [0, 1] })!;
     avoid.add(instanceKey(d.cats));
-    for (const c of d.cats) expect(catStage(data.CAT[c]), c).toBe(1);
-    for (const n of d.known) expect(itemStageIn(data, data.DATA.items.find((i) => i.n === n)!, d.cats), n).toBe(1);
+    for (const c of d.cats) expect(catStage(data.CAT[c]), c).toBeLessThanOrEqual(1);
+    for (const n of d.known) expect(itemStageIn(data, data.DATA.items.find((i) => i.n === n)!, d.cats), n).toBe(0);
     if (d.possible) expect(d.known.length, d.cats.join()).toBeGreaterThan(0);
     else { impossible++; expect(d.apart!.why).not.toMatch(/a form|consciousness|compositional|functional|permanent|person/); }
   }
   expect(impossible).toBeGreaterThan(10);
+});
+
+test("drawInstance: stage 0 alone, where every learner starts, has sets of everyday categories to ask", () => {
+  const data = makeIndex(openData as unknown as DrillData);
+  for (let s = 0; s < 50; s++) {
+    const d = drawInstance(data, { rng: seeded(s), stages: [0] });
+    expect(d, "a set at stage 0").not.toBeNull();
+    for (const c of d!.cats) expect(catStage(data.CAT[c]), c).toBe(0);
+  }
 });
 
 test("instanceQuestion: at the first stages a reason says physical and a mind, as Categories does; the course's words once they open", () => {
@@ -189,7 +198,7 @@ test("gradeInstance: before the hold's stage a person in a physical category is 
   const early = gradeInstance(data, instanceQuestion(data, ["round"], seeded(1), [1]), { text: "a dog" });
   expect(early).toMatchObject({ v: "open", thing: "a dog", from: "item" });
   expect(early.rows[0]).toMatchObject({ answer: null, reason: "whether it is round is left for a later stage" });
-  expect(gradeInstance(data, instanceQuestion(data, ["round"], seeded(1), [4]), { text: "a dog" }).rows[0].answer).toBe(false);
+  expect(gradeInstance(data, instanceQuestion(data, ["round"], seeded(1), [HOLD_STAGE]), { text: "a dog" }).rows[0].answer).toBe(false);
 });
 
 test("gradeInstance: a practice item, by the list's categories, with the reason for each", () => {

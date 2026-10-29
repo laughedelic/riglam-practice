@@ -47,7 +47,13 @@ export interface Cat {
   phrases?: string[];
   /** ids of the categories that everything in this one is also in, stated where the term hierarchy cannot show it (everyday categories) */
   within?: string[];
-  /** the stage of the learning ladder (1 to 9) at which the category opens; none: from the start */
+  /**
+   * course terms mutually inclusive with the category's own that some of its labels and phrases (`words`) name: "matter" for form. They share the
+   * category and its questions, and each is introduced on its own (src/domain/intro.ts), at its category's stage or at its own (`st`, a later one:
+   * ultimate truth at 9 on functional thing at 5)
+   */
+  named?: { term: string; words: string[]; st?: number }[];
+  /** the stage of the learning ladder (0 to 9) at which the category opens; none: from the start */
   st?: number;
 }
 
@@ -66,7 +72,7 @@ export interface Item {
   nosubject?: boolean;
   /** a thing only the course's terms name (uncomposed space): the syllogism drill leaves it out of the everyday level */
   dudraOnly?: boolean;
-  /** the stage of the learning ladder (1 to 9) at which a newcomer knows the thing; none: from the start */
+  /** the stage of the learning ladder (0 to 9) at which a newcomer knows the thing; none: from the start */
   st?: number;
   /** ids of the everyday categories its name leaves open ("a chair" may be wooden or red): it is never used to show or to refuse them */
   may?: string[];

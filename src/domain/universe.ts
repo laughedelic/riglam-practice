@@ -6,6 +6,7 @@ import { leavesOpen } from "../ai-shared/lookup";
 import type { DataIndex } from "../ai-shared/lookup";
 import { CELLS, NEG_CELL, negLabel, negSides } from "../ai-shared/relations";
 import type { CellId, Neg, RelKey } from "../ai-shared/relations";
+import { termCats, wordsFor } from "./intro";
 import { itemKnown, itemOn, poolAt, topStage } from "./stages";
 import type { Unmet } from "./stages";
 import type { StagedEntry, Stages } from "./stages";
@@ -147,15 +148,19 @@ export function buildPool(ix: DataIndex): PoolEntry[] {
  * there is one, and the reason where a cell is empty. The random numbers are drawn in a fixed order; the id is made from
  * the clock and one more random number, so with both given the whole pair is reproducible. With `on`, the examples are
  * things of those stages (see pairOf). With `neg`, A, B or both are negated, under a label that is not a negation already where the category has one.
+ * With `words`, a label that names a term the learner has not met waits, and while a named term is open a side says it (intro.ts, wordsFor); a
+ * pair of one category's own two labels then has the open term's label first ("matter" and "forms").
  */
-export function makePair(ix: DataIndex, cand: PoolEntry, rng: Rng = Math.random, now: Clock = Date.now, more?: Witnesses, on?: Stages, neg?: Neg, brackets = true): Pair {
+export function makePair(ix: DataIndex, cand: PoolEntry, rng: Rng = Math.random, now: Clock = Date.now, more?: Witnesses, on?: Stages, neg?: Neg, brackets = true, words?: PairWords): Pair {
   let a = cand.a, b = cand.b, la: string, lb: string;
-  const [na, nb] = negSides({ neg }), labels = (cid: string, n: boolean) => {
+  // `lean` false: every label the learner has met, none preferred
+  const [na, nb] = negSides({ neg }), labels = (cid: string, n: boolean, lean = true) => {
     const all = ix.CAT[cid].labels, plain = all.filter((l) => !l.startsWith("non-"));
-    return n && plain.length ? plain : all;
+    return wordsFor(ix, cid, n && plain.length ? plain : all, words?.unmet, lean ? words?.open : undefined);
   };
   if (a === b) {
-    const ls = labels(a, na || nb).slice().sort(() => rng() - 0.5);
+    const ls = labels(a, na || nb, false).slice().sort(() => rng() - 0.5), lean = labels(a, na || nb);
+    if (lean.length < ls.length) ls.sort((x, y) => Number(lean.includes(y)) - Number(lean.includes(x)));
     la = ls[0]; lb = ls[1] ?? ls[0];
   } else {
     if (rng() < 0.5) [a, b] = [b, a];
@@ -163,6 +168,9 @@ export function makePair(ix: DataIndex, cand: PoolEntry, rng: Rng = Math.random,
   }
   return pairOf(ix, a, b, la, lb, rng, now, more, on, neg, brackets);
 }
+
+/** What a draw knows of the learner's terms for the labels of a pair: those not met (`unmet`) and those met and not right yet (`open`), as intro.ts has them. */
+export interface PairWords { unmet?: Unmet; open?: ReadonlySet<string> }
 
 /**
  * The pair for two categories in this order, shown under these labels (the learner's words in the pair-finding mode, a label of the category in a draw).
@@ -224,7 +232,7 @@ export interface DrawState {
   even?: boolean;
   /** the share of the pairs new at the highest stage (stages.ts, newShare): a quarter while the exercise is new to the learner; none: half */
   newShare?: number;
-  /** the new terms of the highest stage whose last answer is not right yet (intro.ts, openTerms): its pairs are drawn among theirs while any can be */
+  /** the terms met whose last answer is not right yet, at any stage (intro.ts, openTerms): the share of new pairs goes to theirs while any can be drawn, and they say a named term's label */
   open?: ReadonlySet<string>;
   /**
    * the negation track: about a third of the pairs have one side negated, A or B alike ("one", as the tutors negate either), or, with "both", half
@@ -241,7 +249,7 @@ export const NEG_SHARE = 1 / 3;
 /** How much more likely a three-possibility pair is while the learner has just reached a stage (`fresh`). */
 const FRESH_THREE = 2.5;
 
-/** The weight of a pair of two everyday categories from stage 2 on, against 1 for a pair with a course category (stage 1 is mostly such pairs, and so is a third of stage 4). */
+/** The weight of a pair of two everyday categories from stage 1 on, against 1 for a pair with a course category (stage 0 is only such pairs, and a third of stage 5 is). */
 export const EVERYDAY_ONLY = 0.35;
 
 /** Whether the pair is of two everyday categories, with no course term in it. */
@@ -253,37 +261,45 @@ const THIN_RELATION = 8;
 /**
  * The pool entry for the next pair: the relation that has been seen least lately, then a pair of categories weighted by what the learner got
  * wrong. With `stages`, from the pairs those stages can draw, the stage comes first: half the time (or `newShare`) the highest, else one of the
- * stages below, each as likely as the others (not each pair: stage 1 has a third of all the pairs), a stage made of pairs of two everyday
- * categories counting for less (EVERYDAY_ONLY) once a course term is in play; a pair of the highest stage has one of its `open` terms while one can.
+ * stages below, each as likely as the others (not each pair: stage 0 has a third of all the pairs), a stage made of pairs of two everyday
+ * categories counting for less (EVERYDAY_ONLY) once a course term is in play; the highest stage's share goes to the pairs with an `open` term, at
+ * whatever stage, while one can be drawn (a named term of the highest stage shares its category's pairs: the two truths of stage 9 are said on those
+ * of functional and permanent things).
  */
 export function chooseEntry(ix: DataIndex, full: readonly PoolEntry[], st: DrawState): PoolEntry {
   const { hist, recent } = st, rng = st.rng || Math.random, isHidden = st.isHidden || (() => false);
   // stages whose things cannot fill a single pair (only the upper stages, which the practice list has nothing of) draw from every pair
   const staged = st.stages ? poolAt(ix, full, st.stages) : [], drawable: readonly (PoolEntry & Partial<StagedEntry>)[] = staged.length ? staged : full;
   // a pair waits while one of its categories has a term the learner has not met; if that leaves nothing, the stages' pairs are drawn as they are
-  const met = st.unmet?.size ? drawable.filter((c) => !st.unmet!.has(c.a) && !st.unmet!.has(c.b)) : drawable;
-  const top = staged.length && !st.even ? topStage(st.stages!) : 0;
+  // and a pair of one category's own two labels while it has one label to show (the other names a term not met yet: "internal matter")
+  const two = (c: PoolEntry) => c.a !== c.b || wordsFor(ix, c.a, ix.CAT[c.a].labels, st.unmet).length > 1;
+  const met = st.unmet?.size ? drawable.filter((c) => !st.unmet!.has(c.a) && !st.unmet!.has(c.b) && two(c)) : drawable;
+  const top = staged.length && !st.even ? topStage(st.stages!) : null;
   const all = met.length ? met : drawable;
   // the stage first: the highest `newShare` of the time (a quarter while the exercise is new to the learner), else one below it, in proportion to what it teaches
   let pool = all;
-  if (top) {
+  if (top !== null) {
     const size = new Map<number, number>(), plain = new Map<number, number>();
     for (const c of all) { size.set(c.st!, (size.get(c.st!) || 0) + 1); if (everydayOnly(ix, c)) plain.set(c.st!, (plain.get(c.st!) || 0) + 1); }
     const below = [...size.keys()].filter((s) => s !== top).sort((a, b) => a - b);
-    const weight = (s: number) => (top > 1 ? 1 - (1 - EVERYDAY_ONLY) * ((plain.get(s) || 0) / size.get(s)!) : 1);
+    const weight = (s: number) => (top >= 1 ? 1 - (1 - EVERYDAY_ONLY) * ((plain.get(s) || 0) / size.get(s)!) : 1);
+    // the highest stage's pairs, and those of the categories of the open terms: a named term opens in a later stage than its category (intro.ts, stopCat)
+    const oc = st.open?.size ? termCats(st.open) : null, ofTop = (c: (typeof all)[number]) => c.st === top || (!!oc && (oc.has(c.a) || oc.has(c.b)));
     let stage = top;
-    if (below.length && (!size.has(top) || rng() >= (st.newShare ?? 0.5))) {
+    if (below.length && (!all.some(ofTop) || rng() >= (st.newShare ?? 0.5))) {
       let x = rng() * below.reduce((sum, s) => sum + weight(s), 0);
       stage = below[below.length - 1];
       for (const s of below) { if ((x -= weight(s)) <= 0) { stage = s; break; } }
     }
-    pool = all.filter((c) => c.st === stage);
-    // the stage waits for the last answer on each of its new terms to be right: its questions go to the terms that are not yet
+    pool = all.filter((c) => (stage === top ? ofTop(c) : c.st === stage));
+    // the new questions go to the terms met whose last answer is not right yet, wherever they are: a new term waits while too many are
     if (stage === top && st.open?.size) {
-      const lean = pool.filter((c) => st.open!.has(c.a) || st.open!.has(c.b));
+      const cats = termCats(st.open), lean = all.filter((c) => cats.has(c.a) || cats.has(c.b));
       if (lean.length) pool = lean;
     }
   }
+  // a stage or the open terms' pairs that are all skipped give way to the stages' other pairs before the skips do
+  if (pool !== all && !pool.some((c) => !isHidden(c)) && all.some((c) => !isHidden(c))) pool = all;
   const last = hist.slice(-8).map((x) => (x.key === "3ab" || x.key === "3ba" ? "3" : x.key));
   const seen = new Set(hist.slice(-60).map((x) => [x.catA, x.catB].sort().join("|")).concat(recent));
   const weak: Record<string, number> = Object.create(null);
@@ -309,8 +325,8 @@ export function chooseEntry(ix: DataIndex, full: readonly PoolEntry[], st: DrawS
     let v = 1;
     if (seen.has(pairKey(c))) v *= 0.08;
     v *= 1 + 1.5 * ((weak[c.a] || 0) + (weak[c.b] || 0));
-    // two everyday categories teach little once a course term is in play: at stage 1 only the exclusive pairs (white things, black things) are damped, from stage 2 on all of them
-    if (everydayOnly(ix, c)) v *= top > 1 ? EVERYDAY_ONLY : R === "con" ? 0.35 : 1;
+    // two everyday categories teach little once a course term is in play: at stage 0 only the exclusive pairs (white things, black things) are damped, from stage 1 on all of them
+    if (everydayOnly(ix, c)) v *= top !== null && top >= 1 ? EVERYDAY_ONLY : R === "con" ? 0.35 : 1;
     return v;
   });
   tot = w.reduce((s, v) => s + v, 0); x = rng() * tot;
@@ -325,5 +341,5 @@ export function nextPair(ix: DataIndex, pool: readonly PoolEntry[], st: DrawStat
   st.recent.push(pairKey(c));
   if (st.recent.length > RECENT_MAX) st.recent.shift();
   const neg: Neg | undefined = st.negation && rng() < NEG_SHARE ? (st.negation === "both" && rng() < 0.5 ? "ab" : rng() < 0.5 ? "a" : "b") : undefined;
-  return makePair(ix, c, rng, st.now || Date.now, st.more, st.stages, neg, st.brackets);
+  return makePair(ix, c, rng, st.now || Date.now, st.more, st.stages, neg, st.brackets, { unmet: st.unmet, open: st.open });
 }

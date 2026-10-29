@@ -1,5 +1,8 @@
-// The offer of the stages, from the result of any exercise (src/domain/stages.ts, runAfter and stageOffer). On the Path a stage with new terms is done
-// once the last answer on each of them is right (src/domain/intro.ts, termMark); a stage without, and the classic page, wait for a run of right answers.
+// The offer of the stages, from the result of any exercise (src/domain/stages.ts, runAfter and stageOffer). On the Path the stages are chapters of one
+// list of terms: a stage that brings new terms comes with the first of them, once the stage below has brought all of its own and few enough terms are
+// open (src/domain/intro.ts, nextStageDue). The ladder ends at stage 9: the stages after it are the layers of depth, which the Path offers on a result like
+// any offer (the first once the last answer on each term of stage 9 is right, the others after a run) and the Progression page sets; on the classic page
+// every stage waits for a run of right answers.
 // Every checked answer moves the run at the highest stage that is on, and the exercise's own record: whether it has warmed up, which sets how many of its
 // questions are new, and its right answers, after which its guided form turns off (practice/guided.ts). On the Path the next stage comes by itself: when
 // it is due, Next on the result goes to a station of its own that says which stage comes in (and, the first time, what the stages are), `ui.up`; Next from
@@ -7,13 +10,14 @@
 // stages themselves (the Stages page). Taking a stage off is still an offer on the result (`ui.offer`), as it is on the classic page, which shows both in
 // Categories only; nothing changes there without a tap, and Next past it counts as Not now. The runs are part of the progression (practice/progress.ts).
 import { state } from "../state.js";
+import { DEPTH_NAME, isDepth } from "./difficulty.ts";
 import { guideStep } from "./guided.ts";
 import { saveProgress } from "./progress.ts";
 import { render } from "../shell/render.js";
 import { setStages, stageName } from "../shell/stages.js";
 import type { DataIndex } from "../../ai-shared/lookup.ts";
-import { stageMarks } from "../../domain/intro.ts";
-import { NO_TERMS, catStage, exerciseAfter, movedUp, newShare, pairStage, restartRun, runAfter, setManual, stageOffer, stageProgress, stayLonger, termsOf, topStage, type MissKind, type StageProgress } from "../../domain/stages.ts";
+import { nextStageDue, stageMarks } from "../../domain/intro.ts";
+import { LADDER_TOP, NO_TERMS, cameDown, catStage, depthOf, exerciseAfter, ladderOf, ladderTop, movedUp, newShare, pairStage, restartRun, runAfter, setManual, stageOffer, stageProgress, stayLonger, termsOf, topStage, withDepth, type MissKind, type StageProgress } from "../../domain/stages.ts";
 
 const ix = () => state as unknown as DataIndex;
 /** What a mistake in each exercise says about the words (src/domain/stages.ts, MissKind). */
@@ -32,29 +36,40 @@ export const catsStageNow = (cats: (string | null | undefined)[]): number => Mat
 /** The share of new questions for the exercise on screen: a quarter until its first run of right answers, then half (src/domain/stages.ts). */
 export const shareNow = (): number => newShare(state.exRuns[state.own || state.tab]);
 
-/** The new terms of the highest stage on with their marks (src/domain/intro.ts, stageMarks): on the Path, which has the term stops; none on the classic page, where the run alone moves the stages. */
-const marksNow = () => (state.design === "path" && state.intro && state.DATA ? stageMarks(ix(), state.intro, topStage(state.stages)) : []);
+/** The new terms of a stage with their marks (src/domain/intro.ts, stageMarks): on the Path, which has the term stops; none on the classic page, where the run alone moves the stages. */
+const marksAt = (n: number) => (state.design === "path" && state.intro && state.DATA ? stageMarks(ix(), state.intro, n) : []);
+const marksNow = () => marksAt(topStage(state.stages));
+/** Whether the next stage's first term is due at the learner's pace (src/domain/intro.ts, nextStageDue): on the Path, when the next stage brings new terms; undefined otherwise. */
+const nextNow = () => (state.design === "path" && state.intro && state.DATA ? nextStageDue(ix(), state.intro, state.stages, state.pace) : undefined);
 
 /**
  * An answer in exercise `ex` was checked, on a question new at stage `st`, after its terms were graded (practice/stops.ts): the runs move, and what is
  * due, if anything, is kept for Next: the next stage on the Path (`ui.up`, a station), an offer on the result elsewhere (`ui.offer`). Whether something
- * was due (the negation offer then waits, one at a time). On the Path the next stage comes once the last answer on each new term of this one is right.
+ * was due (the negation offer then waits, one at a time). On the Path the next stage comes with its first term (`nextNow`).
  */
 export function stageStep(ex: string, st: number, ok: boolean): boolean {
   const miss = MISS[ex] ?? "form";
   state.stageRun = runAfter(state.stageRun, state.stages, st, ok, miss);
   state.exRuns = { ...state.exRuns, [ex]: exerciseAfter(state.exRuns[ex], ok) };
   guideStep(ex);
-  const marks = marksNow(), terms = marks.length ? termsOf(marks) : NO_TERMS;
+  const marks = marksNow(), terms = marks.length ? { ...termsOf(marks), next: nextNow() } : NO_TERMS;
   const o = shows(ex) ? stageOffer(state.stageRun, state.stages, terms, miss) : null;
-  if (o && state.ui) { if (o.kind === "up" && state.design === "path") state.ui.up = { stage: o.stage }; else state.ui.offer = o; }
+  if (o && state.ui) { if (o.kind === "up" && state.design === "path" && o.stage <= LADDER_TOP) state.ui.up = { stage: o.stage }; else state.ui.offer = o; }
   saveProgress();
   return !!o;
 }
 
-/** How far the highest stage is towards the next one, for the ring in the top bar (src/domain/stages.ts, stageProgress): its new terms with their marks, or the run. */
-export const progressNow = (): StageProgress => stageProgress(state.stageRun, state.stages, marksNow());
+/**
+ * How far the highest stage is towards the next one, for the ring in the top bar (src/domain/stages.ts, stageProgress): its new terms with their marks, or the run.
+ * On the Path the ring is the ladder's: depth is a difficulty of its own (the Progression page), so from stage 9 on it shows stage 9's terms.
+ */
+export function progressNow(): StageProgress {
+  const path = state.design === "path", marks = path ? marksAt(ladderTop(state.stages)) : marksNow(), next = marks.length ? nextNow() : undefined;     // as stageStep: a stage without new terms (stage 0) waits for a run
+  return path ? stageProgress(state.stageRun, ladderOf(state.stages), marks, next, LADDER_TOP) : stageProgress(state.stageRun, state.stages, marks, next);
+}
 
+/** Whether an offer is of a layer of depth (on the Path: src/domain/stages.ts, LADDER_TOP), not of a stage. */
+const deep = (stage: number) => state.design === "path" && isDepth(stage);
 const pending = () => { const o = state.ui && state.ui.offer; return o && o.kind !== "done" ? (o as { kind: "up" | "down"; stage: number }) : null; };
 /** The run that led to an offer is spent: the next one counts from now. */
 function spend() { state.stageRun = restartRun(state.stageRun); saveProgress(); }
@@ -102,7 +117,14 @@ export function setMovesUp(on: boolean) { state.stageRun = setManual(state.stage
 /** "Add stage N" or "Switch off stage N": what the offer on the result says. Nothing is done without this tap. The stage applies to every exercise. */
 export function acceptStageOffer() {
   const o = pending(); if (!o || !state.ui) return;
-  spend();
+  if (o.kind === "up") spend(); else { state.stageRun = cameDown(state.stageRun); saveProgress(); }     // a stage taken off comes back after a run, not at the next answer
+  if (deep(o.stage)) {      // on the Path, a layer of depth: what it is named on the Progression page; a depth set there meanwhile is never undone by the tap
+    const cur = depthOf(state.stages), want = o.stage - LADDER_TOP - (o.kind === "up" ? 0 : 1), d = o.kind === "up" ? Math.max(cur, want) : Math.min(cur, want);
+    state.ui.offer = { kind: "done", text: o.kind === "up" ? "Depth: " + DEPTH_NAME[d] + ", from the next question, in every exercise. Change it on the Progression page."
+      : (d ? "Depth: " + DEPTH_NAME[d] + " for now." : "No chains for now.") + " Change it on the Progression page." };
+    setStages(withDepth(state.stages, d));
+    return;
+  }
   if (o.kind === "up") {
     state.ui.offer = { kind: "done", text: "Stage " + o.stage + ", " + stageName(o.stage).toLowerCase() + ", is on now in every exercise, next to the stages you had. Switch any of them off in the practice options." };
     setStages([...state.stages, o.stage].sort((a, b) => a - b));
@@ -116,6 +138,12 @@ export function acceptStageOffer() {
 export function declineStageOffer() {
   const o = pending(); if (!o || !state.ui) return;
   spend();
+  if (deep(o.stage)) {
+    state.ui.offer = { kind: "done", text: o.kind === "up" ? (o.stage === LADDER_TOP + 1 ? "No chains for now." : "No deeper layer for now.") + " It asks again after another five right in a row."
+      : "The chains stay. It asks again after another four wrong in a row." };
+    render();
+    return;
+  }
   state.ui.offer = { kind: "done", text: o.kind === "up" ? "Stage " + (o.stage - 1) + " stays the highest. It asks again after another five right in a row."
     : "Stage " + o.stage + " stays on. It asks again after another four wrong in a row." };
   render();

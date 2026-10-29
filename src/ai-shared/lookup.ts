@@ -65,6 +65,12 @@ export function upChain(ix: DataIndex, name: string): string[] {
   for (let n: string | undefined = name; n && Object.hasOwn(T, n) && !out.includes(n); n = T[n].parent) out.push(n);
   return out;
 }
+/** The term and the terms mutually inclusive with it, either way round: hidden phenomenon and existent, form and matter. */
+export function sameNames(ix: DataIndex, term: string): Set<string> {
+  const T = ix.DATA.terms, out = new Set([term, ...(T[term]?.mi || [])]);
+  for (const [k, v] of Object.entries(T)) if ((v.mi || []).includes(term)) out.add(k);
+  return out;
+}
 /** The classes of the data's "is a" tree under Existent, which the tutor names an example's class from (not the other names of form, "matter"). */
 export function classNames(ix: DataIndex): string[] {
   return Object.keys(ix.DATA.terms).filter((n) => n !== "Existent" && !/matter$/i.test(n) && upChain(ix, n).at(-1) === "Existent");

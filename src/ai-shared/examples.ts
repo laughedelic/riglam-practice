@@ -21,7 +21,7 @@ export interface Example {
   ne?: boolean;
   /** 1 (a plain thing) to 4 */
   lv: number;
-  /** the stage of the learning ladder, 1 to 9 (format 3); format 2 has none, and a level counts as stage level + 5 (src/domain/stages.ts) */
+  /** the stage on the exporter's ladder of nine, 1 to 9 (format 3), which the page places on its own (`exampleStage`, src/domain/reference.ts); format 2 has none, and the level decides */
   st?: number;
   /** the operations applied to its base, which the level is computed from */
   sc?: number;

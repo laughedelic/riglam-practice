@@ -1,4 +1,4 @@
-// The learning ladder: nine stages from everyday things to the deep layers. The data says at which stage each category opens and
+// The learning ladder: stage 0 for everyday things alone, nine stages of course terms in three groups of three, then three steps of depth (LADDER_TOP). The data says at which stage each category opens and
 // at which stage a newcomer knows each thing (`st`, docs/DATA.md); this says what the stages are called, which of them a learner
 // draws from, and the rules that hold for every exercise: a category opens at its stage and stays open, a thing is drawn from the
 // stages switched on, and a person or what does not exist meets the physical categories only from the established bases on (a dog
@@ -13,36 +13,68 @@ import { catChain } from "./ladder";
 import type { PoolEntry } from "./types";
 import { cellsFor } from "./universe";
 
-/** A stage: its number, its name, and a sentence on what it adds. */
+/** A stage: its number, its name, and a sentence on what it adds; the first stage of a group of three names the group. */
 export interface Stage {
   n: number;
   name: string;
   adds: string;
+  group?: string;
 }
 
 export const STAGES: readonly Stage[] = [
-  { n: 1, name: "Things around you", adds: "Everyday things, what they are made of, their colors and shapes; food, plants, animals, feelings and thoughts. Form is anything physical." },
-  { n: 2, name: "Colors and shapes", adds: "Colors and shapes as qualities of things: the red of an apple, not the apple." },
+  { n: 0, name: "Things around you", adds: "Everyday things, what they are made of, their colors and shapes; food, plants, animals, feelings and thoughts. No course terms yet." },
+  { n: 1, name: "Form", adds: "Form and matter, two names for anything physical, and their first division: external form and external matter.", group: "Form, from outside" },
+  { n: 2, name: "What the eye sees", adds: "Visible forms: colors and shapes as qualities of things, the red of an apple, not the apple." },
   { n: 3, name: "The other senses", adds: "Sounds, smells, tastes, and what is felt by touch, in plain words." },
-  { n: 4, name: "What exists", adds: "Functional and permanent things, consciousness and persons; people; what does not exist, and absences." },
-  { n: 5, name: "Senses and minds", adds: "The sense powers, and the minds that see, hear, smell, taste, feel, remember and imagine." },
-  { n: 6, name: "Abstract ideas", adds: "Things named by abstract words: generic images, selflessness, impermanence, the elements." },
-  { n: 7, name: "One-step chains", adds: "One step on a familiar thing: its absence, its cause, a mind that knows it." },
-  { n: 8, name: "Two-step chains", adds: "Two steps in a row, such as the absence of the effect of a pot." },
-  { n: 9, name: "Longer chains and statements", adds: "Three steps or more, and statements." },
+  { n: 4, name: "The elements", adds: "What is felt by touch, divided: earth, water, fire and wind, and what arises from them, such as heaviness and smoothness.", group: "What things are made of, and what exists" },
+  { n: 5, name: "What exists", adds: "Existents, functional and permanent things, consciousness and persons; people; what does not exist, and absences." },
+  { n: 6, name: "The inner side", adds: "The inner side of form, the sense powers of the eye, ear, nose, tongue and body, and the minds: sense consciousness, and the mental consciousness that remembers and imagines." },
+  { n: 7, name: "The five sense minds", adds: "The minds that see, hear, smell, taste and feel by touch, each by its name.", group: "Minds, and how things are known" },
+  { n: 8, name: "Manifest and hidden", adds: "Manifest and hidden phenomena; things named by abstract words, such as impermanence and selflessness; sounds that express a meaning." },
+  { n: 9, name: "The two truths", adds: "Two more ways of dividing what exists: ultimate and conventional truths, specifically and generally characterized phenomena." },
+  { n: 10, name: "One-step chains", adds: "One step on a familiar thing: its absence, its cause, a mind that knows it." },
+  { n: 11, name: "Two-step chains", adds: "Two steps in a row, such as the absence of the effect of a pot." },
+  { n: 12, name: "Longer chains and statements", adds: "Three steps or more, and statements." },
 ];
-export const MAX_STAGE = STAGES.length;
+/** The last stage, depth included. */
+export const MAX_STAGE = STAGES[STAGES.length - 1]!.n;
+
+/**
+ * The last stage that brings new terms: the ladder ends there. The stages after it (chains of reasoning: one step, two, then longer) are the steps of depth,
+ * a difficulty of its own like the negations: on the Path a result offers the next step (stageOffer, the same run as for any stage), never more by itself,
+ * and the learner sets it on the Progression page. The classic page keeps them as stages.
+ */
+export const LADDER_TOP = 9;
+/** The stages of the ladder as a row of rings shows them (the roadmap's foot, the stage station): those that bring course terms. Stage 0, everyday things alone, is on the Progression page only. */
+export const RING_STAGES: readonly Stage[] = STAGES.filter((s) => s.n >= 1 && s.n <= LADDER_TOP);
+/** The steps of depth that are on: how far past the ladder's last stage the highest stage on is, 0 to MAX_STAGE - LADDER_TOP. */
+export const depthOf = (on: Stages): number => Math.max(0, topStage(on) - LADDER_TOP);
+/** The stage of the ladder the learner is on: the highest that is on, or the ladder's last while depth is on. */
+export const ladderTop = (on: Stages): number => Math.min(topStage(on), LADDER_TOP);
+/** The stages of the ladder that are on, without the steps of depth (the ladder's top alone when only those are on). */
+export function ladderOf(on: Stages): number[] {
+  const l = on.filter((n) => n <= LADDER_TOP);
+  return l.length ? [...l] : [ladderTop(on)];
+}
+/** Whether depth can be set: the ladder's last stage is on. */
+export const depthOpen = (on: Stages): boolean => topStage(on) >= LADDER_TOP;
+/** The stages with depth set to `d` steps: the ladder's as they are, then each step up to `d`. As they are while depth is not open. */
+export function withDepth(on: Stages, d: number): number[] {
+  if (!depthOpen(on)) return [...on];
+  const k = Math.max(0, Math.min(MAX_STAGE - LADDER_TOP, Math.round(d)));
+  return [...ladderOf(on), ...Array.from({ length: k }, (_, i) => LADDER_TOP + 1 + i)];
+}
 
 /** The stage from which persons and what does not exist are asked about with the physical categories. */
-export const HOLD_STAGE = 4;
+export const HOLD_STAGE = 5;
 
 /** The stages a learner draws from: any mix, never none. */
 export type Stages = readonly number[];
 
-/** A new device starts at stage 1 alone: the exercises offer the next stage once the answers come easily. */
-export const DEFAULT_STAGES: Stages = [1];
+/** A new device starts at stage 0 alone, everyday things: five right answers in a row bring stage 1, and with it the first course term. */
+export const DEFAULT_STAGES: Stages = [0];
 
-/** The valid stages in a stored value (a list, or "1,2"), once each, in order; the default when none is valid. */
+/** The valid stages in a stored value (a list, or "0,1"), once each, in order; the default when none is valid. */
 export function normStages(raw: unknown): number[] {
   const list: unknown[] = typeof raw === "string" ? raw.split(",").map((s) => (s.trim() ? +s : NaN)) : Array.isArray(raw) ? raw : [];
   const ok = STAGES.map((s) => s.n).filter((n) => list.includes(n));
@@ -61,18 +93,18 @@ export function toggleStage(on: Stages, n: number): number[] {
 
 /**
  * The stages that take the place of the example levels a device kept before the ladder (1 to 4 for the reference examples alone): every
- * stage up to the old top level's (level 1 is stage 6, level 4 stage 9), so the practice items stay as they were and the reference
- * examples keep nearly all of what they had.
+ * stage up to the old top level's (level 1 is the ladder's last, each level after it a step of depth), so the practice items stay as they were and the
+ * reference examples keep nearly all of what they had.
  */
 export const stagesOfLevels = (levels: readonly number[]): number[] => {
   const top = Math.max(0, ...levels.filter((l) => Number.isInteger(l) && l >= 1 && l <= 4));
-  return top ? STAGES.map((s) => s.n).filter((n) => n <= top + 5) : [...DEFAULT_STAGES];
+  return top ? STAGES.map((s) => s.n).filter((n) => n <= LADDER_TOP + top - 1) : [...DEFAULT_STAGES];
 };
 
-/** A practice item's stage; data without stages has everything at stage 1. */
-export const itemStage = (it: Pick<Item, "st">): number => it.st ?? 1;
+/** A practice item's stage; data without stages has everything at stage 0. */
+export const itemStage = (it: Pick<Item, "st">): number => it.st ?? 0;
 /** The stage at which a category opens; none: from the start. */
-export const catStage = (cat: Pick<Cat, "st">): number => cat.st ?? 1;
+export const catStage = (cat: Pick<Cat, "st">): number => cat.st ?? 0;
 /** The Dudra categories whose term the learner has not been introduced to yet (domain/intro.ts): they wait out of the questions. */
 export type Unmet = ReadonlySet<string>;
 
@@ -146,7 +178,7 @@ export function poolAt(ix: DataIndex, pool: readonly PoolEntry[], on: Stages): S
 }
 
 /** The highest stage at which a newly opened category's definition shows with the question by itself; above it the definition is a tap away. */
-export const DEFINITION_STAGE = 3;
+export const DEFINITION_STAGE = 4;
 
 /**
  * The categories of a question (a pair's two, or the ones Categories asks about) whose definition shows with it: those that open at the
@@ -165,6 +197,14 @@ export type Negation = "off" | "one" | "both";
 
 /** The right answers in a row after which the next step of the negation track is offered (never taken without a tap). */
 export const NEG_STREAK = 5;
+/** The stage from which the learner can switch negations on (the Progression page), and the one from which a result of Relations suggests them. */
+export const NEG_OPEN = 2;
+export const NEG_SUGGEST = 3;
+/**
+ * Whether a result may suggest the next step of the negation track (negationOffer says which, after a run): from NEG_SUGGEST on, and while fewer terms are open
+ * than the learner's pace allows (intro.ts, openTerms): sooner for a learner whose answers come easily, later for one who is struggling with the terms.
+ */
+export const negationSuggested = (on: Stages, open: number, cap: number): boolean => topStage(on) >= NEG_SUGGEST && open < cap;
 
 /** A Relations answer as the negation offer reads it: right or not, and whether the pair had a negated side. */
 export interface NegOutcome {
@@ -192,9 +232,11 @@ export function negationOffer(results: readonly NegOutcome[], negation: Negation
 
 /**
  * The right answers in a row, on questions new at the highest stage that is on (those from a stage below count half, LOWER_CREDIT), after which the next
- * stage comes in: by itself on the Path, with a station that says so first; offered with a tap on the classic page. On the Path a stage with new terms
- * comes sooner, with the answer that makes the last answer on each of them right (runWanted); the run is for a stage without (stages 7 to 9, and every
- * stage on the classic page, which has no term stops) and for one whose terms were all right before.
+ * stage comes in: by itself on the Path, with a station that says so first; offered with a tap on the classic page. On the Path the stages are chapters
+ * of one list of terms: a stage that brings new terms comes with the first of them, once the stage below has brought all of its own and fewer terms
+ * are open than the learner's pace allows (intro.ts, nextStageDue); the first step of depth (stage 10, after LADDER_TOP) is offered once the last answer on
+ * each new term of stage 9 is right (runWanted). The run is for stage 0, which brings no terms, for the steps of depth, for every stage on the classic page,
+ * which has no term stops, and for a stage the learner stayed on a while longer or came back down to.
  */
 export const STAGE_STREAK = 5;
 /** Staying on a stage a while longer asks this many more right answers in a row before the next one comes, up to STAGE_STREAK_MAX. */
@@ -220,6 +262,8 @@ export const runNeed = (run: StageRun): number => run.need ?? STAGE_STREAK;
 export const restartRun = (run: StageRun): StageRun => ({ up: 0, down: 0, ...(run.told ? { told: true as const } : {}), ...(run.manual ? { manual: true as const } : {}) });
 /** The run once a stage came in: it starts again, and the station has been seen. */
 export const movedUp = (run: StageRun): StageRun => ({ ...restartRun(run), told: true });
+/** The run once the learner took the highest stage off: it starts again, and the stage comes back after a run of right answers, not at the next answer. */
+export const cameDown = (run: StageRun): StageRun => ({ ...restartRun(run), need: runNeed(run) });
 /** The run once the learner chose to stay on the stage a while longer (the station was seen): it starts again, and the next stage waits for more right answers. */
 export const stayLonger = (run: StageRun): StageRun => ({ ...restartRun(run), told: true, need: Math.min(STAGE_STREAK_MAX, runNeed(run) + STAGE_LONGER) });
 /** The run with the stages moved up by the learner (`manual`) or by the page (the default). */
@@ -241,7 +285,7 @@ export const LOWER_CREDIT = 0.5;
  */
 export function runAfter(run: StageRun, on: Stages, st: number, ok: boolean, miss: MissKind): StageRun {
   const top = topStage(on);
-  if (st >= 1 && st < top) return ok ? { ...run, up: run.up + LOWER_CREDIT } : run;
+  if (st >= 0 && st < top) return ok ? { ...run, up: run.up + LOWER_CREDIT } : run;
   if (st !== top) return run;
   if (ok) return { ...run, up: run.up + 1, down: 0 };
   if (miss === "form") return run;
@@ -250,14 +294,16 @@ export function runAfter(run: StageRun, on: Stages, st: number, ok: boolean, mis
 
 /**
  * The new terms of the highest stage on, for its move: how many it has, whether the last answer on each of them is right (intro.ts, termMark), and whether
- * the latest answer is the one that made them all right (`just`).
+ * the latest answer is the one that made them all right (`just`); and when the next stage brings new terms, whether its first is due now (`next`,
+ * intro.ts, nextStageDue): the next stage then comes with it, whatever the marks.
  */
 export interface StageTerms {
   n: number;
   right: boolean;
   just: boolean;
+  next?: boolean;
 }
-/** A stage without new terms (stages 7 to 9), or a page without term stops (the classic one): the run alone moves the stages. */
+/** A stage without new terms (stage 0, and the steps of depth), or a page without term stops (the classic one): the run alone moves the stages. */
 export const NO_TERMS: StageTerms = { n: 0, right: true, just: false };
 /** The new terms of a stage from their marks. */
 export function termsOf(marks: readonly StageMark[]): StageTerms {
@@ -266,21 +312,23 @@ export function termsOf(marks: readonly StageMark[]): StageTerms {
 }
 
 /**
- * The right answers in a row the next stage waits for: none when the latest answer made the last new term of the stage right (unless the learner chose to
- * stay longer); else `need`, STAGE_STREAK unless the learner chose to stay longer: on a stage without new terms, and on one whose terms were all right
- * before (the learner stayed longer, or came back down to it).
+ * The right answers in a row the next stage waits for. When it brings new terms (`next`), none, unless the learner stayed longer or came back down
+ * (`need`). Else none when the latest answer made the last new term of the stage right (unless `need` is set), and STAGE_STREAK or `need` otherwise: on
+ * a stage without new terms, and on one whose terms were all right before.
  */
-export const runWanted = (run: StageRun, terms: StageTerms): number => (terms.just && run.need === undefined ? 0 : runNeed(run));
+export const runWanted = (run: StageRun, terms: StageTerms): number => (terms.next !== undefined ? run.need ?? 0 : terms.just && run.need === undefined ? 0 : runNeed(run));
+/** Whether the next stage is due by the terms and the run (`stageOffer`, `stageProgress`): its first term with a long enough run, or, when it brings none, the terms of this one right. */
+const upDue = (run: StageRun, terms: StageTerms): boolean => (terms.next ?? terms.right) && run.up >= runWanted(run, terms);
 
 /**
- * The stage move that is due, if any: the next stage once the last answer on each new term of the highest stage on is right (`terms`) and the run up is as
- * long as it has to be (`runWanted`: none when this answer completed the terms), unless the learner moves the stages themselves (`manual`); taking the
- * highest stage off after a run of mistakes, only where a mistake is about the words, and never at stage 1. The caller starts the run again once a move
- * is answered, so a "not now" is not asked again at once.
+ * The stage move that is due, if any: the next stage once its first new term is due (`terms.next`), or, when it brings none, once the last answer on each
+ * new term of the highest stage on is right, and the run up is as long as it has to be (`runWanted`), unless the learner moves the stages themselves
+ * (`manual`); taking the highest stage off after a run of mistakes, only where a mistake is about the words, and never at stage 1 or 0. The caller starts the
+ * run again once a move is answered, so a "not now" is not asked again at once.
  */
 export function stageOffer(run: StageRun, on: Stages, terms: StageTerms, miss: MissKind): { kind: "up" | "down"; stage: number } | null {
   const top = topStage(on);
-  if (!run.manual && terms.right && run.up >= runWanted(run, terms) && top < MAX_STAGE) return { kind: "up", stage: top + 1 };
+  if (!run.manual && upDue(run, terms) && top < MAX_STAGE) return { kind: "up", stage: top + 1 };
   if (miss === "words" && run.down >= STAGE_STUMBLE && top > 1) return { kind: "down", stage: top };
   return null;
 }
@@ -301,12 +349,18 @@ export interface StageProgress {
   frac: number;
   /** the next stage is due */
   full: boolean;
+  /** the next stage brings new terms: it comes with the first of them, whatever the marks of these (`StageTerms.next`) */
+  flow: boolean;
 }
-export function stageProgress(run: StageRun, on: Stages, marks: readonly StageMark[] = []): StageProgress {
-  const top = topStage(on), next = run.manual || top >= MAX_STAGE ? null : top + 1, terms = termsOf(marks), need = runWanted(run, terms);
-  const shows = terms.n && (!terms.right || need === 0) ? "terms" : "run";
-  const frac = next === null ? 0 : shows === "terms" ? marks.filter((t) => t.mark === "ok").length / terms.n : Math.min(1, run.up / need);
-  return { top, next, terms: marks, shows, need, frac, full: next !== null && terms.right && run.up >= need };
+/**
+ * `next`: whether the next stage's first new term is due (intro.ts, nextStageDue); undefined when it brings none, or on a page without term stops. `end`: the
+ * last stage the ring leads to (the Path's ladder ends at LADDER_TOP); on it the ring shows its terms, however they stand.
+ */
+export function stageProgress(run: StageRun, on: Stages, marks: readonly StageMark[] = [], next?: boolean, end = MAX_STAGE): StageProgress {
+  const top = topStage(on), up = run.manual || top >= end ? null : top + 1, terms = { ...termsOf(marks), ...(next === undefined ? {} : { next }) }, need = runWanted(run, terms);
+  const shows = terms.n && (!terms.right || need === 0 || top >= end) ? "terms" : "run";
+  const frac = up === null ? 0 : shows === "terms" ? marks.filter((t) => t.mark === "ok").length / terms.n : need ? Math.min(1, run.up / need) : 1;
+  return { top, next: up, terms: marks, shows, need, frac, full: up !== null && upDue(run, terms), flow: next !== undefined };
 }
 
 /** A stored run, each part checked; a fresh one when it cannot be read. */
@@ -315,7 +369,7 @@ export function normRun(raw: unknown): StageRun {
   if (typeof raw === "string") { try { v = JSON.parse(raw); } catch { return freshRun(); } }
   const o = (v && typeof v === "object" ? v : {}) as Partial<StageRun>, n = (x: unknown) => (typeof x === "number" && Number.isFinite(x) && x >= 0 ? Math.floor(x) : 0);
   const need = n(o.need), half = (x: unknown) => (typeof x === "number" && Number.isFinite(x) && x >= 0 ? Math.floor(x * 2) / 2 : 0);
-  return { up: half(o.up), down: n(o.down), ...(need > STAGE_STREAK ? { need: Math.min(STAGE_STREAK_MAX, need) } : {}), ...(o.told === true ? { told: true as const } : {}), ...(o.manual === true ? { manual: true as const } : {}) };
+  return { up: half(o.up), down: n(o.down), ...(need >= STAGE_STREAK ? { need: Math.min(STAGE_STREAK_MAX, need) } : {}), ...(o.told === true ? { told: true as const } : {}), ...(o.manual === true ? { manual: true as const } : {}) };
 }
 
 /** Until an exercise has had a run of STAGE_STREAK right answers, about this share of its questions are new at the highest stage, instead of half: a new exercise starts with review. */

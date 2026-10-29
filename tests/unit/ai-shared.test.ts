@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { expect, test } from "vitest";
 import {
-  CELL_NAME, DEBATE_ASK, FIND_ASK, FIND_ASK_OWN, FIND_NOTE, FIND_OWN_NOTE, FIND_REL_NAMES, FIRST_ASK, GUIDE, REVIEW_GUIDE, REVIEW_LIMITS, american, cardBody, refOf, parseReview, readReviewAnswer, reviewRequest, storedView, cardNotes, catByLabel, categoryOf, classNames, catFacts, explainAsk, finePoints, makeIndex, matchItem, noteCats, norm, pairCats, qPlain, qSides, termFacts, termNamed, tutorCard, tutorTools, upChain,
+  CELL_NAME, DEBATE_ASK, FIND_ASK, FIND_ASK_OWN, FIND_NOTE, FIND_OWN_NOTE, FIND_REL_NAMES, FIRST_ASK, GUIDE, REVIEW_GUIDE, REVIEW_LIMITS, american, cardBody, refOf, parseReview, readReviewAnswer, reviewRequest, storedView, cardNotes, catByLabel, categoryOf, classNames, catFacts, explainAsk, finePoints, makeIndex, matchItem, noteCats, norm, pairCats, qPlain, qSides, termFacts, stageLine, termNamed, tutorCard, tutorTools, upChain,
 } from "../../src/ai-shared";
 import type { AnswerView, DrillData, PairLike, ReviewAnswer } from "../../src/ai-shared";
 import { state } from "../../src/app/state.js";
@@ -438,9 +438,10 @@ test("the card lists the classes of the real data's tree, which hold every liste
   expect(cls).not.toContain("Existent");
   expect(cls).not.toContain("Matter");
   expect(cls).not.toContain("Hidden phenomenon"); // not in the tree under Existent
-  for (const it of real.items) if (!["Expressive sound", "Non-existent"].includes(it.t)) expect(cls, it.n).toContain(it.t);
+  for (const it of real.items) if (it.t !== "Non-existent") expect(cls, it.n).toContain(it.t);
   expect(cardBody(rix, { a: "forms", b: "minds", catA: "form", catB: "cons", relation: "con" }, practice())).toContain('Classes (the booklet\'s "is a" tree, for "class:"): Form, External form,');
   expect(upChain(rix, "Taste source")).toEqual(["Taste source", "External form", "Form", "Functional thing", "Existent"]);
+  expect(upChain(rix, "Expressive sound")).toEqual(["Expressive sound", "Sound source", "External form", "Form", "Functional thing", "Existent"]); // a sound, not under object-possessor (Lorig)
 });
 
 test("the real data is spelled the American way, in labels, item names and term names", () => {
@@ -593,4 +594,11 @@ test("src/ai-shared imports only itself and touches nothing of the page or the b
     const code = text.replace(/\/\/.*$/gm, "").replace(/\/\*[^]*?\*\//g, "");
     expect(code, f).not.toMatch(/\b(window|document|localStorage|sessionStorage|navigator|fetch|XMLHttpRequest|process)\b/);
   }
+});
+
+test("stageLine: the tutor is told about a learner at stage 0 too, on a ladder of nine, and nothing from stage 8 on", () => {
+  expect(stageLine(0)).toMatch(/^\nLearner: at stage 0 of 9, a beginner .* no course term yet/);
+  expect(stageLine(3)).toMatch(/at stage 3 of 9, a beginner .* categories of form/);
+  expect(stageLine(6)).toMatch(/established bases/);
+  for (const s of [undefined, -1, 8, 12]) expect(stageLine(s), String(s)).toBe("");
 });

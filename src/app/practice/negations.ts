@@ -1,13 +1,16 @@
 // The offer of the next step of the negation track on a result of Relations: once the plain pairs go well, pairs with one side negated; once those go
 // well, both sides. The rule (what counts, how long the run is) is negationOffer in src/domain/stages.ts; this is the page around it, built like
 // the offer of another stage in Categories (categories/flow.js): it shows on the result, nothing changes without a tap, and an offer passed over or
-// declined needs another run. The classic page draws it with offerNode, the Path with NegOffer (path/relations.tsx).
+// declined needs another run. The classic page draws it with offerNode, the Path with NegOffer (path/relations.tsx). On the Path it comes from stage
+// NEG_SUGGEST on, and only while fewer terms are open than the learner's pace allows (negationSuggested); the Progression page sets the step any time
+// from NEG_OPEN (path/difficulty.tsx).
 import { state } from "../state.js";
 import { el } from "../core/dom.js";
 import { answerList } from "./universe.js";
 import { saveProgress } from "./progress.ts";
 import { render } from "../shell/render.js";
-import { negationOffer, type NegOutcome } from "../../domain/stages.ts";
+import { negationOffer, negationSuggested, type NegOutcome } from "../../domain/stages.ts";
+import { openNow } from "./stops.ts";
 import type { PairLike } from "../../ai-shared/relations.ts";
 import type { NegResult } from "../types.ts";
 
@@ -27,6 +30,7 @@ function results(): NegOutcome[] {
 /** A pair was checked (practice/grading.js): it joins the run, and the offer due after it, if any, is what the result shows. */
 export function afterRelation(pairId: string, p: PairLike, ok: boolean): NegOffer | null {
   state.relSession = [...state.relSession, { pairId, at: new Date().toISOString(), ok, neg: !!p.neg }].slice(-RECENT_RUN);
+  if (state.design === "path" && !negationSuggested(state.stages, openNow().size, state.pace)) return null;     // the Path suggests them from a stage on, and not while the terms are hard going
   const step = negationOffer(results(), state.negation);
   return step ? { kind: step } : null;
 }
@@ -38,9 +42,11 @@ const pending = (): { kind: "one" | "both" } | null => { const o = state.ui && s
 /** "Negate one side" or "Negate both sides": the negation track takes the step from the next pair on. Nothing changes without this tap. */
 export function acceptNegOffer() {
   const o = pending(); if (!o) return;
-  state.negation = o.kind; store("rd-negation", o.kind); spendRun();
-  state.ui!.negOffer = { kind: "done", text: o.kind === "one" ? "Negations are on: from the next pair, about a third of the pairs negate one side. Change it in the practice options."
-    : "Both sides now: half of the negated pairs negate both. Change it in the practice options." };
+  const kind = state.negation === "both" ? "both" : o.kind;     // both sides set meanwhile (the Progression page): the tap never takes a step back
+  state.negation = kind; store("rd-negation", kind); spendRun();
+  const where = state.design === "path" ? "on the Progression page" : "in the practice options";
+  state.ui!.negOffer = { kind: "done", text: kind === "one" ? "Negations are on: from the next pair, about a third of the pairs negate one side. Change it " + where + "."
+    : "Both sides now: half of the negated pairs negate both. Change it " + where + "." };
   render();
 }
 /** "Not now": the track stays as it is, and the next offer needs another run. */

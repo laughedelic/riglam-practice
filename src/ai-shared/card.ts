@@ -149,12 +149,15 @@ export function negLine(p: Pick<PairLike, "a" | "b" | "neg">, own = false): stri
 }
 
 /**
- * How the tutor speaks to a learner at a stage of the learning ladder (src/domain/stages.ts): in everyday words while the categories are new
- * (stages 1 to 3), quoting the definitions once the course's terms open (4 and 5), and as for the course from stage 6 on (no line).
+ * How the tutor speaks to a learner at a stage of the learning ladder (src/domain/stages.ts): in everyday words alone at stage 0, in everyday words
+ * while the categories of form are new (stages 1 to 4), quoting the definitions once the course's established bases open (5 to 7), and as for the
+ * course from stage 8 on (no line).
  */
 export function stageLine(stage: number | undefined): string {
-  if (!stage || stage >= 6) return "";
-  const how = stage <= 3
+  if (stage === undefined || stage < 0 || stage >= 8) return "";
+  const how = stage === 0
+    ? "a beginner who knows everyday words and has met no course term yet: explain in everyday words, and leave out the course's terms"
+    : stage <= 4
     ? "a beginner who knows everyday words and has just met the categories of form: explain in everyday words, name a course term once, and leave out the course's further terms"
     : "a learner who has just met the course's established bases: explain with the definitions, quoted from the card, and keep further terms for when they are asked about";
   return `

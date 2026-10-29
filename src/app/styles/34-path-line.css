@@ -199,3 +199,8 @@
 .pa .help button{font-family:var(--mono); font-size:11.5px; font-style:normal; color:var(--blue); text-decoration:underline; text-underline-offset:3px; margin-left:4px}
 .pa .help button:first-child{margin-left:0}
 .pa .conn{font-style:normal; font-weight:600}
+/* "Show it again later" stands where the favorites mark stands: gray like it, its lines heavier so the clock reads on paper; pressed, heavier still and in the accent */
+.pa .tagain{color:var(--ink3)}
+.pa .tagain .i{stroke-width:2}
+.pa .tagain.on{color:var(--blue)}
+.pa .tagain.on .i{stroke-width:2.5}

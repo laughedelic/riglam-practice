@@ -3,8 +3,9 @@
 
 import { normLevels } from "../ai-shared/examples.ts";
 import { FIND_RELS } from "../domain/find.ts";
-import { normIntro } from "../domain/intro.ts";
+import { OPEN_CAP, normIntro, normPace } from "../domain/intro.ts";
 import { normLangs } from "../domain/languages.ts";
+import { EVERYDAY_STAGES } from "../domain/syllogism.ts";
 import { DEFAULT_STAGES, freshRun, normExRuns, normGuided, normRun, normStages, stagesOfLevels, topStage } from "../domain/stages.ts";
 import { normPerEx } from "../domain/per-exercise.ts";
 
@@ -25,13 +26,13 @@ export const state = {
   tutor: null,   // a question to the app's own server (platform.tutor), when the place has one; `sample` is used first
   known: null,   // what that server learned of examples from earlier checks (platform.known), asked before the tutor (ai/known.js)
   EX: null,      // the course's reference examples this device holds (platform.examples), indexed by name (ai-shared/examples.ts); null when it has none
-  stages: [...DEFAULT_STAGES], // the stages of the learning ladder every exercise draws from, any mix, at least one (the practice options, `rd-stages`, "1,2"); a new device starts at stage 1 alone
+  stages: [...DEFAULT_STAGES], // the stages of the learning ladder every exercise draws from, any mix, at least one (the practice options, `rd-stages`, "0,1,2"); a new device starts at stage 0 alone
   stageLean: 0,  // the pairs left that lean to three possibilities, after the highest stage went up (`rd-stage-lean`, shell/stages.js)
   stagesKept: false, // the stages came from a device's settings before the ladder and were not changed since (`rd-stages-kept`): every pair weighs the same, as before
   syllogismEveryday: false, // that device had Syllogisms on everyday things (`rd-syllogism-level` "1"), which holds until the stages are changed
   intro: null,   // the course terms this device has met at their stops (`rd-terms`, practice/stops.ts); null until the term data is in
   progressSent: [], // the copies of the progression this page wrote lately (practice/progress.ts)
-  resetAsk: "",     // the Reset progression row of the Stages page: "ask" while it asks to confirm, "done" after
+  resetAsk: "",     // the Reset progression line of the Progression page: "ask" while it asks to confirm, "done" after
   about: null,   // {version, commit, builtAt, latest, branches?}: which build this is (platform.about), shown in Options
   updates: null, // {status, check, apply, subscribe}: updating the installed app in place (platform.updates), shown in Options
   unlock: null,  // {open, tutor}: opens the prompt for the Magic Key (platform.unlock) while this device has none; `tutor` is whether the server has a tutor waiting for it
@@ -66,6 +67,7 @@ export const state = {
   negation: "off",   // the negation track of Relations and Pervasions: "one" negates A or B in about a third of the pairs, "both" both sides in half of those (`rd-negation`)
   relSession: [],    // the Relations answers checked on this page, oldest first: the run towards the offer of a negation step counts them before the database has handed them back (practice/negations.ts)
   negOfferAt: "",    // when the learner last answered the offer of a negation step (`rd-neg-offer`): only the answers after it count towards the next offer
+  pace: OPEN_CAP,    // the most course terms open at once before a new one waits (the Progression page, `rd-pace`; src/domain/intro.ts, PACES)
   debates: {},
   own: "practice",
   favs: {},
@@ -148,6 +150,7 @@ export const state = {
   pathNote: null,
   pathQ: 0,          // the Path's next draw, when one waits for the next frame (path/index.tsx, refreshPath)
   pathSeg: "today",  // the section of Review the Path shows (path/review.tsx); the classic page keeps its own in `reviewSeg`
+  pathProg: null,    // the Progression page in place of Review (path/progression.tsx): where it was opened from, the term card over it; closed by any setTab
   pathOpen: {},      // the rows of Review the Path has unfolded, by key
 };
 
@@ -167,13 +170,14 @@ try{ const v=localStorage.getItem("rd-findrel"); if(FIND_RELS.includes(/** @type
 try{ state.findSuggest=localStorage.getItem("rd-findsuggest")!=="0"; }catch(e){}
 try{ const v=localStorage.getItem("rd-negation"); if(v==="one"||v==="both") state.negation=v; state.negOfferAt=localStorage.getItem("rd-neg-offer")||""; }catch(e){}
 try{ state.negBrackets=localStorage.getItem("rd-neg-brackets")!=="0"; }catch(e){}
+try{ state.pace=normPace(localStorage.getItem("rd-pace")); }catch(e){}
 try{ state.instSuggest=localStorage.getItem("rd-inst-suggest")!=="0"; }catch(e){}
 try{ if(localStorage.getItem("rd-cats-ask")==="one") state.catsAsk="one"; }catch(e){}
 try{ state.stageRun=normRun(localStorage.getItem("rd-stage-run")); state.exRuns=normExRuns(localStorage.getItem("rd-ex-runs")); state.guided=normGuided(localStorage.getItem("rd-guided")); }catch(e){}
 // the course terms met at their stops, part of the progression (practice/progress.ts); without a record the terms are met one at a time from the start
 try{ const t=localStorage.getItem("rd-terms"); if(t!==null) state.intro=normIntro(t); }catch(e){}
 // A device used before the ladder keeps what it had: its levels of the reference examples (also ones an import brings), or level 1, their default, become
-// the stages up to that level's (level 1 is stage 6), so its pairs and things stay as they were. `rd-ladder` marks a device that has started with the
+// the stages up to that level's (level 1 is the ladder's last, stage 9), so its pairs and things stay as they were. `rd-ladder` marks a device that has started with the
 // ladder, so that its own settings later do not make it look like an old one; a new device writes no stages until it chooses, and an import can bring them.
 try{
   const v=localStorage.getItem("rd-stages");
@@ -189,7 +193,7 @@ try{
   state.syllogismEveryday=localStorage.getItem("rd-syllogism-level")==="1";
 }catch(e){}
 // the structure under a syllogism is on for a beginner (the stages of everyday things) until the device chooses
-try{ if(localStorage.getItem("rd-syllogism-wording")==="formal") state.syllogismWording="formal"; const g=localStorage.getItem("rd-syllogism-guide"); state.syllogismGuide=g!==null?g==="1":topStage(state.stages)<=3; }catch(e){}
+try{ if(localStorage.getItem("rd-syllogism-wording")==="formal") state.syllogismWording="formal"; const g=localStorage.getItem("rd-syllogism-guide"); state.syllogismGuide=g!==null?g==="1":topStage(state.stages)<=EVERYDAY_STAGES; }catch(e){}
 try{ if(localStorage.getItem("rd-ab")==="0") state.showAB=false; if(localStorage.getItem("rd-full")==="0") state.fullPh=false; }catch(e){}
 try{
   const v=+localStorage.getItem("rd-timer"); if(v>=2000&&v<=120000) state.timerMs=v;

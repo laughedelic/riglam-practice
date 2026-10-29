@@ -239,6 +239,8 @@ export interface ProgressDoc {
   guided: Record<string, boolean>;
   /** when the offer of a negation step was last answered (`rd-neg-offer`; "": never) */
   negOfferAt: string;
+  /** the most course terms open at once before a new one waits (`rd-pace`; none: src/domain/intro.ts, OPEN_CAP) */
+  pace?: number;
 }
 
 /** collection `labruns`: one model's answer to one case of the earlier Quorum, run by the page itself, or the judge's. Older versions of the page wrote it under that name, which a stored collection keeps; this one only keeps what is there (export, sync). Loosely typed. */
@@ -326,6 +328,20 @@ export interface SkipNote {
   ui: Ui | null;
   prev: { cur: Current | null; rq: Pair[]; rt: string; ui?: Ui | null; fa?: RelKey[] };
   tid: number;
+}
+
+/** Where the Progression page of the Path stands (path/progression.tsx): where it was opened from, so that Back goes there again, and the term card open over it. */
+export interface ProgressionAt {
+  /** opened from the roadmap's rings (Back shows the roadmap again), or from the top bar's ring sheet or another link in an exercise (Back goes to the exercise) */
+  from: "road" | "sheet";
+  /** the screen under it when it opened: the exercise, or Review; Back returns to it */
+  tab: string;
+  /** the stage whose line it brings into view when it next draws; -1 when none, -2 for the Stages section (path/progression.tsx, AT_STAGES) */
+  at: number;
+  /** the term whose card is open over it (a category id of the data), or "" */
+  term: string;
+  /** how far the page was scrolled when a term's card opened over it, to be set again when the card closes; -1 when nothing waits */
+  y: number;
 }
 
 /** The page's shared state: every variable that used to be module-level (see state.js). */
@@ -469,6 +485,8 @@ export interface State {
   relSession: NegResult[];
   /** when the learner last answered the offer of a negation step (a time, `rd-neg-offer`): only answers after it count towards the next offer */
   negOfferAt: string;
+  /** the most course terms open at once before a new one waits (the Progression page, `rd-pace`; src/domain/intro.ts, PACES) */
+  pace: number;
   /** Find an instance offers the things the course knows while one is typed (its practice options, `rd-inst-suggest`) */
   instSuggest: boolean;
   lastSig: string;
@@ -540,6 +558,8 @@ export interface State {
   pathQ: number;
   /** the section of Review the Path shows: today, overview, mistakes, favs, skips, flags */
   pathSeg: string;
+  /** the Progression page in place of Review (path/progression.tsx), or null; any setTab closes it */
+  pathProg: ProgressionAt | null;
   /** the rows of Review the Path has unfolded, by key */
   pathOpen: Record<string, boolean>;
 }

@@ -114,39 +114,13 @@ test("Review on the Path: the totals, the mistakes with Retry, a favorite and a 
   await expect(page.locator(".ppage .ptitle")).toHaveText("Review");
 });
 
-test("Review on the Path: Terms lists the terms met so far by stage, and a row unfolds into the definition, where the term sits and its examples", async ({ page }) => {
-  // (the support test gives every device all terms met; this one has met two)
-  await page.addInitScript(() => {
-    localStorage.setItem("rd-stages", "1,2");
-    localStorage.setItem("rd-terms", JSON.stringify({ n: 9, next: 99, terms: { form: { box: 1, shows: 1, at: 1 }, col: { box: 3, shows: 1, at: 1 } } }));
-  });
+test("Review on the Path has no Terms section: the terms met are on the Progression page", async ({ page }) => {
   await page.addInitScript(onPath);
   await page.goto("/");
   await expect(page.locator("#path .chs .crow")).toHaveCount(5);
   await openReview(page);
-  await expect(page.locator("#path .prseg button").filter({ hasText: /^Terms 2$/ })).toHaveCount(1);
-  await section(page, "Terms");
-  await expect(page.locator("#path .pgh b")).toHaveText(["Stage 1", "Stage 2"]);
-  await expect(rows(page).locator("b")).toHaveText(["Form", "Color"]);
-  await expect(page.locator("#path .pfold")).toHaveCount(0);
-  await rows(page).first().locator(".trb").click();
-  const fold = page.locator("#path .pfold");
-  await expect(fold.locator(".tstop-sech")).toHaveText(withCourse ? ["Definition", "Categories"] : ["Categories"]);
-  await expect(fold.locator(".ttree li.me")).toHaveText("Form");
-  await rows(page).first().locator(".trb").click();
-  await expect(fold).toHaveCount(0);
-});
-
-test("Review on the Path: Terms says what it will hold while no term has been met", async ({ page }) => {
-  await page.addInitScript(() => { localStorage.setItem("rd-terms", JSON.stringify({ n: 0, next: 3, terms: {} })); });
-  await page.addInitScript(onPath);
-  await page.goto("/");
-  await expect(page.locator("#path .chs .crow")).toHaveCount(5);
-  await openReview(page);
-  await expect(page.locator("#path .prseg button").filter({ hasText: /^Terms$/ })).toHaveCount(1);
-  await section(page, "Terms");
-  await expect(page.locator("#path .pempty")).toContainText("Each new term joins this list");
-  await expect(rows(page)).toHaveCount(0);
+  await expect(page.locator("#path .prseg button")).not.toHaveCount(0);
+  await expect(page.locator("#path .prseg button").filter({ hasText: /^Terms/ })).toHaveCount(0);
 });
 
 test("Review on the Path: a flag unfolds into what the tutor said and the note, and is edited and deleted there", async ({ page }) => {

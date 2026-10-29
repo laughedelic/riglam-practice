@@ -9,7 +9,7 @@ import { persist } from "../practice/answers.js";
 import { freshUi } from "../practice/queue.js";
 import { clearSkip } from "../practice/skips.js";
 import { pairStageNow, stageStep } from "../practice/stage-offer.ts";
-import { gradeTerms } from "../practice/stops.ts";
+import { askedTerm, gradeTerms } from "../practice/stops.ts";
 import { focusAfterCheck, focusCin, render, top0 } from "../shell/render.js";
 import { switchTo } from "../shell/tabs.js";
 import { drawRelation, findId, findPair, gradeFind, nameThing, sameThing } from "../../domain/find.ts";
@@ -95,7 +95,7 @@ export function checkFind(){
   const p=state.cur.p;
   clearSkip(p,u.rel);
   u.res=gradeFind(state,p,u); u.checked=true; u.open=false;
-  gradeTerms([{cat:p.catA,ok:!!u.res.relOk},{cat:p.catB,ok:!!u.res.relOk}],false);     // the learner's own pair: only a right one counts (practice/stops.ts)
+  gradeTerms([{cat:askedTerm(p.catA,p.a),ok:!!u.res.relOk},{cat:askedTerm(p.catB,p.b),ok:!!u.res.relOk}],false);     // the learner's own pair: only a right one counts; "matter" grades matter (practice/stops.ts)
   if(!u.res.relOpen) stageStep("find",pairStageNow(p.catA,p.catB),!!u.res.relOk);     // the run towards the next stage; a miss here says little about the words (practice/stage-offer.ts)
   render();
   focusAfterCheck();

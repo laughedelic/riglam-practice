@@ -1,6 +1,6 @@
 // Categories: a thing is shown; the learner ticks the categories it is in (or answers yes or no for each), then picks the most specific. The things are the practice items of
 // the stages that are on and, where the device holds them, reference examples: here invented ones (a plain and a second-level one for every term of the open data, at stages
-// 6 and 7) served by a stand-in for the server (tests/support/data-key.js). The specs' devices are not new (the fixture stores a setting), so they start with stages 1 to 6.
+// 6 and 7) served by a stand-in for the server (tests/support/data-key.js). The specs' devices are not new (the fixture stores a setting), so they start with stages 1 to 8.
 // The page's own state is read through the test hook (tests/e2e/pwa/*.spec.js), so every path can be driven with answers known to be right or wrong.
 import { test, expect } from "../../support/test.js";
 import { goTo, openMenu, overflow, ready, setStoredStages } from "../../support/page.js";
@@ -237,30 +237,30 @@ test("Skip asks first once something is ticked, and an example set aside is not 
 
 test("after five right in a row the next stage is offered with a tap, and Not now leaves things as they are", async ({ page }) => {
   await open(page);
-  await atStages(page, "1");
+  await atStages(page, "0");
   const finishThing = async () => { await tickAnswer(page); await finish(page); };
   for (let i = 0; i < 4; i++) { await finishThing(); await expect(page.locator(".catoffer")).toHaveCount(0); await page.keyboard.press("n"); }
   await finishThing();
   await expect(page.locator(".catoffer")).toBeVisible();
-  await expect(page.locator(".catoq")).toContainText("Stage 1 is going well. Add stage 2");
+  await expect(page.locator(".catoq")).toContainText("Stage 0 is going well. Add stage 1");
   await page.getByRole("button", { name: "Not now" }).click();
   await expect(page.locator(".catoffer")).toHaveCount(0);
   expect(await page.evaluate(() => document.activeElement === document.body), "the focus does not fall to the page").toBe(false);
-  await expect(page.locator('[role="status"].catnote')).toContainText("Stage 1 stays the highest");
-  expect(await page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("1");
+  await expect(page.locator('[role="status"].catnote')).toContainText("Stage 0 stays the highest");
+  expect(await page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("0");
   // another five, and this time a tap adds the stage, for every exercise
   await page.keyboard.press("n");
   for (let i = 0; i < 4; i++) { await finishThing(); await page.keyboard.press("n"); }
   await finishThing();
-  await page.getByRole("button", { name: "Add stage 2" }).click();
-  await expect(page.locator('[role="status"].catnote')).toContainText("Stage 2, colors and shapes, is on now in every exercise");
-  expect(await page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("1,2");
+  await page.getByRole("button", { name: "Add stage 1" }).click();
+  await expect(page.locator('[role="status"].catnote')).toContainText("Stage 1, form, is on now in every exercise");
+  expect(await page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("0,1");
   expect(await page.evaluate(() => document.activeElement === document.body), "the focus does not fall to the page").toBe(false);
 });
 
 test("an offer passed over with Next counts as Not now: it asks again after another five", async ({ page }) => {
   await open(page);
-  await atStages(page, "1");
+  await atStages(page, "0");
   const finishThing = async () => { await tickAnswer(page); await finish(page); };
   for (let i = 0; i < 4; i++) { await finishThing(); await page.keyboard.press("n"); }
   await finishThing();

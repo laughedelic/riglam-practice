@@ -16,10 +16,11 @@ import type { DataIndex } from "../ai-shared/lookup";
 import { catChain, excludes, rung, termPhrase } from "./ladder";
 import { itemRows as placeItemRows } from "./place";
 import { placeByClass } from "./reference";
-import { HOLD_STAGE, MAX_STAGE, catOpen, catStage, heldBack, itemStage, physical, topStage } from "./stages";
+import { askedKey, termCats, wordsFor } from "./intro";
+import { HOLD_STAGE, STAGES, catOpen, catStage, heldBack, itemStage, physical, topStage } from "./stages";
 import type { Stages, Unmet } from "./stages";
 import { FEATURE, cellsFor, inUniverse, judgeable, relOfCells } from "./universe";
-import type { Rng } from "./universe";
+import type { PairWords, Rng } from "./universe";
 import { cap, pick } from "./util";
 
 /** Why nothing is in all the categories: two of them that exclude each other, and the sentence that says so. */
@@ -50,10 +51,10 @@ export function catPhrase(cat: Cat): string {
 /** The class of the category's own term, the first of its chain, which a sentence need not repeat. */
 const own = (cat: Cat, cls: string) => cat.kind === "dudra" && cat.term === cls;
 /** Every stage on: a question asked without stages is told as at the last one. */
-const ALL: Stages = Array.from({ length: MAX_STAGE }, (_, i) => i + 1);
+const ALL: Stages = STAGES.map((s) => s.n);
 /** The Dudra category of a class, if the data has one. */
 const catOfTerm = (ix: DataIndex, term: string) => ix.DATA.cats.find((c) => c.kind === "dudra" && c.term === term);
-/** The two classes a beginner meets before their names, in the words Categories says them in (place.ts): Form is anything physical at stage 1, a consciousness is a mind until the established bases. */
+/** The two classes a beginner meets before their names, in the words Categories says them in (place.ts): Form is anything physical up to stage 1, a consciousness is a mind until the established bases. */
 const PLAIN: Readonly<Record<string, string>> = { Form: "physical", Consciousness: "a mind" };
 /** Whether the class is said in plain words at these stages. */
 function plainAt(ix: DataIndex, term: string, on?: Stages): boolean {
@@ -62,7 +63,7 @@ function plainAt(ix: DataIndex, term: string, on?: Stages): boolean {
   return term === "Form" ? topStage(on) < 2 : !cat || !catOpen(cat, on);
 }
 /** The stage from which a class can be said in a reason: from the start in plain words, else when its category opens (never, without one). */
-const wordsStage = (ix: DataIndex, term: string) => (term in PLAIN ? 1 : catStage(catOfTerm(ix, term) ?? { st: Infinity }));
+const wordsStage = (ix: DataIndex, term: string) => (term in PLAIN ? 0 : catStage(catOfTerm(ix, term) ?? { st: Infinity }));
 
 /**
  * Why nothing is in both categories, or null when the data cannot show it: an exclusion up their chains ("Whatever is made of wood is a
@@ -100,6 +101,9 @@ export function inAll(ix: DataIndex, it: Item, cats: readonly string[]): boolean
 
 /** The key of a set of categories, the same in any order. */
 export const instanceKey = (cats: readonly string[]): string => [...cats].sort().join("|");
+// the key of each set of the pool, made once: a draw looks at every set of a kind
+const keys = new WeakMap<readonly string[], string>();
+const keyOf = (set: readonly string[]) => { let k = keys.get(set); if (k === undefined) keys.set(set, (k = instanceKey(set))); return k; };
 
 /** The stage at which the learner knows the item as a thing in the set: its own, or the hold's for a person or a permanent thing when one of them is physical, as in the pairs (`itemStageFor`). */
 export function itemStageIn(ix: DataIndex, it: Item, set: readonly string[]): number {
@@ -113,7 +117,7 @@ const knownAt = (ix: DataIndex, it: Item, set: readonly string[], on?: Stages) =
  * at which a thing in all of them is known (`items`, the items in all of them), and for a set where nothing can be, the stage from which its
  * reason can be said (`said`: "nothing is both a form and a non-associated compositional factor" waits for the course's words).
  */
-export function setStage(ix: DataIndex, set: readonly string[], items: readonly Item[] = [], said = 1): number {
+export function setStage(ix: DataIndex, set: readonly string[], items: readonly Item[] = [], said = 0): number {
   const cats = Math.max(said, ...set.map((c) => catStage(ix.CAT[c])));
   return items.length ? Math.max(cats, Math.min(...items.map((it) => itemStageIn(ix, it, set)))) : cats;
 }
@@ -197,7 +201,7 @@ export interface InstanceDraw {
   stages?: Stages;
   /** the Dudra categories whose term the learner has not met yet (intro.ts): a set with one of them waits, unless nothing else can be asked */
   unmet?: Unmet;
-  /** the new terms of the highest stage whose last answer is not right yet (intro.ts, openTerms): `newShare` of the sets (half when absent) have one of them, while any can be asked */
+  /** the terms met whose last answer is not right yet, at any stage (intro.ts, openTerms): `newShare` of the sets (half when absent) have one of them, while any can be asked */
   open?: ReadonlySet<string>;
   newShare?: number;
 }
@@ -224,10 +228,11 @@ const REL_W: Record<string, number> = { "4": 1, "3ab": 0.35, "3ba": 0.35, mi: 0.
 
 /**
  * The question for a set of categories: in a random order, each under a random label, with what is in all of them or why nothing is. With
- * `on`, the things in all of them are those the learner knows at these stages.
+ * `on`, the things in all of them are those the learner knows at these stages. With `words`, a label that names a term the learner has not met
+ * waits, and an open one is said (intro.ts, wordsFor).
  */
-export function instanceQuestion(ix: DataIndex, set: readonly string[], rng: Rng, on?: Stages): InstanceQuestion {
-  const cats = shuffle(set, rng), labels = cats.map((c) => pick(ix.CAT[c].labels, rng));
+export function instanceQuestion(ix: DataIndex, set: readonly string[], rng: Rng, on?: Stages, words?: PairWords): InstanceQuestion {
+  const cats = shuffle(set, rng), labels = cats.map((c) => pick(wordsFor(ix, c, ix.CAT[c].labels, words?.unmet, words?.open), rng));
   const known = ix.DATA.items.filter((it) => inAll(ix, it, cats) && knownAt(ix, it, cats, on)).map((it) => it.n);
   let apart: Apart | null = null;
   for (let i = 0; i < cats.length && !apart; i++) for (let j = i + 1; j < cats.length && !apart; j++) apart = apartOf(ix, cats[i], cats[j], on);
@@ -251,9 +256,10 @@ export function drawInstance(ix: DataIndex, draw: InstanceDraw): InstanceQuestio
 }
 
 function askSet(ix: DataIndex, draw: InstanceDraw, unmet?: Unmet, open?: ReadonlySet<string>): InstanceQuestion | null {
-  const pool = poolOf(ix), rng = draw.rng, fresh = (s: { set: readonly string[] }) => !draw.avoid?.has(instanceKey(s.set));
+  const pool = poolOf(ix), rng = draw.rng, fresh = (s: { set: readonly string[] }) => !draw.avoid?.has(keyOf(s.set));
   const top = draw.stages ? topStage(draw.stages) : Infinity;
-  const at = <T extends Staged>(sets: readonly T[]) => sets.filter((s) => s.st <= top && !(unmet?.size && s.set.some((c) => unmet.has(c))) && (!open || s.set.some((c) => open.has(c))));
+  const lean = open && termCats(open);
+  const at = <T extends Staged>(sets: readonly T[]) => sets.filter((s) => s.st <= top && !(unmet?.size && s.set.some((c) => unmet.has(c))) && (!lean || s.set.some((c) => lean.has(c))));
   const choose = <T extends Staged>(sets: readonly T[], w: (s: T) => number = () => 1) => (weighted(sets.filter(fresh), w, rng) ?? weighted(sets, w, rng))?.set;
   const one = at(pool.one), two = at(pool.two), apart = pool.apart.map(at).filter((g) => g.length), three = at(pool.three), threeApart = at(pool.threeApart);
   const kinds = [
@@ -266,7 +272,7 @@ function askSet(ix: DataIndex, draw: InstanceDraw, unmet?: Unmet, open?: Readonl
   for (let tries = 0; tries < 6; tries++) {
     const set = weighted(kinds, (k) => Math.min(k.w, k.n / SPREAD), rng)?.set();
     if (!set) continue;
-    const q = instanceQuestion(ix, set, rng, draw.stages);
+    const q = instanceQuestion(ix, set, rng, draw.stages, { unmet: draw.unmet, open: draw.open });
     if (q.possible || q.apart) return q;
   }
   return null;
@@ -380,9 +386,11 @@ export function gradeInstance(ix: DataIndex, q: InstanceQuestion, ans: InstanceA
 /**
  * The course terms a checked answer grades (intro.ts, afterQuestion): a right thing is in every category of the set, so each of them was right; a right
  * "nothing is" shows that the two categories that exclude each other do. A wrong or open answer grades nothing: here a mistake is mostly about
- * knowing the thing, as in Syllogisms and Find a pair, which count only right answers as well.
+ * knowing the thing, as in Syllogisms and Find a pair, which count only right answers as well. With the data, a category said under the label of a
+ * named term grades that term ("matter": matter, not form; intro.ts, askedKey).
  */
-export function instanceGraded(q: InstanceQuestion, res: Pick<InstanceResult, "v">, none: boolean): { cat: string; ok: boolean }[] {
+export function instanceGraded(q: InstanceQuestion, res: Pick<InstanceResult, "v">, none: boolean, ix?: DataIndex): { cat: string; ok: boolean }[] {
   if (res.v !== "ok") return [];
-  return (none && q.apart ? [q.apart.a, q.apart.b] : q.cats).map((cat) => ({ cat, ok: true }));
+  const key = (cat: string) => (ix ? askedKey(ix, cat, q.labels[q.cats.indexOf(cat)]) : cat);
+  return (none && q.apart ? [q.apart.a, q.apart.b] : q.cats).map((cat) => ({ cat: key(cat), ok: true }));
 }

@@ -23,7 +23,7 @@ test("the open file has no definitions, no notes and no group notes", () => {
 // A label the table of singulars lacks stays plural next to its partner, so every label of every category needs a form of its own.
 test("every category label has a singular for the questions, unless it is a mass noun", async () => {
   const { singular } = await import("../../src/app/debate/text.js");
-  const mass = new Set(["matter", "food", "furniture", "kitchenware"]);
+  const mass = new Set(["matter", "external matter", "internal matter", "food", "furniture", "kitchenware"]);
   for (const c of readOpen().cats) for (const label of c.labels as string[]) {
     const one = singular(label);
     if (mass.has(label)) expect(one, `${label} stays as it is`).toBe(label);
