@@ -19,7 +19,7 @@ import { setTab } from "./tabs.js";
 const MARK="riglamNav";
 const canPush=()=>{ try{ return window.parent===window; }catch(e){ return false; } };
 // how many levels are open, from the state alone
-const depth=()=>(isWide()?0:state.menuOpen?0:1)+(state.tab==="review"?1:0)+(state.view==="chat"?1:0)+(state.optsOpen?1:0)+(state.sessOpen?1:0)+(state.sessPage?1:0)+(state.skipAsk?1:0);
+const depth=()=>(isWide()?0:state.menuOpen?0:1)+(state.tab==="review"?1:0)+(state.view==="chat"?1:0)+(state.optsOpen?1:0)+(state.sessOpen?1:0)+(state.sessPage&&state.sessPage!=="progress"?1:0)+(state.skipAsk?1:0);
 function sync(){
   state.navQ=false;
   if(state.navSkip>0||!canPush()) return;

@@ -12,7 +12,7 @@ import { render } from "../shell/render.js";
 import { setStages, stageName } from "../shell/stages.js";
 import type { DataIndex } from "../../ai-shared/lookup.ts";
 import { stageMet } from "../../domain/intro.ts";
-import { catStage, exerciseAfter, movedUp, newShare, pairStage, restartRun, runAfter, setManual, stageOffer, stayLonger, topStage, type MissKind } from "../../domain/stages.ts";
+import { catStage, exerciseAfter, movedUp, newShare, pairStage, restartRun, runAfter, setManual, stageOffer, stageProgress, stayLonger, topStage, type MissKind, type StageProgress } from "../../domain/stages.ts";
 
 const ix = () => state as unknown as DataIndex;
 /** What a mistake in each exercise says about the words (src/domain/stages.ts, MissKind). */
@@ -46,6 +46,13 @@ export function stageStep(ex: string, st: number, ok: boolean): boolean {
   if (o && state.ui) { if (o.kind === "up" && state.design === "path") state.ui.up = { stage: o.stage }; else state.ui.offer = o; }
   saveProgress();
   return !!o;
+}
+
+/** The run towards the next stage, for the ring in the top bar (src/domain/stages.ts, stageProgress), and whether it is full but the stage waits for the terms of this one to have their stops (`stageStep`). */
+export function progressNow(): StageProgress & { waiting: boolean } {
+  const p = stageProgress(state.stageRun, state.stages);
+  const waiting = p.full && state.design === "path" && !!state.intro && !!state.DATA && !stageMet(ix(), state.intro, p.top);
+  return { ...p, waiting };
 }
 
 const pending = () => { const o = state.ui && state.ui.offer; return o && o.kind !== "done" ? (o as { kind: "up" | "down"; stage: number }) : null; };

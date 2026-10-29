@@ -320,11 +320,17 @@ test("under Blitz each countdown has a bar of its own on the top bar, so that it
   await expect(page.locator("#path .pclock[data-old]")).toHaveCount(0);
 });
 
-test("the roadmap comes down from the top bar and goes to another exercise", async ({ page }) => {
+test("the roadmap slides in from the left on the back chevron and goes to another exercise", async ({ page }) => {
   await start(page);
+  const box = () => page.locator("#path .road").boundingBox();
+  const closed = await box();
   await page.locator(".tstn").click();
   const road = page.getByRole("dialog", { name: "Roadmap" });
   await expect(road).toBeVisible();
+  await expect.poll(async () => (await box()).x, "it comes to rest").toBeGreaterThan(closed.x + closed.width - 1);
+  const open = await box();
+  expect(closed.x + closed.width, "it came in from the left: closed, it waited beside its place").toBeLessThanOrEqual(open.x + 0.5);
+  expect(closed.y, "level with its place, not above it").toBeCloseTo(open.y, 0);
   await expect(road.locator("[aria-current=page]")).toHaveAccessibleName(/Relations, here/);
   await road.getByRole("button", { name: /^Pervasions/ }).click();
   await expect(road).toBeHidden();

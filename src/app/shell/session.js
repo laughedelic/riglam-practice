@@ -31,7 +31,7 @@ export const SYMS={
   sets:["Sets","Each term stands for the set of things it covers.",[["∩","intersection: what is both"],["∅","the empty set: nothing"],["≠ ∅","not empty"],["⊂","contained in"],["⊃","contains"],["=","the same set"]]],
   logic:["Logic","Each term stands for a statement: it is A, it is B.",[["⇒","follows: A ⇒ B, if A then B"],["⇐","follows from"],["⇔","each follows from the other"],["⇏","does not follow"],["¬","negation: not"]]]
 };
-export const PAGES={nota:"Notation",wording:"Questions",times:"Blitz",defs:"Definitions",stages:"Stages",voice:"Voice",tutor:"Tutor"};
+export const PAGES={nota:"Notation",wording:"Questions",times:"Blitz",defs:"Definitions",stages:"Stages",voice:"Voice",tutor:"Tutor",progress:"Progression"};
 const store=(key,v)=>{ try{ localStorage.setItem(key,v); }catch(e){} };
 export function setNota(k){ state.nota=k; store("rd-notation",k); render(); }
 export function setDefLang(k){ state.defLang=k==="enru"?"enru":"en"; store("rd-deflang",state.defLang); render(); }
@@ -65,9 +65,12 @@ export function openPage(id){ state.sessPage=id; state.resetAsk=""; render(); co
 export function openStageOptions(){ if(!state.sessOpen) toggleSess(true); openPage("stages"); }
 /** The Blitz page of the practice options: what holding the stopwatch in the top bar opens. */
 export function openBlitzOptions(){ if(!state.sessOpen) toggleSess(true); openPage("times"); }
-/** Back or Escape in the options: from a page to the list, from the list to the exercise. */
+/** The Progression page, which the ring in the top bar opens (and closes, while it is open): a sheet of its own, with no list under it. */
+export function openProgress(){ if(state.sessOpen&&state.sessPage==="progress"){ toggleSess(false); return; } if(!state.sessOpen) toggleSess(true); openPage("progress"); }
+/** Back or Escape in the options: from a page to the list, from the list to the exercise; the Progression page has no list under it, it closes the sheet. */
 export function sessBack(){
-  if(state.sessPage){ state.sessPage=null; render(); const b=document.querySelector("#over .go2"); if(b) /** @type {HTMLElement} */(b).focus({preventScroll:true}); }
+  if(state.sessPage==="progress") toggleSess(false);
+  else if(state.sessPage){ state.sessPage=null; render(); const b=document.querySelector("#over .go2"); if(b) /** @type {HTMLElement} */(b).focus({preventScroll:true}); }
   else toggleSess(false);
 }
 // the sliders button in the top bar

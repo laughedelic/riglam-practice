@@ -1,4 +1,4 @@
-/* The Path: the practice options (a sheet from the top), the roadmap pulled down from the top bar, the pages (Settings, Review), the
+/* The Path: the practice options (a sheet from the top), the roadmap slid in from the left, the pages (Settings, Review), the
    toggles and the words in a row. */
 .pa .porow{display:grid; grid-template-columns:var(--m) minmax(0,1fr); padding:9px 0; position:relative}
 .pa .porow .lb{justify-self:end; padding:3px 12px 0 0; font-family:var(--mono); font-size:10.5px; color:var(--ink3); text-align:right; line-height:1.2; text-transform:uppercase; overflow-wrap:anywhere; max-width:var(--m)}
@@ -64,9 +64,8 @@
 .pa .psheet .sbody,.pa .ppage{background-image:linear-gradient(var(--mline),var(--mline)); background-repeat:repeat-y; background-size:1px 1px; background-position:var(--m) 0; background-attachment:local}
 .pa .psheet .sback{display:flex; align-items:center; gap:6px; padding:6px 18px 4px calc(var(--m) + 18px); font-family:var(--mono); font-size:11.5px; color:var(--blue)}
 .pa .psheet .sback .i{width:14px; height:14px; transform:rotate(180deg)}
-.pa .road{position:absolute; inset:0; z-index:22; background-color:var(--paper); transform:translateY(-102%); transition:transform .38s cubic-bezier(.2,.8,.2,1),visibility 0s .38s; display:flex; flex-direction:column; visibility:hidden}
-.pa .road.on,.pa .road.drag{transform:none; visibility:visible; transition:transform .38s cubic-bezier(.2,.8,.2,1)}
-.pa .road.drag{transition:none}
+.pa .road{position:absolute; inset:0; z-index:22; background-color:var(--paper); transform:translateX(-102%); transition:transform .38s cubic-bezier(.2,.8,.2,1),visibility 0s .38s; display:flex; flex-direction:column; visibility:hidden}
+.pa .road.on{transform:none; visibility:visible; transition:transform .38s cubic-bezier(.2,.8,.2,1)}
 .pa .road .rbody{flex:1; overflow-y:auto; position:relative}
 .pa .road svg.tree{display:block; width:100%; height:auto; max-width:480px; margin:0 auto}
 .pa .tree .ln{fill:none; stroke:var(--ink); stroke-width:1.6; opacity:.7}
@@ -88,6 +87,7 @@
 .pa .tree .rm.ok{fill:var(--green)} .pa .tree .rm.bad{fill:var(--red)} .pa .tree .rm.part{fill:var(--partc)} .pa .tree .rm.pend{fill:none; stroke:var(--ink3); stroke-width:1.2}
 .pa .road .rfoot{flex:none; border-top:1px solid var(--rule); display:flex; align-items:center; flex-wrap:wrap; gap:6px; padding:14px 12px 22px calc(var(--m) + 10px); position:relative}
 .pa .road .rfoot .knob{position:absolute; right:17px; top:-8px}
+.pa .road .rfoot .knob.lt .mk .i{transform:rotate(180deg)}
 .pa .road .rver{flex-basis:100%; font-family:var(--mono); font-size:10.5px; color:var(--ink3); padding:0 8px}
 .pa .road .rver button{color:var(--blue); text-decoration:underline; text-underline-offset:3px; font-family:var(--mono); font-size:10.5px}
 .pa .lk{font-family:var(--mono); font-size:13px; font-weight:500; color:var(--blue); display:inline-flex; align-items:center; gap:6px; min-height:40px; padding:0 8px; text-decoration:underline; text-underline-offset:4px; text-decoration-thickness:1px}

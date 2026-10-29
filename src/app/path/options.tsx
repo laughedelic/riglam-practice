@@ -16,14 +16,15 @@ import { setStages } from "../shell/stages.js";
 import { render } from "../shell/render.js";
 import { GUIDES, guided, setGuided } from "../practice/guided.ts";
 import { resetProgress } from "../practice/progress.ts";
-import { movesUp, setMovesUp } from "../practice/stage-offer.ts";
+import { movesUp, progressNow, setMovesUp } from "../practice/stage-offer.ts";
 import { toggleOpts } from "../shell/options.js";
 import { PAGES, SYMS, openPage, quorumNote, sessBack, setAutoExplain, setBlitzUse, setDefLang, setNegBrackets, setNegation, setNota, setShow, setSyllogismWording, setWording, toggleSess } from "../shell/session.js";
 import { kindMs } from "../shell/timers.js";
 import { ANSWERS, ANSWER_PICKS, CONFIRM_PICKS, RATES, READ_NOTE, SAMPLE, VOICE_LEAD, VOICE_SAY, WHERE, hookVoices, setVoice, voiceGroups, voiceShown } from "../shell/voice.js";
 import { stageCounts } from "../../domain/reference.ts";
-import { STAGES, itemStage, toggleStage } from "../../domain/stages.ts";
+import { MAX_STAGE, STAGES, itemStage, toggleStage } from "../../domain/stages.ts";
 import { canHear, canSpeak, speak, voiceList } from "../../ui/speech";
+import { ProgressPage } from "./progress.tsx";
 import { D, Icon, Knob, Toggle, Words, NOFILL } from "./ui.tsx";
 
 // the names in the margin are short, as the lab's are: six letters fit beside the line
@@ -127,6 +128,7 @@ function Page({ id }: { id: string }) {
   if (id === "stages") return <Stages />;
   if (id === "voice") return <VoicePage />;
   if (id === "tutor") return <TutorPage />;
+  if (id === "progress") return <ProgressPage />;
   return null;
 }
 /** The stages of the ladder: a switch for each, with its name, what it adds and how many things this device has of it; any mix, and the last one on stays on. */
@@ -196,8 +198,10 @@ function TutorPage() {
 const sheetOn = () => state.sessOpen && state.mode === "quiz";
 /** The sheet's own page that is open (one of PAGES), or null for the list. */
 const sheetPage = () => sheetOn() && state.sessPage && PAGES[state.sessPage as keyof typeof PAGES] && (state.sessPage !== "voice" || voiceShown()) && (state.sessPage !== "tutor" || tutorShown()) ? state.sessPage : null;
-/** What the sheet shows, as the heading it gives the screen: the top bar reads it in place of the exercise's name while the sheet is open (null when it is closed). */
-export const sheetTitle = (): string | null => sheetOn() ? (sheetPage() ? PAGES[sheetPage() as keyof typeof PAGES] : "Practice options") : null;
+/** The Progression page is open (the ring in the top bar opened it): the bar keeps the exercise's name and the ring, pressed, and the page hangs under it. */
+export const progressOn = (): boolean => sheetPage() === "progress";
+/** What the sheet shows, as the heading it gives the screen: the top bar reads it in place of the exercise's name while the sheet is open (null when it is closed, or is the Progression page). */
+export const sheetTitle = (): string | null => sheetOn() && !progressOn() ? (sheetPage() ? PAGES[sheetPage() as keyof typeof PAGES] : "Practice options") : null;
 
 /** The sheet of the practice options: from the top, under the top bar (which is its heading, and has its close), over a scrim; the knob at its foot folds it away. */
 export function OptionsSheet() {
@@ -219,9 +223,9 @@ export function OptionsSheet() {
   });
   return <>
     <div class={"scrim below" + (on ? " on" : "")} onClick={() => toggleSess(false)} />
-    <div ref={box} class={"psheet top" + (on ? " on" : "")} role="dialog" aria-label="Practice options" aria-hidden={on ? "false" : "true"} inert={!on} tabIndex={-1} data-quiet>
+    <div ref={box} class={"psheet top" + (on ? " on" : "")} role="dialog" aria-label={page === "progress" ? "Progression" : "Practice options"} aria-hidden={on ? "false" : "true"} inert={!on} tabIndex={-1} data-quiet>
       <div class="sbody" ref={body}>
-        {page ? <button type="button" class="sback" onClick={sessBack}><Icon n="chev" />back to the options</button> : <p class="glab" style={{ paddingTop: "4px" }}>{exName(state.tab)}</p>}
+        {page && page !== "progress" ? <button type="button" class="sback" onClick={sessBack}><Icon n="chev" />back to the options</button> : <p class="glab" style={{ paddingTop: "4px" }}>{page === "progress" ? "Stage " + progressNow().top + " of " + MAX_STAGE : exName(state.tab)}</p>}
         {on ? (page ? <Page id={page} /> : <List />) : null}
       </div>
       <Knob up label="Fold the practice options away" onClick={() => toggleSess(false)} />
