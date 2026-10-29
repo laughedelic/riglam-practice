@@ -376,7 +376,8 @@ test("the explain requests ask for the two facts about an example and the reason
     expect(ask).toContain("Start from the term and say what class it is in");
     expect(ask).toContain('do not write "only"');
     expect(ask).toContain("never answer against your own reason");
-    expect(ask).toContain('An example has to name the quality its side is about. Answer open on a side whose quality the example\'s name does not say: a feature such as the color of "a car"');
+    expect(ask).toContain('where the card does not say open, the list settles it, so answer by the ordinary reading of the thing and never open');
+    expect(ask).toContain('For any other example, answer open on a side whose quality the example\'s name does not say: a feature such as the color of "a car"');
     expect(ask).toContain("Answer unsure only when the classification itself is in doubt");
     expect(ask).toContain("a thing is at room temperature unless its name says otherwise, or it is often heated in use");
     expect(ask).not.toContain("so it fits");
