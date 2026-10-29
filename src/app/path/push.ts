@@ -68,13 +68,15 @@ function unfoldAfter(pc: HTMLElement, soft: boolean): void {
 /**
  * What comes before the statement `keep` ends (its heading, not its lines) fades, and what is in the statement's own section above it folds until the statement stands where the result puts it
  * (`keep.dataset.keep`, px under the section's top), so that the statement comes up with the heading going and does not move when the step goes on. Returns how far the statement comes up.
+ * With `keep.dataset.keep` "stay" nothing folds: the heading stays where it is and its diamond goes to ink with the line (Categories, as the questions of Pervasions do).
  */
 export function foldBefore(keep: HTMLElement, pc: HTMLElement): number {
-  const first = (keep.parentElement && keep.parentElement.querySelector<HTMLElement>(".stm")) || keep, sec = first.parentElement;
-  for (let n: HTMLElement | null = first; n && n !== pc; n = n.parentElement) for (let s = n.previousElementSibling; s; s = s.previousElementSibling) if (s instanceof HTMLElement) s.classList.add("pk-gone");
+  const first = (keep.parentElement && keep.parentElement.querySelector<HTMLElement>(".stm")) || keep, sec = first.parentElement, stay = keep.dataset.keep === "stay";
+  if (!stay) for (let n: HTMLElement | null = first; n && n !== pc; n = n.parentElement) for (let s = n.previousElementSibling; s; s = s.previousElementSibling) if (s instanceof HTMLElement) s.classList.add("pk-gone");
   for (const e of Array.from(pc.querySelectorAll<HTMLElement>(".pskip"))) e.classList.add("pk-gone");
   if (!sec) return 0;
   sec.classList.add("pk-walked");      // the statement's line goes from the question's gold to ink as the step is taken
+  if (stay) return 0;
   const above = Array.from(sec.children).slice(0, Array.prototype.indexOf.call(sec.children, first)).filter((e): e is HTMLElement => e instanceof HTMLElement), last = above.pop();
   const keepTop = Number(keep.dataset.keep) || 0, up = first.getBoundingClientRect().top - sec.getBoundingClientRect().top - keepTop;
   if (!last || up < 1) return 0;

@@ -24,3 +24,6 @@
 /* the line along the statement was the gold of the question: it goes to the walked line's ink as the station starts to rise, when the step is taken */
 .pa .main:is(.pk-run,.sc-run) .pathc > .sx.pk-walked{--sc:color-mix(in srgb,var(--ink) 72%,var(--paper)); transition:--sc .35s ease}
 @media (prefers-reduced-motion:reduce){ .pa .pathc .pk-gone,.pa .pathc .pk-gone.pk-fb,.pa.pushback .pathc{transition:none} .pa .main:is(.pk-run,.sc-run) .pathc > .sx.pk-walked{transition:none} }
+/* a heading that stays as the step is taken (push.ts `foldBefore`, "stay"): its diamond goes from the question's gold to ink with the line */
+.pa .main:is(.pk-run,.sc-run) .pathc > .sx.pk-walked .sechead .d.sec.now{background-color:var(--ink); transition:background-color .35s ease}
+@media (prefers-reduced-motion:reduce){ .pa .main:is(.pk-run,.sc-run) .pathc > .sx.pk-walked .sechead .d.sec.now{transition:none} }
