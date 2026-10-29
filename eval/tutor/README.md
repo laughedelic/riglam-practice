@@ -55,8 +55,11 @@ npm run eval:selftest                  # builds the kit and the cases, grades a 
 npm run eval:tutor -- --dry            # the cases and the first request
 RIGLAM_EVAL_API_KEY=... npm run eval:tutor -- --configs claude-sonnet-5-5:medium,claude-haiku-5-5:medium --repeats 3 --out data-private/eval/runs/base.jsonl
 npm run eval:report -- data-private/eval/runs/base.jsonl [--split test] [--md report.md] [--regrade]
+RIGLAM_EVAL_API_KEY=... npm run eval:judge -- data-private/eval/runs/base.jsonl --out data-private/eval/runs/base-judge.jsonl   # debated sides: did the tutor name the readings?
 ```
 
 `--budget <USD>` (default 30) stops starting new calls once that much is spent. A line already in `--out` is skipped, so a run that stopped goes on where it left off.
+
+`judge.ts` asks a judge model (Opus 5.5 by default) about each debated side: whether the tutor named the readings, and whether it gave one as the only answer. A human should check about ten of its verdicts before trusting it.
 
 `--regrade` grades the stored answers again against today's labels, so correcting a label after a run needs no new call.
