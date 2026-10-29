@@ -41,9 +41,11 @@
 .pa .olctl > .pdom,.pa .olctl > .pver,.pa .olctl > .pkeynote,.pa .olctl > .phost{flex-basis:100%}
 /* a page of lines is full width, without the margin's rule; the way back sits at its edge */
 .pa .ppage.sfull,.pa .psheet .sbody.sfull{background-image:none}
-.pa .ppage .sback{display:flex; align-items:center; gap:6px; font-family:var(--mono); font-size:11.5px; color:var(--blue)}
-.pa .ppage .sback .i{width:14px; height:14px; transform:rotate(180deg)}
-.pa .sfull .sback{padding:10px 16px 4px}
 .pa .sfull .ptitle{padding-left:16px; padding-right:16px}
 .pa .sgh + div > .ol{border-top-color:transparent}
 .pa span.olsw{pointer-events:none}   /* the empty column of a line with no switch: a tap there is the line's */
+/* an icon in the switch's column (the Magic Key's lock), and the field the key is typed in on its page */
+.pa .olic{color:var(--ink2)} .pa .olic .i{width:19px; height:19px}
+.pa .pkeyform{display:flex; flex-wrap:wrap; align-items:center; gap:10px 18px; margin-top:6px}
+.pa .pkeyform .pfield{flex:1 1 220px}
+.pa .pkeyform .pnoteline{flex-basis:100%; margin:0}
