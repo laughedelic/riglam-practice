@@ -278,7 +278,7 @@ test("Categories: a tap lifts a category over the rule and back, reset drops the
   await expect(page.locator("#path .thold .crow.scn")).not.toHaveCount(0);
   await expect(verdict(page)).toBeVisible();
   const applies = await page.evaluate(() => window.__t.cur.q.rows.filter((r) => r.answer).length);
-  if (applies) await expect(verdict(page)).toContainText(new RegExp("Not quite.*" + applies + " left under that appl"));   // not a score: what went wrong, each way
+  if (applies) await expect(verdict(page)).toContainText(new RegExp("Not quite.*" + applies + " missed"));   // not a score: what went wrong, each way
   await expect(page.locator("#path .thold.tres .chs.up .crow")).toHaveCount(0);   // nothing over the rule: the answer was "none of these"
   await expect(page.locator("#path .thold.tres .chs.down .crow")).toHaveCount(phrases.length);
   expect(await page.evaluate(() => window.__t.ui.g1.rows.filter((r) => r.picked).length)).toBe(0);
