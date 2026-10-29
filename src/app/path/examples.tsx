@@ -9,7 +9,7 @@ import { render } from "../shell/render.js";
 import type { CellId, RelKey } from "../../ai-shared/relations.ts";
 import type { Pull } from "./gesture.ts";
 import type { ScanPlan } from "./scan.tsx";
-import { refreshPath } from "./index.tsx";
+import { refreshPath, renderPath } from "./index.tsx";
 import { openThen } from "./relayout.ts";
 import { CASE, PairNode, SkipMark, Star, caseQ, pairOf, u0 } from "./parts.tsx";
 import { Scroll } from "./scroll.tsx";
@@ -43,6 +43,7 @@ function commit(pull: Pull) {
     openThen(root, main, () => { root.classList.remove("kbup"); pull.hold = false; blur(); if (pull.after) pull.after(); }, () => pull.take());
     return;
   }
+  renderPath();     // draw the Check the last example makes ready first: the draw after its input waits for the next frame, and an Enter in the same frame would find no Check to take
   pull.take(); blur();
 }
 function openCase(i: number) { const u = u0(); u.ci = i; u.pall = false; render(); focusField(); }
