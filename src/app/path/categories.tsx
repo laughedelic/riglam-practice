@@ -56,7 +56,7 @@ function Split({ one }: { one: boolean }) {
 function verdictOf(g: PlaceResult): { v: "ok" | "no"; word: string; sub: string } {
   if (g.ok) return { v: "ok", word: "Right", sub: "" };
   const up = g.rows.filter((r) => r.picked && !r.answer).length, down = g.rows.filter((r) => !r.picked && r.answer).length;
-  return { v: "no", word: "Not quite", sub: [up ? up + " lifted that " + (up === 1 ? "does" : "do") + " not apply" : "", down ? down + " left under that " + (down === 1 ? "applies" : "apply") : ""].filter(Boolean).join(" · ") };
+  return { v: "no", word: "Not quite", sub: [up ? up + " selected wrong" : "", down ? down + " missed" : ""].filter(Boolean).join(" · ") };
 }
 /** How far under the top the thing stands on the result's page; the scan folds the heading away until it stands there (push.ts `foldBefore`). */
 const RESULT_TOP = 12;
