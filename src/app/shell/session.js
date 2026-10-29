@@ -16,6 +16,7 @@ import { isEx, render } from "./render.js";
 import { segOf, settingRow as row, switchOf } from "./rows.js";
 import { kindMs } from "./timers.js";
 import { voiceListRows, voicePageBody, voiceShown } from "./voice.js";
+import { keepOwn } from "../practice/per-exercise.ts";
 
 /* ---------- the Practice options of an exercise ---------- */
 // What changes how an exercise looks, ticks or is checked (notation, wording of the questions, Blitz (on or off, and its times), A/B markers, full phrases, the language of the
@@ -41,7 +42,7 @@ export function setLang(id,on){
   state.langs=normLangs(on?[...state.langs,id]:state.langs.filter(x=>x!==id)); store("rd-langs",JSON.stringify(state.langs)); render();
 }
 export function setShow(key,on){ if(key==="ab") state.showAB=on; else state.fullPh=on; store("rd-"+key,on?"1":"0"); render(); }
-export function setAutoExplain(on){ state.autoExplain=on; store("rd-autoexplain",on?"1":"0"); render(); }
+export function setAutoExplain(on){ state.autoExplain=on; store("rd-autoexplain",on?"1":"0"); keepOwn("autoExplain",on); render(); }
 export function setWording(k){ state.wording=k; store("rd-wording",k); render(); }
 export function setFindSuggest(on){ state.findSuggest=on; store("rd-findsuggest",on?"1":"0"); render(); }
 export function setNegation(k){ state.negation=k; store("rd-negation",k); saveProgress(); render(); }
@@ -49,7 +50,7 @@ export function setNegBrackets(on){ state.negBrackets=on; store("rd-neg-brackets
 export function setSyllogismWording(k){ state.syllogismWording=k; store("rd-syllogism-wording",k); render(); }
 export function setSyllogismGuide(on){ state.syllogismGuide=on; store("rd-syllogism-guide",on?"1":"0"); render(); }
 // Blitz off takes the stopwatch away from the top bar, and a running countdown with it
-export function setBlitzUse(on){ state.blitzUse=on; store("rd-blitzuse",on?"1":"0"); if(!on) setBlitz(false); else render(); }
+export function setBlitzUse(on){ state.blitzUse=on; store("rd-blitzuse",on?"1":"0"); keepOwn("blitzUse",on); if(!on) setBlitz(false); else render(); }
 
 export function toggleSess(on){
   const was=state.sessOpen; state.sessOpen=on===undefined?!was:on;
