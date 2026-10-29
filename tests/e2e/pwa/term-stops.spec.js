@@ -92,11 +92,12 @@ test("on the Path the stop is a station of its own, with the term and where it s
   const again = stop.getByRole("button", { name: "Show it again later" });
   const due = () => page.evaluate(() => { const t = JSON.parse(localStorage.getItem("rd-terms")).terms.form; return t.why === "again" ? t.due - window.__t.intro.n : null; });
   await expect(again).toHaveAttribute("aria-pressed", "false");
-  const disc = () => again.evaluate((b) => getComputedStyle(b, "::before").backgroundColor);
-  expect(await disc(), "no disc while it is not pressed").toBe("rgba(0, 0, 0, 0)");
+  // the favorites mark's look: gray like it, and pressed, the clock's face filled with its gold
+  const face = () => again.evaluate((b) => getComputedStyle(b.querySelector(".iface")).fill);
+  expect(await face(), "an empty face while it is not pressed").toBe("none");
   await again.click();
   await expect(again).toHaveAttribute("aria-pressed", "true");
-  expect(await disc(), "pressed: the clock in a disc of the accent, plain on a dark ground too").not.toBe("rgba(0, 0, 0, 0)");
+  expect(await face(), "pressed: the face filled, as the favorites mark is").not.toBe("none");
   // a short hint under the clock, which goes by itself after a few seconds
   await expect(stop.getByRole("status")).toHaveText("Will be shown again");
   expect(await due()).toBe(10);
