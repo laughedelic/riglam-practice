@@ -2,12 +2,13 @@
 // splits them into what applies and what does not, each with the reason), 2 the most specific of those that apply (one tap), 3 the line from
 // the most specific up, and the offer of another stage when one is due. The tutor has no part here. The steps are the classic page's
 // (categories/flow.js); the reference examples it draws from come with the Magic Key.
-import type { ComponentChildren } from "preact";
+import { type ComponentChildren, render } from "preact";
 import { state } from "../state.js";
 import { advanceCategories, checkCategories, continueCategories, pickCategory, resetCategories, sayCategory, tickCategory } from "../categories/flow.js";
 import { next } from "../practice/queue.js";
 import { toggleOpts } from "../shell/options.js";
-import { gradePlace, type PlaceGraded, type PlaceNarrow, type PlaceQuestion, type PlaceResult, type PlaceRow } from "../../domain/place.ts";
+import type { DataIndex } from "../../ai-shared/lookup.ts";
+import { gradePlace, placeNarrow, type PlaceGraded, type PlaceNarrow, type PlaceQuestion, type PlaceResult, type PlaceRow } from "../../domain/place.ts";
 import { refreshPath } from "./index.tsx";
 import { Choices, ErrLines, SkipMark, StageOffer, Verdict, pickThen, u0 } from "./parts.tsx";
 import type { ScanPlan } from "./scan.tsx";
@@ -58,15 +59,30 @@ function verdictOf(g: PlaceResult): { v: "ok" | "no"; word: string; sub: string 
   const up = g.rows.filter((r) => r.picked && !r.answer).length, down = g.rows.filter((r) => !r.picked && r.answer).length;
   return { v: "no", word: "Not quite", sub: [up ? up + " selected wrong" : "", down ? down + " missed" : ""].filter(Boolean).join(" · ") };
 }
-/** How far under the top the thing stands on the result's page; the scan folds the heading away until it stands there (push.ts `foldBefore`). */
-const RESULT_TOP = 12;
+/** The line beside the verdict of step 1: what went wrong, and whether step 2 comes (it is not asked when nothing is left to narrow, categories/flow.js). */
+function checkedSub(sub: string, last: boolean): string {
+  return [sub, last ? "step 2 is not asked" : "step 1 of 2"].filter(Boolean).join(" · ");
+}
+/** The room the result's node takes under the thing, for the scan to open there (scan.tsx `ScanPlan.room`): the result's verdict, drawn out of sight at the page's width and
+ *  measured, so that the scanner settles where the node will be and the categories under it stand where the result puts them. */
+const AFTER_THING = 6;
+function roomOf(v: "ok" | "no", word: string, sub: string) {
+  return (pc: HTMLElement) => {
+    const box = document.createElement("div");
+    box.style.cssText = `position:absolute; left:0; top:0; width:${pc.clientWidth}px; visibility:hidden; pointer-events:none`;
+    pc.append(box); render(<Verdict v={v} word={word} sub={sub} />, box);
+    const band = box.querySelector(".vband"), d = box.querySelector(".pvline .d.big"), b = band && band.getBoundingClientRect(), r = d && d.getBoundingClientRect();
+    render(null, box); box.remove();
+    return b && r ? { h: AFTER_THING + b.height, at: AFTER_THING + r.top + r.height / 2 - b.top } : null;
+  };
+}
 /** What the scan of the Check marks on its way up (scan.tsx): every category where it stands, the ones over the rule first (the page's order), graded as the check will
- *  grade them; it ends under the thing, where the result's node will be. */
+ *  grade them; it ends under the thing, where the result's node will be. The heading stays, its diamond turned to ink. */
 function scanPlan(): ScanPlan {
   const t = q(), u = u0(), g = gradePlace(t, u.ticked), by = new Map(g.rows.map((r) => [r.cat, r]));
   const order = [...t.rows.filter((r) => u.ticked.includes(r.cat)), ...t.rows.filter((r) => !u.ticked.includes(r.cat))];
-  const { v, word } = verdictOf(g);
-  return { cases: order.map((r) => (by.get(r.cat)!.ok ? "ok" : "no")), rel: v, v, word, sub: "", stop: ".cstop", rows: ".thold .crow" };
+  const { v, word, sub } = verdictOf(g), line = checkedSub(sub, !placeNarrow(state as unknown as DataIndex, t, () => 0));
+  return { cases: order.map((r) => (by.get(r.cat)!.ok ? "ok" : "no")), rel: v, v, word, sub: line, stop: ".cstop", rows: ".thold .crow", room: roomOf(v, word, line) };
 }
 /** One category of the result in the threshold's form: on the line when it is over the rule, beside it under the rule, with its mark, what the learner did and the reason. */
 function ResRow({ row, on }: { row: PlaceGraded; on: boolean }) {
@@ -83,9 +99,9 @@ function ResRow({ row, on }: { row: PlaceGraded; on: boolean }) {
 function Settled() {
   const rows = u0().g1.rows as PlaceGraded[], up = rows.filter((r) => r.picked), down = rows.filter((r) => !r.picked);
   return <div class="thold tres">
-    <Sx cls={"walked" + (up.length ? "" : " thempty")}><span class="thh" aria-hidden="true">is</span>{up.length ? <div class="chs up">{up.map((r) => <ResRow row={r} on />)}</div> : null}</Sx>
-    <Sx cls="walked thx"><span class="thl" /></Sx>
-    {down.length ? <Sx cls="walked"><span class="thh" aria-hidden="true">not</span><div class="chs down">{down.map((r) => <ResRow row={r} on={false} />)}</div></Sx> : null}
+    <Sx cls={"walked" + (up.length ? "" : " thempty")}><span class="thh" data-mv="above" aria-hidden="true">is</span>{up.length ? <div class="chs up">{up.map((r) => <ResRow row={r} on />)}</div> : null}</Sx>
+    <Sx cls="walked thx"><span class="thl" data-mv="rule" /></Sx>
+    {down.length ? <Sx cls="walked"><span class="thh" data-mv="below" aria-hidden="true">not</span><div class="chs down">{down.map((r) => <ResRow row={r} on={false} />)}</div></Sx> : null}
   </div>;
 }
 /** What step 2 says when it was not asked. */
@@ -100,7 +116,7 @@ function TickStep() {
   return <>
     <Scroll>
       <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Categories" sub="which of these is it?" aside={<SkipMark />} /><Gap h={6} /><Thing />
-        <div class="cstop" data-keep={String(RESULT_TOP)} aria-hidden="true"><i class="d" /></div></Sx>
+        <div class="cstop" data-keep="stay" aria-hidden="true"><i class="d" /></div></Sx>
       <Threshold label="Categories the thing is in" items={t.rows.map((r, i) => ({ k: r.cat, b: r.phrase, key: String(i + 1) }))} picked={u.ticked} onPick={tickCategory} onReset={resetCategories} />
       <Sx cls="ptail" />
     </Scroll>
@@ -131,8 +147,8 @@ function CheckedStep() {
   const { v, word, sub } = verdictOf(g);
   return <>
     <Scroll>
-      <Sx cls="walked first"><Gap h={RESULT_TOP} /><Thing /><Gap h={6} /></Sx>
-      <Verdict v={v} word={word} sub={[sub, u.checked ? "step 2 is not asked" : "step 1 of 2"].filter(Boolean).join(" · ")} />
+      <Sx cls="walked first"><Gap h={14} /><Head d={<D cls="sec done" />} h="1 Categories" sub="which of these is it?" /><Gap h={6} /><Thing /><Gap h={AFTER_THING} /></Sx>
+      <Verdict v={v} word={word} sub={checkedSub(sub, !!u.checked)} />
       {one ? <Split one /> : <Settled />}
       {u.checked ? <Sx cls="walked"><p class="pnoteline pfnote">{skipNote()}</p></Sx> : !g.ok && n ? <Sx cls="walked"><p class="pnoteline pfnote">Step 2 uses the corrected set: {n.options.map((r) => r.phrase).join(", ")}.</p></Sx> : null}
       {u.checked ? <StageOffer /> : null}
