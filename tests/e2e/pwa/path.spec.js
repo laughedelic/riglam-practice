@@ -597,7 +597,7 @@ withKey("Why asks the tutor on the result, and Ask a follow-up opens the convers
   expect(asked).toHaveLength(1);
   await page.getByRole("button", { name: "Written by Claude, an AI. It can be wrong." }).click();   // the reminder under the explanation opens the page that says what Claude is
   await expect(page.getByText("Claude is an AI assistant")).toBeVisible();
-  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Close the practice options" }).click();
   await expect(page.locator("#path .ptb").getByRole("button", { name: /^Claude/ })).toHaveCount(0);
   await page.getByRole("button", { name: "Ask a follow-up" }).click();
   await expect(page.locator(".ptb-t")).toContainText("Claude");
@@ -781,10 +781,10 @@ test("the practice options leave part of the screen to tap out on, and scroll in
   await page.waitForTimeout(500);
   const [sb, vp] = [await page.locator("#path .psheet.on").boundingBox(), page.viewportSize()];
   expect(sb.y + sb.height, "the sheet stops short of the bottom of the screen").toBeLessThanOrEqual(vp.height * 0.8);
-  await expect(sheet.getByRole("button", { name: "Claude AI: more" })).toBeVisible();
+  await expect(sheet.getByRole("button", { name: "Explanations by Claude: more" })).toBeVisible();
   await expect(sheet.getByRole("group", { name: "Explanations by Claude" })).toBeVisible();   // the choice on the line
   await expect(sheet).not.toContainText("right after you check one");   // what needs more words is on the page
-  await sheet.getByRole("button", { name: "Claude AI: more" }).click({ position: { x: 12, y: 12 } });   // the line, beside its choice
+  await sheet.getByRole("button", { name: "Explanations by Claude: more" }).click({ position: { x: 12, y: 12 } });   // the line, beside its choice
   await expect(sheet.getByRole("group", { name: "Explanations by Claude" })).toBeVisible();
   await expect(sheet).toContainText("right after you check one");
   await sheet.getByRole("button", { name: "back to the options" }).click();
