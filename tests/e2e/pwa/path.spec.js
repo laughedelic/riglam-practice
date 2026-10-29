@@ -763,6 +763,8 @@ test("the practice options' knob sits on the sheet's edge, splitting its line", 
   expect(k.y, "the knob starts above the edge").toBeLessThan(edge);
   expect(k.y + k.height, "and ends below it").toBeGreaterThan(edge);
   // no box of paper under the edge: beside the chevron, just below the line, the page shows as it does elsewhere under the sheet
+  // (the exercise under the scrim is hidden for this: the words of the pair drawn could lie under one spot and not the other)
+  await page.addStyleTag({ content: "#path .main > :not(.ptb) { visibility: hidden !important; }" });
   const px = (x, y) => page.screenshot({ clip: { x, y, width: 6, height: 2 } });
   expect((await px(k.x + 2, edge + 3)).equals(await px(k.x - 80, edge + 3)), "the knob has no box below the sheet's edge").toBe(true);
 });
