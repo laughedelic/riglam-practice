@@ -27,7 +27,7 @@ import { storeName } from "./store-slot";
 import { createLocalDb } from "./local-db";
 import { createReports, withdrawLater } from "./reports";
 import { createKnown, createTutor, serverSays, type ServerSays } from "./tutor";
-import { takeLinkKey, storedKey, storeKey, forgetKey, keyDeclined, declineKey, allowKey, showUnlock, markKeyChanged, takeKeyChanged, KEY_CHANGED_TEXT } from "./unlock";
+import { takeLinkKey, storedKey, storeKey, forgetKey, keyDeclined, declineKey, allowKey, showUnlock, takeKey, markKeyChanged, takeKeyChanged, KEY_CHANGED_TEXT } from "./unlock";
 
 const db = createLocalDb({ name: storeName(), onUnavailable: showStorageNotice });
 const link = takeLinkKey(); // first of all: a key in the address leaves the address bar at once
@@ -201,9 +201,9 @@ export const pwaPlatform: Platform = {
     return () => void keyListeners.delete(tell);
   },
   // Offered while there is no key: the page opens the prompt when the reader reaches something that needs it (Explain, the definitions, Options).
-  unlock: async () => (groupKey || !openUnlock ? null : { open: openUnlock, tutor: false, answer: tutorIsOn() }),
+  unlock: async () => (groupKey || !openUnlock ? null : { open: openUnlock, enter: (text) => takeKey(text, verify, applyKey), tutor: false, answer: tutorIsOn() }),
   // While this device has the key: another one can be entered (the prompt keeps the old one until the new one is checked), or the key is forgotten, with the kept definitions.
-  keyHeld: async () => (groupKey ? { change: () => (changeKey ??= showUnlock({ verify, apply: applyKey }))(), forget: forgetEverything } : null),
+  keyHeld: async () => (groupKey ? { change: () => (changeKey ??= showUnlock({ verify, apply: applyKey }))(), enter: (text) => takeKey(text, verify, applyKey), forget: forgetEverything } : null),
   // Only with the key (the server would refuse the request anyway) and only when the server says its tutor is on: otherwise the page hides the tutor.
   about: () => aboutThisBuild(),
   updates,

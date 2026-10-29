@@ -49,6 +49,28 @@ export function forgetKey() {
 }
 
 /**
+ * Takes a key typed or pasted (words with spaces or dashes, in any case, or the whole link): `verify(key)` asks the server, and a key it opens the
+ * definitions with is kept and taken into the running page by `apply(key)`; with no `apply`, or when it fails or resolves false, the page is reloaded so it
+ * starts unlocked. Resolves with null when the key was taken, or with the sentence to show when it was not. The prompt below and Settings' Magic Key page use it.
+ */
+export async function takeKey(text: string, verify: (key: string) => Promise<string | null>, apply?: (key: string) => Promise<boolean>): Promise<string | null> {
+  const key = parseMagicKey(text);
+  if (!key) return "That does not look like a Magic Key, which is four words in a row.";
+  let why: string | null;
+  try {
+    why = await verify(key);
+  } catch {
+    why = "The server could not check the key just now. Try again later.";
+  }
+  if (why) return why;
+  storeKey(key);
+  let taken = false;
+  try { taken = (await apply?.(key)) ?? false; } catch { /* the reload below starts the page with the key */ }
+  if (!taken) location.reload();
+  return null;
+}
+
+/**
  * Tells a reader without a key how to get one, and takes the key if it is typed or pasted (words with spaces or dashes, in any
  * case, or the whole link). `verify(key)` asks the server and resolves with `null` when the key opens the definitions, or with the
  * sentence to show when it does not. The key is then kept and `apply(key)` takes it into the running page (resolving true), so what
@@ -88,22 +110,11 @@ export function showUnlock({ problem = null, verify, apply }: { problem?: string
     dlg.querySelector("#unlock-skip")!.addEventListener("click", () => dlg.close());
     dlg.querySelector("form")!.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const key = parseMagicKey(input.value);
-      if (!key) return say("That does not look like a Magic Key, which is four words in a row.");
       say("");
       const submit = dlg.querySelector<HTMLButtonElement>("button[type=submit]")!;
       submit.disabled = true;
-      let why: string | null;
-      try {
-        why = await verify(key);
-      } catch {
-        why = "The server could not check the key just now. Try again later.";
-      }
+      const why = await takeKey(input.value, verify, apply);
       if (why) { submit.disabled = false; return say(why); }
-      storeKey(key);
-      let taken = false;
-      try { taken = (await apply?.(key)) ?? false; } catch { /* the reload below starts the page with the key */ }
-      if (!taken) return location.reload();
       dlg.dataset.taken = "1";
       dlg.close();
     });
