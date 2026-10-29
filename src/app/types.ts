@@ -332,18 +332,16 @@ export interface SkipNote {
 
 /** Where the Progression page of the Path stands (path/progression.tsx): where it was opened from, so that Back goes there again, and the term card open over it. */
 export interface ProgressionAt {
-  /** opened from the roadmap's rings (Back shows the roadmap again) or from the link on the top bar's ring sheet (Back goes to the exercise) */
+  /** opened from the roadmap's rings (Back shows the roadmap again), or from the top bar's ring sheet or another link in an exercise (Back goes to the exercise) */
   from: "road" | "sheet";
   /** the screen under it when it opened: the exercise, or Review; Back returns to it */
   tab: string;
-  /** the stage whose row it brings to the top when it next draws; -1 when none */
+  /** the stage whose line it brings into view when it next draws; -1 when none, -2 for the Stages section (path/progression.tsx, AT_STAGES) */
   at: number;
   /** the term whose card is open over it (a category id of the data), or "" */
   term: string;
   /** how far the page was scrolled when a term's card opened over it, to be set again when the card closes; -1 when nothing waits */
   y: number;
-  /** the Difficulty page (path/difficulty.tsx) is open: over the stages ("over": Back comes to them), or by itself ("alone": opened from a result or the practice options) */
-  diff?: "over" | "alone";
 }
 
 /** The page's shared state: every variable that used to be module-level (see state.js). */

@@ -102,7 +102,7 @@ function NegOffer() {
     <p class="oq">{t.q}</p>
     <p class="xnote">{t.ex}</p>
     <span class="pbtns"><button type="button" class="pbtn" onClick={acceptNegOffer}>{t.yes}</button><button type="button" class="pbtn quiet" onClick={declineNegOffer}>Not now</button></span>
-    <p class="xnote">Never starts by itself. Change it, or switch negations off, on the <button type="button" class="plnk" onClick={() => openDifficulty()}>Difficulty page</button>.</p>
+    <p class="xnote">Never starts by itself. Change it, or switch negations off, on the <button type="button" class="plnk" onClick={openDifficulty}>Progression page</button>.</p>
   </div></St></Sx>;
 }
 /** The verdict of a result `r` as the result's node says it: its color, its word and the line beside it. */

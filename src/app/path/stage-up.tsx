@@ -4,7 +4,7 @@
 // on the line: Topics, what the stage introduces with the new terms it brings, and Progression, what the stages are. The first time that is said in a few short
 // lines (stage 1 says that the course terms start there); in a later upgrade it is one line, with the rest folded under "How the stages work", the Progression
 // page's words (path/progress.tsx, HowStages). Both say when a stage opens a group of three, and stage 9 that it is the last, with the depth after it on the
-// Difficulty page. The learner may stay on the stage they are on a while longer (and take that back), or choose the stages themselves in the practice options.
+// Progression page. The learner may stay on the stage they are on a while longer (and take that back), or choose the stages themselves on that page.
 // The stages carry no names here, only numbers. Drawn like the stop of a course term (path/stop.tsx): paper and ink, not a question's gold.
 import type { ComponentChildren } from "preact";
 import { useLayoutEffect, useRef, useState } from "preact/hooks";
@@ -12,11 +12,10 @@ import { state } from "../state.js";
 import { next } from "../practice/queue.js";
 import { stayOnStage, undoStay } from "../practice/stage-offer.ts";
 import { stopAfterStage } from "../practice/stops.ts";
-import { openStageOptions } from "../shell/session.js";
 import { PACE_NAME } from "../practice/difficulty.ts";
 import { LADDER_TOP, RING_STAGES, STAGES, runNeed } from "../../domain/stages.ts";
 import { HowStages } from "./progress.tsx";
-import { openDifficulty } from "./progression.tsx";
+import { openDifficulty, openStages } from "./progression.tsx";
 import { stopName } from "./next.ts";
 import { StageRing, TermList, marksOf, ringLabel, stageWhere } from "./rings.tsx";
 import { Scroll } from "./scroll.tsx";
@@ -71,13 +70,13 @@ export function stageUpScreen(title: string): { cls: string; node: ComponentChil
   const up = state.ui!.up!, n = up.stage, from = n - 1, info = STAGES.find((x) => x.n === n), newTerms = marksOf(n);
   const after = stopAfterStage();     // the first term of the stage comes at once, as a stop: the station says so
   const mix = "The earlier stages stay in the mix.";
-  const diff = <button type="button" class="plnk" onClick={() => openDifficulty()}>Difficulty page</button>;
+  const page = <button type="button" class="plnk" onClick={openDifficulty}>Progression page</button>;
   const start = n === 1 ? "Stage 0 was everyday things only. The course terms start here: nine stages of them, in three groups of three."
     : "Each stage adds a new kind of thing to ask about, from everyday things toward abstract ideas.";
   const group = info && info.group && n > 1 ? "Stage " + n + " begins the " + (n < 7 ? "second" : "third") + " group of three: " + info.group.charAt(0).toLowerCase() + info.group.slice(1) + "." : "";
-  const pace = <>New terms come one at a time, each with its definition first, at a {PACE_NAME[state.pace] || "steady"} pace (the {diff} sets it).</>;
-  const last = n === LADDER_TOP ? <>This is the last stage. Chains of reasoning come after it, as a difficulty of their own, on the {diff}.</> : null;
-  const opts = <p class="tup-note">The stages follow your answers. To choose them yourself, or to stop them from moving up, use the <button type="button" class="plnk" onClick={openStageOptions}>practice options</button>.</p>;
+  const pace = <>New terms come one at a time, each with its definition first, at a {PACE_NAME[state.pace] || "steady"} pace (set it on the {page}).</>;
+  const last = n === LADDER_TOP ? <>This is the last stage. Chains of reasoning come after it, as a difficulty of their own: Depth, on the {page}.</> : null;
+  const opts = <p class="tup-note">The stages follow your answers. To choose them yourself, switch Natural progression off on the <button type="button" class="plnk" onClick={openStages}>Progression page</button>.</p>;
   return { cls: "done", node: <>
     <TopBar title={title} tools />
     <Scroll>
@@ -87,7 +86,7 @@ export function stageUpScreen(title: string): { cls: string; node: ComponentChil
         {info ? <Part label="Topics"><p class="tup-lead">{info.adds}</p>{newTerms.length ? <TermList marks={newTerms} /> : null}</Part> : null}
         <Part label="Progression">{up.first
           ? <><ul class="tup-bul"><li>{start}</li>{group ? <li>{group}</li> : null}<li>{mix}</li><li>{pace}</li>{last ? <li>{last}</li> : null}</ul>{opts}</>
-          : <><p>{mix}{group ? " " + group : ""}</p>{last ? <p>{last}</p> : null}<Fold label="How the stages work"><HowStages diff={<>see the {diff}</>} />{opts}</Fold></>}</Part>
+          : <><p>{mix}{group ? " " + group : ""}</p>{last ? <p>{last}</p> : null}<Fold label="How the stages work"><HowStages diff={<>Depth, on the {page}</>} />{opts}</Fold></>}</Part>
         <div class="wtext tup">{up.stayed
           ? <p class="tup-note" role="status">Stage {n} stays out for now. It comes in after {runNeed(state.stageRun)} right answers in a row on stage {from}. <button type="button" class="plnk" onClick={undoStay}>Undo</button></p>
           : <p class="tup-note">Not sure yet? <span class="nw"><button type="button" class="plnk" onClick={stayOnStage}>Stay on stage {from} a while longer</button>.</span></p>}</div>

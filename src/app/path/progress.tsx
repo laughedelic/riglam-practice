@@ -1,5 +1,5 @@
 // The progression in the top bar of an exercise: a ring after the exercise's name, with the stage's number inside, and the page of the practice options
-// sheet that a tap on it opens (shell/session.js, "progress"): a few short lines on what the stage introduces and what the next one waits for. On a stage with
+// sheet that a tap on it opens (shell/session.js, "progress"): the stage, its new terms with their marks and the nine stages' rings. On a stage with
 // new terms the ring has a segment for each, in the order the learner first answered them, colored by the last answer on it; on a stage without, it fills
 // with the right answers in a row. The numbers are the ones of src/domain/stages.ts (stageProgress) and src/domain/intro.ts (termMark), read through
 // practice/stage-offer.ts.
@@ -8,10 +8,10 @@ import { useEffect, useRef } from "preact/hooks";
 import { state } from "../state.js";
 import { DEPTH_NAME, depthNow } from "../practice/difficulty.ts";
 import { progressNow } from "../practice/stage-offer.ts";
-import { openPage, openProgress } from "../shell/session.js";
+import { openProgress } from "../shell/session.js";
 import { paceSpacing } from "../../domain/intro.ts";
 import { LADDER_TOP, STAGES } from "../../domain/stages.ts";
-import { openDifficulty, openProgression } from "./progression.tsx";
+import { StageRings, openDifficulty, openProgression } from "./progression.tsx";
 import { Segs, TermList, rightOf } from "./rings.tsx";
 
 const R = 11.5, C = 2 * Math.PI * R;
@@ -63,32 +63,27 @@ export const HowStages = ({ diff }: { diff: ComponentChildren }) => <ul class="t
 </ul>;
 
 /**
- * The page: the lines are short, and the words are the stage station's where it has them ("reached", "The stages follow your answers"). The new terms of the
- * stage follow what it introduces, each with its mark; a link at the foot opens the Progression page with every stage (path/progression.tsx).
+ * The sheet under the ring: the stage, its new terms with their marks, the nine stages as a row of rings (a tap opens one on the Progression page), and the way
+ * to all the stages and to the difficulty. How the stages work is on the Progression page; a line on what comes next stays only where something other than
+ * the stage's own terms leads on: a run of right answers (stage 0, a stage stayed on, or one whose terms were right before), the stages moved by hand, the
+ * last stage.
  */
 export function ProgressPage() {
   const p = progressNow(), info = STAGES.find((s) => s.n === p.top), n = p.terms.length;
-  const add = info ? info.adds.charAt(0).toLowerCase() + info.adds.slice(1).replace(/\.$/, "") : "";
-  const items: ComponentChildren[] = [];
-  const list = <TermList marks={p.terms} />;
-  if (add) items.push("Stage " + p.top + " introduces " + add + ".");
-  if (n) items.push(list);
-  if (p.next && p.flow) {
-    items.push(flow(state.pace), p.need ? "Stage " + p.next + " comes in after " + num(p.need) + " right answers in a row, with its first new term."
-      : "Stage " + p.next + " begins with its first new term, after " + (n === 1 ? "this one" : "the last of these") + ".");
-    items.push("A wrong answer takes back only that term’s mark.", "Progression works across all exercises.", "Review keeps the earlier stages fresh; it does not move the ring.");
-  } else if (p.next && p.shows === "terms") {
-    items.push("Stage " + p.next + " is reached once your last answer on " + (n === 1 ? "this term" : "each of these terms") + " is right.");
-    items.push("A wrong answer takes back only that term’s mark.", "Progression works across all exercises.", "Review keeps the earlier stages fresh; it does not move the ring.");
-  } else if (p.next) {
-    items.push("Stage " + p.next + " is reached after " + num(p.need) + " right answers in a row on what is new.");
-    items.push("Progression works across all exercises.", "Review answers count too, but as smaller steps.", "A wrong answer on the new terms resets the stage progress.");
-  } else if (state.stageRun.manual) items.push("The stages move when you move them.");
+  let next: ComponentChildren = null;
+  if (p.next && p.flow) { if (p.need) next = "Stage " + p.next + " comes in after " + num(p.need) + " right answers in a row, with its first new term."; }
+  else if (p.next && p.shows === "terms") next = "Stage " + p.next + " is reached once your last answer on " + (n === 1 ? "this term" : "each of these terms") + " is right.";
+  else if (p.next) next = "Stage " + p.next + " is reached after " + num(p.need) + " right answers in a row on what is new.";
+  else if (state.stageRun.manual) next = "The stages move when you move them.";
   else {
     const d = depthNow();
-    items.push("This is the last stage.", <>Chains of reasoning come after it, as a difficulty of their own: {d ? "depth is at " + DEPTH_NAME[d] + " now" : "a result suggests them once your last answer on each of these terms is right"}. Set it on the <button type="button" class="plnk" onClick={() => openDifficulty()}>Difficulty page</button>.</>);
+    next = <>This is the last stage. Chains of reasoning come after it, as a difficulty of their own: {d ? "depth is at " + DEPTH_NAME[d] + " now" : "a result suggests them once your last answer on each of these terms is right"}.</>;
   }
-  items.push(<>The stages follow your answers. To choose them yourself, or to stop them from moving up, use the <button type="button" class="plnk" onClick={() => openPage(null)}>practice options</button>.</>);
-  return <div class="wtext tup"><ul class="tup-bul">{items.map((t) => <li class={t === list ? "tlist" : undefined}>{t}</li>)}</ul>
-    <p class="tup-note"><button type="button" class="plnk" onClick={() => openProgression(p.top, "sheet")}>All stages and their terms</button></p></div>;
+  return <div class="wtext tup">
+    {info ? <p class="tup-lead">{info.name}</p> : null}
+    {n ? <TermList marks={p.terms} /> : null}
+    {next ? <p>{next}</p> : null}
+    <div class="tup-rs"><StageRings from="sheet" /></div>
+    <p class="tup-note"><button type="button" class="plnk" onClick={() => openProgression(p.top, "sheet")}>All stages and their terms</button> · <button type="button" class="plnk" onClick={openDifficulty}>Difficulty</button></p>
+  </div>;
 }

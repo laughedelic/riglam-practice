@@ -32,7 +32,7 @@ export const state = {
   syllogismEveryday: false, // that device had Syllogisms on everyday things (`rd-syllogism-level` "1"), which holds until the stages are changed
   intro: null,   // the course terms this device has met at their stops (`rd-terms`, practice/stops.ts); null until the term data is in
   progressSent: [], // the copies of the progression this page wrote lately (practice/progress.ts)
-  resetAsk: "",     // the Reset progression row of the Stages page: "ask" while it asks to confirm, "done" after
+  resetAsk: "",     // the Reset progression line of the Progression page: "ask" while it asks to confirm, "done" after
   about: null,   // {version, commit, builtAt, latest, branches?}: which build this is (platform.about), shown in Options
   updates: null, // {status, check, apply, subscribe}: updating the installed app in place (platform.updates), shown in Options
   unlock: null,  // {open, tutor}: opens the prompt for the Magic Key (platform.unlock) while this device has none; `tutor` is whether the server has a tutor waiting for it
