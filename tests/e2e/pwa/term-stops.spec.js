@@ -92,12 +92,16 @@ test("on the Path the stop is a station of its own, with the term and where it s
   const again = stop.getByRole("button", { name: "Show it again later" });
   const due = () => page.evaluate(() => { const t = JSON.parse(localStorage.getItem("rd-terms")).terms.form; return t.why === "again" ? t.due - window.__t.intro.n : null; });
   await expect(again).toHaveAttribute("aria-pressed", "false");
-  // the favorites mark's look: gray like it, and pressed, the clock's face filled with its gold
-  const face = () => again.evaluate((b) => getComputedStyle(b.querySelector(".iface")).fill);
-  expect(await face(), "an empty face while it is not pressed").toBe("none");
+  // gray like the favorites mark, its lines heavier than the other icons'; pressed, heavier still and in another color, never filled
+  const look = () => again.evaluate((b) => { const s = getComputedStyle(b.querySelector(".i")); return { color: s.stroke, width: parseFloat(s.strokeWidth), fill: s.fill }; });
+  const off = await look();
+  expect(off.width, "heavier than the icons' 1.6").toBeGreaterThan(1.6);
   await again.click();
   await expect(again).toHaveAttribute("aria-pressed", "true");
-  expect(await face(), "pressed: the face filled, as the favorites mark is").not.toBe("none");
+  const on = await look();
+  expect(on.width, "pressed: heavier still").toBeGreaterThan(off.width);
+  expect(on.color, "pressed: another color").not.toBe(off.color);
+  expect(on.fill, "pressed: the clock stays a line drawing").toBe("none");
   // a short hint under the clock, which goes by itself after a few seconds
   await expect(stop.getByRole("status")).toHaveText("Will be shown again");
   expect(await due()).toBe(10);
