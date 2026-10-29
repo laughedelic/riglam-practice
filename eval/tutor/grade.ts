@@ -5,19 +5,24 @@ import type { Answer, FactLine } from "../../src/domain/verdict";
 import { CELLS } from "../../src/ai-shared/relations";
 import type { CellId } from "../../src/ai-shared/relations";
 import { ix } from "./cases";
-import type { Case, Want } from "./cases";
+import type { Case, Kind, Want, Yn } from "./cases";
 
-/** How one side came out: right; "wrong" (yes for no or no for yes); "hedged" (unsure where the label is definite); "overconfident" (definite where only unsure is right); "missing" (no line). */
-export type SideMark = "right" | "wrong" | "hedged" | "overconfident" | "missing";
+/**
+ * How one side came out: right; "wrong" (yes for no or no for yes); "hedged" (unsure where the label is definite); "overconfident" (definite
+ * where only open or unsure is right); "debated" (the label says the readings differ: not graded here); "missing" (no line).
+ */
+export type SideMark = "right" | "wrong" | "hedged" | "overconfident" | "debated" | "missing";
 export interface ExampleGrade { cell: CellId; text: string; from: string; page: string; a: SideMark; b: SideMark; said: [Answer | null, Answer | null]; shown: [Answer | null, Answer | null]; fitRight: boolean | null }
 export interface FormFlags { lines: number; doubled: CellId[]; reversal: boolean; markdown: boolean; words: number; ownName: number; onlyInPervasion: boolean; noLocus: boolean; noPervasion: boolean; noRelation: boolean }
 export interface Grade { examples: ExampleGrade[]; relation: "right" | "wrong" | "unsure" | "missing" | null; form: FormFlags }
 
-const asList = (w: Want): readonly Answer[] => (Array.isArray(w) ? w : [w]) as readonly Answer[];
+const asList = (w: Want): readonly Kind[] => (Array.isArray(w) ? w : [w]) as readonly Kind[];
 function mark(said: Answer | null, want: Want): SideMark {
   if (!said) return "missing";
   const ok = asList(want);
-  if (ok.includes(said)) return "right";
+  if (ok.includes("debated")) return "debated";
+  // the tutor says "unsure" for a quality the name does not say
+  if (ok.includes(said) || (said === "unsure" && ok.includes("open"))) return "right";
   if (said === "unsure") return "hedged";
   return ok.includes("yes") || ok.includes("no") ? "wrong" : "overconfident";
 }
@@ -38,7 +43,7 @@ export function gradeReply(c: Case, text: string): Grade {
     const shown = f ? (placeFacts(f, d).answers as [Answer, Answer]) : ([null, null] as [null, null]);
     const want = e.want;
     if (!want) return { cell: e.cell, text: e.text, from: e.from, page: e.page, a: "missing", b: "missing", said, shown, fitRight: null };
-    const fitWant = (a: Want, b: Want) => { const A = asList(a), B = asList(b); return A.length === 1 && B.length === 1 && A[0] !== "unsure" && B[0] !== "unsure" ? fitOf({ cell: e.cell, a: { answer: A[0], say: "" }, b: { answer: B[0], say: "" } }) : null; };
+    const fitWant = (a: Want, b: Want) => { const A = asList(a), B = asList(b); const yn = (k: Kind): k is Yn => k === "yes" || k === "no"; return A.length === 1 && B.length === 1 && yn(A[0]) && yn(B[0]) ? fitOf({ cell: e.cell, a: { answer: A[0], say: "" }, b: { answer: B[0], say: "" } }) : null; };
     const fw = fitWant(want.a, want.b);
     const fitRight = f && fw ? fitOf({ cell: e.cell, a: { answer: shown[0]!, say: "" }, b: { answer: shown[1]!, say: "" } }) === fw : null;
     return { cell: e.cell, text: e.text, from: e.from, page: e.page, a: mark(said[0], want.a), b: mark(said[1], want.b), said, shown, fitRight };

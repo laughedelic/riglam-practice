@@ -5,7 +5,7 @@ import DATA from "../../src/data/drill-data.json";
 import { cardBody, explainAsk } from "../../src/ai-shared/card";
 import type { AnswerView, DebateAnswer } from "../../src/ai-shared/card";
 import { QCELL } from "../../src/ai-shared/debate";
-import { makeIndex, matchItem, noteCats } from "../../src/ai-shared/lookup";
+import { leavesOpen, makeIndex, matchItem, noteCats } from "../../src/ai-shared/lookup";
 import type { DataIndex } from "../../src/ai-shared/lookup";
 import { CELLS, NEG_CELL, plainLabel, REL } from "../../src/ai-shared/relations";
 import type { CellId, RelKey } from "../../src/ai-shared/relations";
@@ -18,8 +18,13 @@ import type { Neg } from "../../src/ai-shared/relations";
 export const ix: DataIndex = makeIndex(DATA as never);
 
 export type Yn = "yes" | "no";
-/** What a side should say: one answer, or several that are all right (an example read two ways). */
-export type Want = Yn | "unsure" | readonly (Yn | "unsure")[];
+/**
+ * What a side should say: yes or no; "open" when the example's name does not say the quality the side is about (the tutor's "unsure"
+ * is right there); "debated" when the sources or readings differ, so no answer is graded right or wrong (a judge reads whether the
+ * tutor names the readings); "unsure" when what the example names is unclear. A list: every answer in it is right.
+ */
+export type Kind = Yn | "unsure" | "open" | "debated";
+export type Want = Kind | readonly Kind[];
 export interface Label { a: Want; b: Want; why?: string }
 
 /** One stored answer as data-private/eval/staging-answers.jsonl keeps it (compact: see README.md). */
@@ -61,10 +66,9 @@ function dataLabel(p: Pair, text: string): Label | null {
   if (!ca || !cb) return null;
   const it = matchItem(ix, text, FEATURE.has(ca) || FEATURE.has(cb));
   if (!it || !inUniverse(ix, it, ca, cb)) return null;
-  let a: Yn = it.c.includes(ca) ? "yes" : "no", b: Yn = it.c.includes(cb) ? "yes" : "no";
-  const flip = (x: Yn): Yn => (x === "yes" ? "no" : "yes");
-  if (p.neg === "a" || p.neg === "ab") a = flip(a);
-  if (p.neg === "b" || p.neg === "ab") b = flip(b);
+  // a quality the name leaves open ("a car" for black) is open on that side, as the page reads it (src/domain/vague.ts)
+  const side = (c: string, neg: boolean): Kind => (leavesOpen(it, c) ? "open" : it.c.includes(c) !== neg ? "yes" : "no");
+  const a = side(ca, p.neg === "a" || p.neg === "ab"), b = side(cb, p.neg === "b" || p.neg === "ab");
   return { a, b, why: "practice list: " + it.n };
 }
 

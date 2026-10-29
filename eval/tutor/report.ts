@@ -29,7 +29,7 @@ function perCase(ls: Line[]) {
   const m = new Map<string, { right: number; n: number; wrong: number }>();
   for (const l of ls) {
     const s = m.get(l.case) ?? { right: 0, n: 0, wrong: 0 };
-    for (const e of l.grade.examples) for (const k of ["a", "b"] as const) { s.n++; if (e[k] === "right") s.right++; if (e[k] === "wrong") s.wrong++; }
+    for (const e of l.grade.examples) for (const k of ["a", "b"] as const) { if (e[k] === "debated") continue; s.n++; if (e[k] === "right") s.right++; if (e[k] === "wrong") s.wrong++; }
     m.set(l.case, s);
   }
   return [...m.values()];
@@ -44,18 +44,21 @@ const out: string[] = [];
 const say = (s = "") => { out.push(s); console.log(s); };
 say(`# Tutor eval${split ? ` (${split} cases)` : ""}`);
 say();
-say("| Config | Answers | Sides right (95% CI) | Wrong | Hedged | Over-sure | Missing | Fit right | Form issues | Cost per answer | Time p50 / p90 |");
-say("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+say("Sides right counts the settled sides only; a debated side (the readings differ) is left to a reader or a judge and counted apart.");
+say();
+say("| Config | Answers | Sides right (95% CI) | Wrong | Hedged | Over-sure | Missing | Debated | Fit right | Form issues | Cost per answer | Time p50 / p90 |");
+say("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
 const configs = [...new Set(lines.map((l) => l.config))];
 for (const cfg of configs) {
   const ls = lines.filter((l) => l.config === cfg);
-  const marks = ls.flatMap((l) => l.grade.examples.flatMap((e) => [e.a, e.b]));
+  const all = ls.flatMap((l) => l.grade.examples.flatMap((e) => [e.a, e.b]));
+  const marks = all.filter((m) => m !== "debated");
   const cnt = (m: string) => marks.filter((x) => x === m).length;
   const fits = ls.flatMap((l) => l.grade.examples.map((e) => e.fitRight)).filter((x) => x !== null);
   const form = ls.filter((l) => { const f = l.grade.form; return f.doubled.length || f.reversal || f.markdown || f.ownName || f.onlyInPervasion || f.noLocus || f.noPervasion || f.noRelation; }).length;
   const [lo, hi] = ci(perCase(ls));
   const failed = ls.filter((l) => l.outcome !== "answered").length;
-  say(`| ${cfg} | ${ls.length}${failed ? ` (${failed} failed)` : ""} | ${pct(cnt("right") / marks.length)} (${pct(lo)} to ${pct(hi)}) | ${cnt("wrong")} | ${cnt("hedged")} | ${cnt("overconfident")} | ${cnt("missing")} | ${pct(fits.filter(Boolean).length / Math.max(1, fits.length))} | ${form} | ${(ls.reduce((s, l) => s + l.micro, 0) / ls.length / 1e6).toFixed(4)} USD | ${(q(ls.map((l) => l.ms), 0.5) / 1000).toFixed(0)} / ${(q(ls.map((l) => l.ms), 0.9) / 1000).toFixed(0)} s |`);
+  say(`| ${cfg} | ${ls.length}${failed ? ` (${failed} failed)` : ""} | ${pct(cnt("right") / marks.length)} (${pct(lo)} to ${pct(hi)}) | ${cnt("wrong")} | ${cnt("hedged")} | ${cnt("overconfident")} | ${cnt("missing")} | ${all.length - marks.length} | ${pct(fits.filter(Boolean).length / Math.max(1, fits.length))} | ${form} | ${(ls.reduce((s, l) => s + l.micro, 0) / ls.length / 1e6).toFixed(4)} USD | ${(q(ls.map((l) => l.ms), 0.5) / 1000).toFixed(0)} / ${(q(ls.map((l) => l.ms), 0.9) / 1000).toFixed(0)} s |`);
 }
 say();
 say("## Wrong facts (yes for no or no for yes), by example");
@@ -64,6 +67,14 @@ for (const cfg of configs) {
   const bad = new Map<string, number>();
   for (const l of lines.filter((x) => x.config === cfg)) for (const e of l.grade.examples) for (const k of ["a", "b"] as const) if (e[k] === "wrong") { const key = `${l.case} ${e.cell} "${e.text}" side ${k.toUpperCase()} said ${e.said[k === "a" ? 0 : 1]}`; bad.set(key, (bad.get(key) ?? 0) + 1); }
   say(`- **${cfg}:** ${bad.size ? [...bad].sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k}${n > 1 ? ` (x${n})` : ""}`).join("; ") : "none"}`);
+}
+say();
+say("## Debated sides: what each config said");
+say();
+for (const cfg of configs) {
+  const said = new Map<string, number>();
+  for (const l of lines.filter((x) => x.config === cfg)) for (const e of l.grade.examples) for (const k of ["a", "b"] as const) if (e[k] === "debated") { const key = `${l.case} "${e.text}" side ${k.toUpperCase()} ${e.said[k === "a" ? 0 : 1]}`; said.set(key, (said.get(key) ?? 0) + 1); }
+  say(`- **${cfg}:** ${said.size ? [...said].sort().map(([k, n]) => `${k}${n > 1 ? ` (x${n})` : ""}`).join("; ") : "none"}`);
 }
 const md = flag("--md");
 if (md) writeFileSync(md, out.join("\n") + "\n");
