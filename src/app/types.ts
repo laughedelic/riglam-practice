@@ -416,6 +416,16 @@ export interface State {
   mode: "loading" | "quiz" | "nodata" | "nodb" | string;
   view: "chat" | string | null;
   optsOpen: boolean;
+  /** the Path's Settings: the line whose own page is open (path/settings.tsx), or null for the sections */
+  optsPage: string | null;
+  /** this is a Preview (staging, a pull request build), not the real app (platform.preview) */
+  preview: boolean;
+  /** Blitz, the tutor and voice: each exercise's own values (practice/per-exercise.ts, `rd-per-ex`) */
+  perEx: Record<string, { blitzUse?: boolean; autoExplain?: boolean; read?: boolean; answer?: string }>;
+  /** the shared values of those, for an exercise that has none of its own yet (null before the start) */
+  perBase: { blitzUse: boolean; autoExplain: boolean; read: boolean; answer: string } | null;
+  /** Experiments shown in the Path's Settings of the real app, after a hold on Version with the Magic Key (`rd-exp`, device only) */
+  expShown: boolean;
   sessOpen: boolean;
   sessPage: string | null;
   skipAsk: boolean;

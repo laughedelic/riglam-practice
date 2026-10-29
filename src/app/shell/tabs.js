@@ -11,6 +11,7 @@ import { closeChat } from "./chat.js";
 import { toggleOpts } from "./options.js";
 import { toggleSess } from "./session.js";
 import { render, top0 } from "./render.js";
+import { usePerExercise } from "../practice/per-exercise.ts";
 
 const hold={};
 // The screens: the exercises ("practice" is Relations, "debate" Pervasions, "find" Find a pair) and Review. Each exercise keeps its own
@@ -68,6 +69,7 @@ export function switchTo(k){
     else if(k==="debate") advanceDebate(); else advance();
   }
   state.tab=k;
+  usePerExercise(k);
   if(isEx(k)) try{ localStorage.setItem("rd-ex",k); }catch(e){}
   if(k==="debate"&&state.ui&&state.ui.debate&&!state.ui.checked&&state.ui.step<4) startQ();
 }
