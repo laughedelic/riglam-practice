@@ -153,7 +153,7 @@ function Stages({ p }: { p: ProgressionAt }) {
     if (over > 0) pg.scrollTop += Math.min(over, row.getBoundingClientRect().top - box.top - 8);
   });
   return <>
-    <TopBar title="Progression" back={{ label: p.from === "road" ? "Back to the roadmap" : "Back to " + exName(p.tab), act: progBack }} />
+    <TopBar title="Progression" back={{ label: p.from === "road" ? "Back to the roadmap" : "Back to " + exName(p.tab), go: progBack }} />
     <div key="stages" class="ppage prv pprog">
       <Difficulty />
       <Sx cls="walked ptrail">
@@ -170,7 +170,7 @@ function TermCard({ id }: { id: string }) {
   const c = termOf(id), name = (c && c.term) || id, def = !!state.DATA && hasDef(state.DATA.terms[name]);
   const s = STAGES.find((x) => marksOf(x.n).some((t) => t.id === id)), mark = (s && marksOf(s.n).find((t) => t.id === id)?.mark) || "met";
   return <>
-    <TopBar title="Progression" back={{ label: "Back to Progression", act: progBack }} />
+    <TopBar title="Progression" back={{ label: "Back to Progression", go: progBack }} />
     <div key="term" class="ppage prv pprog-t">
       <Sx cls="cur first tstop"><Gap h={14} /><Head d={<D cls="sec tsd" />} h={s ? "Stage " + s.n : "Term"} sub={(s ? s.name + " · " : "") + SAYS[mark]} /><Gap h={4} />
         <St d={<D cls={"sub " + NODE[mark]} />} cls="stm thing"><FitTerm text={name} /><Names term={name} /></St>
@@ -185,6 +185,6 @@ function TermCard({ id }: { id: string }) {
 export function ProgressionPage() {
   const p = state.pathProg!;
   if (p.term) return <TermCard id={p.term} />;
-  if (p.diff) return <DifficultyPage back={p.diff === "over" ? { label: "Back to Progression", act: progBack } : { label: p.from === "road" ? "Back to the roadmap" : "Back to " + exName(p.tab), act: progBack }} />;
+  if (p.diff) return <DifficultyPage back={p.diff === "over" ? { label: "Back to Progression", go: progBack } : { label: p.from === "road" ? "Back to the roadmap" : "Back to " + exName(p.tab), go: progBack }} />;
   return <Stages p={p} />;
 }

@@ -19,7 +19,7 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 export const difficultyLine = (): string => PACE_NAME[state.pace] + " pace · negations " + NEG_WORD[state.negation] + " · depth " + DEPTH_NAME[depthNow()];
 
 
-export function DifficultyPage({ back }: { back: { label: string; act: () => void } }) {
+export function DifficultyPage({ back }: { back: { label: string; go: () => void } }) {
   const negOpen = negationsOpen(), deepOpen = depthCanSet();
   return <>
     <TopBar title="Difficulty" back={back} />
