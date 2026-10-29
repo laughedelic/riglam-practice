@@ -530,6 +530,21 @@ test("verdicts settle only the cells that are still open, and the grade is count
   expect(res.cells.both.v).toBe("ok");
 });
 
+// "open" says the example's name does not say the quality a side is about: the side stays unsure, and the note asks the learner for the word
+// instead of reading as the tutor's doubt.
+test("an open side is unsure, and its note asks for the word that would settle it", () => {
+  const f = parseFactLine('Both: "a car" | class: External form | A yes: it is a vehicle | B open: a car can be any color; a black car is B')!;
+  expect(f.b).toEqual({ answer: "unsure", say: "a car can be any color; a black car is B", open: true });
+  expect(f.a.open).toBeUndefined();
+  const note = factNote(f, false, { a: "a functional thing", b: "black" });
+  expect(note).toContain("Whether it is black is not settled: a car can be any color; a black car is B.");
+  expect(note).toContain("So it fits only once its name says which.");
+  expect(note).not.toContain("Claude is unsure");
+  // an unsure side is the tutor's doubt, as before
+  const u = parseFactLine('Both: "a car" | A yes: it is a vehicle | B unsure: read either way')!;
+  expect(factNote(u, false, { a: "a functional thing", b: "black" })).toContain("Claude is unsure whether it fits.");
+});
+
 // A line with the two facts about an example (is it A, is it B) is read as a fact line, and the cell it fits is drawn from the facts,
 // so a reason about the wrong term cannot make a wrong verdict.
 test("a fact line is read as two facts, and the verdict is what the facts give for the cell", () => {

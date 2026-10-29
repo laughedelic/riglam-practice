@@ -344,22 +344,23 @@ test("the explain request is the plain one when the page checked every example, 
   expect(dbt.startsWith(DEBATE_ASK)).toBe(true);
   expect(dbt).toContain("The page could not check the examples in: Q2, Q3.");
   expect(dbt).toContain("Q1 is the Both cell, Q2 A not B, Q3 B not A, Q4 Neither.");
-  // the unsure rule on open examples includes a quality the example's name does not say, as the reason text says
-  expect(open).toContain('where the example\'s name does not say the quality that side is about (the color of "an apple", the shape of "a box", whether "a frying pan" is hot)');
+  // a quality the example's name does not say is open; unsure is for a classification the sources disagree on
+  expect(open).toContain('Answer "open" on a side whose quality the example\'s name does not say (the color of "an apple", the shape of "a box", whether "a frying pan" is hot)');
+  expect(open).toContain('Answer "unsure" only on a side where the sources disagree on how to classify the thing');
   expect(open).toContain('do not fill in a quality its name does not say (the color of "a car", what "a table" is made of)');
   expect(open).not.toContain("do not say the quality their cell is about");
-  // an example whose name leaves the cell's quality open is the page's: the card says so, and the tutor is told to answer unsure there, not to check it
+  // an example whose name leaves the cell's quality open is the page's: the card says so, and the tutor is told to answer open there, not to check it
   const left = explainAsk(practice({ res: { cells: { both: { v: "cmp", vague: ["col"] }, anb: { v: "ok" }, bna: { v: "ok" }, nei: { v: "ok" } } } }));
   expect(left).toContain("The examples in Both do not say the quality their cell is about");
-  expect(left).toContain("On those lines answer unsure on that side and say which words would settle it.");
+  expect(left).toContain("On those lines answer open on that side and say which words would settle it.");
   expect(left).not.toContain("The page could not check");
 });
 
 // The tutor states two facts about an example (is it A, is it B) and the reason for each; the page writes the consequences and draws
 // the conclusion (src/domain/verdict.ts), so the requests ask for the reason only.
 test("the explain requests ask for the two facts about an example and the reason for each, in one form, and for no conclusion", () => {
-  expect(FIRST_ASK).toContain('Both: "the example" | class: Taste source | A <yes, no or unsure>: it is ... | B <yes, no or unsure>: it is ...');
-  expect(DEBATE_ASK).toContain('Q2: "the example" | class: Taste source | A <yes, no or unsure>: it is ... | B <yes, no or unsure>: it is ...');
+  expect(FIRST_ASK).toContain('Both: "the example" | class: Taste source | A <yes, no, open or unsure>: it is ... | B <yes, no, open or unsure>: it is ...');
+  expect(DEBATE_ASK).toContain('Q2: "the example" | class: Taste source | A <yes, no, open or unsure>: it is ... | B <yes, no, open or unsure>: it is ...');
   for (const ask of [FIRST_ASK, DEBATE_ASK]) {
     expect(ask).toContain('the words after "because" in "Take the example: it follows it is (not) A, because ..."');
     expect(ask).toContain("write no conclusion, do not name the term again and do not add its definition");
@@ -375,7 +376,8 @@ test("the explain requests ask for the two facts about an example and the reason
     expect(ask).toContain("Start from the term and say what class it is in");
     expect(ask).toContain('do not write "only"');
     expect(ask).toContain("never answer against your own reason");
-    expect(ask).toContain('An example has to name the quality its side is about: a feature the example\'s name does not say, such as the color of "a car"');
+    expect(ask).toContain('An example has to name the quality its side is about. Answer open on a side whose quality the example\'s name does not say: a feature such as the color of "a car"');
+    expect(ask).toContain("Answer unsure only when the classification itself is in doubt");
     expect(ask).toContain("a thing is at room temperature unless its name says otherwise, or it is often heated in use");
     expect(ask).not.toContain("so it fits");
     expect(ask).not.toContain("=> yes");

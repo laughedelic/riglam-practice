@@ -12,18 +12,20 @@ import type { Case, Kind, Want, Yn } from "./cases";
  * where only open or unsure is right); "debated" (the label says the readings differ: not graded here); "missing" (no line).
  */
 export type SideMark = "right" | "wrong" | "hedged" | "overconfident" | "debated" | "missing";
-export interface ExampleGrade { cell: CellId; text: string; from: string; page: string; a: SideMark; b: SideMark; said: [Answer | null, Answer | null]; shown: [Answer | null, Answer | null]; fitRight: boolean | null }
+/** What the tutor said on a side: its answer, or "open" where it said the name leaves the side open. */
+export type Said = Answer | "open";
+export interface ExampleGrade { cell: CellId; text: string; from: string; page: string; a: SideMark; b: SideMark; said: [Said | null, Said | null]; shown: [Answer | null, Answer | null]; fitRight: boolean | null }
 export interface FormFlags { lines: number; doubled: CellId[]; reversal: boolean; markdown: boolean; words: number; ownName: number; onlyInPervasion: boolean; noLocus: boolean; noPervasion: boolean; noRelation: boolean }
 export interface Grade { examples: ExampleGrade[]; relation: "right" | "wrong" | "unsure" | "missing" | null; form: FormFlags }
 
 const asList = (w: Want): readonly Kind[] => (Array.isArray(w) ? w : [w]) as readonly Kind[];
-function mark(said: Answer | null, want: Want): SideMark {
+function mark(said: Said | null, want: Want): SideMark {
   if (!said) return "missing";
   const ok = asList(want);
   if (ok.includes("debated")) return "debated";
-  // the tutor says "unsure" for a quality the name does not say
-  if (ok.includes(said) || (said === "unsure" && ok.includes("open"))) return "right";
-  if (said === "unsure") return "hedged";
+  // before the tutor had "open" it said unsure for a quality the name does not say; and open where what is named is unclear is no error
+  if (ok.includes(said) || (said === "unsure" && ok.includes("open")) || (said === "open" && ok.includes("unsure"))) return "right";
+  if (said === "unsure" || said === "open") return "hedged";
   return ok.includes("yes") || ok.includes("no") ? "wrong" : "overconfident";
 }
 const words = (s: string) => s.split(/\s+/).filter(Boolean).length;
@@ -39,7 +41,7 @@ export function gradeReply(c: Case, text: string): Grade {
   const d = { ix, p: c.pair, terms: { a: c.pair.a, b: c.pair.b } };
   const examples: ExampleGrade[] = c.examples.map((e) => {
     const f = byCell.get(e.cell)?.at(-1) ?? null;   // the last line for a cell is the one the page reads
-    const said: [Answer | null, Answer | null] = f ? [f.a.answer, f.b.answer] : [null, null];
+    const said: [Said | null, Said | null] = f ? [f.a.open ? "open" : f.a.answer, f.b.open ? "open" : f.b.answer] : [null, null];
     const shown = f ? (placeFacts(f, d).answers as [Answer, Answer]) : ([null, null] as [null, null]);
     const want = e.want;
     if (!want) return { cell: e.cell, text: e.text, from: e.from, page: e.page, a: "missing", b: "missing", said, shown, fitRight: null };
