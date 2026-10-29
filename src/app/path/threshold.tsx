@@ -41,10 +41,10 @@ export function Threshold({ label, items, picked, onPick, onReset, above = "is",
   const row = (it: Pick, on: boolean) => <button type="button" key={it.k} data-k={it.k} class={"crow" + (on ? " on" : "")} aria-pressed={on ? "true" : "false"} aria-keyshortcuts={it.key} onClick={() => take(() => onPick(it.k))}>
     <span class="mc"><D cls={"sub " + (on ? "yours" : "pk")} /></span><span class="ct"><b>{it.b}</b></span></button>;
   return <div ref={box} class="thold" role="group" aria-label={label}>
-    <Sx cls={"cur" + (up.length ? "" : " thempty")}><span class="thh" aria-hidden="true">{above}</span>
+    <Sx cls={"cur" + (up.length ? "" : " thempty")}><span class="thh" data-mv="above" aria-hidden="true">{above}</span>
       {up.length ? <div class="chs up" role="group" aria-label={above}>{up.map((it) => row(it, true))}</div> : null}</Sx>
-    <Sx cls="cur thx"><span class="thl" />{up.length ? <button type="button" class="threset" onClick={() => take(onReset)}>reset</button> : null}</Sx>
-    {down.length ? <Sx cls="gap"><span class="thh" aria-hidden="true">{below}</span>
+    <Sx cls="cur thx"><span class="thl" data-mv="rule" />{up.length ? <button type="button" class="threset" onClick={() => take(onReset)}>reset</button> : null}</Sx>
+    {down.length ? <Sx cls="gap"><span class="thh" data-mv="below" aria-hidden="true">{below}</span>
       <div class="chs down" role="group" aria-label={below}>{down.map((it) => row(it, false))}</div></Sx> : null}
   </div>;
 }

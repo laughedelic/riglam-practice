@@ -275,6 +275,8 @@ test("Categories: a tap lifts a category over the rule and back, reset drops the
   await expect(page.locator("#path .pscan")).toHaveCount(1);   // the Check slides up through the categories as every check does
   await expect(page.locator("#path .thold .crow.scn")).not.toHaveCount(0);
   await expect(verdict(page)).toBeVisible();
+  await expect(page.locator("#path .pathc > .sx.first .sechead")).toContainText("1 Categories");   // the heading stays through the check, its diamond in ink
+  await expect(page.locator("#path .pathc > .sx.first .sechead .d.sec.done")).toHaveCount(1);
   const applies = await page.evaluate(() => window.__t.cur.q.rows.filter((r) => r.answer).length);
   if (applies) await expect(verdict(page)).toContainText(new RegExp("Not quite.*" + applies + " missed"));   // not a score: what went wrong, each way
   await expect(page.locator("#path .thold.tres .chs.up .crow")).toHaveCount(0);   // nothing over the rule: the answer was "none of these"
