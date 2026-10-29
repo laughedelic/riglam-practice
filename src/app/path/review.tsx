@@ -108,7 +108,7 @@ function Overview() {
       {d.timedN ? <Stat name="Ran out of time (counted as accepted)" text={d.outN + " / " + d.timedN} /> : null}</Sx>);
   if (f) out.push(<Group h="Find a pair" sub={f.all.length + " pairs, the pair right " + pct(f.right, f.judged.length) + "%"} />,
     <Sx cls="walked">{(f.rows as [RelKey, number, number][]).map(([r, n, k]) => <Stat fig={r} name={REL[r].name} k={k} n={n} />)}
-      {f.own ? <Stat name="Pairs of your own words, judged by the tutor" text={String(f.own)} /> : null}</Sx>,
+      {f.own ? <Stat name="Pairs of your own words, judged by Claude" text={String(f.own)} /> : null}</Sx>,
     <Trail>{f.all.slice().reverse().slice(0, 10).map((a: any) => { const e = entryOf(a, false); return <TrailRow e={e} when={dayOf(a.at)} />; })}</Trail>);
   if (y) out.push(<Group h="Syllogisms" sub={y.all.length + (y.all.length === 1 ? " syllogism" : " syllogisms") + ", the reply right " + pct(y.right, y.all.length) + "%"} />,
     <Sx cls="walked">{(y.rows as [string, number, number][]).map(([r, n, k]) => <Stat name={SAY[r as keyof typeof SAY]} k={k} n={n} />)}
@@ -175,8 +175,8 @@ function Reply({ f }: { f: FlagDoc }) {
     {state.ui && !editing ? <button type="button" class="pbtn quiet" onClick={() => { state.pathOpen["g:" + f.id] = true; openFlag(c, where); }}>{had ? "Edit your follow-up" : "Flag this reply"}</button> : null}</div>;
 }
 function FlagRow({ f }: { f: FlagDoc }) {
-  const auto = !!f.auto, doc = answerOf(f), what = auto ? (f.thing ? "“" + f.thing + "” · " : "") + "Quorum (automatic)" // the flagged part as the Path names it: the tutor, not Claude
-    : flaggedPart(f as any, mname).replace(/^Claude’s/, "The tutor’s"), where = "rv:" + f.id;
+  const auto = !!f.auto, doc = answerOf(f), what = auto ? (f.thing ? "“" + f.thing + "” · " : "") + "Quorum (automatic)"
+    : flaggedPart(f as any, mname), where = "rv:" + f.id;
   const editing = editingAt(where) || editingAt("rr:" + f.id), k = "g:" + f.id, open = isOpen(k) || editing;
   const pair = f.pair ? f.pair.a + " · " + f.pair.b : doc ? doc.a + " · " + doc.b : "A flag";
   const ctx = doc ? noteContext(doc) : f.pair ? { p: f.pair, accepted: () => false } : undefined;
@@ -200,7 +200,7 @@ function Flags() {
   if (!state.db) return null;
   checkReplies();     // asks the server about the sent flags (at most once a minute); the answer draws again
   const list = (Object.values(state.flags) as FlagDoc[]).sort(byNewest);
-  if (!list.length) return <Empty>{"Tap the flag on anything the tutor wrote to say what is wrong with it. Your flags stay here with the exercise they were made on" + (state.reports ? ", and each is sent to the app’s maintainer." : ".")}</Empty>;
+  if (!list.length) return <Empty>{"Tap the flag on anything Claude wrote to say what is wrong with it. Your flags stay here with the exercise they were made on" + (state.reports ? ", and each is sent to the app’s maintainer." : ".")}</Empty>;
   return <><Trail>{list.map((f) => <FlagRow f={f} />)}</Trail>{state.flagErr ? <p class="pnoteline bad perr">{state.flagErr}</p> : null}</>;
 }
 
@@ -221,7 +221,7 @@ const SUB: Record<string, (n: string) => string> = {
   mistakes: (n) => n ? "the pairs you missed, the newest first" : "the pairs you missed",
   favs: () => "the pairs you starred",
   skips: () => "the pairs set aside for a while",
-  flags: () => "what you flagged in what the tutor wrote",
+  flags: () => "what you flagged in what Claude wrote",
 };
 export function ReviewPage() {
   const parts = sections();

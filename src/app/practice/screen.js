@@ -288,7 +288,7 @@ function quizWide(s,c){
  */
 export function coachInto(c,list,rel,keys){
   if(!isWide()||!state.coachOpen||!state.ui) return;
-  if(state.ui.chat||state.ui.chatErr||(state.ui.checked&&canAsk())) c.append(el("p",{class:"label"},"Tutor"),renderTutor()); // a checked pair has the follow-up field even before the first question, as on a phone
+  if(state.ui.chat||state.ui.chatErr||(state.ui.checked&&canAsk())) c.append(el("p",{class:"label"},"Claude"),renderTutor()); // a checked pair has the follow-up field even before the first question, as on a phone
   recentNode(c,list,rel);
   c.append(kbHints(...keys));
 }
@@ -331,7 +331,7 @@ export function cellView(s){
 }
 // the explanation on the narrow result screen; follow-up questions go to the chat view
 // The Why panel repeats nothing the "?" marks show: not the cells, not the common locus, the pervasion or the relation. When the answer was right it shows
-// only a pointer to the marks; when it was wrong, the explanation and the misconception. The chat view ("Discuss with AI") shows the whole answer.
+// only a pointer to the marks; when it was wrong, the explanation and the misconception. The chat view ("Discuss with Claude") shows the whole answer.
 const CELL_LN=/^[-•*\s]*(?:\*\*)?(?:both|a not b|b not a|neither|q[1-4])(?:\*\*)?\s*:/i;
 const REL_LN=/^[-•*\s]*(?:\*\*)?(?:common locus|pervasion|relation)(?:\*\*)?\s*:/i;
 export function fillTurn(node,t,lean){

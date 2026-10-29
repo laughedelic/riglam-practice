@@ -96,7 +96,7 @@ function finishSyllogism(){
   top0();
   if(!isWide()){ const bs=document.querySelectorAll("#stage .actions .btn"); if(bs.length) /** @type {HTMLElement} */(bs[bs.length-1]).focus({preventScroll:true}); }
   else { const x=state.autoExplain&&canAsk()?null:/** @type {HTMLElement|null} */(document.querySelector("#stage .verdict .xpl")); (x||$("stage")).focus({preventScroll:true}); }   // as after the other exercises: Explain, unless the answer is explained by itself
-  explainByItself(u);                             // with "Check every answer with AI" on, the explanation comes by itself
+  explainByItself(u);                             // with "Check every answer with Claude" on, the explanation comes by itself
   if(!state.db) return;
   u.saveId=docId();
   /** @type {import("../types.ts").SyllogismDoc} */

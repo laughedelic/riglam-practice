@@ -429,7 +429,7 @@ withKey("a follow-up question goes on in the same conversation, from the panel o
   await expect(explained(page)).toBeVisible();
   if (isPhone(testInfo)) {
     const sentence = (await page.locator(".sylt").innerText()).replace(/\s+/g, " ").trim();
-    await page.getByRole("button", { name: /discuss with ai/i }).click();
+    await page.getByRole("button", { name: /discuss with claude/i }).click();
     await expect(page.locator("#over .ctx")).toContainText(sentence); // the chat view says which syllogism it is about
   }
   await page.fill("#ask-in", "Why is that?");
@@ -446,7 +446,7 @@ withKey("the practice options have the switch for the tutor, on; off, the next a
   const asked = await tutor(page);
   await open(page);
   await page.locator("#msess").click();
-  const sw = page.getByRole("switch", { name: /check every answer with ai/i });
+  const sw = page.getByRole("switch", { name: /check every answer with claude/i });
   await expect(sw).toHaveAttribute("aria-checked", "true");
   await sw.click();
   await expect(sw).toHaveAttribute("aria-checked", "false");
@@ -462,7 +462,7 @@ withKey("the practice options have the switch for the tutor, on; off, the next a
   await expect.poll(() => asked.length).toBe(1);
 });
 
-withKey("with 'Check every answer with AI' on the explanation comes by itself, once, and a refusal leaves Explain to try again", async ({ page }) => {
+withKey("with 'Check every answer with Claude' on the explanation comes by itself, once, and a refusal leaves Explain to try again", async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("rd-autoexplain", "1")); // after the support script, which starts every page with it off
   const asked = await tutor(page, [
     { status: 503, body: JSON.stringify({ error: { code: "unavailable", message: "off" } }) },

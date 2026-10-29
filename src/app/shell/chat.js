@@ -31,7 +31,7 @@ export function toggleCoach(on){ state.coachOpen=on===undefined?!state.coachOpen
 export function syncChatBtn(){
   const b=/** @type {HTMLButtonElement} */($("mchat")), w=isWide(), u=state.ui, ex=state.mode==="quiz"&&isEx()&&!!u, ai=canAsk()&&!(u&&(u.cats||u.inst));   // the tutor does not know Categories and Find an instance yet: there, the button only opens the panel of recent answers
   b.hidden=!ex||(!w&&!ai); if(b.hidden) return;
-  const label=w?(ai?"Tutor’s chat and recent answers":"Recent answers"):"Discuss with AI";
+  const label=w?(ai?"Chat with Claude and recent answers":"Recent answers"):"Discuss with Claude";
   const waiting=!!u.chat&&u.chat.some(t=>t.role==="assistant"&&!t.pending&&t.content)&&(w?!state.coachOpen:state.view!=="chat");
   b.replaceChildren(w&&!ai?tbIcon("recent","tbi rc"):tbIcon("chat")); if(waiting) b.append(el("i",{class:"att","aria-hidden":"true"}));
   b.setAttribute("aria-label",label+(waiting?", an answer is waiting":"")); b.title=label;
@@ -65,7 +65,7 @@ export function tutorTurns(box,newestFirst,lean){
 export function chatInto(o){
   const p=state.cur.p, label="Close the chat", d=el("div",{class:"cdrawer"});
   o.append(el("button",{type:"button",class:"scrim",tabindex:"-1","aria-label":label,onclick:closeChat}),d);
-  d.append(el("div",{class:"oh"},el("h2",{text:"Discuss with AI"}),el("button",{type:"button",class:"oc",onclick:closeChat,"aria-label":label,title:label},tbIcon("close"))));
+  d.append(el("div",{class:"oh"},el("h2",{text:"Discuss with Claude"}),el("button",{type:"button",class:"oc",onclick:closeChat,"aria-label":label,title:label},tbIcon("close"))));
   // Find a pair: the pair is what is judged, and a pair of the learner's own stays open until Claude has said whether it has the relation (the overall grade is "pend" then, too)
   const r=state.ui.checked&&state.ui.res, fd=!!state.ui.find;
   const v=!r?"":r.relOpen?(r.relUns?"pair not settled":"pair not judged yet"):{ok:"all right",part:(fd?"pair":"relation")+" right, not everything else",pend:(fd?"pair":"relation")+" and cells right",bad:"not quite"}[r.overall];
@@ -84,7 +84,7 @@ export function renderOver(){
   const sess=state.sessOpen&&ex, ask=state.skipAsk&&ex;
   const kind=state.optsOpen?"options":ask?"skip":sess?"session":"chat", show=state.optsOpen||ask||sess||!!chat, was=!o.hidden&&o.dataset.kind===kind;
   if(!o.hidden&&(!show||!was)) leave(o); // what was open goes the way it came (another one may come in its place)
-  o.replaceChildren(); o.hidden=!show; o.dataset.kind=kind; o.setAttribute("aria-label",{options:"Settings",session:"Practice options",skip:state.ui&&state.ui.syllogism?"Skip this syllogism?":state.ui&&state.ui.cats?"Skip this example?":state.ui&&state.ui.inst?"Skip these categories?":"Skip this pair?",chat:"Discuss with AI"}[kind]);
+  o.replaceChildren(); o.hidden=!show; o.dataset.kind=kind; o.setAttribute("aria-label",{options:"Settings",session:"Practice options",skip:state.ui&&state.ui.syllogism?"Skip this syllogism?":state.ui&&state.ui.cats?"Skip this example?":state.ui&&state.ui.inst?"Skip these categories?":"Skip this pair?",chat:"Discuss with Claude"}[kind]);
   document.documentElement.classList.toggle("ov",show);
   // Whatever is open here (Settings, the question before a skip, the practice options, the phone's chat) covers the exercise and its bars, which cannot be reached by
   // the keyboard or a screen reader until it closes (Enter on a Check button hidden behind it would grade the pair). The menu is outside this column and stays:

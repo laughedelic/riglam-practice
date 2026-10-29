@@ -22,7 +22,7 @@ export function askShare(){
     const dlg=el("dialog",{class:"sharedlg","aria-labelledby":"sharedlg-h","aria-describedby":"sharedlg-t",tabindex:"-1"},
       el("h2",{id:"sharedlg-h",text:"Share your examples?"}),
       el("div",{id:"sharedlg-t"},
-        el("p",{text:"When the AI tutor checks an example you wrote, its words can be kept, so that "+(state.known?"other learners get answers sooner and ":"")+"we all build knowledge together."}),
+        el("p",{text:"When Claude checks an example you wrote, its words can be kept, so that "+(state.known?"other learners get answers sooner and ":"")+"we all build knowledge together."}),
         el("p",{text:"Nothing else is done with them, and nothing about who you are is kept. Please leave names out of your examples."})),
       el("div",{class:"dact"},
         el("button",{type:"button",class:"btn",onclick:()=>answer(true)},"Ok"),

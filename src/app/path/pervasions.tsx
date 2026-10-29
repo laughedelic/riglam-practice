@@ -112,7 +112,7 @@ const leftN = (r: { cells: Record<string, { vague?: readonly string[] }> }) => Q
 function leftSub(sub: string, unc: number, n: number, ctl: boolean): string {
   if (!n) return sub;
   const head = sub.slice(0, sub.lastIndexOf(" · " + unc + " unchecked")), rest = unc - n;
-  return head + (rest ? " · " + rest + " unchecked" + (ctl ? ", the tutor is on it" : "") : "") + " · " + leftOpen(n);
+  return head + (rest ? " · " + rest + " unchecked" + (ctl ? ", Claude is on it" : "") : "") + " · " + leftOpen(n);
 }
 function QRow({ i }: { i: number }) {
   const u = u0(), p = pairOf(), r = u.res, c = QCELL[i] as CellId, rr = r.cells[c] as { v: string; msg: string[]; uns?: boolean; vague?: string[] }, a = u.ans![i] as Ans;
@@ -124,7 +124,7 @@ function QRow({ i }: { i: number }) {
     <div class="line1"><Said a={a} />{busy ? null : <Mark m={m} />}</div>
     {tnote ? <TutorNote c={c} text={tnote} where={"pq" + c} flag={<FlagBtn c={explainCase(tnote, c, "Q" + (i + 1), learnedThing(c))} where={"pop:" + c} />} /> : <p class="xnote">{note}</p>}
     <FlagEditor where={"pop:" + c} />
-    {busy ? <Thinking label="the tutor is checking" /> : null}
+    {busy ? <Thinking label="Claude is checking" /> : null}
   </St>;
 }
 /** The verdict of a result `r` as the result's node says it: its color, its word and the line beside it, and how many of the questions were unchecked. */
@@ -132,7 +132,7 @@ function verdictOf(r: { cells: Record<string, { v: string }>; dec?: Record<strin
   const u = u0(), decOk = QCELL.filter((c) => r.dec && r.dec[c]).length, unc = QCELL.filter((c) => r.cells[c].v === "cmp" || r.cells[c].v === "open").length;
   const ov: string = r.overall || "", v = ov === "bad" ? "no" : ov === "part" ? "pt" : "ok";
   const word = ov === "pend" ? "Right so far" : ({ ok: "Right", part: "Partly right", bad: "Not quite" } as Record<string, string>)[ov] || "Not quite";
-  const sub = (u.late ? "time ran out on the relation" : "the relation " + (r.relOk ? "right" : "wrong")) + " · questions " + decOk + "/4" + (unc ? " · " + unc + " unchecked" + (u.ctl ? ", the tutor is on it" : "") : "");
+  const sub = (u.late ? "time ran out on the relation" : "the relation " + (r.relOk ? "right" : "wrong")) + " · questions " + decOk + "/4" + (unc ? " · " + unc + " unchecked" + (u.ctl ? ", Claude is on it" : "") : "");
   return { v, word, sub, unc };
 }
 /** What the scan of the relation picked marks on its way (scan.tsx): the four answered questions and the relation, as the page's rows in their order, and the result's. Graded as the check will

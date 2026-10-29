@@ -1,4 +1,4 @@
-// "Check every answer with AI" (the practice options of the exercise, `rd-autoexplain`): a checked answer asks the app's server for its explanation without a tap on Explain.
+// "Check every answer with Claude" (the practice options of the exercise, `rd-autoexplain`): a checked answer asks the app's server for its explanation without a tap on Explain.
 // On by default. The server is a stand-in with routes, as in tutor.spec.js.
 import { test as plain } from "@playwright/test";
 import { test, expect } from "../../support/test.js";
@@ -31,8 +31,8 @@ async function answerOnPhone(page) {
   }
 }
 const explain = (page) => page.getByRole("button", { name: /^explain$|check and explain/i });
-const discuss = (page) => page.getByRole("button", { name: /discuss with ai/i });
-const toggle = (page) => page.getByRole("switch", { name: /check every answer with ai/i });
+const discuss = (page) => page.getByRole("button", { name: /discuss with claude/i });
+const toggle = (page) => page.getByRole("switch", { name: /check every answer with claude/i });
 
 /** The page with the setting as given (null: never set, which is the default), the server, and one answer checked. */
 async function answered(page, testInfo, { setting = null, tutor } = {}) {
@@ -53,7 +53,7 @@ withKey("by default a checked answer asks for its explanation by itself, once, a
   await expect(discuss(page)).toBeVisible();
   await expect(explain(page)).toHaveCount(0);
   await discuss(page).click();
-  await expect(page.getByLabel("Discuss with AI").getByText("this is the stand-in answer.")).toBeVisible();
+  await expect(page.getByLabel("Discuss with Claude").getByText("this is the stand-in answer.")).toBeVisible();
   expect(asked).toHaveLength(1);
 });
 

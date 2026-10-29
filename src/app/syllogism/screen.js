@@ -75,7 +75,7 @@ function result(){
 // the tutor's explanation under the checks on a narrow screen (on a wide one it is in the panel at the right); follow-up questions go to the chat view
 function explanation(){
   const t=tutorItem(); if(!t) return [];
-  return [el("div",{class:"sylwhy"},el("p",{class:"label"},"Tutor"),t.body())];
+  return [el("div",{class:"sylwhy"},el("p",{class:"label"},"Claude"),t.body())];
 }
 
 // the last answers, newest first, in the panel at the right of a wide screen
@@ -97,7 +97,7 @@ export function renderSyllogism(s,c){
   if(u.checked) s.append(...result(),...(explanation()),...(u.saveErr?[el("p",{class:"status",text:u.saveErr})]:[]));
   s.append(pairBar(u.checked?{label:"Next",hint:"N",onclick:()=>next()}:u.step===1?{label:"Check",onclick:()=>exampleSyllogism()}:null));
   if(!w||!state.coachOpen) return;
-  if(u.chat||u.chatErr||(u.checked&&canAsk())) c.append(el("p",{class:"label"},"Tutor"),renderTutor());   // a checked syllogism has the follow-up field even before the first question, as on a phone
+  if(u.chat||u.chatErr||(u.checked&&canAsk())) c.append(el("p",{class:"label"},"Claude"),renderTutor());   // a checked syllogism has the follow-up field even before the first question, as on a phone
   recent(c);
   c.append(kbHints(...(u.checked?[["N","next syllogism"]]
     :u.step===1?[["Enter","check"],["Esc","back"],["S","skip"]]

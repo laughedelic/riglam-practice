@@ -102,18 +102,18 @@ function ResultStep() {
   const rows = resultRows(rel), unc = rows.filter(isOpen).length, left = rows.filter((c) => r.cells[c].vague).length, nbad = rows.filter((c) => r.cells[c].v === "bad").length;
   const ov: string = r.overall;
   const v = r.relOpen ? "pt" : !r.relOk || ov === "bad" ? "no" : ov === "part" ? "pt" : "ok";
-  const word = r.relUns ? "Not settled" : r.relOpen ? (u.ctl ? "The tutor is judging" : canAsk() || needsKey() ? "Waiting for the tutor" : "Not checked") : !r.relOk ? "Not quite"
+  const word = r.relUns ? "Not settled" : r.relOpen ? (u.ctl ? "Claude is judging" : canAsk() || needsKey() ? "Waiting for Claude" : "Not checked") : !r.relOk ? "Not quite"
     : ov === "pend" ? "Right so far" : ({ ok: "Right", part: "Partly right" } as Record<string, string>)[ov] || "Not quite";
   const sub = r.relOpen ? "your own pair: the course data does not cover it" : !r.relOk ? "that pair is not " + lcRel(asked.name)
     : ov === "pend" ? pendLine(unc, left, !!u.ctl) : ov === "part" ? cases(nbad) + " to look at" : "the pair and " + (rows.length === 1 ? "one example" : rows.length + " examples");
   const pm = r.relOpen ? "pt" : r.relOk ? "ok" : "no";
   const pairLine = r.relOpen
     ? (r.relUns ? "Whether " + p.a + " and " + p.b + " are " + lcRel(asked.name) + " is not settled. Ask again, or try another pair."
-      : u.explained && !u.ctl ? "The tutor's answer did not say whether they are " + lcRel(asked.name) + ". Ask again."
-      : "The course data does not cover this pair, so the tutor judges whether it is " + lcRel(asked.name) + "." + (canAsk() ? "" : " The tutor is not available here, so it stays open."))
+      : u.explained && !u.ctl ? "Claude's answer did not say whether they are " + lcRel(asked.name) + ". Ask again."
+      : "The course data does not cover this pair, so Claude judges whether it is " + lcRel(asked.name) + "." + (canAsk() ? "" : " Claude is not available here, so it stays open."))
     : r.relOk ? asked.name + ": " + gl(rel) + "."
     : named ? p.a + " and " + p.b + " are " + lcRel(REL[p.relation].name) + " (" + lcRel(gl(p.relation)) + "), not " + lcRel(asked.name) + "."
-    : "The tutor says " + p.a + " and " + p.b + " are not " + lcRel(asked.name) + ".";
+    : "Claude says " + p.a + " and " + p.b + " are not " + lcRel(asked.name) + ".";
   return <>
     <Scroll>
       <PairResult mine={rel} ok={r.relOpen ? null : !!r.relOk} right={named && !r.relOpen ? p.relation : undefined} classes={!p.own} />

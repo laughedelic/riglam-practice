@@ -145,7 +145,7 @@ export function SideStation({ kind, label, act, disabled = false }: { kind: "ski
     onPointerUp={end}
     onPointerCancel={() => { g.current = null; set(0); box.current?.classList.remove("dragging", "past"); say(idle); }}>
     <span class="skl" aria-hidden="true" /><span class="skh" aria-hidden="true" ref={hint}>{idle}</span>
-    <button type="button" class="skd" aria-label={tutor ? "Why, from the tutor: slide it left, tap it, or press Enter" : (label || "Skip") + ": slide it left, or press Enter"}
+    <button type="button" class="skd" aria-label={tutor ? "Why, from Claude: slide it left, tap it, or press Enter" : (label || "Skip") + ": slide it left, or press Enter"}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); act(); } }}>
       <span class="sd"><Icon n={tutor ? "q" : "skip"} /></span>
     </button>

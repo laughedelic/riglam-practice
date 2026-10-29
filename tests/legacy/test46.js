@@ -30,7 +30,7 @@ async function phone(){
  await pg.screenshot({path:D+'v46-thinking.png'});
  await pg.waitForTimeout(1500);
  const row2=await pg.evaluate(()=>{const c=document.getElementById('mchat'), bs=[...document.querySelectorAll('.mbar button')].filter(b=>!b.hidden), f=document.querySelector('#stage > .pbar .fwd'); return {chat:c.getAttribute('aria-label'),disabled:c.disabled,last:bs[bs.length-1]===c,fwd:f&&f.textContent.trim(),xpl:document.querySelectorAll('#stage .xpl').length};});
- ok('after the answer: "Discuss with AI" is the right-most button of the top bar, Next pair on the pair bar, no Explain or Stop left',/^discuss with ai/i.test(row2.chat)&&!row2.disabled&&row2.last&&/next pair/i.test(row2.fwd)&&row2.xpl===0,row2);
+ ok('after the answer: "Discuss with Claude" is the right-most button of the top bar, Next pair on the pair bar, no Explain or Stop left',/^discuss with claude/i.test(row2.chat)&&!row2.disabled&&row2.last&&/next pair/i.test(row2.fwd)&&row2.xpl===0,row2);
  ok('no follow-up button inside the explanation panel',await pg.locator('.vpanel .stage-chat').count()===0);
  await pg.screenshot({path:D+'v46-after.png'});
  await pg.locator('#mchat').click(); await pg.waitForTimeout(150);
@@ -48,7 +48,7 @@ async function dbg(){
  await pg.evaluate(()=>document.activeElement&&document.activeElement.blur());
  await pg.locator('#stage .verdict .xpl').click(); await pg.waitForTimeout(400);
  const row=await pg.evaluate(()=>{const c=document.getElementById('mchat'), bs=[...document.querySelectorAll('.mbar button')].filter(b=>!b.hidden), f=document.querySelector('#stage > .pbar .fwd'); return {chat:c.getAttribute('aria-label'),disabled:c.disabled,last:bs[bs.length-1]===c,fwd:f&&f.textContent.trim()};});
- ok('debate: follow-up button (top bar, right-most) and Next pair (pair bar)',/^discuss with ai/i.test(row.chat)&&!row.disabled&&row.last&&/next pair/i.test(row.fwd),row);
+ ok('debate: follow-up button (top bar, right-most) and Next pair (pair bar)',/^discuss with claude/i.test(row.chat)&&!row.disabled&&row.last&&/next pair/i.test(row.fwd),row);
  const q=await pg.locator('#stage .grid .fb').allInnerTexts();
  ok('debate: no stray character in feedback',!/|›/.test(q.join('')),q);
  ok('no page errors (debate)',errs.filter(e=>!/ERR_CERT|net::/.test(e)).length===0,errs);

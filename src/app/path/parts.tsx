@@ -237,7 +237,7 @@ function FactSteps({ f, where }: { f: FactLine; where: string }) {
  */
 export function TutorNote({ c, text, where, flag }: { c: CellId; text: string; where: string; flag?: ComponentChildren }) {
   const f = (explainParts().facts as Record<string, FactLine | undefined>)[c];
-  return <div class="tnote" role="group" aria-label="The tutor’s note">{flag ? <div class="tuth">{flag}</div> : null}
+  return <div class="tnote" role="group" aria-label="Claude’s note">{flag ? <div class="tuth">{flag}</div> : null}
     {f ? <FactSteps f={f} where={where} /> : <><p class="tt"><TermText text={text} where={where} /></p><DefCard where={where} /></>}</div>;
 }
 // the tutor's explanation without its lines on the cases (those are on the cases' rows)
@@ -253,7 +253,7 @@ function WhyText() {
     out.push(<p class="whyt">{m ? <><b>{m[1]}:</b> <TermText text={m[2]} where={w} seen={seen} /></> : <TermText text={ln} where={w} seen={seen} />}</p>, <DefCard where={w} />);
   });
   const flag = t.pending ? null : <><span class="pflgrow"><FlagBtn c={explainCase(t.content)} where={w} word /></span><FlagEditor where={w} /></>;
-  return out.length ? <><div class="tsay">{out}</div>{flag}</> : t.pending ? null : <><p class="whyt">The tutor's notes are on the rows above.</p>{flag}</>;
+  return out.length ? <><div class="tsay">{out}</div>{flag}</> : t.pending ? null : <><p class="whyt">Claude's notes are on the rows above.</p>{flag}</>;
 }
 /**
  * The row of the tutor under a result: Why, and what it would do (`todo`, else check the `unc` open examples and explain, or explain). Open, the explanation,
@@ -263,13 +263,13 @@ export function WhyRow({ unc = 0, again = false, todo }: { unc?: number; again?:
   const u = u0();
   if (!canAsk() && !u.chat && !u.chatErr && !needsKey()) return null;
   const open = !!u.pwhy, t = latestExplain(), writing = !!u.ctl, q = quorumItem();
-  const sub = writing ? "the tutor is writing" : u.explained ? "from the tutor" : needsKey() ? "needs the Magic Key" : todo || (unc ? "check the open " + (unc === 1 ? "example" : "examples") + " and explain" : "ask the tutor");
+  const sub = writing ? "Claude is writing" : u.explained ? "from Claude" : needsKey() ? "needs the Magic Key" : todo || (unc ? "check the open " + (unc === 1 ? "example" : "examples") + " and explain" : "ask Claude");
   const act = () => { if (!u.explained && !u.ctl) { askTutor(); return; } u.pwhy = !u.pwhy; render(); };
   return <Sx cls="walked">
     <button type="button" class={"wrow" + (open ? " open" : "")} aria-expanded={open ? "true" : "false"} onClick={act}><D cls={"sub " + (writing ? "pthink" : "tut")} />
       <span class="ct"><b>Why</b><span>{sub}</span></span><span class="arr"><Icon n="chev" /></span></button>
     {open ? <div class="wtext">
-      {writing && !(t && t.content) ? <Thinking label="the tutor is reading your answer" /> : null}
+      {writing && !(t && t.content) ? <Thinking label="Claude is reading your answer" /> : null}
       <WhyText />
       {u.chatErr ? <p class="terr">{u.chatErr}</p> : null}
       {q ? <QuorumPanel /> : null}

@@ -82,7 +82,7 @@ export function Row({ c, rel }: { c: CellId; rel: RelKey }) {
     <span class="lab">{CASE[c]}</span><div class="line1">{ans}{busy ? null : <Mark m={m} />}</div>
     {tnote ? <TutorNote c={c} text={tnote} where={"pc" + c} flag={<FlagBtn c={explainCase(tnote, c, CELL_NAME[c], learnedThing(c))} where={"pop:" + c} />} /> : <p class="xnote">{note}</p>}
     <FlagEditor where={"pop:" + c} />
-    {busy ? <Thinking label="the tutor is checking" /> : null}
+    {busy ? <Thinking label="Claude is checking" /> : null}
   </St>;
 }
 /** The rows of a result: the cases the relation asked for, and a case it left out that was wrongly filled. */
@@ -91,7 +91,7 @@ export const isOpen = (c: CellId) => { const r = u0().res.cells[c]; return (r.v 
 /** The examples whose names leave their quality open, as the result's line says them; "" for none. */
 export const leftOpen = (n: number) => (n ? n + " left open by " + (n === 1 ? "its name" : "their names") : "");
 /** The line of a result that is right so far: what is still unchecked, and what the names leave open. */
-export const pendLine = (unc: number, left: number, ctl: boolean) => [unc ? unc + " unchecked" + (ctl ? " · the tutor is on it" : "") : "", leftOpen(left)].filter(Boolean).join(" · ");
+export const pendLine = (unc: number, left: number, ctl: boolean) => [unc ? unc + " unchecked" + (ctl ? " · Claude is on it" : "") : "", leftOpen(left)].filter(Boolean).join(" · ");
 export const cases = (n: number) => (n === 1 ? "one case" : n + " cases");
 /** The offer of the next step of the negation track, once the pairs before it go well, or the line that says what the answer to it did. */
 function NegOffer() {

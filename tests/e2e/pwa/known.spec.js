@@ -83,7 +83,7 @@ withKey("a check asks the server what it knows of the examples it could not chec
   expect(asked.tutor[0].body).not.toHaveProperty("examples");
 });
 
-withKey("with Check every answer with AI on, the explanation is asked after the server's answer, about the examples it did not know", async ({ page }, testInfo) => {
+withKey("with Check every answer with Claude on, the explanation is asked after the server's answer, about the examples it did not know", async ({ page }, testInfo) => {
   let first;
   const asked = await open(page, testInfo, {
     // the server knows the first example only
@@ -223,7 +223,7 @@ withKey("Settings offer the switch only where the server says it keeps examples"
 withKey("the switch is in Settings, not among the practice options of an exercise, which point to it", async ({ page }, testInfo) => {
   await open(page, testInfo, LEARNS);
   await openPractice(page);
-  await expect(page.getByText("Check every answer with AI")).toBeVisible();
+  await expect(page.getByText("Check every answer with Claude")).toBeVisible();
   await expect(share(page)).toHaveCount(0);
   await expect(page.locator("#over .capl")).toContainText("sharing your examples");
   await closeOptions(page);
@@ -322,7 +322,7 @@ withKey("where the server also answers from what it keeps, the dialog says other
   await expect(dialog(page)).toContainText("other learners get answers sooner");
 });
 
-withKey("with Check every answer with AI on, the dialog comes by itself after the check, and the explanation waits for it", async ({ page }, testInfo) => {
+withKey("with Check every answer with Claude on, the dialog comes by itself after the check, and the explanation waits for it", async ({ page }, testInfo) => {
   const asked = await open(page, testInfo, LEARNS, { autoExplain: "1" });
   await expect(dialog(page)).toBeVisible();
   expect(asked.tutor).toHaveLength(0);

@@ -69,7 +69,7 @@ test("Review on the Path: today's trail, a row unfolds into the answer, and Prac
   const fold = page.locator("#path .pfold");
   await expect(fold.locator(".srel")).toContainText("Four possibilities");
   await expect(fold.locator(".exr")).toHaveCount(4);
-  await expect(fold).toContainText("Checked by the tutor.");
+  await expect(fold).toContainText("Checked by Claude.");
   await fold.getByRole("button", { name: "Practice this pair" }).click();
   await expect(page.locator(".ptb-t")).toContainText("Relations");
   await expect(page.locator("#path")).toContainText("round things");

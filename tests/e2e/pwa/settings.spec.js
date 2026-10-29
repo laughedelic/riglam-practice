@@ -6,7 +6,7 @@ import { goTo, isPhone, openMenu, openSettings, ready } from "../../support/page
 const hook = () => { window.__riglamTest = (t) => { window.__t = t; }; };
 const blitz = () => { localStorage.setItem("rd-blitz", "1"); localStorage.setItem("rd-timer-rel", "2000"); localStorage.setItem("rd-timer", "2000"); };
 const sessBtn = (page) => page.locator("#msess");
-const AI = ["check every answer with ai", "several models explain"]; // there when the tutor can answer
+const AI = ["check every answer with claude", "several models explain"]; // there when the tutor can answer
 const names = (page) => page.locator("#over .ocard .om > b, #over .sw .swl").allInnerTexts().then((t) => t.map((s) => s.trim().toLowerCase()).filter((s) => !AI.includes(s)));
 const sections = (page) => page.locator("#over .grp").allInnerTexts().then((t) => t.map((s) => s.trim().toLowerCase()).filter((s) => s !== "ai tutor"));
 const rowNames = (page) => page.locator("#over .orow .tl").allInnerTexts().then((t) => t.map((s) => s.trim().toLowerCase()));

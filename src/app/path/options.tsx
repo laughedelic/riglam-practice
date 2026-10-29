@@ -81,8 +81,8 @@ function List() {
     </Group>
     <Group name="Practice">
       {timed ? <Line title="Blitz" sub={state.blitzUse ? timesLine() : "off"} sw={{ on: state.blitzUse, toggle: () => setBlitzUse(!state.blitzUse) }} go={() => openPage("times")} /> : null}
-      {tutorShown() ? <Line title="Tutor explains" go={() => openPage("tutor")} sub={canAsk() ? undefined : "several models"}>
-        {canAsk() ? <Words label="Tutor explains" items={TUTOR} cur={state.autoExplain ? "every" : "ask"} on={setTutor} /> : null}</Line> : null}
+      {tutorShown() ? <Line title="Claude explains" go={() => openPage("tutor")} sub={canAsk() ? undefined : "several models"}>
+        {canAsk() ? <Words label="Claude explains" items={TUTOR} cur={state.autoExplain ? "every" : "ask"} on={setTutor} /> : null}</Line> : null}
       {voiceShown() ? <Line title="Voice" tag="experimental" sub={voiceLine()} go={() => openPage("voice")} /> : null}
     </Group>
     <Group><Line title="Other app settings" go={toSettings} /></Group>
@@ -167,15 +167,15 @@ function VoicePage() {
 function TutorPage() {
   const syl = state.tab === "syllogism";
   return <>
-    <Intro>The AI tutor explains an answer: why it is right or wrong{syl ? "" : ", and whether your examples fit their cases"}.</Intro>
-    {canAsk() ? <Line title="Explains" sub={"Every answer: right after you check one, the tutor explains it" + (syl ? "" : " and checks the examples the page could not") + ". When I ask: it waits for you to ask."}>
-      <Words label="Tutor explains" items={TUTOR} cur={state.autoExplain ? "every" : "ask"} on={setTutor} /></Line> : null}
+    <Intro>Claude explains an answer: why it is right or wrong{syl ? "" : ", and whether your examples fit their cases"}.</Intro>
+    {canAsk() ? <Line title="Explains" sub={"Every answer: right after you check one, Claude explains it" + (syl ? "" : " and checks the examples the page could not") + ". When I ask: it waits for you to ask."}>
+      <Words label="Claude explains" items={TUTOR} cur={state.autoExplain ? "every" : "ask"} on={setTutor} /></Line> : null}
     {quorumShown() ? <Line title="Several models explain" tag="experimental" sub={quorumNote()} sw={{ on: state.quorum, toggle: () => setQuorum(!state.quorum) }} /> : null}
   </>;
 }
 
 /** The Path's pages of the practice options, by the names their lines have (the classic sheet keeps its own, shell/session.js PAGES). */
-const TITLES: Record<string, string> = { text: "Wording and notation", stages: "Difficulty", times: "Blitz", voice: "Voice", tutor: "Tutor explains", progress: "Progression" };
+const TITLES: Record<string, string> = { text: "Wording and notation", stages: "Difficulty", times: "Blitz", voice: "Voice", tutor: "Claude explains", progress: "Progression" };
 const sheetOn = () => state.sessOpen && state.mode === "quiz";
 /** The sheet's own page that is open (one of TITLES), or null for the list. */
 const sheetPage = () => sheetOn() && state.sessPage && TITLES[state.sessPage] && (state.sessPage !== "voice" || voiceShown()) && (state.sessPage !== "tutor" || tutorShown()) ? state.sessPage : null;

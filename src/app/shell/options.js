@@ -59,8 +59,8 @@ function shareRow(){
 /** What sharing the examples means, for its row here and on the Path. */
 export function shareNote(){
   const known=!!state.known, quorum=!!(state.quorumOffered&&state.db);
-  return "When the AI tutor checks an example the page could not, this app\u2019s server keeps the words of the example (not who wrote it, which pair it was for, or where you put it)"
-      +(known?", so that the same example can be checked later without the AI.":", to build a shared reference of examples with other learners.")
+  return "When Claude checks an example the page could not, this app\u2019s server keeps the words of the example (not who wrote it, which pair it was for, or where you put it)"
+      +(known?", so that the same example can be checked later without Claude.":", to build a shared reference of examples with other learners.")
       +(known?" Your checks are answered from what it learned this way, from your examples and from other people\u2019s.":"")
       +" Turn this off to keep your examples out of it: checks work as before"+(known?", and you still get answers learned from other people\u2019s examples":"")+"."
       +(quorum?" Quorum, in the practice options, is separate: it keeps its own runs, whatever this says.":"");
@@ -86,14 +86,14 @@ export function optionsInto(o){
     voiceRow(),
     state.db?row("Your data",dataTransferControls(state.db,el,render,state.xfer),"Saves everything this device keeps (answers, debates, favorites, skipped pairs and these settings) in one file, as a backup or to move to another device. Importing adds what is missing and never deletes anything."):null,
     state.about?row("Version and updates",aboutNode(state.about)):null,
-    el("p",{class:"onote",text:"How an exercise looks, ticks and is checked (notation, wording, Blitz times, definitions, the tutor\u2019s check) is set in its Practice options: the sliders button at the top of the exercise."})].filter(Boolean));
+    el("p",{class:"onote",text:"How an exercise looks, ticks and is checked (notation, wording, Blitz times, definitions, Claude\u2019s check) is set in its Practice options: the sliders button at the top of the exercise."})].filter(Boolean));
   o.append(box);
 }
 
 /** The Magic Key row's sentence: the device has none yet (`held` false), has it, or is asked whether to forget it (the Path draws the same row). */
-export const keyNote=held=>!held?"The definitions and the tutor (Explain) need the Magic Key from your study group's link. This device has none yet: open the link once on this device, or paste it here."
-  :state.keyAsk?"Forget the Magic Key on this device? The definitions and the tutor close again until a key is entered. Your answers and settings stay. An account that carries the key gives it back when you sign in."
-  :"This device has the Magic Key, so the definitions and the tutor are open. If the study group changed the key, enter the new one; or forget the key on this device.";
+export const keyNote=held=>!held?"The definitions and Claude (Explain) need the Magic Key from your study group's link. This device has none yet: open the link once on this device, or paste it here."
+  :state.keyAsk?"Forget the Magic Key on this device? The definitions and Claude close again until a key is entered. Your answers and settings stay. An account that carries the key gives it back when you sign in."
+  :"This device has the Magic Key, so the definitions and Claude are open. If the study group changed the key, enter the new one; or forget the key on this device.";
 // The Magic Key row while this device has the key: take another one, or forget it (after a question, since the definitions close with it).
 function keyControls(){
   const k=state.keyHeld;

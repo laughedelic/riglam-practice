@@ -32,7 +32,7 @@ export const SYMS={
   sets:["Sets","Each term stands for the set of things it covers.",[["∩","intersection: what is both"],["∅","the empty set: nothing"],["≠ ∅","not empty"],["⊂","contained in"],["⊃","contains"],["=","the same set"]]],
   logic:["Logic","Each term stands for a statement: it is A, it is B.",[["⇒","follows: A ⇒ B, if A then B"],["⇐","follows from"],["⇔","each follows from the other"],["⇏","does not follow"],["¬","negation: not"]]]
 };
-export const PAGES={nota:"Notation",wording:"Questions",times:"Blitz",defs:"Definitions",stages:"Stages",voice:"Voice",tutor:"Tutor",progress:"Progression"};
+export const PAGES={nota:"Notation",wording:"Questions",times:"Blitz",defs:"Definitions",stages:"Stages",voice:"Voice",tutor:"Claude",progress:"Progression"};
 const store=(key,v)=>{ try{ localStorage.setItem(key,v); }catch(e){} };
 export function setNota(k){ state.nota=k; store("rd-notation",k); render(); }
 export function setDefLang(k){ state.defLang=k==="enru"?"enru":"en"; store("rd-deflang",state.defLang); render(); }
@@ -141,7 +141,7 @@ function pageBody(id){
     ...(negates()?[group("Negations"),negationRow(),negBracketsRow()]:[])];
   if(id==="voice") return [...voicePageBody(picks),
     el("p",{class:"capl"},"Voice itself is switched on and off in ",el("button",{type:"button",class:"lnk",onclick:()=>{ toggleSess(false); toggleOpts(true); }},"Settings"),".")];
-  return [el("p",{class:"capl",text:"Shown when you open a term’s definition, in the Terms panel and in the tutor’s notes."}),
+  return [el("p",{class:"capl",text:"Shown when you open a term’s definition, in the Terms panel and in Claude’s notes."}),
     picks("Languages of the definitions",[["en","English","The definition in English."],["enru","English + Russian","Each entry also shows the Russian name of the term and, where there is one, its Russian definition."]],state.defLang,setDefLang)];
 }
 // Categories has no pair, notation or Blitz, so it shows only what it uses
@@ -162,8 +162,8 @@ function syllogismBody(){
     sw("Show the structure",state.syllogismGuide?"on":"off",state.syllogismGuide,()=>setSyllogismGuide(!state.syllogismGuide),
       "For when the structure is new: under the sentence, S is the subject, P the predicate and R the reason, and each reply says in them what it means."),
     card("Blitz",state.blitzUse?timesLine():el("small",{class:"sum1",text:"Off"}),"times"),
-    ...(canAsk()?[group("AI tutor"),sw("Check every answer with AI",state.autoExplain?"on":"off",state.autoExplain,()=>setAutoExplain(!state.autoExplain),
-      "Right after you check an answer, the AI tutor explains it. Off, the Explain button waits for you.")]:[]),
+    ...(canAsk()?[group("Claude"),sw("Check every answer with Claude",state.autoExplain?"on":"off",state.autoExplain,()=>setAutoExplain(!state.autoExplain),
+      "Right after you check an answer, Claude explains it. Off, the Explain button waits for you.")]:[]),
     el("p",{class:"capl"},"The Magic Key, your account, data and the version are in ",el("button",{type:"button",class:"lnk",onclick:()=>{ toggleSess(false); toggleOpts(true); }},"Settings"),".")
   ];
 }
@@ -172,7 +172,7 @@ function syllogismBody(){
 export function quorumNote(){
   const apart=state.learns?" The words of an example are kept, or not, as \u201cShare my examples\u201d in Settings says, with or without Quorum.":"";
   return state.quorumOptIn
-    ?"Optional: a deeper check, but slower. When the page could not check an example you wrote, three AI models (Haiku, Sonnet and Opus) each work it out and Opus rules where they differ, so the explanation is more reliable. An answer takes about a minute instead of a few seconds, and it counts against a daily limit of its own; when that is used up, one model answers as usual. The server keeps each such run (the pair with what you wrote, and the answers), so the models can be compared. With Quorum off, one model answers and no run is kept."+apart
+    ?"Optional: a deeper check, but slower. When the page could not check an example you wrote, three Claude models (Haiku, Sonnet and Opus) each work it out and Opus rules where they differ, so the explanation is more reliable. An answer takes about a minute instead of a few seconds, and it counts against a daily limit of its own; when that is used up, one model answers as usual. The server keeps each such run (the pair with what you wrote, and the answers), so the models can be compared. With Quorum off, one model answers and no run is kept."+apart
     :"For testing, on this test server only. With Quorum on, the explanation of an answer with an example the page could not check comes from Haiku, Sonnet and Opus, each on its own; where they put an example in different cells, Opus reads their answers and writes the one you see. The Quorum chip under a result shows all of them. The server keeps each run (the pair with what you wrote, and the answers), so the models can be compared. When the page checked every example itself, and with Quorum off, one model answers as in the app and no run is kept."+apart;
 }
 function listBody(){
@@ -199,9 +199,9 @@ function listBody(){
     card("Stages",stagesLine(),"stages"),
     voiceShown()?group("Voice"):null,
     ...(voiceShown()?voiceListRows(sw,card,chips):[]),
-    tutor||quorum?group("AI tutor"):null,
-    tutor?sw("Check every answer with AI",state.autoExplain?"on":"off",state.autoExplain,()=>setAutoExplain(!state.autoExplain),
-      "Right after you check an answer, the AI tutor explains it and checks the examples the page could not. Off, the Explain button waits for you."):null,
+    tutor||quorum?group("Claude"):null,
+    tutor?sw("Check every answer with Claude",state.autoExplain?"on":"off",state.autoExplain,()=>setAutoExplain(!state.autoExplain),
+      "Right after you check an answer, Claude explains it and checks the examples the page could not. Off, the Explain button waits for you."):null,
     quorum?sw("Several models explain",state.quorum?"on":"off",state.quorum,()=>setQuorum(!state.quorum),qNote):null,
     el("p",{class:"capl"},"The Magic Key, your account, data"+(tutor&&state.learns?", sharing your examples":"")+" and the version are in ",el("button",{type:"button",class:"lnk",onclick:()=>{ toggleSess(false); toggleOpts(true); }},"Settings"),".")
   ];
