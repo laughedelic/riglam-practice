@@ -162,7 +162,7 @@ test("Settings and Review opened from the roadmap go back to it, by the system B
   await road(page).getByRole("button", { name: "Continue" }).click();
   await expect(choices(page)).toHaveCount(5);
   await page.getByRole("button", { name: "Practice options" }).click();
-  await page.locator("#path .pnoteline .pbtn", { hasText: "Settings" }).first().click();
+  await page.getByRole("button", { name: "Other app settings: more" }).click();
   await expect(heading(page)).toHaveText("Settings");
   await page.goBack();
   await expect(choices(page), "back to the exercise it was opened from").toHaveCount(5);

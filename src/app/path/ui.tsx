@@ -67,7 +67,12 @@ export const Mark = ({ m }: { m: string }) => <span class={"mark " + m}><Icon n=
 export const Minis = ({ list }: { list: string[] }) => <span class="minis">{list.map((c) => <i class={c} />)}</span>;
 
 /** A toggle in the look's style; the row around it is the button. */
-export const Toggle = ({ on }: { on: boolean }) => <span class={"tg" + (on ? " on" : "")} aria-hidden="true"><i /></span>;
+/** A switch's mark. The look's `both` (the Design Lab's pick, 28 Oct): two diamonds, a hollow one and a small filled one beside it, which move toward each other until the
+ *  small one sits inside, so that off (the pair) and on (one figure) both stand in the middle of the mark's place; the other looks draw the older forms (37-path-panels.css). */
+export const Toggle = ({ on }: { on: boolean }) => currentLook().toggle === "both"
+  ? <svg class={"dtg" + (on ? " on" : "")} viewBox="0 0 40 22" aria-hidden="true">
+    <polygon class="dtb" points="20,2 29,11 20,20 11,11" /><polygon class="dts" points="20,6.5 24.5,11 20,15.5 15.5,11" /></svg>
+  : <span class={"tg" + (on ? " on" : "")} aria-hidden="true"><i /></span>;
 /** Words in a row: one of them pressed. */
 export function Words<T extends string | number>({ label, items, cur, on }: { label: string; items: [T, string][]; cur: T; on: (v: T) => void }) {
   return <span class="seg2" role="group" aria-label={label}>{items.map(([v, l]) =>

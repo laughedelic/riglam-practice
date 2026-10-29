@@ -26,7 +26,7 @@ import { setTab } from "./tabs.js";
 const MARK="riglamNav";
 const canPush=()=>{ try{ return window.parent===window; }catch(e){ return false; } };
 // how many levels are open, from the state alone
-const depth=()=>(isWide()?0:state.menuOpen||state.fromRoad?0:1)+(state.tab==="review"?1:0)+(state.view==="chat"?1:0)+(state.optsOpen?1:0)+(state.sessOpen?1:0)+(state.sessPage&&state.sessPage!=="progress"?1:0)+(state.skipAsk?1:0);
+const depth=()=>(isWide()?0:state.menuOpen||state.fromRoad?0:1)+(state.tab==="review"?1:0)+(state.view==="chat"?1:0)+(state.optsOpen?1:0)+(state.optsOpen&&state.optsPage?1:0)+(state.sessOpen?1:0)+(state.sessPage&&state.sessPage!=="progress"?1:0)+(state.skipAsk?1:0);
 function sync(){
   state.navQ=false;
   if(state.navSkip>0||!canPush()) return;
@@ -67,11 +67,12 @@ function askLeave(){
 }
 // Called after each render. Several renders of one action (close Settings, open an exercise) are settled together, once.
 export function navSync(){ if(!state.navQ){ state.navQ=true; queueMicrotask(sync); } }
-// Back closes the top level, each close taking exactly one level off: the question before a skip, a page of the options or the sheet, Settings, the chat view, Review
+// Back closes the top level, each close taking exactly one level off: the question before a skip, a page of the options or the sheet, a page of Settings, Settings, the chat view, Review
 // (back to the exercise, or to the roadmap it was opened from), and on a phone the exercise (the menu opens).
 function closeTop(){
   if(state.skipAsk) closeSkipAsk();
   else if(state.sessOpen) sessBack();
+  else if(state.optsOpen&&state.optsPage){ state.optsPage=null; render(); }
   else if(state.optsOpen) toggleOpts(false);
   else if(state.view==="chat") closeChat();
   else if(state.tab==="review"){ if(state.fromRoad) toRoad(); else setTab(state.own); }
