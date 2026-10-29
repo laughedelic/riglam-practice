@@ -1,10 +1,13 @@
 // Choices on the Path that slide onto it (src/app/path/choose.ts): a tap or a finger sends the mark onto the line with a knock, the others fade, the
 // thread turns solid and the mark fills (and in a list rises); two short options stand on one row. The rules of the practice are the other specs'.
 import { test, expect } from "../../support/test.js";
+import { exerciseAtRest } from "../../support/page.js";
 
 const onPath = () => {
   if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path");
   window.__vib = []; navigator.vibrate = (v) => { window.__vib.push(v); return true; };
+  // the page tells a finger from a mouse (state.hand: its knocks are for a finger); Playwright's mouse is made to read as a finger here, `window.__pointer = "mouse"` as a mouse again
+  Object.defineProperty(PointerEvent.prototype, "pointerType", { get: () => window.__pointer || "touch", configurable: true });
 };
 const choices = (page) => page.locator("#path .chs .crow");
 const gap = (page) => page.locator("#path .sx.gap:has(.chs)");   // the choices' own piece (the questions still to come are a dotted piece too)
@@ -17,6 +20,7 @@ async function openPervasions(page) {
   await page.locator(".tstn").click();
   await page.getByRole("dialog", { name: "Roadmap" }).getByRole("button", { name: /^Pervasions/ }).click();
   await expect(page.locator(".ptb-t")).toContainText("Pervasions");
+  await exerciseAtRest(page);
   await expect(choices(page)).toHaveCount(2);
 }
 /** The mark of a row, centered: its x against the line's (the section's left edge plus --m). */

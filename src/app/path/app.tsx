@@ -14,6 +14,7 @@ import { placePops, renderQuiz } from "../practice/screen.js";
 import { closeSkipAsk, skipInto, skipNow } from "../practice/skips.js";
 import { renderSyllogism } from "../syllogism/screen.js";
 import { exName } from "../shell/exercises.js";
+import { moves } from "../shell/motion.js";
 import { fitPair, isEx, render } from "../shell/render.js";
 import { applyLook, currentLook, darkNow, lookClasses } from "./look.ts";
 import { OptionsSheet } from "./options.tsx";
@@ -108,7 +109,8 @@ export function App() {
   const s = screen(kb), over = state.menuOpen || (state.sessOpen && isEx() && state.mode === "quiz") || (state.skipAsk && isEx());
   // the practice options alone leave the top bar live (it is their heading, and has their close); the rest of the screen is inert behind them
   const barLive = over && state.sessOpen && !state.menuOpen && !state.skipAsk;
-  const cls = ["pa", ...lookClasses(look, darkNow(look)), s.cls, kb ? "kbup" : "", kb && small ? "ph-small" : "", state.showAB ? "" : "sj-off"].filter(Boolean).join(" ");
+  // `still`: the roadmap and the exercise take their places without the slide (the browser has just animated a Back swipe itself, or motion is off: shell/motion.js)
+  const cls = ["pa", ...lookClasses(look, darkNow(look)), s.cls, kb ? "kbup" : "", kb && small ? "ph-small" : "", state.showAB ? "" : "sj-off", moves() ? "" : "still"].filter(Boolean).join(" ");
   useLayoutEffect(() => {
     const m = root.current && root.current.querySelector(".main"); if (!m) return;
     for (const c of m.children) c.toggleAttribute("inert", barLive && !c.classList.contains("ptb"));
@@ -144,14 +146,16 @@ export function App() {
   return <PullCtx.Provider value={pull}>
     <div class={cls} ref={root}>
       <div class="pcol">
-        <div class="main" inert={over && !barLive}>
-          {s.node}
-          <div class="riser" aria-hidden="true" />
-        </div>
-        <OptionsSheet />
         <Roadmap />
-        {state.skipAsk && isEx() && state.mode === "quiz" ? <SkipAsk /> : null}
-        <Toast />
+        <div class={"lay" + (state.menuOpen ? " away" : "")} inert={state.menuOpen}>
+          <div class="main" inert={over && !barLive}>
+            {s.node}
+            <div class="riser" aria-hidden="true" />
+          </div>
+          <OptionsSheet />
+          {state.skipAsk && isEx() && state.mode === "quiz" ? <SkipAsk /> : null}
+          <Toast />
+        </div>
       </div>
     </div>
   </PullCtx.Provider>;

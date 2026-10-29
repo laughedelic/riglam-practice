@@ -10,7 +10,7 @@ import { hasDef } from "./terms.js";
 import { saveProgress } from "./progress.ts";
 import { render } from "../shell/render.js";
 import type { DataIndex } from "../../ai-shared/lookup.ts";
-import { SETTLED, afterQuestion, againAsked, freshIntro, needsIntro, nextStop, openTerms, pairGraded, showAgain, stageUp, stopShown, termTree, unmet, type Stop } from "../../domain/intro.ts";
+import { afterQuestion, againAsked, freshIntro, nextStop, openTerms, pairGraded, showAgain, stageUp, stopShown, termTree, unmet, type Stop } from "../../domain/intro.ts";
 import { catStage } from "../../domain/stages.ts";
 
 const save = () => { if (state.intro) saveProgress(); };
@@ -61,22 +61,6 @@ export function takeStop(): boolean {
 /** The highest stage went up (shell/stages.js): its first term comes at the next pull. */
 export function stopsStageUp() { if (state.intro) { state.intro = stageUp(state.intro); save(); } }
 
-/**
- * The course terms a question asks about that the learner is still meeting (met at a stop, not settled yet) and whose definition this device can read:
- * each has a small tag in the question that opens the definition (path/parts.tsx, PairStops; path/terms.tsx, TermTags). `asked` are the question's
- * categories, with their side in a pair. A category on both sides is tagged on the first only: two matching tags would say that the sides are one class.
- */
-export function termTags(asked: { cat: string | null | undefined; side?: string }[]): { term: string; side?: string }[] {
-  const intro = state.intro, out: { term: string; side?: string }[] = [], seen = new Set<string>(); if (!onPath() || !intro || !state.DATA) return out;
-  for (const a of asked) {
-    const c = a.cat ? state.CAT[a.cat] : null;
-    if (!c || !c.term || !needsIntro(c) || seen.has(c.id)) continue;
-    seen.add(c.id);
-    const box = intro.terms[c.id]?.box ?? 0;
-    if (box >= 1 && box < SETTLED && hasDef(state.DATA.terms[c.term])) out.push(a.side ? { term: c.term, side: a.side } : { term: c.term });
-  }
-  return out;
-}
 /** What the stop says above the term: a new term, its stage and where the course has it, or why it comes again. */
 export function stopHead(s: Stop): { h: string; sub: string } {
   const c = state.CAT[s.cat], st = c ? catStage(c) : 0, ch = (c && c.term && state.DATA && state.DATA.terms[c.term] && state.DATA.terms[c.term].ch) || "";

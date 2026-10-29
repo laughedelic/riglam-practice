@@ -1,7 +1,7 @@
 // The examples on the Path, for Relations and Find a pair: one case at a time, the pair and its relation folded into a strip above, and while
 // the keyboard is up a heading with the pair. The cases are the attempt's (`state.ui.cells`), the ones the relation leaves possible.
 import type { ComponentChildren } from "preact";
-import { useContext, useEffect, useLayoutEffect, useRef } from "preact/hooks";
+import { useContext, useEffect, useRef } from "preact/hooks";
 import { state } from "../state.js";
 import { cellLabel } from "../core/rel.js";
 import { fillable } from "../practice/screen.js";
@@ -9,7 +9,8 @@ import { render } from "../shell/render.js";
 import type { CellId, RelKey } from "../../ai-shared/relations.ts";
 import type { Pull } from "./gesture.ts";
 import type { ScanPlan } from "./scan.tsx";
-import { refreshPath, renderPath } from "./index.tsx";
+import { refreshPath } from "./index.tsx";
+import { openThen } from "./relayout.ts";
 import { CASE, PairNode, SkipMark, Star, caseQ, pairOf, u0 } from "./parts.tsx";
 import { Scroll } from "./scroll.tsx";
 import { Foot, PreStation, PullCtx, SkipSide, Station, VoiceBar, pathNote } from "./shell.tsx";
@@ -29,18 +30,23 @@ function cursor() {
 export const examplesReady = () => cursor().ready;
 const focusField = () => { const i = document.getElementById("cin") as HTMLInputElement | null; if (i) { i.focus({ preventScroll: true }); const n = i.value.length; try { i.setSelectionRange(n, n); } catch { /* not a text field */ } } };
 const blur = () => { const a = document.activeElement as HTMLElement | null; if (a && a.blur) a.blur(); };
-/** Enter on a case: this one is written, the next empty one opens. After the last the Check is the next step and is taken at once: the keyboard goes, and the Check (the node
- *  under the last example while the keyboard is up, the foot's station otherwise) is pulled up and becomes the result. */
+/** Enter on a case: this one is written, the next empty one opens. After the last the Check is the next step and is taken at once from the foot: while the keyboard is up
+ *  it goes first, the page opens with the Check at its foot (relayout.ts), and the Check is taken there once it stands still. */
 function commit(pull: Pull) {
   const u = u0(), k = cursor();
   if (!k.c) return;
   if (!filled(k.c)) { pathNote(mayBeEmpty(k.c) ? "Write an example first, or say nothing exists" : "Write an example first"); return; }
   if (k.nextC) { u.ci = k.order.indexOf(k.nextC); u.pall = false; render(); focusField(); return; }
-  renderPath();     // the last example is written: draw the Check that it makes ready (the draw after an input is queued for the next frame)
+  const root = pull.root, main = root && root.querySelector<HTMLElement>(".main");
+  if (root && main && root.classList.contains("kbup")) {
+    pull.hold = true;      // the keyboard's layout stays until the page opens: the field is let go then
+    openThen(root, main, () => { root.classList.remove("kbup"); pull.hold = false; blur(); if (pull.after) pull.after(); }, () => pull.take());
+    return;
+  }
   pull.take(); blur();
 }
 function openCase(i: number) { const u = u0(); u.ci = i; u.pall = false; render(); focusField(); }
-function nothing(c: CellId, pull: Pull) { if (!mayBeEmpty(c)) return; const x = u0().cells[c]; x.t = ""; x.none = true; commit(pull); }
+function nothing(c: CellId, pull: Pull) { if (!mayBeEmpty(c)) return; const x = u0().cells[c]; x.t = ""; x.none = true; render(); commit(pull); }
 
 /** The strip under the top bar: the pair with its relation, folded; pull it anywhere (or tap it) to look back at `full`, the steps done. While it is
  *  unfolded, a touch anywhere outside it folds it again. */
@@ -94,15 +100,6 @@ export function ExamplesStep({ kb, title, step, rel, full, check, scan }: { kb: 
   const u = u0(), p = pairOf(), k = cursor(), pull = useContext(PullCtx);
   const checkHint = "your " + (state.ui!.find ? "pair" : "relation") + " and " + (k.order.length === 1 ? "one example" : k.order.length + " examples");
   const takeCheck = () => { u.pall = true; blur(); check(); };
-  // the last example has words: the Check is the next stop, and the line ahead is solid down to it (under the keyboard there is no foot, so the Check comes up on the page)
-  const node = kb && k.ready;
-  useLayoutEffect(() => {
-    if (!node) return;
-    const n = document.querySelector<HTMLElement>("#path .cnode"), sc = n && n.closest<HTMLElement>(".pscroll"), prev = n && n.previousElementSibling;
-    if (!n || !sc || !prev) return;
-    const over = prev.getBoundingClientRect().bottom + n.offsetHeight - sc.getBoundingClientRect().bottom;
-    if (over > 0) sc.scrollTo({ top: sc.scrollTop + over + 8, behavior: "smooth" });
-  }, [node]);
   const rows = k.order.map((c, i) => {
     const x = u.cells[c];
     if (i === k.ci) return <St d={<D cls="sub now" />} cls="sb now"><span class="lab">{CASE[c]}</span><p class="qq">{caseQ(c, p)}</p>
@@ -127,7 +124,6 @@ export function ExamplesStep({ kb, title, step, rel, full, check, scan }: { kb: 
     <Scroll dim={!!u.pstrip}>
       <Sx cls={"cur first eh nx" + kinds[0]}><div class="ksp" style={{ height: "16px" }} /><Head d={<D cls="sec now" />} h={step + " Examples"} sub={k.order.length === 1 ? "one case" : "one for each case"} /></Sx>
       {lined}
-      {node ? <Sx cls="cnode"><Station kind="chk" name="Check" hint={checkHint} act={takeCheck} scan={scan} keep /></Sx> : null}
       <Sx cls="ptail xtail" />
     </Scroll>
     <VoiceBar />

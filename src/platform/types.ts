@@ -185,6 +185,8 @@ export interface Updates {
   check(maxAgeMs?: number): Promise<void>;
   /** Starts the version that is ready: the app reloads. Does nothing unless the status is "ready". */
   apply(): void;
+  /** The notice's sentence for a version that is ready: which one, and what updating does ("New version ready (0.17.0). Updating reloads the app; your answers stay."). */
+  readyText?(): string;
   /** Calls `fn` whenever the status changes; returns the way to stop. */
   subscribe(fn: () => void): () => void;
 }

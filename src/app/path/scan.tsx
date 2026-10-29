@@ -19,7 +19,7 @@ import { state } from "../state.js";
 import { dropHold, holdOf, wait } from "./foot.ts";
 import { bump } from "./gesture.ts";
 import { clearPush, foldBefore, keepOf } from "./push.ts";
-import { openPage } from "./relayout.ts";
+import { OPEN, OPEN_AT, STILL, WAIT, openPage } from "./relayout.ts";
 import { Mark } from "./ui.tsx";
 
 export type Verdict3 = "ok" | "no" | "pt";
@@ -35,13 +35,16 @@ export interface ScanPlan {
   stop?: string;
   /** the rows the cases are marked on, in the page's order (default: the rows of the step, `.sx.cur .sb`); Pervasions': the four answered questions, then the relation picked */
   rows?: string;
+  /** the room the result's node takes at `stop`, measured on the page `pc`: the stop opens to `h` px as the slide starts and its diamond stands `at` px under its top, so the scanner
+   *  slides straight to where the result's node will be, with no settling back (Categories', where nothing folds) */
+  room?: (pc: HTMLElement) => { h: number; at: number } | null;
 }
 
 const EASE = { out: (u: number) => 1 - (1 - u) ** 3, io: (u: number) => (u < 0.5 ? 4 * u ** 3 : 1 - (-2 * u + 2) ** 3 / 2) };
 /** the morph of the Check into the scanner, the settle back from the strip, the scanner becoming the result's node (ms) */
 const MORPH = 200, SETTLE = 240, BECOME = 360;
-/** the page opening under the keyboard's layout (it starts a moment after the Enter and takes this long), the beat before the slide, and the longest the foot is waited for to be still (the keyboard going takes the screen's height with it) */
-const OPEN = 380, OPEN_AT = 40, BEAT = 60, STILL = 80, WAIT = 700;
+/** the beat before the slide, once the page has opened under the keyboard's layout (relayout.ts has how it opens) */
+const BEAT = 60;
 /** the morph: how long what the two pages share takes to move, and the scanner to glide (ms; the glide without it is shorter) */
 const MOVE = { duration: 380, easing: "cubic-bezier(.2,.8,.3,1)" }, GLIDE = 240;
 /** the parts of the pair that the strip and the result both show: where they stand in the strip, where in the result, and what their size is measured by (font size, or the figure's width) */
@@ -106,7 +109,7 @@ export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, ac
   };
   const set = (n: string, v: number) => scn.style.setProperty(n, v.toFixed(4));
   const flash = (v: Verdict3) => { scn.classList.remove("f-ok", "f-no", "f-pt"); void scn.offsetWidth; scn.classList.add("f-" + v); };
-  const nameOf = (r: HTMLElement) => { const l = r.querySelector(".lab"); return l ? (l.textContent || "").trim() : ""; };
+  const nameOf = (r: HTMLElement) => { const k = r.dataset.mk || r.dataset.k; if (k) return "k:" + k; const l = r.querySelector(".lab"); return l ? (l.textContent || "").trim() : ""; };      // a choice by its key (Categories' rows: `data-k` on the page checked, `data-mk` on the result's), a case by its name
   const marked = new Set<number>();
   const markRow = (i: number) => {
     const r = rows[i], v = plan.cases[i]; if (!r || !v) return;
@@ -129,7 +132,12 @@ export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, ac
 
   const gone = stopD && stopD.parentElement ? stopD.parentElement : head;      // what the scanner covers as it arrives: the heading, or the reply's row
   let raf = 0, done = false, headDone = false, hold: ReturnType<typeof holdOf> | null = null;
-  const cover = () => { if (!headDone) { headDone = true; gone.classList.add("scn-gone"); } };
+  const cover = () => {
+    if (headDone) return; headDone = true;
+    const r = stopD && plan.room ? plan.room(pc) : null;
+    if (r && stopD) { gone.style.height = r.h.toFixed(1) + "px"; stopD.style.top = r.at.toFixed(1) + "px"; }
+    gone.classList.add("scn-gone");
+  };
   const t0 = performance.now();
   let yTop = 0, d = 0, tSlide = 0, tSettle = 0, tBecome = 0, relDone = false;
   // the slide starts once the Check is the scanner (and, when the page opens first, once the scanner is at the foot and the foot is still)
@@ -147,7 +155,7 @@ export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, ac
       place(); raf = requestAnimationFrame(frame); return;
     }
     if (t < slideAt) { place(); raf = requestAnimationFrame(frame); return; }
-    if (!d) { yTop = strip(); d = Math.max(1, y0 - yTop); tSlide = slideMs(d); tSettle = slideAt + tSlide; tBecome = tSettle + SETTLE; hold = holdOf(root, main, fst && fst.isConnected ? fst : stn); hold.born(); wait(main); if (keep) foldBefore(keep, pc); }      // the foot's station is away: its placeholder is there
+    if (!d) { if (plan.room) cover(); yTop = strip(); d = Math.max(1, y0 - yTop); tSlide = slideMs(d); tSettle = slideAt + tSlide; tBecome = tSettle + SETTLE; hold = holdOf(root, main, fst && fst.isConnected ? fst : stn); hold.born(); wait(main); if (keep) foldBefore(keep, pc); }      // the foot's station is away: its placeholder is there
     if (t < tSettle) {
       const u = EASE.io((t - slideAt) / tSlide);
       if (s0) sc.scrollTop = s0 * (1 - u);       // a page scrolled down comes back to its top, under the scanner
@@ -171,6 +179,7 @@ export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, ac
   const shared = (): Map<string, number> => {
     const m = new Map<string, number>(), pn = pnEl();
     for (const r of rows) { const k = nameOf(r); if (k) m.set(k, r.getBoundingClientRect().top); }
+    for (const e of Array.from(pc.querySelectorAll<HTMLElement>("[data-mv]"))) m.set("mv:" + e.dataset.mv, e.getBoundingClientRect().top);      // what the two pages draw alike besides the rows (the threshold's rule and its words)
     if (pn) m.set("", pn.getBoundingClientRect().top);
     return m;
   };
@@ -209,7 +218,8 @@ export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, ac
       const d = from - e.getBoundingClientRect().top; if (Math.abs(d) > 1) slide(e, { translate: `0 ${d.toFixed(1)}px` });
       return true;
     };
-    for (const r of Array.from(now.querySelectorAll<HTMLElement>(".sb"))) { const k = nameOf(r); if (k && flip(r, was.get(k))) { const sx = r.closest(".sx"); if (sx) sx.classList.add("morphed"); } else r.classList.add("mnew"); }
+    for (const r of Array.from(now.querySelectorAll<HTMLElement>(".sb:not([data-mk] .sb), [data-mk]"))) { const k = nameOf(r); if (k && flip(r, was.get(k))) { const sx = r.closest(".sx"); if (sx) sx.classList.add("morphed"); } else r.classList.add("mnew"); }
+    for (const e of Array.from(now.querySelectorAll<HTMLElement>("[data-mv]"))) if (flip(e, was.get("mv:" + e.dataset.mv))) { const sx = e.closest(".sx"); if (sx) sx.classList.add("morphed"); }
     const pn = now.querySelector<HTMLElement>(".pn.res"); if (!pn) return;
     // a part of the pair: from where it stood, as big as it was (the text and the figure are the result's own, scaled down to what they were)
     const move = (e: HTMLElement | null, was: Stood | undefined, by: "font" | "width" | null) => {

@@ -3,6 +3,7 @@
 // into the result's instead of being swapped for it (a syllogism's Result takes that scan too, over its reply and counter-example), and what is at the foot while the station is away (a placeholder for the next station, foot.ts).
 // The squeeze and the scan are path-take.spec.js and path-scan.spec.js.
 import { test, expect } from "../../support/test.js";
+import { exerciseAtRest } from "../../support/page.js";
 
 test.use({ reducedMotion: "no-preference" });
 
@@ -10,6 +11,8 @@ const onPath = () => {
   if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path");
   window.__riglamTest = (t) => { window.__t = t; };
   window.__vib = []; navigator.vibrate = (v) => { window.__vib.push(v); return true; };
+  // the page tells a finger from a mouse (state.hand: its knocks are for a finger); Playwright's mouse is made to read as a finger here, `window.__pointer = "mouse"` as a mouse again
+  Object.defineProperty(PointerEvent.prototype, "pointerType", { get: () => window.__pointer || "touch", configurable: true });
 };
 const choices = (page) => page.locator("#path .chs .crow");
 const main = (page) => page.locator("#path .main");
@@ -149,6 +152,7 @@ test("ride: push, a syllogism's Result folds the heading above the statement and
   await page.locator(".tstn").click();
   await page.getByRole("dialog", { name: "Roadmap" }).getByRole("button", { name: /^Syllogisms/ }).click();
   await expect(page.locator(".ptb-t")).toContainText("Syllogisms");
+  await exerciseAtRest(page);
   expect(await page.evaluate(() => { for (let i = 0; i < 600; i++) { if (window.__t.cur.c.answer === "pervasion") return true; window.__t.next(); } return false; })).toBe(true);
   await choices(page).filter({ hasText: "There is no pervasion" }).first().click();
   await expect(page.locator("#sylex")).toBeVisible();
@@ -306,6 +310,7 @@ async function toCounter(page, text = "") {
   await page.locator(".tstn").click();
   await page.getByRole("dialog", { name: "Roadmap" }).getByRole("button", { name: /^Syllogisms/ }).click();
   await expect(page.locator(".ptb-t")).toContainText("Syllogisms");
+  await exerciseAtRest(page);
   expect(await page.evaluate(() => { for (let i = 0; i < 600; i++) { if (window.__t.cur.c.answer === "pervasion") return true; window.__t.next(); } return false; })).toBe(true);
   await choices(page).filter({ hasText: "There is no pervasion" }).first().click();
   await expect(page.locator("#sylex")).toBeVisible();
@@ -407,5 +412,5 @@ test("stations say what they are by their look: Examples is gold and medium, Che
   await expect(main(page)).not.toHaveClass(/\b(tk-in|pk-run|sc-in|sc-run|fw-wait)\b/);
   const next = await facts(page, "#stn");
   expect(next.cls, "the next exercise's station has no kind").not.toContain("stk");
-  expect(next, "Next pair: big and blue").toMatchObject({ size: 28, bg: blue, label: blue, font: "21px" });
+  await expect.poll(() => facts(page, "#stn"), { message: "Next pair: big and blue (its colors are a transition that may still be running)" }).toMatchObject({ size: 28, bg: blue, label: blue, font: "21px" });
 });

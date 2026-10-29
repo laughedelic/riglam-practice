@@ -7,7 +7,7 @@ import { EXERCISES, parked, todayCount } from "./exercises.js";
 import { toggleOpts } from "./options.js";
 import { enter, leave } from "./motion.js";
 import { render } from "./render.js";
-import { setTab } from "./tabs.js";
+import { setTab, switchTo } from "./tabs.js";
 import { pathOn } from "../path/index.tsx";
 
 /* ---------- the menu ---------- */
@@ -115,6 +115,15 @@ export function toggleMenu(on){
   render();
   if(state.menuOpen&&!was){ const b=document.querySelector("#menu .mrow[aria-current], #menu .mrow, #menu .mclose"); if(b) /** @type {HTMLElement} */(b).focus({preventScroll:true}); }
   else if(!state.menuOpen&&was) $("menubtn").focus({preventScroll:true});
+}
+/** The Path's way back to the roadmap (the top bar's chevron, and Back from Review opened from the roadmap): what is open over the exercise closes on the way (the
+ *  practice options, Settings, Review), and the exercise waits under the roadmap as it was. */
+export function toRoad(){
+  state.fromRoad=false;
+  if(state.sessOpen){ state.sessOpen=false; state.sessPage=null; state.resetAsk=""; }
+  state.optsOpen=false;
+  if(state.tab==="review") switchTo(state.own);
+  toggleMenu(true);
 }
 export function closeMenu(){
   if(isWide()){ state.menuPin=false; state.menuPeek=false; store("rd-menu","0"); render(); $("menubtn").focus({preventScroll:true}); }

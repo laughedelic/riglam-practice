@@ -2,7 +2,7 @@
 // from the top bar, the practice options as a sheet, Settings with the switch back to the classic page, and the question before a skip.
 // The other exercises on the Path are in path-exercises.spec.js; what they do is their own specs'.
 import { test, expect } from "../../support/test.js";
-import { isPhone, openSettings, overflow } from "../../support/page.js";
+import { exerciseAtRest, isPhone, openSettings, overflow } from "../../support/page.js";
 import { withCourse } from "../../support/data-key.js";
 
 const onPath = () => { if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path"); };
@@ -98,7 +98,7 @@ test("a touch outside the unfolded strip folds it again", async ({ page }) => {
   await expect(strip).toHaveClass(/\bopen\b/);   // and the knob still opens it
 });
 
-test("with the keyboard up there is no bar above it: Enter goes on, the Check comes up on the page once the last example has words, and Enter there takes it", async ({ page }, testInfo) => {
+test("with the keyboard up there is no bar above it: Enter goes on, the line runs solid once the last example has words, and Enter there opens the page and takes the Check from the foot", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "pwa-phone", "a touch screen's keyboard");
   await start(page);
   await choices(page).nth(3).click();
@@ -112,35 +112,31 @@ test("with the keyboard up there is no bar above it: Enter goes on, the Check co
     await page.locator("#cin").fill(t);
     await page.locator("#cin").press("Enter");
   }
-  const node = page.locator("#path .pscroll .cnode #stn");
-  await expect(node).toHaveCount(0);   // the last case is still empty
+  await expect(page.locator(".pa")).not.toHaveClass(/\bready\b/);   // the last case is still empty
   await page.locator("#cin").fill("a");
-  await expect(node).toHaveAccessibleName(/^Check: your relation and 4 examples/);   // a word in the last field: the Check is the next stop, on the page
-  await expect(page.locator(".pa")).toHaveClass(/\bready\b/);
+  await expect(page.locator(".pa")).toHaveClass(/\bready\b/);   // a word in the last field: the line ahead is solid, down to where the foot will be
+  await expect(page.locator("#path #stn")).toHaveCount(0);   // and no station stands on the page meanwhile
   await expect(page.locator("#cin")).toBeFocused();
   await page.locator("#cin").fill("");
-  await expect(node).toHaveCount(0);   // emptied again: it goes
+  await expect(page.locator(".pa")).not.toHaveClass(/\bready\b/);   // emptied again
   await page.locator("#cin").fill("a stone");
-  await expect(node).toBeVisible();
-  await page.locator("#cin").press("Enter");   // the last one: the keyboard goes and the Check is taken
+  await page.locator("#cin").press("Enter");   // the last one: the keyboard goes, the page opens with the Check at its foot, and the Check is taken there
   await expect(page.locator(".pvline")).toBeVisible();
   await expect(page.locator(".pa")).not.toHaveClass(/\bkbup\b/);
   await expect(page.locator("#path .foot #stn")).toHaveAccessibleName(/Next pair/);
 });
 
-test("with the keyboard up a tap on the Check under the last example takes it, and the field keeps the focus until then", async ({ page }, testInfo) => {
+test("with the keyboard up, letting the last field go shows the Check at the foot, and a tap takes it", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "pwa-phone", "a touch screen's keyboard");
   await start(page);
   await choices(page).first().click();   // Mutually inclusive: two cases
   const field = page.locator("#cin");
   await expect(field).toBeVisible();
   for (let i = 0; i < 4 && (await field.isVisible()); i++) { await field.fill("thing " + (i + 1)); if ((await field.getAttribute("enterkeyhint")) === "done") break; await field.press("Enter"); }
-  await field.focus();
-  const node = page.locator("#path .pscroll .cnode #stn");
-  await expect(node).toBeVisible();
-  const box = await node.boundingBox(), sc = await page.locator("#path .pscroll").boundingBox();
-  expect(box.y + box.height, "the Check is in view above the keyboard").toBeLessThanOrEqual(sc.y + sc.height + 1);
-  await node.tap();
+  await field.blur();
+  const stn = page.locator("#path .foot #stn");
+  await expect(stn).toHaveAccessibleName(/^Check: your relation and 2 examples/);
+  await stn.tap();
   await expect(page.locator(".pvline")).toBeVisible();
   await expect(page.locator("#cin")).toHaveCount(0);
 });
@@ -320,17 +316,12 @@ test("under Blitz each countdown has a bar of its own on the top bar, so that it
   await expect(page.locator("#path .pclock[data-old]")).toHaveCount(0);
 });
 
-test("the roadmap slides in from the left on the back chevron and goes to another exercise", async ({ page }) => {
+test("the back chevron shows the roadmap under the exercise, and a stop on it goes to that exercise", async ({ page }) => {
   await start(page);
-  const box = () => page.locator("#path .road").boundingBox();
-  const closed = await box();
   await page.locator(".tstn").click();
   const road = page.getByRole("dialog", { name: "Roadmap" });
   await expect(road).toBeVisible();
-  await expect.poll(async () => (await box()).x, "it comes to rest").toBeGreaterThan(closed.x + closed.width - 1);
-  const open = await box();
-  expect(closed.x + closed.width, "it came in from the left: closed, it waited beside its place").toBeLessThanOrEqual(open.x + 0.5);
-  expect(closed.y, "level with its place, not above it").toBeCloseTo(open.y, 0);
+  await expect.poll(() => page.locator("#path .road").evaluate((n) => Math.round(n.getBoundingClientRect().x - n.parentElement.getBoundingClientRect().x - n.parentElement.clientLeft)), "it comes to rest in its place").toBe(0);
   await expect(road.locator("[aria-current=page]")).toHaveAccessibleName(/Relations, here/);
   await road.getByRole("button", { name: /^Pervasions/ }).click();
   await expect(road).toBeHidden();
@@ -341,7 +332,7 @@ test("the roadmap slides in from the left on the back chevron and goes to anothe
   await expect(choices(page)).toHaveCount(5);
 });
 
-test("the roadmap has the stops and their names only: no branch labels, and the planned Debate is tied to Pervasions and Syllogisms", async ({ page }) => {
+test("the roadmap has the stops and their names only: no branch labels, and the planned Debate is tied to the three branches", async ({ page }) => {
   await start(page);
   await choices(page).nth(2).click();   // an attempt in Relations, so that it says "continue" once we are elsewhere
   await expect(page.locator("#cin")).toBeVisible();
@@ -352,19 +343,19 @@ test("the roadmap has the stops and their names only: no branch labels, and the 
   await page.locator(".tstn").click();
   const tree = road.locator("svg.tree");
   await expect(tree).toBeVisible();
-  expect((await tree.locator("text").allTextContents()).sort()).toEqual(["Categories", "Debate", "Find a pair", "Find an instance", "Pervasions", "Relations", "Syllogisms", "coming", "continue", "riglam"]);
+  expect((await tree.locator("text").allTextContents()).sort()).toEqual(["Categories", "Debate", "Find a pair", "Find an instance", "Pervasions", "RIGLAM", "Relations", "Syllogisms", "coming", "continue", "practice"]);
   const geo = await tree.evaluate((svg) => {
     const pt = (p, at) => { const q = p.getPointAtLength(at); return [Math.round(q.x), Math.round(q.y)]; };
-    const dashed = [...svg.querySelectorAll("path.lnp")].map((p) => [pt(p, 0), pt(p, p.getTotalLength())]);
+    const dashed = [...svg.querySelectorAll("path.lnp:not(.fade)")].map((p) => [pt(p, 0), pt(p, p.getTotalLength())]);
     const debate = svg.querySelector("polygon.nd.plan").getBBox();
     const cont = svg.querySelector("text.cont").getBBox();
     let onLine = 0;
     for (const p of svg.querySelectorAll("path.ln,path.lnp")) for (let at = 0; at < p.getTotalLength(); at += 1) { const q = p.getPointAtLength(at); if (q.x > cont.x - 3 && q.x < cont.x + cont.width + 3 && q.y > cont.y - 3 && q.y < cont.y + cont.height + 3) onLine++; }
     return { dashed, top: [Math.round(debate.x + debate.width / 2), Math.round(debate.y)], onLine };
   });
-  expect(geo.dashed).toHaveLength(2);
-  for (const [, end] of geo.dashed) expect(end, "both ties end at the top of Debate").toEqual(geo.top);
-  expect(geo.dashed.map(([start]) => start[0]).sort((a, b) => a - b), "from Pervasions' column and Syllogisms'").toEqual([74, 196]);
+  expect(geo.dashed).toHaveLength(3);
+  for (const [, end] of geo.dashed) expect(end, "all the ties end at the top of Debate").toEqual(geo.top);
+  expect(geo.dashed.map(([start]) => start[0]).sort((a, b) => a - b), "from the columns of Pervasions, Syllogisms and Find an instance").toEqual([74, 195, 316]);
   expect(geo.onLine, "no line runs through the word under a stop").toBe(0);
 });
 
@@ -373,6 +364,7 @@ test("a row of the practice options with a page has a chevron at its right edge,
   await start(page);
   await page.locator(".tstn").click();
   await page.getByRole("dialog", { name: "Roadmap" }).getByRole("button", { name: /^Pervasions/ }).click();
+  await exerciseAtRest(page);
   await page.getByRole("button", { name: "Practice options" }).click();
   const sheet = page.getByRole("dialog", { name: "Practice options" }), body = sheet.locator(".sbody");
   await expect(sheet.locator(".porow .more")).not.toHaveCount(0);
@@ -515,7 +507,9 @@ test("a case ahead is taken up with a tap, in any order: the field keeps the foc
   await field.press("Enter");   // empty: stays
   expect(await label()).toBe(third);
   await field.fill("three");
-  await expect(page.locator("#stn")).toHaveAccessibleName(/^Check/);   // the last one has words: Check is next (Enter would take it)
+  // the last one has words: Check is next (Enter would take it); under a touch screen's keyboard no station stands there, the line runs solid instead
+  if (await page.locator(".pa").evaluate((e) => e.classList.contains("kbup"))) await expect(page.locator(".pa")).toHaveClass(/\bready\b/);
+  else await expect(page.locator("#stn")).toHaveAccessibleName(/^Check/);
 });
 
 test("the fields ask for no autofill bar: a search field on a touch screen (Chrome keeps its bar off those), a text field elsewhere", async ({ page }, testInfo) => {

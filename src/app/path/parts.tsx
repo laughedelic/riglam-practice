@@ -13,8 +13,7 @@ import { skipAsks, skipNow, skipPair } from "../practice/skips.js";
 import { explainParts, factParts, noteData } from "../practice/screen.js";
 import { GUIDES } from "../practice/guided.ts";
 import { acceptStageOffer, declineStageOffer } from "../practice/stage-offer.ts";
-import { termTags } from "../practice/stops.ts";
-import { lineageOf, pairAsked } from "../practice/terms.js";
+import { lineageOf } from "../practice/terms.js";
 import { catByLabel } from "../practice/universe.js";
 import { openChat } from "../shell/chat.js";
 import { render } from "../shell/render.js";
@@ -69,17 +68,12 @@ export function SkipMark() {
 }
 /** The classes of a stop that carries the favorites mark and Skip under it. */
 export const marksCls = (star = true) => (star && starTarget() ? " hasstar" : "") + (skipHere() ? " hasskip" : "");
-/**
- * The two terms of the pair as the first stops: A and B in the margin, the star beside A; `sm` smaller, once they are not the question. With `tags`, a
- * term whose course term the learner is still meeting has it in a small tag under it, which opens its definition under the pair (practice/stops.ts, termTags).
- */
-export function PairStops({ p, sm = false, tags = false }: { p: Pair; sm?: boolean; tags?: boolean }) {
-  const c = sm ? " sm" : "", tg = tags ? termTags(pairAsked(p)) : [];
-  const tag = (side: string) => { const t = tg.find((x) => x.side === side); return t ? <span class="ntag"><OneTerm txt={t.term.toLowerCase()} term={t.term} where={"ntag/" + side} /></span> : null; };
+/** The two terms of the pair as the first stops: A and B in the margin, the star beside A; `sm` smaller, once they are not the question. */
+export function PairStops({ p, sm = false }: { p: Pair; sm?: boolean }) {
+  const c = sm ? " sm" : "";
   return <>
-    <St d={<span class="ab">A</span>} cls={"pairst" + c + marksCls()}><Star /><SkipMark /><span class={"tn" + (p.a.length > 24 ? " long" : "")}>{p.a}</span>{tag("A")}</St>
-    <St d={<span class="ab">B</span>} cls={"pairst" + c}><span class={"tn" + (p.b.length > 24 ? " long" : "")}>{p.b}</span>{tag("B")}</St>
-    {tg.length ? <div class="wtext ntdef"><DefCard where="ntag" /></div> : null}
+    <St d={<span class="ab">A</span>} cls={"pairst" + c + marksCls()}><Star /><SkipMark /><span class={"tn" + (p.a.length > 24 ? " long" : "")}>{p.a}</span></St>
+    <St d={<span class="ab">B</span>} cls={"pairst" + c}><span class={"tn" + (p.b.length > 24 ? " long" : "")}>{p.b}</span></St>
   </>;
 }
 /** The pair with a relation as its node on the path: A on the upper line, B on the lower, like the figure's two diamonds, and the relation
@@ -119,17 +113,17 @@ export const isa = (s: string) => String(s).split("\uE000").flatMap((x, i) => (i
 export interface Choice { k: string; b: ComponentChildren; s?: ComponentChildren; fig?: string; sym?: string; key?: string; pressed?: boolean; label?: string }
 /**
  * The choices where the path breaks into a dotted gap: each a row with its mark on the line (a figure, or a small diamond). A tap answers at
- * once; `picked` is the one being taken (it stays lit while the others fade). `multi` rows are pressed and unpressed instead. With `slide` (and
+ * once; `picked` is the one being taken (it stays lit while the others fade); several are chosen with the Threshold (threshold.tsx). With `slide` (and
  * the "slide" look) the marks stand beside the path and the one taken slides onto it, by a tap or a finger (choose.ts); `row` puts two short
  * options on one row.
  */
-export function Choices({ label, items, picked = null, onPick, multi = false, slide = false, row = false }: { label: string; items: Choice[]; picked?: string | null; onPick: (k: string) => void; multi?: boolean; slide?: boolean; row?: boolean }) {
-  const beside = slide && !multi && currentLook().take === "slide", two = beside && row, answered = multi && items.some((it) => it.pressed);      // ticked: the way on is open, the line along the options turns solid
+export function Choices({ label, items, picked = null, onPick, slide = false, row = false }: { label: string; items: Choice[]; picked?: string | null; onPick: (k: string) => void; slide?: boolean; row?: boolean }) {
+  const beside = slide && currentLook().take === "slide", two = beside && row;
   const ref = useRef<HTMLDivElement>(null), last = useRef(onPick); last.current = onPick;
   useEffect(() => (beside && ref.current ? bindSlide(ref.current, (k) => last.current(k)) : undefined), [beside]);
-  return <Sx cls={answered ? "cur" : "gap"}><span class="gapq" aria-hidden="true">?</span>
+  return <Sx cls="gap"><span class="gapq" aria-hidden="true">?</span>
     {beside ? <><i class="thr2" /><i class="thr" /></> : null}
-    <div ref={ref} class={"chs" + (picked ? " fading" : "") + (multi ? " multi" : "") + (beside ? " slide" : "") + (two ? " row2" : "")} role="group" aria-label={label}>{items.map((it) =>
+    <div ref={ref} class={"chs" + (picked ? " fading" : "") + (beside ? " slide" : "") + (two ? " row2" : "")} role="group" aria-label={label}>{items.map((it) =>
       <button type="button" data-k={it.k} class={"crow" + (picked === it.k ? " picked" : "") + (it.pressed ? " on" : "")} aria-pressed={it.pressed ? "true" : "false"} aria-keyshortcuts={it.key}
         aria-label={it.label || (two && typeof it.b === "string" && typeof it.s === "string" ? it.b + ": " + it.s : undefined)} onClick={() => onPick(it.k)}>
         <span class="mc">{it.fig ? <Fig k={it.fig} /> : <D cls={"sub pk" + (it.pressed ? " yours" : "")} />}</span>

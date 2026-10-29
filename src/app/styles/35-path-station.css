@@ -159,14 +159,6 @@
 .pa.kbup .sb.later{padding:5px 0}
 .pa.kbup .sb.later > .d{margin-top:4px}
 .pa.kbup .sb.later .qq{display:none}
-/* the last example has words and the keyboard is up (there is no foot): the Check is the next stop and slides up on the page, a medium node at the end of a line that is solid now (gold, down to it); Enter takes it */
-.pa .sx.cnode{--w:var(--lh); padding:8px 0; animation:p-cnin .42s cubic-bezier(.2,.9,.3,1) both}
-.pa .sx.cnode::before{background:var(--gold); opacity:1; bottom:calc(50% + var(--lift,0px))}
-.pa .sx.cnode .stn{--st:21px}
-.pa .sx.cnode .gol b{font-size:19px}
-.pa .sx.cnode + .sx.ptail{visibility:hidden}
-@keyframes p-cnin{from{transform:translateY(54px); opacity:0}}
-@media (prefers-reduced-motion:reduce){ .pa .sx.cnode{animation:none} }
 .pa.kbup .sb.now{padding-top:8px}
 .pa.kbup.ph-small .sb.later,.pa.kbup.ph-small button.sbb.later{display:none}
 .pa.kbup.ph-small .khead{padding:8px 0}

@@ -1,7 +1,7 @@
 import { state } from "../state.js";
 import { ORDER } from "../core/rel.js";
 import { isWide } from "../core/viewport.js";
-import { checkCategories, continueCategories, pickCategory, sayCategory, tickCategory, tickNone } from "../categories/flow.js";
+import { checkCategories, continueCategories, pickCategory, resetCategories, sayCategory, tickCategory, tickNone } from "../categories/flow.js";
 import { checkInstance } from "../instance/flow.ts";
 import { backSyllogism, replyOfKey, saySyllogism } from "../syllogism/flow.js";
 import { checkDebate, chooseD, sayQ } from "../debate/flow.js";
@@ -17,7 +17,7 @@ import { isEx, render } from "./render.js";
 import { sessBack } from "./session.js";
 import { voiceKey } from "./voice.js";
 // a category that can be ticked: the classic page's, or a row of the choices the Path ticks (path/categories.tsx)
-const ticks=b=>b.classList.contains("catick")||!!b.closest("#path .chs.multi");
+const ticks=b=>b.classList.contains("catick")||!!b.closest("#path .thold");
 
 // a tap outside a note closes it, and a tap outside a term's definition closes that (a tap on a term stops before this)
 document.addEventListener("click",e=>{
@@ -47,8 +47,8 @@ document.addEventListener("keydown",e=>{
     else if(k==="s"){ e.preventDefault(); skipPair(); }
     else if(u.step===0&&u.ask==="all"){
       if(/^[1-9]$/.test(k)&&q.rows[+k-1]){ e.preventDefault(); tickCategory(q.rows[+k-1].cat); }
-      else if(k==="0"){ e.preventDefault(); tickNone(); }
-      else if(k==="enter"&&(t!=="BUTTON"||(ticks(/** @type {Element} */(e.target))&&/** @type {Element} */(e.target).getAttribute("aria-pressed")==="true"))){ e.preventDefault(); checkCategories(); }   // a ticked button keeps the focus, and Enter there checks; on a button not ticked yet Enter ticks it, as on any button
+      else if(k==="0"){ e.preventDefault(); if(state.design==="path") resetCategories(); else tickNone(); }   // the Path has no "None of these": 0 drops all back under the rule
+      else if(k==="enter"&&(t!=="BUTTON"||(ticks(/** @type {Element} */(e.target))&&/** @type {Element} */(e.target).getAttribute("aria-pressed")==="true"))){ e.preventDefault(); checkCategories(state.design==="path"); }   // a ticked button keeps the focus, and Enter there checks; on a button not ticked yet Enter ticks it, as on any button
     } else if(u.step===0){ if(k==="y"){ e.preventDefault(); sayCategory(true); } else if(k==="n"){ e.preventDefault(); sayCategory(false); } }
     else if(u.step===1){ if(k==="enter"&&t!=="BUTTON"){ e.preventDefault(); continueCategories(); } }
     else if(u.step===2&&/^[1-9]$/.test(k)&&u.narrow.options[+k-1]){ e.preventDefault(); pickCategory(u.narrow.options[+k-1].cat); }
