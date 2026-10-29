@@ -184,3 +184,29 @@ test("a start on an exercise before anything has touched the page keeps a close 
   await expect.poll(() => level(page)).toBe(0);
   await expect.poll(() => page.evaluate(() => !!window.__t.navGuard), "nothing left to close: the next Back leaves the app").toBe(false);
 });
+
+test("in the installed app Back on the roadmap first says \"Back again to close\", and only a second Back while it says so leaves; in a browser tab it leaves at once", async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(navigator, "standalone", { get: () => true }));
+  await start(page);
+  await page.locator(".tstn").click();
+  await expect(road(page)).toBeVisible();
+  const armed = () => page.evaluate(() => !!window.__t.navGuard);
+  await expect.poll(armed, "a close watcher waits on the roadmap").toBe(true);
+  await page.evaluate(() => window.__t.navGuard.requestClose());
+  await expect(road(page).getByRole("status").filter({ hasText: "Back again to close" })).toBeVisible();
+  expect(await armed(), "while it says so, nothing holds the next Back").toBe(false);
+  expect(await level(page)).toBe(0);
+  await expect(road(page).getByText("Back again to close")).toBeHidden({ timeout: 5000 });
+  await expect.poll(armed, "then the watcher waits again").toBe(true);
+  // an exercise opened from the roadmap has the roadmap's entry under it, so the watcher gives way to the history
+  await road(page).getByRole("button", { name: "Continue" }).click();
+  await expect.poll(armed).toBe(false);
+});
+
+test("in a browser tab Back on the roadmap leaves with no question", async ({ page }) => {
+  await start(page);
+  await page.locator(".tstn").click();
+  await expect(road(page)).toBeVisible();
+  await expect.poll(() => level(page)).toBe(0);
+  expect(await page.evaluate(() => !!window.__t.navGuard)).toBe(false);
+});
