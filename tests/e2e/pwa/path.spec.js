@@ -359,7 +359,7 @@ test("the roadmap has the stops and their names only: no branch labels, and the 
   expect(geo.onLine, "no line runs through the word under a stop").toBe(0);
 });
 
-test("a row of the practice options with a page has a chevron at its right edge, as tall as the row; the sheet fades where there is more to scroll to", async ({ page }) => {
+test("a line of the practice options with a page is the way in, all of it, with a chevron at its right edge; the sheet fades where there is more to scroll to", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 640 });
   await start(page);
   await page.locator(".tstn").click();
@@ -367,13 +367,12 @@ test("a row of the practice options with a page has a chevron at its right edge,
   await exerciseAtRest(page);
   await page.getByRole("button", { name: "Practice options" }).click();
   const sheet = page.getByRole("dialog", { name: "Practice options" }), body = sheet.locator(".sbody");
-  await expect(sheet.locator(".porow .more")).not.toHaveCount(0);
-  for (const row of await sheet.locator(".porow.pgo").all()) {
-    const [r, m] = [await row.boundingBox(), await row.locator(".more").boundingBox()];
-    expect(m.width, "easy to tap").toBeGreaterThanOrEqual(44);
-    expect(Math.abs(m.x + m.width - (r.x + r.width)), "at the row's right edge").toBeLessThan(1);
-    expect(Math.abs(m.height - r.height), "as tall as the row").toBeLessThan(1.5);
-    expect(await row.locator(".more").textContent(), "no word of its own").toBe("");
+  await expect(sheet.locator(".ol.olgo")).not.toHaveCount(0);
+  for (const row of await sheet.locator(".ol.olgo").all()) {
+    const [r, hit, chev] = [await row.boundingBox(), await row.locator(".olhit").boundingBox(), await row.locator(".olchev").boundingBox()];
+    expect(Math.abs(hit.width - r.width) + Math.abs(hit.height - r.height), "the whole line is the way in").toBeLessThan(1.5);
+    expect(r.x + r.width - (chev.x + chev.width), "the chevron at the line's right edge").toBeLessThan(12);
+    expect(await row.locator(".olhit").textContent(), "no word of its own").toBe("");
   }
   const edge = () => body.evaluate((e) => ({ fade: e.hasAttribute("data-fade"), top: e.style.getPropertyValue("--ft"), bottom: e.style.getPropertyValue("--fb") }));
   expect(await edge(), "more below").toEqual({ fade: true, top: "0px", bottom: "44px" });
@@ -393,17 +392,18 @@ test("the practice options are a sheet from the top bar, and a choice there is k
   await expect(sheet.locator("h2")).toHaveCount(0);
   await expect(page.locator(".ptb .pib")).toHaveCount(1);                 // the other tools give way
   await expect(page.locator(".main > :not(.ptb)").first()).toHaveAttribute("inert", "");   // the page behind is inert, the bar is not
+  await sheet.getByRole("button", { name: "Wording and notation: more" }).click();
+  await expect(page.locator(".ptb-t")).toHaveText("Wording and notation");   // a page of the options: its name
   await sheet.getByRole("group", { name: "Notation" }).getByRole("button", { name: "Sets" }).click();
   expect(await page.evaluate(() => localStorage.getItem("rd-notation"))).toBe("sets");
   await expect(choices(page).first().locator(".rsym")).not.toBeEmpty();   // the relation's sign in the notation picked
-  await sheet.getByRole("button", { name: /^Notation: more$/ }).click();
-  await expect(page.locator(".ptb-t")).toHaveText("Notation");           // a page of the options: its name
   await page.getByRole("button", { name: "Close the practice options" }).click();
   await expect(sheet).toBeHidden();
   await expect(page.locator(".ptb-t")).toHaveText("Relations");
 });
 
 test("Settings switches to the classic page and back, and the device keeps the choice", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("rd-exp", "1"));   // the switch is under Experiments, shown on this device
   await start(page);
   await page.locator(".tstn").click();
   await page.locator(".road .rfoot").getByRole("button", { name: "Settings" }).click();
@@ -616,18 +616,18 @@ test("the pair's two terms stand out in the text as the look says, and the A/B m
   expect(await mark(a)).toMatchObject({ italic: "italic", label: '"A"', up: "baseline" });
   expect(await mark(b)).toMatchObject({ italic: "italic", label: '"B"', up: "baseline" });   // on the line: raised and lowered marks read as a misalignment in running text
   expect((await mark(a)).size).toBeGreaterThanOrEqual(0.7);
-  // Settings has a row to try the other ways on a sample
+  // Wording and notation in the practice options has a line to try the other ways on a sample
   await page.locator("#cin").blur();   // on a phone the field's keyboard hides the top bar
-  await page.locator(".tstn").click();
-  await page.locator(".road .rfoot").getByRole("button", { name: "Settings" }).click();
-  const row = page.locator(".srow", { hasText: "A and B in the text" });
+  await page.getByRole("button", { name: "Practice options" }).click();
+  await page.getByRole("button", { name: "Wording and notation: more" }).click();
+  const row = page.locator(".ol", { hasText: "A and B in the text" });
   await expect(row.locator(".sj")).toHaveCount(2);
   await row.getByRole("button", { name: "Inks" }).click();
   await expect(root).toHaveClass(/\bsj-inks\b/);
   const ink = (n) => n.evaluate((e) => getComputedStyle(e).color);
   expect(await ink(row.locator(".sj.a"))).not.toBe(await ink(row.locator(".sj.b")));
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem("rd-look")).subj)).toBe("inks");
-  await row.getByRole("button", { name: "Lettered diamonds" }).click();
+  await row.getByRole("button", { name: "Lettered" }).click();
   await expect(root).toHaveClass(/\bsj-lettered\b/);   // each term has its letter in a small diamond
   expect(await row.locator(".sj.a").evaluate((e) => { const c = getComputedStyle(e, "::before"); return [c.content, c.display, c.backgroundImage.includes("linear-gradient")]; })).toEqual(['"A"', "inline-flex", true]);
   await row.getByRole("button", { name: "Letters" }).click();
@@ -635,7 +635,7 @@ test("the pair's two terms stand out in the text as the look says, and the A/B m
   expect(await page.evaluate(() => (JSON.parse(localStorage.getItem("rd-look") || "{}")).subj)).toBeUndefined();   // the default is not stored
 });
 
-test("the practice options' A/B markers switch turns the marks of the terms off", async ({ page }) => {
+test("Off for A and B in the text, in Wording and notation, turns the marks of the terms off", async ({ page }) => {
   await start(page);
   await choices(page).nth(3).click();
   await expect(page.locator("#cin")).toBeVisible();
@@ -643,7 +643,8 @@ test("the practice options' A/B markers switch turns the marks of the terms off"
   await expect(root).not.toHaveClass(/\bsj-off\b/);
   await page.locator("#cin").blur();
   await page.getByRole("button", { name: "Practice options" }).click();
-  await page.getByRole("dialog", { name: "Practice options" }).getByRole("switch", { name: /A\/B markers/ }).click();
+  await page.getByRole("button", { name: "Wording and notation: more" }).click();
+  await page.getByRole("group", { name: "A and B in the text" }).getByRole("button", { name: "Off" }).click();
   await expect(root).toHaveClass(/\bsj-off\b/);
   expect(await a.evaluate((e) => getComputedStyle(e).fontStyle)).toBe("normal");   // plain, as the words around it
   expect(await a.evaluate((e) => getComputedStyle(e, "::before").content)).not.toBe('"A"');
@@ -659,6 +660,7 @@ test("the result has no Terms section: the classes under the two terms are what 
 });
 
 test("the text fields of the practice ask the browser for no autofill", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("rd-exp", "1"));   // the lab's settings are under Experiments, shown on this device
   await start(page);
   await choices(page).first().click();
   const field = page.locator("#cin");
@@ -668,6 +670,7 @@ test("the text fields of the practice ask the browser for no autofill", async ({
   await field.blur();
   await page.locator(".tstn").click();
   await page.locator(".road .rfoot").getByRole("button", { name: "Settings" }).click();
+  await page.getByRole("button", { name: "The lab's settings: more" }).click();
   await page.getByRole("button", { name: "Paste from the lab" }).click();
   expect(await hints(page.locator("textarea.ptext"))).toEqual({ ac: "off", cap: "off", fix: "off", pw: "true", one: "true" });
 });
@@ -764,7 +767,7 @@ test("the practice options' knob sits on the sheet's edge, splitting its line", 
   expect((await px(k.x + 2, edge + 3)).equals(await px(k.x - 80, edge + 3)), "the knob has no box below the sheet's edge").toBe(true);
 });
 
-test("the practice options leave part of the screen to tap out on, and scroll inside; the Tutor has a page of its own", async ({ page }) => {
+test("the practice options leave part of the screen to tap out on, and scroll inside; Tutor explains has a page of its own", async ({ page }) => {
   test.skip(!withCourse, "the tutor needs the Magic Key");
   await factsServer(page);
   await start(page);
@@ -773,11 +776,12 @@ test("the practice options leave part of the screen to tap out on, and scroll in
   await page.waitForTimeout(500);
   const [sb, vp] = [await page.locator("#path .psheet.on").boundingBox(), page.viewportSize()];
   expect(sb.y + sb.height, "the sheet stops short of the bottom of the screen").toBeLessThanOrEqual(vp.height * 0.8);
-  await expect(sheet.getByRole("button", { name: "Tutor: more" })).toBeVisible();
-  await expect(sheet).not.toContainText("Right after you check an answer");   // what needs more words is on the page
-  await sheet.getByRole("button", { name: "Tutor: more" }).click();
-  await expect(sheet.getByRole("switch", { name: /Check every answer with AI/ })).toBeVisible();
-  await expect(sheet).toContainText("Right after you check an answer");
+  await expect(sheet.getByRole("button", { name: "Tutor explains: more" })).toBeVisible();
+  await expect(sheet.getByRole("group", { name: "Tutor explains" })).toBeVisible();   // the choice on the line
+  await expect(sheet).not.toContainText("right after you check one");   // what needs more words is on the page
+  await sheet.getByRole("button", { name: "Tutor explains: more" }).click({ position: { x: 12, y: 12 } });   // the line, beside its choice
+  await expect(sheet.getByRole("group", { name: "Tutor explains" })).toBeVisible();
+  await expect(sheet).toContainText("right after you check one");
   await sheet.getByRole("button", { name: "back to the options" }).click();
   await page.mouse.click(vp.width / 2, vp.height - 20);   // out on what is under the sheet
   await expect(page.locator("#path .psheet.on")).toHaveCount(0);

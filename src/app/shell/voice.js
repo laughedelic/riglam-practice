@@ -13,6 +13,7 @@ import { CELL_FULL, render } from "./render.js";
 import { segOf, settingRow, switchOf } from "./rows.js";
 import { renderBar } from "./topbar.js";
 import { tbIcon } from "../core/icons.js";
+import { keepOwn } from "../practice/per-exercise.ts";
 
 /* ---------- voice: the questions read aloud, answers by voice ---------- */
 // One switch in Settings (the Voice row, on trial: the kill switch), and the choices in the Practice options of Relations and Pervasions, each on its own:
@@ -365,6 +366,7 @@ export function setVoice(k,val){
   v[k]=val;
   if(k==="read"&&val) v.muted=false;
   try{ localStorage.setItem(KEYS[k],k==="read"?(val?"1":"0"):String(val)); }catch(e){}
+  if(k==="read"||k==="answer") keepOwn(k,val);   // each exercise keeps its own (practice/per-exercise.ts)
   render();
   if((k==="read"&&val)||k==="voiceId"||k==="rate") speak(SAMPLE,{voice:v.voiceId,rate:v.rate});
 }
