@@ -11,6 +11,7 @@ import { singular } from "../debate/text.js";
 import { favTarget, isFav, toggleFav } from "../practice/favorites.js";
 import { skipAsks, skipNow, skipPair } from "../practice/skips.js";
 import { explainParts, factParts, noteData } from "../practice/screen.js";
+import { DEPTH_ASKS, DEPTH_NAME, isDepth } from "../practice/difficulty.ts";
 import { GUIDES } from "../practice/guided.ts";
 import { acceptStageOffer, declineStageOffer } from "../practice/stage-offer.ts";
 import { lineageOf } from "../practice/terms.js";
@@ -21,13 +22,14 @@ import { openStageOptions, toggleSess } from "../shell/session.js";
 import { stageName } from "../shell/stages.js";
 import { negSides } from "../../ai-shared/relations.ts";
 import type { CellId, Neg, RelKey } from "../../ai-shared/relations.ts";
-import { GUIDE_RIGHT, STAGES } from "../../domain/stages.ts";
+import { GUIDE_RIGHT, LADDER_TOP, STAGES } from "../../domain/stages.ts";
 import { VERDICT_RE, parseFactLine } from "../../domain/verdict.ts";
 import type { FactLine, NotePart } from "../../domain/verdict.ts";
 import { takeChoice, bindSlide } from "./choose.ts";
 import { refreshPath } from "./index.tsx";
 import { FlagBtn, FlagEditor, QuorumPanel, explainCase } from "./flags.tsx";
 import { currentLook } from "./look.ts";
+import { openDifficulty } from "./progression.tsx";
 import { turnAside } from "./shell.tsx";
 import { Sub } from "./subjects.tsx";
 import { DefCard, OneTerm, TermText } from "./terms.tsx";
@@ -161,12 +163,24 @@ export function ErrLines() {
 export function StageOffer() {
   const o = state.ui && state.ui.offer; if (!o) return null;
   if (o.kind === "done") return <Sx cls="walked"><p class="pnoteline pfnote" role="status">{o.text}</p></Sx>;
+  if (isDepth(o.stage)) return <DepthOffer up={o.kind === "up"} stage={o.stage} />;
   const up = o.kind === "up", info = STAGES.find((x) => x.n === o.stage);
   return <Sx cls="walked"><St d={<D cls="sub now" />} cls="offer" ><div role="group" aria-label={up ? "Add a stage" : "Switch a stage off"}>
     <p class="oq">{up ? "Stage " + (o.stage - 1) + " is going well. Add stage " + o.stage + " to the mix?" : "Stage " + o.stage + " is hard going right now. Switch it off for a while?"}</p>
     <p class="xnote">Stage {o.stage}, {stageName(o.stage).toLowerCase()}: {info ? info.adds : ""}</p>
     <span class="pbtns"><button type="button" class="pbtn" onClick={acceptStageOffer}>{up ? "Add stage " + o.stage : "Switch off stage " + o.stage}</button><button type="button" class="pbtn quiet" onClick={declineStageOffer}>Not now</button></span>
     <p class="xnote">{up ? "Never starts by itself. It applies to every exercise, and the stages you are on stay on; turn any stage off in the practice options." : <>Or adjust the stages yourself in the <button type="button" class="plnk" onClick={openStageOptions}>practice options</button>. Nothing is switched off by itself.</>}</p>
+  </div></St></Sx>;
+}
+
+/** The offer of a layer of depth (the stages after the ladder's last: src/domain/stages.ts, LADDER_TOP): one layer deeper, or one less. */
+function DepthOffer({ up, stage }: { up: boolean; stage: number }) {
+  const d = stage - LADDER_TOP;
+  return <Sx cls="walked"><St d={<D cls="sub now" />} cls="offer"><div role="group" aria-label="Depth">
+    <p class="oq">{up ? (d === 1 ? "Every term of stage " + LADDER_TOP + " is right. Try chains of reasoning?" : "The chains are going well. One layer deeper?") : "The chains are hard going right now. One layer less for a while?"}</p>
+    {up ? <p class="xnote">{"Depth, " + DEPTH_NAME[d] + ": " + DEPTH_ASKS[d]}</p> : null}
+    <span class="pbtns"><button type="button" class="pbtn" onClick={acceptStageOffer}>{up ? (d === 1 ? "Try chains" : "One layer deeper") : "One layer less"}</button><button type="button" class="pbtn quiet" onClick={declineStageOffer}>Not now</button></span>
+    <p class="xnote">Never changes by itself. Set it yourself on the <button type="button" class="plnk" onClick={() => openDifficulty()}>Difficulty page</button>.</p>
   </div></St></Sx>;
 }
 

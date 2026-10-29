@@ -6,7 +6,7 @@ import { state } from "../state.js";
 import { CELLS, ORDER, REL, notaOf } from "../core/rel.js";
 import { check } from "../practice/grading.js";
 import { guided } from "../practice/guided.ts";
-import { NEG_NOTE, acceptNegOffer, declineNegOffer, negOfferText, type NegOffer as Offer } from "../practice/negations.ts";
+import { acceptNegOffer, declineNegOffer, negOfferText, type NegOffer as Offer } from "../practice/negations.ts";
 import { next } from "../practice/queue.js";
 import { choose, explainParts, fillable, learnedThing, nextFwd } from "../practice/screen.js";
 import { render } from "../shell/render.js";
@@ -21,6 +21,7 @@ import { CASE, Choices, ErrLines, GuideNote, PairResult, PairStops, StageOffer, 
 import { FlagBtn, FlagEditor, explainCase } from "./flags.tsx";
 import { Scroll } from "./scroll.tsx";
 import { nextKind, nextName } from "./next.ts";
+import { openDifficulty } from "./progression.tsx";
 import { Foot, PreStation, SkipSide, Station, TopBar, VoiceBar } from "./shell.tsx";
 import { Subjects, markNames } from "./subjects.tsx";
 import { D, Fig, Gap, Head, Mark, St, Sx } from "./ui.tsx";
@@ -101,7 +102,7 @@ function NegOffer() {
     <p class="oq">{t.q}</p>
     <p class="xnote">{t.ex}</p>
     <span class="pbtns"><button type="button" class="pbtn" onClick={acceptNegOffer}>{t.yes}</button><button type="button" class="pbtn quiet" onClick={declineNegOffer}>Not now</button></span>
-    <p class="xnote">{NEG_NOTE}</p>
+    <p class="xnote">Never starts by itself. Change it, or switch negations off, on the <button type="button" class="plnk" onClick={() => openDifficulty()}>Difficulty page</button>.</p>
   </div></St></Sx>;
 }
 /** The verdict of a result `r` as the result's node says it: its color, its word and the line beside it. */

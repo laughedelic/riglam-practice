@@ -1,6 +1,6 @@
 // Introducing the course's terms (notes: the definition stop). A Dudra category is asked about only after a stop has shown its term and definition;
 // everyday categories need none. A new learner meets a few everyday questions first, then the terms come one at a time, a few questions apart, from
-// the lowest stage that is on up, and none while OPEN_CAP terms are still not right. The questions answered afterwards grade each term: a box from 1
+// the lowest stage that is on up, and none while as many terms as the learner's pace allows (OPEN_CAP by default) are still not right. The questions answered afterwards grade each term: a box from 1
 // to 3, up one on a right answer, back to 1 on a mistake, and a mistake brings the term's stop back a few questions later, as a repetition (the result
 // names the term at once, underlined). The learner may ask for one too. A settled term not met for a long time comes back once. This is the
 // whole schedule: a record per term (part of the learner's progression, practice/progress.ts), and pure functions of it and the data.
@@ -22,8 +22,12 @@ export const MISS_AFTER = 5;
 export const SETTLED = 3;
 /** A settled term not met in any question for this many days comes back once. */
 export const GAP_DAYS = 14;
-/** The most terms that are open at once (met at their stop, the last answer on them not right yet): while this many are, no new term comes. */
+/** The most terms that are open at once (met at their stop, the last answer on them not right yet): while this many are, no new term comes. The default pace. */
 export const OPEN_CAP = 3;
+/** The paces a learner can choose (the Difficulty page): the most terms open at once. Fewer is calmer and surer; more brings the terms sooner, with more mistakes and review on the way. */
+export const PACES: readonly number[] = [2, 3, 5];
+/** A stored pace, checked; OPEN_CAP when it is not one of PACES. */
+export const normPace = (raw: unknown): number => { const n = typeof raw === "string" && raw.trim() ? Number(raw) : raw; return typeof n === "number" && PACES.includes(n) ? n : OPEN_CAP; };
 
 /** What the device keeps of one term: its box (1 to 3; absent: not introduced), how often its stop came, and when. */
 export interface IntroTerm {
@@ -159,17 +163,17 @@ export function openTerms(ix: DataIndex, intro: Intro, on: Stages): Set<string> 
   for (const c of courseTerms(ix)) { const m = catStage(c) <= top ? termMark(intro, c.id) : "wait"; if (m !== "wait" && m !== "ok") out.add(c.id); }
   return out;
 }
-/** Whether a new term may come before the next question: the spacing since the last stop has passed, and fewer than OPEN_CAP terms are open. */
-export const newTermDue = (ix: DataIndex, intro: Intro, on: Stages): boolean => intro.n >= intro.next && openTerms(ix, intro, on).size < OPEN_CAP;
+/** Whether a new term may come before the next question: the spacing since the last stop has passed, and fewer terms are open than the pace (`cap`) allows. */
+export const newTermDue = (ix: DataIndex, intro: Intro, on: Stages, cap = OPEN_CAP): boolean => intro.n >= intro.next && openTerms(ix, intro, on).size < cap;
 /**
  * Whether the next stage comes in now: every new term of the highest stage on has had its stop, and a new term may come (`newTermDue`), which is the next
  * stage's first (stages.ts, stageOffer: the stages are chapters of one list of terms). Undefined when the next stage brings no term the learner has not
  * met: stages 9 to 11, which bring none, and one whose terms came before (the learner moved the stages, or came back down).
  */
-export function nextStageDue(ix: DataIndex, intro: Intro, on: Stages): boolean | undefined {
+export function nextStageDue(ix: DataIndex, intro: Intro, on: Stages, cap = OPEN_CAP): boolean | undefined {
   const top = topStage(on);
   if (!stageTerms(ix, top + 1).some((id) => !introduced(intro, stopCat(ix, id)!))) return undefined;
-  return stageMet(ix, intro, top) && newTermDue(ix, intro, on);
+  return stageMet(ix, intro, top) && newTermDue(ix, intro, on, cap);
 }
 
 /** A term in the tree a stop draws: `met` unless it is a course term whose own stop has not come yet (a term the course never stops at has nothing to wait for). */
@@ -196,10 +200,10 @@ const DAY = 864e5;
 
 /**
  * The stop that comes before the next question, or null. First a term due again (a mistake before an ask), then the next new term once the spacing
- * allows and fewer than OPEN_CAP terms are open (the lowest stage first, in the course's order), then a settled term not met for GAP_DAYS. Only terms
+ * allows and fewer terms are open than the pace allows (`cap`) (the lowest stage first, in the course's order), then a settled term not met for GAP_DAYS. Only terms
  * open at these stages.
  */
-export function nextStop(ix: DataIndex, intro: Intro, on: Stages, now: string): Stop | null {
+export function nextStop(ix: DataIndex, intro: Intro, on: Stages, now: string, cap = OPEN_CAP): Stop | null {
   const top = topStage(on), open = (id: string) => { const c = stopCat(ix, id); return !!c && catStage(c) <= top; };
   let best: { id: string; t: IntroTerm } | null = null;
   for (const [id, t] of Object.entries(intro.terms)) {
@@ -208,7 +212,7 @@ export function nextStop(ix: DataIndex, intro: Intro, on: Stages, now: string): 
     if (!best || rank(t) < rank(best.t)) best = { id, t };
   }
   if (best) return { cat: best.id, why: best.t.why === "again" ? "again" : "miss" };
-  if (newTermDue(ix, intro, on)) {
+  if (newTermDue(ix, intro, on, cap)) {
     for (let s = 1; s <= top; s++) {
       const id = stageTerms(ix, s).find((c) => !introduced(intro, stopCat(ix, c)!));
       if (id) return { cat: id, why: "new" };
