@@ -23,6 +23,7 @@ import { findScreen } from "./find.tsx";
 import { instanceScreen } from "./instance.tsx";
 import { pervasionsScreen } from "./pervasions.tsx";
 import { relationsScreen } from "./relations.tsx";
+import { ProgressionPage } from "./progression.tsx";
 import { ReviewPage } from "./review.tsx";
 import { Roadmap } from "./roadmap.tsx";
 import { aboveSync } from "./scroll.tsx";
@@ -88,7 +89,7 @@ function screen(kb: boolean): { cls: string; node: ComponentChildren } {
   if (state.mode === "loading") return { cls: "", node: <Status text="Loading." /> };
   if (state.mode === "nodata") return { cls: "", node: <Status text="The practice data could not be loaded. Reload the page to try again." /> };
   if (state.optsOpen) return { cls: "", node: <SettingsPage /> };
-  if (state.tab === "review") return { cls: "", node: <ReviewPage /> };
+  if (state.tab === "review") return { cls: "", node: state.pathProg ? <ProgressionPage /> : <ReviewPage /> };
   if (state.mode !== "quiz" || !isEx() || !state.ui) return { cls: "", node: <Status text="" /> };
   if (state.view === "chat" && (state.ui.chat || state.ui.checked) && canAsk()) return { cls: "", node: <TutorPage /> };
   const u = state.ui;

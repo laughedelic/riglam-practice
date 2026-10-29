@@ -1,4 +1,4 @@
-// The pieces of the progression rings (path/progress.tsx, the ring in the top bar; path/stage-up.tsx, a ring for each stage): a stage's new terms drawn as the
+// The pieces of the progression rings (path/progress.tsx, the ring in the top bar; path/stage-up.tsx and path/progression.tsx, a ring for each stage): a stage's new terms drawn as the
 // segments of a ring, one each, in the order the learner first answered them (src/domain/intro.ts, stageMarks) and colored by the last answer on it, and the
 // same terms as a list with the same marks. The colors are in the path CSS, by the term's mark (`tseg ok`, `tseg miss`, `tmk wait` ...).
 import { state } from "../state.js";
@@ -29,3 +29,19 @@ export function Segs({ marks, split = false }: { marks: readonly StageMark[]; sp
 /** The list of a stage's new terms, each with the mark of its segment. */
 export const TermList = ({ marks }: { marks: readonly StageMark[] }) => <ul class="tterms">{marks.map((t) =>
   <li class={t.mark}><i class={"tmk " + t.mark} aria-hidden="true" /><span class="ttn">{(state.DATA && stopCat(state as unknown as DataIndex, t.id)?.term) || t.id}</span></li>)}</ul>;
+
+/** Where a stage stands for a learner whose highest stage is `top`: passed, the one they are on, or ahead. */
+export const stageWhere = (n: number, top: number): "done" | "now" | "ahead" => (n < top ? "done" : n === top ? "now" : "ahead");
+/**
+ * The ring of one stage, as the stages show in a row (the stage station, the roadmap's foot) and on the Progression page: a segment for each of its new terms
+ * with the mark it has now, kept when the stage is passed; a stage without new terms one circle, full once passed; the stage the learner is on with a halo.
+ */
+export function StageRing({ n, top }: { n: number; top: number }) {
+  const m = marksOf(n);
+  return <svg class="rgs" viewBox="0 0 30 30" aria-hidden="true"><circle class="disc" cx="15" cy="15" r={R} />
+    {m.length ? <Segs marks={m} split /> : <circle class={"tseg " + (n < top ? "ok" : "wait")} cx="15" cy="15" r={R} />}
+    {n === top ? <circle class="halo" cx="15" cy="15" r="14.8" /> : null}
+    <text x="15" y="18.8">{n}</text></svg>;
+}
+/** What a stage's ring says to a screen reader. */
+export const ringLabel = (n: number, marks: readonly StageMark[]): string => "Stage " + n + (marks.length ? ", " + rightOf(marks) + " of " + marks.length + " new terms answered right" : ", no new terms");
