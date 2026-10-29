@@ -126,7 +126,7 @@ test("Reset progression on the Stages page asks first, then starts at stage 1 wi
   expect(Object.keys(await page.evaluate(() => window.__t.intro.terms)).length).toBeGreaterThan(9);
   await page.getByRole("button", { name: "Practice options" }).click();
   const sheet = page.getByRole("dialog", { name: "Practice options" });
-  await sheet.getByRole("button", { name: "Stages: more" }).click();
+  await sheet.getByRole("button", { name: "Difficulty: more" }).click();
   const row = sheet.locator(".porow", { hasText: "Reset progression" });
   await expect(row).toContainText("Your answers, their statistics and your settings stay.");
   await row.getByRole("button", { name: "Reset progression" }).click();
@@ -182,8 +182,11 @@ test("Settings > Languages decides which names the stop shows: Tibetan with its 
   await page.locator(".tstn").click();
   await page.locator(".road .rfoot").getByRole("button", { name: "Settings" }).click();
   await expect(page.locator(".ppage .ptitle")).toHaveText("Settings");
-  const lang = (name) => page.getByRole("switch", { name });
-  await expect(page.locator(".ppage .srow", { hasText: "English" }).first()).toContainText("Always shown");
+  await expect(page.locator(".ppage .ol", { hasText: "Languages" })).toContainText(/^Languages\s*EN$/);   // the line says which are shown
+  await page.getByRole("button", { name: "Languages: more" }).click();
+  const lang = (name) => page.getByRole("switch", { name, exact: true });
+  await expect(page.locator(".ppage .ol", { hasText: "English" }).first()).toContainText("Always shown");
+  await expect(page.locator(".ppage .ol", { hasText: "Tibetan" })).toContainText("experimental");   // names only, no definitions
   for (const name of ["Russian", "Tibetan", "Sanskrit", "Chinese"]) await expect(lang(name)).toHaveAttribute("aria-checked", "false");
   await lang("Tibetan").click();
   await lang("Sanskrit").click();
