@@ -35,7 +35,8 @@ export interface ScanPlan {
   stop?: string;
   /** the rows the cases are marked on, in the page's order (default: the rows of the step, `.sx.cur .sb`); Pervasions': the four answered questions, then the relation picked */
   rows?: string;
-  /** the room the result's node takes at `stop`, measured on the page `pc` as the scan comes to it: the stop opens to `h` px and its diamond stands `at` px under its top (Categories', where nothing folds) */
+  /** the room the result's node takes at `stop`, measured on the page `pc`: the stop opens to `h` px as the slide starts and its diamond stands `at` px under its top, so the scanner
+   *  slides straight to where the result's node will be, with no settling back (Categories', where nothing folds) */
   room?: (pc: HTMLElement) => { h: number; at: number } | null;
 }
 
@@ -154,7 +155,7 @@ export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, ac
       place(); raf = requestAnimationFrame(frame); return;
     }
     if (t < slideAt) { place(); raf = requestAnimationFrame(frame); return; }
-    if (!d) { yTop = strip(); d = Math.max(1, y0 - yTop); tSlide = slideMs(d); tSettle = slideAt + tSlide; tBecome = tSettle + SETTLE; hold = holdOf(root, main, fst && fst.isConnected ? fst : stn); hold.born(); wait(main); if (keep) foldBefore(keep, pc); }      // the foot's station is away: its placeholder is there
+    if (!d) { if (plan.room) cover(); yTop = strip(); d = Math.max(1, y0 - yTop); tSlide = slideMs(d); tSettle = slideAt + tSlide; tBecome = tSettle + SETTLE; hold = holdOf(root, main, fst && fst.isConnected ? fst : stn); hold.born(); wait(main); if (keep) foldBefore(keep, pc); }      // the foot's station is away: its placeholder is there
     if (t < tSettle) {
       const u = EASE.io((t - slideAt) / tSlide);
       if (s0) sc.scrollTop = s0 * (1 - u);       // a page scrolled down comes back to its top, under the scanner
