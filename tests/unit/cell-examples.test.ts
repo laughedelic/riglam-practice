@@ -76,6 +76,8 @@ test("cellExample: confirmed and textbook, of a stage that is on, of a kind a ce
   expect(ok({ lv: 2 }, [8])).toBe(false);
   expect(ok({ st: 2 }, [2]), "a stage of its own decides").toBe(true);
   expect(ok({ st: 2 }, [8])).toBe(false);
+  expect(ok({ st: 6 }, [6]), "the course's words wait for stage 8").toBe(false);
+  expect(ok({ st: 6 }, [8])).toBe(true);
   expect(ok({ cf: "commentator" }, ALL)).toBe(false);
   for (const k of ["thing", "representation", undefined]) expect(ok({ k }, [8]), String(k)).toBe(true);
   for (const k of ["statement", "combination", "something else"]) expect(ok({ k }, ALL), k).toBe(false);
@@ -83,9 +85,9 @@ test("cellExample: confirmed and textbook, of a stage that is on, of a kind a ce
   for (const k of ["relation", "negation"]) {
     expect(ok({ k, lv: 2 }, [8]), k).toBe(false);
     expect(ok({ k, lv: 2 }, [10]), k).toBe(true);
-    expect(ok({ k, st: 8 }, [8]), k).toBe(false);
-    expect(ok({ k, st: 8 }, [8, 9]), k + ": stage 9 is the ladder's last").toBe(false);
-    expect(ok({ k, st: 8 }, [8, 10]), k).toBe(true);
+    expect(ok({ k, st: 6 }, [8]), k).toBe(false);
+    expect(ok({ k, st: 6 }, [8, 9]), k + ": stage 9 is the ladder's last").toBe(false);
+    expect(ok({ k, st: 6 }, [8, 10]), k).toBe(true);
   }
   expect(ok({ bg: "expert" }, ALL)).toBe(false);
   expect(ok({ bg: "glossed" }, ALL)).toBe(true);
@@ -95,12 +97,19 @@ test("the stage of a reference example, and how many examples each stage has", (
   expect(exampleStage({ lv: 1 })).toBe(8);
   expect(exampleStage({ lv: 2 })).toBe(10);
   expect(exampleStage({ lv: 4 })).toBe(12);
-  expect(exampleStage({ lv: 2, st: 3 })).toBe(3);
-  expect(exampleStage({ lv: 2, st: 8 })).toBe(8);
-  // format 3 counts the steps of depth from 9: they are 10 to 12 on the ladder with a stage 9
-  expect(exampleStage({ lv: 2, st: 9 })).toBe(10);
-  expect(exampleStage({ lv: 4, st: 11 })).toBe(12);
-  expect(exampleStage({ lv: 1, st: 12 }), "a stage out of range counts as none").toBe(8);
+  // the export's own stage is on its ladder of nine: each goes where what it needs opens
+  expect(exampleStage({ lv: 1, st: 1 }), "everyday things").toBe(0);
+  expect(exampleStage({ lv: 1, st: 2 }), "what is seen").toBe(2);
+  expect(exampleStage({ lv: 2, st: 3 }), "heard, smelled, tasted, touched").toBe(3);
+  expect(exampleStage({ lv: 1, st: 4 }), "the textbook's things, what does not exist, minds").toBe(5);
+  expect(exampleStage({ lv: 1, st: 5 }), "a sense or mental consciousness").toBe(6);
+  expect(exampleStage({ lv: 1, st: 6 }), "the course's words, named or glossed").toBe(8);
+  expect(exampleStage({ lv: 2, st: 6 })).toBe(8);
+  expect(exampleStage({ lv: 2, st: 7 }), "one step").toBe(10);
+  expect(exampleStage({ lv: 3, st: 8 }), "two steps").toBe(11);
+  expect(exampleStage({ lv: 4, st: 9 })).toBe(12);
+  expect(exampleStage({ lv: 4, st: 11 }), "a stage out of range counts as none").toBe(12);
+  expect(exampleStage({ lv: 1, st: 12 })).toBe(8);
   expect(stageCounts(ITEMS)).toEqual({ 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 7, 9: 0, 10: 5, 11: 2, 12: 0 });
 });
 

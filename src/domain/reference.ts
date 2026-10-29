@@ -35,12 +35,19 @@ export function placeByClass(ix: DataIndex, ex: Pick<Example, "cls" | "not" | "n
 export const DRAWN = ["confirmed", "textbook"] as const;
 
 /**
- * A reference example's stage: its own (format 3), else its level's: the examples are the course's, so a plain one (level 1) waits for the
- * course words (stage 8) and each level after it is a step of depth. Format 3 counts the steps of depth from 9, as the ladder did before it had
- * a stage 9 of its own (2026-10-28): its 9 to 11 are 10 to 12 here, and its 1 to 8 stay as they are.
+ * Where the export's stages fall on this ladder. The exporter numbers them by the ladder of nine stages it was written for: 1 everyday things,
+ * 2 what is seen, 3 what is heard, smelled, tasted or touched, 4 the textbook's own things, what does not exist and minds, 5 a sense or mental
+ * consciousness, 6 the course's words (things named or glossed by them), 7 one step, 8 two steps, 9 more. Each goes to the stage that opens
+ * what it needs, never an earlier one.
+ */
+const EXPORT_STAGE: Readonly<Record<number, number>> = { 1: 0, 2: 2, 3: 3, 4: 5, 5: 6, 6: 8, 7: 10, 8: 11, 9: 12 };
+
+/**
+ * A reference example's stage: its own (format 3, `EXPORT_STAGE`), else its level's: the examples are the course's, so a plain one (level 1)
+ * waits for the course words (stage 8) and each level after it is a step of depth.
  */
 export const exampleStage = (ex: Pick<Example, "lv" | "st">): number =>
-  typeof ex.st === "number" && ex.st >= 1 && ex.st <= MAX_STAGE - 1 ? (ex.st <= 8 ? ex.st : ex.st + 1) : ex.lv <= 1 ? 8 : Math.min(MAX_STAGE, ex.lv + LADDER_TOP - 1);
+  typeof ex.st === "number" && EXPORT_STAGE[ex.st] !== undefined ? EXPORT_STAGE[ex.st] : ex.lv <= 1 ? 8 : Math.min(MAX_STAGE, ex.lv + LADDER_TOP - 1);
 
 /** Whether an example may be drawn for a learner with these stages on: confirmed or textbook, of a stage that is on. */
 export function drawable(ex: Pick<Example, "cf" | "lv" | "st">, on: Stages): boolean {
