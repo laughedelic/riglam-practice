@@ -48,7 +48,7 @@ export const flow = (n: number): string => "New terms come one at a time, at mos
 
 /**
  * What the stages are and how they move, in full: the fold "How the stages work" on the Progression page (path/progression.tsx) and on the stage station
- * (path/stage-up.tsx), in the same words. `diff` says where the Difficulty page is, after the line on the last stage.
+ * (path/stage-up.tsx), in the same words. `diff` says where the Progression page is, after the line on the last stage.
  */
 export const HowStages = ({ diff }: { diff: ComponentChildren }) => <ul class="tup-bul">
   <li>Each stage adds a new kind of thing to ask about, from everyday things toward abstract ideas.</li>

@@ -122,7 +122,7 @@ test("on the Path the stop is a station of its own, with the term and where it s
   await expect(stop).toHaveCount(0);
 });
 
-test("Reset progression on the Stages page asks first, then starts at stage 0 with no term met, on the device and in its progress document", async ({ page }) => {
+test("Reset progression on the Progression page asks first, then starts at stage 0 with no term met, on the device and in its progress document", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(onPath);
   await page.addInitScript(() => { if (localStorage.getItem("rd-negation") === null) { localStorage.setItem("rd-stages", "0,1,2,3"); localStorage.setItem("rd-negation", "one");
@@ -132,10 +132,10 @@ test("Reset progression on the Stages page asks first, then starts at stage 0 wi
   await page.goto("/");
   await expect(page.locator("#path .chs .crow")).toHaveCount(5);
   expect(Object.keys(await page.evaluate(() => window.__t.intro.terms)).length).toBeGreaterThan(9);
-  await page.getByRole("button", { name: "Practice options" }).click();
-  const sheet = page.getByRole("dialog", { name: "Practice options" });
-  await sheet.getByRole("button", { name: "Difficulty: more" }).click();
-  const row = sheet.locator(".porow", { hasText: "Reset progression" });
+  // the ring's sheet, then all the stages: Reset progression is the page's last line
+  await page.getByRole("button", { name: /^Progression: stage 3/ }).click();
+  await page.getByRole("button", { name: "All stages and their terms" }).click();
+  const row = page.locator("#path .pprog .ol", { hasText: "Reset progression" });
   await expect(row).toContainText("Your answers, their statistics and your settings stay.");
   await row.getByRole("button", { name: "Reset progression" }).click();
   await row.getByRole("button", { name: "Keep it" }).click();
@@ -143,11 +143,11 @@ test("Reset progression on the Stages page asks first, then starts at stage 0 wi
   await row.getByRole("button", { name: "Reset progression" }).click();
   await row.getByRole("button", { name: "Reset", exact: true }).click();
   await expect(row).toContainText("Done: stage 0");
-  const stage = (n) => sheet.getByRole("switch", { name: new RegExp("^Stage " + n + " ") });
-  await expect(stage(0)).toHaveAttribute("aria-checked", "true");
-  await expect(stage(1)).toHaveAttribute("aria-checked", "false");
+  await expect(page.locator("#path .pprog .sgnote"), "the page says where the learner is now").toHaveText(/^stage 0 of 9/);
   expect(await page.evaluate(() => [localStorage.getItem("rd-stages"), localStorage.getItem("rd-negation"), JSON.parse(localStorage.getItem("rd-terms")).terms])).toEqual(["0", "off", {}]);
-  // the question behind the sheet was drawn again from stage 0, without Form, whose stop has not come
+  // back at the exercise, its question was drawn again from stage 0, without Form, whose stop has not come
+  await page.getByRole("button", { name: "Back to Relations", exact: true }).click();
+  await expect(page.locator("#path .chs .crow")).toHaveCount(5);
   expect(await cats(page)).not.toContain("form");
   const doc = await page.evaluate(async () => { const s = await (await window.__riglam.platform.db()).collection("progress").doc("learner").get(); return s.exists ? s.data() : null; });
   expect(doc).toMatchObject({ stages: [0], negation: "off", terms: { n: 0, terms: {} }, run: { up: 0, down: 0 }, exercises: {} });

@@ -153,11 +153,12 @@ test("on the Path five right relations at the highest stage bring the next stage
   await expect(up.locator(".tstop-sech"), "what it adds, and what the stages are").toHaveText(["Topics", "Progression"]);
   await expect(up, "the first one says what the stages are: stage 1, where the course terms start").toContainText("Stage 0 was everyday things only. The course terms start here: nine stages of them, in three groups of three.");
   await expect(up).toContainText("The earlier stages stay in the mix.");
-  await expect(up, "and how new terms come, at the pace the Difficulty page sets").toContainText("New terms come one at a time, each with its definition first, at a steady pace (the Difficulty page sets it).");
+  await expect(up, "and how new terms come, at the pace set on the Progression page").toContainText("New terms come one at a time, each with its definition first, at a steady pace (set it on the Progression page).");
   await expect(up, "not the last stage").not.toContainText("This is the last stage.");
   await expect(up.getByRole("button", { name: "How the stages work" })).toHaveCount(0);
   await expect(up.getByRole("button", { name: "Stay on stage 0 a while longer" })).toBeVisible();
-  await expect(up.getByRole("button", { name: "practice options" })).toBeVisible();
+  await expect(up).toContainText("The stages follow your answers. To choose them yourself, switch Natural progression off on the Progression page.");
+  await expect(up.getByRole("button", { name: "Progression page" })).toHaveCount(2);
   expect(await page.evaluate(() => localStorage.getItem("rd-stages")), "the stage comes in at Next").toBe("0");
   await station(page).click();
   await expect(pathChoices(page)).toHaveCount(5);
@@ -212,19 +213,20 @@ test("on the Path the stage station shows a ring for each stage with a segment f
   expect(await page.locator("#path .tup-rgp .tmk").evaluateAll((a) => a.map((x) => x.getAttribute("class")))).toEqual(["tmk ok", "tmk miss", "tmk wait", "tmk wait"]);
 });
 
-test("on the Path, Stay on stage 1 a while longer keeps the next stage out and asks for ten right answers in a row; the practice options link opens the Stages page", async ({ page }) => {
+test("on the Path, Stay on stage 1 a while longer keeps the next stage out and asks for ten right answers in a row; the link opens the Progression page at its stages", async ({ page }) => {
   await fiveRight(page);
   await station(page).click();
   const up = page.locator("#path .tstage");
   await up.getByRole("button", { name: "Stay on stage 1 a while longer" }).click();
   await expect(up).toContainText("Stage 2 stays out for now. It comes in after 10 right answers in a row on stage 1.");
   await expect(up.getByRole("button", { name: /^Stay on stage/ })).toHaveCount(0);
-  await up.getByRole("button", { name: "practice options" }).click();
-  const sheet = page.getByRole("dialog", { name: "Practice options" });
-  await expect(sheet.getByRole("switch", { name: /^Move up by itself/ })).toHaveAttribute("aria-checked", "true");
-  await page.keyboard.press("Escape");     // from the page back to the options, and out of them
-  await page.keyboard.press("Escape");
-  await expect(sheet).toHaveCount(0);
+  await up.locator(".tup-note", { hasText: "Natural progression" }).getByRole("button", { name: "Progression page" }).click();
+  await expect(page.locator("#path .ptb-t")).toHaveText("Progression");
+  const nat = page.getByRole("switch", { name: "Natural progression" });
+  await expect(nat).toHaveAttribute("aria-checked", "true");
+  await expect(nat, "the page opens at its stages").toBeInViewport();
+  await page.goBack();
+  await expect(page.locator("#path .tstage .cs")).toHaveText("Stage 2 reached");
   await station(page).click();
   await expect(pathChoices(page)).toHaveCount(5);
   expect(await page.evaluate(() => [localStorage.getItem("rd-stages"), JSON.parse(localStorage.getItem("rd-stage-run"))])).toEqual(["1", { up: 0, down: 0, told: true, need: 10 }]);
@@ -255,7 +257,7 @@ test("on the Path, a later upgrade says one line and folds what the stages are",
   await how.click();
   await expect(how).toHaveAttribute("aria-expanded", "true");
   await expect(up).toContainText("Each new term comes with its definition first.");
-  await expect(up.getByRole("button", { name: "practice options" }), "the way to the options is in the explanation").toBeVisible();
+  await expect(up.getByRole("button", { name: "Progression page" }), "the way to the Progression page is in the explanation").toHaveCount(2);
   await how.click();
   await expect(up).not.toContainText("Each new term comes with its definition first.");
 });
@@ -274,16 +276,18 @@ async function stationOf(page, n) {
   return up;
 }
 
-test("on the Path the stage station says when a stage begins a group of three, and that stage 9 is the last, with the Difficulty page for what comes after", async ({ page }) => {
+test("on the Path the stage station says when a stage begins a group of three, with the way to the Progression page in its fold", async ({ page }) => {
   const up = await stationOf(page, 4);
   await expect(up.locator(".cs")).toHaveText("Stage 4 reached");
   await expect(up).toContainText("The earlier stages stay in the mix. Stage 4 begins the second group of three: what things are made of, and what exists.");
   await expect(up).not.toContainText("This is the last stage.");
-  // the fold is the Progression page's own explanation, with the way to the Difficulty page; Back from it comes to the station again
+  // the fold is the Progression page's own explanation, with the way to the page; Back from it comes to the station again
   await up.getByRole("button", { name: "How the stages work" }).click();
   await expect(up).toContainText("A stage begins with its first new term, once the stage before has brought all of its own.");
-  await up.getByRole("button", { name: "Difficulty page" }).click();
-  await expect(page.locator("#path .pdiff")).toBeVisible();
+  await expect(up).toContainText("like the negations: Depth, on the Progression page.");
+  await up.getByRole("button", { name: "Progression page" }).first().click();
+  await expect(page.locator("#path .pprog")).toBeVisible();
+  await expect(page.locator("#path .ptb-t")).toHaveText("Progression");
   await page.goBack();
   await expect(page.locator("#path .tstage .cs")).toHaveText("Stage 4 reached");
 });
@@ -291,11 +295,11 @@ test("on the Path the stage station says when a stage begins a group of three, a
 test("on the Path the station of stage 9 says it is the last", async ({ page }) => {
   const up = await stationOf(page, 9);
   await expect(up.locator(".cs")).toHaveText("Stage 9 reached");
-  await expect(up).toContainText("This is the last stage. Chains of reasoning come after it, as a difficulty of their own, on the Difficulty page.");
+  await expect(up).toContainText("This is the last stage. Chains of reasoning come after it, as a difficulty of their own: Depth, on the Progression page.");
   await expect(up, "stage 9 begins no group").not.toContainText("group of three");
 });
 
-test("on the Path, with Move up by itself off, five right relations bring no stage; the switch is behind the practice options' Difficulty line and is kept", async ({ page }) => {
+test("on the Path, with Natural progression off, five right relations bring no stage; the switch is on the Progression page and is kept", async ({ page }) => {
   // at stage 3, from which a result may suggest negations
   await fiveRight(page, () => { if (localStorage.getItem("rd-stage-run") === null) { localStorage.setItem("rd-stage-run", JSON.stringify({ up: 0, down: 0, manual: true })); localStorage.setItem("rd-stages", "1,2,3"); } });
   await expect(page.locator("#path .offer"), "the negation offer, which the stage no longer goes before").toContainText("Try pairs with a negated side?");
@@ -303,10 +307,9 @@ test("on the Path, with Move up by itself off, five right relations bring no sta
   await expect(pathChoices(page), "straight on to the next question").toHaveCount(5);
   await expect(page.locator("#path .tup")).toHaveCount(0);
   expect(await page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("1,2,3");
-  await page.getByRole("button", { name: "Practice options" }).click();
-  const sheet = page.getByRole("dialog", { name: "Practice options" });
-  await sheet.getByRole("button", { name: "Difficulty: more" }).click();
-  const sw = sheet.getByRole("switch", { name: /^Move up by itself/ });
+  await page.getByRole("button", { name: /^Progression: stage 3/ }).click();
+  await page.getByRole("button", { name: "All stages and their terms" }).click();
+  const sw = page.getByRole("switch", { name: "Natural progression" });
   await expect(sw).toHaveAttribute("aria-checked", "false");
   await sw.click();
   await expect(sw).toHaveAttribute("aria-checked", "true");

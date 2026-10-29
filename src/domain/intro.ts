@@ -21,7 +21,7 @@ export const SETTLED = 3;
 /** The most terms that are open at once (met at their stop, the last answer on them not right yet): while this many are, no new term comes. The default pace. */
 export const OPEN_CAP = 3;
 /**
- * The paces a learner can choose (the Difficulty page), by the most terms open at once; each also sets how many questions apart new terms come
+ * The paces a learner can choose (the Progression page), by the most terms open at once; each also sets how many questions apart new terms come
  * (`paceSpacing`): careful two open and a new term every four questions at most, steady three and three, brisk five and two. Slower is calmer and surer;
  * faster brings the terms sooner, with more mistakes and review on the way.
  */

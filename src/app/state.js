@@ -67,7 +67,7 @@ export const state = {
   negation: "off",   // the negation track of Relations and Pervasions: "one" negates A or B in about a third of the pairs, "both" both sides in half of those (`rd-negation`)
   relSession: [],    // the Relations answers checked on this page, oldest first: the run towards the offer of a negation step counts them before the database has handed them back (practice/negations.ts)
   negOfferAt: "",    // when the learner last answered the offer of a negation step (`rd-neg-offer`): only the answers after it count towards the next offer
-  pace: OPEN_CAP,    // the most course terms open at once before a new one waits (the Difficulty page, `rd-pace`; src/domain/intro.ts, PACES)
+  pace: OPEN_CAP,    // the most course terms open at once before a new one waits (the Progression page, `rd-pace`; src/domain/intro.ts, PACES)
   debates: {},
   own: "practice",
   favs: {},

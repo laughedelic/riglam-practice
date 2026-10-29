@@ -42,7 +42,7 @@ export const MAX_STAGE = STAGES[STAGES.length - 1]!.n;
 /**
  * The last stage that brings new terms: the ladder ends there. The stages after it (chains of reasoning: one step, two, then longer) are the steps of depth,
  * a difficulty of its own like the negations: on the Path a result offers the next step (stageOffer, the same run as for any stage), never more by itself,
- * and the learner sets it on the Difficulty page. The classic page keeps them as stages.
+ * and the learner sets it on the Progression page. The classic page keeps them as stages.
  */
 export const LADDER_TOP = 9;
 /** The stages of the ladder as a row of rings shows them (the roadmap's foot, the stage station): those that bring course terms. Stage 0, everyday things alone, is on the Progression page only. */
@@ -197,7 +197,7 @@ export type Negation = "off" | "one" | "both";
 
 /** The right answers in a row after which the next step of the negation track is offered (never taken without a tap). */
 export const NEG_STREAK = 5;
-/** The stage from which the learner can switch negations on (the Difficulty page), and the one from which a result of Relations suggests them. */
+/** The stage from which the learner can switch negations on (the Progression page), and the one from which a result of Relations suggests them. */
 export const NEG_OPEN = 2;
 export const NEG_SUGGEST = 3;
 /**

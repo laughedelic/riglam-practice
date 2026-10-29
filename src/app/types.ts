@@ -485,7 +485,7 @@ export interface State {
   relSession: NegResult[];
   /** when the learner last answered the offer of a negation step (a time, `rd-neg-offer`): only answers after it count towards the next offer */
   negOfferAt: string;
-  /** the most course terms open at once before a new one waits (the Difficulty page, `rd-pace`; src/domain/intro.ts, PACES) */
+  /** the most course terms open at once before a new one waits (the Progression page, `rd-pace`; src/domain/intro.ts, PACES) */
   pace: number;
   /** Find an instance offers the things the course knows while one is typed (its practice options, `rd-inst-suggest`) */
   instSuggest: boolean;
