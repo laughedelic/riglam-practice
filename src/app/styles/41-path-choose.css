@@ -57,3 +57,12 @@
 .pa .thold .sx.thx{height:30px}
 .pa .thold .thl{position:absolute; left:calc(var(--m) - 18px); right:16px; top:14px; height:1px; background:var(--ink3); opacity:.8}
 .pa .thold .threset{position:absolute; right:10px; top:14px; transform:translateY(-50%); min-height:32px; padding:0 8px; background:var(--paper); font-family:var(--mono); font-size:12px; letter-spacing:.02em; color:var(--blue)}
+/* the check of several choices in the threshold's form (categories.tsx `Settled`): each category on its side of the rule with its mark, what the learner did, and the reason under it */
+.pa .thold.tres .thh{color:var(--ink)}
+.pa .thold.tres .crow{padding-top:8px; padding-bottom:9px}
+.pa .thold.tres .crow .line1{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap}
+.pa .thold.tres .crow b{display:inline; font-size:17px; color:var(--ink)}
+.pa .thold.tres .chs.down .crow:not(.wrong) b{font-weight:500; color:var(--ink2)}
+.pa .thold.tres .crow .mark .i{width:16px; height:16px}
+.pa .thold.tres .crow .xnote{display:block; font-size:14px; color:var(--ink2); line-height:1.35; margin-top:2px}
+@media (hover:hover){ .pa .thold.tres .crow:hover b{text-decoration:none} }
