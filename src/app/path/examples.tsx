@@ -46,7 +46,7 @@ function commit(pull: Pull) {
   pull.take(); blur();
 }
 function openCase(i: number) { const u = u0(); u.ci = i; u.pall = false; render(); focusField(); }
-function nothing(c: CellId, pull: Pull) { if (!mayBeEmpty(c)) return; const x = u0().cells[c]; x.t = ""; x.none = true; commit(pull); }
+function nothing(c: CellId, pull: Pull) { if (!mayBeEmpty(c)) return; const x = u0().cells[c]; x.t = ""; x.none = true; render(); commit(pull); }
 
 /** The strip under the top bar: the pair with its relation, folded; pull it anywhere (or tap it) to look back at `full`, the steps done. While it is
  *  unfolded, a touch anywhere outside it folds it again. */
