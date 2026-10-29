@@ -151,9 +151,10 @@ test("on the Path five right relations at the highest stage bring the next stage
   await up.locator(".cs").click();
   await expect(up.locator(".tup-rgp"), "a tap elsewhere closes it").toHaveCount(0);
   await expect(up.locator(".tstop-sech"), "what it adds, and what the stages are").toHaveText(["Topics", "Progression"]);
-  await expect(up, "the first one says what the stages are").toContainText("Each stage adds a new kind of thing to ask about");
+  await expect(up, "the first one says what the stages are: stage 1, where the course terms start").toContainText("Stage 0 was everyday things only. The course terms start here: nine stages of them, in three groups of three.");
   await expect(up).toContainText("The earlier stages stay in the mix.");
-  await expect(up).toContainText("Each new term comes with its definition first.");
+  await expect(up, "and how new terms come, at the pace the Difficulty page sets").toContainText("New terms come one at a time, each with its definition first, at a steady pace (the Difficulty page sets it).");
+  await expect(up, "not the last stage").not.toContainText("This is the last stage.");
   await expect(up.getByRole("button", { name: "How the stages work" })).toHaveCount(0);
   await expect(up.getByRole("button", { name: "Stay on stage 0 a while longer" })).toBeVisible();
   await expect(up.getByRole("button", { name: "practice options" })).toBeVisible();
@@ -257,6 +258,41 @@ test("on the Path, a later upgrade says one line and folds what the stages are",
   await expect(up.getByRole("button", { name: "practice options" }), "the way to the options is in the explanation").toBeVisible();
   await how.click();
   await expect(up).not.toContainText("Each new term comes with its definition first.");
+});
+
+/** The station of stage `n` coming in on a device that has seen one before (every term settled, so it is put on the page as the result would). */
+async function stationOf(page, n) {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript(onPath);
+  await page.addInitScript((s) => { localStorage.setItem("rd-stages", s); localStorage.setItem("rd-stage-run", JSON.stringify({ up: 0, down: 0, told: true })); }, Array.from({ length: n }, (_, i) => i).join());
+  await page.addInitScript(hook);
+  await page.goto("/");
+  await expect(pathChoices(page)).toHaveCount(5);
+  await page.evaluate((n) => { window.__t.ui.up = { stage: n }; window.__t.next(); }, n);
+  const up = page.locator("#path .tstage");
+  await expect(up).toBeVisible();
+  return up;
+}
+
+test("on the Path the stage station says when a stage begins a group of three, and that stage 9 is the last, with the Difficulty page for what comes after", async ({ page }) => {
+  const up = await stationOf(page, 4);
+  await expect(up.locator(".cs")).toHaveText("Stage 4 reached");
+  await expect(up).toContainText("The earlier stages stay in the mix. Stage 4 begins the second group of three: what things are made of, and what exists.");
+  await expect(up).not.toContainText("This is the last stage.");
+  // the fold is the Progression page's own explanation, with the way to the Difficulty page; Back from it comes to the station again
+  await up.getByRole("button", { name: "How the stages work" }).click();
+  await expect(up).toContainText("A stage begins with its first new term, once the stage before has brought all of its own.");
+  await up.getByRole("button", { name: "Difficulty page" }).click();
+  await expect(page.locator("#path .pdiff")).toBeVisible();
+  await page.goBack();
+  await expect(page.locator("#path .tstage .cs")).toHaveText("Stage 4 reached");
+});
+
+test("on the Path the station of stage 9 says it is the last", async ({ page }) => {
+  const up = await stationOf(page, 9);
+  await expect(up.locator(".cs")).toHaveText("Stage 9 reached");
+  await expect(up).toContainText("This is the last stage. Chains of reasoning come after it, as a difficulty of their own, on the Difficulty page.");
+  await expect(up, "stage 9 begins no group").not.toContainText("group of three");
 });
 
 test("on the Path, with Move up by itself off, five right relations bring no stage; the switch is behind the practice options' Difficulty line and is kept", async ({ page }) => {

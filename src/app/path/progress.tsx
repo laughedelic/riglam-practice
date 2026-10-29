@@ -10,7 +10,7 @@ import { DEPTH_NAME, depthNow } from "../practice/difficulty.ts";
 import { progressNow } from "../practice/stage-offer.ts";
 import { openPage, openProgress } from "../shell/session.js";
 import { paceSpacing } from "../../domain/intro.ts";
-import { STAGES } from "../../domain/stages.ts";
+import { LADDER_TOP, STAGES } from "../../domain/stages.ts";
 import { openDifficulty, openProgression } from "./progression.tsx";
 import { Segs, TermList, rightOf } from "./rings.tsx";
 
@@ -45,6 +45,22 @@ export const num = (n: number) => WORD[n] || String(n);
 
 /** How new terms come at a pace of `n` (src/domain/intro.ts, PACES and paceSpacing), here and on the Progression page. */
 export const flow = (n: number): string => "New terms come one at a time, at most one every " + num(paceSpacing(n)) + " questions, while fewer than " + num(n) + " of your terms are not right yet. With " + num(n) + ", the questions stay on those until one of them is.";
+
+/**
+ * What the stages are and how they move, in full: the fold "How the stages work" on the Progression page (path/progression.tsx) and on the stage station
+ * (path/stage-up.tsx), in the same words. `diff` says where the Difficulty page is, after the line on the last stage.
+ */
+export const HowStages = ({ diff }: { diff: ComponentChildren }) => <ul class="tup-bul">
+  <li>Each stage adds a new kind of thing to ask about, from everyday things toward abstract ideas.</li>
+  <li>Stage 0 is everyday things only. The course terms start at stage 1, in three groups of three stages.</li>
+  <li>The earlier stages stay in the mix, and Review keeps them fresh.</li>
+  <li>Each new term comes with its definition first.</li>
+  <li>{flow(state.pace)}</li>
+  <li>A stage begins with its first new term, once the stage before has brought all of its own. A wrong answer takes back only that term’s mark.</li>
+  <li>{"Stage " + LADDER_TOP + " is the last. Chains of reasoning come after it as a difficulty of their own, like the negations: "}{diff}.</li>
+  <li>Progression works across all exercises.</li>
+  <li>A stage’s ring has a segment for each of its new terms, and each term a diamond: green when your last answer on it was right, red when it was wrong, open while it is not asked yet.</li>
+</ul>;
 
 /**
  * The page: the lines are short, and the words are the stage station's where it has them ("reached", "The stages follow your answers"). The new terms of the

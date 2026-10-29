@@ -19,7 +19,7 @@ import { LADDER_TOP, RING_STAGES, STAGES, ladderTop } from "../../domain/stages.
 import type { DataIndex } from "../../ai-shared/lookup.ts";
 import type { ProgressionAt } from "../types.ts";
 import { DifficultyPage, difficultyLine } from "./difficulty.tsx";
-import { flow } from "./progress.tsx";
+import { HowStages } from "./progress.tsx";
 import { StageRing, marksOf, rightOf, ringLabel, stageWhere } from "./rings.tsx";
 import { TopBar } from "./shell.tsx";
 import { FitTerm, StopSections } from "./stop-def.tsx";
@@ -129,17 +129,7 @@ function How() {
   return <>
     <St d={<D cls="sub" />} cls={"trow prg-how can" + (open ? " open" : "")}>
       <button type="button" class="trb" aria-expanded={open ? "true" : "false"} onClick={() => toggleOpen(k)}><b>How the stages work</b><span class="arr"><Icon n="chev" /></span></button></St>
-    {open ? <div class="pfold"><div class="wtext tup prg-p"><ul class="tup-bul">
-      <li>Each stage adds a new kind of thing to ask about, from everyday things toward abstract ideas.</li>
-      <li>Stage 0 is everyday things only. The course terms start at stage 1, in three groups of three stages.</li>
-      <li>The earlier stages stay in the mix, and Review keeps them fresh.</li>
-      <li>Each new term comes with its definition first.</li>
-      <li>{flow(state.pace)}</li>
-      <li>A stage begins with its first new term, once the stage before has brought all of its own. A wrong answer takes back only that term’s mark.</li>
-      <li>{"Stage " + LADDER_TOP + " is the last. Chains of reasoning come after it as a difficulty of their own, like the negations: see Difficulty, above."}</li>
-      <li>Progression works across all exercises.</li>
-      <li>A stage’s ring has a segment for each of its new terms, and each term a diamond: green when your last answer on it was right, red when it was wrong, open while it is not asked yet.</li>
-    </ul></div></div> : null}
+    {open ? <div class="pfold"><div class="wtext tup prg-p"><HowStages diff="see Difficulty, above" /></div></div> : null}
   </>;
 }
 
