@@ -179,7 +179,7 @@ function Stages({ p }: { p: ProgressionAt }) {
     if (over > 0) pg.scrollTop += Math.min(over, row.getBoundingClientRect().top - box.top - 8);
   });
   return <>
-    <TopBar title="Progression" back={{ label: p.from === "road" ? "Back to the roadmap" : "Back to " + exName(p.tab), act: progBack }} />
+    <TopBar title="Progression" back={{ label: p.from === "road" ? "Back to the roadmap" : "Back to " + exName(p.tab), go: progBack }} />
     <div key="stages" class="ppage prv pprog sfull">
       <section class="sgrp"><h4 class="sgh">Difficulty</h4><DifficultyLines /></section>
       <section class="sgrp prg-st"><h4 class="sgh">Stages</h4>
@@ -198,7 +198,7 @@ function TermCard({ id }: { id: string }) {
   const c = termOf(id), name = (c && c.term) || id, def = !!state.DATA && hasDef(state.DATA.terms[name]);
   const s = STAGES.find((x) => marksOf(x.n).some((t) => t.id === id)), mark = (s && marksOf(s.n).find((t) => t.id === id)?.mark) || "met";
   return <>
-    <TopBar title="Progression" back={{ label: "Back to Progression", act: progBack }} />
+    <TopBar title="Progression" back={{ label: "Back to Progression", go: progBack }} />
     <div key="term" class="ppage prv pprog-t">
       <Sx cls="cur first tstop"><Gap h={14} /><Head d={<D cls="sec tsd" />} h={s ? "Stage " + s.n : "Term"} sub={(s ? s.name + " · " : "") + SAYS[mark]} /><Gap h={4} />
         <St d={<D cls={"sub " + NODE[mark]} />} cls="stm thing"><FitTerm text={name} /><Names term={name} /></St>
