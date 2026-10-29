@@ -6,6 +6,9 @@
 const EASE = "cubic-bezier(.4,0,.2,1)";
 /** What a step moves inside itself: its diamond, its words, its answer, the open field and the line under it. */
 const INNER = ".d,.lab,.pans,.qq,.fieldrow,.help button";
+/** The page opening (it starts a moment after the Enter and takes this long), how long the foot must stand still before what waits for it goes on, and the longest it is waited for
+ *  (the keyboard going takes the screen's height with it) (ms). */
+export const OPEN = 380, OPEN_AT = 40, STILL = 80, WAIT = 700;
 /** The top bar's height, which `.pa.kbup .ptb` pulls out of sight (35-path-station.css). */
 const BAR = 57;
 
@@ -54,4 +57,22 @@ export function openPage(root: HTMLElement, main: HTMLElement, change: () => voi
       else k.k.animate([to(dx, ky), to(0, 0)], opt);
     }
   });
+}
+
+/**
+ * Opens the page as `openPage` does, with the foot coming in, and calls `done` once the foot's station stands still in the page's layout, or after `WAIT` at the most: the
+ * last example written with the keyboard up, whose Check is then taken from the foot like any other.
+ */
+export function openThen(root: HTMLElement, main: HTMLElement, change: () => void, done: () => void): void {
+  main.classList.add("sc-open");
+  openPage(root, main, change, OPEN, OPEN_AT);
+  const t0 = performance.now(), end = OPEN_AT + OPEN;
+  let last = NaN, at = 0;
+  const tick = (now: number) => {
+    const t = now - t0, g = root.querySelector<HTMLElement>(".main .foot #stn .go"), y = g ? g.getBoundingClientRect().top : NaN;
+    if (!(Math.abs(y - last) <= 0.5)) { last = y; at = t; }
+    if ((g && t >= end && t - at >= STILL) || t > end + WAIT) { main.classList.remove("sc-open"); done(); return; }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
 }

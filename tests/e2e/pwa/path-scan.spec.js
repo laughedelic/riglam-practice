@@ -78,7 +78,7 @@ test("the scanner glides into the result's node and the page does not move under
 test("with the keyboard up, Enter on the last example opens the page first, and the scan runs over it from the foot", async ({ page }, testInfo) => {
   test.skip(!isPhone(testInfo), "a touch screen's keyboard");
   await written(page, { enter: true });
-  await expect(page.locator("#path .cnode #stn")).toBeVisible();
+  await expect(page.locator("#path #stn")).toHaveCount(0);   // no station on the page above the keyboard: the Check waits at the foot of the page that opens
   await page.locator("#cin").press("Enter");
   await expect(page.locator("#path .pscan")).toHaveCount(1);
   await expect(page.locator(".pa")).not.toHaveClass(/\bkbup\b/);
