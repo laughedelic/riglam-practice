@@ -360,7 +360,7 @@ test("the roadmap has the stops and their names only: no branch labels, and the 
 });
 
 test("a line of the practice options with a page is the way in, all of it, with a chevron at its right edge; the sheet fades where there is more to scroll to", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 640 });
+  await page.setViewportSize({ width: 390, height: 480 });   // short enough that the options run past the sheet's foot
   await start(page);
   await page.locator(".tstn").click();
   await page.getByRole("dialog", { name: "Roadmap" }).getByRole("button", { name: /^Pervasions/ }).click();
