@@ -35,6 +35,8 @@ export interface ScanPlan {
   stop?: string;
   /** the rows the cases are marked on, in the page's order (default: the rows of the step, `.sx.cur .sb`); Pervasions': the four answered questions, then the relation picked */
   rows?: string;
+  /** the room the result's node takes at `stop`, measured on the page `pc` as the scan comes to it: the stop opens to `h` px and its diamond stands `at` px under its top (Categories', where nothing folds) */
+  room?: (pc: HTMLElement) => { h: number; at: number } | null;
 }
 
 const EASE = { out: (u: number) => 1 - (1 - u) ** 3, io: (u: number) => (u < 0.5 ? 4 * u ** 3 : 1 - (-2 * u + 2) ** 3 / 2) };
@@ -129,7 +131,12 @@ export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, ac
 
   const gone = stopD && stopD.parentElement ? stopD.parentElement : head;      // what the scanner covers as it arrives: the heading, or the reply's row
   let raf = 0, done = false, headDone = false, hold: ReturnType<typeof holdOf> | null = null;
-  const cover = () => { if (!headDone) { headDone = true; gone.classList.add("scn-gone"); } };
+  const cover = () => {
+    if (headDone) return; headDone = true;
+    const r = stopD && plan.room ? plan.room(pc) : null;
+    if (r && stopD) { gone.style.height = r.h.toFixed(1) + "px"; stopD.style.top = r.at.toFixed(1) + "px"; }
+    gone.classList.add("scn-gone");
+  };
   const t0 = performance.now();
   let yTop = 0, d = 0, tSlide = 0, tSettle = 0, tBecome = 0, relDone = false;
   // the slide starts once the Check is the scanner (and, when the page opens first, once the scanner is at the foot and the foot is still)
@@ -171,6 +178,7 @@ export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, ac
   const shared = (): Map<string, number> => {
     const m = new Map<string, number>(), pn = pnEl();
     for (const r of rows) { const k = nameOf(r); if (k) m.set(k, r.getBoundingClientRect().top); }
+    for (const e of Array.from(pc.querySelectorAll<HTMLElement>("[data-mv]"))) m.set("mv:" + e.dataset.mv, e.getBoundingClientRect().top);      // what the two pages draw alike besides the rows (the threshold's rule and its words)
     if (pn) m.set("", pn.getBoundingClientRect().top);
     return m;
   };
@@ -210,6 +218,7 @@ export function playScan(root: HTMLElement, stn: HTMLElement, plan: ScanPlan, ac
       return true;
     };
     for (const r of Array.from(now.querySelectorAll<HTMLElement>(".sb:not([data-mk] .sb), [data-mk]"))) { const k = nameOf(r); if (k && flip(r, was.get(k))) { const sx = r.closest(".sx"); if (sx) sx.classList.add("morphed"); } else r.classList.add("mnew"); }
+    for (const e of Array.from(now.querySelectorAll<HTMLElement>("[data-mv]"))) if (flip(e, was.get("mv:" + e.dataset.mv))) { const sx = e.closest(".sx"); if (sx) sx.classList.add("morphed"); }
     const pn = now.querySelector<HTMLElement>(".pn.res"); if (!pn) return;
     // a part of the pair: from where it stood, as big as it was (the text and the figure are the result's own, scaled down to what they were)
     const move = (e: HTMLElement | null, was: Stood | undefined, by: "font" | "width" | null) => {
