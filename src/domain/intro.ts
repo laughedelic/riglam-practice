@@ -5,6 +5,7 @@
 // may ask for one too. A settled term not met for a long time comes back once. This is the
 // whole schedule: a record per term (part of the learner's progression, practice/progress.ts), and pure functions of it and the data.
 import type { Cat } from "../ai-shared/data";
+import { spelled, upChain } from "../ai-shared/lookup";
 import type { DataIndex } from "../ai-shared/lookup";
 import { catStage, topStage } from "./stages";
 import type { Stages } from "./stages";
@@ -40,7 +41,7 @@ export interface IntroTerm {
   won?: number;
 }
 
-/** The device's record: how many questions it has answered since the record began, when the next new term may come, and each term met (by category id). */
+/** The device's record: how many questions it has answered since the record began, when the next new term may come, and each term met (by category id, or a named term's key). */
 export interface Intro {
   n: number;
   next: number;
@@ -54,6 +55,47 @@ export interface Stop {
   why: StopWhy;
 }
 
+/**
+ * The named terms: course terms mutually inclusive with a category's own that some of its labels and phrases name (the data's `named`): matter
+ * next to form, the same things under another definition. Such a term shares the category and its questions, since their answers can never differ, but it has a
+ * definition and divisions of its own: a stop and a segment of its own, right after the category's, and a question that says one of its words
+ * grades it. The record keeps it under its key ("form:Matter"), and until its stop has come its words wait (`unmet`, `wordsFor`): a pair says
+ * "forms", not "matter".
+ */
+export const namedKey = (cat: string, term: string): string => cat + ":" + term;
+/** The keys of the named terms of a category, in the data's order. */
+const namedKeys = (ix: DataIndex, cat: string): string[] => (ix.CAT[cat]?.named ?? []).filter((n) => Object.hasOwn(ix.DATA.terms, n.term)).map((n) => namedKey(cat, n.term));
+/** The category a stop or a record is for: one of the data's, or for a named term its category under the term's name and words. */
+export function stopCat(ix: DataIndex, id: string): Cat | null {
+  if (Object.hasOwn(ix.CAT, id)) return ix.CAT[id]!;
+  const i = id.indexOf(":"), base = i > 0 && Object.hasOwn(ix.CAT, id.slice(0, i)) ? ix.CAT[id.slice(0, i)]! : null;
+  const n = base?.named?.find((x) => x.term === id.slice(i + 1));
+  if (!base || !n || !Object.hasOwn(ix.DATA.terms, n.term)) return null;
+  const c: Cat = { ...base, id, term: n.term, labels: base.labels.filter((l) => n.words.includes(l)), phrases: (base.phrases ?? []).filter((p) => n.words.includes(p)) };
+  delete c.named;
+  return c;
+}
+/** A word of a negated side, as its category has it: "non-(matter)" is said of matter. */
+const unNegated = (w: string): string => (w.startsWith("non-(") && w.endsWith(")") ? w.slice(5, -1) : w.startsWith("non-") ? w.slice(4) : w);
+/** The key a question grades when it says the category with this word (a label or a phrase): a named term's ("matter": form:Matter), else the category's. */
+export function askedKey(ix: DataIndex, cat: string, word: string | null | undefined): string {
+  const named = ix.CAT[cat]?.named; if (!named?.length || !word) return cat;
+  const w = spelled(word), bare = spelled(unNegated(w)), n = named.find((x) => x.words.some((y) => { const k = spelled(y); return k === w || k === bare; }));
+  return n ? namedKey(cat, n.term) : cat;
+}
+/**
+ * The words (labels or phrases) a question may say the category with: none of a named term whose stop has not come (`unmet`), unless nothing
+ * else is left; and while some of its terms are `open` (the stage waits for their last answer), the words of those only.
+ */
+export function wordsFor(ix: DataIndex, cat: string, words: readonly string[], unmet?: ReadonlySet<string>, open?: ReadonlySet<string>): readonly string[] {
+  if (!ix.CAT[cat]?.named?.length) return words;
+  const shown = unmet?.size ? words.filter((w) => !unmet.has(askedKey(ix, cat, w))) : words, all = shown.length ? shown : words;
+  const lean = open?.size ? all.filter((w) => open.has(askedKey(ix, cat, w))) : [];
+  return lean.length ? lean : all;
+}
+/** The categories of some terms (`open`, `unmet`): a named term's is the category it shares. */
+export const termCats = (keys: Iterable<string>): Set<string> => new Set([...keys].map((k) => { const i = k.indexOf(":"); return i > 0 ? k.slice(0, i) : k; }));
+
 /** A device's record before any question. */
 export const freshIntro = (): Intro => ({ n: 0, next: FIRST_AFTER, terms: {} });
 
@@ -63,21 +105,27 @@ export const needsIntro = (cat: Pick<Cat, "kind" | "term">): boolean => cat.kind
 /** Whether the category may be asked about: an everyday one always, a Dudra one once its stop has come. */
 export const introduced = (intro: Intro, cat: Pick<Cat, "id" | "kind" | "term">): boolean => !needsIntro(cat) || (intro.terms[cat.id]?.box ?? 0) >= 1;
 
-/** The categories whose term opens at the stage, in the course's order (the data's). */
-export const stageTerms = (ix: DataIndex, stage: number): string[] => Object.values(ix.CAT).filter((c) => needsIntro(c) && catStage(c) === stage).map((c) => c.id);
+/** Every course term with a stop, as its category (`stopCat`), in the course's order (the data's): each category's own, then its named terms. */
+const courseTerms = (ix: DataIndex): Cat[] => Object.values(ix.CAT).filter(needsIntro).flatMap((c) => [c, ...namedKeys(ix, c.id).map((k) => stopCat(ix, k)!)]);
+
+/** The terms that open at the stage, in the course's order: the categories' ids, each followed by its named terms' keys. */
+export const stageTerms = (ix: DataIndex, stage: number): string[] => courseTerms(ix).filter((c) => catStage(c) === stage).map((c) => c.id);
 
 /** The course terms whose stop has come, as their categories, in the course's order: the lowest stage first, then the data's. */
-export const metTerms = (ix: DataIndex, intro: Intro): Cat[] => Object.values(ix.CAT).filter((c) => needsIntro(c) && introduced(intro, c)).sort((a, b) => catStage(a) - catStage(b));
+export const metTerms = (ix: DataIndex, intro: Intro): Cat[] => courseTerms(ix).filter((c) => introduced(intro, c)).sort((a, b) => catStage(a) - catStage(b));
 
-/** The Dudra categories open at these stages whose stop has not come yet: they wait out of the questions (domain/stages.ts, catOpen). */
+/**
+ * The course terms open at these stages whose stop has not come yet: a category waits out of the questions (domain/stages.ts, catOpen), a
+ * named term's words wait out of its category's (`wordsFor`).
+ */
 export function unmet(ix: DataIndex, intro: Intro, on: Stages): Set<string> {
   const top = topStage(on), out = new Set<string>();
-  for (const c of Object.values(ix.CAT)) if (needsIntro(c) && catStage(c) <= top && !introduced(intro, c)) out.add(c.id);
+  for (const c of courseTerms(ix)) if (catStage(c) <= top && !introduced(intro, c)) out.add(c.id);
   return out;
 }
 
 /** Whether every term of the stage has had its stop. */
-export const stageMet = (ix: DataIndex, intro: Intro, stage: number): boolean => stageTerms(ix, stage).every((id) => introduced(intro, ix.CAT[id]!));
+export const stageMet = (ix: DataIndex, intro: Intro, stage: number): boolean => stageTerms(ix, stage).every((id) => introduced(intro, stopCat(ix, id)!));
 
 /**
  * Where a term stands for its stage: before its stop (`wait`), met and not answered yet (`met`), its last answer right (`ok`, box 2 or more), or its
@@ -112,9 +160,9 @@ export interface TreeTerm { name: string; met: boolean }
  */
 export function termTree(ix: DataIndex, intro: Intro, term: string): { up: TreeTerm[]; kids: string[]; more: boolean } {
   const stops = new Map<string, Cat>();
-  for (const c of Object.values(ix.CAT)) if (needsIntro(c)) stops.set(c.term!, c);
+  for (const c of courseTerms(ix)) stops.set(c.term!, c);
   const met = (n: string) => { const c = stops.get(n); return !c || introduced(intro, c); };
-  const up = ((ix.DATA.chains || {})[term] || [term]).slice(1).reverse().map((name) => ({ name, met: met(name) }));
+  const up = ((ix.DATA.chains || {})[term] || upChain(ix, term)).slice(1).reverse().map((name) => ({ name, met: met(name) }));
   const below = Object.keys(ix.DATA.terms).filter((n) => ix.DATA.terms[n]!.parent === term && stops.has(n));
   return { up, kids: below.filter(met), more: below.some((n) => !met(n)) };
 }
@@ -126,7 +174,7 @@ const DAY = 864e5;
  * allows (the lowest stage first, in the course's order), then a settled term not met for GAP_DAYS. Only terms open at these stages.
  */
 export function nextStop(ix: DataIndex, intro: Intro, on: Stages, now: string): Stop | null {
-  const top = topStage(on), open = (id: string) => !!ix.CAT[id] && catStage(ix.CAT[id]!) <= top;
+  const top = topStage(on), open = (id: string) => { const c = stopCat(ix, id); return !!c && catStage(c) <= top; };
   let best: { id: string; t: IntroTerm } | null = null;
   for (const [id, t] of Object.entries(intro.terms)) {
     if (t.due === undefined || t.due > intro.n || !open(id)) continue;
@@ -136,7 +184,7 @@ export function nextStop(ix: DataIndex, intro: Intro, on: Stages, now: string): 
   if (best) return { cat: best.id, why: best.t.why === "again" ? "again" : "miss" };
   if (intro.n >= intro.next) {
     for (let s = 1; s <= top; s++) {
-      const id = stageTerms(ix, s).find((c) => !introduced(intro, ix.CAT[c]!));
+      const id = stageTerms(ix, s).find((c) => !introduced(intro, stopCat(ix, c)!));
       if (id) return { cat: id, why: "new" };
     }
   }
@@ -190,10 +238,12 @@ export function afterQuestion(intro: Intro, graded: readonly { cat: string | nul
 
 /**
  * A pair's question (Relations, Pervasions) graded for its course terms. Right: each of them was right. Wrong: the mistake counts against a term only
- * when it is the pair's one course term; with two, it may be about either, or about the relation, and neither moves.
+ * when it is the pair's one course term; with two, it may be about either, or about the relation, and neither moves. With the pair's `labels`, a side
+ * shown under the label of a named term grades that term (a pair that says "matter" grades matter, not form).
  */
-export function pairGraded(ix: DataIndex, cats: readonly (string | null | undefined)[], ok: boolean): { cat: string; ok: boolean }[] {
-  const course = [...new Set(cats.filter((c): c is string => !!c && !!ix.CAT[c] && needsIntro(ix.CAT[c]!)))];
+export function pairGraded(ix: DataIndex, cats: readonly (string | null | undefined)[], ok: boolean, labels: readonly (string | null | undefined)[] = []): { cat: string; ok: boolean }[] {
+  const keys = cats.map((c, i) => (c ? askedKey(ix, c, labels[i]) : c));
+  const course = [...new Set(keys.filter((c): c is string => !!c && !!stopCat(ix, c) && needsIntro(stopCat(ix, c)!)))];
   return ok || course.length === 1 ? course.map((cat) => ({ cat, ok })) : [];
 }
 

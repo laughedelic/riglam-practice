@@ -131,7 +131,7 @@ test("Review on the Path: Terms lists the terms met so far by stage, and a row u
   await expect(page.locator("#path .pfold")).toHaveCount(0);
   await rows(page).first().locator(".trb").click();
   const fold = page.locator("#path .pfold");
-  await expect(fold.locator(".tstop-sech")).toHaveText(withCourse ? ["Definition", "Categories"] : ["Categories"]);
+  await expect(fold.locator(".tstop-sech")).toHaveText(withCourse ? ["Definition", "Categories", "Examples"] : ["Categories", "Examples"]);
   await expect(fold.locator(".ttree li.me")).toHaveText("Form");
   await rows(page).first().locator(".trb").click();
   await expect(fold).toHaveCount(0);

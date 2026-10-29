@@ -10,7 +10,7 @@ import { hasDef } from "./terms.js";
 import { saveProgress } from "./progress.ts";
 import { render } from "../shell/render.js";
 import type { DataIndex } from "../../ai-shared/lookup.ts";
-import { afterQuestion, againAsked, freshIntro, nextStop, openTerms, pairGraded, showAgain, stageUp, stopShown, termTree, unmet, type Stop } from "../../domain/intro.ts";
+import { afterQuestion, againAsked, askedKey, freshIntro, nextStop, openTerms, pairGraded, showAgain, stageUp, stopCat, stopShown, termTree, unmet, type Stop } from "../../domain/intro.ts";
 import { catStage } from "../../domain/stages.ts";
 
 const save = () => { if (state.intro) saveProgress(); };
@@ -22,7 +22,7 @@ const onPath = () => state.design === "path";
 export function startStops() {
   if (!state.intro && state.DATA) state.intro = freshIntro();
 }
-/** The categories of the stages on whose stop has not come yet: the draws leave them out. */
+/** The course terms of the stages on whose stop has not come yet: the draws leave out their categories, and the labels of a named term (matter). */
 export const unmetNow = (): Set<string> => (onPath() && state.intro && state.DATA ? unmet(ix(), state.intro, state.stages) : new Set());
 /** The new terms of the highest stage whose last answer is not right yet: the new questions lean to them (the next stage waits for them). */
 export const openNow = (): Set<string> => (onPath() && state.intro && state.DATA ? openTerms(ix(), state.intro, state.stages) : new Set());
@@ -34,8 +34,13 @@ export function gradeTerms(graded: { cat: string | null | undefined; ok: boolean
   if (!state.intro) return;
   state.intro = afterQuestion(state.intro, graded, now(), misses); save();
 }
-/** A pair's answer (Relations, Pervasions): a mistake counts against a term only when it is the pair's one course term (src/domain/intro.ts, pairGraded). */
-export const gradePair = (cats: (string | null | undefined)[], ok: boolean) => gradeTerms(pairGraded(ix(), cats, ok));
+/**
+ * A pair's answer (Relations, Pervasions): a mistake counts against a term only when it is the pair's one course term (src/domain/intro.ts, pairGraded).
+ * `labels`: the pair's, so that a side said as "matter" grades matter.
+ */
+export const gradePair = (cats: (string | null | undefined)[], ok: boolean, labels: (string | null | undefined)[] = []) => gradeTerms(pairGraded(ix(), cats, ok, labels));
+/** The term a question grades for a category said with this word: a named term's key ("matter": form:Matter), else the category (src/domain/intro.ts, askedKey). */
+export const askedTerm = (cat: string | null | undefined, word: string | null | undefined): string | null | undefined => (cat && state.DATA ? askedKey(ix(), cat, word) : cat);
 /** The stop that Next would take now (the one `takeStop` would put on the answer on screen), or null: for a station that says what comes after it. */
 export function dueStop(): Stop | null {
   const u = state.ui; if (!onPath() || !state.intro || !state.DATA || !u || u.stop) return null;
@@ -63,7 +68,7 @@ export function stopsStageUp() { if (state.intro) { state.intro = stageUp(state.
 
 /** What the stop says above the term: a new term, its stage and where the course has it, or why it comes again. */
 export function stopHead(s: Stop): { h: string; sub: string } {
-  const c = state.CAT[s.cat], st = c ? catStage(c) : 0, ch = (c && c.term && state.DATA && state.DATA.terms[c.term] && state.DATA.terms[c.term].ch) || "";
+  const c = state.DATA ? stopCat(ix(), s.cat) : null, st = c ? catStage(c) : 0, ch = (c && c.term && state.DATA && state.DATA.terms[c.term] && state.DATA.terms[c.term].ch) || "";
   if (s.why === "new") return { h: "New term", sub: "stage " + st + (ch ? " \u00b7 " + ch : "") };
   return { h: "Repetition", sub: s.why === "miss" ? "you missed this before" : s.why === "gap" ? "not met for a while" : "as you asked" };
 }
@@ -76,11 +81,11 @@ export function toggleAgain(cat: string) {
 }
 /** The term of the stop: its name, and whether this device can read its definition. */
 export function stopTerm(s: Stop): { name: string; def: boolean } {
-  const c = state.CAT[s.cat], term = (c && c.term) || "";
+  const c = state.DATA ? stopCat(ix(), s.cat) : null, term = (c && c.term) || "";
   return { name: term, def: !!state.DATA && hasDef(state.DATA.terms[term]) };
 }
 /** Where the term of the stop sits: the terms above it, and the divisions of it that the learner has met (src/domain/intro.ts, termTree). */
 export function stopTree(s: Stop) {
-  const c = state.CAT[s.cat], term = (c && c.term) || "";
+  const c = state.DATA ? stopCat(ix(), s.cat) : null, term = (c && c.term) || "";
   return state.intro && state.DATA ? termTree(ix(), state.intro, term) : { up: [], kids: [], more: false };
 }

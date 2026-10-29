@@ -6,6 +6,7 @@ import { leavesOpen } from "../ai-shared/lookup";
 import type { DataIndex } from "../ai-shared/lookup";
 import { CELLS, NEG_CELL, negLabel, negSides } from "../ai-shared/relations";
 import type { CellId, Neg, RelKey } from "../ai-shared/relations";
+import { termCats, wordsFor } from "./intro";
 import { itemKnown, itemOn, poolAt, topStage } from "./stages";
 import type { Unmet } from "./stages";
 import type { StagedEntry, Stages } from "./stages";
@@ -147,15 +148,19 @@ export function buildPool(ix: DataIndex): PoolEntry[] {
  * there is one, and the reason where a cell is empty. The random numbers are drawn in a fixed order; the id is made from
  * the clock and one more random number, so with both given the whole pair is reproducible. With `on`, the examples are
  * things of those stages (see pairOf). With `neg`, A, B or both are negated, under a label that is not a negation already where the category has one.
+ * With `words`, a label that names a term the learner has not met waits, and while a named term is open a side says it (intro.ts, wordsFor); a
+ * pair of one category's own two labels then has the open term's label first ("matter" and "forms").
  */
-export function makePair(ix: DataIndex, cand: PoolEntry, rng: Rng = Math.random, now: Clock = Date.now, more?: Witnesses, on?: Stages, neg?: Neg, brackets = true): Pair {
+export function makePair(ix: DataIndex, cand: PoolEntry, rng: Rng = Math.random, now: Clock = Date.now, more?: Witnesses, on?: Stages, neg?: Neg, brackets = true, words?: PairWords): Pair {
   let a = cand.a, b = cand.b, la: string, lb: string;
-  const [na, nb] = negSides({ neg }), labels = (cid: string, n: boolean) => {
+  // `lean` false: every label the learner has met, none preferred
+  const [na, nb] = negSides({ neg }), labels = (cid: string, n: boolean, lean = true) => {
     const all = ix.CAT[cid].labels, plain = all.filter((l) => !l.startsWith("non-"));
-    return n && plain.length ? plain : all;
+    return wordsFor(ix, cid, n && plain.length ? plain : all, words?.unmet, lean ? words?.open : undefined);
   };
   if (a === b) {
-    const ls = labels(a, na || nb).slice().sort(() => rng() - 0.5);
+    const ls = labels(a, na || nb, false).slice().sort(() => rng() - 0.5), lean = labels(a, na || nb);
+    if (lean.length < ls.length) ls.sort((x, y) => Number(lean.includes(y)) - Number(lean.includes(x)));
     la = ls[0]; lb = ls[1] ?? ls[0];
   } else {
     if (rng() < 0.5) [a, b] = [b, a];
@@ -163,6 +168,9 @@ export function makePair(ix: DataIndex, cand: PoolEntry, rng: Rng = Math.random,
   }
   return pairOf(ix, a, b, la, lb, rng, now, more, on, neg, brackets);
 }
+
+/** What a draw knows of the learner's terms for the labels of a pair: those not met (`unmet`) and those the stage waits for (`open`), as intro.ts has them. */
+export interface PairWords { unmet?: Unmet; open?: ReadonlySet<string> }
 
 /**
  * The pair for two categories in this order, shown under these labels (the learner's words in the pair-finding mode, a label of the category in a draw).
@@ -224,7 +232,7 @@ export interface DrawState {
   even?: boolean;
   /** the share of the pairs new at the highest stage (stages.ts, newShare): a quarter while the exercise is new to the learner; none: half */
   newShare?: number;
-  /** the new terms of the highest stage whose last answer is not right yet (intro.ts, openTerms): its pairs are drawn among theirs while any can be */
+  /** the new terms of the highest stage whose last answer is not right yet (intro.ts, openTerms): its pairs are drawn among theirs while any can be, and say a named term's label */
   open?: ReadonlySet<string>;
   /**
    * the negation track: about a third of the pairs have one side negated, A or B alike ("one", as the tutors negate either), or, with "both", half
@@ -261,7 +269,9 @@ export function chooseEntry(ix: DataIndex, full: readonly PoolEntry[], st: DrawS
   // stages whose things cannot fill a single pair (only the upper stages, which the practice list has nothing of) draw from every pair
   const staged = st.stages ? poolAt(ix, full, st.stages) : [], drawable: readonly (PoolEntry & Partial<StagedEntry>)[] = staged.length ? staged : full;
   // a pair waits while one of its categories has a term the learner has not met; if that leaves nothing, the stages' pairs are drawn as they are
-  const met = st.unmet?.size ? drawable.filter((c) => !st.unmet!.has(c.a) && !st.unmet!.has(c.b)) : drawable;
+  // and a pair of one category's own two labels while it has one label to show (the other names a term not met yet: "internal matter")
+  const two = (c: PoolEntry) => c.a !== c.b || wordsFor(ix, c.a, ix.CAT[c.a].labels, st.unmet).length > 1;
+  const met = st.unmet?.size ? drawable.filter((c) => !st.unmet!.has(c.a) && !st.unmet!.has(c.b) && two(c)) : drawable;
   const top = staged.length && !st.even ? topStage(st.stages!) : 0;
   const all = met.length ? met : drawable;
   // the stage first: the highest `newShare` of the time (a quarter while the exercise is new to the learner), else one below it, in proportion to what it teaches
@@ -280,7 +290,7 @@ export function chooseEntry(ix: DataIndex, full: readonly PoolEntry[], st: DrawS
     pool = all.filter((c) => c.st === stage);
     // the stage waits for the last answer on each of its new terms to be right: its questions go to the terms that are not yet
     if (stage === top && st.open?.size) {
-      const lean = pool.filter((c) => st.open!.has(c.a) || st.open!.has(c.b));
+      const cats = termCats(st.open), lean = pool.filter((c) => cats.has(c.a) || cats.has(c.b));
       if (lean.length) pool = lean;
     }
   }
@@ -325,5 +335,5 @@ export function nextPair(ix: DataIndex, pool: readonly PoolEntry[], st: DrawStat
   st.recent.push(pairKey(c));
   if (st.recent.length > RECENT_MAX) st.recent.shift();
   const neg: Neg | undefined = st.negation && rng() < NEG_SHARE ? (st.negation === "both" && rng() < 0.5 ? "ab" : rng() < 0.5 ? "a" : "b") : undefined;
-  return makePair(ix, c, rng, st.now || Date.now, st.more, st.stages, neg, st.brackets);
+  return makePair(ix, c, rng, st.now || Date.now, st.more, st.stages, neg, st.brackets, { unmet: st.unmet, open: st.open });
 }

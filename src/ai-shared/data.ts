@@ -47,6 +47,11 @@ export interface Cat {
   phrases?: string[];
   /** ids of the categories that everything in this one is also in, stated where the term hierarchy cannot show it (everyday categories) */
   within?: string[];
+  /**
+   * course terms mutually inclusive with the category's own that some of its labels and phrases (`words`) name: "matter" for form. They share the
+   * category and its questions, and each is introduced on its own (src/domain/intro.ts)
+   */
+  named?: { term: string; words: string[] }[];
   /** the stage of the learning ladder (1 to 9) at which the category opens; none: from the start */
   st?: number;
 }

@@ -430,9 +430,10 @@ test("the card lists the classes of the real data's tree, which hold every liste
   expect(cls).not.toContain("Existent");
   expect(cls).not.toContain("Matter");
   expect(cls).not.toContain("Hidden phenomenon"); // not in the tree under Existent
-  for (const it of real.items) if (!["Expressive sound", "Non-existent"].includes(it.t)) expect(cls, it.n).toContain(it.t);
+  for (const it of real.items) if (it.t !== "Non-existent") expect(cls, it.n).toContain(it.t);
   expect(cardBody(rix, { a: "forms", b: "minds", catA: "form", catB: "cons", relation: "con" }, practice())).toContain('Classes (the booklet\'s "is a" tree, for "class:"): Form, External form,');
   expect(upChain(rix, "Taste source")).toEqual(["Taste source", "External form", "Form", "Functional thing", "Existent"]);
+  expect(upChain(rix, "Expressive sound")).toEqual(["Expressive sound", "Sound source", "External form", "Form", "Functional thing", "Existent"]); // a sound, not under object-possessor (Lorig)
 });
 
 test("the real data is spelled the American way, in labels, item names and term names", () => {

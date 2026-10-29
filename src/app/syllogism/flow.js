@@ -8,7 +8,7 @@ import { explainByItself } from "../ai/tutor.js";
 import { startQ, stopTimer } from "../debate/flow.js";
 import { freshUi } from "../practice/queue.js";
 import { catsStageNow, shareNow, stageStep } from "../practice/stage-offer.ts";
-import { gradeTerms, openNow, unmetNow } from "../practice/stops.ts";
+import { askedTerm, gradeTerms, openNow, unmetNow } from "../practice/stops.ts";
 import { render, top0 } from "../shell/render.js";
 import { REPLIES, drawSyllogism, gradeSyllogism, gradeTimeout, gradeExample } from "../../domain/syllogism.ts";
 
@@ -90,7 +90,7 @@ function finishSyllogism(){
   // a right reply with a counter-example that is not one is partly right; a reply with no example, or one the page could not place, stands
   u.overall=g.correct&&u.ex&&u.ex.v==="bad"?"part":g.grade;
   u.checked=true; u.step=2;
-  gradeTerms([{cat:c.catR,ok:g.correct},{cat:c.catP,ok:g.correct}],false);     // a wrong reply is often about the form: only a right one counts (practice/stops.ts)
+  gradeTerms([{cat:askedTerm(c.catR,c.reason),ok:g.correct},{cat:askedTerm(c.catP,c.predicate),ok:g.correct}],false);     // a wrong reply is often about the form: only a right one counts; "matter" grades matter (practice/stops.ts)
   stageStep("syllogism",catsStageNow([c.catR,c.catP]),g.correct);     // the run towards the next stage; a miss here is about the form, it changes nothing (practice/stage-offer.ts)
   render();
   top0();

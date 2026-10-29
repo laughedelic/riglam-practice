@@ -10,7 +10,8 @@ import { dataKey, serveCourse, KEY_STORE, withCourse } from "./data-key.js";
 
 const DATA = JSON.parse(readFileSync(new URL("../../src/data/drill-data.json", import.meta.url), "utf8"));
 /** Every course term met at its stop and settled. Its stop counts as just shown (`at` ahead of any count), so a mistake in a spec brings no stop back. */
-export const SETTLED_TERMS = JSON.stringify({ n: 0, next: 3, terms: Object.fromEntries(DATA.cats.filter((c) => c.kind === "dudra" && c.term).map((c) => [c.id, { box: 3, shows: 1, at: 1e6 }])) });
+export const SETTLED_TERMS = JSON.stringify({ n: 0, next: 3, terms: Object.fromEntries(DATA.cats.filter((c) => c.kind === "dudra" && c.term)
+  .flatMap((c) => [c.id, ...(c.named || []).map((n) => c.id + ":" + n.term)]).map((id) => [id, { box: 3, shows: 1, at: 1e6 }])) });
 
 export const test = base.extend({
   page: async ({ page }, use) => {

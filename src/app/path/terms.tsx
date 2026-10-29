@@ -3,13 +3,15 @@
 // (its data, its wording).
 import type { JSX } from "preact";
 import { state } from "../state.js";
+import { sameNames } from "../../ai-shared/lookup.ts";
 import type { DataIndex } from "../../ai-shared/lookup.ts";
 import { termMentions } from "../../ai-shared/mentions.ts";
 import { cap } from "../core/util.js";
 import { isA } from "../practice/screen.js";
 import { defParts, hasDef } from "../practice/terms.js";
 import { termNames } from "../../domain/languages.ts";
-import { exampleStage, examplesFor } from "../../domain/reference.ts";
+import { cardExamples } from "../../domain/card-examples.ts";
+import type { CardExample } from "../../domain/card-examples.ts";
 import { render } from "../shell/render.js";
 
 const markOf = (id: string) => document.querySelector<HTMLElement>('#path .dterm[data-dt="' + CSS.escape(id) + '"]');
@@ -70,16 +72,17 @@ function ParentMark({ n }: { n: string }) {
 }
 const endp = (s: string) => s.replace(/[.;,\s]+$/, "") + ".";
 /**
- * Examples of the term, on its own stop under a heading of its own: a few, the plainest first, each with its stage; one says why it is a good example.
+ * Examples of the term, on its own stop under a heading of its own: a few, each with its stage; a reference example says why it is a good one.
+ * They are everyday things of the practice list where it has them (`cardExamples`), so a device without the course's examples has them too.
  * The card under a question (Def) has none: they are for the stop. How well an example is confirmed is the data's bookkeeping, not something to teach.
  */
-export const termExamples = (n: string) => (state.EX ? examplesFor(state as unknown as DataIndex, state.EX.items, n) : []);
+export const termExamples = (n: string): CardExample[] => cardExamples(state as unknown as DataIndex, state.EX ? state.EX.items : null, n);
 export function Examples({ n }: { n: string }) {
   const list = termExamples(n); if (!list.length) return null;
   const open = state.ui && state.ui.dex;
   return <div class="pdex bare"><ul>{list.map((x) => {
     const key = n + "|" + x.n, on = open === key;
-    const head = <><span class="pdexn">{x.n}</span><small>{"stage " + exampleStage(x)}</small></>;
+    const head = <><span class="pdexn">{x.n}</span><small>{"stage " + x.st}</small></>;
     if (!x.gloss) return <li><div class="pdexr">{head}</div></li>;
     const toggle = (e: Event) => { e.stopPropagation(); state.ui!.dex = on ? null : key; render(); };
     return <li><button type="button" class={"pdexr pdexb" + (on ? " on" : "")} aria-expanded={on ? "true" : "false"} onClick={toggle}>{head}</button>
@@ -95,6 +98,11 @@ export function Names({ term, skip = [] }: { term: string; skip?: string[] }) {
   return names.length ? <p class="tstop-names">{names.map((n) => <span class="nm" data-lang={n.id}><span lang={n.lang || undefined}>{n.main}</span>{n.rest}</span>)}</p> : null;
 }
 
+/** The terms mutually inclusive with a term, lower-cased, as a phrase ("existent, established base and object"), or "" when it has none. */
+export function sameAsText(term: string): string {
+  const n = [...sameNames(state as unknown as DataIndex, term)].filter((x) => x !== term).map((x) => x.toLowerCase());
+  return n.length > 1 ? n.slice(0, -1).join(", ") + " and " + n[n.length - 1] : n[0] || "";
+}
 /** The definition of a term in words: where it comes from, the English text and, if chosen, the Russian. Nothing when this device cannot read one. */
 export function DefText({ term }: { term: string }) {
   const t = state.DATA!.terms[term], en = defParts(t.d), ru = defParts(t.d_ru), ruOn = state.defLang === "enru", src = en.src || (ruOn ? ru.src : "");
@@ -107,12 +115,13 @@ export function DefText({ term }: { term: string }) {
 /** The definition of a term, as the card under a mark: where the term sits, the definition in English and, if chosen, Russian. */
 export function Def({ term, trail }: { term: string; trail: string[] }) {
   const t = state.DATA!.terms[term], en = defParts(t.d), ruOn = state.defLang === "enru";
-  const back = trail.length ? trail[trail.length - 1] : "", up = ((state.DATA!.chains || {})[term] || [term]).slice(1);
+  const back = trail.length ? trail[trail.length - 1] : "", up = ((state.DATA!.chains || {})[term] || [term]).slice(1), same = sameAsText(term);
   return <div class="pdef" id="ddef" tabIndex={-1}>
     {back ? <button type="button" class="pbtn quiet pdback" aria-label={"Back to " + back} onClick={(e) => { e.stopPropagation(); goBack(); }}>{"\u2190 " + back}</button> : null}
     <p class="pdh"><b>{t.name}</b>{ruOn && t.ru ? <span lang="ru">{" \u00b7 " + t.ru}</span> : null}{t.ch && en.ref ? <small>{" \u00b7 " + t.ch}</small> : null}</p>
     <Names term={term} skip={["ru"]} />
     {up.length ? <p class="pdup">{up.flatMap((m: string, i: number) => [i ? " " : "", <i class="pisa">{isA(m.toLowerCase())}</i>, " ", hasDef(state.DATA!.terms[m]) ? <ParentMark n={m} /> : m.toLowerCase()])}</p> : null}
+    {same ? <p class="pdup"><i class="pisa">mutually inclusive with</i>{" " + same}</p> : null}
     <DefText term={term} />
   </div>;
 }

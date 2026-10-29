@@ -6,7 +6,7 @@ import type { ComponentChildren } from "preact";
 import { useLayoutEffect, useRef } from "preact/hooks";
 import { stopTree } from "../practice/stops.ts";
 import type { Stop } from "../../domain/intro.ts";
-import { DefText, Examples, termExamples } from "./terms.tsx";
+import { DefText, Examples, sameAsText, termExamples } from "./terms.tsx";
 import { D, St } from "./ui.tsx";
 
 /** The smallest the term shrinks to, as a share of its size in the style sheet (the largest). */
@@ -49,18 +49,22 @@ function Section({ label, children }: { label: string; children: ComponentChildr
   </>;
 }
 
-/** Where the term sits: the terms above it, the broadest first, down to the term and the divisions of it that have come; those whose stop has not come are gray. */
+/**
+ * Where the term sits: the terms mutually inclusive with it (hidden phenomenon is existent, which has no place of its own in the tree), then the terms
+ * above it, the broadest first, down to the term and the divisions of it that have come; those whose stop has not come are gray.
+ */
 function Tree({ s, name }: { s: Stop; name: string }) {
-  const { up, kids, more } = stopTree(s);
-  if (!up.length && !kids.length && !more) return null;
+  const { up, kids, more } = stopTree(s), same = sameAsText(name), tree = up.length > 0 || kids.length > 0 || more;
+  if (!tree && !same) return null;
   const lv = (n: number) => ({ "--lv": n }) as never;
   return <Section label="Categories">
-    <ul class="ttree" aria-label="Where it sits">
+    {same ? <p class="tstop-mi">{"Mutually inclusive with " + same + "."}</p> : null}
+    {tree ? <ul class="ttree" aria-label="Where it sits">
       {up.map((t, i) => <li class={t.met ? "" : "gray"} style={lv(i)}>{t.name}{t.met ? null : <em>later</em>}</li>)}
       <li class="me" aria-current="true" style={lv(up.length)}>{name}</li>
       {kids.map((n) => <li class="kid" style={lv(up.length + 1)}>{n}</li>)}
       {more ? <li class="kid gray" style={lv(up.length + 1)}><span aria-hidden="true">{"…"}</span><span class="vh">more divisions come later</span><em>later</em></li> : null}
-    </ul>
+    </ul> : null}
   </Section>;
 }
 
