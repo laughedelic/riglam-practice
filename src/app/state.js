@@ -26,13 +26,13 @@ export const state = {
   tutor: null,   // a question to the app's own server (platform.tutor), when the place has one; `sample` is used first
   known: null,   // what that server learned of examples from earlier checks (platform.known), asked before the tutor (ai/known.js)
   EX: null,      // the course's reference examples this device holds (platform.examples), indexed by name (ai-shared/examples.ts); null when it has none
-  stages: [...DEFAULT_STAGES], // the stages of the learning ladder every exercise draws from, any mix, at least one (the practice options, `rd-stages`, "1,2"); a new device starts at stage 1 alone
+  stages: [...DEFAULT_STAGES], // the stages of the learning ladder every exercise draws from, any mix, at least one (the practice options, `rd-stages`, "0,1,2"); a new device starts at stage 0 alone
   stageLean: 0,  // the pairs left that lean to three possibilities, after the highest stage went up (`rd-stage-lean`, shell/stages.js)
   stagesKept: false, // the stages came from a device's settings before the ladder and were not changed since (`rd-stages-kept`): every pair weighs the same, as before
   syllogismEveryday: false, // that device had Syllogisms on everyday things (`rd-syllogism-level` "1"), which holds until the stages are changed
   intro: null,   // the course terms this device has met at their stops (`rd-terms`, practice/stops.ts); null until the term data is in
   progressSent: [], // the copies of the progression this page wrote lately (practice/progress.ts)
-  resetAsk: "",     // the Reset progression row of the Stages page: "ask" while it asks to confirm, "done" after
+  resetAsk: "",     // the Reset progression line of the Progression page: "ask" while it asks to confirm, "done" after
   about: null,   // {version, commit, builtAt, latest, branches?}: which build this is (platform.about), shown in Options
   updates: null, // {status, check, apply, subscribe}: updating the installed app in place (platform.updates), shown in Options
   unlock: null,  // {open, tutor}: opens the prompt for the Magic Key (platform.unlock) while this device has none; `tutor` is whether the server has a tutor waiting for it
@@ -67,7 +67,7 @@ export const state = {
   negation: "off",   // the negation track of Relations and Pervasions: "one" negates A or B in about a third of the pairs, "both" both sides in half of those (`rd-negation`)
   relSession: [],    // the Relations answers checked on this page, oldest first: the run towards the offer of a negation step counts them before the database has handed them back (practice/negations.ts)
   negOfferAt: "",    // when the learner last answered the offer of a negation step (`rd-neg-offer`): only the answers after it count towards the next offer
-  pace: OPEN_CAP,    // the most course terms open at once before a new one waits (the Difficulty page, `rd-pace`; src/domain/intro.ts, PACES)
+  pace: OPEN_CAP,    // the most course terms open at once before a new one waits (the Progression page, `rd-pace`; src/domain/intro.ts, PACES)
   debates: {},
   own: "practice",
   favs: {},
@@ -177,7 +177,7 @@ try{ state.stageRun=normRun(localStorage.getItem("rd-stage-run")); state.exRuns=
 // the course terms met at their stops, part of the progression (practice/progress.ts); without a record the terms are met one at a time from the start
 try{ const t=localStorage.getItem("rd-terms"); if(t!==null) state.intro=normIntro(t); }catch(e){}
 // A device used before the ladder keeps what it had: its levels of the reference examples (also ones an import brings), or level 1, their default, become
-// the stages up to that level's (level 1 is stage 8), so its pairs and things stay as they were. `rd-ladder` marks a device that has started with the
+// the stages up to that level's (level 1 is the ladder's last, stage 9), so its pairs and things stay as they were. `rd-ladder` marks a device that has started with the
 // ladder, so that its own settings later do not make it look like an old one; a new device writes no stages until it chooses, and an import can bring them.
 try{
   const v=localStorage.getItem("rd-stages");

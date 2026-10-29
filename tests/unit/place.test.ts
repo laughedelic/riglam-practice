@@ -42,7 +42,7 @@ const ix = () => makeIndex({
   bodySkip: [],
 } as unknown as DrillData);
 
-// a reference example of the course: its stage is its level's (level 1 is stage 6), as for an example from before the stages
+// a reference example of the course with the export's stage, its level's on the exporter's ladder (level 1 there is stage 6, the course's words, which is stage 8 here)
 const ex = (n: string, cls: string[], lv: number, extra: object = {}) => ({ n, cls, lv, st: lv + 5, cf: "confirmed", k: "thing", ...extra }) as Example & { st: number };
 const wall = ex("a blue wall", ["Color"], 1);
 const answers = (rows: { cat: string; answer: boolean }[]) => Object.fromEntries(rows.map((r) => [r.cat, r.answer]));
@@ -108,26 +108,26 @@ test("drawPlace: only examples a cell takes, of the stages that are on, each sta
     for (let s = 0; s < n; s++) { const q = drawPlace(data, items, { stages, rng: seeded(s), avoid }); if (q) out[q.thing.n] = (out[q.thing.n] ?? 0) + 1; }
     return out;
   };
-  expect(Object.keys(drawn([6])).sort()).toEqual(["a blue wall", "a round plate"]);
-  const two = drawn([6, 7]);
+  expect(Object.keys(drawn([8])).sort()).toEqual(["a blue wall", "a round plate"]);
+  const two = drawn([8, 10]);
   expect(Object.keys(two).sort()).toEqual(["a blue wall", "a hard text", "a round plate"]);
   expect(two["a hard text"], "a stage with one thing is drawn as often as one with two, so that thing twice as often").toBeGreaterThan(two["a blue wall"]);
-  expect(Object.keys(drawn([6, 7, 8])).sort()).toEqual(["a blue wall", "a deep thought", "a hard text", "a round plate"]);
+  expect(Object.keys(drawn([8, 10, 11])).sort()).toEqual(["a blue wall", "a deep thought", "a hard text", "a round plate"]);
   // a set, not a ceiling
-  expect(Object.keys(drawn([7, 8])).sort()).toEqual(["a deep thought", "a hard text"]);
-  const skip = drawn([6, 8]);
-  expect(Object.keys(skip).sort(), "no stage 7").toEqual(["a blue wall", "a deep thought", "a round plate"]);
-  expect(skip["a deep thought"], "half of the draws are of stage 8").toBeGreaterThan(110);
+  expect(Object.keys(drawn([10, 11])).sort()).toEqual(["a deep thought", "a hard text"]);
+  const skip = drawn([8, 11]);
+  expect(Object.keys(skip).sort(), "no stage 10").toEqual(["a blue wall", "a deep thought", "a round plate"]);
+  expect(skip["a deep thought"], "half of the draws are of stage 11").toBeGreaterThan(110);
   expect(skip["a deep thought"]).toBeLessThan(190);
-  expect(Object.keys(drawn([6], 100, new Set(["a blue wall"])))).toEqual(["a round plate"]);
-  expect(Object.keys(drawn([6], 100, new Set(["a blue wall", "a round plate"]))).sort(), "when all are recent, they are drawn anyway").toEqual(["a blue wall", "a round plate"]);
-  expect(drawPlace(data, [], { stages: [6], rng: seeded(1) })).toBeNull();
-  expect(drawPlace(data, items, { stages: [1, 2, 3], rng: seeded(1) }), "this data has no practice items, and the examples are of stage 6 on").toBeNull();
-  expect(drawPlace(data, null, { stages: [6], rng: seeded(1) }), "no examples on the device").toBeNull();
-  // the same draw for the same random source; stages that are not 1 to 9 count for nothing, and none left means the default (stage 1)
-  expect(drawPlace(data, items, { stages: [7], rng: seeded(5) })).toEqual(drawPlace(data, items, { stages: [7], rng: seeded(5) }));
-  expect(drawPlace(data, items, { stages: [8, -3, 6], rng: seeded(5) })).toEqual(drawPlace(data, items, { stages: [6, 8], rng: seeded(5) }));
-  expect(drawPlace(data, items, { stages: [], rng: seeded(5) })).toEqual(drawPlace(data, items, { stages: [1], rng: seeded(5) }));
+  expect(Object.keys(drawn([8], 100, new Set(["a blue wall"])))).toEqual(["a round plate"]);
+  expect(Object.keys(drawn([8], 100, new Set(["a blue wall", "a round plate"]))).sort(), "when all are recent, they are drawn anyway").toEqual(["a blue wall", "a round plate"]);
+  expect(drawPlace(data, [], { stages: [8], rng: seeded(1) })).toBeNull();
+  expect(drawPlace(data, items, { stages: [1, 2, 3], rng: seeded(1) }), "this data has no practice items, and the examples are of stage 8 on").toBeNull();
+  expect(drawPlace(data, null, { stages: [8], rng: seeded(1) }), "no examples on the device").toBeNull();
+  // the same draw for the same random source; stages that are not 0 to 12 count for nothing, and none left means the default (stage 0)
+  expect(drawPlace(data, items, { stages: [10], rng: seeded(5) })).toEqual(drawPlace(data, items, { stages: [10], rng: seeded(5) }));
+  expect(drawPlace(data, items, { stages: [11, -3, 8], rng: seeded(5) })).toEqual(drawPlace(data, items, { stages: [8, 11], rng: seeded(5) }));
+  expect(drawPlace(data, items, { stages: [], rng: seeded(5) })).toEqual(drawPlace(data, items, { stages: [0], rng: seeded(5) }));
 });
 
 test("drawPlace: a thing that cannot be asked is passed over within its stage, so the highest stage keeps its share", () => {
@@ -136,13 +136,13 @@ test("drawPlace: a thing that cannot be asked is passed over within its stage, s
   const items = [ex("a blue wall", ["Color"], 1), ex("a round plate", ["Shape"], 1), ex("a hard text", ["Color"], 2), ...unknown];
   let top = 0, n = 0;
   for (let s = 0; s < 600; s++) {
-    const q = drawPlace(data, items, { stages: [6, 7], rng: seeded(s), newShare: 0.5 })!;
+    const q = drawPlace(data, items, { stages: [8, 10], rng: seeded(s), newShare: 0.5 })!;
     expect(q.thing.n.startsWith("the hope"), "only things the data settles are asked").toBe(false);
-    n++; if (q.thing.st === 7) top++;
+    n++; if (q.thing.st === 10) top++;
   }
-  expect(top / n, "half of the draws are of stage 7, though twelve of its thirteen examples cannot be asked").toBeGreaterThan(0.42);
+  expect(top / n, "half of the draws are of stage 10, though twelve of its thirteen examples cannot be asked").toBeGreaterThan(0.42);
   expect(top / n).toBeLessThan(0.58);
-  expect(drawPlace(data, unknown, { stages: [7], rng: seeded(1) }), "a stage with nothing to ask is left out, and with nothing left there is no question").toBeNull();
+  expect(drawPlace(data, unknown, { stages: [10], rng: seeded(1) }), "a stage with nothing to ask is left out, and with nothing left there is no question").toBeNull();
 });
 
 test("placeQuestionRows with plain: from stage 2 at most a third of the rows are everyday categories, more only when the course categories are too few", () => {
@@ -248,16 +248,16 @@ test("drawPlace with newShare: the highest stage that has things takes that shar
     for (let s = 0; s < 1000; s++) { const q = drawPlace(data, items, { stages, rng: seeded(s), newShare }); if (q) out[q.thing.n] = (out[q.thing.n] ?? 0) + 1; }
     return out;
   };
-  const quarter = count([6, 7, 8], 0.25);
-  expect(quarter["a deep thought"], "a quarter from stage 8").toBeGreaterThan(190);
+  const quarter = count([8, 10, 11], 0.25);
+  expect(quarter["a deep thought"], "a quarter from stage 11").toBeGreaterThan(190);
   expect(quarter["a deep thought"]).toBeLessThan(310);
-  expect(quarter["a blue wall"], "the rest split between 6 and 7").toBeGreaterThan(300);
+  expect(quarter["a blue wall"], "the rest split between 8 and 10").toBeGreaterThan(300);
   expect(quarter["a hard text"]).toBeGreaterThan(300);
-  const half = count([6, 7, 8], 0.5);
-  expect(half["a deep thought"], "half from stage 8").toBeGreaterThan(420);
+  const half = count([8, 10, 11], 0.5);
+  expect(half["a deep thought"], "half from stage 11").toBeGreaterThan(420);
   expect(half["a deep thought"]).toBeLessThan(580);
-  expect(count([8], 0.25), "one stage: all of it").toEqual({ "a deep thought": 1000 });
-  expect(count([6, 7, 8]), "no share: each stage alike").toEqual(count([6, 7, 8], undefined));
+  expect(count([11], 0.25), "one stage: all of it").toEqual({ "a deep thought": 1000 });
+  expect(count([8, 10, 11]), "no share: each stage alike").toEqual(count([8, 10, 11], undefined));
 });
 
 test("over the real categories and made-up examples: every row agrees with placeByClass and has a reason, and the draw is quick", () => {
@@ -306,19 +306,19 @@ test("placeNarrow with everyday categories: one stands below the term of its kin
   const rix = makeIndex(openData as unknown as DrillData);
   const item = (n: string) => (openData as unknown as DrillData).items.find((i) => i.n === n)!;
   const q = (n: string, on: number[]) => ({ thing: { n, st: 1, item: item(n) }, rows: itemRows(rix, item(n), on) });
-  // stage 1: Form and furniture apply to a wooden chair, with wooden things beside furniture: two everyday categories off one line, one course category
-  const chair = q("a wooden chair", [1]);
-  expect(chair.rows.filter((r) => r.answer).map((r) => r.cat).sort()).toEqual(["form", "furn", "wooden"]);
+  // stage 0: furniture and wooden things apply to a wooden chair, two everyday categories off one line: nothing to narrow
+  const chair = q("a wooden chair", [0]);
+  expect(chair.rows.filter((r) => r.answer).map((r) => r.cat).sort()).toEqual(["furn", "wooden"]);
   expect(placeNarrow(rix, chair, seeded(1))).toBeNull();
-  // a metal key: Form and metal things, metal things the most specific
-  const key = q("a metal key", [1]);
-  const n = placeNarrow(rix, key, seeded(1))!;
-  expect(n.cat).toBe("metal");
-  expect(n.line.slice(0, 2).map((s) => s.phrase)).toEqual([key.rows.find((r) => r.cat === "metal")!.phrase, "a form"]);
-  expect(gradeNarrow(n, "form")).toMatchObject({ ok: false, upTo: [{ cat: "metal" }, { term: "Form" }] });
-  expect(gradeNarrow(n, "metal")).toMatchObject({ ok: true, upTo: [{ cat: "metal" }] });
-  // stage 2: external form joins; wooden things and furniture are still off one line, so step 2 narrows Form and External form
-  const chair2 = placeNarrow(rix, q("a wooden chair", [1, 2]), seeded(1))!;
+  // your body: Form and bodies, bodies the most specific (a body is not counted an external form: the data keeps bodies out of those pairs)
+  const body = q("your body", [0, 1]);
+  const n = placeNarrow(rix, body, seeded(1))!;
+  expect(n.cat).toBe("body");
+  expect(n.line.slice(0, 2).map((s) => s.phrase)).toEqual([body.rows.find((r) => r.cat === "body")!.phrase, "a form"]);
+  expect(gradeNarrow(n, "form")).toMatchObject({ ok: false, upTo: [{ cat: "body" }, { term: "Form" }] });
+  expect(gradeNarrow(n, "body")).toMatchObject({ ok: true, upTo: [{ cat: "body" }] });
+  // stage 1: external form comes with Form; wooden things and furniture are still off one line, so step 2 narrows Form and External form
+  const chair2 = placeNarrow(rix, q("a wooden chair", [0, 1]), seeded(1))!;
   expect(chair2.cat).toBe("extf");
   expect(chair2.options.map((r) => r.cat).sort()).toEqual(["extf", "form"]);
 });

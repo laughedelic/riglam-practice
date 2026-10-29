@@ -10,7 +10,7 @@ import { hasDef } from "./terms.js";
 import { saveProgress } from "./progress.ts";
 import { render } from "../shell/render.js";
 import type { DataIndex } from "../../ai-shared/lookup.ts";
-import { afterQuestion, againAsked, askedKey, freshIntro, nextStop, openTerms, pairGraded, showAgain, stageUp, stopCat, stopShown, termTree, unmet, type Stop } from "../../domain/intro.ts";
+import { afterQuestion, againAsked, askedKey, freshIntro, nextStop, openTerms, paceSpacing, pairGraded, showAgain, stageUp, stopCat, stopShown, termTree, unmet, type Stop } from "../../domain/intro.ts";
 import { catStage } from "../../domain/stages.ts";
 
 const save = () => { if (state.intro) saveProgress(); };
@@ -35,7 +35,7 @@ export function gradeTerms(graded: { cat: string | null | undefined; ok: boolean
   state.intro = afterQuestion(state.intro, graded, now(), misses); save();
 }
 /**
- * A pair's answer (Relations, Pervasions): a mistake counts against a term only when it is the pair's one course term (src/domain/intro.ts, pairGraded).
+ * A pair's answer (Relations, Pervasions): a mistake counts against each of its course terms (src/domain/intro.ts, pairGraded).
  * `labels`: the pair's, so that a side said as "matter" grades matter.
  */
 export const gradePair = (cats: (string | null | undefined)[], ok: boolean, labels: (string | null | undefined)[] = []) => gradeTerms(pairGraded(ix(), cats, ok, labels));
@@ -44,7 +44,7 @@ export const askedTerm = (cat: string | null | undefined, word: string | null | 
 /** The stop that Next would take now (the one `takeStop` would put on the answer on screen), or null: for a station that says what comes after it. */
 export function dueStop(): Stop | null {
   const u = state.ui; if (!onPath() || !state.intro || !state.DATA || !u || u.stop) return null;
-  return nextStop(ix(), state.intro, state.stages, now(), state.pace);
+  return nextStop(ix(), state.intro, state.stages, state.pace);
 }
 /**
  * The stop that Next on the station of a stage coming in would lead to: the stage comes in and its first term is due at once (`stopsStageUp`); when the learner
@@ -53,13 +53,13 @@ export function dueStop(): Stop | null {
 export function stopAfterStage(): Stop | null {
   const up = state.ui && state.ui.up; if (!onPath() || !state.intro || !state.DATA || !up || !up.shown) return null;
   const comes = !up.stayed && !state.stageRun.manual && !state.stages.includes(up.stage);
-  return nextStop(ix(), comes ? stageUp(state.intro) : state.intro, comes ? [...state.stages, up.stage].sort((a: number, b: number) => a - b) : state.stages, now(), state.pace);
+  return nextStop(ix(), comes ? stageUp(state.intro) : state.intro, comes ? [...state.stages, up.stage].sort((a: number, b: number) => a - b) : state.stages, state.pace);
 }
 /** Before the next question: the stop that is due, if any, goes on the answer on screen and counts as shown. Whether one did. */
 export function takeStop(): boolean {
   const u = state.ui; if (!onPath() || !state.intro || !state.DATA || !u || u.stop) return false;
-  const s = nextStop(ix(), state.intro, state.stages, now(), state.pace); if (!s) return false;
-  state.intro = stopShown(state.intro, s.cat, now()); save();
+  const s = nextStop(ix(), state.intro, state.stages, state.pace); if (!s) return false;
+  state.intro = stopShown(state.intro, s.cat, now(), paceSpacing(state.pace)); save();
   u.stop = s; u.dterm = null; u.pop = null;
   return true;
 }
@@ -70,7 +70,7 @@ export function stopsStageUp() { if (state.intro) { state.intro = stageUp(state.
 export function stopHead(s: Stop): { h: string; sub: string } {
   const c = state.DATA ? stopCat(ix(), s.cat) : null, st = c ? catStage(c) : 0, ch = (c && c.term && state.DATA && state.DATA.terms[c.term] && state.DATA.terms[c.term].ch) || "";
   if (s.why === "new") return { h: "New term", sub: "stage " + st + (ch ? " \u00b7 " + ch : "") };
-  return { h: "Repetition", sub: s.why === "miss" ? "you missed this before" : s.why === "gap" ? "not met for a while" : "as you asked" };
+  return { h: "Repetition", sub: "as you asked" };
 }
 /** Whether the learner has asked from the stop on screen to see its term again. */
 export const againOn = (cat: string): boolean => !!state.intro && againAsked(state.intro, cat);

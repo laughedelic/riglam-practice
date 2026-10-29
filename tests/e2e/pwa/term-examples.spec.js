@@ -49,7 +49,7 @@ withKey("a definition shows examples of its term, the plainest first, and a tap 
   const rows = ex.locator("li");
   expect(await rows.count()).toBeLessThanOrEqual(3); // the term's own two, and a subclass's when it has one (the pair is drawn at random)
   await expect(rows.first()).toContainText("stage 8 · in two or more sources");
-  await expect(rows.nth(1)).toContainText("stage 9 · from a commentary");
+  await expect(rows.nth(1)).toContainText("stage 10 · from a commentary");
   await expect(ex.locator(".tm-why")).toHaveCount(0);
 
   const why = rows.first().locator("button");

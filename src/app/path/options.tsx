@@ -1,7 +1,7 @@
 // The practice options of the exercise on screen (the Design Lab's "Settings and options", round 3): a sheet from the top bar, its lines in groups
 // (path/lines.tsx): under the exercise's name what is its own, under Practice what every exercise has where it is built, then the way on to Settings;
 // a line's own page opens in the sheet. The settings themselves are the classic page's (shell/session.js, stages.js and voice.js keep them and store
-// them on the device); the Difficulty page is the stages' for now.
+// them on the device). The stages and the difficulty are not among them: they live on the Progression page, behind the top bar's ring (path/progression.tsx).
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef } from "preact/hooks";
 import { state } from "../state.js";
@@ -13,20 +13,15 @@ import { canAsk } from "../core/ask.js";
 import { setTimer } from "../debate/flow.js";
 import { WORDINGS } from "../debate/text.js";
 import { exName } from "../shell/exercises.js";
-import { setStages } from "../shell/stages.js";
-import { render } from "../shell/render.js";
 import { GUIDES, guided, setGuided } from "../practice/guided.ts";
-import { resetProgress } from "../practice/progress.ts";
-import { movesUp, progressNow, setMovesUp } from "../practice/stage-offer.ts";
+import { progressNow } from "../practice/stage-offer.ts";
 import { toggleOpts } from "../shell/options.js";
 import { SYMS, openPage, quorumNote, sessBack, setAutoExplain, setBlitzUse, setNota, setShow, setSyllogismWording, setWording, toggleSess } from "../shell/session.js";
 import { kindMs } from "../shell/timers.js";
 import { ANSWER_PICKS, CONFIRM_PICKS, RATES, READ_NOTE, SAMPLE, VOICE_LEAD, VOICE_SAY, WHERE, hookVoices, setVoice, voiceGroups, voiceShown } from "../shell/voice.js";
-import { stageCounts } from "../../domain/reference.ts";
-import { LADDER_TOP, STAGES, itemStage, toggleStage } from "../../domain/stages.ts";
+import { LADDER_TOP } from "../../domain/stages.ts";
 import { canHear, canSpeak, speak, voiceList } from "../../ui/speech";
 import { ProgressPage } from "./progress.tsx";
-import { openDifficulty } from "./progression.tsx";
 import { D, Icon, Knob, Toggle, Words, NOFILL } from "./ui.tsx";
 import { Group, Intro, Line } from "./lines.tsx";
 import { DEFAULT_LOOK, currentLook, setLook } from "./look.ts";
@@ -42,15 +37,6 @@ export const Switch = ({ lb, title, note, on, toggle }: { lb: string; title: str
 const More = ({ page, label = "more" }: { page: string; label?: string }) => <button type="button" class="more" aria-label={(TITLES[page] || page) + ": " + label} onClick={() => openPage(page)}><Icon n="chev" /></button>;
 const secs = (kind: string) => Math.round(kindMs(kind) / 1000);
 const timesLine = () => state.tab === "syllogism" ? "Syllogism " + secs("syl") + " s" : "Relation " + secs("rel") + " s · Example " + secs("ex") + " s";
-// the exercises that draw negated pairs, and so show the Negations choice with the stages
-const negates = () => state.tab === "practice" || state.tab === "debate";
-const NEG_NAME: Record<string, string> = { one: "one side", both: "both sides" };
-// the stages that are on, in a line: runs joined ("Stages 1–3, 5"), and the negations where they are drawn
-const stagesLine = () => {
-  const runs: [number, number][] = [];
-  for (const n of state.stages as number[]) { const r = runs[runs.length - 1]; if (r && r[1] === n - 1) r[1] = n; else runs.push([n, n]); }
-  return (state.stages.length === 1 ? "Stage " : "Stages ") + runs.map(([a, b]) => (a === b ? String(a) : a + "–" + b)).join(", ") + (negates() && NEG_NAME[state.negation] ? " · negations: " + NEG_NAME[state.negation] : "");
-};
 const toSettings = () => { toggleSess(false); toggleOpts(true); };
 /** Whether the Tutor row (and its page) is in the list: where the tutor can be asked, and the Quorum switch is offered. Categories and Find an instance have neither. */
 const quorumShown = () => state.quorumOffered && !!state.db && state.tab !== "syllogism" && state.tab !== "categories" && state.tab !== "instance";
@@ -94,7 +80,6 @@ function List() {
       {wordings() || signs() ? <Line title="Wording and notation" sub={textLine()} go={() => openPage("text")} /> : null}
     </Group>
     <Group name="Practice">
-      <Line title="Difficulty" sub={stagesLine() + (movesUp() ? " · moves up by itself" : "")} go={() => openPage("stages")} />
       {timed ? <Line title="Blitz" sub={state.blitzUse ? timesLine() : "off"} sw={{ on: state.blitzUse, toggle: () => setBlitzUse(!state.blitzUse) }} go={() => openPage("times")} /> : null}
       {tutorShown() ? <Line title="Tutor explains" go={() => openPage("tutor")} sub={canAsk() ? undefined : "several models"}>
         {canAsk() ? <Words label="Tutor explains" items={TUTOR} cur={state.autoExplain ? "every" : "ask"} on={setTutor} /> : null}</Line> : null}
@@ -146,32 +131,10 @@ function Page({ id }: { id: string }) {
     <Line title="Use Blitz" sub="Off takes the stopwatch out of the top bar; the times stay for when it is on again." sw={{ on: state.blitzUse, toggle: () => setBlitzUse(!state.blitzUse) }} />
     {!state.blitzUse ? null : state.tab === "syllogism" ? <Time kind="syl" label="Syllogism time" note="for the reply to each syllogism" />
       : <><Time kind="rel" label="Relation time" note="for choosing the relation, in Relations and Pervasions" /><Time kind="ex" label="Example time" note="for each example in Relations (three cells get three times this) and each question in Pervasions" /></>}</>;
-  if (id === "stages") return <Stages />;
   if (id === "voice") return <VoicePage />;
   if (id === "tutor") return <TutorPage />;
   if (id === "progress") return <ProgressPage />;
   return null;
-}
-/** The stages of the ladder: a switch for each, with its name, what it adds and how many things this device has of it; any mix, and the last one on stays on. */
-function Stages() {
-  const ex = state.EX ? stageCounts(state.EX.items) : {}, items: Record<number, number> = {}, only = state.stages.length === 1;
-  for (const it of state.DATA ? state.DATA.items : []) if (!it.nosubject) items[itemStage(it)] = (items[itemStage(it)] || 0) + 1;
-  return <>
-    <p class="psub">Every exercise asks about the stages that are on, in any mix. A category opens at its stage and stays open above it, and the things come from the stages that are on. About half of the questions are new at the highest stage, the rest review the stages below, each about as often as the others. Stage 1 is the start: after five right answers in a row on the newest stage, in any exercise, the next stage comes in; a right answer on an older stage counts for half.</p>
-    {STAGES.map(({ n, name, adds }) => {
-      const on = state.stages.includes(n), count = (items[n] || 0) + ((ex as Record<number, number>)[n] || 0);
-      return <Row lb={"St " + n}><button type="button" class="two" role="switch" aria-checked={on ? "true" : "false"} aria-disabled={on && only ? "true" : undefined} onClick={() => setStages(toggleStage(state.stages, n))}>
-        <span><b>{"Stage " + n + " · " + name}</b><small>{count + (count === 1 ? " thing" : " things")}</small></span><Toggle on={on} /></button><small class="plvn">{adds}</small></Row>;
-    })}
-    {only ? <p class="pnoteline pnote3">At least one stage stays on.</p> : null}
-    <Switch lb="Move" title="Move up by itself" note="After five right answers in a row on the newest stage, the next one comes in, and a station says so first. Off: no stage comes in by itself, and you switch them here." on={movesUp()} toggle={() => setMovesUp(!movesUp())} />
-    <Row lb="Harder"><b>Pace, negations, depth</b><small>How many terms may be not right yet at a time, pairs with a negated side, and chains of reasoning after stage {LADDER_TOP}: their own page, the Difficulty page.</small>
-      <span class="pvline2"><button type="button" class="pbtn quiet" onClick={() => openDifficulty()}>Difficulty</button></span></Row>
-    <Row lb="Reset"><b>Reset progression</b>
-      <small>{state.resetAsk === "done" ? "Done: stage 1, and the course terms come one at a time again." : "Back to stage 1 with no course term met, negations off and every exercise guided again, on every device signed in to your account. Your answers, their statistics and your settings stay."}</small>
-      {state.resetAsk === "ask" ? <span class="pvline2"><button type="button" class="pbtn" onClick={() => { state.resetAsk = "done"; resetProgress(); }}>Reset</button><button type="button" class="pbtn quiet" onClick={() => { state.resetAsk = ""; render(); }}>Keep it</button></span>
-        : state.resetAsk === "" ? <span class="pvline2"><button type="button" class="pbtn quiet" onClick={() => { state.resetAsk = "ask"; render(); }}>Reset progression</button></span> : null}</Row>
-  </>;
 }
 /** The Voice page: the voice and its speed, how an answer is taken and what happens after it is heard. */
 function VoicePage() {
@@ -242,7 +205,7 @@ export function OptionsSheet() {
   return <>
     <div class={"scrim below" + (on ? " on" : "")} onClick={() => toggleSess(false)} />
     <div ref={box} class={"psheet top" + (on ? " on" : "")} role="dialog" aria-label={page === "progress" ? "Progression" : "Practice options"} aria-hidden={on ? "false" : "true"} inert={!on} tabIndex={-1} data-quiet>
-      <div class={"sbody" + (page === "stages" || page === "progress" ? "" : " sfull")} ref={body}>
+      <div class={"sbody" + (page === "progress" ? "" : " sfull")} ref={body}>
         {page && page !== "progress" ? <button type="button" class="sback" onClick={sessBack}><Icon n="chev" />back to the options</button> : page === "progress" ? <p class="glab" style={{ paddingTop: "4px" }}>{"Stage " + progressNow().top + " of " + LADDER_TOP}</p> : null}
         {on ? (page ? <Page id={page} /> : <List />) : null}
       </div>

@@ -12,20 +12,23 @@ import type { Stages } from "./stages";
 
 /** A new learner's first stop comes after this many questions: the first questions are on everyday categories. */
 export const FIRST_AFTER = 3;
-/** The next new term comes this many questions after the last stop. */
+/** The next new term comes this many questions after the last stop, at the default pace. */
 export const SPACING = 3;
 /** A stop the learner asked to see again comes back after this many questions. */
 export const AGAIN_AFTER = 10;
-/** A mistake brings a term's stop back this many questions later; a mistake while a repetition is waiting adds none (two mistakes in a row bring it once). */
-export const MISS_AFTER = 5;
 /** The box of a term that holds. */
 export const SETTLED = 3;
-/** A settled term not met in any question for this many days comes back once. */
-export const GAP_DAYS = 14;
 /** The most terms that are open at once (met at their stop, the last answer on them not right yet): while this many are, no new term comes. The default pace. */
 export const OPEN_CAP = 3;
-/** The paces a learner can choose (the Difficulty page): the most terms open at once. Fewer is calmer and surer; more brings the terms sooner, with more mistakes and review on the way. */
+/**
+ * The paces a learner can choose (the Progression page), by the most terms open at once; each also sets how many questions apart new terms come
+ * (`paceSpacing`): careful two open and a new term every four questions at most, steady three and three, brisk five and two. Slower is calmer and surer;
+ * faster brings the terms sooner, with more mistakes and review on the way.
+ */
 export const PACES: readonly number[] = [2, 3, 5];
+const PACE_SPACING: Record<number, number> = { 2: 4, 3: SPACING, 5: 2 };
+/** How many questions apart new terms come at a pace. */
+export const paceSpacing = (cap: number): number => PACE_SPACING[cap] ?? SPACING;
 /** A stored pace, checked; OPEN_CAP when it is not one of PACES. */
 export const normPace = (raw: unknown): number => { const n = typeof raw === "string" && raw.trim() ? Number(raw) : raw; return typeof n === "number" && PACES.includes(n) ? n : OPEN_CAP; };
 
@@ -38,9 +41,9 @@ export interface IntroTerm {
   at?: number;
   /** when its last stop came or a question last used it (ISO) */
   seen?: string;
-  /** the question count from which its stop comes again, and why */
+  /** the question count from which its stop comes again, which only the learner's own ask sets */
   due?: number;
-  why?: "miss" | "again";
+  why?: "again";
   /** the question count of the first answer that graded it: the stage's ring puts its terms in this order */
   first?: number;
   /** the question count of the answer that last made its last answer right (box 1 to 2): the next stage comes with the one that completes the stage */
@@ -54,8 +57,11 @@ export interface Intro {
   terms: Record<string, IntroTerm>;
 }
 
-/** Why a stop comes: a new term, a mistake on it, the learner's own ask, or a long time since it was met. */
-export type StopWhy = "new" | "miss" | "again" | "gap";
+/**
+ * Why a stop comes: a new term, or the learner's own ask. A definition does not come back by itself: a term is reviewed in the questions, and its card is a
+ * tap away on the Progression page.
+ */
+export type StopWhy = "new" | "again";
 export interface Stop {
   cat: string;
   why: StopWhy;
@@ -77,7 +83,7 @@ export function stopCat(ix: DataIndex, id: string): Cat | null {
   const i = id.indexOf(":"), base = i > 0 && Object.hasOwn(ix.CAT, id.slice(0, i)) ? ix.CAT[id.slice(0, i)]! : null;
   const n = base?.named?.find((x) => x.term === id.slice(i + 1));
   if (!base || !n || !Object.hasOwn(ix.DATA.terms, n.term)) return null;
-  const c: Cat = { ...base, id, term: n.term, labels: base.labels.filter((l) => n.words.includes(l)), phrases: (base.phrases ?? []).filter((p) => n.words.includes(p)) };
+  const c: Cat = { ...base, id, term: n.term, ...(n.st !== undefined ? { st: n.st } : {}), labels: base.labels.filter((l) => n.words.includes(l)), phrases: (base.phrases ?? []).filter((p) => n.words.includes(p)) };
   delete c.named;
   return c;
 }
@@ -122,11 +128,12 @@ export const metTerms = (ix: DataIndex, intro: Intro): Cat[] => courseTerms(ix).
 
 /**
  * The course terms open at these stages whose stop has not come yet: a category waits out of the questions (domain/stages.ts, catOpen), a
- * named term's words wait out of its category's (`wordsFor`).
+ * named term's words wait out of its category's (`wordsFor`). A named term of a later stage than its category is among them too, whatever the
+ * stages: its category is asked about before it ("ultimate truths" waits for stage 9, functional things come at 5).
  */
 export function unmet(ix: DataIndex, intro: Intro, on: Stages): Set<string> {
   const top = topStage(on), out = new Set<string>();
-  for (const c of courseTerms(ix)) if (catStage(c) <= top && !introduced(intro, c)) out.add(c.id);
+  for (const c of courseTerms(ix)) if ((catStage(c) <= top || c.id.includes(":")) && !introduced(intro, c)) out.add(c.id);
   return out;
 }
 
@@ -168,7 +175,7 @@ export const newTermDue = (ix: DataIndex, intro: Intro, on: Stages, cap = OPEN_C
 /**
  * Whether the next stage comes in now: every new term of the highest stage on has had its stop, and a new term may come (`newTermDue`), which is the next
  * stage's first (stages.ts, stageOffer: the stages are chapters of one list of terms). Undefined when the next stage brings no term the learner has not
- * met: stages 9 to 11, which bring none, and one whose terms came before (the learner moved the stages, or came back down).
+ * met: stage 0 and the steps of depth, which bring none, and one whose terms came before (the learner moved the stages, or came back down).
  */
 export function nextStageDue(ix: DataIndex, intro: Intro, on: Stages, cap = OPEN_CAP): boolean | undefined {
   const top = topStage(on);
@@ -196,45 +203,36 @@ export function termTree(ix: DataIndex, intro: Intro, term: string): { up: TreeT
 /** The chapter of the terms taken from Dampilon's tables, which are for cross-checking only: not divisions the course teaches. */
 const CROSS_CHECK = "Dampilon tables";
 
-const DAY = 864e5;
-
 /**
- * The stop that comes before the next question, or null. First a term due again (a mistake before an ask), then the next new term once the spacing
- * allows and fewer terms are open than the pace allows (`cap`) (the lowest stage first, in the course's order), then a settled term not met for GAP_DAYS. Only terms
- * open at these stages.
+ * The stop that comes before the next question, or null. First a term the learner asked to see again, when it is due, then the next new term once the
+ * spacing allows and fewer terms are open than the pace allows (`cap`) (the lowest stage first, in the course's order). Only terms open at these stages.
  */
-export function nextStop(ix: DataIndex, intro: Intro, on: Stages, now: string, cap = OPEN_CAP): Stop | null {
+export function nextStop(ix: DataIndex, intro: Intro, on: Stages, cap = OPEN_CAP): Stop | null {
   const top = topStage(on), open = (id: string) => { const c = stopCat(ix, id); return !!c && catStage(c) <= top; };
-  let best: { id: string; t: IntroTerm } | null = null;
+  let best: { id: string; due: number } | null = null;
   for (const [id, t] of Object.entries(intro.terms)) {
     if (t.due === undefined || t.due > intro.n || !open(id)) continue;
-    const rank = (x: IntroTerm) => (x.why === "miss" ? 0 : 1) * 1e9 + (x.due ?? 0);
-    if (!best || rank(t) < rank(best.t)) best = { id, t };
+    if (!best || t.due < best.due) best = { id, due: t.due };
   }
-  if (best) return { cat: best.id, why: best.t.why === "again" ? "again" : "miss" };
+  if (best) return { cat: best.id, why: "again" };
   if (newTermDue(ix, intro, on, cap)) {
-    for (let s = 1; s <= top; s++) {
+    for (let s = 0; s <= top; s++) {
       const id = stageTerms(ix, s).find((c) => !introduced(intro, stopCat(ix, c)!));
       if (id) return { cat: id, why: "new" };
     }
   }
-  if (intro.n < intro.next) return null;
-  // after a long break every settled term is due: they come back one at a time, spaced like new terms
-  const t0 = Date.parse(now);
-  for (const [id, t] of Object.entries(intro.terms)) {
-    if (t.box >= SETTLED && open(id) && t.seen && t0 - Date.parse(t.seen) >= GAP_DAYS * DAY) return { cat: id, why: "gap" };
-  }
   return null;
 }
 
-/** The stop for `cat` has been shown: the term is introduced (box 1 at least), its return is spent, and the next new term waits SPACING questions. */
-export function stopShown(intro: Intro, cat: string, now: string): Intro {
+/** The stop for `cat` has been shown: the term is introduced (box 1 at least), its return is spent, and the next new term waits `spacing` questions (the pace's, `paceSpacing`). */
+export function stopShown(intro: Intro, cat: string, now: string, spacing = SPACING): Intro {
   const t = intro.terms[cat];
-  const rec: IntroTerm = { box: Math.max(1, t?.box ?? 0), shows: (t?.shows ?? 0) + 1, at: intro.n, seen: now };
-  return { ...intro, next: intro.n + SPACING, terms: { ...intro.terms, [cat]: rec } };
+  const rec: IntroTerm = { box: Math.max(1, t?.box ?? 0), shows: (t?.shows ?? 0) + 1, at: intro.n, seen: now,
+    ...(t?.first !== undefined ? { first: t.first } : {}), ...(t?.won !== undefined ? { won: t.won } : {}) };     // a repetition keeps the term's mark and its place in the ring
+  return { ...intro, next: intro.n + spacing, terms: { ...intro.terms, [cat]: rec } };
 }
 
-/** The learner asks to see the term again (`on`), or takes the ask back: its stop comes back after AGAIN_AFTER questions (a mistake before then brings it sooner). */
+/** The learner asks to see the term again (`on`), or takes the ask back: its stop comes back after AGAIN_AFTER questions. */
 export function showAgain(intro: Intro, cat: string, on = true): Intro {
   const t = intro.terms[cat]; if (!t) return intro;
   if (on) return { ...intro, terms: { ...intro.terms, [cat]: { ...t, due: intro.n + AGAIN_AFTER, why: "again" } } };
@@ -248,7 +246,7 @@ export const againAsked = (intro: Intro, cat: string): boolean => intro.terms[ca
 /**
  * A question has been answered: the count goes up, and each introduced term it used is graded. `graded` are the categories with whether the learner
  * was right about each (a category listed twice counts as wrong if either is). Right: one box up. Wrong, unless `misses` is false (an exercise where a
- * mistake is mostly about its form): back to box 1, and its stop comes back MISS_AFTER questions later, or sooner when it was due sooner already.
+ * mistake is mostly about its form): back to box 1, so that the questions lean to it until an answer on it is right again; its stop does not come back.
  * The first answer that grades a term is kept (`first`, the ring's order), and the one that made its last answer right (`won`).
  */
 export function afterQuestion(intro: Intro, graded: readonly { cat: string | null | undefined; ok: boolean }[], now: string, misses = true): Intro {
@@ -259,22 +257,22 @@ export function afterQuestion(intro: Intro, graded: readonly { cat: string | nul
     if (!t || t.box < 1) continue;
     const first = right || misses ? { first: t.first ?? n } : {};
     if (right) terms[cat] = { ...t, ...first, box: Math.min(SETTLED, t.box + 1), seen: now, ...(t.box === 1 ? { won: n } : {}) };
-    else if (misses) {
-      terms[cat] = { ...t, ...first, box: 1, seen: now, due: Math.min(t.due ?? Infinity, n + MISS_AFTER), why: "miss" };
-    } else terms[cat] = { ...t, seen: now };
+    else if (misses) terms[cat] = { ...t, ...first, box: 1, seen: now };
+    else terms[cat] = { ...t, seen: now };
   }
   return { ...intro, n, terms };
 }
 
 /**
- * A pair's question (Relations, Pervasions) graded for its course terms. Right: each of them was right. Wrong: the mistake counts against a term only
- * when it is the pair's one course term; with two, it may be about either, or about the relation, and neither moves. With the pair's `labels`, a side
- * shown under the label of a named term grades that term (a pair that says "matter" grades matter, not form).
+ * A pair's question (Relations, Pervasions) graded for its course terms. Right: each of them was right. Wrong: the mistake counts against each of them,
+ * two as well as one: the answer cannot say which was wrong, and both are reviewed in the questions, with each other or with something else, until an
+ * answer on each is right again. With the pair's `labels`, a side shown under the label of a named term grades that term (a pair that says "matter"
+ * grades matter, not form).
  */
 export function pairGraded(ix: DataIndex, cats: readonly (string | null | undefined)[], ok: boolean, labels: readonly (string | null | undefined)[] = []): { cat: string; ok: boolean }[] {
   const keys = cats.map((c, i) => (c ? askedKey(ix, c, labels[i]) : c));
   const course = [...new Set(keys.filter((c): c is string => !!c && !!stopCat(ix, c) && needsIntro(stopCat(ix, c)!)))];
-  return ok || course.length === 1 ? course.map((cat) => ({ cat, ok })) : [];
+  return course.map((cat) => ({ cat, ok }));
 }
 
 /** A stage has just been switched on: its first term comes before the next question, whatever the spacing. */
@@ -294,7 +292,7 @@ export function normIntro(raw: unknown): Intro {
     const r: IntroTerm = { box: Math.min(SETTLED, Math.floor(box)), shows: num((t as IntroTerm).shows, 0) };
     if (typeof (t as IntroTerm).at === "number") r.at = (t as IntroTerm).at;
     if (typeof (t as IntroTerm).seen === "string") r.seen = (t as IntroTerm).seen;
-    if (typeof (t as IntroTerm).due === "number" && ((t as IntroTerm).why === "miss" || (t as IntroTerm).why === "again")) { r.due = (t as IntroTerm).due; r.why = (t as IntroTerm).why; }
+    if (typeof (t as IntroTerm).due === "number" && (t as IntroTerm).why === "again") { r.due = (t as IntroTerm).due; r.why = "again"; }
     if (typeof (t as IntroTerm).first === "number" && (t as IntroTerm).first! >= 0) r.first = (t as IntroTerm).first;
     if (typeof (t as IntroTerm).won === "number" && (t as IntroTerm).won! >= 0) r.won = (t as IntroTerm).won;
     terms[id] = r;

@@ -237,30 +237,30 @@ test("Skip asks first once something is ticked, and an example set aside is not 
 
 test("after five right in a row the next stage is offered with a tap, and Not now leaves things as they are", async ({ page }) => {
   await open(page);
-  await atStages(page, "1");
+  await atStages(page, "0");
   const finishThing = async () => { await tickAnswer(page); await finish(page); };
   for (let i = 0; i < 4; i++) { await finishThing(); await expect(page.locator(".catoffer")).toHaveCount(0); await page.keyboard.press("n"); }
   await finishThing();
   await expect(page.locator(".catoffer")).toBeVisible();
-  await expect(page.locator(".catoq")).toContainText("Stage 1 is going well. Add stage 2");
+  await expect(page.locator(".catoq")).toContainText("Stage 0 is going well. Add stage 1");
   await page.getByRole("button", { name: "Not now" }).click();
   await expect(page.locator(".catoffer")).toHaveCount(0);
   expect(await page.evaluate(() => document.activeElement === document.body), "the focus does not fall to the page").toBe(false);
-  await expect(page.locator('[role="status"].catnote')).toContainText("Stage 1 stays the highest");
-  expect(await page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("1");
+  await expect(page.locator('[role="status"].catnote')).toContainText("Stage 0 stays the highest");
+  expect(await page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("0");
   // another five, and this time a tap adds the stage, for every exercise
   await page.keyboard.press("n");
   for (let i = 0; i < 4; i++) { await finishThing(); await page.keyboard.press("n"); }
   await finishThing();
-  await page.getByRole("button", { name: "Add stage 2" }).click();
-  await expect(page.locator('[role="status"].catnote')).toContainText("Stage 2, colors and shapes, is on now in every exercise");
-  expect(await page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("1,2");
+  await page.getByRole("button", { name: "Add stage 1" }).click();
+  await expect(page.locator('[role="status"].catnote')).toContainText("Stage 1, form, is on now in every exercise");
+  expect(await page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("0,1");
   expect(await page.evaluate(() => document.activeElement === document.body), "the focus does not fall to the page").toBe(false);
 });
 
 test("an offer passed over with Next counts as Not now: it asks again after another five", async ({ page }) => {
   await open(page);
-  await atStages(page, "1");
+  await atStages(page, "0");
   const finishThing = async () => { await tickAnswer(page); await finish(page); };
   for (let i = 0; i < 4; i++) { await finishThing(); await page.keyboard.press("n"); }
   await finishThing();

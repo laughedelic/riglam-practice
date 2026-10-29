@@ -18,7 +18,7 @@ import { lineageOf } from "../practice/terms.js";
 import { catByLabel } from "../practice/universe.js";
 import { openChat } from "../shell/chat.js";
 import { render } from "../shell/render.js";
-import { openStageOptions, toggleSess } from "../shell/session.js";
+import { toggleSess } from "../shell/session.js";
 import { stageName } from "../shell/stages.js";
 import { negSides } from "../../ai-shared/relations.ts";
 import type { CellId, Neg, RelKey } from "../../ai-shared/relations.ts";
@@ -29,7 +29,7 @@ import { takeChoice, bindSlide } from "./choose.ts";
 import { refreshPath } from "./index.tsx";
 import { FlagBtn, FlagEditor, QuorumPanel, explainCase } from "./flags.tsx";
 import { currentLook } from "./look.ts";
-import { openDifficulty } from "./progression.tsx";
+import { openDifficulty, openStages } from "./progression.tsx";
 import { turnAside } from "./shell.tsx";
 import { Sub } from "./subjects.tsx";
 import { DefCard, OneTerm, TermText } from "./terms.tsx";
@@ -169,7 +169,7 @@ export function StageOffer() {
     <p class="oq">{up ? "Stage " + (o.stage - 1) + " is going well. Add stage " + o.stage + " to the mix?" : "Stage " + o.stage + " is hard going right now. Switch it off for a while?"}</p>
     <p class="xnote">Stage {o.stage}, {stageName(o.stage).toLowerCase()}: {info ? info.adds : ""}</p>
     <span class="pbtns"><button type="button" class="pbtn" onClick={acceptStageOffer}>{up ? "Add stage " + o.stage : "Switch off stage " + o.stage}</button><button type="button" class="pbtn quiet" onClick={declineStageOffer}>Not now</button></span>
-    <p class="xnote">{up ? "Never starts by itself. It applies to every exercise, and the stages you are on stay on; turn any stage off in the practice options." : <>Or adjust the stages yourself in the <button type="button" class="plnk" onClick={openStageOptions}>practice options</button>. Nothing is switched off by itself.</>}</p>
+    <p class="xnote">{up ? <>Never starts by itself. It applies to every exercise, and the stages you are on stay on; choose them yourself on the <button type="button" class="plnk" onClick={openStages}>Progression page</button>.</> : <>Or choose the stages yourself on the <button type="button" class="plnk" onClick={openStages}>Progression page</button>. Nothing is switched off by itself.</>}</p>
   </div></St></Sx>;
 }
 
@@ -180,7 +180,7 @@ function DepthOffer({ up, stage }: { up: boolean; stage: number }) {
     <p class="oq">{up ? (d === 1 ? "Every term of stage " + LADDER_TOP + " is right. Try chains of reasoning?" : "The chains are going well. One layer deeper?") : "The chains are hard going right now. One layer less for a while?"}</p>
     {up ? <p class="xnote">{"Depth, " + DEPTH_NAME[d] + ": " + DEPTH_ASKS[d]}</p> : null}
     <span class="pbtns"><button type="button" class="pbtn" onClick={acceptStageOffer}>{up ? (d === 1 ? "Try chains" : "One layer deeper") : "One layer less"}</button><button type="button" class="pbtn quiet" onClick={declineStageOffer}>Not now</button></span>
-    <p class="xnote">Never changes by itself. Set it yourself on the <button type="button" class="plnk" onClick={() => openDifficulty()}>Difficulty page</button>.</p>
+    <p class="xnote">Never changes by itself. Set it yourself, Depth on the <button type="button" class="plnk" onClick={openDifficulty}>Progression page</button>.</p>
   </div></St></Sx>;
 }
 

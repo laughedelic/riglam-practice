@@ -155,27 +155,30 @@
 /* Settings: the sample sentence under the row that sets how the terms of the pair stand out */
 .pa .psamp{font-size:16.5px; line-height:1.4; margin-top:6px}
 
-/* the Progression page (path/progression.tsx): each stage a stop on the line with its ring as the node, its new terms under it; and the same rings in a row in the roadmap's foot */
+/* the Progression page (path/progression.tsx): a page of settings lines (46-path-settings.css), a stage's ring where a page line's chevron stands, the groups of
+   three as headings between the stages, each over a rule, a folded line's content under the text column; and the same rings in a row in the roadmap's foot and
+   on the ring's sheet */
 .pa .road .rfoot .rstages{flex:0 0 calc(100% + var(--m)); margin:-6px 0 4px calc(-1 * var(--m))}
 .pa .road .rstages .tup-rings{margin:0}
 .pa .road .rstages .tup-rg{min-height:40px}
-.pa .prg > .prgd{justify-self:end; margin-right:-15px; width:30px; height:30px; border-radius:50%; background:var(--paper); position:relative; z-index:1}
+.pa .tup-rs .tup-rings{margin:4px 0 12px}
+.pa .ol .prgd{position:relative; z-index:0; pointer-events:none; display:grid; place-items:center}
 .pa .prgd svg{width:30px; height:30px; display:block; overflow:visible}
-.pa .ptrail .trow.prg{padding:10px 0}
-.pa .prg-s{display:block; font:400 11.5px var(--mono); color:var(--ink3); margin-top:3px}
-.pa .prg.now .prg-s{color:var(--blue)}
-.pa .prg.ahead b{color:var(--ink3); font-weight:500}
-.pa .prg.now .rgs text{fill:var(--blue)}
-.pa .prg.ahead .rgs text{fill:var(--ink3)}
-.pa .prg.now .rgs .disc{fill:var(--blue); fill-opacity:.12}
-.pa .pdiff > .psub{padding-top:16px}   /* the top bar names the page */
-.pa .pdiff .pdiff-wait{font-style:italic; color:var(--ink3)}
-.pa .ptrail .trow.prg-h{padding:16px 0 8px}   /* Difficulty, a heading that opens its page, as big as Stages' */
-.pa .prg-h .ph{flex-direction:column; align-items:flex-start; gap:4px; white-space:normal}   /* the values on a line of their own, however long */
-.pa .prg-h .ph span{overflow:visible; text-overflow:clip}
-@media (hover:hover){ .pa .prg-h .trb:hover .ph{text-decoration:underline; text-underline-offset:3px; text-decoration-thickness:1px} }
-.pa .prg-p{margin-left:calc(var(--m) / 2)}
-.pa .prg-how b{font-weight:500; color:var(--ink2)}
+.pa .prgl.now .oltx small{color:var(--blue)}
+.pa .prgl.ahead .oltx b{color:var(--ink2); font-weight:500}
+.pa .prgl.now .rgs text{fill:var(--blue)}
+.pa .prgl.ahead .rgs text{fill:var(--ink3)}
+.pa .prgl.now .rgs .disc{fill:var(--blue); fill-opacity:.12}
+.pa .prgl.off .oltx,.pa .prgl.off .prgd{opacity:.38}
+.pa .prg-gh{font:400 10px var(--mono); letter-spacing:.08em; text-transform:uppercase; color:var(--ink2); margin:12px 0 0; padding:12px 16px 2px 60px; border-top:1px solid var(--ink3)}
+.pa .prg-gh + .ol{border-top-color:transparent}
+.pa .prg-how .oltx b{font-size:15.5px; font-weight:500}
+.pa .olfold .olchev .i{transition:transform .2s}
+.pa .olfold.open .olchev .i{transform:rotate(90deg)}
+.pa .olfoldc{padding:0 16px 12px 60px}
+.pa .olfoldc .wtext{padding:0}
+.pa .olfoldc .tup p,.pa .olfoldc .tup .tup-bul{font-size:16px}
+.pa .olbody .pdiff-wait{font:400 11.5px var(--mono); color:var(--ink3)}
 .pa .prg-tl li{padding:0}
 .pa .prg-tb{display:inline-flex; align-items:center; gap:2px; min-height:32px; padding:0; text-align:left; color:inherit; font:inherit; font-weight:500; text-decoration:underline dotted var(--ink3); text-decoration-thickness:1px; text-underline-offset:4px}
 .pa .prg-tb .i{width:13px; height:13px; color:var(--ink3); flex:none}

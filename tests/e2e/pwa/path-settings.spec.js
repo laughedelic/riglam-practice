@@ -1,6 +1,6 @@
 // Settings and the practice options' own pages on the Path (src/app/path/settings.tsx, options.tsx): the rows of the app drawn on the path
-// (the Magic Key and its question before forgetting, voice, your data, the version), and the Stages and Voice pages. What each one does is
-// the classic page's (settings.spec.js, stages.spec.js, voice.spec.js).
+// (the Magic Key and its question before forgetting, voice, your data, the version), and the Voice page; the stages and the difficulty, which are on the
+// Progression page. What each one does is the classic page's (settings.spec.js, stages.spec.js, voice.spec.js).
 import { test as plain, expect as plainExpect } from "@playwright/test";
 import { test, expect } from "../../support/test.js";
 import { dataKey, serveCourse, withCourse } from "../../support/data-key.js";
@@ -115,50 +115,64 @@ withKey("in the released app, holding Version with the Magic Key shows Experimen
   expect(await page.evaluate(() => localStorage.getItem("rd-exp"))).toBe("1");
 });
 
-test("the practice options' Difficulty page switches the stages on the path, and the last one on stays on", async ({ page }) => {
+/** The Progression page, from the top bar's ring sheet: its stages, or its difficulty. */
+async function progression(page, link) {
+  await page.getByRole("button", { name: /^Progression: stage/ }).click();
+  await page.getByRole("button", { name: link, exact: true }).click();
+  await expect(page.locator("#path .ptb-t")).toHaveText("Progression");
+}
+
+test("with Natural progression off the Progression page switches the stages on the path, and the last one on stays on", async ({ page }) => {
   await page.addInitScript(() => { if (localStorage.getItem("rd-stages") === null) localStorage.setItem("rd-stages", "1"); });
   await start(page);
-  await page.getByRole("button", { name: "Practice options" }).click();
-  const sheet = page.getByRole("dialog", { name: "Practice options" });
-  await sheet.getByRole("button", { name: "Difficulty: more" }).click();
-  const stage = (n) => sheet.getByRole("switch", { name: new RegExp("^Stage " + n + " ") });
+  await progression(page, "All stages and their terms");
+  const pg = page.locator("#path .pprog");
+  const stage = (n) => pg.getByRole("switch", { name: new RegExp("^Stage " + n + " ") });
+  await expect(stage(1)).toHaveCount(0);
+  const nat = pg.getByRole("switch", { name: "Natural progression" });
+  await nat.click();
+  await expect(nat).toHaveAttribute("aria-checked", "false");
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("rd-stage-run")).manual)).toBe(true);
   await expect(stage(1)).toHaveAttribute("aria-checked", "true");
   await expect(stage(1)).toHaveAttribute("aria-disabled", "true");
-  await expect(sheet).toContainText("At least one stage stays on.");
   await stage(2).click();
   await expect(stage(2)).toHaveAttribute("aria-checked", "true");
   expect(await page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("1,2");
   await stage(1).click();
   await expect(stage(1)).toHaveAttribute("aria-checked", "false");
+  await expect(pg.locator(".prgl").nth(1)).toHaveClass(/\boff\b/);
   await stage(2).click({ force: true });   // the last one on stays on (a tap on it does nothing)
   await expect(stage(2)).toHaveAttribute("aria-checked", "true");
   expect(await page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("2");
+  // on again, the stages move by themselves and have no switches
+  await nat.click();
+  await expect(stage(2)).toHaveCount(0);
 });
 
-test("the practice options' Difficulty line leads on to the Difficulty page, which holds the negations and their brackets, and the line says which stages are on", async ({ page }) => {
+test("the practice options hold neither the stages nor the difficulty; the Progression page holds the negations and their brackets", async ({ page }) => {
   await page.addInitScript(() => { if (localStorage.getItem("rd-stages") === null) localStorage.setItem("rd-stages", "1,2"); });
   await start(page);
   await page.getByRole("button", { name: "Practice options" }).click();
   const sheet = page.getByRole("dialog", { name: "Practice options" });
-  await expect(sheet.getByRole("group", { name: "Negations" })).toHaveCount(0);          // not a row of the list: negations go with the difficulty
-  await expect(sheet.locator(".ol", { hasText: "Difficulty" }).first()).not.toContainText("negations");
-  await sheet.getByRole("button", { name: "Difficulty: more" }).click();
+  await expect(sheet.locator(".ol").first()).toBeVisible();
   await expect(sheet.getByRole("group", { name: "Negations" })).toHaveCount(0);
-  await sheet.getByRole("button", { name: "Difficulty", exact: true }).click();
-  const seg = page.locator("#path .pdiff").getByRole("group", { name: "Negations" });
+  await expect(sheet.locator(".ol", { hasText: /Difficulty|Stages/ })).toHaveCount(0);
+  await page.getByRole("button", { name: "Close the practice options" }).click();
+  await progression(page, "Difficulty");
+  const diff = page.locator("#path .pprog .sgrp").first();
+  const seg = diff.getByRole("group", { name: "Negations" });
   await expect(seg.getByRole("button", { name: "Off" })).toHaveAttribute("aria-pressed", "true");
   await seg.getByRole("button", { name: "One side" }).click();
   expect(await page.evaluate(() => localStorage.getItem("rd-negation"))).toBe("one");
-  const brackets = page.locator("#path .pdiff").getByRole("switch", { name: /^Brackets/ });
+  const brackets = diff.getByRole("switch", { name: /^Brackets/ });
   await expect(brackets).toHaveAttribute("aria-checked", "true");
   await brackets.click();
   await expect(brackets).toHaveAttribute("aria-checked", "false");
   expect(await page.evaluate(() => localStorage.getItem("rd-neg-brackets"))).toBe("0");
-  // Back goes to the exercise, whose Difficulty line says so
+  // Back goes to the exercise
   await page.locator(".tstn").click();
-  await expect(page.locator("#path .pdiff")).toHaveCount(0);
-  await page.getByRole("button", { name: "Practice options" }).click();
-  await expect(sheet.locator(".ol", { hasText: "Difficulty" }).first()).toContainText("negations: one side");
+  await expect(page.locator("#path .pprog")).toHaveCount(0);
+  await expect(page.locator("#path .ptb-t")).toHaveText("Relations");
 });
 
 test("the practice options' Voice page is drawn on the path and keeps its choices", async ({ page }) => {

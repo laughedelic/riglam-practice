@@ -1,5 +1,5 @@
 // The progression in the top bar of an exercise: a ring after the exercise's name, with the stage's number inside, and the page of the practice options
-// sheet that a tap on it opens (shell/session.js, "progress"): a few short lines on what the stage introduces and what the next one waits for. On a stage with
+// sheet that a tap on it opens (shell/session.js, "progress"): the stage, its new terms with their marks and the nine stages' rings. On a stage with
 // new terms the ring has a segment for each, in the order the learner first answered them, colored by the last answer on it; on a stage without, it fills
 // with the right answers in a row. The numbers are the ones of src/domain/stages.ts (stageProgress) and src/domain/intro.ts (termMark), read through
 // practice/stage-offer.ts.
@@ -8,9 +8,10 @@ import { useEffect, useRef } from "preact/hooks";
 import { state } from "../state.js";
 import { DEPTH_NAME, depthNow } from "../practice/difficulty.ts";
 import { progressNow } from "../practice/stage-offer.ts";
-import { openPage, openProgress } from "../shell/session.js";
-import { STAGES } from "../../domain/stages.ts";
-import { openDifficulty, openProgression } from "./progression.tsx";
+import { openProgress } from "../shell/session.js";
+import { paceSpacing } from "../../domain/intro.ts";
+import { LADDER_TOP, STAGES } from "../../domain/stages.ts";
+import { StageRings, openDifficulty, openProgression } from "./progression.tsx";
 import { Segs, TermList, rightOf } from "./rings.tsx";
 
 const R = 11.5, C = 2 * Math.PI * R;
@@ -42,36 +43,47 @@ const WORD: Record<number, string> = { 2: "two", 3: "three", 4: "four", 5: "five
 /** A count in words, as the lines here say it ("five right answers in a row", "three of your terms"). */
 export const num = (n: number) => WORD[n] || String(n);
 
-/** How new terms come at a pace of `n` (src/domain/intro.ts, PACES), here, on the Progression page and on the Difficulty page. */
-export const flow = (n: number): string => "New terms come one at a time, a few questions apart, while fewer than " + num(n) + " of your terms are not right yet. With " + num(n) + ", the questions stay on those until one of them is.";
+/** How new terms come at a pace of `n` (src/domain/intro.ts, PACES and paceSpacing), here and on the Progression page. */
+export const flow = (n: number): string => "New terms come one at a time, at most one every " + num(paceSpacing(n)) + " questions, while fewer than " + num(n) + " of your terms are not right yet. With " + num(n) + ", the questions stay on those until one of them is.";
 
 /**
- * The page: the lines are short, and the words are the stage station's where it has them ("reached", "The stages follow your answers"). The new terms of the
- * stage follow what it introduces, each with its mark; a link at the foot opens the Progression page with every stage (path/progression.tsx).
+ * What the stages are and how they move, in full: the fold "How the stages work" on the Progression page (path/progression.tsx) and on the stage station
+ * (path/stage-up.tsx), in the same words. `diff` says where the Progression page is, after the line on the last stage.
+ */
+export const HowStages = ({ diff }: { diff: ComponentChildren }) => <ul class="tup-bul">
+  <li>Each stage adds a new kind of thing to ask about, from everyday things toward abstract ideas.</li>
+  <li>Stage 0 is everyday things only. The course terms start at stage 1, in three groups of three stages.</li>
+  <li>The earlier stages stay in the mix, and Review keeps them fresh.</li>
+  <li>Each new term comes with its definition first.</li>
+  <li>{flow(state.pace)}</li>
+  <li>A stage begins with its first new term, once the stage before has brought all of its own. A wrong answer takes back only that term’s mark.</li>
+  <li>{"Stage " + LADDER_TOP + " is the last. Chains of reasoning come after it as a difficulty of their own, like the negations: "}{diff}.</li>
+  <li>Progression works across all exercises.</li>
+  <li>A stage’s ring has a segment for each of its new terms, and each term a diamond: green when your last answer on it was right, red when it was wrong, open while it is not asked yet.</li>
+</ul>;
+
+/**
+ * The sheet under the ring: the stage, its new terms with their marks, the nine stages as a row of rings (a tap opens one on the Progression page), and the way
+ * to all the stages and to the difficulty. How the stages work is on the Progression page; a line on what comes next stays only where something other than
+ * the stage's own terms leads on: a run of right answers (stage 0, a stage stayed on, or one whose terms were right before), the stages moved by hand, the
+ * last stage.
  */
 export function ProgressPage() {
   const p = progressNow(), info = STAGES.find((s) => s.n === p.top), n = p.terms.length;
-  const add = info ? info.adds.charAt(0).toLowerCase() + info.adds.slice(1).replace(/\.$/, "") : "";
-  const items: ComponentChildren[] = [];
-  const list = <TermList marks={p.terms} />;
-  if (add) items.push("Stage " + p.top + " introduces " + add + ".");
-  if (n) items.push(list);
-  if (p.next && p.flow) {
-    items.push(flow(state.pace), p.need ? "Stage " + p.next + " comes in after " + num(p.need) + " right answers in a row, with its first new term."
-      : "Stage " + p.next + " begins with its first new term, after " + (n === 1 ? "this one" : "the last of these") + ".");
-    items.push("A wrong answer takes back only that term’s mark.", "Progression works across all exercises.", "Review keeps the earlier stages fresh; it does not move the ring.");
-  } else if (p.next && p.shows === "terms") {
-    items.push("Stage " + p.next + " is reached once your last answer on " + (n === 1 ? "this term" : "each of these terms") + " is right.");
-    items.push("A wrong answer takes back only that term’s mark.", "Progression works across all exercises.", "Review keeps the earlier stages fresh; it does not move the ring.");
-  } else if (p.next) {
-    items.push("Stage " + p.next + " is reached after " + num(p.need) + " right answers in a row on what is new.");
-    items.push("Progression works across all exercises.", "Review answers count too, but as smaller steps.", "A wrong answer on the new terms resets the stage progress.");
-  } else if (state.stageRun.manual) items.push("The stages move when you move them.");
+  let next: ComponentChildren = null;
+  if (p.next && p.flow) { if (p.need) next = "Stage " + p.next + " comes in after " + num(p.need) + " right answers in a row, with its first new term."; }
+  else if (p.next && p.shows === "terms") next = "Stage " + p.next + " is reached once your last answer on " + (n === 1 ? "this term" : "each of these terms") + " is right.";
+  else if (p.next) next = "Stage " + p.next + " is reached after " + num(p.need) + " right answers in a row on what is new.";
+  else if (state.stageRun.manual) next = "The stages move when you move them.";
   else {
     const d = depthNow();
-    items.push("This is the last stage.", <>Chains of reasoning come after it, as a difficulty of their own: {d ? "depth is at " + DEPTH_NAME[d] + " now" : "a result suggests them once your last answer on each of these terms is right"}. Set it on the <button type="button" class="plnk" onClick={() => openDifficulty()}>Difficulty page</button>.</>);
+    next = <>This is the last stage. Chains of reasoning come after it, as a difficulty of their own: {d ? "depth is at " + DEPTH_NAME[d] + " now" : "a result suggests them once your last answer on each of these terms is right"}.</>;
   }
-  items.push(<>The stages follow your answers. To choose them yourself, or to stop them from moving up, use the <button type="button" class="plnk" onClick={() => openPage(null)}>practice options</button>.</>);
-  return <div class="wtext tup"><ul class="tup-bul">{items.map((t) => <li class={t === list ? "tlist" : undefined}>{t}</li>)}</ul>
-    <p class="tup-note"><button type="button" class="plnk" onClick={() => openProgression(p.top, "sheet")}>All stages and their terms</button></p></div>;
+  return <div class="wtext tup">
+    {info ? <p class="tup-lead">{info.name}</p> : null}
+    {n ? <TermList marks={p.terms} /> : null}
+    {next ? <p>{next}</p> : null}
+    <div class="tup-rs"><StageRings from="sheet" /></div>
+    <p class="tup-note"><button type="button" class="plnk" onClick={() => openProgression(p.top, "sheet")}>All stages and their terms</button> · <button type="button" class="plnk" onClick={openDifficulty}>Difficulty</button></p>
+  </div>;
 }

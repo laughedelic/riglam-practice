@@ -2,7 +2,7 @@
 // well, both sides. The rule (what counts, how long the run is) is negationOffer in src/domain/stages.ts; this is the page around it, built like
 // the offer of another stage in Categories (categories/flow.js): it shows on the result, nothing changes without a tap, and an offer passed over or
 // declined needs another run. The classic page draws it with offerNode, the Path with NegOffer (path/relations.tsx). On the Path it comes from stage
-// NEG_SUGGEST on, and only while fewer terms are open than the learner's pace allows (negationSuggested); the Difficulty page sets the step any time
+// NEG_SUGGEST on, and only while fewer terms are open than the learner's pace allows (negationSuggested); the Progression page sets the step any time
 // from NEG_OPEN (path/difficulty.tsx).
 import { state } from "../state.js";
 import { el } from "../core/dom.js";
@@ -42,9 +42,10 @@ const pending = (): { kind: "one" | "both" } | null => { const o = state.ui && s
 /** "Negate one side" or "Negate both sides": the negation track takes the step from the next pair on. Nothing changes without this tap. */
 export function acceptNegOffer() {
   const o = pending(); if (!o) return;
-  state.negation = o.kind; store("rd-negation", o.kind); spendRun();
-  const where = state.design === "path" ? "on the Difficulty page" : "in the practice options";
-  state.ui!.negOffer = { kind: "done", text: o.kind === "one" ? "Negations are on: from the next pair, about a third of the pairs negate one side. Change it " + where + "."
+  const kind = state.negation === "both" ? "both" : o.kind;     // both sides set meanwhile (the Progression page): the tap never takes a step back
+  state.negation = kind; store("rd-negation", kind); spendRun();
+  const where = state.design === "path" ? "on the Progression page" : "in the practice options";
+  state.ui!.negOffer = { kind: "done", text: kind === "one" ? "Negations are on: from the next pair, about a third of the pairs negate one side. Change it " + where + "."
     : "Both sides now: half of the negated pairs negate both. Change it " + where + "." };
   render();
 }

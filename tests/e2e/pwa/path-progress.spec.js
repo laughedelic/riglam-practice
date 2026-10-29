@@ -1,13 +1,14 @@
 // The progression in the Path's top bar: a back chevron where the station diamond was, and after the exercise's name a ring with the stage in it: a
 // segment for each new term of the stage, or, on a stage without (and here, where the test devices have every term settled: tests/support/test.js), the
-// run of right answers towards the next stage (below stage 8, the ladder's last, which shows its terms). A tap on the ring opens the Progression sheet (a page of the practice options); the top bar names it while
-// it is open (and its ring gives way to the close); Back and the close shut it (src/app/path/progress.tsx).
+// run of right answers towards the next stage (below stage 9, the ladder's last, which shows its terms). A tap on the ring opens the Progression sheet (a page of the practice options):
+// the stage, its new terms with their marks, the nine stages' rings and the links to the Progression page. While it is open the top bar keeps the name and the ring, pressed,
+// and the options button is the close; Back and the close shut it (src/app/path/progress.tsx).
 import { test, expect } from "../../support/test.js";
 
 const setup = () => {
   window.__riglamTest = (t) => { window.__t = t; };
   if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path");
-  if (localStorage.getItem("rd-stages") === null) localStorage.setItem("rd-stages", "1,2,3,4,5,6,7");     // below the ladder's last stage, where the ring shows its terms
+  if (localStorage.getItem("rd-stages") === null) localStorage.setItem("rd-stages", "0,1,2,3,4,5,6,7,8");     // below the ladder's last stage, where the ring shows its terms
 };
 const ring = (page) => page.locator("#path .ptb .pring");
 const sheet = (page) => page.locator("#path .psheet.on");
@@ -58,7 +59,7 @@ test("the stage the ring shows is the highest one on, and it has no fill where t
   expect(Number(await page.locator("#path .pring .arc").getAttribute("stroke-dashoffset"))).toBeCloseTo(Number(await page.locator("#path .pring .arc").getAttribute("stroke-dasharray")), 3);
 });
 
-test("a tap on the ring opens the Progression sheet under it, the ring stays and is pressed; the ring, the close and Back shut it, its link goes to the practice options", async ({ page }) => {
+test("a tap on the ring opens the Progression sheet under it, the ring stays and is pressed; the ring, the close and Back shut it, its links go to the Progression page", async ({ page }) => {
   await start(page);
   await run(page, { up: 0, need: undefined, manual: undefined });
   await ring(page).click();
@@ -69,12 +70,12 @@ test("a tap on the ring opens the Progression sheet under it, the ring stays and
   await expect(ring(page)).toHaveClass(/\bon\b/);
   await expect(ring(page)).toHaveAttribute("aria-expanded", "true");
   await expect(page.locator("#path .ptb .pib")).toHaveCount(2);
-  const lines = sheet(page).locator(".tup-bul li");
-  await expect(lines.first()).toContainText(/^Stage \d introduces /);
-  await expect(sheet(page)).toContainText("is reached after five right answers in a row on what is new.");
-  await expect(sheet(page)).toContainText("Progression works across all exercises.");
-  await expect(sheet(page)).toContainText("Review answers count too, but as smaller steps.");
-  await expect(sheet(page)).toContainText("A wrong answer on the new terms resets the stage progress.");
+  // the stage by its name, what leads on (a run, here: every term of the test devices is settled), the nine stages' rings; how the stages work is on the page
+  await expect(sheet(page).locator(".tup-lead")).toHaveText("Manifest and hidden");
+  await expect(sheet(page)).toContainText("Stage 9 is reached after five right answers in a row on what is new.");
+  await expect(sheet(page).locator(".tup-bul")).toHaveCount(0);
+  const rings = sheet(page).getByRole("group", { name: "The stages: stage 8 of 9" });
+  await expect(rings.locator(".tup-rg")).toHaveCount(9);
   await expect(sheet(page).locator(".sback"), "no list under it to go back to").toHaveCount(0);
   // the ring shuts it again
   await ring(page).click();
@@ -90,11 +91,20 @@ test("a tap on the ring opens the Progression sheet under it, the ring stays and
   await page.goBack();
   await expect(sheet(page)).toHaveCount(0);
   await expect(page.locator("#path .ptb-t")).toContainText("Relations");
-  // its own link goes to the practice options, which name themselves in the bar
+  // its links go to the Progression page: its stages, or its difficulty; Back comes to the exercise
+  for (const name of ["All stages and their terms", "Difficulty"]) {
+    await ring(page).click();
+    await sheet(page).getByRole("button", { name, exact: true }).click();
+    await expect(page.locator("#path .ptb-t")).toHaveText("Progression");
+    await expect(page.locator("#path .pprog .sgh")).toHaveText(["Difficulty", "Stages"]);
+    await expect(ring(page)).toHaveCount(0);
+    await page.getByRole("button", { name: "Back to Relations", exact: true }).click();
+    await expect(page.locator("#path .ptb-t")).toHaveText("Relations");
+  }
+  // a ring in the row opens the page with that stage unfolded
   await ring(page).click();
-  await sheet(page).getByRole("button", { name: "practice options", exact: true }).click();
-  await expect(page.locator("#path .ptb-t")).toHaveText("Practice options");
-  await expect(ring(page)).toHaveCount(0);
+  await rings.locator(".tup-rg").nth(2).click();
+  await expect(page.locator('#path .pprog .olhit[data-stage="3"]')).toHaveAttribute("aria-expanded", "true");
 });
 
 test.describe("the number in the ring", () => {
@@ -127,51 +137,44 @@ test.describe("the number in the ring", () => {
   });
 });
 
-/** A device on stages 1 and 2 whose record has the new terms of stage 2 as given (src/domain/intro.ts, IntroTerm), Form settled, and no stop due. */
-const stage2 = (page, terms) => page.addInitScript((t) => {
-  localStorage.setItem("rd-stages", "1,2");
-  localStorage.setItem("rd-terms", JSON.stringify({ n: 12, next: 99, terms: { form: { box: 3, shows: 1 }, ...t } }));
-}, terms);
+/** A device on stages 0 to 2 whose record has the new terms of stages 1 and 2 as given (src/domain/intro.ts, IntroTerm), and no stop due. */
+const onStage = (page, stages, terms) => page.addInitScript(([s, t]) => {
+  localStorage.setItem("rd-stages", s);
+  localStorage.setItem("rd-terms", JSON.stringify({ n: 12, next: 99, terms: t }));
+}, [stages, terms]);
 
 test("on a stage with new terms the ring has a segment for each, in the order they were first answered, colored by the last answer on each; the sheet lists them", async ({ page }) => {
-  // External form right; Shape right, then missed; Color missed, never right yet; External matter and Form source still to come
-  await stage2(page, { extf: { box: 2, shows: 1, first: 1, won: 1 }, shape: { box: 1, shows: 2, first: 2, won: 2 }, col: { box: 1, shows: 2, first: 3 } });
+  // External form right; Form right, then missed; Matter missed, never right yet; External matter still to come
+  await onStage(page, "0,1", { extf: { box: 2, shows: 1, first: 1, won: 1 }, form: { box: 1, shows: 2, first: 2, won: 2 }, "form:Matter": { box: 1, shows: 2, first: 3 } });
   await start(page);
   const segs = ring(page).locator(".tseg");
-  await expect(segs).toHaveCount(5);
-  expect(await segs.evaluateAll((a) => a.map((x) => x.getAttribute("class")))).toEqual(["tseg ok", "tseg slip", "tseg miss", "tseg wait", "tseg wait"]);
+  await expect(segs).toHaveCount(4);
+  expect(await segs.evaluateAll((a) => a.map((x) => x.getAttribute("class")))).toEqual(["tseg ok", "tseg slip", "tseg miss", "tseg wait"]);
   const strokes = await segs.evaluateAll((a) => a.map((x) => getComputedStyle(x).stroke));
   expect(strokes[1], "a miss is a miss, whether the term was right before or not").toBe(strokes[2]);
   expect(new Set(strokes).size, "right, missed, and to come look different").toBe(3);
-  await expect(ring(page)).toHaveAccessibleName("Progression: stage 2, 1 of 5 new terms answered right. How it works");
+  await expect(ring(page)).toHaveAccessibleName("Progression: stage 1, 1 of 4 new terms answered right. How it works");
   await expect(ring(page)).not.toHaveClass(/\bfull\b/);
-  await expect(ring(page).locator("text")).toHaveText("2");
+  await expect(ring(page).locator("text")).toHaveText("1");
   await ring(page).click();
-  // the terms follow what the stage introduces, each with its mark and nothing else
-  const lines = sheet(page).locator(".tup-bul > li");
-  await expect(lines.nth(0)).toHaveText("Stage 2 introduces colors and shapes as qualities of things: the red of an apple, not the apple.");
-  await expect(lines.nth(1)).toHaveClass("tlist");
-  const terms = lines.nth(1).locator(".tterms li");
-  await expect(terms).toHaveText(["External form", "Shape", "Color", "External matter", "Form source"]);
-  expect(await terms.locator(".tmk").evaluateAll((a) => a.map((x) => x.getAttribute("class")))).toEqual(["tmk ok", "tmk slip", "tmk miss", "tmk wait", "tmk wait"]);
-  expect(await lines.nth(1).evaluate((li) => getComputedStyle(li).listStyleType), "the list of terms has no bullet of its own").toBe("none");
-  await expect(lines.nth(2)).toHaveText("New terms come one at a time, a few questions apart, while fewer than three of your terms are not right yet. With three, the questions stay on those until one of them is.");
-  await expect(lines.nth(3)).toHaveText("Stage 3 begins with its first new term, after the last of these.");
-  await expect(sheet(page)).toContainText("A wrong answer takes back only that term’s mark.");
+  // the stage's name, then its terms, each with its mark and nothing else; the next stage comes with its first new term, which needs no line
+  await expect(sheet(page).locator(".tup-lead")).toHaveText("Form");
+  const terms = sheet(page).locator(".tterms li");
+  await expect(terms).toHaveText(["External form", "Form", "Matter", "External matter"]);
+  expect(await terms.locator(".tmk").evaluateAll((a) => a.map((x) => x.getAttribute("class")))).toEqual(["tmk ok", "tmk slip", "tmk miss", "tmk wait"]);
+  expect(await sheet(page).locator(".tterms").evaluate((ul) => getComputedStyle(ul).listStyleType), "the list of terms has no bullets").toBe("none");
+  await expect(sheet(page)).not.toContainText("begins with");
   await expect(sheet(page)).not.toContainText("in a row");
 });
 
-test("stage 1 has two new terms, form and matter, the same things under two definitions: a segment for each", async ({ page }) => {
-  await page.addInitScript(() => {
-    localStorage.setItem("rd-stages", "1");
-    localStorage.setItem("rd-terms", JSON.stringify({ n: 6, next: 99, terms: { form: { box: 1, shows: 1, first: 5 }, "form:Matter": { box: 1, shows: 1 } } }));
-  });
+test("stage 2 has three new terms, color, shape and form source: a segment for each, the ones not answered yet in the course's order", async ({ page }) => {
+  await onStage(page, "0,1,2", { form: { box: 3, shows: 1 }, "form:Matter": { box: 3, shows: 1 }, extf: { box: 3, shows: 1 }, "extf:External matter": { box: 3, shows: 1 }, shape: { box: 1, shows: 1, first: 5 }, col: { box: 1, shows: 1 } });
   await start(page);
-  expect(await ring(page).locator("path.tseg").evaluateAll((a) => a.map((x) => x.getAttribute("class")))).toEqual(["tseg miss", "tseg met"]);
-  await expect(ring(page)).toHaveAccessibleName("Progression: stage 1, 0 of 2 new terms answered right. How it works");
+  expect(await ring(page).locator("path.tseg").evaluateAll((a) => a.map((x) => x.getAttribute("class")))).toEqual(["tseg miss", "tseg met", "tseg wait"]);
+  await expect(ring(page)).toHaveAccessibleName("Progression: stage 2, 0 of 3 new terms answered right. How it works");
   await ring(page).click();
-  await expect(sheet(page).locator(".tterms li")).toHaveText(["Form", "Matter"]);
-  await expect(sheet(page)).toContainText("Stage 2 begins with its first new term, after the last of these.");
+  await expect(sheet(page).locator(".tterms li")).toHaveText(["Shape", "Color", "Form source"]);
+  await expect(sheet(page)).not.toContainText("Stage 3");
 });
 
 test("the sheet says so where no stage comes by itself", async ({ page }) => {

@@ -17,7 +17,7 @@ import { catChain, excludes, rung, termPhrase } from "./ladder";
 import { itemRows as placeItemRows } from "./place";
 import { placeByClass } from "./reference";
 import { askedKey, termCats, wordsFor } from "./intro";
-import { HOLD_STAGE, MAX_STAGE, catOpen, catStage, heldBack, itemStage, physical, topStage } from "./stages";
+import { HOLD_STAGE, STAGES, catOpen, catStage, heldBack, itemStage, physical, topStage } from "./stages";
 import type { Stages, Unmet } from "./stages";
 import { FEATURE, cellsFor, inUniverse, judgeable, relOfCells } from "./universe";
 import type { PairWords, Rng } from "./universe";
@@ -51,10 +51,10 @@ export function catPhrase(cat: Cat): string {
 /** The class of the category's own term, the first of its chain, which a sentence need not repeat. */
 const own = (cat: Cat, cls: string) => cat.kind === "dudra" && cat.term === cls;
 /** Every stage on: a question asked without stages is told as at the last one. */
-const ALL: Stages = Array.from({ length: MAX_STAGE }, (_, i) => i + 1);
+const ALL: Stages = STAGES.map((s) => s.n);
 /** The Dudra category of a class, if the data has one. */
 const catOfTerm = (ix: DataIndex, term: string) => ix.DATA.cats.find((c) => c.kind === "dudra" && c.term === term);
-/** The two classes a beginner meets before their names, in the words Categories says them in (place.ts): Form is anything physical at stage 1, a consciousness is a mind until the established bases. */
+/** The two classes a beginner meets before their names, in the words Categories says them in (place.ts): Form is anything physical up to stage 1, a consciousness is a mind until the established bases. */
 const PLAIN: Readonly<Record<string, string>> = { Form: "physical", Consciousness: "a mind" };
 /** Whether the class is said in plain words at these stages. */
 function plainAt(ix: DataIndex, term: string, on?: Stages): boolean {
@@ -63,7 +63,7 @@ function plainAt(ix: DataIndex, term: string, on?: Stages): boolean {
   return term === "Form" ? topStage(on) < 2 : !cat || !catOpen(cat, on);
 }
 /** The stage from which a class can be said in a reason: from the start in plain words, else when its category opens (never, without one). */
-const wordsStage = (ix: DataIndex, term: string) => (term in PLAIN ? 1 : catStage(catOfTerm(ix, term) ?? { st: Infinity }));
+const wordsStage = (ix: DataIndex, term: string) => (term in PLAIN ? 0 : catStage(catOfTerm(ix, term) ?? { st: Infinity }));
 
 /**
  * Why nothing is in both categories, or null when the data cannot show it: an exclusion up their chains ("Whatever is made of wood is a
@@ -117,7 +117,7 @@ const knownAt = (ix: DataIndex, it: Item, set: readonly string[], on?: Stages) =
  * at which a thing in all of them is known (`items`, the items in all of them), and for a set where nothing can be, the stage from which its
  * reason can be said (`said`: "nothing is both a form and a non-associated compositional factor" waits for the course's words).
  */
-export function setStage(ix: DataIndex, set: readonly string[], items: readonly Item[] = [], said = 1): number {
+export function setStage(ix: DataIndex, set: readonly string[], items: readonly Item[] = [], said = 0): number {
   const cats = Math.max(said, ...set.map((c) => catStage(ix.CAT[c])));
   return items.length ? Math.max(cats, Math.min(...items.map((it) => itemStageIn(ix, it, set)))) : cats;
 }

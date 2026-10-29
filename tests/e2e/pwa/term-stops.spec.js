@@ -7,14 +7,14 @@ import { dataKey, serveCourse, withCourse } from "../../support/data-key.js";
 
 const hook = () => { window.__riglamTest = (t) => { window.__t = t; }; };
 const onPath = () => { if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path"); };
-// a device at stage 1 that has met no term yet, three questions in: the next pull brings the stop of Form (over the met terms the support test gives)
-const fresh = () => { localStorage.setItem("rd-stages", "1"); localStorage.setItem("rd-terms", JSON.stringify({ n: 3, next: 3, terms: {} })); };
+// a device that has just come to stage 1 and met no term yet, three questions in: the next pull brings the stop of Form (over the met terms the support test gives)
+const fresh = () => { localStorage.setItem("rd-stages", "0,1"); localStorage.setItem("rd-terms", JSON.stringify({ n: 3, next: 3, terms: {} })); };
 /** A device that has settled every course term but `left`, with `met` at box 1, at every stage, and the next new term due: the stop of the first of `left`. */
 const seed = (page, left, met = []) => page.addInitScript(([settled, left, met]) => {
   const terms = JSON.parse(settled).terms;
   for (const id of left) delete terms[id];
   for (const id of met) terms[id] = { box: 1, shows: 1, at: 1e6 };
-  localStorage.setItem("rd-stages", "1,2,3,4,5,6,7,8,9,10,11"); localStorage.setItem("rd-terms", JSON.stringify({ n: 3, next: 3, terms }));
+  localStorage.setItem("rd-stages", "0,1,2,3,4,5,6,7,8,9,10,11,12"); localStorage.setItem("rd-terms", JSON.stringify({ n: 3, next: 3, terms }));
 }, [SETTLED_TERMS, left, met]);
 /** Pulls the next screen, which is the stop that is due (`examples`: after the examples the stand-in server gives have been read). */
 async function toStop(page, examples = false) {
@@ -92,8 +92,16 @@ test("on the Path the stop is a station of its own, with the term and where it s
   const again = stop.getByRole("button", { name: "Show it again later" });
   const due = () => page.evaluate(() => { const t = JSON.parse(localStorage.getItem("rd-terms")).terms.form; return t.why === "again" ? t.due - window.__t.intro.n : null; });
   await expect(again).toHaveAttribute("aria-pressed", "false");
+  // gray like the favorites mark, its lines heavier than the other icons'; pressed, heavier still and in another color, never filled
+  const look = () => again.evaluate((b) => { const s = getComputedStyle(b.querySelector(".i")); return { color: s.stroke, width: parseFloat(s.strokeWidth), fill: s.fill }; });
+  const off = await look();
+  expect(off.width, "heavier than the icons' 1.6").toBeGreaterThan(1.6);
   await again.click();
   await expect(again).toHaveAttribute("aria-pressed", "true");
+  const on = await look();
+  expect(on.width, "pressed: heavier still").toBeGreaterThan(off.width);
+  expect(on.color, "pressed: another color").not.toBe(off.color);
+  expect(on.fill, "pressed: the clock stays a line drawing").toBe("none");
   // a short hint under the clock, which goes by itself after a few seconds
   await expect(stop.getByRole("status")).toHaveText("Will be shown again");
   expect(await due()).toBe(10);
@@ -114,35 +122,35 @@ test("on the Path the stop is a station of its own, with the term and where it s
   await expect(stop).toHaveCount(0);
 });
 
-test("Reset progression on the Stages page asks first, then starts at stage 1 with no term met, on the device and in its progress document", async ({ page }) => {
+test("Reset progression on the Progression page asks first, then starts at stage 0 with no term met, on the device and in its progress document", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(onPath);
-  await page.addInitScript(() => { if (localStorage.getItem("rd-negation") === null) { localStorage.setItem("rd-stages", "1,2,3"); localStorage.setItem("rd-negation", "one");
+  await page.addInitScript(() => { if (localStorage.getItem("rd-negation") === null) { localStorage.setItem("rd-stages", "0,1,2,3"); localStorage.setItem("rd-negation", "one");
     localStorage.setItem("rd-stage-run", JSON.stringify({ up: 3, down: 0 })); localStorage.setItem("rd-ex-runs", JSON.stringify({ practice: { run: 5, right: 9 } }));
     localStorage.setItem("rd-guided", JSON.stringify({ practice: false })); } });
   await page.addInitScript(hook);
   await page.goto("/");
   await expect(page.locator("#path .chs .crow")).toHaveCount(5);
   expect(Object.keys(await page.evaluate(() => window.__t.intro.terms)).length).toBeGreaterThan(9);
-  await page.getByRole("button", { name: "Practice options" }).click();
-  const sheet = page.getByRole("dialog", { name: "Practice options" });
-  await sheet.getByRole("button", { name: "Difficulty: more" }).click();
-  const row = sheet.locator(".porow", { hasText: "Reset progression" });
+  // the ring's sheet, then all the stages: Reset progression is the page's last line
+  await page.getByRole("button", { name: /^Progression: stage 3/ }).click();
+  await page.getByRole("button", { name: "All stages and their terms" }).click();
+  const row = page.locator("#path .pprog .ol", { hasText: "Reset progression" });
   await expect(row).toContainText("Your answers, their statistics and your settings stay.");
   await row.getByRole("button", { name: "Reset progression" }).click();
   await row.getByRole("button", { name: "Keep it" }).click();
-  expect(await page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("1,2,3");
+  expect(await page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("0,1,2,3");
   await row.getByRole("button", { name: "Reset progression" }).click();
   await row.getByRole("button", { name: "Reset", exact: true }).click();
-  await expect(row).toContainText("Done: stage 1");
-  const stage = (n) => sheet.getByRole("switch", { name: new RegExp("^Stage " + n + " ") });
-  await expect(stage(1)).toHaveAttribute("aria-checked", "true");
-  await expect(stage(2)).toHaveAttribute("aria-checked", "false");
-  expect(await page.evaluate(() => [localStorage.getItem("rd-stages"), localStorage.getItem("rd-negation"), JSON.parse(localStorage.getItem("rd-terms")).terms])).toEqual(["1", "off", {}]);
-  // the question behind the sheet was drawn again from stage 1, without Form, whose stop has not come
+  await expect(row).toContainText("Done: stage 0");
+  await expect(page.locator("#path .pprog .sgnote"), "the page says where the learner is now").toHaveText(/^stage 0 of 9/);
+  expect(await page.evaluate(() => [localStorage.getItem("rd-stages"), localStorage.getItem("rd-negation"), JSON.parse(localStorage.getItem("rd-terms")).terms])).toEqual(["0", "off", {}]);
+  // back at the exercise, its question was drawn again from stage 0, without Form, whose stop has not come
+  await page.getByRole("button", { name: "Back to Relations", exact: true }).click();
+  await expect(page.locator("#path .chs .crow")).toHaveCount(5);
   expect(await cats(page)).not.toContain("form");
   const doc = await page.evaluate(async () => { const s = await (await window.__riglam.platform.db()).collection("progress").doc("learner").get(); return s.exists ? s.data() : null; });
-  expect(doc).toMatchObject({ stages: [1], negation: "off", terms: { n: 0, terms: {} }, run: { up: 0, down: 0 }, exercises: {} });
+  expect(doc).toMatchObject({ stages: [0], negation: "off", terms: { n: 0, terms: {} }, run: { up: 0, down: 0 }, exercises: {} });
   expect(await page.evaluate(() => [localStorage.getItem("rd-stage-run"), localStorage.getItem("rd-ex-runs"), localStorage.getItem("rd-guided")]), "the runs towards the stage offers start again, and every exercise is guided").toEqual(['{"up":0,"down":0}', "{}", "{}"]);
 });
 
@@ -150,9 +158,10 @@ test("the stop shows the terms above the term, gray with a sign while their own 
   await page.addInitScript(fresh);
   const stop = await toStop(page);
   const tree = stop.locator("ul.ttree li");
-  // Existent has no stop in the course, so nothing waits for it; Functional thing does, and has not come
-  await expect(tree.nth(0)).toHaveText("Existent");
-  await expect(tree.nth(0)).not.toHaveClass(/gray/);
+  // Existent and Functional thing have stops of their own at stage 5, which have not come
+  await expect(tree.nth(0)).toHaveClass(/gray/);
+  await expect(tree.nth(0)).toContainText("Existent");
+  await expect(tree.nth(0)).toContainText("later");
   await expect(tree.nth(1)).toHaveClass(/gray/);
   await expect(tree.nth(1)).toContainText("Functional thing");
   await expect(tree.nth(1)).toContainText("later");
@@ -240,7 +249,7 @@ test("the examples on a stop are everyday things of the practice list, with thei
   await expect(rows.nth(0)).toContainText("blood");
   await expect(rows.nth(1)).toContainText("a wooden chair");
   await expect(rows.nth(2)).toContainText("your hand");
-  for (let i = 0; i < 3; i++) await expect(rows.nth(i)).toContainText("stage 1");
+  for (let i = 0; i < 3; i++) await expect(rows.nth(i)).toContainText("stage 0");
   await expect(stop).not.toContainText(/vemo|kipa|confirmed|textbook/i);
 });
 

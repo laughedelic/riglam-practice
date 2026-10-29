@@ -64,8 +64,8 @@ const ITEMS = [
   ex("a wall in a hard text", ["Color"], 2, { bg: "glossed" }),
   ex("a hope of the unknown class", ["Unheard-of class"], 1),
 ];
-/** The stages of the levels (1 to 4) up to `n`: 8 to n + 7. */
-const levelsTo = (n: number) => Array.from({ length: n }, (_, i) => i + 8);
+/** The stages of the levels (1 to 4) up to `n`: 8, then the steps of depth, 10 to n + 8. */
+const levelsTo = (n: number) => [8, ...Array.from({ length: n - 1 }, (_, i) => i + 10)];
 const names = (w: Witnesses, a: string, b: string) => Object.fromEntries(CELLS.map((c) => [c, w(a, b)[c].map((i) => i.n)])) as Record<CellId, string[]>;
 
 test("cellExample: confirmed and textbook, of a stage that is on, of a kind a cell takes, and no expert background", () => {
@@ -76,15 +76,18 @@ test("cellExample: confirmed and textbook, of a stage that is on, of a kind a ce
   expect(ok({ lv: 2 }, [8])).toBe(false);
   expect(ok({ st: 2 }, [2]), "a stage of its own decides").toBe(true);
   expect(ok({ st: 2 }, [8])).toBe(false);
+  expect(ok({ st: 6 }, [6]), "the course's words wait for stage 8").toBe(false);
+  expect(ok({ st: 6 }, [8])).toBe(true);
   expect(ok({ cf: "commentator" }, ALL)).toBe(false);
   for (const k of ["thing", "representation", undefined]) expect(ok({ k }, [8]), String(k)).toBe(true);
   for (const k of ["statement", "combination", "something else"]) expect(ok({ k }, ALL), k).toBe(false);
-  // relations and negations from stage 9, one step further: a set, not a ceiling
+  // relations and negations from stage 10, the first step of depth: a set, not a ceiling
   for (const k of ["relation", "negation"]) {
     expect(ok({ k, lv: 2 }, [8]), k).toBe(false);
-    expect(ok({ k, lv: 2 }, [9]), k).toBe(true);
-    expect(ok({ k, st: 8 }, [8]), k).toBe(false);
-    expect(ok({ k, st: 8 }, [8, 9]), k).toBe(true);
+    expect(ok({ k, lv: 2 }, [10]), k).toBe(true);
+    expect(ok({ k, st: 6 }, [8]), k).toBe(false);
+    expect(ok({ k, st: 6 }, [8, 9]), k + ": stage 9 is the ladder's last").toBe(false);
+    expect(ok({ k, st: 6 }, [8, 10]), k).toBe(true);
   }
   expect(ok({ bg: "expert" }, ALL)).toBe(false);
   expect(ok({ bg: "glossed" }, ALL)).toBe(true);
@@ -92,16 +95,28 @@ test("cellExample: confirmed and textbook, of a stage that is on, of a kind a ce
 
 test("the stage of a reference example, and how many examples each stage has", () => {
   expect(exampleStage({ lv: 1 })).toBe(8);
-  expect(exampleStage({ lv: 4 })).toBe(11);
-  expect(exampleStage({ lv: 2, st: 3 })).toBe(3);
-  expect(exampleStage({ lv: 1, st: 12 }), "a stage out of range counts as none").toBe(8);
-  expect(stageCounts(ITEMS)).toEqual({ 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 7, 9: 5, 10: 2, 11: 0 });
+  expect(exampleStage({ lv: 2 })).toBe(10);
+  expect(exampleStage({ lv: 4 })).toBe(12);
+  // the export's own stage is on its ladder of nine: each goes where what it needs opens
+  expect(exampleStage({ lv: 1, st: 1 }), "everyday things").toBe(0);
+  expect(exampleStage({ lv: 1, st: 2 }), "what is seen").toBe(2);
+  expect(exampleStage({ lv: 2, st: 3 }), "heard, smelled, tasted, touched").toBe(3);
+  expect(exampleStage({ lv: 1, st: 4 }), "the textbook's things, what does not exist, minds").toBe(5);
+  expect(exampleStage({ lv: 1, st: 5 }), "a sense or mental consciousness").toBe(6);
+  expect(exampleStage({ lv: 1, st: 6 }), "the course's words, named or glossed").toBe(8);
+  expect(exampleStage({ lv: 2, st: 6 })).toBe(8);
+  expect(exampleStage({ lv: 2, st: 7 }), "one step").toBe(10);
+  expect(exampleStage({ lv: 3, st: 8 }), "two steps").toBe(11);
+  expect(exampleStage({ lv: 4, st: 9 })).toBe(12);
+  expect(exampleStage({ lv: 4, st: 11 }), "a stage out of range counts as none").toBe(12);
+  expect(exampleStage({ lv: 1, st: 12 })).toBe(8);
+  expect(stageCounts(ITEMS)).toEqual({ 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 7, 9: 0, 10: 5, 11: 2, 12: 0 });
 });
 
 test("witnessesOf: the examples whose cell is proved for both categories, by stage, never the practice list's own", () => {
   const data = ix();
   const w2 = witnessesOf(data, ITEMS, levelsTo(2));
-  // Form (a) against External form (b); the negation is in at stage 9
+  // Form (a) against External form (b); the negation is in at stage 10
   expect(names(w2, "form", "extf")).toEqual({
     both: ["a blue wall", "the absence of a wall", "a wall in a hard text"],
     anb: ["a sense power"],
@@ -111,8 +126,8 @@ test("witnessesOf: the examples whose cell is proved for both categories, by sta
   const w3 = names(witnessesOf(data, ITEMS, levelsTo(3)), "form", "extf");
   expect(w3.both).toEqual(["a blue wall", "a green wall", "the absence of a wall", "the cause of a wall", "a wall in a hard text"]);
   expect(names(witnessesOf(data, ITEMS, [8]), "form", "extf")).toEqual({ both: ["a blue wall"], anb: [], bna: [], nei: ["an idea", "a horn of a hare"] });
-  // stages 8 and 10 without 9: nothing of stage 9, and the relation of stage 10 joins
-  expect(names(witnessesOf(data, ITEMS, [8, 10]), "form", "extf").both).toEqual(["a blue wall", "a green wall", "the cause of a wall"]);
+  // stages 8 and 11 without 10: nothing of stage 10, and the relation of stage 11 joins
+  expect(names(witnessesOf(data, ITEMS, [8, 11]), "form", "extf").both).toEqual(["a blue wall", "a green wall", "the cause of a wall"]);
   expect(names(witnessesOf(data, ITEMS, [1, 2, 3]), "form", "extf").both, "the course's examples wait for the course's words").toEqual([]);
   // the other order of the categories swaps the cells; a category the data does not have gives nothing
   expect(names(w2, "extf", "form").bna).toEqual(["a sense power"]);

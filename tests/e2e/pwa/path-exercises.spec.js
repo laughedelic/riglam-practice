@@ -359,7 +359,7 @@ test("Find an instance: Guided in the practice options (things suggested as you 
   await expect(field).toHaveAttribute("list", "iin-things");
   await page.getByRole("button", { name: "Practice options" }).click();
   const sheet = page.getByRole("dialog", { name: "Practice options" }), hints = sheet.getByRole("switch", { name: "Guided" });
-  await expect(sheet.getByRole("button", { name: "Difficulty: more" })).toBeVisible();   // the sets it asks follow the stages, as every exercise does
+  await expect(sheet.getByRole("button", { name: "Difficulty: more" }), "the stages and the difficulty are on the Progression page").toHaveCount(0);
   await expect(hints).toHaveAttribute("aria-checked", "true");
   await hints.click();
   await expect(hints).toHaveAttribute("aria-checked", "false");
