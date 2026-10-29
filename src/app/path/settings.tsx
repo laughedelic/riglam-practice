@@ -6,7 +6,7 @@ import { useRef, useState } from "preact/hooks";
 import { state } from "../state.js";
 import { accountControls } from "../../ui/account";
 import { dataTransferControls } from "../../ui/data-transfer";
-import { MAGIC_KEY_NOTE } from "../../ui/magic-key-note.ts";
+import { MAGIC_KEY_ABOUT, MAGIC_KEY_NOTE } from "../../ui/magic-key-note.ts";
 import { setShare } from "../ai/share-notice.js";
 import { canAsk } from "../core/ask.js";
 import { el } from "../core/dom.js";
@@ -69,19 +69,21 @@ function KeyForm({ enter, label, cancel }: { enter: (text: string) => Promise<st
     {why ? <p class="pnoteline bad" role="alert">{why}</p> : null}
   </form>;
 }
-/** The Magic Key: a note on what it is, then the field to enter it (or another one), or forget it after a question. A place that cannot take the key on the page opens its prompt over it. */
+/** The Magic Key: what it is and the field to enter it (as the prompt says it), or, while the device has it, another one or forget it after a question;
+ *  why it has its name under a fold. A place that cannot take the key on the page opens its prompt over it. */
 function KeyPage() {
   const held = !!state.keyHeld, k = state.keyHeld!, [another, setAnother] = useState(false);
   const enter = held ? k.enter : state.unlock && state.unlock.enter;
+  const asking = !held || (another && !!enter);
   const field = enter ? <KeyForm enter={async (t) => { const no = await enter(t); if (!no) setAnother(false); return no; }} label={held ? "Another Magic Key or link" : "Magic Key or link"} cancel={held ? () => setAnother(false) : undefined} /> : null;
   return <>
-    <Intro>{keyNote(held)}</Intro>
+    {asking ? <><Intro>{MAGIC_KEY_ABOUT[0]}</Intro><p class="sintro shint">{MAGIC_KEY_ABOUT[1]}</p></> : <Intro>{keyNote(true)}</Intro>}
     <div class="ol"><span class="olsw" /><span class="oltx"><span class="olbody">
-      <span class="pkeynote">{MAGIC_KEY_NOTE.map((t: string) => <p>{t}</p>)}</span>
       {!held ? field || <span class="olctl"><button type="button" class="pbtn" onClick={() => state.unlock!.open()}>Enter the Magic Key</button></span>
-        : another && field ? field
+        : asking ? field
         : <span class="olctl">{state.keyAsk ? <><button type="button" class="pbtn" onClick={() => k.forget()}>Forget the key</button><button type="button" class="pbtn quiet" onClick={() => { state.keyAsk = false; render(); }}>Keep it</button></>
           : <><button type="button" class="pbtn" onClick={() => { if (field) setAnother(true); else void k.change(); }}>Enter another key</button><button type="button" class="pbtn quiet" onClick={() => { state.keyAsk = true; render(); }}>Forget the key</button></>}</span>}
+      <details class="pkeyfun"><summary>Why “Magic Key”?</summary><span class="pkeynote">{MAGIC_KEY_NOTE.map((t: string) => <p>{t}</p>)}</span></details>
     </span></span><span /></div>
   </>;
 }

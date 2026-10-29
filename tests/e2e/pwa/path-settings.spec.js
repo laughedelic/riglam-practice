@@ -35,6 +35,8 @@ withKey("Settings on the Path: the Magic Key has its own page, which says what i
   await page.getByRole("button", { name: "Magic Key: more" }).click();
   await expect(page.locator("#path .ptb-t")).toHaveText("Magic Key");
   await expect(page.locator(".ppage")).toContainText("This device has the Magic Key");
+  await expect(page.locator(".ppage .pkeynote")).toBeHidden();   // why it has its name, under a fold
+  await page.locator(".ppage .pkeyfun summary").click();
   await expect(page.locator(".ppage .pkeynote")).toContainText("The Magic Key to the Path of Reasoning");
   await page.getByRole("button", { name: "Forget the key" }).click();
   await expect(page.locator(".ppage")).toContainText("Forget the Magic Key on this device?");
@@ -43,6 +45,7 @@ withKey("Settings on the Path: the Magic Key has its own page, which says what i
   expect(await page.evaluate(() => localStorage.getItem("riglam.magicKey"))).not.toBeNull();
   await page.getByRole("button", { name: "Enter another key" }).click();   // on the page, in a field of its own
   await expect(page.getByRole("textbox", { name: "Another Magic Key or link" })).toBeVisible();
+  await expect(page.locator(".ppage")).toContainText("four words that come with the course");   // what the key is, where it is entered
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await page.goBack();   // Back closes the page, not Settings
   await expect(page.locator(".ppage .ptitle")).toHaveText("Settings");
@@ -58,6 +61,7 @@ plain("without the key, the Magic Key page takes it in its own field, and Settin
   await plainExpect(page.locator("#path .foot")).toHaveCount(0);   // no station at the foot of Settings
   await plainExpect(page.locator(".ppage .ol", { hasText: "Magic Key" })).toContainText("not on this device yet");
   await page.getByRole("button", { name: "Magic Key: more" }).click();
+  await plainExpect(page.locator(".ppage")).toContainText("four words that come with the course");
   const field = page.getByRole("textbox", { name: "Magic Key or link", exact: true }), unlock = page.getByRole("button", { name: "Unlock", exact: true });
   await field.fill("hello there");
   await unlock.click();
