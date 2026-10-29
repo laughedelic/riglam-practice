@@ -255,7 +255,7 @@ test("on the Path, a later upgrade says one line and folds what the stages are",
   await expect(up).not.toContainText("Each new term comes with its definition first.");
 });
 
-test("on the Path, with Move up by itself off, five right relations bring no stage; the switch is on the Stages page and is kept", async ({ page }) => {
+test("on the Path, with Move up by itself off, five right relations bring no stage; the switch is on the Difficulty page and is kept", async ({ page }) => {
   await fiveRight(page, () => { if (localStorage.getItem("rd-stage-run") === null) localStorage.setItem("rd-stage-run", JSON.stringify({ up: 0, down: 0, manual: true })); });
   await expect(page.locator("#path .offer"), "the negation offer, which the stage no longer goes before").toContainText("Try pairs with a negated side?");
   await station(page).click();
@@ -264,7 +264,7 @@ test("on the Path, with Move up by itself off, five right relations bring no sta
   expect(await page.evaluate(() => localStorage.getItem("rd-stages"))).toBe("1");
   await page.getByRole("button", { name: "Practice options" }).click();
   const sheet = page.getByRole("dialog", { name: "Practice options" });
-  await sheet.getByRole("button", { name: "Stages: more" }).click();
+  await sheet.getByRole("button", { name: "Difficulty: more" }).click();
   const sw = sheet.getByRole("switch", { name: /^Move up by itself/ });
   await expect(sw).toHaveAttribute("aria-checked", "false");
   await sw.click();

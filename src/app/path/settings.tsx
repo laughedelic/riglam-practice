@@ -1,8 +1,8 @@
-// Settings on the Path: how the app looks on this device (the design, light or dark, the lab's settings), then the rows of the app: the Magic
-// Key, sharing the examples, the account, voice, your data and the version. What each does is the classic page's (shell/options.js and the
-// shared rows of src/ui, which the Path builds in its own classes).
-import type { ComponentChildren } from "preact";
-import { useState } from "preact/hooks";
+// Settings on the Path (the Design Lab's "Settings and options", round 3): full width, in sections of lines (path/lines.tsx), and a page of its own for a
+// line that needs one. General: the languages and the theme. Data: the Magic Key, the account, sharing the examples, export and import. Experiments,
+// shown only in a Preview, or in the real app on a device with the Magic Key after a hold on Version: the design, voice, the lab's settings. About: the
+// version. What each does is the classic page's (shell/options.js and the shared rows of src/ui, which the Path builds in its own classes).
+import { useRef, useState } from "preact/hooks";
 import { state } from "../state.js";
 import { accountControls } from "../../ui/account";
 import { dataTransferControls } from "../../ui/data-transfer";
@@ -14,62 +14,22 @@ import { exName } from "../shell/exercises.js";
 import { aboutInfo, keyNote, shareNote, toggleOpts } from "../shell/options.js";
 import { render } from "../shell/render.js";
 import { setLang } from "../shell/session.js";
-import { LANGS } from "../../domain/languages.ts";
+import { LANGS, NAME_LANGS } from "../../domain/languages.ts";
 import { languagesOn } from "./terms.tsx";
 import { setOn as setVoiceOn, voiceAvailable, voiceNote, voiceOn } from "../shell/voice.js";
 import { DEFAULT_LOOK, currentLook, lookLine, pastedLook, setLook, storedLook } from "./look.ts";
 import { setDesign } from "./index.tsx";
 import { Foot, Station, TopBar, pathNote } from "./shell.tsx";
-import { Sub } from "./subjects.tsx";
-import { Bridge, Toggle, Words, NOFILL } from "./ui.tsx";
+import { Group, Intro, Line } from "./lines.tsx";
+import { Bridge, Icon, Words, NOFILL } from "./ui.tsx";
 
-const keepMode = () => { const m = storedLook().mode; return { mode: m === undefined ? null : m }; };
-function LookRows() {
-  const look = currentLook(), [open, setOpen] = useState(false), [text, setText] = useState(""), [bad, setBad] = useState(false);
-  const line = lookLine(look), own = line !== "{}" && line !== JSON.stringify({ mode: look.mode });
-  const use = () => {
-    const ch = pastedLook(text); if (!ch) { setBad(true); return; }
-    setLook({ ...ch, ...keepMode() }, true); setBad(false); setText(""); setOpen(false); render(); pathNote("The lab's settings are in use");
-  };
-  const copy = () => { try { void navigator.clipboard.writeText(line).then(() => pathNote("Copied"), () => pathNote("Could not copy")); } catch { pathNote("Could not copy"); } };
-  return <>
-    <div class="srow wide"><span /><span class="ct"><b>Light or dark</b><small>The Path's own; the classic page follows the device.</small>
-      <div class="below" style={{ padding: "8px 0 0" }}><Words label="Light or dark" items={[["system", "System"], ["light", "Light"], ["dark", "Dark"]]} cur={look.mode} on={(v) => { setLook({ mode: v === DEFAULT_LOOK.mode ? null : v }); render(); }} /></div></span></div>
-    <div class="srow wide"><span /><span class="ct"><b>A and B in the text</b><small>How the pair's two terms stand out where a question or a note names them. The practice options switch them off.</small>
-      <p class="psamp">Name something that is <b class="conn">both</b> <Sub k="a">a thing that is heard</Sub> <b class="conn">and</b> <Sub k="b">a sound</Sub>.</p>
-      <div class="below" style={{ padding: "6px 0 0" }}><Words label="A and B in the text" items={[["none", "Plain"], ["italic", "Italic"], ["letters", "Letters"], ["diamonds", "Diamonds"], ["lettered", "Lettered diamonds"], ["inks", "Inks"]]} cur={look.subj}
-        on={(v) => { setLook({ subj: v === DEFAULT_LOOK.subj ? null : v }); render(); }} /></div></span></div>
-    <div class="srow wide"><span /><span class="ct"><b>The lab's settings</b>
-      <small>{own ? "This device uses its own: colors, fonts and switches as set in the Path Lab." : "The defaults: the picks made in the Path Lab."}</small>
-      <div class="below" style={{ padding: "6px 0 0", display: "flex", flexWrap: "wrap", gap: "0 18px" }}>
-        <button type="button" class="pbtn" aria-expanded={open ? "true" : "false"} onClick={() => setOpen(!open)}>Paste from the lab</button>
-        {own ? <button type="button" class="pbtn" onClick={() => { setLook(keepMode(), true); render(); pathNote("Back to the defaults"); }}>Back to the defaults</button> : null}
-        {own ? <button type="button" class="pbtn" onClick={copy}>Copy this device's</button> : null}
-      </div>
-      {open ? <div class="below" style={{ padding: "6px 0 0" }}>
-        <textarea class="ptext" aria-label="The line from the lab's Copy settings" placeholder="Paste the line from Copy settings in the Path Lab" {...NOFILL} value={text} onInput={(e) => { setText((e.currentTarget as HTMLTextAreaElement).value); setBad(false); }} />
-        {bad ? <p class="pnoteline bad">That is not a line from the lab's Copy settings.</p> : null}
-        <button type="button" class="pbtn" onClick={use}>Use these</button>
-      </div> : null}
-    </span></div>
-  </>;
-}
-/** A row of Settings: its name and what it does, and its controls under them. */
-const Row = ({ title, note, children }: { title: ComponentChildren; note?: ComponentChildren; children?: ComponentChildren }) =>
-  <div class="srow wide"><span /><span class="ct">{title}{note ? <small>{note}</small> : null}{children ? <div class="sctl">{children}</div> : null}</span></div>;
-/** A row that is a switch: the name and the toggle on one line, what it does under them. */
-const SwitchRow = ({ title, note, on, toggle, tag }: { title: string; note: string; on: boolean; toggle: () => void; tag?: string }) =>
-  <div class="srow wide"><span /><span class="ct"><button type="button" class="two" role="switch" aria-checked={on ? "true" : "false"} onClick={toggle}>
-    <span><b>{title}{tag ? <span class="ptag">{tag}</span> : null}</b></span><Toggle on={on} /></button><small>{note}</small></span></div>;
+/** The pages of Settings, by the names of their lines. */
+const TITLES: Record<string, string> = { langs: "Languages", key: "Magic Key", acct: "Account", share: "Share my examples", xfer: "Export and import", lab: "The lab's settings", ver: "Version and updates" };
+const open = (id: string) => { state.optsPage = id; render(); const b = document.querySelector<HTMLElement>("#path .ppage .sback"); if (b) b.focus({ preventScroll: true }); };
+const back = () => { state.optsPage = null; render(); };
+// how long Version is held to show Experiments
+const HOLD_MS = 1500;
 
-/** The languages a term is shown in beside English: a switch for each. English is always shown; Russian also gives the definitions in Russian, where there are some. */
-function LanguageRows() {
-  const on = languagesOn();
-  return <>
-    <div class="srow wide"><span /><span class="ct"><b>English</b><small>The terms and their definitions. Always shown.</small></span></div>
-    {LANGS.map(({ id, name, note }) => <SwitchRow title={name} note={note[0]!.toUpperCase() + note.slice(1) + "."} on={on.includes(id)} toggle={() => setLang(id, !on.includes(id))} />)}
-  </>;
-}
 // the shared rows of src/ui (the account, your data) build their nodes with the classic page's classes; the Path's are put in their place
 const PCLS: Record<string, string> = { btn: "pbtn", "btn ghost": "pbtn", onote: "pnoteline", "onote bad": "pnoteline bad", xfer: "pxfer", xferbox: "pxbox", xsum: "pxsum", acct: "pacct", acwho: "pacwho", acname: "pacname" };
 const pel = (tag: string, props?: Record<string, any> | null, ...kids: any[]) => {
@@ -78,54 +38,145 @@ const pel = (tag: string, props?: Record<string, any> | null, ...kids: any[]) =>
   if (p && tag === "input" && (p.type === "text" || !p.type)) p.class = "pfield";
   return el(tag, p, ...kids);
 };
+const SHORT: Record<string, string> = { ru: "RU", bo: "BO", skt: "SA", zh: "ZH" };
+const langsLine = () => ["EN", ...LANGS.filter(({ id }) => languagesOn().includes(id)).map(({ id }) => SHORT[id])].join(" · ");
+const acctShown = () => !!(state.account && state.db && state.account.view().available);
+const keyShown = () => !!(state.unlock || state.keyHeld);
+const shareShown = () => canAsk() && !!state.learns;
+const expOn = () => state.preview || state.expShown;
 
-/** The Magic Key: its name opens a note on the name; the device has none yet (enter it), or has it (another key, or forget it after a question). */
-function KeyRow() {
-  const held = !!state.keyHeld, k = state.keyHeld!;
-  if (!state.unlock && !held) return null;
-  const title = <b><button type="button" class="pkname" aria-expanded={state.mkNote ? "true" : "false"} onClick={() => { state.mkNote = !state.mkNote; render(); }}>Magic Key</button></b>;
-  return <Row title={title} note={keyNote(held)}>
-    {state.mkNote ? <div class="pkeynote">{MAGIC_KEY_NOTE.map((t: string) => <p>{t}</p>)}<button type="button" class="pbtn quiet" onClick={() => { state.mkNote = false; render(); }}>Hide</button></div> : null}
-    {!held ? <button type="button" class="pbtn" onClick={() => { toggleOpts(false); state.unlock!.open(); }}>Enter the Magic Key</button>
-      : state.keyAsk ? <><button type="button" class="pbtn" onClick={() => k.forget()}>Forget the key</button><button type="button" class="pbtn quiet" onClick={() => { state.keyAsk = false; render(); }}>Keep it</button></>
-      : <><button type="button" class="pbtn" onClick={() => { toggleOpts(false); k.change(); }}>Enter another key</button><button type="button" class="pbtn quiet" onClick={() => { state.keyAsk = true; render(); }}>Forget the key</button></>}
-  </Row>;
+/** The Languages page: English always, and a switch for each other language; the ones that are names only are experimental. */
+function LanguagesPage() {
+  const on = languagesOn();
+  return <>
+    <Intro>Shown beside a term when you meet it and in its definition. The course has definitions in English and, for most terms, Russian.</Intro>
+    <Line title="English" sub="The terms and their definitions. Always shown." />
+    {LANGS.map(({ id, name, note }) => <Line title={name} tag={NAME_LANGS.includes(id) ? "experimental" : undefined} sub={note[0]!.toUpperCase() + note.slice(1) + "."}
+      sw={{ on: on.includes(id), toggle: () => setLang(id, !on.includes(id)) }} />)}
+  </>;
 }
+/** The Magic Key: a note on what it is, then enter it, or another one, or forget it after a question. */
+function KeyPage() {
+  const held = !!state.keyHeld, k = state.keyHeld!;
+  return <>
+    <Intro>{keyNote(held)}</Intro>
+    <div class="ol"><span class="olsw" /><span class="oltx"><span class="olbody">
+      <span class="pkeynote">{MAGIC_KEY_NOTE.map((t: string) => <p>{t}</p>)}</span>
+      <span class="olctl">{!held ? <button type="button" class="pbtn" onClick={() => { toggleOpts(false); state.unlock!.open(); }}>Enter the Magic Key</button>
+        : state.keyAsk ? <><button type="button" class="pbtn" onClick={() => k.forget()}>Forget the key</button><button type="button" class="pbtn quiet" onClick={() => { state.keyAsk = false; render(); }}>Keep it</button></>
+        : <><button type="button" class="pbtn" onClick={() => { toggleOpts(false); k.change(); }}>Enter another key</button><button type="button" class="pbtn quiet" onClick={() => { state.keyAsk = true; render(); }}>Forget the key</button></>}</span>
+    </span></span><span /></div>
+  </>;
+}
+/** The lab's settings: the Path Lab's picks this device uses, pasted from the lab, back to the defaults, or copied out. */
+function LabPage() {
+  const look = currentLook(), [opened, setOpened] = useState(false), [text, setText] = useState(""), [bad, setBad] = useState(false);
+  const line = lookLine(look), own = labOwn();
+  const keepMode = () => { const m = storedLook().mode; return { mode: m === undefined ? null : m }; };
+  const use = () => {
+    const ch = pastedLook(text); if (!ch) { setBad(true); return; }
+    setLook({ ...ch, ...keepMode() }, true); setBad(false); setText(""); setOpened(false); render(); pathNote("The lab's settings are in use");
+  };
+  const copy = () => { try { void navigator.clipboard.writeText(line).then(() => pathNote("Copied"), () => pathNote("Could not copy")); } catch { pathNote("Could not copy"); } };
+  return <>
+    <Intro>{own ? "This device uses its own: colors, fonts and switches as set in the Path Lab." : "The defaults: the picks made in the Path Lab."}</Intro>
+    <div class="ol"><span class="olsw" /><span class="oltx"><span class="olbody">
+      <span class="olctl">
+        <button type="button" class="pbtn" aria-expanded={opened ? "true" : "false"} onClick={() => setOpened(!opened)}>Paste from the lab</button>
+        {own ? <button type="button" class="pbtn" onClick={() => { setLook(keepMode(), true); render(); pathNote("Back to the defaults"); }}>Back to the defaults</button> : null}
+        {own ? <button type="button" class="pbtn" onClick={copy}>Copy this device's</button> : null}
+      </span>
+      {opened ? <span class="olctl">
+        <textarea class="ptext" aria-label="The line from the lab's Copy settings" placeholder="Paste the line from Copy settings in the Path Lab" {...NOFILL} value={text} onInput={(e) => { setText((e.currentTarget as HTMLTextAreaElement).value); setBad(false); }} />
+        {bad ? <p class="pnoteline bad">That is not a line from the lab's Copy settings.</p> : null}
+        <button type="button" class="pbtn" onClick={use}>Use these</button>
+      </span> : null}
+    </span></span><span /></div>
+  </>;
+}
+const labOwn = () => { const line = lookLine(currentLook()); return line !== "{}" && line !== JSON.stringify({ mode: currentLook().mode }); };
+/** A page whose one line holds controls the shared rows of src/ui build. */
+const Holder = ({ intro, children }: { intro?: string; children?: preact.ComponentChildren }) => <>
+  {intro ? <Intro>{intro}</Intro> : null}
+  <div class="ol"><span class="olsw" /><span class="oltx"><span class="olbody">{children}</span></span><span /></div>
+</>;
 /** Version and updates: which build this is, where the update stands, and its one step. */
-function VersionRow() {
+function VersionPage() {
   const a = state.about; if (!a) return null;
   const i = aboutInfo(a), u = state.updates!;
-  return <Row title={<b>Version and updates</b>} note={i.line}>
-    <div class="pver">{i.from ? <p class="pnoteline">{i.from}</p> : null}<p class={"pnoteline" + (i.bad ? " bad" : "")} role="status">{i.status}</p></div>
-    {i.act === "update" ? <button type="button" class="pbtn" onClick={() => u.apply()}>Update now</button> : i.act === "check" ? <button type="button" class="pbtn" onClick={() => u.check()}>Check for updates</button> : null}
-  </Row>;
+  return <Holder intro={i.line}>
+    <span class="pver">{i.from ? <p class="pnoteline">{i.from}</p> : null}<p class={"pnoteline" + (i.bad ? " bad" : "")} role="status">{i.status}</p></span>
+    <span class="olctl">{i.act === "update" ? <button type="button" class="pbtn" onClick={() => u.apply()}>Update now</button> : i.act === "check" ? <button type="button" class="pbtn" onClick={() => u.check()}>Check for updates</button> : null}</span>
+  </Holder>;
 }
-function AppRows() {
-  const acct = state.account && state.db && state.account.view().available;
+function Page({ id }: { id: string }) {
+  if (id === "langs") return <LanguagesPage />;
+  if (id === "key") return <KeyPage />;
+  if (id === "acct") return <Holder><Bridge own cls="phost" fill={() => accountControls(state.account!, pel, render, state.acct)} /></Holder>;
+  if (id === "share") return <><Intro>{shareNote()}</Intro>
+    <Line title="Share my examples" sw={{ on: state.shareExamples, toggle: () => { setShare(!state.shareExamples); render(); } }} sub={state.shareExamples ? "on" : "off"} /></>;
+  if (id === "xfer") return <Holder intro="Saves everything this device keeps (answers, debates, favorites, skipped pairs and these settings) in one file, as a backup or to move to another device. Importing adds what is missing and never deletes anything.">
+    <Bridge own cls="phost" fill={() => dataTransferControls(state.db!, pel, render, state.xfer)} /></Holder>;
+  if (id === "lab") return <LabPage />;
+  if (id === "ver") return <VersionPage />;
+  return null;
+}
+
+/** What Version and updates says in its line: the version, and where the update stands. */
+function verLine() {
+  const a = state.about; if (!a) return "";
+  const st = state.updates ? state.updates.status() : null;
+  const where = st === "ready" ? "update ready" : st === "downloading" ? "downloading an update" : st === "checking" ? "checking" : st === "current" ? "up to date" : st === "unknown" ? "could not check" : a.latest === "newer" ? "a newer version is out" : a.latest === "current" ? "up to date" : "";
+  return [a.version, where].filter(Boolean).join(" · ");
+}
+/** What Account says in its line: who is signed in, and where the server copy stands. */
+function acctLine(v: ReturnType<NonNullable<typeof state.account>["view"]>) {
+  if (!v.person) return "not signed in";
+  const { busy, pending, last, error } = v.sync;
+  const at = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const where = busy || v.busy === "sync" ? "syncing" : error === "offline" ? "no connection" : error ? "not synced now" : pending ? "changes waiting" : last ? "synced " + at(last) : "not synced yet";
+  return "signed in as " + v.person.name + " · " + where;
+}
+/** The sections. In the real app, on a device with the Magic Key, holding the Version line shows Experiments, and the tap that ends the hold opens nothing. */
+function Sections() {
+  const hold = useRef(0), held = useRef(false), acct = acctShown() ? state.account!.view() : null, u = state.updates;
+  const canHold = !state.preview && !state.expShown && !!state.keyHeld;
+  const press = canHold ? {
+    onPointerDown: () => { held.current = false; clearTimeout(hold.current); hold.current = window.setTimeout(() => { held.current = true; state.expShown = true; try { localStorage.setItem("rd-exp", "1"); } catch { /* storage blocked */ } render(); pathNote("Experiments are shown"); }, HOLD_MS); },
+    onPointerUp: () => clearTimeout(hold.current), onPointerLeave: () => clearTimeout(hold.current), onPointerCancel: () => clearTimeout(hold.current),
+    onClickCapture: (e: Event) => { if (held.current) { e.stopPropagation(); held.current = false; } },
+  } : {};
+  const look = currentLook();
   return <>
-    <KeyRow />
-    {canAsk() && state.learns ? <SwitchRow title="Share my examples" note={shareNote()} on={state.shareExamples} toggle={() => { setShare(!state.shareExamples); render(); }} /> : null}
-    {acct ? <Row title={<b>Account</b>}><Bridge own cls="phost" fill={() => accountControls(state.account!, pel, render, state.acct)} /></Row> : null}
-    {voiceAvailable() ? <SwitchRow title="Voice" tag="Experimental" note={voiceNote()} on={voiceOn()} toggle={() => setVoiceOn(!voiceOn())} /> : null}
-    {state.db ? <Row title={<b>Your data</b>} note="Saves everything this device keeps (answers, debates, favorites, skipped pairs and these settings) in one file, as a backup or to move to another device. Importing adds what is missing and never deletes anything.">
-      <Bridge own cls="phost" fill={() => dataTransferControls(state.db!, pel, render, state.xfer)} /></Row> : null}
-    <VersionRow />
+    <Group name="General">
+      <Line title="Languages" sub={langsLine()} go={() => open("langs")} />
+      <Line title="Theme"><Words label="Theme" items={[["system", "System"], ["light", "Light"], ["dark", "Dark"]]} cur={look.mode} on={(v) => { setLook({ mode: v === DEFAULT_LOOK.mode ? null : v }); render(); }} /></Line>
+    </Group>
+    {keyShown() || acct || shareShown() || state.db ? <Group name="Data">
+      {keyShown() ? <Line title="Magic Key" sub={state.keyHeld ? "entered on this device" : "not on this device yet"} go={() => open("key")} /> : null}
+      {acct ? <Line title="Account" sub={acctLine(acct)} go={() => open("acct")}
+        act={acct.person ? { label: "Sync now", busy: acct.busy === "sync", run: () => { void state.account!.syncNow(); } } : undefined} /> : null}
+      {shareShown() ? <Line title="Share my examples" sub="the words of examples the tutor checks" sw={{ on: state.shareExamples, toggle: () => { setShare(!state.shareExamples); render(); } }} go={() => open("share")} /> : null}
+      {state.db ? <Line title="Export and import" sub="everything this device keeps, in one file" go={() => open("xfer")} /> : null}
+    </Group> : null}
+    {expOn() ? <Group name="Experiments" tag={state.preview ? "only in previews" : "shown on this device"} note="Not settled yet; not shown in the released app.">
+      <Line title="Design" sub="The Path is the redesign, still being made. Classic is the page as it was."><Words label="Design" items={[["path", "Path"], ["classic", "Classic"]]} cur={state.design} on={setDesign} /></Line>
+      {voiceAvailable() ? <Line title="Voice" sub={voiceNote()} sw={{ on: voiceOn(), toggle: () => setVoiceOn(!voiceOn()) }} /> : null}
+      <Line title="The lab's settings" sub={labOwn() ? "this device's own" : "the defaults"} go={() => open("lab")} />
+    </Group> : null}
+    {state.about ? <Group name="About">
+      <div {...press}><Line title="Version and updates" sub={verLine()} go={() => open("ver")}
+        act={u ? { label: "Check for updates", busy: u.status() === "checking", run: () => u.check() } : undefined} /></div>
+    </Group> : null}
   </>;
 }
 export function SettingsPage() {
+  const page = state.optsPage && TITLES[state.optsPage] ? state.optsPage : null;
   return <>
-    <TopBar title="Settings" />
-    <div class="ppage">
-      <p class="ptitle">Settings</p><p class="psub">For the app, on this device. How an exercise looks and ticks is in its practice options.</p>
-      <p class="glab">Look</p>
-      <div class="srow wide"><span /><span class="ct"><b>Design</b><small>The Path is the redesign, still being made. Classic is the page as it was.</small>
-        <div class="below" style={{ padding: "8px 0 0" }}><Words label="Design" items={[["path", "Path"], ["classic", "Classic"]]} cur={state.design} on={setDesign} /></div></span></div>
-      <LookRows />
-      <p class="glab">Languages</p>
-      <p class="pnoteline" style={{ padding: "0 18px 6px calc(var(--m) + 22px)" }}>Shown beside a term when you meet it and in its definition. The course has definitions in English and Russian only.</p>
-      <LanguageRows />
-      <p class="glab">The app</p>
-      <AppRows />
+    <TopBar title={page ? TITLES[page]! : "Settings"} />
+    <div class="ppage sfull">
+      {page ? <><button type="button" class="sback" onClick={back}><Icon n="chev" />back to Settings</button><Page id={page} /></>
+        : <><p class="ptitle">Settings</p><Intro>For the app, on this device. How an exercise looks and ticks is in its practice options.</Intro><Sections /></>}
       <div style={{ height: "30px" }} />
     </div>
     <Foot>{state.fromRoad ? <Station back name="Back to the roadmap" act={() => toggleOpts(false)} /> : <Station back name="Back to the exercise" hint={exName(state.own)} act={() => toggleOpts(false)} />}</Foot>
