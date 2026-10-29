@@ -4,6 +4,13 @@ A fixed set of exercise answers, re-asked of the tutor with today's prompts, and
 
 Every run calls the Anthropic API and costs money. It never runs in CI.
 
+## Where the cases come from
+
+- **Stored answers** (`data-private/eval/staging-answers.jsonl`): real answers from the staging server, with hand labels where the term data does not settle an example.
+- **Hard ones** (`data-private/eval/hard-answers.jsonl`, same format): hand-written answers in everyday wording the practice list lacks, aimed at what the tutor got wrong before (a person has no color, the ordinary reading of a name, a composite).
+- **Made from the practice list** (`generate.ts`, `generatedRows`): pairs drawn as the app draws them, with a fixed seed, leaning to pairs with a feature category and to negated sides; every example is a listed thing, so the term data gives every label. Some are in the wrong cell, some leave a side open, some answers pick a wrong relation.
+- **Made with the reference examples** (`referenceRows`): Dudra pairs written with the source-verified examples of `data-private/examples-device.json`, in the sources' own wording. An example counts only when the sources confirm it or a textbook gives it, at levels 1 and 2, and its classes give it the same categories as the listed things of that type.
+
 ## What a case is
 
 A stored answer of the four-cells exercise, the debate or the pair-finding mode: the pair's two categories and labels, the relation the learner chose, and what the learner wrote in each cell (and, in the debate, Accept or Why? for each question). `cases.ts` rebuilds the pair with today's term data, grades the answer as the page does, and builds the explain request the page would send (the card and the ask, `cardBody` and `explainAsk`). The tutor then answers it through `runTutor` (`worker/tutor.ts`), with the server's kit (`worker/kit.ts`): the same standing instructions, fine points and lookup tools.

@@ -72,6 +72,16 @@ function dataLabel(p: Pair, text: string): Label | null {
   return { a, b, why: "practice list: " + it.n };
 }
 
+/** A listed thing whose name leaves a side open ("a car" for black things): open on that side, the data's answer on the other. */
+function openLabel(p: Pair, text: string, given?: readonly string[]): Label | null {
+  const it = matchItem(ix, text, FEATURE.has(p.catA!) || FEATURE.has(p.catB!));
+  if (!it) return null;
+  const vague = given ?? [p.catA!, p.catB!].filter((c) => leavesOpen(it, c));
+  if (!vague.length) return null;
+  const side = (c: string, neg: boolean): Kind => (vague.includes(c) ? "open" : it.c.includes(c) !== neg ? "yes" : "no");
+  return { a: side(p.catA!, p.neg === "a" || p.neg === "ab"), b: side(p.catB!, p.neg === "b" || p.neg === "ab"), why: "practice list: " + it.n + " (its name leaves a side open)" };
+}
+
 export function buildCase(row: Row, n: number, labels: Record<string, Label & { rel?: RelKey }>, src = "staging"): Case {
   const [, mode, catA, catB, la, lb, negRaw, , chosen, cellTexts, qs] = row;
   const neg = (negRaw || undefined) as Neg | undefined;
@@ -103,12 +113,14 @@ export function buildCase(row: Row, n: number, labels: Record<string, Label & { 
   const examples: Example[] = [];
   for (const c of CELLS) {
     const t = cells[c].t.trim(), rc = res.cells[c];
-    if (!t || cells[c].none || rc.kind !== "ex") continue;
+    if (!t || cells[c].none) continue;   // an example in a cell that must be empty is asked of the tutor too
     const page = rc.v === "cmp" ? (rc.vague?.length ? "open" : "cmp") : rc.v === "ok" ? "ok" : "bad";
-    const d = own ? null : dataLabel(p, t);
+    const d = own || rc.vague?.length ? null : dataLabel(p, t);
     const l = labels[labelKey(p, t)];
     // an open side is the learner's to name: the tutor should say unsure there
-    const want = d && page === "open" ? { a: rc.vague!.includes(p.catA!) ? "unsure" : d.a, b: rc.vague!.includes(p.catB!) ? "unsure" : d.b, why: d.why + " (name leaves a side open)" } as Label : d ?? l ?? null;
+    // a side the name leaves open is open, even where the other side already rules the example out of the cell
+    // (a hand label, where there is one, says how that open side reads in this pair: the frying pan is usually hot)
+    const want = rc.vague?.length ? l ?? openLabel(p, t, rc.vague) : d ?? l ?? (own ? null : openLabel(p, t)) ?? null;
     examples.push({ cell: c, text: t, page: page as Example["page"], want, from: d ? "data" : l ? "label" : "none" });
   }
   const request = { kind: "explain" as const, cats: noteCats(ix, p), turns: [{ role: "user" as const, content: cardBody(ix, p, U) + "\n\n" + explainAsk({ ...U, own } as never, !!p.neg) }] };
