@@ -163,7 +163,7 @@ withKey("the tutor's page: a follow-up question, the answer above it, and a flag
   await expect(field).toBeVisible();
   for (let i = 0; i < 4 && (await field.isVisible()); i++) { await field.fill("thing " + (i + 1)); if ((await field.getAttribute("enterkeyhint")) === "done") { await field.blur(); break; } await field.press("Enter"); }   // (the last one is left without Enter, which would take the Check at once)
   await page.locator("#stn").click();
-  await page.locator(".wrow").filter({ hasText: "Why" }).click();
+  await page.locator(".wrow").filter({ hasText: "Explanation" }).click();
   await expect(page.locator(".wtext")).toContainText("The first stand-in answer.");
   await page.getByRole("button", { name: "Ask a follow-up" }).click();
   const talk = page.locator("#path .ptalk");

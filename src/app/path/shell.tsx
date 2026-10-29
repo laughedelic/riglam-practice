@@ -118,7 +118,7 @@ export function turnAside(main: Element | null, act: () => void) {
  * Enter); a tap only nudges it ("slide it left"), except the tutor's, which a tap takes too.
  */
 export function SideStation({ kind, label, act, disabled = false }: { kind: "skip" | "why"; label?: string; act: () => void; disabled?: boolean }) {
-  const tutor = kind === "why", idle = label || (tutor ? "Why?" : "Skip");
+  const tutor = kind === "why", idle = label || (tutor ? "Explain" : "Skip");
   const box = useRef<HTMLDivElement>(null), hint = useRef<HTMLSpanElement>(null), g = useRef<{ x0: number; moved: boolean; past: boolean } | null>(null);
   const set = (d: number) => box.current && box.current.style.setProperty("--dx", d + "px");
   const say = (t: string) => { if (hint.current) hint.current.textContent = t; };
@@ -145,7 +145,7 @@ export function SideStation({ kind, label, act, disabled = false }: { kind: "ski
     onPointerUp={end}
     onPointerCancel={() => { g.current = null; set(0); box.current?.classList.remove("dragging", "past"); say(idle); }}>
     <span class="skl" aria-hidden="true" /><span class="skh" aria-hidden="true" ref={hint}>{idle}</span>
-    <button type="button" class="skd" aria-label={tutor ? "Why, from Claude: slide it left, tap it, or press Enter" : (label || "Skip") + ": slide it left, or press Enter"}
+    <button type="button" class="skd" aria-label={tutor ? "Explanation by Claude: slide it left, tap it, or press Enter" : (label || "Skip") + ": slide it left, or press Enter"}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); act(); } }}>
       <span class="sd"><Icon n={tutor ? "q" : "skip"} /></span>
     </button>

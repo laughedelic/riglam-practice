@@ -18,7 +18,7 @@ import { lineageOf } from "../practice/terms.js";
 import { catByLabel } from "../practice/universe.js";
 import { openChat } from "../shell/chat.js";
 import { render } from "../shell/render.js";
-import { toggleSess } from "../shell/session.js";
+import { openPage, toggleSess } from "../shell/session.js";
 import { stageName } from "../shell/stages.js";
 import { negSides } from "../../ai-shared/relations.ts";
 import type { CellId, Neg, RelKey } from "../../ai-shared/relations.ts";
@@ -255,19 +255,21 @@ function WhyText() {
   const flag = t.pending ? null : <><span class="pflgrow"><FlagBtn c={explainCase(t.content)} where={w} word /></span><FlagEditor where={w} /></>;
   return out.length ? <><div class="tsay">{out}</div>{flag}</> : t.pending ? null : <><p class="whyt">Claude's notes are on the rows above.</p>{flag}</>;
 }
+/** Opens the practice options on the Claude page, where it says what Claude is. */
+const aboutClaude = () => { if (!state.sessOpen) toggleSess(true); openPage("tutor"); };
 /**
- * The row of the tutor under a result: Why, and what it would do (`todo`, else check the `unc` open examples and explain, or explain). Open, the explanation,
+ * The row of the tutor under a result: Explanation, and what it would do (`todo`, else check the `unc` open examples and explain, or explain). Open, the explanation,
  * Quorum's panel, and Stop, a follow-up, or (with `again`, a verdict still open after it) Ask again.
  */
 export function WhyRow({ unc = 0, again = false, todo }: { unc?: number; again?: boolean; todo?: string }) {
   const u = u0();
   if (!canAsk() && !u.chat && !u.chatErr && !needsKey()) return null;
   const open = !!u.pwhy, t = latestExplain(), writing = !!u.ctl, q = quorumItem();
-  const sub = writing ? "Claude is writing" : u.explained ? "from Claude" : needsKey() ? "needs the Magic Key" : todo || (unc ? "check the open " + (unc === 1 ? "example" : "examples") + " and explain" : "ask Claude");
+  const sub = writing ? "Claude is checking" : u.explained ? "by Claude" : needsKey() ? "needs the Magic Key" : todo || (unc ? "check the open " + (unc === 1 ? "example" : "examples") + " and explain" : "ask Claude to explain");
   const act = () => { if (!u.explained && !u.ctl) { askTutor(); return; } u.pwhy = !u.pwhy; render(); };
   return <Sx cls="walked">
     <button type="button" class={"wrow" + (open ? " open" : "")} aria-expanded={open ? "true" : "false"} onClick={act}><D cls={"sub " + (writing ? "pthink" : "tut")} />
-      <span class="ct"><b>Why</b><span>{sub}</span></span><span class="arr"><Icon n="chev" /></span></button>
+      <span class="ct"><b>Explanation</b><span>{sub}</span></span><span class="arr"><Icon n="chev" /></span></button>
     {open ? <div class="wtext">
       {writing && !(t && t.content) ? <Thinking label="Claude is reading your answer" /> : null}
       <WhyText />
@@ -276,8 +278,9 @@ export function WhyRow({ unc = 0, again = false, todo }: { unc?: number; again?:
       <div class="tact">
         {writing ? <button type="button" class="pbtn" onClick={() => u.ctl && u.ctl.abort()}>Stop</button> : null}
         {!writing && canAsk() && u.explained ? <button type="button" class="pbtn" onClick={openChat}>Ask a follow-up</button> : null}
-        {!writing && canAsk() && u.explained && again ? <button type="button" class="pbtn" onClick={() => askTutor()}>Ask again</button> : null}
+        {!writing && canAsk() && u.explained && again ? <button type="button" class="pbtn" onClick={() => askTutor()}>Explain again</button> : null}
       </div>
+      {t && t.content && !writing ? <p class="pnoteline"><button type="button" class="plnk quiet" onClick={aboutClaude}>Written by Claude, an AI. It can be wrong.</button></p> : null}
     </div> : null}
   </Sx>;
 }

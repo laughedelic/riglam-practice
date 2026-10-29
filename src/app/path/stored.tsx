@@ -41,7 +41,7 @@ export function StoredExplain({ doc, k }: { doc: AnswerDoc; k: string }) {
   const key = k + ":x", open = isOpen(key);
   return <>
     <button type="button" class={"wrow" + (open ? " open" : "")} aria-expanded={open ? "true" : "false"} onClick={() => toggleOpen(key)}><D cls="sub tut" />
-      <span class="ct"><b>Why</b><span>Claude’s explanation</span></span><span class="arr"><Icon n="chev" /></span></button>
+      <span class="ct"><b>Explanation</b><span>by Claude</span></span><span class="arr"><Icon n="chev" /></span></button>
     {open ? <div class="wtext"><div class="tsay"><TutorText text={doc.explain} ctx={noteContext(doc)} /></div></div> : null}
   </>;
 }

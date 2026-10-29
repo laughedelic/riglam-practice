@@ -552,7 +552,7 @@ withKey("the tutor's note under an example is a list of steps in the tutor's blo
   await page.locator("#stn").click();
   await expect(page.locator(".pvline")).toBeVisible();
   await expect(page.locator(".exr .tside")).toHaveCount(0);   // the examples have no "Check and explain" thread: Why is the one tutor row
-  await page.locator(".wrow").filter({ hasText: "Why" }).click();
+  await page.locator(".wrow").filter({ hasText: "Explanation" }).click();
   const note = page.locator(".exr .tnote").first();
   await expect(note).toBeVisible();
   await expect(note).not.toContainText(/Claude’s (note|explanation)/);   // no label: the rule says whose note it is, and a label on every case read as if the steps were about the tutor
@@ -590,11 +590,14 @@ withKey("Why asks the tutor on the result, and Ask a follow-up opens the convers
   await start(page);
   await answer(page);
   await page.locator("#stn").click();
-  const why = page.locator(".wrow").filter({ hasText: "Why" });
+  const why = page.locator(".wrow").filter({ hasText: "Explanation" });
   await expect(why).toContainText(/check the open example|ask Claude/);
   await why.click();
   await expect(page.locator(".wtext")).toContainText("this is the stand-in answer.");
   expect(asked).toHaveLength(1);
+  await page.getByRole("button", { name: "Written by Claude, an AI. It can be wrong." }).click();   // the reminder under the explanation opens the page that says what Claude is
+  await expect(page.getByText("Claude is an AI assistant")).toBeVisible();
+  await page.keyboard.press("Escape");
   await expect(page.locator("#path .ptb").getByRole("button", { name: /^Claude/ })).toHaveCount(0);
   await page.getByRole("button", { name: "Ask a follow-up" }).click();
   await expect(page.locator(".ptb-t")).toContainText("Claude");
@@ -769,7 +772,7 @@ test("the practice options' knob sits on the sheet's edge, splitting its line", 
   expect((await px(k.x + 2, edge + 3)).equals(await px(k.x - 80, edge + 3)), "the knob has no box below the sheet's edge").toBe(true);
 });
 
-test("the practice options leave part of the screen to tap out on, and scroll inside; Claude explains has a page of its own", async ({ page }) => {
+test("the practice options leave part of the screen to tap out on, and scroll inside; Claude has a page of its own", async ({ page }) => {
   test.skip(!withCourse, "the tutor needs the Magic Key");
   await factsServer(page);
   await start(page);
@@ -778,11 +781,11 @@ test("the practice options leave part of the screen to tap out on, and scroll in
   await page.waitForTimeout(500);
   const [sb, vp] = [await page.locator("#path .psheet.on").boundingBox(), page.viewportSize()];
   expect(sb.y + sb.height, "the sheet stops short of the bottom of the screen").toBeLessThanOrEqual(vp.height * 0.8);
-  await expect(sheet.getByRole("button", { name: "Claude explains: more" })).toBeVisible();
-  await expect(sheet.getByRole("group", { name: "Claude explains" })).toBeVisible();   // the choice on the line
+  await expect(sheet.getByRole("button", { name: "Claude AI: more" })).toBeVisible();
+  await expect(sheet.getByRole("group", { name: "Explanations by Claude" })).toBeVisible();   // the choice on the line
   await expect(sheet).not.toContainText("right after you check one");   // what needs more words is on the page
-  await sheet.getByRole("button", { name: "Claude explains: more" }).click({ position: { x: 12, y: 12 } });   // the line, beside its choice
-  await expect(sheet.getByRole("group", { name: "Claude explains" })).toBeVisible();
+  await sheet.getByRole("button", { name: "Claude AI: more" }).click({ position: { x: 12, y: 12 } });   // the line, beside its choice
+  await expect(sheet.getByRole("group", { name: "Explanations by Claude" })).toBeVisible();
   await expect(sheet).toContainText("right after you check one");
   await sheet.getByRole("button", { name: "back to the options" }).click();
   await page.mouse.click(vp.width / 2, vp.height - 20);   // out on what is under the sheet
