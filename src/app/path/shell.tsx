@@ -8,7 +8,7 @@ import { setBlitz } from "../debate/flow.js";
 import { skipAsks, skipPair } from "../practice/skips.js";
 import { toRoad } from "../shell/menu.js";
 import { isEx } from "../shell/render.js";
-import { openBlitzOptions, toggleSess } from "../shell/session.js";
+import { openBlitzOptions, sessBack, toggleSess } from "../shell/session.js";
 import { micShown, readShown, toggleListen, toggleReadAloud, voiceBar } from "../shell/voice.js";
 import { Pull, SLIDE, bump } from "./gesture.ts";
 import type { ScanPlan } from "./scan.tsx";
@@ -32,7 +32,9 @@ export function TopBar({ title, tools = false, mic = false, back }: TopBarProps)
   const prog = state.mode === "quiz" && isEx() && progressOn(), away = !!shown || prog;
   const hold = useRef<ReturnType<typeof setTimeout> | undefined>(undefined), held = useRef(false);
   const ex = state.mode === "quiz" && isEx(), u = state.ui;
-  const roadmap = back ? back.go : toRoad;
+  // on a page of the practice options the bar's back goes to the list of the options, not out to the roadmap
+  const subpage = !!shown && !!state.sessPage;
+  const roadmap = subpage ? sessBack : back ? back.go : toRoad;
   const timed = ex && state.blitzUse && (state.tab === "practice" || state.tab === "debate" || state.tab === "syllogism");
   // the countdown bar: a new countdown is a new bar (keyed by its start), so that its animation starts from full
   const tq = u && u.tq, e = tq ? Math.max(0, Math.round(performance.now() - tq.t0)) : 0;
@@ -40,7 +42,7 @@ export function TopBar({ title, tools = false, mic = false, back }: TopBarProps)
   const bzDown = (ev: PointerEvent) => { if (ev.button) return; held.current = false; clearTimeout(hold.current); hold.current = setTimeout(() => { held.current = true; openBlitzOptions(); }, HOLD_MS); };
   const bzStop = () => clearTimeout(hold.current);
   return <header class="ptb">
-    <button type="button" class="tstn" aria-label={back ? back.label : "Back to the roadmap"} onClick={roadmap}><Icon n="chev" /></button>
+    <button type="button" class="tstn" aria-label={subpage ? "Back to the options" : back ? back.label : "Back to the roadmap"} onClick={roadmap}><Icon n="chev" /></button>
     <button type="button" class="ptb-t" aria-label={heading + (shown ? "" : back ? ", " + back.label.toLowerCase() : ", the roadmap")} onClick={roadmap}><span>{heading}</span></button>
     {tools && !shown && ex ? <ProgressRing /> : null}
     <span class="spc" />

@@ -787,7 +787,8 @@ test("the practice options leave part of the screen to tap out on, and scroll in
   await sheet.getByRole("button", { name: "Explanations by Claude: more" }).click({ position: { x: 12, y: 12 } });   // the line, beside its choice
   await expect(sheet.getByRole("group", { name: "Explanations by Claude" })).toBeVisible();
   await expect(sheet).toContainText("right after you check one");
-  await sheet.getByRole("button", { name: "back to the options" }).click();
+  await page.getByRole("button", { name: "Back to the options" }).click();   // the bar's chevron, back to the list of the options
+  await expect(sheet.getByRole("group", { name: "Explanations by Claude" })).toBeVisible();
   await page.mouse.click(vp.width / 2, vp.height - 20);   // out on what is under the sheet
   await expect(page.locator("#path .psheet.on")).toHaveCount(0);
 });
