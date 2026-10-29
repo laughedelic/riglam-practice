@@ -432,6 +432,7 @@ export interface State {
   navBare: boolean;
   navGuard: { destroy(): void; requestClose(): void } | null;
   navEsc: number;
+  leaveAsk: boolean;
   navBack: boolean;
   motion: boolean;
   reviewSeg: string;

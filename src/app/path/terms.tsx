@@ -9,7 +9,6 @@ import { termMentions } from "../../ai-shared/mentions.ts";
 import { cap } from "../core/util.js";
 import { isA } from "../practice/screen.js";
 import { defParts, hasDef } from "../practice/terms.js";
-import { termTags } from "../practice/stops.ts";
 import { termNames } from "../../domain/languages.ts";
 import { cardExamples } from "../../domain/card-examples.ts";
 import type { CardExample } from "../../domain/card-examples.ts";
@@ -126,11 +125,4 @@ export function Def({ term, trail }: { term: string; trail: string[] }) {
     <DefText term={term} />
   </div>;
 }
-/**
- * The tags of the course terms a question of Categories asks about that the learner is still meeting (practice/stops.ts, termTags), in a row under the
- * thing: a tap opens the definition under them. A pair has them under its terms instead (path/parts.tsx, PairStops).
- */
-export function TermTags({ asked }: { asked: { cat: string | null | undefined; side?: string }[] }) {
-  const tags = termTags(asked); if (!tags.length) return null;
-  return <div class="wtext ntags"><p class="ntag-row">{tags.map((t, i) => <span class="ntag"><OneTerm txt={t.term.toLowerCase()} term={t.term} where={"ntag/" + i} /></span>)}</p><DefCard where="ntag" /></div>;
-}
+
