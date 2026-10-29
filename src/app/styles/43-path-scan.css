@@ -60,3 +60,16 @@
 @keyframes p-scnx{from{opacity:0; scale:.5}}
 @keyframes p-scnl{from{opacity:0; translate:-8px 0}}
 @media (prefers-reduced-motion:reduce){ .pa .main.sc-open .foot{animation:none} }
+/* several choices (Categories): the scan ends under the thing (`.cstop`, where the result's node will be); a row it passes takes its verdict's color on its own mark, and a
+   category left under the rule that applies is not struck (it was not said to be) */
+.pa .cstop{height:4px; position:relative; transition:height .24s ease-out} .pa .cstop > .d{position:absolute; left:0; top:50%; width:0; height:0; visibility:hidden}
+.pa .cstop.scn-gone{height:46px}      /* room for the node and its word under the thing, opened as the scanner comes to it */
+.pa .crow.scn .mc .d{transition:background-color .15s,box-shadow .15s; animation:p-scnd .3s ease-out}
+.pa .crow.scn-ok .mc .d{background-color:var(--green); box-shadow:none} .pa .crow.scn-no .mc .d{background-color:var(--red); box-shadow:none}
+.pa .thold .chs.down .crow.scn-no .ct b{color:var(--ink); text-decoration:none}
+@media (prefers-reduced-motion:reduce){ .pa .crow.scn .mc .d{animation:none} }
+/* the threshold's result (categories.tsx `Settled`) is a group of sections: each comes in, or moves, on its own */
+.pa .main.sc-in .pathc > .thold{animation:none}
+.pa .main.sc-in .pathc > .thold > .sx{animation:p-tkin .42s ease-out both}
+.pa .main.sc-morph.sc-in .pathc > .thold > .sx.morphed{animation:none}
+.pa .main.sc-morph.sc-in .pathc > .thold > .sx.morphed::before{animation:p-tkin .42s ease-out both}
