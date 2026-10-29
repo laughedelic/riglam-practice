@@ -283,8 +283,8 @@ export interface Ui extends AnswerView {
   [field: string]: any;
 }
 
-/** The next stage on the Path (practice/stage-offer.ts): `shown` once its station is on screen, `first` when it is the learner's first (the stages are explained), `stayed` when they chose to stay on the stage they are on. */
-export interface StageUp { stage: number; shown?: true; first?: boolean; stayed?: true }
+/** The next stage on the Path (practice/stage-offer.ts): `shown` once its station is on screen, `first` when it is the learner's first (the stages are explained), `stayed` when they chose to stay on the stage they are on (`was` is the run before, which Undo goes back to). */
+export interface StageUp { stage: number; shown?: true; first?: boolean; stayed?: true; was?: StageRun }
 
 /** A Relations answer as the run towards a negation step counts it (practice/negations.ts): when it was given, whether the relation was right, and whether a side was negated. */
 export interface NegResult extends NegOutcome {
@@ -494,6 +494,8 @@ export interface State {
   // display settings, some kept on the device
   nota: "codes" | "sets" | "logic" | string;
   defLang: "en" | "enru" | string;
+  /** the other languages a term's name is shown in: "bo", "skt", "zh" (domain/languages.ts) */
+  langs: string[];
   wording: "mine" | "cons" | "plain" | string;
   showAB: boolean;
   fullPh: boolean;

@@ -4,6 +4,7 @@
 import { normLevels } from "../ai-shared/examples.ts";
 import { FIND_RELS } from "../domain/find.ts";
 import { normIntro } from "../domain/intro.ts";
+import { normLangs } from "../domain/languages.ts";
 import { DEFAULT_STAGES, freshRun, normExRuns, normGuided, normRun, normStages, stagesOfLevels, topStage } from "../domain/stages.ts";
 
 /** @type {import("./types.ts").State} */
@@ -86,6 +87,7 @@ export const state = {
   view: null,
   reviewSeg: "overview",
   defLang: "en",  // definitions in the Terms panel: "en", or "enru" (English with the Russian definition and the Russian name of each term)
+  langs: [],      // the other languages a term's name is shown in, beside English (and Russian, when defLang says so): "bo", "skt", "zh" (domain/languages.ts)
   POOL: null,
   skips: {},
   skipNote: null,
@@ -141,6 +143,7 @@ try{ const v=localStorage.getItem("rd-ex"); if(v==="debate"||v==="find"||v==="ca
 try{ state.menuPin=localStorage.getItem("rd-menu")!=="0"; }catch(e){ state.menuPin=true; }   // a wide screen starts with the menu pinned (the exercise would be stretched too wide without it); the button unpins it
 try{ const v=localStorage.getItem("rd-notation"); if(v==="sets"||v==="logic") state.nota=v; }catch(e){}
 try{ if(localStorage.getItem("rd-deflang")==="enru") state.defLang="enru"; }catch(e){}   // an earlier "off" (words only) is now the codes
+try{ state.langs=normLangs(localStorage.getItem("rd-langs")); }catch(e){}
 // the setting was stored as "rd-lab" while Quorum was a lab of the page: a device that turned it off keeps it off
 try{ let q=localStorage.getItem("rd-quorum"); if(q===null){ q=localStorage.getItem("rd-lab"); if(q!==null){ localStorage.setItem("rd-quorum",q); localStorage.removeItem("rd-lab"); } } state.quorumChoice=q===null?null:q!=="0"; }catch(e){}
 try{ state.autoExplain=localStorage.getItem("rd-autoexplain")!=="0"; }catch(e){}

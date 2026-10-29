@@ -13,8 +13,9 @@ import {
 } from "../../src/domain";
 import type { DebateInput, GradeDraft, HistoryEntry, Pair, PoolEntry } from "../../src/domain";
 import openData from "../../src/data/drill-data.json";
-import { drawable, examplesFor, placeByClass } from "../../src/domain";
-import { AGAIN_AFTER, FIRST_AFTER, MISS_AFTER, SETTLED, SPACING, afterQuestion, againAsked, freshIntro, introduced, nextStop, normIntro, pairGraded, showAgain, stageMet, stageTerms, stageUp, stopShown, unmet } from "../../src/domain";
+import { catStage, drawable, examplesFor, placeByClass } from "../../src/domain";
+import { LANGS, normLangs, termNames } from "../../src/domain";
+import { AGAIN_AFTER, FIRST_AFTER, MISS_AFTER, SETTLED, SPACING, afterQuestion, againAsked, freshIntro, introduced, metTerms, nextStop, normIntro, pairGraded, showAgain, stageMet, stageTerms, stageUp, stopShown, termTree, unmet } from "../../src/domain";
 import { DEFAULT_STAGES, DEFINITION_STAGE, HOLD_STAGE, MAX_STAGE, NEG_STREAK, STAGES, START_SHARE, STAGE_STREAK, STAGE_STUMBLE, catOpen, drawSyllogism, heldBack, itemKnown, itemOn, itemStageFor, levelAt, negationOffer, newCategories, normStages, pairStage, physical, poolAt, stagesOfLevels, toggleStage, topStage } from "../../src/domain";
 import { GUIDE_RIGHT, STAGE_LONGER, STAGE_STREAK_MAX, exerciseAfter, freshRun, guideTurnsOff, guidedOn, movedUp, newShare, normExRuns, normGuided, normRun, restartRun, runAfter, runNeed, setManual, stageOffer, stayLonger } from "../../src/domain";
 import type { MissKind, StageRun } from "../../src/domain";
@@ -729,6 +730,43 @@ test("a term is introduced before it is asked about: everyday questions first, t
   // stages are a set, not a ceiling: with 1 and 3 on, the terms of stage 2 come first, since its categories are open too
   const gap = stopShown(stageUp(freshIntro()), "form", T0);
   expect(nextStop(rix, stageUp(gap), [1, 3], T0)).toEqual({ cat: "extf", why: "new" });
+});
+
+test("the terms met so far are the ones whose stop has come, the lowest stage first and in the data's order within a stage", () => {
+  const T0 = "2026-10-24T12:00:00.000Z", id = (term: string) => real.cats.find((c) => c.term === term)!.id;
+  let it = freshIntro();
+  expect(metTerms(rix, it), "none before the first stop").toEqual([]);
+  for (const t of ["Color", "External form", "Form"]) it = stopShown(it, id(t), T0);
+  const names = metTerms(rix, it).map((c) => c.term);
+  expect(names.slice().sort(), "just those three").toEqual(["Color", "External form", "Form"]);
+  expect(names.indexOf("Form"), "Form (stage 1) before External form (stage 2)").toBeLessThan(names.indexOf("External form"));
+  expect(metTerms(rix, it).every((c, i, all) => !i || catStage(all[i - 1]!) <= catStage(c)), "by stage").toBe(true);
+  expect(metTerms(rix, { ...it, terms: { ...it.terms, [id("Shape")]: { box: 0, shows: 0 } } }).map((c) => c.term), "a term at box 0 is not met").not.toContain("Shape");
+});
+
+test("a stop shows where its term sits: every term above it, those whose own stop has not come yet marked, and only the divisions met, with a sign of more to come", () => {
+  const T0 = "2026-10-24T12:00:00.000Z", id = (term: string) => real.cats.find((c) => c.term === term)!.id;
+  let it = freshIntro();
+  let tree = termTree(rix, it, "Color");
+  expect(tree.up.map((t) => t.name), "the broadest first, down to the term's parent").toEqual(["Existent", "Functional thing", "Form", "External form", "Form source"]);
+  expect(tree.up.map((t) => t.met), "Existent has no stop of its own to wait for; the others have not come yet").toEqual([true, false, false, false, false]);
+  expect(tree.kids, "the divisions of Color are not course terms: nothing to name, nothing to promise").toEqual([]);
+  expect(tree.more).toBe(false);
+  for (const t of ["Form", "External form"]) it = stopShown(it, id(t), T0);
+  expect(termTree(rix, it, "Color").up.map((t) => t.met)).toEqual([true, false, true, true, false]);
+  // Consciousness divides into two course terms: none met, then one, then both
+  tree = termTree(rix, it, "Consciousness");
+  expect(tree.kids).toEqual([]);
+  expect(tree.more, "there are divisions to come").toBe(true);
+  it = stopShown(it, id("Sense consciousness"), T0);
+  tree = termTree(rix, it, "Consciousness");
+  expect(tree.kids).toEqual(["Sense consciousness"]);
+  expect(tree.more).toBe(true);
+  it = stopShown(it, id("Mental consciousness"), T0);
+  tree = termTree(rix, it, "Consciousness");
+  expect(tree.kids).toEqual(["Sense consciousness", "Mental consciousness"]);
+  expect(tree.more, "all met: no ellipsis").toBe(false);
+  expect(termTree(rix, it, "Existent").up, "a term with nothing above it").toEqual([]);
 });
 
 test("the questions grade the terms they use: right moves a term up, a mistake brings its stop back a few questions later", () => {
@@ -2095,4 +2133,31 @@ test("the negation track: about a third of the pairs negated, both sides only wh
   const both = count("both");
   expect(both.ab).toBeGreaterThan(20);
   expect(both.a + both.b).toBeGreaterThan(20);
+});
+
+test("a term's names by language: Tibetan with its Wylie, Chinese in traditional and simplified with pinyin, and only the languages that are on", () => {
+  const t = openData.terms["Sound source" as keyof typeof openData.terms] as Parameters<typeof termNames>[0];
+  expect(termNames(t, [])).toEqual([]);
+  expect(termNames(t, ["bo", "zh"]).map((n) => n.main + n.rest)).toEqual(["སྒྲའི་སྐྱེ་མཆེད (sgra'i skye mched)", "聲處（声处，shēng chù）"]);
+  // always in the order of LANGS, whatever the order they were ticked in; Russian and Sanskrit are plain
+  expect(termNames(t, ["skt", "ru"]).map((n) => n.id + ":" + n.main + n.rest)).toEqual(["ru:база звука", "skt:शब्दायतन (śabdāyatana)"]);
+  // the simplified form is left out where it is the same, and a name a term lacks leaves its language out
+  expect(termNames({ zh: "色", zhs: "色", py: "sè" }, ["zh", "bo", "ru"])).toEqual([{ id: "zh", lang: "zh-Hant", main: "色", rest: "（sè）" }]);
+  expect(termNames({ wylie: "gzugs" }, ["bo"])).toEqual([{ id: "bo", lang: "", main: "gzugs", rest: "" }]);
+  // a Sanskrit name without its script stays in transliteration
+  expect(termNames({ skt: "rūpa" }, ["skt"])).toEqual([{ id: "skt", lang: "", main: "rūpa", rest: "" }]);
+  // every term of the course has a name in each language that names it, and every Sanskrit one its Devanagari
+  for (const [name, term] of Object.entries(openData.terms)) {
+    const names = termNames(term as Parameters<typeof termNames>[0], ["bo", "zh"]);
+    expect(names.map((n) => n.id), name).toEqual(["bo", "zh"]);
+    expect(names[0]!.rest, name).toBe(` (${term.wylie})`);
+    expect(!!(term as { dev?: string }).dev, name).toBe(!!(term as { skt?: string }).skt);
+  }
+  expect(LANGS.map((l) => l.id)).toEqual(["ru", "bo", "skt", "zh"]);
+});
+
+test("a stored choice of languages is read as the name-only languages in order, and anything else as none", () => {
+  expect(normLangs('["zh","bo","bo","xx","ru"]')).toEqual(["bo", "zh"]);
+  expect(normLangs(["skt"])).toEqual(["skt"]);
+  for (const bad of [null, undefined, "", "bo", "{", 3, {}]) expect(normLangs(bad)).toEqual([]);
 });

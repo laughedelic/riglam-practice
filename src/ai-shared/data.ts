@@ -5,9 +5,16 @@ export interface Term {
   name: string;
   ch: string;
   wylie?: string;
+  /** the name in Tibetan script */
+  bo?: string;
+  /** the Sanskrit name in Devanagari (`skt` is its transliteration) */
+  dev?: string;
   skt?: string;
   ru?: string;
+  /** the name in Chinese, traditional characters, then simplified and pinyin */
   zh?: string;
+  zhs?: string;
+  py?: string;
   parent?: string;
   aliases?: string[];
   /** mutually inclusive terms */

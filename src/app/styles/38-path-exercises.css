@@ -107,12 +107,58 @@
 .pa .d.tsd{background-color:var(--paper); box-shadow:inset 0 0 0 1.8px var(--ink)}
 .pa .sx.cur.tstop::before{background:var(--ink); opacity:.72}
 @supports (color:color-mix(in srgb,red,blue)){ .pa .sx.cur.tstop + .sx{--pv:color-mix(in srgb,var(--ink) 72%,var(--paper))} }
-.pa .tstop-def{padding-top:2px}
+.pa .tstop-def{padding-top:2px; padding-bottom:6px}
 .pa .tstop-def .pdef{margin-top:4px}
-/* a stage coming in (path/stage-up.tsx): a few short paragraphs under its heading, the stay option in the quiet button */
-.pa .tup p{margin:0 0 9px; font-size:16px; line-height:1.4}
-.pa .tup p.tup-note{font-size:14px; color:var(--ink2)}
-.pa .tup .pbtn{padding:2px 0}
+/* a stage coming in (path/stage-up.tsx, picked in the Definition Lab): the stage as the title, the nine stages as bars, Topics and Progression as parts on
+   the line, the explanation folded in a later upgrade, the way to stay as a line of text */
+.pa .tup{padding-right:18px}
+.pa .tup p{margin:0 0 9px; font-size:18px; line-height:1.4}
+.pa .tup p.tup-note{font-size:15.5px; color:var(--ink2)}
+.pa .tup .nw{white-space:nowrap}   /* the full stop stays with the link, never alone on a line */
+.pa .tup .tup-lead{font-size:20px; color:var(--ink); line-height:1.4}
+.pa .tup .tup-bul{margin:8px 0 10px; padding:0 0 0 18px; font-size:18px; line-height:1.4}
+.pa .tup .tup-bul li{padding:2px 0}
+.pa .tup-lad{display:flex; align-items:flex-start; gap:3px; margin:14px 0 12px}
+.pa .tup-ld{flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; gap:7px; font:500 10px var(--mono); color:var(--ink3)}
+.pa .tup-ld i{display:block; width:100%; height:24px; position:relative}
+.pa .tup-ld i::before{content:""; position:absolute; left:0; right:0; top:50%; height:5px; margin-top:-2.5px; border-radius:3px; background:var(--rule)}
+.pa .tup-ld.done i::before{background:var(--ink)}
+.pa .tup-ld.now i::before{height:10px; margin-top:-5px; background:var(--blue)}
+.pa .tup-ld.now b{color:var(--blue)}
+.pa .tup-fold{margin:6px 0 4px}
+.pa .tup-foldb{display:inline-flex; align-items:center; gap:8px; background:none; border:0; padding:4px 0; font:inherit; font-size:16px; color:var(--ink2); cursor:pointer}
+.pa .tup-foldb::before{content:""; width:7px; height:7px; border-right:1.6px solid currentColor; border-bottom:1.6px solid currentColor; transform:rotate(-45deg); transition:transform .15s}
+.pa .tup-foldb[aria-expanded="true"]::before{transform:rotate(45deg)}
+.pa .tup-foldc{margin:2px 0 0; padding:0 0 0 14px; border-left:1.5px solid var(--rule)}
+/* the stop's look (picked in the Definition Lab): a large term that shrinks to fit its line without breaking a word (path/stop-def.tsx), its names under it,
+   a larger definition without the quote rule, and sections, each a small node on the line with its label */
+.pa .tstop .stm .cs{display:block; font-size:calc(var(--tn) * 40 / 34); line-height:1.12; overflow-wrap:normal; hyphens:manual}
+.pa .tstop .stm .cs.tight{overflow-wrap:anywhere}
+.pa .tstage .stm .cs{font-size:var(--tn)}
+.pa .tstop .sechead .ph{flex-wrap:wrap; white-space:normal; row-gap:2px}
+.pa .tstop .sechead .ph span{overflow:visible; text-overflow:clip}
+.pa .tstop-names{margin:8px 0 0; font-size:14.5px; line-height:1.4; color:var(--ink2); display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px 14px}
+.pa .tstop-names .nm{display:block; min-width:0; overflow-wrap:anywhere}
+.pa .tstop-names [lang=bo]{font:inherit; font-family:'Noto Serif Tibetan',var(--main-f),serif; font-size:1.25em; line-height:1.2}
+.pa .tstop-names [lang=sa-Deva]{font:inherit; font-family:'Noto Serif Devanagari',var(--main-f),serif; font-size:1.1em}
+.pa .tstop-names .nm[data-lang=zh]{font-family:'Noto Serif SC',var(--main-f),serif}
+.pa .tstop-def .pdef{border-left:0; padding-left:0}
+.pa .tstop-def .pdbody{font-size:20px; line-height:1.5}
+.pa .tstop-def .pdsrc{font-size:17.5px}
+.pa .tstop-sec{margin-top:10px; padding:2px 0}
+.pa .tstop-sec > .d{scale:.8}
+.pa .tstop-sech{font:500 11px var(--mono); letter-spacing:.09em; text-transform:uppercase; color:var(--ink2)}
+.pa .tstop-def .pdex.bare{border-top:0; padding-top:0; margin-top:0}
+.pa .tstop-def .pdexr{font-size:19px}
+.pa .ttree{list-style:none; margin:2px 0 6px; padding:0; line-height:1.3; color:var(--ink2); font-size:18.5px; align-self:stretch}
+.pa .ttree li{position:relative; padding:4px 0 4px calc(var(--lv,0) * 15px)}
+.pa .ttree li::before{content:""; position:absolute; left:calc(var(--lv,0) * 15px - 13px); top:0; height:calc(.65em + 4px); border-left:1.5px solid var(--rule)}
+.pa .ttree li::after{content:""; position:absolute; left:calc(var(--lv,0) * 15px - 13px); top:calc(.65em + 4px); width:10px; border-top:1.5px solid var(--rule)}
+.pa .ttree li:first-child::before,.pa .ttree li:first-child::after{display:none}
+.pa .ttree li.kid:not(:last-child)::before{height:100%}
+.pa .ttree li.me{color:var(--ink); font-weight:600}
+.pa .ttree li.gray{color:var(--ink3)}
+.pa .ttree em{font:500 9.5px var(--mono); font-style:normal; letter-spacing:.07em; text-transform:uppercase; color:var(--ink3); margin-left:8px}
 .pa .tstop-key{margin:0; padding:0 18px 4px calc(var(--m) + 22px); font-size:15px; font-style:italic; color:var(--ink2)}
 /* the tag of a course term the learner is still meeting, under the term of the pair or in a row under the thing (path/parts.tsx, path/terms.tsx) */
 .pa .ntag{display:block; margin-top:4px; font:600 10.5px/1.2 var(--mono); letter-spacing:.08em; text-transform:uppercase; color:var(--ink2)}

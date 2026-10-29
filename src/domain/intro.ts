@@ -62,6 +62,9 @@ export const introduced = (intro: Intro, cat: Pick<Cat, "id" | "kind" | "term">)
 /** The categories whose term opens at the stage, in the course's order (the data's). */
 export const stageTerms = (ix: DataIndex, stage: number): string[] => Object.values(ix.CAT).filter((c) => needsIntro(c) && catStage(c) === stage).map((c) => c.id);
 
+/** The course terms whose stop has come, as their categories, in the course's order: the lowest stage first, then the data's. */
+export const metTerms = (ix: DataIndex, intro: Intro): Cat[] => Object.values(ix.CAT).filter((c) => needsIntro(c) && introduced(intro, c)).sort((a, b) => catStage(a) - catStage(b));
+
 /** The Dudra categories open at these stages whose stop has not come yet: they wait out of the questions (domain/stages.ts, catOpen). */
 export function unmet(ix: DataIndex, intro: Intro, on: Stages): Set<string> {
   const top = topStage(on), out = new Set<string>();
@@ -71,6 +74,22 @@ export function unmet(ix: DataIndex, intro: Intro, on: Stages): Set<string> {
 
 /** Whether every term of the stage has had its stop: the next stage is offered only then. */
 export const stageMet = (ix: DataIndex, intro: Intro, stage: number): boolean => stageTerms(ix, stage).every((id) => introduced(intro, ix.CAT[id]!));
+
+/** A term in the tree a stop draws: `met` unless it is a course term whose own stop has not come yet (a term the course never stops at has nothing to wait for). */
+export interface TreeTerm { name: string; met: boolean }
+/**
+ * Where a course term sits, for its stop: the terms above it, the broadest first, and below it its divisions that are course terms. Every term above is
+ * named and marked met or not; of the divisions only the met ones are named, and `more` says that others will come, later. A division the course never
+ * stops at is neither named nor counted: it would only promise something that does not come.
+ */
+export function termTree(ix: DataIndex, intro: Intro, term: string): { up: TreeTerm[]; kids: string[]; more: boolean } {
+  const stops = new Map<string, Cat>();
+  for (const c of Object.values(ix.CAT)) if (needsIntro(c)) stops.set(c.term!, c);
+  const met = (n: string) => { const c = stops.get(n); return !c || introduced(intro, c); };
+  const up = ((ix.DATA.chains || {})[term] || [term]).slice(1).reverse().map((name) => ({ name, met: met(name) }));
+  const below = Object.keys(ix.DATA.terms).filter((n) => ix.DATA.terms[n]!.parent === term && stops.has(n));
+  return { up, kids: below.filter(met), more: below.some((n) => !met(n)) };
+}
 
 const DAY = 864e5;
 

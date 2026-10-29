@@ -1,14 +1,34 @@
 // The stop of a course term (practice/stops.ts, src/domain/intro.ts): on the Path a category of the course is asked about only once a stop has
 // shown its term, and the stop comes before the next question; the classic page asks as before. Reset progression starts the terms again and keeps
 // the answers (practice/progress.ts).
-import { test, expect } from "../../support/test.js";
+import { test, expect, SETTLED_TERMS } from "../../support/test.js";
 import { isPhone, ready, relOptions } from "../../support/page.js";
-import { withCourse } from "../../support/data-key.js";
+import { dataKey, serveCourse, withCourse } from "../../support/data-key.js";
 
 const hook = () => { window.__riglamTest = (t) => { window.__t = t; }; };
 const onPath = () => { if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path"); };
 // a device at stage 1 that has met no term yet, three questions in: the next pull brings the stop of Form (over the met terms the support test gives)
 const fresh = () => { localStorage.setItem("rd-stages", "1"); localStorage.setItem("rd-terms", JSON.stringify({ n: 3, next: 3, terms: {} })); };
+/** A device that has settled every course term but `left`, with `met` at box 1, at every stage, and the next new term due: the stop of the first of `left`. */
+const seed = (page, left, met = []) => page.addInitScript(([settled, left, met]) => {
+  const terms = JSON.parse(settled).terms;
+  for (const id of left) delete terms[id];
+  for (const id of met) terms[id] = { box: 1, shows: 1, at: 1e6 };
+  localStorage.setItem("rd-stages", "1,2,3,4,5,6,7,8,9"); localStorage.setItem("rd-terms", JSON.stringify({ n: 3, next: 3, terms }));
+}, [SETTLED_TERMS, left, met]);
+/** Pulls the next screen, which is the stop that is due (`examples`: after the examples the stand-in server gives have been read). */
+async function toStop(page, examples = false) {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript(onPath);
+  await page.addInitScript(hook);
+  await page.goto("/");
+  await expect(page.locator("#path .chs .crow")).toHaveCount(5);
+  if (examples) await expect.poll(() => page.evaluate(() => !!window.__t.EX)).toBe(true);
+  await page.evaluate(() => window.__t.next());
+  const stop = page.locator("#path .tstop");
+  await expect(stop).toBeVisible();
+  return stop;
+}
 const ORDER = ["mi", "3ab", "3ba", "4", "con"];
 const fwd = (page) => page.locator("#stage .pbar .fwd");
 const station = (page) => page.locator("#stn");
@@ -62,18 +82,28 @@ test("on the Path the stop is a station of its own, with the term and where it s
   await station(page).click();
   const stop = page.locator("#path .tstop");
   await expect(stop).toBeVisible();
-  await expect(stop).toContainText("New definition");
+  await expect(stop).toContainText("New term");
   await expect(stop.locator(".cs")).toHaveText("Form");
-  await expect(stop.locator(".pdup")).toBeVisible();
-  if (withCourse) await expect(stop.locator(".pdbody")).toBeVisible();
+  // English only until Settings > Languages says more
+  await expect(stop.locator(".tstop-names")).toHaveCount(0);
+  await expect(stop.locator(".tstop-sech")).toHaveText(withCourse ? ["Definition", "Categories"] : ["Categories"]);
+  if (withCourse) await expect(stop.locator(".pdbody").first()).toBeVisible();
   // one optional mark: the term comes again in a few questions, and a second tap takes that back
   const again = stop.getByRole("button", { name: "Show it again later" });
   const due = () => page.evaluate(() => { const t = JSON.parse(localStorage.getItem("rd-terms")).terms.form; return t.why === "again" ? t.due - window.__t.intro.n : null; });
   await expect(again).toHaveAttribute("aria-pressed", "false");
   await again.click();
   await expect(again).toHaveAttribute("aria-pressed", "true");
-  await expect(stop.getByRole("status")).toContainText("It comes again in about 10 questions");
+  // a short hint under the clock, which goes by itself after a few seconds
+  await expect(stop.getByRole("status")).toHaveText("Will be shown again");
   expect(await due()).toBe(10);
+  await expect(stop.getByRole("status")).toHaveCount(0, { timeout: 6000 });
+  await again.click();
+  await expect(again).toHaveAttribute("aria-pressed", "false");
+  expect(await due()).toBeNull();
+  // taken back at once: no hint
+  await again.click();
+  await expect(stop.getByRole("status")).toHaveText("Will be shown again");
   await again.click();
   await expect(again).toHaveAttribute("aria-pressed", "false");
   await expect(stop.getByRole("status")).toHaveCount(0);
@@ -114,4 +144,95 @@ test("Reset progression on the Stages page asks first, then starts at stage 1 wi
   const doc = await page.evaluate(async () => { const s = await (await window.__riglam.platform.db()).collection("progress").doc("learner").get(); return s.exists ? s.data() : null; });
   expect(doc).toMatchObject({ stages: [1], negation: "off", terms: { n: 0, terms: {} }, run: { up: 0, down: 0 }, exercises: {} });
   expect(await page.evaluate(() => [localStorage.getItem("rd-stage-run"), localStorage.getItem("rd-ex-runs"), localStorage.getItem("rd-guided")]), "the runs towards the stage offers start again, and every exercise is guided").toEqual(['{"up":0,"down":0}', "{}", "{}"]);
+});
+
+test("the stop shows the terms above the term, gray with a sign while their own stops are to come, and says that divisions come later", async ({ page }) => {
+  await page.addInitScript(fresh);
+  const stop = await toStop(page);
+  const tree = stop.locator("ul.ttree li");
+  // Existent has no stop in the course, so nothing waits for it; Functional thing does, and has not come
+  await expect(tree.nth(0)).toHaveText("Existent");
+  await expect(tree.nth(0)).not.toHaveClass(/gray/);
+  await expect(tree.nth(1)).toHaveClass(/gray/);
+  await expect(tree.nth(1)).toContainText("Functional thing");
+  await expect(tree.nth(1)).toContainText("later");
+  await expect(tree.nth(2)).toHaveText("Form");
+  await expect(tree.nth(2)).toHaveAttribute("aria-current", "true");
+  // its divisions are not named before their stops: an ellipsis says that they come
+  await expect(tree.nth(3)).toHaveClass(/gray/);
+  await expect(tree.nth(3)).toContainText("more divisions come later");
+  await expect(tree).toHaveCount(4);
+});
+
+test("a division whose stop has come is named in the tree, and the ellipsis stays while another is to come", async ({ page }) => {
+  await seed(page, ["form", "intf"], ["ft", "extf"]);
+  const stop = await toStop(page);
+  await expect(stop.locator(".cs")).toHaveText("Form");
+  const tree = stop.locator("ul.ttree li");
+  await expect(tree).toHaveText(["Existent", "Functional thing", "Form", "External form", /more divisions come later/]);
+  await expect(stop.locator("ul.ttree li.gray")).toHaveCount(1);
+});
+
+test("Settings > Languages decides which names the stop shows: Tibetan with its Wylie, Sanskrit in Devanagari with its transliteration, Chinese in both writings with pinyin", async ({ page }) => {
+  await seed(page, ["form"]);
+  await page.addInitScript(onPath);
+  await page.addInitScript(hook);
+  await page.goto("/");
+  await expect(page.locator("#path .chs .crow")).toHaveCount(5);
+  await page.locator(".tstn").click();
+  await page.locator(".road .rfoot").getByRole("button", { name: "Settings" }).click();
+  await expect(page.locator(".ppage .ptitle")).toHaveText("Settings");
+  const lang = (name) => page.getByRole("switch", { name });
+  await expect(page.locator(".ppage .srow", { hasText: "English" }).first()).toContainText("Always shown");
+  for (const name of ["Russian", "Tibetan", "Sanskrit", "Chinese"]) await expect(lang(name)).toHaveAttribute("aria-checked", "false");
+  await lang("Tibetan").click();
+  await lang("Sanskrit").click();
+  await lang("Chinese").click();
+  await expect(lang("Tibetan")).toHaveAttribute("aria-checked", "true");
+  expect(await page.evaluate(() => localStorage.getItem("rd-langs"))).toBe('["bo","skt","zh"]');
+  expect(await page.evaluate(() => localStorage.getItem("rd-deflang"))).toBeNull();
+  await page.getByRole("button", { name: /Back to the exercise/ }).click();
+  await expect(page.locator("#path .chs .crow")).toHaveCount(5);
+  await page.evaluate(() => window.__t.next());
+  const names = page.locator("#path .tstop .tstop-names .nm");
+  await expect(names).toHaveText(["གཟུགས (gzugs)", "रूप (rūpa)", "色（sè）"]);
+  await expect(names.nth(0).locator("[lang=bo]")).toHaveText("གཟུགས");
+  await expect(names.nth(1).locator("[lang=sa-Deva]")).toHaveText("रूप");
+  await expect(names.nth(2).locator("[lang=zh-Hant]")).toHaveText("色");
+  // two columns: the second name sits beside the first, the third under the first
+  const boxes = await names.evaluateAll((els) => els.map((el) => { const b = el.getBoundingClientRect(); return { left: Math.round(b.left), top: Math.round(b.top) }; }));
+  expect(Math.abs(boxes[1].top - boxes[0].top)).toBeLessThanOrEqual(1);
+  expect(boxes[1].left).toBeGreaterThan(boxes[0].left + 40);
+  expect(boxes[2].top).toBeGreaterThan(boxes[0].top);
+  expect(boxes[2].left).toBe(boxes[0].left);
+});
+
+test("a term whose longest word does not fit its line shrinks as a whole, and no word of it breaks", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  await seed(page, ["nonas"]);
+  const stop = await toStop(page);
+  const term = stop.locator(".cs");
+  await expect(term).toHaveText("Non-associated compositional factor");
+  const fit = () => term.evaluate((el) => {
+    const text = el.firstChild, box = el.getBoundingClientRect(), r = document.createRange(), words = [];
+    for (const m of el.textContent.matchAll(/\S+/g)) { r.setStart(text, m.index); r.setEnd(text, m.index + m[0].length); words.push({ w: m[0], lines: new Set([...r.getClientRects()].map((x) => Math.round(x.top))).size, over: r.getBoundingClientRect().right - box.right }); }
+    return { words, tight: el.classList.contains("tight") };
+  });
+  await expect.poll(async () => (await fit()).words.every((x) => x.lines === 1 && x.over <= 1)).toBe(true);
+  expect((await fit()).tight).toBe(false);
+  await expect(term).toHaveAttribute("style", /font-size/);
+});
+
+test("the examples on a stop list the thing and its stage, without the status of the example", async ({ page }) => {
+  await page.addInitScript(fresh);
+  const items = [{ n: "a vemo mountain", cls: ["Form"], lv: 1, st: 1, cf: "confirmed", s: [] }, { n: "a kipa lake", cls: ["Form"], lv: 1, st: 2, cf: "textbook", s: [] }];
+  await serveCourse(page, dataKey, { stub: true, examples: { version: "e1", part: { format: "riglam-examples-device", version: 2, sources: {}, items } } });
+  const stop = await toStop(page, true);
+  await expect(stop.locator(".tstop-sech")).toHaveText(withCourse ? ["Definition", "Categories", "Examples"] : ["Categories", "Examples"]);
+  const rows = stop.locator(".pdex.bare .pdexr");
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(0)).toContainText("a vemo mountain");
+  await expect(rows.nth(0)).toContainText("stage 1");
+  await expect(rows.nth(1)).toContainText("stage 2");
+  await expect(stop).not.toContainText(/confirmed|textbook/i);
 });

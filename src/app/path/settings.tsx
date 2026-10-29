@@ -13,6 +13,9 @@ import { el } from "../core/dom.js";
 import { exName } from "../shell/exercises.js";
 import { aboutInfo, keyNote, shareNote, toggleOpts } from "../shell/options.js";
 import { render } from "../shell/render.js";
+import { setLang } from "../shell/session.js";
+import { LANGS } from "../../domain/languages.ts";
+import { languagesOn } from "./terms.tsx";
 import { setOn as setVoiceOn, voiceAvailable, voiceNote, voiceOn } from "../shell/voice.js";
 import { DEFAULT_LOOK, currentLook, lookLine, pastedLook, setLook, storedLook } from "./look.ts";
 import { setDesign } from "./index.tsx";
@@ -60,6 +63,14 @@ const SwitchRow = ({ title, note, on, toggle, tag }: { title: string; note: stri
   <div class="srow wide"><span /><span class="ct"><button type="button" class="two" role="switch" aria-checked={on ? "true" : "false"} onClick={toggle}>
     <span><b>{title}{tag ? <span class="ptag">{tag}</span> : null}</b></span><Toggle on={on} /></button><small>{note}</small></span></div>;
 
+/** The languages a term is shown in beside English: a switch for each. English is always shown; Russian also gives the definitions in Russian, where there are some. */
+function LanguageRows() {
+  const on = languagesOn();
+  return <>
+    <div class="srow wide"><span /><span class="ct"><b>English</b><small>The terms and their definitions. Always shown.</small></span></div>
+    {LANGS.map(({ id, name, note }) => <SwitchRow title={name} note={note[0]!.toUpperCase() + note.slice(1) + "."} on={on.includes(id)} toggle={() => setLang(id, !on.includes(id))} />)}
+  </>;
+}
 // the shared rows of src/ui (the account, your data) build their nodes with the classic page's classes; the Path's are put in their place
 const PCLS: Record<string, string> = { btn: "pbtn", "btn ghost": "pbtn", onote: "pnoteline", "onote bad": "pnoteline bad", xfer: "pxfer", xferbox: "pxbox", xsum: "pxsum", acct: "pacct", acwho: "pacwho", acname: "pacname" };
 const pel = (tag: string, props?: Record<string, any> | null, ...kids: any[]) => {
@@ -123,6 +134,9 @@ export function SettingsPage() {
       <div class="srow wide"><span /><span class="ct"><b>Design</b><small>The Path is the redesign, still being made. Classic is the page as it was.</small>
         <div class="below" style={{ padding: "8px 0 0" }}><Words label="Design" items={[["path", "Path"], ["classic", "Classic"]]} cur={state.design} on={setDesign} /></div></span></div>
       <LookRows />
+      <p class="glab">Languages</p>
+      <p class="pnoteline" style={{ padding: "0 18px 6px calc(var(--m) + 22px)" }}>Shown beside a term when you meet it and in its definition. The course has definitions in English and Russian only.</p>
+      <LanguageRows />
       <p class="glab">The app</p>
       <AppRows />
       <div style={{ height: "30px" }} />

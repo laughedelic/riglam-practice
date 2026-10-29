@@ -10,7 +10,7 @@ import { hasDef } from "./terms.js";
 import { saveProgress } from "./progress.ts";
 import { render } from "../shell/render.js";
 import type { DataIndex } from "../../ai-shared/lookup.ts";
-import { SETTLED, afterQuestion, againAsked, freshIntro, needsIntro, nextStop, pairGraded, showAgain, stageUp, stopShown, unmet, type Stop } from "../../domain/intro.ts";
+import { SETTLED, afterQuestion, againAsked, freshIntro, needsIntro, nextStop, pairGraded, showAgain, stageUp, stopShown, termTree, unmet, type Stop } from "../../domain/intro.ts";
 import { catStage } from "../../domain/stages.ts";
 
 const save = () => { if (state.intro) saveProgress(); };
@@ -66,10 +66,10 @@ export function termTags(asked: { cat: string | null | undefined; side?: string 
   }
   return out;
 }
-/** What the stop says above the term: a new definition and its stage, or why it comes again. */
+/** What the stop says above the term: a new term, its stage and where the course has it, or why it comes again. */
 export function stopHead(s: Stop): { h: string; sub: string } {
-  const c = state.CAT[s.cat], st = c ? catStage(c) : 0;
-  if (s.why === "new") return { h: "New definition", sub: "stage " + st };
+  const c = state.CAT[s.cat], st = c ? catStage(c) : 0, ch = (c && c.term && state.DATA && state.DATA.terms[c.term] && state.DATA.terms[c.term].ch) || "";
+  if (s.why === "new") return { h: "New term", sub: "stage " + st + (ch ? " \u00b7 " + ch : "") };
   return { h: "Repetition", sub: s.why === "miss" ? "you missed this before" : s.why === "gap" ? "not met for a while" : "as you asked" };
 }
 /** Whether the learner has asked from the stop on screen to see its term again. */
@@ -79,8 +79,13 @@ export function toggleAgain(cat: string) {
   if (!state.intro) return;
   state.intro = showAgain(state.intro, cat, !againOn(cat)); save(); render();
 }
-/** The term of the stop: its name, where it sits ("is an external form is a form ..."), and its definition when this device can read it. */
-export function stopTerm(s: Stop): { name: string; up: string[]; def: boolean } {
-  const c = state.CAT[s.cat], term = (c && c.term) || "", chain = ((state.DATA && state.DATA.chains) || {})[term] || [term];
-  return { name: term, up: chain.slice(1).map((n: string) => n.toLowerCase()), def: !!state.DATA && hasDef(state.DATA.terms[term]) };
+/** The term of the stop: its name, and whether this device can read its definition. */
+export function stopTerm(s: Stop): { name: string; def: boolean } {
+  const c = state.CAT[s.cat], term = (c && c.term) || "";
+  return { name: term, def: !!state.DATA && hasDef(state.DATA.terms[term]) };
+}
+/** Where the term of the stop sits: the terms above it, and the divisions of it that the learner has met (src/domain/intro.ts, termTree). */
+export function stopTree(s: Stop) {
+  const c = state.CAT[s.cat], term = (c && c.term) || "";
+  return state.intro && state.DATA ? termTree(ix(), state.intro, term) : { up: [], kids: [], more: false };
 }

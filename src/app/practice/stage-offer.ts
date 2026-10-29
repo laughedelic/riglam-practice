@@ -76,7 +76,12 @@ export function closeStageUp() {
 /** "Stay on stage N a while longer": the stage does not come in now, and comes after a longer run of right answers. */
 export function stayOnStage() {
   const u = state.ui, up = u && u.up; if (!u || !up || !up.shown || up.stayed) return;
-  state.stageRun = stayLonger(state.stageRun); u.up = { ...up, stayed: true }; saveProgress(); render();
+  u.up = { ...up, stayed: true, was: state.stageRun }; state.stageRun = stayLonger(state.stageRun); saveProgress(); render();
+}
+/** Undo of "stay": the run is as it was, and the stage comes in at Next again (the station was seen, so it stays told). */
+export function undoStay() {
+  const u = state.ui, up = u && u.up; if (!u || !up || !up.stayed || !up.was) return;
+  state.stageRun = { ...up.was, told: true }; u.up = { stage: up.stage, shown: true, ...(up.first ? { first: true } : {}) }; saveProgress(); render();
 }
 /** Whether the stages move up by themselves (the default), or the learner moves them (the Stages page). */
 export const movesUp = (): boolean => !state.stageRun.manual;

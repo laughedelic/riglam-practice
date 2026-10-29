@@ -69,7 +69,7 @@ function List() {
   const stages = <Row lb="Stages" go={{ page: "stages" }}><b>Stages</b><small>{stagesLine()}</small></Row>;
   // the exercise's guided form (practice/guided.ts): on until the exercise has its right answers, then as set
   const guide = GUIDES[tab] ? <Switch lb="Guide" title="Guided" note={GUIDES[tab]!.on} on={guided(tab)} toggle={() => setGuided(tab, !guided(tab))} /> : null;
-  const foot = <p class="pnoteline" style={{ padding: "10px 18px 4px calc(var(--m) + 22px)" }}>The Magic Key, your account, data{tutor && state.learns ? ", sharing your examples" : ""} and the version are in <button type="button" class="pbtn" style={{ padding: 0 }} onClick={toSettings}>Settings</button>.</p>;
+  const foot = <p class="pnoteline" style={{ padding: "10px 18px 4px calc(var(--m) + 22px)" }}>The languages, the Magic Key, your account, data{tutor && state.learns ? ", sharing your examples" : ""} and the version are in <button type="button" class="pbtn" style={{ padding: 0 }} onClick={toSettings}>Settings</button>.</p>;
   if (tab === "instance") return <>
     <Switch lb="Hints" title="Suggest things" note="things the course knows, as you write" on={state.instSuggest} toggle={() => setInstanceSuggest(!state.instSuggest)} />
     {stages}{foot}</>;

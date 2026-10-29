@@ -119,7 +119,6 @@
 .pa .pdbody{font-size:15.5px; line-height:1.45}
 .pa .pdru{color:var(--ink2)}
 .pa .pdex{margin-top:4px; padding-top:6px; border-top:1px dotted var(--rule)}
-.pa .pdexh{font-family:var(--mono); font-size:11px; color:var(--ink2); letter-spacing:.04em; text-transform:uppercase; margin-bottom:2px}
 .pa .pdex ul{list-style:none; padding:0; display:flex; flex-direction:column; gap:2px}
 .pa .pdexr{display:flex; flex-wrap:wrap; align-items:baseline; gap:0 8px; width:100%; padding:3px 0; font-size:15px; line-height:1.4; text-align:left}
 .pa .pdexr small{font-family:var(--mono); font-size:11px; color:var(--ink3)}

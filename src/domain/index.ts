@@ -27,8 +27,10 @@ export type { FactRow, FactSource, FactState, Opinion, Ruling, Strength } from "
 export { DRAWN, cellExample, drawable, exampleStage, examplesFor, placeByClass, stageCounts, witnessesOf } from "./reference";
 export { DEFAULT_STAGES, DEFINITION_STAGE, GUIDE_RIGHT, HOLD_STAGE, MAX_STAGE, NEG_STREAK, STAGES, STAGE_LONGER, STAGE_STREAK, STAGE_STREAK_MAX, STAGE_STUMBLE, START_SHARE, catOpen, exerciseAfter, freshRun, guideTurnsOff, guidedOn, newShare, normExRuns, movedUp, normGuided, normRun, restartRun, runAfter, runNeed, setManual, stageOffer, stayLonger, catStage, heldBack, itemKnown, itemOn, itemStage, itemStageFor, negationOffer, newCategories, normStages, pairStage, physical, poolAt, stagesOfLevels, toggleStage, topStage } from "./stages";
 export type { ExerciseRun, MissKind, Negation, NegOutcome, Stage, StageRun, StagedEntry, Stages, Unmet } from "./stages";
-export { AGAIN_AFTER, FIRST_AFTER, GAP_DAYS, MISS_AFTER, SETTLED, SPACING, afterQuestion, againAsked, freshIntro, introduced, needsIntro, nextStop, normIntro, pairGraded, showAgain, stageMet, stageTerms, stageUp, stopShown, unmet } from "./intro";
-export type { Intro, IntroTerm, Stop, StopWhy } from "./intro";
+export { AGAIN_AFTER, FIRST_AFTER, GAP_DAYS, MISS_AFTER, SETTLED, SPACING, afterQuestion, againAsked, freshIntro, introduced, metTerms, needsIntro, nextStop, normIntro, pairGraded, showAgain, stageMet, stageTerms, stageUp, stopShown, termTree, unmet } from "./intro";
+export type { Intro, IntroTerm, Stop, StopWhy, TreeTerm } from "./intro";
+export { LANGS, NAME_LANGS, normLangs, termNames } from "./languages";
+export type { LangId, TermName } from "./languages";
 export type { Placement } from "./reference";
 export { lettersDirection, plainWords, spokenConfirm, spokenDirection, spokenDontKnow, spokenExample, spokenRelation, spokenReply } from "./spoken";
 export type { PairTerms, SpokenExample, SpokenReply } from "./spoken";
