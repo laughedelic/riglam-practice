@@ -17,6 +17,8 @@ const I: Record<string, string> = {
   arrow: '<path d="M4 12h15M13 6l6 6-6 6"/>',
   up: '<path d="M12 19V5M6 11l6-6 6 6"/>',
   close: '<path d="M6 6l12 12M18 6L6 18"/>',
+  locked: '<rect x="5" y="10.5" width="14" height="10" rx="1.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>',
+  unlocked: '<rect x="5" y="10.5" width="14" height="10" rx="1.5"/><path d="M8 10.5V7.5a4 4 0 0 1 7.7-1.5"/>',
   key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M16 7l2 2M14 9l2 2"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
   cross: '<path d="M7 7l10 10M17 7L7 17"/>',
@@ -67,7 +69,12 @@ export const Mark = ({ m }: { m: string }) => <span class={"mark " + m}><Icon n=
 export const Minis = ({ list }: { list: string[] }) => <span class="minis">{list.map((c) => <i class={c} />)}</span>;
 
 /** A toggle in the look's style; the row around it is the button. */
-export const Toggle = ({ on }: { on: boolean }) => <span class={"tg" + (on ? " on" : "")} aria-hidden="true"><i /></span>;
+/** A switch's mark. The look's `both` (the Design Lab's pick, 28 Oct): two diamonds, a hollow one and a small filled one beside it, which move toward each other until the
+ *  small one sits inside, so that off (the pair) and on (one figure) both stand in the middle of the mark's place; the other looks draw the older forms (37-path-panels.css). */
+export const Toggle = ({ on }: { on: boolean }) => currentLook().toggle === "both"
+  ? <svg class={"dtg" + (on ? " on" : "")} viewBox="0 0 40 22" aria-hidden="true">
+    <polygon class="dtb" points="20,2 29,11 20,20 11,11" /><polygon class="dts" points="20,6.5 24.5,11 20,15.5 15.5,11" /></svg>
+  : <span class={"tg" + (on ? " on" : "")} aria-hidden="true"><i /></span>;
 /** Words in a row: one of them pressed. */
 export function Words<T extends string | number>({ label, items, cur, on }: { label: string; items: [T, string][]; cur: T; on: (v: T) => void }) {
   return <span class="seg2" role="group" aria-label={label}>{items.map(([v, l]) =>

@@ -3,7 +3,7 @@
 // what they did on the classic page (known.spec.js, unlock.spec.js).
 import { test as plain, expect as plainExpect } from "@playwright/test";
 import { test, expect } from "../../support/test.js";
-import { dataKey, serveCourse, withCourse } from "../../support/data-key.js";
+import { serveCourse, withCourse } from "../../support/data-key.js";
 
 const onPath = () => { if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path"); if (localStorage.getItem("rd-start") === null) localStorage.setItem("rd-start", "exercise"); };
 const withKey = withCourse ? test : test.skip;
@@ -53,10 +53,9 @@ plain("the Magic Key prompt takes the Path's look, light and dark, and the class
   await page.goto("/");
   await plainExpect(page.locator("#path .chs .crow")).toHaveCount(5);
   const prompt = async () => {
-    // (Settings opened from the roadmap goes back to it, so the second time the roadmap is already there)
+    // the roadmap's Magic Key opens the prompt (Settings' Magic Key page takes the key in its own field)
     if (!(await page.locator(".road.on").count())) await page.locator(".tstn").click();
-    await page.locator(".road .rfoot").getByRole("button", { name: "Settings" }).click();
-    await page.getByRole("button", { name: "Enter the Magic Key" }).click();
+    await page.locator(".road .rfoot").getByRole("button", { name: "Magic Key" }).click();
     await plainExpect(page.locator("#unlock")).toBeVisible();
     plainExpect(await looks(page, "#unlock")).toEqual({ paper: true, ink: true, face: true, flat: true, quiet: true });
   };

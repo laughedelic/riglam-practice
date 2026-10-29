@@ -4,7 +4,7 @@ import { expect, test } from "vitest";
 import { DEFAULT_LOOK, lookClasses, lookLine, lookOf, palette, pastedLook } from "../../src/app/path/look.ts";
 
 // the line the owner copied from the lab, Version 21 (its picks are the app's defaults)
-const OWNER = '{"mode":"light","light":"ivory","dark":"slate","blue":"#3155a4","gold":"#faaf3f","green":"#4c8a63","red":"#b83545","purple":"#6f3f8f","purpleFor":"tutor","grain":"verdict,station","grainLevel":"soft","wait":"dots","font":"newsreader","hand":"kalam","tM":50,"tLw":2,"tSt":28,"tTn":34,"tHand":19,"choice":"margin","figs":"ink","ahead":"dot","next":"edge","edge":"fade","skip":"beside","why":"row","home":"road","sheet":"top","toggle":"nested","keys":"sim","phone":"tall","star":"pair","skip2":"slide","terms":"plain","ask":"row","tutorAuto":"off","abPos":"margin","cOn":"on","cSerif":"spectral","cHand":"pangolin","cBo":"notoserifTib","cSa":"notoserifDeva","cZh":"wenkai","words":"underline","starShape":"bookmark"}';
+const OWNER = '{"mode":"light","light":"ivory","dark":"slate","blue":"#3155a4","gold":"#faaf3f","green":"#4c8a63","red":"#b83545","purple":"#6f3f8f","purpleFor":"tutor","grain":"verdict,station","grainLevel":"soft","wait":"dots","font":"newsreader","hand":"kalam","tM":50,"tLw":2,"tSt":28,"tTn":34,"tHand":19,"choice":"margin","figs":"ink","ahead":"dot","next":"edge","edge":"fade","skip":"beside","why":"row","home":"road","sheet":"top","toggle":"both","keys":"sim","phone":"tall","star":"pair","skip2":"slide","terms":"plain","ask":"row","tutorAuto":"off","abPos":"margin","cOn":"on","cSerif":"spectral","cHand":"pangolin","cBo":"notoserifTib","cSa":"notoserifDeva","cZh":"wenkai","words":"underline","starShape":"bookmark"}';
 
 test("the defaults are the owner's picks in the lab, light or dark aside", () => {
   const picks = JSON.parse(OWNER);
@@ -47,7 +47,7 @@ test("the colors follow the ground: the inks are mixed into it, and lifted towar
 
 test("the switches are classes with the lab's names", () => {
   const cls = lookClasses(DEFAULT_LOOK, false);
-  expect(cls).toEqual(expect.arrayContaining(["ah-dot", "edge-fade", "figs-ink", "words-underline", "ab-margin", "tg-nested", "ch-margin", "why-row", "g-verdict", "g-station"]));
+  expect(cls).toEqual(expect.arrayContaining(["ah-dot", "edge-fade", "figs-ink", "words-underline", "ab-margin", "tg-both", "ch-margin", "why-row", "g-verdict", "g-station"]));
   expect(cls).not.toContain("dark");
   expect(lookClasses({ ...DEFAULT_LOOK, grain: "" }, true)).toContain("dark");
   expect(lookClasses({ ...DEFAULT_LOOK, grain: "" }, true).some((c) => c.startsWith("g-"))).toBe(false);

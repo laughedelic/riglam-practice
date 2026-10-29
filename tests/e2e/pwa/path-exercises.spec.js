@@ -174,7 +174,7 @@ test("Find a pair: the relation asked, two words, an example for each case, and 
   await station(page).click();
   const cell = page.locator("#cin");
   await expect(cell).toBeVisible();
-  for (let i = 0; i < 4 && (await cell.isVisible()); i++) {
+  for (let i = 0; i < 8 && (await cell.isVisible()); i++) {   // a case for each the relation has; an Enter that lands as the next case comes in takes another round
     await cell.fill("thing " + (i + 1));
     await cell.press("Enter");
   }
@@ -351,13 +351,13 @@ test("Find an instance: \"nothing is\" where the categories exclude each other, 
   expect((await saved(page, "instance"))[0]).toMatchObject({ cats: q.cats, possible: false, said: null, grade: "ok" });
 });
 
-test("Find an instance: Suggest things in the practice options turns the field's list off, and the device keeps it", async ({ page }) => {
+test("Find an instance: Guided in the practice options (things suggested as you write) turns the field's list off, and the device keeps it", async ({ page }) => {
   await open(page, "Find an instance");
   const field = page.locator("#iin");
   await expect(field).toHaveAttribute("list", "iin-things");
   await page.getByRole("button", { name: "Practice options" }).click();
-  const sheet = page.getByRole("dialog", { name: "Practice options" }), hints = sheet.getByRole("switch", { name: /^Suggest things/ });
-  await expect(sheet.getByRole("button", { name: "Stages: more" })).toBeVisible();   // the sets it asks follow the stages, as every exercise does
+  const sheet = page.getByRole("dialog", { name: "Practice options" }), hints = sheet.getByRole("switch", { name: "Guided" });
+  await expect(sheet.getByRole("button", { name: "Difficulty: more" })).toBeVisible();   // the sets it asks follow the stages, as every exercise does
   await expect(hints).toHaveAttribute("aria-checked", "true");
   await hints.click();
   await expect(hints).toHaveAttribute("aria-checked", "false");

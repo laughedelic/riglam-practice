@@ -149,8 +149,7 @@ test("Settings and Review opened from the roadmap go back to it, by the system B
   await expect(road(page)).toBeVisible();
   await expect.poll(() => level(page)).toBe(0);
   await road(page).getByRole("button", { name: "Settings" }).click();
-  await expect(page.locator("#stn")).toHaveAttribute("aria-label", "Back to the roadmap");
-  await page.locator("#stn").click();
+  await page.getByRole("button", { name: "Back to the roadmap", exact: true }).click();   // the top bar's chevron
   await expect(road(page)).toBeVisible();
   await expect.poll(() => level(page)).toBe(0);
   await road(page).getByRole("button", { name: /^Review/ }).click();
@@ -162,7 +161,7 @@ test("Settings and Review opened from the roadmap go back to it, by the system B
   await road(page).getByRole("button", { name: "Continue" }).click();
   await expect(choices(page)).toHaveCount(5);
   await page.getByRole("button", { name: "Practice options" }).click();
-  await page.locator("#path .pnoteline .pbtn", { hasText: "Settings" }).first().click();
+  await page.getByRole("button", { name: "Other app settings: more" }).click();
   await expect(heading(page)).toHaveText("Settings");
   await page.goBack();
   await expect(choices(page), "back to the exercise it was opened from").toHaveCount(5);

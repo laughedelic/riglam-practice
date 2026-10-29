@@ -2,7 +2,7 @@
 // the "#" (https://.../#k=lotus-river-candle-stone). Browsers never send that part to a server. The key is kept
 // on this device, so the app unlocks again without the link; the definitions it unlocks come from the server (./course.ts).
 import { parseMagicKey } from "../ai/magic-key";
-import { MAGIC_KEY_NOTE } from "../ui/magic-key-note";
+import { MAGIC_KEY_ABOUT, MAGIC_KEY_NOTE } from "../ui/magic-key-note";
 
 const KEY = "riglam.magicKey";
 const OLD_KEY = "riglam.dataKey"; // the key of the first design, a random string: it fits nothing now
@@ -49,6 +49,28 @@ export function forgetKey() {
 }
 
 /**
+ * Takes a key typed or pasted (words with spaces or dashes, in any case, or the whole link): `verify(key)` asks the server, and a key it opens the
+ * definitions with is kept and taken into the running page by `apply(key)`; with no `apply`, or when it fails or resolves false, the page is reloaded so it
+ * starts unlocked. Resolves with null when the key was taken, or with the sentence to show when it was not. The prompt below and Settings' Magic Key page use it.
+ */
+export async function takeKey(text: string, verify: (key: string) => Promise<string | null>, apply?: (key: string) => Promise<boolean>): Promise<string | null> {
+  const key = parseMagicKey(text);
+  if (!key) return "That does not look like a Magic Key, which is four words in a row.";
+  let why: string | null;
+  try {
+    why = await verify(key);
+  } catch {
+    why = "The server could not check the key just now. Try again later.";
+  }
+  if (why) return why;
+  storeKey(key);
+  let taken = false;
+  try { taken = (await apply?.(key)) ?? false; } catch { /* the reload below starts the page with the key */ }
+  if (!taken) location.reload();
+  return null;
+}
+
+/**
  * Tells a reader without a key how to get one, and takes the key if it is typed or pasted (words with spaces or dashes, in any
  * case, or the whole link). `verify(key)` asks the server and resolves with `null` when the key opens the definitions, or with the
  * sentence to show when it does not. The key is then kept and `apply(key)` takes it into the running page (resolving true), so what
@@ -68,8 +90,8 @@ export function showUnlock({ problem = null, verify, apply }: { problem?: string
     dlg.innerHTML = `<form method="dialog">
       <h2 id="unlock-h"><svg class="ico" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="8" cy="15" r="4.5"/><path d="M11.2 11.8 20 3m-4 4 3 3m-5.5-.5 2 2"/></svg>Enter the <button type="button" class="keyname" id="unlock-mk-btn" aria-expanded="false" aria-controls="unlock-mk">Magic Key</button></h2>
       <div class="pop" id="unlock-mk" hidden>${MAGIC_KEY_NOTE.map((t) => `<p>${t}</p>`).join("")}<button type="button" class="popx" id="unlock-mk-hide">Hide</button></div>
-      <p>The Magic Key is four words that come with the course. Entered once, it unlocks the course’s definitions and notes on this device, so terms show what they mean, and the explanations of the AI tutor, which use them.</p>
-      <p class="hint">Without it you can still practice. Ask your teacher or whoever shared the app with you.</p>
+      <p>${MAGIC_KEY_ABOUT[0]}</p>
+      <p class="hint">${MAGIC_KEY_ABOUT[1]}</p>
       <p id="unlock-err" class="err" role="alert" hidden></p>
       <input id="unlock-key" type="text" autofocus aria-label="Magic Key or link" placeholder="four words or the special link" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="text">
       <div class="row"><button type="submit" class="btn"><svg class="ico" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-1.9"/></svg>Unlock</button><button type="button" class="btn ghost" id="unlock-skip">Close</button></div>
@@ -88,22 +110,11 @@ export function showUnlock({ problem = null, verify, apply }: { problem?: string
     dlg.querySelector("#unlock-skip")!.addEventListener("click", () => dlg.close());
     dlg.querySelector("form")!.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const key = parseMagicKey(input.value);
-      if (!key) return say("That does not look like a Magic Key, which is four words in a row.");
       say("");
       const submit = dlg.querySelector<HTMLButtonElement>("button[type=submit]")!;
       submit.disabled = true;
-      let why: string | null;
-      try {
-        why = await verify(key);
-      } catch {
-        why = "The server could not check the key just now. Try again later.";
-      }
+      const why = await takeKey(input.value, verify, apply);
       if (why) { submit.disabled = false; return say(why); }
-      storeKey(key);
-      let taken = false;
-      try { taken = (await apply?.(key)) ?? false; } catch { /* the reload below starts the page with the key */ }
-      if (!taken) return location.reload();
       dlg.dataset.taken = "1";
       dlg.close();
     });
