@@ -234,6 +234,8 @@ test("Categories: the categories ticked on the path, the check, the most specifi
   if (right.length) await page.keyboard.press("Enter");   // the last one lifted keeps the focus where it lands, and Enter there checks (it does not drop it)
   else await station(page).click();   // Check is ready with nothing lifted
   await expect(verdict(page)).toContainText("All right");
+  await expect(page.locator("#path .thold.tres .chs.up .crow")).toHaveText(right.map((r) => new RegExp("^" + r.phrase)));   // the check keeps them where they were left, each marked
+  await expect(page.locator("#path .thold.tres .crow .mark")).toHaveCount(rows.length);
   if (await page.evaluate(() => !!window.__t.ui.narrow)) {
     await station(page).click();   // Continue
     const best = await page.evaluate(() => window.__t.ui.narrow.options.find((o) => o.cat === window.__t.ui.narrow.cat).phrase);
@@ -270,7 +272,11 @@ test("Categories: a tap lifts a category over the rule and back, reset drops the
   await expect(up).toHaveCount(0);
   await expect(down).toHaveCount(phrases.length);
   await station(page).click();
-  await expect(page.locator("#path .pgh").last()).toContainText("you left all of these unticked");
+  await expect(page.locator("#path .pscan")).toHaveCount(1);   // the Check slides up through the categories as every check does
+  await expect(page.locator("#path .thold .crow.scn")).not.toHaveCount(0);
+  await expect(verdict(page)).toBeVisible();
+  await expect(page.locator("#path .thold.tres .chs.up .crow")).toHaveCount(0);   // nothing over the rule: the answer was "none of these"
+  await expect(page.locator("#path .thold.tres .chs.down .crow")).toHaveCount(phrases.length);
   expect(await page.evaluate(() => window.__t.ui.g1.rows.filter((r) => r.picked).length)).toBe(0);
 });
 

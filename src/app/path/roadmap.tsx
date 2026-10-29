@@ -107,6 +107,7 @@ export function Roadmap() {
       </svg>
     </div>
     <Notice />
+    {state.leaveAsk ? <div class="rnote" role="status"><span>Back again to close</span></div> : null}
     {back ? <div class="rgo"><button type="button" class="lk rcont" onClick={() => toggleMenu(false)}>Continue<Icon n="chev" /></button></div> : null}
     <div class="rfoot">
       <button type="button" class="lk" onClick={() => setTab("review")}>Review · {n} today</button>

@@ -7,12 +7,12 @@ import { state } from "../state.js";
 import { advanceCategories, checkCategories, continueCategories, pickCategory, resetCategories, sayCategory, tickCategory } from "../categories/flow.js";
 import { next } from "../practice/queue.js";
 import { toggleOpts } from "../shell/options.js";
-import type { PlaceGraded, PlaceNarrow, PlaceQuestion, PlaceRow } from "../../domain/place.ts";
+import { gradePlace, type PlaceGraded, type PlaceNarrow, type PlaceQuestion, type PlaceResult, type PlaceRow } from "../../domain/place.ts";
 import { refreshPath } from "./index.tsx";
 import { Choices, ErrLines, SkipMark, StageOffer, Verdict, pickThen, u0 } from "./parts.tsx";
+import type { ScanPlan } from "./scan.tsx";
 import { Scroll } from "./scroll.tsx";
 import { Threshold } from "./threshold.tsx";
-import { TermTags } from "./terms.tsx";
 import { nextKind, nextName } from "./next.ts";
 import { Foot, PreStation, SkipSide, Station, TopBar } from "./shell.tsx";
 import { D, Gap, Head, Mark, St, Sx } from "./ui.tsx";
@@ -30,9 +30,9 @@ function Thing() {
 function CatRow({ row, one }: { row: PlaceGraded; one: boolean }) {
   const u = u0(), ok = row.ok, why = because(row), open = !ok || !!(u.pcat && u.pcat[row.cat]);
   const tag = row.picked && !row.answer ? (one ? "you said yes" : "you ticked") : !row.picked && row.answer ? (one ? "you said no" : "you missed") : "";
-  const body = <St d={<D cls={"sub " + (ok ? "ok" : "no")} />} cls={"sb exr catrow" + (ok ? "" : " wrong")}>
+  const body = <div class={"st sb exr catrow" + (ok ? "" : " wrong")} data-mk={row.cat}><D cls={"sub " + (ok ? "ok" : "no")} /><div class="ptx">
     <div class="line1"><b class="catp">{row.phrase}</b><Mark m={ok ? "ok" : "no"} />{tag ? <span class="ctag">{tag}</span> : null}</div>
-    {why && open ? <p class="xnote">{why}</p> : null}</St>;
+    {why && open ? <p class="xnote">{why}</p> : null}</div></div>;
   if (ok && why) return <button type="button" class="sbb" aria-expanded={open ? "true" : "false"} onClick={() => { u.pcat = { ...(u.pcat || {}), [row.cat]: !open }; refreshPath(); }}>{body}</button>;
   return body;
 }
@@ -47,6 +47,40 @@ function Split({ one }: { one: boolean }) {
       {rows.slice().sort((a, b) => Number(a.ok) - Number(b.ok)).map((r) => <CatRow row={r} one={one} />)}</Sx>;
   })}</>;
 }
+/** The verdict of step 1 as the result's node says it. */
+function verdictOf(g: PlaceResult): { v: "ok" | "no" | "pt"; word: string } {
+  return { v: g.ok ? "ok" : g.right ? "pt" : "no", word: g.ok ? "All right" : g.right + " of " + g.rows.length + " right" };
+}
+/** How far under the top the thing stands on the result's page; the scan folds the heading away until it stands there (push.ts `foldBefore`). */
+const RESULT_TOP = 12;
+/** What the scan of the Check marks on its way up (scan.tsx): every category where it stands, the ones over the rule first (the page's order), graded as the check will
+ *  grade them; it ends under the thing, where the result's node will be. */
+function scanPlan(): ScanPlan {
+  const t = q(), u = u0(), g = gradePlace(t, u.ticked), by = new Map(g.rows.map((r) => [r.cat, r]));
+  const order = [...t.rows.filter((r) => u.ticked.includes(r.cat)), ...t.rows.filter((r) => !u.ticked.includes(r.cat))];
+  const { v, word } = verdictOf(g);
+  return { cases: order.map((r) => (by.get(r.cat)!.ok ? "ok" : "no")), rel: v, v, word, sub: "", stop: ".cstop", rows: ".thold .crow" };
+}
+/** One category of the result in the threshold's form: on the line when it is over the rule, beside it under the rule, with its mark, what the learner did and the reason. */
+function ResRow({ row, on }: { row: PlaceGraded; on: boolean }) {
+  const u = u0(), ok = row.ok, why = because(row), open = !ok || !!(u.pcat && u.pcat[row.cat]);
+  const tag = row.picked && !row.answer ? "you lifted it" : !row.picked && row.answer ? "you left it under" : "";
+  const cls = "crow cres" + (on ? " on" : "") + (ok ? "" : " wrong");
+  const inner = <><span class="mc"><D cls={"sub " + (ok ? "ok" : "no")} /></span><span class="ct"><span class="line1"><b>{row.phrase}</b><Mark m={ok ? "ok" : "no"} />{tag ? <span class="ctag">{tag}</span> : null}</span>
+    {why && open ? <span class="xnote">{why}</span> : null}</span></>;
+  if (ok && why) return <button type="button" class={cls} data-mk={row.cat} aria-expanded={open ? "true" : "false"} onClick={() => { u.pcat = { ...(u.pcat || {}), [row.cat]: !open }; refreshPath(); }}>{inner}</button>;
+  return <div class={cls} data-mk={row.cat}>{inner}</div>;
+}
+/** The check of step 1 in the threshold's form, the categories where the learner left them (the Design Lab's B, "As you left them"): over the rule what was lifted, under it the rest,
+ *  each with its mark; the tag and the reason under a wrong one say which side it belongs on. */
+function Settled() {
+  const rows = u0().g1.rows as PlaceGraded[], up = rows.filter((r) => r.picked), down = rows.filter((r) => !r.picked);
+  return <div class="thold tres">
+    <Sx cls={"walked" + (up.length ? "" : " thempty")}><span class="thh" aria-hidden="true">is</span>{up.length ? <div class="chs up">{up.map((r) => <ResRow row={r} on />)}</div> : null}</Sx>
+    <Sx cls="walked thx"><span class="thl" /></Sx>
+    {down.length ? <Sx cls="walked"><span class="thh" aria-hidden="true">not</span><div class="chs down">{down.map((r) => <ResRow row={r} on={false} />)}</div></Sx> : null}
+  </div>;
+}
 /** What step 2 says when it was not asked. */
 function skipNote() {
   const t = q();
@@ -58,13 +92,13 @@ function TickStep() {
   const u = u0(), t = q(), n = u.ticked.length;
   return <>
     <Scroll>
-      <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Categories" sub="which of these is it?" aside={<SkipMark />} /><Gap h={6} /><Thing /><Gap h={4} /></Sx>
-      <TermTags asked={t.rows.map((r) => ({ cat: r.cat }))} />
+      <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Categories" sub="which of these is it?" aside={<SkipMark />} /><Gap h={6} /><Thing />
+        <div class="cstop" data-keep={String(RESULT_TOP)} aria-hidden="true"><i class="d" /></div></Sx>
       <Threshold label="Categories the thing is in" items={t.rows.map((r, i) => ({ k: r.cat, b: r.phrase, key: String(i + 1) }))} picked={u.ticked} onPick={tickCategory} onReset={resetCategories} />
       <Sx cls="ptail" />
     </Scroll>
     <Foot aux={<SkipSide />}>
-      <Station kind="chk" name="Check" hint={!n ? "none of these" : n === 1 ? "one category" : n + " categories"} act={() => checkCategories(true)} />
+      <Station kind="chk" name="Check" hint={!n ? "none of these" : n === 1 ? "one category" : n + " categories"} act={() => checkCategories(true)} scan={scanPlan} />
     </Foot>
   </>;
 }
@@ -77,7 +111,6 @@ function OneStep() {
           return <St d={<D cls={"sub " + (ok ? "ok" : "no")} />} cls={"sb exr catrow" + (ok ? "" : " wrong")}><div class="line1"><b class="catp">{r.phrase}</b><span class="ctag">{said ? "yes" : "no"}</span><Mark m={ok ? "ok" : "no"} /></div>
             {ok ? null : <p class="xnote">{because(r)}</p>}</St>; })}
         <St d={<D cls="sub now" />} cls="sb now"><p class="qst" id="catq">Is {t.thing.n} {row.phrase}?</p></St><Gap h={4} /></Sx>
-      <TermTags asked={[{ cat: row.cat }]} />
       <Choices label={"Is " + t.thing.n + " " + row.phrase + "?"} items={[{ k: "y", b: "Yes", key: "Y" }, { k: "n", b: "No", key: "N" }]} onPick={(k) => sayCategory(k === "y")} />
       {u.i < t.rows.length - 1 ? <Sx cls="gap later"><St d={<D cls="sub" />} cls="sb later"><span class="lab">{t.rows.length - u.i - 1} more</span></St></Sx> : null}
       <Sx cls={"ptail" + (u.i < t.rows.length - 1 ? " dtail" : "")} />
@@ -88,12 +121,12 @@ function OneStep() {
 /** Step 1 checked: the verdict on it, the two groups, and the way on (step 2, or the next thing when step 2 is not asked). */
 function CheckedStep() {
   const u = u0(), g = u.g1, n: PlaceNarrow | null = u.narrow, one = u.ask !== "all";
-  const v = g.ok ? "ok" : g.right ? "pt" : "no";
+  const { v, word } = verdictOf(g);
   return <>
     <Scroll>
-      <Sx cls="walked first"><Gap h={14} /><Head d={<D cls="sec done" />} h="1 Categories" sub="checked" /><Gap h={6} /><Thing /><Gap h={4} /></Sx>
-      <Verdict v={v} word={g.ok ? "All right" : g.right + " of " + g.rows.length + " right"} sub={u.checked ? "step 2 is not asked" : "step 1 of 2"} />
-      <Split one={one} />
+      <Sx cls="walked first"><Gap h={RESULT_TOP} /><Thing /><Gap h={6} /></Sx>
+      <Verdict v={v} word={word} sub={u.checked ? "step 2 is not asked" : "step 1 of 2"} />
+      {one ? <Split one /> : <Settled />}
       {u.checked ? <Sx cls="walked"><p class="pnoteline pfnote">{skipNote()}</p></Sx> : !g.ok && n ? <Sx cls="walked"><p class="pnoteline pfnote">Step 2 uses the corrected set: {n.options.map((r) => r.phrase).join(", ")}.</p></Sx> : null}
       {u.checked ? <StageOffer /> : null}
       <ErrLines />

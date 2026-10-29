@@ -57,7 +57,6 @@ export function playTake(root: HTMLElement, stn: HTMLElement, lift: number, act:
   const bOff = br ? br.top + br.height / 2 - hr.top : 14;
   const ayC = Math.max(head.offsetTop + bOff, sc.scrollTop + 18);                 // the bullet's y in the scroll's content
   const ayV = ayC - sc.scrollTop + scr.top;                                          // and on the screen
-  const cn = stn.closest<HTMLElement>(".cnode"); if (cn) cn.style.animation = "none";   // a Check that is still sliding in is where it is going
   const gr = go.getBoundingClientRect(), go0 = gr.top + gr.height / 2 + lift;       // the station's diamond, at rest (in the foot, or on the page under the last example)
   const R = Math.max(lift + 8, go0 - ayV);                                          // how far the station rides
   const t0 = performance.now();
