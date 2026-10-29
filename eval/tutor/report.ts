@@ -1,10 +1,13 @@
 // Sums up eval runs (run.ts) per config: how often the tutor's facts match the labels, the errors by kind, the form rules, cost and time.
 // The interval is a bootstrap over cases (95%), so it shows whether two configs differ by more than the noise.
 //
-//   node .cache/eval/report/report.js data-private/eval/runs/*.jsonl [--split train|test] [--md out.md]
+//   node .cache/eval/report.js data-private/eval/runs/*.jsonl [--split train|test] [--md out.md] [--regrade]
+//
+// --regrade grades the stored answers again with today's cases and labels, so a corrected label costs no new call.
 import { readFileSync, writeFileSync } from "node:fs";
 import { splitOf } from "./split";
-import type { Grade } from "./grade";
+import { gradeReply, type Grade } from "./grade";
+import { loadCases } from "./load";
 
 interface Line { case: string; mode: string; config: string; rep: number; ms: number; outcome: string; micro: number; text: string; grade: Grade }
 const args = process.argv.slice(2);
@@ -12,6 +15,10 @@ const flag = (n: string) => { const i = args.indexOf(n); return i >= 0 ? args[i 
 const files = args.filter((a, i) => !a.startsWith("--") && !(i > 0 && args[i - 1].startsWith("--")));
 const split = flag("--split");
 const lines: Line[] = files.flatMap((f) => readFileSync(f, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l) as Line)).filter((l) => !split || splitOf(l.case) === split);
+if (args.includes("--regrade")) {
+  const byId = new Map(loadCases().map((c) => [c.id, c]));
+  for (const l of lines) { const c = byId.get(l.case); if (c && l.text) l.grade = gradeReply(c, l.text); }
+}
 
 const pct = (x: number) => (100 * x).toFixed(1) + "%";
 const q = (xs: number[], p: number) => { const s = [...xs].sort((a, b) => a - b); return s.length ? s[Math.min(s.length - 1, Math.floor(p * s.length))] : 0; };

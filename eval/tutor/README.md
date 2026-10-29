@@ -41,7 +41,9 @@ The kit needs the course data in `data-private/` as for the artifact build (`def
 npm run eval:selftest                  # builds the kit and the cases, grades a known answer; no API call
 npm run eval:tutor -- --dry            # the cases and the first request
 ANTHROPIC_API_KEY=... npm run eval:tutor -- --configs claude-sonnet-5-5:medium,claude-haiku-5-5:medium --repeats 3 --out data-private/eval/runs/base.jsonl
-npm run eval:report -- data-private/eval/runs/base.jsonl [--split test] [--md report.md]
+npm run eval:report -- data-private/eval/runs/base.jsonl [--split test] [--md report.md] [--regrade]
 ```
 
 `--budget <USD>` (default 30) stops starting new calls once that much is spent. A line already in `--out` is skipped, so a run that stopped goes on where it left off.
+
+`--regrade` grades the stored answers again against today's labels, so correcting a label after a run needs no new call.
