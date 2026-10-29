@@ -35,10 +35,10 @@ export function readings(text: string): Reading[] {
   return out;
 }
 
-/** The cell an answer gives to an example: its first definite reading, else null (the answer is unsure, or does not mention the example). */
+/** The cell an answer gives to an example: its last definite reading (a line written again to correct the first is the one the page's note shows), else null (the answer is unsure, or does not mention the example). */
 export function cellFor(rs: readonly Reading[], example: string): CellId | null {
   const k = norm(example);
-  return rs.find((r) => norm(r.example) === k && r.cell)?.cell ?? null;
+  return [...rs].reverse().find((r) => norm(r.example) === k && r.cell)?.cell ?? null;
 }
 
 /** One example across the answers: where it stood, and the cell each answer gave it (null: unsure; missing: the answer did not mention it). */

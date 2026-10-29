@@ -5,6 +5,7 @@
 // is shared by all of them: each Path draw keeps one Pull, on its root. A station that can be taken is pulled over a curb (below), and taking it plays the
 // ride of take.ts.
 import { currentLook } from "./look.ts";
+import { clearPush, holdPush, playPush } from "./push.ts";
 import { playScan, type ScanPlan } from "./scan.tsx";
 import { canTake, foldPage, playTake } from "./take.ts";
 
@@ -20,7 +21,9 @@ const SILL = 4;
 export const SLIDE = 96;
 
 /** The hand's feel of crossing the reach: a bump, as of a curb under a wheel (one short knock, no buzz). */
-const bump = (ms = HIT) => { try { if (navigator.vibrate) navigator.vibrate(ms); } catch { /* no haptics */ } };
+const bump = (ms = HIT) => { try { if (navigator.vibrate) { knocks.sent++; if (!navigator.vibrate(ms)) knocks.refused++; } } catch { /* no haptics */ } };
+/** What the bump has done since the page opened, for Settings to show: knocks sent, and those the browser refused (it says so by returning false). */
+export const knocks = { sent: 0, refused: 0 };
 export { bump };
 
 /**
@@ -70,10 +73,22 @@ export class Pull {
   hold = false;
   after: (() => void) | null = null;
   /** the verdicts the Check of the examples marks as it slides up (scan.tsx), set by that station on every draw; null elsewhere */
-  scan: (() => ScanPlan) | null = null;
+  scan: (() => ScanPlan | null) | null = null;
   peekT: ReturnType<typeof setTimeout> | undefined;
+  /** under the look's `ride: push` the page follows the station over its curb (push.ts): the stop of that following, and whether the page is pushed or folded by it now */
+  private pusher: (() => void) | null = null;
+  private pushed = false;
 
   private q<T extends HTMLElement = HTMLElement>(sel: string) { return this.root ? this.root.querySelector<T>(sel) : null; }
+
+  /** The page follows the station over the curb (`on`) or goes back to its place (the Check of the examples does not push: its scanner passes over the page as it is). */
+  private follow(on: boolean) {
+    if (!this.root || currentLook().ride !== "push" || (this.scan && currentLook().check !== "ride")) return;
+    this.unfollow();
+    if (on) { this.pusher = holdPush(this.root); this.pushed = true; } else if (this.pushed) { this.pushed = false; clearPush(this.root); }
+  }
+  /** The following stops (what it has done stays). */
+  private unfollow() { if (this.pusher) { this.pusher(); this.pusher = null; } }
 
   /** A station that is not ready rises a little and shows why. */
   peek(el: HTMLElement | null, bump = true) {
@@ -92,7 +107,7 @@ export class Pull {
     if (curb) {
       const c = this.curb || (this.curb = curbNew()), ev = curbMove(c, raw);
       dy = c.y; past = c.over;
-      if (ev) { bump(ev === "over" ? HIT : 6); foldPage(this.root, c.over); }
+      if (ev) { bump(ev === "over" ? HIT : 6); foldPage(this.root, c.over); this.follow(c.over); }
     } else {
       dy = path ? raw * RESIST : stn ? (raw < LINE ? raw : LINE + (raw - LINE) * 0.35) : Math.min(STOP, raw < 12 ? raw : 12 + (raw - 12) * 0.3);
       if (path || !stn) dy = Math.min(dy, this.room(el, foot));
@@ -127,13 +142,19 @@ export class Pull {
       this.busy = true; this.hold = true;
       const go = () => { this.hold = false; act(); if (this.after) this.after(); }, settle = () => { this.busy = false; this.curb = null; this.past = false; this.dy = 0; if (this.hold) { this.hold = false; if (this.after) this.after(); } };
       let plan: ScanPlan | null;
-      try { plan = this.scan && currentLook().check === "scan" ? this.scan() : null; } catch { plan = null; }
+      const look = currentLook();
+      try { plan = this.scan && look.check !== "ride" ? this.scan() : null; } catch { plan = null; }
       // with the keyboard's layout up the scan opens the page first: the field is let go and the layout is the page's again at its start
       const root = this.root, open = plan && root.classList.contains("kbup") ? () => { this.hold = false; const a = document.activeElement; if (a instanceof HTMLElement && a.classList.contains("pfield")) a.blur(); if (this.after) this.after(); } : null;
-      if (plan) playScan(root, stn, plan, go, settle, open); else playTake(root, stn, this.dy, go, settle);
+      this.unfollow(); this.pushed = false;
+      if (plan) playScan(root, stn, plan, go, settle, open, look.check === "morph");
+      else if (look.ride === "push") playPush(root, stn, this.dy, go, settle, { recoil: look.land === "recoil" });
+      else playTake(root, stn, this.dy, go, settle);
       return true;
     }
-    if (this.curb) { if (this.curb.over) foldPage(this.root, false); this.curb = null; }
+    this.unfollow();
+    if (this.curb) { if (this.curb.over) { foldPage(this.root, false); if (this.pushed) clearPush(this.root); } this.curb = null; }
+    this.pushed = false;
     this.dy = 0;
     if (el) { el.classList.remove("dragging"); el.style.transform = ""; }
     if (riser) riser.style.display = "";
@@ -142,6 +163,19 @@ export class Pull {
     if (sp && !go) this.peek(sp, tapped);
     if (go && this.act) { this.act(); return true; }
     return false;
+  }
+  /**
+   * A step that a choice takes, not a station (Pervasions' relation: the answers are checked as it is picked), taken with the scan: the scanner leaves the foot's station, marks what was
+   * answered on its way up (`plan`), and becomes the result's node, and `act` takes the step. False when there is no scan to play (the caller takes the step itself).
+   */
+  scanPick(plan: () => ScanPlan | null, act: () => void): boolean {
+    const root = this.root, stn = this.q("#stnp, #stn"), look = currentLook();
+    if (this.busy || !root || !stn || look.check === "ride" || !canTake(root)) return false;
+    let p: ScanPlan | null; try { p = plan(); } catch { p = null; }
+    if (!p) return false;
+    this.busy = true; this.unfollow(); this.pushed = false;
+    playScan(root, stn, p, act, () => { this.busy = false; this.curb = null; this.past = false; this.dy = 0; }, null, look.check === "morph");
+    return true;
   }
   /** The station taken without a pull (a tap, Enter): the ride, or the step at once. */
   take(): boolean { if (this.busy || !this.act) return false; return this.end(true); }

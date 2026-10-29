@@ -1,5 +1,5 @@
 // The roadmap: every exercise as a stop on a tree, pulled down from the top bar (the Path's menu). Each exercise shows today's last answers as
-// small diamonds, "continue" when an attempt waits in it, and the planned ones (Consequences, Debate) are dashed. Its foot goes to Review and
+// small diamonds, "continue" when an attempt waits in it, and the planned one (Debate, which Pervasions and Syllogisms lead to) is dashed. Its foot goes to Review and
 // Settings, the Magic Key while this device has none, and the version with the way to update.
 import { useEffect, useRef } from "preact/hooks";
 import { state } from "../state.js";
@@ -11,13 +11,11 @@ import { setTab } from "../shell/tabs.js";
 import { Icon, Knob, dia } from "./ui.tsx";
 
 const BRAND = '<polygon points="256,61 371,177 256,292 141,177" fill="#faaf3f"/><polygon points="256,162 400,306 256,451 112,306" fill="#3155a4"/><polygon points="321,227 256,292 191,227 256,162" fill="#4c8a63"/>';
-// where each stop stands on the tree, and what it says under its name
-const PLACES: Record<string, { x: number; y: number; lines: string[] }> = {
-  practice: { x: 74, y: 206, lines: ["how two", "terms relate"] }, debate: { x: 74, y: 298, lines: ["if A,", "is it B?"] }, find: { x: 74, y: 390, lines: ["terms for", "a relation"] },
-  syllogism: { x: 196, y: 250, lines: ["accept, or", "say why not"] }, categories: { x: 316, y: 206, lines: ["what applies", "to a thing"] },
-  instance: { x: 316, y: 298, lines: ["a thing that", "is all of them"] },
+// where each stop stands on the tree: a stop's name, and "continue" under it, are 54 px tall, and the line to the stop below starts under them
+const PLACES: Record<string, { x: number; y: number }> = {
+  practice: { x: 74, y: 198 }, find: { x: 74, y: 282 }, debate: { x: 74, y: 366 }, syllogism: { x: 196, y: 282 }, categories: { x: 316, y: 198 }, instance: { x: 316, y: 282 },
 };
-const PLANNED = [{ k: "cons", name: "Consequences", x: 196, y: 342 }, { k: "debate-planned", name: "Debate", x: 258, y: 454 }];
+const PLANNED = { name: "Debate", x: 135, y: 480 };
 const MINI: Record<string, string> = { ok: "ok", part: "part", bad: "bad", pend: "pend" };
 
 /** Today's answers in an exercise, oldest first. */
@@ -35,16 +33,15 @@ function openSettings() { state.menuOpen = false; state.menuPeek = false; state.
 function Node({ k, name }: { k: string; name: string }) {
   const at = PLACES[k];
   const cur = state.tab === k && !state.optsOpen, cont = !cur && parked(k), c = cur ? "cur" : "";
-  const vs = todayOf(k).slice(-4), lines = at.lines;
+  const vs = todayOf(k).slice(-4);
   const act = () => go(k);
   return <g role="button" tabIndex={0} aria-label={name + (cur ? ", here" : cont ? ", continue" : "")} aria-current={cur ? "page" : undefined}
     onClick={act} onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); act(); } }}>
-    <rect class="hit" x={at.x - 56} y={at.y - 12} width="112" height="70" />
+    <rect class="hit" x={at.x - 56} y={at.y - 12} width="112" height="66" />
     <polygon class={"nd " + c} points={dia(at.x, at.y, 9)} />
     {vs.map((v, i) => <polygon class={"rm " + v} points={dia(at.x + 20 + i * 11, at.y, 3.6)} />)}
     <text class={"en " + c} x={at.x} y={at.y + 28} text-anchor="middle">{name}</text>
-    {lines.map((t, i) => <text class="ed" x={at.x} y={at.y + 44 + i * 15} text-anchor="middle">{t}</text>)}
-    {cont ? <text class="ed cont" x={at.x} y={at.y + 44 + lines.length * 15} text-anchor="middle">continue</text> : null}
+    {cont ? <text class="ed cont" x={at.x} y={at.y + 44} text-anchor="middle">continue</text> : null}
   </g>;
 }
 function Planned({ name, x, y }: { name: string; x: number; y: number }) {
@@ -76,19 +73,15 @@ export function Roadmap() {
   const n = todayCount().n;
   return <div ref={box} class={"road" + (on ? " on" : "")} role="dialog" aria-modal="true" aria-label="Roadmap" aria-hidden={on ? "false" : "true"} inert={!on}>
     <div class="rbody">
-      <svg class="tree" viewBox="0 0 390 506" role="group" aria-label="The exercises">
+      <svg class="tree" viewBox="0 0 390 530" role="group" aria-label="The exercises">
         <svg x="176" y="10" width="38" height="50" viewBox="100 50 312 412" aria-hidden="true" dangerouslySetInnerHTML={{ __html: BRAND }} />
         <text class="bn" x="195" y="92" text-anchor="middle">riglam</text>
         <path class="ln" d="M195 102 V124" />
-        <path class="ln" d="M195 124 C195 142 74 136 74 156" /><path class="ln" d="M195 124 V156" /><path class="ln" d="M195 124 C195 142 316 136 316 156" />
-        <path class="lnp" d="M195 124 C195 150 258 140 258 172 V308 M258 334 V404" />
-        <text class="gl" x="74" y="172" text-anchor="middle">TWO TERMS</text><text class="gl" x="196" y="172" text-anchor="middle">THREE TERMS</text><text class="gl" x="316" y="172" text-anchor="middle">ONE EXAMPLE</text>
-        <text class="gl" x="258" y="420" text-anchor="middle">DEBATE</text>
-        <path class="ln" d="M74 180 V196" /><path class="ln" d="M74 272 V288" /><path class="ln" d="M74 364 V380" />
-        <path class="ln" d="M195 180 V240" /><path class="lnp" d="M196 316 V332" />
-        <path class="ln" d="M316 180 V196" /><path class="ln" d="M316 272 V288" /><path class="lnp" d="M258 428 V444" />
+        <path class="ln" d="M195 124 C195 142 74 136 74 156 V189" /><path class="ln" d="M195 124 V273" /><path class="ln" d="M195 124 C195 142 316 136 316 156 V189" />
+        <path class="ln" d="M74 252 V273" /><path class="ln" d="M74 336 V357" /><path class="ln" d="M316 252 V273" />
+        <path class="lnp" d="M74 420 C74 452 135 440 135 471" /><path class="lnp" d="M196 336 V396 C196 452 135 440 135 471" />
         {EXERCISES.map((e) => <Node k={e.k} name={e.name} />)}
-        {PLANNED.map((p) => <Planned name={p.name} x={p.x} y={p.y} />)}
+        <Planned {...PLANNED} />
       </svg>
     </div>
     <div class="rfoot">

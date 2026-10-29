@@ -36,7 +36,13 @@ export function stages(travel: number, rise: number, row: boolean): Stage[] {
 }
 
 const get = (g: HTMLElement, n: string) => parseFloat(g.style.getPropertyValue("--" + n)) || 0;
-const put = (g: HTMLElement, n: string, v: number) => g.style.setProperty("--" + n, v.toFixed(4));
+/** The trail ahead under the choices (the tail section): it goes solid as the trace below the mark does, so it takes that stage as `--tx` (the thread turning solid for two
+ *  options on a row, the rise in a list). */
+const tailOf = (g: HTMLElement) => { const t = g.nextElementSibling; return t instanceof HTMLElement && t.classList.contains("ptail") ? t : null; };
+const put = (g: HTMLElement, n: string, v: number) => {
+  g.style.setProperty("--" + n, v.toFixed(4));
+  if (n === (g.dataset.fx === "row" ? "g" : "r")) { const t = tailOf(g); if (t) t.style.setProperty("--tx", v.toFixed(4)); }
+};
 const frames = new WeakMap<HTMLElement, number>();
 const STAGES = ["s", "f", "g", "n", "r"];
 const reduced = () => { try { return matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; } };
@@ -49,6 +55,7 @@ export function clearChoice(g: HTMLElement | null): void {
   cancelAnimationFrame(frames.get(g) || 0); frames.delete(g);
   delete g.dataset.fx; delete g.dataset.snap; delete g.dataset.run;
   for (const n of [...STAGES, "ox", "ry", "yp"]) g.style.removeProperty("--" + n);
+  tailOf(g)?.style.removeProperty("--tx");
   g.querySelectorAll<HTMLElement>(".crow[data-pk]").forEach((r) => delete r.dataset.pk);
 }
 /** The row is the one being taken: measures how far its mark is from the line (`--ox`), from the first row's mark (`--ry`) and from the top of the section (`--yp`). */
@@ -103,8 +110,8 @@ function slideBack(g: HTMLElement): void {
   cancelAnimationFrame(frames.get(g) || 0); frames.set(g, requestAnimationFrame(f));
 }
 
-/** Takes the choice `k` with the animation, then `done`: false when there is none to play (no sliding choices on the page, reduced motion), and the caller goes on its own. */
-export function takeChoice(k: string, done: () => void): boolean {
+/** Takes the choice `k` with the animation, then `done` (which answers true when the step is not taken yet: the choice is then left as it is): false when there is none to play (no sliding choices on the page, reduced motion), and the caller goes on its own. */
+export function takeChoice(k: string, done: () => boolean | void): boolean {
   if (reduced()) return false;
   const chs = document.querySelector<HTMLElement>("#path .chs.slide"), g = chs && gapOf(chs); if (!chs || !g) return false;
   const row = Array.from(chs.querySelectorAll<HTMLElement>(".crow")).find((r) => r.dataset.k === k); if (!row) return false;
@@ -112,7 +119,7 @@ export function takeChoice(k: string, done: () => void): boolean {
   if (!g.dataset.fx || !row.dataset.pk) mark(g, row);
   if (!g.dataset.fx) return false;
   // the step goes on (its draw is at once, or at the next frame: then the choice is cleared after it, so that no frame shows the choices back as they were)
-  run(g, () => { done(); if (state.pathQ) requestAnimationFrame(() => clearChoice(g)); else clearChoice(g); });
+  run(g, () => { if (done() === true) return; if (state.pathQ) requestAnimationFrame(() => clearChoice(g)); else clearChoice(g); });      // `true`: the step goes on later (a scan), the choice stays as it is until the page is swapped
   return true;
 }
 

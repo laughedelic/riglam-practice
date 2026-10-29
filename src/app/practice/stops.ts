@@ -34,6 +34,11 @@ export function gradeTerms(graded: { cat: string | null | undefined; ok: boolean
 }
 /** A pair's answer (Relations, Pervasions): a mistake counts against a term only when it is the pair's one course term (src/domain/intro.ts, pairGraded). */
 export const gradePair = (cats: (string | null | undefined)[], ok: boolean) => gradeTerms(pairGraded(ix(), cats, ok));
+/** The stop that Next would take now (the one `takeStop` would put on the answer on screen), or null: for a station that says what comes after it. */
+export function dueStop(): Stop | null {
+  const u = state.ui; if (!onPath() || !state.intro || !state.DATA || !u || u.stop) return null;
+  return nextStop(ix(), state.intro, state.stages, now());
+}
 /** Before the next question: the stop that is due, if any, goes on the answer on screen and counts as shown. Whether one did. */
 export function takeStop(): boolean {
   const u = state.ui; if (!onPath() || !state.intro || !state.DATA || !u || u.stop) return false;
