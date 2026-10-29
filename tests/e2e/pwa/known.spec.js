@@ -302,7 +302,7 @@ withKey("the switch in Settings tells the device's answer too, so no dialog foll
   await expect(page.getByText("not who wrote it, which pair it was for, or where you put it")).toBeVisible();
   // the server does not answer from what it learned here (no `known`), so the note does not promise it
   await expect(page.getByText("you still get answers learned from other people")).toHaveCount(0);
-  await expect(page.getByText("checked later without the AI")).toHaveCount(0); // nor that the same example is answered without the AI
+  await expect(page.getByText("checked later without Claude")).toHaveCount(0); // nor that the same example is answered without the AI
   await expect(share(page)).toHaveAttribute("aria-checked", "true");
   await share(page).click();
   await expect(share(page)).toHaveAttribute("aria-checked", "false");
@@ -376,7 +376,7 @@ withKey("where the server also answers from what it learned, the switch's note s
   await open(page, testInfo, { health: { ok: true, tutor: "on", known: "on", learns: "on" } });
   await openSettings(page);
   await expect(page.getByText("you still get answers learned from other people")).toBeVisible();
-  await expect(page.getByText("checked later without the AI")).toBeVisible();
+  await expect(page.getByText("checked later without Claude")).toBeVisible();
 });
 
 withKey("on a wide screen the dialog is in the middle of the window and answers the same", async ({ page }, testInfo) => {
