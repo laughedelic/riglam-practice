@@ -155,17 +155,21 @@ export const openTerms = (ix: DataIndex, intro: Intro, on: Stages): Set<string> 
 export interface TreeTerm { name: string; met: boolean }
 /**
  * Where a course term sits, for its stop: the terms above it, the broadest first, and below it its divisions that are course terms. Every term above is
- * named and marked met or not; of the divisions only the met ones are named, and `more` says that others will come, later. A division the course never
- * stops at is neither named nor counted: it would only promise something that does not come.
+ * named and marked met or not; of the divisions with a stop only the met ones are named, and `more` says that others will come, later. The divisions
+ * the course never stops at (primary and secondary color, the five sense powers: no plain thing defines them, so they are things of their parent, not
+ * categories) are `parts`, named from the start: there is nothing for them to wait for.
  */
-export function termTree(ix: DataIndex, intro: Intro, term: string): { up: TreeTerm[]; kids: string[]; more: boolean } {
+export function termTree(ix: DataIndex, intro: Intro, term: string): { up: TreeTerm[]; kids: string[]; more: boolean; parts: string[] } {
   const stops = new Map<string, Cat>();
   for (const c of courseTerms(ix)) stops.set(c.term!, c);
   const met = (n: string) => { const c = stops.get(n); return !c || introduced(intro, c); };
   const up = ((ix.DATA.chains || {})[term] || upChain(ix, term)).slice(1).reverse().map((name) => ({ name, met: met(name) }));
-  const below = Object.keys(ix.DATA.terms).filter((n) => ix.DATA.terms[n]!.parent === term && stops.has(n));
-  return { up, kids: below.filter(met), more: below.some((n) => !met(n)) };
+  const all = Object.keys(ix.DATA.terms).filter((n) => ix.DATA.terms[n]!.parent === term), below = all.filter((n) => stops.has(n));
+  return { up, kids: below.filter(met), more: below.some((n) => !met(n)), parts: all.filter((n) => !stops.has(n) && ix.DATA.terms[n]!.ch !== CROSS_CHECK) };
 }
+
+/** The chapter of the terms taken from Dampilon's tables, which are for cross-checking only: not divisions the course teaches. */
+const CROSS_CHECK = "Dampilon tables";
 
 const DAY = 864e5;
 

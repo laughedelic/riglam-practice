@@ -671,8 +671,8 @@ test("the real data: a thing whose name leaves the cell's quality open is asked 
 });
 
 test("the stages that are on: a stored value, switching one, the highest, and the old levels a device kept", () => {
-  expect(STAGES.map((s) => s.n)).toEqual(upToStage(9));
-  expect(MAX_STAGE).toBe(9);
+  expect(STAGES.map((s) => s.n)).toEqual(upToStage(11));
+  expect(MAX_STAGE).toBe(11);
   expect(STAGES.every((s) => s.name && s.adds)).toBe(true);
   expect(DEFAULT_STAGES).toEqual([1]);
   expect(normStages("1,2")).toEqual([1, 2]);
@@ -683,10 +683,10 @@ test("the stages that are on: a stored value, switching one, the highest, and th
   expect(toggleStage([1, 2], 3)).toEqual([1, 2, 3]);
   expect(toggleStage([1, 2, 3], 2)).toEqual([1, 3]);
   expect(toggleStage([2], 2), "the last stage on stays on").toEqual([2]);
-  // a device that drew the reference examples by level keeps every stage up to its top level's: level 1 is stage 6
-  expect(stagesOfLevels([1])).toEqual(upToStage(6));
-  expect(stagesOfLevels([1, 3])).toEqual(upToStage(8));
-  expect(stagesOfLevels([4])).toEqual(upToStage(9));
+  // a device that drew the reference examples by level keeps every stage up to its top level's: level 1 is stage 8
+  expect(stagesOfLevels([1])).toEqual(upToStage(8));
+  expect(stagesOfLevels([1, 3])).toEqual(upToStage(10));
+  expect(stagesOfLevels([4])).toEqual(upToStage(11));
   expect(stagesOfLevels([]), "nothing kept: a new device").toEqual([1]);
   expect(stagesOfLevels([0, 7])).toEqual([1]);
   // the levels themselves stay for the reference examples' own field and the tutor's lookup
@@ -694,15 +694,16 @@ test("the stages that are on: a stored value, switching one, the highest, and th
   expect(upTo(3)).toEqual([1, 2, 3]);
 });
 
-test("the real data: a newly opened category's definition shows with the question up to stage 3, and only for a Dudra term", () => {
+test("the real data: a newly opened category's definition shows with the question up to stage 4, and only for a Dudra term", () => {
   const everyday = real.cats.find((c) => c.kind === "everyday")!.id;
-  expect(DEFINITION_STAGE).toBe(3);
+  expect(DEFINITION_STAGE).toBe(4);
   expect(newCategories(rix, ["form", everyday], [1]), "Form opens at stage 1; an everyday category has no definition").toEqual(["form"]);
   expect(newCategories(rix, ["form", "col"], [1, 2]), "only the one that opens at the highest stage on").toEqual(["col"]);
   expect(newCategories(rix, ["col", "shape"], [2])).toEqual(["col", "shape"]);
   expect(newCategories(rix, ["col", "col"], [2]), "once each").toEqual(["col"]);
   expect(newCategories(rix, ["snd", "form"], [1, 3])).toEqual(["snd"]);
-  expect(newCategories(rix, ["ft", "form"], [1, 2, 3, 4]), "from the established bases on, a tap away").toEqual([]);
+  expect(newCategories(rix, ["earth", "tng"], upToStage(4)), "the elements, still things of the senses").toEqual(["earth"]);
+  expect(newCategories(rix, ["ft", "form"], upToStage(5)), "from the established bases on, a tap away").toEqual([]);
   expect(newCategories(rix, ["form", null], [1])).toEqual(["form"]);
   expect(newCategories(rix, ["nope", "form"], [2]), "an unknown id, and Form is not new at stage 2").toEqual([]);
   expect(newCategories(rix, ["form", "col", "shape", "extf", everyday], [1, 2]), "the categories Categories asks about").toEqual(["col", "shape", "extf"]);
@@ -713,7 +714,8 @@ test("a term is introduced before it is asked about: everyday questions first, t
   expect(stageTerms(rix, 1), "each category's term, then the terms its labels name (matter)").toEqual(["form", "form:Matter"]);
   expect(stageTerms(rix, 2)).toEqual(["extf", "extf:External matter", "col", "shape", "vis"]);
   expect(stageTerms(rix, 3)).toEqual(["snd", "odr", "tst", "tng"]);
-  expect(stageTerms(rix, 7), "the upper stages open no categories").toEqual([]);
+  expect(stageTerms(rix, 4), "a division right after its parent").toEqual(["elem", "earth", "water", "fire", "wind", "arisen"]);
+  expect(stageTerms(rix, 9), "the upper stages open no categories").toEqual([]);
   let it = freshIntro();
   expect([...unmet(rix, it, [1])]).toEqual(["form", "form:Matter"]);
   expect(introduced(it, rix.CAT.form!)).toBe(false);
@@ -762,16 +764,24 @@ test("the terms met so far are the ones whose stop has come, the lowest stage fi
   expect(metTerms(rix, { ...it, terms: { ...it.terms, [id("Shape")]: { box: 0, shows: 0 } } }).map((c) => c.term), "a term at box 0 is not met").not.toContain("Shape");
 });
 
-test("a stop shows where its term sits: every term above it, those whose own stop has not come yet marked, and only the divisions met, with a sign of more to come", () => {
+test("a stop shows where its term sits: every term above it, those whose own stop has not come yet marked, only the divisions met, with a sign of more to come, and the divisions without a stop", () => {
   const T0 = "2026-10-24T12:00:00.000Z", id = (term: string) => real.cats.find((c) => c.term === term)!.id;
   let it = freshIntro();
   let tree = termTree(rix, it, "Color");
   expect(tree.up.map((t) => t.name), "the broadest first, down to the term's parent").toEqual(["Existent", "Functional thing", "Form", "External form", "Form source"]);
   expect(tree.up.map((t) => t.met), "Existent has no stop of its own to wait for; the others have not come yet").toEqual([true, false, false, false, false]);
-  expect(tree.kids, "the divisions of Color are not course terms: nothing to name, nothing to promise").toEqual([]);
+  expect(tree.kids, "the divisions of Color have no stops: nothing to wait for").toEqual([]);
   expect(tree.more).toBe(false);
+  expect(tree.parts, "they are named from the start").toEqual(["Primary color", "Secondary color"]);
+  expect(termTree(rix, it, "Sense power").parts).toEqual(["Eye sense power", "Ear sense power", "Nose sense power", "Tongue sense power", "Body sense power"]);
+  expect(termTree(rix, it, "Consciousness").parts, "the divisions of Dampilon's tables are for cross-checking only").toEqual([]);
+  expect(termTree(rix, it, "Form").parts, "every division of form has a stop").toEqual([]);
   for (const t of ["Form", "External form"]) it = stopShown(it, id(t), T0);
   expect(termTree(rix, it, "Color").up.map((t) => t.met)).toEqual([true, false, true, true, false]);
+  // the elements are: the class's stop promises its four
+  expect(termTree(rix, it, "Tangible object which is an element")).toMatchObject({ kids: [], more: true });
+  for (const t of ["Earth", "Water", "Fire", "Wind"]) it = stopShown(it, id(t), T0);
+  expect(termTree(rix, it, "Tangible object which is an element")).toMatchObject({ kids: ["Earth", "Water", "Fire", "Wind"], more: false });
   // Consciousness divides into two course terms: none met, then one, then both
   tree = termTree(rix, it, "Consciousness");
   expect(tree.kids).toEqual([]);
@@ -876,10 +886,10 @@ test("the real data: a category waits out of every exercise until its term has b
     if (q) for (const r of q.rows) expect(waiting.has(r.cat), q.thing.n + ": " + r.cat).toBe(false);
   }
   // Syllogisms: from the established bases on the course's terms come in, and a waiting one is passed over while others remain
-  const four = unmet(rix, freshIntro(), [1, 2, 3, 4]);
-  const some = new Set([...four].filter((c) => c !== "form" && c !== "ft"));
+  const five = unmet(rix, freshIntro(), upToStage(5));
+  const some = new Set([...five].filter((c) => c !== "form" && c !== "ft"));
   for (let s = 1; s <= 40; s++) {
-    const c = drawSyllogism(rix, { hist: [], recent: [], rng: seeded(s), stages: [1, 2, 3, 4], unmet: some });
+    const c = drawSyllogism(rix, { hist: [], recent: [], rng: seeded(s), stages: upToStage(5), unmet: some });
     expect(some.has(c.catR) || some.has(c.catP), c.id).toBe(false);
   }
 });
@@ -894,10 +904,11 @@ test("matter, external matter and internal matter: a stop and a segment each, af
     for (const w of n.words) expect([...c.labels, ...(c.phrases ?? [])], n.term).toContain(w);
   }
   expect(stopCat(rix, "form:Matter")).toMatchObject({ id: "form:Matter", kind: "dudra", term: "Matter", labels: ["matter"], phrases: ["matter"], st: 1 });
-  expect(stopCat(rix, "intf:Internal matter")).toMatchObject({ term: "Internal matter", st: 5 });
+  expect(stopCat(rix, "intf:Internal matter")).toMatchObject({ term: "Internal matter", st: 6 });
   expect(stopCat(rix, "form:Nothing"), "no such named term").toBeNull();
   expect(stopCat(rix, "form"), "a category is its own").toBe(rix.CAT.form);
-  expect(stageTerms(rix, 5)).toEqual(["intf", "intf:Internal matter", "sp", "sense", "eye", "ment"]);
+  expect(stageTerms(rix, 6)).toEqual(["intf", "intf:Internal matter", "sp"]);
+  expect(stageTerms(rix, 7)).toEqual(["sense", "eye", "ear", "nose", "tongue", "bodyc", "ment"]);
   // the word a question says decides which of the two it grades, a negated one too
   expect(["matter", "Matter", "non-(matter)", "non-matter", "forms", "physical things", null].map((w) => askedKey(rix, "form", w))).toEqual(["form:Matter", "form:Matter", "form:Matter", "form:Matter", "form", "form", "form"]);
   expect(askedKey(rix, "extf", "external matter")).toBe("extf:External matter");
@@ -947,7 +958,7 @@ test("matter, external matter and internal matter: a stop and a segment each, af
   expect(instanceGraded(q, { v: "ok" }, false, rix).map((g) => g.cat).sort(), "Find an instance grades matter").toEqual(["form:Matter", "red"]);
   // the stop: matter under functional thing, its divisions as they come; the list of terms met has it after form
   let it = stopShown(stopShown(freshIntro(), "form", T0), "form:Matter", T0);
-  expect(termTree(rix, it, "Matter")).toEqual({ up: [{ name: "Existent", met: true }, { name: "Functional thing", met: false }], kids: [], more: true });
+  expect(termTree(rix, it, "Matter")).toEqual({ up: [{ name: "Existent", met: true }, { name: "Functional thing", met: false }], kids: [], more: true, parts: [] });
   it = stopShown(it, "extf:External matter", T0);
   expect(termTree(rix, it, "Matter")).toMatchObject({ kids: ["External matter"], more: true });
   expect(termTree(rix, it, "Form").kids, "form's own divisions").toEqual([]);
@@ -1069,7 +1080,7 @@ test("a stage with new terms is reached with the answer that makes the last answ
   expect(terms(it)).toEqual({ n: 5, right: true, just: true });
   expect(offer(it), "the answer that completes the stage brings the next one, with no run on top").toEqual({ kind: "up", stage: 3 });
   expect(openTerms(rix, it, on).size).toBe(0);
-  expect(stageMarks(rix, it, 7), "stages 7 to 9 add no terms: the run moves them").toEqual([]);
+  expect(stageMarks(rix, it, 9), "stages 9 to 11 add no terms: the run moves them").toEqual([]);
   // a stage whose terms were right before (the learner stayed longer, or came back down to it): a run of right answers, as on a stage without
   const later = afterQuestion(it, [{ cat: "form", ok: true }], T0);
   expect(terms(later)).toEqual({ n: 5, right: true, just: false });
@@ -1109,6 +1120,15 @@ test("the draws lean to the open terms of the highest stage: its pairs and thing
   }
   expect(high).toBeGreaterThan(30);
   expect(asked / high, "Categories: nearly every thing of the highest stage has a row on it").toBeGreaterThan(0.9);
+  // the elements bring terms and no things of their own: the things of the senses below are asked about them
+  let below = 0, earth = 0;
+  for (let s = 0; s < 200; s++) {
+    const q = drawPlace(rix, null, { stages: upToStage(4), rng: seeded(s), open: new Set(["earth"]) })!;
+    if (q.thing.st !== 3) continue;
+    below++; if (q.rows.some((r) => r.cat === "earth")) earth++;
+  }
+  expect(below).toBeGreaterThan(30);
+  expect(earth / below, "Categories: the things of stage 3 ask about Earth while it is open").toBeGreaterThan(0.9);
 });
 
 test("a new exercise starts with review: a quarter of its questions new at the highest stage until its first run of five right, then half", () => {
@@ -1147,16 +1167,17 @@ test("the pair draw shares the review among the stages below the highest, not am
     }
     return { by: (st: number) => (by[st] || 0) / N, plain: plain / N };
   };
-  const six = mix([1, 2, 3, 4, 5, 6]);
+  const eight = mix(upToStage(8));
   // stage 1 holds a third of the pairs, nearly all of two everyday categories; it used to be 28% of the draw, and all such pairs 27%
-  expect(six.by(6)).toBeGreaterThan(0.45);
-  expect(six.by(6)).toBeLessThan(0.55);
-  expect(six.by(1), "stage 1 is a small part of the review").toBeLessThan(0.1);
-  for (const s of [2, 3, 5]) expect(six.by(s), "stage " + s).toBeGreaterThan(0.08);
-  expect(six.plain).toBeLessThan(0.12);
+  expect(eight.by(8)).toBeGreaterThan(0.45);
+  expect(eight.by(8)).toBeLessThan(0.55);
+  expect(eight.by(1), "stage 1 is a small part of the review").toBeLessThan(0.1);
+  // the seven stages below share the other half: about a fourteenth each, less for those with pairs of two everyday categories (1 and 5)
+  for (const s of [2, 3, 4, 6, 7]) expect(eight.by(s), "stage " + s).toBeGreaterThan(0.06);
+  expect(eight.plain).toBeLessThan(0.12);
   // a quarter new while the exercise is new, the rest by stage as well
-  expect(mix([1, 2, 3, 4, 5, 6], 0.25).by(6)).toBeGreaterThan(0.2);
-  expect(mix([1, 2, 3, 4, 5, 6], 0.25).by(6)).toBeLessThan(0.3);
+  expect(mix(upToStage(8), 0.25).by(8)).toBeGreaterThan(0.2);
+  expect(mix(upToStage(8), 0.25).by(8)).toBeLessThan(0.3);
   // stage 1 alone and stages 1 to 2 keep what they had: the new stage half the time, the pairs of stage 1 the rest
   expect(mix([1, 2]).by(2)).toBeGreaterThan(0.45);
   expect(mix([1]).by(1)).toBe(1);
@@ -1179,35 +1200,35 @@ test("an exercise's guided form is on until its twentieth right answer turns it 
   expect(normGuided("nope")).toEqual({});
 });
 
-test("the real data: a category opens at its stage and stays open; a person or what does not exist meets the physical categories from stage 4", () => {
+test("the real data: a category opens at its stage and stays open; a person or what does not exist meets the physical categories from stage 5", () => {
   const C = rix.CAT, item = (n: string) => real.items.find((i) => i.n === n)!;
   expect(catOpen(C.form, [1])).toBe(true);
   expect(catOpen(C.extf, [1])).toBe(false);
   expect(catOpen(C.extf, [2])).toBe(true);
   expect(catOpen(C.extf, [1, 5]), "open below the highest stage on, whether or not its own stage is on").toBe(true);
-  expect(catOpen(C.cons, [1, 2, 3])).toBe(false);
-  expect(catOpen(C.human, [3])).toBe(false);
-  expect(catOpen(C.human, [4])).toBe(true);
+  expect(catOpen(C.cons, [1, 2, 3, 4])).toBe(false);
+  expect(catOpen(C.human, [4])).toBe(false);
+  expect(catOpen(C.human, [5])).toBe(true);
   expect([C.form, C.col, C.wooden, C.animal].map((c) => physical(rix, c))).toEqual([true, true, true, false]);
   const dog = item("a dog"), joy = real.items.find((i) => i.t === "Mental factor" && (i.st ?? 1) === 1)!, chair = item("a wooden chair");
   expect([heldBack(rix, dog), heldBack(rix, joy), heldBack(rix, chair)]).toEqual([true, false, false]);
   expect(itemStageFor(rix, dog, "form", "animal")).toBe(HOLD_STAGE);
   expect(itemStageFor(rix, dog, "animal", "emotion"), "against categories that are not physical: its own stage").toBe(1);
-  expect(itemOn(rix, dog, "form", "animal", [1, 2, 3])).toBe(false);
-  expect(itemOn(rix, dog, "form", "animal", [1, 4])).toBe(true);
-  expect(itemOn(rix, dog, "form", "animal", [4]), "its own stage is off").toBe(false);
-  expect(itemKnown(rix, dog, "form", "animal", [4])).toBe(true);
+  expect(itemOn(rix, dog, "form", "animal", [1, 2, 3, 4])).toBe(false);
+  expect(itemOn(rix, dog, "form", "animal", [1, 5])).toBe(true);
+  expect(itemOn(rix, dog, "form", "animal", [5]), "its own stage is off").toBe(false);
+  expect(itemKnown(rix, dog, "form", "animal", [5])).toBe(true);
   expect(itemOn(rix, joy, "form", "emotion", [1])).toBe(true);
 });
 
 test("the real data: a pair is new at the stage where both categories are open and a thing the learner knows fills every cell", () => {
-  // Form against Visible form waits for the sounds of stage 3, which give a form that is not seen; Form against External form for the sense powers of stage 5
+  // Form against Visible form waits for the sounds of stage 3, which give a form that is not seen; Form against External form for the sense powers of stage 6
   expect(pairStage(rix, "form", "vis", [1, 2])).toBeNull();
   expect(pairStage(rix, "form", "vis", [1, 2, 3])).toBe(3);
   expect(pairStage(rix, "form", "vis", [3]), "the things of a stage below count, on or off").toBe(3);
-  expect(pairStage(rix, "form", "extf", upToStage(4))).toBeNull();
-  expect(pairStage(rix, "form", "extf", upToStage(5))).toBe(5);
-  for (const top of [1, 3, 4, 6]) {
+  expect(pairStage(rix, "form", "extf", upToStage(5))).toBeNull();
+  expect(pairStage(rix, "form", "extf", upToStage(6))).toBe(6);
+  for (const top of [1, 3, 4, 5, 8]) {
     const on = upToStage(top), pool = poolAt(rix, realPool, on);
     expect(pool.length, `stages 1 to ${top}`).toBeGreaterThan(100);
     expect(new Set(pool.map((e) => e.r)), `every relation comes up at stages 1 to ${top}`).toEqual(new Set(["mi", "con", "3", "4"]));
@@ -1221,8 +1242,8 @@ test("the real data: a pair is new at the stage where both categories are open a
   // a set, not a ceiling: stages 1 and 3 draw the pairs new at either, never one new at stage 2
   const skip = poolAt(rix, realPool, [1, 3]);
   expect(skip.some((e) => e.st === 3) && skip.some((e) => e.st === 1) && !skip.some((e) => e.st === 2)).toBe(true);
-  expect(poolAt(rix, realPool, upToStage(6)).length, "by stage 6 every pair is in").toBe(realPool.length);
-  expect(poolAt(rix, realPool, [7]), "a stage the practice list has nothing new at draws no pair of its own").toEqual([]);
+  expect(poolAt(rix, realPool, upToStage(8)).length, "by stage 8 every pair is in").toBe(realPool.length);
+  expect(poolAt(rix, realPool, [9]), "a stage the practice list has nothing new at draws no pair of its own").toEqual([]);
 });
 
 test("the real data: the next pair comes from the stages that are on, about half of it new at the highest, with things of those stages", () => {
@@ -1246,12 +1267,12 @@ test("the real data: the next pair comes from the stages that are on, about half
   expect(cellsSeen).toBeGreaterThan(400);
   expect(staged, "the examples are things of the stages that are on").toBe(cellsSeen);
   // stages that can draw no pair of their own draw from every pair
-  expect(() => nextPair(rix, realPool, { hist: [], recent: [], rng: seeded(1), stages: [8] })).not.toThrow();
+  expect(() => nextPair(rix, realPool, { hist: [], recent: [], rng: seeded(1), stages: [10] })).not.toThrow();
   // just after a stage went up, three possibilities come more often
   const threes = (fresh: boolean) => Array.from({ length: 300 }, (_, s) => chooseEntry(rix, realPool, { hist: [], recent: [], rng: seeded(s), stages: on, fresh })).filter((e) => e.r === "3").length;
   expect(threes(true)).toBeGreaterThan(threes(false) * 1.5);
-  // a device that kept its settings from before the ladder (stages 1 to 6) draws every pair alike: the pairs new at stage 6 come about as often as their share
-  const all = [1, 2, 3, 4, 5, 6], at6 = new Set(poolAt(rix, realPool, all).filter((e) => e.st === 6).map(pairKey));
+  // a device that kept its settings from before the ladder (stages 1 to 8) draws every pair alike: the pairs new at stage 8 come about as often as their share
+  const all = upToStage(8), at6 = new Set(poolAt(rix, realPool, all).filter((e) => e.st === 8).map(pairKey));
   const share6 = (even: boolean) => Array.from({ length: 1000 }, (_, s) => chooseEntry(rix, realPool, { hist: [], recent: [], rng: seeded(s), stages: all, even })).filter((e) => at6.has(pairKey(e))).length / 1000;
   expect(share6(true)).toBeLessThan(0.2);
   expect(share6(false)).toBeGreaterThan(0.3);
@@ -1262,7 +1283,7 @@ test("the real data: Categories asks about things of the stages that are on, pra
   expect(things.length).toBeGreaterThan(200);
   expect(things.every((t) => t.item && t.st === 1 && !t.item.nosubject)).toBe(true);
   for (let s = 0; s < 200; s++) {
-    const on = s % 2 ? [1] : [1, 2, 3, 4];
+    const on = s % 2 ? [1] : upToStage(5);
     const q = drawPlace(rix, null, { stages: on, rng: seeded(s) })!;
     expect(q, `seed ${s}`).toBeTruthy();
     const it = q.thing.item!;
@@ -1274,22 +1295,22 @@ test("the real data: Categories asks about things of the stages that are on, pra
       expect(r.reason).toBeTruthy();
     }
   }
-  // a person is not asked about the physical categories before stage 4, and at stage 1 a form is "anything physical"
+  // a person is not asked about the physical categories before stage 5, and at stage 1 a form is "anything physical"
   const dog = real.items.find((i) => i.n === "a dog")!;
-  expect(itemRows(rix, dog, [1, 2, 3]).some((r) => physical(rix, rix.CAT[r.cat]))).toBe(false);
-  expect(itemRows(rix, dog, [1, 2, 3, 4]).some((r) => r.cat === "form")).toBe(true);
+  expect(itemRows(rix, dog, upToStage(4)).some((r) => physical(rix, rix.CAT[r.cat]))).toBe(false);
+  expect(itemRows(rix, dog, upToStage(5)).some((r) => r.cat === "form")).toBe(true);
   const chair = itemRows(rix, real.items.find((i) => i.n === "a wooden chair")!, [1]);
   expect(chair.find((r) => r.cat === "form")).toMatchObject({ answer: true, reason: "it is physical" });
 });
 
-test("the real data: Syllogisms keep to everyday reasons and predicates up to stage 3, with subjects of the stages that are on", () => {
-  expect([1, 3, 4, 9].map((t) => levelAt([t]))).toEqual([1, 1, 2, 2]);
-  for (const on of [[1], [1, 2, 3], [1, 4]]) {
+test("the real data: Syllogisms keep to everyday reasons and predicates up to stage 4, with subjects of the stages that are on", () => {
+  expect([1, 4, 5, 11].map((t) => levelAt([t]))).toEqual([1, 1, 2, 2]);
+  for (const on of [[1], [1, 2, 3, 4], [1, 5]]) {
     for (let s = 0; s < 40; s++) {
       const c = drawSyllogism(rix, { hist: [], recent: [], rng: seeded(s), stages: on });
       const R = rix.CAT[c.catR], P = rix.CAT[c.catP], it = real.items.find((i) => i.n === c.subject)!;
       expect(catOpen(R, on) && catOpen(P, on), c.id).toBe(true);
-      if (topStage(on) <= 3) expect([R.kind, P.kind], c.id).toEqual(["everyday", "everyday"]);
+      if (topStage(on) <= 4) expect([R.kind, P.kind], c.id).toEqual(["everyday", "everyday"]);
       expect(itemOn(rix, it, c.catR, c.catP, on) || itemOn(rix, it, c.catP, c.catR, on), c.id).toBe(true);
     }
   }
@@ -2031,14 +2052,14 @@ test("placeByClass: passes over classes the data does not have, and leaves out a
 });
 
 test("drawable: confirmed and textbook examples of the stages that are on, never a commentator's", () => {
-  // an example without a stage of its own is at its level's: level 1 is stage 6
-  expect(drawable({ cf: "confirmed", lv: 2 }, [6, 7])).toBe(true);
-  expect(drawable({ cf: "textbook", lv: 1 }, [6, 7])).toBe(true);
-  expect(drawable({ cf: "textbook", lv: 3 }, [6, 7])).toBe(false);
-  expect(drawable({ cf: "textbook", lv: 1 }, [7, 8])).toBe(false);
+  // an example without a stage of its own is at its level's: level 1 is stage 8
+  expect(drawable({ cf: "confirmed", lv: 2 }, [8, 9])).toBe(true);
+  expect(drawable({ cf: "textbook", lv: 1 }, [8, 9])).toBe(true);
+  expect(drawable({ cf: "textbook", lv: 3 }, [8, 9])).toBe(false);
+  expect(drawable({ cf: "textbook", lv: 1 }, [9, 10])).toBe(false);
   expect(drawable({ cf: "textbook", lv: 3, st: 2 }, [1, 2])).toBe(true);
-  expect(drawable({ cf: "commentator", lv: 1 }, [1, 2, 3, 4, 5, 6, 7, 8, 9])).toBe(false);
-  expect(drawable({ lv: 1 }, [1, 2, 3, 4, 5, 6, 7, 8, 9])).toBe(false);
+  expect(drawable({ cf: "commentator", lv: 1 }, upToStage(11))).toBe(false);
+  expect(drawable({ lv: 1 }, upToStage(11))).toBe(false);
 });
 
 // ---- learned facts: what the analyses said of a learner's example, per category ----

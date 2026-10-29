@@ -4,7 +4,7 @@ import { expect, test } from "vitest";
 import { makeExampleIndex, makeIndex } from "../../src/ai-shared";
 import type { DrillData, Example } from "../../src/ai-shared";
 import { apartOf, drawInstance, gradeInstance, inAll, instanceGraded, instanceKey, instanceQuestion, itemStageIn, setStage } from "../../src/domain/instance";
-import { catStage } from "../../src/domain/stages";
+import { HOLD_STAGE, catStage } from "../../src/domain/stages";
 import openData from "../../src/data/drill-data.json";
 
 const seeded = (seed: number) => () => {
@@ -189,7 +189,7 @@ test("gradeInstance: before the hold's stage a person in a physical category is 
   const early = gradeInstance(data, instanceQuestion(data, ["round"], seeded(1), [1]), { text: "a dog" });
   expect(early).toMatchObject({ v: "open", thing: "a dog", from: "item" });
   expect(early.rows[0]).toMatchObject({ answer: null, reason: "whether it is round is left for a later stage" });
-  expect(gradeInstance(data, instanceQuestion(data, ["round"], seeded(1), [4]), { text: "a dog" }).rows[0].answer).toBe(false);
+  expect(gradeInstance(data, instanceQuestion(data, ["round"], seeded(1), [HOLD_STAGE]), { text: "a dog" }).rows[0].answer).toBe(false);
 });
 
 test("gradeInstance: a practice item, by the list's categories, with the reason for each", () => {

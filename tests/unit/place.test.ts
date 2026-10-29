@@ -166,10 +166,10 @@ test("placeQuestionRows with plain: from stage 2 at most a third of the rows are
   expect(plainRows(1)).toBe(6);
   expect(plainRows(3)).toBe(2);
   expect(plainRows(2, 9)).toBe(3);
-  // the draw over the real categories: most rows are about the course's categories by stage 4, where everyday ones were two of three
+  // the draw over the real categories: most rows are about the course's categories by stage 5, where everyday ones were two of three
   const real = makeIndex(openData as unknown as DrillData);
   let rows = 0, everyday = 0;
-  for (let s = 0; s < 150; s++) for (const r of drawPlace(real, null, { stages: [1, 2, 3, 4], rng: seeded(s), newShare: 0.5 })!.rows) { rows++; if (!r.term) everyday++; }
+  for (let s = 0; s < 150; s++) for (const r of drawPlace(real, null, { stages: [1, 2, 3, 4, 5], rng: seeded(s), newShare: 0.5 })!.rows) { rows++; if (!r.term) everyday++; }
   expect(everyday / rows).toBeLessThan(0.45);
 });
 

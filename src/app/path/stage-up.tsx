@@ -1,5 +1,5 @@
 // A stage coming in, as a station of its own between a result and the next question (practice/stage-offer.ts, takeStageUp): which stage it is and what
-// it introduces. "New stage" with the stage it comes from, then the stage as the title ("Stage 3 reached"), the nine stages as a row of rings (the progression
+// it introduces. "New stage" with the stage it comes from, then the stage as the title ("Stage 3 reached"), the eleven stages as a row of rings (the progression
 // ring of each stage: a segment for each of its new terms, colored by the last answer on it; a tap on a ring shows its terms in a tooltip), and two parts, each a small stop
 // on the line: Topics, what the stage introduces with the new terms it brings, and Progression, what the stages are. The first time that is said in three short
 // lines; in a later upgrade it is one line, with the rest folded under "How the stages work". The learner may stay on the stage they are on a while longer (and
@@ -26,7 +26,7 @@ function Fold({ label, children }: { label: string; children: ComponentChildren 
   return <div class="tup-fold"><button type="button" class="tup-foldb" aria-expanded={open ? "true" : "false"} onClick={() => setOpen(!open)}>{label}</button>{open ? <div class="tup-foldc">{children}</div> : null}</div>;
 }
 /**
- * The nine stages as a row of rings, each as the progression ring of its stage (path/rings.tsx): the stages passed with the marks their terms have now and their
+ * The eleven stages as a row of rings, each as the progression ring of its stage (path/rings.tsx): the stages passed with the marks their terms have now and their
  * segments kept, the new one with a halo, those ahead fainter. A ring shows its terms with their marks in a tooltip under the row: a mouse over it, or a tap, which
  * pins it until a tap elsewhere, Escape, or a second tap on the ring.
  */
@@ -41,7 +41,7 @@ function Rings({ n }: { n: number }) {
     return () => { document.removeEventListener("pointerdown", away); document.removeEventListener("keydown", esc, true); };
   }, [pinned]);
   return <div class="tup-rw" ref={box}>
-    <div class="tup-rings" role="group" aria-label={"Stage " + n + " of " + MAX_STAGE}>
+    <div class="tup-rings" style={"--n:" + MAX_STAGE} role="group" aria-label={"Stage " + n + " of " + MAX_STAGE}>
       {STAGES.map((s) => {
         const m = marksOf(s.n);
         return <button type="button" class={"tup-rg " + (s.n < n ? "done" : s.n === n ? "now" : "ahead") + (at === s.n ? " on" : "")} aria-expanded={at === s.n ? "true" : "false"}

@@ -1,6 +1,6 @@
 // Categories: a thing is shown; the learner ticks the categories it is in (or answers yes or no for each), then picks the most specific. The things are the practice items of
 // the stages that are on and, where the device holds them, reference examples: here invented ones (a plain and a second-level one for every term of the open data, at stages
-// 6 and 7) served by a stand-in for the server (tests/support/data-key.js). The specs' devices are not new (the fixture stores a setting), so they start with stages 1 to 6.
+// 6 and 7) served by a stand-in for the server (tests/support/data-key.js). The specs' devices are not new (the fixture stores a setting), so they start with stages 1 to 8.
 // The page's own state is read through the test hook (tests/e2e/pwa/*.spec.js), so every path can be driven with answers known to be right or wrong.
 import { test, expect } from "../../support/test.js";
 import { goTo, openMenu, overflow, ready, setStoredStages } from "../../support/page.js";

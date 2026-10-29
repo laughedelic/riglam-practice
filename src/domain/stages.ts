@@ -1,4 +1,4 @@
-// The learning ladder: nine stages from everyday things to the deep layers. The data says at which stage each category opens and
+// The learning ladder: eleven stages from everyday things to the deep layers. The data says at which stage each category opens and
 // at which stage a newcomer knows each thing (`st`, docs/DATA.md); this says what the stages are called, which of them a learner
 // draws from, and the rules that hold for every exercise: a category opens at its stage and stays open, a thing is drawn from the
 // stages switched on, and a person or what does not exist meets the physical categories only from the established bases on (a dog
@@ -24,17 +24,19 @@ export const STAGES: readonly Stage[] = [
   { n: 1, name: "Things around you", adds: "Everyday things, what they are made of, their colors and shapes; food, plants, animals, feelings and thoughts. Form is anything physical." },
   { n: 2, name: "Colors and shapes", adds: "Colors and shapes as qualities of things: the red of an apple, not the apple." },
   { n: 3, name: "The other senses", adds: "Sounds, smells, tastes, and what is felt by touch, in plain words." },
-  { n: 4, name: "What exists", adds: "Functional and permanent things, consciousness and persons; people; what does not exist, and absences." },
-  { n: 5, name: "Senses and minds", adds: "The sense powers, and the minds that see, hear, smell, taste, feel, remember and imagine." },
-  { n: 6, name: "Abstract ideas", adds: "Things named by abstract words: generic images, selflessness, impermanence, the elements." },
-  { n: 7, name: "One-step chains", adds: "One step on a familiar thing: its absence, its cause, a mind that knows it." },
-  { n: 8, name: "Two-step chains", adds: "Two steps in a row, such as the absence of the effect of a pot." },
-  { n: 9, name: "Longer chains and statements", adds: "Three steps or more, and statements." },
+  { n: 4, name: "The elements", adds: "What is felt by touch, divided: earth, water, fire and wind, and what arises from them, such as heaviness and smoothness." },
+  { n: 5, name: "What exists", adds: "Functional and permanent things, consciousness and persons; people; what does not exist, and absences." },
+  { n: 6, name: "Sense powers", adds: "The inner side of form: the sense powers of the eye, ear, nose, tongue and body." },
+  { n: 7, name: "Minds that perceive", adds: "The minds that see, hear, smell, taste and feel, and the mental consciousness that remembers and imagines." },
+  { n: 8, name: "Abstract ideas", adds: "Things named by abstract words: generic images, selflessness, impermanence." },
+  { n: 9, name: "One-step chains", adds: "One step on a familiar thing: its absence, its cause, a mind that knows it." },
+  { n: 10, name: "Two-step chains", adds: "Two steps in a row, such as the absence of the effect of a pot." },
+  { n: 11, name: "Longer chains and statements", adds: "Three steps or more, and statements." },
 ];
 export const MAX_STAGE = STAGES.length;
 
 /** The stage from which persons and what does not exist are asked about with the physical categories. */
-export const HOLD_STAGE = 4;
+export const HOLD_STAGE = 5;
 
 /** The stages a learner draws from: any mix, never none. */
 export type Stages = readonly number[];
@@ -61,12 +63,12 @@ export function toggleStage(on: Stages, n: number): number[] {
 
 /**
  * The stages that take the place of the example levels a device kept before the ladder (1 to 4 for the reference examples alone): every
- * stage up to the old top level's (level 1 is stage 6, level 4 stage 9), so the practice items stay as they were and the reference
+ * stage up to the old top level's (level 1 is stage 8, level 4 stage 11), so the practice items stay as they were and the reference
  * examples keep nearly all of what they had.
  */
 export const stagesOfLevels = (levels: readonly number[]): number[] => {
   const top = Math.max(0, ...levels.filter((l) => Number.isInteger(l) && l >= 1 && l <= 4));
-  return top ? STAGES.map((s) => s.n).filter((n) => n <= top + 5) : [...DEFAULT_STAGES];
+  return top ? STAGES.map((s) => s.n).filter((n) => n <= top + 7) : [...DEFAULT_STAGES];
 };
 
 /** A practice item's stage; data without stages has everything at stage 1. */
@@ -146,7 +148,7 @@ export function poolAt(ix: DataIndex, pool: readonly PoolEntry[], on: Stages): S
 }
 
 /** The highest stage at which a newly opened category's definition shows with the question by itself; above it the definition is a tap away. */
-export const DEFINITION_STAGE = 3;
+export const DEFINITION_STAGE = 4;
 
 /**
  * The categories of a question (a pair's two, or the ones Categories asks about) whose definition shows with it: those that open at the
@@ -193,7 +195,7 @@ export function negationOffer(results: readonly NegOutcome[], negation: Negation
 /**
  * The right answers in a row, on questions new at the highest stage that is on (those from a stage below count half, LOWER_CREDIT), after which the next
  * stage comes in: by itself on the Path, with a station that says so first; offered with a tap on the classic page. On the Path a stage with new terms
- * comes sooner, with the answer that makes the last answer on each of them right (runWanted); the run is for a stage without (stages 7 to 9, and every
+ * comes sooner, with the answer that makes the last answer on each of them right (runWanted); the run is for a stage without (stages 9 to 11, and every
  * stage on the classic page, which has no term stops) and for one whose terms were all right before.
  */
 export const STAGE_STREAK = 5;
@@ -257,7 +259,7 @@ export interface StageTerms {
   right: boolean;
   just: boolean;
 }
-/** A stage without new terms (stages 7 to 9), or a page without term stops (the classic one): the run alone moves the stages. */
+/** A stage without new terms (stages 9 to 11), or a page without term stops (the classic one): the run alone moves the stages. */
 export const NO_TERMS: StageTerms = { n: 0, right: true, just: false };
 /** The new terms of a stage from their marks. */
 export function termsOf(marks: readonly StageMark[]): StageTerms {

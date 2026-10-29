@@ -47,7 +47,7 @@ function expireSyllogism(u){
   finishSyllogism();
 }
 
-/** Draws the next syllogism, from what the learner has answered so far and the stages that are on (everyday ones up to stage 3, except for the terms of the stage that are not right yet). */
+/** Draws the next syllogism, from what the learner has answered so far and the stages that are on (everyday ones up to stage 4, except for the terms of the stage that are not right yet). */
 export function advanceSyllogism(){
   const c=drawSyllogism(state,{hist:syllogismList().slice(-40),recent:state.syllogismRecent,stages:state.stages,unmet:unmetNow(),open:openNow(),newShare:shareNow(),...(state.syllogismEveryday?{level:1}:{})});
   state.cur=/** @type {any} */({p:null,syllogism:true,c}); state.ui=freshSyllogismUi(); state.mode="quiz";

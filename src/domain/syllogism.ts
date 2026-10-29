@@ -494,7 +494,7 @@ export interface SyllogismDraw {
 export const RELIEF = 0.1;
 
 /** The stages up to which a syllogism keeps to everyday reasons and predicates: the categories of form are new there, and the course's terms come from the established bases. */
-export const EVERYDAY_STAGES = 3;
+export const EVERYDAY_STAGES = 4;
 /** The level of the syllogisms for a learner with these stages on: everyday (1) while the highest is at most `EVERYDAY_STAGES`, else with the course's terms (2). */
 export const levelAt = (on: Stages): 1 | 2 => (topStage(on) <= EVERYDAY_STAGES ? 1 : 2);
 

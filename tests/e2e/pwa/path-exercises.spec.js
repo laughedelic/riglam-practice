@@ -177,6 +177,8 @@ test("Find a pair: the relation asked, two words, an example for each case, and 
   for (let i = 0; i < 8 && (await cell.isVisible()); i++) {   // a case for each the relation has; an Enter that lands as the next case comes in takes another round
     await cell.fill("thing " + (i + 1));
     await cell.press("Enter");
+    // the next cell's empty field, or none after the last cell (a relation may have two or three): not a field on its way out
+    await expect.poll(() => page.evaluate(() => { const c = document.getElementById("cin"); return !c || c.value === ""; })).toBe(true);
   }
   await expect(cell).toHaveCount(0);
   await station(page).click();
