@@ -154,6 +154,8 @@ export interface Reports {
 export interface Unlock {
   /** Resolves when the prompt is closed: true if a key was entered and taken (the page has been told through `onKey`), otherwise false. */
   open(): Promise<boolean>;
+  /** Takes the key typed in a field of the page's own (Settings' Magic Key page) as the prompt would: resolves with null when it was taken (the page has been told through `onKey`, or is reloading), or with the sentence to show. Absent: the page opens the prompt. */
+  enter?(text: string): Promise<string | null>;
   tutor: boolean;
   answer?: Promise<boolean>;
 }
@@ -246,5 +248,7 @@ export interface Platform {
 export interface KeyHeld {
   /** As `Unlock.open`. */
   change(): Promise<boolean>;
+  /** As `Unlock.enter`: another key, kept in place of this one once the server takes it. */
+  enter?(text: string): Promise<string | null>;
   forget(): void;
 }
