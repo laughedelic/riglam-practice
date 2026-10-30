@@ -98,9 +98,13 @@ export function Bridge({ fill, after, cls = "", own = false, id }: { fill: (host
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const h = ref.current; if (!h) return;
+    // a redraw that nobody asked for (the sync status changed) keeps the focus on the same control, by its id or its place among the controls
+    const ctl = () => [...h.querySelectorAll<HTMLElement>("button,input,select,textarea,summary,[tabindex]")];
+    const a = document.activeElement as HTMLElement | null, held = a && h.contains(a) ? { id: a.id, at: ctl().indexOf(a) } : null;
     const y = h.scrollTop, kids = flat(fill(h));
     h.replaceChildren(...kids);
     if (y) h.scrollTop = y;
+    if (held) { const n = (held.id && h.querySelector<HTMLElement>("#" + CSS.escape(held.id))) || ctl()[held.at]; if (n && n !== document.activeElement) n.focus({ preventScroll: true }); }
     if (after) after(h);
   });
   return <div ref={ref} id={id} class={(own ? "pdom" : "pbr") + (cls ? " " + cls : "")} />;

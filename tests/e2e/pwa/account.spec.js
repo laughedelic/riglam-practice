@@ -2,13 +2,13 @@
 // The server is the Worker itself on a fake database (tests/support/server-bridge.js) and the passkeys are Chromium's virtual
 // authenticator, so the ceremonies, the cookie rules and the sync run for real; only the network and the biometrics are stood in for.
 import { test, expect } from "../../support/test.js";
-import { ready, overflow, openSettings } from "../../support/page.js";
+import { ready, overflow, openSettings, openSettingsPage } from "../../support/page.js";
 import { dataKey, KEY_STORE, withCourse } from "../../support/data-key.js";
 import { bridge, serverWorld, virtualAuthenticator } from "../../support/server-bridge.js";
 
-const openOptions = (page) => openSettings(page);
-const acct = (page) => page.locator(".acct");
-const status = (page) => acct(page).locator(".onote[role=status]");
+const openOptions = (page) => openSettingsPage(page, "Account");
+const acct = (page) => page.locator(".pacct");
+const status = (page) => acct(page).locator(".pnoteline[role=status]");
 
 async function start(page, world) {
   const device = await bridge(page, world);
@@ -53,13 +53,13 @@ const outboxKeys = (page) =>
       }),
   );
 
-test("without accounts on the server the Options screen has no Account row", async ({ page }) => {
+test("without accounts on the server Settings has no Account line", async ({ page }) => {
   await page.route("**/api/health", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, tutor: "off", accounts: "off" }) }));
   await page.goto("/");
   await ready(page);
-  await openOptions(page);
-  await expect(page.getByText("Your data", { exact: true })).toBeVisible();
-  await expect(page.getByText("Account", { exact: true })).toHaveCount(0);
+  await openSettings(page);
+  await expect(page.getByRole("button", { name: "Export and import: more" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Account: more" })).toHaveCount(0);
 });
 
 test("an account is made with a passkey and the documents follow the person to another device", async ({ page, browser }, testInfo) => {
@@ -215,13 +215,13 @@ test("the delete confirmation takes the focus when it opens, and the delete butt
   await expect(page.getByRole("button", { name: "Delete account ..." })).toBeFocused();
 });
 
-test("a control in Options keeps the focus while the sync status redraws the screen", async ({ page }) => {
+test("a control of the Account page keeps the focus while the sync status redraws the screen", async ({ page }) => {
   const world = await serverWorld();
   const { device } = await start(page, world);
   await openOptions(page);
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(status(page).first()).toContainText("Up to date", { timeout: 15_000 });
-  const sw = page.getByRole("button", { name: "Export" });
+  const sw = page.getByRole("button", { name: "Sign out" });
   await sw.focus();
   await expect(sw).toBeFocused();
   device.offline = true;
