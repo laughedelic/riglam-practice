@@ -37,8 +37,8 @@ async function answerOnPhone(page) {
 }
 // The Why panel of the result screen shows only what the marks do not (and nothing at all after a right answer); the chat view has the whole answer.
 async function openAnswer(page) {
-  await page.getByRole("button", { name: /discuss with ai/i }).click();
-  await expect(page.getByLabel("Discuss with AI").getByText("this is the stand-in answer.")).toBeVisible();
+  await page.getByRole("button", { name: /discuss with claude/i }).click();
+  await expect(page.getByLabel("Discuss with Claude").getByText("this is the stand-in answer.")).toBeVisible();
 }
 const explain = (page) => page.getByRole("button", { name: /^explain$|check and explain/i });
 const open = async (page, testInfo, setup) => {
@@ -258,14 +258,14 @@ withKey("a used-up budget says whose it is and when the tutor opens again", asyn
   const resetsAt = new Date(Date.now() + 3 * 3600 * 1000).toISOString();
   await open(page, testInfo, { tutor: [{ status: 429, body: JSON.stringify({ error: { code: "rate_limited", message: "x", scope: "device", resetsAt } }) }] });
   await explain(page).click();
-  await expect(page.getByText(/You have used your share of the tutor for today\. It is available again (tomorrow )?at /)).toBeVisible();
+  await expect(page.getByText(/You have used your share of Claude for today\. It is available again (tomorrow )?at /)).toBeVisible();
   await expect(page.getByText(/Everything else in the app keeps working/)).toBeVisible();
 });
 
 withKey("when everybody's budget is used the page says that instead", async ({ page }, testInfo) => {
   await open(page, testInfo, { tutor: [{ status: 429, body: JSON.stringify({ error: { code: "rate_limited", message: "x", scope: "global" } }) }] });
   await explain(page).click();
-  await expect(page.getByText(/The tutor has reached its limit for today for everybody\. Try again tomorrow\./)).toBeVisible();
+  await expect(page.getByText(/Claude has reached its limit for today for everybody\. Try again tomorrow\./)).toBeVisible();
 });
 
 withKey("with no connection the page says so, and Explain can be tried again", async ({ page }, testInfo) => {
@@ -286,7 +286,7 @@ withKey("a refused key takes the tutor away", async ({ page }, testInfo) => {
 withKey("with the server's tutor off the page offers none", async ({ page }, testInfo) => {
   const asked = await open(page, testInfo, { health: { ok: true, tutor: "off" } });
   await expect(explain(page)).toHaveCount(0);
-  await expect(page.getByRole("button", { name: /discuss with ai/i })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /discuss with claude/i })).toHaveCount(0);
   expect(asked).toEqual([]);
 });
 

@@ -8,6 +8,7 @@
 .pa .relg{font-size:14.5px; display:block}
 .pa .pbtns{display:flex; gap:18px; flex-wrap:wrap}
 .pa .plnk{color:var(--blue); text-decoration:underline; text-underline-offset:3px; font:inherit}
+.pa .plnk.quiet{color:var(--ink2); text-decoration-thickness:1px}
 
 /* a statement on the path: a line of large text beside its letter (S, P, R) or its diamond */
 .pa .stm{padding:2px 0; align-items:baseline}

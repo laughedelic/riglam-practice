@@ -28,7 +28,7 @@ const REPLY='Both: a clay pot fits.\nNeither: a stone is B, not A.\nCommon locus
   ok('the Questions option explains itself as the statement of pervasion',!!q&&/statement of pervasion/i.test(qt),[q,qt]);
   await pg.keyboard.press('Escape'); await pg.waitForTimeout(100);
   const sw=(await pg.locator('#over .sw .swl').allInnerTexts()).map(t=>t.trim().toLowerCase());
-  ok('the artifact has no Quorum switch under AI tutor: it asks its host\'s model, one model, and keeps no runs',sw.includes('check every answer with ai')&&!sw.some(t=>/quorum|several models/.test(t))&&!/quorum/i.test(await pg.locator('#over').innerText()),sw);
+  ok('the artifact has no Quorum switch under Claude: it asks its host\'s model, one model, and keeps no runs',sw.includes('check every answer with claude')&&!sw.some(t=>/quorum|several models/.test(t))&&!/quorum/i.test(await pg.locator('#over').innerText()),sw);
   await pg.locator('#over .oc').click(); await pg.waitForTimeout(100);
   await go(pg,'Settings'); await pg.waitForTimeout(150);
   const rows=await pg.locator('#over .orow').evaluateAll(r=>r.map(x=>x.innerText));

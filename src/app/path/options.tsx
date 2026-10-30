@@ -16,7 +16,7 @@ import { exName } from "../shell/exercises.js";
 import { GUIDES, guided, setGuided } from "../practice/guided.ts";
 import { progressNow } from "../practice/stage-offer.ts";
 import { toggleOpts } from "../shell/options.js";
-import { SYMS, openPage, quorumNote, sessBack, setAutoExplain, setBlitzUse, setNota, setShow, setSyllogismWording, setWording, toggleSess } from "../shell/session.js";
+import { SYMS, openPage, quorumNote, setAutoExplain, setBlitzUse, setNota, setShow, setSyllogismWording, setWording, toggleSess } from "../shell/session.js";
 import { kindMs } from "../shell/timers.js";
 import { ANSWER_PICKS, CONFIRM_PICKS, RATES, READ_NOTE, SAMPLE, VOICE_LEAD, VOICE_SAY, WHERE, hookVoices, setVoice, voiceGroups, voiceShown } from "../shell/voice.js";
 import { LADDER_TOP } from "../../domain/stages.ts";
@@ -81,8 +81,8 @@ function List() {
     </Group>
     <Group name="Practice">
       {timed ? <Line title="Blitz" sub={state.blitzUse ? timesLine() : "off"} sw={{ on: state.blitzUse, toggle: () => setBlitzUse(!state.blitzUse) }} go={() => openPage("times")} /> : null}
-      {tutorShown() ? <Line title="Tutor explains" go={() => openPage("tutor")} sub={canAsk() ? undefined : "several models"}>
-        {canAsk() ? <Words label="Tutor explains" items={TUTOR} cur={state.autoExplain ? "every" : "ask"} on={setTutor} /> : null}</Line> : null}
+      {tutorShown() ? <Line title="Explanations by Claude" go={() => openPage("tutor")} sub={canAsk() ? undefined : "several models"}>
+        {canAsk() ? <Words label="Explanations by Claude" items={TUTOR} cur={state.autoExplain ? "every" : "ask"} on={setTutor} /> : null}</Line> : null}
       {voiceShown() ? <Line title="Voice" tag="experimental" sub={voiceLine()} go={() => openPage("voice")} /> : null}
     </Group>
     <Group><Line title="Other app settings" go={toSettings} /></Group>
@@ -167,15 +167,15 @@ function VoicePage() {
 function TutorPage() {
   const syl = state.tab === "syllogism";
   return <>
-    <Intro>The AI tutor explains an answer: why it is right or wrong{syl ? "" : ", and whether your examples fit their cases"}.</Intro>
-    {canAsk() ? <Line title="Explains" sub={"Every answer: right after you check one, the tutor explains it" + (syl ? "" : " and checks the examples the page could not") + ". When I ask: it waits for you to ask."}>
-      <Words label="Tutor explains" items={TUTOR} cur={state.autoExplain ? "every" : "ask"} on={setTutor} /></Line> : null}
-    {quorumShown() ? <Line title="Several models explain" tag="experimental" sub={quorumNote()} sw={{ on: state.quorum, toggle: () => setQuorum(!state.quorum) }} /> : null}
+    <Intro>Claude is an AI assistant. It explains the results, and checks examples you wrote that the reference data does not cover. It can make mistakes, so treat it as a study aid, not the last word. Where sources differ it says so. You can flag anything that looks wrong to help improve it.</Intro>
+    {canAsk() ? <Line title="Explains" sub={"Every answer: right after you check one, Claude explains it" + (syl ? "" : " and checks the examples the page could not") + ". When I ask: it waits for you to ask."}>
+      <Words label="Explanations by Claude" items={TUTOR} cur={state.autoExplain ? "every" : "ask"} on={setTutor} /></Line> : null}
+    {quorumShown() ? <Line title="Three Claude models" tag="experimental" sub={quorumNote()} sw={{ on: state.quorum, toggle: () => setQuorum(!state.quorum) }} /> : null}
   </>;
 }
 
 /** The Path's pages of the practice options, by the names their lines have (the classic sheet keeps its own, shell/session.js PAGES). */
-const TITLES: Record<string, string> = { text: "Wording and notation", stages: "Difficulty", times: "Blitz", voice: "Voice", tutor: "Tutor explains", progress: "Progression" };
+const TITLES: Record<string, string> = { text: "Wording and notation", stages: "Difficulty", times: "Blitz", voice: "Voice", tutor: "Claude AI", progress: "Progression" };
 const sheetOn = () => state.sessOpen && state.mode === "quiz";
 /** The sheet's own page that is open (one of TITLES), or null for the list. */
 const sheetPage = () => sheetOn() && state.sessPage && TITLES[state.sessPage] && (state.sessPage !== "voice" || voiceShown()) && (state.sessPage !== "tutor" || tutorShown()) ? state.sessPage : null;
@@ -206,7 +206,7 @@ export function OptionsSheet() {
     <div class={"scrim below" + (on ? " on" : "")} onClick={() => toggleSess(false)} />
     <div ref={box} class={"psheet top" + (on ? " on" : "")} role="dialog" aria-label={page === "progress" ? "Progression" : "Practice options"} aria-hidden={on ? "false" : "true"} inert={!on} tabIndex={-1} data-quiet>
       <div class={"sbody" + (page === "progress" ? "" : " sfull")} ref={body}>
-        {page && page !== "progress" ? <button type="button" class="sback" onClick={sessBack}><Icon n="chev" />back to the options</button> : page === "progress" ? <p class="glab" style={{ paddingTop: "4px" }}>{"Stage " + progressNow().top + " of " + LADDER_TOP}</p> : null}
+        {page === "progress" ? <p class="glab" style={{ paddingTop: "4px" }}>{"Stage " + progressNow().top + " of " + LADDER_TOP}</p> : null}
         {on ? (page ? <Page id={page} /> : <List />) : null}
       </div>
       <Knob up label="Fold the practice options away" onClick={() => toggleSess(false)} />

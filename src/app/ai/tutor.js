@@ -54,7 +54,7 @@ function sharing(){
 }
 // The explanation is kept with the answer (applyVerify saves it along with the verdicts), so verdicts can be audited later.
 function saveExplain(U){ persist(U,U.debate?"Your debate":"Your answer"); }
-// With "Check every answer with AI" on (Options), a checked answer asks for the explanation the Explain button would ask for, with no tap. It asks once per
+// With "Check every answer with Claude" on (Options), a checked answer asks for the explanation the Explain button would ask for, with no tap. It asks once per
 // answer, only where the tutor can answer (a device without the Magic Key still gets the grayed button), and it leaves the screen and the focus where they are.
 export function explainByItself(U){
   if(!state.autoExplain||U!==state.ui||!U.checked||U.explained||U.ctl||!canAsk()) return;
@@ -134,7 +134,7 @@ export function fillAns(node,text,ctx){
 }
 /** A used-up daily budget: whose it is, when the tutor opens again (in the person's own time), and that the rest keeps working. */
 function budgetCopy(e){
-  const lead=e.scope==="device"?"You have used your share of the tutor for today.":e.scope==="global"?"The tutor has reached its limit for today for everybody.":e.scope==="caller"?"The tutor is paused for this connection: too many wrong Magic Keys were tried from it.":"The tutor's limit for today is used up.";
+  const lead=e.scope==="device"?"You have used your share of Claude for today.":e.scope==="global"?"Claude has reached its limit for today for everybody.":e.scope==="caller"?"Claude is paused for this connection: too many wrong Magic Keys were tried from it.":"Claude's limit for today is used up.";
   const at=e.resetsAt?new Date(e.resetsAt):null;
   let when=" Try again tomorrow.";
   if(at&&!isNaN(at.getTime())){
@@ -147,7 +147,7 @@ function budgetCopy(e){
 export function errCopy(e,thing="pair"){
   const c=e&&e.code;
   if(c==="cancelled") return "";
-  if(c==="offline") return "No connection. The tutor needs the internet; try again when you are back online.";
+  if(c==="offline") return "No connection. Claude needs the internet; try again when you are back online.";
   if(c==="rate_limited") return e.budget?budgetCopy(e):"Claude is busy or your usage limit is reached. Try again later.";
   if(c==="session_expired") return "Sign in to Claude again, then retry.";
   if(c==="prompt_too_large") return "This conversation is too long. Move to the next "+thing+".";

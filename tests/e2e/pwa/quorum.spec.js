@@ -91,7 +91,7 @@ const rowOf = (page, name) => page.locator(".quorum-r").filter({ has: page.locat
 const flags = (page) => page.evaluate(() => Object.values(window.__t.flags));
 const thingsOf = (page) => page.evaluate(() => window.__t.quorumThings(window.__t.ui).map((t) => t.text));
 
-/** The page with one answer checked; Explain is not tapped yet. `setting` is the stored value of "Check every answer with AI" (null: its default, on); `answer` fills the cells. */
+/** The page with one answer checked; Explain is not tapped yet. `setting` is the stored value of "Check every answer with Claude" (null: its default, on); `answer` fills the cells. */
 const open = async (page, testInfo, setup, setting = "0", answer = answerOnPhone) => {
   test.skip(!isPhone(testInfo), "the answer flow is exercised in the phone layout");
   await page.addInitScript((v) => { window.__riglamTest = (t) => { window.__t = t; }; if (v !== null) localStorage.setItem("rd-autoexplain", v); else localStorage.removeItem("rd-autoexplain"); }, setting);
@@ -141,7 +141,7 @@ withKey("a start asks /api/health once for the tutor and Quorum together, not on
   expect(health).toBe(2);
 });
 
-withKey("Check every answer with AI asks Quorum too, once, without a tap", async ({ page }, testInfo) => {
+withKey("Check every answer with Claude asks Quorum too, once, without a tap", async ({ page }, testInfo) => {
   const asked = await open(page, testInfo, undefined, null);
   await expect(quorum(page)).toContainText(/[=≠]/);
   expect(asked).toHaveLength(1);
@@ -150,7 +150,7 @@ withKey("Check every answer with AI asks Quorum too, once, without a tap", async
 
 withKey("a follow-up question in the chat is not a Quorum question", async ({ page }, testInfo) => {
   const asked = await explained(page, testInfo);
-  await page.getByRole("button", { name: /discuss with ai/i }).click();
+  await page.getByRole("button", { name: /discuss with claude/i }).click();
   await page.fill("#ask-in", "Why not?");
   await page.keyboard.press("Enter");
   await expect.poll(() => asked.length).toBe(2);
@@ -231,7 +231,7 @@ withKey("an answer the page checked in full is explained by the one model: no qu
   await expect(page.locator(".quorum .quorum-r")).toHaveCount(0);
 });
 
-withKey("Check every answer with AI asks one model, with no quorum, for an answer the page checked in full", async ({ page }, testInfo) => {
+withKey("Check every answer with Claude asks one model, with no quorum, for an answer the page checked in full", async ({ page }, testInfo) => {
   const asked = await open(page, testInfo, { tutor: () => ({ status: 200, body: PLAIN }) }, null, answerBlank);
   await expect.poll(() => asked.length).toBe(1);
   expect(asked[0].body.kind).toBe("explain");

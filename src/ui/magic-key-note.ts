@@ -1,6 +1,6 @@
 // What the Magic Key is, said where it is asked for: the key prompt (src/pwa/unlock.ts) and the Magic Key page of Settings on the Path. The second is the hint under it.
 export const MAGIC_KEY_ABOUT = [
-  "The Magic Key is four words that come with the course. Entered once, it unlocks the course’s definitions and notes on this device, so terms show what they mean, and the explanations of the AI tutor, which use them.",
+  "The Magic Key is four words that come with the course. Entered once, it unlocks the course’s definitions and notes on this device, so terms show what they mean, and Claude’s explanations, which use them.",
   "Without it you can still practice. Ask your teacher or whoever shared the app with you.",
 ] as const;
 

@@ -33,7 +33,7 @@ function About() {
 function AskRow() {
   const u = u0(), ref = useRef<HTMLInputElement>(null);
   const send = () => { const q = (u.q || "").trim(); if (!q) return; u.q = ""; void ask(q); refreshPath(); };
-  if (u.ctl) return <St d={<D cls="sub pthink" />} cls="pask"><Thinking label="the tutor is writing" /><button type="button" class="pbtn" onClick={() => u.ctl && u.ctl.abort()}>Stop</button></St>;
+  if (u.ctl) return <St d={<D cls="sub pthink" />} cls="pask"><Thinking label="Claude is writing" /><button type="button" class="pbtn" onClick={() => u.ctl && u.ctl.abort()}>Stop</button></St>;
   if (!canAsk()) return null;
   return <St d={<D cls="sub pk" />} cls="pask"><div class="fieldrow"><input ref={ref} id="ask-in" class="pfield" placeholder="Ask a follow-up question" aria-label="Follow-up question" {...nofillInput()} enterKeyHint="send"
     value={u.q || ""} onInput={(e) => { u.q = (e.currentTarget as HTMLInputElement).value; }} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); send(); } }} /></div>
@@ -42,9 +42,9 @@ function AskRow() {
 /** One answer of the tutor: its words, its flag (and the flag's editor), or the dots while it has none yet. */
 function Answer({ t, idx }: { t: Turn; idx: number }) {
   const u = u0(), expl = t.kind === "explain", where = "o" + idx, q = !expl && u.chat ? u.chat[idx - 1] : null;
-  const c = !u.syllogism && !t.pending && t.content && state.cur && state.cur.p ? aiCase(expl ? "explain" : "chat", expl ? "the tutor’s explanation" : "the tutor’s answer", t.content, expl ? null : idx, flagAsked(q)) : null;
-  return <St d={<D cls={"sub " + (t.pending ? "pthink" : "tut")} />} cls="sb pans2"><span class="lab">{expl ? "the tutor’s explanation" : "the tutor"}</span>
-    {t.content ? <div class="tsay"><TutorText text={t.content} where={"ct" + idx + "."} /></div> : <Thinking label="the tutor is thinking" />}
+  const c = !u.syllogism && !t.pending && t.content && state.cur && state.cur.p ? aiCase(expl ? "explain" : "chat", expl ? "Claude’s explanation" : "Claude’s answer", t.content, expl ? null : idx, flagAsked(q)) : null;
+  return <St d={<D cls={"sub " + (t.pending ? "pthink" : "tut")} />} cls="sb pans2"><span class="lab">{expl ? "Claude’s explanation" : "Claude"}</span>
+    {t.content ? <div class="tsay"><TutorText text={t.content} where={"ct" + idx + "."} /></div> : <Thinking label="Claude is thinking" />}
     {c ? <span class="pflgrow"><FlagBtn c={c} where={where} word /></span> : null}<FlagEditor where={where} /></St>;
 }
 export function TutorPage() {
@@ -55,7 +55,7 @@ export function TutorPage() {
     else { const g = groups[groups.length - 1]; if (g && g.q && !g.a) { g.a = t; g.ai = idx; } else groups.push({ a: t, ai: idx }); }
   });
   return <>
-    <TopBar title="The tutor" />
+    <TopBar title="Claude" />
     <div class="ppage ptalk">
       <Sx cls="walked first tutl"><div style={{ height: "14px" }} /><About /><AskRow />
         {u.chatErr ? <St d={<span />} cls="pnote2"><p class="terr">{u.chatErr}</p></St> : null}

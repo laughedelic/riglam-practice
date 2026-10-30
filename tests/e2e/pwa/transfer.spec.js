@@ -10,7 +10,7 @@ const seeded = {
 };
 
 const open = async (page) => {
-  // the support test starts every page with "Check every answer with AI" off, the course terms met and the start on the exercise; this spec counts the settings the page has stored, and a device that
+  // the support test starts every page with "Check every answer with Claude" off, the course terms met and the start on the exercise; this spec counts the settings the page has stored, and a device that
   // already holds an rd- key looks like one from before the ladder (state.js), which stores its stages
   await page.addInitScript(() => { localStorage.removeItem("rd-autoexplain"); localStorage.removeItem("rd-terms"); localStorage.removeItem("rd-start"); });
   await page.goto("/");

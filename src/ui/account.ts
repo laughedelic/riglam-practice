@@ -93,7 +93,7 @@ export function accountControls(account: Account, el: El, rerender: () => void, 
     if (slot.wantStatus) queueMicrotask(() => { if (p.isConnected) p.focus({ preventScroll: false }); });
   }
   slot.wantStatus = false;
-  if (v.person?.hasKey) box.append(el("p", { class: "onote", text: "This account carries the Magic Key: a device that signs in to it unlocks the definitions and the tutor, also after the key is changed." }));
+  if (v.person?.hasKey) box.append(el("p", { class: "onote", text: "This account carries the Magic Key: a device that signs in to it unlocks the definitions and Claude, also after the key is changed." }));
   if (slot.focus) {
     const id = slot.focus;
     slot.focus = undefined;

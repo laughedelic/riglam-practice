@@ -35,7 +35,7 @@ export function storeKey(key: string) {
 }
 const CHANGED = "riglam.keyChanged";
 /** What the prompt says to a reader whose kept key stopped fitting: the study group changed the Magic Key. */
-export const KEY_CHANGED_TEXT = "The Magic Key was changed. Enter the new words (or open the new link) to keep reading the definitions and using the tutor.";
+export const KEY_CHANGED_TEXT = "The Magic Key was changed. Enter the new words (or open the new link) to keep reading the definitions and asking Claude.";
 /** Notes that the server stopped accepting the kept key, so the next visit can say so once. */
 export const markKeyChanged = () => set("localStorage", CHANGED, "1");
 /** True once after `markKeyChanged`. */

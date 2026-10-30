@@ -72,7 +72,7 @@ export function FlagEditor({ where }: { where: string }) {
 /** The flag on the tutor's explanation of the answer on screen, or on its note on a case (`cell`, with its words), as ai/flags.js makes them. */
 export function explainCase(content: string, cell?: string, label?: string, thing?: string): FlagCase | null {
   if (!state.db || !state.ui || state.ui.syllogism || !state.cur || !state.cur.p || !content) return null;
-  return cell ? aiCase("explain", "the tutor’s note on " + label, content, cell, undefined, thing) : aiCase("explain", "the tutor’s explanation", content, null);
+  return cell ? aiCase("explain", "Claude’s note on " + label, content, cell, undefined, thing) : aiCase("explain", "Claude’s explanation", content, null);
 }
 
 /* ---------- Quorum ---------- */

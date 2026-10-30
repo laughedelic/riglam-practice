@@ -209,8 +209,8 @@ withKey("asking again after an answer that settled nothing shows the new explana
   await expect(headline(page)).toHaveText("Claude could not settle your pair.");
   await expect.poll(async () => (await saved(page))[0].cells.anb.verdict).toBe("bad"); // the first answer turned the example down
   await expect(page.locator(".vpanel")).toContainText("FIRST-ANSWER"); // and what Claude said about it is shown, though the pair is not judged yet
-  await expect(page.getByRole("button", { name: /^Discuss with AI/ })).toBeVisible(); // the follow-up chat stays next to Ask again
-  await page.getByRole("button", { name: /^Discuss with AI/ }).click();
+  await expect(page.getByRole("button", { name: /^Discuss with Claude/ })).toBeVisible(); // the follow-up chat stays next to Ask again
+  await page.getByRole("button", { name: /^Discuss with Claude/ }).click();
   await expect(page.locator("#over .ctx")).toContainText("pair not settled"); // not "relation and cells right": the pair is not judged
   await expect(page.locator("#over .ctx")).not.toContainText("cells right");
   await page.locator("#over .oc").click(); // the chat's close button

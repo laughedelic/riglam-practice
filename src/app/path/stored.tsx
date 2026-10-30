@@ -31,7 +31,7 @@ export function StoredCases({ doc }: { doc: AnswerDoc }) {
       : k.none ? <span class="ans2 nil">empty</span> : <span class={"ans2" + (m === "no" ? " no" : "")}>{k.text}</span>;
     return <St d={<D cls={"sub " + (m || "done")} />} cls="sb exr">
       <span class="lab">{debate ? "Question " + k.q : CASE[c]}</span><div class="line1">{ans}{m ? <Mark m={m} /> : null}</div>
-      <p class="xnote">{k.verdict ? <b>{k.verdict} </b> : null}{k.note}{k.by === "claude" ? <i> Checked by the tutor.</i> : k.by === "course" ? <i> Checked by the course examples.</i> : null}</p>
+      <p class="xnote">{k.verdict ? <b>{k.verdict} </b> : null}{k.note}{k.by === "claude" ? <i> Checked by Claude.</i> : k.by === "course" ? <i> Checked by the course examples.</i> : null}</p>
     </St>;
   })}</>;
 }
@@ -41,7 +41,7 @@ export function StoredExplain({ doc, k }: { doc: AnswerDoc; k: string }) {
   const key = k + ":x", open = isOpen(key);
   return <>
     <button type="button" class={"wrow" + (open ? " open" : "")} aria-expanded={open ? "true" : "false"} onClick={() => toggleOpen(key)}><D cls="sub tut" />
-      <span class="ct"><b>Why</b><span>the tutor’s explanation</span></span><span class="arr"><Icon n="chev" /></span></button>
+      <span class="ct"><b>Explanation</b><span>by Claude</span></span><span class="arr"><Icon n="chev" /></span></button>
     {open ? <div class="wtext"><div class="tsay"><TutorText text={doc.explain} ctx={noteContext(doc)} /></div></div> : null}
   </>;
 }
