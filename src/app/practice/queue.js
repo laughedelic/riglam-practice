@@ -10,6 +10,7 @@ import { isSkipped } from "./skips.js";
 import { closeStageUp, passStageOffer, takeStageUp } from "./stage-offer.ts";
 import { takeStop } from "./stops.ts";
 import { nextGenerated } from "./universe.js";
+import { cue } from "../sound/play.ts";
 import { render, top0 } from "../shell/render.js";
 
 export function freshUi(){return {rel:null, open:true, cells:{both:{t:"",none:false},anb:{t:"",none:false},bna:{t:"",none:false},nei:{t:"",none:false}}, checked:false, res:null, chat:null, chatErr:"", q:"", ci:0, seen:0, review:false, rtab:"auto", pop:null, tq:null, tid:null, tph:null, late:false, exLate:false};}
@@ -22,4 +23,4 @@ function nextPair(){
 }
 export function advance(){ passNegOffer(); state.cur=nextPair(); state.ui=freshUi(); state.mode="quiz"; }
 // Next: a course term's stop comes first when one is due (practice/stops.ts); from the stop, Next goes on to the question.
-export function next(){ if(state.ui&&state.ui.ctl) state.ui.ctl.abort(); passStageOffer(); if(takeStageUp()){ render(); top0(); return; } closeStageUp(); if(takeStop()){ render(); top0(); return; } if(state.ui&&state.ui.debate) advanceDebate(); else if(state.ui&&state.ui.find) advanceFind(); else if(state.ui&&state.ui.cats) advanceCategories(); else if(state.ui&&state.ui.inst) advanceInstance(); else if(state.ui&&state.ui.syllogism) advanceSyllogism(); else advance(); render(); top0(); }
+export function next(){ if(state.ui&&state.ui.ctl) state.ui.ctl.abort(); passStageOffer(); if(takeStageUp()){ render(); top0(); cue("stage"); return; } closeStageUp(); if(takeStop()){ render(); top0(); cue("definition",{soft:state.ui.stop.why!=="new"}); return; } if(state.ui&&state.ui.debate) advanceDebate(); else if(state.ui&&state.ui.find) advanceFind(); else if(state.ui&&state.ui.cats) advanceCategories(); else if(state.ui&&state.ui.inst) advanceInstance(); else if(state.ui&&state.ui.syllogism) advanceSyllogism(); else advance(); render(); top0(); cue("next"); }

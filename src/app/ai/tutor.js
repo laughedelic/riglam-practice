@@ -11,6 +11,7 @@ import { cardBody, explainAsk, tutorCard } from "../../ai-shared/card.ts";
 import { topStage } from "../../domain/stages.ts";
 import { noteCats } from "../../ai-shared/lookup.ts";
 import { tutorTools } from "../../ai-shared/tools.ts";
+import { answered } from "../sound/play.ts";
 import { askSyllogism } from "../syllogism/tutor.js";
 import { applyRelationVerdict, applyVerdicts, parseRelationVerdict, parseVerdicts } from "../../domain/verdict.ts";
 import { refreshPath } from "../path/index.tsx";
@@ -105,6 +106,7 @@ export async function ask(text,kind,byItself){
     slot.content=r.text+(r.truncated?"\n(Cut short.)":""); delete slot.pending;
     if(kind==="explain"){ if(U.doc) U.doc.explain=String(r.text||"").slice(0,3000); if(!((U.res.exOpen||U.res.relOpen)&&applyVerify(r.text,U,C))) saveExplain(U); }
     if(quorum) quorumEnd(U,r,C);                          // after the verdicts: the flags compare the models with the page's verdicts as they now stand
+    if(U===state.ui) answered();                          // its sound, after the verdict that may have come with it
   }catch(e){
     if(e&&e.text){ slot.content=e.text; delete slot.pending; } else U.chat.pop();
     if(kind==="explain") U.explained=false;

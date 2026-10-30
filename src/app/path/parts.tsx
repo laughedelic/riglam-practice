@@ -20,6 +20,7 @@ import { openChat } from "../shell/chat.js";
 import { render } from "../shell/render.js";
 import { openPage, toggleSess } from "../shell/session.js";
 import { stageName } from "../shell/stages.js";
+import { verdictCue } from "../sound/play.ts";
 import { negSides } from "../../ai-shared/relations.ts";
 import type { CellId, Neg, RelKey } from "../../ai-shared/relations.ts";
 import { GUIDE_RIGHT, LADDER_TOP, STAGES } from "../../domain/stages.ts";
@@ -149,8 +150,10 @@ export function pickThen(k: string, go: () => void, scan?: (act: () => void) => 
 }
 
 /** The verdict on the path: a large diamond with its mark, the word, and what it is about. `pend`: right so far, with examples unchecked: partly right's color
- *  until the check is in (Design Lab, Waiting for Claude), with the check mark. */
-export function Verdict({ v, word, sub, pend = false, children }: { v: "ok" | "no" | "pt"; word: string; sub?: string; pend?: boolean; children?: ComponentChildren }) {
+ *  until the check is in (Design Lab, Waiting for Claude), with the check mark. Its sound plays as it lands, once the check is in (`pend` is silent); `quiet`: drawn
+ *  out of sight to be measured, so no sound. */
+export function Verdict({ v, word, sub, pend = false, quiet = false, children }: { v: "ok" | "no" | "pt"; word: string; sub?: string; pend?: boolean; quiet?: boolean; children?: ComponentChildren }) {
+  useEffect(() => { if (!pend && !quiet) verdictCue(v); }, [v, pend, quiet]);
   return <Sx cls={({ ok: "okp", no: "nop", pt: "ptp" } as Record<string, string>)[v] + " vband"}>
     <St d={<D cls={"big " + v} mark={v === "ok" || pend ? "check" : v === "no" ? "cross" : "q"} />} cls={"pvline " + v}>{word}{sub ? <small class="vsub">{sub}</small> : null}</St>
     {children}</Sx>;

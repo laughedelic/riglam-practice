@@ -8,6 +8,7 @@ import { freshUi } from "../practice/queue.js";
 import { catsStageNow, shareNow, stageStep } from "../practice/stage-offer.ts";
 import { askedTerm, gradeTerms, openNow, unmetNow } from "../practice/stops.ts";
 import { render, top0 } from "../shell/render.js";
+import { cue } from "../sound/play.ts";
 import { REPLIES, drawSyllogism, gradeSyllogism, gradeTimeout, gradeExample } from "../../domain/syllogism.ts";
 
 /* ---------- Syllogisms: take a thing, the reason and the conclusion; accept it, deny the reason or deny the pervasion ---------- */
@@ -40,6 +41,7 @@ export function startSyllogismClock(){
 // Time up: no reply, so wrong; the result shows the right one
 function expireSyllogism(u){
   if(u!==state.ui||!syllogismAsking()) return;
+  cue("timeup");
   u.tid=null; u.timeout=true; u.ms=u.tq?u.tq.limit:null; u.tq=null; u.grade=gradeTimeout(shownSyllogism());
   if(document.activeElement&&/** @type {HTMLElement} */(document.activeElement).blur) /** @type {HTMLElement} */(document.activeElement).blur();
   finishSyllogism();

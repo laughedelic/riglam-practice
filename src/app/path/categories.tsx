@@ -69,7 +69,7 @@ function roomOf(v: "ok" | "no", word: string, sub: string) {
   return (pc: HTMLElement) => {
     const box = document.createElement("div");
     box.style.cssText = `position:absolute; left:0; top:0; width:${pc.clientWidth}px; visibility:hidden; pointer-events:none`;
-    pc.append(box); render(<Verdict v={v} word={word} sub={sub} />, box);
+    pc.append(box); render(<Verdict v={v} word={word} sub={sub} quiet />, box);
     const band = box.querySelector(".vband"), d = box.querySelector(".pvline .d.big"), b = band && band.getBoundingClientRect(), r = d && d.getBoundingClientRect();
     render(null, box); box.remove();
     return b && r ? { h: AFTER_THING + b.height, at: AFTER_THING + r.top + r.height / 2 - b.top } : null;
