@@ -1,7 +1,6 @@
 import { state } from "../state.js";
 import { ORDER } from "../core/rel.js";
-import { isWide } from "../core/viewport.js";
-import { checkCategories, resetCategories, sayCategory, tickCategory, tickNone } from "../categories/flow.js";
+import { checkCategories, resetCategories, sayCategory, tickCategory } from "../categories/flow.js";
 import { checkInstance } from "../instance/flow.ts";
 import { backSyllogism, replyOfKey, saySyllogism } from "../syllogism/flow.js";
 import { checkDebate, chooseD, sayQ } from "../debate/flow.js";
@@ -11,13 +10,13 @@ import { choose } from "../practice/screen.js";
 import { closeSkipAsk, skipPair } from "../practice/skips.js";
 import { closeDef } from "../practice/terms.js";
 import { closeChat } from "./chat.js";
-import { closeMenu, menuVisible } from "./menu.js";
+import { toggleMenu } from "./menu.js";
 import { toggleOpts } from "./options.js";
 import { isEx, render } from "./render.js";
 import { sessBack } from "./session.js";
 import { voiceKey } from "./voice.js";
-// a category that can be ticked: the classic page's, or a row of the choices the Path ticks (path/categories.tsx)
-const ticks=b=>b.classList.contains("catick")||!!b.closest("#path .thold");
+// a category that can be ticked: a row of the choices the Path ticks (path/categories.tsx)
+const ticks=b=>!!b.closest("#path .thold");
 
 // a tap outside a note closes it, and a tap outside a term's definition closes that (a tap on a term stops before this)
 document.addEventListener("click",e=>{
@@ -27,14 +26,14 @@ document.addEventListener("click",e=>{
 document.addEventListener("keydown",e=>{
   // a native dialog (the Magic Key prompt, the sharing question) takes the keys it needs, and closes itself on Escape except the sharing question, which has to be answered: the menu or Settings under it keep their level
   if(/** @type {Element|null} */(e.target)?.closest?.("dialog[open]")) return;
-  if(e.key==="Escape"){ if(state.skipAsk){ closeSkipAsk(); return; } if(state.sessOpen){ sessBack(); return; } if(state.optsOpen){ toggleOpts(false); return; } if(state.view==="chat"){ closeChat(); return; } if(menuVisible()&&(!isWide()||state.menuPeek)){ closeMenu(); return; } if(state.ui&&state.ui.dterm){ closeDef(); return; } if(state.ui&&state.ui.pop){ state.ui.pop=null; render(); return; } if(state.ui&&state.ui.find&&state.ui.open&&!state.ui.checked){ state.ui.open=false; render(); return; } if(state.tab==="syllogism"&&state.ui&&state.ui.syllogism&&state.ui.step===1&&!state.ui.checked){ backSyllogism(); return; } }
-  if(state.mode!=="quiz"||!state.ui||state.optsOpen||state.sessOpen||state.skipAsk||state.view||state.tab==="review"||(state.menuOpen&&!isWide())||e.metaKey||e.ctrlKey||e.altKey) return;
+  if(e.key==="Escape"){ if(state.skipAsk){ closeSkipAsk(); return; } if(state.sessOpen){ sessBack(); return; } if(state.optsOpen){ toggleOpts(false); return; } if(state.view==="chat"){ closeChat(); return; } if(state.menuOpen){ toggleMenu(false); return; } if(state.ui&&state.ui.dterm){ closeDef(); return; } if(state.ui&&state.ui.pop){ state.ui.pop=null; render(); return; } if(state.ui&&state.ui.find&&state.ui.open&&!state.ui.checked){ state.ui.open=false; render(); return; } if(state.tab==="syllogism"&&state.ui&&state.ui.syllogism&&state.ui.step===1&&!state.ui.checked){ backSyllogism(); return; } }
+  if(state.mode!=="quiz"||!state.ui||state.optsOpen||state.sessOpen||state.skipAsk||state.view||state.tab==="review"||state.menuOpen||e.metaKey||e.ctrlKey||e.altKey) return;
   const t=e.target&&/** @type {Element} */(e.target).tagName;
   if(state.ui.stop||(state.ui.up&&state.ui.up.shown)){ if(isEx()&&(e.key==="n"||e.key==="N")&&!e.shiftKey&&t!=="INPUT"&&t!=="TEXTAREA"){ e.preventDefault(); next(); } return; }     // a course term's stop or a stage coming in: only Next (practice/stops.ts, practice/stage-offer.ts)
   if((e.key==="v"||e.key==="r"||e.key==="Enter"||e.key==="Escape")&&!e.shiftKey&&t!=="INPUT"&&t!=="TEXTAREA"&&t!=="SELECT"&&(t!=="BUTTON"||e.key!=="Enter")&&voiceKey(e.key)){ e.preventDefault(); return; }
   if((e.key==="f"||e.key==="F")&&!e.shiftKey&&t!=="INPUT"&&t!=="TEXTAREA"&&state.db&&favTarget()&&!favTarget().own&&isEx()){ e.preventDefault(); toggleFav(favTarget()); return; }
   if(state.tab==="practice"&&!state.ui.debate){
-    if(!state.ui.checked&&t!=="INPUT"&&/^[1-5]$/.test(e.key)&&(isWide()||!state.ui.rel||state.ui.open)){ e.preventDefault(); choose(ORDER[+e.key-1]); }
+    if(!state.ui.checked&&t!=="INPUT"&&/^[1-5]$/.test(e.key)&&(!state.ui.rel||state.ui.open)){ e.preventDefault(); choose(ORDER[+e.key-1]); }
     else if(!state.ui.checked&&t!=="INPUT"&&t!=="TEXTAREA"&&(e.key==="s"||e.key==="S")&&!e.shiftKey){ e.preventDefault(); skipPair(); }
     else if(state.ui.checked&&(e.key==="n"||e.key==="N")&&!e.shiftKey&&t!=="INPUT"&&t!=="TEXTAREA"){ e.preventDefault(); next(); }
   } else if(state.tab==="find"&&state.ui.find){
@@ -47,8 +46,8 @@ document.addEventListener("keydown",e=>{
     else if(k==="s"){ e.preventDefault(); skipPair(); }
     else if(u.step===0&&u.ask==="all"){
       if(/^[1-9]$/.test(k)&&q.rows[+k-1]){ e.preventDefault(); tickCategory(q.rows[+k-1].cat); }
-      else if(k==="0"){ e.preventDefault(); if(state.design==="path") resetCategories(); else tickNone(); }   // the Path has no "None of these": 0 drops all back under the rule
-      else if(k==="enter"&&(t!=="BUTTON"||(ticks(/** @type {Element} */(e.target))&&/** @type {Element} */(e.target).getAttribute("aria-pressed")==="true"))){ e.preventDefault(); checkCategories(state.design==="path"); }   // a ticked button keeps the focus, and Enter there checks; on a button not ticked yet Enter ticks it, as on any button
+      else if(k==="0"){ e.preventDefault(); resetCategories(); }   // 0 drops all ticks back under the rule
+      else if(k==="enter"&&(t!=="BUTTON"||(ticks(/** @type {Element} */(e.target))&&/** @type {Element} */(e.target).getAttribute("aria-pressed")==="true"))){ e.preventDefault(); checkCategories(); }   // a ticked button keeps the focus, and Enter there checks; on a button not ticked yet Enter ticks it, as on any button
     } else if(u.step===0){ if(k==="y"){ e.preventDefault(); sayCategory(true); } else if(k==="n"){ e.preventDefault(); sayCategory(false); } }
   } else if(state.tab==="instance"&&state.ui.inst){
     // the field takes its own Enter (it checks); outside it S skips, Enter checks what is written or "nothing is", N goes on from the result
@@ -70,7 +69,7 @@ document.addEventListener("keydown",e=>{
       if(state.ui.pickWhy) return;
       if(k==="a"||k==="y"){ e.preventDefault(); sayQ("accept"); } else if(k==="w"||k==="n"||k==="?"){ e.preventDefault(); sayQ("why"); } else if(k==="s"&&!e.shiftKey){ e.preventDefault(); skipPair(); }
     } else if(!state.ui.checked){
-      if(/^[1-5]$/.test(k)&&(isWide()||state.ui.open)){ e.preventDefault(); chooseD(ORDER[+k-1]); }
+      if(/^[1-5]$/.test(k)&&state.ui.open){ e.preventDefault(); chooseD(ORDER[+k-1]); }
       else if(k==="enter"&&state.ui.rel&&!state.ui.open&&t!=="BUTTON"){ e.preventDefault(); checkDebate(); }
       else if(k==="s"&&!e.shiftKey){ e.preventDefault(); skipPair(); }
     } else if(k==="n"&&!e.shiftKey){ e.preventDefault(); next(); }

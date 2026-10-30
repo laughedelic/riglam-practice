@@ -1,7 +1,7 @@
 // The lines of the practice options and of Settings (the Design Lab's "Settings and options", round 3): a group under a small heading, and in it lines of
 // [the switch] [the name, with its value or a quick choice under it] [the chevron into its page]. The whole line is the way in, a button under the rest, so a
 // tap almost anywhere opens its page; only the switch, the quick choice and what a page line holds keep their own taps. A line with a switch and no page is
-// the switch, all of it. 46-path-settings.css.
+// the switch, all of it. 18-path-settings.css.
 import type { ComponentChildren } from "preact";
 import { Icon, Toggle } from "./ui.tsx";
 

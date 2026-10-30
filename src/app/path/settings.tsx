@@ -1,7 +1,7 @@
 // Settings on the Path (the Design Lab's "Settings and options", round 3): full width, in sections of lines (path/lines.tsx), and a page of its own for a
 // line that needs one. General: the languages and the theme. Data: the Magic Key, the account, sharing the examples, export and import. Experiments,
-// shown only in a Preview, or in the real app on a device with the Magic Key after a hold on Version: the design, voice, the lab's settings. About: the
-// version. What each does is the classic page's (shell/options.js and the shared rows of src/ui, which the Path builds in its own classes).
+// shown only in a Preview, or in the real app on a device with the Magic Key after a hold on Version: voice, the lab's settings. About: the
+// version. What each does is shell/options.js's and the shared rows of src/ui's, which the Path builds in its own classes.
 import { useRef, useState } from "preact/hooks";
 import { state } from "../state.js";
 import { accountControls } from "../../ui/account";
@@ -18,7 +18,6 @@ import { languagesOn } from "./terms.tsx";
 import { setSounds } from "../sound/play.ts";
 import { setOn as setVoiceOn, voiceAvailable, voiceNote, voiceOn } from "../shell/voice.js";
 import { DEFAULT_LOOK, currentLook, lookLine, pastedLook, setLook, storedLook } from "./look.ts";
-import { setDesign } from "./index.tsx";
 import { TopBar, pathNote } from "./shell.tsx";
 import { Group, Intro, Line } from "./lines.tsx";
 import { Bridge, Words, NOFILL } from "./ui.tsx";
@@ -30,7 +29,7 @@ const back = () => { state.optsPage = null; render(); };
 // how long Version is held to show Experiments
 const HOLD_MS = 1500;
 
-// the shared rows of src/ui (the account, your data) build their nodes with the classic page's classes; the Path's are put in their place
+// the shared rows of src/ui (the account, your data) build their nodes with the classes of src/ui; the Path's are put in their place
 const PCLS: Record<string, string> = { btn: "pbtn", "btn ghost": "pbtn", onote: "pnoteline", "onote bad": "pnoteline bad", xfer: "pxfer", xferbox: "pxbox", xsum: "pxsum", acct: "pacct", acwho: "pacwho", acname: "pacname" };
 const pel = (tag: string, props?: Record<string, any> | null, ...kids: any[]) => {
   const p = props ? { ...props } : props;
@@ -181,7 +180,6 @@ function Sections() {
       {state.db ? <Line title="Export and import" sub="everything this device keeps, in one file" go={() => open("xfer")} /> : null}
     </Group> : null}
     {expOn() ? <Group name="Experiments" tag={state.preview ? "only in previews" : "shown on this device"} note="Not settled yet; not shown in the released app.">
-      <Line title="Design" sub="The Path is the redesign, still being made. Classic is the page as it was."><Words label="Design" items={[["path", "Path"], ["classic", "Classic"]]} cur={state.design} on={setDesign} /></Line>
       {voiceAvailable() ? <Line title="Voice features" sub={voiceNote()} sw={{ on: voiceOn(), toggle: () => setVoiceOn(!voiceOn()) }} /> : null}
       <Line title="The lab's settings" sub={labOwn() ? "this device's own" : "the defaults"} go={() => open("lab")} />
     </Group> : null}

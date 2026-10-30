@@ -1,51 +1,23 @@
-/* The page's stylesheet, in cascade order. Each file is a layer over the ones before it (the page grew by versions, and a
-   later block overrides an earlier rule on purpose), so the order of these lines is part of the style: keep it, and move a
-   rule to another file only together with what depends on its position. Both builds import this file; docs/ARCHITECTURE.md. */
+/* The page's stylesheet, in cascade order. Each file is a layer over the ones before it (a later block overrides an earlier rule on purpose), so the order of
+   these lines is part of the style: keep it, and move a rule to another file only together with what depends on its position. Both builds import this file;
+   docs/ARCHITECTURE.md. 00 to 04 are the ground and the few parts that stand outside the Path; 05 on is the Path. */
 @import "./styles/00-tokens.css"; /* colors, fonts, sizes and the felt tiles; the dark theme */
-@import "./styles/01-base.css"; /* reset, the edge bands, the body, the segmented control */
-@import "./styles/02-card.css"; /* the practice card: pair header, relation chip, relation list, table of answers */
-@import "./styles/03-result.css"; /* feedback, tutor text, action row and buttons, summary */
-@import "./styles/04-card-media.css"; /* phones, devices without hover and reduced motion, for the card */
-@import "./styles/05-review.css"; /* retry tag and the Review tab: tables, bars, days, split, legend */
-@import "./styles/06-debate.css"; /* the Debate tab, the timer bar, the small pill button */
-@import "./styles/07-favorites.css"; /* favorite pairs */
-@import "./styles/08-options.css"; /* the options menu */
-@import "./styles/09-statement.css"; /* the statement of a question, an answer at a glance */
-@import "./styles/10-shell.css"; /* app shell (version 40): top bar, steps, tab bar, work area, the scrolling card */
-@import "./styles/11-panels.css"; /* relation chips (wide), one cell at a time (narrow), coach panel, rail, review in three groups */
-@import "./styles/12-overlay.css"; /* options and the tutor chat open over the workspace */
-@import "./styles/13-layout.css"; /* finger-sized inputs, phone padding, the wide layout */
-@import "./styles/14-shell-fit.css"; /* no sideways scrolling, short phones, relation rows, Blitz seconds, tutor chat view */
-@import "./styles/15-result-chips.css"; /* version 45: result headline and chips as tabs; the "?" on a cell and its bubble */
-@import "./styles/16-debate-rows.css"; /* the four questions of a debate as short rows */
-@import "./styles/17-table-fit.css"; /* the table's columns may shrink */
-@import "./styles/18-thinking.css"; /* version 46: the thinking dots and the "isa" chain */
-@import "./styles/19-terms.css"; /* version 47: the Terms panel */
-@import "./styles/20-relation-help.css"; /* version 48: the relation's "?", the numbers on the map, Blitz as an icon */
-@import "./styles/21-countdown-receipt.css"; /* version 49 and the patches after it: countdown row, progress, receipts, Skip, review segments, Recent */
-@import "./styles/22-quorum.css"; /* version 57: Quorum and flags */
-@import "./styles/23-tutor-chat.css"; /* version 58: exchanges of the tutor chat, the line under the diamond, receipts as tags */
-@import "./styles/24-ai-flags.css"; /* version 59: a flag on every box with Claude's text, the judge's ruling */
-@import "./styles/25-toolbar.css"; /* version 62: toolbar icons, the hint after a skip */
-@import "./styles/26-follow-up-width.css"; /* version 63: the follow-up row may not widen its block */
-@import "./styles/27-find.css"; /* Find a pair: the fourth tab, the step that names the pair, the open state of a cell */
-@import "./styles/28-menu.css"; /* the menu, the practice options sheet, the question before a skip */
-@import "./styles/29-share-note.css"; /* the one-time dialog before a device's examples are kept */
-@import "./styles/30-syllogism.css"; /* Syllogisms: the card with the syllogism and its three replies, the counter-example step, the result */
-@import "./styles/31-categories.css"; /* Categories: the thing, the ticks or yes and no, the split check, the offer of a level */
-@import "./styles/32-voice.css"; /* voice: the bar with the microphone and what was heard, the Voice row of Settings */
-@import "./styles/33-path-base.css"; /* the Path (the redesign, src/app/path): its root, the resets, the top bar, the scroll, the note at the foot */
-@import "./styles/34-path-line.css"; /* the Path: the line, its stops, the pair, the relation figures, the choices, the cases */
-@import "./styles/35-path-station.css"; /* the Path: the strip, the station and its pull, the side stations, the layout with the keyboard up */
-@import "./styles/36-path-result.css"; /* the Path: the result, Why, the tutor at work */
-@import "./styles/37-path-panels.css"; /* the Path: the practice options, the roadmap, the pages, the toggles */
-@import "./styles/38-path-exercises.css"; /* the Path: what the exercises draw beyond Relations (Syllogisms, Pervasions, Find a pair, Categories) */
-@import "./styles/39-path-bridge.css"; /* the Path: the classic parts it still hosts */
-@import "./styles/40-path-pages.css"; /* the Path: Review, the tutor's conversation, flags and Quorum */
-@import "./styles/41-path-choose.css"; /* the Path: choices beside the path that slide onto it, two options on one row */
-@import "./styles/42-path-take.css"; /* the Path: a station taken over its curb, the old step folding and leaving as the station rides up */
-@import "./styles/43-path-scan.css"; /* the Path: the Check of the examples sliding up through the cases and marking each, then becoming the result */
-@import "./styles/44-path-push.css"; /* the Path: the look's push ride, the station pushing the page up ahead of it as it rises */
-@import "./styles/45-path-foot.css"; /* the Path: what is at the foot while a station rides away (the look's foot) */
-@import "./styles/46-path-settings.css"; /* the Path: the practice options and Settings as lines in groups, and the two-diamond switch */
-@import "./styles/47-path-wait.css"; /* the Path: Claude at work, said once, on a stop over the station; Explain as a choice beside the line */
+@import "./styles/01-base.css"; /* reset, the page, the focus ring */
+@import "./styles/02-controls.css"; /* the buttons, the icon and the notes of the dialogs outside #path; a term's dotted underline */
+@import "./styles/03-share-note.css"; /* the one-time dialog before a device's examples are kept */
+@import "./styles/04-voice.css"; /* voice: the bar with what was heard, and the way to hear the question */
+@import "./styles/05-path-base.css"; /* the Path (src/app/path): its root, the resets, the top bar, the scroll, the note at the foot */
+@import "./styles/06-path-line.css"; /* the Path: the line, its stops, the pair, the relation figures, the choices, the cases */
+@import "./styles/07-path-station.css"; /* the Path: the strip, the station and its pull, the side stations, the layout with the keyboard up */
+@import "./styles/08-path-result.css"; /* the Path: the result, Why, the tutor at work */
+@import "./styles/09-path-panels.css"; /* the Path: the practice options, the roadmap, the pages, the toggles */
+@import "./styles/10-path-exercises.css"; /* the Path: what the exercises draw beyond Relations (Syllogisms, Pervasions, Find a pair, Categories) */
+@import "./styles/11-path-bridge.css"; /* the Path: the parts it hosts that keep their own rules, and the dialogs and notices outside #path */
+@import "./styles/12-path-pages.css"; /* the Path: Review, the tutor's conversation, flags and Quorum */
+@import "./styles/13-path-choose.css"; /* the Path: choices beside the path that slide onto it, two options on one row */
+@import "./styles/14-path-take.css"; /* the Path: a station taken over its curb, the old step folding and leaving as the station rides up */
+@import "./styles/15-path-scan.css"; /* the Path: the Check of the examples sliding up through the cases and marking each, then becoming the result */
+@import "./styles/16-path-push.css"; /* the Path: the look's push ride, the station pushing the page up ahead of it as it rises */
+@import "./styles/17-path-foot.css"; /* the Path: what is at the foot while a station rides away (the look's foot) */
+@import "./styles/18-path-settings.css"; /* the Path: the practice options and Settings as lines in groups, and the two-diamond switch */
+@import "./styles/19-path-wait.css"; /* the Path: Claude at work, said once, on a stop over the station; Explain as a choice beside the line */

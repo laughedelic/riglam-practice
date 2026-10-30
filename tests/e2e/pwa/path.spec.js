@@ -1,16 +1,14 @@
-// The Path (src/app/path), the redesign behind Settings > Design: Relations drawn on the path from the relation to the result, the roadmap
-// from the top bar, the practice options as a sheet, Settings with the switch back to the classic page, and the question before a skip.
+// The Path (src/app/path), the page: Relations drawn on the path from the relation to the result, the roadmap
+// from the top bar, the practice options as a sheet, and the question before a skip.
 // The other exercises on the Path are in path-exercises.spec.js; what they do is their own specs'.
 import { test, expect } from "../../support/test.js";
-import { exerciseAtRest, isPhone, openSettings, overflow } from "../../support/page.js";
+import { exerciseAtRest, isPhone, overflow } from "../../support/page.js";
 import { withCourse } from "../../support/data-key.js";
 
-const onPath = () => { if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path"); };
 const savedAnswers = (page) => page.evaluate(async () => (await (await window.__riglam.platform.db()).collection("answers").get()).size);
 const choices = (page) => page.locator("#path .chs .crow");
 
 async function start(page) {
-  await page.addInitScript(onPath);
   await page.goto("/");
   await expect(choices(page)).toHaveCount(5);
 }
@@ -31,7 +29,7 @@ test("Relations on the Path: a relation, the examples, the check, the result, an
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await start(page);
-  await expect(page.locator("#app")).toBeHidden();
+  await expect(page.locator("#path .pa")).toBeVisible();
   await expect(page.locator(".ptb-t")).toContainText("Relations");
   await expect(page.locator("#stnp")).toHaveAccessibleName(/Examples: pick a relation first/);
   await answer(page);
@@ -42,7 +40,7 @@ test("Relations on the Path: a relation, the examples, the check, the result, an
   await expect(page.locator(".pvline")).toContainText(/Right|Relation is right|Partly right|Not quite/);
   await expect.poll(() => savedAnswers(page)).toBe(1);
   await expect(station).toHaveAccessibleName(/Next pair/);
-  await expect(station).toBeFocused();   // Enter goes on, as the forward button has it on the classic page
+  await expect(station).toBeFocused();   // Enter goes on
   await station.click();
   await expect(choices(page)).toHaveCount(5);
   expect(await overflow(page)).toBeLessThanOrEqual(0);
@@ -402,26 +400,6 @@ test("the practice options are a sheet from the top bar, and a choice there is k
   await expect(page.locator(".ptb-t")).toHaveText("Relations");
 });
 
-test("Settings switches to the classic page and back, and the device keeps the choice", async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem("rd-exp", "1"));   // the switch is under Experiments, shown on this device
-  await start(page);
-  await page.locator(".tstn").click();
-  await page.locator(".road .rfoot").getByRole("button", { name: "Settings" }).click();
-  await expect(page.locator(".ppage .ptitle")).toHaveText("Settings");
-  await page.getByRole("group", { name: "Design" }).getByRole("button", { name: "Classic" }).click();
-  await expect(page.locator("#path")).toBeHidden();
-  await expect(page.locator("#app")).toBeVisible();
-  expect(await page.evaluate(() => localStorage.getItem("rd-design"))).toBe("classic");
-  await page.reload();
-  await expect(page.locator("#stage .head .pair")).toBeVisible();
-  // the classic Settings has the same switch
-  await openSettings(page);
-  await page.locator("#over .orow.design").getByRole("button", { name: "Path" }).click();
-  await expect(page.locator("#app")).toBeHidden();
-  await expect(page.locator(".ppage .ptitle")).toHaveText("Settings");
-  expect(await page.evaluate(() => localStorage.getItem("rd-design"))).toBe("path");
-});
-
 test("a skip asks first once something is written, and Keep going returns to it", async ({ page }, testInfo) => {
   await start(page);
   await choices(page).first().click();
@@ -757,7 +735,7 @@ test("the station the app focuses after a check has no ring, whatever key was pr
   await expect(page.locator(".pvline")).toBeVisible();
   const stn = page.locator("#stn");
   await expect(stn).toBeFocused();
-  // the ring is an outline on the Path, and a box-shadow from the classic page's rule for every button (styles/10-shell.css): neither is drawn
+  // the ring is an outline on the Path, and not a box-shadow from a rule for every button: neither is drawn
   const ring = () => stn.evaluate((e) => { const c = getComputedStyle(e); return c.outlineStyle + " / " + (c.boxShadow === "none" || /^rgba\(0, 0, 0, 0\) 0px 0px 0px 0px$/.test(c.boxShadow) ? "none" : c.boxShadow); });
   expect(await ring(), "no ring on the station the page handed the focus to").toBe("none / none");
   await page.evaluate(() => document.documentElement.classList.add("pa-tab"));   // a Tab was pressed some time before (or a late one from the keyboard)

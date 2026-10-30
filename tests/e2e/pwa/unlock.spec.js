@@ -5,7 +5,7 @@
 import { test, expect } from "@playwright/test";
 import { dataKey, serveCourse, withCourse } from "../../support/data-key.js";
 import { testMagicKey } from "../../support/magic-key.ts";
-import { ready, overflow, relOptions, isPhone, openMenu, openSettings } from "../../support/page.js";
+import { ready, overflow, openMenu, roadmap, openSettingsPage } from "../../support/page.js";
 import { readFull } from "../../../scripts/lib/course-files.mjs";
 import { LOCKED_TEXT } from "../../../src/data/course.js";
 
@@ -20,10 +20,10 @@ const firstTerm = (page) => page.evaluate(() => { const T = window.__t.DATA.term
 const hasNotes = (page) => page.evaluate(() => { const D = window.__t.DATA; return "notes" in D || Object.values(D.terms).some((t) => "note" in t); });
 const storedKey = (page) => page.evaluate(() => localStorage.getItem("riglam.magicKey"));
 
-// the prompt is never shown on its own for a reader who has no key; Options, the definitions note and Explain open it
+// the prompt is never shown on its own for a reader who has no key; the roadmap's Magic Key and Explain open it (Settings' Magic Key page takes the key in its own field)
 const openPrompt = async (page) => {
-  await openSettings(page);
-  await page.getByRole("button", { name: "Enter the Magic Key" }).click();
+  await openMenu(page);
+  await roadmap(page).locator(".rfoot").getByRole("button", { name: "Magic Key" }).click();
   await expect(page.locator("#unlock")).toBeVisible();
 };
 
@@ -39,20 +39,11 @@ test("without a key the terms work, the definitions are locked, and nothing gree
   expect(await hasNotes(page)).toBe(false);
 });
 
-test("Options has a Magic Key row that opens the prompt, and the prompt says what the key is for", async ({ page }) => {
+test("the prompt says what the key is for, and its name opens a note on it", async ({ page }) => {
   await page.goto("/");
   await ready(page);
-  await openSettings(page);
-  await expect(page.getByText("need the Magic Key from your study group")).toBeVisible();
-  await expect(page.locator(".orow .tl svg.ico")).toHaveCount(1); // a key beside the row's name
-  // "Magic Key" in the row's name is dotted and opens a note on the name
-  await page.locator(".orow .tl .keyname").click();
-  await expect(page.locator(".orow .pop")).toContainText("The Magic Key to the Path of Reasoning");
-  await page.locator(".orow .pop").getByRole("button", { name: "Hide" }).click();
-  await expect(page.locator(".orow .pop")).toHaveCount(0);
-  await page.getByRole("button", { name: "Enter the Magic Key" }).click();
+  await openPrompt(page);
   const dlg = page.locator("#unlock");
-  await expect(dlg).toBeVisible();
   await expect(dlg).toContainText("Magic Key");
   await expect(dlg).toContainText("unlocks the course’s definitions and notes");
   await expect(dlg.locator("#unlock-key")).toHaveAttribute("placeholder", "four words or the special link");
@@ -69,17 +60,14 @@ test("Options has a Magic Key row that opens the prompt, and the prompt says wha
   await openPrompt(page); // and again
 });
 
-// The prompt is a native dialog and closes itself on Escape; the phone's menu it was opened from stays, with the focus to return to.
-test("Escape in the prompt closes only the prompt: the phone's menu stays under it", async ({ page }, testInfo) => {
-  test.skip(!isPhone(testInfo), "a wide screen's pinned menu does not close on Escape anyway");
+// The prompt is a native dialog and closes itself on Escape; the roadmap it was opened from stays, with the focus to return to.
+test("Escape in the prompt closes only the prompt: the roadmap it was opened from stays under it", async ({ page }) => {
   await page.goto("/");
   await ready(page);
-  await openMenu(page);
-  await page.locator("#menu .keyb").click(); // the key button of the drawer
-  await expect(page.locator("#unlock")).toBeVisible();
+  await openPrompt(page);
   await page.keyboard.press("Escape");
   await expect(page.locator("#unlock")).toBeHidden();
-  await expect(page.locator("#menu")).toBeVisible();
+  await expect(roadmap(page)).toBeVisible();
 });
 
 test("the prompt fits the screen and the page behind it does not scroll sideways", async ({ page }) => {
@@ -129,38 +117,7 @@ test("a link without a usable key says so and leaves the address clean", async (
   expect(await page.evaluate(() => location.hash)).toBe("");
 });
 
-// answers the pair on the screen far enough to get the result
-const answerFirstPair = async (page) => {
-  await relOptions(page).first().click();
-  for (let i = 0; i < 4 && (await page.locator("#cin").isVisible()); i++) {
-    await page.fill("#cin", "thing " + (i + 1));
-    await page.keyboard.press("Enter");
-    await page.waitForTimeout(100);
-  }
-};
-
-// answers the first pair far enough to get the result, and opens its Terms panel
-const openTerms = async (page) => {
-  await page.goto("/");
-  await ready(page);
-  await answerFirstPair(page); // the result has the Terms panel
-  await page.getByRole("tab", { name: "Terms" }).click();
-  await expect(page.locator(".terms")).toBeVisible();
-};
-
-test("in the Terms panel nothing is underlined without the key, and one note offers the Magic Key", async ({ page }, testInfo) => {
-  test.skip(!isPhone(testInfo), "the answer flow is exercised in the phone layout");
-  await openTerms(page);
-  await expect(page.locator(".terms .dterm")).toHaveCount(0);
-  await expect(page.locator(".tm-tog, .terms .tm-defs")).toHaveCount(0); // no Definitions fold, no list
-  await expect(page.getByText("To read the definitions of the terms here, enter the Magic Key")).toHaveCount(1);
-  await expect(page.getByText(/booklet/i)).toHaveCount(0);
-  await expect(page.getByText(/Locked: /)).toHaveCount(0);
-  await page.locator(".tm-locked").getByRole("button", { name: "Unlock definitions" }).click();
-  await expect(page.locator("#unlock")).toBeVisible();
-});
-
-test("the page opens without waiting for the server to say whether it has a tutor, and grays Explain when it does", async ({ page }, testInfo) => {
+test("the page opens without waiting for the server to say whether it has a tutor", async ({ page }) => {
   let release;
   const held = new Promise((resolve) => (release = resolve));
   await page.route("**/api/health", async (route) => {
@@ -171,12 +128,7 @@ test("the page opens without waiting for the server to say whether it has a tuto
   await page.goto("/");
   await ready(page);
   expect(Date.now() - start).toBeLessThan(3000); // the probe gives up after 4 s: the page must not wait for it
-  await expect(page.locator("button.needs-key")).toHaveCount(0);
   release();
-  if (!isPhone(testInfo)) return; // the answer flow is exercised in the phone layout
-  await answerFirstPair(page);
-  await expect(page.locator("button.xpl.needs-key")).toHaveText("Explain"); // the dashed "check" chips are locked too
-  await expect(page.locator("button.xpl.needs-key")).toHaveAttribute("aria-disabled", "true");
 });
 
 withKey("the key in a link opens the definitions, leaves the address bar, and stays on the device", async ({ page }) => {
@@ -213,38 +165,15 @@ withKey("the words typed with spaces, in any case, open the definitions", async 
   expect(await page.evaluate(() => window.__sameDocument), "the key is taken in place, the page is not reloaded").toBe(true);
 });
 
-withKey("a key entered while a pair is being reviewed keeps the pair and the result, and opens the definitions in place", async ({ page }, testInfo) => {
-  test.skip(!isPhone(testInfo), "the answer flow is exercised in the phone layout");
-  await page.addInitScript(hook);
-  await openTerms(page);
-  const shown = () => page.evaluate(() => ({ pair: window.__t.cur.p.a + " / " + window.__t.cur.p.b, relation: window.__t.cur.p.relation, checked: !!window.__t.ui.checked }));
-  const before = await shown();
-  expect(before.checked).toBe(true);
-  await page.evaluate(() => { window.__sameDocument = true; });
-  await page.locator(".tm-locked").getByRole("button", { name: "Unlock definitions" }).click();
-  await page.fill("#unlock-key", dataKey);
-  await page.locator("#unlock").getByRole("button", { name: "Unlock", exact: true }).click();
-  await expect(page.locator("#unlock")).toHaveCount(0);
-  await expect(page.locator(".tm-locked")).toHaveCount(0);
-  await expect(page.locator(".terms .dterm").first()).toBeVisible(); // the terms with a definition are underlined now
-  expect(await shown(), "the same pair, with its result, is on the screen").toEqual(before);
-  expect(await page.evaluate(() => window.__sameDocument)).toBe(true);
-  expect(await overflow(page)).toBeLessThanOrEqual(0);
-  // Options now offers to change or forget the key, not to enter one
-  await openSettings(page);
-  await expect(page.getByText("This device has the Magic Key")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Enter the Magic Key" })).toHaveCount(0);
-});
-
 withKey("a key entered while another one is held replaces it in place", async ({ page }) => {
   await page.addInitScript(hook);
   await page.goto(`/#k=${dataKey}`);
   await ready(page);
   await page.evaluate(() => { window.__sameDocument = true; });
-  await openSettings(page);
+  await openSettingsPage(page, "Magic Key");
   await page.getByRole("button", { name: "Enter another key" }).click();
-  await page.fill("#unlock-key", dataKey.split("-").join(" "));
-  await page.locator("#unlock").getByRole("button", { name: "Unlock", exact: true }).click();
+  await page.getByRole("textbox", { name: "Another Magic Key or link" }).fill(dataKey.split("-").join(" "));
+  await page.getByRole("button", { name: "Unlock", exact: true }).click();
   await expect(page.locator("#unlock")).toHaveCount(0);
   expect(await page.evaluate(() => window.__sameDocument)).toBe(true);
   expect((await firstTerm(page)).d).not.toBe(LOCKED_TEXT);
@@ -333,27 +262,27 @@ withKey("a kept copy opens the page at once; the server is asked in the backgrou
   await expect(page.locator("#unlock")).toHaveCount(0);
 });
 
-withKey("with the key, Options can take another one (the old one stays until the new one fits) or forget it, after a question", async ({ page }) => {
+withKey("with the key, the Magic Key page can take another one (the old one stays until the new one fits) or forget it, after a question", async ({ page }) => {
   await page.addInitScript(hook);
   await page.goto(`/#k=${dataKey}`);
   await ready(page);
-  await openSettings(page);
-  await expect(page.getByText("This device has the Magic Key")).toBeVisible();
+  await openSettingsPage(page, "Magic Key");
+  await expect(page.locator(".ppage")).toContainText("This device has the Magic Key");
   await expect(page.getByRole("button", { name: "Enter the Magic Key" })).toHaveCount(0);
 
-  // another key: the prompt opens; one that does not fit changes nothing
+  // another key goes in a field of the page; one that does not fit changes nothing
   await page.getByRole("button", { name: "Enter another key" }).click();
-  await expect(page.locator("#unlock")).toBeVisible();
-  await page.fill("#unlock-key", generateKey());
-  await page.locator("#unlock").getByRole("button", { name: "Unlock", exact: true }).click();
-  await expect(page.locator("#unlock-err")).toContainText("not the Magic Key");
+  const another = page.getByRole("textbox", { name: "Another Magic Key or link" });
+  await another.fill(generateKey());
+  await another.press("Enter"); // (on a phone the field's keyboard goes at the first press on the button, and the button moves from under it)
+  await expect(page.locator(".ppage [role=alert]")).toContainText("not the Magic Key");
   expect(await storedKey(page)).toBe(dataKey);
-  await page.getByRole("button", { name: "Close" }).click();
+  await another.blur();
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
 
   // forgetting asks first, and "Keep it" leaves everything as it was
-  await openSettings(page);
   await page.getByRole("button", { name: "Forget the key" }).click();
-  await expect(page.getByText("Forget the Magic Key on this device?")).toBeVisible();
+  await expect(page.locator(".ppage")).toContainText("Forget the Magic Key on this device?");
   await page.getByRole("button", { name: "Keep it" }).click();
   expect(await storedKey(page)).toBe(dataKey);
 
@@ -364,8 +293,8 @@ withKey("with the key, Options can take another one (the old one stays until the
   expect(await page.evaluate(() => localStorage.getItem("riglam.course"))).toBeNull();
   expect(await page.evaluate(() => localStorage.getItem("riglam.keyDeclined")), "an account that carries the key must not hand it back").toBe("1");
   expect((await firstTerm(page)).d).toBe(LOCKED_TEXT);
-  await openSettings(page);
-  await expect(page.getByRole("button", { name: "Enter the Magic Key" })).toBeVisible();
+  await openSettingsPage(page, "Magic Key");
+  await expect(page.getByRole("textbox", { name: "Magic Key or link", exact: true })).toBeVisible();
 });
 
 withKey("forgetting the key stays forgotten when only session storage works", async ({ page }) => {
@@ -373,7 +302,7 @@ withKey("forgetting the key stays forgotten when only session storage works", as
   await page.addInitScript(hook);
   await page.goto(`/#k=${dataKey}`);
   await ready(page);
-  await openSettings(page);
+  await openSettingsPage(page, "Magic Key");
   await page.getByRole("button", { name: "Forget the key" }).click();
   await page.getByRole("button", { name: "Forget the key" }).click(); // the confirmation
   await ready(page);

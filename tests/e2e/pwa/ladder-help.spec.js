@@ -1,30 +1,15 @@
 // Help that fades as the stages go up (src/domain/stages.ts): the next step of the negation track offered on a result once the pairs before it go
-// well (practice/negations.ts), the next stage coming in by itself on the Path, with a station that says so (practice/stage-offer.ts), the guided form of an
-// exercise (practice/guided.ts), on the Path. Negations in Pervasions and Find a pair are checked here too.
+// well (practice/negations.ts), the next stage coming in by itself, with a station that says so (practice/stage-offer.ts), the guided form of an
+// exercise (practice/guided.ts). Negations in Pervasions and Find a pair are checked here too.
 import { test, expect } from "../../support/test.js";
-import { goTo, isPhone, ready, relOptions } from "../../support/page.js";
+import { goTo, ready, relOptions } from "../../support/page.js";
 
 const hook = () => { window.__riglamTest = (t) => { window.__t = t; }; };
-const onPath = () => { if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path"); };
 const ORDER = ["mi", "3ab", "3ba", "4", "con"];
-const fwd = (page) => page.locator("#stage .pbar .fwd");
 const pathChoices = (page) => page.locator("#path .chs .crow");
 const station = (page) => page.locator("#stn");
 
-/** Picks the pair's own relation and writes anything in the cells it leaves possible, then checks: a right relation (classic page). */
-async function rightClassic(page, testInfo) {
-  const rel = await page.evaluate(() => window.__t.cur.p.relation);
-  await relOptions(page).nth(ORDER.indexOf(rel)).click();
-  if (isPhone(testInfo)) {
-    for (let i = 0; i < 4 && (await page.locator("#cin").isVisible()); i++) { await page.fill("#cin", "thing " + (i + 1)); await fwd(page).click(); }
-  } else {
-    const ids = await page.locator(".cell input:not([disabled])").evaluateAll((a) => a.map((x) => x.id));
-    for (const id of ids) await page.fill("#" + id, "thing");
-    await fwd(page).click();
-  }
-  await expect.poll(() => page.evaluate(() => window.__t.ui.checked)).toBe(true);
-}
-/** The same on the Path: the relation, the examples with Enter after each, and Check. */
+/** Picks the pair's own relation, writes the examples with Enter after each, and takes the Check. */
 async function rightPath(page) {
   const rel = await page.evaluate(() => window.__t.cur.p.relation);
   await pathChoices(page).nth(ORDER.indexOf(rel)).click();
@@ -36,29 +21,8 @@ async function rightPath(page) {
   await expect.poll(() => page.evaluate(() => window.__t.ui.checked)).toBe(true);
 }
 
-test("after five right plain pairs in a row, negating one side is offered on the result, and a tap turns it on", async ({ page }, testInfo) => {
-  await page.addInitScript(hook);
-  await page.goto("/");
-  await ready(page);
-  for (let i = 0; i < 4; i++) {
-    await rightClassic(page, testInfo);
-    await expect(page.locator(".catoffer")).toHaveCount(0);
-    await page.keyboard.press("n");
-  }
-  await rightClassic(page, testInfo);
-  const offer = page.locator(".catoffer");
-  await expect(offer).toBeVisible();
-  await expect(offer).toContainText("Plain pairs are going well. Try pairs with a negated side?");
-  expect(await page.evaluate(() => localStorage.getItem("rd-negation"))).toBeNull();     // nothing changes without the tap
-  await offer.getByRole("button", { name: "Negate one side" }).click();
-  await expect(page.locator(".catoffer")).toHaveCount(0);
-  await expect(page.getByRole("status").filter({ hasText: "Negations are on" })).toBeVisible();
-  expect(await page.evaluate(() => [localStorage.getItem("rd-negation"), !!localStorage.getItem("rd-neg-offer")])).toEqual(["one", true]);
-});
-
 test("on the Path the offer shows on the result too; Not now keeps negations off, and the next one needs another run", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" }); // six pairs in a row: the choice and the station are taken at once (the project's own option does not reach the page)
-  await page.addInitScript(onPath);
   await page.addInitScript(hook);
   await page.goto("/");
   await expect(pathChoices(page)).toHaveCount(5);
@@ -83,7 +47,6 @@ test("on the Path the offer shows on the result too; Not now keeps negations off
 /** Five right relations on the Path from a device at stage 1, or the `stages` given: the page is on the fifth result. */
 async function fiveRight(page, init = () => {}, stages = "1") {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.addInitScript(onPath);
   await page.addInitScript((s) => { if (localStorage.getItem("rd-stages") === null) localStorage.setItem("rd-stages", s); }, stages);
   await page.addInitScript(init);
   await page.addInitScript(hook);
@@ -168,7 +131,6 @@ test("on the Path five right relations at the highest stage bring the next stage
 
 test("on the Path the next stage comes with its first term, once the stage below has brought all of its own and fewer than three terms are not right yet, whatever their marks", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.addInitScript(onPath);
   await page.addInitScript(() => {
     localStorage.setItem("rd-stages", "0,1,2");
     const right = (first) => ({ box: 2, shows: 1, first, won: first }), settled = { box: 3, shows: 1 };
@@ -265,7 +227,6 @@ test("on the Path, a later upgrade says one line and folds what the stages are",
 /** The station of stage `n` coming in on a device that has seen one before (every term settled, so it is put on the page as the result would). */
 async function stationOf(page, n) {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.addInitScript(onPath);
   await page.addInitScript((s) => { localStorage.setItem("rd-stages", s); localStorage.setItem("rd-stage-run", JSON.stringify({ up: 0, down: 0, told: true })); }, Array.from({ length: n }, (_, i) => i).join());
   await page.addInitScript(hook);
   await page.goto("/");
@@ -320,7 +281,6 @@ test("on the Path, with Natural progression off, five right relations bring no s
 
 test("on the Path, Relations spells out the relations until its twentieth right answer, then Guided turns off with a line saying why, and the switch brings it back", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.addInitScript(onPath);
   await page.addInitScript(() => { if (localStorage.getItem("rd-ex-runs") === null) localStorage.setItem("rd-ex-runs", JSON.stringify({ practice: { run: 5, right: 19 } })); });
   await page.addInitScript(hook);
   await page.goto("/");
@@ -344,10 +304,11 @@ test("on the Path, Relations spells out the relations until its twentieth right 
 });
 
 test("with negations on, Pervasions draws negated pairs too, and Accept to Q4 on one with nothing neither is right", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => { localStorage.setItem("rd-negation", "one"); localStorage.setItem("rd-stages", "1,2,3"); });
   await page.addInitScript(hook);
   await page.goto("/");
-  await expect(page.locator("#stage .head .pair")).toBeVisible();
+  await ready(page);
   await goTo(page, "Pervasions");
   await expect.poll(() => page.evaluate(() => window.__t.tab)).toBe("debate");
   // about one draw in twenty is a negated pair with four possibilities and nothing neither: 300 tries all but never miss it
@@ -358,11 +319,14 @@ test("with negations on, Pervasions draws negated pairs too, and Accept to Q4 on
   expect(p.relation).toBe("4");
   // Why? to Q1 to Q3 with anything, Accept to Q4: nothing is neither
   for (let q = 0; q < 3; q++) {
-    await page.keyboard.press("w");
-    await page.fill("#dex", "thing " + (q + 1));
-    await page.keyboard.press("Enter");
+    await pathChoices(page).filter({ hasText: "Why?" }).first().click();
+    const field = page.locator("#dex");
+    await expect(field).toBeVisible();
+    await field.fill("thing " + (q + 1));
+    await field.press("Enter");
+    await expect(page.locator("#path .sb.done")).toHaveCount(q + 1);
   }
-  await page.keyboard.press("a");
+  await pathChoices(page).filter({ hasText: "Accept" }).first().click();
   await expect.poll(() => page.evaluate(() => window.__t.ui.step)).toBe(4);
   await expect(relOptions(page)).toHaveCount(5);
   await relOptions(page).nth(ORDER.indexOf("4")).click();
@@ -370,27 +334,26 @@ test("with negations on, Pervasions draws negated pairs too, and Accept to Q4 on
   expect(await page.evaluate(() => [window.__t.ui.res.relOk, window.__t.ui.res.implied, window.__t.ui.res.cells.nei.v])).toEqual([true, "4", "ok"]);
 });
 
-test("Find a pair takes a negation as named, with or without the brackets, and has no sixth relation to ask for", async ({ page }) => {
-  await page.addInitScript(() => { localStorage.setItem("rd-negation", "one"); localStorage.setItem("rd-findrel", "4"); });
+/** Names a pair in Find a pair, the second word a negation, and returns the pair the page made of the words (brackets: `rd-neg-brackets`, on by default). */
+async function namedPair(page, brackets) {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript((b) => { localStorage.setItem("rd-negation", "one"); localStorage.setItem("rd-findrel", "4"); if (b !== null) localStorage.setItem("rd-neg-brackets", b); }, brackets);
   await page.addInitScript(hook);
   await page.goto("/");
-  await expect(page.locator("#stage .head .pair")).toBeVisible();
+  await ready(page);
   await goTo(page, "Find a pair");
   await expect(page.locator("#fw-a")).toBeVisible();
-  await expect(page.locator(".cap")).toContainText("Four possibilities.");
-  await expect(page.locator(".cap")).not.toContainText("without neither");
   await page.fill("#fw-a", "forms");
   await page.fill("#fw-b", "non-wooden things");
   await page.locator("#fw-b").press("Enter");
   await expect.poll(() => page.evaluate(() => window.__t.ui.step)).toBe(1);
-  expect(await page.evaluate(() => { const p = window.__t.cur.p; return [p.a, p.b, p.neg, p.relation, !!p.own]; })).toEqual(["forms", "non-(wooden things)", "b", "4", false]);
-  // with the brackets off the same words are kept as typed
-  await page.evaluate(() => { localStorage.setItem("rd-neg-brackets", "0"); });
-  await page.reload();
-  await goTo(page, "Find a pair");
-  await page.fill("#fw-a", "forms");
-  await page.fill("#fw-b", "non-wooden things");
-  await page.locator("#fw-b").press("Enter");
-  await expect.poll(() => page.evaluate(() => window.__t.ui.step)).toBe(1);
-  expect(await page.evaluate(() => { const p = window.__t.cur.p; return [p.a, p.b, p.neg, p.relation]; })).toEqual(["forms", "non-wooden things", "b", "4"]);
+  return page.evaluate(() => { const p = window.__t.cur.p; return [p.a, p.b, p.neg, p.relation, !!p.own]; });
+}
+
+test("Find a pair takes a negation as named, with the brackets, and has no sixth relation to ask for", async ({ page }) => {
+  expect(await namedPair(page, null)).toEqual(["forms", "non-(wooden things)", "b", "4", false]);
+});
+
+test("Find a pair keeps a negation as typed when the brackets are off", async ({ page }) => {
+  expect(await namedPair(page, "0")).toEqual(["forms", "non-wooden things", "b", "4", false]);
 });

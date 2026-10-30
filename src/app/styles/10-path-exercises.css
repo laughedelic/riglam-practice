@@ -1,6 +1,6 @@
 /* The Path: what the exercises draw beyond Relations. Syllogisms as the lab draws them (the statement in three lines with S, P and R in the
    margin, the checks as stops), and the same grammar for Pervasions (a statement of the challenger as a stop), Find a pair (the relation
-   asked for, the two words) and Categories (the thing, the categories to tick, the groups of the check, the line). */
+   asked for, the two words) and Categories (the thing, the categories to tick, the groups of the check). */
 .pa .perr{padding:8px 18px 0 calc(var(--m) + 22px)}
 .pa .pfnote{padding:4px 18px 6px calc(var(--m) + 22px); font-style:italic}
 .pa .relnm{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap}

@@ -1,5 +1,4 @@
 import { state } from "../state.js";
-import { L, el } from "../core/dom.js";
 import { NOT, QCELL, QMINE, qPlain } from "../../ai-shared/debate.ts";
 import { american } from "../../ai-shared/lookup.ts";
 
@@ -50,24 +49,4 @@ function negSingular(lab){
   const s=singular(m[1]), a=/^an? /.exec(s), core=a?s.slice(a[0].length):s;
   if(!a&&/\s/.test(m[1])&&!/^non-\(/.test(lab)) return "";                // a label of the data that starts with "non-" and is not a negation of one
   return (a?"a ":"")+"non-"+(/^non-\(/.test(lab)?"("+core+")":core);
-}
-export const termNode=(x,p=state.cur.p)=>{ const lab=x==="A"?p.a:p.b, [w,...r]=singular(lab).split(" ");
-  return el("span",{class:"qterm"},el("span",{class:"keep"},state.showAB?[L(x)," "]:null,el("span",{class:"t",text:w})),r.length?el("span",{class:"t",text:" "+r.join(" ")}):null); };
-export const qNode=i=>Wd().q[i].map(x=>x==="A"||x==="B"?termNode(x):x===N?el("span",{class:"not",text:"not"}):x);
-// an answer at a glance: Accept is a filled tag, Why? an outlined one followed by the example.
-// The tags carry the marks of the short form (✓ and ?!); title and label words (acd, wyd) are the same words without the mark.
-// a Why? answer is spelled out as the sentence it asserts, so the example is tied to its cell:
-// both: "X is both [A] a … and [B] a …"; A not B: "X is [A] a …, but not [B] a …"; B not A: the reverse; neither: "X is neither [A] a … nor [B] a …"
-// The words that name the cell (both … and, but not, neither … nor) are bold, a mark the chips, the italic terms and the red "not" do not use.
-function exSentence(i,t){
-  if(!state.fullPh) return el("span",{class:"exn",text:t});
-  const A=termNode("A"), B=termNode("B"), K=w=>el("b",{class:"conn",text:w});
-  const tail={both:[" is ",K("both")," ",A," ",K("and")," ",B], anb:[" is ",A,", ",K("but not")," ",B], bna:[" is ",B,", ",K("but not")," ",A], nei:[" is ",K("neither")," ",A," ",K("nor")," ",B]}[QCELL[i]];
-  return el("span",{class:"exs"},t,tail);
-}
-export function ansNode(a,ms,i){
-  const w=Wd(), tm=ms!=null?el("span",{class:"mut",text:(ms/1000).toFixed(1)+" s"}):null;
-  if(a.say==="accept") return el("span",{class:"ans-l"},el("span",{class:"pill acc",text:(w.acm||"")+w.acd}),a.timeout?el("span",{class:"mut",text:"time ran out"}):tm);
-  if(a.say==="why") return el("span",{class:"ans-l"},el("span",{class:"pill why",text:w.wyd}),a.text?(i!=null?exSentence(i,a.text):el("span",{class:"exn",text:a.text})):el("span",{class:"mut",text:"no example"}),a.timeout?null:tm);
-  return el("span",{class:"ans-l"},el("span",{class:"pill why",text:"Time out"}));
 }

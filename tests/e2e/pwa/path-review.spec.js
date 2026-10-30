@@ -1,12 +1,11 @@
 // Review and the tutor's conversation on the Path (src/app/path/review.tsx, tutor.tsx): today's trail and the other sections, a row that
 // unfolds into the answer as it was checked, the favorites, the pairs skipped and the flags, and the conversation as a page with a flag on
 // each answer. The answers, favorites, skips and flags are written to the device's database before the page starts, so the tests do not
-// depend on which pair the page draws. What is counted and stored is the classic page's (review.spec.js, flags-review.spec.js).
+// depend on which pair the page draws. What is counted and stored is src/domain's and the flag specs'.
 import { test, expect } from "../../support/test.js";
 import { giveKey, withCourse } from "../../support/data-key.js";
 import { isPhone } from "../../support/page.js";
 
-const onPath = () => { if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path"); };
 const now = new Date().toISOString();
 const answer = {
   pairId: "r-test1", a: "round things", b: "wooden things", catA: "round", catB: "wooden", chosen: "con", key: "4", correct: false, grade: "bad",
@@ -35,7 +34,6 @@ const stored = (page, name) => page.evaluate(async (name) => {
   return Object.fromEntries((await db.collection(name).get()).docs.map((d) => [d.id, d.data()]));
 }, name);
 async function seed(page, docs) {
-  await page.addInitScript(onPath);
   await page.goto("/");
   await expect(page.locator("#path .chs .crow")).toHaveCount(5);
   await page.evaluate(async (docs) => {
@@ -115,7 +113,6 @@ test("Review on the Path: the totals, the mistakes with Retry, a favorite and a 
 });
 
 test("Review on the Path has no Terms section: the terms met are on the Progression page", async ({ page }) => {
-  await page.addInitScript(onPath);
   await page.goto("/");
   await expect(page.locator("#path .chs .crow")).toHaveCount(5);
   await openReview(page);
@@ -156,7 +153,6 @@ withKey("the tutor's page: a follow-up question, the answer above it, and a flag
   let n = 0;
   await page.route("**/api/health", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, tutor: "on" }) }));
   await page.route("**/api/tutor", (route) => route.fulfill({ status: 200, contentType: "text/event-stream", body: say(said[Math.min(n++, 1)]) }));
-  await page.addInitScript(onPath);
   await page.goto("/");
   await page.locator("#path .chs .crow").first().click();
   const field = page.locator("#cin");

@@ -27,7 +27,3 @@ export function keepOwn<K extends OwnKey>(k: K, v: Required<Own>[K]) {
   state.perEx = { ...state.perEx, [state.tab]: { ...state.perEx[state.tab], [k]: v } };
   try { localStorage.setItem("rd-per-ex", JSON.stringify(state.perEx)); } catch { /* the choice holds for this visit */ }
 }
-/** The shared value changed without a choice in an exercise (the design's default for the tutor): exercises without their own follow it. */
-export function setBase<K extends OwnKey>(k: K, v: Required<Own>[K]) {
-  if (state.perBase) state.perBase = { ...state.perBase, [k]: v };
-}

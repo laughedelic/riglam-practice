@@ -9,7 +9,7 @@ const INNER = ".d,.lab,.pans,.qq,.fieldrow,.help button";
 /** The page opening (it starts a moment after the Enter and takes this long), how long the foot must stand still before what waits for it goes on, and the longest it is waited for
  *  (the keyboard going takes the screen's height with it) (ms). */
 export const OPEN = 380, OPEN_AT = 40, STILL = 80, WAIT = 700;
-/** The top bar's height, which `.pa.kbup .ptb` pulls out of sight (35-path-station.css). */
+/** The top bar's height, which `.pa.kbup .ptb` pulls out of sight (07-path-station.css). */
 const BAR = 57;
 
 interface Snap { r: HTMLElement; top: number; kids: { k: HTMLElement; x: number; y: number; on: boolean }[] }

@@ -318,19 +318,6 @@ export interface Current {
   [extra: string]: unknown;
 }
 
-/** The Skip hint: what to restore on Undo. */
-export interface SkipNote {
-  p: Pair;
-  key: string;
-  had: SkipDoc | undefined;
-  debate: boolean;
-  /** Find a pair: Undo gives back the screen that was skipped (`prev.ui`, with the examples written) and the relations asked lately (`prev.fa`) */
-  find?: boolean;
-  ui: Ui | null;
-  prev: { cur: Current | null; rq: Pair[]; rt: string; ui?: Ui | null; fa?: RelKey[] };
-  tid: number;
-}
-
 /** Where the Progression page of the Path stands (path/progression.tsx): where it was opened from, so that Back goes there again, and the term card open over it. */
 export interface ProgressionAt {
   /** opened from the roadmap's rings (Back shows the roadmap again), or from the top bar's ring sheet or another link in an exercise (Back goes to the exercise) */
@@ -368,8 +355,6 @@ export interface State {
   keyHeld: KeyHeld | null;
   /** the Magic Key row of Options is asking whether to forget the key */
   keyAsk: boolean;
-  /** the note on the name "Magic Key" is open in the Options row */
-  mkNote: boolean;
   /** a question to the app's own server (platform.tutor), when the place has one; `sample` is used first */
   tutor: Tutor | null;
   /** what the app's server learned of examples from earlier checks (platform.known), asked before the tutor about an example the page could not check */
@@ -436,9 +421,6 @@ export interface State {
   fromRoad: boolean;
   /** what touched the page last: a finger or a pen, or a mouse; empty before anything has (the Path's knocks are for a finger, path/gesture.ts) */
   hand: "" | "touch" | "mouse";
-  menuPin: boolean;
-  menuPeek: boolean;
-  coachOpen: boolean;
   navDepth: number;
   navSkip: number;
   navQ: boolean;
@@ -448,7 +430,6 @@ export interface State {
   leaveAsk: boolean;
   navBack: boolean;
   motion: boolean;
-  reviewSeg: string;
   ui: Ui | null;
   cur: Current | null;
   retryQ: Pair[];
@@ -472,12 +453,8 @@ export interface State {
   syllogismRecent: string[];
   /** how a syllogism is worded (`rd-syllogism-wording`) */
   syllogismWording: Wording;
-  /** the structure named under the sentence, and what each reply says in S, P and R (`rd-syllogism-guide`) */
-  syllogismGuide: boolean;
   /** the relation Find a pair keeps asking for, picked by the learner (`rd-findrel`); null: a different one each time */
   findRel: RelKey | null;
-  /** Find a pair offers the terms of the course while the pair is typed (Options, `rd-findsuggest`) */
-  findSuggest: boolean;
   /** a negated name of more than one word is written in brackets (`rd-neg-brackets`, on) or without ("non-wooden things") */
   negBrackets: boolean;
   /** the negation track of Relations and Pervasions (`rd-negation`): off, A or B negated in some pairs ("one"), or also both sides ("both") */
@@ -490,10 +467,6 @@ export interface State {
   pace: number;
   /** Find an instance offers the things the course knows while one is typed (its practice options, `rd-inst-suggest`) */
   instSuggest: boolean;
-  lastSig: string;
-  /** the attempt the last render drew: the tutor's panel closes with a pair that had a conversation */
-  lastUi: any;
-  fitQ: number;
 
   // errors from saving
   favErr: string;
@@ -503,9 +476,6 @@ export interface State {
   /** when the server was last asked for the replies to the sent flags (ms since the epoch), and whether that is under way */
   repliesAt: number;
   repliesBusy: boolean;
-
-  // skips
-  skipNote: SkipNote | null;
 
   // Quorum and the explanation
   /** the app's server offers Quorum (platform.quorum) */
@@ -538,8 +508,6 @@ export interface State {
   langs: string[];
   wording: "mine" | "cons" | "plain" | string;
   showAB: boolean;
-  fullPh: boolean;
-  recentOpen: boolean;
 
   // the blitz timer
   timerMs: number;
@@ -547,14 +515,11 @@ export interface State {
   sylMs: number;
   blitz: boolean;
   blitzUse: boolean;
-  bzHold: number;
 
   // reading the questions aloud and answering by voice (shell/voice.js)
   voice: VoiceState;
 
-  // the redesign (src/app/path)
-  /** which design draws the page: the device's choice (`rd-design`), else the build's default (the Path in a Preview) */
-  design: "classic" | "path";
+  // the Path (src/app/path)
   /** how the Path looks: the defaults with the lab's settings this device keeps (`rd-look`); null until the Path first draws */
   look: Look | null;
   /** a short note at the Path's foot ("Skipped; it waits in Review"), gone after a moment */

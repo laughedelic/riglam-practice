@@ -6,7 +6,7 @@
 // color, the page coming in as it turns.
 // A page that keeps a statement across the step (`data-keep` on the last element of it, after its `.stm` lines: a syllogism's S, P and R) is not pushed away: what is under the statement folds into it, the
 // station rises to the statement's foot, and the result opens there, its node coming out of the station and the statement settling into its place in the result's page.
-// The push is a custom property on `.pathc` (`--push`, styles/44-path-push.css); the page is cut under the station's top edge, so what is below it is not seen.
+// The push is a custom property on `.pathc` (`--push`, styles/16-path-push.css); the page is cut under the station's top edge, so what is below it is not seen.
 import { state } from "../state.js";
 import { dropHold, holdOf, wait } from "./foot.ts";
 import { foldPage, playTake } from "./take.ts";

@@ -1,13 +1,11 @@
 // Settings and the practice options' own pages on the Path (src/app/path/settings.tsx, options.tsx): the rows of the app drawn on the path
 // (the Magic Key and its question before forgetting, voice, your data, the version), and the Voice page; the stages and the difficulty, which are on the
-// Progression page. What each one does is the classic page's (settings.spec.js, stages.spec.js, voice.spec.js).
+// Progression page. What each one does is shell/options.js's and the voice specs'.
 import { test as plain, expect as plainExpect } from "@playwright/test";
 import { test, expect } from "../../support/test.js";
 import { dataKey, serveCourse, withCourse } from "../../support/data-key.js";
 
-const onPath = () => { if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path"); };
 async function start(page) {
-  await page.addInitScript(onPath);
   await page.goto("/");
   await expect(page.locator("#path .chs .crow")).toHaveCount(5);
 }
@@ -53,7 +51,6 @@ withKey("Settings on the Path: the Magic Key has its own page, which says what i
 
 plain("without the key, the Magic Key page takes it in its own field, and Settings stays open; the top bar's chevron is the way back", async ({ page }) => {
   await serveCourse(page);
-  await page.addInitScript(onPath);
   await page.goto("/");
   await plainExpect(page.locator("#path .chs .crow")).toHaveCount(5);
   if (!(await page.locator(".road.on").count())) await page.locator(".tstn").click();   // without the key the roadmap may be up already
@@ -64,12 +61,14 @@ plain("without the key, the Magic Key page takes it in its own field, and Settin
   await plainExpect(page.locator(".ppage")).toContainText("four words that come with the course");
   const field = page.getByRole("textbox", { name: "Magic Key or link", exact: true }), unlock = page.getByRole("button", { name: "Unlock", exact: true });
   await field.fill("hello there");
+  await field.blur();   // on a phone the keyboard layout (the top bar steps aside) ends here, before the tap
   await unlock.click();
   await plainExpect(page.locator(".ppage [role=alert]")).toContainText("does not look like a Magic Key");
   await plainExpect(page.locator("#unlock")).toHaveCount(0);   // no prompt over the page
   await plainExpect(page.locator("#path .ptb-t")).toHaveText("Magic Key");
   if (withCourse) {
     await field.fill(dataKey);
+    await field.blur();
     await unlock.click();
     await plainExpect(page.locator(".ppage")).toContainText("This device has the Magic Key");
     await plainExpect(page.locator("#path .ptb-t")).toHaveText("Magic Key");   // still on its page
@@ -83,7 +82,7 @@ plain("without the key, the Magic Key page takes it in its own field, and Settin
 test("Settings on the Path: sections of lines, export and import and the version on pages of their own, and no Experiments in the released app", async ({ page }) => {
   await start(page);
   await openSettings(page);
-  await expect(page.locator("#path .pbr")).toHaveCount(0);   // nothing of Settings is hosted from the classic page
+  await expect(page.locator("#path .pbr")).toHaveCount(0);   // nothing of Settings is hosted from another part of the page
   await expect(page.locator(".ppage .sgh")).toHaveText(["General", "Data", "About"]);   // Experiments: only in a Preview, or held open with the Magic Key
   await expect(page.getByRole("group", { name: "Theme" }).getByRole("button", { name: "System" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator(".ppage .ol", { hasText: "Version and updates" })).toContainText(/\d+\.\d+\.\d+/);
@@ -95,7 +94,7 @@ test("Settings on the Path: sections of lines, export and import and the version
   await expect(page.locator(".ppage")).toContainText(/Version \d+\.\d+\.\d+ · build /);
 });
 
-withKey("in the released app, holding Version with the Magic Key shows Experiments: the design, voice and the lab's settings, kept on the device", async ({ page }) => {
+withKey("in the released app, holding Version with the Magic Key shows Experiments: voice and the lab's settings, kept on the device", async ({ page }) => {
   await start(page);
   await openSettings(page);
   const ver = page.locator(".ppage .ol", { hasText: "Version and updates" }), box = await steady(ver);   // where it stands once Settings has slid in
@@ -105,7 +104,7 @@ withKey("in the released app, holding Version with the Magic Key shows Experimen
   await page.mouse.up();
   await expect(page.locator(".ppage .sgh")).toHaveText(["General", "Data", /^Experiments/, "About"]);
   await expect(page.locator("#path .ptb-t")).toHaveText("Settings");   // the tap that ends the hold opens nothing
-  await expect(page.getByRole("group", { name: "Design" }).getByRole("button", { name: "Path" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".ppage .ol", { hasText: "The lab's settings" })).toBeVisible();
   const voice = page.getByRole("switch", { name: "Voice features", exact: true });
   if (await voice.count()) {   // a browser with speech
     const was = await voice.getAttribute("aria-checked");

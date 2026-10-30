@@ -17,7 +17,7 @@ export const NAME_WIDTH = 90;
 export const NAME_LEAD = 17.9;
 
 /**
- * The name, centered on `x`, its first baseline at `y`: SVG text for the roadmap's drawing (classes `bn` and `bp`, styled in 37-path-panels.css). `textLength` sets both lines to one width, which also keeps
+ * The name, centered on `x`, its first baseline at `y`: SVG text for the roadmap's drawing (classes `bn` and `bp`, styled in 09-path-panels.css). `textLength` sets both lines to one width, which also keeps
  * the lockup from moving when the font arrives. The last letter of a line carries no tracking, so that the ink is centered and the width counts the ink. The invisible box is what the cover
  * (src/pwa/cover.ts) measures to land its own name here.
  */

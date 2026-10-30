@@ -30,7 +30,7 @@
     return (w ? "Waiting for " + w + ". " : "The app's own code has not started. ") + (bad ? "Error: " + bad.slice(0, 160) + "." : "");
   }
   function stuck() {
-    var s = document.querySelector("#stage .status"), t = (s && s.textContent) || "";
+    var s = document.querySelector("#path .pstatus"), t = (s && s.textContent) || "";
     return t.indexOf("Loading.") === 0 || t.indexOf("The practice data could not be loaded") === 0;
   }
   function fresh() {

@@ -1,6 +1,6 @@
 // The two terms of the pair where the text names them: a term of the pair, A or B, stands out from the words around it in the way the look's
-// `subj` says (italic, a small A or B before it, a small diamond, each in its own quiet ink; 38-path-exercises.css). The classic page marked them
-// with a red and a blue chip and italic; the Path's colors mean other things, so the marks here are quiet. The practice option "A/B markers"
+// `subj` says (italic, a small A or B before it, a small diamond, each in its own quiet ink; 10-path-exercises.css). The Path's colors mean other things than a
+// red and a blue chip for the two terms, so the marks here are quiet. The practice option "A/B markers"
 // turns them off.
 import type { ComponentChildren } from "preact";
 

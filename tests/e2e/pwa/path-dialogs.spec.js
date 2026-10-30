@@ -1,11 +1,11 @@
-// The two dialogs the classic page opens over the Path (the question before a device's examples are kept, ai/share-notice.js; the Magic Key,
-// pwa/unlock.ts) are native dialogs outside #path: they take the Path's palette, its face and its text buttons (39-path-bridge.css), and keep
-// what they did on the classic page (known.spec.js, unlock.spec.js).
+// The two dialogs the page opens over the Path (the question before a device's examples are kept, ai/share-notice.js; the Magic Key,
+// pwa/unlock.ts) are native dialogs outside #path: they take the Path's palette, its face and its text buttons (11-path-bridge.css), and keep
+// what they did before they were restyled (known.spec.js, unlock.spec.js).
 import { test as plain, expect as plainExpect } from "@playwright/test";
 import { test, expect } from "../../support/test.js";
 import { serveCourse, withCourse } from "../../support/data-key.js";
 
-const onPath = () => { if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path"); if (localStorage.getItem("rd-start") === null) localStorage.setItem("rd-start", "exercise"); };
+const onPath = () => { if (localStorage.getItem("rd-start") === null) localStorage.setItem("rd-start", "exercise"); };
 const withKey = withCourse ? test : test.skip;
 const sse = (...events) => events.map((e) => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`).join("");
 const shot = (page, name) => (process.env.DLG_SHOTS ? page.screenshot({ path: process.env.DLG_SHOTS + name + ".png" }) : null);
@@ -47,7 +47,7 @@ withKey("the question before examples are kept takes the Path's look, and still 
   await expect(page.locator(".wtext")).toContainText("Stand-in tutor.");
 });
 
-plain("the Magic Key prompt takes the Path's look, light and dark, and the classic page keeps its own", async ({ page }) => {
+plain("the Magic Key prompt takes the Path's look, light and dark", async ({ page }) => {
   await serveCourse(page);
   await page.addInitScript(onPath);
   await page.goto("/");
@@ -66,9 +66,4 @@ plain("the Magic Key prompt takes the Path's look, light and dark, and the class
   await prompt();
   await shot(page, "unlock-dark");
   await page.locator("#unlock-skip").click();
-  // on the classic page the Path's palette is gone from the root
-  await page.evaluate(() => { localStorage.setItem("rd-design", "classic"); });
-  await page.reload();
-  await plainExpect(page.locator("#app")).toBeVisible();
-  plainExpect(await page.evaluate(() => document.documentElement.style.getPropertyValue("--pa-paper"))).toBe("");
 });

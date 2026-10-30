@@ -1,6 +1,5 @@
 // An answer as it was checked, drawn on the path where Review unfolds it: the relation as it was answered, a row for each case (or question)
-// with what was written, its mark and the reference, and the tutor's explanation kept with it. The words are review/exercise.js's, which the
-// classic page draws in its table.
+// with what was written, its mark and the reference, and the tutor's explanation kept with it. The words are review/exercise.js's.
 import { state } from "../state.js";
 import { CELLS, REL } from "../core/rel.js";
 import { QCELL } from "../debate/text.js";

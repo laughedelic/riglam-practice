@@ -108,7 +108,7 @@ function watchFlight(page) {
 
 test("the cover flies its figure and name into their places at the head of the roadmap, and the logo is on screen in every frame", async ({ page }) => {
   await page.addInitScript(welcomed);
-  await page.addInitScript(() => { localStorage.setItem("rd-start", "road"); localStorage.setItem("rd-design", "path"); });
+  await page.addInitScript(() => { localStorage.setItem("rd-start", "road"); });
   await page.goto("/");
   const frames = await watchFlight(page);
   expect(frames.length, "the flight is seen").toBeGreaterThan(20);
@@ -131,7 +131,7 @@ test("the cover flies its figure and name into their places at the head of the r
 });
 
 test("a cold start opens on the roadmap, and Continue goes to the exercise", async ({ page }) => {
-  await page.addInitScript(() => { localStorage.setItem("rd-start", "road"); localStorage.setItem("rd-design", "path"); });
+  await page.addInitScript(() => { localStorage.setItem("rd-start", "road"); });
   await page.goto("/");
   const road = page.getByRole("dialog", { name: "Roadmap" });
   await expect(road).toBeVisible();
@@ -143,7 +143,7 @@ test("a cold start opens on the roadmap, and Continue goes to the exercise", asy
 
 test("an app that was set to start on the exercise opens on it, and the cover only fades", async ({ page }) => {
   await page.addInitScript(welcomed);
-  await page.addInitScript(() => { localStorage.setItem("rd-start", "exercise"); localStorage.setItem("rd-design", "path"); });
+  await page.addInitScript(() => { localStorage.setItem("rd-start", "exercise"); });
   await page.goto("/");
   await expect(page.locator("#path .chs .crow")).toHaveCount(5);
   await expect(page.locator("#cover")).toHaveCount(0, { timeout: 8000 });
@@ -151,7 +151,7 @@ test("an app that was set to start on the exercise opens on it, and the cover on
 });
 
 test("a cold start opens on an attempt that was under way when the app was put away, as it was; one only drawn leaves the roadmap first", async ({ page }) => {
-  await page.addInitScript(() => { localStorage.setItem("rd-start", "road"); localStorage.setItem("rd-design", "path"); });
+  await page.addInitScript(() => { localStorage.setItem("rd-start", "road"); });
   await page.goto("/");
   const road = page.getByRole("dialog", { name: "Roadmap" }), lay = page.locator("#path .lay"), choices = page.locator("#path .chs .crow");
   const terms = () => page.locator("#path .pairst .tn").allInnerTexts();     // the pair's two terms

@@ -1,5 +1,5 @@
 // Artifact build: the same sources as the PWA, bundled as one classic script and one stylesheet with every
-// asset (felt tiles, data) inlined. scripts/build-artifact.mjs then writes them into a single HTML page.
+// asset (the data) inlined. scripts/build-artifact.mjs then writes them into a single HTML page.
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fullData } from "./scripts/vite-full-data.mjs";

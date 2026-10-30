@@ -26,7 +26,6 @@ built("one style, one script, nothing loaded from the network but fonts", () => 
   expect((page.match(/<script>/g) ?? []).length).toBe(1);
   expect(/<script[^>]*\ssrc=/i.test(page)).toBe(false);
   expect(page.includes('fetch("drill-data.json")'), "the data is embedded").toBe(false);
-  expect(/url\(["']?felt-/.test(page), "the felt tiles are inlined as data URIs").toBe(false);
   const hosts = new Set([...page.matchAll(/(?:href|src)="(https?:\/\/[^/"]+)/g)].map((m) => m[1]));
   expect([...hosts].sort()).toEqual(["https://fonts.googleapis.com", "https://fonts.gstatic.com"]);
 });
@@ -40,9 +39,9 @@ builtWithCourse("the data is the full data: every definition is in the page (a l
   expect(page.includes("Locked: open your study group")).toBe(false);
 });
 
-// The budget is our own, well under the frame's 16 MiB: 2 MiB while the redesign (src/app/path) is carried next to the classic page (it was 1.6 MiB, and 1.5 MiB before the Path's rides were made the default); it goes back down when the classic page goes.
+// The budget is our own, well under the frame's 16 MiB: 1.5 MiB (the page is about 1.2 MiB).
 built("within the page size limit, and within our own budget", () => {
   const bytes = Buffer.byteLength(page);
   expect(bytes, `${bytes} bytes`).toBeLessThan(16 * 1024 * 1024);
-  expect(bytes, `the page is ${(bytes / 1024).toFixed(0)} KiB; the budget is 2 MiB`).toBeLessThan(2 * 1024 * 1024);
+  expect(bytes, `the page is ${(bytes / 1024).toFixed(0)} KiB; the budget is 1.5 MiB`).toBeLessThan(1.5 * 1024 * 1024);
 });

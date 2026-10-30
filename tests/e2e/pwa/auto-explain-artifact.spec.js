@@ -1,36 +1,33 @@
-// "Check every answer with Claude" in the artifact build, where the page asks the host's own model (`sample`): a checked answer asks for its explanation
-// at once, in Relations and in Pervasions, and not when the setting is off. The host is the mock of tests/support/claude-mock.js.
+// "Explanations by Claude" set to Every answer in the artifact build, where the page asks the host's own model (`sample`): a checked answer asks for its
+// explanation at once, in Relations and in Pervasions, and not when the setting is When I ask. The host is the mock of tests/support/claude-mock.js.
 import { test, expect } from "@playwright/test";
 import { routeArtifact } from "../../support/artifact-host.js";
-import { goTo } from "../../support/page.js";
-
-test.skip(({ viewport }) => !viewport || viewport.width < 1100, "the wide layout answers with keys and one click");
+import { answerFirst, explainChoice, goTo, ready } from "../../support/page.js";
 
 async function start(page, setting) {
   await page.addInitScript((v) => {
     window.__riglamTest = (t) => { window.__t = t; };
-    try { if (v !== null) localStorage.setItem("rd-autoexplain", v); } catch { /* storage unavailable */ }
+    try { localStorage.setItem("rd-start", "exercise"); if (v !== null) localStorage.setItem("rd-autoexplain", v); } catch { /* storage unavailable */ }
   }, setting);
   await routeArtifact(page, { ai: true });
   await page.goto("http://artifact.test/");
-  await page.waitForFunction(() => window.__t && window.__t.cur);
+  await ready(page);
 }
-const relations = async (page) => {
-  const rel = await page.evaluate(() => window.__t.cur.p.relation);
-  await page.locator(".strip .chip").nth({ mi: 0, "3ab": 1, "3ba": 2, 4: 3, con: 4 }[rel]).click();
-  const n = await page.locator(".grid input:not([disabled])").count();
-  for (let i = 0; i < n; i++) await page.locator(".grid input:not([disabled])").nth(i).fill("thing " + (i + 1));
-  await page.locator("#stage .pbar .fwd").click(); // Check
-};
+const relations = (page) => answerFirst(page);
 const pervasions = async (page) => {
   await goTo(page, "Pervasions");
-  for (let i = 0; i < 4; i++) { await page.keyboard.press("a"); await page.waitForTimeout(50); }
-  await page.keyboard.press("1");
+  const done = page.locator("#path .sb.done");
+  for (let i = 1; i <= 4; i++) {   // accept each question, then the relation the answers give
+    await page.locator("#path .chs .crow").filter({ hasText: "Accept" }).first().click();
+    if (i < 4) await expect(done).toHaveCount(i);
+  }
+  await expect(page.locator("#path .chs .crow")).toHaveCount(5);
+  await page.locator("#path .chs .crow").first().click();
 };
-const explainBtn = (page) => page.locator("#stage .xpl, #coach .btn").filter({ hasText: /^explain$|check and explain/i });
+const explainBtn = (page) => explainChoice(page);
 
-test("a checked Relations answer is explained by itself, once", async ({ page }) => {
-  await start(page, null);
+test("with Every answer a checked Relations answer is explained by itself, once", async ({ page }) => {
+  await start(page, "1");
   await relations(page);
   await page.waitForFunction(() => window.__sampleDone === 1);
   expect(await page.evaluate(() => window.__t.ui.explained)).toBe(true);
@@ -46,12 +43,12 @@ test("a checked Pervasions answer is explained by itself", async ({ page }) => {
   expect(await page.evaluate(() => window.__t.ui.explained)).toBe(true);
 });
 
-test("with the setting off the answer waits for Explain", async ({ page }) => {
-  await start(page, "0");
+test("with When I ask, which is the default, the answer waits for Explain", async ({ page }) => {
+  await start(page, null);
   await relations(page);
-  await expect(explainBtn(page).first()).toBeVisible();
+  await expect(explainBtn(page)).toBeVisible();
   await page.waitForTimeout(400);
   expect(await page.evaluate(() => window.__sampleDone)).toBe(0);
-  await explainBtn(page).first().click();
+  await explainBtn(page).click();
   await page.waitForFunction(() => window.__sampleDone === 1);
 });

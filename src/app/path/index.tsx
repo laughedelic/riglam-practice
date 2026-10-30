@@ -1,23 +1,17 @@
-// The redesign's entry: which design draws the page (Settings > Design, `rd-design`), and drawing the Path into #path. The classic page
-// calls renderPath from its render() while the Path is on (shell/render.js), so every change of state that redraws the page redraws it.
+// The page's entry: drawing the Path into #path. The page's render() (shell/render.js) calls renderPath, so every change of state that redraws the page redraws it.
 import { render as draw } from "preact";
 import { state } from "../state.js";
 import { render } from "../shell/render.js";
 import { App } from "./app.tsx";
-import { currentLook, restoreClassic } from "./look.ts";
+import { currentLook } from "./look.ts";
 import { coarse } from "./ui.tsx";
-import { setBase } from "../practice/per-exercise.ts";
 
-const KEY = "rd-design";
-/** Whether the Path draws the page now. */
-export const pathOn = () => state.design === "path";
-
-/** The tutor checks every answer by itself only where this device said so; else the Path's default (the look's tutorAuto), the classic page's on Classic. */
+/** The tutor checks every answer by itself only where this device said so; else the look's default (tutorAuto). */
 function autoExplainDefault(): void {
   let kept: string | null = null; try { kept = localStorage.getItem("rd-autoexplain"); } catch { /* storage blocked */ }
-  if (kept === null && pathOn()) state.autoExplain = currentLook().tutorAuto === "on";
+  if (kept === null) state.autoExplain = currentLook().tutorAuto === "on";
 }
-/** The focus ring (styles/33-path-base.css) shows once the Tab key has been pressed and goes at the next touch or click. The soft keyboard's Next key sends a Tab to
+/** The focus ring (styles/05-path-base.css) shows once the Tab key has been pressed and goes at the next touch or click. The soft keyboard's Next key sends a Tab to
  *  the field on a touch screen: that is not a keyboard walking the page, and must not leave a ring on whatever takes the focus next. */
 function ringOnTab(): void {
   const root = document.documentElement;
@@ -28,35 +22,17 @@ function ringOnTab(): void {
 function watchHand(): void {
   addEventListener("pointerdown", (e) => { state.hand = e.pointerType === "mouse" ? "mouse" : "touch"; }, { capture: true, passive: true });
 }
-/** At the start: the device's choice, else the Path in a Preview and the classic page in the real app. */
-export function startDesign(preview: boolean): void {
-  let kept: string | null = null; try { kept = localStorage.getItem(KEY); } catch { /* storage blocked */ }
-  state.design = kept === "path" || kept === "classic" ? kept : preview ? "path" : "classic";
+/** At the start: the defaults that depend on the look, the document marked as drawn by the Path (the rules of styles/05-path-base.css), and the listeners the Path needs. */
+export function startPath(): void {
+  document.getElementById("path")?.replaceChildren();     // the markup's own "Loading." line, until the first draw
   autoExplainDefault();
   ringOnTab();
   watchHand();
-  syncDesign();
-  try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (pathOn() && currentLook().mode === "system") render(); }); } catch { /* no media queries */ }
-}
-/** The page's own parts for the design in use: the classic page hidden under the Path, or the Path's colors taken off the browser's bar. */
-function syncDesign(): void {
-  const on = pathOn(), host = document.getElementById("path");
-  document.documentElement.classList.toggle("design-path", on);
-  if (host) host.hidden = !on;
-  if (!on) { if (host) draw(null, host); restoreClassic(); }
-}
-/** Settings > Design: the Path or the classic page, kept on this device. */
-export function setDesign(d: "path" | "classic"): void {
-  if (d === state.design) return;
-  state.design = d;
-  try { localStorage.setItem(KEY, d); } catch { /* the choice holds for this visit */ }
-  let kept: string | null = null; try { kept = localStorage.getItem("rd-autoexplain"); } catch { /* storage blocked */ }
-  if (kept === null) { state.autoExplain = d === "path" ? currentLook().tutorAuto === "on" : true; setBase("autoExplain", state.autoExplain); }
-  syncDesign();
-  render();
+  document.documentElement.classList.add("design-path");
+  try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (currentLook().mode === "system") render(); }); } catch { /* no media queries */ }
 }
 
-/** Draws the Path (from the classic render()). A text field with an id keeps its focus and its selection across the draw. */
+/** Draws the Path (from render()). A text field with an id keeps its focus and its selection across the draw. */
 export function renderPath(): void {
   const host = document.getElementById("path"); if (!host) return;
   cancelAnimationFrame(state.pathQ); state.pathQ = 0;
@@ -68,9 +44,9 @@ export function renderPath(): void {
     if (n && document.activeElement !== n && !n.disabled) { n.focus({ preventScroll: true }); try { n.setSelectionRange(f.s, f.e); } catch { /* not a text field */ } }
   }
 }
-/** Draws the Path again at the next frame: for what changes only the Path (a pull, a note, a word typed), without the classic render's work. */
+/** Draws the Path again at the next frame: for what changes only the Path (a pull, a note, a word typed), without the page's whole render. */
 export function refreshPath(): void {
-  if (!pathOn() || state.pathQ) return;
+  if (state.pathQ) return;
   state.pathQ = requestAnimationFrame(() => { state.pathQ = 0; renderPath(); });
 }
 /** The screen from its top (a new pair, a result). */

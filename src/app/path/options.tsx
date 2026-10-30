@@ -1,7 +1,6 @@
 // The practice options of the exercise on screen (the Design Lab's "Settings and options", round 3): a sheet from the top bar, its lines in groups
 // (path/lines.tsx): under the exercise's name what is its own, under Practice what every exercise has where it is built, then the way on to Settings;
-// a line's own page opens in the sheet. The settings themselves are the classic page's (shell/session.js, stages.js and voice.js keep them and store
-// them on the device). The stages and the difficulty are not among them: they live on the Progression page, behind the top bar's ring (path/progression.tsx).
+// a line's own page opens in the sheet. The settings themselves are kept and stored on the device by shell/session.js, stages.js and voice.js. The stages and the difficulty are not among them: they live on the Progression page, behind the top bar's ring (path/progression.tsx).
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef } from "preact/hooks";
 import { state } from "../state.js";
@@ -174,7 +173,7 @@ function TutorPage() {
   </>;
 }
 
-/** The Path's pages of the practice options, by the names their lines have (the classic sheet keeps its own, shell/session.js PAGES). */
+/** The Path's pages of the practice options, by the names their lines have. */
 const TITLES: Record<string, string> = { text: "Wording and notation", stages: "Difficulty", times: "Blitz", voice: "Voice", tutor: "Claude AI", progress: "Progression" };
 const sheetOn = () => state.sessOpen && state.mode === "quiz";
 /** The sheet's own page that is open (one of TITLES), or null for the list. */
@@ -192,7 +191,7 @@ export function OptionsSheet() {
     if (on && !was.current && box.current) box.current.focus({ preventScroll: true });
     was.current = on;
   }, [on]);
-  // the body fades out at an edge that has more to scroll to (37-path-panels.css): measured after every draw, and as it scrolls
+  // the body fades out at an edge that has more to scroll to (09-path-panels.css): measured after every draw, and as it scrolls
   useEffect(() => {
     const el = body.current; if (!el) return;
     const fade = () => {

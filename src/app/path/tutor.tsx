@@ -1,6 +1,6 @@
 // The tutor's conversation on the Path: a page in the tutor's color, opened from its button in the top bar once there is a result. What it is
 // about at the head, the question field (or Stop while the tutor writes), then the exchanges, the newest first, each answer above the question
-// it answers and each with its flag. The conversation is the classic page's (state.ui.chat, ai/tutor.js ask), and so are the flags; openChat
+// it answers and each with its flag. The conversation is state.ui.chat's and ai/tutor.js's ask, and so are the flags; openChat
 // gives the field the cursor for the first question.
 import { useRef } from "preact/hooks";
 import { state } from "../state.js";

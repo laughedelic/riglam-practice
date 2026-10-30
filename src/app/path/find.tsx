@@ -1,6 +1,6 @@
 // Find a pair on the Path: 1 the pair (the relation asked for, and two phenomena named for it), 2 the examples (examples.tsx), 3 the result
 // (the pair with the relation asked for, whether it has it, a row for each case, the tutor's Why, the terms). The relation can be changed
-// while the pair is not checked; a pick stays for the next pairs until Random. The steps are the classic page's (find/flow.js).
+// while the pair is not checked; a pick stays for the next pairs until Random. The steps are find/flow.js's.
 import type { ComponentChildren } from "preact";
 import { useEffect } from "preact/hooks";
 import { state } from "../state.js";
@@ -46,9 +46,8 @@ function Word({ k, key2, what, last }: { k: "a" | "b"; key2: "wordA" | "wordB"; 
 }
 function PairStep({ kb }: { kb: boolean }) {
   const u = u0(), ok = both();
-  // a new pair to name: the first field takes the cursor where there is a keyboard of keys, unless a field has it. The classic page
-  // (find/screen.js) does so only when nothing has the focus; here it does also when Find a pair is opened from the roadmap, which gives the
-  // focus back to the top bar as it closes, after this draw (so it waits for that)
+  // a new pair to name: the first field takes the cursor where there is a keyboard of keys, unless a field has it. This holds also when Find a pair is
+  // opened from the roadmap, which gives the focus back to the top bar as it closes, after this draw (so it waits for that)
   useEffect(() => {
     if (!u.focusA) return; u.focusA = false;
     setTimeout(() => { const a = document.activeElement; if (state.ui === u && !(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) && !("ontouchstart" in window)) focus("fw-a"); });

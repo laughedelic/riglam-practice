@@ -1,5 +1,4 @@
 import { state } from "../state.js";
-import { isWide } from "../core/viewport.js";
 import { closeSkipAsk } from "../practice/skips.js";
 import { closeChat } from "./chat.js";
 import { toRoad, toggleMenu } from "./menu.js";
@@ -10,17 +9,15 @@ import { setTab } from "./tabs.js";
 import { progBack } from "../path/progression.tsx";
 
 /* ---------- the system Back (key, button, swipe) ---------- */
-// The app has one address, so on a phone Back would leave it. Instead the page keeps one history entry (same address) for each level that is open. On a phone the
-// menu is the root: the exercise is the first level above it, then Review, the tutor chat view, Settings, the practice options and one of their pages, the question
-// before a skip. Back takes one off and closes that level: the question, the page or the sheet, Settings, the chat, Review (back to the exercise); Back on the exercise
-// opens the menu, and Back on the menu leaves the app. The Path's Progression page stands where Review does, and a term's card over it is one more level; Back from the page
-// goes where it was opened from (path/progression.tsx, progBack): the roadmap, which is the root, or the exercise. A wide screen has no such root (its menu is a panel beside the exercise), so Back there leaves the app from the
-// exercise. Moving between exercises replaces the level instead of adding one. The page only sets the state (open a screen, close a panel); after each render the number
-// of entries is brought in line with it (`navSync`). Each entry carries its depth, so a step forward onto an entry whose level is gone is
-// told apart from a step back, and taken back. The Claude artifact's frame is left alone (its history is the host's), and where the
-// browser refuses an entry nothing changes: every level still closes with its own button.
-// On the Path the roadmap is the root, at every start, also one that opens on an exercise: Back goes to the screen the learner came from. Review and Settings opened from
-// the roadmap stand right over it (`state.fromRoad`) and Back takes them back there; opened from an exercise (Settings from its practice options) they go back to it.
+// The app has one address, so on a phone Back would leave it. Instead the page keeps one history entry (same address) for each level that is open. The roadmap is the root, at
+// every start, also one that opens on an exercise: the exercise is the first level above it, then Review (or the Progression page, and a term's card over it), the tutor's
+// conversation, Settings and one of its pages, the practice options and one of their pages, the question before a skip. Back takes one off and closes that level: the question,
+// the page or the sheet, Settings, the conversation, Review (back to the exercise, or to the roadmap it was opened from); Back on the exercise opens the roadmap, and Back on
+// the roadmap leaves the app. Review and Settings opened from the roadmap stand right over it (`state.fromRoad`) and Back takes them back there; opened from an exercise (Settings
+// from its practice options) they go back to it; the Progression page goes where it was opened from (path/progression.tsx, progBack). Moving between exercises replaces the level
+// instead of adding one. The page only sets the state (open a screen, close a panel); after each render the number of entries is brought in line with it (`navSync`). Each entry
+// carries its depth, so a step forward onto an entry whose level is gone is told apart from a step back, and taken back. The Claude artifact's frame is left alone (its history is
+// the host's), and where the browser refuses an entry nothing changes: every level still closes with its own button.
 // Chrome skips, on Back, an entry that was the page's own when the page added the next one before anything had touched it (its history manipulation intervention):
 // a start on an exercise adds its entry at once, so Back from it would skip the roadmap's and close the app. Then a close watcher, which Back on Android asks first,
 // takes the Back for as long as there is a level to close (`guard`). In the installed app the same watcher waits on the roadmap: Back there first says "Back again
@@ -28,7 +25,7 @@ import { progBack } from "../path/progression.tsx";
 const MARK="riglamNav";
 const canPush=()=>{ try{ return window.parent===window; }catch(e){ return false; } };
 // how many levels are open, from the state alone (the Progression page under the roadmap is on its way out, for the moment of the slide back to it: no level)
-const depth=()=>(isWide()?0:state.menuOpen||state.fromRoad?0:1)+(state.tab==="review"&&!(state.menuOpen&&state.pathProg)?1:0)+(state.pathProg&&state.pathProg.term?1:0)+(state.view==="chat"?1:0)+(state.optsOpen?1:0)+(state.optsOpen&&state.optsPage?1:0)+(state.sessOpen?1:0)+(state.sessPage&&state.sessPage!=="progress"?1:0)+(state.skipAsk?1:0);
+const depth=()=>(state.menuOpen||state.fromRoad?0:1)+(state.tab==="review"&&!(state.menuOpen&&state.pathProg)?1:0)+(state.pathProg&&state.pathProg.term?1:0)+(state.view==="chat"?1:0)+(state.optsOpen?1:0)+(state.optsOpen&&state.optsPage?1:0)+(state.sessOpen?1:0)+(state.sessPage&&state.sessPage!=="progress"?1:0)+(state.skipAsk?1:0);
 function sync(){
   state.navQ=false;
   if(state.navSkip>0||!canPush()) return;
@@ -47,7 +44,7 @@ function sync(){
 // and a new one is armed while there is still a level open. Escape asks it too, but the keys have closed a level for it already (shell/keys.js).
 const LEAVE_MS=2500;
 const installed=()=>{ try{ return matchMedia("(display-mode: standalone)").matches||/** @type {any} */(navigator).standalone===true; }catch(e){ return false; } };
-const onRoad=()=>state.design==="path"&&state.menuOpen&&state.navDepth===0;
+const onRoad=()=>state.menuOpen&&state.navDepth===0;
 function guard(){
   const CW=/** @type {any} */(window).CloseWatcher;
   const on=typeof CW==="function"&&(state.navBare&&state.navDepth>0||onRoad()&&installed()&&!state.leaveAsk);
@@ -79,7 +76,7 @@ function closeTop(){
   else if(state.view==="chat") closeChat();
   else if(state.tab==="review"&&state.pathProg) progBack();
   else if(state.tab==="review"){ if(state.fromRoad) toRoad(); else setTab(state.own); }
-  else if(!isWide()&&!state.menuOpen) toggleMenu(true);
+  else if(!state.menuOpen) toggleMenu(true);
 }
 // Did the browser animate the Back itself? A swipe from the edge shows the page sliding away over the one before it, and `hasUAVisualTransition` of the popstate
 // event says so. Then the panels the Back closes do not move as well. When it did not (the Back key or button, a keyboard), they move like any other close, the menu

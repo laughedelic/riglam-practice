@@ -1,9 +1,0 @@
-/* version 46: "Thinking" moves; the category chain reads with "isa" */
-.thinking{display:flex;align-items:center;gap:7px}
-.dots{display:inline-flex;gap:4px}
-.dots i{width:7px;height:7px;background:var(--marigold);clip-path:var(--rhombus);opacity:.25;animation:dot 1.2s infinite both}
-.dots i:nth-child(2){animation-delay:.2s}
-.dots i:nth-child(3){animation-delay:.4s}
-@keyframes dot{0%,75%,100%{opacity:.25}35%{opacity:1}}
-@media (prefers-reduced-motion:reduce){.dots i{animation:none;opacity:.8}}
-.isa{font-style:italic;font-size:.92em;color:var(--ink-muted)}

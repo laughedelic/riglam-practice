@@ -1,6 +1,0 @@
-/* version 63: the follow-up row may not widen its block. An input's default width (size=20) depends on the font, and a grid's implicit auto column
-   grows to the widest min-content, so the tutor block ran past the coach panel (Ask cut by the right band at 1100 px). One shrinkable column, and the field has no intrinsic width. */
-.vpanel,.tutor,.xch,.ans{grid-template-columns:minmax(0,1fr)}
-.vpanel .tutor,.ask{min-width:0}
-.ask input{width:0}
-.q,.ans{overflow-wrap:anywhere}

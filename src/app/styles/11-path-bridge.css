@@ -1,22 +1,11 @@
-/* The Path: the parts it still hosts from the classic page (.pbr): an exercise in a state the Path does not draw, the definition cards and
-   the Terms panel, and what voice heard. They keep their own rules; here the classic colors and fonts take the Path's, so that the hosted
-   part sits on the same ground. */
+/* The Path: the parts it hosts that keep their own rules (.pbr): the bar with what voice heard, and the buttons in the dialogs and notices outside #path.
+   Here the page's colors and fonts take the Path's, so that the hosted part sits on the same ground. */
 .pa .pbr{
-  --line:var(--rule); --heading:var(--blue); --lapis:var(--blue); --on-lapis:var(--on-station); --ink-muted:var(--ink2); --faint:var(--ink3);
-  --paper-tint:color-mix(in srgb,var(--gold) 10%,var(--paper)); --good:var(--blue); --good-soft:var(--blue-t); --bad:var(--red); --vermilion-ink:var(--red);
-  --bad-soft:color-mix(in srgb,var(--red) 10%,var(--paper)); --warn-soft:color-mix(in srgb,var(--gold) 14%,var(--paper)); --focus-edge:var(--blue);
-  --focus-ring:0 0 0 2px var(--paper),0 0 0 4px var(--blue);
-  --cell-ok:var(--green); --cell-ok-soft:color-mix(in srgb,var(--green) 12%,var(--paper)); --cell-open:var(--ink2); --cell-open-soft:color-mix(in srgb,var(--ink) 6%,var(--paper));
-  --display:var(--main-f); --body:var(--main-f); --text-serif:var(--main-f); --serif:var(--main-f);
+  --line:var(--rule); --ink-muted:var(--ink2); --bad:var(--red); --focus-ring:0 0 0 2px var(--paper),0 0 0 4px var(--blue);
+  --body:var(--main-f);
   font-size:15px; line-height:1.5; min-width:0
 }
-/* an exercise in a state the Path does not draw: the classic card scrolls under the Path's top bar, with its own bar of buttons at the foot */
-.pa .pbr.card{flex:1; min-height:0; margin:0; padding:14px 16px 0}
-.pa .pbr.card > .pbar{margin-inline:-16px; padding-inline:16px}
-/* the steps of a classic exercise sit under the Path's top bar; a wide screen hides them on the classic page, not here */
-.pa .pbr .steps{display:flex !important; padding:2px 0 4px}
-.pa .pbr.card{gap:18px}
-/* what voice heard, above the foot: the classic bar, which voice.js repaints in place as it listens (so that the focus stays on Confirm),
+/* what voice heard, above the foot: the bar of src/app/shell/voice.js, which it repaints in place as it listens (so that the focus stays on Confirm),
    with its buttons in the Path's look */
 .pa .pbr.pvoice{flex:none; padding:0 16px 0 calc(var(--m) + 22px)}
 .pa .pbr.pvoice .vtake{border-top:0; gap:4px 18px}
@@ -26,11 +15,11 @@
   font-family:var(--mono); font-size:12.5px; font-weight:600; letter-spacing:0; text-transform:none; color:var(--blue); text-decoration:underline; text-underline-offset:4px}
 .pa .pbr.pvoice .btn.ghost,.pa .pbr.pvoice .btn.ghost:hover{color:var(--ink2)}
 html.pa-tab .pa .pbr.pvoice .btn:focus-visible{outline:2px solid var(--blue); outline-offset:1px; box-shadow:none}
-/* the two dialogs the classic page opens over the Path, native dialogs outside #path (the question before a device's examples are kept, ai/share-notice.js; the
+/* the two dialogs opened over the Path, native dialogs outside #path (the question before a device's examples are kept, ai/share-notice.js; the
    Magic Key, pwa/unlock.ts): the root's variables do not reach them, so applyLook also keeps the palette on the html element as --pa-*, and here they take it, the Path's
    face and its text buttons (the question before a skip, .pdlg, looks the same) */
 html.design-path .sharedlg,html.design-path #unlock{
-  --paper:var(--pa-paper); --ink:var(--pa-ink); --ink-muted:var(--pa-ink2); --faint:var(--pa-ink3); --line:var(--pa-rule); --heading:var(--pa-blue);
+  --paper:var(--pa-paper); --ink:var(--pa-ink); --ink-muted:var(--pa-ink2); --line:var(--pa-rule); --heading:var(--pa-blue);
   --bad:var(--pa-red); --vermilion-ink:var(--pa-red); --bad-soft:color-mix(in srgb,var(--pa-red) 10%,var(--pa-paper));
   --focus-ring:0 0 0 2px var(--pa-paper),0 0 0 4px var(--pa-blue);
   --display:var(--pa-f); --body:var(--pa-f); --text-serif:var(--pa-f); --serif:var(--pa-f);

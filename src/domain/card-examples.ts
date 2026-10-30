@@ -1,4 +1,4 @@
-// The examples on a term's definition (the stop's Examples section, the classic page's card). The everyday things of the practice list that are
+// The examples on a term's definition (the stop's Examples section). The everyday things of the practice list that are
 // instances of the term come first: a learner knows "a dog" and "the roundness of a ball" before the course's words, which the reference examples
 // (docs/DATA.md) are written in; those fill what the list cannot. A function of the data, like the rest of the domain.
 import type { Item } from "../ai-shared/data";

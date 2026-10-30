@@ -42,7 +42,7 @@ export const MAX_STAGE = STAGES[STAGES.length - 1]!.n;
 /**
  * The last stage that brings new terms: the ladder ends there. The stages after it (chains of reasoning: one step, two, then longer) are the steps of depth,
  * a difficulty of its own like the negations: on the Path a result offers the next step (stageOffer, the same run as for any stage), never more by itself,
- * and the learner sets it on the Progression page. The classic page keeps them as stages.
+ * and the learner sets it on the Progression page.
  */
 export const LADDER_TOP = 9;
 /** The stages of the ladder as a row of rings shows them (the roadmap's foot, the stage station): those that bring course terms. Stage 0, everyday things alone, is on the Progression page only. */
@@ -232,11 +232,10 @@ export function negationOffer(results: readonly NegOutcome[], negation: Negation
 
 /**
  * The right answers in a row, on questions new at the highest stage that is on (those from a stage below count half, LOWER_CREDIT), after which the next
- * stage comes in: by itself on the Path, with a station that says so first; offered with a tap on the classic page. On the Path the stages are chapters
- * of one list of terms: a stage that brings new terms comes with the first of them, once the stage below has brought all of its own and fewer terms
- * are open than the learner's pace allows (intro.ts, nextStageDue); the first step of depth (stage 10, after LADDER_TOP) is offered once the last answer on
- * each new term of stage 9 is right (runWanted). The run is for stage 0, which brings no terms, for the steps of depth, for every stage on the classic page,
- * which has no term stops, and for a stage the learner stayed on a while longer or came back down to.
+ * stage comes in: by itself, with a station that says so first. The stages are chapters of one list of terms: a stage that brings new terms comes with the first of them,
+ * once the stage below has brought all of its own and fewer terms are open than the learner's pace allows (intro.ts, nextStageDue); the first step of
+ * depth (stage 10, after LADDER_TOP) is offered once the last answer on each new term of stage 9 is right (runWanted). The run is for stage 0, which
+ * brings no terms, for the steps of depth, and for a stage the learner stayed on a while longer or came back down to.
  */
 export const STAGE_STREAK = 5;
 /** Staying on a stage a while longer asks this many more right answers in a row before the next one comes, up to STAGE_STREAK_MAX. */
@@ -303,7 +302,7 @@ export interface StageTerms {
   just: boolean;
   next?: boolean;
 }
-/** A stage without new terms (stage 0, and the steps of depth), or a page without term stops (the classic one): the run alone moves the stages. */
+/** A stage without new terms (stage 0, and the steps of depth), or a device that has no term stops yet: the run alone moves the stages. */
 export const NO_TERMS: StageTerms = { n: 0, right: true, just: false };
 /** The new terms of a stage from their marks. */
 export function termsOf(marks: readonly StageMark[]): StageTerms {

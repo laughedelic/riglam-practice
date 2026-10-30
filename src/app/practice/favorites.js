@@ -1,17 +1,12 @@
 import { state } from "../state.js";
-import { el } from "../core/dom.js";
-import { tbIcon } from "../core/icons.js";
-import { REL, cellLabel, notaOf, refOf } from "../core/rel.js";
 import { negSides } from "../../ai-shared/relations.ts";
-import { dayOf } from "../core/util.js";
 import { put } from "./answers.js";
 import { advance } from "./queue.js";
 import { norm, pairCats } from "./universe.js";
-import { exGrid } from "../review/review.js";
 import { render, top0 } from "../shell/render.js";
 import { switchTo } from "../shell/tabs.js";
 
- const openFavs=new Set(), favQ={};
+const favQ={};
 /** The class of each term of a kept pair, "furniture: form": a negated side has none (it is not in the class of what it negates), so it is left out. */
 export const typesLine=p=>{ const [na,nb]=negSides(p); return [[p.a,p.typeA,na],[p.b,p.typeB,nb]].filter(x=>!x[2]).map(([l,t])=>l+": "+(t||"?")).join(" · "); };
 /* ---------- favorite pairs ---------- */
@@ -48,37 +43,6 @@ function setFav(p,on){
 export const toggleFav=p=>setFav(p,!isFav(p));
 /** The pair the star and the key F act on: the one on screen, but not while Find a pair asks for the words of another (the old pair stays until "Use this pair"). */
 export const favTarget=()=>{ const c=state.cur, u=state.ui; return c&&c.p&&!(u&&u.find&&!u.checked&&u.step===0)?c.p:null; };
-/** The star of the pair bar: pressed while the pair is a favorite. Not there without storage, and not for a pair of the learner's own (it has no categories to keep). */
-export function favBtn(p){
-  if(!state.db||!p||p.own) return null;
-  const on=isFav(p), t=on?"Remove from favorites":"Add to favorites";
-  return el("button",{type:"button",class:"ib starb","aria-pressed":on?"true":"false","aria-label":t,title:t+" (F)",onclick:()=>toggleFav(p)},tbIcon("star"));
-}
 export function startFav(p){ switchTo("practice"); state.retryQ=[p]; state.retryTag="Favorite"; advance(); render(); top0(); } // switch first: leaving another tab may draw a pair
 // a favorite taken out of Review; a removal that fails is undone
 export function removeFav(f){ const q=Object.assign({},f); delete state.favs[f.key]; render(); favWrite(f.key,()=>state.db.collection("favorites").doc(f.key).delete(),()=>{ state.favs[f.key]=q; }); }
-export function favSection(s){
-  if(!state.db) return;
-  const list=Object.values(state.favs).sort((x,y)=>(y.at||"").localeCompare(x.at||""));
-  const sec=el("div",{class:"section"},el("p",{class:"label"},"Favorites",el("span",{class:"hint",text:list.length?list.length+" saved":"star a pair to keep it here"})));
-  if(!list.length) sec.append(el("p",{class:"empty-note",text:"Press the star (or F) on a pair while you practice. It stays here with its relation and examples, whether or not you answered it right."}));
-  else sec.append(el("ul",{class:"favs"},list.map(f=>{
-    const p=f.pair||/** @type {import("../types.ts").Pair} */({a:f.a,b:f.b,relation:f.relation,ex:{},why:{}}), k=REL[p.relation]||REL[f.relation];
-    const cell=c=>{
-      const ref=refOf(p,c);
-      if(ref) return el("div",{class:"cell","aria-label":cellLabel(c,p)},el("span",{class:"cx",text:ref}));
-      return el("div",{class:"cell locked","aria-label":cellLabel(c,p)+": nothing"},el("span",{class:"empty",text:"∅"}),(p.why&&p.why[c])?el("div",{class:"fb",text:p.why[c]}):null);
-    };
-    return el("li",null,el("details",{open:openFavs.has(f.key),ontoggle:e=>{ if(e.target.open) openFavs.add(f.key); else openFavs.delete(f.key); }},
-      el("summary",null,el("span",{class:"m",text:"★"}),el("span",null,p.a+" / "+p.b,el("span",{class:"sub",text:(k?k.name:"")+(f.at?" · saved "+dayOf(f.at):"")}))),
-      el("div",{class:"fbody"},
-        k?el("p",{class:"note"},k.name+": "+k.gloss(p.a,p.b).toLowerCase()+".",notaOf(p.relation)&&state.nota!=="codes"?[" ",el("span",{class:"nota math",text:notaOf(p.relation)})]:null):null,
-        exGrid(p,cell),
-        el("p",{class:"note"},(p.typeA||p.typeB)&&typesLine(p)?el("span",{class:"types",text:typesLine(p)}):null,p.note||""),
-        el("div",{class:"actions"},
-          el("button",{type:"button",class:"btn ghost",onclick:()=>{ openFavs.delete(f.key); removeFav(f); },text:"Remove"}),
-          el("button",{type:"button",class:"btn",onclick:()=>startFav(p),text:"Practice this pair"})))));
-  })));
-  if(state.favErr) sec.append(el("p",{class:"status",text:state.favErr}));
-  s.append(sec);
-}

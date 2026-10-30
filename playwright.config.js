@@ -6,7 +6,7 @@ export default defineConfig({
   testDir: "tests/e2e",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  // The legacy page tests use random pairs; a check or two can be flaky, so a failing file is run once more.
+  // The page draws random pairs; a check or two can be flaky, so a failing file is run once more.
   retries: 1,
   workers: process.env.CI ? 2 : 3,
   // CI writes no HTML report and no traces: both record page content and step arguments (URLs, typed text), which can include the course definitions and the data key (ci.yml).
@@ -22,9 +22,6 @@ export default defineConfig({
     timeout: 60_000,
   },
   projects: [
-    { name: "legacy", testMatch: /legacy\.spec\.js/ },
-    // the layout matrix: the artifact build with a mocked `window.claude`, one test per size, flow and pair; sizes are set in the spec
-    { name: "layout", testMatch: /layout\/.*\.spec\.js/ },
     { name: "pwa-desktop", testMatch: /pwa\/.*\.spec\.js/, use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 800 } } },
     { name: "pwa-phone", testMatch: /pwa\/.*\.spec\.js/, use: { ...devices["Pixel 7"] } },
   ],

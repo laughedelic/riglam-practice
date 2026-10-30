@@ -1,6 +1,6 @@
 // Categories on the Path: the thing, and the categories lifted over a rule onto the path (threshold.tsx), or one at a time with yes and no; the check
 // splits them into what applies and what does not, each with the reason, and the offer of another stage comes when one is due. The tutor has no
-// part here. The steps are the classic page's (categories/flow.js); the reference examples it draws from come with the Magic Key.
+// part here. The steps are categories/flow.js's; the reference examples it draws from come with the Magic Key.
 import { type ComponentChildren, render } from "preact";
 import { state } from "../state.js";
 import { advanceCategories, checkCategories, resetCategories, sayCategory, tickCategory } from "../categories/flow.js";
@@ -109,7 +109,7 @@ function TickStep() {
       <Sx cls="ptail" />
     </Scroll>
     <Foot aux={<SkipSide />}>
-      <Station kind="chk" name="Check" hint={!n ? "none of these" : n === 1 ? "one category" : n + " categories"} act={() => checkCategories(true)} scan={scanPlan} />
+      <Station kind="chk" name="Check" hint={!n ? "none of these" : n === 1 ? "one category" : n + " categories"} act={() => checkCategories()} scan={scanPlan} />
     </Foot>
   </>;
 }

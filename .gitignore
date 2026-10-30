@@ -7,7 +7,6 @@ blob-report/
 *.log
 .DS_Store
 __pycache__/
-tests/legacy/out/
 .data-key
 .cache/
 .dev.vars
