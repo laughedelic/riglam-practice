@@ -1,6 +1,5 @@
 // What the tutor says, as the Path draws it, and the flags on it: a text of the tutor (its lines, the notes on the examples in words), the flag
-// on it and the flag's editor, and Quorum's panel of a result. The flags are the classic page's (ai/flags.js keeps and sends them; a flag is
-// the same document whichever design made it), and so is what Quorum knows (ai/quorum.js).
+// on it and the flag's editor, and Quorum's panel of a result. The flags are ai/flags.js's (it keeps and sends them), and so is what Quorum knows (ai/quorum.js).
 import type { ComponentChildren } from "preact";
 import { state } from "../state.js";
 import { aiCase, cancelFlag, flagId, flagKeyOf, flagOf, openFlag, removeFlag, saveFlag } from "../ai/flags.js";

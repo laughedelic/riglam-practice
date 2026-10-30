@@ -1,7 +1,7 @@
 // Pervasions on the Path: 1 the questions (the four statements of the challenger one at a time, each accepted or answered with Why? and a
 // counter-example; the ones answered stay on the path above), 2 the relation the answers give (the five as choices: picking one checks),
-// 3 the result (the pair with the relation marked, the verdict, a row for each question, the tutor's Why, the terms). The steps are the
-// classic page's (debate/flow.js), and so is the wording of the questions (debate/text.js, picked in the practice options).
+// 3 the result (the pair with the relation marked, the verdict, a row for each question, the tutor's Why, the terms). The steps are
+// debate/flow.js's, and so is the wording of the questions (debate/text.js, picked in the practice options).
 import type { ComponentChildren } from "preact";
 import { useContext } from "preact/hooks";
 import { state } from "../state.js";

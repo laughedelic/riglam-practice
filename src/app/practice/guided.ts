@@ -1,7 +1,7 @@
 // The guided form of each exercise on the Path (src/domain/stages.ts, GUIDE_RIGHT). On by default, an exercise shows its hints: the structure,
 // the sentences spelled out, the terms suggested. After GUIDE_RIGHT right answers in it, the guided form turns off by itself, once, and the result
 // says so; from then on only the learner's switch in the exercise's practice options changes it. Part of the progression (practice/progress.ts),
-// so Reset progression turns it on again. The classic page keeps its own switches.
+// so Reset progression turns it on again.
 import { state } from "../state.js";
 import { saveProgress } from "./progress.ts";
 import { render } from "../shell/render.js";

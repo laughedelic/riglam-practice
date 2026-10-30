@@ -1,7 +1,7 @@
 // Settings on the Path (the Design Lab's "Settings and options", round 3): full width, in sections of lines (path/lines.tsx), and a page of its own for a
 // line that needs one. General: the languages and the theme. Data: the Magic Key, the account, sharing the examples, export and import. Experiments,
 // shown only in a Preview, or in the real app on a device with the Magic Key after a hold on Version: the design, voice, the lab's settings. About: the
-// version. What each does is the classic page's (shell/options.js and the shared rows of src/ui, which the Path builds in its own classes).
+// version. What each does is shell/options.js's and the shared rows of src/ui's, which the Path builds in its own classes.
 import { useRef, useState } from "preact/hooks";
 import { state } from "../state.js";
 import { accountControls } from "../../ui/account";
@@ -28,7 +28,7 @@ const back = () => { state.optsPage = null; render(); };
 // how long Version is held to show Experiments
 const HOLD_MS = 1500;
 
-// the shared rows of src/ui (the account, your data) build their nodes with the classic page's classes; the Path's are put in their place
+// the shared rows of src/ui (the account, your data) build their nodes with the classes of src/ui; the Path's are put in their place
 const PCLS: Record<string, string> = { btn: "pbtn", "btn ghost": "pbtn", onote: "pnoteline", "onote bad": "pnoteline bad", xfer: "pxfer", xferbox: "pxbox", xsum: "pxsum", acct: "pacct", acwho: "pacwho", acname: "pacname" };
 const pel = (tag: string, props?: Record<string, any> | null, ...kids: any[]) => {
   const p = props ? { ...props } : props;

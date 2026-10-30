@@ -38,7 +38,7 @@ The comment with the commit and the document skeleton the tool adds around a pag
 
 1. Work on a branch of this repo: `git switch -c <branch>`. Never edit the published page by hand; edit `src/app/*` (and the term data through `npm run data:import`, see [DATA.md](DATA.md), when it changes).
 2. Build the artifact: `npm run build:artifact`. It merges the definitions and notes into the page, so it needs the course data (`data-private/`, [DATA.md](DATA.md)) and stops without it. For a trial that must not touch the real page, build with another title (`ARTIFACT_TITLE="Riglam artifact build (test)" npm run build:artifact`) and publish it as a new artifact.
-3. Test: `npm run check:fast` while iterating, the targeted legacy files after a build (`node tests/legacy/test62.js`, or `npx playwright test --project=legacy -g test62`), `npm run check` before publishing. The PWA specs catch differences between the two builds.
+3. Test: `npm run check:fast` while iterating, the targeted specs after a build (`npx playwright test --project=pwa-desktop path-take`), `npm run check` before publishing. The PWA specs catch differences between the two builds.
 4. Publish `dist/artifact/index.html` with the Artifact tool, passing the live artifact's `url` and leaving `capabilities` out (the stored `db` and `sample` declaration is kept). The file is already the shape the tool wants: `<title>` in the first 8 KB, Google Fonts as the only external host, no service worker, about 0.5 MB.
 5. Note the artifact's version id in the commit message or the PR description (for example "published as artifact version 1791790000-abcd"), commit with a conventional message (`fix:`, `feat:`, `style:`; see [RELEASING.md](RELEASING.md)) and open or update a pull request.
 6. Comments on the artifact reach the session that watches it. The answer to a comment is a commit plus a republish.
@@ -47,4 +47,4 @@ The pull request is how the work is kept. A republish without a commit is lost t
 
 ## Keeping the PWA and the artifact in step
 
-Both builds come from the same files, so a change in `src/app` reaches both. Things that exist only in the artifact (Claude's `sample`) are hidden by the page when `sample` is `null`, so the PWA shows no empty tutor. When a change depends on `sample`, the legacy suite covers it with the mocked `sample`; the PWA specs check that the PWA hides it.
+Both builds come from the same files, so a change in `src/app` reaches both. Things that exist only in the artifact (Claude's `sample`) are hidden by the page when `sample` is `null`, so the PWA shows no empty tutor. When a change depends on `sample`, the parity spec and `auto-explain-artifact.spec.js` cover it in the artifact build with a mocked `sample`; the PWA specs check that the PWA hides it.

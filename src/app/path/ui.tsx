@@ -1,5 +1,5 @@
 // The Path's small parts, as the Path Lab draws them: the line icons, the diamonds, a stop on the path, a section of the line, a section's
-// heading, the relation figures, the marks of a verdict, the toggles, the words in a row, and the host of a part still drawn by the classic page.
+// heading, the relation figures, the marks of a verdict, the toggles, the words in a row, and the host of a part still drawn as plain DOM.
 import type { ComponentChildren, InputHTMLAttributes } from "preact";
 import { useLayoutEffect, useRef } from "preact/hooks";
 import { state } from "../state.js";

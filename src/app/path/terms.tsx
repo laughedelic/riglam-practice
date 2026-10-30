@@ -1,5 +1,4 @@
-// The Dudra terms in a text of the Path, dot-underlined where this device can read their definition (the classic page's withTerms,
-// practice/terms.js, drawn by the Path): a tap opens the definition under the text, as a note on the path (Def). What is said is the classic page's
+// The Dudra terms in a text of the Path, dot-underlined where this device can read their definition (practice/terms.js's withTerms, drawn by the Path): a tap opens the definition under the text, as a note on the path (Def). What is said is practice/terms.js's
 // (its data, its wording).
 import type { JSX } from "preact";
 import { state } from "../state.js";

@@ -1,7 +1,7 @@
 // Review on the Path: today's trail as the lab draws it (each answer a stop on the line, its verdict the stop's color and its cases as small
-// diamonds, the newest at the bottom), and the classic page's other sections in the same grammar: the totals, the mistakes, the favorites,
+// diamonds, the newest at the bottom), and the other sections in the same grammar: the totals, the mistakes, the favorites,
 // the pairs skipped and the flags. A row of a checked pair unfolds into the answer as it was checked. What is counted, and the steps (practice
-// a pair again, retry the mistakes, remove a favorite, edit a flag), are the classic page's (src/app/review, practice/, ai/flags.js).
+// a pair again, retry the mistakes, remove a favorite, edit a flag), are in src/app/review, practice/ and ai/flags.js.
 import type { ComponentChildren } from "preact";
 import { state } from "../state.js";
 import { checkReplies, isSent } from "../ai/flag-reports.js";

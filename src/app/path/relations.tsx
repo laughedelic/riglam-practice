@@ -1,6 +1,6 @@
 // Relations on the Path: 1 the relation (the five as choices on the path), 2 the examples (examples.tsx), 3 the result (the pair with your
-// relation marked, the verdict, a row for each case, Why from the tutor). The rules are the classic page's (practice/screen.js, grading.js,
-// src/domain): the Path draws the same attempt, `state.ui`, and calls the same steps.
+// relation marked, the verdict, a row for each case, Why from the tutor). The rules are in practice/screen.js, grading.js and
+// src/domain: the Path draws the attempt, `state.ui`, and calls the steps.
 import type { ComponentChildren } from "preact";
 import { state } from "../state.js";
 import { CELLS, ORDER, REL, notaOf } from "../core/rel.js";

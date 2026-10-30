@@ -1,8 +1,7 @@
 // Find an instance: one to three categories are shown, and the learner names something that is all of them, or says that nothing is. The rules
 // (which sets are asked, what is right and why) are in src/domain/instance.ts; this is the page around them: the screen state and the saved
 // answer. An answer is kept in the collection "answers" with `mode: "instance"`, so it is stored and synced like the others, and the lists that
-// mean the Relations exercise leave it out (practice/universe.js, answerList). The exercise is drawn on the Path only (path/instance.tsx); the
-// classic page says so in its place (shell/render.js).
+// mean the Relations exercise leave it out (practice/universe.js, answerList). The exercise is drawn by path/instance.tsx.
 import { state } from "../state.js";
 import { persist } from "../practice/answers.js";
 import { freshUi } from "../practice/queue.js";

@@ -34,7 +34,7 @@ function skipAnyway() {
   state.skipAsk = false; render();
   turnAside(document.querySelector("#path .main"), skipNow);
 }
-/** The question before an attempt with something in it is set aside; its words are the classic page's (practice/skips.js). */
+/** The question before an attempt with something in it is set aside; its words are practice/skips.js's. */
 function SkipAsk() {
   const { q, d } = skipAskText();
   const keep = useRef<HTMLButtonElement>(null);
@@ -87,7 +87,7 @@ export function App() {
     applyLook(r, look);
     for (const t of r.querySelectorAll<HTMLElement>(".ptail")) t.classList.toggle("long", t.getBoundingClientRect().height > 130);
     aboveSync(r);
-    // after a check the station has the focus, so that Enter goes on (as the forward button has it on the classic page)
+    // after a check the station has the focus, so that Enter goes on
     const checked = state.ui && state.ui.checked ? (state.ui.stop ? "stop" : state.ui.up && state.ui.up.shown ? "stage" : "result") : "";     // a term's stop after the result is a screen of its own (path/stop.tsx)
     // (quiet: the app moved the focus there, not a Tab, so no ring is drawn on it, whatever key was pressed before; it goes at the first blur)
     if (checked && checked !== wasChecked.current && !over) {

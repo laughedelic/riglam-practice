@@ -1,6 +1,6 @@
 // Find a pair on the Path: 1 the pair (the relation asked for, and two phenomena named for it), 2 the examples (examples.tsx), 3 the result
 // (the pair with the relation asked for, whether it has it, a row for each case, the tutor's Why, the terms). The relation can be changed
-// while the pair is not checked; a pick stays for the next pairs until Random. The steps are the classic page's (find/flow.js).
+// while the pair is not checked; a pick stays for the next pairs until Random. The steps are find/flow.js's.
 import type { ComponentChildren } from "preact";
 import { useEffect } from "preact/hooks";
 import { state } from "../state.js";

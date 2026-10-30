@@ -3,8 +3,7 @@
 // stop is due; the stop goes on the answer just finished (`ui.stop`), the Path draws it (path/stop.tsx), and Next goes on to the question. The questions
 // answered grade the terms they used (gradeTerms): a mistake brings the stop back a few questions later, and the learner may ask for it again from the
 // stop (toggleAgain). The draws leave out the categories whose stop has not come yet (unmetNow). The record is part of
-// the learner's progression (`rd-terms`, synced by practice/progress.ts). Only the Path has the stops: the classic page asks about every category of its
-// stages, as before, and keeps the record graded.
+// the learner's progression (`rd-terms`, synced by practice/progress.ts).
 import { state } from "../state.js";
 import { hasDef } from "./terms.js";
 import { saveProgress } from "./progress.ts";
