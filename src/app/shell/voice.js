@@ -378,7 +378,7 @@ export const voiceShown=()=>enabled()&&(canSpeak()||canHear())&&(state.tab==="pr
 /** The Voice page draws again when the device's voices arrive (they come late in some browsers). */
 export function hookVoices(){ const v=state.voice; if(!v.hooked){ v.hooked=true; onVoices(()=>{ if(state.sessOpen&&state.sessPage==="voice") render(); }); } }
 // the Voice page's words
-export const VOICE_LEAD="Read aloud says each question when it appears, and Answer by voice puts a microphone in the middle of the bar at the foot of the exercise. Both use your device\u2019s own speech, so the voices, and how well it hears you, depend on the device and the browser.";
+export const VOICE_LEAD="Read aloud says each question when it appears, and Answer by voice puts a microphone in the top bar. Both use your device\u2019s own speech, so the voices, and how well it hears you, depend on the device and the browser.";
 export const READ_NOTE="The switch at the top of the exercise, next to Blitz, pauses and resumes it.";
 export const ANSWER_PICKS=[["off","Off","No microphone."],
   ["tap","Tap the mic","Tap the microphone (or press V), then say the answer."],

@@ -318,19 +318,6 @@ export interface Current {
   [extra: string]: unknown;
 }
 
-/** The Skip hint: what to restore on Undo. */
-export interface SkipNote {
-  p: Pair;
-  key: string;
-  had: SkipDoc | undefined;
-  debate: boolean;
-  /** Find a pair: Undo gives back the screen that was skipped (`prev.ui`, with the examples written) and the relations asked lately (`prev.fa`) */
-  find?: boolean;
-  ui: Ui | null;
-  prev: { cur: Current | null; rq: Pair[]; rt: string; ui?: Ui | null; fa?: RelKey[] };
-  tid: number;
-}
-
 /** Where the Progression page of the Path stands (path/progression.tsx): where it was opened from, so that Back goes there again, and the term card open over it. */
 export interface ProgressionAt {
   /** opened from the roadmap's rings (Back shows the roadmap again), or from the top bar's ring sheet or another link in an exercise (Back goes to the exercise) */
@@ -489,9 +476,6 @@ export interface State {
   /** when the server was last asked for the replies to the sent flags (ms since the epoch), and whether that is under way */
   repliesAt: number;
   repliesBusy: boolean;
-
-  // skips
-  skipNote: SkipNote | null;
 
   // Quorum and the explanation
   /** the app's server offers Quorum (platform.quorum) */

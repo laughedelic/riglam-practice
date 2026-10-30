@@ -29,7 +29,7 @@ test("Relations on the Path: a relation, the examples, the check, the result, an
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await start(page);
-  await expect(page.locator("#app")).toBeHidden();
+  await expect(page.locator("#path .pa")).toBeVisible();
   await expect(page.locator(".ptb-t")).toContainText("Relations");
   await expect(page.locator("#stnp")).toHaveAccessibleName(/Examples: pick a relation first/);
   await answer(page);

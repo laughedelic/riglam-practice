@@ -10,7 +10,7 @@ import { render } from "../shell/render.js";
 // With Quorum on, the explanation of a checked answer (Explain, or Explanations by Claude on Every answer) is asked of the app's server with `quorum: true`. The server has Haiku,
 // Sonnet and Opus answer it on their own; where they put an example in different cells, Opus reads their answers and writes the one that is shown. The text you read and
 // the verdicts the page takes from it (tutor.js, applyVerify) are that one answer. The server keeps every run; the page keeps nothing of it but the flags it raises
-// (collection "flags") where the models are divided, and shows the run to the maintainer in the Quorum chip (quorum-panel.js). With Quorum off, one model answers as ever.
+// (collection "flags") where the models are divided, and shows the run to the maintainer in the Quorum panel (quorum-panel.js). With Quorum off, one model answers as ever.
 export const setQuorum=on=>{ state.quorumChoice=!!on; state.quorum=!!on; try{ localStorage.setItem("rd-quorum",on?"1":"0"); }catch(e){} render(); };
 // what the server offers this device (platform.quorum: false, "on" or "optin"). Without a choice of its own the device follows the server: on for "on" (a Preview), off for "optin".
 export function setQuorumOffer(offer){
@@ -24,7 +24,7 @@ export const quorumOn=()=>!!(state.quorumOffered&&state.quorum&&state.tutor&&!st
 export const quorumNeeded=U=>!!(U&&U.res&&U.res.exOpen>0);
 // whether the explain question of this answer goes to Quorum
 export const quorumWanted=U=>quorumOn()&&quorumNeeded(U);
-// whether the Quorum chip belongs on a checked answer; Review shows the flags wherever there is a tutor to flag, or flags to look at
+// whether the Quorum panel belongs on a checked answer; Review shows the flags wherever there is a tutor to flag, or flags to look at
 export const quorumChip=()=>!!(state.quorumOffered&&state.quorum&&state.db);
 export const quorumShown=()=>!!(state.db&&(state.quorumOffered||state.sample||Object.keys(state.flags).length));
 

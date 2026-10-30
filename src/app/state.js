@@ -91,11 +91,10 @@ export const state = {
   navBack: false, // the system's Back is closing levels, and the browser has animated the screen away itself (a swipe from the edge): the panels do not move as well (shell/history.js, shell/motion.js)
   motion: false,  // the first screen has been drawn: panels that open or close after it slide (shell/motion.js)
   view: null,
-  defLang: "en",  // definitions in the Terms panel: "en", or "enru" (English with the Russian definition and the Russian name of each term)
+  defLang: "en",  // definitions: "en", or "enru" (English with the Russian definition and the Russian name of each term)
   langs: [],      // the other languages a term's name is shown in, beside English (and Russian, when defLang says so): "bo", "skt", "zh" (domain/languages.ts)
   POOL: null,
   skips: {},
-  skipNote: null,
   skipErr: "",
   quorumOffered: false,   // the app's server offers Quorum, the tutor's mode of several models and a judge (platform.quorum): a Preview, with the Magic Key
   quorumOptIn: false,     // the server offers it as an opt-in: off on a device until the device turns it on (a Preview has it on until the device turns it off)
