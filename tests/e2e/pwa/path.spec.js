@@ -39,7 +39,7 @@ test("Relations on the Path: a relation, the examples, the check, the result, an
   await expect(station).toHaveAccessibleName(/^Check/);
   await station.click();
   await expect(page.locator(".pvline")).toBeVisible();
-  await expect(page.locator(".pvline")).toContainText(/Right|Right so far|Partly right|Not quite/);
+  await expect(page.locator(".pvline")).toContainText(/Right|Relation is right|Partly right|Not quite/);
   await expect.poll(() => savedAnswers(page)).toBe(1);
   await expect(station).toHaveAccessibleName(/Next pair/);
   await expect(station).toBeFocused();   // Enter goes on, as the forward button has it on the classic page
@@ -552,7 +552,7 @@ withKey("the tutor's note under an example is a list of steps in the tutor's blo
   await page.locator("#stn").click();
   await expect(page.locator(".pvline")).toBeVisible();
   await expect(page.locator(".exr .tside")).toHaveCount(0);   // the examples have no "Check and explain" thread: Why is the one tutor row
-  await page.locator(".wrow").filter({ hasText: "Explanation" }).click();
+  await page.locator(".cwex .crow").click();   // Explain, a choice beside the line (path/wait.tsx)
   const note = page.locator(".exr .tnote").first();
   await expect(note).toBeVisible();
   await expect(note).not.toContainText(/Claude’s (note|explanation)/);   // no label: the rule says whose note it is, and a label on every case read as if the steps were about the tutor
@@ -590,8 +590,9 @@ withKey("Why asks the tutor on the result, and Ask a follow-up opens the convers
   await start(page);
   await answer(page);
   await page.locator("#stn").click();
-  const why = page.locator(".wrow").filter({ hasText: "Explanation" });
-  await expect(why).toContainText(/check the open example|ask Claude/);
+  const why = page.locator(".cwex .crow");   // Explain, a choice beside the line: what it does, and that it uses Claude
+  await expect(why).toContainText(/Check & explain|Explain/);
+  await expect(why).toContainText("Using Claude");
   await why.click();
   await expect(page.locator(".wtext")).toContainText("this is the stand-in answer.");
   expect(asked).toHaveLength(1);
@@ -605,6 +606,35 @@ withKey("Why asks the tutor on the result, and Ask a follow-up opens the convers
   await expect(page.locator("#ask-in")).toBeVisible();
   await page.getByRole("button", { name: /^Back to the result/ }).click();
   await expect(page.locator(".pvline")).toBeVisible();
+});
+
+withKey("while Claude works the wait is said once, on a stop over the station with Stop, and the station waits muted; the explanation comes in by Claude", async ({ page }) => {
+  let release;
+  const held = new Promise((r) => { release = r; });
+  await page.route("**/api/health", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, tutor: "on" }) }));
+  await page.route("**/api/tutor", async (route) => { await held; return route.fulfill({ status: 200, contentType: "text/event-stream", body: ANSWER }); });
+  await start(page);
+  await answer(page);
+  await page.locator("#stn").click();
+  await expect(page.locator(".pvline")).toBeVisible();
+  await page.locator(".cwex .crow").click();
+  const stop = page.locator(".cwstop.on");
+  await expect(stop).toBeVisible();
+  await expect(stop.locator(".think")).toContainText(/\d+s$/);   // the seconds at the right end, by Stop
+  const words = await stop.locator(".cwph:not(.old)").evaluate((e) => ({ text: e.textContent, cut: e.scrollWidth > e.clientWidth }));
+  expect(words.cut, "the words are never cut: \"Claude is\" goes when they would not fit").toBe(false);
+  expect(words.text).toMatch(/^(Claude is )?[a-z]+$/i);   // the first verb of a wait is a single word
+  await expect(stop.getByRole("button", { name: "Stop" })).toBeVisible();
+  await expect(page.locator("#path .think")).toHaveCount(1);   // said once: not under the open examples, not in the verdict
+  await expect(page.locator(".pvline")).not.toContainText("Claude");
+  await expect(page.locator(".wrow")).toHaveCount(0);   // the Explanation stop comes in with the explanation
+  await expect(page.locator("#stn")).toHaveClass(/\bcwait\b/);
+  expect(await page.evaluate(() => getComputedStyle(document.querySelector("#stn .go .mk .i")).animationName)).toBe("none");   // the arrow rests: nothing calls you on
+  release();
+  await expect(page.locator(".cwstop.on")).toHaveCount(0);
+  await expect(page.locator(".wrow")).toContainText("by Claude");
+  await expect(page.locator(".wtext")).toContainText("this is the stand-in answer.");
+  await expect(page.locator("#stn")).not.toHaveClass(/\bcwait\b/);
 });
 
 test("the pair's two terms stand out in the text as the look says, and the A/B markers option turns them off", async ({ page }) => {

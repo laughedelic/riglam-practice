@@ -183,8 +183,9 @@ export function palette(look: Look, dark: boolean): Record<string, string> {
     "--station": dark ? mix(look.blue, "#ffffff", 0.12) : look.blue, "--on-station": "#ffffff",
     "--tutor": look.purpleFor === "tutor" ? purple : blue,
     "--skipc": look.purpleFor === "skip" ? purple : blue,
-    "--partc": look.purpleFor === "partly" ? purple : gold,
-    "--partc-t": look.purpleFor === "partly" ? purple : goldT,
+    // partly right is orange, between the gold of a question and the red of a miss (the Design Lab's colors, round 1; and a right relation whose examples are not checked yet)
+    "--partc": look.purpleFor === "partly" ? purple : mix(gold, red, 0.45),
+    "--partc-t": look.purpleFor === "partly" ? purple : mix(goldT, red, 0.6),
   };
 }
 

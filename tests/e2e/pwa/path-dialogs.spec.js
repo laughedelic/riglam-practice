@@ -31,7 +31,7 @@ withKey("the question before examples are kept takes the Path's look, and still 
   await expect(field).toBeVisible();
   for (let i = 0; i < 4 && (await field.isVisible()); i++) { await field.fill("thing " + (i + 1)); if ((await field.getAttribute("enterkeyhint")) === "done") { await field.blur(); break; } await field.press("Enter"); }   // (the last one is left without Enter, which would take the Check at once)
   await page.locator("#stn").click();
-  await page.locator(".wrow").filter({ hasText: "Explanation" }).click();
+  await page.locator(".cwex .crow").click();   // Explain, a choice beside the line (path/wait.tsx)
   const dlg = page.getByRole("dialog", { name: "Share your examples?" });
   await expect(dlg).toBeVisible();
   expect(await looks(page, ".sharedlg")).toEqual({ paper: true, ink: true, face: true, flat: true, quiet: true });

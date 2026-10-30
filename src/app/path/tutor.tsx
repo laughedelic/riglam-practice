@@ -15,9 +15,10 @@ import { syllogismText } from "../../domain/syllogism.ts";
 import type { RelKey } from "../../ai-shared/relations.ts";
 import { FlagBtn, FlagEditor, TutorText } from "./flags.tsx";
 import { refreshPath } from "./index.tsx";
-import { Thinking, u0 } from "./parts.tsx";
+import { u0 } from "./parts.tsx";
 import { Foot, Station, TopBar } from "./shell.tsx";
 import { D, St, Sx, nofillInput } from "./ui.tsx";
+import { ClaudeLine } from "./wait.tsx";
 
 interface Turn { role: string; content?: string; pending?: boolean; hidden?: boolean; kind?: string }
 /** What the conversation is about: the pair and how the result went, or the syllogism and the reply. */
@@ -33,7 +34,7 @@ function About() {
 function AskRow() {
   const u = u0(), ref = useRef<HTMLInputElement>(null);
   const send = () => { const q = (u.q || "").trim(); if (!q) return; u.q = ""; void ask(q); refreshPath(); };
-  if (u.ctl) return <St d={<D cls="sub pthink" />} cls="pask"><Thinking label="Claude is writing" /><button type="button" class="pbtn" onClick={() => u.ctl && u.ctl.abort()}>Stop</button></St>;
+  if (u.ctl) return <St d={<D cls="sub pthink" />} cls="pask"><ClaudeLine /><button type="button" class="pbtn" onClick={() => u.ctl && u.ctl.abort()}>Stop</button></St>;
   if (!canAsk()) return null;
   return <St d={<D cls="sub pk" />} cls="pask"><div class="fieldrow"><input ref={ref} id="ask-in" class="pfield" placeholder="Ask a follow-up question" aria-label="Follow-up question" {...nofillInput()} enterKeyHint="send"
     value={u.q || ""} onInput={(e) => { u.q = (e.currentTarget as HTMLInputElement).value; }} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); send(); } }} /></div>
@@ -44,7 +45,7 @@ function Answer({ t, idx }: { t: Turn; idx: number }) {
   const u = u0(), expl = t.kind === "explain", where = "o" + idx, q = !expl && u.chat ? u.chat[idx - 1] : null;
   const c = !u.syllogism && !t.pending && t.content && state.cur && state.cur.p ? aiCase(expl ? "explain" : "chat", expl ? "Claude’s explanation" : "Claude’s answer", t.content, expl ? null : idx, flagAsked(q)) : null;
   return <St d={<D cls={"sub " + (t.pending ? "pthink" : "tut")} />} cls="sb pans2"><span class="lab">{expl ? "Claude’s explanation" : "Claude"}</span>
-    {t.content ? <div class="tsay"><TutorText text={t.content} where={"ct" + idx + "."} /></div> : <Thinking label="Claude is thinking" />}
+    {t.content ? <div class="tsay"><TutorText text={t.content} where={"ct" + idx + "."} /></div> : <ClaudeLine />}
     {c ? <span class="pflgrow"><FlagBtn c={c} where={where} word /></span> : null}<FlagEditor where={where} /></St>;
 }
 export function TutorPage() {

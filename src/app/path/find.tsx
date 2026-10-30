@@ -14,6 +14,7 @@ import type { RelKey } from "../../ai-shared/relations.ts";
 import { ExamplesStep, StripPair, examplesReady } from "./examples.tsx";
 import { refreshPath } from "./index.tsx";
 import { Choices, ErrLines, GuideNote, PairResult, SkipMark, StageOffer, Verdict, WhyRow, needsKey, pairOf, u0 } from "./parts.tsx";
+import { WaitStop } from "./wait.tsx";
 import { Row, cases, isOpen, pendLine, resultRows } from "./relations.tsx";
 import { Scroll } from "./scroll.tsx";
 import { nextKind, nextName } from "./next.ts";
@@ -101,11 +102,11 @@ function ResultStep() {
   const named = !p.own || p.relation !== rel, gl = (k: RelKey) => (p.own ? REL[k].gloss("A", "B") : REL[k].gloss(p.a, p.b));
   const rows = resultRows(rel), unc = rows.filter(isOpen).length, left = rows.filter((c) => r.cells[c].vague).length, nbad = rows.filter((c) => r.cells[c].v === "bad").length;
   const ov: string = r.overall;
-  const v = r.relOpen ? "pt" : !r.relOk || ov === "bad" ? "no" : ov === "part" ? "pt" : "ok";
-  const word = r.relUns ? "Not settled" : r.relOpen ? (u.ctl ? "Claude is judging" : canAsk() || needsKey() ? "Waiting for Claude" : "Not checked") : !r.relOk ? "Not quite"
-    : ov === "pend" ? "Right so far" : ({ ok: "Right", part: "Partly right" } as Record<string, string>)[ov] || "Not quite";
+  const v = r.relOpen ? "pt" : !r.relOk || ov === "bad" ? "no" : ov === "part" || ov === "pend" ? "pt" : "ok";
+  const word = r.relUns ? "Not settled" : r.relOpen ? (canAsk() || needsKey() ? "Waiting for Claude" : "Not checked") : !r.relOk ? "Not quite"
+    : ov === "pend" ? "Pair is right" : ({ ok: "Right", part: "Partly right" } as Record<string, string>)[ov] || "Not quite";
   const sub = r.relOpen ? "your own pair: the course data does not cover it" : !r.relOk ? "that pair is not " + lcRel(asked.name)
-    : ov === "pend" ? pendLine(unc, left, !!u.ctl) : ov === "part" ? cases(nbad) + " to look at" : "the pair and " + (rows.length === 1 ? "one example" : rows.length + " examples");
+    : ov === "pend" ? pendLine(unc, left) : ov === "part" ? cases(nbad) + " to look at" : "the pair and " + (rows.length === 1 ? "one example" : rows.length + " examples");
   const pm = r.relOpen ? "pt" : r.relOk ? "ok" : "no";
   const pairLine = r.relOpen
     ? (r.relUns ? "Whether " + p.a + " and " + p.b + " are " + lcRel(asked.name) + " is not settled. Ask again, or try another pair."
@@ -117,16 +118,17 @@ function ResultStep() {
   return <>
     <Scroll>
       <PairResult mine={rel} ok={r.relOpen ? null : !!r.relOk} right={named && !r.relOpen ? p.relation : undefined} classes={!p.own} />
-      <Verdict v={v} word={word} sub={sub} />
+      <Verdict v={v} word={word} sub={sub} pend={!r.relOpen && !!r.relOk && ov === "pend"} />
       <Sx cls="walked"><St d={<D cls={"sub " + pm} />} cls="sb exr pairv"><span class="lab">the pair</span><p class="xnote">{pairLine}</p></St></Sx>
       <Sx cls={nbad ? "nop" : "okp"}><Gap h={2} />{(r.relOpen ? CELLS.filter((c) => !REL[rel].empty.includes(c)) : rows).map((c) => <Row c={c} rel={rel} />)}</Sx>
-      <WhyRow unc={unc} again={!!r.relOpen} todo={r.relOpen ? "judge your pair and explain" : undefined} />
+      <WhyRow unc={unc} again={!!r.relOpen} offer={r.relOpen ? "Judge & explain" : undefined} />
       <StageOffer />
       <GuideNote />
       <ErrLines />
       <Sx cls="ptail" />
     </Scroll>
-    <Foot><Station name={nextName("Next relation")} kind={nextKind()} act={() => next()} /></Foot>
+    <WaitStop />
+    <Foot><Station name={nextName("Next relation")} kind={nextKind()} act={() => next()} wait={!!u.ctl} /></Foot>
   </>;
 }
 
