@@ -290,6 +290,7 @@ export interface PlaceNarrow {
  * fewer than two categories apply, or they do not lie on one line of the "is a" chain (a thing of two classes can be in a category of each).
  * An everyday category stands just below the term its kind names ("furniture" below Form, "humans" below Person); when the everyday categories
  * that apply are not on one line with the rest ("wooden things" and "furniture"), step 2 asks about the course's categories alone, as before them.
+ * The page does not ask step 2 now (Categories ends at the check); this and `gradeNarrow` are kept for a later exercise.
  */
 export function placeNarrow(ix: DataIndex, q: PlaceQuestion, rng: () => number): PlaceNarrow | null {
   const all = q.rows.filter((r) => r.answer);

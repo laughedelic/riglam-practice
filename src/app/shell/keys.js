@@ -1,7 +1,7 @@
 import { state } from "../state.js";
 import { ORDER } from "../core/rel.js";
 import { isWide } from "../core/viewport.js";
-import { checkCategories, continueCategories, pickCategory, resetCategories, sayCategory, tickCategory, tickNone } from "../categories/flow.js";
+import { checkCategories, resetCategories, sayCategory, tickCategory, tickNone } from "../categories/flow.js";
 import { checkInstance } from "../instance/flow.ts";
 import { backSyllogism, replyOfKey, saySyllogism } from "../syllogism/flow.js";
 import { checkDebate, chooseD, sayQ } from "../debate/flow.js";
@@ -50,8 +50,6 @@ document.addEventListener("keydown",e=>{
       else if(k==="0"){ e.preventDefault(); if(state.design==="path") resetCategories(); else tickNone(); }   // the Path has no "None of these": 0 drops all back under the rule
       else if(k==="enter"&&(t!=="BUTTON"||(ticks(/** @type {Element} */(e.target))&&/** @type {Element} */(e.target).getAttribute("aria-pressed")==="true"))){ e.preventDefault(); checkCategories(state.design==="path"); }   // a ticked button keeps the focus, and Enter there checks; on a button not ticked yet Enter ticks it, as on any button
     } else if(u.step===0){ if(k==="y"){ e.preventDefault(); sayCategory(true); } else if(k==="n"){ e.preventDefault(); sayCategory(false); } }
-    else if(u.step===1){ if(k==="enter"&&t!=="BUTTON"){ e.preventDefault(); continueCategories(); } }
-    else if(u.step===2&&/^[1-9]$/.test(k)&&u.narrow.options[+k-1]){ e.preventDefault(); pickCategory(u.narrow.options[+k-1].cat); }
   } else if(state.tab==="instance"&&state.ui.inst){
     // the field takes its own Enter (it checks); outside it S skips, Enter checks what is written or "nothing is", N goes on from the result
     const u=state.ui, k=e.key.toLowerCase();

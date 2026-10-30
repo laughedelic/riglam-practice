@@ -53,7 +53,7 @@ function entryOf(a: any, debate: boolean): Entry {
 }
 function catLine(a: any) {
   const rows = (a.rows || []) as { yes: boolean; said: boolean }[], right = rows.filter((r) => r.yes === r.said).length;
-  return (a.s1 ? "step 1 right" : "step 1: " + right + " of " + rows.length + " right") + (a.s2 === undefined ? "" : a.s2 ? ", the most specific right" : ", not the most specific");
+  return (a.s1 ? "all right" : right + " of " + rows.length + " right") + (a.s2 === undefined ? "" : a.s2 ? ", the most specific right" : ", not the most specific");
 }
 const allEntries = () => [...Object.values(state.answers).map((a) => entryOf(a, false)), ...Object.values(state.debates).map((a) => entryOf(a, true))];
 

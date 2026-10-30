@@ -10,13 +10,12 @@ import { ago } from "../shell/render.js";
 import { openStageOptions } from "../shell/session.js";
 import { stageName } from "../shell/stages.js";
 import { STAGES } from "../../domain/stages.ts";
-import { acceptOffer, advanceCategories, categoriesList, drawKey, checkCategories, continueCategories, declineOffer, pickCategory, sayCategory, tickCategory, tickNone } from "./flow.js";
+import { acceptOffer, advanceCategories, categoriesList, drawKey, checkCategories, declineOffer, sayCategory, tickCategory, tickNone } from "./flow.js";
 
 /* ---------- Categories: the screen ---------- */
-// One card holds the thing and what is asked of it. Step 1 asks which categories the thing is in: all at once (tick, then Check) or one at a time (yes or no, the
-// answers collecting under the buttons, newest first, so that the buttons stay where they are). The check splits the categories in two, "What applies" and "What does not
-// apply", each with the reason. Step 2 is asked when at least two categories apply and they lie on one line: from the categories that do apply, one tap picks the most
-// specific, and the result shows the line. The count towards the next stage is never shown; only the offer is. See flow.js for the steps.
+// One card holds the thing and what is asked of it: which categories the thing is in, all at once (tick, then Check) or one at a time (yes or no, the answers collecting
+// under the buttons, newest first, so that the buttons stay where they are). The check splits the categories in two, "What applies" and "What does not apply", each with
+// the reason. The count towards the next stage is never shown; only the offer is. See flow.js for the steps.
 const sentence=t=>t[0].toUpperCase()+t.slice(1);
 /** Why a category is, or is not, one of the thing's: the steps of the data, a sentence. */
 const because=row=>[row.reason?sentence(row.reason)+".":"",row.why].filter(Boolean).join(" ");
@@ -25,7 +24,7 @@ const thingCard=q=>el("div",{class:"catthing"},
   el("p",{class:"catn",lang:"en",text:q.thing.n}),
   el("p",{class:"catm",text:"stage "+q.thing.st+(q.thing.cf?" · "+(CONFIRMATION[q.thing.cf]||q.thing.cf):"")}));
 const stepLabel=t=>el("p",{class:"catstep",text:t});
-const sumLine=g=>el("p",{class:"catsum",text:"Step 1 · "+(g.ok?"all "+g.right+" right":g.right+" of "+g.rows.length+" right")});
+const sumLine=g=>el("p",{class:"catsum",text:g.ok?"All "+g.right+" right":g.right+" of "+g.rows.length+" right"});
 
 /**
  * One category with the answer: the mark, the category, what the learner did, and the reason. A right one folds to its line (tap for the reason) unless `full`.
@@ -46,12 +45,12 @@ function rowNode(row,said,full,mode){
     if(!full&&ok){
       body.hidden=true; r.setAttribute("role","button"); r.tabIndex=0; r.setAttribute("aria-expanded","false");
       const flip=()=>{ body.hidden=!body.hidden; r.setAttribute("aria-expanded",String(!body.hidden)); };
-      r.onclick=flip; r.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); e.stopPropagation(); flip(); } };   // Enter here opens the reason; it is not the page's Continue
+      r.onclick=flip; r.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); e.stopPropagation(); flip(); } };   // Enter here opens the reason, not the page's Next
     }
   }
   return r;
 }
-/** The check of step 1: the categories in two groups, what applies and what does not, the wrong ones first. */
+/** The check: the categories in two groups, what applies and what does not, the wrong ones first. */
 function splitResult(g,mode){
   const one=mode!=="all";
   return el("div",{class:"catres"},[true,false].map(yes=>{
@@ -65,7 +64,7 @@ function splitResult(g,mode){
   }));
 }
 
-// step 1, all at once: the categories as buttons to tick
+// all at once: the categories as buttons to tick
 function ticks(q){
   const u=state.ui;
   const box=el("div",{class:"catticks",role:"group","aria-label":"Categories the thing is in"},
@@ -73,7 +72,7 @@ function ticks(q){
     el("button",{type:"button",class:"catick dashed","aria-pressed":u.none?"true":"false",onclick:tickNone},"None of these"));
   return [el("p",{class:"catask",text:"Which of these is it? Tick everything it is."}),box];
 }
-// step 1, one at a time: yes or no for the category asked, and under the buttons the answers so far, newest first (the latest and the wrong ones open, the right ones folded)
+// one at a time: yes or no for the category asked, and under the buttons the answers so far, newest first (the latest and the wrong ones open, the right ones folded)
 function oneByOne(q){
   const u=state.ui;
   const yes=el("button",{type:"button",class:"btn ghost catyes",onclick:()=>sayCategory(true)},"Yes"), no=el("button",{type:"button",class:"btn ghost catno",onclick:()=>sayCategory(false)},"No");
@@ -83,27 +82,6 @@ function oneByOne(q){
   const done=q.rows.slice(0,u.i).reverse();
   if(done.length) out.push(el("div",{class:"catlog"},el("p",{class:"catnote",text:"Your answers, newest first"}),
     ...done.map((row,j)=>rowNode(row,!!u.said[row.cat],j===0||!!u.said[row.cat]!==row.answer,"one"))));
-  return out;
-}
-
-// what step 2 says when it was not asked
-function skipNote(q){
-  if(q.thing.ne) return "It does not exist, so it is in none of these and there is nothing to narrow. Step 2 is skipped.";
-  return q.rows.filter(r=>r.answer).length<2?"Only one of these applies, so there is nothing to narrow. Step 2 is skipped."
-    :"The categories that apply do not lie on one line, so none is the most specific. Step 2 is skipped.";
-}
-function pickOne(n){
-  return [el("p",{class:"catask",text:"Which category is the most specific?"}),
-    el("div",{class:"catopts",role:"group","aria-label":"Categories the thing is in"},
-      n.options.map((r,i)=>el("button",{type:"button",class:"catopt",onclick:()=>pickCategory(r.cat)},el("span",{class:"catkey","aria-hidden":"true",text:String(i+1)}),r.phrase)))];
-}
-// step 2 checked: right or "true, but not the most specific", and the whole line from the most specific category up, the options marked
-function step2Result(){
-  const u=state.ui, g=u.g2, n=u.narrow, best=n.line[0].phrase;
-  const out=[el("p",{class:"catsum",text:g.ok?"Step 2 · right: "+g.picked.phrase+" is the most specific.":"Step 2 · true, but not the most specific."})];
-  if(!g.ok) out.push(el("p",{class:"catnote",text:"“"+best+"” is more specific than “"+g.picked.phrase+"”: it is "+g.upTo.map(s=>s.phrase).join(", which is ")+"."}));
-  out.push(el("p",{class:"catnote",text:"The line from most specific to most general:"}),
-    el("div",{class:"catline"},n.line.map(s=>el("span",{class:s.option?"lo":"lx",text:s.phrase+(s.option?" (an option)":"")}))));
   return out;
 }
 
@@ -146,21 +124,13 @@ export function renderCategories(s,c){
   }
   const card=el("div",{class:"qcard catcard"});
   let fwd=null;
-  if(u.step===0){
-    card.append(stepLabel(u.ask==="one"?"Step 1 of 2 · "+(u.i+1)+" of "+q.rows.length:"Step 1 of 2"),thingCard(q),...(u.ask==="one"?oneByOne(q):ticks(q)));
+  if(!u.checked){
+    if(u.ask==="one") card.append(stepLabel((u.i+1)+" of "+q.rows.length));
+    card.append(thingCard(q),...(u.ask==="one"?oneByOne(q):ticks(q)));
     if(u.ask==="all") fwd={label:"Check",hint:"Enter",disabled:!u.ticked.length&&!u.none,onclick:()=>checkCategories()};
-  } else if(u.step===1){
-    const g=u.g1;
-    card.append(stepLabel("Step 1 of 2 · checked"),thingCard(q),sumLine(g),splitResult(g,u.ask==="all"?"all":"onesplit"));
-    if(u.checked) card.append(el("p",{class:"catnote",text:skipNote(q)}));
-    else {
-      if(!g.ok) card.append(el("p",{class:"catnote",text:"Step 2 uses the corrected set: "+u.narrow.options.map(r=>r.phrase).join(", ")+"."}));
-      fwd={label:"Continue",hint:"Enter",onclick:continueCategories};
-    }
-  } else if(u.step===2){
-    card.append(stepLabel("Step 2 of 2"),thingCard(q),...pickOne(u.narrow));
   } else {
-    card.append(stepLabel("Step 2 of 2 · checked"),thingCard(q),...step2Result());
+    const g=u.g1;
+    card.append(stepLabel("Checked"),thingCard(q),sumLine(g),splitResult(g,u.ask==="all"?"all":"onesplit"));
   }
   if(u.checked){
     const o=offerNode(); if(o) card.append(o);
@@ -171,8 +141,6 @@ export function renderCategories(s,c){
   if(!w||!state.coachOpen) return;
   recent(c);
   c.append(kbHints(...(u.checked?[["N","next"]]
-    :u.step===0&&u.ask==="one"?[["Y","yes"],["N","no"],["S","skip"]]
-    :u.step===0?[["1-"+q.rows.length,"tick a category"],["Enter","check"],["S","skip"]]
-    :u.step===1?[["Enter","continue"],["S","skip"]]
-    :[["1-"+u.narrow.options.length,"the most specific"],["S","skip"]])));
+    :u.ask==="one"?[["Y","yes"],["N","no"],["S","skip"]]
+    :[["1-"+q.rows.length,"tick a category"],["Enter","check"],["S","skip"]])));
 }

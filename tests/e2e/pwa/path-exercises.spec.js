@@ -218,7 +218,7 @@ const examples = () => ({
   },
 });
 
-test("Categories: the categories ticked on the path, the check, the most specific, and the line", async ({ page }) => {
+test("Categories: the categories ticked on the path, and the check ends the thing", async ({ page }) => {
   await page.addInitScript(([store, key]) => { try { localStorage.setItem(store, key); } catch { /* storage unavailable */ } }, [KEY_STORE, dataKey]);
   await serveCourse(page, dataKey, { stub: true, examples: examples() });
   await page.goto("/");
@@ -238,14 +238,7 @@ test("Categories: the categories ticked on the path, the check, the most specifi
   await expect(verdict(page)).toContainText("Right");
   await expect(page.locator("#path .thold.tres .chs.up .crow")).toHaveText(right.map((r) => new RegExp("^" + r.phrase)));   // the check keeps them where they were left, each marked
   await expect(page.locator("#path .thold.tres .crow .mark")).toHaveCount(rows.length);
-  if (await page.evaluate(() => !!window.__t.ui.narrow)) {
-    await station(page).click();   // Continue
-    const best = await page.evaluate(() => window.__t.ui.narrow.options.find((o) => o.cat === window.__t.ui.narrow.cat).phrase);
-    await choices(page).filter({ hasText: new RegExp("^" + best + "$") }).click();
-    await expect(verdict(page)).toContainText("Right");
-    await expect(page.locator("#path .pline")).not.toHaveCount(0);   // the line from the most specific up
-  }
-  await expect(station(page)).toHaveAccessibleName(/^Next thing/);
+  await expect(station(page)).toHaveAccessibleName(/^Next thing/);   // no second step: the check ends the thing
   await expect.poll(async () => (await saved(page, "categories")).length).toBe(1);
 });
 

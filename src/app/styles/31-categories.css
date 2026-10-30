@@ -1,4 +1,4 @@
-/* Categories: the card with the thing and its categories, the ticks or the yes and no, the split check of step 1, the pick of step 2 and the offer of another level */
+/* Categories: the card with the thing and its categories, the ticks or the yes and no, the split check and the offer of another level */
 .catcard{gap:14px}
 .catstep{margin:0;font:700 11px/1.4 var(--text-serif);letter-spacing:.06em;text-transform:uppercase;color:var(--heading)}
 .catthing{padding:10px 14px;background:var(--paper);box-shadow:inset 0 0 0 1px var(--line)}
@@ -16,7 +16,7 @@
 .catick:hover{border-color:var(--ink-muted)}
 .catick.dashed{border-style:dashed}
 .catick[aria-pressed="true"]{border-color:var(--lapis);background:var(--good-soft);box-shadow:inset 4px 0 0 var(--lapis);padding-left:18px;font-weight:600}
-.catick:focus-visible,.catopt:focus-visible,.catr[role="button"]:focus-visible{box-shadow:var(--focus-ring)}
+.catick:focus-visible,.catr[role="button"]:focus-visible{box-shadow:var(--focus-ring)}
 /* step 1, one at a time: the buttons stay where they are, the answers collect under them */
 .catyn{display:flex;gap:10px}
 .catyn .btn{flex:1;justify-content:center;height:52px;font-size:14px}
@@ -36,14 +36,6 @@
 .catr.bad .cattag{border-color:var(--bad);color:var(--bad)}
 .catwhy{grid-column:2;color:var(--ink-muted);font:400 13px/1.5 var(--body)}
 .catwhy[hidden]{display:none}
-/* step 2: the options, one tap each, numbered for the keyboard */
-.catopts{display:grid;gap:8px}
-.catopt{display:flex;align-items:center;gap:12px;min-height:48px;padding:10px 14px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);font:400 15px/1.35 var(--body);text-align:left;cursor:pointer}
-.catopt:hover{border-color:var(--ink-muted)}
-.catkey{flex:none;display:inline-grid;place-items:center;width:24px;height:24px;border:1.5px solid var(--ink-muted);color:var(--ink-muted);font:700 12px/1 var(--body)}
-.catline{display:grid;gap:3px;padding:2px 0 2px 12px;border-left:3px solid var(--ink);font:400 14px/1.45 var(--body)}
-.catline .lo{font-weight:600}
-.catline .lx{color:var(--ink-muted)}
 /* the offer of another level: dashed, so it reads as a question and not as a result */
 .catoffer{display:grid;gap:10px;padding:12px;border:1.5px dashed var(--ink-muted)}
 .catoq{margin:0;font:400 15px/1.5 var(--text-serif)}

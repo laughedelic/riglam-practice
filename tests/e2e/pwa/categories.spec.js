@@ -1,4 +1,4 @@
-// Categories: a thing is shown; the learner ticks the categories it is in (or answers yes or no for each), then picks the most specific. The things are the practice items of
+// Categories: a thing is shown; the learner ticks the categories it is in (or answers yes or no for each), and the check ends the thing. The things are the practice items of
 // the stages that are on and, where the device holds them, reference examples: here invented ones (a plain and a second-level one for every term of the open data, at stages
 // 6 and 7) served by a stand-in for the server (tests/support/data-key.js). The specs' devices are not new (the fixture stores a setting), so they start with stages 1 to 8.
 // The page's own state is read through the test hook (tests/e2e/pwa/*.spec.js), so every path can be driven with answers known to be right or wrong.
@@ -53,14 +53,6 @@ const tickAnswer = async (page, slip = false) => {
   for (const r of wanted) await tick(page, r);
   await fwd(page).click();
 };
-// from the check of step 1 on, to the end of the thing: picks the most specific category (or a wrong one) when step 2 is asked
-const finish = async (page, right = true) => {
-  if (await ui(page, "checked")) return;
-  await fwd(page).click(); // Continue
-  const n = await page.evaluate(() => ({ options: window.__t.ui.narrow.options.map((o) => o.phrase), cat: window.__t.ui.narrow.cat, all: window.__t.ui.narrow.options.map((o) => o.cat) }));
-  const i = right ? n.all.indexOf(n.cat) : n.all.findIndex((c) => c !== n.cat);
-  await page.locator(".catopt").nth(i).click();
-};
 
 test.beforeEach(async ({ page }) => { await page.addInitScript(hook); });
 
@@ -94,41 +86,31 @@ test("a thing is shown with its categories as buttons; Check waits for a tick or
   await expect(page.locator(".catick.dashed")).toHaveAttribute("aria-pressed", "false");
 });
 
-test("ticking the right categories checks them in two groups, then Continue asks for the most specific on one tap", async ({ page }) => {
+test("ticking the right categories checks them in two groups, and the check ends the thing", async ({ page }) => {
   await open(page);
-  // draw until a thing with two or more categories that lie on one line (step 2 is asked)
+  // draw until a thing in two or more categories (where the most specific of them was asked once)
   for (let i = 0; i < 60 && !(await page.evaluate(() => window.__t.cur.q.rows.filter((r) => r.answer).length >= 2)); i++) { await page.keyboard.press("s"); }
   const rs = await rows(page);
   for (const r of rs.filter((x) => x.answer)) await tick(page, r);
   await fwd(page).click();
   await expect(page.locator(".catgh").nth(0)).toContainText("What applies");
   await expect(page.locator(".catgh").nth(1)).toContainText("What does not apply");
-  await expect(page.locator(".catsum")).toContainText("all " + rs.length + " right");
+  await expect(page.locator(".catsum")).toHaveText("All " + rs.length + " right");
   expect(await overflow(page), "nothing runs off the side").toBeLessThanOrEqual(0);
   expect(await page.locator(".catgrp").nth(0).locator(".catr").count()).toBe(rs.filter((x) => x.answer).length);
   expect(await page.locator(".catgrp").nth(1).locator(".catr").count()).toBe(rs.filter((x) => !x.answer).length);
-  if (await ui(page, "checked")) return; // the categories did not lie on one line: step 2 was skipped
-  await expect(fwd(page)).toHaveText(/^Continue/);
-  await fwd(page).click();
-  await expect(page.locator(".catask")).toHaveText("Which category is the most specific?");
-  const n = await page.evaluate(() => ({ cat: window.__t.ui.narrow.cat, all: window.__t.ui.narrow.options.map((o) => o.cat) }));
-  await page.locator(".catopt").nth(n.all.indexOf(n.cat)).click(); // one tap, no Check
-  await expect(page.locator(".catsum")).toContainText("Step 2 · right");
-  await expect(page.locator(".catline")).toBeVisible();
+  expect(await ui(page, "checked"), "no second step").toBe(true);
   await expect(fwd(page)).toHaveText(/^Next/);
 });
 
-test("a wrong pick in step 2 is true but not the most specific, and a slip in step 1 is corrected before step 2", async ({ page }) => {
+test("a slip is marked in the check, and the check ends the thing", async ({ page }) => {
   await open(page);
   for (let i = 0; i < 60 && !(await page.evaluate(() => window.__t.cur.q.rows.filter((r) => r.answer).length >= 2 && !!window.__t.cur.q.rows.find((r) => !r.answer))); i++) await page.keyboard.press("s");
   await tickAnswer(page, true); // ticks one that does not apply, and nothing else
   await expect(page.locator(".catsum")).toContainText("of " + (await rows(page)).length + " right");
   await expect(page.locator(".catr.bad").first()).toBeVisible();
-  if (await ui(page, "checked")) return;
-  await expect(page.locator(".catnote").filter({ hasText: "Step 2 uses the corrected set" })).toBeVisible();
-  await finish(page, false);
-  await expect(page.locator(".catsum")).toContainText("true, but not the most specific");
-  await expect(page.locator(".catline .lo").first()).toBeVisible();
+  expect(await ui(page, "checked")).toBe(true);
+  await expect(fwd(page)).toHaveText(/^Next/);
 });
 
 test("one by one: a question for each category, the buttons stay put and the answers collect under them, newest first", async ({ page }) => {
@@ -150,7 +132,7 @@ test("one by one: a question for each category, the buttons stay put and the ans
     for (let i = 2; i < rs.length; i++) await (rs[i].answer ? yes : no).click();
   }
   await expect(page.locator(".catgh").first()).toContainText("What applies");
-  await expect(page.locator(".catsum")).toContainText("Step 1 · all " + rs.length + " right");
+  await expect(page.locator(".catsum")).toHaveText("All " + rs.length + " right");
   expect(await overflow(page), "nothing runs off the side").toBeLessThanOrEqual(0);
 });
 
@@ -171,15 +153,15 @@ test("the keyboard keeps its place: a tick or an answer leaves the focus on its 
   await first.focus();
   await page.keyboard.press("Enter"); // checks, instead of unticking
   await expect(page.locator(".catgh").first()).toContainText("What applies");
-  if (await ui(page, "checked")) return;
+  const was = await thing(page);
   const folded = page.locator('.catr[role="button"]').first();
   await folded.focus();
   await page.keyboard.press("Enter");
   await expect(folded).toHaveAttribute("aria-expanded", "true");
-  expect(await ui(page, "step"), "Enter on a row does not go on to step 2").toBe(1);
+  expect(await thing(page), "Enter on a row does not go on to the next thing").toBe(was);
 });
 
-test("the keys: numbers tick, Enter checks, a number picks the most specific, N goes on", async ({ page }) => {
+test("the keys: numbers tick, Enter checks, N goes on", async ({ page }) => {
   await open(page);
   for (let i = 0; i < 60 && !(await page.evaluate(() => window.__t.cur.q.rows.filter((r) => r.answer).length >= 2)); i++) await page.keyboard.press("s");
   const rs = await rows(page);
@@ -187,16 +169,6 @@ test("the keys: numbers tick, Enter checks, a number picks the most specific, N 
   for (const [i, r] of rs.entries()) if (r.answer) await page.keyboard.press(String(i + 1));
   await page.keyboard.press("Enter");
   await expect(page.locator(".catgh").first()).toContainText("What applies");
-  if (!(await ui(page, "checked"))) {
-    await page.keyboard.press("Enter");
-    await expect(page.locator(".catask")).toHaveText("Which category is the most specific?");
-    if (await page.evaluate(() => matchMedia("(min-width:1100px)").matches)) {
-      await page.keyboard.press("Enter");
-      expect(await ui(page, "checked"), "on a wide screen a second Enter does not pick the first choice").toBe(false);
-    }
-    const n = await page.evaluate(() => ({ cat: window.__t.ui.narrow.cat, all: window.__t.ui.narrow.options.map((o) => o.cat) }));
-    await page.keyboard.press(String(n.all.indexOf(n.cat) + 1));
-  }
   await expect(fwd(page)).toHaveText(/^Next/);
   const was = await thing(page);
   await page.keyboard.press("n");
@@ -210,7 +182,6 @@ test("a finished thing is kept as an answer of its own kind, and Skip keeps noth
   await page.getByRole("button", { name: "Skip" }).click();
   expect(await saved(page)).toEqual([]);
   await tickAnswer(page);
-  await finish(page);
   await expect(fwd(page)).toHaveText(/^Next/);
   await expect.poll(async () => (await saved(page)).length).toBe(1);
   const [doc] = await saved(page);
@@ -220,6 +191,8 @@ test("a finished thing is kept as an answer of its own kind, and Skip keeps noth
   expect(doc.stage).toBe(await page.evaluate(() => window.__t.cur.q.thing.st));
   expect(doc.grade).toBe("ok");
   expect(doc.rows.length).toBeGreaterThan(2);
+  expect(doc.s1).toBe(true);
+  expect(doc, "no second step").not.toHaveProperty("s2");
 });
 
 test("Skip asks first once something is ticked, and an example set aside is not kept", async ({ page }) => {
@@ -238,7 +211,7 @@ test("Skip asks first once something is ticked, and an example set aside is not 
 test("after five right in a row the next stage is offered with a tap, and Not now leaves things as they are", async ({ page }) => {
   await open(page);
   await atStages(page, "0");
-  const finishThing = async () => { await tickAnswer(page); await finish(page); };
+  const finishThing = () => tickAnswer(page);
   for (let i = 0; i < 4; i++) { await finishThing(); await expect(page.locator(".catoffer")).toHaveCount(0); await page.keyboard.press("n"); }
   await finishThing();
   await expect(page.locator(".catoffer")).toBeVisible();
@@ -261,7 +234,7 @@ test("after five right in a row the next stage is offered with a tap, and Not no
 test("an offer passed over with Next counts as Not now: it asks again after another five", async ({ page }) => {
   await open(page);
   await atStages(page, "0");
-  const finishThing = async () => { await tickAnswer(page); await finish(page); };
+  const finishThing = () => tickAnswer(page);
   for (let i = 0; i < 4; i++) { await finishThing(); await page.keyboard.press("n"); }
   await finishThing();
   await expect(page.locator(".catoffer")).toBeVisible();
@@ -279,7 +252,6 @@ test("where the tutor is on, the panel of recent answers opened in Categories st
   await page.getByRole("button", { name: /recent answers|tutor.s chat/i }).click();
   await expect(page.locator("#coach")).toBeVisible();
   await tickAnswer(page);
-  await finish(page);
   await page.keyboard.press("n");
   await expect(page.locator("#coach")).toBeVisible();
 });
@@ -297,7 +269,6 @@ test("four wrong in a row at the top stage suggest switching it off; the practic
     const stage = await page.evaluate(() => window.__t.cur.q.thing.st);
     await page.locator(".catick.dashed").click(); // "None of these" is wrong for every thing that is in a category
     await fwd(page).click();
-    await finish(page, false);
     if (stage === 2) wrong++;
     if (!(await page.locator(".catoffer").count())) await page.keyboard.press("n");
   }

@@ -108,17 +108,17 @@ export interface CategoriesDoc {
   level: number;
   /** the thing's stage on the learning ladder, 1 to 9; absent in answers from before the stages */
   stage?: number;
-  /** step 1: every category offered, whether the thing is in it, and what the learner said */
+  /** every category offered, whether the thing is in it, and what the learner said */
   rows: { cat: string; yes: boolean; said: boolean }[];
-  /** step 2, when it was asked: the categories the thing is in, the most specific of them, and the one the learner picked */
+  /** in answers from when Categories had a second step (the most specific category), when it was asked: the categories the thing is in, the most specific of them, and the one the learner picked */
   narrow?: { options: string[]; right: string; picked: string };
-  /** step 1 was all right */
+  /** every category was right */
   s1: boolean;
-  /** step 2 was right; absent when it was not asked */
+  /** the second step was right, in answers from when it was asked */
   s2?: boolean;
-  /** how the thing went: right when both parts asked are right */
+  /** how the thing went: right when every category was right (in older answers, when both steps asked were right) */
   grade: PlaceGrade;
-  /** how step 1 was asked: all at once or one by one */
+  /** how the categories were asked: all at once or one by one */
   ask: "all" | "one";
   at: string;
 }
