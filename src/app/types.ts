@@ -19,6 +19,7 @@ import type { AccountSlot } from "../ui/account";
 import type { TransferSlot } from "../ui/data-transfer";
 import type { KeyHeld } from "../platform/types";
 import type { Look } from "./path/look.ts";
+import type { Rig } from "./sound/courtyard.ts";
 
 export type { Pair, PoolEntry, Verdict };
 
@@ -517,6 +518,10 @@ export interface State {
   quorum: boolean;
   /** a checked answer asks for its explanation by itself (Options, `rd-autoexplain`) */
   autoExplain: boolean;
+  /** the Sounds switch in Settings (`rd-sounds`): a short sound for each result, new term, stage and answer of Claude (src/app/sound) */
+  sounds: boolean;
+  /** the audio context and the sound playing now (src/app/sound/play.ts) */
+  snd: SoundState;
   /** the app's server keeps the examples the tutor checked (platform.shares): the dialog tells the learner, Settings offers the switch */
   learns: boolean;
   /** this device lets it (Settings, `rd-share`): an explain question names the examples the page could not check; off, it names none */
@@ -625,4 +630,20 @@ export interface VoiceState {
   tok: object | null;
   /** the Practice options listen for the browser's list of voices (once they have been shown) */
   hooked: boolean;
+}
+
+/** The audio context the sounds play into, made on the first touch, and what is sounding now (src/app/sound/play.ts). */
+export interface SoundState {
+  ctx: AudioContext | null;
+  rig: Rig | null;
+  /** the sound playing now: a new one cuts it */
+  live: GainNode | null;
+  /** when the sound playing now is over for a listener (audio clock, s) */
+  until: number;
+  /** until when it must not be cut: a time-up (audio clock, s) */
+  keep: number;
+  /** this browser has no Web Audio or would not make a context */
+  failed: boolean;
+  /** the listeners for the first touch, click or key are in place */
+  armed: boolean;
 }

@@ -34,6 +34,7 @@ What differs between the builds is kept out of `src/app`:
 src/app/
   app.js        the entry: startApp(platform), boot, the test hook
   state.js      the shared state: one exported object, `state`, plus the preferences saved on the device
+  sound/        the sounds of the app: `courtyard.ts` makes them with Web Audio, `play.ts` decides when one may play and has the Sounds switch (see Sounds below)
   core/         vocabulary and helpers that depend on nothing else: relations (rel), DOM helpers (dom), viewport, small utilities
   practice/     Relations: the term universe and pair draws, grading, saving answers, favorites, skipped pairs, the screens, the terms panel
   debate/       Pervasions (the four questions): wording, flow, the screens
@@ -190,6 +191,19 @@ A heard answer does not go on at once. It waits on the screen of the question it
 After each render the page compares the screen with the one it last spoke for (`asked()`); a new screen stops what the old one started and drops an answer that waited. The first question the app shows is held: nothing is read or listened to until the person asks for it (Hear the question under the answer controls, the R key, pausing and resuming Read aloud, or the microphone; or taps or presses a key anywhere before the next question), so the app never starts talking before people have looked around. "I don't know" (`spokenDontKnow`, checked before the words are read as an answer) takes no answer and gets a friendly nudge, said too when Read aloud is on. With Read aloud on, a question's Blitz countdown and its response time start when the reading ends. The settings are kept on the device (`rd-voice`, `rd-voice-*`).
 
 `tests/unit/spoken.test.ts` checks the reading of answers; `tests/e2e/pwa/voice.spec.js` runs the flows with stand-ins for the two browser APIs, since the test browser has no speech service.
+
+## Sounds
+
+A short sound marks nine moments: a right, partly right or wrong verdict, a new question, a new term (the same sound, softer, when a term comes again), a new stage, Claude's answer, a station taken with a mouse or the keyboard, and the time running out in Blitz. The system is called Courtyard: wood for what the learner does, a small bell for what the course gives, a tingsha for Claude. Everything is synthesized with the Web Audio API from oscillators and filtered noise (no samples, no download), through a highpass at 140 Hz, a small room and a compressor, and every sound is loudness-matched so that the phone's volume stays in charge. **Settings > General > Sounds** is the one switch (`rd-sounds`, on until a device turns it off); turning it on plays a sample.
+
+| Part | What |
+|---|---|
+| `src/app/sound/courtyard.ts` | the nine sounds and the chain they go through. It touches no page and no state: a sound is scheduled into an audio context at a time given, which is how the tests render it with a stand-in context |
+| `src/app/sound/play.ts` | `cue(name)`: when a sound may play (the switch on, the voice neither reading nor listening, the page visible), one at a time (a new sound cuts the last; a time-up is not cut), the audio context made and woken by the first touch, click or key (a phone allows it nowhere else), `verdictCue` (once for each verdict of an answer), `answered` (Claude's sound waits for the verdict that comes with its answer), `setSounds` |
+
+Where the moments are marked: the Verdict of the Path (`path/parts.tsx`, silent while its check is pending and when drawn out of sight to be measured), `next()` (`practice/queue.js`: a stage, a term's stop, or the next question), the station's pull (`path/gesture.ts`: a knock for a mouse or the keyboard; a finger keeps its vibration and gets none), the Blitz expiries (`shell/timers.js`, `syllogism/flow.js`) and the end of Claude's answer (`ai/tutor.js`, `syllogism/tutor.js`). Nothing sounds for typing, scrolling, panels, choosing an option, favorites, flags, errors, or while Claude is at work. Whether the phone's silent switch or Do Not Disturb mutes the page is the device's decision: a web page cannot read either, and the sounds are a page's audio like any other.
+
+`tests/unit/sounds.test.ts` checks the sounds' lengths and the rules for playing; `tests/e2e/pwa/path-sounds.spec.js` runs the switch and the moments through a question with the real audio context wrapped.
 
 ## Styling
 

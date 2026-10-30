@@ -141,6 +141,9 @@ export const state = {
   // reading the questions aloud and answering by voice, with the browser's own speech (shell/voice.js). `on` is the Voice switch in Settings (app.js sets it
   // at the start: the device's choice, else the build's default); `read` and `answer` are in the Practice options, both off until turned on there
   voice: {on:false, muted:false, read:false, answer:"off", confirm:"tap", voiceId:"", rate:1, key:"", phase:"idle", live:"", note:"", bad:false, pend:null,began:false,seen:false,held:false, ask3:false, tries:0, blocked:false, clockUi:null, rhold:false, stop:null, tok:null, hooked:false},
+  // the sounds (src/app/sound): the Sounds switch in Settings (`rd-sounds`, on until the device turns it off), and the audio context, its room and the sound playing now
+  sounds: true,
+  snd: {ctx:null, rig:null, live:null, until:0, keep:0, failed:false, armed:false},
   sylMs: 15000,      // a syllogism has its own time (Syllogisms), stored as `rd-timer-syl`
   // The redesign (src/app/path): which design draws the page ("classic" or "path"), the device's choice (`rd-design`), else the build's default (app.js: the Path
   // in a Preview); how the Path looks (src/app/path/look.ts, the lab's settings this device keeps over the defaults, `rd-look`); a short note at the Path's foot
@@ -163,6 +166,7 @@ try{ state.langs=normLangs(localStorage.getItem("rd-langs")); }catch(e){}
 try{ let q=localStorage.getItem("rd-quorum"); if(q===null){ q=localStorage.getItem("rd-lab"); if(q!==null){ localStorage.setItem("rd-quorum",q); localStorage.removeItem("rd-lab"); } } state.quorumChoice=q===null?null:q!=="0"; }catch(e){}
 try{ state.autoExplain=localStorage.getItem("rd-autoexplain")!=="0"; }catch(e){}
 try{ state.shareExamples=localStorage.getItem("rd-share")!=="0"; state.shareTold=localStorage.getItem("rd-share-told")==="1"; }catch(e){}
+try{ state.sounds=localStorage.getItem("rd-sounds")!=="0"; }catch(e){}
 try{ state.perEx=normPerEx(localStorage.getItem("rd-per-ex")); }catch(e){}
 try{ state.expShown=localStorage.getItem("rd-exp")==="1"; }catch(e){}
 try{ state.recentOpen=localStorage.getItem("rd-recent")!=="0"; }catch(e){}
