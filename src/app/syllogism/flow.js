@@ -91,7 +91,7 @@ function finishSyllogism(){
   stageStep("syllogism",catsStageNow([c.catR,c.catP]),g.correct);     // the run towards the next stage; a miss here is about the form, it changes nothing (practice/stage-offer.ts)
   render();
   top0();
-  explainByItself(u);                             // with "Check every answer with Claude" on, the explanation comes by itself
+  explainByItself(u);                             // with Explanations by Claude on Every answer, the explanation comes by itself
   if(!state.db) return;
   u.saveId=docId();
   /** @type {import("../types.ts").SyllogismDoc} */

@@ -11,7 +11,7 @@ import { applyVerdicts, parseVerdicts } from "../../domain/verdict.ts";
 // After a check, an example the page could not check (verdict "cmp") is looked up before anything asks the tutor about it: first in the course's
 // reference examples this device holds (by its classes, src/domain/known.ts), then in what the app's server learned from earlier checks of the same
 // example (platform.known, POST /api/known). Both come as the tutor's lines, so the cells settle as Claude's lines settle them (with the term data);
-// the cell's tag says where the verdict came from. What is left is the tutor's, as ever (Explain, or "Check every answer with Claude"), and the
+// the cell's tag says where the verdict came from. What is left is the tutor's, as ever (Explain, or Explanations by Claude on Every answer), and the
 // explanation then treats the settled examples as checked. An example known on one side only is settled when that side already fails the cell
 // (src/domain/known.ts): the cell is marked `half`, and the explanation still names it, so the tutor says the other side (what the server keeps).
 

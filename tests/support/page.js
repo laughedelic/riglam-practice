@@ -1,6 +1,9 @@
 // Helpers shared by the PWA specs. The page is the Path (src/app/path): the choices of an exercise are the rows of `.chs` (`#path .chs .crow`), the roadmap
 // is a dialog over the exercise, and Review and Settings are pages of their own.
 import { expect } from "@playwright/test";
+import { REL } from "../../src/ai-shared/relations.ts";
+
+const CELLS = ["both", "anb", "bna", "nei"];
 
 /** The choices of the exercise on screen (the five relations in Relations). */
 export const relOptions = (page) => page.locator("#path .chs .crow").filter({ visible: true });
@@ -43,13 +46,22 @@ export async function openSettingsPage(page, title) {
   await page.getByRole("button", { name: title + ": more" }).click();
 }
 
-/** Answers the pair on screen as far as the result: the first relation, a word in each case the page asks for, and the Check. Leaves the result's page on screen. */
-export async function answerFirst(page) {
-  await relOptions(page).first().click();
+/** Answers the pair on screen as far as the result: the first relation (with `own`, the pair's own, which needs the spec's `window.__t`, so that every example is
+ *  one the page can check against a cell), `text(i, cell)` in each case the page asks for (`cell` only with `own`; null says nothing exists, where the page
+ *  lets it), and the Check. Leaves the result's page on screen. */
+export async function answerFirst(page, { own = false, text = (i) => "thing " + (i + 1) } = {}) {
+  let cells = [];
+  if (own) {
+    const rel = await page.evaluate(() => window.__t.cur.p.relation);
+    cells = CELLS.filter((c) => !REL[rel].empty.includes(c));
+    await page.locator(`#path .chs [data-k="${rel}"]`).click();
+  } else await relOptions(page).first().click();
   const field = page.locator("#cin");
   await expect(field).toBeVisible();
   for (let i = 0; i < 4 && (await field.isVisible()); i++) {
-    await field.fill("thing " + (i + 1));
+    const t = text(i, cells[i]);
+    if (t === null) { await page.getByRole("button", { name: "nothing exists" }).click(); continue; }
+    await field.fill(t);
     if ((await field.getAttribute("enterkeyhint")) === "done") { await field.blur(); break; }
     await field.press("Enter");
   }
