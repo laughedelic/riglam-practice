@@ -61,12 +61,14 @@ plain("without the key, the Magic Key page takes it in its own field, and Settin
   await plainExpect(page.locator(".ppage")).toContainText("four words that come with the course");
   const field = page.getByRole("textbox", { name: "Magic Key or link", exact: true }), unlock = page.getByRole("button", { name: "Unlock", exact: true });
   await field.fill("hello there");
+  await field.blur();   // on a phone the keyboard layout (the top bar steps aside) ends here, before the tap
   await unlock.click();
   await plainExpect(page.locator(".ppage [role=alert]")).toContainText("does not look like a Magic Key");
   await plainExpect(page.locator("#unlock")).toHaveCount(0);   // no prompt over the page
   await plainExpect(page.locator("#path .ptb-t")).toHaveText("Magic Key");
   if (withCourse) {
     await field.fill(dataKey);
+    await field.blur();
     await unlock.click();
     await plainExpect(page.locator(".ppage")).toContainText("This device has the Magic Key");
     await plainExpect(page.locator("#path .ptb-t")).toHaveText("Magic Key");   // still on its page
@@ -92,7 +94,7 @@ test("Settings on the Path: sections of lines, export and import and the version
   await expect(page.locator(".ppage")).toContainText(/Version \d+\.\d+\.\d+ · build /);
 });
 
-withKey("in the released app, holding Version with the Magic Key shows Experiments: the design, voice and the lab's settings, kept on the device", async ({ page }) => {
+withKey("in the released app, holding Version with the Magic Key shows Experiments: voice and the lab's settings, kept on the device", async ({ page }) => {
   await start(page);
   await openSettings(page);
   const ver = page.locator(".ppage .ol", { hasText: "Version and updates" }), box = await steady(ver);   // where it stands once Settings has slid in
@@ -102,7 +104,7 @@ withKey("in the released app, holding Version with the Magic Key shows Experimen
   await page.mouse.up();
   await expect(page.locator(".ppage .sgh")).toHaveText(["General", "Data", /^Experiments/, "About"]);
   await expect(page.locator("#path .ptb-t")).toHaveText("Settings");   // the tap that ends the hold opens nothing
-  await expect(page.getByRole("group", { name: "Design" }).getByRole("button", { name: "Path" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".ppage .ol", { hasText: "The lab's settings" })).toBeVisible();
   const voice = page.getByRole("switch", { name: "Voice features", exact: true });
   if (await voice.count()) {   // a browser with speech
     const was = await voice.getAttribute("aria-checked");

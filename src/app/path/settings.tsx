@@ -1,6 +1,6 @@
 // Settings on the Path (the Design Lab's "Settings and options", round 3): full width, in sections of lines (path/lines.tsx), and a page of its own for a
 // line that needs one. General: the languages and the theme. Data: the Magic Key, the account, sharing the examples, export and import. Experiments,
-// shown only in a Preview, or in the real app on a device with the Magic Key after a hold on Version: the design, voice, the lab's settings. About: the
+// shown only in a Preview, or in the real app on a device with the Magic Key after a hold on Version: voice, the lab's settings. About: the
 // version. What each does is shell/options.js's and the shared rows of src/ui's, which the Path builds in its own classes.
 import { useRef, useState } from "preact/hooks";
 import { state } from "../state.js";

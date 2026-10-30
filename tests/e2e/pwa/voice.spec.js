@@ -5,7 +5,7 @@
 // speechSynthesis notes what it is asked to say and ends each utterance at once; SpeechRecognition answers each start
 // with the next phrase the test queued (a phrase, or a list of guesses best first), or with "no-speech" when none comes.
 import { test, expect } from "../../support/test.js";
-import { goTo, openSettings, ready, overflow, relOptions } from "../../support/page.js";
+import { exerciseAtRest, goTo, openSettings, ready, overflow, relOptions } from "../../support/page.js";
 
 /** Stands in for the browser's speech. `settings` are the rd-voice-* values to start with; `heard` the phrases queued from the start; `on` turns the Voice switch on for the device. */
 async function voice(page, { settings = {}, heard = [], none = false, on = true } = {}) {
@@ -185,6 +185,7 @@ test("the Read aloud switch in the top bar, next to Blitz, pauses and resumes th
   await expect(sw).toBeVisible();
   await expect(sw).toHaveAttribute("aria-checked", "true");
   await goTo(page, "Pervasions");
+  await exerciseAtRest(page);   // the top bar is measured once the exercise has come in over the roadmap
   const x = (loc) => loc.evaluate((e) => e.getBoundingClientRect().left);
   expect(await x(sw)).toBeLessThan(await x(blitzSwitch(page)));   // next to the Blitz switch
   expect(await x(blitzSwitch(page)) - await x(sw), "with the microphone between them").toBeLessThan(100);

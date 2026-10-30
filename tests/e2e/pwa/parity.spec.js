@@ -30,7 +30,7 @@ test("same first screen in both builds", async ({ page, browser }, testInfo) => 
   await page.goto("/");
   const pwa = await snapshot(page);
 
-  const ctx = await browser.newContext({ viewport, reducedMotion: "reduce", isMobile: testInfo.project.name === "pwa-phone", hasTouch: testInfo.project.name === "pwa-phone", deviceScaleFactor: 1 });
+  const ctx = await browser.newContext({ viewport, isMobile: testInfo.project.name === "pwa-phone", hasTouch: testInfo.project.name === "pwa-phone", deviceScaleFactor: 1 });
   const art = await ctx.newPage();
   await art.addInitScript(seedRandom);
   await art.addInitScript(sameStages, SETTLED_TERMS);

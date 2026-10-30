@@ -181,14 +181,13 @@ test("Later hides the toast, and Settings still offers the update", async ({ pag
   await expect.poll(() => isOld(page).catch(() => true), { timeout: 15_000 }).toBe(false);
 });
 
-test("Version and updates looks for a newer version when Settings opens, and says when there is none", async ({ page }) => {
+test("Version and updates says when there is no newer version, and the Check button finds one", async ({ page }) => {
   await installed(page);
-  await page.waitForTimeout(100);
-  newVersion = true;
-  // a look younger than a minute is not repeated, so ask the way the Check button does
+  // the roadmap on the way looks for a newer version each time it opens (it is the test above), so the server changes only once the page is up
   await openSettingsPage(page, "Version and updates");
   const row = versionPage(page);
   await expect(row).toContainText("This is the newest version.");
+  newVersion = true;
   await row.getByRole("button", { name: "Check for updates" }).click();
   await expect(row).toContainText("A newer version is ready.");
 });
