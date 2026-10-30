@@ -40,7 +40,7 @@ test("Relations on the Path: a relation, the examples, the check, the result, an
   await expect(page.locator(".pvline")).toContainText(/Right|Relation is right|Partly right|Not quite/);
   await expect.poll(() => savedAnswers(page)).toBe(1);
   await expect(station).toHaveAccessibleName(/Next pair/);
-  await expect(station).toBeFocused();   // Enter goes on, as the forward button has it on the classic page
+  await expect(station).toBeFocused();   // Enter goes on
   await station.click();
   await expect(choices(page)).toHaveCount(5);
   expect(await overflow(page)).toBeLessThanOrEqual(0);
@@ -735,7 +735,7 @@ test("the station the app focuses after a check has no ring, whatever key was pr
   await expect(page.locator(".pvline")).toBeVisible();
   const stn = page.locator("#stn");
   await expect(stn).toBeFocused();
-  // the ring is an outline on the Path, and a box-shadow from the classic page's rule for every button (styles/10-shell.css): neither is drawn
+  // the ring is an outline on the Path, and not a box-shadow from a rule for every button: neither is drawn
   const ring = () => stn.evaluate((e) => { const c = getComputedStyle(e); return c.outlineStyle + " / " + (c.boxShadow === "none" || /^rgba\(0, 0, 0, 0\) 0px 0px 0px 0px$/.test(c.boxShadow) ? "none" : c.boxShadow); });
   expect(await ring(), "no ring on the station the page handed the focus to").toBe("none / none");
   await page.evaluate(() => document.documentElement.classList.add("pa-tab"));   // a Tab was pressed some time before (or a late one from the keyboard)

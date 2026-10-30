@@ -1,6 +1,6 @@
 // Settings and the practice options' own pages on the Path (src/app/path/settings.tsx, options.tsx): the rows of the app drawn on the path
 // (the Magic Key and its question before forgetting, voice, your data, the version), and the Voice page; the stages and the difficulty, which are on the
-// Progression page. What each one does is the classic page's (settings.spec.js, stages.spec.js, voice.spec.js).
+// Progression page. What each one does is shell/options.js's and the voice specs'.
 import { test as plain, expect as plainExpect } from "@playwright/test";
 import { test, expect } from "../../support/test.js";
 import { dataKey, serveCourse, withCourse } from "../../support/data-key.js";
@@ -82,7 +82,7 @@ plain("without the key, the Magic Key page takes it in its own field, and Settin
 test("Settings on the Path: sections of lines, export and import and the version on pages of their own, and no Experiments in the released app", async ({ page }) => {
   await start(page);
   await openSettings(page);
-  await expect(page.locator("#path .pbr")).toHaveCount(0);   // nothing of Settings is hosted from the classic page
+  await expect(page.locator("#path .pbr")).toHaveCount(0);   // nothing of Settings is hosted from another part of the page
   await expect(page.locator(".ppage .sgh")).toHaveText(["General", "Data", "About"]);   // Experiments: only in a Preview, or held open with the Magic Key
   await expect(page.getByRole("group", { name: "Theme" }).getByRole("button", { name: "System" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator(".ppage .ol", { hasText: "Version and updates" })).toContainText(/\d+\.\d+\.\d+/);

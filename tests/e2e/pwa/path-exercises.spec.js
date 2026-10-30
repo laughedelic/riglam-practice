@@ -1,6 +1,6 @@
 // The exercises on the Path (src/app/path) beyond Relations: Syllogisms, Pervasions, Find a pair, Categories and Find an instance, each from its first step to
-// its result. The rules and what is stored are the classic flows' and have their own specs; these check that the Path draws each step, takes
-// the answers through the same steps and stores the answer as the classic page does. The page's state is read through the test hook.
+// its result. The rules and what is stored are src/domain's and have their own unit tests; these check that the Path draws each step, takes
+// the answers through the same steps and stores the answer. The page's state is read through the test hook.
 import { test, expect } from "../../support/test.js";
 import { exerciseAtRest } from "../../support/page.js";
 import { dataKey, KEY_STORE, serveCourse } from "../../support/data-key.js";

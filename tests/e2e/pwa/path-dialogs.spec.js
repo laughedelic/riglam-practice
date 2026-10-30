@@ -1,6 +1,6 @@
-// The two dialogs the classic page opens over the Path (the question before a device's examples are kept, ai/share-notice.js; the Magic Key,
+// The two dialogs the page opens over the Path (the question before a device's examples are kept, ai/share-notice.js; the Magic Key,
 // pwa/unlock.ts) are native dialogs outside #path: they take the Path's palette, its face and its text buttons (11-path-bridge.css), and keep
-// what they did on the classic page (known.spec.js, unlock.spec.js).
+// what they did before they were restyled (known.spec.js, unlock.spec.js).
 import { test as plain, expect as plainExpect } from "@playwright/test";
 import { test, expect } from "../../support/test.js";
 import { serveCourse, withCourse } from "../../support/data-key.js";

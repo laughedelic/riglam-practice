@@ -1,7 +1,7 @@
 // Review and the tutor's conversation on the Path (src/app/path/review.tsx, tutor.tsx): today's trail and the other sections, a row that
 // unfolds into the answer as it was checked, the favorites, the pairs skipped and the flags, and the conversation as a page with a flag on
 // each answer. The answers, favorites, skips and flags are written to the device's database before the page starts, so the tests do not
-// depend on which pair the page draws. What is counted and stored is the classic page's (review.spec.js, flags-review.spec.js).
+// depend on which pair the page draws. What is counted and stored is src/domain's and the flag specs'.
 import { test, expect } from "../../support/test.js";
 import { giveKey, withCourse } from "../../support/data-key.js";
 import { isPhone } from "../../support/page.js";
