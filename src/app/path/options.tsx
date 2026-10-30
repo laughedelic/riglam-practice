@@ -192,7 +192,7 @@ export function OptionsSheet() {
     if (on && !was.current && box.current) box.current.focus({ preventScroll: true });
     was.current = on;
   }, [on]);
-  // the body fades out at an edge that has more to scroll to (37-path-panels.css): measured after every draw, and as it scrolls
+  // the body fades out at an edge that has more to scroll to (09-path-panels.css): measured after every draw, and as it scrolls
   useEffect(() => {
     const el = body.current; if (!el) return;
     const fade = () => {

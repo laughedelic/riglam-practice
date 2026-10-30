@@ -67,7 +67,7 @@
 .pa .rejoin path{fill:none; stroke:var(--tutor); stroke-width:2}
 .pa .pback{font-family:var(--mono); font-size:11px; color:var(--tutor); margin-top:8px; text-decoration:underline; text-underline-offset:3px}
 
-/* Claude at work: the words of the wait (path/wait.tsx, styles/47-path-wait.css), and the seconds */
+/* Claude at work: the words of the wait (path/wait.tsx, styles/19-path-wait.css), and the seconds */
 .pa .think{display:flex; align-items:center; gap:9px; margin-top:5px; font-family:var(--mono); font-size:11px; color:var(--tutor)}
 .pa .think .secs{color:var(--ink3)}
 .pa .tks{font-size:15px; line-height:1.4; color:var(--ink2)}

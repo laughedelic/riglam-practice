@@ -4,7 +4,7 @@
 // at the top of the slide it reaches the strip's edge and the relation is marked there (struck, or checked: a knock in the hand); then it settles back into the
 // heading's place, fills with the verdict's color and grows into the result's node, its word beside it. Then the check is taken (`act`) and the result's page comes in
 // around the node, which stays where the scanner left it. The verdicts are graded before the check (`ScanPlan`, relations.tsx), in the same way the check grades them.
-// The page's own nodes are only marked with classes (styles/43-path-scan.css) and given their marks; the scanner is drawn over the page.
+// The page's own nodes are only marked with classes (styles/15-path-scan.css) and given their marks; the scanner is drawn over the page.
 // With the keyboard up (the folded layout) the page opens first (relayout.ts): the keyboard goes and the page takes its own layout while the scanner, the Check turned into it,
 // glides down to the foot; a beat, and then the scan runs over the opened page exactly as on a screen with no keyboard. At the foot, as the scanner leaves the Check's place, the
 // station that comes next takes it (it is the same station: its words change, and it comes in), so the thread always runs on to a station.

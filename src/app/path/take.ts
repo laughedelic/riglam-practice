@@ -2,7 +2,7 @@
 // keyboard up: the detail under its lines goes (`foldPage`; pulled back under the curb it unfolds). Let go, and the page's lines squeeze up into the top bullet, the bullet's
 // words go into it, and the bullet is pushed up the thread and out through the top; the station rides up behind them (the thread stays attached to it), so it never slides over
 // anything, and lands where the next step's first bullet will be. Then the step goes on (`act`) and the new page comes in, its first bullet settling into place. The stages are
-// custom properties on `.main` (b the lines squeezing, h the words going into the bullet, c the bullet leaving, l the landing), so the stylesheet (styles/42-path-take.css)
+// custom properties on `.main` (b the lines squeezing, h the words going into the bullet, c the bullet leaving, l the landing), so the stylesheet (styles/14-path-take.css)
 // draws everything from them. A page with a running clock, reduced motion and the look's `ride: plain` take the step at once. The station may also be on the page itself, as the
 // Check node under the last example while the keyboard is up (examples.tsx): it rides from where it stands, and is not squeezed with the rest.
 import { state } from "../state.js";

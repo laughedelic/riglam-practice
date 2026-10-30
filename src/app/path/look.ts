@@ -265,7 +265,7 @@ export function applyLook(root: HTMLElement, look: Look): string[] {
   for (const [k, v] of Object.entries(vars)) root.style.setProperty(k, v);
   const html = document.documentElement;
   html.style.setProperty("--path-paper", vars["--paper"]);
-  // the Path's palette and face for the dialogs the page opens over it (outside #path, so the root's variables do not reach them; 39-path-bridge.css)
+  // the Path's palette and face for the dialogs the page opens over it (outside #path, so the root's variables do not reach them; 11-path-bridge.css)
   for (const [k, v] of Object.entries(palette(look, dark))) html.style.setProperty("--pa-" + k.slice(2), v);
   html.style.setProperty("--pa-f", fam.main);
   html.style.colorScheme = dark ? "dark" : "light";

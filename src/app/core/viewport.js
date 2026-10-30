@@ -1,4 +1,4 @@
-// A phone keyboard covers part of the screen. The app follows the visible area (the Path's root takes --vvh and --vvt, styles/33-path-base.css).
+// A phone keyboard covers part of the screen. The app follows the visible area (the Path's root takes --vvh and --vvt, styles/05-path-base.css).
 const vv=window.visualViewport;
 function syncVv(){
   const r=document.documentElement.style;

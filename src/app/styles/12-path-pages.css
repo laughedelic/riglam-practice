@@ -155,7 +155,7 @@
 /* Settings: the sample sentence under the row that sets how the terms of the pair stand out */
 .pa .psamp{font-size:16.5px; line-height:1.4; margin-top:6px}
 
-/* the Progression page (path/progression.tsx): a page of settings lines (46-path-settings.css), a stage's ring where a page line's chevron stands, the groups of
+/* the Progression page (path/progression.tsx): a page of settings lines (18-path-settings.css), a stage's ring where a page line's chevron stands, the groups of
    three as headings between the stages, each over a rule, a folded line's content under the text column; and the same rings in a row in the roadmap's foot and
    on the ring's sheet */
 .pa .road .rfoot .rstages{flex:0 0 calc(100% + var(--m)); margin:-6px 0 4px calc(-1 * var(--m))}

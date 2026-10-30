@@ -1,17 +1,12 @@
 *{box-sizing:border-box}
-html{background:var(--paper)}
-.band{position:fixed;top:0;bottom:0;width:var(--band);background:var(--band-color);isolation:isolate;pointer-events:none;z-index:0}
-.band.l{left:0} .band.r{right:0}
-.band::after,.plane::after{content:"";position:absolute;inset:0;mix-blend-mode:soft-light;opacity:var(--grain-strength);background:var(--grain) repeat}
-.band{--grain:var(--grain-crimson)}
-body{color:var(--ink);font:15px/1.5 var(--body);-webkit-font-smoothing:antialiased;background:transparent}
+html{background:var(--paper);height:100%}
+body{color:var(--ink);font:15px/1.5 var(--body);-webkit-font-smoothing:antialiased;background:transparent;height:100%;margin:0;overflow:hidden}
 button{font:inherit;color:inherit}
-/* a touch is a press, not a selection: no highlight box on a tap, no double-tap zoom and no long-press callout on controls (their press feedback is in 28-menu.css) */
+/* a touch is a press, not a selection: no highlight box on a tap, no double-tap zoom and no long-press callout on controls (their press feedback is in 02-controls.css) */
 *{-webkit-tap-highlight-color:transparent}
 button,[role="button"],[role="switch"],summary{touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
-.math{font-family:var(--math);font-size:1.05em;letter-spacing:.01em}
 :focus-visible{outline:2px solid transparent}
-
-.seg{display:inline-flex;box-shadow:inset 0 0 0 1.5px var(--ink-muted);padding:2px;background:var(--paper)}
-.seg button{border:0;background:transparent;padding:5px 10px;font:700 11px/16px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-muted);cursor:pointer}
-.seg button[aria-pressed="true"]{background:var(--lapis);color:var(--on-lapis)}
+/* the ring of a control is a box-shadow in --focus-ring; the Path draws its own, for a keyboard that tabs (05-path-base.css) */
+button:focus-visible,input:focus-visible{box-shadow:var(--focus-ring)}
+/* finger-sized inputs: 16px keeps iOS from zooming into a field */
+@media (pointer:coarse){input{font-size:16px !important}}

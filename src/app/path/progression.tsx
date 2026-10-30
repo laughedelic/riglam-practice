@@ -35,7 +35,7 @@ import { isOpen, toggleOpen } from "./stored.tsx";
 import { Names } from "./terms.tsx";
 import { D, Gap, Head, Icon, St, Sx, Toggle } from "./ui.tsx";
 
-/** The roadmap's slide (37-path-panels.css), and a little more: the page is out of sight by then. */
+/** The roadmap's slide (09-path-panels.css), and a little more: the page is out of sight by then. */
 const SLIDE_MS = 420;
 /** The stages of the ladder, stage 0 of everyday things first: those after its last are the layers of depth, Depth in the Difficulty section (src/domain/stages.ts, LADDER_TOP). */
 const LADDER = STAGES.filter((s) => s.n <= LADDER_TOP);

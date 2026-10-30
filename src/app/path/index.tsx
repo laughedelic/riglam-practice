@@ -11,7 +11,7 @@ function autoExplainDefault(): void {
   let kept: string | null = null; try { kept = localStorage.getItem("rd-autoexplain"); } catch { /* storage blocked */ }
   if (kept === null) state.autoExplain = currentLook().tutorAuto === "on";
 }
-/** The focus ring (styles/33-path-base.css) shows once the Tab key has been pressed and goes at the next touch or click. The soft keyboard's Next key sends a Tab to
+/** The focus ring (styles/05-path-base.css) shows once the Tab key has been pressed and goes at the next touch or click. The soft keyboard's Next key sends a Tab to
  *  the field on a touch screen: that is not a keyboard walking the page, and must not leave a ring on whatever takes the focus next. */
 function ringOnTab(): void {
   const root = document.documentElement;
@@ -22,7 +22,7 @@ function ringOnTab(): void {
 function watchHand(): void {
   addEventListener("pointerdown", (e) => { state.hand = e.pointerType === "mouse" ? "mouse" : "touch"; }, { capture: true, passive: true });
 }
-/** At the start: the defaults that depend on the look, the document marked as drawn by the Path (the rules of styles/33-path-base.css), and the listeners the Path needs. */
+/** At the start: the defaults that depend on the look, the document marked as drawn by the Path (the rules of styles/05-path-base.css), and the listeners the Path needs. */
 export function startPath(): void {
   document.getElementById("path")?.replaceChildren();     // the markup's own "Loading." line, until the first draw
   autoExplainDefault();

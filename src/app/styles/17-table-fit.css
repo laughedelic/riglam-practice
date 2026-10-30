@@ -1,4 +1,0 @@
-/* the table's columns may shrink below their longest word (a note and its "?" would otherwise push a 320px screen sideways) */
-.grid{grid-template-columns:fit-content(34%) minmax(0,1fr) minmax(0,1fr)}
-@media (max-width:520px){ .grid{grid-template-columns:auto minmax(0,1fr) minmax(0,1fr)} }
-.cell .fb,.cell .cx{overflow-wrap:anywhere}
