@@ -43,6 +43,23 @@ export async function openSettingsPage(page, title) {
   await page.getByRole("button", { name: title + ": more" }).click();
 }
 
+/** Answers the pair on screen as far as the result: the first relation, a word in each case the page asks for, and the Check. Leaves the result's page on screen. */
+export async function answerFirst(page) {
+  await relOptions(page).first().click();
+  const field = page.locator("#cin");
+  await expect(field).toBeVisible();
+  for (let i = 0; i < 4 && (await field.isVisible()); i++) {
+    await field.fill("thing " + (i + 1));
+    if ((await field.getAttribute("enterkeyhint")) === "done") { await field.blur(); break; }
+    await field.press("Enter");
+  }
+  await expect(page.locator("#stn")).toHaveAccessibleName(/^Check/);
+  await page.locator("#stn").click();
+  await expect(page.locator(".pvline")).toBeVisible();
+}
+/** Explain on the result: the choice beside the line (it says "Check & explain" when the page asks Claude for the examples it could not check). */
+export const explainChoice = (page) => page.locator(".cwex .crow").filter({ hasText: /explain/i });
+
 export const isPhone = (testInfo) => testInfo.project.name === "pwa-phone";
 export const overflow = (page) => page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
 /** Sets the stages the page reads at its next start, as a device would have them before it kept a progress document: in localStorage, with the
