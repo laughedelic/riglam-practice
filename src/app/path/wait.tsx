@@ -68,7 +68,7 @@ export function WaitStop() {
  * wait; `hint` is what it says under its name.
  */
 export function ExplainChoice({ name, hint, go }: { name: string; hint?: string; go?: () => void }) {
-  const [dx, setDx] = useState(0), [taking, setTaking] = useState(false), from = useRef<number | null>(null), me = useRef<HTMLButtonElement>(null), once = useRef(false), timer = useRef<ReturnType<typeof setTimeout>>();
+  const [dx, setDx] = useState(0), [taking, setTaking] = useState(false), from = useRef<number | null>(null), me = useRef<HTMLButtonElement>(null), once = useRef(false), timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const beside = currentLook().take === "slide", key = needsKey();
   useEffect(() => () => clearTimeout(timer.current), []);
   // the release that ends a slide is also the row's click, which takes it; it is taken for the answer on screen now, and goes nowhere if that has changed by then
