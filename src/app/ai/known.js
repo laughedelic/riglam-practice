@@ -2,7 +2,7 @@ import { state } from "../state.js";
 import { quorumThings } from "./quorum.js";
 import { explainByItself, saveVerdicts } from "./tutor.js";
 import { noteData } from "../practice/screen.js";
-import { renderKeepFocus } from "../shell/render.js";
+import { render } from "../shell/render.js";
 import { pairCats } from "../../ai-shared/lookup.ts";
 import { openExamples, referenceLines, wholeFirst } from "../../domain/known.ts";
 import { applyVerdicts, parseVerdicts } from "../../domain/verdict.ts";
@@ -63,5 +63,5 @@ async function settleKnown(U,C){
   }
   if(!n) return;
   saveVerdicts(U,C);
-  if(U===state.ui) renderKeepFocus();            // the result is on the screen with the focus on its last button: it stays there
+  if(U===state.ui) render();
 }

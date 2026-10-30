@@ -1,8 +1,6 @@
 import { state } from "../state.js";
 import { $ } from "../core/dom.js";
 import { isSyllogism } from "../core/util.js";
-import { canAsk } from "../core/ask.js";
-import { isWide } from "../core/viewport.js";
 import { persist } from "../practice/answers.js";
 import { explainByItself } from "../ai/tutor.js";
 import { startQ, stopTimer } from "../debate/flow.js";
@@ -57,14 +55,13 @@ export function advanceSyllogism(){
 export function skipSyllogism(){ advanceSyllogism(); render(); top0(); }
 
 const focusEx=()=>{ const i=$("sylex"); if(i&&!("ontouchstart" in window)) i.focus({preventScroll:true}); };
-const focusReply=()=>{ const b=document.querySelector(".sylask .sylsay"); if(b&&!("ontouchstart" in window)) /** @type {HTMLElement} */(b).focus({preventScroll:true}); };
-/** The learner's reply. A right "there is no pervasion" goes on to the counter-example, unless Blitz is on; every other reply shows the result at once. On the Path every "there is no pervasion" does, right or wrong: the verdict waits until the counter-example is given or left out. */
+/** The learner's reply. Every "there is no pervasion", right or wrong, goes on to the counter-example, unless Blitz is on; the verdict waits until the counter-example is given or left out. Every other reply shows the result at once. */
 export function saySyllogism(reply){
   const u=state.ui; if(!u||!u.syllogism||u.checked||u.step!==0||state.mode!=="quiz") return;
   const c=shownSyllogism(), g=gradeSyllogism(c,reply);
   u.ms=u.tq?Math.round(performance.now()-u.tq.t0):null; stopTimer();
   u.said=reply; u.grade=g;
-  if(reply==="pervasion"&&(g.correct||state.design==="path")&&!state.blitz){ u.step=1; render(); top0(); focusEx(); return; }
+  if(reply==="pervasion"&&!state.blitz){ u.step=1; render(); top0(); focusEx(); return; }
   finishSyllogism();
 }
 /** The counter-example step is done: with what was typed, or with nothing. */
@@ -82,7 +79,7 @@ export function backSyllogism(){
   const u=state.ui; if(!u||!u.syllogism||u.checked||u.step!==1) return;
   u.step=0; u.said=null; u.grade=null; u.exText=""; u.exNote="";
   if(state.blitz) startQ();                       // Blitz was switched on at the counter-example: the reply has its clock again
-  render(); focusReply();
+  render();
 }
 const docId=()=>"syllogism-"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 function finishSyllogism(){
@@ -94,8 +91,6 @@ function finishSyllogism(){
   stageStep("syllogism",catsStageNow([c.catR,c.catP]),g.correct);     // the run towards the next stage; a miss here is about the form, it changes nothing (practice/stage-offer.ts)
   render();
   top0();
-  if(!isWide()){ const bs=document.querySelectorAll("#stage .actions .btn"); if(bs.length) /** @type {HTMLElement} */(bs[bs.length-1]).focus({preventScroll:true}); }
-  else { const x=state.autoExplain&&canAsk()?null:/** @type {HTMLElement|null} */(document.querySelector("#stage .verdict .xpl")); (x||$("stage")).focus({preventScroll:true}); }   // as after the other exercises: Explain, unless the answer is explained by itself
   explainByItself(u);                             // with "Check every answer with Claude" on, the explanation comes by itself
   if(!state.db) return;
   u.saveId=docId();

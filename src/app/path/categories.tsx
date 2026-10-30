@@ -121,7 +121,7 @@ function TickStep() {
       <Sx cls="ptail" />
     </Scroll>
     <Foot aux={<SkipSide />}>
-      <Station kind="chk" name="Check" hint={!n ? "none of these" : n === 1 ? "one category" : n + " categories"} act={() => checkCategories(true)} scan={scanPlan} />
+      <Station kind="chk" name="Check" hint={!n ? "none of these" : n === 1 ? "one category" : n + " categories"} act={() => checkCategories()} scan={scanPlan} />
     </Foot>
   </>;
 }

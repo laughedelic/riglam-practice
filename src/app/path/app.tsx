@@ -1,21 +1,14 @@
 // The Path's page: one column with the top bar, the screen in front (an exercise, Review, the tutor's conversation, Settings) and the foot,
-// and over it the roadmap, the practice options, the question before a skip and the note at the foot. Which screen shows is the classic
-// page's state (state.js: tab, view, optsOpen, sessOpen, menuOpen, skipAsk), so Back, the keys and the clocks work as they do there.
-// Everything is drawn on the path; an exercise in a state the Path does not draw would show the classic screen, hosted (ui.tsx, Bridge).
+// and over it the roadmap, the practice options, the question before a skip and the note at the foot. Which screen shows is the page's state
+// (state.js: tab, view, optsOpen, sessOpen, menuOpen, skipAsk), so Back, the keys and the clocks work from it.
 import type { ComponentChildren } from "preact";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { state } from "../state.js";
 import { canAsk } from "../core/ask.js";
-import { $, el } from "../core/dom.js";
-import { renderCategories } from "../categories/screen.js";
-import { renderDebate } from "../debate/screen.js";
-import { renderFind } from "../find/screen.js";
-import { placePops, renderQuiz } from "../practice/screen.js";
-import { closeSkipAsk, skipInto, skipNow } from "../practice/skips.js";
-import { renderSyllogism } from "../syllogism/screen.js";
+import { closeSkipAsk, skipAskText, skipNow } from "../practice/skips.js";
 import { exName } from "../shell/exercises.js";
 import { moves } from "../shell/motion.js";
-import { fitPair, isEx, render } from "../shell/render.js";
+import { isEx, render } from "../shell/render.js";
 import { applyLook, currentLook, darkNow, lookClasses } from "./look.ts";
 import { OptionsSheet } from "./options.tsx";
 import { categoriesScreen } from "./categories.tsx";
@@ -34,35 +27,8 @@ import { syllogismScreen } from "./syllogism.tsx";
 import { TutorPage } from "./tutor.tsx";
 import { PullCtx, Toast, TopBar, turnAside } from "./shell.tsx";
 import { Pull } from "./gesture.ts";
-import { Bridge, coarse } from "./ui.tsx";
+import { coarse } from "./ui.tsx";
 
-/** What a classic builder appends to a box, as the nodes to host. */
-function built(make: (box: HTMLElement, side: HTMLElement) => void): Node[] {
-  const box = document.createElement("div"), side = document.createElement("div");
-  make(box, side);
-  return [...box.childNodes];
-}
-
-/** An exercise in a state the Path does not draw (none is expected): the classic screen, with its steps above it and its bar of buttons at its foot. */
-function Hosted() {
-  const u = state.ui, tab = state.tab;
-  const fill = () => {
-    const st = $("steps"); st.replaceChildren(); st.hidden = true;
-    const nodes = built((s, c) => {
-      if (tab === "debate" && u && u.debate) renderDebate(s, c);
-      else if (tab === "find" && u && u.find) renderFind(s, c);
-      else if (tab === "categories" && u && u.cats) renderCategories(s, c);
-      else if (tab === "syllogism" && u && u.syllogism) renderSyllogism(s, c);
-      else renderQuiz(s, c);
-    });
-    const steps = st.hidden ? null : el("nav", { class: "steps", "aria-label": "Steps" }, ...st.childNodes);
-    return [steps, ...nodes];
-  };
-  return <>
-    <TopBar title={exName(tab)} tools />
-    <Bridge cls="card" fill={fill} after={() => { fitPair(); placePops(); }} />
-  </>;
-}
 /** "Skip anyway": the question goes, then the page turns aside and the next one arrives (the page was not turned before: it asked first). */
 function skipAnyway() {
   state.skipAsk = false; render();
@@ -70,8 +36,7 @@ function skipAnyway() {
 }
 /** The question before an attempt with something in it is set aside; its words are the classic page's (practice/skips.js). */
 function SkipAsk() {
-  const box = document.createElement("div"); skipInto(box);
-  const q = box.querySelector("h2")?.textContent || "Skip?", d = box.querySelector(".dlg p")?.textContent || "";
+  const { q, d } = skipAskText();
   const keep = useRef<HTMLButtonElement>(null);
   useEffect(() => { keep.current?.focus({ preventScroll: true }); }, []);
   return <>
@@ -101,7 +66,7 @@ function screen(kb: boolean): { cls: string; node: ComponentChildren } {
   if (state.tab === "categories" && u.cats) return categoriesScreen();
   if (state.tab === "instance" && u.inst) return instanceScreen(kb);
   if (state.tab === "syllogism" && u.syllogism && state.cur && state.cur.c) return syllogismScreen(kb);
-  return { cls: "", node: <Hosted /> };
+  return { cls: "", node: <Status text="" /> };
 }
 
 export function App() {

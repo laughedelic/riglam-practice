@@ -1,18 +1,13 @@
 import { state } from "../state.js";
-import { $, el } from "../core/dom.js";
-import { tbIcon } from "../core/icons.js";
 import { REL } from "../core/rel.js";
-import { isWide } from "../core/viewport.js";
 import { checkDebate, limitMs, paused, stopTimer } from "../debate/flow.js";
 import { check } from "../practice/grading.js";
 import { fillable } from "../practice/screen.js";
 import { focusCin, render } from "./render.js";
 
-// Blitz: a stopwatch in the top bar, next to the practice options (the mode of practice): outline when off, filled when on. No box, no number: the seconds are in its name
-// and set in the Practice options of the exercise (Blitz times). Three independent times: the relation (Relations and Pervasions), the examples (each example in
-// Relations, each question in Pervasions) and the syllogism (Syllogisms: one countdown for the reply). The countdown that is running is the bar on the lower edge of
-// the top bar (renderBar in shell/topbar.js); changing one time never changes the others.
-// The toolbar icons (stopwatch, star, skip) share one line style: 24 px, stroke 1.75, outline when off, filled when on (src/app/core/icons.js).
+// Blitz: a stopwatch in the top bar, next to the practice options (the mode of practice). The seconds are set in the Practice options of the exercise (Blitz times). Three
+// independent times: the relation (Relations and Pervasions), the examples (each example in Relations, each question in Pervasions) and the syllogism (Syllogisms: one
+// countdown for the reply). The countdown that is running is the bar on the lower edge of the top bar (path/shell.tsx); changing one time never changes the others.
 // which countdown belongs to the screen: "rel" while the relation is to be picked, "ex" for the examples (Relations) or the four questions (Pervasions), "syl" for the
 // reply to a syllogism
 export const tkind=()=>{
@@ -22,15 +17,6 @@ export const tkind=()=>{
   return state.ui.rel?"ex":"rel";
 };
 export const kindMs=k=>k==="rel"?state.relMs:k==="syl"?state.sylMs:state.timerMs;
-const bzLabel=()=>!state.blitz?"Blitz off":state.tab==="syllogism"?"Blitz on: "+Math.round(state.sylMs/1000)+" s a syllogism"
-  :"Blitz on: "+Math.round(state.relMs/1000)+" s relation, "+Math.round(state.timerMs/1000)+" s "+(state.ui&&state.ui.debate?"question":"example");
-// the switch in the top bar; the exercises share the one. Not there when Blitz is switched off in its options (state.blitzUse)
-export function syncBlitzBtn(){
-  const b=$("mbz"), ok=state.mode==="quiz"&&(state.tab==="debate"||state.tab==="practice"||state.tab==="syllogism");
-  b.hidden=!ok||!state.blitzUse; if(b.hidden) return;
-  b.replaceChildren(tbIcon("watch"));
-  b.setAttribute("aria-checked",state.blitz?"true":"false"); b.setAttribute("aria-label",bzLabel()); b.title=bzLabel()+" (hold for the Blitz options)";
-}
 const exMul=()=>(relTimed()&&state.ui.rel)?Math.max(1,fillable().length):1;
 
 // Relations tab, Blitz on: the relation pick has a countdown and the examples have one (the seconds for each example). Time up on the pick marks it wrong,
@@ -58,7 +44,7 @@ function expireRel(u){
   const k=state.cur.p.relation;
   u.tid=null; u.tq=null; u.late=true; u.rel=k; u.open=false; u.ci=0; u.seen=0; u.pop=null;
   for(const c of REL[k].empty){ u.cells[c].t=""; u.cells[c].none=false; }
-  render(); if(!isWide()) focusCin();
+  render(); focusCin();
 }
 function expireEx(u){
   if(u!==state.ui||u.checked||!u.rel||state.tab!=="practice") return;
@@ -76,10 +62,4 @@ function expireRelD(u){
 // a new start: after a change of the switch or the time, the running countdown begins again with its full time
 export function relReset(){ if(state.ui&&!state.ui.checked&&(!state.ui.debate||state.ui.step>3)) stopTimer(); }
 // the bar of a countdown that is stopped for a spoken answer (debate/flow.js) stands still where it is, and goes on with the clock
-export function freezeBar(on){ for(const i of document.querySelectorAll(".tbar i, .pclock i")) i.style.animationPlayState=on?"paused":""; }   // the classic bar and the Path's
-/** The countdown bar of the pair on screen, or null while no countdown runs: drawn by the top bar on its lower edge. */
-export function timerBar(){
-  if(!state.ui||!state.ui.tq) return null;
-  const e=Math.max(0,Math.round(performance.now()-state.ui.tq.t0));
-  return el("div",{class:"tbar","aria-hidden":"true",style:"--t:"+state.ui.tq.limit+"ms;--e:"+e+"ms"},el("i"));
-}
+export function freezeBar(on){ for(const i of document.querySelectorAll(".pclock i")) i.style.animationPlayState=on?"paused":""; }

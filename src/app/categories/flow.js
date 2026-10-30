@@ -1,13 +1,10 @@
 import { state } from "../state.js";
-import { $ } from "../core/dom.js";
-import { isCategories } from "../core/util.js";
-import { isWide } from "../core/viewport.js";
 import { persist } from "../practice/answers.js";
 import { freshUi } from "../practice/queue.js";
-import { render, renderKeepFocus, top0 } from "../shell/render.js";
+import { render, top0 } from "../shell/render.js";
 import { drawPlace, gradeNarrow, gradePlace, placeGrade, placeNarrow } from "../../domain/place.ts";
 import { gradeTerms, openNow, unmetNow } from "../practice/stops.ts";
-import { acceptStageOffer, declineStageOffer, shareNow, stageStep } from "../practice/stage-offer.ts";
+import { shareNow, stageStep } from "../practice/stage-offer.ts";
 
 /* ---------- Categories: a thing is shown; tick the categories it is in, then pick the most specific ---------- */
 // The rules (which things and categories are asked, what is right and why) are in src/domain/place.ts, the offer of another stage in practice/stage-offer.ts; this is the page around them: the
@@ -17,9 +14,8 @@ import { acceptStageOffer, declineStageOffer, shareNow, stageStep } from "../pra
 const RECENT=12;
 const store=(key,v)=>{ try{ localStorage.setItem(key,v); }catch(e){} };
 /** The answers to Categories, oldest first. They sit in the collection of the Relations answers, in a shape of their own (types.ts, CategoriesDoc). */
-export const categoriesList=()=>/** @type {import("../types.ts").CategoriesDoc[]} */(/** @type {unknown} */(Object.values(state.answers).filter(isCategories))).sort((x,y)=>(x.at||"").localeCompare(y.at||""));
 export function freshCategoriesUi(){
-  return Object.assign(freshUi(),{cats:true, open:false, step:0, ticked:[], none:false, i:0, said:{}, ask:state.catsAsk, g1:null, narrow:null, g2:null, grade:null, offer:null});
+  return Object.assign(freshUi(),{cats:true, open:false, step:0, ticked:[], i:0, said:{}, ask:state.catsAsk, g1:null, narrow:null, g2:null, grade:null, offer:null});
 }
 /** The thing on screen with its categories, or undefined when the stages that are on have nothing to ask about. */
 export const shownThing=()=>state.cur.q;
@@ -36,7 +32,7 @@ export const drawKey=()=>state.stages.join(",")+(state.EX?"+ex":"")+"-"+unmetNow
 export function skipCategories(){ advanceCategories(); render(); top0(); }
 
 /** Whether this attempt has begun: something ticked or answered, or past step 1. */
-export const categoriesBegun=u=>u.step>0||u.ticked.length>0||u.none||u.i>0;
+export const categoriesBegun=u=>u.step>0||u.ticked.length>0||u.i>0;
 /** The way step 1 asks ("all" at once, or "one" by one), kept on this device. It applies at once to a thing that has not been started, and from the next thing otherwise. */
 export function setCategoriesAsk(k){
   state.catsAsk=k==="one"?"one":"all"; store("rd-cats-ask",state.catsAsk);
@@ -44,30 +40,22 @@ export function setCategoriesAsk(k){
   render();
 }
 
-const focusFwd=()=>{ if(!isWide()){ const bs=document.querySelectorAll("#stage .actions .btn"); if(bs.length) /** @type {HTMLElement} */(bs[bs.length-1]).focus({preventScroll:true}); } else $("stage").focus({preventScroll:true}); };
-
 // ---- step 1, all at once: tick, then check
-/** Ticks or unticks a category; "None of these" and a tick exclude each other. */
+/** Ticks or unticks a category. */
 export function tickCategory(cat){
   const u=state.ui; if(!u||!u.cats||u.step!==0||u.checked||u.ask!=="all") return;
-  u.none=false;
   u.ticked=u.ticked.includes(cat)?u.ticked.filter(c=>c!==cat):[...u.ticked,cat];
-  renderKeepFocus();
-}
-export function tickNone(){
-  const u=state.ui; if(!u||!u.cats||u.step!==0||u.checked||u.ask!=="all") return;
-  u.none=!u.none; if(u.none) u.ticked=[];
-  renderKeepFocus();
+  render();
 }
 /** Unticks everything (the Path's "reset"): what is left is the answer "none of these". */
 export function resetCategories(){
   const u=state.ui; if(!u||!u.cats||u.step!==0||u.checked||u.ask!=="all") return;
-  u.ticked=[]; u.none=false;
-  renderKeepFocus();
+  u.ticked=[];
+  render();
 }
-/** Check: grades what was ticked. Needs a tick or "None of these", unless `emptyIsNone` (the Path, which has no "None of these": nothing ticked is that answer). */
-export function checkCategories(emptyIsNone=false){
-  const u=state.ui; if(!u||!u.cats||u.step!==0||u.checked||u.ask!=="all"||(!u.ticked.length&&!u.none&&!emptyIsNone)||!state.cur.q) return;
+/** Check: grades what was ticked; nothing ticked is the answer "none of these". */
+export function checkCategories(){
+  const u=state.ui; if(!u||!u.cats||u.step!==0||u.checked||u.ask!=="all"||!state.cur.q) return;
   finishStep1(u.ticked);
 }
 // ---- step 1, one at a time: yes or no for each category
@@ -76,7 +64,7 @@ export function sayCategory(yes){
   const u=state.ui, q=state.cur.q; if(!u||!u.cats||u.step!==0||u.checked||u.ask!=="one"||!q||u.i>=q.rows.length) return;
   u.said[q.rows[u.i].cat]=yes; u.i++;
   if(u.i>=q.rows.length){ finishStep1(q.rows.filter(r=>u.said[r.cat]).map(r=>r.cat)); return; }
-  renderKeepFocus();
+  render();
 }
 function finishStep1(picked){
   const u=state.ui, q=state.cur.q;
@@ -84,14 +72,12 @@ function finishStep1(picked){
   u.narrow=placeNarrow(state,q,Math.random);
   u.step=1;
   if(!u.narrow){ finishThing(null); return; }
-  render(); top0(); focusFwd();
+  render(); top0();
 }
 /** From the check of step 1 on to picking the most specific category. */
 export function continueCategories(){
   const u=state.ui; if(!u||!u.cats||u.step!==1||u.checked) return;
   u.step=2; render(); top0();
-  const first=document.querySelector(".catopt");     // the Continue button is gone: the focus goes to the first choice on a phone, and to the page on a wide screen, where Enter would pick it
-  if(first&&!isWide()) /** @type {HTMLElement} */(first).focus({preventScroll:true}); else $("stage").focus({preventScroll:true});
 }
 /** The pick of step 2, one tap: the category the learner says is the most specific. */
 export function pickCategory(cat){
@@ -111,14 +97,9 @@ function finishThing(s2){
   if(u.narrow&&u.g2){ doc.narrow={options:u.narrow.options.map(r=>r.cat),right:u.narrow.cat,picked:u.g2.picked.cat}; doc.s2=s2===true; }
   gradeTerms(doc.rows.map(r=>({cat:r.cat,ok:r.yes===r.said})));     // each row grades its category's term (practice/stops.ts)
   stageStep("categories",q.thing.st,u.grade==="ok");     // the run towards an offer of the stages, and the offer when one is due (practice/stage-offer.ts)
-  render(); top0(); focusFwd();
+  render(); top0();
   if(!state.db) return;
   u.saveId=doc.pairId; u.doc=/** @type {any} */(doc);       // the stored shape of Categories is not a pair's (types.ts); persist() only reads its keys
   persist(u,"Your answer");
 }
 
-// ---- the stages: the offer on the result is the one every exercise makes (practice/stage-offer.ts); the classic page keeps its focus after the tap
-/** "Add stage N" or "Switch off stage N". */
-export function acceptOffer(){ acceptStageOffer(); focusFwd(); }
-/** "Not now". */
-export function declineOffer(){ declineStageOffer(); focusFwd(); }

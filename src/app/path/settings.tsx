@@ -17,7 +17,6 @@ import { LANGS, NAME_LANGS } from "../../domain/languages.ts";
 import { languagesOn } from "./terms.tsx";
 import { setOn as setVoiceOn, voiceAvailable, voiceNote, voiceOn } from "../shell/voice.js";
 import { DEFAULT_LOOK, currentLook, lookLine, pastedLook, setLook, storedLook } from "./look.ts";
-import { setDesign } from "./index.tsx";
 import { TopBar, pathNote } from "./shell.tsx";
 import { Group, Intro, Line } from "./lines.tsx";
 import { Bridge, Words, NOFILL } from "./ui.tsx";
@@ -179,7 +178,6 @@ function Sections() {
       {state.db ? <Line title="Export and import" sub="everything this device keeps, in one file" go={() => open("xfer")} /> : null}
     </Group> : null}
     {expOn() ? <Group name="Experiments" tag={state.preview ? "only in previews" : "shown on this device"} note="Not settled yet; not shown in the released app.">
-      <Line title="Design" sub="The Path is the redesign, still being made. Classic is the page as it was."><Words label="Design" items={[["path", "Path"], ["classic", "Classic"]]} cur={state.design} on={setDesign} /></Line>
       {voiceAvailable() ? <Line title="Voice features" sub={voiceNote()} sw={{ on: voiceOn(), toggle: () => setVoiceOn(!voiceOn()) }} /> : null}
       <Line title="The lab's settings" sub={labOwn() ? "this device's own" : "the defaults"} go={() => open("lab")} />
     </Group> : null}

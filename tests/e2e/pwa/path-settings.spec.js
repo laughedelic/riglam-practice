@@ -5,9 +5,7 @@ import { test as plain, expect as plainExpect } from "@playwright/test";
 import { test, expect } from "../../support/test.js";
 import { dataKey, serveCourse, withCourse } from "../../support/data-key.js";
 
-const onPath = () => { if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path"); };
 async function start(page) {
-  await page.addInitScript(onPath);
   await page.goto("/");
   await expect(page.locator("#path .chs .crow")).toHaveCount(5);
 }
@@ -53,7 +51,6 @@ withKey("Settings on the Path: the Magic Key has its own page, which says what i
 
 plain("without the key, the Magic Key page takes it in its own field, and Settings stays open; the top bar's chevron is the way back", async ({ page }) => {
   await serveCourse(page);
-  await page.addInitScript(onPath);
   await page.goto("/");
   await plainExpect(page.locator("#path .chs .crow")).toHaveCount(5);
   if (!(await page.locator(".road.on").count())) await page.locator(".tstn").click();   // without the key the roadmap may be up already

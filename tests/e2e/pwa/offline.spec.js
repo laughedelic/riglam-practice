@@ -13,11 +13,12 @@ test("after one visit the app starts without a network", async ({ page, context 
   await context.setOffline(true);
   await page.reload();
   await ready(page);
-  // the self-hosted faces are served from the cache (a face is "loaded" only after its file was fetched)
+  // the self-hosted face the page is set in is served from the cache (a face is "loaded" only after its file was fetched)
   const loaded = await page.evaluate(async () => {
     await document.fonts.ready;
-    return ["Inter", "EB Garamond", "Merriweather"].map((f) => [...document.fonts].some((x) => x.family.replace(/"/g, "") === f && x.status === "loaded"));
+    const main = getComputedStyle(document.querySelector("#path .pa")).fontFamily.split(",")[0].trim().replace(/["']/g, "");
+    return [main, [...document.fonts].some((x) => x.family.replace(/"/g, "") === main && x.status === "loaded")];
   });
-  expect(loaded).toEqual([true, true, true]);
+  expect(loaded, `the face ${loaded[0]} must be loaded from the cache`).toEqual([loaded[0], true]);
   await context.setOffline(false);
 });

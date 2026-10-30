@@ -71,7 +71,7 @@ test("a newer version is found, offered, and started from the toast without clos
 });
 
 test("on the Path the toast is the Path's own notice: an ink block in mono under the top bar, its two answers as text buttons", async ({ page }) => {
-  await page.addInitScript(() => { if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path"); });
+  await page.addInitScript(() => {});
   const onPath = () => expect(page.locator("#path .chs .crow")).toHaveCount(5);
   await page.goto(origin + "/");
   await onPath();
@@ -103,7 +103,7 @@ test("on the Path the toast is the Path's own notice: an ink block in mono under
 });
 
 test("the Path's roadmap looks for a newer version each time it opens, says that it is looking, and offers a newer one at its foot", async ({ page }) => {
-  await page.addInitScript(() => { if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path"); });
+  await page.addInitScript(() => {});
   const onPath = () => expect(page.locator("#path .chs .crow")).toHaveCount(5);
   await page.goto(origin + "/");
   await onPath();

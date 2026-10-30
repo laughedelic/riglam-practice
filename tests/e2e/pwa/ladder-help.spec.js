@@ -5,7 +5,6 @@ import { test, expect } from "../../support/test.js";
 import { goTo, isPhone, ready, relOptions } from "../../support/page.js";
 
 const hook = () => { window.__riglamTest = (t) => { window.__t = t; }; };
-const onPath = () => { if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path"); };
 const ORDER = ["mi", "3ab", "3ba", "4", "con"];
 const fwd = (page) => page.locator("#stage .pbar .fwd");
 const pathChoices = (page) => page.locator("#path .chs .crow");
@@ -58,7 +57,6 @@ test("after five right plain pairs in a row, negating one side is offered on the
 
 test("on the Path the offer shows on the result too; Not now keeps negations off, and the next one needs another run", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" }); // six pairs in a row: the choice and the station are taken at once (the project's own option does not reach the page)
-  await page.addInitScript(onPath);
   await page.addInitScript(hook);
   await page.goto("/");
   await expect(pathChoices(page)).toHaveCount(5);
@@ -83,7 +81,6 @@ test("on the Path the offer shows on the result too; Not now keeps negations off
 /** Five right relations on the Path from a device at stage 1, or the `stages` given: the page is on the fifth result. */
 async function fiveRight(page, init = () => {}, stages = "1") {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.addInitScript(onPath);
   await page.addInitScript((s) => { if (localStorage.getItem("rd-stages") === null) localStorage.setItem("rd-stages", s); }, stages);
   await page.addInitScript(init);
   await page.addInitScript(hook);
@@ -168,7 +165,6 @@ test("on the Path five right relations at the highest stage bring the next stage
 
 test("on the Path the next stage comes with its first term, once the stage below has brought all of its own and fewer than three terms are not right yet, whatever their marks", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.addInitScript(onPath);
   await page.addInitScript(() => {
     localStorage.setItem("rd-stages", "0,1,2");
     const right = (first) => ({ box: 2, shows: 1, first, won: first }), settled = { box: 3, shows: 1 };
@@ -265,7 +261,6 @@ test("on the Path, a later upgrade says one line and folds what the stages are",
 /** The station of stage `n` coming in on a device that has seen one before (every term settled, so it is put on the page as the result would). */
 async function stationOf(page, n) {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.addInitScript(onPath);
   await page.addInitScript((s) => { localStorage.setItem("rd-stages", s); localStorage.setItem("rd-stage-run", JSON.stringify({ up: 0, down: 0, told: true })); }, Array.from({ length: n }, (_, i) => i).join());
   await page.addInitScript(hook);
   await page.goto("/");
@@ -320,7 +315,6 @@ test("on the Path, with Natural progression off, five right relations bring no s
 
 test("on the Path, Relations spells out the relations until its twentieth right answer, then Guided turns off with a line saying why, and the switch brings it back", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.addInitScript(onPath);
   await page.addInitScript(() => { if (localStorage.getItem("rd-ex-runs") === null) localStorage.setItem("rd-ex-runs", JSON.stringify({ practice: { run: 5, right: 19 } })); });
   await page.addInitScript(hook);
   await page.goto("/");

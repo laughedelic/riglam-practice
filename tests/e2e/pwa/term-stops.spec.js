@@ -6,7 +6,6 @@ import { isPhone, ready, relOptions } from "../../support/page.js";
 import { dataKey, serveCourse, withCourse } from "../../support/data-key.js";
 
 const hook = () => { window.__riglamTest = (t) => { window.__t = t; }; };
-const onPath = () => { if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path"); };
 // a device that has just come to stage 1 and met no term yet, three questions in: the next pull brings the stop of Form (over the met terms the support test gives)
 const fresh = () => { localStorage.setItem("rd-stages", "0,1"); localStorage.setItem("rd-terms", JSON.stringify({ n: 3, next: 3, terms: {} })); };
 /** A device that has settled every course term but `left`, with `met` at box 1, at every stage, and the next new term due: the stop of the first of `left`. */
@@ -19,7 +18,6 @@ const seed = (page, left, met = []) => page.addInitScript(([settled, left, met])
 /** Pulls the next screen, which is the stop that is due (`examples`: after the examples the stand-in server gives have been read). */
 async function toStop(page, examples = false) {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.addInitScript(onPath);
   await page.addInitScript(hook);
   await page.goto("/");
   await expect(page.locator("#path .chs .crow")).toHaveCount(5);
@@ -63,7 +61,6 @@ test("the classic page has no stops: the next question follows the result, and t
 
 test("on the Path the stop is a station of its own, with the term and where it sits, and Next leads on", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.addInitScript(onPath);
   await page.addInitScript(fresh);
   await page.addInitScript(hook);
   await page.goto("/");
@@ -124,7 +121,6 @@ test("on the Path the stop is a station of its own, with the term and where it s
 
 test("Reset progression on the Progression page asks first, then starts at stage 0 with no term met, on the device and in its progress document", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.addInitScript(onPath);
   await page.addInitScript(() => { if (localStorage.getItem("rd-negation") === null) { localStorage.setItem("rd-stages", "0,1,2,3"); localStorage.setItem("rd-negation", "one");
     localStorage.setItem("rd-stage-run", JSON.stringify({ up: 3, down: 0 })); localStorage.setItem("rd-ex-runs", JSON.stringify({ practice: { run: 5, right: 9 } }));
     localStorage.setItem("rd-guided", JSON.stringify({ practice: false })); } });
@@ -184,7 +180,6 @@ test("a division whose stop has come is named in the tree, and the ellipsis stay
 
 test("Settings > Languages decides which names the stop shows: Tibetan with its Wylie, Sanskrit in Devanagari with its transliteration, Chinese in both writings with pinyin", async ({ page }) => {
   await seed(page, ["form"]);
-  await page.addInitScript(onPath);
   await page.addInitScript(hook);
   await page.goto("/");
   await expect(page.locator("#path .chs .crow")).toHaveCount(5);

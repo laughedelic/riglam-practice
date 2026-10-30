@@ -1,6 +1,6 @@
 // The cover of the installed app (cover.html, drawn from the page's first paint): it stays until the app has left its "Loading." screen, but at least until its entrance is over, so that it
 // reads as a welcome and not as a flash. Then, when the app has opened on its roadmap, the cover flies its figure and its name into their places at the head of the roadmap while its ground
-// fades away (the zoom-out); when the app opened on an exercise instead, the cover just fades. The page marks the "Loading." screen with a status line in #stage (index.html's recovery panel
+// fades away (the zoom-out); when the app opened on an exercise instead, the cover just fades. The page marks the "Loading." screen with a status line in #path (index.html's recovery panel
 // reads the same), and the cover goes for the data's "could not be loaded" message, too: that one has its own text. The recovery panel and the other notices of the shell lie above the cover.
 const HOLD_MS = 2300; // counted from the cover's own start: its entrance is over by then, with a moment to look at it
 const FADE_MS = 400;
@@ -61,7 +61,7 @@ export function mountCover(): void {
   // A browser driven by a test has no one to welcome: the cover goes at once.
   const quick = navigator.webdriver === true || matchMedia("(prefers-reduced-motion: reduce)").matches;
   const loading = () => {
-    const s = document.querySelector("#stage .status");
+    const s = document.querySelector("#path .pstatus");
     return !!s && (s.textContent || "").startsWith("Loading.");
   };
   let going = false;
@@ -78,7 +78,7 @@ export function mountCover(): void {
     }, wait);
   };
   const watcher = new MutationObserver(go);
-  const stage = document.getElementById("stage");
-  if (stage) watcher.observe(stage, { childList: true, subtree: true, characterData: true });
+  const page = document.getElementById("path");
+  if (page) watcher.observe(page, { childList: true, subtree: true, characterData: true });
   go();
 }

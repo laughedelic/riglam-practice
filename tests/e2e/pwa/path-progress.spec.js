@@ -7,7 +7,7 @@ import { test, expect } from "../../support/test.js";
 
 const setup = () => {
   window.__riglamTest = (t) => { window.__t = t; };
-  if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path");
+
   if (localStorage.getItem("rd-stages") === null) localStorage.setItem("rd-stages", "0,1,2,3,4,5,6,7,8");     // below the ladder's last stage, where the ring shows its terms
 };
 const ring = (page) => page.locator("#path .ptb .pring");

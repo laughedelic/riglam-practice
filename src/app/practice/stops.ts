@@ -16,16 +16,15 @@ import { catStage } from "../../domain/stages.ts";
 const save = () => { if (state.intro) saveProgress(); };
 const ix = () => state as unknown as DataIndex;
 const now = () => new Date().toISOString();
-const onPath = () => state.design === "path";
 
 /** Once the term data is in: the record this device has, or a new one. */
 export function startStops() {
   if (!state.intro && state.DATA) state.intro = freshIntro();
 }
 /** The course terms of the stages on whose stop has not come yet: the draws leave out their categories, and the labels of a named term (matter). */
-export const unmetNow = (): Set<string> => (onPath() && state.intro && state.DATA ? unmet(ix(), state.intro, state.stages) : new Set());
+export const unmetNow = (): Set<string> => (state.intro && state.DATA ? unmet(ix(), state.intro, state.stages) : new Set());
 /** The terms met whose last answer is not right yet, at any stage: the new questions lean to them (a new term waits while too many are). */
-export const openNow = (): Set<string> => (onPath() && state.intro && state.DATA ? openTerms(ix(), state.intro, state.stages) : new Set());
+export const openNow = (): Set<string> => (state.intro && state.DATA ? openTerms(ix(), state.intro, state.stages) : new Set());
 /**
  * An answer was checked: each course term it used goes up a box when the learner was right about it, and back to the first when not, which brings
  * its stop back a few questions later. `misses` false: an exercise where a mistake is mostly about its form (Syllogisms, Find a pair) counts only right answers.
@@ -43,7 +42,7 @@ export const gradePair = (cats: (string | null | undefined)[], ok: boolean, labe
 export const askedTerm = (cat: string | null | undefined, word: string | null | undefined): string | null | undefined => (cat && state.DATA ? askedKey(ix(), cat, word) : cat);
 /** The stop that Next would take now (the one `takeStop` would put on the answer on screen), or null: for a station that says what comes after it. */
 export function dueStop(): Stop | null {
-  const u = state.ui; if (!onPath() || !state.intro || !state.DATA || !u || u.stop) return null;
+  const u = state.ui; if (!state.intro || !state.DATA || !u || u.stop) return null;
   return nextStop(ix(), state.intro, state.stages, state.pace);
 }
 /**
@@ -51,13 +50,13 @@ export function dueStop(): Stop | null {
  * stays on the stage, the stop due now, if any. Null off the station.
  */
 export function stopAfterStage(): Stop | null {
-  const up = state.ui && state.ui.up; if (!onPath() || !state.intro || !state.DATA || !up || !up.shown) return null;
+  const up = state.ui && state.ui.up; if (!state.intro || !state.DATA || !up || !up.shown) return null;
   const comes = !up.stayed && !state.stageRun.manual && !state.stages.includes(up.stage);
   return nextStop(ix(), comes ? stageUp(state.intro) : state.intro, comes ? [...state.stages, up.stage].sort((a: number, b: number) => a - b) : state.stages, state.pace);
 }
 /** Before the next question: the stop that is due, if any, goes on the answer on screen and counts as shown. Whether one did. */
 export function takeStop(): boolean {
-  const u = state.ui; if (!onPath() || !state.intro || !state.DATA || !u || u.stop) return false;
+  const u = state.ui; if (!state.intro || !state.DATA || !u || u.stop) return false;
   const s = nextStop(ix(), state.intro, state.stages, state.pace); if (!s) return false;
   state.intro = stopShown(state.intro, s.cat, now(), paceSpacing(state.pace)); save();
   u.stop = s; u.dterm = null; u.pop = null;

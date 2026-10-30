@@ -7,7 +7,6 @@ import { dataKey, KEY_STORE, serveCourse } from "../../support/data-key.js";
 import { readOpen } from "../../../scripts/lib/course-files.mjs";
 
 const onPath = () => {
-  if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path");
   window.__riglamTest = (t) => { window.__t = t; };
 };
 const choices = (page) => page.locator("#path .chs .crow");

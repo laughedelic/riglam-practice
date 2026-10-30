@@ -1,8 +1,9 @@
-// Helpers shared by the PWA specs. The page has one markup per layout: on a phone the relations are a list
-// (.rels .rel), on a wide screen a row of chips (.strip .chip); only one of them is visible.
+// Helpers shared by the PWA specs. The page is the Path (src/app/path): the choices of an exercise are the rows of `.chs` (`#path .chs .crow`), the roadmap
+// is a dialog over the exercise, and Review and Settings are pages of their own.
 import { expect } from "@playwright/test";
 
-export const relOptions = (page) => page.locator(".rels .rel, .strip .chip").filter({ visible: true });
+/** The choices of the exercise on screen (the five relations in Relations). */
+export const relOptions = (page) => page.locator("#path .chs .crow").filter({ visible: true });
 
 /** The Path's exercise is in its place: it slides in from the right when the roadmap lets go of it, so a spec that measures where things stand waits for this first. */
 export const exerciseAtRest = (page) => expect.poll(
@@ -10,30 +11,27 @@ export const exerciseAtRest = (page) => expect.poll(
   { message: "the exercise has come in over the roadmap" },
 ).toBe(0);
 
-/** The app has booted when the data is loaded and a pair is on screen: it opens on the exercise (Relations, or the one used last). */
+/** The app has booted when the data is loaded and a pair is on screen: the exercise (Relations, or the one used last) is drawn, under the roadmap when that is the first screen. */
 export async function ready(page) {
-  const pair = page.locator("#stage .head .pair");
-  await expect(pair).toBeVisible();
-  await expect(relOptions(page)).toHaveCount(5);
+  await expect(page.locator("#path .chs .crow")).toHaveCount(5);
 }
 
-/** Opens the menu if it is not showing: the drawer on a phone, the pinned panel on a wide screen. */
+/** The roadmap, the dialog over the exercise (the station in the top bar opens it). */
+export const roadmap = (page) => page.getByRole("dialog", { name: "Roadmap" });
+
+/** Opens the roadmap if it is not showing. */
 export async function openMenu(page) {
-  const menu = page.locator("#menu");
-  if (!(await menu.isVisible())) {
-    // Review has no menu button on a phone (the back arrow returns to the exercise)
-    if (!(await page.locator("#menubtn").isVisible())) await page.locator("#mback").click();
-    await page.locator("#menubtn").click();
-  }
-  await expect(menu).toBeVisible();
+  const road = roadmap(page);
+  if (!(await road.isVisible())) await page.locator(".tstn").click();
+  await expect(road).toBeVisible();
 }
 
-const SCREENS = { Relations: "practice", Pervasions: "debate", "Find a pair": "find", Syllogisms: "syllogism", Categories: "categories", Review: "review", Settings: "settings" };
-/** Goes to a screen as a learner would: from the menu. */
+/** Goes to a screen as a learner would: from the roadmap. */
 export async function goTo(page, name) {
-  if (await page.locator("#over").isVisible()) await page.keyboard.press("Escape");
   await openMenu(page);
-  await page.locator(`#menu :is(.mrow, .fbtn)[data-go="${SCREENS[name]}"]`).click();
+  const road = roadmap(page);
+  if (name === "Settings") await road.locator(".rfoot").getByRole("button", { name: "Settings" }).click();
+  else await road.getByRole("button", { name: new RegExp("^" + name) }).click();
 }
 
 /** Opens Settings (the Magic Key, the account, your data, the version) from the menu. */

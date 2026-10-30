@@ -254,7 +254,7 @@ export function lookClasses(look: Look, dark: boolean): string[] {
 }
 /**
  * Writes the look onto the Path's root: the colors of the ground in use and the sizes as custom properties, and the colors of the browser's
- * bar to match the ground (the classic page's own are kept, for the way back: restoreClassic). Returns the switches as classes.
+ * bar to match the ground. Returns the switches as classes.
  */
 export function applyLook(root: HTMLElement, look: Look): string[] {
   const dark = darkNow(look), fam = families(look), grain = look.grain ? grainURL(look.grainLevel) : "none";
@@ -265,20 +265,10 @@ export function applyLook(root: HTMLElement, look: Look): string[] {
   for (const [k, v] of Object.entries(vars)) root.style.setProperty(k, v);
   const html = document.documentElement;
   html.style.setProperty("--path-paper", vars["--paper"]);
-  // the Path's palette and face for the dialogs the classic page opens over it (outside #path, so the root's variables do not reach them; 39-path-bridge.css)
+  // the Path's palette and face for the dialogs the page opens over it (outside #path, so the root's variables do not reach them; 39-path-bridge.css)
   for (const [k, v] of Object.entries(palette(look, dark))) html.style.setProperty("--pa-" + k.slice(2), v);
   html.style.setProperty("--pa-f", fam.main);
   html.style.colorScheme = dark ? "dark" : "light";
-  for (const m of document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')) {
-    if (m.dataset.classic === undefined) m.dataset.classic = m.content;
-    m.content = vars["--paper"];
-  }
+  for (const m of document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')) m.content = vars["--paper"];
   return lookClasses(look, dark);
-}
-/** Back to the classic page: the browser's bar in its colors again, and no Path ground under it. */
-export function restoreClassic(): void {
-  const html = document.documentElement;
-  html.style.removeProperty("--path-paper"); html.style.colorScheme = "";
-  for (const n of Array.from(html.style)) if (n.startsWith("--pa-")) html.style.removeProperty(n);
-  for (const m of document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')) if (m.dataset.classic !== undefined) { m.content = m.dataset.classic; delete m.dataset.classic; }
 }

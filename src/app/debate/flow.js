@@ -2,7 +2,6 @@ import { state } from "../state.js";
 import { afterCheck } from "../ai/known.js";
 import { $ } from "../core/dom.js";
 import { CELLS } from "../core/rel.js";
-import { isWide } from "../core/viewport.js";
 import { QCELL } from "./text.js";
 import { persist } from "../practice/answers.js";
 import { freshUi } from "../practice/queue.js";
@@ -23,8 +22,8 @@ export function freshDebateUi(){
 export const debateList=()=>Object.values(state.debates).sort((x,y)=>(x.at||"").localeCompare(y.at||""));
 export function advanceDebate(){ state.cur={p:nextGenerated(debateList(),true), debate:true}; state.ui=freshDebateUi(); state.mode="quiz"; startQ(); }     // the negation track (Practice options) applies here as in Relations
 export const limitMs=()=>state.blitz?state.timerMs:0;
-/** The clock stands still while something covers the exercise: Settings, the practice options, the question before a skip, the menu on a phone. It starts again, with its full time, when that closes. */
-export const paused=()=>state.optsOpen||state.sessOpen||state.skipAsk||(state.menuOpen&&!isWide());
+/** The clock stands still while something covers the exercise: Settings, the practice options, the question before a skip, the roadmap. It starts again, with its full time, when that closes. */
+export const paused=()=>state.optsOpen||state.sessOpen||state.skipAsk||state.menuOpen;
 export function stopTimer(){ if(state.ui&&state.ui.tid){ clearTimeout(state.ui.tid); state.ui.tid=null; } if(state.ui) state.ui.tq=null; }
 // `spent`: the time of the question already gone (a countdown that goes on after a stop)
 export function startQ(spent=0){

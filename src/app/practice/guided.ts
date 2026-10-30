@@ -19,9 +19,9 @@ export const GUIDES: Record<string, { name: string; on: string; off: string }> =
 export const guided = (ex: string): boolean => guidedOn(state.guided[ex]);
 /** The learner's switch: it stays as set. */
 export function setGuided(ex: string, on: boolean) { state.guided = { ...state.guided, [ex]: on }; saveProgress(); render(); }
-/** A checked answer in `ex` (practice/stage-offer.ts, stageStep, which saves): the guided form turns off by itself once the exercise has its right answers, on the Path. */
+/** A checked answer in `ex` (practice/stage-offer.ts, stageStep, which saves): the guided form turns off by itself once the exercise has its right answers. */
 export function guideStep(ex: string) {
-  if (state.design !== "path" || !GUIDES[ex] || !guideTurnsOff(state.guided[ex], state.exRuns[ex])) return;
+  if (!GUIDES[ex] || !guideTurnsOff(state.guided[ex], state.exRuns[ex])) return;
   state.guided = { ...state.guided, [ex]: false };
   if (state.ui) state.ui.guideOff = ex;
 }

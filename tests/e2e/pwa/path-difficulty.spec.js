@@ -13,7 +13,7 @@ const line = (page, name) => diff(page).locator(".ol").filter({ has: page.locato
 const exercise = (page) => page.locator("#path .chs .crow");
 const station = (page) => page.locator("#stn");
 const open = async (page, stagesOn) => {
-  await page.addInitScript((s) => { if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path"); localStorage.setItem("rd-stages", s); }, stagesOn);
+  await page.addInitScript((s) => {localStorage.setItem("rd-stages", s); }, stagesOn);
   await page.goto("/");
   await expect(exercise(page)).toHaveCount(5);
   await page.locator(".tstn").click();
@@ -61,7 +61,7 @@ test("at stage 9 depth is set in the Difficulty section: one layer puts stage 10
 test("on the Path the first layer of depth is offered on a result, not brought by a station, and taken with a tap", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => {
-    localStorage.setItem("rd-design", "path"); localStorage.setItem("rd-stages", "0,1,2,3,4,5,6,7,8,9");
+    localStorage.setItem("rd-stages", "0,1,2,3,4,5,6,7,8,9");
     localStorage.setItem("rd-stage-run", JSON.stringify({ up: 4.5, down: 0, told: true }));     // one more right answer, at any stage, completes the run
     window.__riglamTest = (t) => { window.__t = t; };
   });

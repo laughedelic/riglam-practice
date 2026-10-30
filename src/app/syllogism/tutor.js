@@ -1,12 +1,10 @@
 import { state } from "../state.js";
 import { $ } from "../core/dom.js";
 import { ERR_OFF, canAsk } from "../core/ask.js";
-import { isWide } from "../core/viewport.js";
 import { errCopy } from "../ai/tutor.js";
 import { persist } from "../practice/answers.js";
-import { fillTurn, revealTutor } from "../practice/screen.js";
-import { pathOn, refreshPath } from "../path/index.tsx";
-import { render, renderKeepFocus } from "../shell/render.js";
+import { refreshPath } from "../path/index.tsx";
+import { render } from "../shell/render.js";
 import { SYLLOGISM_ASK, syllogismBody, syllogismCard, syllogismCats } from "../../ai-shared/syllogism.ts";
 import { tutorTools } from "../../ai-shared/tools.ts";
 import { syllogismText } from "../../domain/syllogism.ts";
@@ -32,13 +30,11 @@ export async function askSyllogism(text,kind,byItself){
   if(!U.chat) U.chat=[{role:"user",content:(direct?syllogismCard(state,c,view):syllogismBody(state,c,view))+"\n\n"+body,hidden:true,asked:kind?undefined:text}];
   else U.chat.push({role:"user",content:body,hidden:!!kind});
   if(kind==="explain") U.explained=true;
-  if(isWide()&&U===state.ui) state.coachOpen=true;
   U.chat.push({role:"assistant",content:"",pending:true,kind});
-  const draw=byItself?renderKeepFocus:render;
-  U.chatErr=""; const ctl=U.ctl=new AbortController(); draw(); if(U===state.ui&&!byItself) revealTutor();
+  U.chatErr=""; const ctl=U.ctl=new AbortController(); render();
   const turns=U.chat.filter(t=>!t.pending).map(t=>({role:t.role,content:t.content}));
   const slot=U.chat[U.chat.length-1];
-  const onText=({text})=>{ slot.content=text; if(U===state.ui){ const o=$("ans-live"); if(o){ fillTurn(o,{kind,pending:true,content:text},!o.closest("#chatscroll")); const sc=$("chatscroll"); if(sc) sc.scrollTop=0; } else if(pathOn()) refreshPath(); } };   // the Path draws a result's Why itself (src/app/path)
+  const onText=({text})=>{ slot.content=text; if(U===state.ui) refreshPath(); };
   const opts={signal:ctl.signal,modelTier:TIER,cache:false,onText};
   if(state.DATA) opts.tools=tutorTools(state);
   try{
@@ -57,5 +53,5 @@ export async function askSyllogism(text,kind,byItself){
     if(e&&ERR_OFF.includes(e.code)){ state.sample=null; state.tutor=null; }
   }
   U.ctl=null;
-  if(U===state.ui){ draw(); if(byItself) return; if(kind==="explain") revealTutor(); const i=$("ask-in"); if(i&&!("ontouchstart" in window)) i.focus(); }
+  if(U===state.ui){ render(); if(byItself) return; const i=$("ask-in"); if(i&&!("ontouchstart" in window)) i.focus(); }
 }

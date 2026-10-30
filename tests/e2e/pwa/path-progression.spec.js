@@ -8,7 +8,7 @@ import { withCourse } from "../../support/data-key.js";
 
 // stage 2 of 9: Form met and not answered yet, Color right; the other new terms of stages 1 and 2 still to come
 const seed = () => {
-  if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path");
+
   localStorage.setItem("rd-stages", "0,1,2");
   localStorage.setItem("rd-terms", JSON.stringify({ n: 9, next: 99, terms: { form: { box: 1, shows: 1, at: 1 }, col: { box: 3, shows: 1, at: 1, first: 2, won: 4 } } }));
 };

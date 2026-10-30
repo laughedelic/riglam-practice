@@ -1,23 +1,20 @@
 import { state } from "../state.js";
 import { $, el } from "../core/dom.js";
 import { ORDER, REL } from "../core/rel.js";
-import { isWide } from "../core/viewport.js";
 import { chooseD, holdClock, releaseClock, sayQ, submitWhy } from "../debate/flow.js";
 import { Wd, termSing } from "../debate/text.js";
 import { check } from "../practice/grading.js";
 import { choose, fillable } from "../practice/screen.js";
 import { NOT } from "../../ai-shared/debate.ts";
 import { plainWords, spokenConfirm, spokenDirection, spokenDontKnow, spokenExample, spokenRelation, spokenReply } from "../../domain/spoken.ts";
-import { canHear, canSpeak, listen, onVoices, speak, stopSpeaking, voiceList } from "../../ui/speech";
+import { canHear, canSpeak, listen, onVoices, speak, stopSpeaking } from "../../ui/speech";
 import { CELL_FULL, render } from "./render.js";
-import { segOf, settingRow, switchOf } from "./rows.js";
-import { renderBar } from "./topbar.js";
-import { tbIcon } from "../core/icons.js";
+import { refreshPath } from "../path/index.tsx";
 import { keepOwn } from "../practice/per-exercise.ts";
 
 /* ---------- voice: the questions read aloud, answers by voice ---------- */
 // One switch in Settings (the Voice row, on trial: the kill switch), and the choices in the Practice options of Relations and Pervasions, each on its own:
-// Read aloud says each question when it appears; Answer by voice puts a microphone in the middle of the pair bar at the foot of the exercise
+// Read aloud says each question when it appears; Answer by voice puts a microphone in the top bar of the exercise
 // (tap it, or press V), or listens by itself after each question (Hands-free). A switch in the top bar, next to Blitz, pauses and resumes the reading
 // for this visit. Both use the browser's own speech (src/ui/speech.ts). What was heard goes through the same steps as a tap or a typed answer
 // (sayQ, choose, the cell's text), so the saved answers look as they always did; nothing of the voice is stored.
@@ -38,7 +35,7 @@ const CELL_ASK={both:(A,B)=>"Name something that is both "+A+" and "+B+".",anb:(
   bna:(A,B)=>"Name something that is "+B+", but not "+A+".",nei:(A,B)=>"Name something that is neither "+A+" nor "+B+"."};
 export function asked(){
   const u=state.ui, p=state.cur&&state.cur.p;
-  if(state.mode!=="quiz"||!u||!p||u.checked||state.optsOpen||state.sessOpen||state.skipAsk||(state.menuOpen&&!isWide())||state.view) return null;
+  if(state.mode!=="quiz"||!u||!p||u.checked||state.optsOpen||state.sessOpen||state.skipAsk||state.menuOpen||state.view) return null;
   const id=p.id||p.a+"|"+p.b;
   if(u.debate){
     if(state.tab!=="debate") return null;
@@ -47,7 +44,7 @@ export function asked(){
     return u.rel?null:{key:id+"/rel",kind:"relation",say:"Which relation do your answers give?"};
   }
   if(state.tab!=="practice") return null;
-  if(!u.rel||(u.open&&!isWide())) return {key:id+"/rel",kind:"relation",say:pairLine(p)+"What is the relation?"};
+  if(!u.rel||u.open) return {key:id+"/rel",kind:"relation",say:pairLine(p)+"What is the relation?"};
   const order=fillable(), c=order[Math.max(0,Math.min(u.ci||0,order.length-1))];
   return {key:id+"/c/"+c,kind:"cell",cell:c,say:CELL_ASK[c](termSing("A"),termSing("B"))};
 }
@@ -80,7 +77,7 @@ function letGo(how){
 // the reading of a question ends or is cut off: the time of the question starts now
 function endReading(){
   if(!state.voice.rhold) return;
-  letGo("fresh"); renderBar();
+  letGo("fresh"); refreshPath();
 }
 
 // Called at the end of every render (shell/render.js).
@@ -188,7 +185,7 @@ function take(a,alts){
   if(a.kind==="relation"){
     const t=terms(), order=/** @type {import("../../ai-shared/relations.ts").RelKey[]} */(ORDER);
     const k=(v.ask3&&spokenDirection(alts,t))||spokenRelation(alts,order,t);
-    if(k==="3"){ if(v.pend){ dropPend(); letGo("resume"); renderBar(); } v.ask3=true; return again(a,alts[0],"Three possibilities: which is inside the other, "+t.a+" or "+t.b+"?",true); }
+    if(k==="3"){ if(v.pend){ dropPend(); letGo("resume"); refreshPath(); } v.ask3=true; return again(a,alts[0],"Three possibilities: which is inside the other, "+t.a+" or "+t.b+"?",true); }
     if(!k) return again(a,alts[0],v.ask3?"Say which is inside the other, "+t.a+" or "+t.b+".":"Say the relation, such as “four possibilities”, or what is written under it.");
     v.ask3=false;
     return offer(a,alts[0],REL[k].name,()=>{ if(state.ui.debate) chooseD(k); else choose(k,true); });
@@ -245,13 +242,13 @@ function confirm(){
 function change(){
   const v=state.voice, a=asked();
   if(!v.pend) return;
-  dropPend(); quiet(); letGo("resume"); renderBar();
+  dropPend(); quiet(); letGo("resume"); refreshPath();
   v.note=""; v.bad=false;
   if(a&&hearing()) hear(a); else paint();
 }
 
-/* ---------- the microphone in the pair bar, and under the answer controls what was heard ---------- */
-// The microphone is the middle button of the pair bar (shell/pbar.js): a plain icon, lit and pulsing while it listens. What it would take is in its tooltip.
+/* ---------- the microphone in the top bar, and under the answer controls what was heard ---------- */
+// The microphone is a button of the Path's top bar (path/shell.tsx): a plain icon, lit and pulsing while it listens. What it would take is in its tooltip.
 // Under the answer controls of a screen that asks something is the voice bar, which has something in it only while there is something to say: what is
 // heard as it is said, a miss, an answer that waits for Confirm, or, when the first question was held back or the browser wants a tap, the way to hear it.
 const HINT={reply:()=>"Say “"+Wd().acc+"” or “"+Wd().why+"”. After “"+Wd().why+"”, the counter-example.",example:()=>"Say the counter-example.",
@@ -288,14 +285,6 @@ export function voiceBar(){
 }
 /** The Path draws its own microphone (in its top bar) where this says so: the screen asks something and Answer by voice is on. */
 export const micShown=()=>!!asked()&&hearing();
-/** The microphone for the pair bar, or null where the screen asks nothing or Answer by voice is off. */
-export function micButton(){
-  const a=asked();
-  if(!a||!hearing()) return null;
-  const b=el("button",{type:"button",class:"btn ghost vmic",id:"vmic",onclick:toggleListen},tbIcon("mic"));
-  micState(b,a);
-  return b;
-}
 function micState(b,a){
   const on=state.voice.phase==="listening";
   b.classList.toggle("on",on); b.setAttribute("aria-pressed",on?"true":"false");
@@ -339,13 +328,6 @@ document.addEventListener("visibilitychange",()=>{ if(document.hidden&&enabled()
 // only (Read aloud itself is kept in the Practice options). Pausing cuts off what is being read; resuming reads the question on the screen.
 /** The Read aloud switch of the top bar is there: Voice is on, Read aloud is chosen and the device can speak, in Relations or Pervasions. */
 export const readShown=()=>enabled()&&state.voice.read&&canSpeak()&&state.mode==="quiz"&&(state.tab==="practice"||state.tab==="debate");
-export function syncReadBtn(){
-  const b=$("mrd"), ok=readShown();
-  b.hidden=!ok; if(!ok) return;
-  const on=!state.voice.muted;
-  b.replaceChildren(tbIcon(on?"speak":"speakoff"));
-  b.setAttribute("aria-checked",on?"true":"false"); b.setAttribute("aria-label","Read aloud"); b.title=on?"Reading aloud: tap to pause":"Reading is paused: tap to read aloud";
-}
 export function toggleReadAloud(){
   const v=state.voice, speaking=v.phase==="speaking";
   v.muted=!v.muted;
@@ -357,7 +339,7 @@ export function toggleReadAloud(){
   else if(v.muted&&speaking&&handsFree()) hear(a);      // the reading was only the way to the answer
 }
 
-/* ---------- the Voice row of Settings, and the choices in the Practice options ---------- */
+/* ---------- the Voice row of Settings, and the choices in the Practice options (drawn by the Path: path/settings.tsx, path/options.tsx) ---------- */
 export const SAMPLE="Do you accept that if it is a product, it follows it is a functional thing?";
 export const RATES=[[0.85,"Slow"],[1,"Normal"],[1.25,"Fast"]];
 const KEYS={read:"rd-voice-read",answer:"rd-voice-answer",confirm:"rd-voice-confirm",voiceId:"rd-voice-name",rate:"rd-voice-rate"};
@@ -377,14 +359,6 @@ export function setOn(on){
   if(!on){ quiet(); dropPend(); letGo("moved"); v.key=""; v.muted=false; }
   render();
 }
-/** The Voice row of Settings: the one switch, marked as experimental. Everything else about voice is in the Practice options. */
-export function voiceRow(){
-  if(!canSpeak()&&!canHear()) return null;
-  const on=enabled();
-  return el("div",{class:"orow"},
-    el("div",{class:"vsw"},switchOf("Voice",on?"on":"off",on,()=>setOn(!on)),el("span",{class:"xchip",text:"Experimental"})),
-    el("p",{class:"onote",text:voiceNote()}));
-}
 /** What the Voice switch of Settings does (the Path draws the same row). */
 export const voiceNote=()=>"Reads the questions aloud and lets you answer by voice, with your browser\u2019s own speech. "+(canHear()?"In Chrome, what you say is sent to Google to be turned into text. ":"")+"Once it is on, its choices are in the Practice options of Relations and Pervasions.";
 /** Whether this browser has any speech, so that Settings has a Voice row; and whether Voice is on. */
@@ -397,28 +371,13 @@ export function voiceGroups(list){
   const first=g=>g.accent==="American"?0:g.accent==="British"?1:2;
   return groups.sort((x,y)=>first(x)-first(y));
 }
-function voiceOptions(list,cur){
-  return voiceGroups(list).map(g=>el("optgroup",{label:g.accent},g.voices.map(x=>el("option",{value:x.id,text:x.name+" · "+x.lang+(x.local?"":" · online"),selected:x.id===cur}))));
-}
-export const ANSWERS=[["off","Off"],["tap","Tap the mic"],["auto","Hands-free"]];
 // where what is said goes: the browser's recognizer is not the app's
 export const WHERE="In Chrome, what you say is sent to Google to be turned into text (other browsers use their own service). The app records nothing.";
 /** Whether the Practice options have a Voice section: Voice is on, the browser has some speech, and the exercise is one that reads and listens. */
 export const voiceShown=()=>enabled()&&(canSpeak()||canHear())&&(state.tab==="practice"||state.tab==="debate");
-/** The key choices, for the list of the Practice options: Read aloud, and Answer by voice with its details page. `sw`, `card` and `chips` are the list's own rows. */
-export function voiceListRows(sw,card,chips){
-  const v=state.voice;
-  hookVoices();
-  return [
-    canSpeak()?sw("Read aloud","each question",v.read,()=>setVoice("read",!v.read)):null,
-    canHear()?card("Answer by voice",chips("Answer by voice",ANSWERS,v.answer,k=>setVoice("answer",k)),"voice")
-      :card("Voice",el("small",{class:"sum1",text:"Voice and speed"}),"voice"),
-    canHear()?el("p",{class:"onote",text:WHERE}):null];
-}
 /** The Voice page draws again when the device's voices arrive (they come late in some browsers). */
 export function hookVoices(){ const v=state.voice; if(!v.hooked){ v.hooked=true; onVoices(()=>{ if(state.sessOpen&&state.sessPage==="voice") render(); }); } }
-/** The Voice page of the Practice options: the voice and its speed, how an answer is taken and what each choice means. `picks` is the page's own list of choices. */
-// the Voice page's words, shared with the Path's own page
+// the Voice page's words
 export const VOICE_LEAD="Read aloud says each question when it appears, and Answer by voice puts a microphone in the middle of the bar at the foot of the exercise. Both use your device\u2019s own speech, so the voices, and how well it hears you, depend on the device and the browser.";
 export const READ_NOTE="The switch at the top of the exercise, next to Blitz, pauses and resumes it.";
 export const ANSWER_PICKS=[["off","Off","No microphone."],
@@ -428,26 +387,3 @@ export const CONFIRM_PICKS=[["tap","Wait for Confirm","Confirm with the button, 
   ["auto","Go on by itself","Goes on after 2 seconds in Blitz and 4 otherwise; Change stops it."]];
 export const VOICE_SAY="Say Accept or Why? (with the example), the relation by name or as it is written under the option, or an example; \u201cnothing\u201d leaves a cell empty. "+
   "The Blitz clock stops while a question is read and while an answer waits. Chrome sends the audio to Google to turn it into text; the app records nothing and keeps only the answer, as if typed.";
-export function voicePageBody(picks){
-  const v=state.voice, out=[el("p",{class:"capl",text:VOICE_LEAD})];
-  const grp=t=>el("p",{class:"grp",text:t});
-  if(canSpeak()){
-    const list=voiceList(), sel=el("select",{class:"vsel","aria-label":"Voice"},
-      el("option",{value:"",text:"Best on this device"+(list[0]?" ("+list[0].name+")":"")}),voiceOptions(list,v.voiceId));
-    sel.addEventListener("change",e=>setVoice("voiceId",/** @type {HTMLSelectElement} */(e.target).value));
-    out.push(
-      el("div",{class:"orow"},switchOf("Read aloud","each question",v.read,()=>setVoice("read",!v.read)),
-        el("p",{class:"onote",text:READ_NOTE})),
-      settingRow("Voice",el("div",{class:"vline"},sel,el("button",{type:"button",class:"btn ghost vtry",onclick:()=>speak(SAMPLE,{voice:v.voiceId,rate:v.rate}),text:"Try"})),
-        "This device\u2019s English voices, by accent."),
-      settingRow("Speed of reading",segOf("Speed of reading",RATES,v.rate,r=>setVoice("rate",r))));
-  }
-  if(canHear()){
-    out.push(grp("Answer by voice"),
-      picks("Answer by voice",ANSWER_PICKS,v.answer,k=>setVoice("answer",k)));
-    if(v.answer!=="off") out.push(grp("After an answer is heard"),
-      picks("After an answer is heard",CONFIRM_PICKS,v.confirm,k=>setVoice("confirm",k)));
-    out.push(el("p",{class:"capl",text:VOICE_SAY}));
-  }
-  return out;
-}

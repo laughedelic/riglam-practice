@@ -4,7 +4,6 @@ import { test, expect } from "../../support/test.js";
 import { exerciseAtRest } from "../../support/page.js";
 
 const onPath = () => {
-  if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path");
   window.__vib = []; navigator.vibrate = (v) => { window.__vib.push(v); return true; };
   // the page tells a finger from a mouse (state.hand: its knocks are for a finger); Playwright's mouse is made to read as a finger here, `window.__pointer = "mouse"` as a mouse again
   Object.defineProperty(PointerEvent.prototype, "pointerType", { get: () => window.__pointer || "touch", configurable: true });
@@ -134,7 +133,7 @@ test("with reduced motion, or the look's take set to lit, a choice is lit for a 
   await expect(page.locator("#path [data-fx]")).toHaveCount(0);
   await expect(page.locator("#cin")).toBeVisible();
   const lit = await context.newPage();
-  await lit.addInitScript(() => { localStorage.setItem("rd-design", "path"); localStorage.setItem("rd-look", JSON.stringify({ take: "lit" })); });
+  await lit.addInitScript(() => { localStorage.setItem("rd-look", JSON.stringify({ take: "lit" })); });
   await lit.goto("/");
   await expect(lit.locator("#path .chs .crow")).toHaveCount(5);
   await expect(lit.locator("#path .chs.slide")).toHaveCount(0);
