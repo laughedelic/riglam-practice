@@ -27,10 +27,15 @@ export interface CellVerdict {
  * example's most specific class in the term data (optional), and two small facts, whether the example is A and whether it is B,
  * each with its reason. The tutor writes no conclusion; the page draws it (`fitOf`) and writes the consequences (`factNote`).
  */
-export interface Side { answer: Answer; say: string }
+export interface Side {
+  answer: Answer;
+  say: string;
+  /** the tutor answered "open": the example's name does not say the quality this side is about, so the learner has to name it (the answer is then unsure) */
+  open?: boolean;
+}
 export interface FactLine { label: string; cell: CellId; example: string; cls: string; a: Side; b: Side }
 
-const FACT_RE = /^(both|a not b|b not a|neither|q[1-4])\s*:\s*(.+?)\s*(?:\|\s*class\s*:\s*([^|]*?)\s*)?\|\s*A\s+(yes|no|unsure)\s*:\s*(.*?)\s*\|\s*B\s+(yes|no|unsure)\s*:\s*(.*)$/i;
+const FACT_RE = /^(both|a not b|b not a|neither|q[1-4])\s*:\s*(.+?)\s*(?:\|\s*class\s*:\s*([^|]*?)\s*)?\|\s*A\s+(yes|no|unsure|open)\s*:\s*(.*?)\s*\|\s*B\s+(yes|no|unsure|open)\s*:\s*(.*)$/i;
 const bare = (ln: string) => ln.replace(/^[-•*\s]+/, "").replace(/\*\*/g, "").trim();
 const unquote = (s: string) => s.trim().replace(/^["“”']+|["“”']+$/g, "").trim();
 /** What a cell takes: in A, in B. */
@@ -41,7 +46,10 @@ export function parseFactLine(ln: string): FactLine | null {
   const m = bare(ln).match(FACT_RE);
   if (!m) return null;
   const key = m[1].toLowerCase();
-  const side = (answer: string, say: string): Side => ({ answer: answer.toLowerCase() as Answer, say: say.trim() });
+  const side = (answer: string, say: string): Side => {
+    const a = answer.toLowerCase();
+    return a === "open" ? { answer: "unsure", say: say.trim(), open: true } : { answer: a as Answer, say: say.trim() };
+  };
   return { label: /^q/.test(key) ? key.toUpperCase() : m[1], cell: NAME_CELL[key], example: unquote(m[2]), cls: (m[3] || "").trim(), a: side(m[4], m[5]), b: side(m[6], m[7]) };
 }
 
@@ -99,11 +107,12 @@ export interface NoteData { ix: DataIndex; p: PairLike; terms: Terms }
  * ("non-(wooden things)") the data's answer is the reverse of the category's. An answer of the tutor's that goes against what the data's steps
  * say of its own class ("External form", yet "no" to a form) is a line that contradicts itself: nothing says which of the two is the slip, so
  * the side is unsure (`clash`). A listed item whose name leaves a side's quality open ("a car" for black things) is unsure there, whatever the
- * tutor wrote, as the grading leaves it (vague.ts); `open` is what the note then asks for on that side.
+ * tutor wrote, as the grading leaves it (vague.ts); so is a side the tutor answers "open" for an example the data does not settle. `open` is what
+ * the note then asks for on that side.
  */
 export function placeFacts(f: FactLine, d?: NoteData): { cats: readonly [string | null, string | null]; cls: string; answers: readonly [Answer, Answer]; clash: readonly [boolean, boolean]; open: readonly [string, string] } {
   // a pair of the learner's own (Find a pair) is one the data cannot judge, so everything about its examples is the tutor's, even when both phenomena are categories
-  if (!d || d.p.own) return { cats: [null, null], cls: "", answers: [f.a.answer, f.b.answer], clash: [false, false], open: ["", ""] };
+  if (!d || d.p.own) return { cats: [null, null], cls: "", answers: [f.a.answer, f.b.answer], clash: [false, false], open: [f.a.open ? plain(f.a.say) || "its name does not say" : "", f.b.open ? plain(f.b.say) || "its name does not say" : ""] };
   const cats = pairCats(d.ix, d.p), neg = negSides(d.p);
   const named = cats[0] && cats[1] ? matchItem(d.ix, f.example, FEATURE.has(cats[0]) || FEATURE.has(cats[1])) : null;
   const vg = named && cats[0] && cats[1] ? vagueVerdict(d.ix, named, f.example, [cats[0], cats[1]], f.cell, d.p.neg) : null;
@@ -120,7 +129,9 @@ export function placeFacts(f: FactLine, d?: NoteData): { cats: readonly [string 
     return says && s.answer !== ((says === "yes") !== not ? "yes" : "no") ? { answer: "unsure", clash: true } : { answer: s.answer, clash: false };
   };
   const a = on(cats[0], f.a, neg[0]), b = on(cats[1], f.b, neg[1]);
-  return { cats, cls, answers: [a.answer, b.answer], clash: [a.clash, b.clash], open: ["", ""] };
+  // a side the tutor says the name leaves open asks the learner for the word, as a listed thing's does
+  const asks = (s: Side, r: { answer: Answer }) => (s.open && r.answer === "unsure" ? plain(s.say) || "its name does not say" : "");
+  return { cats, cls, answers: [a.answer, b.answer], clash: [a.clash, b.clash], open: [asks(f.a, a), asks(f.b, b)] };
 }
 
 /**

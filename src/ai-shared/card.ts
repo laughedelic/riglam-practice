@@ -3,7 +3,7 @@
 import { qPlain, QCELL } from "./debate";
 import { catFacts, termFacts } from "./facts";
 import type { Facts } from "./facts";
-import { categoryOf, classNames, matchItem, noteCats, pairCats } from "./lookup";
+import { categoryOf, classNames, leavesOpen, matchItem, noteCats, pairCats } from "./lookup";
 import type { DataIndex } from "./lookup";
 import { termNamed } from "./mentions";
 import { CELLS, REL, cellLabel, negSides, plainLabel, refOf } from "./relations";
@@ -56,6 +56,12 @@ export function finePoints(ix: DataIndex, catIds: readonly (string | null | unde
 const verdictOf=(ix: DataIndex, r: { v: string; vague?: readonly string[] }): string =>
   r.vague?.length?"open (the example's name does not say whether it is "+r.vague.map(c=>ix.CAT[c]?.phrases?.[0]??"one of the "+(ix.CAT[c]?.labels[0]??c)).join(" or whether it is ")+"; the page has asked the learner to name it)":r.v;
 
+/** The practice-list tag of an example the learner wrote: its name and type, and the qualities of the pair its name leaves open, whatever the page's verdict on the cell (a cell already marked wrong has none). */
+const listedAs=(ix: DataIndex, it: NonNullable<ReturnType<typeof matchItem>>, p: PairLike): string => {
+  const open=noteCats(ix,p).filter(c=>leavesOpen(it,c));
+  return " [in the practice list as: "+it.n+", type "+it.t+(open.length?"; its name leaves open whether it is "+open.map(c=>ix.CAT[c]?.phrases?.[0]??"one of the "+(ix.CAT[c]?.labels[0]??c)).join(" or whether it is "):"")+"]";
+};
+
 /** The fine points of the pair's two categories as the tail of the card; empty when there are none. */
 export function cardNotes(ix: DataIndex, p: PairLike): string {
   const notes=finePoints(ix,noteCats(ix,p));
@@ -89,7 +95,7 @@ export function cardBody(ix: DataIndex, p: PairLike, u: AnswerView): string {
       const said=a.say==="accept"?"ACCEPT"+(a.timeout?" (time ran out, which counts as accepting)":""):a.say==="why"?"WHY"+(a.text?" with the example "+JSON.stringify(a.text):" without an example"):"nothing (time ran out)";
       const it=a.text?matchItem(ix,a.text):null;
       return "- Q"+(i+1)+" ("+qPlain(i)+") counter-example cell: "+cellLabel(c,p)+"; learner said "+said+
-        (it?" [in the practice list as: "+it.n+", type "+it.t+"]":"")+"; reference "+refTxt(c)+"; page verdict "+verdictOf(ix,r);
+        (it?listedAs(ix,it,p):"")+"; reference "+refTxt(c)+"; page verdict "+verdictOf(ix,r);
     }).join("\n");
     mid=`${DEBATE_NOTE}
 A = ${JSON.stringify(p.a)}, B = ${JSON.stringify(p.b)}.
@@ -103,7 +109,7 @@ ${lines}`;
       const none=rel.empty.includes(c)||u.cells[c].none, t=u.cells[c].t.trim(), r=u.res.cells[c];
       const it=t?matchItem(ix,t):null;
       return "- "+cellLabel(c,p)+": learner wrote "+(none?"NONE":(t?JSON.stringify(t):"(blank)"))+
-        (it?" [in the practice list as: "+it.n+", type "+it.t+"]":"")+
+        (it?listedAs(ix,it,p):"")+
         "; reference "+(own?"none, for you to decide":refTxt(c))+"; page verdict "+verdictOf(ix,r);
     }).join("\n");
     mid=`${FIND_NOTE}
@@ -117,7 +123,7 @@ ${lines}`;
       const none=REL[u.rel as RelKey].empty.includes(c)||u.cells[c].none, t=u.cells[c].t.trim(), r=u.res.cells[c];
       const it=t?matchItem(ix,t):null;
       return "- "+cellLabel(c,p)+": learner wrote "+(none?"NONE":(t?JSON.stringify(t):"(blank)"))+
-        (it?" [in the practice list as: "+it.n+", type "+it.t+"]":"")+
+        (it?listedAs(ix,it,p):"")+
         "; reference "+refTxt(c)+"; page verdict "+verdictOf(ix,r);
     }).join("\n");
     mid=`${negLine(p)}Correct relation: ${REL[p.relation].name}. Learner chose: ${u.late?"nothing (time ran out; the page then showed the right relation)":REL[u.rel as RelKey].name}.${u.exLate?" Time ran out on the examples: cells the learner had not reached are blank.":""}
@@ -170,11 +176,11 @@ export function explainAsk(U: Pick<AnswerView, "debate" | "find" | "res"> & { ow
   const nm=(c: CellId)=>dbt?"Q"+(CELLS.indexOf(c)+1):CELL_NAME[c];
   // an example whose name leaves the cell's quality open ("a car" for black things) is settled by no one: the page asks the learner for the word
   const left=vague.length?`
-The examples in ${vague.map(nm).join(", ")} do not say the quality their cell is about (the card's page verdict "open"); the page has asked the learner to name it. On those lines answer unsure on that side and say which words would settle it.`:"";
+The examples in ${vague.map(nm).join(", ")} do not say the quality their cell is about (the card's page verdict "open"); the page has asked the learner to name it. On those lines answer open on that side and say which words would settle it.`:"";
   if(!open.length) return base+left;
   return base+left+`
 The page could not check the examples in: ${open.map(nm).join(", ")}. The page reads your "A" and "B" answers on those lines as the check, so make them exact: the example belongs in a cell when its answers are the cell's (Both: A yes, B yes; A not B: A yes, B no; B not A: A no, B yes; Neither: A no, B no; ${neg?`a non-existent such as the horn of a rabbit counts too, as no for a plain term and yes for a "non-" term`:"an existent thing, but in Neither a non-existent such as the horn of a rabbit counts too"}).`+(dbt?`
 Q1 is the Both cell, Q2 A not B, Q3 B not A, Q4 Neither.`:"")+`
 How to decide: read the example in its ordinary sense (a song is the sound of someone singing or playing; a stone is an ordinary stone at room temperature), but do not fill in a quality its name does not say (the color of "a car", what "a table" is made of). Place it under A or B first, then ${U.own?"check it against the relation you decided on, since the page has no reference for this pair":"use the correct relation above: it is computed and right, so if whatever is B is A, a B belongs in Both"}. Use classify_example or lookup_term when a classification is not obvious.
-Answer "unsure" only on a side where the sources disagree on how to classify the thing (see the fine points), where you cannot tell what the example names, or where the example's name does not say the quality that side is about (the color of "an apple", the shape of "a box", whether "a frying pan" is hot). Then that side's sentence names each reading, in a few words. A word that could also mean something else is not a reason for "unsure": decide on the ordinary reading and mention the other one briefly.`;
+Answer "open" on a side whose quality the example's name does not say (the color of "an apple", the shape of "a box", whether "a frying pan" is hot), and say which words would settle it. Answer "unsure" only on a side where the sources disagree on how to classify the thing (see the fine points) or where you cannot tell what the example names; then that side's sentence names each reading, in a few words. A word that could also mean something else is not a reason for "unsure": decide on the ordinary reading and mention the other one briefly.`;
 }

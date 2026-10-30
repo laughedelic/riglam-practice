@@ -129,6 +129,11 @@ test("category facts: a Dudra category carries its term's facts, an everyday one
   expect(catFacts(ix, "nope", "x")).toBeNull();
 });
 
+test("the card tells which qualities of the pair a listed example's name leaves open, also on a cell already marked wrong", () => {
+  const card = tutorCard(makeIndex(openData as unknown as DrillData), pair({ a: "black things", b: "minds", catA: "black", catB: "mind", relation: "mi" }), practice({ cells: { both: { t: "", none: true }, anb: { t: "a wooden chair" }, bna: { t: "a dragon" }, nei: { t: "" } }, res: noRes(["ok", "bad", "cmp", "ok"]) }));
+  expect(card).toContain("[in the practice list as: a wooden chair, type External form; its name leaves open whether it is black]");
+});
+
 test("the practice card names the cells, what the learner wrote, the reference and the page's verdict", () => {
   const card = tutorCard(ix, pair(), practice());
   expect(card.startsWith(GUIDE)).toBe(true);
@@ -344,22 +349,23 @@ test("the explain request is the plain one when the page checked every example, 
   expect(dbt.startsWith(DEBATE_ASK)).toBe(true);
   expect(dbt).toContain("The page could not check the examples in: Q2, Q3.");
   expect(dbt).toContain("Q1 is the Both cell, Q2 A not B, Q3 B not A, Q4 Neither.");
-  // the unsure rule on open examples includes a quality the example's name does not say, as the reason text says
-  expect(open).toContain('where the example\'s name does not say the quality that side is about (the color of "an apple", the shape of "a box", whether "a frying pan" is hot)');
+  // a quality the example's name does not say is open; unsure is for a classification the sources disagree on
+  expect(open).toContain('Answer "open" on a side whose quality the example\'s name does not say (the color of "an apple", the shape of "a box", whether "a frying pan" is hot)');
+  expect(open).toContain('Answer "unsure" only on a side where the sources disagree on how to classify the thing');
   expect(open).toContain('do not fill in a quality its name does not say (the color of "a car", what "a table" is made of)');
   expect(open).not.toContain("do not say the quality their cell is about");
-  // an example whose name leaves the cell's quality open is the page's: the card says so, and the tutor is told to answer unsure there, not to check it
+  // an example whose name leaves the cell's quality open is the page's: the card says so, and the tutor is told to answer open there, not to check it
   const left = explainAsk(practice({ res: { cells: { both: { v: "cmp", vague: ["col"] }, anb: { v: "ok" }, bna: { v: "ok" }, nei: { v: "ok" } } } }));
   expect(left).toContain("The examples in Both do not say the quality their cell is about");
-  expect(left).toContain("On those lines answer unsure on that side and say which words would settle it.");
+  expect(left).toContain("On those lines answer open on that side and say which words would settle it.");
   expect(left).not.toContain("The page could not check");
 });
 
 // The tutor states two facts about an example (is it A, is it B) and the reason for each; the page writes the consequences and draws
 // the conclusion (src/domain/verdict.ts), so the requests ask for the reason only.
 test("the explain requests ask for the two facts about an example and the reason for each, in one form, and for no conclusion", () => {
-  expect(FIRST_ASK).toContain('Both: "the example" | class: Taste source | A <yes, no or unsure>: it is ... | B <yes, no or unsure>: it is ...');
-  expect(DEBATE_ASK).toContain('Q2: "the example" | class: Taste source | A <yes, no or unsure>: it is ... | B <yes, no or unsure>: it is ...');
+  expect(FIRST_ASK).toContain('Both: "the example" | class: Taste source | A <yes, no, open or unsure>: it is ... | B <yes, no, open or unsure>: it is ...');
+  expect(DEBATE_ASK).toContain('Q2: "the example" | class: Taste source | A <yes, no, open or unsure>: it is ... | B <yes, no, open or unsure>: it is ...');
   for (const ask of [FIRST_ASK, DEBATE_ASK]) {
     expect(ask).toContain('the words after "because" in "Take the example: it follows it is (not) A, because ..."');
     expect(ask).toContain("write no conclusion, do not name the term again and do not add its definition");
@@ -375,7 +381,11 @@ test("the explain requests ask for the two facts about an example and the reason
     expect(ask).toContain("Start from the term and say what class it is in");
     expect(ask).toContain('do not write "only"');
     expect(ask).toContain("never answer against your own reason");
-    expect(ask).toContain('An example has to name the quality its side is about: a feature the example\'s name does not say, such as the color of "a car"');
+    expect(ask).toContain('otherwise the list settles it, so answer by the ordinary reading of the thing and never open');
+    expect(ask).toContain('a composite such as a table or a body');
+    if (!ask.startsWith("Explain this debate")) expect(ask).toContain('The example is the learner\'s, word for word, also when the page marked it wrong');
+    expect(ask).toContain('For any other example, answer open on a side whose quality the example\'s name does not say: a feature such as the color of "a car"');
+    expect(ask).toContain("Answer unsure only when the classification itself is in doubt");
     expect(ask).toContain("a thing is at room temperature unless its name says otherwise, or it is often heated in use");
     expect(ask).not.toContain("so it fits");
     expect(ask).not.toContain("=> yes");
@@ -384,7 +394,7 @@ test("the explain requests ask for the two facts about an example and the reason
   expect(DEBATE_ASK).toContain("for a wrong Accept or a timeout the reference counter-example in the card)");
   expect(DEBATE_ASK).not.toContain("or one you name");
   expect(DEBATE_ASK).toContain("or a timeout on a question whose reference is EMPTY (then accepting was right), write a plain line");
-  expect(FIRST_ASK).toContain("for a cell marked wrong without one, the reference example in the card");
+  expect(FIRST_ASK).toContain("Only for a cell marked wrong where the learner wrote nothing, take the reference example in the card");
   expect(FIRST_ASK).toContain("If there is no example at all (the learner wrote nothing or NONE and the card's reference is EMPTY), write a plain line");
   expect(GUIDE).toContain("everyday facts such as a thing's color, shape or material need no source and no remark");
   expect(GUIDE).toContain("call it the reference, never the card");
@@ -500,6 +510,11 @@ test("the pair-finding card says which relation was asked for, and for a pair th
   // a pair that does not have the relation asked for is told apart from it in the card
   expect(tutorCard(ix, pair({ relation: "mi" }), find())).toContain("Relation asked for: Mutually exclusive (Nothing is both). Correct relation of this pair: Mutually inclusive.");
   expect(tutorCard(ix, pair(), find({ rel: "3ab", exLate: true }))).toContain("Time ran out on the examples: cells the learner had not reached are blank.");
+});
+
+test("the card of a pair of the learner's own also tells which qualities a listed example's name leaves open", () => {
+  const card = tutorCard(makeIndex(openData as unknown as DrillData), own({ a: "black things", b: "Stuff", catA: "black" }), find({ rel: "4", cells: { both: { t: "" }, anb: { t: "a wooden chair" }, bna: { t: "" }, nei: { t: "" } }, res: noRes(["cmp", "cmp", "cmp", "cmp"]) }));
+  expect(card).toContain("[in the practice list as: a wooden chair, type External form; its name leaves open whether it is black]");
 });
 
 test("the card of the learner's own pair holds what the data says of each side, and leaves the relation and every example to the tutor", () => {
