@@ -382,6 +382,8 @@ test("the explain requests ask for the two facts about an example and the reason
     expect(ask).toContain('do not write "only"');
     expect(ask).toContain("never answer against your own reason");
     expect(ask).toContain('otherwise the list settles it, so answer by the ordinary reading of the thing and never open');
+    expect(ask).toContain('a composite such as a table or a body');
+    if (!ask.startsWith("Explain this debate")) expect(ask).toContain('The example is the learner\'s, word for word, also when the page marked it wrong');
     expect(ask).toContain('For any other example, answer open on a side whose quality the example\'s name does not say: a feature such as the color of "a car"');
     expect(ask).toContain("Answer unsure only when the classification itself is in doubt");
     expect(ask).toContain("a thing is at room temperature unless its name says otherwise, or it is often heated in use");
@@ -392,7 +394,7 @@ test("the explain requests ask for the two facts about an example and the reason
   expect(DEBATE_ASK).toContain("for a wrong Accept or a timeout the reference counter-example in the card)");
   expect(DEBATE_ASK).not.toContain("or one you name");
   expect(DEBATE_ASK).toContain("or a timeout on a question whose reference is EMPTY (then accepting was right), write a plain line");
-  expect(FIRST_ASK).toContain("for a cell marked wrong without one, the reference example in the card");
+  expect(FIRST_ASK).toContain("Only for a cell marked wrong where the learner wrote nothing, take the reference example in the card");
   expect(FIRST_ASK).toContain("If there is no example at all (the learner wrote nothing or NONE and the card's reference is EMPTY), write a plain line");
   expect(GUIDE).toContain("everyday facts such as a thing's color, shape or material need no source and no remark");
   expect(GUIDE).toContain("call it the reference, never the card");
