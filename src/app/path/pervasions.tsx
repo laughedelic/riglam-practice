@@ -18,7 +18,8 @@ import { gradeDebate } from "../../domain/grading.ts";
 import type { DataIndex } from "../../ai-shared/lookup.ts";
 import type { ScanPlan } from "./scan.tsx";
 import { refreshPath } from "./index.tsx";
-import { Choices, ErrLines, GuideNote, PairResult, PairStops, StageOffer, Thinking, TutorNote, Verdict, WhyRow, isa, pairOf, pickThen, u0 } from "./parts.tsx";
+import { Choices, ErrLines, GuideNote, PairResult, PairStops, StageOffer, TutorNote, Verdict, WhyRow, isa, pairOf, pickThen, u0 } from "./parts.tsx";
+import { WaitStop } from "./wait.tsx";
 import { leftOpen, relChoices } from "./relations.tsx";
 import { FlagBtn, FlagEditor, explainCase } from "./flags.tsx";
 import { Scroll } from "./scroll.tsx";
@@ -109,10 +110,10 @@ function RelationStep() {
 // A question whose example's name leaves the cell's quality open (src/domain/vague.ts) is not unchecked: the page has asked for the word, and no one checks it. The
 // result's line, which counts it among the unchecked ones, says it apart.
 const leftN = (r: { cells: Record<string, { vague?: readonly string[] }> }) => QCELL.filter((c) => r.cells[c].vague).length;
-function leftSub(sub: string, unc: number, n: number, ctl: boolean): string {
+function leftSub(sub: string, unc: number, n: number): string {
   if (!n) return sub;
   const head = sub.slice(0, sub.lastIndexOf(" · " + unc + " unchecked")), rest = unc - n;
-  return head + (rest ? " · " + rest + " unchecked" + (ctl ? ", Claude is on it" : "") : "") + " · " + leftOpen(n);
+  return head + (rest ? " · " + rest + " unchecked" : "") + " · " + leftOpen(n);
 }
 function QRow({ i }: { i: number }) {
   const u = u0(), p = pairOf(), r = u.res, c = QCELL[i] as CellId, rr = r.cells[c] as { v: string; msg: string[]; uns?: boolean; vague?: string[] }, a = u.ans![i] as Ans;
@@ -124,15 +125,15 @@ function QRow({ i }: { i: number }) {
     <div class="line1"><Said a={a} />{busy ? null : <Mark m={m} />}</div>
     {tnote ? <TutorNote c={c} text={tnote} where={"pq" + c} flag={<FlagBtn c={explainCase(tnote, c, "Q" + (i + 1), learnedThing(c))} where={"pop:" + c} />} /> : <p class="xnote">{note}</p>}
     <FlagEditor where={"pop:" + c} />
-    {busy ? <Thinking label="Claude is checking" /> : null}
   </St>;
 }
 /** The verdict of a result `r` as the result's node says it: its color, its word and the line beside it, and how many of the questions were unchecked. */
 function verdictOf(r: { cells: Record<string, { v: string }>; dec?: Record<string, boolean>; overall?: string; relOk?: boolean }): { v: "ok" | "no" | "pt"; word: string; sub: string; unc: number } {
   const u = u0(), decOk = QCELL.filter((c) => r.dec && r.dec[c]).length, unc = QCELL.filter((c) => r.cells[c].v === "cmp" || r.cells[c].v === "open").length;
-  const ov: string = r.overall || "", v = ov === "bad" ? "no" : ov === "part" ? "pt" : "ok";
-  const word = ov === "pend" ? "Right so far" : ({ ok: "Right", part: "Partly right", bad: "Not quite" } as Record<string, string>)[ov] || "Not quite";
-  const sub = (u.late ? "time ran out on the relation" : "the relation " + (r.relOk ? "right" : "wrong")) + " · questions " + decOk + "/4" + (unc ? " · " + unc + " unchecked" + (u.ctl ? ", Claude is on it" : "") : "");
+  // right so far, with answers unchecked: partly right's color until the check is in (that Claude is at work is said by the wait's stop, wait.tsx)
+  const ov: string = r.overall || "", v = ov === "bad" ? "no" : ov === "part" || ov === "pend" ? "pt" : "ok";
+  const word = ov === "pend" ? "Relation is right" : ({ ok: "Right", part: "Partly right", bad: "Not quite" } as Record<string, string>)[ov] || "Not quite";
+  const sub = (u.late ? "time ran out on the relation" : "the relation " + (r.relOk ? "right" : "wrong")) + " · questions " + decOk + "/4" + (unc ? " · " + unc + " unchecked" : "");
   return { v, word, sub, unc };
 }
 /** What the scan of the relation picked marks on its way (scan.tsx): the four answered questions and the relation, as the page's rows in their order, and the result's. Graded as the check will
@@ -150,7 +151,7 @@ function ResultStep() {
   return <>
     <Scroll>
       <PairResult mine={(u.rel || p.relation) as RelKey} ok={!!r.relOk} right={p.relation} none={u.late ? "no relation" : undefined} />
-      <Verdict v={v} word={word} sub={leftSub(sub, unc, leftN(r), !!u.ctl)} />
+      <Verdict v={v} word={word} sub={leftSub(sub, unc, leftN(r))} pend={r.overall === "pend"} />
       {imp ? <Sx cls="walked"><St d={<D cls={"sub " + (imp === u.rel ? "ok" : "no")} />} cls="sb exr implied"><span class="lab">from your answers</span><p class="xnote">{impTxt[0].toUpperCase() + impTxt.slice(1)}</p></St></Sx> : null}
       <Sx cls={QCELL.some((c) => r.cells[c].v === "bad") ? "nop" : "okp"}><Gap h={2} />{QCELL.map((_c, i) => <QRow i={i} />)}</Sx>
       <WhyRow unc={unc - leftN(r)} />
@@ -159,7 +160,8 @@ function ResultStep() {
       <ErrLines />
       <Sx cls="ptail" />
     </Scroll>
-    <Foot><Station name={nextName(nextFwd().label)} kind={nextKind()} act={() => next()} /></Foot>
+    <WaitStop />
+    <Foot><Station name={nextName(nextFwd().label)} kind={nextKind()} act={() => next()} wait={!!u.ctl} /></Foot>
   </>;
 }
 

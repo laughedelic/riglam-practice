@@ -1,0 +1,64 @@
+/* Claude at work, said once (path/wait.tsx; the Design Lab's "Waiting for Claude"). The wait is a stop of its own on the line just above the station: Claude's
+   diamond, the words of the wait shimmering, the seconds at the right end and Stop; the scroll area gives it 34 px, nothing at the top moves. The open examples
+   it checks wear a light running round their diamond's edge (34-path-line.css draws them hollow), the next station waits muted with its arrow at rest, and
+   Explain, when it is asked for, is a choice beside the line that slides onto it. */
+
+/* a diamond Claude is at work on: a light running round its edge */
+@property --wa{syntax:"<angle>"; inherits:false; initial-value:0deg}
+.pa .d.pthink::after{content:""; position:absolute; inset:0; padding:1.8px; background:conic-gradient(from var(--wa),transparent 0 55%,var(--tutor) 85%,transparent 100%);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0); -webkit-mask-composite:xor; mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0); animation:p-wedge 1.2s linear infinite}
+@keyframes p-wedge{to{--wa:360deg}}
+
+/* the words: the old ones fade out where they stand, over the new ones, then the new ones fade in; a light passes over them, as in the Claude app */
+.pa .think.cwait .cwv{position:relative; flex:1 1 0; min-width:0; overflow:hidden; white-space:nowrap}
+.pa .think.cwait .cwph{display:block; overflow:hidden; text-overflow:ellipsis; color:transparent; -webkit-background-clip:text; background-clip:text; background-size:300% 100%;
+  background-image:linear-gradient(90deg,var(--tutor) 0 40%,color-mix(in srgb,var(--tutor) 25%,var(--paper)) 50%,var(--tutor) 60% 100%); animation:p-wshim 2.2s linear infinite}
+.pa .think.cwait .cwph.old{position:absolute; left:0; top:0; right:0; animation:p-wout .3s ease-in both,p-wshim 2.2s linear infinite}
+.pa .think.cwait .cwph.new{animation:p-win .35s ease-out .3s both,p-wshim 2.2s linear infinite}
+.pa .think.cwait .cwprobe{position:absolute; left:0; top:0; visibility:hidden; white-space:nowrap}
+.pa .think.cwait .secs{flex:none}
+@keyframes p-wshim{from{background-position:100% 0} to{background-position:-50% 0}}
+@keyframes p-win{from{opacity:0}}
+@keyframes p-wout{to{opacity:0}}
+
+/* the stop over the station: the line runs through it; from Explain it comes down from where Explain was (.fly), else it opens */
+.pa .cwstop{flex:none; position:relative; z-index:6; height:0; overflow:hidden; background-color:var(--paper); transition:height .38s cubic-bezier(.2,.8,.3,1)}
+.pa .cwstop.on{height:34px}
+.pa .cwstop.fly{transition:none; overflow:visible}
+.pa .cwstop::before{content:""; position:absolute; top:0; bottom:0; left:calc(var(--m) - var(--lw) / 2); width:var(--lw); background:var(--ink); opacity:.72}
+.pa .cwstop .cwin{position:relative; display:grid; grid-template-columns:var(--m) minmax(0,1fr) auto; column-gap:10px; align-items:center; height:34px; padding-right:12px; background-color:var(--paper)}
+.pa .cwstop .cwin::before{content:""; position:absolute; top:0; bottom:0; left:calc(var(--m) - var(--lw) / 2); width:var(--lw); background:var(--ink); opacity:.72}
+.pa .cwstop .d{justify-self:end; margin-right:-5px}
+.pa .cwstop .think{margin:0 0 0 12px; min-width:0}
+
+/* the next station while Claude works: a pale diamond without grain, the arrow at rest and pale, the name gray; still a tap or a pull away */
+.pa .stn.cwait.cwait.cwait .go .mk .i{animation:none}
+.pa .stn.cwait.cwait .go{background-color:color-mix(in srgb,var(--station) 32%,var(--paper)); background-image:none}
+.pa .stn.cwait .go .mk{color:color-mix(in srgb,var(--paper) 88%,var(--station))}
+.pa .stn.cwait.cwait .gol b{color:var(--ink3)}
+.pa .stn.cwait .gol small{color:var(--tutor)}
+
+/* Explain as a choice: Claude's hollow diamond beside the line; a finger slides it left (--dx), taken it goes onto the line and fills */
+.pa .cwex .chs.slide .crow .mc{transform:translateX(calc(var(--cox) + var(--dx,0px))); transition:transform .4s cubic-bezier(.3,1.35,.5,1)}
+.pa .cwex .chs.slide .crow .ct{padding-left:calc(22px + var(--cox) + var(--dx,0px)); transition:padding-left .4s cubic-bezier(.3,1.35,.5,1)}
+.pa .cwex.drag .chs.slide .crow :is(.mc,.ct){transition:none}
+.pa .cwex.taken .chs.slide .crow .mc{transform:none}
+.pa .cwex.taken .chs.slide .crow .ct{padding-left:22px}
+.pa .cwex .crow b{color:var(--tutor)}
+.pa .cwex .crow .d{transition:background-color .2s .25s}
+.pa .cwex:not(.taken) .crow .d{background-color:var(--paper); box-shadow:inset 0 0 0 1.6px var(--tutor)}
+.pa .cwex.taken .crow .d{background-color:var(--tutor); box-shadow:none}
+
+/* the reminder under the explanation: italic, with a subtle dotted underline, apart from what follows it */
+.pa .pdisc{margin:12px 0 4px}
+.pa .pdisc .plnk.quiet{font-style:italic; text-decoration:underline dotted; text-decoration-thickness:1px; text-underline-offset:3px; text-decoration-color:var(--ink3)}
+
+/* who wrote the explanation, in the type of a hint, beside its name */
+.pa .wrow .ct span.hint{font-family:var(--mono); font-size:10.5px; font-style:normal; color:var(--ink3)}
+
+@media (prefers-reduced-motion:reduce){
+  .pa .d.pthink::after{animation:none; opacity:0}
+  .pa .think.cwait .cwph,.pa .think.cwait .cwph.new{animation:none; background:none; color:var(--tutor)}
+  .pa .think.cwait .cwph.old{display:none}
+  .pa .cwstop,.pa .cwex .chs.slide .crow :is(.mc,.ct){transition:none}
+}

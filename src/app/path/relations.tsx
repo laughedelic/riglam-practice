@@ -17,7 +17,8 @@ import type { GradeResult } from "../../domain/types.ts";
 import type { DataIndex } from "../../ai-shared/lookup.ts";
 import type { ScanPlan, Verdict3 } from "./scan.tsx";
 import { ExamplesStep, StripPair, examplesReady } from "./examples.tsx";
-import { CASE, Choices, ErrLines, GuideNote, PairResult, PairStops, StageOffer, Thinking, TutorNote, Verdict, WhyRow, isa, pairOf, pickThen, u0 } from "./parts.tsx";
+import { CASE, Choices, ErrLines, GuideNote, PairResult, PairStops, StageOffer, TutorNote, Verdict, WhyRow, isa, pairOf, pickThen, u0 } from "./parts.tsx";
+import { WaitStop } from "./wait.tsx";
 import { FlagBtn, FlagEditor, explainCase } from "./flags.tsx";
 import { Scroll } from "./scroll.tsx";
 import { nextKind, nextName } from "./next.ts";
@@ -76,13 +77,12 @@ export function Row({ c, rel }: { c: CellId; rel: RelKey }) {
   const tnote: string | undefined = (explainParts().cells as Record<string, string>)[c], key = (p.ex && p.ex[c]) || "";
   const ans = out ? <span class="ans2 nil">not asked by {u.find ? "the relation" : "your relation"}</span> : t ? <span class={"ans2" + (m === "no" ? " no" : "")}>{t}</span> : <span class="ans2 nil">{x.none ? "nothing exists" : "left empty"}</span>;
   const note = out ? <>you left this case out{key ? <>; for example <span class="fix">{key}</span></> : null}</>
-    : open ? <>unchecked: the list does not know it yet{key ? <>; the course's example: <span class="fix">{key}</span></> : null}</>
+    : open ? <><b>Unchecked.</b>{key ? <> Reference example: <span class="fix">{key}</span></> : null}</>
     : <><b>{cr.msg[0]}</b>{cr.msg[2] ? <i>{cr.msg[2]}</i> : null}{markNames(isa(cr.msg[1] || ""), p)}</>;
   return <St d={<D cls={"sub " + (busy ? "pthink" : m)} />} cls={"sb exr" + (tnote ? " tut" : "")}>
     <span class="lab">{CASE[c]}</span><div class="line1">{ans}{busy ? null : <Mark m={m} />}</div>
     {tnote ? <TutorNote c={c} text={tnote} where={"pc" + c} flag={<FlagBtn c={explainCase(tnote, c, CELL_NAME[c], learnedThing(c))} where={"pop:" + c} />} /> : <p class="xnote">{note}</p>}
     <FlagEditor where={"pop:" + c} />
-    {busy ? <Thinking label="Claude is checking" /> : null}
   </St>;
 }
 /** The rows of a result: the cases the relation asked for, and a case it left out that was wrongly filled. */
@@ -90,8 +90,8 @@ export const resultRows = (rel: RelKey) => CELLS.filter((c) => !REL[rel].empty.i
 export const isOpen = (c: CellId) => { const r = u0().res.cells[c]; return (r.v === "cmp" && !r.vague) || r.v === "open"; };
 /** The examples whose names leave their quality open, as the result's line says them; "" for none. */
 export const leftOpen = (n: number) => (n ? n + " left open by " + (n === 1 ? "its name" : "their names") : "");
-/** The line of a result that is right so far: what is still unchecked, and what the names leave open. */
-export const pendLine = (unc: number, left: number, ctl: boolean) => [unc ? unc + " unchecked" + (ctl ? " · Claude is on it" : "") : "", leftOpen(left)].filter(Boolean).join(" · ");
+/** The line of a result that is right so far: what is still unchecked, and what the names leave open (that Claude is at work is said by the wait's stop, wait.tsx). */
+export const pendLine = (unc: number, left: number) => [unc ? (unc === 1 ? "one example" : unc + " examples") + " unchecked" : "", leftOpen(left)].filter(Boolean).join(" · ");
 export const cases = (n: number) => (n === 1 ? "one case" : n + " cases");
 /** The offer of the next step of the negation track, once the pairs before it go well, or the line that says what the answer to it did. */
 function NegOffer() {
@@ -110,9 +110,10 @@ function verdictOf(r: Pick<GradeResult, "cells" | "overall">, rel: RelKey): { v:
   const u = u0(), cell = (c: CellId) => r.cells[c].v;
   const rows = CELLS.filter((c) => !REL[rel].empty.includes(c) || cell(c as CellId) === "bad") as CellId[];
   const unc = rows.filter((c) => (cell(c) === "cmp" && !r.cells[c].vague) || cell(c) === "open").length, left = rows.filter((c) => r.cells[c].vague).length, nbad = rows.filter((c) => cell(c) === "bad").length, nex = rows.filter((c) => !REL[rel].empty.includes(c)).length;
-  const ov: string = r.overall, v = ov === "bad" ? "no" : ov === "part" ? "pt" : "ok";
-  const word = ov === "pend" ? "Right so far" : ({ ok: "Right", part: "Partly right", bad: "Not quite" } as Record<string, string>)[ov] || "Not quite";
-  const sub = (ov === "pend" ? pendLine(unc, left, !!u.ctl) : ov === "ok" ? "your relation and " + (nex === 1 ? "one example" : nex + " examples")
+  // right so far, with examples unchecked: partly right's color until the check is in, and the word says what is settled
+  const ov: string = r.overall, v = ov === "bad" ? "no" : ov === "part" || ov === "pend" ? "pt" : "ok";
+  const word = ov === "pend" ? "Relation is right" : ({ ok: "Right", part: "Partly right", bad: "Not quite" } as Record<string, string>)[ov] || "Not quite";
+  const sub = (ov === "pend" ? pendLine(unc, left) : ov === "ok" ? "your relation and " + (nex === 1 ? "one example" : nex + " examples")
     : ov === "part" ? cases(nbad) + " to look at" : u.late ? "time ran out on the relation" + (nbad ? "; " + cases(nbad) + " to look at" : "") : "the relation" + (nbad ? " and " + cases(nbad) : "")) + (u.exLate ? " · time ran out on the examples" : "");
   return { v, word, sub, unc, nbad, rows };
 }
@@ -129,7 +130,7 @@ function ResultStep() {
   return <>
     <Scroll>
       <PairResult mine={rel} ok={!!r.relOk} right={p.relation} none={u.late ? "no relation" : undefined} />
-      <Verdict v={v} word={word} sub={vsub} />
+      <Verdict v={v} word={word} sub={vsub} pend={r.overall === "pend"} />
       <Sx cls={nbad ? "nop" : "okp"}><Gap h={2} />{rows.map((c) => <Row c={c} rel={rel} />)}</Sx>
       <WhyRow unc={unc} again={!!r.relOpen} />
       <StageOffer />
@@ -138,7 +139,8 @@ function ResultStep() {
       <ErrLines />
       <Sx cls="ptail" />
     </Scroll>
-    <Foot><Station name={nextName(nextFwd().label)} kind={nextKind()} act={() => next()} /></Foot>
+    <WaitStop />
+    <Foot><Station name={nextName(nextFwd().label)} kind={nextKind()} act={() => next()} wait={!!u.ctl} /></Foot>
   </>;
 }
 

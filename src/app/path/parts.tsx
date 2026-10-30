@@ -34,6 +34,7 @@ import { turnAside } from "./shell.tsx";
 import { Sub } from "./subjects.tsx";
 import { DefCard, OneTerm, TermText } from "./terms.tsx";
 import { D, Fig, Icon, Mark, St, Sx } from "./ui.tsx";
+import { ExplainChoice } from "./wait.tsx";
 
 export const u0 = () => state.ui!;
 export interface Pair { a: string; b: string; relation: RelKey; catA?: string | null; catB?: string | null; own?: boolean; neg?: Neg; ex?: Partial<Record<CellId, string>> }
@@ -147,10 +148,11 @@ export function pickThen(k: string, go: () => void, scan?: (act: () => void) => 
   refreshPath(); setTimeout(end, 420);
 }
 
-/** The verdict on the path: a large diamond with its mark, the word, and what it is about. */
-export function Verdict({ v, word, sub, children }: { v: "ok" | "no" | "pt"; word: string; sub?: string; children?: ComponentChildren }) {
+/** The verdict on the path: a large diamond with its mark, the word, and what it is about. `pend`: right so far, with examples unchecked: partly right's color
+ *  until the check is in (Design Lab, Waiting for Claude), with the check mark. */
+export function Verdict({ v, word, sub, pend = false, children }: { v: "ok" | "no" | "pt"; word: string; sub?: string; pend?: boolean; children?: ComponentChildren }) {
   return <Sx cls={({ ok: "okp", no: "nop", pt: "ptp" } as Record<string, string>)[v] + " vband"}>
-    <St d={<D cls={"big " + v} mark={v === "ok" ? "check" : v === "no" ? "cross" : "q"} />} cls={"pvline " + v}>{word}{sub ? <small class="vsub">{sub}</small> : null}</St>
+    <St d={<D cls={"big " + v} mark={v === "ok" || pend ? "check" : v === "no" ? "cross" : "q"} />} cls={"pvline " + v}>{word}{sub ? <small class="vsub">{sub}</small> : null}</St>
     {children}</Sx>;
 }
 /** What could not be saved or set aside, under the result. */
@@ -191,15 +193,6 @@ export function GuideNote() {
 }
 
 /* ---------- the tutor ---------- */
-/** The tutor at work: three dots, one after the other, and the seconds. */
-export function Thinking({ label }: { label: string }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  useEffect(() => {
-    const t0 = Date.now(), id = setInterval(() => { if (ref.current) ref.current.textContent = Math.floor((Date.now() - t0) / 1000) + "s"; }, 250);
-    return () => clearInterval(id);
-  }, []);
-  return <div class="think" role="status"><span class="tk"><i /></span><span class="tt">{label}</span><span class="secs" ref={ref}>0s</span></div>;
-}
 export const needsKey = () => !canAsk() && !!state.unlock && !!state.unlock.tutor;
 /** Asks the tutor to check the open examples and explain; without the Magic Key, its prompt first. */
 export function askTutor(open = true) {
@@ -258,29 +251,31 @@ function WhyText() {
 /** Opens the practice options on the Claude page, where it says what Claude is. */
 const aboutClaude = () => { if (!state.sessOpen) toggleSess(true); openPage("tutor"); };
 /**
- * The row of the tutor under a result: Explanation, and what it would do (`todo`, else check the `unc` open examples and explain, or explain). Open, the explanation,
- * Quorum's panel, and Stop, a follow-up, or (with `again`, a verdict still open after it) Ask again.
+ * The row of the tutor under a result. Not asked yet: Explain, a choice beside the line (wait.tsx; `offer` is what it says, else Check & explain with `unc` open
+ * examples, or Explain). While Claude works the wait is the stop over the station (wait.tsx), so the row comes in with the first words of the explanation (or
+ * at once, open, for Quorum's panel). Then Explanation, by Claude: open, the explanation, Quorum's panel, and a follow-up, or (with `again`, a verdict still
+ * open after it) Explain again.
  */
-export function WhyRow({ unc = 0, again = false, todo }: { unc?: number; again?: boolean; todo?: string }) {
+export function WhyRow({ unc = 0, again = false, offer }: { unc?: number; again?: boolean; offer?: string }) {
   const u = u0();
   if (!canAsk() && !u.chat && !u.chatErr && !needsKey()) return null;
   const open = !!u.pwhy, t = latestExplain(), writing = !!u.ctl, q = quorumItem();
-  const sub = writing ? "Claude is checking" : u.explained ? "by Claude" : needsKey() ? "needs the Magic Key" : todo || (unc ? "check the open " + (unc === 1 ? "example" : "examples") + " and explain" : "ask Claude to explain");
+  if (!u.explained && !writing && !u.chatErr) return <ExplainChoice name={offer || (unc ? "Check & explain" : "Explain")} />;
+  if (writing && !(t && t.content) && !(u.quorum && u.quorum.busy)) return null;
+  const sub = u.explained || writing ? "by Claude" : needsKey() ? "needs the Magic Key" : unc ? "check the open " + (unc === 1 ? "example" : "examples") + " and explain" : "ask Claude to explain";
   const act = () => { if (!u.explained && !u.ctl) { askTutor(); return; } u.pwhy = !u.pwhy; render(); };
-  return <Sx cls="walked">
+  return <>
+  <Sx cls="walked">
     <button type="button" class={"wrow" + (open ? " open" : "")} aria-expanded={open ? "true" : "false"} onClick={act}><D cls={"sub " + (writing ? "pthink" : "tut")} />
-      <span class="ct"><b>Explanation</b><span>{sub}</span></span><span class="arr"><Icon n="chev" /></span></button>
+      <span class="ct"><b>Explanation</b><span class={u.explained || writing ? "hint" : ""}>{sub}</span></span><span class="arr"><Icon n="chev" /></span></button>
     {open ? <div class="wtext">
-      {writing && !(t && t.content) ? <Thinking label="Claude is reading your answer" /> : null}
       <WhyText />
       {u.chatErr ? <p class="terr">{u.chatErr}</p> : null}
       {q ? <QuorumPanel /> : null}
-      <div class="tact">
-        {writing ? <button type="button" class="pbtn" onClick={() => u.ctl && u.ctl.abort()}>Stop</button> : null}
-        {!writing && canAsk() && u.explained ? <button type="button" class="pbtn" onClick={openChat}>Ask a follow-up</button> : null}
-        {!writing && canAsk() && u.explained && again ? <button type="button" class="pbtn" onClick={() => askTutor()}>Explain again</button> : null}
-      </div>
-      {t && t.content && !writing ? <p class="pnoteline"><button type="button" class="plnk quiet" onClick={aboutClaude}>Written by Claude, an AI. It can be wrong.</button></p> : null}
+      {!writing && canAsk() && u.explained && again ? <div class="tact"><button type="button" class="pbtn" onClick={() => askTutor()}>Explain again</button></div> : null}
+      {t && t.content && !writing ? <p class="pnoteline pdisc"><button type="button" class="plnk quiet" onClick={aboutClaude}>Written by Claude, an AI. It can be wrong.</button></p> : null}
     </div> : null}
-  </Sx>;
+  </Sx>
+  {open && !writing && canAsk() && u.explained ? <ExplainChoice name="Ask a follow-up" hint="Opens the chat with Claude" go={openChat} /> : null}
+  </>;
 }

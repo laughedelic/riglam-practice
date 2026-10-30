@@ -67,14 +67,8 @@
 .pa .rejoin path{fill:none; stroke:var(--tutor); stroke-width:2}
 .pa .pback{font-family:var(--mono); font-size:11px; color:var(--tutor); margin-top:8px; text-decoration:underline; text-underline-offset:3px}
 
-/* the tutor at work: three dots, one after the other, and the seconds */
+/* Claude at work: the words of the wait (path/wait.tsx, styles/47-path-wait.css), and the seconds */
 .pa .think{display:flex; align-items:center; gap:9px; margin-top:5px; font-family:var(--mono); font-size:11px; color:var(--tutor)}
-.pa .think .tk{width:22px; height:2px; position:relative; flex:none}
-.pa .think .tk i,.pa .think .tk::before,.pa .think .tk::after{content:""; position:absolute; top:-1.5px; width:5px; height:5px; border-radius:50%; background:var(--tutor); animation:p-dotfade 1.2s ease-in-out infinite}
-.pa .think .tk::before{left:0}
-.pa .think .tk::after{left:8.5px; animation-delay:.2s}
-.pa .think .tk i{left:17px; animation-delay:.4s}
-@keyframes p-dotfade{0%,100%{opacity:.2} 40%{opacity:1}}
 .pa .think .secs{color:var(--ink3)}
 .pa .tks{font-size:15px; line-height:1.4; color:var(--ink2)}
 .pa .tks em,.pa .tchk em{font-family:var(--hand-f); font-style:var(--hand-st); font-weight:var(--hand-w); color:var(--blue); font-size:16px}

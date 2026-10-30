@@ -27,7 +27,7 @@ test("the flag on the tutor's note can be tapped within a 40 by 40 pixel area", 
   }
   await page.locator("#stn").click();
   await expect(page.locator(".pvline")).toBeVisible();
-  await page.locator(".wrow").filter({ hasText: "Explanation" }).click();
+  await page.locator(".cwex .crow").click();   // Explain, a choice beside the line (path/wait.tsx)
   const flag = page.locator(".exr .tnote .pflg").first();
   await flag.evaluate((el) => el.scrollIntoView({ block: "center" })); // away from the bars at the edges, which would cover part of the area
   const box = await flag.boundingBox();
