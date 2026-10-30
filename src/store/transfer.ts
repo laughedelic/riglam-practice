@@ -25,6 +25,9 @@ export const PREFERENCE_KEYS = ["rd-notation", "rd-deflang", "rd-langs", "rd-ab"
 /** Kept on the device only, not carried by export and import: the exercise opened last and the pinned menu, which depend on this device and its screen, whether this device was asked if its examples may be kept (the one-time dialog has to be answered on each device), the runs towards an offer of the stages and each exercise's, and each exercise's guided form (which the progress document carries), when the offer of a negation step was last answered, how many pairs still lean to three possibilities after a stage was added, that the device has started with the stages, and the design this device shows with the look it was given (both on trial while the Path is built), and where the Path opens at a cold start ("exercise" keeps the exercise it was last in; without it the roadmap, src/app/app.js firstScreen; the browser tests set it). */
 export const DEVICE_KEYS = ["rd-ex", "rd-menu", "rd-share-told", "rd-stage-run", "rd-ex-runs", "rd-guided", "rd-neg-offer", "rd-stage-lean", "rd-ladder", "rd-design", "rd-look", "rd-start", "rd-attempt", "rd-exp"] as const;
 
+/** What an export carries and an import restores: the settings above, and the Sounds switch. */
+export const EXPORTED_KEYS = [...PREFERENCE_KEYS, "rd-sounds"] as const;
+
 /** Largest file accepted, in bytes; a person's history is a few hundred kilobytes. */
 export const MAX_FILE_BYTES = 40 * 1024 * 1024;
 const MAX_DOC_BYTES = 256 * 1024; // the limit of the stores (local-db.ts, the artifact runtime)
@@ -67,7 +70,7 @@ export async function exportData(db: Db, opts: { storage?: Storage | null; now?:
   }
   const preferences: Record<string, string> = {};
   const storage = storageOf(opts.storage);
-  for (const key of PREFERENCE_KEYS) {
+  for (const key of EXPORTED_KEYS) {
     try {
       const v = storage?.getItem(key);
       if (typeof v === "string") preferences[key] = v;
@@ -171,7 +174,7 @@ export async function planImport(db: Db, file: DataFile, opts: { storage?: Stora
   const ignored = Object.keys(file.collections).filter((n) => !(COLLECTIONS as readonly string[]).includes(n));
   const preferences: Record<string, string> = {};
   const storage = storageOf(opts.storage);
-  for (const key of PREFERENCE_KEYS) {
+  for (const key of EXPORTED_KEYS) {
     const v = file.preferences[key];
     if (typeof v !== "string") continue;
     try { if (storage && storage.getItem(key) === null) preferences[key] = v; } catch { /* blocked */ }

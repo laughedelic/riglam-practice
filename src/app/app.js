@@ -27,6 +27,7 @@ import "./shell/timers.js";
 import { voiceOn } from "../ui/speech";
 import { pathOn, refreshPath, startDesign } from "./path/index.tsx";
 import { startPerExercise } from "./practice/per-exercise.ts";
+import { armSounds } from "./sound/play.ts";
 
 /* ---------- boot ---------- */
 // The page knows its host only through the platform it is started with (src/platform/types.ts): the term data and the
@@ -38,6 +39,7 @@ export function startApp(platform){
   state.preview=!!platform.preview;
   startDesign(!!platform.preview);   // the Path (src/app/path) or the classic page: the device's choice, else the Path in a Preview
   startPerExercise();                // Blitz, the tutor and voice as the exercise on screen has them
+  armSounds();                       // the audio context for the sounds is made and woken by the first touch
   render();
   boot(platform);
   exposeTestHook();

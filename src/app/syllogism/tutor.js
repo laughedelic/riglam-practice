@@ -11,6 +11,7 @@ import { SYLLOGISM_ASK, syllogismBody, syllogismCard, syllogismCats } from "../.
 import { tutorTools } from "../../ai-shared/tools.ts";
 import { syllogismText } from "../../domain/syllogism.ts";
 import { topStage } from "../../domain/stages.ts";
+import { answered } from "../sound/play.ts";
 
 /* ---------- Syllogisms: the tutor's explanation and chat ---------- */
 // The same flow as ai/tutor.js `ask`, for a syllogism: the card (src/ai-shared/syllogism.ts) and the request to explain are built from the term data, the standing
@@ -49,6 +50,7 @@ export async function askSyllogism(text,kind,byItself){
     }else r=await state.tutor({kind:kind==="explain"?"explain":"chat",cats:syllogismCats(c),turns},{signal:ctl.signal,onText});
     slot.content=r.text+(r.truncated?"\n(Cut short.)":""); delete slot.pending;
     if(kind==="explain"&&U.doc){ U.doc.explain=String(r.text||"").slice(0,3000); persist(U,"Your answer"); }
+    if(U===state.ui) answered();                         // its sound (src/app/sound)
   }catch(e){
     if(e&&e.text){ slot.content=e.text; delete slot.pending; } else U.chat.pop();
     if(kind==="explain") U.explained=false;

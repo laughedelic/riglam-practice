@@ -15,6 +15,7 @@ import { render } from "../shell/render.js";
 import { setLang } from "../shell/session.js";
 import { LANGS, NAME_LANGS } from "../../domain/languages.ts";
 import { languagesOn } from "./terms.tsx";
+import { setSounds } from "../sound/play.ts";
 import { setOn as setVoiceOn, voiceAvailable, voiceNote, voiceOn } from "../shell/voice.js";
 import { DEFAULT_LOOK, currentLook, lookLine, pastedLook, setLook, storedLook } from "./look.ts";
 import { setDesign } from "./index.tsx";
@@ -170,6 +171,7 @@ function Sections() {
     <Group name="General">
       <Line title="Languages" sub={langsLine()} go={() => open("langs")} />
       <Line title="Theme"><Words label="Theme" items={[["system", "System"], ["light", "Light"], ["dark", "Dark"]]} cur={look.mode} on={(v) => { setLook({ mode: v === DEFAULT_LOOK.mode ? null : v }); render(); }} /></Line>
+      <Line title="Sounds" sub="A short sound for results, new terms and stages, and Claude's answers" sw={{ on: state.sounds, toggle: () => { setSounds(!state.sounds); render(); } }} />
     </Group>
     {keyShown() || acct || shareShown() || state.db ? <Group name="Data">
       {keyShown() ? <Line title="Magic Key" icon={state.keyHeld ? "unlocked" : "locked"} sub={state.keyHeld ? "entered on this device" : "not on this device yet"} go={() => open("key")} /> : null}

@@ -5,6 +5,7 @@
 // is shared by all of them: each Path draw keeps one Pull, on its root. A station that can be taken is pulled over a curb (below), and taking it plays the
 // ride of take.ts.
 import { state } from "../state.js";
+import { cue } from "../sound/play.ts";
 import { currentLook } from "./look.ts";
 import { clearPush, holdPush, playPush } from "./push.ts";
 import { playScan, type ScanPlan } from "./scan.tsx";
@@ -29,6 +30,8 @@ const touching = () => { if (state.hand) return state.hand === "touch"; try { re
 /** The hand's feel of crossing the reach: a bump, as of a curb under a wheel (one short knock, no buzz). */
 const bump = (ms = HIT) => { try { if (navigator.vibrate && touching()) navigator.vibrate(ms); } catch { /* no haptics */ } };
 export { bump };
+/** The sound of a station taken, for a mouse or the keyboard: a finger has the bump in the hand instead (`touching`). */
+const knock = () => { if (!touching()) cue("knock"); };
 
 /**
  * The curb a station is pulled over, as the lab has it. Under it the finger moves the station less and less, and at it the station sticks; once the finger has pressed on
@@ -111,7 +114,7 @@ export class Pull {
     if (curb) {
       const c = this.curb || (this.curb = curbNew()), ev = curbMove(c, raw);
       dy = c.y; past = c.over;
-      if (ev) { bump(ev === "over" ? HIT : 6); foldPage(this.root, c.over); this.follow(c.over); }
+      if (ev) { bump(ev === "over" ? HIT : 6); if (ev === "over") knock(); foldPage(this.root, c.over); this.follow(c.over); }
     } else {
       dy = path ? raw * RESIST : stn ? (raw < LINE ? raw : LINE + (raw - LINE) * 0.35) : Math.min(STOP, raw < 12 ? raw : 12 + (raw - 12) * 0.3);
       if (path || !stn) dy = Math.min(dy, this.room(el, foot));
@@ -126,7 +129,7 @@ export class Pull {
     this.root.style.setProperty("--pull", Math.min(1, path ? raw / TIGHT : dy / LINE).toFixed(3)); this.root.classList.toggle("pulling", raw > 0);
     // before the way is chosen (a station not ready) the thread ahead stays dotted: the pull fills its fade in, down to the station, and does not firm it
     this.root.classList.toggle("pullpre", raw > 0 && !stn);
-    if (past !== this.past) { this.past = past; if (past && !curb) bump(); }
+    if (past !== this.past) { this.past = past; if (past && !curb) { bump(); knock(); } }
     return past;
   }
   /** How far the station `el` can rise in its foot before its diamond reaches the foot's top edge (less `SILL`); measured from where it rests, whatever it is lifted now. */
@@ -143,7 +146,7 @@ export class Pull {
    */
   end(go: boolean, tapped = false): boolean {
     if (this.busy) return false;
-    if (go && this.act && !this.past) bump();
+    if (go && this.act && !this.past) { bump(); knock(); }
     const stn = this.q("#stn"), sp = this.q("#stnp"), el = stn || sp, riser = this.q(".riser");
     if (go && stn && this.act && this.rides && this.root && canTake(this.root)) {
       const act = this.act;

@@ -7,6 +7,7 @@ import { checkDebate, limitMs, paused, stopTimer } from "../debate/flow.js";
 import { check } from "../practice/grading.js";
 import { fillable } from "../practice/screen.js";
 import { focusCin, render } from "./render.js";
+import { cue } from "../sound/play.ts";
 
 // Blitz: a stopwatch in the top bar, next to the practice options (the mode of practice): outline when off, filled when on. No box, no number: the seconds are in its name
 // and set in the Practice options of the exercise (Blitz times). Three independent times: the relation (Relations and Pervasions), the examples (each example in
@@ -55,6 +56,7 @@ export function ensureRelTimer(spent=0){
 }
 function expireRel(u){
   if(u!==state.ui||u.checked||u.rel||state.tab!=="practice") return;
+  cue("timeup");
   const k=state.cur.p.relation;
   u.tid=null; u.tq=null; u.late=true; u.rel=k; u.open=false; u.ci=0; u.seen=0; u.pop=null;
   for(const c of REL[k].empty){ u.cells[c].t=""; u.cells[c].none=false; }
@@ -62,6 +64,7 @@ function expireRel(u){
 }
 function expireEx(u){
   if(u!==state.ui||u.checked||!u.rel||state.tab!=="practice") return;
+  cue("timeup");
   u.tid=null; u.tq=null; u.exLate=true;
   if(document.activeElement&&document.activeElement.blur) document.activeElement.blur();
   check();
@@ -69,6 +72,7 @@ function expireEx(u){
 // Pervasions: time up on the relation. The answers are checked with no relation chosen; the result shows the right one.
 function expireRelD(u){
   if(u!==state.ui||u.checked||u.rel||state.tab!=="debate"||u.step<4) return;
+  cue("timeup");
   u.tid=null; u.tq=null; u.late=true; u.rel=state.cur.p.relation; u.open=false;
   if(document.activeElement&&document.activeElement.blur) document.activeElement.blur();
   checkDebate();
