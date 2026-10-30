@@ -56,7 +56,7 @@ export function TutorPage() {
     else { const g = groups[groups.length - 1]; if (g && g.q && !g.a) { g.a = t; g.ai = idx; } else groups.push({ a: t, ai: idx }); }
   });
   return <>
-    <TopBar title="Claude" />
+    <TopBar title="Claude" back={{ label: "Back to the exercise", go: closeChat }} />
     <div class="ppage ptalk">
       <Sx cls="walked first tutl"><div style={{ height: "14px" }} /><About /><AskRow />
         {u.chatErr ? <St d={<span />} cls="pnote2"><p class="terr">{u.chatErr}</p></St> : null}

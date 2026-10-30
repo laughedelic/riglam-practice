@@ -604,6 +604,10 @@ withKey("Why asks the tutor on the result, and Ask a follow-up opens the convers
   await expect(page.locator(".ptb-t")).toContainText("Claude");
   await expect(page.locator("#path .ptalk")).toContainText("this is the stand-in answer.");
   await expect(page.locator("#ask-in")).toBeVisible();
+  await page.getByRole("button", { name: "Back to the exercise", exact: true }).click();   // the bar's chevron goes back to the result it came from, not to the roadmap
+  await expect(page.locator(".pvline")).toBeVisible();
+  await page.locator(".cwex .crow").click();   // Ask a follow-up, a choice beside the line like Explain
+  await expect(page.locator("#ask-in")).toBeVisible();
   await page.getByRole("button", { name: /^Back to the result/ }).click();
   await expect(page.locator(".pvline")).toBeVisible();
 });
@@ -623,7 +627,7 @@ withKey("while Claude works the wait is said once, on a stop over the station wi
   await expect(stop.locator(".think")).toContainText(/\d+s$/);   // the seconds at the right end, by Stop
   const words = await stop.locator(".cwph:not(.old)").evaluate((e) => ({ text: e.textContent, cut: e.scrollWidth > e.clientWidth }));
   expect(words.cut, "the words are never cut: \"Claude is\" goes when they would not fit").toBe(false);
-  expect(words.text).toMatch(/^(Claude is )?[a-z]+$/i);   // the first verb of a wait is a single word
+  expect(words.text).toMatch(/^(Claude is )?[a-z]+…$/i);   // the first verb of a wait is a single word
   await expect(stop.getByRole("button", { name: "Stop" })).toBeVisible();
   await expect(page.locator("#path .think")).toHaveCount(1);   // said once: not under the open examples, not in the verdict
   await expect(page.locator(".pvline")).not.toContainText("Claude");

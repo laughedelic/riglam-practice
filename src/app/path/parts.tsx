@@ -264,18 +264,18 @@ export function WhyRow({ unc = 0, again = false, offer }: { unc?: number; again?
   if (writing && !(t && t.content) && !(u.quorum && u.quorum.busy)) return null;
   const sub = u.explained || writing ? "by Claude" : needsKey() ? "needs the Magic Key" : unc ? "check the open " + (unc === 1 ? "example" : "examples") + " and explain" : "ask Claude to explain";
   const act = () => { if (!u.explained && !u.ctl) { askTutor(); return; } u.pwhy = !u.pwhy; render(); };
-  return <Sx cls="walked">
+  return <>
+  <Sx cls="walked">
     <button type="button" class={"wrow" + (open ? " open" : "")} aria-expanded={open ? "true" : "false"} onClick={act}><D cls={"sub " + (writing ? "pthink" : "tut")} />
       <span class="ct"><b>Explanation</b><span class={u.explained || writing ? "hint" : ""}>{sub}</span></span><span class="arr"><Icon n="chev" /></span></button>
     {open ? <div class="wtext">
       <WhyText />
       {u.chatErr ? <p class="terr">{u.chatErr}</p> : null}
       {q ? <QuorumPanel /> : null}
-      <div class="tact">
-        {!writing && canAsk() && u.explained ? <button type="button" class="pbtn" onClick={openChat}>Ask a follow-up</button> : null}
-        {!writing && canAsk() && u.explained && again ? <button type="button" class="pbtn" onClick={() => askTutor()}>Explain again</button> : null}
-      </div>
-      {t && t.content && !writing ? <p class="pnoteline"><button type="button" class="plnk quiet" onClick={aboutClaude}>Written by Claude, an AI. It can be wrong.</button></p> : null}
+      {!writing && canAsk() && u.explained && again ? <div class="tact"><button type="button" class="pbtn" onClick={() => askTutor()}>Explain again</button></div> : null}
+      {t && t.content && !writing ? <p class="pnoteline pdisc"><button type="button" class="plnk quiet" onClick={aboutClaude}>Written by Claude, an AI. It can be wrong.</button></p> : null}
     </div> : null}
-  </Sx>;
+  </Sx>
+  {open && !writing && canAsk() && u.explained ? <ExplainChoice name="Ask a follow-up" hint="Opens the chat with Claude" go={openChat} /> : null}
+  </>;
 }

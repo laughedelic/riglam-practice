@@ -30,17 +30,17 @@ function Phrase({ text }: { text: string }) {
 }
 
 /**
- * The line of the wait: the words and, at its right end, the seconds since it began. "Claude is" comes before the verb when the two fit the line, else the verb
- * stands alone (measured on the line as it is, so a narrow phone says less, never a cut word).
+ * The line of the wait: the words, ending in an ellipsis, and, at its right end, the seconds since it began. "Claude is" comes before the verb when the two fit
+ * the line, else the verb stands alone (measured on the line as it is, so a narrow phone says less, never a cut word).
  */
 export function ClaudeLine() {
   const [t0] = useState(Date.now), [order] = useState(() => waitOrder()), [, tick] = useState(0);
   const box = useRef<HTMLSpanElement>(null), probe = useRef<HTMLSpanElement>(null);
   useEffect(() => { const id = setInterval(() => tick((x) => x + 1), 250); return () => clearInterval(id); }, []);
   const secs = Math.floor((Date.now() - t0) / 1000), v = order[Math.floor(secs / PERIOD) % order.length], full = "Claude is " + v;
-  const fits = () => { const p = probe.current, b = box.current; if (!p || !b) return true; p.textContent = full; return p.offsetWidth <= b.clientWidth; };
+  const fits = () => { const p = probe.current, b = box.current; if (!p || !b) return true; p.textContent = full + "…"; return p.offsetWidth <= b.clientWidth; };
   return <div class="think cwait" role="status"><span class="vh">Claude is at work</span>
-    <span class="cwv" ref={box} aria-hidden="true"><Phrase text={fits() ? full : cap(v)} /><span class="cwprobe" ref={probe} /></span>
+    <span class="cwv" ref={box} aria-hidden="true"><Phrase text={(fits() ? full : cap(v)) + "…"} /><span class="cwprobe" ref={probe} /></span>
     <span class="secs" aria-hidden="true">{secs}s</span></div>;
 }
 
@@ -59,15 +59,21 @@ export function WaitStop() {
 /**
  * Explain as a choice (when Claude explains only when asked): Claude's hollow diamond beside the line, the words after it. A tap, or a finger sliding it left,
  * takes it onto the line, and then the wait begins there and goes down to its stop over the station. `name`: what it says (Check & explain, Explain, ...).
+ * With `go` it is another action of Claude's that leaves the page (Ask a follow-up opens the chat): taken, it goes onto the line and `go` runs, in place of the
+ * wait; `hint` is what it says under its name.
  */
-export function ExplainChoice({ name }: { name: string }) {
+export function ExplainChoice({ name, hint, go }: { name: string; hint?: string; go?: () => void }) {
   const [dx, setDx] = useState(0), [taking, setTaking] = useState(false), from = useRef<number | null>(null), me = useRef<HTMLButtonElement>(null), once = useRef(false);
   const beside = currentLook().take === "slide", key = needsKey();
   // the release that ends a slide is also the row's click, which takes it
   const take = () => {
     if (once.current) return;
     once.current = true; setTaking(true); setDx(0);
-    setTimeout(() => { const d = me.current && me.current.querySelector(".mc .d"), u = u0(); if (d) u.waitFrom = d.getBoundingClientRect().top; askTutor(); once.current = false; setTaking(false); }, beside ? 420 : 0);
+    setTimeout(() => {
+      if (go) go();
+      else { const d = me.current && me.current.querySelector(".mc .d"), u = u0(); if (d) u.waitFrom = d.getBoundingClientRect().top; askTutor(); }
+      once.current = false; setTaking(false);
+    }, beside ? 420 : 0);
   };
   const drag = beside && !taking ? {
     onPointerDown: (e: PointerEvent) => { from.current = e.clientX; },
@@ -77,6 +83,6 @@ export function ExplainChoice({ name }: { name: string }) {
   } : {};
   return <section class={"sx walked cwex" + (taking ? " taken" : "") + (dx ? " drag" : "")}>
     <div class={"chs" + (beside ? " slide" : "")}><button type="button" ref={me} class="crow" style={{ "--dx": dx + "px" } as never} onClick={take} {...drag}>
-      <span class="mc"><D cls="sub tut" /></span><span class="ct"><b>{name}</b><small>{key ? "needs the Magic Key" : "Using Claude"}</small></span>
+      <span class="mc"><D cls="sub tut" /></span><span class="ct"><b>{name}</b><small>{hint || (key ? "needs the Magic Key" : "Using Claude")}</small></span>
     </button></div></section>;
 }

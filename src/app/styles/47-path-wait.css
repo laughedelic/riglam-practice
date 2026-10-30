@@ -49,6 +49,10 @@
 .pa .cwex:not(.taken) .crow .d{background-color:var(--paper); box-shadow:inset 0 0 0 1.6px var(--tutor)}
 .pa .cwex.taken .crow .d{background-color:var(--tutor); box-shadow:none}
 
+/* the reminder under the explanation: italic, with a subtle dotted underline, apart from what follows it */
+.pa .pdisc{margin:12px 0 4px}
+.pa .pdisc .plnk.quiet{font-style:italic; text-decoration:underline dotted; text-decoration-thickness:1px; text-underline-offset:3px; text-decoration-color:var(--ink3)}
+
 /* who wrote the explanation, in the type of a hint, beside its name */
 .pa .wrow .ct span.hint{font-family:var(--mono); font-size:10.5px; font-style:normal; color:var(--ink3)}
 

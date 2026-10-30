@@ -77,7 +77,7 @@ export function Row({ c, rel }: { c: CellId; rel: RelKey }) {
   const tnote: string | undefined = (explainParts().cells as Record<string, string>)[c], key = (p.ex && p.ex[c]) || "";
   const ans = out ? <span class="ans2 nil">not asked by {u.find ? "the relation" : "your relation"}</span> : t ? <span class={"ans2" + (m === "no" ? " no" : "")}>{t}</span> : <span class="ans2 nil">{x.none ? "nothing exists" : "left empty"}</span>;
   const note = out ? <>you left this case out{key ? <>; for example <span class="fix">{key}</span></> : null}</>
-    : open ? <>unchecked: the list does not know it yet{key ? <>; the course's example: <span class="fix">{key}</span></> : null}</>
+    : open ? <><b>Unchecked.</b>{key ? <> Reference example: <span class="fix">{key}</span></> : null}</>
     : <><b>{cr.msg[0]}</b>{cr.msg[2] ? <i>{cr.msg[2]}</i> : null}{markNames(isa(cr.msg[1] || ""), p)}</>;
   return <St d={<D cls={"sub " + (busy ? "pthink" : m)} />} cls={"sb exr" + (tnote ? " tut" : "")}>
     <span class="lab">{CASE[c]}</span><div class="line1">{ans}{busy ? null : <Mark m={m} />}</div>
