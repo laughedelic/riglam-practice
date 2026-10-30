@@ -621,9 +621,11 @@ withKey("while Claude works the wait is said once, on a stop over the station wi
   await answer(page);
   await page.locator("#stn").click();
   await expect(page.locator(".pvline")).toBeVisible();
-  await page.locator(".cwex .crow").click();
+  await page.locator(".cwex .crow").focus();
+  await page.keyboard.press("Enter");   // from the keyboard: Explain goes, and Stop takes its focus
   const stop = page.locator(".cwstop.on");
   await expect(stop).toBeVisible();
+  await expect(stop.getByRole("button", { name: "Stop" })).toBeFocused();
   await expect(stop.locator(".think")).toContainText(/\d+s$/);   // the seconds at the right end, by Stop
   const words = await stop.locator(".cwph:not(.old)").evaluate((e) => ({ text: e.textContent, cut: e.scrollWidth > e.clientWidth }));
   expect(words.cut, "the words are never cut: \"Claude is\" goes when they would not fit").toBe(false);

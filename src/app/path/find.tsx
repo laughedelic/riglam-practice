@@ -110,7 +110,7 @@ function ResultStep() {
   const pm = r.relOpen ? "pt" : r.relOk ? "ok" : "no";
   const pairLine = r.relOpen
     ? (r.relUns ? "Whether " + p.a + " and " + p.b + " are " + lcRel(asked.name) + " is not settled. Ask again, or try another pair."
-      : u.explained && !u.ctl ? "Claude's answer did not say whether they are " + lcRel(asked.name) + ". Ask again."
+      : u.explained && !u.ctl ? "Claude's answer did not say whether they are " + lcRel(asked.name) + ". Explain again."
       : "The course data does not cover this pair, so Claude judges whether it is " + lcRel(asked.name) + "." + (canAsk() ? "" : " Claude is not available here, so it stays open."))
     : r.relOk ? asked.name + ": " + gl(rel) + "."
     : named ? p.a + " and " + p.b + " are " + lcRel(REL[p.relation].name) + " (" + lcRel(gl(p.relation)) + "), not " + lcRel(asked.name) + "."

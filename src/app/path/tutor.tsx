@@ -45,7 +45,7 @@ function Answer({ t, idx }: { t: Turn; idx: number }) {
   const u = u0(), expl = t.kind === "explain", where = "o" + idx, q = !expl && u.chat ? u.chat[idx - 1] : null;
   const c = !u.syllogism && !t.pending && t.content && state.cur && state.cur.p ? aiCase(expl ? "explain" : "chat", expl ? "Claude’s explanation" : "Claude’s answer", t.content, expl ? null : idx, flagAsked(q)) : null;
   return <St d={<D cls={"sub " + (t.pending ? "pthink" : "tut")} />} cls="sb pans2"><span class="lab">{expl ? "Claude’s explanation" : "Claude"}</span>
-    {t.content ? <div class="tsay"><TutorText text={t.content} where={"ct" + idx + "."} /></div> : <ClaudeLine />}
+    {t.content ? <div class="tsay"><TutorText text={t.content} where={"ct" + idx + "."} /></div> : null}
     {c ? <span class="pflgrow"><FlagBtn c={c} where={where} word /></span> : null}<FlagEditor where={where} /></St>;
 }
 export function TutorPage() {

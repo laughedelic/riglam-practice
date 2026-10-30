@@ -35,8 +35,8 @@ import { D, Fig, Gap, Icon, Minis, St, Sx, Words } from "./ui.tsx";
 const NAME: Record<string, string> = { practice: "Relations", debate: "Pervasions", find: "Find a pair", syllogism: "Syllogisms", categories: "Categories", instance: "Find an instance" };
 // "pend" is right so far with cases still to check, as the result says; "open" is a pair of the learner's own the tutor has not judged yet;
 // "unk" a thing named in Find an instance that the course data does not settle
-const WORD: Record<string, string> = { ok: "Right", part: "Partly right", bad: "Not quite", pend: "Right so far", open: "Not judged yet", unk: "Not checked" };
-const STOP: Record<string, string> = { ok: "ok", part: "pt", bad: "no", pend: "ok", open: "nil", unk: "nil" };
+const WORD: Record<string, string> = { ok: "Right", part: "Partly right", bad: "Not quite", pend: "Relation is right", open: "Not judged yet", unk: "Not checked" };
+const STOP: Record<string, string> = { ok: "ok", part: "pt", bad: "no", pend: "pt", open: "nil", unk: "nil" };
 const MINI: Record<string, string> = { ok: "ok", bad: "bad", cmp: "cmp", open: "cmp", part: "part" };
 const hm = (iso: string) => { const d = new Date(iso); return isNaN(d.getTime()) ? "" : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); };
 
