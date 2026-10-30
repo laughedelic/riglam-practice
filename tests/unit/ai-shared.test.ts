@@ -512,6 +512,11 @@ test("the pair-finding card says which relation was asked for, and for a pair th
   expect(tutorCard(ix, pair(), find({ rel: "3ab", exLate: true }))).toContain("Time ran out on the examples: cells the learner had not reached are blank.");
 });
 
+test("the card of a pair of the learner's own also tells which qualities a listed example's name leaves open", () => {
+  const card = tutorCard(makeIndex(openData as unknown as DrillData), own({ a: "black things", b: "Stuff", catA: "black" }), find({ rel: "4", cells: { both: { t: "" }, anb: { t: "a wooden chair" }, bna: { t: "" }, nei: { t: "" } }, res: noRes(["cmp", "cmp", "cmp", "cmp"]) }));
+  expect(card).toContain("[in the practice list as: a wooden chair, type External form; its name leaves open whether it is black]");
+});
+
 test("the card of the learner's own pair holds what the data says of each side, and leaves the relation and every example to the tutor", () => {
   const p = own(), cells = { both: { t: "a red pear" }, anb: { t: "", none: true }, bna: { t: "" }, nei: { t: "a stone" } };
   const card = tutorCard(ix, p, find({ rel: "4", cells, res: noRes(["cmp", "open", "bad", "cmp"]) }));

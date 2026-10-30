@@ -58,8 +58,8 @@ const verdictOf=(ix: DataIndex, r: { v: string; vague?: readonly string[] }): st
 
 /** The practice-list tag of an example the learner wrote: its name and type, and the qualities of the pair its name leaves open, whatever the page's verdict on the cell (a cell already marked wrong has none). */
 const listedAs=(ix: DataIndex, it: NonNullable<ReturnType<typeof matchItem>>, p: PairLike): string => {
-  const cats=pairCats(ix,p), open=cats.filter(c=>c&&leavesOpen(it,c)) as string[];
-  return " [in the practice list as: "+it.n+", type "+it.t+(open.length&&!p.own?"; its name leaves open whether it is "+open.map(c=>ix.CAT[c]?.phrases?.[0]??"one of the "+(ix.CAT[c]?.labels[0]??c)).join(" or whether it is "):"")+"]";
+  const open=noteCats(ix,p).filter(c=>leavesOpen(it,c));
+  return " [in the practice list as: "+it.n+", type "+it.t+(open.length?"; its name leaves open whether it is "+open.map(c=>ix.CAT[c]?.phrases?.[0]??"one of the "+(ix.CAT[c]?.labels[0]??c)).join(" or whether it is "):"")+"]";
 };
 
 /** The fine points of the pair's two categories as the tail of the card; empty when there are none. */
