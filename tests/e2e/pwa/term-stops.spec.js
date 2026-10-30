@@ -1,8 +1,6 @@
-// The stop of a course term (practice/stops.ts, src/domain/intro.ts): on the Path a category of the course is asked about only once a stop has
-// shown its term, and the stop comes before the next question; the classic page asks as before. Reset progression starts the terms again and keeps
-// the answers (practice/progress.ts).
+// The stop of a course term (practice/stops.ts, src/domain/intro.ts): a category of the course is asked about only once a stop has
+// shown its term, and the stop comes before the next question. Reset progression starts the terms again and keeps the answers (practice/progress.ts).
 import { test, expect, SETTLED_TERMS } from "../../support/test.js";
-import { isPhone, ready, relOptions } from "../../support/page.js";
 import { dataKey, serveCourse, withCourse } from "../../support/data-key.js";
 
 const hook = () => { window.__riglamTest = (t) => { window.__t = t; }; };
@@ -28,38 +26,10 @@ async function toStop(page, examples = false) {
   return stop;
 }
 const ORDER = ["mi", "3ab", "3ba", "4", "con"];
-const fwd = (page) => page.locator("#stage .pbar .fwd");
 const station = (page) => page.locator("#stn");
 const cats = (page) => page.evaluate(() => [window.__t.cur.p.catA, window.__t.cur.p.catB]);
 
-/** The pair's own relation, anything in the cells it leaves possible, and the check (classic page). */
-async function answerClassic(page, testInfo) {
-  const rel = await page.evaluate(() => window.__t.cur.p.relation);
-  await relOptions(page).nth(ORDER.indexOf(rel)).click();
-  if (isPhone(testInfo)) {
-    for (let i = 0; i < 4 && (await page.locator("#cin").isVisible()); i++) { await page.fill("#cin", "thing " + (i + 1)); await fwd(page).click(); }
-  } else {
-    const ids = await page.locator(".cell input:not([disabled])").evaluateAll((a) => a.map((x) => x.id));
-    for (const id of ids) await page.fill("#" + id, "thing");
-    await fwd(page).click();
-  }
-  await expect.poll(() => page.evaluate(() => window.__t.ui.checked)).toBe(true);
-}
-
-test("the classic page has no stops: the next question follows the result, and the questions are still counted", async ({ page }, testInfo) => {
-  await page.addInitScript(fresh);
-  await page.addInitScript(hook);
-  await page.goto("/");
-  await ready(page);
-  await answerClassic(page, testInfo);
-  expect(await page.evaluate(() => window.__t.intro.n)).toBe(4);
-  await page.keyboard.press("n");
-  await ready(page);
-  expect(await page.evaluate(() => window.__t.ui.stop)).toBeFalsy();
-  expect(await page.evaluate(() => window.__t.intro.terms)).toEqual({});
-});
-
-test("on the Path the stop is a station of its own, with the term and where it sits, and Next leads on", async ({ page }) => {
+test("the stop is a station of its own, with the term and where it sits, and Next leads on", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(fresh);
   await page.addInitScript(hook);
