@@ -115,7 +115,7 @@ export const state = {
   showAB: true,
   /* Sprint (called Blitz in the code and in what is stored): a clock for each step of an exercise, switched by the stopwatch in the top bar. `blitz` is the switch of the
   exercise on screen (each exercise keeps its own: practice/per-exercise.ts); `times` are the lengths, by what they time (domain/sprint.ts). A slim bar under the top bar
-  drains over the time and turns red in the last seconds. */
+  fills over the time (when it is full the step moves on) and turns red in the last seconds. */
   blitz: false,
   times: defaultTimes(),
   // reading the questions aloud and answering by voice, with the browser's own speech (shell/voice.js). `on` is the Voice switch in Settings (app.js sets it

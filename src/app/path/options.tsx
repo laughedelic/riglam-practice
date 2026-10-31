@@ -157,7 +157,7 @@ function Page({ id }: { id: string }) {
   if (id === "text") return <TextPage />;
   if (id === "guidance") return <GuidancePage />;
   if (id === "times") return <>
-    <Intro>{"A clock for each step, switched on and off with the stopwatch in the top bar (each exercise keeps its own); hold the stopwatch to come back here. " + (TIME_UP[state.tab] || "")}</Intro>
+    <Intro>{"A clock for each step, switched on and off with the stopwatch in the top bar (each exercise keeps its own); hold the stopwatch to come back here. The bar fills over the time, and when it is full the exercise moves on by itself. " + (TIME_UP[state.tab] || "")}</Intro>
     {timesOf(state.tab).map((k) => <Time kind={k} label={TIME_NAME[k]} note={TIME_NOTE(k, state.tab)} />)}</>;
   if (id === "voice") return <VoicePage />;
   if (id === "tutor") return <TutorPage />;
