@@ -5,7 +5,7 @@ import { normLevels } from "../ai-shared/examples.ts";
 import { FIND_RELS } from "../domain/find.ts";
 import { OPEN_CAP, normIntro, normPace } from "../domain/intro.ts";
 import { normLangs } from "../domain/languages.ts";
-import { DEFAULT_STAGES, freshRun, normExRuns, normGuided, normRun, normStages, stagesOfLevels } from "../domain/stages.ts";
+import { DEFAULT_STAGES, freshRun, learnerStages, normExRuns, normGuided, normRun, stagesOfLevels } from "../domain/stages.ts";
 import { normPerEx } from "../domain/per-exercise.ts";
 
 /** @type {import("./types.ts").State} */
@@ -161,7 +161,7 @@ try{ const t=localStorage.getItem("rd-terms"); if(t!==null) state.intro=normIntr
 // ladder, so that its own settings later do not make it look like an old one; a new device writes no stages until it chooses, and an import can bring them.
 try{
   const v=localStorage.getItem("rd-stages");
-  if(v!==null) state.stages=normStages(v);
+  if(v!==null) state.stages=learnerStages(v);     // a step of depth left on without stage 9 goes (domain/stages.ts)
   else {
     const old=localStorage.getItem("rd-exlevels");
     const before=old!==null||(localStorage.getItem("rd-ladder")===null&&Object.keys(localStorage).some(k=>k.startsWith("rd-")));
