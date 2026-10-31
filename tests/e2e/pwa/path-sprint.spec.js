@@ -98,6 +98,22 @@ test("Relations: time up on an example leaves the case as it stands and opens th
   await expect(page.locator("#path .pvline")).toContainText("time ran out on the examples");
 });
 
+test("Relations: a case whose time ran out stays answered with nothing; the path never comes back to it, without a clock or with one", async ({ page }) => {
+  await sprint(page, { "rd-timer": 2000, "rd-timer-rel": 60000 });
+  await page.goto("/");
+  await ready(page);
+  await relOptions(page).nth(3).click();     // four possibilities: four cases
+  await expect.poll(() => page.evaluate(() => window.__t.ui.ci), { timeout: 6000, message: "the first case ran out and the second has opened" }).toBe(1);
+  expect(await page.evaluate(() => window.__t.ui.missed), "the case that ran out is marked").toEqual({ both: true });
+  const later = page.locator("#path").getByRole("button", { name: /not written yet/ });
+  await expect(later, "only the two cases ahead can be opened: the one that ran out is done").toHaveCount(2);
+  expect(await page.locator("#path").getByText("time ran out", { exact: true }).count()).toBe(1);
+  // the other three are written in time: after the last one the pair is checked, and the case that ran out is not opened to be answered with no clock
+  for (let i = 0; i < 3; i++) { await page.locator("#cin").fill("a sound"); await page.locator("#cin").press("Enter"); }
+  await expect.poll(() => checked(page), { timeout: 10000, message: "the pair was checked after the last case" }).toBe(true);
+  expect(await page.evaluate(() => ({ both: window.__t.ui.cells.both.t, ci: window.__t.ui.ci }))).toMatchObject({ both: "" });
+});
+
 test("Pervasions: a question that runs out counts as accepted, and the example after Why? has its own time", async ({ page }) => {
   await sprint(page, { "rd-timer-q": 2000, "rd-timer": 2000 });
   await page.goto("/");

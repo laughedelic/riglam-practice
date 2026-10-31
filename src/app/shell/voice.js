@@ -4,7 +4,7 @@ import { ORDER, REL } from "../core/rel.js";
 import { chooseD, holdClock, releaseClock, sayQ, submitWhy } from "../debate/flow.js";
 import { Wd, termSing } from "../debate/text.js";
 import { check } from "../practice/grading.js";
-import { choose, fillable } from "../practice/screen.js";
+import { choose, fillable, missedCase } from "../practice/screen.js";
 import { NOT } from "../../ai-shared/debate.ts";
 import { plainWords, spokenConfirm, spokenDirection, spokenDontKnow, spokenExample, spokenRelation, spokenReply } from "../../domain/spoken.ts";
 import { canHear, canSpeak, listen, onVoices, speak, stopSpeaking } from "../../ui/speech";
@@ -195,7 +195,8 @@ function take(a,alts){
   if(x.none&&a.cell!=="nei") return again(a,alts[0],"The relation you chose needs an example here: only the neither case can be empty.");
   offer(a,x.heard,x.none?"nothing":x.text,()=>{
     const u=state.ui; u.cells[a.cell].t=x.none?"":x.text;
-    const order=fillable(), i=order.indexOf(a.cell);
+    const order=fillable(); let i=order.indexOf(a.cell);
+    while(i<order.length-1&&missedCase(order[i+1])) i++;         // a case whose time ran out is not asked again
     if(i>=order.length-1){ if(document.activeElement instanceof HTMLElement) document.activeElement.blur(); check(); }
     else { u.ci=i+1; render(); }
   });
