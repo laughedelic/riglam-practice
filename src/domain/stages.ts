@@ -94,10 +94,14 @@ export function learnerStages(raw: unknown): number[] {
 /** The highest stage that is on: the categories open up to it, and it is the newest for the mix of the draw. */
 export const topStage = (on: Stages): number => Math.max(...normStages(on));
 
-/** Switches a stage on or off; the steps of depth go off with the ladder's last stage. The last stage on stays on: things are always drawn from somewhere. */
+/** The stages of the ladder that are on, depth left out: the switches of the Progression page. */
+const ladderOn = (on: Stages): number[] => on.filter((s) => s <= LADDER_TOP);
+/** Whether switching stage `n` off would leave no stage of the ladder on: its switch stays on, since things are always drawn from somewhere. */
+export const lastOn = (on: Stages, n: number): boolean => { const l = ladderOn(on); return l.length === 1 && l[0] === n; };
+/** Switches a stage on or off; the steps of depth go off with the ladder's last stage. The last stage of the ladder on stays on (`lastOn`). */
 export function toggleStage(on: Stages, n: number): number[] {
   const now = learnerStages(on), has = now.includes(n);
-  if (has && now.length === 1) return now;
+  if (has && (now.length === 1 || lastOn(now, n))) return now;
   return learnerStages(STAGES.map((s) => s.n).filter((s) => (s === n ? !has : now.includes(s))));
 }
 

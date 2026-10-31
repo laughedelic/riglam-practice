@@ -17,7 +17,7 @@ import { catStage, drawable, examplesFor, placeByClass } from "../../src/domain"
 import { LANGS, normLangs, termNames } from "../../src/domain";
 import { AGAIN_AFTER, FIRST_AFTER, OPEN_CAP, PACES, SETTLED, SPACING, afterQuestion, againAsked, askedKey, freshIntro, introduced, metTerms, newTermDue, nextStageDue, nextStop, normIntro, normPace, openTerms, paceSpacing, pairGraded, showAgain, stageMarks, stageMet, stageTerms, stageUp, stopCat, stopShown, termMark, termTree, unmet, wordsFor } from "../../src/domain";
 import { instanceGraded, instanceQuestion } from "../../src/domain/instance";
-import { DEFAULT_STAGES, DEFINITION_STAGE, HOLD_STAGE, LADDER_TOP, MAX_STAGE, NEG_OPEN, NEG_STREAK, NEG_SUGGEST, STAGES, START_SHARE, STAGE_STREAK, STAGE_STUMBLE, catOpen, depthOf, depthOpen, drawSyllogism, ladderOf, ladderTop, negationSuggested, withDepth, heldBack, itemKnown, itemOn, itemStageFor, levelAt, negationOffer, newCategories, learnerStages, normStages, pairStage, physical, poolAt, stagesOfLevels, toggleStage, topStage } from "../../src/domain";
+import { DEFAULT_STAGES, DEFINITION_STAGE, HOLD_STAGE, LADDER_TOP, MAX_STAGE, NEG_OPEN, NEG_STREAK, NEG_SUGGEST, STAGES, START_SHARE, STAGE_STREAK, STAGE_STUMBLE, catOpen, depthOf, depthOpen, drawSyllogism, ladderOf, ladderTop, negationSuggested, withDepth, heldBack, itemKnown, itemOn, itemStageFor, lastOn, levelAt, negationOffer, newCategories, learnerStages, normStages, pairStage, physical, poolAt, stagesOfLevels, toggleStage, topStage } from "../../src/domain";
 import { GUIDE_RIGHT, LOWER_CREDIT, NO_TERMS, STAGE_LONGER, STAGE_STREAK_MAX, cameDown, exerciseAfter, freshRun, guideTurnsOff, guidedOn, movedUp, newShare, normExRuns, normGuided, normRun, restartRun, runAfter, runNeed, runWanted, setManual, stageOffer, stageProgress, stayLonger, termsOf } from "../../src/domain";
 import type { MissKind, StageRun } from "../../src/domain";
 import { drawPlace, itemRows, placeThings } from "../../src/domain/place";
@@ -1193,6 +1193,8 @@ test("the ladder ends at stage 9: the stages after it are the steps of depth, se
   expect(toggleStage(upToStage(10), 9), "stage 9 off takes the depth with it").toEqual(upToStage(8));
   expect(toggleStage(upToStage(10), 4), "a stage below keeps it").toEqual([0, 1, 2, 3, 5, 6, 7, 8, 9, 10]);
   expect(toggleStage(left, 6), "switched from a list that had it left").toEqual(upToStage(6));
+  expect(toggleStage([9, 10], 9), "the last stage of the ladder on stays on, depth or not").toEqual([9, 10]);
+  expect([lastOn([9, 10], 9), lastOn([8, 9, 10], 9), lastOn([2], 2), lastOn([2], 3)]).toEqual([true, false, true, false]);
   // the ring of the ladder: on its last stage it shows the terms, and no stage comes after it
   const marks = stageTerms(rix, 9).map((id) => ({ id, mark: "ok" as const }));
   expect(stageProgress(freshRun(), upToStage(9), marks, undefined, LADDER_TOP)).toMatchObject({ top: 9, next: null, shows: "terms", frac: 0, full: false });
