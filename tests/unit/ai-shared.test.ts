@@ -134,6 +134,22 @@ test("the card tells which qualities of the pair a listed example's name leaves 
   expect(card).toContain("[in the practice list as: a wooden chair, type External form; its name leaves open whether it is black]");
 });
 
+test("words that name a listed item only through an alias are not given as that item: only its type is taken from the list, in every mode", () => {
+  // "chair" is an alias of "a wooden chair": the learner did not write that it is wooden, as "an apple" does not say it is red
+  const alias = "[the learner's words are an alias in the practice list for: a wooden chair, type Form. Take only that type from it, never its color, shape, material, temperature or other details: judge the learner's own words, and a quality they do not name is open]";
+  const said = practice({ cells: { both: { t: "", none: true }, anb: { t: "a chair" }, bna: { t: "" }, nei: { t: "" } } });
+  const practiced = tutorCard(ix, pair(), said);
+  expect(practiced).toContain('- forms, not minds: learner wrote "a chair" ' + alias + '; reference "a wooden chair"; page verdict ok');
+  expect(practiced).not.toContain("[in the practice list as: a wooden chair");
+  const debated = tutorCard(ix, pair({ relation: "4" }), debate({ ans: [{ say: "accept" }, { say: "why", text: "a chair" }, { say: "why", text: "" }, { say: "accept" }] }));
+  expect(debated).toContain('learner said WHY with the example "a chair" ' + alias);
+  expect(debated).not.toContain("[in the practice list as: a wooden chair");
+  const found = tutorCard(ix, pair(), find({ cells: { both: { t: "", none: true }, anb: { t: "a chair" }, bna: { t: "" }, nei: { t: "" } } }));
+  expect(found).toContain('learner wrote "a chair" ' + alias);
+  // the item's own name, with or without an article or capitals, is still the item
+  expect(tutorCard(ix, pair(), practice())).toContain('learner wrote "Wooden Chair!" [in the practice list as: a wooden chair, type Form]');
+});
+
 test("the practice card names the cells, what the learner wrote, the reference and the page's verdict", () => {
   const card = tutorCard(ix, pair(), practice());
   expect(card.startsWith(GUIDE)).toBe(true);
