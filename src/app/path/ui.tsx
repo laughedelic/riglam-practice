@@ -1,5 +1,5 @@
 // The Path's small parts, as the Path Lab draws them: the line icons, the diamonds, a stop on the path, a section of the line, a section's
-// heading, the relation figures, the marks of a verdict, the toggles, the words in a row, and the host of a part still drawn by the classic page.
+// heading, the relation figures, the marks of a verdict, the toggles, the words in a row, and the host of a part still drawn as plain DOM.
 import type { ComponentChildren, InputHTMLAttributes } from "preact";
 import { useLayoutEffect, useRef } from "preact/hooks";
 import { state } from "../state.js";
@@ -70,7 +70,7 @@ export const Minis = ({ list }: { list: string[] }) => <span class="minis">{list
 
 /** A toggle in the look's style; the row around it is the button. */
 /** A switch's mark. The look's `both` (the Design Lab's pick, 28 Oct): two diamonds, a hollow one and a small filled one beside it, which move toward each other until the
- *  small one sits inside, so that off (the pair) and on (one figure) both stand in the middle of the mark's place; the other looks draw the older forms (37-path-panels.css). */
+ *  small one sits inside, so that off (the pair) and on (one figure) both stand in the middle of the mark's place; the other looks draw the older forms (09-path-panels.css). */
 export const Toggle = ({ on }: { on: boolean }) => currentLook().toggle === "both"
   ? <svg class={"dtg" + (on ? " on" : "")} viewBox="0 0 40 22" aria-hidden="true">
     <polygon class="dtb" points="20,2 29,11 20,20 11,11" /><polygon class="dts" points="20,6.5 24.5,11 20,15.5 15.5,11" /></svg>
@@ -90,17 +90,21 @@ const flat = (k: Kids, out: (Node | string)[] = []) => {
   return out;
 };
 /**
- * A part the classic page still draws (src/app/shell, practice ...), hosted in the Path until it is drawn on the path itself. `fill` builds
- * its nodes on every draw, as the classic page does, and `after` runs once they are in; the host keeps its scroll. The host has the class
- * `pbr`, under which the classic rules apply (38-path-bridge.css), unless `own`: nodes built in the Path's classes by the classic builders.
+ * A part drawn by plain DOM code outside the Path (the bar of voice, shell/voice.js; the account and the export of Settings, src/ui), hosted in it. `fill` builds
+ * its nodes on every draw and `after` runs once they are in; the host keeps its scroll and the focus on the same control. The host has the class `pbr`, under which
+ * the bar of voice keeps its own rules (11-path-bridge.css), unless `own`: nodes built in the Path's classes (settings.tsx, `PCLS`).
  */
 export function Bridge({ fill, after, cls = "", own = false, id }: { fill: (host: HTMLElement) => Kids; after?: (host: HTMLElement) => void; cls?: string; own?: boolean; id?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const h = ref.current; if (!h) return;
+    // a redraw that nobody asked for (the sync status changed) keeps the focus on the same control, by its id or its place among the controls
+    const ctl = () => [...h.querySelectorAll<HTMLElement>("button,input,select,textarea,summary,[tabindex]")];
+    const a = document.activeElement as HTMLElement | null, held = a && h.contains(a) ? { id: a.id, at: ctl().indexOf(a) } : null;
     const y = h.scrollTop, kids = flat(fill(h));
     h.replaceChildren(...kids);
     if (y) h.scrollTop = y;
+    if (held) { const n = (held.id && h.querySelector<HTMLElement>("#" + CSS.escape(held.id))) || ctl()[held.at]; if (n && n !== document.activeElement) n.focus({ preventScroll: true }); }
     if (after) after(h);
   });
   return <div ref={ref} id={id} class={(own ? "pdom" : "pbr") + (cls ? " " + cls : "")} />;

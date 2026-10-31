@@ -1,9 +1,10 @@
 // The tutor in the installed app: questions go to the app's own server (/api/tutor), which these specs stand in for with
 // routes. They check what the page offers (only when the server says its tutor is on), what it sends (the card without the
-// instructions, a proof made with the key) and what it shows when the answer streams in or the server refuses.
+// instructions, a proof made with the key) and what it shows when the answer streams in or the server refuses. How the Path draws the
+// tutor's words (the note under an example, the wait, the conversation) is also looked at in path.spec.js.
 import { test as plain } from "@playwright/test";
 import { test, expect } from "../../support/test.js";
-import { goTo, ready, relOptions, isPhone, overflow } from "../../support/page.js";
+import { answerFirst, explainChoice, ready, overflow } from "../../support/page.js";
 import { dataKey, serveCourse, withCourse } from "../../support/data-key.js";
 import { checkProof } from "../../../src/ai/proof.ts";
 
@@ -12,6 +13,7 @@ const withKey = withCourse ? test : test.skip;
 
 const sse = (...events) => events.map((e) => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`).join("");
 const ANSWER = sse({ type: "delta", text: "Stand-in tutor: " }, { type: "delta", text: "this is the stand-in answer." }, { type: "done", truncated: false });
+const saying = (line) => [{ status: 200, body: sse({ type: "delta", text: line }, { type: "done", truncated: false }) }];
 
 /** Stands in for the server. `tutor` answers each question in turn (the last one repeats); the requests are kept. */
 async function server(page, { health = { ok: true, tutor: "on" }, tutor = [{ status: 200, body: ANSWER }] } = {}) {
@@ -27,33 +29,22 @@ async function server(page, { health = { ok: true, tutor: "on" }, tutor = [{ sta
   return asked;
 }
 
-async function answerOnPhone(page) {
-  await relOptions(page).first().click();
-  for (let i = 0; i < 4 && (await page.locator("#cin").isVisible()); i++) {
-    await page.fill("#cin", "thing " + (i + 1));
-    await page.keyboard.press("Enter");
-    await page.waitForTimeout(100);
-  }
-}
-// The Why panel of the result screen shows only what the marks do not (and nothing at all after a right answer); the chat view has the whole answer.
-async function openAnswer(page) {
-  await page.getByRole("button", { name: /discuss with claude/i }).click();
-  await expect(page.getByLabel("Discuss with Claude").getByText("this is the stand-in answer.")).toBeVisible();
-}
-const explain = (page) => page.getByRole("button", { name: /^explain$|check and explain/i });
-const open = async (page, testInfo, setup) => {
-  test.skip(!isPhone(testInfo), "the answer flow is exercised in the phone layout");
+const explain = (page) => explainChoice(page);
+/** The explanation, under the result, once Claude has answered. */
+const answerText = (page) => page.locator(".wtext");
+/** The page with the server and one answer checked (the first relation, the examples left to Claude); Explain is not taken yet. */
+const open = async (page, setup) => {
   const asked = await server(page, setup);
   await page.goto("/");
   await ready(page);
-  await answerOnPhone(page);
+  await answerFirst(page);
   return asked;
 };
 
-withKey("Explain asks the server, shows the answer, and sends the card without the instructions", async ({ page }, testInfo) => {
-  const asked = await open(page, testInfo);
+withKey("Explain asks the server, shows the answer, and sends the card without the instructions", async ({ page }) => {
+  const asked = await open(page);
   await explain(page).click();
-  await openAnswer(page);
+  await expect(answerText(page)).toContainText("this is the stand-in answer.");
   expect(await overflow(page)).toBeLessThanOrEqual(0);
 
   expect(asked).toHaveLength(1);
@@ -69,155 +60,95 @@ withKey("Explain asks the server, shows the answer, and sends the card without t
   expect(body.turns[0].content).not.toContain("Fine points"); // and the notes
 });
 
-// A note on a cell opens under the heading "Why?", so a Why? the tutor starts its debate line with is not said twice.
-withKey("a note under a cell is headed Why?", async ({ page }, testInfo) => {
-  const line = 'Both: Why? "thing 1" is a form, so it fits. => yes\n';
-  await open(page, testInfo, { tutor: [{ status: 200, body: sse({ type: "delta", text: line }, { type: "done", truncated: false }) }] });
+// The terms a note names are dot-underlined when this device has their definitions; a tap opens the definition under the note, inside
+// the tutor's block. Another term replaces it; Escape closes it and leaves the note where it is, and the focus stays on the term.
+withKey("a note underlines the terms it names and opens their definitions in place", async ({ page }) => {
+  await open(page, { tutor: saying('Both: "thing 1" is an external form, so it fits: every form is matter, and matter is a form. => yes\n') });
   await explain(page).click();
-  await page.locator(".grid .qm").first().click();
-  const pop = page.locator(".grid .pop");
-  await expect(pop.locator(".clh")).toHaveText("Why?");
-  await expect(pop.locator("p").nth(1)).toHaveText('"thing 1" is a form, so it fits.');
-  await expect(pop.locator(".popnote")).toHaveCount(0);
-});
-
-// The terms a note names are dot-underlined when this device has their definitions, each once; a tap opens the definition under the
-// text, inside the note. Another term replaces it; a tap elsewhere or Escape closes it and leaves the note open.
-withKey("a note underlines the terms it names and opens their definitions in place", async ({ page }, testInfo) => {
-  const line = 'Both: "thing 1" is an external form, so it fits: every form is matter, and matter is a form. => yes\n';
-  await open(page, testInfo, { tutor: [{ status: 200, body: sse({ type: "delta", text: line }, { type: "done", truncated: false }) }] });
-  await explain(page).click();
-  await page.locator(".grid .qm").first().click();
-  const pop = page.locator(".grid .pop"), marks = pop.locator(".dterm[data-dt]"), def = pop.locator(".ddef"); // the terms of the text; the card has its own marks
-  await expect(marks).toHaveText(["external form", "form", "matter"]);
+  const note = page.locator("#path .exr .tnote").first();
+  await expect(note).toBeVisible();
+  const marks = note.locator(".dterm[data-dt]"), def = note.locator(".pdef");
+  const names = await marks.allInnerTexts();
+  expect(names).toContain("external form");
+  expect(names).toContain("matter");
   await expect(def).toHaveCount(0);
 
-  await marks.first().click();
-  await expect(marks.first()).toHaveAttribute("aria-expanded", "true");
-  await expect(def.locator("dt")).toContainText("External form");
-  expect((await def.locator("dd").last().innerText()).length).toBeGreaterThan(10);
+  const first = marks.filter({ hasText: /^external form$/ }).first();
+  await first.click();
+  await expect(first).toHaveAttribute("aria-expanded", "true");
+  await expect(def.locator(".pdh")).toContainText("External form");
+  expect((await def.locator(".pdbody").first().innerText()).length).toBeGreaterThan(10);
   expect(await overflow(page)).toBeLessThanOrEqual(0);
 
-  await marks.nth(2).click();
+  const matter = marks.filter({ hasText: /^matter$/ }).first();
+  await matter.click();
   await expect(def).toHaveCount(1);
-  await expect(def.locator("dt")).toContainText("Matter");
-  await expect(marks.first()).toHaveAttribute("aria-expanded", "false");
+  await expect(def.locator(".pdh")).toContainText("Matter");
+  await expect(first).toHaveAttribute("aria-expanded", "false");
 
-  await pop.locator(".clh").click();
-  await expect(def).toHaveCount(0);
-  await expect(pop).toBeVisible();
-
-  await marks.nth(1).focus();
-  await page.keyboard.press("Enter");
-  await expect(def.locator("dt")).toContainText("Form");
+  await matter.focus();
   await page.keyboard.press("Escape");
   await expect(def).toHaveCount(0);
-  await expect(pop).toBeVisible();
+  await expect(note).toBeVisible();
   // the focus stays on the term, so Enter opens its definition again
-  await expect(marks.nth(1)).toBeFocused();
+  await expect(matter).toBeFocused();
   await page.keyboard.press("Enter");
-  await expect(def.locator("dt")).toContainText("Form");
+  await expect(def.locator(".pdh")).toContainText("Matter");
 });
 
-// A definition belongs to the note it was opened in: opening another note or closing this one drops it, so the next Escape closes
-// the note on view, and coming back to the first note shows it without the definition.
-withKey("an open definition is dropped when its note is switched or closed", async ({ page }, testInfo) => {
-  const lines = 'Both: "thing 1" is an external form, so it fits. => yes\nNeither: "thing 2" is matter, so it fits. => yes\n';
-  await open(page, testInfo, { tutor: [{ status: 200, body: sse({ type: "delta", text: lines }, { type: "done", truncated: false }) }] });
+// The same in a note the page writes from the two facts: the terms of a reason are underlined, and the definition opens under its consequence, inside the list.
+withKey("the terms in the reasons of a fact note are underlined and open their definitions under the consequence", async ({ page }) => {
+  await open(page, { tutor: saying('Both: "thing 1" | A yes: it is an external form | B yes: it is matter\n') });
   await explain(page).click();
-  const qms = page.locator(".grid .qm"), pop = page.locator(".grid .pop"), def = pop.locator(".ddef");
-  await qms.first().click();
-  await pop.locator(".dterm").first().click();
-  await expect(def).toHaveCount(1);
-
-  await qms.nth(1).click();
-  await expect(pop.locator(".dterm")).toHaveText(["matter"]);
-  await expect(def).toHaveCount(0);
-  await page.keyboard.press("Escape");
-  await expect(pop).toHaveCount(0);
-
-  await qms.first().click();
-  await expect(pop.locator(".dterm")).toHaveText(["external form"]);
-  await expect(def).toHaveCount(0);
-
-  await pop.locator(".dterm").first().click();
-  await expect(def).toHaveCount(1);
-  await pop.locator(".popx").click();
-  await expect(pop).toHaveCount(0);
-  await qms.first().click();
-  await expect(def).toHaveCount(0);
-});
-
-// The same in a note the page writes from the two facts: the terms of a reason are underlined once, and the definition opens under
-// its consequence, inside the list.
-withKey("the terms in the reasons of a fact note are underlined and open their definitions under the consequence", async ({ page }, testInfo) => {
-  const line = 'Both: "thing 1" | A yes: it is an external form | B yes: it is matter\n';
-  await open(page, testInfo, { tutor: [{ status: 200, body: sse({ type: "delta", text: line }, { type: "done", truncated: false }) }] });
-  await explain(page).click();
-  await page.locator(".grid .qm").first().click();
-  const pop = page.locator(".grid .pop"), marks = pop.locator(".fsteps .dterm[data-dt]"), def = pop.locator(".ddef");
+  const note = page.locator("#path .exr .tnote").first(), steps = note.locator(".tsteps li");
+  const marks = steps.locator(".dterm[data-dt]");
   await expect(marks).toHaveText(["external form", "matter"]);
-  await expect(def).toHaveCount(0);
+  await expect(note.locator(".pdef")).toHaveCount(0);
   await marks.first().click();
-  await expect(pop.locator(".fsteps li").first().locator(".ddef dt")).toContainText("External form");
+  await expect(steps.first().locator(".pdef .pdh")).toContainText("External form");
   await marks.nth(1).click();
-  await expect(def).toHaveCount(1);
-  await expect(pop.locator(".fsteps li").nth(1).locator(".ddef dt")).toContainText("Matter");
+  await expect(note.locator(".pdef")).toHaveCount(1);
+  await expect(steps.nth(1).locator(".pdef .pdh")).toContainText("Matter");
   expect(await overflow(page)).toBeLessThanOrEqual(0);
 });
 
-// A term is underlined once in each line of a fact note, not once in the whole note: both lines name the color, and both show it.
-withKey("a term is underlined in each line of a fact note that names it", async ({ page }, testInfo) => {
-  const line = 'Both: "thing 1" | A yes: it is a color | B yes: it is a color\n';
-  await open(page, testInfo, { tutor: [{ status: 200, body: sse({ type: "delta", text: line }, { type: "done", truncated: false }) }] });
+// A term is underlined where a fact note first names it, not again in its next line: both lines name the color, and the first shows it.
+withKey("a term is underlined once in a fact note, where it is first named", async ({ page }) => {
+  await open(page, { tutor: saying('Both: "thing 1" | A yes: it is a color | B yes: it is a color\n') });
   await explain(page).click();
-  await page.locator(".grid .qm").first().click();
-  const pop = page.locator(".grid .pop");
-  await expect(pop.locator(".fsteps li")).toHaveCount(2);
-  await expect(pop.locator(".fsteps li").nth(0).locator(".dterm")).toHaveText(["color"]);
-  await expect(pop.locator(".fsteps li").nth(1).locator(".dterm")).toHaveText(["color"]);
+  const steps = page.locator("#path .exr .tnote .tsteps li");
+  await expect(steps).toHaveCount(2);
+  await expect(steps.nth(0).locator(".dterm")).toHaveText(["color"]);
+  await expect(steps.nth(1).locator(".dterm")).toHaveCount(0);
+  await expect(steps.nth(1)).toContainText("color");
 });
 
-// The tutor states two facts about an example and a reason for each; the page writes them as consequences ("Take S, it follows it is
-// P, because R") with the pair's own terms, draws the conclusion, and in the debate words the note by what the learner answered.
-withKey("a line with the two facts is shown as the subject and a list of consequences", async ({ page }, testInfo) => {
-  const line = 'Both: "thing 1" | A yes: it is a form. | B yes: it is a thing\n';
-  await open(page, testInfo, { tutor: [{ status: 200, body: sse({ type: "delta", text: line }, { type: "done", truncated: false }) }] });
+// The tutor states two facts about an example and a reason for each; the page writes them as consequences ("It follows it is P, because R") with the pair's own terms.
+withKey("a line with the two facts is shown as a list of consequences, and a pervasion stands under its consequence", async ({ page }) => {
+  await open(page, { tutor: saying('Both: "thing 1" | A yes: it is a form. | B yes: it is a thing\n') });
   await explain(page).click();
-  await page.locator(".grid .qm").first().click();
-  const pop = page.locator(".grid .pop");
-  await expect(pop.locator(".ftake")).toHaveText("Why? Take thing 1:"); // the heading and the subject on one line
-  await expect(pop.locator(".fsteps li")).toHaveText([/^It follows it is .+, because it is a form\.$/, /^It follows it is .+, because it is a thing\.$/]);
-  await expect(pop.locator(".fsteps .qterm")).toHaveCount(2); // the terms as the questions show them, with their A/B markers per the setting
-  await expect(page.locator(".grid .pop")).not.toContainText("|");
+  const note = page.locator("#path .exr .tnote").first();
+  await expect(note.locator(".tsteps li")).toHaveText([/^It follows it is .+, because it is a form\.$/, /^It follows it is .+, because it is a thing\.$/]);
+  await expect(note.locator(".tsteps li .sub, .tsteps li [data-k]").first()).toBeVisible();   // the pair's terms, marked as the questions mark them
+  await expect(note).not.toContainText("|");
 });
 
-withKey("in Pervasions an accepted question's note names the tutor's counter-example", async ({ page }, testInfo) => {
-  test.skip(isPhone(testInfo), "the wide layout has the table and the coach panel");
+withKey("a fact whose reason names a pervasion shows it under its consequence", async ({ page }) => {
   // an example that is not in the practice list, so the random pair cannot settle either side from the data
-  const line = 'Q2: "a ripe mango" | A yes: it is a fruit | B no: it is a plant; pervasion: a plant is not a person\n';
-  await server(page, { tutor: [{ status: 200, body: sse({ type: "delta", text: line }, { type: "done", truncated: false }) }] });
-  await page.goto("/");
-  await ready(page);
-  await goTo(page, "Pervasions");
-  for (let i = 0; i < 4; i++) {
-    await page.locator(".qcard .btn").first().click(); // accept each question
-    await page.waitForTimeout(150);
-  }
-  await relOptions(page).first().click();
+  await open(page, { tutor: saying('Both: "a ripe mango" | A yes: it is a fruit | B no: it is a plant; pervasion: a plant is not a person\n') });
   await explain(page).click();
-  await page.locator(".grid .qm").first().click();
-  const pop = page.locator(".grid .pop");
-  await expect(pop.locator(".ftake")).toHaveText("Why? Take a ripe mango:");
-  await expect(pop.locator(".fsteps li")).toHaveText([/^It follows it is .+, because it is a fruit\.$/, /^It follows it is not .+, because it is a plant\.A plant is not a person\.$/]);
-  await expect(pop.locator(".fsteps .not")).toHaveText("not"); // the denied term's "not" is marked as in the questions
-  await expect(pop.locator(".fsteps li").nth(1).locator(".fwhy")).toHaveText("A plant is not a person."); // the pervasion on a line under its consequence
+  const note = page.locator("#path .exr .tnote").first(), steps = note.locator(".tsteps li");
+  await expect(steps).toHaveCount(2);
+  await expect(steps.nth(1)).toContainText(/It follows it is not .+, because it is a plant/);
+  await expect(steps.nth(1).locator(".pnot")).toHaveText("not");   // the denied term's "not" is marked as in the questions
+  await expect(steps.nth(1).locator(".twhy")).toContainText("A plant is not a person.");
 });
 
-withKey("a follow-up question sends the whole conversation as a chat", async ({ page }, testInfo) => {
-  const asked = await open(page, testInfo);
+withKey("a follow-up question sends the whole conversation as a chat", async ({ page }) => {
+  const asked = await open(page);
   await explain(page).click();
-  await openAnswer(page);
+  await expect(answerText(page)).toContainText("this is the stand-in answer.");
+  await page.getByRole("button", { name: "Ask a follow-up" }).click();
   await page.fill("#ask-in", "Why not?");
   await page.keyboard.press("Enter");
   await expect.poll(() => asked.length).toBe(2);
@@ -225,159 +156,104 @@ withKey("a follow-up question sends the whole conversation as a chat", async ({ 
   expect(asked[1].body.turns.map((t) => t.role)).toEqual(["user", "assistant", "user"]);
   expect(asked[1].body.turns[1].content).toContain("this is the stand-in answer.");
   expect(asked[1].body.turns[2].content).toBe("Why not?");
-});
-
-// The chat is a drawer from the right behind a scrim, the mirror of the menu: its close button sits where the chat button was.
-withKey("the chat is a drawer from the right: the close button, the scrim and Escape return to the result", async ({ page }, testInfo) => {
-  await page.emulateMedia({ reducedMotion: "reduce" }); // the drawer slides in; measure it where it rests
-  await open(page, testInfo);
-  await explain(page).click();
-  await openAnswer(page);
-  const [o, d] = await Promise.all([page.locator("#over").boundingBox(), page.locator("#over .cdrawer").boundingBox()]);
-  expect(Math.round(d.x + d.width)).toBe(Math.round(o.x + o.width)); // flush with the right edge of the page
-  expect(d.x).toBeGreaterThanOrEqual(o.x + 40); // a dimmed strip of the exercise stays at the left
+  await expect(page.locator("#path .ptalk")).toContainText("this is the stand-in answer.");
   expect(await overflow(page)).toBeLessThanOrEqual(0);
-  await page.locator("#over .oc").click();
-  await expect(page.locator("#over")).toBeHidden();
-  await expect(page.locator("#mchat")).toBeFocused();
-  await page.locator("#mchat").click();
-  await page.mouse.click(10, 400); // on the scrim
-  await expect(page.locator("#over")).toBeHidden();
-  await page.locator("#mchat").click();
-  await page.keyboard.press("Escape");
-  await expect(page.locator("#over")).toBeHidden();
 });
 
-withKey("when the day's budget is used the page says so", async ({ page }, testInfo) => {
-  await open(page, testInfo, { tutor: [{ status: 429, body: JSON.stringify({ error: { code: "rate_limited", message: "budget" } }) }] });
+withKey("when the day's budget is used the page says so", async ({ page }) => {
+  await open(page, { tutor: [{ status: 429, body: JSON.stringify({ error: { code: "rate_limited", message: "budget" } }) }] });
   await explain(page).click();
   await expect(page.getByText(/limit for today is used up/i)).toBeVisible();
 });
 
-withKey("a used-up budget says whose it is and when the tutor opens again", async ({ page }, testInfo) => {
+withKey("a used-up budget says whose it is and when the tutor opens again", async ({ page }) => {
   const resetsAt = new Date(Date.now() + 3 * 3600 * 1000).toISOString();
-  await open(page, testInfo, { tutor: [{ status: 429, body: JSON.stringify({ error: { code: "rate_limited", message: "x", scope: "device", resetsAt } }) }] });
+  await open(page, { tutor: [{ status: 429, body: JSON.stringify({ error: { code: "rate_limited", message: "x", scope: "device", resetsAt } }) }] });
   await explain(page).click();
   await expect(page.getByText(/You have used your share of Claude for today\. It is available again (tomorrow )?at /)).toBeVisible();
   await expect(page.getByText(/Everything else in the app keeps working/)).toBeVisible();
 });
 
-withKey("when everybody's budget is used the page says that instead", async ({ page }, testInfo) => {
-  await open(page, testInfo, { tutor: [{ status: 429, body: JSON.stringify({ error: { code: "rate_limited", message: "x", scope: "global" } }) }] });
+withKey("when everybody's budget is used the page says that instead", async ({ page }) => {
+  await open(page, { tutor: [{ status: 429, body: JSON.stringify({ error: { code: "rate_limited", message: "x", scope: "global" } }) }] });
   await explain(page).click();
   await expect(page.getByText(/Claude has reached its limit for today for everybody\. Try again tomorrow\./)).toBeVisible();
 });
 
-withKey("with no connection the page says so, and Explain can be tried again", async ({ page }, testInfo) => {
-  await open(page, testInfo, { tutor: [{ abort: true }, { status: 200, body: ANSWER }] });
+withKey("with no connection the page says so, and the Explanation row asks again", async ({ page }) => {
+  const asked = await open(page, { tutor: [{ abort: true }, { status: 200, body: ANSWER }] });
   await explain(page).click();
   await expect(page.getByText(/no connection/i)).toBeVisible();
-  await explain(page).click();
-  await openAnswer(page);
+  await page.getByRole("button", { name: /^Explanation/ }).click();
+  await expect.poll(() => asked.length).toBe(2);
+  await expect(answerText(page)).toContainText("this is the stand-in answer.");
 });
 
-withKey("a refused key takes the tutor away", async ({ page }, testInfo) => {
-  await open(page, testInfo, { tutor: [{ status: 401, body: JSON.stringify({ error: { code: "not_granted", message: "proof" } }) }] });
+withKey("a refused key takes the tutor away", async ({ page }) => {
+  await open(page, { tutor: [{ status: 401, body: JSON.stringify({ error: { code: "not_granted", message: "proof" } }) }] });
   await explain(page).click();
   await expect(page.getByText(/not enabled for this page/i)).toBeVisible();
   await expect(explain(page)).toHaveCount(0);
 });
 
-withKey("with the server's tutor off the page offers none", async ({ page }, testInfo) => {
-  const asked = await open(page, testInfo, { health: { ok: true, tutor: "off" } });
+withKey("with the server's tutor off the page offers none", async ({ page }) => {
+  const asked = await open(page, { health: { ok: true, tutor: "off" } });
   await expect(explain(page)).toHaveCount(0);
-  await expect(page.getByRole("button", { name: /discuss with claude/i })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Ask a follow-up" })).toHaveCount(0);
+  await expect(page.locator(".wrow")).toHaveCount(0);
   expect(asked).toEqual([]);
 });
 
-withKey("with no server at all (the health address is the page itself) the page offers none", async ({ page }, testInfo) => {
-  test.skip(!isPhone(testInfo), "the answer flow is exercised in the phone layout");
+withKey("with no server at all (the health address is the page itself) the page offers none", async ({ page }) => {
   await page.goto("/");
   await ready(page);
-  await answerOnPhone(page);
+  await answerFirst(page);
   await expect(explain(page)).toHaveCount(0);
+  await expect(page.locator(".wrow")).toHaveCount(0);
 });
 
-withKey("on a wide screen the error and a follow-up answer appear in the coach panel", async ({ page }, testInfo) => {
-  test.skip(isPhone(testInfo), "the phone layout has its own spec above");
-  const asked = await server(page, { tutor: [{ status: 429, body: JSON.stringify({ error: { code: "rate_limited", message: "budget" } }) }, { status: 200, body: ANSWER }] });
-  await page.goto("/");
-  await ready(page);
-  await relOptions(page).first().click();
-  await page.locator("#stage .pbar .fwd").click(); // Check, with the cells left empty
-  await explain(page).click();
-  await expect(page.getByText(/limit for today is used up/i)).toBeVisible();
-  await page.fill("#ask-in", "Why not?");
-  await page.keyboard.press("Enter");
-  await expect(page.getByText("this is the stand-in answer.")).toBeVisible();
-  expect(asked.map((a) => a.body.kind)).toEqual(["explain", "chat"]);
-  expect(await overflow(page)).toBeLessThanOrEqual(0);
-});
-
-// The chat button opens the panel once the pair is checked; the field for a question is there before Explain has started a conversation, as in the phone's drawer.
-withKey("on a wide screen the chat button of a checked pair opens the panel with the follow-up field", async ({ page }, testInfo) => {
-  test.skip(isPhone(testInfo), "the phone's drawer has the field already (the chat drawer spec above)");
-  const asked = await server(page);
-  await page.goto("/");
-  await ready(page);
-  await relOptions(page).first().click();
-  await page.locator("#stage .pbar .fwd").click(); // Check, with the cells left empty
-  await page.locator("#mchat").click();
-  await expect(page.locator("#coach #ask-in")).toBeVisible();
-  await page.fill("#ask-in", "Why not?");
-  await page.keyboard.press("Enter");
-  await expect(page.getByText("this is the stand-in answer.")).toBeVisible();
-  expect(asked).toHaveLength(1);
-});
-
-// A device without the Magic Key still sees Explain when the server has a tutor: grayed, and a tap says what it needs.
-plain("without the Magic Key Explain is there, grayed, and opens the Magic Key prompt; with the server's tutor off it is not there", async ({ page }, testInfo) => {
-  test.skip(!isPhone(testInfo), "the answer flow is exercised in the phone layout");
+// A device without the Magic Key still sees Explain when the server has a tutor: it says what it needs, and a tap opens the prompt for the key.
+plain("without the Magic Key Explain is there, says it needs the key, and opens the Magic Key prompt; with the server's tutor off it is not there", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("rd-start", "exercise"));
   const asked = await server(page);
   await page.goto("/");
   await ready(page);
   await expect(page.locator("#unlock")).toHaveCount(0); // nothing greets the reader with a prompt
-  await answerOnPhone(page);
-  await expect(explain(page)).toHaveAttribute("aria-disabled", "true");
-  // a closed lock marks what needs the key; it opens while the button is hovered
-  const lock = explain(page).locator(".lockic");
-  await expect(lock.locator(".closed")).toBeVisible();
-  await expect(lock.locator(".open")).toBeHidden();
-  await explain(page).hover();
-  await expect(lock.locator(".open")).toBeVisible();
-  await expect(lock.locator(".closed")).toBeHidden();
-  await explain(page).click({ force: true }); // aria-disabled, but it can be tapped
+  await answerFirst(page);
+  await expect(explain(page)).toContainText("needs the Magic Key");
+  await explain(page).click();
   await expect(page.locator("#unlock")).toBeVisible();
   await expect(page.locator("#unlock")).toContainText("Magic Key");
   expect(asked).toEqual([]); // no question was sent
 
   const off = await page.context().newPage();
+  await off.addInitScript(() => localStorage.setItem("rd-start", "exercise"));
   await server(off, { health: { ok: true, tutor: "off" } });
   await off.goto("/");
   await ready(off);
-  await answerOnPhone(off);
+  await answerFirst(off);
   await expect(explain(off)).toHaveCount(0);
 });
 
-// The grayed Explain was tapped for a reason: once the key is entered, the page stays as it was and the question goes out.
-plain("Explain without the Magic Key: entering the key in the prompt keeps the result and asks the question", async ({ page }, testInfo) => {
-  test.skip(!isPhone(testInfo), "the answer flow is exercised in the phone layout");
+// The Explain that was tapped without the key was tapped for a reason: once the key is entered, the page stays as it was and the question goes out.
+plain("Explain without the Magic Key: entering the key in the prompt keeps the result and asks the question", async ({ page }) => {
   test.skip(!withCourse, "needs the course data to unlock the definitions");
   await serveCourse(page);
+  await page.addInitScript(() => localStorage.setItem("rd-start", "exercise"));
   const asked = await server(page);
   await page.goto("/");
   await ready(page);
-  await answerOnPhone(page);
-  const pair = () => page.locator("#stage .head .pair").first().innerText();
+  await answerFirst(page);
+  const pair = () => page.locator("#path .pn.res .pnl b").allInnerTexts();
   const before = await pair();
   await page.evaluate(() => { window.__sameDocument = true; });
-  await explain(page).click({ force: true });
+  await explain(page).click();
   await page.fill("#unlock-key", dataKey);
   await page.locator("#unlock").getByRole("button", { name: "Unlock", exact: true }).click();
   await expect(page.locator("#unlock")).toHaveCount(0);
-  await openAnswer(page);
+  await expect(answerText(page)).toContainText("this is the stand-in answer.");
   expect(asked).toHaveLength(1);
   expect(asked[0].body.kind).toBe("explain");
-  expect(await pair()).toBe(before);
+  expect(await pair()).toEqual(before);
   expect(await page.evaluate(() => window.__sameDocument), "the page was not reloaded").toBe(true);
 });

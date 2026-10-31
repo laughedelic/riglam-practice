@@ -21,7 +21,7 @@ In `npm run dev` the parts that ask Claude (the tutor and Explain) are served by
 | Which pairs there are, how the next one is drawn, how an answer is graded, how Claude's verdict lines are read | `src/domain/` (TypeScript, no page, DOM or storage) | `tests/unit/domain.test.ts` |
 | What the tutor is told, the card for a pair, the lookup tools, how a learner's words match a term | `src/ai-shared/` (TypeScript, shared with any server that calls the model) | `tests/unit/ai-shared.test.ts` |
 | What the page does: screens, saving, keys, timers | the module in `src/app/` for its area (`practice/`, `debate/`, `review/`, `ai/`, `shell/`) | a Playwright spec in `tests/e2e/`, or a Vitest file for logic that has no DOM |
-| How the page looks | the file for its area in `src/app/styles/` | `tests/e2e/layout/layout.spec.js` |
+| How the page looks | the file for its area in `src/app/styles/` | the Path specs in `tests/e2e/pwa/` (`path*.spec.js`) |
 | Something that differs between the installed app and the artifact | `src/pwa/` or `src/artifact/` (TypeScript), never a branch on the build inside `src/app` | the unit tests of that folder |
 | The term data | `npm run data:import -- <full.json>`; never by hand | `npm run data:check` |
 | The app icon | `scripts/lib/icon-art.mjs` (the page, the bands and the figure as numbers), then `npm run icons` writes the SVGs `public/icons/icon.svg` (Main) and `public/icons/preview/icon.svg` (Preview) and the PNGs, which get the generated grain of `scripts/lib/grain.mjs`, mild on the page and strong on the bands and the figure (the SVGs stay flat) | `tests/unit/icons.test.ts` |
@@ -51,7 +51,7 @@ Never rename a collection or change a document shape without a migration of the 
 
 If a unit test about the artifact fails after you switch branches or refresh the data, the build in `dist/artifact` is stale: run `npm run build:artifact`.
 
-The layout and the legacy tests draw random pairs. A legacy test that fails once and passes on a rerun usually depends on which pair was drawn; make it independent of the pair rather than rerunning it until it passes. A new legacy check that needs an internal of the page gets it through the test hook at the end of `src/app/app.js` ([TESTING.md](TESTING.md#the-legacy-suite)).
+The specs draw random pairs. A spec that fails once and passes on a rerun usually depends on which pair was drawn; make it independent of the pair rather than rerunning it until it passes. A spec that needs an internal of the page gets it through the test hook at the end of `src/app/app.js` ([TESTING.md](TESTING.md#conventions)).
 
 ## Pull requests
 

@@ -41,8 +41,7 @@ jobs:
 
   # The browser tests, in parallel. Each job builds both outputs itself (about 10 seconds), because the artifact build must not be uploaded.
   # Playwright's --shard cuts a project's tests into equal runs of consecutive tests (by count, not by time), which is even enough here.
-  # Each job has about 30 seconds of setup. Measured on a run: the slowest legacy slice takes about 3 minutes (test40q alone is about two), the slowest PWA slice
-  # about 3.5, so a fourth slice of each PWA project would save under a minute.
+  # Each job has about 30 seconds of setup.
   # When a project or a shard is added here, `npx playwright test --list` must still list every test exactly once across the jobs (docs/TESTING.md).
   browser:
     name: Browser tests (${{ matrix.name }})
@@ -52,10 +51,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: legacy 1/3, args: "--project=legacy --shard=1/3" }
-          - { name: legacy 2/3, args: "--project=legacy --shard=2/3" }
-          - { name: legacy 3/3, args: "--project=legacy --shard=3/3" }
-          - { name: layout, args: "--project=layout" }
           - { name: PWA desktop 1/3, args: "--project=pwa-desktop --shard=1/3" }
           - { name: PWA desktop 2/3, args: "--project=pwa-desktop --shard=2/3" }
           - { name: PWA desktop 3/3, args: "--project=pwa-desktop --shard=3/3" }

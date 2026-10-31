@@ -2,13 +2,20 @@
 // The server is the Worker itself on a fake database (tests/support/server-bridge.js) and the passkeys are Chromium's virtual
 // authenticator, so the ceremonies, the cookie rules and the sync run for real; only the network and the biometrics are stood in for.
 import { test, expect } from "../../support/test.js";
-import { ready, overflow, openSettings } from "../../support/page.js";
+import { ready, overflow, openSettings, openSettingsPage } from "../../support/page.js";
 import { dataKey, KEY_STORE, withCourse } from "../../support/data-key.js";
 import { bridge, serverWorld, virtualAuthenticator } from "../../support/server-bridge.js";
 
-const openOptions = (page) => openSettings(page);
-const acct = (page) => page.locator(".acct");
-const status = (page) => acct(page).locator(".onote[role=status]");
+const openOptions = (page) => openSettingsPage(page, "Account");
+const acct = (page) => page.locator(".pacct");
+const status = (page) => acct(page).locator(".pnoteline[role=status]");
+/** Types the account's name. A field of the Path with the keyboard up (a phone) takes the top bar aside and brings it back when it is let go, which moves the
+ *  button beside it from under a tap that has already begun: the field is let go first. */
+async function fillName(page, name) {
+  const field = acct(page).getByLabel("A name for the account");
+  await field.fill(name);
+  await field.blur();
+}
 
 async function start(page, world) {
   const device = await bridge(page, world);
@@ -53,13 +60,13 @@ const outboxKeys = (page) =>
       }),
   );
 
-test("without accounts on the server the Options screen has no Account row", async ({ page }) => {
+test("without accounts on the server Settings has no Account line", async ({ page }) => {
   await page.route("**/api/health", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, tutor: "off", accounts: "off" }) }));
   await page.goto("/");
   await ready(page);
-  await openOptions(page);
-  await expect(page.getByText("Your data", { exact: true })).toBeVisible();
-  await expect(page.getByText("Account", { exact: true })).toHaveCount(0);
+  await openSettings(page);
+  await expect(page.getByRole("button", { name: "Export and import: more" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Account: more" })).toHaveCount(0);
 });
 
 test("an account is made with a passkey and the documents follow the person to another device", async ({ page, browser }, testInfo) => {
@@ -71,7 +78,7 @@ test("an account is made with a passkey and the documents follow the person to a
   await expect(acct(page)).toBeVisible();
   await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
   expect(await overflow(page)).toBeLessThanOrEqual(0);
-  await acct(page).getByLabel("A name for the account").fill("Test person");
+  await fillName(page, "Test person");
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(acct(page)).toContainText("Signed in as Test person");
   await expect(acct(page)).toContainText("1 passkey");
@@ -103,7 +110,7 @@ test("the progression follows the person: another device signed in takes it, and
   const world = await serverWorld();
   const { keys } = await start(page, world);
   await openOptions(page);
-  await acct(page).getByLabel("A name for the account").fill("Test person");
+  await fillName(page, "Test person");
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(status(page).first()).toContainText("Up to date", { timeout: 15_000 });
   // the first device moves on (as its stages and terms would): its copy goes to the server (practice/progress.ts)
@@ -215,13 +222,13 @@ test("the delete confirmation takes the focus when it opens, and the delete butt
   await expect(page.getByRole("button", { name: "Delete account ..." })).toBeFocused();
 });
 
-test("a control in Options keeps the focus while the sync status redraws the screen", async ({ page }) => {
+test("a control of the Account page keeps the focus while the sync status redraws the screen", async ({ page }) => {
   const world = await serverWorld();
   const { device } = await start(page, world);
   await openOptions(page);
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(status(page).first()).toContainText("Up to date", { timeout: 15_000 });
-  const sw = page.getByRole("button", { name: "Export" });
+  const sw = page.getByRole("button", { name: "Sign out" });
   await sw.focus();
   await expect(sw).toBeFocused();
   device.offline = true;
@@ -237,7 +244,7 @@ test.describe("the Magic Key follows the account", () => {
     const world = await serverWorld();
     const { keys } = await start(page, world);
     await openOptions(page);
-    await acct(page).getByLabel("A name for the account").fill("Key person");
+    await fillName(page, "Key person");
     await page.getByRole("button", { name: "Create account" }).click();
     await expect(acct(page)).toContainText("Signed in as Key person");
     await expect(acct(page)).toContainText("carries the Magic Key");
@@ -260,7 +267,7 @@ test("a store that stopped answering is replaced by a new one, and the account b
   await start(page, world);
   await put(page, "labruns", "lr_kept", { kind: "run", at: "2026-10-01T10:00:00.000Z" });
   await openOptions(page);
-  await acct(page).getByLabel("A name for the account").fill("Test person");
+  await fillName(page, "Test person");
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(status(page).first()).toContainText("Up to date", { timeout: 15_000 });
 

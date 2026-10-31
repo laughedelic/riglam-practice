@@ -12,8 +12,7 @@ import { startFirst } from "../shell/tabs.js";
 import { render } from "../shell/render.js";
 import type { ProgressDoc } from "../types.ts";
 import { freshIntro, normIntro, normPace } from "../../domain/intro.ts";
-import { DEFAULT_STAGES, freshRun, normExRuns, normGuided, normRun, normStages, topStage } from "../../domain/stages.ts";
-import { EVERYDAY_STAGES } from "../../domain/syllogism.ts";
+import { DEFAULT_STAGES, freshRun, normExRuns, normGuided, normRun, normStages } from "../../domain/stages.ts";
 
 export const PROGRESS = "progress";
 const ID = "learner";
@@ -79,7 +78,6 @@ export function resetProgress() {
   state.negation = "off"; store("rd-negation", "off");
   state.stageRun = freshRun(); state.exRuns = {}; state.guided = {};
   state.negOfferAt = now; store("rd-neg-offer", now); state.relSession = [];
-  try { if (localStorage.getItem("rd-syllogism-guide") === null) state.syllogismGuide = topStage(state.stages) <= EVERYDAY_STAGES; } catch { /* the default stays */ }
   saveProgress();
   if (state.mode === "quiz") startFirst();
   render();

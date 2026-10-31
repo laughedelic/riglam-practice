@@ -13,4 +13,3 @@ export function el(tag, props, ...kids){
   for(const c of kids.flat()) if(c!=null&&c!==false) n.append(c.nodeType?c:document.createTextNode(String(c)));
   return n;
 }
-export const L=x=>el("span",{class:"L"+(x==="B"?" lb":""),text:x});

@@ -4,7 +4,7 @@ import tseslint from "typescript-eslint";
 import { defineConfig } from "eslint/config";
 
 export default defineConfig([
-  { ignores: ["dist/", "node_modules/", "legacy/", "tests/legacy/", "test-results/", "playwright-report/", "src/pwa/fonts/"] },
+  { ignores: ["dist/", "node_modules/", "test-results/", "playwright-report/", "src/pwa/fonts/"] },
   js.configs.recommended,
   {
     files: ["src/**/*.js"],

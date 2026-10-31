@@ -2,7 +2,7 @@
 // path, not on it. A tap on one (or a slide of it to the left, which a finger can stop half way) sends its mark onto the line with a small knock; the others fade
 // while the dotted thread above it turns solid, together; the mark fills when the solid line reaches it; and, in a list, it rises along that thread to the first
 // row's place while the trace below it turns gray. Then the step goes on (`done`). The stages are CSS variables on the choice's section (`.sx.gap`: s the snap, f the
-// others fading, g the thread turning solid, n the mark filling, r the rise), so the stylesheet (styles/41-path-choose.css) draws everything from them and a hand can
+// others fading, g the thread turning solid, n the mark filling, r the rise), so the stylesheet (styles/13-path-choose.css) draws everything from them and a hand can
 // drive the first three. Reduced motion skips all of it.
 import { state } from "../state.js";
 import { bump } from "./gesture.ts";

@@ -3,8 +3,6 @@ import { afterCheck } from "../ai/known.js";
 import { $ } from "../core/dom.js";
 import { moreRefs } from "../core/examples.js";
 import { CELLS, REL } from "../core/rel.js";
-import { isFind } from "../core/util.js";
-import { isWide } from "../core/viewport.js";
 import { persist } from "../practice/answers.js";
 import { freshUi } from "../practice/queue.js";
 import { clearSkip } from "../practice/skips.js";
@@ -21,7 +19,6 @@ import { drawRelation, findId, findPair, gradeFind, nameThing, sameThing } from 
 // so it is stored and synced like the others, and the lists that mean the Relations exercise leave it out (practice/universe.js, answerList).
 // The state of the screen is the usual one (`rel` is the relation asked for, `cells` the examples) with `step` 0 while the pair is named, 1 for the examples, and the words typed.
 const SIX=6;
-export const findList=()=>Object.values(state.answers).filter(isFind).sort((x,y)=>(x.at||"").localeCompare(y.at||""));
 export function freshFindUi(rel){
   return Object.assign(freshUi(),{find:true, rel, open:false, step:0, wordA:"", wordB:"", pairErr:"", own:false, focusA:true});
 }
@@ -58,15 +55,9 @@ export function chooseRel(k){
     if(state.cur.p&&state.cur.p.own) state.cur.p.relation=k;
   }
   render();
-  if(u.step===1) focusFirstCell();
+  if(u.step===1) focusCin();
 }
 const focusWord=k=>{ const i=$("fw-"+k); if(i) i.focus({preventScroll:true}); };
-// the first example field, where there is a keyboard to type with
-function focusFirstCell(){
-  if(!isWide()){ focusCin(); return; }
-  const first=CELLS.find(c=>!REL[state.ui.rel].empty.includes(c)), i=first&&$("in-"+first);
-  if(i&&!("ontouchstart" in window)) i.focus();
-}
 /** The pair is named: on to the examples. The same words as before keep the examples written; other words start a new pair. */
 export function usePair(){
   const u=state.ui; if(!u||!u.find||u.checked||u.step!==0) return;
@@ -81,7 +72,7 @@ export function usePair(){
   }
   u.own=!!state.cur.p.own; u.pairErr=""; u.step=1;
   render(); top0();
-  focusFirstCell();
+  focusCin();
 }
 /** Back to the words of the pair, to change them. */
 export function editPair(){

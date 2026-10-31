@@ -1188,7 +1188,7 @@ test("the ladder ends at stage 9: the stages after it are the steps of depth, se
   // the ring of the ladder: on its last stage it shows the terms, and no stage comes after it
   const marks = stageTerms(rix, 9).map((id) => ({ id, mark: "ok" as const }));
   expect(stageProgress(freshRun(), upToStage(9), marks, undefined, LADDER_TOP)).toMatchObject({ top: 9, next: null, shows: "terms", frac: 0, full: false });
-  expect(stageProgress(freshRun(), upToStage(9), marks), "the classic page: stage 10 after a run").toMatchObject({ next: 10, shows: "run" });
+  expect(stageProgress(freshRun(), upToStage(9), marks), "without term stops: stage 10 after a run").toMatchObject({ next: 10, shows: "run" });
   // the offer of the first step: the rule of stage 9's terms, as for a stage
   expect(stageOffer({ up: STAGE_STREAK, down: 0 }, upToStage(9), { n: 4, right: true, just: false }, "words")).toEqual({ kind: "up", stage: 10 });
 });

@@ -2,12 +2,12 @@
 // have a sound on the way through a question: the station taken with a mouse, the verdict when the result lands, the next question. What each sound is made of, how long it lasts and
 // when one may play is tests/unit/sounds.test.ts; here the real audio context is wrapped so that the spec can tell which sound was scheduled, by the pitch of its first note.
 import { test, expect } from "../../support/test.js";
+import { seedRandom } from "../../support/artifact-host.js";
 
 /** The first note of each sound, in Hz, as the wrapped audio context sees it (src/app/sound/courtyard.ts: the wood starts a tenth above its pitch and falls to it). */
 const FIRST = { 726: "right", 572: "partly", 330: "wrong", 1375: "next", 990: "knock", 392: "definition", 550: "stage", 2600: "claude", 770: "timeup" };
 
 const init = () => {
-  if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path");
   window.__snd = []; window.__ctxs = 0;
   const Real = window.AudioContext;
   let open = false;
@@ -28,6 +28,7 @@ const heard = (page) => page.evaluate((names) => window.__snd.map((f) => names[f
 const choices = (page) => page.locator("#path .chs .crow");
 
 async function start(page) {
+  await page.addInitScript(seedRandom);   // the same pairs each time: a verdict is heard only where the page can judge the examples (not "right so far, examples unchecked")
   await page.addInitScript(init);
   await page.goto("/");
   await expect(choices(page)).toHaveCount(5);

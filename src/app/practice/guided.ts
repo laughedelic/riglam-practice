@@ -1,7 +1,7 @@
 // The guided form of each exercise on the Path (src/domain/stages.ts, GUIDE_RIGHT). On by default, an exercise shows its hints: the structure,
 // the sentences spelled out, the terms suggested. After GUIDE_RIGHT right answers in it, the guided form turns off by itself, once, and the result
 // says so; from then on only the learner's switch in the exercise's practice options changes it. Part of the progression (practice/progress.ts),
-// so Reset progression turns it on again. The classic page keeps its own switches.
+// so Reset progression turns it on again.
 import { state } from "../state.js";
 import { saveProgress } from "./progress.ts";
 import { render } from "../shell/render.js";
@@ -19,9 +19,9 @@ export const GUIDES: Record<string, { name: string; on: string; off: string }> =
 export const guided = (ex: string): boolean => guidedOn(state.guided[ex]);
 /** The learner's switch: it stays as set. */
 export function setGuided(ex: string, on: boolean) { state.guided = { ...state.guided, [ex]: on }; saveProgress(); render(); }
-/** A checked answer in `ex` (practice/stage-offer.ts, stageStep, which saves): the guided form turns off by itself once the exercise has its right answers, on the Path. */
+/** A checked answer in `ex` (practice/stage-offer.ts, stageStep, which saves): the guided form turns off by itself once the exercise has its right answers. */
 export function guideStep(ex: string) {
-  if (state.design !== "path" || !GUIDES[ex] || !guideTurnsOff(state.guided[ex], state.exRuns[ex])) return;
+  if (!GUIDES[ex] || !guideTurnsOff(state.guided[ex], state.exRuns[ex])) return;
   state.guided = { ...state.guided, [ex]: false };
   if (state.ui) state.ui.guideOff = ex;
 }

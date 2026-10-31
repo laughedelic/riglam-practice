@@ -32,7 +32,7 @@ function go(k: string) {
   setTab(k);
 }
 // Settings from the roadmap stands over it: Back and its own way back go to the roadmap (shell/history.js)
-function openSettings() { state.fromRoad = true; state.menuOpen = false; state.menuPeek = false; state.sessOpen = false; state.sessPage = null; state.skipAsk = false; toggleOpts(true); }
+function openSettings() { state.fromRoad = true; state.menuOpen = false; state.sessOpen = false; state.sessPage = null; state.skipAsk = false; toggleOpts(true); }
 
 function Node({ k, name }: { k: string; name: string }) {
   const at = PLACES[k];

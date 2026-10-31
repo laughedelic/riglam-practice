@@ -21,7 +21,7 @@ import { Bridge, Icon } from "./ui.tsx";
 export const PullCtx = createContext<Pull>(new Pull());
 
 /** The tutor's button: what it does on the screen in front of it (set by the screen), or null when it waits for a result. `mic`: the screen is
- *  drawn on the Path and can be answered by voice (a hosted classic screen has the microphone in its own bar). */
+ *  drawn on the Path and can be answered by voice (a hosted part has the microphone in its own bar). */
 export interface TopBarProps { title: string; tools?: boolean; mic?: boolean; /** where the chevron and the title go back to, when it is not the roadmap (Settings: its page, or where it was opened from) */ back?: { label: string; go: () => void } }
 
 const HOLD_MS = 500;

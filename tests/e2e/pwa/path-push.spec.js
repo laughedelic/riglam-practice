@@ -8,7 +8,6 @@ import { exerciseAtRest } from "../../support/page.js";
 test.use({ reducedMotion: "no-preference" });
 
 const onPath = () => {
-  if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path");
   window.__riglamTest = (t) => { window.__t = t; };
   window.__vib = []; navigator.vibrate = (v) => { window.__vib.push(v); return true; };
   // the page tells a finger from a mouse (state.hand: its knocks are for a finger); Playwright's mouse is made to read as a finger here, `window.__pointer = "mouse"` as a mouse again

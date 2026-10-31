@@ -1,5 +1,4 @@
 import { state } from "../state.js";
-import { $ } from "../core/dom.js";
 import { advanceDebate, asking, freshDebateUi, startQ, stopTimer } from "../debate/flow.js";
 import { advanceCategories, categoriesBegun } from "../categories/flow.js";
 import { advanceInstance, instanceBegun } from "../instance/flow.ts";
@@ -15,7 +14,7 @@ import { usePerExercise } from "../practice/per-exercise.ts";
 
 const hold={};
 // The screens: the exercises ("practice" is Relations, "debate" Pervasions, "find" Find a pair) and Review. Each exercise keeps its own
-// attempt while you are anywhere else: an unfinished one is parked and comes back as it was ("continue" in the menu). Relations and Pervasions work
+// attempt while you are anywhere else: an unfinished one is parked and comes back as it was ("continue" on the roadmap). Relations and Pervasions work
 // on one pair: opening one while the other has an unfinished pair, and nothing of its own begun or checked, opens that pair at its first step.
 // Find a pair is its own exercise (the learner names the pair): it gives no pair to the other two and takes none from them. Syllogisms has no pair at all, only a syllogism,
 // Categories only a thing with its categories, and Find an instance only a set of categories; each is apart in the same way.
@@ -73,22 +72,15 @@ export function switchTo(k){
   if(isEx(k)) try{ localStorage.setItem("rd-ex",k); }catch(e){}
   if(k==="debate"&&state.ui&&state.ui.debate&&!state.ui.checked&&state.ui.step<4) startQ();
 }
-// Going to a screen from the menu or the back arrow. A screen shows itself, not a panel over it: Settings, the options and the chat close first, and so does the menu.
+// Going to a screen from the roadmap or the back arrow. A screen shows itself, not a panel over it: Settings, the options and the chat close first, and so does the roadmap.
 export function setTab(k){
   if(state.mode!=="quiz"&&isEx(k)) return;
   if(state.optsOpen) toggleOpts(false);
   if(state.sessOpen) toggleSess(false);
   if(state.view==="chat") closeChat();
-  state.fromRoad=state.design==="path"&&!isEx(k)&&(state.menuOpen||state.fromRoad);   // Review from the roadmap goes back there (shell/history.js)
-  state.skipAsk=false; state.menuOpen=false; state.menuPeek=false; state.pathProg=null;   // Review, not the Progression page that stands in for it (path/progression.tsx)
+  state.fromRoad=!isEx(k)&&(state.menuOpen||state.fromRoad);   // Review from the roadmap goes back there (shell/history.js)
+  state.skipAsk=false; state.menuOpen=false; state.pathProg=null;   // Review, not the Progression page that stands in for it (path/progression.tsx)
   if(state.tab!==k) switchTo(k);
   if(state.blitz&&asking()&&!state.ui.tq) startQ();       // the question's clock stood still behind the menu
-  render(); top0(); focusStage();
-}
-// A menu row is gone once it has been used (the drawer closes): the keyboard focus goes to the new screen, not to the end of the page.
-// A button that is still there (the pinned menu's) keeps it.
-function focusStage(){
-  const a=/** @type {HTMLElement|null} */(document.activeElement);
-  if(a&&a!==document.body&&a.isConnected&&a.offsetParent) return;
-  $("stage").focus({preventScroll:true});
+  render(); top0();
 }

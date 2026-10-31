@@ -11,8 +11,8 @@ const point = (a: number) => { const t = ((a - 90) * Math.PI) / 180; return (15 
 /** The arc of the ring from angle `a0` to `a1`, in degrees clockwise from the top. */
 const arc = (a0: number, a1: number) => "M" + point(a0) + "A" + R + " " + R + " 0 " + (a1 - a0 > 180 ? 1 : 0) + " 1 " + point(a1);
 
-/** The new terms of a stage with their marks on this device (none before the term data is in, and on the classic page, which has no term stops). */
-export const marksOf = (stage: number): StageMark[] => (state.design === "path" && state.intro && state.DATA ? stageMarks(state as unknown as DataIndex, state.intro, stage) : []);
+/** The new terms of a stage with their marks on this device (none before the term data is in). */
+export const marksOf = (stage: number): StageMark[] => (state.intro && state.DATA ? stageMarks(state as unknown as DataIndex, state.intro, stage) : []);
 /** How many of the terms have their last answer right. */
 export const rightOf = (marks: readonly StageMark[]): number => marks.filter((t) => t.mark === "ok").length;
 

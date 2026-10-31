@@ -1,6 +1,6 @@
 // Syllogisms on the Path, as the lab draws them: 1 the answer (the syllogism set on the path in its three parts, S, P and R in the margin,
 // and the three replies as choices; after "there is no pervasion", a counter-example, which may be left out), 2 the result (the
-// verdict, what was answered, the three checks as stops, the tutor's Why). The steps are the classic page's (syllogism/flow.js). A "there is no pervasion" holds its verdict:
+// verdict, what was answered, the three checks as stops, the tutor's Why). The steps are syllogism/flow.js's. A "there is no pervasion" holds its verdict:
 // the counter-example is asked for whether the reply is right or not, and the scan of the result marks the reply after the example.
 import type { ComponentChildren } from "preact";
 import { state } from "../state.js";

@@ -4,13 +4,13 @@ import { CELLS, REL } from "../core/rel.js";
 import { QCELL } from "../debate/text.js";
 import { cellFor, disputeText, quorumDisputes, readings } from "../../domain/quorum.ts";
 import { norm } from "../practice/universe.js";
-import { render, renderKeepFocus } from "../shell/render.js";
+import { render } from "../shell/render.js";
 
 /* ---------- Quorum: the tutor's mode of several models and a judge (Preview servers, docs/SERVER.md) ---------- */
-// With Quorum on, the explanation of a checked answer (Explain, or "Check every answer with Claude") is asked of the app's server with `quorum: true`. The server has Haiku,
+// With Quorum on, the explanation of a checked answer (Explain, or Explanations by Claude on Every answer) is asked of the app's server with `quorum: true`. The server has Haiku,
 // Sonnet and Opus answer it on their own; where they put an example in different cells, Opus reads their answers and writes the one that is shown. The text you read and
 // the verdicts the page takes from it (tutor.js, applyVerify) are that one answer. The server keeps every run; the page keeps nothing of it but the flags it raises
-// (collection "flags") where the models are divided, and shows the run to the maintainer in the Quorum chip (quorum-panel.js). With Quorum off, one model answers as ever.
+// (collection "flags") where the models are divided, and shows the run to the maintainer in the Quorum panel (quorum-panel.js). With Quorum off, one model answers as ever.
 export const setQuorum=on=>{ state.quorumChoice=!!on; state.quorum=!!on; try{ localStorage.setItem("rd-quorum",on?"1":"0"); }catch(e){} render(); };
 // what the server offers this device (platform.quorum: false, "on" or "optin"). Without a choice of its own the device follows the server: on for "on" (a Preview), off for "optin".
 export function setQuorumOffer(offer){
@@ -24,12 +24,12 @@ export const quorumOn=()=>!!(state.quorumOffered&&state.quorum&&state.tutor&&!st
 export const quorumNeeded=U=>!!(U&&U.res&&U.res.exOpen>0);
 // whether the explain question of this answer goes to Quorum
 export const quorumWanted=U=>quorumOn()&&quorumNeeded(U);
-// whether the Quorum chip belongs on a checked answer; Review shows the flags wherever there is a tutor to flag, or flags to look at
+// whether the Quorum panel belongs on a checked answer; Review shows the flags wherever there is a tutor to flag, or flags to look at
 export const quorumChip=()=>!!(state.quorumOffered&&state.quorum&&state.db);
 export const quorumShown=()=>!!(state.db&&(state.quorumOffered||state.sample||Object.keys(state.flags).length));
 
 export function quorumBegin(U){ U.quorum={busy:true,steps:[],record:null}; }
-export function quorumStep(U,step){ const q=U.quorum; if(!q) return; q.steps.push(step); if(U===state.ui&&U.rtab==="quorum") renderKeepFocus(); }
+export function quorumStep(U,step){ const q=U.quorum; if(!q) return; q.steps.push(step); if(U===state.ui&&U.rtab==="quorum") render(); }
 export function quorumDropped(U){ delete U.quorum; }
 // the answer is in: keep the record, and flag the examples the models are divided about
 // `C` is the pair the question was asked about: the learner may have gone to another pair while the models worked, and the flags belong to the one answered.

@@ -1,12 +1,9 @@
-// The stop of a course term (practice/stops.ts, src/domain/intro.ts): on the Path a category of the course is asked about only once a stop has
-// shown its term, and the stop comes before the next question; the classic page asks as before. Reset progression starts the terms again and keeps
-// the answers (practice/progress.ts).
+// The stop of a course term (practice/stops.ts, src/domain/intro.ts): a category of the course is asked about only once a stop has
+// shown its term, and the stop comes before the next question. Reset progression starts the terms again and keeps the answers (practice/progress.ts).
 import { test, expect, SETTLED_TERMS } from "../../support/test.js";
-import { isPhone, ready, relOptions } from "../../support/page.js";
 import { dataKey, serveCourse, withCourse } from "../../support/data-key.js";
 
 const hook = () => { window.__riglamTest = (t) => { window.__t = t; }; };
-const onPath = () => { if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path"); };
 // a device that has just come to stage 1 and met no term yet, three questions in: the next pull brings the stop of Form (over the met terms the support test gives)
 const fresh = () => { localStorage.setItem("rd-stages", "0,1"); localStorage.setItem("rd-terms", JSON.stringify({ n: 3, next: 3, terms: {} })); };
 /** A device that has settled every course term but `left`, with `met` at box 1, at every stage, and the next new term due: the stop of the first of `left`. */
@@ -19,7 +16,6 @@ const seed = (page, left, met = []) => page.addInitScript(([settled, left, met])
 /** Pulls the next screen, which is the stop that is due (`examples`: after the examples the stand-in server gives have been read). */
 async function toStop(page, examples = false) {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.addInitScript(onPath);
   await page.addInitScript(hook);
   await page.goto("/");
   await expect(page.locator("#path .chs .crow")).toHaveCount(5);
@@ -30,40 +26,11 @@ async function toStop(page, examples = false) {
   return stop;
 }
 const ORDER = ["mi", "3ab", "3ba", "4", "con"];
-const fwd = (page) => page.locator("#stage .pbar .fwd");
 const station = (page) => page.locator("#stn");
 const cats = (page) => page.evaluate(() => [window.__t.cur.p.catA, window.__t.cur.p.catB]);
 
-/** The pair's own relation, anything in the cells it leaves possible, and the check (classic page). */
-async function answerClassic(page, testInfo) {
-  const rel = await page.evaluate(() => window.__t.cur.p.relation);
-  await relOptions(page).nth(ORDER.indexOf(rel)).click();
-  if (isPhone(testInfo)) {
-    for (let i = 0; i < 4 && (await page.locator("#cin").isVisible()); i++) { await page.fill("#cin", "thing " + (i + 1)); await fwd(page).click(); }
-  } else {
-    const ids = await page.locator(".cell input:not([disabled])").evaluateAll((a) => a.map((x) => x.id));
-    for (const id of ids) await page.fill("#" + id, "thing");
-    await fwd(page).click();
-  }
-  await expect.poll(() => page.evaluate(() => window.__t.ui.checked)).toBe(true);
-}
-
-test("the classic page has no stops: the next question follows the result, and the questions are still counted", async ({ page }, testInfo) => {
-  await page.addInitScript(fresh);
-  await page.addInitScript(hook);
-  await page.goto("/");
-  await ready(page);
-  await answerClassic(page, testInfo);
-  expect(await page.evaluate(() => window.__t.intro.n)).toBe(4);
-  await page.keyboard.press("n");
-  await ready(page);
-  expect(await page.evaluate(() => window.__t.ui.stop)).toBeFalsy();
-  expect(await page.evaluate(() => window.__t.intro.terms)).toEqual({});
-});
-
-test("on the Path the stop is a station of its own, with the term and where it sits, and Next leads on", async ({ page }) => {
+test("the stop is a station of its own, with the term and where it sits, and Next leads on", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.addInitScript(onPath);
   await page.addInitScript(fresh);
   await page.addInitScript(hook);
   await page.goto("/");
@@ -124,7 +91,6 @@ test("on the Path the stop is a station of its own, with the term and where it s
 
 test("Reset progression on the Progression page asks first, then starts at stage 0 with no term met, on the device and in its progress document", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.addInitScript(onPath);
   await page.addInitScript(() => { if (localStorage.getItem("rd-negation") === null) { localStorage.setItem("rd-stages", "0,1,2,3"); localStorage.setItem("rd-negation", "one");
     localStorage.setItem("rd-stage-run", JSON.stringify({ up: 3, down: 0 })); localStorage.setItem("rd-ex-runs", JSON.stringify({ practice: { run: 5, right: 9 } }));
     localStorage.setItem("rd-guided", JSON.stringify({ practice: false })); } });
@@ -184,7 +150,6 @@ test("a division whose stop has come is named in the tree, and the ellipsis stay
 
 test("Settings > Languages decides which names the stop shows: Tibetan with its Wylie, Sanskrit in Devanagari with its transliteration, Chinese in both writings with pinyin", async ({ page }) => {
   await seed(page, ["form"]);
-  await page.addInitScript(onPath);
   await page.addInitScript(hook);
   await page.goto("/");
   await expect(page.locator("#path .chs .crow")).toHaveCount(5);

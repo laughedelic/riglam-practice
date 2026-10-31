@@ -116,7 +116,7 @@ export function ExamplesStep({ kb, title, step, rel, full, check, scan }: { kb: 
       <St d={<D cls="sub" />} cls="sb later"><span class="lab">{CASE[c]}</span><p class="qq">{caseQ(c, p)}</p></St></button>;
   });
   // each case draws the piece of line from its own diamond to the next one: yellow and solid where the case is written, yellow and dotted where it is not (the path
-  // ahead is blocked by it); the trail ahead is dotted until every case is written, then solid and gray (34-path-line.css). The classes say what the piece needs:
+  // ahead is blocked by it); the trail ahead is dotted until every case is written, then solid and gray (06-path-line.css). The classes say what the piece needs:
   // the case's own state (`kw` written, `ko` open, `kl` later) and the next one's (`nxkw`, `nxko`, `nxkl`), for where the keyboard layout puts the diamonds.
   const kinds = k.order.map((c, i) => (i === k.ci ? "ko" : filled(c) ? "kw" : "kl")), last = k.order.length - 1;
   const lined = rows.map((row, i) => <Sx cls={"er " + (filled(k.order[i]) ? "cur " : "gap ") + kinds[i] + (i < last ? " nx" + kinds[i + 1] : " last")}>{row}{i === last ? <Gap h={6} /> : null}</Sx>);

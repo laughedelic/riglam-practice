@@ -2,7 +2,7 @@
 // The documents are written to collections the PWA never draws (labruns, flags), so the test does not depend on how the page shows an answer.
 import { readFileSync } from "node:fs";
 import { test, expect } from "../../support/test.js";
-import { ready, openSettings } from "../../support/page.js";
+import { ready, openSettingsPage } from "../../support/page.js";
 
 const seeded = {
   labruns: { lr_one: { kind: "run", model: "m", at: "2026-10-01T10:00:00.000Z" }, lr_two: { kind: "run", model: "m", at: "2026-10-02T10:00:00.000Z" } },
@@ -10,16 +10,16 @@ const seeded = {
 };
 
 const open = async (page) => {
-  // the support test starts every page with "Check every answer with Claude" off, the course terms met and the start on the exercise; this spec counts the settings the page has stored, and a device that
+  // the support test starts every page with "Explanations by Claude" on When I ask, the course terms met and the start on the exercise; this spec counts the settings the page has stored, and a device that
   // already holds an rd- key looks like one from before the ladder (state.js), which stores its stages
   await page.addInitScript(() => { localStorage.removeItem("rd-autoexplain"); localStorage.removeItem("rd-terms"); localStorage.removeItem("rd-start"); });
   await page.goto("/");
   await ready(page);
 };
-const openOptions = (page) => openSettings(page);
+const openOptions = (page) => openSettingsPage(page, "Export and import");
 const exportBtn = (page) => page.getByRole("button", { name: "Export your data to a file" });
 const importBtn = (page) => page.getByRole("button", { name: "Import data from a file" });
-const status = (page) => page.locator(".xferbox .onote");
+const status = (page) => page.locator(".pxbox .pnoteline");
 
 const seed = (page) =>
   page.evaluate(async (docs) => {
@@ -115,7 +115,7 @@ test("closing the phone's share sheet is not reported as a saved file", async ({
   await openOptions(page);
   await exportBtn(page).click();
   await expect(exportBtn(page)).toBeFocused();
-  await expect(page.locator(".xferbox .onote")).toHaveCount(0);
+  await expect(page.locator(".pxbox .pnoteline")).toHaveCount(0);
 });
 
 test("focus follows the steps: the summary, then the result, and back to Import after Cancel", async ({ page }) => {
@@ -123,7 +123,7 @@ test("focus follows the steps: the summary, then the result, and back to Import 
   await seed(page);
   await openOptions(page);
   const { path } = await exportFile(page);
-  await expect(page.locator(".xferbox .onote[role=status]")).toBeFocused();
+  await expect(page.locator(".pxbox .pnoteline[role=status]")).toBeFocused();
   await wipe(page);
 
   await chooseFile(page, path);
@@ -133,5 +133,5 @@ test("focus follows the steps: the summary, then the result, and back to Import 
 
   await chooseFile(page, path);
   await page.getByRole("button", { name: "Import", exact: true }).click();
-  await expect(page.locator(".xferbox .onote[role=status]")).toBeFocused();
+  await expect(page.locator(".pxbox .pnoteline[role=status]")).toBeFocused();
 });

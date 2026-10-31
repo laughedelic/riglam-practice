@@ -1,4 +1,4 @@
-/* voice: the microphone in the middle of the pair bar, the bar under the answer controls (what was heard, and the way to hear the question), the Voice row of Settings
+/* voice: the microphone in the top bar, the bar under the answer controls (what was heard, and the way to hear the question), the Voice row of Settings
    and the Voice page of the Practice options. Nothing shows while Voice is off, so the page is unchanged. */
 .vbar{min-width:0}
 .vbar[hidden]{display:none}

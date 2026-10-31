@@ -5,8 +5,7 @@ import { normLevels } from "../ai-shared/examples.ts";
 import { FIND_RELS } from "../domain/find.ts";
 import { OPEN_CAP, normIntro, normPace } from "../domain/intro.ts";
 import { normLangs } from "../domain/languages.ts";
-import { EVERYDAY_STAGES } from "../domain/syllogism.ts";
-import { DEFAULT_STAGES, freshRun, normExRuns, normGuided, normRun, normStages, stagesOfLevels, topStage } from "../domain/stages.ts";
+import { DEFAULT_STAGES, freshRun, normExRuns, normGuided, normRun, normStages, stagesOfLevels } from "../domain/stages.ts";
 import { normPerEx } from "../domain/per-exercise.ts";
 
 /** @type {import("./types.ts").State} */
@@ -38,7 +37,6 @@ export const state = {
   unlock: null,  // {open, tutor}: opens the prompt for the Magic Key (platform.unlock) while this device has none; `tutor` is whether the server has a tutor waiting for it
   keyHeld: null,   // {change, forget} while this device has the Magic Key (platform.keyHeld); keyAsk: the Options row is asking whether to forget it
   keyAsk: false,
-  mkNote: false,   // the note on the name "Magic Key" is open in the Options row
   batches: [],
   answers: {},
   gotB: false,
@@ -60,9 +58,7 @@ export const state = {
   instRecent: [],  // the sets of categories Find an instance asked lately, oldest first: the draw passes them over while others remain (instance/flow.ts)
   syllogismRecent: [],    // the ids of the syllogisms drawn lately, oldest first: the draw of the next one leans away from them (syllogism/flow.js)
   syllogismWording: "take", // how a syllogism is said: "take" (the class's) or "formal" (`rd-syllogism-wording`)
-  syllogismGuide: false,    // the structure named under the sentence (S, P, R) and what each reply says in them, for a beginner (`rd-syllogism-guide`)
   instSuggest: true, // Find an instance offers the things the course knows while one is typed (its practice options, `rd-inst-suggest`); off: a plain field
-  findSuggest: true, // Find a pair offers the terms of the course while the pair is typed (the settings of Find a pair, `rd-findsuggest`); off: plain fields
   negBrackets: true,   // a negated name of more than one word is written with brackets, "non-(wooden things)" (`rd-neg-brackets`; off: "non-wooden things")
   negation: "off",   // the negation track of Relations and Pervasions: "one" negates A or B in about a third of the pairs, "both" both sides in half of those (`rd-negation`)
   relSession: [],    // the Relations answers checked on this page, oldest first: the run towards the offer of a negation step counts them before the database has handed them back (practice/negations.ts)
@@ -85,9 +81,6 @@ export const state = {
   skipAsk: false,    // the dialog that asks before a pair with answers in it is skipped
   menuOpen: false,   // narrow screens: the menu slides over the exercise
   fromRoad: false,   // the Path: Review or Settings was opened from the roadmap, so Back and its own way back go to the roadmap, not to the exercise under it
-  menuPin: true,     // wide screens: the menu is pinned open beside the exercise (`rd-menu`, pinned until it is unpinned); otherwise it only peeks from the left edge
-  menuPeek: false,   // wide screens: the pointer is on the left edge, the menu shows while it stays there
-  coachOpen: false,  // wide screens: the panel at the right (recent answers and keys before the result, the tutor after it) is open
   navDepth: 0,    // history entries held above the first screen (shell/history.js): the exercise itself on a narrow screen, Review, the chat view, Settings, the options and their pages, the skip question
   navSkip: 0,     // steps back the page took itself, whose popstate is to be ignored
   navQ: false,    // a check of the entries against the state is due after this render
@@ -98,12 +91,10 @@ export const state = {
   navBack: false, // the system's Back is closing levels, and the browser has animated the screen away itself (a swipe from the edge): the panels do not move as well (shell/history.js, shell/motion.js)
   motion: false,  // the first screen has been drawn: panels that open or close after it slide (shell/motion.js)
   view: null,
-  reviewSeg: "overview",
-  defLang: "en",  // definitions in the Terms panel: "en", or "enru" (English with the Russian definition and the Russian name of each term)
+  defLang: "en",  // definitions: "en", or "enru" (English with the Russian definition and the Russian name of each term)
   langs: [],      // the other languages a term's name is shown in, beside English (and Russian, when defLang says so): "bo", "skt", "zh" (domain/languages.ts)
   POOL: null,
   skips: {},
-  skipNote: null,
   skipErr: "",
   quorumOffered: false,   // the app's server offers Quorum, the tutor's mode of several models and a judge (platform.quorum): a Preview, with the Magic Key
   quorumOptIn: false,     // the server offers it as an opt-in: off on a device until the device turns it on (a Preview has it on until the device turns it off)
@@ -119,23 +110,13 @@ export const state = {
   flagPending: 0,
   repliesAt: 0,       // when the server was last asked how the review of the sent flags stands (ai/flag-reports.js)
   repliesBusy: false,
-  // A draw replaces the whole screen, which would send the scroll back to the top. While the screen is the same one (the same pair, step and
-  // result, with a row opened or a chip changed), the scroll stays where it was; a new screen starts at the top, as the callers ask with top0().
-  lastSig: "",
-  lastUi: null,
-  fitQ: 0,
-  // the last answers, newest first, in the coach panel
-  // The heading folds the list away (a per-device choice, kept in the browser); folded, the panel shows just the heading.
-  recentOpen: true,
   wording: "mine",
-  // display switches (Options): the A/B chips in statements and answers, and the Why? answer spelled out as a sentence
+  // display switch (Options): the A/B chips in statements and answers
   showAB: true,
-  fullPh: true,
   /* the blitz timer: a switch above the questions turns it on; its length is set in the settings of the exercise. A slim bar under the
   question drains over the limit and flashes gently at the end. When time runs out, the statement counts as accepted. */
   timerMs: 10000,
   blitz: false,
-  bzHold: 0,         // the timer of a hold on the stopwatch in the top bar (shell/topbar.js)
   blitzUse: true,    // the Blitz page of the practice options can take the stopwatch away from the top bar altogether (on by default)
   relMs: undefined,  // the relation has its own time; it starts from the one time of earlier versions
   // reading the questions aloud and answering by voice, with the browser's own speech (shell/voice.js). `on` is the Voice switch in Settings (app.js sets it
@@ -145,20 +126,17 @@ export const state = {
   sounds: true,
   snd: {ctx:null, rig:null, live:null, until:0, keep:0, failed:false, armed:false},
   sylMs: 15000,      // a syllogism has its own time (Syllogisms), stored as `rd-timer-syl`
-  // The redesign (src/app/path): which design draws the page ("classic" or "path"), the device's choice (`rd-design`), else the build's default (app.js: the Path
-  // in a Preview); how the Path looks (src/app/path/look.ts, the lab's settings this device keeps over the defaults, `rd-look`); a short note at the Path's foot
-  design: "classic",
+  // How the Path looks (src/app/path/look.ts, the lab's settings this device keeps over the defaults, `rd-look`); a short note at the Path's foot
   hand: "",         // what touched the page last: "touch" (a finger or a pen) or "mouse"; empty before anything has (path/gesture.ts: a knock is for a finger only)
   look: null,
   pathNote: null,
   pathQ: 0,          // the Path's next draw, when one waits for the next frame (path/index.tsx, refreshPath)
-  pathSeg: "today",  // the section of Review the Path shows (path/review.tsx); the classic page keeps its own in `reviewSeg`
+  pathSeg: "today",  // the section of Review the Path shows (path/review.tsx)
   pathProg: null,    // the Progression page in place of Review (path/progression.tsx): where it was opened from, the term card over it; closed by any setTab
   pathOpen: {},      // the rows of Review the Path has unfolded, by key
 };
 
 try{ const v=localStorage.getItem("rd-ex"); if(v==="debate"||v==="find"||v==="categories"||v==="instance"||v==="syllogism") state.tab=state.own=v; }catch(e){}
-try{ state.menuPin=localStorage.getItem("rd-menu")!=="0"; }catch(e){ state.menuPin=true; }   // a wide screen starts with the menu pinned (the exercise would be stretched too wide without it); the button unpins it
 try{ const v=localStorage.getItem("rd-notation"); if(v==="sets"||v==="logic") state.nota=v; }catch(e){}
 try{ if(localStorage.getItem("rd-deflang")==="enru") state.defLang="enru"; }catch(e){}   // an earlier "off" (words only) is now the codes
 try{ state.langs=normLangs(localStorage.getItem("rd-langs")); }catch(e){}
@@ -169,9 +147,7 @@ try{ state.shareExamples=localStorage.getItem("rd-share")!=="0"; state.shareTold
 try{ state.sounds=localStorage.getItem("rd-sounds")!=="0"; }catch(e){}
 try{ state.perEx=normPerEx(localStorage.getItem("rd-per-ex")); }catch(e){}
 try{ state.expShown=localStorage.getItem("rd-exp")==="1"; }catch(e){}
-try{ state.recentOpen=localStorage.getItem("rd-recent")!=="0"; }catch(e){}
 try{ const v=localStorage.getItem("rd-findrel"); if(FIND_RELS.includes(/** @type {any} */(v))) state.findRel=/** @type {any} */(v); }catch(e){}
-try{ state.findSuggest=localStorage.getItem("rd-findsuggest")!=="0"; }catch(e){}
 try{ const v=localStorage.getItem("rd-negation"); if(v==="one"||v==="both") state.negation=v; state.negOfferAt=localStorage.getItem("rd-neg-offer")||""; }catch(e){}
 try{ state.negBrackets=localStorage.getItem("rd-neg-brackets")!=="0"; }catch(e){}
 try{ state.pace=normPace(localStorage.getItem("rd-pace")); }catch(e){}
@@ -196,9 +172,8 @@ try{
   state.stagesKept=localStorage.getItem("rd-stages-kept")==="1";
   state.syllogismEveryday=localStorage.getItem("rd-syllogism-level")==="1";
 }catch(e){}
-// the structure under a syllogism is on for a beginner (the stages of everyday things) until the device chooses
-try{ if(localStorage.getItem("rd-syllogism-wording")==="formal") state.syllogismWording="formal"; const g=localStorage.getItem("rd-syllogism-guide"); state.syllogismGuide=g!==null?g==="1":topStage(state.stages)<=EVERYDAY_STAGES; }catch(e){}
-try{ if(localStorage.getItem("rd-ab")==="0") state.showAB=false; if(localStorage.getItem("rd-full")==="0") state.fullPh=false; }catch(e){}
+try{ if(localStorage.getItem("rd-syllogism-wording")==="formal") state.syllogismWording="formal"; }catch(e){}
+try{ if(localStorage.getItem("rd-ab")==="0") state.showAB=false; }catch(e){}
 try{
   const v=+localStorage.getItem("rd-timer"); if(v>=2000&&v<=120000) state.timerMs=v;
   const b=localStorage.getItem("rd-blitz"); state.blitz=b!==null?b==="1":v>0;     // an earlier version stored only the length: a length meant the timer was on

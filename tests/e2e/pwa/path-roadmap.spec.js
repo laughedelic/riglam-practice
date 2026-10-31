@@ -5,7 +5,7 @@ import { test, expect } from "../../support/test.js";
 
 const setup = () => {
   window.__riglamTest = (t) => { window.__t = t; };
-  if (localStorage.getItem("rd-design") === null) localStorage.setItem("rd-design", "path");
+
 };
 const choices = (page) => page.locator("#path .chs .crow");
 const road = (page) => page.getByRole("dialog", { name: "Roadmap" });

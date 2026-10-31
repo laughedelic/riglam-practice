@@ -1,10 +1,10 @@
 // The parts that more than one exercise on the Path draws: the pair at the head, the choices on the path, the verdict, the tutor's Why and the
-// terms. The rules are the classic page's (src/domain, practice/, ai/): these draw the same attempt, `state.ui`, and call the same steps.
+// terms. The rules are in src/domain, practice/ and ai/: these draw the attempt, `state.ui`, and call the steps.
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef } from "preact/hooks";
 import { state } from "../state.js";
 import { ask } from "../ai/tutor.js";
-import { quorumItem } from "../ai/quorum-panel.js";
+import { quorumShown } from "../ai/quorum-panel.js";
 import { canAsk } from "../core/ask.js";
 import { REL } from "../core/rel.js";
 import { singular } from "../debate/text.js";
@@ -208,7 +208,7 @@ export function latestExplain() {
   for (let i = chat.length - 1; i >= 0; i--) { const t = chat[i]; if (t.role === "assistant" && t.kind === "explain") return t; }
   return null;
 }
-/** What a tutor's line on an example says, as steps like the classic page drew them: a line for each of the pair's two terms (it follows it is, or is
+/** What a tutor's line on an example says, as steps: a line for each of the pair's two terms (it follows it is, or is
  *  not, that term, and why), and the conclusion when the example does not fit. "Take the example" is left out: the row shows it just above. */
 function FactSteps({ f, where }: { f: FactLine; where: string }) {
   const parts = factParts(f) as NotePart[], t = noteData().terms, seen = new Set<string>();
@@ -262,7 +262,7 @@ const aboutClaude = () => { if (!state.sessOpen) toggleSess(true); openPage("tut
 export function WhyRow({ unc = 0, again = false, offer }: { unc?: number; again?: boolean; offer?: string }) {
   const u = u0();
   if (!canAsk() && !u.chat && !u.chatErr && !needsKey()) return null;
-  const open = !!u.pwhy, t = latestExplain(), writing = !!u.ctl, q = quorumItem();
+  const open = !!u.pwhy, t = latestExplain(), writing = !!u.ctl, q = quorumShown();
   if (!u.explained && !writing && !u.chatErr) return <ExplainChoice name={offer || (unc ? "Check & explain" : "Explain")} />;
   if (writing && !(t && t.content) && !(u.quorum && u.quorum.busy)) return null;
   const sub = u.explained || writing ? "by Claude" : needsKey() ? "needs the Magic Key" : unc ? "check the open " + (unc === 1 ? "example" : "examples") + " and explain" : "ask Claude to explain";

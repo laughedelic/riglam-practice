@@ -75,7 +75,7 @@
 .pa .d .mk .i{width:13px; height:13px; stroke-width:3}
 .pa .d.big .mk .i{width:16px; height:16px}
 .pa.g-verdict .d.big,.pa.g-current .d.sec.now,.pa.g-station .go:not(.pre){background-image:var(--grain); background-size:128px; background-blend-mode:soft-light}
-.pa .d.pthink{box-shadow:inset 0 0 0 1.6px color-mix(in srgb,var(--tutor) 30%,transparent)}      /* Claude at work on it: hollow, a light running round its edge (47-path-wait.css) */
+.pa .d.pthink{box-shadow:inset 0 0 0 1.6px color-mix(in srgb,var(--tutor) 30%,transparent)}      /* Claude at work on it: hollow, a light running round its edge (19-path-wait.css) */
 
 .pa .sechead{padding:16px 0 8px}
 .pa .ph{font-family:var(--mono); font-size:11.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink); display:flex; gap:8px; align-items:baseline; white-space:nowrap; overflow:hidden}
