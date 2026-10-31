@@ -64,7 +64,7 @@
    category left under the rule that applies is not struck (it was not said to be) */
 .pa .cstop{height:4px; position:relative; transition:height .24s ease-out} .pa .cstop > .d{position:absolute; left:0; top:50%; width:0; height:0; visibility:hidden}
 .pa .cstop.scn-gone{height:46px}      /* room for the node and its word under the thing, opened as the scanner comes to it */
-.pa .ctodo{display:grid; grid-template-rows:1fr; transition:grid-template-rows .24s ease-out, opacity .18s} .pa .ctodo > div{min-height:0; overflow:hidden}
+.pa .ctodo{display:grid; grid-template-rows:1fr} .pa .ctodo:not(.tkd){transition:grid-template-rows .24s ease-out, opacity .18s} .pa .ctodo > div{min-height:0; overflow:hidden}
 .pa .cstop.scn-gone + .ctodo{grid-template-rows:0fr; opacity:0}      /* the line that says what to do folds as the room opens (guidance, path/categories.tsx) */
 .pa .crow.scn .mc .d{transition:background-color .15s,box-shadow .15s; animation:p-scnd .3s ease-out}
 .pa .crow.scn-ok .mc .d{background-color:var(--green); box-shadow:none} .pa .crow.scn-no .mc .d{background-color:var(--red); box-shadow:none}
