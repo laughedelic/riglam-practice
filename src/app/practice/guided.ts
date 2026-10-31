@@ -26,9 +26,9 @@ export const GUIDES: Record<string, { name: string } & Record<Guidance, string>>
   },
   find: {
     name: "Find a pair",
-    detailed: "The relation spelled out with A and B, and course terms suggested as you type.",
-    hints: "The relation spelled out with A and B; nothing suggested as you type.",
-    none: "The relation by its name alone; nothing suggested as you type.",
+    detailed: "The relation spelled out with A and B, course terms suggested as you type, and each example asked for in a full sentence.",
+    hints: "The relation spelled out with A and B; nothing suggested as you type; each example asked for by its case alone (both A and B).",
+    none: "The relation by its name alone; nothing suggested as you type; each example by its case.",
   },
   syllogism: {
     name: "Syllogisms",

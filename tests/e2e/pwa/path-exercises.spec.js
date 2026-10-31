@@ -265,7 +265,12 @@ test("Categories: a tap lifts a category over the rule and back, reset drops the
   await reset.click();
   await expect(up).toHaveCount(0);
   await expect(down).toHaveCount(phrases.length);
+  // Detailed guidance says what to do under the scan's stop, which stays right under the thing, and the line folds as the scan opens the result's room there
+  const thing = await page.evaluate(() => window.__t.cur.q.thing.n);
+  await expect(page.locator("#path .ctodo")).toHaveText(`Tap each category ${thing} is: it moves up, above the line. The rest stay under “not”.`);
+  expect(await page.locator("#path .cstop").evaluate((e) => e.getBoundingClientRect().top - e.previousElementSibling.getBoundingClientRect().bottom)).toBeLessThan(1);
   await station(page).click();
+  await expect(page.locator("#path .cstop.scn-gone + .ctodo")).toHaveCount(1);
   await expect(page.locator("#path .pscan")).toHaveCount(1);   // the Check slides up through the categories as every check does
   await expect(page.locator("#path .thold .crow.scn")).not.toHaveCount(0);
   await expect(verdict(page)).toBeVisible();

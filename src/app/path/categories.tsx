@@ -99,10 +99,11 @@ function Settled() {
     {down.length ? <Sx cls="walked"><span class="thh" data-mv="below" aria-hidden="true">not</span><div class="chs down">{down.map((r) => <ResRow row={r} on={false} />)}</div></Sx> : null}
   </div>;
 }
-/** What to do, under the thing, as guidance has it (practice/guided.ts): in full with the thing's name, a short line, or nothing. */
+/** What to do, under the thing, as guidance has it (practice/guided.ts): in full with the thing's name, a short line, or nothing. It stands under the scan's stop (`.cstop`),
+ *  which stays right under the thing, and folds as the room for the result's node opens there, so that the categories end where the result puts them. */
 function Todo() {
   const g = guidance("categories"); if (g === "none") return null;
-  return <p class="qlead above">{g === "detailed" ? <>Tap each category {q().thing.n} is: it moves up, above the line. The rest stay under “not”.</> : "Tap each one it is."}</p>;
+  return <div class="ctodo"><div><p class="qlead above">{g === "detailed" ? <>Tap each category {q().thing.n} is: it moves up, above the line. The rest stay under “not”.</> : "Tap each one it is."}</p></div></div>;
 }
 /* ---------- the categories ---------- */
 function TickStep() {
@@ -110,8 +111,7 @@ function TickStep() {
   return <>
     <Scroll>
       <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Categories" sub="which of these is it?" aside={<SkipMark />} /><Gap h={6} /><Thing />
-        <Todo />
-        <div class="cstop" data-keep="stay" aria-hidden="true"><i class="d" /></div></Sx>
+        <div class="cstop" data-keep="stay" aria-hidden="true"><i class="d" /></div><Todo /></Sx>
       <Threshold label="Categories the thing is in" items={t.rows.map((r, i) => ({ k: r.cat, b: r.phrase, key: String(i + 1) }))} picked={u.ticked} onPick={tickCategory} onReset={resetCategories} />
       <Sx cls="ptail" />
     </Scroll>

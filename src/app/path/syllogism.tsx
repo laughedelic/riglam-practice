@@ -55,7 +55,8 @@ function Statement({ star = true, keep = false }: { star?: boolean; keep?: boole
     <St d={<span class="ab">S</span>} cls={"stm hasroom" + (star ? marksCls() : "")}>{star ? <><Star /><SkipMark /></> : null}<span class="cs" lang="en">{l.subject}</span></St>
     <St d={<span class="ab">P</span>} cls="stm"><span class="cs" lang="en">{l.predicate}</span></St>
     <St d={<span class="ab">R</span>} cls="stm"><span class="cs" lang="en">{l.reason}</span></St>
-    {guidance("syllogism") === "none" ? null : <p class="plegend" data-keep={keep ? String(RESULT_TOP) : undefined}>S subject · P predicate · R reason</p>}
+    {guidance("syllogism") === "none" ? (keep ? <div data-keep={String(RESULT_TOP)} aria-hidden="true" /> : null)      // no legend at None: the statement's foot is marked all the same
+      : <p class="plegend" data-keep={keep ? String(RESULT_TOP) : undefined}>S subject · P predicate · R reason</p>}
   </>;
 }
 

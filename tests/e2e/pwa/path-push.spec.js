@@ -141,10 +141,11 @@ test("ride: push, a tap takes the station with the same ride", async ({ page }) 
   await expectClean(page);
 });
 
-test("ride: push, a syllogism's Result folds the heading above the statement and what is under it, and the statement does not move when the result opens", async ({ page }) => {
+for (const level of ["detailed", "none"]) test(`ride: push, a syllogism's Result folds the heading above the statement and what is under it, and the statement does not move when the result opens (${level} guidance${level === "none" ? ": no S, P and R legend" : ""})`, async ({ page }) => {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await look(page, { ride: "push", check: "ride" });
+  await page.addInitScript((lv) => localStorage.setItem("rd-guided", JSON.stringify({ syllogism: lv })), level);
   await page.addInitScript(onPath);
   await page.goto("/");
   await expect(choices(page)).toHaveCount(5);
