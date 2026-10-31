@@ -2,15 +2,13 @@
 .pa.ah-dot{--ahead-bg:repeating-linear-gradient(to bottom,var(--ink3) 0 3px,transparent 3px 8px)}
 .pa.ah-dash{--ahead-bg:repeating-linear-gradient(to bottom,var(--ink3) 0 9px,transparent 9px 15px)}
 .pa.ah-fade{--ahead-bg:linear-gradient(to bottom,var(--ink3),transparent 85%)}
-.pa .sx{position:relative; --w:var(--lw); --pw:var(--w)}
-/* a segment is --w wide (the current one and the pending choices are a pixel wider); its first 34 px start as wide as the segment before it (--pw) and
-   narrow or widen to their own as the color blends, so that two segments are not glued together at a step */
-.pa .sx.cur,.pa .sx.gap{--w:var(--lh)}
-.pa .sx.first{--pw:var(--lw)}
-.pa .sx.cur + .sx,.pa .sx.gap + .sx{--pw:var(--lh)}
-.pa .sx:not(.cur):not(.gap) + .sx{--pw:var(--lw)}
-.pa .sx::before{content:""; position:absolute; top:0; bottom:0; left:calc(var(--m) - max(var(--w),var(--pw)) / 2); width:max(var(--w),var(--pw)); background:var(--ink); opacity:.72;
-  clip-path:polygon(calc(50% - var(--pw) / 2) 0, calc(50% + var(--pw) / 2) 0, calc(50% + var(--w) / 2) min(var(--smw,34px),100%), calc(50% + var(--w) / 2) 100%, calc(50% - var(--w) / 2) 100%, calc(50% - var(--w) / 2) min(var(--smw,34px),100%))}
+/* A fade of the thread is a gradient, never a mask: a masked piece is drawn into its own layer and comes out 0.2 px thinner than a plain one at a fractional screen density (the Pixel's 2.625).
+   Where the line is a solid color the fade is the color's own alpha; where it is dotted a layer of the ground's color goes over it (the thread runs on the plain ground). */
+.pa{--fade:linear-gradient(to bottom,transparent,var(--paper) 65%); --fade-in:linear-gradient(to bottom,var(--paper),transparent 34px); --fade-long:linear-gradient(to bottom,transparent 0,transparent 10px,var(--paper) 58px,var(--paper) calc(100% - 52px),transparent 100%)}
+.pa .sx{position:relative}
+/* every stretch of the thread is --lw wide, one plain box with no clip, so that each draws the same at every screen density (a clip or a mask makes a piece draw a fraction of a pixel
+   thinner at a fractional density: the Pixel's 2.625); the current step is gold and the dotted gap is gold, the rest ink */
+.pa .sx::before{content:""; position:absolute; top:0; bottom:0; left:calc(var(--m) - var(--lw) / 2); width:var(--lw); background:var(--ink); opacity:.72}
 .pa .sx.cur::before{background:var(--gold); opacity:1}
 .pa .sx.gap::before{background:repeating-linear-gradient(to bottom,var(--gold) 0 3px,transparent 3px 8px); opacity:1}
 .pa .sx.ahead::before{background:var(--ahead-bg); opacity:.9}
@@ -18,23 +16,23 @@
 .pa .sx.nop::before{background:var(--red); opacity:1}
 .pa .sx.ptp::before{background:var(--partc); opacity:1}
 /* the first section's line comes up out of nothing from its top (it goes on to the earlier steps above), and the top bar's diamond has no line of its own */
-.pa .sx.first:not(.ptail)::before{-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 30px); mask-image:linear-gradient(to bottom,transparent 0,#000 30px)}
+.pa .sx.first.gap::before{background:var(--fade-in),repeating-linear-gradient(to bottom,var(--gold) 0 3px,transparent 3px 8px)}
+.pa .sx.first.cur.tstop::before{background:linear-gradient(to bottom,transparent,var(--ink) 34px)}
 .pa .sx.ptail{flex:1; min-height:28px}
-.pa .sx.ptail::before{background:var(--ahead-bg); opacity:.9}
-.pa.edge-fade .sx.ptail::before{background:linear-gradient(to bottom,var(--ink3),transparent 65%)}
+.pa .sx.ptail::before{background:var(--tov,linear-gradient(#0000,#0000)),var(--tf,var(--ahead-bg)); opacity:.9}
+.pa.edge-fade .sx.ptail::before{--tf:linear-gradient(to bottom,var(--ink3),transparent 65%)}
 /* a fade after a dotted segment goes on dotted, and fades out */
-.pa.edge-fade:not(.ready):not(.done) .sx.gap + .sx.ptail::before{background:repeating-linear-gradient(to bottom,var(--ink3) 0 3px,transparent 3px 8px)}
-.pa.edge-fade.ah-dot:not(.ready):not(.done) .sx.ahead + .sx.ptail::before,.pa.edge-fade.ah-dash:not(.ready):not(.done) .sx.ahead + .sx.ptail::before{background:var(--ahead-bg)}
+.pa.edge-fade:not(.ready):not(.done) .sx.gap + .sx.ptail::before{--tf:repeating-linear-gradient(to bottom,var(--ink3) 0 3px,transparent 3px 8px)}
+.pa.edge-fade.ah-dot:not(.ready):not(.done) .sx.ahead + .sx.ptail::before,.pa.edge-fade.ah-dash:not(.ready):not(.done) .sx.ahead + .sx.ptail::before{--tf:var(--ahead-bg)}
 .pa.edge-fade:not(.ready):not(.done) .sx.gap + .sx.ptail::before,.pa.edge-fade.ah-dot:not(.ready):not(.done) .sx.ahead + .sx.ptail::before,.pa.edge-fade.ah-dash:not(.ready):not(.done) .sx.ahead + .sx.ptail::before{
-  -webkit-mask-image:linear-gradient(to bottom,#000,transparent 65%); mask-image:linear-gradient(to bottom,#000,transparent 65%)}
+  --tov:var(--fade)}
 /* the path ahead is gray: dotted while a choice or an unanswered question blocks it, solid (and fading, with the fade look) once they are answered; yellow is for the questions themselves */
-.pa.ready .sx.ptail::before{background:var(--ink3); opacity:.9}
-.pa.edge-fade.ready .sx.ptail::before{background:linear-gradient(to bottom,var(--ink3),transparent 65%)}
-.pa.done .sx.ptail::before{background:var(--ink); opacity:.72}
+.pa.ready .sx.ptail::before{--tf:var(--ink3); opacity:.9}
+.pa.edge-fade.ready .sx.ptail::before{--tf:linear-gradient(to bottom,var(--ink3),transparent 65%)}
+.pa.done .sx.ptail::before{--tf:var(--ink); opacity:.72}
 /* a long run down to the station fades out and back in (Review always; elsewhere with Line to the station: fades) */
 .pa.review .sx.ptail.long::before,.pa.edge-fade.ready .sx.ptail.long::before,.pa.edge-fade.done .sx.ptail.long::before{
-  -webkit-mask-image:linear-gradient(to bottom,#000 0,#000 10px,transparent 58px,transparent calc(100% - 52px),#000 100%);
-  mask-image:linear-gradient(to bottom,#000 0,#000 10px,transparent 58px,transparent calc(100% - 52px),#000 100%)}
+  --tov:var(--fade-long)}
 .pa .sx.detouring::before{background:var(--ahead-bg)}
 /* the line's color can be eased from one to another (a statement's line goes from the question's gold to the walked ink as the ride takes the step, push.ts) */
 @property --sc{syntax:"<color>"; inherits:true; initial-value:transparent}
@@ -51,7 +49,8 @@
   .pa .sx.nop + .sx{--pv:var(--red)}
   .pa .sx.ptp + .sx{--pv:var(--partc)}
   .pa .sx:is(.walked,.cur,.okp,.nop,.ptp):not(.detouring)::before{background:var(--sbg); opacity:1}
-  .pa.done .sx.ptail::before{background:var(--sbg); opacity:1}
+  .pa.done .sx.ptail::before{--tf:var(--sbg); opacity:1}
+  .pa .sx.first:not(.ptail){--pv:transparent}
 }
 
 /* a stop on the path: the diamond, then the text */
@@ -174,10 +173,10 @@
 .pa .sx.eh::before{bottom:calc(var(--nd) * -1)}
 .pa .sx.er::before{top:var(--dc); bottom:calc(var(--nd) * -1)}
 .pa .sx.er.last::before{bottom:0}
-.pa.edge-fade:not(.ready):not(.done) .sx.ptail.xtail::before{background:repeating-linear-gradient(to bottom,var(--ink3) 0 3px,transparent 3px 8px); -webkit-mask-image:linear-gradient(to bottom,#000,transparent 65%); mask-image:linear-gradient(to bottom,#000,transparent 65%)}
+.pa.edge-fade:not(.ready):not(.done) .sx.ptail.xtail::before{--tf:repeating-linear-gradient(to bottom,var(--ink3) 0 3px,transparent 3px 8px); --tov:var(--fade)}
 /* a trail that still waits on an answer stays dotted although the station is ready: the questions still to come in a step, a counter-example that may stay empty (`dtail`) */
-.pa:not(.done) .sx.ptail.dtail::before{background:var(--ahead-bg); opacity:.9}
-.pa.edge-fade:not(.done) .sx.ptail.dtail::before{background:repeating-linear-gradient(to bottom,var(--ink3) 0 3px,transparent 3px 8px); -webkit-mask-image:linear-gradient(to bottom,#000,transparent 65%); mask-image:linear-gradient(to bottom,#000,transparent 65%)}
+.pa:not(.done) .sx.ptail.dtail::before{--tf:var(--ahead-bg); opacity:.9}
+.pa.edge-fade:not(.done) .sx.ptail.dtail::before{--tf:repeating-linear-gradient(to bottom,var(--ink3) 0 3px,transparent 3px 8px); --tov:var(--fade)}
 
 /* cases: one stop for each example */
 .pa .sb{padding:10px 0 12px; align-items:start}
