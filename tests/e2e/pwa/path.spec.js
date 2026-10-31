@@ -263,7 +263,9 @@ test("the thread runs on through what voice shows above the foot (Hear the quest
   await answer(page);
   const ready = await line("::before");
   expect(ready.content).not.toBe("none");
-  expect(ready.bg, "gray, as the foot's stub").toContain(await page.locator("#path .foot").evaluate((e) => getComputedStyle(e, "::before").backgroundColor));
+  const ink3 = await page.locator(".pa").evaluate((e) => { const i = document.createElement("i"); i.style.color = "var(--ink3)"; e.append(i); const c = getComputedStyle(i).color; i.remove(); return c; });
+  expect(ready.bg, "gray, as the foot's stub").toContain(ink3);
+  expect(await page.locator("#path .foot").evaluate((e) => getComputedStyle(e, "::before").backgroundImage), "the foot's stub is the same gray").toContain(ink3);
 });
 
 test("the strip pulls from its heading with a short pull, and its hint is gray", async ({ page }) => {
