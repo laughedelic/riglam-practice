@@ -1,18 +1,15 @@
 import { state } from "../state.js";
-import { asking, startQ, stopTimer } from "../debate/flow.js";
 import { render } from "./render.js";
 
 /* ---------- Settings: what belongs to the app, the device and the account (how an exercise looks and ticks is in its Practice options, session.js) ---------- */
 // Sharing the learner's examples is here, not in the practice options: it is set once and forgotten (the dialog of ai/share-notice.js asks the first time, and points here).
 // Settings opens from the roadmap over the exercise, with a back arrow; Back or Escape closes it. (In the code it is still `optsOpen`; path/settings.tsx draws it.)
-// The Blitz clock does not run behind the panel: it stops when Settings opens and starts again, with its full time, when it closes (as when you come back to an exercise).
+// The Sprint clock does not run behind the panel: it stops when Settings opens and goes on from where it stood when it closes (shell/timers.js).
 export function toggleOpts(on){
   const was=state.optsOpen; state.optsOpen=on===undefined?!state.optsOpen:on;
   if(!state.optsOpen) state.optsPage=null;
   // opened from the roadmap, Settings goes back to it, not to the exercise under it (shell/history.js)
   const road=!state.optsOpen&&was&&state.fromRoad; if(road){ state.fromRoad=false; state.menuOpen=true; }
-  if(state.optsOpen&&!was) stopTimer();
-  else if(!state.optsOpen&&was&&!road&&state.blitz&&asking()) startQ();
   render();
   if(state.optsOpen&&state.updates) state.updates.check(60000); // the Version row is about to be read: look for a newer one unless a look is younger than a minute
 }

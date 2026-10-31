@@ -4,7 +4,7 @@ import { createContext } from "preact";
 import type { ComponentChildren } from "preact";
 import { useContext, useRef } from "preact/hooks";
 import { state } from "../state.js";
-import { setBlitz } from "../debate/flow.js";
+import { setBlitz } from "../shell/timers.js";
 import { skipAsks, skipPair } from "../practice/skips.js";
 import { toRoad } from "../shell/menu.js";
 import { isEx } from "../shell/render.js";
@@ -36,10 +36,9 @@ export function TopBar({ title, tools = false, mic = false, back }: TopBarProps)
   // on a page of the practice options the bar's back goes to the list of the options, not out to the roadmap
   const subpage = !!shown && !!state.sessPage;
   const roadmap = subpage ? sessBack : back ? back.go : toRoad;
-  const timed = ex && state.blitzUse && (state.tab === "practice" || state.tab === "debate" || state.tab === "syllogism");
   // the countdown bar (clock.tsx): a new countdown is a new bar (keyed by its start), so that its animation starts from full
   const tq = u && u.tq;
-  // holding the stopwatch opens the Blitz page of the practice options; a press switches Blitz
+  // holding the stopwatch opens the Sprint page of the practice options; a press switches Sprint on or off for this exercise (shell/timers.js)
   const bzDown = (ev: PointerEvent) => { if (ev.button) return; held.current = false; clearTimeout(hold.current); hold.current = setTimeout(() => { held.current = true; openBlitzOptions(); }, HOLD_MS); };
   const bzStop = () => clearTimeout(hold.current);
   return <>
@@ -50,9 +49,9 @@ export function TopBar({ title, tools = false, mic = false, back }: TopBarProps)
       <span class="spc" />
       {tools && !away && readShown() ? <button type="button" class={"pib" + (state.voice.muted ? "" : " on")} role="switch" aria-checked={state.voice.muted ? "false" : "true"} aria-label="Read aloud" onClick={toggleReadAloud}><Icon n={state.voice.muted ? "speakoff" : "speak"} /></button> : null}
       {tools && !away && mic && micShown() ? <button type="button" id="vmic" class={"pib" + (state.voice.phase === "listening" ? " on" : "")} aria-pressed={state.voice.phase === "listening" ? "true" : "false"} aria-label="Answer by voice" onClick={() => toggleListen()}><Icon n="mic" /></button> : null}
-      {tools && !away && timed ? <button type="button" class={"pib" + (state.blitz ? " on" : "")} role="switch" aria-checked={state.blitz ? "true" : "false"} aria-label={state.blitz ? "Blitz on (hold for the Blitz options)" : "Blitz off (hold for the Blitz options)"}
+      {tools && !away && ex ? <button type="button" class={"pib" + (state.blitz ? " on" : "")} role="switch" aria-checked={state.blitz ? "true" : "false"} aria-label={state.blitz ? "Sprint on (hold for the Sprint options)" : "Sprint off (hold for the Sprint options)"}
         onPointerDown={bzDown} onPointerUp={bzStop} onPointerLeave={bzStop} onPointerCancel={bzStop} onContextMenu={(ev) => ev.preventDefault()}
-        onClick={() => { if (held.current) { held.current = false; return; } setBlitz(!state.blitz); }}><Icon n="blitz" />{state.blitz ? <span class="dot" /> : null}</button> : null}
+        onClick={() => { if (held.current) { held.current = false; return; } setBlitz(!state.blitz); }}><Icon n={state.blitz ? "blitz" : "blitzoff"} /></button> : null}
       {tools && ex ? <button type="button" class="pib" aria-label={prog ? "Close the progression" : shown ? "Close the practice options" : "Practice options"} aria-expanded={state.sessOpen ? "true" : "false"} onClick={() => toggleSess(!state.sessOpen)}><Icon n={away ? "close" : "opts"} /></button> : null}
     </header>
     {tq ? <Clock key={tq.t0 + "/" + tq.limit} tq={tq} late={!!u.late} /> : null}

@@ -43,7 +43,6 @@ html.pa-tab .pa :is(button,[tabindex]):not([data-quiet]):focus-visible:not(.pbr 
 .pa .pib.on{color:var(--ink)}
 .pa .ptb-t{font-style:italic; font-size:22px; font-weight:500; margin-left:4px; display:inline-flex; align-items:center; min-width:0; white-space:nowrap; overflow:hidden}
 .pa .ptb-t > span{overflow:hidden; text-overflow:ellipsis}
-.pa .dot{position:absolute; top:9px; right:8px; width:9px; height:9px; background:var(--gold); transform:rotate(45deg)}
 .pa .tstn{flex:none; width:44px; height:56px; position:relative; display:grid; place-items:center; color:var(--blue)}
 .pa .tstn .i{width:20px; height:20px; transform:rotate(180deg)}
 .pa .pring{width:auto; min-width:36px; padding:0 2px; margin-left:8px}

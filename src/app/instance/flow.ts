@@ -59,6 +59,13 @@ export function setInstanceSuggest(on: boolean): void {
   render();
 }
 
+/** Time up (Sprint, shell/timers.js): what is written, or "nothing is", stands and is checked; with nothing there it is a miss, with no result and nothing kept, and the next set comes. */
+export function timeUpInstance(): void {
+  const u = live(); if (!u) return;
+  if (!instanceBegun(u)) { advanceInstance(); render(); top0(); return; }
+  u.ranOut = true;
+  checkInstance();
+}
 const docId = () => "instance-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 /** Check: grades what was written, or "nothing is"; the result shows and the answer is kept. */
 export function checkInstance(): void {
@@ -70,7 +77,7 @@ export function checkInstance(): void {
   if (ir.v !== "open") stageStep("instance", catsStageNow(q.cats), ir.v === "ok");     // the run towards the next stage (practice/stage-offer.ts)
   const doc: InstanceDoc = {
     pairId: docId(), mode: "instance", cats: q.cats, labels: q.labels, possible: q.possible, said: u.none ? null : said,
-    ...(ir.from ? { thing: ir.thing } : {}), grade: GRADE[ir.v], at: new Date().toISOString(),
+    ...(ir.from ? { thing: ir.thing } : {}), grade: GRADE[ir.v], ...(u.ranOut ? { timeout: true } : {}), at: new Date().toISOString(),
   };
   render(); top0();
   if (!state.db) return;

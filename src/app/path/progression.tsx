@@ -10,7 +10,6 @@
 import type { ComponentChildren } from "preact";
 import { useLayoutEffect } from "preact/hooks";
 import { state } from "../state.js";
-import { stopTimer } from "../debate/flow.js";
 import { hasDef } from "../practice/terms.js";
 import { exName } from "../shell/exercises.js";
 import { toggleMenu } from "../shell/menu.js";
@@ -73,7 +72,7 @@ export function progBack() {
   const under = () => {
     if (state.pathProg !== p || !state.menuOpen) return;    // the roadmap was left, or the page opened again, in the meantime
     state.pathProg = null;
-    if (state.tab !== p.tab && state.mode === "quiz") { switchTo(p.tab); stopTimer(); }    // its clock starts when the roadmap closes (toggleMenu)
+    if (state.tab !== p.tab && state.mode === "quiz") switchTo(p.tab);    // its clock goes on when the roadmap closes (shell/timers.js)
     render();
     document.querySelector<HTMLElement>("#path .road [aria-current=page]")?.focus({ preventScroll: true });
   };

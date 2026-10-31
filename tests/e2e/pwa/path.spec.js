@@ -302,7 +302,7 @@ test("the pair has its relation under it: the name beside the terms, the course'
   expect(await font(code), "in the margin's font").toBe(await font(mark));
 });
 
-test("under Blitz each countdown has a bar of its own on the top bar, so that it starts full", async ({ page }) => {
+test("under Sprint each countdown has a bar of its own on the top bar, so that it starts full", async ({ page }) => {
   await page.addInitScript(() => { localStorage.setItem("rd-blitz", "1"); });
   await start(page);
   const bar = page.locator("#path .pclock");

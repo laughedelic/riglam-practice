@@ -9,16 +9,16 @@ import { setQuorum } from "../ai/quorum.js";
 import { setCategoriesAsk } from "../categories/flow.js";
 import { setInstanceSuggest } from "../instance/flow.ts";
 import { canAsk } from "../core/ask.js";
-import { setTimer } from "../debate/flow.js";
 import { WORDINGS } from "../debate/text.js";
 import { exName } from "../shell/exercises.js";
 import { GUIDES, guided, setGuided } from "../practice/guided.ts";
 import { progressNow } from "../practice/stage-offer.ts";
 import { toggleOpts } from "../shell/options.js";
-import { SYMS, openPage, quorumNote, setAutoExplain, setBlitzUse, setNota, setShow, setSyllogismWording, setWording, toggleSess } from "../shell/session.js";
-import { kindMs } from "../shell/timers.js";
+import { SYMS, openPage, quorumNote, setAutoExplain, setNota, setShow, setSyllogismWording, setWording, toggleSess } from "../shell/session.js";
+import { kindMs, setBlitz, setTimer } from "../shell/timers.js";
 import { ANSWER_PICKS, CONFIRM_PICKS, RATES, READ_NOTE, SAMPLE, VOICE_LEAD, VOICE_SAY, WHERE, hookVoices, setVoice, voiceGroups, voiceShown } from "../shell/voice.js";
 import { LADDER_TOP } from "../../domain/stages.ts";
+import { type TimeKind, timesOf } from "../../domain/sprint.ts";
 import { canHear, canSpeak, speak, voiceList } from "../../ui/speech";
 import { ProgressPage } from "./progress.tsx";
 import { D, Icon, Knob, Toggle, Words, NOFILL } from "./ui.tsx";
@@ -35,7 +35,26 @@ export const Switch = ({ lb, title, note, on, toggle }: { lb: string; title: str
 /** The way into a row's own page: a control at the row's right edge, as tall as the row, so that it takes no line of the row and is easy to tap. */
 const More = ({ page, label = "more" }: { page: string; label?: string }) => <button type="button" class="more" aria-label={(TITLES[page] || page) + ": " + label} onClick={() => openPage(page)}><Icon n="chev" /></button>;
 const secs = (kind: string) => Math.round(kindMs(kind) / 1000);
-const timesLine = () => state.tab === "syllogism" ? "Syllogism " + secs("syl") + " s" : "Relation " + secs("rel") + " s · Example " + secs("ex") + " s";
+/** The times of Sprint, by what they time (domain/sprint.ts): the name each has on its line, and what it covers in the exercise on screen. */
+const TIME_NAME: Record<TimeKind, string> = { rel: "Relation", q: "Choosing", ex: "Writing", syl: "Reply", cats: "Categories", cat: "One category" };
+const TIME_NOTE = (k: TimeKind, tab: string): string => ({
+  rel: "choosing the relation",
+  q: "each statement: Accept or Why?",
+  ex: tab === "practice" ? "each example, one case at a time" : tab === "debate" ? "the example after Why?" : tab === "find" ? "each example, and twice this for naming the pair" : "naming something, or saying that nothing is",
+  syl: "the reply to each syllogism",
+  cats: "all the categories on one screen",
+  cat: "each yes or no, with One category at a time",
+} as Record<TimeKind, string>)[k];
+/** What time up does in each exercise. */
+const TIME_UP: Record<string, string> = {
+  practice: "On the relation, the right one is shown and the examples come next. On an example, the case stays as it is and the next one opens.",
+  debate: "On a statement, it counts as accepted. On the example after Why?, what you wrote stands. On the relation, the result shows the right one.",
+  syllogism: "With no reply the answer counts as wrong, and the result names the right one.",
+  find: "On naming the pair, two words go on to the examples; anything less is a miss and the next relation comes. On an example, as in Relations.",
+  categories: "What is ticked stands and is checked as it is; with one category at a time, an unanswered category counts as no.",
+  instance: "What is written stands and is checked; with nothing written it is a miss and the next set comes.",
+};
+const timesLine = () => timesOf(state.tab).map((k) => TIME_NAME[k] + " " + secs(k) + " s").join(" · ");
 const toSettings = () => { toggleSess(false); toggleOpts(true); };
 /** Whether the Tutor row (and its page) is in the list: where the tutor can be asked, and the Quorum switch is offered. Categories and Find an instance have neither. */
 const quorumShown = () => state.quorumOffered && !!state.db && state.tab !== "syllogism" && state.tab !== "categories" && state.tab !== "instance";
@@ -69,7 +88,7 @@ const setTutor = (k: string) => setAutoExplain(k === "every");
 
 /** The list: under the exercise's name what is its own, under Practice what every exercise has where it is built, and the way on to Settings. */
 function List() {
-  const tab = state.tab, timed = tab === "practice" || tab === "debate" || tab === "syllogism";
+  const tab = state.tab;
   const guide = GUIDES[tab] ? <Line title="Guided" sub={GUIDES[tab]!.on} sw={{ on: guided(tab), toggle: () => setGuided(tab, !guided(tab)) }} /> : null;
   return <>
     <Group name={exName(tab)}>
@@ -79,7 +98,7 @@ function List() {
       {wordings() || signs() ? <Line title="Wording and notation" sub={textLine()} go={() => openPage("text")} /> : null}
     </Group>
     <Group name="Practice">
-      {timed ? <Line title="Blitz" sub={state.blitzUse ? timesLine() : "off"} sw={{ on: state.blitzUse, toggle: () => setBlitzUse(!state.blitzUse) }} go={() => openPage("times")} /> : null}
+      <Line title="Sprint" sub={state.blitz ? timesLine() : "off"} sw={{ on: state.blitz, toggle: () => setBlitz(!state.blitz) }} go={() => openPage("times")} />
       {tutorShown() ? <Line title="Explanations by Claude" go={() => openPage("tutor")} sub={canAsk() ? undefined : "several models"}>
         {canAsk() ? <Words label="Explanations by Claude" items={TUTOR} cur={state.autoExplain ? "every" : "ask"} on={setTutor} /> : null}</Line> : null}
       {voiceShown() ? <Line title="Voice" tag="experimental" sub={voiceLine()} go={() => openPage("voice")} /> : null}
@@ -96,12 +115,12 @@ function Picks<T extends string>({ label, items, cur, on }: { label: string; ite
     </button>)}</div>;
 }
 const sample = (w: { lead?: string; q: unknown[][] }) => (w.lead ? w.lead + " " : "") + w.q[1].map((x) => (x === NOT ? "not" : x)).join("");
-/** One Blitz time: the usual ones, and a number of seconds of one's own. */
+/** One Sprint time: the usual ones, and a number of seconds of one's own. */
 function Time({ kind, label, note }: { kind: string; label: string; note: string }) {
-  const now = secs(kind), preset = [5, 10, 15, 30].includes(now);
+  const now = secs(kind), preset = [5, 10, 15, 20, 30].includes(now);
   return <Line title={label} sub={note}>
     <span style={{ display: "flex", alignItems: "center", gap: "14px", flexWrap: "wrap" }}>
-      <Words label={label} items={[[5, "5 s"], [10, "10 s"], [15, "15 s"], [30, "30 s"]]} cur={preset ? now : -1} on={(s) => setTimer(s * 1000, kind)} />
+      <Words label={label} items={[[5, "5 s"], [10, "10 s"], [15, "15 s"], [20, "20 s"], [30, "30 s"]]} cur={preset ? now : -1} on={(s) => setTimer(s * 1000, kind)} />
       <input type="number" min="2" max="120" inputMode="numeric" class="pfield" style={{ flex: "none", width: "64px", height: "28px", fontSize: "16px" }} placeholder="sec" {...NOFILL} aria-label={"Custom " + label.toLowerCase() + " in seconds"}
         value={preset ? "" : String(now)} onChange={(e) => { const v = Math.round(+(e.currentTarget as HTMLInputElement).value); if (v >= 2 && v <= 120) setTimer(v * 1000, kind); }}
         onKeyDown={(e) => e.stopPropagation()} />
@@ -126,10 +145,8 @@ function TextPage() {
 function Page({ id }: { id: string }) {
   if (id === "text") return <TextPage />;
   if (id === "times") return <>
-    <Intro>{state.tab === "syllogism" ? "A countdown for the reply to each syllogism, switched on and off with the stopwatch in the top bar; hold the stopwatch to come back here." : "A countdown for each step of a pair, switched on and off with the stopwatch in the top bar; hold the stopwatch to come back here."}</Intro>
-    <Line title="Use Blitz" sub="Off takes the stopwatch out of the top bar; the times stay for when it is on again." sw={{ on: state.blitzUse, toggle: () => setBlitzUse(!state.blitzUse) }} />
-    {!state.blitzUse ? null : state.tab === "syllogism" ? <Time kind="syl" label="Syllogism time" note="for the reply to each syllogism" />
-      : <><Time kind="rel" label="Relation time" note="for choosing the relation, in Relations and Pervasions" /><Time kind="ex" label="Example time" note="for each example in Relations (three cells get three times this) and each question in Pervasions" /></>}</>;
+    <Intro>{"A clock for each step, switched on and off with the stopwatch in the top bar (each exercise keeps its own); hold the stopwatch to come back here. " + (TIME_UP[state.tab] || "")}</Intro>
+    {timesOf(state.tab).map((k) => <Time kind={k} label={TIME_NAME[k]} note={TIME_NOTE(k, state.tab)} />)}</>;
   if (id === "voice") return <VoicePage />;
   if (id === "tutor") return <TutorPage />;
   if (id === "progress") return <ProgressPage />;
@@ -174,7 +191,7 @@ function TutorPage() {
 }
 
 /** The Path's pages of the practice options, by the names their lines have. */
-const TITLES: Record<string, string> = { text: "Wording and notation", stages: "Difficulty", times: "Blitz", voice: "Voice", tutor: "Claude AI", progress: "Progression" };
+const TITLES: Record<string, string> = { text: "Wording and notation", stages: "Difficulty", times: "Sprint", voice: "Voice", tutor: "Claude AI", progress: "Progression" };
 const sheetOn = () => state.sessOpen && state.mode === "quiz";
 /** The sheet's own page that is open (one of TITLES), or null for the list. */
 const sheetPage = () => sheetOn() && state.sessPage && TITLES[state.sessPage] && (state.sessPage !== "voice" || voiceShown()) && (state.sessPage !== "tutor" || tutorShown()) ? state.sessPage : null;

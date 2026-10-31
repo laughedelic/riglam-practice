@@ -68,7 +68,7 @@ test("a pervasion that holds names no counter-example, and an accepted syllogism
 
 test("time running out is said as no reply, and the learner's counter-example is quoted, cut, and given the page's verdict", () => {
   const c = find((x) => x.answer === "pervasion");
-  expect(syllogismBody(real, c, answered(c, null))).toContain("The learner gave no reply: the time ran out (Blitz), so nothing was mixed up.");
+  expect(syllogismBody(real, c, answered(c, null))).toContain("The learner gave no reply: the time ran out (Sprint), so nothing was mixed up.");
   expect(syllogismBody(real, c, answered(c, null))).not.toContain("Learner replied");
   expect(SYLLOGISM_ASK).toContain("never when the time ran out");
   const long = "x".repeat(500);

@@ -104,7 +104,7 @@ test("with the switch off nothing is played and no audio context is even made", 
 });
 
 test("a Pervasions question that runs out of time plays the time-up sound, as every other countdown does", async ({ page }) => {
-  await page.addInitScript(() => { localStorage.setItem("rd-blitz", "1"); localStorage.setItem("rd-timer", "2000"); localStorage.setItem("rd-timer-rel", "60000"); });
+  await page.addInitScript(() => { localStorage.setItem("rd-blitz", "1"); localStorage.setItem("rd-timer-q", "2000"); localStorage.setItem("rd-timer-rel", "60000"); });
   await page.addInitScript(init);
   await page.goto("/");
   await expect(choices(page)).toHaveCount(5);

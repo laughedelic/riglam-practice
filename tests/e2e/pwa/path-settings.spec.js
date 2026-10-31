@@ -197,9 +197,9 @@ test("the practice options' Voice page is drawn on the path and keeps its choice
   }
 });
 
-test("the practice options: the exercise's own lines under its name, then Practice, then the way on to Settings; Blitz keeps its own value in each exercise", async ({ page }) => {
+test("the practice options: the exercise's own lines under its name, then Practice, then the way on to Settings; Sprint keeps its own value in each exercise", async ({ page }) => {
   await start(page);
-  const sheet = page.getByRole("dialog", { name: "Practice options" }), blitz = sheet.getByRole("switch", { name: "Blitz", exact: true });
+  const sheet = page.getByRole("dialog", { name: "Practice options" }), sprint = sheet.getByRole("switch", { name: "Sprint", exact: true });
   const options = async () => { await page.getByRole("button", { name: "Practice options" }).click(); await expect(sheet.locator(".sgh").first()).toBeVisible(); };
   const fold = () => sheet.getByRole("button", { name: "Fold the practice options away" }).click();
   const go = async (name) => {
@@ -211,21 +211,23 @@ test("the practice options: the exercise's own lines under its name, then Practi
   await expect(sheet.locator(".sgh")).toHaveText(["Relations", "Practice"]);
   await expect(sheet.locator(".ol", { hasText: "Wording and notation" })).toContainText("Shorthand · A and B: letters");
   await expect(sheet.getByRole("button", { name: "Other app settings: more" })).toBeVisible();
-  await expect(blitz).toHaveAttribute("aria-checked", "true");
-  await blitz.click();
-  await expect(blitz).toHaveAttribute("aria-checked", "false");
-  expect(JSON.parse(await page.evaluate(() => localStorage.getItem("rd-per-ex")))).toEqual({ practice: { blitzUse: false } });
+  await expect(sprint).toHaveAttribute("aria-checked", "false");
+  await sprint.click();
+  await expect(sprint).toHaveAttribute("aria-checked", "true");
+  expect(JSON.parse(await page.evaluate(() => localStorage.getItem("rd-per-ex")))).toEqual({ practice: { blitz: true } });
   await fold();
   await go("Syllogisms");
   await options();
   await expect(sheet.locator(".sgh")).toHaveText(["Syllogisms", "Practice"]);
-  await expect(blitz).toHaveAttribute("aria-checked", "false");   // not set here yet: the last choice made
-  await blitz.click();
-  await expect(blitz).toHaveAttribute("aria-checked", "true");
+  await expect(sprint).toHaveAttribute("aria-checked", "false");   // not set here yet: it does not follow the one in Relations
+  await sprint.click();
+  await expect(sprint).toHaveAttribute("aria-checked", "true");
+  await sprint.click();
+  await expect(sprint).toHaveAttribute("aria-checked", "false");
   await fold();
   await go("Relations");
   await options();
-  await expect(blitz).toHaveAttribute("aria-checked", "false");   // Relations keeps its own
+  await expect(sprint).toHaveAttribute("aria-checked", "true");   // Relations keeps its own
 });
 
 test("Wording and notation: the notation, and A and B in the text with Off for the A/B markers", async ({ page }) => {

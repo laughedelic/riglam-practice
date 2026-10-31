@@ -71,7 +71,7 @@ const waiting = (page) => page.locator("#vbar .vtake");
 /** The question of Pervasions on the path now: "Q1" to "Q4". */
 const qNow = (page) => page.locator("#path .sb.now .qnm");
 const readSwitch = (page) => page.getByRole("switch", { name: "Read aloud" });
-const blitzSwitch = (page) => page.getByRole("switch", { name: /^Blitz/ });
+const blitzSwitch = (page) => page.getByRole("switch", { name: /^Sprint/ });
 const confirm = (page) => page.locator("#vbar .vok").click();
 /** Waits until the recognizer has taken what was queued and the mic is idle again, so the next phrase never meets a listening mic. */
 async function settle(page) {
@@ -187,7 +187,7 @@ test("the Read aloud switch in the top bar, next to Blitz, pauses and resumes th
   await goTo(page, "Pervasions");
   await exerciseAtRest(page);   // the top bar is measured once the exercise has come in over the roadmap
   const x = (loc) => loc.evaluate((e) => e.getBoundingClientRect().left);
-  expect(await x(sw)).toBeLessThan(await x(blitzSwitch(page)));   // next to the Blitz switch
+  expect(await x(sw)).toBeLessThan(await x(blitzSwitch(page)));   // next to the Sprint switch
   expect(await x(blitzSwitch(page)) - await x(sw), "with the microphone between them").toBeLessThan(100);
   await expect.poll(async () => (await said(page)).length).toBe(1);   // read by itself (the first question the app opened on was held back)
   await sw.click();   // paused
@@ -398,14 +398,15 @@ test("Blitz: an answer given by hand while a spoken one waits leaves the next qu
   await expect(bar(page)).toHaveCSS("animation-play-state", "running");
   expect(await elapsed(page)).toBeLessThan(1500);   // the next question's own time, not the one the held question had used
 
-  // and Why? by hand while another waits: the same question goes on from where it stopped, with its bar
+  // and Why? by hand while another waits: the example is a step of its own, with its own bar from full
   await page.waitForTimeout(1200);
   await hear(page, "accept");
+  const why = Date.now();
   await page.getByRole("button", { name: /^Why\?/ }).click();
   await expect(page.locator("#dex")).toBeVisible();
   await expect(bar(page)).toHaveCount(1);
   await expect(bar(page)).toHaveCSS("animation-play-state", "running");
-  expect(await elapsed(page)).toBeGreaterThan(1000);
+  expect(await elapsed(page), "no more than the time since Why? was taken").toBeLessThan(Date.now() - why + 300);
 });
 
 test("Blitz: an attempt put aside with a spoken answer waiting gets its countdown back when it returns", async ({ page }) => {
@@ -423,7 +424,7 @@ test("Blitz: an attempt put aside with a spoken answer waiting gets its countdow
 });
 
 test("Blitz: a question's countdown starts when its reading ends, not before", async ({ page }) => {
-  await page.addInitScript(() => { localStorage.setItem("rd-blitz", "1"); localStorage.setItem("rd-timer", "2000"); });
+  await page.addInitScript(() => { localStorage.setItem("rd-blitz", "1"); localStorage.setItem("rd-timer-q", "2000"); });
   await voice(page, { settings: { read: "1", answer: "tap" } });
   await page.goto("/");
   await ready(page);
@@ -436,21 +437,23 @@ test("Blitz: a question's countdown starts when its reading ends, not before", a
   await expect(qNow(page)).toHaveText("Q2", { timeout: 6000 });   // then it runs out after its own 2 seconds
 });
 
-test("Blitz in Relations: the examples countdown goes on from where it stopped when a case is answered by hand", async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem("rd-blitz", "1"));
+test("Blitz in Relations: a case answered by hand while a spoken one waits leaves the next case with a countdown of its own", async ({ page }) => {
+  await page.addInitScript(() => { localStorage.setItem("rd-blitz", "1"); window.__riglamTest = (t) => { window.__t = t; }; });
   await voice(page, { settings: { answer: "tap" } });
   await page.goto("/");
   await ready(page);
   await hear(page, "mutually exclusive");
   await confirm(page);
   await expect(bar(page)).toHaveCount(1);
+  const first = await page.evaluate(() => window.__t.ui.tq.key);
   await page.waitForTimeout(1500);
   await hear(page, "a gold ring");   // waits
   await page.locator("#cin").fill("a clay pot");
   await page.locator("#cin").press("Enter");   // by hand: the next case
   await expect(page.locator("#path .sb.done")).toHaveCount(1);
   await expect(bar(page)).toHaveCount(1);
-  expect(await elapsed(page)).toBeGreaterThan(1200);   // it did not start over
+  expect(await elapsed(page), "the next case begins with its own time, not the stopped one's").toBeLessThan(900);
+  expect(await page.evaluate(() => window.__t.ui.tq.key), "a case of its own").not.toBe(first);
 });
 
 test("the relation said as what is written under the option, or three possibilities and then which is inside", async ({ page }) => {
@@ -577,7 +580,7 @@ test("\"I don't know\" gets a friendly nudge, said too with Read aloud, and noth
 /* ---------- what a second review of the Blitz clock found ---------- */
 
 test("Blitz: an answer given by hand while a spoken one waits is timed by the clock that stood still", async ({ page }) => {
-  await page.addInitScript(() => { localStorage.setItem("rd-blitz", "1"); localStorage.setItem("rd-timer", "8000"); });
+  await page.addInitScript(() => { localStorage.setItem("rd-blitz", "1"); localStorage.setItem("rd-timer-q", "8000"); });
   await voice(page, { settings: { answer: "tap" } });
   await page.goto("/");
   await ready(page);
@@ -621,7 +624,7 @@ test("Blitz: going to Review with an answer waiting leaves no countdown on the R
   await expect(page.locator("#path .pclock")).toHaveCount(0);
 });
 
-test("Blitz in Relations: going back to the relation list does not start the examples countdown over", async ({ page }) => {
+test("Blitz in Relations: the examples countdown waits while the relation list is shown, and goes on from where it stood", async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("rd-blitz", "1"));
   await voice(page, { settings: { read: "1", answer: "tap" } });
   await page.goto("/");
@@ -634,8 +637,10 @@ test("Blitz in Relations: going back to the relation list does not start the exa
   await page.getByRole("button", { name: "Pick another" }).click();
   await expect.poll(async () => (await said(page)).at(-1) || "").toMatch(/What is the relation\?$/);
   await page.waitForTimeout(200);
+  await expect(bar(page), "no countdown behind the list").toHaveCount(0);
+  await relOptions(page).first().click();   // the same relation again: back to the first case
   await expect(bar(page)).toHaveCount(1);
-  expect(await elapsed(page)).toBeGreaterThan(1200);   // it went on, as it does without voice
+  expect(await elapsed(page), "it went on from where it stood").toBeGreaterThan(1200);
 });
 
 test("Hands-free: after the nudge for \"I don't know\" the microphone opens again, with Read aloud off", async ({ page }) => {

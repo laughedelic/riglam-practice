@@ -2,7 +2,8 @@ import { state } from "../state.js";
 import { skipCategories } from "../categories/flow.js";
 import { skipInstance } from "../instance/flow.ts";
 import { skipSyllogism } from "../syllogism/flow.js";
-import { advanceDebate, asking, freshDebateUi, startQ, stopTimer } from "../debate/flow.js";
+import { advanceDebate, freshDebateUi } from "../debate/flow.js";
+import { stopTimer } from "../shell/timers.js";
 import { advanceFind, anotherRelation, resumeFind } from "../find/flow.js";
 import { put } from "./answers.js";
 import { favKey, favSafe } from "./favorites.js";
@@ -38,7 +39,7 @@ function skipWrite(k,fn,undo){
 // Skip: a pair with something entered in it asks first (the question in `skipAsk`); one that was only drawn is set aside at once.
 export function skipPair(){
   if(!state.ui||state.mode!=="quiz"||state.ui.checked||!state.cur) return;
-  if(skipAsks()){ stopTimer(); state.skipAsk=true; render(); return; }
+  if(skipAsks()){ state.skipAsk=true; render(); return; }       // the clock stands still behind the question (shell/timers.js)
   skipNow();
 }
 /** Whether Skip asks before it sets the pair on screen aside: something is entered in it (the Path turns its page aside only for a skip that goes through). */
@@ -49,7 +50,6 @@ export function skipAsks(){
 /** The answer "Keep going" to the question before a skip. */
 export function closeSkipAsk(){
   state.skipAsk=false;
-  if(state.blitz&&asking()) startQ();
   render();
 }
 /** Skips the pair on screen with no question. */
@@ -110,7 +110,7 @@ export function startSkipped(f){
   render(); top0();
 }
 /** A pair of Pervasions taken again there (a skipped one, or one from Review on the Path). */
-export function debateAgain(p){ switchTo("debate"); state.cur={p,debate:true}; state.ui=freshDebateUi(); state.mode="quiz"; startQ(); render(); top0(); }
+export function debateAgain(p){ switchTo("debate"); state.cur={p,debate:true}; state.ui=freshDebateUi(); state.mode="quiz"; render(); top0(); }
 export function unskipKey(k){
   const had=state.skips[k]; if(!had) return;
   delete state.skips[k]; render();

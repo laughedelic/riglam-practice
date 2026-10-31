@@ -1,7 +1,7 @@
-// The settings an exercise keeps its own value of (Blitz, the tutor and voice; app/practice/per-exercise.ts puts them in place), and how a stored record
+// The settings an exercise keeps its own value of (Sprint, the tutor and voice; app/practice/per-exercise.ts puts them in place), and how a stored record
 // of them (`rd-per-ex`) is read.
 /** The settings an exercise keeps its own value of. */
-export interface Own { blitzUse?: boolean; autoExplain?: boolean; read?: boolean; answer?: string }
+export interface Own { blitz?: boolean; autoExplain?: boolean; read?: boolean; answer?: string }
 export type OwnKey = keyof Own;
 export const EXERCISES = ["practice", "debate", "find", "syllogism", "categories", "instance"];
 const ANSWERS = ["off", "tap", "auto"];
@@ -15,7 +15,7 @@ export function normPerEx(raw: unknown): Record<string, Own> {
   for (const ex of EXERCISES) {
     const o = (v as Record<string, unknown>)[ex]; if (!o || typeof o !== "object") continue;
     const r = o as Record<string, unknown>, own: Own = {};
-    if (typeof r.blitzUse === "boolean") own.blitzUse = r.blitzUse;
+    if (typeof r.blitz === "boolean") own.blitz = r.blitz;
     if (typeof r.autoExplain === "boolean") own.autoExplain = r.autoExplain;
     if (typeof r.read === "boolean") own.read = r.read;
     if (typeof r.answer === "string" && ANSWERS.includes(r.answer)) own.answer = r.answer;
