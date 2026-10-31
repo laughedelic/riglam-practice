@@ -64,11 +64,19 @@ html.pa-tab .pa :is(button,[tabindex]):not([data-quiet]):focus-visible:not(.pbr 
 .pa .pring.full text{fill:var(--paper)}
 @media (prefers-reduced-motion:reduce){.pa .rgs .arc,.pa .rgs .tseg,.pa .rgs .disc{transition:none}}
 .pa.g-top .ptb{background-image:var(--grain); background-size:128px; background-blend-mode:soft-light}
-/* a countdown runs on the lower edge of the top bar */
-.pa .pclock{position:absolute; left:0; right:0; bottom:-1px; height:3px; background:var(--rule); overflow:hidden}
+/* a countdown runs on the lower edge of the top bar (path/clock.tsx); its slot has no height, so that it follows the top bar: with the keyboard up the top bar steps aside and the line is at the top of the screen */
+.pa .pclk{position:relative; flex:none; height:0; z-index:9; pointer-events:none}
+.pa .pclock{position:absolute; left:0; right:0; top:-3px; height:3px; background:var(--rule); overflow:hidden}
+.pa.kbup .pclock{top:1px; height:4px}
 .pa .pclock i{position:absolute; inset:0; background:var(--gold); transform-origin:left; animation:p-drain var(--t) linear both; animation-delay:calc(var(--e) * -1)}
 .pa .pclock.late i{background:var(--red)}
+/* the last seconds: the line is red and breathes, and the seconds are a number at its right end */
+.pa .pclock.low i{background:var(--red)}
+.pa .pclock.low{animation:p-low 1s ease-in-out infinite}
+.pa .pclk-s{position:absolute; right:14px; top:7px; font:600 13px/1 var(--mono); color:var(--red)}
+.pa.kbup .pclk-s{right:auto; left:12px; top:8px}     /* the heading's name is at the right while the keyboard is up */
 @keyframes p-drain{from{transform:scaleX(1)} to{transform:scaleX(0)}}
+@keyframes p-low{50%{opacity:.55}}
 
 /* the path: each section draws its own piece of the line */
 .pa .pscroll{flex:1; overflow-y:auto; overflow-x:hidden; position:relative; transition:opacity .25s; overscroll-behavior:contain; -webkit-overflow-scrolling:touch}

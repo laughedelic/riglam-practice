@@ -12,6 +12,7 @@ import { nextGenerated } from "../practice/universe.js";
 import { focusAfterCheck, render } from "../shell/render.js";
 import { ensureRelTimer, freezeBar, relReset, tkind } from "../shell/timers.js";
 import { startSyllogismClock, syllogismAsking } from "../syllogism/flow.js";
+import { cue } from "../sound/play.ts";
 import { gradeDebate } from "../../domain/grading.ts";
 
 export function freshDebateUi(){
@@ -79,6 +80,7 @@ export function setTimer(ms,kind){
 // Time up: an example already typed after Why? stands; anything else counts as accepting the statement.
 function expireQ(u){
   if(u!==state.ui||state.tab!=="debate"||u.checked||u.step>3) return;
+  cue("timeup");
   const a=u.ans[u.step], t=(u.exText||"").trim(); u.tid=null; a.timeout=true;
   if(a.say==="why"&&t){ a.text=t; a.msEx=a.limit; } else { a.say="accept"; a.text=""; a.ms=a.limit; a.msEx=null; }
   nextQ();

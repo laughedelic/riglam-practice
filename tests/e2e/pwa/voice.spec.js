@@ -379,7 +379,8 @@ test("with Blitz on the countdown stops while an answer waits, and goes on when 
 });
 
 const bar = (page) => page.locator("#path .pclock i");
-const elapsed = (page) => page.locator("#path .pclock").evaluate((e) => parseFloat(e.style.getPropertyValue("--e")));
+// how much of the countdown the bar shows as gone, in ms (the bar's own offset, `--e`, is set once when it is drawn: clock.tsx)
+const elapsed = (page) => page.locator("#path .pclock").evaluate((e) => { const a = e.querySelector("i").getAnimations()[0]; return a ? a.effect.getComputedTiming().progress * parseFloat(e.style.getPropertyValue("--t")) : parseFloat(e.style.getPropertyValue("--e")); });
 
 test("Blitz: an answer given by hand while a spoken one waits leaves the next question with its own countdown", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "no-preference" });
