@@ -1,5 +1,5 @@
 // The Blitz clock on the Path (src/app/path/clock.tsx): the bar keeps the countdown's time when the page is redrawn, it stays in sight while an example is written on a phone,
-// it steps once a second with reduced motion, and says the last seconds in a number. Which countdown belongs to which step is shell/timers.js; the sounds are path-sounds.spec.js.
+// it fills up and steps once a second with reduced motion, and says the last seconds in a number. Which countdown belongs to which step is shell/timers.js; the sounds are path-sounds.spec.js.
 import { test, expect } from "../../support/test.js";
 import { isPhone, ready, relOptions } from "../../support/page.js";
 
@@ -43,13 +43,13 @@ test("on a phone the clock stays in sight while an example is written, though th
   await expect.poll(async () => { const b = await clock(page).boundingBox(); return b.y >= -1 && b.y + b.height > 1 && b.y < 8; }, { message: "the line is at the top of the screen" }).toBe(true);
 });
 
-test("with reduced motion the bar steps down once a second instead of staying full", async ({ page }) => {
+test("with reduced motion the bar steps up once a second instead of staying empty", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await blitz(page, 6000);
   await page.goto("/");
   await ready(page);
   const left = () => page.locator("#path .pclock i").evaluate((i) => ({ scale: new DOMMatrix(getComputedStyle(i).transform).a, animations: i.getAnimations().length }));
-  await expect.poll(async () => (await left()).scale, { timeout: 5000, message: "the bar has begun to go down" }).toBeLessThan(0.8);
+  await expect.poll(async () => (await left()).scale, { timeout: 5000, message: "the bar has begun to fill" }).toBeGreaterThan(0.2);
   expect((await left()).animations, "by steps, not an animation").toBe(0);
 });
 

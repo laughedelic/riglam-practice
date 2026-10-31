@@ -1,5 +1,5 @@
-// The countdown of Blitz: a line on the lower edge of the top bar. With a field in focus on a phone the top bar steps aside (07-path-station.css) and the line stays, at the
-// top of the screen, so that the clock is in sight while an example is written. In the last seconds the line turns red and says the seconds in a number.
+// The clock of Sprint: a line on the lower edge of the top bar that fills over the step's time; when it is full the step moves on by itself. With a field in focus on a phone the top bar steps aside (07-path-station.css) and the line stays, at the
+// top of the screen, so that the clock is in sight while an example is written. In the last seconds, when most of the line is filled, it turns red and says the seconds left in a number.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { state } from "../state.js";
 
@@ -12,7 +12,7 @@ const reduced = (): boolean => { try { return matchMedia("(prefers-reduced-motio
 /**
  * The line and, in the last seconds, the number. A countdown is one bar: the caller keys it by the countdown's start, so a new countdown starts from full. The bar is an
  * animation that begins where the countdown stands when the bar is drawn; that offset is taken once, because a redraw (each letter typed is one) that changed it
- * would move a running animation ahead by the time already gone. With reduced motion the page has no animation: the bar steps once a second instead.
+ * would move a running animation ahead by the time already gone. With reduced motion the page has no animation: the bar steps up once a second instead.
  */
 export function Clock({ tq, late }: { tq: Tq; late: boolean }) {
   const from = useRef(-1);
@@ -22,7 +22,7 @@ export function Clock({ tq, late }: { tq: Tq; late: boolean }) {
   const u = state.ui, held = u && u.hold ? u.hold.spent as number : null;     // a clock held for a spoken answer stands still (debate/flow.js)
   const gone = held !== null ? held : performance.now() - tq.t0, left = Math.max(0, tq.limit - gone);
   const low = left <= Math.min(LOW, tq.limit * 0.4);
-  const step = reduced() ? Math.max(0, 1 - Math.floor(gone / 1000) * 1000 / tq.limit) : null;
+  const step = reduced() ? Math.min(1, Math.floor(gone / 1000) * 1000 / tq.limit) : null;
   return <div class="pclk" aria-hidden="true">
     <div class={"pclock" + (late ? " late" : "") + (low ? " low" : "")} style={{ "--t": tq.limit + "ms", "--e": from.current + "ms" }}><i style={step === null ? undefined : { transform: "scaleX(" + step.toFixed(3) + ")" }} /></div>
     {low ? <b class="pclk-s">{Math.max(1, Math.ceil(left / 1000))}</b> : null}
