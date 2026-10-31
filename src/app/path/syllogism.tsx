@@ -4,7 +4,7 @@
 // the counter-example is asked for whether the reply is right or not, and the scan of the result marks the reply after the example.
 import type { ComponentChildren } from "preact";
 import { state } from "../state.js";
-import { guided } from "../practice/guided.ts";
+import { guidance } from "../practice/guided.ts";
 import { next } from "../practice/queue.js";
 import { backSyllogism, counterText, exampleSyllogism, keyOfReply, saySyllogism, shownSyllogism } from "../syllogism/flow.js";
 import { REPLIES, gradeExample, syllogismPieces } from "../../domain/syllogism.ts";
@@ -18,10 +18,15 @@ import { nextKind, nextName } from "./next.ts";
 import { Foot, PreStation, SkipSide, Station, TopBar } from "./shell.tsx";
 import { D, Gap, Head, Mark, St, Sx, nofillInput } from "./ui.tsx";
 
-/** The replies as the choices say them, what each says in a few words, and (in the guided form, practice/guided.ts) what each means in S, P and R. */
+/** The replies as the choices say them, and what each means: Detailed guidance says it with the syllogism's own words, Hints in S, P and R, None not at all (practice/guided.ts). */
 const SAY: Record<Reply, string> = { accept: "I accept", reason: "The reason is not established", pervasion: "There is no pervasion" };
-const GLOSS: Record<Reply, string> = { accept: "the reason holds and it pervades", reason: "the subject is not the reason", pervasion: "the reason does not bring the predicate" };
 const MEANS: Record<Reply, string> = { accept: "S is R, and everything that is R is P", reason: "S is not R", pervasion: "S is R, but not everything that is R is P" };
+/** The same with the syllogism's words in place of S, P and R: "a black frying pan is not metal". */
+const SPELLED: Record<Reply, (c: Syllogism) => string> = {
+  accept: (c) => c.subject + " is " + c.reason + ", and everything that is " + c.reason + " is " + c.predicate,
+  reason: (c) => c.subject + " is not " + c.reason,
+  pervasion: (c) => c.subject + " is " + c.reason + ", but not everything that is " + c.reason + " is " + c.predicate,
+};
 /** A reply inside a sentence: "There is no pervasion." */
 const SAID: Record<Reply, string> = { accept: "I accept", reason: "the reason is not established", pervasion: "there is no pervasion" };
 
@@ -50,14 +55,14 @@ function Statement({ star = true, keep = false }: { star?: boolean; keep?: boole
     <St d={<span class="ab">S</span>} cls={"stm hasroom" + (star ? marksCls() : "")}>{star ? <><Star /><SkipMark /></> : null}<span class="cs" lang="en">{l.subject}</span></St>
     <St d={<span class="ab">P</span>} cls="stm"><span class="cs" lang="en">{l.predicate}</span></St>
     <St d={<span class="ab">R</span>} cls="stm"><span class="cs" lang="en">{l.reason}</span></St>
-    <p class="plegend" data-keep={keep ? String(RESULT_TOP) : undefined}>S subject · P predicate · R reason</p>
+    {guidance("syllogism") === "none" ? null : <p class="plegend" data-keep={keep ? String(RESULT_TOP) : undefined}>S subject · P predicate · R reason</p>}
   </>;
 }
 
 /* ---------- 1 the answer ---------- */
 function AnswerStep() {
-  const u = u0(), guide = guided("syllogism");
-  const items = REPLIES.map((r) => ({ k: r, b: SAY[r], s: guide ? MEANS[r] : GLOSS[r], key: keyOfReply(r) }));
+  const u = u0(), g = guidance("syllogism"), c = shownSyllogism();
+  const items = REPLIES.map((r) => ({ k: r, b: SAY[r], s: g === "detailed" ? SPELLED[r](c) : g === "hints" ? MEANS[r] : undefined, key: keyOfReply(r) }));
   return <>
     <Scroll>
       <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Answer" sub="do you accept it?" /><Gap h={6} /><Statement /><Gap h={10} /></Sx>

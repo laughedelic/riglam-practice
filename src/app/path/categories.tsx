@@ -8,7 +8,8 @@ import { next } from "../practice/queue.js";
 import { toggleOpts } from "../shell/options.js";
 import { gradePlace, type PlaceGraded, type PlaceQuestion, type PlaceResult, type PlaceRow } from "../../domain/place.ts";
 import { refreshPath } from "./index.tsx";
-import { Choices, ErrLines, SkipMark, StageOffer, Verdict, u0 } from "./parts.tsx";
+import { Choices, ErrLines, GuideNote, SkipMark, StageOffer, Verdict, u0 } from "./parts.tsx";
+import { guidance } from "../practice/guided.ts";
 import type { ScanPlan } from "./scan.tsx";
 import { Scroll } from "./scroll.tsx";
 import { Threshold } from "./threshold.tsx";
@@ -98,12 +99,18 @@ function Settled() {
     {down.length ? <Sx cls="walked"><span class="thh" data-mv="below" aria-hidden="true">not</span><div class="chs down">{down.map((r) => <ResRow row={r} on={false} />)}</div></Sx> : null}
   </div>;
 }
+/** What to do, under the thing, as guidance has it (practice/guided.ts): in full with the thing's name, a short line, or nothing. */
+function Todo() {
+  const g = guidance("categories"); if (g === "none") return null;
+  return <p class="qlead above">{g === "detailed" ? <>Tap each category {q().thing.n} is: it moves up, above the line. The rest stay under “not”.</> : "Tap each one it is."}</p>;
+}
 /* ---------- the categories ---------- */
 function TickStep() {
   const u = u0(), t = q(), n = u.ticked.length;
   return <>
     <Scroll>
       <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Categories" sub="which of these is it?" aside={<SkipMark />} /><Gap h={6} /><Thing />
+        <Todo />
         <div class="cstop" data-keep="stay" aria-hidden="true"><i class="d" /></div></Sx>
       <Threshold label="Categories the thing is in" items={t.rows.map((r, i) => ({ k: r.cat, b: r.phrase, key: String(i + 1) }))} picked={u.ticked} onPick={tickCategory} onReset={resetCategories} />
       <Sx cls="ptail" />
@@ -138,6 +145,7 @@ function CheckedStep() {
       <Sx cls="walked first"><Gap h={14} /><Head d={<D cls="sec done" />} h="1 Categories" sub="which of these is it?" /><Gap h={6} /><Thing /><Gap h={AFTER_THING} /></Sx>
       <Verdict v={v} word={word} sub={sub} />
       {one ? <Split one /> : <Settled />}
+      <GuideNote />
       <StageOffer />
       <ErrLines />
       <Sx cls="ptail" />

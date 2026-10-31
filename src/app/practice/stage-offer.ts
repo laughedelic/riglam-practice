@@ -3,7 +3,7 @@
 // open (src/domain/intro.ts, nextStageDue). The ladder ends at stage 9: the stages after it are the layers of depth, which the Path offers on a result like
 // any offer (the first once the last answer on each term of stage 9 is right, the others after a run) and the Progression page sets.
 // Every checked answer moves the run at the highest stage that is on, and the exercise's own record: whether it has warmed up, which sets how many of its
-// questions are new, and its right answers, after which its guided form turns off (practice/guided.ts). The next stage comes by itself: when
+// questions are new, and its right answers, which take its guidance down a level at a time (practice/guided.ts). The next stage comes by itself: when
 // it is due, Next on the result goes to a station of its own that says which stage comes in (and, the first time, what the stages are), `ui.up`; Next from
 // it takes the stage, and the learner may stay on the stage they are on a while longer (a run of right answers then comes after the terms) or move the
 // stages themselves (the Stages page). Taking a stage off is an offer on the result (`ui.offer`); nothing changes there without a tap, and Next past it counts as Not now. The runs are part of the progression (practice/progress.ts).
@@ -47,8 +47,9 @@ const nextNow = () => (state.intro && state.DATA ? nextStageDue(ix(), state.intr
 export function stageStep(ex: string, st: number, ok: boolean): boolean {
   const miss = MISS[ex] ?? "form";
   state.stageRun = runAfter(state.stageRun, state.stages, st, ok, miss);
-  state.exRuns = { ...state.exRuns, [ex]: exerciseAfter(state.exRuns[ex], ok) };
-  guideStep(ex);
+  const before = state.exRuns[ex];
+  state.exRuns = { ...state.exRuns, [ex]: exerciseAfter(before, ok) };
+  guideStep(ex, before);
   const marks = marksNow(), terms = marks.length ? { ...termsOf(marks), next: nextNow() } : NO_TERMS;
   const o = stageOffer(state.stageRun, state.stages, terms, miss);
   if (o && state.ui) { if (o.kind === "up" && o.stage <= LADDER_TOP) state.ui.up = { stage: o.stage }; else state.ui.offer = o; }

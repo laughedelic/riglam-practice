@@ -5,7 +5,7 @@ import type { ComponentChildren } from "preact";
 import { state } from "../state.js";
 import { CELLS, ORDER, REL, notaOf } from "../core/rel.js";
 import { check } from "../practice/grading.js";
-import { guided } from "../practice/guided.ts";
+import { guidance } from "../practice/guided.ts";
 import { acceptNegOffer, declineNegOffer, negOfferText, type NegOffer as Offer } from "../practice/negations.ts";
 import { next } from "../practice/queue.js";
 import { choose, explainParts, fillable, learnedThing, nextFwd } from "../practice/screen.js";
@@ -30,11 +30,12 @@ import { D, Fig, Gap, Head, Mark, St, Sx } from "./ui.tsx";
 /** the relation picked (the steps after the first have one) */
 const relOf = () => u0().rel as RelKey;
 
-/** The relations as choices on the path: their figures in the margin, the sign in the notation picked, and in the guided form (practice/guided.ts) what each says of the pair. */
+/** The relations as choices on the path: their figures in the margin, the sign in the notation picked, and what each says as guidance has it (practice/guided.ts): of the pair, of A and B, or nothing. */
 export function relChoices(p: { a: string; b: string }, cur: string | null) {
+  const g = guidance(state.tab);
   return ORDER.map((k: string, i: number) => {
     const r = REL[k as RelKey];
-    return { k, b: r.name, s: guided(state.tab) ? <Subjects text={r.gloss(p.a, p.b)} p={p} /> : undefined, fig: k, sym: state.nota !== "codes" ? notaOf(k) : "", key: String(i + 1), pressed: cur === k };
+    return { k, b: r.name, s: g === "detailed" ? <Subjects text={r.gloss(p.a, p.b)} p={p} /> : g === "hints" ? r.gloss("A", "B") : undefined, fig: k, sym: state.nota !== "codes" ? notaOf(k) : "", key: String(i + 1), pressed: cur === k };
   });
 }
 

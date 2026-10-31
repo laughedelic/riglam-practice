@@ -8,7 +8,7 @@ import { state } from "../state.js";
 import { REL, lcRel } from "../core/rel.js";
 import { backWhy, chooseD, sayQ, submitWhy } from "../debate/flow.js";
 import { QCELL, Wd, singular } from "../debate/text.js";
-import { guided } from "../practice/guided.ts";
+import { guidance } from "../practice/guided.ts";
 import { next } from "../practice/queue.js";
 import { explainParts, learnedThing, nextFwd } from "../practice/screen.js";
 import { NOT, qSides } from "../../ai-shared/debate.ts";
@@ -62,9 +62,21 @@ function Answered({ n }: { n: number }) {
 }
 
 /* ---------- 1 the questions ---------- */
+/**
+ * The counter-example question `i` asks for, in the words of its case (the classic page's way): "something that is both A and B", "A, but not B",
+ * "neither A nor B", the words that name the case in bold; `a` and `b` are the pair's two terms, or the letters.
+ */
+function Counter({ i, a, b, lead = true }: { i: number; a: ComponentChildren; b: ComponentChildren; lead?: boolean }) {
+  const K = (t: string) => <span class="conn">{t}</span>;
+  const tail = ({ both: <>{K("both")} {a} {K("and")} {b}</>, anb: <>{a}, {K("but not")} {b}</>, bna: <>{b}, {K("but not")} {a}</>, nei: <>{K("neither")} {a} {K("nor")} {b}</> } as Record<string, ComponentChildren>)[QCELL[i] as string];
+  return <span>{lead ? "something that is " : ""}{tail}</span>;
+}
 function QuestionStep({ kb }: { kb: boolean }) {
-  const u = u0(), p = pairOf(), i: number = u.step, w = Wd(), retry = state.cur!.retry, last = i === 3, g = guided("debate");      // the guided form says what each answer does (practice/guided.ts)
-  const items = [{ k: "accept", b: w.acc, s: g ? "it holds: nothing goes against it" : undefined, key: w.ak }, { k: "why", b: w.why, s: g ? "it fails: you posit a counter-example" : undefined, key: w.wk }];
+  const u = u0(), p = pairOf(), i: number = u.step, w = Wd(), retry = state.cur!.retry, last = i === 3, g = guidance("debate");
+  // guidance (practice/guided.ts): Why? says what a counter-example would be, with the pair's terms (Detailed) or A and B (Hints), and the field asks
+  // for it the same way; Accept needs no line (it would restate the statement). None: Accept and Why? side by side, nothing more
+  const counter = (lead: boolean) => g === "detailed" ? <Counter i={i} lead={lead} a={<Sub k="a">{singular(p.a)}</Sub>} b={<Sub k="b">{singular(p.b)}</Sub>} /> : <Counter i={i} lead={lead} a="A" b="B" />;
+  const items = [{ k: "accept", b: w.acc, key: w.ak }, { k: "why", b: w.why, s: g === "none" ? undefined : counter(g === "detailed"), key: w.wk }];
   return <>
     <Scroll>
       {retry ? <p class="retry">{(state.cur!.tag || "Retry") + (state.retryQ.length ? " · " + state.retryQ.length + " more" : "")}</p> : null}
@@ -73,13 +85,14 @@ function QuestionStep({ kb }: { kb: boolean }) {
         {w.lead ? <p class="qlead above">{w.lead}</p> : null}
         <St d={<D cls="sub now" />} cls="sb now qnow"><QHead i={i} /><p class="qst" lang="en"><Statement i={i} /></p>
           {u.pickWhy ? <>
+            {g === "none" ? null : <p class="qq">Name {counter(true)}.</p>}
             <div class="fieldrow"><input class="pfield" id="dex" value={u.exText} placeholder="posit a counter-example" {...nofillInput()} enterKeyHint={last ? "done" : "next"} aria-label="Posit a counter-example"
               onInput={(e) => { u.exText = (e.currentTarget as HTMLInputElement).value; refreshPath(); }}
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); submitWhy(); } else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); backWhy(); } }} /></div>
-            <p class="help">{g ? <span class="htx">Something that shows the statement fails. </span> : null}<button type="button" onMouseDown={(e) => e.preventDefault()} onClick={backWhy}>back</button></p>
+            <p class="help"><button type="button" onMouseDown={(e) => e.preventDefault()} onClick={backWhy}>back</button></p>
           </> : null}</St>
         {u.pickWhy ? <Gap h={6} /> : null}</Sx>
-      {u.pickWhy ? null : <Choices label="Your answer" slide row items={items} picked={u.pk} onPick={(k) => pickThen(k, () => sayQ(k))} />}
+      {u.pickWhy ? null : <Choices label="Your answer" slide row={g === "none"} items={items} picked={u.pk} onPick={(k) => pickThen(k, () => sayQ(k))} />}
       {i < 3 ? <Sx cls="gap later">{[...Array(3 - i).keys()].map((j) => <St d={<D cls="sub" />} cls="sb later qmr"><QHead i={i + 1 + j} /></St>)}</Sx> : null}
       <Sx cls={"ptail" + (i < 3 ? " dtail" : "")} />
     </Scroll>

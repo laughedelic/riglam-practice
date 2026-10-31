@@ -12,7 +12,7 @@ import { favTarget, isFav, toggleFav } from "../practice/favorites.js";
 import { skipAsks, skipNow, skipPair } from "../practice/skips.js";
 import { explainParts, factParts, noteData } from "../practice/screen.js";
 import { DEPTH_ASKS, DEPTH_NAME, isDepth } from "../practice/difficulty.ts";
-import { GUIDES } from "../practice/guided.ts";
+import { GUIDANCE_NAMES, GUIDES } from "../practice/guided.ts";
 import { acceptStageOffer, declineStageOffer } from "../practice/stage-offer.ts";
 import { lineageOf } from "../practice/terms.js";
 import { catByLabel } from "../practice/universe.js";
@@ -189,10 +189,11 @@ function DepthOffer({ up, stage }: { up: boolean; stage: number }) {
   </div></St></Sx>;
 }
 
-/** The line under a result when the exercise's guided form turned off by itself with this answer (practice/guided.ts): why, and where to turn it on. */
+/** The line under a result when the exercise's guidance went a level down by itself with this answer (practice/guided.ts): why, what it shows now, and where to change it. */
 export function GuideNote() {
-  const ex = state.ui && state.ui.guideOff, g = ex ? GUIDES[ex] : null; if (!g) return null;
-  return <Sx cls="walked"><p class="pnoteline pfnote" role="status">{GUIDE_RIGHT} right answers in {g.name}: Guided is off from now on, so {g.off}. Turn it on again any time in the <button type="button" class="plnk" onClick={() => toggleSess(true)}>practice options</button>.</p></Sx>;
+  const d = state.ui && state.ui.guideDown, g = d ? GUIDES[d.ex] : null; if (!d || !g) return null;
+  const n = d.to === "none" ? 2 * GUIDE_RIGHT : GUIDE_RIGHT;
+  return <Sx cls="walked"><p class="pnoteline pfnote" role="status">{n} right answers in {g.name}: Guidance is {GUIDANCE_NAMES[d.to]} from now on. {g[d.to]} Change it any time in the <button type="button" class="plnk" onClick={() => toggleSess(true)}>practice options</button>.</p></Sx>;
 }
 
 /* ---------- the tutor ---------- */

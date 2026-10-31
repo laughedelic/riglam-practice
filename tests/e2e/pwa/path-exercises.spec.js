@@ -345,18 +345,18 @@ test("Find an instance: \"nothing is\" where the categories exclude each other, 
   expect((await saved(page, "instance"))[0]).toMatchObject({ cats: q.cats, possible: false, said: null, grade: "ok" });
 });
 
-test("Find an instance: Guided in the practice options (things suggested as you write) turns the field's list off, and the device keeps it", async ({ page }) => {
+test("Find an instance: things are suggested as you write at Detailed guidance only; Hints in the practice options turns the field's list off, and the device keeps it", async ({ page }) => {
   await open(page, "Find an instance");
   const field = page.locator("#iin");
   await expect(field).toHaveAttribute("list", "iin-things");
   await page.getByRole("button", { name: "Practice options" }).click();
-  const sheet = page.getByRole("dialog", { name: "Practice options" }), hints = sheet.getByRole("switch", { name: "Guided" });
+  const sheet = page.getByRole("dialog", { name: "Practice options" }), levels = sheet.getByRole("group", { name: "Guidance" });
   await expect(sheet.getByRole("button", { name: "Difficulty: more" }), "the stages and the difficulty are on the Progression page").toHaveCount(0);
-  await expect(hints).toHaveAttribute("aria-checked", "true");
-  await hints.click();
-  await expect(hints).toHaveAttribute("aria-checked", "false");
+  await expect(levels.getByRole("button", { name: "Detailed" })).toHaveAttribute("aria-pressed", "true");
+  await levels.getByRole("button", { name: "Hints" }).click();
+  await expect(levels.getByRole("button", { name: "Hints" })).toHaveAttribute("aria-pressed", "true");
   await page.keyboard.press("Escape");
   await expect(field).not.toHaveAttribute("list", /./);
   await expect(page.locator("#iin-things")).toHaveCount(0);
-  expect(await page.evaluate(() => localStorage.getItem("rd-inst-suggest"))).toBe("0");
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("rd-guided")))).toEqual({ instance: "hints" });
 });

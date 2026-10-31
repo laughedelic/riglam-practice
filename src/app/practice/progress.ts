@@ -1,5 +1,5 @@
 // The learner's progression: the stages on, the course terms met at their stops and how well (practice/stops.ts), the pace they come at, the step of the negation track, the
-// runs towards an offer of the stages and each exercise's own (practice/stage-offer.ts), each exercise's guided form (practice/guided.ts), and when the offer of a negation step was last answered. The device keeps it in localStorage, where state.js reads it at the start, and
+// runs towards an offer of the stages and each exercise's own (practice/stage-offer.ts), each exercise's level of guidance where the learner picked one (practice/guided.ts), and when the offer of a negation step was last answered. The device keeps it in localStorage, where state.js reads it at the start, and
 // in one document, `progress/learner`, which sync carries to the account and to the other devices signed in to it (src/account/sync.ts). A copy that
 // differs from the ones this page wrote came from sync or from another tab, which has settled that it is the newer: the page takes it. Reset progression
 // (the Path's Stages page) starts it again, on every device; the answers and their statistics stay.

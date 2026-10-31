@@ -4,6 +4,7 @@ import type { ComponentChildren } from "preact";
 import { useContext, useEffect, useRef } from "preact/hooks";
 import { state } from "../state.js";
 import { cellLabel } from "../core/rel.js";
+import { guidance } from "../practice/guided.ts";
 import { fillable } from "../practice/screen.js";
 import { render } from "../shell/render.js";
 import type { CellId, RelKey } from "../../ai-shared/relations.ts";
@@ -98,12 +99,12 @@ function KHead({ rel, title }: { rel: RelKey; title: string }) {
  * unfolded, `check` the check of the answer, `scan` what the Check marks as it slides up to the result (scan.tsx; Relations).
  */
 export function ExamplesStep({ kb, title, step, rel, full, check, scan }: { kb: boolean; title: string; step: number; rel: RelKey; full: ComponentChildren; check: () => void; scan?: () => ScanPlan }) {
-  const u = u0(), p = pairOf(), k = cursor(), pull = useContext(PullCtx);
+  const u = u0(), p = pairOf(), k = cursor(), pull = useContext(PullCtx), spell = guidance(state.tab) === "detailed";     // each case in a full sentence at Detailed guidance, else by its name (practice/guided.ts)
   const checkHint = "your " + (state.ui!.find ? "pair" : "relation") + " and " + (k.order.length === 1 ? "one example" : k.order.length + " examples");
   const takeCheck = () => { u.pall = true; blur(); check(); };
   const rows = k.order.map((c, i) => {
     const x = u.cells[c];
-    if (i === k.ci) return <St d={<D cls="sub now" />} cls="sb now"><span class="lab">{CASE[c]}</span><p class="qq">{caseQ(c, p)}</p>
+    if (i === k.ci) return <St d={<D cls="sub now" />} cls="sb now"><span class="lab">{CASE[c]}</span>{spell ? <p class="qq">{caseQ(c, p)}</p> : null}
       <div class="fieldrow"><input class="pfield" id="cin" value={x.t} placeholder="write an example" {...nofillInput()} enterKeyHint={k.last ? "done" : "next"} aria-label={cellLabel(c, p)}
         onInput={(e) => { x.t = (e.currentTarget as HTMLInputElement).value; if (x.none) x.none = false; refreshPath(); }}
         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commit(pull); } }} /></div>
@@ -113,7 +114,7 @@ export function ExamplesStep({ kb, title, step, rel, full, check, scan }: { kb: 
       <St d={<D cls="sub yours" />} cls="sb done"><span class="lab">{CASE[c]}</span><span class={"pans" + (x.none ? " nil" : "")}>{x.none ? "nothing exists" : x.t.trim()}</span></St></button>;
     // a case ahead is taken up with a tap too (out of order is fine: Next goes to the next one still empty); with the keyboard up the tap keeps it up, and the field moves
     return <button type="button" class="sbb later" onMouseDown={(e) => e.preventDefault()} onClick={() => openCase(i)} aria-label={CASE[c] + ": not written yet. Write it now"}>
-      <St d={<D cls="sub" />} cls="sb later"><span class="lab">{CASE[c]}</span><p class="qq">{caseQ(c, p)}</p></St></button>;
+      <St d={<D cls="sub" />} cls="sb later"><span class="lab">{CASE[c]}</span>{spell ? <p class="qq">{caseQ(c, p)}</p> : null}</St></button>;
   });
   // each case draws the piece of line from its own diamond to the next one: yellow and solid where the case is written, yellow and dotted where it is not (the path
   // ahead is blocked by it); the trail ahead is dotted until every case is written, then solid and gray (06-path-line.css). The classes say what the piece needs:

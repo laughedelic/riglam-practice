@@ -1,6 +1,6 @@
 // Help that fades as the stages go up (src/domain/stages.ts): the next step of the negation track offered on a result once the pairs before it go
-// well (practice/negations.ts), the next stage coming in by itself, with a station that says so (practice/stage-offer.ts), the guided form of an
-// exercise (practice/guided.ts). Negations in Pervasions and Find a pair are checked here too.
+// well (practice/negations.ts), the next stage coming in by itself, with a station that says so (practice/stage-offer.ts), the guidance of an
+// exercise in three levels (practice/guided.ts). Negations in Pervasions and Find a pair are checked here too.
 import { test, expect } from "../../support/test.js";
 import { goTo, ready, relOptions } from "../../support/page.js";
 
@@ -279,28 +279,37 @@ test("on the Path, with Natural progression off, five right relations bring no s
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem("rd-stage-run")).manual)).toBe(true);
 });
 
-test("on the Path, Relations spells out the relations until its twentieth right answer, then Guided turns off with a line saying why, and the switch brings it back", async ({ page }) => {
+test("on the Path, Relations spells out the relations with the pair until its twentieth right answer, then with A and B and a line saying why; Guidance in the practice options and on its page picks a level that stays", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => { if (localStorage.getItem("rd-ex-runs") === null) localStorage.setItem("rd-ex-runs", JSON.stringify({ practice: { run: 5, right: 19 } })); });
   await page.addInitScript(hook);
   await page.goto("/");
+  const gloss = pathChoices(page).first().locator(".ct small");
   await expect(pathChoices(page)).toHaveCount(5);
-  await expect(pathChoices(page).first().locator(".ct small"), "the guided form: what the relation says of the pair").toHaveCount(1);
+  await expect(gloss, "Detailed: what the relation says of the pair").toHaveCount(1);
+  await expect(gloss).not.toContainText(/\bA\b/);
   await rightPath(page);
-  await expect(page.locator("#path [role=status]").filter({ hasText: "20 right answers in Relations: Guided is off from now on" })).toBeVisible();
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("rd-guided")))).toEqual({ practice: false });
+  await expect(page.locator("#path [role=status]").filter({ hasText: "20 right answers in Relations: Guidance is Hints from now on" })).toBeVisible();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("rd-guided"))), "a step taken by itself is not a pick").toEqual({});
   await station(page).click();
   await expect(pathChoices(page)).toHaveCount(5);
-  await expect(pathChoices(page).first().locator(".ct small"), "the relations by their names alone").toHaveCount(0);
+  await expect(gloss, "Hints: what the relation says of A and B").toContainText(/\bA\b/);
   await page.getByRole("button", { name: "Practice options" }).click();
-  const sheet = page.getByRole("dialog", { name: "Practice options" });
-  const sw = sheet.getByRole("switch", { name: /^Guided/ });
-  await expect(sw).toHaveAttribute("aria-checked", "false");
-  await sw.click();
-  await expect(sw).toHaveAttribute("aria-checked", "true");
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("rd-guided")))).toEqual({ practice: true });
+  const sheet = page.getByRole("dialog", { name: "Practice options" }), levels = sheet.getByRole("group", { name: "Guidance" });
+  await expect(levels.getByRole("button", { name: "Hints" })).toHaveAttribute("aria-pressed", "true");
+  await levels.getByRole("button", { name: "None" }).click();
+  await expect(levels.getByRole("button", { name: "None" })).toHaveAttribute("aria-pressed", "true");
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("rd-guided")))).toEqual({ practice: "none" });
+  // the line's page says what each level shows here
+  await sheet.getByRole("button", { name: "Guidance: more" }).click({ position: { x: 12, y: 12 } });
+  await expect(levels.getByRole("button")).toHaveCount(3);
+  await expect(levels.getByRole("button", { name: /^None/ })).toHaveAttribute("aria-pressed", "true");
+  await expect(sheet).toContainText("None, as you picked it.");
+  await levels.getByRole("button", { name: /^Detailed/ }).click();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("rd-guided")))).toEqual({ practice: "detailed" });
   await page.keyboard.press("Escape");
-  await expect(pathChoices(page).first().locator(".ct small")).toHaveCount(1);
+  await expect(gloss).toHaveCount(1);
+  await expect(gloss).not.toContainText(/\bA\b/);
 });
 
 test("with negations on, Pervasions draws negated pairs too, and Accept to Q4 on one with nothing neither is right", async ({ page }) => {

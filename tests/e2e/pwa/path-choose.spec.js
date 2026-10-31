@@ -1,5 +1,5 @@
 // Choices on the Path that slide onto it (src/app/path/choose.ts): a tap or a finger sends the mark onto the line with a knock, the others fade, the
-// thread turns solid and the mark fills (and in a list rises); two short options stand on one row. The rules of the practice are the other specs'.
+// thread turns solid and the mark fills (and in a list rises); two short options stand on one row (Pervasions at None guidance). The rules of the practice are the other specs'.
 import { test, expect } from "../../support/test.js";
 import { exerciseAtRest } from "../../support/page.js";
 
@@ -97,7 +97,28 @@ test("a choice slid onto the line, back off it and onto it again without letting
   await expect(page.locator("#cin")).toBeVisible();
 });
 
-test("Accept and Why? stand on one row; Why? slides to the line over the fading Accept, then its field opens", async ({ page }) => {
+test("Pervasions at Detailed guidance: Accept and Why? in a list, Why? saying what a counter-example would be in the pair's words, and the line over its field asking for one the same way; at Hints with A and B", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await openPervasions(page);
+  await expect(page.locator("#path .chs.row2")).toHaveCount(0);
+  const [acc, why] = [choices(page).nth(0), choices(page).nth(1)];
+  await expect(acc.locator(".ct small"), "Accept needs no line").toHaveCount(0);
+  const line = why.locator(".ct small");
+  await expect(line).toContainText("something that is");
+  await expect(line.locator(".conn").first(), "the words that name the case in bold").toBeVisible();
+  await expect(line).not.toContainText(/\bA\b/);
+  await why.click();
+  await expect(page.locator("#dex")).toBeVisible();
+  await expect(page.locator("#path .qnow .qq")).toContainText("Name something that is");
+  await page.evaluate(() => { localStorage.setItem("rd-guided", JSON.stringify({ debate: "hints" })); });
+  await page.reload();   // back in Pervasions at the same question, Why? picked
+  await expect(page.locator(".ptb-t")).toContainText("Pervasions");
+  await expect(page.locator("#dex")).toBeVisible();
+  await expect(page.locator("#path .qnow .qq")).toContainText(/^Name something that is .*(\bA\b.*\bB\b|\bB\b.*\bA\b)/);
+});
+
+test("Accept and Why? stand on one row at None guidance; Why? slides to the line over the fading Accept, then its field opens", async ({ page }) => {
+  await page.addInitScript(() => { localStorage.setItem("rd-guided", JSON.stringify({ debate: "none" })); });
   await openPervasions(page);
   await expect(page.locator("#path .chs.row2")).toHaveCount(1);
   const [acc, why] = [choices(page).nth(0), choices(page).nth(1)];

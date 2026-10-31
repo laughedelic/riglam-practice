@@ -7,7 +7,7 @@ import { state } from "../state.js";
 import { canAsk } from "../core/ask.js";
 import { CELLS, ORDER, REL, lcRel, notaOf } from "../core/rel.js";
 import { checkFind, chooseRel, editPair, usePair } from "../find/flow.js";
-import { guided } from "../practice/guided.ts";
+import { guidance } from "../practice/guided.ts";
 import { next } from "../practice/queue.js";
 import { render } from "../shell/render.js";
 import type { RelKey } from "../../ai-shared/relations.ts";
@@ -30,7 +30,7 @@ const openRel = () => { const u = u0(); u.open = true; u.pstrip = false; render(
 function Asked({ change = true }: { change?: boolean }) {
   const u = u0(), r = REL[relOf()];
   return <St d={<Fig k={relOf()} size="m" />} cls="asked"><span class="relnm"><b class="yours">{r.name}</b>{state.nota !== "codes" ? <span class="rsym">{notaOf(relOf())}</span> : null}</span>
-    <span class="pq relg">{r.gloss("A", "B")}.{!u.checked && state.findRel ? " Your choice; it stays until Random." : ""}</span>
+    {guidance("find") !== "none" || (!u.checked && state.findRel) ? <span class="pq relg">{guidance("find") !== "none" ? r.gloss("A", "B") + "." : ""}{!u.checked && state.findRel ? " Your choice; it stays until Random." : ""}</span> : null}
     {change ? <button type="button" class="pbtn" onClick={openRel}>{state.findRel ? "Change relation" : "Choose relation"}</button> : null}</St>;
 }
 
@@ -38,7 +38,7 @@ function Asked({ change = true }: { change?: boolean }) {
 function Word({ k, key2, what, last }: { k: "a" | "b"; key2: "wordA" | "wordB"; what: string; last: boolean }) {
   const u = u0();
   return <St d={<span class="ab">{k.toUpperCase()}</span>} cls="pairst pfw">
-    <div class="fieldrow"><input class="pfield" id={"fw-" + k} value={u[key2]} placeholder={what + " phenomenon"} aria-label={what + " phenomenon, " + k.toUpperCase()} {...nofillInput(guided("find") ? "fw-terms" : undefined)}
+    <div class="fieldrow"><input class="pfield" id={"fw-" + k} value={u[key2]} placeholder={what + " phenomenon"} aria-label={what + " phenomenon, " + k.toUpperCase()} {...nofillInput(guidance("find") === "detailed" ? "fw-terms" : undefined)}
       autoComplete="off" autoCapitalize="off" spellcheck={false} enterKeyHint={last ? "done" : "next"}
       onInput={(e) => { u[key2] = (e.currentTarget as HTMLInputElement).value; if (u.pairErr) u.pairErr = ""; refreshPath(); }}
       onKeyDown={(e) => { if (e.key !== "Enter") return; e.preventDefault(); if (!last) focus("fw-b"); else usePair(); }} /></div>
@@ -59,8 +59,8 @@ function PairStep({ kb }: { kb: boolean }) {
         <Word k="a" key2="wordA" what="First" last={false} />
         <Word k="b" key2="wordB" what="Second" last />
         {u.pairErr ? <p class="pnoteline bad perr" role="alert">{u.pairErr}</p> : null}
-        <p class="help fhelp">{guided("find") ? "Course terms or your own words." : "Whatever comes to mind."}</p>
-        {guided("find") ? <datalist id="fw-terms">{(state.DATA ? state.DATA.cats : []).map((c: { labels: string[] }) => <option value={c.labels[0]} />)}</datalist> : null}
+        <p class="help fhelp">{guidance("find") === "detailed" ? "Course terms or your own words." : "Whatever comes to mind."}</p>
+        {guidance("find") === "detailed" ? <datalist id="fw-terms">{(state.DATA ? state.DATA.cats : []).map((c: { labels: string[] }) => <option value={c.labels[0]} />)}</datalist> : null}
         <Gap h={6} /></Sx>
       <Sx cls="ptail" />
     </Scroll>
@@ -74,7 +74,7 @@ function PairStep({ kb }: { kb: boolean }) {
 function RelStep() {
   const u = u0();
   const items = [{ k: "rand", b: "Random", s: u.step === 0 ? "a different relation each time" : "a different relation for the next pairs", pressed: !state.findRel },
-    ...ORDER.map((k) => ({ k, b: REL[k as RelKey].name, s: REL[k as RelKey].gloss("A", "B"), fig: k, sym: state.nota !== "codes" ? notaOf(k) : "", pressed: state.findRel === k }))];
+    ...ORDER.map((k) => ({ k, b: REL[k as RelKey].name, s: guidance("find") === "none" ? undefined : REL[k as RelKey].gloss("A", "B"), fig: k, sym: state.nota !== "codes" ? notaOf(k) : "", pressed: state.findRel === k }))];
   return <>
     <Scroll>
       <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="Relation" sub="it stays until you pick Random" />

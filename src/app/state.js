@@ -54,11 +54,10 @@ export const state = {
   catsAsk: "all",  // Categories asks step 1 all at once ("all") or one category at a time ("one"; the practice options of the exercise, `rd-cats-ask`)
   stageRun: freshRun(), // the run towards an offer of the stages, from the answers of every exercise (`rd-stage-run`, practice/stage-offer.ts)
   exRuns: {},       // each exercise's run of right answers until it warms up, and its right answers in all (`rd-ex-runs`)
-  guided: {},       // each exercise's guided form on the Path, where set (`rd-guided`, practice/guided.ts); none: on
+  guided: {},       // each exercise's level of guidance on the Path, where the learner picked one (`rd-guided`, practice/guided.ts); none: by its right answers
   instRecent: [],  // the sets of categories Find an instance asked lately, oldest first: the draw passes them over while others remain (instance/flow.ts)
   syllogismRecent: [],    // the ids of the syllogisms drawn lately, oldest first: the draw of the next one leans away from them (syllogism/flow.js)
   syllogismWording: "take", // how a syllogism is said: "take" (the class's) or "formal" (`rd-syllogism-wording`)
-  instSuggest: true, // Find an instance offers the things the course knows while one is typed (its practice options, `rd-inst-suggest`); off: a plain field
   negBrackets: true,   // a negated name of more than one word is written with brackets, "non-(wooden things)" (`rd-neg-brackets`; off: "non-wooden things")
   negation: "off",   // the negation track of Relations and Pervasions: "one" negates A or B in about a third of the pairs, "both" both sides in half of those (`rd-negation`)
   relSession: [],    // the Relations answers checked on this page, oldest first: the run towards the offer of a negation step counts them before the database has handed them back (practice/negations.ts)
@@ -151,7 +150,6 @@ try{ const v=localStorage.getItem("rd-findrel"); if(FIND_RELS.includes(/** @type
 try{ const v=localStorage.getItem("rd-negation"); if(v==="one"||v==="both") state.negation=v; state.negOfferAt=localStorage.getItem("rd-neg-offer")||""; }catch(e){}
 try{ state.negBrackets=localStorage.getItem("rd-neg-brackets")!=="0"; }catch(e){}
 try{ state.pace=normPace(localStorage.getItem("rd-pace")); }catch(e){}
-try{ state.instSuggest=localStorage.getItem("rd-inst-suggest")!=="0"; }catch(e){}
 try{ if(localStorage.getItem("rd-cats-ask")==="one") state.catsAsk="one"; }catch(e){}
 try{ state.stageRun=normRun(localStorage.getItem("rd-stage-run")); state.exRuns=normExRuns(localStorage.getItem("rd-ex-runs")); state.guided=normGuided(localStorage.getItem("rd-guided")); }catch(e){}
 // the course terms met at their stops, part of the progression (practice/progress.ts); without a record the terms are met one at a time from the start

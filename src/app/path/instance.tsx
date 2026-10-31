@@ -5,12 +5,13 @@ import type { ComponentChildren } from "preact";
 import { useEffect } from "preact/hooks";
 import { state } from "../state.js";
 import { checkInstance, sayNothing, shownSet, writeInstance } from "../instance/flow.ts";
+import { guidance } from "../practice/guided.ts";
 import { next } from "../practice/queue.js";
 import { spelled, stripDet } from "../../ai-shared/lookup.ts";
 import { catPhrase } from "../../domain/instance.ts";
 import type { InstanceQuestion, InstanceResult, InstanceRow } from "../../domain/instance.ts";
 import { refreshPath } from "./index.tsx";
-import { ErrLines, SkipMark, StageOffer, Verdict, u0 } from "./parts.tsx";
+import { ErrLines, GuideNote, SkipMark, StageOffer, Verdict, u0 } from "./parts.tsx";
 import { Scroll } from "./scroll.tsx";
 import { nextKind, nextName } from "./next.ts";
 import { Foot, PreStation, SkipSide, Station, TopBar } from "./shell.tsx";
@@ -36,10 +37,10 @@ function CatStops({ s, sm = false }: { s: InstanceQuestion; sm?: boolean }) {
 }
 
 // the things the data knows whose names hold the words typed so far (two letters at least), for the field's list: the practice items, and the
-// reference examples where this device has them (those it can check: with classes, or that do not exist); none while the suggestions are off
+// reference examples where this device has them (those it can check: with classes, or that do not exist); none below Detailed guidance (practice/guided.ts)
 function suggestions(typed: string): string[] {
   const k = stripDet(spelled(typed));
-  if (!state.instSuggest || k.length < 2) return [];
+  if (guidance("instance") !== "detailed" || k.length < 2) return [];
   const names = [...(state.DATA ? state.DATA.items.map((it) => it.n) : []), ...(state.EX ? state.EX.items.filter((ex) => ex.ne || ex.cls?.length).map((ex) => ex.n) : [])];
   const out: string[] = [];
   for (const n of names) if (!out.includes(n) && stripDet(spelled(n)).includes(k) && out.push(n) >= 8) break;
@@ -59,11 +60,11 @@ function AskStep({ kb }: { kb: boolean }) {
     ? <St d={<D cls="sub yours" />} cls="sb done"><span class="lab">your answer</span><span class="pans nil">{noneText(n)}</span>
       <p class="help"><button type="button" onClick={() => { sayNothing(false); setTimeout(focusField); }}>write a thing instead</button></p></St>
     : <St d={<D cls="sub now" />} cls="sb now"><p class="qq">{n === 1 ? <>Name {<b class="conn">one of them</b>}.</> : <>Name something that is {<b class="conn">{allOf(n)}</b>}.</>}</p>
-      <div class="fieldrow"><input class="pfield" id="iin" value={u.said} placeholder="write a thing" {...nofillInput(state.instSuggest ? "iin-things" : undefined)} enterKeyHint="done"
+      <div class="fieldrow"><input class="pfield" id="iin" value={u.said} placeholder="write a thing" {...nofillInput(guidance("instance") === "detailed" ? "iin-things" : undefined)} enterKeyHint="done"
         aria-label={"Something that is " + allOf(n) + ": " + s.labels.join(", ")}
         onInput={(e) => { writeInstance((e.currentTarget as HTMLInputElement).value); refreshPath(); }}
         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (ready()) check(); } }} /></div>
-      {state.instSuggest ? <datalist id="iin-things">{list.map((v) => <option value={v} />)}</datalist> : null}
+      {guidance("instance") === "detailed" ? <datalist id="iin-things">{list.map((v) => <option value={v} />)}</datalist> : null}
       <p class="help"><span class="htx">A thing, in a few words. </span><button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { blur(); sayNothing(true); }}>{noneText(n)}</button></p></St>;
   return <>
     <Scroll>
@@ -107,6 +108,7 @@ function ResultStep() {
       {ir.rows.length ? <Sx cls={ir.rows.some((r) => r.answer === false) ? "nop" : "okp"}><p class="pgh"><b>{ir.thing}</b><span>in each category</span></p>{ir.rows.map((r) => <Row r={r} />)}</Sx> : null}
       {s.apart ? <Sx cls="walked"><p class="pgh"><b>Why nothing is</b></p><St d={<D cls="sub done" />} cls="sb exr"><p class="xnote">{s.apart.why}</p></St></Sx> : null}
       {ir.example ? <Sx cls="walked"><p class="pgh"><b>For example</b><span>{ir.example.thing}</span></p>{ir.example.rows.map((r) => <Row r={r} />)}</Sx> : null}
+      <GuideNote />
       <StageOffer />
       <ErrLines />
       <Sx cls="ptail" />
