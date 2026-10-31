@@ -1,4 +1,4 @@
-// The thread of the Path (src/app/styles/34-path-line.css and the pieces that draw it): every piece of it is one plain box, --lw wide, so that it draws the same width at every screen
+// The thread of the Path (src/app/styles/06-path-line.css and the pieces that draw it): every piece of it is one plain box, --lw wide, so that it draws the same width at every screen
 // density. A clip or a mask makes a piece come out a fraction of a pixel thinner than a plain one at a fractional density (the Pixel's 2.625), which showed as a thread that was thicker
 // in one stretch and thinner in the next. The first spec reads the styles of every piece in the states of one exercise; the second measures the pixels (at the project's own density:
 // the phone is a Pixel 7, 2.625, the desktop 1).
@@ -118,4 +118,45 @@ test("every piece of the thread is as wide as the line weight in the pixels, the
   }
   const ws = Object.values(all).map((m) => m.w);
   expect(Math.max(...ws) - Math.min(...ws), "the widest and the thinnest piece differ by less than a fifth of a pixel: " + JSON.stringify(all)).toBeLessThan(0.2);
+});
+
+/** The colors down the middle of the thread in a screenshot: one pixel for each CSS pixel from y0 to y1. Decoded in a page of its own. */
+async function column(page, shot, dpr, x, y0, y1) {
+  const side = await page.context().newPage();
+  try {
+    return await side.evaluate(async ([b64, d, cx, a, b]) => {
+      const bmp = await createImageBitmap(await (await fetch("data:image/png;base64," + b64)).blob());
+      const cv = document.createElement("canvas"); cv.width = bmp.width; cv.height = bmp.height;
+      const g = cv.getContext("2d", { willReadFrequently: true }); g.drawImage(bmp, 0, 0);
+      const out = [];
+      for (let y = Math.ceil(a); y < b; y++) { const p = g.getImageData(Math.round(cx * d), Math.round((y + 0.5) * d), 1, 1).data; out.push([p[0], p[1], p[2]]); }
+      return out;
+    }, [shot.toString("base64"), dpr, x, y0, y1]);
+  } finally { await side.close(); }
+}
+const away = (a, b) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]);
+const colorOf = async (page, v) => (await page.locator(".pa").evaluate((e, name) => { const i = document.createElement("i"); i.style.color = "var(" + name + ")"; e.append(i); const c = getComputedStyle(i).color; i.remove(); return c; }, v)).match(/\d+/g).slice(0, 3).map(Number);
+/** Where the path ahead begins: the middle of its thread and its top, in CSS pixels. */
+const trail = (page) => page.evaluate(() => { const e = document.querySelector("#path .pathc > .sx.ptail"), r = e.getBoundingClientRect(); return { x: r.left + parseFloat(getComputedStyle(e).getPropertyValue("--m")), top: r.top, height: r.height }; });
+
+test("the thread eases from the gold to the gray where the step you are on meets the path ahead: no cut, whether the line is dotted or solid", async ({ page }) => {
+  const dpr = await page.evaluate(() => window.devicePixelRatio);
+  // dotted: the choices are open, the line is gold dots and the path ahead gray dots; the first dot of the path ahead is still gold
+  await page.goto("/");
+  await expect(choices(page)).toHaveCount(5);
+  const gold = await colorOf(page, "--gold"), paper = await colorOf(page, "--paper");
+  let t = await trail(page);
+  let col = await column(page, await page.screenshot(), dpr, t.x, t.top, t.top + 9);
+  const dot = col.reduce((a, c) => (away(c, paper) > away(a, paper) ? c : a), col[0]);
+  expect(away(dot, paper), "there is a dot to look at").toBeGreaterThan(60);
+  expect(away(dot, gold), "the first dot of the path ahead is still gold: " + JSON.stringify(dot)).toBeLessThan(100);
+  // solid: the Check is ready, the gold line ends at the last example and the gray path ahead begins under it
+  await written(page);
+  t = await trail(page);
+  expect(t.height, "a path ahead with room for the ease").toBeGreaterThan(90);
+  col = await column(page, await page.screenshot(), dpr, t.x, t.top - 2, t.top + 70);   // from just above it: the last example's tint, further up, tints the line too
+  const step = Math.max(...col.slice(1).map((c, i) => away(c, col[i])));
+  expect(step, "no two rows in a row differ by a cut (the gold to the gray was one, ~196): " + JSON.stringify(col.filter((_, i) => i % 6 === 0))).toBeLessThan(30);
+  expect(away(col[0], gold), "the line above it is gold").toBeLessThan(40);
+  expect(away(col[3], gold), "and the path ahead starts from that gold").toBeLessThan(60);
 });
