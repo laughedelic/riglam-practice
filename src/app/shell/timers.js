@@ -6,7 +6,7 @@ import { timeUpCategories, timeUpCategory } from "../categories/flow.js";
 import { timeUpInstance } from "../instance/flow.ts";
 import { check } from "../practice/grading.js";
 import { keepOwn } from "../practice/per-exercise.ts";
-import { fillable, filled } from "../practice/screen.js";
+import { fillable, settled } from "../practice/screen.js";
 import { expireSyllogism } from "../syllogism/flow.js";
 import { focusCin, render } from "./render.js";
 import { cue } from "../sound/play.ts";
@@ -60,7 +60,7 @@ function expireCase(u) {
   u.tid = null; u.tq = null; u.exLate = true;
   const order = /** @type {string[]} */ (fillable()), ci = Math.max(0, Math.min(u.ci || 0, order.length - 1));
   u.missed = { ...u.missed, [order[ci]]: true };
-  const next = nextAfterTimeUp(order, ci, (c) => filled(/** @type {any} */ (c), u) || !!u.missed[c]);
+  const next = nextAfterTimeUp(order, ci, (c) => settled(/** @type {any} */ (c), u));
   if (next) { u.ci = order.indexOf(next); u.pall = false; render(); focusCin(); return; }
   blurred();
   u.pall = true;
@@ -102,7 +102,7 @@ function caseStep(u) {
   if (u.open || u.pall || (u.find && u.step !== 1)) return null;
   const order = fillable(); if (!order.length) return null;
   const c = order[Math.max(0, Math.min(u.ci || 0, order.length - 1))];
-  return { key: "c-" + c, kind: "ex", done: filled(c, u) || !!(u.missed && u.missed[c]), expire: expireCase };
+  return { key: "c-" + c, kind: "ex", done: settled(c, u), expire: expireCase };
 }
 /**
  * The step the attempt on screen is at, if an answer is asked for: `key` names it, `kind` is the time it takes (domain/sprint.ts; `mul` of it), `expire` what its time up does.

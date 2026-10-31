@@ -68,7 +68,7 @@ export function usePair(){
   if(had&&had.a===a.label&&had.b===b.label){ if(had.own) had.relation=u.rel; }
   else {
     state.cur=/** @type {any} */({p:findPair(state,u.rel,a,b,undefined,undefined,moreRefs(),state.stages,state.negBrackets),find:true});
-    Object.assign(u,{cells:freshUi().cells, ci:0, seen:0, pop:null});
+    Object.assign(u,{cells:freshUi().cells, missed:{}, ci:0, seen:0, pop:null});
   }
   u.own=!!state.cur.p.own; u.pairErr=""; u.step=1;
   render(); top0();
