@@ -17,11 +17,12 @@ import { catStage, drawable, examplesFor, placeByClass } from "../../src/domain"
 import { LANGS, normLangs, termNames } from "../../src/domain";
 import { AGAIN_AFTER, FIRST_AFTER, OPEN_CAP, PACES, SETTLED, SPACING, afterQuestion, againAsked, askedKey, freshIntro, introduced, metTerms, newTermDue, nextStageDue, nextStop, normIntro, normPace, openTerms, paceSpacing, pairGraded, showAgain, stageMarks, stageMet, stageTerms, stageUp, stopCat, stopShown, termMark, termTree, unmet, wordsFor } from "../../src/domain";
 import { instanceGraded, instanceQuestion } from "../../src/domain/instance";
-import { DEFAULT_STAGES, DEFINITION_STAGE, HOLD_STAGE, LADDER_TOP, MAX_STAGE, NEG_OPEN, NEG_STREAK, NEG_SUGGEST, STAGES, START_SHARE, STAGE_STREAK, STAGE_STUMBLE, catOpen, depthOf, depthOpen, drawSyllogism, ladderOf, ladderTop, negationSuggested, withDepth, heldBack, itemKnown, itemOn, itemStageFor, lastOn, levelAt, negationOffer, newCategories, learnerStages, normStages, pairStage, physical, poolAt, stagesOfLevels, toggleStage, topStage } from "../../src/domain";
+import { DEFAULT_STAGES, DEFINITION_STAGE, HOLD_STAGE, LADDER_TOP, MAX_STAGE, NEG_OPEN, NEG_STREAK, NEG_SUGGEST, STAGES, START_SHARE, STAGE_STREAK, STAGE_STUMBLE, catOpen, depthOf, depthOpen, drawSyllogism, ladderOf, ladderTop, negationSuggested, withDepth, heldBack, itemKnown, itemOn, itemStageFor, levelAt, negationOffer, newCategories, normStages, pairStage, physical, poolAt, stagesOfLevels, toggleStage, topStage } from "../../src/domain";
 import { GUIDE_RIGHT, LOWER_CREDIT, NO_TERMS, STAGE_LONGER, STAGE_STREAK_MAX, cameDown, exerciseAfter, freshRun, guideTurnsOff, guidedOn, movedUp, newShare, normExRuns, normGuided, normRun, restartRun, runAfter, runNeed, runWanted, setManual, stageOffer, stageProgress, stayLonger, termsOf } from "../../src/domain";
 import type { MissKind, StageRun } from "../../src/domain";
 import { drawPlace, itemRows, placeThings } from "../../src/domain/place";
 import { normLevels, upTo } from "../../src/ai-shared";
+import { lastOn, learnerStages } from "../../src/domain/stages";
 import { FACTS_EPOCH, factKey, learn, opinionOf, ruleSide, servable } from "../../src/domain";
 import type { Answer, FactRow, Opinion, Ruling } from "../../src/domain";
 import { knownLine, openExamples, referenceLines, wholeFirst } from "../../src/domain";
