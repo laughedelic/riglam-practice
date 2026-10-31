@@ -53,6 +53,10 @@ export function learnedThing(c){
 /** The forward button of a checked pair (path/foot.ts). */
 export const nextFwd=()=>({label:state.cur.retry&&!state.retryQ.length?"Back to new pairs":"Next pair",hint:"N",onclick:()=>next()});
 export const fillable=()=>CELLS.filter(k=>!REL[state.ui.rel].empty.includes(k));
+/** Only the "neither" case may say that nothing exists: the other cases are asked because the relation chosen needs them, so their examples justify the choice. */
+export const mayBeEmpty=c=>c==="nei";
+/** Whether the case `c` of the attempt `u` has an example (or says that nothing exists). */
+export const filled=(c,u=state.ui)=>{ const x=u.cells[c]; return !!(x.t||"").trim()||(mayBeEmpty(c)&&!!x.none); };
 // `voiced` when the relation was spoken (shell/voice.js): no field takes the focus, so a phone keeps its keyboard down
 export function choose(k,voiced){
   if(state.ui.checked||state.ui.late) return;

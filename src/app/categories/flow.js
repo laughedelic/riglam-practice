@@ -67,6 +67,18 @@ export function sayCategory(yes){
   if(u.i>=q.rows.length){ finishThing(q.rows.filter(r=>u.said[r.cat]).map(r=>r.cat)); return; }
   render();
 }
+/** Time up on the ticks of one screen (Sprint, shell/timers.js): what is ticked stands, the rest counts as not ticked, and the screen is checked as it is. */
+export function timeUpCategories(){
+  const u=state.ui; if(!u||!u.cats||u.step!==0||u.checked||u.ask!=="all"||!state.cur.q) return;
+  u.ranOut=true;
+  finishThing(u.ticked);
+}
+/** Time up on one category: it counts as no, and the next is asked. */
+export function timeUpCategory(){
+  const u=state.ui; if(!u||!u.cats||u.step!==0||u.checked||u.ask!=="one") return;
+  u.ranOut=true;
+  sayCategory(false);
+}
 const docId=()=>"categories-"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 // The thing is done: the categories said (ids) are graded, the result shows, the answer is kept, and a stage may be offered or taken off.
 // `level` is a reference example's (a practice item is a plain thing, level 1, as earlier versions read it); `stage` is the thing's.
@@ -76,7 +88,7 @@ function finishThing(picked){
   const s1=u.g1.ok;
   u.grade=placeGrade(s1,null); u.step=1; u.checked=true;
   const doc=/** @type {import("../types.ts").CategoriesDoc} */({pairId:docId(),mode:"categories",thing:q.thing.n,level:q.thing.ex?q.thing.ex.lv:1,stage:q.thing.st,
-    rows:u.g1.rows.map(r=>({cat:r.cat,yes:r.answer,said:r.picked})),s1,grade:u.grade,ask:u.ask,at:new Date().toISOString()});
+    rows:u.g1.rows.map(r=>({cat:r.cat,yes:r.answer,said:r.picked})),s1,grade:u.grade,ask:u.ask,...(u.ranOut?{timeout:true}:{}),at:new Date().toISOString()});
   gradeTerms(doc.rows.map(r=>({cat:r.cat,ok:r.yes===r.said})));     // each row grades its category's term (practice/stops.ts)
   stageStep("categories",q.thing.st,u.grade==="ok");     // the run towards an offer of the stages, and the offer when one is due (practice/stage-offer.ts)
   render(); top0();

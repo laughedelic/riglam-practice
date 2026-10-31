@@ -90,7 +90,7 @@ function Overview() {
   const all = answerList(), d = debateStats(), f = findStats(), y = syllogismStats();
   const out: ComponentChildren[] = [];
   if (all.length) {
-    const { relOk, G, segs, days, byRel } = overview(all);
+    const { relOk, G, segs, days, byRel, ran } = overview(all);
     const mx = Math.max(1, ...days.map((x) => x[1]));
     out.push(<Group h="Relations" sub={all.length + (all.length === 1 ? " pair" : " pairs") + " answered, the relation right " + pct(relOk, all.length) + "%"} />,
       <div class="pgrades"><div class="psbar" role="img" aria-label={segs.map(([g, l]) => l + " " + pct(G[g], all.length) + "%").join(", ")}>
@@ -100,20 +100,22 @@ function Overview() {
       <div class="pdays">{days.map(([day, n], i) => <div class={"pday" + (i === 13 ? " today" : "")} title={day + ": " + n}>
         <span class="pdc"><i class={n ? "has" : ""} style={{ height: Math.max(2, Math.round(44 * n / mx)) + "px" }} /></span><span class="dn">{n ? String(n) : ""}</span></div>)}</div>,
       <Group h="By relation" sub="the relation chosen right" />,
-      <Sx cls="walked">{byRel.map(([r, n, k]) => <Stat fig={r === "3" ? "3ab" : r} name={RNAME[r as keyof typeof RNAME]} k={k} n={n} />)}</Sx>);
+      <Sx cls="walked">{byRel.map(([r, n, k]) => <Stat fig={r === "3" ? "3ab" : r} name={RNAME[r as keyof typeof RNAME]} k={k} n={n} />)}
+        {ran ? <Stat name="Time ran out (Sprint)" text={ran + (ran === 1 ? " pair" : " pairs")} /> : null}</Sx>);
   } else out.push(<Empty>No answers in Relations yet. Your history and weak spots will show up here.</Empty>);
   if (d) out.push(<Group h="Pervasions" sub={d.n + " pairs, the relation right " + pct(d.relOk, d.n) + "%"} />,
     <Sx cls="walked">{(d.rows as [number, number, number][]).map(([i, n, k]) => <Stat name={"Question " + (i + 1) + ": " + qPlain(i)} k={k} n={n} />)}
-      {d.med != null ? <Stat name="Median time to answer, blitz" text={(d.med / 1000).toFixed(1) + " s"} /> : null}
+      {d.med != null ? <Stat name="Median time to choose, Sprint" text={(d.med / 1000).toFixed(1) + " s"} /> : null}
       {d.timedN ? <Stat name="Ran out of time (counted as accepted)" text={d.outN + " / " + d.timedN} /> : null}</Sx>);
   if (f) out.push(<Group h="Find a pair" sub={f.all.length + " pairs, the pair right " + pct(f.right, f.judged.length) + "%"} />,
     <Sx cls="walked">{(f.rows as [RelKey, number, number][]).map(([r, n, k]) => <Stat fig={r} name={REL[r].name} k={k} n={n} />)}
-      {f.own ? <Stat name="Pairs of your own words, judged by Claude" text={String(f.own)} /> : null}</Sx>,
+      {f.own ? <Stat name="Pairs of your own words, judged by Claude" text={String(f.own)} /> : null}
+      {f.ran ? <Stat name="Time ran out on an example (Sprint)" text={f.ran + (f.ran === 1 ? " pair" : " pairs")} /> : null}</Sx>,
     <Trail>{f.all.slice().reverse().slice(0, 10).map((a: any) => { const e = entryOf(a, false); return <TrailRow e={e} when={dayOf(a.at)} />; })}</Trail>);
   if (y) out.push(<Group h="Syllogisms" sub={y.all.length + (y.all.length === 1 ? " syllogism" : " syllogisms") + ", the reply right " + pct(y.right, y.all.length) + "%"} />,
     <Sx cls="walked">{(y.rows as [string, number, number][]).map(([r, n, k]) => <Stat name={SAY[r as keyof typeof SAY]} k={k} n={n} />)}
       {y.given.length ? <Stat name="Counter-examples that were one" k={y.shown} n={y.given.length} /> : null}
-      {y.late ? <Stat name="Time ran out (Blitz)" text={y.late + (y.late === 1 ? " time" : " times")} /> : null}
+      {y.late ? <Stat name="Time ran out (Sprint)" text={y.late + (y.late === 1 ? " time" : " times")} /> : null}
       {y.mixed.map(([k, n]: [string, number]) => { const [said, was] = k.split(">"); return <Stat name={"Said “" + SAID[said as keyof typeof SAID] + "” when it was “" + SAID[was as keyof typeof SAID] + "”"} text={n + (n === 1 ? " time" : " times")} />; })}</Sx>,
     <Trail>{y.all.slice().reverse().slice(0, 10).map((a: any) => <TrailRow e={entryOf(a, false)} when={dayOf(a.at)} />)}</Trail>);
   return <>{out}</>;

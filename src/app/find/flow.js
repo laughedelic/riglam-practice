@@ -74,6 +74,13 @@ export function usePair(){
   render(); top0();
   focusCin();
 }
+/** Time up on the words of the pair (Sprint, shell/timers.js): two words named go on to the examples as they stand; anything less is a miss, with no result and nothing kept, and the next relation comes. */
+export function timeUpName(){
+  const u=state.ui; if(!u||!u.find||u.checked||u.step!==0) return;
+  if(String(u.wordA||"").trim()&&String(u.wordB||"").trim()) usePair();
+  if(u.step===1) return;
+  advanceFind(); render(); top0();
+}
 /** Back to the words of the pair, to change them. */
 export function editPair(){
   const u=state.ui; if(!u||!u.find||u.checked||u.step!==1) return;
@@ -97,6 +104,7 @@ export function checkFind(){
   u.saveId=p.id;
   u.doc={pairId:p.id,mode:"find",a:p.a,b:p.b,catA:p.catA||null,catB:p.catB||null,chosen:u.rel,key:p.relation,correct:u.res.relOk,grade:u.res.overall,cells,at:new Date().toISOString(),pair:p};
   if(u.res.relOpen) u.doc.relOpen=true;
+  if(u.exLate) u.doc.timeout="examples";                       // Sprint: the time ran out on an example
   persist(u,"Your answer");
 }
 /** Opens a pair that was skipped (Review, Skipped) at its examples, for the relation that was asked for then (it counts as asked, so the draw after it leaves it out). The relation the learner has picked is not changed. The attempt has an id of its own, as it is the id of the answer: another relation chosen here leaves the skip on the list, and answering that later must not replace this answer. */

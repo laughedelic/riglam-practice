@@ -5,7 +5,7 @@ import { useContext, useEffect, useRef } from "preact/hooks";
 import { state } from "../state.js";
 import { cellLabel } from "../core/rel.js";
 import { guidance } from "../practice/guided.ts";
-import { fillable } from "../practice/screen.js";
+import { fillable, filled, mayBeEmpty } from "../practice/screen.js";
 import { render } from "../shell/render.js";
 import type { CellId, RelKey } from "../../ai-shared/relations.ts";
 import type { Pull } from "./gesture.ts";
@@ -17,12 +17,9 @@ import { Scroll } from "./scroll.tsx";
 import { Foot, PreStation, PullCtx, SkipSide, Station, VoiceBar, pathNote } from "./shell.tsx";
 import { D, Gap, Head, Icon, Knob, St, Sx, nofillInput } from "./ui.tsx";
 
-/** Only the "neither" case may say that nothing exists: the other cases are asked because the relation chosen needs them, so their examples justify the choice. */
-const mayBeEmpty = (c: CellId) => c === "nei";
-const filled = (c: CellId) => { const x = u0().cells[c]; return !!(x.t || "").trim() || (mayBeEmpty(c) && !!x.none); };
 /** The open case, the next one after it that is still empty (going round), and whether it is the last to write. */
 function cursor() {
-  const u = u0(), order = fillable() as CellId[], ready = order.every(filled);
+  const u = u0(), order = fillable() as CellId[], ready = order.every((c) => filled(c));
   const ci = u.pall ? -1 : Math.max(0, Math.min(u.ci || 0, order.length - 1)), c = ci >= 0 ? order[ci] : null;
   const rest = ci >= 0 ? [...order.slice(ci + 1), ...order.slice(0, ci)] : order, nextC = rest.find((x) => !filled(x)) || null;
   return { order, ready, ci, c, nextC, last: !nextC };

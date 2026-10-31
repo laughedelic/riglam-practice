@@ -15,12 +15,12 @@ import { keepOwn } from "../practice/per-exercise.ts";
 /* ---------- voice: the questions read aloud, answers by voice ---------- */
 // One switch in Settings (the Voice row, on trial: the kill switch), and the choices in the Practice options of Relations and Pervasions, each on its own:
 // Read aloud says each question when it appears; Answer by voice puts a microphone in the top bar of the exercise
-// (tap it, or press V), or listens by itself after each question (Hands-free). A switch in the top bar, next to Blitz, pauses and resumes the reading
+// (tap it, or press V), or listens by itself after each question (Hands-free). A switch in the top bar, next to Sprint, pauses and resumes the reading
 // for this visit. Both use the browser's own speech (src/ui/speech.ts). What was heard goes through the same steps as a tap or a typed answer
 // (sayQ, choose, the cell's text), so the saved answers look as they always did; nothing of the voice is stored.
 // What was heard is not applied at once: it waits on the screen it was said for, with what it was taken as, until it is
 // confirmed (the Confirm button, Enter, or saying "yes"; or after a short pause, if Settings says so) or taken back (Change,
-// Escape, "no"). Saying another answer replaces it. While it waits, and while a question is read, the Blitz clock is stopped
+// Escape, "no"). Saying another answer replaces it. While it waits, and while a question is read, the Sprint clock is stopped
 // (holdFor, letGo).
 // The page renders as a whole, so this module works from what the screen asks: after each render it compares the
 // screen with the one it last spoke for, and a new one stops whatever the old one started.
@@ -62,7 +62,7 @@ export function voiceBeforeRender(){
   if((a?a.key:"")===v.key) return;
   quiet(); dropPend(); letGo(v.rhold?"fresh":"moved");
 }
-// The Blitz clock of the attempt on screen stands still while a question is read and while an answer waits. `how` is as in releaseClock.
+// The Sprint clock of the attempt on screen stands still while a question is read and while an answer waits. `how` is as in releaseClock.
 function holdFor(){
   const v=state.voice, u=state.ui;
   if(!u||u.hold) return;
@@ -210,8 +210,8 @@ function nudge(a){
 }
 
 /* ---------- an answer that waits for its confirmation ---------- */
-// After a short pause the answer goes on by itself, if Settings says so: 2 s in Blitz, 4 s otherwise, so that the practice without
-// a clock is not hurried. The Blitz clock is stopped while the answer waits (holdFor), so neither the pause nor the Confirm
+// After a short pause the answer goes on by itself, if Settings says so: 2 s in Sprint, 4 s otherwise, so that the practice without
+// a clock is not hurried. The Sprint clock is stopped while the answer waits (holdFor), so neither the pause nor the Confirm
 // counts against the time.
 const PAUSE_BLITZ=2000, PAUSE_CALM=4000;
 function offer(a,heard,label,apply){
@@ -324,7 +324,7 @@ for(const t of ["pointerdown","keydown"]) document.addEventListener(t,()=>{ stat
 document.addEventListener("visibilitychange",()=>{ if(document.hidden&&enabled()){ quiet(); endReading(); paint(); } });
 
 /* ---------- the switch in the top bar: pausing the reading ---------- */
-// Next to the Blitz switch while Voice is on and Read aloud is chosen: pauses the reading and resumes it, without opening the options. It is for this visit
+// Next to the Sprint switch while Voice is on and Read aloud is chosen: pauses the reading and resumes it, without opening the options. It is for this visit
 // only (Read aloud itself is kept in the Practice options). Pausing cuts off what is being read; resuming reads the question on the screen.
 /** The Read aloud switch of the top bar is there: Voice is on, Read aloud is chosen and the device can speak, in Relations or Pervasions. */
 export const readShown=()=>enabled()&&state.voice.read&&canSpeak()&&state.mode==="quiz"&&(state.tab==="practice"||state.tab==="debate");
@@ -379,11 +379,11 @@ export const voiceShown=()=>enabled()&&(canSpeak()||canHear())&&(state.tab==="pr
 export function hookVoices(){ const v=state.voice; if(!v.hooked){ v.hooked=true; onVoices(()=>{ if(state.sessOpen&&state.sessPage==="voice") render(); }); } }
 // the Voice page's words
 export const VOICE_LEAD="Read aloud says each question when it appears, and Answer by voice puts a microphone in the top bar. Both use your device\u2019s own speech, so the voices, and how well it hears you, depend on the device and the browser.";
-export const READ_NOTE="The switch at the top of the exercise, next to Blitz, pauses and resumes it.";
+export const READ_NOTE="The switch at the top of the exercise, next to Sprint, pauses and resumes it.";
 export const ANSWER_PICKS=[["off","Off","No microphone."],
   ["tap","Tap the mic","Tap the microphone (or press V), then say the answer."],
   ["auto","Hands-free","Listens by itself after each question is read, and again for \u201cyes\u201d or another answer."]];
 export const CONFIRM_PICKS=[["tap","Wait for Confirm","Confirm with the button, Enter or \u201cyes\u201d; Change takes it back (Escape or \u201cno\u201d)."],
-  ["auto","Go on by itself","Goes on after 2 seconds in Blitz and 4 otherwise; Change stops it."]];
+  ["auto","Go on by itself","Goes on after 2 seconds in Sprint and 4 otherwise; Change stops it."]];
 export const VOICE_SAY="Say Accept or Why? (with the example), the relation by name or as it is written under the option, or an example; \u201cnothing\u201d leaves a cell empty. "+
-  "The Blitz clock stops while a question is read and while an answer waits. Chrome sends the audio to Google to turn it into text; the app records nothing and keeps only the answer, as if typed.";
+  "The Sprint clock stops while a question is read and while an answer waits. Chrome sends the audio to Google to turn it into text; the app records nothing and keeps only the answer, as if typed.";

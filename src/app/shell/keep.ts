@@ -4,14 +4,13 @@
 // the roadmap. An attempt that has not begun, or is checked, is not kept, and a cold start opens on the roadmap as before. What only lives while the page
 // does (a clock running, the tutor's conversation, a note or a definition open) is left out; the clock of a question starts again.
 import { state } from "../state.js";
-import { startQ } from "../debate/flow.js";
 import { begun } from "./tabs.js";
 import { usePerExercise } from "../practice/per-exercise.ts";
 
 const KEY = "rd-attempt";
 const EXERCISES = ["practice", "debate", "find", "syllogism", "categories", "instance"];
 // the parts of an attempt that belong to the page that drew it
-const PASSING = ["tid", "tq", "tph", "chat", "chatErr", "pop", "dterm", "late", "exLate"];
+const PASSING = ["tid", "tq", "tph", "rest", "ck", "hold", "qStart", "chat", "chatErr", "pop", "dterm", "late", "exLate"];
 
 interface Kept { v: 1; tab: string; at: number; cur: unknown; ui: Record<string, unknown> }
 
@@ -38,11 +37,10 @@ export function takeAttempt(): boolean {
   try {
     const kept = JSON.parse(raw) as Kept;
     if (!kept || kept.v !== 1 || !EXERCISES.includes(kept.tab) || !kept.cur || !kept.ui || typeof kept.ui !== "object") return false;
-    const ui: Record<string, unknown> = { ...kept.ui, tid: null, tq: null, tph: null, chat: null, chatErr: "", pop: null, dterm: null, late: false, exLate: false };
+    const ui: Record<string, unknown> = { ...kept.ui, tid: null, tq: null, tph: null, rest: null, ck: null, hold: null, chat: null, chatErr: "", pop: null, dterm: null, late: false, exLate: false };
     if (!begun(ui)) return false;
     state.tab = state.own = kept.tab; usePerExercise(kept.tab); state.cur = kept.cur as typeof state.cur; state.ui = ui as typeof state.ui; state.mode = "quiz";
     try { localStorage.setItem("rd-ex", kept.tab); } catch { /* the exercise is still the one on screen */ }
-    if (kept.tab === "debate" && (ui.step as number) < 4) startQ();        // the question asked starts its clock again
     return true;
   } catch { return false; }
 }

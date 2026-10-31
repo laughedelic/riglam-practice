@@ -94,6 +94,8 @@ export interface InstanceDoc {
   thing?: string;
   /** right, wrong, or "pend": a thing the data cannot place in every category */
   grade: "ok" | "bad" | "pend";
+  /** Sprint: the time ran out, and what was written stood */
+  timeout?: boolean;
   at: string;
 }
 
@@ -120,6 +122,8 @@ export interface CategoriesDoc {
   grade: PlaceGrade;
   /** how the categories were asked: all at once or one by one */
   ask: "all" | "one";
+  /** Sprint: the time ran out on the screen, or on a category (it counted as no) */
+  timeout?: boolean;
   at: string;
 }
 
@@ -409,9 +413,9 @@ export interface State {
   /** this is a Preview (staging, a pull request build), not the real app (platform.preview) */
   preview: boolean;
   /** Blitz, the tutor and voice: each exercise's own values (practice/per-exercise.ts, `rd-per-ex`) */
-  perEx: Record<string, { blitzUse?: boolean; autoExplain?: boolean; read?: boolean; answer?: string }>;
+  perEx: Record<string, { blitz?: boolean; autoExplain?: boolean; read?: boolean; answer?: string }>;
   /** the shared values of those, for an exercise that has none of its own yet (null before the start) */
-  perBase: { blitzUse: boolean; autoExplain: boolean; read: boolean; answer: string } | null;
+  perBase: { blitz: boolean; autoExplain: boolean; read: boolean; answer: string } | null;
   /** Experiments shown in the Path's Settings of the real app, after a hold on Version with the Magic Key (`rd-exp`, device only) */
   expShown: boolean;
   sessOpen: boolean;
@@ -507,12 +511,9 @@ export interface State {
   wording: "mine" | "cons" | "plain" | string;
   showAB: boolean;
 
-  // the blitz timer
-  timerMs: number;
-  relMs: number;
-  sylMs: number;
+  // Sprint (called Blitz in the code): the switch of the exercise on screen, and the times
   blitz: boolean;
-  blitzUse: boolean;
+  times: Record<import("../domain/sprint.ts").TimeKind, number>;
 
   // reading the questions aloud and answering by voice (shell/voice.js)
   voice: VoiceState;

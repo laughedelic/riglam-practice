@@ -3,6 +3,7 @@
 // when one may play is tests/unit/sounds.test.ts; here the real audio context is wrapped so that the spec can tell which sound was scheduled, by the pitch of its first note.
 import { test, expect } from "../../support/test.js";
 import { seedRandom } from "../../support/artifact-host.js";
+import { goTo } from "../../support/page.js";
 
 /** The first note of each sound, in Hz, as the wrapped audio context sees it (src/app/sound/courtyard.ts: the wood starts a tenth above its pitch and falls to it). */
 const FIRST = { 726: "right", 572: "partly", 330: "wrong", 1375: "next", 990: "knock", 392: "definition", 550: "stage", 2600: "claude", 770: "timeup" };
@@ -100,4 +101,13 @@ test("with the switch off nothing is played and no audio context is even made", 
   await page.waitForTimeout(400);
   expect(await heard(page)).toEqual([]);
   expect(await page.evaluate(() => window.__ctxs)).toBe(0);
+});
+
+test("a Pervasions question that runs out of time plays the time-up sound, as every other countdown does", async ({ page }) => {
+  await page.addInitScript(() => { localStorage.setItem("rd-blitz", "1"); localStorage.setItem("rd-timer-q", "2000"); localStorage.setItem("rd-timer-rel", "60000"); });
+  await page.addInitScript(init);
+  await page.goto("/");
+  await expect(choices(page)).toHaveCount(5);
+  await goTo(page, "Pervasions");
+  await expect.poll(() => heard(page), { timeout: 6000 }).toContain("timeup");
 });
