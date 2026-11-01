@@ -13,6 +13,14 @@ export function saysNone(body) {
   return !!m && m[1].trim().length >= 3;
 }
 
+/** The learner-facing summary a pull request prepared: the text after "What's new:" in its body. Null when there is none, it says "none", or it is the template placeholder "(...)". */
+export function whatsNewLine(body) {
+  const m = /^\s*what['’]s new:[ \t]*(.+)$/im.exec(body ?? "");
+  const t = m ? m[1].trim() : "";
+  if (!t || t.startsWith("(") || /^none\b/i.test(t)) return null;
+  return t;
+}
+
 /** `null` when the pull request is in order, else what to do. */
 export function checkWhatsNew({ title, body, files }) {
   if (!asksForEntry(title)) return null;

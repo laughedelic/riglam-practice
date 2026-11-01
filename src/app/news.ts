@@ -33,9 +33,9 @@ export function newsSince(seen: string | null, list: NewsItem[] = NEWS): NewsIte
 }
 
 /** The pinned line's words for a version that waits: "New version ready", or on a Preview (staging) the version, its build and its pull requests, short. */
-export function buildWords(c: { version: string | null; commit: string; pulls?: number[] } | null): string {
+export function buildWords(c: { version: string | null; commit: string; pulls?: { number: number }[] } | null): string {
   if (!c) return "New version ready";
-  const pulls = c.pulls?.length ? c.pulls.map((n) => "#" + n).join(" ") : null;
+  const pulls = c.pulls?.length ? c.pulls.map((p) => "#" + p.number).join(" ") : null;
   return [c.version ? "v" + c.version : null, c.commit.slice(0, 7), pulls].filter(Boolean).join(" · ");
 }
 
@@ -53,7 +53,7 @@ type Look = "unknown" | "checking" | "current" | "downloading" | "ready" | null;
  * The pinned line of a Preview (staging, a pull request build) when no version waits: what this build is made of (version, commit, pull requests), and the way to look
  * again, which says "Checking…" while the look runs. A version that waits has its own line (`buildWords` of what is coming, with Update).
  */
-export function buildLine(look: Look, own: { version: string; commit: string; pulls?: number[] | null }): { text: string; label: string; act: "check" | null } {
+export function buildLine(look: Look, own: { version: string; commit: string; pulls?: { number: number }[] | null }): { text: string; label: string; act: "check" | null } {
   const text = buildWords({ version: own.version, commit: own.commit, pulls: own.pulls ?? undefined });
   if (look === "checking" || look === "downloading") return { text, label: "Checking…", act: null };
   return { text, label: look === "unknown" ? "Try again" : "Check", act: "check" };

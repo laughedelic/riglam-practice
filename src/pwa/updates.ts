@@ -5,7 +5,7 @@
 // app looks for a newer version when it starts, when it comes back to the screen, when the connection returns and in Settings, and offers
 // the reload in a line above the foot of the roadmap and of the exercise and in Settings (src/app/path/news.tsx).
 import { registerSW } from "virtual:pwa-register";
-import type { UpdateStatus, Updates } from "../platform/types";
+import type { StagingPull, UpdateStatus, Updates } from "../platform/types";
 import { latestBuild, stagingPulls } from "./about";
 
 const LOOK_EVERY_MS = 15 * 60_000; // how long the app may stay in view before it looks again
@@ -13,8 +13,8 @@ let status: UpdateStatus = "unknown"; // until a look has succeeded: offline, a 
 let registration: ServiceWorkerRegistration | undefined;
 let lastLook = 0;
 let pending: Promise<void> | null = null;
-let coming: { commit: string; version: string | null; pulls?: number[]; news?: { id: string; title: string; text: string }[] } | null = null; // what the server has now, once an update is on its way (named in the notice)
-let own: number[] | null = null; // on staging: the pull requests this build was made from (read at the start, before a newer build can replace the file)
+let coming: { commit: string; version: string | null; pulls?: StagingPull[]; news?: { id: string; title: string; text: string }[] } | null = null; // what the server has now, once an update is on its way (named in the notice)
+let own: StagingPull[] | null = null; // on staging: the pull requests this build was made from (read at the start, before a newer build can replace the file)
 const listeners = new Set<() => void>();
 const MIN_LOOK_MS = 700; // a look that answers faster shows "checking" for this long: a status that flashes by says nothing
 

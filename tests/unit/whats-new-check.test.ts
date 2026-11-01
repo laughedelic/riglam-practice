@@ -1,7 +1,7 @@
 // The rule that a pull request changing what a learner sees adds an entry to What's new (scripts/lib/whats-new-check.mjs, run by .github/workflows/whats-new.yml).
 import { expect, test } from "vitest";
 import { readFileSync } from "node:fs";
-import { asksForEntry, checkWhatsNew, saysNone } from "../../scripts/lib/whats-new-check.mjs";
+import { asksForEntry, checkWhatsNew, saysNone, whatsNewLine } from "../../scripts/lib/whats-new-check.mjs";
 import { root } from "../../scripts/lib/course-files.mjs";
 
 const news = "src/app/news.ts";
@@ -33,4 +33,11 @@ test("the workflow runs on edits too, and passes the script what it needs", () =
   expect(w).toMatch(/types: \[[^\]]*\bedited\b[^\]]*\]/);
   expect(w).toMatch(/fetch-depth: 0/);
   for (const k of ["PR_TITLE", "PR_BODY", "BASE_SHA", "HEAD_SHA"]) expect(w).toContain(k + ":");
+});
+
+test("whatsNewLine reads the line a pull request prepared, and nothing for none or the placeholder", () => {
+    expect(whatsNewLine("Before: x\n\nWhat's new: The update line shines less often.\n")).toBe("The update line shines less often.");
+    expect(whatsNewLine("What's new: none, internal")).toBeNull();
+    expect(whatsNewLine("What's new: (one line for the learner)")).toBeNull();
+    expect(whatsNewLine(null)).toBeNull();
 });

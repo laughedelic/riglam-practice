@@ -121,6 +121,15 @@ export function NewsPage() {
       </div>
     </li>;
   };
+  // on a Preview (staging) the pull requests of the build: its title and the line it prepared for the learner, so the planned notes can be judged
+  const prs = state.preview ? (ready() ? state.updates?.coming?.()?.pulls : state.updates?.ownPulls?.()) ?? [] : [];
+  const prList = prs.length ? <>
+    <p class="sintro">{ready() ? "Pull requests in the version that waits" : "Pull requests in this build"}</p>
+    <ul class="nwprs">{prs.map((p) => <li key={p.number}>
+      <p class="nwpt"><b>#{p.number}</b>{p.title ?? ""}</p>
+      {p.news ? <p class="nwpx">{p.news}</p> : <p class="nwpx none">No What's new line</p>}
+    </li>)}</ul>
+  </> : null;
   const soon = ready() ? comingNews(state.updates?.coming?.()?.news) : [];
   return <>
     {ready() ? <div class="nwsoon">
@@ -132,6 +141,7 @@ export function NewsPage() {
       <p class="nwsx">Updating reloads the app; your answers stay.</p>
       <button type="button" class="pbtn" onClick={updateNow}>Update now</button>
     </div> : null}
+    {prList}
     <p class="sintro">What changed in the app lately, newest first.</p>
     <ul class="nwl">{NEWS.map(item)}</ul>
   </>;

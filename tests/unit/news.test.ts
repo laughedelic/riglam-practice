@@ -29,7 +29,7 @@ test("every entry has a unique id, a title and words for the learner, without pu
 
 test("a version that waits: plain words in the app, its version, build and pull requests on a Preview", () => {
   expect(buildWords(null)).toBe("New version ready");
-  expect(buildWords({ version: "0.21.4", commit: "ce48d24aa", pulls: [197, 204] })).toBe("v0.21.4 · ce48d24 · #197 #204");
+  expect(buildWords({ version: "0.21.4", commit: "ce48d24aa", pulls: [{ number: 197 }, { number: 204 }] })).toBe("v0.21.4 · ce48d24 · #197 #204");
   expect(buildWords({ version: null, commit: "ce48d24", pulls: [] })).toBe("ce48d24");
 });
 
@@ -42,7 +42,7 @@ test("what a version that waits brings: its items above the newest this build ha
 });
 
 test("a Preview's line says what the build is made of and offers a look, which says so while it runs", () => {
-  const own = { version: "0.23.0", commit: "ce48d24aa", pulls: [206, 207] };
+  const own = { version: "0.23.0", commit: "ce48d24aa", pulls: [{ number: 206 }, { number: 207 }] };
   expect(buildLine("current", own)).toEqual({ text: "v0.23.0 · ce48d24 · #206 #207", label: "Check", act: "check" });
   expect(buildLine("unknown", { ...own, pulls: null })).toEqual({ text: "v0.23.0 · ce48d24", label: "Try again", act: "check" });
   expect(buildLine("checking", own)).toMatchObject({ label: "Checking…", act: null });

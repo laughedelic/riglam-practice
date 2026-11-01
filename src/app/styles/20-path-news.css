@@ -12,7 +12,7 @@
 .pa .pinln.news .pint{color:var(--ink2)}
 /* the light that passes over the words, as over Claude's (19-path-wait.css), in the gold of a version */
 .pa .pinln .pinw.shine{color:transparent; -webkit-background-clip:text; background-clip:text; background-size:300% 100%;
-  background-image:linear-gradient(90deg,var(--gold-t) 0 40%,color-mix(in srgb,var(--gold-t) 25%,var(--paper)) 50%,var(--gold-t) 60% 100%); animation:p-wshim 2.2s linear infinite}
+  background-image:linear-gradient(90deg,var(--gold-t) 0 40%,color-mix(in srgb,var(--gold-t) 25%,var(--paper)) 50%,var(--gold-t) 60% 100%); animation:p-pinshim 10s linear infinite}
 /* a Preview names the build and its pull requests: up to two lines */
 .pa .pinln.pre .pinw{white-space:normal; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; line-height:1.35}
 .pa .pinln .pinb{min-height:40px; padding:0 2px}
@@ -46,3 +46,11 @@
 }
 @keyframes nw-in{0%{transform:translate(18px,26px); opacity:.5} 45%{transform:translate(0,26px); opacity:1} 100%{transform:none}}
 @keyframes nw-fill{from{background-color:var(--paper); border-style:dashed}}
+
+/* the update line shimmers once in a while (about every ten seconds), not all the time; both ends of the sweep are plain ink */
+@keyframes p-pinshim{0%{background-position:100% 0} 22%,100%{background-position:-50% 0}}
+.pa .nwprs{list-style:none; margin:.4rem 0 0; padding:0; display:grid; gap:.55rem}
+.pa .nwprs .nwpt{margin:0; font-size:.9rem; color:var(--ink)}
+.pa .nwprs .nwpt b{font-family:var(--mono,monospace); font-weight:600; color:var(--gold-t); margin-right:.4em}
+.pa .nwprs .nwpx{margin:.1rem 0 0; font-size:.85rem; color:var(--ink2)}
+.pa .nwprs .nwpx.none{font-style:italic; opacity:.7}

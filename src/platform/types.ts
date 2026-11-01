@@ -182,6 +182,9 @@ export type UpdateStatus =
   | "unknown"; // the last check failed (no connection, or the server did not answer)
 
 /** Updating the installed app in place (src/pwa/updates.ts). The page shows the status in Options; the place shows its own prompt when a version is ready. */
+/** A pull request a staging build was made from: its number, its title and the learner-facing line its body prepared (null: none). */
+export interface StagingPull { number: number; title?: string; news?: string | null }
+
 export interface Updates {
   status(): UpdateStatus;
   /** Asks the server for a newer version now. A check younger than `maxAgeMs` is not repeated. Never rejects. */
@@ -191,9 +194,9 @@ export interface Updates {
   /** The notice's sentence for a version that is ready: which one, and what updating does ("New version ready (0.17.0). Updating reloads the app; your answers stay."). */
   readyText?(): string;
   /** The version on its way, once it is known: its version, its commit, the newest items of its What's new, and on staging the pull requests it was built from (the pinned line of a Preview names them). */
-  coming?(): { version: string | null; commit: string; pulls?: number[]; news?: { id: string; title: string; text: string }[] } | null;
+  coming?(): { version: string | null; commit: string; pulls?: StagingPull[]; news?: { id: string; title: string; text: string }[] } | null;
   /** On staging: the pull requests the running build was made from (read once at the start), else null. */
-  ownPulls?(): number[] | null;
+  ownPulls?(): StagingPull[] | null;
   /** Calls `fn` whenever the status changes; returns the way to stop. */
   subscribe(fn: () => void): () => void;
 }
