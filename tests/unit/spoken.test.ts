@@ -167,7 +167,7 @@ test("\"I don't know\" in its usual wordings, and not inside an answer", () => {
 });
 
 // ---- the other four exercises ----
-import { spokenCategories, spokenCounter, spokenPair, spokenSyllogism, spokenThing, spokenYesNo } from "../../src/domain";
+import { spokenCategories, spokenCommand, spokenCounter, spokenPair, spokenSyllogism, spokenThing, spokenYesNo } from "../../src/domain";
 import type { SylReply } from "../../src/domain";
 
 const SYL_ORDER: SylReply[] = ["reason", "pervasion", "accept"];
@@ -232,4 +232,18 @@ test("yes or no to a question, not to a confirmation", () => {
   for (const s of ["yes", "Yeah", "correct", "it is"]) expect(spokenYesNo([s]), s).toBe("yes");
   for (const s of ["no", "Nope", "it is not", "it isn't"]) expect(spokenYesNo([s]), s).toBe("no");
   for (const s of ["back", "undo", "change it", "maybe"]) expect(spokenYesNo([s]), s).toBeNull();
+});
+
+test("the commands of the run are whole utterances, so that an answer that contains their words is still an answer", () => {
+  for (const s of ["repeat", "say it again", "Again", "read the question again", "one more time"]) expect(spokenCommand([s]), s).toBe("repeat");
+  for (const s of ["skip this pair", "skip it", "skip the question", "set it aside"]) expect(spokenCommand([s]), s).toBe("skip");
+  for (const s of ["next", "next pair", "go on", "Continue", "move on"]) expect(spokenCommand([s]), s).toBe("next");
+  for (const s of ["explain", "explain it", "why", "check and explain"]) expect(spokenCommand([s]), s).toBe("explain");
+  for (const s of ["stop", "pause", "stop listening", "hold on"]) expect(spokenCommand([s]), s).toBe("pause");
+  for (const s of ["a crowd again", "next door neighbor", "a stop sign", "the pause button", "explain the wood"]) expect(spokenCommand([s]), s).toBeNull();
+  // a later guess may be the one that reads
+  expect(spokenCommand(["stock", "stop"])).toBe("pause");
+  // a bare skip is a command only where the screen does not take "skip" as an answer
+  expect(spokenCommand(["skip"])).toBeNull();
+  expect(spokenCommand(["skip"], { bareSkip: true })).toBe("skip");
 });

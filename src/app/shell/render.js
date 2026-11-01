@@ -3,7 +3,7 @@ import { $ } from "../core/dom.js";
 import { dropStaleDef } from "../practice/terms.js";
 import { navSync } from "./history.js";
 import { ensureClock } from "./timers.js";
-import { voiceAfterRender, voiceBeforeRender } from "./voice.js";
+import { keysStayDown, voiceAfterRender, voiceBeforeRender } from "./voice.js";
 import { pathTop, renderPath } from "../path/index.tsx";
 
 /* ---------- rendering ---------- */
@@ -12,7 +12,8 @@ import { pathTop, renderPath } from "../path/index.tsx";
 export const CELL_FULL={both:"Both A and B", anb:"A, not B", bna:"B, not A", nei:"Neither A nor B"};
 export const top0=pathTop;
 export const isEx=()=>state.tab==="practice"||state.tab==="debate"||state.tab==="find"||state.tab==="syllogism"||state.tab==="categories"||state.tab==="instance";
-export const focusCin=()=>{ const i=$("cin"); if(i) i.focus({preventScroll:true}); };
+// the case field takes the focus when a case runs out of time (and it comes up), except on a phone where the voice field answers: the keyboard would rise over it
+export const focusCin=()=>{ if(keysStayDown()) return; const i=$("cin"); if(i) i.focus({preventScroll:true}); };
 export function render(){
   voiceBeforeRender();   // a screen that voice did not speak for lets go of its clock before this render starts the next one
   ensureClock();

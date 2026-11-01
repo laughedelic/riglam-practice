@@ -161,7 +161,13 @@ export function SideStation({ kind, label, act, disabled = false }: { kind: "ski
 /** Skip as a side station at the foot, where the look still puts it there (`skipAt: foot`, on hold); else Skip is the icon under the favorites mark (parts.tsx, SkipMark). */
 export const SkipSide = () => (currentLook().skipAt === "foot" ? <SideStation kind="skip" act={skipPair} /> : null);
 
-/** The foot: the station, and at its right what goes beside it (a side station). While the keyboard is up there is no foot. */
+/**
+ * The foot: the station, and at its right what goes beside it (a side station). While the keyboard is up there is no foot. On a result (and the stations after it) the field of Hands-free
+ * stands above it, which listens for "next" there; the screens that ask a question draw the field themselves, before their foot.
+ */
 export function Foot({ children, aux, none = false }: { children?: ComponentChildren; aux?: ComponentChildren; none?: boolean }) {
-  return <footer class={"foot" + (none ? " nostation" : "")}>{children || <span />}<span class="aux">{aux}</span></footer>;
+  return <>
+    {state.ui && state.ui.checked ? <VoiceField /> : null}
+    <footer class={"foot" + (none ? " nostation" : "")}>{children || <span />}<span class="aux">{aux}</span></footer>
+  </>;
 }

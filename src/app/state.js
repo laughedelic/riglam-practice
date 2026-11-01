@@ -121,7 +121,7 @@ export const state = {
   times: defaultTimes(),
   // reading the questions aloud and answering by voice, with the browser's own speech (shell/voice.js). `on` is the Voice switch in Settings (app.js sets it
   // at the start: the device's choice, else the build's default); `read` and `answer` are in the Practice options, both off until turned on there
-  voice: {on:false, muted:false, read:false, answer:"off", confirm:"split", hold:false, press:null, spress:null, chip:null, tried:false, noRead:false, voiceId:"", rate:1, key:"", phase:"idle", live:"", note:"", bad:false, pend:null,began:false,seen:false,held:false, ask3:false, tries:0, blocked:false, clockUi:null, rhold:false, stop:null, tok:null, hooked:false},
+  voice: {on:false, muted:false, read:false, answer:"off", confirm:"split", hold:false, press:null, spress:null, chip:null, tried:false, noRead:false, voiceId:"", rate:1, key:"", phase:"idle", live:"", note:"", bad:false, pend:null,began:false,seen:false,held:false, ask3:false, tries:0, blocked:false, clockUi:null, rhold:false, stop:null, tok:null, hooked:false, paused:false, early:false},
   // the sounds (src/app/sound): the Sounds switch in Settings (`rd-sounds`, on until the device turns it off), and the audio context, its room and the sound playing now
   sounds: true,
   snd: {ctx:null, rig:null, live:null, until:0, keep:0, failed:false, armed:false},

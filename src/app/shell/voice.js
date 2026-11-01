@@ -6,14 +6,19 @@ import { Wd, termSing } from "../debate/text.js";
 import { check } from "../practice/grading.js";
 import { choose, fillable, missedCase, relRestore, relSnapshot } from "../practice/screen.js";
 import { NOT } from "../../ai-shared/debate.ts";
-import { plainWords, spokenConfirm, spokenDirection, spokenDontKnow, spokenExample, spokenRelation, spokenReply, spokenYesNo } from "../../domain/spoken.ts";
+import { plainWords, spokenCommand, spokenConfirm, spokenDirection, spokenDontKnow, spokenExample, spokenRelation, spokenReply, spokenYesNo } from "../../domain/spoken.ts";
 import { canHear, canSpeak, listen, listenHeld, onVoices, speak, stopSpeaking } from "../../ui/speech";
 import { CELL_FULL, render } from "./render.js";
 import { refreshPath } from "../path/index.tsx";
 import { iconSvg } from "../path/ui.tsx";
 import { keepOwn } from "../practice/per-exercise.ts";
 import { checkFind } from "../find/flow.js";
-import { askedHere, heardHere } from "./asks.ts";
+import { askedHere, heardHere, resultAsk } from "./asks.ts";
+import { next } from "../practice/queue.js";
+import { skipAskText, skipNow } from "../practice/skips.js";
+import { cue } from "../sound/play.ts";
+import { canAsk } from "../core/ask.js";
+import { askTutor, needsKey } from "../path/parts.tsx";
 
 /* ---------- voice: the questions read aloud, answers by voice ---------- */
 // One switch in Settings (the Voice row, on trial: the kill switch), and the choices on the first page of the Practice options of Relations and Pervasions,
@@ -41,7 +46,8 @@ const CELL_ASK={both:(A,B)=>"Name something that is both "+A+" and "+B+".",anb:(
 /** @returns {AskAny|null} */
 export function asked(){
   const u=state.ui;
-  if(state.mode!=="quiz"||!u||u.checked||state.optsOpen||state.sessOpen||state.skipAsk||state.menuOpen||state.view) return null;
+  if(state.mode!=="quiz"||!u||state.optsOpen||state.sessOpen||state.skipAsk||state.menuOpen||state.view) return null;
+  if(u.checked) return handsFree()?resultAsk(u):null;       // a result asks only in Hands-free: to be left (shell/asks.ts)
   const here=askedHere(u);
   if(here!==undefined) return here;
   const p=state.cur&&state.cur.p;
@@ -64,6 +70,8 @@ const enabled=()=>state.voice.on;
 const reading=()=>enabled()&&state.voice.read&&!state.voice.muted&&canSpeak();
 const hearing=()=>enabled()&&state.voice.answer!=="off"&&canHear();
 const handsFree=()=>enabled()&&state.voice.answer==="auto"&&canHear();
+// Hands-free opens the microphone by itself, unless the run is paused
+const ongoing=()=>handsFree()&&!state.voice.paused;
 
 // Called at the start of every render (shell/render.js), before the clocks and the top bar: a screen that is not the one voice spoke
 // for lets go of what was held for it, so that this render starts the countdown of the screen it shows and draws its bar.
@@ -105,10 +113,12 @@ export function voiceAfterRender(){
   if(a) v.seen=true;
   v.held=opening;
   v.note=""; v.bad=false; v.tries=0; v.blocked=false; v.ask3=false;
+  if(v.paused&&a){ holdFor(); v.note=PAUSED; paint(); return; }       // a paused run: the new screen waits, and its clock stands still
   if(opening) paint();
+  else if(a&&a.kind==="result") startResult(a);
   else if(a&&back&&hearing()) hear(a);            // a step taken back: the question is not read again, the microphone opens at once
   else if(a&&reading()) say(a,a.say,true);
-  else if(a&&handsFree()) hear(a);
+  else if(a&&ongoing()) listenAuto(a);
   else paint();
 }
 // stop speaking and listening; a callback of what was stopped finds its token gone and does nothing
@@ -134,14 +144,14 @@ function say(a,text,first){
     // Chrome speaks only after the person has tapped or typed on the page once; the speaker is that tap
     if(!ok&&err==="not-allowed"){ v.blocked=true; paint(); return; }
     // after speaking, the audio output needs a moment before the microphone opens (the Voice lab's finding)
-    if(handsFree()) setTimeout(()=>{ if(v.key===a.key&&v.phase==="idle"&&!v.tok) hear(a); },350);
+    if(ongoing()) listenAuto(a,false,350);
     else paint();
   }});
 }
 // `held`: the microphone was pressed and may still be held down: it listens while it is held (src/ui/speech.ts, listenHeld), and a tap lets go of it to listen until a pause
-function hear(a,keepNote,held){
+function hear(a,keepNote,held,keepBar){
   const v=state.voice, tok={};
-  quiet(); endReading(); freezePend();
+  quiet(); endReading(); if(!keepBar) freezePend();
   v.tok=tok; v.phase="listening"; if(!keepNote){ v.note=""; v.bad=false; } v.held=false; paint();
   const opts={
     interim:t=>{ if(v.tok!==tok) return; v.live=t; paintLive(); },
@@ -149,27 +159,41 @@ function hear(a,keepNote,held){
       if(v.tok!==tok) return;
       v.tok=null; v.stop=null; v.phase="idle"; v.live="";
       if(v.key!==a.key) return;
-      if("error" in res) missed(a,res.error); else take(a,res.alts);
+      if("error" in res) missed(a,res.error); else { v.early=!!res.early; take(a,res.alts); }
     }};
   const h=held?listenHeld(opts):listen(opts);
   if(v.tok===tok) v.stop=h;
+}
+// Hands-free opens the microphone by itself: a soft tick says so, and the microphone follows it (the tick would be heard otherwise). `delay`: the audio output needs a moment after the reading
+const TICK_GAP=160;
+function listenAuto(a,keepBar,delay=0){
+  const v=state.voice, go=()=>{ if(v.key===a.key&&v.phase==="idle"&&!v.tok&&!v.paused&&handsFree()) hear(a,false,false,keepBar); };
+  setTimeout(()=>{
+    if(v.key!==a.key||v.phase!=="idle"||v.tok||v.paused||!handsFree()) return;
+    if(state.sounds){ cue("knock",{soft:true}); setTimeout(go,TICK_GAP); } else go();
+  },delay);
 }
 const MISS={"not-allowed":"The microphone is not allowed for this page. Allow it in the browser (the icon by the address), then tap the field below.",
   "service-not-allowed":"The browser does not let this page use its speech service.","no-speech":"Nothing was heard.","audio-capture":"No microphone was found.",
   "network":"The speech service could not be reached (the browser sends the audio there to turn it into text).","no-audio":"The microphone did not start. Tap the field to try again.","aborted":"","unsupported":"This browser has no speech recognition."};
 function missed(a,err){
   const v=state.voice;
-  if(err==="no-speech"&&handsFree()&&v.tries<1){ v.tries++; hear(a); return; }
+  // the result waits for a word for as long as it is on screen: the microphone opens again, twice, and then rests (the field says what to say)
+  if(a.kind==="result"){ if(err==="no-speech"&&ongoing()&&v.tries<2){ v.tries++; hear(a,false,false,true); return; } v.note=err==="no-speech"||err==="aborted"?"":MISS[err]!=null?MISS[err]:"Could not listen ("+err+")."; v.bad=err!=="no-speech"&&err!=="aborted"; paint(); return; }
+  if(err==="no-speech"&&ongoing()&&v.tries<1){ v.tries++; hear(a); return; }
   v.note=MISS[err]!=null?MISS[err]:"Could not listen ("+err+").";
   v.bad=err!=="aborted"; paint();
 }
 // heard, but not an answer to this screen: say what would be, and in Hands-free listen again (twice at most).
 // `ask`: the hint is a question the answer goes on from, not a correction.
+// words heard that began while the microphone opened: what was heard may lack its start, and a new try is open
+const MISSED_START="I may have missed the start. Say it again.";
 function again(a,heard,hint,ask){
   const v=state.voice;
   if(v.pend) hint="Say “yes” to go on with "+v.pend.label+", or say the answer again.";
-  v.note=ask?hint:"Heard “"+heard+"”. "+hint; v.bad=!ask;
-  if(!handsFree()||v.tries>=2){ paint(); return; }
+  if(v.early&&!ask) hint=MISSED_START;
+  v.note=ask||v.early?hint:"Heard “"+heard+"”. "+hint; v.bad=!ask;
+  if(!ongoing()||v.tries>=2){ paint(); return; }
   v.tries++;
   if(reading()) say(a,hint); else hear(a);
 }
@@ -181,6 +205,7 @@ const answersNo=(a,alts)=>((a.kind==="reply"||a.kind==="example")&&!!spokenReply
 // what was heard, as the tap or the typed answer it stands for, once it is confirmed. What `apply` returns, if it returns anything, takes the step back (the chip's Change)
 function take(a,alts){
   const v=state.voice, w=Wd();
+  if(a.kind==="result") return takeResult(a,alts);
   if(spokenDontKnow(alts)) return nudge(a);
   const yn=v.pend||v.chip?spokenConfirm(alts):null;
   if(v.pend){
@@ -188,6 +213,11 @@ function take(a,alts){
     if(yn==="no") return change();
   // after it went on: "no" or "back" takes the last step back, except where "no" is itself an answer (Pervasions: Accept or Why?)
   } else if(v.chip&&yn==="no"&&!answersNo(a,alts)) return undoTaken();
+  // the commands of the run, said on their own: the question again, the pair set aside, the run paused
+  const c=spokenCommand(alts,{bareSkip:a.kind!=="counter"});
+  if(c==="repeat") return commandRepeat(a);
+  if(c==="skip") return commandSkip(a);
+  if(c==="pause") { tick(); return pause(); }
   if(ownKinds.has(a.kind)){
     const o=heardHere(a,alts);
     if(typeof o==="string") return again(a,alts[0],o);
@@ -229,12 +259,92 @@ function take(a,alts){
   });
 }
 
+/* ---------- the beat of Hands-free: the result, the commands, the pause ---------- */
+// One beat for every step: the question is read, a soft tick says the microphone is open, the answer is said, a second tick says it was heard, a short bar, the next step. Hands-free adds
+// what comes after the check: the result stays on screen and the microphone listens for "next", "explain" and "stop". "Next" waits like an answer waits (a tap, Enter or "next" go on); in Sprint it
+// goes on by itself after a bar of 3 s (shell/asks.ts, resultAsk), unless something on the result has to be read. "Stop" pauses the run: nothing is read or listened to by itself, the clock of a question
+// stands still, and a tap on the field goes on. The ticks are the Courtyard's knock, softly (src/app/sound), and only in Hands-free.
+const RESULT_BAR=3000, RESULT_OPEN=600;
+/** The soft tick that says a word was heard, in Hands-free. */
+const tick=()=>{ if(handsFree()) cue("knock",{soft:true}); };
+const PAUSED="Paused. Tap the field to go on.";
+function startResult(a){
+  offerNext(a,!!a.auto);
+  listenAuto(a,true,RESULT_OPEN);        // after the sound of the result is over; the bar goes on while the microphone listens
+}
+/** The result waits to be left, as an answer waits for Yes; `auto`: it goes on after a bar. */
+function offerNext(a,auto){
+  const v=state.voice;
+  dropPend(); dropChip();
+  const p=v.pend={key:a.key,said:"The result is on screen",label:"Next",apply:()=>{ next(); },auto:null,result:true};
+  if(auto) p.auto={ms:RESULT_BAR,t0:performance.now(),tid:setTimeout(()=>{ if(v.pend===p) confirm(); },RESULT_BAR)};
+  paint();
+}
+// listens again at a result, as a result does: for as long as it is on screen, in two stretches
+function resultAgain(a){
+  const v=state.voice;
+  v.note=""; v.bad=false;
+  if(ongoing()&&v.phase==="idle") hear(a,false,false,true); else paint();
+}
+function takeResult(a,alts){
+  const v=state.voice, c=spokenCommand(alts), yn=spokenConfirm(alts);
+  if(c==="pause"){ tick(); return pause(); }
+  if(c==="explain"){ tick(); return explainNow(a); }
+  if(yn==="yes"||c==="next"){ tick(); if(!v.pend) offerNext(a,false); return confirm(); }
+  if(yn==="no"){ tick(); if(v.pend) freezePend(); v.tries=0; return resultAgain(a); }       // "no", "wait": it stays
+  v.note="Heard “"+alts[0]+"”. Say “next”, “explain” or “stop”."; v.bad=false;
+  if(v.tries>=2){ paint(); return; }
+  v.tries++;
+  if(ongoing()) hear(a,true,false,true); else paint();
+}
+// Claude is asked to explain the result on screen; the bar stops, so that the result stays until it is left
+function explainNow(a){
+  const v=state.voice;
+  freezePend(); v.tries=0;
+  if(!canAsk()&&!needsKey()){ v.note="Claude is not available here."; v.bad=false; if(ongoing()) hear(a,true,false,true); else paint(); return; }
+  v.note=""; v.bad=false;
+  askTutor();
+  paint();
+  if(ongoing()) hear(a,false,false,true);
+}
+// "repeat" or "again": the question is read once more (with Read aloud on)
+function commandRepeat(a){
+  const v=state.voice;
+  tick();
+  if(!reading()){ v.note="Read aloud is off, so there is nothing to say again."; v.bad=false; if(ongoing()) hear(a,true); else paint(); return; }
+  repeat();
+}
+// "skip" sets the pair aside, as the answer that waits for Yes (or goes on after the bar), like any other
+function commandSkip(a){
+  const q=skipAskText().q.replace(/\?$/,"");
+  offer(a,"skip",q,()=>{ skipNow(); });
+}
+// "stop": nothing is read or listened to by itself until the field is tapped; the clock of a question stands still
+function pause(){
+  const v=state.voice;
+  v.paused=true; quiet(); endReading(); freezePend();
+  if(!state.ui||!state.ui.checked) holdFor();
+  v.note=PAUSED; v.bad=false; v.tries=0; v.held=false;
+  paint();
+}
+function resume(){
+  const v=state.voice, a=asked();
+  v.paused=false; v.note=""; v.bad=false; v.tries=0;
+  if(!v.pend) letGo("fresh");          // the question has its whole time again; an answer that waits has its clock held already
+  if(!a){ paint(); return; }
+  if(v.pend){ paint(); return; }
+  if(a.kind==="result") startResult(a);
+  else if(reading()) say(a,a.say,true);
+  else if(handsFree()) listenAuto(a);
+  else paint();
+}
+
 // "I don't know": no answer is taken; a friendly word instead (said too, with Read aloud), and the person tries again
 const NUDGE="It's okay not to know. Make a guess, then learn from the review. Mistakes are how we learn.";
 function nudge(a){
   const v=state.voice;
   v.note=NUDGE; v.bad=false; v.tries=0;
-  if(reading()) say(a,NUDGE); else if(handsFree()) hear(a,true); else paint();   // Hands-free listens for the next guess, with the word still on the screen
+  if(reading()) say(a,NUDGE); else if(ongoing()) hear(a,true); else paint();   // Hands-free listens for the next guess, with the word still on the screen
 }
 
 /* ---------- an answer that waits for its confirmation, and the chip that stays after it went on ---------- */
@@ -259,7 +369,8 @@ function offer(a,heard,label,apply,quick){
   const p=v.pend={key:a.key,said:same(h,label)?"Heard":"Heard “"+h+"”, taken as",label,apply,auto:null};
   if(autoOn()){ const ms=state.blitz?PAUSE_BLITZ:PAUSE_CALM; p.auto={ms,t0:performance.now(),tid:setTimeout(()=>{ if(v.pend===p) confirm(); },ms)}; }
   paint();
-  if(!p.auto&&handsFree()) hear(a);     // listens for "yes", "no" or another answer
+  tick();
+  if(!p.auto&&ongoing()) hear(a);     // listens for "yes", "no" or another answer
 }
 function dropPend(){
   const v=state.voice, p=v.pend;
@@ -286,6 +397,7 @@ function confirm(){
 function change(){
   const v=state.voice, a=asked();
   if(!v.pend) return;
+  if(v.pend.result){ freezePend(); paint(); if(a&&ongoing()&&v.phase!=="listening") hear(a,false,false,true); return; }       // the result stays
   dropPend(); quiet(); letGo("resume"); refreshPath();
   v.note=""; v.bad=false;
   if(a&&hearing()) hear(a); else paint();
@@ -324,7 +436,7 @@ const HINT={reply:()=>"Say “"+Wd().acc+"” or “"+Wd().why+"”. After “"+
 // what is said in the field besides its fixed words: what is heard as it is said, a miss, a word on the first question
 function statusText(){
   const v=state.voice;
-  if(v.phase==="listening") return v.live?"“"+v.live+"”":v.note||(v.hold?"Listening… let go to send":"Listening…");
+  if(v.phase==="listening"){ const a=asked(); return v.live?"“"+v.live+"”":v.note||(v.hold?"Listening… let go to send":a&&a.kind==="result"?"Say “next”, “explain” or “stop”":"Listening…"); }
   if(v.blocked) return "The browser reads aloud only after a tap on the page. Tap above to hear the question.";
   if(v.note) return v.note;
   if(v.pend||v.chip) return "";
@@ -333,7 +445,9 @@ function statusText(){
   return "";
 }
 /** The strip that says the question again is shown: Read aloud is chosen and the device can speak, on a screen that asks something. */
-export const readShown=()=>enabled()&&!!asked()&&state.voice.read&&canSpeak();
+export const readShown=()=>{ const a=asked(); return enabled()&&!!a&&!a.quiet&&state.voice.read&&canSpeak(); };
+/** The soft keyboard is not to rise over the field: a touch screen with the microphone field on it (shell/render.js, focusCin: a case that ran out of time). */
+export const keysStayDown=()=>micShown()&&typeof matchMedia==="function"&&matchMedia("(pointer: coarse)").matches;
 /** The microphone field is shown: Answer by voice is on, on a screen that asks something. */
 export const micShown=()=>enabled()&&!!asked()&&hearing();
 // what the field shows: it listens, it is reading, an answer waits for Yes, an answer is going on by itself, or it is at rest
@@ -365,13 +479,14 @@ const stClass=()=>{ const v=state.voice; return "vst"+(v.bad?" bad":"")+(v.phase
 function micNode(){
   const v=state.voice, a=asked(), p=v.pend, st=fieldState(), text=statusText(), kids=[];
   if(p){
-    if(p.auto&&st!=="listen") kids.push(el("i",{class:"vrunl","aria-hidden":"true",style:"--d:"+p.auto.ms+"ms;--e:"+Math.max(0,Math.round(performance.now()-p.auto.t0))+"ms"}));
+    if(p.auto&&(st!=="listen"||p.result)) kids.push(el("i",{class:"vrunl","aria-hidden":"true",style:"--d:"+p.auto.ms+"ms;--e:"+Math.max(0,Math.round(performance.now()-p.auto.t0))+"ms"}));
     kids.push(el("div",{class:"vtake"},el("div",{class:"vwhat",role:"status","aria-live":"polite"},el("small",{text:p.said}),el("b",{text:p.label}))));
-    kids.push(st==="going"?el("div",{class:"vgo soft",text:"Going on…"}):st==="heard"||(st==="listen"&&!v.hold)?el("div",{class:"vgo"},el("i",{"aria-hidden":"true"}),"Tap for Yes"):el("div",{class:"vgo"}));
+    kids.push(p.result&&!v.hold?(p.auto?el("div",{class:"vgo soft",text:"Going on · tap to go now"}):el("div",{class:"vgo"},el("i",{"aria-hidden":"true"}),"Tap to go on"))
+      :st==="going"?el("div",{class:"vgo soft",text:"Going on…"}):st==="heard"||(st==="listen"&&!v.hold)?el("div",{class:"vgo"},el("i",{"aria-hidden":"true"}),"Tap for Yes"):el("div",{class:"vgo"}));
   } else kids.push(el("div",{class:"vg"},iconSvg("mic")));
   if(text) kids.push(el("div",{class:stClass(),id:"vlive",role:"status","aria-live":"polite",text}));
-  else kids.push(el("div",{class:"vhint",text:st==="heard"?"Hold to say it again":st==="going"?"Touch to hold it · Escape to change":st==="read"?"Touch to cut in and answer":"Tap, or hold to talk"}));
-  const label=st==="heard"?"Yes, go on with "+p.label+". Hold to say it again.":st==="going"?"Going on with "+p.label+". Touch to hold it.":st==="listen"?(v.hold?"Listening while you hold. Let go to send.":"Listening. Tap to finish."):"Answer by voice. Tap, or hold to talk.";
+  else kids.push(el("div",{class:"vhint",text:p&&p.result?(p.auto?"Say “stop” to stay · “explain” to ask Claude":"Hold and say “explain” or “stop”"):st==="heard"?"Hold to say it again":st==="going"?"Touch to hold it · Escape to change":st==="read"?"Touch to cut in and answer":"Tap, or hold to talk"}));
+  const label=p&&p.result?(p.auto?"Going on to the next one. Tap to go now.":"Tap to go on to the next one. Hold to say explain."):st==="heard"?"Yes, go on with "+p.label+". Hold to say it again.":st==="going"?"Going on with "+p.label+". Touch to hold it.":st==="listen"?(v.hold?"Listening while you hold. Let go to send.":"Listening. Tap to finish."):"Answer by voice. Tap, or hold to talk.";
   const n=el("div",{class:"vmic"+(p?" pend":""),id:"vmic",role:"button",tabindex:"0","data-quiet":"1","aria-label":label,"aria-pressed":st==="listen"?"true":"false",title:st==="idle"&&a?(a.hint||HINT[a.kind](a)):null,
     onpointerdown:micDown,onclick:micClick,onkeydown:micKey,oncontextmenu:e=>e.preventDefault()},kids);
   return n;
@@ -387,6 +502,7 @@ export function voiceField(){
 // what a screen reader is told: the children of a button are not read, so the answer that waits and a miss are said from here (not what is heard as it is said)
 function srText(){
   const v=state.voice, p=v.pend;
+  if(p&&p.result) return "The result is on screen. Say next, explain or stop, or tap the field to go on.";
   if(p) return p.said+" "+p.label+(p.auto?". Going on.":". Tap the field for Yes, or hold it to say it again.");
   if(v.phase==="listening") return "Listening.";
   if(v.chip) return "Taken as "+v.chip.label+". Change is above the field.";
@@ -425,7 +541,9 @@ function micDown(ev){
   const v=state.voice, a=asked();
   if(!a||!hearing()) return;
   ev.preventDefault();
-  v.began=true; markTried(); spotAt(ev);
+  v.began=true; markTried();
+  if(v.paused){ resume(); return; }          // a tap on a paused run goes on
+  spotAt(ev);
   const fm=$("vmic"); if(fm&&document.activeElement!==fm) fm.focus({preventScroll:true});     // the keys then go on from the field (Enter confirms what waits)
   if(v.press) clearTimeout(v.press.tid);
   const waits=!!v.pend, wasAuto=waits&&!!v.pend.auto;
@@ -447,7 +565,7 @@ function micUp(ev){
   clearTimeout(p.tid);
   const h=v.stop;
   if(p.was){ if(h) h.stop(); }                              // it was listening: a press stops it
-  else if(p.yes){ if(!ev||ev.type==="pointercancel") { paint(); return; } if(!p.auto){ confirm(); return; } }    // a tap is Yes; where it was going on by itself the touch only held it
+  else if(p.yes){ if(!ev||ev.type==="pointercancel") { paint(); return; } if(!p.auto||(v.pend&&v.pend.result)){ confirm(); return; } }    // a tap is Yes; where it was going on by itself the touch only held it
   else if(h&&h.release){ if(p.long) h.stop(); else h.release(); }
   paint();
 }
@@ -476,6 +594,7 @@ export function toggleListen(){
   const v=state.voice, a=asked();
   if(!a||!hearing()) return false;
   markTried();
+  if(v.paused){ resume(); return true; }
   if(v.phase==="listening"&&v.stop) v.stop.stop(); else hear(a);
   return true;
 }
@@ -499,7 +618,7 @@ function repeat(toggle){
   const v=state.voice, a=asked();
   if(!a||!enabled()) return false;
   if(v.muted){ v.muted=false; }
-  else if(toggle&&v.phase==="speaking"){ quiet(); endReading(); paint(); if(handsFree()) hear(a); return true; }    // stopped: in Hands-free the reading was only the way to the answer
+  else if(toggle&&v.phase==="speaking"){ quiet(); endReading(); paint(); if(ongoing()) hear(a); return true; }    // stopped: in Hands-free the reading was only the way to the answer
   if(!reading()) return false;
   say(a,a.say,v.held);
   return true;
@@ -511,7 +630,7 @@ function muteToggle(){
   paint();
   const a=asked();
   if(!a) return;
-  if(v.muted){ v.note="Reading is paused for this visit. Tap the strip above to hear the question."; v.bad=false; if(speaking&&handsFree()) hear(a,true); else paint(); }
+  if(v.muted){ v.note="Reading is paused for this visit. Tap the strip above to hear the question."; v.bad=false; if(speaking&&ongoing()) hear(a,true); else paint(); }
   else if(reading()) say(a,a.say,v.held);
 }
 // the keys: V listens (or stops), R reads the question again, M pauses the reading for the visit (or takes the pause away); Enter confirms the answer that waits, Escape changes it (or the step that just went on). True when the key was taken
@@ -538,6 +657,7 @@ export function setVoice(k,val){
   const v=state.voice;
   v[k]=val;
   if(k==="read"&&val) v.muted=false;
+  if(k==="answer"&&v.paused){ v.paused=false; letGo("fresh"); }
   try{ localStorage.setItem(KEYS[k],k==="read"?(val?"1":"0"):String(val)); }catch(e){}
   if(k==="read"||k==="answer") keepOwn(k,val);   // each exercise keeps its own (practice/per-exercise.ts)
   render();
@@ -547,7 +667,7 @@ export function setVoice(k,val){
 export function setOn(on){
   const v=state.voice;
   v.on=on; try{ localStorage.setItem("rd-voice",on?"1":"0"); }catch(e){}
-  if(!on){ quiet(); dropPend(); dropChip(); letGo("moved"); v.key=""; v.muted=false; }
+  if(!on){ quiet(); dropPend(); dropChip(); letGo("moved"); v.key=""; v.muted=false; v.paused=false; }
   render();
 }
 /** What the Voice switch of Settings does (the Path draws the same row). */

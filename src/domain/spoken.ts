@@ -250,6 +250,32 @@ export function spokenConfirm(alts: readonly string[]): "yes" | "no" | null {
   return null;
 }
 
+// ---- commands of the run ----
+
+/** What can be said at any time in Hands-free besides an answer: the question again, setting the pair aside, going on from a result, asking Claude to explain it, pausing the run. */
+export type Command = "repeat" | "skip" | "next" | "explain" | "pause";
+const THING = "(?:pair|question|one|thing|set|syllogism|example|relation|category|categories|case)";
+// Whole utterances only, so that an answer that contains one of these words ("a crowd again") is still an answer.
+const COMMANDS: [RegExp, Command][] = [
+  [/^(?:please )?(?:repeat|repeat that|repeat it|repeat the question|say it again|say that again|read it again|read that again|read the question again|ask again|ask me again|one more time|once more|again)$/, "repeat"],
+  [new RegExp("^(?:skip it|skip this|skip that|skip this " + THING + "|skip the " + THING + "|set it aside|set this aside|set this " + THING + " aside)$"), "skip"],
+  [/^(?:next|next one|next pair|next question|next thing|next set|next relation|next syllogism|go on|go ahead|continue|move on|keep going|carry on)$/, "next"],
+  [/^(?:explain|explain it|explain that|explain this|explain please|please explain|an explanation|check and explain|why|why is that|why was that|tell me why)$/, "explain"],
+  [/^(?:pause|pause it|pause the run|stop|stop it|stop listening|hold on|wait a moment|wait a minute|that is enough|enough)$/, "pause"],
+];
+/**
+ * The command the whole utterance is, or null. A bare "skip" is the command only where the screen does not take it as an answer (`bareSkip`): the counter-example of a syllogism
+ * can be skipped, which is an answer there.
+ */
+export function spokenCommand(alts: readonly string[], opts: { bareSkip?: boolean } = {}): Command | null {
+  for (const heard of alts) {
+    const w = plainWords(heard);
+    if (opts.bareSkip && w === "skip") return "skip";
+    for (const [re, c] of COMMANDS) if (re.test(w)) return c;
+  }
+  return null;
+}
+
 // ---- "I don't know" ----
 
 // The whole utterance says the person has no answer ("I don't know", "no idea", "not sure"), not an answer that contains those words.
