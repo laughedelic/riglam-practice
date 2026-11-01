@@ -8,9 +8,12 @@ img{max-width:100%}
 [hidden]:not([hidden=until-found i]){display:none!important}
 
 /* The dialog that asks for the study group's key when the definitions are locked (src/pwa/unlock.ts). It uses the page's own
-   tokens and square corners, and sits near the top so the on-screen keyboard does not cover it. */
-#unlock{box-sizing:border-box;width:min(28rem,calc(100vw - 32px));margin:max(16px,6vh) auto auto;padding:20px;border:1.5px solid var(--ink-muted,#4d5260);border-radius:0;background:var(--paper,#fff);color:var(--ink,#000);font:15px/1.5 var(--body,sans-serif)}
+   tokens and square corners, and sits near the top so the on-screen keyboard does not cover it. A phone's keyboard can also scroll
+   the visible part of the screen away from where a fixed dialog sits (iPhone), so the dialog keeps to the part that can be seen, as the
+   Path's root does (--vvt and --vvh, src/app/core/viewport.js), and scrolls inside itself when that part is too short. */
+#unlock{box-sizing:border-box;width:min(28rem,calc(100vw - 32px));inset:var(--vvt,0px) 0 auto;max-height:calc(var(--vvh,100dvh) - max(16px,6vh) - 16px);overflow:auto;margin:max(16px,6vh) auto auto;padding:20px;border:1.5px solid var(--ink-muted,#4d5260);border-radius:0;background:var(--paper,#fff);color:var(--ink,#000);font:15px/1.5 var(--body,sans-serif)}
 #unlock::backdrop{background:rgba(16,22,43,.5)}
+#unlock:focus{outline:0}
 #unlock h2 .ico{display:inline-block;width:20px;height:20px;vertical-align:-3px;margin-right:8px}
 #unlock h2{margin:0 0 10px;font:700 18px/1.3 var(--display,sans-serif);color:var(--heading,#2f5496)}
 #unlock p{margin:0 0 12px}

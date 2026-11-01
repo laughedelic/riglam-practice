@@ -83,9 +83,13 @@ export function showUnlock({ problem = null, verify, apply }: { problem?: string
   const closed = (dlg: HTMLDialogElement) => new Promise<boolean>((done) => dlg.addEventListener("close", () => done(dlg.dataset.taken === "1"), { once: true }));
   const build = (): Promise<boolean> => {
     const open = document.getElementById("unlock") as HTMLDialogElement | null;
-    if (open) { if (!open.open) open.showModal(); return closed(open); }
+    if (open) { if (!open.open) { open.showModal(); if (open.tabIndex === -1) open.focus(); } return closed(open); }
     const dlg = document.createElement("dialog");
     dlg.id = "unlock";
+    // A touch screen keeps the keyboard down until the field is tapped (as the Path's own fields do): a keyboard that rises as the
+    // prompt opens covers half of it, and on an iPhone it scrolled the prompt out of sight. The dialog itself takes the focus then.
+    const touch = (() => { try { return matchMedia("(pointer: coarse)").matches; } catch { return false; } })();
+    if (touch) dlg.tabIndex = -1;
     dlg.setAttribute("aria-labelledby", "unlock-h");
     dlg.innerHTML = `<form method="dialog">
       <h2 id="unlock-h"><svg class="ico" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="8" cy="15" r="4.5"/><path d="M11.2 11.8 20 3m-4 4 3 3m-5.5-.5 2 2"/></svg>Enter the <button type="button" class="keyname" id="unlock-mk-btn" aria-expanded="false" aria-controls="unlock-mk">Magic Key</button></h2>
@@ -93,7 +97,7 @@ export function showUnlock({ problem = null, verify, apply }: { problem?: string
       <p>${MAGIC_KEY_ABOUT[0]}</p>
       <p class="hint">${MAGIC_KEY_ABOUT[1]}</p>
       <p id="unlock-err" class="err" role="alert" hidden></p>
-      <input id="unlock-key" type="text" autofocus aria-label="Magic Key or link" placeholder="four words or the special link" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="text">
+      <input id="unlock-key" type="text"${touch ? "" : " autofocus"} aria-label="Magic Key or link" placeholder="four words or the special link" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="text">
       <div class="row"><button type="submit" class="btn"><svg class="ico" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-1.9"/></svg>Unlock</button><button type="button" class="btn ghost" id="unlock-skip">Close</button></div>
     </form>`;
     document.body.append(dlg);
@@ -119,6 +123,7 @@ export function showUnlock({ problem = null, verify, apply }: { problem?: string
       dlg.close();
     });
     dlg.showModal();
+    if (touch) dlg.focus();
     return closed(dlg);
   };
   const when = (go: () => void) => (document.body ? go() : addEventListener("DOMContentLoaded", go, { once: true }));

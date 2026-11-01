@@ -45,7 +45,7 @@ test("the prompt says what the key is for, and its name opens a note on it", asy
   await openPrompt(page);
   const dlg = page.locator("#unlock");
   await expect(dlg).toContainText("Magic Key");
-  await expect(dlg).toContainText("unlocks the course’s definitions and notes");
+  await expect(dlg).toContainText("unlock the course’s definitions and notes");
   await expect(dlg.locator("#unlock-key")).toHaveAttribute("placeholder", "four words or the special link");
   await expect(dlg.locator("label")).toHaveCount(0);
   await expect(dlg.locator("#unlock-mk")).toBeHidden();

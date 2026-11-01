@@ -67,3 +67,27 @@ plain("the Magic Key prompt takes the Path's look, light and dark", async ({ pag
   await shot(page, "unlock-dark");
   await page.locator("#unlock-skip").click();
 });
+
+plain("the Magic Key prompt opens with the keyboard down on a touch screen and keeps to the part of the screen that can be seen", async ({ page }) => {
+  await serveCourse(page);
+  await page.addInitScript(onPath);
+  await page.goto("/");
+  await plainExpect(page.locator("#path .chs .crow")).toHaveCount(5);
+  if (!(await page.locator(".road.on").count())) await page.locator(".tstn").click();
+  await page.locator(".road .rfoot").getByRole("button", { name: "Magic Key" }).click();
+  const dlg = page.locator("#unlock");
+  await plainExpect(dlg).toBeVisible();
+  const touch = await page.evaluate(() => matchMedia("(pointer: coarse)").matches);
+  if (touch) await plainExpect(page.locator("#unlock-key")).not.toBeFocused();   // an iPhone's keyboard scrolled the prompt out of sight
+  else await plainExpect(page.locator("#unlock-key")).toBeFocused();
+  // a keyboard leaves 300px seen, starting 200px down (the browser scrolled the visible part): the prompt sits inside it
+  // (set and measured in one go: the page measures the visible area itself a few times while it settles)
+  const box = await page.evaluate(() => {
+    const r = document.documentElement.style; r.setProperty("--vvt", "200px"); r.setProperty("--vvh", "300px");
+    const b = document.querySelector("#unlock").getBoundingClientRect(), d = document.querySelector("#unlock");
+    return { top: b.top, bottom: b.bottom, scrolls: d.scrollHeight > d.clientHeight || getComputedStyle(d).overflowY === "auto" };
+  });
+  plainExpect(box.top).toBeGreaterThanOrEqual(200);
+  plainExpect(box.bottom).toBeLessThanOrEqual(501);
+  plainExpect(box.scrolls).toBe(true);   // what does not fit scrolls inside the prompt
+});
