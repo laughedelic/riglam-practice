@@ -9,7 +9,7 @@ export const BRAND = '<polygon points="256,61 371,177 256,292 141,177" fill="#fa
  * width. The first line is 20.5 high and the second is sized (23.83) so that, with the same width, it is spaced by about 0.1 em. Measured in that face, the lockup reaches 14.35
  * above its first baseline and 24.57 below it (the second baseline is 17.9 under the first). The cover (src/pwa/cover.html) draws the same, with the same numbers.
  * The spacing comes from `textLength` alone: no `letter-spacing`, and no `<tspan>` for the last letter. Safari (WebKit) lays a `<tspan>` in a text with `textLength` out wrongly, the last
- * two letters landing on top of each other, and with the spacing left to `textLength` the first and last letters' ink is still at the two ends in every engine.
+ * two letters landing on top of each other, and with the spacing left to `textLength` the lockup measures the same in Chromium and in WebKit (both lines start at 0 and end at the full width).
  */
 export const NAME_Y = 76;       // the first baseline on the roadmap (the figure ends at 54)
 export const NAME_ASCENT = 14.35;

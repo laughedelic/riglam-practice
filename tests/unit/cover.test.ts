@@ -61,7 +61,7 @@ test("the page's https guard moves a public http address to https and leaves loc
   };
   expect(run("http://staging-riglam-practice.laughedelic.workers.dev/?a=1#b")).toEqual(["https://staging-riglam-practice.laughedelic.workers.dev/?a=1#b"]);
   expect(run("http://riglam.example.org/x")).toEqual(["https://riglam.example.org/x"]);
-  for (const href of ["https://riglam-practice.laughedelic.workers.dev/", "http://localhost:4173/", "http://127.0.0.1:5173/", "http://192.168.1.20:5173/", "http://[::1]:5173/", "http://maos-macbook.local:5173/"]) {
+  for (const href of ["https://riglam-practice.laughedelic.workers.dev/", "http://localhost:4173/", "http://127.0.0.1:5173/", "http://192.168.1.20:5173/", "http://[::1]:5173/", "http://maos-macbook.local:5173/", "http://macbook:5173/", "http://app.localhost:5173/"]) {
     expect(run(href), href).toEqual([]);
   }
 });
