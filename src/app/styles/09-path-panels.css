@@ -94,6 +94,13 @@ html.cv-zoom .pa .road .rhead{opacity:0}   /* the cover is flying its own figure
 .pa .tree a:focus{outline:none}
 .pa .tree .rm.ok{fill:var(--green)} .pa .tree .rm.bad{fill:var(--red)} .pa .tree .rm.part{fill:var(--partc)} .pa .tree .rm.pend{fill:none; stroke:var(--ink3); stroke-width:1.2}
 .pa .road .rfoot{flex:none; border-top:1px solid var(--rule); display:flex; align-items:center; flex-wrap:wrap; gap:6px; padding:14px 12px 22px calc(var(--m) + 10px); position:relative}
+/* without the Magic Key the foot has a fourth link, Magic Key, which a phone may have no room for beside the others: then the links begin left of the column and stand a little
+   closer, so that they stay on one line. A spacer before them is the column's indent when there is room (4px + spacer + 2px = --m + 10px) and shrinks first; the stages and
+   the version keep their places */
+.pa .road .rfoot.keyed{column-gap:2px; padding-left:4px}
+.pa .road .rfoot.keyed .rsp{flex:1 1 0; min-width:0; max-width:calc(var(--m) + 4px)}
+.pa .road .rfoot.keyed .rstages{flex-basis:calc(100% - 6px); margin-left:6px}
+.pa .road .rfoot.keyed .rver{flex-basis:calc(100% - var(--m) - 6px); margin-left:calc(var(--m) + 6px)}
 .pa .road .rgo{flex:none; display:flex; justify-content:flex-end; padding:0 12px 2px}
 .pa .road .rcont{min-height:44px; padding:0 4px 0 14px; font-size:14px; font-weight:600; gap:4px}
 .pa .road .rcont .i{width:18px; height:18px}

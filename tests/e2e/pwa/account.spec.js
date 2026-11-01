@@ -257,7 +257,7 @@ test.describe("the Magic Key follows the account", () => {
     // the page starts again with the key (polling, because the page navigates while it is asked)
     await expect.poll(() => other.evaluate(() => localStorage.getItem("riglam.magicKey")).catch(() => null), { timeout: 15_000 }).toBe(dataKey);
     await ready(other);
-    await expect(other.locator("#unlock")).toHaveCount(0);
+    await expect(other.getByRole("textbox", { name: "Magic Key or link", exact: true })).toHaveCount(0);
     await context.close();
   });
 });

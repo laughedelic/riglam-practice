@@ -8,7 +8,7 @@ import { state } from "../state.js";
 import { dayOf, gradeOf, today } from "../core/util.js";
 import { EXERCISES, parked, todayCount, unfinished } from "../shell/exercises.js";
 import { toggleMenu } from "../shell/menu.js";
-import { toggleOpts } from "../shell/options.js";
+import { openKey, toggleOpts } from "../shell/options.js";
 import { setTab } from "../shell/tabs.js";
 import { isEx } from "../shell/render.js";
 import { BRAND, Lockup, NAME_BOTTOM, NAME_Y } from "./brand.tsx";
@@ -84,7 +84,11 @@ export function Roadmap() {
       // every time the roadmap opens it looks for a newer version, unless the device is offline (a look from the last few seconds stands)
       if (navigator.onLine !== false && state.updates) void state.updates.check(8000);
     }
-    else if (!on && was.current) { const b = box.current && box.current.closest(".pa")?.querySelector<HTMLElement>(".tstn"); if (b) b.focus({ preventScroll: true }); }
+    // closed, it gives the focus to the top bar of the screen under it, unless that screen took it already (the Magic Key page, to its field)
+    else if (!on && was.current) {
+      const a = document.activeElement, b = box.current && box.current.closest(".pa")?.querySelector<HTMLElement>(".tstn");
+      if (b && (!a || a === document.body || !!box.current?.contains(a))) b.focus({ preventScroll: true });
+    }
     was.current = on;
   }, [on]);
   // "Continue" goes back to the exercise under the roadmap, so it is there only when that exercise has an attempt to continue; with a pair only drawn (the first time the app opens) the way in is its stop
@@ -107,11 +111,12 @@ export function Roadmap() {
     {state.leaveAsk ? <div class="rnote" role="status"><span>Back again to close</span></div> : null}
     {back ? <div class="rgo"><button type="button" class="lk rcont" onClick={() => toggleMenu(false)}>Continue<Icon n="chev" /></button></div> : null}
     <RoadPin />
-    <div class="rfoot">
+    <div class={"rfoot" + (state.unlock ? " keyed" : "")}>
       <StageRings />
+      {state.unlock ? <span class="rsp" aria-hidden="true" /> : null}
       <button type="button" class="lk" onClick={() => setTab("review")}>Review · {n} today</button>
       <button type="button" class="lk" onClick={openSettings}>Settings</button>
-      {state.unlock ? <button type="button" class="lk" onClick={() => state.unlock!.open()}><Icon n="key" />Magic Key</button> : null}
+      {state.unlock ? <button type="button" class="lk" onClick={() => openKey()}><Icon n="key" />Magic Key</button> : null}
       <Version />
     </div>
   </div>;

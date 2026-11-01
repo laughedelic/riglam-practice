@@ -349,12 +349,15 @@ export interface State {
   about: About | null;
   /** updating the installed app in place (platform.updates), shown in Options; null where there is no installed copy */
   updates: Updates | null;
-  /** opens the prompt for the Magic Key (platform.unlock) while this device has none; `tutor` is whether the server has a tutor waiting for it */
+  /** takes the Magic Key on Settings' Magic Key page (platform.unlock) while this device has none; `tutor` is whether the server has a tutor waiting for it */
   unlock: Unlock | null;
   /** while this device has the Magic Key: take another one, or forget it (platform.keyHeld) */
   keyHeld: KeyHeld | null;
   /** the Magic Key row of Options is asking whether to forget the key */
   keyAsk: boolean;
+  /** the Magic Key page opened where the key is needed (shell/options.js, openKey): its way back goes to `back` (closing Settings), `then` runs once a key
+   *  is taken, `why` is what went wrong with a key at the start; null when the page was opened from Settings' list */
+  keyFrom: { back: "road" | "review" | "exercise"; then: (() => void) | null; why: string } | null;
   /** a question to the app's own server (platform.tutor), when the place has one; `sample` is used first */
   tutor: Tutor | null;
   /** what the app's server learned of examples from earlier checks (platform.known), asked before the tutor about an example the page could not check */

@@ -2,7 +2,7 @@
 // line that needs one. General: the languages and the theme. Data: the Magic Key, the account, sharing the examples, export and import. Experiments,
 // shown only in a Preview, or in the real app on a device with the Magic Key after a hold on Version: voice, the lab's settings. About: the
 // version. What each does is shell/options.js's and the shared rows of src/ui's, which the Path builds in its own classes.
-import { useRef, useState } from "preact/hooks";
+import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { state } from "../state.js";
 import { accountControls } from "../../ui/account";
 import { dataTransferControls } from "../../ui/data-transfer";
@@ -55,9 +55,11 @@ function LanguagesPage() {
       sw={{ on: on.includes(id), toggle: () => setLang(id, !on.includes(id)) }} />)}
   </>;
 }
-/** The field the Magic Key is typed in, on its page (the prompt's own words and checks, platform `enter`): Unlock takes it, and the page then says the device has it. */
-function KeyForm({ enter, label, cancel }: { enter: (text: string) => Promise<string | null>; label: string; cancel?: () => void }) {
-  const [text, setText] = useState(""), [why, setWhy] = useState(""), [busy, setBusy] = useState(false);
+/** The field the Magic Key is typed in, on its page (platform `enter` checks it): Unlock takes it. `said`: what went wrong with a key before the page opened.
+ *  With `focus` the field takes the focus as it appears, in the tap that opened it, so that a phone's keyboard comes up with it (an iPhone shows it only then). */
+function KeyForm({ enter, label, cancel, said = "", focus = false }: { enter: (text: string) => Promise<string | null>; label: string; cancel?: () => void; said?: string; focus?: boolean }) {
+  const [text, setText] = useState(""), [why, setWhy] = useState(said), [busy, setBusy] = useState(false), field = useRef<HTMLInputElement>(null);
+  useLayoutEffect(() => { if (focus) field.current?.focus({ preventScroll: true }); }, []);
   const go = async (e: Event) => {
     e.preventDefault(); if (busy) return;
     setBusy(true); setWhy("");
@@ -65,25 +67,28 @@ function KeyForm({ enter, label, cancel }: { enter: (text: string) => Promise<st
     setBusy(false); if (no) setWhy(no); else setText("");
   };
   return <form class="pkeyform" onSubmit={(e) => void go(e)}>
-    <input class="pfield" type="text" aria-label={label} placeholder="four words or the special link" {...NOFILL} value={text} onInput={(e) => { setText((e.currentTarget as HTMLInputElement).value); setWhy(""); }} />
+    <input ref={field} class="pfield" type="text" aria-label={label} placeholder="the phrase or the link" {...NOFILL} value={text} onInput={(e) => { setText((e.currentTarget as HTMLInputElement).value); setWhy(""); }} />
     <span class="olctl"><button type="submit" class="pbtn" disabled={busy}>{busy ? "Checking…" : "Unlock"}</button>{cancel ? <button type="button" class="pbtn quiet" onClick={cancel}>Cancel</button> : null}</span>
     {why ? <p class="pnoteline bad" role="alert">{why}</p> : null}
   </form>;
 }
-/** The Magic Key: what it is and the field to enter it (as the prompt says it), or, while the device has it, another one or forget it after a question;
- *  why it has its name under a fold. A place that cannot take the key on the page opens its prompt over it. */
+/** The Magic Key: what it is and the field to enter it, or, while the device has it, another one or forget it after a question; why it has its name under a fold.
+ *  Opened where the key is needed (shell/options.js, openKey), a key taken here closes Settings, back to where it was opened, and goes on with what needed it. */
 function KeyPage() {
   const held = !!state.keyHeld, k = state.keyHeld!, [another, setAnother] = useState(false);
-  const enter = held ? k.enter : state.unlock && state.unlock.enter;
-  const asking = !held || (another && !!enter);
-  const field = enter ? <KeyForm enter={async (t) => { const no = await enter(t); if (!no) setAnother(false); return no; }} label={held ? "Another Magic Key or link" : "Magic Key or link"} cancel={held ? () => setAnother(false) : undefined} /> : null;
+  if (!held && !state.unlock) return null;
+  const enter = held ? k.enter : state.unlock!.enter, asking = !held || another;
+  // opened at the start to say what went wrong with a key, the field waits for a tap: with no tap the phone's keyboard would not come up, and the page would make room for it
+  const said = !held && state.keyFrom ? state.keyFrom.why : "";
+  const taken = () => { const from = state.keyFrom; if (!from) { setAnother(false); return; } toggleOpts(false); pathNote("Unlocked"); if (from.then) from.then(); };
+  const field = <KeyForm enter={async (t) => { const no = await enter(t); if (!no) taken(); return no; }} label={held ? "Another Magic Key or link" : "Magic Key or link"}
+    cancel={held ? () => setAnother(false) : undefined} said={said} focus={!said} />;
   return <>
     {asking ? <><Intro>{MAGIC_KEY_ABOUT[0]}</Intro><p class="sintro shint">{MAGIC_KEY_ABOUT[1]}</p></> : <Intro>{keyNote(true)}</Intro>}
     <div class="ol"><span class="olsw" /><span class="oltx"><span class="olbody">
-      {!held ? field || <span class="olctl"><button type="button" class="pbtn" onClick={() => state.unlock!.open()}>Enter the Magic Key</button></span>
-        : asking ? field
+      {asking ? field
         : <span class="olctl">{state.keyAsk ? <><button type="button" class="pbtn" onClick={() => k.forget()}>Forget the key</button><button type="button" class="pbtn quiet" onClick={() => { state.keyAsk = false; render(); }}>Keep it</button></>
-          : <><button type="button" class="pbtn" onClick={() => { if (field) setAnother(true); else void k.change(); }}>Enter another key</button><button type="button" class="pbtn quiet" onClick={() => { state.keyAsk = true; render(); }}>Forget the key</button></>}</span>}
+          : <><button type="button" class="pbtn" onClick={() => setAnother(true)}>Enter another key</button><button type="button" class="pbtn quiet" onClick={() => { state.keyAsk = true; render(); }}>Forget the key</button></>}</span>}
       <details class="pkeyfun"><summary>Why “Magic Key”?</summary><span class="pkeynote">{MAGIC_KEY_NOTE.map((t: string) => <p>{t}</p>)}</span></details>
     </span></span><span /></div>
   </>;
@@ -194,10 +199,12 @@ function Sections() {
     </Group> : null}
   </>;
 }
+/** The way back from the Magic Key page opened where the key is needed (shell/options.js, openKey). */
+const KEY_BACK = { road: "Back to the roadmap", review: "Back to Review", exercise: "Back to the exercise" } as const;
 export function SettingsPage() {
-  const page = state.optsPage && TITLES[state.optsPage] ? state.optsPage : null;
-  // the top bar's chevron is the way back: from a page to Settings, from Settings to where it was opened from
-  const up = page && !(page === "news" && state.newsDirect) ? { label: "Back to Settings", go: back } : { label: state.fromRoad ? "Back to the roadmap" : "Back to the exercise", go: () => toggleOpts(false) };
+  const page = state.optsPage && TITLES[state.optsPage] ? state.optsPage : null, from = state.keyFrom;
+  // the top bar's chevron is the way back: from a page to Settings, from Settings (or the Magic Key page opened where the key is needed, or What's new opened from its line) to where it was opened from
+  const up = page && !from && !(page === "news" && state.newsDirect) ? { label: "Back to Settings", go: back } : { label: from ? KEY_BACK[from.back] : state.fromRoad ? "Back to the roadmap" : "Back to the exercise", go: () => toggleOpts(false) };
   return <>
     <TopBar title={page ? TITLES[page]! : "Settings"} back={up} />
     <div class="ppage sfull">

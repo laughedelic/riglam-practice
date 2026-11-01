@@ -5,6 +5,7 @@ import { typingEl } from "../core/viewport.js";
 import { put } from "../practice/answers.js";
 import { favSafe } from "../practice/favorites.js";
 import { render } from "../shell/render.js";
+import { openKey } from "../shell/options.js";
 
 /* ---------- flags: any part of any AI answer ---------- */
 // a flag is one document per part: {caseKey, thing, part, model, shown, asked, note, suggest, state}; it can be changed or removed, and it is the labeled data for the model comparison.
@@ -30,9 +31,9 @@ function flagWrite(k,fn,undo){
   state.flagErr="";
   return flagTurn(k,fn,e=>{ undo(); state.flagErr="The flag could not be saved ("+((e&&e.code)||"error")+"), so it was undone."; render(); });
 }
-// A device without the Magic Key cannot flag (flags go to the app's maintainer, and only the study group's devices may write to it): it gets the same prompt as Explain
+// A device without the Magic Key cannot flag (flags go to the app's maintainer, and only the study group's devices may write to it): it gets the Magic Key page, as Explain does, and the flag opens once a key is taken there
 export function openFlag(c,where){
-  if(state.unlock){ state.unlock.open(); return; }
+  if(state.unlock){ openKey(()=>{ if(!state.unlock&&state.ui) openFlag(c,where); }); return; }
   const had=flagOf(c); state.ui.flagEdit={c,where,note:had?had.note||"":"",suggest:had?had.suggest||"":""}; render();
   requestAnimationFrame(()=>{ const t=document.getElementById("flag-note"); if(t){ t.focus({preventScroll:true}); t.scrollIntoView({block:"nearest"}); } });
 }
