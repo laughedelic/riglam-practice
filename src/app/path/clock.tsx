@@ -2,11 +2,10 @@
 // top of the screen, so that the clock is in sight while an example is written. In the last seconds, when most of the line is filled, it turns red and says the seconds left in a number.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { state } from "../state.js";
+import { beatStage } from "../../domain/sprint.ts";
 
 /** A countdown that is running: when it began (`performance.now()`) and how long it lasts (ms). */
 export interface Tq { t0: number; limit: number }
-/** The last seconds are said in words, and the beat speeds up in two steps: this many ms before the end, or the last 40%, 20% and 10% of a short countdown. */
-const LOW = 5000, HOT = 2000, HOTTER = 1000;
 const reduced = (): boolean => { try { return matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; } };
 
 /**
@@ -21,7 +20,7 @@ export function Clock({ tq, late }: { tq: Tq; late: boolean }) {
   useEffect(() => { const id = setInterval(() => tick((n) => n + 1), 250); return () => clearInterval(id); }, []);
   const u = state.ui, held = u && u.hold ? u.hold.spent as number : null;     // a clock held for a spoken answer stands still (debate/flow.js)
   const gone = held !== null ? held : performance.now() - tq.t0, left = Math.max(0, tq.limit - gone);
-  const low = left <= Math.min(LOW, tq.limit * 0.4), hot = low && left <= Math.min(HOT, tq.limit * 0.2), hotter = low && left <= Math.min(HOTTER, tq.limit * 0.1);
+  const stage = beatStage(left, tq.limit), low = stage > 0, hot = stage > 1, hotter = stage > 2;      // the last seconds, in three stages (domain/sprint.ts)
   const step = reduced() ? Math.min(1, Math.floor(gone / 1000) * 1000 / tq.limit) : null;
   return <div class="pclk" aria-hidden="true">
     <div class={"pclock" + (late ? " late" : "") + (low ? " low" : "") + (hot ? " hot" : "") + (hotter ? " hotter" : "")} style={{ "--t": tq.limit + "ms", "--e": from.current + "ms" }}><i style={step === null ? undefined : { transform: "scaleX(" + step.toFixed(3) + ")" }} /></div>

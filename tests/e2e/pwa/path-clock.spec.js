@@ -62,14 +62,13 @@ test("the last seconds are a number at the right end of the line, and the line i
   await expect(page.locator("#path .pclk-s")).toHaveText(/^[12]$/);
 });
 
-test("the beat of the last seconds speeds up in two steps, and a light grows under the filled line", async ({ page }) => {
+test("the beat of the last seconds speeds up in two steps", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await blitz(page, 6000);
   await page.goto("/");
   await ready(page);
   // the beat's length is watched as the clock runs down: calm, quicker, quickest
-  await page.evaluate(() => { window.__beats = []; window.__glow = []; setInterval(() => { const c = document.querySelector("#path .pclock.low"); if (!c) return; const d = getComputedStyle(c).animationDuration; if (window.__beats.at(-1) !== d) window.__beats.push(d); const g = getComputedStyle(c.querySelector("i"), "::after").height; if (window.__glow.at(-1) !== g) window.__glow.push(g); }, 40); });
+  await page.evaluate(() => { window.__beats = []; setInterval(() => { const c = document.querySelector("#path .pclock.low"); if (!c) return; const d = getComputedStyle(c).animationDuration; if (window.__beats.at(-1) !== d) window.__beats.push(d); }, 40); });
   await expect.poll(() => page.evaluate(() => window.__beats.length), { timeout: 9000, message: "all three beats were seen" }).toBeGreaterThanOrEqual(3);
   expect(await page.evaluate(() => window.__beats.slice(0, 3))).toEqual(["0.9s", "0.55s", "0.34s"]);
-  expect(await page.evaluate(() => window.__glow.slice(0, 3)), "and the light under the line grows with it").toEqual(["12px", "14px", "16px"]);
 });

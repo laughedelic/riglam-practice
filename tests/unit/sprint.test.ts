@@ -1,6 +1,6 @@
 // src/domain/sprint.ts: the times of Sprint (the clock of a step), where they are kept, and what time up on a case of examples does next.
 import { expect, test } from "vitest";
-import { NAME_TIMES, TIME_DEFAULT, TIME_KEY, TIME_KINDS, TIME_MAX, TIME_MIN, defaultTimes, nextAfterTimeUp, readTime, timesOf } from "../../src/domain/sprint";
+import { NAME_TIMES, TIME_DEFAULT, beatStage, TIME_KEY, TIME_KINDS, TIME_MAX, TIME_MIN, defaultTimes, nextAfterTimeUp, readTime, timesOf } from "../../src/domain/sprint";
 import { PREFERENCE_KEYS } from "../../src/store/transfer";
 import { EXERCISES, normPerEx } from "../../src/domain/per-exercise";
 
@@ -57,4 +57,13 @@ test("Sprint is each exercise's own switch: the stored record keeps `blitz` per 
     .toEqual({ practice: { blitz: true }, syllogism: { blitz: false } });
   expect(normPerEx(JSON.stringify({ categories: { blitz: true } }))).toEqual({ categories: { blitz: true } });
   expect(normPerEx("{")).toEqual({});
+});
+
+test("the last seconds have three stages, on a smaller scale for a short countdown: the red (the last half, at most 5 s), a quicker beat, the quickest beat", () => {
+  const at = (limit: number, lefts: number[]) => lefts.map((l) => beatStage(l, limit));
+  expect(at(20000, [8000, 5001, 5000, 2001, 2000, 1001, 1000, 0]), "20 s: 5 s, 2 s and 1 s left").toEqual([0, 0, 1, 1, 2, 2, 3, 3]);
+  expect(at(10000, [5001, 5000, 2000, 1000]), "10 s: the same").toEqual([0, 1, 2, 3]);
+  expect(at(5000, [2501, 2500, 1000, 500]), "5 s: 2.5 s, 1 s and 0.5 s left").toEqual([0, 1, 2, 3]);
+  expect(at(2000, [1001, 1000, 400, 200]), "2 s, the shortest: 1 s, 0.4 s and 0.2 s left").toEqual([0, 1, 2, 3]);
+  expect(beatStage(3000, 3000), "the whole of a countdown is never in the last seconds").toBe(0);
 });
