@@ -57,7 +57,7 @@ function saveExplain(U){ persist(U,U.debate?"Your debate":"Your answer"); }
 // With Explanations by Claude on Every answer (the practice options), a checked answer asks for the explanation the Explain button would ask for, with no tap. It asks once per
 // answer, only where the tutor can answer (a device without the Magic Key still gets the grayed button), and it leaves the screen and the focus where they are.
 export function explainByItself(U){
-  if(!state.autoExplain||U!==state.ui||!U.checked||U.explained||U.ctl||!canAsk()) return;
+  if(!state.autoExplain||U!==state.ui||!U.checked||U.explained||U.ctl||U.passOn||!canAsk()) return;     // (`passOn`: a result not shown, practice/queue.js moveOn)
   U.pwhy=true;   // the Path's Why row opens by itself while the explanation is written by itself
   ask(null,"explain",true);
 }

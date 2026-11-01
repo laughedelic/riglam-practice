@@ -59,12 +59,12 @@ function PickStep({ kb }: { kb: boolean }) {
 
 /* ---------- 2 the examples: what the strip shows unfolded ---------- */
 function Picked() {
-  const u = u0(), p = pairOf(), r = REL[relOf()];
+  const u = u0(), p = pairOf(), r = REL[relOf()], spelled = !u.late || guidance("practice") === "detailed";     // a relation given by a time-up: spelled out at Detailed, by its name at Hints
   return <>
     <StripPair q="How do the two terms relate?" />
     <Sx cls="walked"><Gap h={10} />
       <St d={<Fig k={relOf()} size="m" />}><span class="relnm"><b class="yours">{r.name}</b>{state.nota !== "codes" ? <span class="rsym">{notaOf(relOf())}</span> : null}</span>
-        <span class="pq relg"><Subjects text={r.gloss(p.a, p.b)} p={p} />. {u.late ? "Time ran out: this is the relation." : "Yours, not checked yet."}</span>
+        <span class="pq relg">{spelled ? <><Subjects text={r.gloss(p.a, p.b)} p={p} />. </> : null}{u.late ? "Time ran out: this is the relation." : "Yours, not checked yet."}</span>
         {u.late ? null : <button type="button" class="pbtn" onClick={() => { u.open = true; u.pstrip = false; render(); }}>Pick another</button>}</St><Gap h={6} /></Sx>
   </>;
 }
@@ -75,10 +75,11 @@ export function Row({ c, rel }: { c: CellId; rel: RelKey }) {
   const u = u0(), r = u.res, cr = r.cells[c] as { v: string; msg: string[]; vague?: string[] }, p = pairOf(), out = REL[rel].empty.includes(c), x = u.cells[c], t = (x.t || "").trim();
   // an example whose name leaves the quality open is not waiting for anyone: its message asks for the word
   const open = (cr.v === "cmp" && !cr.vague) || cr.v === "open", m = cr.v === "ok" ? "ok" : cr.v === "bad" ? "no" : "pt", busy = open && !!u.ctl;
-  const tnote: string | undefined = (explainParts().cells as Record<string, string>)[c], key = (p.ex && p.ex[c]) || "";
+  // past Detailed a case's reference example is not named, only said to be there (src/domain/grading.ts, GradeOptions)
+  const tnote: string | undefined = (explainParts().cells as Record<string, string>)[c], key = (p.ex && p.ex[c]) || "", named = !r.noRefs;
   const ans = out ? <span class="ans2 nil">not asked by {u.find ? "the relation" : "your relation"}</span> : t ? <span class={"ans2" + (m === "no" ? " no" : "")}>{t}</span> : <span class="ans2 nil">{x.none ? "nothing exists" : "left empty"}</span>;
-  const note = out ? <>you left this case out{key ? <>; for example <span class="fix">{key}</span></> : null}</>
-    : open ? <><b>Unchecked.</b>{key ? <> Reference example: <span class="fix">{key}</span></> : null}</>
+  const note = out ? <>you left this case out{key ? (named ? <>; for example <span class="fix">{key}</span></> : ", but there is an example") : null}</>
+    : open ? <><b>Unchecked.</b>{key && named ? <> Reference example: <span class="fix">{key}</span></> : null}</>
     : <><b>{cr.msg[0]}</b>{cr.msg[2] ? <i>{cr.msg[2]}</i> : null}{markNames(isa(cr.msg[1] || ""), p)}</>;
   return <St d={<D cls={"sub " + (busy ? "pthink" : m)} />} cls={"sb exr" + (tnote ? " tut" : "")}>
     <span class="lab">{CASE[c]}</span><div class="line1">{ans}{busy ? null : <Mark m={m} />}</div>

@@ -22,5 +22,17 @@ function nextPair(){
   return {p:nextGenerated(undefined,true)};
 }
 export function advance(){ passNegOffer(); state.cur=nextPair(); state.ui=freshUi(); state.mode="quiz"; }
-// Next: a course term's stop comes first when one is due (practice/stops.ts); from the stop, Next goes on to the question.
-export function next(){ if(state.ui&&state.ui.ctl) state.ui.ctl.abort(); passStageOffer(); if(takeStageUp()){ render(); top0(); cue("stage"); return; } closeStageUp(); if(takeStop()){ render(); top0(); cue("definition",{soft:state.ui.stop.why!=="new"}); return; } if(state.ui&&state.ui.debate) advanceDebate(); else if(state.ui&&state.ui.find) advanceFind(); else if(state.ui&&state.ui.cats) advanceCategories(); else if(state.ui&&state.ui.inst) advanceInstance(); else if(state.ui&&state.ui.syllogism) advanceSyllogism(); else advance(); render(); top0(); cue("next"); }
+// Next: a course term's stop comes first when one is due (practice/stops.ts); from the stop, Next goes on to the question. `sound`: false when a sound was just played (moveOn).
+export function next(sound=true){ if(state.ui&&state.ui.ctl) state.ui.ctl.abort(); passStageOffer(); if(takeStageUp()){ render(); top0(); cue("stage"); return; } closeStageUp(); if(takeStop()){ render(); top0(); cue("definition",{soft:state.ui.stop.why!=="new"}); return; } if(state.ui&&state.ui.debate) advanceDebate(); else if(state.ui&&state.ui.find) advanceFind(); else if(state.ui&&state.ui.cats) advanceCategories(); else if(state.ui&&state.ui.inst) advanceInstance(); else if(state.ui&&state.ui.syllogism) advanceSyllogism(); else advance(); render(); top0(); if(sound) cue("next"); }
+/**
+ * A time-up with nothing answered at None (domain/sprint.ts, timeUpView): the answer is kept as Sprint counts it, and the next question comes with no result in between
+ * (the time-up sound was played). A stage offer or a step of the guidance that this answer made due waits for the next result.
+ */
+export function moveOn(){
+  const u=state.ui; if(!u) return;
+  const keep={offer:u.offer, guideDown:u.guideDown};
+  u.offer=null; u.guideDown=null; u.passOn=true;
+  next(false);
+  const w=state.ui;
+  for(const [k,v] of Object.entries(keep)) if(v&&w&&!w[k]) w[k]=v;
+}

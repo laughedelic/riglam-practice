@@ -72,8 +72,17 @@ export function judgeText(ix: DataIndex, p: PairLike, c: CellId, t: string, cats
   return { v: "bad", msg: ["Belongs elsewhere. ", nm + " is " + { both: "both", anb: "A but not B", bna: "B but not A", nei: "neither" }[where] + " (" + termLine(ix, it.t, to) + ")."] };
 }
 
+/**
+ * How a check says the course's reference example of a case the learner did not fill: `refs` (Detailed guidance, the default) names it; past Detailed
+ * the message only says that there is one, and Explain can still ask Claude for it. An example the learner wrote in the wrong place keeps the reference.
+ */
+export interface GradeOptions { refs?: boolean }
+/** The message of a case whose reference example is not named (GradeOptions). */
+const THERE_IS = "There is an example.";
+
 /** Checks a practice answer: the relation chosen, then each cell (emptiness, or the example written in it). */
-export function grade(ix: DataIndex, p: PairLike, u: PracticeAnswer): GradeResult {
+export function grade(ix: DataIndex, p: PairLike, u: PracticeAnswer, o: GradeOptions = {}): GradeResult {
+  const refs = o.refs !== false;
   if (!u.rel) throw new Error("grade: no relation was chosen");
   const emptyCells = REL[u.rel].empty;
   const cells = {} as Record<CellId, CellResult>;
@@ -82,18 +91,18 @@ export function grade(ix: DataIndex, p: PairLike, u: PracticeAnswer): GradeResul
     const none = emptyCells.includes(c) || u.cells[c].none, t = (u.cells[c].t || "").trim();
     let v: string, msg: string[], kind: CellResult["kind"] = "occ", open: string[] | undefined;
     if (none) {
-      if (key) { v = "bad"; msg = ["Counter-example: ", key]; } else { v = "ok"; msg = ["Right, empty. ", why]; }
+      if (key) { v = "bad"; msg = ["Counter-example: ", refs ? key : "there is one."]; } else { v = "ok"; msg = ["Right, empty. ", why]; }
     } else if (t) {
       if (!key) { v = "bad"; msg = ["Nothing can go here. ", why]; }
       else {
         kind = "ex";
         const j = judgeText(ix, p, c, t);
-        if (j) { v = j.v; msg = j.msg; if (j.v === "bad") msg[1] += " Example: " + key + "."; open = j.open; } else { v = "cmp"; msg = ["Not checked. ", "Reference: " + key + "."]; }
+        if (j) { v = j.v; msg = j.msg; if (j.v === "bad") msg[1] += " Example: " + key + "."; open = j.open; } else { v = "cmp"; msg = ["Not checked. ", refs ? "Reference: " + key + "." : ""]; }
       }
-    } else if (key) { v = "bad"; msg = ["Missing. For example: ", key]; } else { v = "ok"; msg = ["Right, empty. ", why]; }
+    } else if (key) { v = "bad"; msg = refs ? ["Missing. For example: ", key] : ["Missing. ", THERE_IS]; } else { v = "ok"; msg = ["Right, empty. ", why]; }
     cells[c] = open ? { v, msg, kind, uns: true, vague: open } : { v, msg, kind };
   }
-  return summarize({ relOk: u.rel === p.relation && !u.late, cells });
+  return summarize({ relOk: u.rel === p.relation && !u.late, cells, ...(refs ? {} : { noRefs: true }) });
 }
 
 /** What three answers of the debate give: Q1 accepted = no common locus; Q2 and Q3 accepted = pervasion each way. Null when time ran out on one of them, "bad" when they contradict each other. */
@@ -109,29 +118,29 @@ export function deriveRel(ans: readonly DebateAnswer[]): RelKey | "bad" | null {
   return "bad"; // accepting no-common-locus together with a pervasion
 }
 
-/** Checks a debate: each of the four questions has one counter-example cell, which the learner accepted or answered with an example. */
-export function gradeDebate(ix: DataIndex, p: PairLike, u: DebateInput): GradeResult {
-  const cells = {} as Record<CellId, CellResult>, dec = {} as Record<CellId, boolean>;
+/** Checks a debate: each of the four questions has one counter-example cell, which the learner accepted or answered with an example. `o` as for `grade`. */
+export function gradeDebate(ix: DataIndex, p: PairLike, u: DebateInput, o: GradeOptions = {}): GradeResult {
+  const refs = o.refs !== false, cells = {} as Record<CellId, CellResult>, dec = {} as Record<CellId, boolean>;
   QCELL.forEach((c, i) => {
     const a = u.ans[i], ref = refOf(p, c), has = !!ref, why = (p.why && p.why[c]) || "", t = (a.text || "").trim();
     let v: string, msg: string[], kind: CellResult["kind"] = "occ", dok = false, open: string[] | undefined;
     if (a.say === "accept") {
-      if (!has) { v = "ok"; msg = ["Right. ", why]; dok = true; } else { v = "bad"; msg = ["Counter-example: ", ref as string]; }
+      if (!has) { v = "ok"; msg = ["Right. ", why]; dok = true; } else { v = "bad"; msg = ["Counter-example: ", refs ? ref as string : "there is one."]; }
     } else if (a.say === "why") {
       if (!has) { v = "bad"; msg = ["Nothing can be posited. ", why]; }
       else {
         dok = true; kind = "ex";
-        if (!t) { v = "bad"; msg = [a.timeout ? "Time ran out. " : "No example. ", "For example: " + ref + "."]; }
+        if (!t) { v = "bad"; msg = [a.timeout ? "Time ran out. " : "No example. ", refs ? "For example: " + ref + "." : ""]; }
         else {
           const j = judgeText(ix, p, c, t, [p.catA, p.catB]);
           if (j) { v = j.v; msg = j.msg.slice(); if (v === "bad") msg[1] += " Example: " + ref + "."; open = j.open; }
-          else { v = "cmp"; msg = ["Not checked. ", "Reference: " + ref + "."]; }
+          else { v = "cmp"; msg = ["Not checked. ", refs ? "Reference: " + ref + "." : ""]; }
         }
       }
-    } else { v = "bad"; msg = ["Time ran out. ", has ? "For example: " + ref + "." : why]; }
+    } else { v = "bad"; msg = ["Time ran out. ", has ? (refs ? "For example: " + ref + "." : THERE_IS) : why]; }
     cells[c] = open ? { v, msg, kind, uns: true, vague: open } : { v, msg, kind }; dec[c] = dok;
   });
-  return summarize({ relOk: u.rel === p.relation && !u.late, cells, dec, implied: deriveRel(u.ans) });
+  return summarize({ relOk: u.rel === p.relation && !u.late, cells, dec, implied: deriveRel(u.ans), ...(refs ? {} : { noRefs: true }) });
 }
 
 /** Adds the counts and the overall grade to a draft. It changes the object it is given and returns it, so that verdicts that arrive later can be counted in again. */

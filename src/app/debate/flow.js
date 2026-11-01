@@ -8,6 +8,7 @@ import { freshUi } from "../practice/queue.js";
 import { clearSkip } from "../practice/skips.js";
 import { pairStageNow, stageStep } from "../practice/stage-offer.ts";
 import { gradePair } from "../practice/stops.ts";
+import { guidance } from "../practice/guided.ts";
 import { nextGenerated } from "../practice/universe.js";
 import { focusAfterCheck, render } from "../shell/render.js";
 import { stopTimer } from "../shell/timers.js";
@@ -74,7 +75,7 @@ export async function checkDebate(){
   stopTimer();
   const p=state.cur.p;
   QCELL.forEach((c,i)=>{ state.ui.cells[c].t=(state.ui.ans[i].text||"").trim(); state.ui.cells[c].none=state.ui.ans[i].say==="accept"; });
-  clearSkip(p); state.ui.res=gradeDebate(state,p,/** @type {import("../../domain/types.ts").DebateInput} */(state.ui)); state.ui.checked=true; state.ui.open=false;
+  clearSkip(p); state.ui.res=gradeDebate(state,p,/** @type {import("../../domain/types.ts").DebateInput} */(state.ui),{refs:guidance("debate")==="detailed"}); state.ui.checked=true; state.ui.open=false;
   gradePair([p.catA,p.catB],!!state.ui.res.relOk,[p.a,p.b]);     // the course terms of the pair (practice/stops.ts), before the stage: its new terms count
   stageStep("debate",pairStageNow(p.catA,p.catB),!!state.ui.res.relOk);     // the run towards the next stage (practice/stage-offer.ts)
   render();

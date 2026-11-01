@@ -7,7 +7,7 @@ import { state } from "../state.js";
 import { guidance } from "../practice/guided.ts";
 import { next } from "../practice/queue.js";
 import { backSyllogism, counterText, exampleSyllogism, keyOfReply, saySyllogism, shownSyllogism } from "../syllogism/flow.js";
-import { REPLIES, gradeExample, syllogismPieces } from "../../domain/syllogism.ts";
+import { REPLIES, checksShown, gradeExample, syllogismPieces } from "../../domain/syllogism.ts";
 import type { Reply, Syllogism } from "../../domain/syllogism.ts";
 import { refreshPath } from "./index.tsx";
 import type { DataIndex } from "../../ai-shared/lookup.ts";
@@ -20,12 +20,12 @@ import { D, Gap, Head, Mark, St, Sx, nofillInput } from "./ui.tsx";
 
 /** The replies as the choices say them, and what each means: Detailed guidance says it with the syllogism's own words, Hints in S, P and R, None not at all (practice/guided.ts). */
 const SAY: Record<Reply, string> = { accept: "I accept", reason: "The reason is not established", pervasion: "There is no pervasion" };
-const MEANS: Record<Reply, string> = { accept: "S is R, and everything that is R is P", reason: "S is not R", pervasion: "S is R, but not everything that is R is P" };
+const MEANS: Record<Reply, string> = { accept: "S is R, and everything that is R is P", reason: "S is not R", pervasion: "Just because it is R, doesn't necessarily mean that it is P" };
 /** The same with the syllogism's words in place of S, P and R: "a black frying pan is not metal". */
 const SPELLED: Record<Reply, (c: Syllogism) => string> = {
   accept: (c) => c.subject + " is " + c.reason + ", and everything that is " + c.reason + " is " + c.predicate,
   reason: (c) => c.subject + " is not " + c.reason,
-  pervasion: (c) => c.subject + " is " + c.reason + ", but not everything that is " + c.reason + " is " + c.predicate,
+  pervasion: (c) => "just because it is " + c.reason + ", doesn't necessarily mean that it is " + c.predicate,
 };
 /** A reply inside a sentence: "There is no pervasion." */
 const SAID: Record<Reply, string> = { accept: "I accept", reason: "the reason is not established", pervasion: "there is no pervasion" };
@@ -119,7 +119,7 @@ function scanPlan(): ScanPlan | null {
   return { cases: x ? [x.v === "ok" ? "ok" : x.v === "bad" ? "no" : "pt"] : [], rel: g.correct ? "ok" : "no", v, word, sub: sub || "", stop: ".sylsaid" };
 }
 function ResultStep() {
-  const u = u0(), c = shownSyllogism(), g = u.grade, first = (CHECKS.find(([k]) => !c.checks[k].ok) || [])[0];
+  const u = u0(), c = shownSyllogism(), g = u.grade, first = (CHECKS.find(([k]) => !c.checks[k].ok) || [])[0], level = guidance("syllogism"), full = level === "detailed";
   const { v, word, sub } = verdictOf(g, u.overall, !!u.timeout, u.ex ? u.ex.v : null);
   const said: ComponentChildren = g.correct ? <b class="yours">{cap(SAID[g.said as Reply])}.</b>
     : g.said ? <><s class="no">{cap(SAID[g.said as Reply])}</s>; <span class="fix">{SAID[g.expected as Reply]}</span>.</>
@@ -128,14 +128,18 @@ function ResultStep() {
     <Scroll>
       <Sx cls="walked first"><Gap h={RESULT_TOP} /><Statement /><Gap h={6} /></Sx>
       <Verdict v={v} word={word} sub={sub}>
-        <St d={<span />} cls="pwhat"><p class="plead">{said}</p>{!g.correct && g.confusion ? <p class="conf">{g.confusion}</p> : null}</St>
+        <St d={<span />} cls="pwhat"><p class="plead">{said}</p>{!g.correct && g.confusion && full ? <p class="conf">{g.confusion}</p> : null}</St>
       </Verdict>
-      <Sx cls="walked">{CHECKS.map(([k, label, yes, no]) => {
+      {/* the checks the level shows (src/domain/syllogism.ts, checksShown): all three at Detailed in the syllogism's words, past it the deciding one, with its formula at Hints */}
+      <Sx cls="walked">{checksShown(c, level).map(({ k, line }) => {
+        const mine = u.ex && (k === "v" || !full) ? <p class="mine"><Mark m={u.ex.v === "ok" ? "ok" : u.ex.v === "bad" ? "no" : "pt"} /><b>Your counter-example:</b> {u.ex.text}. {u.ex.line}</p> : null;
+        const text = !line ? null : <p>{full && k !== "whole" ? c.checks[k].line : MEANS[c.answer] + "."}</p>;
+        if (k === "whole") return <St d={<D cls="sub ok" />} cls="chk ok first"><span class="lab2 ok">Syllogism · correct</span>{text}{mine}</St>;
+        const [, label, yes, no] = CHECKS.find(([x]) => x === k)!;
         const ok = c.checks[k].ok, thesis = k === "t", m = thesis ? (c.answer === "accept" ? "ok" : "e") : ok ? "ok" : "no";
         const word2 = thesis && c.answer === "accept" ? "follows" : ok ? yes : no;
         return <St d={<D cls={"sub " + (m === "ok" ? "ok" : m === "no" ? "now" : "")} />} cls={"chk " + m + (k === first ? " first" : "")}>
-          <span class={"lab2 " + m}>{label} · {word2}</span><p>{c.checks[k].line}</p>
-          {k === "v" && u.ex ? <p class="mine"><Mark m={u.ex.v === "ok" ? "ok" : u.ex.v === "bad" ? "no" : "pt"} /><b>Your counter-example:</b> {u.ex.text}. {u.ex.line}</p> : null}
+          <span class={"lab2 " + m}>{label} · {word2}</span>{text}{mine}
         </St>;
       })}</Sx>
       <WhyRow />

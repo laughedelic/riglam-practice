@@ -11,12 +11,14 @@ import { guidance } from "../practice/guided.ts";
 import { next } from "../practice/queue.js";
 import { render } from "../shell/render.js";
 import type { RelKey } from "../../ai-shared/relations.ts";
+import type { Pair } from "../../domain/types.ts";
 import { ExamplesStep, StripPair, examplesReady } from "./examples.tsx";
 import { refreshPath } from "./index.tsx";
 import { Choices, ErrLines, GuideNote, PairResult, SkipMark, StageOffer, Verdict, WhyRow, needsKey, pairOf, u0 } from "./parts.tsx";
 import { WaitStop } from "./wait.tsx";
 import { Row, cases, isOpen, pendLine, resultRows } from "./relations.tsx";
 import { Scroll } from "./scroll.tsx";
+import { Subjects } from "./subjects.tsx";
 import { nextKind, nextName } from "./next.ts";
 import { Foot, PreStation, SkipSide, Station, TopBar } from "./shell.tsx";
 import { D, Fig, Gap, Head, St, Sx, nofillInput } from "./ui.tsx";
@@ -131,10 +133,27 @@ function ResultStep() {
   </>;
 }
 
+/** A time-up with no pair named, at Detailed and Hints (find/flow.js, timeUpName): a pair of the course with the relation, with why it has it at Detailed (the pair's note), by its names at Hints.
+ *  Nothing is kept, so the verdict makes no sound of its own after the time-up's. */
+function GaveStep() {
+  const u = u0(), p = u.gave as Pair, spelled = guidance("find") === "detailed";
+  return <>
+    <Scroll>
+      <Sx cls="walked first"><Gap h={14} /><Head d={<D cls="sec done" />} h="1 Pair" sub="no pair named in time" /><Gap h={6} /><Asked change={false} /><Gap h={6} /></Sx>
+      <Verdict v="no" word="Time is up" sub="no pair named" quiet />
+      <Sx cls="walked"><St d={<D cls="sub done" />} cls="sb exr gave"><span class="lab">for example</span><div class="line1"><span class="ans2">{p.a} and {p.b}</span></div>
+        {spelled && p.note ? <p class="xnote"><Subjects text={p.note.replace(/"([^"]*)"/g, "“$1”")} p={p} /></p> : null}</St></Sx>
+      <Sx cls="ptail" />
+    </Scroll>
+    <Foot><Station name={nextName("Next relation")} kind={nextKind()} act={() => next()} /></Foot>
+  </>;
+}
+
 /** The screen of Find a pair: its top bar and the step the attempt is at. */
 export function findScreen(kb: boolean): { cls: string; node: ComponentChildren } {
   const u = u0();
   const top = <TopBar title="Find a pair" tools />;
+  if (u.checked && u.gave) return { cls: "done", node: <>{top}<GaveStep /></> };
   if (u.checked) return { cls: "done", node: <>{top}<ResultStep /></> };
   if (u.open) return { cls: "", node: <>{top}<RelStep /></> };
   if (u.step === 0) return { cls: both() ? "ready" : "", node: <>{top}<PairStep kb={kb} /></> };

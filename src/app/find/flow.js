@@ -7,10 +7,12 @@ import { persist } from "../practice/answers.js";
 import { freshUi } from "../practice/queue.js";
 import { clearSkip } from "../practice/skips.js";
 import { pairStageNow, stageStep } from "../practice/stage-offer.ts";
-import { askedTerm, gradeTerms } from "../practice/stops.ts";
+import { askedTerm, gradeTerms, unmetNow } from "../practice/stops.ts";
+import { guidance } from "../practice/guided.ts";
 import { focusAfterCheck, focusCin, render, top0 } from "../shell/render.js";
 import { switchTo } from "../shell/tabs.js";
-import { drawRelation, findId, findPair, gradeFind, nameThing, sameThing } from "../../domain/find.ts";
+import { drawRelation, examplePair, findId, findPair, gradeFind, nameThing, sameThing } from "../../domain/find.ts";
+import { timeUpView } from "../../domain/sprint.ts";
 
 /* ---------- Find a pair: the usual exercise the other way round ---------- */
 // The learner is given a relation and names two phenomena that stand in it, then writes an example for each cell the relation leaves possible, as in Relations.
@@ -74,11 +76,16 @@ export function usePair(){
   render(); top0();
   focusCin();
 }
-/** Time up on the words of the pair (Sprint, shell/timers.js): two words named go on to the examples as they stand; anything less is a miss, with no result and nothing kept, and the next relation comes. */
+/**
+ * Time up on the words of the pair (Sprint, shell/timers.js): two words named go on to the examples as they stand; anything less is a miss, with nothing kept. At Detailed and
+ * Hints a pair of the course with the relation is shown (`gave`; path/find.tsx), and Next goes on; at None the next relation comes (domain/sprint.ts, timeUpView).
+ */
 export function timeUpName(){
   const u=state.ui; if(!u||!u.find||u.checked||u.step!==0) return;
   if(String(u.wordA||"").trim()&&String(u.wordB||"").trim()) usePair();
   if(u.step===1) return;
+  const gave=timeUpView(guidance("find"))==="skip"?null:examplePair(state,state.POOL||[],u.rel,Math.random,state.stages,unmetNow());
+  if(gave){ u.gave=gave; u.checked=true; u.open=false; u.pairErr=""; render(); top0(); return; }
   advanceFind(); render(); top0();
 }
 /** Back to the words of the pair, to change them. */
@@ -92,7 +99,7 @@ export function checkFind(){
   const u=state.ui; if(!u||!u.find||u.checked||u.step!==1||!state.cur.p) return;
   const p=state.cur.p;
   clearSkip(p,u.rel);
-  u.res=gradeFind(state,p,u); u.checked=true; u.open=false;
+  u.res=gradeFind(state,p,u,{refs:guidance("find")==="detailed"}); u.checked=true; u.open=false;
   gradeTerms([{cat:askedTerm(p.catA,p.a),ok:!!u.res.relOk},{cat:askedTerm(p.catB,p.b),ok:!!u.res.relOk}],false);     // the learner's own pair: only a right one counts; "matter" grades matter (practice/stops.ts)
   if(!u.res.relOpen) stageStep("find",pairStageNow(p.catA,p.catB),!!u.res.relOk);     // the run towards the next stage; a miss here says little about the words (practice/stage-offer.ts)
   render();

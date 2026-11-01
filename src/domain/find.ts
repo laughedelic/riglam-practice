@@ -9,8 +9,12 @@ import { pluralOf } from "../ai-shared/mentions";
 import { CELLS, REL, negLabel, plainLabel } from "../ai-shared/relations";
 import type { CellId, Neg, RelKey } from "../ai-shared/relations";
 import { grade, summarize } from "./grading";
-import type { CellResult, GradeResult, Pair, PracticeAnswer } from "./types";
+import type { GradeOptions } from "./grading";
+import type { CellResult, GradeResult, Pair, PoolEntry, PracticeAnswer } from "./types";
+import { wordsFor } from "./intro";
+import { poolAt } from "./stages";
 import { judgeable, pairOf } from "./universe";
+import { pick } from "./util";
 import type { Clock, Rng, Witnesses } from "./universe";
 import type { Stages } from "./stages";
 
@@ -92,9 +96,9 @@ export function findPair(ix: DataIndex, asked: RelKey, a: Named, b: Named, rng: 
  * learner's own pair nothing can be settled here: the relation is open, an example is "cmp" (not checked), a cell the relation leaves empty is "open",
  * and a cell it leaves possible with no example is missing. The tutor's verdicts settle the rest.
  */
-export function gradeFind(ix: DataIndex, p: Pair, u: PracticeAnswer): GradeResult {
+export function gradeFind(ix: DataIndex, p: Pair, u: PracticeAnswer, o: GradeOptions = {}): GradeResult {
   if (!u.rel) throw new Error("gradeFind: no relation was asked for");
-  if (!p.own) return grade(ix, p, u);
+  if (!p.own) return grade(ix, p, u, o);
   const empty = REL[u.rel].empty, cells = {} as Record<CellId, CellResult>;
   for (const c of CELLS) {
     const none = empty.includes(c) || !!u.cells[c].none, t = (u.cells[c].t || "").trim();
@@ -103,4 +107,22 @@ export function gradeFind(ix: DataIndex, p: Pair, u: PracticeAnswer): GradeResul
       : { v: "bad", msg: ["Missing. ", "The relation leaves this cell possible: give an example, or change the pair."], kind: "occ" };
   }
   return summarize({ relOk: false, relOpen: true, cells });
+}
+
+/**
+ * A pair of the course that has relation `rel`, which a time-up with no pair named shows (domain/sprint.ts, timeUpView): two different categories, of the stages that are
+ * on (`on`; of any stage when those have none in that relation), none with a term the learner has not met (`unmet`) where another pair will do, under labels the learner
+ * has met, in the order that gives the relation. Null when the data has no pair in that relation.
+ */
+export function examplePair(ix: DataIndex, pool: readonly PoolEntry[], rel: RelKey, rng: Rng = Math.random, on?: Stages, unmet?: ReadonlySet<string>): Pair | null {
+  const r = rel === "3ab" || rel === "3ba" ? "3" : rel, of = (l: readonly PoolEntry[]) => l.filter((c) => c.r === r && c.a !== c.b);
+  const staged = on ? of(poolAt(ix, pool, on)) : [], from = staged.length ? staged : of(pool);
+  const met = unmet?.size ? from.filter((c) => !unmet.has(c.a) && !unmet.has(c.b)) : from, cands = met.length ? met : from;
+  if (!cands.length) return null;
+  const c = pick(cands, rng), label = (id: string) => {
+    const all = ix.CAT[id].labels, plain = all.filter((l) => !l.startsWith("non-"));
+    return wordsFor(ix, id, plain.length ? plain : all, unmet)[0];
+  };
+  const p = pairOf(ix, c.a, c.b, label(c.a), label(c.b), rng, Date.now, undefined, on);
+  return p.relation === rel ? p : pairOf(ix, c.b, c.a, label(c.b), label(c.a), rng, Date.now, undefined, on);
 }

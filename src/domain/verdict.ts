@@ -222,7 +222,7 @@ export function applyVerdicts(p: PairLike, res: GradeResult, verdicts: readonly 
     if (from !== "claude" && ok === "unsure") continue; // only the question asked now can leave a cell unsure
     const ref = refOf(p, c), tag = TAG[from];
     r.v = ok === "yes" ? "ok" : ok === "no" ? "bad" : "cmp"; r.uns = ok === "unsure"; r.by = from === "course" ? "course" : "claude"; n++;
-    r.msg = ok === "yes" ? ["Verified", "", tag] : ok === "no" ? ["Does not fit", ref ? ". Example: " + ref + "." : "", tag] : ["Unsure. ", "Claude could not settle it; see below." + (ref ? " Reference: " + ref + "." : "")];
+    r.msg = ok === "yes" ? ["Verified", "", tag] : ok === "no" ? ["Does not fit", ref ? ". Example: " + ref + "." : "", tag] : ["Unsure. ", "Claude could not settle it; see below." + (ref && !res.noRefs ? " Reference: " + ref + "." : "")];
   }
   summarize(res);
   return n;

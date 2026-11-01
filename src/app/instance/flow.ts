@@ -8,7 +8,9 @@ import { freshUi } from "../practice/queue.js";
 import { catsStageNow, shareNow, stageStep } from "../practice/stage-offer.ts";
 import { gradeTerms, openNow, unmetNow } from "../practice/stops.ts";
 import { render, top0 } from "../shell/render.js";
-import { drawInstance, gradeInstance, instanceGraded, instanceKey } from "../../domain/instance.ts";
+import { drawInstance, gradeInstance, instanceExample, instanceGraded, instanceKey } from "../../domain/instance.ts";
+import { timeUpView } from "../../domain/sprint.ts";
+import { guidance } from "../practice/guided.ts";
 import type { InstanceQuestion, InstanceResult } from "../../domain/instance.ts";
 import type { DataIndex } from "../../ai-shared/lookup.ts";
 import type { InstanceDoc, Ui } from "../types.ts";
@@ -52,10 +54,20 @@ export function sayNothing(on = true): void {
   render();
 }
 
-/** Time up (Sprint, shell/timers.js): what is written, or "nothing is", stands and is checked; with nothing there it is a miss, with no result and nothing kept, and the next set comes. */
+/**
+ * Time up (Sprint, shell/timers.js): what is written, or "nothing is", stands and is checked. With nothing there it is a miss, with nothing kept: at Detailed and Hints the answer
+ * is shown (`gave`: a thing of the course that fits, or that nothing can be; path/instance.tsx) and Next goes on, at None the next set comes (domain/sprint.ts, timeUpView).
+ */
 export function timeUpInstance(): void {
   const u = live(); if (!u) return;
-  if (!instanceBegun(u)) { advanceInstance(); render(); top0(); return; }
+  if (!instanceBegun(u)) {
+    const q = shownSet(), example = q && q.possible ? instanceExample(ix(), q) : null;
+    if (q && (example || !q.possible) && timeUpView(guidance("instance")) !== "skip") {
+      u.ranOut = true; u.gave = true; u.checked = true; u.ir = { v: "bad", thing: "", from: null, rows: [], example };
+      render(); top0(); return;
+    }
+    advanceInstance(); render(); top0(); return;
+  }
   u.ranOut = true;
   checkInstance();
 }

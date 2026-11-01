@@ -117,10 +117,29 @@ function ResultStep() {
   </>;
 }
 
+/** A time-up with nothing written, at Detailed and Hints (instance/flow.ts, timeUpInstance): a thing of the course that fits, with its categories at Detailed and by its name at
+ *  Hints, or that nothing can be, with why at Detailed. Nothing is kept, so the verdict makes no sound of its own after the time-up's. */
+function GaveStep() {
+  const u = u0(), s = q(), ir = u.ir as InstanceResult, ex = ir.example, spelled = guidance("instance") === "detailed", all = allOf(s.cats.length);
+  return <>
+    <Scroll>
+      <Sx cls="walked first"><Gap h={14} /><Head d={<D cls="sec done" />} h="1 Instance" sub="nothing written in time" /><Gap h={4} /><CatStops s={s} sm /><Gap h={6} /></Sx>
+      <Verdict v="no" word="Time is up" sub="nothing written" quiet />
+      <Sx cls="walked"><St d={<D cls="sub done" />} cls="sb exr gave"><span class="lab">{ex ? "for example" : "the answer"}</span>
+        <div class="line1"><span class="ans2">{ex ? ex.thing : "nothing can be " + all}</span></div>
+        {!ex && spelled && s.apart ? <p class="xnote">{s.apart.why}</p> : null}</St></Sx>
+      {ex && spelled ? <Sx cls="okp"><p class="pgh"><b>{ex.thing}</b><span>in each category</span></p>{ex.rows.map((r) => <Row r={r} />)}</Sx> : null}
+      <Sx cls="ptail" />
+    </Scroll>
+    <Foot><Station name={nextName("Next set")} kind={nextKind()} act={() => next()} /></Foot>
+  </>;
+}
+
 /** The screen of Find an instance: its top bar and the step the attempt is at. */
 export function instanceScreen(kb: boolean): { cls: string; node: ComponentChildren } {
   const u = u0(), top = <TopBar title="Find an instance" tools />;
   if (!shownSet()) return { cls: "", node: <>{top}<div class="pstatus"><p>There are no categories to ask about in the practice data.</p></div></> };
+  if (u.checked && u.ir && u.gave) return { cls: "done", node: <>{top}<GaveStep /></> };
   if (u.checked && u.ir) return { cls: "done", node: <>{top}<ResultStep /></> };
   return { cls: ready() ? "ready" : "", node: <>{top}<AskStep kb={kb} /></> };
 }

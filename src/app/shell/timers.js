@@ -5,12 +5,14 @@ import { timeUpName } from "../find/flow.js";
 import { timeUpCategories, timeUpCategory } from "../categories/flow.js";
 import { timeUpInstance } from "../instance/flow.ts";
 import { check } from "../practice/grading.js";
+import { guidance } from "../practice/guided.ts";
 import { keepOwn } from "../practice/per-exercise.ts";
+import { moveOn } from "../practice/queue.js";
 import { fillable, settled } from "../practice/screen.js";
 import { expireSyllogism } from "../syllogism/flow.js";
 import { focusCin, render } from "./render.js";
 import { cue } from "../sound/play.ts";
-import { NAME_TIMES, TIME_KEY, nextAfterTimeUp } from "../../domain/sprint.ts";
+import { NAME_TIMES, TIME_KEY, nextAfterTimeUp, timeUpView } from "../../domain/sprint.ts";
 
 /* ---------- Sprint: the clock of a step (the code and what is stored still say Blitz) ---------- */
 // A clock times one step of an exercise, the same way in all six: choosing the relation, choosing Accept or Why?, writing an example (each case on its own clock), naming a pair,
@@ -35,13 +37,18 @@ const covered = (u) => !!u.open && (!!u.find || (!u.debate && !u.syllogism && !u
 const blurred = () => { const a = document.activeElement; if (a && a.blur) a.blur(); };
 
 // ---- what each step does when its time is up
-// Relations, the relation: marked wrong, the right one is shown, and the path goes on to the examples
+// Relations, the relation: marked wrong, the right one is shown (spelled out with the pair at Detailed, by its name at Hints), and the path goes on to the examples. At None
+// the pair is kept as wrong with no example asked (its relation was not given), and the next pair comes (domain/sprint.ts, timeUpView).
 function expireRel(u) {
   if (u !== state.ui || u.checked || u.rel || state.tab !== "practice") return;
   cue("timeup");
   const k = state.cur.p.relation;
   u.tid = null; u.tq = null; u.late = true; u.rel = k; u.open = false; u.ci = 0; u.seen = 0; u.pop = null;
   for (const c of REL[k].empty) { u.cells[c].t = ""; u.cells[c].none = false; }
+  if (timeUpView(guidance("practice")) === "skip") {
+    u.exLate = true; u.missed = Object.fromEntries(fillable().map((c) => [c, true])); u.pall = true; u.passOn = true;
+    blurred(); check(); moveOn(); return;
+  }
   render(); focusCin();
 }
 // Pervasions, the relation: the answers are checked with no relation chosen, and the result shows the right one

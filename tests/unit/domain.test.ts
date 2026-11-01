@@ -26,6 +26,10 @@ import { FACTS_EPOCH, factKey, learn, opinionOf, ruleSide, servable } from "../.
 import type { Answer, FactRow, Opinion, Ruling } from "../../src/domain";
 import { knownLine, openExamples, referenceLines, wholeFirst } from "../../src/domain";
 import { makeExampleIndex } from "../../src/ai-shared/examples";
+import { examplePair } from "../../src/domain/find";
+import { instanceExample } from "../../src/domain/instance";
+import { timeUpView } from "../../src/domain/sprint";
+import { checksShown } from "../../src/domain/syllogism";
 
 /** A small deterministic random source (mulberry32), so a test draws the same numbers every time. */
 const seeded = (seed: number) => () => {
@@ -2608,4 +2612,80 @@ test("a term's stop shown again keeps its mark and its place in the ring: a miss
 test("stageProgress: a ring that waits for no run reads full, never NaN", () => {
   const p = stageProgress(freshRun(), [0], [], true);
   expect(Number.isFinite(p.frac)).toBe(true);
+});
+
+// ---- Guidance, round 3: what a time-up and a result give away at each level ----
+test("timeUpView: Detailed explains the answer, Hints names it, None goes straight on", () => {
+  expect([timeUpView("detailed"), timeUpView("hints"), timeUpView("none")]).toEqual(["explain", "name", "skip"]);
+});
+
+test("past Detailed a case without the learner's example says it has one, without naming it; a wrong example keeps its reference", () => {
+  const p = pair({ relation: "3ab", ex: { both: "a gray wooden table", anb: null, bna: "a gray stone", nei: "a thought" }, why: { anb: "Whatever is wooden is gray." } });
+  const u = { rel: "con" as RelKey, cells: cellsOf({ anb: "a wooden chair", bna: "a gray dragon", nei: "a gray stone" }) };
+  const full = grade(ix, p, u), bare = grade(ix, p, u, { refs: false });
+  expect(full.cells.both.msg).toEqual(["Counter-example: ", "a gray wooden table"]);     // the relation leaves it empty
+  expect(bare.cells.both.msg).toEqual(["Counter-example: ", "there is one."]);
+  expect(full.cells.bna.msg).toEqual(["Not checked. ", "Reference: a gray stone."]);
+  expect(bare.cells.bna.msg).toEqual(["Not checked. ", ""]);
+  expect(bare.cells.nei.msg[1]).toContain("Example: a thought.");                          // written in the wrong cell: the reference stays
+  const missing = grade(ix, pair(), { rel: "4", cells: cellsOf({ ...perfect, both: "" }) }, { refs: false });
+  expect(missing.cells.both.msg).toEqual(["Missing. ", "There is an example."]);
+  // the counts and the verdicts do not change with the level, only the words
+  for (const c of CELLS) { expect(bare.cells[c].v).toBe(full.cells[c].v); expect(bare.cells[c].kind).toBe(full.cells[c].kind); }
+  expect([bare.overall, bare.occBad, bare.exOpen]).toEqual([full.overall, full.occBad, full.exOpen]);
+  expect([full.noRefs, bare.noRefs]).toEqual([undefined, true]);
+});
+
+test("past Detailed the debate says a counter-example exists without naming it", () => {
+  const p = pair({ relation: "3ab", ex: { both: "a gray wooden table", anb: null, bna: "a gray stone", nei: "a thought" }, why: { anb: "Whatever is wooden is gray." } });
+  const u: DebateInput = { rel: "3ab", ans: dAns({ say: "accept" }, { say: "accept" }, { say: "why", text: "", timeout: true }, { say: null }) };
+  const full = gradeDebate(ix, p, u), bare = gradeDebate(ix, p, u, { refs: false });
+  expect(full.cells.both.msg).toEqual(["Counter-example: ", "a gray wooden table"]);
+  expect(bare.cells.both.msg).toEqual(["Counter-example: ", "there is one."]);
+  expect(bare.cells.anb.msg).toEqual(["Right. ", "Whatever is wooden is gray."]);           // why a case is empty is not a reference: it stays
+  expect(bare.cells.bna.msg).toEqual(["Time ran out. ", ""]);                                 // Why? said there is one already
+  expect(bare.cells.nei.msg).toEqual(["Time ran out. ", "There is an example."]);
+  expect(bare.overall).toBe(full.overall);
+});
+
+test("past Detailed an unsure verdict does not name the reference either", () => {
+  const p = pair();
+  const res = grade(ix, p, { rel: "4", cells: cellsOf({ ...perfect, bna: "a gray ghost" }) }, { refs: false });
+  applyVerdicts(p, res, parseVerdicts("B not A: z => unsure"));
+  expect(res.cells.bna.msg).toEqual(["Unsure. ", "Claude could not settle it; see below."]);
+});
+
+test("checksShown: all three checks at Detailed; past it only the one that decides, with its formula at Hints", () => {
+  expect(checksShown({ answer: "reason" }, "detailed")).toEqual([{ k: "e", line: true }, { k: "v", line: true }, { k: "t", line: true }]);
+  expect(checksShown({ answer: "reason" }, "hints")).toEqual([{ k: "e", line: true }]);
+  expect(checksShown({ answer: "pervasion" }, "hints")).toEqual([{ k: "v", line: true }]);
+  expect(checksShown({ answer: "accept" }, "hints")).toEqual([{ k: "whole", line: true }]);
+  expect(checksShown({ answer: "pervasion" }, "none")).toEqual([{ k: "v", line: false }]);
+  // the thesis is never shown past Detailed, nor the pervasion where the reason fails
+  for (const answer of ["accept", "reason", "pervasion"] as const) expect(checksShown({ answer }, "hints").map((x) => x.k)).not.toContain("t");
+});
+
+test("examplePair: a pair of two categories with the relation asked for, of the stages that are on, under labels the learner has met", () => {
+  for (const rel of FIND_RELS) for (let s = 1; s <= 12; s++) {
+    const p = examplePair(rix, realPool, rel, seeded(s), [0, 1, 2])!;
+    expect(p, rel).not.toBeNull();
+    expect(p.relation).toBe(rel);
+    expect(p.catA).not.toBe(p.catB);
+    expect(p.a.startsWith("non-") || p.b.startsWith("non-")).toBe(false);
+    const st = poolAt(rix, realPool, [0, 1, 2]).filter((c) => c.r === (rel === "3ab" || rel === "3ba" ? "3" : rel) && c.a !== c.b);
+    if (st.length) expect(st.some((c) => [c.a, c.b].sort().join("|") === [p.catA, p.catB].sort().join("|"))).toBe(true);
+  }
+  // a category with a term not met is passed over while another pair will do
+  const first = examplePair(rix, realPool, "3ab", seeded(3))!, unmetCats = new Set([first.catA as string]);
+  for (let s = 1; s <= 12; s++) { const p = examplePair(rix, realPool, "3ab", seeded(s), undefined, unmetCats)!; expect([p.catA, p.catB]).not.toContain(first.catA); }
+});
+
+test("instanceExample: a thing that is in every category of the set, or none when nothing can be", () => {
+  const q = instanceQuestion(rix, ["form", "red"], seeded(1), [1]);
+  const ex = instanceExample(rix, q, seeded(2))!;
+  expect(q.possible).toBe(true);
+  expect(ex.rows.length).toBe(2);
+  expect(ex.rows.every((r) => r.answer === true)).toBe(true);
+  const apart = realPool.find((c) => c.r === "con" && c.a !== c.b && instanceQuestion(rix, [c.a, c.b], seeded(1)).possible === false)!;
+  expect(instanceExample(rix, instanceQuestion(rix, [apart.a, apart.b], seeded(1)), seeded(2))).toBeNull();
 });

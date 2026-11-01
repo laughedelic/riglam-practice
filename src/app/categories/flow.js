@@ -1,8 +1,10 @@
 import { state } from "../state.js";
 import { persist } from "../practice/answers.js";
-import { freshUi } from "../practice/queue.js";
+import { freshUi, moveOn } from "../practice/queue.js";
+import { guidance } from "../practice/guided.ts";
 import { render, top0 } from "../shell/render.js";
 import { drawPlace, gradePlace, placeGrade } from "../../domain/place.ts";
+import { timeUpView } from "../../domain/sprint.ts";
 import { gradeTerms, openNow, unmetNow } from "../practice/stops.ts";
 import { shareNow, stageStep } from "../practice/stage-offer.ts";
 
@@ -67,11 +69,15 @@ export function sayCategory(yes){
   if(u.i>=q.rows.length){ finishThing(q.rows.filter(r=>u.said[r.cat]).map(r=>r.cat)); return; }
   render();
 }
-/** Time up on the ticks of one screen (Sprint, shell/timers.js): what is ticked stands, the rest counts as not ticked, and the screen is checked as it is. */
+/** Time up on the ticks of one screen (Sprint, shell/timers.js): what is ticked stands, the rest counts as not ticked, and the screen is checked as it is. With nothing ticked at
+ *  None, it is kept so, with no result, and the next thing comes (domain/sprint.ts, timeUpView). */
 export function timeUpCategories(){
   const u=state.ui; if(!u||!u.cats||u.step!==0||u.checked||u.ask!=="all"||!state.cur.q) return;
   u.ranOut=true;
+  const skip=!u.ticked.length&&timeUpView(guidance("categories"))==="skip";
+  if(skip) u.passOn=true;
   finishThing(u.ticked);
+  if(skip) moveOn();
 }
 /** Time up on one category: it counts as no, and the next is asked. */
 export function timeUpCategory(){
