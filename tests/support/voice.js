@@ -10,7 +10,7 @@ export async function voice(page, { settings = {}, heard = [], none = false, on 
       for (const k of ["speechSynthesis", "SpeechRecognition", "webkitSpeechRecognition"]) Object.defineProperty(window, k, { value: undefined, configurable: true });
       return;
     }
-    export const said = (window.__said = []);
+    const said = (window.__said = []);
     window.__heard = heard.slice();
     window.__listens = 0;
     window.SpeechSynthesisUtterance = class { constructor(text) { this.text = text; } };

@@ -112,7 +112,7 @@ export function heardHere(a: AskAny, alts: readonly string[]): Heard | string {
   if (a.kind === "pair") {
     const r = spokenPair(ix(), alts);
     if (!r) return hint;
-    return { heard: r.heard, label: r.a + " and " + r.b, apply: () => { u.wordA = r.a; u.wordB = r.b; usePair(); if (state.ui && state.ui.step === 1) return () => editPair(); } };
+    return { heard: r.heard, label: r.a + " and " + r.b, apply: () => { u.wordA = r.a; u.wordB = r.b; usePair({ voiced: true }); if (state.ui && state.ui.step === 1) return () => editPair(); } };
   }
   const x = spokenThing(ix(), alts), n = (state.cur!.iq as InstanceQuestion).cats.length;
   if (!x) return hint;

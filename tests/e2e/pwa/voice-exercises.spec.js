@@ -62,7 +62,10 @@ test("Syllogisms: 'there is no pervasion' goes on to the counter-example, which 
   await chip(page).getByRole("button", { name: "Change" }).click();
   await expect(choices(page)).toHaveCount(3);   // back at the replies, none picked
   expect(await page.evaluate(() => window.__t.ui.step)).toBe(0);
-  await hear(page, "no pervasion");
+  await expect(mic(page)).toHaveAttribute("aria-pressed", "true");   // the microphone is open again, and the question is not read again
+  await hearNext(page, "no pervasion");
+  await settle(page);
+  await expect(waiting(page)).toBeVisible();
   await confirm(page);
   await expect(page.locator("#sylex")).toBeVisible();
   await hear(page, "skip");
@@ -189,7 +192,9 @@ test("Categories, one at a time: a yes or a no goes on at once, Change takes the
   expect(await page.evaluate(() => window.__t.ui.i)).toBe(1);
   await chip(page).getByRole("button", { name: "Change" }).click();
   expect(await page.evaluate(() => window.__t.ui.i)).toBe(0);   // asked again
-  for (let i = 0; i < rows.length; i++) await hear2(page, rows[i] ? "yes" : "no");
+  for (let i = 0; i < rows.length - 1; i++) await hear2(page, rows[i] ? "yes" : "no");
+  await hearNext(page, rows[rows.length - 1] ? "yes" : "no");
+  await mic(page).click();   // the last answer checks the thing
   await expect(verdict(page)).toContainText("Right");
   await expect.poll(async () => (await saved(page, "categories")).length).toBe(1);
 });
