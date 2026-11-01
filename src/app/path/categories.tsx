@@ -14,7 +14,7 @@ import type { ScanPlan } from "./scan.tsx";
 import { Scroll } from "./scroll.tsx";
 import { Threshold } from "./threshold.tsx";
 import { nextKind, nextName } from "./next.ts";
-import { Foot, PreStation, SkipSide, Station, TopBar } from "./shell.tsx";
+import { Foot, PreStation, SkipSide, Station, TopBar, VoiceField } from "./shell.tsx";
 import { D, Gap, Head, Mark, St, Sx } from "./ui.tsx";
 
 const q = () => state.cur!.q as PlaceQuestion;
@@ -125,6 +125,7 @@ function TickStep() {
       <Threshold label="Categories the thing is in" items={t.rows.map((r, i) => ({ k: r.cat, b: r.phrase, key: String(i + 1) }))} picked={u.ticked} onPick={tickCategory} onReset={resetCategories} />
       <Sx cls="ptail" />
     </Scroll>
+    <VoiceField />
     <Foot aux={<SkipSide />}>
       <Station kind="chk" name="Check" hint={!n ? "none of these" : n === 1 ? "one category" : n + " categories"} act={() => checkCategories()} scan={scanPlan} />
     </Foot>
@@ -143,6 +144,7 @@ function OneStep() {
       {u.i < t.rows.length - 1 ? <Sx cls="gap later"><St d={<D cls="sub" />} cls="sb later"><span class="lab">{t.rows.length - u.i - 1} more</span></St></Sx> : null}
       <Sx cls={"ptail" + (u.i < t.rows.length - 1 ? " dtail" : "")} />
     </Scroll>
+    <VoiceField />
     <Foot aux={<SkipSide />}><PreStation name="Check" hint="answer each one" /></Foot>
   </>;
 }
