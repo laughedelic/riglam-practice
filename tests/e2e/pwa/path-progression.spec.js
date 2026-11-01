@@ -92,7 +92,7 @@ test("the roadmap's rings open the Progression page with that stage unfolded; a 
   await expect(stages(page).nth(2).locator(".olhit")).toHaveAttribute("aria-expanded", "true");
   await page.locator(".tstn").click();
   await expect(road(page)).toBeVisible();
-  await expect(road(page).getByRole("button", { name: /^Continue/ })).toBeVisible();
+  await expect(road(page).locator("[aria-current=page]"), "the exercise is under the roadmap again").toBeVisible();
   // Review is Review again
   await road(page).getByRole("button", { name: /^Review/ }).click();
   await expect(page.locator(".ppage .ptitle")).toHaveText("Review");
@@ -110,8 +110,8 @@ test("the system Back from a term's card goes to the stages, and from the stages
   await expect(page.locator("#path .ptb-t")).toHaveText("Progression");
   await page.goBack();
   await expect(road(page)).toBeVisible();
-  await expect(road(page).getByRole("button", { name: /^Continue/ })).toBeVisible();
-  await road(page).getByRole("button", { name: /^Continue/ }).click();
+  await expect(road(page).locator("[aria-current=page]")).toBeVisible();
+  await road(page).locator("[aria-current=page]").click();
   await expect(exercise(page)).toHaveCount(5);
 });
 

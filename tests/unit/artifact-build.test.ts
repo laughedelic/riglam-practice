@@ -16,9 +16,9 @@ const page = exists ? readFileSync(file, "utf8") : "";
 built("a fragment with a title in the first 8 KB", () => {
   expect(/<!doctype|<html[\s>]|<head[\s>]|<body[\s>]/i.test(page), "the Artifact tool adds the document skeleton").toBe(false);
   const title = page.slice(0, 8192).match(/<title>([^<]+)<\/title>/)?.[1];
+  // The live artifact keeps this title (a republish leaves the stored one, and `artifact:verify` compares from the title), so it changes only together with a retitled and republished artifact.
+  // The PWA's title follows the app's name (vite.config.js, the manifest) and is "Riglam practice"; the two no longer have to match.
   expect(title).toBe("Dudra practice");
-  const indexTitle = readFileSync(resolve(root, "index.html"), "utf8").match(/<title>([^<]+)<\/title>/)![1];
-  expect(indexTitle, "the PWA and the artifact carry the same name").toBe(title);
 });
 
 built("one style, one script, nothing loaded from the network but fonts", () => {

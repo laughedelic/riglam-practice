@@ -1,11 +1,11 @@
-// The roadmap: every exercise as a stop on a tree, under the exercise. The back chevron in the top bar or the system Back slides the exercise away to the right and shows it; "Continue" slides the exercise
-// back in from the right. Each exercise shows today's last answers as small diamonds, "continue" when an attempt waits in it, and the planned one (Debate, which the three branches lead to, and
+// The roadmap: every exercise as a stop on a tree, under the exercise. The back chevron in the top bar or the system Back slides the exercise away to the right and shows it; "Continue", when the exercise
+// has an attempt under way, slides the exercise back in from the right (a stop does the same). Each exercise shows today's last answers as small diamonds, "continue" when an attempt waits in it, and the planned one (Debate, which the three branches lead to, and
 // the path goes on from it) is dashed. Above its foot a notice says when a newer version is ready; the foot goes to Review and Settings, the Magic Key while this device has none, and the
 // version with the way to update. The roadmap looks for a newer version every time it opens.
 import { useEffect, useRef } from "preact/hooks";
 import { state } from "../state.js";
 import { dayOf, gradeOf, today } from "../core/util.js";
-import { EXERCISES, parked, todayCount } from "../shell/exercises.js";
+import { EXERCISES, parked, todayCount, unfinished } from "../shell/exercises.js";
 import { toggleMenu } from "../shell/menu.js";
 import { toggleOpts } from "../shell/options.js";
 import { setTab } from "../shell/tabs.js";
@@ -91,7 +91,8 @@ export function Roadmap() {
   }, [on]);
   // the notice under the top bar (pwa/update-toast.ts) gives way while the roadmap is open: it has its own notice at the bottom
   useEffect(() => { document.documentElement.classList.toggle("road-open", on); return () => document.documentElement.classList.remove("road-open"); }, [on]);
-  const n = todayCount().n, back = state.mode === "quiz" && isEx();
+  // "Continue" goes back to the exercise under the roadmap, so it is there only when that exercise has an attempt to continue; with a pair only drawn (the first time the app opens) the way in is its stop
+  const n = todayCount().n, back = state.mode === "quiz" && isEx() && unfinished(state.tab);
   return <div ref={box} class={"road" + (on ? " on" : "")} role="dialog" aria-modal="true" aria-label="Roadmap" aria-hidden={on ? "false" : "true"} inert={!on}>
     <div class="rbody">
       <svg class="tree" viewBox="0 0 390 590" role="group" aria-label="The exercises">
