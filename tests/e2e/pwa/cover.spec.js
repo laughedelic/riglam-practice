@@ -130,14 +130,15 @@ test("the cover flies its figure and name into their places at the head of the r
   expect(await page.evaluate(() => document.documentElement.classList.contains("cv-zoom")), "the roadmap's head is back").toBe(false);
 });
 
-test("a cold start opens on the roadmap, and Continue goes to the exercise", async ({ page }) => {
+test("a cold start opens on the roadmap, which has no Continue yet, and the exercise's stop goes to the exercise", async ({ page }) => {
   await page.addInitScript(() => { localStorage.setItem("rd-start", "road"); });
   await page.goto("/");
   const road = page.getByRole("dialog", { name: "Roadmap" });
   await expect(road).toBeVisible();
   await expect(page.locator("#path .lay")).toBeHidden();
   await expect(page.locator("#cover")).toHaveCount(0);
-  await road.getByRole("button", { name: "Continue" }).click();
+  await expect(road.getByRole("button", { name: "Continue", exact: true }), "nothing is begun, so nothing to continue").toHaveCount(0);
+  await road.locator("[aria-current=page]").click();
   await expect(page.locator("#path .chs .crow")).toHaveCount(5);
 });
 
@@ -155,12 +156,12 @@ test("a cold start opens on an attempt that was under way when the app was put a
   await page.goto("/");
   const road = page.getByRole("dialog", { name: "Roadmap" }), lay = page.locator("#path .lay"), choices = page.locator("#path .chs .crow");
   const terms = () => page.locator("#path .pairst .tn").allInnerTexts();     // the pair's two terms
-  await road.getByRole("button", { name: "Continue" }).click();
+  await road.locator("[aria-current=page]").click();
   await expect(choices).toHaveCount(5);
   // drawn, not begun: the page keeps nothing, and a cold start opens on the roadmap
   await page.reload();
   await expect(road).toBeVisible();
-  await road.getByRole("button", { name: "Continue" }).click();
+  await road.locator("[aria-current=page]").click();
   await expect(choices).toHaveCount(5);
   const pair = await terms();
   await choices.first().click();                                   // a relation picked: the attempt has begun

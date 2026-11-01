@@ -86,9 +86,8 @@
 .pa .tree .ed.pl{font-family:var(--mono); font-size:10px; letter-spacing:.06em; fill:var(--ink3)}
 .pa .tree .ed.cont{font-family:var(--mono); font-size:10px; fill:var(--gold-t)}
 .pa .tree .bn,.pa .tree .bp{font-family:'Sorts Mill Goudy','EB Garamond',Georgia,serif; font-weight:400}
-.pa .tree .bn{font-size:20.5px; letter-spacing:.08em; fill:var(--ink)}
-.pa .tree .bp{font-style:italic; font-size:23.83px; letter-spacing:.1em; fill:var(--ink2)}
-.pa .tree .bl{letter-spacing:0}
+.pa .tree .bn{font-size:20.5px; fill:var(--ink)}   /* no letter-spacing here: the spacing is textLength's (path/brand.tsx) */
+.pa .tree .bp{font-style:italic; font-size:23.83px; fill:var(--ink2)}
 html.cv-zoom .pa .road .rhead{opacity:0}   /* the cover is flying its own figure and name in (pwa/cover.ts); these appear when it lands */
 .pa .tree .hit{fill:transparent; cursor:pointer}
 .pa .tree a:focus-visible .nd,.pa .tree [tabindex]:focus-visible .nd{stroke:var(--ink); stroke-width:2.6}
