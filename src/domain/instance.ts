@@ -367,13 +367,17 @@ export function nameOf(ix: DataIndex, cats: readonly string[], text: string, ex?
   return alias ? { item: alias, loose: cats.some((c) => FEATURE.has(c)) } : null;
 }
 
+/** A thing of the practice list that is in every category of the set, with its rows: what a wrong answer is shown, and a time-up with nothing written (domain/sprint.ts,
+ *  timeUpView). Null when nothing can be, or the list knows nothing that is. */
+export function instanceExample(ix: DataIndex, q: InstanceQuestion, rng: Rng = Math.random): InstanceResult["example"] {
+  if (!q.possible || !q.known.length) return null;
+  const name = pick(q.known, rng), it = ix.DATA.items.find((i) => i.n === name)!;
+  return { thing: it.n, rows: itemRows(ix, it, q.cats, q.labels, undefined, q.stages) };
+}
+
 /** Grades the answer: "nothing is" is right exactly when nothing can be; a thing is right when the data places it in every category. */
 export function gradeInstance(ix: DataIndex, q: InstanceQuestion, ans: InstanceAnswer, ex?: ExampleIndex | null, rng: Rng = Math.random): InstanceResult {
-  const sample = () => {
-    if (!q.possible || !q.known.length) return null;
-    const name = pick(q.known, rng), it = ix.DATA.items.find((i) => i.n === name)!;
-    return { thing: it.n, rows: itemRows(ix, it, q.cats, q.labels, undefined, q.stages) };
-  };
+  const sample = () => instanceExample(ix, q, rng);
   if (ans.none === true) return { v: q.possible ? "bad" : "ok", thing: "", from: null, rows: [], example: sample() };
   const text = ans.text.trim(), named = nameOf(ix, q.cats, text, ex);
   if (!named) return { v: q.possible ? "open" : "bad", thing: text, from: null, rows: [], example: sample() };

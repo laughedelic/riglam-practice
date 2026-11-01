@@ -1,3 +1,5 @@
+import type { Guidance } from "./stages";
+
 // Sprint: the clock of a step. The times it can have, what they start from, where they are kept, and which an exercise uses. What the page does at the end of a
 // step lives with the exercises (app/shell/timers.js); the numbers and the rules about them are here, so that they are tested apart from the page.
 
@@ -54,3 +56,9 @@ export function nextAfterTimeUp(order: string[], at: number, done: (cell: string
   const rest = [...order.slice(at + 1), ...order.slice(0, Math.max(0, at))];
   return rest.find((c) => !done(c)) ?? null;
 }
+
+/** What a full bar shows when nothing was answered, by the level of guidance of the exercise (practice/guided.ts): the answer explained ("explain", Detailed), the answer
+ *  alone ("name", Hints), or nothing, and the next question comes at once ("skip", None). Something answered is checked as it stands at every level: the level changes what
+ *  is shown, not what counts (a time-up that counts as wrong is kept as wrong, at None too, and Review lists it). */
+export type TimeUpView = "explain" | "name" | "skip";
+export const timeUpView = (g: Guidance): TimeUpView => (g === "detailed" ? "explain" : g === "hints" ? "name" : "skip");

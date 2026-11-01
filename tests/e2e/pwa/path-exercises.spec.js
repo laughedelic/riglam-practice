@@ -62,6 +62,22 @@ test("Syllogisms: a wrong 'there is no pervasion' holds its verdict too, until t
   expect((await saved(page, "syllogism"))[0]).toMatchObject({ said: "pervasion", correct: false });
 });
 
+test("Syllogisms at Hints: only the check that decides, with its formula; a reason that fails says nothing of the counter-example", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("rd-guided", JSON.stringify({ syllogism: "hints" })));
+  await open(page, "Syllogisms");
+  expect(await page.evaluate(() => { for (let i = 0; i < 600; i++) { if (window.__t.cur.c.answer === "reason") return true; window.__t.next(); } return false; })).toBe(true);
+  await choice(page, "There is no pervasion").click();
+  await page.locator("#sylex").fill("a pot");
+  await page.locator("#sylex").blur();
+  await station(page).click();
+  await expect(verdict(page)).toContainText("Not quite");
+  await expect(page.locator("#path .chk")).toHaveCount(1);
+  await expect(page.locator("#path .chk .lab2")).toHaveText("Reason · not established");
+  await expect(page.locator("#path .chk p").first()).toHaveText("S is not R.");
+  await expect(page.locator("#path .mine"), "the counter-example's verdict would tell whether the pervasion holds").toHaveCount(0);
+  await expect(page.locator("#path .conf"), "nor what was mixed up").toHaveCount(0);
+});
+
 test("Syllogisms: S, P and R sit a line each (no room kept for a star the syllogism has none of), and the heading's stop stays yellow while the counter-example is asked", async ({ page }) => {
   await open(page, "Syllogisms");
   const rows = page.locator("#path .stm");

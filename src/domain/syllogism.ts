@@ -13,6 +13,7 @@ import type { DataIndex } from "../ai-shared/lookup";
 import type { CellId } from "../ai-shared/relations";
 import { catChain, termPhrase } from "./ladder";
 import type { HistoryEntry } from "./types";
+import type { Guidance } from "./stages";
 import { cellsFor, judgeable } from "./universe";
 import type { Rng } from "./universe";
 import { FEATURE, RECENT_MAX, inUniverse } from "./universe";
@@ -429,6 +430,16 @@ export function gradeSyllogism(c: Syllogism, said: Reply): SyllogismResult {
     missedPoint: !correct && c.answer === "reason" && said === "pervasion" && !c.checks.v.ok,
     confusion: correct ? "" : confusionOf(c, said),
   };
+}
+
+/**
+ * The checks a result shows, by the level of guidance (practice/guided.ts): at Detailed all three, each with its line in the syllogism's words; past it only the one that
+ * decides the answer, the first that fails ("whole" for a syllogism that stands), with its formula in S, P and R at Hints (`line`) and its name alone at None. So past
+ * Detailed a result does not give away whether the thesis is true, nor, where the reason fails, whether the pervasion holds. The same for every result, a time-up's too.
+ */
+export function checksShown(c: Pick<Syllogism, "answer">, g: Guidance): { k: "e" | "v" | "t" | "whole"; line: boolean }[] {
+  if (g === "detailed") return (["e", "v", "t"] as const).map((k) => ({ k, line: true }));
+  return [{ k: c.answer === "reason" ? "e" : c.answer === "pervasion" ? "v" : "whole", line: g === "hints" }];
 }
 
 /** The result when the time runs out with no reply (Blitz): wrong, and the right reply is named; nothing was mixed up, so there is nothing to say about it. */

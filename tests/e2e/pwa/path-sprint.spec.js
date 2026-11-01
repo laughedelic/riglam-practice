@@ -6,6 +6,10 @@ import { goTo, ready, relOptions } from "../../support/page.js";
 const EXERCISES = ["Relations", "Pervasions", "Syllogisms", "Find a pair", "Categories", "Find an instance"];
 /** Sprint on from the start, with `times` stored on the device (key: ms). */
 const sprint = (page, times = {}) => page.addInitScript((t) => { localStorage.setItem("rd-blitz", "1"); for (const [k, v] of Object.entries(t)) localStorage.setItem(k, String(v)); window.__riglamTest = (x) => { window.__t = x; }; }, times);
+/** The level of guidance of each exercise named (practice/guided.ts), picked on the device. */
+const guided = (page, levels) => page.addInitScript((g) => localStorage.setItem("rd-guided", JSON.stringify(g)), levels);
+/** The answers kept of one exercise (`mode`; Relations has none). */
+const kept = (page, mode) => page.evaluate(async (m) => (await (await window.__riglam.platform.db()).collection("answers").get()).docs.map((d) => d.data()).filter((d) => (m ? d.mode === m : !d.mode)), mode);
 const switchOf = (page) => page.getByRole("switch", { name: /^Sprint/ });
 /** The step the running clock is on (its key), or null when none runs. */
 const step = (page) => page.evaluate(() => (window.__t.ui.tq ? window.__t.ui.tq.key : null));
@@ -133,8 +137,9 @@ test("Pervasions: a question that runs out counts as accepted, and the example a
 const mark = (page) => page.evaluate(() => { window.__t.ui.marked = true; });
 const fresh = (page) => page.evaluate(() => !window.__t.ui.marked);
 
-test("Find an instance: with nothing written time up is a miss, with no result and the next set; with something written it is checked as it stands", async ({ page }) => {
+test("Find an instance at None: with nothing written time up is a miss, with no result and the next set; with something written it is checked as it stands", async ({ page }) => {
   await sprint(page, { "rd-timer": 2000 });
+  await guided(page, { instance: "none" });
   await page.goto("/");
   await ready(page);
   await goTo(page, "Find an instance");
@@ -148,8 +153,9 @@ test("Find an instance: with nothing written time up is a miss, with no result a
   await expect.poll(async () => page.evaluate(async () => (await (await window.__riglam.platform.db()).collection("answers").get()).docs.map((d) => d.data()).filter((d) => d.mode === "instance").map((d) => d.timeout))).toEqual([true]);
 });
 
-test("Find a pair: nothing named in time is a miss, with no result and another relation", async ({ page }) => {
+test("Find a pair at None: nothing named in time is a miss, with no result and another relation", async ({ page }) => {
   await sprint(page, { "rd-timer": 2000 });
+  await guided(page, { find: "none" });
   await page.goto("/");
   await ready(page);
   await goTo(page, "Find a pair");
@@ -178,4 +184,122 @@ test("Syllogisms: no reply in time counts as wrong and the result shows", async 
   await goTo(page, "Syllogisms");
   await expect.poll(() => checked(page), { timeout: 6000 }).toBe(true);
   expect(await page.evaluate(() => window.__t.ui.timeout)).toBe(true);
+});
+
+// ---- what a time-up shows, by the level of guidance (domain/sprint.ts, timeUpView): Detailed explains the answer, Hints names it, None goes straight on
+/** A set of Find an instance that something can be, and the course knows a thing for. */
+const possibleSet = (page) => page.evaluate(() => { for (let i = 0; i < 200 && !(window.__t.cur.iq.possible && window.__t.cur.iq.known.length); i++) window.__t.next(); });
+for (const level of ["detailed", "hints"]) test(`Find an instance at ${level}: with nothing written, a thing that fits is shown${level === "hints" ? " by its name" : " with its categories"}, nothing is kept, and Next goes on`, async ({ page }) => {
+  await sprint(page, { "rd-timer": 2000 });
+  await guided(page, { instance: level });
+  await page.goto("/");
+  await ready(page);
+  await goTo(page, "Find an instance");
+  await possibleSet(page);
+  await expect.poll(() => checked(page), { timeout: 6000 }).toBe(true);
+  await expect(page.locator("#path .pvline")).toContainText("Time is up");
+  await expect(page.locator("#path .gave .lab")).toHaveText("for example");
+  await expect(page.locator("#path .catrow")).toHaveCount(level === "hints" ? 0 : await page.evaluate(() => window.__t.cur.iq.cats.length));
+  expect(await kept(page, "instance"), "a miss is not kept").toEqual([]);
+  await page.locator("#stn").click();
+  await expect.poll(() => checked(page), { message: "the next set" }).toBe(false);
+});
+
+for (const level of ["detailed", "hints"]) test(`Find a pair at ${level}: nothing named in time shows a pair of the course with the relation${level === "hints" ? ", by its names" : ", spelled out"}; nothing is kept`, async ({ page }) => {
+  await sprint(page, { "rd-timer": 2000 });
+  await guided(page, { find: level });
+  await page.goto("/");
+  await ready(page);
+  await goTo(page, "Find a pair");
+  await expect.poll(() => checked(page), { timeout: 8000 }).toBe(true);
+  const gave = await page.evaluate(() => ({ rel: window.__t.ui.rel, of: window.__t.ui.gave.relation, a: window.__t.ui.gave.a, b: window.__t.ui.gave.b }));
+  expect(gave.of, "the pair has the relation asked for").toBe(gave.rel);
+  await expect(page.locator("#path .gave .ans2")).toHaveText(gave.a + " and " + gave.b);
+  await expect(page.locator("#path .gave .xnote")).toHaveCount(level === "hints" ? 0 : 1);
+  expect(await kept(page, "find")).toEqual([]);
+  await page.locator("#stn").click();
+  await expect.poll(() => page.evaluate(() => ({ checked: !!window.__t.ui.checked, step: window.__t.ui.step }))).toEqual({ checked: false, step: 0 });
+});
+
+test("Relations at Hints: the relation runs out, it is named (not spelled out with the pair), and the examples come", async ({ page }) => {
+  await sprint(page, { "rd-timer-rel": 2000, "rd-timer": 60000 });
+  await guided(page, { practice: "hints" });
+  await page.goto("/");
+  await ready(page);
+  const name = await page.evaluate(() => window.__t.cur.p.relation);
+  await expect.poll(() => page.evaluate(() => !!window.__t.ui.late), { timeout: 6000 }).toBe(true);
+  await expect(page.locator("#path .fold2 .relg")).toHaveText("Time ran out: this is the relation.");
+  expect(await page.evaluate(() => window.__t.ui.rel)).toBe(name);
+  await expect.poll(() => step(page)).toMatch(/^c-/);
+});
+
+test("Relations at None: the relation runs out, the pair is kept as wrong with no example asked, and the next one comes", async ({ page }) => {
+  await sprint(page, { "rd-timer-rel": 2000 });
+  await guided(page, { practice: "none" });
+  await page.goto("/");
+  await ready(page);
+  await mark(page);
+  await expect.poll(() => fresh(page), { timeout: 6000, message: "the next pair has come" }).toBe(true);
+  expect(await checked(page), "no result was shown").toBe(false);
+  await expect.poll(() => step(page)).toBe("pick");
+  await expect.poll(async () => (await kept(page)).map((d) => ({ correct: d.correct, timeout: d.timeout }))).toEqual([{ correct: false, timeout: "both" }]);
+});
+
+test("At None a stage offer due with a time-up is not spent unseen: it goes on the next attempt, for its result", async ({ page }) => {
+  await sprint(page, { "rd-timer-rel": 2000 });
+  await guided(page, { practice: "none" });
+  await page.goto("/");
+  await ready(page);
+  await page.evaluate(() => { window.__t.ui.offer = { kind: "down", stage: 1 }; window.__t.ui.marked = true; });
+  await expect.poll(() => fresh(page), { timeout: 6000, message: "the next pair has come" }).toBe(true);
+  expect(await page.evaluate(() => window.__t.ui.offer)).toEqual({ kind: "down", stage: 1 });
+});
+
+test("Relations past Detailed: a case without an example says it has one, without naming it", async ({ page }) => {
+  await sprint(page, { "rd-timer": 2000, "rd-timer-rel": 60000 });
+  await guided(page, { practice: "hints" });
+  await page.goto("/");
+  await ready(page);
+  const p = await page.evaluate(() => window.__t.cur.p);
+  await relOptions(page).nth(3).click();     // four possibilities: four cases, all left to run out
+  await expect.poll(() => checked(page), { timeout: 15000 }).toBe(true);
+  const notes = await page.locator("#path .exr .xnote").allTextContents();
+  expect(notes.some((t) => /There is an example\.|there is an example|there is one\./.test(t)), notes.join(" | ")).toBe(true);
+  for (const ex of Object.values(p.ex).filter(Boolean)) for (const t of notes) expect(t, "no reference example named").not.toContain(ex);
+});
+
+test("Syllogisms at Hints: no reply in time shows the right reply and only the check that decides", async ({ page }) => {
+  await sprint(page, { "rd-timer-syl": 2000 });
+  await guided(page, { syllogism: "hints" });
+  await page.goto("/");
+  await ready(page);
+  await goTo(page, "Syllogisms");
+  await expect.poll(() => checked(page), { timeout: 6000 }).toBe(true);
+  await expect(page.locator("#path .chk")).toHaveCount(1);
+  await expect(page.locator("#path .chk.first")).toHaveCount(1);
+});
+
+test("Syllogisms at None: no reply in time is kept as wrong, with no result, and the next syllogism comes", async ({ page }) => {
+  await sprint(page, { "rd-timer-syl": 2000 });
+  await guided(page, { syllogism: "none" });
+  await page.goto("/");
+  await ready(page);
+  await goTo(page, "Syllogisms");
+  await mark(page);
+  await expect.poll(() => fresh(page), { timeout: 6000, message: "the next syllogism has come" }).toBe(true);
+  expect(await checked(page), "no result was shown").toBe(false);
+  await expect.poll(() => step(page)).toBe("reply");
+  await expect.poll(async () => (await kept(page, "syllogism")).map((d) => ({ correct: d.correct, timeout: d.timeout }))).toEqual([{ correct: false, timeout: true }]);
+});
+
+test("Categories at None: nothing ticked in time is kept as it stands, with no result, and the next thing comes", async ({ page }) => {
+  await sprint(page, { "rd-timer-cats": 2000 });
+  await guided(page, { categories: "none" });
+  await page.goto("/");
+  await ready(page);
+  await goTo(page, "Categories");
+  await mark(page);
+  await expect.poll(() => fresh(page), { timeout: 6000, message: "the next thing has come" }).toBe(true);
+  expect(await checked(page)).toBe(false);
+  await expect.poll(async () => (await kept(page, "categories")).map((d) => d.timeout)).toEqual([true]);
 });

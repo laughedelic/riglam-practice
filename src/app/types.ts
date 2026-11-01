@@ -477,6 +477,8 @@ export interface State {
   /** the negation track of Relations and Pervasions (`rd-negation`): off, A or B negated in some pairs ("one"), or also both sides ("both") */
   negation: "off" | "one" | "both";
   /** the Relations answers checked on this page, oldest first: the run towards the offer of a negation step counts them before the database has handed them back (practice/negations.ts) */
+  /** what a result that was not shown (a time-up at None) left due: it goes on the next attempt drawn (practice/queue.js, moveOn) */
+  carry: { offer: Ui["offer"]; guideDown: Ui["guideDown"] } | null;
   relSession: NegResult[];
   /** when the learner last answered the offer of a negation step (a time, `rd-neg-offer`): only answers after it count towards the next offer */
   negOfferAt: string;

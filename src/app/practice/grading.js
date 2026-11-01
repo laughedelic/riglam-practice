@@ -10,6 +10,7 @@ import { clearSkip } from "./skips.js";
 import { pairStageNow, stageStep } from "./stage-offer.ts";
 import { gradePair } from "./stops.ts";
 import { pairCats } from "./universe.js";
+import { guidance } from "./guided.ts";
 import { focusAfterCheck, render } from "../shell/render.js";
 import { grade } from "../../domain/grading.ts";
 
@@ -20,7 +21,7 @@ export async function check(){
   if(!state.ui||!state.ui.rel||state.ui.checked) return;
   if(state.ui.find){ checkFind(); return; }              // Find a pair shares the cells and their keys, and checks in its own way
   const p=state.cur.p;
-  stopTimer(); clearSkip(p); state.ui.res=grade(state,p,state.ui); state.ui.checked=true; state.ui.open=false;
+  stopTimer(); clearSkip(p); state.ui.res=grade(state,p,state.ui,{refs:guidance("practice")==="detailed"}); state.ui.checked=true; state.ui.open=false;     // past Detailed a case not filled says only that it has an example
   const id=state.cur.legacy?p.id:(state.cur.retry?"r-":"")+(p.generated&&!state.cur.retry?p.id:"r"+Date.now().toString(36));
   state.ui.negOffer=afterRelation(id,p,!!state.ui.res.relOk);      // the run towards the next step of the negation track (practice/negations.ts)
   const [ca,cb]=pairCats(p), cats=[p.catA||ca,p.catB||cb];      // (pairCats leaves out a pair of two labels of one category, which still asks about it)

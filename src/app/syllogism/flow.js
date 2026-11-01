@@ -4,12 +4,14 @@ import { isSyllogism } from "../core/util.js";
 import { persist } from "../practice/answers.js";
 import { explainByItself } from "../ai/tutor.js";
 import { stopTimer } from "../shell/timers.js";
-import { freshUi } from "../practice/queue.js";
+import { freshUi, moveOn } from "../practice/queue.js";
+import { guidance } from "../practice/guided.ts";
 import { catsStageNow, shareNow, stageStep } from "../practice/stage-offer.ts";
 import { askedTerm, gradeTerms, openNow, unmetNow } from "../practice/stops.ts";
 import { render, top0 } from "../shell/render.js";
 import { cue } from "../sound/play.ts";
 import { REPLIES, drawSyllogism, gradeSyllogism, gradeTimeout, gradeExample } from "../../domain/syllogism.ts";
+import { timeUpView } from "../../domain/sprint.ts";
 
 /* ---------- Syllogisms: take a thing, the reason and the conclusion; accept it, deny the reason or deny the pervasion ---------- */
 // The rules (what is drawn, what is right, what the learner mixed up) are in src/domain/syllogism.ts; this is the page around them: the steps, the screen
@@ -32,13 +34,17 @@ export const replyOfKey=k=>REPLIES[KEYS.indexOf(k)];
 
 /** Whether the reply to a syllogism is being asked for: the one screen of Syllogisms that has a clock. */
 export const syllogismAsking=()=>state.tab==="syllogism"&&!!state.ui&&!!state.ui.syllogism&&!state.ui.checked&&state.ui.step===0&&state.mode==="quiz";
-// Time up: no reply, so wrong; the result shows the right one (the clock of the reply is Sprint's, shell/timers.js)
+// Time up: no reply, so wrong; the result shows the right one, with as much of the checks as the guidance gives (path/syllogism.tsx), and at None there is no result: the
+// answer is kept as wrong and the next syllogism comes (domain/sprint.ts, timeUpView). The clock of the reply is Sprint's (shell/timers.js).
 export function expireSyllogism(u){
   if(u!==state.ui||!syllogismAsking()) return;
   cue("timeup");
   u.tid=null; u.timeout=true; u.ms=u.tq?u.tq.limit:null; u.tq=null; u.grade=gradeTimeout(shownSyllogism());
   if(document.activeElement&&/** @type {HTMLElement} */(document.activeElement).blur) /** @type {HTMLElement} */(document.activeElement).blur();
+  const skip=timeUpView(guidance("syllogism"))==="skip";
+  if(skip) u.passOn=true;
   finishSyllogism();
+  if(skip) moveOn();
 }
 
 /** Draws the next syllogism, from what the learner has answered so far and the stages that are on (everyday ones up to stage 4, except for the terms of the stage that are not right yet). */

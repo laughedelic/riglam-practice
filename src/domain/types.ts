@@ -41,6 +41,8 @@ export interface GradeDraft {
   relOpen?: boolean;
   /** pair-finding: the tutor was asked and could not settle it */
   relUns?: boolean;
+  /** graded past Detailed guidance: the messages say that a reference example exists without naming it (grading.ts, GradeOptions), and so do the verdicts that come later */
+  noRefs?: boolean;
 }
 
 /** The result of checking an answer. `overall`: ok, part (something wrong besides the relation), pend (examples unchecked or left open by their names), bad (wrong relation). */
