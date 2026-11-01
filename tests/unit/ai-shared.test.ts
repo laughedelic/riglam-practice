@@ -433,6 +433,12 @@ test("the lookup tools: terms by name, alias, Russian name or part of the name, 
   const thing = (t: unknown) => tools[1].execute({ thing: t }) as Record<string, unknown>;
   expect(thing("a Wooden chair")).toEqual({ found: true, item: "a wooden chair", existent: true, dudra_type: "Form", chain: "Form > Thing", categories: ["forms", "wooden things"] });
   expect(thing("the horn of a rabbit")).toMatchObject({ found: true, existent: false, categories: [] });
+  // an alias ("chair" for "a wooden chair") gives the item's type and chain, not its categories or its qualities, as the card does
+  const aliased = thing("a chair");
+  expect(aliased).toMatchObject({ found: true, matched_by_alias: true, item: "a wooden chair", existent: true, dudra_type: "Form", chain: "Form > Thing" });
+  expect(aliased).not.toHaveProperty("categories");
+  expect(aliased).not.toHaveProperty("name_leaves_open");
+  expect(String(aliased.note)).toContain("never its color, shape, material, temperature or other details");
   expect(thing("a table")).toEqual({ found: false });
   expect(tools[1].execute(undefined)).toEqual({ found: false });
 });

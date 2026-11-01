@@ -43,6 +43,10 @@ export function tutorTools(ix: DataIndex, examples?: ExampleIndex | null): Tutor
      execute:(input)=>{
        const thing=(input as {thing?: unknown}|null|undefined)?.thing;
        const it=matchItem(ix,thing);
+       // Words that name the item only through an alias ("an apple" for "a red apple") are shorter than the item: its type and chain hold,
+       // its other categories and details (color, shape, material, temperature) are not what was asked about, as in the card (card.ts, listedAs).
+       if(it&&!matchItem(ix,thing,true)) return {found:true, matched_by_alias:true, item:it.n, existent:!it.ne, dudra_type:it.t, chain:(ix.DATA.chains[it.t]||[it.t]).join(" > "),
+         note:"The words are an alias for this item in the practice list. Take only its type and chain from it, never its color, shape, material, temperature or other details: judge the words as written, and a quality they do not name is open."};
        if(it) return {found:true, item:it.n, existent:!it.ne, dudra_type:it.t, chain:(ix.DATA.chains[it.t]||[it.t]).join(" > "), categories:it.c.map(c=>ix.CAT[c].labels[0]),
          ...(it.may?.length?{name_leaves_open:it.may.map(c=>ix.CAT[c].labels[0])}:{})};
        const refs=examples?matchExamples(examples,thing):[];
