@@ -150,10 +150,12 @@ test("matchExamples finds an example by its name, without the article, by an ali
 
 test("classify_example: a reference example of the words' name comes before an alias of the practice list, as on the page", () => {
   // "ball" is an alias of "a blue ball" in the list; the reference examples have "a ball" of their own
-  const ix = makeIndex({ ...exData(), aliases: { ball: "a blue ball" } });
-  const eix = makeExampleIndex(readExamples({ format: "riglam-examples-device", version: 2, sources: {}, items: [{ n: "a ball", cls: ["Form"], lv: 1, cf: "textbook" }] })!);
+  const ix = makeIndex({ ...exData(), aliases: { ball: "a blue ball", cube: "a blue ball" } });
+  // "a cube" is a reference example with no classes: it does not outrank the alias, as on the page
+  const eix = makeExampleIndex(readExamples({ format: "riglam-examples-device", version: 2, sources: {}, items: [{ n: "a ball", cls: ["Form"], lv: 1, cf: "textbook" }, { n: "a cube", lv: 1, cf: "textbook" }] })!);
   const classify = (examples: ReturnType<typeof makeExampleIndex> | null) => tutorTools(ix, examples).find((t) => t.name === "classify_example")!;
   expect(classify(eix).execute({ thing: "a ball" })).toMatchObject({ found: true, source: "reference", item: "a ball" });
+  expect(classify(eix).execute({ thing: "a cube" })).toMatchObject({ found: true, matched_by_alias: true, dudra_type: "Form" });
   // without it the alias gives the type and chain only
   const aliased = classify(null).execute({ thing: "a ball" }) as Record<string, unknown>;
   expect(aliased).toMatchObject({ found: true, matched_by_alias: true, dudra_type: "Form" });

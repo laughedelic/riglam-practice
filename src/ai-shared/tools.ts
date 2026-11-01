@@ -49,8 +49,8 @@ export function tutorTools(ix: DataIndex, examples?: ExampleIndex | null): Tutor
        const refs=examples?matchExamples(examples,thing):[];
        // Words that name a list item only through an alias ("an apple" for "a red apple") are shorter than the item: its type and chain hold,
        // its name and its other categories and details (color, shape, material, temperature) are not what was asked about, as in the card
-       // (card.ts, listedAs). A reference example of that name comes first, as on the page (nameOf, src/domain/instance.ts).
-       if(it&&!refs.length) return {found:true, matched_by_alias:true, existent:!it.ne, dudra_type:it.t, chain:(ix.DATA.chains[it.t]||[it.t]).join(" > "),
+       // (card.ts, listedAs). A reference example of that name with classes (or a non-existent one) comes first, as on the page (nameOf, src/domain/instance.ts).
+       if(it&&!refs.some(e=>e.ne||e.cls?.length)) return {found:true, matched_by_alias:true, existent:!it.ne, dudra_type:it.t, chain:(ix.DATA.chains[it.t]||[it.t]).join(" > "),
          note:"The words are an alias for an item in the practice list. Take only its type and chain from it, never its color, shape, material, temperature or other details: judge the words as written, and a quality they do not name is open."};
        if(!refs.length) return {found:false};
        if(refs.length===1) return {found:true, source:"reference", ...exampleFacts(ix,refs[0])};
