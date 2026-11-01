@@ -267,7 +267,7 @@ test("Categories: a tap lifts a category over the rule and back, reset drops the
   await expect(down).toHaveCount(phrases.length);
   // Detailed guidance says what to do under the scan's stop, which stays right under the thing, and the line folds as the scan opens the result's room there
   const thing = await page.evaluate(() => window.__t.cur.q.thing.n);
-  await expect(page.locator("#path .ctodo")).toHaveText(`Tap each category ${thing} is: it moves up, above the line. The rest stay under “not”.`);
+  await expect(page.locator("#path .ctodo")).toHaveText(`Select each category that applies to ${thing}.`);
   expect(await page.locator("#path .cstop").evaluate((e) => e.getBoundingClientRect().top - e.previousElementSibling.getBoundingClientRect().bottom)).toBeLessThan(1);
   await station(page).click();
   await expect(page.locator("#path .cstop.scn-gone + .ctodo")).toHaveCount(1);
@@ -282,6 +282,40 @@ test("Categories: a tap lifts a category over the rule and back, reset drops the
   await expect(page.locator("#path .thold.tres .chs.down .crow")).toHaveCount(phrases.length);
   expect(await page.evaluate(() => window.__t.ui.g1.rows.filter((r) => r.picked).length)).toBe(0);
 });
+
+const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+for (const level of ["detailed", "hints"]) {
+  test(`Categories at ${level}: the hint says what to select, the result says what was missed${level === "detailed" ? ", spells out the wrong ones and shows every reason" : ""}`, async ({ page }) => {
+    await page.addInitScript(([store, key, lv]) => { try { localStorage.setItem(store, key); localStorage.setItem("rd-guided", JSON.stringify({ categories: lv })); } catch { /* storage unavailable */ } }, [KEY_STORE, dataKey, level]);
+    await serveCourse(page, dataKey, { stub: true, examples: examples() });
+    await page.goto("/");
+    await expect.poll(() => page.evaluate(() => !!window.__t.EX)).toBe(true);
+    await page.locator(".tstn").click();
+    await page.getByRole("dialog", { name: "Roadmap" }).getByRole("button", { name: /^Categories/ }).click();
+    await exerciseAtRest(page);
+    const q = await page.evaluate(() => ({ thing: window.__t.cur.q.thing.n, rows: window.__t.cur.q.rows.map((r) => ({ phrase: r.phrase, answer: r.answer })) }));
+    await expect(page.locator("#path .sechead")).toHaveText("1 Categories");   // what to select is said once, by the hint
+    await expect(page.locator("#path .ctodo")).toHaveText(level === "detailed" ? `Select each category that applies to ${q.thing}.` : "Select all that apply.");
+    if (level === "detailed") await expect(page.locator("#path .ctodo i")).toHaveText(q.thing);   // the thing alone in italic
+    // one wrong category lifted, every right one left: all of them wrong
+    const wrong = q.rows.filter((r) => !r.answer).slice(0, 1), missed = q.rows.filter((r) => r.answer);
+    expect(wrong.length + missed.length).toBeGreaterThan(0);
+    for (const r of wrong) await choices(page).filter({ hasText: new RegExp("^" + esc(r.phrase) + "$") }).click();
+    await station(page).click();
+    await expect(verdict(page)).toBeVisible();
+    const row = (phrase) => page.locator("#path .thold.tres .crow").filter({ has: page.locator(".line1 b", { hasText: new RegExp("^" + esc(phrase) + "$") }) });
+    await expect(page.locator("#path .thold.tres")).not.toContainText("you left it under");   // the meaning, not the place on the screen
+    const spelled = (phrase, text) => level === "detailed" ? expect(row(phrase).locator(".xnote.spelled")).toHaveText(text) : expect(row(phrase).locator(".xnote.spelled")).toHaveCount(0);
+    for (const r of missed) {
+      await expect(row(r.phrase).locator(".ctag")).toHaveText("missed");
+      await spelled(r.phrase, `${q.thing} is ${r.phrase}`);
+    }
+    for (const r of wrong) await spelled(r.phrase, `${q.thing} is not ${r.phrase}`);
+    // the reasons of the right ones: shown from the start at Detailed, folded (a tap opens them) at Hints
+    const folded = page.locator("#path .thold.tres button.crow[aria-expanded]");
+    for (let i = 0; i < await folded.count(); i++) await expect(folded.nth(i)).toHaveAttribute("aria-expanded", level === "detailed" ? "true" : "false");
+  });
+}
 
 // Find an instance draws its categories at random: another set (a skip, nothing entered yet) until one of the kind the test needs is on screen
 async function drawInstance(page, possible) {

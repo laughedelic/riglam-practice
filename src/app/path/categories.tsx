@@ -26,17 +26,26 @@ const because = (row: PlaceRow) => {
   return [row.reason && !echo ? cap(row.reason) + "." : "", row.why].filter(Boolean).join(" ");
 };
 
+/** Whether a right category's reason shows: opened by a tap or, at Detailed, from the start (a wrong one always shows its reason). */
+const reasonShown = (cat: string, ok: boolean): boolean => {
+  const set = u0().pcat && u0().pcat[cat];
+  return !ok || (set !== undefined ? !!set : guidance("categories") === "detailed");
+};
+/** What a wrong category should have said, in the thing's own words, as Detailed spells it out under the row: "the white of fresh snow is not made of glass". */
+const Spelled = ({ row }: { row: PlaceGraded }) => guidance("categories") !== "detailed" || row.ok ? null
+  : <span class="xnote spelled"><i>{q().thing.n}</i>{" is "}{row.answer ? null : <><strong>not</strong>{" "}</>}{row.phrase}</span>;
+
 /** The thing asked about, as the first stop: its name alone (no exercise names the stage of what it asks). */
 function Thing() {
   return <St d={<D cls="sub done" />} cls="stm thing"><span class="cs" lang="en">{q().thing.n}</span></St>;
 }
 /** One category with the answer: its mark, what the learner did, and the reason; a right one folds to its line, a tap opens the reason. */
 function CatRow({ row, one }: { row: PlaceGraded; one: boolean }) {
-  const u = u0(), ok = row.ok, why = because(row), open = !ok || !!(u.pcat && u.pcat[row.cat]);
+  const u = u0(), ok = row.ok, why = because(row), open = reasonShown(row.cat, ok);
   const tag = row.picked && !row.answer ? (one ? "you said yes" : "you ticked") : !row.picked && row.answer ? (one ? "you said no" : "you missed") : "";
   const body = <div class={"st sb exr catrow" + (ok ? "" : " wrong")} data-mk={row.cat}><D cls={"sub " + (ok ? "ok" : "no")} /><div class="ptx">
     <div class="line1"><b class="catp">{row.phrase}</b><Mark m={ok ? "ok" : "no"} />{tag ? <span class="ctag">{tag}</span> : null}</div>
-    {why && open ? <p class="xnote">{why}</p> : null}</div></div>;
+    <Spelled row={row} />{why && open ? <p class="xnote">{why}</p> : null}</div></div>;
   if (ok && why) return <button type="button" class="sbb" aria-expanded={open ? "true" : "false"} onClick={() => { u.pcat = { ...(u.pcat || {}), [row.cat]: !open }; refreshPath(); }}>{body}</button>;
   return body;
 }
@@ -81,11 +90,11 @@ function scanPlan(): ScanPlan {
 }
 /** One category of the result in the threshold's form: on the line when it is over the rule, beside it under the rule, with its mark, what the learner did and the reason. */
 function ResRow({ row, on }: { row: PlaceGraded; on: boolean }) {
-  const u = u0(), ok = row.ok, why = because(row), open = !ok || !!(u.pcat && u.pcat[row.cat]);
-  const tag = !row.picked && row.answer ? "you left it under" : "";
+  const u = u0(), ok = row.ok, why = because(row), open = reasonShown(row.cat, ok);
+  const tag = !row.picked && row.answer ? "missed" : "";
   const cls = "crow cres" + (on ? " on" : "") + (ok ? "" : " wrong");
   const inner = <><span class="mc"><D cls={"sub " + (ok ? "ok" : "no")} /></span><span class="ct"><span class="line1"><b>{row.phrase}</b><Mark m={ok ? "ok" : "no"} />{tag ? <span class="ctag">{tag}</span> : null}</span>
-    {why && open ? <span class="xnote">{why}</span> : null}</span></>;
+    <Spelled row={row} />{why && open ? <span class="xnote">{why}</span> : null}</span></>;
   if (ok && why) return <button type="button" class={cls} data-mk={row.cat} aria-expanded={open ? "true" : "false"} onClick={() => { u.pcat = { ...(u.pcat || {}), [row.cat]: !open }; refreshPath(); }}>{inner}</button>;
   return <div class={cls} data-mk={row.cat}>{inner}</div>;
 }
@@ -103,14 +112,14 @@ function Settled() {
  *  which stays right under the thing, and folds as the room for the result's node opens there, so that the categories end where the result puts them. */
 function Todo() {
   const g = guidance("categories"); if (g === "none") return null;
-  return <div class="ctodo"><div><p class="qlead above">{g === "detailed" ? <>Tap each category {q().thing.n} is: it moves up, above the line. The rest stay under “not”.</> : "Tap each one it is."}</p></div></div>;
+  return <div class="ctodo"><div><p class="qlead plain above">{g === "detailed" ? <>Select each category that applies to <i>{q().thing.n}</i>.</> : "Select all that apply."}</p></div></div>;
 }
 /* ---------- the categories ---------- */
 function TickStep() {
   const u = u0(), t = q(), n = u.ticked.length;
   return <>
     <Scroll>
-      <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Categories" sub="which of these is it?" aside={<SkipMark />} /><Gap h={6} /><Thing />
+      <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Categories" aside={<SkipMark />} /><Gap h={6} /><Thing />
         <div class="cstop" data-keep="stay" aria-hidden="true"><i class="d" /></div><Todo /></Sx>
       <Threshold label="Categories the thing is in" items={t.rows.map((r, i) => ({ k: r.cat, b: r.phrase, key: String(i + 1) }))} picked={u.ticked} onPick={tickCategory} onReset={resetCategories} />
       <Sx cls="ptail" />
@@ -142,7 +151,7 @@ function CheckedStep() {
   const { v, word, sub } = verdictOf(g);
   return <>
     <Scroll>
-      <Sx cls="walked first"><Gap h={14} /><Head d={<D cls="sec done" />} h="1 Categories" sub="which of these is it?" /><Gap h={6} /><Thing /><Gap h={AFTER_THING} /></Sx>
+      <Sx cls="walked first"><Gap h={14} /><Head d={<D cls="sec done" />} h="1 Categories" /><Gap h={6} /><Thing /><Gap h={AFTER_THING} /></Sx>
       <Verdict v={v} word={word} sub={sub} />
       {one ? <Split one /> : <Settled />}
       <GuideNote />

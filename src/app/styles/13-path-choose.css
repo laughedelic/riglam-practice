@@ -64,6 +64,9 @@
 .pa .thold.tres .chs.down .crow:not(.wrong) b{color:var(--ink2)}
 .pa .thold.tres .crow .mark .i{width:16px; height:16px}
 .pa .thold.tres .crow .xnote{display:block; font-size:14px; color:var(--ink2); line-height:1.35; margin-top:2px}
+.pa .xnote.spelled{display:block}
+.pa .xnote.spelled i{font-style:italic}        /* the thing's own words, in italic and plain: not marked as the names of a relation are */
+.pa .xnote.spelled strong{font-weight:600; color:var(--ink)}
 @media (hover:hover){ .pa .thold.tres .crow:hover b{text-decoration:none} }
 /* the marks in line with the name; a category lifted by mistake struck, as the scan struck it; under the rule the diamonds hollow, in the mark's color */
 .pa .thold.tres .crow .line1 .mark{transform:translateY(3px)}

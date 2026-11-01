@@ -38,8 +38,8 @@ export const GUIDES: Record<string, { name: string } & Record<Guidance, string>>
   },
   categories: {
     name: "Categories",
-    detailed: "A line that says what to do, with the thing’s name.",
-    hints: "A short line that says what to do.",
+    detailed: "A line that says what to do, with the thing’s name; the result shows every reason and spells out each category that was wrong or missed.",
+    hints: "A short line that says what to do; the result shows the reasons of the wrong ones.",
     none: "The categories alone.",
   },
   instance: {
