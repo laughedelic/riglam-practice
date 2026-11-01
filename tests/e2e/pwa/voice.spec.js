@@ -215,10 +215,9 @@ test("the microphone is a stop on the thread: its diamond sits on the thread, no
   await voice(page, { settings: { read: "0", answer: "tap", confirm: "wait" } });
   await page.goto("/");
   await ready(page);
-  const f = page.locator("#vfield");
-  const look = await f.evaluate((e) => { const c = getComputedStyle(e); return { border: c.borderTopWidth, bg: c.backgroundColor }; });
-  expect(look.border, "no line across the screen").toBe("0px");
-  expect(look.bg, "no ground of its own").toBe("rgba(0, 0, 0, 0)");
+  // (polled: the field may be drawn anew as the page settles, and a node that has just left the page has no style)
+  const look = () => page.locator("#vfield").evaluate((e) => { const c = getComputedStyle(e); return e.isConnected ? c.borderTopWidth + " " + c.backgroundColor : ""; });
+  await expect.poll(look, { message: "no line across the screen, and no ground of its own" }).toBe("0px rgba(0, 0, 0, 0)");
   const [g, thread] = await Promise.all([
     page.locator("#vfield .vg").boundingBox(),
     page.locator("#path .vfieldh").evaluate((e) => { const r = e.getBoundingClientRect(), c = getComputedStyle(e, "::before"); return r.left + parseFloat(c.left) + parseFloat(c.width) / 2; }),
