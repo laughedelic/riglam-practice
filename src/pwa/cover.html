@@ -19,9 +19,8 @@
 .cover .cv-gr{mix-blend-mode:soft-light}
 .cover .cv-name{animation:cv-fade .7s 1.1s ease backwards}
 .cover .cv-name text{font-family:'Sorts Mill Goudy','EB Garamond',Georgia,serif;font-weight:400}
-.cover .cv-name .n{font-size:20.5px;letter-spacing:.08em;fill:var(--cv-ink)}
-.cover .cv-name .p{font-style:italic;font-size:23.83px;letter-spacing:.1em;fill:var(--cv-ink2)}
-.cover .cv-name tspan{letter-spacing:0}
+.cover .cv-name .n{font-size:20.5px;fill:var(--cv-ink)}
+.cover .cv-name .p{font-style:italic;font-size:23.83px;fill:var(--cv-ink2)}
 /* the cover flies into the roadmap (cover.ts): the path and the grain go first, the ground and the words' colors as it moves, and at the end the figure and the name fade out over the roadmap's own */
 .cover.zm .cv-line{opacity:0;transition:opacity calc(var(--cv-s,0ms) * .3) ease}
 .cover.zm .cv-gr{opacity:0;transition:opacity calc(var(--cv-s,0ms) * .4) ease}
@@ -82,8 +81,8 @@ window.__riglamGrain=function(strength){
       +'<g class="d1">'+shape(GOLD,"#faaf3f")+'</g><g class="d2">'+shape(BLUE,"#3155a4")+'</g>'
       +'<g clip-path="url(#cv-gc)"><g class="d3">'+shape(BLUE,"#4c8a63")+'</g></g></svg>';
     var name='<svg class="cv-name" viewBox="0 0 '+NW+' '+(ASC+DEPTH)+'" role="img" aria-label="Riglam practice" style="left:'+nl+'px;top:'+nt+'px;width:'+NW*k+'px;height:'+block+'px">'
-      +'<text class="n" x="0" y="'+ASC+'" textLength="'+NW+'" lengthAdjust="spacing">RIGLA<tspan>M</tspan></text>'
-      +'<text class="p" x="0" y="'+(ASC+LEAD)+'" textLength="'+NW+'" lengthAdjust="spacing">practic<tspan>e</tspan></text></svg>';
+      +'<text class="n" x="0" y="'+ASC+'" textLength="'+NW+'" lengthAdjust="spacing">RIGLAM</text>'
+      +'<text class="p" x="0" y="'+(ASC+LEAD)+'" textLength="'+NW+'" lengthAdjust="spacing">practice</text></svg>';
     c.innerHTML=line+fig+name;
     if(!window.__riglamCoverAt)window.__riglamCoverAt=performance.now();
   }

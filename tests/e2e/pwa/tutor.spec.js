@@ -4,7 +4,7 @@
 // tutor's words (the note under an example, the wait, the conversation) is also looked at in path.spec.js.
 import { test as plain } from "@playwright/test";
 import { test, expect } from "../../support/test.js";
-import { answerFirst, explainChoice, ready, overflow } from "../../support/page.js";
+import { answerFirst, explainChoice, ready, overflow, keyField, enterKey } from "../../support/page.js";
 import { dataKey, serveCourse, withCourse } from "../../support/data-key.js";
 import { checkProof } from "../../../src/ai/proof.ts";
 
@@ -212,19 +212,21 @@ withKey("with no server at all (the health address is the page itself) the page 
   await expect(page.locator(".wrow")).toHaveCount(0);
 });
 
-// A device without the Magic Key still sees Explain when the server has a tutor: it says what it needs, and a tap opens the prompt for the key.
-plain("without the Magic Key Explain is there, says it needs the key, and opens the Magic Key prompt; with the server's tutor off it is not there", async ({ page }) => {
+// A device without the Magic Key still sees Explain when the server has a tutor: it says what it needs, and a tap opens the Magic Key page; its way back goes to the exercise.
+plain("without the Magic Key Explain is there, says it needs the key, and opens the Magic Key page; with the server's tutor off it is not there", async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("rd-start", "exercise"));
   const asked = await server(page);
   await page.goto("/");
   await ready(page);
-  await expect(page.locator("#unlock")).toHaveCount(0); // nothing greets the reader with a prompt
+  await expect(keyField(page)).toHaveCount(0); // nothing greets the reader with the Magic Key
   await answerFirst(page);
   await expect(explain(page)).toContainText("needs the Magic Key");
   await explain(page).click();
-  await expect(page.locator("#unlock")).toBeVisible();
-  await expect(page.locator("#unlock")).toContainText("Magic Key");
+  await expect(keyField(page)).toBeFocused();
   expect(asked).toEqual([]); // no question was sent
+  await keyField(page).blur(); // (on a phone the top bar steps aside while the field has the keyboard)
+  await page.getByRole("button", { name: "Back to the exercise", exact: true }).click();
+  await expect(page.locator(".pvline")).toBeVisible(); // the result, as it was
 
   const off = await page.context().newPage();
   await off.addInitScript(() => localStorage.setItem("rd-start", "exercise"));
@@ -236,7 +238,7 @@ plain("without the Magic Key Explain is there, says it needs the key, and opens 
 });
 
 // The Explain that was tapped without the key was tapped for a reason: once the key is entered, the page stays as it was and the question goes out.
-plain("Explain without the Magic Key: entering the key in the prompt keeps the result and asks the question", async ({ page }) => {
+plain("Explain without the Magic Key: entering the key on its page goes back to the result as it was and asks the question", async ({ page }) => {
   test.skip(!withCourse, "needs the course data to unlock the definitions");
   await serveCourse(page);
   await page.addInitScript(() => localStorage.setItem("rd-start", "exercise"));
@@ -248,9 +250,8 @@ plain("Explain without the Magic Key: entering the key in the prompt keeps the r
   const before = await pair();
   await page.evaluate(() => { window.__sameDocument = true; });
   await explain(page).click();
-  await page.fill("#unlock-key", dataKey);
-  await page.locator("#unlock").getByRole("button", { name: "Unlock", exact: true }).click();
-  await expect(page.locator("#unlock")).toHaveCount(0);
+  await enterKey(page, dataKey);
+  await expect(keyField(page)).toHaveCount(0);
   await expect(answerText(page)).toContainText("this is the stand-in answer.");
   expect(asked).toHaveLength(1);
   expect(asked[0].body.kind).toBe("explain");

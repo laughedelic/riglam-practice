@@ -1,5 +1,5 @@
 import { state } from "../state.js";
-import { STAGES, topStage } from "../../domain/stages.ts";
+import { STAGES, learnerStages, topStage } from "../../domain/stages.ts";
 import { render } from "./render.js";
 import { stopsStageUp } from "../practice/stops.ts";
 import { saveProgress } from "../practice/progress.ts";
@@ -12,7 +12,8 @@ const store=(key,v)=>{ try{ localStorage.setItem(key,v); }catch(e){} };
  * Sets the stages every exercise draws from. When the highest one goes up, its first pairs lean to three possibilities. What a device kept from
  * before the ladder (the even draw, everyday syllogisms) gives way to the stages the learner now picks.
  */
-export function setStages(stages){
+export function setStages(next){
+  const stages=learnerStages(next);     // the steps of depth go with stage 9 (domain/stages.ts), whoever sets them: an offer may be older than the depth
   const up=topStage(stages)>topStage(state.stages);
   state.stages=stages; store("rd-stages",stages.join(","));
   if(state.stagesKept||state.syllogismEveryday){ state.stagesKept=state.syllogismEveryday=false; try{ localStorage.removeItem("rd-stages-kept"); localStorage.removeItem("rd-syllogism-level"); }catch(e){} }

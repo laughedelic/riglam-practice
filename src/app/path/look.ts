@@ -14,7 +14,9 @@ export interface Look {
   green: string;
   red: string;
   purple: string;
-  purpleFor: "none" | "tutor" | "skip" | "partly";
+  /** teal is the course's words (a new term, a repetition), slate the way back: the Design Lab's stops, 1 Nov */
+  teal: string;
+  slate: string;
   /** where the fine grain is laid: any of verdict, station, current, band, top, comma separated */
   grain: string;
   grainLevel: "soft" | "mid" | "strong";
@@ -86,7 +88,7 @@ export const GRAIN_PLACES = ["verdict", "station", "current", "band", "top"];
 
 /** The owner's picks in the lab, Version 21 (mode aside: the app follows the device until Settings says otherwise). */
 export const DEFAULT_LOOK: Look = {
-  mode: "system", light: "ivory", dark: "slate", blue: "#3155a4", gold: "#faaf3f", green: "#4c8a63", red: "#b83545", purple: "#6f3f8f", purpleFor: "tutor",
+  mode: "system", light: "ivory", dark: "slate", blue: "#3155a4", gold: "#faaf3f", green: "#4c8a63", red: "#b83545", purple: "#6f3f8f", teal: "#2b7f86", slate: "#5b6b7e",
   grain: "verdict,station", grainLevel: "soft", wait: "dots", font: "newsreader", hand: "kalam", tM: 50, tLw: 2, tSt: 28, tTn: 34, tHand: 19,
   choice: "margin", take: "slide", ride: "push", land: "set", check: "morph", skipAt: "under", figs: "ink", ahead: "dot", next: "edge", edge: "fade", why: "row", sheet: "top", toggle: "both", keys: "sim", star: "pair",
   ask: "row", tutorAuto: "off", abPos: "margin", cOn: "on", cSerif: "spectral", cHand: "pangolin", cBo: "notoserifTib", cSa: "notoserifDeva", cZh: "wenkai",
@@ -95,7 +97,7 @@ export const DEFAULT_LOOK: Look = {
 
 // what each setting may be; a value outside it keeps the default
 const ONE_OF: Partial<Record<keyof Look, readonly string[]>> = {
-  mode: ["system", "light", "dark"], light: Object.keys(GROUNDS.light), dark: Object.keys(GROUNDS.dark), purpleFor: ["none", "tutor", "skip", "partly"],
+  mode: ["system", "light", "dark"], light: Object.keys(GROUNDS.light), dark: Object.keys(GROUNDS.dark),
   grainLevel: ["soft", "mid", "strong"], wait: ["dots"], font: Object.keys(MAIN_FONTS), hand: ["newsreader", "main", "mainup", ...Object.keys(HAND_FONTS)],
   choice: ["margin", "rows", "branches"], take: ["slide", "lit"], ride: ["fold", "push", "plain"], land: ["set", "recoil"], check: ["scan", "morph", "ride"], skipAt: ["under", "foot"], figs: ["ink", "color"], ahead: ["dot", "dash", "fade"], next: ["edge", "page"], edge: ["run", "fade"],
   why: ["detour", "row", "side"], sheet: ["top", "bottom", "path"], toggle: ["both", "track", "check", "solid", "stops", "nested"], keys: ["sim", "off"],
@@ -103,7 +105,7 @@ const ONE_OF: Partial<Record<keyof Look, readonly string[]>> = {
   cSerif: Object.keys(SERIF_COMPANIONS), cHand: Object.keys(HAND_COMPANIONS), words: ["underline", "diamond", "chip"], subj: ["none", "italic", "letters", "diamonds", "lettered", "inks"], starShape: ["star", "eight", "bookmark"], miFig: ["inset", "full"],
 };
 const RANGES: Partial<Record<keyof Look, [number, number]>> = { tM: [40, 72], tLw: [1, 4], tSt: [22, 40], tTn: [26, 42], tHand: [16, 24] };
-const COLORS: (keyof Look)[] = ["blue", "gold", "green", "red", "purple"];
+const COLORS: (keyof Look)[] = ["blue", "gold", "green", "red", "purple", "teal", "slate"];
 const FREE: (keyof Look)[] = ["cBo", "cSa", "cZh"];   // kept as given: the app shows no Tibetan, Devanagari or Chinese yet
 
 /** The look from stored or pasted settings: each known key with an allowed value replaces the default; anything else is left out. */
@@ -174,18 +176,23 @@ export function palette(look: Look, dark: boolean): Record<string, string> {
   const ink = dark ? "#ece7dc" : "#14151c";
   const lift = (c: string, t: number) => (dark ? mix(c, "#ffffff", t) : c);
   const blue = lift(look.blue, 0.42), green = lift(look.green, 0.3), red = lift(look.red, 0.32), purple = lift(look.purple, 0.42), gold = look.gold;
+  const teal = lift(look.teal, 0.42), slate = lift(look.slate, 0.42);
   const goldT = dark ? gold : mix(gold, "#000000", 0.4);
   return {
     "--paper": ground, "--ink": ink, "--ink2": mix(ink, ground, 0.36), "--ink3": mix(ink, ground, 0.58),
     "--rule": rgba(ink, dark ? 0.13 : 0.12), "--mline": rgba(ink, dark ? 0.16 : 0.18),
     "--blue": blue, "--blue-t": rgba(blue, dark ? 0.12 : 0.07), "--blue-tp": mix(ground, blue, dark ? 0.12 : 0.07), "--gold": gold, "--gold-t": goldT,
-    "--green": green, "--red": red, "--purple": purple,
+    "--green": green, "--red": red, "--purple": purple, "--teal": teal, "--slate": slate,
     "--station": dark ? mix(look.blue, "#ffffff", 0.12) : look.blue, "--on-station": "#ffffff",
-    "--tutor": look.purpleFor === "tutor" ? purple : blue,
-    "--skipc": look.purpleFor === "skip" ? purple : blue,
-    // partly right is orange, between the gold of a question and the red of a miss (the Design Lab's colors, round 1; and a right relation whose examples are not checked yet)
-    "--partc": look.purpleFor === "partly" ? purple : mix(gold, red, 0.45),
-    "--partc-t": look.purpleFor === "partly" ? purple : mix(goldT, red, 0.6),
+    // a symbol on a fill is dark where white is weak (the Design Lab, 1 Nov): on the gold in both grounds (`--on-light`), and on every color the dark ground lifts toward white (`--on-lift`, white on the light ground)
+    "--on-lift": dark ? ground : "#ffffff", "--on-light": dark ? ground : ink,
+    "--skipc": blue,
+    // Claude is orange, between the gold of a question and the red of a miss (the Design Lab, 1 Nov); its words take the darker shade, `-t`, which reads on the paper
+    "--tutor": mix(gold, red, 0.45),
+    "--tutor-t": mix(goldT, red, 0.6),
+    // not settled (partly right, and a right relation whose examples are not checked yet) is purple, which is red and blue
+    "--partc": purple,
+    "--partc-t": purple,
   };
 }
 

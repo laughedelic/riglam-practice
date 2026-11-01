@@ -353,12 +353,15 @@ export interface State {
   about: About | null;
   /** updating the installed app in place (platform.updates), shown in Options; null where there is no installed copy */
   updates: Updates | null;
-  /** opens the prompt for the Magic Key (platform.unlock) while this device has none; `tutor` is whether the server has a tutor waiting for it */
+  /** takes the Magic Key on Settings' Magic Key page (platform.unlock) while this device has none; `tutor` is whether the server has a tutor waiting for it */
   unlock: Unlock | null;
   /** while this device has the Magic Key: take another one, or forget it (platform.keyHeld) */
   keyHeld: KeyHeld | null;
   /** the Magic Key row of Options is asking whether to forget the key */
   keyAsk: boolean;
+  /** the Magic Key page opened where the key is needed (shell/options.js, openKey): its way back goes to `back` (closing Settings), `then` runs once a key
+   *  is taken, `why` is what went wrong with a key at the start; null when the page was opened from Settings' list */
+  keyFrom: { back: "road" | "review" | "exercise"; then: (() => void) | null; why: string } | null;
   /** a question to the app's own server (platform.tutor), when the place has one; `sample` is used first */
   tutor: Tutor | null;
   /** what the app's server learned of examples from earlier checks (platform.known), asked before the tutor about an example the page could not check */
@@ -410,6 +413,16 @@ export interface State {
   optsOpen: boolean;
   /** the Path's Settings: the line whose own page is open (path/settings.tsx), or null for the sections */
   optsPage: string | null;
+  /** What's new was opened from the roadmap's line or after an update (path/news.tsx), so its way back goes where it was opened from, not to the Settings list */
+  newsDirect: boolean;
+  /** the newest item of What's new this device had shown when the page opened: the items above it are marked new (null: none) */
+  newsSince: string | null;
+  /** What's new opened right after Update: the items it brought snap onto the path */
+  newsArrive: boolean;
+  /** the question (`cur`) the exercise's update line was first shown on */
+  pinAt: unknown;
+  /** the learner went on to another question with the update line there: it shows on the roadmap only */
+  pinGone: boolean;
   /** this is a Preview (staging, a pull request build), not the real app (platform.preview) */
   preview: boolean;
   /** Blitz, the tutor and voice: each exercise's own values (practice/per-exercise.ts, `rd-per-ex`) */
