@@ -579,7 +579,7 @@ export interface VoiceState {
   /** the mic is held down for hold to talk (longer than a tap) */
   hold: boolean;
   /** the press on the mic now: when it began, whether it was listening already (a press then stops it), whether it has lasted longer than a tap */
-  press: { t0: number; was: boolean; long: boolean; tid: ReturnType<typeof setTimeout> | null } | null;
+  press: { t0: number; was: boolean; long: boolean; tid: ReturnType<typeof setTimeout> | null; pid: number } | null;
   /** the press on the speaker now: holding it pauses the reading, and the click that follows is then not a tap */
   spress: { long: boolean; tid: ReturnType<typeof setTimeout> | null } | null;
   /** the step the last spoken answer took, with the way back; null when there is none */
@@ -588,6 +588,8 @@ export interface VoiceState {
   tried: boolean;
   /** the next screen is drawn without reading its question (a step was taken back; the mic opens at once) */
   noRead: boolean;
+  /** the mic was started with the keyboard, so that an answer that waits takes the focus (Enter then confirms, as it does where the focus is on the page) */
+  kbd: boolean;
   /** the chosen voice, "" for the best one this device has */
   voiceId: string;
   rate: number;

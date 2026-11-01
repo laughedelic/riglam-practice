@@ -269,6 +269,27 @@ test("the speaker at the foot says the question again, stops it, and a hold paus
   expect(await page.evaluate(() => localStorage.getItem("rd-voice-read"))).toBe("1");
 });
 
+test("from the keyboard: M pauses the reading for the visit and takes the pause away; after the microphone was started with the keys, the answer that waits has the focus on Yes, so Enter confirms", async ({ page }) => {
+  await voice(page, { settings: { read: "1", answer: "tap", confirm: "wait" } });
+  await page.goto("/");
+  await ready(page);
+  await goTo(page, "Pervasions");
+  await spoken(page, 1);
+  await page.keyboard.press("m");
+  await expect(speaker(page)).toHaveClass(/off/);
+  await page.keyboard.press("m");
+  await expect(speaker(page)).not.toHaveClass(/off/);
+  await spoken(page, 2);
+  await mic(page).focus();
+  await hearNext(page, "I accept");
+  await page.keyboard.press("Space");   // a key on the focused microphone listens
+  await settle(page);
+  await expect(waiting(page)).toBeVisible();
+  await expect(page.locator("#vbar .vok")).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(qNow(page)).toHaveText("Q2");
+});
+
 test("the Voice choices are on the first page of the Practice options: Read aloud, Answer by voice, and the rest behind More about voice", async ({ page }) => {
   await voice(page, { settings: { read: "0", answer: "off" } });
   await page.goto("/");
@@ -429,26 +450,41 @@ test("after a spoken answer went on, the step stays above the foot as a chip for
   expect(await said(page), "the question is not read again").toHaveLength(2);
   expect(await docs(page, "debates"), "nothing was saved before the check").toHaveLength(0);
 
-  // "no" after it went on does the same
+  // "back" after it went on does the same
   await hearNext(page, "Why? a gold ring");
   await settle(page);
   await confirm(page);
   await expect(qNow(page)).toHaveText("Q2");
   await expect(chip.locator("b")).toHaveText("Why? a gold ring");
-  await hearNext(page, "no");
+  await hearNext(page, "back");
   await page.keyboard.press("v");
   await expect(qNow(page)).toHaveText("Q1");
   await listening(page);
   await page.keyboard.press("v");   // stop the open microphone
   await idle(page);
 
-  // the chip goes by itself after six seconds, and the answer stands
+  // but "no" is an answer here (Why?), so while the chip is up it answers the next question and leaves the step alone
   await hear(page, "I accept");
   await confirm(page);
   await expect(qNow(page)).toHaveText("Q2");
   await expect(chip).toBeVisible();
-  await expect(chip).toHaveCount(0, { timeout: 7500 });
+  await hearNext(page, "no");
+  await page.keyboard.press("v");
+  await settle(page);
+  await expect(page.locator("#vbar .vwhat b")).toHaveText("Why?");
   await expect(qNow(page)).toHaveText("Q2");
+  await page.keyboard.press("Escape");   // Escape changes it, and the mic is open for another
+  await listening(page);
+  await page.keyboard.press("v");
+  await idle(page);
+
+  // the chip goes by itself after six seconds, and the answer stands
+  await hear(page, "I accept");
+  await confirm(page);
+  await expect(qNow(page)).toHaveText("Q3");
+  await expect(chip).toBeVisible();
+  await expect(chip).toHaveCount(0, { timeout: 7500 });
+  await expect(qNow(page)).toHaveText("Q3");
 });
 
 test("Relations: Change on the chip puts back the relation list, or the case that was written, with what it held; the last case checks the pair and has no chip", async ({ page }) => {

@@ -173,7 +173,8 @@ function take(a,alts){
   if(v.pend){
     if(yn==="yes") return confirm();
     if(yn==="no") return change();
-  } else if(v.chip&&yn==="no") return undoTaken();      // after it went on: "no" or "back" takes the last step back
+  // after it went on: "no" or "back" takes the last step back, except where "no" is itself an answer (Pervasions: Accept or Why?)
+  } else if(v.chip&&yn==="no"&&!((a.kind==="reply"||a.kind==="example")&&spokenReply(state,alts))) return undoTaken();
   if(a.kind==="reply"){
     const r=spokenReply(state,alts);
     if(!r) return again(a,alts[0],"Say “"+w.acc+"” or “"+w.why+"”.");
@@ -232,6 +233,8 @@ function offer(a,heard,label,apply){
   const p=v.pend={key:a.key,said:same(h,label)?"Heard":"Heard “"+h+"”, taken as",label,apply,auto:null};
   if(autoOn()){ const ms=state.blitz?PAUSE_BLITZ:PAUSE_CALM; p.auto={ms,t0:performance.now(),tid:setTimeout(()=>{ if(v.pend===p) confirm(); },ms)}; }
   paint();
+  // started with the keyboard: the focus is on the microphone, where Enter would listen again; it goes to Yes
+  if(v.kbd){ v.kbd=false; const b=$("vbar")&&$("vbar").querySelector(".vok"); if(b) b.focus({preventScroll:true}); }
   if(!p.auto&&handsFree()) hear(a);     // listens for "yes", "no" or another answer
 }
 function dropPend(){
@@ -335,9 +338,9 @@ export function voiceBar(){
     pend);
 }
 /** The speaker is at the foot: Read aloud is chosen and the device can speak, on a screen that asks something. */
-export const readShown=()=>!!asked()&&enabled()&&state.voice.read&&canSpeak();
+export const readShown=()=>enabled()&&!!asked()&&state.voice.read&&canSpeak();
 /** The microphone is at the foot: Answer by voice is on, on a screen that asks something. */
-export const micShown=()=>!!asked()&&hearing();
+export const micShown=()=>enabled()&&!!asked()&&hearing();
 function micState(b){
   const v=state.voice, on=v.phase==="listening", a=asked();
   b.classList.toggle("on",on); b.classList.toggle("hold",v.hold); b.setAttribute("aria-pressed",on?"true":"false");
@@ -347,7 +350,7 @@ function earState(b){
   const v=state.voice, speaking=v.phase==="speaking", ic=v.muted?"speakoff":"speak";
   b.classList.toggle("off",v.muted); b.classList.toggle("on",speaking);
   b.setAttribute("aria-label",v.muted?"Reading is paused. Tap to hear the question":speaking?"Stop reading":"Hear the question again");
-  b.title=v.muted?"Reading is paused for this visit. Tap to hear the question (R)":speaking?"Stop reading (R)":"Hear the question again (R). Hold to pause the reading for this visit.";
+  b.title=v.muted?"Reading is paused for this visit. Tap to hear the question (R)":speaking?"Stop reading (R)":"Hear the question again (R). Hold it, or press M, to pause the reading for this visit.";
   if(b.dataset.ic!==ic){ b.dataset.ic=ic; b.replaceChildren(iconSvg(ic)); }
 }
 /** What the Path draws at the foot (path/shell.tsx, Foot): the speaker and the microphone, or nothing where the screen asks nothing. */
@@ -382,13 +385,14 @@ function micDown(ev){
   ev.preventDefault();
   v.began=true; markTried();
   if(v.press) clearTimeout(v.press.tid);
-  const p=v.press={t0:performance.now(),was:v.phase==="listening",long:/** @type {boolean} */(false),tid:null};
+  const p=v.press={t0:performance.now(),was:v.phase==="listening",long:/** @type {boolean} */(false),tid:null,pid:ev.pointerId};
   if(!p.was) hear(a,false,true);
   p.tid=setTimeout(()=>{ if(v.press===p){ p.long=true; v.hold=!p.was; paint(); } },HOLD_MS);
   document.addEventListener("pointerup",micUp,true); document.addEventListener("pointercancel",micUp,true);
 }
-function micUp(){
+function micUp(ev){
   const v=state.voice, p=v.press;
+  if(p&&ev&&ev.pointerId!==p.pid) return;                   // another finger lifting is not this press
   document.removeEventListener("pointerup",micUp,true); document.removeEventListener("pointercancel",micUp,true);
   v.press=null; v.hold=false;
   if(!p) return;
@@ -399,7 +403,7 @@ function micUp(){
   paint();
 }
 // the keyboard presses the microphone with a click that has no position (a click that follows a pointer was dealt with above)
-function micClick(ev){ if(ev.detail===0) toggleListen(); }
+function micClick(ev){ if(ev.detail===0){ state.voice.kbd=true; toggleListen(); } }
 function markTried(){
   const v=state.voice;
   if(v.tried) return;
@@ -421,10 +425,10 @@ function earDown(ev){
   p.tid=setTimeout(()=>{ if(v.spress===p){ p.long=true; muteToggle(); } },MUTE_MS);
 }
 function earCancel(){ const p=state.voice.spress; if(p) clearTimeout(p.tid); }
-function earClick(){
+function earClick(ev){
   const v=state.voice, p=v.spress;
   v.spress=null;
-  if(p&&p.long) return;                      // the hold already paused or resumed the reading
+  if(p&&p.long&&ev.detail!==0) return;                      // the hold already paused or resumed the reading
   repeat(true);
 }
 // `toggle`: the speaker's tap stops a reading that is going on (the R key says it again from the start)
@@ -447,7 +451,7 @@ function muteToggle(){
   if(v.muted){ v.note="Reading is paused for this visit. Tap the speaker to hear the question."; v.bad=false; if(speaking&&handsFree()) hear(a,true); else paint(); }
   else if(reading()) say(a,a.say,v.held);
 }
-// the keys: V listens (or stops), R reads the question again; Enter confirms the answer that waits, Escape changes it (or the step that just went on). True when the key was taken
+// the keys: V listens (or stops), R reads the question again, M pauses the reading for the visit (or takes the pause away); Enter confirms the answer that waits, Escape changes it (or the step that just went on). True when the key was taken
 export function voiceKey(k){
   const a=asked(); if(!a) return false;
   const v=state.voice;
@@ -457,6 +461,7 @@ export function voiceKey(k){
   } else if(v.chip&&k==="Escape"){ undoTaken(); return true; }
   if(k==="v") return toggleListen();
   if(k==="r"&&reading()) return repeat();
+  if(k==="m"&&enabled()&&state.voice.read&&canSpeak()){ muteToggle(); return true; }
   return false;
 }
 for(const t of ["pointerdown","keydown"]) document.addEventListener(t,()=>{ state.voice.began=true; },{capture:true,once:true});
