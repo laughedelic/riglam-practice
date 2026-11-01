@@ -5,16 +5,58 @@
   --body:var(--main-f);
   font-size:15px; line-height:1.5; min-width:0
 }
-/* what voice heard, above the foot: the bar of src/app/shell/voice.js, which it repaints in place as it listens (so that the focus stays on Confirm),
-   with its buttons in the Path's look */
+/* what voice heard, above the foot: the bar of src/app/shell/voice.js, which it repaints in place as it listens (so that the focus stays on Yes). In the Path's look:
+   a line on what the microphone does, or what is heard as it is said; the card of an answer that waits (what was heard and what it was taken as, then Change and Yes, or the
+   bar that runs before it goes on by itself); the chip of the step that went on, with Change. The buttons are as high as a thumb is wide (50 px), with Yes the wider. */
 .pa .pbr.pvoice{flex:none; padding:0 16px 0 calc(var(--m) + 22px)}
-.pa .pbr.pvoice .vtake{border-top:0; gap:4px 18px}
-.pa .pbr.pvoice .vwhat{flex-basis:120px}
-.pa .pbr.pvoice .vwhat b{font-family:var(--hand-f); font-style:var(--hand-st); font-weight:var(--hand-w); color:var(--blue); font-size:var(--hand-sz)}
-.pa .pbr.pvoice .btn,.pa .pbr.pvoice .btn.ghost,.pa .pbr.pvoice .btn:hover,.pa .pbr.pvoice .btn.ghost:hover{height:auto; min-height:32px; padding:6px 0; background:none; box-shadow:none;
-  font-family:var(--mono); font-size:12.5px; font-weight:600; letter-spacing:0; text-transform:none; color:var(--blue); text-decoration:underline; text-underline-offset:4px}
-.pa .pbr.pvoice .btn.ghost,.pa .pbr.pvoice .btn.ghost:hover{color:var(--ink2)}
-html.pa-tab .pa .pbr.pvoice .btn:focus-visible{outline:2px solid var(--blue); outline-offset:1px; box-shadow:none}
+.pa .pbr.pvoice .vbar{padding-bottom:8px}
+.pa .pbr.pvoice .vrow{min-height:0; padding:2px 0 0}
+.pa .pbr.pvoice .vst{font:12.5px/1.4 var(--main-f); color:var(--ink3)}
+.pa .pbr.pvoice .vst.bad{color:var(--red)}
+.pa .pbr.pvoice .vst.live{font:inherit; font-family:var(--hand-f); font-style:var(--hand-st); font-weight:var(--hand-w); font-size:var(--hand-sz); line-height:1.3; color:var(--ink)}
+.pa .pbr.pvoice .vst.live::after{content:""; display:inline-block; width:2px; height:1em; background:var(--blue); margin-left:3px; vertical-align:-2px}
+.pa .pbr.pvoice .vtake{display:grid; gap:8px; padding:4px 0 0; border-top:0}
+.pa .pbr.pvoice .vwhat{flex:none; display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 10px}
+.pa .pbr.pvoice .vwhat small{font:12px/1.3 var(--mono); letter-spacing:.04em; text-transform:uppercase; color:var(--ink3)}
+.pa .pbr.pvoice .vwhat b{font-family:var(--hand-f); font-style:var(--hand-st); font-weight:var(--hand-w); color:var(--blue); font-size:calc(var(--hand-sz) * 1.15); line-height:1.25}
+.pa .pbr.pvoice .vbtns{display:grid; grid-template-columns:1fr 2fr; gap:10px}
+.pa .pbr.pvoice .btn,.pa .pbr.pvoice .btn:hover,.pa .pbr.pvoice .btn.ghost,.pa .pbr.pvoice .btn.ghost:hover,.pa .pbr.pvoice .vrun{height:50px; min-height:0; padding:0 12px; border-radius:4px; box-shadow:none; text-decoration:none;
+  font:600 16px/1 var(--main-f); letter-spacing:0; text-transform:none; display:flex; align-items:center; justify-content:center; cursor:pointer}
+.pa .pbr.pvoice .vok,.pa .pbr.pvoice .vok:hover{background:var(--blue); color:var(--paper); border:0}
+.pa .pbr.pvoice .vno,.pa .pbr.pvoice .vno:hover{background:none; color:var(--ink2); border:1.5px solid var(--ink3)}
+.pa .pbr.pvoice .vrun{position:relative; overflow:hidden; background:none; color:var(--blue); border:1.5px solid var(--blue)}
+.pa .pbr.pvoice .vrun i{position:absolute; inset:0; height:auto; background:color-mix(in srgb,var(--blue) 16%,transparent)}
+.pa .pbr.pvoice .vrun span{position:relative}
+.pa .pbr.pvoice .vchip{position:relative; overflow:hidden; display:flex; align-items:center; gap:10px; min-height:44px; margin-bottom:8px; padding:0 0 0 12px; border:1.5px solid var(--rule); border-radius:4px; background:color-mix(in srgb,var(--blue) 5%,var(--paper))}
+.pa .pbr.pvoice .vcl{flex:1; min-width:0; display:flex; align-items:baseline; gap:8px}
+.pa .pbr.pvoice .vcl small{flex:none; font:11.5px/1 var(--mono); letter-spacing:.04em; text-transform:uppercase; color:var(--ink3)}
+.pa .pbr.pvoice .vcl b{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:600 15px/1.2 var(--main-f); color:var(--blue)}
+.pa .pbr.pvoice .vchip .vchg,.pa .pbr.pvoice .vchip .vchg:hover{flex:none; height:44px; padding:0 16px; border:0; border-left:1.5px solid var(--rule); border-radius:0; background:none; color:var(--ink); font:600 15px/1 var(--main-f)}
+.pa .pbr.pvoice .vcrun{position:absolute; left:0; bottom:0; width:100%; height:3px; background:var(--blue); opacity:.5; transform-origin:0 50%; animation:vleft var(--d) linear forwards; animation-delay:calc(-1 * var(--e,0ms))}
+@keyframes vleft{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+html.pa-tab .pa .pbr.pvoice .btn:focus-visible,html.pa-tab .pa .pbr.pvoice .vrun:focus-visible{outline:2px solid var(--blue); outline-offset:2px; box-shadow:none}
+/* the speaker and the microphone at the right of the foot (shell/voice.js, voiceDock): the microphone is a diamond like the stations, in blue because blue is yours on the Path, with a touch area
+   of 76 px (the margins keep the foot as high as it is without it); held, it swells and a ring spreads. Nothing is there where the screen asks nothing. */
+.pa .aux .vdockh:empty{display:none}
+.pa .vdock{display:flex; align-items:center; justify-content:flex-end; margin-right:-2px}
+.pa .vdm,.pa .vsp{position:relative; flex:none; display:grid; place-items:center; touch-action:none; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none}
+.pa .vdm{width:76px; height:76px; margin:-14px 0; color:var(--paper)}
+.pa .vdm::before,.pa .vdm::after{content:""; position:absolute; left:15px; top:15px; width:46px; height:46px; border-radius:4px; transform:rotate(45deg)}
+.pa .vdm::before{background:var(--blue); box-shadow:0 5px 14px color-mix(in srgb,var(--blue) 32%,transparent); transition:transform .12s ease-out}
+.pa .vdm::after{border:2px solid var(--blue); opacity:0; pointer-events:none}
+.pa .vdm svg{position:relative; width:27px; height:27px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round}
+.pa .vdm.on::before{background:var(--ink); box-shadow:none}
+.pa .vdm.hold::before{transform:rotate(45deg) scale(1.1)}
+.pa .vdm.on::after{opacity:.55; scale:1.28}
+.pa .vdm.on.hold::after{opacity:.4; scale:1.34}
+@media (prefers-reduced-motion:no-preference){.pa .vdm.on::after{animation:vring 1.4s ease-in-out infinite}}
+@keyframes vring{50%{opacity:.2; scale:1.36}}
+.pa .vsp{width:46px; height:56px; margin:-4px 0; color:var(--blue)}
+.pa .vsp svg{width:23px; height:23px; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round}
+.pa .vsp.on{color:var(--ink)}
+.pa .vsp.off{color:var(--ink3)}
+html.pa-tab .pa .vdm:focus-visible{outline:none}
+html.pa-tab .pa .vdm:focus-visible::before{outline:2px solid var(--blue); outline-offset:3px}
 /* the two dialogs opened over the Path, native dialogs outside #path (the question before a device's examples are kept, ai/share-notice.js; the
    Magic Key, pwa/unlock.ts): the root's variables do not reach them, so applyLook also keeps the palette on the html element as --pa-*, and here they take it, the Path's
    face and its text buttons (the question before a skip, .pdlg, looks the same) */

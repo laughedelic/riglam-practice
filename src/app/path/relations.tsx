@@ -149,7 +149,7 @@ function ResultStep() {
 /** The screen of Relations: its top bar and the step the attempt is at. */
 export function relationsScreen(kb: boolean): { cls: string; node: ComponentChildren } {
   const u = u0(), step = u.checked ? 3 : !u.rel || u.open ? 1 : 2;
-  const top = <TopBar title="Relations" tools mic />;
+  const top = <TopBar title="Relations" tools />;
   if (step === 1) return { cls: "", node: <>{top}<PickStep kb={kb} /></> };
   if (step === 2) return { cls: examplesReady() ? "ready" : "", node: <>{top}<ExamplesStep kb={kb} title="Relations" step={2} rel={relOf()} full={<Picked />} check={check} scan={scanPlan} /></> };
   return { cls: "done", node: <>{top}<ResultStep /></> };

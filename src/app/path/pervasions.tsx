@@ -181,7 +181,7 @@ function ResultStep() {
 /** The screen of Pervasions: its top bar and the step the attempt is at. */
 export function pervasionsScreen(kb: boolean): { cls: string; node: ComponentChildren } {
   const u = u0();
-  const top = <TopBar title="Pervasions" tools mic />;
+  const top = <TopBar title="Pervasions" tools />;
   if (u.checked) return { cls: "done", node: <>{top}<ResultStep /></> };
   if (u.step > 3) return { cls: "", node: <>{top}<RelationStep /></> };
   return { cls: u.pickWhy && (u.exText || "").trim() ? "ready" : "", node: <>{top}<QuestionStep kb={kb} /></> };

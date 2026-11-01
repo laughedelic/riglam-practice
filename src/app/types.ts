@@ -543,24 +543,51 @@ export interface PendingAnswer {
   said: string;
   /** what it was taken as */
   label: string;
-  /** applies it, as the tap or the typed answer it stands for */
-  apply: () => void;
-  /** the pause after which it goes on by itself, when Options says so */
+  /** applies it, as the tap or the typed answer it stands for; returns what takes the step back as it was (Change on the chip), or nothing for a step that cannot be taken back (the one that checks the answer) */
+  apply: () => (() => void) | void;
+  /** the pause after which it goes on by itself (Hands-free, or when Options says so) */
   auto: { ms: number; t0: number; tid: ReturnType<typeof setTimeout> } | null;
+}
+
+/** The step a spoken answer took, kept for a few seconds above the foot with a way back (shell/voice.js). */
+export interface TakenChip {
+  /** what was taken */
+  label: string;
+  /** the screen it was said for */
+  from: string;
+  /** the screen the step led to, once it has been drawn; the chip goes when the screen is another */
+  next: string | null;
+  /** when the chip was shown, for its running line */
+  t0: number;
+  /** takes the step back */
+  undo: () => void;
+  tid: ReturnType<typeof setTimeout> | null;
 }
 
 /** Voice settings (kept on the device) and what the voice is doing on the screen now. */
 export interface VoiceState {
   /** the Voice switch in Settings: until it is on, none of the voice does anything */
   on: boolean;
-  /** Read aloud is paused with the switch in the top bar, for this visit only */
+  /** Read aloud is paused by holding the speaker at the foot, for this visit only */
   muted: boolean;
   /** read each question aloud */
   read: boolean;
   /** answer by voice: not at all, when the microphone button is tapped, or listening after each question */
   answer: "off" | "tap" | "auto";
-  /** a heard answer waits for Confirm, or goes on by itself after a pause */
-  confirm: "tap" | "auto";
+  /** a heard answer waits for Yes, goes on by itself after a pause, or by what the mode is: it waits when the mic is tapped and goes on in Hands-free */
+  confirm: "split" | "wait" | "auto";
+  /** the mic is held down for hold to talk (longer than a tap) */
+  hold: boolean;
+  /** the press on the mic now: when it began, whether it was listening already (a press then stops it), whether it has lasted longer than a tap */
+  press: { t0: number; was: boolean; long: boolean; tid: ReturnType<typeof setTimeout> | null } | null;
+  /** the press on the speaker now: holding it pauses the reading, and the click that follows is then not a tap */
+  spress: { long: boolean; tid: ReturnType<typeof setTimeout> | null } | null;
+  /** the step the last spoken answer took, with the way back; null when there is none */
+  chip: TakenChip | null;
+  /** the person has pressed the mic once on this device, so that the hint under the answers is no longer needed */
+  tried: boolean;
+  /** the next screen is drawn without reading its question (a step was taken back; the mic opens at once) */
+  noRead: boolean;
   /** the chosen voice, "" for the best one this device has */
   voiceId: string;
   rate: number;
@@ -590,8 +617,8 @@ export interface VoiceState {
   clockUi: Ui | null;
   /** the clock is held for the reading of the question */
   rhold: boolean;
-  /** ends the current listening */
-  stop: { stop(): void; abort(): void } | null;
+  /** ends the current listening; `release` is there when it can be held (a tap lets go of it) */
+  stop: { stop(): void; abort(): void; release?(): void } | null;
   /** the speaking or listening under way; a callback of one that was stopped finds another here and does nothing */
   tok: object | null;
   /** the Practice options listen for the browser's list of voices (once they have been shown) */

@@ -244,7 +244,7 @@ test("before a relation is chosen, pulling the path on fills the dotted thread i
   await expect(page.locator(".pa")).not.toHaveClass(/\bpull/);   // let go: it goes back
 });
 
-test("the thread runs on through what voice shows above the foot (Hear the question), at rest and pulled", async ({ page }) => {
+test("the thread runs on through what voice shows above the foot (the line on the speaker), at rest and pulled", async ({ page }) => {
   await page.addInitScript(() => { localStorage.setItem("rd-voice", "1"); localStorage.setItem("rd-voice-read", "1"); });
   await start(page);
   const bar = page.locator("#path .pvoice");
