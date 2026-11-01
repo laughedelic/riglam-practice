@@ -104,17 +104,29 @@ test("Pervasions at Detailed guidance: Accept and Why? in a list, Why? saying wh
   const [acc, why] = [choices(page).nth(0), choices(page).nth(1)];
   await expect(acc.locator(".ct small"), "Accept needs no line").toHaveCount(0);
   const line = why.locator(".ct small");
-  await expect(line).toContainText("something that is");
+  await expect(line).toContainText(/^something is /);   // a statement: "something is both a … and a …"
+  await expect(line).not.toContainText("something that is");
   await expect(line.locator(".conn").first(), "the words that name the case in bold").toBeVisible();
   await expect(line).not.toContainText(/\bA\b/);
   await why.click();
   await expect(page.locator("#dex")).toBeVisible();
   await expect(page.locator("#path .qnow .qq")).toContainText("Name something that is");
+  const color = (sel) => page.locator(sel).evaluate((e) => getComputedStyle(e).color);
+  expect(await color("#path .qnow .qq"), "the line over the field is muted: not the statement's ink").not.toBe(await color("#path .qnow .qst"));
   await page.evaluate(() => { localStorage.setItem("rd-guided", JSON.stringify({ debate: "hints" })); });
   await page.reload();   // back in Pervasions at the same question, Why? picked
   await expect(page.locator(".ptb-t")).toContainText("Pervasions");
   await expect(page.locator("#dex")).toBeVisible();
   await expect(page.locator("#path .qnow .qq")).toContainText(/^Name something that is .*(\bA\b.*\bB\b|\bB\b.*\bA\b)/);
+});
+
+test("Pervasions at Hints guidance: Why? says it as a statement with A and B", async ({ page }) => {
+  await page.addInitScript(() => { localStorage.setItem("rd-guided", JSON.stringify({ debate: "hints" })); });
+  await openPervasions(page);
+  const line = choices(page).nth(1).locator(".ct small");
+  await expect(line).toContainText(/^something is /);
+  await expect(line).toContainText(/(\bA\b.*\bB\b|\bB\b.*\bA\b)/);
+  await expect(line.locator(".conn").first()).toBeVisible();
 });
 
 test("Accept and Why? stand on one row at None guidance; Why? slides to the line over the fading Accept, then its field opens", async ({ page }) => {
