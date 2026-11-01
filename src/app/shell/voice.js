@@ -318,7 +318,7 @@ function chipNode(){
   return el("div",{class:"vchip",role:"group","aria-label":"What was taken"},
     el("i",{class:"vcd","aria-hidden":"true"}),
     el("span",{class:"vcl"},el("small",{text:"Last"}),el("b",{text:c.label})),
-    el("button",{type:"button",class:"vchg",title:"Change it (Escape, or say “no”)",onclick:undoTaken,text:"Change"}),
+    el("button",{type:"button",class:"vchg","data-quiet":"1",title:"Change it (Escape, or say “no”)",onclick:undoTaken,text:"Change"}),
     el("i",{class:"vcrun","aria-hidden":"true",style:"--d:"+CHIP_MS+"ms;--e:"+Math.max(0,Math.round(performance.now()-c.t0))+"ms"}));
 }
 // the row along the top of the field: the chip, or the strip that hears the question again
@@ -327,7 +327,7 @@ function topNode(){
   if(v.chip&&!v.pend) return chipNode();
   if(!readShown()||v.pend) return null;
   const speaking=v.phase==="speaking", label=v.hold?"Release to send":v.muted?"Reading is paused · tap to hear it":speaking?"Reading… tap to stop":"Hear the question again";
-  const b=el("button",{type:"button",class:"vtop"+(v.hold?" say":"")+(v.muted?" off":"")+(speaking?" on":""),id:"vhear",onpointerdown:earDown,onpointerup:earCancel,onpointerleave:earCancel,onpointercancel:earCancel,onclick:earClick,oncontextmenu:e=>e.preventDefault()},
+  const b=el("button",{type:"button","data-quiet":"1",class:"vtop"+(v.hold?" say":"")+(v.muted?" off":"")+(speaking?" on":""),id:"vhear",onpointerdown:earDown,onpointerup:earCancel,onpointerleave:earCancel,onpointercancel:earCancel,onclick:earClick,oncontextmenu:e=>e.preventDefault()},
     v.hold?null:iconSvg(v.muted?"speakoff":"speak"),el("span",{text:label}));
   b.setAttribute("aria-label",v.muted?"Reading is paused. Tap to hear the question":speaking?"Stop reading":"Hear the question again");
   b.title=v.muted?"Reading is paused for this visit. Tap to hear the question (R)":speaking?"Stop reading (R)":"Hear the question again (R). Hold it, or press M, to pause the reading for this visit.";
@@ -341,13 +341,13 @@ function micNode(){
   if(p){
     if(p.auto&&st!=="listen") kids.push(el("i",{class:"vrunl","aria-hidden":"true",style:"--d:"+p.auto.ms+"ms;--e:"+Math.max(0,Math.round(performance.now()-p.auto.t0))+"ms"}));
     kids.push(el("div",{class:"vtake"},el("div",{class:"vwhat",role:"status","aria-live":"polite"},el("small",{text:p.said}),el("b",{text:p.label}))));
-    kids.push(st==="going"?el("div",{class:"vgo soft",text:"Going on…"}):st==="heard"?el("div",{class:"vgo"},el("i",{"aria-hidden":"true"}),"Tap for Yes"):el("div",{class:"vgo"}));
+    kids.push(st==="going"?el("div",{class:"vgo soft",text:"Going on…"}):st==="heard"||(st==="listen"&&!v.hold)?el("div",{class:"vgo"},el("i",{"aria-hidden":"true"}),"Tap for Yes"):el("div",{class:"vgo"}));
   } else kids.push(el("div",{class:"vg"},iconSvg("mic")));
   if(text) kids.push(el("div",{class:stClass(),id:"vlive",role:"status","aria-live":"polite",text}));
-  else kids.push(el("div",{class:"vhint",text:st==="heard"?"Hold to say it again":st==="going"?"Touch to hold it · say “no” to change":st==="read"?"Touch to cut in and answer":"Tap, or hold to talk"}));
+  else kids.push(el("div",{class:"vhint",text:st==="heard"?"Hold to say it again":st==="going"?"Touch to hold it · Escape to change":st==="read"?"Touch to cut in and answer":"Tap, or hold to talk"}));
   const label=st==="heard"?"Yes, go on with "+p.label+". Hold to say it again.":st==="going"?"Going on with "+p.label+". Touch to hold it.":st==="listen"?(v.hold?"Listening while you hold. Let go to send.":"Listening. Tap to finish."):"Answer by voice. Tap, or hold to talk.";
-  const n=el("div",{class:"vmic"+(p?" pend":""),id:"vmic",role:"button",tabindex:"0","aria-label":label,"aria-pressed":st==="listen"?"true":"false",title:st==="idle"&&a?HINT[a.kind](a):null,
-    onpointerdown:micDown,onkeydown:micKey,oncontextmenu:e=>e.preventDefault()},kids);
+  const n=el("div",{class:"vmic"+(p?" pend":""),id:"vmic",role:"button",tabindex:"0","data-quiet":"1","aria-label":label,"aria-pressed":st==="listen"?"true":"false",title:st==="idle"&&a?HINT[a.kind](a):null,
+    onpointerdown:micDown,onclick:micClick,onkeydown:micKey,oncontextmenu:e=>e.preventDefault()},kids);
   return n;
 }
 /** What the Path draws above the foot (path/shell.tsx, VoiceField): the field, or nothing where the screen asks nothing. */
@@ -356,7 +356,15 @@ export function voiceField(){
   if(!rd&&!mic) return null;
   const v=state.voice, st=fieldState(), top=topNode();
   return el("div",{class:"vfield"+(mic?"":" nomic")+(st==="listen"?" on":"")+(v.hold?" hold":""),id:"vfield","data-s":st},
-    el("div",{class:"vtopc"},top),mic?micNode():null);
+    el("div",{class:"vtopc"},top),mic?micNode():null,el("div",{class:"vsr",role:"status","aria-live":"polite",text:srText()}));
+}
+// what a screen reader is told: the children of a button are not read, so the answer that waits and a miss are said from here (not what is heard as it is said)
+function srText(){
+  const v=state.voice, p=v.pend;
+  if(p) return p.said+" "+p.label+(p.auto?". Going on.":". Tap the field for Yes, or hold it to say it again.");
+  if(v.phase==="listening") return "Listening.";
+  if(v.chip) return "Taken as "+v.chip.label+". Change is above the field.";
+  return v.note||"";
 }
 // the field again, in place, without rendering the screen (which would rebuild the fields and move the focus). The touch area stays the same node, so that a finger on it keeps its target
 function paint(){
@@ -367,6 +375,8 @@ function paint(){
   if(!om!==!nm){ old.replaceWith(nf); return; }
   const topc=old.querySelector(".vtopc"), had=topc.contains(document.activeElement);
   old.className=nf.className; old.setAttribute("data-s",nf.getAttribute("data-s")||"");
+  const sr=old.querySelector(".vsr"), ns=nf.querySelector(".vsr");
+  if(sr&&ns&&sr.textContent!==ns.textContent) sr.textContent=ns.textContent;
   topc.replaceWith(nf.querySelector(".vtopc"));
   if(had){ const b=old.querySelector(".vtopc button"); if(b) b.focus({preventScroll:true}); }
   if(om&&nm){
@@ -392,8 +402,9 @@ function micDown(ev){
   v.began=true; markTried(); spotAt(ev);
   const fm=$("vmic"); if(fm&&document.activeElement!==fm) fm.focus({preventScroll:true});     // the keys then go on from the field (Enter confirms what waits)
   if(v.press) clearTimeout(v.press.tid);
-  const waits=!!v.pend&&v.phase!=="listening", wasAuto=waits&&!!v.pend.auto;
-  const p=v.press={t0:performance.now(),was:v.phase==="listening",long:/** @type {boolean} */(false),tid:null,pid:ev.pointerId,yes:waits,auto:wasAuto};
+  const waits=!!v.pend, wasAuto=waits&&!!v.pend.auto;
+  if(waits&&v.phase==="listening") quiet();             // the mic that listens for "yes" gives way to the tap (Hands-free, waiting for Yes)
+  const p=v.press={t0:performance.now(),was:!waits&&v.phase==="listening",long:/** @type {boolean} */(false),tid:null,pid:ev.pointerId,yes:waits,auto:wasAuto};
   if(waits) freezePend();                    // a touch holds the bar that runs; the answer then waits for Yes
   else if(!p.was) hear(a,false,true);
   p.tid=setTimeout(()=>{ if(v.press!==p) return; p.long=true; if(p.yes){ p.yes=false; hear(a,false,true); } v.hold=!p.was; paint(); },HOLD_MS);
@@ -410,9 +421,16 @@ function micUp(ev){
   clearTimeout(p.tid);
   const h=v.stop;
   if(p.was){ if(h) h.stop(); }                              // it was listening: a press stops it
-  else if(p.yes){ if(ev&&ev.type==="pointercancel") { paint(); return; } if(!p.auto){ confirm(); return; } }    // a tap is Yes; where it was going on by itself the touch only held it
+  else if(p.yes){ if(!ev||ev.type==="pointercancel") { paint(); return; } if(!p.auto){ confirm(); return; } }    // a tap is Yes; where it was going on by itself the touch only held it
   else if(h&&h.release){ if(p.long) h.stop(); else h.release(); }
   paint();
+}
+// a click that no touch or key made (a screen reader's "activate"): it does what a tap does
+function micClick(ev){
+  if(ev.detail!==0) return;
+  ev.preventDefault();
+  if(state.voice.pend){ confirm(); return; }
+  toggleListen();
 }
 // the keyboard presses the field with Space or Enter (Enter confirms an answer that waits, as it does anywhere on the page)
 function micKey(ev){
@@ -420,7 +438,7 @@ function micKey(ev){
   ev.preventDefault(); ev.stopPropagation();
   if(ev.repeat) return;
   const v=state.voice;
-  if(v.pend&&v.phase!=="listening"){ confirm(); return; }
+  if(v.pend){ confirm(); return; }
   toggleListen();
 }
 function markTried(){
