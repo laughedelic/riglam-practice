@@ -1,6 +1,6 @@
 // What's new (src/app/news.ts): the learner's list of changes, and which of them a device has not shown yet.
 import { expect, test } from "vitest";
-import { NEWS, buildWords, newsSince, type NewsItem } from "../../src/app/news";
+import { NEWS, buildWords, comingNews, newsSince, type NewsItem } from "../../src/app/news";
 
 const list: NewsItem[] = [{ id: "c", title: "C", text: "" }, { id: "b", title: "B", text: "" }, { id: "a", title: "A", text: "" }];
 
@@ -31,4 +31,12 @@ test("a version that waits: plain words in the app, its version, build and pull 
   expect(buildWords(null)).toBe("New version ready");
   expect(buildWords({ version: "0.21.4", commit: "ce48d24aa", pulls: [197, 204] })).toBe("v0.21.4 · ce48d24 · #197 #204");
   expect(buildWords({ version: null, commit: "ce48d24", pulls: [] })).toBe("ce48d24");
+});
+
+test("what a version that waits brings: its items above the newest this build has", () => {
+  const remote = [{ id: "e", title: "E", text: "" }, { id: "d", title: "D", text: "" }, ...list];
+  expect(comingNews(remote, list).map((n) => n.id)).toEqual(["e", "d"]);
+  expect(comingNews(list, list)).toEqual([]);
+  expect(comingNews(undefined, list)).toEqual([]);
+  expect(comingNews([{ id: "z", title: "Z", text: "" }], list)).toEqual([]);   // nothing in common: the list cannot be trusted to be newer
 });

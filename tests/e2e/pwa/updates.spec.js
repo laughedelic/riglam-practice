@@ -12,6 +12,8 @@ const DIST = join(process.cwd(), "dist/pwa");
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".json": "application/json", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png", ".woff2": "font/woff2", ".webmanifest": "application/manifest+json" };
 const V2 = "\nself.addEventListener('fetch',(e)=>{ if(new URL(e.request.url).pathname.endsWith('/__which')) e.respondWith(new Response('v2')); });\n";
 
+/** An item of What's new that only the newer build has. */
+const NEXT = { id: "2030-01-01-next", title: "Something coming", text: "Said before the update, from the newer build's list." };
 let server, origin, newVersion, newBuild, down;
 test.beforeAll(async () => {
   server = createServer((req, res) => {
@@ -21,7 +23,7 @@ test.beforeAll(async () => {
     if (down && path === "/sw.js") { res.writeHead(503); return res.end(); }
     let body = readFileSync(file);
     if (path === "/sw.js" && newVersion) body = Buffer.concat([body, Buffer.from(V2)]);
-    if (path === "/build.json" && newBuild) body = Buffer.from(JSON.stringify({ version: "9.9.9", commit: "b1ee7d5", builtAt: "2030-01-01T00:00:00Z" }));   // the server's build is another one (its commit and version are named in the notice)
+    if (path === "/build.json" && newBuild) body = Buffer.from(JSON.stringify({ version: "9.9.9", commit: "b1ee7d5", builtAt: "2030-01-01T00:00:00Z", news: [NEXT, ...JSON.parse(body).news] }));   // the server's build is another one (its commit and version are named in the notice)
     res.writeHead(200, { "content-type": TYPES[extname(file)] ?? "application/octet-stream", "cache-control": "no-cache" });
     res.end(body);
   });
@@ -77,10 +79,36 @@ test("a newer version is said on one line above the next stop, covering nothing;
   expect(await which(page)).toBe("v2");
   await expect(newsPage(page), "the start after Update opens What's new").toBeVisible({ timeout: 10_000 });
   await expect(page.locator("#path .nwi.new").first()).toBeVisible();
+  await expect(page.locator("#path .nwi.arrive").first(), "what the update brought comes onto the path").toBeVisible();
   // its way back is where the app opened, not the Settings list
   await page.locator("#path .ptb .tstn").click();
   await expect(newsPage(page)).toBeHidden();
   await expect(page.locator("#path .chs .crow")).toHaveCount(5);
+});
+
+test("the line's words open What's new with what the newer version brings and Update now; gone on to another question, the line stays on the roadmap only", async ({ page }) => {
+  await page.addInitScript(() => { window.__riglamTest = (t) => { window.__t = t; }; });
+  await installed(page);
+  await markOld(page);
+  newVersion = true;
+  newBuild = true;
+  await page.evaluate(() => window.__riglam.platform.updates.check());
+  const line = footLine(page);
+  await expect(line).toBeVisible();
+  await line.getByRole("button", { name: "New version ready" }).click();
+  await expect(newsPage(page)).toBeVisible();
+  const soon = page.locator("#path .nwsoon");
+  await expect(soon).toContainText("A new version is ready");
+  await expect(soon.locator(".nwi"), "the newer build's own item, said before the reload").toContainText(NEXT.title, { timeout: 10_000 });
+  await expect(soon.getByRole("button", { name: "Update now" })).toBeVisible();
+  expect(await isOld(page), "opening the page does not update").toBe(true);
+  await page.locator("#path .ptb .tstn").click();   // back to the exercise
+  await expect(footLine(page)).toBeVisible();
+  await page.evaluate(() => { window.__t.skipPair(); window.__t.render(); });   // on to another question with the line still there
+  await expect(page.locator("#path .chs .crow").first()).toBeVisible();
+  await expect(footLine(page), "said once in an exercise").toHaveCount(0);
+  await page.locator(".tstn").click();
+  await expect(roadLine(page), "the roadmap still says it").toContainText("New version ready");
 });
 
 test("the roadmap looks for a newer version each time it opens and says it on one line above its foot, with the one Update", async ({ page }) => {

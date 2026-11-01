@@ -8,7 +8,7 @@ import { render } from "./render.js";
 // The Blitz clock does not run behind the panel: it stops when Settings opens and starts again, with its full time, when it closes (as when you come back to an exercise).
 export function toggleOpts(on){
   const was=state.optsOpen; state.optsOpen=on===undefined?!state.optsOpen:on;
-  if(!state.optsOpen){ state.optsPage=null; state.newsDirect=false; }
+  if(!state.optsOpen){ state.optsPage=null; state.newsDirect=false; state.newsArrive=false; }
   // opened from the roadmap, Settings goes back to it, not to the exercise under it (shell/history.js)
   const road=!state.optsOpen&&was&&state.fromRoad; if(road){ state.fromRoad=false; state.menuOpen=true; }
   if(state.optsOpen&&!was) stopTimer();

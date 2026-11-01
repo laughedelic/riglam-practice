@@ -13,7 +13,7 @@ let status: UpdateStatus = "unknown"; // until a look has succeeded: offline, a 
 let registration: ServiceWorkerRegistration | undefined;
 let lastLook = 0;
 let pending: Promise<void> | null = null;
-let coming: { commit: string; version: string | null; pulls?: number[] } | null = null; // what the server has now, once an update is on its way (named in the notice)
+let coming: { commit: string; version: string | null; pulls?: number[]; news?: { id: string; title: string; text: string }[] } | null = null; // what the server has now, once an update is on its way (named in the notice)
 const listeners = new Set<() => void>();
 const MIN_LOOK_MS = 700; // a look that answers faster shows "checking" for this long: a status that flashes by says nothing
 

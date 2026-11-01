@@ -1,15 +1,22 @@
 /* A newer version and What's new (path/news.tsx; the lab "Updates and what's new", round 2). While a version waits one line is pinned above the bottom: on the
    roadmap above the stage rings, in an exercise on the thread above the next station, where Claude's waiting line stands. Nothing is laid over the page. */
-.pa .pinln{flex:none; position:relative; z-index:6; display:grid; grid-template-columns:var(--m) minmax(0,1fr) auto; column-gap:10px; align-items:center; min-height:40px; padding-right:12px; background-color:var(--paper)}
-/* in an exercise the thread runs through it, as it runs on to the station below */
+.pa .pinln{flex:none; position:relative; z-index:6; display:grid; grid-template-columns:var(--m) minmax(0,1fr) auto; column-gap:10px; align-items:center; min-height:34px; padding-right:12px; background-color:var(--paper)}
+/* in an exercise, as through Claude's waiting line, the thread runs through it on to the station below (still the way ahead: dotted, as above it) */
 .pa .pinln.onfoot::before{content:""; position:absolute; top:0; bottom:0; left:calc(var(--m) - var(--lw) / 2); width:var(--lw); background:var(--ahead-bg); opacity:.9}
+/* on the roadmap Continue stands above it, kept apart from its Update */
+.pa .road .rgo + .pinln{margin-top:14px}
 .pa .pinln .pind{justify-self:end; margin-right:-5px; width:10px; height:10px; transform:rotate(45deg); background:var(--gold); position:relative}
-.pa .pinln .pint{margin-left:12px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:var(--mono); font-size:13px; color:var(--gold-t)}
+.pa .pinln .pint{margin-left:12px; min-width:0; min-height:40px; display:flex; align-items:center; text-align:left; font-family:var(--mono); font-size:11px; color:var(--gold-t)}
+.pa .pinln .pinw{display:block; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .pa .pinln.news .pint{color:var(--ink2)}
+/* the light that passes over the words, as over Claude's (19-path-wait.css), in the gold of a version */
+.pa .pinln .pinw.shine{color:transparent; -webkit-background-clip:text; background-clip:text; background-size:300% 100%;
+  background-image:linear-gradient(90deg,var(--gold-t) 0 40%,color-mix(in srgb,var(--gold-t) 25%,var(--paper)) 50%,var(--gold-t) 60% 100%); animation:p-wshim 2.2s linear infinite}
 /* a Preview names the build and its pull requests: up to two lines */
-.pa .pinln.pre .pint{white-space:normal; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; line-height:1.35; font-size:12px}
-.pa .pinln .pinb{min-height:40px; padding:0 2px; font-family:var(--mono); font-size:13px; font-weight:600; color:var(--ink); text-decoration:underline; text-underline-offset:4px}
+.pa .pinln.pre .pinw{white-space:normal; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; line-height:1.35}
+.pa .pinln .pinb{min-height:40px; padding:0 2px}
 @media (prefers-reduced-motion:no-preference){ .pa .pinln{animation:p-pinin .25s ease-out} }
+@media (prefers-reduced-motion:reduce){ .pa .pinln .pinw.shine{animation:none; background:none; color:var(--gold-t)} }
 @keyframes p-pinin{from{opacity:0}}
 
 /* What's new: each change a stop on a thread, the ones new on this device gold */
@@ -21,3 +28,20 @@
 .pa .nwt{font-weight:600; font-size:17px; line-height:1.3}
 .pa .nwtag{margin-left:8px; font-family:var(--mono); font-size:10.5px; font-weight:400; letter-spacing:.04em; color:var(--gold-t)}
 .pa .nwx{margin-top:2px; font-size:15px; line-height:1.45; color:var(--ink2)}
+
+/* a version that waits, at the top of the page: what it brings, beside the thread (not on it yet), and Update now */
+.pa .nwsoon{margin:6px 0 18px; padding:0 0 14px; border-bottom:1px solid var(--rule)}
+.pa .nwst{margin:0 16px 0 calc(var(--m) + 14px); font-family:var(--mono); font-size:12px; color:var(--gold-t)}
+.pa .nwl.soon::before{display:none}
+.pa .nwl.soon .nwi{transform:translateX(18px)}
+.pa .nwl.soon .nwd{border-color:var(--gold); border-style:dashed}
+.pa .nwsx{margin:0 16px 0 calc(var(--m) + 14px); font-size:14px; color:var(--ink2)}
+.pa .nwsoon > .pbtn{margin-left:calc(var(--m) + 14px)}
+/* after Update: the items it brought come in from beside the thread as they stood above, snap onto it, and slide up into their places; their diamonds fill */
+@media (prefers-reduced-motion:no-preference){
+  .pa .nwi.arrive{animation:nw-in .7s cubic-bezier(.3,.8,.3,1) calc(.25s + var(--i,0) * .12s) both}
+  .pa .nwi.arrive .nwd{animation:nw-fill .25s ease-out calc(.6s + var(--i,0) * .12s) both}
+  .pa .nwi.arrive .nwtag{animation:p-pinin .3s ease-out calc(.8s + var(--i,0) * .12s) both}
+}
+@keyframes nw-in{0%{transform:translate(18px,26px); opacity:.5} 45%{transform:translate(0,26px); opacity:1} 100%{transform:none}}
+@keyframes nw-fill{from{background-color:var(--paper); border-style:dashed}}

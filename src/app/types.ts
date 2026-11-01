@@ -410,6 +410,12 @@ export interface State {
   newsDirect: boolean;
   /** the newest item of What's new this device had shown when the page opened: the items above it are marked new (null: none) */
   newsSince: string | null;
+  /** What's new opened right after Update: the items it brought snap onto the path */
+  newsArrive: boolean;
+  /** the question (`cur`) the exercise's update line was first shown on */
+  pinAt: unknown;
+  /** the learner went on to another question with the update line there: it shows on the roadmap only */
+  pinGone: boolean;
   /** this is a Preview (staging, a pull request build), not the real app (platform.preview) */
   preview: boolean;
   /** Blitz, the tutor and voice: each exercise's own values (practice/per-exercise.ts, `rd-per-ex`) */

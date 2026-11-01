@@ -8,7 +8,7 @@ import { state } from "../state.js";
 import { render } from "../shell/render.js";
 import { setTab } from "../shell/tabs.js";
 import { toggleOpts } from "../shell/options.js";
-import { NEWS, newsSince, buildWords, type NewsGo, type NewsItem } from "../news.ts";
+import { NEWS, newsSince, buildWords, comingNews, type NewsGo, type NewsItem } from "../news.ts";
 import { u0 } from "./parts.tsx";
 
 const SEEN = "rd-news-seen";
@@ -31,10 +31,11 @@ export function updateNow(): void {
  * Opens What's new as a page of Settings. `direct`: from the roadmap's line or after an update, so its way back goes where it was opened from, not to the
  * Settings list. The items not shown before are marked new on the page, and are shown from now on.
  */
-export function openNews(direct: boolean): void {
+export function openNews(direct: boolean, arrive = false): void {
   state.newsSince = read(SEEN);
   if (NEWS[0]) write(SEEN, NEWS[0].id);
   state.newsDirect = direct;
+  state.newsArrive = arrive;
   if (direct) { state.fromRoad = state.menuOpen; state.menuOpen = false; state.sessOpen = false; state.sessPage = null; state.skipAsk = false; }
   state.optsPage = "news";
   if (state.optsOpen) render(); else toggleOpts(true);
@@ -49,37 +50,46 @@ export function startNews(): void {
   const t0 = Date.now();
   const when = () => {
     if ((document.getElementById("cover") || state.mode === "loading") && Date.now() - t0 < 6000) { setTimeout(when, 150); return; }
-    openNews(true);
+    openNews(true, true);
   };
   setTimeout(when, 150);
 }
 
-/** The pinned line: a gold diamond on the thread, a few words, and the way on. */
-function PinLine({ cls, text, label, act }: { cls: string; text: string; label: string; act: () => void }) {
+/**
+ * The pinned line, drawn as Claude's waiting line is: a gold diamond on the thread, the words in a light that passes over them, the way on at the right end.
+ * The words open What's new (`words`), where a version that waits says what it brings, with Update now.
+ */
+function PinLine({ cls, text, label, act, words, shine }: { cls: string; text: string; label: string; act: () => void; words: () => void; shine: boolean }) {
   return <div class={"pinln " + cls} role="status">
     <span class="pind" aria-hidden="true" />
-    <span class="pint">{text}</span>
-    <button type="button" class="pinb" onClick={act}>{label}</button>
+    <button type="button" class="pint" onClick={words}><span class={"pinw" + (shine ? " shine" : "")}>{text}</span></button>
+    <button type="button" class="pbtn quiet pinb" onClick={act}>{label}</button>
   </div>;
 }
 
 /** What the line says of a version that waits: the real app just says it is there; a Preview (staging) names it, its build and the pull requests in it. */
 export const readyWords = (): string => buildWords(state.preview ? state.updates?.coming?.() ?? null : null);
 
+const ready = () => { const u = state.updates; return !!u && u.status() === "ready"; };
+
 /** The roadmap's line above its foot: a version that waits, else what is new since the last look. */
 export function RoadPin() {
-  const u = state.updates;
-  if (u && u.status() === "ready") return <PinLine cls={"onroad" + (state.preview ? " pre" : "")} text={readyWords()} label="Update" act={updateNow} />;
+  if (ready()) return <PinLine cls={"onroad" + (state.preview ? " pre" : "")} text={readyWords()} label="Update" act={updateNow} words={() => openNews(true)} shine />;
   const n = unseen();
-  if (n.length) return <PinLine cls="onroad news" text={"What's new: " + n[0]!.title} label="Read" act={() => openNews(true)} />;
+  if (n.length) return <PinLine cls="onroad news" text={"What's new: " + n[0]!.title} label="Read" act={() => openNews(true)} words={() => openNews(true)} shine={false} />;
   return null;
 }
 
-/** The exercise's line above its next station, while a version waits and Claude is not at work. */
+/**
+ * The exercise's line above its next station, while a version waits and Claude is not at work. It stands for the question it came on: once the learner goes
+ * on to another one with it there, it is said on the roadmap only.
+ */
 export function FootPin() {
-  const u = state.updates;
-  if (!u || u.status() !== "ready" || state.mode !== "quiz" || u0().ctl) return null;
-  return <PinLine cls={"onfoot" + (state.preview ? " pre" : "")} text={readyWords()} label="Update" act={updateNow} />;
+  if (!ready() || state.mode !== "quiz" || state.pinGone) return null;
+  if (state.pinAt === null) state.pinAt = state.cur;
+  else if (state.pinAt !== state.cur) { state.pinGone = true; return null; }
+  if (u0().ctl) return null;
+  return <PinLine cls={"onfoot" + (state.preview ? " pre" : "")} text={readyWords()} label="Update" act={updateNow} words={() => openNews(true)} shine />;
 }
 
 const GO_LABEL: Record<NewsGo, string> = { settings: "Open Settings", practice: "Try it", find: "Try it", debate: "Try it", syllogism: "Try it", categories: "Try it", instance: "Try it" };
@@ -90,18 +100,32 @@ function go(to: NewsGo) {
   setTab(to);
 }
 
-/** The page: the items new on this device first, marked, then the earlier ones; each a stop on a thread. */
+/** The page: a version that waits first, with what it brings and Update now; then the items new on this device, marked, then the earlier ones; each a stop on a thread. */
 export function NewsPage() {
   const fresh = new Set(newsSince(state.newsSince).map((n) => n.id));
-  const item = (n: NewsItem) => <li class={"nwi" + (fresh.has(n.id) ? " new" : "")} key={n.id}>
-    <span class="nwd" aria-hidden="true" />
-    <div class="nwb">
-      <p class="nwt">{n.title}{fresh.has(n.id) ? <span class="nwtag">new</span> : null}</p>
-      <p class="nwx">{n.text}</p>
-      {n.go ? <button type="button" class="pbtn" onClick={() => go(n.go!)}>{GO_LABEL[n.go]}</button> : null}
-    </div>
-  </li>;
+  let i = 0;
+  const item = (n: NewsItem) => {
+    const isNew = fresh.has(n.id), arrive = isNew && state.newsArrive;
+    return <li class={"nwi" + (isNew ? " new" : "") + (arrive ? " arrive" : "")} key={n.id} style={arrive ? { "--i": i++ } : undefined}>
+      <span class="nwd" aria-hidden="true" />
+      <div class="nwb">
+        <p class="nwt">{n.title}{isNew ? <span class="nwtag">new</span> : null}</p>
+        <p class="nwx">{n.text}</p>
+        {n.go ? <button type="button" class="pbtn" onClick={() => go(n.go!)}>{GO_LABEL[n.go]}</button> : null}
+      </div>
+    </li>;
+  };
+  const soon = ready() ? comingNews(state.updates?.coming?.()?.news) : [];
   return <>
+    {ready() ? <div class="nwsoon">
+      <p class="nwst">{state.preview ? readyWords() : "A new version is ready"}</p>
+      {soon.length ? <ul class="nwl soon">{soon.map((n) => <li class="nwi" key={n.id}>
+        <span class="nwd" aria-hidden="true" />
+        <div class="nwb"><p class="nwt">{n.title}</p><p class="nwx">{n.text}</p></div>
+      </li>)}</ul> : null}
+      <p class="nwsx">Updating reloads the app; your answers stay.</p>
+      <button type="button" class="pbtn" onClick={updateNow}>Update now</button>
+    </div> : null}
     <p class="sintro">What changed in the app lately, newest first.</p>
     <ul class="nwl">{NEWS.map(item)}</ul>
   </>;

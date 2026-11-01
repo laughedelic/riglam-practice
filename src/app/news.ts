@@ -15,7 +15,7 @@ export interface NewsItem {
 }
 
 export const NEWS: NewsItem[] = [
-  { id: "2026-11-01-whats-new", title: "A quieter update", text: "When a new version is ready, one line above the bottom says so, with Update beside it; nothing covers the question any more. After you update, this page shows what changed. It is also in Settings, under About." },
+  { id: "2026-11-01-whats-new", title: "A quieter update", text: "When a new version is ready, one line above the bottom says so, with Update beside it; nothing covers the question any more. Tap its words to see what the new version brings. After you update, this page shows what changed; it is also in Settings, under About." },
   { id: "2026-10-31-sounds", title: "Short sounds", text: "A short sound for a result, a new term or stage, and Claude's answers. You can turn them off in Settings › Sounds.", go: "settings" },
   { id: "2026-10-31-categories", title: "Categories, simpler", text: "Categories now asks only for the categories; the step that asked for the most specific one is gone.", go: "categories" },
   { id: "2026-10-30-claude", title: "Claude, by name", text: "The helper that checks and explains your answers is now called Claude everywhere, and says what it is." },
@@ -32,4 +32,11 @@ export function buildWords(c: { version: string | null; commit: string; pulls?: 
   if (!c) return "New version ready";
   const pulls = c.pulls?.length ? c.pulls.map((n) => "#" + n).join(" ") : null;
   return [c.version ? "v" + c.version : null, c.commit.slice(0, 7), pulls].filter(Boolean).join(" · ");
+}
+
+/** What a version that waits brings: the items of its list (newest first) above the first one this build has too; none when the two lists share none. */
+export function comingNews<T extends { id: string }>(remote: T[] | undefined, local: { id: string }[] = NEWS): T[] {
+  if (!remote) return [];
+  const at = remote.findIndex((n) => local.some((m) => m.id === n.id));
+  return at < 0 ? [] : remote.slice(0, at);
 }

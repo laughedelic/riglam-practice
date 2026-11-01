@@ -189,8 +189,8 @@ export interface Updates {
   apply(): void;
   /** The notice's sentence for a version that is ready: which one, and what updating does ("New version ready (0.17.0). Updating reloads the app; your answers stay."). */
   readyText?(): string;
-  /** The version on its way, once it is known: its version, its commit, and on staging the pull requests it was built from (the pinned line of a Preview names them). */
-  coming?(): { version: string | null; commit: string; pulls?: number[] } | null;
+  /** The version on its way, once it is known: its version, its commit, the newest items of its What's new, and on staging the pull requests it was built from (the pinned line of a Preview names them). */
+  coming?(): { version: string | null; commit: string; pulls?: number[]; news?: { id: string; title: string; text: string }[] } | null;
   /** Calls `fn` whenever the status changes; returns the way to stop. */
   subscribe(fn: () => void): () => void;
 }
