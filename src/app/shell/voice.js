@@ -195,7 +195,7 @@ function again(a,heard,hint,ask){
   v.note=ask||v.early?hint:"Heard “"+heard+"”. "+hint; v.bad=!ask;
   if(!ongoing()||v.tries>=2){ paint(); return; }
   v.tries++;
-  if(reading()) say(a,hint); else hear(a);
+  if(reading()) say(a,hint); else hear(a,true);       // listens again with the words still on the screen
 }
 const same=(x,y)=>plainWords(x)===plainWords(y);
 const terms=()=>({a:state.cur.p.a,b:state.cur.p.b});
@@ -704,9 +704,9 @@ export const VOICE_LEAD="Read aloud says each question when it appears, and Answ
 export const READ_NOTE="The strip above the answer field says it again; hold the strip, or press M, to pause the reading for this visit.";
 export const ANSWER_PICKS=[["off","Off","No microphone."],
   ["tap","Tap or hold","Tap the lower part of the screen, or press V, and say the answer; or hold it and talk, and let go to send."],
-  ["auto","Hands-free","Listens by itself after each question is read, and goes on by itself after a short bar."]];
+  ["auto","Hands-free","Listens by itself after each question is read, and goes on by itself after a short bar. The result stays until you say “next” (in Sprint it goes on after 3 seconds); “explain”, “repeat”, “skip” and “stop” work too."]];
 export const CONFIRM_PICKS=[["split","Wait in tap mode, go on in Hands-free","Tapping the field waits for Yes (tap it again). Hands-free goes on by itself after a bar of 1.5 seconds (1 in Sprint)."],
   ["wait","Always wait for Yes","Tap, Enter or “yes”; hold to say it again (or Escape, or “no”)."],
   ["auto","Always go on by itself","After the bar. The row at the top of the field, or “no”, takes it back for a few seconds."]];
 export const VOICE_SAY="Say Accept or Why? (with the example), the relation by name or as written under the option, or an example; “nothing” leaves a cell empty. In Syllogisms say “I accept”, “the reason is not established” or “there is no pervasion”, then a counter-example or “skip”; in Categories the categories the thing is in (“a color and a shape”, or their numbers, or “none of these”), or yes or no to each; in Find a pair two phenomena (“wood and fire”); in Find an instance a thing, or “nothing”. "+
-  "The Sprint clock stops while a question is read and while an answer waits. Chrome sends the audio to Google to turn it into text; the app records nothing and keeps only the answer, as if typed.";
+  "In Hands-free also say “next”, “explain”, “repeat”, “skip this pair” or “stop”. The Sprint clock stops while a question is read and while an answer waits. Chrome sends the audio to Google to turn it into text; the app records nothing and keeps only the answer, as if typed.";
