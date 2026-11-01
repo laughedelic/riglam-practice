@@ -1,6 +1,6 @@
 {
   "name": "riglam-practice",
-  "version": "0.22.0",
+  "version": "0.23.0",
   "private": true,
   "description": "Practice app for Buddhist logic and debate (Dudra, Tarig): one source, an installable PWA and a Claude artifact build.",
   "license": "SEE LICENSE IN LICENSE",
