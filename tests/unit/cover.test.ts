@@ -36,3 +36,32 @@ test("the cover's name has the measures of the roadmap's lockup", () => {
   expect(num("LEAD")).toBe(NAME_LEAD);
   expect(num("NW")).toBe(NAME_WIDTH);
 });
+
+// Safari (WebKit) lays a <tspan> inside a <text> that has `textLength` out wrongly: the spacing is spread over the text before the tspan and the tspan's letters land on top of
+// the one before (the last two letters of "RIGLAM" and of "practice" on an iPhone). Chromium does not show it, and the specs run in Chromium, so this keeps the markup out of it.
+test("the name's text lines have no tspan, in the cover and in the roadmap's lockup", () => {
+  const lockup = readFileSync(resolve(root, "src/app/path/brand.tsx"), "utf8");
+  for (const [where, src] of [["cover.html", html], ["brand.tsx", lockup]] as const) {
+    const lines = src.match(/<text [^>]*textLength[^>]*>[^\n]*<\/text>/g) ?? [];
+    expect(lines.length, `${where} draws two lines of text`).toBe(2);
+    for (const line of lines) expect(line, where).not.toContain("<tspan");
+  }
+});
+
+// The page moves itself from http:// to https:// (index.html, "https-guard"): workers.dev serves a plain http address without a redirect. Development addresses are left alone.
+test("the page's https guard moves a public http address to https and leaves local ones", () => {
+  const page = readFileSync(resolve(root, "index.html"), "utf8");
+  const code = page.match(/<script id="https-guard">([\s\S]*?)<\/script>/)?.[1];
+  expect(code, "index.html has the https guard").toBeTruthy();
+  const run = (href: string) => {
+    const u = new URL(href);
+    const moved: string[] = [];
+    new Function("location", code!)({ protocol: u.protocol, hostname: u.hostname, href, replace: (to: string) => moved.push(to) });
+    return moved;
+  };
+  expect(run("http://staging-riglam-practice.laughedelic.workers.dev/?a=1#b")).toEqual(["https://staging-riglam-practice.laughedelic.workers.dev/?a=1#b"]);
+  expect(run("http://riglam.example.org/x")).toEqual(["https://riglam.example.org/x"]);
+  for (const href of ["https://riglam-practice.laughedelic.workers.dev/", "http://localhost:4173/", "http://127.0.0.1:5173/", "http://192.168.1.20:5173/", "http://[::1]:5173/", "http://maos-macbook.local:5173/"]) {
+    expect(run(href), href).toEqual([]);
+  }
+});

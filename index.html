@@ -2,14 +2,17 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<!-- workers.dev answers a plain http:// address with the page and no redirect, and the app's static files never run the Worker, so the page moves itself to https (the browser calls an
+     http page "not secure", and a service worker, the install and the microphone need https). Local addresses (localhost, an IP address, .local) stay as they are for development. -->
+<script id="https-guard">if (location.protocol === "http:" && !/^(localhost|[\d.]+|\[.*\]|.*\.local)$/.test(location.hostname)) location.replace("https:" + location.href.slice(5));</script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#10162b" media="(prefers-color-scheme: dark)">
-<meta name="description" content="Practice in logic and debate: pick the relation between two phenomena and give examples for each combination.">
+<meta name="description" content="Practice in logic and debate on the path of reasoning (Dudra and Tarig).">
 <meta name="robots" content="noindex, nofollow, noarchive">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<title>Dudra practice</title>
+<title>Riglam practice</title>
 </head>
 <body>
 <!--@cover-->
