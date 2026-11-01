@@ -245,6 +245,16 @@ test("Relations at None: the relation runs out, the pair is kept as wrong with n
   await expect.poll(async () => (await kept(page)).map((d) => ({ correct: d.correct, timeout: d.timeout }))).toEqual([{ correct: false, timeout: "both" }]);
 });
 
+test("At None a stage offer due with a time-up is not spent unseen: it goes on the next attempt, for its result", async ({ page }) => {
+  await sprint(page, { "rd-timer-rel": 2000 });
+  await guided(page, { practice: "none" });
+  await page.goto("/");
+  await ready(page);
+  await page.evaluate(() => { window.__t.ui.offer = { kind: "down", stage: 1 }; window.__t.ui.marked = true; });
+  await expect.poll(() => fresh(page), { timeout: 6000, message: "the next pair has come" }).toBe(true);
+  expect(await page.evaluate(() => window.__t.ui.offer)).toEqual({ kind: "down", stage: 1 });
+});
+
 test("Relations past Detailed: a case without an example says it has one, without naming it", async ({ page }) => {
   await sprint(page, { "rd-timer": 2000, "rd-timer-rel": 60000 });
   await guided(page, { practice: "hints" });

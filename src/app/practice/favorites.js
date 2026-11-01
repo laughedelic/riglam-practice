@@ -41,8 +41,9 @@ function setFav(p,on){
   }
 }
 export const toggleFav=p=>setFav(p,!isFav(p));
-/** The pair the star and the key F act on: the one on screen, but not while Find a pair asks for the words of another (the old pair stays until "Use this pair"). */
-export const favTarget=()=>{ const c=state.cur, u=state.ui; return c&&c.p&&!(u&&u.find&&!u.checked&&u.step===0)?c.p:null; };
+/** The pair the star and the key F act on: the one on screen, but not while Find a pair asks for the words of another (the old pair stays until "Use this pair"), nor
+ *  on the pair of the course a time-up shows (`gave`, find/flow.js). */
+export const favTarget=()=>{ const c=state.cur, u=state.ui; return c&&c.p&&!(u&&u.find&&(u.gave||(!u.checked&&u.step===0)))?c.p:null; };
 export function startFav(p){ switchTo("practice"); state.retryQ=[p]; state.retryTag="Favorite"; advance(); render(); top0(); } // switch first: leaving another tab may draw a pair
 // a favorite taken out of Review; a removal that fails is undone
 export function removeFav(f){ const q=Object.assign({},f); delete state.favs[f.key]; render(); favWrite(f.key,()=>state.db.collection("favorites").doc(f.key).delete(),()=>{ state.favs[f.key]=q; }); }

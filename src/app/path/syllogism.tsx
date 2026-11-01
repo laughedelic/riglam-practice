@@ -115,12 +115,13 @@ function verdictOf(g: { correct: boolean }, overall: string, timeout: boolean, e
 function scanPlan(): ScanPlan | null {
   const u = u0(), g = u.grade, t = counterText(u), x = t ? gradeExample(state as unknown as DataIndex, shownSyllogism(), t) : null;
   if (!g || (x && x.v === "self")) return null;
-  const overall = g.correct && x && x.v === "bad" ? "part" : g.grade, { v, word, sub } = verdictOf(g, overall, !!u.timeout, x ? x.v : null);
-  return { cases: x ? [x.v === "ok" ? "ok" : x.v === "bad" ? "no" : "pt"] : [], rel: g.correct ? "ok" : "no", v, word, sub: sub || "", stop: ".sylsaid" };
+  const shown = x && (guidance("syllogism") === "detailed" || shownSyllogism().answer !== "reason");     // as on the result: past Detailed a reason that fails says nothing of the counter-example
+  const overall = g.correct && x && x.v === "bad" ? "part" : g.grade, { v, word, sub } = verdictOf(g, overall, !!u.timeout, shown ? x.v : null);
+  return { cases: shown ? [x.v === "ok" ? "ok" : x.v === "bad" ? "no" : "pt"] : [], rel: g.correct ? "ok" : "no", v, word, sub: sub || "", stop: ".sylsaid" };
 }
 function ResultStep() {
   const u = u0(), c = shownSyllogism(), g = u.grade, first = (CHECKS.find(([k]) => !c.checks[k].ok) || [])[0], level = guidance("syllogism"), full = level === "detailed";
-  const { v, word, sub } = verdictOf(g, u.overall, !!u.timeout, u.ex ? u.ex.v : null);
+  const { v, word, sub } = verdictOf(g, u.overall, !!u.timeout, u.ex && (full || c.answer !== "reason") ? u.ex.v : null);
   const said: ComponentChildren = g.correct ? <b class="yours">{cap(SAID[g.said as Reply])}.</b>
     : g.said ? <><s class="no">{cap(SAID[g.said as Reply])}</s>; <span class="fix">{SAID[g.expected as Reply]}</span>.</>
     : <>No reply in time; it is <span class="fix">{SAID[g.expected as Reply]}</span>.</>;
@@ -132,7 +133,8 @@ function ResultStep() {
       </Verdict>
       {/* the checks the level shows (src/domain/syllogism.ts, checksShown): all three at Detailed in the syllogism's words, past it the deciding one, with its formula at Hints */}
       <Sx cls="walked">{checksShown(c, level).map(({ k, line }) => {
-        const mine = u.ex && (k === "v" || !full) ? <p class="mine"><Mark m={u.ex.v === "ok" ? "ok" : u.ex.v === "bad" ? "no" : "pt"} /><b>Your counter-example:</b> {u.ex.text}. {u.ex.line}</p> : null;
+        // the learner's counter-example goes with the pervasion; past Detailed under the one check shown, but not under a reason that fails, where its verdict would tell whether the pervasion holds
+        const mine = u.ex && (full ? k === "v" : k !== "e") ? <p class="mine"><Mark m={u.ex.v === "ok" ? "ok" : u.ex.v === "bad" ? "no" : "pt"} /><b>Your counter-example:</b> {u.ex.text}. {u.ex.line}</p> : null;
         const text = !line ? null : <p>{full && k !== "whole" ? c.checks[k].line : MEANS[c.answer] + "."}</p>;
         if (k === "whole") return <St d={<D cls="sub ok" />} cls="chk ok first"><span class="lab2 ok">Syllogism · correct</span>{text}{mine}</St>;
         const [, label, yes, no] = CHECKS.find(([x]) => x === k)!;
