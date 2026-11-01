@@ -192,6 +192,8 @@ export interface Updates {
   readyText?(): string;
   /** The version on its way, once it is known: its version, its commit, the newest items of its What's new, and on staging the pull requests it was built from (the pinned line of a Preview names them). */
   coming?(): { version: string | null; commit: string; pulls?: number[]; news?: { id: string; title: string; text: string }[] } | null;
+  /** On staging: the pull requests the running build was made from (read once at the start), else null. */
+  ownPulls?(): number[] | null;
   /** Calls `fn` whenever the status changes; returns the way to stop. */
   subscribe(fn: () => void): () => void;
 }

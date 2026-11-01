@@ -1,8 +1,7 @@
 // The roadmap: every exercise as a stop on a tree, under the exercise. The back chevron in the top bar or the system Back slides the exercise away to the right and shows it; "Continue", when the exercise
 // has an attempt under way, slides the exercise back in from the right (a stop does the same). Each exercise shows today's last answers as small diamonds, "continue" when an attempt waits in it, and the planned one (Debate, which the three branches lead to, and
 // the path goes on from it) is dashed. Above its foot a line is pinned while a newer version waits (Update), or while
-// What's new has something not read yet (path/news.tsx); the foot goes to Review and Settings, the Magic Key while this device has none, and in a Preview the version
-// with the way to look again. The roadmap looks for a newer version every time it opens.
+// What's new has something not read yet (path/news.tsx); the foot goes to Review and Settings, the Magic Key while this device has none. A Preview says on that line which build it is and has the way to look again. The roadmap looks for a newer version every time it opens.
 import { useEffect, useRef } from "preact/hooks";
 import { state } from "../state.js";
 import { dayOf, gradeOf, today } from "../core/util.js";
@@ -57,25 +56,6 @@ function Planned({ name, x, y }: { name: string; x: number; y: number }) {
     <text class="ed pl" x={x} y={y + 44} text-anchor="middle">coming</text>
   </g>;
 }
-// staging and the other Preview builds only: the version, and where the look for a newer one stands, with a way to look again. The real app shows no version on the roadmap
-// (it is in Settings): a version that waits is said by the line above the foot (path/news.tsx), which has the one Update.
-function Version() {
-  const a = state.about, u = state.updates; if (!a || !state.preview) return null;
-  const st = u ? u.status() : null, v = "v" + a.version + " · " + a.commit;
-  const row = (kind: string, text: string, act?: { label: string; on: () => void }, busy = false) =>
-    <div class={"rver " + kind} role="status" aria-busy={busy ? "true" : undefined}>
-      <span class="rvn">{v}</span>
-      <span class="rvs">{busy ? <Icon n="refresh" cls="i spin" /> : null}{text}</span>
-      {act ? <button type="button" class="lk" onClick={act.on}>{act.label}</button> : null}
-    </div>;
-  if (st === "ready") return row("hot", "Update ready");
-  if (st === "downloading") return row("busy", "Downloading the update…", undefined, true);
-  if (st === "checking") return row("busy", "Checking for updates…", undefined, true);
-  if (st === "unknown") return row("", "Could not check", { label: "Try again", on: () => void u!.check() });
-  if (st === "current") return row("ok", "Up to date", { label: "Check again", on: () => void u!.check() });
-  return <div class="rver" role="status"><span class="rvn">{v}</span>{a.latest === "newer" ? <span class="rvs">a newer version is out</span> : null}</div>;
-}
-
 export function Roadmap() {
   const on = state.menuOpen, box = useRef<HTMLDivElement>(null), was = useRef(on);
   useEffect(() => {
@@ -117,7 +97,6 @@ export function Roadmap() {
       <button type="button" class="lk" onClick={() => setTab("review")}>Review · {n} today</button>
       <button type="button" class="lk" onClick={openSettings}>Settings</button>
       {state.unlock ? <button type="button" class="lk" onClick={() => openKey()}><Icon n="key" />Magic Key</button> : null}
-      <Version />
     </div>
   </div>;
 }

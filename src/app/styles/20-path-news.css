@@ -2,6 +2,7 @@
    roadmap above the stage rings, in an exercise on the thread above the next station, where Claude's waiting line stands. Nothing is laid over the page. */
 .pa .pinln{flex:none; position:relative; z-index:6; display:grid; grid-template-columns:var(--m) minmax(0,1fr) auto; column-gap:10px; align-items:center; min-height:34px; padding-right:12px; background-color:var(--paper)}
 /* in an exercise, as through Claude's waiting line, the thread runs through it on to the station below (still the way ahead: dotted, as above it) */
+.pa .pinln{border-top:1px solid var(--rule)}   /* the foot's own rule runs under it: the line sits between two, as Claude's waiting line sits over the foot */
 .pa .pinln.onfoot::before{content:""; position:absolute; top:0; bottom:0; left:calc(var(--m) - var(--lw) / 2); width:var(--lw); background:var(--ahead-bg); opacity:.9}
 /* on the roadmap Continue stands above it, kept apart from its Update */
 .pa .road .rgo + .pinln{margin-top:14px}

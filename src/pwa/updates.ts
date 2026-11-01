@@ -14,6 +14,7 @@ let registration: ServiceWorkerRegistration | undefined;
 let lastLook = 0;
 let pending: Promise<void> | null = null;
 let coming: { commit: string; version: string | null; pulls?: number[]; news?: { id: string; title: string; text: string }[] } | null = null; // what the server has now, once an update is on its way (named in the notice)
+let own: number[] | null = null; // on staging: the pull requests this build was made from (read at the start, before a newer build can replace the file)
 const listeners = new Set<() => void>();
 const MIN_LOOK_MS = 700; // a look that answers faster shows "checking" for this long: a status that flashes by says nothing
 
@@ -128,6 +129,7 @@ function lookWhenSeen(): void {
   window.addEventListener("online", () => void check());
 }
 lookWhenSeen();
+if (__PREVIEW__) void stagingPulls().then((p) => { own = p; tell(); });
 
 export const updates: Updates = {
   status: () => status,
@@ -135,6 +137,7 @@ export const updates: Updates = {
   apply,
   readyText,
   coming: () => coming,
+  ownPulls: () => own,
   subscribe(fn) {
     listeners.add(fn);
     return () => listeners.delete(fn);
