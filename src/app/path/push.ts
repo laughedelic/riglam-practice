@@ -192,7 +192,11 @@ export function playPush(root: HTMLElement, stn: HTMLElement, lift: number, act:
       reveal(); settle();
       const bg = getComputedStyle(nb).backgroundColor, k = nb.offsetWidth && gg.offsetWidth ? nb.offsetWidth / gg.offsetWidth : 1, mk = gg.querySelector<HTMLElement>(".mk");
       if (mk && mk.animate) mk.animate([{ opacity: 1 }, { opacity: 0 }], { duration: TURN * 0.55, fill: "forwards" });
-      const turned = gg.animate ? gg.animate([{ scale: 1, backgroundColor: getComputedStyle(gg).backgroundColor }, { scale: k, backgroundColor: bg }], { duration: TURN, easing: SETTLE.easing, fill: "forwards" }) : null;
+      // a bullet that is a ring (the stop of a term: paper inside, a line of ink in an inset shadow) is not a fill: the line grows as the diamond turns, else it would turn paper-colored and the ring would pop in after it
+      const ring = /^(rgba?\([^)]*\))\s+0px 0px 0px ([\d.]+)px inset$/.exec(getComputedStyle(nb).boxShadow);
+      const from: Keyframe = { scale: 1, backgroundColor: getComputedStyle(gg).backgroundColor }, to: Keyframe = { scale: k, backgroundColor: bg };
+      if (ring) { from.boxShadow = `inset 0 0 0 0 ${ring[1]}`; to.boxShadow = `inset 0 0 0 ${(parseFloat(ring[2]) / k).toFixed(2)}px ${ring[1]}`; }      // the line is the bullet's once the diamond has shrunk to it
+      const turned = gg.animate ? gg.animate([from, to], { duration: TURN, easing: SETTLE.easing, fill: "forwards" }) : null;
       after(turned, TURN, () => {
         over();
         const nm = nb.querySelector<HTMLElement>(".mk"); if (keep && nm && nm.animate) nm.animate([{ opacity: 0, scale: 0.5 }, { opacity: 1, scale: 1 }], { duration: 180, easing: SETTLE.easing });

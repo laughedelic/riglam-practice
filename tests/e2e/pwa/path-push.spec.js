@@ -413,3 +413,40 @@ test("stations say what they are by their look: Examples is gold and medium, Che
   expect(next.cls, "the next exercise's station has no kind").not.toContain("stk");
   await expect.poll(() => facts(page, "#stn"), { message: "Next pair: big and blue (its colors are a transition that may still be running)" }).toMatchObject({ size: 28, bg: blue, label: blue, font: "21px" });
 });
+
+test("a station that lands as a ring (the stop of a new term) turns into the ring: it keeps its body while it turns and does not go blank first", async ({ page }) => {
+  // a device that has just come to stage 1 and met no term: the Next after the pair's Check is "Next: new definition", and the stop's first bullet is a ring
+  await page.addInitScript(() => { localStorage.setItem("rd-stages", "0,1"); localStorage.setItem("rd-terms", JSON.stringify({ n: 3, next: 3, terms: {} })); });
+  await page.addInitScript(onPath);
+  await page.goto("/");
+  await expect(choices(page)).toHaveCount(5);
+  const rel = await page.evaluate(() => window.__t.cur.p.relation);
+  await choices(page).nth(["mi", "3ab", "3ba", "4", "con"].indexOf(rel)).click();
+  const field = page.locator("#cin");
+  await expect(field).toBeVisible();
+  for (let i = 0; i < 4 && (await field.isVisible()); i++) { await field.fill("thing " + (i + 1)); if ((await field.getAttribute("enterkeyhint")) === "done") { await field.blur(); break; } await field.press("Enter"); }
+  await page.locator("#stn").click();
+  await expect(page.locator("#stn")).toHaveAccessibleName(/^Next: new definition/);
+  await expect(main(page)).not.toHaveClass(/\b(tk-in|pk-run|sc-in|sc-run|fw-wait)\b/);
+  // every frame of the copy of the station: how much of its diamond is body (a fill or the ring's inset line) while it turns
+  await page.evaluate(() => {
+    const w = window.__turn = { s: [], gone: false };
+    const tick = () => {
+      const g = document.querySelector("#path .pk-ghost .go");
+      if (g) { const c = getComputedStyle(g); w.s.push({ bg: c.backgroundColor, sh: c.boxShadow, tr: g.getAnimations().length }); } else if (w.s.length) { w.gone = true; return; }
+      requestAnimationFrame(tick);
+    };
+    tick();
+  });
+  await page.locator("#stn").click();
+  await expect.poll(() => page.evaluate(() => window.__turn.gone), { timeout: 8000 }).toBe(true);
+  await expect(page.locator("#path .tstop")).toBeVisible();
+  const s = await page.evaluate(() => window.__turn.s);
+  // the stop's bullet is a paper-colored ring: as the ghost turns into it, its line grows from nothing, so the diamond is never an empty paper-colored shape
+  const ring = (x) => { const m = /\s(\d+(?:\.\d+)?)px inset$/.exec(x.sh); return m ? parseFloat(m[1]) : 0; };      // computed: "rgb(...) 0px 0px 0px 1.8px inset"
+  const turning = s.filter((x) => x.tr > 0);
+  expect(turning.length, "the turn was seen").toBeGreaterThan(3);
+  const lines = turning.map(ring);
+  expect(lines[lines.length - 1], "at the end of the turn the copy has the ring's line, so the real ring replaces it unseen").toBeGreaterThan(1);
+  expect(lines, "the line grows as the diamond fills with paper").toEqual([...lines].sort((a, b) => a - b));
+});
