@@ -576,11 +576,11 @@ export interface VoiceState {
   answer: "off" | "tap" | "auto";
   /** a heard answer waits for Yes, goes on by itself after a pause, or by what the mode is: it waits when the mic is tapped and goes on in Hands-free */
   confirm: "split" | "wait" | "auto";
-  /** the mic is held down for hold to talk (longer than a tap) */
+  /** the field is held down for hold to talk (longer than a tap) */
   hold: boolean;
-  /** the press on the mic now: when it began, whether it was listening already (a press then stops it), whether it has lasted longer than a tap */
-  press: { t0: number; was: boolean; long: boolean; tid: ReturnType<typeof setTimeout> | null; pid: number } | null;
-  /** the press on the speaker now: holding it pauses the reading, and the click that follows is then not a tap */
+  /** the press on the field now: when it began, whether it was listening already (a press then stops it), whether it has lasted longer than a tap, which pointer it is, and whether an answer waited (a tap is Yes) and was going on by itself (the touch then only holds it) */
+  press: { t0: number; was: boolean; long: boolean; tid: ReturnType<typeof setTimeout> | null; pid: number; yes: boolean; auto: boolean } | null;
+  /** the press on the strip that says the question again now: holding it pauses the reading, and the click that follows is then not a tap */
   spress: { long: boolean; tid: ReturnType<typeof setTimeout> | null } | null;
   /** the step the last spoken answer took, with the way back; null when there is none */
   chip: TakenChip | null;
@@ -588,8 +588,6 @@ export interface VoiceState {
   tried: boolean;
   /** the next screen is drawn without reading its question (a step was taken back; the mic opens at once) */
   noRead: boolean;
-  /** the mic was started with the keyboard, so that an answer that waits takes the focus (Enter then confirms, as it does where the focus is on the page) */
-  kbd: boolean;
   /** the chosen voice, "" for the best one this device has */
   voiceId: string;
   rate: number;

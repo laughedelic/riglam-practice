@@ -9,7 +9,7 @@ import { skipAsks, skipPair } from "../practice/skips.js";
 import { toRoad } from "../shell/menu.js";
 import { isEx } from "../shell/render.js";
 import { openBlitzOptions, sessBack, toggleSess } from "../shell/session.js";
-import { voiceBar, voiceDock } from "../shell/voice.js";
+import { voiceField } from "../shell/voice.js";
 import { Clock } from "./clock.tsx";
 import { Pull, SLIDE, bump } from "./gesture.ts";
 import type { ScanPlan } from "./scan.tsx";
@@ -55,10 +55,11 @@ export function TopBar({ title, tools = false, back }: TopBarProps) {
   </>;
 }
 
-/** What voice heard and what it took it as, with Yes and Change, and the chip of the step that went on, above the foot: shell/voice.js draws it and repaints it in place (by its id). */
-export const VoiceBar = () => <Bridge cls="pvoice" fill={() => voiceBar()} />;
-/** The speaker and the microphone at the right of the foot, where a thumb rests: shell/voice.js builds them and repaints them in place, and nothing is there where the screen asks nothing. */
-const VoiceDock = () => <Bridge own cls="vdockh" fill={() => voiceDock()} />;
+/**
+ * The lower part of the screen above the foot, where voice listens: a field to tap or hold with a thumb anywhere in it, with what was heard and the chip of the step that went on
+ * inside it (shell/voice.js builds it and repaints it in place, by its id). Nothing is there where the screen asks nothing, and with the keyboard up (`kb`) it makes room.
+ */
+export const VoiceField = ({ kb = false }: { kb?: boolean }) => (kb ? null : <Bridge own cls="vfieldh" fill={() => voiceField()} />);
 
 /** A note at the foot for a moment ("Write an example first"). */
 export function pathNote(text: string) {
@@ -162,5 +163,5 @@ export const SkipSide = () => (currentLook().skipAt === "foot" ? <SideStation ki
 
 /** The foot: the station, and at its right what goes beside it (a side station). While the keyboard is up there is no foot. */
 export function Foot({ children, aux, none = false }: { children?: ComponentChildren; aux?: ComponentChildren; none?: boolean }) {
-  return <footer class={"foot" + (none ? " nostation" : "")}>{children || <span />}<span class="aux">{aux}<VoiceDock /></span></footer>;
+  return <footer class={"foot" + (none ? " nostation" : "")}>{children || <span />}<span class="aux">{aux}</span></footer>;
 }

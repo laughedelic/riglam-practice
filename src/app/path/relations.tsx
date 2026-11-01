@@ -23,7 +23,7 @@ import { FlagBtn, FlagEditor, explainCase } from "./flags.tsx";
 import { Scroll } from "./scroll.tsx";
 import { nextKind, nextName } from "./next.ts";
 import { openDifficulty } from "./progression.tsx";
-import { Foot, PreStation, SkipSide, Station, TopBar, VoiceBar } from "./shell.tsx";
+import { Foot, PreStation, SkipSide, Station, TopBar, VoiceField } from "./shell.tsx";
 import { Subjects, markNames } from "./subjects.tsx";
 import { D, Fig, Gap, Head, Mark, St, Sx } from "./ui.tsx";
 
@@ -50,7 +50,7 @@ function PickStep({ kb }: { kb: boolean }) {
       <Choices label="Relation" slide items={relChoices(p, u.rel || null)} picked={u.pk} onPick={pick} />
       <Sx cls="ptail" />
     </Scroll>
-    <VoiceBar />
+    <VoiceField kb={kb} />
     {kb ? null : <Foot aux={<SkipSide />}>
       {u.rel ? <Station kind="ex" name="Examples" hint="the relation you picked" act={() => { u.open = false; render(); }} /> : <PreStation name="Examples" hint="pick a relation first" />}
     </Foot>}

@@ -24,7 +24,7 @@ import { leftOpen, relChoices } from "./relations.tsx";
 import { FlagBtn, FlagEditor, explainCase } from "./flags.tsx";
 import { Scroll } from "./scroll.tsx";
 import { nextKind, nextName } from "./next.ts";
-import { Foot, PreStation, PullCtx, SkipSide, Station, TopBar, VoiceBar } from "./shell.tsx";
+import { Foot, PreStation, PullCtx, SkipSide, Station, TopBar, VoiceField } from "./shell.tsx";
 import { Sub, markNames } from "./subjects.tsx";
 import { D, Gap, Head, Icon, Mark, St, Sx, nofillInput } from "./ui.tsx";
 
@@ -96,7 +96,7 @@ function QuestionStep({ kb }: { kb: boolean }) {
       {i < 3 ? <Sx cls="gap later">{[...Array(3 - i).keys()].map((j) => <St d={<D cls="sub" />} cls="sb later qmr"><QHead i={i + 1 + j} /></St>)}</Sx> : null}
       <Sx cls={"ptail" + (i < 3 ? " dtail" : "")} />
     </Scroll>
-    <VoiceBar />
+    <VoiceField kb={kb} />
     {kb ? null : <Foot aux={<SkipSide />}>
       {u.pickWhy && (u.exText || "").trim() ? <Station kind="ex" name={last ? "Relation" : "Next question"} hint="your counter-example" act={submitWhy} />
         : <PreStation name={u.pickWhy && !last ? "Next question" : "Relation"} hint={u.pickWhy ? "posit a counter-example first" : last ? "answer this question first" : "answer the four questions first"} />}
@@ -114,7 +114,7 @@ function RelationStep() {
       <Choices label="Relation" slide items={relChoices(p, u.rel || null)} picked={u.pk} onPick={(k) => pickThen(k, () => chooseD(k), (act) => pull.scanPick(() => scanPlan(k as RelKey), act))} />
       <Sx cls="ptail" />
     </Scroll>
-    <VoiceBar />
+    <VoiceField />
     <Foot aux={<SkipSide />}><PreStation name="Result" hint="pick the relation: that checks your answers" /></Foot>
   </>;
 }
