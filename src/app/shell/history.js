@@ -11,7 +11,7 @@ import { progBack } from "../path/progression.tsx";
 /* ---------- the system Back (key, button, swipe) ---------- */
 // The app has one address, so on a phone Back would leave it. Instead the page keeps one history entry (same address) for each level that is open. The roadmap is the root, at
 // every start, also one that opens on an exercise: the exercise is the first level above it, then Review (or the Progression page, and a term's card over it), the tutor's
-// conversation, Settings and one of its pages, the practice options and one of their pages, the question before a skip. Back takes one off and closes that level: the question,
+// conversation, Settings and one of its pages (the Magic Key page opened where the key is needed is one level with Settings: shell/options.js, openKey), the practice options and one of their pages, the question before a skip. Back takes one off and closes that level: the question,
 // the page or the sheet, Settings, the conversation, Review (back to the exercise, or to the roadmap it was opened from); Back on the exercise opens the roadmap, and Back on
 // the roadmap leaves the app. Review and Settings opened from the roadmap stand right over it (`state.fromRoad`) and Back takes them back there; opened from an exercise (Settings
 // from its practice options) they go back to it; the Progression page goes where it was opened from (path/progression.tsx, progBack). Moving between exercises replaces the level
@@ -25,7 +25,7 @@ import { progBack } from "../path/progression.tsx";
 const MARK="riglamNav";
 const canPush=()=>{ try{ return window.parent===window; }catch(e){ return false; } };
 // how many levels are open, from the state alone (the Progression page under the roadmap is on its way out, for the moment of the slide back to it: no level)
-const depth=()=>(state.menuOpen||state.fromRoad?0:1)+(state.tab==="review"&&!(state.menuOpen&&state.pathProg)?1:0)+(state.pathProg&&state.pathProg.term?1:0)+(state.view==="chat"?1:0)+(state.optsOpen?1:0)+(state.optsOpen&&state.optsPage?1:0)+(state.sessOpen?1:0)+(state.sessPage&&state.sessPage!=="progress"?1:0)+(state.skipAsk?1:0);
+const depth=()=>(state.menuOpen||state.fromRoad?0:1)+(state.tab==="review"&&!(state.menuOpen&&state.pathProg)?1:0)+(state.pathProg&&state.pathProg.term?1:0)+(state.view==="chat"?1:0)+(state.optsOpen?1:0)+(state.optsOpen&&state.optsPage&&!state.keyFrom?1:0)+(state.sessOpen?1:0)+(state.sessPage&&state.sessPage!=="progress"?1:0)+(state.skipAsk?1:0);
 function sync(){
   state.navQ=false;
   if(state.navSkip>0||!canPush()) return;
@@ -71,7 +71,7 @@ export function navSync(){ if(!state.navQ){ state.navQ=true; queueMicrotask(sync
 function closeTop(){
   if(state.skipAsk) closeSkipAsk();
   else if(state.sessOpen) sessBack();
-  else if(state.optsOpen&&state.optsPage){ state.optsPage=null; render(); }
+  else if(state.optsOpen&&state.optsPage&&!state.keyFrom){ state.optsPage=null; render(); }
   else if(state.optsOpen) toggleOpts(false);
   else if(state.view==="chat") closeChat();
   else if(state.tab==="review"&&state.pathProg) progBack();

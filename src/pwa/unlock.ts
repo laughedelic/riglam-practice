@@ -2,7 +2,6 @@
 // the "#" (https://.../#k=lotus-river-candle-stone). Browsers never send that part to a server. The key is kept
 // on this device, so the app unlocks again without the link; the definitions it unlocks come from the server (./course.ts).
 import { parseMagicKey } from "../ai/magic-key";
-import { MAGIC_KEY_ABOUT, MAGIC_KEY_NOTE } from "../ui/magic-key-note";
 
 const KEY = "riglam.magicKey";
 const OLD_KEY = "riglam.dataKey"; // the key of the first design, a random string: it fits nothing now
@@ -34,8 +33,8 @@ export function storeKey(key: string) {
   return kept;
 }
 const CHANGED = "riglam.keyChanged";
-/** What the prompt says to a reader whose kept key stopped fitting: the study group changed the Magic Key. */
-export const KEY_CHANGED_TEXT = "The Magic Key was changed. Enter the new words (or open the new link) to keep reading the definitions and asking Claude.";
+/** What the Magic Key page says to a reader whose kept key stopped fitting: the Magic Key was changed. */
+export const KEY_CHANGED_TEXT = "The Magic Key has changed. Open the new link or paste it here to keep the definitions and Claude.";
 /** Notes that the server stopped accepting the kept key, so the next visit can say so once. */
 export const markKeyChanged = () => set("localStorage", CHANGED, "1");
 /** True once after `markKeyChanged`. */
@@ -51,11 +50,11 @@ export function forgetKey() {
 /**
  * Takes a key typed or pasted (words with spaces or dashes, in any case, or the whole link): `verify(key)` asks the server, and a key it opens the
  * definitions with is kept and taken into the running page by `apply(key)`; with no `apply`, or when it fails or resolves false, the page is reloaded so it
- * starts unlocked. Resolves with null when the key was taken, or with the sentence to show when it was not. The prompt below and Settings' Magic Key page use it.
+ * starts unlocked. Resolves with null when the key was taken, or with the sentence to show when it was not. Settings' Magic Key page uses it.
  */
 export async function takeKey(text: string, verify: (key: string) => Promise<string | null>, apply?: (key: string) => Promise<boolean>): Promise<string | null> {
   const key = parseMagicKey(text);
-  if (!key) return "That does not look like a Magic Key, which is four words in a row.";
+  if (!key) return "That does not look like the Magic Key or its link.";
   let why: string | null;
   try {
     why = await verify(key);
@@ -69,65 +68,3 @@ export async function takeKey(text: string, verify: (key: string) => Promise<str
   if (!taken) location.reload();
   return null;
 }
-
-/**
- * Tells a reader without a key how to get one, and takes the key if it is typed or pasted (words with spaces or dashes, in any
- * case, or the whole link). `verify(key)` asks the server and resolves with `null` when the key opens the definitions, or with the
- * sentence to show when it does not. The key is then kept and `apply(key)` takes it into the running page (resolving true), so what
- * the reader was doing stays; with no `apply`, or when it fails or resolves false, the page is reloaded so it starts unlocked.
- * Never shown to a reader who has simply not got a key: the page opens it when the reader reaches something that needs the
- * key (Explain, the definitions, Options). Only a problem to report (a link whose key does not fit) opens it by itself.
- * Returns the function that opens it; what it returns settles when the prompt is closed: true if a key was taken, otherwise false.
- */
-export function showUnlock({ problem = null, verify, apply }: { problem?: string | null; verify: (key: string) => Promise<string | null>; apply?: (key: string) => Promise<boolean> }): () => Promise<boolean> {
-  const closed = (dlg: HTMLDialogElement) => new Promise<boolean>((done) => dlg.addEventListener("close", () => done(dlg.dataset.taken === "1"), { once: true }));
-  const build = (): Promise<boolean> => {
-    const open = document.getElementById("unlock") as HTMLDialogElement | null;
-    if (open) { if (!open.open) { open.showModal(); if (open.tabIndex === -1) open.focus(); } return closed(open); }
-    const dlg = document.createElement("dialog");
-    dlg.id = "unlock";
-    // A touch screen keeps the keyboard down until the field is tapped (as the Path's own fields do): a keyboard that rises as the
-    // prompt opens covers half of it, and on an iPhone it scrolled the prompt out of sight. The dialog itself takes the focus then.
-    const touch = (() => { try { return matchMedia("(pointer: coarse)").matches; } catch { return false; } })();
-    if (touch) dlg.tabIndex = -1;
-    dlg.setAttribute("aria-labelledby", "unlock-h");
-    dlg.innerHTML = `<form method="dialog">
-      <h2 id="unlock-h"><svg class="ico" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="8" cy="15" r="4.5"/><path d="M11.2 11.8 20 3m-4 4 3 3m-5.5-.5 2 2"/></svg>Enter the <button type="button" class="keyname" id="unlock-mk-btn" aria-expanded="false" aria-controls="unlock-mk">Magic Key</button></h2>
-      <div class="pop" id="unlock-mk" hidden>${MAGIC_KEY_NOTE.map((t) => `<p>${t}</p>`).join("")}<button type="button" class="popx" id="unlock-mk-hide">Hide</button></div>
-      <p>${MAGIC_KEY_ABOUT[0]}</p>
-      <p class="hint">${MAGIC_KEY_ABOUT[1]}</p>
-      <p id="unlock-err" class="err" role="alert" hidden></p>
-      <input id="unlock-key" type="text"${touch ? "" : " autofocus"} aria-label="Magic Key or link" placeholder="four words or the special link" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="text">
-      <div class="row"><button type="submit" class="btn"><svg class="ico" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-1.9"/></svg>Unlock</button><button type="button" class="btn ghost" id="unlock-skip">Close</button></div>
-    </form>`;
-    document.body.append(dlg);
-    const input = dlg.querySelector<HTMLInputElement>("#unlock-key")!;
-    const err = dlg.querySelector<HTMLElement>("#unlock-err")!;
-    const say = (msg: string) => { err.textContent = msg; err.hidden = !msg; };
-    if (problem) say(problem);
-    const note = dlg.querySelector<HTMLElement>("#unlock-mk")!;
-    const noteBtn = dlg.querySelector<HTMLElement>("#unlock-mk-btn")!;
-    const showNote = (on: boolean) => { note.hidden = !on; noteBtn.setAttribute("aria-expanded", String(on)); };
-    noteBtn.addEventListener("click", () => showNote(note.hasAttribute("hidden")));
-    dlg.querySelector("#unlock-mk-hide")!.addEventListener("click", () => showNote(false));
-    dlg.addEventListener("close", () => { if (dlg.dataset.taken === "1") dlg.remove(); });
-    dlg.querySelector("#unlock-skip")!.addEventListener("click", () => dlg.close());
-    dlg.querySelector("form")!.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      say("");
-      const submit = dlg.querySelector<HTMLButtonElement>("button[type=submit]")!;
-      submit.disabled = true;
-      const why = await takeKey(input.value, verify, apply);
-      if (why) { submit.disabled = false; return say(why); }
-      dlg.dataset.taken = "1";
-      dlg.close();
-    });
-    dlg.showModal();
-    if (touch) dlg.focus();
-    return closed(dlg);
-  };
-  const when = (go: () => void) => (document.body ? go() : addEventListener("DOMContentLoaded", go, { once: true }));
-  if (problem) when(() => void build());
-  return () => new Promise<boolean>((done) => when(() => void build().then(done)));
-}
-

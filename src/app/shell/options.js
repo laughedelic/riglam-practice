@@ -7,14 +7,28 @@ import { render } from "./render.js";
 // Settings opens from the roadmap over the exercise, with a back arrow; Back or Escape closes it. (In the code it is still `optsOpen`; path/settings.tsx draws it.)
 // The Blitz clock does not run behind the panel: it stops when Settings opens and starts again, with its full time, when it closes (as when you come back to an exercise).
 export function toggleOpts(on){
-  const was=state.optsOpen; state.optsOpen=on===undefined?!state.optsOpen:on;
-  if(!state.optsOpen) state.optsPage=null;
-  // opened from the roadmap, Settings goes back to it, not to the exercise under it (shell/history.js)
-  const road=!state.optsOpen&&was&&state.fromRoad; if(road){ state.fromRoad=false; state.menuOpen=true; }
+  const was=state.optsOpen, from=state.keyFrom; state.optsOpen=on===undefined?!state.optsOpen:on;
+  if(!state.optsOpen){ state.optsPage=null; state.keyFrom=null; }
+  // opened from the roadmap, Settings goes back to it, not to the exercise under it (shell/history.js); the Magic Key page opened over Review, which may stand over the roadmap itself, goes back to Review
+  const road=!state.optsOpen&&was&&state.fromRoad&&!(from&&from.back==="review"); if(road){ state.fromRoad=false; state.menuOpen=true; }
   if(state.optsOpen&&!was) stopTimer();
   else if(!state.optsOpen&&was&&!road&&state.blitz&&asking()) startQ();
   render();
   if(state.optsOpen&&state.updates) state.updates.check(60000); // the Version row is about to be read: look for a newer one unless a look is younger than a minute
+}
+/**
+ * Opens Settings at its Magic Key page where the key is needed: the roadmap's Magic Key, Explain or a flag on a device without the key, and the start, when a key
+ * went wrong (`why`, said on the page). Its way back closes Settings, back to where it was opened (the roadmap, Review or the exercise), and so does a key taken there,
+ * which then runs `then` (Explain asks Claude, a flag opens).
+ */
+export function openKey(then,why){
+  if(state.optsOpen){ state.optsPage="key"; render(); return; }
+  const back=state.menuOpen?"road":state.tab==="review"?"review":"exercise";
+  if(back==="road"){ state.fromRoad=true; state.menuOpen=false; }
+  state.sessOpen=false; state.sessPage=null; state.skipAsk=false;
+  state.keyFrom={back,then:then||null,why:why||""};
+  state.optsPage="key";
+  toggleOpts(true);
 }
 // which build this is, and where the update stands: the commit tells a staging build from the one before it. With `state.updates` the app
 // updates in place (the button reloads it); without, the page only says whether the server has a newer build.

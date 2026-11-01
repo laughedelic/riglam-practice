@@ -15,6 +15,7 @@ import { startStops } from "./practice/stops.ts";
 import { watchProgress } from "./practice/progress.ts";
 import { signature } from "../ui/account";
 import { setDefLang } from "./shell/session.js";
+import { openKey } from "./shell/options.js";
 import { render } from "./shell/render.js";
 import { startFirst } from "./shell/tabs.js";
 import { takeAttempt } from "./shell/keep.ts";
@@ -76,7 +77,7 @@ async function bootSteps(platform){
   // updating in place: the platform tells when a newer version is ready; the menu and Settings show where it stands
   state.updates=platform.updates||null;
   if(state.updates) state.updates.subscribe(()=>{ if(state.optsOpen) render(); else refreshPath(); });   // (the roadmap shows where the look for a newer version stands)
-  // A Magic Key entered in the prompt is taken in place (no reload), so the pair on the screen and the answer being given stay.
+  // A Magic Key entered on the Magic Key page is taken in place (no reload), so the pair on the screen and the answer being given stay.
   if(platform.onKey) platform.onKey(()=>rekey(platform));
   if(state.account){ let seen=signature(state.account.view()); state.account.subscribe(v=>{ const now=signature(v); if(now!==seen){ seen=now; if(state.optsOpen) render(); } }); }
   if(!state.db){ state.gotA=state.gotB=state.gotS=true; firstScreen(); return; }
@@ -104,7 +105,7 @@ async function bootSteps(platform){
     const m={}; snap.docs.forEach(d=>{m[d.id]=d.data();}); state.debates=m; settle();
   },()=>{});
 }
-// What depends on the key, read again after the prompt took one: the definitions in the data, the tutor (and what is known without it), and the Settings row (enter a key / change it).
+// What depends on the key, read again after the Magic Key page took one: the definitions in the data, the tutor (and what is known without it), and the Settings row (enter a key / change it).
 async function rekey(platform){
   state.DATA=await platform.loadData(); indexData(); buildPool();
   try{ state.unlock=platform.unlock?await platform.unlock():null; }catch(e){ state.unlock=null; }
@@ -128,6 +129,9 @@ function firstScreen(){
   if(!back) startFirst();
   let start=""; try{ start=localStorage.getItem("rd-start")||""; }catch(e){}
   if(!back&&start!=="exercise"&&state.tab!=="review"&&!state.optsOpen){ state.menuOpen=true; state.motion=false; }
+  // a key that went wrong at the start (a link whose key does not fit, a key that was changed) is said on the Magic Key page, which opens over that first screen
+  const why=state.unlock&&state.unlock.problem;
+  if(why){ state.unlock.problem=null; state.motion=false; openKey(null,why); return; }
   render();
 }
 function settle(){

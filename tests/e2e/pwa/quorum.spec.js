@@ -4,7 +4,7 @@
 // the switch in the practice options and that the panel fits a phone. Quorum's panel is the Path's: it stands in the Explanation row under the result.
 import { test as plain } from "@playwright/test";
 import { test, expect } from "../../support/test.js";
-import { answerFirst, explainChoice, goTo, ready, overflow } from "../../support/page.js";
+import { answerFirst, explainChoice, goTo, ready, overflow, keyField, enterKey } from "../../support/page.js";
 import { dataKey, serveCourse, withCourse } from "../../support/data-key.js";
 import { checkProof } from "../../../src/ai/proof.ts";
 
@@ -411,7 +411,7 @@ withKey("the panel is readable in the dark theme", async ({ page }) => {
   expect(colors.ratio, JSON.stringify(colors)).toBeGreaterThan(4.5);
 });
 
-// A device that has no Magic Key can check an answer, but cannot ask the tutor, so it has no Quorum; the tap on Explain that opens the prompt goes on with a run once the key is taken.
+// A device that has no Magic Key can check an answer, but cannot ask the tutor, so it has no Quorum; the tap on Explain that opens the Magic Key page goes on with a run once the key is taken.
 plain("a device with no Magic Key has no Quorum until the key is entered", async ({ page }) => {
   plain.skip(!withCourse, "needs the course data to unlock the definitions");
   await page.addInitScript(() => { window.__riglamTest = (t) => { window.__t = t; }; localStorage.setItem("rd-start", "exercise"); localStorage.setItem("rd-autoexplain", "0"); });
@@ -424,9 +424,8 @@ plain("a device with no Magic Key has no Quorum until the key is entered", async
   await expect(panel(page)).toHaveCount(0);
   expect(asked).toHaveLength(0);
   await explain(page).click();
-  await page.fill("#unlock-key", dataKey);
-  await page.locator("#unlock").getByRole("button", { name: "Unlock", exact: true }).click();
-  await expect(page.locator("#unlock")).toHaveCount(0);
+  await enterKey(page, dataKey);
+  await expect(keyField(page)).toHaveCount(0);
   await expect.poll(() => asked.length).toBe(1); // the tap on Explain goes on once the key is taken
   expect(asked[0].body.quorum).toBe(true);
   await expect(status(page)).toContainText(FINISHED);

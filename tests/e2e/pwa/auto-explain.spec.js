@@ -105,7 +105,7 @@ plain("a reader without the Magic Key is not asked for it: Explain says it needs
   await expect(explain(page)).toContainText("needs the Magic Key");
   await page.waitForTimeout(500);
   expect(asked).toHaveLength(0);
-  await expect(page.locator("#unlock")).toHaveCount(0);
+  await expect(page.getByRole("textbox", { name: "Magic Key or link", exact: true }), "the Magic Key page did not open by itself").toHaveCount(0);
 });
 
 // The station has the focus when the answer is checked (a keyboard goes on from there). The explanation that starts by itself redraws the screen, twice: it

@@ -34,9 +34,10 @@ export const state = {
   resetAsk: "",     // the Reset progression line of the Progression page: "ask" while it asks to confirm, "done" after
   about: null,   // {version, commit, builtAt, latest, branches?}: which build this is (platform.about), shown in Options
   updates: null, // {status, check, apply, subscribe}: updating the installed app in place (platform.updates), shown in Options
-  unlock: null,  // {open, tutor}: opens the prompt for the Magic Key (platform.unlock) while this device has none; `tutor` is whether the server has a tutor waiting for it
-  keyHeld: null,   // {change, forget} while this device has the Magic Key (platform.keyHeld); keyAsk: the Options row is asking whether to forget it
+  unlock: null,  // {enter, problem, tutor}: takes the Magic Key on Settings' Magic Key page (platform.unlock) while this device has none; `tutor` is whether the server has a tutor waiting for it
+  keyHeld: null,   // {enter, forget} while this device has the Magic Key (platform.keyHeld); keyAsk: the Options row is asking whether to forget it
   keyAsk: false,
+  keyFrom: null,   // {back, then, why}: the Magic Key page was opened where the key is needed (shell/options.js, openKey): where its way back goes, what to do once a key is taken, what went wrong
   batches: [],
   answers: {},
   gotB: false,

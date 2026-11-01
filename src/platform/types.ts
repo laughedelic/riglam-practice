@@ -147,15 +147,16 @@ export interface Reports {
 }
 
 /**
- * `open` shows the prompt for the Magic Key; `tutor` says that the place has a tutor that is waiting for it (so the page shows Explain grayed).
- * When the server needs time to say so, `tutor` starts false and `answer` settles with the real value: the page does not wait for it,
+ * While this device has no Magic Key: `enter` takes one typed or pasted in Settings' Magic Key page, which the page opens wherever the key is
+ * needed (the roadmap's Magic Key, Explain, a flag). `tutor` says that the place has a tutor that is waiting for it (so the page shows Explain
+ * grayed). When the server needs time to say so, `tutor` starts false and `answer` settles with the real value: the page does not wait for it,
  * sets `tutor` when it arrives and draws again.
  */
 export interface Unlock {
-  /** Resolves when the prompt is closed: true if a key was entered and taken (the page has been told through `onKey`), otherwise false. */
-  open(): Promise<boolean>;
-  /** Takes the key typed in a field of the page's own (Settings' Magic Key page) as the prompt would: resolves with null when it was taken (the page has been told through `onKey`, or is reloading), or with the sentence to show. Absent: the page opens the prompt. */
-  enter?(text: string): Promise<string | null>;
+  /** Takes the key typed or pasted (the words, or the whole link): resolves with null when it was taken (the page has been told through `onKey`, or is reloading), or with the sentence to show. */
+  enter(text: string): Promise<string | null>;
+  /** What went wrong with a key at the start (a link whose key does not fit, a key the study group changed): the page opens the Magic Key page with it. Given once. */
+  problem?: string | null;
   tutor: boolean;
   answer?: Promise<boolean>;
 }
@@ -212,9 +213,9 @@ export interface Platform {
   /** The other half of `unlock`: set while this device has the Magic Key, null (or absent) otherwise. */
   keyHeld?(): Promise<KeyHeld | null>;
   /**
-   * Calls `tell` after a Magic Key typed in the prompt was taken into the running page, instead of reloading it: the page then asks
+   * Calls `tell` after a Magic Key typed on the Magic Key page was taken into the running page, instead of reloading it: the page then asks
    * `loadData`, `unlock`, `keyHeld` and `tutor` again and draws what it has, so the pair on the screen stays. `tell` may be async;
-   * the prompt waits for it. Returns the way to stop. A place that does not offer it makes the prompt reload the page.
+   * `enter` waits for it. Returns the way to stop. A place that does not offer it makes `enter` reload the page.
    */
   onKey?(tell: () => void | Promise<void>): () => void;
   /** The app's own tutor, or null (or absent) when the place has none or the server has it switched off. The page uses `sample` first when it has one. */
@@ -246,9 +247,7 @@ export interface Platform {
 
 /** What a device that has the Magic Key can do with it: take another one (the study group changed it), or forget it (the definitions and the tutor lock again). */
 export interface KeyHeld {
-  /** As `Unlock.open`. */
-  change(): Promise<boolean>;
   /** As `Unlock.enter`: another key, kept in place of this one once the server takes it. */
-  enter?(text: string): Promise<string | null>;
+  enter(text: string): Promise<string | null>;
   forget(): void;
 }

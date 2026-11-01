@@ -1,11 +1,10 @@
-// What the Magic Key is, said where it is asked for: the key prompt (src/pwa/unlock.ts) and the Magic Key page of Settings on the Path. The second is the hint under it.
+// What the Magic Key is, said on the Magic Key page of Settings, where the key is entered. The second is the hint under it.
 export const MAGIC_KEY_ABOUT = [
-  "The Magic Key is four words that unlock the course’s definitions and notes on this device, so terms show what they mean, and Claude’s explanations, which use them. The link shared in your study group carries it, so usually there is nothing to type.",
-  "Without it you can still practice. To unlock, open that link again or paste it here, or ask whoever shared the app with you.",
+  "The Magic Key is a phrase that unlocks the definitions and Claude’s explanations on this device. You can practice without it.",
+  "To unlock, open the app’s link again or paste it here. If that does not work, ask whoever shared the app with you.",
 ] as const;
 
-// The note behind the dotted "Magic Key" in the key prompt (src/pwa/unlock.ts) and in the Magic Key row of Options: why the key has
-// this name. One paragraph per entry.
+// The note under "Why “Magic Key”?" on the Magic Key page: why the key has this name. One paragraph per entry.
 export const MAGIC_KEY_NOTE = [
   "Purbuchok’s classic textbook of reasoning, which the course follows, is called The Magic Key to the Path of Reasoning (rigs lam ’phrul gyi lde mig).",
   "This key plays on that name: it opens the way into the definitions and explanations.",

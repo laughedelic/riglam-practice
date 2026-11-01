@@ -1,11 +1,11 @@
 // The course part of the term data in the installed app: locked without the Magic Key, fetched from the server with the key in
-// the study group's link (kept on the device with the key, also offline), and the prompt for a reader who has no link. Uses the
+// the study group's link (kept on the device with the key, also offline), and Settings' Magic Key page for a reader who has no link. Uses the
 // plain Playwright test, so each page starts with nothing stored; the server is a stand-in (tests/support/data-key.js). The specs
 // that need the real definitions skip when data-private/ is not here (docs/DATA.md).
 import { test, expect } from "@playwright/test";
 import { dataKey, serveCourse, withCourse } from "../../support/data-key.js";
 import { testMagicKey } from "../../support/magic-key.ts";
-import { ready, overflow, openMenu, roadmap, openSettingsPage } from "../../support/page.js";
+import { ready, overflow, openMenu, roadmap, openSettingsPage, keyField, enterKey } from "../../support/page.js";
 import { readFull } from "../../../scripts/lib/course-files.mjs";
 import { LOCKED_TEXT } from "../../../src/data/course.js";
 
@@ -20,14 +20,15 @@ const firstTerm = (page) => page.evaluate(() => { const T = window.__t.DATA.term
 const hasNotes = (page) => page.evaluate(() => { const D = window.__t.DATA; return "notes" in D || Object.values(D.terms).some((t) => "note" in t); });
 const storedKey = (page) => page.evaluate(() => localStorage.getItem("riglam.magicKey"));
 
-// the prompt is never shown on its own for a reader who has no key; the roadmap's Magic Key and Explain open it (Settings' Magic Key page takes the key in its own field)
-const openPrompt = async (page) => {
+// the Magic Key page is never opened on its own for a reader who has no key; the roadmap's Magic Key, Explain and a flag open it, and so does a key that went wrong at the start
+const openKeyPage = async (page) => {
   await openMenu(page);
   await roadmap(page).locator(".rfoot").getByRole("button", { name: "Magic Key" }).click();
-  await expect(page.locator("#unlock")).toBeVisible();
+  await expect(keyField(page)).toBeVisible();
 };
+const said = (page) => page.locator(".ppage [role=alert]");
 
-test("without a key the terms work, the definitions are locked, and nothing greets the reader with a prompt", async ({ page }) => {
+test("without a key the terms work, the definitions are locked, and nothing greets the reader with the Magic Key", async ({ page }) => {
   await page.addInitScript(hook);
   await page.goto("/");
   await ready(page);
@@ -35,85 +36,85 @@ test("without a key the terms work, the definitions are locked, and nothing gree
   expect(term.d).toBe(LOCKED_TEXT);
   expect(term.d_ru).toBeUndefined();
   expect(term.wylie).toBeTruthy();
-  await expect(page.locator("#unlock")).toHaveCount(0);
+  await expect(roadmap(page)).toBeVisible();
+  await expect(keyField(page)).toHaveCount(0);
   expect(await hasNotes(page)).toBe(false);
 });
 
-test("the prompt says what the key is for, and its name opens a note on it", async ({ page }) => {
+test("the roadmap's Magic Key opens the Magic Key page: what the key is, its field ready to type in, and the way back to the roadmap", async ({ page }) => {
   await page.goto("/");
   await ready(page);
-  await openPrompt(page);
-  const dlg = page.locator("#unlock");
-  await expect(dlg).toContainText("Magic Key");
-  await expect(dlg).toContainText("unlock the course’s definitions and notes");
-  await expect(dlg.locator("#unlock-key")).toHaveAttribute("placeholder", "four words or the special link");
-  await expect(dlg.locator("label")).toHaveCount(0);
-  await expect(dlg.locator("#unlock-mk")).toBeHidden();
-  await dlg.locator("h2 .keyname").click(); // the dotted "Magic Key" opens the note on the name
-  await expect(dlg.locator("#unlock-mk")).toContainText("The Magic Key to the Path of Reasoning");
-  await dlg.locator("#unlock-mk").getByRole("button", { name: "Hide" }).click();
-  await expect(dlg.locator("#unlock-mk")).toBeHidden();
-  await expect(dlg.getByRole("button", { name: "Unlock" }).locator("svg.ico")).toBeVisible();
-  await expect(dlg.locator("h2 svg.ico")).toBeVisible(); // a key beside the heading
-  await page.getByRole("button", { name: "Close" }).click();
-  await expect(dlg).toBeHidden();
-  await openPrompt(page); // and again
-});
-
-// The prompt is a native dialog and closes itself on Escape; the roadmap it was opened from stays, with the focus to return to.
-test("Escape in the prompt closes only the prompt: the roadmap it was opened from stays under it", async ({ page }) => {
-  await page.goto("/");
-  await ready(page);
-  await openPrompt(page);
-  await page.keyboard.press("Escape");
-  await expect(page.locator("#unlock")).toBeHidden();
+  await openKeyPage(page);
+  const pg = page.locator(".ppage");
+  await expect(pg).toContainText("The Magic Key is a phrase that unlocks the definitions");
+  await expect(pg).toContainText("open the app’s link again or paste it here");
+  await expect(keyField(page)).toHaveAttribute("placeholder", "the phrase or the link");
+  await expect(keyField(page), "the field is ready, so a phone's keyboard comes up with the tap").toBeFocused();
+  await pg.getByText("Why “Magic Key”?").click();
+  await expect(pg).toContainText("The Magic Key to the Path of Reasoning");
+  await page.getByRole("button", { name: "Back to the roadmap", exact: true }).click();
   await expect(roadmap(page)).toBeVisible();
+  await expect(keyField(page)).toHaveCount(0);
+  await openKeyPage(page); // and again
 });
 
-test("the prompt fits the screen and the page behind it does not scroll sideways", async ({ page }) => {
+// Opened where the key is needed, the page is one step: Escape and the system Back go back to where it was opened, not to the list of Settings.
+test("Escape and Back on the Magic Key page go straight back to the roadmap it was opened from", async ({ page }) => {
   await page.goto("/");
   await ready(page);
-  await openPrompt(page);
-  const box = await page.locator("#unlock").boundingBox();
-  const { w, h } = await page.evaluate(() => ({ w: innerWidth, h: innerHeight }));
-  expect(box.x).toBeGreaterThanOrEqual(0);
-  expect(box.x + box.width).toBeLessThanOrEqual(w);
-  expect(box.y + box.height).toBeLessThanOrEqual(h);
+  await openKeyPage(page);
+  await page.keyboard.press("Escape");
+  await expect(roadmap(page)).toBeVisible();
+  await expect(keyField(page)).toHaveCount(0);
+  await openKeyPage(page);
+  await page.goBack();
+  await expect(roadmap(page)).toBeVisible();
+  await expect(keyField(page)).toHaveCount(0);
+});
+
+// A device with no key has a fourth link in the roadmap's foot: on a narrow phone the links move into the space at the left rather than wrap.
+test("the roadmap's Magic Key stays on one line with Review and Settings, also on a narrow phone", async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  await page.goto("/");
+  await ready(page);
+  await openMenu(page);
+  const foot = roadmap(page).locator(".rfoot");
+  const tops = await Promise.all(["Review", "Settings", "Magic Key"].map(async (name) => (await foot.getByRole("button", { name: new RegExp("^" + name) }).boundingBox()).y));
+  expect(new Set(tops).size, JSON.stringify(tops)).toBe(1);
   expect(await overflow(page)).toBeLessThanOrEqual(0);
 });
 
-test("text that is not a key is refused in the prompt", async ({ page }) => {
+test("text that is not a key is refused on the Magic Key page", async ({ page }) => {
   await page.goto("/");
   await ready(page);
-  await openPrompt(page);
-  await page.fill("#unlock-key", "hello");
-  await page.locator("#unlock").getByRole("button", { name: "Unlock", exact: true }).click();
-  await expect(page.locator("#unlock-err")).toContainText("does not look like a Magic Key");
+  await openKeyPage(page);
+  await enterKey(page, "hello");
+  await expect(said(page)).toContainText("does not look like the Magic Key");
   expect(await storedKey(page)).toBeNull();
 });
 
-test("a key that does not fit is refused, in the prompt and in a link (a link opens the prompt by itself)", async ({ page }) => {
+test("a key that does not fit is refused, on the page and in a link (a link opens the page by itself)", async ({ page }) => {
   await page.addInitScript(hook);
   await page.goto("/");
   await ready(page);
-  await openPrompt(page);
-  await page.fill("#unlock-key", `https://riglam.example/#k=${generateKey()}`);
-  await page.locator("#unlock").getByRole("button", { name: "Unlock", exact: true }).click();
-  await expect(page.locator("#unlock-err")).toContainText("not the Magic Key");
+  await openKeyPage(page);
+  await enterKey(page, `https://riglam.example/#k=${generateKey()}`);
+  await expect(said(page)).toContainText("not the Magic Key");
   expect(await storedKey(page)).toBeNull();
 
   await page.goto(`/?again=1#k=${generateKey()}`);
-  await ready(page);
-  await expect(page.locator("#unlock-err")).toContainText("does not fit");
+  await expect(said(page)).toContainText("does not fit"); // the Magic Key page, over the roadmap
+  await expect(keyField(page), "with no tap the field waits: a phone's keyboard would not come up").not.toBeFocused();
   expect((await firstTerm(page)).d).toBe(LOCKED_TEXT);
   expect(await page.evaluate(() => location.hash)).toBe("");
   expect(await storedKey(page)).toBeNull();
+  await page.getByRole("button", { name: "Back to the roadmap", exact: true }).click();
+  await expect(roadmap(page)).toBeVisible();
 });
 
 test("a link without a usable key says so and leaves the address clean", async ({ page }) => {
   await page.goto("/#k=short"); // one word is not a Magic Key
-  await ready(page);
-  await expect(page.locator("#unlock-err")).toContainText("no Magic Key in it");
+  await expect(said(page)).toContainText("no Magic Key in it");
   expect(await page.evaluate(() => location.hash)).toBe("");
 });
 
@@ -143,7 +144,7 @@ withKey("the key in a link opens the definitions, leaves the address bar, and st
   expect(term.d).toBe(full.terms[name].d);
   expect(term.d_ru).toBe(full.terms[name].d_ru);
   expect(await hasNotes(page)).toBe(false); // the notes are not in the app
-  await expect(page.locator("#unlock")).toHaveCount(0);
+  await expect(keyField(page)).toHaveCount(0);
   expect(await storedKey(page)).toBe(dataKey);
 
   await page.goto("/"); // a later visit without the link
@@ -151,15 +152,16 @@ withKey("the key in a link opens the definitions, leaves the address bar, and st
   expect((await firstTerm(page)).d).toBe(full.terms[name].d);
 });
 
-withKey("the words typed with spaces, in any case, open the definitions", async ({ page }) => {
+withKey("the words typed with spaces, in any case, open the definitions, and the page goes back to the roadmap", async ({ page }) => {
   await page.addInitScript(hook);
   await page.goto("/");
   await ready(page);
-  await openPrompt(page);
-  await page.fill("#unlock-key", dataKey.split("-").map((w) => w[0].toUpperCase() + w.slice(1)).join(", "));
+  await openKeyPage(page);
   await page.evaluate(() => { window.__sameDocument = true; });
-  await page.locator("#unlock").getByRole("button", { name: "Unlock", exact: true }).click();
-  await expect(page.locator("#unlock")).toHaveCount(0);
+  await enterKey(page, dataKey.split("-").map((w) => w[0].toUpperCase() + w.slice(1)).join(", "));
+  await expect(roadmap(page)).toBeVisible();
+  await expect(keyField(page)).toHaveCount(0);
+  await expect(roadmap(page).locator(".rfoot").getByRole("button", { name: "Magic Key" })).toHaveCount(0);
   expect((await firstTerm(page)).d).not.toBe(LOCKED_TEXT);
   expect(await storedKey(page)).toBe(dataKey);
   expect(await page.evaluate(() => window.__sameDocument), "the key is taken in place, the page is not reloaded").toBe(true);
@@ -172,22 +174,23 @@ withKey("a key entered while another one is held replaces it in place", async ({
   await page.evaluate(() => { window.__sameDocument = true; });
   await openSettingsPage(page, "Magic Key");
   await page.getByRole("button", { name: "Enter another key" }).click();
-  await page.getByRole("textbox", { name: "Another Magic Key or link" }).fill(dataKey.split("-").join(" "));
-  await page.getByRole("button", { name: "Unlock", exact: true }).click();
-  await expect(page.locator("#unlock")).toHaveCount(0);
+  const another = page.getByRole("textbox", { name: "Another Magic Key or link" });
+  await expect(another).toBeFocused();
+  await another.fill(dataKey.split("-").join(" "));
+  await another.press("Enter");
+  await expect(page.locator(".ppage")).toContainText("This device has the Magic Key");
   expect(await page.evaluate(() => window.__sameDocument)).toBe(true);
   expect((await firstTerm(page)).d).not.toBe(LOCKED_TEXT);
   expect(await storedKey(page)).toBe(dataKey);
 });
 
-withKey("pasting the link into the prompt opens the definitions", async ({ page }) => {
+withKey("pasting the link on the Magic Key page opens the definitions", async ({ page }) => {
   await page.addInitScript(hook);
   await page.goto("/");
   await ready(page);
-  await openPrompt(page);
-  await page.fill("#unlock-key", `https://riglam.example/#k=${dataKey}`);
-  await page.locator("#unlock").getByRole("button", { name: "Unlock", exact: true }).click();
-  await expect(page.locator("#unlock")).toHaveCount(0);
+  await openKeyPage(page);
+  await enterKey(page, `https://riglam.example/#k=${dataKey}`);
+  await expect(keyField(page)).toHaveCount(0);
   expect((await firstTerm(page)).d).not.toBe(LOCKED_TEXT);
 });
 
@@ -205,7 +208,7 @@ withKey("opening the shared link again offline shows the definitions kept for th
   await page.goto(`/?again=1#k=${dataKey}`);
   await ready(page);
   expect((await firstTerm(page)).d).toBe(full.terms[Object.keys(full.terms)[0]].d);
-  await expect(page.locator("#unlock")).toHaveCount(0);
+  await expect(keyField(page)).toHaveCount(0);
   await context.setOffline(false);
 });
 
@@ -227,8 +230,7 @@ withKey("once opened, the definitions are there with no network", async ({ page,
 test("too many wrong tries from one network are told as such, with the wait, and the key in a link is kept for later", async ({ page }) => {
   await page.route("**/api/course**", (route) => route.fulfill({ status: 429, contentType: "application/json", body: JSON.stringify({ error: { code: "rate_limited", message: "later", resetsAt: new Date(Date.now() + 25 * 60_000).toISOString() } }) }));
   await page.goto(`/#k=${dataKey}`);
-  await ready(page);
-  await expect(page.locator("#unlock-err")).toContainText(/Too many tries from this network\. Try again in \d+ minutes?\./);
+  await expect(said(page)).toContainText(/Too many tries from this network\. Try again in \d+ minutes?\./);
   expect(await storedKey(page)).toBe(dataKey);
 });
 
@@ -253,13 +255,11 @@ withKey("a kept copy opens the page at once; the server is asked in the backgrou
   expect((await firstTerm(page)).d, "this visit still shows the kept copy").toBe(full.terms[Object.keys(full.terms)[0]].d);
   await expect.poll(() => storedKey(page)).toBeNull();
   await page.goto("/?again=3"); // the next visit says once that the key was changed, and asks for the new one
-  await ready(page);
+  await expect(said(page)).toContainText("The Magic Key has changed");
   expect((await firstTerm(page)).d).toBe(LOCKED_TEXT);
-  await expect(page.locator("#unlock")).toBeVisible();
-  await expect(page.locator("#unlock-err")).toContainText("The Magic Key was changed");
   await page.goto("/?again=4"); // and then leaves the reader alone
   await ready(page);
-  await expect(page.locator("#unlock")).toHaveCount(0);
+  await expect(keyField(page)).toHaveCount(0);
 });
 
 withKey("with the key, the Magic Key page can take another one (the old one stays until the new one fits) or forget it, after a question", async ({ page }) => {
@@ -321,7 +321,7 @@ withKey("a link with another key, opened when the server cannot be asked, does n
   const other = testMagicKey();
   await page.route("**/api/course**", (route) => route.abort("internetdisconnected"));
   await page.goto(`/?again=1#k=${other}`);
-  await ready(page);
+  await expect(page.locator(".ppage [role=alert]")).toContainText("only be checked online");
   expect((await firstTerm(page)).d, "the other key is not accepted yet, so nothing is open").toBe(LOCKED_TEXT);
   expect(await storedKey(page)).toBe(other); // kept for the next visit, to be asked again
 
