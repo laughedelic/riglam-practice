@@ -545,7 +545,7 @@ withKey("the tutor's note under an example is a list of steps in the tutor's blo
   await expect(note).not.toContainText("Take ");   // the "take" line repeated the answer above it
 });
 
-withKey("with the tutor on its own, Why is open on the result; the station's arrow hops once the examples are in", async ({ page }) => {
+withKey("with the tutor on its own, Why is open on the result; the station's cue is set once the examples are in", async ({ page }) => {
   await factsServer(page);
   await page.addInitScript(() => localStorage.setItem("rd-autoexplain", "1"));
   await start(page);
@@ -558,8 +558,9 @@ withKey("with the tutor on its own, Why is open on the result; the station's arr
     await field.press("Enter");
   }
   await expect(page.locator(".pa.ready #stn")).toBeVisible();
-  await expect(page.locator(".pup")).toHaveCount(0);   // no arrow and words on the thread: the station's own arrow hops
-  await expect.poll(() => page.evaluate(() => getComputedStyle(document.querySelector("#stn .go .mk .i")).animationName)).toBe("p-hop");
+  await expect(page.locator(".pup")).toHaveCount(0);   // no arrow and words on the thread: the station's own cue (its diamond's top edges rise) is the sign
+  // the Check can be taken right away: its cue starts at 1.5 s and repeats every 5 s (a next question's waits 4 s, then every 10 s)
+  await expect.poll(() => page.evaluate(() => { const g = document.querySelector("#stn .go"), c = getComputedStyle(g, "::before"); return [c.animationName, c.animationDelay, c.animationDuration, getComputedStyle(g.querySelector(".mk .i")).animationName].join(" "); })).toBe("p-up5 1.5s 5s none");
   await page.locator("#stn").click();
   await expect(page.locator(".wrow.open")).toBeVisible();
   await expect(page.locator(".exr .tnote").first()).toBeVisible();
@@ -615,7 +616,7 @@ withKey("while Claude works the wait is said once, on a stop over the station wi
   await expect(page.locator(".pvline")).not.toContainText("Claude");
   await expect(page.locator(".wrow")).toHaveCount(0);   // the Explanation stop comes in with the explanation
   await expect(page.locator("#stn")).toHaveClass(/\bcwait\b/);
-  expect(await page.evaluate(() => getComputedStyle(document.querySelector("#stn .go .mk .i")).animationName)).toBe("none");   // the arrow rests: nothing calls you on
+  expect(await page.evaluate(() => getComputedStyle(document.querySelector("#stn .go"), "::before").animationName)).toBe("none");   // the cue rests: nothing calls you on
   release();
   await expect(page.locator(".cwstop.on")).toHaveCount(0);
   await expect(page.locator(".wrow")).toContainText("by Claude");

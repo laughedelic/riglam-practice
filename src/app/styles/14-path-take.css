@@ -14,6 +14,7 @@
 /* the station lands: it shrinks into the gold bullet of the next step and its words go */
 .pa .main.tk-run #stn .go{--gs:calc(var(--st) - (var(--st) - 16px) * var(--tkl,0)); width:var(--gs); height:var(--gs); margin-right:calc(var(--gs) / -2); background-color:color-mix(in srgb,var(--gold) calc(var(--tkl,0) * 100%),var(--station))}
 .pa .main.tk-run #stn .go .mk{opacity:calc(1 - var(--tkl,0) * 2.2)}
+.pa .main.tk-run #stn .go::before,.pa .main.pk-run #stn .go::before{animation:none}      /* the cue of a station rests while it is taken */
 .pa .main.tk-run #stn .gol{opacity:calc(1 - var(--tkl,0) * 4)}
 .pa .main.tk-run #stn .gol small{opacity:0}
 .pa .main.tk-run .aux{opacity:calc(1 - var(--tkb,0))}

@@ -200,7 +200,7 @@ function TermCard({ id }: { id: string }) {
   return <>
     <TopBar title="Progression" back={{ label: "Back to Progression", go: progBack }} />
     <div key="term" class="ppage prv pprog-t">
-      <Sx cls="cur first tstop"><Gap h={14} /><Head d={<D cls="sec tsd" />} h={s ? "Stage " + s.n : "Term"} sub={(s ? s.name + " · " : "") + SAYS[mark]} /><Gap h={4} />
+      <Sx cls="cur first tstop"><Gap h={14} /><Head d={<D cls="sec tsd term" mark="lines" />} h={s ? "Stage " + s.n : "Term"} sub={(s ? s.name + " · " : "") + SAYS[mark]} /><Gap h={4} />
         <St d={<D cls={"sub " + NODE[mark]} />} cls="stm thing"><FitTerm text={name} /><Names term={name} /></St>
         <StopSections s={{ cat: id, why: "again" }} name={name} def={def} />
         {!def && state.unlock ? <p class="tstop-key">Its definition comes with the Magic Key from your study group’s link.</p> : null}
