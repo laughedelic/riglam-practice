@@ -15,6 +15,7 @@ const qNow = (page) => page.locator("#path .sb.now .qnm");
 const speaker = (page) => page.locator("#vhear");
 /** Presses and holds a control (the foot's microphone or speaker) for `ms`, then lets go. */
 async function holdDown(page, loc, ms) {
+  await expect(loc).toBeVisible();   // drawn after the page is ready; a box taken before it is null
   const b = await loc.boundingBox();
   await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
   await page.mouse.down();
