@@ -12,8 +12,9 @@ import { pathTop, renderPath } from "../path/index.tsx";
 export const CELL_FULL={both:"Both A and B", anb:"A, not B", bna:"B, not A", nei:"Neither A nor B"};
 export const top0=pathTop;
 export const isEx=()=>state.tab==="practice"||state.tab==="debate"||state.tab==="find"||state.tab==="syllogism"||state.tab==="categories"||state.tab==="instance";
-// the case field takes the focus when a case runs out of time (and it comes up), except on a phone where the voice field answers: the keyboard would rise over it
-export const focusCin=()=>{ if(keysStayDown()) return; const i=$("cin"); if(i) i.focus({preventScroll:true}); };
+// the case field takes the focus when a case is chosen or runs out of time (and the keyboard comes up); when a case ran out of time (`afterTimeUp`) on a phone where the voice field
+// answers, the keyboard would rise over it by itself, so it does not
+export const focusCin=(afterTimeUp)=>{ if(afterTimeUp&&keysStayDown()) return; const i=$("cin"); if(i) i.focus({preventScroll:true}); };
 export function render(){
   voiceBeforeRender();   // a screen that voice did not speak for lets go of its clock before this render starts the next one
   ensureClock();

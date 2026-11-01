@@ -257,20 +257,24 @@ export type Command = "repeat" | "skip" | "next" | "explain" | "pause";
 const THING = "(?:pair|question|one|thing|set|syllogism|example|relation|category|categories|case)";
 // Whole utterances only, so that an answer that contains one of these words ("a crowd again") is still an answer.
 const COMMANDS: [RegExp, Command][] = [
-  [/^(?:please )?(?:repeat|repeat that|repeat it|repeat the question|say it again|say that again|read it again|read that again|read the question again|ask again|ask me again|one more time|once more|again)$/, "repeat"],
-  [new RegExp("^(?:skip it|skip this|skip that|skip this " + THING + "|skip the " + THING + "|set it aside|set this aside|set this " + THING + " aside)$"), "skip"],
+  [/^(?:repeat|repeat that|repeat it|repeat the question|say it again|say that again|read it again|read that again|read the question again|ask again|ask me again|one more time|once more|again)$/, "repeat"],
   [/^(?:next|next one|next pair|next question|next thing|next set|next relation|next syllogism|go on|go ahead|continue|move on|keep going|carry on)$/, "next"],
-  [/^(?:explain|explain it|explain that|explain this|explain please|please explain|an explanation|check and explain|why|why is that|why was that|tell me why)$/, "explain"],
+  [/^(?:explain|explain it|explain that|explain this|explain please|an explanation|check and explain|why|why is that|why was that|tell me why)$/, "explain"],
   [/^(?:pause|pause it|pause the run|stop|stop it|stop listening|hold on|wait a moment|wait a minute|that is enough|enough)$/, "pause"],
 ];
+// "skip it" and the like say it of whatever is on screen; "skip this pair" names the thing, which no screen takes as an answer
+const SKIP_LOOSE = /^(?:skip it|skip this|skip that|set it aside|set this aside)$/;
+const SKIP_NAMED = new RegExp("^(?:skip this " + THING + "|skip the " + THING + "|set this " + THING + " aside)$");
 /**
- * The command the whole utterance is, or null. A bare "skip" is the command only where the screen does not take it as an answer (`bareSkip`): the counter-example of a syllogism
- * can be skipped, which is an answer there.
+ * The command the whole utterance is, or null ("please" before or after is dropped). A bare "skip" is the command only where the screen does not take it as an answer (`bareSkip`),
+ * and so are "skip it" and "skip this" (`looseSkip`, which is on unless the screen says otherwise): the counter-example of a syllogism can be skipped, which is an answer there.
  */
-export function spokenCommand(alts: readonly string[], opts: { bareSkip?: boolean } = {}): Command | null {
+export function spokenCommand(alts: readonly string[], opts: { bareSkip?: boolean; looseSkip?: boolean } = {}): Command | null {
+  const loose = opts.looseSkip !== false;
   for (const heard of alts) {
-    const w = plainWords(heard);
+    const w = plainWords(heard).replace(/^please /, "").replace(/ please$/, "");
     if (opts.bareSkip && w === "skip") return "skip";
+    if ((loose && SKIP_LOOSE.test(w)) || SKIP_NAMED.test(w)) return "skip";
     for (const [re, c] of COMMANDS) if (re.test(w)) return c;
   }
   return null;

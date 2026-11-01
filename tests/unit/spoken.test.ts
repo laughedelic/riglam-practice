@@ -249,6 +249,11 @@ test("the commands of the run are whole utterances, so that an answer that conta
   // a bare skip is a command only where the screen does not take "skip" as an answer
   expect(spokenCommand(["skip"])).toBeNull();
   expect(spokenCommand(["skip"], { bareSkip: true })).toBe("skip");
+  // where "skip" is the answer (the counter-example), "skip it" and "skip this" are too; naming the thing is still the command
+  for (const s of ["skip it", "skip this", "set it aside"]) expect(spokenCommand([s], { bareSkip: false, looseSkip: false }), s).toBeNull();
+  for (const s of ["skip this syllogism", "skip the pair"]) expect(spokenCommand([s], { looseSkip: false }), s).toBe("skip");
+  // "please" before or after changes nothing
+  for (const [s, c] of [["next please", "next"], ["please pause", "pause"], ["repeat please", "repeat"], ["please explain", "explain"]] as const) expect(spokenCommand([s]), s).toBe(c);
 });
 
 test("categories: what it is not is not ticked, a word that only looks like another is not it, and the sixth is said by its digit", () => {

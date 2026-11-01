@@ -106,6 +106,7 @@ export function voiceAfterRender(){
   const v=state.voice, a=asked(), key=a?a.key:"";
   if(key===v.key) return;
   v.key=key; quiet();
+  if(v.paused&&!handsFree()) v.paused=false;       // a pause belongs to Hands-free: another exercise with its own Answer setting does not inherit it
   // The first question the app shows is neither read nor listened to: people look around first, and start by tapping the
   // speaker or the microphone, or by answering or moving on by hand (any tap or key before this question counts).
   const opening=!!a&&!v.began&&!v.seen, back=v.noRead;
@@ -154,7 +155,7 @@ function hear(a,keepNote,held,keepBar){
   quiet(); endReading(); if(!keepBar) freezePend();
   v.tok=tok; v.phase="listening"; if(!keepNote){ v.note=""; v.bad=false; } v.held=false; paint();
   const opts={
-    interim:t=>{ if(v.tok!==tok) return; v.live=t; paintLive(); },
+    interim:t=>{ if(v.tok!==tok) return; v.live=t; if(v.pend&&v.pend.result&&v.pend.auto){ freezePend(); paint(); } else paintLive(); },       // words at a result hold its bar: they may be "explain" or "stop"
     done:res=>{
       if(v.tok!==tok) return;
       v.tok=null; v.stop=null; v.phase="idle"; v.live="";
@@ -208,17 +209,17 @@ function take(a,alts){
   const v=state.voice, w=Wd();
   if(a.kind==="result") return takeResult(a,alts);
   if(spokenDontKnow(alts)) return nudge(a);
+  // the commands of the run, said on their own: the question again, the pair set aside, the run paused. Where "skip" is an answer (the counter-example), only naming the thing is the command
+  const c=spokenCommand(alts,{bareSkip:a.kind!=="counter",looseSkip:a.kind!=="counter"});
+  if(c==="pause"&&handsFree()){ tick(); return pause(); }       // "stop" is also a "no" to a waiting answer or a step that just went on: pausing is what it means
   const yn=v.pend||v.chip?spokenConfirm(alts):null;
   if(v.pend){
     if(yn==="yes") return confirm();
     if(yn==="no") return change();
-  // after it went on: "no" or "back" takes the last step back, except where "no" is itself an answer (Pervasions: Accept or Why?)
-  } else if(v.chip&&yn==="no"&&!answersNo(a,alts)) return undoTaken();
-  // the commands of the run, said on their own: the question again, the pair set aside, the run paused
-  const c=spokenCommand(alts,{bareSkip:a.kind!=="counter"});
+  // after it went on: "no" or "back" takes the last step back, except where "no" is itself an answer (Pervasions: Accept or Why?), or where it is "again": the question again
+  } else if(v.chip&&yn==="no"&&c!=="repeat"&&!answersNo(a,alts)) return undoTaken();
   if(c==="repeat") return commandRepeat(a);
   if(c==="skip") return commandSkip(a);
-  if(c==="pause") { tick(); return pause(); }
   if(ownKinds.has(a.kind)){
     const o=heardHere(a,alts);
     if(typeof o==="string") return again(a,alts[0],o);
@@ -278,7 +279,8 @@ function offerNext(a,auto){
   const v=state.voice;
   dropPend(); dropChip();
   const p=v.pend={key:a.key,said:"The result is on screen",label:"Next",apply:()=>{ next(); },auto:null,result:true};
-  if(auto) p.auto={ms:RESULT_BAR,t0:performance.now(),tid:setTimeout(()=>{ if(v.pend===p) confirm(); },RESULT_BAR)};
+  // what is on the result may have changed since the bar began (Explain tapped, a definition opened): it then waits
+  if(auto) p.auto={ms:RESULT_BAR,t0:performance.now(),tid:setTimeout(()=>{ if(v.pend!==p) return; const r=state.ui&&resultAsk(state.ui); if(r&&r.auto) confirm(); else { freezePend(); paint(); } },RESULT_BAR)};
   paint();
 }
 // listens again at a result, as a result does: for as long as it is on screen, in two stretches
@@ -287,11 +289,19 @@ function resultAgain(a){
   v.note=""; v.bad=false;
   if(ongoing()&&v.phase==="idle") hear(a,false,false,true); else paint();
 }
+// at a result only these are "yes": a passing "right" or "good" while the verdict is read does not go on
+const RESULT_YES=/^(?:yes|yeah|yep|yup|ok|okay|sure|do it)$/;
 function takeResult(a,alts){
-  const v=state.voice, c=spokenCommand(alts), yn=spokenConfirm(alts);
+  const v=state.voice, c=spokenCommand(alts), yn=spokenConfirm(alts), yes=alts.some((h)=>RESULT_YES.test(plainWords(h)));
   if(c==="pause"){ tick(); return pause(); }
-  if(c==="explain"){ tick(); return explainNow(a); }
-  if(yn==="yes"||c==="next"){ tick(); if(!v.pend) offerNext(a,false); return confirm(); }
+  if(c==="explain"){
+    tick();
+    if(/\/(?:stop|stage)$/.test(a.key)){ freezePend(); v.note="There is nothing to explain here. Say “next” to go on."; v.bad=false; v.tries=0; if(ongoing()&&v.phase==="idle") hear(a,true,false,true); else paint(); return; }
+    return explainNow(a);
+  }
+  // where an offer on the result is answered by a tap, "yes" is not "next": it would leave the offer
+  if(yes&&!c&&a.choice){ tick(); freezePend(); v.note="Tap the offer to take it, or say “next” to leave it."; v.bad=false; v.tries=0; if(ongoing()&&v.phase==="idle") hear(a,true,false,true); else paint(); return; }
+  if(c==="next"||yes){ tick(); if(!v.pend) offerNext(a,false); return confirm(); }
   if(yn==="no"){ tick(); if(v.pend) freezePend(); v.tries=0; return resultAgain(a); }       // "no", "wait": it stays
   v.note="Heard “"+alts[0]+"”. Say “next”, “explain” or “stop”."; v.bad=false;
   if(v.tries>=2){ paint(); return; }
@@ -312,7 +322,7 @@ function explainNow(a){
 function commandRepeat(a){
   const v=state.voice;
   tick();
-  if(!reading()){ v.note="Read aloud is off, so there is nothing to say again."; v.bad=false; if(ongoing()) hear(a,true); else paint(); return; }
+  if(!reading()){ v.note=state.voice.read?"Reading is paused for this visit, so there is nothing to say again.":"Read aloud is off, so there is nothing to say again."; v.bad=false; if(ongoing()) hear(a,true); else paint(); return; }
   repeat();
 }
 // "skip" sets the pair aside, as the answer that waits for Yes (or goes on after the bar), like any other
@@ -333,7 +343,7 @@ function resume(){
   v.paused=false; v.note=""; v.bad=false; v.tries=0;
   if(!v.pend) letGo("fresh");          // the question has its whole time again; an answer that waits has its clock held already
   if(!a){ paint(); return; }
-  if(v.pend){ paint(); return; }
+  if(v.pend){ if(v.pend.result&&handsFree()) listenAuto(a,true); paint(); return; }       // an answer that waits keeps waiting; a result listens for "next" again
   if(a.kind==="result") startResult(a);
   else if(reading()) say(a,a.say,true);
   else if(handsFree()) listenAuto(a);
@@ -575,7 +585,7 @@ function micUp(ev){
   clearTimeout(p.tid);
   const h=v.stop;
   if(p.was){ if(h) h.stop(); }                              // it was listening: a press stops it
-  else if(p.yes){ if(!ev||ev.type==="pointercancel") { paint(); return; } if(!p.auto||(v.pend&&v.pend.result)){ confirm(); return; } }    // a tap is Yes; where it was going on by itself the touch only held it
+  else if(p.yes){ if(!ev||ev.type==="pointercancel") { const a=asked(); if(v.pend&&v.pend.result&&a&&ongoing()) listenAuto(a,true); paint(); return; } if(!p.auto||(v.pend&&v.pend.result)){ confirm(); return; } }    // a tap is Yes; where it was going on by itself the touch only held it
   else if(h&&h.release){ if(p.long) h.stop(); else h.release(); }
   paint();
 }
@@ -626,7 +636,7 @@ function earClick(ev){
 // `toggle`: the speaker's tap stops a reading that is going on (the R key says it again from the start)
 function repeat(toggle){
   const v=state.voice, a=asked();
-  if(!a||!enabled()) return false;
+  if(!a||!enabled()||a.quiet) return false;       // (a result has no question to say again)
   if(v.muted){ v.muted=false; }
   else if(toggle&&v.phase==="speaking"){ quiet(); endReading(); paint(); if(ongoing()) hear(a); return true; }    // stopped: in Hands-free the reading was only the way to the answer
   if(!reading()) return false;
@@ -653,7 +663,7 @@ export function voiceKey(k){
   } else if(v.chip&&k==="Escape"){ undoTaken(); return true; }
   if(k==="v") return toggleListen();
   if(k==="r"&&reading()) return repeat();
-  if(k==="m"&&enabled()&&state.voice.read&&canSpeak()){ muteToggle(); return true; }
+  if(k==="m"&&!a.quiet&&enabled()&&state.voice.read&&canSpeak()){ muteToggle(); return true; }
   return false;
 }
 for(const t of ["pointerdown","keydown"]) document.addEventListener(t,()=>{ state.voice.began=true; },{capture:true,once:true});
@@ -667,7 +677,7 @@ export function setVoice(k,val){
   const v=state.voice;
   v[k]=val;
   if(k==="read"&&val) v.muted=false;
-  if(k==="answer"&&v.paused){ v.paused=false; letGo("fresh"); }
+  if(k==="answer"&&v.paused){ v.paused=false; if(!v.pend) letGo("fresh"); }
   try{ localStorage.setItem(KEYS[k],k==="read"?(val?"1":"0"):String(val)); }catch(e){}
   if(k==="read"||k==="answer") keepOwn(k,val);   // each exercise keeps its own (practice/per-exercise.ts)
   render();
@@ -686,7 +696,7 @@ export const voiceNote=()=>"Reads the questions aloud and lets you answer by voi
 export const voiceAvailable=()=>canSpeak()||canHear();
 export const voiceOn=()=>enabled();
 /** An answer waits for Yes: Escape takes it back, wherever the focus is (shell/keys.js). */
-export const voicePending=()=>enabled()&&!!state.voice.pend;
+export const voicePending=()=>enabled()&&!!state.voice.pend&&!(state.voice.pend.result&&state.ui&&(state.ui.dterm||state.ui.pop));       // (Escape closes a definition or a note opened from a result first)
 /** The voices by accent, American and British first. */
 export function voiceGroups(list){
   const groups=[];

@@ -1,4 +1,5 @@
 import { state } from "../state.js";
+import { canAsk } from "../core/ask.js";
 import { lcRel, REL } from "../core/rel.js";
 import { sayCategories, sayCategory, unsayCategory } from "../categories/flow.js";
 import { editPair, usePair } from "../find/flow.js";
@@ -29,6 +30,8 @@ export interface AskAny {
   clock?: boolean;
   /** nothing is read for it, and there is no strip to hear it again (the result) */
   quiet?: boolean;
+  /** a result with an offer on it that is taken or left by a tap: "yes" there is not "next" (shell/voice.js, takeResult) */
+  choice?: boolean;
   /** the result goes on after a short bar (Sprint, with nothing on it that has to be read) */
   auto?: boolean;
 }
@@ -96,8 +99,8 @@ export function resultAsk(u: Ui): AskAny | null {
   if (!state.cur || !EXERCISES.includes(state.tab)) return null;
   const station = u.stop ? "/stop" : u.up && u.up.shown ? "/stage" : "";
   const offer = u.offer && u.offer.kind !== "done";
-  const holds = !!(station || offer || u.guideDown || u.negOffer || u.ctl || u.explained || state.autoExplain);
-  return { key: "res:" + attempt(u) + station, kind: "result", say: "", quiet: true, clock: false, auto: !!state.blitz && !holds,
+  const holds = !!(station || offer || u.guideDown || u.negOffer || u.ctl || u.explained || (state.autoExplain && canAsk()));
+  return { key: "res:" + attempt(u) + station, kind: "result", say: "", quiet: true, clock: false, auto: !!state.blitz && !holds, choice: !!(offer || u.negOffer),
     hint: "Say “next” to go on, or “explain” to ask Claude." };
 }
 

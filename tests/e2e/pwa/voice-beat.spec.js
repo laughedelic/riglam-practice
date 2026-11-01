@@ -60,7 +60,7 @@ test("Hands-free in Sprint: the result goes on by itself after a bar, with no ta
   expect(await current(page)).not.toBe(id);
 });
 
-test("Hands-free in Sprint: 'explain' (or 'no') stops the bar, and the result then waits for 'next'", async ({ page }) => {
+test("Hands-free in Sprint: 'explain' stops the bar, and the result then waits for 'next'", async ({ page }) => {
   await toResult(page, { sprint: true });
   const id = await current(page);
   await hearNext(page, "explain");
@@ -146,4 +146,93 @@ test("a case that runs out of time does not raise the keyboard over the field on
   await page.waitForTimeout(3500);   // the case runs out of time
   expect(await page.evaluate(() => document.activeElement && document.activeElement.id)).not.toBe("cin");
   await expect(mic(page)).toBeVisible();
+});
+
+const chip = (page) => page.locator("#vfield .vchip");
+
+test("Hands-free: 'stop' said while the last step can still be taken back pauses the run and does not take it back", async ({ page }) => {
+  await voice(page, { settings: { read: "0", answer: "auto" } });
+  await page.goto("/");
+  await ready(page);
+  await goTo(page, "Syllogisms");
+  expect(await drawSyllogism(page, "pervasion")).toBe(true);
+  await listening(page);
+  await hearNext(page, "there is no pervasion");
+  await expect(chip(page)).toBeVisible({ timeout: 10_000 });   // it went on to the counter-example, and can be taken back for a few seconds
+  await listening(page);
+  await hearNext(page, "stop");
+  await expect(state(page)).toContainText("Paused");
+  expect(await page.evaluate(() => window.__t.ui.step)).toBe(1);   // still at the counter-example
+});
+
+test("a pause belongs to Hands-free: an exercise that answers by tap does not inherit it, and its clock runs", async ({ page }) => {
+  await voice(page, { settings: { read: "0", answer: "auto" } });
+  await page.addInitScript(() => { try { localStorage.setItem("rd-per-ex", JSON.stringify({ practice: { answer: "tap" } })); } catch { /* storage unavailable */ } });
+  await blitz(page, 20000);
+  await page.goto("/");
+  await ready(page);
+  await goTo(page, "Syllogisms");
+  await listening(page);
+  await hearNext(page, "stop");
+  await expect(state(page)).toContainText("Paused");
+  expect(await page.evaluate(() => !!window.__t.ui.hold)).toBe(true);
+  await goTo(page, "Relations");   // its own Answer setting is Tap
+  await expect(mic(page)).toBeVisible();
+  await expect(state(page)).not.toContainText("Paused");
+  await expect.poll(() => page.evaluate(() => !!window.__t.ui.hold)).toBe(false);   // the question is timed
+});
+
+test("Hands-free: 'skip it' at the counter-example leaves it out, and does not set the syllogism aside", async ({ page }) => {
+  await voice(page, { settings: { read: "0", answer: "auto", confirm: "wait" } });
+  await page.goto("/");
+  await ready(page);
+  await goTo(page, "Syllogisms");
+  expect(await drawSyllogism(page, "pervasion")).toBe(true);
+  await listening(page);
+  await hearNext(page, "there is no pervasion");
+  await expect(waiting(page)).toBeVisible();
+  await mic(page).click();   // Yes
+  await expect(chip(page)).toBeVisible();
+  await listening(page);
+  await hearNext(page, "skip it");
+  await expect(waiting(page)).toBeVisible();
+  await expect(state(page).locator(".vwhat b")).toHaveText("no counter-example");
+});
+
+test("Hands-free: a passing 'right' at the result does not go on, 'okay' does", async ({ page }) => {
+  await toResult(page);
+  const id = await current(page);
+  await listening(page);
+  await hearNext(page, "right");
+  await expect(state(page)).toContainText("Say “next”");
+  expect(await current(page)).toBe(id);
+  await expect(verdict(page)).toBeVisible();
+  await listening(page);
+  await hearNext(page, "okay");
+  await expect(verdict(page)).toHaveCount(0);
+});
+
+test("Hands-free in Sprint: something that appears on the result after the bar began holds it", async ({ page }) => {
+  await toResult(page, { sprint: true });
+  const id = await current(page);
+  await page.evaluate(() => { window.__t.ui.explained = true; });   // as when Claude's explanation arrives
+  await page.waitForTimeout(3800);
+  await expect(verdict(page)).toBeVisible();
+  expect(await current(page)).toBe(id);
+  await expect(state(page).locator(".vrunl")).toHaveCount(0);
+});
+
+test("Hands-free: after 'stop' at a result a tap listens again for 'next', and 'next' goes on", async ({ page }) => {
+  await toResult(page);
+  const id = await current(page);
+  await listening(page);
+  await hearNext(page, "stop");
+  await expect(state(page)).toContainText("Paused");
+  await idle(page);
+  await mic(page).click();
+  await expect(verdict(page)).toBeVisible();   // the tap resumed; it did not go on
+  await listening(page);
+  await hearNext(page, "next");
+  await expect(verdict(page)).toHaveCount(0);
+  expect(await current(page)).not.toBe(id);
 });
