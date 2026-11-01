@@ -25,7 +25,7 @@ import { progBack } from "../path/progression.tsx";
 const MARK="riglamNav";
 const canPush=()=>{ try{ return window.parent===window; }catch(e){ return false; } };
 // how many levels are open, from the state alone (the Progression page under the roadmap is on its way out, for the moment of the slide back to it: no level)
-const depth=()=>(state.menuOpen||state.fromRoad?0:1)+(state.tab==="review"&&!(state.menuOpen&&state.pathProg)?1:0)+(state.pathProg&&state.pathProg.term?1:0)+(state.view==="chat"?1:0)+(state.optsOpen?1:0)+(state.optsOpen&&state.optsPage?1:0)+(state.sessOpen?1:0)+(state.sessPage&&state.sessPage!=="progress"?1:0)+(state.skipAsk?1:0);
+const depth=()=>(state.menuOpen||state.fromRoad?0:1)+(state.tab==="review"&&!(state.menuOpen&&state.pathProg)?1:0)+(state.pathProg&&state.pathProg.term?1:0)+(state.view==="chat"?1:0)+(state.optsOpen?1:0)+(state.optsOpen&&state.optsPage&&!state.newsDirect?1:0)+(state.sessOpen?1:0)+(state.sessPage&&state.sessPage!=="progress"?1:0)+(state.skipAsk?1:0);
 function sync(){
   state.navQ=false;
   if(state.navSkip>0||!canPush()) return;
@@ -71,7 +71,7 @@ export function navSync(){ if(!state.navQ){ state.navQ=true; queueMicrotask(sync
 function closeTop(){
   if(state.skipAsk) closeSkipAsk();
   else if(state.sessOpen) sessBack();
-  else if(state.optsOpen&&state.optsPage){ state.optsPage=null; render(); }
+  else if(state.optsOpen&&state.optsPage&&!state.newsDirect){ state.optsPage=null; render(); }
   else if(state.optsOpen) toggleOpts(false);
   else if(state.view==="chat") closeChat();
   else if(state.tab==="review"&&state.pathProg) progBack();

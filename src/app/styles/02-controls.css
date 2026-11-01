@@ -1,5 +1,5 @@
 /* The few plain-DOM parts the Path hosts or opens over itself, which keep their own rules: the buttons and the icon of the dialogs outside #path (the Magic Key prompt,
-   pwa/unlock.ts; the question before a device's examples are kept, 03-share-note.css; the notice of a newer version, pwa/update-toast.ts), the note behind the
+   pwa/unlock.ts; the question before a device's examples are kept, 03-share-note.css), the note behind the
    dotted "Magic Key" and a term's dotted underline (shared with the Path), and the bar with what voice heard (04-voice.css). 11-path-bridge.css puts them on the Path's ground. */
 .btn{display:inline-flex;align-items:center;height:40px;padding:0 18px;border:0;border-radius:0;cursor:pointer;
   font:700 12px/16px var(--body);letter-spacing:.06em;text-transform:uppercase;background:var(--marigold);color:var(--on-marigold)}

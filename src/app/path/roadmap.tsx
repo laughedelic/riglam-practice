@@ -1,7 +1,8 @@
 // The roadmap: every exercise as a stop on a tree, under the exercise. The back chevron in the top bar or the system Back slides the exercise away to the right and shows it; "Continue", when the exercise
 // has an attempt under way, slides the exercise back in from the right (a stop does the same). Each exercise shows today's last answers as small diamonds, "continue" when an attempt waits in it, and the planned one (Debate, which the three branches lead to, and
-// the path goes on from it) is dashed. Above its foot a notice says when a newer version is ready; the foot goes to Review and Settings, the Magic Key while this device has none, and the
-// version with the way to update. The roadmap looks for a newer version every time it opens.
+// the path goes on from it) is dashed. Above its foot a line is pinned while a newer version waits (Update), or while
+// What's new has something not read yet (path/news.tsx); the foot goes to Review and Settings, the Magic Key while this device has none, and in a Preview the version
+// with the way to look again. The roadmap looks for a newer version every time it opens.
 import { useEffect, useRef } from "preact/hooks";
 import { state } from "../state.js";
 import { dayOf, gradeOf, today } from "../core/util.js";
@@ -13,6 +14,7 @@ import { isEx } from "../shell/render.js";
 import { BRAND, Lockup, NAME_BOTTOM, NAME_Y } from "./brand.tsx";
 import { Icon, dia } from "./ui.tsx";
 import { StageRings } from "./progression.tsx";
+import { RoadPin } from "./news.tsx";
 
 // where each stop stands on the tree: a stop's name, and "continue" under it, are 54 px tall, and the line to the stop below starts under them
 const PLACES: Record<string, { x: number; y: number }> = {
@@ -55,22 +57,18 @@ function Planned({ name, x, y }: { name: string; x: number; y: number }) {
     <text class="ed pl" x={x} y={y + 44} text-anchor="middle">coming</text>
   </g>;
 }
-/** The notice that a newer version is ready, above the foot: the same words and the same ink block as the notice the rest of the app shows under the top bar (pwa/update-toast.ts), which gives way while the roadmap is open. */
-function Notice() {
-  const u = state.updates; if (!u || u.status() !== "ready") return null;
-  return <div class="rnote" role="status"><span>{u.readyText ? u.readyText() : "New version ready."}</span><button type="button" onClick={() => u.apply()}>Update now</button></div>;
-}
-// the version, and where the look for a newer one stands (platform.about, platform.updates): each state says what it is, and the way on is a button of a full touch height
+// staging and the other Preview builds only: the version, and where the look for a newer one stands, with a way to look again. The real app shows no version on the roadmap
+// (it is in Settings): a version that waits is said by the line above the foot (path/news.tsx), which has the one Update.
 function Version() {
-  const a = state.about, u = state.updates; if (!a) return null;
-  const st = u ? u.status() : null, v = "v" + a.version;
+  const a = state.about, u = state.updates; if (!a || !state.preview) return null;
+  const st = u ? u.status() : null, v = "v" + a.version + " · " + a.commit;
   const row = (kind: string, text: string, act?: { label: string; on: () => void }, busy = false) =>
     <div class={"rver " + kind} role="status" aria-busy={busy ? "true" : undefined}>
       <span class="rvn">{v}</span>
       <span class="rvs">{busy ? <Icon n="refresh" cls="i spin" /> : null}{text}</span>
       {act ? <button type="button" class="lk" onClick={act.on}>{act.label}</button> : null}
     </div>;
-  if (st === "ready") return row("hot", "Update ready", { label: "Update now", on: () => u!.apply() });
+  if (st === "ready") return row("hot", "Update ready");
   if (st === "downloading") return row("busy", "Downloading the update…", undefined, true);
   if (st === "checking") return row("busy", "Checking for updates…", undefined, true);
   if (st === "unknown") return row("", "Could not check", { label: "Try again", on: () => void u!.check() });
@@ -89,8 +87,6 @@ export function Roadmap() {
     else if (!on && was.current) { const b = box.current && box.current.closest(".pa")?.querySelector<HTMLElement>(".tstn"); if (b) b.focus({ preventScroll: true }); }
     was.current = on;
   }, [on]);
-  // the notice under the top bar (pwa/update-toast.ts) gives way while the roadmap is open: it has its own notice at the bottom
-  useEffect(() => { document.documentElement.classList.toggle("road-open", on); return () => document.documentElement.classList.remove("road-open"); }, [on]);
   // "Continue" goes back to the exercise under the roadmap, so it is there only when that exercise has an attempt to continue; with a pair only drawn (the first time the app opens) the way in is its stop
   const n = todayCount().n, back = state.mode === "quiz" && isEx() && unfinished(state.tab);
   return <div ref={box} class={"road" + (on ? " on" : "")} role="dialog" aria-modal="true" aria-label="Roadmap" aria-hidden={on ? "false" : "true"} inert={!on}>
@@ -108,9 +104,9 @@ export function Roadmap() {
         <Planned {...PLANNED} />
       </svg>
     </div>
-    <Notice />
     {state.leaveAsk ? <div class="rnote" role="status"><span>Back again to close</span></div> : null}
     {back ? <div class="rgo"><button type="button" class="lk rcont" onClick={() => toggleMenu(false)}>Continue<Icon n="chev" /></button></div> : null}
+    <RoadPin />
     <div class="rfoot">
       <StageRings />
       <button type="button" class="lk" onClick={() => setTab("review")}>Review · {n} today</button>

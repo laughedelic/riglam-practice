@@ -21,9 +21,10 @@ import { DEFAULT_LOOK, currentLook, lookLine, pastedLook, setLook, storedLook } 
 import { TopBar, pathNote } from "./shell.tsx";
 import { Group, Intro, Line } from "./lines.tsx";
 import { Bridge, Words, NOFILL } from "./ui.tsx";
+import { NewsPage, openNews, unseen, updateNow } from "./news.tsx";
 
 /** The pages of Settings, by the names of their lines. */
-const TITLES: Record<string, string> = { langs: "Languages", key: "Magic Key", acct: "Account", share: "Sharing examples", xfer: "Export and import", lab: "The lab's settings", ver: "Version and updates" };
+const TITLES: Record<string, string> = { langs: "Languages", key: "Magic Key", acct: "Account", share: "Sharing examples", xfer: "Export and import", lab: "The lab's settings", ver: "Version and updates", news: "What's new" };
 const open = (id: string) => { state.optsPage = id; render(); const b = document.querySelector<HTMLElement>("#path .ptb .tstn"); if (b) b.focus({ preventScroll: true }); };
 const back = () => { state.optsPage = null; render(); };
 // how long Version is held to show Experiments
@@ -125,7 +126,7 @@ function VersionPage() {
   const i = aboutInfo(a), u = state.updates!;
   return <Holder intro={i.line}>
     <span class="pver">{i.from ? <p class="pnoteline">{i.from}</p> : null}<p class={"pnoteline" + (i.bad ? " bad" : "")} role="status">{i.status}</p></span>
-    <span class="olctl">{i.act === "update" ? <button type="button" class="pbtn" onClick={() => u.apply()}>Update now</button> : i.act === "check" ? <button type="button" class="pbtn" onClick={() => u.check()}>Check for updates</button> : null}</span>
+    <span class="olctl">{i.act === "update" ? <button type="button" class="pbtn" onClick={updateNow}>Update now</button> : i.act === "check" ? <button type="button" class="pbtn" onClick={() => u.check()}>Check for updates</button> : null}</span>
   </Holder>;
 }
 function Page({ id }: { id: string }) {
@@ -138,9 +139,12 @@ function Page({ id }: { id: string }) {
     <Bridge own cls="phost" fill={() => dataTransferControls(state.db!, pel, render, state.xfer)} /></Holder>;
   if (id === "lab") return <LabPage />;
   if (id === "ver") return <VersionPage />;
+  if (id === "news") return <NewsPage />;
   return null;
 }
 
+/** What What's new says in its line. */
+function newsLine() { const n = unseen().length; return n ? n + " new since you last looked" : "what changed in the app lately"; }
 /** What Version and updates says in its line: the version, and where the update stands. */
 function verLine() {
   const a = state.about; if (!a) return "";
@@ -186,13 +190,14 @@ function Sections() {
     {state.about ? <Group name="About">
       <div {...press}><Line title="Version and updates" sub={verLine()} go={() => open("ver")}
         act={u ? { label: "Check for updates", busy: u.status() === "checking", run: () => u.check() } : undefined} /></div>
+      <Line title="What's new" sub={newsLine()} go={() => openNews(false)} />
     </Group> : null}
   </>;
 }
 export function SettingsPage() {
   const page = state.optsPage && TITLES[state.optsPage] ? state.optsPage : null;
   // the top bar's chevron is the way back: from a page to Settings, from Settings to where it was opened from
-  const up = page ? { label: "Back to Settings", go: back } : { label: state.fromRoad ? "Back to the roadmap" : "Back to the exercise", go: () => toggleOpts(false) };
+  const up = page && !(page === "news" && state.newsDirect) ? { label: "Back to Settings", go: back } : { label: state.fromRoad ? "Back to the roadmap" : "Back to the exercise", go: () => toggleOpts(false) };
   return <>
     <TopBar title={page ? TITLES[page]! : "Settings"} back={up} />
     <div class="ppage sfull">

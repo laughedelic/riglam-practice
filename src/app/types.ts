@@ -406,6 +406,10 @@ export interface State {
   optsOpen: boolean;
   /** the Path's Settings: the line whose own page is open (path/settings.tsx), or null for the sections */
   optsPage: string | null;
+  /** What's new was opened from the roadmap's line or after an update (path/news.tsx), so its way back goes where it was opened from, not to the Settings list */
+  newsDirect: boolean;
+  /** the newest item of What's new this device had shown when the page opened: the items above it are marked new (null: none) */
+  newsSince: string | null;
   /** this is a Preview (staging, a pull request build), not the real app (platform.preview) */
   preview: boolean;
   /** Blitz, the tutor and voice: each exercise's own values (practice/per-exercise.ts, `rd-per-ex`) */

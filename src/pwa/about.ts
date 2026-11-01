@@ -24,6 +24,13 @@ export async function latestBuild(doFetch: typeof fetch = (...a) => fetch(...a),
   return typeof latest?.commit === "string" ? { commit: latest.commit, version: typeof latest.version === "string" ? latest.version : null } : null;
 }
 
+/** The pull requests a staging build was made from (`staging-build.json`, docs/STAGING.md), or null where there is no such file (the real app, a pull request's own preview). */
+export async function stagingPulls(doFetch: typeof fetch = (...a) => fetch(...a), waitMs = 4000): Promise<number[] | null> {
+  const s = await getJson("staging-build.json", doFetch, waitMs);
+  if (!Array.isArray(s?.pulls)) return null;
+  return (s.pulls as unknown[]).map((p) => (p && typeof p === "object" ? (p as { number?: unknown }).number : null)).filter((n): n is number => typeof n === "number");
+}
+
 /** The commit of the build the server has now, or null when it could not be asked. */
 export async function latestCommit(doFetch: typeof fetch = (...a) => fetch(...a), waitMs = 4000): Promise<string | null> {
   return (await latestBuild(doFetch, waitMs))?.commit ?? null;

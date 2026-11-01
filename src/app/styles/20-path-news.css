@@ -1,0 +1,23 @@
+/* A newer version and What's new (path/news.tsx; the lab "Updates and what's new", round 2). While a version waits one line is pinned above the bottom: on the
+   roadmap above the stage rings, in an exercise on the thread above the next station, where Claude's waiting line stands. Nothing is laid over the page. */
+.pa .pinln{flex:none; position:relative; z-index:6; display:grid; grid-template-columns:var(--m) minmax(0,1fr) auto; column-gap:10px; align-items:center; min-height:40px; padding-right:12px; background-color:var(--paper)}
+/* in an exercise the thread runs through it, as it runs on to the station below */
+.pa .pinln.onfoot::before{content:""; position:absolute; top:0; bottom:0; left:calc(var(--m) - var(--lw) / 2); width:var(--lw); background:var(--ahead-bg); opacity:.9}
+.pa .pinln .pind{justify-self:end; margin-right:-5px; width:10px; height:10px; transform:rotate(45deg); background:var(--gold); position:relative}
+.pa .pinln .pint{margin-left:12px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:var(--mono); font-size:13px; color:var(--gold-t)}
+.pa .pinln.news .pint{color:var(--ink2)}
+/* a Preview names the build and its pull requests: up to two lines */
+.pa .pinln.pre .pint{white-space:normal; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; line-height:1.35; font-size:12px}
+.pa .pinln .pinb{min-height:40px; padding:0 2px; font-family:var(--mono); font-size:13px; font-weight:600; color:var(--ink); text-decoration:underline; text-underline-offset:4px}
+@media (prefers-reduced-motion:no-preference){ .pa .pinln{animation:p-pinin .25s ease-out} }
+@keyframes p-pinin{from{opacity:0}}
+
+/* What's new: each change a stop on a thread, the ones new on this device gold */
+.pa .nwl{list-style:none; margin:0; padding:10px 0 0; position:relative}
+.pa .nwl::before{content:""; position:absolute; top:0; bottom:0; left:calc(var(--m) - var(--lw) / 2); width:var(--lw); background:var(--ink3); opacity:.45}
+.pa .nwi{display:grid; grid-template-columns:var(--m) minmax(0,1fr); column-gap:14px; padding:4px 16px 16px 0; position:relative}
+.pa .nwd{justify-self:end; margin:7px -6px 0 0; width:11px; height:11px; transform:rotate(45deg); border:1.6px solid var(--ink3); background-color:var(--paper); position:relative}
+.pa .nwi.new .nwd{background-color:var(--gold); border-color:var(--gold)}
+.pa .nwt{font-weight:600; font-size:17px; line-height:1.3}
+.pa .nwtag{margin-left:8px; font-family:var(--mono); font-size:10.5px; font-weight:400; letter-spacing:.04em; color:var(--gold-t)}
+.pa .nwx{margin-top:2px; font-size:15px; line-height:1.45; color:var(--ink2)}

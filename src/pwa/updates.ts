@@ -3,17 +3,17 @@
 // alive, and a cold start opens the old version again (the old worker is the one that answers). The page that is open keeps running the
 // version it loaded until it is reloaded, and that is never done behind the reader's back (they may be in the middle of an answer): the
 // app looks for a newer version when it starts, when it comes back to the screen, when the connection returns and in Settings, and offers
-// the reload in a toast (./update-toast.ts), in the menu and in Settings.
+// the reload in a line above the foot of the roadmap and of the exercise and in Settings (src/app/path/news.tsx).
 import { registerSW } from "virtual:pwa-register";
 import type { UpdateStatus, Updates } from "../platform/types";
-import { latestBuild } from "./about";
+import { latestBuild, stagingPulls } from "./about";
 
 const LOOK_EVERY_MS = 15 * 60_000; // how long the app may stay in view before it looks again
 let status: UpdateStatus = "unknown"; // until a look has succeeded: offline, a registration that exists says nothing
 let registration: ServiceWorkerRegistration | undefined;
 let lastLook = 0;
 let pending: Promise<void> | null = null;
-let coming: { commit: string; version: string | null } | null = null; // what the server has now, once an update is on its way (named in the notice)
+let coming: { commit: string; version: string | null; pulls?: number[] } | null = null; // what the server has now, once an update is on its way (named in the notice)
 const listeners = new Set<() => void>();
 const MIN_LOOK_MS = 700; // a look that answers faster shows "checking" for this long: a status that flashes by says nothing
 
@@ -36,7 +36,15 @@ async function learnComing(): Promise<void> {
   if (got && got.commit !== __BUILD__.commit && !coming && (status === "ready" || status === "downloading")) {
     coming = got;
     tell();
+    void learnPulls(got);
   }
+}
+
+/** On staging, the pull requests the coming build was made from (named on the pinned line of a Preview). */
+async function learnPulls(got: { commit: string }): Promise<void> {
+  if (!__PREVIEW__) return;
+  const pulls = await stagingPulls();
+  if (pulls && coming && coming.commit === got.commit) { coming = { ...coming, pulls }; tell(); }
 }
 
 function readyText(): string {
@@ -103,7 +111,7 @@ function check(maxAgeMs = 0): Promise<void> {
     // (so that no "controllerchange" was seen) already has the newer files: reloading brings them.
     const there = await latestBuild();
     if (status !== "checking") return;
-    if (there !== null && there.commit !== __BUILD__.commit) { coming = there; return set("ready"); }
+    if (there !== null && there.commit !== __BUILD__.commit) { coming = there; void learnPulls(there); return set("ready"); }
     return ended("current");
   })().finally(() => {
     pending = null;
@@ -126,6 +134,7 @@ export const updates: Updates = {
   check,
   apply,
   readyText,
+  coming: () => coming,
   subscribe(fn) {
     listeners.add(fn);
     return () => listeners.delete(fn);

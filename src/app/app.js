@@ -25,6 +25,7 @@ import "./debate/text.js";
 import "./shell/timers.js";
 import { voiceOn } from "../ui/speech";
 import { refreshPath, startPath } from "./path/index.tsx";
+import { startNews } from "./path/news.tsx";
 import { startPerExercise } from "./practice/per-exercise.ts";
 import { armSounds } from "./sound/play.ts";
 
@@ -129,6 +130,7 @@ function firstScreen(){
   let start=""; try{ start=localStorage.getItem("rd-start")||""; }catch(e){}
   if(!back&&start!=="exercise"&&state.tab!=="review"&&!state.optsOpen){ state.menuOpen=true; state.motion=false; }
   render();
+  startNews();                      // after an Update: What's new (path/news.tsx)
 }
 function settle(){
   if(!state.gotB||!state.gotA||!state.gotS) return;
