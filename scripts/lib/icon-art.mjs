@@ -1,20 +1,19 @@
-// The art of the app icons, as numbers: a page between two side bands, with the figure of the four possibilities on it, two rhombi stood
-// one above the other, yellow over blue, green where they overlap. It is the banded page of the README hero (scripts/social) made square:
-// the cream booklet page between vermilion bands is Main, the night divider page between crimson bands is Preview (staging and pull
-// request builds), so the two are told apart at any size by their page, and both belong to the hero.
+// The art of the app icons, as numbers: one page with the figure of the four possibilities on it, two rhombi stood one above the other,
+// yellow over blue, green where they overlap. The page is the Path's own, ivory for Main (the real app) and slate for Preview (staging and
+// pull request builds), so the two are told apart at any size by their page, and both are the pages the app draws. The figure has the grain,
+// the page is flat (the Icon Lab's A7 "No bands": the picks of 1 Nov 2026).
 // A pure module: scripts/make-icons.mjs writes public/icons/icon.svg and public/icons/preview/icon.svg from it, and render-icon.mjs
-// asks it where the grain is mild (the page) and where it is strong (the bands and the figure).
+// asks it where the grain is (the figure).
 
 export const SIZE = 512; // the drawing box; the SVGs scale it
 export const SAFE_RADIUS = 0.4 * SIZE; // the circle of 80% of the width that every mask (adaptive, maskable, round) keeps
 
 export const SETS = {
-  main: { page: "#fdf3e2", bands: "#e74536" },
-  preview: { page: "#10162b", bands: "#b83545" },
+  main: { page: "#fbf9f2" },
+  preview: { page: "#161a20" },
 };
 export const COLORS = { a: "#faaf3f", b: "#3155a4", overlap: "#4c8a63" }; // the overlap is the true mix of yellow and blue
 
-export const BAND = 0.11; // width of each side band, as a share of the icon's width
 export const FIGURE = 0.95; // the figure's reach (its farthest corner from the middle), as a share of the safe circle's radius
 export const OVERLAP = 0.5; // how far the rhombi overlap, as a share of their width
 export const A_OF_B = 0.8; // the upper rhombus against the lower one
@@ -55,22 +54,20 @@ export function figure() {
 }
 
 const points = (poly) => poly.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
-const band = () => BAND * SIZE;
 
 /** The flat SVG of a set ("main" or "preview"): this is public/icons/icon.svg and public/icons/preview/icon.svg. */
 export function iconSvg(set) {
-  const { page, bands } = SETS[set];
+  const { page } = SETS[set];
   const { a, b, overlap } = figure();
   const note =
     set === "main"
-      ? "Main: the booklet page between vermilion bands, the figure of the four possibilities on it"
-      : "Preview (staging and pull request builds): the divider page between crimson bands, the same figure";
+      ? "Main: the ivory page of the Path, the figure of the four possibilities on it"
+      : "Preview (staging and pull request builds): the slate page of the Path, the same figure";
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SIZE} ${SIZE}">
   <!-- ${note}: two rhombi, one over the other, and where they
        overlap the colors make green, as the Dudra set has it. Made by scripts/make-icons.mjs from scripts/lib/icon-art.mjs. The art stays
-       inside the central 80% circle that every mask keeps; only the bands run to the edge. -->
-  <rect width="${SIZE}" height="${SIZE}" fill="${bands}"/>
-  <rect x="${band().toFixed(1)}" width="${(SIZE - 2 * band()).toFixed(1)}" height="${SIZE}" fill="${page}"/>
+       inside the central 80% circle that every mask keeps; only the page runs to the edge. -->
+  <rect width="${SIZE}" height="${SIZE}" fill="${page}"/>
   <polygon points="${points(a)}" fill="${COLORS.a}"/>
   <polygon points="${points(b)}" fill="${COLORS.b}"/>
   <polygon points="${points(overlap)}" fill="${COLORS.overlap}"/>
@@ -78,12 +75,11 @@ export function iconSvg(set) {
 `;
 }
 
-/** The grain map as an SVG: white where the grain is mild (the page), black where it is strong (the bands and the figure). */
+/** The grain map as an SVG: white where there is no grain (the page), black where it is strong (the figure). */
 export function grainMaskSvg() {
   const { a, b } = figure();
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SIZE} ${SIZE}">
-  <rect width="${SIZE}" height="${SIZE}" fill="#000"/>
-  <rect x="${band().toFixed(1)}" width="${(SIZE - 2 * band()).toFixed(1)}" height="${SIZE}" fill="#fff"/>
+  <rect width="${SIZE}" height="${SIZE}" fill="#fff"/>
   <polygon points="${points(a)}" fill="#000"/>
   <polygon points="${points(b)}" fill="#000"/>
 </svg>
