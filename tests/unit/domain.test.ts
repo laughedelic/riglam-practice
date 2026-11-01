@@ -29,6 +29,7 @@ import { makeExampleIndex } from "../../src/ai-shared/examples";
 import { examplePair } from "../../src/domain/find";
 import { instanceExample } from "../../src/domain/instance";
 import { timeUpView } from "../../src/domain/sprint";
+import { guideSteps } from "../../src/domain/stages";
 import { checksShown } from "../../src/domain/syllogism";
 
 /** A small deterministic random source (mulberry32), so a test draws the same numbers every time. */
@@ -1352,19 +1353,19 @@ test("the pair draw shares the review among the stages below the highest, not am
   expect(gap.by(4)).toBeGreaterThan(0.45);
 });
 
-test("guidance steps down by itself, Detailed to Hints at the twentieth right answer and to None at the fortieth, once each; a level the learner picked stays", () => {
+test("guidance steps down by itself, at the steady pace Detailed to Hints at the twentieth right answer and to None at the thirty-fifth, once each; a level the learner picked stays", () => {
   expect(GUIDE_RIGHT).toBe(20);
   expect(guidanceByRight(0)).toBe("detailed");
   expect(guidanceByRight(19)).toBe("detailed");
   expect(guidanceByRight(20)).toBe("hints");
-  expect(guidanceByRight(39)).toBe("hints");
-  expect(guidanceByRight(40)).toBe("none");
+  expect(guidanceByRight(34)).toBe("hints");
+  expect(guidanceByRight(35)).toBe("none");
   expect(guidanceOf(undefined, undefined)).toBe("detailed");
   expect(guidanceOf(undefined, { run: 5, right: 25 })).toBe("hints");
   expect(guidanceOf("detailed", { run: 5, right: 45 }), "picked by the learner: it stays").toBe("detailed");
   expect(guidanceOf("none", undefined)).toBe("none");
   expect(guidanceStep(undefined, { run: 5, right: 19 }, { run: 6, right: 20 })).toBe("hints");
-  expect(guidanceStep(undefined, { run: 5, right: 39 }, { run: 6, right: 40 })).toBe("none");
+  expect(guidanceStep(undefined, { run: 5, right: 34 }, { run: 6, right: 35 })).toBe("none");
   expect(guidanceStep(undefined, { run: 6, right: 20 }, { run: 7, right: 21 }), "already Hints").toBeNull();
   expect(guidanceStep(undefined, undefined, { run: 1, right: 1 })).toBeNull();
   expect(guidanceStep(undefined, { run: 6, right: 20 }, { run: 0, right: 20 }), "a miss changes nothing").toBeNull();
@@ -1373,6 +1374,20 @@ test("guidance steps down by itself, Detailed to Hints at the twentieth right an
   expect(normGuided('{"practice":false,"find":true,"debate":"hints","syllogism":"none","Bad":"none","categories":"no"}')).toEqual({ practice: "none", find: "detailed", debate: "hints", syllogism: "none" });
   expect(normGuided({ instance: "detailed" })).toEqual({ instance: "detailed" });
   expect(normGuided("nope")).toEqual({});
+});
+
+test("the pace sets how soon guidance steps down: careful 30 and 20 more, steady 20 and 15 more, brisk 10 and 10 more", () => {
+  expect(PACES.map((n) => guideSteps(n))).toEqual([[30, 20], [20, 15], [10, 10]]);
+  expect(guideSteps(), "no pace: the steady one").toEqual([20, 15]);
+  expect(guideSteps(4), "a pace that is not known: the steady one").toEqual([20, 15]);
+  expect([29, 30, 49, 50].map((r) => guidanceByRight(r, 2))).toEqual(["detailed", "hints", "hints", "none"]);
+  expect([9, 10, 19, 20].map((r) => guidanceByRight(r, 5))).toEqual(["detailed", "hints", "hints", "none"]);
+  expect(guidanceOf(undefined, { run: 3, right: 25 }, 2), "careful keeps Detailed longer").toBe("detailed");
+  expect(guidanceOf(undefined, { run: 3, right: 25 }, 5), "brisk lets it go sooner").toBe("none");
+  expect(guidanceOf("hints", { run: 3, right: 25 }, 5), "picked by the learner: it stays").toBe("hints");
+  expect(guidanceStep(undefined, { run: 5, right: 9 }, { run: 6, right: 10 }, 5)).toBe("hints");
+  expect(guidanceStep(undefined, { run: 5, right: 19 }, { run: 6, right: 20 }, 2), "careful: not yet").toBeNull();
+  expect(guidanceStep(undefined, { run: 5, right: 49 }, { run: 6, right: 50 }, 2)).toBe("none");
 });
 
 test("the real data: a category opens at its stage and stays open; a person or what does not exist meets the physical categories from stage 5", () => {

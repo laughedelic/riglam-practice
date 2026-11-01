@@ -8,7 +8,7 @@ import { state } from "../state.js";
 import { DEPTH_NAME, DEPTH_PICK, PACE_NAME, depthCanSet, depthNow, negationsOpen, setDepth, setPace } from "../practice/difficulty.ts";
 import { setNegBrackets, setNegation } from "../shell/session.js";
 import { PACES, paceSpacing } from "../../domain/intro.ts";
-import { LADDER_TOP, NEG_OPEN } from "../../domain/stages.ts";
+import { LADDER_TOP, NEG_OPEN, guideSteps } from "../../domain/stages.ts";
 import { Line } from "./lines.tsx";
 import { num } from "./progress.tsx";
 import { Words } from "./ui.tsx";
@@ -16,7 +16,8 @@ import { Words } from "./ui.tsx";
 const NEG_WORD: Record<string, string> = { off: "off", one: "one side", both: "both sides" };
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 /** What a pace means, in one line. */
-const paceLine = (n: number) => "Up to " + num(n) + " terms not right yet, and a new term at most every " + num(paceSpacing(n)) + " questions.";
+const paceLine = (n: number) => { const [a, b] = guideSteps(n);
+  return "Up to " + num(n) + " terms not right yet, and a new term at most every " + num(paceSpacing(n)) + " questions. Guidance steps down after " + a + " right answers in an exercise, then " + b + " more."; };
 
 /** How the three stand, in a few words. */
 export const difficultyLine = (): string => PACE_NAME[state.pace] + " pace · negations " + NEG_WORD[state.negation] + " · depth " + DEPTH_NAME[depthNow()];

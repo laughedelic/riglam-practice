@@ -1,5 +1,5 @@
 // Guidance, the help each exercise gives on the Path, in three levels (src/domain/stages.ts): Detailed, Hints, None. An exercise starts at Detailed
-// and steps down by itself as its right answers come (GUIDE_RIGHT each step), and the result says so; a level the learner picks in the exercise's
+// and steps down by itself as its right answers come (how many: by the pace, GUIDE_STEPS), and the result says so; a level the learner picks in the exercise's
 // practice options stays. Part of the progression (practice/progress.ts), so Reset progression starts every exercise at Detailed again.
 import { state } from "../state.js";
 import { saveProgress } from "./progress.ts";
@@ -51,12 +51,12 @@ export const GUIDES: Record<string, { name: string } & Record<Guidance, string>>
 };
 
 /** The level of guidance exercise `ex` shows. */
-export const guidance = (ex: string): Guidance => guidanceOf(state.guided[ex], state.exRuns[ex]);
+export const guidance = (ex: string): Guidance => guidanceOf(state.guided[ex], state.exRuns[ex], state.pace);
 /** The learner's pick: it stays. */
 export function setGuidance(ex: string, g: Guidance) { state.guided = { ...state.guided, [ex]: g }; saveProgress(); render(); }
 /** A checked answer in `ex` (practice/stage-offer.ts, stageStep, which saves), `before` its record before the answer: when the answer took the guidance a step down by itself, the result says so. */
 export function guideStep(ex: string, before: ExerciseRun | undefined) {
   if (!GUIDES[ex]) return;
-  const to = guidanceStep(state.guided[ex], before, state.exRuns[ex]);
+  const to = guidanceStep(state.guided[ex], before, state.exRuns[ex], state.pace);
   if (to && state.ui) state.ui.guideDown = { ex, to };
 }

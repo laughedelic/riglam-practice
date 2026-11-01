@@ -11,12 +11,13 @@ import { canAsk } from "../core/ask.js";
 import { WORDINGS } from "../debate/text.js";
 import { exName } from "../shell/exercises.js";
 import { GUIDANCE_NAMES, GUIDES, guidance, setGuidance } from "../practice/guided.ts";
+import { PACE_NAME } from "../practice/difficulty.ts";
 import { progressNow } from "../practice/stage-offer.ts";
 import { toggleOpts } from "../shell/options.js";
 import { SYMS, openPage, quorumNote, setAutoExplain, setNota, setShow, setSyllogismWording, setWording, toggleSess } from "../shell/session.js";
 import { kindMs, setBlitz, setTimer } from "../shell/timers.js";
 import { ANSWER_PICKS, CONFIRM_PICKS, RATES, READ_NOTE, SAMPLE, VOICE_LEAD, VOICE_SAY, WHERE, hookVoices, setVoice, voiceGroups, voiceShown } from "../shell/voice.js";
-import { GUIDANCE, GUIDE_RIGHT, LADDER_TOP } from "../../domain/stages.ts";
+import { GUIDANCE, LADDER_TOP, guideSteps } from "../../domain/stages.ts";
 import type { Guidance } from "../../domain/stages.ts";
 import { type TimeKind, timesOf } from "../../domain/sprint.ts";
 import { canHear, canSpeak, speak, voiceList } from "../../ui/speech";
@@ -146,9 +147,9 @@ function TextPage() {
 /** Guidance: what each level shows in this exercise, how it steps down by itself, and the pick. */
 function GuidancePage() {
   const tab = state.tab, g = GUIDES[tab]; if (!g) return null;
-  const right = state.exRuns[tab]?.right ?? 0, picked = state.guided[tab] !== undefined;
+  const right = state.exRuns[tab]?.right ?? 0, picked = state.guided[tab] !== undefined, [a, b] = guideSteps(state.pace);
   return <>
-    <Intro>{"How much help " + g.name + " gives. It starts at Detailed and steps down by itself: to Hints after " + GUIDE_RIGHT + " right answers here, and to None after " + GUIDE_RIGHT + " more. A level you pick here stays; Reset progression starts it over."}</Intro>
+    <Intro>{"How much help " + g.name + " gives. It starts at Detailed and steps down by itself: at your pace (" + (PACE_NAME[state.pace] || "steady") + ", on the Progression page) to Hints after " + a + " right answers here, and to None after " + b + " more. A level you pick here stays; Reset progression starts it over."}</Intro>
     <Picks label="Guidance" items={GUIDANCE.map((k) => [k, GUIDANCE_NAMES[k], g[k]] as [Guidance, string, string])} cur={guidance(tab)} on={(k) => setGuidance(tab, k)} />
     <p class="sintro">{picked ? GUIDANCE_NAMES[guidance(tab)] + ", as you picked it." : right + (right === 1 ? " right answer" : " right answers") + " here so far."}</p>
   </>;
