@@ -75,9 +75,15 @@ test("on the Path five right relations at the highest stage bring the next stage
   });
   expect(blue).toMatch(/^rgb/);
   expect(go, "not the blue of a plain Next").not.toBe(blue);
+  await expect(station(page).locator(".go .mk path"), "two chevrons up").toHaveAttribute("d", /^M6\.5 11\.5L12/);
   await station(page).click();
   const up = page.locator("#path .tstage");
   await expect(up).toBeVisible();
+  // the stage's stop is a green ring with the same two chevrons
+  const ring = up.locator(".sechead .d.tsd.stage");
+  await expect(ring.locator(".mk path")).toHaveAttribute("d", /^M6\.5 11\.5L12/);
+  expect(await ring.evaluate((e) => getComputedStyle(e).boxShadow), "its edge is the station's green").toContain(go);
+  expect(await ring.locator(".mk").evaluate((e) => getComputedStyle(e).color), "and so is the symbol").toBe(go);
   await expect(page.locator("#path .sechead")).toContainText("New stage");
   await expect(page.locator("#path .sechead")).toContainText("0 \u2192 1");
   await expect(up.locator(".cs"), "the stage, by its number").toHaveText("Stage 1 reached");

@@ -383,20 +383,25 @@ test("check: morph, a syllogism's Result with no counter-example marks nothing o
 
 /** What a station looks like: the diamond's size and color, the label's size and color. */
 const facts = (page, sel) => page.locator(sel).evaluate((e) => { const go = e.querySelector(".go"), b = e.querySelector(".gol b"); return { cls: e.className, size: go.offsetWidth, bg: getComputedStyle(go).backgroundColor, label: getComputedStyle(b).color, font: getComputedStyle(b).fontSize }; });
+/** The symbol in a station's diamond, by the start of its path: the symbols of the stations (shell.tsx SYMBOL; the Design Lab's stops). */
+const SYMBOLS = { pen: "M6 18l1-4 8.6", tasks: "M4.5 7.5l1.8", q: "M9.5 9a2.5", plus: "M12 5v14M5", redo: "M18.5 12a6.5", ups: "M6.5 11.5L12", back: "M15 5l-7 7" };
+const symbolOf = (page, sel) => page.locator(sel).evaluate((e, sy) => { const d = e.querySelector(".go .mk path")?.getAttribute("d") || ""; return Object.keys(sy).find((k) => d.startsWith(sy[k])) || d; }, SYMBOLS);
 const tokenColor = (page, name) => page.locator(".pa").evaluate((e, n) => { const i = document.createElement("i"); i.style.color = "var(" + n + ")"; e.append(i); const c = getComputedStyle(i).color; i.remove(); return c; }, name);
 
-test("stations say what they are by their look: Examples is gold and medium, Check and Result are ink and medium, the Next stations are the big blue ones", async ({ page }) => {
+test("stations say what they are by their look: Examples is gold and medium with a pen, Check and Result are ink and medium with a list of ticks, the Next station is big and gold with a question mark", async ({ page }) => {
   await toCheck(page);
-  const [ink, gold, goldT, blue] = await Promise.all(["--ink", "--gold", "--gold-t", "--station"].map((n) => tokenColor(page, n)));
+  const [ink, gold, goldT] = await Promise.all(["--ink", "--gold", "--gold-t"].map((n) => tokenColor(page, n)));
   const check = await facts(page, "#stn");
   expect(check.cls).toContain("stk-chk");
   expect(check, "the Check: medium and ink").toMatchObject({ size: 22, bg: ink, label: ink, font: "19px" });
+  expect(await symbolOf(page, "#stn"), "a list of ticks").toBe("tasks");
   // Examples: the step back from the examples' page to the relation, whose foot leads on to them again
   await page.evaluate(() => { window.__t.ui.open = true; window.__t.render(); });
   await expect(page.locator("#stn")).toHaveAccessibleName(/^Examples/);
   const ex = await facts(page, "#stn");
   expect(ex.cls).toContain("stk-ex");
   expect(ex, "Examples: medium and gold").toMatchObject({ size: 22, bg: gold, label: goldT, font: "19px" });
+  expect(await symbolOf(page, "#stn"), "a pen").toBe("pen");
   await page.evaluate(() => { window.__t.ui.open = false; window.__t.render(); });
   await expect(page.locator("#stn")).toHaveAccessibleName(/^Check/);
   // the scanner opens as the Check is: its size and color
@@ -410,8 +415,19 @@ test("stations say what they are by their look: Examples is gold and medium, Che
   await expect(page.locator("#stn")).toContainText("Next pair");
   await expect(main(page)).not.toHaveClass(/\b(tk-in|pk-run|sc-in|sc-run|fw-wait)\b/);
   const next = await facts(page, "#stn");
-  expect(next.cls, "the next exercise's station has no kind").not.toContain("stk");
-  await expect.poll(() => facts(page, "#stn"), { message: "Next pair: big and blue (its colors are a transition that may still be running)" }).toMatchObject({ size: 28, bg: blue, label: blue, font: "21px" });
+  expect(next.cls, "the station that goes on to the next question is big, not medium").not.toMatch(/(^|\s)stk(\s|$)/);
+  expect(next.cls).toContain("stk-q");
+  await expect.poll(() => facts(page, "#stn"), { message: "Next pair: big and gold, in the color of the question it leads to (its colors are a transition that may still be running)" }).toMatchObject({ size: 28, bg: gold, label: goldT, font: "21px" });
+  expect(await symbolOf(page, "#stn"), "a question mark").toBe("q");
+  // a station that goes back (Back to the result, Continue practice) is a slate ring with a chevron: the foot's own markup with that class
+  const [slate, paper] = await Promise.all(["--slate", "--paper"].map((n) => tokenColor(page, n)));
+  const back = await page.locator("#stn").evaluate((e) => {
+    const c = e.cloneNode(true); c.id = ""; c.className = "stn stk-back"; e.parentElement.append(c);
+    const go = getComputedStyle(c.querySelector(".go")), label = getComputedStyle(c.querySelector(".gol b")).color, out = { bg: go.backgroundColor, ring: go.boxShadow, label, size: c.querySelector(".go").offsetWidth };
+    c.remove(); return out;
+  });
+  expect(back, "Back: a ring, not a fill, big").toMatchObject({ bg: paper, label: slate, size: 28 });
+  expect(back.ring, "its line is slate").toContain(slate);
 });
 
 test("a station that lands as a ring (the stop of a new term) turns into the ring: it keeps its body while it turns and does not go blank first", async ({ page }) => {

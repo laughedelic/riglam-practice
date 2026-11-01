@@ -41,8 +41,17 @@ test("the colors follow the ground: the inks are mixed into it, and lifted towar
   expect(dark["--paper"]).toBe("#161a20");
   expect(light["--blue"]).toBe("#3155a4");
   expect(dark["--blue"]).not.toBe("#3155a4");
-  expect(light["--tutor"]).toBe(light["--purple"]);   // purple is the tutor's, as picked
-  expect(palette({ ...DEFAULT_LOOK, purpleFor: "none" }, false)["--tutor"]).toBe(light["--blue"]);
+  // Claude is orange and not settled is purple (the Design Lab, 1 Nov); the words of Claude take the darker shade
+  expect(light["--tutor"]).toBe("#dc7842");
+  expect(light["--tutor-t"]).toBe("#aa4a39");
+  expect(light["--partc"]).toBe(light["--purple"]);
+  expect(dark["--partc"]).toBe(dark["--purple"]);
+  expect(dark["--tutor"]).not.toBe(dark["--partc"]);
+  // teal is the course's words and slate the way back: lifted toward white on a dark ground as the blue is
+  expect(light["--teal"]).toBe("#2b7f86");
+  expect(light["--slate"]).toBe("#5b6b7e");
+  expect(dark["--teal"]).not.toBe(light["--teal"]);
+  expect(dark["--slate"]).not.toBe(light["--slate"]);
 });
 
 test("the switches are classes with the lab's names", () => {

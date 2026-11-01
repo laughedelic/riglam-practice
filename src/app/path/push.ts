@@ -199,7 +199,7 @@ export function playPush(root: HTMLElement, stn: HTMLElement, lift: number, act:
       const turned = gg.animate ? gg.animate([from, to], { duration: TURN, easing: SETTLE.easing, fill: "forwards" }) : null;
       after(turned, TURN, () => {
         over();
-        const nm = nb.querySelector<HTMLElement>(".mk"); if (keep && nm && nm.animate) nm.animate([{ opacity: 0, scale: 0.5 }, { opacity: 1, scale: 1 }], { duration: 180, easing: SETTLE.easing });
+        const nm = nb.querySelector<HTMLElement>(".mk"); if (nm && nm.animate) nm.animate([{ opacity: 0, scale: 0.5 }, { opacity: 1, scale: 1 }], { duration: 180, easing: SETTLE.easing });
       });
     };
     const wait = () => setTimeout(turn, HOLD);
