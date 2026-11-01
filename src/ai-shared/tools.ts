@@ -16,8 +16,9 @@ export interface TutorTool {
   execute: (input: unknown) => unknown;
 }
 
-const CLASSIFY = "Check how the practice list classifies a concrete thing (e.g. 'a dog', 'the smell of coffee'). Returns its Dudra type and the practice categories it belongs to, or found:false if the list does not contain it.";
-const CLASSIFY_REFERENCE = "Check how the practice list, or else the course's reference examples, classify a concrete thing (e.g. 'a dog', 'the smell of coffee'). From the list: its Dudra type and the practice categories it belongs to. From the reference examples (source: \"reference\"): the classes it is an instance of, each with its chain up to Existent, the classes it is not, its level (1 plain to 4), kind, how well the sources confirm it, and why it is a good example; when two examples share the name, both, marked ambiguous. found:false when neither has it.";
+const ALIAS = " For words that name a list item only through an alias (matched_by_alias), only its Dudra type and chain: never its name, its other categories or its details.";
+const CLASSIFY = "Check how the practice list classifies a concrete thing (e.g. 'a dog', 'the smell of coffee'). Returns its Dudra type and the practice categories it belongs to, or found:false if the list does not contain it." + ALIAS;
+const CLASSIFY_REFERENCE = "Check how the practice list, or else the course's reference examples, classify a concrete thing (e.g. 'a dog', 'the smell of coffee'). From the list: its Dudra type and the practice categories it belongs to." + ALIAS + " From the reference examples (source: \"reference\"): the classes it is an instance of, each with its chain up to Existent, the classes it is not, its level (1 plain to 4), kind, how well the sources confirm it, and why it is a good example; when two examples share the name, both, marked ambiguous. found:false when neither has it.";
 
 const EXAMPLES_OF = "Give examples of a Dudra term from the course's reference examples (e.g. 'External form', 'Color'): the instances of the term itself first, then those of its subclasses (`of` names the subclass), the plainest first. Each has its level (1 a plain thing to 4), kind, how well the sources confirm it (confirmed, textbook, commentator) and, for most, why it is a good example. `level` is the highest level to take (default 2; raise it for a learner who asks for harder ones), `count` at most 5 (default 3). Use it for 'give me an example of X' and to pick an example that fits the learner. found:false when the name is not a term of the course data; examples:[] when there are none up to that level (`harder` says whether higher levels have some).";
 
@@ -42,14 +43,15 @@ export function tutorTools(ix: DataIndex, examples?: ExampleIndex | null): Tutor
      inputSchema:{type:"object",properties:{thing:{type:"string"}},required:["thing"]},
      execute:(input)=>{
        const thing=(input as {thing?: unknown}|null|undefined)?.thing;
-       const it=matchItem(ix,thing);
-       // Words that name the item only through an alias ("an apple" for "a red apple") are shorter than the item: its type and chain hold,
-       // its other categories and details (color, shape, material, temperature) are not what was asked about, as in the card (card.ts, listedAs).
-       if(it&&!matchItem(ix,thing,true)) return {found:true, matched_by_alias:true, item:it.n, existent:!it.ne, dudra_type:it.t, chain:(ix.DATA.chains[it.t]||[it.t]).join(" > "),
-         note:"The words are an alias for this item in the practice list. Take only its type and chain from it, never its color, shape, material, temperature or other details: judge the words as written, and a quality they do not name is open."};
-       if(it) return {found:true, item:it.n, existent:!it.ne, dudra_type:it.t, chain:(ix.DATA.chains[it.t]||[it.t]).join(" > "), categories:it.c.map(c=>ix.CAT[c].labels[0]),
+       const it=matchItem(ix,thing), exact=!!it&&!!matchItem(ix,thing,true);
+       if(it&&exact) return {found:true, item:it.n, existent:!it.ne, dudra_type:it.t, chain:(ix.DATA.chains[it.t]||[it.t]).join(" > "), categories:it.c.map(c=>ix.CAT[c].labels[0]),
          ...(it.may?.length?{name_leaves_open:it.may.map(c=>ix.CAT[c].labels[0])}:{})};
        const refs=examples?matchExamples(examples,thing):[];
+       // Words that name a list item only through an alias ("an apple" for "a red apple") are shorter than the item: its type and chain hold,
+       // its name and its other categories and details (color, shape, material, temperature) are not what was asked about, as in the card
+       // (card.ts, listedAs). A reference example of that name comes first, as on the page (nameOf, src/domain/instance.ts).
+       if(it&&!refs.length) return {found:true, matched_by_alias:true, existent:!it.ne, dudra_type:it.t, chain:(ix.DATA.chains[it.t]||[it.t]).join(" > "),
+         note:"The words are an alias for an item in the practice list. Take only its type and chain from it, never its color, shape, material, temperature or other details: judge the words as written, and a quality they do not name is open."};
        if(!refs.length) return {found:false};
        if(refs.length===1) return {found:true, source:"reference", ...exampleFacts(ix,refs[0])};
        return {found:true, source:"reference", ambiguous:true, candidates:refs.slice(0,4).map(r=>exampleFacts(ix,r))};

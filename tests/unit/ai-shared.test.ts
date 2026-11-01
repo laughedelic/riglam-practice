@@ -136,7 +136,7 @@ test("the card tells which qualities of the pair a listed example's name leaves 
 
 test("words that name a listed item only through an alias are not given as that item: only its type is taken from the list, in every mode", () => {
   // "chair" is an alias of "a wooden chair": the learner did not write that it is wooden, as "an apple" does not say it is red
-  const alias = "[the learner's words are an alias in the practice list for: a wooden chair, type Form. Take only that type from it, never its color, shape, material, temperature or other details: judge the learner's own words, and a quality they do not name is open]";
+  const alias = "[the learner's words are an alias for an item in the practice list, type Form. Take only that type from it, never its color, shape, material, temperature or other details: judge the learner's own words, and a quality they do not name is open]";
   const said = practice({ cells: { both: { t: "", none: true }, anb: { t: "a chair" }, bna: { t: "" }, nei: { t: "" } } });
   const practiced = tutorCard(ix, pair(), said);
   expect(practiced).toContain('- forms, not minds: learner wrote "a chair" ' + alias + '; reference "a wooden chair"; page verdict ok');
@@ -435,7 +435,8 @@ test("the lookup tools: terms by name, alias, Russian name or part of the name, 
   expect(thing("the horn of a rabbit")).toMatchObject({ found: true, existent: false, categories: [] });
   // an alias ("chair" for "a wooden chair") gives the item's type and chain, not its categories or its qualities, as the card does
   const aliased = thing("a chair");
-  expect(aliased).toMatchObject({ found: true, matched_by_alias: true, item: "a wooden chair", existent: true, dudra_type: "Form", chain: "Form > Thing" });
+  expect(aliased).toMatchObject({ found: true, matched_by_alias: true, existent: true, dudra_type: "Form", chain: "Form > Thing" });
+  expect(aliased).not.toHaveProperty("item"); // its name ("a wooden chair") is what carried the quality
   expect(aliased).not.toHaveProperty("categories");
   expect(aliased).not.toHaveProperty("name_leaves_open");
   expect(String(aliased.note)).toContain("never its color, shape, material, temperature or other details");

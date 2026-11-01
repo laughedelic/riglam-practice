@@ -60,7 +60,8 @@ const verdictOf=(ix: DataIndex, r: { v: string; vague?: readonly string[] }): st
 const listedAs=(ix: DataIndex, it: NonNullable<ReturnType<typeof matchItem>>, p: PairLike, text: string): string => {
   // Words that name the item only through an alias ("an apple" for "a red apple") are shorter than the item: its type holds, its color,
   // shape, material or other detail is not what the learner wrote. The page leaves such a quality to the learner's own words (placeFacts).
-  if(!matchItem(ix,text,true)) return " [the learner's words are an alias in the practice list for: "+it.n+", type "+it.t+". Take only that type from it, never its color, shape, material, temperature or other details: judge the learner's own words, and a quality they do not name is open]";
+  // The item's name is left out: it is what carried the color ("a red apple") and is no use to a tutor that may take only the type.
+  if(!matchItem(ix,text,true)) return " [the learner's words are an alias for an item in the practice list, type "+it.t+". Take only that type from it, never its color, shape, material, temperature or other details: judge the learner's own words, and a quality they do not name is open]";
   const open=noteCats(ix,p).filter(c=>leavesOpen(it,c));
   return " [in the practice list as: "+it.n+", type "+it.t+(open.length?"; its name leaves open whether it is "+open.map(c=>ix.CAT[c]?.phrases?.[0]??"one of the "+(ix.CAT[c]?.labels[0]??c)).join(" or whether it is "):"")+"]";
 };
