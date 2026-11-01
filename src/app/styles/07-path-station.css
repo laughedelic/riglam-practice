@@ -65,11 +65,16 @@
 .pa.done .pbr.pvoice::before{background:var(--ink); opacity:.72}
 .pa .stn{display:grid; grid-template-columns:var(--m) minmax(0,1fr); align-items:center; touch-action:none; user-select:none; -webkit-user-select:none; text-align:left; transition:transform .28s cubic-bezier(.2,.9,.3,1.3); position:relative; z-index:2; min-width:0}
 .pa .stn.dragging{transition:none}
-/* the station that can be taken: its arrow, inside the diamond, hops now and then (a pull, a tap or Enter takes it) */
-.pa.ready .stn:not(.pre) .go .mk .i,.pa.done .stn:not(.pre) .go .mk .i{animation:p-hop 2.6s ease-in-out 1s infinite}
-.pa.ready .stn.dragging .go .mk .i,.pa.done .stn.dragging .go .mk .i,.pa.pulling .stn .go .mk .i{animation:none}
-@keyframes p-hop{0%,34%,100%{transform:none} 10%{transform:translateY(-4px)} 20%{transform:translateY(0)} 27%{transform:translateY(-2px)}}
-@media (prefers-reduced-motion:reduce){ .pa .stn .go .mk .i{animation:none!important} }
+/* the station that can be taken shows which way it goes, when its moment has come and not before (the Design Lab, 1 Nov): the two upper edges of the diamond lift off it, a chevron pointing up, and fade. A pull, a tap or
+   Enter takes it. It does not call you at once: the next question waits 4 s, so that the result can be read or explained, then repeats every 10 s; a step inside an exercise (Examples, the Check, `stk`)
+   can be taken right away, so its cue starts at 1.5 s and repeats every 5 s. It starts again after a touch, and it rests while Claude works, while the station is pulled, and with reduced motion. */
+.pa .stn:not(.pre) .go::before{content:""; position:absolute; inset:0; border-left:2px solid var(--station); border-top:2px solid var(--station); opacity:0; pointer-events:none}
+.pa.ready .stn:not(.pre) .go::before,.pa.done .stn:not(.pre) .go::before{animation:p-up 10s ease-out 4s infinite}
+.pa.ready .stn.stk:not(.pre) .go::before,.pa.done .stn.stk:not(.pre) .go::before{animation:p-up5 5s ease-out 1.5s infinite}
+.pa.ready .stn.dragging .go::before,.pa.done .stn.dragging .go::before,.pa.pulling .stn .go::before{animation:none}
+@keyframes p-up{0%{opacity:0; translate:0 0} 1.6%{opacity:.75; translate:0 0} 10.4%,100%{opacity:0; translate:-10px -10px}}
+@keyframes p-up5{0%{opacity:0; translate:0 0} 3.2%{opacity:.75; translate:0 0} 20.8%,100%{opacity:0; translate:-10px -10px}}
+@media (prefers-reduced-motion:reduce){ .pa .stn .go::before{animation:none!important} }
 .pa .go{justify-self:end; margin-right:calc(var(--st) / -2); width:var(--st); height:var(--st); transform:rotate(45deg); background-color:var(--station); position:relative; z-index:1}
 .pa .go .mk{position:absolute; inset:0; transform:rotate(-45deg); display:grid; place-items:center; color:var(--on-station)}
 .pa .go .mk .i{width:calc(var(--st) * .8); height:calc(var(--st) * .8); stroke-width:2.4}      /* the symbol is 0.8 of the diamond, as it is on a stop (the Design Lab, 1 Nov) */
@@ -84,13 +89,13 @@
    gold (a question mark), a new term and a term that comes again teal (a plus, a turning arrow), a new stage green (two chevrons up). One that goes back is a slate ring with a chevron. */
 .pa .stn.stk{--st:var(--stp)}
 .pa .stn.stk .gol b{font-size:19px}
-.pa .stn.stk-ex,.pa .stn.stk-q{--station:var(--gold)}
+.pa .stn.stk-ex,.pa .stn.stk-q{--station:var(--gold); --on-station:var(--on-light)}
 .pa .stn.stk-ex .gol b,.pa .stn.stk-q .gol b{color:var(--gold-t)}
 .pa .stn.stk-chk{--station:var(--ink); --on-station:var(--paper)}
 .pa .stn.stk-chk .gol b{color:var(--ink)}
-.pa .stn.stk-up{--station:var(--green)}
+.pa .stn.stk-up{--station:var(--green); --on-station:var(--on-lift)}
 .pa .stn.stk-up .gol b{color:var(--green)}
-.pa .stn.stk-def,.pa .stn.stk-rep{--station:var(--teal)}
+.pa .stn.stk-def,.pa .stn.stk-rep{--station:var(--teal); --on-station:var(--on-lift)}
 .pa .stn.stk-def .gol b,.pa .stn.stk-rep .gol b{color:var(--teal)}
 .pa .stn.stk-back{--station:var(--slate)}
 .pa .stn.stk-back .gol b{color:var(--slate)}

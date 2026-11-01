@@ -52,6 +52,11 @@ test("the colors follow the ground: the inks are mixed into it, and lifted towar
   expect(light["--slate"]).toBe("#5b6b7e");
   expect(dark["--teal"]).not.toBe(light["--teal"]);
   expect(dark["--slate"]).not.toBe(light["--slate"]);
+  // a symbol on a fill is dark where white is weak (the Design Lab, 1 Nov): white on the light ground, and on the gold the ink; on the dark ground, which lifts the colors, the ground's own dark for both
+  expect(light["--on-lift"]).toBe("#ffffff");
+  expect(light["--on-light"]).toBe(light["--ink"]);
+  expect(dark["--on-lift"]).toBe(dark["--paper"]);
+  expect(dark["--on-light"]).toBe(dark["--paper"]);
 });
 
 test("the switches are classes with the lab's names", () => {

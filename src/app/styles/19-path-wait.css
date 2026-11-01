@@ -32,7 +32,7 @@
 .pa .cwstop .think{margin:0 0 0 12px; min-width:0}
 
 /* the next station while Claude works: a pale diamond without grain, the arrow at rest and pale, the name gray; still a tap or a pull away */
-.pa .stn.cwait.cwait.cwait .go .mk .i{animation:none}
+.pa .stn.cwait.cwait.cwait .go .mk .i,.pa .stn.cwait.cwait.cwait .go::before{animation:none}
 .pa .stn.cwait.cwait .go{background-color:color-mix(in srgb,var(--station) 32%,var(--paper)); background-image:none}
 .pa .stn.cwait .go .mk{color:color-mix(in srgb,var(--paper) 88%,var(--station))}
 .pa .stn.cwait.cwait .gol b{color:var(--ink3)}

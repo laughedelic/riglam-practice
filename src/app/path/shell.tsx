@@ -78,8 +78,8 @@ export function Toast() {
 export type StationKind = "ex" | "chk" | "up" | "q" | "def" | "rep";
 /** The symbol inside the diamond of a station, by what it says. */
 const SYMBOL: Record<StationKind | "back", string> = { ex: "pen", chk: "tasks", up: "ups", q: "q", def: "plus", rep: "redo", back: "back" };
-/** The station at the edge, ready: pull it up over the curb, tap it, or press Enter (its arrow hops, as the sign that it can be taken; `wait`: while Claude works on the
- *  answer above it, it waits muted, its arrow at rest, still there to take but not calling you on). Taking it plays the ride
+/** The station at the edge, ready: pull it up over the curb, tap it, or press Enter (after a while, and now and then, the top edges of its diamond lift off it as a chevron pointing up, as the sign that it can be taken: 07-path-station.css; `wait`: while Claude works on the
+ *  answer above it, it waits muted, its cue at rest, still there to take but not calling you on). Taking it plays the ride
  *  (take.ts) unless `back`: it goes back to what was there, and the step is simply there. `keep`: it stands on the page above a keyboard (the Check under the last
  *  example), so touching it keeps the field's focus until it is taken, and then the keyboard goes. `kind`: what it says (above). */
 export function Station({ name, hint = "", act, arrive = false, back = false, keep = false, scan, kind, wait = false }: { name: string; hint?: string; act: () => void; arrive?: boolean; back?: boolean; keep?: boolean; scan?: () => ScanPlan | null; kind?: StationKind; wait?: boolean }) {

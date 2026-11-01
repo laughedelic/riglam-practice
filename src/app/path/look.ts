@@ -184,6 +184,8 @@ export function palette(look: Look, dark: boolean): Record<string, string> {
     "--blue": blue, "--blue-t": rgba(blue, dark ? 0.12 : 0.07), "--blue-tp": mix(ground, blue, dark ? 0.12 : 0.07), "--gold": gold, "--gold-t": goldT,
     "--green": green, "--red": red, "--purple": purple, "--teal": teal, "--slate": slate,
     "--station": dark ? mix(look.blue, "#ffffff", 0.12) : look.blue, "--on-station": "#ffffff",
+    // a symbol on a fill is dark where white is weak (the Design Lab, 1 Nov): on the gold in both grounds (`--on-light`), and on every color the dark ground lifts toward white (`--on-lift`, white on the light ground)
+    "--on-lift": dark ? ground : "#ffffff", "--on-light": dark ? ground : ink,
     "--skipc": blue,
     // Claude is orange, between the gold of a question and the red of a miss (the Design Lab, 1 Nov); its words take the darker shade, `-t`, which reads on the paper
     "--tutor": mix(gold, red, 0.45),
