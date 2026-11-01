@@ -108,19 +108,20 @@ function Settled() {
     {down.length ? <Sx cls="walked"><span class="thh" data-mv="below" aria-hidden="true">not</span><div class="chs down">{down.map((r) => <ResRow row={r} on={false} />)}</div></Sx> : null}
   </div>;
 }
-/** What to do, under the thing, as guidance has it (practice/guided.ts): in full with the thing's name, a short line, or nothing. It stands under the scan's stop (`.cstop`),
- *  which stays right under the thing, and folds as the room for the result's node opens there, so that the categories end where the result puts them. */
-function Todo() {
-  const g = guidance("categories"); if (g === "none") return null;
-  return <div class="ctodo"><div><p class="qlead plain above">{g === "detailed" ? <>Select each category that applies to <i>{q().thing.n}</i>.</> : "Select all that apply."}</p></div></div>;
+/** What to do, between the heading and the thing, as guidance has it (practice/guided.ts): "Select each category that applies to" with the thing's name under it (Detailed), "Select all
+ *  that apply." (Hints), or nothing. The result keeps it, at the level the question was asked at, so that the thing stays where it was as the scan opens the room under it. */
+function Hint() {
+  const d = state.ui && state.ui.guideDown, g = d && d.ex === "categories" ? (d.to === "hints" ? "detailed" : "hints") : guidance("categories");
+  if (g === "none") return null;
+  return <p class="qlead plain above">{g === "detailed" ? "Select each category that applies to" : "Select all that apply."}</p>;
 }
 /* ---------- the categories ---------- */
 function TickStep() {
   const u = u0(), t = q(), n = u.ticked.length;
   return <>
     <Scroll>
-      <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Categories" aside={<SkipMark />} /><Gap h={6} /><Thing />
-        <div class="cstop" data-keep="stay" aria-hidden="true"><i class="d" /></div><Todo /></Sx>
+      <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Categories" aside={<SkipMark />} /><Hint /><Gap h={6} /><Thing />
+        <div class="cstop" data-keep="stay" aria-hidden="true"><i class="d" /></div></Sx>
       <Threshold label="Categories the thing is in" items={t.rows.map((r, i) => ({ k: r.cat, b: r.phrase, key: String(i + 1) }))} picked={u.ticked} onPick={tickCategory} onReset={resetCategories} />
       <Sx cls="ptail" />
     </Scroll>
@@ -151,7 +152,7 @@ function CheckedStep() {
   const { v, word, sub } = verdictOf(g);
   return <>
     <Scroll>
-      <Sx cls="walked first"><Gap h={14} /><Head d={<D cls="sec done" />} h="1 Categories" /><Gap h={6} /><Thing /><Gap h={AFTER_THING} /></Sx>
+      <Sx cls="walked first"><Gap h={14} /><Head d={<D cls="sec done" />} h="1 Categories" /><Hint /><Gap h={6} /><Thing /><Gap h={AFTER_THING} /></Sx>
       <Verdict v={v} word={word} sub={sub} />
       {one ? <Split one /> : <Settled />}
       <GuideNote />

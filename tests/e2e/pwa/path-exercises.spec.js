@@ -130,13 +130,13 @@ test("the line: Syllogisms' counter-example may stay empty, and its piece of lin
 test("Pervasions: four questions answered on the path, a counter-example for Why, then the relation, and the result", async ({ page }) => {
   await open(page, "Pervasions");
   await expect(choices(page)).toHaveCount(2);   // Accept and Why?
-  // a question is numbered in the margin (Q1), its concise form (A → not B) opens its row, and the statement asked ends with no punctuation: the lead above the stop asks
+  // a question is numbered in the margin (Q1), its concise form (A → not B) opens its row; the heading's line asks ("do you accept it?"), no lead stands above the stop
   const now = page.locator("#path .sb.now");
   await expect(now.locator(".qnm")).toHaveText("Q1");
   await expect(now.locator(".qsym")).toHaveText(/^A\s*not B$/);
-  await expect(now.locator(".qst")).not.toHaveText(/[.?!]$/);
-  const lead = await page.locator("#path .qlead.above").boundingBox(), sym0 = await now.locator(".qsym").boundingBox(), dia0 = await now.locator(".d").boundingBox();
-  expect(lead.y + lead.height, "the lead stands above the question's row").toBeLessThanOrEqual(sym0.y + 2);
+  await expect(page.locator("#path .sechead")).toContainText("do you accept it?");
+  await expect(page.locator("#path .qlead")).toHaveCount(0);   // no "Do you accept that…" over the statement
+  const sym0 = await now.locator(".qsym").boundingBox(), dia0 = await now.locator(".d").boundingBox();
   expect(Math.abs(dia0.y + dia0.height / 2 - (sym0.y + sym0.height / 2)), "the diamond stays level with the question's short form").toBeLessThan(10);
   await expect(page.locator("#path .sb.later .qnm")).toHaveText(["Q2", "Q3", "Q4"]);
   const [num, dia, form] = await Promise.all([now.locator(".qnm").boundingBox(), now.locator(".d").boundingBox(), now.locator(".qsym").boundingBox()]);
@@ -265,15 +265,19 @@ test("Categories: a tap lifts a category over the rule and back, reset drops the
   await reset.click();
   await expect(up).toHaveCount(0);
   await expect(down).toHaveCount(phrases.length);
-  // Detailed guidance says what to do under the scan's stop, which stays right under the thing, and the line folds as the scan opens the result's room there
-  const thing = await page.evaluate(() => window.__t.cur.q.thing.n);
-  await expect(page.locator("#path .ctodo")).toHaveText(`Select each category that applies to ${thing}.`);
+  // Detailed guidance says what to do between the heading and the thing, without repeating the thing; the scan's stop stays right under the thing, and the thing stays where it is through the check
+  const hint = page.locator("#path .qlead.above"), box = (sel) => page.locator(sel).evaluate((e) => { const r = e.getBoundingClientRect(); return { top: r.top, bottom: r.bottom }; });
+  await expect(hint).toHaveText("Select each category that applies to");
+  const [head, hintBox, thing0] = [await box("#path .sechead"), await box("#path .qlead.above"), await box("#path .stm.thing")];
+  expect(head.bottom, "the hint is under the heading").toBeLessThanOrEqual(hintBox.top + 2);
+  expect(hintBox.bottom, "and over the thing").toBeLessThanOrEqual(thing0.top + 2);
   expect(await page.locator("#path .cstop").evaluate((e) => e.getBoundingClientRect().top - e.previousElementSibling.getBoundingClientRect().bottom)).toBeLessThan(1);
   await station(page).click();
-  await expect(page.locator("#path .cstop.scn-gone + .ctodo")).toHaveCount(1);
   await expect(page.locator("#path .pscan")).toHaveCount(1);   // the Check slides up through the categories as every check does
   await expect(page.locator("#path .thold .crow.scn")).not.toHaveCount(0);
   await expect(verdict(page)).toBeVisible();
+  await expect(hint, "the result keeps the hint, so that the thing stays where it is").toHaveText("Select each category that applies to");
+  expect(Math.abs((await box("#path .stm.thing")).top - thing0.top), "the thing has not moved").toBeLessThan(2);
   await expect(page.locator("#path .pathc > .sx.first .sechead")).toContainText("1 Categories");   // the heading stays through the check, its diamond in ink
   await expect(page.locator("#path .pathc > .sx.first .sechead .d.sec.done")).toHaveCount(1);
   const applies = await page.evaluate(() => window.__t.cur.q.rows.filter((r) => r.answer).length);
@@ -295,8 +299,10 @@ for (const level of ["detailed", "hints"]) {
     await exerciseAtRest(page);
     const q = await page.evaluate(() => ({ thing: window.__t.cur.q.thing.n, rows: window.__t.cur.q.rows.map((r) => ({ phrase: r.phrase, answer: r.answer })) }));
     await expect(page.locator("#path .sechead")).toHaveText("1 Categories");   // what to select is said once, by the hint
-    await expect(page.locator("#path .ctodo")).toHaveText(level === "detailed" ? `Select each category that applies to ${q.thing}.` : "Select all that apply.");
-    if (level === "detailed") await expect(page.locator("#path .ctodo i")).toHaveText(q.thing);   // the thing alone in italic
+    await expect(page.locator("#path .qlead.above")).toHaveText(level === "detailed" ? "Select each category that applies to" : "Select all that apply.");   // over the thing, which it does not repeat
+    const [headBox, hintBox, thingBox] = await Promise.all(["#path .sechead", "#path .qlead.above", "#path .stm.thing"].map((sel) => page.locator(sel).evaluate((e) => { const r = e.getBoundingClientRect(); return { top: r.top, bottom: r.bottom }; })));
+    expect(headBox.bottom).toBeLessThanOrEqual(hintBox.top + 2);
+    expect(hintBox.bottom).toBeLessThanOrEqual(thingBox.top + 2);
     // one wrong category lifted, every right one left: all of them wrong
     const wrong = q.rows.filter((r) => !r.answer).slice(0, 1), missed = q.rows.filter((r) => r.answer);
     expect(wrong.length + missed.length).toBeGreaterThan(0);
