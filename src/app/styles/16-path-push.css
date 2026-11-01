@@ -16,7 +16,7 @@
 .pa .main.pk-run #stn .gol small{opacity:0}
 .pa .main.pk-run .aux{opacity:0; transition:opacity .2s}
 .pa .pk-ghost .gol{opacity:0}
-.pa .pk-ghost .go .mk .i{animation:none!important}
+.pa .pk-ghost .go .mk .i,.pa .pk-ghost .go::before{animation:none!important}
 /* the new page comes in as the station, come to rest, turns into its first bullet (push.ts); a statement that stayed does not come in again */
 .pa .main.pk-keep.tk-in .pathc > :first-child,.pa .main.pk-keep.tk-in .pathc > :first-child :is(.ptx,.pn > span,.pn > i.pnc,.pn > div){animation:none}
 .pa .main.pk-keep.tk-in .pathc > .vband{animation:none}

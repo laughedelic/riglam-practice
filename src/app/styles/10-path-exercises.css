@@ -101,8 +101,11 @@
 .pa .pgh b{font-family:var(--mono); font-size:11.5px; letter-spacing:.08em; text-transform:uppercase; font-weight:600}
 .pa .pgh span{font-size:14px; font-style:italic; color:var(--ink2)}
 /* a course term's stop before the next question (path/stop.tsx): the term, then its card without the name it stands under. It is not a question: a paper
-   diamond with an ink edge, and its line in the walked gray, on to the station */
-.pa .d.tsd{background-color:var(--paper); box-shadow:inset 0 0 0 1.8px var(--ink)}
+   diamond with an edge of its own color (ink; teal for a term's page, green for a stage) and a symbol in it, and its line in the walked gray, on to the station */
+.pa .d.tsd{--tc:var(--ink); background-color:var(--paper); box-shadow:inset 0 0 0 1.8px var(--tc)}
+.pa .d.tsd.term{--tc:var(--teal)}          /* a term's page (a new term, a repetition): a teal ring with lines, the page of text */
+.pa .d.tsd.stage{--tc:var(--green)}        /* a new stage: a green ring with two chevrons up */
+.pa .d.tsd .mk{color:var(--tc)}
 .pa .sx.cur.tstop::before{background:var(--ink); opacity:.72}
 @supports (color:color-mix(in srgb,red,blue)){ .pa .sx.cur.tstop + .sx{--pv:color-mix(in srgb,var(--ink) 72%,var(--paper))} }
 .pa .tstop-def{padding-top:2px; padding-bottom:6px}

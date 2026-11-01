@@ -86,15 +86,21 @@
 .pa .tree .ed.pl{font-family:var(--mono); font-size:10px; letter-spacing:.06em; fill:var(--ink3)}
 .pa .tree .ed.cont{font-family:var(--mono); font-size:10px; fill:var(--gold-t)}
 .pa .tree .bn,.pa .tree .bp{font-family:'Sorts Mill Goudy','EB Garamond',Georgia,serif; font-weight:400}
-.pa .tree .bn{font-size:20.5px; letter-spacing:.08em; fill:var(--ink)}
-.pa .tree .bp{font-style:italic; font-size:23.83px; letter-spacing:.1em; fill:var(--ink2)}
-.pa .tree .bl{letter-spacing:0}
+.pa .tree .bn{font-size:20.5px; fill:var(--ink)}   /* no letter-spacing here: the spacing is textLength's (path/brand.tsx) */
+.pa .tree .bp{font-style:italic; font-size:23.83px; fill:var(--ink2)}
 html.cv-zoom .pa .road .rhead{opacity:0}   /* the cover is flying its own figure and name in (pwa/cover.ts); these appear when it lands */
 .pa .tree .hit{fill:transparent; cursor:pointer}
 .pa .tree a:focus-visible .nd,.pa .tree [tabindex]:focus-visible .nd{stroke:var(--ink); stroke-width:2.6}
 .pa .tree a:focus{outline:none}
 .pa .tree .rm.ok{fill:var(--green)} .pa .tree .rm.bad{fill:var(--red)} .pa .tree .rm.part{fill:var(--partc)} .pa .tree .rm.pend{fill:none; stroke:var(--ink3); stroke-width:1.2}
 .pa .road .rfoot{flex:none; border-top:1px solid var(--rule); display:flex; align-items:center; flex-wrap:wrap; gap:6px; padding:14px 12px 22px calc(var(--m) + 10px); position:relative}
+/* without the Magic Key the foot has a fourth link, Magic Key, which a phone may have no room for beside the others: then the links begin left of the column and stand a little
+   closer, so that they stay on one line. A spacer before them is the column's indent when there is room (4px + spacer + 2px = --m + 10px) and shrinks first; the stages and
+   the version keep their places */
+.pa .road .rfoot.keyed{column-gap:2px; padding-left:4px}
+.pa .road .rfoot.keyed .rsp{flex:1 1 0; min-width:0; max-width:calc(var(--m) + 4px)}
+.pa .road .rfoot.keyed .rstages{flex-basis:calc(100% - 6px); margin-left:6px}
+.pa .road .rfoot.keyed .rver{flex-basis:calc(100% - var(--m) - 6px); margin-left:calc(var(--m) + 6px)}
 .pa .road .rgo{flex:none; display:flex; justify-content:flex-end; padding:0 12px 2px}
 .pa .road .rcont{min-height:44px; padding:0 4px 0 14px; font-size:14px; font-weight:600; gap:4px}
 .pa .road .rcont .i{width:18px; height:18px}

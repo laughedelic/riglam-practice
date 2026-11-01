@@ -16,7 +16,7 @@ import { PACE_NAME } from "../practice/difficulty.ts";
 import { LADDER_TOP, RING_STAGES, STAGES, runNeed } from "../../domain/stages.ts";
 import { HowStages } from "./progress.tsx";
 import { openDifficulty, openStages } from "./progression.tsx";
-import { stopName } from "./next.ts";
+import { stopKind, stopName } from "./next.ts";
 import { StageRing, TermList, marksOf, ringLabel, stageWhere } from "./rings.tsx";
 import { Scroll } from "./scroll.tsx";
 import { FitTerm } from "./stop-def.tsx";
@@ -80,7 +80,7 @@ export function stageUpScreen(title: string): { cls: string; node: ComponentChil
   return { cls: "done", node: <>
     <TopBar title={title} tools />
     <Scroll>
-      <Sx cls="cur first tstop tstage"><Gap h={14} /><Head d={<D cls="sec tsd" />} h="New stage" sub={from + " → " + n} /><Gap h={4} />
+      <Sx cls="cur first tstop tstage"><Gap h={14} /><Head d={<D cls="sec tsd stage" mark="ups" />} h="New stage" sub={from + " → " + n} /><Gap h={4} />
         <St d={<D cls="sub done" />} cls="stm thing"><FitTerm text={"Stage " + n + " reached"} whole /></St>
         <div class="wtext tup"><Rings n={n} /></div>
         {info ? <Part label="Topics"><p class="tup-lead">{info.adds}</p>{newTerms.length ? <TermList marks={newTerms} /> : null}</Part> : null}
@@ -93,6 +93,6 @@ export function stageUpScreen(title: string): { cls: string; node: ComponentChil
         <Gap h={6} /></Sx>
       <Sx cls="ptail" />
     </Scroll>
-    <Foot>{after ? <Station name={stopName(after)} act={() => next()} /> : <Station name="Next" hint="on to the question" act={() => next()} />}</Foot>
+    <Foot>{after ? <Station name={stopName(after)} kind={stopKind(after)} act={() => next()} /> : <Station name="Next" hint="on to the question" act={() => next()} />}</Foot>
   </> };
 }

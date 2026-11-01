@@ -5,7 +5,7 @@ import { normLevels } from "../ai-shared/examples.ts";
 import { FIND_RELS } from "../domain/find.ts";
 import { OPEN_CAP, normIntro, normPace } from "../domain/intro.ts";
 import { normLangs } from "../domain/languages.ts";
-import { DEFAULT_STAGES, freshRun, normExRuns, normGuided, normRun, normStages, stagesOfLevels } from "../domain/stages.ts";
+import { DEFAULT_STAGES, freshRun, learnerStages, normExRuns, normGuided, normRun, stagesOfLevels } from "../domain/stages.ts";
 import { normPerEx } from "../domain/per-exercise.ts";
 import { TIME_KEY, TIME_KINDS, defaultTimes, readTime } from "../domain/sprint.ts";
 
@@ -35,9 +35,10 @@ export const state = {
   resetAsk: "",     // the Reset progression line of the Progression page: "ask" while it asks to confirm, "done" after
   about: null,   // {version, commit, builtAt, latest, branches?}: which build this is (platform.about), shown in Options
   updates: null, // {status, check, apply, subscribe}: updating the installed app in place (platform.updates), shown in Options
-  unlock: null,  // {open, tutor}: opens the prompt for the Magic Key (platform.unlock) while this device has none; `tutor` is whether the server has a tutor waiting for it
-  keyHeld: null,   // {change, forget} while this device has the Magic Key (platform.keyHeld); keyAsk: the Options row is asking whether to forget it
+  unlock: null,  // {enter, problem, tutor}: takes the Magic Key on Settings' Magic Key page (platform.unlock) while this device has none; `tutor` is whether the server has a tutor waiting for it
+  keyHeld: null,   // {enter, forget} while this device has the Magic Key (platform.keyHeld); keyAsk: the Options row is asking whether to forget it
   keyAsk: false,
+  keyFrom: null,   // {back, then, why}: the Magic Key page was opened where the key is needed (shell/options.js, openKey): where its way back goes, what to do once a key is taken, what went wrong
   batches: [],
   answers: {},
   gotB: false,
@@ -72,6 +73,11 @@ export const state = {
   nota: "codes",
   optsOpen: false,   // Settings (the device and the account) covers the exercise
   optsPage: null,    // the Path's Settings: the line whose own page is open (path/settings.tsx), or null for the sections
+  newsDirect: false, // What's new was opened from the roadmap's line or after an update (path/news.tsx): its way back goes where it came from
+  newsSince: null,
+  newsArrive: false, // What's new opened right after Update: the new items snap onto the path
+  pinAt: null,      // the question the exercise's update line was first shown on (path/news.tsx)
+  pinGone: false,   // the learner went on past it: the line stays on the roadmap only   // the newest item of What's new shown before the page opened: the ones above it are marked new
   preview: false,    // this is a Preview (staging, a pull request build), not the real app (platform.preview): the Path's Settings show Experiments
   perEx: {},         // Blitz, the tutor and voice: each exercise's own values (practice/per-exercise.ts, `rd-per-ex`)
   perBase: null,     // and the shared ones, for an exercise that has none of its own yet
@@ -158,7 +164,7 @@ try{ const t=localStorage.getItem("rd-terms"); if(t!==null) state.intro=normIntr
 // ladder, so that its own settings later do not make it look like an old one; a new device writes no stages until it chooses, and an import can bring them.
 try{
   const v=localStorage.getItem("rd-stages");
-  if(v!==null) state.stages=normStages(v);
+  if(v!==null) state.stages=learnerStages(v);     // a step of depth left on without stage 9 goes (domain/stages.ts)
   else {
     const old=localStorage.getItem("rd-exlevels");
     const before=old!==null||(localStorage.getItem("rd-ladder")===null&&Object.keys(localStorage).some(k=>k.startsWith("rd-")));

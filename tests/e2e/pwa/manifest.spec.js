@@ -27,5 +27,6 @@ test("the head matches the artifact frame and the phone", async ({ page }) => {
   await expect(page.locator('meta[name="viewport"]')).toHaveAttribute("content", /viewport-fit=cover/);
   await expect(page.locator('meta[name="theme-color"]')).toHaveCount(2);
   await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveCount(1);
-  await expect(page).toHaveTitle("Dudra practice");
+  await expect(page).toHaveTitle("Riglam practice");
+  await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", /path of reasoning/);
 });

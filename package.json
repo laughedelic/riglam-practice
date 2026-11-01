@@ -1,6 +1,6 @@
 {
   "name": "riglam-practice",
-  "version": "0.21.0",
+  "version": "0.21.4",
   "private": true,
   "description": "Practice app for Buddhist logic and debate (Dudra, Tarig): one source, an installable PWA and a Claude artifact build.",
   "license": "SEE LICENSE IN LICENSE",
@@ -39,7 +39,8 @@
     "fonts": "node scripts/fetch-fonts.mjs",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test --project=pwa-desktop --project=pwa-phone",
+    "test:e2e:iphone": "playwright test --project=pwa-iphone"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261023.1",
