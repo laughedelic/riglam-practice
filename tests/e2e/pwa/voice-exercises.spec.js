@@ -111,10 +111,23 @@ test("Syllogisms: 'no' said within a few seconds of a step that went on takes th
   await hear(page, "no pervasion");
   await confirm(page);
   await expect(chip(page)).toContainText(SAY.pervasion);
-  await hearNext(page, "no");
+  await hearNext(page, "back");
   await mic(page).click();
   await expect(choices(page)).toHaveCount(3);   // the replies again
   expect(await page.evaluate(() => window.__t.ui.step)).toBe(0);
+});
+
+test("Syllogisms: 'no' at the counter-example question, while the chip of the reply is still up, leaves the counter-example out and does not go back", async ({ page }) => {
+  await voice(page, { settings: { read: "0", answer: "tap", confirm: "wait" } });
+  await open(page, "Syllogisms");
+  expect(await drawSyllogism(page, "pervasion")).toBe(true);
+  await hear(page, "no pervasion");
+  await confirm(page);
+  await expect(chip(page)).toContainText(SAY.pervasion);
+  await hearNext(page, "no");
+  await mic(page).click();
+  await expect(waiting(page)).toBeVisible();   // "no counter-example" waits for Yes, as any answer
+  expect(await page.evaluate(() => window.__t.ui.step)).toBe(1);
 });
 
 test("Syllogisms: the subject itself is no counter-example: the page says so, the field is emptied and nothing is graded", async ({ page }) => {
