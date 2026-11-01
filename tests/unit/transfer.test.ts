@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { createLocalDb } from "../../src/pwa/local-db";
 import type { Db, Doc } from "../../src/platform/types";
 import {
-  COLLECTIONS, DEVICE_KEYS, EXPORTED_KEYS, FORMAT, type DataFile, TransferError, VERSION, applyImport, exportData, fileName, parseDataFile, planImport, serialize, stampOf,
+  COLLECTIONS, DEVICE_KEYS, EXPORTED_KEYS, NEWS_KEYS, FORMAT, type DataFile, TransferError, VERSION, applyImport, exportData, fileName, parseDataFile, planImport, serialize, stampOf,
 } from "../../src/store/transfer";
 
 const newDb = () => createLocalDb({ channel: false });
@@ -204,7 +204,7 @@ describe("the list of settings", () => {
     for (const m of readFileSync(new URL("../../src/domain/sprint.ts", import.meta.url), "utf8").matchAll(/["'](rd-[a-z-]+)["']/g)) used.add(m[1]);     // the times keep their keys with their numbers
     used.delete("rd-lab"); // the earlier name of rd-quorum: read once and removed (state.js), never stored again
     expect(files.length).toBeGreaterThan(20);
-    expect([...used].sort()).toEqual([...EXPORTED_KEYS, ...DEVICE_KEYS].sort());
+    expect([...used].sort()).toEqual([...EXPORTED_KEYS, ...DEVICE_KEYS, ...NEWS_KEYS].sort());
   });
 });
 

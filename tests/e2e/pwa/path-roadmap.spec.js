@@ -236,3 +236,19 @@ test("in a browser tab Back on the roadmap leaves with no question", async ({ pa
   await expect.poll(() => level(page)).toBe(0);
   expect(await page.evaluate(() => !!window.__t.navGuard)).toBe(false);
 });
+
+test("the app keeps to the part of the screen that can be seen, also when the browser says it is shorter only after the page has loaded (as after an update's reload)", async ({ page }) => {
+  // the visible area turns 64 px shorter than the window a moment after the start, with no event (less than a keyboard: the app used to follow only that)
+  await page.addInitScript(() => {
+    const t0 = Date.now(), d = Object.getOwnPropertyDescriptor(VisualViewport.prototype, "height");
+    Object.defineProperty(VisualViewport.prototype, "height", { configurable: true, get() { const h = d.get.call(this); return Date.now() - t0 > 600 ? h - 64 : h; } });
+  });
+  await start(page);
+  const shown = await page.evaluate(() => innerHeight - 64);
+  const bottom = (sel) => page.locator(sel).first().evaluate((n) => n.getBoundingClientRect().bottom);
+  await expect.poll(() => bottom("#path .pa"), "the app's root ends where the visible area does").toBe(shown);
+  expect(await bottom("#path .main .foot"), "the next stop is on the screen").toBeLessThanOrEqual(shown);
+  await page.locator(".tstn").click();
+  await expect(road(page)).toBeVisible();
+  expect(await bottom("#path .rfoot"), "the roadmap's foot, with the version, is on the screen").toBeLessThanOrEqual(shown);
+});

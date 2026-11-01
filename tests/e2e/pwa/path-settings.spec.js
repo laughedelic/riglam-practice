@@ -43,7 +43,7 @@ withKey("Settings on the Path: the Magic Key has its own page, which says what i
   expect(await page.evaluate(() => localStorage.getItem("riglam.magicKey"))).not.toBeNull();
   await page.getByRole("button", { name: "Enter another key" }).click();   // on the page, in a field of its own
   await expect(page.getByRole("textbox", { name: "Another Magic Key or link" })).toBeVisible();
-  await expect(page.locator(".ppage")).toContainText("four words that come with the course");   // what the key is, where it is entered
+  await expect(page.locator(".ppage")).toContainText("a phrase that unlocks the definitions");   // what the key is, where it is entered
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await page.goBack();   // Back closes the page, not Settings
   await expect(page.locator(".ppage .ptitle")).toHaveText("Settings");
@@ -58,13 +58,14 @@ plain("without the key, the Magic Key page takes it in its own field, and Settin
   await plainExpect(page.locator("#path .foot")).toHaveCount(0);   // no station at the foot of Settings
   await plainExpect(page.locator(".ppage .ol", { hasText: "Magic Key" })).toContainText("not on this device yet");
   await page.getByRole("button", { name: "Magic Key: more" }).click();
-  await plainExpect(page.locator(".ppage")).toContainText("four words that come with the course");
+  await plainExpect(page.locator(".ppage")).toContainText("a phrase that unlocks the definitions");
+  await plainExpect(page.locator(".ppage")).toContainText("open the app’s link again");   // the shared link is the usual way in, not a teacher
   const field = page.getByRole("textbox", { name: "Magic Key or link", exact: true }), unlock = page.getByRole("button", { name: "Unlock", exact: true });
   await field.fill("hello there");
   await field.blur();   // on a phone the keyboard layout (the top bar steps aside) ends here, before the tap
   await unlock.click();
-  await plainExpect(page.locator(".ppage [role=alert]")).toContainText("does not look like a Magic Key");
-  await plainExpect(page.locator("#unlock")).toHaveCount(0);   // no prompt over the page
+  await plainExpect(page.locator(".ppage [role=alert]")).toContainText("does not look like the Magic Key");
+  await plainExpect(page.locator("dialog[open]")).toHaveCount(0);   // nothing over the page
   await plainExpect(page.locator("#path .ptb-t")).toHaveText("Magic Key");
   if (withCourse) {
     await field.fill(dataKey);

@@ -7,6 +7,7 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { includeMarkup } from "./scripts/vite-include-markup.mjs";
 import { iconSet } from "./scripts/lib/icon-set.mjs";
+import { NEWS } from "./src/app/news.ts";
 
 const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"));
 
@@ -19,7 +20,8 @@ const commit = (process.env.BUILD_SHA || git("rev-parse", "HEAD")).slice(0, 7) |
 const build = { version: pkg.version, commit: commit + (!process.env.BUILD_SHA && git("status", "--porcelain", "--untracked-files=no") ? "+local" : ""), builtAt: new Date().toISOString() };
 const buildInfo = () => ({
   name: "riglam-build-info",
-  generateBundle() { this.emitFile({ type: "asset", fileName: "build.json", source: JSON.stringify(build) + "\n" }); },
+  // with the newest items of What's new (src/app/news.ts): an older version that finds this build waiting can say what it brings before the reload
+  generateBundle() { this.emitFile({ type: "asset", fileName: "build.json", source: JSON.stringify({ ...build, news: NEWS.slice(0, 8) }) + "\n" }); },
 });
 
 // Which icon set the build carries: the Main icons (public/icons), or the Preview icons (public/icons/preview) in staging and pull request
