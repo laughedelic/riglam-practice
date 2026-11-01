@@ -23,7 +23,7 @@ import { stageName } from "../shell/stages.js";
 import { verdictCue } from "../sound/play.ts";
 import { negSides } from "../../ai-shared/relations.ts";
 import type { CellId, Neg, RelKey } from "../../ai-shared/relations.ts";
-import { LADDER_TOP, STAGES, guideSteps } from "../../domain/stages.ts";
+import { LADDER_TOP, STAGES } from "../../domain/stages.ts";
 import { VERDICT_RE, parseFactLine } from "../../domain/verdict.ts";
 import type { FactLine, NotePart } from "../../domain/verdict.ts";
 import { takeChoice, bindSlide } from "./choose.ts";
@@ -192,8 +192,7 @@ function DepthOffer({ up, stage }: { up: boolean; stage: number }) {
 /** The line under a result when the exercise's guidance went a level down by itself with this answer (practice/guided.ts): why, what it shows now, and where to change it. */
 export function GuideNote() {
   const d = state.ui && state.ui.guideDown, g = d ? GUIDES[d.ex] : null; if (!d || !g) return null;
-  const [a, b] = guideSteps(state.pace), n = d.to === "none" ? a + b : a;
-  return <Sx cls="walked"><p class="pnoteline pfnote" role="status">{n} right answers in {g.name}: Guidance is {GUIDANCE_NAMES[d.to]} from now on. {g[d.to]} Change it any time in the <button type="button" class="plnk" onClick={() => toggleSess(true)}>practice options</button>.</p></Sx>;
+  return <Sx cls="walked"><p class="pnoteline pfnote" role="status">{d.right} right answers in {g.name}: Guidance is {GUIDANCE_NAMES[d.to]} from now on. {g[d.to]} Change it any time in the <button type="button" class="plnk" onClick={() => toggleSess(true)}>practice options</button>.</p></Sx>;
 }
 
 /* ---------- the tutor ---------- */

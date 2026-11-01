@@ -286,7 +286,7 @@ export interface Ui extends AnswerView {
   /** the next stage on its way in after this answer (practice/stage-offer.ts): due, then a station of its own before the next question, then taken at Next */
   up?: StageUp | null;
   /** the exercise whose guidance went a level down by itself with this answer, and to which (practice/guided.ts): the result says so */
-  guideDown?: { ex: string; to: Guidance } | null;
+  guideDown?: { ex: string; to: Guidance; right: number } | null;
   [field: string]: any;
 }
 

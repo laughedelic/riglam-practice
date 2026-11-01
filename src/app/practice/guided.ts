@@ -58,5 +58,5 @@ export function setGuidance(ex: string, g: Guidance) { state.guided = { ...state
 export function guideStep(ex: string, before: ExerciseRun | undefined) {
   if (!GUIDES[ex]) return;
   const to = guidanceStep(state.guided[ex], before, state.exRuns[ex], state.pace);
-  if (to && state.ui) state.ui.guideDown = { ex, to };
+  if (to && state.ui) state.ui.guideDown = { ex, to, right: state.exRuns[ex]?.right ?? 0 };     // the count at the step: the pace may change while the result shows
 }
