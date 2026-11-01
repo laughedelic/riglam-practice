@@ -838,6 +838,7 @@ test("the app going to the background in the middle of a touch does not confirm 
   await page.goto("/");
   await ready(page);
   await hear(page, "four possibilities");
+  await expect(mic(page)).toBeVisible();
   const b = await mic(page).boundingBox();
   await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
   await page.mouse.down();

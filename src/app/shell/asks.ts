@@ -41,7 +41,8 @@ export interface Ask extends AskAny {
 export interface Heard {
   heard: string;
   label: string;
-  apply: () => void | (() => void);
+  /** what it returns: the way back (a function), or the words to say when the screen did not take the step and asks again (a string) */
+  apply: () => void | string | (() => void);
   quick?: boolean;
 }
 
@@ -113,7 +114,11 @@ export function heardHere(a: AskAny, alts: readonly string[]): Heard | string {
   if (a.kind === "counter") {
     const x = spokenCounter(ix(), alts);
     if (!x) return hint;
-    return { heard: x.heard, label: x.none ? "no counter-example" : x.text, apply: () => { u.exText = x.none ? "" : x.text; exampleSyllogism(); } };
+    return { heard: x.heard, label: x.none ? "no counter-example" : x.text, apply: () => {
+    u.exText = x.none ? "" : x.text; exampleSyllogism();
+    // the subject itself is no counter-example: the screen says so and asks again, with the field emptied
+    if (state.ui === u && u.step === 1 && !u.checked && u.exNote) { const note = u.exNote as string; u.exText = ""; return note; }
+  } };
   }
   if (a.kind === "yesno") {
     const yn = spokenYesNo(alts);

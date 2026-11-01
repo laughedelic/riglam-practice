@@ -50,24 +50,33 @@ test("Syllogisms: the syllogism is read with the question, the reply is said and
   expect((await saved(page, "syllogism"))[0]).toMatchObject({ said: "reason", answer: "reason" });
 });
 
-test("Syllogisms: 'there is no pervasion' goes on to the counter-example, which Change takes back; the counter-example is then asked, and 'skip' leaves it out", async ({ page }) => {
-  await voice(page, { settings: { read: "0", answer: "tap", confirm: "wait" } });
+test("Syllogisms: 'there is no pervasion' goes on to the counter-example, which Change takes back without reading the replies again; the counter-example is then asked, and 'skip' leaves it out", async ({ page }) => {
+  await voice(page, { settings: { read: "1", answer: "tap", confirm: "wait" } });
   await open(page, "Syllogisms");
   expect(await drawSyllogism(page, "pervasion")).toBe(true);
+  await strip(page).click();
+  await expect.poll(async () => (await said(page)).at(-1) || "").toMatch(/Do you accept it\?$/);
+  await idle(page);
   await hear(page, "there is no persuasion");   // a recognizer's slip
   await expect(label(page)).toHaveText(SAY.pervasion);
   await confirm(page);
   await expect(page.locator("#sylex")).toBeVisible();   // the counter-example is asked
+  await expect.poll(async () => (await said(page)).at(-1) || "").toMatch(/^Name something that is/);
+  await idle(page);
+  const n = (await said(page)).length;
   await expect(chip(page)).toContainText(SAY.pervasion);
   await chip(page).getByRole("button", { name: "Change" }).click();
   await expect(choices(page)).toHaveCount(3);   // back at the replies, none picked
   expect(await page.evaluate(() => window.__t.ui.step)).toBe(0);
-  await expect(mic(page)).toHaveAttribute("aria-pressed", "true");   // the microphone is open again, and the question is not read again
+  await expect(mic(page)).toHaveAttribute("aria-pressed", "true");   // the microphone is open again
+  expect((await said(page)).length).toBe(n);   // and the question is not read again
   await hearNext(page, "no pervasion");
   await settle(page);
   await expect(waiting(page)).toBeVisible();
   await confirm(page);
   await expect(page.locator("#sylex")).toBeVisible();
+  await expect.poll(async () => (await said(page)).length).toBeGreaterThan(n);   // the counter-example is asked afresh
+  await idle(page);
   await hear(page, "skip");
   await expect(label(page)).toHaveText("no counter-example");
   await confirm(page);
@@ -76,6 +85,63 @@ test("Syllogisms: 'there is no pervasion' goes on to the counter-example, which 
   const doc = (await saved(page, "syllogism"))[0];
   expect(doc).toMatchObject({ said: "pervasion", correct: true });
   expect(doc.example).toBeUndefined();
+});
+
+test("Syllogisms: Escape takes back an answer that waits even with the counter-example field focused", async ({ page }, info) => {
+  test.skip(info.project.name === "pwa-phone", "on a phone the keyboard takes the place of the field, and there is no Escape key");
+  await voice(page, { settings: { read: "0", answer: "tap", confirm: "wait" } });
+  await open(page, "Syllogisms");
+  expect(await drawSyllogism(page, "pervasion")).toBe(true);
+  await hear(page, "no pervasion");
+  await confirm(page);
+  await expect(page.locator("#sylex")).toBeVisible();
+  await page.locator("#sylex").focus();
+  await hear(page, "a gold ring");
+  await expect(waiting(page)).toBeVisible();
+  await page.locator("#sylex").focus();
+  await page.keyboard.press("Escape");   // the field has the focus, and the answer that waits is still taken back
+  await expect(waiting(page)).toHaveCount(0);
+  expect(await page.evaluate(() => window.__t.ui.step)).toBe(1);   // and the page stays at the counter-example
+});
+
+test("Syllogisms: 'no' said within a few seconds of a step that went on takes that step back", async ({ page }) => {
+  await voice(page, { settings: { read: "0", answer: "tap", confirm: "wait" } });
+  await open(page, "Syllogisms");
+  expect(await drawSyllogism(page, "pervasion")).toBe(true);
+  await hear(page, "no pervasion");
+  await confirm(page);
+  await expect(chip(page)).toContainText(SAY.pervasion);
+  await hearNext(page, "no");
+  await mic(page).click();
+  await expect(choices(page)).toHaveCount(3);   // the replies again
+  expect(await page.evaluate(() => window.__t.ui.step)).toBe(0);
+});
+
+test("Syllogisms: the subject itself is no counter-example: the page says so, the field is emptied and nothing is graded", async ({ page }) => {
+  await voice(page, { settings: { read: "0", answer: "tap", confirm: "wait" } });
+  await open(page, "Syllogisms");
+  expect(await drawSyllogism(page, "pervasion")).toBe(true);
+  await hear(page, "no pervasion");
+  await confirm(page);
+  const subject = await page.evaluate(() => window.__t.cur.c.subject);
+  await hear(page, subject);
+  await confirm(page);
+  await expect(page.locator("#path .pnoteline")).toBeVisible();
+  await expect(page.locator("#sylex")).toHaveValue("");
+  expect(await page.evaluate(() => window.__t.ui.step)).toBe(1);
+  expect(await saved(page, "syllogism")).toHaveLength(0);
+});
+
+test("a clock of Sprint stands still while a spoken answer waits and runs again after Yes", async ({ page }) => {
+  await voice(page, { settings: { read: "0", answer: "tap", confirm: "wait" } });
+  await page.addInitScript(() => { try { localStorage.setItem("rd-blitz", "1"); localStorage.setItem("rd-timer", "20000"); localStorage.setItem("rd-timer-rel", "20000"); } catch { /* storage unavailable */ } });
+  await open(page, "Syllogisms");
+  expect(await drawSyllogism(page, "reason")).toBe(true);
+  await hear(page, "the reason is not established");
+  await expect.poll(() => page.evaluate(() => !!window.__t.ui.hold)).toBe(true);
+  await confirm(page);
+  await expect(verdict(page)).toContainText("Right");
+  expect(await page.evaluate(() => !!window.__t.ui.hold)).toBe(false);
 });
 
 test("Syllogisms: a counter-example said is written in the field and graded with the reply", async ({ page }) => {
