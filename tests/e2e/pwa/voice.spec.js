@@ -194,7 +194,7 @@ test("the strip above the field says the question again, stops it, and a hold pa
   expect(await page.evaluate(() => localStorage.getItem("rd-voice-read"))).toBe("1");
 });
 
-test("from the keyboard: M pauses the reading for the visit and takes the pause away; after the microphone was started with the keys, the answer that waits has the focus on Yes, so Enter confirms", async ({ page }) => {
+test("from the keyboard: M pauses the reading for the visit and takes the pause away; after the microphone was started with the keys, the field keeps the focus, so Enter confirms the answer that waits", async ({ page }) => {
   await voice(page, { settings: { read: "1", answer: "tap", confirm: "wait" } });
   await page.goto("/");
   await ready(page);
@@ -815,4 +815,59 @@ test("on the Path the answer heard waits above the foot until it is confirmed, a
   await confirm(page);
   await expect(page.locator("#cin")).toBeVisible();   // the relation is taken: the examples come
   await expect(page.locator("#path .pstrip")).toContainText("Four possibilities");
+});
+
+test("Hands-free with Always wait for Yes: a tap on the field is Yes, though the microphone listens for \"yes\" meanwhile", async ({ page }) => {
+  await voice(page, { settings: { answer: "auto", confirm: "wait" } });
+  await page.goto("/");
+  await ready(page);
+  await goTo(page, "Pervasions");   // moving on by hand: the screens after this one listen by themselves
+  await goTo(page, "Relations");
+  await listening(page);
+  await hearNext(page, "four possibilities");
+  await expect(waiting(page)).toBeVisible({ timeout: 10_000 });
+  await listening(page);   // it listens for "yes", "no" or another answer
+  await expect(page.locator("#vfield .vgo")).toHaveText("Tap for Yes");
+  await confirm(page);   // the first tap is Yes, not the end of the listening
+  await expect(waiting(page)).toHaveCount(0);
+  await expect(page.locator("#cin")).toBeVisible();   // the cases to fill in
+});
+
+test("the app going to the background in the middle of a touch does not confirm the answer that waits", async ({ page }) => {
+  await voice(page, { settings: { answer: "tap", confirm: "wait" } });
+  await page.goto("/");
+  await ready(page);
+  await hear(page, "four possibilities");
+  const b = await mic(page).boundingBox();
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+  await page.mouse.down();
+  await page.evaluate(() => { Object.defineProperty(document, "hidden", { value: true, configurable: true }); document.dispatchEvent(new Event("visibilitychange")); });
+  await page.mouse.up();
+  await expect(waiting(page)).toBeVisible();   // still waiting for Yes
+  await expect(page.locator("#cin")).toHaveCount(0);
+});
+
+test("a screen reader's activation (a click with no touch or key) does what a tap does: it listens, and it is Yes for an answer that waits; what waits is told from a live region", async ({ page }) => {
+  await voice(page, { settings: { answer: "tap", confirm: "wait" } });
+  await page.goto("/");
+  await ready(page);
+  await hearNext(page, "four possibilities");
+  await mic(page).evaluate((el) => el.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 0 })));
+  await settle(page);
+  await expect(waiting(page)).toBeVisible();
+  await expect(page.locator("#vfield .vsr")).toContainText("Four possibilities");
+  await mic(page).evaluate((el) => el.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 0 })));
+  await expect(page.locator("#cin")).toBeVisible();   // the relation is taken
+});
+
+test("the field and its strip show a ring for a keyboard that tabs, inside their edges", async ({ page }) => {
+  await voice(page, { settings: { read: "1", answer: "tap" } });
+  await page.goto("/");
+  await ready(page);
+  await page.keyboard.press("Tab");   // a Tab turns the rings on
+  await mic(page).focus();
+  await expect(mic(page)).toHaveCSS("outline-offset", "-4px");
+  await expect(mic(page)).toHaveCSS("outline-style", "solid");
+  await speaker(page).focus();
+  await expect(speaker(page)).toHaveCSS("outline-offset", "-4px");
 });
