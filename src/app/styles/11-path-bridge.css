@@ -15,25 +15,31 @@
   font-family:var(--mono); font-size:12.5px; font-weight:600; letter-spacing:0; text-transform:none; color:var(--blue); text-decoration:underline; text-underline-offset:4px}
 .pa .pbr.pvoice .btn.ghost,.pa .pbr.pvoice .btn.ghost:hover{color:var(--ink2)}
 html.pa-tab .pa .pbr.pvoice .btn:focus-visible{outline:2px solid var(--blue); outline-offset:1px; box-shadow:none}
-/* the dialog opened over the Path, a native dialog outside #path (the question before a device's examples are kept, ai/share-notice.js): the root's variables
-   do not reach it, so applyLook also keeps the palette on the html element as --pa-*, and here it takes it, the Path's face and its text buttons (the question
-   before a skip, .pdlg, looks the same) */
-html.design-path .sharedlg{
+/* the two dialogs opened over the Path, native dialogs outside #path (the question before a device's examples are kept, ai/share-notice.js; the
+   Magic Key, pwa/unlock.ts): the root's variables do not reach them, so applyLook also keeps the palette on the html element as --pa-*, and here they take it, the Path's
+   face and its text buttons (the question before a skip, .pdlg, looks the same) */
+html.design-path .sharedlg,html.design-path #unlock{
   --paper:var(--pa-paper); --ink:var(--pa-ink); --ink-muted:var(--pa-ink2); --line:var(--pa-rule); --heading:var(--pa-blue);
   --bad:var(--pa-red); --vermilion-ink:var(--pa-red); --bad-soft:color-mix(in srgb,var(--pa-red) 10%,var(--pa-paper));
   --focus-ring:0 0 0 2px var(--pa-paper),0 0 0 4px var(--pa-blue);
   --display:var(--pa-f); --body:var(--pa-f); --text-serif:var(--pa-f); --serif:var(--pa-f);
   font-family:var(--pa-f); border-color:var(--pa-ink); box-shadow:none; padding:18px 18px 14px
 }
-html.design-path .sharedlg h2{font:600 21px/1.2 var(--pa-f); color:var(--pa-ink)}
-html.design-path .sharedlg p{font:400 15.5px/1.4 var(--pa-f); color:var(--pa-ink2)}
-html.design-path .sharedlg .sn-s{font-size:14px; color:var(--pa-ink3)}
-html.design-path .sharedlg .dact{gap:6px 18px; justify-content:flex-end; margin:12px 0 10px}
-html.design-path .sharedlg .btn,html.design-path .sharedlg .btn:hover,
-html.design-path .sharedlg .btn.ghost{height:auto; min-height:40px; padding:0 2px; background:none; box-shadow:none; text-transform:none; letter-spacing:0;
+html.design-path .sharedlg h2,html.design-path #unlock h2{font:600 21px/1.2 var(--pa-f); color:var(--pa-ink)}
+html.design-path .sharedlg p,html.design-path #unlock p{font:400 15.5px/1.4 var(--pa-f); color:var(--pa-ink2)}
+html.design-path .sharedlg .sn-s,html.design-path #unlock p.hint{font-size:14px; color:var(--pa-ink3)}
+html.design-path .sharedlg .dact,html.design-path #unlock .row{gap:6px 18px; justify-content:flex-end; margin:12px 0 10px}
+html.design-path .sharedlg .btn,html.design-path #unlock .btn,html.design-path .sharedlg .btn:hover,html.design-path #unlock .btn:hover,
+html.design-path .sharedlg .btn.ghost,html.design-path #unlock .btn.ghost{height:auto; min-height:40px; padding:0 2px; background:none; box-shadow:none; text-transform:none; letter-spacing:0;
   font:600 17px/1.2 var(--pa-f); color:var(--pa-blue)}
-html.design-path .sharedlg .btn.ghost{font-weight:500; color:var(--pa-ink2)}
-html.design-path .sharedlg .btn:focus-visible{box-shadow:var(--focus-ring)}
+html.design-path .sharedlg .btn.ghost,html.design-path #unlock .btn.ghost{font-weight:500; color:var(--pa-ink2)}
+html.design-path .sharedlg .btn:focus-visible,html.design-path #unlock .btn:focus-visible{box-shadow:var(--focus-ring)}
+html.design-path #unlock .btn:disabled{opacity:.45}
+html.design-path #unlock .err{background:none; padding:0; color:var(--pa-red)}
+html.design-path #unlock .pop p{font-size:14px}
+html.design-path #unlock .popx{font:500 14px var(--pa-f); text-transform:none; letter-spacing:0; color:var(--pa-ink2)}
+html.design-path #unlock input{height:44px; padding:0 2px; background:none; border:0; border-bottom:1.5px solid var(--pa-ink2); font:17px var(--pa-f); color:var(--pa-ink)}
+html.design-path #unlock input:focus-visible{box-shadow:none; border-bottom-color:var(--pa-blue)}
 /* the notice of a newer version (src/pwa/update-toast.ts), a card the PWA keeps outside #path: the Path's own notice, an ink block in mono, with its two
    answers as text buttons, under the top bar */
 html.design-path #upd{top:calc(62px + env(safe-area-inset-top,0px)); padding:6px 8px 6px 14px; gap:0 14px; background:var(--pa-ink); color:var(--pa-paper); border:0; box-shadow:none;
