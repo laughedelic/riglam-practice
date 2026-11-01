@@ -312,6 +312,20 @@ test("on the Path, Relations spells out the relations with the pair until its tw
   await expect(gloss).not.toContainText(/\bA\b/);
 });
 
+test("at the brisk pace Guidance steps down sooner: Hints at the tenth right answer, and its page says the pace's steps", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript(() => { if (localStorage.getItem("rd-ex-runs") === null) { localStorage.setItem("rd-ex-runs", JSON.stringify({ practice: { run: 5, right: 9 } })); localStorage.setItem("rd-pace", "5"); } });
+  await page.addInitScript(hook);
+  await page.goto("/");
+  await expect(pathChoices(page)).toHaveCount(5);
+  await rightPath(page);
+  await expect(page.locator("#path [role=status]").filter({ hasText: "10 right answers in Relations: Guidance is Hints from now on" })).toBeVisible();
+  await page.getByRole("button", { name: "Practice options", exact: true }).click();
+  const sheet = page.getByRole("dialog", { name: "Practice options" });
+  await sheet.getByRole("button", { name: "Guidance: more" }).click({ position: { x: 12, y: 12 } });
+  await expect(sheet).toContainText("at your pace (brisk, on the Progression page) to Hints after 10 right answers here, and to None after 10 more.");
+});
+
 test("with negations on, Pervasions draws negated pairs too, and Accept to Q4 on one with nothing neither is right", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => { localStorage.setItem("rd-negation", "one"); localStorage.setItem("rd-stages", "1,2,3"); });
