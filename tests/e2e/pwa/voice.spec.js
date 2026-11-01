@@ -77,15 +77,15 @@ test("with no speech in the browser there is no Voice switch, no microphone and 
   await expect(page.getByRole("switch", { name: "Voice features", exact: true })).toHaveCount(0);
 });
 
-test("Find a pair and Syllogisms have no Voice choices: only Relations and Pervasions read and listen", async ({ page }) => {
+test("every exercise with a voice has the Voice choices in its options: Read aloud, how an answer is given, and More about voice", async ({ page }) => {
   await voice(page, { settings: { read: "1", answer: "tap" } });
   await page.goto("/");
   await ready(page);
-  for (const name of ["Pervasions", "Find a pair", "Syllogisms"]) {
+  for (const name of ["Pervasions", "Find a pair", "Syllogisms", "Categories", "Find an instance"]) {
     await goTo(page, name);
     await openPracticeOptions(page);
-    await expect(moreVoice(page)).toHaveCount(name === "Pervasions" ? 1 : 0);
-    await expect(sheet(page).getByRole("switch", { name: "Read aloud" })).toHaveCount(name === "Pervasions" ? 1 : 0);
+    await expect(moreVoice(page), name).toHaveCount(1);
+    await expect(sheet(page).getByRole("switch", { name: "Read aloud" }), name).toHaveCount(1);
     await closeSheet(page);
   }
 });
