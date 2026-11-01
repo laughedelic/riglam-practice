@@ -200,9 +200,12 @@ test("two phenomena in one breath, split at the right 'and'", () => {
   expect(spokenPair(ix, ["wood and fire"])).toMatchObject({ a: "wood", b: "fire" });
   expect(spokenPair(ix, ["a wooden table and a metal table"])).toMatchObject({ a: "a wooden table", b: "a metal table" });
   expect(spokenPair(ix, ["Both a wooden table and a metal table."])).toMatchObject({ a: "a wooden table", b: "a metal table" });
-  // two "and"s: the split with a practice item on each side wins
+  // two "and"s: one split is taken, and the words are all kept
   const p = spokenPair(ix, ["a gold pot and a wooden table and a metal table"]);
   expect(p).not.toBeNull();
+  expect(p!.a.length).toBeGreaterThan(0);
+  expect(p!.b.length).toBeGreaterThan(0);
+  expect(p!.a + " and " + p!.b).toBe("a gold pot and a wooden table and a metal table");
   expect(spokenPair(ix, ["a wooden table"])).toBeNull();
   expect(spokenPair(ix, ["and fire"])).toBeNull();
 });
@@ -232,4 +235,32 @@ test("yes or no to a question, not to a confirmation", () => {
   for (const s of ["yes", "Yeah", "correct", "it is"]) expect(spokenYesNo([s]), s).toBe("yes");
   for (const s of ["no", "Nope", "it is not", "it isn't"]) expect(spokenYesNo([s]), s).toBe("no");
   for (const s of ["back", "undo", "change it", "maybe"]) expect(spokenYesNo([s]), s).toBeNull();
+});
+
+test("categories: what it is not is not ticked, a word that only looks like another is not it, and the sixth is said by its digit", () => {
+  const rows = [...ROWS, { cat: "imp", phrase: "an impermanent phenomenon" }];
+  // "impermanent" is close to "permanent" as letters, and the opposite of it
+  expect(spokenCategories(["it is impermanent"], ROWS)).toBeNull();
+  expect(spokenCategories(["impermanent"], rows)?.cats).toEqual(["imp"]);
+  // a guess that says what it is not names no category it is in
+  expect(spokenCategories(["a non-functional thing"], ROWS)).toBeNull();
+  expect(spokenCategories(["it is not a color"], ROWS)).toBeNull();
+  expect(spokenCategories(["a form but not a color"], ROWS)).toBeNull();
+  // "none of these" is still the way to say none
+  expect(spokenCategories(["none of these"], ROWS)?.cats).toEqual([]);
+  // a digit above five
+  expect(spokenCategories(["one and 6"], ROWS)?.cats).toEqual(["ft", "perm"]);
+  expect(spokenCategories(["6"], ROWS)?.cats).toEqual(["perm"]);
+});
+
+test("a refusal is not taken as the example", () => {
+  for (const s of ["no", "Nope", "no, nothing", "there isn't one", "there is none"]) {
+    expect(spokenThing(ix, [s]), s).toMatchObject({ none: true });
+    expect(spokenCounter(ix, [s]), s).toMatchObject({ none: true });
+  }
+});
+
+test("a yes or no to a question may carry the words of the question", () => {
+  for (const s of ["yes it is", "Yes, it does", "yeah"]) expect(spokenYesNo([s]), s).toBe("yes");
+  for (const s of ["no it's not", "no it isn't", "No, it does not"]) expect(spokenYesNo([s]), s).toBe("no");
 });

@@ -281,6 +281,15 @@ function confirm(){
   letGo("resume");
   const undo=p.apply();
   if(typeof undo==="function") showChip(p,undo);
+  else if(typeof undo==="string") stayAt(p,undo);
+}
+// the step was not taken and the screen asks again (the subject itself is no counter-example): its words are said, and the microphone opens again in Hands-free
+function stayAt(p,text){
+  const v=state.voice, a=asked();
+  refreshPath();                     // the field the step cleared is drawn empty
+  v.note=text; v.bad=false; v.tries=0;
+  if(!a||a.key!==p.key){ paint(); return; }
+  if(reading()) say(a,text); else if(handsFree()) hear(a,true); else paint();
 }
 // take the answer back: the clock goes on, and the person says it again (the microphone opens by itself)
 function change(){
