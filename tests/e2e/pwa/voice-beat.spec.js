@@ -212,10 +212,10 @@ test("Hands-free: a passing 'right' at the result does not go on, 'okay' does", 
   await expect(verdict(page)).toHaveCount(0);
 });
 
-test("Hands-free in Sprint: something that appears on the result after the bar began holds it", async ({ page }) => {
+for (const [what, set] of [["Claude's explanation arrives", () => { window.__t.ui.explained = true; }], ["a definition is opened", () => { window.__t.ui.dterm = "x"; }]]) test(`Hands-free in Sprint: when ${what} after the bar began, the bar holds`, async ({ page }) => {
   await toResult(page, { sprint: true });
   const id = await current(page);
-  await page.evaluate(() => { window.__t.ui.explained = true; });   // as when Claude's explanation arrives
+  await page.evaluate(set);
   await page.waitForTimeout(3800);
   await expect(verdict(page)).toBeVisible();
   expect(await current(page)).toBe(id);
@@ -235,4 +235,25 @@ test("Hands-free: after 'stop' at a result a tap listens again for 'next', and '
   await hearNext(page, "next");
   await expect(verdict(page)).toHaveCount(0);
   expect(await current(page)).not.toBe(id);
+});
+
+test("Hands-free, waiting for Yes: 'again' says the question again and the answer keeps waiting; 'stop' and a tap listen for 'yes' again", async ({ page }) => {
+  await voice(page, { settings: { read: "0", answer: "auto", confirm: "wait" } });
+  await page.goto("/");
+  await ready(page);
+  await goTo(page, "Syllogisms");
+  await listening(page);
+  await hearNext(page, "there is no pervasion");
+  await expect(waiting(page)).toBeVisible();
+  await listening(page);   // for "yes"
+  await hearNext(page, "again");
+  await expect(state(page)).toContainText("Read aloud is off");
+  await expect(waiting(page)).toBeVisible();   // not taken back
+  await listening(page);
+  await hearNext(page, "stop");
+  await expect(state(page)).toContainText("Paused");
+  await idle(page);
+  await mic(page).click();   // goes on: the answer still waits, and the microphone listens for "yes"
+  await expect(waiting(page)).toBeVisible();
+  await listening(page);
 });

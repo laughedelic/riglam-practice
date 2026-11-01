@@ -252,6 +252,7 @@ test("the commands of the run are whole utterances, so that an answer that conta
   // where "skip" is the answer (the counter-example), "skip it" and "skip this" are too; naming the thing is still the command
   for (const s of ["skip it", "skip this", "set it aside"]) expect(spokenCommand([s], { bareSkip: false, looseSkip: false }), s).toBeNull();
   for (const s of ["skip this syllogism", "skip the pair"]) expect(spokenCommand([s], { looseSkip: false }), s).toBe("skip");
+  for (const s of ["skip this example", "skip the question", "skip this one"]) expect(spokenCommand([s], { looseSkip: false }), s).toBeNull();
   // "please" before or after changes nothing
   for (const [s, c] of [["next please", "next"], ["please pause", "pause"], ["repeat please", "repeat"], ["please explain", "explain"]] as const) expect(spokenCommand([s]), s).toBe(c);
 });

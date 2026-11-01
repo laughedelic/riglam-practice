@@ -215,7 +215,7 @@ function take(a,alts){
   const yn=v.pend||v.chip?spokenConfirm(alts):null;
   if(v.pend){
     if(yn==="yes") return confirm();
-    if(yn==="no") return change();
+    if(yn==="no"&&c!=="repeat") return change();       // ("again" alone is the question again)
   // after it went on: "no" or "back" takes the last step back, except where "no" is itself an answer (Pervasions: Accept or Why?), or where it is "again": the question again
   } else if(v.chip&&yn==="no"&&c!=="repeat"&&!answersNo(a,alts)) return undoTaken();
   if(c==="repeat") return commandRepeat(a);
@@ -300,7 +300,8 @@ function takeResult(a,alts){
     return explainNow(a);
   }
   // where an offer on the result is answered by a tap, "yes" is not "next": it would leave the offer
-  if(yes&&!c&&a.choice){ tick(); freezePend(); v.note="Tap the offer to take it, or say “next” to leave it."; v.bad=false; v.tries=0; if(ongoing()&&v.phase==="idle") hear(a,true,false,true); else paint(); return; }
+  const now=asked();       // (the offer may have been taken by a tap since the result began)
+  if(yes&&!c&&now&&now.choice){ tick(); freezePend(); v.note="Tap the offer to take it, or say “next” to leave it."; v.bad=false; v.tries=0; if(ongoing()&&v.phase==="idle") hear(a,true,false,true); else paint(); return; }
   if(c==="next"||yes){ tick(); if(!v.pend) offerNext(a,false); return confirm(); }
   if(yn==="no"){ tick(); if(v.pend) freezePend(); v.tries=0; return resultAgain(a); }       // "no", "wait": it stays
   v.note="Heard “"+alts[0]+"”. Say “next”, “explain” or “stop”."; v.bad=false;
@@ -343,7 +344,7 @@ function resume(){
   v.paused=false; v.note=""; v.bad=false; v.tries=0;
   if(!v.pend) letGo("fresh");          // the question has its whole time again; an answer that waits has its clock held already
   if(!a){ paint(); return; }
-  if(v.pend){ if(v.pend.result&&handsFree()) listenAuto(a,true); paint(); return; }       // an answer that waits keeps waiting; a result listens for "next" again
+  if(v.pend){ if(handsFree()) listenAuto(a,true); paint(); return; }       // an answer that waits keeps waiting, and the microphone listens for "yes" (a result, for "next") again
   if(a.kind==="result") startResult(a);
   else if(reading()) say(a,a.say,true);
   else if(handsFree()) listenAuto(a);
@@ -585,7 +586,7 @@ function micUp(ev){
   clearTimeout(p.tid);
   const h=v.stop;
   if(p.was){ if(h) h.stop(); }                              // it was listening: a press stops it
-  else if(p.yes){ if(!ev||ev.type==="pointercancel") { const a=asked(); if(v.pend&&v.pend.result&&a&&ongoing()) listenAuto(a,true); paint(); return; } if(!p.auto||(v.pend&&v.pend.result)){ confirm(); return; } }    // a tap is Yes; where it was going on by itself the touch only held it
+  else if(p.yes){ if(!ev||ev.type==="pointercancel") { const a=asked(); if(ev&&!document.hidden&&v.pend&&v.pend.result&&a&&ongoing()) listenAuto(a,true); paint(); return; } if(!p.auto||(v.pend&&v.pend.result)){ confirm(); return; } }    // a tap is Yes; where it was going on by itself the touch only held it
   else if(h&&h.release){ if(p.long) h.stop(); else h.release(); }
   paint();
 }

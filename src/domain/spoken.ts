@@ -265,6 +265,8 @@ const COMMANDS: [RegExp, Command][] = [
 // "skip it" and the like say it of whatever is on screen; "skip this pair" names the thing, which no screen takes as an answer
 const SKIP_LOOSE = /^(?:skip it|skip this|skip that|set it aside|set this aside)$/;
 const SKIP_NAMED = new RegExp("^(?:skip this " + THING + "|skip the " + THING + "|set this " + THING + " aside)$");
+// where "skip" answers the question on screen, "this example" or "this question" is the answer too: only the whole thing set aside is the command
+const SKIP_WHOLE = /^(?:skip (?:this|the) (?:pair|syllogism|set)|set this (?:pair|syllogism|set) aside)$/;
 /**
  * The command the whole utterance is, or null ("please" before or after is dropped). A bare "skip" is the command only where the screen does not take it as an answer (`bareSkip`),
  * and so are "skip it" and "skip this" (`looseSkip`, which is on unless the screen says otherwise): the counter-example of a syllogism can be skipped, which is an answer there.
@@ -274,7 +276,7 @@ export function spokenCommand(alts: readonly string[], opts: { bareSkip?: boolea
   for (const heard of alts) {
     const w = plainWords(heard).replace(/^please /, "").replace(/ please$/, "");
     if (opts.bareSkip && w === "skip") return "skip";
-    if ((loose && SKIP_LOOSE.test(w)) || SKIP_NAMED.test(w)) return "skip";
+    if (loose ? SKIP_LOOSE.test(w) || SKIP_NAMED.test(w) : SKIP_WHOLE.test(w)) return "skip";
     for (const [re, c] of COMMANDS) if (re.test(w)) return c;
   }
   return null;

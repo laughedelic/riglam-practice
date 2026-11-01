@@ -99,7 +99,7 @@ export function resultAsk(u: Ui): AskAny | null {
   if (!state.cur || !EXERCISES.includes(state.tab)) return null;
   const station = u.stop ? "/stop" : u.up && u.up.shown ? "/stage" : "";
   const offer = u.offer && u.offer.kind !== "done";
-  const holds = !!(station || offer || u.guideDown || u.negOffer || u.ctl || u.explained || (state.autoExplain && canAsk()));
+  const holds = !!(station || offer || u.guideDown || u.negOffer || u.ctl || u.explained || u.dterm || u.pop || (state.autoExplain && canAsk()));
   return { key: "res:" + attempt(u) + station, kind: "result", say: "", quiet: true, clock: false, auto: !!state.blitz && !holds, choice: !!(offer || u.negOffer),
     hint: "Say “next” to go on, or “explain” to ask Claude." };
 }
