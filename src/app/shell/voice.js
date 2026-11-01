@@ -710,9 +710,10 @@ export const WHERE="In Chrome, what you say is sent to Google to be turned into 
 /** Whether the Practice options have a Voice section: Voice is on, the browser has some speech, and the exercise is one that reads and listens. */
 export const voiceShown=()=>enabled()&&(canSpeak()||canHear())&&["practice","debate","syllogism","categories","find","instance"].includes(state.tab);
 /** The Voice page draws again when the device's voices arrive (they come late in some browsers). */
-export function hookVoices(){ const v=state.voice; if(!v.hooked){ v.hooked=true; onVoices(()=>{ if(state.sessOpen&&state.sessPage==="voice") render(); }); } }
+export function hookVoices(){ const v=state.voice; if(!v.hooked){ v.hooked=true; onVoices(()=>{ if(state.sessOpen&&state.sessPage==="read") render(); }); } }
 // the words of the Voice choices and of the Voice page
-export const VOICE_LEAD="Read aloud says each question when it appears, and Answer by voice makes the lower part of the screen a field to tap or hold. A strip along its top says the question again. Both use your device’s own speech, so the voices, and how well it hears you, depend on the device and the browser.";
+export const READ_LEAD="Read aloud says each question when it appears. It uses your device’s own speech, so the voices depend on the device and the browser.";
+export const ANSWER_LEAD="Answer by voice makes the lower part of the screen a field to tap or hold. It uses your device’s own speech recognition, so how well it hears you depends on the device and the browser.";
 export const READ_NOTE="The strip above the answer field says it again; hold the strip, or press M, to pause the reading for this visit.";
 export const ANSWER_PICKS=[["off","Off","No microphone."],
   ["tap","Tap or hold","Tap the lower part of the screen, or press V, and say the answer; or hold it and talk, and let go to send."],

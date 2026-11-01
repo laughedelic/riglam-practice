@@ -18,9 +18,10 @@ const holdDown = (page, loc, ms) => loc.click({ delay: ms });
 const blitzSwitch = (page) => page.getByRole("switch", { name: /^Sprint/ });
 const sheet = (page) => page.getByRole("dialog", { name: "Practice options" });
 const openPracticeOptions = async (page) => { await page.getByRole("button", { name: "Practice options" }).click(); await expect(sheet(page)).toBeVisible(); };
-/** The Voice page of the practice options (its line "More about voice"). */
-const moreVoice = (page) => sheet(page).getByRole("button", { name: "More about voice" });
-const openVoicePage = async (page) => { await openPracticeOptions(page); await moreVoice(page).click(); };
+/** The pages behind the two Voice lines of the practice options: Read aloud (the voice, its speed) and Answer by voice (what happens after an answer is heard). */
+const readPage = (page) => sheet(page).getByRole("button", { name: "Read aloud: more" });
+const answerPage = (page) => sheet(page).getByRole("button", { name: "Answer by voice: more" });
+const openVoicePage = async (page) => { await openPracticeOptions(page); await answerPage(page).click({ position: { x: 12, y: 12 } }); };   // the line, beside its choice
 const closeSheet = async (page) => { for (let i = 0; i < 3 && (await sheet(page).isVisible()); i++) await page.keyboard.press("Escape"); await expect(sheet(page)).toBeHidden(); };
 /** The experiments of Settings are shown on this device (a hold on Version does it in the released app). */
 const showExperiments = (page) => page.addInitScript(() => localStorage.setItem("rd-exp", "1"));
@@ -33,7 +34,7 @@ test("Voice is off in the real app until its switch in Settings turns it on; tha
   await expect(page.locator("#vfield, #vmic, #vhear")).toHaveCount(0);   // nothing of it on the screen
   expect(await said(page)).toEqual([]);
   await openPracticeOptions(page);
-  await expect(moreVoice(page)).toHaveCount(0);   // and no Voice choices in the Practice options
+  await expect(answerPage(page)).toHaveCount(0);   // and no Voice choices in the Practice options
   await expect(sheet(page).getByRole("switch", { name: "Read aloud" })).toHaveCount(0);
   await closeSheet(page);
   await openSettings(page);
@@ -71,14 +72,15 @@ test("with no speech in the browser there is no Voice switch, no microphone and 
   await expect(page.getByRole("switch", { name: "Voice features", exact: true })).toHaveCount(0);
 });
 
-test("every exercise with a voice has the Voice choices in its options: Read aloud, how an answer is given, and More about voice", async ({ page }) => {
+test("every exercise with a voice has the Voice choices in its options: Read aloud and Answer by voice, each with its own page", async ({ page }) => {
   await voice(page, { settings: { read: "1", answer: "tap" } });
   await page.goto("/");
   await ready(page);
   for (const name of ["Pervasions", "Find a pair", "Syllogisms", "Categories", "Find an instance"]) {
     await goTo(page, name);
     await openPracticeOptions(page);
-    await expect(moreVoice(page), name).toHaveCount(1);
+    await expect(answerPage(page), name).toHaveCount(1);
+    await expect(readPage(page), name).toHaveCount(1);
     await expect(sheet(page).getByRole("switch", { name: "Read aloud" }), name).toHaveCount(1);
     await closeSheet(page);
   }
@@ -209,7 +211,7 @@ test("from the keyboard: M pauses the reading for the visit and takes the pause 
   await expect(qNow(page)).toHaveText("Q2");
 });
 
-test("the Voice choices are on the first page of the Practice options: Read aloud, Answer by voice, and the rest behind More about voice", async ({ page }) => {
+test("the Voice choices are on the first page of the Practice options: Read aloud and Answer by voice, and each line opens its own page", async ({ page }) => {
   await voice(page, { settings: { read: "0", answer: "off" } });
   await page.goto("/");
   await ready(page);
@@ -226,11 +228,18 @@ test("the Voice choices are on the first page of the Practice options: Read alou
   await expect(speaker(page)).toBeVisible();
   await expect(mic(page)).toBeVisible();
   expect(await page.evaluate(() => [localStorage.getItem("rd-voice-read"), localStorage.getItem("rd-voice-answer")])).toEqual(["1", "tap"]);
-  await openVoicePage(page);   // the voice, its speed and what happens after an answer is heard are one page in
+  await openVoicePage(page);   // what happens after an answer is heard is on the Answer by voice page
   await expect(sheet(page).getByRole("group", { name: "After an answer is heard" })).toBeVisible();
+  await expect(sheet(page).getByRole("group", { name: "Speed of reading" })).toHaveCount(0);   // the reading is on its own page
   await expect(sheet(page).getByRole("switch", { name: "Read aloud" })).toHaveCount(0);   // and not twice
   await sheet(page).getByRole("button", { name: "Always wait for Yes" }).click();
   expect(await page.evaluate(() => localStorage.getItem("rd-voice-confirm"))).toBe("wait");
+  await closeSheet(page);
+  await openPracticeOptions(page);
+  await readPage(page).click();   // the voice and its speed are on the Read aloud page
+  await expect(sheet(page).getByRole("combobox", { name: "Voice" })).toBeVisible();
+  await expect(sheet(page).getByRole("group", { name: "Speed of reading" })).toBeVisible();
+  await expect(sheet(page).getByRole("group", { name: "After an answer is heard" })).toHaveCount(0);
 });
 
 test("Pervasions: each question is read aloud and answered with the mic; the answer waits on its own question for Yes", async ({ page }) => {

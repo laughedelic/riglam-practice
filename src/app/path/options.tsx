@@ -16,7 +16,7 @@ import { progressNow } from "../practice/stage-offer.ts";
 import { toggleOpts } from "../shell/options.js";
 import { SYMS, openPage, quorumNote, setAutoExplain, setNota, setShow, setSyllogismWording, setWording, toggleSess } from "../shell/session.js";
 import { kindMs, setBlitz, setTimer } from "../shell/timers.js";
-import { ANSWER_PICKS, CONFIRM_PICKS, RATES, READ_NOTE, SAMPLE, VOICE_LEAD, VOICE_SAY, WHERE, hookVoices, setVoice, voiceGroups, voiceShown } from "../shell/voice.js";
+import { ANSWER_PICKS, CONFIRM_PICKS, RATES, ANSWER_LEAD, READ_LEAD, READ_NOTE, SAMPLE, VOICE_SAY, WHERE, hookVoices, setVoice, voiceGroups, voiceShown } from "../shell/voice.js";
 import { GUIDANCE, LADDER_TOP, guideSteps } from "../../domain/stages.ts";
 import type { Guidance } from "../../domain/stages.ts";
 import { type TimeKind, timesOf } from "../../domain/sprint.ts";
@@ -105,9 +105,8 @@ function List() {
         {canAsk() ? <Words label="Explanations by Claude" items={TUTOR} cur={state.autoExplain ? "every" : "ask"} on={setTutor} /> : null}</Line> : null}
     </Group>
     {voiceShown() ? <Group name="Voice" tag="experimental">
-      {canSpeak() ? <Line title="Read aloud" sub="each question, when it appears" sw={{ on: state.voice.read, toggle: () => setVoice("read", !state.voice.read) }} /> : null}
-      {canHear() ? <Line title="Answer by voice"><Words label="Answer by voice" items={ANSWER_WORDS} cur={state.voice.answer} on={(k) => setVoice("answer", k as "off" | "tap" | "auto")} /></Line> : null}
-      <Line title="More about voice" sub={"voice and speed · after an answer is heard"} go={() => openPage("voice")} />
+      {canSpeak() ? <Line title="Read aloud" sub="each question, when it appears" sw={{ on: state.voice.read, toggle: () => setVoice("read", !state.voice.read) }} go={() => openPage("read")} /> : null}
+      {canHear() ? <Line title="Answer by voice" go={() => openPage("answer")}><Words label="Answer by voice" items={ANSWER_WORDS} cur={state.voice.answer} on={(k) => setVoice("answer", k as "off" | "tap" | "auto")} /></Line> : null}
     </Group> : null}
     <Group><Line title="Other app settings" go={toSettings} /></Group>
   </>;
@@ -164,35 +163,41 @@ function Page({ id }: { id: string }) {
   if (id === "times") return <>
     <Intro>{"A clock for each step, switched on and off with the stopwatch in the top bar (each exercise keeps its own); hold the stopwatch to come back here. The bar fills over the time, and when it is full the exercise moves on by itself. " + (TIME_UP[state.tab] || "")}</Intro>
     {timesOf(state.tab).map((k) => <Time kind={k} label={TIME_NAME[k]} note={TIME_NOTE(k, state.tab)} />)}</>;
-  if (id === "voice") return <VoicePage />;
+  if (id === "read") return <ReadPage />;
+  if (id === "answer") return <AnswerPage />;
   if (id === "tutor") return <TutorPage />;
   if (id === "progress") return <ProgressPage />;
   return null;
 }
-/** The Voice page: the voice and its speed, how an answer is taken and what happens after it is heard. */
-function VoicePage() {
-  const v = state.voice, list = canSpeak() ? voiceList() : []; hookVoices();
+const VOICE_SWITCH = () => <p class="pnoteline pnote3">Voice itself is switched on and off in <button type="button" class="pbtn" style={{ padding: 0 }} onClick={toSettings}>Settings</button>, under Experiments.</p>;
+/** The Read aloud page: which voice reads, and how fast. */
+function ReadPage() {
+  const v = state.voice, list = voiceList(); hookVoices();
   return <>
-    <Intro>{VOICE_LEAD}</Intro>
-    {canSpeak() ? <>
-      <Line title="Voice" sub="This device’s English voices, by accent.">
-        <span class="pvline2"><select class="psel" aria-label="Voice" value={v.voiceId || ""} onChange={(e) => setVoice("voiceId", (e.currentTarget as HTMLSelectElement).value)}>
-          <option value="">{"Best on this device" + (list[0] ? " (" + list[0].name + ")" : "")}</option>
-          {voiceGroups(list).map((g: { accent: string; voices: { id: string; name: string; lang: string; local: boolean }[] }) => <optgroup label={g.accent}>
-            {g.voices.map((x) => <option value={x.id}>{x.name + " · " + x.lang + (x.local ? "" : " · online")}</option>)}</optgroup>)}
-        </select><button type="button" class="pbtn" onClick={() => speak(SAMPLE, { voice: v.voiceId, rate: v.rate })}>Try</button></span></Line>
-      <Line title="Speed of reading"><Words label="Speed of reading" items={RATES as [number, string][]} cur={v.rate} on={(r) => setVoice("rate", r)} /></Line>
-      <p class="psub">{READ_NOTE}</p>
-    </> : null}
-    {canHear() ? <>
-      <p class="glab">After an answer is heard</p>
-      <Picks label="After an answer is heard" cur={v.confirm} on={(k) => setVoice("confirm", k)} items={CONFIRM_PICKS as [string, string, string][]} />
-      <p class="glab">Answer by voice</p>
-      {(ANSWER_PICKS as [string, string, string][]).filter(([k]) => k !== "off").map(([, n, d]) => <p class="psub"><b>{n}.</b> {d}</p>)}
-      <p class="psub">{VOICE_SAY}</p>
-      <p class="pnoteline pnote3">{WHERE}</p>
-    </> : null}
-    <p class="pnoteline pnote3">Voice itself is switched on and off in <button type="button" class="pbtn" style={{ padding: 0 }} onClick={toSettings}>Settings</button>, under Experiments.</p>
+    <Intro>{READ_LEAD}</Intro>
+    <Line title="Voice" sub="This device’s English voices, by accent.">
+      <span class="pvline2"><select class="psel" aria-label="Voice" value={v.voiceId || ""} onChange={(e) => setVoice("voiceId", (e.currentTarget as HTMLSelectElement).value)}>
+        <option value="">{"Best on this device" + (list[0] ? " (" + list[0].name + ")" : "")}</option>
+        {voiceGroups(list).map((g: { accent: string; voices: { id: string; name: string; lang: string; local: boolean }[] }) => <optgroup label={g.accent}>
+          {g.voices.map((x) => <option value={x.id}>{x.name + " · " + x.lang + (x.local ? "" : " · online")}</option>)}</optgroup>)}
+      </select><button type="button" class="pbtn" onClick={() => speak(SAMPLE, { voice: v.voiceId, rate: v.rate })}>Try</button></span></Line>
+    <Line title="Speed of reading"><Words label="Speed of reading" items={RATES as [number, string][]} cur={v.rate} on={(r) => setVoice("rate", r)} /></Line>
+    <p class="psub">{READ_NOTE}</p>
+    <VOICE_SWITCH />
+  </>;
+}
+/** The Answer by voice page: the two ways of answering, what happens after an answer is heard, and what can be said. */
+function AnswerPage() {
+  const v = state.voice;
+  return <>
+    <Intro>{ANSWER_LEAD}</Intro>
+    {(ANSWER_PICKS as [string, string, string][]).filter(([k]) => k !== "off").map(([, n, d]) => <p class="psub"><b>{n}.</b> {d}</p>)}
+    <p class="glab">After an answer is heard</p>
+    <Picks label="After an answer is heard" cur={v.confirm} on={(k) => setVoice("confirm", k)} items={CONFIRM_PICKS as [string, string, string][]} />
+    <p class="glab">What you can say</p>
+    <p class="psub">{VOICE_SAY}</p>
+    <p class="pnoteline pnote3">{WHERE}</p>
+    <VOICE_SWITCH />
   </>;
 }
 
@@ -208,10 +213,10 @@ function TutorPage() {
 }
 
 /** The Path's pages of the practice options, by the names their lines have. */
-const TITLES: Record<string, string> = { guidance: "Guidance", text: "Wording and notation", stages: "Difficulty", times: "Sprint", voice: "Voice", tutor: "Claude AI", progress: "Progression" };
+const TITLES: Record<string, string> = { guidance: "Guidance", text: "Wording and notation", stages: "Difficulty", times: "Sprint", read: "Read aloud", answer: "Answer by voice", tutor: "Claude AI", progress: "Progression" };
 const sheetOn = () => state.sessOpen && state.mode === "quiz";
 /** The sheet's own page that is open (one of TITLES), or null for the list. */
-const sheetPage = () => sheetOn() && state.sessPage && TITLES[state.sessPage] && (state.sessPage !== "voice" || voiceShown()) && (state.sessPage !== "tutor" || tutorShown()) ? state.sessPage : null;
+const sheetPage = () => sheetOn() && state.sessPage && TITLES[state.sessPage] && (state.sessPage !== "read" || (voiceShown() && canSpeak())) && (state.sessPage !== "answer" || (voiceShown() && canHear())) && (state.sessPage !== "tutor" || tutorShown()) ? state.sessPage : null;
 /** The Progression page is open (the ring in the top bar opened it): the bar keeps the exercise's name and the ring, pressed, and the page hangs under it. */
 export const progressOn = (): boolean => sheetPage() === "progress";
 /** What the sheet shows, as the heading it gives the screen: the top bar reads it in place of the exercise's name while the sheet is open (null when it is closed, or is the Progression page). */
