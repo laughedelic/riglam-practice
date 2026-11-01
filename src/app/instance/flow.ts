@@ -52,13 +52,6 @@ export function sayNothing(on = true): void {
   render();
 }
 
-/** Whether the field offers the things the course knows as they are typed; kept on the device. */
-export function setInstanceSuggest(on: boolean): void {
-  state.instSuggest = on;
-  try { localStorage.setItem("rd-inst-suggest", on ? "1" : "0"); } catch { /* storage blocked */ }
-  render();
-}
-
 /** Time up (Sprint, shell/timers.js): what is written, or "nothing is", stands and is checked; with nothing there it is a miss, with no result and nothing kept, and the next set comes. */
 export function timeUpInstance(): void {
   const u = live(); if (!u) return;

@@ -130,13 +130,13 @@ test("the line: Syllogisms' counter-example may stay empty, and its piece of lin
 test("Pervasions: four questions answered on the path, a counter-example for Why, then the relation, and the result", async ({ page }) => {
   await open(page, "Pervasions");
   await expect(choices(page)).toHaveCount(2);   // Accept and Why?
-  // a question is numbered in the margin (Q1), its concise form (A → not B) opens its row, and the statement asked ends with no punctuation: the lead above the stop asks
+  // a question is numbered in the margin (Q1), its concise form (A → not B) opens its row; the heading's line asks ("do you accept it?"), no lead stands above the stop
   const now = page.locator("#path .sb.now");
   await expect(now.locator(".qnm")).toHaveText("Q1");
   await expect(now.locator(".qsym")).toHaveText(/^A\s*not B$/);
-  await expect(now.locator(".qst")).not.toHaveText(/[.?!]$/);
-  const lead = await page.locator("#path .qlead.above").boundingBox(), sym0 = await now.locator(".qsym").boundingBox(), dia0 = await now.locator(".d").boundingBox();
-  expect(lead.y + lead.height, "the lead stands above the question's row").toBeLessThanOrEqual(sym0.y + 2);
+  await expect(page.locator("#path .sechead")).toContainText("do you accept it?");
+  await expect(page.locator("#path .qlead")).toHaveCount(0);   // no "Do you accept that…" over the statement
+  const sym0 = await now.locator(".qsym").boundingBox(), dia0 = await now.locator(".d").boundingBox();
   expect(Math.abs(dia0.y + dia0.height / 2 - (sym0.y + sym0.height / 2)), "the diamond stays level with the question's short form").toBeLessThan(10);
   await expect(page.locator("#path .sb.later .qnm")).toHaveText(["Q2", "Q3", "Q4"]);
   const [num, dia, form] = await Promise.all([now.locator(".qnm").boundingBox(), now.locator(".d").boundingBox(), now.locator(".qsym").boundingBox()]);
@@ -265,10 +265,19 @@ test("Categories: a tap lifts a category over the rule and back, reset drops the
   await reset.click();
   await expect(up).toHaveCount(0);
   await expect(down).toHaveCount(phrases.length);
+  // Detailed guidance says what to do between the heading and the thing, without repeating the thing; the scan's stop stays right under the thing, and the thing stays where it is through the check
+  const hint = page.locator("#path .qlead.above"), box = (sel) => page.locator(sel).evaluate((e) => { const r = e.getBoundingClientRect(); return { top: r.top, bottom: r.bottom }; });
+  await expect(hint).toHaveText("Select each category that applies to");
+  const [head, hintBox, thing0] = [await box("#path .sechead"), await box("#path .qlead.above"), await box("#path .stm.thing")];
+  expect(head.bottom, "the hint is under the heading").toBeLessThanOrEqual(hintBox.top + 2);
+  expect(hintBox.bottom, "and over the thing").toBeLessThanOrEqual(thing0.top + 2);
+  expect(await page.locator("#path .cstop").evaluate((e) => e.getBoundingClientRect().top - e.previousElementSibling.getBoundingClientRect().bottom)).toBeLessThan(1);
   await station(page).click();
   await expect(page.locator("#path .pscan")).toHaveCount(1);   // the Check slides up through the categories as every check does
   await expect(page.locator("#path .thold .crow.scn")).not.toHaveCount(0);
   await expect(verdict(page)).toBeVisible();
+  await expect(hint, "the result keeps the hint, so that the thing stays where it is").toHaveText("Select each category that applies to");
+  expect(Math.abs((await box("#path .stm.thing")).top - thing0.top), "the thing has not moved").toBeLessThan(2);
   await expect(page.locator("#path .pathc > .sx.first .sechead")).toContainText("1 Categories");   // the heading stays through the check, its diamond in ink
   await expect(page.locator("#path .pathc > .sx.first .sechead .d.sec.done")).toHaveCount(1);
   const applies = await page.evaluate(() => window.__t.cur.q.rows.filter((r) => r.answer).length);
@@ -277,6 +286,42 @@ test("Categories: a tap lifts a category over the rule and back, reset drops the
   await expect(page.locator("#path .thold.tres .chs.down .crow")).toHaveCount(phrases.length);
   expect(await page.evaluate(() => window.__t.ui.g1.rows.filter((r) => r.picked).length)).toBe(0);
 });
+
+const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+for (const level of ["detailed", "hints"]) {
+  test(`Categories at ${level}: the hint says what to select, the result says what was missed${level === "detailed" ? ", spells out the wrong ones and shows every reason" : ""}`, async ({ page }) => {
+    await page.addInitScript(([store, key, lv]) => { try { localStorage.setItem(store, key); localStorage.setItem("rd-guided", JSON.stringify({ categories: lv })); } catch { /* storage unavailable */ } }, [KEY_STORE, dataKey, level]);
+    await serveCourse(page, dataKey, { stub: true, examples: examples() });
+    await page.goto("/");
+    await expect.poll(() => page.evaluate(() => !!window.__t.EX)).toBe(true);
+    await page.locator(".tstn").click();
+    await page.getByRole("dialog", { name: "Roadmap" }).getByRole("button", { name: /^Categories/ }).click();
+    await exerciseAtRest(page);
+    const q = await page.evaluate(() => ({ thing: window.__t.cur.q.thing.n, rows: window.__t.cur.q.rows.map((r) => ({ phrase: r.phrase, answer: r.answer })) }));
+    await expect(page.locator("#path .sechead")).toHaveText("1 Categories");   // what to select is said once, by the hint
+    await expect(page.locator("#path .qlead.above")).toHaveText(level === "detailed" ? "Select each category that applies to" : "Select all that apply.");   // over the thing, which it does not repeat
+    const [headBox, hintBox, thingBox] = await Promise.all(["#path .sechead", "#path .qlead.above", "#path .stm.thing"].map((sel) => page.locator(sel).evaluate((e) => { const r = e.getBoundingClientRect(); return { top: r.top, bottom: r.bottom }; })));
+    expect(headBox.bottom).toBeLessThanOrEqual(hintBox.top + 2);
+    expect(hintBox.bottom).toBeLessThanOrEqual(thingBox.top + 2);
+    // one wrong category lifted, every right one left: all of them wrong
+    const wrong = q.rows.filter((r) => !r.answer).slice(0, 1), missed = q.rows.filter((r) => r.answer);
+    expect(wrong.length + missed.length).toBeGreaterThan(0);
+    for (const r of wrong) await choices(page).filter({ hasText: new RegExp("^" + esc(r.phrase) + "$") }).click();
+    await station(page).click();
+    await expect(verdict(page)).toBeVisible();
+    const row = (phrase) => page.locator("#path .thold.tres .crow").filter({ has: page.locator(".line1 b", { hasText: new RegExp("^" + esc(phrase) + "$") }) });
+    await expect(page.locator("#path .thold.tres")).not.toContainText("you left it under");   // the meaning, not the place on the screen
+    const spelled = (phrase, text) => level === "detailed" ? expect(row(phrase).locator(".xnote.spelled")).toHaveText(text) : expect(row(phrase).locator(".xnote.spelled")).toHaveCount(0);
+    for (const r of missed) {
+      await expect(row(r.phrase).locator(".ctag")).toHaveText("missed");
+      await spelled(r.phrase, `${q.thing} is ${r.phrase}`);
+    }
+    for (const r of wrong) await spelled(r.phrase, `${q.thing} is not ${r.phrase}`);
+    // the reasons of the right ones: shown from the start at Detailed, folded (a tap opens them) at Hints
+    const folded = page.locator("#path .thold.tres button.crow[aria-expanded]");
+    for (let i = 0; i < await folded.count(); i++) await expect(folded.nth(i)).toHaveAttribute("aria-expanded", level === "detailed" ? "true" : "false");
+  });
+}
 
 // Find an instance draws its categories at random: another set (a skip, nothing entered yet) until one of the kind the test needs is on screen
 async function drawInstance(page, possible) {
@@ -345,18 +390,18 @@ test("Find an instance: \"nothing is\" where the categories exclude each other, 
   expect((await saved(page, "instance"))[0]).toMatchObject({ cats: q.cats, possible: false, said: null, grade: "ok" });
 });
 
-test("Find an instance: Guided in the practice options (things suggested as you write) turns the field's list off, and the device keeps it", async ({ page }) => {
+test("Find an instance: things are suggested as you write at Detailed guidance only; Hints in the practice options turns the field's list off, and the device keeps it", async ({ page }) => {
   await open(page, "Find an instance");
   const field = page.locator("#iin");
   await expect(field).toHaveAttribute("list", "iin-things");
   await page.getByRole("button", { name: "Practice options" }).click();
-  const sheet = page.getByRole("dialog", { name: "Practice options" }), hints = sheet.getByRole("switch", { name: "Guided" });
+  const sheet = page.getByRole("dialog", { name: "Practice options" }), levels = sheet.getByRole("group", { name: "Guidance" });
   await expect(sheet.getByRole("button", { name: "Difficulty: more" }), "the stages and the difficulty are on the Progression page").toHaveCount(0);
-  await expect(hints).toHaveAttribute("aria-checked", "true");
-  await hints.click();
-  await expect(hints).toHaveAttribute("aria-checked", "false");
+  await expect(levels.getByRole("button", { name: "Detailed" })).toHaveAttribute("aria-pressed", "true");
+  await levels.getByRole("button", { name: "Hints" }).click();
+  await expect(levels.getByRole("button", { name: "Hints" })).toHaveAttribute("aria-pressed", "true");
   await page.keyboard.press("Escape");
   await expect(field).not.toHaveAttribute("list", /./);
   await expect(page.locator("#iin-things")).toHaveCount(0);
-  expect(await page.evaluate(() => localStorage.getItem("rd-inst-suggest"))).toBe("0");
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("rd-guided")))).toEqual({ instance: "hints" });
 });

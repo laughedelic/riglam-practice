@@ -11,7 +11,7 @@ import type { InstanceQuestion } from "../domain/instance";
 import type { PlaceGrade, PlaceQuestion } from "../domain/place";
 import type { Syllogism, Pervasion, Reply, Situation, Wording } from "../domain/syllogism";
 import type { Pair, PoolEntry, Verdict } from "../domain/types";
-import type { ExerciseRun, NegOutcome, StageRun } from "../domain/stages";
+import type { ExerciseRun, Guidance, NegOutcome, StageRun } from "../domain/stages";
 import type { Intro, Stop } from "../domain/intro";
 import type { Account, Db, Known, Reports, Sample, Tutor } from "../platform/types";
 import type { QuorumRecord } from "../ai/protocol";
@@ -240,8 +240,8 @@ export interface ProgressDoc {
   run: StageRun;
   /** each exercise's run and right answers, by its key ("practice", "debate" ...; `rd-ex-runs`) */
   exercises: Record<string, ExerciseRun>;
-  /** each exercise's guided form, where it was set by the learner or turned off by itself (`rd-guided`; none: on) */
-  guided: Record<string, boolean>;
+  /** each exercise's level of guidance, where the learner picked one (`rd-guided`; none: the level its right answers bring, practice/guided.ts) */
+  guided: Record<string, Guidance>;
   /** when the offer of a negation step was last answered (`rd-neg-offer`; "": never) */
   negOfferAt: string;
   /** the most course terms open at once before a new one waits (`rd-pace`; none: src/domain/intro.ts, OPEN_CAP) */
@@ -285,8 +285,8 @@ export interface Ui extends AnswerView {
   stop?: Stop | null;
   /** the next stage on its way in after this answer (practice/stage-offer.ts): due, then a station of its own before the next question, then taken at Next */
   up?: StageUp | null;
-  /** the exercise whose guided form turned off by itself with this answer (practice/guided.ts): the result says so */
-  guideOff?: string | null;
+  /** the exercise whose guidance went a level down by itself with this answer, and to which (practice/guided.ts): the result says so */
+  guideDown?: { ex: string; to: Guidance; right: number } | null;
   [field: string]: any;
 }
 
@@ -462,8 +462,8 @@ export interface State {
   stageRun: StageRun;
   /** each exercise's run of right answers (until it has warmed up) and its right answers in all (`rd-ex-runs`, practice/stage-offer.ts) */
   exRuns: Record<string, ExerciseRun>;
-  /** each exercise's guided form on the Path, where it was set (`rd-guided`, practice/guided.ts); none: on */
-  guided: Record<string, boolean>;
+  /** each exercise's level of guidance on the Path, where the learner picked one (`rd-guided`, practice/guided.ts); none: the level its right answers bring */
+  guided: Record<string, Guidance>;
   /** keys of the sets of categories Find an instance asked lately, oldest first: the draw passes them over while others remain (instance/flow.ts) */
   instRecent: string[];
   /** ids of the syllogisms drawn lately, oldest first: the draw leans away from them (syllogism/flow.js) */
@@ -482,8 +482,6 @@ export interface State {
   negOfferAt: string;
   /** the most course terms open at once before a new one waits (the Progression page, `rd-pace`; src/domain/intro.ts, PACES) */
   pace: number;
-  /** Find an instance offers the things the course knows while one is typed (its practice options, `rd-inst-suggest`) */
-  instSuggest: boolean;
 
   // errors from saving
   favErr: string;

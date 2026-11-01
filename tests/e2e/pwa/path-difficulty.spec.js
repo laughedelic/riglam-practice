@@ -31,7 +31,7 @@ test("the Difficulty section above the stages: the pace is kept, the negations w
   await expect(line(page, "Pace"), "one line on what the pace means").toContainText("Up to three terms not right yet, and a new term at most every three questions.");
   await pace.getByRole("button", { name: "Careful" }).click();
   await expect(pace.getByRole("button", { name: "Careful" })).toHaveAttribute("aria-pressed", "true");
-  await expect(line(page, "Pace")).toContainText("Up to two terms not right yet, and a new term at most every four questions.");
+  await expect(line(page, "Pace")).toContainText("Up to two terms not right yet, and a new term at most every four questions. Guidance steps down after 30 right answers in an exercise, then 20 more.");
   expect(await page.evaluate(() => localStorage.getItem("rd-pace"))).toBe("2");
   // at stage 0 neither the negations nor the depth can be set yet
   await expect(diff(page).getByRole("group", { name: "Negations" })).toHaveCount(0);

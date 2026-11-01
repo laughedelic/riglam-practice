@@ -7,17 +7,18 @@ import { state } from "../state.js";
 import { NOT } from "../../ai-shared/debate.ts";
 import { setQuorum } from "../ai/quorum.js";
 import { setCategoriesAsk } from "../categories/flow.js";
-import { setInstanceSuggest } from "../instance/flow.ts";
 import { canAsk } from "../core/ask.js";
 import { WORDINGS } from "../debate/text.js";
 import { exName } from "../shell/exercises.js";
-import { GUIDES, guided, setGuided } from "../practice/guided.ts";
+import { GUIDANCE_NAMES, GUIDES, guidance, setGuidance } from "../practice/guided.ts";
+import { PACE_NAME } from "../practice/difficulty.ts";
 import { progressNow } from "../practice/stage-offer.ts";
 import { toggleOpts } from "../shell/options.js";
 import { SYMS, openPage, quorumNote, setAutoExplain, setNota, setShow, setSyllogismWording, setWording, toggleSess } from "../shell/session.js";
 import { kindMs, setBlitz, setTimer } from "../shell/timers.js";
 import { ANSWER_PICKS, CONFIRM_PICKS, RATES, READ_NOTE, SAMPLE, VOICE_LEAD, VOICE_SAY, WHERE, hookVoices, setVoice, voiceGroups, voiceShown } from "../shell/voice.js";
-import { LADDER_TOP } from "../../domain/stages.ts";
+import { GUIDANCE, LADDER_TOP, guideSteps } from "../../domain/stages.ts";
+import type { Guidance } from "../../domain/stages.ts";
 import { type TimeKind, timesOf } from "../../domain/sprint.ts";
 import { canHear, canSpeak, speak, voiceList } from "../../ui/speech";
 import { ProgressPage } from "./progress.tsx";
@@ -86,14 +87,15 @@ const voiceLine = () => [canSpeak() && state.voice.read ? "reads each question" 
 const TUTOR: [string, string][] = [["every", "Every answer"], ["ask", "When I ask"]];
 const setTutor = (k: string) => setAutoExplain(k === "every");
 
+/** The levels of guidance, as the line and its page name them (practice/guided.ts). */
+const LEVELS: [Guidance, string][] = GUIDANCE.map((g) => [g, GUIDANCE_NAMES[g]]);
 /** The list: under the exercise's name what is its own, under Practice what every exercise has where it is built, and the way on to Settings. */
 function List() {
   const tab = state.tab;
-  const guide = GUIDES[tab] ? <Line title="Guided" sub={GUIDES[tab]!.on} sw={{ on: guided(tab), toggle: () => setGuided(tab, !guided(tab)) }} /> : null;
+  const guide = GUIDES[tab] ? <Line title="Guidance" go={() => openPage("guidance")}><Words label="Guidance" items={LEVELS} cur={guidance(tab)} on={(g) => setGuidance(tab, g)} /></Line> : null;
   return <>
     <Group name={exName(tab)}>
       {guide}
-      {tab === "instance" ? <Line title="Guided" sub="things the course knows, suggested as you write" sw={{ on: state.instSuggest, toggle: () => setInstanceSuggest(!state.instSuggest) }} /> : null}
       {tab === "categories" ? <Line title="One category at a time" sub="a yes or a no for each, in turn" sw={{ on: state.catsAsk === "one", toggle: () => setCategoriesAsk(state.catsAsk === "one" ? "all" : "one") }} /> : null}
       {wordings() || signs() ? <Line title="Wording and notation" sub={textLine()} go={() => openPage("text")} /> : null}
     </Group>
@@ -142,8 +144,19 @@ function TextPage() {
       <span class="olsamp">Name something that is <b class="conn">both</b> <Sub k="a">a thing that is heard</Sub> <b class="conn">and</b> <Sub k="b">a sound</Sub>.</span></Line> : null}
   </>;
 }
+/** Guidance: what each level shows in this exercise, how it steps down by itself, and the pick. */
+function GuidancePage() {
+  const tab = state.tab, g = GUIDES[tab]; if (!g) return null;
+  const right = state.exRuns[tab]?.right ?? 0, picked = state.guided[tab] !== undefined, [a, b] = guideSteps(state.pace);
+  return <>
+    <Intro>{"How much help " + g.name + " gives. It starts at Detailed and steps down by itself: at your pace (" + (PACE_NAME[state.pace] || "steady") + ", on the Progression page) to Hints after " + a + " right answers here, and to None after " + b + " more. A level you pick here stays; Reset progression starts it over."}</Intro>
+    <Picks label="Guidance" items={GUIDANCE.map((k) => [k, GUIDANCE_NAMES[k], g[k]] as [Guidance, string, string])} cur={guidance(tab)} on={(k) => setGuidance(tab, k)} />
+    <p class="sintro">{picked ? GUIDANCE_NAMES[guidance(tab)] + ", as you picked it." : right + (right === 1 ? " right answer" : " right answers") + " here so far."}</p>
+  </>;
+}
 function Page({ id }: { id: string }) {
   if (id === "text") return <TextPage />;
+  if (id === "guidance") return <GuidancePage />;
   if (id === "times") return <>
     <Intro>{"A clock for each step, switched on and off with the stopwatch in the top bar (each exercise keeps its own); hold the stopwatch to come back here. The bar fills over the time, and when it is full the exercise moves on by itself. " + (TIME_UP[state.tab] || "")}</Intro>
     {timesOf(state.tab).map((k) => <Time kind={k} label={TIME_NAME[k]} note={TIME_NOTE(k, state.tab)} />)}</>;
@@ -191,7 +204,7 @@ function TutorPage() {
 }
 
 /** The Path's pages of the practice options, by the names their lines have. */
-const TITLES: Record<string, string> = { text: "Wording and notation", stages: "Difficulty", times: "Sprint", voice: "Voice", tutor: "Claude AI", progress: "Progression" };
+const TITLES: Record<string, string> = { guidance: "Guidance", text: "Wording and notation", stages: "Difficulty", times: "Sprint", voice: "Voice", tutor: "Claude AI", progress: "Progression" };
 const sheetOn = () => state.sessOpen && state.mode === "quiz";
 /** The sheet's own page that is open (one of TITLES), or null for the list. */
 const sheetPage = () => sheetOn() && state.sessPage && TITLES[state.sessPage] && (state.sessPage !== "voice" || voiceShown()) && (state.sessPage !== "tutor" || tutorShown()) ? state.sessPage : null;

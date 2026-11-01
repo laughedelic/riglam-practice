@@ -18,7 +18,7 @@ import { LANGS, normLangs, termNames } from "../../src/domain";
 import { AGAIN_AFTER, FIRST_AFTER, OPEN_CAP, PACES, SETTLED, SPACING, afterQuestion, againAsked, askedKey, freshIntro, introduced, metTerms, newTermDue, nextStageDue, nextStop, normIntro, normPace, openTerms, paceSpacing, pairGraded, showAgain, stageMarks, stageMet, stageTerms, stageUp, stopCat, stopShown, termMark, termTree, unmet, wordsFor } from "../../src/domain";
 import { instanceGraded, instanceQuestion } from "../../src/domain/instance";
 import { DEFAULT_STAGES, DEFINITION_STAGE, HOLD_STAGE, LADDER_TOP, MAX_STAGE, NEG_OPEN, NEG_STREAK, NEG_SUGGEST, STAGES, START_SHARE, STAGE_STREAK, STAGE_STUMBLE, catOpen, depthOf, depthOpen, drawSyllogism, ladderOf, ladderTop, negationSuggested, withDepth, heldBack, itemKnown, itemOn, itemStageFor, levelAt, negationOffer, newCategories, normStages, pairStage, physical, poolAt, stagesOfLevels, toggleStage, topStage } from "../../src/domain";
-import { GUIDE_RIGHT, LOWER_CREDIT, NO_TERMS, STAGE_LONGER, STAGE_STREAK_MAX, cameDown, exerciseAfter, freshRun, guideTurnsOff, guidedOn, movedUp, newShare, normExRuns, normGuided, normRun, restartRun, runAfter, runNeed, runWanted, setManual, stageOffer, stageProgress, stayLonger, termsOf } from "../../src/domain";
+import { GUIDE_RIGHT, LOWER_CREDIT, NO_TERMS, STAGE_LONGER, STAGE_STREAK_MAX, cameDown, exerciseAfter, freshRun, guidanceByRight, guidanceOf, guidanceStep, movedUp, newShare, normExRuns, normGuided, normRun, restartRun, runAfter, runNeed, runWanted, setManual, stageOffer, stageProgress, stayLonger, termsOf } from "../../src/domain";
 import type { MissKind, StageRun } from "../../src/domain";
 import { drawPlace, itemRows, placeThings } from "../../src/domain/place";
 import { normLevels, upTo } from "../../src/ai-shared";
@@ -27,6 +27,7 @@ import { FACTS_EPOCH, factKey, learn, opinionOf, ruleSide, servable } from "../.
 import type { Answer, FactRow, Opinion, Ruling } from "../../src/domain";
 import { knownLine, openExamples, referenceLines, wholeFirst } from "../../src/domain";
 import { makeExampleIndex } from "../../src/ai-shared/examples";
+import { guideSteps } from "../../src/domain/stages";
 
 /** A small deterministic random source (mulberry32), so a test draws the same numbers every time. */
 const seeded = (seed: number) => () => {
@@ -1359,17 +1360,41 @@ test("the pair draw shares the review among the stages below the highest, not am
   expect(gap.by(4)).toBeGreaterThan(0.45);
 });
 
-test("an exercise's guided form is on until its twentieth right answer turns it off, once; a choice the learner made stays", () => {
+test("guidance steps down by itself, at the steady pace Detailed to Hints at the twentieth right answer and to None at the thirty-fifth, once each; a level the learner picked stays", () => {
   expect(GUIDE_RIGHT).toBe(20);
-  expect(guidedOn(undefined)).toBe(true);
-  expect(guidedOn(false)).toBe(false);
-  expect(guideTurnsOff(undefined, { run: 5, right: 19 })).toBe(false);
-  expect(guideTurnsOff(undefined, { run: 5, right: 20 })).toBe(true);
-  expect(guideTurnsOff(undefined, undefined)).toBe(false);
-  expect(guideTurnsOff(true, { run: 5, right: 40 }), "turned on by the learner: it stays on").toBe(false);
-  expect(guideTurnsOff(false, { run: 5, right: 40 }), "already off").toBe(false);
-  expect(normGuided('{"practice":false,"find":true,"Bad":false,"debate":"no"}')).toEqual({ practice: false, find: true });
+  expect(guidanceByRight(0)).toBe("detailed");
+  expect(guidanceByRight(19)).toBe("detailed");
+  expect(guidanceByRight(20)).toBe("hints");
+  expect(guidanceByRight(34)).toBe("hints");
+  expect(guidanceByRight(35)).toBe("none");
+  expect(guidanceOf(undefined, undefined)).toBe("detailed");
+  expect(guidanceOf(undefined, { run: 5, right: 25 })).toBe("hints");
+  expect(guidanceOf("detailed", { run: 5, right: 45 }), "picked by the learner: it stays").toBe("detailed");
+  expect(guidanceOf("none", undefined)).toBe("none");
+  expect(guidanceStep(undefined, { run: 5, right: 19 }, { run: 6, right: 20 })).toBe("hints");
+  expect(guidanceStep(undefined, { run: 5, right: 34 }, { run: 6, right: 35 })).toBe("none");
+  expect(guidanceStep(undefined, { run: 6, right: 20 }, { run: 7, right: 21 }), "already Hints").toBeNull();
+  expect(guidanceStep(undefined, undefined, { run: 1, right: 1 })).toBeNull();
+  expect(guidanceStep(undefined, { run: 6, right: 20 }, { run: 0, right: 20 }), "a miss changes nothing").toBeNull();
+  expect(guidanceStep("detailed", { run: 5, right: 19 }, { run: 6, right: 20 }), "picked by the learner").toBeNull();
+  // a level stored as a word; a boolean from before the three levels reads as Detailed (on) or None (off)
+  expect(normGuided('{"practice":false,"find":true,"debate":"hints","syllogism":"none","Bad":"none","categories":"no"}')).toEqual({ practice: "none", find: "detailed", debate: "hints", syllogism: "none" });
+  expect(normGuided({ instance: "detailed" })).toEqual({ instance: "detailed" });
   expect(normGuided("nope")).toEqual({});
+});
+
+test("the pace sets how soon guidance steps down: careful 30 and 20 more, steady 20 and 15 more, brisk 10 and 10 more", () => {
+  expect(PACES.map((n) => guideSteps(n))).toEqual([[30, 20], [20, 15], [10, 10]]);
+  expect(guideSteps(), "no pace: the steady one").toEqual([20, 15]);
+  expect(guideSteps(4), "a pace that is not known: the steady one").toEqual([20, 15]);
+  expect([29, 30, 49, 50].map((r) => guidanceByRight(r, 2))).toEqual(["detailed", "hints", "hints", "none"]);
+  expect([9, 10, 19, 20].map((r) => guidanceByRight(r, 5))).toEqual(["detailed", "hints", "hints", "none"]);
+  expect(guidanceOf(undefined, { run: 3, right: 25 }, 2), "careful keeps Detailed longer").toBe("detailed");
+  expect(guidanceOf(undefined, { run: 3, right: 25 }, 5), "brisk lets it go sooner").toBe("none");
+  expect(guidanceOf("hints", { run: 3, right: 25 }, 5), "picked by the learner: it stays").toBe("hints");
+  expect(guidanceStep(undefined, { run: 5, right: 9 }, { run: 6, right: 10 }, 5)).toBe("hints");
+  expect(guidanceStep(undefined, { run: 5, right: 19 }, { run: 6, right: 20 }, 2), "careful: not yet").toBeNull();
+  expect(guidanceStep(undefined, { run: 5, right: 49 }, { run: 6, right: 50 }, 2)).toBe("none");
 });
 
 test("the real data: a category opens at its stage and stays open; a person or what does not exist meets the physical categories from stage 5", () => {

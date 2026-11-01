@@ -157,7 +157,7 @@ function StageLine({ n, name, adds, group, top, pick }: { n: number; name: strin
 /** Reset progression, asked to confirm. */
 function Reset() {
   const ask = state.resetAsk, to = (v: "" | "ask") => { state.resetAsk = v; render(); };
-  return <Line title="Reset progression" sub={ask === "done" ? "Done: stage 0, and the course terms come one at a time again." : "Back to stage 0 with no course term met, negations off and every exercise guided again, on every device signed in to your account. Your answers, their statistics and your settings stay."}>
+  return <Line title="Reset progression" sub={ask === "done" ? "Done: stage 0, and the course terms come one at a time again." : "Back to stage 0 with no course term met, negations off and every exercise's guidance back to Detailed, on every device signed in to your account. Your answers, their statistics and your settings stay."}>
     {ask === "ask" ? <span class="pvline2"><button type="button" class="pbtn" onClick={() => { state.resetAsk = "done"; resetProgress(); }}>Reset</button><button type="button" class="pbtn quiet" onClick={() => to("")}>Keep it</button></span>
       : ask === "" ? <span class="pvline2"><button type="button" class="pbtn quiet" onClick={() => to("ask")}>Reset progression</button></span> : null}</Line>;
 }

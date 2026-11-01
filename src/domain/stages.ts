@@ -410,19 +410,45 @@ export function normExRuns(raw: unknown): Record<string, ExerciseRun> {
 }
 
 /**
- * The right answers in an exercise after which its guided form (the hints, the structure shown, the sentences spelled out) turns off by itself,
- * with a line that says so; a choice the learner made stays.
+ * Guidance, the help an exercise gives on the Path, in three levels: Detailed spells things out in the item's own words (the relations with the
+ * pair's terms, a counter-example or a syllogism's reply in full, course terms suggested where something is named), Hints gives the same shape with
+ * letters (A and B; S, P and R), and None gives the names alone. An exercise starts at Detailed and steps down by itself as its right answers come, by
+ * the pace (GUIDE_STEPS): at the steady pace to Hints after 20 right answers in it, to None after 15 more, with a line on the result each time. A level
+ * the learner picked stays.
  */
+export type Guidance = "detailed" | "hints" | "none";
+export const GUIDANCE: readonly Guidance[] = ["detailed", "hints", "none"];
+/** The right answers in an exercise that the first step of its guidance takes at the steady pace. */
 export const GUIDE_RIGHT = 20;
-/** Whether an exercise shows its guided form: as set (by the learner, or by itself once), else on. */
-export const guidedOn = (set: boolean | undefined): boolean => set ?? true;
-/** Whether the guided form turns off by itself after this answer: nothing set yet, and the exercise has had GUIDE_RIGHT right answers. */
-export const guideTurnsOff = (set: boolean | undefined, r: ExerciseRun | undefined): boolean => set === undefined && (r?.right ?? 0) >= GUIDE_RIGHT;
-/** The stored choices of the guided form, by exercise; none when they cannot be read. */
-export function normGuided(raw: unknown): Record<string, boolean> {
+/**
+ * The right answers each step of the guidance takes, by the pace (intro.ts, PACES: how many terms may be open at once): to Hints, then to None. A careful
+ * learner keeps the help longer, a brisk one lets it go sooner. The level follows the pace: a slower pace chosen later can bring a level back.
+ */
+export const GUIDE_STEPS: Readonly<Record<number, readonly [number, number]>> = { 2: [30, 20], 3: [GUIDE_RIGHT, 15], 5: [10, 10] };
+/** The two steps at a pace; the steady pace's for one that is not known. */
+export const guideSteps = (pace?: number): readonly [number, number] => GUIDE_STEPS[pace ?? 3] ?? GUIDE_STEPS[3];
+/** The level an exercise's right answers bring it to by themselves at a pace (steady when none is given): Detailed, then Hints, then None (GUIDE_STEPS). */
+export const guidanceByRight = (right: number, pace?: number): Guidance => {
+  const [a, b] = guideSteps(pace);
+  return right >= a + b ? "none" : right >= a ? "hints" : "detailed";
+};
+/** An exercise's level: the learner's pick, else the one its right answers have brought it to at the pace. */
+export const guidanceOf = (set: Guidance | undefined, r: ExerciseRun | undefined, pace?: number): Guidance => set ?? guidanceByRight(r?.right ?? 0, pace);
+/** The level an answer took the exercise down to by itself (its record before and after the answer), or null: none when the learner picked one. */
+export function guidanceStep(set: Guidance | undefined, before: ExerciseRun | undefined, after: ExerciseRun | undefined, pace?: number): Guidance | null {
+  if (set !== undefined) return null;
+  const was = guidanceByRight(before?.right ?? 0, pace), now = guidanceByRight(after?.right ?? 0, pace);
+  return was === now ? null : now;
+}
+/** The stored picks of guidance, by exercise; none when they cannot be read. A switch stored before the levels (on or off) reads as Detailed or None. */
+export function normGuided(raw: unknown): Record<string, Guidance> {
   let v: unknown = raw;
   if (typeof raw === "string") { try { v = JSON.parse(raw); } catch { return {}; } }
-  const out: Record<string, boolean> = {};
-  for (const [k, on] of Object.entries(v && typeof v === "object" ? v : {})) if (/^[a-z]{1,20}$/.test(k) && typeof on === "boolean") out[k] = on;
+  const out: Record<string, Guidance> = {};
+  for (const [k, g] of Object.entries(v && typeof v === "object" ? v : {})) {
+    if (!/^[a-z]{1,20}$/.test(k)) continue;
+    if (typeof g === "boolean") out[k] = g ? "detailed" : "none";
+    else if (GUIDANCE.includes(g as Guidance)) out[k] = g as Guidance;
+  }
   return out;
 }

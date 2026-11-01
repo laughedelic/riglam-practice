@@ -1,27 +1,62 @@
-// The guided form of each exercise on the Path (src/domain/stages.ts, GUIDE_RIGHT). On by default, an exercise shows its hints: the structure,
-// the sentences spelled out, the terms suggested. After GUIDE_RIGHT right answers in it, the guided form turns off by itself, once, and the result
-// says so; from then on only the learner's switch in the exercise's practice options changes it. Part of the progression (practice/progress.ts),
-// so Reset progression turns it on again.
+// Guidance, the help each exercise gives on the Path, in three levels (src/domain/stages.ts): Detailed, Hints, None. An exercise starts at Detailed
+// and steps down by itself as its right answers come (how many: by the pace, GUIDE_STEPS), and the result says so; a level the learner picks in the exercise's
+// practice options stays. Part of the progression (practice/progress.ts), so Reset progression starts every exercise at Detailed again.
 import { state } from "../state.js";
 import { saveProgress } from "./progress.ts";
 import { render } from "../shell/render.js";
-import { guideTurnsOff, guidedOn } from "../../domain/stages.ts";
+import { guidanceOf, guidanceStep } from "../../domain/stages.ts";
+import type { ExerciseRun, Guidance } from "../../domain/stages.ts";
 
-/** The exercises with a guided form: the name, what the guided form shows, and what changes once it is off. */
-export const GUIDES: Record<string, { name: string; on: string; off: string }> = {
-  practice: { name: "Relations", on: "the relations spelled out with the pair", off: "the relations come by their names alone" },
-  debate: { name: "Pervasions", on: "what Accept and Why? say, and the relations spelled out", off: "Accept, Why? and the relations come by their names alone" },
-  find: { name: "Find a pair", on: "course terms suggested as you type", off: "the course terms are no longer suggested as you type" },
-  syllogism: { name: "Syllogisms", on: "what each reply says in S, P and R", off: "the replies come with a few plain words, not spelled out in S, P and R" },
+/** The names of the levels, as the practice options show them. */
+export const GUIDANCE_NAMES: Record<Guidance, string> = { detailed: "Detailed", hints: "Hints", none: "None" };
+
+/** Each exercise on the Path: its name, and what each level of guidance shows in it. */
+export const GUIDES: Record<string, { name: string } & Record<Guidance, string>> = {
+  practice: {
+    name: "Relations",
+    detailed: "Each relation spelled out with the pair’s two terms, and each example asked for in a full sentence.",
+    hints: "Each relation spelled out with A and B; each example asked for by its case alone (both A and B).",
+    none: "The relations by their names alone; each example by its case.",
+  },
+  debate: {
+    name: "Pervasions",
+    detailed: "Why? says what a counter-example would be, in the pair’s words, and asks for one the same way; the relations as in Relations.",
+    hints: "Why? says what a counter-example would be, with A and B; the relations spelled out with A and B.",
+    none: "Accept and Why? side by side, and the relations by their names alone.",
+  },
+  find: {
+    name: "Find a pair",
+    detailed: "The relation spelled out with A and B, course terms suggested as you type, and each example asked for in a full sentence.",
+    hints: "The relation spelled out with A and B; nothing suggested as you type; each example asked for by its case alone (both A and B).",
+    none: "The relation by its name alone; nothing suggested as you type; each example by its case.",
+  },
+  syllogism: {
+    name: "Syllogisms",
+    detailed: "Each reply spelled out with this syllogism’s own words.",
+    hints: "Each reply as a formula in S, P and R.",
+    none: "The replies by their names alone, and no S, P and R legend.",
+  },
+  categories: {
+    name: "Categories",
+    detailed: "A line over the thing that says what to select; the result shows every reason and spells out each category that was wrong or missed.",
+    hints: "A shorter line over the thing that says what to select; the result shows the reasons of the wrong ones.",
+    none: "The categories alone.",
+  },
+  instance: {
+    name: "Find an instance",
+    detailed: "Things the course knows, suggested as you type.",
+    hints: "Nothing suggested as you type.",
+    none: "Nothing suggested as you type.",
+  },
 };
 
-/** Whether exercise `ex` shows its guided form. */
-export const guided = (ex: string): boolean => guidedOn(state.guided[ex]);
-/** The learner's switch: it stays as set. */
-export function setGuided(ex: string, on: boolean) { state.guided = { ...state.guided, [ex]: on }; saveProgress(); render(); }
-/** A checked answer in `ex` (practice/stage-offer.ts, stageStep, which saves): the guided form turns off by itself once the exercise has its right answers. */
-export function guideStep(ex: string) {
-  if (!GUIDES[ex] || !guideTurnsOff(state.guided[ex], state.exRuns[ex])) return;
-  state.guided = { ...state.guided, [ex]: false };
-  if (state.ui) state.ui.guideOff = ex;
+/** The level of guidance exercise `ex` shows. */
+export const guidance = (ex: string): Guidance => guidanceOf(state.guided[ex], state.exRuns[ex], state.pace);
+/** The learner's pick: it stays. */
+export function setGuidance(ex: string, g: Guidance) { state.guided = { ...state.guided, [ex]: g }; saveProgress(); render(); }
+/** A checked answer in `ex` (practice/stage-offer.ts, stageStep, which saves), `before` its record before the answer: when the answer took the guidance a step down by itself, the result says so. */
+export function guideStep(ex: string, before: ExerciseRun | undefined) {
+  if (!GUIDES[ex]) return;
+  const to = guidanceStep(state.guided[ex], before, state.exRuns[ex], state.pace);
+  if (to && state.ui) state.ui.guideDown = { ex, to, right: state.exRuns[ex]?.right ?? 0 };     // the count at the step: the pace may change while the result shows
 }

@@ -147,7 +147,7 @@ test("Reset progression on the Progression page asks first, then starts at stage
   expect(await cats(page)).not.toContain("form");
   const doc = await page.evaluate(async () => { const s = await (await window.__riglam.platform.db()).collection("progress").doc("learner").get(); return s.exists ? s.data() : null; });
   expect(doc).toMatchObject({ stages: [0], negation: "off", terms: { n: 0, terms: {} }, run: { up: 0, down: 0 }, exercises: {} });
-  expect(await page.evaluate(() => [localStorage.getItem("rd-stage-run"), localStorage.getItem("rd-ex-runs"), localStorage.getItem("rd-guided")]), "the runs towards the stage offers start again, and every exercise is guided").toEqual(['{"up":0,"down":0}', "{}", "{}"]);
+  expect(await page.evaluate(() => [localStorage.getItem("rd-stage-run"), localStorage.getItem("rd-ex-runs"), localStorage.getItem("rd-guided")]), "the runs towards the stage offers start again, and every exercise's guidance starts at Detailed").toEqual(['{"up":0,"down":0}', "{}", "{}"]);
 });
 
 test("the stop shows the terms above the term, gray with a sign while their own stops are to come, and says that divisions come later", async ({ page }) => {
