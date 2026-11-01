@@ -200,8 +200,9 @@ function again(a,heard,hint,ask){
 const same=(x,y)=>plainWords(x)===plainWords(y);
 const terms=()=>({a:state.cur.p.a,b:state.cur.p.b});
 const ownKinds=new Set(["syl","counter","cats","yesno","pair","instance"]);
-// "no" after a step went on takes it back, except where "no" is itself an answer: Pervasions' Accept or Why?, and the yes or no of one category at a time
-const answersNo=(a,alts)=>((a.kind==="reply"||a.kind==="example")&&!!spokenReply(state,alts))||(a.kind==="yesno"&&spokenYesNo(alts)==="no");
+// "no" after a step went on takes it back, except where "no" is itself an answer: Pervasions' Accept or Why?, the yes or no of one category at a time, and "no" (or "nope")
+// at the counter-example question, which leaves the counter-example out ("back" and "undo" still take the step back there)
+const answersNo=(a,alts)=>((a.kind==="reply"||a.kind==="example")&&!!spokenReply(state,alts))||(a.kind==="yesno"&&spokenYesNo(alts)==="no")||(a.kind==="counter"&&alts.some((h)=>/^(?:no|nope)$/.test(plainWords(h))));
 // what was heard, as the tap or the typed answer it stands for, once it is confirmed. What `apply` returns, if it returns anything, takes the step back (the chip's Change)
 function take(a,alts){
   const v=state.voice, w=Wd();

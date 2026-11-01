@@ -369,7 +369,7 @@ export function spokenCounter(ix: DataIndex, alts: readonly string[]): SpokenExa
 
 // ---- Find an instance: a thing, or that nothing is all of the categories ----
 
-const NOTHING = /^(?:no |nope |there (?:isnt|arent|is not|are not) (?:one|any)|there (?:is|are) |theres )?(?:no such thing|nothing|none|no one|no thing|nobody|there isnt one|there is not one|there isnt any|there is not any|no|nope)(?: (?:is|can be|exists?))?(?: (?:both|all|all three|all of them|one of them|those|that))?(?: of them)?$/;
+const NOTHING = /^(?:no |nope |there (?:is|are) |theres )?(?:no such thing|nothing|none|no one|no thing|nobody|there (?:isnt|arent|is not|are not) (?:one|any)|no|nope)(?: (?:is|can be|exists?))?(?: (?:both|all|all three|all of them|one of them|those|that))?(?: of them)?$/;
 /** A thing for "name something that is …", or "nothing" (also "nothing is both", "there is none"), which comes back as `none`. */
 export function spokenThing(ix: DataIndex, alts: readonly string[]): SpokenExample | null {
   const none = alts.find((heard) => NOTHING.test(plainWords(heard)));
@@ -418,8 +418,20 @@ const catTokens = (s: string) => plainWords(s).split(" ").filter((x) => x && !CA
 const NEGATING = ["im", "in", "un", "non", "dis"];
 const opposite = (a: string, b: string) => NEGATING.some((p) => (a === p + b && b.length >= 4) || (b === p + a && a.length >= 4));
 const sameWord = (heard: string, word: string) => !opposite(singular(heard), singular(word)) && (similarity(singular(heard), singular(word)) >= 0.8 || (word.length >= 4 && heard.length >= 4 && (heard.startsWith(word) || word.startsWith(heard))));
-// the categories it IS in are asked for: a guess that says what it is not is not read as the categories it names ("non-functional", "not a color")
-const NEGATION = /\b(?:not|non|no|never|without|isnt|arent|dont|doesnt|cant|cannot)\b/;
+// the categories it IS in are asked for: a guess that says what it is not is not read as the categories it names ("non-functional", "not a color"). Only a negation the
+// rows did not take counts: "non" in "a non-associated compositional factor" is a word of that row
+const NEGATION = /^(?:not|non|no|never|without|isnt|arent|dont|doesnt|cant|cannot)$/;
+/** The place of each word of `tokens` in `left`, taken one after another (a word said once is not two of a row's words), or null when one is missing. */
+function takeTokens(tokens: readonly string[], left: readonly string[]): number[] | null {
+  const work = left.slice(), at: number[] = [];
+  for (const t of tokens) {
+    const i = work.findIndex((x) => x && sameWord(x, t));
+    if (i < 0) return null;
+    work[i] = "";
+    at.push(i);
+  }
+  return at;
+}
 export interface SpokenCategories {
   /** the categories said (ids), in the order of the rows */
   cats: string[];
@@ -436,7 +448,6 @@ export function spokenCategories(alts: readonly string[], rows: readonly { cat: 
     const w = plainWords(heard).replace(/^(?:it is |its |it's |they are |that is |i think |the categories are )/, "");
     if (NO_CATS.test(w)) return { cats: [], heard };
     if (ALL_CATS.test(w)) return { cats: rows.map((r) => r.cat), heard };
-    if (NEGATION.test(w)) continue;
     const NUM = ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
     const words = w.split(" ").filter(Boolean);
     if (words.length && words.every((x) => NUM.includes(x) || x === "and" || x === "number" || x === "numbers")) {
@@ -445,15 +456,21 @@ export function spokenCategories(alts: readonly string[], rows: readonly { cat: 
     }
     const left = words.slice(), found = new Set<string>();
     for (const { r, tokens } of byLength) {
-      const at = tokens.map((t) => left.findIndex((x) => x && sameWord(x, t)));
-      if (at.every((i) => i >= 0) && new Set(at).size === at.length) { for (const i of at) left[i] = ""; found.add(r.cat); }
+      const at = takeTokens(tokens, left);
+      if (at) { for (const i of at) left[i] = ""; found.add(r.cat); }
     }
-    // a category of several words may be said by its one distinctive word ("permanent" for "a permanent phenomenon"), where no other category has a word like it
+    // a category of several words may be said by its one distinctive word ("permanent" for "a permanent phenomenon"), where no other category has a word like it;
+    // not when a word left over is the opposite of one of its words ("impermanent phenomenon" is not "a permanent phenomenon")
     for (const { r, tokens } of byLength) {
       if (found.has(r.cat)) continue;
+      if (left.some((x) => x && tokens.some((t) => opposite(singular(x), singular(t))))) continue;
       const i = left.findIndex((x) => x && tokens.some((t) => t.length >= 6 && sameWord(x, t) && !byLength.some((o) => o.r !== r && o.tokens.some((u) => sameWord(u, t)))));
-      if (i >= 0) { left[i] = ""; found.add(r.cat); }
+      if (i >= 0) {
+        left[i] = ""; found.add(r.cat);
+        for (const t of tokens) if (NEGATION.test(t)) { const j = left.indexOf(t); if (j >= 0) left[j] = ""; }   // "non" of "non-associated", said as "associated" with it
+      }
     }
+    if (left.some((x) => NEGATION.test(x))) continue;
     if (found.size) return { cats: rows.map((r) => r.cat).filter((c) => found.has(c)), heard };
   }
   return null;

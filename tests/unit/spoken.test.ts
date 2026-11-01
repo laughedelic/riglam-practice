@@ -167,7 +167,7 @@ test("\"I don't know\" in its usual wordings, and not inside an answer", () => {
 });
 
 // ---- the other four exercises ----
-import { spokenCategories, spokenCommand, spokenCounter, spokenPair, spokenSyllogism, spokenThing, spokenYesNo } from "../../src/domain";
+import { spokenCategories, spokenCommand, spokenCounter, spokenPair, spokenSyllogism, spokenThing, spokenYesNo, termPhrase } from "../../src/domain";
 import type { SylReply } from "../../src/domain";
 
 const SYL_ORDER: SylReply[] = ["reason", "pervasion", "accept"];
@@ -267,8 +267,31 @@ test("categories: what it is not is not ticked, a word that only looks like anot
   expect(spokenCategories(["6"], ROWS)?.cats).toEqual(["perm"]);
 });
 
+test("categories: every real row phrase said alone ticks itself among other rows, and the words of an opposite do not tick it", () => {
+  type Cat = { id: string; term?: string; phrases?: string[]; labels: string[] };
+  const cats = (openData as unknown as { cats: Cat[] }).cats;
+  const phrases = cats.map((c) => ({ cat: c.id, phrase: c.term ? termPhrase(c.term) : (c.phrases?.[0] ?? c.labels[0]) }));
+  // rows of six, the one asked among five others in a fixed order (no randomness: a failure must come back the same)
+  phrases.forEach((row, n) => {
+    const others = [1, 7, 13, 29, 41].map((k) => phrases[(n + k) % phrases.length]).filter((r) => r.cat !== row.cat);
+    const rows = [...others, row];
+    expect(spokenCategories([row.phrase], rows)?.cats, row.phrase).toEqual([row.cat]);
+    expect(spokenCategories(["it is " + row.phrase], rows)?.cats, "it is " + row.phrase).toEqual([row.cat]);
+  });
+  // a row with the same word twice, and one whose own word is a negation
+  const rows = [{ cat: "body", phrase: "a body or a body part" }, { cat: "non", phrase: "a non-associated compositional factor" }, { cat: "col", phrase: "a color" }];
+  expect(spokenCategories(["a body or a body part"], rows)?.cats).toEqual(["body"]);
+  expect(spokenCategories(["a color and a non-associated compositional factor"], rows)?.cats).toEqual(["non", "col"]);
+  expect(spokenCategories(["non-associated"], rows)?.cats).toEqual(["non"]);
+  expect(spokenCategories(["not a non-associated compositional factor"], rows)).toBeNull();
+  // "impermanent phenomenon" shares "phenomenon" with a permanent one and is still not it
+  const perm = [{ cat: "perm", phrase: "a permanent phenomenon" }, { cat: "col", phrase: "a color" }];
+  for (const s of ["impermanent phenomena", "an impermanent phenomenon", "it is an impermanent phenomenon"]) expect(spokenCategories([s], perm), s).toBeNull();
+  expect(spokenCategories(["a permanent phenomenon"], perm)?.cats).toEqual(["perm"]);
+});
+
 test("a refusal is not taken as the example", () => {
-  for (const s of ["no", "Nope", "no, nothing", "there isn't one", "there is none"]) {
+  for (const s of ["no", "Nope", "no, nothing", "there isn't one", "there is none", "there aren't any"]) {
     expect(spokenThing(ix, [s]), s).toMatchObject({ none: true });
     expect(spokenCounter(ix, [s]), s).toMatchObject({ none: true });
   }
