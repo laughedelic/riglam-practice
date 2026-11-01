@@ -26,6 +26,7 @@ import "./debate/text.js";
 import "./shell/timers.js";
 import { voiceOn } from "../ui/speech";
 import { refreshPath, startPath } from "./path/index.tsx";
+import { startNews } from "./path/news.tsx";
 import { startPerExercise } from "./practice/per-exercise.ts";
 import { armSounds } from "./sound/play.ts";
 
@@ -133,6 +134,7 @@ function firstScreen(){
   const why=state.unlock&&state.unlock.problem;
   if(why){ state.unlock.problem=null; state.motion=false; openKey(null,why); return; }
   render();
+  startNews();                      // after an Update: What's new (path/news.tsx)
 }
 function settle(){
   if(!state.gotB||!state.gotA||!state.gotS) return;

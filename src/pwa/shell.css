@@ -7,13 +7,6 @@ body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;ba
 img{max-width:100%}
 [hidden]:not([hidden=until-found i]){display:none!important}
 
-/* The notice of a newer version (src/pwa/update-toast.ts): a small card that drops in under the top bar, centered on a phone, at the right on a wide screen. */
-#upd{position:fixed;z-index:30;top:calc(60px + env(safe-area-inset-top,0px));left:12px;right:12px;margin-inline:auto;width:max-content;max-width:calc(100% - 24px);box-sizing:border-box;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:10px 10px 10px 14px;background:var(--paper,#fff);color:var(--ink,#000);border:1.5px solid var(--ink,#000);box-shadow:4px 4px 0 var(--ink,#000);font:14px/1.4 var(--body,sans-serif)}
-#upd span{flex:1 1 auto;font-weight:700}
-#upd .btn{height:36px;padding:0 12px}
-@media (min-width:900px){#upd{left:auto;right:16px;margin-inline:0}}
-@media (prefers-reduced-motion:no-preference){#upd{animation:upd-in .22s ease-out}}
-@keyframes upd-in{from{opacity:0;transform:translateY(-8px)}}
 /* The note that the device's storage does not answer (src/pwa/storage-notice.ts): a bar along the top edge. */
 #store{position:fixed;left:0;right:0;top:0;z-index:31;box-sizing:border-box;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:calc(10px + env(safe-area-inset-top,0px)) 16px 10px;background:var(--paper,#fff);color:var(--ink,#000);border-bottom:1.5px solid var(--ink-muted,#4d5260);font:14px/1.4 var(--body,sans-serif)}
 #store span{flex:1 1 auto}

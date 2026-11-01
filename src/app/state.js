@@ -73,6 +73,11 @@ export const state = {
   nota: "codes",
   optsOpen: false,   // Settings (the device and the account) covers the exercise
   optsPage: null,    // the Path's Settings: the line whose own page is open (path/settings.tsx), or null for the sections
+  newsDirect: false, // What's new was opened from the roadmap's line or after an update (path/news.tsx): its way back goes where it came from
+  newsSince: null,
+  newsArrive: false, // What's new opened right after Update: the new items snap onto the path
+  pinAt: null,      // the question the exercise's update line was first shown on (path/news.tsx)
+  pinGone: false,   // the learner went on past it: the line stays on the roadmap only   // the newest item of What's new shown before the page opened: the ones above it are marked new
   preview: false,    // this is a Preview (staging, a pull request build), not the real app (platform.preview): the Path's Settings show Experiments
   perEx: {},         // Blitz, the tutor and voice: each exercise's own values (practice/per-exercise.ts, `rd-per-ex`)
   perBase: null,     // and the shared ones, for an exercise that has none of its own yet

@@ -1,6 +1,6 @@
-/* The few plain-DOM parts the Path hosts or opens over itself, which keep their own rules: the buttons and the icon of the dialog and the card outside #path (the question
-   before a device's examples are kept, 03-share-note.css; the notice of a newer version, pwa/update-toast.ts), a term's dotted underline (shared with the Path), and the
-   bar with what voice heard (04-voice.css). 11-path-bridge.css puts them on the Path's ground. */
+/* The few plain-DOM parts the Path hosts or opens over itself, which keep their own rules: the buttons and the icon of the dialog outside #path (the question
+   before a device's examples are kept, 03-share-note.css), a term's dotted underline (shared with the Path), and the bar with what voice heard (04-voice.css).
+   11-path-bridge.css puts them on the Path's ground. */
 .btn{display:inline-flex;align-items:center;height:40px;padding:0 18px;border:0;border-radius:0;cursor:pointer;
   font:700 12px/16px var(--body);letter-spacing:.06em;text-transform:uppercase;background:var(--marigold);color:var(--on-marigold)}
 .btn:hover{box-shadow:inset 0 -4px 0 var(--vermilion)}

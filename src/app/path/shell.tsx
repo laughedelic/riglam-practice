@@ -17,6 +17,7 @@ import { currentLook } from "./look.ts";
 import { progressOn, sheetTitle } from "./options.tsx";
 import { ProgressRing } from "./progress.tsx";
 import { Bridge, Icon } from "./ui.tsx";
+import { FootPin } from "./news.tsx";
 
 export const PullCtx = createContext<Pull>(new Pull());
 
@@ -163,7 +164,7 @@ export function SideStation({ kind, label, act, disabled = false }: { kind: "ski
 /** Skip as a side station at the foot, where the look still puts it there (`skipAt: foot`, on hold); else Skip is the icon under the favorites mark (parts.tsx, SkipMark). */
 export const SkipSide = () => (currentLook().skipAt === "foot" ? <SideStation kind="skip" act={skipPair} /> : null);
 
-/** The foot: the station, and at its right what goes beside it (a side station). While the keyboard is up there is no foot. */
+/** The foot: the station, and at its right what goes beside it (a side station). While the keyboard is up there is no foot. Above it, the line of a version that waits (path/news.tsx). */
 export function Foot({ children, aux, none = false }: { children?: ComponentChildren; aux?: ComponentChildren; none?: boolean }) {
-  return <footer class={"foot" + (none ? " nostation" : "")}>{children || <span />}<span class="aux">{aux}</span></footer>;
+  return <><FootPin /><footer class={"foot" + (none ? " nostation" : "")}>{children || <span />}<span class="aux">{aux}</span></footer></>;
 }
