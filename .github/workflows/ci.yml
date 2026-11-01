@@ -73,7 +73,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          key: playwright-${{ runner.os }}-${{ matrix.browser || 'chromium' }}-${{ hashFiles('package-lock.json') }}
       # No --with-deps for Chromium: the runner image already has every library Chromium needs (it only lacked fonts for scripts the app does not show), and the apt-get that
       # --with-deps runs has stalled for minutes on a slow package mirror. If the image ever loses a library, Playwright says so when it starts the browser.
       - run: npx playwright install ${{ matrix.deps }} ${{ matrix.browser || 'chromium' }}
