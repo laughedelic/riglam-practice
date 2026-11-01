@@ -49,7 +49,7 @@
 
 /* the update line shimmers once in a while (about every ten seconds), not all the time; both ends of the sweep are plain ink */
 @keyframes p-pinshim{0%{background-position:100% 0} 22%,100%{background-position:-50% 0}}
-.pa .nwprs{list-style:none; margin:.4rem 0 0; padding:0; display:grid; gap:.55rem}
+.pa .nwprs{list-style:none; margin:0; padding:4px 16px 14px; display:grid; gap:.7rem}
 .pa .nwprs .nwpt{margin:0; font-size:.9rem; color:var(--ink)}
 .pa .nwprs .nwpt b{font-family:var(--mono,monospace); font-weight:600; color:var(--gold-t); margin-right:.4em}
 .pa .nwprs .nwpx{margin:.1rem 0 0; font-size:.85rem; color:var(--ink2)}
