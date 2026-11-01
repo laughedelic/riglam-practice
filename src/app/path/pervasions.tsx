@@ -30,8 +30,8 @@ import { D, Gap, Head, Icon, Mark, St, Sx, nofillInput } from "./ui.tsx";
 
 interface Ans { say: "accept" | "why" | null; text: string; timeout?: boolean }
 
-/** A statement of the challenger, with the pair's terms in the singular and its "not" set apart. It ends with no punctuation: the lead "Do you accept that…" above it asks, and read without the lead it
- *  is a statement, not a question (a wording that is a question itself, the plain one, keeps its own question mark). */
+/** A statement of the challenger, with the pair's terms in the singular and its "not" set apart. It ends with no punctuation, and no lead stands over it: the heading's line asks ("do you accept it?"); the lead "Do you accept that…"
+ *  of a wording is for the voice and the options' sample (a wording that is a question itself, the plain one, keeps its own question mark). */
 function Statement({ i }: { i: number }) {
   const p = pairOf(), q = Wd().q[i] as QToken[];
   return <>{q.map((x, k) => x === "A" || x === "B"
@@ -63,29 +63,29 @@ function Answered({ n }: { n: number }) {
 
 /* ---------- 1 the questions ---------- */
 /**
- * The counter-example question `i` asks for, in the words of its case (the classic page's way): "something that is both A and B", "A, but not B",
- * "neither A nor B", the words that name the case in bold; `a` and `b` are the pair's two terms, or the letters.
+ * The counter-example question `i` asks for, in the words of its case (the classic page's way), after `pre`: "something is both A and B" (a statement, under Why?) or "something that
+ * is both A and B" (after "Name"), "A, but not B", "neither A nor B", the words that name the case in bold; `a` and `b` are the pair's two terms, or the letters.
  */
-function Counter({ i, a, b, lead = true }: { i: number; a: ComponentChildren; b: ComponentChildren; lead?: boolean }) {
+function Counter({ i, a, b, pre }: { i: number; a: ComponentChildren; b: ComponentChildren; pre: string }) {
   const K = (t: string) => <span class="conn">{t}</span>;
   const tail = ({ both: <>{K("both")} {a} {K("and")} {b}</>, anb: <>{a}, {K("but not")} {b}</>, bna: <>{b}, {K("but not")} {a}</>, nei: <>{K("neither")} {a} {K("nor")} {b}</> } as Record<string, ComponentChildren>)[QCELL[i] as string];
-  return <span>{lead ? "something that is " : ""}{tail}</span>;
+  return <span>{pre}{tail}</span>;
 }
 function QuestionStep({ kb }: { kb: boolean }) {
   const u = u0(), p = pairOf(), i: number = u.step, w = Wd(), retry = state.cur!.retry, last = i === 3, g = guidance("debate");
-  // guidance (practice/guided.ts): Why? says what a counter-example would be, with the pair's terms (Detailed) or A and B (Hints), and the field asks
-  // for it the same way; Accept needs no line (it would restate the statement). None: Accept and Why? side by side, nothing more
-  const counter = (lead: boolean) => g === "detailed" ? <Counter i={i} lead={lead} a={<Sub k="a">{singular(p.a)}</Sub>} b={<Sub k="b">{singular(p.b)}</Sub>} /> : <Counter i={i} lead={lead} a="A" b="B" />;
-  const items = [{ k: "accept", b: w.acc, key: w.ak }, { k: "why", b: w.why, s: g === "none" ? undefined : counter(g === "detailed"), key: w.wk }];
+  // guidance (practice/guided.ts): Why? says what a counter-example would be, as a statement ("something is …"), with the pair's terms (Detailed) or A and B (Hints), and the field
+  // asks for it the same way ("Name something that is …", muted: it must not read as part of the statement, which says the opposite); Accept needs no line (it would restate the
+  // statement). None: Accept and Why? side by side, nothing more
+  const counter = (pre: string) => g === "detailed" ? <Counter i={i} pre={pre} a={<Sub k="a">{singular(p.a)}</Sub>} b={<Sub k="b">{singular(p.b)}</Sub>} /> : <Counter i={i} pre={pre} a="A" b="B" />;
+  const items = [{ k: "accept", b: w.acc, key: w.ak }, { k: "why", b: w.why, s: g === "none" ? undefined : counter("something is "), key: w.wk }];
   return <>
     <Scroll>
       {retry ? <p class="retry">{(state.cur!.tag || "Retry") + (state.retryQ.length ? " · " + state.retryQ.length + " more" : "")}</p> : null}
       <Sx cls="cur first tight"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Questions" sub={(i + 1) + " of 4 · " + (w.lead ? "do you accept it?" : "yes or no?")} /><Gap h={4} /><PairStops p={p} sm={i > 0} /><Gap h={4} />
         <Answered n={i} />
-        {w.lead ? <p class="qlead above">{w.lead}</p> : null}
         <St d={<D cls="sub now" />} cls="sb now qnow"><QHead i={i} /><p class="qst" lang="en"><Statement i={i} /></p>
           {u.pickWhy ? <>
-            {g === "none" ? null : <p class="qq">Name {counter(true)}.</p>}
+            {g === "none" ? null : <p class="qq qask">Name {counter("something that is ")}.</p>}
             <div class="fieldrow"><input class="pfield" id="dex" value={u.exText} placeholder="posit a counter-example" {...nofillInput()} enterKeyHint={last ? "done" : "next"} aria-label="Posit a counter-example"
               onInput={(e) => { u.exText = (e.currentTarget as HTMLInputElement).value; refreshPath(); }}
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); submitWhy(); } else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); backWhy(); } }} /></div>
