@@ -29,7 +29,7 @@ Playwright is pinned to 1.56.1. In the Claude cloud container, Chromium 1194 is 
 | Job | What it runs |
 |---|---|
 | `static` ("Lint, build, unit tests") | lint, typecheck, both builds, the unit tests, `wrangler deploy --dry-run` |
-| `browser` ("Browser tests (...)", a matrix) | `npx playwright test <args>` after building both outputs: the PWA specs of each project (desktop, phone) in `--shard` slices. CI uploads no HTML report or trace, because both record page content and step arguments, which can include the course definitions and the data key; a failure is read in the job log, or reproduced locally with `--trace on`. |
+| `browser` ("Browser tests (...)", a matrix) | `npx playwright test <args>` after building both outputs: the PWA specs of each project (desktop, phone) in `--shard` slices, and the project `pwa-iphone`: WebKit, the engine under every browser on an iPhone, which runs a few specs about layout and the first screens (`playwright.config.js` names them; add one there when a bug shows only in Safari). That job installs WebKit with `--with-deps`, because its libraries are not on the runner image. CI uploads no HTML report or trace, because both record page content and step arguments, which can include the course definitions and the data key; a failure is read in the job log, or reproduced locally with `--trace on`. |
 | `check` ("Lint, build, test") | passes when `static` and `browser` have passed. This is the name that branch protection requires ([RELEASING.md](RELEASING.md)), so it stays the same whatever the jobs above are called or however many there are. |
 
 The title check, `Conventional PR title`, is a workflow of its own (`.github/workflows/pr-title.yml`), so that editing a pull request's title runs it again without starting the browser tests.
@@ -38,7 +38,7 @@ A push to a pull request cancels that pull request's earlier run. Every commit o
 
 The browser jobs install Chromium without `--with-deps`: the runner image has the libraries it needs, and the `apt-get` that `--with-deps` runs has stalled for minutes on a slow package mirror. Playwright reports a missing library when it starts the browser.
 
-To repeat one job locally: `npm run build`, then the same `npx playwright test` arguments as in the matrix (for example `--project=pwa-phone --shard=2/3`).
+To repeat one job locally: `npm run build`, then the same `npx playwright test` arguments as in the matrix (for example `--project=pwa-phone --shard=2/3`). The WebKit job (`--project=pwa-iphone`) needs `npx playwright install webkit` first (with `--with-deps` on Linux).
 
 `--shard` cuts a project's tests into equal runs of consecutive tests, by count and not by time; with these specs the slices come out within about 20% of each other. Each added shard repeats the setup of a job (about 30 seconds). A new Playwright project needs an entry in the `browser` matrix; `tests/unit/ci-workflow.test.ts` fails when a project is in no job, in two, or when the shards of a project are not all there.
 

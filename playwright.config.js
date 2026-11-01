@@ -24,5 +24,9 @@ export default defineConfig({
   projects: [
     { name: "pwa-desktop", testMatch: /pwa\/.*\.spec\.js/, use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 800 } } },
     { name: "pwa-phone", testMatch: /pwa\/.*\.spec\.js/, use: { ...devices["Pixel 7"] } },
+    // WebKit, the engine under every browser on an iPhone (Safari, Chrome, Firefox) and under desktop Safari. It lays out SVG text, viewport units and touch differently from Chromium, and a bug can show
+    // only there (the name stood overlapped on an iPhone while every Chromium spec passed). Only specs about layout and the first screens run in it, not the whole suite: the others are timed for Chromium.
+    // Add a spec here when a bug shows only in Safari.
+    { name: "pwa-iphone", testMatch: /pwa\/(lockup|manifest|path-roadmap)\.spec\.js/, use: { ...devices["iPhone 15"] } },
   ],
 });
