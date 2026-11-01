@@ -1,5 +1,6 @@
 import { state } from "../state.js";
-import { advanceDebate, asking, freshDebateUi, startQ, stopTimer } from "../debate/flow.js";
+import { advanceDebate, freshDebateUi } from "../debate/flow.js";
+import { pauseClock, stopTimer } from "./timers.js";
 import { advanceCategories, categoriesBegun } from "../categories/flow.js";
 import { advanceInstance, instanceBegun } from "../instance/flow.ts";
 import { advanceSyllogism } from "../syllogism/flow.js";
@@ -25,7 +26,7 @@ const sameP=(x,y)=>!!x&&!!y&&((x.id&&x.id===y.id)||(x.a===y.a&&x.b===y.b&&x.rela
 function adoptPair(k,p){
   const [ca,cb]=skipCats(p); if(!ca||!cb) return false;
   const q=Object.assign({},p,{catA:ca,catB:cb});
-  if(k==="debate"){ state.cur={p:q,debate:true}; state.ui=freshDebateUi(); state.mode="quiz"; startQ(); }
+  if(k==="debate"){ state.cur={p:q,debate:true}; state.ui=freshDebateUi(); state.mode="quiz"; }
   else { state.cur={p:q}; state.ui=freshUi(); state.mode="quiz"; }
   return true;
 }
@@ -51,10 +52,10 @@ export function startFirst(){
   const k=state.tab==="review"?state.own:state.tab;   // Review opened before the first pair is drawn: the exercise under it gets its pair
   if(k==="debate") advanceDebate(); else if(k==="find") advanceFind(); else if(k==="categories") advanceCategories(); else if(k==="instance") advanceInstance(); else if(k==="syllogism") advanceSyllogism(); else advance();
   state.mode="quiz";
-  if(k!==state.tab) stopTimer();                       // its clock starts when Review is left (setTab)
+  if(k!==state.tab) stopTimer();                       // its clock starts when Review is left (render)
 }
 export function switchTo(k){
-  stopTimer();
+  pauseClock();                                          // the exercise left keeps the time its step had left
   if(isEx(k)&&state.own!==k){
     const from=state.own, left=!ownPair(k)&&!ownPair(from)&&state.cur&&state.cur.p&&state.ui&&!state.ui.checked?state.cur.p:null;
     hold[from]={cur: state.cur,ui: state.ui}; state.own=k;
@@ -70,7 +71,6 @@ export function switchTo(k){
   state.tab=k;
   usePerExercise(k);
   if(isEx(k)) try{ localStorage.setItem("rd-ex",k); }catch(e){}
-  if(k==="debate"&&state.ui&&state.ui.debate&&!state.ui.checked&&state.ui.step<4) startQ();
 }
 // Going to a screen from the roadmap or the back arrow. A screen shows itself, not a panel over it: Settings, the options and the chat close first, and so does the roadmap.
 export function setTab(k){
@@ -81,6 +81,5 @@ export function setTab(k){
   state.fromRoad=!isEx(k)&&(state.menuOpen||state.fromRoad);   // Review from the roadmap goes back there (shell/history.js)
   state.skipAsk=false; state.menuOpen=false; state.pathProg=null;   // Review, not the Progression page that stands in for it (path/progression.tsx)
   if(state.tab!==k) switchTo(k);
-  if(state.blitz&&asking()&&!state.ui.tq) startQ();       // the question's clock stood still behind the menu
   render(); top0();
 }

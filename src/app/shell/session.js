@@ -1,14 +1,13 @@
 import { state } from "../state.js";
 import { normLangs } from "../../domain/languages.ts";
-import { asking, setBlitz, startQ, stopTimer } from "../debate/flow.js";
 import { saveProgress } from "../practice/progress.ts";
 import { render } from "./render.js";
 import { keepOwn } from "../practice/per-exercise.ts";
 
 /* ---------- the Practice options of an exercise: what they set and which sheet is open ---------- */
-// What changes how an exercise looks, ticks or is checked (notation, wording of the questions, Blitz (on or off, and its times), A/B markers, full phrases, the language of the
+// What changes how an exercise looks, ticks or is checked (notation, wording of the questions, Sprint (its times), A/B markers, full phrases, the language of the
 // definitions, the tutor's check) opens from the sliders button at the top of the exercise (the sheet is drawn by path/options.tsx). Settings (options.js) keeps what belongs to the
-// app, the device and the account. A setting is in one of the two, never both. Like Settings the sheet pauses the Blitz clock; the clock starts again, with its full time, when the sheet closes.
+// app, the device and the account. A setting is in one of the two, never both. Like Settings the sheet pauses the Sprint clock; the clock goes on from where it stood when the sheet closes.
 
 // what the symbols of each notation mean
 export const SYMS={
@@ -16,7 +15,7 @@ export const SYMS={
   sets:["Sets","Each term stands for the set of things it covers.",[["∩","intersection: what is both"],["∅","the empty set: nothing"],["≠ ∅","not empty"],["⊂","contained in"],["⊃","contains"],["=","the same set"]]],
   logic:["Logic","Each term stands for a statement: it is A, it is B.",[["⇒","follows: A ⇒ B, if A then B"],["⇐","follows from"],["⇔","each follows from the other"],["⇏","does not follow"],["¬","negation: not"]]]
 };
-export const PAGES={nota:"Notation",wording:"Questions",times:"Blitz",defs:"Definitions",stages:"Stages",voice:"Voice",tutor:"Claude",progress:"Progression"};
+export const PAGES={nota:"Notation",wording:"Questions",times:"Sprint",defs:"Definitions",stages:"Stages",voice:"Voice",tutor:"Claude",progress:"Progression"};
 const store=(key,v)=>{ try{ localStorage.setItem(key,v); }catch(e){} };
 export function setNota(k){ state.nota=k; store("rd-notation",k); render(); }
 export function setDefLang(k){ state.defLang=k==="enru"?"enru":"en"; store("rd-deflang",state.defLang); render(); }
@@ -31,18 +30,13 @@ export function setWording(k){ state.wording=k; store("rd-wording",k); render();
 export function setNegation(k){ state.negation=k; store("rd-negation",k); saveProgress(); render(); }
 export function setNegBrackets(on){ state.negBrackets=on; store("rd-neg-brackets",on?"1":"0"); render(); }
 export function setSyllogismWording(k){ state.syllogismWording=k; store("rd-syllogism-wording",k); render(); }
-// Blitz off takes the stopwatch away from the top bar, and a running countdown with it
-export function setBlitzUse(on){ state.blitzUse=on; store("rd-blitzuse",on?"1":"0"); keepOwn("blitzUse",on); if(!on) setBlitz(false); else render(); }
-
 export function toggleSess(on){
   const was=state.sessOpen; state.sessOpen=on===undefined?!was:on;
   if(!state.sessOpen){ state.sessPage=null; state.resetAsk=""; }
-  if(state.sessOpen&&!was) stopTimer();
-  else if(!state.sessOpen&&was&&state.blitz&&asking()) startQ();
   render();
 }
 export function openPage(id){ state.sessPage=id; state.resetAsk=""; render(); }
-/** The Blitz page of the practice options: what holding the stopwatch in the top bar opens. */
+/** The Sprint page of the practice options: what holding the stopwatch in the top bar opens. */
 export function openBlitzOptions(){ if(!state.sessOpen) toggleSess(true); openPage("times"); }
 /** The Progression page, which the ring in the top bar opens (and closes, while it is open): a sheet of its own, with no list under it. */
 export function openProgress(){ if(state.sessOpen&&state.sessPage==="progress"){ toggleSess(false); return; } if(!state.sessOpen) toggleSess(true); openPage("progress"); }

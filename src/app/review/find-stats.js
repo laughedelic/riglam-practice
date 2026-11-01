@@ -12,7 +12,8 @@ export function findStats(){
   if(!all.length) return null;
   const judged=all.filter(a=>!a.relOpen), right=judged.filter(a=>a.correct).length, own=all.filter(a=>a.pair&&a.pair.own).length;
   const rows=FIND_RELS.map(r=>{ const xs=judged.filter(a=>a.chosen===r); return [r,xs.length,xs.filter(a=>a.correct).length]; });
-  return {all,judged,right,own,rows};
+  const ran=all.filter(a=>a.timeout).length;       // Sprint: the time ran out on an example
+  return {all,judged,right,own,rows,ran};
 }
 // what a Find a pair answer says under its pair: the relation asked for, and whether the pair has it
 export function findLine(a){

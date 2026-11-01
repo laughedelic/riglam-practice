@@ -4,7 +4,7 @@ import type { ComponentChildren } from "preact";
 import { useContext, useEffect, useRef } from "preact/hooks";
 import { state } from "../state.js";
 import { cellLabel } from "../core/rel.js";
-import { fillable } from "../practice/screen.js";
+import { fillable, filled, mayBeEmpty, missedCase, settled } from "../practice/screen.js";
 import { render } from "../shell/render.js";
 import type { CellId, RelKey } from "../../ai-shared/relations.ts";
 import type { Pull } from "./gesture.ts";
@@ -16,17 +16,14 @@ import { Scroll } from "./scroll.tsx";
 import { Foot, PreStation, PullCtx, SkipSide, Station, VoiceBar, pathNote } from "./shell.tsx";
 import { D, Gap, Head, Icon, Knob, St, Sx, nofillInput } from "./ui.tsx";
 
-/** Only the "neither" case may say that nothing exists: the other cases are asked because the relation chosen needs them, so their examples justify the choice. */
-const mayBeEmpty = (c: CellId) => c === "nei";
-const filled = (c: CellId) => { const x = u0().cells[c]; return !!(x.t || "").trim() || (mayBeEmpty(c) && !!x.none); };
-/** The open case, the next one after it that is still empty (going round), and whether it is the last to write. */
+/** The open case, the next one after it that is still empty (going round; a case whose time ran out under Sprint is done, with nothing, and is not opened again), and whether it is the last to write. */
 function cursor() {
-  const u = u0(), order = fillable() as CellId[], ready = order.every(filled);
+  const u = u0(), order = fillable() as CellId[], ready = order.every((c) => settled(c));
   const ci = u.pall ? -1 : Math.max(0, Math.min(u.ci || 0, order.length - 1)), c = ci >= 0 ? order[ci] : null;
-  const rest = ci >= 0 ? [...order.slice(ci + 1), ...order.slice(0, ci)] : order, nextC = rest.find((x) => !filled(x)) || null;
+  const rest = ci >= 0 ? [...order.slice(ci + 1), ...order.slice(0, ci)] : order, nextC = rest.find((x) => !settled(x)) || null;
   return { order, ready, ci, c, nextC, last: !nextC };
 }
-/** Whether every case asked for has an example (or says that nothing exists). */
+/** Whether every case asked for has an example (or says that nothing exists, or its time ran out). */
 export const examplesReady = () => cursor().ready;
 const focusField = () => { const i = document.getElementById("cin") as HTMLInputElement | null; if (i) { i.focus({ preventScroll: true }); const n = i.value.length; try { i.setSelectionRange(n, n); } catch { /* not a text field */ } } };
 const blur = () => { const a = document.activeElement as HTMLElement | null; if (a && a.blur) a.blur(); };
@@ -108,6 +105,9 @@ export function ExamplesStep({ kb, title, step, rel, full, check, scan }: { kb: 
         onInput={(e) => { x.t = (e.currentTarget as HTMLInputElement).value; if (x.none) x.none = false; refreshPath(); }}
         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commit(pull); } }} /></div>
       {mayBeEmpty(c) ? <p class="help"><button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => nothing(c, pull)}>nothing exists</button></p> : null}</St>;
+    // a case whose time ran out stands answered with nothing: it does not open again (it would be answered with no clock)
+    if (missedCase(c)) return <St d={<D cls="sub yours" />} cls="sb done"><span class="lab">{CASE[c]}</span>
+      <span class={"pans" + (filled(c) ? "" : " nil")}>{!filled(c) ? "time ran out" : x.none ? "nothing exists" : x.t.trim()}</span></St>;
     // a written case opens again with a tap; the field keeps the focus meanwhile, so the keyboard stays up and nothing moves under the finger
     if (filled(c)) return <button type="button" class="sbb" onMouseDown={(e) => e.preventDefault()} onClick={() => openCase(i)} aria-label={CASE[c] + ": " + (x.none ? "nothing exists" : x.t) + ". Change it"}>
       <St d={<D cls="sub yours" />} cls="sb done"><span class="lab">{CASE[c]}</span><span class={"pans" + (x.none ? " nil" : "")}>{x.none ? "nothing exists" : x.t.trim()}</span></St></button>;
@@ -118,8 +118,8 @@ export function ExamplesStep({ kb, title, step, rel, full, check, scan }: { kb: 
   // each case draws the piece of line from its own diamond to the next one: yellow and solid where the case is written, yellow and dotted where it is not (the path
   // ahead is blocked by it); the trail ahead is dotted until every case is written, then solid and gray (06-path-line.css). The classes say what the piece needs:
   // the case's own state (`kw` written, `ko` open, `kl` later) and the next one's (`nxkw`, `nxko`, `nxkl`), for where the keyboard layout puts the diamonds.
-  const kinds = k.order.map((c, i) => (i === k.ci ? "ko" : filled(c) ? "kw" : "kl")), last = k.order.length - 1;
-  const lined = rows.map((row, i) => <Sx cls={"er " + (filled(k.order[i]) ? "cur " : "gap ") + kinds[i] + (i < last ? " nx" + kinds[i + 1] : " last")}>{row}{i === last ? <Gap h={6} /> : null}</Sx>);
+  const kinds = k.order.map((c, i) => (i === k.ci ? "ko" : settled(c) ? "kw" : "kl")), last = k.order.length - 1;
+  const lined = rows.map((row, i) => <Sx cls={"er " + (settled(k.order[i]) ? "cur " : "gap ") + kinds[i] + (i < last ? " nx" + kinds[i + 1] : " last")}>{row}{i === last ? <Gap h={6} /> : null}</Sx>);
   return <>
     <KHead rel={rel} title={title} /><Strip rel={rel} full={full} />
     <Scroll dim={!!u.pstrip}>

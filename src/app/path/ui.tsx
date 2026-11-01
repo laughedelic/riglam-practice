@@ -7,6 +7,7 @@ import { currentLook } from "./look.ts";
 
 const I: Record<string, string> = {
   blitz: '<circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l2.5 2M9.5 2.5h5M12 2.5V6M18.5 6.5l1.5-1.5"/>',
+  blitzoff: '<circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l2.5 2M9.5 2.5h5M12 2.5V6M18.5 6.5l1.5-1.5M4 4l16 16"/>',
   opts: '<path d="M4 8h9M17 8h3M4 16h3M11 16h9"/><circle cx="15" cy="8" r="2"/><circle cx="9" cy="16" r="2"/>',
   tutor: '<path d="M3 3h11v7H7.5L5 12.5V10H3z"/><path d="M10 13h11v7h-2v2.5L16.5 20H10z"/>',
   skip: '<path d="M5 6l8 6-8 6zM17 6v12"/>',

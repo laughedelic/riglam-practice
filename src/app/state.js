@@ -7,6 +7,7 @@ import { OPEN_CAP, normIntro, normPace } from "../domain/intro.ts";
 import { normLangs } from "../domain/languages.ts";
 import { DEFAULT_STAGES, freshRun, learnerStages, normExRuns, normGuided, normRun, stagesOfLevels } from "../domain/stages.ts";
 import { normPerEx } from "../domain/per-exercise.ts";
+import { TIME_KEY, TIME_KINDS, defaultTimes, readTime } from "../domain/sprint.ts";
 
 /** @type {import("./types.ts").State} */
 export const state = {
@@ -119,19 +120,17 @@ export const state = {
   wording: "mine",
   // display switch (Options): the A/B chips in statements and answers
   showAB: true,
-  /* the blitz timer: a switch above the questions turns it on; its length is set in the settings of the exercise. A slim bar under the
-  question drains over the limit and flashes gently at the end. When time runs out, the statement counts as accepted. */
-  timerMs: 10000,
+  /* Sprint (called Blitz in the code and in what is stored): a clock for each step of an exercise, switched by the stopwatch in the top bar. `blitz` is the switch of the
+  exercise on screen (each exercise keeps its own: practice/per-exercise.ts); `times` are the lengths, by what they time (domain/sprint.ts). A slim bar under the top bar
+  fills over the time (when it is full the step moves on) and turns red in the last seconds. */
   blitz: false,
-  blitzUse: true,    // the Blitz page of the practice options can take the stopwatch away from the top bar altogether (on by default)
-  relMs: undefined,  // the relation has its own time; it starts from the one time of earlier versions
+  times: defaultTimes(),
   // reading the questions aloud and answering by voice, with the browser's own speech (shell/voice.js). `on` is the Voice switch in Settings (app.js sets it
   // at the start: the device's choice, else the build's default); `read` and `answer` are in the Practice options, both off until turned on there
   voice: {on:false, muted:false, read:false, answer:"off", confirm:"tap", voiceId:"", rate:1, key:"", phase:"idle", live:"", note:"", bad:false, pend:null,began:false,seen:false,held:false, ask3:false, tries:0, blocked:false, clockUi:null, rhold:false, stop:null, tok:null, hooked:false},
   // the sounds (src/app/sound): the Sounds switch in Settings (`rd-sounds`, on until the device turns it off), and the audio context, its room and the sound playing now
   sounds: true,
   snd: {ctx:null, rig:null, live:null, until:0, keep:0, failed:false, armed:false},
-  sylMs: 15000,      // a syllogism has its own time (Syllogisms), stored as `rd-timer-syl`
   // How the Path looks (src/app/path/look.ts, the lab's settings this device keeps over the defaults, `rd-look`); a short note at the Path's foot
   hand: "",         // what touched the page last: "touch" (a finger or a pen) or "mouse"; empty before anything has (path/gesture.ts: a knock is for a finger only)
   look: null,
@@ -181,17 +180,12 @@ try{
 try{ if(localStorage.getItem("rd-syllogism-wording")==="formal") state.syllogismWording="formal"; }catch(e){}
 try{ if(localStorage.getItem("rd-ab")==="0") state.showAB=false; }catch(e){}
 try{
-  const v=+localStorage.getItem("rd-timer"); if(v>=2000&&v<=120000) state.timerMs=v;
-  const b=localStorage.getItem("rd-blitz"); state.blitz=b!==null?b==="1":v>0;     // an earlier version stored only the length: a length meant the timer was on
-  state.blitzUse=localStorage.getItem("rd-blitzuse")!=="0";
-  if(!state.blitzUse) state.blitz=false;
+  state.blitz=localStorage.getItem("rd-blitz")==="1";
+  for(const k of TIME_KINDS) state.times[k]=readTime(k,localStorage.getItem(TIME_KEY[k]));
 }catch(e){}
-state.relMs = state.timerMs;
-try{ const v=+localStorage.getItem("rd-timer-rel"); if(v>=2000&&v<=120000) state.relMs=v; }catch(e){}
 try{
   const v=state.voice, a=localStorage.getItem("rd-voice-answer"), r=+localStorage.getItem("rd-voice-rate");
   v.read=localStorage.getItem("rd-voice-read")==="1"; if(a==="tap"||a==="auto") v.answer=a;
   if(localStorage.getItem("rd-voice-confirm")==="auto") v.confirm="auto";
   v.voiceId=localStorage.getItem("rd-voice-name")||""; if(r>=0.5&&r<=2) v.rate=r;
 }catch(e){}
-try{ const v=+localStorage.getItem("rd-timer-syl"); if(v>=2000&&v<=120000) state.sylMs=v; }catch(e){}

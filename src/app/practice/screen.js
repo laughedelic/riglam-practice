@@ -53,11 +53,19 @@ export function learnedThing(c){
 /** The forward button of a checked pair (path/foot.ts). */
 export const nextFwd=()=>({label:state.cur.retry&&!state.retryQ.length?"Back to new pairs":"Next pair",hint:"N",onclick:()=>next()});
 export const fillable=()=>CELLS.filter(k=>!REL[state.ui.rel].empty.includes(k));
+/** Only the "neither" case may say that nothing exists: the other cases are asked because the relation chosen needs them, so their examples justify the choice. */
+export const mayBeEmpty=c=>c==="nei";
+/** Whether the case `c` of the attempt `u` has an example (or says that nothing exists). */
+export const filled=(c,u=state.ui)=>{ const x=u.cells[c]; return !!(x.t||"").trim()||(mayBeEmpty(c)&&!!x.none); };
+/** Whether the time of the case `c` ran out (Sprint): it stands answered with nothing, and is not opened again (shell/timers.js). */
+export const missedCase=(c,u=state.ui)=>!!(u.missed&&u.missed[c]);
+/** Whether the case `c` is done: it has an example, or its time ran out. */
+export const settled=(c,u=state.ui)=>filled(c,u)||missedCase(c,u);
 // `voiced` when the relation was spoken (shell/voice.js): no field takes the focus, so a phone keeps its keyboard down
 export function choose(k,voiced){
   if(state.ui.checked||state.ui.late) return;
   if(!state.ui.rel) stopTimer();
-  state.ui.rel=k; state.ui.open=false; state.ui.ci=0; state.ui.seen=0; state.ui.review=false; for(const c of REL[k].empty){ state.ui.cells[c].t=""; state.ui.cells[c].none=false; }
+  state.ui.rel=k; state.ui.open=false; state.ui.ci=0; state.ui.seen=0; state.ui.review=false; state.ui.missed={}; for(const c of REL[k].empty){ state.ui.cells[c].t=""; state.ui.cells[c].none=false; }
   render();
   if(!voiced) focusCin();
 }

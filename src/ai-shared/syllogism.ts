@@ -31,7 +31,7 @@ export interface SyllogismView {
 export interface SyllogismAnswerView {
   /** the syllogism as the learner read it, in their wording */
   sentence: string;
-  /** the graded reply: `said` is null when the time ran out (Blitz) */
+  /** the graded reply: `said` is null when the time ran out (Sprint) */
   grade: { said: Reply | null; correct: boolean; confusion: string };
   /** the counter-example offered after a right "there is no pervasion", and the page's verdict on it ("cmp": the page could not place it) */
   ex?: { text: string; v: "ok" | "bad" | "cmp" } | null;
@@ -41,7 +41,7 @@ export interface SyllogismAnswerView {
 
 export const SYLLOGISM_NOTE = `This is the Syllogisms mode. The learner gets a subject S, a predicate P and a reason R as one sentence ("Take S. It follows it is P because it is R.") and replies with one of three: "The reason is not established" (S is not R), "There is no pervasion" (S is R, but not everything that is R is P), or "Accept" (S is R and everything that is R is P).
 The right reply is the first of three checks that fails, made in this order: 1 Reason (is S R?), 2 Pervasion (is whatever is R also P?), 3 Thesis (is S P?). When the reason and the pervasion both fail, the reason comes first. A true thesis does not make the syllogism right: the reason has to prove it. After a right "There is no pervasion" the learner may name a counter-example: something that is R and is not P.
-The page has settled the three checks, the right reply and what was mixed up from the term data. They are right: explain them, never question or reverse them. In Blitz mode, running out of time is no reply.`;
+The page has settled the three checks, the right reply and what was mixed up from the term data. They are right: explain them, never question or reverse them. In Sprint mode, running out of time is no reply.`;
 
 export const SYLLOGISM_ASK = `Explain this answer. The page shows the learner its line for each check (they are in the card), so do not say them again in the same words: add what they leave out. Write lines only for the checks up to and including the first one that fails (all three when none fails), in this order, briefly for a check that holds:
 - "Reason:" what the subject is, down to its class, and so why it is or is not the reason; when it is not, name the reason's class too and why nothing is in both, but only as far as the card or the lookup tools show it, otherwise say only that the subject is not the reason;
@@ -76,7 +76,7 @@ export function syllogismBody(ix: DataIndex, c: SyllogismView, a: SyllogismAnswe
   ].join("\n");
   const replied = a.grade.said
     ? `Learner replied: ${JSON.stringify(SAID[a.grade.said])}, which is ${a.grade.correct ? "right" : "wrong"}.`
-    : "The learner gave no reply: the time ran out (Blitz), so nothing was mixed up.";
+    : "The learner gave no reply: the time ran out (Sprint), so nothing was mixed up.";
   const ex = a.ex
     ? `\nThe learner's counter-example: ${JSON.stringify(cut(a.ex.text, 200))}; page verdict ${a.ex.v === "ok" ? "ok (it is the reason and is not the predicate)" : a.ex.v === "bad" ? "bad (it is not the reason, or it is the predicate too)" : "cmp (the page does not know it well enough to say)"}.`
     : "";

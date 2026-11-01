@@ -3,7 +3,7 @@ import { $ } from "../core/dom.js";
 import { isSyllogism } from "../core/util.js";
 import { persist } from "../practice/answers.js";
 import { explainByItself } from "../ai/tutor.js";
-import { startQ, stopTimer } from "../debate/flow.js";
+import { stopTimer } from "../shell/timers.js";
 import { freshUi } from "../practice/queue.js";
 import { catsStageNow, shareNow, stageStep } from "../practice/stage-offer.ts";
 import { askedTerm, gradeTerms, openNow, unmetNow } from "../practice/stops.ts";
@@ -16,8 +16,8 @@ import { REPLIES, drawSyllogism, gradeSyllogism, gradeTimeout, gradeExample } fr
 // state and the saved answer. An answer is kept in the collection "answers" with `mode: "syllogism"`, so it is stored and synced like the others, and the lists that
 // mean the Relations exercise leave it out (practice/universe.js, answerList). The state of the screen is the usual one with `step` 0 while the reply is
 // to be given, 1 while a counter-example is asked for (after a right "there is no pervasion"), and `checked` once the result is shown. With Blitz on the reply has one
-// countdown (the time of a syllogism, `state.sylMs`); time up counts as wrong and shows the result, and a right "there is no pervasion" goes straight to the result, with
-// no counter-example. The clock is the one of the other exercises (debate/flow.js `startQ`, `stopTimer`): it stands still behind anything that covers the screen.
+// countdown (the time of a syllogism, `state.times.syl`); time up counts as wrong and shows the result, and a right "there is no pervasion" goes straight to the result, with
+// no counter-example. The clock is the one of the other exercises (shell/timers.js): it stands still behind anything that covers the screen.
 const KEYS=["1","2","3"];
 /** The answers to syllogisms, oldest first. They sit in the collection of the Relations answers, in a shape of their own (types.ts, SyllogismDoc). */
 export const syllogismList=()=>/** @type {import("../types.ts").SyllogismDoc[]} */(/** @type {unknown} */(Object.values(state.answers).filter(isSyllogism))).sort((x,y)=>(x.at||"").localeCompare(y.at||""));
@@ -32,14 +32,8 @@ export const replyOfKey=k=>REPLIES[KEYS.indexOf(k)];
 
 /** Whether the reply to a syllogism is being asked for: the one screen of Syllogisms that has a clock. */
 export const syllogismAsking=()=>state.tab==="syllogism"&&!!state.ui&&!!state.ui.syllogism&&!state.ui.checked&&state.ui.step===0&&state.mode==="quiz";
-/** Starts the countdown of the reply, with its full time; with Blitz off there is none. */
-export function startSyllogismClock(){
-  const u=state.ui, lim=state.blitz?state.sylMs:0;
-  if(!lim) return;
-  u.tq={t0:performance.now(),limit:lim}; u.tid=setTimeout(()=>expireSyllogism(u),lim);
-}
-// Time up: no reply, so wrong; the result shows the right one
-function expireSyllogism(u){
+// Time up: no reply, so wrong; the result shows the right one (the clock of the reply is Sprint's, shell/timers.js)
+export function expireSyllogism(u){
   if(u!==state.ui||!syllogismAsking()) return;
   cue("timeup");
   u.tid=null; u.timeout=true; u.ms=u.tq?u.tq.limit:null; u.tq=null; u.grade=gradeTimeout(shownSyllogism());
@@ -51,7 +45,6 @@ function expireSyllogism(u){
 export function advanceSyllogism(){
   const c=drawSyllogism(state,{hist:syllogismList().slice(-40),recent:state.syllogismRecent,stages:state.stages,unmet:unmetNow(),open:openNow(),newShare:shareNow(),...(state.syllogismEveryday?{level:1}:{})});
   state.cur=/** @type {any} */({p:null,syllogism:true,c}); state.ui=freshSyllogismUi(); state.mode="quiz";
-  if(state.blitz&&syllogismAsking()) startQ();         // not yet on this screen when the exercise is opened from another: setTab starts it then
 }
 /** Skip: another syllogism, with nothing kept (there is no pair to set aside and bring back). */
 export function skipSyllogism(){ advanceSyllogism(); render(); top0(); }
@@ -80,7 +73,6 @@ export function exampleSyllogism(){
 export function backSyllogism(){
   const u=state.ui; if(!u||!u.syllogism||u.checked||u.step!==1) return;
   u.step=0; u.said=null; u.grade=null; u.exText=""; u.exNote="";
-  if(state.blitz) startQ();                       // Blitz was switched on at the counter-example: the reply has its clock again
   render();
 }
 const docId=()=>"syllogism-"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
