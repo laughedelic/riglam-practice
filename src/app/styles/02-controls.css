@@ -1,6 +1,6 @@
-/* The few plain-DOM parts the Path hosts or opens over itself, which keep their own rules: the buttons and the icon of the dialogs outside #path (the Magic Key prompt,
-   pwa/unlock.ts; the question before a device's examples are kept, 03-share-note.css; the notice of a newer version, pwa/update-toast.ts), the note behind the
-   dotted "Magic Key" and a term's dotted underline (shared with the Path), and the bar with what voice heard (04-voice.css). 11-path-bridge.css puts them on the Path's ground. */
+/* The few plain-DOM parts the Path hosts or opens over itself, which keep their own rules: the buttons and the icon of the dialog and the card outside #path (the question
+   before a device's examples are kept, 03-share-note.css; the notice of a newer version, pwa/update-toast.ts), a term's dotted underline (shared with the Path), and the
+   bar with what voice heard (04-voice.css). 11-path-bridge.css puts them on the Path's ground. */
 .btn{display:inline-flex;align-items:center;height:40px;padding:0 18px;border:0;border-radius:0;cursor:pointer;
   font:700 12px/16px var(--body);letter-spacing:.06em;text-transform:uppercase;background:var(--marigold);color:var(--on-marigold)}
 .btn:hover{box-shadow:inset 0 -4px 0 var(--vermilion)}
@@ -18,14 +18,6 @@
 }
 .ico{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round;stroke-linecap:round;flex:none;display:block}
 .btn>.ico{margin-right:8px}
-/* "Magic Key" with a dotted underline: it opens a note on the name (src/ui/magic-key-note.ts) */
-.keyname{padding:0;border:0;background:none;font:inherit;letter-spacing:inherit;text-transform:inherit;color:inherit;cursor:help;text-decoration:underline dotted;text-underline-offset:3px}
-.keyname:focus-visible{box-shadow:var(--focus-ring)}
-/* the note behind it */
-.pop{grid-column:1/-1;position:relative;display:grid;gap:6px;margin-block:6px 0;padding:10px 12px 8px;background:var(--paper);border:1.5px solid var(--ink);box-shadow:3px 3px 0 var(--ink);font-size:13.5px;line-height:1.5;scroll-margin-bottom:84px}
-.pop p{margin:0}
-.pop::before{content:"";position:absolute;top:-7.5px;left:var(--ax,24px);width:12px;height:12px;margin-left:-6px;background:var(--paper);border-left:1.5px solid var(--ink);border-top:1.5px solid var(--ink);transform:rotate(45deg)}
-.popx{justify-self:end;min-height:32px;padding:0 4px;border:0;background:transparent;font:700 11px/16px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-muted);cursor:pointer}
 /* the terms a note names, dot-underlined; a tap opens the definition under the text, a mouse pointing at one floats it under the term (path/terms.tsx). Shared with the Path on purpose */
 .dterm{text-decoration:underline dotted var(--ink-muted);text-decoration-thickness:1px;text-underline-offset:3px;cursor:pointer;border-radius:2px; -webkit-user-select:text; user-select:text}  /* a term is a role=button span, and buttons are not selectable (01-base.css): it would be left out of copied text */
 .dterm:hover,.dterm.on{text-decoration-style:solid;text-decoration-color:currentColor}

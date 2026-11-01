@@ -5,7 +5,7 @@
 //   preview whether this is a Preview build (staging, a pull request): features still on trial are on by default there (the Voice switch)
 //   quorum  whether the app's server offers Quorum, the tutor's mode of several models and a judge: only a Preview does (docs/SERVER.md), and
 //           only to a device that has the Magic Key. Otherwise the page has no Quorum.
-//   unlock  a way to enter the Magic Key, while this device has none (./unlock.ts); the definitions come from the server (./course.ts)
+//   unlock  a way to enter the Magic Key, while this device has none (./unlock.ts; the page asks on its Magic Key page); the definitions come from the server (./course.ts)
 //   examples the reference examples kept on this device, fetched from the server in the background once the key is known to fit (./course.ts)
 //   keyHeld while it has one: enter another, or forget it (./unlock.ts)
 //   tutor   the app's own server (./tutor.ts), when it has the tutor on and this device has the Magic Key
@@ -27,11 +27,12 @@ import { storeName } from "./store-slot";
 import { createLocalDb } from "./local-db";
 import { createReports, withdrawLater } from "./reports";
 import { createKnown, createTutor, serverSays, type ServerSays } from "./tutor";
-import { takeLinkKey, storedKey, storeKey, forgetKey, keyDeclined, declineKey, allowKey, showUnlock, takeKey, markKeyChanged, takeKeyChanged, KEY_CHANGED_TEXT } from "./unlock";
+import { takeLinkKey, storedKey, storeKey, forgetKey, keyDeclined, declineKey, allowKey, takeKey, markKeyChanged, takeKeyChanged, KEY_CHANGED_TEXT } from "./unlock";
 
 const db = createLocalDb({ name: storeName(), onUnavailable: showStorageNotice });
 const link = takeLinkKey(); // first of all: a key in the address leaves the address bar at once
-let openUnlock: (() => Promise<boolean>) | null = null; // asks for the key again; set while this device has none
+let locked = false; // the definitions are locked on this visit: the page offers to enter the key (platform.unlock)
+let keyProblem: string | null = null; // what went wrong with a key at the start, for the page to say once on its Magic Key page
 let groupKey: string | null = null; // the Magic Key, once it is known to fit (or kept with the definitions): the proof for the tutor is made with it
 let serverAnswer: Promise<ServerSays> | null = null; // what the server says in /api/health: asked once, for the tutor, the grayed Explain button, Quorum and the flag reports
 const serverSaid = () => (serverAnswer ??= serverSays());
@@ -39,7 +40,7 @@ const tutorIsOn = async () => (await serverSaid()).tutor;
 const quorumOffered = async () => (await serverSaid()).quorum;
 let openData: Promise<DrillData> | null = null; // the open part of the term data, read once
 const readOpenData = () => (openData ??= fetch(dataUrl).then((r) => r.json()));
-let unlocked: DrillData | null = null; // the term data with the definitions, once the prompt took a key into the running page: loadData answers with it from then on
+let unlocked: DrillData | null = null; // the term data with the definitions, once a key was taken into the running page: loadData answers with it from then on
 const exampleListeners = new Set<() => void>(); // the page, which reads the examples again when a newer copy was kept
 const keyListeners = new Set<() => void | Promise<void>>(); // the page, which reads the capabilities and the data again when a key was taken in place
 
@@ -89,7 +90,8 @@ async function loadData(): Promise<DrillData> {
       if (link.key || got.reason === "rate_limited") problem = whyNot(got);
     }
   }
-  openUnlock = showUnlock({ problem, verify, apply: applyKey });
+  locked = true;
+  keyProblem = problem;
   return lock(data);
 }
 
@@ -145,7 +147,7 @@ function takeAccountKey(key: string) {
   if (storeKey(key)) location.reload(); // with nowhere to keep the key a reload would start locked again and fetch it again, for ever
 }
 
-/** For the Magic Key prompt: null when the key opens the definitions (they are kept, so a reload would start unlocked), otherwise what to tell the reader. */
+/** For a key entered on the Magic Key page: null when the key opens the definitions (they are kept, so a reload would start unlocked), otherwise what to tell the reader. */
 async function verify(key: string): Promise<string | null> {
   const got = await fetchCourse(key);
   if (!got.ok) return whyNot(got);
@@ -154,7 +156,7 @@ async function verify(key: string): Promise<string | null> {
 }
 
 /**
- * The prompt verified `key` and kept it with the definitions: take it into the running page, so that what the reader was doing stays
+ * `verify` took `key` and kept it with the definitions: take it into the running page, so that what the reader was doing stays
  * (the reload that used to follow lost the pair on the screen). The page is told through `onKey` and reads the data and the
  * capabilities again. False when that is not possible (the page does not listen yet, or there are no definitions): the caller reloads.
  */
@@ -180,7 +182,6 @@ async function sample(): Promise<Sample | null> {
 }
 
 let account: Account | null = null;
-let changeKey: (() => Promise<boolean>) | null = null; // the prompt for another key, made when first asked for
 
 /** The reader forgets the Magic Key on this device: the key and the kept definitions go, and the page starts again, locked. Answers and settings stay. */
 function forgetEverything() {
@@ -200,10 +201,16 @@ export const pwaPlatform: Platform = {
     keyListeners.add(tell);
     return () => void keyListeners.delete(tell);
   },
-  // Offered while there is no key: the page opens the prompt when the reader reaches something that needs it (Explain, the definitions, Options).
-  unlock: async () => (groupKey || !openUnlock ? null : { open: openUnlock, enter: (text) => takeKey(text, verify, applyKey), tutor: false, answer: tutorIsOn() }),
-  // While this device has the key: another one can be entered (the prompt keeps the old one until the new one is checked), or the key is forgotten, with the kept definitions.
-  keyHeld: async () => (groupKey ? { change: () => (changeKey ??= showUnlock({ verify, apply: applyKey }))(), enter: (text) => takeKey(text, verify, applyKey), forget: forgetEverything } : null),
+  // Offered while there is no key: the page opens its Magic Key page when the reader reaches something that needs it (Explain, a flag, the roadmap's Magic Key),
+  // and at the start when a key went wrong (the problem is given once).
+  unlock: async () => {
+    if (groupKey || !locked) return null;
+    const problem = keyProblem;
+    keyProblem = null;
+    return { enter: (text: string) => takeKey(text, verify, applyKey), problem, tutor: false, answer: tutorIsOn() };
+  },
+  // While this device has the key: another one can be entered (the old one stays until the new one is checked), or the key is forgotten, with the kept definitions.
+  keyHeld: async () => (groupKey ? { enter: (text: string) => takeKey(text, verify, applyKey), forget: forgetEverything } : null),
   // Only with the key (the server would refuse the request anyway) and only when the server says its tutor is on: otherwise the page hides the tutor.
   about: () => aboutThisBuild(),
   updates,
