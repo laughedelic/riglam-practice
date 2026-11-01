@@ -156,7 +156,7 @@ export function pickThen(k: string, go: () => void, scan?: (act: () => void) => 
 export function Verdict({ v, word, sub, pend = false, quiet = false, children }: { v: "ok" | "no" | "pt"; word: string; sub?: string; pend?: boolean; quiet?: boolean; children?: ComponentChildren }) {
   useEffect(() => { if (!pend && !quiet) verdictCue(v); }, [v, pend, quiet]);
   return <Sx cls={({ ok: "okp", no: "nop", pt: "ptp" } as Record<string, string>)[v] + " vband"}>
-    <St d={<D cls={"big " + v} mark={v === "ok" || pend ? "check" : v === "no" ? "cross" : "q"} />} cls={"pvline " + v}>{word}{sub ? <small class="vsub">{sub}</small> : null}</St>
+    <St d={<D cls={"big " + v} mark={v === "ok" || pend ? "check" : v === "no" ? "cross" : "tilde"} />} cls={"pvline " + v}>{word}{sub ? <small class="vsub">{sub}</small> : null}</St>
     {children}</Sx>;
 }
 /** What could not be saved or set aside, under the result. */
