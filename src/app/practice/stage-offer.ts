@@ -126,7 +126,8 @@ export function acceptStageOffer() {
     state.ui.offer = { kind: "done", text: "Stage " + o.stage + ", " + stageName(o.stage).toLowerCase() + ", is on now in every exercise, next to the stages you had. Switch any of them off in the practice options." };
     setStages([...state.stages, o.stage].sort((a, b) => a - b));
   } else {
-    const rest = state.stages.filter((n: number) => n !== o.stage), now = rest.length ? rest : [o.stage - 1];     // the only stage on: the one below takes its place
+    const left = state.stages.filter((n: number) => n !== o.stage), rest = left.some((n: number) => n <= LADDER_TOP) ? left : [];
+    const now = rest.length ? rest : [o.stage - 1];     // the only stage of the ladder on (depth goes with it): the one below takes its place
     state.ui.offer = { kind: "done", text: "Stage " + o.stage + " is off for now" + (rest.length ? "" : ", stage " + (o.stage - 1) + " is on instead") + ". Switch stages on and off in the practice options." };
     setStages(now);
   }
