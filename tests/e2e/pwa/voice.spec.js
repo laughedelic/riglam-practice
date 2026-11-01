@@ -13,15 +13,8 @@ import { voice, said, spoken, hearNext, docs, mic, listening, idle, waiting, con
 const qNow = (page) => page.locator("#path .sb.now .qnm");
 /** The speaker at the foot: tap says the question again, hold pauses the reading for this visit. */
 const speaker = (page) => page.locator("#vhear");
-/** Presses and holds a control (the foot's microphone or speaker) for `ms`, then lets go. */
-async function holdDown(page, loc, ms) {
-  await expect(loc).toBeVisible();   // drawn after the page is ready; a box taken before it is null
-  const b = await loc.boundingBox();
-  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
-  await page.mouse.down();
-  await page.waitForTimeout(ms);
-  await page.mouse.up();
-}
+/** Presses and holds a control (the foot's microphone or speaker) for `ms`, then lets go: a click whose press lasts, found and waited for as any click is. */
+const holdDown = (page, loc, ms) => loc.click({ delay: ms });
 const blitzSwitch = (page) => page.getByRole("switch", { name: /^Sprint/ });
 const sheet = (page) => page.getByRole("dialog", { name: "Practice options" });
 const openPracticeOptions = async (page) => { await page.getByRole("button", { name: "Practice options" }).click(); await expect(sheet(page)).toBeVisible(); };
