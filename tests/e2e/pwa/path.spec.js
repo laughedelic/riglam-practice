@@ -263,7 +263,9 @@ test("the thread runs on through what voice shows above the foot (Hear the quest
   await answer(page);
   const ready = await line("::before");
   expect(ready.content).not.toBe("none");
-  expect(ready.bg, "gray, as the foot's stub").toContain(await page.locator("#path .foot").evaluate((e) => getComputedStyle(e, "::before").backgroundColor));
+  const ink3 = await page.locator(".pa").evaluate((e) => { const i = document.createElement("i"); i.style.color = "var(--ink3)"; e.append(i); const c = getComputedStyle(i).color; i.remove(); return c; });
+  expect(ready.bg, "gray, as the foot's stub").toContain(ink3);
+  expect(await page.locator("#path .foot").evaluate((e) => getComputedStyle(e, "::before").backgroundImage), "the foot's stub is the same gray").toContain(ink3);
 });
 
 test("the strip pulls from its heading with a short pull, and its hint is gray", async ({ page }) => {
@@ -696,11 +698,12 @@ test("the top bar's diamond has no line of its own, and the first section's line
   await start(page);
   const r = await page.evaluate(() => {
     const sx = document.querySelector("#path .sx.first"), st = getComputedStyle(sx, "::before");
-    return { stub: getComputedStyle(document.querySelector("#path .tstn"), "::after").content, top: st.top, mask: st.maskImage || st.webkitMaskImage };
+    return { stub: getComputedStyle(document.querySelector("#path .tstn"), "::after").content, top: st.top, mask: st.maskImage || st.webkitMaskImage, bg: st.backgroundImage };
   });
   expect(r.stub, "no stub going down from the top bar's diamond").toBe("none");
   expect(r.top, "it starts where the section does, with no gap above it").toBe("0px");
-  expect(r.mask, "and fades in from there").toContain("linear-gradient");
+  expect(r.bg, "and fades in from there, from nothing").toMatch(/^linear-gradient\(rgba\(0, 0, 0, 0\)/);
+  expect(r.mask, "as a gradient of its own color, not a mask: a masked line is drawn thinner at a fractional screen density (path-thread.spec.js)").toBe("none");
 });
 
 test("a tap or an Enter in a field leaves no focus ring on what takes the focus; the Tab key brings the ring", async ({ page }) => {
@@ -830,16 +833,17 @@ test("the whole Skip station takes the slide, not the diamond alone: from its wo
   }
 });
 
-test("the line's steps are smooth: a segment after a thicker one narrows into its own width, and the fade after the dotted choices is dotted", async ({ page }) => {
+test("the line is one width: no funnel between segments, and the fade after the dotted choices is dotted and fades out", async ({ page }) => {
   await start(page);
   const line = (sel) => page.locator(sel).first().evaluate((e) => { const c = getComputedStyle(e, "::before"); return { w: c.width, clip: c.clipPath, bg: c.backgroundImage, mask: c.maskImage || c.webkitMaskImage }; });
   const tail = await line("#path .sx.gap + .sx.ptail");
-  expect(tail.w, "the box is as wide as the thicker of the two segments").toBe("3px");
-  expect(tail.clip, "it narrows to its own width").toContain("polygon");
+  expect(tail.w, "the box is the line's own width").toBe("2px");
+  expect(tail.clip, "with no funnel").toBe("none");
   expect(tail.bg, "the fade goes on dotted").toContain("repeating-linear-gradient");
-  expect(tail.mask, "and fades out").toContain("linear-gradient");
+  expect(tail.bg, "and fades out, under a gradient of the ground").toMatch(/^linear-gradient\(rgba\(0, 0, 0, 0\)/);
+  expect(tail.mask, "not a mask").toBe("none");
   const first = await line("#path .sx.first");
-  expect(first.clip, "the first segment widens from the top bar's stub").toContain("polygon");
+  expect(first.clip, "the first segment has no funnel either").toBe("none");
 });
 
 test("the stub into the station is gray and fades upward from it: dotted while the station is not ready, solid once it is, ink at the result", async ({ page }) => {
@@ -848,12 +852,13 @@ test("the stub into the station is gray and fades upward from it: dotted while t
   const color = (v) => page.locator(".pa").evaluate((e, name) => { const i = document.createElement("i"); i.style.color = "var(" + name + ")"; e.append(i); const c = getComputedStyle(i).color; i.remove(); return c; }, v);
   const pre = await stub();
   expect(pre.bg, "dotted").toContain("repeating-linear-gradient");
-  expect(pre.mask, "fading upward from the station: clear at the top, whole at the foot").toMatch(/^linear-gradient\(rgba\(0, 0, 0, 0\)/);
+  expect(pre.bg, "fading upward from the station: the ground over it at the top, clear at the foot").toMatch(/^linear-gradient\(rgb\(\d+, \d+, \d+\), rgba\(0, 0, 0, 0\)\)/);
+  expect(pre.mask, "as a gradient, not a mask").toBe("none");
   await answer(page);
   const ready = await stub();
-  expect(ready.bg, "solid").toBe("none");
-  expect(ready.color, "gray, no longer gold").toBe(await color("--ink3"));
-  expect(ready.mask, "still fading upward").toMatch(/^linear-gradient\(rgba\(0, 0, 0, 0\)/);
+  expect(ready.bg, "solid, still fading upward: gray at the foot, clear at the top").toMatch(/^linear-gradient\(to top, /);
+  expect(ready.bg, "gray, no longer gold").toContain(await color("--ink3"));
+  expect(ready.mask, "as a gradient, not a mask").toBe("none");
   await page.locator("#stn").click();
   await expect(page.locator("#path .pvline")).toBeVisible();
   await expect(page.locator("#path .main")).not.toHaveClass(/\bfw-ph\b/);      // the placeholder's own stub is the Check's scan's, until the step has landed

@@ -36,3 +36,14 @@ test("the cover's name has the measures of the roadmap's lockup", () => {
   expect(num("LEAD")).toBe(NAME_LEAD);
   expect(num("NW")).toBe(NAME_WIDTH);
 });
+
+// Safari (WebKit) lays a <tspan> inside a <text> that has `textLength` out wrongly: the spacing is spread over the text before the tspan and the tspan's letters land on top of
+// the one before (the last two letters of "RIGLAM" and of "practice" on an iPhone). Chromium does not show it, and the specs run in Chromium, so this keeps the markup out of it.
+test("the name's text lines have no tspan, in the cover and in the roadmap's lockup", () => {
+  const lockup = readFileSync(resolve(root, "src/app/path/brand.tsx"), "utf8");
+  for (const [where, src] of [["cover.html", html], ["brand.tsx", lockup]] as const) {
+    const lines = src.match(/<text [^>]*textLength[^>]*>[^\n]*<\/text>/g) ?? [];
+    expect(lines.length, `${where} draws two lines of text`).toBe(2);
+    for (const line of lines) expect(line, where).not.toContain("<tspan");
+  }
+});

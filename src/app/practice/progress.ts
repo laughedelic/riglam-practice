@@ -12,7 +12,7 @@ import { startFirst } from "../shell/tabs.js";
 import { render } from "../shell/render.js";
 import type { ProgressDoc } from "../types.ts";
 import { freshIntro, normIntro, normPace } from "../../domain/intro.ts";
-import { DEFAULT_STAGES, freshRun, normExRuns, normGuided, normRun, normStages } from "../../domain/stages.ts";
+import { DEFAULT_STAGES, freshRun, learnerStages, normExRuns, normGuided, normRun } from "../../domain/stages.ts";
 
 export const PROGRESS = "progress";
 const ID = "learner";
@@ -40,7 +40,7 @@ export function takeProgress(raw: unknown): boolean {
   if (state.progressSent.includes(sig)) return false;
   const d = raw as Partial<ProgressDoc>;
   state.progressSent = [...state.progressSent.slice(-4), sig];
-  const stages = normStages(d.stages), changed = stages.join() !== state.stages.join();
+  const stages = learnerStages(d.stages), changed = stages.join() !== state.stages.join();
   state.stages = stages; store("rd-stages", stages.join(","));
   if (changed && (state.stagesKept || state.syllogismEveryday)) { state.stagesKept = state.syllogismEveryday = false; store("rd-stages-kept", null); store("rd-syllogism-level", null); }
   state.intro = normIntro(d.terms); store("rd-terms", JSON.stringify(state.intro));

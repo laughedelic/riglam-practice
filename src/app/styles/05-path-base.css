@@ -5,7 +5,7 @@ html.design-path,html.design-path body{background:var(--path-paper,#fbf9f2)}
 /* before the script has drawn anything: the markup's "Loading." */
 #path > .pstatus{margin:0; padding:24px 16px; font:15px/1.4 var(--body); color:var(--ink-muted)}
 .pa{
-  --m:var(--t-m,50px); --lw:var(--t-lw,2px); --lh:calc(var(--lw) + 1px); --st:var(--t-st,28px); --stp:calc(var(--st) * 22 / 28); --tn:var(--t-tn,34px);
+  --m:var(--t-m,50px); --lw:var(--t-lw,2px); --st:var(--t-st,28px); --stp:calc(var(--st) * 22 / 28); --tn:var(--t-tn,34px);
   --mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Menlo,monospace;
   position:fixed; left:0; right:0; top:var(--vvt,0px); height:var(--vvh,100dvh); z-index:1;
   background:var(--paper); color:var(--ink); font-family:var(--main-f); font-optical-sizing:auto; font-size:16px; line-height:1.4;

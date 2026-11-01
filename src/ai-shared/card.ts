@@ -57,7 +57,11 @@ const verdictOf=(ix: DataIndex, r: { v: string; vague?: readonly string[] }): st
   r.vague?.length?"open (the example's name does not say whether it is "+r.vague.map(c=>ix.CAT[c]?.phrases?.[0]??"one of the "+(ix.CAT[c]?.labels[0]??c)).join(" or whether it is ")+"; the page has asked the learner to name it)":r.v;
 
 /** The practice-list tag of an example the learner wrote: its name and type, and the qualities of the pair its name leaves open, whatever the page's verdict on the cell (a cell already marked wrong has none). */
-const listedAs=(ix: DataIndex, it: NonNullable<ReturnType<typeof matchItem>>, p: PairLike): string => {
+const listedAs=(ix: DataIndex, it: NonNullable<ReturnType<typeof matchItem>>, p: PairLike, text: string): string => {
+  // Words that name the item only through an alias ("an apple" for "a red apple") are shorter than the item: its type holds, its color,
+  // shape, material or other detail is not what the learner wrote. The page leaves such a quality to the learner's own words (placeFacts).
+  // The item's name is left out: it is what carried the color ("a red apple") and is no use to a tutor that may take only the type.
+  if(!matchItem(ix,text,true)) return " [the learner's words are an alias for an item in the practice list, type "+it.t+". Take only that type from it, never its color, shape, material, temperature or other details: judge the learner's own words, and a quality they do not name is open]";
   const open=noteCats(ix,p).filter(c=>leavesOpen(it,c));
   return " [in the practice list as: "+it.n+", type "+it.t+(open.length?"; its name leaves open whether it is "+open.map(c=>ix.CAT[c]?.phrases?.[0]??"one of the "+(ix.CAT[c]?.labels[0]??c)).join(" or whether it is "):"")+"]";
 };
@@ -95,7 +99,7 @@ export function cardBody(ix: DataIndex, p: PairLike, u: AnswerView): string {
       const said=a.say==="accept"?"ACCEPT"+(a.timeout?" (time ran out, which counts as accepting)":""):a.say==="why"?"WHY"+(a.text?" with the example "+JSON.stringify(a.text):" without an example"):"nothing (time ran out)";
       const it=a.text?matchItem(ix,a.text):null;
       return "- Q"+(i+1)+" ("+qPlain(i)+") counter-example cell: "+cellLabel(c,p)+"; learner said "+said+
-        (it?listedAs(ix,it,p):"")+"; reference "+refTxt(c)+"; page verdict "+verdictOf(ix,r);
+        (it?listedAs(ix,it,p,a.text??""):"")+"; reference "+refTxt(c)+"; page verdict "+verdictOf(ix,r);
     }).join("\n");
     mid=`${DEBATE_NOTE}
 A = ${JSON.stringify(p.a)}, B = ${JSON.stringify(p.b)}.
@@ -109,7 +113,7 @@ ${lines}`;
       const none=rel.empty.includes(c)||u.cells[c].none, t=u.cells[c].t.trim(), r=u.res.cells[c];
       const it=t?matchItem(ix,t):null;
       return "- "+cellLabel(c,p)+": learner wrote "+(none?"NONE":(t?JSON.stringify(t):"(blank)"))+
-        (it?listedAs(ix,it,p):"")+
+        (it?listedAs(ix,it,p,t):"")+
         "; reference "+(own?"none, for you to decide":refTxt(c))+"; page verdict "+verdictOf(ix,r);
     }).join("\n");
     mid=`${FIND_NOTE}
@@ -123,7 +127,7 @@ ${lines}`;
       const none=REL[u.rel as RelKey].empty.includes(c)||u.cells[c].none, t=u.cells[c].t.trim(), r=u.res.cells[c];
       const it=t?matchItem(ix,t):null;
       return "- "+cellLabel(c,p)+": learner wrote "+(none?"NONE":(t?JSON.stringify(t):"(blank)"))+
-        (it?listedAs(ix,it,p):"")+
+        (it?listedAs(ix,it,p,t):"")+
         "; reference "+refTxt(c)+"; page verdict "+verdictOf(ix,r);
     }).join("\n");
     mid=`${negLine(p)}Correct relation: ${REL[p.relation].name}. Learner chose: ${u.late?"nothing (time ran out; the page then showed the right relation)":REL[u.rel as RelKey].name}.${u.exLate?" Time ran out on the examples: cells the learner had not reached are blank.":""}
