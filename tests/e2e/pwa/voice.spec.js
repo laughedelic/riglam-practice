@@ -25,8 +25,8 @@ const openPracticeOptions = async (page) => { await page.getByRole("button", { n
 const readPage = (page) => sheet(page).getByRole("button", { name: "Read aloud: more" });
 const answerPage = (page) => sheet(page).getByRole("button", { name: "Answer by voice: more" });
 const openVoicePage = async (page) => { await openPracticeOptions(page); await answerPage(page).click({ position: { x: 12, y: 12 } }); };   // the line, beside its choice
-/** The Read aloud page: the voice and its speed. */
-const openReadPage = async (page) => { await openPracticeOptions(page); await readPage(page).click({ position: { x: 12, y: 12 } }); };
+/** The Read aloud page: the voice and its speed (the control at the line's edge: the line itself holds the switch). */
+const openReadPage = async (page) => { await openPracticeOptions(page); await readPage(page).click(); };
 const closeSheet = async (page) => { for (let i = 0; i < 3 && (await sheet(page).isVisible()); i++) await page.keyboard.press("Escape"); await expect(sheet(page)).toBeHidden(); };
 /** The experiments of Settings are shown on this device (a hold on Version does it in the released app). */
 const showExperiments = (page) => page.addInitScript(() => localStorage.setItem("rd-exp", "1"));
