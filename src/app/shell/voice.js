@@ -28,8 +28,8 @@ import { askTutor, needsKey } from "../path/parts.tsx";
 // (sayQ, choose, the cell's text), so the saved answers look as they always did; nothing of the voice is stored.
 // What was heard is not applied at once: it waits on the screen it was said for, with what it was taken as, until it is
 // confirmed (Yes, Enter, or saying "yes"; or after a short bar, in Hands-free or when Settings says so) or taken back (Change,
-// Escape, "no"). Saying another answer replaces it. Once it has gone on, the step it took stays above the foot for a few seconds as a chip with Change,
-// which puts the screen back as it was. While an answer waits, and while a question is read, the Sprint clock is stopped (holdFor, letGo).
+// Escape, "no"). Saying another answer replaces it. Just after it has gone on, "back", "no" or Escape
+// puts the screen back as it was, for a few seconds; past that the page's own controls change it. While an answer waits, and while a question is read, the Sprint clock is stopped (holdFor, letGo).
 // The page renders as a whole, so this module works from what the screen asks: after each render it compares the
 // screen with the one it last spoke for, and a new one stops whatever the old one started.
 
@@ -204,7 +204,7 @@ const ownKinds=new Set(["syl","counter","cats","yesno","pair","instance"]);
 // "no" after a step went on takes it back, except where "no" is itself an answer: Pervasions' Accept or Why?, the yes or no of one category at a time, and "no" (or "nope")
 // at the counter-example question, which leaves the counter-example out ("back" and "undo" still take the step back there)
 const answersNo=(a,alts)=>((a.kind==="reply"||a.kind==="example")&&!!spokenReply(state,alts))||(a.kind==="yesno"&&spokenYesNo(alts)==="no")||(a.kind==="counter"&&alts.some((h)=>/^(?:no|nope)$/.test(plainWords(h))));
-// what was heard, as the tap or the typed answer it stands for, once it is confirmed. What `apply` returns, if it returns anything, takes the step back (the chip's Change)
+// what was heard, as the tap or the typed answer it stands for, once it is confirmed. What `apply` returns, if it returns anything, takes the step back ("back", "no" or Escape just after it went on)
 function take(a,alts){
   const v=state.voice, w=Wd();
   if(a.kind==="result") return takeResult(a,alts);
@@ -359,13 +359,13 @@ function nudge(a){
   if(reading()) say(a,NUDGE); else if(ongoing()) hear(a,true); else paint();   // Hands-free listens for the next guess, with the word still on the screen
 }
 
-/* ---------- an answer that waits for its confirmation, and the chip that stays after it went on ---------- */
-// The answer goes on by itself after a short bar, when the mode is Hands-free (the default, "split") or Settings says so: 1.5 s, and 1 s in Sprint. Where the microphone is tapped
+/* ---------- an answer that waits for its confirmation, and the step that can still be taken back just after it went on ---------- */
+// The answer goes on by itself after a short bar, when the mode is Hands-free (the default, "split") or Settings says so: 2.5 s, and 1.5 s in Sprint. Where the microphone is tapped
 // (or held) the person is looking at the screen, and it waits for Yes. The Sprint clock is stopped while the answer waits (holdFor), so neither the bar nor Yes counts against
-// the time. After it went on the step stays above the foot for a few seconds as a chip with Change: the screen it came from, with the answer cleared, and the microphone open.
-const PAUSE_BLITZ=1000, PAUSE_CALM=1500, CHIP_MS=6000;
+// the time. Just after it went on, "back", "no" or Escape takes the step back for a few seconds (nothing is drawn for it: the next screen is not cluttered with the last answer).
+const PAUSE_BLITZ=1500, PAUSE_CALM=2500, CHIP_MS=6000;
 const autoOn=()=>{ const c=state.voice.confirm; return c==="auto"||(c==="split"&&handsFree()); };
-// `quick`: a yes or no to a question goes on at once (a second Yes would only repeat the first), unless Settings says to always wait; the chip takes it back for a few seconds
+// `quick`: a yes or no to a question goes on at once (a second Yes would only repeat the first), unless Settings says to always wait; "back" or Escape takes it back for a few seconds
 function offer(a,heard,label,apply,quick){
   const v=state.voice;
   dropPend(); dropChip();
@@ -436,7 +436,7 @@ function dropChip(){
   if(!c) return;
   clearTimeout(c.tid); v.chip=null;
 }
-// the chip's Change, or "no" after it went on: the screen it came from comes back as it was, and the microphone opens without the question being read again
+// "back" or "no" just after it went on, or Escape: the screen it came from comes back as it was, and the microphone opens without the question being read again
 function undoTaken(){
   const v=state.voice, c=v.chip;
   if(!c) return;
@@ -446,11 +446,11 @@ function undoTaken(){
 }
 
 /* ---------- the field above the foot ---------- */
-// The lower part of the screen is the microphone (path/shell.tsx, VoiceField; this module builds it and repaints it in place), a field and not a button: where a thumb rests is for it to find.
+// Above the foot the thread passes a stop that is the microphone (path/shell.tsx, VoiceField; this module builds it and repaints it in place): the row beside it, from the thread to the edge, is the touch area.
 // One touch area for two ways of talking: a tap listens until a pause; pressing and holding for longer than HOLD_MS listens while it is held and sends the moment it is let go. With an answer
-// waiting, a tap is Yes and a hold says it again; a touch while the app reads cuts the reading off and listens at once. Along its top is a strip that says the question again (tap), stops the reading
-// (tap while it reads) or pauses it for this visit (hold, or the M key); while a step that went on can still be taken back, the chip is there instead. The field has something in it only where the screen
-// asks something, and there are no boxes in it: words, a hairline, and a thin diamond.
+// waiting, a tap is Yes and a hold says it again; a touch while the app reads cuts the reading off and listens at once. Above it a quiet line says the question again (tap), stops the reading
+// (tap while it reads) or pauses it for this visit (hold, or the M key). The stop is there only where the screen
+// asks something; nothing in it crosses the thread or boxes the ground.
 const HOLD_MS=350, MUTE_MS=500;
 const HINT={reply:()=>"Say “"+Wd().acc+"” or “"+Wd().why+"”. After “"+Wd().why+"”, the counter-example.",example:()=>"Say the counter-example.",
   relation:()=>"Say the relation, such as “four possibilities”, or what is written under it.",cell:a=>CELL_FULL[a.cell]+": say an example, or “nothing”."};
@@ -473,19 +473,9 @@ export const keysStayDown=()=>micShown()&&typeof matchMedia==="function"&&matchM
 export const micShown=()=>enabled()&&!!asked()&&hearing();
 // what the field shows: it listens, it is reading, an answer waits for Yes, an answer is going on by itself, or it is at rest
 const fieldState=()=>{ const v=state.voice; return v.phase==="listening"?"listen":v.pend?(v.pend.auto?"going":"heard"):v.phase==="speaking"?"read":"idle"; };
-// the step that went on, for a few seconds: what it was taken as, and Change, with a thin line running out under the words
-function chipNode(){
-  const c=state.voice.chip;
-  return el("div",{class:"vchip",role:"group","aria-label":"What was taken"},
-    el("i",{class:"vcd","aria-hidden":"true"}),
-    el("span",{class:"vcl"},el("small",{text:"Last"}),el("b",{text:c.label})),
-    el("button",{type:"button",class:"vchg","data-quiet":"1",title:"Change it (Escape, or say “no”)",onclick:undoTaken,text:"Change"}),
-    el("i",{class:"vcrun","aria-hidden":"true",style:"--d:"+CHIP_MS+"ms;--e:"+Math.max(0,Math.round(performance.now()-c.t0))+"ms"}));
-}
-// the row along the top of the field: the chip, or the strip that hears the question again
+// the line above the stop that hears the question again
 function topNode(){
   const v=state.voice;
-  if(v.chip&&!v.pend) return chipNode();
   if(!readShown()||v.pend) return null;
   const speaking=v.phase==="speaking", label=v.hold?"Release to send":v.muted?"Reading is paused · tap to hear it":speaking?"Reading… tap to stop":"Hear the question again";
   const b=el("button",{type:"button","data-quiet":"1",class:"vtop"+(v.hold?" say":"")+(v.muted?" off":"")+(speaking?" on":""),id:"vhear",onpointerdown:earDown,onpointerup:earCancel,onpointerleave:earCancel,onpointercancel:earCancel,onclick:earClick,oncontextmenu:e=>e.preventDefault()},
@@ -499,14 +489,18 @@ const stClass=()=>{ const v=state.voice; return "vst"+(v.bad?" bad":"")+(v.phase
 // the touch area: the thin diamond with the microphone, or the answer that waits; and the words that go with it
 function micNode(){
   const v=state.voice, a=asked(), p=v.pend, st=fieldState(), text=statusText(), kids=[];
+  if(p&&p.auto&&(st!=="listen"||p.result)) kids.push(el("i",{class:"vrunl","aria-hidden":"true",style:"--d:"+p.auto.ms+"ms;--e:"+Math.max(0,Math.round(performance.now()-p.auto.t0))+"ms"}));
+  kids.push(el("div",{class:"vg"},p?null:iconSvg("mic")));
+  const hint=p&&p.result?(p.auto?"Say “stop” to stay · “explain” to ask Claude":"Hold and say “explain” or “stop”"):st==="heard"?"Hold to say it again":st==="going"?"Touch to hold it · Escape to change":st==="read"?"Touch to cut in and answer":st==="listen"?(v.hold?"Let go to send":"Tap to finish"):"Tap, or hold to talk";
   if(p){
-    if(p.auto&&(st!=="listen"||p.result)) kids.push(el("i",{class:"vrunl","aria-hidden":"true",style:"--d:"+p.auto.ms+"ms;--e:"+Math.max(0,Math.round(performance.now()-p.auto.t0))+"ms"}));
-    kids.push(el("div",{class:"vtake"},el("div",{class:"vwhat",role:"status","aria-live":"polite"},el("small",{text:p.said}),el("b",{text:p.label}))));
-    kids.push(p.result&&!v.hold?(p.auto?el("div",{class:"vgo soft",text:"Going on · tap to go now"}):el("div",{class:"vgo"},el("i",{"aria-hidden":"true"}),"Tap to go on"))
-      :st==="going"?el("div",{class:"vgo soft",text:"Going on…"}):st==="heard"||(st==="listen"&&!v.hold)?el("div",{class:"vgo"},el("i",{"aria-hidden":"true"}),"Tap for Yes"):el("div",{class:"vgo"}));
-  } else kids.push(el("div",{class:"vg"},iconSvg("mic")));
-  if(text) kids.push(el("div",{class:stClass(),id:"vlive",role:"status","aria-live":"polite",text}));
-  else kids.push(el("div",{class:"vhint",text:p&&p.result?(p.auto?"Say “stop” to stay · “explain” to ask Claude":"Hold and say “explain” or “stop”"):st==="heard"?"Hold to say it again":st==="going"?"Touch to hold it · Escape to change":st==="read"?"Touch to cut in and answer":"Tap, or hold to talk"}));
+    const go=p.result&&!v.hold?(p.auto?"Going on · tap to go now":"Tap to go on"):st==="going"?"Going on…":st==="heard"||(st==="listen"&&!v.hold)?"Tap for Yes":"";
+    kids.push(el("div",{class:"vtx"},
+      el("div",{class:"vtake"},el("div",{class:"vwhat",role:"status","aria-live":"polite"},el("small",{text:p.said}),el("b",{text:p.label}))),
+      text?el("div",{class:stClass(),id:"vlive",role:"status","aria-live":"polite",text}):null,
+      el("div",{class:"vsub"},el("span",{class:"vgo"+(st==="going"||(p.result&&p.auto)?" soft":""),text:go}),text?null:el("span",{class:"vhint",text:hint}))));
+  } else kids.push(el("div",{class:"vtx"},
+    text?el("div",{class:stClass(),id:"vlive",role:"status","aria-live":"polite",text}):el("div",{class:"vlab",text:"Say your answer"}),
+    el("div",{class:"vhint",text:hint})));
   const label=p&&p.result?(p.auto?"Going on to the next one. Tap to go now.":"Tap to go on to the next one. Hold to say explain."):st==="heard"?"Yes, go on with "+p.label+". Hold to say it again.":st==="going"?"Going on with "+p.label+". Touch to hold it.":st==="listen"?(v.hold?"Listening while you hold. Let go to send.":"Listening. Tap to finish."):"Answer by voice. Tap, or hold to talk.";
   const n=el("div",{class:"vmic"+(p?" pend":""),id:"vmic",role:"button",tabindex:"0","data-quiet":"1","aria-label":label,"aria-pressed":st==="listen"?"true":"false",title:st==="idle"&&a?(a.hint||HINT[a.kind](a)):null,
     onpointerdown:micDown,onclick:micClick,onkeydown:micKey,oncontextmenu:e=>e.preventDefault()},kids);
@@ -526,7 +520,6 @@ function srText(){
   if(p&&p.result) return "The result is on screen. Say next, explain or stop, or tap the field to go on.";
   if(p) return p.said+" "+p.label+(p.auto?". Going on.":". Tap the field for Yes, or hold it to say it again.");
   if(v.phase==="listening") return "Listening.";
-  if(v.chip) return "Taken as "+v.chip.label+". Change is above the field.";
   return v.note||"";
 }
 // the field again, in place, without rendering the screen (which would rebuild the fields and move the focus). The touch area stays the same node, so that a finger on it keeps its target
@@ -651,7 +644,7 @@ function muteToggle(){
   paint();
   const a=asked();
   if(!a) return;
-  if(v.muted){ v.note="Reading is paused for this visit. Tap the strip above to hear the question."; v.bad=false; if(speaking&&ongoing()) hear(a,true); else paint(); }
+  if(v.muted){ v.note="Reading is paused for this visit. Tap the line above to hear the question."; v.bad=false; if(speaking&&ongoing()) hear(a,true); else paint(); }
   else if(reading()) say(a,a.say,v.held);
 }
 // the keys: V listens (or stops), R reads the question again, M pauses the reading for the visit (or takes the pause away); Enter confirms the answer that waits, Escape changes it (or the step that just went on). True when the key was taken
@@ -710,15 +703,16 @@ export const WHERE="In Chrome, what you say is sent to Google to be turned into 
 /** Whether the Practice options have a Voice section: Voice is on, the browser has some speech, and the exercise is one that reads and listens. */
 export const voiceShown=()=>enabled()&&(canSpeak()||canHear())&&["practice","debate","syllogism","categories","find","instance"].includes(state.tab);
 /** The Voice page draws again when the device's voices arrive (they come late in some browsers). */
-export function hookVoices(){ const v=state.voice; if(!v.hooked){ v.hooked=true; onVoices(()=>{ if(state.sessOpen&&state.sessPage==="voice") render(); }); } }
+export function hookVoices(){ const v=state.voice; if(!v.hooked){ v.hooked=true; onVoices(()=>{ if(state.sessOpen&&state.sessPage==="read") render(); }); } }
 // the words of the Voice choices and of the Voice page
-export const VOICE_LEAD="Read aloud says each question when it appears, and Answer by voice makes the lower part of the screen a field to tap or hold. A strip along its top says the question again. Both use your device’s own speech, so the voices, and how well it hears you, depend on the device and the browser.";
-export const READ_NOTE="The strip above the answer field says it again; hold the strip, or press M, to pause the reading for this visit.";
+export const READ_LEAD="Read aloud says each question when it appears. It uses your device’s own speech, so the voices depend on the device and the browser.";
+export const ANSWER_LEAD="Answer by voice makes the lower part of the screen a field to tap or hold. It uses your device’s own speech recognition, so how well it hears you depends on the device and the browser.";
+export const READ_NOTE="The line above the answer stop says it again; hold it, or press M, to pause the reading for this visit.";
 export const ANSWER_PICKS=[["off","Off","No microphone."],
   ["tap","Tap or hold","Tap the lower part of the screen, or press V, and say the answer; or hold it and talk, and let go to send."],
   ["auto","Hands-free","Listens by itself after each question is read, and goes on by itself after a short bar. The result stays until you say “next” (in Sprint it goes on after 3 seconds); “explain”, “repeat”, “skip” and “stop” work too."]];
-export const CONFIRM_PICKS=[["split","Wait in tap mode, go on in Hands-free","Tapping the field waits for Yes (tap it again). Hands-free goes on by itself after a bar of 1.5 seconds (1 in Sprint)."],
+export const CONFIRM_PICKS=[["split","Wait in tap mode, go on in Hands-free","Tapping the field waits for Yes (tap it again). Hands-free goes on by itself after a bar of 2.5 seconds (1.5 in Sprint)."],
   ["wait","Always wait for Yes","Tap, Enter or “yes”; hold to say it again (or Escape, or “no”)."],
-  ["auto","Always go on by itself","After the bar. The row at the top of the field, or “no”, takes it back for a few seconds."]];
+  ["auto","Always go on by itself","After the bar. Saying “back” or “no”, or Escape, takes it back for a few seconds."]];
 export const VOICE_SAY="Say Accept or Why? (with the example), the relation by name or as written under the option, or an example; “nothing” leaves a cell empty. In Syllogisms say “I accept”, “the reason is not established” or “there is no pervasion”, then a counter-example or “skip”; in Categories the categories the thing is in (“a color and a shape”, or their numbers, or “none of these”), or yes or no to each; in Find a pair two phenomena (“wood and fire”); in Find an instance a thing, or “nothing”. "+
   "In Hands-free also say “next”, “explain”, “repeat”, “skip this pair” or “stop”. The Sprint clock stops while a question is read and while an answer waits. Chrome sends the audio to Google to turn it into text; the app records nothing and keeps only the answer, as if typed.";
