@@ -1,9 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Preview (staging and pull request builds): the divider page between crimson bands, the same figure: two rhombi, one over the other, and where they
+  <!-- Preview (staging and pull request builds): the slate page of the Path, the same figure: two rhombi, one over the other, and where they
        overlap the colors make green, as the Dudra set has it. Made by scripts/make-icons.mjs from scripts/lib/icon-art.mjs. The art stays
-       inside the central 80% circle that every mask keeps; only the bands run to the edge. -->
-  <rect width="512" height="512" fill="#b83545"/>
-  <rect x="56.3" width="399.4" height="512" fill="#10162b"/>
+       inside the central 80% circle that every mask keeps; only the page runs to the edge. -->
+  <rect width="512" height="512" fill="#161a20"/>
   <polygon points="256.0,61.4 371.3,176.7 256.0,292.0 140.7,176.7" fill="#faaf3f"/>
   <polygon points="256.0,162.3 400.1,306.4 256.0,450.6 111.9,306.4" fill="#3155a4"/>
   <polygon points="320.9,227.2 256.0,292.0 191.1,227.2 256.0,162.3" fill="#4c8a63"/>

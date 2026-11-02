@@ -1,7 +1,7 @@
-// The app icons (public/icons, made by `npm run icons` from scripts/lib/icon-art.mjs): the Main set every build carries (the booklet page
-// between vermilion bands) and the Preview set that staging and pull request builds carry (the divider page between crimson bands,
-// RIGLAM_ICON_SET=preview, vite.config.js). Both must be the right sizes, keep the figure inside the central 80% circle that every mask
-// keeps, be told apart by their page, and carry the generated grain that the SVGs leave out, mild on the page and strong elsewhere.
+// The app icons (public/icons, made by `npm run icons` from scripts/lib/icon-art.mjs): the Main set every build carries (the Path's ivory
+// page) and the Preview set that staging and pull request builds carry (its slate page, RIGLAM_ICON_SET=preview, vite.config.js). Both must be
+// the right sizes, keep the figure inside the central 80% circle that every mask keeps, be told apart by their page, and carry the generated
+// grain that the SVGs leave out, on the figure only: the page stays flat.
 import { expect, test } from "vitest";
 import sharp from "sharp";
 import { existsSync, readFileSync } from "node:fs";
@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 import { iconSet } from "../../scripts/lib/icon-set.mjs";
 import { fineNoiseTile, stretchedTile, zonedGrain, MID, STRONG, TILE } from "../../scripts/lib/grain.mjs";
-import { BAND, FIGURE, A_OF_B, SAFE_RADIUS, SETS, figure, grainMaskSvg, iconSvg } from "../../scripts/lib/icon-art.mjs";
+import { FIGURE, A_OF_B, SAFE_RADIUS, SETS, figure, grainMaskSvg, iconSvg } from "../../scripts/lib/icon-art.mjs";
 import { renderIcon } from "../../scripts/lib/render-icon.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -37,30 +37,23 @@ for (const name of ["main", "preview"] as const) {
     expect(readFileSync(join(dir, "icon.svg"), "utf8"), `${name}/icon.svg is out of date: run npm run icons`).toBe(iconSvg(name));
   });
 
-  test(`the ${name} icons: outside the central 80% circle there is only the page and the bands, and both reach it`, async () => {
-    // The flat SVG shows the geometry without the grain: the figure is inside the circle every mask keeps, the bands run to the edge.
+  test(`the ${name} icons: outside the central 80% circle there is only the page, and it reaches the corners`, async () => {
+    // The flat SVG shows the geometry without the grain: the figure is inside the circle every mask keeps, the page runs to the edge.
     const flat = await sharp(readFileSync(join(dir, "icon.svg")), { density: 384 }).resize(512, 512).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
     const { data } = flat, size = flat.info.width;
     const c = size / 2, safe = SAFE_RADIUS + 1.5; // a pixel of slack for the edge of a rhombus
-    const [page, bands] = [rgb(set.page), rgb(set.bands)];
-    const near = (i: number, want: number[]) => want.every((v, k) => Math.abs(v - data[i + k]) <= 2);
-    let outside = 0, wrong = 0, onPage = 0, onBands = 0;
+    const page = rgb(set.page);
+    let outside = 0, wrong = 0;
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
         if (Math.hypot(x + 0.5 - c, y + 0.5 - c) <= safe) continue;
-        if (Math.abs(x + 0.5 - BAND * size) < 1.5 || Math.abs(x + 0.5 - (1 - BAND) * size) < 1.5) continue; // the antialiased edge of a band
         const i = (y * size + x) * 4;
         outside++;
-        if (data[i + 3] !== 255) wrong++;
-        else if (near(i, page)) onPage++;
-        else if (near(i, bands)) onBands++;
-        else wrong++;
+        if (data[i + 3] !== 255 || !page.every((v, k) => Math.abs(v - data[i + k]) <= 2)) wrong++;
       }
     }
     expect(outside).toBeGreaterThan(size * size * 0.2);
-    expect(wrong, `${name}: pixels outside the safe zone that are neither page nor bands`).toBe(0);
-    expect(onPage, `${name}: the page reaches the corners of the safe zone's square`).toBeGreaterThan(0);
-    expect(onBands / (size * size), `${name}: the bands are about ${BAND * 2 * 100}% of the icon`).toBeGreaterThan(BAND * 2 * 0.95);
+    expect(wrong, `${name}: pixels outside the safe zone that are not the page`).toBe(0);
   });
 
   test(`the ${name} icons: the PNGs are the SVG with the grain on, and are not out of date`, async () => {
@@ -70,14 +63,17 @@ for (const name of ["main", "preview"] as const) {
       let diff = 0;
       for (let i = 0; i < want.length; i++) diff += Math.abs(want[i] - have.data[i]);
       expect(diff / want.length, `${name}/${file} differs from a fresh render: run npm run icons`).toBeLessThan(2);
-      // The grain: a band, one flat color in the SVG, varies from pixel to pixel in the PNG (the left edge, outside every mask's circle).
-      const deviation = [0, 1, 2].map((k) => {
+      // The grain is on the figure only: the page is one flat color (the left edge, outside every mask's circle), and the lower rhombus, one flat color in the SVG, varies from pixel to pixel.
+      const spread = (x0: number, y0: number) => [0, 1, 2].map((k) => {
         const values: number[] = [];
-        for (let y = 0; y < 24; y++) for (let x = 0; x < 24; x++) values.push(have.data[((Math.round(size * 0.4) + y) * size + x) * 4 + k]);
+        for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) values.push(have.data[((y0 + y) * size + x0 + x) * 4 + k]);
         const mean = values.reduce((a, b) => a + b, 0) / values.length;
         return Math.sqrt(values.reduce((a, b) => a + (b - mean) ** 2, 0) / values.length);
       });
-      expect(Math.max(...deviation), `${name}/${file}: no grain on the bands`).toBeGreaterThan(5);
+      const { b } = figure() as { b: number[][] };
+      const low = Math.max(...b.map((q) => q[1])), at = (v: number) => Math.round((v / 512) * size);
+      expect(Math.max(...spread(Math.round(size * 0.04), Math.round(size * 0.4))), `${name}/${file}: the page has grain`).toBeLessThan(2);
+      expect(Math.max(...spread(at(256) - 8, at(low - 70) - 8)), `${name}/${file}: no grain on the figure`).toBeGreaterThan(5);
     }
   });
 }
@@ -120,21 +116,22 @@ test("the grain is the same every time, centered on neutral gray, stronger at th
   expect(Math.abs(master.reduce((a, b) => a + b, 0) / master.length - 128)).toBeLessThan(1.5);
 });
 
-test("the grain map joins the mild and the strong grain by the mask, with the page mild and the bands and the figure strong", async () => {
+test("the grain map joins no grain and the strong grain by the mask, with the page flat and the figure strong", async () => {
   expect([...zonedGrain(Uint8ClampedArray.of(100, 100, 100), Uint8ClampedArray.of(200, 200, 200), Uint8ClampedArray.of(255, 0, 128))]).toEqual([100, 200, 150]);
   const mask = await sharp(Buffer.from(grainMaskSvg()), { density: 384 }).resize(512, 512).extractChannel(0).raw().toBuffer();
   const at = (x: number, y: number) => mask[y * 512 + x];
   expect(at(256, 20)).toBe(255); // the page above the figure
   expect(at(100, 480)).toBe(255); // the page below it
-  expect(at(10, 256)).toBe(0); // a band
-  expect(at(502, 256)).toBe(0);
+  expect(at(10, 256)).toBe(255); // the page at the sides: there are no bands
+  expect(at(502, 256)).toBe(255);
   expect(at(256, 120)).toBe(0); // the upper rhombus
   expect(at(256, 380)).toBe(0); // the lower rhombus
 });
 
-test("the Main and Preview icons have different pages and different bands", () => {
+test("the Main and Preview icons have different pages: the Path's ivory and slate", () => {
   expect(SETS.main.page).not.toBe(SETS.preview.page);
-  expect(SETS.main.bands).not.toBe(SETS.preview.bands);
+  expect(SETS.main.page).toBe("#fbf9f2");
+  expect(SETS.preview.page).toBe("#161a20");
 });
 
 test("a build carries the Preview icons when it is told so, or when Workers Builds builds a branch other than main", () => {

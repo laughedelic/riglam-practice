@@ -18,6 +18,7 @@ import { lineageOf } from "../practice/terms.js";
 import { catByLabel } from "../practice/universe.js";
 import { openChat } from "../shell/chat.js";
 import { render } from "../shell/render.js";
+import { openKey } from "../shell/options.js";
 import { openPage, toggleSess } from "../shell/session.js";
 import { stageName } from "../shell/stages.js";
 import { verdictCue } from "../sound/play.ts";
@@ -155,7 +156,7 @@ export function pickThen(k: string, go: () => void, scan?: (act: () => void) => 
 export function Verdict({ v, word, sub, pend = false, quiet = false, children }: { v: "ok" | "no" | "pt"; word: string; sub?: string; pend?: boolean; quiet?: boolean; children?: ComponentChildren }) {
   useEffect(() => { if (!pend && !quiet) verdictCue(v); }, [v, pend, quiet]);
   return <Sx cls={({ ok: "okp", no: "nop", pt: "ptp" } as Record<string, string>)[v] + " vband"}>
-    <St d={<D cls={"big " + v} mark={v === "ok" || pend ? "check" : v === "no" ? "cross" : "q"} />} cls={"pvline " + v}>{word}{sub ? <small class="vsub">{sub}</small> : null}</St>
+    <St d={<D cls={"big " + v} mark={v === "ok" || pend ? "check" : v === "no" ? "cross" : "tilde"} />} cls={"pvline " + v}>{word}{sub ? <small class="vsub">{sub}</small> : null}</St>
     {children}</Sx>;
 }
 /** What could not be saved or set aside, under the result. */
@@ -197,11 +198,11 @@ export function GuideNote() {
 
 /* ---------- the tutor ---------- */
 export const needsKey = () => !canAsk() && !!state.unlock && !!state.unlock.tutor;
-/** Asks the tutor to check the open examples and explain; without the Magic Key, its prompt first. */
+/** Asks the tutor to check the open examples and explain; without the Magic Key, its page first (Settings), and a key taken there comes back here and asks. */
 export function askTutor(open = true) {
   const u = u0(); if (u.ctl) return;
   if (canAsk()) { if (open) u.pwhy = true; void ask(null, "explain"); return; }
-  if (needsKey()) void Promise.resolve(state.unlock!.open()).then((taken) => { if (taken && state.ui === u && canAsk() && u.checked && !u.explained && !u.ctl) { if (open) u.pwhy = true; void ask(null, "explain"); } });
+  if (needsKey()) openKey(() => { if (state.ui === u && canAsk() && u.checked && !u.explained && !u.ctl) { if (open) u.pwhy = true; void ask(null, "explain"); } });
 }
 export function latestExplain() {
   const chat = u0().chat || [];

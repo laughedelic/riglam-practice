@@ -93,13 +93,13 @@
 
 /* Quorum's panel: the maintainer's view of a run, in small type */
 .pa .pqm{margin-top:12px; padding-top:10px; border-top:1px solid var(--rule); font-size:13.5px; display:flex; flex-direction:column; gap:8px}
-.pa .pqm-h b{font-weight:600; color:var(--tutor)} .pa .pqm-h span{color:var(--ink2)}
+.pa .pqm-h b{font-weight:600; color:var(--tutor-t)} .pa .pqm-h span{color:var(--ink2)}
 .pa .pqm-c{display:flex; flex-direction:column; gap:3px}
 .pa .pqm-t{display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 8px}
 .pa .pqm-you{color:var(--ink2); font-style:italic}
 .pa .pqm-r{display:grid; grid-template-columns:92px minmax(0,1fr) auto; gap:6px; align-items:baseline; font-family:var(--mono); font-size:11px}
 .pa .pqm-r.off{color:var(--ink3)}
-.pa .pqm-r.ruling .pqm-n{color:var(--tutor); font-weight:600}
+.pa .pqm-r.ruling .pqm-n{color:var(--tutor-t); font-weight:600}
 .pa .pqm-n{color:var(--ink2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .pa .pqm-v{display:flex; flex-wrap:wrap; gap:2px 10px}
 .pa .pqm-s{color:var(--ink3); display:flex; gap:6px}
@@ -122,7 +122,7 @@
 .pa .pask .ptx{flex-direction:row; display:flex; align-items:center; gap:12px}
 .pa .pask .fieldrow{flex:1; min-width:0; margin-top:0}
 .pa .pask .think{flex:1}
-.pa .pans2 .lab,.pa .pq2 .lab{color:var(--tutor)}
+.pa .pans2 .lab,.pa .pq2 .lab{color:var(--tutor-t)}
 .pa .pq2 .lab{color:var(--ink2)}
 .pa .pans2 .tsay{margin-top:4px}
 .pa .pq2{padding-top:2px}

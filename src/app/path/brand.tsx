@@ -6,8 +6,10 @@ export const BRAND = '<polygon points="256,61 371,177 256,292 141,177" fill="#fa
 
 /**
  * The name under the figure, as picked in the Design Lab: "RIGLAM" in capitals and "practice" in italic, both in Sorts Mill Goudy (the face of the Hero image), stacked and set to one
- * width. The first line is 20.5 high and spaced by 0.08 em; the second is sized (23.83) so that, spaced by 0.1 em, it fills the same width. Measured in that face, the lockup reaches 14.35
+ * width. The first line is 20.5 high and the second is sized (23.83) so that, with the same width, it is spaced by about 0.1 em. Measured in that face, the lockup reaches 14.35
  * above its first baseline and 24.57 below it (the second baseline is 17.9 under the first). The cover (src/pwa/cover.html) draws the same, with the same numbers.
+ * The spacing comes from `textLength` alone: no `letter-spacing`, and no `<tspan>` for the last letter. Safari (WebKit) lays a `<tspan>` in a text with `textLength` out wrongly, the last
+ * two letters landing on top of each other, and with the spacing left to `textLength` the lockup measures the same in Chromium and in WebKit (both lines start at 0 and end at the full width).
  */
 export const NAME_Y = 76;       // the first baseline on the roadmap (the figure ends at 54)
 export const NAME_ASCENT = 14.35;
@@ -18,14 +20,14 @@ export const NAME_LEAD = 17.9;
 
 /**
  * The name, centered on `x`, its first baseline at `y`: SVG text for the roadmap's drawing (classes `bn` and `bp`, styled in 09-path-panels.css). `textLength` sets both lines to one width, which also keeps
- * the lockup from moving when the font arrives. The last letter of a line carries no tracking, so that the ink is centered and the width counts the ink. The invisible box is what the cover
+ * the lockup from moving when the font arrives, and sets the tracking (see above). The invisible box is what the cover
  * (src/pwa/cover.ts) measures to land its own name here.
  */
 export function Lockup({ x, y }: { x: number; y: number }) {
   const left = x - NAME_WIDTH / 2;
   return <g class="rhead rname">
     <rect class="rbox" x={left} y={y - NAME_ASCENT} width={NAME_WIDTH} height={NAME_ASCENT + NAME_DEPTH} fill="none" pointer-events="none" />
-    <text class="bn" x={left} y={y} textLength={NAME_WIDTH} lengthAdjust="spacing">RIGLA<tspan class="bl">M</tspan></text>
-    <text class="bp" x={left} y={y + NAME_LEAD} textLength={NAME_WIDTH} lengthAdjust="spacing">practic<tspan class="bl">e</tspan></text>
+    <text class="bn" x={left} y={y} textLength={NAME_WIDTH} lengthAdjust="spacing">RIGLAM</text>
+    <text class="bp" x={left} y={y + NAME_LEAD} textLength={NAME_WIDTH} lengthAdjust="spacing">practice</text>
   </g>;
 }

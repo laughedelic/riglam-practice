@@ -1,6 +1,6 @@
-// The two dialogs the page opens over the Path (the question before a device's examples are kept, ai/share-notice.js; the Magic Key,
-// pwa/unlock.ts) are native dialogs outside #path: they take the Path's palette, its face and its text buttons (11-path-bridge.css), and keep
-// what they did before they were restyled (known.spec.js, unlock.spec.js).
+// The dialog the page opens over the Path (the question before a device's examples are kept, ai/share-notice.js) is a native dialog outside #path:
+// it takes the Path's palette, its face and its text buttons (11-path-bridge.css), and keeps what it did before it was restyled (known.spec.js).
+// The Magic Key is not asked in a dialog: the places that need it open Settings' Magic Key page (unlock.spec.js).
 import { test as plain, expect as plainExpect } from "@playwright/test";
 import { test, expect } from "../../support/test.js";
 import { serveCourse, withCourse } from "../../support/data-key.js";
@@ -47,23 +47,27 @@ withKey("the question before examples are kept takes the Path's look, and still 
   await expect(page.locator(".wtext")).toContainText("Stand-in tutor.");
 });
 
-plain("the Magic Key prompt takes the Path's look, light and dark", async ({ page }) => {
+// Where a dialog over the Path did not fit a phone's screen with the keyboard up, the Magic Key page does: its field takes the focus in the tap that opens it, so
+// that the keyboard comes up, and the page (the keyboard layout, the top bar stepping aside) keeps the field and Unlock in the part of the screen that can be seen.
+plain("the roadmap's Magic Key opens its page, not a dialog, with the field ready and in view when the keyboard is up", async ({ page }) => {
   await serveCourse(page);
   await page.addInitScript(onPath);
   await page.goto("/");
   await plainExpect(page.locator("#path .chs .crow")).toHaveCount(5);
-  const prompt = async () => {
-    // the roadmap's Magic Key opens the prompt (Settings' Magic Key page takes the key in its own field)
-    if (!(await page.locator(".road.on").count())) await page.locator(".tstn").click();
-    await page.locator(".road .rfoot").getByRole("button", { name: "Magic Key" }).click();
-    await plainExpect(page.locator("#unlock")).toBeVisible();
-    plainExpect(await looks(page, "#unlock")).toEqual({ paper: true, ink: true, face: true, flat: true, quiet: true });
-  };
-  await prompt();
-  await shot(page, "unlock-light");
-  await page.locator("#unlock-skip").click();
-  await page.emulateMedia({ colorScheme: "dark" });
-  await prompt();
-  await shot(page, "unlock-dark");
-  await page.locator("#unlock-skip").click();
+  if (!(await page.locator(".road.on").count())) await page.locator(".tstn").click();
+  await page.locator(".road .rfoot").getByRole("button", { name: "Magic Key" }).click();
+  const field = page.getByRole("textbox", { name: "Magic Key or link", exact: true });
+  await plainExpect(field).toBeFocused();
+  await plainExpect(page.locator("dialog[open]")).toHaveCount(0);
+  await shot(page, "key-page");
+  if (!(await page.evaluate(() => matchMedia("(pointer: coarse)").matches))) return;
+  // a keyboard leaves 300px seen, starting 200px down (the browser scrolled the visible part): the field and Unlock sit inside it
+  // (set and measured in one go: the page measures the visible area itself a few times while it settles)
+  const box = await page.evaluate(() => {
+    const r = document.documentElement.style; r.setProperty("--vvt", "200px"); r.setProperty("--vvh", "300px");
+    const f = document.querySelector("#path .pkeyform").getBoundingClientRect();
+    return { top: f.top, bottom: f.bottom };
+  });
+  plainExpect(box.top).toBeGreaterThanOrEqual(200);
+  plainExpect(box.bottom).toBeLessThanOrEqual(501);
 });

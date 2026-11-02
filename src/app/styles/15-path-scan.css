@@ -15,8 +15,8 @@
 .pa .pscw b{font-size:24px; font-weight:600; color:var(--vc); white-space:nowrap}
 .pa .pscan.pt .pscw b{color:var(--partc-t)}
 .pa .pscw small{font-family:var(--mono); font-size:11px; color:var(--ink2); letter-spacing:.02em}
-/* the thread the scanner has passed: checked, no longer gold */
-.pa .pscpast{position:absolute; width:var(--lh); margin-left:calc(var(--lh) / -2); background:var(--ink); opacity:.55; z-index:6; pointer-events:none}
+/* the thread the scanner has passed: checked, no longer gold; the ink of every walked stretch (it covers the gold line, which is as wide) */
+.pa .pscpast{position:absolute; width:var(--lw); margin-left:calc(var(--lw) / -2); background:color-mix(in srgb,var(--ink) 72%,var(--paper)); z-index:6; pointer-events:none}
 /* a case passed: its diamond takes the verdict's color, its mark comes in after the example */
 .pa .sb.scn > .d{transition:background-color .15s,box-shadow .15s,transform .15s; animation:p-scnd .3s ease-out}
 .pa .sb.scn-ok > .d{background-color:var(--green); box-shadow:none} .pa .sb.scn-no > .d{background-color:var(--red); box-shadow:none} .pa .sb.scn-pt > .d{background-color:var(--partc); box-shadow:none}

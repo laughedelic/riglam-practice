@@ -3,7 +3,7 @@
 // Edit opens the Magic Key prompt, as Explain does. The server is the Worker itself on a fake database (tests/support/server-bridge.js).
 import { test as plain } from "@playwright/test";
 import { test, expect } from "../../support/test.js";
-import { goTo, ready } from "../../support/page.js";
+import { goTo, ready, keyField, enterKey } from "../../support/page.js";
 import { dataKey, giveKey } from "../../support/data-key.js";
 import { bridge, serverWorld } from "../../support/server-bridge.js";
 
@@ -555,19 +555,19 @@ test("a flag edited on a device whose clock is ahead is marked sent, and is not 
   expect((await stored(page)).fl_cell.updatedAt).toBe(ahead);
 });
 
-plain("a Magic Key entered in the prompt lets the waiting flag go without a reload", async ({ page }) => {
+plain("a Magic Key entered on its page lets the waiting flag go without a reload, and goes back to Review with the flag open", async ({ page }) => {
   const world = await serverWorld({}, { stubCourse: true });
   await start(page, world);
   const li = await openFlags(page);
   await expect(head(li)).toContainText("Not reviewed yet");
   await li.getByRole("button", { name: "Edit" }).click();
-  await page.fill("#unlock-key", dataKey);
-  await page.locator("#unlock").getByRole("button", { name: "Unlock", exact: true }).click();
+  await enterKey(page, dataKey);
+  await expect(page.locator("#flag-note")).toBeVisible(); // back on Review, the Edit that was tapped goes on
   await expect.poll(() => reports(world).length).toBe(1);
   await expect(head(li)).toContainText("Sent to the maintainer");
 });
 
-plain("a device without the Magic Key cannot flag: Edit says so and opens the prompt, and nothing is sent", async ({ page }) => {
+plain("a device without the Magic Key cannot flag: Edit says so and opens the Magic Key page, and nothing is sent", async ({ page }) => {
   const world = await serverWorld();
   const device = await start(page, world);
   const li = await openFlags(page);
@@ -575,8 +575,11 @@ plain("a device without the Magic Key cannot flag: Edit says so and opens the pr
   const edit = li.getByRole("button", { name: "Edit" });
   await expect(edit).toHaveAttribute("title", "Flagging needs the Magic Key");
   await edit.click();
-  await expect(page.locator("#unlock")).toBeVisible();
+  await expect(keyField(page)).toBeFocused();
   await expect(page.locator("#flag-note")).toHaveCount(0);
+  await keyField(page).blur(); // (on a phone the top bar steps aside while the field has the keyboard)
+  await page.getByRole("button", { name: "Back to Review", exact: true }).click();
+  await expect(li).toBeVisible();
   expect(device.seen.filter((r) => r.includes("/api/flags"))).toEqual([]);
   expect(reports(world)).toEqual([]);
 });

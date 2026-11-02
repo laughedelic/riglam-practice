@@ -46,6 +46,14 @@ export async function openSettingsPage(page, title) {
   await page.getByRole("button", { name: title + ": more" }).click();
 }
 
+/** The field of Settings' Magic Key page, on a device without the key: the roadmap's Magic Key, Explain and a flag open the page, and so does a key that went wrong at the start. */
+export const keyField = (page) => page.getByRole("textbox", { name: "Magic Key or link", exact: true });
+/** Enters `key` on the Magic Key page, which is open. (Enter, not the button: on a phone the field's keyboard goes at the first press on the button, and the button moves from under it.) */
+export async function enterKey(page, key) {
+  await keyField(page).fill(key);
+  await keyField(page).press("Enter");
+}
+
 /** Answers the pair on screen as far as the result: the first relation (with `own`, the pair's own, which needs the spec's `window.__t`, so that every example is
  *  one the page can check against a cell), `text(i, cell)` in each case the page asks for (`cell` only with `own`; null says nothing exists, where the page
  *  lets it), and the Check. Leaves the result's page on screen. */

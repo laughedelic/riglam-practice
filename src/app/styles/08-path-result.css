@@ -45,9 +45,9 @@
 .pa .wrow{display:grid; grid-template-columns:var(--m) minmax(0,1fr) auto; align-items:center; width:100%; padding:10px 16px 10px 0; border-top:1px solid var(--rule)}
 .pa .wrow .d{justify-self:end; margin-right:-5px}
 .pa .wrow .ct{padding-left:22px; display:flex; gap:8px; align-items:baseline; flex-wrap:wrap; min-width:0}
-.pa .wrow b{font-weight:600; font-size:17px; color:var(--tutor)}
+.pa .wrow b{font-weight:600; font-size:17px; color:var(--tutor-t)}
 .pa .wrow span{font-style:italic; color:var(--ink2); font-size:15px}
-.pa .wrow .arr{color:var(--tutor)}
+.pa .wrow .arr{color:var(--tutor-t)}
 .pa .wrow .arr .i{width:18px; height:18px; transition:transform .25s}
 .pa .wrow.open .arr .i{transform:rotate(90deg)}
 .pa .wtext{padding:0 18px 12px calc(var(--m) + 22px)}
@@ -56,19 +56,19 @@
 .pa .dhead.open .spur2{width:32px; height:100%}
 .pa .dhead .spur2 path{fill:none; stroke:var(--tutor); stroke-width:2; vector-effect:non-scaling-stroke}
 .pa .dhead .ct{grid-column:2; padding-left:40px; display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; column-gap:8px; row-gap:0}
-.pa .dhead .ct b{font-size:18px; font-weight:600; color:var(--tutor); white-space:nowrap}
+.pa .dhead .ct b{font-size:18px; font-weight:600; color:var(--tutor-t); white-space:nowrap}
 .pa .dhead .ct span{font-style:italic; color:var(--ink2); font-size:15px}
-.pa .dhead .arr{color:var(--tutor)}
+.pa .dhead .arr{color:var(--tutor-t)}
 .pa .dhead .arr .i{width:18px; height:18px; transition:transform .25s}
 .pa .dhead.open .arr .i{transform:rotate(90deg)}
 .pa .dbody{margin-left:calc(var(--m) + 31px); border-left:2px solid var(--tutor); padding:2px 18px 12px 18px; position:relative; animation:p-dbin .3s ease}
 @keyframes p-dbin{from{opacity:0; transform:translateX(-10px)}}
 .pa .rejoin{display:block; margin-left:var(--m); width:32px; height:26px; overflow:visible}
 .pa .rejoin path{fill:none; stroke:var(--tutor); stroke-width:2}
-.pa .pback{font-family:var(--mono); font-size:11px; color:var(--tutor); margin-top:8px; text-decoration:underline; text-underline-offset:3px}
+.pa .pback{font-family:var(--mono); font-size:11px; color:var(--tutor-t); margin-top:8px; text-decoration:underline; text-underline-offset:3px}
 
 /* Claude at work: the words of the wait (path/wait.tsx, styles/19-path-wait.css), and the seconds */
-.pa .think{display:flex; align-items:center; gap:9px; margin-top:5px; font-family:var(--mono); font-size:11px; color:var(--tutor)}
+.pa .think{display:flex; align-items:center; gap:9px; margin-top:5px; font-family:var(--mono); font-size:11px; color:var(--tutor-t)}
 .pa .think .secs{color:var(--ink3)}
 .pa .tks{font-size:15px; line-height:1.4; color:var(--ink2)}
 .pa .tks em,.pa .tchk em{font-family:var(--hand-f); font-style:var(--hand-st); font-weight:var(--hand-w); color:var(--blue); font-size:16px}
