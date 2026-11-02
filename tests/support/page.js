@@ -40,7 +40,7 @@ export async function goTo(page, name) {
 /** Opens Settings (the Magic Key, the account, your data, the version) from the menu. */
 export const openSettings = (page) => goTo(page, "Settings");
 
-/** Opens a page of Settings (Account, Export and import, Magic Key ...) from the list: the line's "more" button. */
+/** Opens a page of Settings (Account, Your data, Magic Key ...) from the list: the line's "more" button. */
 export async function openSettingsPage(page, title) {
   await openSettings(page);
   await page.getByRole("button", { name: title + ": more" }).click();

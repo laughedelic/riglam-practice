@@ -87,6 +87,11 @@ export interface LocalDbOptions {
   timeoutMs?: number;
   /** Called once, when the storage did not answer in time: from then on the store works in memory only, like in a private window. */
   onUnavailable?: () => void;
+  /**
+   * Called when the storage that did not answer in time answers after all (the read or write that was given up on came through): what was not read has been
+   * read, what was written meanwhile has been saved, and the store is the device's again. Not called for a storage that stays silent.
+   */
+  onAvailable?: () => void;
 }
 
 /** A write made on this device through the `db` capability. `data` is null for a deletion. */
@@ -110,7 +115,7 @@ export interface LocalDb extends Db {
   revision(col: string, id: string): number;
   /** The name of the IndexedDB database this store is. */
   readonly name: string;
-  /** False once the storage stopped answering (src: `timeoutMs`): from then on the store works in memory only, and what it holds is not what a reload would show. */
+  /** False once the storage stopped answering (src: `timeoutMs`): from then on the store works in memory only, and what it holds is not what a reload would show. True again once it answered late (`onAvailable`). */
   usable(): boolean;
   /** Whether a write by the page has begun but `onWrite` has not yet been told of it (it is being saved). */
   writing(col: string, id: string): boolean;
@@ -146,17 +151,26 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
     }));
 
   // A storage that never answers (seen on a phone whose IndexedDB hung after the app was killed) must not keep the page on "Loading." for ever:
-  // after `timeoutMs` the store goes on in memory, and `onUnavailable` lets the page say so.
+  // after `timeoutMs` the store goes on in memory, and `onUnavailable` lets the page say so. A storage that was only slow (behind another tab's
+  // long transaction, a busy disk) answers sooner or later: the read or write that was given up on then comes through, and `revive` brings the
+  // store back to what the device holds.
   let dead = false;
+  const unread = new Set<string>(); // collections whose first read was given up on: held empty until the storage answers
+  const unsaved = new Set<string>(); // documents written while it did not answer: held in memory only, saved when it answers
+  let reviving = false;
   const tx = <T = unknown>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest<T> | undefined): Promise<T | undefined> => {
     if (dead) return Promise.resolve(undefined);
     return new Promise<T | undefined>((resolve, reject) => {
+      let late = false;
       const timer = setTimeout(() => {
-        dead = true;
-        try { opts.onUnavailable?.(); } catch { /* the notice is not the store's business */ }
+        late = true;
+        if (!dead) {
+          dead = true;
+          try { opts.onUnavailable?.(); } catch { /* the notice is not the store's business */ }
+        }
         resolve(undefined);
       }, opts.timeoutMs ?? 8000);
-      txNow<T>(mode, fn).then((v) => { clearTimeout(timer); resolve(v); }, (e) => { clearTimeout(timer); reject(e); });
+      txNow<T>(mode, fn).then((v) => { clearTimeout(timer); if (late) void revive(); resolve(v); }, (e) => { clearTimeout(timer); reject(e); });
     });
   };
   const txNow = async <T = unknown>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest<T> | undefined): Promise<T | undefined> => {
@@ -170,6 +184,39 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
       t.onabort = () => reject(err("unavailable", String(t.error ?? "IndexedDB transaction aborted")));
     });
   };
+
+  /** Saves a document as memory holds it now (or deletes its row when memory does not hold it). */
+  const persist = (path: string) => {
+    const at = path.lastIndexOf("/"), col = path.slice(0, at), id = path.slice(at + 1), data = cols.get(col)?.get(id);
+    return txNow("readwrite", (s) => (data === undefined ? s.delete(path) : s.put({ path, col, id, data })) as IDBRequest);
+  };
+  /**
+   * The storage answered after it was given up on: read what was left unread (a document written or deleted meanwhile is newer in memory and stays as it is),
+   * save what was written meanwhile, and take the store back. If it fails again the store stays as it was; a later late answer tries again.
+   */
+  async function revive(): Promise<void> {
+    if (!dead || reviving) return;
+    reviving = true;
+    try {
+      for (const col of [...unread]) {
+        const rows = await txNow<Stored[]>("readonly", (s) => s.index("col").getAll(col));
+        if (!rows) return;
+        const m = colMap(col);
+        for (const r of rows) if (!m.has(r.id) && !unsaved.has(r.path)) m.set(r.id, deepFreeze(r.data));
+        unread.delete(col);
+        notify(col);
+      }
+      while (unsaved.size) {
+        const path = unsaved.values().next().value as string;
+        unsaved.delete(path);
+        try { await persist(path); } catch (e) { unsaved.add(path); throw e; }
+        const at = path.lastIndexOf("/");
+        channel?.postMessage({ col: path.slice(0, at), id: path.slice(at + 1) });
+      }
+      dead = false;
+      try { opts.onAvailable?.(); } catch { /* the notice is not the store's business */ }
+    } catch { /* still not answering */ } finally { reviving = false; }
+  }
 
   /** Stores or deletes a row only if it still holds `expected` (undefined: no row), in one transaction. Resolves to whether it did. */
   const storeIfUnchanged = async (path: string, col: string, id: string, data: Doc | null, stored: Doc | undefined, expected: Doc | undefined): Promise<boolean> => {
@@ -205,6 +252,7 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
         col,
         tx<Stored[]>("readonly", (s) => s.index("col").getAll(col))
           .then((rows) => {
+            if (!rows && dead) unread.add(col); // given up on: read again if the storage answers late
             const m = colMap(col);
             for (const r of rows ?? []) if (!m.has(r.id)) m.set(r.id, deepFreeze(r.data)); // memory wins: it is newer
           })
@@ -275,7 +323,10 @@ export function createLocalDb(opts: LocalDbOptions = {}): LocalDb {
           }
           return false;
         }
-      } else await tx("readwrite", (s) => (data === null ? s.delete(path) : s.put({ path, col, id, data: mine })) as IDBRequest);
+      } else {
+        await tx("readwrite", (s) => (data === null ? s.delete(path) : s.put({ path, col, id, data: mine })) as IDBRequest);
+        if (dead && !remote) unsaved.add(path); // not saved (or not known to be): memory holds it until the storage answers
+      }
       // The server's copy must not count as received when it only reached memory: sync would move its cursor past it and never bring it again.
       if (remote && dead) throw err("unavailable", "the storage on this device is not answering");
     } catch (e) {

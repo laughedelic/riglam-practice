@@ -15,6 +15,7 @@ export interface NewsItem {
 }
 
 export const NEWS: NewsItem[] = [
+  { id: "2026-11-02-storage", title: "A calmer storage notice", text: "If your device's storage stops answering, one line above the bottom now says so, with Reload beside it, instead of a bar over the top of the page. Tap its words to see what is known. If the storage answers again, the line goes by itself and what you did meanwhile is saved. Export and import in Settings is now called Your data.", go: "settings" },
   { id: "2026-11-02-next-and-review", title: "Next, named alike", text: "The station that goes on is now named the same way everywhere: Next pair, Next relation, Next syllogism, Next set, and Next question in Categories and after a term's page. When a new term, a repetition or a new stage comes first, it says so after a colon, as in Next: new definition. Review no longer ends with a Continue practice button; Back takes you to the roadmap." },
   { id: "2026-11-01-icon", title: "A calmer app icon", text: "The app's icon now sits on the Path's own ivory ground, with the same figure." },
   { id: "2026-11-01-guidance", title: "Guidance in three levels", text: "Every exercise can guide you as much as you want: Detailed spells things out, Hints gives a nudge, None leaves you alone. Results and Sprint's time-up follow the level you chose." },
