@@ -1,0 +1,30 @@
+name: What's new
+
+# A pull request that changes what a learner sees adds an entry to src/app/news.ts (the page the app shows after an update), or says in its body why not
+# (scripts/lib/whats-new-check.mjs). Its own workflow, as the title check is: it has to run again when the body is edited, and an edit must not start the browser tests.
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  whats-new:
+    name: What's new entry
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - run: node scripts/whats-new-check.mjs
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
