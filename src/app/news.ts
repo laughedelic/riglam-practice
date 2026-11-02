@@ -15,6 +15,7 @@ export interface NewsItem {
 }
 
 export const NEWS: NewsItem[] = [
+  { id: "2026-11-02-hands-free", title: "Hands-free as a steady beat", text: "In Hands-free the result waits until you say next, Sprint goes on by itself, and you can say repeat, skip, explain or stop.", go: "practice" },
   { id: "2026-11-02-voice-exercises", title: "Voice in every exercise", text: "Syllogisms, Categories, Find a pair and Find an instance now take spoken answers too.", go: "syllogism" },
   { id: "2026-11-02-voice", title: "Answer by voice, one-handed", text: "With Voice on in Settings, the lower part of the screen listens: tap it and speak, or hold it while you talk. While your answer waits, a tap says yes, and a line above lets you hear the question again.", go: "settings" },
   { id: "2026-11-02-storage", title: "A calmer storage notice", text: "If your device's storage stops answering, one line above the bottom now says so, with Reload beside it, instead of a bar over the top of the page. Tap its words to see what is known. If the storage answers again, the line goes by itself and what you did meanwhile is saved. Export and import in Settings is now called Your data.", go: "settings" },

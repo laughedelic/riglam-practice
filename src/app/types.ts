@@ -562,6 +562,8 @@ export interface PendingAnswer {
   apply: () => (() => void) | void;
   /** the pause after which it goes on by itself (Hands-free, or when Options says so) */
   auto: { ms: number; t0: number; tid: ReturnType<typeof setTimeout> } | null;
+  /** the result on screen, left by "next" (Hands-free): a touch goes on at once, whether or not a bar runs */
+  result?: boolean;
 }
 
 /** The step a spoken answer took, kept for a few seconds above the foot with a way back (shell/voice.js). */
@@ -638,6 +640,10 @@ export interface VoiceState {
   tok: object | null;
   /** the Practice options listen for the browser's list of voices (once they have been shown) */
   hooked: boolean;
+  /** the run is paused ("stop", or a tap on the field in Hands-free): nothing is read or listened to by itself until the field is tapped; the Sprint clock stands still */
+  paused: boolean;
+  /** the words last heard began as the microphone opened (src/ui/speech.ts, EARLY_MS): their start may be lost */
+  early: boolean;
 }
 
 /** The audio context the sounds play into, made on the first touch, and what is sounding now (src/app/sound/play.ts). */
