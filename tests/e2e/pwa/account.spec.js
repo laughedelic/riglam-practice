@@ -277,12 +277,14 @@ test("a store that stopped answering is replaced by a new one, and the account b
     IDBFactory.prototype.open = function (name, ...rest) { return name === "riglam" ? ({}) : open.call(this, name, ...rest); };
   });
   await page.reload();
-  await expect(page.locator("#store")).toContainText("storage is not answering", { timeout: 20_000 });
+  const line = page.locator("#path .lay .pinln.onfoot.store"); // the exercise is the first screen: the line stands above its next station
+  await expect(line).toContainText("storage is not answering", { timeout: 20_000 });
   expect(await get(page, "labruns", "lr_kept")).toBeNull(); // the old store cannot be read
 
-  await page.locator("#store").getByRole("button", { name: "Use a new store" }).click();
+  await line.getByRole("button", { name: /storage is not answering/ }).click(); // the line's words open the Storage page, which offers the new store
+  await page.getByRole("button", { name: "Use a new store" }).click();
   await ready(page);
-  await expect(page.locator("#store")).toHaveCount(0);
+  await expect(page.locator(".pinln.store")).toHaveCount(0);
   await expect.poll(() => get(page, "labruns", "lr_kept"), { timeout: 20_000 }).toMatchObject({ kind: "run" });
 });
 

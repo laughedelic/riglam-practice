@@ -1,10 +1,10 @@
 // The local store when IndexedDB refuses a write: the page must not go on showing a document that a reload would lose.
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createLocalDb } from "../../src/pwa/local-db";
 
 /** An IndexedDB stand-in that keeps rows in an array and can be told to abort writes. */
 function stub() {
-  const control = { fail: false, failNext: 0, delay: 0 }; // delay: how long a write takes to finish
+  const control = { fail: false, failNext: 0, delay: 0, readDelay: 0 }; // delay: how long a write takes to finish; readDelay: a read
   const rows: { path: string; col: string; id: string; data: unknown }[] = [];
   const store = {
     index: () => ({ getAll: (col: string) => ({ result: rows.filter((r) => r.col === col) }) }),
@@ -26,7 +26,7 @@ function stub() {
       if (mode === "readwrite" && control.failNext > 0) control.failNext -= 1;
       setTimeout(() => {
         if (mode === "readwrite" && fails) { t.error = new Error("quota"); t.onabort?.(); } else t.oncomplete?.();
-      }, mode === "readwrite" ? control.delay : 0);
+      }, mode === "readwrite" ? control.delay : control.readDelay);
       return t;
     },
   };
@@ -141,6 +141,60 @@ describe("a storage that never answers", () => {
     const db = createLocalDb({ indexedDB: factory, channel: false, timeoutMs: 500, onUnavailable: () => told++ });
     await db.doc("answers/a1").set({ v: 1 });
     expect(told).toBe(0);
+  });
+});
+
+describe("a storage that was only slow", () => {
+  const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+  it("is picked up when it answers late: what it holds is read, what was written meanwhile is saved, and the page is told", async () => {
+    const { factory, control, rows } = stub();
+    rows.push({ path: "answers/old", col: "answers", id: "old", data: { v: 0 } });
+    control.readDelay = 120; // the first read takes longer than the timeout, then comes through
+    let gone = 0, back = 0;
+    const db = createLocalDb({ indexedDB: factory, channel: false, timeoutMs: 30, onUnavailable: () => gone++, onAvailable: () => back++ });
+    expect((await db.collection("answers").get()).size).toBe(0); // given up on: nothing read
+    expect(db.usable()).toBe(false);
+    expect(gone).toBe(1);
+    await db.doc("answers/new").set({ v: 1 }); // memory only for now
+    expect(rows.some((r) => r.id === "new")).toBe(false);
+    control.readDelay = 0;
+    await vi.waitFor(() => expect(back).toBe(1), { timeout: 2000 });
+    expect(db.usable()).toBe(true);
+    expect((await db.collection("answers").get()).docs.map((d) => d.id).sort()).toEqual(["new", "old"]);
+    expect(rows.find((r) => r.id === "new")?.data).toEqual({ v: 1 }); // saved once it answered
+    await db.doc("answers/later").set({ v: 2 }); // and writes are saved again
+    expect(rows.some((r) => r.id === "later")).toBe(true);
+    expect(gone).toBe(1);
+    expect(back).toBe(1);
+  });
+
+  it("does not bring back a document that was deleted while it did not answer, and tells the listeners what it read", async () => {
+    const { factory, control, rows } = stub();
+    rows.push({ path: "answers/a", col: "answers", id: "a", data: { v: 1 } }, { path: "answers/b", col: "answers", id: "b", data: { v: 2 } });
+    control.readDelay = 120;
+    let back = 0;
+    const db = createLocalDb({ indexedDB: factory, channel: false, timeoutMs: 30, onAvailable: () => back++ });
+    const seen: string[][] = [];
+    db.collection("answers").onSnapshot((s) => seen.push(s.docs.map((d) => d.id)));
+    await db.doc("answers/a").delete(); // memory knows nothing of it yet, and the storage has it
+    control.readDelay = 0;
+    await vi.waitFor(() => expect(back).toBe(1), { timeout: 2000 });
+    expect((await db.collection("answers").get()).docs.map((d) => d.id)).toEqual(["b"]);
+    expect(rows.map((r) => r.id)).toEqual(["b"]);
+    await wait(5);
+    expect(seen.at(-1)).toEqual(["b"]);
+  });
+
+  it("says it is unavailable once for several reads that are all given up on, and stays so while the storage says nothing", async () => {
+    const silent = { open: () => ({}) } as unknown as IDBFactory;
+    let gone = 0, back = 0;
+    const db = createLocalDb({ indexedDB: silent, channel: false, timeoutMs: 20, onUnavailable: () => gone++, onAvailable: () => back++ });
+    await Promise.all(["answers", "skips", "favorites"].map((c) => db.collection(c).get()));
+    await wait(40);
+    expect(gone).toBe(1);
+    expect(back).toBe(0);
+    expect(db.usable()).toBe(false);
   });
 });
 
