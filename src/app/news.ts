@@ -15,7 +15,7 @@ export interface NewsItem {
 }
 
 export const NEWS: NewsItem[] = [
-  { id: "2026-11-02-storage", title: "A calmer storage notice", text: "If your device's storage stops answering, one line above the bottom now says so, with Reload beside it, instead of a bar over the top of the page. Tap its words to see what is known. If the storage answers again, the line goes by itself and what you did meanwhile is saved.", go: "settings" },
+  { id: "2026-11-02-storage", title: "A calmer storage notice", text: "If your device's storage stops answering, one line above the bottom now says so, with Reload beside it, instead of a bar over the top of the page. Tap its words to see what is known. If the storage answers again, the line goes by itself and what you did meanwhile is saved. Export and import in Settings is now called Your data.", go: "settings" },
   { id: "2026-11-01-icon", title: "A calmer app icon", text: "The app's icon now sits on the Path's own ivory ground, with the same figure." },
   { id: "2026-11-01-guidance", title: "Guidance in three levels", text: "Every exercise can guide you as much as you want: Detailed spells things out, Hints gives a nudge, None leaves you alone. Results and Sprint's time-up follow the level you chose." },
   { id: "2026-11-01-sprint", title: "Sprint", text: "Blitz is now Sprint: a clock for every step of every exercise, which you can pause and resume." },

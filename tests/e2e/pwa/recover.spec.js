@@ -1,7 +1,7 @@
 // A start that never finishes offers a way out (the inline script in index.html). No service worker here, so the page's own requests
 // can be held back with page.route.
 import { test, expect } from "../../support/test.js";
-import { openMenu, openSettings, ready, roadmap } from "../../support/page.js";
+import { openMenu, openSettingsPage, ready, roadmap } from "../../support/page.js";
 
 test.use({ serviceWorkers: "block" });
 
@@ -74,11 +74,16 @@ test("a storage that never answers does not keep the page on Loading: it starts,
   const [line, foot] = await Promise.all([roadLine(page).boundingBox(), roadmap(page).locator(".rfoot").boundingBox()]);
   expect(line.height, "one line, or two at most").toBeLessThanOrEqual(60);
   expect(line.y + line.height, "right above the foot").toBeLessThanOrEqual(foot.y + 1);
-  // its Reload is the way on; its words open the Storage page, with what a test database said, and the way back goes to the roadmap
+  // its Reload is the way on; its words open Your data, with a note at its head saying what a test database found (and nothing to export while nothing is read),
+  // the new store only under a fold, and the way back goes to the roadmap
   await expect(roadLine(page).getByRole("button", { name: "Reload" })).toBeVisible();
   await roadLine(page).getByRole("button", { name: /storage is not answering/ }).click();
-  await expect(page.locator("#path .ptb-t", { hasText: "Storage" })).toBeVisible();
+  await expect(page.locator("#path .ptb-t", { hasText: "Your data" })).toBeVisible();
   await expect(page.locator("#path")).toContainText("A new test database opened", { timeout: 10_000 });
+  await expect(page.getByRole("button", { name: "Export your data to a file" }), "no backup of what is not read").toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Use a new store" }), "a last resort, under a fold").toBeHidden();
+  await page.getByText("Reload did not help?").click();
+  await expect(page.getByRole("button", { name: "Use a new store" })).toBeVisible();
   await page.getByRole("button", { name: "Back to the roadmap", exact: true }).click();
   await expect(roadLine(page)).toBeVisible();
 });
@@ -111,11 +116,10 @@ test("a storage that was only slow is back by itself: the line goes, the saved a
   await page.evaluate(() => window.__release());
   await expect(footLine(page), "the line goes when the storage answers").toHaveCount(0, { timeout: 10_000 });
   expect(await get("lr_kept"), "the saved answers are shown again").toMatchObject({ kind: "run" });
-  // Settings keeps a line that says it was away and is back
-  await openSettings(page);
-  await expect(page.locator("#path .ol", { hasText: "Storage" })).toContainText("answered again");
-  await page.getByRole("button", { name: "Storage: more" }).click();
+  // Your data keeps a note that it was away and is back, with Export and import where they were
+  await openSettingsPage(page, "Your data");
   await expect(page.locator("#path")).toContainText("What you did meanwhile has been saved");
+  await expect(page.getByRole("button", { name: "Export your data to a file" })).toBeVisible();
   // what was done meanwhile was saved: a start with no hold finds both
   await page.reload();
   await ready(page);

@@ -65,7 +65,7 @@ test("without accounts on the server Settings has no Account line", async ({ pag
   await page.goto("/");
   await ready(page);
   await openSettings(page);
-  await expect(page.getByRole("button", { name: "Export and import: more" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Your data: more" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Account: more" })).toHaveCount(0);
 });
 
@@ -281,7 +281,8 @@ test("a store that stopped answering is replaced by a new one, and the account b
   await expect(line).toContainText("storage is not answering", { timeout: 20_000 });
   expect(await get(page, "labruns", "lr_kept")).toBeNull(); // the old store cannot be read
 
-  await line.getByRole("button", { name: /storage is not answering/ }).click(); // the line's words open the Storage page, which offers the new store
+  await line.getByRole("button", { name: /storage is not answering/ }).click(); // the line's words open Your data, which keeps the new store under a fold
+  await page.getByText("Reload did not help?").click();
   await page.getByRole("button", { name: "Use a new store" }).click();
   await ready(page);
   await expect(page.locator(".pinln.store")).toHaveCount(0);

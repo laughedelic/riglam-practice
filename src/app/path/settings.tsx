@@ -22,10 +22,10 @@ import { TopBar, pathNote } from "./shell.tsx";
 import { Group, Intro, Line } from "./lines.tsx";
 import { Bridge, Words, NOFILL } from "./ui.tsx";
 import { NewsPage, openNews, unseen, updateNow } from "./news.tsx";
-import { StoragePage, openStorage, storageLine, storageTroubled } from "./storage.tsx";
+import { StorageNote, dataLine, storageStuck } from "./storage.tsx";
 
 /** The pages of Settings, by the names of their lines. */
-const TITLES: Record<string, string> = { langs: "Languages", key: "Magic Key", acct: "Account", share: "Sharing examples", xfer: "Export and import", store: "Storage", lab: "The lab's settings", ver: "Version and updates", news: "What's new" };
+const TITLES: Record<string, string> = { langs: "Languages", key: "Magic Key", acct: "Account", share: "Sharing examples", xfer: "Your data", lab: "The lab's settings", ver: "Version and updates", news: "What's new" };
 const open = (id: string) => { state.optsPage = id; render(); const b = document.querySelector<HTMLElement>("#path .ptb .tstn"); if (b) b.focus({ preventScroll: true }); };
 const back = () => { state.optsPage = null; render(); };
 // how long Version is held to show Experiments
@@ -141,12 +141,17 @@ function Page({ id }: { id: string }) {
   if (id === "acct") return <Holder><Bridge own cls="phost" fill={() => accountControls(state.account!, pel, render, state.acct)} /></Holder>;
   if (id === "share") return <><Intro>{shareNote()}</Intro>
     <Line title="Sharing examples" sw={{ on: state.shareExamples, toggle: () => { setShare(!state.shareExamples); render(); } }} sub={state.shareExamples ? "on" : "off"} /></>;
-  if (id === "xfer") return <Holder intro="Saves everything this device keeps (answers, debates, favorites, skipped pairs and these settings) in one file, as a backup or to move to another device. Importing adds what is missing and never deletes anything.">
-    <Bridge own cls="phost" fill={() => dataTransferControls(state.db!, pel, render, state.xfer)} /></Holder>;
+  if (id === "xfer") {
+    // while the storage does not answer what the page reads is only what memory holds: a backup made now would be empty, so Export and import wait
+    const note = StorageNote();
+    if (storageStuck()) return note;
+    const body = <Holder intro="Saves everything this device keeps (answers, debates, favorites, skipped pairs and these settings) in one file, as a backup or to move to another device. Importing adds what is missing and never deletes anything.">
+      <Bridge own cls="phost" fill={() => dataTransferControls(state.db!, pel, render, state.xfer)} /></Holder>;
+    return note ? <>{note}<Group name="Export and import">{body}</Group></> : body;
+  }
   if (id === "lab") return <LabPage />;
   if (id === "ver") return <VersionPage />;
   if (id === "news") return <NewsPage />;
-  if (id === "store") return <StoragePage />;
   return null;
 }
 
@@ -183,13 +188,12 @@ function Sections() {
       <Line title="Theme"><Words label="Theme" items={[["system", "System"], ["light", "Light"], ["dark", "Dark"]]} cur={look.mode} on={(v) => { setLook({ mode: v === DEFAULT_LOOK.mode ? null : v }); render(); }} /></Line>
       <Line title="Sounds" sub="A short sound for results, new terms and stages, and Claude's answers" sw={{ on: state.sounds, toggle: () => { setSounds(!state.sounds); render(); } }} />
     </Group>
-    {keyShown() || acct || shareShown() || state.db || storageTroubled() ? <Group name="Data">
+    {keyShown() || acct || shareShown() || state.db ? <Group name="Data">
       {keyShown() ? <Line title="Magic Key" icon={state.keyHeld ? "unlocked" : "locked"} sub={state.keyHeld ? "entered on this device" : "not on this device yet"} go={() => open("key")} /> : null}
       {acct ? <Line title="Account" sub={acctLine(acct)} go={() => open("acct")}
         act={acct.person ? { label: "Sync now", busy: acct.busy === "sync", run: () => { void state.account!.syncNow(); } } : undefined} /> : null}
       {shareShown() ? <Line title={"Sharing examples: " + (state.shareExamples ? "on" : "off")} sub="Your examples will help other learners" go={() => open("share")} /> : null}
-      {state.db ? <Line title="Export and import" sub="everything this device keeps, in one file" go={() => open("xfer")} /> : null}
-      {storageTroubled() ? <Line title="Storage" sub={storageLine()} go={() => openStorage(false)} /> : null}
+      {state.db ? <Line title="Your data" sub={dataLine()} go={() => open("xfer")} /> : null}
     </Group> : null}
     {expOn() ? <Group name="Experiments" tag={state.preview ? "only in previews" : "shown on this device"} note="Not settled yet; not shown in the released app.">
       {voiceAvailable() ? <Line title="Voice features" sub={voiceNote()} sw={{ on: voiceOn(), toggle: () => setVoiceOn(!voiceOn()) }} /> : null}
@@ -207,7 +211,7 @@ const KEY_BACK = { road: "Back to the roadmap", review: "Back to Review", exerci
 export function SettingsPage() {
   const page = state.optsPage && TITLES[state.optsPage] ? state.optsPage : null, from = state.keyFrom;
   // the top bar's chevron is the way back: from a page to Settings, from Settings (or the Magic Key page opened where the key is needed, or What's new opened from its line) to where it was opened from
-  const up = page && !from && !((page === "news" || page === "store") && state.newsDirect) ? { label: "Back to Settings", go: back } : { label: from ? KEY_BACK[from.back] : state.fromRoad ? "Back to the roadmap" : "Back to the exercise", go: () => toggleOpts(false) };
+  const up = page && !from && !((page === "news" || page === "xfer") && state.newsDirect) ? { label: "Back to Settings", go: back } : { label: from ? KEY_BACK[from.back] : state.fromRoad ? "Back to the roadmap" : "Back to the exercise", go: () => toggleOpts(false) };
   return <>
     <TopBar title={page ? TITLES[page]! : "Settings"} back={up} />
     <div class="ppage sfull">
