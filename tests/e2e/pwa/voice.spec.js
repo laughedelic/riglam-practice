@@ -6,8 +6,11 @@
 // speechSynthesis notes what it is asked to say and ends each utterance at once; SpeechRecognition answers each start
 // with the next phrase the test queued (a phrase, or a list of guesses best first), or with "no-speech" when none comes.
 import { test, expect } from "../../support/test.js";
+import { readFileSync } from "node:fs";
 import { goTo, openSettings, ready, overflow, relOptions } from "../../support/page.js";
 import { voice, said, spoken, hearNext, docs, mic, listening, idle, waiting, confirm, change, settle, hear } from "../../support/voice.js";
+import { KEY_STORE, dataKey } from "../../support/data-key.js";
+import { bridge, serverWorld } from "../../support/server-bridge.js";
 
 /** The question of Pervasions on the path now: "Q1" to "Q4". */
 const qNow = (page) => page.locator("#path .sb.now .qnm");
@@ -22,6 +25,8 @@ const openPracticeOptions = async (page) => { await page.getByRole("button", { n
 const readPage = (page) => sheet(page).getByRole("button", { name: "Read aloud: more" });
 const answerPage = (page) => sheet(page).getByRole("button", { name: "Answer by voice: more" });
 const openVoicePage = async (page) => { await openPracticeOptions(page); await answerPage(page).click({ position: { x: 12, y: 12 } }); };   // the line, beside its choice
+/** The Read aloud page: the voice and its speed (the control at the line's edge: the line itself holds the switch). */
+const openReadPage = async (page) => { await openPracticeOptions(page); await readPage(page).click(); };
 const closeSheet = async (page) => { for (let i = 0; i < 3 && (await sheet(page).isVisible()); i++) await page.keyboard.press("Escape"); await expect(sheet(page)).toBeHidden(); };
 /** The experiments of Settings are shown on this device (a hold on Version does it in the released app). */
 const showExperiments = (page) => page.addInitScript(() => localStorage.setItem("rd-exp", "1"));
@@ -892,4 +897,124 @@ test("the field and its strip show a ring for a keyboard that tabs, inside their
   await expect(mic(page)).toHaveCSS("outline-style", "solid");
   await speaker(page).focus();
   await expect(speaker(page)).toHaveCSS("outline-offset", "-4px");
+});
+
+/* ---------- the server's natural voices (src/pwa/speak.ts, worker/speak.ts) ---------- */
+// The page, the real Worker (on a fake database, through the bridge) and a stand-in for Google's Text-to-Speech, which makes a short silent clip and keeps what it was asked.
+const CLIP = readFileSync(new URL("../../support/speak-clip.mp3", import.meta.url)).toString("base64");
+function googleVoices() {
+  const calls = [];
+  const fetch = async (url, init) => {
+    calls.push({ url: String(url), headers: init.headers, body: JSON.parse(init.body) });
+    return new Response(JSON.stringify({ audioContent: CLIP }), { headers: { "content-type": "application/json" } });
+  };
+  return { fetch, calls };
+}
+/** The device has the Magic Key, the server has Google's voices (unless `key` is left out), and the page counts the clips the audio element starts. Read aloud is off unless `settings` has it: the Voice page's Try is what speaks. */
+async function serverVoices(page, { key = "google-test-key", env = {}, settings = {} } = {}) {
+  const google = googleVoices();
+  const world = await serverWorld({ ...(key ? { GOOGLE_TTS_API_KEY: key } : {}), ...env }, { stubCourse: true, fetch: google.fetch });
+  const device = await bridge(page, world);
+  await page.addInitScript(([store, k]) => localStorage.setItem(store, k), [KEY_STORE, dataKey]);
+  await page.addInitScript(() => {
+    window.__plays = 0;
+    const play = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function () { if (!String(this.src).startsWith("data:")) window.__plays++; return play.apply(this, arguments); };
+  });
+  await voice(page, { settings });
+  return { google, world, device };
+}
+const voiceSelect = (page) => sheet(page).getByRole("combobox", { name: "Voice" });
+const plays = (page) => page.evaluate(() => window.__plays);
+
+test("with the server's natural voices: the Read aloud page lists them first with Charon as the default, Try plays the clip, a sentence heard again is not asked for again", async ({ page }) => {
+  const { google } = await serverVoices(page);
+  await page.goto("/");
+  await ready(page);
+  await goTo(page, "Pervasions");
+  await openReadPage(page);
+  const select = voiceSelect(page);
+  await expect(select).toHaveValue("server:charon");
+  await expect(select.locator("optgroup").first()).toHaveAttribute("label", "Natural voices · online");
+  await expect(select.locator("optgroup").first().locator("option")).toHaveText(["Charon · recommended", "Kore", "Achird", "Sulafat"]);
+  await expect(sheet(page)).toContainText("made by Google");
+  await sheet(page).getByRole("button", { name: "Try", exact: true }).click();
+  await expect.poll(() => plays(page)).toBe(1);
+  expect(google.calls).toHaveLength(1);
+  expect(google.calls[0].body.voice.name).toBe("en-US-Chirp3-HD-Charon");
+  expect(google.calls[0].body.input.text).toMatch(/^Do you accept that if it is a product/);
+  expect(await said(page)).toEqual([]);   // the device's voice did not read as well
+  await sheet(page).getByRole("button", { name: "Try", exact: true }).click();
+  await expect.poll(() => plays(page)).toBe(2);
+  expect(google.calls).toHaveLength(1);   // kept for the visit
+});
+
+test("choosing another natural voice reads the sample with it, 'Best on this device' puts the device's voice back, and the choice is kept", async ({ page }) => {
+  const { google } = await serverVoices(page);
+  await page.goto("/");
+  await ready(page);
+  await goTo(page, "Pervasions");
+  await openReadPage(page);
+  await voiceSelect(page).selectOption("server:kore");
+  await expect.poll(() => google.calls.length).toBe(1);
+  expect(google.calls[0].body.voice.name).toBe("en-US-Chirp3-HD-Kore");
+  await expect.poll(() => plays(page)).toBe(1);
+  await voiceSelect(page).selectOption("best");
+  await expect.poll(async () => (await said(page)).length).toBe(1);   // the sample, by the device
+  expect(google.calls).toHaveLength(1);
+  expect(await page.evaluate(() => localStorage.getItem("rd-voice-name"))).toBe("best");
+  await page.reload();
+  await page.locator("#path .chs .crow").first().waitFor();   // started again, in the exercise it was in (Pervasions)
+  await openReadPage(page);
+  await expect(voiceSelect(page)).toHaveValue("best");
+});
+
+test("when the server's characters for the day are used up the device's voice reads, and the server is not asked again until it starts over", async ({ page }) => {
+  const { google, device } = await serverVoices(page, { env: { SPEAK_DEVICE_DAILY_CHARS: "10" } });
+  await page.goto("/");
+  await ready(page);
+  await goTo(page, "Pervasions");
+  await openReadPage(page);
+  const asked = () => device.seen.filter((r) => r === "POST /api/speak").length;
+  await sheet(page).getByRole("button", { name: "Try", exact: true }).click();
+  await expect.poll(async () => (await said(page)).length).toBe(1);   // refused, so the device reads
+  expect(asked()).toBe(1);
+  expect(google.calls).toHaveLength(0);
+  await sheet(page).getByRole("button", { name: "Try", exact: true }).click();
+  await expect.poll(async () => (await said(page)).length).toBe(2);
+  expect(asked()).toBe(1);   // not asked a second time
+  expect(await plays(page)).toBe(0);
+});
+
+test("when the server is unreachable the device's voice reads", async ({ page }) => {
+  const { world } = await serverVoices(page);
+  await page.goto("/");
+  await ready(page);
+  await goTo(page, "Pervasions");
+  await openReadPage(page);
+  world.offline = true;
+  await sheet(page).getByRole("button", { name: "Try", exact: true }).click();
+  await expect.poll(async () => (await said(page)).length).toBe(1);
+  expect(await plays(page)).toBe(0);
+});
+
+test("a server without Google's key has only the device's voices", async ({ page }) => {
+  await serverVoices(page, { key: "" });
+  await page.goto("/");
+  await ready(page);
+  await goTo(page, "Pervasions");
+  await openReadPage(page);
+  await expect(voiceSelect(page)).toHaveValue("");
+  await expect(voiceSelect(page).locator("option", { hasText: "Charon" })).toHaveCount(0);
+  await expect(sheet(page)).not.toContainText("made by Google");
+});
+
+test("a device without the Magic Key has only the device's voices", async ({ page }) => {
+  await voice(page);
+  await page.goto("/");
+  await ready(page);
+  await goTo(page, "Pervasions");
+  await openReadPage(page);
+  await expect(voiceSelect(page)).toHaveValue("");
+  await expect(voiceSelect(page).locator("option", { hasText: "Charon" })).toHaveCount(0);
 });

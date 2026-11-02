@@ -11,6 +11,7 @@
 //   tutor   the app's own server (./tutor.ts), when it has the tutor on and this device has the Magic Key
 //   known   what that server learned of examples from earlier checks (./tutor.ts), when it answers from it (a Preview) and this device has the Magic Key
 //   shares  whether that server keeps the examples the tutor checked, when this device has the Magic Key (the one-time dialog and the switch in Settings)
+//   speak   natural voices for reading aloud, made by the app's own server (./speak.ts), when it says it has them and this device has the Magic Key
 //   reports flags sent to the app's own server (./reports.ts), when it takes them and this device has the Magic Key
 //   account optional sign-in with a passkey and a server copy of the documents (./account.ts), when the server has accounts on
 //   updates the service worker's new versions: checked in the background, started from the toast, the menu or Settings (./updates.ts)
@@ -28,6 +29,7 @@ import { storeName } from "./store-slot";
 import { createLocalDb } from "./local-db";
 import { createReports, withdrawLater } from "./reports";
 import { createKnown, createTutor, serverSays, type ServerSays } from "./tutor";
+import { createSpeaker } from "./speak";
 import { takeLinkKey, storedKey, storeKey, forgetKey, keyDeclined, declineKey, allowKey, takeKey, markKeyChanged, takeKeyChanged, KEY_CHANGED_TEXT } from "./unlock";
 
 const storage = createStorageWatch();
@@ -222,6 +224,8 @@ export const pwaPlatform: Platform = {
   known: async () => (groupKey && (await serverSaid()).known ? createKnown(groupKey) : null),
   // Only with the key, and only when the server says it keeps the examples the tutor checked: the page then asks once and shows the switch.
   shares: async () => !!(groupKey && (await serverSaid()).learns),
+  // Only with the key, like the tutor, and only when the server says it has voices (a Google key is set there); without it the page reads with the device's own voice.
+  speak: async () => (groupKey && (await serverSaid()).speak ? createSpeaker(groupKey) : null),
   // Only with the key, like the tutor, and only when the server says it takes reports: otherwise flags stay on the device.
   reports: async () => (groupKey && (await serverSaid()).reports ? createReports(groupKey) : null),
   withdrawReport: withdrawLater,
