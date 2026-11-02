@@ -9,6 +9,7 @@ import { next } from "../practice/queue.js";
 import { againOn, stopHead, stopTerm, toggleAgain } from "../practice/stops.ts";
 import { Scroll } from "./scroll.tsx";
 import { FitTerm, StopSections } from "./stop-def.tsx";
+import { NEXT_QUESTION } from "./next.ts";
 import { Names } from "./terms.tsx";
 import { Foot, Station, TopBar } from "./shell.tsx";
 import { D, Gap, Head, Icon, St, Sx } from "./ui.tsx";
@@ -45,6 +46,6 @@ export function stopScreen(title: string): { cls: string; node: ComponentChildre
         <Gap h={6} /></Sx>
       <Sx cls="ptail" />
     </Scroll>
-    <Foot><Station name="Next: question" act={() => next()} /></Foot>
+    <Foot><Station name={NEXT_QUESTION} act={() => next()} /></Foot>
   </> };
 }

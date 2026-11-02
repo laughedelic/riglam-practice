@@ -182,6 +182,13 @@ test("Settings and Review opened from the roadmap go back to it, by the system B
   await road(page).getByRole("button", { name: /^Review/ }).click();
   await expect(heading(page)).toHaveText("Review");
   await expect.poll(() => level(page)).toBe(1);
+  await expect(page.locator("#stn"), "Review ends with no station, and no way into practice from there: Back is the way out").toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^Continue practice/ })).toHaveCount(0);
+  await page.getByRole("button", { name: "Back to the roadmap", exact: true }).click();   // the top bar's chevron
+  await expect(road(page)).toBeVisible();
+  await expect.poll(() => level(page)).toBe(0);
+  await road(page).getByRole("button", { name: /^Review/ }).click();
+  await expect(heading(page)).toHaveText("Review");
   await page.goBack();
   await expect(road(page)).toBeVisible();
   await expect.poll(() => level(page)).toBe(0);
