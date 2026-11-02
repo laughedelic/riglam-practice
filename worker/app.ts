@@ -3,6 +3,7 @@
 //   GET  /api/course   the definitions, for a device that has the Magic Key (src/ai/magic-key.ts)
 //   GET  /api/course/examples  the reference examples a device may keep, for a device that has the Magic Key
 //   POST /api/known    what the server already knows of examples the page could not check (learned facts, worker/learned.ts), where it is set to
+//   POST /api/speak    one sentence read aloud with Google's Chirp 3 HD voices; the audio comes back as it is (worker/speak.ts), where a Google key is set
 //   POST /api/tutor    one tutor question; the answer comes back as server-sent events (src/ai/protocol.ts). On a Preview an explain question may ask
 //                      for Quorum, several models and a judge (worker/quorum.ts)
 //   /api/account/*     optional accounts, signed in with a passkey (worker/accounts.ts)
@@ -15,12 +16,12 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import { API, HEADER, LIMITS, QUORUM, type BudgetScope, type CourseResponse, type ErrorCode, type ExamplesResponse, type Health, type KnownResponse, type TutorEvent } from "../src/ai/protocol";
+import { API, HEADER, LIMITS, QUORUM, SPEAK, type BudgetScope, type CourseResponse, type ErrorCode, type ExamplesResponse, type Health, type KnownResponse, type TutorEvent } from "../src/ai/protocol";
 import { accountRoutes, accountsOn } from "./accounts";
 import { adminRoutes } from "./admin";
 import { exampleAdminRoutes } from "./examples-admin";
-import { dayOf, prune, reserve, settle, tutorSwitchedOn, type Pool } from "./budget";
-import { readConfig, readFactsConfig, readQuorumConfig } from "./config";
+import { dayOf, prune, reserve, settle, switchedOn, tutorSwitchedOn, type Pool } from "./budget";
+import { SPEAK_MICRO_PER_CHAR, readConfig, readFactsConfig, readQuorumConfig, readSpeakConfig } from "./config";
 import { readCourseRow, readCourseRows, usableDefinitions, usableRow } from "./course";
 import type { Env } from "./env";
 import type { Kit } from "./kit";
@@ -28,12 +29,14 @@ import { callerOf, gate, magicKeyOf, type Gate } from "./magic";
 import { keepFacts, knownFacts, type Analysis } from "./learned";
 import { reportRoutes, reportsOn } from "./reports";
 import { runQuorum, saveRecord } from "./quorum";
+import { parseSpeak, synthesize, voiceName } from "./speak";
 import { syncRoutes } from "./sync";
+import { noTokens } from "./prices";
 import { parseKnown, parseRequest, runTutor } from "./tutor";
 
 export interface Deps {
   now?: () => Date;
-  /** the fetch the model client uses; tests pass a fake */
+  /** the fetch the model client uses, and the voice's; tests pass a fake */
   fetch?: typeof fetch;
   /** how often the model client repeats a call the API answered with a retryable error (default 1) */
   retries?: number;
@@ -63,6 +66,17 @@ export function createApp(deps: Deps) {
     return fail("rate_limited", "too many wrong keys from this connection; try again later", { "retry-after": String(wait) }, { scope: "caller", resetsAt: checked.resetsAt });
   };
 
+  // A budget with no room: whose it was, and when the counters start again (UTC midnight).
+  const spent = (scope: "device" | "global", day: string, when: Date) => {
+    const tomorrow = Date.parse(day) + 86_400_000;
+    return fail(
+      "rate_limited",
+      scope === "device" ? "this device has used its budget for today" : "the budget for today is used",
+      { "retry-after": String(Math.max(60, Math.ceil((tomorrow - when.getTime()) / 1000))) },
+      { scope, resetsAt: new Date(tomorrow).toISOString() },
+    );
+  };
+
   // The app and its server share an origin, so a request that names another one is not from the app.
   app.use("/api/*", async (c, next) => {
     const origin = c.req.header("origin");
@@ -76,6 +90,9 @@ export function createApp(deps: Deps) {
   const ready = async (env: Env): Promise<boolean> =>
     !!(env.DB && env.ANTHROPIC_API_KEY && magicKeyOf(env) && (await tutorSwitchedOn(env.DB).catch(() => false)) && (await deps.kit(env).catch(() => null)));
 
+  // Reading aloud is on when it could answer: the database, the Google key, the Magic Key (the proof is checked as for the tutor) and the switch. It does not need the tutor.
+  const speakReady = async (env: Env): Promise<boolean> => !!(env.DB && env.GOOGLE_TTS_API_KEY && magicKeyOf(env) && (await switchedOn(env.DB, "speak").catch(() => false)));
+
   app.get(API.health, async (c) => {
     const tutor = await ready(c.env);
     // Quorum is a mode of the tutor, so it is offered where the tutor is on and this server is set to (a Preview)
@@ -88,6 +105,7 @@ export function createApp(deps: Deps) {
       ...(tutor && offered.on ? { quorum: offered.optIn ? ("optin" as const) : ("on" as const) } : {}),
       ...(tutor && readFactsConfig(c.env).serve ? { known: "on" as const } : {}),
       ...(tutor && readFactsConfig(c.env).record ? { learns: "on" as const } : {}),
+      ...((await speakReady(c.env)) ? { speak: "on" as const } : {}),
     };
     return c.json(body, 200, { "cache-control": "no-store" });
   });
@@ -144,6 +162,44 @@ export function createApp(deps: Deps) {
     return c.json({ known } satisfies KnownResponse, 200, { "cache-control": "no-store" });
   });
 
+  // One sentence read aloud: the Magic Key as for the tutor, then the day's characters (the device's and everybody's) held back before the vendor is asked, and given back
+  // when it fails. The audio is sent as it came; nothing of the text is kept or logged.
+  app.post(API.speak, async (c) => {
+    const env = c.env;
+    if (Number(c.req.header("content-length") ?? 0) > SPEAK.body) return fail("prompt_too_large", "the request is too large");
+    const device = c.req.header(HEADER.device) ?? "";
+    const checked = await gate(env, now(), await callerOf(c.req.header("cf-connecting-ip")), device, c.req.header(HEADER.proof) ?? "");
+    if (!checked.ok) return refusal(checked, "the proof does not match");
+    if (!(await speakReady(env))) return fail("unavailable", "reading aloud is off");
+    let body: unknown;
+    try {
+      const text = await c.req.text();
+      if (text.length > SPEAK.body) return fail("prompt_too_large", "the request is too large");
+      body = JSON.parse(text);
+    } catch {
+      return fail("bad_request", "the body is not JSON");
+    }
+    const parsed = parseSpeak(body);
+    if (!parsed.ok) return fail("bad_request", parsed.message);
+    const limits = readSpeakConfig(env);
+    const when = now();
+    const day = dayOf(when);
+    const micro = parsed.request.text.length * SPEAK_MICRO_PER_CHAR;
+    const held = await reserve(env.DB!, { day, device, micro, deviceCap: limits.deviceDailyChars * SPEAK_MICRO_PER_CHAR, globalCap: limits.globalDailyChars * SPEAK_MICRO_PER_CHAR, pool: "speak" });
+    if (!held.ok) return spent(held.scope, day, when);
+    if (Math.random() < 0.02) later(c, prune(env.DB!, day).catch(() => {}));
+    const spoken = await synthesize(env.GOOGLE_TTS_API_KEY!, new URL(c.req.url).origin, parsed.request, deps.fetch);
+    // The held characters are replaced by what was made: none when the vendor failed.
+    await settle(env.DB!, { day, device, held: micro, actual: spoken.ok ? micro : 0, now: when, kind: "speak", model: voiceName(parsed.request.voice), rounds: 1, tokens: noTokens(), outcome: spoken.ok ? "answered" : `failed ${spoken.status}`, pool: "speak" }).catch((e) =>
+      console.error("settle failed", e instanceof Error ? e.name : typeof e),
+    );
+    if (!spoken.ok) {
+      console.error("speak failed", spoken.status);
+      return fail("unavailable", "the voice could not be made just now");
+    }
+    return new Response(spoken.audio, { headers: { "content-type": "audio/mpeg", "cache-control": "no-store" } });
+  });
+
   app.post(API.tutor, async (c) => {
     const env = c.env;
     const length = Number(c.req.header("content-length") ?? 0);
@@ -186,15 +242,7 @@ export function createApp(deps: Deps) {
       } else single = true;
     }
     const held = pool === "quorum" ? ({ ok: true } as const) : await reserve(env.DB!, { day, device, micro: cost.reserveMicro, deviceCap: cost.deviceCap, globalCap: cost.globalCap });
-    if (!held.ok) {
-      const tomorrow = Date.parse(day) + 86_400_000;
-      return fail(
-        "rate_limited",
-        held.scope === "device" ? "this device has used its budget for today" : "the budget for today is used",
-        { "retry-after": String(Math.max(60, Math.ceil((tomorrow - when.getTime()) / 1000))) },
-        { scope: held.scope, resetsAt: new Date(tomorrow).toISOString() },
-      );
-    }
+    if (!held.ok) return spent(held.scope, day, when);
     if (Math.random() < 0.02) later(c, prune(env.DB!, day).catch(() => {}));
 
     const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY!, ...(env.ANTHROPIC_BASE_URL ? { baseURL: env.ANTHROPIC_BASE_URL } : {}), maxRetries: deps.retries ?? 1, timeout: 90_000, ...(deps.fetch ? { fetch: deps.fetch } : {}) });

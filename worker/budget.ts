@@ -7,12 +7,15 @@ import type { Tokens } from "./prices";
 
 export const dayOf = (now: Date): string => now.toISOString().slice(0, 10);
 
-export type Scope = "global" | "review" | `dev:${string}` | "quorum" | `quorum:dev:${string}`;
+export type Scope = "global" | "review" | `dev:${string}` | "quorum" | `quorum:dev:${string}` | "speak" | `speak:dev:${string}`;
 
-/** Whose money a call is: the tutor's, or Quorum's (worker/quorum.ts), which has counters of its own so that it cannot use up the tutor's budget. */
-export type Pool = "tutor" | "quorum";
-const globalOf = (pool: Pool): Scope => (pool === "quorum" ? "quorum" : "global");
-const deviceOf = (pool: Pool, device: string): Scope => (pool === "quorum" ? `quorum:dev:${device}` : `dev:${device}`);
+/**
+ * Whose money a call is: the tutor's, Quorum's (worker/quorum.ts) or the voice's (worker/speak.ts), each with counters of its own so that none can use up another's budget.
+ * The voice's amounts are characters of speech at `SPEAK_MICRO_PER_CHAR` (worker/config.ts).
+ */
+export type Pool = "tutor" | "quorum" | "speak";
+const globalOf = (pool: Pool): Scope => (pool === "quorum" ? "quorum" : pool === "speak" ? "speak" : "global");
+const deviceOf = (pool: Pool, device: string): Scope => (pool === "quorum" ? `quorum:dev:${device}` : pool === "speak" ? `speak:dev:${device}` : `dev:${device}`);
 
 export type Reservation = { ok: true } | { ok: false; scope: "device" | "global" };
 
@@ -85,11 +88,14 @@ export async function settleReview(db: D1Database, p: { day: string; held: numbe
   ]);
 }
 
-/** False when the operator has switched the tutor off in `settings`. */
-export async function tutorSwitchedOn(db: D1Database): Promise<boolean> {
-  const row = await db.prepare("SELECT value FROM settings WHERE key = 'tutor'").first<{ value: string }>();
+/** False when the operator has switched the feature `key` ("tutor", "speak") off in `settings`. */
+export async function switchedOn(db: D1Database, key: "tutor" | "speak"): Promise<boolean> {
+  const row = await db.prepare("SELECT value FROM settings WHERE key = ?1").bind(key).first<{ value: string }>();
   return row?.value !== "off";
 }
+
+/** False when the operator has switched the tutor off in `settings`. */
+export const tutorSwitchedOn = (db: D1Database): Promise<boolean> => switchedOn(db, "tutor");
 
 /** Removes counters and log lines older than `keepDays`. Cheap; run now and then. */
 export async function prune(db: D1Database, today: string, keepDays = 45): Promise<void> {

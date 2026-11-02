@@ -10,6 +10,9 @@ export interface Env {
   /** the Magic Key (docs/DATA.md): four lower-case words joined by dashes. It checks the proofs; with it a device may read the definitions */
   RIGLAM_DATA_KEY?: string;
 
+  /** a Google Cloud API key restricted to the Text-to-Speech API (docs/SERVER.md, "Reading aloud"); without it `POST /api/speak` is off and the app reads with the device's own voice */
+  GOOGLE_TTS_API_KEY?: string;
+
   /** the maintainer's key (docs/SERVER.md, "Maintainer access"): at least 32 characters; without it the maintainer routes are off */
   RIGLAM_ADMIN_KEY?: string;
 
@@ -49,6 +52,10 @@ export interface Env {
   EXAMPLE_FACTS?: string;
   /** most rows of example_facts (default 50000): past it, new examples are not added */
   EXAMPLE_FACTS_MAX_ROWS?: string;
+  /** most characters of speech one device may have made per UTC day (default 10000) */
+  SPEAK_DEVICE_DAILY_CHARS?: string;
+  /** most characters all devices together may have made per UTC day (default 30000: about 900,000 a month, under the vendor's 1,000,000 free; production and the Previews share the free month, so wrangler.jsonc splits it) */
+  SPEAK_GLOBAL_DAILY_CHARS?: string;
   /** who may create an account: `open` (default), `group` (only with the study group's proof) or `closed` */
   SIGNUP?: string;
   /** most accounts (default 300) */

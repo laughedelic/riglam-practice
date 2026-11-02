@@ -42,6 +42,10 @@
     "REVIEW_MODELS": "claude-sonnet-5-5,claude-opus-5-5",
     "REVIEW_DAILY_BUDGET_USD": "1.00",
     "REVIEW_BATCH": "5",
+    // Reading aloud with Google's voices (docs/SERVER.md, "Reading aloud"): characters of speech per UTC day, one device and everybody together. Production's 25,000 and the Previews' 5,000
+    // (below, the same Google project) are 30,000 a day at most, about 900,000 a month, under the vendor's 1,000,000 free characters. The secret GOOGLE_TTS_API_KEY is not here: `wrangler secret put`; without it reading aloud is off and the app uses the device's voice.
+    "SPEAK_DEVICE_DAILY_CHARS": "10000",
+    "SPEAK_GLOBAL_DAILY_CHARS": "25000",
     // Quorum (docs/SERVER.md, "Quorum") is an opt-in here: offered to a device with the Magic Key and off until the device turns it on in Options, because a run
     // waits for three models and a judge. It keeps a record of every run (the answers and what the learner wrote) in this database. Budgets of its own, apart from the tutor's.
     "QUORUM": "optin",
@@ -68,7 +72,7 @@
   // QUORUM turns on the tutor's mode of several models and a judge (docs/SERVER.md, "Quorum"): "on" is for Previews only: a device has it on until it turns it off. Production has "optin" (above), off for a device until it turns it on.
   // It keeps a record of every run in this database (the examples learners checked and the answers). Quorum has budgets of its own, apart from the tutor's;
   // a run that finds them used up is answered by the one model, from the tutor's.
-  // The secrets ANTHROPIC_API_KEY and RIGLAM_DATA_KEY are not here: they come from the Preview base config (`wrangler preview base-config
+  // The secrets ANTHROPIC_API_KEY, RIGLAM_DATA_KEY and GOOGLE_TTS_API_KEY are not here: they come from the Preview base config (`wrangler preview base-config
   // secret put`), which a Preview copies when it is created. `npm run staging -- deploy` applies the database's migrations before it deploys
   // `staging`; those of a pull request are applied by hand (wrangler's migration command reads the top level only, which is why
   // wrangler.staging-migrations.jsonc declares the database again).
@@ -90,6 +94,9 @@
       "GLOBAL_DAILY_BUDGET_USD": "2",
       "RESERVE_USD": "0.05",
       "QUORUM": "on",
+      // Reading aloud (as above, smaller): Previews and production draw on the same free characters
+      "SPEAK_DEVICE_DAILY_CHARS": "3000",
+      "SPEAK_GLOBAL_DAILY_CHARS": "5000",
       "QUORUM_DEVICE_DAILY_BUDGET_USD": "3",
       "QUORUM_GLOBAL_DAILY_BUDGET_USD": "12",
       "QUORUM_RESERVE_USD": "0.40",
