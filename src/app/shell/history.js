@@ -12,7 +12,7 @@ import { progBack } from "../path/progression.tsx";
 // The app has one address, so on a phone Back would leave it. Instead the page keeps one history entry (same address) for each level that is open. The roadmap is the root, at
 // every start, also one that opens on an exercise: the exercise is the first level above it, then Review (or the Progression page, and a term's card over it), the tutor's
 // conversation, Settings and one of its pages (the Magic Key page opened where the key is needed is one level with Settings: shell/options.js, openKey), the practice options and one of their pages, the question before a skip. Back takes one off and closes that level: the question,
-// the page or the sheet, Settings, the conversation, Review (back to the exercise, or to the roadmap it was opened from); Back on the exercise opens the roadmap, and Back on
+// the page or the sheet, Settings, the conversation, Review (back to the roadmap it was opened from); Back on the exercise opens the roadmap, and Back on
 // the roadmap leaves the app. Review and Settings opened from the roadmap stand right over it (`state.fromRoad`) and Back takes them back there; opened from an exercise (Settings
 // from its practice options) they go back to it; the Progression page goes where it was opened from (path/progression.tsx, progBack). Moving between exercises replaces the level
 // instead of adding one. The page only sets the state (open a screen, close a panel); after each render the number of entries is brought in line with it (`navSync`). Each entry
