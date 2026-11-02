@@ -17,6 +17,9 @@ export { stampOf };
 export const FORMAT = "riglam-practice-data";
 export const VERSION = 1;
 
+/** Device-only keys of What's new (the newest item this device has shown, and whether the next start opens it; src/app/path/news.tsx): not carried by export and import. */
+export const NEWS_KEYS = ["rd-news-seen", "rd-news-open"] as const;
+
 /** The collections the page reads and writes. A file may carry others; import skips them. */
 export const COLLECTIONS = SYNC_COLLECTIONS;
 

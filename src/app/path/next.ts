@@ -13,5 +13,11 @@ export function nextName(question: string): string {
   const s = dueStop();
   return s ? stopName(s) : question;
 }
-/** The look of the Next station: its own (green) when a new stage comes first, else the usual big blue one. */
-export const nextKind = (): StationKind | undefined => (stageUpDue() ? "up" : undefined);
+/** The look of the Next station, by what it goes on to: a new stage (green), a new term or a term that comes again (teal), else the next question (gold). */
+export function nextKind(): StationKind {
+  if (stageUpDue()) return "up";
+  const s = dueStop();
+  return s ? stopKind(s) : "q";
+}
+/** The look of the station that goes on to the stop `s`. */
+export const stopKind = (s: Stop): StationKind => (s.why === "new" ? "def" : "rep");

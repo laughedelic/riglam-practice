@@ -14,6 +14,8 @@ const lay = (page) => page.locator("#path .lay");
 const layX = (page) => lay(page).evaluate((n) => n.getBoundingClientRect().x - n.parentElement.getBoundingClientRect().x - n.parentElement.clientLeft);
 const colW = (page) => page.locator("#path .pcol").evaluate((n) => n.clientWidth);
 const level = (page) => page.evaluate(() => (history.state && history.state.riglamNav) || 0);
+/** Back to the exercise under the roadmap by its stop (the one marked "here"): "Continue" is there only when that exercise has an attempt under way. */
+const resume = (page) => road(page).locator("[aria-current=page]").click();
 
 async function start(page) {
   await page.addInitScript(setup);
@@ -53,7 +55,7 @@ test("the back chevron slides the exercise away to the right over the roadmap, a
   await expect.poll(roadX, "the roadmap comes to its place under it").toBe(0);
   await expect(lay(page)).toBeHidden();
   const before = await page.locator("#path .qst, #path .chs").first().textContent();
-  await road(page).getByRole("button", { name: "Continue" }).click();
+  await resume(page);
   const back = [];
   for (let i = 0; i < 8; i++) { back.push(await x()); await page.waitForTimeout(40); }
   expect(Math.min(...back.filter((v) => v > 0)), "it comes back in over the roadmap from the right").toBeLessThan(await colW(page));
@@ -74,13 +76,13 @@ test("the system Back plays the same slide when the browser has not animated it,
   expect(seen.some((v) => v > 0 && v < wide - 1), "it moved in steps, not at once").toBe(true);
   await expect(road(page)).toBeVisible();
   await expect.poll(x).toBeGreaterThanOrEqual(wide - 1);
-  await road(page).getByRole("button", { name: "Continue" }).click();
+  await resume(page);
   await expect(road(page)).toBeHidden();
   // the swipe from the edge: the browser has animated the screen away itself, so the page does not slide it again
   await page.evaluate(() => Object.defineProperty(PopStateEvent.prototype, "hasUAVisualTransition", { get: () => true }));
   await page.locator(".tstn").click();
   await expect(road(page)).toBeVisible();
-  await road(page).getByRole("button", { name: "Continue" }).click();
+  await resume(page);
   await expect(road(page)).toBeHidden();
   await page.goBack();
   await expect(road(page)).toBeVisible();
@@ -96,6 +98,7 @@ test("there is no slide from the top: the roadmap has no pull-down and the pract
 
 test("Continue is a full-size link above the foot, on the right, and is not on a screen without an exercise to go back to", async ({ page }) => {
   await start(page);
+  await choices(page).first().click();   // a relation picked: the attempt has begun, so there is something to continue
   await page.locator(".tstn").click();
   await expect.poll(() => page.locator("#path .road").evaluate((n) => Math.round(n.getBoundingClientRect().x - n.parentElement.getBoundingClientRect().x - n.parentElement.clientLeft)), "the roadmap has come to its place").toBe(0);
   const go = road(page).getByRole("button", { name: "Continue" });
@@ -107,6 +110,30 @@ test("Continue is a full-size link above the foot, on the right, and is not on a
   await road(page).getByRole("button", { name: /^Pervasions/ }).click();
   await expect(road(page)).toBeHidden();
   await expect(page.locator(".ptb-t")).toContainText("Pervasions");
+});
+
+test("Continue is offered only when the exercise under the roadmap has an attempt to continue", async ({ page }) => {
+  await start(page);
+  const go = road(page).getByRole("button", { name: "Continue", exact: true });   // exact: a stop with an attempt waiting is named "..., continue"
+  await page.locator(".tstn").click();
+  await expect(road(page)).toBeVisible();
+  await expect(go, "a pair only drawn, as when the app is opened the first time: nothing to continue").toHaveCount(0);
+  await resume(page);   // its stop goes in
+  await expect(road(page)).toBeHidden();
+  await choices(page).first().click();   // a relation picked: the attempt has begun
+  await page.locator(".tstn").click();
+  await expect(go, "an attempt under way").toBeVisible();
+  await go.click();
+  await expect(road(page)).toBeHidden();
+  // another exercise opened from the roadmap has only a pair drawn: its own roadmap has no Continue, and the exercise left in the middle says "continue" on its stop
+  await page.locator(".tstn").click();
+  await road(page).getByRole("button", { name: /^Find a pair/ }).click();
+  await expect(road(page)).toBeHidden();
+  await expect(page.locator(".ptb-t")).toContainText("Find a pair");
+  await page.locator(".tstn").click();
+  await expect(road(page)).toBeVisible();
+  await expect(go, "the exercise under the roadmap has nothing begun").toHaveCount(0);
+  await expect(road(page).getByRole("button", { name: /^Relations, continue/ }), "the one left in the middle is marked").toBeVisible();
 });
 
 test("the roadmap graph: Syllogisms between the two rows, Debate tied to all three branches, and the path goes on from it, fading", async ({ page }) => {
@@ -158,7 +185,7 @@ test("Settings and Review opened from the roadmap go back to it, by the system B
   await page.goBack();
   await expect(road(page)).toBeVisible();
   await expect.poll(() => level(page)).toBe(0);
-  await road(page).getByRole("button", { name: "Continue" }).click();
+  await resume(page);
   await expect(choices(page)).toHaveCount(5);
   await page.getByRole("button", { name: "Practice options" }).click();
   await page.getByRole("button", { name: "Other app settings: more" }).click();
@@ -198,7 +225,7 @@ test("in the installed app Back on the roadmap first says \"Back again to close\
   await expect(road(page).getByText("Back again to close")).toBeHidden({ timeout: 5000 });
   await expect.poll(armed, "then the watcher waits again").toBe(true);
   // an exercise opened from the roadmap has the roadmap's entry under it, so the watcher gives way to the history
-  await road(page).getByRole("button", { name: "Continue" }).click();
+  await resume(page);
   await expect.poll(armed).toBe(false);
 });
 
@@ -208,4 +235,20 @@ test("in a browser tab Back on the roadmap leaves with no question", async ({ pa
   await expect(road(page)).toBeVisible();
   await expect.poll(() => level(page)).toBe(0);
   expect(await page.evaluate(() => !!window.__t.navGuard)).toBe(false);
+});
+
+test("the app keeps to the part of the screen that can be seen, also when the browser says it is shorter only after the page has loaded (as after an update's reload)", async ({ page }) => {
+  // the visible area turns 64 px shorter than the window a moment after the start, with no event (less than a keyboard: the app used to follow only that)
+  await page.addInitScript(() => {
+    const t0 = Date.now(), d = Object.getOwnPropertyDescriptor(VisualViewport.prototype, "height");
+    Object.defineProperty(VisualViewport.prototype, "height", { configurable: true, get() { const h = d.get.call(this); return Date.now() - t0 > 600 ? h - 64 : h; } });
+  });
+  await start(page);
+  const shown = await page.evaluate(() => innerHeight - 64);
+  const bottom = (sel) => page.locator(sel).first().evaluate((n) => n.getBoundingClientRect().bottom);
+  await expect.poll(() => bottom("#path .pa"), "the app's root ends where the visible area does").toBe(shown);
+  expect(await bottom("#path .main .foot"), "the next stop is on the screen").toBeLessThanOrEqual(shown);
+  await page.locator(".tstn").click();
+  await expect(road(page)).toBeVisible();
+  expect(await bottom("#path .rfoot"), "the roadmap's foot, with the version, is on the screen").toBeLessThanOrEqual(shown);
 });

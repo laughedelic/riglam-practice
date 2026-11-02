@@ -36,7 +36,7 @@ export function stopScreen(title: string): { cls: string; node: ComponentChildre
   return { cls: "done", node: <>
     <TopBar title={title} tools />
     <Scroll>
-      <Sx cls="cur first tstop"><Gap h={14} /><Head d={<D cls="sec tsd" />} h={h.h} sub={h.sub} /><Gap h={4} />
+      <Sx cls="cur first tstop"><Gap h={14} /><Head d={<D cls="sec tsd term" mark="lines" />} h={h.h} sub={h.sub} /><Gap h={4} />
         <St d={<D cls="sub done" />} cls="stm thing hasstar">
           <AgainMark cat={s.cat} on={again} />
           <FitTerm text={t.name} /><Names term={t.name} /></St>

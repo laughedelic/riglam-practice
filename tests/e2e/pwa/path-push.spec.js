@@ -384,20 +384,32 @@ test("check: morph, a syllogism's Result with no counter-example marks nothing o
 
 /** What a station looks like: the diamond's size and color, the label's size and color. */
 const facts = (page, sel) => page.locator(sel).evaluate((e) => { const go = e.querySelector(".go"), b = e.querySelector(".gol b"); return { cls: e.className, size: go.offsetWidth, bg: getComputedStyle(go).backgroundColor, label: getComputedStyle(b).color, font: getComputedStyle(b).fontSize }; });
+/** The symbol in a station's diamond, by the start of its path: the symbols of the stations (shell.tsx SYMBOL; the Design Lab's stops). */
+const SYMBOLS = { pen: "M6 18l1-4 8.6", tasks: "M4.5 7.5l1.8", q: "M9.5 9a2.5", plus: "M12 5v14M5", redo: "M18.5 12a6.5", ups: "M6.5 11.5L12", back: "M15 5l-7 7" };
+const symbolOf = (page, sel) => page.locator(sel).evaluate((e, sy) => { const d = e.querySelector(".go .mk path")?.getAttribute("d") || ""; return Object.keys(sy).find((k) => d.startsWith(sy[k])) || d; }, SYMBOLS);
+/** The color of the symbol in a station's diamond, and the cue of the station that can be taken (its diamond's top edges rising: the name of the animation, its delay and its period). */
+const glyphColor = (page, sel) => page.locator(sel).evaluate((e) => getComputedStyle(e.querySelector(".go .mk")).color);
+const cueOf = (page, sel) => page.locator(sel).evaluate((e) => { const c = getComputedStyle(e.querySelector(".go"), "::before"); return [c.animationName, c.animationDelay, c.animationDuration].join(" "); });
 const tokenColor = (page, name) => page.locator(".pa").evaluate((e, n) => { const i = document.createElement("i"); i.style.color = "var(" + n + ")"; e.append(i); const c = getComputedStyle(i).color; i.remove(); return c; }, name);
 
-test("stations say what they are by their look: Examples is gold and medium, Check and Result are ink and medium, the Next stations are the big blue ones", async ({ page }) => {
+test("stations say what they are by their look: Examples is gold and medium with a pen, Check and Result are ink and medium with a list of ticks, the Next station is big and gold with a question mark", async ({ page }) => {
   await toCheck(page);
-  const [ink, gold, goldT, blue] = await Promise.all(["--ink", "--gold", "--gold-t", "--station"].map((n) => tokenColor(page, n)));
+  const [ink, gold, goldT] = await Promise.all(["--ink", "--gold", "--gold-t"].map((n) => tokenColor(page, n)));
   const check = await facts(page, "#stn");
   expect(check.cls).toContain("stk-chk");
   expect(check, "the Check: medium and ink").toMatchObject({ size: 22, bg: ink, label: ink, font: "19px" });
+  expect(await symbolOf(page, "#stn"), "a list of ticks").toBe("tasks");
+  expect(await glyphColor(page, "#stn"), "its symbol is the paper's color on the ink").toBe(await tokenColor(page, "--paper"));
+  // the Check can be taken right away: its cue (the top edges of the diamond rise) starts at 1.5 s and repeats every 5 s
+  await expect.poll(() => cueOf(page, "#stn")).toBe("p-up5 1.5s 5s");
   // Examples: the step back from the examples' page to the relation, whose foot leads on to them again
   await page.evaluate(() => { window.__t.ui.open = true; window.__t.render(); });
   await expect(page.locator("#stn")).toHaveAccessibleName(/^Examples/);
   const ex = await facts(page, "#stn");
   expect(ex.cls).toContain("stk-ex");
   expect(ex, "Examples: medium and gold").toMatchObject({ size: 22, bg: gold, label: goldT, font: "19px" });
+  expect(await symbolOf(page, "#stn"), "a pen").toBe("pen");
+  expect(await glyphColor(page, "#stn"), "the symbol on the gold is the ink").toBe(await tokenColor(page, "--on-light"));
   await page.evaluate(() => { window.__t.ui.open = false; window.__t.render(); });
   await expect(page.locator("#stn")).toHaveAccessibleName(/^Check/);
   // the scanner opens as the Check is: its size and color
@@ -411,6 +423,85 @@ test("stations say what they are by their look: Examples is gold and medium, Che
   await expect(page.locator("#stn")).toContainText("Next pair");
   await expect(main(page)).not.toHaveClass(/\b(tk-in|pk-run|sc-in|sc-run|fw-wait)\b/);
   const next = await facts(page, "#stn");
-  expect(next.cls, "the next exercise's station has no kind").not.toContain("stk");
-  await expect.poll(() => facts(page, "#stn"), { message: "Next pair: big and blue (its colors are a transition that may still be running)" }).toMatchObject({ size: 28, bg: blue, label: blue, font: "21px" });
+  expect(next.cls, "the station that goes on to the next question is big, not medium").not.toMatch(/(^|\s)stk(\s|$)/);
+  expect(next.cls).toContain("stk-q");
+  await expect.poll(() => facts(page, "#stn"), { message: "Next pair: big and gold, in the color of the question it leads to (its colors are a transition that may still be running)" }).toMatchObject({ size: 28, bg: gold, label: goldT, font: "21px" });
+  expect(await symbolOf(page, "#stn"), "a question mark").toBe("q");
+  expect(await glyphColor(page, "#stn"), "the symbol on the gold is the ink").toBe(await tokenColor(page, "--on-light"));
+  // the next question does not call you at once, so that the result can be read or explained: its cue starts at 4 s and repeats every 10 s
+  expect(await cueOf(page, "#stn")).toBe("p-up 4s 10s");
+  // a station that goes back (Back to the result, Continue practice) is a slate ring with a chevron: the foot's own markup with that class
+  const [slate, paper] = await Promise.all(["--slate", "--paper"].map((n) => tokenColor(page, n)));
+  const back = await page.locator("#stn").evaluate((e) => {
+    const c = e.cloneNode(true); c.id = ""; c.className = "stn stk-back"; e.parentElement.append(c);
+    const go = getComputedStyle(c.querySelector(".go")), label = getComputedStyle(c.querySelector(".gol b")).color, out = { bg: go.backgroundColor, ring: go.boxShadow, label, size: c.querySelector(".go").offsetWidth };
+    c.remove(); return out;
+  });
+  expect(back, "Back: a ring, not a fill, big").toMatchObject({ bg: paper, label: slate, size: 28 });
+  expect(back.ring, "its line is slate").toContain(slate);
+});
+
+test("in the dark ground a symbol is dark on a fill the ground lifts and on the gold, and the cue of a station that can be taken rests while it is pulled", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await toCheck(page);
+  const [ground, onLift, onLight] = await Promise.all(["--paper", "--on-lift", "--on-light"].map((n) => tokenColor(page, n)));
+  expect(onLift, "the dark ground's own dark").toBe(ground);
+  expect(onLight).toBe(ground);
+  await page.locator("#stn").click();
+  await expect(page.locator(".pvline")).toBeVisible();
+  await expect(page.locator("#stn")).toContainText("Next pair");
+  await expect(main(page)).not.toHaveClass(/\b(tk-in|pk-run|sc-in|sc-run|fw-wait)\b/);
+  expect(await glyphColor(page, "#stn"), "the question mark on the gold is dark").toBe(ground);
+  expect(await page.locator(".pvline .d.big .mk").first().evaluate((e) => getComputedStyle(e).color), "the mark of the verdict on its lifted fill is dark").toBe(ground);
+  // the teal and the green stations: the foot's own markup with the class of the kind
+  const kinds = await page.locator("#stn").evaluate((e) => {
+    const out = {};
+    for (const k of ["stk-def", "stk-rep", "stk-up", "stk-back"]) { const c = e.cloneNode(true); c.id = ""; c.className = "stn " + k; e.parentElement.append(c); out[k] = getComputedStyle(c.querySelector(".go .mk")).color; c.remove(); }
+    return out;
+  });
+  expect(kinds["stk-def"]).toBe(ground);
+  expect(kinds["stk-rep"]).toBe(ground);
+  expect(kinds["stk-up"]).toBe(ground);
+  // a pulled station rests: no cue while the pull is held
+  await page.locator("#stn").evaluate((e) => e.classList.add("dragging"));
+  expect(await cueOf(page, "#stn"), "no cue while it is dragged").toMatch(/^none /);
+  await page.locator("#stn").evaluate((e) => e.classList.remove("dragging"));
+  expect(await cueOf(page, "#stn")).toBe("p-up 4s 10s");
+});
+
+test("a station that lands as a ring (the stop of a new term) turns into the ring: it keeps its body while it turns and does not go blank first", async ({ page }) => {
+  // a device that has just come to stage 1 and met no term: the Next after the pair's Check is "Next: new definition", and the stop's first bullet is a ring
+  await page.addInitScript(() => { localStorage.setItem("rd-stages", "0,1"); localStorage.setItem("rd-terms", JSON.stringify({ n: 3, next: 3, terms: {} })); });
+  await page.addInitScript(onPath);
+  await page.goto("/");
+  await expect(choices(page)).toHaveCount(5);
+  const rel = await page.evaluate(() => window.__t.cur.p.relation);
+  await choices(page).nth(["mi", "3ab", "3ba", "4", "con"].indexOf(rel)).click();
+  const field = page.locator("#cin");
+  await expect(field).toBeVisible();
+  for (let i = 0; i < 4 && (await field.isVisible()); i++) { await field.fill("thing " + (i + 1)); if ((await field.getAttribute("enterkeyhint")) === "done") { await field.blur(); break; } await field.press("Enter"); }
+  await page.locator("#stn").click();
+  await expect(page.locator("#stn")).toHaveAccessibleName(/^Next: new definition/);
+  await expect(main(page)).not.toHaveClass(/\b(tk-in|pk-run|sc-in|sc-run|fw-wait)\b/);
+  // every frame of the copy of the station: how much of its diamond is body (a fill or the ring's inset line) while it turns
+  await page.evaluate(() => {
+    const w = window.__turn = { s: [], gone: false };
+    const tick = () => {
+      const g = document.querySelector("#path .pk-ghost .go");
+      if (g) { const c = getComputedStyle(g); w.s.push({ bg: c.backgroundColor, sh: c.boxShadow, tr: g.getAnimations().length }); } else if (w.s.length) { w.gone = true; return; }
+      requestAnimationFrame(tick);
+    };
+    tick();
+  });
+  await page.locator("#stn").click();
+  await expect.poll(() => page.evaluate(() => window.__turn.gone), { timeout: 8000 }).toBe(true);
+  await expect(page.locator("#path .tstop")).toBeVisible();
+  const s = await page.evaluate(() => window.__turn.s);
+  // the stop's bullet is a paper-colored ring: as the ghost turns into it, its line grows from nothing, so the diamond is never an empty paper-colored shape
+  const ring = (x) => { const m = /\s(\d+(?:\.\d+)?)px inset$/.exec(x.sh); return m ? parseFloat(m[1]) : 0; };      // computed: "rgb(...) 0px 0px 0px 1.8px inset"
+  const turning = s.filter((x) => x.tr > 0);
+  expect(turning.length, "the turn was seen").toBeGreaterThan(3);
+  const lines = turning.map(ring);
+  expect(lines[lines.length - 1], "at the end of the turn the copy has the ring's line, so the real ring replaces it unseen").toBeGreaterThan(1);
+  expect(lines, "the line grows as the diamond fills with paper").toEqual([...lines].sort((a, b) => a - b));
 });

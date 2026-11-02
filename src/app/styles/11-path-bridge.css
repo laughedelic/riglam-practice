@@ -90,14 +90,3 @@ html.design-path #unlock .pop p{font-size:14px}
 html.design-path #unlock .popx{font:500 14px var(--pa-f); text-transform:none; letter-spacing:0; color:var(--pa-ink2)}
 html.design-path #unlock input{height:44px; padding:0 2px; background:none; border:0; border-bottom:1.5px solid var(--pa-ink2); font:17px var(--pa-f); color:var(--pa-ink)}
 html.design-path #unlock input:focus-visible{box-shadow:none; border-bottom-color:var(--pa-blue)}
-/* the notice of a newer version (src/pwa/update-toast.ts), a card the PWA keeps outside #path: the Path's own notice, an ink block in mono, with its two
-   answers as text buttons, under the top bar */
-html.design-path #upd{top:calc(62px + env(safe-area-inset-top,0px)); padding:6px 8px 6px 14px; gap:0 14px; background:var(--pa-ink); color:var(--pa-paper); border:0; box-shadow:none;
-  font:500 12.5px/1.4 'IBM Plex Mono',ui-monospace,'SFMono-Regular',Menlo,monospace}
-html.design-path #upd span{font-weight:500}
-html.design-path #upd .btn,html.design-path #upd .btn:hover,html.design-path #upd .btn.ghost,html.design-path #upd .btn.ghost:hover{height:auto; min-height:40px; padding:0 2px; background:none; box-shadow:none;
-  text-transform:none; letter-spacing:0; font:600 12.5px/1.2 'IBM Plex Mono',ui-monospace,'SFMono-Regular',Menlo,monospace; color:var(--pa-paper); text-decoration:underline; text-underline-offset:4px}
-html.design-path #upd .btn.ghost,html.design-path #upd .btn.ghost:hover{font-weight:400; opacity:.75}
-html.design-path #upd .btn:focus-visible{box-shadow:0 0 0 2px var(--pa-ink),0 0 0 4px var(--pa-paper)}
-/* (the roadmap, which lies over the screen, shows the same notice at its foot instead: path/roadmap.tsx) */
-html.design-path.road-open #upd{display:none}
