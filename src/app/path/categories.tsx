@@ -13,7 +13,7 @@ import { guidance } from "../practice/guided.ts";
 import type { ScanPlan } from "./scan.tsx";
 import { Scroll } from "./scroll.tsx";
 import { Threshold } from "./threshold.tsx";
-import { nextKind, nextName } from "./next.ts";
+import { NEXT_QUESTION, nextKind, nextName } from "./next.ts";
 import { Foot, PreStation, SkipSide, Station, TopBar, VoiceField } from "./shell.tsx";
 import { D, Gap, Head, Mark, St, Sx } from "./ui.tsx";
 
@@ -162,7 +162,7 @@ function CheckedStep() {
       <ErrLines />
       <Sx cls="ptail" />
     </Scroll>
-    <Foot><Station name={nextName("Next thing")} kind={nextKind()} act={() => next()} /></Foot>
+    <Foot><Station name={nextName(NEXT_QUESTION)} kind={nextKind()} act={() => next()} /></Foot>
   </>;
 }
 

@@ -212,6 +212,20 @@ export interface Updates {
   subscribe(fn: () => void): () => void;
 }
 
+/** Where the device's storage stands (src/pwa/storage-watch.ts): the page says so on a pinned line and on a Settings page, since what it does while the storage does not answer is not kept. */
+export interface StorageHealth {
+  /** False from the moment the storage did not answer in time until it answers again. While it is false the page works from memory: answers given are not saved on this device. */
+  answering(): boolean;
+  /** Whether the storage did not answer at some point during this visit, even if it has since (the Settings page keeps saying so). */
+  troubled(): boolean;
+  /** What a test database said of the browser's storage while it is stuck (one sentence), null until the test is over. */
+  probe(): string | null;
+  /** Moves the app to a new, empty store and reloads. The old store is left as it is; a signed-in account brings its documents back. */
+  useNewStore(): void;
+  /** Calls `fn` whenever the above changes; returns the way to stop. */
+  subscribe(fn: () => void): () => void;
+}
+
 export interface Platform {
   /** Which build runs the page. Informational; the page must not branch on it. */
   readonly target: "pwa" | "artifact" | "test";
@@ -263,6 +277,8 @@ export interface Platform {
   about?(): Promise<About | null>;
   /** Updating in place, or absent when the place has no installed copy to update (the artifact, the tests). */
   updates?: Updates;
+  /** Where the device's storage stands, or absent when the place has no storage of its own (the artifact keeps the documents on its server). */
+  storage?: StorageHealth;
 }
 
 /** What a device that has the Magic Key can do with it: take another one (the study group changed it), or forget it (the definitions and the tutor lock again). */

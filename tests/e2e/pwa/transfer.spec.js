@@ -16,7 +16,7 @@ const open = async (page) => {
   await page.goto("/");
   await ready(page);
 };
-const openOptions = (page) => openSettingsPage(page, "Export and import");
+const openOptions = (page) => openSettingsPage(page, "Your data");
 const exportBtn = (page) => page.getByRole("button", { name: "Export your data to a file" });
 const importBtn = (page) => page.getByRole("button", { name: "Import data from a file" });
 const status = (page) => page.locator(".pxbox .pnoteline");

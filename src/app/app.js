@@ -80,6 +80,9 @@ async function bootSteps(platform){
   // updating in place: the platform tells when a newer version is ready; the menu and Settings show where it stands
   state.updates=platform.updates||null;
   if(state.updates) state.updates.subscribe(()=>{ if(state.optsOpen) render(); else refreshPath(); });   // (the roadmap shows where the look for a newer version stands)
+  // the device's storage: when it does not answer in time (or answers after all) the pinned line and Settings' Storage page say so
+  state.storage=platform.storage||null;
+  if(state.storage) state.storage.subscribe(()=>{ if(state.mode==="loading") return; if(state.optsOpen) render(); else refreshPath(); });
   // A Magic Key entered on the Magic Key page is taken in place (no reload), so the pair on the screen and the answer being given stay.
   if(platform.onKey) platform.onKey(()=>rekey(platform));
   if(state.account){ let seen=signature(state.account.view()); state.account.subscribe(v=>{ const now=signature(v); if(now!==seen){ seen=now; if(state.optsOpen) render(); } }); }

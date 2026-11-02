@@ -87,7 +87,7 @@ test("Settings on the Path: sections of lines, export and import and the version
   await expect(page.locator(".ppage .sgh")).toHaveText(["General", "Data", "About"]);   // Experiments: only in a Preview, or held open with the Magic Key
   await expect(page.getByRole("group", { name: "Theme" }).getByRole("button", { name: "System" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator(".ppage .ol", { hasText: "Version and updates" })).toContainText(/\d+\.\d+\.\d+/);
-  await page.getByRole("button", { name: "Export and import: more" }).click();
+  await page.getByRole("button", { name: "Your data: more" }).click();
   await expect(page.getByRole("button", { name: "Export your data to a file" })).toHaveClass("pbtn");
   await expect(page.getByRole("button", { name: "Import data from a file" })).toBeVisible();
   await page.getByRole("button", { name: "Back to Settings", exact: true }).click();   // the top bar's chevron

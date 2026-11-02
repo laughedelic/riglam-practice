@@ -15,6 +15,7 @@
 //   reports flags sent to the app's own server (./reports.ts), when it takes them and this device has the Magic Key
 //   account optional sign-in with a passkey and a server copy of the documents (./account.ts), when the server has accounts on
 //   updates the service worker's new versions: checked in the background, started from the toast, the menu or Settings (./updates.ts)
+//   storage where the device's storage stands: the page says so when it did not answer in time (./storage-watch.ts)
 import dataUrl from "../data/drill-data.json?url";
 import { merge, lock } from "../data/course.js";
 import type { Account, DrillData, Platform, Sample } from "../platform/types";
@@ -23,7 +24,7 @@ import { fetchCourse, fetchExamples, forgetCourse, keepCourse, keepExamples, kep
 import { createAccountClient } from "../account/client";
 import { aboutThisBuild } from "./about";
 import { updates } from "./updates";
-import { showStorageNotice } from "./storage-notice";
+import { createStorageWatch } from "./storage-watch";
 import { storeName } from "./store-slot";
 import { createLocalDb } from "./local-db";
 import { createReports, withdrawLater } from "./reports";
@@ -31,7 +32,8 @@ import { createKnown, createTutor, serverSays, type ServerSays } from "./tutor";
 import { createSpeaker } from "./speak";
 import { takeLinkKey, storedKey, storeKey, forgetKey, keyDeclined, declineKey, allowKey, takeKey, markKeyChanged, takeKeyChanged, KEY_CHANGED_TEXT } from "./unlock";
 
-const db = createLocalDb({ name: storeName(), onUnavailable: showStorageNotice });
+const storage = createStorageWatch();
+const db = createLocalDb({ name: storeName(), onUnavailable: storage.stuck, onAvailable: storage.answers });
 const link = takeLinkKey(); // first of all: a key in the address leaves the address bar at once
 let locked = false; // the definitions are locked on this visit: the page offers to enter the key (platform.unlock)
 let keyProblem: string | null = null; // what went wrong with a key at the start, for the page to say once on its Magic Key page
@@ -216,6 +218,7 @@ export const pwaPlatform: Platform = {
   // Only with the key (the server would refuse the request anyway) and only when the server says its tutor is on: otherwise the page hides the tutor.
   about: () => aboutThisBuild(),
   updates,
+  storage,
   tutor: async () => (groupKey && (await tutorIsOn()) ? createTutor(groupKey) : null),
   // Only with the key, and only when the server says it answers from what it learned (a Preview set to; docs/SERVER.md, "Learned facts").
   known: async () => (groupKey && (await serverSaid()).known ? createKnown(groupKey) : null),

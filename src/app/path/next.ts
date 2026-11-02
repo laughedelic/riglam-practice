@@ -1,10 +1,14 @@
-// The name of the station that goes on from an answer: "Next pair", "Next syllogism" ... for the next question of the exercise, or, when something comes before it,
-// what that is: "Next: new stage" when the stage is due (practice/stage-offer.ts), "Next: new definition" or "Next: repetition" when a stop of a course term is (practice/stops.ts).
+// The name of the station that goes on from an answer: "Next pair", "Next syllogism" ... for the next question of the exercise (what the exercise calls it; "Next question"
+// where it has no name of its own), or, when something comes before it, what that is: "Next: new stage" when the stage is due (practice/stage-offer.ts), "Next: new definition" or
+// "Next: repetition" when a stop of a course term is (practice/stops.ts). So a colon after Next always means that something else comes first, and from a stop or a stage
+// the station is "Next question".
 import { stageUpDue } from "../practice/stage-offer.ts";
 import { dueStop } from "../practice/stops.ts";
 import type { Stop } from "../../domain/intro.ts";
 import type { StationKind } from "./shell.tsx";
 
+/** The name of the station that goes on to a question that has no name of its own (Categories), and from a stop or a stage on to the question. */
+export const NEXT_QUESTION = "Next question";
 /** What the Next station says when a stop of a course term comes first. */
 export const stopName = (s: Stop): string => "Next: " + (s.why === "new" ? "new definition" : "repetition");
 /** The name of the Next station: `question`, what the exercise's next question is called ("Next pair"), unless a stage or a stop comes first (the stage goes first, as in next()). */
