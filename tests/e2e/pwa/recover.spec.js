@@ -1,7 +1,7 @@
 // A start that never finishes offers a way out (the inline script in index.html). No service worker here, so the page's own requests
 // can be held back with page.route.
 import { test, expect } from "../../support/test.js";
-import { ready } from "../../support/page.js";
+import { openMenu, openSettingsPage, ready, roadmap } from "../../support/page.js";
 
 test.use({ serviceWorkers: "block" });
 
@@ -46,17 +46,83 @@ test("a storage that never answers is named in the panel", async ({ page }) => {
   await expect(page.locator("#recover")).toContainText("Waiting for the saved batches, answers", { timeout: 10_000 });
 });
 
-test("a storage that never answers does not keep the page on Loading: it starts, and says nothing is saved", async ({ page }) => {
+/** The line above the roadmap's foot, and the one above the next station of the exercise under it (src/app/path/storage.tsx). */
+const roadLine = (page) => roadmap(page).locator(".pinln.onroad.store");
+const footLine = (page) => page.locator("#path .lay .pinln.onfoot.store");
+/** The browser's storage for the app never opens: neither success nor error. */
+const neverOpens = () => {
+  const open = IDBFactory.prototype.open;
+  IDBFactory.prototype.open = function (name, ...rest) { return name === "riglam" ? ({}) : open.call(this, name, ...rest); };
+};
+
+test("a storage that never answers does not keep the page on Loading: it starts, and says on one line above the next station that nothing is saved", async ({ page }) => {
+  await page.addInitScript(neverOpens);
+  await page.goto("/");
+  await expect(footLine(page)).toContainText("storage is not answering", { timeout: 20_000 });
+  await expect(page.locator("#store"), "no bar over the page").toHaveCount(0);
+  await expect(page.locator("#path .pstatus")).toHaveCount(0);
+  if (process.env.DLG_SHOTS) await page.screenshot({ path: process.env.DLG_SHOTS + "storage-exercise-" + (await page.evaluate(() => (matchMedia("(max-width:700px)").matches ? "phone" : "desktop"))) + ".png" });
+  // it covers nothing: the line stands on the thread right above the next station, far from the top bar and the question, and the station is still on the screen
+  const [l, bar, station, vh] = await Promise.all([footLine(page).boundingBox(), page.locator("#path .ptb").boundingBox(), page.locator("#path .lay .foot").boundingBox(), page.evaluate(() => innerHeight)]);
+  expect(l.height, "one line, or two at most").toBeLessThanOrEqual(60);
+  expect(l.y, "far from the top bar and the question").toBeGreaterThan(bar.y + bar.height + 100);
+  expect(l.y + l.height, "right above the next station").toBeLessThanOrEqual(station.y + 1);
+  expect(station.y + station.height, "and the station is still on the screen").toBeLessThanOrEqual(vh + 1);
+  // the roadmap says it too, above its foot
+  await openMenu(page);
+  await expect(roadLine(page)).toContainText("storage is not answering");
+  const [line, foot] = await Promise.all([roadLine(page).boundingBox(), roadmap(page).locator(".rfoot").boundingBox()]);
+  expect(line.height, "one line, or two at most").toBeLessThanOrEqual(60);
+  expect(line.y + line.height, "right above the foot").toBeLessThanOrEqual(foot.y + 1);
+  // its Reload is the way on; its words open Your data, with a note at its head saying what a test database found (and nothing to export while nothing is read),
+  // the new store only under a fold, and the way back goes to the roadmap
+  await expect(roadLine(page).getByRole("button", { name: "Reload" })).toBeVisible();
+  await roadLine(page).getByRole("button", { name: /storage is not answering/ }).click();
+  await expect(page.locator("#path .ptb-t", { hasText: "Your data" })).toBeVisible();
+  await expect(page.locator("#path")).toContainText("A new test database opened", { timeout: 10_000 });
+  await expect(page.getByRole("button", { name: "Export your data to a file" }), "no backup of what is not read").toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Use a new store" }), "a last resort, under a fold").toBeHidden();
+  await page.getByText("Reload did not help?").click();
+  await expect(page.getByRole("button", { name: "Use a new store" })).toBeVisible();
+  await page.getByRole("button", { name: "Back to the roadmap", exact: true }).click();
+  await expect(roadLine(page)).toBeVisible();
+});
+
+test("a storage that was only slow is back by itself: the line goes, the saved answers are shown again and what was done meanwhile is saved", async ({ page }) => {
+  const put = (id, doc) => page.evaluate(async ([i, d]) => { await (await window.__riglam.platform.db()).collection("labruns").doc(i).set(d); }, [id, doc]);
+  const get = (id) => page.evaluate(async (i) => { const s = await (await window.__riglam.platform.db()).collection("labruns").doc(i).get(); return s.exists ? s.data() : null; }, id);
+  await page.goto("/");
+  await ready(page);
+  await put("lr_kept", { kind: "run", at: "2026-10-01T10:00:00.000Z" });
+  // from the next start on the connection to the database opens only when the test says so (sessionStorage keeps the test's word across the reload)
+  await page.evaluate(() => sessionStorage.setItem("hold", "on"));
   await page.addInitScript(() => {
     const open = IDBFactory.prototype.open;
-    IDBFactory.prototype.open = function (name, ...rest) { return name === "riglam" ? ({}) : open.call(this, name, ...rest); };
+    const held = [];
+    IDBFactory.prototype.open = function (name, ...rest) {
+      const req = open.call(this, name, ...rest);
+      if (name !== "riglam" || sessionStorage.getItem("hold") !== "on") return req;
+      let handler = null;
+      Object.defineProperty(req, "onsuccess", { set(f) { handler = f; }, get() { return handler; }, configurable: true });
+      req.addEventListener("success", (e) => { if (handler) held.push(() => handler.call(req, e)); });
+      return req;
+    };
+    window.__release = () => { sessionStorage.setItem("hold", "off"); held.splice(0).forEach((f) => f()); };
   });
-  await page.goto("/");
-  await expect(page.locator("#store")).toContainText("storage is not answering", { timeout: 20_000 });
-  await expect(page.locator("#store")).toContainText("A new test database opened", { timeout: 10_000 });
-  await expect(page.locator("#path .pstatus")).toHaveCount(0);
-  // the bar covers the buttons at the top of a phone: it can be put away
-  await page.locator("#store").getByRole("button", { name: "Hide" }).click();
-  await expect(page.locator("#store")).toBeHidden();
-  await expect(page.locator(".tstn")).toBeVisible();
+  await page.reload();
+  await expect(footLine(page)).toContainText("storage is not answering", { timeout: 20_000 });
+  expect(await get("lr_kept"), "the saved answers are not shown while it does not answer").toBeNull();
+  await put("lr_meanwhile", { kind: "run", at: "2026-10-02T10:00:00.000Z" });
+  await page.evaluate(() => window.__release());
+  await expect(footLine(page), "the line goes when the storage answers").toHaveCount(0, { timeout: 10_000 });
+  expect(await get("lr_kept"), "the saved answers are shown again").toMatchObject({ kind: "run" });
+  // Your data keeps a note that it was away and is back, with Export and import where they were
+  await openSettingsPage(page, "Your data");
+  await expect(page.locator("#path")).toContainText("What you did meanwhile has been saved");
+  await expect(page.getByRole("button", { name: "Export your data to a file" })).toBeVisible();
+  // what was done meanwhile was saved: a start with no hold finds both
+  await page.reload();
+  await ready(page);
+  expect(await get("lr_kept")).toMatchObject({ kind: "run" });
+  expect(await get("lr_meanwhile"), "what was done while it did not answer was saved").toMatchObject({ kind: "run" });
 });

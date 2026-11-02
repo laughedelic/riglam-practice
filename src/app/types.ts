@@ -4,7 +4,7 @@
 // Fields written by older versions of the page may be missing, so most fields besides the keys are optional.
 import type { Cat, DrillData, Item } from "../ai-shared/data";
 import type { ExampleIndex } from "../ai-shared/examples";
-import type { About, Unlock, Updates } from "../platform/types";
+import type { About, StorageHealth, Unlock, Updates } from "../platform/types";
 import type { AnswerView, DebateAnswer } from "../ai-shared/card";
 import type { CellId, RelKey } from "../ai-shared/relations";
 import type { InstanceQuestion } from "../domain/instance";
@@ -353,6 +353,8 @@ export interface State {
   about: About | null;
   /** updating the installed app in place (platform.updates), shown in Options; null where there is no installed copy */
   updates: Updates | null;
+  /** where the device's storage stands (platform.storage), said on a pinned line and Settings' Storage page; null where the place has no storage of its own */
+  storage: StorageHealth | null;
   /** takes the Magic Key on Settings' Magic Key page (platform.unlock) while this device has none; `tutor` is whether the server has a tutor waiting for it */
   unlock: Unlock | null;
   /** while this device has the Magic Key: take another one, or forget it (platform.keyHeld) */

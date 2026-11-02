@@ -3,13 +3,15 @@
 // line, while Claude is at work, keeps the row). Its Update reloads the app, and the start after that opens What's new, the learner's list of what changed (../news.ts):
 // only after that tap, never unasked. A start that took a new version without it (a cold start) shows "What's new" on the roadmap's line instead, until it is read.
 // The page is in Settings too, under About. The device keeps the newest item it has shown (`rd-news-seen`); a device that has shown none starts from the newest,
-// so a first start shows no backlog.
+// so a first start shows no backlog. While the device's storage does not answer, its line (path/storage.tsx) takes the place of these.
 import { state } from "../state.js";
 import { render } from "../shell/render.js";
 import { setTab } from "../shell/tabs.js";
 import { toggleOpts } from "../shell/options.js";
 import { NEWS, newsSince, buildWords, buildLine, comingNews, type NewsGo, type NewsItem } from "../news.ts";
 import { u0 } from "./parts.tsx";
+import { PinLine } from "./pin.tsx";
+import { StoragePin, storageStuck } from "./storage.tsx";
 
 const SEEN = "rd-news-seen";
 const OPEN = "rd-news-open"; // set by Update just before the reload: the next start opens What's new
@@ -55,25 +57,14 @@ export function startNews(): void {
   setTimeout(when, 150);
 }
 
-/**
- * The pinned line, drawn as Claude's waiting line is: a gold diamond on the thread, the words in a light that passes over them, the way on at the right end.
- * The words open What's new (`words`), where a version that waits says what it brings, with Update now.
- */
-function PinLine({ cls, text, label, act, words, shine, disabled = false }: { cls: string; text: string; label: string; act: () => void; words: () => void; shine: boolean; disabled?: boolean }) {
-  return <div class={"pinln " + cls} role="status">
-    {cls.includes("onfoot") ? <span class="pind" aria-hidden="true">↑</span> : null}
-    <button type="button" class="pint" onClick={words}><span class={"pinw" + (shine ? " shine" : "")}>{text}</span></button>
-    <button type="button" class="pbtn quiet pinb" onClick={act} disabled={disabled} aria-busy={disabled ? "true" : undefined}>{label}</button>
-  </div>;
-}
-
 /** What the line says of a version that waits: the real app just says it is there; a Preview (staging) names it, its build and the pull requests in it. */
 export const readyWords = (): string => buildWords(state.preview ? state.updates?.coming?.() ?? null : null);
 
 const ready = () => { const u = state.updates; return !!u && u.status() === "ready"; };
 
-/** The roadmap's line above its foot: a version that waits, else what is new since the last look. */
+/** The roadmap's line above its foot: the storage that does not answer, else a version that waits, else what is new since the last look. */
 export function RoadPin() {
+  if (storageStuck()) return <StoragePin cls="onroad" />;
   if (ready()) return <PinLine cls={"onroad" + (state.preview ? " pre" : "")} text={readyWords()} label="Update" act={updateNow} words={() => openNews(true)} shine />;
   const n = unseen();
   if (n.length) return <PinLine cls="onroad news" text={"What's new: " + n[0]!.title} label="Read" act={() => openNews(true)} words={() => openNews(true)} shine={false} />;
@@ -91,6 +82,7 @@ export function RoadPin() {
  * on to another one with it there, it is said on the roadmap only.
  */
 export function FootPin() {
+  if (state.mode === "quiz" && storageStuck() && !u0().ctl) return <StoragePin cls="onfoot" />;
   if (!ready() || state.mode !== "quiz" || state.pinGone) return null;
   if (state.pinAt === null) state.pinAt = state.cur;
   else if (state.pinAt !== state.cur) { state.pinGone = true; return null; }
