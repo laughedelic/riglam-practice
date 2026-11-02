@@ -43,3 +43,7 @@ Dependabot opens weekly pull requests for npm (dev dependencies grouped, title p
 ## Artifact versions are separate
 
 Publishing the artifact build to the live artifact is not a release of this repository; the artifact keeps its own version ids (see [ARTIFACT-LOOP.md](ARTIFACT-LOOP.md)). To republish an older app version to the artifact, check out its tag and build it with the course data (`npm run build:artifact`).
+
+## What the learner reads after an update
+
+The release notes are for whoever maintains the app. What a learner reads after an update is `src/app/news.ts` (the What's new page, which the app opens after Update and keeps in Settings under About). A `feat:` or `fix:` pull request that changes what a learner sees or can do adds one entry at the top, in plain words; one that does not says `What's new: none, <why>` in its body. The `What's new entry` check (`.github/workflows/whats-new.yml`) asks for one or the other.

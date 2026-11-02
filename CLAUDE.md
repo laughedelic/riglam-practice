@@ -34,5 +34,6 @@ In Claude's cloud container Chromium is preinstalled and matches the pinned Play
 ## Commits and pull requests
 
 - Pull request titles are conventional commits (`feat:`, `fix:`, `chore:` ...). The repo is squash-merged and release-please reads the titles (`docs/RELEASING.md`).
-- The pull request body follows `.github/pull_request_template.md` (Before / After / How).
-- CI (`.github/workflows/ci.yml`, and the title check in `pr-title.yml`) must pass: lint, build, unit, browser tests, hosting dry run, PR title.
+- The pull request body follows `.github/pull_request_template.md` (Before / After / How / What's new).
+- A `feat:` or `fix:` pull request that changes what a learner sees or can do adds one entry at the top of `src/app/news.ts` (What's new, shown after an update; plain words for someone practicing, no file, pull request or version names; a new unique `id`). One that changes nothing a learner would notice says so in its body: `What's new: none, <why>`. The `What's new entry` check (`.github/workflows/whats-new.yml`, `scripts/lib/whats-new-check.mjs`) fails otherwise.
+- CI (`.github/workflows/ci.yml`, the title check in `pr-title.yml` and the What's new check in `whats-new.yml`) must pass: lint, build, unit, browser tests, hosting dry run, PR title, What's new entry.

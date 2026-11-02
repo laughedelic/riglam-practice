@@ -146,8 +146,8 @@ test("the staging commit is main with each pull request merged in the given orde
   const manifest = JSON.parse(git(work, "show", `staging:${MANIFEST}`));
   expect(manifest).toMatchObject({ base: "main", baseSha: result.baseSha, branches: ["feat-a", "feat-b"] });
   expect(manifest.pulls).toEqual([
-    { number: 2, branch: "feat-a", sha: git(work, "rev-parse", "origin/feat-a") },
-    { number: 5, branch: "feat-b", sha: git(work, "rev-parse", "origin/feat-b") },
+    { number: 2, title: "pull request 2", branch: "feat-a", sha: git(work, "rev-parse", "origin/feat-a") },
+    { number: 5, title: "pull request 5", branch: "feat-b", sha: git(work, "rev-parse", "origin/feat-b") },
   ]);
   expect(manifest.inputs).toEqual([`2@${git(work, "rev-parse", "origin/feat-a")}`, `5@${git(work, "rev-parse", "origin/feat-b")}`]);
   expect(result.merged.map((m) => m.number)).toEqual([2, 5]);

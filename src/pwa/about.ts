@@ -1,7 +1,7 @@
 // Which build of the app this is, and whether the server has a newer one (shown in Options). The build knows its own commit
 // (vite.config.js); `build.json` next to the page is the build the server has now. It is not precached, so the service worker
 // cannot answer for an old copy. A staging build also has `staging-build.json` (docs/STAGING.md) with the branches it was made from.
-import type { About } from "../platform/types";
+import type { About, StagingPull } from "../platform/types";
 
 async function getJson(url: string, doFetch: typeof fetch, waitMs: number): Promise<Record<string, unknown> | null> {
   const stop = new AbortController();
@@ -30,10 +30,23 @@ export async function latestBuild(doFetch: typeof fetch = (...a) => fetch(...a),
 }
 
 /** The pull requests a staging build was made from (`staging-build.json`, docs/STAGING.md), or null where there is no such file (the real app, a pull request's own preview). */
-export async function stagingPulls(doFetch: typeof fetch = (...a) => fetch(...a), waitMs = 4000): Promise<number[] | null> {
+export async function stagingPulls(doFetch: typeof fetch = (...a) => fetch(...a), waitMs = 4000): Promise<StagingPull[] | null> {
   const s = await getJson("staging-build.json", doFetch, waitMs);
   if (!Array.isArray(s?.pulls)) return null;
-  return (s.pulls as unknown[]).map((p) => (p && typeof p === "object" ? (p as { number?: unknown }).number : null)).filter((n): n is number => typeof n === "number");
+  const out: StagingPull[] = [];
+  for (const p of s.pulls as unknown[]) {
+    if (!p || typeof p !== "object") continue;
+    const { number, title, news } = p as { number?: unknown; title?: unknown; news?: unknown };
+    if (typeof number !== "number") continue;
+    out.push({ number, ...(typeof title === "string" ? { title } : {}), ...(typeof news === "string" ? { news } : {}) });
+  }
+  // the titles and bodies as they are now on GitHub (public repository; the staging file may be older than an edit, or made before it held them); the file's own stay when it cannot be asked
+  await Promise.all(out.map(async (p) => {
+    const got = await getJson(`https://api.github.com/repos/laughedelic/riglam-practice/pulls/${p.number}`, doFetch, waitMs);
+    if (typeof got?.title === "string") p.title = got.title;
+    if (got && "body" in got) p.news = whatsNewLine(typeof got.body === "string" ? got.body : "");
+  }));
+  return out;
 }
 
 /** The commit of the build the server has now, or null when it could not be asked. */
@@ -46,4 +59,11 @@ export async function aboutThisBuild(build: { version: string; commit: string; b
   const there = typeof latest?.commit === "string" ? latest.commit : null;
   const branches = Array.isArray(staging?.branches) ? (staging.branches as unknown[]).filter((b): b is string => typeof b === "string") : undefined;
   return { ...build, latest: there === null ? "unknown" : there === build.commit ? "current" : "newer", branches: branches?.length ? branches : undefined };
+}
+
+/** The line a pull request prepared for learners: the text after "What's new:" in its body; null when there is none, it says "none", or it is the template's placeholder. Same rule as scripts/lib/whats-new-check.mjs. */
+export function whatsNewLine(body: string): string | null {
+  const m = /^\s*what['’]s new:[ \t]*(.+)$/im.exec(body);
+  const t = m ? m[1]!.trim() : "";
+  return !t || t.startsWith("(") || /^none\b/i.test(t) ? null : t;
 }
