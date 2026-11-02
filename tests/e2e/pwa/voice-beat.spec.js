@@ -148,8 +148,6 @@ test("a case that runs out of time does not raise the keyboard over the field on
   await expect(mic(page)).toBeVisible();
 });
 
-const chip = (page) => page.locator("#vfield .vchip");
-
 test("Hands-free: 'stop' said while the last step can still be taken back pauses the run and does not take it back", async ({ page }) => {
   await voice(page, { settings: { read: "0", answer: "auto" } });
   await page.goto("/");
@@ -158,7 +156,7 @@ test("Hands-free: 'stop' said while the last step can still be taken back pauses
   expect(await drawSyllogism(page, "pervasion")).toBe(true);
   await listening(page);
   await hearNext(page, "there is no pervasion");
-  await expect(chip(page)).toBeVisible({ timeout: 10_000 });   // it went on to the counter-example, and can be taken back for a few seconds
+  await expect.poll(() => page.evaluate(() => window.__t.ui.step), { timeout: 10_000 }).toBe(1);   // it went on to the counter-example, and can be taken back for a few seconds
   await listening(page);
   await hearNext(page, "stop");
   await expect(state(page)).toContainText("Paused");
@@ -192,7 +190,7 @@ test("Hands-free: 'skip it' at the counter-example leaves it out, and does not s
   await hearNext(page, "there is no pervasion");
   await expect(waiting(page)).toBeVisible();
   await mic(page).click();   // Yes
-  await expect(chip(page)).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.__t.ui.step)).toBe(1);
   await listening(page);
   await hearNext(page, "skip it");
   await expect(waiting(page)).toBeVisible();

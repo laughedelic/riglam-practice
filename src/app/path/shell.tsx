@@ -57,7 +57,7 @@ export function TopBar({ title, tools = false, back }: TopBarProps) {
 }
 
 /**
- * The lower part of the screen above the foot, where voice listens: a field to tap or hold with a thumb anywhere in it, with what was heard and the chip of the step that went on
+ * The lower part of the screen above the foot, where voice listens: a field to tap or hold with a thumb anywhere in it, with what was heard
  * inside it (shell/voice.js builds it and repaints it in place, by its id). Nothing is there where the screen asks nothing, and with the keyboard up (`kb`) it makes room.
  */
 export const VoiceField = ({ kb = false }: { kb?: boolean }) => (kb ? null : <Bridge own cls="vfieldh" fill={() => voiceField()} />);

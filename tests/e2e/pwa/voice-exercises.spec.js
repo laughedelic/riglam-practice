@@ -14,6 +14,8 @@ const strip = (page) => page.locator("#vhear");
 const saved = (page, mode) => page.evaluate(async (m) => (await (await window.__riglam.platform.db()).collection("answers").get()).docs.map((d) => d.data()).filter((d) => d.mode === m), mode);
 const label = (page) => page.locator("#vfield .vwhat b");
 const chip = (page) => page.locator("#vfield .vchip");
+/** Takes the step that just went on back, by voice. */
+const sayBack = async (page) => { await hearNext(page, "back"); await mic(page).click(); };
 
 async function open(page, name) {
   await page.goto("/");
@@ -64,8 +66,8 @@ test("Syllogisms: 'there is no pervasion' goes on to the counter-example, which 
   await expect.poll(async () => (await said(page)).at(-1) || "").toMatch(/^Name something that is/);
   await idle(page);
   const n = (await said(page)).length;
-  await expect(chip(page)).toContainText(SAY.pervasion);
-  await chip(page).getByRole("button", { name: "Change" }).click();
+  await expect(chip(page)).toHaveCount(0);   // the reply is not drawn on the next question
+  await sayBack(page);
   await expect(choices(page)).toHaveCount(3);   // back at the replies, none picked
   expect(await page.evaluate(() => window.__t.ui.step)).toBe(0);
   await expect(mic(page)).toHaveAttribute("aria-pressed", "true");   // the microphone is open again
@@ -110,20 +112,20 @@ test("Syllogisms: 'no' said within a few seconds of a step that went on takes th
   expect(await drawSyllogism(page, "pervasion")).toBe(true);
   await hear(page, "no pervasion");
   await confirm(page);
-  await expect(chip(page)).toContainText(SAY.pervasion);
+  await expect.poll(() => page.evaluate(() => window.__t.ui.step)).toBe(1);
   await hearNext(page, "back");
   await mic(page).click();
   await expect(choices(page)).toHaveCount(3);   // the replies again
   expect(await page.evaluate(() => window.__t.ui.step)).toBe(0);
 });
 
-test("Syllogisms: 'no' at the counter-example question, while the chip of the reply is still up, leaves the counter-example out and does not go back", async ({ page }) => {
+test("Syllogisms: 'no' at the counter-example question, while the reply can still be taken back, leaves the counter-example out and does not go back", async ({ page }) => {
   await voice(page, { settings: { read: "0", answer: "tap", confirm: "wait" } });
   await open(page, "Syllogisms");
   expect(await drawSyllogism(page, "pervasion")).toBe(true);
   await hear(page, "no pervasion");
   await confirm(page);
-  await expect(chip(page)).toContainText(SAY.pervasion);
+  await expect.poll(() => page.evaluate(() => window.__t.ui.step)).toBe(1);
   await hearNext(page, "no");
   await mic(page).click();
   await expect(waiting(page)).toBeVisible();   // "no counter-example" waits for Yes, as any answer
@@ -219,9 +221,9 @@ test("Find a pair: two phenomena said in one breath go on to the examples, which
   await expect(label(page)).toHaveText("a wooden table and a metal table");
   await confirm(page);
   await expect(page.locator("#cin")).toBeVisible();   // the examples
-  await expect(chip(page)).toContainText("a wooden table and a metal table");
   await expect.poll(async () => (await said(page)).at(-1) || "").toMatch(/^Name something that is /);   // the first case is read, as in Relations
-  await chip(page).getByRole("button", { name: "Change" }).click();
+  await idle(page);
+  await sayBack(page);
   await expect(page.locator("#fw-a")).toHaveValue("a wooden table");   // the words stay
   await expect(page.locator("#fw-b")).toHaveValue("a metal table");
   await expect(page.locator("#cin")).toHaveCount(0);
@@ -262,15 +264,15 @@ test("Categories, all at once: the categories said are the ticked ones, and Yes 
   await expect.poll(async () => (await saved(page, "categories")).length).toBe(1);
 });
 
-test("Categories, one at a time: a yes or a no goes on at once, Change takes the last one back, and the last answer checks", async ({ page }) => {
+test("Categories, one at a time: a yes or a no goes on at once, \"back\" takes the last one back, and the last answer checks", async ({ page }) => {
   await voice(page, { settings: { read: "0", answer: "tap", confirm: "split" } });
   await openCategories(page, "one");
   const rows = await page.evaluate(() => window.__t.cur.q.rows.map((r) => r.answer));
   await hear2(page, rows[0] ? "yes" : "no");
-  await expect(chip(page)).toContainText(rows[0] ? "Yes" : "No");   // gone on, with a way back
-  expect(await page.evaluate(() => window.__t.ui.i)).toBe(1);
-  await chip(page).getByRole("button", { name: "Change" }).click();
-  expect(await page.evaluate(() => window.__t.ui.i)).toBe(0);   // asked again
+  await expect.poll(() => page.evaluate(() => window.__t.ui.i)).toBe(1);   // gone on, with a way back
+  await expect(chip(page)).toHaveCount(0);
+  await hear2(page, "back");
+  await expect.poll(() => page.evaluate(() => window.__t.ui.i)).toBe(0);   // asked again
   for (let i = 0; i < rows.length - 1; i++) await hear2(page, rows[i] ? "yes" : "no");
   await hearNext(page, rows[rows.length - 1] ? "yes" : "no");
   await mic(page).click();   // the last answer checks the thing

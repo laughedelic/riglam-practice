@@ -175,12 +175,12 @@ test("the practice options hold neither the stages nor the difficulty; the Progr
   await expect(page.locator("#path .ptb-t")).toHaveText("Relations");
 });
 
-test("the practice options' Voice choices are on the first page, and the page behind More about voice is drawn on the path and keeps its choices", async ({ page }) => {
+test("the practice options' Voice choices are on the first page, and the pages behind Read aloud and Answer by voice are drawn on the path and keep their choices", async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("rd-voice", "1"));
   await start(page);
   await page.getByRole("button", { name: "Practice options" }).click();
   const sheet = page.getByRole("dialog", { name: "Practice options" });
-  const more = sheet.getByRole("button", { name: "More about voice" });
+  const more = sheet.getByRole("button", { name: "Read aloud: more" });
   test.skip(!(await more.count()), "this browser has no speech");
   const answer = sheet.getByRole("group", { name: "Answer by voice" });
   if (await answer.count()) {
@@ -196,7 +196,12 @@ test("the practice options' Voice choices are on the first page, and the page be
     await expect(speed.getByRole("button", { name: "Fast" })).toHaveAttribute("aria-pressed", "true");
     expect(await page.evaluate(() => localStorage.getItem("rd-voice-rate"))).toBe("1.25");
   }
-  if (await answer.count()) await expect(sheet.getByRole("group", { name: "After an answer is heard" })).toBeVisible();
+  if (await answer.count()) {
+    await page.keyboard.press("Escape");
+    await sheet.getByRole("button", { name: "Answer by voice: more" }).click({ position: { x: 12, y: 12 } });
+    await expect(sheet.locator(".pbr")).toHaveCount(0);
+    await expect(sheet.getByRole("group", { name: "After an answer is heard" })).toBeVisible();
+  }
 });
 
 test("the practice options: the exercise's own lines under its name, then Practice, then the way on to Settings; Sprint keeps its own value in each exercise", async ({ page }) => {
