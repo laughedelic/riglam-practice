@@ -13,12 +13,39 @@ export const API = {
   examples: "/api/course/examples",
   /** POST, with the same headers: what the server already knows of examples the page could not check (`KnownRequest`, answered with `KnownResponse`) */
   known: "/api/known",
+  /** POST, with the same headers: a sentence to read aloud (`SpeakRequest`); the answer is the audio itself (`audio/mpeg`), or an `ErrorBody` */
+  speak: "/api/speak",
 } as const;
 
 export const HEADER = {
   device: "x-riglam-device",
   proof: "x-riglam-proof",
 } as const;
+
+/**
+ * The voices the server reads with (worker/speak.ts): Google's Chirp 3 HD voices, by the name in the voice list. The server accepts only these, so the page cannot ask
+ * for another voice (or for another vendor's price). The first is the default. `name` is what the list shows.
+ */
+export const SPEAK = {
+  voices: [
+    { id: "charon", name: "Charon" },
+    { id: "kore", name: "Kore" },
+    { id: "achird", name: "Achird" },
+    { id: "sulafat", name: "Sulafat" },
+  ],
+  default: "charon",
+  /** most characters of one request: a question with its pair is about 300; the server's own ceiling is the vendor's 5,000 bytes */
+  chars: 700,
+  /** the request body, in bytes */
+  body: 6_000,
+} as const;
+export type SpeakVoice = (typeof SPEAK.voices)[number]["id"];
+
+/** `POST /api/speak`: the text to read (plain, one or a few sentences) and the voice; a missing voice is the default. */
+export interface SpeakRequest {
+  text: string;
+  voice?: SpeakVoice;
+}
 
 /** The answer of `GET /api/course`: the definitions as `{ [term]: { d?, d_ru? } }` with their version, or only the version when `have` named it. */
 export type CourseResponse = { version: string; definitions: Record<string, { d?: string; d_ru?: string }> } | { version: string; unchanged: true };
@@ -193,4 +220,6 @@ export interface Health {
   known?: "on";
   /** the server keeps what an explain answer says of the learner's examples (EXAMPLE_FACTS=record or serve), so the page tells the learner and offers the switch; left out where it does not */
   learns?: "on";
+  /** `POST /api/speak` reads aloud with the server's voices (a Google key is set, and the switch is on); left out where it does not */
+  speak?: "on";
 }
