@@ -15,7 +15,7 @@ import type { ScanPlan } from "./scan.tsx";
 import { Choices, ErrLines, GuideNote, SkipMark, StageOffer, Star, marksCls, Verdict, WhyRow, pickThen, u0 } from "./parts.tsx";
 import { Scroll } from "./scroll.tsx";
 import { nextKind, nextName } from "./next.ts";
-import { Foot, PreStation, SkipSide, Station, TopBar } from "./shell.tsx";
+import { Foot, PreStation, SkipSide, Station, TopBar, VoiceField } from "./shell.tsx";
 import { D, Gap, Head, Mark, St, Sx, nofillInput } from "./ui.tsx";
 
 /** The replies as the choices say them, and what each means: Detailed guidance says it with the syllogism's own words, Hints in S, P and R, None not at all (practice/guided.ts). */
@@ -70,6 +70,7 @@ function AnswerStep() {
       <Choices label="Your reply" slide items={items} picked={u.pk} onPick={(k) => pickThen(k, () => saySyllogism(k))} />
       <Sx cls="ptail" />
     </Scroll>
+    <VoiceField />
     <Foot aux={<SkipSide />}><PreStation name="Result" hint="pick an answer first" /></Foot>
   </>;
 }
@@ -93,6 +94,7 @@ function CounterStep({ kb }: { kb: boolean }) {
         <Gap h={6} /></Sx>
       <Sx cls={"ptail" + (some ? "" : " dtail")} />
     </Scroll>
+    <VoiceField kb={kb} />
     {kb ? null : <Foot>
       <Station kind="chk" name="Result" hint={some ? "your reply and the counter-example" : "your reply, without a counter-example"} act={exampleSyllogism} scan={scanPlan} />
     </Foot>}

@@ -7,100 +7,15 @@
 // with the next phrase the test queued (a phrase, or a list of guesses best first), or with "no-speech" when none comes.
 import { test, expect } from "../../support/test.js";
 import { goTo, openSettings, ready, overflow, relOptions } from "../../support/page.js";
+import { voice, said, spoken, hearNext, docs, mic, listening, idle, waiting, confirm, change, settle, hear } from "../../support/voice.js";
 
-/** Stands in for the browser's speech. `settings` are the rd-voice-* values to start with; `heard` the phrases queued from the start; `on` turns the Voice switch on for the device. */
-async function voice(page, { settings = {}, heard = [], none = false, on = true } = {}) {
-  await page.addInitScript(({ settings, heard, none, on }) => {
-    if (on && localStorage.getItem("rd-voice") === null) localStorage.setItem("rd-voice", "1");
-    for (const [k, v] of Object.entries(settings)) localStorage.setItem("rd-voice-" + k, v);
-    if (none) {
-      for (const k of ["speechSynthesis", "SpeechRecognition", "webkitSpeechRecognition"]) Object.defineProperty(window, k, { value: undefined, configurable: true });
-      return;
-    }
-    const said = (window.__said = []);
-    window.__heard = heard.slice();
-    window.__listens = 0;
-    window.SpeechSynthesisUtterance = class { constructor(text) { this.text = text; } };
-    const synth = {
-      paused: false, cur: null,
-      getVoices: () => [
-        { name: "Daniel", lang: "en-GB", voiceURI: "Daniel", localService: true },
-        { name: "Samantha", lang: "en-US", voiceURI: "Samantha", localService: true },
-        { name: "Karen", lang: "en_AU", voiceURI: "Karen", localService: true },
-        { name: "Google UK English Female", lang: "en-GB", voiceURI: "Google UK English Female", localService: false },
-        { name: "Google US English", lang: "en-US", voiceURI: "Google US English", localService: false },
-        { name: "Anna", lang: "de-DE", voiceURI: "Anna", localService: true },
-      ],
-      addEventListener() {}, resume() {},
-      cancel() { const u = this.cur; this.cur = null; if (u && u.onerror) u.onerror({ error: "interrupted" }); },
-      speak(u) { said.push(u.text); this.cur = u; setTimeout(() => { if (this.cur === u) { this.cur = null; if (u.onend) u.onend({}); } }, window.__speakMs || 20); },
-    };
-    Object.defineProperty(window, "speechSynthesis", { value: synth, configurable: true });
-    class Recognition {
-      start() {
-        window.__listens++;
-        if (window.__dead) return;   // a recognizer that never says anything, not even that it ended
-        const t0 = Date.now();
-        const tick = () => {
-          if (this.gone) return;
-          if (!window.__heard.length && Date.now() - t0 < 3000) { setTimeout(tick, 30); return; }
-          if (this.onaudiostart) this.onaudiostart();
-          const next = window.__heard.shift();
-          if (next == null) { if (this.onerror) this.onerror({ error: "no-speech" }); }
-          else {
-            const res = Object.assign([].concat(next).map((t) => ({ transcript: t, confidence: 0.9 })), { isFinal: true });
-            if (this.onresult) this.onresult({ resultIndex: 0, results: [res] });
-          }
-          if (this.onend) this.onend();
-        };
-        setTimeout(tick, 30);
-      }
-      stop() {}
-      abort() { this.gone = true; }
-    }
-    window.SpeechRecognition = Recognition;
-    window.webkitSpeechRecognition = Recognition;
-  }, { settings, heard, none, on });
-}
-const said = (page) => page.evaluate(() => window.__said.slice());
-/** Waits until `n` things have been said and the last one is over (a tap on the speaker while it reads stops it). */
-const spoken = async (page, n) => { await expect.poll(async () => (await said(page)).length).toBe(n); await page.waitForFunction(() => !window.speechSynthesis.cur); };
-const hearNext = (page, ...phrases) => page.evaluate((p) => window.__heard.push(...p), phrases);
-const docs = (page, col) => page.evaluate(async (col) => (await (await window.__riglam.platform.db()).collection(col).get()).docs.map((d) => d.data()), col);
-const mic = (page) => page.locator("#vmic");
-const listening = (page) => expect(mic(page)).toHaveAttribute("aria-pressed", "true");
-const idle = (page) => expect(mic(page)).toHaveAttribute("aria-pressed", "false");
-const waiting = (page) => page.locator("#vfield .vtake");
 /** The question of Pervasions on the path now: "Q1" to "Q4". */
 const qNow = (page) => page.locator("#path .sb.now .qnm");
 /** The speaker at the foot: tap says the question again, hold pauses the reading for this visit. */
 const speaker = (page) => page.locator("#vhear");
-/** Presses and holds a control (the foot's microphone or speaker) for `ms`, then lets go. */
-async function holdDown(page, loc, ms) {
-  const b = await loc.boundingBox();
-  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
-  await page.mouse.down();
-  await page.waitForTimeout(ms);
-  await page.mouse.up();
-}
+/** Presses and holds a control (the foot's microphone or speaker) for `ms`, then lets go: a click whose press lasts, found and waited for as any click is. */
+const holdDown = (page, loc, ms) => loc.click({ delay: ms });
 const blitzSwitch = (page) => page.getByRole("switch", { name: /^Sprint/ });
-/** A tap on the field is Yes while an answer waits. */
-const confirm = (page) => mic(page).click();
-/** Change: Escape takes the answer that waits back (holding the field says another). */
-const change = (page) => page.keyboard.press("Escape");
-/** Waits until the recognizer has taken what was queued and the mic is idle again, so the next phrase never meets a listening mic. */
-async function settle(page) {
-  await page.waitForFunction(() => !window.__heard.length);
-  await idle(page);
-}
-/** Says a phrase with the mic button, and waits for the answer it was taken as to appear. */
-async function hear(page, ...phrases) {
-  await hearNext(page, ...phrases);
-  await mic(page).click();
-  await settle(page);
-  await expect(waiting(page)).toBeVisible();
-}
-
 const sheet = (page) => page.getByRole("dialog", { name: "Practice options" });
 const openPracticeOptions = async (page) => { await page.getByRole("button", { name: "Practice options" }).click(); await expect(sheet(page)).toBeVisible(); };
 /** The Voice page of the practice options (its line "More about voice"). */
@@ -156,15 +71,15 @@ test("with no speech in the browser there is no Voice switch, no microphone and 
   await expect(page.getByRole("switch", { name: "Voice features", exact: true })).toHaveCount(0);
 });
 
-test("Find a pair and Syllogisms have no Voice choices: only Relations and Pervasions read and listen", async ({ page }) => {
+test("every exercise with a voice has the Voice choices in its options: Read aloud, how an answer is given, and More about voice", async ({ page }) => {
   await voice(page, { settings: { read: "1", answer: "tap" } });
   await page.goto("/");
   await ready(page);
-  for (const name of ["Pervasions", "Find a pair", "Syllogisms"]) {
+  for (const name of ["Pervasions", "Find a pair", "Syllogisms", "Categories", "Find an instance"]) {
     await goTo(page, name);
     await openPracticeOptions(page);
-    await expect(moreVoice(page)).toHaveCount(name === "Pervasions" ? 1 : 0);
-    await expect(sheet(page).getByRole("switch", { name: "Read aloud" })).toHaveCount(name === "Pervasions" ? 1 : 0);
+    await expect(moreVoice(page), name).toHaveCount(1);
+    await expect(sheet(page).getByRole("switch", { name: "Read aloud" }), name).toHaveCount(1);
     await closeSheet(page);
   }
 });
@@ -917,6 +832,7 @@ test("the app going to the background in the middle of a touch does not confirm 
   await page.goto("/");
   await ready(page);
   await hear(page, "four possibilities");
+  await expect(mic(page)).toBeVisible();
   const b = await mic(page).boundingBox();
   await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
   await page.mouse.down();
