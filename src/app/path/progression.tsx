@@ -18,7 +18,7 @@ import { render } from "../shell/render.js";
 import { setTab, switchTo } from "../shell/tabs.js";
 import { stopCat } from "../../domain/intro.ts";
 import type { StageMark, TermMark } from "../../domain/intro.ts";
-import { LADDER_TOP, RING_STAGES, STAGES, ladderTop, toggleStage } from "../../domain/stages.ts";
+import { LADDER_TOP, RING_STAGES, STAGES, ladderTop, lastOn, toggleStage } from "../../domain/stages.ts";
 import type { DataIndex } from "../../ai-shared/lookup.ts";
 import type { ProgressionAt } from "../types.ts";
 import { resetProgress } from "../practice/progress.ts";
@@ -142,14 +142,14 @@ function FoldLine({ k, title, sub, sw, end, cls = "", stage, children }: { k: st
 const GROUPS = ["I", "II", "III"], groupNo = (n: number) => GROUPS[STAGES.filter((s) => s.group && s.n <= n).length - 1];
 /**
  * A stage: its name and how it stands, its ring at the right; a tap unfolds what it introduces and its new terms. While Natural progression is off, its switch
- * (the last one on stays on). The first stage of a group of three comes under the group's heading.
+ * (the last one of the ladder on stays on). The first stage of a group of three comes under the group's heading.
  */
 function StageLine({ n, name, adds, group, top, pick }: { n: number; name: string; adds: string; group?: string; top: number; pick: boolean }) {
   const m = marksOf(n), on = state.stages.includes(n), where = standing(n, top);
   return <>
     {group ? <h5 class="prg-gh">{groupNo(n) + " · " + group}</h5> : null}
     <FoldLine k={"pg:" + n} stage={n} cls={" prgl " + stageWhere(n, top)} title={"Stage " + n + " · " + name} sub={pick && !on ? "off · " + where.replace(/^now · /, "") : where}
-      sw={pick ? { on, off: on && state.stages.length === 1, toggle: () => setStages(toggleStage(state.stages, n)) } : undefined} end={<span class="prgd"><StageRing n={n} top={top} /></span>}>
+      sw={pick ? { on, off: on && lastOn(state.stages, n), toggle: () => setStages(toggleStage(state.stages, n)) } : undefined} end={<span class="prgd"><StageRing n={n} top={top} /></span>}>
       <div class="wtext tup prg-p"><p>{adds}</p>{m.length ? <Terms marks={m} /> : null}</div>
     </FoldLine>
   </>;
@@ -199,7 +199,7 @@ function TermCard({ id }: { id: string }) {
   return <>
     <TopBar title="Progression" back={{ label: "Back to Progression", go: progBack }} />
     <div key="term" class="ppage prv pprog-t">
-      <Sx cls="cur first tstop"><Gap h={14} /><Head d={<D cls="sec tsd" />} h={s ? "Stage " + s.n : "Term"} sub={(s ? s.name + " · " : "") + SAYS[mark]} /><Gap h={4} />
+      <Sx cls="cur first tstop"><Gap h={14} /><Head d={<D cls="sec tsd term" mark="lines" />} h={s ? "Stage " + s.n : "Term"} sub={(s ? s.name + " · " : "") + SAYS[mark]} /><Gap h={4} />
         <St d={<D cls={"sub " + NODE[mark]} />} cls="stm thing"><FitTerm text={name} /><Names term={name} /></St>
         <StopSections s={{ cat: id, why: "again" }} name={name} def={def} />
         {!def && state.unlock ? <p class="tstop-key">Its definition comes with the Magic Key from your study group’s link.</p> : null}

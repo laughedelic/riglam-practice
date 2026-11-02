@@ -12,7 +12,7 @@
 /* the words: the old ones fade out where they stand, over the new ones, then the new ones fade in; a light passes over them, as in the Claude app */
 .pa .think.cwait .cwv{position:relative; flex:1 1 0; min-width:0; overflow:hidden; white-space:nowrap}
 .pa .think.cwait .cwph{display:block; overflow:hidden; text-overflow:ellipsis; color:transparent; -webkit-background-clip:text; background-clip:text; background-size:300% 100%;
-  background-image:linear-gradient(90deg,var(--tutor) 0 40%,color-mix(in srgb,var(--tutor) 25%,var(--paper)) 50%,var(--tutor) 60% 100%); animation:p-wshim 2.2s linear infinite}
+  background-image:linear-gradient(90deg,var(--tutor-t) 0 40%,color-mix(in srgb,var(--tutor-t) 25%,var(--paper)) 50%,var(--tutor-t) 60% 100%); animation:p-wshim 2.2s linear infinite}
 .pa .think.cwait .cwph.old{position:absolute; left:0; top:0; right:0; animation:p-wout .3s ease-in both,p-wshim 2.2s linear infinite}
 .pa .think.cwait .cwph.new{animation:p-win .35s ease-out .3s both,p-wshim 2.2s linear infinite}
 .pa .think.cwait .cwprobe{position:absolute; left:0; top:0; visibility:hidden; white-space:nowrap}
@@ -32,11 +32,11 @@
 .pa .cwstop .think{margin:0 0 0 12px; min-width:0}
 
 /* the next station while Claude works: a pale diamond without grain, the arrow at rest and pale, the name gray; still a tap or a pull away */
-.pa .stn.cwait.cwait.cwait .go .mk .i{animation:none}
+.pa .stn.cwait.cwait.cwait .go .mk .i,.pa .stn.cwait.cwait.cwait .go::before{animation:none}
 .pa .stn.cwait.cwait .go{background-color:color-mix(in srgb,var(--station) 32%,var(--paper)); background-image:none}
 .pa .stn.cwait .go .mk{color:color-mix(in srgb,var(--paper) 88%,var(--station))}
 .pa .stn.cwait.cwait .gol b{color:var(--ink3)}
-.pa .stn.cwait .gol small{color:var(--tutor)}
+.pa .stn.cwait .gol small{color:var(--tutor-t)}
 
 /* Explain as a choice: Claude's hollow diamond beside the line; a finger slides it left (--dx), taken it goes onto the line and fills */
 .pa .cwex .chs.slide .crow .mc{transform:translateX(calc(var(--cox) + var(--dx,0px))); transition:transform .4s cubic-bezier(.3,1.35,.5,1)}
@@ -44,7 +44,7 @@
 .pa .cwex.drag .chs.slide .crow :is(.mc,.ct){transition:none}
 .pa .cwex.taken .chs.slide .crow .mc{transform:none}
 .pa .cwex.taken .chs.slide .crow .ct{padding-left:22px}
-.pa .cwex .crow b{color:var(--tutor)}
+.pa .cwex .crow b{color:var(--tutor-t)}
 .pa .cwex .crow .d{transition:background-color .2s .25s}
 .pa .cwex:not(.taken) .crow .d{background-color:var(--paper); box-shadow:inset 0 0 0 1.6px var(--tutor)}
 .pa .cwex.taken .crow .d{background-color:var(--tutor); box-shadow:none}
@@ -58,7 +58,7 @@
 
 @media (prefers-reduced-motion:reduce){
   .pa .d.pthink::after{animation:none; opacity:0}
-  .pa .think.cwait .cwph,.pa .think.cwait .cwph.new{animation:none; background:none; color:var(--tutor)}
+  .pa .think.cwait .cwph,.pa .think.cwait .cwph.new{animation:none; background:none; color:var(--tutor-t)}
   .pa .think.cwait .cwph.old{display:none}
   .pa .cwstop,.pa .cwex .chs.slide .crow :is(.mc,.ct){transition:none}
 }

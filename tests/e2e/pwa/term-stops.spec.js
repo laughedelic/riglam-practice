@@ -89,6 +89,36 @@ test("the stop is a station of its own, with the term and where it sits, and Nex
   await expect(stop).toHaveCount(0);
 });
 
+test("the stations and the stop of a term say what they are: a teal plus for a new definition, a teal ring with lines for its page, a gold question mark for the question after it", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript(fresh);
+  await page.addInitScript(hook);
+  await page.goto("/");
+  const choices = page.locator("#path .chs .crow");
+  await expect(choices).toHaveCount(5);
+  await choices.nth(ORDER.indexOf(await page.evaluate(() => window.__t.cur.p.relation))).click();
+  const field = page.locator("#cin");
+  await expect(field).toBeVisible();
+  for (let i = 0; i < 4 && (await field.isVisible()); i++) { await field.fill("thing " + (i + 1)); if ((await field.getAttribute("enterkeyhint")) === "done") { await field.blur(); break; } await field.press("Enter"); }
+  await station(page).click();
+  await expect(station(page)).toHaveAccessibleName(/^Next: new definition/);
+  const colors = (sel) => page.locator(sel).evaluate((e) => { const probe = (v) => { const i = document.createElement("i"); i.style.color = "var(" + v + ")"; e.closest(".pa").append(i); const c = getComputedStyle(i).color; i.remove(); return c; }; return { teal: probe("--teal"), gold: probe("--gold") }; });
+  const { teal, gold } = await colors("#stn");
+  await expect(station(page)).toHaveClass(/\bstk-def\b/);
+  expect(await station(page).locator(".go").evaluate((e) => getComputedStyle(e).backgroundColor), "teal").toBe(teal);
+  await expect(station(page).locator(".go .mk path"), "a plus").toHaveAttribute("d", /^M12 5v14M5 12h14/);
+  await station(page).click();
+  const ring = page.locator("#path .tstop .sechead .d.tsd.term");
+  await expect(ring, "the term's page has its own stop: a ring").toBeVisible();
+  expect(await ring.evaluate((e) => getComputedStyle(e).boxShadow), "teal edge").toContain(teal);
+  await expect(ring.locator(".mk path"), "with lines in it").toHaveAttribute("d", /^M6 8h12M6 12h12/);
+  expect(await ring.locator(".mk").evaluate((e) => getComputedStyle(e).color), "in teal").toBe(teal);
+  await expect(station(page)).toHaveAccessibleName(/^Next: question/);
+  await expect(station(page)).toHaveClass(/\bstk-q\b/);
+  expect(await station(page).locator(".go").evaluate((e) => getComputedStyle(e).backgroundColor), "the question's gold").toBe(gold);
+  await expect(station(page).locator(".go .mk path").first(), "a question mark").toHaveAttribute("d", /^M9\.5 9a2\.5/);
+});
+
 test("Reset progression on the Progression page asks first, then starts at stage 0 with no term met, on the device and in its progress document", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => { if (localStorage.getItem("rd-negation") === null) { localStorage.setItem("rd-stages", "0,1,2,3"); localStorage.setItem("rd-negation", "one");
@@ -170,7 +200,7 @@ test("Settings > Languages decides which names the stop shows: Tibetan with its 
   expect(await page.evaluate(() => localStorage.getItem("rd-deflang"))).toBeNull();
   await page.getByRole("button", { name: "Back to Settings", exact: true }).click();   // the top bar's chevron: the page, then Settings
   await page.getByRole("button", { name: "Back to the roadmap", exact: true }).click();   // the roadmap, which Settings was opened from
-  await page.getByRole("dialog", { name: "Roadmap" }).getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("dialog", { name: "Roadmap" }).locator("[aria-current=page]").click();
   await expect(page.locator("#path .chs .crow")).toHaveCount(5);
   await page.evaluate(() => window.__t.next());
   const names = page.locator("#path .tstop .tstop-names .nm");

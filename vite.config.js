@@ -7,6 +7,7 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { includeMarkup } from "./scripts/vite-include-markup.mjs";
 import { iconSet } from "./scripts/lib/icon-set.mjs";
+import { NEWS } from "./src/app/news.ts";
 
 const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"));
 
@@ -19,7 +20,8 @@ const commit = (process.env.BUILD_SHA || git("rev-parse", "HEAD")).slice(0, 7) |
 const build = { version: pkg.version, commit: commit + (!process.env.BUILD_SHA && git("status", "--porcelain", "--untracked-files=no") ? "+local" : ""), builtAt: new Date().toISOString() };
 const buildInfo = () => ({
   name: "riglam-build-info",
-  generateBundle() { this.emitFile({ type: "asset", fileName: "build.json", source: JSON.stringify(build) + "\n" }); },
+  // with the newest items of What's new (src/app/news.ts): an older version that finds this build waiting can say what it brings before the reload
+  generateBundle() { this.emitFile({ type: "asset", fileName: "build.json", source: JSON.stringify({ ...build, news: NEWS.slice(0, 8) }) + "\n" }); },
 });
 
 // Which icon set the build carries: the Main icons (public/icons), or the Preview icons (public/icons/preview) in staging and pull request
@@ -30,6 +32,18 @@ const iconLinks = () => ({
   transformIndexHtml: (html) => html.replaceAll('href="icons/', `href="${iconDir}/`),
 });
 
+// The app's name and the one line that says what it is: in the manifest, and in the page's <title> and description (what a browser tab, the iPhone's "Add to Home Screen" and the preview
+// of a shared link show). The staging deploy sets the names so that its app can be installed next to the real one and told apart (docs/STAGING.md).
+const appName = process.env.RIGLAM_APP_NAME ?? "Riglam practice";
+const appShortName = process.env.RIGLAM_APP_SHORT_NAME ?? "Riglam";
+const appDescription = "Practice in logic and debate on the path of reasoning (Dudra and Tarig).";
+const appHead = () => ({
+  name: "riglam-app-head",
+  transformIndexHtml: (html) => html
+    .replace(/<title>[^<]*<\/title>/, `<title>${appName}</title>`)
+    .replace(/(<meta name="description" content=")[^"]*(">)/, `$1${appDescription}$2`),
+});
+
 export default defineConfig({
   // Relative asset paths: the app works from a domain root, a sub-path, or a Pages preview URL.
   base: process.env.BASE_PATH ?? "./",
@@ -37,6 +51,7 @@ export default defineConfig({
   plugins: [
     buildInfo(),
     iconLinks(),
+    appHead(),
     includeMarkup(fileURLToPath(new URL("./src/app/markup.html", import.meta.url))),
     includeMarkup(fileURLToPath(new URL("./src/pwa/cover.html", import.meta.url)), "cover"),
     VitePWA({
@@ -53,10 +68,9 @@ export default defineConfig({
       },
       manifest: {
         id: "./",
-        // The staging deploy sets these so that its app can be installed next to the real one and told apart (docs/STAGING.md).
-        name: process.env.RIGLAM_APP_NAME ?? "Riglam practice",
-        short_name: process.env.RIGLAM_APP_SHORT_NAME ?? "Riglam",
-        description: "Practice in logic and debate on the path of reasoning (Dudra and Tarig).",
+        name: appName,
+        short_name: appShortName,
+        description: appDescription,
         lang: "en",
         start_url: "./",
         scope: "./",

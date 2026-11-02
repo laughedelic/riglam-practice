@@ -18,10 +18,22 @@ async function getJson(url: string, doFetch: typeof fetch, waitMs: number): Prom
   }
 }
 
-/** The build the server has now (its commit, and its version when it says one), or null when it could not be asked. */
-export async function latestBuild(doFetch: typeof fetch = (...a) => fetch(...a), waitMs = 4000): Promise<{ commit: string; version: string | null } | null> {
+type Item = { id: string; title: string; text: string };
+const isItem = (n: unknown): n is Item => !!n && typeof n === "object" && ["id", "title", "text"].every((k) => typeof (n as Record<string, unknown>)[k] === "string");
+
+/** The build the server has now (its commit, its version when it says one, and the newest items of its What's new), or null when it could not be asked. */
+export async function latestBuild(doFetch: typeof fetch = (...a) => fetch(...a), waitMs = 4000): Promise<{ commit: string; version: string | null; news?: Item[] } | null> {
   const latest = await getJson("build.json", doFetch, waitMs);
-  return typeof latest?.commit === "string" ? { commit: latest.commit, version: typeof latest.version === "string" ? latest.version : null } : null;
+  if (typeof latest?.commit !== "string") return null;
+  const news = Array.isArray(latest.news) ? (latest.news as unknown[]).filter(isItem).map(({ id, title, text }) => ({ id, title, text })) : undefined;
+  return { commit: latest.commit, version: typeof latest.version === "string" ? latest.version : null, ...(news ? { news } : {}) };
+}
+
+/** The pull requests a staging build was made from (`staging-build.json`, docs/STAGING.md), or null where there is no such file (the real app, a pull request's own preview). */
+export async function stagingPulls(doFetch: typeof fetch = (...a) => fetch(...a), waitMs = 4000): Promise<number[] | null> {
+  const s = await getJson("staging-build.json", doFetch, waitMs);
+  if (!Array.isArray(s?.pulls)) return null;
+  return (s.pulls as unknown[]).map((p) => (p && typeof p === "object" ? (p as { number?: unknown }).number : null)).filter((n): n is number => typeof n === "number");
 }
 
 /** The commit of the build the server has now, or null when it could not be asked. */
