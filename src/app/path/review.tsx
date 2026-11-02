@@ -19,8 +19,6 @@ import { findLine, findStats } from "../review/find-stats.js";
 import { REPLY_HEAD, answerOf, byNewest, caseOf, replyCase } from "../review/flag-list.js";
 import { RNAME, mistakeLine, overview, pairFromAnswer, pct, startRetry, uniqueMistakePairs, weakSpots } from "../review/review.js";
 import { SAID, SAY, sylExample, sylLine, syllogismStats } from "../review/syllogism-stats.js";
-import { exName } from "../shell/exercises.js";
-import { setTab } from "../shell/tabs.js";
 import { flagStateText, flaggedPart } from "../../domain/flags.ts";
 import { syllogismText } from "../../domain/syllogism.ts";
 import type { CellId, RelKey } from "../../ai-shared/relations.ts";
@@ -28,7 +26,7 @@ import type { AnswerDoc, FavDoc, FlagDoc, SkipDoc } from "../types.ts";
 import { FlagEditor, TutorText } from "./flags.tsx";
 import { refreshPath } from "./index.tsx";
 import { CASE } from "./parts.tsx";
-import { Foot, Station, TopBar } from "./shell.tsx";
+import { TopBar } from "./shell.tsx";
 import { StoredAnswer, isOpen, toggleOpen } from "./stored.tsx";
 import { D, Fig, Gap, Icon, Minis, St, Sx, Words } from "./ui.tsx";
 
@@ -238,6 +236,5 @@ export function ReviewPage() {
       {seg === "today" ? <Today /> : seg === "overview" ? <Overview /> : seg === "mistakes" ? <Mistakes /> : seg === "favs" ? <Favs /> : seg === "skips" ? <Skips /> : <Flags />}
       <div style={{ height: "30px" }} />
     </div>
-    <Foot><Station back name="Continue practice" hint={exName(state.own)} act={() => setTab(state.own)} /></Foot>
   </>;
 }

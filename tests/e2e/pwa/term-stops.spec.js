@@ -83,7 +83,7 @@ test("the stop is a station of its own, with the term and where it sits, and Nex
   await expect(again).toHaveAttribute("aria-pressed", "false");
   await expect(stop.getByRole("status")).toHaveCount(0);
   expect(await due()).toBeNull();
-  await expect(station(page), "and the stop's goes on to the question").toHaveAccessibleName(/^Next: question/);
+  await expect(station(page), "and the stop's goes on to the question").toHaveAccessibleName("Next question");
   await station(page).click();
   await expect(choices).toHaveCount(5);
   await expect(stop).toHaveCount(0);
@@ -113,7 +113,7 @@ test("the stations and the stop of a term say what they are: a teal plus for a n
   expect(await ring.evaluate((e) => getComputedStyle(e).boxShadow), "teal edge").toContain(teal);
   await expect(ring.locator(".mk path"), "with lines in it").toHaveAttribute("d", /^M6 8h12M6 12h12/);
   expect(await ring.locator(".mk").evaluate((e) => getComputedStyle(e).color), "in teal").toBe(teal);
-  await expect(station(page)).toHaveAccessibleName(/^Next: question/);
+  await expect(station(page)).toHaveAccessibleName(/^Next question/);
   await expect(station(page)).toHaveClass(/\bstk-q\b/);
   expect(await station(page).locator(".go").evaluate((e) => getComputedStyle(e).backgroundColor), "the question's gold").toBe(gold);
   await expect(station(page).locator(".go .mk path").first(), "a question mark").toHaveAttribute("d", /^M9\.5 9a2\.5/);
