@@ -43,6 +43,13 @@ const I: Record<string, string> = {
   tilde: '<path d="M4.5 13.5c2-4.2 4.5-4.2 7.5 0s5.5 4.2 7.5 0"/>',
   again: '<path d="M12 7.5v4.8l-3.1 1.9"/><path d="M19.9 13.6A8 8 0 1 1 17.7 6.3"/><path d="M20.4 3.9v3.9h-3.9"/>',     // a clock turning forward: it comes again later
 };
+/** A line icon as an element of plain DOM, for the parts that are drawn outside Preact (shell/voice.js). */
+export function iconSvg(n: string, cls = "i"): SVGSVGElement {
+  const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  s.setAttribute("class", cls); s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("aria-hidden", "true");
+  s.innerHTML = I[n] || "";
+  return s;
+}
 /** A line icon; the favorites mark is drawn in the shape the look names. */
 export function Icon({ n, cls = "i" }: { n: string; cls?: string }) {
   const name = n === "star" ? ({ eight: "eight", bookmark: "mark" } as Record<string, string>)[currentLook().starShape] || "star" : n;

@@ -2,7 +2,7 @@
 // (the screen went off, another app took the microphone); the page then showed "Listening" for good and a tap on the
 // microphone did nothing. The recognizer here is a stand-in that says only what a test makes it say.
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { listen, readingTimeout, speak, type Heard } from "../../src/ui/speech.ts";
+import { listen, listenHeld, readingTimeout, speak, type Heard } from "../../src/ui/speech.ts";
 
 class Fake {
   static all: Fake[] = [];
@@ -191,4 +191,91 @@ test("a reading that ends in time does not time out afterwards, and a slower voi
   expect(done).toHaveBeenCalledTimes(1);
   expect(done.mock.calls[0][0]).toBe(true);
   expect(readingTimeout("A longer question to read aloud.", 0.85)).toBeGreaterThan(readingTimeout("A longer question to read aloud.", 1.25));
+});
+
+// hold to talk: a pause is not the end while the press lasts
+const hold = () => listenHeld({ done: (h) => heard.push(h) });
+
+test("held: a pause does not end it, the stretches are put together when the press is let go", () => {
+  const l = hold();
+  last().onaudiostart?.();
+  last().say("three possibilities");
+  last().onend?.();
+  expect(heard).toEqual([]);
+  vi.advanceTimersByTime(200);
+  expect(Fake.all).toHaveLength(2);
+  last().onaudiostart?.();
+  last().say("A in B");
+  last().onend?.();
+  expect(heard).toEqual([]);
+  l.stop();
+  expect(heard).toEqual([{ alts: ["three possibilities A in B"] }]);
+  vi.advanceTimersByTime(60000);
+  expect(heard).toHaveLength(1);
+});
+
+test("held: a stretch that is cut off by the press being let go reports what it heard, with its other guesses", () => {
+  const l = hold();
+  last().onaudiostart?.();
+  l.stop();
+  expect(last().stopped).toBe(true);
+  last().say("four possibilities", "for possibilities");
+  last().onend?.();
+  expect(heard).toEqual([{ alts: ["four possibilities", "for possibilities"] }]);
+});
+
+test("held: a tap turns it into a plain listening that ends at the first pause", () => {
+  const l = hold();
+  last().onaudiostart?.();
+  l.release();
+  last().say("accept");
+  last().onend?.();
+  vi.advanceTimersByTime(1000);
+  expect(Fake.all).toHaveLength(1);
+  expect(heard).toEqual([{ alts: ["accept"] }]);
+});
+
+test("held: a tap after a first stretch has been heard ends it with that", () => {
+  const l = hold();
+  last().onaudiostart?.();
+  last().say("accept");
+  last().onend?.();
+  l.release();
+  expect(heard).toEqual([{ alts: ["accept"] }]);
+  vi.advanceTimersByTime(1000);
+  expect(Fake.all).toHaveLength(1);
+});
+
+test("held: silence does not end it while the press lasts, and a press that heard nothing reports that", () => {
+  const l = hold();
+  last().onaudiostart?.();
+  last().onerror?.({ error: "no-speech" });
+  last().onend?.();
+  expect(heard).toEqual([]);
+  vi.advanceTimersByTime(200);
+  expect(Fake.all).toHaveLength(2);
+  l.stop();
+  vi.advanceTimersByTime(3000);
+  expect(heard).toEqual([{ error: "no-speech" }]);
+});
+
+test("held: an error that is not silence ends it at once", () => {
+  hold();
+  last().onerror?.({ error: "not-allowed" });
+  last().onend?.();
+  expect(heard).toEqual([{ error: "not-allowed" }]);
+});
+
+test("held: a press that is never let go ends after 30 seconds, and an abort reports nothing", () => {
+  hold();
+  last().onaudiostart?.();
+  vi.advanceTimersByTime(30000);
+  expect(last().stopped).toBe(true);
+  vi.advanceTimersByTime(3000);
+  expect(heard).toHaveLength(1);
+  const l = hold();
+  l.abort();
+  last().onend?.();
+  vi.advanceTimersByTime(60000);
+  expect(heard).toHaveLength(1);
 });

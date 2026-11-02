@@ -9,7 +9,7 @@ import { skipAsks, skipPair } from "../practice/skips.js";
 import { toRoad } from "../shell/menu.js";
 import { isEx } from "../shell/render.js";
 import { openBlitzOptions, sessBack, toggleSess } from "../shell/session.js";
-import { micShown, readShown, toggleListen, toggleReadAloud, voiceBar } from "../shell/voice.js";
+import { voiceField } from "../shell/voice.js";
 import { Clock } from "./clock.tsx";
 import { Pull, SLIDE, bump } from "./gesture.ts";
 import type { ScanPlan } from "./scan.tsx";
@@ -22,12 +22,11 @@ import { FootPin } from "./news.tsx";
 
 export const PullCtx = createContext<Pull>(new Pull());
 
-/** The tutor's button: what it does on the screen in front of it (set by the screen), or null when it waits for a result. `mic`: the screen is
- *  drawn on the Path and can be answered by voice (a hosted part has the microphone in its own bar). */
-export interface TopBarProps { title: string; tools?: boolean; mic?: boolean; /** where the chevron and the title go back to, when it is not the roadmap (Settings: its page, or where it was opened from) */ back?: { label: string; go: () => void } }
+/** The top bar: its title and tools. */
+export interface TopBarProps { title: string; tools?: boolean; /** where the chevron and the title go back to, when it is not the roadmap (Settings: its page, or where it was opened from) */ back?: { label: string; go: () => void } }
 
 const HOLD_MS = 500;
-export function TopBar({ title, tools = false, mic = false, back }: TopBarProps) {
+export function TopBar({ title, tools = false, back }: TopBarProps) {
   // while the practice options are open the bar is theirs: it names them in place of the exercise, its tools give way and the options button becomes the close
   const shown = (state.mode === "quiz" && isEx() && sheetTitle()) || "", heading = shown || title;
   // the Progression page hangs under the ring: the bar keeps the name and the ring (pressed), the other tools give way, and the options button is the close
@@ -48,8 +47,6 @@ export function TopBar({ title, tools = false, mic = false, back }: TopBarProps)
       <button type="button" class="ptb-t" aria-label={heading + (shown ? "" : back ? ", " + back.label.toLowerCase() : ", the roadmap")} onClick={roadmap}><span>{heading}</span></button>
       {tools && !shown && ex ? <ProgressRing /> : null}
       <span class="spc" />
-      {tools && !away && readShown() ? <button type="button" class={"pib" + (state.voice.muted ? "" : " on")} role="switch" aria-checked={state.voice.muted ? "false" : "true"} aria-label="Read aloud" onClick={toggleReadAloud}><Icon n={state.voice.muted ? "speakoff" : "speak"} /></button> : null}
-      {tools && !away && mic && micShown() ? <button type="button" id="vmic" class={"pib" + (state.voice.phase === "listening" ? " on" : "")} aria-pressed={state.voice.phase === "listening" ? "true" : "false"} aria-label="Answer by voice" onClick={() => toggleListen()}><Icon n="mic" /></button> : null}
       {tools && !away && ex ? <button type="button" class={"pib" + (state.blitz ? " on" : "")} role="switch" aria-checked={state.blitz ? "true" : "false"} aria-label={state.blitz ? "Sprint on (hold for the Sprint options)" : "Sprint off (hold for the Sprint options)"}
         onPointerDown={bzDown} onPointerUp={bzStop} onPointerLeave={bzStop} onPointerCancel={bzStop} onContextMenu={(ev) => ev.preventDefault()}
         onClick={() => { if (held.current) { held.current = false; return; } setBlitz(!state.blitz); }}><Icon n={state.blitz ? "blitz" : "blitzoff"} /></button> : null}
@@ -59,8 +56,11 @@ export function TopBar({ title, tools = false, mic = false, back }: TopBarProps)
   </>;
 }
 
-/** What voice heard and what it took it as, with Confirm and Change, above the foot: shell/voice.js draws it and repaints it in place (by its id). */
-export const VoiceBar = () => <Bridge cls="pvoice" fill={() => voiceBar()} />;
+/**
+ * The lower part of the screen above the foot, where voice listens: a field to tap or hold with a thumb anywhere in it, with what was heard and the chip of the step that went on
+ * inside it (shell/voice.js builds it and repaints it in place, by its id). Nothing is there where the screen asks nothing, and with the keyboard up (`kb`) it makes room.
+ */
+export const VoiceField = ({ kb = false }: { kb?: boolean }) => (kb ? null : <Bridge own cls="vfieldh" fill={() => voiceField()} />);
 
 /** A note at the foot for a moment ("Write an example first"). */
 export function pathNote(text: string) {
