@@ -113,7 +113,7 @@ function ResultStep() {
       <ErrLines />
       <Sx cls="ptail" />
     </Scroll>
-    <Foot><Station name={nextName()} kind={nextKind()} act={() => next()} /></Foot>
+    <Foot><Station name={nextName("Next set")} kind={nextKind()} act={() => next()} /></Foot>
   </>;
 }
 
@@ -131,7 +131,7 @@ function GaveStep() {
       {ex && spelled ? <Sx cls="okp"><p class="pgh"><b>{ex.thing}</b><span>in each category</span></p>{ex.rows.map((r) => <Row r={r} />)}</Sx> : null}
       <Sx cls="ptail" />
     </Scroll>
-    <Foot><Station name={nextName()} kind={nextKind()} act={() => next()} /></Foot>
+    <Foot><Station name={nextName("Next set")} kind={nextKind()} act={() => next()} /></Foot>
   </>;
 }
 

@@ -31,7 +31,7 @@ async function toResult(page) {
   await toCheck(page);
   await page.locator("#stn").click();
   await expect(page.locator(".pvline")).toBeVisible();
-  await expect(page.locator("#stn")).toContainText("Next");
+  await expect(page.locator("#stn")).toContainText("Next pair");
   await expect(main(page)).not.toHaveClass(/\b(tk-in|pk-run|sc-in)\b/);
 }
 async function pull(page, ds) {
@@ -208,7 +208,7 @@ test("check: morph, the result's node and word are not drawn twice, the pair mov
   await page.waitForFunction(() => document.querySelector(".pvline") && document.querySelector(".pscan"), null, { polling: "raf", timeout: 8000 });
   expect(await page.locator("#path .pvline .ptx").evaluate((e) => getComputedStyle(e).visibility), "the result's word waits for the scanner").toBe("hidden");
   await expect(page.locator(".pvline .ptx")).toBeVisible({ timeout: 4000 });
-  await expect(page.locator("#stn")).toContainText("Next");
+  await expect(page.locator("#stn")).toContainText("Next pair");
   const w = await page.evaluate(() => window.__sw.first);
   expect(w.scin, "the result's page starts to come in in the frame it is drawn").toBe(true);
   expect(w.from.length, "its first term moves in from where the strip's was").toBeGreaterThan(0);
@@ -279,7 +279,7 @@ test("foot: pulled back under the curb, the placeholder goes with the station an
   expect(errors).toEqual([]);
 });
 
-test("foot: the Check's scanner leaves a placeholder at the foot, with the foot's stub above it, and Next comes in once the scanner is the result's node", async ({ page }) => {
+test("foot: the Check's scanner leaves a placeholder at the foot, with the foot's stub above it, and Next pair comes in once the scanner is the result's node", async ({ page }) => {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await toCheck(page);
@@ -287,14 +287,14 @@ test("foot: the Check's scanner leaves a placeholder at the foot, with the foot'
   await page.locator("#stn").click();
   await expect(main(page)).toHaveClass(/\bsc-run\b/);
   await expect(page.locator(".pvline .ptx")).toBeVisible({ timeout: 8000 });
-  await expect(page.locator("#stn")).toContainText("Next");
+  await expect(page.locator("#stn")).toContainText("Next pair");
   await expect(main(page)).not.toHaveClass(/\b(sc-in|sc-hand|sc-morph)\b/);
   await expectClean(page);
   const w = await page.evaluate(() => window.__fw);
   expect(w.scan, "the scanner was on the page").toBeGreaterThan(10);
   expect(w.sd, "the placeholder stood at the foot").toBeGreaterThan(10);
   expect(w.pre, "gray and empty").toBe(true);
-  expect(w.scanReal, "Next was not at the foot while the scanner was").toBe(0);
+  expect(w.scanReal, "Next pair was not at the foot while the scanner was").toBe(0);
   expect(w.real, "it came in after").toBeGreaterThan(3);
   expect(w.pastLen, "the scanner left a thread behind it through the cases").toBeGreaterThan(20);
   expect(w.pastBelow, "but none below the last case, over the empty ground to the foot").toBeLessThanOrEqual(1);
@@ -420,12 +420,12 @@ test("stations say what they are by their look: Examples is gold and medium with
   expect(await scan.evaluate((e) => e.style.getPropertyValue("--station")), "the scanner is ink as it opens").toBe(inkRaw);
   expect(await scan.evaluate((e) => e.style.getPropertyValue("--s0")), "and the Check's size").not.toBe("");
   await expect(page.locator(".pvline")).toBeVisible();
-  await expect(page.locator("#stn")).toContainText("Next");
+  await expect(page.locator("#stn")).toContainText("Next pair");
   await expect(main(page)).not.toHaveClass(/\b(tk-in|pk-run|sc-in|sc-run|fw-wait)\b/);
   const next = await facts(page, "#stn");
   expect(next.cls, "the station that goes on to the next question is big, not medium").not.toMatch(/(^|\s)stk(\s|$)/);
   expect(next.cls).toContain("stk-q");
-  await expect.poll(() => facts(page, "#stn"), { message: "Next: big and gold, in the color of the question it leads to (its colors are a transition that may still be running)" }).toMatchObject({ size: 28, bg: gold, label: goldT, font: "21px" });
+  await expect.poll(() => facts(page, "#stn"), { message: "Next pair: big and gold, in the color of the question it leads to (its colors are a transition that may still be running)" }).toMatchObject({ size: 28, bg: gold, label: goldT, font: "21px" });
   expect(await symbolOf(page, "#stn"), "a question mark").toBe("q");
   expect(await glyphColor(page, "#stn"), "the symbol on the gold is the ink").toBe(await tokenColor(page, "--on-light"));
   // the next question does not call you at once, so that the result can be read or explained: its cue starts at 4 s and repeats every 10 s
@@ -449,7 +449,7 @@ test("in the dark ground a symbol is dark on a fill the ground lifts and on the 
   expect(onLight).toBe(ground);
   await page.locator("#stn").click();
   await expect(page.locator(".pvline")).toBeVisible();
-  await expect(page.locator("#stn")).toContainText("Next");
+  await expect(page.locator("#stn")).toContainText("Next pair");
   await expect(main(page)).not.toHaveClass(/\b(tk-in|pk-run|sc-in|sc-run|fw-wait)\b/);
   expect(await glyphColor(page, "#stn"), "the question mark on the gold is dark").toBe(ground);
   expect(await page.locator(".pvline .d.big .mk").first().evaluate((e) => getComputedStyle(e).color), "the mark of the verdict on its lifted fill is dark").toBe(ground);

@@ -40,7 +40,7 @@ test("Syllogisms: the syllogism in its three parts, the three replies, and the r
   }
   await expect(verdict(page)).toContainText("Right");
   await expect(page.locator("#path .plead")).toHaveText(say + ".");   // the reply as it was said, with no "You answered" before it
-  await expect(station(page), "the next station says what comes next").toHaveAccessibleName(/^Next$/);
+  await expect(station(page), "the next station says what comes next").toHaveAccessibleName(/^Next syllogism/);
   await expect(page.locator("#path .chk")).toHaveCount(3);
   await expect.poll(async () => (await saved(page, "syllogism")).length).toBe(1);
   expect((await saved(page, "syllogism"))[0]).toMatchObject({ said: c.answer, answer: c.answer });
@@ -178,7 +178,7 @@ test("Pervasions: four questions answered on the path, a counter-example for Why
   await expect(page.locator("#path .qres")).toHaveCount(4);
   await expect(page.locator("#path .qres .qnm")).toHaveText(["Q1", "Q2", "Q3", "Q4"]);
   await expect(page.locator("#path .qres").nth(1)).toContainText("a stone");
-  await expect(station(page), "the station that goes on is plain Next here too").toHaveAccessibleName(/^Next$/);
+  await expect(station(page), "Pervasions goes on to the next pair").toHaveAccessibleName(/^Next pair/);
   await expect.poll(async () => (await saved(page, "debate", "debates")).length).toBe(1);
 });
 
@@ -202,7 +202,7 @@ test("Find a pair: the relation asked, two words, an example for each case, and 
   await expect(page.locator("#path .pairv")).toContainText("does not cover this pair");   // a pair of its own words: the tutor would judge it
   await expect.poll(async () => (await saved(page, "find")).length).toBe(1);
   expect((await saved(page, "find"))[0]).toMatchObject({ a: "pot", b: "clay things" });
-  await expect(station(page), "the station that goes on is plain Next here too").toHaveAccessibleName(/^Next$/);
+  await expect(station(page), "Find a pair goes on to the next relation").toHaveAccessibleName(/^Next relation/);
 });
 
 test("Pervasions: Escape in the counter-example goes back to the two answers, and with words in it the station goes on", async ({ page }) => {
@@ -255,7 +255,7 @@ test("Categories: the categories ticked on the path, and the check ends the thin
   await expect(verdict(page)).toContainText("Right");
   await expect(page.locator("#path .thold.tres .chs.up .crow")).toHaveText(right.map((r) => new RegExp("^" + r.phrase)));   // the check keeps them where they were left, each marked
   await expect(page.locator("#path .thold.tres .crow .mark")).toHaveCount(rows.length);
-  await expect(station(page)).toHaveAccessibleName(/^Next$/);   // no second step: the check ends the thing
+  await expect(station(page)).toHaveAccessibleName(/^Next question/);   // no second step: the check ends the thing
   await expect.poll(async () => (await saved(page, "categories")).length).toBe(1);
 });
 
@@ -364,7 +364,7 @@ test("Find an instance: the categories as stops, a thing written, the check, and
   await field.press("Enter");
   await expect(verdict(page)).toContainText("Right");
   await expect(page.locator("#path .catrow")).toHaveCount(q.cats.length);
-  await expect(station(page)).toHaveAccessibleName(/^Next$/);
+  await expect(station(page)).toHaveAccessibleName(/^Next set/);
   await expect.poll(async () => (await saved(page, "instance")).length).toBe(1);
   expect((await saved(page, "instance"))[0]).toMatchObject({ cats: q.cats, possible: true, said: q.known[0], thing: q.known[0], grade: "ok" });
 });
