@@ -5,6 +5,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { whatsNewLine } from "./whats-new-check.mjs";
 
 /** The file on the staging branch that records what it was built from (the only file on it that main does not have). */
 export const MANIFEST = "staging.json";
@@ -65,7 +66,7 @@ export function selectPulls(pulls, { repo, label = LABEL }) {
 
   /** @type {Map<number, Entry>} */
   const chosen = new Map();
-  const entryOf = (p, labeled, via) => ({ number: p.number, title: p.title ?? "", branch: p.head.ref, base: p.base.ref, sha: p.head.sha ?? null, parent: null, labeled, via });
+  const entryOf = (p, labeled, via) => ({ number: p.number, title: p.title ?? "", news: whatsNewLine(p.body), branch: p.head.ref, base: p.base.ref, sha: p.head.sha ?? null, parent: null, labeled, via });
   for (const p of here.values()) if (hasLabel(p, label)) chosen.set(p.number, entryOf(p, true, null));
   for (const entry of [...chosen.values()]) {
     const seen = new Set([entry.number]);
@@ -211,7 +212,7 @@ export function rebuild({ cwd, entries, remote = "origin", base = "main", target
       baseSha,
       inputs: inputs.pulls,
       branches: merged.map((m) => m.branch),
-      pulls: merged.map((m) => ({ number: m.number, branch: m.branch, sha: m.sha, ...(m.addsNothing ? { addsNothing: true } : {}) })),
+      pulls: merged.map((m) => ({ number: m.number, branch: m.branch, sha: m.sha, ...(m.title ? { title: m.title } : {}), ...(m.news ? { news: m.news } : {}), ...(m.addsNothing ? { addsNothing: true } : {}) })),
       skipped: skipped.map((s) => ({ number: s.number, branch: s.branch, sha: s.sha, reason: s.reason, files: s.files, parent: s.parent, withMain: s.withMain, with: s.with })),
     };
     writeFileSync(join(dir, MANIFEST), `${JSON.stringify(manifest, null, 2)}\n`);

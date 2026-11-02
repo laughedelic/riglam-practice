@@ -8,7 +8,7 @@ import { state } from "../state.js";
 import { render } from "../shell/render.js";
 import { setTab } from "../shell/tabs.js";
 import { toggleOpts } from "../shell/options.js";
-import { NEWS, newsSince, buildWords, comingNews, type NewsGo, type NewsItem } from "../news.ts";
+import { NEWS, newsSince, buildWords, buildLine, comingNews, type NewsGo, type NewsItem } from "../news.ts";
 import { u0 } from "./parts.tsx";
 
 const SEEN = "rd-news-seen";
@@ -59,11 +59,11 @@ export function startNews(): void {
  * The pinned line, drawn as Claude's waiting line is: a gold diamond on the thread, the words in a light that passes over them, the way on at the right end.
  * The words open What's new (`words`), where a version that waits says what it brings, with Update now.
  */
-function PinLine({ cls, text, label, act, words, shine }: { cls: string; text: string; label: string; act: () => void; words: () => void; shine: boolean }) {
+function PinLine({ cls, text, label, act, words, shine, disabled = false }: { cls: string; text: string; label: string; act: () => void; words: () => void; shine: boolean; disabled?: boolean }) {
   return <div class={"pinln " + cls} role="status">
-    <span class="pind" aria-hidden="true" />
+    {cls.includes("onfoot") ? <span class="pind" aria-hidden="true">↑</span> : null}
     <button type="button" class="pint" onClick={words}><span class={"pinw" + (shine ? " shine" : "")}>{text}</span></button>
-    <button type="button" class="pbtn quiet pinb" onClick={act}>{label}</button>
+    <button type="button" class="pbtn quiet pinb" onClick={act} disabled={disabled} aria-busy={disabled ? "true" : undefined}>{label}</button>
   </div>;
 }
 
@@ -77,6 +77,12 @@ export function RoadPin() {
   if (ready()) return <PinLine cls={"onroad" + (state.preview ? " pre" : "")} text={readyWords()} label="Update" act={updateNow} words={() => openNews(true)} shine />;
   const n = unseen();
   if (n.length) return <PinLine cls="onroad news" text={"What's new: " + n[0]!.title} label="Read" act={() => openNews(true)} words={() => openNews(true)} shine={false} />;
+  // a Preview always says what it is made of, with the way to look again (the real app shows its version in Settings only)
+  const a = state.about, u = state.updates;
+  if (state.preview && a && u) {
+    const l = buildLine(u.status(), { version: a.version, commit: a.commit, pulls: u.ownPulls?.() });
+    return <PinLine cls="onroad pre build" text={l.text} label={l.label} act={() => { if (l.act) void u.check(); }} words={() => openNews(true)} shine={false} disabled={!l.act} />;
+  }
   return null;
 }
 
@@ -100,6 +106,8 @@ function go(to: NewsGo) {
   setTab(to);
 }
 
+const PR_URL = "https://github.com/laughedelic/riglam-practice/pull/";
+
 /** The page: a version that waits first, with what it brings and Update now; then the items new on this device, marked, then the earlier ones; each a stop on a thread. */
 export function NewsPage() {
   const fresh = new Set(newsSince(state.newsSince).map((n) => n.id));
@@ -115,6 +123,18 @@ export function NewsPage() {
       </div>
     </li>;
   };
+  // on a Preview (staging) the pull requests of the build: its title and the line it prepared for the learner, so the planned notes can be judged
+  const prs = state.preview ? (ready() ? state.updates?.coming?.()?.pulls : state.updates?.ownPulls?.()) ?? [] : [];
+  const prList = prs.length ? <>
+    <p class="sintro">{ready() ? "Pull requests in the version that waits" : "Pull requests in this build"}</p>
+    <ul class="nwl prs">{prs.map((p) => <li class="nwi" key={p.number}>
+      <span class="nwd" aria-hidden="true" />
+      <div class="nwb">
+        <p class="nwt"><a href={PR_URL + p.number} target="_blank" rel="noopener noreferrer"><span class="nwn">#{p.number}</span>{p.title ?? "Pull request " + p.number}</a></p>
+        {p.news ? <p class="nwx">{p.news}</p> : <p class="nwx none">Nothing prepared for learners yet</p>}
+      </div>
+    </li>)}</ul>
+  </> : null;
   const soon = ready() ? comingNews(state.updates?.coming?.()?.news) : [];
   return <>
     {ready() ? <div class="nwsoon">
@@ -126,6 +146,7 @@ export function NewsPage() {
       <p class="nwsx">Updating reloads the app; your answers stay.</p>
       <button type="button" class="pbtn" onClick={updateNow}>Update now</button>
     </div> : null}
+    {prList}
     <p class="sintro">What changed in the app lately, newest first.</p>
     <ul class="nwl">{NEWS.map(item)}</ul>
   </>;
