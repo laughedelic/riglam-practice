@@ -6,10 +6,10 @@ import { render } from "./render.js";
 // Settings opens from the roadmap over the exercise, with a back arrow; Back or Escape closes it. (In the code it is still `optsOpen`; path/settings.tsx draws it.)
 // The Sprint clock does not run behind the panel: it stops when Settings opens and goes on from where it stood when it closes (shell/timers.js).
 export function toggleOpts(on){
-  const was=state.optsOpen; state.optsOpen=on===undefined?!state.optsOpen:on;
+  const was=state.optsOpen, key=state.keyFrom; state.optsOpen=on===undefined?!state.optsOpen:on;
   if(!state.optsOpen){ state.optsPage=null; state.keyFrom=null; state.newsDirect=false; state.newsArrive=false; }
-  // opened from the roadmap, Settings goes back to it, not to the exercise under it (shell/history.js)
-  const road=!state.optsOpen&&was&&state.fromRoad; if(road){ state.fromRoad=false; state.menuOpen=true; }
+  // opened from the roadmap, Settings goes back to it, not to the exercise under it (shell/history.js); the Magic Key page opened over Review goes back to Review, which stands over the roadmap itself
+  const road=!state.optsOpen&&was&&state.fromRoad&&!(key&&key.back==="review"); if(road){ state.fromRoad=false; state.menuOpen=true; }
   render();
   if(state.optsOpen&&state.updates) state.updates.check(60000); // the Version row is about to be read: look for a newer one unless a look is younger than a minute
 }
@@ -22,7 +22,6 @@ export function openKey(then,why){
   if(state.optsOpen){ state.optsPage="key"; render(); return; }
   const back=state.menuOpen?"road":state.tab==="review"?"review":"exercise";
   if(back==="road"){ state.fromRoad=true; state.menuOpen=false; }
-  else if(back==="review") state.fromRoad=false;   // Settings closing over Review stays on Review (Review then goes back to the exercise, as when it was opened from it)
   state.sessOpen=false; state.sessPage=null; state.skipAsk=false;
   state.keyFrom={back,then:then||null,why:why||""};
   state.optsPage="key";

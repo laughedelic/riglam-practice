@@ -430,7 +430,7 @@ test("stations say what they are by their look: Examples is gold and medium with
   expect(await glyphColor(page, "#stn"), "the symbol on the gold is the ink").toBe(await tokenColor(page, "--on-light"));
   // the next question does not call you at once, so that the result can be read or explained: its cue starts at 4 s and repeats every 10 s
   expect(await cueOf(page, "#stn")).toBe("p-up 4s 10s");
-  // a station that goes back (Back to the result, Continue practice) is a slate ring with a chevron: the foot's own markup with that class
+  // a station that goes back (Back to the result) is a slate ring with a chevron: the foot's own markup with that class
   const [slate, paper] = await Promise.all(["--slate", "--paper"].map((n) => tokenColor(page, n)));
   const back = await page.locator("#stn").evaluate((e) => {
     const c = e.cloneNode(true); c.id = ""; c.className = "stn stk-back"; e.parentElement.append(c);
