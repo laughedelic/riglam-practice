@@ -15,6 +15,7 @@ export interface NewsItem {
 }
 
 export const NEWS: NewsItem[] = [
+  { id: "2026-11-02-voice", title: "Answer by voice, one-handed", text: "With Voice on in Settings, the lower part of the screen listens: tap it and speak, or hold it while you talk. While your answer waits, a tap says yes, and a line above lets you hear the question again.", go: "settings" },
   { id: "2026-11-01-icon", title: "A calmer app icon", text: "The app's icon now sits on the Path's own ivory ground, with the same figure." },
   { id: "2026-11-01-guidance", title: "Guidance in three levels", text: "Every exercise can guide you as much as you want: Detailed spells things out, Hints gives a nudge, None leaves you alone. Results and Sprint's time-up follow the level you chose." },
   { id: "2026-11-01-sprint", title: "Sprint", text: "Blitz is now Sprint: a clock for every step of every exercise, which you can pause and resume." },
