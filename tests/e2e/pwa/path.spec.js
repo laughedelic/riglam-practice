@@ -39,7 +39,7 @@ test("Relations on the Path: a relation, the examples, the check, the result, an
   await expect(page.locator(".pvline")).toBeVisible();
   await expect(page.locator(".pvline")).toContainText(/Right|Relation is right|Partly right|Not quite/);
   await expect.poll(() => savedAnswers(page)).toBe(1);
-  await expect(station).toHaveAccessibleName(/Next pair/);
+  await expect(station).toHaveAccessibleName(/^Next$/);
   await expect(station).toBeFocused();   // Enter goes on
   await station.click();
   await expect(choices(page)).toHaveCount(5);
@@ -121,7 +121,7 @@ test("with the keyboard up there is no bar above it: Enter goes on, the line run
   await page.locator("#cin").press("Enter");   // the last one: the keyboard goes, the page opens with the Check at its foot, and the Check is taken there
   await expect(page.locator(".pvline")).toBeVisible();
   await expect(page.locator(".pa")).not.toHaveClass(/\bkbup\b/);
-  await expect(page.locator("#path .foot #stn")).toHaveAccessibleName(/Next pair/);
+  await expect(page.locator("#path .foot #stn")).toHaveAccessibleName(/^Next$/);
 });
 
 test("with the keyboard up, letting the last field go shows the Check at the foot, and a tap takes it", async ({ page }, testInfo) => {
@@ -150,7 +150,7 @@ test("where there is no keyboard to put away, Enter on the last example takes th
   await expect(page.locator("#path .foot #stn")).toHaveAccessibleName(/^Check/);
   await field.press("Enter");
   await expect(page.locator(".pvline")).toBeVisible();
-  await expect(page.locator("#path .foot #stn")).toHaveAccessibleName(/Next pair/);
+  await expect(page.locator("#path .foot #stn")).toHaveAccessibleName(/^Next$/);
 });
 
 test("the top bar's title has no chevron beside it", async ({ page }) => {

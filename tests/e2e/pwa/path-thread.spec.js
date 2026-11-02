@@ -24,7 +24,7 @@ const checked = async (page) => {
   await page.locator("#stn").focus();
   await page.keyboard.press("Enter");
   await expect(page.locator("#path .pvline")).toBeVisible();
-  await expect(page.locator("#stn")).toContainText("Next pair");
+  await expect(page.locator("#stn")).toContainText("Next");
 };
 
 /** Every piece that draws the thread, with the pseudo-element it draws it with. */

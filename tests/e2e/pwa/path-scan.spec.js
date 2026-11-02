@@ -31,7 +31,7 @@ async function written(page, { enter = false } = {}) {
     new MutationObserver((ms) => { window.__marks = Math.max(window.__marks, document.querySelectorAll("#path .sb .pscm").length);
       if (document.querySelector("#path .pscan")) {      // while the scanner is on its way: the placeholder of the next station is at the foot, and the real one is not
         if (document.querySelector("#path .fw-sd")) window.__next = true;
-        const rs = document.querySelector("#path .foot #stn"); if (rs && rs.textContent.includes("Next pair") && getComputedStyle(rs).opacity !== "0") window.__early = true;
+        const rs = document.querySelector("#path .foot #stn"); if (rs && /^Next/.test(rs.textContent) && getComputedStyle(rs).opacity !== "0") window.__early = true;
       }
       for (const m of ms) { const e = m.target; if (!(e instanceof HTMLElement)) continue;
       if (e.matches(".sb.scn") && !e.dataset.seen) { e.dataset.seen = "1"; if (window.__open === null) window.__open = !document.querySelector(".pa.kbup") && !!document.querySelector("#path .foot #stn"); window.__scan.push("case:" + [...document.querySelectorAll("#path .sx.cur .sb")].indexOf(e)); }
@@ -56,9 +56,9 @@ test("the Check slides up through the cases marking each from the bottom, then t
   expect(await page.evaluate(() => window.__scan)).toEqual(["case:3", "case:2", "case:1", "case:0", "head", "rel"]);
   await expect(page.locator(".pvline")).toContainText(word);
   expect(await page.evaluate(() => window.__vib.length), "a knock at the relation").toBeGreaterThan(0);
-  await expect(page.locator("#stn")).toContainText("Next pair");
+  await expect(page.locator("#stn")).toContainText("Next");
   expect(await page.evaluate(() => window.__next), "a placeholder for the next station stood at the foot while the scanner was sliding").toBe(true);
-  expect(await page.evaluate(() => window.__early), "and Next pair was not shown before the scanner was the result's node").toBe(false);
+  expect(await page.evaluate(() => window.__early), "and Next was not shown before the scanner was the result's node").toBe(false);
   await expect(page.locator("#path .main")).not.toHaveClass(/sc-run/);
   expect(errors).toEqual([]);
 });
@@ -86,8 +86,8 @@ test("with the keyboard up, Enter on the last example opens the page first, and 
   expect(await page.evaluate(() => window.__scan)).toEqual(["case:3", "case:2", "case:1", "case:0", "head", "rel"]);
   expect(await page.evaluate(() => window.__open), "the page was open (the foot there, the keyboard's layout gone) at the first mark").toBe(true);
   expect(await page.evaluate(() => window.__next), "a placeholder for the next station stood at the foot while the scanner was sliding").toBe(true);
-  expect(await page.evaluate(() => window.__early), "and Next pair was not shown before the scanner was the result's node").toBe(false);
-  await expect(page.locator("#stn")).toContainText("Next pair");
+  expect(await page.evaluate(() => window.__early), "and Next was not shown before the scanner was the result's node").toBe(false);
+  await expect(page.locator("#stn")).toContainText("Next");
 });
 
 test("with the look's check: ride the Check rides as any station", async ({ page }) => {
@@ -117,7 +117,7 @@ test("Pervasions: the relation picked is taken with the scan: it rises from the 
     const tick = () => {
       w.marks = Math.max(w.marks, document.querySelectorAll("#path .pscm").length);
       w.struck = Math.max(w.struck, document.querySelectorAll("#path .crow.scn-no, #path .crow.scn-ok").length);
-      if (document.querySelector("#path .pscan")) { w.scan++; if (document.querySelector("#path .pscan.pre")) w.pre = true; if (document.querySelector("#path .fw-sd")) w.sd++; const rs = document.querySelector("#path .foot .stn"); if (rs && /Next pair/.test(rs.textContent) && getComputedStyle(rs).opacity !== "0") w.early = true; }
+      if (document.querySelector("#path .pscan")) { w.scan++; if (document.querySelector("#path .pscan.pre")) w.pre = true; if (document.querySelector("#path .fw-sd")) w.sd++; const rs = document.querySelector("#path .foot .stn"); if (rs && /^Next/.test(rs.textContent) && getComputedStyle(rs).opacity !== "0") w.early = true; }
       requestAnimationFrame(tick);
     };
     tick();
@@ -126,7 +126,7 @@ test("Pervasions: the relation picked is taken with the scan: it rises from the 
   await expect(page.locator("#path .pscan")).toHaveCount(1, { timeout: 6000 });
   await expect(page.locator("#path .chs")).toBeVisible();      // the page is still the relation's while the scanner rises: nothing has jumped
   await expect(page.locator(".pvline")).toBeVisible({ timeout: 12000 });
-  await expect(page.locator("#stn")).toContainText("Next pair");
+  await expect(page.locator("#stn")).toContainText("Next");
   await expect(page.locator("#path .pscan")).toHaveCount(0);
   const w = await page.evaluate(() => window.__pv);
   expect(w.scan, "the scanner was on the page").toBeGreaterThan(10);
@@ -134,7 +134,7 @@ test("Pervasions: the relation picked is taken with the scan: it rises from the 
   expect(w.marks, "the four answers and the relation were marked on the way").toBe(5);
   expect(w.struck, "the relation among them").toBe(1);
   expect(w.sd, "a placeholder stood at the foot meanwhile").toBeGreaterThan(5);
-  expect(w.early, "and Next pair was not shown before the scanner was the result's node").toBe(false);
+  expect(w.early, "and Next was not shown before the scanner was the result's node").toBe(false);
   await expect(page.locator("#path .main")).not.toHaveClass(/\b(sc-run|sc-in|sc-hand|fw-wait|fw-ph)\b/);
   expect(errors).toEqual([]);
 });

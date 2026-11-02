@@ -19,7 +19,7 @@ const hold={};
 // on one pair: opening one while the other has an unfinished pair, and nothing of its own begun or checked, opens that pair at its first step.
 // Find a pair is its own exercise (the learner names the pair): it gives no pair to the other two and takes none from them. Syllogisms has no pair at all, only a syllogism,
 // Categories only a thing with its categories, and Find an instance only a set of categories; each is apart in the same way.
-// A checked attempt comes back on its result too; only Next pair moves on from it.
+// A checked attempt comes back on its result too; only Next moves on from it.
 const isEx=k=>k==="practice"||k==="debate"||k==="find"||k==="syllogism"||k==="categories"||k==="instance";
 const ownPair=k=>k==="find"||k==="syllogism"||k==="categories"||k==="instance";
 const sameP=(x,y)=>!!x&&!!y&&((x.id&&x.id===y.id)||(x.a===y.a&&x.b===y.b&&x.relation===y.relation));

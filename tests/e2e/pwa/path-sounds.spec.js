@@ -43,7 +43,7 @@ async function toResult(page) {
   for (let i = 0; i < 4 && (await field.isVisible()); i++) { await field.fill("thing " + (i + 1)); if ((await field.getAttribute("enterkeyhint")) === "done") { await field.blur(); break; } await field.press("Enter"); }
   await page.locator("#stn").click();
   await expect(page.locator(".pvline")).toBeVisible();
-  await expect(page.locator("#stn")).toContainText("Next pair");
+  await expect(page.locator("#stn")).toContainText("Next");
 }
 async function openSettings(page) {
   await page.locator(".tstn").click();

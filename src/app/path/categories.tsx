@@ -160,7 +160,7 @@ function CheckedStep() {
       <ErrLines />
       <Sx cls="ptail" />
     </Scroll>
-    <Foot><Station name={nextName("Next thing")} kind={nextKind()} act={() => next()} /></Foot>
+    <Foot><Station name={nextName()} kind={nextKind()} act={() => next()} /></Foot>
   </>;
 }
 

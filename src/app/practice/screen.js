@@ -51,7 +51,7 @@ export function learnedThing(c){
   return String(t||"").trim().slice(0,200)||undefined;
 }
 /** The forward button of a checked pair (path/foot.ts). */
-export const nextFwd=()=>({label:state.cur.retry&&!state.retryQ.length?"Back to new pairs":"Next pair",hint:"N",onclick:()=>next()});
+export const nextFwd=()=>({label:state.cur.retry&&!state.retryQ.length?"Back to new pairs":"Next",hint:"N",onclick:()=>next()});
 export const fillable=()=>CELLS.filter(k=>!REL[state.ui.rel].empty.includes(k));
 /** Only the "neither" case may say that nothing exists: the other cases are asked because the relation chosen needs them, so their examples justify the choice. */
 export const mayBeEmpty=c=>c==="nei";

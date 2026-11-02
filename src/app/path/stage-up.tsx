@@ -16,7 +16,7 @@ import { PACE_NAME } from "../practice/difficulty.ts";
 import { LADDER_TOP, RING_STAGES, STAGES, runNeed } from "../../domain/stages.ts";
 import { HowStages } from "./progress.tsx";
 import { openDifficulty, openStages } from "./progression.tsx";
-import { stopKind, stopName } from "./next.ts";
+import { NEXT, ON_TO_QUESTION, stopKind, stopName } from "./next.ts";
 import { StageRing, TermList, marksOf, ringLabel, stageWhere } from "./rings.tsx";
 import { Scroll } from "./scroll.tsx";
 import { FitTerm } from "./stop-def.tsx";
@@ -93,6 +93,6 @@ export function stageUpScreen(title: string): { cls: string; node: ComponentChil
         <Gap h={6} /></Sx>
       <Sx cls="ptail" />
     </Scroll>
-    <Foot>{after ? <Station name={stopName(after)} kind={stopKind(after)} act={() => next()} /> : <Station name="Next" hint="on to the question" act={() => next()} />}</Foot>
+    <Foot>{after ? <Station name={stopName(after)} kind={stopKind(after)} act={() => next()} /> : <Station name={NEXT} hint={ON_TO_QUESTION} act={() => next()} />}</Foot>
   </> };
 }

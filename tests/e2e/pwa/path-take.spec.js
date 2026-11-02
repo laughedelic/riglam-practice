@@ -15,7 +15,7 @@ const onPath = () => {
 const choices = (page) => page.locator("#path .chs .crow");
 const main = (page) => page.locator("#path .main");
 
-/** To the result of a pair (taking the Check station with a tap, which is a ride too), where the station reads Next pair. */
+/** To the result of a pair (taking the Check station with a tap, which is a ride too), where the station reads Next. */
 async function toResult(page) {
   await page.addInitScript(onPath);
   await page.goto("/");
@@ -26,7 +26,7 @@ async function toResult(page) {
   for (let i = 0; i < 4 && (await field.isVisible()); i++) { await field.fill("thing " + (i + 1)); if ((await field.getAttribute("enterkeyhint")) === "done") { await field.blur(); break; } await field.press("Enter"); }   // (the last one is left without Enter, which would take the Check at once)
   await page.locator("#stn").click();
   await expect(page.locator(".pvline")).toBeVisible();
-  await expect(page.locator("#stn")).toContainText("Next pair");
+  await expect(page.locator("#stn")).toContainText("Next");
   await expect(main(page)).not.toHaveClass(/\b(tk-in|sc-in|sc-hand|fw-wait)\b/);      // the Next station comes in once the scan has landed
   await page.evaluate(() => { window.__vib = []; });   // (the choice taken on the way here knocked)
 }
@@ -131,7 +131,7 @@ test("nothing else is taken while the ride plays, and a second tap does not play
 
 test("a tap on the station knocks once as it is taken, the commitment a pull feels at the curb; a click of a mouse knocks not at all", async ({ page }) => {
   await toResult(page);
-  await page.locator("#stn").click();   // Next pair, tapped (a finger: toResult's init script)
+  await page.locator("#stn").click();   // Next, tapped (a finger: toResult's init script)
   await expect(choices(page)).toHaveCount(5);
   expect(await page.evaluate(() => window.__vib), "one knock for the tap").toEqual([12]);
   await page.evaluate(() => { window.__pointer = "mouse"; window.__vib = []; });
@@ -141,9 +141,9 @@ test("a tap on the station knocks once as it is taken, the commitment a pull fee
   for (let i = 0; i < 4 && (await field.isVisible()); i++) { await field.fill("thing " + (i + 1)); if ((await field.getAttribute("enterkeyhint")) === "done") { await field.blur(); break; } await field.press("Enter"); }
   await page.locator("#stn").click();   // ... and the Check
   await expect(page.locator(".pvline")).toBeVisible();
-  await expect(page.locator("#stn")).toContainText("Next pair");
+  await expect(page.locator("#stn")).toContainText("Next");
   await expect(main(page)).not.toHaveClass(/\b(tk-in|sc-in|sc-hand|fw-wait)\b/);
-  await page.locator("#stn").click();   // ... and Next pair
+  await page.locator("#stn").click();   // ... and Next
   await expect(choices(page)).toHaveCount(5);
   expect(await page.evaluate(() => window.__vib), "a mouse has its own click: no knock").toEqual([]);
 });

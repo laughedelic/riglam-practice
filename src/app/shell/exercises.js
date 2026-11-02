@@ -14,7 +14,7 @@ export const EXERCISES=[
   {k:"instance",name:"Find an instance",group:"One example",desc:"Categories are shown: name something that is all of them, or say that nothing is."}
 ];
 export const exName=k=>(EXERCISES.find(e=>e.k===k)||{name:""}).name;
-/** An exercise with an attempt under way: begun, or checked and its result not yet left with Next pair. A pair only drawn is not. */
+/** An exercise with an attempt under way: begun, or checked and its result not yet left with Next. A pair only drawn is not. */
 export const unfinished=k=>{ const u=(attemptOf(k)||{}).ui; return !!u&&(u.checked||begun(u)); };
 /** An exercise with an attempt waiting while you are elsewhere. */
 export const parked=k=>state.tab!==k&&unfinished(k);

@@ -1,6 +1,6 @@
 // What is at the foot while a station that rides away from it (the push of push.ts, the Check's scan of scan.tsx) is away: a placeholder for the station that comes next. It is there as soon as the
 // old station has cleared the foot, gray, empty and small, with the foot's stub of thread above it as always; nothing joins it to the rider. Once the step has landed and the page's thread
-// runs down to it again, it is activated: the real station of the new page comes in as what it is, its color and its words ("Next pair", or a question's gray "Check"). One way for every
+// runs down to it again, it is activated: the real station of the new page comes in as what it is, its color and its words ("Next", or a question's gray "Check"). One way for every
 // ride, so that the Path does the same thing wherever a station is taken.
 const CLEAR = 38;        // how far the station has risen (px) before the placeholder is born: its diamond has cleared the foot's
 

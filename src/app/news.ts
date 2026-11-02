@@ -15,6 +15,7 @@ export interface NewsItem {
 }
 
 export const NEWS: NewsItem[] = [
+  { id: "2026-11-02-next-and-review", title: "Next, the same everywhere", text: "The station that goes on to the next question now just says Next, in every exercise. When a new term, a repetition or a new stage comes first, it says so after a colon, as in Next: new definition. Review no longer ends with a Continue practice button; Back takes you to the roadmap." },
   { id: "2026-11-01-whats-new", title: "A quieter update", text: "When a new version is ready, one line above the bottom says so, with Update beside it; nothing covers the question any more. Tap its words to see what the new version brings. After you update, this page shows what changed; it is also in Settings, under About." },
   { id: "2026-10-31-sounds", title: "Short sounds", text: "A short sound for a result, a new term or stage, and Claude's answers. You can turn them off in Settings › Sounds.", go: "settings" },
   { id: "2026-10-31-categories", title: "Categories, simpler", text: "Categories now asks only for the categories; the step that asked for the most specific one is gone.", go: "categories" },

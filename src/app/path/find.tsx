@@ -129,7 +129,7 @@ function ResultStep() {
       <Sx cls="ptail" />
     </Scroll>
     <WaitStop />
-    <Foot><Station name={nextName("Next relation")} kind={nextKind()} act={() => next()} wait={!!u.ctl} /></Foot>
+    <Foot><Station name={nextName()} kind={nextKind()} act={() => next()} wait={!!u.ctl} /></Foot>
   </>;
 }
 
@@ -145,7 +145,7 @@ function GaveStep() {
         {spelled && p.note ? <p class="xnote"><Subjects text={p.note.replace(/"([^"]*)"/g, "“$1”")} p={p} /></p> : null}</St></Sx>
       <Sx cls="ptail" />
     </Scroll>
-    <Foot><Station name={nextName("Next relation")} kind={nextKind()} act={() => next()} /></Foot>
+    <Foot><Station name={nextName()} kind={nextKind()} act={() => next()} /></Foot>
   </>;
 }
 
