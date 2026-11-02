@@ -217,7 +217,7 @@ const told = { before: (page) => page.addInitScript(() => { if (!localStorage.ge
 withKey("Settings offer the switch only where the server says it keeps examples", async ({ page }) => {
   await open(page, { health: { ok: true, tutor: "on" } });
   await openSettings(page);
-  await expect(page.getByRole("button", { name: "Export and import: more" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Your data: more" })).toBeVisible();
   await expect(page.getByRole("button", { name: /^Sharing examples/ })).toHaveCount(0);
 });
 
