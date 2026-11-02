@@ -61,7 +61,7 @@ export function startNews(): void {
  */
 function PinLine({ cls, text, label, act, words, shine, disabled = false }: { cls: string; text: string; label: string; act: () => void; words: () => void; shine: boolean; disabled?: boolean }) {
   return <div class={"pinln " + cls} role="status">
-    <span class="pind" aria-hidden="true" />
+    {cls.includes("onfoot") ? <span class="pind" aria-hidden="true">↑</span> : null}
     <button type="button" class="pint" onClick={words}><span class={"pinw" + (shine ? " shine" : "")}>{text}</span></button>
     <button type="button" class="pbtn quiet pinb" onClick={act} disabled={disabled} aria-busy={disabled ? "true" : undefined}>{label}</button>
   </div>;
@@ -106,6 +106,8 @@ function go(to: NewsGo) {
   setTab(to);
 }
 
+const PR_URL = "https://github.com/laughedelic/riglam-practice/pull/";
+
 /** The page: a version that waits first, with what it brings and Update now; then the items new on this device, marked, then the earlier ones; each a stop on a thread. */
 export function NewsPage() {
   const fresh = new Set(newsSince(state.newsSince).map((n) => n.id));
@@ -125,9 +127,12 @@ export function NewsPage() {
   const prs = state.preview ? (ready() ? state.updates?.coming?.()?.pulls : state.updates?.ownPulls?.()) ?? [] : [];
   const prList = prs.length ? <>
     <p class="sintro">{ready() ? "Pull requests in the version that waits" : "Pull requests in this build"}</p>
-    <ul class="nwprs">{prs.map((p) => <li key={p.number}>
-      <p class="nwpt"><b>#{p.number}</b>{p.title ?? ""}</p>
-      {p.news ? <p class="nwpx">{p.news}</p> : <p class="nwpx none">No What's new line</p>}
+    <ul class="nwl prs">{prs.map((p) => <li class="nwi" key={p.number}>
+      <span class="nwd" aria-hidden="true" />
+      <div class="nwb">
+        <p class="nwt"><a href={PR_URL + p.number} target="_blank" rel="noopener noreferrer"><span class="nwn">#{p.number}</span>{p.title ?? "Pull request " + p.number}</a></p>
+        {p.news ? <p class="nwx">{p.news}</p> : <p class="nwx none">Nothing prepared for learners yet</p>}
+      </div>
     </li>)}</ul>
   </> : null;
   const soon = ready() ? comingNews(state.updates?.coming?.()?.news) : [];

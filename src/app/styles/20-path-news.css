@@ -6,7 +6,10 @@
 .pa .pinln.onfoot::before{content:""; position:absolute; top:0; bottom:0; left:calc(var(--m) - var(--lw) / 2); width:var(--lw); background:var(--ahead-bg); opacity:.9}
 /* on the roadmap Continue stands above it, kept apart from its Update */
 .pa .road .rgo + .pinln{margin-top:14px}
-.pa .pinln .pind{justify-self:end; margin-right:-5px; width:10px; height:10px; transform:rotate(45deg); background:var(--gold); position:relative}
+/* on the roadmap the words start at the edge (no mark: more room for the pull requests of a Preview); in an exercise a small arrow up stands on the thread */
+.pa .pinln.onroad{grid-template-columns:minmax(0,1fr) auto; padding-left:16px}
+.pa .pinln.onroad .pint{margin-left:0}
+.pa .pinln .pind{justify-self:end; margin-right:-6px; width:12px; height:14px; line-height:14px; text-align:center; font-size:13px; color:var(--gold-t); background:var(--paper); position:relative}
 .pa .pinln .pint{margin-left:12px; min-width:0; min-height:40px; display:flex; align-items:center; text-align:left; font-family:var(--mono); font-size:11px; color:var(--gold-t)}
 .pa .pinln .pinw{display:block; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .pa .pinln.news .pint{color:var(--ink2)}
@@ -49,8 +52,10 @@
 
 /* the update line shimmers once in a while (about every ten seconds), not all the time; both ends of the sweep are plain ink */
 @keyframes p-pinshim{0%{background-position:100% 0} 22%,100%{background-position:-50% 0}}
-.pa .nwprs{list-style:none; margin:0; padding:4px 16px 14px; display:grid; gap:.7rem}
-.pa .nwprs .nwpt{margin:0; font-size:.9rem; color:var(--ink)}
-.pa .nwprs .nwpt b{font-family:var(--mono,monospace); font-weight:600; color:var(--gold-t); margin-right:.4em}
-.pa .nwprs .nwpx{margin:.1rem 0 0; font-size:.85rem; color:var(--ink2)}
-.pa .nwprs .nwpx.none{font-style:italic; opacity:.7}
+.pa .nwl.prs{padding-top:4px}
+.pa .nwl.prs .nwd{border-color:var(--gold); border-style:dashed}
+.pa .nwl.prs .nwt{font-size:15px}
+.pa .nwl.prs .nwt a{color:inherit; text-decoration:none}
+.pa .nwl.prs .nwt a:hover,.pa .nwl.prs .nwt a:focus-visible{text-decoration:underline}
+.pa .nwl.prs .nwt .nwn{font-family:var(--mono); font-size:12px; font-weight:400; color:var(--gold-t); margin-right:8px}
+.pa .nwl.prs .nwx.none{font-style:italic; opacity:.7}

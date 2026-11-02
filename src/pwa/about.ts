@@ -40,6 +40,12 @@ export async function stagingPulls(doFetch: typeof fetch = (...a) => fetch(...a)
     if (typeof number !== "number") continue;
     out.push({ number, ...(typeof title === "string" ? { title } : {}), ...(typeof news === "string" ? { news } : {}) });
   }
+  // the titles and bodies as they are now on GitHub (public repository; the staging file may be older than an edit, or made before it held them); the file's own stay when it cannot be asked
+  await Promise.all(out.map(async (p) => {
+    const got = await getJson(`https://api.github.com/repos/laughedelic/riglam-practice/pulls/${p.number}`, doFetch, waitMs);
+    if (typeof got?.title === "string") p.title = got.title;
+    if (got && "body" in got) p.news = whatsNewLine(typeof got.body === "string" ? got.body : "");
+  }));
   return out;
 }
 
@@ -53,4 +59,11 @@ export async function aboutThisBuild(build: { version: string; commit: string; b
   const there = typeof latest?.commit === "string" ? latest.commit : null;
   const branches = Array.isArray(staging?.branches) ? (staging.branches as unknown[]).filter((b): b is string => typeof b === "string") : undefined;
   return { ...build, latest: there === null ? "unknown" : there === build.commit ? "current" : "newer", branches: branches?.length ? branches : undefined };
+}
+
+/** The line a pull request prepared for learners: the text after "What's new:" in its body; null when there is none, it says "none", or it is the template's placeholder. Same rule as scripts/lib/whats-new-check.mjs. */
+export function whatsNewLine(body: string): string | null {
+  const m = /^\s*what['’]s new:[ \t]*(.+)$/im.exec(body);
+  const t = m ? m[1]!.trim() : "";
+  return !t || t.startsWith("(") || /^none\b/i.test(t) ? null : t;
 }
