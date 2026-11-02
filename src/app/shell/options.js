@@ -46,6 +46,7 @@ export function shareNote(){
   return "When Claude checks an example the page could not, this app\u2019s server keeps the words of the example (not who wrote it, which pair it was for, or where you put it)"
       +(known?", so that the same example can be checked later without Claude.":", to build a shared reference of examples with other learners.")
       +(known?" Your checks are answered from what it learned this way, from your examples and from other people\u2019s.":"")
+      +" The person who runs the app can read what is kept."
       +" Turn this off to keep your examples out of it: checks work as before"+(known?", and you still get answers learned from other people\u2019s examples":"")+"."
       +(quorum?" Quorum, in the practice options, is separate: it keeps its own runs, whatever this says.":"");
 }

@@ -1,7 +1,7 @@
 // Settings on the Path (the Design Lab's "Settings and options", round 3): full width, in sections of lines (path/lines.tsx), and a page of its own for a
 // line that needs one. General: the languages and the theme. Data: the Magic Key, the account, sharing the examples, export and import. Experiments,
-// shown only in a Preview, or in the real app on a device with the Magic Key after a hold on Version: voice, the lab's settings. About: the
-// version. What each does is shell/options.js's and the shared rows of src/ui's, which the Path builds in its own classes.
+// shown only in a Preview, or in the real app on a device with the Magic Key after a hold on Version: voice, the lab's settings. About: what the app is and
+// how to reach its author, the version and what's new, the licenses, and what it does with your data (path/about.tsx). What each does is shell/options.js's and the shared rows of src/ui's, which the Path builds in its own classes.
 import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { state } from "../state.js";
 import { accountControls } from "../../ui/account";
@@ -23,9 +23,10 @@ import { Group, Intro, Line } from "./lines.tsx";
 import { Bridge, Words, NOFILL } from "./ui.tsx";
 import { NewsPage, openNews, unseen, updateNow } from "./news.tsx";
 import { StorageNote, dataLine, storageStuck } from "./storage.tsx";
+import { AboutPage, LicensesPage, PrivacyPage } from "./about.tsx";
 
 /** The pages of Settings, by the names of their lines. */
-const TITLES: Record<string, string> = { langs: "Languages", key: "Magic Key", acct: "Account", share: "Sharing examples", xfer: "Your data", lab: "The lab's settings", ver: "Version and updates", news: "What's new" };
+const TITLES: Record<string, string> = { langs: "Languages", key: "Magic Key", acct: "Account", share: "Sharing examples", xfer: "Your data", lab: "The lab's settings", ver: "Version and updates", news: "What's new", about: "About RIGLAM", lic: "Licenses", priv: "Privacy" };
 const open = (id: string) => { state.optsPage = id; render(); const b = document.querySelector<HTMLElement>("#path .ptb .tstn"); if (b) b.focus({ preventScroll: true }); };
 const back = () => { state.optsPage = null; render(); };
 // how long Version is held to show Experiments
@@ -152,6 +153,9 @@ function Page({ id }: { id: string }) {
   if (id === "lab") return <LabPage />;
   if (id === "ver") return <VersionPage />;
   if (id === "news") return <NewsPage />;
+  if (id === "about") return <AboutPage />;
+  if (id === "lic") return <LicensesPage />;
+  if (id === "priv") return <PrivacyPage />;
   return null;
 }
 
@@ -200,9 +204,12 @@ function Sections() {
       <Line title="The lab's settings" sub={labOwn() ? "this device's own" : "the defaults"} go={() => open("lab")} />
     </Group> : null}
     {state.about ? <Group name="About">
+      <Line title="About RIGLAM" sub="A personal project; feedback and source code" go={() => open("about")} />
       <div {...press}><Line title="Version and updates" sub={verLine()} go={() => open("ver")}
         act={u ? { label: "Check for updates", busy: u.status() === "checking", run: () => u.check() } : undefined} /></div>
       <Line title="What's new" sub={newsLine()} go={() => openNews(false)} />
+      <Line title="Licenses" sub="The code, the fonts, the definitions" go={() => open("lic")} />
+      <Line title="Privacy" sub="What stays here and what the server keeps" go={() => open("priv")} />
     </Group> : null}
   </>;
 }
@@ -210,11 +217,18 @@ function Sections() {
 const KEY_BACK = { road: "Back to the roadmap", review: "Back to Review", exercise: "Back to the exercise" } as const;
 export function SettingsPage() {
   const page = state.optsPage && TITLES[state.optsPage] ? state.optsPage : null, from = state.keyFrom;
+  // a page opens at its top, and the way back finds Settings where it was left (About is at the bottom: a page opened from it would otherwise start scrolled past its first lines)
+  const mem = useRef({ page: null as string | null, y: 0 });
+  useLayoutEffect(() => {
+    const pg = document.querySelector<HTMLElement>("#path .ppage.sfull"), m = mem.current;
+    if (pg && m.page !== page) pg.scrollTop = page ? 0 : m.y;
+    m.page = page;
+  });
   // the top bar's chevron is the way back: from a page to Settings, from Settings (or the Magic Key page opened where the key is needed, or What's new opened from its line) to where it was opened from
   const up = page && !from && !((page === "news" || page === "xfer") && state.newsDirect) ? { label: "Back to Settings", go: back } : { label: from ? KEY_BACK[from.back] : state.fromRoad ? "Back to the roadmap" : "Back to the exercise", go: () => toggleOpts(false) };
   return <>
     <TopBar title={page ? TITLES[page]! : "Settings"} back={up} />
-    <div class="ppage sfull">
+    <div class="ppage sfull" onScroll={(e) => { if (!page) mem.current.y = (e.currentTarget as HTMLElement).scrollTop; }}>
       {page ? <Page id={page} />
         : <><p class="ptitle">Settings</p><Intro>For the app, on this device. How an exercise looks and ticks is in its practice options.</Intro><Sections /></>}
       <div style={{ height: "30px" }} />

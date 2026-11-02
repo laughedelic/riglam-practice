@@ -23,7 +23,7 @@ export function askShare(){
       el("h2",{id:"sharedlg-h",text:"Share your examples?"}),
       el("div",{id:"sharedlg-t"},
         el("p",{text:"When Claude checks an example you wrote, its words can be kept, so that "+(state.known?"other learners get answers sooner and ":"")+"we all build knowledge together."}),
-        el("p",{text:"Nothing else is done with them, and nothing about who you are is kept. Please leave names out of your examples."})),
+        el("p",{text:"Nothing else is done with them, and nothing about who you are is kept. The person who runs the app can read them, so please leave names out of your examples."})),
       el("div",{class:"dact"},
         el("button",{type:"button",class:"btn",onclick:()=>answer(true)},"Ok"),
         el("button",{type:"button",class:"btn ghost",onclick:()=>answer(false)},"Don\u2019t share")),
