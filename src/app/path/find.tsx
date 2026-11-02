@@ -20,7 +20,7 @@ import { Row, cases, isOpen, pendLine, resultRows } from "./relations.tsx";
 import { Scroll } from "./scroll.tsx";
 import { Subjects } from "./subjects.tsx";
 import { nextKind, nextName } from "./next.ts";
-import { Foot, PreStation, SkipSide, Station, TopBar } from "./shell.tsx";
+import { Foot, PreStation, SkipSide, Station, TopBar, VoiceField } from "./shell.tsx";
 import { D, Fig, Gap, Head, St, Sx, nofillInput } from "./ui.tsx";
 
 const relOf = () => u0().rel as RelKey;
@@ -66,6 +66,7 @@ function PairStep({ kb }: { kb: boolean }) {
         <Gap h={6} /></Sx>
       <Sx cls="ptail" />
     </Scroll>
+    <VoiceField kb={kb} />
     {kb ? null : <Foot aux={state.findRel ? null : <SkipSide />}>
       {ok ? <Station kind="ex" name="Examples" hint="your pair" act={usePair} /> : <PreStation name="Examples" hint="name both first" />}
     </Foot>}

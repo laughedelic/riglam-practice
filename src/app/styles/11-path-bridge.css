@@ -5,16 +5,66 @@
   --body:var(--main-f);
   font-size:15px; line-height:1.5; min-width:0
 }
-/* what voice heard, above the foot: the bar of src/app/shell/voice.js, which it repaints in place as it listens (so that the focus stays on Confirm),
-   with its buttons in the Path's look */
-.pa .pbr.pvoice{flex:none; padding:0 16px 0 calc(var(--m) + 22px)}
-.pa .pbr.pvoice .vtake{border-top:0; gap:4px 18px}
-.pa .pbr.pvoice .vwhat{flex-basis:120px}
-.pa .pbr.pvoice .vwhat b{font-family:var(--hand-f); font-style:var(--hand-st); font-weight:var(--hand-w); color:var(--blue); font-size:var(--hand-sz)}
-.pa .pbr.pvoice .btn,.pa .pbr.pvoice .btn.ghost,.pa .pbr.pvoice .btn:hover,.pa .pbr.pvoice .btn.ghost:hover{height:auto; min-height:32px; padding:6px 0; background:none; box-shadow:none;
-  font-family:var(--mono); font-size:12.5px; font-weight:600; letter-spacing:0; text-transform:none; color:var(--blue); text-decoration:underline; text-underline-offset:4px}
-.pa .pbr.pvoice .btn.ghost,.pa .pbr.pvoice .btn.ghost:hover{color:var(--ink2)}
-html.pa-tab .pa .pbr.pvoice .btn:focus-visible{outline:2px solid var(--blue); outline-offset:1px; box-shadow:none}
+/* the voice stop (src/app/shell/voice.js, voiceField): above the foot the thread passes one more stop, the answer that is yours to give. It is drawn as a station is: a medium diamond
+   on the thread, its name beside it in the station type, a mono hint under the name. Nothing crosses the thread or boxes the ground; the row from the thread to the edge is the touch area
+   (a tap listens until a pause, a hold listens while it is held; with an answer waiting a tap is Yes and a hold says it again). A quiet line above it says the question again.
+   While it listens the stop fills blue; an answer that waits stands beside the filled stop, and if it goes on by itself the thread under the stop fills toward the foot. */
+.pa .vfieldh{flex:none; min-width:0}
+.pa .vfieldh:empty{display:none}
+.pa .vfield{position:relative; display:flex; flex-direction:column; height:clamp(124px,19svh,168px); overflow:hidden}
+.pa .vfield.nomic{height:auto}
+/* the thread runs on through the stop as the path ahead: it comes in out of the fade above it, and leaves toward the foot, where the foot's own stub takes it up */
+.pa.edge-fade .vfieldh::before{opacity:.9; background:var(--ahead-bg); -webkit-mask-image:linear-gradient(to bottom,transparent,#000 46%,#000 54%,transparent); mask-image:linear-gradient(to bottom,transparent,#000 46%,#000 54%,transparent)}
+.pa.edge-fade .vfieldh:has(.nomic)::before{opacity:0}
+.pa .vtopc{flex:none; position:relative; z-index:2}
+.pa .vtop{display:flex; align-items:center; justify-content:flex-start; gap:8px; width:100%; height:38px; padding:0 16px 0 calc(var(--m) + var(--stp) * 99 / 140 + 6.2px); border:0; border-radius:0; background:none; box-shadow:none; color:var(--ink3); font:11px/1 var(--mono); letter-spacing:.05em; text-transform:uppercase;
+  touch-action:manipulation; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none}
+.pa .vtop svg{flex:none; width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round}
+.pa .vtop.on{color:var(--gold-t,var(--gold))}
+.pa .vtop.say{color:var(--blue); pointer-events:none}
+.pa .vmic{position:relative; z-index:2; flex:1; min-height:0; display:grid; grid-template-columns:var(--m) minmax(0,1fr); align-items:center; padding:0 18px 0 0; cursor:pointer;
+  touch-action:none; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent}
+.pa .vmic *{pointer-events:none}
+.pa .vsr{position:absolute; width:1px; height:1px; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap}
+/* under the thumb, a soft spot, kept off the thread's lane */
+.pa .vfield::after{content:""; position:absolute; inset:0 0 0 calc(var(--m) + 14px); opacity:0; pointer-events:none; transition:opacity .2s; background:radial-gradient(circle at calc(var(--tx,64%) - var(--m) - 14px) var(--ty,62%),color-mix(in srgb,var(--blue) 10%,transparent) 0,transparent 60%)}
+.pa .vfield.hold::after{opacity:1}
+/* the stop: a medium diamond on the thread, ringed in blue (yours to press), the microphone small inside it */
+.pa .vg{grid-column:1; justify-self:end; margin-right:calc(var(--stp) / -2); position:relative; width:var(--stp); height:var(--stp); display:grid; place-items:center; color:var(--blue)}
+.pa .vg::before,.pa .vg::after{content:""; position:absolute; inset:0; transform:rotate(45deg); transition:transform .14s ease-out,background-color .14s,box-shadow .14s}
+.pa .vg::before{background:var(--paper); box-shadow:inset 0 0 0 1.6px var(--blue)}
+.pa .vg::after{box-shadow:inset 0 0 0 1px var(--blue); opacity:0; scale:1.55}
+.pa .vg svg{position:relative; width:calc(var(--stp) * 12 / 22); height:calc(var(--stp) * 12 / 22); fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round}
+.pa .vfield.on .vg,.pa .vmic.pend .vg{color:var(--paper)}
+.pa .vfield.on .vg::before,.pa .vmic.pend .vg::before{background:var(--blue); box-shadow:none}
+.pa .vfield.on .vg::after{opacity:.3}
+.pa .vfield.hold .vg::before{transform:rotate(45deg) scale(1.14)}
+@media (prefers-reduced-motion:no-preference){.pa .vfield.on .vg::after{animation:vring 1.6s ease-in-out infinite}}
+@keyframes vring{50%{opacity:.08; scale:1.8}}
+/* beside it, as a station's name: what to do, or what is heard; a mono hint under it */
+.pa .vtx{grid-column:2; min-width:0; padding-left:calc(var(--stp) * 99 / 140 + 6.2px); display:flex; flex-direction:column; align-items:flex-start; gap:3px}
+.pa .vlab{font:500 19px/1.2 var(--main-f); color:var(--ink2)}
+.pa .vfield.on .vlab{color:var(--blue)}
+.pa .vhint{max-width:100%; font:10.5px/1.4 var(--mono); letter-spacing:.05em; text-transform:uppercase; color:var(--ink3)}
+.pa .vst{position:relative; max-width:100%; font:500 16px/1.3 var(--main-f); color:var(--ink2); overflow-wrap:anywhere}
+.pa .vfield.on .vst{color:var(--blue)}
+.pa .vst.bad{color:var(--red)}
+.pa .vst.live{font-family:var(--hand-f); font-style:var(--hand-st); font-weight:var(--hand-w); font-size:calc(var(--hand-sz) * 1.1); line-height:1.25; color:var(--ink)}
+.pa .vst.live::after{content:""; display:inline-block; width:2px; height:1em; background:var(--blue); margin-left:3px; vertical-align:-2px}
+/* an answer that waits: what was heard in the hand type the page uses for what you write, and under it what a touch does */
+.pa .vtake{min-width:0}
+.pa .vwhat{display:flex; flex-wrap:wrap; align-items:baseline; gap:0 8px}
+.pa .vwhat small{font:10.5px/1.3 var(--mono); letter-spacing:.05em; text-transform:uppercase; color:var(--ink3)}
+.pa .vwhat b{font-family:var(--hand-f); font-style:var(--hand-st); font-weight:var(--hand-w); color:var(--blue); font-size:calc(var(--hand-sz) * 1.15); line-height:1.25}
+.pa .vsub{display:flex; flex-wrap:wrap; align-items:baseline; gap:0 6px}
+.pa .vgo{font:500 10.5px/1.4 var(--mono); letter-spacing:.05em; text-transform:uppercase; color:var(--blue)}
+.pa .vgo.soft{color:var(--ink2)}
+.pa .vsub .vgo:not(:empty) + .vhint::before{content:"· "}
+/* the answer goes on by itself: the thread under the stop fills toward the foot, as the path walks on */
+.pa .vrunl{position:absolute; left:calc(var(--m) - var(--lw) / 2); top:50%; bottom:0; width:var(--lw); background:var(--blue); transform-origin:50% 0; animation:vdown var(--d) linear forwards; animation-delay:calc(-1 * var(--e,0ms)); pointer-events:none}
+@keyframes vdown{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+html.pa-tab .pa .vmic:focus-visible{outline:2px solid var(--blue); outline-offset:-4px}
+html.pa-tab .pa .vtop:focus-visible{outline:2px solid var(--blue); outline-offset:-4px}
 /* the two dialogs opened over the Path, native dialogs outside #path (the question before a device's examples are kept, ai/share-notice.js; the
    Magic Key, pwa/unlock.ts): the root's variables do not reach them, so applyLook also keeps the palette on the html element as --pa-*, and here they take it, the Path's
    face and its text buttons (the question before a skip, .pdlg, looks the same) */

@@ -14,7 +14,7 @@ import { toggleMenu } from "./menu.js";
 import { toggleOpts } from "./options.js";
 import { isEx, render } from "./render.js";
 import { sessBack } from "./session.js";
-import { voiceKey } from "./voice.js";
+import { voiceKey, voicePending } from "./voice.js";
 // a category that can be ticked: a row of the choices the Path ticks (path/categories.tsx)
 const ticks=b=>!!b.closest("#path .thold");
 
@@ -26,11 +26,11 @@ document.addEventListener("click",e=>{
 document.addEventListener("keydown",e=>{
   // a native dialog (the sharing question) takes the keys it needs, and does not close on Escape, since it has to be answered: the menu or Settings under it keep their level
   if(/** @type {Element|null} */(e.target)?.closest?.("dialog[open]")) return;
-  if(e.key==="Escape"){ if(state.skipAsk){ closeSkipAsk(); return; } if(state.sessOpen){ sessBack(); return; } if(state.optsOpen){ toggleOpts(false); return; } if(state.view==="chat"){ closeChat(); return; } if(state.menuOpen){ toggleMenu(false); return; } if(state.ui&&state.ui.dterm){ closeDef(); return; } if(state.ui&&state.ui.pop){ state.ui.pop=null; render(); return; } if(state.ui&&state.ui.find&&state.ui.open&&!state.ui.checked){ state.ui.open=false; render(); return; } if(state.tab==="syllogism"&&state.ui&&state.ui.syllogism&&state.ui.step===1&&!state.ui.checked){ backSyllogism(); return; } }
+  if(e.key==="Escape"){ if(voicePending()){ voiceKey("Escape"); e.preventDefault(); return; } if(state.skipAsk){ closeSkipAsk(); return; } if(state.sessOpen){ sessBack(); return; } if(state.optsOpen){ toggleOpts(false); return; } if(state.view==="chat"){ closeChat(); return; } if(state.menuOpen){ toggleMenu(false); return; } if(state.ui&&state.ui.dterm){ closeDef(); return; } if(state.ui&&state.ui.pop){ state.ui.pop=null; render(); return; } if(state.ui&&state.ui.find&&state.ui.open&&!state.ui.checked){ state.ui.open=false; render(); return; } if(state.tab==="syllogism"&&state.ui&&state.ui.syllogism&&state.ui.step===1&&!state.ui.checked){ if(!voiceKey("Escape")) backSyllogism(); return; } }
   if(state.mode!=="quiz"||!state.ui||state.optsOpen||state.sessOpen||state.skipAsk||state.view||state.tab==="review"||state.menuOpen||e.metaKey||e.ctrlKey||e.altKey) return;
   const t=e.target&&/** @type {Element} */(e.target).tagName;
-  if(state.ui.stop||(state.ui.up&&state.ui.up.shown)){ if(isEx()&&(e.key==="n"||e.key==="N")&&!e.shiftKey&&t!=="INPUT"&&t!=="TEXTAREA"){ e.preventDefault(); next(); } return; }     // a course term's stop or a stage coming in: only Next (practice/stops.ts, practice/stage-offer.ts)
-  if((e.key==="v"||e.key==="r"||e.key==="Enter"||e.key==="Escape")&&!e.shiftKey&&t!=="INPUT"&&t!=="TEXTAREA"&&t!=="SELECT"&&(t!=="BUTTON"||e.key!=="Enter")&&voiceKey(e.key)){ e.preventDefault(); return; }
+  if(state.ui.stop||(state.ui.up&&state.ui.up.shown)){ if((e.key==="v"||e.key==="Enter"||e.key==="Escape")&&!e.shiftKey&&t!=="INPUT"&&t!=="TEXTAREA"&&t!=="SELECT"&&(t!=="BUTTON"||e.key!=="Enter")&&voiceKey(e.key)){ e.preventDefault(); return; } if(isEx()&&(e.key==="n"||e.key==="N")&&!e.shiftKey&&t!=="INPUT"&&t!=="TEXTAREA"){ e.preventDefault(); next(); } return; }     // a course term's stop or a stage coming in: only Next (practice/stops.ts, practice/stage-offer.ts)
+  if((e.key==="v"||e.key==="r"||e.key==="m"||e.key==="Enter"||e.key==="Escape")&&!e.shiftKey&&t!=="INPUT"&&t!=="TEXTAREA"&&t!=="SELECT"&&(t!=="BUTTON"||e.key!=="Enter")&&voiceKey(e.key)){ e.preventDefault(); return; }
   if((e.key==="f"||e.key==="F")&&!e.shiftKey&&t!=="INPUT"&&t!=="TEXTAREA"&&state.db&&favTarget()&&!favTarget().own&&isEx()){ e.preventDefault(); toggleFav(favTarget()); return; }
   if(state.tab==="practice"&&!state.ui.debate){
     if(!state.ui.checked&&t!=="INPUT"&&/^[1-5]$/.test(e.key)&&(!state.ui.rel||state.ui.open)){ e.preventDefault(); choose(ORDER[+e.key-1]); }

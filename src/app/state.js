@@ -127,7 +127,7 @@ export const state = {
   times: defaultTimes(),
   // reading the questions aloud and answering by voice, with the browser's own speech or, for reading, the natural voices of the app's server (`remote`; shell/voice.js). `on` is the Voice switch in Settings (app.js sets it
   // at the start: the device's choice, else the build's default); `read` and `answer` are in the Practice options, both off until turned on there
-  voice: {on:false, muted:false, read:false, answer:"off", confirm:"tap", voiceId:"", rate:1, remote:null, remoteUntil:0, key:"", phase:"idle", live:"", note:"", bad:false, pend:null,began:false,seen:false,held:false, ask3:false, tries:0, blocked:false, clockUi:null, rhold:false, stop:null, tok:null, hooked:false},
+  voice: {on:false, muted:false, read:false, answer:"off", confirm:"split", hold:false, press:null, spress:null, chip:null, tried:false, noRead:false, voiceId:"", rate:1, remote:null, remoteUntil:0, key:"", phase:"idle", live:"", note:"", bad:false, pend:null,began:false,seen:false,held:false, ask3:false, tries:0, blocked:false, clockUi:null, rhold:false, stop:null, tok:null, hooked:false, paused:false, early:false},
   // the sounds (src/app/sound): the Sounds switch in Settings (`rd-sounds`, on until the device turns it off), and the audio context, its room and the sound playing now
   sounds: true,
   snd: {ctx:null, rig:null, live:null, until:0, keep:0, failed:false, armed:false},
@@ -185,6 +185,7 @@ try{
 try{
   const v=state.voice, a=localStorage.getItem("rd-voice-answer"), r=+localStorage.getItem("rd-voice-rate");
   v.read=localStorage.getItem("rd-voice-read")==="1"; if(a==="tap"||a==="auto") v.answer=a;
-  if(localStorage.getItem("rd-voice-confirm")==="auto") v.confirm="auto";
+  const c=localStorage.getItem("rd-voice-confirm"); v.confirm=c==="auto"?"auto":c==="tap"||c==="wait"?"wait":"split";
+  v.tried=localStorage.getItem("rd-voice-tried")==="1";
   v.voiceId=localStorage.getItem("rd-voice-name")||""; if(r>=0.5&&r<=2) v.rate=r;
 }catch(e){}

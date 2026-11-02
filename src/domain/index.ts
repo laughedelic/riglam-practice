@@ -34,7 +34,7 @@ export type { Intro, IntroTerm, StageMark, Stop, StopWhy, TermMark, TreeTerm } f
 export { LANGS, NAME_LANGS, normLangs, termNames } from "./languages";
 export type { LangId, TermName } from "./languages";
 export type { Placement } from "./reference";
-export { lettersDirection, plainWords, spokenConfirm, spokenDirection, spokenDontKnow, spokenExample, spokenRelation, spokenReply } from "./spoken";
-export type { PairTerms, SpokenExample, SpokenReply } from "./spoken";
+export { lettersDirection, plainWords, spokenCategories, spokenCommand, spokenConfirm, spokenCounter, spokenDirection, spokenDontKnow, spokenExample, spokenPair, spokenRelation, spokenReply, spokenSyllogism, spokenThing, spokenYesNo } from "./spoken";
+export type { Command, PairTerms, SpokenCategories, SpokenExample, SpokenPair, SpokenReply, SylReply } from "./spoken";
 export { EVERYDAY_STAGES, RELIEF, REPLIES, SITUATIONS, WORDINGS, levelAt, syllogismOf, syllogismPieces, syllogismText, drawSyllogism, gradeSyllogism, gradeTimeout, gradeExample, pervasionConflicts, widest, withoutPhrases } from "./syllogism";
 export type { Check, Syllogism, SyllogismDraw, SyllogismHistory, SyllogismResult, ExampleVerdict, Pervasion, Piece, Reply, Situation, Wording } from "./syllogism";

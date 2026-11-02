@@ -175,13 +175,19 @@ test("the practice options hold neither the stages nor the difficulty; the Progr
   await expect(page.locator("#path .ptb-t")).toHaveText("Relations");
 });
 
-test("the practice options' Voice page is drawn on the path and keeps its choices", async ({ page }) => {
+test("the practice options' Voice choices are on the first page, and the pages behind Read aloud and Answer by voice are drawn on the path and keep their choices", async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("rd-voice", "1"));
   await start(page);
   await page.getByRole("button", { name: "Practice options" }).click();
   const sheet = page.getByRole("dialog", { name: "Practice options" });
-  const more = sheet.getByRole("button", { name: "Voice: more" });
+  const more = sheet.getByRole("button", { name: "Read aloud: more" });
   test.skip(!(await more.count()), "this browser has no speech");
+  const answer = sheet.getByRole("group", { name: "Answer by voice" });
+  if (await answer.count()) {
+    await answer.getByRole("button", { name: "Tap or hold" }).click();
+    await expect(answer.getByRole("button", { name: "Tap or hold" })).toHaveAttribute("aria-pressed", "true");
+    expect(await page.evaluate(() => localStorage.getItem("rd-voice-answer"))).toBe("tap");
+  }
   await more.click();
   await expect(sheet.locator(".pbr")).toHaveCount(0);
   const speed = sheet.getByRole("group", { name: "Speed of reading" });
@@ -190,11 +196,11 @@ test("the practice options' Voice page is drawn on the path and keeps its choice
     await expect(speed.getByRole("button", { name: "Fast" })).toHaveAttribute("aria-pressed", "true");
     expect(await page.evaluate(() => localStorage.getItem("rd-voice-rate"))).toBe("1.25");
   }
-  const answer = sheet.getByRole("group", { name: "Answer by voice" });
   if (await answer.count()) {
-    await answer.getByRole("button", { name: /^Tap the mic/ }).click();
+    await page.keyboard.press("Escape");
+    await sheet.getByRole("button", { name: "Answer by voice: more" }).click({ position: { x: 12, y: 12 } });
+    await expect(sheet.locator(".pbr")).toHaveCount(0);
     await expect(sheet.getByRole("group", { name: "After an answer is heard" })).toBeVisible();
-    expect(await page.evaluate(() => localStorage.getItem("rd-voice-answer"))).toBe("tap");
   }
 });
 
