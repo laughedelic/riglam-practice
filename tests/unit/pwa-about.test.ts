@@ -1,6 +1,6 @@
 // Which build this is and whether the server has a newer one (src/pwa/about.ts); the server is a fake fetch.
 import { describe, expect, it } from "vitest";
-import { aboutThisBuild } from "../../src/pwa/about";
+import { aboutThisBuild, stagingPulls, whatsNewLine } from "../../src/pwa/about";
 
 const build = { version: "0.2.0", commit: "abc1234", builtAt: "2026-10-15T13:00:00.000Z" };
 const serve = (files: Record<string, unknown>) =>
@@ -25,5 +25,17 @@ describe("aboutThisBuild", () => {
     expect((await aboutThisBuild(build, (async () => new Response("<html>", { status: 200 })) as unknown as typeof fetch)).latest).toBe("unknown");
     const slow = ((_url: string, init: RequestInit) => new Promise((_, reject) => init.signal?.addEventListener("abort", () => reject(new DOMException("x", "AbortError"))))) as unknown as typeof fetch;
     expect((await aboutThisBuild(build, slow, 20)).latest).toBe("unknown");
+  });
+});
+
+describe("stagingPulls", () => {
+  const api = "https://api.github.com/repos/laughedelic/riglam-practice/pulls/";
+  it("takes the title and the What's new line from GitHub, and keeps the file's own where GitHub does not answer", async () => {
+    const files = { "staging-build.json": { pulls: [{ number: 5, title: "old" }, { number: 6, title: "kept", news: "from file" }] }, [api + "5"]: { title: "feat: new", body: "Before: x\nWhat's new: Now it is nicer." } };
+    expect(await stagingPulls(serve(files))).toEqual([{ number: 5, title: "feat: new", news: "Now it is nicer." }, { number: 6, title: "kept", news: "from file" }]);
+  });
+  it("reads the line of a body", () => {
+    expect(whatsNewLine("What's new: none, internal")).toBeNull();
+    expect(whatsNewLine("What's new: (one line)")).toBeNull();
   });
 });
