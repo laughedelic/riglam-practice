@@ -1,4 +1,5 @@
 import { state } from "../state.js";
+import { canAsk } from "../core/ask.js";
 import { lcRel, REL } from "../core/rel.js";
 import { sayCategories, sayCategory, unsayCategory } from "../categories/flow.js";
 import { editPair, usePair } from "../find/flow.js";
@@ -27,6 +28,12 @@ export interface AskAny {
   cell?: string;
   hint?: string;
   clock?: boolean;
+  /** nothing is read for it, and there is no strip to hear it again (the result) */
+  quiet?: boolean;
+  /** a result with an offer on it that is taken or left by a tap: "yes" there is not "next" (shell/voice.js, takeResult) */
+  choice?: boolean;
+  /** the result goes on after a short bar (Sprint, with nothing on it that has to be read) */
+  auto?: boolean;
 }
 export interface Ask extends AskAny {
   kind: "syl" | "counter" | "cats" | "yesno" | "pair" | "instance";
@@ -80,6 +87,21 @@ export function askedHere(u: Ui): Ask | null | undefined {
       hint: "Say two phenomena, such as “wood and fire”.", clock: true };
   }
   return undefined;
+}
+
+const EXERCISES = ["practice", "debate", "find", "categories", "instance", "syllogism"];
+/**
+ * What the result on screen asks in Hands-free: to be left. Nothing is read; the microphone listens for "next", "explain" or "stop". In Sprint the result goes on by itself after a bar
+ * (`auto`), unless there is something on it to be read or answered: a station (a term's stop, a stage coming in), an offer, a step of the guidance, Claude at work or his explanation.
+ * A station is a screen of its own, so it is asked again under its own key.
+ */
+export function resultAsk(u: Ui): AskAny | null {
+  if (!state.cur || !EXERCISES.includes(state.tab)) return null;
+  const station = u.stop ? "/stop" : u.up && u.up.shown ? "/stage" : "";
+  const offer = u.offer && u.offer.kind !== "done";
+  const holds = !!(station || offer || u.guideDown || u.negOffer || u.ctl || u.explained || u.dterm || u.pop || (state.autoExplain && canAsk()));
+  return { key: "res:" + attempt(u) + station, kind: "result", say: "", quiet: true, clock: false, auto: !!state.blitz && !holds, choice: !!(offer || u.negOffer),
+    hint: "Say “next” to go on, or “explain” to ask Claude." };
 }
 
 /** What was said, as the step it stands for; a string (what to say) when the words are not an answer to this screen. */
