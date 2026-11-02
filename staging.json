@@ -1,0 +1,51 @@
+{
+  "base": "main",
+  "baseSha": "1b02c43b7afbc9a8a02d0b44d8baa9feb8d9f3bf",
+  "inputs": [
+    "198@c039c871cb68291cf5e982941b13f600779a004f",
+    "200@6f94a38ff4faf6cfebf952e16c196722ef0a1836<198",
+    "201@1467f7fa86b9671b38022fe1c9b18d67756cfd97<200",
+    "202@a562da4029bf92cc0e34879cac7d07b60912b6b3<201",
+    "215@8fca32d90cdb01a414b8b8edfdf64827bedd219b<202"
+  ],
+  "branches": [
+    "claude/project-thread-f3ud7l",
+    "claude/project-thread-f3ud7l-parts",
+    "claude/project-thread-f3ud7l-beat",
+    "claude/project-thread-f3ud7l-round3",
+    "claude/project-thread-udpln6"
+  ],
+  "pulls": [
+    {
+      "number": 198,
+      "branch": "claude/project-thread-f3ud7l",
+      "sha": "c039c871cb68291cf5e982941b13f600779a004f",
+      "title": "feat: voice as a field above the foot (tap or hold anywhere, tap for Yes, a row with Change, a strip to hear it again)"
+    },
+    {
+      "number": 200,
+      "branch": "claude/project-thread-f3ud7l-parts",
+      "sha": "6f94a38ff4faf6cfebf952e16c196722ef0a1836",
+      "title": "feat: voice in Syllogisms, Categories, Find a pair and Find an instance"
+    },
+    {
+      "number": 201,
+      "branch": "claude/project-thread-f3ud7l-beat",
+      "sha": "1467f7fa86b9671b38022fe1c9b18d67756cfd97",
+      "title": "feat: Hands-free as a steady beat: the result waits for next, Sprint goes on by itself, voice commands and pause"
+    },
+    {
+      "number": 202,
+      "branch": "claude/project-thread-f3ud7l-round3",
+      "sha": "a562da4029bf92cc0e34879cac7d07b60912b6b3",
+      "title": "feat: voice round 3, a stop on the thread, own options pages, no chip"
+    },
+    {
+      "number": 215,
+      "branch": "claude/project-thread-udpln6",
+      "sha": "8fca32d90cdb01a414b8b8edfdf64827bedd219b",
+      "title": "feat: natural voices (Google Chirp 3 HD) for read aloud, with the device voice as fallback"
+    }
+  ],
+  "skipped": []
+}
