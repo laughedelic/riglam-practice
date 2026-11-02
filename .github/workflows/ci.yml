@@ -57,6 +57,8 @@ jobs:
           - { name: PWA phone 1/3, args: "--project=pwa-phone --shard=1/3" }
           - { name: PWA phone 2/3, args: "--project=pwa-phone --shard=2/3" }
           - { name: PWA phone 3/3, args: "--project=pwa-phone --shard=3/3" }
+          # WebKit, the engine under every browser on an iPhone: a few layout specs (playwright.config.js). Its libraries are not on the runner image, so this one installs with --with-deps.
+          - { name: PWA iPhone (WebKit), args: "--project=pwa-iphone", browser: webkit, deps: "--with-deps" }
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -71,10 +73,10 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-      # No --with-deps: the runner image already has every library Chromium needs (it only lacked fonts for scripts the app does not show), and the apt-get that
+          key: playwright-${{ runner.os }}-${{ matrix.browser || 'chromium' }}-${{ hashFiles('package-lock.json') }}
+      # No --with-deps for Chromium: the runner image already has every library Chromium needs (it only lacked fonts for scripts the app does not show), and the apt-get that
       # --with-deps runs has stalled for minutes on a slow package mirror. If the image ever loses a library, Playwright says so when it starts the browser.
-      - run: npx playwright install chromium
+      - run: npx playwright install ${{ matrix.deps }} ${{ matrix.browser || 'chromium' }}
       # Nothing from this step is uploaded: the HTML report and the traces record page content and step arguments (URLs, typed text),
       # which can include the course definitions and the data key, and artifacts (unlike logs) are not masked.
       # Read a failure in this job's log, or run the spec locally with `--trace on`.

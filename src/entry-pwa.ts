@@ -2,14 +2,12 @@
 import "./pwa/fonts.css";
 import "./pwa/shell.css";
 import { mountCover } from "./pwa/cover";
-import { mountUpdateToast } from "./pwa/update-toast";
 import { pwaPlatform } from "./pwa/platform"; // before the page: it takes a key out of the address first of all
 import "./app/app.css";
 import { startApp } from "./app/app.js";
 
 mountCover();
 startApp(pwaPlatform);
-mountUpdateToast(pwaPlatform.updates!);
 
 // A handle for the browser tests (tests/e2e/pwa) and the console: the platform the page was started with.
 (window as unknown as { __riglam: unknown }).__riglam = { platform: pwaPlatform };

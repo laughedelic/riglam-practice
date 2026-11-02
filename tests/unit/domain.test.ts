@@ -22,6 +22,7 @@ import { GUIDE_RIGHT, LOWER_CREDIT, NO_TERMS, STAGE_LONGER, STAGE_STREAK_MAX, ca
 import type { MissKind, StageRun } from "../../src/domain";
 import { drawPlace, itemRows, placeThings } from "../../src/domain/place";
 import { normLevels, upTo } from "../../src/ai-shared";
+import { lastOn, learnerStages } from "../../src/domain/stages";
 import { FACTS_EPOCH, factKey, learn, opinionOf, ruleSide, servable } from "../../src/domain";
 import type { Answer, FactRow, Opinion, Ruling } from "../../src/domain";
 import { knownLine, openExamples, referenceLines, wholeFirst } from "../../src/domain";
@@ -1190,6 +1191,16 @@ test("the ladder ends at stage 9: the stages after it are the steps of depth, se
   expect(withDepth([2, 5, 9], 1), "the ladder's stages as they were").toEqual([2, 5, 9, 10]);
   expect(withDepth(upToStage(9), 9)).toEqual(all);
   expect(withDepth(upToStage(5), 2), "not before stage 9").toEqual(upToStage(5));
+  // the steps of depth go with stage 9: left on without it, the ring would stand at 9 while the stages say 5
+  const left = [0, 1, 2, 3, 4, 5, 10];
+  expect(learnerStages(left), "kept stages lose a step of depth left on without stage 9").toEqual(upToStage(5));
+  expect(learnerStages("0,1,2,3,4,5,10")).toEqual(upToStage(5));
+  expect([learnerStages([11]), learnerStages([9, 11]), normStages(left)], "steps of depth alone stay; the draw takes any set").toEqual([[11], [9, 11], left]);
+  expect(toggleStage(upToStage(10), 9), "stage 9 off takes the depth with it").toEqual(upToStage(8));
+  expect(toggleStage(upToStage(10), 4), "a stage below keeps it").toEqual([0, 1, 2, 3, 5, 6, 7, 8, 9, 10]);
+  expect(toggleStage(left, 6), "switched from a list that had it left").toEqual(upToStage(6));
+  expect(toggleStage([9, 10], 9), "the last stage of the ladder on stays on, depth or not").toEqual([9, 10]);
+  expect([lastOn([9, 10], 9), lastOn([8, 9, 10], 9), lastOn([2], 2), lastOn([2], 3)]).toEqual([true, false, true, false]);
   // the ring of the ladder: on its last stage it shows the terms, and no stage comes after it
   const marks = stageTerms(rix, 9).map((id) => ({ id, mark: "ok" as const }));
   expect(stageProgress(freshRun(), upToStage(9), marks, undefined, LADDER_TOP)).toMatchObject({ top: 9, next: null, shows: "terms", frac: 0, full: false });

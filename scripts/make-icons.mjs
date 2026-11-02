@@ -11,8 +11,8 @@ import { iconSvg } from "./lib/icon-art.mjs";
 import { renderIcon } from "./lib/render-icon.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../public/icons");
-// The maskable icon is the same picture: the figure sits inside the central 80% circle, which is all a mask keeps (the bands run to the
-// edge, so a round mask shows the page with the bands' ends at its sides).
+// The maskable icon is the same picture: the figure sits inside the central 80% circle, which is all a mask keeps (the page runs to the
+// edge, so a round mask shows the page and the figure whole).
 const sizes = { "icon-192.png": 192, "icon-512.png": 512, "icon-maskable-512.png": 512, "apple-touch-icon.png": 180 };
 for (const [set, dir] of [["main", root], ["preview", resolve(root, "preview")]]) {
   writeFileSync(resolve(dir, "icon.svg"), iconSvg(set));

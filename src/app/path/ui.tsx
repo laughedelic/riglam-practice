@@ -30,6 +30,17 @@ const I: Record<string, string> = {
   refresh: '<path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v4h-4"/>',
   flag: '<path d="M6 21V3.5M6 4h11.5l-2.5 4 2.5 4H6"/>',
   skipped: '<path d="M5 6l6 6-6 6M12 6l6 6-6 6"/>',
+  // the symbols of the stations and the stops (the Design Lab's stops, 1 Nov): a pen for the examples, a list of ticks for the check, a plus for a new term, lines for a term's page, a turning arrow for a repetition,
+  // two chevrons for a stage, a spark for Claude, a chevron back, and a wave for a verdict not settled
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  pen: '<path d="M6 18l1-4 8.6-8.6 3 3L10 17zM14 7l3 3"/>',
+  tasks: '<path d="M4.5 7.5l1.8 1.8L9.5 6M4.5 16l1.8 1.8L9.5 14.5M12.5 8h7M12.5 16.5h7"/>',
+  lines: '<path d="M6 8h12M6 12h12M6 16h7"/>',
+  redo: '<path d="M18.5 12a6.5 6.5 0 1 1-2-4.7M18.5 4.5V8H15"/>',
+  ups: '<path d="M6.5 11.5L12 6l5.5 5.5M6.5 18L12 12.5 17.5 18"/>',
+  spark: '<path d="M12 3.5l2.2 6.3 6.3 2.2-6.3 2.2L12 20.5l-2.2-6.3L3.5 12l6.3-2.2z"/>',
+  back: '<path d="M15 5l-7 7 7 7"/>',
+  tilde: '<path d="M4.5 13.5c2-4.2 4.5-4.2 7.5 0s5.5 4.2 7.5 0"/>',
   again: '<path d="M12 7.5v4.8l-3.1 1.9"/><path d="M19.9 13.6A8 8 0 1 1 17.7 6.3"/><path d="M20.4 3.9v3.9h-3.9"/>',     // a clock turning forward: it comes again later
 };
 /** A line icon as an element of plain DOM, for the parts that are drawn outside Preact (shell/voice.js). */
@@ -71,8 +82,8 @@ export function Fig({ k, size = "r" }: { k: string; size?: string }) {
     {big ? [pa, pb] : [pb, pa]}{o ? <polygon class="o" vector-effect="non-scaling-stroke" points={dia(o[0], o[1], o[2])} /> : null}
   </svg>;
 }
-/** A verdict's mark: right, wrong, or not settled yet. */
-export const Mark = ({ m }: { m: string }) => <span class={"mark " + m}><Icon n={m === "ok" ? "check" : m === "no" ? "cross" : "q"} /></span>;
+/** A verdict's mark: right, wrong, open (a question mark: not specific enough), or not settled yet (a wave). */
+export const Mark = ({ m }: { m: string }) => <span class={"mark " + m}><Icon n={m === "ok" ? "check" : m === "no" ? "cross" : m === "op" ? "q" : "tilde"} /></span>;
 /** Four small diamonds for the cases of an answer, or the answers of a day. */
 export const Minis = ({ list }: { list: string[] }) => <span class="minis">{list.map((c) => <i class={c} />)}</span>;
 

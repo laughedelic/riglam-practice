@@ -12,6 +12,8 @@ const DIST = join(process.cwd(), "dist/pwa");
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".json": "application/json", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png", ".woff2": "font/woff2", ".webmanifest": "application/manifest+json" };
 const V2 = "\nself.addEventListener('fetch',(e)=>{ if(new URL(e.request.url).pathname.endsWith('/__which')) e.respondWith(new Response('v2')); });\n";
 
+/** An item of What's new that only the newer build has. */
+const NEXT = { id: "2030-01-01-next", title: "Something coming", text: "Said before the update, from the newer build's list." };
 let server, origin, newVersion, newBuild, down;
 test.beforeAll(async () => {
   server = createServer((req, res) => {
@@ -21,7 +23,7 @@ test.beforeAll(async () => {
     if (down && path === "/sw.js") { res.writeHead(503); return res.end(); }
     let body = readFileSync(file);
     if (path === "/sw.js" && newVersion) body = Buffer.concat([body, Buffer.from(V2)]);
-    if (path === "/build.json" && newBuild) body = Buffer.from(JSON.stringify({ version: "9.9.9", commit: "b1ee7d5", builtAt: "2030-01-01T00:00:00Z" }));   // the server's build is another one (its commit and version are named in the notice)
+    if (path === "/build.json" && newBuild) body = Buffer.from(JSON.stringify({ version: "9.9.9", commit: "b1ee7d5", builtAt: "2030-01-01T00:00:00Z", news: [NEXT, ...JSON.parse(body).news] }));   // the server's build is another one (its commit and version are named in the notice)
     res.writeHead(200, { "content-type": TYPES[extname(file)] ?? "application/octet-stream", "cache-control": "no-cache" });
     res.end(body);
   });
@@ -48,110 +50,113 @@ async function installed(page) {
   await expect.poll(() => page.evaluate(() => window.__riglam.platform.updates.status())).toBe("current");
 }
 
-test("a newer version is found, offered, and started from the toast without closing the app: an ink block in mono under the top bar, its two answers as text buttons: an ink block in mono under the top bar, its two answers as text buttons", async ({ page }) => {
-  await page.addInitScript(() => {});
-  const onPath = () => expect(page.locator("#path .chs .crow")).toHaveCount(5);
-  await page.goto(origin + "/");
-  await onPath();
-  await page.evaluate(() => navigator.serviceWorker.ready);
-  await page.reload();
-  await onPath();
-  await expect.poll(() => controlled(page)).toBe(true);
+/** The line of a version that waits, above the bottom (src/app/path/news.tsx): in an exercise above the next station, on the roadmap above its foot. */
+const footLine = (page) => page.locator("#path .lay .pinln.onfoot");
+const roadLine = (page) => roadmap(page).locator(".pinln.onroad");
+/** What's new as it opens: a page of Settings whose top bar says so. */
+const newsPage = (page) => page.locator("#path .ptb-t", { hasText: "What's new" });
+
+test("a newer version is said on one line above the next stop, covering nothing; Update starts it and opens What's new", async ({ page }) => {
+  await installed(page);
   await markOld(page);
+  // this device last saw an older item of What's new, so the new version has something to say
+  await page.evaluate(() => localStorage.setItem("rd-news-seen", "2026-10-30-claude"));
   newVersion = true;
   await page.evaluate(() => window.__riglam.platform.updates.check());
-  const toast = page.locator("#upd");
-  await expect(toast).toBeVisible();
-  await expect(toast).toContainText("New version ready");
-  const look = await page.evaluate(() => {
-    const t = document.querySelector("#upd"), pa = document.querySelector("#path .pa"), cs = getComputedStyle(t), ground = getComputedStyle(pa);
-    const buttons = [...t.querySelectorAll("button")].map((b) => getComputedStyle(b));
-    return { ink: cs.backgroundColor === ground.color, paper: cs.color === ground.backgroundColor, flat: cs.boxShadow === "none" && cs.borderTopWidth === "0px", mono: /Plex Mono|monospace/.test(cs.fontFamily),
-      quiet: buttons.length === 2 && buttons.every((b) => b.backgroundColor === "rgba(0, 0, 0, 0)" && b.boxShadow === "none" && b.textTransform === "none") };
-  });
-  expect(look).toEqual({ ink: true, paper: true, flat: true, mono: true, quiet: true });
+  const line = footLine(page);
+  await expect(line).toBeVisible();
+  await expect(line).toContainText("New version ready");
+  await expect(page.locator("#upd"), "no card over the page").toHaveCount(0);
   if (process.env.DLG_SHOTS) await page.screenshot({ path: process.env.DLG_SHOTS + "update-" + (await page.evaluate(() => (matchMedia("(max-width:700px)").matches ? "phone" : "desktop"))) + ".png" });
-  const [t, bar] = await Promise.all([toast.boundingBox(), page.locator("#path .ptb").boundingBox()]);
-  expect(t.y).toBeGreaterThanOrEqual(bar.y + bar.height);
+  const [l, foot, bar, vh] = await Promise.all([line.boundingBox(), page.locator("#path .lay .foot").boundingBox(), page.locator("#path .ptb").boundingBox(), page.evaluate(() => innerHeight)]);
+  expect(l.height, "one line").toBeLessThanOrEqual(48);
+  expect(l.y + l.height, "right above the next station").toBeLessThanOrEqual(foot.y + 1);
+  expect(l.y, "far from the top bar and the question").toBeGreaterThan(bar.y + bar.height + 100);
+  expect(foot.y + foot.height, "and the station is still on the screen").toBeLessThanOrEqual(vh + 1);
   expect(await isOld(page), "the page the reader is using is not reloaded behind their back").toBe(true);
-  await toast.getByRole("button", { name: "Update now" }).click();
+  await line.getByRole("button", { name: "Update" }).click();
   await expect.poll(() => isOld(page).catch(() => true), { timeout: 15_000 }).toBe(false);
-  await onPath();
   expect(await which(page)).toBe("v2");
+  await expect(newsPage(page), "the start after Update opens What's new").toBeVisible({ timeout: 10_000 });
+  await expect(page.locator("#path .nwi.new").first()).toBeVisible();
+  await expect(page.locator("#path .nwi.arrive").first(), "what the update brought comes onto the path").toBeVisible();
+  // its way back is where the app opened, not the Settings list
+  await page.locator("#path .ptb .tstn").click();
+  await expect(newsPage(page)).toBeHidden();
+  await expect(page.locator("#path .chs .crow")).toHaveCount(5);
 });
 
-test("the roadmap looks for a newer version each time it opens, says that it is looking, and offers a newer one at its foot", async ({ page }) => {
-  await page.addInitScript(() => {});
-  const onPath = () => expect(page.locator("#path .chs .crow")).toHaveCount(5);
-  await page.goto(origin + "/");
-  await onPath();
-  await page.evaluate(() => navigator.serviceWorker.ready);
-  await page.reload();
-  await onPath();
-  await expect.poll(() => controlled(page)).toBe(true);
-  await page.evaluate(() => window.__riglam.platform.updates.check());
+test("the line's words open What's new with what the newer version brings and Update now; gone on to another question, the line stays on the roadmap only", async ({ page }) => {
+  await page.addInitScript(() => { window.__riglamTest = (t) => { window.__t = t; }; });
+  await installed(page);
   await markOld(page);
+  newVersion = true;
+  newBuild = true;
+  await page.evaluate(() => window.__riglam.platform.updates.check());
+  const line = footLine(page);
+  await expect(line).toBeVisible();
+  await line.getByRole("button", { name: "New version ready" }).click();
+  await expect(newsPage(page)).toBeVisible();
+  const soon = page.locator("#path .nwsoon");
+  await expect(soon).toContainText("A new version is ready");
+  await expect(soon.locator(".nwi"), "the newer build's own item, said before the reload").toContainText(NEXT.title, { timeout: 10_000 });
+  await expect(soon.getByRole("button", { name: "Update now" })).toBeVisible();
+  expect(await isOld(page), "opening the page does not update").toBe(true);
+  await page.locator("#path .ptb .tstn").click();   // back to the exercise
+  await expect(footLine(page)).toBeVisible();
+  await page.evaluate(() => { window.__t.skipPair(); window.__t.render(); });   // on to another question with the line still there
+  await expect(page.locator("#path .chs .crow").first()).toBeVisible();
+  await expect(footLine(page), "said once in an exercise").toHaveCount(0);
+  await page.locator(".tstn").click();
+  await expect(roadLine(page), "the roadmap still says it").toContainText("New version ready");
+});
+
+test("the roadmap looks for a newer version each time it opens and says it on one line above its foot, with the one Update", async ({ page }) => {
+  await installed(page);
+  await markOld(page);
+  newVersion = true;
+  newBuild = true;
   await page.clock.install(); // a look from the last few seconds stands: let the time pass
   await page.clock.fastForward(10_000);
   await page.locator(".tstn").click();
-  const road = page.getByRole("dialog", { name: "Roadmap" }), row = road.locator(".rver");
-  await expect(row).toContainText("Checking for updates");
-  await expect(row).toContainText("Up to date");
-  const again = row.getByRole("button", { name: "Check again" });
-  expect((await again.boundingBox()).height, "a link of a full touch height").toBeGreaterThanOrEqual(40);
-
-  newVersion = true;
-  newBuild = true;
-  await again.click();
-  await expect(row).toContainText(/Checking for updates|Downloading the update|Update ready/);
-  const note = road.locator(".rnote");
-  await expect(note).toBeVisible();
-  await expect(note).toContainText("New version ready");
-  await expect(note, "it names what is ready and what updating does").toContainText("New version ready (9.9.9). Updating reloads the app; your answers stay.");
-  await expect(row).toContainText("Update ready");
-  await expect(page.locator("#upd"), "the notice under the top bar gives way: the roadmap has its own").toBeHidden();
-  // at the bottom, above the panel, clear of the logo
-  const [n, foot, tree] = await Promise.all([note.boundingBox(), page.locator("#path .rfoot").boundingBox(), road.locator("svg.tree").boundingBox()]);
-  expect(n.y + n.height, "above the foot").toBeLessThanOrEqual(foot.y);
+  const line = roadLine(page);
+  await expect(line).toContainText("New version ready", { timeout: 15_000 });
+  await expect(roadmap(page).getByRole("button", { name: /^Update/ }), "one way to update, not two").toHaveCount(1);
+  await expect(roadmap(page).locator(".rver"), "the real app shows no version row").toHaveCount(0);
+  const [n, foot, tree] = await Promise.all([line.boundingBox(), page.locator("#path .rfoot").boundingBox(), roadmap(page).locator("svg.tree").boundingBox()]);
+  expect(n.y + n.height, "above the foot").toBeLessThanOrEqual(foot.y + 1);
   expect(n.y, "below the top of the roadmap, not across the logo").toBeGreaterThan(tree.y + tree.height * 0.5);
+  expect((await line.getByRole("button", { name: "Update" }).boundingBox()).height, "a link of a full touch height").toBeGreaterThanOrEqual(40);
   expect(await isOld(page), "the page the reader is using is not reloaded behind their back").toBe(true);
-  await note.getByRole("button", { name: "Update now" }).click();
+  await line.getByRole("button", { name: "Update" }).click();
   await expect.poll(() => isOld(page).catch(() => true), { timeout: 15_000 }).toBe(false);
-  await onPath();
   expect(await which(page)).toBe("v2");
 });
 
-test("the toast goes away by itself after a while, and the roadmap keeps the way to update", async ({ page }) => {
-  await installed(page);
-  await page.clock.install(); // the toast's timer is made after this, so the clock can run it
-  newVersion = true;
-  await page.evaluate(() => window.__riglam.platform.updates.check());
-  await expect(page.locator("#upd")).toBeVisible();
-  await page.clock.fastForward(25_000);
-  await expect(page.locator("#upd")).toBeHidden();
-  await openMenu(page);
-  await expect(roadmap(page).locator(".rver")).toContainText("Update ready");
+test("a start with something new not read shows What's new on the roadmap's line; it opens the page, goes back to the roadmap, and is gone once read", async ({ page }) => {
+  await page.addInitScript(() => { if (!sessionStorage.getItem("once")) { sessionStorage.setItem("once", "1"); localStorage.setItem("rd-news-seen", "2026-10-30-claude"); localStorage.setItem("rd-start", "road"); } });
+  await page.goto(origin + "/");
+  const line = roadLine(page);
+  await expect(line).toContainText("What's new");
+  await expect(newsPage(page), "never opened unasked").toBeHidden();
+  await line.getByRole("button", { name: "Read" }).click();
+  await expect(newsPage(page)).toBeVisible();
+  await expect(page.locator("#path .nwi.new")).not.toHaveCount(0);
+  await page.locator("#path .ptb .tstn").click();
+  await expect(roadmap(page)).toBeVisible();
+  await expect(line).toHaveCount(0);
+  // and Settings keeps the page, under About
+  await openSettingsPage(page, "What's new");
+  await expect(page.locator("#path .nwi")).not.toHaveCount(0);
+  await expect(page.locator("#path .nwi.new"), "nothing is new any more").toHaveCount(0);
 });
 
-test("the toast waits while the pointer or the focus is on it, and goes only when neither is", async ({ page }) => {
-  await installed(page);
-  await page.clock.install();
-  newVersion = true;
-  await page.evaluate(() => window.__riglam.platform.updates.check());
-  const toast = page.locator("#upd");
-  await expect(toast).toBeVisible();
-  await toast.getByRole("button", { name: "Update now" }).focus();
-  await toast.hover();
-  await page.clock.runFor(25_000);
-  await expect(toast).toBeVisible();
-  // the pointer leaves and the focus stays: the notice stays too
-  await page.mouse.move(2, 2);
-  await page.clock.runFor(25_000);
-  await expect(toast).toBeVisible();
-  // the focus leaves as well: now it counts down
-  await page.evaluate(() => /** @type {HTMLElement} */ (document.activeElement).blur());
-  await page.clock.runFor(25_000);
-  await expect(toast).toBeHidden();
+test("a first start shows no backlog of What's new", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("rd-start", "road"));
+  await page.goto(origin + "/");
+  await expect(roadmap(page)).toBeVisible();
+  await expect(roadmap(page).locator(".rfoot")).toBeVisible();
+  await expect(roadLine(page)).toHaveCount(0);
 });
 
 test("a redraw of the roadmap by an update keeps the focus on the control the reader is on", async ({ page }) => {
@@ -161,18 +166,15 @@ test("a redraw of the roadmap by an update keeps the focus on the control the re
   await row.focus();
   newVersion = true;
   await page.evaluate(() => window.__riglam.platform.updates.check());
-  await expect(roadmap(page).locator(".rver")).toContainText("Update ready");
+  await expect(roadLine(page)).toContainText("New version ready");
   await expect(row).toBeFocused();
 });
 
-test("Later hides the toast, and Settings still offers the update", async ({ page }) => {
+test("Settings offers the update too", async ({ page }) => {
   await installed(page);
   newVersion = true;
   await page.evaluate(() => window.__riglam.platform.updates.check());
-  await expect(page.locator("#upd")).toBeVisible();
-  await page.locator("#upd").getByRole("button", { name: "Later" }).click();
-  await expect(page.locator("#upd")).toBeHidden();
-
+  await expect(footLine(page)).toBeVisible();
   await openSettingsPage(page, "Version and updates");
   const row = versionPage(page);
   await expect(row).toContainText("A newer version is ready.");
@@ -199,7 +201,7 @@ test("a version that takes over as the app opens is offered, not started", async
   // the browser looks for a new worker script when the page loads; the new one takes over within seconds
   await page.reload();
   await markOld(page);
-  await expect(page.locator("#upd")).toBeVisible({ timeout: 15_000 });
+  await expect(footLine(page)).toBeVisible({ timeout: 15_000 });
   expect(await which(page)).toBe("v2");
   expect(await isOld(page), "the page is not reloaded without the reader's word").toBe(true);
 });
