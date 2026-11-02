@@ -82,8 +82,8 @@ const textLine = () => {
   const w = wordings();
   return [w ? nameIn(w, wordingNow()) : "", signs() ? nameIn(NOTA_NAMES(), state.nota) : "", signs() ? "A and B: " + nameIn(AB_STYLES, abNow()).toLowerCase() : ""].filter(Boolean).join(" · ");
 };
-const ANSWER_NAMES: Record<string, string> = { off: "off", tap: "tap the mic", auto: "hands-free" };
-const voiceLine = () => [canSpeak() && state.voice.read ? "reads each question" : "", canHear() ? "answer: " + (ANSWER_NAMES[state.voice.answer] || state.voice.answer) : ""].filter(Boolean).join(" · ") || "the voice and its speed";
+/** How an answer is given by voice: the choices on the first page of the options, in a line of words. */
+const ANSWER_WORDS: [string, string][] = (ANSWER_PICKS as [string, string, string][]).map(([k, n]) => [k, n]);
 const TUTOR: [string, string][] = [["every", "Every answer"], ["ask", "When I ask"]];
 const setTutor = (k: string) => setAutoExplain(k === "every");
 
@@ -103,8 +103,12 @@ function List() {
       <Line title="Sprint" sub={state.blitz ? timesLine() : "off"} sw={{ on: state.blitz, toggle: () => setBlitz(!state.blitz) }} go={() => openPage("times")} />
       {tutorShown() ? <Line title="Explanations by Claude" go={() => openPage("tutor")} sub={canAsk() ? undefined : "several models"}>
         {canAsk() ? <Words label="Explanations by Claude" items={TUTOR} cur={state.autoExplain ? "every" : "ask"} on={setTutor} /> : null}</Line> : null}
-      {voiceShown() ? <Line title="Voice" tag="experimental" sub={voiceLine()} go={() => openPage("voice")} /> : null}
     </Group>
+    {voiceShown() ? <Group name="Voice" tag="experimental">
+      {canSpeak() ? <Line title="Read aloud" sub="each question, when it appears" sw={{ on: state.voice.read, toggle: () => setVoice("read", !state.voice.read) }} /> : null}
+      {canHear() ? <Line title="Answer by voice"><Words label="Answer by voice" items={ANSWER_WORDS} cur={state.voice.answer} on={(k) => setVoice("answer", k as "off" | "tap" | "auto")} /></Line> : null}
+      <Line title="More about voice" sub={"voice and speed · after an answer is heard"} go={() => openPage("voice")} />
+    </Group> : null}
     <Group><Line title="Other app settings" go={toSettings} /></Group>
   </>;
 }
@@ -171,7 +175,6 @@ function VoicePage() {
   return <>
     <Intro>{VOICE_LEAD}</Intro>
     {canSpeak() ? <>
-      <Line title="Read aloud" sub={"each question. " + READ_NOTE} sw={{ on: v.read, toggle: () => setVoice("read", !v.read) }} />
       <Line title="Voice" sub="This device’s English voices, by accent.">
         <span class="pvline2"><select class="psel" aria-label="Voice" value={v.voiceId || ""} onChange={(e) => setVoice("voiceId", (e.currentTarget as HTMLSelectElement).value)}>
           <option value="">{"Best on this device" + (list[0] ? " (" + list[0].name + ")" : "")}</option>
@@ -179,12 +182,13 @@ function VoicePage() {
             {g.voices.map((x) => <option value={x.id}>{x.name + " · " + x.lang + (x.local ? "" : " · online")}</option>)}</optgroup>)}
         </select><button type="button" class="pbtn" onClick={() => speak(SAMPLE, { voice: v.voiceId, rate: v.rate })}>Try</button></span></Line>
       <Line title="Speed of reading"><Words label="Speed of reading" items={RATES as [number, string][]} cur={v.rate} on={(r) => setVoice("rate", r)} /></Line>
+      <p class="psub">{READ_NOTE}</p>
     </> : null}
     {canHear() ? <>
+      <p class="glab">After an answer is heard</p>
+      <Picks label="After an answer is heard" cur={v.confirm} on={(k) => setVoice("confirm", k)} items={CONFIRM_PICKS as [string, string, string][]} />
       <p class="glab">Answer by voice</p>
-      <Picks label="Answer by voice" cur={v.answer} on={(k) => setVoice("answer", k)} items={ANSWER_PICKS as [string, string, string][]} />
-      {v.answer !== "off" ? <><p class="glab">After an answer is heard</p>
-        <Picks label="After an answer is heard" cur={v.confirm} on={(k) => setVoice("confirm", k)} items={CONFIRM_PICKS as [string, string, string][]} /></> : null}
+      {(ANSWER_PICKS as [string, string, string][]).filter(([k]) => k !== "off").map(([, n, d]) => <p class="psub"><b>{n}.</b> {d}</p>)}
       <p class="psub">{VOICE_SAY}</p>
       <p class="pnoteline pnote3">{WHERE}</p>
     </> : null}
