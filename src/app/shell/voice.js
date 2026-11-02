@@ -7,7 +7,7 @@ import { check } from "../practice/grading.js";
 import { choose, fillable, missedCase } from "../practice/screen.js";
 import { NOT } from "../../ai-shared/debate.ts";
 import { plainWords, spokenConfirm, spokenDirection, spokenDontKnow, spokenExample, spokenRelation, spokenReply } from "../../domain/spoken.ts";
-import { canHear, canSpeak, listen, onVoices, speak, stopSpeaking } from "../../ui/speech";
+import { armSpeech, canHear, canSpeak, listen, onVoices, speak, stopSpeaking } from "../../ui/speech";
 import { CELL_FULL, render } from "./render.js";
 import { refreshPath } from "../path/index.tsx";
 import { keepOwn } from "../practice/per-exercise.ts";
@@ -50,6 +50,25 @@ export function asked(){
 }
 // Voice is a feature on trial: until its switch in Settings is on (on by default in a Preview, off in the real app; app.js), none of this does anything.
 const enabled=()=>state.voice.on;
+const SERVER="server:";
+/**
+ * The server's voice that reads now, or null when the device's does: the voice chosen if it is one of the server's, or the first one while none was chosen ("" is the default); not while
+ * the server's limit for the day is used up or it failed lately (`remoteUntil`: it is not asked again for a few minutes, so that each question does not wait for a server that cannot answer).
+ */
+function remoteVoice(){
+  const v=state.voice, r=v.remote;
+  if(!r||!r.voices.length||Date.now()<v.remoteUntil) return null;
+  if(v.voiceId&&!v.voiceId.startsWith(SERVER)) return null;
+  const id=v.voiceId.slice(SERVER.length), voice=(r.voices.find(x=>x.id===id)||r.voices[0]).id;
+  return {key:voice,clip:(text,signal)=>r.clip(text,voice,{signal}),failed:why=>{
+    const until=why&&why.code==="rate_limited"&&why.resetsAt?Date.parse(why.resetsAt):NaN;
+    v.remoteUntil=Date.now()+(why&&why.code==="rate_limited"?(until>Date.now()?Math.min(until-Date.now(),6*3600e3):3600e3):why&&why.code==="not_granted"?3600e3:3*60e3);
+  }};
+}
+/** Reads `text` as the voice choices say: with the server's voice where one is chosen and it answers, else with the device's. `done` is as for `speak`. */
+export const readOut=(text,done)=>speak(text,{voice:state.voice.voiceId,rate:state.voice.rate,remote:remoteVoice()||undefined,done});
+/** A reading from the server's voice may come after the tap that asked for it: the audio element is started inside the first tap (ui/speech.ts), once the device has a voice of the server and Read aloud is on. */
+export const armVoice=()=>{ const v=state.voice; if(v.on&&v.read&&v.remote) armSpeech(); };
 const reading=()=>enabled()&&state.voice.read&&!state.voice.muted&&canSpeak();
 const hearing=()=>enabled()&&state.voice.answer!=="off"&&canHear();
 const handsFree=()=>enabled()&&state.voice.answer==="auto"&&canHear();
@@ -113,7 +132,7 @@ function say(a,text,first){
   // a question and the relation have a countdown of their own; the countdown of the examples covers all the cells of a pair
   if(first&&(a.kind==="reply"||(a.kind==="relation"&&!state.ui.rel))){ holdFor(); v.rhold=!!v.clockUi; }
   paint();
-  speak(text,{voice:v.voiceId,rate:v.rate,done:(ok,err)=>{
+  readOut(text,(ok,err)=>{
     if(v.tok!==tok) return;
     v.tok=null; v.phase="idle";
     endReading();
@@ -122,7 +141,7 @@ function say(a,text,first){
     // after speaking, the audio output needs a moment before the microphone opens (the Voice lab's finding)
     if(handsFree()) setTimeout(()=>{ if(v.key===a.key&&v.phase==="idle"&&!v.tok) hear(a); },350);
     else paint();
-  }});
+  });
 }
 function hear(a,keepNote){
   const v=state.voice, tok={};
@@ -351,20 +370,27 @@ export function setVoice(k,val){
   try{ localStorage.setItem(KEYS[k],k==="read"?(val?"1":"0"):String(val)); }catch(e){}
   if(k==="read"||k==="answer") keepOwn(k,val);   // each exercise keeps its own (practice/per-exercise.ts)
   render();
-  if((k==="read"&&val)||k==="voiceId"||k==="rate") speak(SAMPLE,{voice:v.voiceId,rate:v.rate});
+  if(k==="read"&&val) armVoice();
+  if((k==="read"&&val)||k==="voiceId"||k==="rate") readOut(SAMPLE);
 }
 // The Voice switch is the kill switch of the feature: the choice is kept on the device, whatever the default of the build was
 export function setOn(on){
   const v=state.voice;
   v.on=on; try{ localStorage.setItem("rd-voice",on?"1":"0"); }catch(e){}
+  if(on) armVoice();
   if(!on){ quiet(); dropPend(); letGo("moved"); v.key=""; v.muted=false; }
   render();
 }
 /** What the Voice switch of Settings does (the Path draws the same row). */
-export const voiceNote=()=>"Reads the questions aloud and lets you answer by voice, with your browser\u2019s own speech. "+(canHear()?"In Chrome, what you say is sent to Google to be turned into text. ":"")+"Once it is on, its choices are in the Practice options of Relations and Pervasions.";
+export const voiceNote=()=>"Reads the questions aloud and lets you answer by voice, with "+(state.voice.remote?"natural voices from the app\u2019s server or ":"")+"your browser\u2019s own speech. "+(canHear()?"In Chrome, what you say is sent to Google to be turned into text. ":"")+"Once it is on, its choices are in the Practice options of Relations and Pervasions.";
 /** Whether this browser has any speech, so that Settings has a Voice row; and whether Voice is on. */
 export const voiceAvailable=()=>canSpeak()||canHear();
 export const voiceOn=()=>enabled();
+/** The ids the voice list gives the server's voices, and the choice "best on this device" (a device voice is chosen by its own id; "" is the default, which is the server's first voice where it has some). */
+export const serverId=id=>SERVER+id;
+export const BEST="best";
+/** The words about the natural voices on the Voice page, when the server has some. */
+export const REMOTE_NOTE="The natural voices are made by Google\u2019s text-to-speech from the words of each question, which this app\u2019s server sends there and does not keep. When there is no connection, or the day\u2019s limit for them is used up, your device\u2019s voice reads instead.";
 /** The voices by accent, American and British first. */
 export function voiceGroups(list){
   const groups=[];

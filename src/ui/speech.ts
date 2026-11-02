@@ -2,7 +2,9 @@
 // No service of the app's and no key: what the device and the browser offer. The page decides what to say and what
 // to do with what was heard (src/app/shell/voice.js); this file only wraps the two APIs and their quirks, which the
 // Voice lab measured (Chrome on macOS and Android).
-// Nothing is recorded or kept here. The recognizer is the browser's: Chrome sends the audio to Google's speech
+// Reading aloud may instead be done by a server voice the page hands in (`Remote`, from the app's server: src/pwa/speak.ts): its audio is played here,
+// the clips of this visit are kept so that a sentence heard again is not asked for again, and when the server's voice fails the device's reads.
+// Nothing is recorded or kept here but those clips, in memory. The recognizer is the browser's: Chrome sends the audio to Google's speech
 // service to turn it into text, Safari to Apple's or does it on the device.
 
 /** A voice of this device, in the form the Options row lists. */
@@ -109,11 +111,63 @@ const READ_SLACK = 5000, READ_PER_CHAR = 280;
 /** How long after which the reading of `text` is taken as ended if the browser has not said so. */
 export const readingTimeout = (text: string, rate = 1): number => READ_SLACK + Math.round((text.length * READ_PER_CHAR) / (rate > 0 ? rate : 1));
 
+/** A voice of the app's server (src/platform/types.ts, `Speaker`) as `speak` is given it: `key` names the voice (a kept clip is found by it and the text), `clip` makes the audio, `failed` is told why it could not. */
+export interface Remote {
+  key: string;
+  clip(text: string, signal: AbortSignal): Promise<Blob>;
+  failed?(why: unknown): void;
+}
+
+export interface SpeakOptions {
+  voice?: string;
+  /** the speed: 1 is normal (the server's clips are played faster or slower, at the same pitch) */
+  rate?: number;
+  /** read with this server voice, and with the device's when it cannot */
+  remote?: Remote;
+  done?: (ok: boolean, error?: string) => void;
+}
+
+// The clips of this visit, newest last: a question that is read twice (the speaker button, a pair that comes round) costs one request.
+const CLIPS = new Map<string, Blob>();
+const KEEP_CLIPS = 40;
+/** The server has this long to make a clip: the page is waiting, and the device's voice reads instead. */
+const CLIP_WAIT = 8000;
+// A phone lets a page play audio only from an element that a tap has started once; the clip arrives after a request, no longer inside the tap. One element, started
+// silently by the first tap, key or touch (`armSpeech`), plays every clip.
+const SILENT = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
+let player: HTMLAudioElement | null = null;
+let reading = 0; // the number of the reading under way; a clip that arrives for an older one is dropped
+let cancelReading: (() => void) | null = null;
+
+const audio = (): HTMLAudioElement => (player ??= Object.assign(new Audio(), { preload: "auto" }));
+
+/** Listens for the first tap, key or touch and starts the audio element silently inside it, so that a clip that arrives later may play (phones). The page calls it once at the start. */
+export function armSpeech(): void {
+  if (typeof document === "undefined" || typeof Audio === "undefined") return;
+  const events = ["pointerdown", "touchend", "keydown", "click"] as const;
+  const prime = () => {
+    for (const e of events) document.removeEventListener(e, prime, true);
+    const a = audio();
+    if (a.src && !a.paused) return; // a clip is already playing: that is the tap's start
+    a.muted = true;
+    a.src = SILENT;
+    const back = () => { a.muted = false; };
+    try { a.play().then(() => { a.pause(); back(); }, back); } catch { back(); }
+  };
+  for (const e of events) document.addEventListener(e, prime, { capture: true });
+}
+
 /**
  * Says `text`. `done(ok, error)` comes once, when it has been said, when it failed (`not-allowed`: the browser wants a
  * tap on the page first), when it was cut off by `stopSpeaking` or by the next `speak`, or, as `timeout`, when the browser never said.
  */
-export function speak(text: string, opts: { voice?: string; rate?: number; done?: (ok: boolean, error?: string) => void } = {}): void {
+export function speak(text: string, opts: SpeakOptions = {}): void {
+  stopReading();
+  if (opts.remote && typeof Audio !== "undefined") speakOnline(text, opts, opts.remote);
+  else speakDevice(text, opts);
+}
+
+function speakDevice(text: string, opts: SpeakOptions): void {
   const s = synth();
   if (!s) { opts.done?.(false, "unsupported"); return; }
   s.cancel();
@@ -131,7 +185,90 @@ export function speak(text: string, opts: { voice?: string; rate?: number; done?
   u.onerror = (e) => end(false, e.error);
   s.speak(u);
 }
+
+/** The server's voice: the clip from the visit's own, or from the server; played in the one audio element. A failure before the clip plays is the device voice's turn. */
+function speakOnline(text: string, opts: SpeakOptions, remote: Remote): void {
+  const mine = ++reading;
+  const ctl = new AbortController();
+  const a = audio();
+  const rate = opts.rate || 1;
+  const id = remote.key + "|" + text;
+  let over = false, started = false, url = "", timer: ReturnType<typeof setTimeout> | undefined; // the wait for the clip, then the watch on its end
+  const clean = () => {
+    clearTimeout(timer);
+    a.onended = a.onerror = null;
+    if (url) { URL.revokeObjectURL(url); url = ""; }
+  };
+  const end = (ok: boolean, error?: string) => {
+    if (over) return;
+    over = true; clean();
+    if (cancelReading === stop) cancelReading = null;
+    opts.done?.(ok, error);
+  };
+  // the reading is cut off (stopSpeaking, the next speak): nothing more is asked for or played
+  function stop() {
+    if (over) return;
+    ctl.abort();
+    try { a.pause(); } catch { /* nothing playing */ }
+    end(false, "interrupted");
+  }
+  cancelReading = stop;
+  // the server's voice could not read: say why to the page, and the device reads
+  const fallBack = (why: unknown) => {
+    if (over || mine !== reading) return;
+    over = true; clean();
+    if (cancelReading === stop) cancelReading = null;
+    try { a.pause(); } catch { /* nothing playing */ }
+    try { remote.failed?.(why); } catch { /* the page's note must not stop the reading */ }
+    speakDevice(text, opts);
+  };
+  const play = (blob: Blob) => {
+    if (over || mine !== reading) return;
+    url = URL.createObjectURL(blob);
+    a.src = url;
+    // setting the source puts the speed back to the default, so it is set after; the pitch stays (a voice at 1.25 is not a chipmunk)
+    a.defaultPlaybackRate = a.playbackRate = rate;
+    (a as HTMLAudioElement & { preservesPitch?: boolean }).preservesPitch = true;
+    a.muted = false;
+    a.onended = () => end(true);
+    a.onerror = () => (started ? end(false, "error") : fallBack(new Error("the clip could not be played")));
+    synth()?.cancel();
+    let promise: Promise<void> | undefined;
+    try { promise = a.play(); } catch (e) { promise = Promise.reject(e); }
+    promise?.then(() => {
+      started = true;
+      // the clip's end is trusted, but not for ever
+      timer = setTimeout(() => { try { a.pause(); } catch { /* ended */ } end(false, "timeout"); }, readingTimeout(text, rate));
+    }, (e: unknown) => {
+      if (over || mine !== reading) return;
+      // the browser wants a tap on the page first: said as the device's voice says it, so the page offers the speaker button
+      if ((e as { name?: string })?.name === "NotAllowedError") { clean(); end(false, "not-allowed"); } else fallBack(e);
+    });
+  };
+  const kept = CLIPS.get(id);
+  if (kept) { CLIPS.delete(id); CLIPS.set(id, kept); play(kept); return; }
+  timer = setTimeout(() => ctl.abort(new Error("slow")), CLIP_WAIT);
+  remote.clip(text, ctl.signal).then(
+    (blob) => {
+      clearTimeout(timer);
+      if (!(blob instanceof Blob) || !blob.size) { fallBack(new Error("no audio")); return; }
+      CLIPS.set(id, blob);
+      while (CLIPS.size > KEEP_CLIPS) CLIPS.delete(CLIPS.keys().next().value as string);
+      play(blob);
+    },
+    (e: unknown) => { clearTimeout(timer); fallBack(e); },
+  );
+}
+
+function stopReading(): void {
+  reading++;
+  const c = cancelReading;
+  cancelReading = null;
+  c?.();
+}
+
 export function stopSpeaking(): void {
+  stopReading();
   const s = synth();
   if (s) s.cancel();
 }

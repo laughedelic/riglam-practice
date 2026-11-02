@@ -16,11 +16,11 @@ import { progressNow } from "../practice/stage-offer.ts";
 import { toggleOpts } from "../shell/options.js";
 import { SYMS, openPage, quorumNote, setAutoExplain, setNota, setShow, setSyllogismWording, setWording, toggleSess } from "../shell/session.js";
 import { kindMs, setBlitz, setTimer } from "../shell/timers.js";
-import { ANSWER_PICKS, CONFIRM_PICKS, RATES, READ_NOTE, SAMPLE, VOICE_LEAD, VOICE_SAY, WHERE, hookVoices, setVoice, voiceGroups, voiceShown } from "../shell/voice.js";
+import { ANSWER_PICKS, BEST, CONFIRM_PICKS, RATES, READ_NOTE, REMOTE_NOTE, SAMPLE, VOICE_LEAD, VOICE_SAY, WHERE, hookVoices, readOut, serverId, setVoice, voiceGroups, voiceShown } from "../shell/voice.js";
 import { GUIDANCE, LADDER_TOP, guideSteps } from "../../domain/stages.ts";
 import type { Guidance } from "../../domain/stages.ts";
 import { type TimeKind, timesOf } from "../../domain/sprint.ts";
-import { canHear, canSpeak, speak, voiceList } from "../../ui/speech";
+import { canHear, canSpeak, voiceList } from "../../ui/speech";
 import { ProgressPage } from "./progress.tsx";
 import { D, Icon, Knob, Toggle, Words, NOFILL } from "./ui.tsx";
 import { Group, Intro, Line } from "./lines.tsx";
@@ -167,18 +167,22 @@ function Page({ id }: { id: string }) {
 }
 /** The Voice page: the voice and its speed, how an answer is taken and what happens after it is heard. */
 function VoicePage() {
-  const v = state.voice, list = canSpeak() ? voiceList() : []; hookVoices();
+  const v = state.voice, list = canSpeak() ? voiceList() : [], rem = v.remote; hookVoices();
+  // with the server's voices, "" (nothing chosen yet) is the first of them, and "best on this device" has a value of its own
+  const cur = v.voiceId || (rem ? serverId(rem.voices[0].id) : "");
   return <>
     <Intro>{VOICE_LEAD}</Intro>
     {canSpeak() ? <>
       <Line title="Read aloud" sub={"each question. " + READ_NOTE} sw={{ on: v.read, toggle: () => setVoice("read", !v.read) }} />
-      <Line title="Voice" sub="This device’s English voices, by accent.">
-        <span class="pvline2"><select class="psel" aria-label="Voice" value={v.voiceId || ""} onChange={(e) => setVoice("voiceId", (e.currentTarget as HTMLSelectElement).value)}>
-          <option value="">{"Best on this device" + (list[0] ? " (" + list[0].name + ")" : "")}</option>
+      <Line title="Voice" sub={(rem ? "Natural voices from the app’s server, then " : "") + "this device’s English voices, by accent."}>
+        <span class="pvline2"><select class="psel" aria-label="Voice" value={cur} onChange={(e) => setVoice("voiceId", (e.currentTarget as HTMLSelectElement).value)}>
+          {rem ? <optgroup label="Natural voices · online">{rem.voices.map((x: { id: string; name: string }, i: number) => <option value={serverId(x.id)}>{x.name + (i === 0 ? " · recommended" : "")}</option>)}</optgroup> : null}
+          <option value={rem ? BEST : ""}>{"Best on this device" + (list[0] ? " (" + list[0].name + ")" : "")}</option>
           {voiceGroups(list).map((g: { accent: string; voices: { id: string; name: string; lang: string; local: boolean }[] }) => <optgroup label={g.accent}>
             {g.voices.map((x) => <option value={x.id}>{x.name + " · " + x.lang + (x.local ? "" : " · online")}</option>)}</optgroup>)}
-        </select><button type="button" class="pbtn" onClick={() => speak(SAMPLE, { voice: v.voiceId, rate: v.rate })}>Try</button></span></Line>
+        </select><button type="button" class="pbtn" onClick={() => readOut(SAMPLE)}>Try</button></span></Line>
       <Line title="Speed of reading"><Words label="Speed of reading" items={RATES as [number, string][]} cur={v.rate} on={(r) => setVoice("rate", r)} /></Line>
+      {rem ? <p class="pnoteline pnote3">{REMOTE_NOTE}</p> : null}
     </> : null}
     {canHear() ? <>
       <p class="glab">Answer by voice</p>

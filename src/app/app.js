@@ -25,6 +25,7 @@ import "./shell/history.js";
 import "./debate/text.js";
 import "./shell/timers.js";
 import { voiceOn } from "../ui/speech";
+import { armVoice } from "./shell/voice.js";
 import { refreshPath, startPath } from "./path/index.tsx";
 import { startNews } from "./path/news.tsx";
 import { startPerExercise } from "./practice/per-exercise.ts";
@@ -64,6 +65,7 @@ async function bootSteps(platform){
   // the server may need seconds to say whether it has a tutor: the page opens first and draws again when the answer comes
   if(state.unlock&&state.unlock.answer){ const u=state.unlock; u.answer.then(on=>{ u.tutor=!!on; if(state.mode!=="loading") render(); },()=>{}); }
   try{ state.tutor=platform.tutor?await platform.tutor():null; }catch(e){ state.tutor=null; }
+  await loadSpeaker(platform);
   // the reference examples arrive in the background (the first time a key is used, or when the server has newer ones): read them when they do
   // (listening first, so that a copy that arrives while this reads is not missed)
   if(platform.onExamples) platform.onExamples(()=>{ loadExamples(platform).then(()=>{ if(state.mode!=="loading") render(); }); });   // the menu and Categories show what the examples allow
@@ -106,12 +108,19 @@ async function bootSteps(platform){
     const m={}; snap.docs.forEach(d=>{m[d.id]=d.data();}); state.debates=m; settle();
   },()=>{});
 }
+// The server's natural voices for reading aloud, when it has them and this device has the key (shell/voice.js: the voice list and the reading use them, the device's voice is the fallback)
+async function loadSpeaker(platform){
+  try{ state.voice.remote=platform.speak?await platform.speak():null; }catch(e){ state.voice.remote=null; }
+  state.voice.remoteUntil=0;
+  armVoice();
+}
 // What depends on the key, read again after the Magic Key page took one: the definitions in the data, the tutor (and what is known without it), and the Settings row (enter a key / change it).
 async function rekey(platform){
   state.DATA=await platform.loadData(); indexData(); buildPool();
   try{ state.unlock=platform.unlock?await platform.unlock():null; }catch(e){ state.unlock=null; }
   try{ state.keyHeld=platform.keyHeld?await platform.keyHeld():null; }catch(e){ state.keyHeld=null; }
   try{ state.tutor=platform.tutor?await platform.tutor():null; }catch(e){ state.tutor=null; }
+  await loadSpeaker(platform);
   await loadExamples(platform);
   await loadKnown(platform);
   try{ state.reports=platform.reports?await platform.reports():null; }catch(e){ state.reports=null; }

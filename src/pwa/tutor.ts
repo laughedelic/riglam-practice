@@ -15,8 +15,8 @@ export function tutorError(code: string, message: string, extra: { text?: string
 const isAbort = (e: unknown) => e instanceof DOMException && e.name === "AbortError";
 const KNOWN = new Set(["rate_limited", "not_granted", "prompt_too_large", "bad_request", "refused", "unavailable"]);
 
-/** What the server says in /api/health about its tutor, Quorum, flag reports and learned facts (whether it answers from them, and whether it keeps them). Anything else (off, unreachable, slow, not a Worker at all) is "off" and no Quorum. */
-export type ServerSays = { tutor: boolean; quorum: QuorumOffer; reports: boolean; known: boolean; learns: boolean };
+/** What the server says in /api/health about its tutor, Quorum, flag reports, learned facts (whether it answers from them, and whether it keeps them) and its voices for reading aloud (independent of the tutor). Anything else (off, unreachable, slow, not a Worker at all) is "off" and no Quorum. */
+export type ServerSays = { tutor: boolean; quorum: QuorumOffer; reports: boolean; known: boolean; learns: boolean; speak: boolean };
 
 /** One question to /api/health: the platform asks it once and gives the answer to the tutor, to Quorum and to the flag reports, so a start makes one request and waits for one timeout. */
 export async function serverSays(doFetch: typeof fetch = (...a) => fetch(...a), waitMs = 4000): Promise<ServerSays> {
@@ -24,12 +24,12 @@ export async function serverSays(doFetch: typeof fetch = (...a) => fetch(...a), 
   const timer = setTimeout(() => stop.abort(), waitMs);
   try {
     const res = await doFetch(API.health, { cache: "no-store", signal: stop.signal });
-    if (!res.ok) return { tutor: false, quorum: false, reports: false, known: false, learns: false };
+    if (!res.ok) return { tutor: false, quorum: false, reports: false, known: false, learns: false, speak: false };
     const body = (await res.json()) as Partial<Health>;
     const tutor = body.ok === true && body.tutor === "on";
-    return { tutor, quorum: tutor && (body.quorum === "on" || body.quorum === "optin") ? body.quorum : false, reports: body.ok === true && body.reports === "on", known: tutor && body.known === "on", learns: tutor && body.learns === "on" };
+    return { tutor, quorum: tutor && (body.quorum === "on" || body.quorum === "optin") ? body.quorum : false, reports: body.ok === true && body.reports === "on", known: tutor && body.known === "on", learns: tutor && body.learns === "on", speak: body.ok === true && body.speak === "on" };
   } catch {
-    return { tutor: false, quorum: false, reports: false, known: false, learns: false };
+    return { tutor: false, quorum: false, reports: false, known: false, learns: false, speak: false };
   } finally {
     clearTimeout(timer);
   }
