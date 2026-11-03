@@ -113,6 +113,23 @@ test("the device reads, and the page is told why, when the clip cannot be made",
   expect(done.mock.calls).toEqual([[true, undefined]]);
 });
 
+test("the device reads when the clip never starts: a player that neither plays nor fails does not leave the question unread", async () => {
+  const done = vi.fn();
+  const { r, failed } = remote(async () => blob());
+  const play = FakeAudio.prototype.play;
+  FakeAudio.prototype.play = function () { return new Promise<void>(() => {}); };   // never settles
+  try {
+    speak("Stuck one (s)", { remote: r, done });
+    await vi.advanceTimersByTimeAsync(4_900);
+    expect(spoken).toHaveLength(0);
+    await vi.advanceTimersByTimeAsync(200);
+    expect(failed).toHaveLength(1);
+    expect(spoken.map((u) => u.text)).toEqual(["Stuck one (s)"]);
+  } finally {
+    FakeAudio.prototype.play = play;
+  }
+});
+
 test("the device reads when the server is too slow", async () => {
   const done = vi.fn();
   const { r, failed } = remote((_t, signal) => new Promise((_res, rej) => signal.addEventListener("abort", () => rej(signal.reason))));

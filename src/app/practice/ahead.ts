@@ -12,12 +12,15 @@ type Kind = "practice" | "debate";
 /** What the draw of the next pair depends on, as far as it can change between a result and the Next: the stages, the negation track, the skips and the terms met. */
 const sig = (): string => [state.stages.join(","), state.negation, state.negBrackets, state.stagesKept, hiddenKeys().size, unmetNow().size].join("|");
 
-/** Puts back what a draw that was not used spent: the pairs it counted as lately asked, and the lean of a new stage. */
+/**
+ * Puts back what a draw that was not used spent: the pairs it counted as lately asked, and the pair of the lean of a new stage. The lean is put back only while it is what the
+ * draw left: a stage taken after the draw sets it anew (shell/stages.js), and that one is not the draw's to undo.
+ */
 function giveBack(): void {
   const a = state.ahead; state.ahead = null;
   if (!a) return;
   state.recent.splice(0, state.recent.length, ...a.keep.recent);
-  restoreLean(a.keep.lean);
+  if (state.stageLean === a.keep.after) restoreLean(a.keep.lean);
 }
 
 /** The pair held for `kind` if it was drawn under what holds now; else drawn by `draw` and held, the one held before being given back. */
@@ -25,8 +28,9 @@ export function holdAhead(kind: Kind, draw: () => Pair): Pair {
   const a = state.ahead, now = sig();
   if (a && a.kind === kind && a.sig === now) return a.p;
   giveBack();
-  const keep = { recent: state.recent.slice(), lean: state.stageLean };
+  const keep = { recent: state.recent.slice(), lean: state.stageLean, after: 0 };
   const p = draw();
+  keep.after = state.stageLean;
   state.ahead = { kind, sig: now, p, keep };
   return p;
 }

@@ -141,7 +141,7 @@ function keep(id: string, blob: Blob): void {
   while (CLIPS.size > KEEP_CLIPS) CLIPS.delete(CLIPS.keys().next().value as string);
 }
 /** The server has this long to make a clip: the page is waiting, and the device's voice reads instead. */
-const CLIP_WAIT = 8000;
+const CLIP_WAIT = 8000, PLAY_WAIT = 5000;
 // A phone lets a page play audio only from an element that a tap has started once; the clip arrives after a request, no longer inside the tap. One element, started
 // silently by the first tap, key or touch (`armSpeech`), plays every clip.
 const SILENT = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
@@ -151,9 +151,12 @@ let cancelReading: (() => void) | null = null;
 
 const audio = (): HTMLAudioElement => (player ??= Object.assign(new Audio(), { preload: "auto" }));
 
-/** Listens for the first tap, key or touch and starts the audio element silently inside it, so that a clip that arrives later may play (phones). The page calls it once at the start. */
+let armed = false; // the listeners are waiting for the first tap, or it came: asking again does nothing
+
+/** Listens for the first tap, key or touch and starts the audio element silently inside it, so that a clip that arrives later may play (phones). The page may ask whenever it likes: only the first asking does anything. */
 export function armSpeech(): void {
-  if (typeof document === "undefined" || typeof Audio === "undefined") return;
+  if (armed || typeof document === "undefined" || typeof Audio === "undefined") return;
+  armed = true;
   const events = ["pointerdown", "touchend", "keydown", "click"] as const;
   const prime = () => {
     for (const e of events) document.removeEventListener(e, prime, true);
@@ -243,10 +246,13 @@ function speakOnline(text: string, opts: SpeakOptions, remote: Remote): void {
     a.onended = () => end(true);
     a.onerror = () => (started ? end(false, "error") : fallBack(new Error("the clip could not be played")));
     synth()?.cancel();
+    // a player that neither starts nor fails would leave the question unread and its clock held: the device's voice reads if the clip has not started in a few seconds
+    timer = setTimeout(() => fallBack(new Error("the clip did not start")), PLAY_WAIT);
     let promise: Promise<void> | undefined;
     try { promise = a.play(); } catch (e) { promise = Promise.reject(e); }
     promise?.then(() => {
       started = true;
+      clearTimeout(timer);
       // the clip's end is trusted, but not for ever
       timer = setTimeout(() => { try { a.pause(); } catch { /* ended */ } end(false, "timeout"); }, readingTimeout(text, rate));
     }, (e: unknown) => {

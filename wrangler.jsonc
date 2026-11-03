@@ -42,8 +42,9 @@
     "REVIEW_MODELS": "claude-sonnet-5-5,claude-opus-5-5",
     "REVIEW_DAILY_BUDGET_USD": "1.00",
     "REVIEW_BATCH": "5",
-    // Reading aloud with Google's voices (docs/SERVER.md, "Reading aloud"): characters of speech per UTC day, one device and everybody together. Production's 25,000 and the Previews' 5,000
-    // (below, the same Google project) are 30,000 a day at most, about 900,000 a month, under the vendor's 1,000,000 free characters. The secret GOOGLE_TTS_API_KEY is not here: `wrangler secret put`; without it reading aloud is off and the app uses the device's voice.
+    // Reading aloud with Google's voices (docs/SERVER.md, "Reading aloud"): characters of speech per UTC day, one device and everybody together. Production's 25,000 a day is about 750,000 a month, under the vendor's
+    // 1,000,000 free characters. The Previews (below) draw on the same Google project and free million, with higher limits so that voices can be tested: heavy use of both past the million is billed at $30 per million.
+    // The secret GOOGLE_TTS_API_KEY is not here: `wrangler secret put`; without it reading aloud is off and the app uses the device's voice.
     "SPEAK_DEVICE_DAILY_CHARS": "10000",
     "SPEAK_GLOBAL_DAILY_CHARS": "25000",
     // Quorum (docs/SERVER.md, "Quorum") is an opt-in here: offered to a device with the Magic Key and off until the device turns it on in Options, because a run

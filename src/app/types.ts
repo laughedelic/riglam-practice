@@ -686,10 +686,10 @@ export interface SoundState {
   armed: boolean;
 }
 
-/** A pair drawn before the Next that shows it: the exercise it is for, what its draw depended on (`sig`), and what the draw spent, to give back when it is not used. */
+/** A pair drawn before the Next that shows it: the exercise it is for, what its draw depended on (`sig`), and what the draw spent, to give back when it is not used (`after` is the lean right after the draw: a lean that is not that any more was set by a stage or a reset, and is left as it is). */
 export interface Ahead {
   kind: "practice" | "debate";
   sig: string;
   p: Pair;
-  keep: { recent: string[]; lean: number };
+  keep: { recent: string[]; lean: number; after: number };
 }

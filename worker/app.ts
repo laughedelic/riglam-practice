@@ -188,11 +188,19 @@ export function createApp(deps: Deps) {
     const held = await reserve(env.DB!, { day, device, micro, deviceCap: limits.deviceDailyChars * SPEAK_MICRO_PER_CHAR, globalCap: limits.globalDailyChars * SPEAK_MICRO_PER_CHAR, pool: "speak" });
     if (!held.ok) return spent(held.scope, day, when);
     if (Math.random() < 0.02) later(c, prune(env.DB!, day).catch(() => {}));
-    const spoken = await synthesize(env.GOOGLE_TTS_API_KEY!, new URL(c.req.url).origin, parsed.request, deps.fetch);
-    // The held characters are replaced by what was made: none when the vendor failed.
-    await settle(env.DB!, { day, device, held: micro, actual: spoken.ok ? micro : 0, now: when, kind: "speak", model: voiceName(parsed.request.voice), rounds: 1, tokens: noTokens(), outcome: spoken.ok ? "answered" : `failed ${spoken.status}`, pool: "speak" }).catch((e) =>
-      console.error("settle failed", e instanceof Error ? e.name : typeof e),
-    );
+    // Asked for now, as the tutor's is: the runtime keeps the request alive for the settling below even when the page has gone away (it stops a reading it no longer wants).
+    let finished!: () => void;
+    later(c, new Promise<void>((resolve) => (finished = resolve)));
+    let spoken: Awaited<ReturnType<typeof synthesize>>;
+    try {
+      spoken = await synthesize(env.GOOGLE_TTS_API_KEY!, new URL(c.req.url).origin, parsed.request, deps.fetch);
+      // The held characters are replaced by what was made: none when the vendor failed.
+      await settle(env.DB!, { day, device, held: micro, actual: spoken.ok ? micro : 0, now: when, kind: "speak", model: voiceName(parsed.request.voice), rounds: 1, tokens: noTokens(), outcome: spoken.ok ? "answered" : `failed ${spoken.status}`, pool: "speak" }).catch((e) =>
+        console.error("settle failed", e instanceof Error ? e.name : typeof e),
+      );
+    } finally {
+      finished();
+    }
     if (!spoken.ok) {
       console.error("speak failed", spoken.status);
       return fail("unavailable", "the voice could not be made just now");

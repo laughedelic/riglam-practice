@@ -123,8 +123,6 @@ function warmAhead(key){
   const texts=later();
   if(texts.length) prefetchClips(texts,r);
 }
-// Voice is a feature on trial: until its switch in Settings is on (on by default in a Preview, off in the real app; app.js), none of this does anything.
-const enabled=()=>state.voice.on;
 const SERVER="server:";
 /**
  * The server's voice that reads now, or null when the device's does: the voice chosen if it is one of the server's, or the first one while none was chosen ("" is the default); not while
@@ -191,6 +189,7 @@ function endReading(){
 export function voiceAfterRender(){
   if(!enabled()) return;
   syncSoon(); snapSync();
+  armVoice();                   // an exercise may have its own Read aloud switch (per-exercise.ts): the first tap starts the player whichever one it was
   setTimeout(warmNext,0);       // the pair after a result or a stop: drawn and asked for early (after this screen's own reading has asked for its clip)
   const v=state.voice, a=asked(), key=a?a.key:"";
   if(key===v.key){ explainWatch(a); return; }

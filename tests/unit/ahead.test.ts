@@ -37,6 +37,25 @@ test("what the draw depends on changing gives the pair back with what it spent, 
   expect(world.state.ahead).toBeNull();
 });
 
+test("a stage taken after the draw sets the lean anew, and giving the draw back leaves that lean alone", () => {
+  world.state.stageLean = 3;
+  holdAhead("practice", draw);
+  expect(world.state.stageLean).toBe(2);
+  Object.assign(world.state, { stages: [0, 1, 2], stageLean: 5 });   // setStages: the highest stage went up, its first five pairs lean
+  expect(takeAhead("practice")).toBeNull();
+  expect(world.state.stageLean).toBe(5);
+  expect(world.stored).toEqual([]);   // nothing was written over the new lean
+  expect(world.state.recent).toEqual(["old"]);
+});
+
+test("a lean the draw left alone is given back with the pair", () => {
+  world.state.stageLean = 3;
+  holdAhead("practice", draw);
+  world.unmet = 2;
+  expect(takeAhead("practice")).toBeNull();
+  expect(world.state.stageLean).toBe(3);
+});
+
 test("a term met at a stop, a skip and the negation track are what the draw depends on too", () => {
   for (const change of [() => { world.unmet = 2; }, () => { world.hidden = 1; }, () => { world.state.negation = "both"; }, () => { world.state.negBrackets = true; }]) {
     holdAhead("practice", draw);
