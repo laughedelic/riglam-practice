@@ -72,7 +72,10 @@
 .pa .vst.bad{color:var(--red)}
 .pa .vtake .vst{font:400 11px/1.4 var(--mono); letter-spacing:.02em; color:var(--ink3)}
 .pa .vtake .vst.bad{color:var(--red)}
-.pa .vsub{min-height:calc(11px * 1.4); max-width:100%}
+/* the first line is centered on the stop, whether a second is there or not: the second hangs below it */
+.pa .vtx{position:relative}
+.pa .vtx > :nth-child(2){position:absolute; top:100%; left:calc(var(--stp) * 99 / 140 + 6.2px); right:0; margin-top:1px}
+.pa .vsub{max-width:100%}
 .pa .vhint{font:400 11px/1.4 var(--mono); letter-spacing:.02em; color:var(--ink3)}
 /* the answer goes on by itself: the thread under the stop fills toward the foot, as the path walks on */
 /* the pause before an answer goes on by itself, with nothing on the screen to climb to: a line draws itself around the stop */

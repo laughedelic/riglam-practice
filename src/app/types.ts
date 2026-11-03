@@ -599,6 +599,10 @@ export interface VoiceState {
   atResult: boolean;
   /** an explanation was asked at the result on screen and is being written: the microphone waits for it */
   explWait: boolean;
+  /** the microphone listens for another answer over one that was heard (a tap, or words, over its bar) */
+  retry: boolean;
+  /** the stop was last drawn on the thread (true) or in the margin (false); null before it is drawn (shell/voice.js, snapSync) */
+  snapOn: boolean | null;
   /** the field is held down for hold to talk (longer than a tap) */
   hold: boolean;
   /** the press on the field now: when it began, whether it was listening already (a press then stops it), whether it has lasted longer than a tap, which pointer it is, and whether an answer waited (a tap is Yes) and was going on by itself (the touch then only holds it) */

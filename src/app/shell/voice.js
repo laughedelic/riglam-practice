@@ -104,7 +104,7 @@ function endReading(){
 // Called at the end of every render (shell/render.js).
 export function voiceAfterRender(){
   if(!enabled()) return;
-  syncSoon();
+  syncSoon(); snapSync();
   const v=state.voice, a=asked(), key=a?a.key:"";
   if(key===v.key){ explainWatch(a); return; }
   v.key=key; quiet();
@@ -167,10 +167,10 @@ function hear(a,keepNote,held,keepBar){
   quiet(); endReading(); if(!keepBar) freezePend();
   v.tok=tok; v.phase="listening"; if(!keepNote){ v.note=""; v.bad=false; } v.held=false; paint();
   const opts={
-    interim:t=>{ if(v.tok!==tok) return; v.live=t; if(v.pend&&v.pend.result&&v.pend.auto){ freezePend(); paint(); } else paintLive(); },       // words at a result hold its bar: they may be "explain" or "stop"
+    interim:t=>{ if(v.tok!==tok) return; v.live=t; if(v.pend&&v.pend.auto){ if(!v.pend.result) v.retry=true; freezePend(); paint(); } else paintLive(); },       // words over a bar hold it: they may be "explain", "stop", "no" or another answer
     done:res=>{
       if(v.tok!==tok) return;
-      v.tok=null; v.stop=null; v.phase="idle"; v.live="";
+      v.tok=null; v.stop=null; v.phase="idle"; v.live=""; v.retry=false;
       if(v.key!==a.key) return;
       if("error" in res) missed(a,res.error); else { v.early=!!res.early; take(a,res.alts); }
     }};
@@ -191,6 +191,7 @@ const MISS={"not-allowed":"The microphone is not allowed for this page. Allow it
   "network":"The speech service could not be reached (the browser sends the audio there to turn it into text).","no-audio":"The microphone did not start. Tap the field to try again.","aborted":"","unsupported":"This browser has no speech recognition."};
 function missed(a,err){
   const v=state.voice;
+  if(v.pend&&!v.pend.result&&v.pend.auto&&(err==="no-speech"||err==="aborted")){ paint(); return; }       // nothing said over the bar: it runs on
   // the result waits for a word for as long as it is on screen: the microphone opens again, twice, and then rests (the field says what to say)
   if(a.kind==="result"){ if(err==="no-speech"&&ongoing()&&v.tries<2){ v.tries++; hear(a,false,false,true); return; } v.note=err==="no-speech"||err==="aborted"?"":MISS[err]!=null?MISS[err]:"Could not listen ("+err+")."; v.bad=err!=="no-speech"&&err!=="aborted"; paint(); return; }
   if(err==="no-speech"&&ongoing()&&v.tries<1){ v.tries++; hear(a); return; }
@@ -223,6 +224,7 @@ function take(a,alts){
   if(spokenDontKnow(alts)) return nudge(a);
   // the commands of the run, said on their own: the question again, the pair set aside, the run paused. Where "skip" is an answer (the counter-example), only naming the thing is the command
   const c=spokenCommand(alts,{bareSkip:a.kind!=="counter",looseSkip:a.kind!=="counter"});
+  if(c==="pause"&&v.pend&&!v.pend.result) return change();       // over an answer that waits or goes on, "stop" (or "wait") takes it back and listens again
   if(c==="pause"&&handsFree()){ tick(); return pause(); }       // "stop" is also a "no" to a waiting answer or a step that just went on: pausing is what it means
   const yn=v.pend||v.chip?spokenConfirm(alts):null;
   if(v.pend){
@@ -406,12 +408,13 @@ function offer(a,heard,label,apply,quick,row){
   paint();
   tick();
   if(!p.auto&&ongoing()) hear(a);     // listens for "yes", "no" or another answer
+  else if(p.auto&&hearing()) hear(a,false,false,true);     // and over the bar for a correction: "no", "wait", "wrong", "stop", "cancel", or another answer
 }
 function dropPend(){
   const v=state.voice, p=v.pend;
   if(!p) return;
   if(p.auto) clearTimeout(p.auto.tid);
-  v.pend=null;
+  v.pend=null; v.retry=false;
 }
 // the microphone is pressed while the bar runs: it stops, and the answer waits for Yes (or is replaced by what is said now)
 function freezePend(){
@@ -604,7 +607,7 @@ export const keysStayDown=()=>micShown()&&typeof matchMedia==="function"&&matchM
 /** The microphone field is shown: Answer by voice is on, on a screen that asks something. */
 export const micShown=()=>{ const a=asked(); return enabled()&&!!a&&hearing()&&!(a.kind==="result"&&!listensAtResult()&&!a.auto); };       // (a result that goes on by itself keeps the stop for its bar)
 // what the field shows: it listens, it is reading, an answer waits for Yes, an answer is going on by itself, or it is at rest
-const fieldState=()=>{ const v=state.voice, p=v.pend&&!v.pend.result?v.pend:null; return v.phase==="listening"?"listen":p?(p.auto?"going":"heard"):v.phase==="speaking"?"read":"idle"; };
+const fieldState=()=>{ const v=state.voice, p=v.pend&&!v.pend.result?v.pend:null; return p&&p.auto?"going":v.phase==="listening"?"listen":p?"heard":v.phase==="speaking"?"read":"idle"; };       // (over the bar the microphone listens for a correction; the bar is what shows)
 // the speaker at the right end of the stop's row, which says the question again
 function topNode(){
   const v=state.voice;
@@ -622,7 +625,7 @@ const stClass=()=>{ const v=state.voice; return "vst"+(v.bad?" bad":"")+(v.phase
 function micNode(){
   const v=state.voice, a=asked(), p=v.pend, st=fieldState(), text=statusText(), kids=[];
   // at a result nothing waits for a tap: the station at the foot goes on, the stop listens as on any screen; where it goes on by itself the thread under the stop fills
-  const res=!!(p&&p.result), w=res?null:p;
+  const res=!!(p&&p.result), w=res||(v.retry&&st==="listen")?null:p;       // a retry listens as anywhere: the answer it may replace waits out of sight
   // the pause before an answer goes on by itself: where it climbs to a choice or a field the signal on the thread shows it (syncAim); elsewhere a line draws itself around the stop
   const ring=!!(p&&p.auto&&(st!=="listen"||res)&&(res||!aimOf(p.row)));
   // the icon says what a tap does now (voice lab round 7, P): the microphone, a stop square while it listens, a check where an answer waits for Yes (nothing while it goes on by itself)
@@ -671,7 +674,20 @@ function srText(){
   return v.note||"";
 }
 // the field again, in place, without rendering the screen (which would rebuild the fields and move the focus). The touch area stays the same node, so that a finger on it keeps its target
-function paint(){ paintField(); syncAim(); moreSync(); }
+function paint(){ paintField(); syncAim(); moreSync(); snapSync(); }
+// The stop snaps onto the thread when it starts to listen and back into the margin when it stops. The Path draws the field anew on many of its draws (path/ui.tsx, Bridge),
+// and a node drawn anew has no "before" to move from, so the move is played here, from where the stop was to where it is now, whichever node shows it.
+const SNAP={duration:220,easing:"cubic-bezier(.3,1.55,.55,1)"};
+function snapSync(){
+  const v=state.voice, g=/** @type {HTMLElement|null} */(document.querySelector("#vmic .vg"));
+  if(!g){ v.snapOn=null; return; }
+  const f=$("vfield"), on=!!f&&(f.classList.contains("on")||!!g.closest(".pend"));
+  if(v.snapOn!=null&&on!==v.snapOn&&moves()&&typeof g.animate==="function"&&!g.classList.contains("drag")){
+    const rest="calc(22px - var(--m)) 0", there="0px 0";
+    g.animate([{translate:on?rest:there},{translate:on?there:rest}],SNAP);
+  }
+  v.snapOn=on;
+}
 function paintField(){
   const old=$("vfield"); if(!old) return;
   const nf=voiceField();
@@ -727,7 +743,7 @@ function micDown(ev){
   // where the answer goes on by itself a touch is a retry: the bar stops and the microphone listens for another answer (what was heard waits for Yes until one is taken)
   const p=v.press={t0:performance.now(),was:!waits&&v.phase==="listening",long:/** @type {boolean} */(false),tid:null,pid:ev.pointerId,yes:waits&&!wasAuto,auto:wasAuto,x0:ev.clientX,dx:0};
   if(p.yes) freezePend();                    // where an answer waits for Yes a tap is Yes, and a hold says another
-  else if(!p.was) hear(a,false,true);
+  else if(!p.was||wasAuto){ if(wasAuto) v.retry=true; hear(a,false,true); }
   p.tid=setTimeout(()=>{ if(v.press!==p) return; p.long=true; if(p.yes){ p.yes=false; hear(a,false,true); } v.hold=!p.was; paint(); },HOLD_MS);
   paint();
   document.addEventListener("pointerup",micUp,true); document.addEventListener("pointercancel",micUp,true); document.addEventListener("pointermove",micMove,true);

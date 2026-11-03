@@ -249,7 +249,7 @@ test("Hands-free: after 'stop' at a result a tap listens again for 'next', and '
   expect(await current(page)).not.toBe(id);
 });
 
-test("Hands-free, waiting for Yes: 'again' says the question again and the answer keeps waiting; 'stop' and a tap listen for 'yes' again", async ({ page }) => {
+test("Hands-free, waiting for Yes: 'again' says the question again and the answer keeps waiting; 'stop' takes it back and listens for another", async ({ page }) => {
   await voice(page, { settings: { read: "0", answer: "auto", result: "1", confirm: "wait" } });
   await page.goto("/");
   await ready(page);
@@ -262,12 +262,11 @@ test("Hands-free, waiting for Yes: 'again' says the question again and the answe
   await expect(state(page)).toContainText("Read aloud is off");
   await expect(waiting(page)).toBeVisible();   // not taken back
   await listening(page);
-  await hearNext(page, "stop");
-  await expect(state(page)).toContainText("Paused");
-  await idle(page);
-  await mic(page).click();   // goes on: the answer still waits, and the microphone listens for "yes"
+  await hearNext(page, "stop");   // a correction (as "no", "wait", "wrong", "cancel" or "correction"): the answer is taken back
+  await expect(waiting(page)).toHaveCount(0);
+  await listening(page);   // and the microphone listens for another
+  await hearNext(page, "the reason is not established");
   await expect(waiting(page)).toBeVisible();
-  await listening(page);
 });
 
 test("Hands-free: while Claude writes an explanation the microphone is closed, and it opens again once the explanation is there", async ({ page }) => {

@@ -7,7 +7,7 @@
 // with the next phrase the test queued (a phrase, or a list of guesses best first), or with "no-speech" when none comes.
 import { test, expect } from "../../support/test.js";
 import { goTo, openSettings, ready, overflow, relOptions } from "../../support/page.js";
-import { voice, said, spoken, hearNext, docs, mic, boxOf, listening, idle, waiting, confirm, change, settle, hear } from "../../support/voice.js";
+import { voice, said, spoken, hearNext, docs, mic, boxOf, listening, idle, waiting, confirm, change, settle, hear, taken } from "../../support/voice.js";
 
 /** The question of Pervasions on the path now: "Q1" to "Q4". */
 const qNow = (page) => page.locator("#path .sb.now .qnm");
@@ -377,12 +377,14 @@ test("Relations, hands-free with \"Always wait for Yes\": the relation and each 
 });
 
 test("Relations, hands-free: the answer goes on by itself after a short bar, with no \"yes\"", async ({ page }) => {
-  await voice(page, { settings: { answer: "auto" }, heard: ["mutually exclusive", "a gold ring", "a red apple", "nothing"] });
+  await voice(page, { settings: { answer: "auto" }, heard: ["mutually exclusive"] });
   await page.goto("/");
   await ready(page);
   await mic(page).click();   // the question the app opens on waits for the person; from here on it runs by itself
   await expect(page.locator("#vfuse, #vfield .vring")).toBeVisible();
-  await expect(page.locator("#vfield .vhint")).toHaveCount(0);   // no Yes to press: the bar is the wait
+  await expect(page.locator("#vfield .vhint")).toHaveText("tap to retry");   // no Yes to press: the bar is the wait
+  await listening(page);   // and over the bar the microphone listens for a correction
+  for (const ex of ["a gold ring", "a red apple", "nothing"]) { await taken(page); await hearNext(page, ex); }
   await expect.poll(() => docs(page, "answers").then((a) => a.length), { timeout: 15_000 }).toBe(1);
   const [a] = await docs(page, "answers");
   expect(a.chosen).toBe("con");
@@ -509,8 +511,11 @@ test("a tap on the field while the bar runs is a retry: the bar stops and it lis
   await hear(page, "four possibilities");
   await expect(page.locator("#vfuse, #vfield .vring")).toBeVisible();
   await expect(page.locator("#vfield .vhint")).toHaveText("tap to retry");
-  await hearNext(page, "three possibilities, A in B");
   await mic(page).click();   // the tap stops the bar and listens again
+  await listening(page);
+  await expect(page.locator("#vfield .vg .vsq")).toHaveCount(1);   // shown as any listening: a stop square, no "tap to confirm"
+  await expect(page.locator("#vfield .vhint")).toHaveCount(0);
+  await hearNext(page, "three possibilities, A in B");
   await expect(page.locator("#vfield .vwhat b")).toHaveText("Three possibilities, A in B", { timeout: 5000 });   // the new answer replaces the old
   await expect(page.locator("#vfuse, #vfield .vring")).toBeVisible();   // and the bar runs again for it
   await expect(page.locator("#cin")).toBeVisible({ timeout: 4000 });
