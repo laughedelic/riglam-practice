@@ -41,9 +41,44 @@ test("Version and updates holds What's new, and opening it counts the changes as
   await expect(body).toContainText(/Version \d+\.\d+\.\d+ · build /);   // the version, where the update stands
   await expect(body.locator(".sgh", { hasText: "What's new" })).toBeVisible();   // and what changed, under it
   await expect(page.locator("#path .nwi.new").first()).toBeVisible();
-  await expect(page.locator("#path .nwi").first()).toContainText("About, licenses and privacy");
+  await expect(page.locator("#path .nwi", { hasText: "About, licenses and privacy" })).toBeVisible();
   await page.getByRole("button", { name: "Back to Settings", exact: true }).click();
   await expect(page.locator(".ppage .ol", { hasText: "Version and updates" })).not.toContainText("new change");
+});
+
+/** An older last-seen item, so that What's new has items new on this device (its items with a link among them). */
+const olderSeen = (page) => page.addInitScript(() => { if (!sessionStorage.getItem("once")) { sessionStorage.setItem("once", "1"); localStorage.setItem("rd-news-seen", "2026-10-30-claude"); } });
+
+test("an item of What's new that links to Settings shows Settings over the roadmap it came from, and Back goes to the roadmap", async ({ page }) => {
+  await olderSeen(page);
+  await page.goto("/");
+  await expect(page.locator("#path .chs .crow")).toHaveCount(5);
+  await page.locator(".tstn").click();
+  await page.locator(".road").getByRole("button", { name: "Read" }).click();   // the roadmap's line opens What's new, the way back of which is the roadmap
+  await expect(page.locator("#path .ptb-t")).toHaveText("Version and updates");
+  await page.getByRole("button", { name: "Open Settings" }).first().click();
+  await expect(page.locator("#path .ptb-t")).toHaveText("Settings");
+  await expect(page.locator("#path .ppage.sfull")).toBeInViewport({ ratio: 0.9 });   // in front, not behind the roadmap
+  await page.getByRole("button", { name: "Languages: more" }).click();   // and it answers
+  await expect(page.locator("#path .ptb-t")).toHaveText("Languages");
+  await page.getByRole("button", { name: "Back to Settings", exact: true }).click();
+  await page.getByRole("button", { name: "Back to the roadmap", exact: true }).click();
+  await expect(page.locator(".road .rfoot").getByRole("button", { name: "Settings" })).toBeVisible();
+  await expect(page.locator("#path .ppage.sfull")).toHaveCount(0);
+});
+
+test("an item of What's new opened from the Settings list: its link to Settings goes back to that list, and its link to an exercise opens the exercise", async ({ page }) => {
+  await olderSeen(page);
+  await openSettings(page);
+  await page.getByRole("button", { name: "Version and updates: more" }).click();
+  await page.getByRole("button", { name: "Open Settings" }).first().click();
+  await expect(page.locator("#path .ptb-t")).toHaveText("Settings");
+  await expect(page.locator("#path .ppage.sfull")).toBeInViewport({ ratio: 0.9 });
+  await page.getByRole("button", { name: "Version and updates: more" }).click();
+  await page.getByRole("button", { name: "Try it" }).first().click();
+  await expect(page.locator("#path .ppage.sfull")).toHaveCount(0);   // Settings is closed, and the exercise is there to answer
+  await expect(page.locator("#path .chs .crow").first()).toBeVisible();
+  await page.locator("#path .chs .crow").first().click();
 });
 
 test("About Riglam Practice says what the app is and is not, then the source, then where to send feedback", async ({ page }) => {
