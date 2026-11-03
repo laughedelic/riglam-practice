@@ -54,7 +54,7 @@ test("an item of What's new that links to Settings shows Settings over the roadm
   await page.goto("/");
   await expect(page.locator("#path .chs .crow")).toHaveCount(5);
   await page.locator(".tstn").click();
-  await page.locator(".road").getByRole("button", { name: "Read" }).click();   // the roadmap's line opens What's new, the way back of which is the roadmap
+  await page.locator(".road").getByRole("button", { name: "Read", exact: true }).click();   // the roadmap's line opens What's new, the way back of which is the roadmap
   await expect(page.locator("#path .ptb-t")).toHaveText("Version and updates");
   await page.getByRole("button", { name: "Open Settings" }).first().click();
   await expect(page.locator("#path .ptb-t")).toHaveText("Settings");

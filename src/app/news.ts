@@ -15,6 +15,7 @@ export interface NewsItem {
 }
 
 export const NEWS: NewsItem[] = [
+  { id: "2026-11-03-slide-explain", title: "Slide Claude onto the thread", text: "On a phone, Check & explain and Ask a follow-up can now be slid onto the thread with a finger, as well as tapped: slide the diamond left onto the line and let go, and it is taken. Let go short of the line and it goes back." },
   { id: "2026-11-03-news-links", title: "Links in What's new work", text: "The buttons in What's new, such as Open Settings, now take you where they say. Open Settings used to leave you on the roadmap with the app not answering." },
   { id: "2026-11-02-about", title: "About, licenses and privacy", text: "Settings › About now says what Riglam Practice is, where the source code is, how to send ideas, questions and bug reports, how to flag an explanation from Claude, and which licenses cover the code, the fonts and the definitions. What's new now sits on Version and updates, and Your data says what the app keeps and who can read it.", go: "settings" },
   { id: "2026-11-02-storage", title: "A calmer storage notice", text: "If your device's storage stops answering, one line above the bottom now says so, with Reload beside it, instead of a bar over the top of the page. Tap its words to see what is known. If the storage answers again, the line goes by itself and what you did meanwhile is saved. Export and import in Settings is now called Your data.", go: "settings" },

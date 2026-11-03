@@ -140,7 +140,7 @@ test("a start with something new not read shows What's new on the roadmap's line
   const line = roadLine(page);
   await expect(line).toContainText("What's new");
   await expect(newsPage(page), "never opened unasked").toBeHidden();
-  await line.getByRole("button", { name: "Read" }).click();
+  await line.getByRole("button", { name: "Read", exact: true }).click();   // exact: the line's other button is named by the newest entry's title, which may hold "read" (thread)
   await expect(newsPage(page)).toBeVisible();
   await expect(page.locator("#path .nwi.new")).not.toHaveCount(0);
   await page.locator("#path .ptb .tstn").click();
