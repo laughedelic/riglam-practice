@@ -1,20 +1,20 @@
 import { state } from "../state.js";
 import { $, el } from "../core/dom.js";
 import { ORDER, REL } from "../core/rel.js";
-import { chooseD, holdClock, releaseClock, sayQ, submitWhy, undoQ } from "../debate/flow.js";
-import { Wd, termSing } from "../debate/text.js";
+import { chooseD, holdClock, pairAheadDebate, releaseClock, sayQ, submitWhy, undoQ } from "../debate/flow.js";
+import { Wd, singular, termSing } from "../debate/text.js";
 import { check } from "../practice/grading.js";
 import { choose, fillable, missedCase, relRestore, relSnapshot } from "../practice/screen.js";
 import { NOT } from "../../ai-shared/debate.ts";
 import { plainWords, spokenCommand, spokenConfirm, spokenDirection, spokenDontKnow, spokenExample, spokenRelation, spokenReply, spokenYesNo } from "../../domain/spoken.ts";
-import { canHear, canSpeak, listen, listenHeld, onVoices, speak, stopSpeaking } from "../../ui/speech";
+import { armSpeech, canHear, canSpeak, listen, listenHeld, onVoices, prefetchClips, speak, stopSpeaking } from "../../ui/speech";
 import { CELL_FULL, render } from "./render.js";
 import { refreshPath } from "../path/index.tsx";
 import { iconSvg } from "../path/ui.tsx";
 import { keepOwn } from "../practice/per-exercise.ts";
 import { checkFind } from "../find/flow.js";
-import { askedHere, heardHere, resultAsk } from "./asks.ts";
-import { next } from "../practice/queue.js";
+import { askedHere, heardHere, laterHere, resultAsk } from "./asks.ts";
+import { next, pairAhead } from "../practice/queue.js";
 import { skipAskText, skipNow } from "../practice/skips.js";
 import { cue } from "../sound/play.ts";
 import { canAsk } from "../core/ask.js";
@@ -37,8 +37,9 @@ import { moves } from "./motion.js";
 // what the current screen asks: {key, kind, say, cell?, hint?, clock?}, or null when it asks nothing that can be spoken or answered. Relations, Pervasions and the examples of Find a pair
 // are asked here; Syllogisms, Categories, the words of a pair and Find an instance in shell/asks.ts
 const pairLine=p=>p.a+" and "+p.b+". ";
-function questionLine(i){
-  const w=Wd(), q=w.q[i].map(x=>x==="A"||x==="B"?termSing(x):x===NOT?"not":x).join("");
+const CALL_RELATION="Which relation do your answers give?", CALL_COUNTER="Posit a counter-example.";
+function questionLine(i,p){
+  const w=Wd(), sing=p?x=>singular(x==="A"?p.a:p.b):termSing, q=w.q[i].map(x=>x==="A"||x==="B"?sing(x):x===NOT?"not":x).join("");
   return w.lead?w.lead.replace(/…$/,"")+" "+q[0].toLowerCase()+q.slice(1).replace(/\.$/,"?"):q;
 }
 /** @typedef {import("./asks.ts").AskAny} AskAny */
@@ -56,9 +57,9 @@ export function asked(){
   const id=p.id||p.a+"|"+p.b;
   if(u.debate){
     if(state.tab!=="debate") return null;
-    if(u.step<4) return u.pickWhy?{key:id+"/q"+u.step+"/ex",kind:"example",say:"Posit a counter-example."}
+    if(u.step<4) return u.pickWhy?{key:id+"/q"+u.step+"/ex",kind:"example",say:CALL_COUNTER}
       :{key:id+"/q"+u.step,kind:"reply",say:(u.step===0?pairLine(p):"")+questionLine(u.step)};
-    return u.rel?null:{key:id+"/rel",kind:"relation",say:"Which relation do your answers give?"};
+    return u.rel?null:{key:id+"/rel",kind:"relation",say:CALL_RELATION};
   }
   if(u.find){ if(state.tab!=="find"||u.open||u.step!==1) return null; }       // the examples of Find a pair are asked as those of Relations are
   else if(state.tab!=="practice") return null;
@@ -70,6 +71,89 @@ export function asked(){
 // (on by default in a Preview, off in the real app; app.js), nothing listens.
 const input=()=>state.voice.on;
 const enabled=()=>canSpeak()||(input()&&canHear());
+/**
+ * What the screen will ask after the one it asks now, in the words it is read: the questions the pair on screen already fixes, so that a natural voice has their clips by the time they are asked
+ * (`warmAhead`). Pervasions: the questions still to come, the counter-example and the relation. Relations (and the examples of Find a pair): all four cells while the relation is asked
+ * (which of them is asked depends on it), then the cells still to come. Syllogisms and Categories are in shell/asks.ts.
+ * @returns {string[]}
+ */
+function later(){
+  const u=state.ui, p=state.cur&&state.cur.p;
+  const here=u&&laterHere(u);
+  if(here!==undefined) return here||[];
+  if(!u||!p||u.checked) return [];
+  if(u.debate){
+    if(state.tab!=="debate"||u.step>=4) return [];
+    const out=[];
+    for(let i=u.step+1;i<4;i++) out.push(questionLine(i));
+    out.push(CALL_COUNTER,CALL_RELATION);
+    return out;
+  }
+  const A=termSing("A"), B=termSing("B");
+  if(u.find){ if(state.tab!=="find"||u.open||u.step!==1) return []; }
+  else if(state.tab!=="practice") return [];
+  else if(!u.rel||u.open) return Object.keys(CELL_ASK).map(c=>CELL_ASK[c](A,B));
+  const order=fillable();
+  return order.slice(Math.max(0,Math.min(u.ci||0,order.length-1))+1).map(c=>CELL_ASK[c](A,B));
+}
+/**
+ * The words of the pair `p`, when it is the one on screen, as they will be read: its first question and what follows it (see `later`). Pervasions and Relations, the pairs that
+ * `pairAhead` draws ahead; the pair is not on screen yet, so its terms come from `p`.
+ */
+function wordsOf(p,debate){
+  if(debate) return [pairLine(p)+questionLine(0,p),questionLine(1,p),questionLine(2,p),questionLine(3,p),CALL_COUNTER,CALL_RELATION];
+  const A=singular(p.a), B=singular(p.b);
+  return [pairLine(p)+"What is the relation?",...Object.keys(CELL_ASK).map(c=>CELL_ASK[c](A,B))];
+}
+/**
+ * With a natural voice, at a result (or at the stop of a new term, which comes before the next question), the pair that comes next is drawn and its words are asked for, so that its first
+ * question is read as it is shown and not after the time the server needs. What is drawn is held for the Next (practice/ahead.ts); the clips come from the server once and are kept (ui/speech.ts).
+ */
+function warmNext(){
+  const u=state.ui, r=remoteVoice();
+  if(!u||!r||!reading()||state.mode!=="quiz"||!(u.checked||u.stop)||u.find||u.cats||u.inst||u.syllogism) return;
+  if(u.debate?state.tab!=="debate":state.tab!=="practice") return;
+  const p=u.debate?pairAheadDebate():pairAhead();
+  if(p) prefetchClips(wordsOf(p,!!u.debate),r);
+}
+/** The clips of what comes next are asked for as the screen comes, behind the one that is read now, while the question is answered. */
+function warmAhead(key){
+  const v=state.voice, r=remoteVoice();
+  if(v.key!==key||!r||!reading()) return;
+  const texts=later();
+  if(texts.length) prefetchClips(texts,r);
+}
+// Voice is a feature on trial: until its switch in Settings is on (on by default in a Preview, off in the real app; app.js), none of this does anything.
+const enabled=()=>state.voice.on;
+const SERVER="server:";
+/**
+ * The server's voice that reads now, or null when the device's does: the voice chosen if it is one of the server's, or the first one while none was chosen ("" is the default); not while
+ * the server's limit for the day is used up or it failed lately (`remoteUntil`: it is not asked again for a few minutes, so that each question does not wait for a server that cannot answer).
+ */
+function remoteVoice(){
+  const v=state.voice, r=v.remote;
+  if(!r||!r.voices.length||Date.now()<v.remoteUntil) return null;
+  if(v.voiceId&&!v.voiceId.startsWith(SERVER)) return null;
+  const id=v.voiceId.slice(SERVER.length), voice=(r.voices.find(x=>x.id===id)||r.voices[0]).id;
+  return {key:voice,clip:(text,signal)=>r.clip(text,voice,{signal}),failed:why=>{
+    const until=why&&why.code==="rate_limited"&&why.resetsAt?Date.parse(why.resetsAt):NaN;
+    v.remoteUntil=Date.now()+(why&&why.code==="rate_limited"?(until>Date.now()?Math.min(until-Date.now(),6*3600e3):3600e3):why&&why.code==="not_granted"?3600e3:3*60e3);
+    v.remoteWhy=why&&why.code==="rate_limited"?"limit":why&&why.code==="not_granted"?"key":"away";
+    if(state.sessOpen&&state.sessPage==="read") render();      // the Read aloud page says so at once
+  }};
+}
+/** While the server's voice rests (see `remoteUntil`), why the device's voice reads instead, in plain words for the Read aloud page; "" otherwise. */
+export function remoteRests(){
+  const v=state.voice;
+  if(!v.remote||Date.now()>=v.remoteUntil) return "";
+  return v.remoteWhy==="limit"?"The natural voices have reached today’s limit, so your device’s voice reads until it starts again tomorrow."
+    :v.remoteWhy==="key"?"The server did not accept this device’s Magic Key for the natural voices, so your device’s voice reads."
+    :"The natural voices could not be reached just now, so your device’s voice reads. The app tries them again in a few minutes.";
+}
+/** Reads `text` as the voice choices say: with the server's voice where one is chosen and it answers, else with the device's. `done` is as for `speak`. */
+export const readOut=(text,done)=>speak(text,{voice:state.voice.voiceId,rate:state.voice.rate,remote:remoteVoice()||undefined,done});
+/** A reading from the server's voice may come after the tap that asked for it: the audio element is started inside the first tap (ui/speech.ts), once the device has a voice of the server and Read aloud is on. */
+export const armVoice=()=>{ const v=state.voice; if(v.read&&v.remote) armSpeech(); };
 const reading=()=>enabled()&&!state.voice.hush&&state.voice.read&&!state.voice.muted&&canSpeak();
 const hearing=()=>input()&&!state.voice.hush&&state.voice.answer!=="off"&&canHear();
 const handsFree=()=>input()&&!state.voice.hush&&state.voice.answer==="auto"&&canHear();
@@ -107,9 +191,11 @@ function endReading(){
 export function voiceAfterRender(){
   if(!enabled()) return;
   syncSoon(); snapSync();
+  setTimeout(warmNext,0);       // the pair after a result or a stop: drawn and asked for early (after this screen's own reading has asked for its clip)
   const v=state.voice, a=asked(), key=a?a.key:"";
   if(key===v.key){ explainWatch(a); return; }
   v.key=key; quiet();
+  if(a) setTimeout(()=>warmAhead(key),0);       // after this screen's own reading has asked for its clip, which goes first
   if(v.paused&&!handsFree()) v.paused=false;       // a pause belongs to Hands-free: another exercise with its own Answer setting does not inherit it
   // The first question the app shows is neither read nor listened to: people look around first, and start by tapping the
   // speaker or the microphone, or by answering or moving on by hand (any tap or key before this question counts).
@@ -152,7 +238,7 @@ function say(a,text,first){
   // a question and the relation have a countdown of their own; the countdown of the examples covers all the cells of a pair
   if(first&&(a.clock||a.kind==="reply"||(a.kind==="relation"&&!state.ui.rel))){ holdFor(); v.rhold=!!v.clockUi; }
   paint();
-  speak(text,{voice:v.voiceId,rate:v.rate,done:(ok,err)=>{
+  readOut(text,(ok,err)=>{
     if(v.tok!==tok) return;
     v.tok=null; v.phase="idle";
     endReading();
@@ -161,7 +247,7 @@ function say(a,text,first){
     // after speaking, the audio output needs a moment before the microphone opens (the Voice lab's finding)
     if(ongoing()) listenAuto(a,false,350);
     else paint();
-  }});
+  });
 }
 // `held`: the microphone was pressed and may still be held down: it listens while it is held (src/ui/speech.ts, listenHeld), and a tap lets go of it to listen until a pause
 function hear(a,keepNote,held,keepBar){
@@ -887,12 +973,14 @@ export function setVoice(k,val){
   try{ localStorage.setItem(KEYS[k],k==="read"||k==="atResult"?(val?"1":"0"):String(val)); }catch(e){}
   if(k==="read"||k==="answer") keepOwn(k,val);   // each exercise keeps its own (practice/per-exercise.ts)
   render();
-  if((k==="read"&&val)||k==="voiceId"||k==="rate") speak(SAMPLE,{voice:v.voiceId,rate:v.rate});
+  if(k==="read"&&val) armVoice();
+  if((k==="read"&&val)||k==="voiceId"||k==="rate") readOut(SAMPLE);
 }
 // The Answer by voice switch of Experiments: the choice is kept on the device, whatever the default of the build was
 export function setOn(on){
   const v=state.voice;
   v.on=on; try{ localStorage.setItem("rd-voice",on?"1":"0"); }catch(e){}
+  if(on) armVoice();
   if(!on){ quiet(); dropPend(); dropChip(); letGo("moved"); v.key=""; v.muted=false; v.paused=false; }
   render();
 }
@@ -915,6 +1003,11 @@ export const voiceOn=()=>input();
 export const answerShown=()=>input()&&canHear();
 /** An answer waits for Yes: Escape takes it back, wherever the focus is (shell/keys.js). */
 export const voicePending=()=>enabled()&&!!state.voice.pend&&!(state.voice.pend.result&&state.ui&&(state.ui.dterm||state.ui.pop));       // (Escape closes a definition or a note opened from a result first)
+/** The ids the voice list gives the server's voices, and the choice "best on this device" (a device voice is chosen by its own id; "" is the default, which is the server's first voice where it has some). */
+export const serverId=id=>SERVER+id;
+export const BEST="best";
+/** The words about the natural voices on the Voice page, when the server has some. */
+export const REMOTE_NOTE="The natural voices are made by Google\u2019s text-to-speech from the words of each question, which this app\u2019s server sends there and does not keep. When there is no connection, or the day\u2019s limit for them is used up, your device\u2019s voice reads instead.";
 /** The voices by accent, American and British first. */
 export function voiceGroups(list){
   const groups=[];

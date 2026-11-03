@@ -132,6 +132,17 @@ export type Tutor = (request: TutorRequest, options?: TutorOptions) => Promise<T
 export type Known = (request: KnownRequest, options?: { signal?: AbortSignal }) => Promise<KnownFact[]>;
 
 /**
+ * The `speak` capability: the app's server reads a sentence aloud with a natural voice (POST /api/speak, docs/SERVER.md "Reading aloud"). The place has it only when its
+ * server says it can and this device has the Magic Key; the page then offers the voices and falls back to the device's own voice when a clip cannot be made.
+ */
+export interface Speaker {
+  /** the voices the server reads with, as the list shows them; the first is the default */
+  voices: { id: string; name: string }[];
+  /** the audio of `text` read by `voice` (one of `voices`). Rejects with an error that has a `code` (`rate_limited` when the day's limit is used, with `resetsAt`; `unavailable`; `offline`; `cancelled`). */
+  clip(text: string, voice: string, options?: { signal?: AbortSignal }): Promise<Blob>;
+}
+
+/**
  * The `reports` capability: a learner's flag goes to the app's server with the stored answer it was made on
  * (src/report/protocol.ts). The place has it only when its server takes reports and this device has the Magic Key.
  * No method rejects. `send` resolves with the ids the server now holds (fewer than asked when it could not be reached or
@@ -245,6 +256,8 @@ export interface Platform {
   known?(): Promise<Known | null>;
   /** Whether the app's server keeps what the tutor's answers say of the learner's examples (docs/SERVER.md, "Learned facts"); false (or absent) when the place has no such server or this device has no Magic Key. The page then tells the learner and offers the switch in the Practice options. */
   shares?(): Promise<boolean>;
+  /** The natural voices of the app's server, or null (or absent) when the place has none, this device has no Magic Key, or the server has them off. The page then reads with the device's own voice. */
+  speak?(): Promise<Speaker | null>;
   /** Sending flags to the app's server, or null (or absent) when the place has no server for them or this device lacks the Magic Key (flags then stay on the device). */
   reports?(): Promise<Reports | null>;
   /** Keeps the id of a flag removed while `reports` gave null (offline at the start, no key), so that a later start that has it takes the report back from the server. */

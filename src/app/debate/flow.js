@@ -10,6 +10,7 @@ import { pairStageNow, stageStep } from "../practice/stage-offer.ts";
 import { gradePair } from "../practice/stops.ts";
 import { guidance } from "../practice/guided.ts";
 import { nextGenerated } from "../practice/universe.js";
+import { holdAhead, takeAhead } from "../practice/ahead.ts";
 import { focusAfterCheck, render } from "../shell/render.js";
 import { stopTimer } from "../shell/timers.js";
 import { cue } from "../sound/play.ts";
@@ -21,7 +22,9 @@ export function freshDebateUi(){
     pickWhy:false, exText:"", open:true, tq:null, tid:null, qStart:0, col:"debates"});
 }
 export const debateList=()=>Object.values(state.debates).sort((x,y)=>(x.at||"").localeCompare(y.at||""));
-export function advanceDebate(){ state.cur={p:nextGenerated(debateList(),true), debate:true}; state.ui=freshDebateUi(); state.mode="quiz"; }     // the negation track (Practice options) applies here as in Relations
+export function advanceDebate(){ state.cur={p:takeAhead("debate")||nextGenerated(debateList(),true), debate:true}; state.ui=freshDebateUi(); state.mode="quiz"; }     // the negation track (Practice options) applies here as in Relations
+/** The pair that Next will show, drawn now and held for a natural voice to have its first question ready (practice/queue.js pairAhead). */
+export const pairAheadDebate=()=>holdAhead("debate",()=>nextGenerated(debateList(),true));
 // the clock of a question (accept or Why?, then the example) is Sprint's, in shell/timers.js; these are re-exported where the exercises have always taken them from
 export { holdClock, paused, releaseClock, setBlitz, setTimer, stopTimer } from "../shell/timers.js";
 // the time of the question (or of the example after Why?) gone so far; while the clock is held, `qStart` is stale, and the time is what the hold kept

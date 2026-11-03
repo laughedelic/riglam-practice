@@ -28,5 +28,8 @@ export function spendLean(){
   return true;
 }
 
+/** Gives back the pairs of the lean that a draw spent which was not used (practice/ahead.ts). */
+export function restoreLean(n){ state.stageLean=n; store("rd-stage-lean",String(n)); }
+
 /** The name of a stage, for the offers and the lines that say what changed. */
 export const stageName=n=>(STAGES.find(s=>s.n===n)||{name:""}).name;

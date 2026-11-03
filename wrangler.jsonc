@@ -94,9 +94,9 @@
       "GLOBAL_DAILY_BUDGET_USD": "2",
       "RESERVE_USD": "0.05",
       "QUORUM": "on",
-      // Reading aloud (as above, smaller): Previews and production draw on the same free characters
-      "SPEAK_DEVICE_DAILY_CHARS": "3000",
-      "SPEAK_GLOBAL_DAILY_CHARS": "5000",
+      // Reading aloud (as above): Previews and production draw on the same free characters (1M a month); a Preview is for testing voices, so a day of it needs room
+      "SPEAK_DEVICE_DAILY_CHARS": "20000",
+      "SPEAK_GLOBAL_DAILY_CHARS": "40000",
       "QUORUM_DEVICE_DAILY_BUDGET_USD": "3",
       "QUORUM_GLOBAL_DAILY_BUDGET_USD": "12",
       "QUORUM_RESERVE_USD": "0.40",

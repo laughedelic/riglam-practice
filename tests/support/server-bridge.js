@@ -6,8 +6,8 @@ import { setup, seedCourse } from "../worker/support.ts";
 import { hasCourse, readParts } from "../../scripts/lib/course-files.mjs";
 import { dataKey } from "./data-key.js";
 
-/** A server with its own empty database, holding the specs' Magic Key (and the course data when this run has it, or with `stubCourse` empty definitions, so that the key fits). `env` overrides the Worker's variables (SIGNUP, DAILY_WRITES_PER_ACCOUNT ...). */
-export async function serverWorld(env = {}, { stubCourse = false } = {}) {
+/** A server with its own empty database, holding the specs' Magic Key (and the course data when this run has it, or with `stubCourse` empty definitions, so that the key fits). `env` overrides the Worker's variables (SIGNUP, DAILY_WRITES_PER_ACCOUNT ...). `fetch` is what the Worker calls out with (a stand-in for Google's voices). */
+export async function serverWorld(env = {}, { stubCourse = false, fetch = undefined } = {}) {
   const s = await setup({ RIGLAM_DATA_KEY: dataKey, ...env });
   if (hasCourse()) {
     const { definitions, notes } = readParts();
@@ -15,7 +15,7 @@ export async function serverWorld(env = {}, { stubCourse = false } = {}) {
   } else if (stubCourse) {
     await seedCourse(s.db.d1, { definitions: "{}", notes: "{}" }); // a run without course data: the key still fits, the definitions are empty
   }
-  return { app: createApp({ kit: async () => null }), env: s.env, sql: s.db.sql, offline: false, key: s.key };
+  return { app: createApp({ kit: async () => null, ...(fetch ? { fetch } : {}) }), env: s.env, sql: s.db.sql, offline: false, key: s.key };
 }
 
 /** Sends the page's requests to /api to the world; returns that page's cookie jar and the requests it made. */
