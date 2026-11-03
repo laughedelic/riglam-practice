@@ -3,7 +3,7 @@
 // the answers through the same steps and stores the answer. The page's state is read through the test hook.
 import { test, expect } from "../../support/test.js";
 import { exerciseAtRest } from "../../support/page.js";
-import { dataKey, KEY_STORE, serveCourse } from "../../support/data-key.js";
+import { dataKey, KEY_STORE, serveCourse, withCourse } from "../../support/data-key.js";
 import { readOpen } from "../../../scripts/lib/course-files.mjs";
 
 const onPath = () => {
@@ -44,6 +44,36 @@ test("Syllogisms: the syllogism in its three parts, the three replies, and the r
   await expect(page.locator("#path .chk")).toHaveCount(3);
   await expect.poll(async () => (await saved(page, "syllogism")).length).toBe(1);
   expect((await saved(page, "syllogism"))[0]).toMatchObject({ said: c.answer, answer: c.answer });
+});
+
+// Claude at work, in Syllogisms as in the other exercises (wait.tsx): the app's server stands in with routes (and needs the Magic Key, tests/support/test.js)
+const withKey = withCourse ? test : test.skip;
+const sse = (...events) => events.map((e) => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`).join("");
+const ANSWER = sse({ type: "delta", text: "Stand-in tutor: " }, { type: "delta", text: "this is the stand-in answer." }, { type: "done", truncated: false });
+
+withKey("Syllogisms: while Claude explains, the wait is said once on a stop over the station, with Stop, and the station waits muted", async ({ page }) => {
+  let release;
+  const held = new Promise((r) => { release = r; });
+  await page.route("**/api/health", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, tutor: "on" }) }));
+  await page.route("**/api/tutor", async (route) => { await held; return route.fulfill({ status: 200, contentType: "text/event-stream", body: ANSWER }); });
+  await open(page, "Syllogisms");
+  const c = await page.evaluate(() => ({ answer: window.__t.cur.c.answer }));
+  await choice(page, { accept: "I accept", reason: "The reason is not established", pervasion: "There is no pervasion" }[c.answer]).click();
+  if (c.answer === "pervasion") { await page.locator("#sylex").blur(); await station(page).click(); }
+  await expect(verdict(page)).toContainText("Right");
+  const explain = page.locator(".cwex .crow");   // Explain, a choice beside the line
+  await expect(explain).toBeVisible();
+  await explain.click();
+  const stop = page.locator(".cwstop.on");
+  await expect(stop, "Claude at work is said on the stop over the station").toBeVisible();
+  await expect(stop.locator(".think")).toContainText(/\d+s$/);   // the seconds at the right end, by Stop
+  await expect(stop.getByRole("button", { name: "Stop" })).toBeVisible();
+  await expect(page.locator("#path .think"), "said once").toHaveCount(1);
+  await expect(station(page), "the next station waits muted").toHaveClass(/\bcwait\b/);
+  release();
+  await expect(page.locator(".cwstop.on")).toHaveCount(0);
+  await expect(page.locator(".wtext")).toContainText("this is the stand-in answer.");
+  await expect(station(page)).not.toHaveClass(/\bcwait\b/);
 });
 
 test("Syllogisms: a wrong 'there is no pervasion' holds its verdict too, until the counter-example is given or left out, and the result then strikes the reply", async ({ page }) => {
