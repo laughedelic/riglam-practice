@@ -231,7 +231,7 @@ export function SettingsPage() {
     <TopBar title={page ? TITLES[page]! : "Settings"} back={up} />
     <div class="ppage sfull" onScroll={(e) => { if (!page) mem.current.y = (e.currentTarget as HTMLElement).scrollTop; }}>
       {page ? <Page id={page} />
-        : <><p class="ptitle">Settings</p><Intro>For the app, on this device. How an exercise looks and ticks is in its practice options.</Intro><Sections /></>}
+        : <Sections />}
       <div style={{ height: "30px" }} />
     </div>
   </>;

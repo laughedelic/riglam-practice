@@ -41,7 +41,6 @@
 .pa .olctl > .pdom,.pa .olctl > .pver,.pa .olctl > .pkeynote,.pa .olctl > .phost{flex-basis:100%}
 /* a page of lines is full width, without the margin's rule; the way back sits at its edge */
 .pa .ppage.sfull,.pa .psheet .sbody.sfull{background-image:none}
-.pa .sfull .ptitle{padding-left:16px; padding-right:16px}
 .pa .sgh + div > .ol{border-top-color:transparent}
 .pa span.olsw{pointer-events:none}   /* the empty column of a line with no switch: a tap there is the line's */
 /* an icon in the switch's column (the Magic Key's lock), and the field the key is typed in on its page */

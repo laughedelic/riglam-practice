@@ -10,7 +10,7 @@ async function openSettings(page) {
   await expect(page.locator("#path .chs .crow")).toHaveCount(5);
   await page.locator(".tstn").click();
   await page.locator(".road .rfoot").getByRole("button", { name: "Settings" }).click();
-  await expect(page.locator(".ppage .ptitle")).toHaveText("Settings");
+  await expect(page.locator("#path .ptb-t")).toHaveText("Settings");
 }
 /** The address a link line opens: a link that opens in a tab of its own, safe against the opened page reaching back. */
 async function opens(page, name, href) {
@@ -28,7 +28,7 @@ test("Settings › About lists Version and updates, About and Licenses, in that 
     await page.getByRole("button", { name: title + ": more" }).click();
     await expect(page.locator("#path .ptb-t")).toHaveText(title);
     await page.getByRole("button", { name: "Back to Settings", exact: true }).click();
-    await expect(page.locator(".ppage .ptitle")).toHaveText("Settings");
+    await expect(page.locator("#path .ptb-t")).toHaveText("Settings");
   }
 });
 
@@ -133,6 +133,6 @@ test("a page of Settings opens at its top, and Back finds Settings where it was 
   await expect(page.locator("#path .ptb-t")).toHaveText("Your data");
   expect(await sc.evaluate((e) => e.scrollTop)).toBe(0);
   await page.getByRole("button", { name: "Back to Settings", exact: true }).click();
-  await expect(page.locator(".ppage .ptitle")).toHaveText("Settings");
+  await expect(page.locator("#path .ptb-t")).toHaveText("Settings");
   expect(Math.abs((await sc.evaluate((e) => e.scrollTop)) - was)).toBeLessThan(2);
 });
