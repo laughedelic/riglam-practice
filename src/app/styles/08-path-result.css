@@ -80,6 +80,9 @@
 .pa .exr .tnote .tt{margin:0}
 .pa .exr .tnote .tuth .pflg{margin:0}
 .pa .exr .tnote .tt,.pa .exr .tnote .tsteps li:first-child{padding-right:26px}   /* the first line stops short of the flag */
+.pa .exr .tnote .ttake{margin:0 0 6px; padding-right:26px; overflow-wrap:anywhere}   /* "Take the example:" over the steps; it stops short of the flag, so the first step does not need to */
+.pa .exr .tnote .ttake + .tsteps li:first-child{padding-right:0}
+.pa .ttake .fl{color:var(--ink2)}
 .pa .tsteps{list-style:none; padding:0; margin:0; display:grid; gap:7px}
 .pa .tsteps li{position:relative; padding-left:15px}
 .pa .tsteps li::before{content:""; position:absolute; left:0; top:.5em; width:6px; height:6px; transform:rotate(45deg); background-color:var(--tutor); opacity:.75}

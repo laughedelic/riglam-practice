@@ -15,6 +15,7 @@ export interface NewsItem {
 }
 
 export const NEWS: NewsItem[] = [
+  { id: "2026-11-03-take", title: "Claude names the example", text: "When Claude explains an example, the note now begins with the example it is about, as in Take a rabbit horn:, and then says what follows. Before, a note on an example you had not given (one Claude brought up for a case you left empty, or against a question you accepted) never said what it was about." },
   { id: "2026-11-03-slide-explain", title: "Slide Claude onto the thread", text: "On a phone, Check & explain and Ask a follow-up can now be slid onto the thread with a finger, as well as tapped: slide the diamond left onto the line and let go, and it is taken. Let go short of the line and it goes back." },
   { id: "2026-11-03-news-links", title: "Links in What's new work", text: "The buttons in What's new, such as Open Settings, now take you where they say. Open Settings used to leave you on the roadmap with the app not answering." },
   { id: "2026-11-02-about", title: "About, licenses and privacy", text: "Settings › About now says what Riglam Practice is, where the source code is, how to send ideas, questions and bug reports, how to flag an explanation from Claude, and which licenses cover the code, the fonts and the definitions. What's new now sits on Version and updates, and Your data says what the app keeps and who can read it.", go: "settings" },

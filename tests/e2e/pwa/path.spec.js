@@ -537,12 +537,44 @@ withKey("the tutor's note under an example is a list of steps in the tutor's blo
   await expect(note).toBeVisible();
   await expect(note).not.toContainText(/Claude’s (note|explanation)/);   // no label: the rule says whose note it is, and a label on every case read as if the steps were about the tutor
   await expect(note).toHaveAccessibleName("Claude’s note");
-  const [box, flag, step] = await Promise.all([note.boundingBox(), note.locator(".pflg").boundingBox(), note.locator(".tsteps li").first().boundingBox()]);
+  const [box, flag, take, step] = await Promise.all([note.boundingBox(), note.locator(".pflg").boundingBox(), note.locator(".ttake").boundingBox(), note.locator(".tsteps li").first().boundingBox()]);
   expect(flag.y - box.y, "the flag is at the top of the block").toBeLessThan(14);
   expect(box.x + box.width - (flag.x + flag.width), "and at its right").toBeLessThan(12);
-  expect(Math.abs(step.y - box.y), "with no row of its own above the first step").toBeLessThan(6);
+  expect(Math.abs(take.y - box.y), "the Take line is the first row of the block").toBeLessThan(6);
+  const textRight = await note.locator(".ttake").evaluate((el) => { const r = document.createRange(); r.selectNodeContents(el); return r.getBoundingClientRect().right; });
+  expect(textRight, "its words stop short of the flag").toBeLessThanOrEqual(flag.x + 2);
+  expect(step.y, "and the first step is under it").toBeGreaterThanOrEqual(take.y + take.height - 1);
+  await expect(note.locator(".ttake")).toHaveText(/^Take .+:$/);   // the example the note is about, named once, as the debate says "Take S"
   await expect(note.locator(".tsteps li").first()).toContainText("It follows it is");
-  await expect(note).not.toContainText("Take ");   // the "take" line repeated the answer above it
+  await expect(note.locator(".tsteps")).not.toContainText("Take ");   // named once, over the steps, not in them
+});
+
+// A note is about Claude's example, which is not always the one in the row above it: a case left with "nothing exists" (or whose time ran out) gets a reference example from Claude,
+// and a question that was accepted a counter-example. Its steps "It follows it is ..." need their subject named, so every note starts with "Take S:", also the ones on the learner's own examples.
+withKey("every note of the tutor starts with Take and the example it is about, also for a case the learner left empty", async ({ page }) => {
+  const all = [
+    "Both: a red pot | A yes: it is a form | B yes: it is a thing",
+    "A not B: a red book | A yes: it is a form | B no: it is a plant; pervasion: a plant is not a person",
+    "B not A: a green book | A no: it is a form | B yes: it is a thing",
+    "Neither: a rabbit horn | A no: it does not exist | B no: it is not a sound, because it makes none",
+  ].join("\n");
+  await page.route("**/api/health", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, tutor: "on" }) }));
+  await page.route("**/api/tutor", (route) => route.fulfill({ status: 200, contentType: "text/event-stream", body: sse({ type: "delta", text: all }, { type: "done", truncated: false }) }));
+  await start(page);
+  await choices(page).nth(3).click();   // four possibilities: all four cases
+  for (const text of ["a red pot", "a red book", "a green book"]) { await page.locator("#cin").fill(text); await page.locator("#cin").press("Enter"); }
+  await page.getByRole("button", { name: "nothing exists", exact: true }).click();   // the last case answered: the Check is taken at once
+  await expect(page.locator(".pvline")).toBeVisible();
+  await page.locator(".cwex .crow").click();
+  const rows = page.locator(".exr:has(.tnote)");
+  await expect(rows).toHaveCount(4);
+  await expect(rows.locator(".ttake")).toHaveText(["Take a red pot:", "Take a red book:", "Take a green book:", "Take a rabbit horn:"]);
+  const empty = rows.filter({ has: page.locator(".ans2.nil") });   // the case the learner said nothing exists for: the example in its note is Claude's
+  await expect(empty).toHaveCount(1);
+  await expect(empty.locator(".ans2.nil")).toHaveText("nothing exists");
+  await expect(empty.locator(".ttake")).toHaveText("Take a rabbit horn:");
+  await expect(empty.locator(".tsteps li").first()).toContainText("It follows it is");
+  expect(await overflow(page)).toBeLessThanOrEqual(0);
 });
 
 withKey("with the tutor on its own, Why is open on the result; the station's cue is set once the examples are in", async ({ page }) => {

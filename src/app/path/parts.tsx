@@ -209,13 +209,16 @@ export function latestExplain() {
   for (let i = chat.length - 1; i >= 0; i--) { const t = chat[i]; if (t.role === "assistant" && t.kind === "explain") return t; }
   return null;
 }
-/** What a tutor's line on an example says, as steps: a line for each of the pair's two terms (it follows it is, or is
- *  not, that term, and why), and the conclusion when the example does not fit. "Take the example" is left out: the row shows it just above. */
+/** What a tutor's line on an example says: "Take the example:" (the subject, always named: the row above shows the learner's own answer, which is not always the example
+ *  the note is about, as when Claude brings up one the learner missed, or a counter-example to a question that was accepted), then a step for each of the pair's two terms (it
+ *  follows it is, or is not, that term, and why), and the conclusion when the example does not fit. The subject is plain text, as the answer above it is. */
 function FactSteps({ f, where }: { f: FactLine; where: string }) {
   const parts = factParts(f) as NotePart[], t = noteData().terms, seen = new Set<string>();
+  const take = parts.find((x): x is Extract<NotePart, { kind: "take" }> => x.kind === "take");
   const steps = parts.filter((x) => x.kind === "term" || x.kind === "unsure"), ends = parts.filter((x): x is Extract<NotePart, { kind: "end" }> => x.kind === "end");
   const txt = (s: string, w: string) => <><TermText text={s} where={w} seen={seen} /></>;
   return <>
+    {take ? <p class="ttake"><span class="fl">Take </span>{take.subject}<span class="fl">:</span></p> : null}
     <ul class="tsteps">{steps.map((x, k) => {
       const wr = where + "." + k + "r", ww = where + "." + k + "w";
       if (x.kind === "unsure") return <li><span class="fl">Whether it is </span><Sub k={x.side === "A" ? "a" : "b"}>{x.side === "A" ? t.a : t.b}</Sub><span class="fl"> is not settled</span>{x.say ? <>: {txt(x.say, wr)}</> : null}.<DefCard where={wr} /></li>;
