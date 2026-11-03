@@ -69,5 +69,21 @@ export function choose(k,voiced){
   render();
   if(!voiced) focusCin();
 }
+/**
+ * What choosing a relation or writing an example changes in the attempt, kept before a spoken answer is applied (shell/voice.js), and put back by Change: the relation
+ * or the case is open again, with what it held. The Sprint clock of the step that is open again is a new one (shell/timers.js).
+ */
+export function relSnapshot(){
+  const u=state.ui;
+  return {rel:u.rel,open:u.open,ci:u.ci,seen:u.seen,review:u.review,missed:{...u.missed},cells:Object.fromEntries(CELLS.map(c=>[c,{...u.cells[c]}]))};
+}
+export function relRestore(s){
+  const u=state.ui;
+  if(!u||u.checked||u.late||u.debate) return;
+  stopTimer();
+  Object.assign(u,{rel:s.rel,open:s.open,ci:s.ci,seen:s.seen,review:s.review,missed:{...s.missed}});
+  for(const c of CELLS) u.cells[c]={...s.cells[c]};
+  render();
+}
 // in a lineage the terms are joined by "is a" (short for "is a kind of"), small and italic; the sign > would read as "greater than"
 export const isA=n=>/^[aeiou]/i.test(n)?"is\u00a0an":"is\u00a0a";

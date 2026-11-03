@@ -61,6 +61,15 @@ export function submitWhy(){
   const a=state.ui.ans[state.ui.step]; a.text=t; a.msEx=Math.round(sinceStart(state.ui));
   nextQ();
 }
+// Takes the answer to question `i` back (shell/voice.js, Change on a spoken answer): the question is open again with nothing said, and the Sprint clock of a step that is
+// open again is a new one (shell/timers.js: a new step is a new clock). Only the last answer can be taken back, and not the relation, which checks the pair.
+export function undoQ(i){
+  const u=state.ui;
+  if(!u||!u.debate||u.checked||i<0||i>3||u.step<i||u.step>4||u.rel) return;
+  for(let j=i;j<4;j++) Object.assign(u.ans[j],{say:null,text:"",ms:null,msEx:null,limit:0,timeout:false});
+  u.step=i; u.pickWhy=false; u.exText=""; u.ro=null; u.open=true;
+  render();
+}
 export function backWhy(){
   if(!state.ui||!state.ui.debate||state.ui.checked||!state.ui.pickWhy) return;
   const a=state.ui.ans[state.ui.step]; a.say=null; a.ms=null; state.ui.pickWhy=false; state.ui.exText=""; render();
