@@ -93,8 +93,10 @@ export function FootPin() {
 
 const GO_LABEL: Record<NewsGo, string> = { settings: "Open Settings", practice: "Try it", find: "Try it", debate: "Try it", syllogism: "Try it", categories: "Try it", instance: "Try it" };
 function go(to: NewsGo) {
+  // What's new is a page of Settings, so Settings is open already: its list is one step back from here, with the way back to where Settings was opened from left as it is
+  // (closing Settings and opening it again would bring the roadmap over it when it came from the roadmap, and leave Settings open under the roadmap)
+  if (to === "settings") { state.optsPage = null; state.newsDirect = false; state.newsArrive = false; render(); return; }
   toggleOpts(false);
-  if (to === "settings") { state.fromRoad = false; toggleOpts(true); return; }
   state.menuOpen = false;
   setTab(to);
 }
