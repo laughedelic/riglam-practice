@@ -181,10 +181,12 @@ function hear(a,keepNote,held,keepBar){
 }
 // Hands-free opens the microphone by itself: a soft tick says so, and the microphone follows it (the tick would be heard otherwise). `delay`: the audio output needs a moment after the reading
 const TICK_GAP=160;
+// (not while Claude writes an explanation of the result: explainWatch opens it once the explanation is there)
+const writing=(a)=>a.kind==="result"&&!!(state.voice.explWait||state.ui&&state.ui.ctl);
 function listenAuto(a,keepBar,delay=0){
-  const v=state.voice, go=()=>{ if(v.key===a.key&&v.phase==="idle"&&!v.tok&&!v.paused&&handsFree()) hear(a,false,false,keepBar); };
+  const v=state.voice, go=()=>{ if(v.key===a.key&&v.phase==="idle"&&!v.tok&&!v.paused&&handsFree()&&!writing(a)) hear(a,false,false,keepBar); };
   setTimeout(()=>{
-    if(v.key!==a.key||v.phase!=="idle"||v.tok||v.paused||!handsFree()) return;
+    if(v.key!==a.key||v.phase!=="idle"||v.tok||v.paused||!handsFree()||writing(a)) return;
     if(state.sounds){ cue("knock",{soft:true}); setTimeout(go,TICK_GAP); } else go();
   },delay);
 }
@@ -195,7 +197,7 @@ function missed(a,err){
   const v=state.voice;
   if(v.pend&&!v.pend.result&&v.pend.auto&&(err==="no-speech"||err==="aborted")){ paint(); return; }       // nothing said over the bar: it runs on
   // the result waits for a word for as long as it is on screen: the microphone opens again, twice, and then rests (the field says what to say)
-  if(a.kind==="result"){ if(err==="no-speech"&&ongoing()&&v.tries<2){ v.tries++; hear(a,false,false,true); return; } v.note=err==="no-speech"||err==="aborted"?"":MISS[err]!=null?MISS[err]:"Could not listen ("+err+")."; v.bad=err!=="no-speech"&&err!=="aborted"; paint(); return; }
+  if(a.kind==="result"){ if(err==="no-speech"&&ongoing()&&v.tries<2&&!writing(a)){ v.tries++; hear(a,false,false,true); return; } v.note=err==="no-speech"||err==="aborted"?"":MISS[err]!=null?MISS[err]:"Could not listen ("+err+")."; v.bad=err!=="no-speech"&&err!=="aborted"; paint(); return; }
   if(err==="no-speech"&&ongoing()&&v.tries<1){ v.tries++; hear(a); return; }
   v.note=MISS[err]!=null?MISS[err]:"Could not listen ("+err+").";
   v.bad=err!=="aborted"&&err!=="no-speech"; paint();       // red only where the microphone itself failed (voice lab round 7)
@@ -929,7 +931,7 @@ export function hookVoices(){ const v=state.voice; if(!v.hooked){ v.hooked=true;
 // the words of the Voice choices and of the Voice page
 export const READ_LEAD="Read aloud says each question when it appears. It uses your device’s own speech, so the voices depend on the device and the browser.";
 export const ANSWER_LEAD="Answer by voice makes the lower part of the screen a field to tap or hold. It uses your device’s own speech recognition, so how well it hears you depends on the device and the browser.";
-export const READ_NOTE="The speaker beside the answer stop says it again; hold it, or press M, to pause the reading for this visit.";
+export const READ_NOTE="The speaker line above the bottom says the question again (or press R); hold it, or press M, to pause the reading for this visit.";
 export const ANSWER_PICKS=[["off","Off","No microphone."],
   ["tap","Tap or hold","Tap the lower part of the screen, or press V, and say the answer; or hold it and talk, and let go to send."],
   ["auto","Hands-free","Listens by itself after each question is read, and goes on by itself after a short bar. The result stays until you go on (in Sprint it goes on after 3 seconds); with Listen at the result, say “next”, “explain” or “stop” there. “Repeat” and “skip” work too."]];
