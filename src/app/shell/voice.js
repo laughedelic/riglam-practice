@@ -6,12 +6,14 @@ import { Wd, termSing } from "../debate/text.js";
 import { check } from "../practice/grading.js";
 import { choose, fillable, missedCase, relRestore, relSnapshot } from "../practice/screen.js";
 import { NOT } from "../../ai-shared/debate.ts";
-import { plainWords, spokenConfirm, spokenDirection, spokenDontKnow, spokenExample, spokenRelation, spokenReply } from "../../domain/spoken.ts";
+import { plainWords, spokenConfirm, spokenDirection, spokenDontKnow, spokenExample, spokenRelation, spokenReply, spokenYesNo } from "../../domain/spoken.ts";
 import { canHear, canSpeak, listen, listenHeld, onVoices, speak, stopSpeaking } from "../../ui/speech";
 import { CELL_FULL, render } from "./render.js";
 import { refreshPath } from "../path/index.tsx";
 import { iconSvg } from "../path/ui.tsx";
 import { keepOwn } from "../practice/per-exercise.ts";
+import { checkFind } from "../find/flow.js";
+import { askedHere, heardHere } from "./asks.ts";
 
 /* ---------- voice: the questions read aloud, answers by voice ---------- */
 // One switch in Settings (the Voice row, on trial: the kill switch), and the choices on the first page of the Practice options of Relations and Pervasions,
@@ -26,17 +28,24 @@ import { keepOwn } from "../practice/per-exercise.ts";
 // The page renders as a whole, so this module works from what the screen asks: after each render it compares the
 // screen with the one it last spoke for, and a new one stops whatever the old one started.
 
-// what the current screen asks: {key, kind, say, cell?}, or null when it asks nothing that can be spoken or answered
+// what the current screen asks: {key, kind, say, cell?, hint?, clock?}, or null when it asks nothing that can be spoken or answered. Relations, Pervasions and the examples of Find a pair
+// are asked here; Syllogisms, Categories, the words of a pair and Find an instance in shell/asks.ts
 const pairLine=p=>p.a+" and "+p.b+". ";
 function questionLine(i){
   const w=Wd(), q=w.q[i].map(x=>x==="A"||x==="B"?termSing(x):x===NOT?"not":x).join("");
   return w.lead?w.lead.replace(/…$/,"")+" "+q[0].toLowerCase()+q.slice(1).replace(/\.$/,"?"):q;
 }
+/** @typedef {import("./asks.ts").AskAny} AskAny */
 const CELL_ASK={both:(A,B)=>"Name something that is both "+A+" and "+B+".",anb:(A,B)=>"Name something that is "+A+", but not "+B+".",
   bna:(A,B)=>"Name something that is "+B+", but not "+A+".",nei:(A,B)=>"Name something that is neither "+A+" nor "+B+"."};
+/** @returns {AskAny|null} */
 export function asked(){
-  const u=state.ui, p=state.cur&&state.cur.p;
-  if(state.mode!=="quiz"||!u||!p||u.checked||state.optsOpen||state.sessOpen||state.skipAsk||state.menuOpen||state.view) return null;
+  const u=state.ui;
+  if(state.mode!=="quiz"||!u||u.checked||state.optsOpen||state.sessOpen||state.skipAsk||state.menuOpen||state.view) return null;
+  const here=askedHere(u);
+  if(here!==undefined) return here;
+  const p=state.cur&&state.cur.p;
+  if(!p) return null;
   const id=p.id||p.a+"|"+p.b;
   if(u.debate){
     if(state.tab!=="debate") return null;
@@ -44,8 +53,9 @@ export function asked(){
       :{key:id+"/q"+u.step,kind:"reply",say:(u.step===0?pairLine(p):"")+questionLine(u.step)};
     return u.rel?null:{key:id+"/rel",kind:"relation",say:"Which relation do your answers give?"};
   }
-  if(state.tab!=="practice") return null;
-  if(!u.rel||u.open) return {key:id+"/rel",kind:"relation",say:pairLine(p)+"What is the relation?"};
+  if(u.find){ if(state.tab!=="find"||u.open||u.step!==1) return null; }       // the examples of Find a pair are asked as those of Relations are
+  else if(state.tab!=="practice") return null;
+  else if(!u.rel||u.open) return {key:id+"/rel",kind:"relation",say:pairLine(p)+"What is the relation?"};
   const order=fillable(), c=order[Math.max(0,Math.min(u.ci||0,order.length-1))];
   return {key:id+"/c/"+c,kind:"cell",cell:c,say:CELL_ASK[c](termSing("A"),termSing("B"))};
 }
@@ -115,7 +125,7 @@ function say(a,text,first){
   quiet(); endReading();
   v.tok=tok; v.phase="speaking"; v.blocked=false; v.held=false;
   // a question and the relation have a countdown of their own; the countdown of the examples covers all the cells of a pair
-  if(first&&(a.kind==="reply"||(a.kind==="relation"&&!state.ui.rel))){ holdFor(); v.rhold=!!v.clockUi; }
+  if(first&&(a.clock||a.kind==="reply"||(a.kind==="relation"&&!state.ui.rel))){ holdFor(); v.rhold=!!v.clockUi; }
   paint();
   speak(text,{voice:v.voiceId,rate:v.rate,done:(ok,err)=>{
     if(v.tok!==tok) return;
@@ -165,6 +175,10 @@ function again(a,heard,hint,ask){
 }
 const same=(x,y)=>plainWords(x)===plainWords(y);
 const terms=()=>({a:state.cur.p.a,b:state.cur.p.b});
+const ownKinds=new Set(["syl","counter","cats","yesno","pair","instance"]);
+// "no" after a step went on takes it back, except where "no" is itself an answer: Pervasions' Accept or Why?, the yes or no of one category at a time, and "no" (or "nope")
+// at the counter-example question, which leaves the counter-example out ("back" and "undo" still take the step back there)
+const answersNo=(a,alts)=>((a.kind==="reply"||a.kind==="example")&&!!spokenReply(state,alts))||(a.kind==="yesno"&&spokenYesNo(alts)==="no")||(a.kind==="counter"&&alts.some((h)=>/^(?:no|nope)$/.test(plainWords(h))));
 // what was heard, as the tap or the typed answer it stands for, once it is confirmed. What `apply` returns, if it returns anything, takes the step back (the chip's Change)
 function take(a,alts){
   const v=state.voice, w=Wd();
@@ -174,7 +188,12 @@ function take(a,alts){
     if(yn==="yes") return confirm();
     if(yn==="no") return change();
   // after it went on: "no" or "back" takes the last step back, except where "no" is itself an answer (Pervasions: Accept or Why?)
-  } else if(v.chip&&yn==="no"&&!((a.kind==="reply"||a.kind==="example")&&spokenReply(state,alts))) return undoTaken();
+  } else if(v.chip&&yn==="no"&&!answersNo(a,alts)) return undoTaken();
+  if(ownKinds.has(a.kind)){
+    const o=heardHere(a,alts);
+    if(typeof o==="string") return again(a,alts[0],o);
+    return offer(a,o.heard,o.label,o.apply,o.quick);
+  }
   if(a.kind==="reply"){
     const r=spokenReply(state,alts);
     if(!r) return again(a,alts[0],"Say “"+w.acc+"” or “"+w.why+"”.");
@@ -205,7 +224,7 @@ function take(a,alts){
     const u=state.ui, s=relSnapshot(); u.cells[a.cell].t=x.none?"":x.text;
     const order=fillable(); let i=order.indexOf(a.cell);
     while(i<order.length-1&&missedCase(order[i+1])) i++;         // a case whose time ran out is not asked again
-    if(i>=order.length-1){ if(document.activeElement instanceof HTMLElement) document.activeElement.blur(); check(); return; }     // the last case checks the pair
+    if(i>=order.length-1){ if(document.activeElement instanceof HTMLElement) document.activeElement.blur(); if(u.find) checkFind(); else check(); return; }     // the last case checks the pair
     u.ci=i+1; render();
     return ()=>relRestore(s);
   });
@@ -225,10 +244,18 @@ function nudge(a){
 // the time. After it went on the step stays above the foot for a few seconds as a chip with Change: the screen it came from, with the answer cleared, and the microphone open.
 const PAUSE_BLITZ=1000, PAUSE_CALM=1500, CHIP_MS=6000;
 const autoOn=()=>{ const c=state.voice.confirm; return c==="auto"||(c==="split"&&handsFree()); };
-function offer(a,heard,label,apply){
+// `quick`: a yes or no to a question goes on at once (a second Yes would only repeat the first), unless Settings says to always wait; the chip takes it back for a few seconds
+function offer(a,heard,label,apply,quick){
   const v=state.voice;
-  dropPend(); dropChip(); holdFor();
+  dropPend(); dropChip();
   v.note=""; v.bad=false; v.tries=0;
+  if(quick&&v.confirm!=="wait"){
+    quiet(); letGo("resume");
+    const undo=apply();
+    if(typeof undo==="function") showChip({label,key:a.key},undo); else paint();
+    return;
+  }
+  holdFor();
   const h=String(heard).trim().replace(/[.!]+$/,"");
   const p=v.pend={key:a.key,said:same(h,label)?"Heard":"Heard “"+h+"”, taken as",label,apply,auto:null};
   if(autoOn()){ const ms=state.blitz?PAUSE_BLITZ:PAUSE_CALM; p.auto={ms,t0:performance.now(),tid:setTimeout(()=>{ if(v.pend===p) confirm(); },ms)}; }
@@ -255,6 +282,15 @@ function confirm(){
   letGo("resume");
   const undo=p.apply();
   if(typeof undo==="function") showChip(p,undo);
+  else if(typeof undo==="string") stayAt(p,undo);
+}
+// the step was not taken and the screen asks again (the subject itself is no counter-example): its words are said, and the microphone opens again in Hands-free
+function stayAt(p,text){
+  const v=state.voice, a=asked();
+  refreshPath();                     // the field the step cleared is drawn empty
+  v.note=text; v.bad=false; v.tries=0;
+  if(!a||a.key!==p.key){ paint(); return; }
+  if(reading()) say(a,text); else if(handsFree()) hear(a,true); else paint();
 }
 // take the answer back: the clock goes on, and the person says it again (the microphone opens by itself)
 function change(){
@@ -346,7 +382,7 @@ function micNode(){
   if(text) kids.push(el("div",{class:stClass(),id:"vlive",role:"status","aria-live":"polite",text}));
   else kids.push(el("div",{class:"vhint",text:st==="heard"?"Hold to say it again":st==="going"?"Touch to hold it · Escape to change":st==="read"?"Touch to cut in and answer":"Tap, or hold to talk"}));
   const label=st==="heard"?"Yes, go on with "+p.label+". Hold to say it again.":st==="going"?"Going on with "+p.label+". Touch to hold it.":st==="listen"?(v.hold?"Listening while you hold. Let go to send.":"Listening. Tap to finish."):"Answer by voice. Tap, or hold to talk.";
-  const n=el("div",{class:"vmic"+(p?" pend":""),id:"vmic",role:"button",tabindex:"0","data-quiet":"1","aria-label":label,"aria-pressed":st==="listen"?"true":"false",title:st==="idle"&&a?HINT[a.kind](a):null,
+  const n=el("div",{class:"vmic"+(p?" pend":""),id:"vmic",role:"button",tabindex:"0","data-quiet":"1","aria-label":label,"aria-pressed":st==="listen"?"true":"false",title:st==="idle"&&a?(a.hint||HINT[a.kind](a)):null,
     onpointerdown:micDown,onclick:micClick,onkeydown:micKey,oncontextmenu:e=>e.preventDefault()},kids);
   return n;
 }
@@ -529,6 +565,8 @@ export const voiceNote=()=>"Reads the questions aloud and lets you answer by voi
 /** Whether this browser has any speech, so that Settings has a Voice row; and whether Voice is on. */
 export const voiceAvailable=()=>canSpeak()||canHear();
 export const voiceOn=()=>enabled();
+/** An answer waits for Yes: Escape takes it back, wherever the focus is (shell/keys.js). */
+export const voicePending=()=>enabled()&&!!state.voice.pend;
 /** The voices by accent, American and British first. */
 export function voiceGroups(list){
   const groups=[];
@@ -539,7 +577,7 @@ export function voiceGroups(list){
 // where what is said goes: the browser's recognizer is not the app's
 export const WHERE="In Chrome, what you say is sent to Google to be turned into text (other browsers use their own service). The app records nothing.";
 /** Whether the Practice options have a Voice section: Voice is on, the browser has some speech, and the exercise is one that reads and listens. */
-export const voiceShown=()=>enabled()&&(canSpeak()||canHear())&&(state.tab==="practice"||state.tab==="debate");
+export const voiceShown=()=>enabled()&&(canSpeak()||canHear())&&["practice","debate","syllogism","categories","find","instance"].includes(state.tab);
 /** The Voice page draws again when the device's voices arrive (they come late in some browsers). */
 export function hookVoices(){ const v=state.voice; if(!v.hooked){ v.hooked=true; onVoices(()=>{ if(state.sessOpen&&state.sessPage==="voice") render(); }); } }
 // the words of the Voice choices and of the Voice page
@@ -551,5 +589,5 @@ export const ANSWER_PICKS=[["off","Off","No microphone."],
 export const CONFIRM_PICKS=[["split","Wait in tap mode, go on in Hands-free","Tapping the field waits for Yes (tap it again). Hands-free goes on by itself after a bar of 1.5 seconds (1 in Sprint)."],
   ["wait","Always wait for Yes","Tap, Enter or “yes”; hold to say it again (or Escape, or “no”)."],
   ["auto","Always go on by itself","After the bar. The row at the top of the field, or “no”, takes it back for a few seconds."]];
-export const VOICE_SAY="Say Accept or Why? (with the example), the relation by name or as written under the option, or an example; “nothing” leaves a cell empty. "+
+export const VOICE_SAY="Say Accept or Why? (with the example), the relation by name or as written under the option, or an example; “nothing” leaves a cell empty. In Syllogisms say “I accept”, “the reason is not established” or “there is no pervasion”, then a counter-example or “skip”; in Categories the categories the thing is in (“a color and a shape”, or their numbers, or “none of these”), or yes or no to each; in Find a pair two phenomena (“wood and fire”); in Find an instance a thing, or “nothing”. "+
   "The Sprint clock stops while a question is read and while an answer waits. Chrome sends the audio to Google to turn it into text; the app records nothing and keeps only the answer, as if typed.";

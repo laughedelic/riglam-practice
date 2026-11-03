@@ -60,8 +60,8 @@ export function chooseRel(k){
   if(u.step===1) focusCin();
 }
 const focusWord=k=>{ const i=$("fw-"+k); if(i) i.focus({preventScroll:true}); };
-/** The pair is named: on to the examples. The same words as before keep the examples written; other words start a new pair. */
-export function usePair(){
+/** The pair is named: on to the examples. The same words as before keep the examples written; other words start a new pair. `voiced`: it was said, so the first example is not focused (no keyboard). */
+export function usePair(opts){
   const u=state.ui; if(!u||!u.find||u.checked||u.step!==0) return;
   const a=nameThing(state,u.wordA,state.negBrackets), b=nameThing(state,u.wordB,state.negBrackets);
   if(!a.label||!b.label){ u.pairErr="Name both phenomena."; render(); focusWord(a.label?"b":"a"); return; }
@@ -74,7 +74,7 @@ export function usePair(){
   }
   u.own=!!state.cur.p.own; u.pairErr=""; u.step=1;
   render(); top0();
-  focusCin();
+  if(!(opts&&opts.voiced)) focusCin();      // named by voice: the keyboard does not come up over the field
 }
 /**
  * Time up on the words of the pair (Sprint, shell/timers.js): two words named go on to the examples as they stand; anything less is a miss, with nothing kept. At Detailed and

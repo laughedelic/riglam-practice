@@ -14,7 +14,7 @@ import { refreshPath } from "./index.tsx";
 import { ErrLines, GuideNote, SkipMark, StageOffer, Verdict, u0 } from "./parts.tsx";
 import { Scroll } from "./scroll.tsx";
 import { nextKind, nextName } from "./next.ts";
-import { Foot, PreStation, SkipSide, Station, TopBar } from "./shell.tsx";
+import { Foot, PreStation, SkipSide, Station, TopBar, VoiceField } from "./shell.tsx";
 import { D, Gap, Head, Mark, St, Sx, nofillInput } from "./ui.tsx";
 
 const q = () => shownSet() as InstanceQuestion;
@@ -72,6 +72,7 @@ function AskStep({ kb }: { kb: boolean }) {
         <CatStops s={s} /><Gap h={4} />{answer}<Gap h={6} /></Sx>
       <Sx cls="ptail" />
     </Scroll>
+    <VoiceField kb={kb} />
     {kb ? null : <Foot aux={<SkipSide />}>
       {ok ? <Station kind="chk" name="Check" hint={u.none ? noneText(n) : "“" + said() + "”"} act={check} /> : <PreStation name="Check" hint={"write a thing, or say " + noneText(n)} />}
     </Foot>}

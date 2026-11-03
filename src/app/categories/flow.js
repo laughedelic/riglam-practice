@@ -56,6 +56,12 @@ export function resetCategories(){
   u.ticked=[];
   render();
 }
+/** The categories said by voice (shell/asks.ts) are the ticked ones, and they are checked. */
+export function sayCategories(cats){
+  const u=state.ui; if(!u||!u.cats||u.step!==0||u.checked||u.ask!=="all"||!state.cur.q) return;
+  u.ticked=[...cats];
+  finishThing(u.ticked);
+}
 /** Check: grades what was ticked; nothing ticked is the answer "none of these". */
 export function checkCategories(){
   const u=state.ui; if(!u||!u.cats||u.step!==0||u.checked||u.ask!=="all"||!state.cur.q) return;
@@ -67,6 +73,12 @@ export function sayCategory(yes){
   const u=state.ui, q=state.cur.q; if(!u||!u.cats||u.step!==0||u.checked||u.ask!=="one"||!q||u.i>=q.rows.length) return;
   u.said[q.rows[u.i].cat]=yes; u.i++;
   if(u.i>=q.rows.length){ finishThing(q.rows.filter(r=>u.said[r.cat]).map(r=>r.cat)); return; }
+  render();
+}
+/** One at a time: takes the answer to category `i` back, and asks it again (the voice's Change; only while the next one is still asked). */
+export function unsayCategory(i){
+  const u=state.ui, q=state.cur.q; if(!u||!u.cats||u.step!==0||u.checked||u.ask!=="one"||!q||u.i!==i+1||!q.rows[i]) return;
+  u.i=i; delete u.said[q.rows[i].cat];
   render();
 }
 /** Time up on the ticks of one screen (Sprint, shell/timers.js): what is ticked stands, the rest counts as not ticked, and the screen is checked as it is. With nothing ticked at
