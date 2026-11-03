@@ -1,4 +1,4 @@
-// The pages under Settings › About that say what the app is and under what terms it is shared: About RIGLAM practice (what it is, the source, where to say what is wrong) and
+// The pages under Settings › About that say what the app is and under what terms it is shared: About Riglam Practice (what it is, the source, where to say what is wrong) and
 // Licenses (the code, the fonts, and what the definitions are), and, on Your data, what the app does with what you give it (`PrivacyGroup`: what stays on the device, what the
 // server keeps, what goes to Claude). Plain words for a learner, no analysis: the facts the pages state are docs/SERVER.md's ("Privacy") and docs/DATA.md's. A page is a few short
 // paragraphs under small headings (path/lines.tsx) and the lines that open an address outside the app.
@@ -6,6 +6,7 @@ import type { ComponentChildren } from "preact";
 import { state } from "../state.js";
 import { canAsk } from "../core/ask.js";
 import { Group, Intro, Line } from "./lines.tsx";
+import { Icon } from "./ui.tsx";
 
 /** The source code, and where it is read. */
 export const REPO_URL = "https://github.com/laughedelic/riglam-practice";
@@ -17,22 +18,24 @@ export const FONTS_URL = REPO_URL + "/blob/main/public/licenses/fonts-OFL.txt";
 
 const P = ({ children }: { children?: ComponentChildren }) => <p class="sprose">{children}</p>;
 
-/** About RIGLAM practice: what it is and is not, the source, and where to say what is wrong or what you would like. */
+/** About Riglam Practice: what it is and is not, the source, and where to say what is wrong or what you would like. */
 export function AboutPage() {
   return <>
-    <Intro>RIGLAM practice is a personal project: a small app for practicing Buddhist logic and debate a few minutes at a time. It does not replace practicing together or with a teacher. It is not affiliated with any course and not endorsed by any organization, and its mistakes are the author’s.</Intro>
+    <Intro>Riglam Practice is a personal project: a small app for practicing Buddhist logic and debate a few minutes at a time. It does not replace practicing together or with a teacher. It is not affiliated with any course and not endorsed by any organization, and its mistakes are the author’s.</Intro>
     <Group name="Source code">
       <P>The code is open: you can read it, run your own copy and change it.</P>
       <Line title="Source code" sub="github.com/laughedelic/riglam-practice" href={REPO_URL} />
     </Group>
     <Group name="Feedback">
-      <P>What is confusing, what is wrong, what you would like to practice next: all of it helps. Tell whoever shared the app with you, or write on GitHub, which needs an account there.</P>
+      <P>What is confusing, what is wrong, what you would like to practice next: all of it helps.</P>
+      <ul class="sbul">
+        <li>Tell whoever shared the app with you.</li>
+        {canAsk() ? <li>If an explanation from Claude looks wrong or unclear, tap the flag <Icon n="flag" cls="i inflag" /> beside it. It goes to the person who runs the app.</li> : null}
+        <li>Or write on GitHub, which needs an account there: ideas and questions in Discussions, bug reports in Issues.</li>
+      </ul>
       <Line title="Ideas and questions" sub="Discussions on GitHub" href={DISCUSSIONS_URL} />
       <Line title="Bug reports" sub="Issues on GitHub" href={ISSUES_URL} />
     </Group>
-    {canAsk() ? <Group name="Claude’s explanations">
-      <P>If an explanation from Claude looks wrong or unclear, use the flag beside it. It goes to the person who runs the app.</P>
-    </Group> : null}
   </>;
 }
 

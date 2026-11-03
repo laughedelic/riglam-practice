@@ -26,7 +26,7 @@ import { StorageNote, dataLine, storageStuck } from "./storage.tsx";
 import { AboutPage, LicensesPage, PrivacyGroup } from "./about.tsx";
 
 /** The pages of Settings, by the names of their lines. */
-const TITLES: Record<string, string> = { langs: "Languages", key: "Magic Key", acct: "Account", share: "Sharing examples", xfer: "Your data", lab: "The lab's settings", ver: "Version and updates", about: "About RIGLAM practice", lic: "Licenses" };
+const TITLES: Record<string, string> = { langs: "Languages", key: "Magic Key", acct: "Account", share: "Sharing examples", xfer: "Your data", lab: "The lab's settings", ver: "Version and updates", about: "About Riglam Practice", lic: "Licenses" };
 const open = (id: string) => { state.optsPage = id; render(); const b = document.querySelector<HTMLElement>("#path .ptb .tstn"); if (b) b.focus({ preventScroll: true }); };
 const back = () => { state.optsPage = null; render(); };
 /** Version and updates opens through What's new's own door: what this device had not seen is marked new on the page, and counts as seen from now on. */
@@ -209,7 +209,7 @@ function Sections() {
     {state.about ? <Group name="About">
       <div {...press}><Line title="Version and updates" sub={verLine()} go={showVersion}
         act={u ? { label: "Check for updates", busy: u.status() === "checking", run: () => u.check() } : undefined} /></div>
-      <Line title="About RIGLAM practice" sub="A personal project; feedback and source code" go={() => open("about")} />
+      <Line title="About Riglam Practice" sub="A personal project; feedback and source code" go={() => open("about")} />
       <Line title="Licenses" sub="The code, the fonts, the definitions" go={() => open("lic")} />
     </Group> : null}
   </>;

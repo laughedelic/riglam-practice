@@ -23,8 +23,8 @@ async function opens(page, name, href) {
 test("Settings › About lists Version and updates, About and Licenses, in that order, each with its way back to Settings", async ({ page }) => {
   await openSettings(page);
   const about = page.locator(".sgrp", { has: page.getByRole("heading", { name: "About" }) });
-  await expect(about.locator(".oltx b")).toHaveText(["Version and updates", "About RIGLAM practice", "Licenses"]);
-  for (const title of ["Version and updates", "About RIGLAM practice", "Licenses"]) {
+  await expect(about.locator(".oltx b")).toHaveText(["Version and updates", "About Riglam Practice", "Licenses"]);
+  for (const title of ["Version and updates", "About Riglam Practice", "Licenses"]) {
     await page.getByRole("button", { name: title + ": more" }).click();
     await expect(page.locator("#path .ptb-t")).toHaveText(title);
     await page.getByRole("button", { name: "Back to Settings", exact: true }).click();
@@ -46,23 +46,36 @@ test("Version and updates holds What's new, and opening it counts the changes as
   await expect(page.locator(".ppage .ol", { hasText: "Version and updates" })).not.toContainText("new change");
 });
 
-test("About RIGLAM practice says what the app is and is not, then the source, then where to send feedback", async ({ page }) => {
+test("About Riglam Practice says what the app is and is not, then the source, then where to send feedback", async ({ page }) => {
   // a device with Claude, so that the point about flagging its explanations applies
   await giveKey(page);
   await page.route("**/api/health", (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, tutor: "on", accounts: "on", reports: "on", learns: "on", known: "on" }) }));
   await openSettings(page);
-  await page.getByRole("button", { name: "About RIGLAM practice: more" }).click();
+  await page.getByRole("button", { name: "About Riglam Practice: more" }).click();
   const body = page.locator(".ppage");
-  await expect(body).toContainText("RIGLAM practice is a personal project");
+  await expect(body).toContainText("Riglam Practice is a personal project");
   await expect(body).toContainText("does not replace practicing together or with a teacher");
   await expect(body).toContainText("not affiliated with any course and not endorsed by any organization");
-  await expect(body.locator(".sgh")).toHaveText(["Source code", "Feedback", "Claude’s explanations"]);
-  await expect(body).toContainText("Tell whoever shared the app with you");
-  await expect(body).toContainText("use the flag beside it");
+  await expect(body.locator(".sgh")).toHaveText(["Source code", "Feedback"]);
+  // the ways to give feedback are bullets, and the one about flagging Claude's explanations is among them, with the flag drawn in its text
+  const bullets = body.locator(".sbul li");
+  await expect(bullets).toHaveCount(3);
+  await expect(bullets.nth(0)).toContainText("Tell whoever shared the app with you");
+  await expect(bullets.nth(1)).toContainText("explanation from Claude looks wrong or unclear, tap the flag");
+  await expect(bullets.nth(1).locator("svg.inflag")).toBeVisible();
+  await expect(bullets.nth(2)).toContainText("write on GitHub");
   await opens(page, "Source code", REPO);
   await opens(page, "Ideas and questions", REPO + "/discussions");
   await opens(page, "Bug reports", REPO + "/issues");
-  await expect(page.locator("#path .ptb-t")).toHaveText("About RIGLAM practice");
+  await expect(page.locator("#path .ptb-t")).toHaveText("About Riglam Practice");
+});
+
+test("About leaves out the point about flagging Claude's explanations on a device that cannot ask Claude", async ({ page }) => {
+  await openSettings(page);
+  await page.getByRole("button", { name: "About Riglam Practice: more" }).click();
+  await expect(page.locator(".ppage .sbul li")).toHaveCount(2);
+  await expect(page.locator(".ppage")).not.toContainText("explanation from Claude");
+  await expect(page.locator(".ppage svg.inflag")).toHaveCount(0);
 });
 
 test("Licenses names the code's license, the fonts' license and what the definitions are, with links to the texts", async ({ page }) => {

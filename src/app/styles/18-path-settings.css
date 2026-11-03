@@ -56,7 +56,11 @@
 /* the pages of About (path/about.tsx): short paragraphs under the small headings, and a line that opens an address outside the app (an arrow out in the chevron's place) */
 .pa .sprose{font-size:14.5px; color:var(--ink2); line-height:1.45; padding:0 16px 10px; margin:0}
 .pa .sprose b{font-weight:600; color:var(--ink)}
-.pa .sprose + .ol{border-top-color:transparent}
+.pa .sprose + .ol,.pa .sbul + .ol{border-top-color:transparent}
+.pa .sbul{list-style:none; margin:0; padding:0 16px 10px; font-size:14.5px; color:var(--ink2); line-height:1.45}
+.pa .sbul li{position:relative; padding:0 0 6px 16px}
+.pa .sbul li::before{content:""; position:absolute; left:3px; top:.62em; width:4px; height:4px; border-radius:50%; background:var(--ink3)}
+.pa .sbul .inflag{width:14px; height:14px; color:var(--ink2); vertical-align:-2px}
 .pa .sintro + .sprose{padding-top:6px}
 .pa a.olhit{display:block; color:inherit; text-decoration:none}
 html.pa-tab .pa a.olhit:focus-visible{outline:2px solid var(--blue); outline-offset:-2px}
