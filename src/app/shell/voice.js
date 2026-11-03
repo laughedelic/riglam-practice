@@ -182,7 +182,7 @@ function hear(a,keepNote,held,keepBar){
 // Hands-free opens the microphone by itself: a soft tick says so, and the microphone follows it (the tick would be heard otherwise). `delay`: the audio output needs a moment after the reading
 const TICK_GAP=160;
 // (not while Claude writes an explanation of the result: explainWatch opens it once the explanation is there)
-const writing=(a)=>a.kind==="result"&&!!(state.voice.explWait||state.ui&&state.ui.ctl);
+const writing=(a)=>{ if(a.kind!=="result"||!state.ui||!state.ui.ctl) return false; state.voice.explWait=true; return true; };       // (marked, so that explainWatch opens it when the explanation lands)
 function listenAuto(a,keepBar,delay=0){
   const v=state.voice, go=()=>{ if(v.key===a.key&&v.phase==="idle"&&!v.tok&&!v.paused&&handsFree()&&!writing(a)) hear(a,false,false,keepBar); };
   setTimeout(()=>{

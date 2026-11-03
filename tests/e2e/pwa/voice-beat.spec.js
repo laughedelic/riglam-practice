@@ -283,6 +283,19 @@ test("Hands-free: while Claude writes an explanation the microphone is closed, a
   await expect(verdict(page)).toHaveCount(0);
 });
 
+test("Hands-free: voice switched off and on again while Claude writes leaves the microphone closed until the explanation is there, then it opens", async ({ page }) => {
+  await toResult(page);
+  await listening(page);
+  await page.evaluate(() => { window.__t.ui.ctl = new AbortController(); window.__t.render(); });   // an explanation is being written
+  await idle(page);
+  await page.getByRole("switch", { name: "Voice on" }).click();
+  await page.getByRole("switch", { name: "Voice off" }).click();   // the result is asked again, as new
+  await page.waitForTimeout(1500);
+  await idle(page);   // still closed while Claude writes
+  await page.evaluate(() => { window.__t.ui.ctl = null; window.__t.ui.explained = true; window.__t.render(); });   // the explanation is there
+  await listening(page);
+});
+
 test("Hands-free leaves the result to taps unless Listen at the result is on: no microphone there, and the next question is listened to", async ({ page }) => {
   await voice(page, { settings: { read: "0", answer: "auto" } });
   await page.goto("/");
