@@ -185,7 +185,7 @@ test("Settings > Languages decides which names the stop shows: Tibetan with its 
   await expect(page.locator("#path .chs .crow")).toHaveCount(5);
   await page.locator(".tstn").click();
   await page.locator(".road .rfoot").getByRole("button", { name: "Settings" }).click();
-  await expect(page.locator(".ppage .ptitle")).toHaveText("Settings");
+  await expect(page.locator("#path .ptb-t")).toHaveText("Settings");
   await expect(page.locator(".ppage .ol", { hasText: "Languages" })).toContainText(/^Languages\s*EN$/);   // the line says which are shown
   await page.getByRole("button", { name: "Languages: more" }).click();
   const lang = (name) => page.getByRole("switch", { name, exact: true });

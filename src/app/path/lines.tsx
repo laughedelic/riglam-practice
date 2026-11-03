@@ -21,12 +21,15 @@ export interface LineProps {
   children?: ComponentChildren;
   /** its own page */
   go?: () => void;
+  /** an address outside the app: the line is a link that opens in a tab of its own, and an arrow out stands where the chevron would */
+  href?: string;
 }
 
 /** One line. */
-export function Line({ title, tag, sub, sw, icon, act, children, go }: LineProps) {
+export function Line({ title, tag, sub, sw, icon, act, children, go, href }: LineProps) {
   const hit = go || (sw ? sw.toggle : undefined);
-  return <div class={"ol" + (go ? " olgo" : "") + (sw && !sw.on ? " off" : "")}>
+  return <div class={"ol" + (go || href ? " olgo" : "") + (sw && !sw.on ? " off" : "")}>
+    {href ? <a class="olhit" href={href} target="_blank" rel="noopener noreferrer" aria-label={title + " (opens in a new tab)"} /> : null}
     {hit ? <button type="button" class="olhit" aria-label={go ? title + ": more" : undefined} tabIndex={go ? 0 : -1} aria-hidden={go ? undefined : "true"} onClick={hit} /> : null}
     {sw ? <button type="button" class="olsw" role="switch" aria-checked={sw.on ? "true" : "false"} aria-label={title} onClick={sw.toggle}><Toggle on={sw.on} /></button>
       : act ? <button type="button" class={"olsw olact" + (act.busy ? " busy" : "")} aria-label={act.label} onClick={act.run}><Icon n="refresh" /></button>
@@ -35,7 +38,7 @@ export function Line({ title, tag, sub, sw, icon, act, children, go }: LineProps
     <span class="oltx"><b>{title}{tag ? <em class={"oltag" + (tag === "experimental" ? " exp" : "")}>{tag}</em> : null}</b>
       {sub ? <small>{sub}</small> : null}
       {children ? <span class="olbody">{children}</span> : null}</span>
-    {go ? <span class="olchev" aria-hidden="true"><Icon n="chev" /></span> : <span />}
+    {go || href ? <span class="olchev" aria-hidden="true"><Icon n={href ? "out" : "chev"} /></span> : <span />}
   </div>;
 }
 

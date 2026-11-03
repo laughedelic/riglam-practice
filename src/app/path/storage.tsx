@@ -35,7 +35,7 @@ export function StoragePin({ cls }: { cls: string }) {
 }
 
 /** What the Your data line of Settings says under its name. */
-export const dataLine = () => storageStuck() ? <span class="bad">storage not answering</span> : "everything this device keeps, in one file";
+export const dataLine = () => storageStuck() ? <span class="bad">storage not answering</span> : "export, import and privacy";
 
 /**
  * The note at the head of Your data while the storage is stuck, or after it was and came back; null otherwise. While it is stuck what the page reads is only what memory holds,

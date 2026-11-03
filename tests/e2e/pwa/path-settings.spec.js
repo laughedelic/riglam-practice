@@ -12,7 +12,7 @@ async function start(page) {
 async function openSettings(page) {
   await page.locator(".tstn").click();
   await page.locator(".road .rfoot").getByRole("button", { name: "Settings" }).click();
-  await expect(page.locator(".ppage .ptitle")).toHaveText("Settings");
+  await expect(page.locator("#path .ptb-t")).toHaveText("Settings");
 }
 const withKey = withCourse ? test : test.skip;
 /** The box of `loc` once it stands still (a page slides in). */
@@ -46,7 +46,7 @@ withKey("Settings on the Path: the Magic Key has its own page, which says what i
   await expect(page.locator(".ppage")).toContainText("a phrase that unlocks the definitions");   // what the key is, where it is entered
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await page.goBack();   // Back closes the page, not Settings
-  await expect(page.locator(".ppage .ptitle")).toHaveText("Settings");
+  await expect(page.locator("#path .ptb-t")).toHaveText("Settings");
 });
 
 plain("without the key, the Magic Key page takes it in its own field, and Settings stays open; the top bar's chevron is the way back", async ({ page }) => {
@@ -75,7 +75,7 @@ plain("without the key, the Magic Key page takes it in its own field, and Settin
     await plainExpect(page.locator("#path .ptb-t")).toHaveText("Magic Key");   // still on its page
   }
   await page.getByRole("button", { name: "Back to Settings", exact: true }).click();
-  await plainExpect(page.locator(".ppage .ptitle")).toHaveText("Settings");
+  await plainExpect(page.locator("#path .ptb-t")).toHaveText("Settings");
   await page.getByRole("button", { name: "Back to the roadmap", exact: true }).click();
   await plainExpect(page.getByRole("dialog", { name: "Roadmap" })).toBeVisible();
 });

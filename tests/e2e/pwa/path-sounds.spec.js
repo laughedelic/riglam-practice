@@ -48,7 +48,7 @@ async function toResult(page) {
 async function openSettings(page) {
   await page.locator(".tstn").click();
   await page.locator(".road .rfoot").getByRole("button", { name: "Settings" }).click();
-  await expect(page.locator(".ppage .ptitle")).toHaveText("Settings");
+  await expect(page.locator("#path .ptb-t")).toHaveText("Settings");
 }
 const sounds = (page) => page.getByRole("switch", { name: "Sounds", exact: true });
 

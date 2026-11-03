@@ -53,8 +53,8 @@ async function installed(page) {
 /** The line of a version that waits, above the bottom (src/app/path/news.tsx): in an exercise above the next station, on the roadmap above its foot. */
 const footLine = (page) => page.locator("#path .lay .pinln.onfoot");
 const roadLine = (page) => roadmap(page).locator(".pinln.onroad");
-/** What's new as it opens: a page of Settings whose top bar says so. */
-const newsPage = (page) => page.locator("#path .ptb-t", { hasText: "What's new" });
+/** What's new as it opens: Settings' Version and updates page, which holds it under the update. */
+const newsPage = (page) => page.locator("#path .ptb-t", { hasText: "Version and updates" });
 
 test("a newer version is said on one line above the next stop, covering nothing; Update starts it and opens What's new", async ({ page }) => {
   await installed(page);
@@ -97,10 +97,11 @@ test("the line's words open What's new with what the newer version brings and Up
   await expect(line).toBeVisible();
   await line.getByRole("button", { name: "New version ready" }).click();
   await expect(newsPage(page)).toBeVisible();
+  await expect(page.locator(".ppage")).toContainText("A newer version is ready.");
   const soon = page.locator("#path .nwsoon");
-  await expect(soon).toContainText("A new version is ready");
+  await expect(soon).toContainText("In the new version");
   await expect(soon.locator(".nwi"), "the newer build's own item, said before the reload").toContainText(NEXT.title, { timeout: 10_000 });
-  await expect(soon.getByRole("button", { name: "Update now" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Update now" }), "the one Update, under the status").toHaveCount(1);
   expect(await isOld(page), "opening the page does not update").toBe(true);
   await page.locator("#path .ptb .tstn").click();   // back to the exercise
   await expect(footLine(page)).toBeVisible();
@@ -145,8 +146,8 @@ test("a start with something new not read shows What's new on the roadmap's line
   await page.locator("#path .ptb .tstn").click();
   await expect(roadmap(page)).toBeVisible();
   await expect(line).toHaveCount(0);
-  // and Settings keeps the page, under About
-  await openSettingsPage(page, "What's new");
+  // and Settings keeps the page, with the version, under About
+  await openSettingsPage(page, "Version and updates");
   await expect(page.locator("#path .nwi")).not.toHaveCount(0);
   await expect(page.locator("#path .nwi.new"), "nothing is new any more").toHaveCount(0);
 });
