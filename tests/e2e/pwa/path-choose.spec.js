@@ -2,6 +2,7 @@
 // thread turns solid and the mark fills (and in a list rises); two short options stand on one row (Pervasions at None guidance). The rules of the practice are the other specs'.
 import { test, expect } from "../../support/test.js";
 import { exerciseAtRest } from "../../support/page.js";
+import { giveKey } from "../../support/data-key.js";
 
 const onPath = () => {
   window.__vib = []; navigator.vibrate = (v) => { window.__vib.push(v); return true; };
@@ -173,4 +174,84 @@ test("with reduced motion, or the look's take set to lit, a choice is lit for a 
   await lit.locator("#path .chs .crow").nth(2).click();
   await expect(lit.locator("#path .chs .crow").nth(2)).toHaveClass(/picked/);
   await expect(lit.locator("#cin")).toBeVisible();
+});
+
+// Explain on a result is a choice beside the line like these (path/wait.tsx): a tap, or a finger sliding it left onto the line, takes it. A finger's slide is not
+// followed by a click (the browser drops the click of a touch that has moved), so the release itself takes it: past half way it snaps onto the line and Claude is
+// asked, short of it the mark goes back.
+const sse = (...events) => events.map((e) => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`).join("");
+const ANSWER = sse({ type: "delta", text: "this is the stand-in answer." }, { type: "done", truncated: false });
+/** A result with Explain on offer, and the list of what Claude was asked. */
+async function atExplain(page) {
+  await giveKey(page);
+  const asked = [];
+  await page.route("**/api/health", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, tutor: "on" }) }));
+  await page.route("**/api/tutor", (route) => { asked.push(route.request().postDataJSON()); return route.fulfill({ status: 200, contentType: "text/event-stream", body: ANSWER }); });
+  await page.goto("/");
+  await expect(choices(page)).toHaveCount(5);
+  await choices(page).first().click();
+  const field = page.locator("#cin");
+  await expect(field).toBeVisible();
+  for (let i = 0; i < 4 && (await field.isVisible()); i++) {
+    await field.fill("thing " + (i + 1));
+    if ((await field.getAttribute("enterkeyhint")) === "done") { await field.blur(); break; }
+    await field.press("Enter");
+  }
+  await page.locator("#stn").click();
+  await expect(page.locator(".pvline")).toBeVisible();
+  await expect(page.locator(".cwex .crow")).toContainText(/explain/i);
+  await page.evaluate(() => { window.__vib = []; });   // the knocks of the steps before are not the slide's
+  return asked;
+}
+/** A real touch (the browser's own: it drops the click of a touch that has moved, as on a phone) that starts at `x, y` and moves `dx` px in steps; `up` lets go. */
+async function touch(page, x, y, dx, { up = true, steps = 6 } = {}) {
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 1 });
+  const at = (px) => [{ x: px, y, id: 1 }];
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: at(x) });
+  for (let i = 1; i <= steps; i++) await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: at(x + (dx * i) / steps) });
+  if (up) await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  return cdp;
+}
+const markLeft = (page) => page.locator(".cwex .crow .mc").evaluate((m) => m.getBoundingClientRect().left);
+
+test("a finger sliding Explain onto the line snaps it there with a knock and asks Claude; the tap that follows a slide is not a second ask", async ({ page }) => {
+  const asked = await atExplain(page);
+  const row = page.locator(".cwex .crow"), b = await row.boundingBox(), y = b.y + b.height / 2, x = b.x + b.width / 2;
+  const rest = await markLeft(page);
+  const cdp = await touch(page, x, y, -30, { up: false });
+  await expect.poll(() => markLeft(page), { message: "the mark follows the finger to the line" }).toBeLessThan(rest - 20);
+  expect(await page.evaluate(() => window.__vib), "one knock where it reaches the line").toEqual([12]);
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await expect(page.locator(".cwex.taken")).toHaveCount(1);
+  await expect(page.locator(".wtext")).toContainText("this is the stand-in answer.");   // Claude was asked, once
+  expect(asked).toHaveLength(1);
+});
+
+test("a mouse that slides Explain a little and lets go does not take it with the click that follows; one that slides it onto the line does", async ({ page }) => {
+  const asked = await atExplain(page);
+  const row = page.locator(".cwex .crow"), b = await row.boundingBox(), y = b.y + b.height / 2, x = b.x + b.width / 2;
+  const rest = await markLeft(page);
+  await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x - 9, y, { steps: 3 }); await page.mouse.up();
+  await expect.poll(() => markLeft(page), { message: "it goes back" }).toBeGreaterThan(rest - 1);
+  await page.waitForTimeout(600);
+  expect(asked).toHaveLength(0);
+  await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x - 30, y, { steps: 5 }); await page.mouse.up();
+  await expect(page.locator(".wtext")).toContainText("this is the stand-in answer.");
+  expect(asked).toHaveLength(1);
+});
+
+test("a short slide of Explain goes back when the finger lets go, and asks nothing", async ({ page }) => {
+  const asked = await atExplain(page);
+  const row = page.locator(".cwex .crow"), b = await row.boundingBox(), y = b.y + b.height / 2, x = b.x + b.width / 2;
+  const rest = await markLeft(page);
+  await touch(page, x, y, -8);
+  await expect.poll(() => markLeft(page), { message: "it springs back to where it stood" }).toBeGreaterThan(rest - 1);
+  await page.waitForTimeout(600);
+  await expect(page.locator(".cwex.taken")).toHaveCount(0);
+  expect(asked).toHaveLength(0);
+  expect(await page.evaluate(() => window.__vib), "no knock short of the line").toEqual([]);
+  await row.click();   // a tap still takes it
+  await expect(page.locator(".wtext")).toContainText("this is the stand-in answer.");
+  expect(asked).toHaveLength(1);
 });

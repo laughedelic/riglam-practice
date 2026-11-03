@@ -4,6 +4,7 @@
 // asked, is a choice beside the line: a tap, or a finger sliding it left, takes it onto the line, and it becomes this stop.
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { state } from "../state.js";
+import { bump } from "./gesture.ts";
 import { askTutor, needsKey, u0 } from "./parts.tsx";
 import { currentLook } from "./look.ts";
 import { D } from "./ui.tsx";
@@ -61,21 +62,27 @@ export function WaitStop() {
     <button type="button" class="pbtn quiet" onClick={() => u.ctl && u.ctl.abort()}>Stop</button></div> : null}</div>;
 }
 
+/** A slide shorter than this (px) is a tap that moved a little: the tap takes it. */
+const SLIDE_MIN = 6;
 /**
  * Explain as a choice (when Claude explains only when asked): Claude's hollow diamond beside the line, the words after it. A tap, or a finger sliding it left,
- * takes it onto the line, and then the wait begins there and goes down to its stop over the station. `name`: what it says (Check & explain, Explain, ...).
- * With `go` it is another action of Claude's that leaves the page (Ask a follow-up opens the chat): taken, it goes onto the line and `go` runs, in place of the
- * wait; `hint` is what it says under its name.
+ * takes it onto the line, and then the wait begins there and goes down to its stop over the station. A slide follows the finger to the line (it knocks where it
+ * reaches it); let go past half the way, the mark snaps onto the line and is taken, short of it, it goes back. The lift itself takes it: a finger that has moved
+ * is not followed by a click (the browser drops the click of a touch that has moved), and the click that does follow a mouse's slide is ignored.
+ * `name`: what it says (Check & explain, Explain, ...). With `go` it is another action of Claude's that leaves the page (Ask a follow-up opens the chat): taken,
+ * it goes onto the line and `go` runs, in place of the wait; `hint` is what it says under its name.
  */
 export function ExplainChoice({ name, hint, go }: { name: string; hint?: string; go?: () => void }) {
-  const [dx, setDx] = useState(0), [taking, setTaking] = useState(false), from = useRef<number | null>(null), me = useRef<HTMLButtonElement>(null), once = useRef(false), timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const [dx, setDx] = useState(0), [taking, setTaking] = useState(false), me = useRef<HTMLButtonElement>(null), once = useRef(false), timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  /** the slide in hand: where the finger began, how far the mark is from where it stood (≤ 0) and how far it can go, whether it has moved enough to be a slide, and whether it is on the line now */
+  const from = useRef<{ x: number; d: number; reach: number; slid: boolean; on: boolean } | null>(null), hush = useRef(0);
   const beside = currentLook().take === "slide", key = needsKey();
   useEffect(() => () => clearTimeout(timer.current), []);
-  // the release that ends a slide is also the row's click, which takes it; it is taken for the answer on screen now, and goes nowhere if that has changed by then
-  const take = () => {
+  // `knock`: the mark lands on the line now, without having felt the line under the finger on its way
+  const take = (knock = false) => {
     if (once.current) return;
     const u = u0(), focus = document.activeElement === me.current;
-    once.current = true; setTaking(true); setDx(0);
+    once.current = true; setTaking(true); setDx(0); if (knock) bump();
     timer.current = setTimeout(() => {
       if (state.ui === u) {
         if (go) go();
@@ -84,14 +91,31 @@ export function ExplainChoice({ name, hint, go }: { name: string; hint?: string;
       once.current = false; setTaking(false);
     }, beside ? 420 : 0);
   };
+  // a tap is the row's click; the click that comes after a slide is not a second take
+  const click = (e: MouseEvent) => { if (performance.now() < hush.current) { e.preventDefault(); e.stopPropagation(); return; } take(); };
   const drag = beside && !taking ? {
-    onPointerDown: (e: PointerEvent) => { from.current = e.clientX; try { (e.currentTarget as Element).setPointerCapture(e.pointerId); } catch { /* gone */ } },
-    onPointerMove: (e: PointerEvent) => { if (from.current !== null && e.buttons) setDx(Math.max(-22, Math.min(0, e.clientX - from.current))); },
-    onPointerUp: () => { from.current = null; },
-    onPointerCancel: () => { from.current = null; setDx(0); },
+    onPointerDown: (e: PointerEvent) => {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      const reach = parseFloat(me.current ? getComputedStyle(me.current).getPropertyValue("--cox") : "") || 22;
+      from.current = { x: e.clientX, d: 0, reach, slid: false, on: false };
+      try { (e.currentTarget as Element).setPointerCapture(e.pointerId); } catch { /* gone */ }
+    },
+    onPointerMove: (e: PointerEvent) => {
+      const s = from.current; if (!s || !e.buttons) return;
+      s.d = Math.max(-s.reach, Math.min(0, e.clientX - s.x)); setDx(s.d);
+      if (s.d <= -SLIDE_MIN) s.slid = true;
+      // it knocks each time it reaches the line; slid a little back off it and onto it again, it knocks again (as the choices do, choose.ts)
+      if (!s.on && s.d <= -s.reach * 0.98) { s.on = true; bump(); } else if (s.on && s.d > -s.reach * 0.85) s.on = false;
+    },
+    onPointerUp: () => {
+      const s = from.current; from.current = null; if (!s || !s.slid) return;
+      hush.current = performance.now() + 150;
+      if (s.d <= -s.reach / 2) take(!s.on); else setDx(0);
+    },
+    onPointerCancel: () => { const s = from.current; from.current = null; if (s && s.d) setDx(0); },
   } : {};
   return <section class={"sx walked cwex" + (taking ? " taken" : "") + (dx ? " drag" : "")}>
-    <div class={"chs" + (beside ? " slide" : "")}><button type="button" ref={me} class="crow" style={{ "--dx": dx + "px" } as never} onClick={take} {...drag}>
+    <div class={"chs" + (beside ? " slide" : "")}><button type="button" ref={me} class="crow" style={{ "--dx": dx + "px" } as never} onClick={click} {...drag}>
       <span class="mc"><D cls="sub tut" /></span><span class="ct"><b>{name}</b><small>{hint || (key ? "needs the Magic Key" : "Using Claude")}</small></span>
     </button></div></section>;
 }
