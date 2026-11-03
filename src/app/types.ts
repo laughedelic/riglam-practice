@@ -595,6 +595,10 @@ export interface VoiceState {
   answer: "off" | "tap" | "auto";
   /** a heard answer waits for Yes, goes on by itself after a pause, or by what the mode is: it waits when the mic is tapped and goes on in Hands-free */
   confirm: "split" | "wait" | "auto";
+  /** Hands-free listens at a result for "next", "explain" and "stop" (`rd-voice-result`; off by default) */
+  atResult: boolean;
+  /** an explanation was asked at the result on screen and is being written: the microphone waits for it */
+  explWait: boolean;
   /** the field is held down for hold to talk (longer than a tap) */
   hold: boolean;
   /** the press on the field now: when it began, whether it was listening already (a press then stops it), whether it has lasted longer than a tap, which pointer it is, and whether an answer waited (a tap is Yes) and was going on by itself (the touch then only holds it) */

@@ -106,7 +106,7 @@ export function voiceAfterRender(){
   if(!enabled()) return;
   syncSoon();
   const v=state.voice, a=asked(), key=a?a.key:"";
-  if(key===v.key) return;
+  if(key===v.key){ explainWatch(a); return; }
   v.key=key; quiet();
   if(v.paused&&!handsFree()) v.paused=false;       // a pause belongs to Hands-free: another exercise with its own Answer setting does not inherit it
   // The first question the app shows is neither read nor listened to: people look around first, and start by tapping the
@@ -123,6 +123,16 @@ export function voiceAfterRender(){
   else if(a&&reading()) say(a,a.say,true);
   else if(a&&ongoing()) listenAuto(a);
   else paint();
+}
+// While Claude writes an explanation of the result on screen the microphone is closed (what is said meanwhile would be read against a screen that is about to change);
+// once the explanation is there it opens again, for its two stretches, so that "next" can be said after reading.
+function explainWatch(a){
+  const v=state.voice, u=state.ui;
+  if(!a||a.kind!=="result"||!u){ v.explWait=false; return; }
+  if(u.ctl){ if(!v.explWait){ v.explWait=true; if(v.phase==="listening"){ quiet(); paint(); } } return; }
+  if(!v.explWait) return;
+  v.explWait=false; v.tries=0; v.note="";
+  if(ongoing()&&listensAtResult()) listenAuto(a,true,RESULT_OPEN); else paint();
 }
 // stop speaking and listening; a callback of what was stopped finds its token gone and does nothing
 function quiet(){
@@ -278,8 +288,11 @@ const tick=()=>{ if(handsFree()) cue("knock",{soft:true}); };
 const PAUSED="Paused. Tap the field to go on.";
 function startResult(a){
   offerNext(a,!!a.auto);
-  listenAuto(a,true,RESULT_OPEN);        // after the sound of the result is over; the bar goes on while the microphone listens
+  if(listensAtResult()) listenAuto(a,true,RESULT_OPEN);        // after the sound of the result is over; the bar goes on while the microphone listens
+  else paint();
 }
+/** Hands-free listens at a result only where "Listen at the result" is on (off by default: the result is read, and a tap goes on). */
+const listensAtResult=()=>!!state.voice.atResult;
 /** The result waits to be left, as an answer waits for Yes; `auto`: it goes on after a bar. */
 function offerNext(a,auto){
   const v=state.voice;
@@ -321,9 +334,8 @@ function explainNow(a){
   freezePend(); v.tries=0;
   if(!canAsk()&&!needsKey()){ v.note="Claude is not available here."; v.bad=false; if(ongoing()) hear(a,true,false,true); else paint(); return; }
   v.note=""; v.bad=false;
-  askTutor();
+  askTutor();       // the microphone stays closed while Claude writes, and opens again once the explanation is there (voiceAfterRender)
   paint();
-  if(ongoing()) hear(a,false,false,true);
 }
 // "repeat" or "again": the question is read once more (with Read aloud on)
 function commandRepeat(a){
@@ -590,7 +602,7 @@ export const readShown=()=>{ const a=asked(); return enabled()&&!state.voice.hus
 /** The soft keyboard is not to rise over the field: a touch screen with the microphone field on it (shell/render.js, focusCin: a case that ran out of time). */
 export const keysStayDown=()=>micShown()&&typeof matchMedia==="function"&&matchMedia("(pointer: coarse)").matches;
 /** The microphone field is shown: Answer by voice is on, on a screen that asks something. */
-export const micShown=()=>enabled()&&!!asked()&&hearing();
+export const micShown=()=>{ const a=asked(); return enabled()&&!!a&&hearing()&&!(a.kind==="result"&&!listensAtResult()&&!a.auto); };       // (a result that goes on by itself keeps the stop for its bar)
 // what the field shows: it listens, it is reading, an answer waits for Yes, an answer is going on by itself, or it is at rest
 const fieldState=()=>{ const v=state.voice, p=v.pend&&!v.pend.result?v.pend:null; return v.phase==="listening"?"listen":p?(p.auto?"going":"heard"):v.phase==="speaking"?"read":"idle"; };
 // the speaker at the right end of the stop's row, which says the question again
@@ -618,7 +630,7 @@ function micNode(){
   const icon=yes?iconSvg("check","vok"):st==="listen"?el("span",{class:"vsq"}):w?null:iconSvg("mic");
   kids.push(el("div",{class:"vg"},icon,ring?ringSvg(p.auto):null));
   // two lines that keep their place in every state: the first says what is (the prompt, then the words as they are heard), the second names a gesture only where it is new or in use
-  const hint=yes?"tap to confirm":st==="listen"?(v.hold?"‹ slide to cancel":""):!w&&!v.tried?"tap, or hold to talk":"";
+  const hint=yes?"tap to confirm":st==="going"?"tap to retry":st==="listen"?(v.hold?"‹ slide to cancel":""):!w&&!v.tried?"tap, or hold to talk":"";
   const line1=w?el("div",{class:"vwhat",role:"status","aria-live":"polite"},el("b",{text:w.label}))
     :text?el("div",{class:stClass(),id:"vlive",role:"status","aria-live":"polite",text})
     :el("div",{class:"vlab",text:res?resultShort(a):"Say your answer"});
@@ -626,7 +638,7 @@ function micNode(){
   const line2=w&&text?el("div",{class:stClass(),id:"vlive",role:"status","aria-live":"polite",text})
     :el("div",{class:"vsub"},hint?el("span",{class:"vhint",text:hint}):null);
   kids.push(el("div",{class:"vtx"+(w?" vtake":"")},line1,line2));
-  const label=res?(st==="listen"?"Listening. "+resultWords(a)+". Tap to finish.":"Answer by voice. "+resultWords(a)+". Tap, or hold to talk."):st==="heard"?"Yes, go on with "+p.label+". Hold to say it again.":st==="going"?"Going on with "+p.label+". Touch to hold it.":st==="listen"?(v.hold?"Listening while you hold. Let go to send.":"Listening. Tap to finish."):"Answer by voice. Tap, or hold to talk.";
+  const label=res?(st==="listen"?"Listening. "+resultWords(a)+". Tap to finish.":"Answer by voice. "+resultWords(a)+". Tap, or hold to talk."):st==="heard"?"Yes, go on with "+p.label+". Hold to say it again.":st==="going"?"Going on with "+p.label+". Tap to say it again.":st==="listen"?(v.hold?"Listening while you hold. Let go to send.":"Listening. Tap to finish."):"Answer by voice. Tap, or hold to talk.";
   const n=el("div",{class:"vmic"+(w?" pend":""),id:"vmic",role:"button",tabindex:"0","data-quiet":"1","aria-label":label,"aria-pressed":st==="listen"?"true":"false",title:st==="idle"&&a?(a.hint||HINT[a.kind](a)):null,
     onpointerdown:micDown,onclick:micClick,onkeydown:micKey,oncontextmenu:e=>e.preventDefault()},kids);
   return n;
@@ -646,7 +658,7 @@ export function voiceField(){
   const v=state.voice, st=fieldState(), top=topNode();
   const more=el("button",{type:"button",class:"vmorebtn","data-quiet":"1",onclick:scrollMore},el("span",{text:"More below"}),iconSvg("down"));
   // at a result Hands-free keeps listening (in stretches, with short gaps between them): the stop stays on the thread until it has rested or the run is paused
-  const on=st==="listen"||(mic&&!!v.pend&&v.pend.result&&ongoing()&&v.tries<2);
+  const on=st==="listen"||(mic&&!!v.pend&&v.pend.result&&ongoing()&&listensAtResult()&&!v.explWait&&v.tries<2);
   return el("div",{class:"vfield"+(mic?"":" nomic")+(on?" on":"")+(st==="listen"&&v.live?" speech":"")+(v.hold?" hold":"")+(moreBelow()?" more":""),id:"vfield","data-s":st},
     el("div",{class:"vtopc"},top),mic?micNode():null,more,el("div",{class:"vsr",role:"status","aria-live":"polite",text:srText()}));
 }
@@ -712,8 +724,9 @@ function micDown(ev){
   if(v.pend&&v.pend.result) freezePend();      // at a result a touch listens, as anywhere: the station goes on (a bar that runs stops, the result stays)
   const waits=!!v.pend&&!v.pend.result, wasAuto=waits&&!!v.pend.auto;
   if(waits&&v.phase==="listening") quiet();             // the mic that listens for "yes" gives way to the tap (Hands-free, waiting for Yes)
-  const p=v.press={t0:performance.now(),was:!waits&&v.phase==="listening",long:/** @type {boolean} */(false),tid:null,pid:ev.pointerId,yes:waits,auto:wasAuto,x0:ev.clientX,dx:0};
-  if(waits) freezePend();                    // a touch holds the bar that runs; the answer then waits for Yes
+  // where the answer goes on by itself a touch is a retry: the bar stops and the microphone listens for another answer (what was heard waits for Yes until one is taken)
+  const p=v.press={t0:performance.now(),was:!waits&&v.phase==="listening",long:/** @type {boolean} */(false),tid:null,pid:ev.pointerId,yes:waits&&!wasAuto,auto:wasAuto,x0:ev.clientX,dx:0};
+  if(p.yes) freezePend();                    // where an answer waits for Yes a tap is Yes, and a hold says another
   else if(!p.was) hear(a,false,true);
   p.tid=setTimeout(()=>{ if(v.press!==p) return; p.long=true; if(p.yes){ p.yes=false; hear(a,false,true); } v.hold=!p.was; paint(); },HOLD_MS);
   paint();
@@ -845,13 +858,13 @@ document.addEventListener("visibilitychange",()=>{ if(document.hidden&&enabled()
 /* ---------- the Voice choices of the Practice options (drawn by the Path: path/options.tsx) and the Voice row of Settings (path/settings.tsx) ---------- */
 export const SAMPLE="Do you accept that if it is a product, it follows it is a functional thing?";
 export const RATES=[[0.85,"Slow"],[1,"Normal"],[1.25,"Fast"]];
-const KEYS={read:"rd-voice-read",answer:"rd-voice-answer",confirm:"rd-voice-confirm",voiceId:"rd-voice-name",rate:"rd-voice-rate"};
+const KEYS={read:"rd-voice-read",answer:"rd-voice-answer",confirm:"rd-voice-confirm",atResult:"rd-voice-result",voiceId:"rd-voice-name",rate:"rd-voice-rate"};
 export function setVoice(k,val){
   const v=state.voice;
   v[k]=val;
   if(k==="read"&&val) v.muted=false;
   if(k==="answer"&&v.paused){ v.paused=false; if(!v.pend) letGo("fresh"); }
-  try{ localStorage.setItem(KEYS[k],k==="read"?(val?"1":"0"):String(val)); }catch(e){}
+  try{ localStorage.setItem(KEYS[k],k==="read"||k==="atResult"?(val?"1":"0"):String(val)); }catch(e){}
   if(k==="read"||k==="answer") keepOwn(k,val);   // each exercise keeps its own (practice/per-exercise.ts)
   render();
   if((k==="read"&&val)||k==="voiceId"||k==="rate") speak(SAMPLE,{voice:v.voiceId,rate:v.rate});
@@ -899,9 +912,11 @@ export const ANSWER_LEAD="Answer by voice makes the lower part of the screen a f
 export const READ_NOTE="The speaker beside the answer stop says it again; hold it, or press M, to pause the reading for this visit.";
 export const ANSWER_PICKS=[["off","Off","No microphone."],
   ["tap","Tap or hold","Tap the lower part of the screen, or press V, and say the answer; or hold it and talk, and let go to send."],
-  ["auto","Hands-free","Listens by itself after each question is read, and goes on by itself after a short bar. The result stays until you say “next” (in Sprint it goes on after 3 seconds); “explain”, “repeat”, “skip” and “stop” work too."]];
+  ["auto","Hands-free","Listens by itself after each question is read, and goes on by itself after a short bar. The result stays until you go on (in Sprint it goes on after 3 seconds); with Listen at the result, say “next”, “explain” or “stop” there. “Repeat” and “skip” work too."]];
 export const CONFIRM_PICKS=[["split","Wait in tap mode, go on in Hands-free","Tapping the field waits for Yes (tap it again). Hands-free goes on by itself after a bar of 2.5 seconds (1.5 in Sprint)."],
   ["wait","Always wait for Yes","Tap, Enter or “yes”; hold to say it again (or Escape, or “no”)."],
   ["auto","Always go on by itself","After the bar. Saying “back” or “no”, or Escape, takes it back for a few seconds."]];
+export const RESULT_PICKS=[["off","Leave the result to taps","The microphone rests at the result: read it, then tap the station to go on. In Sprint the result still goes on by itself after its bar."],
+  ["on","Listen at the result","The microphone stays open at the result for “next”, “explain” or “stop”; after an explanation it opens again once the explanation is there."]];
 export const VOICE_SAY="Say Accept or Why? (with the example), the relation by name or as written under the option, or an example; “nothing” leaves a cell empty. In Syllogisms say “I accept”, “the reason is not established” or “there is no pervasion”, then a counter-example or “skip”; in Categories the categories the thing is in (“a color and a shape”, or their numbers, or “none of these”), or yes or no to each; in Find a pair two phenomena (“wood and fire”); in Find an instance a thing, or “nothing”. "+
   "In Hands-free also say “next”, “explain”, “repeat”, “skip this pair” or “stop”. The Sprint clock stops while a question is read and while an answer waits. Chrome sends the audio to Google to turn it into text; the app records nothing and keeps only the answer, as if typed.";

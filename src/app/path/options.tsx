@@ -16,7 +16,7 @@ import { progressNow } from "../practice/stage-offer.ts";
 import { toggleOpts } from "../shell/options.js";
 import { SYMS, openPage, quorumNote, setAutoExplain, setNota, setShow, setSyllogismWording, setWording, toggleSess } from "../shell/session.js";
 import { kindMs, setBlitz, setTimer } from "../shell/timers.js";
-import { ANSWER_PICKS, CONFIRM_PICKS, RATES, ANSWER_LEAD, READ_LEAD, READ_NOTE, SAMPLE, VOICE_SAY, WHERE, hookVoices, setVoice, voiceGroups, voiceShown } from "../shell/voice.js";
+import { ANSWER_PICKS, CONFIRM_PICKS, RESULT_PICKS, RATES, ANSWER_LEAD, READ_LEAD, READ_NOTE, SAMPLE, VOICE_SAY, WHERE, hookVoices, setVoice, voiceGroups, voiceShown } from "../shell/voice.js";
 import { GUIDANCE, LADDER_TOP, guideSteps } from "../../domain/stages.ts";
 import type { Guidance } from "../../domain/stages.ts";
 import { type TimeKind, timesOf } from "../../domain/sprint.ts";
@@ -194,6 +194,8 @@ function AnswerPage() {
     {(ANSWER_PICKS as [string, string, string][]).filter(([k]) => k !== "off").map(([, n, d]) => <p class="psub"><b>{n}.</b> {d}</p>)}
     <p class="glab">After an answer is heard</p>
     <Picks label="After an answer is heard" cur={v.confirm} on={(k) => setVoice("confirm", k)} items={CONFIRM_PICKS as [string, string, string][]} />
+    <p class="glab">At the result, in Hands-free</p>
+    <Picks label="At the result, in Hands-free" cur={v.atResult ? "on" : "off"} on={(k) => setVoice("atResult", k === "on")} items={RESULT_PICKS as [string, string, string][]} />
     <p class="glab">What you can say</p>
     <p class="psub">{VOICE_SAY}</p>
     <p class="pnoteline pnote3">{WHERE}</p>

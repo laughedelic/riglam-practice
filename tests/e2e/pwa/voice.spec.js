@@ -502,28 +502,36 @@ test("\"Always go on by itself\": the answer shows a running bar of 2.5 s, goes 
   await expect(waiting(page)).toHaveCount(0);
 });
 
-test("a touch on the field while the bar runs holds it: the answer then waits for Yes; holding the field says another answer, which replaces it", async ({ page }) => {
+test("a tap on the field while the bar runs is a retry: the bar stops and it listens for another answer, which replaces the one heard", async ({ page }) => {
   await voice(page, { settings: { answer: "tap", confirm: "auto" } });
   await page.goto("/");
   await ready(page);
   await hear(page, "four possibilities");
   await expect(page.locator("#vfuse, #vfield .vring")).toBeVisible();
-  await mic(page).click();   // the touch holds the bar: it does not go on
-  await expect(page.locator("#vfuse, #vfield .vring")).toHaveCount(0);
-  await expect(page.locator("#vfield")).toHaveAttribute("data-s", "heard");   // what was heard waits for Yes now
-  await expect(page.locator("#vfield .vhint")).toHaveText("tap to confirm");
+  await expect(page.locator("#vfield .vhint")).toHaveText("tap to retry");
+  await hearNext(page, "three possibilities, A in B");
+  await mic(page).click();   // the tap stops the bar and listens again
+  await expect(page.locator("#vfield .vwhat b")).toHaveText("Three possibilities, A in B", { timeout: 5000 });   // the new answer replaces the old
+  await expect(page.locator("#vfuse, #vfield .vring")).toBeVisible();   // and the bar runs again for it
+  await expect(page.locator("#cin")).toBeVisible({ timeout: 4000 });
+  await expect(page.locator("#path .pstrip")).toContainText("Three possibilities, A in B");
+});
+
+test("a retry that hears nothing leaves the answer waiting for Yes", async ({ page }) => {
+  await voice(page, { settings: { answer: "tap", confirm: "auto" } });
+  await page.goto("/");
+  await ready(page);
+  await hear(page, "four possibilities");
+  await expect(page.locator("#vfuse, #vfield .vring")).toBeVisible();
+  await mic(page).click();   // a retry; the recognizer hears nothing
+  await settle(page);
+  await expect(page.locator("#vfield")).toHaveAttribute("data-s", "heard");
+  await expect(page.locator("#vfield .vst")).toHaveText("Didn’t catch that.");   // said in place of the hint
+  await expect(page.locator("#vfield .vg svg.vok")).toHaveCount(1);   // and the check says a tap is Yes
   await page.waitForTimeout(2900);   // longer than the bar
   await expect(page.locator("#cin")).toHaveCount(0);   // it did not go on
-  // a hold says another answer: it is listened for while the finger is down, and replaces the one that waited
-  const b = await boxOf(mic(page));
-  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
-  await page.mouse.down();
-  await listening(page);
-  await hearNext(page, "three possibilities, A in B");
-  await expect(page.locator("#vfield .vst")).toHaveText("three possibilities, A in B");
-  await page.mouse.up();
-  await expect(page.locator("#vfield .vwhat b")).toHaveText("Three possibilities, A in B");
-  await expect(page.locator("#vfuse, #vfield .vring")).toBeVisible();   // the bar runs again for the new answer
+  await confirm(page);
+  await expect(page.locator("#cin")).toBeVisible();
 });
 
 test("an answer that waits: a tap on the field is Yes, and Enter is too", async ({ page }) => {
