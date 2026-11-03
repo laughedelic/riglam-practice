@@ -2,7 +2,7 @@
 // pinned above the bottom: above the stage rings on the roadmap, and on the thread above the next station in an exercise, where Claude's waiting line stands (Claude's
 // line, while Claude is at work, keeps the row). Its Update reloads the app, and the start after that opens What's new, the learner's list of what changed (../news.ts):
 // only after that tap, never unasked. A start that took a new version without it (a cold start) shows "What's new" on the roadmap's line instead, until it is read.
-// The page is in Settings too, under About. The device keeps the newest item it has shown (`rd-news-seen`); a device that has shown none starts from the newest,
+// The page is Settings' Version and updates, under About, which holds the update itself. The device keeps the newest item it has shown (`rd-news-seen`); a device that has shown none starts from the newest,
 // so a first start shows no backlog. While the device's storage does not answer, its line (path/storage.tsx) takes the place of these.
 import { state } from "../state.js";
 import { render } from "../shell/render.js";
@@ -10,6 +10,7 @@ import { setTab } from "../shell/tabs.js";
 import { toggleOpts } from "../shell/options.js";
 import { NEWS, newsSince, buildWords, buildLine, comingNews, type NewsGo, type NewsItem } from "../news.ts";
 import { u0 } from "./parts.tsx";
+import { Group } from "./lines.tsx";
 import { PinLine } from "./pin.tsx";
 import { StoragePin, storageStuck } from "./storage.tsx";
 
@@ -30,7 +31,7 @@ export function updateNow(): void {
 }
 
 /**
- * Opens What's new as a page of Settings. `direct`: from the roadmap's line or after an update, so its way back goes where it was opened from, not to the
+ * Opens What's new, which is on Settings' Version and updates page. `direct`: from the roadmap's line or after an update, so its way back goes where it was opened from, not to the
  * Settings list. The items not shown before are marked new on the page, and are shown from now on.
  */
 export function openNews(direct: boolean, arrive = false): void {
@@ -39,7 +40,7 @@ export function openNews(direct: boolean, arrive = false): void {
   state.newsDirect = direct;
   state.newsArrive = arrive;
   if (direct) { state.fromRoad = state.menuOpen; state.menuOpen = false; state.sessOpen = false; state.sessPage = null; state.skipAsk = false; }
-  state.optsPage = "news";
+  state.optsPage = "ver";
   if (state.optsOpen) render(); else toggleOpts(true);
 }
 
@@ -100,7 +101,7 @@ function go(to: NewsGo) {
 
 const PR_URL = "https://github.com/laughedelic/riglam-practice/pull/";
 
-/** The page: a version that waits first, with what it brings and Update now; then the items new on this device, marked, then the earlier ones; each a stop on a thread. */
+/** What the Version and updates page says under its status: what a version that waits brings, the pull requests of a Preview, then the items new on this device, marked, then the earlier ones; each a stop on a thread. The update itself is the status above it. */
 export function NewsPage() {
   const fresh = new Set(newsSince(state.newsSince).map((n) => n.id));
   let i = 0;
@@ -129,17 +130,17 @@ export function NewsPage() {
   </> : null;
   const soon = ready() ? comingNews(state.updates?.coming?.()?.news) : [];
   return <>
-    {ready() ? <div class="nwsoon">
-      <p class="nwst">{state.preview ? readyWords() : "A new version is ready"}</p>
+    {ready() && (soon.length || state.preview) ? <div class="nwsoon">
+      <p class="nwst">{state.preview ? readyWords() : "In the new version"}</p>
       {soon.length ? <ul class="nwl soon">{soon.map((n) => <li class="nwi" key={n.id}>
         <span class="nwd" aria-hidden="true" />
         <div class="nwb"><p class="nwt">{n.title}</p><p class="nwx">{n.text}</p></div>
       </li>)}</ul> : null}
-      <p class="nwsx">Updating reloads the app; your answers stay.</p>
-      <button type="button" class="pbtn" onClick={updateNow}>Update now</button>
     </div> : null}
     {prList}
-    <p class="sintro">What changed in the app lately, newest first.</p>
-    <ul class="nwl">{NEWS.map(item)}</ul>
+    <Group name="What's new">
+      <p class="sintro">What changed in the app lately, newest first.</p>
+      <ul class="nwl">{NEWS.map(item)}</ul>
+    </Group>
   </>;
 }

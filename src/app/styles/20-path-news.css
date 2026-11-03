@@ -33,14 +33,12 @@
 .pa .nwtag{margin-left:8px; font-family:var(--mono); font-size:10.5px; font-weight:400; letter-spacing:.04em; color:var(--gold-t)}
 .pa .nwx{margin-top:2px; font-size:15px; line-height:1.45; color:var(--ink2)}
 
-/* a version that waits, at the top of the page: what it brings, beside the thread (not on it yet), and Update now */
+/* a version that waits, under the status on the Version and updates page: what it brings, beside the thread (not on it yet) */
 .pa .nwsoon{margin:6px 0 18px; padding:0 0 14px; border-bottom:1px solid var(--rule)}
 .pa .nwst{margin:0 16px 0 calc(var(--m) + 14px); font-family:var(--mono); font-size:12px; color:var(--gold-t)}
 .pa .nwl.soon::before{display:none}
 .pa .nwl.soon .nwi{transform:translateX(18px)}
 .pa .nwl.soon .nwd{border-color:var(--gold); border-style:dashed}
-.pa .nwsx{margin:0 16px 0 calc(var(--m) + 14px); font-size:14px; color:var(--ink2)}
-.pa .nwsoon > .pbtn{margin-left:calc(var(--m) + 14px)}
 /* after Update: the items it brought come in from beside the thread as they stood above, snap onto it, and slide up into their places; their diamonds fill */
 @media (prefers-reduced-motion:no-preference){
   .pa .nwi.arrive{animation:nw-in .7s cubic-bezier(.3,.8,.3,1) calc(.25s + var(--i,0) * .12s) both}

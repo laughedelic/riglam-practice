@@ -1,7 +1,7 @@
 // Settings on the Path (the Design Lab's "Settings and options", round 3): full width, in sections of lines (path/lines.tsx), and a page of its own for a
 // line that needs one. General: the languages and the theme. Data: the Magic Key, the account, sharing the examples, export and import. Experiments,
-// shown only in a Preview, or in the real app on a device with the Magic Key after a hold on Version: voice, the lab's settings. About: what the app is and
-// how to reach its author, the version and what's new, the licenses, and what it does with your data (path/about.tsx). What each does is shell/options.js's and the shared rows of src/ui's, which the Path builds in its own classes.
+// shown only in a Preview, or in the real app on a device with the Magic Key after a hold on Version: voice, the lab's settings. About: the version
+// and updates (with What's new), what the app is and how to reach its author, and the licenses (path/about.tsx); what it does with your data is on Your data. What each does is shell/options.js's and the shared rows of src/ui's, which the Path builds in its own classes.
 import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { state } from "../state.js";
 import { accountControls } from "../../ui/account";
@@ -23,12 +23,14 @@ import { Group, Intro, Line } from "./lines.tsx";
 import { Bridge, Words, NOFILL } from "./ui.tsx";
 import { NewsPage, openNews, unseen, updateNow } from "./news.tsx";
 import { StorageNote, dataLine, storageStuck } from "./storage.tsx";
-import { AboutPage, LicensesPage, PrivacyPage } from "./about.tsx";
+import { AboutPage, LicensesPage, PrivacyGroup } from "./about.tsx";
 
 /** The pages of Settings, by the names of their lines. */
-const TITLES: Record<string, string> = { langs: "Languages", key: "Magic Key", acct: "Account", share: "Sharing examples", xfer: "Your data", lab: "The lab's settings", ver: "Version and updates", news: "What's new", about: "About RIGLAM", lic: "Licenses", priv: "Privacy" };
+const TITLES: Record<string, string> = { langs: "Languages", key: "Magic Key", acct: "Account", share: "Sharing examples", xfer: "Your data", lab: "The lab's settings", ver: "Version and updates", about: "About RIGLAM practice", lic: "Licenses" };
 const open = (id: string) => { state.optsPage = id; render(); const b = document.querySelector<HTMLElement>("#path .ptb .tstn"); if (b) b.focus({ preventScroll: true }); };
 const back = () => { state.optsPage = null; render(); };
+/** Version and updates opens through What's new's own door: what this device had not seen is marked new on the page, and counts as seen from now on. */
+const showVersion = () => { openNews(false); const b = document.querySelector<HTMLElement>("#path .ptb .tstn"); if (b) b.focus({ preventScroll: true }); };
 // how long Version is held to show Experiments
 const HOLD_MS = 1500;
 
@@ -127,14 +129,17 @@ const Holder = ({ intro, children }: { intro?: string; children?: preact.Compone
   {intro ? <Intro>{intro}</Intro> : null}
   <div class="ol"><span class="olsw" /><span class="oltx"><span class="olbody">{children}</span></span><span /></div>
 </>;
-/** Version and updates: which build this is, where the update stands, and its one step. */
+/** Version and updates: which build this is, where the update stands and its one step, then what a newer version brings and What's new (path/news.tsx). */
 function VersionPage() {
-  const a = state.about; if (!a) return null;
+  const a = state.about; if (!a) return <NewsPage />;
   const i = aboutInfo(a), u = state.updates!;
-  return <Holder intro={i.line}>
-    <span class="pver">{i.from ? <p class="pnoteline">{i.from}</p> : null}<p class={"pnoteline" + (i.bad ? " bad" : "")} role="status">{i.status}</p></span>
-    <span class="olctl">{i.act === "update" ? <button type="button" class="pbtn" onClick={updateNow}>Update now</button> : i.act === "check" ? <button type="button" class="pbtn" onClick={() => u.check()}>Check for updates</button> : null}</span>
-  </Holder>;
+  return <>
+    <Holder intro={i.line}>
+      <span class="pver">{i.from ? <p class="pnoteline">{i.from}</p> : null}<p class={"pnoteline" + (i.bad ? " bad" : "")} role="status">{i.status}{i.act === "update" ? " Updating reloads the app; your answers stay." : ""}</p></span>
+      <span class="olctl">{i.act === "update" ? <button type="button" class="pbtn" onClick={updateNow}>Update now</button> : i.act === "check" ? <button type="button" class="pbtn" onClick={() => u.check()}>Check for updates</button> : null}</span>
+    </Holder>
+    <NewsPage />
+  </>;
 }
 function Page({ id }: { id: string }) {
   if (id === "langs") return <LanguagesPage />;
@@ -145,28 +150,26 @@ function Page({ id }: { id: string }) {
   if (id === "xfer") {
     // while the storage does not answer what the page reads is only what memory holds: a backup made now would be empty, so Export and import wait
     const note = StorageNote();
-    if (storageStuck()) return note;
-    const body = <Holder intro="Saves everything this device keeps (answers, debates, favorites, skipped pairs and these settings) in one file, as a backup or to move to another device. Importing adds what is missing and never deletes anything.">
-      <Bridge own cls="phost" fill={() => dataTransferControls(state.db!, pel, render, state.xfer)} /></Holder>;
-    return note ? <>{note}<Group name="Export and import">{body}</Group></> : body;
+    if (storageStuck()) return <>{note}<PrivacyGroup /></>;
+    return <>{note}
+      <Group name="Export and import"><Holder intro="Saves everything this device keeps (answers, debates, favorites, skipped pairs and these settings) in one file, as a backup or to move to another device. Importing adds what is missing and never deletes anything.">
+        <Bridge own cls="phost" fill={() => dataTransferControls(state.db!, pel, render, state.xfer)} /></Holder></Group>
+      <PrivacyGroup /></>;
   }
   if (id === "lab") return <LabPage />;
   if (id === "ver") return <VersionPage />;
-  if (id === "news") return <NewsPage />;
   if (id === "about") return <AboutPage />;
   if (id === "lic") return <LicensesPage />;
-  if (id === "priv") return <PrivacyPage />;
   return null;
 }
 
-/** What What's new says in its line. */
-function newsLine() { const n = unseen().length; return n ? n + " new since you last looked" : "what changed in the app lately"; }
-/** What Version and updates says in its line: the version, and where the update stands. */
+/** What Version and updates says in its line: the version, where the update stands, and how many changes this device has not seen. */
 function verLine() {
   const a = state.about; if (!a) return "";
   const st = state.updates ? state.updates.status() : null;
   const where = st === "ready" ? "update ready" : st === "downloading" ? "downloading an update" : st === "checking" ? "checking" : st === "current" ? "up to date" : st === "unknown" ? "could not check" : a.latest === "newer" ? "a newer version is out" : a.latest === "current" ? "up to date" : "";
-  return [a.version, where].filter(Boolean).join(" · ");
+  const n = unseen().length;
+  return [a.version, where, n ? n + (n === 1 ? " new change" : " new changes") : ""].filter(Boolean).join(" · ");
 }
 /** What Account says in its line: who is signed in, and where the server copy stands. */
 function acctLine(v: ReturnType<NonNullable<typeof state.account>["view"]>) {
@@ -204,12 +207,10 @@ function Sections() {
       <Line title="The lab's settings" sub={labOwn() ? "this device's own" : "the defaults"} go={() => open("lab")} />
     </Group> : null}
     {state.about ? <Group name="About">
-      <Line title="About RIGLAM" sub="A personal project; feedback and source code" go={() => open("about")} />
-      <div {...press}><Line title="Version and updates" sub={verLine()} go={() => open("ver")}
+      <div {...press}><Line title="Version and updates" sub={verLine()} go={showVersion}
         act={u ? { label: "Check for updates", busy: u.status() === "checking", run: () => u.check() } : undefined} /></div>
-      <Line title="What's new" sub={newsLine()} go={() => openNews(false)} />
+      <Line title="About RIGLAM practice" sub="A personal project; feedback and source code" go={() => open("about")} />
       <Line title="Licenses" sub="The code, the fonts, the definitions" go={() => open("lic")} />
-      <Line title="Privacy" sub="What stays here and what the server keeps" go={() => open("priv")} />
     </Group> : null}
   </>;
 }
@@ -225,7 +226,7 @@ export function SettingsPage() {
     m.page = page;
   });
   // the top bar's chevron is the way back: from a page to Settings, from Settings (or the Magic Key page opened where the key is needed, or What's new opened from its line) to where it was opened from
-  const up = page && !from && !((page === "news" || page === "xfer") && state.newsDirect) ? { label: "Back to Settings", go: back } : { label: from ? KEY_BACK[from.back] : state.fromRoad ? "Back to the roadmap" : "Back to the exercise", go: () => toggleOpts(false) };
+  const up = page && !from && !((page === "ver" || page === "xfer") && state.newsDirect) ? { label: "Back to Settings", go: back } : { label: from ? KEY_BACK[from.back] : state.fromRoad ? "Back to the roadmap" : "Back to the exercise", go: () => toggleOpts(false) };
   return <>
     <TopBar title={page ? TITLES[page]! : "Settings"} back={up} />
     <div class="ppage sfull" onScroll={(e) => { if (!page) mem.current.y = (e.currentTarget as HTMLElement).scrollTop; }}>
