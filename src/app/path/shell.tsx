@@ -9,7 +9,7 @@ import { skipAsks, skipPair } from "../practice/skips.js";
 import { toRoad } from "../shell/menu.js";
 import { isEx } from "../shell/render.js";
 import { openBlitzOptions, sessBack, toggleSess } from "../shell/session.js";
-import { setHush, voiceField, voiceSwitchShown } from "../shell/voice.js";
+import { answerShown, setHush, voiceField, voiceSwitchShown } from "../shell/voice.js";
 import { Clock } from "./clock.tsx";
 import { Pull, SLIDE, bump } from "./gesture.ts";
 import type { ScanPlan } from "./scan.tsx";
@@ -49,7 +49,7 @@ export function TopBar({ title, tools = false, back }: TopBarProps) {
       <span class="spc" />
       {tools && !away && ex && voiceSwitchShown() ? <button type="button" class={"pib" + (state.voice.hush ? "" : " on")} role="switch" aria-checked={state.voice.hush ? "false" : "true"}
         aria-label={state.voice.hush ? "Voice off" : "Voice on"} title={state.voice.hush ? "Voice off: nothing is read or listened to" : "Voice on: tap to turn it off for now"}
-        onClick={() => setHush(!state.voice.hush)}><Icon n={state.voice.hush ? "micoff" : "mic"} /></button> : null}
+        onClick={() => setHush(!state.voice.hush)}><Icon n={(answerShown() && state.voice.answer !== "off" ? "mic" : "speak") + (state.voice.hush ? "off" : "")} /></button> : null}
       {tools && !away && ex ? <button type="button" class={"pib" + (state.blitz ? " on" : "")} role="switch" aria-checked={state.blitz ? "true" : "false"} aria-label={state.blitz ? "Sprint on (hold for the Sprint options)" : "Sprint off (hold for the Sprint options)"}
         onPointerDown={bzDown} onPointerUp={bzStop} onPointerLeave={bzStop} onPointerCancel={bzStop} onContextMenu={(ev) => ev.preventDefault()}
         onClick={() => { if (held.current) { held.current = false; return; } setBlitz(!state.blitz); }}><Icon n={state.blitz ? "blitz" : "blitzoff"} /></button> : null}

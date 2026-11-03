@@ -16,11 +16,11 @@ import { progressNow } from "../practice/stage-offer.ts";
 import { toggleOpts } from "../shell/options.js";
 import { SYMS, openPage, quorumNote, setAutoExplain, setNota, setShow, setSyllogismWording, setWording, toggleSess } from "../shell/session.js";
 import { kindMs, setBlitz, setTimer } from "../shell/timers.js";
-import { ANSWER_PICKS, CONFIRM_PICKS, RESULT_PICKS, RATES, ANSWER_LEAD, READ_LEAD, READ_NOTE, SAMPLE, VOICE_SAY, WHERE, hookVoices, setVoice, voiceGroups, voiceShown } from "../shell/voice.js";
+import { ANSWER_PICKS, CONFIRM_PICKS, RESULT_PICKS, RATES, ANSWER_LEAD, READ_LEAD, READ_NOTE, SAMPLE, VOICE_SAY, WHERE, answerShown, hookVoices, setVoice, voiceGroups, voiceShown } from "../shell/voice.js";
 import { GUIDANCE, LADDER_TOP, guideSteps } from "../../domain/stages.ts";
 import type { Guidance } from "../../domain/stages.ts";
 import { type TimeKind, timesOf } from "../../domain/sprint.ts";
-import { canHear, canSpeak, speak, voiceList } from "../../ui/speech";
+import { canSpeak, speak, voiceList } from "../../ui/speech";
 import { ProgressPage } from "./progress.tsx";
 import { D, Icon, Knob, Toggle, Words, NOFILL } from "./ui.tsx";
 import { Group, Intro, Line } from "./lines.tsx";
@@ -104,9 +104,9 @@ function List() {
       {tutorShown() ? <Line title="Explanations by Claude" go={() => openPage("tutor")} sub={canAsk() ? undefined : "several models"}>
         {canAsk() ? <Words label="Explanations by Claude" items={TUTOR} cur={state.autoExplain ? "every" : "ask"} on={setTutor} /> : null}</Line> : null}
     </Group>
-    {voiceShown() ? <Group name="Voice" tag="experimental">
+    {voiceShown() ? <Group name="Voice">
       {canSpeak() ? <Line title="Read aloud" sub="each question, when it appears" sw={{ on: state.voice.read, toggle: () => setVoice("read", !state.voice.read) }} go={() => openPage("read")} /> : null}
-      {canHear() ? <Line title="Answer by voice" go={() => openPage("answer")}><Words label="Answer by voice" items={ANSWER_WORDS} cur={state.voice.answer} on={(k) => setVoice("answer", k as "off" | "tap" | "auto")} /></Line> : null}
+      {answerShown() ? <Line title="Answer by voice" tag="experimental" go={() => openPage("answer")}><Words label="Answer by voice" items={ANSWER_WORDS} cur={state.voice.answer} on={(k) => setVoice("answer", k as "off" | "tap" | "auto")} /></Line> : null}
     </Group> : null}
     <Group><Line title="Other app settings" go={toSettings} /></Group>
   </>;
@@ -169,7 +169,7 @@ function Page({ id }: { id: string }) {
   if (id === "progress") return <ProgressPage />;
   return null;
 }
-const VOICE_SWITCH = () => <p class="pnoteline pnote3">Voice itself is switched on and off in <button type="button" class="pbtn" style={{ padding: 0 }} onClick={toSettings}>Settings</button>, under Experiments.</p>;
+const VOICE_SWITCH = () => <p class="pnoteline pnote3">Answer by voice is an experiment: it is switched on and off in <button type="button" class="pbtn" style={{ padding: 0 }} onClick={toSettings}>Settings</button>, under Experiments.</p>;
 /** The Read aloud page: which voice reads, and how fast. */
 function ReadPage() {
   const v = state.voice, list = voiceList(); hookVoices();
@@ -183,7 +183,6 @@ function ReadPage() {
       </select><button type="button" class="pbtn" onClick={() => speak(SAMPLE, { voice: v.voiceId, rate: v.rate })}>Try</button></span></Line>
     <Line title="Speed of reading"><Words label="Speed of reading" items={RATES as [number, string][]} cur={v.rate} on={(r) => setVoice("rate", r)} /></Line>
     <p class="psub">{READ_NOTE}</p>
-    <VOICE_SWITCH />
   </>;
 }
 /** The Answer by voice page: the two ways of answering, what happens after an answer is heard, and what can be said. */
@@ -218,7 +217,7 @@ function TutorPage() {
 const TITLES: Record<string, string> = { guidance: "Guidance", text: "Wording and notation", stages: "Difficulty", times: "Sprint", read: "Read aloud", answer: "Answer by voice", tutor: "Claude AI", progress: "Progression" };
 const sheetOn = () => state.sessOpen && state.mode === "quiz";
 /** The sheet's own page that is open (one of TITLES), or null for the list. */
-const sheetPage = () => sheetOn() && state.sessPage && TITLES[state.sessPage] && (state.sessPage !== "read" || (voiceShown() && canSpeak())) && (state.sessPage !== "answer" || (voiceShown() && canHear())) && (state.sessPage !== "tutor" || tutorShown()) ? state.sessPage : null;
+const sheetPage = () => sheetOn() && state.sessPage && TITLES[state.sessPage] && (state.sessPage !== "read" || (voiceShown() && canSpeak())) && (state.sessPage !== "answer" || (voiceShown() && answerShown())) && (state.sessPage !== "tutor" || tutorShown()) ? state.sessPage : null;
 /** The Progression page is open (the ring in the top bar opened it): the bar keeps the exercise's name and the ring, pressed, and the page hangs under it. */
 export const progressOn = (): boolean => sheetPage() === "progress";
 /** What the sheet shows, as the heading it gives the screen: the top bar reads it in place of the exercise's name while the sheet is open (null when it is closed, or is the Progression page). */

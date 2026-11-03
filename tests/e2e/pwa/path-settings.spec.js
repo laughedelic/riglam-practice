@@ -4,6 +4,7 @@
 import { test as plain, expect as plainExpect } from "@playwright/test";
 import { test, expect } from "../../support/test.js";
 import { dataKey, serveCourse, withCourse } from "../../support/data-key.js";
+import { voice } from "../../support/voice.js";
 
 async function start(page) {
   await page.goto("/");
@@ -95,7 +96,7 @@ test("Settings on the Path: sections of lines, export and import and the version
   await expect(page.locator(".ppage")).toContainText(/Version \d+\.\d+\.\d+ · build /);
 });
 
-withKey("in the released app, holding Version with the Magic Key shows Experiments: voice and the lab's settings, kept on the device", async ({ page }) => {
+withKey("in the released app, holding Version with the Magic Key shows Experiments: answering by voice and the lab's settings, kept on the device", async ({ page }) => {
   await start(page);
   await openSettings(page);
   const ver = page.locator(".ppage .ol", { hasText: "Version and updates" }), box = await steady(ver);   // where it stands once Settings has slid in
@@ -106,7 +107,7 @@ withKey("in the released app, holding Version with the Magic Key shows Experimen
   await expect(page.locator(".ppage .sgh")).toHaveText(["General", "Data", /^Experiments/, "About"]);
   await expect(page.locator("#path .ptb-t")).toHaveText("Settings");   // the tap that ends the hold opens nothing
   await expect(page.locator(".ppage .ol", { hasText: "The lab's settings" })).toBeVisible();
-  const voice = page.getByRole("switch", { name: "Voice features", exact: true });
+  const voice = page.getByRole("switch", { name: "Answer by voice", exact: true });
   if (await voice.count()) {   // a browser with speech
     const was = await voice.getAttribute("aria-checked");
     await voice.click();
@@ -205,6 +206,7 @@ test("the practice options' Voice choices are on the first page, and the pages b
 });
 
 test("the practice options: the exercise's own lines under its name, then Practice, then the way on to Settings; Sprint keeps its own value in each exercise", async ({ page }) => {
+  await voice(page, { on: false });   // a browser that speaks: Read aloud is offered to everyone, answering by voice is not
   await start(page);
   const sheet = page.getByRole("dialog", { name: "Practice options" }), sprint = sheet.getByRole("switch", { name: "Sprint", exact: true });
   const options = async () => { await page.getByRole("button", { name: "Practice options" }).click(); await expect(sheet.locator(".sgh").first()).toBeVisible(); };
@@ -215,7 +217,7 @@ test("the practice options: the exercise's own lines under its name, then Practi
     await expect(page.locator(".ptb-t")).toContainText(name);
   };
   await options();
-  await expect(sheet.locator(".sgh")).toHaveText(["Relations", "Practice"]);
+  await expect(sheet.locator(".sgh")).toHaveText(["Relations", "Practice", "Voice"]);
   await expect(sheet.locator(".ol", { hasText: "Wording and notation" })).toContainText("Shorthand · A and B: letters");
   await expect(sheet.getByRole("button", { name: "Other app settings: more" })).toBeVisible();
   await expect(sprint).toHaveAttribute("aria-checked", "false");
@@ -225,7 +227,7 @@ test("the practice options: the exercise's own lines under its name, then Practi
   await fold();
   await go("Syllogisms");
   await options();
-  await expect(sheet.locator(".sgh")).toHaveText(["Syllogisms", "Practice"]);
+  await expect(sheet.locator(".sgh")).toHaveText(["Syllogisms", "Practice", "Voice"]);
   await expect(sprint).toHaveAttribute("aria-checked", "false");   // not set here yet: it does not follow the one in Relations
   await sprint.click();
   await expect(sprint).toHaveAttribute("aria-checked", "true");

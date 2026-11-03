@@ -26,42 +26,45 @@ const closeSheet = async (page) => { for (let i = 0; i < 3 && (await sheet(page)
 /** The experiments of Settings are shown on this device (a hold on Version does it in the released app). */
 const showExperiments = (page) => page.addInitScript(() => localStorage.setItem("rd-exp", "1"));
 
-test("Voice is off in the real app until its switch in Settings turns it on; that switch is the only voice control there", async ({ page }) => {
+test("in the real app Read aloud is there for everyone, and answering by voice stays off until its switch under Experiments turns it on", async ({ page }) => {
   await voice(page, { on: false, settings: { read: "1", answer: "tap" } });
   await showExperiments(page);
   await page.goto("/");
   await ready(page);
-  await expect(page.locator("#vfield, #vmic, #vhear")).toHaveCount(0);   // nothing of it on the screen
-  expect(await said(page)).toEqual([]);
+  await expect(mic(page)).toHaveCount(0);   // no microphone
+  await page.keyboard.press("r");   // but the question is read aloud
+  await spoken(page, 1);
   await openPracticeOptions(page);
-  await expect(answerPage(page)).toHaveCount(0);   // and no Voice choices in the Practice options
-  await expect(sheet(page).getByRole("switch", { name: "Read aloud" })).toHaveCount(0);
+  await expect(sheet(page).getByRole("switch", { name: "Read aloud" })).toHaveAttribute("aria-checked", "true");   // Read aloud is in the Practice options
+  await expect(answerPage(page)).toHaveCount(0);   // Answer by voice is not
   await closeSheet(page);
   await openSettings(page);
-  const sw = page.getByRole("switch", { name: "Voice features", exact: true });
+  const sw = page.getByRole("switch", { name: "Answer by voice", exact: true });
   await expect(sw).toHaveAttribute("aria-checked", "false");
-  await expect(page.locator(".ppage")).toContainText("sent to Google");   // where the audio goes is said where voice is switched on
-  await expect(page.getByRole("switch", { name: /read aloud/i })).toHaveCount(0);   // its choices are not in Settings
+  await expect(page.locator(".ppage")).toContainText("sent to Google");   // where the audio goes is said where listening is switched on
+  await expect(page.getByRole("switch", { name: /read aloud/i })).toHaveCount(0);   // Read aloud has no switch in Settings
 
   await sw.click();
   await expect(sw).toHaveAttribute("aria-checked", "true");
-  await expect(page.getByRole("switch", { name: /read aloud/i })).toHaveCount(0);   // still just the one switch
   expect(await page.evaluate(() => localStorage.getItem("rd-voice"))).toBe("1");
   await page.reload();   // the choice is kept on the device
   await ready(page);
   await expect(mic(page)).toBeVisible();
+  await openPracticeOptions(page);
+  await expect(answerPage(page)).toHaveCount(1);
+  await expect(sheet(page).locator(".ol", { hasText: "Answer by voice" })).toContainText("experimental");
+  await closeSheet(page);
 
   await openSettings(page);
-  await page.getByRole("switch", { name: "Voice features", exact: true }).click();
-  await expect(page.getByRole("switch", { name: "Voice features", exact: true })).toHaveAttribute("aria-checked", "false");
+  await page.getByRole("switch", { name: "Answer by voice", exact: true }).click();
+  await expect(page.getByRole("switch", { name: "Answer by voice", exact: true })).toHaveAttribute("aria-checked", "false");
   expect(await page.evaluate(() => localStorage.getItem("rd-voice"))).toBe("0");
   await page.reload();
   await ready(page);
-  await expect(page.locator("#vfield, #vmic, #vhear")).toHaveCount(0);
-  expect(await said(page)).toEqual([]);
+  await expect(mic(page)).toHaveCount(0);
 });
 
-test("with no speech in the browser there is no Voice switch, no microphone and no voice bar", async ({ page }) => {
+test("with no speech in the browser there is no Answer by voice switch, no microphone and no voice bar", async ({ page }) => {
   await voice(page, { none: true, settings: { read: "1", answer: "tap" } });
   await showExperiments(page);
   await page.goto("/");
@@ -69,7 +72,7 @@ test("with no speech in the browser there is no Voice switch, no microphone and 
   await expect(page.locator("#vfield, #vmic, #vhear")).toHaveCount(0);
   await openSettings(page);
   await expect(page.locator(".ppage .sgh")).toContainText(["Experiments"]);
-  await expect(page.getByRole("switch", { name: "Voice features", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("switch", { name: "Answer by voice", exact: true })).toHaveCount(0);
 });
 
 test("every exercise with a voice has the Voice choices in its options: Read aloud and Answer by voice, each with its own page", async ({ page }) => {

@@ -22,7 +22,7 @@ import { askTutor, needsKey, pickThen } from "../path/parts.tsx";
 import { moves } from "./motion.js";
 
 /* ---------- voice: the questions read aloud, answers by voice ---------- */
-// One switch in Settings (the Voice row, on trial: the kill switch), and the choices on the first page of the Practice options of Relations and Pervasions,
+// One switch in Settings for answering by voice (under Experiments, on trial; Read aloud needs none), and the choices on the first page of the Practice options of Relations and Pervasions,
 // each on its own: Read aloud says each question when it appears; Answer by voice makes the lower part of the screen a field (tap it, or hold it and talk;
 // V on a keyboard), or listens by itself after each question (Hands-free). A strip along the top of the field says the question again (hold it to pause the reading
 // for this visit). Both use the browser's own speech (src/ui/speech.ts). What was heard goes through the same steps as a tap or a typed answer
@@ -66,11 +66,13 @@ export function asked(){
   const order=fillable(), c=order[Math.max(0,Math.min(u.ci||0,order.length-1))];
   return {key:id+"/c/"+c,kind:"cell",cell:c,say:CELL_ASK[c](termSing("A"),termSing("B"))};
 }
-// Voice is a feature on trial: until its switch in Settings is on (on by default in a Preview, off in the real app; app.js), none of this does anything.
-const enabled=()=>state.voice.on;
+// Read aloud is for everyone whose browser can speak. Answering by voice is on trial: until its switch in Settings, under Experiments, is on
+// (on by default in a Preview, off in the real app; app.js), nothing listens.
+const input=()=>state.voice.on;
+const enabled=()=>canSpeak()||(input()&&canHear());
 const reading=()=>enabled()&&!state.voice.hush&&state.voice.read&&!state.voice.muted&&canSpeak();
-const hearing=()=>enabled()&&!state.voice.hush&&state.voice.answer!=="off"&&canHear();
-const handsFree=()=>enabled()&&!state.voice.hush&&state.voice.answer==="auto"&&canHear();
+const hearing=()=>input()&&!state.voice.hush&&state.voice.answer!=="off"&&canHear();
+const handsFree=()=>input()&&!state.voice.hush&&state.voice.answer==="auto"&&canHear();
 // Hands-free opens the microphone by itself, unless the run is paused
 const ongoing=()=>handsFree()&&!state.voice.paused;
 
@@ -885,7 +887,7 @@ export function setVoice(k,val){
   render();
   if((k==="read"&&val)||k==="voiceId"||k==="rate") speak(SAMPLE,{voice:v.voiceId,rate:v.rate});
 }
-// The Voice switch is the kill switch of the feature: the choice is kept on the device, whatever the default of the build was
+// The Answer by voice switch of Experiments: the choice is kept on the device, whatever the default of the build was
 export function setOn(on){
   const v=state.voice;
   v.on=on; try{ localStorage.setItem("rd-voice",on?"1":"0"); }catch(e){}
@@ -894,7 +896,7 @@ export function setOn(on){
 }
 /** The top bar's Voice switch, beside Sprint's: there where this exercise reads aloud or answers by voice. Off, nothing is read or listened to and the field is gone,
  *  on every exercise, until it is switched on again; the choices of the Practice options stay as they were. */
-export const voiceSwitchShown=()=>voiceShown()&&(state.voice.read&&canSpeak()||state.voice.answer!=="off"&&canHear());
+export const voiceSwitchShown=()=>voiceShown()&&(state.voice.read&&canSpeak()||state.voice.answer!=="off"&&input()&&canHear());
 export function setHush(hush){
   const v=state.voice;
   if(hush){ if(v.press) micUp(); quiet(); endReading(); dropPend(); dropChip(); letGo("moved"); v.key=""; v.note=""; v.paused=false; }
@@ -902,11 +904,13 @@ export function setHush(hush){
   if(!hush) v.key="";                // the question on screen is read or listened to again, as when it first came
   render();
 }
-/** What the Voice switch of Settings does (the Path draws the same row). */
-export const voiceNote=()=>"Reads the questions aloud and lets you answer by voice, with your browser’s own speech. "+(canHear()?"In Chrome, what you say is sent to Google to be turned into text. ":"")+"Once it is on, its choices are in the Practice options of Relations and Pervasions.";
-/** Whether this browser has any speech, so that Settings has a Voice row; and whether Voice is on. */
-export const voiceAvailable=()=>canSpeak()||canHear();
-export const voiceOn=()=>enabled();
+/** What the Answer by voice switch of Settings does (the Path draws the same row). */
+export const voiceNote=()=>"Lets you answer by voice, with your browser’s own speech recognition. In Chrome, what you say is sent to Google to be turned into text. Once it is on, its choices are in the Practice options, under Voice.";
+/** Whether this browser can listen, so that Experiments has an Answer by voice row; and whether it is on. */
+export const voiceAvailable=()=>canHear();
+export const voiceOn=()=>input();
+/** Whether the Practice options offer Answer by voice. */
+export const answerShown=()=>input()&&canHear();
 /** An answer waits for Yes: Escape takes it back, wherever the focus is (shell/keys.js). */
 export const voicePending=()=>enabled()&&!!state.voice.pend&&!(state.voice.pend.result&&state.ui&&(state.ui.dterm||state.ui.pop));       // (Escape closes a definition or a note opened from a result first)
 /** The voices by accent, American and British first. */
