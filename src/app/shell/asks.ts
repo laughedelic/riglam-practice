@@ -1,13 +1,13 @@
 import { state } from "../state.js";
 import { canAsk } from "../core/ask.js";
 import { lcRel, REL } from "../core/rel.js";
-import { sayCategories, sayCategory, unsayCategory } from "../categories/flow.js";
+import { checkCategories, sayCategories, sayCategory, setTicked, tickCategories, unsayCategory } from "../categories/flow.js";
 import { editPair, usePair } from "../find/flow.js";
 import { checkInstance, sayNothing, writeInstance } from "../instance/flow.ts";
 import { backSyllogism, exampleSyllogism, saySyllogism } from "../syllogism/flow.js";
 import { REPLIES, syllogismText } from "../../domain/syllogism.ts";
 import type { Reply, Syllogism } from "../../domain/syllogism.ts";
-import { spokenCategories, spokenCounter, spokenPair, spokenSyllogism, spokenThing, spokenYesNo } from "../../domain/spoken.ts";
+import { plainWords, spokenCategories, spokenCounter, spokenPair, spokenSyllogism, spokenThing, spokenYesNo } from "../../domain/spoken.ts";
 import type { PlaceQuestion } from "../../domain/place.ts";
 import type { InstanceQuestion } from "../../domain/instance.ts";
 import type { DataIndex } from "../../ai-shared/lookup.ts";
@@ -47,6 +47,11 @@ export interface Heard {
   /** what it returns: the way back (a function), or the words to say when the screen did not take the step and asks again (a string) */
   apply: () => void | string | (() => void);
   quick?: boolean;
+  /** taken at once whatever the Settings say about waiting (it is only a mark on the screen, as a tap's, and more is asked): the categories ticked by voice, and their Check */
+  now?: boolean;
+  /** what on the screen it stands for, where the signal climbs to (shell/voice.js, played): a choice (its `data-k`), taken as a tap takes it with the slide onto the path,
+   *  or a field (its id) into which the words are typed */
+  row?: string | { field: string; text: string };
 }
 
 const ix = () => state as unknown as DataIndex;
@@ -54,6 +59,8 @@ const ix = () => state as unknown as DataIndex;
 const attempt = (u: Ui): string => (u.vk ||= Math.random().toString(36).slice(2, 8));
 const ALL: Record<number, string> = { 1: "one of them", 2: "both", 3: "all three" };
 const allOf = (n: number) => ALL[n] || "all of them";
+/** What says the categories ticked by voice are all (Categories, all at once): they are checked. */
+const CATS_DONE = /^(?:check|check it|check them|check this|check that|check my answer|done|i am done|im done|that is all|thats all|that s all|finished|nothing else|no more)$/;
 const joinAnd = (xs: string[]) => (xs.length < 2 ? xs.join("") : xs.slice(0, -1).join(", ") + " and " + xs[xs.length - 1]);
 
 /** What the screen asks, or null when it asks nothing that is spoken: for the four exercises here; undefined for the others (their screens are asked in shell/voice.js). */
@@ -73,7 +80,7 @@ export function askedHere(u: Ui): Ask | null | undefined {
       return row ? { key: "cat:" + attempt(u) + "/" + u.i, kind: "yesno", say: "Is " + q.thing.n + " " + row.phrase + "?", hint: "Say yes or no.", clock: true } : null;
     }
     return { key: "cat:" + attempt(u) + "/all", kind: "cats", say: "Which categories is " + q.thing.n + " in?",
-      hint: "Say the categories it is in, or their numbers, or “none of these”.", clock: true };
+      hint: "Say the categories it is in, or their numbers, then “check”; or “none of these”.", clock: true };
   }
   if (u.inst) {
     const s = state.cur && (state.cur.iq as InstanceQuestion | undefined), n = s ? s.cats.length : 0;
@@ -101,7 +108,7 @@ export function resultAsk(u: Ui): AskAny | null {
   const offer = u.offer && u.offer.kind !== "done";
   const holds = !!(station || offer || u.guideDown || u.negOffer || u.ctl || u.explained || u.dterm || u.pop || (state.autoExplain && canAsk()));
   return { key: "res:" + attempt(u) + station, kind: "result", say: "", quiet: true, clock: false, auto: !!state.blitz && !holds, choice: !!(offer || u.negOffer),
-    hint: "Say “next” to go on, or “explain” to ask Claude." };
+    hint: station ? "Say “next” to go on." : "Say “next” to go on, or “explain” (or “check”) to ask Claude." };
 }
 
 /** What was said, as the step it stands for; a string (what to say) when the words are not an answer to this screen. */
@@ -112,12 +119,12 @@ export function heardHere(a: AskAny, alts: readonly string[]): Heard | string {
     if (!r) return hint;
     const said = { accept: "I accept", reason: "The reason is not established", pervasion: "There is no pervasion" }[r];
     // a "no pervasion" goes on to the counter-example unless Sprint is on, and can be taken back from there
-    return { heard: alts[0], label: said, apply: () => { saySyllogism(r); if (r === "pervasion" && !state.blitz) return () => backSyllogism(); } };
+    return { heard: alts[0], label: said, row: r, apply: () => { saySyllogism(r); if (r === "pervasion" && !state.blitz) return () => backSyllogism(); } };
   }
   if (a.kind === "counter") {
     const x = spokenCounter(ix(), alts);
     if (!x) return hint;
-    return { heard: x.heard, label: x.none ? "no counter-example" : x.text, apply: () => {
+    return { heard: x.heard, label: x.none ? "no counter-example" : x.text, row: { field: "sylex", text: x.none ? "" : x.text }, apply: () => {
     u.exText = x.none ? "" : x.text; exampleSyllogism();
     // the subject itself is no counter-example: the screen says so and asks again, with the field emptied
     if (state.ui === u && u.step === 1 && !u.checked && u.exNote) { const note = u.exNote as string; u.exText = ""; return note; }
@@ -131,10 +138,20 @@ export function heardHere(a: AskAny, alts: readonly string[]): Heard | string {
       apply: () => { sayCategory(yn === "yes"); if (!(state.ui && state.ui.checked)) return () => unsayCategory(i); } };
   }
   if (a.kind === "cats") {
-    const q = state.cur!.q as PlaceQuestion, r = spokenCategories(alts, q.rows);
+    // the categories said are ticked at once, and more may be said, one by one or several at a time; "check" (or "done", "that's all") checks what is ticked,
+    // as the Check station does; "none of these" waits for Yes as an answer does, and checks with nothing ticked
+    const q = state.cur!.q as PlaceQuestion, ticked = (u.ticked as string[]) || [];
+    if (alts.some((h) => CATS_DONE.test(plainWords(h))))
+      return { heard: alts[0], label: "Check", now: true, apply: () => { checkCategories(); } };
+    const r = spokenCategories(alts, q.rows);
     if (!r) return hint;
+    if (!r.cats.length) return { heard: r.heard, label: "none of these", apply: () => { sayCategories([]); } };
     const names = r.cats.map((c) => q.rows.find((x) => x.cat === c)!.phrase);
-    return { heard: r.heard, label: names.length ? joinAnd(names) : "none of these", apply: () => { sayCategories(r.cats); } };
+    return { heard: r.heard, label: joinAnd(names), now: true, apply: () => {
+      const before = [...ticked];
+      tickCategories(r.cats);
+      return () => setTicked(before);
+    } };
   }
   if (a.kind === "pair") {
     const r = spokenPair(ix(), alts);
@@ -143,5 +160,5 @@ export function heardHere(a: AskAny, alts: readonly string[]): Heard | string {
   }
   const x = spokenThing(ix(), alts), n = (state.cur!.iq as InstanceQuestion).cats.length;
   if (!x) return hint;
-  return { heard: x.heard, label: x.none ? "nothing is " + allOf(n) : x.text, apply: () => { if (x.none) sayNothing(true); else writeInstance(x.text); checkInstance(); } };
+  return { heard: x.heard, label: x.none ? "nothing is " + allOf(n) : x.text, row: { field: "iin", text: x.none ? "" : x.text }, apply: () => { if (x.none) sayNothing(true); else writeInstance(x.text); checkInstance(); } };
 }

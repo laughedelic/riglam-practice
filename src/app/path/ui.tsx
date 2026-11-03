@@ -18,6 +18,7 @@ const I: Record<string, string> = {
   out: '<path d="M8 16l9-9M9.5 7H17v7.5"/>',     // an arrow up and to the right: a line that opens another place (a link out of the app)
   arrow: '<path d="M4 12h15M13 6l6 6-6 6"/>',
   up: '<path d="M12 19V5M6 11l6-6 6 6"/>',
+  down: '<path d="M6 9l6 6 6-6"/>',
   close: '<path d="M6 6l12 12M18 6L6 18"/>',
   locked: '<rect x="5" y="10.5" width="14" height="10" rx="1.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>',
   unlocked: '<rect x="5" y="10.5" width="14" height="10" rx="1.5"/><path d="M8 10.5V7.5a4 4 0 0 1 7.7-1.5"/>',
@@ -28,6 +29,7 @@ const I: Record<string, string> = {
   speak: '<path d="M11 5L6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/>',
   speakoff: '<path d="M11 5L6 9H2v6h4l5 4z"/><path d="M16 9l6 6M22 9l-6 6"/>',
   mic: '<rect x="9" y="2.5" width="6" height="11.5" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v3.5"/>',
+  micoff: '<rect x="9" y="2.5" width="6" height="11.5" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v3.5M4 4l16 16"/>',
   refresh: '<path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v4h-4"/>',
   flag: '<path d="M6 21V3.5M6 4h11.5l-2.5 4 2.5 4H6"/>',
   skipped: '<path d="M5 6l6 6-6 6M12 6l6 6-6 6"/>',

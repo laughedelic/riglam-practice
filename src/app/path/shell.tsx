@@ -9,7 +9,7 @@ import { skipAsks, skipPair } from "../practice/skips.js";
 import { toRoad } from "../shell/menu.js";
 import { isEx } from "../shell/render.js";
 import { openBlitzOptions, sessBack, toggleSess } from "../shell/session.js";
-import { voiceField } from "../shell/voice.js";
+import { setHush, voiceField, voiceSwitchShown } from "../shell/voice.js";
 import { Clock } from "./clock.tsx";
 import { Pull, SLIDE, bump } from "./gesture.ts";
 import type { ScanPlan } from "./scan.tsx";
@@ -47,6 +47,9 @@ export function TopBar({ title, tools = false, back }: TopBarProps) {
       <button type="button" class="ptb-t" aria-label={heading + (shown ? "" : back ? ", " + back.label.toLowerCase() : ", the roadmap")} onClick={roadmap}><span>{heading}</span></button>
       {tools && !shown && ex ? <ProgressRing /> : null}
       <span class="spc" />
+      {tools && !away && ex && voiceSwitchShown() ? <button type="button" class={"pib" + (state.voice.hush ? "" : " on")} role="switch" aria-checked={state.voice.hush ? "false" : "true"}
+        aria-label={state.voice.hush ? "Voice off" : "Voice on"} title={state.voice.hush ? "Voice off: nothing is read or listened to" : "Voice on: tap to turn it off for now"}
+        onClick={() => setHush(!state.voice.hush)}><Icon n={state.voice.hush ? "micoff" : "mic"} /></button> : null}
       {tools && !away && ex ? <button type="button" class={"pib" + (state.blitz ? " on" : "")} role="switch" aria-checked={state.blitz ? "true" : "false"} aria-label={state.blitz ? "Sprint on (hold for the Sprint options)" : "Sprint off (hold for the Sprint options)"}
         onPointerDown={bzDown} onPointerUp={bzStop} onPointerLeave={bzStop} onPointerCancel={bzStop} onContextMenu={(ev) => ev.preventDefault()}
         onClick={() => { if (held.current) { held.current = false; return; } setBlitz(!state.blitz); }}><Icon n={state.blitz ? "blitz" : "blitzoff"} /></button> : null}
@@ -57,7 +60,7 @@ export function TopBar({ title, tools = false, back }: TopBarProps) {
 }
 
 /**
- * The lower part of the screen above the foot, where voice listens: a field to tap or hold with a thumb anywhere in it, with what was heard and the chip of the step that went on
+ * The lower part of the screen above the foot, where voice listens: a field to tap or hold with a thumb anywhere in it, with what was heard
  * inside it (shell/voice.js builds it and repaints it in place, by its id). Nothing is there where the screen asks nothing, and with the keyboard up (`kb`) it makes room.
  */
 export const VoiceField = ({ kb = false }: { kb?: boolean }) => (kb ? null : <Bridge own cls="vfieldh" fill={() => voiceField()} />);

@@ -37,6 +37,7 @@ export function startApp(platform){
   // Voice is on trial: the device's own choice, else on in a Preview and off in the real app
   let kept=null; try{ kept=localStorage.getItem("rd-voice"); }catch(e){}
   state.voice.on=voiceOn(kept,!!platform.preview);
+  try{ state.voice.hush=localStorage.getItem("rd-voice-hush")==="1"; }catch(e){}
   state.preview=!!platform.preview;
   startPath();
   startPerExercise();                // Blitz, the tutor and voice as the exercise on screen has them

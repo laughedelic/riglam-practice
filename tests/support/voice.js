@@ -67,6 +67,8 @@ export const mic = (page) => page.locator("#vmic");
 export const listening = (page) => expect(mic(page)).toHaveAttribute("aria-pressed", "true");
 export const idle = (page) => expect(mic(page)).toHaveAttribute("aria-pressed", "false");
 export const waiting = (page) => page.locator("#vfield .vtake");
+/** Waits until the signal of an answer taken by voice has climbed the thread, its choice slid onto the path (or its words were typed) and its step went on (as a tap's, path/choose.ts), so the next phrase answers the next question. */
+export const taken = (page) => expect.poll(() => page.evaluate(() => !window.__heard.length && !document.querySelector("#vfuse, .vtick, #path [data-run], #path .crow[data-pk], #path .chs.fading"))).toBe(true);
 /** A tap on the field is Yes while an answer waits. */
 export const confirm = (page) => mic(page).click();
 /** Change: Escape takes the answer that waits back (holding the field says another). */
@@ -78,9 +80,17 @@ export async function settle(page) {
 }
 /** Says a phrase with the mic button, and waits for the answer it was taken as to appear. */
 export async function hear(page, ...phrases) {
+  await taken(page);
   await hearNext(page, ...phrases);
   await mic(page).click();
   await settle(page);
   await expect(waiting(page)).toBeVisible();
 }
 
+// The box of a part of the voice field. The Path redraws its hosted parts (Bridge, path/ui.tsx) on any draw, so a node measured right after the page is ready can be
+// swapped for its copy between finding and measuring it (null); measure again until the box is there.
+export async function boxOf(loc) {
+  let b = null;
+  await expect.poll(async () => (b = await loc.boundingBox()) !== null).toBe(true);
+  return b;
+}

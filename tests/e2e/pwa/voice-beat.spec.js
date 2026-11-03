@@ -31,23 +31,37 @@ async function toResult(page, { sprint = false } = {}) {
 
 test("Hands-free: the result stays until 'next', and the next question comes after it", async ({ page }) => {
   await toResult(page);
-  await expect(state(page).locator(".vwhat small")).toHaveText("The result is on screen");
-  await expect(state(page).locator(".vwhat b")).toHaveText("Next");
-  await expect(state(page).locator(".vrunl")).toHaveCount(0);   // no bar: in a calm run it waits
+  await expect(state(page).locator(".vtake")).toHaveCount(0);   // nothing waits for a tap at the stop: the station goes on
+  await expect(state(page).locator(".vring")).toHaveCount(0);   // no bar: in a calm run it waits
   const id = await current(page);
   await page.waitForTimeout(2500);
   await expect(verdict(page)).toBeVisible();   // and it is still there
   await listening(page);   // the microphone listens for the word
+  await expect(page.locator("#vfield")).toHaveClass(/\bon\b/);   // and the stop is on the thread, as it is wherever it listens
   await hearNext(page, "next");
   await expect(verdict(page)).toHaveCount(0);
   expect(await current(page)).not.toBe(id);
   await listening(page);   // and the next question is listened to, with no tap
 });
 
-test("Hands-free: a tap on the field at the result goes on", async ({ page }) => {
+test("Hands-free: at the result a tap on the field listens, as anywhere, and the station goes on", async ({ page }) => {
   await toResult(page);
+  // at a result the thread runs on solid through the stop, as it runs into the station at the foot
+  expect(await page.locator("#path .vfieldh").evaluate((e) => { const c = getComputedStyle(e, "::before"); return { img: c.backgroundImage, mask: c.maskImage || c.webkitMaskImage }; }))
+    .toEqual({ img: "none", mask: "none" });
   const id = await current(page);
+  await mic(page).click();   // it was listening: the tap finishes, and a second tap listens again
   await mic(page).click();
+  await listening(page);
+  await expect(verdict(page)).toBeVisible();   // still on the result
+  expect(await current(page)).toBe(id);
+  // the station pulled up passes over the stop: the field gives way while it is held
+  const b = await page.locator("#stn").boundingBox(), x = b.x + 20, y = b.y + b.height / 2;
+  await page.mouse.move(x, y); await page.mouse.down();
+  for (const d of [30, 60, 100]) await page.mouse.move(x, y - d, { steps: 3 });
+  await expect(page.locator("#vfield")).toBeHidden();
+  for (const d of [200, 300, 400, 480]) await page.mouse.move(x, y - d, { steps: 3 });
+  await page.mouse.up();   // and pulled all the way, it is taken
   await expect(verdict(page)).toHaveCount(0);
   expect(await current(page)).not.toBe(id);
 });
@@ -55,7 +69,7 @@ test("Hands-free: a tap on the field at the result goes on", async ({ page }) =>
 test("Hands-free in Sprint: the result goes on by itself after a bar, with no tap", async ({ page }) => {
   await toResult(page, { sprint: true });
   const id = await current(page);
-  await expect(state(page).locator(".vrunl")).toHaveCount(1);   // the bar runs
+  await expect(state(page).locator(".vring")).toHaveCount(1);   // the bar runs
   await expect(verdict(page)).toHaveCount(0, { timeout: 8000 });
   expect(await current(page)).not.toBe(id);
 });
@@ -64,7 +78,7 @@ test("Hands-free in Sprint: 'explain' stops the bar, and the result then waits f
   await toResult(page, { sprint: true });
   const id = await current(page);
   await hearNext(page, "explain");
-  await expect(state(page).locator(".vrunl")).toHaveCount(0, { timeout: 5000 });   // Claude is not asked in a test run, but the bar has stopped
+  await expect(state(page).locator(".vring")).toHaveCount(0, { timeout: 5000 });   // Claude is not asked in a test run, but the bar has stopped
   await page.waitForTimeout(3500);
   await expect(verdict(page)).toBeVisible();   // longer than the bar
   expect(await current(page)).toBe(id);
@@ -148,8 +162,6 @@ test("a case that runs out of time does not raise the keyboard over the field on
   await expect(mic(page)).toBeVisible();
 });
 
-const chip = (page) => page.locator("#vfield .vchip");
-
 test("Hands-free: 'stop' said while the last step can still be taken back pauses the run and does not take it back", async ({ page }) => {
   await voice(page, { settings: { read: "0", answer: "auto" } });
   await page.goto("/");
@@ -158,7 +170,7 @@ test("Hands-free: 'stop' said while the last step can still be taken back pauses
   expect(await drawSyllogism(page, "pervasion")).toBe(true);
   await listening(page);
   await hearNext(page, "there is no pervasion");
-  await expect(chip(page)).toBeVisible({ timeout: 10_000 });   // it went on to the counter-example, and can be taken back for a few seconds
+  await expect.poll(() => page.evaluate(() => window.__t.ui.step), { timeout: 10_000 }).toBe(1);   // it went on to the counter-example, and can be taken back for a few seconds
   await listening(page);
   await hearNext(page, "stop");
   await expect(state(page)).toContainText("Paused");
@@ -192,7 +204,7 @@ test("Hands-free: 'skip it' at the counter-example leaves it out, and does not s
   await hearNext(page, "there is no pervasion");
   await expect(waiting(page)).toBeVisible();
   await mic(page).click();   // Yes
-  await expect(chip(page)).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.__t.ui.step)).toBe(1);
   await listening(page);
   await hearNext(page, "skip it");
   await expect(waiting(page)).toBeVisible();
@@ -219,7 +231,7 @@ for (const [what, set] of [["Claude's explanation arrives", () => { window.__t.u
   await page.waitForTimeout(3800);
   await expect(verdict(page)).toBeVisible();
   expect(await current(page)).toBe(id);
-  await expect(state(page).locator(".vrunl")).toHaveCount(0);
+  await expect(state(page).locator(".vring")).toHaveCount(0);
 });
 
 test("Hands-free: after 'stop' at a result a tap listens again for 'next', and 'next' goes on", async ({ page }) => {
