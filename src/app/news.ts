@@ -15,6 +15,7 @@ export interface NewsItem {
 }
 
 export const NEWS: NewsItem[] = [
+  { id: "2026-11-04-categories-words", title: "Categories starts clearer", text: "In Categories, the words is and not now wait until you select the first category, instead of standing there before you have done anything.", go: "categories" },
   { id: "2026-11-03-read-aloud", title: "Read aloud", text: "Every exercise can now read its questions aloud, each one as it appears, in your device's own voice. Switch it on under Voice in the Practice options, where you also pick the voice and the speed. The speaker above the bottom says the question again; hold it to pause the reading.", go: "practice" },
   { id: "2026-11-03-syllogism-wait", title: "Claude's progress in Syllogisms", text: "When Claude explains your answer in Syllogisms, you now see it working, with the seconds and a Stop button, as in the other exercises. Before, the result showed nothing until the explanation arrived." },
   { id: "2026-11-03-take", title: "Claude names the example", text: "When Claude explains an example, the note now begins with the example it is about, as in Take a rabbit horn:, and then says what follows. Before, a note on an example you had not given (one Claude brought up for a case you left empty, or against a question you accepted) never said what it was about." },
