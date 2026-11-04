@@ -158,6 +158,58 @@ let active: Recognizer | null = null;
  * (the microphone did not start, also on a second try).
  */
 export function listen(opts: { lang?: string; interim?: (text: string) => void; done: (h: Heard) => void }): Listening {
+  return listenOnce(opts);
+}
+
+/** A listening that can also be held: see `listenHeld`. */
+export interface HeldListening extends Listening {
+  /** the press was only a tap: from now on this is a plain listening that ends by itself, after a pause in the speech */
+  release(): void;
+}
+/** The longest a press is held for. */
+const HELD_LONGEST = 30000, HELD_AGAIN = 150;
+/**
+ * Hold to talk: listens for as long as something is held down. A recognizer ends at the first pause, so while the press lasts a pause is not the end: listening goes on,
+ * and what was heard in each stretch is put together (one stretch gives its guesses as they are). `stop()` (the press is let go) ends it and reports what was heard,
+ * `release()` (the press was a tap) turns it into a plain listening, `abort()` reports nothing. Errors other than "no-speech" end it at once.
+ */
+export function listenHeld(opts: { lang?: string; interim?: (text: string) => void; done: (h: Heard) => void }): HeldListening {
+  let held = true, over = false, cur: Listening | null = null, again: ReturnType<typeof setTimeout> | undefined, err = "";
+  const segs: string[][] = [];
+  const text = () => segs.map((s) => s[0]).join(" ");
+  const cap = setTimeout(() => stop(), HELD_LONGEST);
+  const finish = () => {
+    if (over) return;
+    over = true; clearTimeout(again); clearTimeout(cap);
+    if (!segs.length) { opts.done({ error: err || "no-speech" }); return; }
+    opts.done({ alts: segs.length === 1 ? segs[0]! : [text(), ...segs[segs.length - 1]!.slice(1)] });
+  };
+  const run = () => {
+    let ended = false;
+    const l = listenOnce({
+      lang: opts.lang,
+      interim: (t) => opts.interim?.([text(), t].filter(Boolean).join(" ")),
+      done: (h) => {
+        ended = true; cur = null;
+        if (over) return;
+        if ("alts" in h) segs.push(h.alts); else err = h.error;
+        // still held: a pause is not the end, listening goes on
+        if (held && ("alts" in h || h.error === "no-speech")) { again = setTimeout(() => { if (!over && held) run(); else finish(); }, HELD_AGAIN); return; }
+        finish();
+      },
+    });
+    if (!ended) cur = l;
+  };
+  function stop() { if (over) return; held = false; if (cur) cur.stop(); else finish(); }
+  run();
+  return {
+    stop,
+    abort() { over = true; held = false; clearTimeout(again); clearTimeout(cap); cur?.abort(); cur = null; },
+    release() { held = false; clearTimeout(cap); if (!cur && !over) finish(); },
+  };
+}
+
+function listenOnce(opts: { lang?: string; interim?: (text: string) => void; done: (h: Heard) => void }): Listening {
   const R = Recognition();
   if (!R) { opts.done({ error: "unsupported" }); return { stop() {}, abort() {} }; }
   let gone = false, stopped = false, cur: Recognizer | null = null, granted = false;

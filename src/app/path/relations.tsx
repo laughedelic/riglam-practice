@@ -23,7 +23,7 @@ import { FlagBtn, FlagEditor, explainCase } from "./flags.tsx";
 import { Scroll } from "./scroll.tsx";
 import { nextKind, nextName } from "./next.ts";
 import { openDifficulty } from "./progression.tsx";
-import { Foot, PreStation, SkipSide, Station, TopBar, VoiceBar } from "./shell.tsx";
+import { Foot, PreStation, SkipSide, Station, TopBar, VoiceField } from "./shell.tsx";
 import { Subjects, markNames } from "./subjects.tsx";
 import { D, Fig, Gap, Head, Mark, St, Sx } from "./ui.tsx";
 
@@ -50,7 +50,7 @@ function PickStep({ kb }: { kb: boolean }) {
       <Choices label="Relation" slide items={relChoices(p, u.rel || null)} picked={u.pk} onPick={pick} />
       <Sx cls="ptail" />
     </Scroll>
-    <VoiceBar />
+    <VoiceField kb={kb} />
     {kb ? null : <Foot aux={<SkipSide />}>
       {u.rel ? <Station kind="ex" name="Examples" hint="the relation you picked" act={() => { u.open = false; render(); }} /> : <PreStation name="Examples" hint="pick a relation first" />}
     </Foot>}
@@ -149,7 +149,7 @@ function ResultStep() {
 /** The screen of Relations: its top bar and the step the attempt is at. */
 export function relationsScreen(kb: boolean): { cls: string; node: ComponentChildren } {
   const u = u0(), step = u.checked ? 3 : !u.rel || u.open ? 1 : 2;
-  const top = <TopBar title="Relations" tools mic />;
+  const top = <TopBar title="Relations" tools />;
   if (step === 1) return { cls: "", node: <>{top}<PickStep kb={kb} /></> };
   if (step === 2) return { cls: examplesReady() ? "ready" : "", node: <>{top}<ExamplesStep kb={kb} title="Relations" step={2} rel={relOf()} full={<Picked />} check={check} scan={scanPlan} /></> };
   return { cls: "done", node: <>{top}<ResultStep /></> };

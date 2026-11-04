@@ -14,7 +14,7 @@ import { refreshPath, renderPath } from "./index.tsx";
 import { openThen } from "./relayout.ts";
 import { CASE, PairNode, SkipMark, Star, caseQ, pairOf, u0 } from "./parts.tsx";
 import { Scroll } from "./scroll.tsx";
-import { Foot, PreStation, PullCtx, SkipSide, Station, VoiceBar, pathNote } from "./shell.tsx";
+import { Foot, PreStation, PullCtx, SkipSide, Station, VoiceField, pathNote } from "./shell.tsx";
 import { D, Gap, Head, Icon, Knob, St, Sx, nofillInput } from "./ui.tsx";
 
 /** The open case, the next one after it that is still empty (going round; a case whose time ran out under Sprint is done, with nothing, and is not opened again), and whether it is the last to write. */
@@ -128,7 +128,7 @@ export function ExamplesStep({ kb, title, step, rel, full, check, scan }: { kb: 
       {lined}
       <Sx cls="ptail xtail" />
     </Scroll>
-    <VoiceBar />
+    <VoiceField kb={kb} />
     {kb ? null : <Foot aux={k.ready ? null : <SkipSide />}>
       {k.ready ? <Station kind="chk" name="Check" hint={checkHint} act={takeCheck} scan={scan} />
         : <PreStation name="Result" hint="write each example first" />}

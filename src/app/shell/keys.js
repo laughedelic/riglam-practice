@@ -30,7 +30,7 @@ document.addEventListener("keydown",e=>{
   if(state.mode!=="quiz"||!state.ui||state.optsOpen||state.sessOpen||state.skipAsk||state.view||state.tab==="review"||state.menuOpen||e.metaKey||e.ctrlKey||e.altKey) return;
   const t=e.target&&/** @type {Element} */(e.target).tagName;
   if(state.ui.stop||(state.ui.up&&state.ui.up.shown)){ if(isEx()&&(e.key==="n"||e.key==="N")&&!e.shiftKey&&t!=="INPUT"&&t!=="TEXTAREA"){ e.preventDefault(); next(); } return; }     // a course term's stop or a stage coming in: only Next (practice/stops.ts, practice/stage-offer.ts)
-  if((e.key==="v"||e.key==="r"||e.key==="Enter"||e.key==="Escape")&&!e.shiftKey&&t!=="INPUT"&&t!=="TEXTAREA"&&t!=="SELECT"&&(t!=="BUTTON"||e.key!=="Enter")&&voiceKey(e.key)){ e.preventDefault(); return; }
+  if((e.key==="v"||e.key==="r"||e.key==="m"||e.key==="Enter"||e.key==="Escape")&&!e.shiftKey&&t!=="INPUT"&&t!=="TEXTAREA"&&t!=="SELECT"&&(t!=="BUTTON"||e.key!=="Enter")&&voiceKey(e.key)){ e.preventDefault(); return; }
   if((e.key==="f"||e.key==="F")&&!e.shiftKey&&t!=="INPUT"&&t!=="TEXTAREA"&&state.db&&favTarget()&&!favTarget().own&&isEx()){ e.preventDefault(); toggleFav(favTarget()); return; }
   if(state.tab==="practice"&&!state.ui.debate){
     if(!state.ui.checked&&t!=="INPUT"&&/^[1-5]$/.test(e.key)&&(!state.ui.rel||state.ui.open)){ e.preventDefault(); choose(ORDER[+e.key-1]); }
