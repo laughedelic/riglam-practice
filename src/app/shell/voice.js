@@ -117,7 +117,7 @@ export function voiceAfterRender(){
   v.noRead=false;
   if(a) v.seen=true;
   v.held=opening;
-  v.note=""; v.bad=false; v.tries=0; v.blocked=false; v.ask3=false;
+  v.note=""; v.bad=false; v.tries=0; v.blocked=false; v.ask3=false; v.explWait=false;
   if(v.paused&&a){ holdFor(); v.note=PAUSED; paint(); return; }       // a paused run: the new screen waits, and its clock stands still
   if(opening) paint();
   else if(a&&a.kind==="result") startResult(a);
