@@ -562,8 +562,10 @@ export interface PendingAnswer {
   apply: () => (() => void) | void;
   /** the pause after which it goes on by itself (Hands-free, or when Options says so) */
   auto: { ms: number; t0: number; tid: ReturnType<typeof setTimeout> } | null;
-  /** the result on screen, left by "next" (Hands-free): a touch goes on at once, whether or not a bar runs */
+  /** the result on screen, left by "next" (Hands-free): the station or "next" goes on; a touch on the stop listens, as anywhere */
   result?: boolean;
+  /** what on the screen it stands for, where the signal climbs to (shell/voice.js, played): a choice (its data-k), slid onto the path as a tap's, or a field (its id) the words are typed into */
+  row?: string | { field: string; text: string };
 }
 
 /** The step a spoken answer took, kept for a few seconds above the foot with a way back (shell/voice.js). */
@@ -593,10 +595,18 @@ export interface VoiceState {
   answer: "off" | "tap" | "auto";
   /** a heard answer waits for Yes, goes on by itself after a pause, or by what the mode is: it waits when the mic is tapped and goes on in Hands-free */
   confirm: "split" | "wait" | "auto";
+  /** Hands-free listens at a result for "next", "explain" and "stop" (`rd-voice-result`; off by default) */
+  atResult: boolean;
+  /** an explanation was asked at the result on screen and is being written: the microphone waits for it */
+  explWait: boolean;
+  /** the microphone listens for another answer over one that was heard (a tap, or words, over its bar) */
+  retry: boolean;
+  /** the stop was last drawn on the thread (true) or in the margin (false); null before it is drawn (shell/voice.js, snapSync) */
+  snapOn: boolean | null;
   /** the field is held down for hold to talk (longer than a tap) */
   hold: boolean;
   /** the press on the field now: when it began, whether it was listening already (a press then stops it), whether it has lasted longer than a tap, which pointer it is, and whether an answer waited (a tap is Yes) and was going on by itself (the touch then only holds it) */
-  press: { t0: number; was: boolean; long: boolean; tid: ReturnType<typeof setTimeout> | null; pid: number; yes: boolean; auto: boolean } | null;
+  press: { t0: number; was: boolean; long: boolean; tid: ReturnType<typeof setTimeout> | null; pid: number; yes: boolean; auto: boolean; x0: number; dx: number } | null;
   /** the press on the strip that says the question again now: holding it pauses the reading, and the click that follows is then not a tap */
   spress: { long: boolean; tid: ReturnType<typeof setTimeout> | null } | null;
   /** the step the last spoken answer took, with the way back; null when there is none */
@@ -644,6 +654,12 @@ export interface VoiceState {
   paused: boolean;
   /** the words last heard began as the microphone opened (src/ui/speech.ts, EARLY_MS): their start may be lost */
   early: boolean;
+  /** When the learner last tapped the page outside the stop, a station or a choice (ms): a field that takes the focus right after it is a turn to the keyboard. */
+  tapAt: number;
+  /** the top bar's Voice switch is off (`rd-voice-hush`): nothing is read or listened to and the field is gone, with every choice kept as it was */
+  hush: boolean;
+  /** the frame that draws "More below" and the slow signal again after a scroll (shell/voice.js, syncSoon) */
+  syncTid: number;
 }
 
 /** The audio context the sounds play into, made on the first touch, and what is sounding now (src/app/sound/play.ts). */

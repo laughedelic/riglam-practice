@@ -62,6 +62,18 @@ export function sayCategories(cats){
   u.ticked=[...cats];
   finishThing(u.ticked);
 }
+/** By voice: the categories said are ticked too (the others stay as they are). */
+export function tickCategories(cats){
+  const u=state.ui; if(!u||!u.cats||u.step!==0||u.checked||u.ask!=="all") return;
+  u.ticked=[...u.ticked,...cats.filter(c=>!u.ticked.includes(c))];
+  render();
+}
+/** By voice, "back": the ticks as they were. */
+export function setTicked(cats){
+  const u=state.ui; if(!u||!u.cats||u.step!==0||u.checked||u.ask!=="all") return;
+  u.ticked=[...cats];
+  render();
+}
 /** Check: grades what was ticked; nothing ticked is the answer "none of these". */
 export function checkCategories(){
   const u=state.ui; if(!u||!u.cats||u.step!==0||u.checked||u.ask!=="all"||!state.cur.q) return;

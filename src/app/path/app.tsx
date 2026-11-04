@@ -105,7 +105,18 @@ export function App() {
     pull.after = () => setKb(kbNow());
     const fin = () => sync(), fout = () => setTimeout(sync, 0);
     r.addEventListener("focusin", fin); r.addEventListener("focusout", fout);
-    const vv = window.visualViewport, size = () => setSmall(!!vv && vv.height < 430);
+    // The keyboard put away by its own key (Android's Back or the keyboard's down arrow) leaves the field focused: once the visual viewport has been short with the
+    // field focused and grows back to the window's height, the keyboard is gone, so the field lets go of the focus and the page gives back the room it made for it.
+    const vv = window.visualViewport;
+    let shrunk = false;
+    const size = () => {
+      setSmall(!!vv && vv.height < 430);
+      if (!vv) return;
+      const a = document.activeElement, field = !!a && a.classList.contains("pfield") && r.contains(a);
+      if (!field) { shrunk = false; return; }
+      if (vv.height < window.innerHeight - 120) shrunk = true;
+      else if (shrunk && vv.height > window.innerHeight - 40) { shrunk = false; (a as HTMLElement).blur(); }
+    };
     if (vv) vv.addEventListener("resize", size); size();
     return () => { pull.after = null; r.removeEventListener("focusin", fin); r.removeEventListener("focusout", fout); if (vv) vv.removeEventListener("resize", size); };
   }, [pull]);

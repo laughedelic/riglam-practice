@@ -18,7 +18,7 @@ test.beforeEach(async ({ page }) => {
 
 /** Hands-free in Syllogisms with a syllogism whose right reply is "the reason is not established", said, gone on, and its result on screen. */
 async function toResult(page, { sprint = false } = {}) {
-  await voice(page, { settings: { read: "0", answer: "auto" } });
+  await voice(page, { settings: { read: "0", answer: "auto", result: "1" } });
   if (sprint) await blitz(page, 20000);
   await page.goto("/");
   await ready(page);
@@ -31,23 +31,37 @@ async function toResult(page, { sprint = false } = {}) {
 
 test("Hands-free: the result stays until 'next', and the next question comes after it", async ({ page }) => {
   await toResult(page);
-  await expect(state(page).locator(".vwhat small")).toHaveText("The result is on screen");
-  await expect(state(page).locator(".vwhat b")).toHaveText("Next");
-  await expect(state(page).locator(".vrunl")).toHaveCount(0);   // no bar: in a calm run it waits
+  await expect(state(page).locator(".vtake")).toHaveCount(0);   // nothing waits for a tap at the stop: the station goes on
+  await expect(state(page).locator(".vring")).toHaveCount(0);   // no bar: in a calm run it waits
   const id = await current(page);
   await page.waitForTimeout(2500);
   await expect(verdict(page)).toBeVisible();   // and it is still there
   await listening(page);   // the microphone listens for the word
+  await expect(page.locator("#vfield")).toHaveClass(/\bon\b/);   // and the stop is on the thread, as it is wherever it listens
   await hearNext(page, "next");
   await expect(verdict(page)).toHaveCount(0);
   expect(await current(page)).not.toBe(id);
   await listening(page);   // and the next question is listened to, with no tap
 });
 
-test("Hands-free: a tap on the field at the result goes on", async ({ page }) => {
+test("Hands-free: at the result a tap on the field listens, as anywhere, and the station goes on", async ({ page }) => {
   await toResult(page);
+  // at a result the thread runs on solid through the stop, as it runs into the station at the foot
+  expect(await page.locator("#path .vfieldh").evaluate((e) => { const c = getComputedStyle(e, "::before"); return { img: c.backgroundImage, mask: c.maskImage || c.webkitMaskImage }; }))
+    .toEqual({ img: "none", mask: "none" });
   const id = await current(page);
+  await mic(page).click();   // it was listening: the tap finishes, and a second tap listens again
   await mic(page).click();
+  await listening(page);
+  await expect(verdict(page)).toBeVisible();   // still on the result
+  expect(await current(page)).toBe(id);
+  // the station pulled up passes over the stop: the field gives way while it is held
+  const b = await page.locator("#stn").boundingBox(), x = b.x + 20, y = b.y + b.height / 2;
+  await page.mouse.move(x, y); await page.mouse.down();
+  for (const d of [30, 60, 100]) await page.mouse.move(x, y - d, { steps: 3 });
+  await expect(page.locator("#vfield")).toBeHidden();
+  for (const d of [200, 300, 400, 480]) await page.mouse.move(x, y - d, { steps: 3 });
+  await page.mouse.up();   // and pulled all the way, it is taken
   await expect(verdict(page)).toHaveCount(0);
   expect(await current(page)).not.toBe(id);
 });
@@ -55,7 +69,7 @@ test("Hands-free: a tap on the field at the result goes on", async ({ page }) =>
 test("Hands-free in Sprint: the result goes on by itself after a bar, with no tap", async ({ page }) => {
   await toResult(page, { sprint: true });
   const id = await current(page);
-  await expect(state(page).locator(".vrunl")).toHaveCount(1);   // the bar runs
+  await expect(state(page).locator(".vring")).toHaveCount(1);   // the bar runs
   await expect(verdict(page)).toHaveCount(0, { timeout: 8000 });
   expect(await current(page)).not.toBe(id);
 });
@@ -64,7 +78,7 @@ test("Hands-free in Sprint: 'explain' stops the bar, and the result then waits f
   await toResult(page, { sprint: true });
   const id = await current(page);
   await hearNext(page, "explain");
-  await expect(state(page).locator(".vrunl")).toHaveCount(0, { timeout: 5000 });   // Claude is not asked in a test run, but the bar has stopped
+  await expect(state(page).locator(".vring")).toHaveCount(0, { timeout: 5000 });   // Claude is not asked in a test run, but the bar has stopped
   await page.waitForTimeout(3500);
   await expect(verdict(page)).toBeVisible();   // longer than the bar
   expect(await current(page)).toBe(id);
@@ -74,7 +88,7 @@ test("Hands-free in Sprint: 'explain' stops the bar, and the result then waits f
 });
 
 test("Hands-free: 'stop' pauses the run until the field is tapped, and the clock of a question stands still", async ({ page }) => {
-  await voice(page, { settings: { read: "0", answer: "auto" } });
+  await voice(page, { settings: { read: "0", answer: "auto", result: "1" } });
   await blitz(page, 20000);
   await page.goto("/");
   await ready(page);
@@ -92,7 +106,7 @@ test("Hands-free: 'stop' pauses the run until the field is tapped, and the clock
 });
 
 test("Hands-free: 'repeat' says the question again", async ({ page }) => {
-  await voice(page, { settings: { read: "1", answer: "auto" } });
+  await voice(page, { settings: { read: "1", answer: "auto", result: "1" } });
   await page.goto("/");
   await ready(page);
   await goTo(page, "Syllogisms");
@@ -104,7 +118,7 @@ test("Hands-free: 'repeat' says the question again", async ({ page }) => {
 });
 
 test("Hands-free: 'skip this syllogism' waits like an answer, then sets the syllogism aside", async ({ page }) => {
-  await voice(page, { settings: { read: "0", answer: "auto", confirm: "wait" } });
+  await voice(page, { settings: { read: "0", answer: "auto", result: "1", confirm: "wait" } });
   await page.goto("/");
   await ready(page);
   await goTo(page, "Syllogisms");
@@ -120,7 +134,7 @@ test("Hands-free: 'skip this syllogism' waits like an answer, then sets the syll
 });
 
 test("words that began as the microphone opened are met with 'I may have missed the start'", async ({ page }) => {
-  await voice(page, { settings: { read: "0", answer: "auto" } });
+  await voice(page, { settings: { read: "0", answer: "auto", result: "1" } });
   await page.goto("/");
   await ready(page);
   await goTo(page, "Syllogisms");
@@ -148,17 +162,15 @@ test("a case that runs out of time does not raise the keyboard over the field on
   await expect(mic(page)).toBeVisible();
 });
 
-const chip = (page) => page.locator("#vfield .vchip");
-
 test("Hands-free: 'stop' said while the last step can still be taken back pauses the run and does not take it back", async ({ page }) => {
-  await voice(page, { settings: { read: "0", answer: "auto" } });
+  await voice(page, { settings: { read: "0", answer: "auto", result: "1" } });
   await page.goto("/");
   await ready(page);
   await goTo(page, "Syllogisms");
   expect(await drawSyllogism(page, "pervasion")).toBe(true);
   await listening(page);
   await hearNext(page, "there is no pervasion");
-  await expect(chip(page)).toBeVisible({ timeout: 10_000 });   // it went on to the counter-example, and can be taken back for a few seconds
+  await expect.poll(() => page.evaluate(() => window.__t.ui.step), { timeout: 10_000 }).toBe(1);   // it went on to the counter-example, and can be taken back for a few seconds
   await listening(page);
   await hearNext(page, "stop");
   await expect(state(page)).toContainText("Paused");
@@ -166,7 +178,7 @@ test("Hands-free: 'stop' said while the last step can still be taken back pauses
 });
 
 test("a pause belongs to Hands-free: an exercise that answers by tap does not inherit it, and its clock runs", async ({ page }) => {
-  await voice(page, { settings: { read: "0", answer: "auto" } });
+  await voice(page, { settings: { read: "0", answer: "auto", result: "1" } });
   await page.addInitScript(() => { try { localStorage.setItem("rd-per-ex", JSON.stringify({ practice: { answer: "tap" } })); } catch { /* storage unavailable */ } });
   await blitz(page, 20000);
   await page.goto("/");
@@ -183,7 +195,7 @@ test("a pause belongs to Hands-free: an exercise that answers by tap does not in
 });
 
 test("Hands-free: 'skip it' at the counter-example leaves it out, and does not set the syllogism aside", async ({ page }) => {
-  await voice(page, { settings: { read: "0", answer: "auto", confirm: "wait" } });
+  await voice(page, { settings: { read: "0", answer: "auto", result: "1", confirm: "wait" } });
   await page.goto("/");
   await ready(page);
   await goTo(page, "Syllogisms");
@@ -192,7 +204,7 @@ test("Hands-free: 'skip it' at the counter-example leaves it out, and does not s
   await hearNext(page, "there is no pervasion");
   await expect(waiting(page)).toBeVisible();
   await mic(page).click();   // Yes
-  await expect(chip(page)).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.__t.ui.step)).toBe(1);
   await listening(page);
   await hearNext(page, "skip it");
   await expect(waiting(page)).toBeVisible();
@@ -219,7 +231,7 @@ for (const [what, set] of [["Claude's explanation arrives", () => { window.__t.u
   await page.waitForTimeout(3800);
   await expect(verdict(page)).toBeVisible();
   expect(await current(page)).toBe(id);
-  await expect(state(page).locator(".vrunl")).toHaveCount(0);
+  await expect(state(page).locator(".vring")).toHaveCount(0);
 });
 
 test("Hands-free: after 'stop' at a result a tap listens again for 'next', and 'next' goes on", async ({ page }) => {
@@ -237,8 +249,8 @@ test("Hands-free: after 'stop' at a result a tap listens again for 'next', and '
   expect(await current(page)).not.toBe(id);
 });
 
-test("Hands-free, waiting for Yes: 'again' says the question again and the answer keeps waiting; 'stop' and a tap listen for 'yes' again", async ({ page }) => {
-  await voice(page, { settings: { read: "0", answer: "auto", confirm: "wait" } });
+test("Hands-free, waiting for Yes: 'again' says the question again and the answer keeps waiting; 'stop' takes it back and listens for another", async ({ page }) => {
+  await voice(page, { settings: { read: "0", answer: "auto", result: "1", confirm: "wait" } });
   await page.goto("/");
   await ready(page);
   await goTo(page, "Syllogisms");
@@ -250,10 +262,53 @@ test("Hands-free, waiting for Yes: 'again' says the question again and the answe
   await expect(state(page)).toContainText("Read aloud is off");
   await expect(waiting(page)).toBeVisible();   // not taken back
   await listening(page);
-  await hearNext(page, "stop");
-  await expect(state(page)).toContainText("Paused");
-  await idle(page);
-  await mic(page).click();   // goes on: the answer still waits, and the microphone listens for "yes"
+  await hearNext(page, "stop");   // a correction (as "no", "wait", "wrong", "cancel" or "correction"): the answer is taken back
+  await expect(waiting(page)).toHaveCount(0);
+  await listening(page);   // and the microphone listens for another
+  await hearNext(page, "the reason is not established");
   await expect(waiting(page)).toBeVisible();
+});
+
+test("Hands-free: while Claude writes an explanation the microphone is closed, and it opens again once the explanation is there", async ({ page }) => {
+  await toResult(page);
   await listening(page);
+  await page.evaluate(() => { window.__t.ui.ctl = new AbortController(); window.__t.render(); });   // an explanation is being written
+  await idle(page);
+  await expect(state(page)).not.toHaveClass(/\bon\b/);   // the stop is off the thread while it waits
+  await page.waitForTimeout(1500);
+  await idle(page);   // and does not open by itself meanwhile
+  await page.evaluate(() => { window.__t.ui.ctl = null; window.__t.ui.explained = true; window.__t.render(); });   // the explanation is there
+  await listening(page);
+  await hearNext(page, "next");
+  await expect(verdict(page)).toHaveCount(0);
+});
+
+test("Hands-free: voice switched off and on again while Claude writes leaves the microphone closed until the explanation is there, then it opens", async ({ page }) => {
+  await toResult(page);
+  await listening(page);
+  await page.evaluate(() => { window.__t.ui.ctl = new AbortController(); window.__t.render(); });   // an explanation is being written
+  await idle(page);
+  await page.getByRole("switch", { name: "Voice on" }).click();
+  await page.getByRole("switch", { name: "Voice off" }).click();   // the result is asked again, as new
+  await page.waitForTimeout(1500);
+  await idle(page);   // still closed while Claude writes
+  await page.evaluate(() => { window.__t.ui.ctl = null; window.__t.ui.explained = true; window.__t.render(); });   // the explanation is there
+  await listening(page);
+});
+
+test("Hands-free leaves the result to taps unless Listen at the result is on: no microphone there, and the next question is listened to", async ({ page }) => {
+  await voice(page, { settings: { read: "0", answer: "auto" } });
+  await page.goto("/");
+  await ready(page);
+  await goTo(page, "Syllogisms");
+  expect(await drawSyllogism(page, "reason")).toBe(true);
+  await listening(page);
+  await hearNext(page, "the reason is not established");
+  await expect(verdict(page)).toContainText("Right", { timeout: 10_000 });
+  await expect(page.locator("#vmic")).toHaveCount(0);   // nothing listens at the result
+  const id = await current(page);
+  await page.locator("#path .foot").click();   // the station at the foot goes on
+  await expect(verdict(page)).toHaveCount(0);
+  expect(await current(page)).not.toBe(id);
+  await listening(page);   // and the next question is listened to, with no tap
 });

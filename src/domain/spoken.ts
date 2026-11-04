@@ -239,7 +239,7 @@ export function spokenDirection(alts: readonly string[], terms?: PairTerms): "3a
 // ---- yes or no to an answer that waits to be confirmed ----
 
 const YES = /^(?:yes|yeah|yep|yup|ok|okay|sure|confirm|confirmed|correct|right|that is right|thats right|that is correct|thats correct|go on|go ahead|next|continue|do it|good|fine|exactly)$/;
-const NO = /^(?:no|nope|wrong|incorrect|cancel|change|change it|back|undo|again|try again|redo|not that|that is wrong|thats wrong|stop|wait)$/;
+const NO = /^(?:no|nope|wrong|incorrect|cancel|change|change it|back|undo|again|try again|redo|not that|that is wrong|thats wrong|stop|wait|wait a second|correction|correct it|correct that|let me correct|cancel that|cancel it)$/;
 /** "yes" to go on with the answer that is waiting, "no" to take it back; null when the words are neither (they may be a new answer). */
 export function spokenConfirm(alts: readonly string[]): "yes" | "no" | null {
   for (const heard of alts) {
