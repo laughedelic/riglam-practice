@@ -15,6 +15,7 @@ export interface NewsItem {
 }
 
 export const NEWS: NewsItem[] = [
+  { id: "2026-11-04-other-names", title: "Existents by their other names", text: "Questions about existents now also call them by their other names: established bases, objects of knowledge, phenomena, objects of comprehension and objects. Permanent phenomena can now also appear as non-functioning phenomena.", go: "practice" },
   { id: "2026-11-04-categories-words", title: "Categories starts clearer", text: "In Categories, the words is and not now wait until you select the first category, instead of standing there before you have done anything.", go: "categories" },
   { id: "2026-11-03-read-aloud", title: "Read aloud", text: "Every exercise can now read its questions aloud, each one as it appears, in your device's own voice. Switch it on under Voice in the Practice options, where you also pick the voice and the speed. The speaker above the bottom says the question again; hold it to pause the reading.", go: "practice" },
   { id: "2026-11-03-syllogism-wait", title: "Claude's progress in Syllogisms", text: "When Claude explains your answer in Syllogisms, you now see it working, with the seconds and a Stop button, as in the other exercises. Before, the result showed nothing until the explanation arrived." },
