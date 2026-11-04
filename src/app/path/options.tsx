@@ -212,7 +212,7 @@ function TutorPage() {
   const syl = state.tab === "syllogism";
   return <>
     <Intro>Claude is an AI assistant. It explains the results, and checks examples you wrote that the reference data does not cover. It can make mistakes, so treat it as a study aid, not the last word. Where sources differ it says so. You can flag anything that looks wrong to help improve it.</Intro>
-    {canAsk() ? <Line title="Explains" sub={"Every answer: right after you check one, Claude explains it" + (syl ? "" : " and checks the examples the page could not") + ". When I ask: it waits for you to ask."}>
+    {canAsk() ? <Line title="Explains" sub={"Every answer: right after you check one, Claude explains it" + (syl ? "" : " and checks the examples the app could not") + ". When I ask: it waits for you to ask."}>
       <Words label="Explanations by Claude" items={TUTOR} cur={state.autoExplain ? "every" : "ask"} on={setTutor} /></Line> : null}
     {quorumShown() ? <Line title="Three Claude models" tag="experimental" sub={quorumNote()} sw={{ on: state.quorum, toggle: () => setQuorum(!state.quorum) }} /> : null}
   </>;

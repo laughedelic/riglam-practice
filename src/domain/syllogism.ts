@@ -462,7 +462,7 @@ export function gradeExample(ix: DataIndex, c: Syllogism, text: string): Example
   // a thing whose name leaves the reason or the predicate open ("a car" for black things) is asked to be named, as in the pairs (vague.ts): the reason yes, the predicate no
   const vague = it ? vagueVerdict(ix, it, t, [c.catR, c.catP], "anb", null, [c.reason, c.predicate]) : null;
   if (vague) return { v: vague.v, line: vague.msg[1] };
-  if (!it || !inUniverse(ix, it, c.catR, c.catP)) return { v: "cmp", line: `Not checked: the page does not know ${t || "that"} well enough to say.` };
+  if (!it || !inUniverse(ix, it, c.catR, c.catP)) return { v: "cmp", line: `Not checked: the app does not know ${t || "that"} well enough to say.` };
   // the thing as the data names it, not as it was typed ("red balls" is "a red ball"); the one thing said in the second person ("you") takes "are"
   const name = cap(it.n), be = it.nosubject ? "are" : "is", it_ = it.nosubject ? "you" : "it", r = it.c.includes(c.catR), p = it.c.includes(c.catP);
   if (r && !p) return { v: "ok", line: `${name} ${be} ${c.reason} and ${be} not ${c.predicate}, so there is no pervasion.` };

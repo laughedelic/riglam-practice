@@ -30,7 +30,7 @@ const answered = (c: Syllogism, said: Reply | null, extra: Partial<SyllogismAnsw
   sentence: syllogismText(c), grade: said ? gradeSyllogism(c, said) : gradeTimeout(c), ...extra,
 });
 
-test("the card gives the parts, the three checks with the page's lines, the right reply and the learner's reply", () => {
+test("the card gives the parts, the three checks with the app's lines, the right reply and the learner's reply", () => {
   const c = find((x) => x.answer === "reason" && x.checks.v.ok);
   const wrong: Reply = "accept";
   const body = syllogismBody(real, c, answered(c, wrong));
@@ -38,19 +38,19 @@ test("the card gives the parts, the three checks with the page's lines, the righ
   expect(body).toContain("CARD (from the reference's term data; S is the subject, R the reason, P the predicate):");
   expect(body).toContain(`"S":{"label":${JSON.stringify(c.subject)}`);
   expect(body).toContain(`Syllogism: ${JSON.stringify(syllogismText(c))}`);
-  expect(body).toContain(`1 Reason (is S the reason?): NOT ESTABLISHED. The page's line: ${JSON.stringify(c.checks.e.line)}`);
+  expect(body).toContain(`1 Reason (is S the reason?): NOT ESTABLISHED. The app's line: ${JSON.stringify(c.checks.e.line)}`);
   expect(body).toContain("2 Pervasion (is whatever is the reason also the predicate?): HOLDS.");
   expect(body).toContain(`3 Thesis (is S the predicate?): ${c.checks.t.ok ? "TRUE" : "FALSE"}.`);
   expect(body).toContain('Right reply: "The reason is not established". Learner replied: "Accept", which is wrong.');
-  expect(body).toContain("What the page says was mixed up: " + gradeSyllogism(c, wrong).confusion);
+  expect(body).toContain("What the app says was mixed up: " + gradeSyllogism(c, wrong).confusion);
 });
 
-test("a pervasion that fails comes with the counter-example the page keeps; an opposite one says so", () => {
+test("a pervasion that fails comes with the counter-example the app keeps; an opposite one says so", () => {
   const c = find((x) => x.pervasion === "fails" && !!x.witness && x.answer === "pervasion");
   const body = syllogismBody(real, c, answered(c, "pervasion"));
   expect(body).toContain("2 Pervasion (is whatever is the reason also the predicate?): DOES NOT HOLD: some things that are the reason are not the predicate; the counter-example kept for you: " + JSON.stringify(c.witness));
   expect(body).toContain('Right reply: "There is no pervasion". Learner replied: "There is no pervasion", which is right.');
-  expect(body).not.toContain("What the page says was mixed up");
+  expect(body).not.toContain("What the app says was mixed up");
   const o = find((x) => x.pervasion === "opposite");
   const opp = syllogismBody(real, o, answered(o, "accept"));
   expect(opp).toContain("DOES NOT HOLD: it is the opposite, nothing that is the reason is the predicate (the term chain shows it)");
@@ -61,21 +61,21 @@ test("a pervasion that holds names no counter-example, and an accepted syllogism
   const c = find((x) => x.answer === "accept");
   const body = syllogismBody(real, c, answered(c, "accept"));
   expect(body).toContain("1 Reason (is S the reason?): ESTABLISHED.");
-  expect(body).toContain("HOLDS. The page's line:");
+  expect(body).toContain("HOLDS. The app's line:");
   expect(body).toContain("3 Thesis (is S the predicate?): TRUE.");
   expect(body).not.toContain("kept for you");
 });
 
-test("time running out is said as no reply, and the learner's counter-example is quoted, cut, and given the page's verdict", () => {
+test("time running out is said as no reply, and the learner's counter-example is quoted, cut, and given the app's verdict", () => {
   const c = find((x) => x.answer === "pervasion");
   expect(syllogismBody(real, c, answered(c, null))).toContain("The learner gave no reply: the time ran out (Sprint), so nothing was mixed up.");
   expect(syllogismBody(real, c, answered(c, null))).not.toContain("Learner replied");
   expect(SYLLOGISM_ASK).toContain("never when the time ran out");
   const long = "x".repeat(500);
   const ex = (v: "ok" | "bad" | "cmp") => syllogismBody(real, c, answered(c, "pervasion", { ex: { text: v === "cmp" ? long : 'a "quoted" thing', v } }));
-  expect(ex("ok")).toContain(`The learner's counter-example: "a \\"quoted\\" thing"; page verdict ok (it is the reason and is not the predicate).`);
-  expect(ex("bad")).toContain("page verdict bad (it is not the reason, or it is the predicate too)");
-  expect(ex("cmp")).toContain(`"${"x".repeat(200)}"; page verdict cmp (the page does not know it well enough to say).`);
+  expect(ex("ok")).toContain(`The learner's counter-example: "a \\"quoted\\" thing"; app verdict ok (it is the reason and is not the predicate).`);
+  expect(ex("bad")).toContain("app verdict bad (it is not the reason, or it is the predicate too)");
+  expect(ex("cmp")).toContain(`"${"x".repeat(200)}"; app verdict cmp (the app does not know it well enough to say).`);
   expect(ex("cmp")).not.toContain("x".repeat(201));
   expect(syllogismBody(real, c, answered(c, "pervasion"))).not.toContain("The learner's counter-example");
 });

@@ -48,7 +48,7 @@ function explain(ask: string): string {
 const SYLLOGISM_CARD = "This is the Syllogisms mode.";
 const explainSyllogism = (): string => [
   `Reason: ${DEV_MARK}, no model was asked, so this line says nothing about the subject and the reason.`,
-  "Pervasion: whether whatever is the reason is also the predicate, as the page's line says.",
+  "Pervasion: whether whatever is the reason is also the predicate, as the app's line says.",
   `Explanation: ${DEV_MARK}. Check the reason first, then the pervasion.`,
   "Misconception: none.",
 ].join("\n");

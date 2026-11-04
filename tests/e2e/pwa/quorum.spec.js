@@ -175,7 +175,7 @@ withKey("the panel shows what each model and the judge said of each example, and
   expect(n).toBeGreaterThan(0);
   await expect(status(page)).toContainText("Done: 3 of 3 models answered; the judge ruled (the models differed).");
   await expect(panel(page).getByText("The answer you see is the judge’s.")).toBeVisible();
-  for (const name of ["Haiku", "Sonnet", "Opus", "Judge’s ruling", "Page"]) await expect(rowOf(page, name)).toHaveCount(n);
+  for (const name of ["Haiku", "Sonnet", "Opus", "Judge’s ruling", "App"]) await expect(rowOf(page, name)).toHaveCount(n);
   // Haiku differs from the ruling, the others are with it
   await expect(rowOf(page, "Haiku").first()).toContainText("≠ ruling");
   await expect(rowOf(page, "Sonnet").first()).toContainText("= ruling");

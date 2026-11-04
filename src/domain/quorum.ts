@@ -120,9 +120,9 @@ const PAGE_SAYS: Record<string, string> = { ok: "fits", bad: "does not fit", cmp
 
 /** What a flag on a dispute shows: the cells the models and the judge gave, and where the learner put the example with the page's verdict there. At most 600 characters. */
 export function disputeText(d: Dispute, t: QuorumThing): string {
-  const lead = d.kinds.includes("models") ? "The models gave different cells." : "The models agree, but the page does not.";
+  const lead = d.kinds.includes("models") ? "The models gave different cells." : "The models agree, but the app does not.";
   const models = "Models: " + d.models.map((m) => m.name + " " + CELL_NAME[m.cell]).join(", ") + ".";
   const judge = d.judge ? " Judge: " + CELL_NAME[d.judge] + "." : "";
-  const you = " You put it in " + t.cells.map((c) => CELL_NAME[c] + " (the page: " + (PAGE_SAYS[t.page[c] ?? "cmp"] ?? t.page[c]) + ")").join(", ") + ".";
+  const you = " You put it in " + t.cells.map((c) => CELL_NAME[c] + " (the app: " + (PAGE_SAYS[t.page[c] ?? "cmp"] ?? t.page[c]) + ")").join(", ") + ".";
   return [lead, models + judge + you].join(" ").slice(0, 600);
 }
