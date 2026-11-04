@@ -49,7 +49,7 @@ function expireRel(u) {
     u.exLate = true; u.missed = Object.fromEntries(fillable().map((c) => [c, true])); u.pall = true; u.passOn = true;
     blurred(); check(); moveOn(); return;
   }
-  render(); focusCin();
+  render(); focusCin(true);
 }
 // Pervasions, the relation: the answers are checked with no relation chosen, and the result shows the right one
 function expireRelD(u) {
@@ -68,7 +68,7 @@ function expireCase(u) {
   const order = /** @type {string[]} */ (fillable()), ci = Math.max(0, Math.min(u.ci || 0, order.length - 1));
   u.missed = { ...u.missed, [order[ci]]: true };
   const next = nextAfterTimeUp(order, ci, (c) => settled(/** @type {any} */ (c), u));
-  if (next) { u.ci = order.indexOf(next); u.pall = false; render(); focusCin(); return; }
+  if (next) { u.ci = order.indexOf(next); u.pall = false; render(); focusCin(true); return; }
   blurred();
   u.pall = true;
   check();

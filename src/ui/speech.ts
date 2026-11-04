@@ -27,6 +27,7 @@ type Recognizer = {
   onerror: ((e: any) => void) | null;
   onend: (() => void) | null;
   onaudiostart: (() => void) | null;
+  onspeechstart: (() => void) | null;
   onspeechend: (() => void) | null;
 };
 
@@ -137,7 +138,7 @@ export function stopSpeaking(): void {
 }
 
 /** What came of listening: the recognizer's guesses, best first, or why there are none. */
-export type Heard = { alts: string[] } | { error: string };
+export type Heard = { alts: string[]; early?: boolean } | { error: string };
 
 export interface Listening {
   /** stop listening and take what was heard so far; a second call, or a recognizer that does not answer, ends it at once */
@@ -149,6 +150,8 @@ export interface Listening {
 // screen went off, another app took the microphone, the service died); the page would then show "Listening" for good, and a
 // tap on the microphone would stop a recognizer that is already gone. So every way of ending has a time after which it is
 // taken as ended: the answer if there is one, otherwise nothing heard.
+/** Speech that is heard this soon after the microphone opened was already under way when it did: its start may be lost (a guess: a person who answers a tick needs longer to begin). */
+const EARLY_MS = 250;
 const AFTER_ERROR = 1500, AFTER_ANSWER = 2000, AFTER_STOP = 2000, AFTER_SPEECH = 5000, LONGEST = 20000, NO_AUDIO = 4000;
 let active: Recognizer | null = null;
 /**
@@ -224,7 +227,8 @@ function listenOnce(opts: { lang?: string; interim?: (text: string) => void; don
     release(cur);
     opts.done(h);
   };
-  const result = (): Heard => (alts && alts.length ? { alts } : { error: error || "no-speech" });
+  let early = false;
+  const result = (): Heard => (alts && alts.length ? { alts, ...(early ? { early: true } : {}) } : { error: error || "no-speech" });
   // `end` should follow; if it does not within `ms`, it is taken as having come
   const endIn = (ms: number) => { clearTimeout(ending); ending = setTimeout(() => finish(result()), ms); };
   const halt = (ms: number) => { if (gone) return; stopped = true; try { cur?.stop(); } catch { /* already ended */ } endIn(ms); };
@@ -243,7 +247,9 @@ function listenOnce(opts: { lang?: string; interim?: (text: string) => void; don
     r.maxAlternatives = 5;
     r.continuous = false;
     let opened = false;
-    r.onaudiostart = () => { opened = true; clearTimeout(watch); };
+    let audioAt = 0;
+    r.onaudiostart = () => { opened = true; audioAt = performance.now(); clearTimeout(watch); };
+    r.onspeechstart = () => { if (audioAt && performance.now() - audioAt < EARLY_MS) early = true; };
     r.onresult = (e) => {
       if (gone || cur !== r) return;
       let interim = "";

@@ -38,6 +38,7 @@ export async function voice(page, { settings = {}, heard = [], none = false, on 
           if (this.gone) return;
           if (!window.__heard.length && Date.now() - t0 < 3000) { setTimeout(tick, 30); return; }
           if (this.onaudiostart) this.onaudiostart();
+          if (window.__early && this.onspeechstart) { this.onspeechstart(); window.__early = false; }   // speech that was under way as the microphone opened
           const next = window.__heard.shift();
           if (next == null) { if (this.onerror) this.onerror({ error: "no-speech" }); }
           else {
@@ -58,6 +59,8 @@ export async function voice(page, { settings = {}, heard = [], none = false, on 
 export const said = (page) => page.evaluate(() => window.__said.slice());
 /** Waits until `n` things have been said and the last one is over (a tap on the speaker while it reads stops it). */
 export const spoken = async (page, n) => { await expect.poll(async () => (await said(page)).length).toBe(n); await page.waitForFunction(() => !window.speechSynthesis.cur); };
+/** The next words heard began as the microphone opened (the speaker was already talking). */
+export const earlyNext = (page) => page.evaluate(() => { window.__early = true; });
 export const hearNext = (page, ...phrases) => page.evaluate((p) => window.__heard.push(...p), phrases);
 export const docs = (page, col) => page.evaluate(async (col) => (await (await window.__riglam.platform.db()).collection(col).get()).docs.map((d) => d.data()), col);
 export const mic = (page) => page.locator("#vmic");
