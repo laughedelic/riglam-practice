@@ -51,6 +51,7 @@ export const state = {
   cur: null,
   retryQ: [],
   recent: [],
+  ahead: null,       // the pair drawn ahead of the Next that shows it, with a natural voice (practice/ahead.ts)
   findAsked: [],   // the relations Find a pair asked for lately, oldest first: the draw of the next one leans away from them (find/flow.js)
   findRel: null,   // the relation Find a pair keeps asking for once the learner has picked one (`rd-findrel`); null: a different one each time
   catsRecent: [],  // the things Categories asked lately, oldest first: the draw passes them over while others remain (categories/flow.js)
@@ -126,9 +127,9 @@ export const state = {
   fills over the time (when it is full the step moves on) and turns red in the last seconds. */
   blitz: false,
   times: defaultTimes(),
-  // reading the questions aloud and answering by voice, with the browser's own speech (shell/voice.js). `on` is the Voice switch in Settings (app.js sets it
+  // reading the questions aloud and answering by voice, with the browser's own speech or, for reading, the natural voices of the app's server (`remote`; shell/voice.js). `on` is the Voice switch in Settings (app.js sets it
   // at the start: the device's choice, else the build's default); `read` and `answer` are in the Practice options, both off until turned on there
-  voice: {on:false, muted:false, read:false, answer:"off", confirm:"split", atResult:false, explWait:false, retry:false, snapOn:null, hold:false, press:null, spress:null, chip:null, tried:false, noRead:false, voiceId:"", rate:1, key:"", phase:"idle", live:"", note:"", bad:false, pend:null,began:false,seen:false,held:false, ask3:false, tries:0, blocked:false, clockUi:null, rhold:false, stop:null, tok:null, hooked:false, paused:false, early:false, tapAt:0, hush:false, syncTid:0},
+  voice: {on:false, muted:false, read:false, answer:"off", confirm:"split", atResult:false, explWait:false, retry:false, snapOn:null, hold:false, press:null, spress:null, chip:null, tried:false, noRead:false, voiceId:"", rate:1, natural:false, speaker:null, remote:null, remoteUntil:0, remoteWhy:"", key:"", phase:"idle", live:"", note:"", bad:false, pend:null,began:false,seen:false,held:false, ask3:false, tries:0, blocked:false, clockUi:null, rhold:false, stop:null, tok:null, hooked:false, paused:false, early:false, tapAt:0, hush:false, syncTid:0},
   // the sounds (src/app/sound): the Sounds switch in Settings (`rd-sounds`, on until the device turns it off), and the audio context, its room and the sound playing now
   sounds: true,
   snd: {ctx:null, rig:null, live:null, until:0, keep:0, failed:false, armed:false},

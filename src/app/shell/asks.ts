@@ -63,12 +63,16 @@ const allOf = (n: number) => ALL[n] || "all of them";
 const CATS_DONE = /^(?:check|check it|check them|check this|check that|check my answer|done|i am done|im done|that is all|thats all|that s all|finished|nothing else|no more)$/;
 const joinAnd = (xs: string[]) => (xs.length < 2 ? xs.join("") : xs.slice(0, -1).join(", ") + " and " + xs[xs.length - 1]);
 
+// the words of the questions that come more than once or that are read ahead (laterHere)
+const counterLine = (c: Syllogism) => "Name something that is " + c.reason + " and is not " + c.predicate + ".";
+const rowLine = (q: PlaceQuestion, row: PlaceQuestion["rows"][number]) => "Is " + q.thing.n + " " + row.phrase + "?";
+
 /** What the screen asks, or null when it asks nothing that is spoken: for the four exercises here; undefined for the others (their screens are asked in shell/voice.js). */
 export function askedHere(u: Ui): Ask | null | undefined {
   if (u.syllogism) {
     const c = state.cur && (state.cur.c as Syllogism | undefined);
     if (state.tab !== "syllogism" || !c || u.step > 1) return null;
-    if (u.step === 1) return { key: "syl:" + attempt(u) + "/x", kind: "counter", say: "Name something that is " + c.reason + " and is not " + c.predicate + ".", hint: "Say a counter-example, or “skip”.", clock: false };
+    if (u.step === 1) return { key: "syl:" + attempt(u) + "/x", kind: "counter", say: counterLine(c), hint: "Say a counter-example, or “skip”.", clock: false };
     return { key: "syl:" + attempt(u) + "/r", kind: "syl", say: syllogismText(c, state.syllogismWording) + " Do you accept it?",
       hint: "Say “I accept”, “the reason is not established” or “there is no pervasion”.", clock: true };
   }
@@ -77,7 +81,7 @@ export function askedHere(u: Ui): Ask | null | undefined {
     if (state.tab !== "categories" || !q || u.step !== 0) return null;
     if (u.ask === "one") {
       const row = q.rows[u.i];
-      return row ? { key: "cat:" + attempt(u) + "/" + u.i, kind: "yesno", say: "Is " + q.thing.n + " " + row.phrase + "?", hint: "Say yes or no.", clock: true } : null;
+      return row ? { key: "cat:" + attempt(u) + "/" + u.i, kind: "yesno", say: rowLine(q, row), hint: "Say yes or no.", clock: true } : null;
     }
     return { key: "cat:" + attempt(u) + "/all", kind: "cats", say: "Which categories is " + q.thing.n + " in?",
       hint: "Say the categories it is in, or their numbers, then “check”; or “none of these”.", clock: true };
@@ -93,6 +97,26 @@ export function askedHere(u: Ui): Ask | null | undefined {
     return { key: "find:" + attempt(u) + "/name", kind: "pair", say: "Name two phenomena that are " + lcRel(REL[u.rel as keyof typeof REL].name) + ".",
       hint: "Say two phenomena, such as “wood and fire”.", clock: true };
   }
+  return undefined;
+}
+
+/**
+ * What the screen on show will ask after the question it asks now, in the words it is read: the clips of a natural voice are fetched while the question is answered (shell/voice.js).
+ * Only what the thing on screen already fixes: the counter-example after a reply to a syllogism, the rows of Categories one at a time that are still to come. An empty list for the
+ * four exercises here when nothing follows that is known; undefined for the others (shell/voice.js).
+ */
+export function laterHere(u: Ui): string[] | undefined {
+  if (u.syllogism) {
+    const c = state.cur && (state.cur.c as Syllogism | undefined);
+    return state.tab === "syllogism" && c && u.step === 0 ? [counterLine(c)] : [];
+  }
+  if (u.cats) {
+    const q = state.cur && (state.cur.q as PlaceQuestion | undefined);
+    if (state.tab !== "categories" || !q || u.step !== 0 || u.ask !== "one") return [];
+    return q.rows.slice(u.i + 1, u.i + 5).map((row) => rowLine(q, row));
+  }
+  if (u.inst) return [];
+  if (u.find && u.step === 0) return [];
   return undefined;
 }
 

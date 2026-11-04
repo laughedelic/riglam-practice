@@ -132,7 +132,8 @@ test("Licenses names the code's license, the fonts' license and what the definit
 test("Your data says, under Export and import, what stays on the device and, where the server is in play, who can read what it keeps", async ({ page }) => {
   // a server with its tutor, accounts, reports and learned facts on, and a device with the Magic Key: every part of the text applies
   await giveKey(page);
-  await page.route("**/api/health", (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, tutor: "on", accounts: "on", reports: "on", learns: "on", known: "on" }) }));
+  await page.addInitScript(() => localStorage.setItem("rd-voice-natural", "1"));   // the natural voices are an experiment, on for this device
+  await page.route("**/api/health", (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, tutor: "on", accounts: "on", reports: "on", learns: "on", known: "on", speak: "on" }) }));
   await openSettings(page);
   await expect(page.locator(".ppage .ol", { hasText: "Your data" })).toContainText("privacy");
   await page.getByRole("button", { name: "Your data: more" }).click();
@@ -146,6 +147,8 @@ test("Your data says, under Export and import, what stays on the device and, whe
   await expect(body).toContainText("never the words, apart from the examples you agree to share");
   await expect(body).toContainText("the person who runs the app can read them");
   await expect(body).toContainText("No name, no email");
+  await expect(body).toContainText("the words of each question are sent through the app’s server to Google");
+  await expect(body).toContainText("Your answers are not sent");
 });
 
 test("Privacy leaves out what this server does not do: with no server, only what stays on the device", async ({ page }) => {
@@ -155,6 +158,7 @@ test("Privacy leaves out what this server does not do: with no server, only what
   await expect(page.locator(".ppage")).toContainText("stay in this browser, on this device");
   await expect(page.locator(".ppage")).not.toContainText("Anthropic");
   await expect(page.locator(".ppage")).not.toContainText("passkey");
+  await expect(page.locator(".ppage")).not.toContainText("Natural voices");
 });
 
 test("a page of Settings opens at its top, and Back finds Settings where it was left", async ({ page }) => {

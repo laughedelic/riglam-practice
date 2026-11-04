@@ -237,12 +237,12 @@ describe("tutorIsOn", () => {
   it("says what the server says of the tutor, Quorum and flag reports from one request", async () => {
     let asked = 0;
     const once = (body: unknown) => (async () => (asked++, json(200, body))) as unknown as typeof fetch;
-    expect(await serverSays(once({ ok: true, tutor: "on", quorum: "on" }))).toEqual({ tutor: true, quorum: "on", reports: false, known: false, learns: false });
-    expect(await serverSays(once({ ok: true, tutor: "on" }))).toEqual({ tutor: true, quorum: false, reports: false, known: false, learns: false });
-    expect(await serverSays(once({ ok: true, tutor: "off", quorum: "on" }))).toEqual({ tutor: false, quorum: false, reports: false, known: false, learns: false });
-    expect(await serverSays(once({ ok: false, tutor: "on", quorum: "on" }))).toEqual({ tutor: false, quorum: false, reports: false, known: false, learns: false });
+    expect(await serverSays(once({ ok: true, tutor: "on", quorum: "on" }))).toEqual({ tutor: true, quorum: "on", reports: false, known: false, learns: false, speak: false });
+    expect(await serverSays(once({ ok: true, tutor: "on" }))).toEqual({ tutor: true, quorum: false, reports: false, known: false, learns: false, speak: false });
+    expect(await serverSays(once({ ok: true, tutor: "off", quorum: "on" }))).toEqual({ tutor: false, quorum: false, reports: false, known: false, learns: false, speak: false });
+    expect(await serverSays(once({ ok: false, tutor: "on", quorum: "on" }))).toEqual({ tutor: false, quorum: false, reports: false, known: false, learns: false, speak: false });
     // flag reports are told apart from the tutor: a server can take flags with its tutor off
-    expect(await serverSays(once({ ok: true, tutor: "off", reports: "on" }))).toEqual({ tutor: false, quorum: false, reports: true, known: false, learns: false });
+    expect(await serverSays(once({ ok: true, tutor: "off", reports: "on" }))).toEqual({ tutor: false, quorum: false, reports: true, known: false, learns: false, speak: false });
     expect(await serverSays(once({ ok: false, reports: "on" }))).toMatchObject({ reports: false, known: false });
     // learned facts are answered only beside a tutor that is on
     expect(await serverSays(once({ ok: true, tutor: "on", known: "on" }))).toMatchObject({ tutor: true, known: true });
@@ -251,7 +251,7 @@ describe("tutorIsOn", () => {
     expect(await serverSays(once({ ok: true, tutor: "on", learns: "on" }))).toMatchObject({ tutor: true, known: false, learns: true });
     expect(await serverSays(once({ ok: true, tutor: "off", learns: "on" }))).toMatchObject({ learns: false });
     expect(asked).toBe(10);
-    expect(await serverSays((async () => { throw new TypeError("offline"); }) as unknown as typeof fetch)).toEqual({ tutor: false, quorum: false, reports: false, known: false, learns: false });
+    expect(await serverSays((async () => { throw new TypeError("offline"); }) as unknown as typeof fetch)).toEqual({ tutor: false, quorum: false, reports: false, known: false, learns: false, speak: false });
   });
 
   it("is false for an answer that is not JSON (a static host with no server)", async () => {

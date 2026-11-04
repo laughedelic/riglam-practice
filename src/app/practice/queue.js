@@ -10,6 +10,7 @@ import { isSkipped } from "./skips.js";
 import { closeStageUp, passStageOffer, takeStageUp } from "./stage-offer.ts";
 import { takeStop } from "./stops.ts";
 import { nextGenerated } from "./universe.js";
+import { holdAhead, takeAhead } from "./ahead.ts";
 import { cue } from "../sound/play.ts";
 import { render, top0 } from "../shell/render.js";
 
@@ -19,7 +20,16 @@ export function freshUi(){return {rel:null, open:true, cells:{both:{t:"",none:fa
 function nextPair(){
   if(state.retryQ.length) return {p:state.retryQ.shift(), retry:true, tag:state.retryTag};
   for(const b of state.batches){ const q=pairsOf(b).find(p=>!state.answers[p.id]&&!isSkipped(p)); if(q) return {p:q, legacy:true}; }
-  return {p:nextGenerated(undefined,true)};
+  return {p:takeAhead("practice")||nextGenerated(undefined,true)};       // the pair drawn ahead for a natural voice (pairAhead), if what it was drawn under still holds
+}
+/**
+ * The pair that Next will show, drawn now and held (practice/ahead.ts): with a natural voice, its first question is asked for while the result is on screen, so that it is read as it is shown
+ * (shell/voice.js, warmNext). The same order as `nextPair`: a retry run, then the older prepared pairs, then a generated one. Nothing is spent for the first two.
+ */
+export function pairAhead(){
+  if(state.retryQ.length) return state.retryQ[0];
+  for(const b of state.batches){ const q=pairsOf(b).find(p=>!state.answers[p.id]&&!isSkipped(p)); if(q) return q; }
+  return holdAhead("practice",()=>nextGenerated(undefined,true));
 }
 export function advance(){ passNegOffer(); state.cur=nextPair(); state.ui=freshUi(); state.mode="quiz"; }
 // Next: a course term's stop comes first when one is due (practice/stops.ts); from the stop, Next goes on to the question. `sound`: false when a sound was just played (moveOn).

@@ -125,3 +125,20 @@ export function readFactsConfig(env: Env): FactsConfig {
   const mode = env.EXAMPLE_FACTS?.trim();
   return { record: mode === "record" || mode === "serve", serve: mode === "serve", maxRows: Math.round(number(env.EXAMPLE_FACTS_MAX_ROWS, 50_000, 0, 10_000_000)) };
 }
+
+/** What a character of speech counts as against the counters, in micro-dollars: the vendor's price past the free month, $30 per million characters. */
+export const SPEAK_MICRO_PER_CHAR = 30;
+
+export interface SpeakConfig {
+  /** characters per UTC day: one device, and everybody together */
+  deviceDailyChars: number;
+  globalDailyChars: number;
+}
+
+/** The settings of reading aloud. The limits are in characters, which the budget counters keep as micro-dollars (`SPEAK_MICRO_PER_CHAR`), so that they are the same counters as the tutor's. */
+export function readSpeakConfig(env: Env): SpeakConfig {
+  return {
+    deviceDailyChars: Math.round(number(env.SPEAK_DEVICE_DAILY_CHARS, 10_000, 0, 10_000_000)),
+    globalDailyChars: Math.round(number(env.SPEAK_GLOBAL_DAILY_CHARS, 30_000, 0, 100_000_000)),
+  };
+}

@@ -13,7 +13,7 @@ import type { Syllogism, Pervasion, Reply, Situation, Wording } from "../domain/
 import type { Pair, PoolEntry, Verdict } from "../domain/types";
 import type { ExerciseRun, Guidance, NegOutcome, StageRun } from "../domain/stages";
 import type { Intro, Stop } from "../domain/intro";
-import type { Account, Db, Known, Reports, Sample, Tutor } from "../platform/types";
+import type { Account, Db, Known, Reports, Sample, Speaker, Tutor } from "../platform/types";
 import type { QuorumRecord } from "../ai/protocol";
 import type { AccountSlot } from "../ui/account";
 import type { TransferSlot } from "../ui/data-transfer";
@@ -454,6 +454,8 @@ export interface State {
   retryQ: Pair[];
   retryTag: string;
   recent: string[];
+  /** the pair that the next Next will show, drawn ahead for a natural voice to have its first question ready (practice/ahead.ts), or null */
+  ahead: Ahead | null;
   /** the relations Find a pair asked for lately, oldest first */
   findAsked: RelKey[];
   /** names of the things Categories asked lately, oldest first: the draw passes them over while others remain (categories/flow.js) */
@@ -615,9 +617,19 @@ export interface VoiceState {
   tried: boolean;
   /** the next screen is drawn without reading its question (a step was taken back; the mic opens at once) */
   noRead: boolean;
-  /** the chosen voice, "" for the best one this device has */
+  /** the chosen voice: "" for the default (the server's first voice where it has some, else the best this device has), "server:<id>" for one of the server's, "best" for the best this device has, else a device voice's id */
   voiceId: string;
   rate: number;
+  /** the Natural voices switch of Experiments (`rd-voice-natural`): off in the real app, on in a Preview */
+  natural: boolean;
+  /** the natural voices the platform offers (platform.speak: the server has them and this device has the Magic Key), whether or not the switch is on */
+  speaker: Speaker | null;
+  /** the natural voices in use: `speaker` while `natural` is on, else null (the device's own voice reads) */
+  remote: Speaker | null;
+  /** the server's voice is not asked before this time (ms): its limit for the day was used up, or it failed lately, and the device's voice reads meanwhile */
+  remoteUntil: number;
+  /** why the server's voice rests: its limit for the day ("limit"), its key was not accepted ("key"), it could not be reached ("away"), or "" */
+  remoteWhy: "" | "limit" | "key" | "away";
   /** the screen spoken and listened for; a new screen stops what the last one started */
   key: string;
   phase: "idle" | "speaking" | "listening";
@@ -676,4 +688,12 @@ export interface SoundState {
   failed: boolean;
   /** the listeners for the first touch, click or key are in place */
   armed: boolean;
+}
+
+/** A pair drawn before the Next that shows it: the exercise it is for, what its draw depended on (`sig`), and what the draw spent, to give back when it is not used (`after` is the lean right after the draw: a lean that is not that any more was set by a stage or a reset, and is left as it is). */
+export interface Ahead {
+  kind: "practice" | "debate";
+  sig: string;
+  p: Pair;
+  keep: { recent: string[]; lean: number; after: number };
 }
