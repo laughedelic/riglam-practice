@@ -300,9 +300,12 @@ test("Categories: a tap lifts a category over the rule and back, reset drops the
   const phrases = await page.evaluate(() => window.__t.cur.q.rows.map((r) => r.phrase));
   const up = page.locator("#path .thold .chs.up .crow"), down = page.locator("#path .thold .chs.down .crow"), reset = page.locator("#path .threset");
   await expect(reset).toHaveCount(0);   // nothing to reset yet
-  await expect(page.locator("#path .thold .thh")).toHaveText(["is", "not"]);
+  const words = page.locator("#path .thold .thh");
+  await expect(words).toHaveText(["is", "not"]);
+  for (const w of await words.all()) await expect(w, "nothing is selected yet: no is or not in the margin").toHaveCSS("opacity", "0");
   await expect(station(page)).toHaveAccessibleName(/^Check.*none of these/);
   await down.filter({ hasText: new RegExp("^" + phrases[1] + "$") }).click();
+  for (const w of await words.all()) await expect(w, "a category stands beside is, the rest beside not").toHaveCSS("opacity", "1");
   await down.filter({ hasText: new RegExp("^" + phrases[0] + "$") }).click();
   await expect(up).toHaveText([phrases[0], phrases[1]]);   // in the list's order, not the order of the taps
   await expect(up.first()).toHaveAttribute("aria-pressed", "true");
@@ -313,6 +316,7 @@ test("Categories: a tap lifts a category over the rule and back, reset drops the
   await reset.click();
   await expect(up).toHaveCount(0);
   await expect(down).toHaveCount(phrases.length);
+  for (const w of await words.all()) await expect(w, "all dropped again: the words go").toHaveCSS("opacity", "0");
   // Detailed guidance says what to do between the heading and the thing, without repeating the thing; the scan's stop stays right under the thing, and the thing stays where it is through the check
   const hint = page.locator("#path .qlead.above"), box = (sel) => page.locator(sel).evaluate((e) => { const r = e.getBoundingClientRect(); return { top: r.top, bottom: r.bottom }; });
   await expect(hint).toHaveText("Select each category that applies to");

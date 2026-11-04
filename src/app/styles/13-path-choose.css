@@ -50,7 +50,9 @@
 .pa .thold .chs.down .crow .mc{transform:translateX(var(--cox))}
 .pa .thold .chs.down .crow .ct{padding-left:calc(22px + var(--cox))}
 .pa .thold .sx.thempty{height:30px}
-.pa .thold .thh{position:absolute; right:calc(100% - var(--m) + 12px); top:13px; font-family:var(--mono); font-size:13px; font-weight:600; line-height:1.2; white-space:nowrap; color:var(--ink)}
+.pa .thold .thh{position:absolute; right:calc(100% - var(--m) + 12px); top:13px; font-family:var(--mono); font-size:13px; font-weight:600; line-height:1.2; white-space:nowrap; color:var(--ink); transition:opacity .3s}
+/* the words come with the first selection, when a choice stands beside "is"; until then there is only the rule and the list */
+.pa .thold.bare .thh{opacity:0}
 .pa .thold .sx.gap .thh{color:var(--gold-t)}
 .pa .thold .chs.up .crow:first-child{margin-top:0}
 .pa .thold .sx.thx{height:30px}
