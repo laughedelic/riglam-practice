@@ -55,7 +55,7 @@ withKey("Explain asks the server, shows the answer, and sends the card without t
   expect(body.cats.length).toBeLessThanOrEqual(2);
   expect(body.turns).toHaveLength(1);
   expect(body.turns[0].role).toBe("user");
-  expect(body.turns[0].content.startsWith("CARD (from the course booklet's term data")).toBe(true);
+  expect(body.turns[0].content.startsWith("CARD (from the reference's term data")).toBe(true);
   expect(body.turns[0].content).not.toContain("terse debate tutor"); // the server holds the standing instructions
   expect(body.turns[0].content).not.toContain("Fine points"); // and the notes
 });

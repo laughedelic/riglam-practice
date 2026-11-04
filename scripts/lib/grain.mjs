@@ -1,5 +1,5 @@
 // The grain of the app icons: a gray tile (128 = neutral) that is laid over the flat icon with soft-light, so the colors keep their look and
-// gain the fine, even noise that the felt of the booklet covers gave the first drafts. It is the "fine noise" recipe of the Riglam Icon Lab,
+// gain the fine, even noise that the felt covers gave the first drafts. It is the "fine noise" recipe of the Riglam Icon Lab,
 // made from a seed, so that the PNGs can be rebuilt exactly and no scanned tile is needed. A pure function: no files, no network.
 
 export const TILE = 256;

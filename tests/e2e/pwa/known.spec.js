@@ -185,7 +185,7 @@ withKey("the course's reference examples on the device settle an example they na
   expect(things.map((t) => t.text)).toEqual([NAME]);
   await expect.poll(async () => Object.values(await cellsOf(page)).filter((r) => r.by === "course").length).toBe(things[0].cells.length);
   const cells = await cellsOf(page);
-  for (const c of things[0].cells) expect(cells[c]).toMatchObject({ v: c === "nei" ? "ok" : "bad", tag: "by the course examples" });
+  for (const c of things[0].cells) expect(cells[c]).toMatchObject({ v: c === "nei" ? "ok" : "bad", tag: "by the reference examples" });
   // nothing was left to ask the server
   await page.waitForTimeout(300);
   expect(asked.known).toHaveLength(0);

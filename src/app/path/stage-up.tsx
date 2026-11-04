@@ -71,7 +71,7 @@ export function stageUpScreen(title: string): { cls: string; node: ComponentChil
   const after = stopAfterStage();     // the first term of the stage comes at once, as a stop: the station says so
   const mix = "The earlier stages stay in the mix.";
   const page = <button type="button" class="plnk" onClick={openDifficulty}>Progression page</button>;
-  const start = n === 1 ? "Stage 0 was everyday things only. The course terms start here: nine stages of them, in three groups of three."
+  const start = n === 1 ? "Stage 0 was everyday things only. The Dudra terms start here: nine stages of them, in three groups of three."
     : "Each stage adds a new kind of thing to ask about, from everyday things toward abstract ideas.";
   const group = info && info.group && n > 1 ? "Stage " + n + " begins the " + (n < 7 ? "second" : "third") + " group of three: " + info.group.charAt(0).toLowerCase() + info.group.slice(1) + "." : "";
   const pace = <>New terms come one at a time, each with its definition first, at a {PACE_NAME[state.pace] || "steady"} pace (set it on the {page}).</>;

@@ -10,16 +10,17 @@ export function lineageOf(cid){
   const head=(c.type||"").split(":")[0].trim(), T=cap(head);
   return {names:T?(ch[T]||[T]):[],everyday:true};
 }
-// The term data marks where a definition comes from with a leading "(source)"; the course's own wording has none or "(Purbuchok)",
-// and a definition that the course does not give has a tag that says so, which is not worth a label (`ref` is false: the
-// chapter is not where it is from).
+// The term data marks where a definition comes from with a leading "(source)"; the reference's own wording has none or "(Purbuchok)",
+// and a definition that the reference does not give has a tag that says so ("(not defined in the reference)", in older data
+// "(not defined here)" or a tag naming the booklet), which is not worth a label (`ref` is false: the chapter is not where it is from).
+const NOT_IN_REFERENCE=/\b(reference|booklet)\b|^not defined here$/i;
 export function defParts(s){
   const m=/^\(([^)]*)\)\s*([\s\S]*)$/.exec((s||"").trim());
   let tag=m?m[1]:"", body=m?m[2]:(s||"").trim();
   const tail=/\s*\((tables|Dampilon)\)\s*$/.exec(body);
   if(tail){ body=body.slice(0,tail.index); tag=tag||tail[1]; }
   if(!tag||tag==="Purbuchok") return {src:"",body,ref:true};
-  if(/booklet/i.test(tag)) return {src:"",body,ref:false};
+  if(NOT_IN_REFERENCE.test(tag)) return {src:"",body,ref:false};
   const lab={tables:"From the Dampilon tables",Dampilon:"From Dampilon"}[tag];
   return {src:lab||cap(tag),body,ref:true};
 }

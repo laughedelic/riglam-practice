@@ -120,7 +120,7 @@ test("on the Path five right relations at the highest stage bring the next stage
   await up.locator(".cs").click();
   await expect(up.locator(".tup-rgp"), "a tap elsewhere closes it").toHaveCount(0);
   await expect(up.locator(".tstop-sech"), "what it adds, and what the stages are").toHaveText(["Topics", "Progression"]);
-  await expect(up, "the first one says what the stages are: stage 1, where the course terms start").toContainText("Stage 0 was everyday things only. The course terms start here: nine stages of them, in three groups of three.");
+  await expect(up, "the first one says what the stages are: stage 1, where the course terms start").toContainText("Stage 0 was everyday things only. The Dudra terms start here: nine stages of them, in three groups of three.");
   await expect(up).toContainText("The earlier stages stay in the mix.");
   await expect(up, "and how new terms come, at the pace set on the Progression page").toContainText("New terms come one at a time, each with its definition first, at a steady pace (set it on the Progression page).");
   await expect(up, "not the last stage").not.toContainText("This is the last stage.");

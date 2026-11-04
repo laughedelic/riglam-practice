@@ -20,7 +20,7 @@ export const sameName = (s) => String(s).trim().toLowerCase().replace(/\s+/g, " 
 
 /**
  * The device part of the full examples: each item without what only the server keeps and without aliases in other scripts, with
- * `s`, the ids of the sources it is in. The sources of the `course` tier, the booklets, are left out of `s` and of the table of
+ * `s`, the ids of the sources it is in. The sources of the `course` tier, the reference texts, are left out of `s` and of the table of
  * sources: their ids stay on the server. `built` is the stamp of the open data it was checked against (drill-data.json), so a device
  * can tell a part made for another release.
  */

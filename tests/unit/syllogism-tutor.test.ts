@@ -35,7 +35,7 @@ test("the card gives the parts, the three checks with the page's lines, the righ
   const wrong: Reply = "accept";
   const body = syllogismBody(real, c, answered(c, wrong));
   expect(body.startsWith(SYLLOGISM_NOTE)).toBe(true);
-  expect(body).toContain("CARD (from the course booklet's term data; S is the subject, R the reason, P the predicate):");
+  expect(body).toContain("CARD (from the reference's term data; S is the subject, R the reason, P the predicate):");
   expect(body).toContain(`"S":{"label":${JSON.stringify(c.subject)}`);
   expect(body).toContain(`Syllogism: ${JSON.stringify(syllogismText(c))}`);
   expect(body).toContain(`1 Reason (is S the reason?): NOT ESTABLISHED. The page's line: ${JSON.stringify(c.checks.e.line)}`);

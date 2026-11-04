@@ -153,7 +153,7 @@ function Skips() {
   const list = Object.values(state.skips).sort((x, y) => (y.at || "").localeCompare(x.at || "")) as SkipDoc[];
   if (!list.length) return <Empty>{"Skip a pair that is too hard or too easy. It stays out of the drill for " + SKIP_DAYS + " days and is kept here, apart from your mistakes."}</Empty>;
   return <>
-    <p class="pempty">{"Skipped pairs stay out of the drill for " + SKIP_DAYS + " days. Practice one from here when you want it. A pair you answer leaves this list." + (list.some((f) => f.from === "find") ? " A pair skipped in Find a pair is only kept here." : "")}</p>
+    <p class="pempty">{"Skipped pairs stay out of the drill for " + SKIP_DAYS + " days. Practice one from here when you want it. A pair you answer is no longer skipped." + (list.some((f) => f.from === "find") ? " A pair skipped in Find a pair is only kept here." : "")}</p>
     <Trail>{list.map((f) => {
       const p = f.pair || { a: f.a, b: f.b }, until = new Date(Date.parse(f.at) + SKIP_DAYS * 864e5).toISOString(), asked = REL[(f.asked || f.relation) as RelKey];
       const sub = "skipped " + dayOf(f.at) + (f.n > 1 ? ", " + f.n + " times" : "") + " · " + (f.from === "find" ? "Find a pair, " + (asked ? asked.name : "") : skipActive(f) ? "back in the drill after " + dayOf(until) : "back in the drill");

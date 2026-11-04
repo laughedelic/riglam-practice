@@ -26,7 +26,7 @@ export const GUIDES: Record<string, { name: string } & Record<Guidance, string>>
   },
   find: {
     name: "Find a pair",
-    detailed: "The relation spelled out with A and B, course terms suggested as you type, and each example asked for in a full sentence.",
+    detailed: "The relation spelled out with A and B, Dudra terms suggested as you type, and each example asked for in a full sentence.",
     hints: "The relation spelled out with A and B; nothing suggested as you type; each example asked for by its case alone (both A and B); a case without your example says it has one.",
     none: "The relation by its name alone; nothing suggested as you type; each example by its case; a case without your example says it has one.",
   },
@@ -44,7 +44,7 @@ export const GUIDES: Record<string, { name: string } & Record<Guidance, string>>
   },
   instance: {
     name: "Find an instance",
-    detailed: "Things the course knows, suggested as you type.",
+    detailed: "Things the reference knows, suggested as you type.",
     hints: "Nothing suggested as you type.",
     none: "Nothing suggested as you type.",
   },

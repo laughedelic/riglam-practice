@@ -206,7 +206,7 @@ export function parseVerdicts(text: string | null | undefined, d?: NoteData): Ce
  * (POST /api/known), which is Claude's verdict too; or the course's reference examples, which are the data's (`by` "course").
  */
 export type VerdictSource = "claude" | "learned" | "course";
-const TAG: Record<VerdictSource, string> = { claude: "by Claude", learned: "from an earlier check", course: "by the course examples" };
+const TAG: Record<VerdictSource, string> = { claude: "by Claude", learned: "from an earlier check", course: "by the reference examples" };
 
 /**
  * Settles the cells that are still open ("cmp") with the verdicts, in order, and counts the result again. Changes

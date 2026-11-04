@@ -16,11 +16,11 @@ export interface TutorTool {
   execute: (input: unknown) => unknown;
 }
 
-const ALIAS = " For words that name a list item only through an alias (matched_by_alias), only its Dudra type and chain: never its name, its other categories or its details.";
-const CLASSIFY = "Check how the practice list classifies a concrete thing (e.g. 'a dog', 'the smell of coffee'). Returns its Dudra type and the practice categories it belongs to, or found:false if the list does not contain it." + ALIAS;
-const CLASSIFY_REFERENCE = "Check how the practice list, or else the course's reference examples, classify a concrete thing (e.g. 'a dog', 'the smell of coffee'). From the list: its Dudra type and the practice categories it belongs to." + ALIAS + " From the reference examples (source: \"reference\"): the classes it is an instance of, each with its chain up to Existent, the classes it is not, its level (1 plain to 4), kind, how well the sources confirm it, and why it is a good example; when two examples share the name, both, marked ambiguous. found:false when neither has it.";
+const ALIAS = " For words that name a practice item only through an alias (matched_by_alias), only its Dudra type and chain: never its name, its other categories or its details.";
+const CLASSIFY = "Check how the practice items classify a concrete thing (e.g. 'a dog', 'the smell of coffee'). Returns its Dudra type and the practice categories it belongs to, or found:false if the practice items do not contain it." + ALIAS;
+const CLASSIFY_REFERENCE = "Check how the practice items, or else the reference examples, classify a concrete thing (e.g. 'a dog', 'the smell of coffee'). From the practice items: its Dudra type and the practice categories it belongs to." + ALIAS + " From the reference examples (source: \"reference\"): the classes it is an instance of, each with its chain up to Existent, the classes it is not, its level (1 plain to 4), kind, how well the sources confirm it, and why it is a good example; when two examples share the name, both, marked ambiguous. found:false when neither has it.";
 
-const EXAMPLES_OF = "Give examples of a Dudra term from the course's reference examples (e.g. 'External form', 'Color'): the instances of the term itself first, then those of its subclasses (`of` names the subclass), the plainest first. Each has its level (1 a plain thing to 4), kind, how well the sources confirm it (confirmed, textbook, commentator) and, for most, why it is a good example. `level` is the highest level to take (default 2; raise it for a learner who asks for harder ones), `count` at most 5 (default 3). Use it for 'give me an example of X' and to pick an example that fits the learner. found:false when the name is not a term of the course data; examples:[] when there are none up to that level (`harder` says whether higher levels have some).";
+const EXAMPLES_OF = "Give examples of a Dudra term from the reference examples (e.g. 'External form', 'Color'): the instances of the term itself first, then those of its subclasses (`of` names the subclass), the plainest first. Each has its level (1 a plain thing to 4), kind, how well the sources confirm it (confirmed, textbook, commentator) and, for most, why it is a good example. `level` is the highest level to take (default 2; raise it for a learner who asks for harder ones), `count` at most 5 (default 3). Use it for 'give me an example of X' and to pick an example that fits the learner. found:false when the name is not a term in the data; examples:[] when there are none up to that level (`harder` says whether higher levels have some).";
 
 /** The term of the data a name means: its name, an alias or its Russian name, else a name that contains the words. */
 function termByName(ix: DataIndex, q: string) {
@@ -31,7 +31,7 @@ function termByName(ix: DataIndex, q: string) {
 /** The tools on the data index; `examples`, the reference examples where the caller has them, is where classify_example looks after the practice list. */
 export function tutorTools(ix: DataIndex, examples?: ExampleIndex | null): TutorTool[] {
   return [
-    {name:"lookup_term", description:"Look up a Dudra term in the course booklet's term data. Returns its definition (English, Russian), chapter, place in the hierarchy, mutually inclusive and contradictory terms, the terms it is included in (three possibilities), the terms it has four possibilities with, and the knowledge base's note. Use it for any term not on the card.",
+    {name:"lookup_term", description:"Look up a Dudra term in the reference's term data. Returns its definition (English, Russian), chapter, place in the hierarchy, mutually inclusive and contradictory terms, the terms it is included in (three possibilities), the terms it has four possibilities with, and the knowledge base's note. Use it for any term not on the card.",
      inputSchema:{type:"object",properties:{name:{type:"string",description:"Term in English, e.g. 'Non-associated compositional factor', or in Russian"}},required:["name"]},
      execute:(input)=>{
        const q=spelled((input as {name?: unknown}|null|undefined)?.name); if(!q) throw new Error("empty name");
@@ -51,7 +51,7 @@ export function tutorTools(ix: DataIndex, examples?: ExampleIndex | null): Tutor
        // its name and its other categories and details (color, shape, material, temperature) are not what was asked about, as in the card
        // (card.ts, listedAs). A reference example of that name with classes (or a non-existent one) comes first, as on the page (nameOf, src/domain/instance.ts).
        if(it&&!refs.some(e=>e.ne||e.cls?.length)) return {found:true, matched_by_alias:true, existent:!it.ne, dudra_type:it.t, chain:(ix.DATA.chains[it.t]||[it.t]).join(" > "),
-         note:"The words are an alias for an item in the practice list. Take only its type and chain from it, never its color, shape, material, temperature or other details: judge the words as written, and a quality they do not name is open."};
+         note:"The words are an alias for a practice item. Take only its type and chain from it, never its color, shape, material, temperature or other details: judge the words as written, and a quality they do not name is open."};
        if(!refs.length) return {found:false};
        if(refs.length===1) return {found:true, source:"reference", ...exampleFacts(ix,refs[0])};
        return {found:true, source:"reference", ambiguous:true, candidates:refs.slice(0,4).map(r=>exampleFacts(ix,r))};

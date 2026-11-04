@@ -481,7 +481,7 @@ describe("with the real kit", () => {
     const body = api.calls(SONNET)[0].body;
     expect(body.system[0].text).toBe(REVIEW_GUIDE);
     const first: string = body.messages[0].content;
-    expect(first).toContain("CARD (from the course booklet's term data");
+    expect(first).toContain("CARD (from the reference's term data");
     // the line break inside the note cannot open a second FLAG section: every line of the flag block is ours
     expect(first.match(/^FLAG$/gm)).toHaveLength(1);
     expect(first).toContain("The learner's note: " + JSON.stringify(hostile));

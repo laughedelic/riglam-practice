@@ -53,7 +53,7 @@ const expOn = () => state.preview || state.expShown;
 function LanguagesPage() {
   const on = languagesOn();
   return <>
-    <Intro>Shown beside a term when you meet it and in its definition. The course has definitions in English and, for most terms, Russian.</Intro>
+    <Intro>Shown beside a term when you meet it and in its definition. The definitions are in English and, for most terms, Russian.</Intro>
     <Line title="English" sub="The terms and their definitions. Always shown." />
     {LANGS.map(({ id, name, note }) => <Line title={name} tag={NAME_LANGS.includes(id) ? "experimental" : undefined} sub={note[0]!.toUpperCase() + note.slice(1) + "."}
       sw={{ on: on.includes(id), toggle: () => setLang(id, !on.includes(id)) }} />)}

@@ -53,7 +53,7 @@ export function LicensesPage() {
       <Line title="Font licenses" sub="SIL Open Font License 1.1, on GitHub" href={FONTS_URL} />
     </Group>
     <Group name="Terms and definitions">
-      <P>The list of terms, how they relate and the practice items are in the source code’s repository.</P>
+      <P>The terms, how they relate and the practice items are in the source code’s repository.</P>
       <P>The definitions and notes are not. They are kept on the app’s server and shown only on a device with the Magic Key, for educational purposes only, and the code’s license does not cover them. They draw on the published translations, commentaries, and other materials available online, and the rights to those stay with their authors and publishers. Please do not copy or pass them on.</P>
     </Group>
   </>;

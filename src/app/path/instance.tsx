@@ -90,15 +90,15 @@ const Row = ({ r }: { r: InstanceRow }) => <St d={<D cls={"sub " + MARK(r.answer
 function verdictOf(s: InstanceQuestion, ir: InstanceResult, none: boolean): { v: "ok" | "no" | "pt"; word: string; sub: string } {
   const all = allOf(s.cats.length);
   if (ir.v === "ok") return { v: "ok", word: "Right", sub: none ? "nothing can be " + all : ir.thing + " is " + (s.cats.length === 1 ? catPhrase(state.CAT[s.cats[0]]) : all) };
-  if (ir.v === "open") return { v: "pt", word: "Not checked", sub: ir.from ? "not every category is settled for it" : "the course data does not know it" };
+  if (ir.v === "open") return { v: "pt", word: "Not checked", sub: ir.from ? "not every category is settled for it" : "the reference does not know it" };
   const miss = ir.rows.find((r) => r.answer === false);
   return { v: "no", word: "Not quite", sub: none ? "something is" : !s.possible ? "nothing can be " + all : miss ? "it is not among the " + miss.label : "not every category" };
 }
 
 function ResultStep() {
   const u = u0(), s = q(), ir = u.ir as InstanceResult, none = !!u.none, { v, word, sub } = verdictOf(s, ir, none);
-  const note: ComponentChildren = ir.from === "example" ? "one of the course's reference examples"
-    : ir.from || none ? null : s.possible ? "only the things of the practice list and the course's examples are checked here" : "whatever it is, nothing can be " + allOf(s.cats.length);
+  const note: ComponentChildren = ir.from === "example" ? "one of the reference examples"
+    : ir.from || none ? null : s.possible ? "only the things the reference knows are checked here" : "whatever it is, nothing can be " + allOf(s.cats.length);
   return <>
     <Scroll>
       <Sx cls="walked first"><Gap h={14} /><Head d={<D cls="sec done" />} h="1 Instance" sub="checked" /><Gap h={4} /><CatStops s={s} sm /><Gap h={6} /></Sx>

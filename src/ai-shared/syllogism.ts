@@ -81,7 +81,7 @@ export function syllogismBody(ix: DataIndex, c: SyllogismView, a: SyllogismAnswe
     ? `\nThe learner's counter-example: ${JSON.stringify(cut(a.ex.text, 200))}; page verdict ${a.ex.v === "ok" ? "ok (it is the reason and is not the predicate)" : a.ex.v === "bad" ? "bad (it is not the reason, or it is the predicate too)" : "cmp (the page does not know it well enough to say)"}.`
     : "";
   return `${SYLLOGISM_NOTE}
-CARD (from the course booklet's term data; S is the subject, R the reason, P the predicate):
+CARD (from the reference's term data; S is the subject, R the reason, P the predicate):
 ${JSON.stringify(card)}
 Syllogism: ${JSON.stringify(a.sentence)}
 Checks (the page settled them):

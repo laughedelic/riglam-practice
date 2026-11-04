@@ -2403,7 +2403,7 @@ test("a verdict known without the AI says where it came from, and never leaves a
   const p = pair();
   const res = grade(ix, p, { rel: "4", cells: cellsOf({ ...perfect, both: "a gray dragon", bna: "a gray ghost", nei: "a thought" }) });
   expect(applyVerdicts(p, res, [{ cell: "both", answer: "yes" }, { cell: "bna", answer: "unsure" }], false, "course")).toBe(1);
-  expect(res.cells.both).toMatchObject({ v: "ok", msg: ["Verified", "", "by the course examples"], by: "course" });
+  expect(res.cells.both).toMatchObject({ v: "ok", msg: ["Verified", "", "by the reference examples"], by: "course" });
   expect(res.cells.bna.v).toBe("cmp");
   expect(applyVerdicts(p, res, [{ cell: "bna", answer: "no" }], false, "learned")).toBe(1);
   expect(res.cells.bna).toMatchObject({ v: "bad", msg: ["Does not fit", ". Example: a gray stone.", "from an earlier check"], by: "claude" });
@@ -2528,8 +2528,8 @@ test("a body part has a color or a temperature and a scarf a shape: those pairs 
 test("two everyday categories of one kind with nothing in both do not give their kind as the reason", () => {
   const same = pairOf(rix, "red", "green", "red things", "green things", seeded(1), () => 0);
   expect(same.relation).toBe("con");
-  expect(same.why!.both).toBe("Nothing in the practice list is both “red things” and “green things”.");
-  expect(same.note).toBe("No common locus: nothing in the practice list is both red things and green things.");
+  expect(same.why!.both).toBe("Nothing in the reference is both “red things” and “green things”.");
+  expect(same.note).toBe("No common locus: nothing in the reference is both red things and green things.");
   // across kinds the kind is the reason
   const across = pairOf(rix, "red", "emotion", "red things", "emotions", seeded(1), () => 0);
   expect(across.why!.both).toBe("“red things” are form; “emotions” are consciousness. Nothing is both.");
