@@ -983,6 +983,18 @@ export function setOn(on){
   if(!on){ quiet(); dropPend(); dropChip(); letGo("moved"); v.key=""; v.muted=false; v.paused=false; }
   render();
 }
+// The Natural voices switch of Experiments: the server's voices read where there are some for this device and the switch is on; the choice is kept on the device, whatever the default of the build was
+export function setNatural(on){
+  const v=state.voice;
+  v.natural=on; try{ localStorage.setItem("rd-voice-natural",on?"1":"0"); }catch(e){}
+  v.remote=on?v.speaker:null; v.remoteUntil=0; v.remoteWhy="";
+  if(on) armVoice();
+  render();
+}
+/** What the Natural voices switch does, and whether this device has the voices to switch (the server has them and the Magic Key is here). */
+export const naturalNote=()=>"Read aloud with natural voices made by Google, from the app\u2019s server: the words of each question are sent there to be made into speech. Needs the Magic Key. Your device\u2019s voice reads when they cannot.";
+export const naturalAvailable=()=>!!state.voice.speaker;
+export const naturalOn=()=>state.voice.natural;
 /** The top bar's Voice switch, beside Sprint's: there where this exercise reads aloud or answers by voice. Off, nothing is read or listened to and the field is gone,
  *  on every exercise, until it is switched on again; the choices of the Practice options stay as they were. */
 export const voiceSwitchShown=()=>voiceShown()&&(state.voice.read&&canSpeak()||state.voice.answer!=="off"&&input()&&canHear());

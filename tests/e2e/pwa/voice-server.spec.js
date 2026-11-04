@@ -3,7 +3,7 @@
 // and the clips of what a screen asks next are fetched while one is answered. The browser's own speech is stood in for as in voice.spec.js.
 import { test, expect } from "../../support/test.js";
 import { readFileSync } from "node:fs";
-import { answerFirst, goTo, ready } from "../../support/page.js";
+import { answerFirst, goTo, openSettings, ready } from "../../support/page.js";
 import { voice, said } from "../../support/voice.js";
 import { KEY_STORE, dataKey } from "../../support/data-key.js";
 import { bridge, serverWorld } from "../../support/server-bridge.js";
@@ -38,7 +38,7 @@ async function serverVoices(page, { key = "google-test-key", env = {}, settings 
     const play = HTMLMediaElement.prototype.play;
     HTMLMediaElement.prototype.play = function () { if (!String(this.src).startsWith("data:")) window.__plays++; return play.apply(this, arguments); };
   });
-  await voice(page, { settings });
+  await voice(page, { settings: { natural: "1", ...settings } });   // the Natural voices switch is on unless a spec says otherwise (off in the real app)
   return { google, world, device };
 }
 const voiceSelect = (page) => sheet(page).getByRole("combobox", { name: "Voice" });
@@ -116,6 +116,30 @@ test("when the server is unreachable the device's voice reads", async ({ page })
   await expect.poll(async () => (await said(page)).length).toBe(1);
   expect(await plays(page)).toBe(0);
   await expect(sheet(page).getByText("could not be reached just now")).toBeVisible();
+});
+
+test("the natural voices are an experiment: with the switch off, the real app's default, the server's voices are not offered or asked for; Experiments has the switch, and turning it on lists them", async ({ page }) => {
+  const { google } = await serverVoices(page, { settings: { natural: "0" } });
+  await page.addInitScript(() => localStorage.setItem("rd-exp", "1"));   // Experiments shown on this device
+  await page.goto("/");
+  await ready(page);
+  await goTo(page, "Pervasions");
+  await openReadPage(page);
+  await expect(voiceSelect(page)).toHaveValue("");
+  await expect(voiceSelect(page).locator("option", { hasText: "Charon" })).toHaveCount(0);
+  await sheet(page).getByRole("button", { name: "Try", exact: true }).click();
+  await expect.poll(async () => (await said(page)).length).toBe(1);   // the device's voice read the sample
+  expect(google.calls).toHaveLength(0);
+  await page.keyboard.press("Escape");
+  await openSettings(page);
+  const natural = page.getByRole("switch", { name: "Natural voices", exact: true });
+  await expect(natural).toHaveAttribute("aria-checked", "false");
+  await natural.click();
+  await expect(natural).toHaveAttribute("aria-checked", "true");
+  expect(await page.evaluate(() => localStorage.getItem("rd-voice-natural"))).toBe("1");
+  await goTo(page, "Pervasions");
+  await openReadPage(page);
+  await expect(voiceSelect(page)).toHaveValue("server:charon");
 });
 
 test("a server without Google's key has only the device's voices", async ({ page }) => {

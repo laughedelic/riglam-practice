@@ -620,7 +620,11 @@ export interface VoiceState {
   /** the chosen voice: "" for the default (the server's first voice where it has some, else the best this device has), "server:<id>" for one of the server's, "best" for the best this device has, else a device voice's id */
   voiceId: string;
   rate: number;
-  /** the natural voices of the app's server (platform.speak), or null: the device's own voice reads */
+  /** the Natural voices switch of Experiments (`rd-voice-natural`): off in the real app, on in a Preview */
+  natural: boolean;
+  /** the natural voices the platform offers (platform.speak: the server has them and this device has the Magic Key), whether or not the switch is on */
+  speaker: Speaker | null;
+  /** the natural voices in use: `speaker` while `natural` is on, else null (the device's own voice reads) */
   remote: Speaker | null;
   /** the server's voice is not asked before this time (ms): its limit for the day was used up, or it failed lately, and the device's voice reads meanwhile */
   remoteUntil: number;

@@ -16,7 +16,7 @@ import { setLang } from "../shell/session.js";
 import { LANGS, NAME_LANGS } from "../../domain/languages.ts";
 import { languagesOn } from "./terms.tsx";
 import { setSounds } from "../sound/play.ts";
-import { setOn as setVoiceOn, voiceAvailable, voiceNote, voiceOn } from "../shell/voice.js";
+import { naturalAvailable, naturalNote, naturalOn, setNatural, setOn as setVoiceOn, voiceAvailable, voiceNote, voiceOn } from "../shell/voice.js";
 import { DEFAULT_LOOK, currentLook, lookLine, pastedLook, setLook, storedLook } from "./look.ts";
 import { TopBar, pathNote } from "./shell.tsx";
 import { Group, Intro, Line } from "./lines.tsx";
@@ -204,6 +204,7 @@ function Sections() {
     </Group> : null}
     {expOn() ? <Group name="Experiments" tag={state.preview ? "only in previews" : "shown on this device"} note="Not settled yet; not shown in the released app.">
       {voiceAvailable() ? <Line title="Answer by voice" sub={voiceNote()} sw={{ on: voiceOn(), toggle: () => setVoiceOn(!voiceOn()) }} /> : null}
+      {naturalAvailable() ? <Line title="Natural voices" sub={naturalNote()} sw={{ on: naturalOn(), toggle: () => setNatural(!naturalOn()) }} /> : null}
       <Line title="The lab's settings" sub={labOwn() ? "this device's own" : "the defaults"} go={() => open("lab")} />
     </Group> : null}
     {state.about ? <Group name="About">

@@ -38,6 +38,9 @@ export function startApp(platform){
   // Answering by voice is on trial: the device's own choice, else on in a Preview and off in the real app (Read aloud is for everyone)
   let kept=null; try{ kept=localStorage.getItem("rd-voice"); }catch(e){}
   state.voice.on=voiceOn(kept,!!platform.preview);
+  // The natural voices of the server are on trial too (Experiments): the same default
+  let nat=null; try{ nat=localStorage.getItem("rd-voice-natural"); }catch(e){}
+  state.voice.natural=voiceOn(nat,!!platform.preview);
   try{ state.voice.hush=localStorage.getItem("rd-voice-hush")==="1"; }catch(e){}
   state.preview=!!platform.preview;
   startPath();
@@ -112,9 +115,10 @@ async function bootSteps(platform){
     const m={}; snap.docs.forEach(d=>{m[d.id]=d.data();}); state.debates=m; settle();
   },()=>{});
 }
-// The server's natural voices for reading aloud, when it has them and this device has the key (shell/voice.js: the voice list and the reading use them, the device's voice is the fallback)
+// The server's natural voices for reading aloud, when it has them, this device has the key and the Natural voices switch is on (shell/voice.js: the voice list and the reading use them, the device's voice is the fallback)
 async function loadSpeaker(platform){
-  try{ state.voice.remote=platform.speak?await platform.speak():null; }catch(e){ state.voice.remote=null; }
+  try{ state.voice.speaker=platform.speak?await platform.speak():null; }catch(e){ state.voice.speaker=null; }
+  state.voice.remote=state.voice.natural?state.voice.speaker:null;
   state.voice.remoteUntil=0; state.voice.remoteWhy="";
   armVoice();
 }

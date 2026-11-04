@@ -132,6 +132,7 @@ test("Licenses names the code's license, the fonts' license and what the definit
 test("Your data says, under Export and import, what stays on the device and, where the server is in play, who can read what it keeps", async ({ page }) => {
   // a server with its tutor, accounts, reports and learned facts on, and a device with the Magic Key: every part of the text applies
   await giveKey(page);
+  await page.addInitScript(() => localStorage.setItem("rd-voice-natural", "1"));   // the natural voices are an experiment, on for this device
   await page.route("**/api/health", (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, tutor: "on", accounts: "on", reports: "on", learns: "on", known: "on", speak: "on" }) }));
   await openSettings(page);
   await expect(page.locator(".ppage .ol", { hasText: "Your data" })).toContainText("privacy");
