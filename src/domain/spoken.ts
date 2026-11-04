@@ -9,8 +9,8 @@ import type { RelKey } from "../ai-shared/relations";
 
 /** Lower case, words only, numbers spelled out: the form in which spoken phrases are compared. */
 export function plainWords(s: unknown): string {
-  const NUM: Record<string, string> = { 1: "one", 2: "two", 3: "three", 4: "four", 5: "five" };
-  return spelled(s).replace(/&/g, " and ").replace(/-/g, " ").replace(/\b([1-5])p\b/g, (_, d) => NUM[d] + " possibilities").replace(/\b[1-5]\b/g, (d) => NUM[d]).replace(/\s+/g, " ").trim();
+  const NUM: Record<string, string> = { 1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven", 8: "eight", 9: "nine" };
+  return spelled(s).replace(/&/g, " and ").replace(/-/g, " ").replace(/\b([1-5])p\b/g, (_, d) => NUM[d] + " possibilities").replace(/\b[1-9]\b/g, (d) => NUM[d]).replace(/\s+/g, " ").trim();
 }
 
 // Said before the example and not part of it.
@@ -306,4 +306,158 @@ export function spokenExample(ix: DataIndex, alts: readonly string[]): SpokenExa
   }
   if (near) return { text: near.said, item: near.item, none: false, heard: alts[near.i] };
   return { text: said[0], item: null, none: false, heard: alts[0] };
+}
+
+// ---- Syllogisms: the three replies, and the counter-example after "there is no pervasion" ----
+
+export type SylReply = "accept" | "reason" | "pervasion";
+const SYL_WORDS: [string, SylReply][] = [["i accept", "accept"], ["the reason is not established", "reason"], ["there is no pervasion", "pervasion"]];
+/**
+ * The reply to a syllogism. `order` is the page's order of the three (keys 1 to 3), so "one", "two" and "three" pick by number as the keys do. Anything with
+ * "pervasion" in it is the pervasion (a recognizer often writes "persuasion"); "reason" or "not established" is the reason; "accept", "agree" or "yes" at the start
+ * is accepting; the rest is matched against the three sentences as they are on the screen.
+ */
+export function spokenSyllogism(alts: readonly string[], order: readonly SylReply[]): SylReply | null {
+  for (const heard of alts) {
+    const w = plainWords(heard).replace(/\bpers?uasi(?:on|ve)\b/g, "pervasion");
+    const num = w.match(/^(?:number |option |key |reply )?(one|two|three)$/);
+    if (num) return order[["one", "two", "three"].indexOf(num[1])] || null;
+    if (/\bperva\w*/.test(w)) return "pervasion";
+    if (/^(?:i )?(?:accept|accepted|except|agree|agreed|yes|yeah|yep)\b/.test(w)) return "accept";
+    if (/\breasons?\b|\bnot established\b|\bunestablished\b|\bs is not r\b|\bthe subject is not\b/.test(w)) return "reason";
+  }
+  let best: [number, SylReply | null] = [0, null];
+  for (const heard of alts) for (const [name, k] of SYL_WORDS) {
+    const s = similarity(plainWords(heard), name);
+    if (s > best[0]) best = [s, k];
+  }
+  return best[0] >= 0.75 ? best[1] : null;
+}
+const NO_COUNTER = /^(?:no|nope|(?:no |nope )?(?:nothing|none)|no counter ?examples?|there (?:is|are) (?:none|no counter ?examples?)|there (?:isnt|arent) (?:one|any)|not that i know of|without (?:a )?counter ?examples?|no example|skip(?: it| this)?|leave it (?:out|empty|blank)|leave (?:it )?out|i have (?:none|no counter ?examples?))$/;
+/** The counter-example after "there is no pervasion": a thing, or the words that leave it out ("skip", "no counter-example", "nothing"), which come back as `none`. */
+export function spokenCounter(ix: DataIndex, alts: readonly string[]): SpokenExample | null {
+  const none = alts.find((heard) => NO_COUNTER.test(plainWords(heard)));
+  if (none) return { text: "", item: null, none: true, heard: none };
+  return spokenExample(ix, alts);
+}
+
+// ---- Find an instance: a thing, or that nothing is all of the categories ----
+
+const NOTHING = /^(?:no |nope |there (?:is|are) |theres )?(?:no such thing|nothing|none|no one|no thing|nobody|there (?:isnt|arent|is not|are not) (?:one|any)|no|nope)(?: (?:is|can be|exists?))?(?: (?:both|all|all three|all of them|one of them|those|that))?(?: of them)?$/;
+/** A thing for "name something that is …", or "nothing" (also "nothing is both", "there is none"), which comes back as `none`. */
+export function spokenThing(ix: DataIndex, alts: readonly string[]): SpokenExample | null {
+  const none = alts.find((heard) => NOTHING.test(plainWords(heard)));
+  if (none) return { text: "", item: null, none: true, heard: none };
+  return spokenExample(ix, alts);
+}
+
+// ---- Find a pair: two phenomena, said as "wood and fire" ----
+
+export interface SpokenPair {
+  /** the first and the second phenomenon, as the page takes them in its two fields */
+  a: string;
+  b: string;
+  /** the guess it was read from */
+  heard: string;
+}
+const JOIN = /\s+(?:and|&|with|versus|vs|or)\s+/gi;
+/**
+ * Two phenomena said in one breath: "wood and fire", "a pot and a pan". Where "and" comes more than once the split that leaves a practice item on each side wins, else the first.
+ * Null when there is no "and" to split at, or a side is empty.
+ */
+export function spokenPair(ix: DataIndex, alts: readonly string[]): SpokenPair | null {
+  let best: { score: number; pair: SpokenPair } | null = null;
+  for (const heard of alts) {
+    const text = String(heard).trim().replace(/[.!?]+$/, "").replace(/^(?:both|between|the pair|name|say)\s+/i, "");
+    const cuts = [...text.matchAll(JOIN)];
+    for (const m of cuts) {
+      const i = m.index!, left = text.slice(0, i).trim(), right = text.slice(i + m[0].length).trim();
+      const x = left ? spokenExample(ix, [left]) : null, y = right ? spokenExample(ix, [right]) : null;
+      if (!x || !y || x.none || y.none || !x.text || !y.text) continue;
+      const score = (x.item ? 1 : 0) + (y.item ? 1 : 0);
+      if (!best || score > best.score) best = { score, pair: { a: x.text, b: y.text, heard } };
+    }
+    if (best && best.score === 2) break;
+  }
+  return best ? best.pair : null;
+}
+
+// ---- Categories: which of the categories the thing is in, and yes or no to one ----
+
+const NO_CATS = /^(?:none|none of (?:these|them|those)|nothing|no categor(?:y|ies)|not any|neither)$/;
+const ALL_CATS = /^(?:all|all of (?:these|them|those)|all categories|everything)$/;
+const CAT_STOP = new Set(["a", "an", "the", "of", "is", "are", "made", "and", "in", "its", "it", "also", "both"]);
+const catTokens = (s: string) => plainWords(s).split(" ").filter((x) => x && !CAT_STOP.has(x));
+// "impermanent" is not "permanent", though the two are close as strings
+const NEGATING = ["im", "in", "un", "non", "dis"];
+const opposite = (a: string, b: string) => NEGATING.some((p) => (a === p + b && b.length >= 4) || (b === p + a && a.length >= 4));
+const sameWord = (heard: string, word: string) => !opposite(singular(heard), singular(word)) && (similarity(singular(heard), singular(word)) >= 0.8 || (word.length >= 4 && heard.length >= 4 && (heard.startsWith(word) || word.startsWith(heard))));
+// the categories it IS in are asked for: a guess that says what it is not is not read as the categories it names ("non-functional", "not a color"). Only a negation the
+// rows did not take counts: "non" in "a non-associated compositional factor" is a word of that row
+const NEGATION = /^(?:not|non|no|never|without|isnt|arent|dont|doesnt|cant|cannot)$/;
+/** The place of each word of `tokens` in `left`, taken one after another (a word said once is not two of a row's words), or null when one is missing. */
+function takeTokens(tokens: readonly string[], left: readonly string[]): number[] | null {
+  const work = left.slice(), at: number[] = [];
+  for (const t of tokens) {
+    const i = work.findIndex((x) => x && sameWord(x, t));
+    if (i < 0) return null;
+    work[i] = "";
+    at.push(i);
+  }
+  return at;
+}
+export interface SpokenCategories {
+  /** the categories said (ids), in the order of the rows */
+  cats: string[];
+  /** the guess it was read from */
+  heard: string;
+}
+/**
+ * The categories a thing is in, said as the page shows them ("a color and a shape"), by number ("one and three"), or as "none of these" / "all of them". The longer
+ * phrases are looked for first, so "external form" does not also tick "form". Null when no guess names any category.
+ */
+export function spokenCategories(alts: readonly string[], rows: readonly { cat: string; phrase: string }[]): SpokenCategories | null {
+  const byLength = rows.map((r) => ({ r, tokens: catTokens(r.phrase) })).filter((x) => x.tokens.length).sort((x, y) => y.tokens.length - x.tokens.length);
+  for (const heard of alts) {
+    const w = plainWords(heard).replace(/^(?:it is |its |it's |they are |that is |i think |the categories are )/, "");
+    if (NO_CATS.test(w)) return { cats: [], heard };
+    if (ALL_CATS.test(w)) return { cats: rows.map((r) => r.cat), heard };
+    const NUM = ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
+    const words = w.split(" ").filter(Boolean);
+    if (words.length && words.every((x) => NUM.includes(x) || x === "and" || x === "number" || x === "numbers")) {
+      const picked = words.map((x) => NUM.indexOf(x)).filter((i) => i >= 0 && i < rows.length).map((i) => rows[i].cat);
+      if (picked.length) return { cats: rows.map((r) => r.cat).filter((c) => picked.includes(c)), heard };
+    }
+    const left = words.slice(), found = new Set<string>();
+    for (const { r, tokens } of byLength) {
+      const at = takeTokens(tokens, left);
+      if (at) { for (const i of at) left[i] = ""; found.add(r.cat); }
+    }
+    // a category of several words may be said by its one distinctive word ("permanent" for "a permanent phenomenon"), where no other category has a word like it;
+    // not when a word left over is the opposite of one of its words ("impermanent phenomenon" is not "a permanent phenomenon")
+    for (const { r, tokens } of byLength) {
+      if (found.has(r.cat)) continue;
+      if (left.some((x) => x && tokens.some((t) => opposite(singular(x), singular(t))))) continue;
+      const i = left.findIndex((x) => x && tokens.some((t) => t.length >= 6 && sameWord(x, t) && !byLength.some((o) => o.r !== r && o.tokens.some((u) => sameWord(u, t)))));
+      if (i >= 0) {
+        left[i] = ""; found.add(r.cat);
+        for (const t of tokens) if (NEGATION.test(t)) { const j = left.indexOf(t); if (j >= 0) left[j] = ""; }   // "non" of "non-associated", said as "associated" with it
+      }
+    }
+    if (left.some((x) => NEGATION.test(x))) continue;
+    if (found.size) return { cats: rows.map((r) => r.cat).filter((c) => found.has(c)), heard };
+  }
+  return null;
+}
+
+const SAY_YES = /^(?:(?:yes|yeah|yep|yup|sure|true|correct|right)(?: (?:it is|it does|its))?|it is|it does|that is so|affirmative)$/;
+const SAY_NO = /^(?:(?:no|nope|nah)(?: (?:it is not|it isnt|it does not|it doesnt|its not))?|false|not|it is not|it isnt|it does not|it doesnt|its not|negative)$/;
+/** Yes or no as an answer to "Is it …?" (not as a confirmation: "back", "undo" and the like are not here). */
+export function spokenYesNo(alts: readonly string[]): "yes" | "no" | null {
+  for (const heard of alts) {
+    const w = plainWords(heard);
+    if (SAY_YES.test(w)) return "yes";
+    if (SAY_NO.test(w)) return "no";
+  }
+  return null;
 }

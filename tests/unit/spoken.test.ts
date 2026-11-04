@@ -165,3 +165,125 @@ test("\"I don't know\" in its usual wordings, and not inside an answer", () => {
     expect(spokenDontKnow([t]), t).toBe(false);
   }
 });
+
+// ---- the other four exercises ----
+import { spokenCategories, spokenCounter, spokenPair, spokenSyllogism, spokenThing, spokenYesNo, termPhrase } from "../../src/domain";
+import type { SylReply } from "../../src/domain";
+
+const SYL_ORDER: SylReply[] = ["reason", "pervasion", "accept"];
+
+test("a reply to a syllogism: its three sentences, the keys, and the recognizer's slips", () => {
+  for (const s of ["I accept", "accept", "Except", "Yes", "I agree"]) expect(spokenSyllogism([s], SYL_ORDER), s).toBe("accept");
+  for (const s of ["There is no pervasion", "no pervasion", "pervasion", "there is no persuasion", "The pervasion fails"]) expect(spokenSyllogism([s], SYL_ORDER), s).toBe("pervasion");
+  for (const s of ["The reason is not established", "reason is not established", "not established", "the reason isn't established", "S is not R", "no reason"]) expect(spokenSyllogism([s], SYL_ORDER), s).toBe("reason");
+  // by number, as the keys 1, 2, 3 stand on the page
+  expect(spokenSyllogism(["one"], SYL_ORDER)).toBe("reason");
+  expect(spokenSyllogism(["number two"], SYL_ORDER)).toBe("pervasion");
+  expect(spokenSyllogism(["3"], SYL_ORDER)).toBe("accept");
+  // the second guess may be the one that reads
+  expect(spokenSyllogism(["the weather is nice", "there is no pervasion"], SYL_ORDER)).toBe("pervasion");
+  expect(spokenSyllogism(["the weather is nice"], SYL_ORDER)).toBeNull();
+});
+
+test("a counter-example can be left out by saying so", () => {
+  for (const s of ["skip", "no counter-example", "Without a counter example", "leave it empty", "nothing"]) expect(spokenCounter(ix, [s])?.none, s).toBe(true);
+  expect(spokenCounter(ix, ["a gold pot"])).toMatchObject({ none: false });
+  expect(spokenCounter(ix, ["a gold pot"])?.text).toBeTruthy();
+});
+
+test("a thing for Find an instance, or that nothing is", () => {
+  for (const s of ["nothing", "none", "there is none", "nothing is both", "Nothing can be all of them", "no such thing"]) expect(spokenThing(ix, [s])?.none, s).toBe(true);
+  expect(spokenThing(ix, ["a wooden table"])).toMatchObject({ none: false, text: "a wooden table" });
+});
+
+test("two phenomena in one breath, split at the right 'and'", () => {
+  expect(spokenPair(ix, ["wood and fire"])).toMatchObject({ a: "wood", b: "fire" });
+  expect(spokenPair(ix, ["a wooden table and a metal table"])).toMatchObject({ a: "a wooden table", b: "a metal table" });
+  expect(spokenPair(ix, ["Both a wooden table and a metal table."])).toMatchObject({ a: "a wooden table", b: "a metal table" });
+  // two "and"s: one split is taken, and the words are all kept
+  const p = spokenPair(ix, ["a gold pot and a wooden table and a metal table"]);
+  expect(p).not.toBeNull();
+  expect(p!.a.length).toBeGreaterThan(0);
+  expect(p!.b.length).toBeGreaterThan(0);
+  expect(p!.a + " and " + p!.b).toBe("a gold pot and a wooden table and a metal table");
+  expect(spokenPair(ix, ["a wooden table"])).toBeNull();
+  expect(spokenPair(ix, ["and fire"])).toBeNull();
+});
+
+const ROWS = [
+  { cat: "ft", phrase: "a functional thing" }, { cat: "form", phrase: "a form" }, { cat: "extf", phrase: "an external form" },
+  { cat: "col", phrase: "a color" }, { cat: "wood", phrase: "made of wood" }, { cat: "perm", phrase: "a permanent phenomenon" },
+];
+test("the categories a thing is in, by their words, by number, or none or all", () => {
+  expect(spokenCategories(["a color and an external form"], ROWS)?.cats).toEqual(["extf", "col"]);
+  // the longer phrase is read first, so "external form" does not also tick "form"
+  expect(spokenCategories(["external form"], ROWS)?.cats).toEqual(["extf"]);
+  expect(spokenCategories(["form"], ROWS)?.cats).toEqual(["form"]);
+  expect(spokenCategories(["it is a functional thing, a form and color"], ROWS)?.cats).toEqual(["ft", "form", "col"]);
+  expect(spokenCategories(["wooden"], ROWS)?.cats).toEqual(["wood"]);
+  expect(spokenCategories(["permanent"], ROWS)?.cats).toEqual(["perm"]);
+  expect(spokenCategories(["one and four"], ROWS)?.cats).toEqual(["ft", "col"]);
+  expect(spokenCategories(["none of these"], ROWS)?.cats).toEqual([]);
+  expect(spokenCategories(["nothing"], ROWS)?.cats).toEqual([]);
+  expect(spokenCategories(["all of them"], ROWS)?.cats).toHaveLength(ROWS.length);
+  expect(spokenCategories(["the weather is nice"], ROWS)).toBeNull();
+  // a later guess may be the one that reads
+  expect(spokenCategories(["collar", "a color"], ROWS)?.cats).toEqual(["col"]);
+});
+
+test("yes or no to a question, not to a confirmation", () => {
+  for (const s of ["yes", "Yeah", "correct", "it is"]) expect(spokenYesNo([s]), s).toBe("yes");
+  for (const s of ["no", "Nope", "it is not", "it isn't"]) expect(spokenYesNo([s]), s).toBe("no");
+  for (const s of ["back", "undo", "change it", "maybe"]) expect(spokenYesNo([s]), s).toBeNull();
+});
+
+test("categories: what it is not is not ticked, a word that only looks like another is not it, and the sixth is said by its digit", () => {
+  const rows = [...ROWS, { cat: "imp", phrase: "an impermanent phenomenon" }];
+  // "impermanent" is close to "permanent" as letters, and the opposite of it
+  expect(spokenCategories(["it is impermanent"], ROWS)).toBeNull();
+  expect(spokenCategories(["impermanent"], rows)?.cats).toEqual(["imp"]);
+  // a guess that says what it is not names no category it is in
+  expect(spokenCategories(["a non-functional thing"], ROWS)).toBeNull();
+  expect(spokenCategories(["it is not a color"], ROWS)).toBeNull();
+  expect(spokenCategories(["a form but not a color"], ROWS)).toBeNull();
+  // "none of these" is still the way to say none
+  expect(spokenCategories(["none of these"], ROWS)?.cats).toEqual([]);
+  // a digit above five
+  expect(spokenCategories(["one and 6"], ROWS)?.cats).toEqual(["ft", "perm"]);
+  expect(spokenCategories(["6"], ROWS)?.cats).toEqual(["perm"]);
+});
+
+test("categories: every real row phrase said alone ticks itself among other rows, and the words of an opposite do not tick it", () => {
+  type Cat = { id: string; term?: string; phrases?: string[]; labels: string[] };
+  const cats = (openData as unknown as { cats: Cat[] }).cats;
+  const phrases = cats.map((c) => ({ cat: c.id, phrase: c.term ? termPhrase(c.term) : (c.phrases?.[0] ?? c.labels[0]) }));
+  // rows of six, the one asked among five others in a fixed order (no randomness: a failure must come back the same)
+  phrases.forEach((row, n) => {
+    const others = [1, 7, 13, 29, 41].map((k) => phrases[(n + k) % phrases.length]).filter((r) => r.cat !== row.cat);
+    const rows = [...others, row];
+    expect(spokenCategories([row.phrase], rows)?.cats, row.phrase).toEqual([row.cat]);
+    expect(spokenCategories(["it is " + row.phrase], rows)?.cats, "it is " + row.phrase).toEqual([row.cat]);
+  });
+  // a row with the same word twice, and one whose own word is a negation
+  const rows = [{ cat: "body", phrase: "a body or a body part" }, { cat: "non", phrase: "a non-associated compositional factor" }, { cat: "col", phrase: "a color" }];
+  expect(spokenCategories(["a body or a body part"], rows)?.cats).toEqual(["body"]);
+  expect(spokenCategories(["a color and a non-associated compositional factor"], rows)?.cats).toEqual(["non", "col"]);
+  expect(spokenCategories(["non-associated"], rows)?.cats).toEqual(["non"]);
+  expect(spokenCategories(["not a non-associated compositional factor"], rows)).toBeNull();
+  // "impermanent phenomenon" shares "phenomenon" with a permanent one and is still not it
+  const perm = [{ cat: "perm", phrase: "a permanent phenomenon" }, { cat: "col", phrase: "a color" }];
+  for (const s of ["impermanent phenomena", "an impermanent phenomenon", "it is an impermanent phenomenon"]) expect(spokenCategories([s], perm), s).toBeNull();
+  expect(spokenCategories(["a permanent phenomenon"], perm)?.cats).toEqual(["perm"]);
+});
+
+test("a refusal is not taken as the example", () => {
+  for (const s of ["no", "Nope", "no, nothing", "there isn't one", "there is none", "there aren't any"]) {
+    expect(spokenThing(ix, [s]), s).toMatchObject({ none: true });
+    expect(spokenCounter(ix, [s]), s).toMatchObject({ none: true });
+  }
+});
+
+test("a yes or no to a question may carry the words of the question", () => {
+  for (const s of ["yes it is", "Yes, it does", "yeah"]) expect(spokenYesNo([s]), s).toBe("yes");
+  for (const s of ["no it's not", "no it isn't", "No, it does not"]) expect(spokenYesNo([s]), s).toBe("no");
+});
