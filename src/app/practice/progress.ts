@@ -73,7 +73,7 @@ export function resetProgress() {
   const now = new Date().toISOString();
   state.stages = [...DEFAULT_STAGES]; store("rd-stages", state.stages.join(","));
   state.stageLean = 0; store("rd-stage-lean", null);
-  state.ahead = null;   // a pair drawn ahead came from the progression before (practice/ahead.ts)
+  if (state.ahead) { state.recent.splice(0, state.recent.length, ...state.ahead.keep.recent); state.ahead = null; }   // a pair drawn ahead came from the progression before (practice/ahead.ts)
   state.stagesKept = state.syllogismEveryday = false; store("rd-stages-kept", null); store("rd-syllogism-level", null);
   state.intro = freshIntro();
   state.negation = "off"; store("rd-negation", "off");

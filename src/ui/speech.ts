@@ -165,7 +165,9 @@ export function armSpeech(): void {
     a.muted = true;
     a.src = SILENT;
     const back = () => { a.muted = false; };
-    try { a.play().then(() => { a.pause(); back(); }, back); } catch { back(); }
+    // a start the browser refused did not count: the next render asks again, and the next tap tries once more
+    const refused = () => { back(); armed = false; };
+    try { a.play().then(() => { a.pause(); back(); }, refused); } catch { refused(); }
   };
   for (const e of events) document.addEventListener(e, prime, { capture: true });
 }
@@ -251,6 +253,7 @@ function speakOnline(text: string, opts: SpeakOptions, remote: Remote): void {
     let promise: Promise<void> | undefined;
     try { promise = a.play(); } catch (e) { promise = Promise.reject(e); }
     promise?.then(() => {
+      if (over || mine !== reading) return;
       started = true;
       clearTimeout(timer);
       // the clip's end is trusted, but not for ever
