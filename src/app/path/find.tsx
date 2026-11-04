@@ -61,7 +61,7 @@ function PairStep({ kb }: { kb: boolean }) {
         <Word k="a" key2="wordA" what="First" last={false} />
         <Word k="b" key2="wordB" what="Second" last />
         {u.pairErr ? <p class="pnoteline bad perr" role="alert">{u.pairErr}</p> : null}
-        <p class="help fhelp">{guidance("find") === "detailed" ? "Course terms or your own words." : "Whatever comes to mind."}</p>
+        <p class="help fhelp">{guidance("find") === "detailed" ? "Dudra terms or your own words." : "Whatever comes to mind."}</p>
         {guidance("find") === "detailed" ? <datalist id="fw-terms">{(state.DATA ? state.DATA.cats : []).map((c: { labels: string[] }) => <option value={c.labels[0]} />)}</datalist> : null}
         <Gap h={6} /></Sx>
       <Sx cls="ptail" />
@@ -107,13 +107,13 @@ function ResultStep() {
   const v = r.relOpen ? "pt" : !r.relOk || ov === "bad" ? "no" : ov === "part" || ov === "pend" ? "pt" : "ok";
   const word = r.relUns ? "Not settled" : r.relOpen ? (canAsk() || needsKey() ? "Waiting for Claude" : "Not checked") : !r.relOk ? "Not quite"
     : ov === "pend" ? "Pair is right" : ({ ok: "Right", part: "Partly right" } as Record<string, string>)[ov] || "Not quite";
-  const sub = r.relOpen ? "your own pair: the course data does not cover it" : !r.relOk ? "that pair is not " + lcRel(asked.name)
+  const sub = r.relOpen ? "your own pair: the reference does not cover it" : !r.relOk ? "that pair is not " + lcRel(asked.name)
     : ov === "pend" ? pendLine(unc, left) : ov === "part" ? cases(nbad) + " to look at" : "the pair and " + (rows.length === 1 ? "one example" : rows.length + " examples");
   const pm = r.relOpen ? "pt" : r.relOk ? "ok" : "no";
   const pairLine = r.relOpen
     ? (r.relUns ? "Whether " + p.a + " and " + p.b + " are " + lcRel(asked.name) + " is not settled. Ask again, or try another pair."
       : u.explained && !u.ctl ? "Claude's answer did not say whether they are " + lcRel(asked.name) + ". Explain again."
-      : "The course data does not cover this pair, so Claude judges whether it is " + lcRel(asked.name) + "." + (canAsk() ? "" : " Claude is not available here, so it stays open."))
+      : "The reference does not cover this pair, so Claude judges whether it is " + lcRel(asked.name) + "." + (canAsk() ? "" : " Claude is not available here, so it stays open."))
     : r.relOk ? asked.name + ": " + gl(rel) + "."
     : named ? p.a + " and " + p.b + " are " + lcRel(REL[p.relation].name) + " (" + lcRel(gl(p.relation)) + "), not " + lcRel(asked.name) + "."
     : "Claude says " + p.a + " and " + p.b + " are not " + lcRel(asked.name) + ".";

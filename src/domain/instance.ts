@@ -302,7 +302,7 @@ function reasonOf(ix: DataIndex, cls: readonly string[], cat: Cat, label: string
     if (r && (r.answer === "yes") === answer) return { reason: r.reason, why: r.why };
   }
   if (answer) return { reason: "it is " + catPhrase(cat), why: "" };
-  return { reason: cat.kind === "dudra" ? "it is not " + catPhrase(cat) : "the practice list does not count it among the " + label, why: "" };
+  return { reason: cat.kind === "dudra" ? "it is not " + catPhrase(cat) : "the reference does not count it among the " + label, why: "" };
 }
 
 // the list leaves a whole thing out of the sense objects (its color or its sound is one; whether the thing is one is a question of its own), a body out of the categories skipped for it,
@@ -331,7 +331,7 @@ export function exampleRows(ix: DataIndex, exs: readonly Example[], cats: readon
   const cls = exs.flatMap((ex) => ex.cls ?? []), not = exs.flatMap((ex) => ex.not ?? []), ne = exs.every((ex) => ex.ne);
   return cats.map((c, i) => {
     const row = { cat: c, label: labels[i] ?? ix.CAT[c].labels[0] }, got = new Set(exs.map((ex) => placeByClass(ix, ex, ix.CAT[c]))), p = got.size === 1 ? [...got][0] : null;
-    if (!p) return { ...row, answer: null, reason: "the course data does not say whether it is " + catPhrase(ix.CAT[c]), why: "" };
+    if (!p) return { ...row, answer: null, reason: "the reference does not say whether it is " + catPhrase(ix.CAT[c]), why: "" };
     const answer = p === "yes", r = reasonOf(ix, cls, ix.CAT[c], row.label, answer, ne);
     const said = !answer && !r.why && not.find((n) => catChain(ix, ix.CAT[c]).includes(n));
     return { ...row, answer, ...(said ? { reason: "the sources say it is not " + termPhrase(said), why: "" } : r) };

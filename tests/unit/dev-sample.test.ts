@@ -15,12 +15,12 @@ async function done<T>(p: Promise<T>): Promise<T> {
 }
 
 // the page's first turn is its instructions and the card, then the question after a blank line
-const CARD = "You are a terse debate tutor.\n\nCARD (from the course booklet's term data):\n{}\nCells:\n- Both: learner wrote \"x\"";
+const CARD = "You are a terse debate tutor.\n\nCARD (from the reference's term data):\n{}\nCells:\n- Both: learner wrote \"x\"";
 const explainAsk = (open: string) => `${CARD}\n\nExplain this answer. Use these lines, in this order:\n- ...\nThe page could not check the examples in: ${open}. End each of those cell lines with " => yes" if ...`;
 // the page's reading of a verdict line (src/app/ai/tutor.js, applyVerify)
 const VERDICT_LINE = /^(both|a not b|b not a|neither|q[1-4])\s*:\s*(.*?)\s*=>\s*(yes|no|unsure)\W*$/i;
 
-test("an explanation has the lines the page reads, and a verdict for each cell it could not check", async () => {
+test("an explanation has the lines the app reads, and a verdict for each cell it could not check", async () => {
   const r = await done(devSample()([{ role: "user", content: explainAsk("Both, A not B, Neither") }]));
   const lines = r.text.split("\n");
   const verdicts = lines.map((l) => VERDICT_LINE.exec(l)).filter((m) => m !== null);
@@ -38,8 +38,8 @@ test("an explanation of a debate names the relation instead of a common locus, a
 });
 
 test("an explanation of a syllogism has the lines of its checks, not a pair's", async () => {
-  const card = "You are a terse debate tutor.\n\nThis is the Syllogisms mode. ...\nCARD (from the course booklet's term data; ...):\n{}";
-  const r = await done(devSample()([{ role: "user", content: `${card}\n\nExplain this answer. The page shows the learner its line for each check (they are in the card), so say what those lines leave out.\n- "Reason:" ...` }]));
+  const card = "You are a terse debate tutor.\n\nThis is the Syllogisms mode. ...\nCARD (from the reference's term data; ...):\n{}";
+  const r = await done(devSample()([{ role: "user", content: `${card}\n\nExplain this answer. The app shows the learner its line for each check (they are in the card), so say what those lines leave out.\n- "Reason:" ...` }]));
   const lines = r.text.split("\n");
   for (const label of ["Reason:", "Pervasion:", "Explanation:", "Misconception:"]) expect(lines.some((l) => l.startsWith(label)), label).toBe(true);
   expect(r.text).not.toMatch(/Common locus:/);
@@ -73,7 +73,7 @@ test("stopping the call keeps what has arrived and says it was cancelled", async
   expect(err.text.length).toBeGreaterThan(40);
 });
 
-test("?ai=rate_limited and ?ai=error fail with the codes the page has messages for", async () => {
+test("?ai=rate_limited and ?ai=error fail with the codes the app has messages for", async () => {
   const turns = [{ role: "user", content: "hi" }];
   expect((await done(devSample("rate_limited")(turns)).catch((e) => e)).code).toBe("rate_limited");
   expect((await done(devSample("error")(turns)).catch((e) => e)).code).toBe("error");

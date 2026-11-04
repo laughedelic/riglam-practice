@@ -15,7 +15,7 @@ const ITEM = {
   base: "a vemo", mem: ["a", "b"], web: ["https://example.org/vemo"], src: [["MX", "12"], ["MA", "3-4"], ["MA", "9"]],
 };
 
-test("the device part leaves out the places, links, base, members, aliases in other scripts and the course booklets' ids", () => {
+test("the device part leaves out the places, links, base, members, aliases in other scripts and the ids of the `course` tier's sources", () => {
   const device = deviceExamples(full([ITEM, { n: "a kipa", al: ["\u6e56"], cls: ["Form"], lv: 1, src: [["MX", "1"]] }]), "2026-10-13");
   expect(device).toEqual({
     format: DEVICE_FORMAT, version: VERSION, built: "2026-10-13", sources: { MA: { tier: "open" } },
@@ -25,7 +25,7 @@ test("the device part leaves out the places, links, base, members, aliases in ot
     ],
   });
   expect(ITEM.al, "the full part is not changed").toHaveLength(4);
-  expect(JSON.stringify(device), "the course booklet's id is nowhere in what a device gets").not.toContain("MX");
+  expect(JSON.stringify(device), "the `course` tier's id is nowhere in what a device gets").not.toContain("MX");
 });
 
 test("the device part drops an alias with any Han or Tibetan character, the extensions and compatibility forms included", () => {

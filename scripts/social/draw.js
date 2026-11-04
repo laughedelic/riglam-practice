@@ -1,11 +1,11 @@
-// Draws the Riglam hero images on a canvas: the logo figure on the left, the name, the line and a faint Tibetan name on the right, on the booklet
+// Draws the Riglam hero images on a canvas: the logo figure on the left, the name, the line and a faint Tibetan name on the right, on the felt cover
 // page, the divider page or a lattice. It runs in the page scripts/social/page.html, in headless Chromium, started by scripts/make-social.mjs.
 // This is the picked design of the Riglam Social Lab (the exploration page), reduced to what the three pictures use and with every choice
 // written out in settings.json. Sizes are in units of a picture 1280 wide.
 import { fineNoiseTile, rng, TILE } from "../lib/grain.mjs";
 
 const W = 1280;
-const BAND = Math.round(W * 0.094); // the booklet's side band, 9.4% of the page width
+const BAND = Math.round(W * 0.094); // the cover's side band, 9.4% of the page width
 const STRENGTH = { soft: 0.55, mid: 1, strong: 1.6 }; // the grain strengths of the icons, as multiples of the normal noise
 const GRAIN_SEED = 20261017;
 const LATTICE = { cell: 64, gap: 2.5, amplitude: 0.16, seed: 77 };

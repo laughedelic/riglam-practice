@@ -54,16 +54,16 @@ export function finePoints(ix: DataIndex, catIds: readonly (string | null | unde
 
 // the page's verdict on a cell as the card says it: "open" for an example whose name leaves the cell's quality open, which the page has asked the learner to name
 const verdictOf=(ix: DataIndex, r: { v: string; vague?: readonly string[] }): string =>
-  r.vague?.length?"open (the example's name does not say whether it is "+r.vague.map(c=>ix.CAT[c]?.phrases?.[0]??"one of the "+(ix.CAT[c]?.labels[0]??c)).join(" or whether it is ")+"; the page has asked the learner to name it)":r.v;
+  r.vague?.length?"open (the example's name does not say whether it is "+r.vague.map(c=>ix.CAT[c]?.phrases?.[0]??"one of the "+(ix.CAT[c]?.labels[0]??c)).join(" or whether it is ")+"; the app has asked the learner to name it)":r.v;
 
-/** The practice-list tag of an example the learner wrote: its name and type, and the qualities of the pair its name leaves open, whatever the page's verdict on the cell (a cell already marked wrong has none). */
+/** The practice-item tag of an example the learner wrote: its name and type, and the qualities of the pair its name leaves open, whatever the page's verdict on the cell (a cell already marked wrong has none). */
 const listedAs=(ix: DataIndex, it: NonNullable<ReturnType<typeof matchItem>>, p: PairLike, text: string): string => {
   // Words that name the item only through an alias ("an apple" for "a red apple") are shorter than the item: its type holds, its color,
   // shape, material or other detail is not what the learner wrote. The page leaves such a quality to the learner's own words (placeFacts).
   // The item's name is left out: it is what carried the color ("a red apple") and is no use to a tutor that may take only the type.
-  if(!matchItem(ix,text,true)) return " [the learner's words are an alias for an item in the practice list, type "+it.t+". Take only that type from it, never its color, shape, material, temperature or other details: judge the learner's own words, and a quality they do not name is open]";
+  if(!matchItem(ix,text,true)) return " [the learner's words are an alias for a practice item, type "+it.t+". Take only that type from it, never its color, shape, material, temperature or other details: judge the learner's own words, and a quality they do not name is open]";
   const open=noteCats(ix,p).filter(c=>leavesOpen(it,c));
-  return " [in the practice list as: "+it.n+", type "+it.t+(open.length?"; its name leaves open whether it is "+open.map(c=>ix.CAT[c]?.phrases?.[0]??"one of the "+(ix.CAT[c]?.labels[0]??c)).join(" or whether it is "):"")+"]";
+  return " [in the practice items as: "+it.n+", type "+it.t+(open.length?"; its name leaves open whether it is "+open.map(c=>ix.CAT[c]?.phrases?.[0]??"one of the "+(ix.CAT[c]?.labels[0]??c)).join(" or whether it is "):"")+"]";
 };
 
 /** The fine points of the pair's two categories as the tail of the card; empty when there are none. */
@@ -72,11 +72,11 @@ export function cardNotes(ix: DataIndex, p: PairLike): string {
   return notes.length?"\nFine points (from the sources; apply them):\n"+notes.map(n=>"- "+n).join("\n"):"";
 }
 
-/** What the data says about one side of a pair the learner made up: its category, else the course term it names, else only its words. */
+/** What the data says about one side of a pair the learner made up: its category, else the Dudra term it names, else only its words. */
 function sideFacts(ix: DataIndex, label: string): Facts {
   const cid = categoryOf(ix, label), term = termNamed(ix, label);
   const f = cid ? catFacts(ix, cid, label) : term ? termFacts(ix, term) : null;
-  return f ? Object.assign({ label }, f, { label }) : { label, not_in_the_course_data: true }; // the learner's words, first as in the other cards
+  return f ? Object.assign({ label }, f, { label }) : { label, not_in_the_reference_data: true }; // the learner's words, first as in the other cards
 }
 
 /**
@@ -99,13 +99,13 @@ export function cardBody(ix: DataIndex, p: PairLike, u: AnswerView): string {
       const said=a.say==="accept"?"ACCEPT"+(a.timeout?" (time ran out, which counts as accepting)":""):a.say==="why"?"WHY"+(a.text?" with the example "+JSON.stringify(a.text):" without an example"):"nothing (time ran out)";
       const it=a.text?matchItem(ix,a.text):null;
       return "- Q"+(i+1)+" ("+qPlain(i)+") counter-example cell: "+cellLabel(c,p)+"; learner said "+said+
-        (it?listedAs(ix,it,p,a.text??""):"")+"; reference "+refTxt(c)+"; page verdict "+verdictOf(ix,r);
+        (it?listedAs(ix,it,p,a.text??""):"")+"; reference "+refTxt(c)+"; app verdict "+verdictOf(ix,r);
     }).join("\n");
     mid=`${DEBATE_NOTE}
 A = ${JSON.stringify(p.a)}, B = ${JSON.stringify(p.b)}.
-${negLine(p)}Correct relation: ${REL[p.relation].name}. The learner's Q1 to Q3 answers give: ${imp==="bad"?"a self-contradiction":imp?REL[imp].name:"nothing (time ran out)"}. Learner chose: ${u.late?"nothing (time ran out; the page then showed the right relation)":REL[u.rel as RelKey].name}.
+${negLine(p)}Correct relation: ${REL[p.relation].name}. The learner's Q1 to Q3 answers give: ${imp==="bad"?"a self-contradiction":imp?REL[imp].name:"nothing (time ran out)"}. Learner chose: ${u.late?"nothing (time ran out; the app then showed the right relation)":REL[u.rel as RelKey].name}.
 Reference note: ${p.note||"none"}
-Questions (verdict cmp = learner wrote an example the page could not classify):
+Questions (verdict cmp = learner wrote an example the app could not classify):
 ${lines}`;
   } else if(u.find){
     const rel=REL[u.rel as RelKey], own=!!p.own;
@@ -114,13 +114,13 @@ ${lines}`;
       const it=t?matchItem(ix,t):null;
       return "- "+cellLabel(c,p)+": learner wrote "+(none?"NONE":(t?JSON.stringify(t):"(blank)"))+
         (it?listedAs(ix,it,p,t):"")+
-        "; reference "+(own?"none, for you to decide":refTxt(c))+"; page verdict "+verdictOf(ix,r);
+        "; reference "+(own?"none, for you to decide":refTxt(c))+"; app verdict "+verdictOf(ix,r);
     }).join("\n");
     mid=`${FIND_NOTE}
 A = ${JSON.stringify(p.a)}, B = ${JSON.stringify(p.b)}.
 ${negLine(p,own)}Relation asked for: ${rel.name} (${rel.gloss("A","B")}). ${own?FIND_OWN_NOTE:`Correct relation of this pair: ${REL[p.relation].name}.`}${u.exLate?" Time ran out on the examples: cells the learner had not reached are blank.":""}
 ${own?"":`Reference note: ${p.note||"none"}
-`}Cells (verdict cmp = learner wrote something the page could not classify${own?"; for a pair the page cannot judge every example is cmp, and a cell the relation leaves empty is open":""}):
+`}Cells (verdict cmp = learner wrote something the app could not classify${own?"; for a pair the app cannot judge every example is cmp, and a cell the relation leaves empty is open":""}):
 ${lines}`;
   } else {
     const lines=CELLS.map(c=>{
@@ -128,17 +128,17 @@ ${lines}`;
       const it=t?matchItem(ix,t):null;
       return "- "+cellLabel(c,p)+": learner wrote "+(none?"NONE":(t?JSON.stringify(t):"(blank)"))+
         (it?listedAs(ix,it,p,t):"")+
-        "; reference "+refTxt(c)+"; page verdict "+verdictOf(ix,r);
+        "; reference "+refTxt(c)+"; app verdict "+verdictOf(ix,r);
     }).join("\n");
-    mid=`${negLine(p)}Correct relation: ${REL[p.relation].name}. Learner chose: ${u.late?"nothing (time ran out; the page then showed the right relation)":REL[u.rel as RelKey].name}.${u.exLate?" Time ran out on the examples: cells the learner had not reached are blank.":""}
+    mid=`${negLine(p)}Correct relation: ${REL[p.relation].name}. Learner chose: ${u.late?"nothing (time ran out; the app then showed the right relation)":REL[u.rel as RelKey].name}.${u.exLate?" Time ran out on the examples: cells the learner had not reached are blank.":""}
 Reference note: ${p.note||"none"}
-Cells (verdict cmp = learner wrote something the page could not classify):
+Cells (verdict cmp = learner wrote something the app could not classify):
 ${lines}`;
   }
-  return `CARD (from the course booklet's term data; the relation and reference examples were computed from a list of classified examples):
+  return `CARD (from the reference's term data; the relation and reference examples were computed from classified examples):
 ${JSON.stringify(card)}
 ${mid}${stageLine(u.stage)}${cls.length?`
-Classes (the booklet's "is a" tree, for "class:"): ${cls.join(", ")}.`:""}`;
+Classes (the reference's "is a" tree, for "class:"): ${cls.join(", ")}.`:""}`;
 }
 
 /**
@@ -160,10 +160,10 @@ export function negLine(p: Pick<PairLike, "a" | "b" | "neg">, own = false): stri
 export function stageLine(stage: number | undefined): string {
   if (stage === undefined || stage < 0 || stage >= 8) return "";
   const how = stage === 0
-    ? "a beginner who knows everyday words and has met no course term yet: explain in everyday words, and leave out the course's terms"
+    ? "a beginner who knows everyday words and has met no Dudra term yet: explain in everyday words, and leave out the Dudra terms"
     : stage <= 4
-    ? "a beginner who knows everyday words and has just met the categories of form: explain in everyday words, name a course term once, and leave out the course's further terms"
-    : "a learner who has just met the course's established bases: explain with the definitions, quoted from the card, and keep further terms for when they are asked about";
+    ? "a beginner who knows everyday words and has just met the categories of form: explain in everyday words, name a Dudra term once, and leave out further Dudra terms"
+    : "a learner who has just met the established bases: explain with the definitions, quoted from the card, and keep further terms for when they are asked about";
   return `
 Learner: at stage ${stage} of 9, ${how}.`;
 }
@@ -180,11 +180,11 @@ export function explainAsk(U: Pick<AnswerView, "debate" | "find" | "res"> & { ow
   const nm=(c: CellId)=>dbt?"Q"+(CELLS.indexOf(c)+1):CELL_NAME[c];
   // an example whose name leaves the cell's quality open ("a car" for black things) is settled by no one: the page asks the learner for the word
   const left=vague.length?`
-The examples in ${vague.map(nm).join(", ")} do not say the quality their cell is about (the card's page verdict "open"); the page has asked the learner to name it. On those lines answer open on that side and say which words would settle it.`:"";
+The examples in ${vague.map(nm).join(", ")} do not say the quality their cell is about (the card's app verdict "open"); the app has asked the learner to name it. On those lines answer open on that side and say which words would settle it.`:"";
   if(!open.length) return base+left;
   return base+left+`
-The page could not check the examples in: ${open.map(nm).join(", ")}. The page reads your "A" and "B" answers on those lines as the check, so make them exact: the example belongs in a cell when its answers are the cell's (Both: A yes, B yes; A not B: A yes, B no; B not A: A no, B yes; Neither: A no, B no; ${neg?`a non-existent such as the horn of a rabbit counts too, as no for a plain term and yes for a "non-" term`:"an existent thing, but in Neither a non-existent such as the horn of a rabbit counts too"}).`+(dbt?`
+The app could not check the examples in: ${open.map(nm).join(", ")}. The app reads your "A" and "B" answers on those lines as the check, so make them exact: the example belongs in a cell when its answers are the cell's (Both: A yes, B yes; A not B: A yes, B no; B not A: A no, B yes; Neither: A no, B no; ${neg?`a non-existent such as the horn of a rabbit counts too, as no for a plain term and yes for a "non-" term`:"an existent thing, but in Neither a non-existent such as the horn of a rabbit counts too"}).`+(dbt?`
 Q1 is the Both cell, Q2 A not B, Q3 B not A, Q4 Neither.`:"")+`
-How to decide: read the example in its ordinary sense (a song is the sound of someone singing or playing; a stone is an ordinary stone at room temperature), but do not fill in a quality its name does not say (the color of "a car", what "a table" is made of). Place it under A or B first, then ${U.own?"check it against the relation you decided on, since the page has no reference for this pair":"use the correct relation above: it is computed and right, so if whatever is B is A, a B belongs in Both"}. Use classify_example or lookup_term when a classification is not obvious.
+How to decide: read the example in its ordinary sense (a song is the sound of someone singing or playing; a stone is an ordinary stone at room temperature), but do not fill in a quality its name does not say (the color of "a car", what "a table" is made of). Place it under A or B first, then ${U.own?"check it against the relation you decided on, since the app has no reference for this pair":"use the correct relation above: it is computed and right, so if whatever is B is A, a B belongs in Both"}. Use classify_example or lookup_term when a classification is not obvious.
 Answer "open" on a side whose quality the example's name does not say (the color of "an apple", the shape of "a box", whether "a frying pan" is hot), and say which words would settle it. Answer "unsure" only on a side where the sources disagree on how to classify the thing (see the fine points) or where you cannot tell what the example names; then that side's sentence names each reading, in a few words. A word that could also mean something else is not a reason for "unsure": decide on the ordinary reading and mention the other one briefly.`;
 }

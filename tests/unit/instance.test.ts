@@ -254,7 +254,7 @@ test("gradeInstance: a reference example, by its classes", () => {
   // an everyday category can only be a no by the classes, so the rest stays open
   const red = gradeInstance(ix(), q(["form", "red"]), { text: "the blue of the sky" }, eix, seeded(5));
   expect(red.v).toBe("open");
-  expect(red.rows.find((x) => x.cat === "red")).toMatchObject({ answer: null, reason: "the course data does not say whether it is red" });
+  expect(red.rows.find((x) => x.cat === "red")).toMatchObject({ answer: null, reason: "the reference does not say whether it is red" });
   // a name two examples share is placed only where they agree
   const two = makeExampleIndex({ format: "x", version: 1, sources: {}, items: [ex("a patch", ["Color"]), ex("a patch", ["Shape"])] });
   const patch = gradeInstance(ix(), q(["ft", "form"]), { text: "a patch" }, two);

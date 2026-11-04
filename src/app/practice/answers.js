@@ -30,7 +30,7 @@ export function persist(u,what){
     // what is lost is said as the exercise has it: the others' answers are listed in Review, a syllogism, a thing of Categories or a set of Find an instance is kept apart from those lists
     const syl=!!u.doc&&(u.doc.mode==="syllogism"||u.doc.mode==="categories"||u.doc.mode==="instance");
     u.saveErr=NO_RETRY.includes(c)?what+" is on screen but could not be saved ("+c+"), so it will not "+(syl?"be kept.":"appear in Review.")
-      :what+" is on screen but was not saved: the database did not respond. The page tries again after your next answer; until then it is "+(syl?"not kept.":"missing from Review.");
+      :what+" is on screen but was not saved: the database did not respond. The app tries again after your next answer; until then it is "+(syl?"not kept.":"missing from Review.");
     if(u===state.ui) render();
   });
 }

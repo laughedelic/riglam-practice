@@ -1074,7 +1074,7 @@ test("the offer of the stages without new terms: up after five right, down after
   expect(normRun(null)).toEqual(freshRun());
 });
 
-test("staying on a stage longer asks for more right answers; the learner's own moves stop the stages coming by themselves; what they told the page survives a restart of the run", () => {
+test("staying on a stage longer asks for more right answers; the learner's own moves stop the stages coming by themselves; what they told the app survives a restart of the run", () => {
   const r = (extra: Partial<StageRun> = {}): StageRun => ({ up: 5, down: 0, ...extra });
   expect(runNeed(freshRun())).toBe(STAGE_STREAK);
   const once = stayLonger(r());
@@ -1658,7 +1658,7 @@ test("a tutor line that contradicts its own class settles nothing on that side, 
   expect(parseVerdicts(slip)).toEqual([{ cell: "both", answer: "no" }]);
 });
 
-test("for every pair the page can draw, the right answer is ok in practice and in the debate", () => {
+test("for every pair the app can draw, the right answer is ok in practice and in the debate", () => {
   const rng = seeded(2024);
   for (const e of realPool) {
     const p = makePair(rix, e, rng);
@@ -1759,19 +1759,19 @@ test("Quorum is disputed where the models give different cells, and the text nam
   const d = quorumDisputes(things, [run("Haiku", "anb", "nei"), run("Sonnet", "anb", "bna"), run("Opus", "anb", "bna")], ["anb", "bna"]);
   expect(d).toHaveLength(1);
   expect(d[0]).toMatchObject({ index: 1, kinds: ["models"], ruling: "bna", judge: "bna" });
-  expect(disputeText(d[0], things[1])).toBe("The models gave different cells. Models: Haiku Neither, Sonnet B not A, Opus B not A. Judge: B not A. You put it in B not A (the page: fits).");
+  expect(disputeText(d[0], things[1])).toBe("The models gave different cells. Models: Haiku Neither, Sonnet B not A, Opus B not A. Judge: B not A. You put it in B not A (the app: fits).");
 });
 
-test("Quorum is disputed where the models agree but the page's verdict cannot stand beside the cell they agree on", () => {
+test("Quorum is disputed where the models agree but the app's verdict cannot stand beside the cell they agree on", () => {
   const things = [th("a table", ["anb"], { anb: "bad" }), th("a song", ["bna"], { bna: "ok" }), th("a stone", ["both"], { both: "ok" }), th("a mule", ["nei"], { nei: "cmp" })];
   const models = [run("Haiku", "anb", "anb", "both", "bna"), run("Sonnet", "anb", "anb", "both", "bna")];
   const d = quorumDisputes(things, models, null);
   // a table: the page says it does not fit A not B, the models put it there; a song: the page says it fits B not A, the models say A not B
   expect(d.map((x) => [x.index, x.kinds, x.ruling])).toEqual([[0, ["page"], "anb"], [1, ["page"], "anb"]]);
-  expect(disputeText(d[0], things[0])).toBe("The models agree, but the page does not. Models: Haiku A not B, Sonnet A not B. You put it in A not B (the page: does not fit).");
+  expect(disputeText(d[0], things[0])).toBe("The models agree, but the app does not. Models: Haiku A not B, Sonnet A not B. You put it in A not B (the app: does not fit).");
 });
 
-test("Quorum is not disputed where the page and the ruling agree, where the page did not check, or with fewer than two runs", () => {
+test("Quorum is not disputed where the app and the ruling agree, where the app did not check, or with fewer than two runs", () => {
   const things = [th("a table", ["anb"], { anb: "ok" }), th("a song", ["bna"], { bna: "bad" }), th("a mule", ["nei"], { nei: "cmp" })];
   // the learner is wrong about the song and the page says so: nothing to flag
   expect(quorumDisputes(things, [run("Haiku", "anb", "anb", "nei"), run("Sonnet", "anb", "anb", "nei")], null)).toEqual([]);
@@ -1780,12 +1780,12 @@ test("Quorum is not disputed where the page and the ruling agree, where the page
   expect(quorumDisputes(things, [run("Haiku", "anb", "anb", "nei"), run("Sonnet", "anb", "anb", "both")], null).map((x) => x.index)).toEqual([2]);
 });
 
-test("Quorum: an example written in two cells is disputed if the ruling contradicts the page in either", () => {
+test("Quorum: an example written in two cells is disputed if the ruling contradicts the app in either", () => {
   const things = [th("a pot", ["anb", "bna"], { anb: "ok", bna: "bad" })];
   expect(quorumDisputes(things, [run("Haiku", "anb"), run("Sonnet", "anb")], null)).toEqual([]);
   const d = quorumDisputes(things, [run("Haiku", "bna"), run("Sonnet", "bna")], null);
   expect(d.map((x) => x.kinds)).toEqual([["page"]]);
-  expect(disputeText(d[0], things[0])).toContain("You put it in A not B (the page: fits), B not A (the page: does not fit).");
+  expect(disputeText(d[0], things[0])).toContain("You put it in A not B (the app: fits), B not A (the app: does not fit).");
 });
 
 test("Quorum: an answer that is unsure about an example, or does not mention it, gives no cell and divides nobody", () => {
@@ -1948,7 +1948,7 @@ test("a known pair is graded in the pair-finding mode as in the usual exercise, 
   expect(() => gradeFind(ix, p, { rel: null, cells: right("3ab") })).toThrow();
 });
 
-test("the learner's own pair is not decided by the page: the relation and the examples are left to the tutor", () => {
+test("the learner's own pair is not decided by the app: the relation and the examples are left to the tutor", () => {
   const p = findPair(ix, "mi", named("red apples"), named("pears"), seeded(1));
   const r = gradeFind(ix, p, { rel: "mi", cells: cellsOf({ both: "a red pear", nei: "a stone" }, ["anb", "bna"]) });
   expect(r).toMatchObject({ relOk: false, relOpen: true, overall: "pend" });
@@ -2078,7 +2078,7 @@ test("an example in a cell the relation the pair has leaves empty is a cell fill
   expect(wrong(settled([], null)).map((r) => r[0])).toEqual(["cmp", "cmp"]);
 });
 
-test("a pair of the learner's own gets no reference example from the page when the tutor turns an example down", () => {
+test("a pair of the learner's own gets no reference example from the app when the tutor turns an example down", () => {
   const p = findPair(ix, "4", named("red apples"), named("pears"), seeded(1));
   const res = gradeFind(ix, p, { rel: "4", cells: cellsOf({ both: "x", anb: "y", bna: "z", nei: "the horn of a rabbit" }) });
   applyVerdicts(p, res, [{ cell: "nei", answer: "no" }, { cell: "both", answer: "unsure" }]);
@@ -2122,7 +2122,7 @@ test("the learner's words name a category of the real data also in the singular 
   for (const c of real.cats) for (const l of c.labels) expect(rix.CAT[nameThing(rix, l).cat as string].labels, l).toContain(l);
 });
 
-test("asking Claude again about a pair of the learner's own replaces what it said about the examples before, and never what the page graded", () => {
+test("asking Claude again about a pair of the learner's own replaces what it said about the examples before, and never what the app graded", () => {
   const p = findPair(ix, "4", named("red apples"), named("pears"), seeded(1));
   const fresh = () => gradeFind(ix, p, { rel: "4", cells: cellsOf({ both: "a", anb: "b", nei: "c" }) }); // B not A is left blank: the page graded it "Missing"
   const first: Parameters<typeof applyVerdicts>[2] = [{ cell: "both", answer: "no" }, { cell: "anb", answer: "yes" }, { cell: "bna", answer: "yes" }];
@@ -2155,7 +2155,7 @@ test("every label of every category of the real data names that category, and it
   expect(nameThing(rix, "the unicorn")).toEqual({ label: "the unicorn", cat: null });
 });
 
-test("for every pair the page can draw, naming it and asking for its relation is graded ok; asking for another relation is not", () => {
+test("for every pair the app can draw, naming it and asking for its relation is graded ok; asking for another relation is not", () => {
   const rng = seeded(31);
   for (const e of realPool) {
     const drawn = makePair(rix, e, rng), why = `${pairKey(e)} ${drawn.a} / ${drawn.b}`;
@@ -2403,7 +2403,7 @@ test("a verdict known without the AI says where it came from, and never leaves a
   const p = pair();
   const res = grade(ix, p, { rel: "4", cells: cellsOf({ ...perfect, both: "a gray dragon", bna: "a gray ghost", nei: "a thought" }) });
   expect(applyVerdicts(p, res, [{ cell: "both", answer: "yes" }, { cell: "bna", answer: "unsure" }], false, "course")).toBe(1);
-  expect(res.cells.both).toMatchObject({ v: "ok", msg: ["Verified", "", "by the course examples"], by: "course" });
+  expect(res.cells.both).toMatchObject({ v: "ok", msg: ["Verified", "", "by the reference examples"], by: "course" });
   expect(res.cells.bna.v).toBe("cmp");
   expect(applyVerdicts(p, res, [{ cell: "bna", answer: "no" }], false, "learned")).toBe(1);
   expect(res.cells.bna).toMatchObject({ v: "bad", msg: ["Does not fit", ". Example: a gray stone.", "from an earlier check"], by: "claude" });
@@ -2528,8 +2528,8 @@ test("a body part has a color or a temperature and a scarf a shape: those pairs 
 test("two everyday categories of one kind with nothing in both do not give their kind as the reason", () => {
   const same = pairOf(rix, "red", "green", "red things", "green things", seeded(1), () => 0);
   expect(same.relation).toBe("con");
-  expect(same.why!.both).toBe("Nothing in the practice list is both “red things” and “green things”.");
-  expect(same.note).toBe("No common locus: nothing in the practice list is both red things and green things.");
+  expect(same.why!.both).toBe("Nothing in the reference is both “red things” and “green things”.");
+  expect(same.note).toBe("No common locus: nothing in the reference is both red things and green things.");
   // across kinds the kind is the reason
   const across = pairOf(rix, "red", "emotion", "red things", "emotions", seeded(1), () => 0);
   expect(across.why!.both).toBe("“red things” are form; “emotions” are consciousness. Nothing is both.");

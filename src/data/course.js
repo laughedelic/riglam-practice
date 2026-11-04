@@ -1,6 +1,6 @@
 // The term data has two tiers (docs/DATA.md):
 //   open    terms, translations, relations, everyday items: plain JSON (drill-data.json), shipped with the app
-//   course  the definitions (`d`, `d_ru`), which follow the course booklet and published translations, and the
+//   course  the definitions (`d`, `d_ru`), which follow the reference and published translations, and the
 //           tutor notes (`note`, top-level `notes`): kept on the server (the D1 table course_data) and, for the
 //           data script, the artifact build and the tests, in the git-ignored folder data-private/
 // This module is the one implementation of the format: how the full data splits into the tiers and goes back together.

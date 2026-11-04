@@ -86,8 +86,8 @@ export function QuorumPanel() {
   const head = <p class="pqm-h"><b>Quorum</b> <span>{s.sum}</span></p>;
   if (!rec) {
     const why = q && q.busy ? "The models answer one after the other; the explanation appears when they are done."
-      : !q && !quorumNeeded(U) ? "Quorum is for examples the page could not check itself. Every example here has a verdict, so one model explains and the server keeps nothing."
-      : "With Quorum on, the explanation of an answer with an example the page could not check comes from several models, and this panel shows each of them. The server keeps the run so the models can be compared.";
+      : !q && !quorumNeeded(U) ? "Quorum is for examples the app could not check itself. Every example here has a verdict, so one model explains and the server keeps nothing."
+      : "With Quorum on, the explanation of an answer with an example the app could not check comes from several models, and this panel shows each of them. The server keeps the run so the models can be compared.";
     return <div class="pqm">{head}<p class="pnoteline">{why}</p></div>;
   }
   const runs: Run[] = rec.models.concat(rec.judge ? [rec.judge] : []);
@@ -118,7 +118,7 @@ export function QuorumPanel() {
       <p class="pqm-t"><b lang="en">“{t.text}”</b> <span class="pqm-you">you put it in {t.cells.map((c) => CELL_NAME[c as keyof typeof CELL_NAME]).join(", ")}</span>
         <FlagVal c={{ ...base, part: "check", partLabel: "the whole check", shown: "all runs" }} where={where} text="Flag all" cls="all" /></p>
       {rec.models.map(row)}{rec.judge ? row(rec.judge) : null}
-      <div class="pqm-r page"><span class="pqm-n">Page</span><span class="pqm-v">{pv.map((x) => <FlagVal c={{ ...base, part: "verdict", partLabel: "page verdict", n: x.cell, shown: x.txt }} where={where} text={x.txt} />)}</span></div>
+      <div class="pqm-r page"><span class="pqm-n">App</span><span class="pqm-v">{pv.map((x) => <FlagVal c={{ ...base, part: "verdict", partLabel: "app verdict", n: x.cell, shown: x.txt }} where={where} text={x.txt} />)}</span></div>
       <FlagEditor where={where} />
     </div>;
   });
@@ -127,7 +127,7 @@ export function QuorumPanel() {
     <p class="pnoteline">The answer you see is {rec.shown === "Judge" ? "the judge’s" : rec.shown + "’s"}.</p>
     {things}
     <details class="pqm-x"><summary>The answers</summary>{runs.filter((r) => r.ok).map((r) => <><p class="pqm-xn"><b>{(r === rec.judge ? "Judge" : r.name) + (rec.shown === r.name ? " (shown)" : "")}</b></p><p class="pqm-xt">{r.text}</p></>)}</details>
-    <p class="pnoteline">Tap any value to flag it. The server keeps this run so the models can be compared; the page verdicts are the ones from the answer you see.</p>
+    <p class="pnoteline">Tap any value to flag it. The server keeps this run so the models can be compared; the app's verdicts are the ones from the answer you see.</p>
     {state.flagErr ? <p class="pnoteline bad">{state.flagErr}</p> : null}
   </div>;
 }

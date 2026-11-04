@@ -51,7 +51,7 @@ const TIME_UP: Record<string, string> = {
   practice: "On the relation, the right one is shown and the examples come next; at Guidance None the pair counts as wrong and the next one comes. On an example, the case stays as it is and the next one opens.",
   debate: "On a statement, it counts as accepted. On the example after Why?, what you wrote stands. On the relation, the result shows the right one.",
   syllogism: "With no reply the answer counts as wrong, and the result names the right one; at Guidance None the next syllogism comes instead.",
-  find: "On naming the pair, two words go on to the examples; anything less is a miss, and a pair of the course is shown (at Guidance None the next relation comes). On an example, as in Relations.",
+  find: "On naming the pair, two words go on to the examples; anything less is a miss, and a pair from the reference is shown (at Guidance None the next relation comes). On an example, as in Relations.",
   categories: "What is ticked stands and is checked as it is; at Guidance None, with nothing ticked, the next thing comes instead of the result. With one category at a time, an unanswered category counts as no.",
   instance: "What is written stands and is checked; with nothing written it is a miss, and a thing that fits is shown (at Guidance None the next set comes).",
 };
@@ -212,7 +212,7 @@ function TutorPage() {
   const syl = state.tab === "syllogism";
   return <>
     <Intro>Claude is an AI assistant. It explains the results, and checks examples you wrote that the reference data does not cover. It can make mistakes, so treat it as a study aid, not the last word. Where sources differ it says so. You can flag anything that looks wrong to help improve it.</Intro>
-    {canAsk() ? <Line title="Explains" sub={"Every answer: right after you check one, Claude explains it" + (syl ? "" : " and checks the examples the page could not") + ". When I ask: it waits for you to ask."}>
+    {canAsk() ? <Line title="Explains" sub={"Every answer: right after you check one, Claude explains it" + (syl ? "" : " and checks the examples the app could not") + ". When I ask: it waits for you to ask."}>
       <Words label="Explanations by Claude" items={TUTOR} cur={state.autoExplain ? "every" : "ask"} on={setTutor} /></Line> : null}
     {quorumShown() ? <Line title="Three Claude models" tag="experimental" sub={quorumNote()} sw={{ on: state.quorum, toggle: () => setQuorum(!state.quorum) }} /> : null}
   </>;

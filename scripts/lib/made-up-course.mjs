@@ -67,7 +67,7 @@ export function madeUpCourse(open) {
   const notes = { terms: {}, groups: {} };
   Object.keys(open.terms).forEach((key, i) => {
     definitions[key] = {
-      d: i % 30 === 11 ? "(no definition in the booklet)" : prose("d:" + key, lengthFor("d:" + key, i, 24, 417), LATIN),
+      d: i % 30 === 11 ? "(no definition in the reference)" : prose("d:" + key, lengthFor("d:" + key, i, 24, 417), LATIN),
     };
     if (i % 7 !== 5) definitions[key].d_ru = prose("ru:" + key, lengthFor("ru:" + key, i, 20, 155), CYRILLIC);
     if (i % 4 === 1) notes.terms[key] = prose("n:" + key, 150 + Math.floor(source("nl:" + key)() * 400), LATIN);
@@ -78,7 +78,7 @@ export function madeUpCourse(open) {
   return { definitions, notes };
 }
 
-/** The sources of the made-up examples: three published works and one course booklet, whose id a device must never get. */
+/** The sources of the made-up examples: three published works and one reference text of the `course` tier, whose id a device must never get. */
 export const MADE_UP_SOURCES = { MA: { tier: "open" }, MB: { tier: "open" }, MC: { tier: "open" }, MX: { tier: "course" } };
 const KINDS = ["thing", "thing", "thing", "representation", "relation", "negation"];
 const CONFIRMATIONS = ["confirmed", "textbook", "commentator"];
@@ -86,7 +86,7 @@ const CONFIRMATIONS = ["confirmed", "textbook", "commentator"];
 /**
  * Reference examples in the format of the knowledge base's exporter (src/data/examples.js), with invented names: classes are terms of
  * `open`, picked at random, so they say nothing true. Every field of the format occurs, aliases in Chinese and Tibetan script and
- * places in a course booklet included, so that what the device part leaves out is tested too.
+ * places in a reference text of the `course` tier included, so that what the device part leaves out is tested too.
  */
 export function madeUpExamples(open, count = 80) {
   const terms = Object.keys(open.terms);

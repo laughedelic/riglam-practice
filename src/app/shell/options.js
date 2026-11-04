@@ -43,7 +43,7 @@ export function aboutInfo(a){
 /** What sharing the examples means, for its row in Settings. */
 export function shareNote(){
   const known=!!state.known, quorum=!!(state.quorumOffered&&state.db);
-  return "When Claude checks an example the page could not, this app\u2019s server keeps the words of the example (not who wrote it, which pair it was for, or where you put it)"
+  return "When Claude checks an example the app could not, the app\u2019s server keeps the words of the example (not who wrote it, which pair it was for, or where you put it)"
       +(known?", so that the same example can be checked later without Claude.":", to build a shared reference of examples with other learners.")
       +(known?" Your checks are answered from what it learned this way, from your examples and from other people\u2019s.":"")
       +" The person who runs the app can read what is kept."

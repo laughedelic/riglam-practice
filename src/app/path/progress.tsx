@@ -52,7 +52,7 @@ export const flow = (n: number): string => "New terms come one at a time, at mos
  */
 export const HowStages = ({ diff }: { diff: ComponentChildren }) => <ul class="tup-bul">
   <li>Each stage adds a new kind of thing to ask about, from everyday things toward abstract ideas.</li>
-  <li>Stage 0 is everyday things only. The course terms start at stage 1, in three groups of three stages.</li>
+  <li>Stage 0 is everyday things only. The Dudra terms start at stage 1, in three groups of three stages.</li>
   <li>The earlier stages stay in the mix, and Review keeps them fresh.</li>
   <li>Each new term comes with its definition first.</li>
   <li>{flow(state.pace)}</li>

@@ -22,7 +22,7 @@ export interface Stage {
 }
 
 export const STAGES: readonly Stage[] = [
-  { n: 0, name: "Things around you", adds: "Everyday things, what they are made of, their colors and shapes; food, plants, animals, feelings and thoughts. No course terms yet." },
+  { n: 0, name: "Things around you", adds: "Everyday things, what they are made of, their colors and shapes; food, plants, animals, feelings and thoughts. No Dudra terms yet." },
   { n: 1, name: "Form", adds: "Form and matter, two names for anything physical, and their first division: external form and external matter.", group: "Form, from outside" },
   { n: 2, name: "What the eye sees", adds: "Visible forms: colors and shapes as qualities of things, the red of an apple, not the apple." },
   { n: 3, name: "The other senses", adds: "Sounds, smells, tastes, and what is felt by touch, in plain words." },

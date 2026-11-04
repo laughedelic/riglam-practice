@@ -11,7 +11,7 @@ import { keepOwn } from "../practice/per-exercise.ts";
 
 // what the symbols of each notation mean
 export const SYMS={
-  codes:["Shorthand","Perdue's course book abbreviates the relations like this.",[["MI","mutually inclusive"],["MX","mutually exclusive"],["3P","three possibilities"],["4P","four possibilities"]]],
+  codes:["Shorthand","Perdue's book abbreviates the relations like this.",[["MI","mutually inclusive"],["MX","mutually exclusive"],["3P","three possibilities"],["4P","four possibilities"]]],
   sets:["Sets","Each term stands for the set of things it covers.",[["∩","intersection: what is both"],["∅","the empty set: nothing"],["≠ ∅","not empty"],["⊂","contained in"],["⊃","contains"],["=","the same set"]]],
   logic:["Logic","Each term stands for a statement: it is A, it is B.",[["⇒","follows: A ⇒ B, if A then B"],["⇐","follows from"],["⇔","each follows from the other"],["⇏","does not follow"],["¬","negation: not"]]]
 };
@@ -51,6 +51,6 @@ export function sessBack(){
 export function quorumNote(){
   const apart=state.learns?" The words of an example are kept, or not, as \u201cSharing examples\u201d in Settings says, with or without Quorum.":"";
   return state.quorumOptIn
-    ?"Optional: a deeper check, but slower. When the page could not check an example you wrote, three Claude models (Haiku, Sonnet and Opus) each work it out and Opus rules where they differ, so the explanation is more reliable. An answer takes about a minute instead of a few seconds, and it counts against a daily limit of its own; when that is used up, one model answers as usual. The server keeps each such run (the pair with what you wrote, and the answers), so the models can be compared. With Quorum off, one model answers and no run is kept."+apart
-    :"For testing, on this test server only. With Quorum on, the explanation of an answer with an example the page could not check comes from Haiku, Sonnet and Opus, each on its own; where they put an example in different cells, Opus reads their answers and writes the one you see. The Quorum panel under a result shows all of them. The server keeps each run (the pair with what you wrote, and the answers), so the models can be compared. When the page checked every example itself, and with Quorum off, one model answers as in the app and no run is kept."+apart;
+    ?"Optional: a deeper check, but slower. When the app could not check an example you wrote, three Claude models (Haiku, Sonnet and Opus) each work it out and Opus rules where they differ, so the explanation is more reliable. An answer takes about a minute instead of a few seconds, and it counts against a daily limit of its own; when that is used up, one model answers as usual. The server keeps each such run (the pair with what you wrote, and the answers), so the models can be compared. With Quorum off, one model answers and no run is kept."+apart
+    :"For testing, on this test server only. With Quorum on, the explanation of an answer with an example the app could not check comes from Haiku, Sonnet and Opus, each on its own; where they put an example in different cells, Opus reads their answers and writes the one you see. The Quorum panel under a result shows all of them. The server keeps each run (the pair with what you wrote, and the answers), so the models can be compared. When the app checked every example itself, and with Quorum off, one model answers as in the app and no run is kept."+apart;
 }
