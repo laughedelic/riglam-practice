@@ -1,0 +1,13 @@
+/* One step back (path/back.tsx, practice/trail.ts): the thread pulled down at the page's top brings the station of the previous result into view above it. `--bk` is how far the page is pulled
+   down; the station stands --bkh above the page's top and comes down with it, the thread running from it to the page's first bullet (which the page's own line comes up out of). Over the curb
+   (`bkover`) the station fills in, as the stations that can be taken do. Let go short of the curb the page goes back (`bkrest`); over it, it leaves down (`bkrun`) and the result comes in. */
+.pa .pscroll{--bk:0px; --bkh:48px}
+.pa .bkhead{display:none; position:absolute; left:0; right:0; top:0; height:var(--bkh); z-index:1; pointer-events:none; transform:translateY(calc(var(--bk) - var(--bkh)))}
+.pa .bkhead::before{content:""; position:absolute; top:0; bottom:0; left:calc(var(--m) - var(--lw) / 2); width:var(--lw); background:linear-gradient(to bottom,var(--tk) 0,var(--tk) 52%,transparent); opacity:.9}
+.pa .bkhead .bkst{position:absolute; left:0; right:0; top:2px}
+.pa .bkhead .bkst .gol b{color:var(--slate)}
+.pa .pscroll.bkpull .bkhead{display:block}
+.pa .pscroll.bkpull .pathc{transform:translateY(var(--bk))}
+.pa .pscroll.bkrest .pathc,.pa .pscroll.bkrest .bkhead{transition:transform .28s cubic-bezier(.2,.9,.3,1.3)}
+.pa.pa .pscroll.bkover .bkhead .stn.stk-back .go{background-color:var(--slate)}
+.pa.pa .pscroll.bkover .bkhead .stn.stk-back .go .mk{color:var(--paper)}

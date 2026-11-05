@@ -15,6 +15,7 @@ export interface NewsItem {
 }
 
 export const NEWS: NewsItem[] = [
+  { id: "2026-11-05-pull-back", title: "Pull back to the last result", text: "Pull the path down from its top, with a finger or by scrolling up past the top, and the result of the question before comes back. You can have Claude check or explain it there, or ask a follow-up. Next then brings you back to the question you left, just as it was. It goes back one question, and not in Sprint." },
   { id: "2026-11-05-change-answer", title: "Change an answer in Pervasions", text: "In Pervasions you can now change an answer you already gave, until you pick the relation. Tap the question on the path, then Change answer: it is asked again, your earlier answer is marked and the example you wrote is still there. The answers after it stay as they were. In Sprint the answers stay final.", go: "debate" },
   { id: "2026-11-04-other-names", title: "Existents by their other names", text: "Questions about existents now also call them by their other names: established bases, objects of knowledge, phenomena, objects of comprehension and objects. Permanent phenomena can now also appear as non-functioning phenomena.", go: "practice" },
   { id: "2026-11-04-categories-words", title: "Categories starts clearer", text: "In Categories, the words is and not now wait until you select the first category, instead of standing there before you have done anything.", go: "categories" },
