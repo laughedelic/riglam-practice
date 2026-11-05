@@ -279,6 +279,8 @@ export interface Ui extends AnswerView {
   /** debate: the four answers, with their timings (ms, msEx, limit) */
   ans?: (DebateAnswer & { [field: string]: any })[];
   checked?: boolean;
+  /** debate, outside Sprint: an answer being changed (debate/flow.js, `changeQ`): question `i` is open again, `was` is its answer as it stood, and `back` the step the attempt was at */
+  edit?: { i: number; back: number; was: Record<string, any> } | null;
   /** the document of the checked answer, written to `answers` or `debates` and completed later by the tutor's verdicts */
   doc?: AnswerDoc | DebateDoc;
   /** the stop of a course term that came after this answer, before the next question (practice/stops.ts): Next goes on from it */

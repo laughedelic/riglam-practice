@@ -15,6 +15,7 @@ export interface NewsItem {
 }
 
 export const NEWS: NewsItem[] = [
+  { id: "2026-11-05-change-answer", title: "Change an answer in Pervasions", text: "In Pervasions you can now change an answer you already gave, until you pick the relation. Tap the question on the path, then Change answer: it is asked again, your earlier answer is marked and the example you wrote is still there. The answers after it stay as they were. In Sprint the answers stay final.", go: "debate" },
   { id: "2026-11-04-other-names", title: "Existents by their other names", text: "Questions about existents now also call them by their other names: established bases, objects of knowledge, phenomena, objects of comprehension and objects. Permanent phenomena can now also appear as non-functioning phenomena.", go: "practice" },
   { id: "2026-11-04-categories-words", title: "Categories starts clearer", text: "In Categories, the words is and not now wait until you select the first category, instead of standing there before you have done anything.", go: "categories" },
   { id: "2026-11-03-read-aloud", title: "Read aloud", text: "Every exercise can now read its questions aloud, each one as it appears, in your device's own voice. Switch it on under Voice in the Practice options, where you also pick the voice and the speed. The speaker above the bottom says the question again; hold it to pause the reading.", go: "practice" },

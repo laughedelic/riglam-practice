@@ -19,7 +19,7 @@ import { gradeDebate } from "../../domain/grading.ts";
 export function freshDebateUi(){
   const u=freshUi();
   return Object.assign(u,{debate:true, step:0, ans:[0,1,2,3].map(()=>({say:null,text:"",ms:null,msEx:null,limit:0,timeout:false})),
-    pickWhy:false, exText:"", open:true, tq:null, tid:null, qStart:0, col:"debates"});
+    pickWhy:false, exText:"", edit:null, open:true, tq:null, tid:null, qStart:0, col:"debates"});
 }
 export const debateList=()=>Object.values(state.debates).sort((x,y)=>(x.at||"").localeCompare(y.at||""));
 export function advanceDebate(){ state.cur={p:takeAhead("debate")||nextGenerated(debateList(),true), debate:true}; state.ui=freshDebateUi(); state.mode="quiz"; }     // the negation track (Practice options) applies here as in Relations
@@ -40,18 +40,21 @@ export function expireQ(u){
   nextQ();
 }
 function nextQ(){
-  state.ui.hold=null;       // answered by hand while voice held the question: its clock is the next question's now
-  state.ui.step++; state.ui.pickWhy=false; state.ui.exText=""; state.ui.ro=null;
-  if(state.ui.step>3){ stopTimer(); state.ui.open=true; }
+  const u=state.ui;
+  u.hold=null;       // answered by hand while voice held the question: its clock is the next question's now
+  u.pickWhy=false; u.exText=""; u.ro=null;
+  if(u.edit){ u.step=u.edit.back; u.edit=null; u.ck=null; }      // an answer that was changed: the attempt goes back to the step it was at
+  else u.step++;
+  if(u.step>3){ stopTimer(); u.open=true; }
   render();
 }
 // `voiced` when the answer was spoken (shell/voice.js): the example field is not focused, so a phone keeps its keyboard down,
 // and an example said together with Why? is taken at once.
 export function sayQ(say,voiced){
   if(!state.ui||!state.ui.debate||state.ui.checked||state.ui.step>3||state.ui.pickWhy) return;
-  const a=state.ui.ans[state.ui.step]; a.say=say; a.ms=Math.round(sinceStart(state.ui));
-  if(say==="accept"){ nextQ(); return; }
-  state.ui.pickWhy=true; state.ui.exText="";
+  const a=state.ui.ans[state.ui.step]; a.say=say; a.ms=Math.round(sinceStart(state.ui)); a.timeout=false;
+  if(say==="accept"){ a.text=""; a.msEx=null; nextQ(); return; }      // (an answer that is being changed may have had an example)
+  state.ui.pickWhy=true; state.ui.exText=state.ui.edit&&state.ui.edit.was.say==="why"?state.ui.edit.was.text||"":"";     // the example it had comes back to be changed
   if(voiced&&voiced.example){ state.ui.exText=voiced.example; submitWhy(); return; }
   render();
   if(voiced) return;
@@ -68,10 +71,27 @@ export function submitWhy(){
 // open again is a new one (shell/timers.js: a new step is a new clock). Only the last answer can be taken back, and not the relation, which checks the pair.
 export function undoQ(i){
   const u=state.ui;
-  if(!u||!u.debate||u.checked||i<0||i>3||u.step<i||u.step>4||u.rel) return;
+  if(!u||!u.debate||u.checked||u.edit||i<0||i>3||u.step<i||u.step>4||u.rel) return;
   for(let j=i;j<4;j++) Object.assign(u.ans[j],{say:null,text:"",ms:null,msEx:null,limit:0,timeout:false});
   u.step=i; u.pickWhy=false; u.exText=""; u.ro=null; u.open=true;
   render();
+}
+// Changing an answer, outside Sprint (a clock runs there, and its answers are final): `u.edit` holds question `i` that is open again, its answer as it was (`was`) and the step the
+// attempt was at (`back`). The answers after `i` stay; the new answer, or Keep my answer, goes back to `back`, so the relation, which checks the pair, is still what ends the attempt.
+export const canChange=()=>{ const u=state.ui; return !!u&&!!u.debate&&!u.checked&&!state.blitz&&!u.pk; };
+function leaveEdit(u){ Object.assign(u.ans[u.edit.i],u.edit.was); u.step=u.edit.back; u.edit=null; u.pickWhy=false; u.exText=""; u.ro=null; u.ck=null; stopTimer(u); }
+export function changeQ(i){
+  const u=state.ui;
+  if(!canChange()||!(i>=0&&i<(u.edit?u.edit.back:u.step))||i>3) return;
+  if(u.edit) leaveEdit(u);       // another answer before this one is done: that one stays as it was
+  u.edit={i,back:u.step,was:{...u.ans[i]}};
+  u.step=i; u.pickWhy=false; u.exText=""; u.ro=null; u.open=true; u.ck=null; stopTimer(u);      // the question is a new one for the clock
+  render();
+}
+export function keepAnswer(){
+  const u=state.ui;
+  if(!u||!u.debate||u.checked||!u.edit) return;
+  leaveEdit(u); render();
 }
 export function backWhy(){
   if(!state.ui||!state.ui.debate||state.ui.checked||!state.ui.pickWhy) return;

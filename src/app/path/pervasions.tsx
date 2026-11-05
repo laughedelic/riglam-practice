@@ -6,7 +6,7 @@ import type { ComponentChildren } from "preact";
 import { useContext } from "preact/hooks";
 import { state } from "../state.js";
 import { REL, lcRel } from "../core/rel.js";
-import { backWhy, chooseD, sayQ, submitWhy } from "../debate/flow.js";
+import { backWhy, canChange, changeQ, chooseD, keepAnswer, sayQ, submitWhy } from "../debate/flow.js";
 import { QCELL, Wd, singular } from "../debate/text.js";
 import { guidance } from "../practice/guided.ts";
 import { next } from "../practice/queue.js";
@@ -50,14 +50,17 @@ function Said({ a }: { a: Ans }) {
   if (a.say === "why") return <span class="pans"><span class="pwhy">{w.wyd}</span> {a.text || <span class="nil">no example</span>}</span>;
   return <span class="pans nil">time ran out</span>;
 }
-/** The questions answered: each a stop on the path, its statement open under it with a tap. */
+/** The questions answered: each a stop on the path, its statement open under it with a tap, and, outside Sprint, "Change answer" under the statement (debate/flow.js `changeQ`). */
 function Answered({ n }: { n: number }) {
-  const u = u0();
+  const u = u0(), can = canChange();
   return <>{Array.from({ length: n }, (_, i) => {
     const a = u.ans![i] as Ans, on = u.ro === i;
-    return <button type="button" class="sbb" aria-expanded={on ? "true" : "false"} onClick={() => { u.ro = on ? null : i; refreshPath(); }}
-      aria-label={"Question " + (i + 1) + ": " + (a.say === "accept" ? Wd().acd : a.say === "why" ? Wd().wyd + " " + a.text : "time ran out") + ". " + (on ? "Hide" : "Show") + " the statement"}>
-      <St d={<D cls="sub yours" />} cls="sb done"><QHead i={i} /><Said a={a} />{on ? <p class="qq"><Statement i={i} /></p> : null}</St></button>;
+    return <>
+      <button type="button" class="sbb" aria-expanded={on ? "true" : "false"} onClick={() => { u.ro = on ? null : i; refreshPath(); }}
+        aria-label={"Question " + (i + 1) + ": " + (a.say === "accept" ? Wd().acd : a.say === "why" ? Wd().wyd + " " + a.text : "time ran out") + ". " + (on ? "Hide" : "Show") + " the statement"}>
+        <St d={<D cls="sub yours" />} cls="sb done"><QHead i={i} /><Said a={a} />{on ? <p class="qq"><Statement i={i} /></p> : null}</St></button>
+      {on && can ? <p class="help chg"><button type="button" aria-label={"Change the answer to question " + (i + 1)} onClick={() => changeQ(i)}>Change answer</button></p> : null}
+    </>;
   })}</>;
 }
 
@@ -73,11 +76,13 @@ function Counter({ i, a, b, pre }: { i: number; a: ComponentChildren; b: Compone
 }
 function QuestionStep({ kb }: { kb: boolean }) {
   const u = u0(), p = pairOf(), i: number = u.step, w = Wd(), retry = state.cur!.retry, last = i === 3, g = guidance("debate");
+  // an answer being changed (debate/flow.js changeQ): its old answer is marked in the choices, the answers after it wait below as they were, and the question after it is where the attempt was
+  const ed = u.edit as { i: number; back: number; was: Partial<Ans> } | null | undefined, toRel = ed ? ed.back > 3 : last;
   // guidance (practice/guided.ts): Why? says what a counter-example would be, as a statement ("something is …"), with the pair's terms (Detailed) or A and B (Hints), and the field
   // asks for it the same way ("Name something that is …", muted: it must not read as part of the statement, which says the opposite); Accept needs no line (it would restate the
   // statement). None: Accept and Why? side by side, nothing more
   const counter = (pre: string) => g === "detailed" ? <Counter i={i} pre={pre} a={<Sub k="a">{singular(p.a)}</Sub>} b={<Sub k="b">{singular(p.b)}</Sub>} /> : <Counter i={i} pre={pre} a="A" b="B" />;
-  const items = [{ k: "accept", b: w.acc, key: w.ak }, { k: "why", b: w.why, s: g === "none" ? undefined : counter("something is "), key: w.wk }];
+  const items = [{ k: "accept", b: w.acc, key: w.ak, pressed: ed?.was.say === "accept" }, { k: "why", b: w.why, s: g === "none" ? undefined : counter("something is "), key: w.wk, pressed: ed?.was.say === "why" }];
   return <>
     <Scroll>
       {retry ? <p class="retry">{(state.cur!.tag || "Retry") + (state.retryQ.length ? " · " + state.retryQ.length + " more" : "")}</p> : null}
@@ -89,17 +94,22 @@ function QuestionStep({ kb }: { kb: boolean }) {
             <div class="fieldrow"><input class="pfield" id="dex" value={u.exText} placeholder="posit a counter-example" {...nofillInput()} enterKeyHint={last ? "done" : "next"} aria-label="Posit a counter-example"
               onInput={(e) => { u.exText = (e.currentTarget as HTMLInputElement).value; refreshPath(); }}
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); submitWhy(); } else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); backWhy(); } }} /></div>
-            <p class="help"><button type="button" onMouseDown={(e) => e.preventDefault()} onClick={backWhy}>back</button></p>
+            <p class="help"><button type="button" onMouseDown={(e) => e.preventDefault()} onClick={backWhy}>back</button>{ed ? <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={keepAnswer}>keep my answer</button> : null}</p>
           </> : null}</St>
         {u.pickWhy ? <Gap h={6} /> : null}</Sx>
       {u.pickWhy ? null : <Choices label="Your answer" slide row={g === "none"} items={items} picked={u.pk} onPick={(k) => pickThen(k, () => sayQ(k))} />}
-      {i < 3 ? <Sx cls="gap later">{[...Array(3 - i).keys()].map((j) => <St d={<D cls="sub" />} cls="sb later qmr"><QHead i={i + 1 + j} /></St>)}</Sx> : null}
+      {i < 3 || (ed && !u.pickWhy) ? <Sx cls="gap later">
+        {ed && !u.pickWhy ? <p class="help chg keep"><button type="button" onClick={keepAnswer}>Keep my answer</button></p> : null}
+        {[...Array(3 - i).keys()].map((j) => {
+          const k = i + 1 + j, kept = ed && k < ed.back ? u.ans![k] as Ans : null;      // answered before, and still
+          return kept ? <St d={<D cls="sub yours" />} cls="sb done qkept"><QHead i={k} /><Said a={kept} /></St> : <St d={<D cls="sub" />} cls="sb later qmr"><QHead i={k} /></St>;
+        })}</Sx> : null}
       <Sx cls={"ptail" + (i < 3 ? " dtail" : "")} />
     </Scroll>
     <VoiceField kb={kb} />
     {kb ? null : <Foot aux={<SkipSide />}>
-      {u.pickWhy && (u.exText || "").trim() ? <Station kind="ex" name={last ? "Relation" : "Next question"} hint="your counter-example" act={submitWhy} />
-        : <PreStation name={u.pickWhy && !last ? "Next question" : "Relation"} hint={u.pickWhy ? "posit a counter-example first" : last ? "answer this question first" : "answer the four questions first"} />}
+      {u.pickWhy && (u.exText || "").trim() ? <Station kind="ex" name={toRel ? "Relation" : "Next question"} hint="your counter-example" act={submitWhy} />
+        : <PreStation name={u.pickWhy && !toRel ? "Next question" : "Relation"} hint={u.pickWhy ? "posit a counter-example first" : last || ed ? "answer this question first" : "answer the four questions first"} />}
     </Foot>}
   </>;
 }
