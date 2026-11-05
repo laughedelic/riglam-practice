@@ -250,6 +250,114 @@ test("Pervasions: Escape in the counter-example goes back to the two answers, an
   await expect(page.locator("#path .sb.done")).toHaveCount(1);
 });
 
+// Changing an answer (debate/flow.js changeQ): outside Sprint an answered question opens to its statement with "Change answer", the question is asked again in its place with
+// the old answer marked, the answers after it stay, and the attempt goes back to where it was; the relation, which checks the pair, is what ends it.
+const change = (page, n) => page.getByRole("button", { name: "Change the answer to question " + n });
+async function answerQ(page, say, text) {
+  const done = await page.locator("#path .sb.done").count();
+  await choice(page, say).click();
+  if (text) { await page.locator("#dex").fill(text); await page.locator("#dex").press("Enter"); }
+  await expect(page.locator("#path .sb.done")).toHaveCount(done + 1);
+}
+
+test("Pervasions: an answer is changed while the relation is open, the answers after it stay, and the new one is what is saved", async ({ page }) => {
+  await open(page, "Pervasions");
+  await answerQ(page, "Accept");
+  await answerQ(page, "Why?", "a stone");
+  const rows = page.locator("#path .sbb");
+  await rows.first().click();
+  await change(page, 1).click();
+  const now = page.locator("#path .sb.now");
+  await expect(now.locator(".qnm"), "Q1 is asked again in its place").toHaveText("Q1");
+  await expect(page.locator("#path .sechead")).toContainText("1 of 4");
+  await expect(choice(page, "Accept"), "the answer it had is marked").toHaveAttribute("aria-pressed", "true");
+  await expect(choice(page, "Why?")).toHaveAttribute("aria-pressed", "false");
+  await expect(page.locator("#path .sb.qkept"), "Q2 keeps what it said, below the choices").toContainText("a stone");
+  await expect(page.locator("#path .sb.later .qnm")).toHaveText(["Q3", "Q4"]);
+  await expect(page.getByRole("button", { name: "Keep my answer" })).toBeVisible();
+  await expect(page.locator("#stnp")).toHaveAccessibleName(/^Relation/);
+  await choice(page, "Why?").click();
+  await expect(page.locator("#dex"), "Accept had no example: the field is empty").toHaveValue("");
+  await page.locator("#dex").fill("a pebble");
+  await page.locator("#dex").press("Enter");
+  await expect(now.locator(".qnm"), "back at the question it was at").toHaveText("Q3");
+  await expect(page.locator("#path .sb.done")).toHaveCount(2);
+  await expect(page.locator("#path .sb.done").first()).toContainText("a pebble");
+  await expect(page.locator("#path .sb.done").nth(1)).toContainText("a stone");
+  await answerQ(page, "Accept");
+  await choice(page, "Accept").click();
+  await expect(choices(page)).toHaveCount(5);   // the relation
+  // from the relation step: Q2 comes back with its example to be changed, and Keep my answer leaves it as it was
+  await rows.nth(1).click();
+  await change(page, 2).click();
+  await expect(now.locator(".qnm")).toHaveText("Q2");
+  await expect(choice(page, "Why?")).toHaveAttribute("aria-pressed", "true");
+  await choice(page, "Why?").click();
+  await expect(page.locator("#dex"), "the example it had comes back to be changed").toHaveValue("a stone");
+  await page.getByRole("button", { name: "keep my answer" }).click();
+  await expect(choices(page)).toHaveCount(5);
+  await expect(page.locator("#path .sb.done")).toHaveCount(4);
+  await choices(page).first().click();
+  await expect(verdict(page)).toBeVisible();
+  await expect(page.locator("#path .qres").nth(0)).toContainText("a pebble");
+  await expect(page.locator("#path .qres").nth(1)).toContainText("a stone");
+  await expect.poll(async () => (await saved(page, "debate", "debates")).length).toBe(1);
+  const doc = (await saved(page, "debate", "debates"))[0];
+  expect(doc.qs.map((q) => [q.say, q.text])).toEqual([["why", "a pebble"], ["why", "a stone"], ["accept", ""], ["accept", ""]]);
+});
+
+test("Pervasions: Why? changed to Accept drops its counter-example, and the last question changed goes back to the relation", async ({ page }) => {
+  await open(page, "Pervasions");
+  await answerQ(page, "Why?", "a stone");
+  await answerQ(page, "Accept");
+  await answerQ(page, "Accept");
+  await answerQ(page, "Accept");
+  await expect(choices(page)).toHaveCount(5);
+  await page.locator("#path .sbb").first().click();
+  await change(page, 1).click();
+  await expect(choice(page, "Why?")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("#path .sb.qkept")).toHaveCount(3);   // the three answers after it, as they were
+  await choice(page, "Why?").click();
+  await page.locator("#dex").press("Escape");      // back to the two answers: the old one is still marked, and still the answer
+  await expect(page.locator("#dex")).toHaveCount(0);
+  await expect(choice(page, "Why?")).toHaveAttribute("aria-pressed", "true");
+  await choice(page, "Accept").click();
+  await expect(choices(page), "the answers after it were all given: the relation is next").toHaveCount(5);
+  await expect(page.locator("#path .sb.done").first()).toContainText("Accepted");
+  await choices(page).first().click();
+  await expect(verdict(page)).toBeVisible();
+  await expect.poll(async () => (await saved(page, "debate", "debates")).length).toBe(1);
+  const doc = (await saved(page, "debate", "debates"))[0];
+  expect(doc.qs.map((q) => [q.say, q.text])).toEqual([["accept", ""], ["accept", ""], ["accept", ""], ["accept", ""]]);
+});
+
+test("Pervasions: another answer can be picked to change while one is open, and the first stays as it was", async ({ page }) => {
+  await open(page, "Pervasions");
+  await answerQ(page, "Accept");
+  await answerQ(page, "Why?", "a stone");
+  await answerQ(page, "Accept");
+  await page.locator("#path .sbb").nth(1).click();
+  await change(page, 2).click();
+  await expect(page.locator("#path .sb.now .qnm")).toHaveText("Q2");
+  await page.locator("#path .sbb").first().click();       // Q1 is above the open question: it can be picked while Q2 waits
+  await change(page, 1).click();
+  await expect(page.locator("#path .sb.now .qnm")).toHaveText("Q1");
+  await expect(page.locator("#path .sb.qkept").first(), "Q2 is as it was").toContainText("a stone");
+  await page.getByRole("button", { name: "Keep my answer" }).click();
+  await expect(page.locator("#path .sb.now .qnm"), "the attempt is back at Q4").toHaveText("Q4");
+  await expect(page.locator("#path .sb.done")).toHaveCount(3);
+});
+
+test("Pervasions: in Sprint a question that is answered opens to its statement and cannot be changed", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("rd-blitz", "1"));
+  await open(page, "Pervasions");
+  await answerQ(page, "Accept");
+  await page.locator("#path .sbb").first().click();
+  await expect(page.locator("#path .sbb").first()).toHaveAttribute("aria-expanded", "true");
+  await expect(page.locator("#path .sb.done .qq")).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Change the answer/ })).toHaveCount(0);
+});
+
 test("Find a pair: where there is a keyboard of keys, the first word takes the cursor", async ({ page, isMobile }) => {
   test.skip(!!isMobile, "a touch screen keeps its keyboard down");
   await open(page, "Find a pair");

@@ -198,3 +198,10 @@
 .pa .tight .sb.done .ptx{display:flex; flex-wrap:wrap; column-gap:10px; align-items:baseline}
 .pa .tight .sb.done .pans{margin:0; min-width:0}
 .pa .tight .sb.done .qq{flex-basis:100%}
+/* an answer that is being changed (debate/flow.js changeQ): "Change answer" under an opened statement and "Keep my answer" under the choices stand in the column of the text; the answers after it wait below as they were, as the tight rows draw them */
+.pa .help.chg{margin:0; padding:0 18px 8px calc(var(--m) + 22px)}
+.pa .help.chg.keep{padding:4px 18px 2px calc(var(--m) + 22px)}
+.pa .sb.qkept{padding:5px 0}
+.pa .sb.qkept > .d{margin-top:6px}
+.pa .sb.qkept .ptx{display:flex; flex-wrap:wrap; column-gap:10px; align-items:baseline}
+.pa .sb.qkept .pans{margin:0; min-width:0}
