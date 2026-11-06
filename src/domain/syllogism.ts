@@ -28,6 +28,20 @@ import { cap, isMiss } from "./util";
 export type Reply = "accept" | "reason" | "pervasion";
 /** The replies in the order the buttons show them. */
 export const REPLIES: readonly Reply[] = ["reason", "pervasion", "accept"];
+/**
+ * Thesis first (a practice option): the thesis is asked alone, "Take X. It follows it is P.", and answered with I accept or Why?. A true thesis is accepted and the
+ * attempt ends there; after Why? the reason comes, answered with one of the two denials. So the attempt still ends in one of the three replies: I accept is "accept",
+ * Why? and a denial is that denial. Only Why? to a true thesis is no reply of the three: it ends the attempt, wrong.
+ */
+export type ThesisReply = "accept" | "why";
+/** The thesis replies in the order the buttons show them. */
+export const THESIS_REPLIES: readonly ThesisReply[] = ["accept", "why"];
+/** The replies after Why?, in the order the buttons show them: the two denials. */
+export const DENIALS: readonly Reply[] = ["reason", "pervasion"];
+/** The thesis reply that is right: I accept when the subject is the predicate, else Why?. */
+export const thesisAnswer = (c: Pick<Syllogism, "checks">): ThesisReply => (c.checks.t.ok ? "accept" : "why");
+/** The reply that is right: with thesis first a true thesis is accepted whatever the reason, so the syllogism's own answer holds only for a false one. */
+export const expectedReply = (c: Pick<Syllogism, "answer" | "checks">, thesisFirst = false): Reply => (thesisFirst && c.checks.t.ok ? "accept" : c.answer);
 
 /** The eight combinations of the three checks: E (the subject is the reason), V (whatever is the reason is the predicate), T (the subject is the predicate). */
 export type Situation = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
@@ -381,6 +395,22 @@ export const WORDINGS = {
   take: (c: Syllogism) => joined(PIECES.take(c)),
   formal: (c: Syllogism) => joined(PIECES.formal(c)),
 } as const;
+/** The thesis alone, as thesis first asks it: "Take X. It follows it is P." */
+const THESIS = {
+  take: (c: Syllogism): Piece[] => ["Take ", subj(c), ". It follows it is ", pred(c), "."],
+  formal: (c: Syllogism): Piece[] => ["It follows that the subject, ", subj(c), ", is ", pred(c), "."],
+};
+/** The reason alone, as it comes after Why?: "Because it is R." */
+const REASON = {
+  take: (c: Syllogism): Piece[] => ["Because it is ", reas(c), "."],
+  formal: (c: Syllogism): Piece[] => ["Because of being ", reas(c), "."],
+};
+/** The thesis alone as a sentence (thesis first). */
+export const thesisText = (c: Syllogism, wording: Wording = "take"): string => joined(THESIS[wording](c));
+/** The thesis alone in pieces. */
+export const thesisPieces = (c: Syllogism, wording: Wording = "take"): Piece[] => THESIS[wording](c);
+/** The reason alone as a sentence, as it comes after Why?. */
+export const reasonText = (c: Syllogism, wording: Wording = "take"): string => joined(REASON[wording](c));
 /** The syllogism as a sentence, in one of the wordings (the class's by default). */
 export const syllogismText = (c: Syllogism, wording: Wording = "take"): string => WORDINGS[wording](c);
 /** The same sentence in pieces, so that a page can set the subject, the predicate and the reason apart. */
@@ -392,9 +422,11 @@ export const syllogismPieces = (c: Syllogism, wording: Wording = "take"): Piece[
 export interface SyllogismResult {
   grade: "ok" | "bad";
   correct: boolean;
-  /** the reply that was given; null when the time ran out first (Blitz) */
+  /** the reply that was given; null when the time ran out first (Blitz), or when Why? to a true thesis ended the attempt (thesis first) */
   said: Reply | null;
   expected: Reply;
+  /** thesis first: the reply to the thesis (null when the time ran out on it); absent without thesis first */
+  thesis?: ThesisReply | null;
   /** the learner named a fault that is there, but not the first one to name */
   missedPoint: boolean;
   /** one sentence that says what was mixed up; empty for a right answer */
@@ -422,29 +454,51 @@ function confusionOf(c: Syllogism, said: Reply): string {
   return `You are not wrong that the pervasion fails, but you missed the point: the reason comes first, and ${c.subject} is not ${R}.`;
 }
 
-/** Grades a reply to a syllogism. Needs no data: the syllogism carries its own proofs. */
-export function gradeSyllogism(c: Syllogism, said: Reply): SyllogismResult {
-  const correct = said === c.answer;
+/** What a thesis reply mixed up (thesis first): accepting a false thesis, or asking why of a true one. */
+function thesisConfusion(c: Syllogism, said: ThesisReply): string {
+  const S = cap(c.subject), P = c.predicate;
+  return said === "accept" ? `${S} is not ${P}, so the thesis cannot be accepted: Why? asks for its reason.`
+    : `${S} is ${P}, so the thesis is true and is accepted as it stands, whatever reason it might be given.`;
+}
+
+/**
+ * Grades a reply to a syllogism. Needs no data: the syllogism carries its own proofs. With `thesis` (thesis first) the reply came after that answer to the thesis:
+ * "accept" is the thesis accepted, "reason" and "pervasion" came after Why?; a true thesis is right to accept, whatever the reason would have been.
+ */
+export function gradeSyllogism(c: Syllogism, said: Reply, thesis?: ThesisReply): SyllogismResult {
+  const tf = thesis !== undefined, expected = expectedReply(c, tf), correct = said === expected;
+  const confusion = correct ? "" : tf && said === "accept" ? thesisConfusion(c, "accept") : confusionOf(c, said);
   return {
-    grade: correct ? "ok" : "bad", correct, said, expected: c.answer,
-    missedPoint: !correct && c.answer === "reason" && said === "pervasion" && !c.checks.v.ok,
-    confusion: correct ? "" : confusionOf(c, said),
+    grade: correct ? "ok" : "bad", correct, said, expected,
+    missedPoint: !correct && expected === "reason" && said === "pervasion" && !c.checks.v.ok,
+    confusion, ...(tf ? { thesis } : {}),
   };
 }
+/** Grades Why? to a true thesis (thesis first): wrong, and the attempt ends there; I accept was right. */
+export function gradeThesisWhy(c: Syllogism): SyllogismResult {
+  return { grade: "bad", correct: false, said: null, expected: "accept", missedPoint: false, confusion: thesisConfusion(c, "why"), thesis: "why" };
+}
+/** Whether an attempt ended at the thesis (thesis first): I accept, Why? to a true thesis, or no reply in time to the thesis. Its result is about the thesis alone; after a right Why? it went on to the reason. */
+export const endedAtThesis = (g: Pick<SyllogismResult, "expected" | "thesis">): boolean => g.thesis !== undefined && (g.thesis !== "why" || g.expected === "accept");
 
 /**
  * The checks a result shows, by the level of guidance (practice/guided.ts): at Detailed all three, each with its line in the syllogism's words; past it only the one that
  * decides the answer, the first that fails ("whole" for a syllogism that stands), with its formula in S, P and R at Hints (`line`) and its name alone at None. So past
  * Detailed a result does not give away whether the thesis is true, nor, where the reason fails, whether the pervasion holds. The same for every result, a time-up's too.
  */
-export function checksShown(c: Pick<Syllogism, "answer">, g: Guidance): { k: "e" | "v" | "t" | "whole"; line: boolean }[] {
+export function checksShown(c: Pick<Syllogism, "answer">, g: Guidance, thesisOnly = false): { k: "e" | "v" | "t" | "whole"; line: boolean }[] {
+  if (thesisOnly) return [{ k: "t", line: g !== "none" }];      // an attempt that ended at the thesis (thesis first) is about the thesis alone: its reason was never shown
   if (g === "detailed") return (["e", "v", "t"] as const).map((k) => ({ k, line: true }));
   return [{ k: c.answer === "reason" ? "e" : c.answer === "pervasion" ? "v" : "whole", line: g === "hints" }];
 }
 
-/** The result when the time runs out with no reply (Blitz): wrong, and the right reply is named; nothing was mixed up, so there is nothing to say about it. */
-export function gradeTimeout(c: Syllogism): SyllogismResult {
-  return { grade: "bad", correct: false, said: null, expected: c.answer, missedPoint: false, confusion: "" };
+/**
+ * The result when the time runs out with no reply (Blitz): wrong, and the right reply is named; nothing was mixed up, so there is nothing to say about it. With thesis
+ * first, `thesis` is the reply to the thesis when the time ran out on the reason (Why?), and null when it ran out on the thesis itself, which ends the attempt there.
+ */
+export function gradeTimeout(c: Syllogism, thesis?: ThesisReply | null): SyllogismResult {
+  const tf = thesis !== undefined;
+  return { grade: "bad", correct: false, said: null, expected: expectedReply(c, tf), missedPoint: false, confusion: "", ...(tf ? { thesis } : {}) };
 }
 
 /** What the learner's counter-example (a thing that is the reason and is not the predicate) comes to: "ok", "bad", or "cmp" when the data cannot place it. */
@@ -484,6 +538,11 @@ export interface SyllogismDraw {
   recent: string[];
   /** the highest level to draw from: 1 everyday things and properties only, 2 also the terms of the course; none: the stages' (`levelAt`), else 2 */
   level?: 1 | 2;
+  /**
+   * thesis first: the answer drawn is the one the attempt ends in, so "accept" is any true thesis (its reason is never shown) and the two denials come with a
+   * false one. A third of the theses are true then; without it, about six in ten are (the true theses with a faulty reason are the traps of the plain drill).
+   */
+  thesisFirst?: boolean;
   /**
    * the stages the learner draws from (stages.ts): the reason and the predicate are categories open at the highest, and the subject a thing
    * of a stage that is on (a person or what does not exist with a physical category only from the hold's stage); none: every syllogism.
@@ -531,10 +590,12 @@ export function drawSyllogism(ix: DataIndex, st: SyllogismDraw): Syllogism {
     const aw: Record<Reply, number> = { accept: 1, reason: 1, pervasion: 1 };
     for (const h of hist.slice(-6)) if (h.answer) aw[h.answer] = Math.max(0.15, aw[h.answer] * 0.45);
     for (const h of hist.slice(-30)) if (h.answer && isMiss(h)) aw[h.answer] *= 1.4;
-    const replies = REPLIES.filter((a) => SIT_IDS.some((s) => SITUATIONS[s].answer === a && usable(s)));
+    // the answer a situation ends in: its own, or with thesis first "accept" for any true thesis
+    const ends = (s: Situation): Reply => (st.thesisFirst && SITUATIONS[s].t ? "accept" : SITUATIONS[s].answer);
+    const replies = REPLIES.filter((a) => SIT_IDS.some((s) => ends(s) === a && usable(s)));
     if (!replies.length) throw new Error("no syllogism to draw from");
     const answer = chooseWeighted(replies, (a) => aw[a], rng);
-    sit = chooseWeighted(SIT_IDS.filter((s) => SITUATIONS[s].answer === answer && usable(s)), (s) => SITUATIONS[s].weight, rng);
+    sit = chooseWeighted(SIT_IDS.filter((s) => ends(s) === answer && usable(s)), (s) => SITUATIONS[s].weight, rng);
     const v = viewOf(ix, sit, top, staged), linked = v.linked.filter(asks), some = v.some.filter(asks);
     pool = linked.length ? linked : some.length ? some : v.all.filter(asks);
   }

@@ -11,7 +11,7 @@ import { REL } from "../core/rel.js";
 import { closeChat } from "../shell/chat.js";
 import { exName } from "../shell/exercises.js";
 import { flagAsked } from "../../domain/flags.ts";
-import { syllogismText } from "../../domain/syllogism.ts";
+import { attemptText } from "../syllogism/flow.js";
 import type { RelKey } from "../../ai-shared/relations.ts";
 import { FlagBtn, FlagEditor, TutorText } from "./flags.tsx";
 import { refreshPath } from "./index.tsx";
@@ -24,7 +24,7 @@ interface Turn { role: string; content?: string; pending?: boolean; hidden?: boo
 /** What the conversation is about: the pair and how the result went, or the syllogism and the reply. */
 function About() {
   const u = u0(), c = state.cur!;
-  if (u.syllogism) return <St d={<D cls="sec tut" />} cls="pabout"><b>{syllogismText(c.c!, state.syllogismWording)}</b><small>{u.timeout ? "Time is up" : u.grade && u.grade.correct ? "Right" : "Not quite"}</small></St>;
+  if (u.syllogism) return <St d={<D cls="sec tut" />} cls="pabout"><b>{attemptText(u)}</b><small>{u.timeout ? "Time is up" : u.grade && u.grade.correct ? "Right" : "Not quite"}</small></St>;
   // Find a pair: the pair is what is judged, and a pair of the learner's own stays open until the tutor has said whether it has the relation
   const p = c.p, r = u.checked && u.res, fd = !!u.find;
   const v = !r ? "" : r.relOpen ? (r.relUns ? "pair not settled" : "pair not judged yet") : ({ ok: "all right", part: (fd ? "pair" : "relation") + " right, not everything else", pend: (fd ? "pair" : "relation") + " and cells right", bad: "not quite" } as Record<string, string>)[r.overall];

@@ -5,7 +5,7 @@ import { GUIDE, makeIndex } from "../../src/ai-shared";
 import type { DrillData } from "../../src/ai-shared";
 import { SYLLOGISM_ASK, SYLLOGISM_NOTE, syllogismBody, syllogismCard, syllogismCats, syllogismNotes } from "../../src/ai-shared/syllogism";
 import type { SyllogismAnswerView } from "../../src/ai-shared/syllogism";
-import { drawSyllogism, gradeSyllogism, gradeTimeout, syllogismText } from "../../src/domain/syllogism";
+import { drawSyllogism, gradeSyllogism, gradeThesisWhy, gradeTimeout, syllogismText, thesisText } from "../../src/domain/syllogism";
 import type { Reply, Syllogism } from "../../src/domain/syllogism";
 import openData from "../../src/data/drill-data.json";
 
@@ -78,6 +78,32 @@ test("time running out is said as no reply, and the learner's counter-example is
   expect(ex("cmp")).toContain(`"${"x".repeat(200)}"; app verdict cmp (the app does not know it well enough to say).`);
   expect(ex("cmp")).not.toContain("x".repeat(201));
   expect(syllogismBody(real, c, answered(c, "pervasion"))).not.toContain("The learner's counter-example");
+});
+
+test("thesis first: the card says how the thesis was replied to, and an attempt that ended there asks for the thesis alone", () => {
+  const t = find((x) => x.checks.t.ok && x.answer === "pervasion");
+  // I accept to a true thesis: right, and the reason was never shown
+  const acc = syllogismBody(real, t, { sentence: thesisText(t), grade: gradeSyllogism(t, "accept", "accept"), thesis: { said: "accept", ended: true } });
+  expect(acc).toContain(`Syllogism: ${JSON.stringify(thesisText(t))}`);
+  expect(acc).toContain('Learner\'s reply to the thesis: "I accept", which is right. Right reply to the thesis: "I accept".');
+  expect(acc).toContain('The attempt ended at the thesis, so the learner never saw the reason: write only a "Thesis:" line');
+  expect(acc).not.toContain("Right reply:");
+  expect(acc).not.toContain("Learner replied");
+  // Why? to a true thesis: wrong, and what was mixed up is said
+  const why = syllogismBody(real, t, { sentence: thesisText(t), grade: gradeThesisWhy(t), thesis: { said: "why", ended: true } });
+  expect(why).toContain('Learner\'s reply to the thesis: "Why?", which is wrong.');
+  expect(why).toContain("What the app says was mixed up: " + gradeThesisWhy(t).confusion);
+  // Why? to a false thesis and then a denial: the plain card, with the thesis reply before the checks are read
+  const f = find((x) => !x.checks.t.ok && x.answer === "reason");
+  const went = syllogismBody(real, f, { sentence: syllogismText(f), grade: gradeSyllogism(f, "reason", "why"), thesis: { said: "why", ended: false } });
+  expect(went).toContain('Right reply: "The reason is not established". Learner replied: "The reason is not established", which is right.');
+  expect(went).toContain('Learner\'s reply to the thesis: "Why?", which is right.');
+  expect(went).not.toContain("The attempt ended at the thesis");
+  // the time ran out on the thesis
+  const late = syllogismBody(real, f, { sentence: thesisText(f), grade: gradeTimeout(f, null), thesis: { said: null, ended: true } });
+  expect(late).toContain('The time ran out on the thesis (Sprint), so nothing was mixed up. Right reply to the thesis: "Why?".');
+  // without thesis first none of it is said
+  expect(syllogismBody(real, f, answered(f, "reason"))).not.toContain("thesis first");
 });
 
 test("the card is the instructions, the body and the fine points, which a server can take apart", () => {

@@ -4,10 +4,10 @@ import { lcRel, REL } from "../core/rel.js";
 import { checkCategories, sayCategories, sayCategory, setTicked, tickCategories, unsayCategory } from "../categories/flow.js";
 import { editPair, usePair } from "../find/flow.js";
 import { checkInstance, sayNothing, writeInstance } from "../instance/flow.ts";
-import { backSyllogism, exampleSyllogism, saySyllogism } from "../syllogism/flow.js";
-import { REPLIES, syllogismText } from "../../domain/syllogism.ts";
+import { backSyllogism, choicesNow, exampleSyllogism, saySyllogism } from "../syllogism/flow.js";
+import { reasonText, syllogismText, thesisText } from "../../domain/syllogism.ts";
 import type { Reply, Syllogism } from "../../domain/syllogism.ts";
-import { plainWords, spokenCategories, spokenCounter, spokenPair, spokenSyllogism, spokenThing, spokenYesNo } from "../../domain/spoken.ts";
+import { plainWords, spokenCategories, spokenCounter, spokenPair, spokenSyllogism, spokenThesis, spokenThing, spokenYesNo } from "../../domain/spoken.ts";
 import type { PlaceQuestion } from "../../domain/place.ts";
 import type { InstanceQuestion } from "../../domain/instance.ts";
 import type { DataIndex } from "../../ai-shared/lookup.ts";
@@ -36,7 +36,7 @@ export interface AskAny {
   auto?: boolean;
 }
 export interface Ask extends AskAny {
-  kind: "syl" | "counter" | "cats" | "yesno" | "pair" | "instance";
+  kind: "syl" | "thesis" | "counter" | "cats" | "yesno" | "pair" | "instance";
   hint: string;
   clock: boolean;
 }
@@ -73,6 +73,9 @@ export function askedHere(u: Ui): Ask | null | undefined {
     const c = state.cur && (state.cur.c as Syllogism | undefined);
     if (state.tab !== "syllogism" || !c || u.step > 1) return null;
     if (u.step === 1) return { key: "syl:" + attempt(u) + "/x", kind: "counter", say: counterLine(c), hint: "Say a counter-example, or “skip”.", clock: false };
+    // thesis first: the thesis alone, then after Why? the reason, answered with one of the two denials
+    if (u.tf && u.th === undefined) return { key: "syl:" + attempt(u) + "/t", kind: "thesis", say: thesisText(c, state.syllogismWording) + " Do you accept it?", hint: "Say “I accept” or “why”.", clock: true };
+    if (u.tf) return { key: "syl:" + attempt(u) + "/d", kind: "syl", say: reasonText(c, state.syllogismWording), hint: "Say “the reason is not established” or “there is no pervasion”.", clock: true };
     return { key: "syl:" + attempt(u) + "/r", kind: "syl", say: syllogismText(c, state.syllogismWording) + " Do you accept it?",
       hint: "Say “I accept”, “the reason is not established” or “there is no pervasion”.", clock: true };
   }
@@ -108,7 +111,8 @@ export function askedHere(u: Ui): Ask | null | undefined {
 export function laterHere(u: Ui): string[] | undefined {
   if (u.syllogism) {
     const c = state.cur && (state.cur.c as Syllogism | undefined);
-    return state.tab === "syllogism" && c && u.step === 0 ? [counterLine(c)] : [];
+    if (state.tab !== "syllogism" || !c || u.step !== 0) return [];
+    return u.tf && u.th === undefined ? [reasonText(c, state.syllogismWording)] : [counterLine(c)];
   }
   if (u.cats) {
     const q = state.cur && (state.cur.q as PlaceQuestion | undefined);
@@ -138,9 +142,14 @@ export function resultAsk(u: Ui): AskAny | null {
 /** What was said, as the step it stands for; a string (what to say) when the words are not an answer to this screen. */
 export function heardHere(a: AskAny, alts: readonly string[]): Heard | string {
   const u = state.ui as Ui, hint = a.hint || "";
-  if (a.kind === "syl") {
-    const r = spokenSyllogism(alts, REPLIES as readonly Reply[]);
+  if (a.kind === "thesis") {
+    const r = spokenThesis(alts);
     if (!r) return hint;
+    return { heard: alts[0], label: r === "accept" ? "I accept" : "Why?", row: r, apply: () => { saySyllogism(r); } };
+  }
+  if (a.kind === "syl") {
+    const order = choicesNow(u) as readonly Reply[], r = spokenSyllogism(alts, order);
+    if (!r || !order.includes(r)) return hint;
     const said = { accept: "I accept", reason: "The reason is not established", pervasion: "There is no pervasion" }[r];
     // a "no pervasion" goes on to the counter-example unless Sprint is on, and can be taken back from there
     return { heard: alts[0], label: said, row: r, apply: () => { saySyllogism(r); if (r === "pervasion" && !state.blitz) return () => backSyllogism(); } };

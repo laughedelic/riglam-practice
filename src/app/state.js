@@ -62,6 +62,8 @@ export const state = {
   instRecent: [],  // the sets of categories Find an instance asked lately, oldest first: the draw passes them over while others remain (instance/flow.ts)
   syllogismRecent: [],    // the ids of the syllogisms drawn lately, oldest first: the draw of the next one leans away from them (syllogism/flow.js)
   syllogismWording: "take", // how a syllogism is said: "take" (the class's) or "formal" (`rd-syllogism-wording`)
+  syllogismThesis: false,   // Syllogisms asks the thesis alone first, I accept or Why?, and the reason after Why? (`rd-syllogism-thesis`)
+  syllogismCounter: true,   // Syllogisms asks for a counter-example after "there is no pervasion"; off, the result comes at once and offers it (`rd-syllogism-counter` "0")
   negBrackets: true,   // a negated name of more than one word is written with brackets, "non-(wooden things)" (`rd-neg-brackets`; off: "non-wooden things")
   negation: "off",   // the negation track of Relations and Pervasions: "one" negates A or B in about a third of the pairs, "both" both sides in half of those (`rd-negation`)
   carry: null,      // what a result that was not shown left due, for the next result (practice/queue.js, moveOn)
@@ -179,6 +181,7 @@ try{
   state.syllogismEveryday=localStorage.getItem("rd-syllogism-level")==="1";
 }catch(e){}
 try{ if(localStorage.getItem("rd-syllogism-wording")==="formal") state.syllogismWording="formal"; }catch(e){}
+try{ state.syllogismThesis=localStorage.getItem("rd-syllogism-thesis")==="1"; state.syllogismCounter=localStorage.getItem("rd-syllogism-counter")!=="0"; }catch(e){}
 try{ if(localStorage.getItem("rd-ab")==="0") state.showAB=false; }catch(e){}
 try{
   state.blitz=localStorage.getItem("rd-blitz")==="1";

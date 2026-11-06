@@ -2,7 +2,7 @@ import { state } from "../state.js";
 import { ORDER } from "../core/rel.js";
 import { checkCategories, resetCategories, sayCategory, tickCategory } from "../categories/flow.js";
 import { checkInstance } from "../instance/flow.ts";
-import { backSyllogism, replyOfKey, saySyllogism } from "../syllogism/flow.js";
+import { backSyllogism, openLateExample, replyOfKey, saySyllogism } from "../syllogism/flow.js";
 import { checkDebate, chooseD, sayQ } from "../debate/flow.js";
 import { favTarget, toggleFav } from "../practice/favorites.js";
 import { next } from "../practice/queue.js";
@@ -26,7 +26,7 @@ document.addEventListener("click",e=>{
 document.addEventListener("keydown",e=>{
   // a native dialog (the sharing question) takes the keys it needs, and does not close on Escape, since it has to be answered: the menu or Settings under it keep their level
   if(/** @type {Element|null} */(e.target)?.closest?.("dialog[open]")) return;
-  if(e.key==="Escape"){ if(voicePending()){ voiceKey("Escape"); e.preventDefault(); return; } if(state.skipAsk){ closeSkipAsk(); return; } if(state.sessOpen){ sessBack(); return; } if(state.optsOpen){ toggleOpts(false); return; } if(state.view==="chat"){ closeChat(); return; } if(state.menuOpen){ toggleMenu(false); return; } if(state.ui&&state.ui.dterm){ closeDef(); return; } if(state.ui&&state.ui.pop){ state.ui.pop=null; render(); return; } if(state.ui&&state.ui.find&&state.ui.open&&!state.ui.checked){ state.ui.open=false; render(); return; } if(state.tab==="syllogism"&&state.ui&&state.ui.syllogism&&state.ui.step===1&&!state.ui.checked){ if(!voiceKey("Escape")) backSyllogism(); return; } }
+  if(e.key==="Escape"){ if(voicePending()){ voiceKey("Escape"); e.preventDefault(); return; } if(state.skipAsk){ closeSkipAsk(); return; } if(state.sessOpen){ sessBack(); return; } if(state.optsOpen){ toggleOpts(false); return; } if(state.view==="chat"){ closeChat(); return; } if(state.menuOpen){ toggleMenu(false); return; } if(state.ui&&state.ui.dterm){ closeDef(); return; } if(state.ui&&state.ui.pop){ state.ui.pop=null; render(); return; } if(state.ui&&state.ui.find&&state.ui.open&&!state.ui.checked){ state.ui.open=false; render(); return; } if(state.tab==="syllogism"&&state.ui&&state.ui.syllogism&&state.ui.step===1&&!state.ui.checked){ if(!voiceKey("Escape")) backSyllogism(); return; } if(state.tab==="syllogism"&&state.ui&&state.ui.syllogism&&state.ui.checked&&state.ui.exOpen){ openLateExample(false); return; } }
   if(state.mode!=="quiz"||!state.ui||state.optsOpen||state.sessOpen||state.skipAsk||state.view||state.tab==="review"||state.menuOpen||e.metaKey||e.ctrlKey||e.altKey) return;
   const t=e.target&&/** @type {Element} */(e.target).tagName;
   if(state.ui.stop||(state.ui.up&&state.ui.up.shown)){ if((e.key==="v"||e.key==="Enter"||e.key==="Escape")&&!e.shiftKey&&t!=="INPUT"&&t!=="TEXTAREA"&&t!=="SELECT"&&(t!=="BUTTON"||e.key!=="Enter")&&voiceKey(e.key)){ e.preventDefault(); return; } if(isEx()&&(e.key==="n"||e.key==="N")&&!e.shiftKey&&t!=="INPUT"&&t!=="TEXTAREA"){ e.preventDefault(); next(); } return; }     // a course term's stop or a stage coming in: only Next (practice/stops.ts, practice/stage-offer.ts)

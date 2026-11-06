@@ -15,6 +15,7 @@ export interface NewsItem {
 }
 
 export const NEWS: NewsItem[] = [
+  { id: "2026-11-06-thesis-first", title: "Syllogisms: thesis first, and a counter-example when you want one", text: "Syllogisms has two new switches in its Practice options. Thesis first asks the thesis alone: I accept if it is true, Why? if it is not. After Why? the reason comes, and you say whether the reason is not established or there is no pervasion. With Ask for a counter-example off, There is no pervasion goes straight to the result, and you can still name a counter-example there.", go: "syllogism" },
   { id: "2026-11-05-change-answer", title: "Change an answer in Pervasions", text: "In Pervasions you can now change an answer you already gave, until you pick the relation. Tap the question on the path, then Change answer: it is asked again, your earlier answer is marked and the example you wrote is still there. The answers after it stay as they were. In Sprint the answers stay final.", go: "debate" },
   { id: "2026-11-04-other-names", title: "Existents by their other names", text: "Questions about existents now also call them by their other names: established bases, objects of knowledge, phenomena, objects of comprehension and objects. Permanent phenomena can now also appear as non-functioning phenomena.", go: "practice" },
   { id: "2026-11-04-categories-words", title: "Categories starts clearer", text: "In Categories, the words is and not now wait until you select the first category, instead of standing there before you have done anything.", go: "categories" },

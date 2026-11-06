@@ -30,6 +30,14 @@ export function setWording(k){ state.wording=k; store("rd-wording",k); render();
 export function setNegation(k){ state.negation=k; store("rd-negation",k); saveProgress(); render(); }
 export function setNegBrackets(on){ state.negBrackets=on; store("rd-neg-brackets",on?"1":"0"); render(); }
 export function setSyllogismWording(k){ state.syllogismWording=k; store("rd-syllogism-wording",k); render(); }
+/** Thesis first in Syllogisms: the thesis alone, I accept or Why?, then the reason. A syllogism on screen that is not answered yet is asked the new way at once. */
+export function setSyllogismThesis(on){
+  state.syllogismThesis=!!on; store("rd-syllogism-thesis",on?"1":"0");
+  const u=state.ui; if(u&&u.syllogism&&!u.checked&&u.step===0&&!u.th) u.tf=!!on;
+  render();
+}
+/** Whether Syllogisms asks for a counter-example after "there is no pervasion" before the result; off, the result offers it. */
+export function setSyllogismCounter(on){ state.syllogismCounter=!!on; store("rd-syllogism-counter",on?"1":"0"); render(); }
 export function toggleSess(on){
   const was=state.sessOpen; state.sessOpen=on===undefined?!was:on;
   if(!state.sessOpen){ state.sessPage=null; state.resetAsk=""; }
