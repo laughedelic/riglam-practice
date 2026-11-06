@@ -31,7 +31,7 @@ const touching = () => { if (state.hand) return state.hand === "touch"; try { re
 const bump = (ms = HIT) => { try { if (navigator.vibrate && touching()) navigator.vibrate(ms); } catch { /* no haptics */ } };
 export { bump };
 /** The sound of a station taken, for a mouse or the keyboard: a finger has the bump in the hand instead (`touching`). */
-const knock = () => { if (!touching()) cue("knock"); };
+export const knock = () => { if (!touching()) cue("knock"); };
 
 /**
  * The curb a station is pulled over, as the lab has it. Under it the finger moves the station less and less, and at it the station sticks; once the finger has pressed on

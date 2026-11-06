@@ -48,7 +48,7 @@ function openCase(i: number) { const u = u0(); u.ci = i; u.pall = false; render(
 function nothing(c: CellId, pull: Pull) { if (!mayBeEmpty(c)) return; const x = u0().cells[c]; x.t = ""; x.none = true; render(); commit(pull); }
 
 /** The strip under the top bar: the pair with its relation, folded; pull it anywhere (or tap it) to look back at `full`, the steps done. While it is
- *  unfolded, a touch anywhere outside it folds it again. */
+ *  unfolded, a touch anywhere outside it folds it again, and a pull down on it goes one step back to the pair before (back.tsx). */
 function Strip({ rel, full }: { rel: RelKey; full: ComponentChildren }) {
   const u = u0(), g = useRef<{ y0: number; moved: boolean } | null>(null), box = useRef<HTMLDivElement>(null), open = !!u.pstrip;
   const set = (o: boolean) => { u.pstrip = o; refreshPath(); };
