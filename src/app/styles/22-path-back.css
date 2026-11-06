@@ -1,13 +1,23 @@
-/* One step back (path/back.tsx, practice/trail.ts): the thread pulled down at the page's top brings the station of the previous result into view above it. `--bk` is how far the page is pulled
-   down; the station stands --bkh above the page's top and comes down with it, the thread running from it to the page's first bullet (which the page's own line comes up out of). Over the curb
-   (`bkover`) the station fills in, as the stations that can be taken do. Let go short of the curb the page goes back (`bkrest`); over it, it leaves down (`bkrun`) and the result comes in. */
-.pa .pscroll{--bk:0px; --bkh:48px}
-.pa .bkhead{display:none; position:absolute; left:0; right:0; top:0; height:var(--bkh); z-index:1; pointer-events:none; transform:translateY(calc(var(--bk) - var(--bkh)))}
-.pa .bkhead::before{content:""; position:absolute; top:0; bottom:0; left:calc(var(--m) - var(--lw) / 2); width:var(--lw); background:linear-gradient(to bottom,var(--tk) 0,var(--tk) 52%,transparent); opacity:.9}
-.pa .bkhead .bkst{position:absolute; left:0; right:0; top:2px}
+/* One step back (path/back.tsx, practice/trail.ts): the top node pulled down brings the station of the previous result into view above the thread. `--bk` is how far the thread is pulled
+   down: the page and, in the examples, the folded heading over it (the top of the thread) come down together, and the room they leave under the top bar (from --bkt, where the first of
+   them stands, and over the heading's top padding) shows the station: it slides in with the thread's top until it is all there, then stays, and the thread runs on from it down to the top node, the color of a walked
+   stretch, as the first section's line takes it up (it comes up out of nothing otherwise). Over the curb (`bkover`) the station fills in, as the stations that can be taken do. A
+   hint (`bkhint`, the page itself scrolled past its top) shows the station's diamond only. Let go short of the curb the thread goes back (`bkrest`); over it, it leaves down (`bkrun`). */
+@property --bk{syntax:"<length>"; inherits:true; initial-value:0px}
+.pa .main{--bkh:44px}
+.pa .bkhead{display:none; position:absolute; left:0; right:0; top:var(--bkt,0px); height:calc(max(0px,var(--bk)) + var(--bkx,0px)); overflow:hidden; z-index:7; pointer-events:none}
+/* the folded heading's own line starts under its top padding: the thread from the station runs on over it */
+.pa .main:has(.pstrip){--bkx:8px}
+.pa .bkhead::before{content:""; position:absolute; bottom:0; top:calc(min(0px,var(--bk) - var(--bkh)) + var(--bkh) / 2); left:calc(var(--m) - var(--lw) / 2); width:var(--lw); background:var(--ink); opacity:.72}
+.pa .bkhead .bkst{position:absolute; left:0; right:0; top:min(0px,var(--bk) - var(--bkh)); height:var(--bkh)}
 .pa .bkhead .bkst .gol b{color:var(--slate)}
-.pa .pscroll.bkpull .bkhead{display:block}
-.pa .pscroll.bkpull .pathc{transform:translateY(var(--bk))}
-.pa .pscroll.bkrest .pathc,.pa .pscroll.bkrest .bkhead{transition:transform .28s cubic-bezier(.2,.9,.3,1.3)}
-.pa.pa .pscroll.bkover .bkhead .stn.stk-back .go{background-color:var(--slate)}
-.pa.pa .pscroll.bkover .bkhead .stn.stk-back .go .mk{color:var(--paper)}
+.pa .main.bkhint .bkhead .bkst .gol{opacity:0}
+.pa .main.bkpull .bkhead{display:block}
+.pa .main.bkpull :is(.pscroll .pathc,.pstrip){transform:translateY(var(--bk))}
+.pa .main.bkpull .pathc > .sx.first:not(.ptail){--pv:color-mix(in srgb,var(--ink) 72%,var(--paper))}
+.pa .main.bkpull .pathc > .sx.first.gap::before{background:repeating-linear-gradient(to bottom,var(--gold) 0 3px,transparent 3px 8px)}
+.pa .main.bkrest{transition:--bk .28s cubic-bezier(.2,.9,.3,1.3)}
+.pa.pa .main.bkover .bkhead .stn.stk-back .go{background-color:var(--slate)}
+.pa.pa .main.bkover .bkhead .stn.stk-back .go .mk{color:var(--paper)}
+/* the top node is a handle where the thread can be pulled back */
+.pa .main:has(> .bkhead) .pathc > .sx.first > :is(.sechead,.pn){cursor:grab}
