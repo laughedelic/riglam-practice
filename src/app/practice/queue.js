@@ -11,6 +11,7 @@ import { closeStageUp, passStageOffer, takeStageUp } from "./stage-offer.ts";
 import { takeStop } from "./stops.ts";
 import { nextGenerated } from "./universe.js";
 import { holdAhead, takeAhead } from "./ahead.ts";
+import { comeForward, keepBehind } from "./trail.ts";
 import { cue } from "../sound/play.ts";
 import { render, top0 } from "../shell/render.js";
 
@@ -33,7 +34,14 @@ export function pairAhead(){
 }
 export function advance(){ passNegOffer(); state.cur=nextPair(); state.ui=freshUi(); state.mode="quiz"; }
 // Next: a course term's stop comes first when one is due (practice/stops.ts); from the stop, Next goes on to the question. `sound`: false when a sound was just played (moveOn).
-export function next(sound=true){ if(state.ui&&state.ui.ctl) state.ui.ctl.abort(); passStageOffer(); if(takeStageUp()){ render(); top0(); cue("stage"); return; } closeStageUp(); if(takeStop()){ render(); top0(); cue("definition",{soft:state.ui.stop.why!=="new"}); return; } if(state.ui&&state.ui.debate) advanceDebate(); else if(state.ui&&state.ui.find) advanceFind(); else if(state.ui&&state.ui.cats) advanceCategories(); else if(state.ui&&state.ui.inst) advanceInstance(); else if(state.ui&&state.ui.syllogism) advanceSyllogism(); else advance(); takeCarry(); render(); top0(); if(sound) cue("next"); }
+export function next(sound=true){
+  if(state.ui&&state.ui.ctl) state.ui.ctl.abort();
+  if(comeForward()){ render(); top0(); if(sound) cue("next"); return; }     // from the result pulled back to: the attempt held goes back on screen (practice/trail.ts)
+  passStageOffer(); if(takeStageUp()){ render(); top0(); cue("stage"); return; } closeStageUp(); if(takeStop()){ render(); top0(); cue("definition",{soft:state.ui.stop.why!=="new"}); return; }
+  const left={cur:state.cur,ui:state.ui};
+  if(state.ui&&state.ui.debate) advanceDebate(); else if(state.ui&&state.ui.find) advanceFind(); else if(state.ui&&state.ui.cats) advanceCategories(); else if(state.ui&&state.ui.inst) advanceInstance(); else if(state.ui&&state.ui.syllogism) advanceSyllogism(); else advance();
+  keepBehind(left); takeCarry(); render(); top0(); if(sound) cue("next");
+}
 /** What a result that was not shown left due (moveOn) goes on the next attempt drawn, to show on its result. */
 function takeCarry(){ const k=state.carry, u=state.ui; state.carry=null; if(!k||!u) return; if(k.offer&&!u.offer) u.offer=k.offer; if(k.guideDown&&!u.guideDown) u.guideDown=k.guideDown; }
 /**

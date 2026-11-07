@@ -27,6 +27,7 @@ import { syllogismScreen } from "./syllogism.tsx";
 import { TutorPage } from "./tutor.tsx";
 import { PullCtx, Toast, TopBar, turnAside } from "./shell.tsx";
 import { Pull } from "./gesture.ts";
+import { BackHead } from "./back.tsx";
 import { coarse } from "./ui.tsx";
 
 /** "Skip anyway": the question goes, then the page turns aside and the next one arrives (the page was not turned before: it asked first). */
@@ -127,6 +128,7 @@ export function App() {
         <div class={"lay" + (state.menuOpen ? " away" : "")} inert={state.menuOpen}>
           <div class="main" inert={over && !barLive}>
             {s.node}
+            <BackHead />
             <div class="riser" aria-hidden="true" />
           </div>
           <OptionsSheet />

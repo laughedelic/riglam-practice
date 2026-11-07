@@ -43,6 +43,7 @@ const I: Record<string, string> = {
   ups: '<path d="M6.5 11.5L12 6l5.5 5.5M6.5 18L12 12.5 17.5 18"/>',
   spark: '<path d="M12 3.5l2.2 6.3 6.3 2.2-6.3 2.2L12 20.5l-2.2-6.3L3.5 12l6.3-2.2z"/>',
   back: '<path d="M15 5l-7 7 7 7"/>',
+  above: '<path d="M5 15l7-7 7 7"/>',
   tilde: '<path d="M4.5 13.5c2-4.2 4.5-4.2 7.5 0s5.5 4.2 7.5 0"/>',
   again: '<path d="M12 7.5v4.8l-3.1 1.9"/><path d="M19.9 13.6A8 8 0 1 1 17.7 6.3"/><path d="M20.4 3.9v3.9h-3.9"/>',     // a clock turning forward: it comes again later
 };
