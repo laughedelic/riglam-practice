@@ -49,6 +49,7 @@ export const state = {
   mode: "loading",
   ui: null,
   cur: null,
+  trails: {},        // each exercise's one step back, the result Next went on from, and the attempt held while it is back on screen (practice/trail.ts)
   retryQ: [],
   recent: [],
   ahead: null,       // the pair drawn ahead of the Next that shows it, with a natural voice (practice/ahead.ts)

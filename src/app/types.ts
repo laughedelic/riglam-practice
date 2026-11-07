@@ -20,6 +20,7 @@ import type { TransferSlot } from "../ui/data-transfer";
 import type { KeyHeld } from "../platform/types";
 import type { Look } from "./path/look.ts";
 import type { Rig } from "./sound/courtyard.ts";
+import type { Trail } from "./practice/trail.ts";
 
 export type { Pair, PoolEntry, Verdict };
 
@@ -458,6 +459,8 @@ export interface State {
   motion: boolean;
   ui: Ui | null;
   cur: Current | null;
+  /** each exercise's one step back (practice/trail.ts) */
+  trails: Record<string, Trail>;
   retryQ: Pair[];
   retryTag: string;
   recent: string[];
